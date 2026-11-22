@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveComposerDiscoveryOutcome } from "../AssistantDock";
+import { resolveComposerDiscoveryOutcome } from "../hooks/resolve-composer-discovery-outcome";
 import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
 import type { ComposerHostBinding, TovuComposerCapability } from "@/features/plugins/composer-capabilities";
 import type { ComposerDiscoverySelection } from "@jini-ai/chat/react";
@@ -18,7 +18,7 @@ function selection(itemId: string, argument?: string | null): ComposerDiscoveryS
 }
 
 async function projectionWith(capabilities: readonly TovuComposerCapability[]) {
-  return projectComposerCapabilities([{ id: "test", list: async () => capabilities }]);
+  return projectComposerCapabilities({ sources: [{ id: "test", list: async () => capabilities }] });
 }
 
 describe("resolveComposerDiscoveryOutcome", () => {
@@ -39,7 +39,7 @@ describe("resolveComposerDiscoveryOutcome", () => {
   });
 
   it("resolves a compose-text binding into a draft-replacing outcome, without calling the tool endpoint", async () => {
-    const resolve = (argument: string | null | undefined): ComposerHostBinding => ({
+    const resolve = ({ argument }: { argument: string | null | undefined }): ComposerHostBinding => ({
       kind: "compose-text",
       text: `Search the web for: ${argument}`,
     });

@@ -46,7 +46,7 @@ for (const operation of operations) {
     const ready = deferred();
     const calls: unknown[][] = [];
     const port = strictPort(operation.method, operation.argument, operation.result, calls);
-    const kernel = gateJournalKernel(port, ready.promise);
+    const kernel = gateJournalKernel({ kernel: port, ready: ready.promise });
     assert.equal(kernel.ready, ready.promise);
     const done = operation.invoke(kernel);
     try {
@@ -66,7 +66,7 @@ for (const operation of operations) {
   test(`${operation.method} rejects with the readiness error without entering the underlying kernel`, async () => {
     const ready = deferred();
     const calls: unknown[][] = [];
-    const kernel = gateJournalKernel(strictPort(operation.method, operation.argument, operation.result, calls), ready.promise);
+    const kernel = gateJournalKernel({ kernel: strictPort(operation.method, operation.argument, operation.result, calls), ready: ready.promise });
     const error = new Error(`schema unavailable for ${operation.method}`);
     const first = assert.rejects(operation.invoke(kernel), actual => actual === error);
     ready.reject(error);
@@ -79,7 +79,7 @@ for (const operation of operations) {
   test(`${operation.method} propagates the underlying operation error after readiness`, async () => {
     const calls: unknown[][] = [];
     const error = new Error(`port failure for ${operation.method}`);
-    const kernel = gateJournalKernel(strictPort(operation.method, operation.argument, operation.result, calls, error), Promise.resolve());
+    const kernel = gateJournalKernel({ kernel: strictPort(operation.method, operation.argument, operation.result, calls, error), ready: Promise.resolve() });
     await assert.rejects(operation.invoke(kernel), actual => actual === error);
     assert.deepEqual(calls, [[operation.argument]]);
   });
@@ -90,7 +90,7 @@ for (const fails of [false, true]) {
   test(`close waits for ${fails ? "failed" : "successful"} readiness and releases the underlying handle`, async () => {
     const ready = deferred();
     const calls: unknown[][] = [];
-    const kernel = gateJournalKernel(strictPort("close", undefined, undefined, calls), ready.promise);
+    const kernel = gateJournalKernel({ kernel: strictPort("close", undefined, undefined, calls), ready: ready.promise });
     const closed = kernel.close();
     try {
       await new Promise<void>(resolve => setImmediate(resolve));
@@ -107,7 +107,7 @@ for (const fails of [false, true]) {
 test("close propagates a close failure even after the schema open failed", async () => {
   const calls: unknown[][] = [];
   const error = new Error("close failed");
-  const kernel = gateJournalKernel(strictPort("close", undefined, undefined, calls, error), Promise.reject(new Error("open failed")));
+  const kernel = gateJournalKernel({ kernel: strictPort("close", undefined, undefined, calls, error), ready: Promise.reject(new Error("open failed")) });
   await assert.rejects(kernel.close(), actual => actual === error);
   assert.deepEqual(calls, [[]]);
 });

@@ -50,7 +50,7 @@ function buildTestApp(themesDir: string): express.Express {
     themesDir,
     // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
     // empty in-memory repo, matching this fixture's lack of any posts to collide with.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());
@@ -58,7 +58,7 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
   return app;
 }
 

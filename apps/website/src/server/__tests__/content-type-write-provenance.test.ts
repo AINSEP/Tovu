@@ -15,7 +15,7 @@ import { startTestServer } from "./helpers/http-test-server.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { createContributionRegistry } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
@@ -41,7 +41,7 @@ installFirstPartyToolContributors({ contributions });
  * The question this exists to make answerable: *"was this content-type change made by a human
  * admin or by the AI assistant, and which one?"* `actor_id` alone could never answer it — the
  * assistant runs under the very same human principal id (Tovu's proxy reads it from the browser
- * session and stamps it into the run's `contextRef`; `server/modules/assistant.ts`), so both paths
+ * session and stamps it into the run's `contextRef`; `server/runtime/composition/modules/assistant.ts`), so both paths
  * record an identical `actorId`. The distinguishing fact is the actor CLASS, which now rides the
  * existing revision row as `principal_kind`.
  *
@@ -62,9 +62,9 @@ function buildApp(): { app: express.Express; deps: ReturnType<typeof createRoute
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createContentTypesModule(deps).registerRoutes?.(app);
+  createContentTypesModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -224,7 +224,7 @@ test("an agent-tool write records principalKind 'agent' while carrying the SAME 
 
   // 2. The SAME human asks the assistant to make the next change. The daemon executes the tool
   //    under the principal Tovu's proxy stamped into the run — the same principal id as above.
-  const registration = buildAssistantToolRegistrations(toolRegistryDeps(deps), undefined, { contributions }).find(
+  const registration = buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaces: undefined, options: { contributions } }).find(
     (r) => r.descriptor.id === "collections_content_type_update_fields"
   );
   assert.ok(registration);
@@ -259,7 +259,7 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
   });
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaceExchanges }, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaces: { surfaceExchanges }, options: { contributions } }).map((r) => [r.descriptor.id, r]));
   const ctx = (input: Record<string, unknown>) => ({
     executionId: "exec-1",
     principal: { id: principalId },

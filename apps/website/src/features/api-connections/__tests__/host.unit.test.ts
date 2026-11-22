@@ -11,7 +11,8 @@ import { after, afterEach, before, test } from "node:test";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import { buildVaultAad, InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from "../vault-stores.js";

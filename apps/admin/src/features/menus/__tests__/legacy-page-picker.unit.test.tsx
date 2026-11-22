@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
-import type { AdminMenu } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
@@ -11,7 +11,7 @@ it("shows the Page picker for a migrated unhinted UUID and retains both fields a
     locations: [], version: 1, updatedAt: "2026-10-04", items: [{ id: "about", label: "About", target: { kind: "entryRef", entryId } }] };
   const fake = createFakeMenusPort({ menus: [menu] });
   const port = { ...fake, listPages: async () => ({ pages: [{ id: entryId, title: "About us", status: "published" as const, publicPath: "/about" }] }) };
-  const useEditor = (id: string | null) => useMenuEditor(id, { port, navigate: () => {}, t: (key) => key });
+  const useEditor = ({ menuId: id }: { menuId: string | null }) => useMenuEditor({ menuId: id, dependencies: { port, navigate: () => {}, t: (key) => key } });
   const view = render(<MenuEditor menuId="footer" useMenuEditorHook={useEditor} />);
   await waitFor(() => expect(screen.getByRole("combobox", { name: "Page" })).toHaveValue(entryId));
   expect(screen.queryByRole("textbox", { name: "Entry ID" })).toBeNull();

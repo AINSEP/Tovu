@@ -99,9 +99,9 @@ test("the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to 
 });
 
 test("only file values starting with host/ are host requests", () => {
-  assert.equal(isHostPluginFileRequest("host/brew-ratios.md"), true);
-  assert.equal(isHostPluginFileRequest("host/../x"), true, "routed to the overlay reader, which refuses it");
-  for (const file of ["references/a.md", "SKILL.md", "/host/a.md", undefined, 3]) assert.equal(isHostPluginFileRequest(file), false);
+  assert.equal(isHostPluginFileRequest({ file: "host/brew-ratios.md" }), true);
+  assert.equal(isHostPluginFileRequest({ file: "host/../x" }), true, "routed to the overlay reader, which refuses it");
+  for (const file of ["references/a.md", "SKILL.md", "/host/a.md", undefined, 3]) assert.equal(isHostPluginFileRequest({ file }), false);
 });
 
 const SHADCN = `---
@@ -127,15 +127,15 @@ allowed-tools:
 `;
 
 test("Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical", () => {
-  const delivered = removeChatRefusedToolPermissions(SHADCN);
+  const delivered = removeChatRefusedToolPermissions({ text: SHADCN });
   assert.equal(delivered, SHADCN.replace('  - "Bash"\n  - "web_fetch"', '  - "web_fetch"'));
   assert.match(delivered, /```yaml\n---\nallowed-tools:\n {2}- "Bash"\n---\n```/, "an example is not delivered frontmatter");
   const section = `<<AGENT_PLUGIN pluginId="ui-ux-design">>\n${SHADCN}\n<</AGENT_PLUGIN>>`;
-  assert.doesNotMatch(removeChatRefusedToolPermissions(section).split("```yaml")[0]!, /"Bash"/);
+  assert.doesNotMatch(removeChatRefusedToolPermissions({ text: section }).split("```yaml")[0]!, /"Bash"/);
   const notice = `Caution.\n\n${SHADCN}`;
-  assert.doesNotMatch(removeChatRefusedToolPermissions(notice).split("```yaml")[0]!, /"Bash"/);
+  assert.doesNotMatch(removeChatRefusedToolPermissions({ text: notice }).split("```yaml")[0]!, /"Bash"/);
   for (const text of ["# No frontmatter\n\n- Bash", "---\nname: x\nallowed-tools: Read, Bash\n---\n", "---\nname: x\ntools:\n  - Bash\n---\n"]) {
-    assert.equal(removeChatRefusedToolPermissions(text), text);
+    assert.equal(removeChatRefusedToolPermissions({ text }), text);
   }
 });
 
@@ -143,19 +143,19 @@ test("Markdown rules before another plugin do not hide its refused tool permissi
   const body = '# Host instructions\n\n---\n\nUse the supported tools.\n\n';
   const skill = '---\nname: next-plugin\nallowed-tools:\n  - "Read"\n  - "Bash"\n---\n\n# Next plugin';
   const framed = `${body}<<AGENT_PLUGIN pluginId="next-plugin">>\n${skill}\n<</AGENT_PLUGIN>>`;
-  assert.equal(removeChatRefusedToolPermissions(framed), framed.replace('  - "Bash"\n', ''));
-  assert.equal(removeChatRefusedToolPermissions(body + skill), (body + skill).replace('  - "Bash"\n', ''));
+  assert.equal(removeChatRefusedToolPermissions({ text: framed }), framed.replace('  - "Bash"\n', ''));
+  assert.equal(removeChatRefusedToolPermissions({ text: body + skill }), (body + skill).replace('  - "Bash"\n', ''));
 });
 
 test("Markdown rules and fenced frontmatter examples leave body Bash lists unchanged", () => {
   const body = '# Instructions\n\n---\n\nallowed-tools:\n  - "Bash"\n\n```yaml\n\n---\nname: example\nallowed-tools:\n  - "Bash"\n---\n```\n';
-  assert.equal(removeChatRefusedToolPermissions(body), body);
+  assert.equal(removeChatRefusedToolPermissions({ text: body }), body);
 });
 
 test("frontmatter with leading YAML comments or blank lines still removes refused tools", () => {
   for (const lead of ["\n", "# Tool permissions\n\n"]) {
     const skill = `---\n${lead}name: commented\nallowed-tools:\n  - Bash\n  - Read\n---\n# Body`;
-    assert.equal(removeChatRefusedToolPermissions(skill), skill.replace('  - Bash\n', ''));
+    assert.equal(removeChatRefusedToolPermissions({ text: skill }), skill.replace('  - Bash\n', ''));
   }
 });
 

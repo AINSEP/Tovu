@@ -4,7 +4,7 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 export const barePost: PublicPostRecord = { id: 'draft-1', workspaceId: 'w', slug: 'draft-slug', title: 'Draft title', status: 'draft', kind: 'page', bodyFormat: 'html', bodyHtml: '<!doctype html><html><body><p>Saved draft</p></body></html>', bodyJson: { type: 'doc', content: [] }, updatedAt: '2026-10-01T00:00:00Z', version: 1, templateChoice: '' };
 export function bareDeps(posts: PublicPostRecord[] = [barePost]) {
-  const repo = new InMemoryPostRepo(structuredClone(posts));
+  const repo = new InMemoryPostRepo({}, { initialRows: structuredClone(posts) });
   let writes = 0;
   for (const method of ['save', 'saveIfVersion', 'softDelete', 'hardDelete', 'writeAutosave', 'clearAutosave', 'appendRevision'] as const) {
     const original = repo[method];

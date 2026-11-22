@@ -1,23 +1,26 @@
-import { agentHandle } from "@jini-ai/agentic";
-import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, type ConsentFieldProblem } from "@jini-ai/admin/consent/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, CONSENT_PREVIEW_DESKTOP_WIDTH, type ConsentFieldProblem } from "@jini-ai/cookie-consent/react";
+
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
+import { adminKit } from "@/integrations/jini-kits";
 import { ConsentOverviewTab } from "./ConsentOverviewTab";
 import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
-import { canResetConsentCss, CONSENT_PREVIEW_DESKTOP_WIDTH, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
+import { canResetConsentCss, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
 import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "./consent-settings.css";
 
 /**
  * @file Administration → Cookie Consent (`/admin/consent?tab=overview|banner|look|rules`). Edits
  * autosave as a draft revision; the live site changes only on Publish. The fields and the sandboxed
- * preview are Jini's (`@jini-ai/admin/consent/react`); this file binds them to the revisions API.
+ * preview are Jini's (`@jini-ai/cookie-consent/react`); this file binds them to the revisions API.
  */
 
 export interface CookieConsentProps {
+  hooks?: { useConsentPage: typeof useConsentPage; useConsentReadiness: typeof useConsentReadiness };
   /** The `?tab=` query value from `panels.tsx`; unknown or absent opens Overview. */
   tabId?: string | null;
   /** Injected in tests; the admin API otherwise. */
@@ -107,20 +110,23 @@ function ConsentPreviewPane({ page, preview, fit, translation }: {
   fit: ReturnType<typeof useConsentPreviewScale>;
   translation: ConsentTranslation;
 }) {
+  const value = page.value;
+  if (!value) throw new Error("cookie consent preview has no loaded settings");
   return (
     <div className="card consent-preview-pane" ref={fit.ref} style={{ "--consent-preview-scale": fit.scale, "--consent-preview-desktop-width": `${CONSENT_PREVIEW_DESKTOP_WIDTH}px` } as CSSProperties}>
       {preview.error && <p className="notice error" role="alert">{preview.error}</p>}
       {/* "My own" and "None" render no Jini banner, so its skipped styles are noise there. */}
-      <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (page.value!.bannerMode ?? "jini") === "jini"} t={translation.t} />
+      <CssWarnings warnings={preview.warnings} enabled={Boolean(page.editor?.bannerModes) && (value.bannerMode ?? "jini") === "jini"} t={translation.t} />
       <ConsentPreviewFrame html={preview.html} status={translation.t("Loading preview…")} dictionary={translation.dictionary} />
     </div>
   );
 }
 
-function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
-  const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
-  const fit = useConsentPreviewScale();
-  const value = page.value!;
+function EditorTab({ tab, page, port, translation, delays, hooks = { useConsentPreview, useConsentPreviewScale } }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"]; hooks?: { useConsentPreview: typeof useConsentPreview; useConsentPreviewScale: typeof useConsentPreviewScale }; }) {
+  const preview = hooks.useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
+  const fit = hooks.useConsentPreviewScale();
+  const value = page.value;
+  if (!value) throw new Error("cookie consent editor has no loaded settings");
   const { textLimits, regionModes, bannerModes, placements } = page.editor ?? {};
   const fields = { value, onChange: page.onChange, problems: page.problems, dictionary: translation.dictionary, disabled: page.saveState === "conflict", limits: textLimits };
   if (tab === "rules") {
@@ -141,7 +147,7 @@ function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<Cons
   return (
     <div className="consent-editor consent-editor-with-preview">
       <div className="card">
-        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={bannerModes} /> : <ConsentLookFields {...fields} placements={placements} />}
+        {tab === "banner" ? <ConsentBannerFields {...fields} bannerModes={bannerModes} /> : <ConsentLookFields {...fields} placements={placements} lightColors={adminKit.theme.defaultAdminTheme.light} />}
         {tab === "look" && <ResetStyle page={page} t={translation.t} disabled={fields.disabled} />}
       </div>
       <ConsentPreviewPane page={page} preview={preview} fit={fit} translation={translation} />
@@ -168,13 +174,13 @@ function ConsentTabContent({ activeTab, page, port, translation, delays, readine
   </>;
 }
 
-export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTranslate = useConsentTranslate, delays }: CookieConsentProps) {
+export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTranslate = useConsentTranslate, delays, hooks = { useConsentPage, useConsentReadiness } }: CookieConsentProps) {
   const translation = useTranslate();
   const { t } = translation;
-  const page = useConsentPage({ port, t }, consentDelayOptions({ delayMs: delays?.autosaveMs }));
+  const page = hooks.useConsentPage({ port, t }, consentDelayOptions({ delayMs: delays?.autosaveMs }));
   const activeTab = resolveConsentTabId({ tabId });
   // Overview re-checks after each publication and whenever it is reopened on a newer draft.
-  const readiness = useConsentReadiness({ port, refresh: `${page.publishedCount}:${activeTab === "overview" ? page.draftId : ""}`, t });
+  const readiness = hooks.useConsentReadiness({ port, refresh: `${page.publishedCount}:${activeTab === "overview" ? page.draftId : ""}`, t });
   return (
     <div className="page consent-page">
       <div className="page-header">
@@ -186,7 +192,7 @@ export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTr
         {page.value && <PublishBar page={page} t={t} />}
       </div>
       <Notices page={page} t={t} />
-      <TabBar ariaLabel={t("Cookie Consent")} tabs={tabsFor(t)} activeId={activeTab} onChange={(next) => navigate(`/consent?tab=${next}`, { replace: true })} containerHandle="consent-tab-bar" />
+      <TabBar ariaLabel={t("Cookie Consent")} tabs={tabsFor(t)} activeId={activeTab} onChange={(next) => navigate({ routePath: `/consent?tab=${next}` }, { replace: true })} containerHandle="consent-tab-bar" />
       <ConsentTabContent activeTab={activeTab} page={page} port={port} translation={translation} delays={delays} readiness={readiness} />
     </div>
   );

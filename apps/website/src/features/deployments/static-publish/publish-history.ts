@@ -111,7 +111,7 @@ export interface PublishHistoryStore {
 /** Test double — append-only like the real table (a `Map<key, PublishHistoryEntry[]>`, not
  *  `Map<key, PublishHistoryEntry>`), so a test can actually assert "the second publish did not erase
  *  the first." Dies on process restart, same as any in-memory double; production always uses
- *  `SqlitePublishHistoryStore` instead (`server/deps.ts`), never this class. */
+ *  `SqlitePublishHistoryStore` instead (`apps/website/src/server/runtime/composition/deps.ts`), never this class. */
 export class InMemoryPublishHistoryStore implements PublishHistoryStore {
   private readonly entriesByWorkspace = new Map<UUID, PublishHistoryEntry[]>();
 
@@ -120,7 +120,8 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
     const latest = new Map<string, PublishHistoryEntry>();
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      const row = rows[i]!;
+      const row = rows[i];
+      if (row === undefined) throw new Error("Publish history has no row at its recorded position");
       const key = JSON.stringify([row.kind ?? "static", row.target, row.projectName]);
       if (isReplayableDestination({ row }) && !latest.has(key)) latest.set(key, row);
       if (latest.size > 200) break;
@@ -131,13 +132,15 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
   async getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null> {
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     for (let i = rows.length - 1; i >= 0; i -= 1) {
-      if ((rows[i]!.kind ?? "static") === "static" && rows[i]!.target === input.target) return rows[i]!;
+      const row = rows[i];
+      if (row === undefined) throw new Error("Publish history has no row at its recorded position");
+      if ((row.kind ?? "static") === "static" && row.target === input.target) return row;
     }
     return null;
   }
 
   async list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]> {
-    const limit = resolvePublishHistoryListLimit(input.limit);
+    const limit = resolvePublishHistoryListLimit({ requested: input.limit });
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     const matching = input.target === undefined ? rows : rows.filter((row) => row.target === input.target);
     // Newest-first: entries are appended oldest-to-newest, so reverse before slicing to `limit`.

@@ -5,7 +5,7 @@ import { resolveHtmlPageEmbeds } from '@jini-ai/cms/widgets/html';
 import { InMemoryEntryRepo } from '#src/features/entries/index';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
-import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render';
+import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 
@@ -25,7 +25,7 @@ test('gallery resolves real media and renders ordered figures, captions, respons
   const images = [{ mediaId: 'one', alt: 'Author alt', caption: '<first>' }, { mediaId: 'two', alt: '' }];
   const html = marker({ images, layout: 'grid', columns: 2 }) + marker({ images: [...images].reverse(), layout: 'carousel' });
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo }, input: { workspaceId, html } });
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
   assert.equal((rendered.match(/<figure /g) ?? []).length, 4);
   assert.ok(rendered.includes('jini-gallery-grid'));
   assert.ok(rendered.includes('jini-gallery-carousel'));
@@ -45,9 +45,9 @@ test('gallery media references protect every image and publish keys remain visib
   const refs = extractHtmlEntryRefs({ workspaceId, sourceEntryId: 'page', html });
   assert.deepEqual(refs.map(ref => [ref.targetKind, ref.targetId]), [['asset', 'one'], ['asset', 'two'], ['asset', 'one']]);
   assert.equal(new Set(refs.map(ref => ref.fieldPath)).size, 3);
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: html })].sort(), ['one', 'three', 'two']);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: html } })].sort(), ['one', 'three', 'two']);
   const encoded = html.replace(/data-embed-config='([^']*)'/g, (_match, json: string) => `data-embed-config="${json.replace(/"/g, '&quot;')}"`);
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: encoded })].sort(), ['one', 'three', 'two']);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: encoded } })].sort(), ['one', 'three', 'two']);
 });
 
 test('50 gallery image references do not hide the following ordinary media embed', () => {
@@ -63,7 +63,7 @@ test('gallery source URLs retain the image renderer security policy and missing-
   const config: JsonObject = { layout: 'masonry', images: [{ src: 'https://example.com/photo.jpg' }, { src: 'https://example.com/workspaces/ws/media/id/./original', alt: 'Private' }] };
   const html = marker(config);
   const resolved = new Map([['gallery', new Map([['gallery:1', { componentId: 'gallery', props: { config, media: {} } }]])]]);
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
   assert.ok(rendered.includes('src="https://example.com/photo.jpg"'));
   assert.ok(rendered.includes('data-jini-alt-missing="true"'));
   assert.ok(!rendered.includes('src="https://example.com/workspaces/'));

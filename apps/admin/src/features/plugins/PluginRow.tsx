@@ -1,14 +1,15 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { pluginRowDetailView, pluginRowFacts } from "./rules";
 import { usePluginRowFocus } from "./hooks/use-plugin-row-focus.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
  * tabs render through. Structurally mirrors `AgentPluginRow.tsx` (icon, name + version chip, a
@@ -39,6 +40,7 @@ import { usePluginRowFocus } from "./hooks/use-plugin-row-focus.hooks";
  */
 
 export interface PluginRowProps {
+  hooks?: { usePluginRowFocus: typeof usePluginRowFocus };
   readonly plugin: AdminPlugin;
   readonly t: Translate;
   readonly expanded: boolean;
@@ -62,7 +64,7 @@ export interface PluginRowProps {
 function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
   return (
     <dl className="plugin-row-facts" role="group" aria-label={t("Plugin details")}>
-      {pluginRowFacts(plugin, t).map((fact) => (
+      {pluginRowFacts({ plugin, translate: t }).map((fact) => (
         <div key={fact.label} className="plugin-row-fact">
           <dt>{fact.label}</dt>
           <dd>{fact.value}</dd>
@@ -79,7 +81,7 @@ function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
  *  `DetailChips` documents — that decision, and every string, comes from `rules.ts`'s
  *  `pluginRowDetailView`. */
 function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
-  const view = pluginRowDetailView(plugin, t);
+  const view = pluginRowDetailView({ plugin, translate: t });
   if (!view) return null;
   return (
     <>
@@ -112,10 +114,10 @@ function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate })
   );
 }
 
-export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings, focused = false }: PluginRowProps) {
+export function PluginRow({ plugin, t, expanded, onToggleExpanded, agentHandleBase, action, onInspect, onSettings, focused = false, hooks = { usePluginRowFocus } }: PluginRowProps) {
   const detailId = useId();
   const headingId = useId();
-  const rowRef = usePluginRowFocus({ focused });
+  const rowRef = hooks.usePluginRowFocus({ focused });
 
   return (
     <li ref={rowRef} className="plugin-row" data-enabled={plugin.enabled} data-focused={focused || undefined} aria-label={plugin.name}>

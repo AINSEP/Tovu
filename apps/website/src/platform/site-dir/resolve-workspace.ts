@@ -1,13 +1,16 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { WorkspaceRecord } from "../../features/workspace/index.js";
 import { SiteCorruptError, ValidationError } from "./errors.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-005 — `resolveWorkspace`, the single source of truth for resolving which
  * workspace row a content.db's boot/serve path should use.
  *
  * Purpose:
- * Both `server/deps.ts`'s changed `createSiteRouteDeps` default path (CIC U-001) and
+ * Both `apps/website/src/server/runtime/composition/deps.ts`'s changed `createSiteRouteDeps` default path (CIC U-001) and
  * `site-dir/boot-site-dir.ts`'s `serve` boot path (BR-05 step 6) call this instead of
  * re-implementing the same workspace selector twice.
  *
@@ -52,17 +55,17 @@ export async function resolveWorkspace(
   options: ResolveWorkspaceOptions = {}
 ): Promise<WorkspaceRecord> {
   const selected = await required.kernel.run((db) => db.selectFrom("workspaces").selectAll().execute());
-  const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at }));
+  const rows: WorkspaceRecord[] = selected.map((row) => ({ id: row.id, name: row.name, slug: row.slug, createdAt: row.created_at, version: row.version }));
 
   const [only] = rows;
   if (only === undefined) {
-    throw new SiteCorruptError("resolveWorkspace: the content.db has zero workspace rows (expected at least one)");
+    throw new SiteCorruptError({ message: "resolveWorkspace: the content.db has zero workspace rows (expected at least one)" });
   }
 
   if (options.workspaceId !== undefined) {
     const match = rows.find((row) => row.id === options.workspaceId);
     if (!match) {
-      throw new ValidationError(`resolveWorkspace: no workspace with id "${options.workspaceId}" exists in this content.db`);
+      throw new ValidationError({ message: `resolveWorkspace: no workspace with id "${options.workspaceId}" exists in this content.db` });
     }
     return match;
   }
@@ -73,10 +76,7 @@ export async function resolveWorkspace(
 
   // `rows` is non-empty (checked above), so the sorted copy always has a first element.
   const [primary = only, ...rest] = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-  // eslint-disable-next-line no-console
-  console.warn(
-    `resolveWorkspace: content.db has ${rows.length} workspace rows; defaulting to the oldest (id="${primary.id}"). ` +
-      `Pass --workspace <id> (tovu serve) to pick a different one — other ids: ${rest.map((w) => w.id).join(", ")}.`
-  );
+  consoleLogger.warn({ message: `resolveWorkspace: content.db has ${rows.length} workspace rows; defaulting to the oldest (id="${primary.id}"). ` +
+      `Pass --workspace <id> (tovu serve) to pick a different one — other ids: ${rest.map((w) => w.id).join(", ")}.` });
   return primary;
 }

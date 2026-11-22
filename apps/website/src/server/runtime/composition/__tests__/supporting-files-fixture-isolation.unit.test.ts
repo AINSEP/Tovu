@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createAssistantToolExecutor } from '#src/assistant/tool-recovery-preset';

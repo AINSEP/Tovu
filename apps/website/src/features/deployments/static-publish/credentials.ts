@@ -1,12 +1,13 @@
 import { redactSecrets } from "@jini-ai/core";
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { describeCredential, hasDefaultForPublish, resolveDefaultForPublish, resolveForPublish } from "../publish-credentials/store.js";
 import type { PublishConnectionInput } from "../publish-credentials/types.js";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
-import type { DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
+import type { DeployTargetCredentialSpec, DeployTargetEnvFallback, DeployTargetRegistry, LoadedDeployTarget  } from "../deploy-targets/types.js";
+import type { DeployTargetCredential } from "@jini-ai/devops/deploy";
 import type { PublishCredentialSource, ResolvedPublishCredentialSuccess, StaticPublishTargetId } from "./types.js";
 
 /** Readiness accepts the same optional saved-connection choice as resolution, without opening it. */
@@ -105,28 +106,9 @@ function chosenConnectionUnavailableFromEnvReason(target: StaticPublishTargetId)
 }
 
 type EnvCredentialResult = { readonly token: string; readonly fields: Readonly<Record<string, string>> } | { readonly reason: string };
-
-/**
- * Builds a `PublishCredentialSource` that resolves a target's token (and any extra credential fields)
- * from the env vars its deploy-plugin descriptor names, bound to exactly one workspace at construction
- * time.
- *
- * @param workspaceId - The ONLY workspace this instance will ever answer for. A `resolve()`/
- *   `isConfigured()` call for any other `workspaceId` is refused, not silently served — see this
- *   file's header for why this changed from "accepted but ignored".
- * @param loadDeployTargets - This workspace's deploy registry (which env vars each target reads).
- * @param env - Defaults to `process.env`; overridable for tests so no test needs to mutate real
- *   process env vars (which would leak across parallel test files in the same process).
- * @complexity One registry load per call, then O(v) env reads for the target's declared vars.
- */
-export function createEnvPublishCredentialSource(
-  workspaceId: UUID,
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>,
-  env: NodeJS.ProcessEnv = process.env
-): PublishCredentialSourceWithChoice {
   /** The first set, non-blank var of `tokenVars` (blank counts as unset). The failure reason names
    *  every var the operator could have set, not just the first. */
-  function readToken(target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
+  function readToken(env: NodeJS.ProcessEnv, target: StaticPublishTargetId, tokenVars: readonly string[]): { token: string } | { reason: string } {
     for (const envVar of tokenVars) {
       const token = env[envVar]?.trim();
       if (token) return { token };
@@ -138,8 +120,9 @@ export function createEnvPublishCredentialSource(
     return { reason };
   }
 
+
   /** Every declared extra field's env var, or the first one missing. */
-  function readFields(target: StaticPublishTargetId, fallback: DeployTargetEnvFallback): { fields: Record<string, string> } | { reason: string } {
+  function readFields(env: NodeJS.ProcessEnv, target: StaticPublishTargetId, fallback: DeployTargetEnvFallback): { fields: Record<string, string> } | { reason: string } {
     const fields: Record<string, string> = {};
     for (const [field, envVar] of Object.entries(fallback.fields ?? {})) {
       const value = env[envVar]?.trim();
@@ -149,7 +132,29 @@ export function createEnvPublishCredentialSource(
     return { fields };
   }
 
-  async function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID, credentialId?: UUID): Promise<EnvCredentialResult> {
+
+/**
+ * Builds a `PublishCredentialSource` that resolves a target's token (and any extra credential fields)
+ * from the env vars its deploy-plugin descriptor names, bound to exactly one workspace at construction
+ * time.
+ *
+ * @param required.workspaceId - The ONLY workspace this instance will ever answer for. A `resolve()`/
+ *   `isConfigured()` call for any other `workspaceId` is refused, not silently served — see this
+ *   file's header for why this changed from "accepted but ignored".
+ * @param required.loadDeployTargets - This workspace's deploy registry (which env vars each target reads).
+ * @param options.env - Defaults to `process.env`; overridable for tests so no test needs to mutate real
+ *   process env vars (which would leak across parallel test files in the same process).
+ * @complexity One registry load per call, then O(v) env reads for the target's declared vars.
+ */
+export function createEnvPublishCredentialSource(
+  { workspaceId, loadDeployTargets }: {
+    workspaceId: UUID;
+    loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
+  },
+  { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
+): PublishCredentialSourceWithChoice {
+
+  async function readCredential({ target, requestedWorkspaceId }: { target: StaticPublishTargetId; requestedWorkspaceId: UUID }, { credentialId }: { credentialId?: UUID } = {}): Promise<EnvCredentialResult> {
     // An env var is never "the saved connection the operator chose" — a chosen id must resolve to
     // THAT row or refuse (see `PublishCredentialSource.resolve`'s `credentialId` doc).
     if (credentialId !== undefined) {
@@ -160,24 +165,24 @@ export function createEnvPublishCredentialSource(
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
       };
     }
-    const descriptor = (await loadDeployTargets(workspaceId)).get(target)?.descriptor;
+    const descriptor = (await loadDeployTargets({ workspaceId })).get(target)?.descriptor;
     if (descriptor === undefined) return { reason: unknownTargetReason(target) };
     if (descriptor.env === undefined) return { reason: noEnvFallbackReason(target) };
 
-    const tokenResult = readToken(target, descriptor.env.tokenVars);
+    const tokenResult = readToken(env, target, descriptor.env.tokenVars);
     if ("reason" in tokenResult) return tokenResult;
-    const fieldsResult = readFields(target, descriptor.env);
+    const fieldsResult = readFields(env, target, descriptor.env);
     if ("reason" in fieldsResult) return fieldsResult;
     return { token: tokenResult.token, fields: fieldsResult.fields };
   }
 
   return {
     async resolve(input) {
-      const result = await readCredential(input.target, input.workspaceId, input.credentialId);
+      const result = await readCredential({ target: input.target, requestedWorkspaceId: input.workspaceId }, { credentialId: input.credentialId });
       return "token" in result ? { ok: true, token: result.token, ...result.fields } : { ok: false, reason: result.reason };
     },
     async isConfigured(input: Parameters<PublishCredentialSource["resolve"]>[0], _options = {}) {
-      const result = await readCredential(input.target, input.workspaceId, input.credentialId);
+      const result = await readCredential({ target: input.target, requestedWorkspaceId: input.workspaceId }, { credentialId: input.credentialId });
       return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
@@ -223,7 +228,7 @@ export interface DbPublishCredentialSourceDeps {
   repo: VendorCredentialSetRepoPort;
   sealer: SecretSealerPort;
   /** This workspace's deploy registry: which field of a saved connection is the token. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
 }
 
 /**
@@ -241,7 +246,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
 
   /** Projects through the target's declared credential spec, refusing a target the registry cannot describe. */
   async function project(workspaceId: UUID, connection: PublishConnectionInput): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
-    const spec = (await deps.loadDeployTargets(workspaceId)).get(connection.providerId)?.descriptor.credential;
+    const spec = (await deps.loadDeployTargets({ workspaceId })).get(connection.providerId)?.descriptor.credential;
     return spec === undefined ? { ok: false, reason: unknownTargetReason(connection.providerId) } : projectConnectionForPublish(connection, spec);
   }
 
@@ -320,7 +325,7 @@ export function composePublishCredentialSource(input: ComposePublishCredentialSo
     return dbSource;
   }
 
-  const envSource = createEnvPublishCredentialSource(input.workspaceId, input.dbDeps.loadDeployTargets, input.env);
+  const envSource = createEnvPublishCredentialSource({ workspaceId: input.workspaceId, loadDeployTargets: input.dbDeps.loadDeployTargets }, { env: input.env });
   return {
     async resolve(req) {
       const fromDb = await dbSource.resolve(req);

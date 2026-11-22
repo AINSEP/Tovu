@@ -12,7 +12,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { ValidationError } from "#src/platform/site-dir/errors";
 import { initSite } from "#src/server/runtime/composition/site-dir";
@@ -49,9 +50,9 @@ async function openOwner(storageSite: string, optional: { sealer?: AesGcmSecretS
   );
 }
 
-async function counts(kernel: StorageKernel<unknown>): Promise<Record<string, number>> {
+async function counts(kernel: KyselyKernel<unknown>): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
-  for (const table of await readCatalog(kernel)) {
+  for (const table of await readCatalog({ kernel })) {
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
     out[`${table.schema}.${table.name}`] = row.n;
   }
@@ -132,13 +133,13 @@ test("a row written to the target after the emptiness check refuses the copy; no
   const target = openPostgresKernel<unknown>({ connectionString: lateUrl, max: 2 });
   try {
     for (const kernel of [source, target]) {
-      await migrateContentDatabase(kernel);
-      await migrateChatDatabase(kernel);
+      await migrateContentDatabase({ kernel });
+      await migrateChatDatabase({ kernel });
     }
-    assert.deepEqual(await nonEmptyTables(target), [], "the pre-check passes");
+    assert.deepEqual(await nonEmptyTables({ kernel: target }), [], "the pre-check passes");
     // Another process writes between the move's pre-check and its copy transaction.
     await target.execute(sql`INSERT INTO ai_chat.ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('late', 'ws', 'user', 'u9', 1, 1)`);
-    await assert.rejects(copyPgStore(source, target), (err: unknown) => {
+    await assert.rejects(copyPgStore({ source, target }), (err: unknown) => {
       assert.ok(err instanceof StoreCopyError);
       assert.equal(err.message, "the target database already holds data (ai_chat.ai_chats); nothing was copied");
       return true;
@@ -169,7 +170,7 @@ test("a failure after the copy rolls the target back and leaves the site on PGli
   assert.equal(fs.existsSync(path.join(siteDir, STORAGE_SECRET_FILENAME)), false);
   const target = openPostgresKernel<unknown>({ connectionString: targetUrl });
   try {
-    assert.deepEqual(await nonEmptyTables(target), [], "the target is migrated but empty, so a retry is allowed");
+    assert.deepEqual(await nonEmptyTables({ kernel: target }), [], "the target is migrated but empty, so a retry is allowed");
   } finally {
     await target.close();
   }
@@ -207,7 +208,7 @@ test("the move copies every table, seals the secret, switches the meta last, and
 
   const store = await openOwner(siteDir, { sealer: sealing.sealer });
   try {
-    const targetCounts = await counts(store.content as unknown as StorageKernel<unknown>);
+    const targetCounts = await counts(store.content as unknown as KyselyKernel<unknown>);
     assert.deepEqual(targetCounts, sourceCounts, "every table has the same rows on Postgres");
     const targetMessages = (await store.content.query<{ message: string }>(sql`SELECT to_jsonb(m)::text AS message FROM ai_chat.ai_chat_messages AS m ORDER BY id`))
       .map((row) => JSON.parse(row.message) as Record<string, unknown>);

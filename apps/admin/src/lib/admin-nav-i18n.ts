@@ -17,8 +17,8 @@ import { COMMON_I18N } from "./i18n-common";
  * translation surface, not covered here.
  */
 import type { AdminNavGroup } from "@jini-ai/admin/core";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   es: {
   "Log out": "Cerrar sesión",
@@ -1394,7 +1394,7 @@ export const translateAdminNavLabel = createDictionaryTranslator({ featureDictio
  *  raw label for any locale/key it doesn't have, so this must run for every locale to pick up the
  *  other 16 languages — an early return here was the same shape bug fixed everywhere else in this
  *  app, just missed on this file's second function. */
-export function translateAdminNavGroups(locale: string, groups: readonly AdminNavGroup[]): AdminNavGroup[] {
+export function translateAdminNavGroups({ locale, groups }: { locale: string; groups: readonly AdminNavGroup[] }, _options = {}): AdminNavGroup[] {
   return groups.map((group) => ({
     ...group,
     label: group.label ? translateAdminNavLabel({ locale: locale, key: group.label }) : group.label,

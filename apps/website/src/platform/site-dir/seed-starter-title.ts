@@ -14,9 +14,11 @@ export function seedStarterTitle(
   { themesDir, siteName }: { themesDir: string; siteName: string },
   _optional: Record<string, never> = {},
 ): void {
-  const escaped = siteName.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[character]!);
+  const escaped = siteName.replace(/[&<>"']/g, (character) => {
+    const replacement = ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character];
+    if (replacement === undefined) throw new Error("starter title has no HTML escape for a matched character");
+    return replacement;
+  });
   for (const prefix of ["", "__original-themes__"]) {
     const starterDir = join(themesDir, prefix, "static", "tovu-starter");
     for (const relativePath of STARTER_HTML) {

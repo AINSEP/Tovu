@@ -1,4 +1,4 @@
-export { checkSitePathname, checkSiteRelativeTarget, hasControlCharacter, RESERVED_SEGMENTS } from './reserved-paths.js';
+export { checkSitePathname, checkSiteRelativeTarget, RESERVED_SEGMENTS } from './reserved-paths.js';
 export type { ReservedSurface, SitePathCheck, SiteRelativeTargetCheck } from './reserved-paths.js';
 export {
   postPublicPath,

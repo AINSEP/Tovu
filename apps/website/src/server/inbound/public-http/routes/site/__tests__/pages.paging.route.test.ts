@@ -62,7 +62,7 @@ function posts(count: number): PostRecord[] {
 }
 
 async function boot(t: TestContext, count: number, pages: Record<string, string> = {}, extra: PostRecord[] = []): Promise<string> {
-  const deps: Deps = { ...createRouteDeps(), themes: [theme(pages)], postRepo: new InMemoryPostRepo([...posts(count), ...extra]) };
+  const deps: Deps = { ...createRouteDeps(), themes: [theme(pages)], postRepo: new InMemoryPostRepo({}, { initialRows: [...posts(count), ...extra] }) };
   return startTestServer(createApp(deps), t);
 }
 
@@ -119,6 +119,9 @@ test("GET /page/2: the home page's own paged listing is served at /page/2", asyn
 
 test("GET /about/page/2 and /page/2: a page with no paged listing answers 404, not a duplicate of itself", async (t) => {
   const baseUrl = await boot(t, 30);
+  const page = await fetch(`${baseUrl}/about`);
+  assert.equal(page.status, 200);
+  assert.doesNotMatch(await page.text(), /class="jini-pagination"/);
   assert.equal((await fetch(`${baseUrl}/about/page/2`)).status, 404);
   assert.equal((await fetch(`${baseUrl}/page/2`)).status, 404);
 });
@@ -193,7 +196,7 @@ test("GET /about/page/2: a redirect lookup that throws on a numbered page with n
   const failure = new Error("redirect phase down");
   const seen: unknown[] = [];
   const app = express();
-  registerSiteRoutes(app, { ...createRouteDeps(), themes: [theme({})], postRepo: new InMemoryPostRepo(posts(30)) });
+  registerSiteRoutes({ app, deps: { ...createRouteDeps(), themes: [theme({})], postRepo: new InMemoryPostRepo({}, { initialRows: posts(30) }) } });
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     seen.push(err);
     res.status(500).send("error handler");

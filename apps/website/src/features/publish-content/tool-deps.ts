@@ -1,4 +1,4 @@
-import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
+import type { PublishHistoryRecorder } from "./peer-transport.js";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { requireToolPermission } from "@jini-ai/cms/core";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
@@ -9,9 +9,10 @@ import type { PublishTrustProvisioningPort } from "../publish-trust/provisioning
 import type { resolvePublishDestinationCredential } from "./destination-credential.js";
 import type { PublishContentPeerRepoPort } from "./peers.js";
 import type { BeforeSaveHookPort } from "#src/features/post/index";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
-import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, WidgetPublishPorts } from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
 
 
 
@@ -19,22 +20,22 @@ import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, Widget
  * Other tools' read-only repo slices cannot describe these capabilities; composition supplies the
  * same concrete ports it supplies to the HTTP importer. */
 interface PublishContentToolSources {
-  postRepo: PublishContentPorts["post"]["repo"];
-  formDefinitionRepo: PublishContentPorts["form"]["repo"];
-  contentTypeRepo: PublishContentPorts["content-type"]["repo"];
-  contentTypeIndexProvisioner: PublishContentPorts["content-type"]["indexProvisioner"];
-  taxonomyRepo: PublishContentPorts["taxonomy"]["taxonomies"];
-  termRepo: PublishContentPorts["taxonomy"]["terms"];
-  entryTermRepo: PublishContentPorts["taxonomy"]["entryTerms"];
-  taxonomyRevisionRepo: PublishContentPorts["taxonomy"]["revisions"];
-  stampWatermark: PublishContentPorts["taxonomy"]["stampWatermark"];
+  postRepo: TovuPublishPorts["post"]["repo"];
+  formDefinitionRepo: TovuPublishPorts["form"]["repo"];
+  contentTypeRepo: TovuPublishPorts["content-type"]["repo"];
+  contentTypeIndexProvisioner: TovuPublishPorts["content-type"]["indexProvisioner"];
+  taxonomyRepo: TovuPublishPorts["taxonomy"]["taxonomies"];
+  termRepo: TovuPublishPorts["taxonomy"]["terms"];
+  entryTermRepo: TovuPublishPorts["taxonomy"]["entryTerms"];
+  taxonomyRevisionRepo: TovuPublishPorts["taxonomy"]["revisions"];
+  stampWatermark: TovuPublishPorts["taxonomy"]["stampWatermark"];
   entryRepo: EntryPublishPorts["entries"] & WidgetPublishPorts["entries"];
   entryRefsRepo: WidgetPublishPorts["entryRefs"];
   widgetBindingRepo: WidgetPublishPorts["bindings"];
-  settingsRepo: PublishContentPorts["site-setting"]["settings"];
-  principalRepo: PublishContentPorts["site-setting"]["principals"];
-  presentationRepo: PublishContentPorts["active-theme"]["presentation"];
-  themes: PublishContentPorts["active-theme"]["themes"];
+  settingsRepo: TovuPublishPorts["site-setting"]["settings"];
+  principalRepo: TovuPublishPorts["site-setting"]["principals"];
+  presentationRepo: TovuPublishPorts["active-theme"]["presentation"];
+  themes: TovuPublishPorts["active-theme"]["themes"];
 }
 
 
@@ -59,13 +60,13 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   outbox: OutboxPort | undefined;
   /** One-bag-per-type ports for callers supplying an explicit projection. Production uses
    *  makePublishContentDeps so pulls share the HTTP importer's complete projection. */
-  publishContentPorts?: Partial<PublishContentPorts>;
+  publishContentPorts?: Partial<TovuPublishPorts>;
   /** Needed by the shared production content projection for theme-file pulls. */
-  fileBlobIndex: NonNullable<PublishContentPorts["theme-files"]["fileBlobIndex"]>;
-  mediaRepo: PublishContentPorts["media"]["repo"];
-  workspaceRepo: { findById(required: { id: string }): Promise<{ name?: string } | null> };
+  fileBlobIndex: NonNullable<TovuPublishPorts["theme-files"]["fileBlobIndex"]>;
+  mediaRepo: TovuPublishPorts["media"]["repo"];
+  workspaceRepo: { findById(required: { id: string }, optional?: {}): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
-  publishHistoryStore?: PublishHistoryStore;
+  publishHistoryStore?: PublishHistoryRecorder;
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];
   siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["sealer"];
   siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["keyring"];

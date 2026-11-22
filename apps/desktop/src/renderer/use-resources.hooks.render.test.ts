@@ -26,8 +26,8 @@ function fixture() {
       addEventListener: (_event, listener) => { listeners.add(listener); },
       removeEventListener: (_event, listener) => { listeners.delete(listener); },
     },
-    setTimer: (run, delay) => { const id = ++nextTimer; timers.set(id, { run, delay }); return id; },
-    clearTimer: (id) => { timers.delete(id); },
+    setTimer: ({ run, delay }) => { const id = ++nextTimer; timers.set(id, { run, delay }); return id; },
+    clearTimer: ({ id }) => { timers.delete(id); },
   };
   return { ports, requests, timers, listeners,
     setRead: (next: typeof read) => { read = next; },
@@ -39,7 +39,7 @@ function fixture() {
 test('visible badge and panel use main cadence; hidden documents and unmount release polling', async (t) => {
   const f = fixture();
   let panelOpen = false;
-  const hook = renderHook(t, () => useResources({ panelOpen }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen }, { ports: f.ports }) });
   await settle();
   assert.deepEqual(f.requests, [{ panelOpen: false }]);
   assert.equal([...f.timers.values()][0]!.delay, 60_000);
@@ -62,7 +62,7 @@ test('a panel change waits for an outstanding badge read and discards its result
   let finish!: (value: ResourcesSnapshot) => void;
   f.setRead(() => new Promise((resolve) => { finish = resolve; }));
   let panelOpen = false;
-  const hook = renderHook(t, () => useResources({ panelOpen }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen }, { ports: f.ports }) });
   await settle();
   panelOpen = true; hook.rerender(); await settle();
   assert.equal(f.requests.length, 1);
@@ -76,7 +76,7 @@ test('a panel change waits for an outstanding badge read and discards its result
 test('a site lifecycle change refreshes the collapsed reading without waiting a minute', async (t) => {
   const f = fixture();
   let refreshKey = 'stopped';
-  const hook = renderHook(t, () => useResources({ panelOpen: false }, { ports: f.ports, refreshKey }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: false }, { ports: f.ports, refreshKey }) });
   await settle();
   assert.equal(f.requests.length, 1);
   refreshKey = 'running'; hook.rerender(); await settle();
@@ -89,13 +89,36 @@ test('a site lifecycle change refreshes the collapsed reading without waiting a 
 
 test('starts hidden without a read; IPC failures withdraw stale data and retry promptly', async (t) => {
   const f = fixture(); f.visibility(true);
-  const hook = renderHook(t, () => useResources({ panelOpen: true }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: true }, { ports: f.ports }) });
   await settle(); assert.equal(f.requests.length, 0);
   f.visibility(false); await settle(); assert.equal(hook.current()!.status, 'available');
   f.setRead(async () => { throw new Error('fixture failure'); });
   f.tick(); await settle();
   assert.equal(hook.current(), null);
   assert.equal([...f.timers.values()][0]!.delay, 5_000);
+});
+
+test('IPC failure logs once across polls and panel changes until a successful read', async (t) => {
+  const f = fixture();
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  f.setRead(async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'ECONNRESET' }); });
+  let panelOpen = false;
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen }, { ports: f.ports }) });
+  await settle(); f.tick(); await settle();
+  assert.equal(logs.length, 1, 'only the first failure in a streak is logged');
+  const firstLog = logs[0]?.join(' ') ?? '';
+  assert.match(firstLog, /\[resources\] Could not read resource usage/);
+  assert.match(firstLog, /Error/);
+  assert.match(firstLog, /ECONNRESET/);
+  assert.doesNotMatch(firstLog, /boom|SECRETSECRETSECRETSECRET/);
+  panelOpen = true; hook.rerender(); await settle();
+  assert.equal(logs.length, 1, 'changing the panel does not end a failure streak');
+  f.setRead(async () => snapshot()); f.tick(); await settle();
+  f.setRead(async () => { throw new Error('another failure'); });
+  f.tick(); await settle(); f.tick(); await settle();
+  assert.equal(logs.length, 2, 'a successful read starts a new failure streak');
+  hook.unmount();
 });
 
 test('launch badge recovers from two initial sampler failures within ten seconds', async (t) => {
@@ -109,7 +132,7 @@ test('launch badge recovers from two initial sampler failures within ten seconds
       return [{ pid: 1, ppid: 0, rssBytes: 123_000_000, cpuSeconds: 0, name: 'Tovu' }];
     } });
   f.setRead(request => monitor.get(request));
-  const hook = renderHook(t, () => useResources({ panelOpen: false }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: false }, { ports: f.ports }) });
   await settle();
   assert.equal(attempts, 1, 'launch requests its first reading immediately');
   for (let retry = 0; retry < 2; retry++) {
@@ -126,7 +149,7 @@ test('launch badge recovers from two initial sampler failures within ten seconds
 
 test('a missing resource preload remains unavailable and creates no timer', async (t) => {
   const f = fixture(); f.ports.getBridge = () => undefined;
-  const hook = renderHook(t, () => useResources({ panelOpen: false }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: false }, { ports: f.ports }) });
   await settle();
   assert.equal(hook.current(), null);
   assert.equal(f.timers.size, 0);
@@ -136,7 +159,7 @@ test('hide/show during a read discards that reading and retries without overlapp
   const f = fixture();
   let finish!: (value: ResourcesSnapshot) => void;
   f.setRead(() => new Promise((resolve) => { finish = resolve; }));
-  const hook = renderHook(t, () => useResources({ panelOpen: true }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: true }, { ports: f.ports }) });
   await settle();
   f.visibility(true); f.visibility(false); await settle();
   assert.equal(f.requests.length, 1);
@@ -153,7 +176,7 @@ test('late replies after unmount cannot rearm polling', async (t) => {
   const f = fixture();
   let finish!: (value: ResourcesSnapshot) => void;
   f.setRead(() => new Promise((resolve) => { finish = resolve; }));
-  const hook = renderHook(t, () => useResources({ panelOpen: true }, { ports: f.ports }));
+  const hook = renderHook({ t, useHook: () => useResources({ panelOpen: true }, { ports: f.ports }) });
   await settle(); hook.unmount();
   await act(async () => { finish(snapshot()); }); await settle();
   assert.equal(f.timers.size, 0);

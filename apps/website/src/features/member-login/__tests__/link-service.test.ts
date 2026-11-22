@@ -6,7 +6,7 @@ import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRe
   InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo } from "../../members/repo.memory.js";
 import type { MemberRecord } from "../../members/types.js";
 import type { OutboundEmail } from "../../../platform/mail/index.js";
-import { issueMemberSession } from "../../members/write-service.js";
+import { issueMemberSession } from "../../members/member-credentials.js";
 import { resolveFederatedIdentity, requestLoginEmailProof, type MemberLoginLinkDeps } from "../link-service.js";
 import { MemberLoginError } from "../types.js";
 import { cryptoFixture, originFixture, provider } from "./fixtures.js";

@@ -1,7 +1,8 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file The Members agent-tool catalog (ADR-030/ADR-PIPE-013), instantiating SPEC-016 REQ-22's
  * naming/callability convention for this domain — the same shape `forms/agent-tools.ts` and
- * `identity/agent-tools.ts` use, including the `inputSchema` contract.
+ * `Jini packages/user-management/src/server/agent-tools.ts` use, including the `inputSchema` contract.
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
@@ -14,7 +15,7 @@
  * Owner 2026-10-09 supersedes the profile/create exclusion below for this CRUD pass;
  * billing and authentication exclusions remain binding. Historical rationale is retained.
  * - `updateProfile`, `compSubscription`, `setSubscriptionStatus` (`write-service.ts`) have NO
- *   admin HTTP route at all today — `server/modules/members.ts` wires exactly 4 admin registrars
+ *   admin HTTP route at all today — `apps/website/src/server/runtime/composition/modules/members.ts` wires exactly 4 admin registrars
  *   (list/get/disable/request-magic-link) plus 2 public sign-in routes, nothing else. Wiring an
  *   agent tool for a write-service function the admin UI does not yet expose would give the
  *   assistant MORE capability than a human clicking through the admin screens has today — the
@@ -56,20 +57,13 @@ const DURABLE_MUTATION = "mutates-durable-state" as const;
 
 export type AgentToolSideEffect = "none" | typeof DURABLE_MUTATION | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** A member's id, as returned by `content_read.member` (the single card `members_list` and
  *  `members_get_by_id` collapsed into on 2026-09-08 — it dispatches on `memberId`'s presence). */
@@ -108,7 +102,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_list",
     description:
-      "Lists the workspace's members (any status: pending/active/disabled), keyset-paginated. Read-only. Call this to find a member's id before getting details or disabling them.",
+      "Lists the workspace's members (any status: pending/active/disabled), one page at a time. Read-only. Call this to find a member's id before getting details or disabling them. When more members exist the result has a non-null nextCursor and a `more` note: call again with cursor set to nextCursor.",
     sideEffects: "none",
     authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: {
@@ -116,8 +110,9 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       required: [],
       properties: {
-        afterId: { type: "string", description: "Keyset cursor (a previously-seen member id) for the next page. Omit for the first page." },
-        limit: { type: "integer", minimum: 1, maximum: 100, description: "Max rows to return (1-100). Defaults to the repo's own default page size." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." },
+        afterId: { type: "string", description: "Older form of cursor: a previously-seen member id; the page starts after it. Prefer cursor." },
+        limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Max rows to return (1-100). Defaults to the repo's own default page size." },
       },
     },
   },

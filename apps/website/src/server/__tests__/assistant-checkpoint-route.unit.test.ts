@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
 import type { RouteDeps } from "../routes/types.js";
 import { createAssistantModule } from "../runtime/composition/modules/assistant.js";
-import { assistantRunFinalizerFor } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";
 
 test("checkpoint GET follows the saved message without recovery and denies other owners/workspaces", async () => {
   const routes = new Map<string, (req: Request, res: Response, next: NextFunction) => void>();
@@ -16,7 +16,7 @@ test("checkpoint GET follows the saved message without recovery and denies other
   const deps = { workspaceId: "ws", siteStoragePaths: { chatAttachmentsDir: "/unused" }, chatRunLedger: { durable: { load: async (input: unknown) => { loads.push(input); return run; } } } } as unknown as RouteDeps;
   let recoveries = 0;
   assistantRunFinalizerFor({ ledger: deps.chatRunLedger }, {}).recover = async () => { recoveries++; throw new Error("GET called recovery"); };
-  createAssistantModule(deps, {} as never).registerRoutes!(app);
+  createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: {} as never }).registerRoutes!({ app });
   for (const [principalId, workspaceId, status] of [["owner", "ws", 200], ["owner", "other", 404], ["other", "ws", 404]] as const) {
     Object.assign(run, { principalId, workspaceId });
     let code = 200;
@@ -46,7 +46,7 @@ test("recover POST runs the finalizer for an owned run and answers the post-reco
   };
   const deps = { workspaceId: "ws", siteStoragePaths: { chatAttachmentsDir: "/unused" }, chatRunLedger: { durable } } as unknown as RouteDeps;
   assistantRunFinalizerFor({ ledger: deps.chatRunLedger }, {}).recover = async (input: unknown) => { calls.push(["recover", input]); return "finalized"; };
-  createAssistantModule(deps, {} as never).registerRoutes!(app);
+  createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: {} as never }).registerRoutes!({ app });
   const post = (req: Record<string, unknown>, principal = "owner") => new Promise<{ code: number; body: unknown }>((resolve, reject) => {
     let code = 200;
     const res = { locals: { principal: { id: principal } }, status: (value: number) => { code = value; return res; }, json: (body: unknown) => resolve({ code, body }) } as unknown as Response;
@@ -77,7 +77,7 @@ test('unchanged checkpoint uses the scoped raw poll and returns an empty 304 wit
     poll: async (input: unknown, options: unknown) => { calls.push([input, options]); return { cursor: 'boot:10:1' }; },
     head: () => assert.fail('poll must never read the parsed head'),
   } } } as unknown as RouteDeps;
-  createAssistantModule(deps, {} as never).registerRoutes!(app);
+  createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: {} as never }).registerRoutes!({ app });
   const parse = t.mock.method(JSON, 'parse');
   let status = 200;
   const chunks: string[] = [];

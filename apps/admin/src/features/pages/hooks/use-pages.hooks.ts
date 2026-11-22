@@ -1,16 +1,17 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import { type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../pages-i18n";
 import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Pages LIST does, so `Pages.tsx` is only markup.
  *
@@ -73,8 +74,8 @@ export interface PagesController {
  * re-render (`sort`, `locale`) does not rebuild this map and hand `RowMenu` a new handle-string
  * identity every time. Mirrors `use-posts.hooks.ts`'s `usePostRowMenuHandleMap` verbatim.
  */
-export function usePageRowMenuHandleMap(pages: AdminPost[] | null): Map<string, string> {
-  return useMemo(() => buildPageRowMenuHandleMap(pages), [pages]);
+export function usePageRowMenuHandleMap({ pages }: { pages: AdminPost[] | null }, _options = {}): Map<string, string> {
+  return useMemo(() => buildPageRowMenuHandleMap({ pages }), [pages]);
 }
 
 export interface PagesDependencies {
@@ -100,47 +101,38 @@ export interface PagesDependencies {
  * read starts, so both superseded successes and failures follow the latest request.
  */
 export function usePages(deps: PagesDependencies): PagesController {
-  const { port, navigate, t, locale } = deps;
-  const key = useMemo(() => ["pages", "list"] as const, []);
-  const fetchList = useCallback(async () => {
-    try { return (await port.listPages()).posts.map(entry => entry.post); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load pages")); }
-  }, [port, t]);
-  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
-  // older request's ownership before starting the newer read, so a late success or failure
-  // cannot replace the latest list. Background reads retain the rendered table.
-  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
-  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
-  const pages = query.data ?? null;
-  function setPages(update: (current: AdminPost[] | null) => AdminPost[] | null) {
-    const next = update(loader.peek() ?? null);
-    if (next !== null) loader.replace({ value: next });
-  }
-  const invalidate = useInvalidate();
-  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["pages"]] });
-  const [actionError, setError] = useState<string | null>(null);
-  const error = actionError ?? query.error?.message ?? null;
-  const [creating, setCreating] = useState(false);
-  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
-  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
-  // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
-  // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
-  // why); this is what drives its `open` prop.
-  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+  const {
+    port, navigate, t, locale, pages, setPages, write, setError, error, creating, setCreating, rowSavingId, setRowSavingId, pendingDelete, setPendingDelete,
+    rowMenuHandleById,
+  } = usePagesState({ deps });
+  const { createPage, togglePagePublish, removePage } = createPageActions({ setCreating, setError, write, port, navigate, t, setRowSavingId, setPages, pendingDelete, setPendingDelete });
 
-  // Query ownership replaces the latest-wins read guard described above; background
-  // refreshes keep the table and cache replacements protect newer mutation responses.
-  const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
-  useContentRefreshSubscription(PAGES_RESOURCE, load);
+  return {
+    pages,
+    error,
+    creating,
+    rowSavingId,
+    pendingDelete,
+    setPendingDelete,
+    createPage,
+    togglePagePublish,
+    removePage,
+    t,
+    locale,
+    rowMenuHandleById,
+  };
+}
 
-  const rowMenuHandleById = usePageRowMenuHandleMap(pages);
-
+function createPageActions(
+  { setCreating, setError, write, port, navigate, t, setRowSavingId, setPages, pendingDelete, setPendingDelete }:
+    Pick<ReturnType<typeof usePagesState>, "setCreating" | "setError" | "write" | "port" | "navigate" | "t" | "setRowSavingId" | "setPages" | "pendingDelete"
+    | "setPendingDelete">
+) {
   async function createPage() {
     setCreating(true);
     setError(null);
     try {
-      const { post } = await write.mutate({ input: () => port.createPage("Untitled") }) as Awaited<ReturnType<typeof port.createPage>>;
+      const { post } = await write.mutate({ input: () => port.createPage({ title: "Untitled" }) }) as Awaited<ReturnType<typeof port.createPage>>;
       // The Pages editor, not the Posts one. "New Page" and "ask the assistant to build me a page"
       // are two doors to the same destination — neither of them is a Tiptap screen.
       // `pageAdminPath` (`rules.ts`) — same slug-vs-id-vs-root-slug rule `Pages.tsx`'s own row
@@ -182,11 +174,11 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await write.mutate({ input: () => port.updatePost(
-        { id: page.id },
-        { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version }
-      ) }) as Awaited<ReturnType<typeof port.updatePost>>;
-      setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
+      const { post: updated } = await write.mutate({ input: () => port.updatePost({
+        target: { id: page.id },
+        patch: { title: page.title, slug: page.slug, bodyJson: page.bodyJson, status: nextStatus, expectedVersion: page.version },
+      }) }) as Awaited<ReturnType<typeof port.updatePost>>;
+      setPages({ update: (prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t(nextStatus === "published" ? "failed to publish page" : "failed to unpublish page"));
     } finally {
@@ -225,8 +217,8 @@ export function usePages(deps: PagesDependencies): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deletePage(page.id) });
-      setPages((prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev));
+      await write.mutate({ input: () => port.deletePage({ id: page.id }) });
+      setPages({ update: (prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("failed to delete page"));
     } finally {
@@ -236,19 +228,50 @@ export function usePages(deps: PagesDependencies): PagesController {
       setPendingDelete(null);
     }
   }
+  return { createPage, togglePagePublish, removePage };
+}
 
+function usePagesState(
+  { deps }:
+    { deps: Parameters<typeof usePages>[0] }
+) {
+  const { port, navigate, t, locale } = deps;
+  const key = useMemo(() => ["pages", "list"] as const, []);
+  const fetchList = useCallback(async () => {
+    try { return (await port.listPages()).posts.map(entry => entry.post); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load pages")); }
+  }, [port, t]);
+  // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
+  // older request's ownership before starting the newer read, so a late success or failure
+  // cannot replace the latest list. Background reads retain the rendered table.
+  const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
+  const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
+  const pages = query.data ?? null;
+  function setPages({ update }: { update: (current: AdminPost[] | null) => AdminPost[] | null }, _options = {}) {
+    const next = update(loader.peek() ?? null);
+    if (next !== null) loader.replace({ value: next });
+  }
+  const invalidate = useInvalidate();
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["pages"]] });
+  const [actionError, setError] = useState<string | null>(null);
+  const error = actionError ?? query.error?.message ?? null;
+  const [creating, setCreating] = useState(false);
+  // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
+  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
+  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
+  // why); this is what drives its `open` prop.
+  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+
+  // Query ownership replaces the latest-wins read guard described above; background
+  // refreshes keep the table and cache replacements protect newer mutation responses.
+  const load = useCallback(() => invalidate({ key: ["pages"] }), [invalidate]);
+  useContentRefreshSubscription({ resource: PAGES_RESOURCE, onRefresh: load });
+
+  const rowMenuHandleById = usePageRowMenuHandleMap({ pages });
   return {
-    pages,
-    error,
-    creating,
-    rowSavingId,
-    pendingDelete,
-    setPendingDelete,
-    createPage,
-    togglePagePublish,
-    removePage,
-    t,
-    locale,
+    port, navigate, t, locale, pages, setPages, write, setError, error, creating, setCreating, rowSavingId, setRowSavingId, pendingDelete, setPendingDelete,
     rowMenuHandleById,
   };
 }
@@ -263,5 +286,6 @@ export function usePages(deps: PagesDependencies): PagesController {
 export function useWiredPages(): PagesController {
   const locale = useAdminLocale();
   const t = useCallback((key: string): string => translate({ locale, key }), [locale]);
-  return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
+  const navigate = useCallback((routePath: string) => defaultNavigate({ routePath }), []);
+  return usePages({ port: defaultPagesPort, navigate, t, locale });
 }

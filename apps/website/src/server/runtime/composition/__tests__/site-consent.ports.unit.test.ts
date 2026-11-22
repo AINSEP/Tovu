@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { siteConsentPorts } from "../site-consent.js";
 
 /** The consent service's site-bound ports: consent readiness, region trust, receipt-storage health
@@ -73,7 +73,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
   const { InMemoryPostRepo } = await import('#src/features/post/repo.memory');
   const { InMemorySiteTitlePreservationStore } = await import('#src/features/settings/site-title');
   const { ensureSiteTitleSettingDefinition } = await import('#src/features/settings/site-title');
-  const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo();
+  const settingsRepo = new InMemorySettingsRepo(); const postRepo = new InMemoryPostRepo({});
   let count = 0; const ids = { newId: () => `binding-${++count}` };
   const clock = { nowMs: () => Date.parse('2026-10-22T00:00:00.000Z'), nowIso: () => '2026-10-22T00:00:00.000Z' };
   const principals = { findActiveById: async ({ id }: { id: string }) => ({ id }) };
@@ -101,7 +101,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
     } },
     siteTitlePreservationStore: new InMemorySiteTitlePreservationStore(),
     workspaceRepo: await Promise.resolve({ findById: async () => ({ name: 'Fallback' }) }), siteDisplayName: { read: () => 'Resolved & Site' },
-    pagesHtmlStore: () => ({ ensureHtmlFormat: async (value: string) => { html.push(value); } }),
+    pagesHtmlStore: () => ({ ensureHtmlFormat: async ({ seedHtml: value }: { seedHtml: string }) => { html.push(value); } }),
   } as never;
   resolveDeps(deps);
   await ready;

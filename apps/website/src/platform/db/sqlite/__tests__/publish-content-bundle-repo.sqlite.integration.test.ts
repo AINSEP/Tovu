@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { stageBundle } from "#src/features/publish-content/bundle-staging";
+import { stageBundle } from "@jini-ai/cms/publish/transfer";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqlitePublishContentBundleRepo } from "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
@@ -23,7 +23,7 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
   const { dir, dbPath } = createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   try {
-    const repo = new SqlitePublishContentBundleRepo(db);
+    const repo = new SqlitePublishContentBundleRepo({ store: db });
     const input = {
       workspaceId: "workspace-local",
       sourcePrincipalId: "bundle-sweep-test-principal",
@@ -32,29 +32,38 @@ test("SQLite staging sweeps rows strictly older than the staging clock", async (
       entities: [],
       blobManifest: [],
     };
-    await stageBundle(input, {
-      repo,
-      clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
-      idGen: { newId: () => "bundle-sweep-old" },
-      ttlMs: 1_000,
-    });
+    await stageBundle({
+                        input,
+                        deps: {
+        repo,
+        clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
+        idGen: { newId: () => "bundle-sweep-old" },
+        ttlMs: 1_000,
+      }
+                      });
     assert.ok(await repo.findById({ workspaceId: input.workspaceId, id: "bundle-sweep-old" }));
 
-    await stageBundle(input, {
-      repo,
-      clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.000Z") },
-      idGen: { newId: () => "bundle-sweep-boundary" },
-    });
+    await stageBundle({
+                        input,
+                        deps: {
+        repo,
+        clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.000Z") },
+        idGen: { newId: () => "bundle-sweep-boundary" },
+      }
+                      });
     assert.ok(
       await repo.findById({ workspaceId: input.workspaceId, id: "bundle-sweep-old" }),
       "the SQLite sweep must preserve a row exactly at expiresAt"
     );
 
-    await stageBundle(input, {
-      repo,
-      clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.001Z") },
-      idGen: { newId: () => "bundle-sweep-new" },
-    });
+    await stageBundle({
+                        input,
+                        deps: {
+        repo,
+        clock: { nowMs: () => Date.parse("2026-09-18T00:00:01.001Z") },
+        idGen: { newId: () => "bundle-sweep-new" },
+      }
+                      });
 
     assert.equal(await repo.findById({ workspaceId: input.workspaceId, id: "bundle-sweep-old" }), null);
     assert.ok(await repo.findById({ workspaceId: input.workspaceId, id: "bundle-sweep-boundary" }));

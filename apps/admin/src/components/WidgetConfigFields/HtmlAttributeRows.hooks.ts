@@ -11,9 +11,9 @@ export interface HtmlAttributeRowsController {
   rows: HtmlAttributeRow[];
   /** Per row: the renderer's allowlist will drop it. */
   dropped: boolean[];
-  setRow: (index: number, patch: Partial<HtmlAttributeRow>) => void;
+  setRow: (required: { index: number; patch: Partial<HtmlAttributeRow> }, optional?: Record<string, never>) => void;
   addRow: () => void;
-  removeRow: (index: number) => void;
+  removeRow: (required: { index: number }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -28,12 +28,12 @@ export interface HtmlAttributeRowsController {
  */
 export function useHtmlAttributeRows(required: { value: string; onChange: (value: string) => void }): HtmlAttributeRowsController {
   const { value, onChange } = required;
-  const [attributes, setAttributes] = useState(() => ({ source: value, rows: htmlAttributesToRows(value) }));
-  const rows = attributes.source === value ? attributes.rows : htmlAttributesToRows(value);
+  const [attributes, setAttributes] = useState(() => ({ source: value, rows: htmlAttributesToRows({ text: value }) }));
+  const rows = attributes.source === value ? attributes.rows : htmlAttributesToRows({ text: value });
   if (attributes.source !== value) setAttributes({ source: value, rows });
 
-  function commit(next: HtmlAttributeRow[]) {
-    const source = rowsToHtmlAttributes(next);
+  function commit({ next }: { next: HtmlAttributeRow[] }, _options: Record<string, never> = {}) {
+    const source = rowsToHtmlAttributes({ rows: next });
     setAttributes({ source, rows: next });
     onChange(source);
   }
@@ -41,9 +41,9 @@ export function useHtmlAttributeRows(required: { value: string; onChange: (value
   return {
     rows,
     dropped: rows.map(isDroppedAttributeRow),
-    setRow: (index, patch) => commit(rows.map((row, i) => (i === index ? { ...row, ...patch } : row))),
+    setRow: ({ index, patch }, _options: Record<string, never> = {}) => commit({ next: rows.map((row, i) => (i === index ? { ...row, ...patch } : row)) }),
     // A blank row serializes to nothing, so adding one emits nothing.
     addRow: () => setAttributes({ source: value, rows: [...rows, { name: "", value: "" }] }),
-    removeRow: (index) => commit(rows.filter((_, i) => i !== index)),
+    removeRow: ({ index }, _options: Record<string, never> = {}) => commit({ next: rows.filter((_, i) => i !== index) }),
   };
 }

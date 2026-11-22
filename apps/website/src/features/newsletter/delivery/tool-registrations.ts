@@ -1,4 +1,5 @@
 import { toolMetadata } from '../../../contracts/core/tool-metadata/newsletter.js';
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * Newsletter delivery registrations over the existing send pipeline and campaign write services.
  * Subscriber delivery uses browser-only confirmation; test recipients resolve from the owner profile.
@@ -20,7 +21,7 @@ import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, Ne
 import { evaluateLaunchGate } from "../launch-gate.js";
 import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCampaign, sendTestCampaign } from "../send-pipeline.js";
 import { toNewsletterSendPipelineDeps, type NewsletterToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
@@ -84,7 +85,7 @@ function mailOffResult(deps: NewsletterToolDeps) {
 }
 
 /** Reports committed launch state without claiming that downstream processing finished. @complexity O(1). */
-function processingAttentionResult(campaignId: string, status: string) {
+function processingAttentionResult({ campaignId, status }: { campaignId: string; status: string }, _options = {}) {
   return { confirmed: true, started: true, campaignId, status, delivered: false, mailDeliveryAvailable: true, note: "The issue started, but audience processing needs attention. Inspect the send log before retrying; delivery is not confirmed." };
 }
 
@@ -93,6 +94,95 @@ async function requireMassLaunchReady(deps: NewsletterToolDeps): Promise<void> {
   const result = await evaluateLaunchGate({ deps: toNewsletterSendPipelineDeps(deps).launchGateDeps, workspaceId: deps.workspaceId, isTestSend: false });
   if (!result.met) throw new ToolInputError({ message: `NEWSLETTER_LAUNCH_GATE_BLOCKED: ${result.unmetPreconditions.join(", ")}. Enable newsletter sending and bind Members consent before launching a mass send.` });
 }
+type Prepared = { refusal: NonNullable<ReturnType<typeof mailOffResult>> } | { campaignId: string; existing: CampaignRecord; scheduledAt: string | null };
+function createNewsletterCampaignPreparation(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['prepare'] {
+  return async ({ ctx }) => {
+      const input = requireInputRecord({ input: ctx.input });
+      const campaignId = requireString({ input: input, key: "campaignId" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
+      const mailOff = mailOffResult(deps);
+      if (mailOff) return { refusal: mailOff };
+      await deps.newsletterReady;
+      const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+      if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
+      const scheduledAt = toolId === "newsletter_schedule_campaign" ? requireString({ input: input, key: "scheduledAt" }) : null;
+      if (scheduledAt !== null && !isValidScheduleTimestamp({ value: scheduledAt })) throw new NewsletterValidationError({ message: "scheduledAt must be a valid ISO date-time string with an explicit timezone", field: "scheduledAt", reason: "format" });
+      return { campaignId, existing: structuredClone(existing), scheduledAt };
+    };
+}
+
+function createNewsletterCampaignDescription(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['describe'] {
+  return ({ prepared }) => {
+      let title = "Send this newsletter?";
+      if (toolId === "newsletter_schedule_campaign") title = "Schedule this newsletter?";
+      if (toolId === "newsletter_resume_campaign") title = "Resume this newsletter?";
+      const spec = { toolId, errorCode: "NEWSLETTER", title,
+        description: "This action can send email to real people. Only your confirmation can authorize it.", confirmLabel: "Confirm" };
+      if ("refusal" in prepared) return { ...spec, details: [] };
+      const { existing, campaignId, scheduledAt } = prepared;
+      return { ...spec, details: [
+        { label: "Subject", value: existing.subject }, { label: "Campaign", value: campaignId }, { label: "Subscriber list", value: existing.listId }, { label: "Status", value: existing.status },
+        ...(scheduledAt === null ? [] : [{ label: "Scheduled date", value: scheduledAt }]),
+      ] };
+    };
+}
+
+function transitionConfirmedCampaign(deps: NewsletterDeliveryToolDeps, toolId: string, { ctx, campaignId, existing, scheduledAt }: Exclude<Prepared, { refusal: unknown }> & { ctx: Parameters<ToolHandler>[0] }) {
+  return deps.newsletterCampaignRepo.transaction({ fn: async () => {
+    const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+    // Pipeline transitions do not always increment version; compare the complete snapshot as well.
+    if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
+    if (ctx.signal.aborted) return { abandoned: true as const };
+    if (scheduledAt !== null) return scheduleCampaign({ deps: { campaignRepo: deps.newsletterCampaignRepo, listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen }, input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id, scheduledAt } });
+    if (toolId === "newsletter_resume_campaign") {
+      await requireMassLaunchReady(deps);
+      if (ctx.signal.aborted) return { abandoned: true as const };
+      return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+    }
+    return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+  } });
+}
+
+async function fanOutNewsletterCampaign(deps: NewsletterDeliveryToolDeps, campaignId: string, campaign: CampaignRecord) {
+  // The campaign status has committed, so a later fan-out failure must not imply no launch occurred.
+  try {
+    await freezeAudience({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, listId: campaign.listId } });
+    await claimBatch({ deps: toNewsletterSendPipelineDeps(deps) });
+    // An empty audience emits no batch event, so the subscriber cannot complete it for us.
+    await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+  } catch (err) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying", errorDiagnostic);
+    return processingAttentionResult({ campaignId, status: campaign.status });
+  }
+  return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
+}
+
+function createNewsletterCampaignRun(deps: NewsletterDeliveryToolDeps, toolId: string): Parameters<typeof approvalToolHandler<Prepared>>[0]['run'] {
+  return async ({ ctx, prepared }) => {
+      if ("refusal" in prepared) return prepared.refusal;
+      const { campaignId, existing, scheduledAt } = prepared;
+      // Authorization and mail configuration may change while the human reads the card.
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
+      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+      const currentMailOff = mailOffResult(deps);
+      if (currentMailOff) return currentMailOff;
+      const transition = await transitionConfirmedCampaign(deps, toolId, { ctx, campaignId, existing, scheduledAt });
+      if ("abandoned" in transition) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+      const { campaign } = transition;
+      if (scheduledAt !== null) return { confirmed: true, scheduled: true, campaignId, status: campaign.status, scheduledAt: campaign.scheduledAt, delivered: false, mailDeliveryAvailable: true, note: "The issue's scheduled date was saved. Automatic delivery at that time is not wired; launch it with newsletter_send_campaign when due." };
+      if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult({ campaignId, status: campaign.status });
+      return fanOutNewsletterCampaign(deps, campaignId, campaign);
+    };
+}
+
+function createNewsletterCampaignHandler(deps: NewsletterDeliveryToolDeps, surfaces: AssistantSurfaceDeps, toolId: string): ToolHandler {
+  return approvalToolHandler<Prepared>({ surfaces, prepare: createNewsletterCampaignPreparation(deps, toolId), describe: createNewsletterCampaignDescription(deps, toolId), run: createNewsletterCampaignRun(deps, toolId) }, { ask: ({ prepared }) => !("refusal" in prepared),
+      declined: ({ reason }) => ({ confirmed: false, reason, delivered: false, mailDeliveryAvailable: true }),
+    });
+}
+
 
 /**
  * Builds handlers over existing services. Human consent is scoped to an unchanged campaign.
@@ -114,6 +204,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       await deps.newsletterReady;
       const owner = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: await deps.ownerPrincipalId });
       if (!owner?.email?.trim()) throw new ToolInputError({ message: "NEWSLETTER_OWNER_EMAIL_MISSING: Set the site owner's email in their user profile before sending a test." });
+      ctx.signal.throwIfAborted();
       const { results } = await sendTestCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, testAddresses: [owner.email] } });
       // Provider error text can carry an email or endpoint; the caller receives only a fixed recovery note.
       if (results[0]?.outcome !== "sent") return { delivered: false, mailDeliveryAvailable: true, note: "The mail provider did not accept the test email. Check the email provider configuration and retry." };
@@ -121,70 +212,7 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
     },
   };
   for (const toolId of ["newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]) {
-    type Prepared = { refusal: NonNullable<ReturnType<typeof mailOffResult>> } | { campaignId: string; existing: CampaignRecord; scheduledAt: string | null };
-    handlers[toolId] = approvalToolHandler<Prepared>({ surfaces, prepare: async ({ ctx }) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const campaignId = requireString({ input: input, key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
-      const mailOff = mailOffResult(deps);
-      if (mailOff) return { refusal: mailOff };
-      await deps.newsletterReady;
-      const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-      if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-      const scheduledAt = toolId === "newsletter_schedule_campaign" ? requireString({ input: input, key: "scheduledAt" }) : null;
-      if (scheduledAt !== null && !isValidScheduleTimestamp(scheduledAt)) throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string with an explicit timezone", "scheduledAt", "format");
-      return { campaignId, existing: structuredClone(existing), scheduledAt };
-    }, describe: ({ prepared }) => {
-      let title = "Send this newsletter?";
-      if (toolId === "newsletter_schedule_campaign") title = "Schedule this newsletter?";
-      if (toolId === "newsletter_resume_campaign") title = "Resume this newsletter?";
-      const spec = { toolId, errorCode: "NEWSLETTER", title,
-        description: "This action can send email to real people. Only your confirmation can authorize it.", confirmLabel: "Confirm" };
-      if ("refusal" in prepared) return { ...spec, details: [] };
-      const { existing, campaignId, scheduledAt } = prepared;
-      return { ...spec, details: [
-        { label: "Subject", value: existing.subject }, { label: "Campaign", value: campaignId }, { label: "Subscriber list", value: existing.listId }, { label: "Status", value: existing.status },
-        ...(scheduledAt === null ? [] : [{ label: "Scheduled date", value: scheduledAt }]),
-      ] };
-    }, run: async ({ ctx, prepared }) => {
-      if ("refusal" in prepared) return prepared.refusal;
-      const { campaignId, existing, scheduledAt } = prepared;
-      // Authorization and mail configuration may change while the human reads the card.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: toolId === "newsletter_schedule_campaign" ? "admin.newsletter.campaign.schedule" : "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
-      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
-      const currentMailOff = mailOffResult(deps);
-      if (currentMailOff) return currentMailOff;
-      const transition = await deps.newsletterCampaignRepo.transaction(async () => {
-        const current = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-        // Pipeline transitions do not always increment version; compare the complete snapshot as well.
-        if (JSON.stringify(current) !== JSON.stringify(existing)) throw new ToolInputError({ message: "NEWSLETTER_STALE_CONFIRMATION: The campaign changed while the card was open. Review it and request a new confirmation." });
-        if (ctx.signal.aborted) return { abandoned: true as const };
-        if (scheduledAt !== null) return scheduleCampaign({ deps: { campaignRepo: deps.newsletterCampaignRepo, listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen }, input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id, scheduledAt } });
-        if (toolId === "newsletter_resume_campaign") {
-          await requireMassLaunchReady(deps);
-          if (ctx.signal.aborted) return { abandoned: true as const };
-          return resumeCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-        }
-        return authorizeSend({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      });
-      if ("abandoned" in transition) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
-      const { campaign } = transition;
-      if (scheduledAt !== null) return { confirmed: true, scheduled: true, campaignId, status: campaign.status, scheduledAt: campaign.scheduledAt, delivered: false, mailDeliveryAvailable: true, note: "The issue's scheduled date was saved. Automatic delivery at that time is not wired; launch it with newsletter_send_campaign when due." };
-      if ("requeueFailed" in transition && transition.requeueFailed) return processingAttentionResult(campaignId, campaign.status);
-      // The campaign status has committed, so a later fan-out failure must not imply no launch occurred.
-      try {
-        await freezeAudience({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId, listId: campaign.listId } });
-        await claimBatch({ deps: toNewsletterSendPipelineDeps(deps) });
-        // An empty audience emits no batch event, so the subscriber cannot complete it for us.
-        await completeIfDrained({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      } catch {
-        console.error("[newsletter] delivery fan-out failed after launch; inspect the send log before retrying");
-        return processingAttentionResult(campaignId, campaign.status);
-      }
-      return { confirmed: true, started: true, campaignId, status: campaign.status, delivered: false, mailDeliveryAvailable: true };
-    } }, { ask: ({ prepared }) => !("refusal" in prepared),
-      declined: ({ reason }) => ({ confirmed: false, reason, delivered: false, mailDeliveryAvailable: true }),
-    });
+    handlers[toolId] = createNewsletterCampaignHandler(deps, surfaces, toolId);
   }
   // authorizeSend's gate result is safe vocabulary; its generic message alone omits the reason.
   const guarded: Record<string, ToolHandler> = {};

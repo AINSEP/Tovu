@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { listExternalMcpServerViews } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -13,15 +13,15 @@ import { guardExternalMcpRequest } from "./guard.js";
  * are set. That property is asserted in `external-mcp-store.test.ts`, not merely intended.
  *
  * Never decrypts, so it cannot fail on a rotated or missing site key — the same property
- * `connectors/get-config.ts` and `media/get-providers.ts` rely on.
+ * the connector configuration reader and `media/get-providers.ts` rely on.
  * Owner 2026-10-07: safe hints now unseal on the server, without returning secret values. Missing
  * keys still degrade to metadata-only reads; they must not make this settings list unavailable.
  */
-export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
-      const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
+      const servers = await listExternalMcpServerViews({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
       res.json({ servers: servers.map(server => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds })) });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/external-mcp/list", code: "INTERNAL_ERROR" });

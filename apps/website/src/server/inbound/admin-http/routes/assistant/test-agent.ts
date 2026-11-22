@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { detectAgents, type DetectedAgent } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -7,7 +9,7 @@ import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome.js";
 
 /** This route's two body fields, trimmed, read off an untyped body in one place.
  *  @complexity O(1). */
-function parseTestAgentBody(rawBody: unknown): { agentId: string; model: string } {
+function parseTestAgentBody({ rawBody }: { rawBody: unknown }, _optional = {}): { agentId: string; model: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     agentId: String(body.agentId ?? "").trim(),
@@ -31,7 +33,7 @@ function detectedTestAgentOutcome(
   // `resolveTestAgentOutcome` — a pure function so it can be unit-tested against fabricated
   // `DetectedAgent` objects instead of depending on which CLIs happen to be installed and
   // authenticated on the host running the suite. See that file's doc for why.
-  return resolveTestAgentOutcome(agent, model);
+  return resolveTestAgentOutcome({ agent, model });
 }
 
 /**
@@ -60,31 +62,16 @@ function detectedTestAgentOutcome(
  *    so it is a value.
  *  - **5xx** — the probe itself could not run. There is no verdict to report.
  */
-export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-execution",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-execution" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const { agentId, model } = parseTestAgentBody(req.body);
+      const { agentId, model } = parseTestAgentBody({ rawBody: req.body });
       if (!agentId) {
         res.status(400).json({ error: "'agentId' is required", code: "BAD_REQUEST" });
         return;

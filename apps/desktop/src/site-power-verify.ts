@@ -50,7 +50,7 @@ export const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText:
 const middle = (b: Box): number => (b.top + b.bottom) / 2;
 
 /** "align dotes with tovu-com" — the ⋮ sits on the same row as the name, not under it. */
-function onNameRow(name: Box, menu: Box): Claim {
+function onNameRow({ name, menu }: { name: Box; menu: Box }, _optional = {}): Claim {
   return {
     ok: Math.abs(middle(menu) - middle(name)) <= 4 && menu.left >= name.right,
     why: `⋮ middle ${middle(menu).toFixed(1)} vs name middle ${middle(name).toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs name right ${name.right.toFixed(1)}`,
@@ -58,7 +58,7 @@ function onNameRow(name: Box, menu: Box): Claim {
 }
 
 /** "put the start/stop under the SQLite" — on the database line's left edge, below row 2. */
-function powerUnderText(details: Box, status: Box, power: Box | null): Claim {
+function powerUnderText({ details, status, power }: { details: Box; status: Box; power: Box | null }, _optional = {}): Claim {
   if (power === null) return { ok: true, why: 'no power button for this status' };
   const rowBottom = Math.max(details.bottom, status.bottom);
   return {
@@ -68,7 +68,7 @@ function powerUnderText(details: Box, status: Box, power: Box | null): Claim {
 }
 
 /** "status on the right under the ⋮" — right edges shared, below the ⋮, level with "SQLite". */
-function statusUnderMenu(menu: Box, details: Box, status: Box): Claim {
+function statusUnderMenu({ menu, details, status }: { menu: Box; details: Box; status: Box }, _optional = {}): Claim {
   return {
     ok: Math.abs(status.right - menu.right) <= 1 && status.top >= menu.bottom - 1 && Math.abs(middle(status) - middle(details)) <= 4,
     why: `status right ${status.right.toFixed(1)} vs ⋮ right ${menu.right.toFixed(1)}; status top ${status.top.toFixed(1)} vs ⋮ bottom ${menu.bottom.toFixed(1)}; status middle ${middle(status).toFixed(1)} vs SQLite middle ${middle(details).toFixed(1)}`,
@@ -81,14 +81,14 @@ function statusUnderMenu(menu: Box, details: Box, status: Box): Claim {
  * under another. Returns a reason per claim rather than a bare boolean, so a failure names the
  * pixels rather than sending the reader back to the screenshot.
  */
-export function layoutClaims(state: CardState | null): LayoutClaims {
+export function layoutClaims({ state }: { state: CardState | null }, _optional = {}): LayoutClaims {
   const layout = state === null ? null : state.layout;
   if (!layout) return NO_LAYOUT;
   if (!layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
   return {
-    onNameRow: onNameRow(layout.name, layout.menu),
-    powerUnderText: powerUnderText(layout.details, layout.status, layout.power),
-    statusUnderMenu: statusUnderMenu(layout.menu, layout.details, layout.status),
+    onNameRow: onNameRow({ name: layout.name, menu: layout.menu }),
+    powerUnderText: powerUnderText({ details: layout.details, status: layout.status, power: layout.power }),
+    statusUnderMenu: statusUnderMenu({ menu: layout.menu, details: layout.details, status: layout.status }),
   };
 }
 
@@ -114,7 +114,7 @@ interface FlatCard {
   hasPower?: boolean;
 }
 
-export function flat(state: CardState | null): FlatCard {
+export function flat({ state }: { state: CardState | null }, _optional = {}): FlatCard {
   if (state === null) return {};
   const { power, ...rest } = state;
   return { ...rest, label: power?.label, disabled: power?.disabled, hasPower: power !== null };
@@ -137,10 +137,10 @@ interface SeedFs {
  * @param ports.now the clock stamped into the seeded project's `createdAt`. */
 export function seedSitePowerProfile(
   { siteDir, shotDir, userDataDir }: { siteDir: string | undefined; shotDir: string; userDataDir: string },
-  { fs, log, now }: { fs: SeedFs; log: (line: string) => void; now: () => Date },
+  { fs, log, now }: { fs: SeedFs; log: (input: { line: string }, options?: Record<string, never>) => void; now: () => Date },
 ): string | null {
   if (!siteDir || !fs.existsSync(path.join(siteDir, "config.json"))) {
-    log("FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)");
+    log({ line: "FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)" });
     return null;
   }
   // The display name the seeded card must carry, read from the site's own config.json rather than

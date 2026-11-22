@@ -1,10 +1,12 @@
 import childProcess from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile, readFile, rm, statfs, readdir, mkdir } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { withFileLock, FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
+import { withFileLock } from "@jini-ai/platform/fs/file-lock";
+import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
@@ -116,12 +118,22 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
 export async function tidyImportDatabases(_required: Record<string, never>, _optional: Record<string, never> = {}): Promise<void> {
   const temp = tmpdir();
   for (const entry of await readdir(temp, { withFileTypes: true })) {
-    if (!entry.name.startsWith("tovu-import-db-") || (!entry.isDirectory() && !(entry.isFile() && entry.name.endsWith(".lock")))) continue;
+    if (!isImportDatabaseLeftover({ entry })) continue;
     const root = path.join(temp, entry.isDirectory() ? entry.name : entry.name.slice(0, -5));
     try {
       await withFileLock({ lockPath: root + ".lock", run: () => rm(root, { recursive: true, force: true }) }, { timeoutMs: 100, staleMs: 86_400_000 });
     } catch (error) {
-      if (!(error instanceof FileLockTimeoutError) && !["EBUSY", "EPERM", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+      if (!isLockedByAnotherOwner({ error })) throw error;
     }
   }
+}
+
+/** An interrupted helper's directory or its leftover `.lock` file; anything else in temp is not ours. */
+function isImportDatabaseLeftover({ entry }: { entry: Dirent }, _optional = {}): boolean {
+  return entry.name.startsWith("tovu-import-db-") && (entry.isDirectory() || (entry.isFile() && entry.name.endsWith(".lock")));
+}
+
+/** Another owner still holds the lock, or the OS still holds a handle: skip this leftover. */
+function isLockedByAnotherOwner({ error }: { error: unknown }, _optional = {}): boolean {
+  return error instanceof FileLockTimeoutError || ["EBUSY", "EPERM", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "");
 }

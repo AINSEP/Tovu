@@ -4,7 +4,7 @@
  * Jini owns workspace transitions, repository contracts and the tool catalog. SQLite persistence
  * and SPEC-044 route requirements stay host-owned. The registration shim follows the assistant's
  * uniform domain import convention.
- * `SqliteWorkspaceRepo` is exported here for the host composition root (`server/deps.ts`);
+ * `SqliteWorkspaceRepo` is exported here for the host composition root (`apps/website/src/server/runtime/composition/deps.ts`);
  * the package barrel omits SQLite adapters.
  */
 export {
@@ -36,3 +36,6 @@ export { getWorkspaceAgentToolCatalog } from "./agent-tools.js";
 export type { AgentToolDefinition as WorkspaceAgentToolDefinition, AgentToolSideEffect as WorkspaceAgentToolSideEffect, AgentToolActorClassRule as WorkspaceAgentToolActorClassRule } from "@jini-ai/core";
 
 export { SqliteWorkspaceRepo } from "./repo.sqlite.js";
+
+export { contributeWorkspaceTools } from "./tool-registrations.js";
+export type { WorkspaceToolDeps } from "./tool-registrations.js";

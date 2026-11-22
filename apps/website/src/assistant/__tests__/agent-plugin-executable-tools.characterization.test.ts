@@ -9,7 +9,7 @@ import test from 'node:test';
 import { createToolRegistry, type ToolRegistration } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { applyToolApprovalPolicy } from '../tool-approval-policy.js';
 import { isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
@@ -46,5 +46,5 @@ test('existing extension approval families keep their classes (pinned before G7)
 });
 
 test('the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)', () => {
-  assert.equal(isMcpUiToolCallPermitted('p_acme_office__append_rows', false), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_acme_office__append_rows', answersAnExchange: false }), false);
 });

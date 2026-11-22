@@ -17,7 +17,7 @@ import { EventEmitter } from "node:events";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { installWebviewGuestPolicy } from "./main/windows/guest-navigation.ts";
-import * as signInLinks from "../../website/src/contracts/core/hosted-sign-in-links.ts";
+import * as signInLinks from "@tovu/contracts/hosted-sign-in-links";
 import { renderOAuthCallbackPage } from "../../website/src/server/inbound/public-http/routes/oauth/callback-page.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -41,8 +41,8 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
 /** A `webContents` stand-in that keeps whatever the policy registers, plus every URL handed to the
  *  OS browser. */
 function installOnFake(
-  install: (contents: NavigableContents, openExternal: (url: string) => void) => void = (contents, openExternal) =>
-    installAppWindowNavigationPolicy(contents, { appOrigin: APP_ORIGIN, openExternal }),
+  install: (args: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) => void = ({ contents, openExternal }) =>
+    installAppWindowNavigationPolicy({ contents, options: { appOrigin: APP_ORIGIN, openExternal } }),
 ) {
   let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
   let navigateListener: ((event: { preventDefault(): void }, url: string) => void) | undefined;
@@ -58,7 +58,7 @@ function installOnFake(
       return contents;
     },
   };
-  install(contents, (url) => opened.push(url));
+  install({ contents, openExternal: ({ url }) => opened.push(url) });
 
   return {
     opened,
@@ -176,24 +176,24 @@ test("a same-origin main-frame redirect, and any subframe redirect, is left alon
 });
 
 test("isSameOrigin compares parsed origins, and an opaque or unparseable origin never matches", () => {
-  assert.equal(isSameOrigin("http://127.0.0.1:4567/admin", "http://127.0.0.1:4567"), true);
-  assert.equal(isSameOrigin("http://127.0.0.1:4567/admin", "http://127.0.0.1:4567/other/"), true);
-  assert.equal(isSameOrigin("http://127.0.0.1:4567@evil.example/", "http://127.0.0.1:4567"), false);
-  assert.equal(isSameOrigin("http://127.0.0.1:45670/", "http://127.0.0.1:4567"), false);
+  assert.equal(isSameOrigin({ candidate: "http://127.0.0.1:4567/admin", reference: "http://127.0.0.1:4567" }), true);
+  assert.equal(isSameOrigin({ candidate: "http://127.0.0.1:4567/admin", reference: "http://127.0.0.1:4567/other/" }), true);
+  assert.equal(isSameOrigin({ candidate: "http://127.0.0.1:4567@evil.example/", reference: "http://127.0.0.1:4567" }), false);
+  assert.equal(isSameOrigin({ candidate: "http://127.0.0.1:45670/", reference: "http://127.0.0.1:4567" }), false);
   // Two opaque origins both serialize as "null"; equal strings, not the same origin.
-  assert.equal(isSameOrigin("file:///a", "file:///b"), false);
-  assert.equal(isSameOrigin("data:text/html,a", "data:text/html,a"), false);
-  assert.equal(isSameOrigin("", ""), false);
-  assert.equal(isSameOrigin("not a url", "not a url"), false);
+  assert.equal(isSameOrigin({ candidate: "file:///a", reference: "file:///b" }), false);
+  assert.equal(isSameOrigin({ candidate: "data:text/html,a", reference: "data:text/html,a" }), false);
+  assert.equal(isSameOrigin({ candidate: "", reference: "" }), false);
+  assert.equal(isSameOrigin({ candidate: "not a url", reference: "not a url" }), false);
 });
 
 test("isExternalBrowserUrl admits only parseable http and https URLs", () => {
-  assert.equal(isExternalBrowserUrl("https://example.com/"), true);
-  assert.equal(isExternalBrowserUrl("http://127.0.0.1:4567/"), true);
-  assert.equal(isExternalBrowserUrl("javascript:alert(1)"), false);
-  assert.equal(isExternalBrowserUrl("file:///etc/passwd"), false);
-  assert.equal(isExternalBrowserUrl("mailto:a@example.com"), false);
-  assert.equal(isExternalBrowserUrl("not a url"), false);
+  assert.equal(isExternalBrowserUrl({ raw: "https://example.com/" }), true);
+  assert.equal(isExternalBrowserUrl({ raw: "http://127.0.0.1:4567/" }), true);
+  assert.equal(isExternalBrowserUrl({ raw: "javascript:alert(1)" }), false);
+  assert.equal(isExternalBrowserUrl({ raw: "file:///etc/passwd" }), false);
+  assert.equal(isExternalBrowserUrl({ raw: "mailto:a@example.com" }), false);
+  assert.equal(isExternalBrowserUrl({ raw: "not a url" }), false);
 });
 
 /** A `setWindowOpenHandler`-only stand-in for {@link installGuestWindowOpenPolicy}'s tests. */
@@ -205,7 +205,7 @@ function installGuestPopupOnFake(isSupervisedGuestUrl: (url: string) => boolean)
       openHandler = handler;
     },
   };
-  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal: (url) => opened.push(url) });
+  installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl(url), openExternal: ({ url }) => opened.push(url) });
   return {
     opened,
     windowOpen(url: string): WindowOpenResponse {
@@ -260,36 +260,36 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
 
 const RENDERER = "file:///Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html";
 const pages = (overrides: { attachUrl?: string } = {}) => ({
-  isSupervisedSite: (url: string) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
+  isSupervisedSite: ({ url }: { url: string }) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
   rendererFileUrl: RENDERER,
   ...overrides,
 });
 
 test("isShellPageUrl admits a supervised site's pages", () => {
-  assert.equal(isShellPageUrl("http://127.0.0.1:4567/admin/", pages()), true);
-  assert.equal(isShellPageUrl("http://127.0.0.1:4568/admin/", pages()), false);
+  assert.equal(isShellPageUrl({ raw: "http://127.0.0.1:4567/admin/", pages: pages() }), true);
+  assert.equal(isShellPageUrl({ raw: "http://127.0.0.1:4568/admin/", pages: pages() }), false);
 });
 
 test("isShellPageUrl admits attach mode's origin by parsed origin, and nothing when there is no attach url", () => {
   const attach = pages({ attachUrl: "http://localhost:5173" });
-  assert.equal(isShellPageUrl("http://localhost:5173/admin/pages", attach), true);
-  assert.equal(isShellPageUrl("http://localhost:5173@evil.example/admin/", attach), false);
-  assert.equal(isShellPageUrl("http://localhost:51730/admin/", attach), false);
-  assert.equal(isShellPageUrl("http://localhost:5173/admin/", pages()), false);
-  assert.equal(isShellPageUrl("http://localhost:5173/admin/", pages({ attachUrl: "" })), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/pages", pages: attach }), true);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173@evil.example/admin/", pages: attach }), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:51730/admin/", pages: attach }), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/", pages: pages() }), false);
+  assert.equal(isShellPageUrl({ raw: "http://localhost:5173/admin/", pages: pages({ attachUrl: "" }) }), false);
 });
 
 test("isShellPageUrl admits the sites home renderer's own file, whatever its hash or query, and no other file", () => {
-  assert.equal(isShellPageUrl(RENDERER, pages()), true);
-  assert.equal(isShellPageUrl(`${RENDERER}#/projects`, pages()), true);
-  assert.equal(isShellPageUrl(`${RENDERER}?tab=1`, pages()), true);
-  assert.equal(isShellPageUrl("file:///tmp/index.html", pages()), false);
-  assert.equal(isShellPageUrl("file://evil-host/Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html", pages()), false);
+  assert.equal(isShellPageUrl({ raw: RENDERER, pages: pages() }), true);
+  assert.equal(isShellPageUrl({ raw: `${RENDERER}#/projects`, pages: pages() }), true);
+  assert.equal(isShellPageUrl({ raw: `${RENDERER}?tab=1`, pages: pages() }), true);
+  assert.equal(isShellPageUrl({ raw: "file:///tmp/index.html", pages: pages() }), false);
+  assert.equal(isShellPageUrl({ raw: "file://evil-host/Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html", pages: pages() }), false);
 });
 
 test("isShellPageUrl refuses foreign pages and garbage without throwing", () => {
   for (const raw of ["https://evil.example/admin/", "javascript:alert(1)", "data:text/html,x", "about:blank", "", "not a url"]) {
-    assert.equal(isShellPageUrl(raw, pages({ attachUrl: "http://localhost:5173" })), false, raw);
+    assert.equal(isShellPageUrl({ raw, pages: pages({ attachUrl: "http://localhost:5173" }) }), false, raw);
   }
 });
 
@@ -298,11 +298,11 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
 // `isShellPageUrl` itself is covered above; this pins only that the entry feeds it the live inputs.
 test("main.ts registers the speech channels with the shell-page sender check", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: isShellPage \}\)/);
+  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\) \}\)/);
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
     shellPage,
-    /isShellPageUrl\(raw, \{\s*isSupervisedSite: isSupervisedGuestUrl,\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\}\)/,
+    /isShellPageUrl\(\{ raw, pages: \{\s*isSupervisedSite: \(\{ url \}\) => isSupervisedGuestUrl\(\{ raw: url \}\),\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\} \}\)/,
   );
 });
 
@@ -311,8 +311,8 @@ test("main.ts registers the speech channels with the shell-page sender check", (
 // Its `script-src 'self'` CSP only covers the page it is on: a link dropped onto the window, or any
 // other top-level navigation, replaced the page with a remote one that got the SAME preload and none
 // of the CSP. Only the renderer's own file may load there.
-const installSitesHome = (contents: NavigableContents, openExternal: (url: string) => void) =>
-  installSitesHomeNavigationPolicy(contents, { rendererFileUrl: RENDERER, openExternal });
+const installSitesHome = ({ contents, openExternal }: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) =>
+  installSitesHomeNavigationPolicy({ contents, options: { rendererFileUrl: RENDERER, openExternal } });
 
 test("sites home: navigating the window to a remote page is prevented and handed to the OS browser", () => {
   const fake = installOnFake(installSitesHome);
@@ -378,7 +378,7 @@ function registeredSignInGuest(current = `${APP_ORIGIN}/admin`) {
   runInNewContext(`${stripTypeScriptTypes(permissionWindows + "\n" + registrar)}; registerGuestNavigationPolicy();`, {
     app, BrowserWindow: Popup, URL, shell: { openExternal: (url: string) => opened.push(url) },
     installWebviewGuestPolicy, installGuestWindowOpenPolicy, isSameOrigin, isExternalBrowserUrl, ...signInLinks,
-    isSupervisedGuestUrl: (url: string) => { try { return [APP_ORIGIN, "http://127.0.0.1:4568"].includes(new URL(url).origin); } catch { return false; } },
+    isSupervisedGuestUrl: ({ raw }: { raw: string }) => { try { return [APP_ORIGIN, "http://127.0.0.1:4568"].includes(new URL(raw).origin); } catch { return false; } },
   });
   app.emit("web-contents-created", {}, guest);
   return { guest, windows, opened, requestPermission: (contents: object, permission: string, callback: (allowed: boolean) => void) => requestPermission(contents, permission, callback), checkPermission: (contents: object | null) => checkPermission(contents) };
@@ -402,10 +402,10 @@ for (const pathname of SIGN_IN_PATHS) {
       let prevented = false;
       const event = { preventDefault: () => { prevented = true; } };
       popup.webContents.emit("will-navigate", event, url);
-      assert.equal(prevented, !isExternalBrowserUrl(url), url);
+      assert.equal(prevented, !isExternalBrowserUrl({ raw: url }), url);
       prevented = false;
       popup.webContents.emit("will-redirect", { ...event, url, isMainFrame: true });
-      assert.equal(prevented, !isExternalBrowserUrl(url), url);
+      assert.equal(prevented, !isExternalBrowserUrl({ raw: url }), url);
     }
     assert.deepEqual(popup.webContents.open({ url: "https://provider.example/help" }), { action: "deny" });
     assert.deepEqual(opened, ["https://provider.example/help"]);
@@ -432,7 +432,7 @@ test("registered guest keeps other paths, origins, ports and schemes out of the 
   ];
   for (const url of urls) assert.deepEqual(guest.open({ url }), { action: "deny" }, url);
   assert.equal(windows.length, 0);
-  assert.deepEqual(opened, urls.filter(isExternalBrowserUrl));
+  assert.deepEqual(opened, urls.filter((raw) => isExternalBrowserUrl({ raw })));
   assert.equal(signInLinks.isHostedSignInLinkPath({ pathname: SIGN_IN_PATHS[0]! }), false);
 });
 

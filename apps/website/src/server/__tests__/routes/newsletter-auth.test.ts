@@ -27,7 +27,7 @@ function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   const publicDeps: NewsletterPublicRouteDeps = {
     workspaceId: deps.workspaceId,
@@ -41,7 +41,7 @@ function buildTestApp(): { app: express.Express; deps: NewsletterRouteDeps } {
     clock: deps.clock,
     idGen: deps.idGen,
   };
-  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.(app);
+  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ app });
   return { app, deps };
 }
 

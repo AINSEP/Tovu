@@ -6,6 +6,7 @@ import { defineConfig, type Plugin } from "vite";
 import { destroyClientWhenUpstreamCloses } from "./dev-proxy-upstream-close";
 import { isDevTlsExplicitlyDisabled } from "./dev-tls-disable-flag";
 import { adminJiniDependencyFingerprint } from "./dev-jini-deps";
+import { readJiniCoreVersion } from "./jini-core-version";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
@@ -49,7 +50,7 @@ const redirectBareAdmin: Plugin = {
 // crashing.
 //
 // Certs live at the REPO ROOT, not under `apps/admin/`: `apps/website/src/index.ts`'s own API
-// server now gates its own TLS the same way (`server/runtime/boot/dev-tls.ts`), reading this exact
+// server now gates its own TLS the same way (`platform/dev-host/dev-tls.ts`), reading this exact
 // same pair, so one directory serves both dev servers instead of the API reaching across into
 // `apps/admin`'s own folder. The toggle is still a single rename, just from the repo root now:
 // `mv .certs .certs.disabled` to turn TLS off, `mv .certs.disabled .certs` to turn it back on.
@@ -68,7 +69,7 @@ const redirectBareAdmin: Plugin = {
 // (2026-09-05 audit finding). Mirrors `dev-tls.ts`'s and `dev.mjs`'s own copies of this same parse.
 const certPath = path.resolve(__dirname, "../../.certs/localhost.pem");
 const keyPath = path.resolve(__dirname, "../../.certs/localhost-key.pem");
-const devTlsDisabled = isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS);
+const devTlsDisabled = isDevTlsExplicitlyDisabled({ raw: process.env.TOVU_DISABLE_DEV_TLS });
 const httpsOptions =
   !devTlsDisabled && existsSync(certPath) && existsSync(keyPath)
     ? { cert: readFileSync(certPath), key: readFileSync(keyPath) }
@@ -125,6 +126,7 @@ export default defineConfig({
   base: "/admin/",
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __JINI_CORE_VERSION__: JSON.stringify(readJiniCoreVersion({ adminDir: __dirname })),
     // `__TOVU_ADMIN_DEV_PORT__` is NOT here: `injectAdminDevPort` supplies it from the resolved
     // `server.port`, so a CLI `--port` cannot leave the define disagreeing with the real bind.
   },
@@ -152,13 +154,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
-      // Same cross-runtime precedent as `@tovu/headless` just above, extended to a pure resolver
-      // FUNCTION rather than wire-contract types: `theme-layout.ts` has zero `node:fs`/`node:path`
-      // imports (see its own file header), so this browser bundle can import the exact same
-      // apiVersion-aware path facts the server route uses — 2026-08-19 architecture audit findings
-      // 1 & 2, "one shared resolver, not six independent copies that can drift."
-      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
-      // Third instance of the same cross-runtime pattern, for the Publish Content dialog's report
+      // `@jini-ai/cms/themes/layout` has no Node imports, so browser consumers resolve the
+      // same apiVersion-aware path facts as the server through the public package entry.
+      // This preserves the 2026-08-19 audit's one-resolver rule without a source alias.
+      // Another instance of the same cross-runtime pattern, for the Publish Content dialog's report
       // semantics (`features/publish-content/ui/`). That folder is pure TypeScript with no React and
       // no `node:*` — enforced by its own boundary test — precisely so this alias can exist: the
       // admin SPA renders the plan/confirm/execute ceremony from the SAME rules `planner.ts` applies
@@ -222,17 +221,17 @@ export default defineConfig({
         configure: destroyClientWhenUpstreamCloses,
       },
       // `@jini-ai/chat-react`'s runtime picker requests agent icons from this root-relative path
-      // (see `src/server/app.ts`'s matching route for why it can't just live under `/admin/`).
+      // (see `apps/website/src/server/runtime/composition/app.ts`'s matching route for why it can't just live under `/admin/`).
       "/agent-icons": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `theme-static-assets.ts`'s `express.static` mount — a `static`-tier theme's own `css/`/
       // `js/`/`screenshots/` files, requested root-relative by the theme's own rendered HTML and by
-      // `Appearance.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
+      // `apps/admin/src/features/themes/Themes.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
       // Vite's own dev server (which has never heard of `/theme-assets`) instead of reaching the
       // backend that actually serves them, in production this is a non-issue since one server
       // serves both the built admin SPA and this mount.
       "/theme-preview-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       "/theme-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
-      // `server/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
+      // `apps/website/src/server/inbound/public-http/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
       // (see that route's own doc), read by `lib/api.ts`'s `getAssistantDaemonReadyz` for the
       // "Restart assistant" admin control's live status line. Same reason `/agent-icons` above
       // needs its own proxy entry: a root-relative path that cannot live under `/admin/`, so

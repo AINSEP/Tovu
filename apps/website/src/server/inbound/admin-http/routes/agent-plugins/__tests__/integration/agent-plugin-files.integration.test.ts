@@ -69,7 +69,7 @@ async function withSwitchedOffPlugin<T>(fn: () => Promise<T>): Promise<T> {
       layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE,
     });
-    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "test" });
     return await fn();
   } finally {
@@ -84,9 +84,9 @@ function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   // `agent-plugins-http.integration.test.ts`'s `buildTestApp` for why a second call 403s.
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginFilesRoute(app, baseDeps);
+  registerAgentPluginFilesRoute({ app, deps: baseDeps });
   return app;
 }
 

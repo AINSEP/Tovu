@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useConfirmRequest } from "@jini-ai/admin/react";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { subscribeToSettingsRefresh, publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 type Grant = { enabled: boolean; canEdit: boolean };
@@ -72,7 +72,7 @@ export function useAssistantOwnerGrant<T extends Grant>(required: {
       const saved = await mutation.mutate({ input: { ...input.settings, riskAcknowledged: consent.acknowledged } });
       state.loader.replace({ value: saved });
       publishSettingsRefresh([required.namespace]);
-    } catch (error) { setSaveError(describeApiError(error, required.failure)); }
+    } catch (error) { setSaveError(describeApiError({ e: error, fallback: required.failure })); }
     finally { locked.current = false; setBusy(false); }
   }
   return { ...state, busy, saveError, save, dialog: { ...confirmation.dialog, onCancel: () => {

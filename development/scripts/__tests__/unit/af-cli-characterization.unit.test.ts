@@ -40,7 +40,8 @@ test('admin route CLI resolves nested placeholders and reports the unmatched con
       route: { methods: { get: true } }, handle: {}
     }] } });
   `);
-  f.write('apps/admin/src/lib/api.ts', [
+  f.write('apps/admin/src/lib/admin-http/urls.ts', '');
+  f.write('apps/admin/src/features/zed/api/zed-api.ts', [
     'function base(id): string { return `/workspaces/${WORKSPACE_ID}/items/${id}`; }',
     'request(`${base(id)}/${action}${query ? "?q=" + ({ nested: true }).nested : ""}`);',
     'request("/missing\\\"quote");',
@@ -68,11 +69,11 @@ test('activation CLI lists explicit provenance and writes the enable decision th
       }
     };
   `);
-  f.write(`${dir}layout.js`, `export const resolveAgentPluginLayout = () => ({ forWorkspace: id => {
-    if (id !== 'tenant') throw Error('wrong workspace'); return { root: 'tenant-root' };
+  f.write(`${dir}layout.js`, `export const resolveAgentPluginLayout = () => ({ forWorkspace: ({ workspaceId }) => {
+    if (workspaceId !== 'tenant') throw Error('wrong workspace'); return { root: 'tenant-root' };
   } });`);
-  f.write(`${dir}lifecycle.js`, `export const listInstalledPlugins = async root => {
-    if (root !== 'tenant-root') throw Error('wrong root');
+  f.write(`${dir}lifecycle.js`, `export const listInstalledPlugins = async ({ workspaceRoot }) => {
+    if (workspaceRoot !== 'tenant-root') throw Error('wrong root');
     return [{ pluginId: 'mail', archiveDigest: '123456789012abcdef' }];
   };`);
   const listed = f.run('agent-plugin-activation.ts', ['list', '--workspace', 'tenant']);
@@ -109,6 +110,15 @@ test('registry drift CLI skips projects with no registry Jini dependencies', t =
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.match(/SKIP  no registry-resolved @jini-ai\/\* dependencies/g)?.length, 2);
   assert.match(result.stdout, /all pinned @jini-ai\/\* packages match/);
+});
+
+test('registry drift CLI reports an unreadable manifest as a project failure, not a crash', t => {
+  const f = fixture(t, ['check-jini-registry-drift.mjs']);
+  f.write('apps/admin/package.json', '{not json');
+  const result = f.run('check-jini-registry-drift.mjs');
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /--- apps\/admin ---\n  FAIL  operation-error:/);
+  assert.doesNotMatch(result.stderr, /unexpected failure/);
 });
 
 test('brand icon CLI keeps the letter and removes the disconnected frame from the simplified master', async t => {
@@ -255,7 +265,7 @@ test('coverage triage CLI includes complexity-only files absent from both covera
     export const loadRouteCoverage = () => [{ file: 'covered.ts', brf: 5 }];
   `);
   f.write('development/scripts/check-src-complexity-drift.js', `export const findViolations = () => [
-    { file: 'untested.ts', rule: 'complexity', reason: 'too complex' }
+    { file: 'untested.ts', function: 'fixture#1', line: 12, rule: 'complexity', value: 11 }
   ];`);
   f.write('development/scripts/check-route-coverage-diff.js', `export const evaluateFileTiers = (file, unit, integration) => ({
     file, ok: Boolean(unit && integration), unit: { detail: unit ? 'covered' : 'missing' },
@@ -265,15 +275,18 @@ test('coverage triage CLI includes complexity-only files absent from both covera
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /1 file\(s\) below tier threshold, 2 scanned/);
   assert.match(result.stdout, /ARCHITECTURE_DEBT \(1\)/);
-  assert.match(result.stdout, /untested\.ts: unit missing, integration missing\n\s+\[complexity\] too complex/);
+  assert.match(result.stdout, /untested\.ts: unit missing, integration missing\n\s+\[complexity\] fixture#1 at line 12: 11/);
 });
 
 test('web dev CLI attaches to the selected running site and opens its admin URL', t => {
   const f = fixture(t, ['dev.mjs']);
-  f.write('development/scripts/dev-sites-home.mjs', `export const devSitesHome = () => ({
-    running: { app: 'desktop', port: 3123, scheme: 'https' }
-  });`);
+  f.write('development/scripts/dev-sites-home.mjs', `const selected = { dir: '/unused-site', dbPath: '/unused-db', warning: undefined,
+    running: { app: 'desktop', port: 3123, scheme: 'https' } };
+    export const devSitesHome = () => selected;
+    export const prepareDevSitesHome = async () => ({ ...selected, env: {} });`);
   f.write('development/scripts/dev-api-watch.mjs', 'export const apiWatchArgs = () => [];');
+  f.write('development/scripts/dev-lite.mjs', 'export const prepareLiteAdmin = async () => ({});');
+  f.write('development/scripts/compose-bundled-agent-plugins.mjs', 'export const composeDevBundledAgentPlugins = () => "/unused/bundled-agent-plugins";');
   f.write('development/scripts/prune-tsx-cache.mjs', 'export const pruneTsxCache = () => { throw Error("unexpected prune"); };');
   f.write('development/scripts/load-repo-root-env.mjs', 'export const loadRepoRootEnvFile = () => false;');
   f.write('development/scripts/local-dev-plugin-install.mjs', 'export const localDevPluginInstallEnv = () => ({});');
@@ -293,6 +306,7 @@ test('web dev CLI attaches to the selected running site and opens its admin URL'
 test('desktop dev CLI builds preload before watching and forwards Electron flags on normal exit', t => {
   const f = fixture(t, ['dev-desktop.mjs']);
   f.write('development/scripts/free-port.mjs', 'export const pickFreePort = () => { throw Error("unexpected probe"); };');
+  f.write('development/scripts/compose-bundled-agent-plugins.mjs', 'export const composeDevBundledAgentPlugins = () => "/unused/bundled-agent-plugins";');
   f.write('development/scripts/load-repo-root-env.mjs', 'export const loadRepoRootEnvFile = () => false;');
   f.write('development/scripts/local-dev-plugin-install.mjs', 'export const localDevPluginInstallEnv = () => ({});');
   f.write('development/scripts/port-listeners.mjs', 'export const listenersOn = () => [];');

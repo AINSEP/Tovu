@@ -1,11 +1,23 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { themesApi } from "../../features/themes/api/themes-api";
+import { rolesApi } from "../../features/roles/api/roles-api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import { recoveryApi } from "../../features/recovery/api/recovery-api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
+import { databaseApi } from "../../features/database/api/database-api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pagesApi } from "../../features/pages/api/pages-api";
+import { membersApi } from "../../features/members/api/members-api";
+import { ApiError } from "../admin-http/request";
 
 test("external MCP approvals list and revoke use separately encoded server and tool names", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listExternalMcpToolApprovals();
-  await api.revokeExternalMcpToolApproval("server/one", "tool/name");
+  await integrationsApi.listExternalMcpToolApprovals();
+  await integrationsApi.revokeExternalMcpToolApproval({ serverId: "server/one", toolName: "tool/name" });
   expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/mcp-servers/tool-approvals", "GET"],
     ["/api/admin/v1/workspaces/workspace-local/mcp-servers/server%2Fone/tool-approvals/tool%2Fname", "DELETE"],
@@ -14,9 +26,9 @@ test("external MCP approvals list and revoke use separately encoded server and t
 
 test("publish destination reads and connects the workspace singleton with an optional site URL", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.getPublishDestination();
-  await api.connectPublishDestination();
-  await api.connectPublishDestination({ siteUrl: "https://live.example" });
+  await publishContentApi.getPublishDestination();
+  await publishContentApi.connectPublishDestination();
+  await publishContentApi.connectPublishDestination({ siteUrl: "https://live.example" });
   expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/publish-content/destination", "GET"],
     ["/api/admin/v1/workspaces/workspace-local/publish-content/destination/connect", "POST"],
@@ -28,7 +40,7 @@ test("publish destination reads and connects the workspace singleton with an opt
 
 test("publish peers are read from the workspace peer collection", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listPublishContentPeers();
+  await publishContentApi.listPublishContentPeers();
   expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/publish-content/peers");
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -36,11 +48,11 @@ test("publish peers are read from the workspace peer collection", async () => {
 test("publish plans omit a body when unfiltered and retain each explicitly supplied selection", async () => {
   const { calls, body } = stubFetchCapturing();
   const scope = { entityTypes: ["post"] };
-  await api.planPublishContent({ peerId: "peer/one" });
-  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: [] });
-  await api.planPublishContent({ peerId: "peer/one", overwriteEntityKeys: [] });
-  await api.planPublishContent({ peerId: "peer/one", scope });
-  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
+  await publishContentApi.planPublishContent({ peerId: "peer/one" });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", selectedEntityKeys: [] });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", overwriteEntityKeys: [] });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", scope });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
   expect(calls.every(({ url, init }) => url === "/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/plan" && init?.method === "POST")).toBe(true);
   expect(calls[0].init?.body).toBeUndefined();
   expect(body(1)).toEqual({ selectedEntityKeys: [] });
@@ -51,9 +63,9 @@ test("publish plans omit a body when unfiltered and retain each explicitly suppl
 
 test("publish confirmation and execution retain their distinct authorization payloads", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmPublishContent({ peerId: "peer/one", planId: "plan", planHash: "hash" });
-  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved" });
-  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] }, {});
+  await publishContentApi.confirmPublishContent({ peerId: "peer/one", planId: "plan", planHash: "hash" });
+  await publishContentApi.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved" });
+  await publishContentApi.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] }, {});
   expect(calls.map(({ url, init }) => [url, init?.method])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/confirm", "POST"],
     ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/execute", "POST"],
@@ -108,7 +120,7 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 test("me hits GET /auth/me with no body", async () => {
   const { calls } = stubFetchCapturing();
-  await api.me();
+  await authApi.me();
   expect(calls[0].url).toBe(`/api/admin/v1/auth/me`);
   expect(calls[0].init?.method).toBeUndefined();
 });
@@ -117,22 +129,22 @@ test("me hits GET /auth/me with no body", async () => {
 
 test("getPage builds a bare GET on /pages/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPage("pg1");
+  await pagesApi.getPage({ id: "pg1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("updatePageHtml PUTs the html body to /pages/:id/html", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updatePageHtml("pg1", "<p>hi</p>");
+  await pagesApi.updatePageHtml({ id: "pg1", html: "<p>hi</p>", expectedVersion: 3 });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1/html`);
   expect(calls[0].init?.method).toBe("PUT");
-  expect(body()).toEqual({ html: "<p>hi</p>" });
+  expect(body()).toEqual({ html: "<p>hi</p>", expectedVersion: 3 });
 });
 
 test("deletePage DELETEs /pages/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deletePage("pg1");
+  await pagesApi.deletePage({ id: "pg1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
@@ -141,14 +153,14 @@ test("deletePage DELETEs /pages/:id", async () => {
 
 test("listRoles hits GET /roles", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRoles();
+  await rolesApi.listRoles();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createRole POSTs { name } to /roles", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createRole("Editor");
+  await rolesApi.createRole({ name: "Editor" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ name: "Editor" });
@@ -156,7 +168,7 @@ test("createRole POSTs { name } to /roles", async () => {
 
 test("deleteRole DELETEs /roles/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteRole("r1");
+  await rolesApi.deleteRole({ roleId: "r1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles/r1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
@@ -169,7 +181,7 @@ test("deleteRole DELETEs /roles/:id", async () => {
 
 test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.setPluginEnabled("p1", { enabled: false });
+  await pluginsApi.setPluginEnabled({ pluginId: "p1", enabled: false });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/plugins/p1`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(body()).toEqual({ enabled: false });
@@ -179,7 +191,7 @@ test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
 
 test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getExternalMcpAdmissions();
+  await integrationsApi.getExternalMcpAdmissions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -195,7 +207,7 @@ test("getExternalMcpAdmissions surfaces a 503 (daemon unreachable) as an ApiErro
         })
     )
   );
-  const error = await api.getExternalMcpAdmissions().catch((e: unknown) => e);
+  const error = await integrationsApi.getExternalMcpAdmissions().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).status).toBe(503);
 });
@@ -204,14 +216,14 @@ test("getExternalMcpAdmissions surfaces a 503 (daemon unreachable) as an ApiErro
 
 test("listIntegrationSubscriptions hits GET /integrations/subscriptions", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listIntegrationSubscriptions();
+  await integrationsApi.listIntegrationSubscriptions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createIntegrationSubscription POSTs the input verbatim to /integrations/subscriptions", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createIntegrationSubscription({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
+  await integrationsApi.createIntegrationSubscription({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
@@ -219,14 +231,14 @@ test("createIntegrationSubscription POSTs the input verbatim to /integrations/su
 
 test("deleteIntegrationSubscription DELETEs /integrations/subscriptions/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteIntegrationSubscription("s1");
+  await integrationsApi.deleteIntegrationSubscription({ id: "s1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
 test("listIntegrationDeliveries hits GET /integrations/subscriptions/:id/deliveries", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listIntegrationDeliveries("s1");
+  await integrationsApi.listIntegrationDeliveries({ subscriptionId: "s1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1/deliveries`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -235,7 +247,7 @@ test("listIntegrationDeliveries hits GET /integrations/subscriptions/:id/deliver
 
 test("listContentTypes hits GET /content-types — not workspace-scoped", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listContentTypes();
+  await collectionsApi.listContentTypes();
   expect(calls[0].url).toBe(`/api/admin/v1/content-types`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -243,7 +255,7 @@ test("listContentTypes hits GET /content-types — not workspace-scoped", async 
 test("createContentType POSTs the input verbatim to /content-types", async () => {
   const { calls, body } = stubFetchCapturing();
   const fields = [{ name: "title", kind: "text" as const, required: true, queryable: false }];
-  await api.createContentType({ key: "recipe", label: "Recipe", fields });
+  await collectionsApi.createContentType({ key: "recipe", label: "Recipe", fields });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ key: "recipe", label: "Recipe", fields });
@@ -252,7 +264,7 @@ test("createContentType POSTs the input verbatim to /content-types", async () =>
 test("updateContentTypeFields PUTs { fields, expectedVersion } to /content-types/:key/fields", async () => {
   const { calls, body } = stubFetchCapturing();
   const fields = [{ name: "title", kind: "text" as const, required: true, queryable: false }];
-  await api.updateContentTypeFields({ key: "recipe", fields, expectedVersion: 2 });
+  await collectionsApi.updateContentTypeFields({ key: "recipe", fields, expectedVersion: 2 });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types/recipe/fields`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ fields, expectedVersion: 2 });
@@ -260,7 +272,7 @@ test("updateContentTypeFields PUTs { fields, expectedVersion } to /content-types
 
 test("contentTypeLifecycle POSTs { op, expectedVersion } to /content-types/:key/lifecycle", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.contentTypeLifecycle({ key: "recipe", op: "deprecate", expectedVersion: 3 });
+  await collectionsApi.contentTypeLifecycle({ key: "recipe", op: "deprecate", expectedVersion: 3 });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types/recipe/lifecycle`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ op: "deprecate", expectedVersion: 3 });
@@ -270,13 +282,13 @@ test("contentTypeLifecycle POSTs { op, expectedVersion } to /content-types/:key/
 
 test("listEntries appends ?type= only when a type filter is given — not workspace-scoped", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listEntries({ type: "recipe" });
+  await collectionsApi.listEntries({ type: "recipe" });
   expect(calls[0].url).toBe(`/api/admin/v1/entries?type=recipe`);
 });
 
 test("createEntry POSTs input+options merged to /entries", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createEntry({ type: "recipe", slug: "chili", title: "Chili" }, { bodyJson: { blocks: [] } });
+  await collectionsApi.createEntry({ type: "recipe", slug: "chili", title: "Chili" }, { bodyJson: { blocks: [] } });
   expect(calls[0].url).toBe(`/api/admin/v1/entries`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ type: "recipe", slug: "chili", title: "Chili", bodyJson: { blocks: [] } });
@@ -284,7 +296,7 @@ test("createEntry POSTs input+options merged to /entries", async () => {
 
 test("updateEntry PUTs { expectedVersion, ...options } to /entries/:id, accepting bodyJson", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updateEntry({ id: "e1", expectedVersion: 4 }, { title: "New title", bodyJson: { blocks: ["x"] } });
+  await collectionsApi.updateEntry({ id: "e1", expectedVersion: 4 }, { title: "New title", bodyJson: { blocks: ["x"] } });
   expect(calls[0].url).toBe(`/api/admin/v1/entries/e1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ expectedVersion: 4, title: "New title", bodyJson: { blocks: ["x"] } });
@@ -292,7 +304,7 @@ test("updateEntry PUTs { expectedVersion, ...options } to /entries/:id, acceptin
 
 test("entryLifecycle POSTs { op, expectedVersion } to /entries/:id/lifecycle", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.entryLifecycle({ id: "e1", op: "publish", expectedVersion: 1 });
+  await collectionsApi.entryLifecycle({ id: "e1", op: "publish", expectedVersion: 1 });
   expect(calls[0].url).toBe(`/api/admin/v1/entries/e1/lifecycle`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ op: "publish", expectedVersion: 1 });
@@ -302,7 +314,7 @@ test("entryLifecycle POSTs { op, expectedVersion } to /entries/:id/lifecycle", a
 
 test("createTaxonomy POSTs the input verbatim to /taxonomy", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createTaxonomy({ name: "Genre", hierarchical: false });
+  await taxonomyApi.createTaxonomy({ name: "Genre", hierarchical: false });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ name: "Genre", hierarchical: false });
@@ -310,20 +322,20 @@ test("createTaxonomy POSTs the input verbatim to /taxonomy", async () => {
 
 test("createTerm omits parentId from the body when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createTerm({ taxonomyId: "t1", name: "Sci-Fi" });
+  await taxonomyApi.createTerm({ taxonomyId: "t1", name: "Sci-Fi" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/t1/terms`);
   expect(body()).toEqual({ name: "Sci-Fi", parentId: undefined });
 });
 
 test("createTerm includes parentId when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createTerm({ taxonomyId: "t1", name: "Space Opera" }, { parentId: "p1" });
+  await taxonomyApi.createTerm({ taxonomyId: "t1", name: "Space Opera" }, { parentId: "p1" });
   expect(body()).toEqual({ name: "Space Opera", parentId: "p1" });
 });
 
 test("renameTerm PUTs { newName } to /taxonomy/terms/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.renameTerm({ termId: "term1", newName: "Fantasy" });
+  await taxonomyApi.renameTerm({ termId: "term1", newName: "Fantasy" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ newName: "Fantasy" });
@@ -331,7 +343,7 @@ test("renameTerm PUTs { newName } to /taxonomy/terms/:id", async () => {
 
 test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.assignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
+  await taxonomyApi.assignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assign-terms`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
@@ -339,7 +351,7 @@ test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () 
 
 test("unassignTerms POSTs the input verbatim to /taxonomy/unassign-terms", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.unassignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
+  await taxonomyApi.unassignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/unassign-terms`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
@@ -347,14 +359,14 @@ test("unassignTerms POSTs the input verbatim to /taxonomy/unassign-terms", async
 
 test("assignedTerms GETs /taxonomy/assigned-terms with both ids encoded", async () => {
   const { calls } = stubFetchCapturing();
-  await api.assignedTerms({ contentType: "recipe", contentId: "e 1" });
+  await taxonomyApi.assignedTerms({ contentType: "recipe", contentId: "e 1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assigned-terms?contentType=recipe&contentId=e%201`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });
+  await taxonomyApi.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ intoTermId: "term2" });
@@ -362,7 +374,7 @@ test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", asy
 
 test("confirmMergeTerm POSTs { planId, planHash } to /taxonomy/terms/:id/merge/confirm", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmMergeTerm({ fromTermId: "term1", planId: "plan1", planHash: "hash1" });
+  await taxonomyApi.confirmMergeTerm({ fromTermId: "term1", planId: "plan1", planHash: "hash1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/confirm`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ planId: "plan1", planHash: "hash1" });
@@ -370,7 +382,7 @@ test("confirmMergeTerm POSTs { planId, planHash } to /taxonomy/terms/:id/merge/c
 
 test("executeMergeTerm POSTs { intoTermId, confirmationToken } to /taxonomy/terms/:id/merge/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeMergeTerm({ fromTermId: "term1", intoTermId: "term2", confirmationToken: "tok1" });
+  await taxonomyApi.executeMergeTerm({ fromTermId: "term1", intoTermId: "term2", confirmationToken: "tok1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ intoTermId: "term2", confirmationToken: "tok1" });
@@ -380,14 +392,14 @@ test("executeMergeTerm POSTs { intoTermId, confirmationToken } to /taxonomy/term
 
 test("getDatabaseSchemaState hits GET /database/schema-state", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseSchemaState();
+  await databaseApi.getDatabaseSchemaState();
   expect(calls[0].url).toBe(`/api/admin/v1/database/schema-state`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planMigrateForward POSTs with no body at all", async () => {
   const { calls } = stubFetchCapturing();
-  await api.planMigrateForward();
+  await databaseApi.planMigrateForward();
   expect(calls[0].url).toBe(`/api/admin/v1/database/migrate-forward/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -395,7 +407,7 @@ test("planMigrateForward POSTs with no body at all", async () => {
 
 test("executeMigrateForward POSTs { confirmationToken } to /database/migrate-forward/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeMigrateForward("tok1");
+  await databaseApi.executeMigrateForward({ confirmationToken: "tok1" });
   expect(calls[0].url).toBe(`/api/admin/v1/database/migrate-forward/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ confirmationToken: "tok1" });
@@ -405,14 +417,14 @@ test("executeMigrateForward POSTs { confirmationToken } to /database/migrate-for
 
 test("listRecoveryRestorePoints hits GET /recovery/restore-points", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecoveryRestorePoints();
+  await recoveryApi.listRecoveryRestorePoints();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore-points`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("computeRecoveryDisclosure POSTs { restorePointId } to /recovery/disclosure", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.computeRecoveryDisclosure("rp1");
+  await recoveryApi.computeRecoveryDisclosure({ restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/disclosure`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ restorePointId: "rp1" });
@@ -430,7 +442,7 @@ test("resolveRecoveryDeepLink POSTs { envelope } to /recovery/deep-link", async 
     intent: "restore",
     issuedAt: "2026-09-05T00:00:00.000Z",
   };
-  await api.resolveRecoveryDeepLink(envelope);
+  await recoveryApi.resolveRecoveryDeepLink(envelope);
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/deep-link`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ envelope });
@@ -438,14 +450,14 @@ test("resolveRecoveryDeepLink POSTs { envelope } to /recovery/deep-link", async 
 
 test("getRecoveryStatus hits GET /recovery/status", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getRecoveryStatus();
+  await recoveryApi.getRecoveryStatus();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/status`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planRestore POSTs { restorePointId } to /recovery/restore/plan", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.planRestore("rp1");
+  await recoveryApi.planRestore({ restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ restorePointId: "rp1" });
@@ -453,7 +465,7 @@ test("planRestore POSTs { restorePointId } to /recovery/restore/plan", async () 
 
 test("confirmRestore POSTs { planId, planHash, disclosureAcknowledged } to /recovery/restore/confirm", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmRestore({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
+  await recoveryApi.confirmRestore({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/confirm`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
@@ -461,7 +473,7 @@ test("confirmRestore POSTs { planId, planHash, disclosureAcknowledged } to /reco
 
 test("executeRestore POSTs { confirmationToken, restorePointId } to /recovery/restore/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeRestore({ confirmationToken: "tok1", restorePointId: "rp1" });
+  await recoveryApi.executeRestore({ confirmationToken: "tok1", restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ confirmationToken: "tok1", restorePointId: "rp1" });
@@ -477,14 +489,14 @@ test("executeRestore POSTs { confirmationToken, restorePointId } to /recovery/re
 
 test("getPresentation hits GET /presentation", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPresentation();
+  await themesApi.getPresentation();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("setActiveTheme PATCHes { activeThemeId } to /presentation", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.setActiveTheme("quartz");
+  await themesApi.setActiveTheme({ activeThemeId: "quartz" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(body()).toEqual({ activeThemeId: "quartz" });
@@ -499,7 +511,7 @@ test("setActiveTheme PATCHes { activeThemeId } to /presentation", async () => {
 
 test("getMember hits GET /members/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getMember("m1");
+  await membersApi.getMember({ id: "m1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/members/m1`);
   expect(calls[0].init?.method).toBeUndefined();
 });
@@ -513,14 +525,14 @@ test("getMember hits GET /members/:id", async () => {
 
 test("listExternalMcpServers hits GET /mcp-servers", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listExternalMcpServers();
+  await integrationsApi.listExternalMcpServers();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.saveExternalMcpServer("local-fs", {
+  await integrationsApi.saveExternalMcpServer({ serverId: "local-fs", body: {
     label: "Local filesystem",
     transport: "stdio",
     enabled: true,
@@ -528,7 +540,7 @@ test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async (
     args: "-y @modelcontextprotocol/server-filesystem",
     allowedToolNames: "read_file,write_file",
     writeAllowedToolNames: "write_file",
-  });
+  } });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({
@@ -544,14 +556,14 @@ test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async (
 
 test("saveExternalMcpServer encodes the serverId into the URL", async () => {
   const { calls } = stubFetchCapturing();
-  await api.saveExternalMcpServer("weird id/slash", {
+  await integrationsApi.saveExternalMcpServer({ serverId: "weird id/slash", body: {
     transport: "stdio",
     enabled: true,
     command: "npx",
     args: "",
     allowedToolNames: "",
     writeAllowedToolNames: "",
-  });
+  } });
   expect(calls[0].url).toBe(
     `/api/admin/v1/workspaces/workspace-local/mcp-servers/${encodeURIComponent("weird id/slash")}`
   );
@@ -559,14 +571,14 @@ test("saveExternalMcpServer encodes the serverId into the URL", async () => {
 
 test("deleteExternalMcpServer DELETEs /mcp-servers/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteExternalMcpServer("local-fs");
+  await integrationsApi.deleteExternalMcpServer({ serverId: "local-fs" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
 test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async () => {
   const { calls } = stubFetchCapturing();
-  await api.probeExternalMcpServer("local-fs");
+  await integrationsApi.probeExternalMcpServer({ serverId: "local-fs" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs/probe`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -582,8 +594,8 @@ test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async (
 
 test("presentation requests identify each editor's template kind", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPresentation({ kind: "post" });
-  await api.getPresentation({ kind: "page" });
+  await themesApi.getPresentation({ kind: "post" });
+  await themesApi.getPresentation({ kind: "page" });
   expect(calls.map((call) => call.url)).toEqual([
     "/api/admin/v1/workspaces/workspace-local/presentation?kind=post",
     "/api/admin/v1/workspaces/workspace-local/presentation?kind=page",

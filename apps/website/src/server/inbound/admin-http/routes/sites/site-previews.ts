@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin Sites card previews: which running sites can be captured, and the image route.
  * The capture policy lives in `features/sites/site-preview/site-preview-service.ts`. */
 import type { Express, Request } from "express";
@@ -7,6 +7,7 @@ import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { SITE_PREVIEW_CONTENT_TYPE, type SitePreviewService, type SitePreviewTarget } from "#src/features/sites/index";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const PREFIX = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 
@@ -58,11 +59,11 @@ export interface SitePreviewRouteDeps extends Pick<RouteDeps, "workspaceId" | "a
  */
 export function registerSitePreviewRoutes({ app, deps }: { app: Express; deps: SitePreviewRouteDeps }, _optional = {}): void {
   app.get(`${PREFIX}/:name/preview`, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       const bytes = deps.sitePreviews?.read({ name: String(req.params.name ?? "") }) ?? null;
       if (bytes === null) { res.status(404).json({ code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" }); return; }
       res.status(200).set({

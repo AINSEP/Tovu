@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isGeneratedThemePath, isSourceDirGeneratedConflict, resolveThemeFileWriteScope } from "../theme-files.js";
+import { isGeneratedThemePath, isSourceDirGeneratedConflict, resolveThemeFileWriteScope } from "../theme-file-policy.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — `resolveThemeFileWriteScope`'s pure policy: an authored theme is
@@ -76,9 +76,9 @@ test("parent and dot segments are resolved before classifying compiled source ve
 
 test("shared generated-path predicates collapse parent, dot and repeated separator spellings", () => {
   for (const relativePath of ["src/../preview/dark/index.html", "./preview/dark/index.html", "src//../preview/dark/index.html", "src/../index.html"]) {
-    assert.equal(isGeneratedThemePath(relativePath), true, relativePath);
+    assert.equal(isGeneratedThemePath({ relativePath }), true, relativePath);
   }
-  assert.equal(isGeneratedThemePath("preview/../src/Header.tsx"), false);
-  assert.equal(isSourceDirGeneratedConflict("src/../preview"), true);
-  assert.equal(isSourceDirGeneratedConflict("preview/../src"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview/../src/Header.tsx" }), false);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "src/../preview" }), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview/../src" }), false);
 });

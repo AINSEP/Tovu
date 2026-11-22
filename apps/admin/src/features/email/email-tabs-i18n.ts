@@ -187,5 +187,9 @@ export const EMAIL_TAB_ROWS: readonly (readonly [key: string, translations: Tran
 ];
 
 export const EMAIL_TABS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  EMAIL_TAB_LOCALES.map((locale, index) => [locale, Object.fromEntries(EMAIL_TAB_ROWS.map(([key, values]) => [key, values[index]!]))]),
+  EMAIL_TAB_LOCALES.map((locale, index) => [locale, Object.fromEntries(EMAIL_TAB_ROWS.map(([key, values]) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`email tabs dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  }))]),
 );

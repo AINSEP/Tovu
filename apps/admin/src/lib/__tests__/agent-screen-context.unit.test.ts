@@ -63,9 +63,9 @@ describe("agent screen context store", () => {
 
   it("reads the Playground render target by default", () => {
     publishAgentScreenRoute({ path: "/playground", section: "playground", view: null });
-    setPlaygroundRenderTarget(document.createElement("div"));
+    setPlaygroundRenderTarget({ node: document.createElement("div") });
     expect(readAgentScreenContext()?.drawingSurface).toBe("canvas");
-    setPlaygroundRenderTarget(null);
+    setPlaygroundRenderTarget({ node: null });
     expect(readAgentScreenContext()?.drawingSurface).toBe("chat");
   });
 
@@ -87,7 +87,7 @@ describe("useAgentScreenRoute / useAgentScreenEntry", () => {
   it("publishes an entry without optional metadata and removes old metadata on a switch", () => {
     renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
     const editor = renderHook(
-      ({ entry }) => useAgentScreenEntry(entry),
+      ({ entry }) => useAgentScreenEntry({ entry }),
       { initialProps: { entry: LANDING_ENTRY as AgentScreenEntry } },
     );
     expect(readAgentScreenContext()?.entry).toEqual(LANDING_ENTRY);
@@ -99,7 +99,7 @@ describe("useAgentScreenRoute / useAgentScreenEntry", () => {
 
   it("publishes the entry while the editor is mounted and clears it on unmount", () => {
     renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
-    const editor = renderHook(({ entry }) => useAgentScreenEntry(entry), { initialProps: { entry: LANDING_ENTRY } });
+    const editor = renderHook(({ entry }) => useAgentScreenEntry({ entry }), { initialProps: { entry: LANDING_ENTRY } });
     expect(readAgentScreenContext()?.entry).toEqual(LANDING_ENTRY);
 
     editor.unmount();
@@ -108,13 +108,13 @@ describe("useAgentScreenRoute / useAgentScreenEntry", () => {
 
   it("publishes nothing while the editor's entry is still loading", () => {
     renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
-    renderHook(() => useAgentScreenEntry(null));
+    renderHook(() => useAgentScreenEntry({ entry: null }));
     expect(readAgentScreenContext()?.entry).toBeUndefined();
   });
 
   it("follows a renamed entry", () => {
     renderHook(() => useAgentScreenRoute({ path: "/pages/x", section: "pages", view: "page-editor" }));
-    const editor = renderHook(({ entry }) => useAgentScreenEntry(entry), { initialProps: { entry: LANDING_ENTRY } });
+    const editor = renderHook(({ entry }) => useAgentScreenEntry({ entry }), { initialProps: { entry: LANDING_ENTRY } });
     editor.rerender({ entry: { ...LANDING_ENTRY, title: "Renamed" } });
     expect(readAgentScreenContext()?.entry?.title).toBe("Renamed");
   });

@@ -10,11 +10,11 @@ import { closeSqliteConnection } from "../../../kernel/drivers/sqlite.js";
 export async function openPreparedContentDb(filePath: string): Promise<ContentDb> {
   const db = openContentDb(filePath);
   try {
-    await prepareContentStore(contentKernel(db));
+    await prepareContentStore({ kernel: contentKernel({ store: db }) });
     return db;
   } catch (error) {
     // Ownership transfers to the caller only after preparation succeeds.
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
 }

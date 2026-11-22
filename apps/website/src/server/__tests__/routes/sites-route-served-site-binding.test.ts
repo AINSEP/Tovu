@@ -101,7 +101,7 @@ function routeDeps(binding: SiteBinding, overrides: Partial<AdminSitesDeps> = {}
 
 async function invoke(deps: AdminSitesDeps, method: "get" | "post", route: string, req: { params?: Record<string, string>; body?: unknown } = {}) {
   const app = express();
-  registerAdminSitesRoutes(app, deps);
+  registerAdminSitesRoutes({ app, deps });
   const handler = extractRouteHandler(app, method, route);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };

@@ -1,4 +1,4 @@
-import type { AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 
 /**
  * @file What `use-timeline-section.hooks.ts` needs from the outside world, as an interface rather
@@ -6,12 +6,14 @@ import type { AdminLedgerRow } from "@/lib/api";
  * in `apps/admin/INFO.md`'s Hooks section.
  */
 export interface TimelineSectionPort {
-  getDatabaseTimeline(options?: {
-    kind?: string;
-    outcome?: string;
-    fromDate?: string;
-    toDate?: string;
-    cursor?: string;
-    limit?: number;
+  getDatabaseTimeline(required: {}, optional?: {
+    options?: {
+      kind?: string;
+      outcome?: string;
+      fromDate?: string;
+      toDate?: string;
+      cursor?: string;
+      limit?: number;
+    };
   }): Promise<{ items: AdminLedgerRow[]; nextCursor: string | null }>;
 }

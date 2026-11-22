@@ -1,6 +1,6 @@
 import { isNonArrayRecord } from "@jini-ai/core";
 import type { RepositoryTargetValidator } from "../source-control/provider-module.js";
-import { repositoryTargetError } from "../source-control/repository-target.js";
+import { repositoryTargetError } from "@jini-ai/devops/source-control";
 
 import { CustomCredentialValidationError } from "./store.js";
 
@@ -9,11 +9,11 @@ import { CustomCredentialValidationError } from "./store.js";
  * BEFORE the credential is resolved or any network call is made, mirroring this domain's own
  * established ordering (`tool-registrations.ts`'s `rejectUnexpectedSetTokenFields`/
  * `requireUsernameOrClearSentinel` both run before `requireToolPermission`/any I/O) and
- * `features/agent-plugins/package-paths.ts`'s "cheap majority of attempts caught before any
+ * `Jini packages/agent-plugins/src/lifecycle/package-paths.ts`'s "cheap majority of attempts caught before any
  * filesystem call" split.
  *
  * Owner and repo are the one exception to "before the credential is resolved": their rules belong to
- * the git host (`features/source-control/repository-target.ts`: the host plugin's own
+ * the git host (`repositoryTargetError` in `@jini-ai/devops/source-control`: the host plugin's own
  * `validateTarget`, then a generic one-path-segment rule), and the host is known only from the saved
  * credential's base URL. So {@link validateRepositoryTarget} runs once the caller has picked the
  * provider from that URL, still before any decrypt, network call or dialog.
@@ -45,7 +45,7 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  * left unbounded (an operator-controlled write into a real repository must never be unbounded — same
  * reasoning `agent-plugins/install.ts`'s own `LIMITS` gives for its structurally identical problem):
  *
- * - `maxFiles`: the confirmation dialog this tool opens (`write-files-confirmation-ui.ts`) lists
+ * - `maxFiles`: the confirmation dialog this tool opens (`file-write confirmation`) lists
  *   every path by name so a human can actually read and approve each one before anything is written;
  *   past a few dozen rows that review stops being real. The one caller that exists today (a
  *   bundled hosting plugin's skill) writes exactly 2 files. 25 is generous headroom above that for any plausible
@@ -95,12 +95,12 @@ export interface ValidatedWriteFilesInput extends WriteFilesRequest {
 export function validateRepositoryTarget(target: { owner: unknown; repo: unknown }, validateTarget?: RepositoryTargetValidator): { owner: string; repo: string } {
   if (typeof target.owner !== "string") throw new CustomCredentialValidationError(`invalid owner '${String(target.owner)}'`);
   if (typeof target.repo !== "string") throw new CustomCredentialValidationError(`invalid repo '${String(target.repo)}'`);
-  const error = repositoryTargetError({ owner: target.owner, repo: target.repo }, validateTarget);
+  const error = repositoryTargetError({ owner: target.owner, repo: target.repo }, { validateTarget });
   if (error !== null) throw new CustomCredentialValidationError(error);
   return { owner: target.owner, repo: target.repo };
 }
 
-export function validateBranch(value: unknown): string {
+export function validateBranch({ value }: { value: unknown }, _optional = {}): string {
   if (typeof value !== "string" || !BRANCH_PATTERN.test(value)) {
     throw new CustomCredentialValidationError(`invalid branch name '${typeof value === "string" ? value.slice(0, 60) : String(value)}'`);
   }
@@ -114,7 +114,7 @@ export function validateBranch(value: unknown): string {
   return value;
 }
 
-export function validateCommitMessage(value: unknown): string {
+export function validateCommitMessage({ value }: { value: unknown }, _optional = {}): string {
   if (typeof value !== "string" || value.trim() === "" || value.length > MAX_COMMIT_MESSAGE_LENGTH) {
     throw new CustomCredentialValidationError(`commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`);
   }
@@ -124,7 +124,7 @@ export function validateCommitMessage(value: unknown): string {
 /** Rejects a `.git`-named or `.git/`-nested path, case-insensitively — see this file's header for
  *  the collision class this closes. Applied AFTER lexical normalization, so `./.git`/`.GIT/x` are
  *  both caught the same way regardless of how the caller spelled the segment. */
-function isReservedGitPath(normalized: string): boolean {
+function isReservedGitPath({ normalized }: { normalized: string }, _optional = {}): boolean {
   return normalized.split("/").some(segment => segment.toLowerCase() === ".git");
 }
 
@@ -137,7 +137,7 @@ function isReservedGitPath(normalized: string): boolean {
  * @throws {CustomCredentialValidationError} The path is unsafe by construction.
  * @complexity O(n) in the path's own length.
  */
-export function normalizeWriteFilePath(rawPath: string): string {
+export function normalizeWriteFilePath({ rawPath }: { rawPath: string }, _optional = {}): string {
   if (rawPath.length > WRITE_FILES_LIMITS.maxPathLength) {
     throw new CustomCredentialValidationError(`file path exceeds the ${WRITE_FILES_LIMITS.maxPathLength}-character cap: '${rawPath.slice(0, 80)}...'`);
   }
@@ -160,14 +160,14 @@ export function normalizeWriteFilePath(rawPath: string): string {
     throw new CustomCredentialValidationError(`file path is empty or resolves to nothing: '${rawPath}'`);
   }
 
-  if (isReservedGitPath(normalized)) {
+  if (isReservedGitPath({ normalized })) {
     throw new CustomCredentialValidationError(`file path names or nests under the reserved '.git' directory: '${rawPath}'`);
   }
 
   return normalized;
 }
 
-function requireStringFileEntry(raw: unknown): { readonly path: string; readonly content: string } {
+function requireStringFileEntry({ raw }: { raw: unknown }, _optional = {}): { readonly path: string; readonly content: string } {
   const entry = { value: raw };
   if (!isNonArrayRecord(entry) || typeof entry.value.path !== "string" || typeof entry.value.content !== "string") {
     throw new CustomCredentialValidationError("each entry in 'files' must be an object with a string 'path' and a string 'content'");
@@ -175,7 +175,7 @@ function requireStringFileEntry(raw: unknown): { readonly path: string; readonly
   return { path: entry.value.path, content: entry.value.content };
 }
 
-function addFileBytesWithinLimits(normalized: string, content: string, totalBytes: number): number {
+function addFileBytesWithinLimits({ normalized, content, totalBytes }: { normalized: string; content: string; totalBytes: number }, _optional = {}): number {
   const bytes = Buffer.byteLength(content, "utf8");
   if (bytes > WRITE_FILES_LIMITS.maxFileBytes) {
     throw new CustomCredentialValidationError(`file '${normalized}' is ${bytes} bytes, over the ${WRITE_FILES_LIMITS.maxFileBytes}-byte per-file cap`);
@@ -196,7 +196,7 @@ function addFileBytesWithinLimits(normalized: string, content: string, totalByte
  * @throws {CustomCredentialValidationError} Any shape, path, or size violation.
  * @complexity O(n) in the number of files, plus O(m) in each file's own content length.
  */
-function validateFiles(rawFiles: unknown): readonly NormalizedWriteFile[] {
+function validateFiles({ rawFiles }: { rawFiles: unknown }, _optional = {}): readonly NormalizedWriteFile[] {
   if (!Array.isArray(rawFiles) || rawFiles.length === 0) {
     throw new CustomCredentialValidationError("'files' must be a non-empty array of {path, content} objects");
   }
@@ -209,15 +209,15 @@ function validateFiles(rawFiles: unknown): readonly NormalizedWriteFile[] {
   let totalBytes = 0;
 
   for (const raw of rawFiles) {
-    const { path, content } = requireStringFileEntry(raw);
+    const { path, content } = requireStringFileEntry({ raw });
 
-    const normalized = normalizeWriteFilePath(path);
+    const normalized = normalizeWriteFilePath({ rawPath: path });
     if (seen.has(normalized)) {
       throw new CustomCredentialValidationError(`duplicate file path '${normalized}' — refusing a second write over an already-vetted first one`);
     }
     seen.add(normalized);
 
-    totalBytes = addFileBytesWithinLimits(normalized, content, totalBytes);
+    totalBytes = addFileBytesWithinLimits({ normalized, content, totalBytes });
 
     files.push({ path: normalized, content });
   }
@@ -236,8 +236,8 @@ function validateFiles(rawFiles: unknown): readonly NormalizedWriteFile[] {
  */
 export function validateWriteFilesInput(input: { branch: unknown; commitMessage: unknown; files: unknown }): WriteFilesRequest {
   return {
-    branch: validateBranch(input.branch),
-    commitMessage: validateCommitMessage(input.commitMessage),
-    files: validateFiles(input.files),
+    branch: validateBranch({ value: input.branch }),
+    commitMessage: validateCommitMessage({ value: input.commitMessage }),
+    files: validateFiles({ rawFiles: input.files }),
   };
 }

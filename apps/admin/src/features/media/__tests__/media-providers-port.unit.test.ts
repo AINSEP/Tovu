@@ -15,9 +15,9 @@ const { getMediaProviders, saveMediaProviders } = vi.hoisted(() => ({
   saveMediaProviders: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, getMediaProviders, saveMediaProviders } };
+vi.mock("../api/media-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/media-api")>();
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
 });
 
 const { mediaProvidersPort } = await import("../media-providers-port");

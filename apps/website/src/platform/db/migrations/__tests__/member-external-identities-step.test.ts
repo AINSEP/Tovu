@@ -2,9 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { listColumns } from "#src/platform/db/kernel/dialect";
+import { listColumns } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 
 for (const adapter of eachDialect({ tables: ["members", "member_external_identities"], make: kernel => kernel })) {
@@ -21,14 +21,14 @@ for (const adapter of eachDialect({ tables: ["members", "member_external_identit
     assert.ok(step);
     assert.equal(CONTENT_MIGRATIONS[stepIndex - 1]?.id, "0034_member_auth");
     const options = { ledgerTable: "member_external_identity_test_migrations" };
-    assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, [step.id]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM members`), before);
-    assert.deepEqual((await listColumns(kernel, "member_external_identities")).map(column => column.name).sort(),
+    assert.deepEqual((await listColumns({ kernel, table: "member_external_identities" })).map(column => column.name).sort(),
       ["id", "workspace_id", "member_id", "provider_id", "issuer", "subject", "linked_at", "unlinked_at"].sort());
     await kernel.execute(sql`INSERT INTO member_external_identities
       (id,workspace_id,member_id,provider_id,issuer,subject,linked_at,unlinked_at)
       VALUES ('identity','w','member','google','https://accounts.google.com','subject','2026-10-24','2026-10-25')`);
-    assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
     assert.deepEqual(await kernel.query(sql`SELECT unlinked_at FROM member_external_identities`), [{ unlinked_at: "2026-10-25" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM members`), before);
   });

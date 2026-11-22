@@ -27,7 +27,7 @@ test("resolveProductRoot finds an ancestor several levels up that has both packa
   try {
     const deep = path.join(root, "apps", "website", "src", "platform", "site-dir");
     mkdirSync(deep, { recursive: true });
-    assert.equal(resolveProductRoot(deep), root);
+    assert.equal(resolveProductRoot( {}, { fromDir: deep }), root);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -46,8 +46,8 @@ test("resolveProductRoot resolves correctly from two DIFFERENT depths (the exact
     mkdirSync(distDir, { recursive: true });
     try {
       // A single fixed `../` count cannot pass both of these -- that asymmetry IS the bug.
-      assert.equal(resolveProductRoot(sourceDir), root);
-      assert.equal(resolveProductRoot(distDir), distRoot);
+      assert.equal(resolveProductRoot( {}, { fromDir: sourceDir }), root);
+      assert.equal(resolveProductRoot( {}, { fromDir: distDir }), distRoot);
     } finally {
       rmSync(distRoot, { recursive: true, force: true });
     }
@@ -59,7 +59,7 @@ test("resolveProductRoot resolves correctly from two DIFFERENT depths (the exact
 test("resolveProductRoot returns fromDir itself when it already has both package.json and content/", () => {
   const root = makeFixtureRoot();
   try {
-    assert.equal(resolveProductRoot(root), root);
+    assert.equal(resolveProductRoot( {}, { fromDir: root }), root);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -75,7 +75,7 @@ test("resolveProductRoot does NOT stop at an ancestor with only ONE of the two m
     writeFileSync(path.join(decoy, "package.json"), "{}");
     const deep = path.join(decoy, "src");
     mkdirSync(deep);
-    assert.equal(resolveProductRoot(deep), root);
+    assert.equal(resolveProductRoot( {}, { fromDir: deep }), root);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -86,17 +86,17 @@ test("resolveProductRoot throws a clear error when no ancestor has both markers"
   try {
     const deep = path.join(orphan, "a", "b", "c");
     mkdirSync(deep, { recursive: true });
-    assert.throws(() => resolveProductRoot(deep), /no ancestor of/);
+    assert.throws(() => resolveProductRoot( {}, { fromDir: deep }), /no ancestor of/);
   } finally {
     rmSync(orphan, { recursive: true, force: true });
   }
 });
 
-test("resolveProductRoot(), called with no argument from a real file inside apps/website/src, finds the actual repo root", () => {
+test("resolveProductRoot, called without a fromDir override from a real file inside apps/website/src, finds the actual repo root", () => {
   // Regression-proves the default-argument path (the one every real call site uses), not just the
   // injectable-fromDir path the tests above exercise for isolation. Asserts on the package name
   // rather than the checkout's folder name, which isn't guaranteed to be "Tovu" on every machine.
-  const repoRoot = resolveProductRoot();
+  const repoRoot = resolveProductRoot({});
   const pkg = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(pkg.name, "tovu");
 });
@@ -122,9 +122,9 @@ test("resolveAppDistDir finds apps/<app>/dist from BOTH the source and the compi
     const distDir = path.join(root, "dist", "src", "server", "runtime", "composition");
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(distDir, { recursive: true });
-    assert.equal(resolveAppDistDir("admin", sourceDir), path.join(root, "apps", "admin", "dist"));
-    assert.equal(resolveAppDistDir("admin", distDir), path.join(root, "apps", "admin", "dist"));
-    assert.equal(resolveAppDistDir("site-chat", distDir), path.join(root, "apps", "site-chat", "dist"));
+    assert.equal(resolveAppDistDir({ app: "admin" }, { fromDir: sourceDir }), path.join(root, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir({ app: "admin" }, { fromDir: distDir }), path.join(root, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir({ app: "site-chat" }, { fromDir: distDir }), path.join(root, "apps", "site-chat", "dist"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -135,7 +135,7 @@ test("resolveAppDistDir does not need the dist folder to exist yet (an unbuilt a
   try {
     const distDir = path.join(root, "dist", "src", "server", "runtime", "composition");
     mkdirSync(distDir, { recursive: true });
-    assert.equal(resolveAppDistDir("admin", distDir), path.join(root, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir({ app: "admin" }, { fromDir: distDir }), path.join(root, "apps", "admin", "dist"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -146,7 +146,7 @@ test("resolveAppDistDir never throws: with no apps/<app> ancestor it returns a p
   try {
     const deep = path.join(orphan, "a", "b");
     mkdirSync(deep, { recursive: true });
-    assert.equal(resolveAppDistDir("admin", deep), path.join(deep, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir({ app: "admin" }, { fromDir: deep }), path.join(deep, "apps", "admin", "dist"));
   } finally {
     rmSync(orphan, { recursive: true, force: true });
   }
@@ -155,7 +155,7 @@ test("resolveAppDistDir never throws: with no apps/<app> ancestor it returns a p
 test("resolveAppDistDir(), called with no fromDir from a real file inside apps/website/src, finds this checkout's apps/admin/dist", () => {
   const root = path.resolve(import.meta.dirname, "../../../../../../..");
   assert.equal(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name, "tovu");
-  assert.equal(resolveAppDistDir("admin"), path.join(root, "apps", "admin", "dist"));
+  assert.equal(resolveAppDistDir({ app: "admin" }), path.join(root, "apps", "admin", "dist"));
 });
 
 // `index.ts`, `deps.ts` and `app.ts` each looked for the repo-root `.certs/` pair with a fixed `../`
@@ -173,7 +173,7 @@ test("resolveCheckoutRoot finds the checkout from BOTH the source and the compil
       path.join(root, "dist", "src"),
       path.join(root, "dist", "src", "server", "runtime", "composition"),
     ]) {
-      assert.equal(resolveCheckoutRoot(dir), root, dir);
+      assert.equal(resolveCheckoutRoot( {}, { fromDir: dir }), root, dir);
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -185,7 +185,7 @@ test("resolveCheckoutRoot never throws: with no apps/website ancestor it returns
   try {
     const deep = path.join(orphan, "a", "b");
     mkdirSync(deep, { recursive: true });
-    assert.equal(resolveCheckoutRoot(deep), deep);
+    assert.equal(resolveCheckoutRoot( {}, { fromDir: deep }), deep);
   } finally {
     rmSync(orphan, { recursive: true, force: true });
   }
@@ -194,7 +194,7 @@ test("resolveCheckoutRoot never throws: with no apps/website ancestor it returns
 test("resolveCheckoutRoot(), called with no fromDir from a real file inside apps/website/src, finds this checkout", () => {
   const root = path.resolve(import.meta.dirname, "../../../../../../..");
   assert.equal(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).name, "tovu");
-  assert.equal(resolveCheckoutRoot(), root);
+  assert.equal(resolveCheckoutRoot({}), root);
 });
 
 /** Builds `<root>/l1/l2/.../l<levels>` and returns that deepest directory. */
@@ -207,7 +207,7 @@ function nestedBelow({ root, levels }: { root: string; levels: number }): string
 test("resolveProductRoot still finds a root exactly MAX_WALK_UP (12) levels above fromDir", () => {
   const root = makeFixtureRoot();
   try {
-    assert.equal(resolveProductRoot(nestedBelow({ root, levels: 12 })), root);
+    assert.equal(resolveProductRoot( {}, { fromDir: nestedBelow({ root, levels: 12 }) }), root);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -216,7 +216,7 @@ test("resolveProductRoot still finds a root exactly MAX_WALK_UP (12) levels abov
 test("resolveProductRoot gives up on a root 13 levels above fromDir, one past the walk-up cap", () => {
   const root = makeFixtureRoot();
   try {
-    assert.throws(() => resolveProductRoot(nestedBelow({ root, levels: 13 })), /^Error: resolveProductRoot: no ancestor of ".*l13" within 12 levels has both a package\.json and a content\/ directory\./);
+    assert.throws(() => resolveProductRoot( {}, { fromDir: nestedBelow({ root, levels: 13 }) }), /^Error: resolveProductRoot: no ancestor of ".*l13" within 12 levels has both a package\.json and a content\/ directory\./);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -226,7 +226,7 @@ test("resolveAppDistDir falls back to fromDir when apps/<app> is 13 levels up, o
   const root = makeCheckout();
   try {
     const deep = nestedBelow({ root, levels: 13 });
-    assert.equal(resolveAppDistDir("admin", deep), path.join(deep, "apps", "admin", "dist"));
+    assert.equal(resolveAppDistDir({ app: "admin" }, { fromDir: deep }), path.join(deep, "apps", "admin", "dist"));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -237,7 +237,7 @@ test("resolveCheckoutRoot falls back to fromDir when apps/website is 13 levels u
   try {
     mkdirSync(path.join(root, "apps", "website"));
     const deep = nestedBelow({ root, levels: 13 });
-    assert.equal(resolveCheckoutRoot(deep), deep);
+    assert.equal(resolveCheckoutRoot( {}, { fromDir: deep }), deep);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -281,6 +281,6 @@ test("workerProductRoot defaults to this thread's real context (the main thread 
 
 test("resolveProductRoot, inside a worker given an absolute productRoot, returns it without walking the filesystem", () => {
   const thread: ThreadContext = { isMainThread: false, workerData: { productRoot: "/opt/tovu/product" } };
-  assert.equal(resolveProductRoot(undefined, { thread }), "/opt/tovu/product");
-  assert.throws(() => resolveProductRoot(undefined, { thread: { isMainThread: false, workerData: { productRoot: "relative/root" } } }), /must be an absolute path/);
+  assert.equal(resolveProductRoot({}, { thread }), "/opt/tovu/product");
+  assert.throws(() => resolveProductRoot({}, { thread: { isMainThread: false, workerData: { productRoot: "relative/root" } } }), /must be an absolute path/);
 });

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMagicLinkTokenRepo } from "#src/features/members/repo";
 import { memberAuthStatements } from "../0034_member_auth.js";
@@ -20,7 +20,7 @@ for (const adapter of eachDialect({ tables: ["member_magic_tokens"], make: db =>
     await db.execute(sql`INSERT INTO member_magic_tokens (id,workspace_id,member_id,token_hash,purpose,created_at,expires_at,consumed_at) VALUES ('old','w','existing','oldhash','signin','2026-10-24','2026-10-25',NULL)`);
     const step = CONTENT_MIGRATIONS.find(entry => entry.id === "0032_member_signup_email")!;
     const options = { ledgerTable: "signup_email_test_migrations" };
-    assert.deepEqual((await runMigrations(db as StorageKernel<unknown>, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, [step.id]);
     assert.deepEqual(await db.query(sql`SELECT * FROM member_magic_tokens`), [{ ...legacy, email: null }]);
     // Only the challenge table was reconstructed; members already has its 0034 column.
     for (const statement of memberAuthStatements({ dialect: db.dialect }).filter(ddl => ddl.startsWith("ALTER TABLE member_magic_tokens "))) {
@@ -33,6 +33,6 @@ for (const adapter of eachDialect({ tables: ["member_magic_tokens"], make: db =>
     const old = await repo.findByTokenHash({ workspaceId: "w", tokenHash: "oldhash" });
     assert.equal(old?.memberId, "existing");
     assert.equal(old?.email, undefined);
-    assert.deepEqual((await runMigrations(db as StorageKernel<unknown>, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
   });
 }

@@ -15,7 +15,7 @@ test("a held export exposes running state, forwards exact options and reports an
   let resolve!: (value: ExportRunReportLike) => void;
   const held = new Promise<ExportRunReportLike>((done) => { resolve = done; });
   const calls: unknown[] = [];
-  const running = startExportRun({ routeDeps: d, runExportSite: (options) => { calls.push(options); return held; }, clean: false }, { basePath: "/docs" });
+  const running = startExportRun({ routeDeps: d, runExportSite: (options, _optional = {}) => { calls.push(options); return held; }, clean: false }, { basePath: "/docs" });
   try {
     assert.deepEqual(running, { status: "running", startedAtIso: "2026-10-01T10:00:00.000Z", finishedAtIso: null, outputDir: "/tmp/b08-export" });
     assert.deepEqual(getExportRunSnapshot(), running);

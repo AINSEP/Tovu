@@ -7,7 +7,11 @@ import express from "express";
 import { applyRequestTracking } from "../observability-middleware.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingOptions } from "#src/platform/observability/index";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+  type RequestTrackingOptions,
+} from "@jini-ai/core/contracts/observability";
 
 /**
  * @file Request IDs (Reliability: structured logging + request IDs): every response carries an
@@ -32,7 +36,7 @@ function spyPort(): { port: ObservabilityPort; options: RequestTrackingOptions[]
 async function serve(t: test.TestContext) {
   const { port, options } = spyPort();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }) });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }) } });
   app.get("/welcome", (_req, res) => res.status(200).send("ok"));
   return { baseUrl: await startTestServer(app, t), options };
 }

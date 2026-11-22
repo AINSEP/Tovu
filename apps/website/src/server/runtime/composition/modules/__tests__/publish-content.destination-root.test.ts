@@ -70,7 +70,7 @@ function buildApp(deps = buildDeps()): express.Express {
   });
   const { registerRoutes } = createPublishContentModule(deps);
   assert.ok(registerRoutes, "publish-content must register its admin routes");
-  registerRoutes(app);
+  registerRoutes({ app });
   return app;
 }
 

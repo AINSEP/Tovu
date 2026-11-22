@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useT } from "@jini-ai/chat/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useMessageOverflowModal } from "./MessageOverflowModal.hooks";
 
@@ -43,6 +43,7 @@ export interface MessageOverflowModalProps {
   /** Publishes the close button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
    *  Omit to leave it untagged — every existing render then stays byte-identical. */
   agentHandle?: string;
+  useTHook?: typeof useT;
 }
 
 export function MessageOverflowModal({
@@ -52,9 +53,10 @@ export function MessageOverflowModal({
   children,
   useModal = useMessageOverflowModal,
   agentHandle: handle,
+  useTHook = useT,
 }: MessageOverflowModalProps) {
-  const t = useT();
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(open, onClose);
+  const t = useTHook();
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal({ open, onClose });
 
   return (
     <dialog

@@ -1,9 +1,8 @@
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "./api/taxonomy-api.types";
 import { useState } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { TaxonomyRowMenu } from "./TaxonomyRowMenu";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
 import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
@@ -50,7 +49,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * `newName`, no `parentId`; no deprecate-term route was wired). Rather than render dead buttons for
  * those two, this screen omits them entirely.
  *
- * Also disclosed: the production `Term` type (`features/taxonomy/write-service.ts`) has no `slug`
+ * Also disclosed: the production `Term` type (`Jini packages/cms/src/taxonomy/write-service.ts`) has no `slug`
  * field — design-spec.md §2.3 assumed one; this screen does not render a slug control.
  *
  * SPEC-037 REQ-02: `NewTaxonomyForm` wires the previously-unused `api.createTaxonomy` — a plain
@@ -91,11 +90,11 @@ export interface NewTermFormProps {
    *  search only works when it runs once over the whole list, not once per `NewTermForm` instance. */
   agentBase: string;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredNewTermFormHook?: typeof useWiredNewTermForm;
 }
 
-function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormProps) {
-  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useWiredNewTermForm({
+function NewTermForm({ taxonomy, onCreated, agentBase: base, t, useWiredNewTermFormHook = useWiredNewTermForm }: NewTermFormProps) {
+  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useWiredNewTermFormHook({
     taxonomy,
     onCreated,
   });
@@ -123,7 +122,7 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormPro
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
       <label htmlFor={`new-term-name-${taxonomy.taxonomy.id}`}>
-        {t("New term in {name}").replace("{name}", taxonomy.taxonomy.name)}
+        {t("New term in {name}").replace("{name}", () => taxonomy.taxonomy.name)}
       </label>
       <span className="editor-actions">
         <input
@@ -184,13 +183,13 @@ function NewTermForm({ taxonomy, onCreated, agentBase: base, t }: NewTermFormPro
 export interface NewTaxonomyFormProps {
   onCreated: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredNewTaxonomyFormHook?: typeof useWiredNewTaxonomyForm;
 }
 
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm({ onCreated, t }: NewTaxonomyFormProps) {
-  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useWiredNewTaxonomyForm({ onCreated });
+function NewTaxonomyForm({ onCreated, t, useWiredNewTaxonomyFormHook = useWiredNewTaxonomyForm }: NewTaxonomyFormProps) {
+  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useWiredNewTaxonomyFormHook({ onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
@@ -240,7 +239,7 @@ export interface MergeTermSectionProps {
   term: AdminTerm;
   onMerged: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredMergeTermSectionHook?: typeof useWiredMergeTermSection;
 }
 
 interface MergeIdleStepProps {
@@ -358,9 +357,9 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   );
 }
 
-function MergeTermSection({ taxonomy, term, onMerged, t }: MergeTermSectionProps) {
-  const otherTerms = otherMergeTargets(taxonomy, term.id);
-  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSection({
+function MergeTermSection({ taxonomy, term, onMerged, t, useWiredMergeTermSectionHook = useWiredMergeTermSection }: MergeTermSectionProps) {
+  const otherTerms = otherMergeTargets({ taxonomy, excludeTermId: term.id });
+  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useWiredMergeTermSectionHook({
     term,
     onMerged,
   });
@@ -397,11 +396,11 @@ export interface TermDetailPanelProps {
   onRenamed: () => void;
   onMerged: () => void;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
-  t: (key: string) => string;
+  t: (key: string) => string; useWiredTermDetailPanelHook?: typeof useWiredTermDetailPanel;
 }
 
-function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, t }: TermDetailPanelProps) {
-  const { newName, setNewName, saving, message, error, rename } = useWiredTermDetailPanel({ term, onRenamed });
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, t, useWiredTermDetailPanelHook = useWiredTermDetailPanel }: TermDetailPanelProps) {
+  const { newName, setNewName, saving, message, error, rename } = useWiredTermDetailPanelHook({ term, onRenamed });
 
   return (
     <div className="settings-detail-panel taxonomy-term-detail">
@@ -517,7 +516,7 @@ function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm
       title={t("Move to trash?")}
       body={
         pendingDeleteTerm ? (
-          <p>{t('Move "{name}" to trash?').replace("{name}", pendingDeleteTerm.name)}</p>
+          <p>{t('Move "{name}" to trash?').replace("{name}", () => pendingDeleteTerm.name)}</p>
         ) : null
       }
       confirmLabel={t("Move to trash")}
@@ -555,7 +554,7 @@ function TaxonomyDeleteDialog({
           <p>
             {t('Move "{name}" and its terms to trash?').replace(
               "{name}",
-              pendingDeleteTaxonomy.name,
+              () => pendingDeleteTaxonomy.name,
             )}
           </p>
         ) : null
@@ -758,7 +757,7 @@ function namespaceList({
               <button type="button" className="btn-secondary" onClick={() => deleteState.copyHtmlEmbed({ taxonomy: group.taxonomy })}>{t("Copy HTML embed")}</button>
               <TaxonomyRowMenu
                 portalContainer={menuPortalContainer}
-                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", group.taxonomy.name)}
+                triggerLabel={t('Actions for taxonomy "{name}"').replace("{name}", () => group.taxonomy.name)}
                 agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
                   {
@@ -868,7 +867,7 @@ function namespaceList({
                       <span onClick={(e) => e.stopPropagation()}>
                         <TaxonomyRowMenu
                           portalContainer={menuPortalContainer}
-                          triggerLabel={t('Actions for term "{name}"').replace("{name}", term.name)}
+                          triggerLabel={t('Actions for term "{name}"').replace("{name}", () => term.name)}
                           agentHandle={`${termHandle}-menu`}
                           items={[
                             {
@@ -891,7 +890,7 @@ function namespaceList({
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}
-            <NewTermForm taxonomy={group} onCreated={load} agentBase={newTermFormBases[groupIndex]!} t={t} />
+            <NewTermForm taxonomy={group} onCreated={load} agentBase={newTermFormBases[groupIndex]} t={t} />
           </section>
         );
       })}

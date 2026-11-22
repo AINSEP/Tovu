@@ -32,8 +32,8 @@ export async function startSiteImportApi(
   let handler: import("node:http").RequestListener = (_req, res) => { res.writeHead(503, { "Retry-After": "1" }); res.end("Server is starting"); };
   const server = createServer((req, res) => handler(req, res));
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", resolve); });
-  const deps = await createSiteRouteDeps(defaultContentDbPath(), { outboundTestOrigins });
-  const boot = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath }));
+  const deps = await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), overrides: { outboundTestOrigins } });
+  const boot = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath }) });
   setReadinessSnapshot(boot);
   assert.ok(boot.ok, "site-import API: a critical boot module failed");
   await ensureAgentDaemonPortResolved();

@@ -1,10 +1,9 @@
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
 import { createCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
@@ -14,7 +13,7 @@ type ContentTypeLookup = CoreResolverDeps["contentTypes"];
 /**
  * @file `createCoreResolvers` — the pure assembly step `resolvers/index.ts`'s `wireCoreResolvers`
  * calls to turn injected infrastructure deps into the closed `CORE_RESOLVERS` map. This is real,
- * live wiring: `server/app.ts` and `server/deps.ts` both call `wireCoreResolvers` at boot (the
+ * live wiring: `server/runtime/composition/app.ts` and `server/runtime/composition/deps.ts` both call `wireCoreResolvers` at boot (the
  * "future boot-wiring pass" `resolvers/index.ts`'s own file header once described as not-yet-landed
  * is landed). Each individual resolver factory (`createRecentEntriesResolver`/`createMenuResolver`/
  * `createContactFormResolver`) already has its own dedicated test exercising its resolution logic —
@@ -49,8 +48,8 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 }
 
 test("createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany", () => {
-  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
-    entryList: new TrashAwareInMemoryEntryRepo(),
+  const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
+    entryList: trashAwareEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     contentTypes: noContentTypes(),
@@ -63,7 +62,7 @@ test("createCoreResolvers: returns the built-in dynamic resolver type keys inclu
 });
 
 test("createCoreResolvers: each assembled resolver is wired to the deps it was given, not a shared/global default", async () => {
-  const entryList = new TrashAwareInMemoryEntryRepo();
+  const entryList = trashAwareEntryRepo();
   await entryList.save({
     id: "entry-1",
     workspaceId: "ws-1",
@@ -106,7 +105,7 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     });
-    const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
+    const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
       entryList,
       navMenuReadModel: fakeMenuReadModel(menu),
       formDefinitionRepo,

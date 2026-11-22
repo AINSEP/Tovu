@@ -1,0 +1,18 @@
+HEAD 5f1dc31a2c
+size exit=1 secs=44
+boundaries exit=0 secs=45
+admin-tsc exit=0 secs=52
+typecheck exit=0 secs=63
+desktop-tsc-live-verify exit=0 secs=3
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=10
+desktop-tsc-main exit=0 secs=21
+complexity exit=0 secs=31
+errors exit=0 secs=27
+worker-import-graph exit=1 secs=34
+typecheck-tests exit=0 secs=79
+hooks exit=0 secs=1
+typecheck-scripts exit=2 secs=27
+why-comments exit=1 secs=32
+architecture exit=1 secs=91
+DONE

@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { describeEachDialect, type ContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { ContentTypeListPort, ContentTypeRecord, ContentTypeRepoPort, ContentTypeRevisionInput } from "../index.js";
-import { contentTypeRepoFor } from "../repo.js";
+import type { ContentTypeRecord, ContentTypeRevisionInput  } from "../index.js";
+import type { ContentTypeListPort, ContentTypeRepoPort } from "@jini-ai/cms/content-types";
+import { SqliteContentTypeRepo } from "../repo.sqlite.js";
 
 /**
  * @file The content-type repo on every dialect through the kernel's matrix (`describeEachDialect`
@@ -32,7 +33,7 @@ describeEachDialect<{ repo: Repo; kernel: ContentKernel }>(
   "content-type repo",
   {
     tables: ["content_types", "content_type_revisions"],
-    make: (kernel) => ({ repo: contentTypeRepoFor(kernel), kernel }),
+    make: (kernel) => ({ repo: new SqliteContentTypeRepo({ store: kernel }), kernel }),
   },
   (makeRepo) => {
     test("save inserts, then a second save fully replaces the row", async () => {

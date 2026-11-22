@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from 'express';
 import { findMediaWhereUsed } from '#src/features/media/index';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
@@ -8,7 +9,7 @@ export type MediaWhereUsedDeps = Pick<RouteDeps, 'workspaceId' | 'authorize' | '
 /** Read-only usage disclosure, sharing the media.read gate and existing workspace isolation. */
 export function registerAdminMediaWhereUsedRoute({ app, deps }: { app: Express; deps: MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void {
   app.get('/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used', async (req, res) => {
-    if (String(req.params.workspaceId ?? '') !== deps.workspaceId) { res.status(404).json({ error: 'workspace was not found' }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const auth = await deps.authorize({ principalId: principal.id, permission: 'media.read', workspaceId: deps.workspaceId, entityType: 'media' });

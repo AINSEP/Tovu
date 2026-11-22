@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { listTables } from "../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**
@@ -89,23 +89,24 @@ export const CHAT_TABLE_NAMES: readonly string[] = CHAT_TABLES.map(({ table }) =
  * the accompanying integration test proves it by running it against a `readonly: true` connection,
  * where any write would raise `SQLITE_READONLY`.
  *
- * @param contentDb The site's content store: a kernel, or the SQLite content db handle.
+ * @param required.contentDb The site's content store: a kernel, or the SQLite content db handle.
  * @returns Per-table counts, their sum, and whether any were found at all.
  * @complexity O(1) statements — three bounded `count(*)` queries over indexed tables, independent of
  *   any caller-supplied collection.
  */
 export async function checkForOrphanedChatRows(
-  contentDb: ContentKernel | SqliteConnectionSource
+  { contentDb }: { contentDb: ContentKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}
 ): Promise<OrphanedChatRowsCheck> {
-  const kernel = contentKernel(contentDb);
-  const present = new Set(await listTables(kernel));
+  const kernel = contentKernel({ store: contentDb });
+  const present = new Set(await listTables({ kernel }));
   const counts = { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 };
   let total = 0;
   for (const { table, key } of CHAT_TABLES) {
     if (!present.has(table)) continue;
     // An ungrouped count(*) always yields exactly one non-null row, so no empty-result fallback exists.
     const [row] = await kernel.query<{ n: number | string }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`);
-    const n = Number(row!.n);
+    if (!row) throw new Error(`chat orphan count returned no row for ${table}`);
+    const n = Number(row.n);
     counts[key] = n;
     total += n;
   }
@@ -114,7 +115,7 @@ export async function checkForOrphanedChatRows(
 
 /** `ai_chats                    157 row(s)` — one padded line per table, so the three counts line up
  *  in a terminal and a wrong-looking number is easy to spot. */
-function countLine(table: string, count: number): string {
+function countLine({ table, count }: { table: string; count: number }, _optional: Record<string, never> = {}): string {
   return `    ${table.padEnd(26)}${String(count).padStart(8)} row(s)`;
 }
 
@@ -131,8 +132,8 @@ function countLine(table: string, count: number): string {
  * @complexity O(1) — a fixed number of string concatenations over three known tables.
  */
 export function formatOrphanedChatRowsWarning(
-  check: OrphanedChatRowsCheck,
-  paths: { contentDbPath: string; chatDbPath: string }
+  { check, ...paths }: { check: OrphanedChatRowsCheck; contentDbPath: string; chatDbPath: string },
+  _optional: Record<string, never> = {}
 ): string {
   if (!check.orphaned) return "";
   const rule = "=".repeat(88);
@@ -147,8 +148,8 @@ export function formatOrphanedChatRowsWarning(
     `    content.db  ${paths.contentDbPath}`,
     `    chat.db     ${paths.chatDbPath}`,
     "",
-    ...CHAT_TABLES.map(({ table, key }) => countLine(table, check.counts[key])),
-    countLine("total", check.total),
+    ...CHAT_TABLES.map(({ table, key }) => countLine({ table, count: check.counts[key] })),
+    countLine({ table: "total", count: check.total }),
     "",
     "  To move them — dry run first; BACK UP content.db AND chat.db before --apply:",
     `    npx tsx development/scripts/split-chat-data-into-chat-db.ts --db "${paths.contentDbPath}"`,
@@ -180,8 +181,8 @@ export async function warnOnOrphanedChatRows(deps: {
   chatDbPath: string;
   log?: (message: string) => void;
 }): Promise<OrphanedChatRowsCheck> {
-  const check = await checkForOrphanedChatRows(deps.contentDb);
-  const warning = formatOrphanedChatRowsWarning(check, {
+  const check = await checkForOrphanedChatRows({ contentDb: deps.contentDb });
+  const warning = formatOrphanedChatRowsWarning({ check,
     contentDbPath: deps.contentDbPath,
     chatDbPath: deps.chatDbPath,
   });

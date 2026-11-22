@@ -1,0 +1,236 @@
+{
+  "every payload, then end with max_tool_turns": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Working\",\"detail\":\"step 2 of 3\"}}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Still working\"}}\n\ndata: {\"type\":\"REASONING_START\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_START\",\"messageId\":\"reasoning_1\",\"role\":\"reasoning\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_CONTENT\",\"messageId\":\"reasoning_1\",\"delta\":\"plan the search\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_2\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_2\",\"delta\":\"Let me check that.\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_2\"}\n\ndata: {\"type\":\"TOOL_CALL_START\",\"toolCallId\":\"call-1\",\"toolCallName\":\"search\",\"toolOrigin\":\"bridge\",\"bridgeCall\":{\"name\":\"posts.search\",\"input\":{\"q\":\"posts\"},\"buffered\":true}}\n\ndata: {\"type\":\"TOOL_CALL_ARGS\",\"toolCallId\":\"call-1\",\"delta\":\"{\\\"q\\\":\\\"posts\\\"}\"}\n\ndata: {\"type\":\"TOOL_CALL_END\",\"toolCallId\":\"call-1\"}\n\ndata: {\"type\":\"TOOL_CALL_RESULT\",\"messageId\":\"tool_result_msg_3\",\"toolCallId\":\"call-1\",\"content\":\"found 3\",\"role\":\"tool\",\"isError\":true,\"media\":[{\"type\":\"image\",\"mimeType\":\"image/png\",\"data\":\"AAAA\"}],\"outcome\":\"unknown\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.usage\",\"value\":{\"kind\":\"usage\",\"inputTokens\":11,\"outputTokens\":7,\"costUsd\":0.01,\"cumulativeCostUsd\":0.05,\"costSessionId\":\"cost-1\",\"durationMs\":1200,\"stopReason\":\"end_turn\"}}\n\ndata: {\"type\":\"RAW\",\"event\":\"raw line\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.ext.mcp-ui\",\"value\":{\"type\":\"resource\",\"resource\":{\"uri\":\"ui://confirm/1\",\"mimeType\":\"text/html\",\"text\":\"<p>Delete?</p>\",\"_meta\":{\"existing\":true,\"jini/surface-exchange\":{\"exchangeId\":\"ex-1\",\"toolId\":\"posts.delete\",\"runId\":\"daemon-run-1\"}}}}}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.ext.a2ui\",\"value\":{\"createSurface\":{\"surfaceId\":\"s1\",\"catalogId\":\"basic\"}}}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.ext.stage_start\",\"value\":{\"type\":\"stage_start\",\"stage\":\"plan\"}}\n\ndata: {\"type\":\"RAW\",\"event\":\"{\\\"type\\\":\\\"system\\\",\\\"subtype\\\":\\\"api_retry\\\",\\\"attempt\\\":2,\\\"max_retries\\\":5,\\\"error_status\\\":529,\\\"error\\\":\\\"overloaded\\\"}\\nplain stdout line\\n\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"code\":\"api_retry\",\"label\":\"api_retry\",\"detail\":\"529 overloaded\",\"data\":{\"attempt\":2,\"maxAttempts\":5,\"service\":\"Claude\"}}}\n\ndata: {\"type\":\"RAW\",\"event\":\"warn: slow upstream\\n\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_4\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_4\",\"delta\":\"Found 3 posts.\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Stopped early — tool-step limit reached\",\"detail\":\"This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.\"}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_4\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"result\":{\"reason\":\"max_tool_turns\"}}\n\n"
+  },
+  "an error frame": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"agent crashed: exit 1\"}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_ERROR\",\"message\":\"agent crashed: exit 1\"}\n\n"
+  },
+  "end with a failed status": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Run failed — the agent process exited without answering\",\"detail\":\"exit code 1, signal none, resumable no. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for `[agent-daemon] run <id> ended`.\"}}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_ERROR\",\"message\":\"The agent process exited without answering (exit code 1, signal none, resumable no).\"}\n\n"
+  },
+  "end with a cancelled status": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"REASONING_START\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_START\",\"messageId\":\"reasoning_1\",\"role\":\"reasoning\"}\n\ndata: {\"type\":\"REASONING_MESSAGE_CONTENT\",\"messageId\":\"reasoning_1\",\"delta\":\"thinking\"}\n\ndata: {\"type\":\"CUSTOM\",\"name\":\"tovu.status\",\"value\":{\"kind\":\"status\",\"label\":\"Run canceled\",\"detail\":\"exit code none, signal SIGTERM, resumable yes. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for `[agent-daemon] run <id> ended`.\"}}\n\ndata: {\"type\":\"REASONING_MESSAGE_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"REASONING_END\",\"messageId\":\"reasoning_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"result\":{\"reason\":\"cancelled\"}}\n\n"
+  },
+  "a stream that closes with no end frame": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"result\":{\"reason\":\"stop\"}}\n\n"
+  },
+  "a pending approval interrupts the run": {
+    "httpVersion": "1.1",
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "date",
+        "<date>"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ],
+      [
+        "x-tovu-request-id",
+        "<uuid>"
+      ]
+    ],
+    "body": "data: {\"type\":\"RUN_STARTED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_START\",\"messageId\":\"msg_1\",\"role\":\"assistant\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_CONTENT\",\"messageId\":\"msg_1\",\"delta\":\"partial\"}\n\ndata: {\"type\":\"TEXT_MESSAGE_END\",\"messageId\":\"msg_1\"}\n\ndata: {\"type\":\"RUN_FINISHED\",\"threadId\":\"thread-golden\",\"runId\":\"run-golden\",\"outcome\":{\"type\":\"interrupt\",\"interrupts\":[{\"id\":\"approval\",\"reason\":\"confirmation\",\"message\":\"Allow action?\",\"toolCallId\":\"tool\"}]}}\n\n"
+  }
+}

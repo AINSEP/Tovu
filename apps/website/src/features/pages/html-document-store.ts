@@ -3,31 +3,35 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Kysely, Selectable, Updateable } from "kysely";
 
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
+import { assertEntityLive } from "@jini-ai/cms/core";
+import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
-import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
-import type { PostKind, PostRepoPort, PostStatus } from "../post/contracts.js";
+import { announcePendingGoLive } from "@jini-ai/cms/entries";
+import { SYSTEM_ACTOR_ID } from "../post/index.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostRepoPort } from "../post/contracts.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's `PagesHtmlDocumentStorePort`
- * (`read(): Promise<string>` / `write(html: string): Promise<void>`) over
+ * (`read(): Promise<string>` / `write({ html }): Promise<void>`) over
  * an `"html"`-format Page row in the shared `posts` table. One Kysely query body for every dialect
  * the storage kernel drives (storage plan §4, ADR-066); `html-document-store.sqlite.ts` keeps the
  * `PagesHtmlDocumentStore` name as the thin subclass the composition root builds from the db handle.
  *
  * Pages uses Jini's HTML scan and pure edit functions, not its `HtmlDocumentStore` or EditTarget.
- * The tool handlers keep the read → compute → write(html) flow here so another read cannot
+ * The tool handlers keep the read → compute → write({ html }) flow here so another read cannot
  * recapture a newer version between computing an edit and its compare-and-set write (CIC-1).
- * Jini's store takes `write({ html })`; this Tovu port deliberately keeps `write(html)`.
+ * Jini's store and this Tovu port both take `write({ html })`.
  *
  * Bypasses `PostRepoPort`/`SqlitePostRepo`/`createPost`/`updatePost` entirely, on purpose (ADR-056
  * Decision 4 & CIC-3): this store is the ONLY writer of `body_html`/`bodyFormat: "html"` anywhere in
@@ -40,24 +44,13 @@ import type { PostKind, PostRepoPort, PostStatus } from "../post/contracts.js";
  * one, are two separate callers layered over the same row. `write()` is conditioned on the `version`
  * captured by the MATCHING `read()` (compare-and-set), never an unconditional overwrite — a stale
  * writer is rejected with {@link PageConcurrentEditError}, not silently applied on top of content it
- * never saw. See `pages-html-document-store.test.ts`'s interleaving test for the failure mode this
+ * never saw. See `apps/website/src/features/pages/__tests__/html-document-store.sqlite.test.ts`'s interleaving test for the failure mode this
  * prevents (a naive read-splice-write not only loses the first writer's edit, it can splice the
  * second writer's content into the WRONG byte offset if the first edit changed the document's length
  * anywhere before the second writer's target region).
  *
- * Relationship to `updatePost`'s `expectedVersion` (2026-09-07, fable arch audit §4.15): the audit
- * read one `posts.version` column written under three different concurrency contracts and asked
- * whether this store should take a client-stated `expectedVersion` too. It should not, and the
- * difference is not an inconsistency. `updatePost`'s basis comes from a client that loaded the row
- * in an earlier request and states what it believes it is editing, so the guard there is opt-in
- * (a caller that sends nothing gets last-write-wins) and its rejection is a 409 the client must
- * reconcile. Here there is no earlier request and no client to state anything: the basis is the
- * version captured by the `read()` in THIS turn, which is what makes the guard mandatory rather
- * than opt-in — `write()` without a prior `read()` throws rather than falling back to an
- * unconditional overwrite. What the audit was actually pointing at — an arm writing this column
- * with NO predicate at all — was `routes/pages/update.ts` (C02) and `features/seo`'s
- * `setEntrySeoOverrides` (SEO-01); both now write under one, so every writer of `posts.version`
- * is version-predicated. The two remaining mechanisms differ only in where the basis comes from.
+ * Editor saves carry their loaded `expectedVersion` through `ensureHtmlFormat`, before any
+ * conversion. Its captured basis then guards `write()` without another read replacing that basis.
  */
 
 /** The query handle a kernel `run` body receives. */
@@ -101,9 +94,9 @@ export interface PagesHtmlDocumentStoreDeps {
    * already is for TipTap `widgetEmbed` nodes.
    *
    * Optional, not required, so every pre-existing construction site (this class's own certified
-   * `html-document-store.test.ts`, and any other caller built before this dependency existed) keeps
+   * `apps/website/src/features/pages/__tests__/html-document-store.sqlite.test.ts`, and any other caller built before this dependency existed) keeps
    * compiling and behaving unchanged — omitting it simply means this store never touches
-   * `entry_refs`, not a broken build. Real composition roots (`server/deps.ts`/`server/app.ts`)
+   * `entry_refs`, not a broken build. Real composition roots (`apps/website/src/server/runtime/composition/deps.ts`/`apps/website/src/server/runtime/composition/app.ts`)
    * supply the real/in-memory `entryRefsRepo` they already construct for widgets.
    *
    * Disclosed gap: this write and the `entry_refs` replace are two separate statements, not one
@@ -124,7 +117,7 @@ export interface PagesHtmlDocumentStoreDeps {
    *
    * Optional, not required, for the identical reason {@link entryRefsRepo} is: every pre-existing
    * construction site keeps compiling and behaving unchanged when this is omitted — the ledger
-   * append simply does not happen, not a broken build. Real composition roots (`server/deps.ts`)
+   * append simply does not happen, not a broken build. Real composition roots (`apps/website/src/server/runtime/composition/deps.ts`)
    * supply the same `postRepo` they already construct.
    *
    * A `Pick`, not the whole port: this store must never gain the ability to `save`/`softDelete`/etc.
@@ -186,10 +179,10 @@ export interface PagesHtmlDocumentStoreScope {
 export interface PagesHtmlDocumentStorePort {
   /** Safe warnings from the last validated write, for authenticated authoring surfaces. */
   embedWarnings?(): readonly PluginEmbedDiagnostic[];
-  /** Births an `"html"`-format Page, or no-ops if the row already is one. */
-  ensureHtmlFormat(seedHtml: string): Promise<void>;
+  /** Checks a supplied client basis before capturing it or converting a doc Page to HTML. */
+  ensureHtmlFormat(required: { seedHtml: string; expectedVersion?: number }, optional?: Record<string, never>): Promise<void>;
   read(): Promise<string>;
-  write(html: string): Promise<void>;
+  write(required: { html: string }, optional?: Record<string, never>): Promise<void>;
   /**
    * The row `version` captured by the most recent {@link read}/{@link ensureHtmlFormat} — the exact
    * value the next {@link write}'s compare-and-set will condition on — or `null` before either has
@@ -282,8 +275,8 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) besides `fn`.
    */
-  private inTransaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.deps.revisions ? this.deps.revisions.transaction(fn) : this.deps.kernel.transaction(fn);
+  private inTransaction<T>({ fn }: { fn: () => Promise<T> }, _optional = {}): Promise<T> {
+    return this.deps.revisions ? this.deps.revisions.transaction({ fn }) : this.deps.kernel.transaction(fn);
   }
 
   /**
@@ -293,7 +286,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) — at most one enqueue.
    */
-  private async catchUpGoLive(row: GoLiveColumns, nowIso: string): Promise<void> {
+  private async catchUpGoLive({ row, nowIso }: { row: GoLiveColumns; nowIso: string }, _optional = {}): Promise<void> {
     if (!this.deps.outbox) return;
     const post = {
       id: row.id,
@@ -381,7 +374,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * stop (D-1), and no Post may be converted to bespoke HTML through this or any other path.
    * @complexity O(1) — one indexed row lookup plus, on a `doc` row, one indexed row update.
    */
-  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
@@ -394,7 +387,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     if (!this.allowedKinds.has(row.kind as PostKind)) {
       throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
-
+    if (expectedVersion !== undefined && row.version !== expectedVersion) throw new PageConcurrentEditError(`page '${this.scope.postId}' is at version ${row.version}, not the expected version ${expectedVersion} — re-read and retry`);
     if (row.body_format === "html") {
       // Already born. Capture the version so a following `write()` has something to condition on,
       // and leave the content alone — re-seeding here would silently discard the page's real body
@@ -420,7 +413,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
           postId: this.scope.postId,
         });
         if (!existing.some((revision) => revision.seq === row.version)) {
-          await this.appendRevision(row.version, updatedAt);
+          await this.appendRevision({ seq: row.version, recordedAt: updatedAt });
         }
       }
 
@@ -446,15 +439,15 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       }
 
       // The POST-conversion snapshot — the row's first ever html-format state.
-      await this.appendRevision(nextVersion, updatedAt);
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
       await this.emitUpdated({ status: row.status, version: nextVersion, occurredAt: updatedAt });
-      await this.catchUpGoLive(row, updatedAt);
+      await this.catchUpGoLive({ row, nowIso: updatedAt });
     };
 
-    await this.inTransaction(runConversion);
+    await this.inTransaction({ fn: runConversion });
 
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(seedHtml);
+    await this.reindexEntryRefs({ html: seedHtml });
   }
 
   /**
@@ -495,7 +488,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) — one indexed lookup plus one ledger insert.
    */
-  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+  private async appendRevision({ seq, recordedAt }: { seq: number; recordedAt: string }, _optional = {}): Promise<void> {
     if (!this.deps.revisions) return;
     const row = await this.deps.revisions.findById({ workspaceId: this.scope.workspaceId, id: this.scope.postId });
     // Cannot happen on either call site's success path (each call follows a write that just matched
@@ -521,7 +514,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * one `replaceForSource` write.
    * @overallScore 100
    */
-  private async reindexEntryRefs(html: string): Promise<void> {
+  private async reindexEntryRefs({ html }: { html: string }, _optional = {}): Promise<void> {
     if (!this.deps.entryRefsRepo) return;
     const refs = extractHtmlEntryRefs({
       workspaceId: this.scope.workspaceId,
@@ -553,7 +546,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * revision append, plus the optional reference scan. No persistence writes for unchanged HTML.
    * @overallScore 100
    */
-  async write(authoredHtml: string): Promise<void> {
+  async write({ html: authoredHtml }: { html: string }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
@@ -582,14 +575,14 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       // this back too — though there is nothing to roll back on this path, unlike `ensureHtmlFormat`'s
       // two-append converting branch).
       if (changes > 0) {
-        await this.appendRevision(nextVersion, updatedAt);
+        await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
         await this.emitUpdated({ status: current.status, version: nextVersion, occurredAt: updatedAt });
-        await this.catchUpGoLive(current, updatedAt);
+        await this.catchUpGoLive({ row: current, nowIso: updatedAt });
       }
       return changes;
     };
 
-    const changes = await this.inTransaction(runWrite);
+    const changes = await this.inTransaction({ fn: runWrite });
     if (changes === null) return;
 
     if (changes === 0) {
@@ -608,6 +601,6 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     }
 
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(html);
+    await this.reindexEntryRefs({ html });
   }
 }

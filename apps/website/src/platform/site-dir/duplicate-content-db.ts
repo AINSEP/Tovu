@@ -2,7 +2,7 @@ import { sql } from "kysely";
 
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { ContentDatabase } from "../db/content-database.generated.js";
-import { tableExists } from "../db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
 import { StorageOpError, storageOps } from "../db/kernel/ops.js";
 import { CHAT_TABLE_NAMES } from "../db/sqlite/chat-orphan-check.js";
@@ -46,7 +46,7 @@ import { InternalError } from "./errors.js";
  *   `_plugin_migrations` (12), the comments plugin's comment and moderation-log tables, five
  *   `p_newsletter__*` (one holding a real list), `p_store__orders` and `p_store__products` (3 real
  *   products). None is declared in `schema.sqlite.ts` because none is created by a MIGRATION: they are
- *   raw SQL written at plugin-install time by `features/plugins/data-module.ts` (`p_{pluginId}__`
+ *   raw SQL written at plugin-install time by `@jini-ai/db/data-modules` (`p_{pluginId}__`
  *   tables plus `_plugin_migrations`), `plugin-identity.ts` and `migration-journal.ts`. Duplicating
  *   a client site with a store and a newsletter therefore produced a copy with zero products, zero
  *   orders and zero subscribers, a re-mintable plugin identity, and no DDL timeline —
@@ -115,7 +115,7 @@ import { InternalError } from "./errors.js";
  * `ai_chat_messages` and `assistant_agent_sessions`, both purged here themselves and both
  * `ON DELETE CASCADE`. Nothing kept can reference a purged row — Drizzle cannot declare a foreign
  * key to a table it has no `sqliteTable` representation for, and the plugin `dataModule` seam has
- * no foreign-key grammar at all (`features/plugins/data-module.ts`'s `IndexDecl` doc: referential
+ * no foreign-key grammar at all (`@jini-ai/db/data-modules`'s `IndexDecl` doc: referential
  * integrity there is "chokepoint-validated, not FK-enforced (v1)").
  *
  * @complexity O(k) SQL statements for k = {@link CHAT_TABLE_NAMES}'s length — a fixed three, never
@@ -124,7 +124,7 @@ import { InternalError } from "./errors.js";
 async function purgeStrandedChatTables(kernel: ContentKernel): Promise<void> {
   await kernel.transaction(async () => {
     for (const name of CHAT_TABLE_NAMES) {
-      if (!(await tableExists(kernel, name))) continue;
+      if (!(await tableExists({ kernel, table: name }))) continue;
       await kernel.execute(sql`DELETE FROM ${sql.table(name)}`);
     }
   });
@@ -158,19 +158,19 @@ export interface DuplicateContentDbRequired {
  *   fixed by how much content the site being duplicated actually holds, never by any
  *   caller-controlled input.
  */
-export async function duplicateContentDb(required: DuplicateContentDbRequired): Promise<void> {
+export async function duplicateContentDb(required: DuplicateContentDbRequired, _optional: Record<string, never> = {}): Promise<void> {
   const { sourceDbPath, targetDbPath } = required;
 
-  const source = openSqliteFileKernel<ContentDatabase>(sourceDbPath, { readOnly: true });
+  const source = openSqliteFileKernel<ContentDatabase>({ filePath: sourceDbPath }, { readOnly: true });
   try {
-    await storageOps(source).copyTo(targetDbPath);
+    await storageOps({ kernel: source }).copyTo(targetDbPath);
   } catch (err) {
-    throw new InternalError(`duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}`);
+    throw new InternalError({ message: `duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}` });
   } finally {
     await source.close();
   }
 
-  const target = openSqliteFileKernel<ContentDatabase>(targetDbPath);
+  const target = openSqliteFileKernel<ContentDatabase>({ filePath: targetDbPath });
   try {
     await purgeStrandedChatTables(target);
     // SPEC-050 REQ-12: the source's legacy site-title pin and marker describe the SOURCE's history,
@@ -180,9 +180,9 @@ export async function duplicateContentDb(required: DuplicateContentDbRequired): 
     // establishes on every real open, checkpointed so a fresh site dir never carries a stray
     // `-wal`/`-shm` sidecar before its first real boot (mirrors `seed-site.mjs`'s own
     // `checkpointAndVerify` discipline), and verified intact as the final gate.
-    await storageOps(target).compactAndVerify();
+    await storageOps({ kernel: target }).compactAndVerify();
   } catch (err) {
-    if (err instanceof StorageOpError) throw new InternalError(`duplicateContentDb: ${err.message}`);
+    if (err instanceof StorageOpError) throw new InternalError({ message: `duplicateContentDb: ${err.message}` });
     throw err;
   } finally {
     await target.close();

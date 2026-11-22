@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminTrashItem } from "@/lib/api";
+import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
 import { Trash } from "../Trash";
 import { useTrash, type TrashController } from "../hooks/use-trash.hooks";
 import { createFakeTrashPort } from "../hooks/trash-dependencies.hooks";

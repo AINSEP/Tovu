@@ -54,16 +54,7 @@ export async function createIsolatedJourneySite(
 ): Promise<IsolatedJourneySite> {
   const cacheKey = `TOVU_E2E_ISOLATED_${suite.replace(/\W/g, "_").toUpperCase()}`;
   const cached = process.env[cacheKey];
-  if (cached) {
-    const site = JSON.parse(cached) as IsolatedJourneySite;
-    if (site.ownerPid !== process.pid && site.ownerPid !== process.ppid) {
-      throw new Error(`${cacheKey} belongs to another runner; unset it before starting Playwright`);
-    }
-    if (site.suite !== suite || site.database !== database || site.runtime !== runtime) {
-      throw new Error(`${cacheKey} does not match this suite's isolation options`);
-    }
-    return site;
-  }
+  if (cached) return readCachedJourneySite(cached, cacheKey, { suite, database, runtime });
   if (runtime === "local-cli" && database !== "sqlite") {
     throw new Error("Real Local CLI journeys require a shared SQLite site database");
   }
@@ -74,10 +65,8 @@ export async function createIsolatedJourneySite(
   const scanStart = Number(process.env.TOVU_JOURNEY_PORT_BASE ?? 9_100) + 10_000;
   if (!ports) {
     for (let i = 0; i < 3; i++) {
-      const previous = selected.at(-1);
-      const port = await pickFreePort({ start: previous === undefined ? scanStart : previous + 1, span: 1_000 });
-      if (port === null) throw new Error("No free port for isolated journey site");
-      selected.push(port);
+      const port = await pickFreePort({ start: nextJourneyPortStart(selected, scanStart), span: 1_000 });
+      rememberJourneyPort(port, selected);
     }
     ports = { api: selected[0], admin: selected[1], daemon: selected[2] };
   }
@@ -91,7 +80,39 @@ export async function createIsolatedJourneySite(
   mkdirSync(packaged ? path.dirname(siteDir) : siteDir, { recursive: true });
   const emptySeeds = path.join(runtimeDir, "empty-seeds");
   mkdirSync(emptySeeds);
-  const site: IsolatedJourneySite = {
+  const site: IsolatedJourneySite = buildSite({ suite, runtimeDir, siteDir, ports, database, runtime, packaged });
+  const env: Record<string, string> = buildEnv({ homeDir, runtimeDir, ports, database, siteDir, emptySeeds, site });
+  if (packaged) applyPackagedServerEnv(env, packaged);
+  writeFileSync(site.manifestPath, JSON.stringify({ site, env }), { mode: 0o600 });
+  process.env[cacheKey] = JSON.stringify(site);
+  return site;
+}
+
+function readCachedJourneySite(cached: string, cacheKey: string, { suite, database, runtime }: { suite: string; database: "memory" | "sqlite"; runtime: "default" | "local-cli" }): IsolatedJourneySite {
+    const site = JSON.parse(cached) as IsolatedJourneySite;
+    if (site.ownerPid !== process.pid && site.ownerPid !== process.ppid) {
+      throw new Error(`${cacheKey} belongs to another runner; unset it before starting Playwright`);
+    }
+    if (site.suite !== suite || site.database !== database || site.runtime !== runtime) {
+      throw new Error(`${cacheKey} does not match this suite's isolation options`);
+    }
+    return site;
+  }
+
+
+function nextJourneyPortStart(selected: number[], scanStart: number): number {
+  const previous = selected.at(-1);
+  return previous === undefined ? scanStart : previous + 1;
+}
+
+function rememberJourneyPort(port: Awaited<ReturnType<typeof pickFreePort>>, selected: number[]): void {
+  if (port === null) throw new Error("No free port for isolated journey site");
+  selected.push(port);
+}
+
+
+function buildSite({ suite, runtimeDir, siteDir, ports, database, runtime, packaged }: { suite: string; runtimeDir: string; siteDir: string; ports: SitePorts; database: "memory" | "sqlite"; runtime: "default" | "local-cli"; packaged: ReturnType<typeof resolvePackagedServer> }) {
+  return {
     suite, ownerPid: process.pid, runtimeDir, siteDir, ports, database, runtime,
     apiURL: `http://127.0.0.1:${ports.api}`,
     adminURL: `http://127.0.0.1:${ports.admin}`,
@@ -99,7 +120,10 @@ export async function createIsolatedJourneySite(
     manifestPath: path.join(runtimeDir, "boot.json"),
     ...(packaged ? { packaged } : {}),
   };
-  const env: Record<string, string> = {
+}
+
+function buildEnv({ homeDir, runtimeDir, ports, database, siteDir, emptySeeds, site }: { homeDir: string; runtimeDir: string; ports: SitePorts; database: "memory" | "sqlite"; siteDir: string; emptySeeds: string; site: IsolatedJourneySite }) {
+  return {
     // The existing runtime-dir cleanup owns the profile and all CLI/daemon descendant keys.
     HOME: homeDir, USERPROFILE: homeDir,
     APPDATA: path.join(homeDir, "AppData", "Roaming"),
@@ -138,10 +162,6 @@ export async function createIsolatedJourneySite(
     TOVU_API_URL: site.apiURL,
     VITE_TOVU_SITE_URL: site.apiURL,
   };
-  if (packaged) applyPackagedServerEnv(env, packaged);
-  writeFileSync(site.manifestPath, JSON.stringify({ site, env }), { mode: 0o600 });
-  process.env[cacheKey] = JSON.stringify(site);
-  return site;
 }
 
 /**

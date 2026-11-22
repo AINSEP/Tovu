@@ -1,12 +1,12 @@
+import { createLoginTranslator } from "./Login.hooks";
 import { PasskeySignIn } from '@jini-ai/user-management/react';
 import { ownerPasskeySignInPort } from '../../lib/owner-passkey-api';
-import { api } from '../../lib/api';
+import { authApi } from './api/auth-api';
 import { OwnerRecoverySignIn } from "./OwnerRecoverySignIn";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
-import type { AdminUser } from "../../lib/api";
+import type { AdminUser } from "./api/auth-api.types";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as translateAuth } from "./auth-i18n";
 import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
@@ -28,7 +28,7 @@ export interface LoginProps {
 export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
   const { username, setUsername, password, setPassword, error, failure, busy, submit, mfa } = useLoginHook({ onLogin });
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAuth({ locale: locale, key: key });
+  const t = createLoginTranslator({ locale });
 
   return (
     <div className="login-screen">
@@ -49,12 +49,12 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
           <SecretInput label={t("Password")} locale={locale} id="login-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         </>}
-        {failure ? <ErrorNotice failure={failure} t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
+        {failure ? <ErrorNotice failure={failure} disclosure="id-only" t={t} className="login-error" /> : error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? t("Signing in…") : mfa ? t("Verify code") : t("Sign in")}</button>
         {mfa ? <button type="button" disabled={busy} onClick={mfa.cancel}>{t("Cancel")}</button> : null}
       </form>
       {mfa ? <PasskeySignIn port={ownerPasskeySignInPort} pendingToken={mfa.pendingToken} translate={t}
-        onComplete={async () => { const result = await api.me(); onLogin(result.user); }} /> : null}
+        onComplete={async () => { const result = await authApi.me(); onLogin(result.user); }} /> : null}
       <OwnerRecoverySignIn t={t} />
     </div>
   );

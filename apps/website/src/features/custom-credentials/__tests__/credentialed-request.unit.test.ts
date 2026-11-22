@@ -843,7 +843,7 @@ test("makeCredentialedRequest: an EgressRefusedError from the http client passes
 
 test("ConsoleCredentialedRequestAuditLog: an egress refusal's full detail, resolved address included, is kept in the server-side line", () => {
   const lines: string[] = [];
-  new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)).record({
+  new ConsoleCredentialedRequestAuditLog({}, { log: (line) => lines.push(line) }).record({
     label: "internal",
     host: "internal-db.corp",
     method: "GET",
@@ -863,7 +863,7 @@ test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structu
   const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const lines: string[] = [];
-  const deps = makeDeps({ httpClient, audit: new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)) }, writeDeps);
+  const deps = makeDeps({ httpClient, audit: new ConsoleCredentialedRequestAuditLog({}, { log: (line) => lines.push(line) }) }, writeDeps);
 
   await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "POST", url: "https://api.name.com/v4/domains", body: "hello" });
 
@@ -1326,9 +1326,9 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
   try {
     const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
     const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-    const packed = await lifecycle.packAgentPluginDirectory(EXAMPLE_HOST_PLUGIN_ROOT);
+    const packed = await lifecycle.packAgentPluginDirectory({ sourceDir: EXAMPLE_HOST_PLUGIN_ROOT });
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: WORKSPACE, archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE }).root;
     await lifecycle.recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId: "example-host", archiveDigest: installed.archiveDigest }] });
     await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "example-host", enabled: false, actor: "operator" }, { origin: "bundled" });
     const writeDeps = makeWriteDeps();

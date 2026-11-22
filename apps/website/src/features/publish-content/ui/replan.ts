@@ -60,10 +60,7 @@ export function overwriteReplanIsConsistent(
 /** `{ overwriteEntityKeys }` narrowed to the keys in `keep`, or `{}` when none survive — spread into
  *  a narrowing re-plan so an empty set is never sent as an explicit (and meaningless) empty array.
  *  @complexity O(n + m). */
-function overwriteKeysWithin(
-  overwriteEntityKeys: readonly string[] | undefined,
-  keep: readonly string[]
-): { overwriteEntityKeys?: readonly string[] } {
+function overwriteKeysWithin({ overwriteEntityKeys, keep }: { overwriteEntityKeys: readonly string[] | undefined; keep: readonly string[] }, _optional = {}): { overwriteEntityKeys?: readonly string[] } {
   const kept = new Set(keep);
   const within = (overwriteEntityKeys ?? []).filter((key) => kept.has(key));
   return within.length > 0 ? { overwriteEntityKeys: within } : {};
@@ -90,14 +87,14 @@ export async function preparePublishConfirmation(
   _optional: Record<string, never> = {},
 ): Promise<PublishContentPlanResult> {
   const rows = toPublishReportRows(required.plan.details);
-  const selectable = selectableRowKeys(rows);
+  const selectable = selectableRowKeys({ rows });
   const keep = selectable.filter(key => !required.deselectedKeys.has(key));
   if (keep.length === selectable.length) return required.plan;
   const keepSet = new Set(keep);
-  const carriedKept = rows.filter(row => row.includedFor.length > 0 && rowPublishesWithSelection(row, keepSet)).map(row => row.key);
+  const carriedKept = rows.filter(row => row.includedFor.length > 0 && rowPublishesWithSelection({ row, selected: keepSet })).map(row => row.key);
   const next = await required.planPublish({ selectedEntityKeys: keep,
-    ...overwriteKeysWithin(required.plan.overwriteEntityKeys, [...keep, ...carriedKept]) });
-  const changing = new Set(rows.filter(row => !rowPublishesWithSelection(row, keepSet)).map(row => row.key));
+    ...overwriteKeysWithin({ overwriteEntityKeys: required.plan.overwriteEntityKeys, keep: [...keep, ...carriedKept] }) });
+  const changing = new Set(rows.filter(row => !rowPublishesWithSelection({ row, selected: keepSet })).map(row => row.key));
   const tickedKeys = new Set((required.plan.overwriteEntityKeys ?? []).filter(key => !changing.has(key)));
   if (!overwriteReplanIsConsistent({ shown: required.plan.details, next: next.details, tickedKeys, changing })) {
     throw new PublishPlanDriftError(next);

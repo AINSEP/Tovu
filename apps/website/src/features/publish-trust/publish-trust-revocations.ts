@@ -26,7 +26,7 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 const LOCK_KEY = "publish_trust_revocations";
 
 /** The boot-time "deny store unreadable" error. */
-function publishTrustRevocationStoreUnavailable(error: unknown): Error {
+function publishTrustRevocationStoreUnavailable({ error }: { error: unknown }, _optional = {}): Error {
   return new Error(
     `publish trust revocation store is unavailable at boot: ${error instanceof Error ? error.message : "unknown error"}`
   );
@@ -40,7 +40,7 @@ export class SqlPublishTrustRevocationStore implements PublishTrustRevocationPor
     try {
       await this.kernel.run((db) => db.selectFrom("publish_trust_revocations").select("source_installation_id").limit(1).execute());
     } catch (error) {
-      throw publishTrustRevocationStoreUnavailable(error);
+      throw publishTrustRevocationStoreUnavailable({ error });
     }
   }
 
@@ -80,7 +80,7 @@ export class SqlPublishTrustRevocationStore implements PublishTrustRevocationPor
       await this.kernel.lockKey(LOCK_KEY);
       const current = await this.list();
       if (!current.ok) return current;
-      if (isRevoked(current.revocations, input.sourceInstallationId)) {
+      if (isRevoked({ revocations: current.revocations, sourceInstallationId: input.sourceInstallationId })) {
         return { ok: true, revocations: current.revocations, changed: false };
       }
       if (current.revocations.length >= MAX_REVOCATIONS) {
@@ -110,7 +110,7 @@ export class SqlPublishTrustRevocationStore implements PublishTrustRevocationPor
       await this.kernel.lockKey(LOCK_KEY);
       const current = await this.list();
       if (!current.ok) return current;
-      if (!isRevoked(current.revocations, input.sourceInstallationId)) {
+      if (!isRevoked({ revocations: current.revocations, sourceInstallationId: input.sourceInstallationId })) {
         return { ok: true, revocations: current.revocations, changed: false };
       }
 
@@ -134,7 +134,7 @@ export class SqlPublishTrustRevocationStore implements PublishTrustRevocationPor
 }
 
 /** The deny store on `kernel`'s database, whichever dialect, after proving it is readable. */
-export async function publishTrustRevocationStoreFor(kernel: ContentKernel): Promise<SqlPublishTrustRevocationStore> {
+export async function publishTrustRevocationStoreFor({ kernel }: { kernel: ContentKernel }, _optional = {}): Promise<SqlPublishTrustRevocationStore> {
   const store = new SqlPublishTrustRevocationStore(kernel);
   await store.assertAvailable();
   return store;

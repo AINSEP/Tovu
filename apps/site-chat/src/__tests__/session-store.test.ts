@@ -147,14 +147,14 @@ describe("transcript-storage", () => {
     it("round-trips through loadPersistedState", () => {
       const storage = new FakeStorage();
       const state = { open: true, messages: [message("1", "user", "hello"), message("2", "assistant", "hi there")] };
-      savePersistedState(storage, state);
+      savePersistedState({ storage, state });
       assert.deepEqual(loadPersistedState(storage), state);
     });
 
     it("drops the oldest messages first once the count cap is exceeded", () => {
       const storage = new FakeStorage();
       const messages = Array.from({ length: 60 }, (_, i) => message(`${i}`, "user", `turn ${i}`));
-      savePersistedState(storage, { open: false, messages });
+      savePersistedState({ storage, state: { open: false, messages } });
       const reloaded = loadPersistedState(storage);
       assert.equal(reloaded.messages.length, 50, "capped at MAX_MESSAGES");
       assert.equal(reloaded.messages[0]?.id, "10", "the 10 oldest were dropped, not the newest");
@@ -165,7 +165,7 @@ describe("transcript-storage", () => {
       const storage = new FakeStorage();
       const big = "x".repeat(20_000);
       const messages = Array.from({ length: 15 }, (_, i) => message(`${i}`, "assistant", big));
-      savePersistedState(storage, { open: false, messages });
+      savePersistedState({ storage, state: { open: false, messages } });
       const reloaded = loadPersistedState(storage);
       assert.ok(reloaded.messages.length < 15, "byte cap must trim before the 50-message count cap would ever trigger");
       assert.equal(reloaded.messages.at(-1)?.id, "14", "the newest survives; oldest are dropped first");
@@ -175,7 +175,7 @@ describe("transcript-storage", () => {
 
     it("drops a single message larger than the byte cap while retaining pane state", () => {
       const storage = new FakeStorage();
-      savePersistedState(storage, { open: true, messages: [message("huge", "assistant", "x".repeat(200_001))] });
+      savePersistedState({ storage, state: { open: true, messages: [message("huge", "assistant", "x".repeat(200_001))] } });
       assert.deepEqual(JSON.parse(storage.getItem(TRANSCRIPT_STORAGE_KEY)!), { open: true, messages: [] });
       assert.deepEqual(loadPersistedState(storage), { open: true, messages: [] });
     });
@@ -184,7 +184,7 @@ describe("transcript-storage", () => {
       it(`enforces the UTF-8 byte cap for ${character} transcripts`, () => {
         const storage = new FakeStorage();
         const messages = Array.from({ length: 5 }, (_, i) => message(`${i}`, "assistant", character.repeat(20_000)));
-        savePersistedState(storage, { open: true, messages });
+        savePersistedState({ storage, state: { open: true, messages } });
         assert.deepEqual(loadPersistedState(storage), { open: true, messages: messages.slice(5 - retained) });
         assert.ok(Buffer.byteLength(storage.getItem(TRANSCRIPT_STORAGE_KEY)!, "utf8") <= 200_000);
       });
@@ -201,14 +201,14 @@ describe("transcript-storage", () => {
           throw new DOMException("quota exceeded", "QuotaExceededError");
         },
       };
-      assert.doesNotThrow(() => savePersistedState(throwing, { open: true, messages: [message("1", "user", "x")] }));
+      assert.doesNotThrow(() => savePersistedState({ storage: throwing, state: { open: true, messages: [message("1", "user", "x")] } }));
     });
   });
 
   describe("clearPersistedState", () => {
     it("removes the stored key", () => {
       const storage = new FakeStorage();
-      savePersistedState(storage, { open: true, messages: [message("1", "user", "x")] });
+      savePersistedState({ storage, state: { open: true, messages: [message("1", "user", "x")] } });
       clearPersistedState(storage);
       assert.equal(storage.getItem(TRANSCRIPT_STORAGE_KEY), null);
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });

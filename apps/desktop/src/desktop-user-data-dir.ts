@@ -24,13 +24,11 @@
  */
 import os from "node:os";
 import path from "node:path";
+import { resolveElectronUserDataDir } from "@jini-ai/platform/fs";
 
 /** Electron's `app.getName()` for this app: `package.json`'s `"name"`. See this file's header, and
  *  the test that pins it to the manifest. */
 const DESKTOP_APP_NAME = "tovu-desktop";
-
-/** One platform's rule: its `appData` root, from the environment and the home directory. */
-type AppDataRoot = (env: NodeJS.ProcessEnv, home: string) => string;
 
 /** {@link resolveDesktopUserDataDir}'s options. Each one defaults to the real process's value. */
 interface ResolveDesktopUserDataDirOptions {
@@ -38,24 +36,6 @@ interface ResolveDesktopUserDataDirOptions {
   platform?: NodeJS.Platform;
   homedir?: string;
 }
-
-/**
- * The platform's per-user application-data root — Electron's `appData` path, which `userData` is one
- * named directory inside.
- *
- * A table so each platform's rule is visible and independently correctable. Linux honours
- * `XDG_CONFIG_HOME` because Electron does; Windows uses `APPDATA` for the same reason, with the
- * conventional fallback for a stripped environment.
- *
- * Partial over platforms: a platform with no entry has no known convention.
- *
- * @complexity O(1).
- */
-const APP_DATA_ROOTS: Readonly<Partial<Record<NodeJS.Platform, AppDataRoot>>> = Object.freeze({
-  darwin: (env: NodeJS.ProcessEnv, home: string) => path.join(home, "Library", "Application Support"),
-  win32: (env: NodeJS.ProcessEnv, home: string) => env.APPDATA?.trim() || path.join(home, "AppData", "Roaming"),
-  linux: (env: NodeJS.ProcessEnv, home: string) => env.XDG_CONFIG_HOME?.trim() || path.join(home, ".config"),
-});
 
 /**
  * This app's `userData` directory.
@@ -76,14 +56,14 @@ function resolveDesktopUserDataDir(options: ResolveDesktopUserDataDirOptions = {
   if (override) return path.resolve(override);
 
   const platform = options.platform ?? process.platform;
-  const root = APP_DATA_ROOTS[platform];
-  if (root === undefined) {
+  const dir = resolveElectronUserDataDir({ platform, env, homeDir: options.homedir ?? os.homedir(), appName: DESKTOP_APP_NAME });
+  if (dir === undefined) {
     throw new Error(
       `tovu-desktop: no known userData location for platform '${platform}'. Set TOVU_DESKTOP_USER_DATA_DIR to the app's data directory.`,
     );
   }
-  return path.join(root(env, options.homedir ?? os.homedir()), DESKTOP_APP_NAME);
+  return dir;
 }
 
-export { APP_DATA_ROOTS, DESKTOP_APP_NAME, resolveDesktopUserDataDir };
-export type { AppDataRoot, ResolveDesktopUserDataDirOptions };
+export { DESKTOP_APP_NAME, resolveDesktopUserDataDir };
+export type { ResolveDesktopUserDataDirOptions };

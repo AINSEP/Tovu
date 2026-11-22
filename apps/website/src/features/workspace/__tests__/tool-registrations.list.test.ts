@@ -8,14 +8,14 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 test("workspace card lists only the boot-addressable workspace through its existing read owner", async () => {
-  const workspace = { id: "ws", name: "Site", slug: "site", createdAt: "now" };
+  const workspace = { id: "ws", name: "Site", slug: "site", createdAt: "now", version: 1 };
   let reads = 0;
   const deps = toAssistantRegistryDeps({ routeDeps: { ...createRouteDeps(), workspaceId: "ws",
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } });
   deps.workspaceRepo.findById = async ({ id }) => { reads++; assert.equal(id, "ws"); return workspace; };
   deps.workspaceRepo.list = async () => { throw new Error("must not disclose inaccessible workspace rows"); };
-  const card = () => deriveContentReadRegistrations(contributeWorkspaceTools().build(deps)).find(r => r.descriptor.id === "content_read.workspace")!;
+  const card = () => deriveContentReadRegistrations({ sourceRegistrations: contributeWorkspaceTools().build(deps) }).find(r => r.descriptor.id === "content_read.workspace")!;
   const ctx = (input: unknown) => ({ input, principal: { id: "owner" } } as ToolExecutionContext);
   assert.deepEqual(await card().handler(ctx({})), { workspaces: [workspace] });
   assert.deepEqual(await card().handler(ctx({ workspaceId: "ws" })), { workspace });
@@ -31,7 +31,7 @@ test("workspace list reports the missing current workspace with its real safe er
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } });
   deps.workspaceRepo.findById = async () => null;
-  const card = deriveContentReadRegistrations(contributeWorkspaceTools().build(deps)).find(r => r.descriptor.id === "content_read.workspace");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: contributeWorkspaceTools().build(deps) }).find(r => r.descriptor.id === "content_read.workspace");
   assert.ok(card);
   await assert.rejects(card.handler({ input: {}, principal: { id: "owner" } } as ToolExecutionContext),
     { message: "WORKSPACE_NOT_FOUND: workspace 'missing' was not found" });

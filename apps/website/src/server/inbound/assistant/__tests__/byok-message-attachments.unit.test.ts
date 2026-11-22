@@ -5,8 +5,41 @@ import { lstat, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import path from "node:path";
 import ts from "typescript";
-import { prepareByokMessageAttachments } from "../byok-message-attachments.js";
+import { AttachmentUnavailableError, prepareByokMessageAttachments } from "../byok-message-attachments.js";
 import { readPickedFolders } from "#src/assistant/run-page-context";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+
+test("BYOK attachment refusals stay 400 while preparation faults become redacted incidents", async (t) => {
+  const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
+  const declaration = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "attachTurnMessagesOrRespond");
+  assert.ok(declaration, "the attachment handler exists");
+  const code = ts.transpileModule(`return (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
+  async function attempt(error: Error) {
+    const attach = new Function("prepareByokMessageAttachments", "AttachmentUnavailableError", "sendAdminFailure", code)(async () => { throw error; }, AttachmentUnavailableError, sendAdminFailure);
+    let status = 200; let body: unknown;
+    const res = { locals: { principal: { id: "owner" } }, status(value: number) { status = value; return res; }, json(value: unknown) { body = value; return res; } };
+    const result = await attach({ attachmentIds: ["ref"], messages: [{ role: "user", content: "PRIVATE_BODY" }], principalId: "owner", routeDeps: { siteStoragePaths: { chatAttachmentsDir: "/tmp" } }, res });
+    assert.equal(result, false);
+    return { status, body };
+  }
+  const refusal = await attempt(new AttachmentUnavailableError("Attachment is unavailable. Reattach it before sending."));
+  assert.equal(refusal.status, 400);
+  assert.deepEqual(refusal.body, { error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+  assert.equal(logs.length, 0);
+  const failure = await attempt(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"));
+  assert.equal(failure.status, 500);
+  assert.ok(failure.body && typeof failure.body === "object" && "errorId" in failure.body && "error" in failure.body);
+  assert.match(String(failure.body.error), /The attachment could not be prepared/);
+  const entry = logs.find(args => args[0] === "[assistant-byok:attachments]");
+  assert.ok(entry, "the attachment failure is reported");
+  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assert.equal(detail.errorId, failure.body.errorId);
+  assert.match(detail.diagnostic, /boom/);
+  assert.match(detail.diagnostic, /byok-message-attachments\.unit\.test\.ts/);
+  assert.doesNotMatch(JSON.stringify({ body: failure.body, logs }), /SECRETSECRETSECRETSECRET|PRIVATE_BODY/);
+});
 
 test("the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory", async () => {
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
@@ -24,7 +57,8 @@ test("the BYOK route places prepared pixels only on the newest user message, rea
   // why: 40ea6e547 made the turn validate picked folders first; the real reader is injected, so an
   // absent `folders` still resolves to none rather than the harness failing on an unbound name.
   const resolve = new Function("resolveMessages", "withPageContextBlock", "readRunPageContext", "getAuthedPrincipal", "prepareByokMessageAttachments", "readPickedFolders", code)(
-    (raw: unknown) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
+    // why: the (required, optional) argument rule made the real call `resolveMessages({ raw })`.
+    ({ raw }: { raw: unknown }) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
     () => ({ id: "alice" }), async (required: unknown) => { calls.push(required); return { images, notice: "" }; }, readPickedFolders,
   );
   const messages = [{ role: "user", content: "old question" }, { role: "assistant", content: "old answer" }, { role: "user", content: "colours?" }];
@@ -55,7 +89,7 @@ test("BYOK reads only this message's refs as the authenticated owner and deliver
 test("BYOK refuses unreadable or foreign image refs instead of producing a name-only answer", async () => {
   await assert.rejects(prepareByokMessageAttachments({ refs: ["foreign"], principalId: "alice", uploadDirectory: "/unused" }, {
     read: async () => ({ ok: false, refusal: "not-owner" }),
-  }), { message: "Attachment is unavailable. Reattach it before sending." });
+  }), (error: unknown) => error instanceof AttachmentUnavailableError && error.message === "Attachment is unavailable. Reattach it before sending.");
 });
 
 test("BYOK's default reader reads the injected upload directory, not the env/cwd site", async t => {

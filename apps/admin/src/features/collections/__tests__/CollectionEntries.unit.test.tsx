@@ -112,7 +112,7 @@ describe("loaded entries and errors", () => {
   });
 
   it.each([null, [], [entry]])("shows load errors with entries %j", (entries) => {
-    const controller: CollectionEntriesController = { contentType, entries, error: "entries unavailable", t: (key) => key };
+    const controller: CollectionEntriesController = { contentType, entries, error: "entries unavailable", t: ({ key }, _optional = {}) => key };
     render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
     expect(screen.getByText("entries unavailable")).toHaveClass("notice", "error");
     if (entries?.length) expect(screen.getByRole("link", { name: "My Recipe" })).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe("injected hook seam (useCollectionEntriesHook)", () => {
       contentType: null,
       entries: [],
       error: null,
-      t: (key) => key,
+      t: ({ key }, _optional = {}) => key,
     };
     render(<CollectionEntries contentTypeKey="does-not-matter" useCollectionEntriesHook={() => controller} />);
 
@@ -158,7 +158,7 @@ describe("injected hook seam (useCollectionEntriesHook)", () => {
         },
       ],
       error: null,
-      t: (key) => key,
+      t: ({ key }, _optional = {}) => key,
     };
     render(<CollectionEntries contentTypeKey="recipe" useCollectionEntriesHook={() => controller} />);
 

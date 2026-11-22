@@ -242,3 +242,8 @@ it("tags every Skills add-tab input/action and both install confirmation choices
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog", { name: "Install skill" })).toBeNull();
 });
+
+it("translates through the injected useSkillsTranslatorHook", () => {
+  const { container } = render(<Skills useLocaleHook={() => "en"} useSkillsTranslatorHook={() => (key: string) => `«${key}»`} />);
+  expect(container.textContent).toContain("«");
+});

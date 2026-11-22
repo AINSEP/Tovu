@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file Coverage for `page-editor-dependencies.hooks.ts`'s remaining gaps:
@@ -23,11 +23,11 @@ import type { AdminPost } from "@/lib/api";
  *   that file's existing tests.
  */
 
-const { deletePage } = vi.hoisted(() => ({ deletePage: vi.fn() }));
+const { deletePage, updatePageHtml } = vi.hoisted(() => ({ deletePage: vi.fn(), updatePageHtml: vi.fn() }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, deletePage } };
+vi.mock("../../api/pages-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/pages-api")>();
+  return { ...actual, pagesApi: { ...actual.pagesApi, deletePage, updatePageHtml } };
 });
 
 const { createFakePageEditorPort, defaultPageEditorPort } = await import("../page-editor-dependencies.hooks");
@@ -51,9 +51,17 @@ describe("defaultPageEditorPort.deletePage", () => {
   it("forwards id to api.deletePage, returning the response unchanged", async () => {
     const response = { post: PAGE };
     deletePage.mockResolvedValue(response);
-    await expect(defaultPageEditorPort.deletePage("page-1")).resolves.toEqual(response);
-    expect(deletePage).toHaveBeenCalledWith("page-1");
+    await expect(defaultPageEditorPort.deletePage({ id: "page-1" })).resolves.toEqual(response);
+    expect(deletePage).toHaveBeenCalledWith({ id: "page-1" });
   });
+});
+
+it("S7b: the live editor port forwards the HTML save's basis", async () => {
+  const response = { post: PAGE };
+  updatePageHtml.mockResolvedValue(response);
+  const input = { id: PAGE.id, html: "<p>Edited</p>", expectedVersion: PAGE.version };
+  await expect(defaultPageEditorPort.updatePageHtml(input)).resolves.toEqual(response);
+  expect(updatePageHtml).toHaveBeenCalledWith(input);
 });
 
 describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
@@ -61,30 +69,30 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
     const port = createFakePageEditorPort({ page: PAGE });
     expect(port.current).toEqual(PAGE);
 
-    await port.updatePageHtml("page-1", "<p>edited</p>");
+    await port.updatePageHtml({ id: "page-1", html: "<p>edited</p>", expectedVersion: PAGE.version });
     expect(port.current.bodyHtml).toBe("<p>edited</p>");
 
-    await port.updatePost({ id: "page-1" }, { title: "Renamed" });
+    await port.updatePost({ target: { id: "page-1" }, patch: { title: "Renamed" } });
     expect(port.current.title).toBe("Renamed");
   });
 
   it("updatePageHtml rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.updatePageHtml("wrong-id", "<p>x</p>")).rejects.toThrow(
+    await expect(port.updatePageHtml({ id: "wrong-id", html: "<p>x</p>", expectedVersion: PAGE.version })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
   });
 
   it("updatePost rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.updatePost({ id: "wrong-id" }, { title: "x" })).rejects.toThrow(
+    await expect(port.updatePost({ target: { id: "wrong-id" }, patch: { title: "x" } })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
   });
 
   it("deletePage rejects for an id that doesn't match the seeded page", async () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    await expect(port.deletePage("wrong-id")).rejects.toThrow(
+    await expect(port.deletePage({ id: "wrong-id" })).rejects.toThrow(
       "fake page editor port: unknown page id wrong-id",
     );
     expect(port.deleteCalled).toBe(false);
@@ -102,16 +110,16 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
     };
     const port = createFakePageEditorPort({ page: PAGE, autosave });
 
-    await expect(port.putAutosave("wrong-id", {
+    await expect(port.putAutosave({ id: "wrong-id", draft: {
       bodyFormat: "html",
       bodyHtml: "<p>wrong page</p>",
       title: "Wrong title",
       slug: "wrong-page",
       baseVersion: PAGE.version,
-    })).rejects.toThrow("fake page editor port: unknown page id wrong-id");
+    } })).rejects.toThrow("fake page editor port: unknown page id wrong-id");
 
     expect(port.putAutosaveCalls).toEqual([]);
-    await expect(port.getAutosave(PAGE.id)).resolves.toEqual({ autosave });
+    await expect(port.getAutosave({ id: PAGE.id })).resolves.toEqual({ autosave });
     expect(port.current).toEqual(PAGE);
   });
 });
@@ -124,12 +132,12 @@ describe("createFakePageEditorPort — getPresentation and templatePreviewUrl de
 
   it("templatePreviewUrl defaults templateChoice to '' when null", () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    expect(port.templatePreviewUrl("page-1", null)).toBe("fake://template-preview/page-1?templateChoice=");
+    expect(port.templatePreviewUrl({ id: "page-1", templateChoice: null })).toBe("fake://template-preview/page-1?templateChoice=");
   });
 
   it("templatePreviewUrl includes an explicit templateChoice", () => {
     const port = createFakePageEditorPort({ page: PAGE });
-    expect(port.templatePreviewUrl("page-1", "blog-post.html")).toBe(
+    expect(port.templatePreviewUrl({ id: "page-1", templateChoice: "blog-post.html" })).toBe(
       "fake://template-preview/page-1?templateChoice=blog-post.html",
     );
   });

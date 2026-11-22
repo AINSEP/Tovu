@@ -1,9 +1,10 @@
 import { useEffect, useRef, type RefObject } from "react";
 
-import { useFocusTrap } from "../../../hooks/use-focus-trap.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
+
 import { buildExternalMcpRemoveConfirmCopy, type RemoveConfirmCopy } from "../rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `ExternalMcpRemoveConfirmDialog`'s only two behaviours — Escape-to-cancel and the
  * name/auth-mode-derived copy — so the dialog component itself is only markup. Mirrors
@@ -37,7 +38,7 @@ export function useExternalMcpRemoveConfirm(props: {
 }): ExternalMcpRemoveConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
+  useFocusTrap({ containerRef: dialogRef });
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -45,8 +46,7 @@ export function useExternalMcpRemoveConfirm(props: {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, props.t), dialogRef };
+  return { copy: buildExternalMcpRemoveConfirmCopy({ name: props.name, isOAuth: props.isOAuth }, { t: props.t }), dialogRef };
 }

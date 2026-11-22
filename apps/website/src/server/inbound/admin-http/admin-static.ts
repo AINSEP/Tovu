@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
@@ -19,15 +20,13 @@ const MIME: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
-  try {
+function sendSeaAsset({ sea, key, res }: { sea: SeaApi; key: string; res: Response }, _optional = {}): boolean {
+  return orFallbackSync({ work: () => {
     const asset = sea.getAsset(key);
     res.setHeader("Content-Type", MIME[path.extname(key)] ?? "application/octet-stream");
     res.end(Buffer.from(asset));
     return true;
-  } catch {
-    return false;
-  }
+  }, fallback: false, step: "Serve bundled admin asset" });
 }
 
 /**
@@ -57,8 +56,7 @@ function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
  * browser is already on its origin), but it meant `:3000/admin/` never
  * actually worked, only redirected away from itself.
  */
-export function registerAdminStatic(app: Express, required: { distDir: string }): void {
-  const { distDir } = required;
+export function registerAdminStatic({ app, distDir }: { app: Express; distDir: string }, _optional: Record<string, never> = {}): void {
   const indexHtml = path.join(distDir, "index.html");
 
   // Single-binary mode: the admin build is embedded as SEA assets. Always
@@ -66,19 +64,19 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
   const sea = seaApi();
   if (sea) {
     app.get(["/admin", "/admin/"], (_req, res) => {
-      sendSeaAsset(sea, "admin/index.html", res);
+      sendSeaAsset({ sea, key: "admin/index.html", res });
     });
     app.get("/admin/*", (req, res) => {
       const rel = req.path.replace(/^\/admin\//, "");
-      if (sendSeaAsset(sea, `admin/${rel}`, res)) return;
-      sendSeaAsset(sea, "admin/index.html", res);
+      if (sendSeaAsset({ sea, key: `admin/${rel}`, res })) return;
+      sendSeaAsset({ sea, key: "admin/index.html", res });
     });
     return;
   }
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler(devProxyUrl));
+    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler({ devProxyUrl }));
     return;
   }
 

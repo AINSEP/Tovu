@@ -5,17 +5,18 @@ import {
   type SearchAccessPort, type SearchDocumentSource, type SearchIndexer, type SearchIndexStatePort, type SearchProvider,
   type SearchProviderContext, type SearchProviderRegistry, type SearchService, type SearchSourceEvent, type SearchTarget, type SearchTargetPort,
 } from "@jini-ai/search";
-import { contributeProviders } from "@jini-ai/search/contribution";
+import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
-import type { MemberContext } from "#src/features/members/types";
+import type { MemberContext } from "#src/features/members/index";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
+import { set } from "#src/features/settings/index";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";
 import { createSqlSearchIndexStore } from "#src/features/site-search/index-state-store";
 import { readSearchProviderSetting, writeSearchProviderSetting } from "#src/features/site-search/settings";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpClientPort } from "#src/platform/http/index";
 
@@ -37,8 +38,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
  * `registered: false` instead of pretending nothing was chosen.
  *
  * **Vendor credentials.** No new table: a vendor's key is a saved custom credential (Access Tokens →
- * "Add custom provider") labeled exactly {@link searchCredentialLabel} — `Tovu Search — <Provider
- * label>`, e.g. `Tovu Search — Meilisearch` — with `baseUrl` = the vendor's HTTPS endpoint (passed to
+ * "Add custom provider") labeled exactly {@link searchCredentialLabel} — `Search — <Provider
+ * label>`, e.g. `Search — Meilisearch` — with `baseUrl` = the vendor's HTTPS endpoint (passed to
  * the provider as `host`) and the API key as the token (passed as `apiKey`). The same fixed-label
  * convention `boot/resolve-mailer.ts` uses for mail providers, for the same reason: the credential
  * store has no purpose column to key on. A provider receives only the keys it declares in
@@ -56,13 +57,13 @@ import type { HttpClientPort } from "#src/platform/http/index";
  */
 
 /** Exact prefix of the custom-credential label a vendor search provider's key is saved under. */
-export const SEARCH_CREDENTIAL_LABEL_PREFIX = "Tovu Search — ";
+export const SEARCH_CREDENTIAL_LABEL_PREFIX = "Search — ";
 
 /** Hard per-request budget handed to every provider (and the service's own deadline). */
 export const SEARCH_PROVIDER_TIMEOUT_MS = 3000;
 
 /**
- * The custom-credential label for a provider, e.g. `Tovu Search — Meilisearch`.
+ * The custom-credential label for a provider, e.g. `Search — Meilisearch`.
  * @complexity O(label length).
  */
 export function searchCredentialLabel(required: { readonly providerLabel: string }, _optional: Record<string, never> = {}): string {
@@ -125,7 +126,7 @@ export interface SiteSearchRuntime {
   writeProviderSetting(required: { readonly principalId: string; readonly providerId: string }): Promise<void>;
 }
 
-const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const errorText = ({ error }: { error: unknown }, _optional = {}): string => (error instanceof Error ? error.message : String(error));
 
 /** Tovu's guarded client is `send(request)`; Jini providers call `send({ request })`. */
 function toProviderHttpClient(client: HttpClientPort): JiniHttpClientPort {
@@ -153,7 +154,11 @@ function pickCredentials(provider: SearchProvider, saved: SearchVaultCredential)
   const available: Record<string, string> = { host: saved.baseUrl, apiKey: saved.token };
   const unknown = provider.credentialKeys.find(key => !Object.hasOwn(available, key));
   if (unknown !== undefined) return `search provider '${provider.id}' declares credential key '${unknown}', which a saved credential cannot supply (only host and apiKey)`;
-  return Object.fromEntries(provider.credentialKeys.map(key => [key, available[key]!]));
+  return Object.fromEntries(provider.credentialKeys.map(key => {
+    const value = available[key];
+    if (value === undefined) throw new Error(`search provider '${provider.id}' has no value for credential '${key}'`);
+    return [key, value];
+  }));
 }
 
 /**
@@ -176,33 +181,14 @@ export function createSearchContextResolver(
   let installId: Promise<string | null> | undefined;
   const readInstallId = () => {
     installId ??= required.installId().catch((error: unknown) => {
-      log(`[site-search] this install has no id (${errorText(error)}); search stays unconfigured until the site key is restored`);
+      log(`[site-search] this install has no id (${errorText({ error })}); search stays unconfigured until the site key is restored`);
       return null;
     });
     return installId;
   };
 
-  const credentialsFor = async (provider: SearchProvider): Promise<Record<string, string> | null> => {
-    if (provider.credentialKeys.length === 0) return {};
-    const label = searchCredentialLabel({ providerLabel: provider.label });
-    let saved: SearchVaultCredential | null;
-    try {
-      saved = await required.resolveCredential({ label });
-    } catch (error) {
-      log(`[site-search] the "${label}" credential could not be read (${errorText(error)})`);
-      return null;
-    }
-    if (saved === null) return null;
-    const picked = pickCredentials(provider, saved);
-    if (typeof picked === "string") {
-      log(`[site-search] ${picked}`);
-      return null;
-    }
-    return picked;
-  };
+  const credentialsFor = (provider: SearchProvider) => searchCredentialsFor(required, provider, log);
 
-  // Plugins whose provider was found disabled; only the transition is logged, not every call.
-  const revoked = new Set<string>();
   /**
    * A plugin's provider is usable only while the plugin is STILL active. Boot loading checked
    * activation once; the registry caches the provider for the process lifetime, so without this
@@ -210,21 +196,11 @@ export function createSearchContextResolver(
    * Every provider call (query, write, reconcile, drop) resolves its context here first, so a
    * disabled plugin's provider is revoked at its very next use, and restored if it is re-enabled.
    */
-  const pluginStillActive = async (pluginId: string | undefined): Promise<boolean> => {
-    if (pluginId === undefined) return true;
-    const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
-      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText(error)}); its search provider is not used`);
-      return false;
-    });
-    if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
-    if (active) revoked.delete(pluginId);
-    else revoked.add(pluginId);
-    return active;
-  };
+  const pluginStillActive = createPluginActivityCheck(required, log);
 
   return async ({ target, workspaceId }) => {
     const registered = registry.get({ id: target.providerId });
-    if (!registered || !(await pluginStillActive(registered.pluginId))) return null;
+    if (!registered || !(await pluginStillActive({ pluginId: registered.pluginId }))) return null;
     const { provider } = registered;
     const credentials = await credentialsFor(provider);
     if (credentials === null) return null;
@@ -262,7 +238,7 @@ export function createSiteSearchRuntime(required: SiteSearchPorts, optional: Sit
       const { refusals } = contributeProviders({ registry, loaded: withoutReservedIds(await required.loadPluginProviders()) });
       for (const refusal of refusals) log(`[site-search] ${refusal}`);
     } catch (error) {
-      log(`[site-search] plugin search providers could not be loaded (${errorText(error)}); only the built-in provider is available`);
+      log(`[site-search] plugin search providers could not be loaded (${errorText({ error })}); only the built-in provider is available`);
     }
   })();
 
@@ -308,18 +284,18 @@ export function subscribeSiteSearchIndexer(required: { readonly bus: SiteSearchB
 
 /** Injected timers so tests control the schedule. */
 export interface MaintenanceTimers {
-  set(run: () => void, ms: number): unknown;
-  clear(handle: unknown): void;
+  set(required: { run: () => void; ms: number }, optional?: Record<string, never>): unknown;
+  clear(required: { handle: unknown }, optional?: Record<string, never>): void;
 }
 
 const defaultTimers: MaintenanceTimers = {
-  set: (run, ms) => {
+  set: ({ run, ms }, _options = {}) => {
     const handle = setTimeout(run, ms);
     // Never keeps the process alive on its own, like the outbox drainer's timer.
     handle.unref();
     return handle;
   },
-  clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  clear: ({ handle }, _options = {}) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
 export interface SiteSearchMaintenance {
@@ -368,7 +344,7 @@ export function startSiteSearchMaintenance(required: { readonly runtime?: SiteSe
   let running: Promise<void> = Promise.resolve();
 
   /** One bounded step; true when it completed. A stop between steps skips the rest of the pass. */
-  const step = async (name: string, run: () => Promise<unknown>): Promise<boolean> => {
+  const step = async ({ name, run }: { name: string; run: () => Promise<unknown> }, _optional = {}): Promise<boolean> => {
     if (stopped) return false;
     try {
       await run();
@@ -382,24 +358,24 @@ export function startSiteSearchMaintenance(required: { readonly runtime?: SiteSe
   const pass = async () => {
     await runtime.ready;
     // Retried on every pass until it succeeds once (e.g. the settings read failed at boot).
-    if (!booted) booted = await step("boot rebuild", () => ensureBootTarget(runtime));
-    await step("reconcile", () => runtime.indexer.reconcile(scope, { limit: reconcileLimit }));
-    await step("backfill", () => runtime.indexer.backfill(scope, { pageBudget }));
+    if (!booted) booted = await step({ name: "boot rebuild", run: () => ensureBootTarget(runtime) });
+    await step({ name: "reconcile", run: () => runtime.indexer.reconcile(scope, { limit: reconcileLimit }) });
+    await step({ name: "backfill", run: () => runtime.indexer.backfill(scope, { pageBudget }) });
   };
 
-  const schedule = (ms: number) => {
-    handle = timers.set(() => {
+  const schedule = ({ ms }: { ms: number }, _optional = {}) => {
+    handle = timers.set({ run: () => {
       running = pass()
         .catch((error: unknown) => log("[site-search] maintenance pass failed; retrying after the idle interval", error))
-        .finally(() => { if (!stopped) schedule(intervalMs); });
-    }, ms);
+        .finally(() => { if (!stopped) schedule({ ms: intervalMs }); });
+    }, ms });
   };
-  schedule(0);
+  schedule({ ms: 0 });
 
   return {
     async stop() {
       stopped = true;
-      timers.clear(handle);
+      timers.clear({ handle });
       await running;
     },
   };
@@ -432,7 +408,7 @@ export interface SiteSearchBindings {
 export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Record<string, never> = {}): SiteSearchPorts {
   const { workspaceId, kernel, now } = required;
   const readSetting = readSearchProviderSetting({ settingsRepo: required.settingsRepo });
-  const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps });
+  const writeSetting = writeSearchProviderSetting({ deps: required.settingsWriteDeps, writeSetting: set });
   return {
     workspaceId,
     // v1 topology: one workspace per content database, and the workspace id doubles as the site id.
@@ -456,5 +432,44 @@ export function bindSiteSearchPorts(required: SiteSearchBindings, _optional: Rec
       await writeSetting({ workspaceId, callerPrincipalId: principalId, providerId });
     },
     now,
+  };
+}
+
+async function searchCredentialsFor(required: Parameters<typeof createSearchContextResolver>[0], provider: SearchProvider, log: Parameters<typeof createSearchContextResolver>[0]["log"]): Promise<Record<string, string> | null> {
+
+    if (provider.credentialKeys.length === 0) return {};
+    const label = searchCredentialLabel({ providerLabel: provider.label });
+    let saved: SearchVaultCredential | null;
+    try {
+      saved = await required.resolveCredential({ label });
+      if (saved === null) saved = await required.resolveCredential({ label: `Jini Search — ${provider.label}` });
+      if (saved === null) saved = await required.resolveCredential({ label: `Tovu Search — ${provider.label}` });
+    } catch (error) {
+      log(`[site-search] the "${label}" credential could not be read (${errorText({ error })})`);
+      return null;
+    }
+    if (saved === null) return null;
+    const picked = pickCredentials(provider, saved);
+    if (typeof picked === "string") {
+      log(`[site-search] ${picked}`);
+      return null;
+    }
+    return picked;
+  
+}
+
+function createPluginActivityCheck(required: Parameters<typeof createSearchContextResolver>[0], log: Parameters<typeof createSearchContextResolver>[0]["log"]) {
+  // Plugins whose provider was found disabled; only the transition is logged, not every call.
+  const revoked = new Set<string>();
+  return async ({ pluginId }: { pluginId: string | undefined }, _optional = {}): Promise<boolean> => {
+    if (pluginId === undefined) return true;
+    const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
+      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText({ error })}); its search provider is not used`);
+      return false;
+    });
+    if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
+    if (active) revoked.delete(pluginId);
+    else revoked.add(pluginId);
+    return active;
   };
 }

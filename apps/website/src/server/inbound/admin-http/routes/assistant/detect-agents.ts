@@ -1,8 +1,10 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   type DetectedAgent as RuntimeDetectedAgent,
-  type RuntimeModelOption,
 } from "@jini-ai/agent-runtime";
+import { type RuntimeModelOption } from "@jini-ai/core/contracts/agents";
 import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -164,30 +166,15 @@ async function readDetectionSnapshot(
  * A strict `force:true` body is explicit Rescan. Ordinary reads return the previous
  * inventory immediately while one background scan refreshes it; no per-caller configuration.
  */
-export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents, ...(deps.assistantAgentInventory ? { runtime: deps.assistantAgentInventory.runtime } : {}) }) : undefined;
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-execution",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-execution" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const input = { force: req.body?.force === true };
       const { agents, discoveryPending } = await readDetectionSnapshot({ inventory, deps, input });

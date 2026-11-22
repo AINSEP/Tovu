@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   ADMIN_ASSISTANT_PERMISSION,
   PublicAssistantSettingsValidationError,
@@ -10,35 +12,20 @@ import { ValueValidationFailedError } from "#src/features/settings/index";
 
 /**
  * PUT (partial) the workspace's `site.assistant.*` settings — the route the admin's AI Assistant
- * screen flips the public switch through. Mirrors `routes/admin/seo/put-settings.ts` exactly: same
+ * screen flips the public switch through. Mirrors `apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts` exactly: same
  * auth gate as the matching GET, same `{ data }` envelope, same 400-on-validation /
  * 500-on-everything-else split, and the same return of the settings AS THEY NOW READ so the client
  * renders the persisted truth rather than the value it optimistically sent.
  */
-export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/assistant/settings", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       await deps.assistantSettingsReady;
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-settings",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-settings" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const settings = await setPublicAssistantSettings(
         {

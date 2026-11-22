@@ -8,7 +8,7 @@ import { querySuffix } from "./query-suffix";
  * {@link takePublishCriteriaFromQuery} is the one-time read/strip step for that query param, the
  * same shape `boot-token-fragment.ts`'s `takeBootToken` already established for the zip launcher's
  * `#boot=<token>` fragment — narrowed `Location`/`History` types, pure, unit-tested directly. No
- * logic belongs in `App.hooks.tsx`'s `.tsx` sibling (memory `component_logic_belongs_hooks`), so
+ * logic belongs in `apps/admin/src/App.hooks.ts`'s `.tsx` sibling (memory `component_logic_belongs_hooks`), so
  * this pure helper is the one place that parses or mutates the query string.
  *
  * Unlike `takeBootToken`, an invalid payload still gets stripped — `decodePublishCriteriaFromQuery`
@@ -38,8 +38,8 @@ type PublishCriteriaHistory = Pick<History, "replaceState">;
  *   iteration.
  */
 export function takePublishCriteriaFromQuery(
-  location: PublishCriteriaLocation,
-  history: PublishCriteriaHistory
+  { location, history }: { location: PublishCriteriaLocation; history: PublishCriteriaHistory },
+  _optional: Record<string, never> = {},
 ): PublishCriteria | null {
   const params = new URLSearchParams(location.search);
   const raw = params.get(PUBLISH_CRITERIA_QUERY_PARAM);
@@ -50,8 +50,8 @@ export function takePublishCriteriaFromQuery(
   // unmodified, same as `boot-token-fragment.ts`'s own pathname/search preservation.
   params.delete(PUBLISH_CRITERIA_QUERY_PARAM);
   const rest = params.toString();
-  const nextUrl = `${location.pathname}${querySuffix(rest)}${location.hash}`;
+  const nextUrl = `${location.pathname}${querySuffix({ query: rest })}${location.hash}`;
   history.replaceState(null, "", nextUrl);
 
-  return decodePublishCriteriaFromQuery(raw);
+  return decodePublishCriteriaFromQuery({ raw });
 }

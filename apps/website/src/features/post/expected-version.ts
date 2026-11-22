@@ -13,6 +13,9 @@
  * and has no business knowing what an untrusted wire value looks like. This is the boundary that
  * turns `unknown` into that, and the boundary is what both callers share.
  */
+import { ToolInputError } from "@jini-ai/core";
+import { parseExpectedVersion as parseCoreExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
+
 import { PostValidationError, type PostVersionConflictError } from "./post.js";
 
 /** The exact text a malformed basis is rejected with, on every arm. */
@@ -31,6 +34,12 @@ export const VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
  * The optimistic-concurrency basis off an untyped input — `undefined` (key absent) when the caller
  * is not opting in, otherwise the exact `number` `updatePost` will compare.
  *
+ * The rule itself is `@jini-ai/core`'s one parser (a SAFE non-negative integer; 2026-11-18, owner
+ * decision KT-DT6 — before it this file kept a second copy that also accepted an integer above
+ * 2^53 - 1, which then failed as a version conflict instead of as invalid input). This function is
+ * only the host error adapter: core's `ToolInputError` becomes the `PostValidationError` both arms
+ * already branch on.
+ *
  * Throws rather than returning `undefined` for anything else, and that is the whole point of this
  * function existing: `expectedVersion` is OPTIONAL in `UpdatePostInput`, so a value a caller failed
  * to recognize would coerce to "no basis sent" and be written through as an unguarded,
@@ -42,16 +51,22 @@ export const VERSION_CONFLICT_CODE = "VERSION_CONFLICT";
  * branch — a 400 on the HTTP route, a `ToolInputError`-decorated shape rejection on the agent tool
  * — and so it stays the same error class every other malformed field already throws. Deliberately
  * NOT a `PostConflictError`: resending the identical request cannot fix a stale basis, but it CAN
- * fix a mistyped one.
+ * fix a mistyped one. Only core's `ToolInputError` is translated (kept as the `cause`); any other
+ * failure of the parser propagates unchanged.
  *
+ * @param optional.parse the parser to adapt (default core's); injected so the rethrow path is tested.
  * @complexity O(1).
  */
-export function parseExpectedVersion(raw: unknown): number | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
-    throw new PostValidationError(EXPECTED_VERSION_REJECTION);
+export function parseExpectedVersion(
+  { raw }: { raw: unknown },
+  { parse = parseCoreExpectedVersion }: { parse?: typeof parseCoreExpectedVersion } = {}
+): number | undefined {
+  try {
+    return parse({ value: raw });
+  } catch (error) {
+    if (error instanceof ToolInputError) throw new PostValidationError(EXPECTED_VERSION_REJECTION, { cause: error });
+    throw error;
   }
-  return raw;
 }
 
 /**
@@ -63,7 +78,7 @@ export function parseExpectedVersion(raw: unknown): number | undefined {
  *
  * @complexity O(1).
  */
-export function versionConflictEnvelope(err: PostVersionConflictError): {
+export function versionConflictEnvelope(err: PostVersionConflictError, _optional: Record<string, never> = {}): {
   error: string;
   code: typeof VERSION_CONFLICT_CODE;
   details: { expectedVersion: number; currentVersion: number };

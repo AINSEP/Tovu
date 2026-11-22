@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ComponentType, type CSSProperties } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 // Creating this lazy component downloads nothing. SettingsDialogShell mounts only its
 // selected panel, so this import runs only when an authorized TanStack host opens Queries.
 // The default package entry returns null in production; the explicit production export

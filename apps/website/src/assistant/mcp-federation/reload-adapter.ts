@@ -26,6 +26,7 @@ export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted
     resolve: ({ spec }) => tovuStdioLaunchResolverFromEnv(process.env).resolve({ spec }),
   } }, { logger: coordDeps.logger });
   const attach = coordDeps.attach ?? attachFederatedMcpTools;
+  const logger = coordDeps.logger;
   const coordinator = createJiniReload({ initiallyAdmitted, coordDeps: {
     registry: coordDeps.registry, deps: toJiniFederationDeps({ deps: coordDeps.deps }),
     resolveConnections: coordDeps.resolveConnections,
@@ -38,10 +39,10 @@ export function createFederationReloadCoordinator({ coordDeps, initiallyAdmitted
         ...(coordDeps.logger ? { logger: coordDeps.logger } : {}),
       });
     },
-    ...(coordDeps.logger ? { logger: {
-      info: ({ message }: { message: string }) => coordDeps.logger!.info(message),
-      warn: ({ message }: { message: string }) => coordDeps.logger!.warn(message),
-      error: ({ message }: { message: string }) => coordDeps.logger!.warn(message),
+    ...(logger ? { logger: {
+      info: ({ message }: { message: string }) => logger.info({ message }),
+      warn: ({ message }: { message: string }) => logger.warn({ message }),
+      error: ({ message }: { message: string }) => logger.warn({ message }),
     } } : {}),
   } }, { initiallyAwaitingGrants });
   return { reload: () => coordinator.reload({}), admittedConnectionIds: () => coordinator.admittedConnectionIds() };

@@ -13,7 +13,8 @@ import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { ContentTypeRecord } from "#src/features/content-types/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
@@ -160,7 +161,7 @@ test("GET /:slug (template branch): a menu marker in a Post's OWN body_html -- o
   });
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [footerNavMenu()] }),
   });
   t.after(() => closeServer(server));
@@ -181,7 +182,7 @@ test("GET /:slug (template branch): a post-previews marker in a Post's OWN body_
   const other = templatedPost({ id: "other-post", slug: "other-post", title: "Other Post Title" });
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
-    postRepo: new InMemoryPostRepo([target, other]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [target, other] }),
   });
   t.after(() => closeServer(server));
 
@@ -192,11 +193,11 @@ test("GET /:slug (template branch): a post-previews marker in a Post's OWN body_
 });
 
 test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text widget renders the widget's real body", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Real widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     entryRepo,
   });
   t.after(() => closeServer(server));
@@ -209,12 +210,12 @@ test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text w
 });
 
 test("a widget marker inside a theme partial (nav) resolves on BOTH the marketing page and the template-rendered post", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Nav widget body text");
   const post = templatedPost();
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     entryRepo,
   });
   t.after(() => closeServer(server));
@@ -326,7 +327,7 @@ async function seededContentTypeRepo(rows: readonly ContentTypeRecord[]): Promis
  *  host-side wrapper implements `EntryDisplayListPort` (so `seedTextWidget` above takes it too),
  *  matching the composition root's own default (`app.ts`'s `createRouteDeps`). */
 async function seededEntryRepo(rows: readonly EntryRecord[]): Promise<TrashAwareInMemoryEntryRepo> {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await Promise.all(rows.map((row) => repo.save(row)));
   return repo;
 }
@@ -376,7 +377,7 @@ test("GET /:slug (template branch): a bare collection marker in a Post's OWN bod
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -401,7 +402,7 @@ test("collection markers with absent or unknown type keys retain their authored 
   const post = templatedPost({ bodyHtml: '<section data-embed-config=\'{"type":"collection"}\'>Missing type fallback</section><section data-embed-config=\'{"type":"collection","typeKey":"missing-type"}\'>Unknown type fallback</section>' });
   const entryRepo = await seededEntryRepo(threePublishedGadgetsPlusOneDraft());
   entryRepo.listPublishedForDisplay = async () => { assert.fail("an invalid type must never query entries"); };
-  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
   t.after(() => closeServer(server));
   const res = await fetch(`${baseUrl}/${post.slug}`);
   assert.equal(res.status, 200);
@@ -416,7 +417,7 @@ test("collection markers cap distinct repository queries at ten and leave excess
   const requestedLimits: number[] = [];
   entryRepo.listPublishedForDisplay = async (input) => { requestedLimits.push(input.query.limit); return originalList(input); };
   const post = templatedPost({ bodyHtml: Array.from({ length: 12 }, (_, i) => `<section data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}","limit":${i + 1}}'>Fallback ${i + 1}</section>`).join("") });
-  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo });
   t.after(() => closeServer(server));
   const res = await fetch(`${baseUrl}/${post.slug}`);
   assert.equal(res.status, 200);
@@ -430,7 +431,7 @@ test("collection markers cap distinct repository queries at ten and leave excess
 
 test("a collection marker's authored item template renders the actual custom field", async (t) => {
   const post = templatedPost({ bodyHtml: `<section data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}"}'><template><p class="custom-gadget">{{title}}: {{fields.price}}</p></template>No custom gadgets</section>` });
-  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo([post]), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo: await seededEntryRepo(threePublishedGadgetsPlusOneDraft()) });
+  const { server, baseUrl } = await startServer({ themes: [themeForCollectionMarkers("")], postRepo: new InMemoryPostRepo({}, { initialRows: [post] }), contentTypeRepo: await seededContentTypeRepo([gadgetContentType()]), entryRepo: await seededEntryRepo(threePublishedGadgetsPlusOneDraft()) });
   t.after(() => closeServer(server));
   const res = await fetch(`${baseUrl}/${post.slug}`);
   assert.equal(res.status, 200);
@@ -449,7 +450,7 @@ test("GET /:slug (template branch): a collection marker's `where` filter exclude
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -471,7 +472,7 @@ test("GET /:slug (template branch): a collection marker naming an unknown `where
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -492,7 +493,7 @@ test("GET /:slug (template branch): a collection marker naming a system content 
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -510,7 +511,7 @@ test("GET /pricing (marketing page): a bare collection marker directly on a them
   const pricingMarker = `<div data-embed-config='{"type":"collection","typeKey":"${GADGET_TYPE_KEY}","where":{"category":"tools"}}'>No gadgets</div>`;
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers(pricingMarker)],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -532,7 +533,7 @@ test("GET /:slug (template branch): the marker element's own wrapper attributes 
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -558,7 +559,7 @@ test("GET /:slug (template branch): the plan's documented `{\"type\":\"collectio
   });
   const { server, baseUrl } = await startServer({
     themes: [themeForCollectionMarkers("")],
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
     contentTypeRepo,
     entryRepo,
   });
@@ -623,13 +624,13 @@ function themeWithHomeAndNotFoundMarkers(): DiscoveredTheme {
 }
 
 test("GET / (no Page claims `/`): the static theme's own index.html widget and post-previews markers resolve, and its id-less content marker stays as written", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Home widget body text");
   const postA = templatedPost({ id: "home-post-a", slug: "home-post-a", title: "Home Post A" });
   const postB = templatedPost({ id: "home-post-b", slug: "home-post-b", title: "Home Post B" });
   const { server, baseUrl } = await startServer({
     themes: [themeWithHomeAndNotFoundMarkers()],
-    postRepo: new InMemoryPostRepo([postA, postB]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [postA, postB] }),
     entryRepo,
   });
   t.after(() => closeServer(server));
@@ -653,11 +654,11 @@ test("GET / (no Page claims `/`): the static theme's own index.html widget and p
 });
 
 test("themed 404: still returns 404, its menu marker still renders (regression), and it now also resolves a widget marker", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "404 widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithHomeAndNotFoundMarkers()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [footerNavMenu()] }),
     entryRepo,
   });

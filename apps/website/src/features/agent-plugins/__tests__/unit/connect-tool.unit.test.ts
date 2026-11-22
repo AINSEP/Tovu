@@ -27,7 +27,7 @@ import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnect
 import { ToolInputError } from "@jini-ai/core";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 
@@ -582,7 +582,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
     await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: bundledSource.root });
     // Bundled plugins seed disabled; this resolver test starts after the operator enables Supabase.
     await agentPluginActivations.setAgentPluginActivation({
-      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace(WORKSPACE_ID).root,
+      workspaceRoot: resolveAgentPluginLayout({ siteDir: dir }).forWorkspace({ workspaceId: WORKSPACE_ID }).root,
       pluginId: "supabase", enabled: true, actor: PRINCIPAL_ID,
     });
     const store = makeStoreDeps();

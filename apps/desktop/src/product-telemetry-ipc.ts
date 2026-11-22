@@ -1,5 +1,6 @@
 /** Admit only the trusted shell's main frame and the existing product catalog. */
 import type { Tracker } from '@jini-ai/diagnostics/observability';
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { PRODUCT_EVENTS } from '../../website/src/server/runtime/composition/product-events.ts';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from './contracts/product-telemetry.ts';
 interface Sender { getURL(): string }
@@ -14,7 +15,10 @@ function errorPayload({ record }: { record: Record<string, unknown> }, _options 
 
 /** Catalog ownership stays in the shared product map, including screens and actions. O(c) for c catalog IDs. */
 function catalogAllowsId({ kind, id }: { kind: 'action' | 'screen'; id: string }, _options = {}): boolean {
-  const rules = kind === 'action' ? PRODUCT_EVENTS.desktop_action!.action : PRODUCT_EVENTS.desktop_screen_viewed!.screen;
+  const eventName = kind === 'action' ? 'desktop_action' : 'desktop_screen_viewed';
+  const event = PRODUCT_EVENTS[eventName];
+  if (!event) throw new Error(`desktop telemetry catalog is missing ${eventName}`);
+  const rules = kind === 'action' ? event.action : event.screen;
   return Array.isArray(rules) && rules.includes(id);
 }
 
@@ -36,13 +40,11 @@ export function shellTelemetryPayload({ input }: { input: unknown }, _options = 
 /** The trusted shell's main frame. A frame or sender torn down while its message was in flight
  * throws on `url`/`getURL()`; inside an `ipcMain` listener that is a main-process error, so it reads
  * as untrusted and the message is dropped. O(1). */
-function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (url: string) => boolean }, _options = {}): boolean {
-  try {
+function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isShellPage: (required: { url: string }) => boolean }, _options = {}): boolean {
+  return orFallbackSync({ work: () => {
     const frame = event.senderFrame;
-    return !!frame && frame.parent === null && isShellPage(frame.url) && isShellPage(event.sender.getURL());
-  } catch {
-    return false;
-  }
+    return !!frame && frame.parent === null && isShellPage({ url: frame.url }) && isShellPage({ url: event.sender.getURL() });
+  }, fallback: false, step: 'Verify shell telemetry sender' });
 }
 
 /** Register before the shell opens. One rolling error budget for the whole shell (reloads cannot
@@ -51,7 +53,7 @@ function fromShellMainFrame({ event, isShellPage }: { event: TelemetryEvent; isS
 export function registerProductTelemetryIpc({ ipcMain, isShellPage, tracker }: {
   ipcMain: { on(channel: string, listener: (event: TelemetryEvent, input: unknown) => void): unknown;
     removeListener(channel: string, listener: (event: TelemetryEvent, input: unknown) => void): unknown };
-  isShellPage: (url: string) => boolean; tracker: Tracker;
+  isShellPage: (required: { url: string }) => boolean; tracker: Tracker;
 }, { now = Date.now }: { now?: () => number } = {}): () => void {
   let errors: number[] = [];
   const recordError = ({ message, stack }: { message: string; stack: string }) => {

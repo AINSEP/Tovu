@@ -1,0 +1,80 @@
+src/desktop-reported-regressions.test.ts :: memory sums each owned PID once, excludes the Windows sampler, and labels Electron private bytes as committed :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: M3 macOS batches owned PIDs once a minute while inventory follows the open-panel cadence :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: M3 top failures retain labelled RSS and CPU history, then retry after one minute :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M3 top partial results preserve each missing PID as RSS in mixed totals :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M3 explicit memory samplers take precedence over the default top wiring :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M3 Windows and Linux defaults retain OS RSS without native memory wiring :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M2 batched top feeds owned totals and labelled RSS fallback without resetting CPU history :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: Job M uses physical footprint for the total, site tree and warning thresholds :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: Job M keeps partial native failures visible as mixed RSS estimates, preserving CPU and ownership :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: Job M uses Windows private working set rather than Electron committed private bytes :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M2 Windows uses existing Electron committed bytes without adding a native working-set probe :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M2 Linux retains labelled OS RSS even if Electron supplies another memory value :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: M2 invalid native readings fall back per PID while valid zero remains measured :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: Job M applies the inclusive site and total warning edges to footprint bytes :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: Job M labels RSS fallback after native sampling fails and retries after one minute :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: Job M samples inventory at five seconds and private memory once a minute, sharing eager callers :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+src/desktop-resources.test.ts :: native Electron memory replaces RSS once per PID; packaged serve/daemon keep RSS :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 groups owned server/daemon/agent trees and Electron helpers; excludes other desktops :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 packaged daemon (Electron as node) shares the server executable name and is still labelled :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 overlapping site roots cannot double-count a pid in the total :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 missing roots and empty/foreign-only samples are unavailable, never zero or stale rows :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 inclusive site 1.5 GB and total 25% warnings; one byte below remains quiet :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: S2 CPU uses elapsed seconds and warns at 80% on two measured intervals, then clears :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: S2 CPU counters are forgotten when a pid vanishes, and decreasing counters are unknown :: TypeError [Error]: Cannot read properties of undefined (reading 'cpuPercent')
+src/desktop-resources.test.ts :: S2 enforces 5s POSIX, 10s Windows and 60s collapsed cadence even with eager callers :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: S2 concurrent calls share a single in-flight sample even when the clock passes its cadence :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: S2 sampler rejection returns unavailable without native error text and can recover :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: collapsed launch failures use the bounded panel retry cadence, then restore the normal cache :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/desktop-resources.test.ts :: the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured :: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+src/desktop-resources.test.ts :: a ps that is not the desktop's own probe is still counted :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: a newly running site gets its own reading before the collapsed cache expires :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: replacing a site PID or stopping it withdraws the old process group before cache expiry :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: reordered site handles retain the cached sample :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: a site opened during an in-flight sample gets a bounded retry without overlapping OS reads :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/desktop-resources.test.ts :: footprint reads are limited to once a minute; new PIDs use RSS until the next read :: TypeError [Error]: Cannot read properties of undefined (reading 'rawRssBytes')
+src/jini-mcp-peers.test.ts :: runtime source imports declare their packages instead of relying on hoisting :: AssertionError [ERR_ASSERTION]: runtime imports must be declared by the package that loads them
+src/product-memory-telemetry.test.ts :: one default-five-minute sample aggregates all kinds and reuses the Resources UI cache; no paths, names or pids :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/product-memory-telemetry.test.ts :: host visibility scheduling pauses memory sampling while inactive and disposes its subscriptions :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/product-memory-telemetry.test.ts :: consent off sends nothing and does not request an OS sample; usage and diagnostics are independent :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/product-memory-telemetry.test.ts :: fake clock: slope is quiet before 60 minutes, then warns once/process/day even across consent toggles :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/product-memory-telemetry.test.ts :: an in-flight measurement cannot send after consent withdrawal or disposal; overlapping ticks coalesce :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/product-memory-telemetry.test.ts :: withdrawal or disposal during metric admission prevents a late diagnostic warning :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/product-memory-telemetry.test.ts :: telemetry keeps raw RSS when the display switches between footprint and fallback :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/product-memory-telemetry.test.ts :: sampling failures log once per streak, reset on success, and redact the cause :: TypeError [Error]: Cannot read properties of undefined (reading 'filter')
+src/resources-ipc.test.ts :: S2 registers only runner:resources:get and resolves the monitor DTO :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/site-child-registry.test.ts :: an unreadable own file that cannot be moved aside is left exactly as it was — nothing is written over it :: AssertionError [ERR_ASSERTION]: unexpected notice: tovu desktop: site-process registry file /tmp/tovu-desktop-registry-ecor3N/site-processes/27192-01e0a2c6.json
+src/site-dir-store.test.ts :: a torn recent-sites file that cannot be moved aside is left untouched, and remembering still does not throw :: AssertionError [ERR_ASSERTION]: unexpected notice: tovu desktop: recent-sites list /tmp/tovu-desktop-sitedir-a4Q56Q/desktop-state.json is unreadable and could n
+src/tracked-sites.test.ts :: a torn projects file that cannot be moved aside is never written over, and the change is refused out loud :: AssertionError [ERR_ASSERTION]: unexpected notice: tovu desktop: projects list /tmp/tovu-desktop-tracked-sites-Yd1k83/desktop-projects.json is unreadable and co
+src/renderer/App.render.test.ts :: src/renderer/App.render.test.ts :: 'test failed'
+src/renderer/App.sites-home.render.test.ts :: src/renderer/App.sites-home.render.test.ts :: 'test failed'
+src/renderer/App.workspace-start.render.test.ts :: src/renderer/App.workspace-start.render.test.ts :: 'test failed'
+src/renderer/CreateWebsiteOnboarding.render.test.ts :: src/renderer/CreateWebsiteOnboarding.render.test.ts :: 'test failed'
+src/renderer/ImportWebsite.render.test.ts :: src/renderer/ImportWebsite.render.test.ts :: 'test failed'
+src/renderer/ResourcesPanel.render.test.ts :: starting a site refreshes the real sampler, hook and card while the toolbar cache is still young :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/renderer/SiteGrid.no-add-tile.render.test.ts :: src/renderer/SiteGrid.no-add-tile.render.test.ts :: 'test failed'
+src/renderer/SiteGrid.status-title.render.test.ts :: src/renderer/SiteGrid.status-title.render.test.ts :: 'test failed'
+src/renderer/SitesFolders.dialog.render.test.ts :: src/renderer/SitesFolders.dialog.render.test.ts :: 'test failed'
+src/renderer/app/CreateWebsiteHost.render.test.ts :: src/renderer/app/CreateWebsiteHost.render.test.ts :: 'test failed'
+src/renderer/app/FindBar.render.test.ts :: src/renderer/app/FindBar.render.test.ts :: 'test failed'
+src/renderer/app/LoadedSitesStepper.render.test.ts :: src/renderer/app/LoadedSitesStepper.render.test.ts :: 'test failed'
+src/renderer/app/MainArea.render.test.ts :: src/renderer/app/MainArea.render.test.ts :: 'test failed'
+src/renderer/app/MainContent.render.test.ts :: src/renderer/app/MainContent.render.test.ts :: 'test failed'
+src/renderer/app/MainHeader.render.test.ts :: src/renderer/app/MainHeader.render.test.ts :: 'test failed'
+src/renderer/app/SettingsControl.render.test.ts :: src/renderer/app/SettingsControl.render.test.ts :: 'test failed'
+src/renderer/app/SiteStartPanel.render.test.ts :: src/renderer/app/SiteStartPanel.render.test.ts :: 'test failed'
+src/renderer/app/SiteWorkspace.live-views.render.test.ts :: src/renderer/app/SiteWorkspace.live-views.render.test.ts :: 'test failed'
+src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts :: src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts :: 'test failed'
+src/renderer/app/SiteWorkspace.render.test.ts :: src/renderer/app/SiteWorkspace.render.test.ts :: 'test failed'
+src/renderer/app/TabCloseAsk.render.test.ts :: src/renderer/app/TabCloseAsk.render.test.ts :: 'test failed'
+src/renderer/app/TabStrip.render.test.ts :: src/renderer/app/TabStrip.render.test.ts :: 'test failed'
+src/renderer/app/TopNav.render.test.ts :: src/renderer/app/TopNav.render.test.ts :: 'test failed'
+src/renderer/jini-kits.render.test.ts :: src/renderer/jini-kits.render.test.ts :: 'test failed'
+src/renderer/jini-surfaces.render.test.ts :: src/renderer/jini-surfaces.render.test.ts :: 'test failed'
+src/renderer/use-import-website.hooks.render.test.ts :: src/renderer/use-import-website.hooks.render.test.ts :: 'test failed'
+src/renderer/use-resources.hooks.render.test.ts :: launch badge recovers from two initial sampler failures within ten seconds :: AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+src/renderer/use-site-folders.hooks.test.ts :: closing the settings dropdown leaves the sites dialog and its placement draft mounted outside the menu :: ReferenceError [Error]: UpdateCheckMenuItem is not defined
+src/renderer/use-site-toast.hooks.render.test.ts :: src/renderer/use-site-toast.hooks.render.test.ts :: 'test failed'
+src/renderer/use-start-imported.hooks.test.ts :: src/renderer/use-start-imported.hooks.test.ts :: 'test failed'
+src/renderer/use-workspace-chat-pane.hooks.test.ts :: WorkspaceChatPane uses no raw React primitives: all of its state comes from useWorkspaceChatPane :: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\} = useWorkspaceChatPane\(\{\}, ports\);/. Input:
+src/renderer/websites-width.test.ts :: Websites fits at 375px with every nav control and header action inside the page :: Error [TransformError]: Transform failed with 1 error:

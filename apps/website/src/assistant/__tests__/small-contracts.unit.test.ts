@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord } from "@jini-ai/core/contracts/vault";
 
 import { credentialViewFields, credentialWriteFields } from "../credential-store-fields.js";
 import { listDuplicateResourceHandlers, registerDuplicateResourceHandler, resetDuplicateResourceHandlersForTests } from "../duplicate-resource-registry.js";

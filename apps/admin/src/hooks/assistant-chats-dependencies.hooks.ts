@@ -1,4 +1,4 @@
-import { deriveContentConversationTitle } from "../../../website/src/assistant/content-chat-title.js";
+import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
 import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 import { createLastConversationStore, type LastConversationStore } from "@jini-ai/chat/react";
 
@@ -12,7 +12,7 @@ import {
   saveMessage,
   type AssistantConversation,
 } from "../lib/assistant-chats";
-import { WORKSPACE_ID } from "../lib/api";
+import { WORKSPACE_ID } from "../lib/admin-http/config";
 import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
 
 /**
@@ -37,11 +37,11 @@ import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
  */
 export const defaultAssistantChatsPort: AssistantChatsPort = {
   listConversations,
-  createConversation,
-  renameConversation,
-  deleteConversation,
-  loadMessages,
-  saveMessage,
+  createConversation: (_required, { firstMessage } = {}) => createConversation({}, { firstMessage }),
+  renameConversation: ({ id, title }, _options = {}) => renameConversation({ id, title }),
+  deleteConversation: ({ id }, _options = {}) => deleteConversation({ id }),
+  loadMessages: ({ conversationId }, _options = {}) => loadMessages({ conversationId }),
+  saveMessage: ({ conversationId, message }, _options = {}) => saveMessage({ conversationId, message }),
 };
 
 /**
@@ -71,7 +71,7 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
 /**
  * Returns `conversation` with a derived fallback title applied, or `conversation` unchanged.
  *
- * Naming happens on APPEND, mirroring `src/server/modules/assistant-chats.ts` — and this fake has
+ * Naming happens on APPEND, mirroring `apps/website/src/server/runtime/composition/modules/assistant-chats.ts` — and this fake has
  * to model it, because it is the ONLY way any conversation this hook creates ever gets a name. Both
  * `create()` and lazy adoption call `createConversation()` with no `firstMessage`, so the
  * create-time seed never fires on any path the hook actually takes. Without this, no test using the
@@ -143,7 +143,7 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       return [...conversations];
     },
 
-    async createConversation(firstMessage?: string) {
+    async createConversation(_required, { firstMessage } = {}) {
       created += 1;
       const conversation: AssistantConversation = {
         id: `fake-${created}`,
@@ -161,12 +161,12 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       return conversation;
     },
 
-    async renameConversation(id: string, title: string) {
+    async renameConversation({ id, title }) {
       const index = conversations.findIndex((c) => c.id === id);
-      if (index >= 0) conversations[index] = { ...conversations[index]!, title, titleSource: "manual" };
+      if (index >= 0) conversations[index] = { ...conversations[index], title, titleSource: "manual" };
     },
 
-    async deleteConversation(id: string) {
+    async deleteConversation({ id }) {
       const index = conversations.findIndex((c) => c.id === id);
       if (index >= 0) conversations.splice(index, 1);
       messages.delete(id);
@@ -184,11 +184,11 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
      * `position`, assigned once on first insert, so re-writing `m1` leaves it first; the fake
      * returned `[m2, m1]` and a reselected pane came back with its transcript reordered.
      */
-    async loadMessages(conversationId: string) {
+    async loadMessages({ conversationId }) {
       return [...(messages.get(conversationId) ?? [])];
     },
 
-    async saveMessage(conversationId: string, message: ChatMessage) {
+    async saveMessage({ conversationId, message }) {
       attempts += 1;
       attemptedIds.push(message.id);
       /*
@@ -200,12 +200,14 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
        * "landed on a live conversation" from "landed on a dead one", and an external review found a
        * real `remove()` race that this fake was actively hiding.
        */
-      const index = conversations.findIndex((conversation) => conversation.id === conversationId);
-      if (index < 0) throw new HttpError(404, "Not Found");
+      let index = conversations.findIndex((conversation) => conversation.id === conversationId);
+      if (index < 0) throw new HttpError({ status: 404, statusText: "Not Found" });
       // Before recording, so a throwing hook leaves the fake's durable state untouched — which is
       // exactly what a real failed `PUT` does, and what makes "was it actually persisted?" a
       // meaningful question to ask this fake afterwards.
       options.onSaveMessage?.(conversationId, message, attempts);
+      index = conversations.findIndex((conversation) => conversation.id === conversationId);
+      if (index < 0) throw new HttpError({ status: 404, statusText: "Not Found" });
 
       // Upsert IN PLACE, preserving first-insert order — see {@link upsertMessage}.
       const existing = messages.get(conversationId) ?? [];
@@ -215,9 +217,9 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       saved.set(conversationId, upsertMessage(written, message));
 
       // See {@link withDerivedTitle} for the naming rule this applies.
-      conversations[index] = withDerivedTitle(conversations[index]!, message);
+      conversations[index] = withDerivedTitle(conversations[index], message);
       // `messageCount`/`updatedAt` are list-visible after a write on the real route too.
-      const current = conversations[index]!;
+      const current = conversations[index];
       conversations[index] = {
         ...current,
         messageCount: at >= 0 ? current.messageCount : current.messageCount + 1,

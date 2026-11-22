@@ -49,7 +49,7 @@ function recorder() {
 test("no pending file: nothing is imported and nothing is logged", async () => {
   const { logs, log } = recorder();
   const calls: string[] = [];
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async (id) => (calls.push(id), "saved") }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => (calls.push(id), "saved"), log });
   assert.deepEqual(calls, []);
   assert.deepEqual(logs, { info: [], warn: [] });
 });
@@ -59,8 +59,8 @@ test("every token imported: each is opened with its plugin id, logged without th
   const { logs, log } = recorder();
   const calls: Array<[string, string]> = [];
   await applyPendingAgentPluginTokens(
-    { siteDir, sealer, importToken: async (id, token) => (calls.push([id, token]), id === "other" ? "already-connected" : "saved") },
-    log,
+    { siteDir, sealer, importToken: async ({ pluginId: id, token }) => (calls.push([id, token]), id === "other" ? "already-connected" : "saved"),
+    log },
   );
   assert.deepEqual(calls.sort(), [["other", "tok-other"], ["supabase", TOKEN]]);
   assert.equal(fs.existsSync(target()), false, "a fully handled file is deleted");
@@ -71,7 +71,7 @@ test("every token imported: each is opened with its plugin id, logged without th
 test("an operator-off plugin: the token is saved, the log says it stays off, and the file is deleted", async () => {
   await writePending({ supabase: TOKEN });
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => "saved-left-off" }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => "saved-left-off", log });
   assert.equal(fs.existsSync(target()), false);
   assert.match(logs.info[0] ?? "", /stays off because an operator turned it off/);
 });
@@ -83,12 +83,12 @@ test("an import that throws keeps only that token for the next boot, still seale
     {
       siteDir,
       sealer,
-      importToken: async (id) => {
+      importToken: async ({ pluginId: id }) => {
         if (id === "supabase") throw new Error("store unavailable");
         return "saved";
       },
+      log,
     },
-    log,
   );
   const raw = fs.readFileSync(target(), "utf8");
   assert.ok(!raw.includes(TOKEN), "the kept token stays sealed");
@@ -103,7 +103,7 @@ test("an import that throws keeps only that token for the next boot, still seale
 
   // The next boot retries the kept token and then deletes the file.
   const calls: string[] = [];
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async (id) => (calls.push(id), "saved") }, recorder().log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => (calls.push(id), "saved"), log: recorder().log });
   assert.deepEqual(calls, ["supabase"]);
   assert.equal(fs.existsSync(target()), false);
 });
@@ -112,7 +112,7 @@ test("a token that will not open with this site's key is dropped with a warning,
   await writePending({ supabase: TOKEN }, new AesGcmSecretSealer(new InMemoryKeyring()));
   const { logs, log } = recorder();
   const calls: string[] = [];
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async (id) => (calls.push(id), "saved") }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => (calls.push(id), "saved"), log });
   assert.deepEqual(calls, []);
   assert.equal(fs.existsSync(target()), false, "no later boot could open it either");
   assert.equal(logs.warn.length, 1);
@@ -125,7 +125,7 @@ test("a token sealed for one plugin id does not open as another's", async () => 
   fs.writeFileSync(target(), JSON.stringify({ version: 1, tokens: { other: sealed } }));
   const calls: string[] = [];
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async (id) => (calls.push(id), "saved") }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => (calls.push(id), "saved"), log });
   assert.deepEqual(calls, []);
   assert.match(logs.warn[0] ?? "", /for 'other' .* dropped/);
 });
@@ -133,18 +133,18 @@ test("a token sealed for one plugin id does not open as another's", async () => 
 test("a file that is not valid JSON is removed with a warning", async () => {
   fs.writeFileSync(target(), "{not json");
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => "saved" }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => "saved", log });
   assert.equal(fs.existsSync(target()), false);
   assert.equal(logs.warn.length, 1);
   assert.match(logs.warn[0] ?? "", /is not valid JSON; removing it/);
 });
 
 test("listPendingAgentPluginTokenIds: the plugin ids in the file, without opening a token; none for a missing or unreadable file", async () => {
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })], []);
   await writePending({ supabase: TOKEN, other: "tok-other" });
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)].sort(), ["other", "supabase"]);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })].sort(), ["other", "supabase"]);
   fs.writeFileSync(target(), "{not json");
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })], []);
 });
 
 test("production onboarding writer round-trips multiple tokens through a freshly constructed boot sealer", async (t) => {
@@ -162,10 +162,10 @@ test("production onboarding writer round-trips multiple tokens through a freshly
   const raw = fs.readFileSync(target(), "utf8");
   assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-key"));
   assert.equal(fs.statSync(target()).mode & 0o777, 0o600);
-  const bootSealer = siteSecretSealer(siteDir, process.env, "round-trip-site").sealer;
+  const bootSealer = siteSecretSealer({ siteDir }, { env: process.env, siteKeyId: "round-trip-site" }).sealer;
   const calls: Array<[string, string]> = [];
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer: bootSealer, importToken: async (id, token) => { calls.push([id, token]); return "saved"; } }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer: bootSealer, importToken: async ({ pluginId: id, token }) => { calls.push([id, token]); return "saved"; }, log });
   assert.deepEqual(calls.sort(), [["other", "distinct-other-site-key"], ["supabase", TOKEN]]);
   assert.deepEqual(logs.warn, []);
   assert.equal(fs.existsSync(target()), false);
@@ -178,13 +178,13 @@ test('L058a mixed batch drops unopened tokens, retains failed imports, and handl
   fs.writeFileSync(target(), JSON.stringify(file));
   const calls: string[] = [];
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async id => {
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async ({ pluginId: id }) => {
     calls.push(id);
     if (id === 'retry') throw 'retry later';
     if (id === 'off') return 'saved-left-off';
     if (id === 'connected') return 'already-connected';
     return 'saved';
-  } }, log);
+  }, log });
   assert.deepEqual(calls, ['retry', 'saved', 'off', 'connected']);
   assert.deepEqual(Object.keys((JSON.parse(fs.readFileSync(target(), 'utf8')) as { tokens: object }).tokens), ['retry']);
   assert.equal(logs.info.length, 2);
@@ -197,7 +197,7 @@ test('L058a importer errors never expose tokens and retain the import for retry'
   const token = ['fixture', 'credential', 'value'].join('-');
   await writePending({ plugin: token });
   const { logs, log } = recorder();
-  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => { throw new Error(token); } }, log);
+  await applyPendingAgentPluginTokens({ siteDir, sealer, importToken: async () => { throw new Error(token); }, log });
   assert.equal(JSON.stringify(logs).includes(token), false);
   assert.match(logs.warn[0]!, /will retry next start/);
   assert.deepEqual(Object.keys((JSON.parse(fs.readFileSync(target(), 'utf8')) as { tokens: object }).tokens), ['plugin']);

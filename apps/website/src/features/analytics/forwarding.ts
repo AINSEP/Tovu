@@ -4,7 +4,9 @@ import {
   type BoundAnalyticsForwarder,
 } from "@jini-ai/analytics";
 import type { Clock as ClockPort, HttpClientPort as EngineHttpClientPort } from "@jini-ai/core/primitives";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { ProviderRegistry } from "@jini-ai/core/provider-registry";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { AnalyticsConfigPort, AnalyticsHooks } from "./ports.js";
 
 /**
@@ -57,7 +59,7 @@ export interface AnalyticsForwardingRequired<R> {
 }
 
 /** The forwarder this site names and this visitor allows, or none. @complexity O(1) + I/O. */
-async function resolveForwarders<R>(required: AnalyticsForwardingRequired<R>, request: R, warn: (message: string) => void): Promise<BoundAnalyticsForwarder[]> {
+async function resolveForwarders<R>({ required, request, warn }: { required: AnalyticsForwardingRequired<R>; request: R; warn: (message: string) => void }, _optional = {}): Promise<BoundAnalyticsForwarder[]> {
   const { sink } = await required.config.get({ workspaceId: required.workspaceId });
   // "local" (or unset) is decided before any plugin load: the built-in-only path costs nothing.
   if (sink === "" || sink === LOCAL_ANALYTICS_SINK_ID) return [];
@@ -88,17 +90,17 @@ export function createAnalyticsForwarding<R>(
   const warn = optional.warn ?? ((message: string) => console.warn(message));
   return async ({ request }) => {
     try {
-      return await resolveForwarders(required, request, warn);
-    } catch {
+      return await resolveForwarders({ required, request, warn });
+    } catch (error) {
       // Fixed text: a vendor constructor or credential read may throw with the key in its message.
-      warn("[analytics] vendor forwarding skipped: resolution failed");
+      warn(`[analytics] vendor forwarding skipped: resolution failed Cause: ${describeErrorForLog({ err: error })}`);
       return [];
     }
   };
 }
 
 /**
- * Host-shaped (`beforeIngest(hit)`) hooks over the plugin-contributed chain. The chain is read per
+ * Host-shaped (`beforeIngest({ hit })`) hooks over the plugin-contributed chain. The chain is read per
  * hit through the cached loader, so hooks need no boot-time await; with no handlers (or a failed
  * load) the hit passes through unchanged — exactly the hook-free path.
  * @complexity O(h) handlers per hit.
@@ -110,13 +112,9 @@ export function createPluginAnalyticsHooks(
   const warn = optional.warn ?? ((message: string) => console.warn(message));
   const report = ({ index, message }: { index: number; message: string }) => warn(`[analytics] beforeIngest hook #${index} failed and was skipped: ${message}`);
   return {
-    beforeIngest: async (hit) => {
-      let hooks: readonly EngineAnalyticsHooks[];
-      try {
-        hooks = (await required.loadProviders()).hooks;
-      } catch {
-        return hit;
-      }
+    beforeIngest: async ({ hit }, _optional = {}) => {
+      const hooks = await orFallback({ work: async () => (await required.loadProviders()).hooks, fallback: null, step: "Read analytics enrichment hooks" });
+      if (hooks === null) return hit;
       const chain = composeBeforeIngestHooks({ hooks }, { report });
       return chain ? chain.beforeIngest({ hit }) : hit;
     },

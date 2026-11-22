@@ -1,5 +1,5 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "./email-i18n";
 import type { MailActivityItem, MailFeedbackProviderSetup, MailSuppressionEntry } from "./email-api";
@@ -65,6 +65,7 @@ function LoadMore<T>(props: { list: PagedList<T>; locale: string; handle: string
 
 function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityController; locale: string; index: number }) {
   const { item, controller, locale } = props;
+  const itemId = item.id;
   const outcome = OUTCOME[item.outcome] ?? { tone: "neutral" as const, label: item.outcome };
   const open = item.id !== undefined && controller.openId === item.id;
   const detail = open ? controller.detail : null;
@@ -74,10 +75,10 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
         <Chip tone={outcome.tone}>{t({ locale, key: outcome.label })}</Chip>
         <span className="email-activity-what">
           <span className="email-activity-recipient">{item.recipient}</span>
-          <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when(item.createdAt, locale)}</span>
+          <span className="jini-field-hint">{t({ locale, key: USE[item.use] ?? item.use })} · {when({ iso: item.createdAt, locale })}</span>
         </span>
-        {item.id ? (
-          <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(item.id!)}
+        {itemId ? (
+          <button type="button" className="btn-secondary email-push-end" aria-expanded={open} onClick={() => controller.toggleDetail(itemId)}
             {...agentHandle({ handle: `email-activity-${props.index}-details` }, { role: "button", label: "Show this send's details" })}>
             {open ? t({ locale, key: "Hide details" }) : t({ locale, key: "Details" })}
           </button>
@@ -99,7 +100,7 @@ function ActivityRow(props: { item: MailActivityItem; controller: EmailActivityC
                   <dd>
                     {data.feedback.length === 0
                       ? <span className="jini-field-hint">{t({ locale, key: "None received yet" })}</span>
-                      : data.feedback.map((event, i) => <span key={i} className="jini-field-hint">{t({ locale, key: OUTCOME[event.kind]?.label ?? event.kind })} · {when(event.receivedAt, locale)}</span>)}
+                      : data.feedback.map((event, i) => <span key={i} className="jini-field-hint">{t({ locale, key: OUTCOME[event.kind]?.label ?? event.kind })} · {when({ iso: event.receivedAt, locale })}</span>)}
                   </dd>
                 </div>
               </dl>
@@ -120,7 +121,11 @@ function RecentSends(props: { controller: EmailActivityController; locale: strin
           onChange={(e) => controller.setFilter({ ...controller.filter, outcome: e.target.value || undefined })}
           {...agentHandle({ handle: "email-activity-outcome" }, { role: "field", label: "Filter sends by outcome" })}>
           <option value="">{t({ locale, key: "All outcomes" })}</option>
-          {OUTCOMES.map((value) => <option key={value} value={value}>{t({ locale, key: OUTCOME[value]!.label })}</option>)}
+          {OUTCOMES.map((value) => {
+            const outcome = OUTCOME[value];
+            if (!outcome) throw new Error(`email activity outcome ${value} is missing`);
+            return <option key={value} value={value}>{t({ locale, key: outcome.label })}</option>;
+          })}
         </select>
         <input className="jini-input" type="search" aria-label={t({ locale, key: "Recipient" })} placeholder={t({ locale, key: "Search by recipient" })}
           value={controller.filter.recipient ?? ""} onChange={(e) => controller.setFilter({ ...controller.filter, recipient: e.target.value })}
@@ -150,7 +155,7 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
   if (step.kind === "reason") {
     return (
       <div className="email-removal">
-        <p>{t({ locale, key: "{address} won't be blocked anymore. Why?" }).replace("{address}", step.entry.address)}</p>
+        <p>{t({ locale, key: "{address} won't be blocked anymore. Why?" }).replace("{address}", () => step.entry.address)}</p>
         <label className="jini-field-label" htmlFor="email-removal-reason">{t({ locale, key: "Reason (kept in the record)" })}</label>
         <textarea id="email-removal-reason" className="jini-input" rows={3} value={step.reason} onChange={(e) => controller.setRemovalReason(e.target.value)}
           {...agentHandle({ handle: "email-removal-reason" }, { role: "field", label: "Why this address may get email again" })} />
@@ -161,10 +166,10 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
   return (
     <div className="email-removal">
       <p>
-        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", when(step.plan.suppressedAt, locale)).replace("{why}", t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
+        {t({ locale, key: "Blocked since {when} ({why})." }).replace("{when}", () => when({ iso: step.plan.suppressedAt, locale })).replace("{why}", () => t({ locale, key: SUPPRESSION_REASON[step.plan.suppressionReason] }))}
       </p>
       <ul className="email-reasons">{step.plan.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
-      <p className="jini-field-hint">{t({ locale, key: "Reason: {reason}" }).replace("{reason}", step.plan.reason)}</p>
+      <p className="jini-field-hint">{t({ locale, key: "Reason: {reason}" }).replace("{reason}", () => step.plan.reason)}</p>
       {step.error ? <p className="jini-field-error" role="alert">{t({ locale, key: step.error })}</p> : null}
     </div>
   );
@@ -173,13 +178,14 @@ function RemovalBody(props: { controller: EmailActivityController; locale: strin
 function BlockedAddresses(props: { controller: EmailActivityController; locale: string; hideTitle: boolean }) {
   const { controller, locale } = props;
   const step = controller.removal;
+  const removedNotice = controller.removedNotice;
   return (
     <Section id="blocked" title={t({ locale, key: "Blocked addresses" })} hideTitle={props.hideTitle}>
       <p className="jini-field-hint">{t({ locale, key: "Addresses that bounced, marked mail as spam, or were blocked by hand. Nothing is sent to them." })}</p>
       <input className="jini-input" type="search" aria-label={t({ locale, key: "Search blocked addresses" })} placeholder={t({ locale, key: "Search blocked addresses" })}
         value={controller.search} onChange={(e) => controller.setSearch(e.target.value)}
         {...agentHandle({ handle: "email-blocked-search" }, { role: "field", label: "Search blocked addresses" })} />
-      {controller.removedNotice ? <p className="jini-field-hint" role="status">{t({ locale, key: "{address} can get email again." }).replace("{address}", controller.removedNotice)}</p> : null}
+      {removedNotice ? <p className="jini-field-hint" role="status">{t({ locale, key: "{address} can get email again." }).replace("{address}", () => removedNotice)}</p> : null}
       <Loaded view={controller.suppressions.view} locale={locale} retry={controller.suppressions.reload}>
         {(page) => (page.items.length === 0 ? (
           <p className="jini-field-hint">{t({ locale, key: page.empty === "no_matches" ? "No blocked addresses match." : "No blocked addresses." })}</p>
@@ -189,7 +195,7 @@ function BlockedAddresses(props: { controller: EmailActivityController; locale: 
               <li key={`${entry.address}-${entry.scope}`} className="email-row email-blocked">
                 <span className="email-activity-recipient">{entry.address}</span>
                 <Chip tone={entry.reason === "manual" ? "neutral" : "warning"}>{t({ locale, key: SUPPRESSION_REASON[entry.reason] })}</Chip>
-                <span className="jini-field-hint">{t({ locale, key: entry.scope === "bulk" ? "Newsletters only" : "All email" })} · {when(entry.createdAt, locale)}</span>
+                <span className="jini-field-hint">{t({ locale, key: entry.scope === "bulk" ? "Newsletters only" : "All email" })} · {when({ iso: entry.createdAt, locale })}</span>
                 <button type="button" className="btn-secondary email-push-end" onClick={() => controller.startRemoval(entry)}
                   {...agentHandle({ handle: `email-blocked-${i}-remove` }, { role: "button", label: `Unblock ${entry.address}` })}>
                   {t({ locale, key: "Unblock" })}
@@ -226,6 +232,7 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
           <ul className="email-list">
             {report.providers.map((provider) => {
               const state = FEEDBACK_STATE[provider.state];
+              const lastVerifiedEvent = provider.lastVerifiedEvent;
               return (
                 <li key={provider.providerId} className="email-provider">
                   <div className="email-row">
@@ -236,14 +243,14 @@ function FeedbackSetup(props: { controller: EmailActivityController; locale: str
                       <div className="email-row">
                         <span className="jini-field-label">{t({ locale, key: "Webhook URL" })}</span>
                         <code className="email-break">{provider.webhookUrl}</code>
-                        <CopyButton text={provider.webhookUrl} label={t({ locale, key: "{provider} webhook URL" }).replace("{provider}", provider.label)} locale={locale} handle={`email-feedback-${provider.providerId}-copy`} />
+                        <CopyButton text={provider.webhookUrl} label={t({ locale, key: "{provider} webhook URL" }).replace("{provider}", () => provider.label)} locale={locale} handle={`email-feedback-${provider.providerId}-copy`} />
                       </div>
                   ) : null}
                   {provider.supported && !provider.webhookUrl ? (
                     <span className="jini-field-hint">{t({ locale, key: "Verify the site's address first; the webhook URL needs it." })}</span>
                   ) : null}
-                  {provider.lastVerifiedEvent ? (
-                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", when(provider.lastVerifiedEvent.receivedAt, locale))}</span>
+                  {lastVerifiedEvent ? (
+                    <span className="jini-field-hint">{t({ locale, key: "Last report: {when}" }).replace("{when}", () => when({ iso: lastVerifiedEvent.receivedAt, locale }))}</span>
                   ) : null}
                 </li>
               );

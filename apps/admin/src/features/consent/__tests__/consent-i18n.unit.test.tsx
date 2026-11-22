@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, renderHook, screen } from '@testing-library/react';
-import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/admin/consent/react';
+import { render, renderHook, screen } from '../../../__tests__/render-with-jini-kits';
+import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/cookie-consent/react';
+import { adminKit } from '@/integrations/jini-kits';
 import { CONSENT_DICT, translate } from '../consent-dictionary';
 import { useConsentTranslate } from '../consent-i18n';
 import { CONSENT_CONFIG } from './consent-fixtures';
@@ -44,7 +45,7 @@ describe('CONSENT_DICT', () => {
     const props = { value: { ...CONSENT_CONFIG, appearance: { backgroundColor: '#ffffff' } }, onChange: () => {}, dictionary };
     const { container } = render(<>
       <ConsentBannerFields {...props} bannerModes={['jini', 'headless', 'off']} />
-      <ConsentLookFields {...props} />
+      <ConsentLookFields {...props} lightColors={adminKit.theme.defaultAdminTheme.light} />
       <ConsentRulesFields {...props} />
       <ConsentPreviewFrame html="<p>page</p>" dictionary={dictionary} />
     </>);

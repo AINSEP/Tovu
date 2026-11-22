@@ -7,7 +7,7 @@ import { confirm, ForbiddenError } from "../../../contracts/core/gated-mutations
 import { buildConfirmOnlyHooks } from "../../../contracts/core/gated-mutations/composition.js";
 import { isMcpUiToolCallPermitted } from "../../../assistant/mcp-ui-tool-calls.js";
 import { fixture, packed, context, tool, OWNER } from "./pull-tool-fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const ID = "publish_content_execute_pull";
@@ -30,11 +30,54 @@ async function start(f: Awaited<ReturnType<typeof planned>>, overwriteEntityKeys
   assert.notEqual(match, null);
   const exchangeId = match![1]!;
   const answer = (decision: "confirm" | "cancel", principalId = OWNER) => {
-    assert.equal(isMcpUiToolCallPermitted(ID, true), true, "production callback admits the confirm card");
+    assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: true }), true, "production callback admits the confirm card");
     return surfaceExchanges.deliver({ exchangeId, principalId, params: { decision } }, { toolId: ID });
   };
   return { html, pending, answer, controller, surfaceExchanges };
 }
+test("Stopped pull during confirm authorization saves no token", async () => {
+  const f = await planned();
+  const before = [...f.destination];
+  const call = await start(f);
+  const gateway = f.deps.gatedMutations.gatewayDeps;
+  const authorize = gateway.authorize;
+  gateway.authorize = async params => {
+    const decision = await authorize(params);
+    if (decision.allowed) call.controller.abort();
+    return decision;
+  };
+  let saves = 0;
+  const save = gateway.tokens.save.bind(gateway.tokens);
+  gateway.tokens.save = async record => { saves++; return save(record); };
+  assert.deepEqual(call.answer("confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped pull must reject");
+  assert.equal(saves, 0, "stopping during authorization must not save approval");
+  assert.equal(f.restorePoints.size, 0, "stopping must not capture a restore point");
+  assert.deepEqual([...f.destination], before, "stopping leaves the destination unchanged");
+});
+
+test("Stopped pull after token save leaves approval unused", async () => {
+  const f = await planned();
+  const before = [...f.destination];
+  const call = await start(f);
+  const tokens = f.deps.gatedMutations.gatewayDeps.tokens;
+  const saved: ConfirmationTokenRecord[] = [];
+  const save = tokens.save.bind(tokens);
+  tokens.save = async record => { saved.push(record); return save(record); };
+  const findByToken = tokens.findByToken.bind(tokens);
+  tokens.findByToken = async input => {
+    const record = await findByToken(input);
+    call.controller.abort();
+    return record;
+  };
+  assert.deepEqual(call.answer("confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped pull must reject");
+  assert.equal(saved.length, 1, "confirmation saves one approval before stopping");
+  assert.equal((await findByToken({ token: saved[0]!.confirmationToken }))?.status, "minted", "stopping leaves the saved approval unused");
+  assert.equal(f.restorePoints.size, 0, "stopping must not capture a restore point");
+  assert.deepEqual([...f.destination], before, "stopping leaves the destination unchanged");
+});
+
 test("the card names the source, counts and every overwritten title; only a human confirm applies", async () => {
   const f = await planned();
   const confirmations: ConfirmationTokenRecord[] = [];
@@ -61,7 +104,7 @@ test("the card names the source, counts and every overwritten title; only a huma
   assert.equal(f.restorePoints.size, 1);
   assert.deepEqual(confirmations.map(record => ({ confirmer: record.confirmerPrincipalId, scope: record.scopeId })), [{ confirmer: OWNER, scope: "local" }]);
   assert.equal(redemptions, 1);
-  assert.equal((await tokens.findByToken(confirmations[0]!.confirmationToken))?.status, "redeemed");
+  assert.equal((await tokens.findByToken({ token: confirmations[0]!.confirmationToken }))?.status, "redeemed");
   assert.equal(f.applied.length, 1);
   assert.equal(f.applied[0]!.principalId, OWNER);
   const applyAuth = f.authCalls.filter(a => a.permission === "publish_content.apply");

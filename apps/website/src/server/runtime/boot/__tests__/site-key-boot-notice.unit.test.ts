@@ -152,11 +152,14 @@ test("production skips the probe entirely — the readiness gate owns that case"
 test("a probe that throws is reported, never propagated onto the boot path", () => {
   const lines = run({
     inspect: () => {
-      throw new Error("EACCES");
+      throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EACCES" });
     },
   });
   assert.notEqual(lines.length, 0);
   assert.match(lines.join("\n"), /could not determine/i);
+  assert.match(lines.join("\n"), /Error/);
+  assert.match(lines.join("\n"), /EACCES/);
+  assert.doesNotMatch(lines.join("\n"), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("a log sink that throws cannot take the boot down with it", () => {

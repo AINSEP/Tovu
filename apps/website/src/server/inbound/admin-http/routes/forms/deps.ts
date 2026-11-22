@@ -18,4 +18,4 @@ export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "idGe
   executeCommand: FormCommandExecutorPort;
 };
 
-export type FormsRouteRegistrar = (app: Express, deps: FormsRouteDeps) => void;
+export type FormsRouteRegistrar = (required: { app: Express; deps: FormsRouteDeps }, optional?: Record<string, never>) => void;

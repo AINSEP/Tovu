@@ -9,7 +9,7 @@
  *     missing records), reused rather than reimplemented so this can never silently drift from what
  *     the real gate enforces.
  *   - `check-src-complexity-drift.ts`'s live `findViolations()` — current ESLint `complexity` +
- *     `sonarjs/cognitive-complexity` scan of the same scope, hard-ceiling 9/9. Live, not the frozen
+ *     `sonarjs/cognitive-complexity` scan of production source (9/9 for admin, 10/10 elsewhere). Live, not the frozen
  *     `src-complexity-debt.json` snapshot, so a file fixed for complexity earlier tonight doesn't
  *     misreport as still-complex.
  *
@@ -59,13 +59,13 @@
  *   CLASSIFY_UNIT_LCOV, CLASSIFY_INTEGRATION_LCOV
  */
 import { pathToFileURL } from "node:url";
+import type { FileTierEvaluation, FileCoverage } from "@jini-ai/devops/checks/coverage";
 import {
   LCOV_INTEGRATION_PATH,
   LCOV_UNIT_PATH,
   loadRouteCoverage,
-  type FileCoverage,
 } from "./route-coverage-lib.js";
-import { evaluateFileTiers, type FileTierEvaluation } from "./check-route-coverage-diff.js";
+import { evaluateFileTiers } from "./check-route-coverage-diff.js";
 import { findViolations } from "./check-src-complexity-drift.js";
 
 const PHANTOM_TAX_BRANCH_CEILING = 40;
@@ -116,12 +116,12 @@ function main(): void {
     if (!brfByFile.has(rec.file)) brfByFile.set(rec.file, rec.brf);
   }
 
-  console.log(`classify-coverage-gaps — running live complexity scan (npx eslint, src/server/routes)...`);
+  console.log(`classify-coverage-gaps — running live production complexity scan...`);
   const violations = findViolations();
   const complexityByFile = new Map<string, string[]>();
   for (const v of violations) {
     const list = complexityByFile.get(v.file) ?? [];
-    list.push(`[${v.rule}] ${v.reason}`);
+    list.push(`[${v.rule}] ${v.function} at line ${v.line}: ${v.value}`);
     complexityByFile.set(v.file, list);
   }
 
@@ -139,17 +139,7 @@ function main(): void {
 
   console.log(`\nclassify-coverage-gaps — ${gaps.length} file(s) below tier threshold, ${allFiles.size} scanned:\n`);
 
-  const reportArchitectureDebt = (_required: Record<string, never>, _options = {}): void => {
-    if (architectureDebt.length > 0) {
-      console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
-      for (const g of architectureDebt) {
-        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
-        for (const r of g.complexityReasons) console.log(`      ${r}`);
-      }
-      console.log("");
-    }
-
-  };
+  const reportArchitectureDebt = createReportArchitectureDebt(architectureDebt);
   reportArchitectureDebt({});
 
   const reportTestGaps = (_required: Record<string, never>, _options = {}): void => {
@@ -168,6 +158,20 @@ function main(): void {
   if (gaps.length === 0) {
     console.log(`nothing below threshold on either tier across ${allFiles.size} scanned file(s).`);
   }
+}
+
+function createReportArchitectureDebt(architectureDebt: GapClassification[]) {
+  return (_required: Record<string, never>, _options = {}): void => {
+    if (architectureDebt.length > 0) {
+      console.log(`ARCHITECTURE_DEBT (${architectureDebt.length}) — refactor before chasing coverage:`);
+      for (const g of architectureDebt) {
+        console.log(`  - ${g.file}: unit ${g.evaluation.unit.detail}, integration ${g.evaluation.integration.detail}`);
+        for (const r of g.complexityReasons) console.log(`      ${r}`);
+      }
+      console.log("");
+    }
+
+  };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

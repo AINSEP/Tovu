@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreateSiteInput, CreatedSiteRecord, TokenSignInPlugin } from '../contracts/project.js';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
@@ -18,9 +19,9 @@ export interface CreateSitePluginTokens {
   /** One field per offered service; empty while loading, or when there are none. */
   plugins: readonly TokenSignInPlugin[];
   /** Ref callback for one service's password input. */
-  inputRef: (pluginId: string) => (element: HTMLInputElement | null) => void;
+  inputRef: (required: { pluginId: string }, options?: {}) => (element: HTMLInputElement | null) => void;
   /** Wraps the form's `onCreate` so the typed tokens ride along (then the inputs are cleared). */
-  withTokens: (onCreate: (input: CreateSiteInput) => Promise<void>) => (input: CreateSiteInput) => Promise<void>;
+  withTokens: (required: { onCreate: (input: CreateSiteInput) => Promise<void> }, options?: {}) => (input: CreateSiteInput) => Promise<void>;
 }
 
 /**
@@ -37,11 +38,11 @@ export function tokensForCreate(values: Readonly<Record<string, string>>): Recor
 }
 
 /** `supabase` -> `Supabase`, `my-crm` -> `My Crm` — the same rule Tovu uses for a plugin's name. */
-function titleCase(pluginId: string): string {
+function titleCase({ pluginId }: { pluginId: string }, _options = {}): string {
   return pluginId
     .split(/[-_.]/)
     .filter(Boolean)
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
@@ -49,10 +50,10 @@ function titleCase(pluginId: string): string {
  * The line under "is ready" for tokens given with the create, or `null` when none were.
  * @complexity O(n) in the plugin ids.
  */
-export function createdTokensNote(record: Pick<CreatedSiteRecord, 'agentPluginTokens'> | null): string | null {
+export function createdTokensNote({ record }: { record: Pick<CreatedSiteRecord, 'agentPluginTokens'> | null }, _options: Record<string, never> = {}): string | null {
   const tokens = record?.agentPluginTokens;
   if (!tokens || tokens.pluginIds.length === 0) return null;
-  const names = tokens.pluginIds.map(titleCase).join(', ');
+  const names = tokens.pluginIds.map((pluginId) => titleCase({ pluginId })).join(', ');
   return tokens.status === 'saved'
     ? `${names} will connect when this site first starts.`
     : `${names} couldn't be saved. Open the site and ask its assistant to connect it.`;
@@ -85,14 +86,14 @@ export function useCreateSitePluginTokens(
         if (live) setPlugins(found);
       })
       // Main already turns a failure into `[]`; this covers a bridge that rejects anyway.
-      .catch(() => undefined);
+      .catch((error: unknown) => console.error("[create-site] Could not load sign-in services", describeErrorForLog({ err: error })));
     return () => {
       live = false;
     };
   }, [enabled, getBridge]);
 
   const inputRef = useCallback(
-    (pluginId: string) => (element: HTMLInputElement | null) => {
+    ({ pluginId }: { pluginId: string }, _options = {}) => (element: HTMLInputElement | null) => {
       if (element) inputs.current.set(pluginId, element);
       else inputs.current.delete(pluginId);
     },
@@ -100,7 +101,7 @@ export function useCreateSitePluginTokens(
   );
 
   const withTokens = useCallback(
-    (onCreate: (input: CreateSiteInput) => Promise<void>) => (input: CreateSiteInput) => {
+    ({ onCreate }: { onCreate: (input: CreateSiteInput) => Promise<void> }, _options = {}) => (input: CreateSiteInput) => {
       const values: Record<string, string> = {};
       for (const [pluginId, element] of inputs.current) {
         // Hidden means no token is sent, including a ref left over from an earlier render.

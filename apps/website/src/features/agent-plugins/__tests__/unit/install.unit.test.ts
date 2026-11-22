@@ -77,7 +77,7 @@ function validPackageEntries(): AgentPluginArchiveEntry[] {
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-  return { cwd, instanceLayout, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
+  return { cwd, instanceLayout, layout: instanceLayout.forWorkspace({ workspaceId: WORKSPACE_ID }) };
 }
 
 test("installs a valid package and indexes its skills", async () => {
@@ -617,8 +617,8 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
     const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-    const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
-    const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
+    const workspaceA = instanceLayout.forWorkspace({ workspaceId: "11111111-1111-4111-8111-111111111111" });
+    const workspaceB = instanceLayout.forWorkspace({ workspaceId: "22222222-2222-4222-8222-222222222222" });
 
     const archive = new Uint8Array(Buffer.from("archive-bytes-shared-by-two-workspaces"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -704,8 +704,8 @@ test("CLOSED: a layout literal stitching workspace A's `packages` onto workspace
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
     const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
-    const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
-    const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
+    const workspaceA = instanceLayout.forWorkspace({ workspaceId: "11111111-1111-4111-8111-111111111111" });
+    const workspaceB = instanceLayout.forWorkspace({ workspaceId: "22222222-2222-4222-8222-222222222222" });
 
     // The IDENTICAL hostile object from the original gap this test used to prove -- unchanged, so
     // what follows is still proof against the SAME exploit attempt, not a weaker substitute.
@@ -770,7 +770,7 @@ test("CLOSED: a layout never derived from forWorkspace() at all -- arbitrary str
       root: rogueRoot,
       packages: path.join(rogueRoot, "packages", "sha256"),
       staging: path.join(rogueRoot, "staging"),
-      pluginDataDir: (pluginId: string) => path.join(rogueRoot, "data", pluginId),
+      pluginDataDir: ({ pluginId }: { pluginId: string }) => path.join(rogueRoot, "data", pluginId),
     };
 
     const archive = new Uint8Array(Buffer.from("archive-bytes-rogue-layout"));
@@ -801,7 +801,7 @@ test("CLOSED: a layout never derived from forWorkspace() at all -- arbitrary str
     );
 
     // No bytes were written outside the agent-plugins tree at all -- `rogueRoot` was never created.
-    await assert.rejects(() => stat(rogueRoot));
+    await assert.rejects(() => stat(rogueRoot), { constructor: Error, name: "Error", code: "ENOENT", message: `ENOENT: no such file or directory, stat '${rogueRoot}'` });
   } finally {
     await forceRemove(cwd);
   }

@@ -54,12 +54,12 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
 
     const running: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "running" };
     await act(async () => {
-      result.current.onMessagesChange([userTurn("u1", "hello"), running]);
+      result.current.onMessagesChange({ messages: [userTurn("u1", "hello"), running] });
     });
 
     await waitFor(() => {
@@ -77,7 +77,7 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
 
     const deltas = ["H", "He", "Hel", "Hell", "Hello"].map(
@@ -85,7 +85,7 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     );
     for (const assistantMessage of deltas) {
       await act(async () => {
-        result.current.onMessagesChange([userTurn("u1", "hello"), assistantMessage]);
+        result.current.onMessagesChange({ messages: [userTurn("u1", "hello"), assistantMessage] });
       });
     }
 
@@ -99,22 +99,22 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "wor", runId: "byok:run-1", runStatus: "running" },
-      ]);
+      ] });
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.some((m) => m.id === "a1")).toBe(true));
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "world", runId: "byok:run-1", runStatus: "succeeded" },
-      ]);
+      ] });
     });
 
     await waitFor(() => {
@@ -130,22 +130,22 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const save = port.saveMessage.bind(port);
     let releaseStub!: () => void;
     const stubPending = new Promise<void>((resolve) => { releaseStub = resolve; });
-    const writes = vi.spyOn(port, "saveMessage").mockImplementation(async (conversationId, turn) => {
+    const writes = vi.spyOn(port, "saveMessage").mockImplementation(async ({ conversationId, message: turn }) => {
       if (turn.id === "a1" && turn.runStatus === "running") await stubPending;
-      await save(conversationId, turn);
+      await save({ conversationId, message: turn });
     });
     const { result } = await mountWith(port);
-    await act(async () => result.current.select("fake-seed"));
+    await act(async () => result.current.select({ id: "fake-seed" }));
     const running: ChatMessage = { id: "a1", role: "assistant", content: "wor", runId: "byok:run-1", runStatus: "running" };
     const complete: ChatMessage = { ...running, content: "world", runStatus: "succeeded" };
-    await act(async () => result.current.onMessagesChange([running]));
-    await waitFor(() => expect(writes).toHaveBeenCalledWith("fake-seed", running));
+    await act(async () => result.current.onMessagesChange({ messages: [running] }));
+    await waitFor(() => expect(writes).toHaveBeenCalledWith({ conversationId: "fake-seed", message: running }));
 
     // Deliver the terminal delta while the first write is still parked at the storage boundary.
-    await act(async () => result.current.onMessagesChange([complete]));
+    await act(async () => result.current.onMessagesChange({ messages: [complete] }));
     await act(async () => { releaseStub(); await stubPending; });
     await waitFor(() => expect(port.saved.get("fake-seed")).toEqual([complete]));
-    expect(writes.mock.calls.filter(([, turn]) => turn.id === "a1")).toHaveLength(2);
+    expect(writes.mock.calls.filter(([{ message: turn }]) => turn.id === "a1")).toHaveLength(2);
   });
 
   it("adopts a conversation and writes the stub even when none is selected yet", async () => {
@@ -155,10 +155,10 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" },
-      ]);
+      ] });
     });
 
     await waitFor(() => {
@@ -174,30 +174,30 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
       onSaveMessage: (_conversationId, message) => {
         if (message.id === "a1" && failuresLeft > 0) {
           failuresLeft -= 1;
-          throw new HttpError(503, "Service Unavailable");
+          throw new HttpError({ status: 503, statusText: "Service Unavailable" });
         }
       },
     });
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "h", runId: "byok:run-1", runStatus: "running" },
-      ]);
+      ] });
     });
     // The first attempt threw; nothing durable yet.
     expect(port.saved.get("fake-seed")?.some((m) => m.id === "a1")).toBe(false);
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "he", runId: "byok:run-1", runStatus: "running" },
-      ]);
+      ] });
     });
 
     await waitFor(() => expect(port.saved.get("fake-seed")?.some((m) => m.id === "a1")).toBe(true));
@@ -210,31 +210,31 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
     const { result } = await mountWith(port);
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
     const turn = (message: ChatMessage) => [userTurn("u1", "hello"), message];
 
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "running" }));
+      result.current.onMessagesChange({ messages: turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "running" }) });
     });
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "failed" }));
+      result.current.onMessagesChange({ messages: turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "failed" }) });
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("failed"));
 
     // The retry: reset to queued (still carrying the old run id), then the new run id arrives.
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" }));
+      result.current.onMessagesChange({ messages: turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" }) });
     });
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-2", runStatus: "running" }));
+      result.current.onMessagesChange({ messages: turn({ id: "a1", role: "assistant", content: "", runId: "byok:run-2", runStatus: "running" }) });
     });
     await waitFor(() =>
       expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({ runId: "byok:run-2", runStatus: "running" }),
     );
 
     await act(async () => {
-      result.current.onMessagesChange(turn({ id: "a1", role: "assistant", content: "second try", runId: "byok:run-2", runStatus: "succeeded" }));
+      result.current.onMessagesChange({ messages: turn({ id: "a1", role: "assistant", content: "second try", runId: "byok:run-2", runStatus: "succeeded" }) });
     });
     await waitFor(() =>
       expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")).toMatchObject({
@@ -252,22 +252,22 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
     const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
     const { result } = await mountWith(port);
     await act(async () => {
-      result.current.select("fake-seed");
+      result.current.select({ id: "fake-seed" });
     });
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "first", runId: "byok:run-1", runStatus: "succeeded" },
-      ]);
+      ] });
     });
     await waitFor(() => expect(port.saved.get("fake-seed")?.find((m) => m.id === "a1")?.runStatus).toBe("succeeded"));
     const attemptsBefore = port.attemptedIds().filter((id) => id === "a1").length;
 
     await act(async () => {
-      result.current.onMessagesChange([
+      result.current.onMessagesChange({ messages: [
         userTurn("u1", "hello"),
         { id: "a1", role: "assistant", content: "", runId: "byok:run-1", runStatus: "queued" },
-      ]);
+      ] });
     });
     expect(port.attemptedIds().filter((id) => id === "a1").length).toBe(attemptsBefore);
   });
@@ -278,11 +278,11 @@ describe("useAssistantChats — request-bound legacy stub write", () => {
 it("never sends a browser daemon stub, including repeated deltas", async () => {
   const port = createFakeAssistantChatsPort({ conversations: [CONVERSATION] });
   const { result } = await mountWith(port);
-  await act(async () => { result.current.select("fake-seed"); });
+  await act(async () => { result.current.select({ id: "fake-seed" }); });
   for (const content of ["", "Half", "Half an answer"]) {
-    await act(async () => { result.current.onMessagesChange([
+    await act(async () => { result.current.onMessagesChange({ messages: [
       userTurn("u1", "hello"), { id: "a1", role: "assistant", content, runId: "daemon-1", runStatus: "running" },
-    ]); });
+    ] }); });
   }
   expect(port.attemptedIds().filter((id) => id === "a1")).toEqual([]);
 });

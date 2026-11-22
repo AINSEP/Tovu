@@ -75,7 +75,7 @@ let agentModelProber: AgentModelProber | null = null;
 
 /** Compatibility test wrapper: install a fake model prober (or `null` to restore the real one)
  * and replace the default inventory. Native host inventories keep their own bindings. */
-export function setAgentModelProberForTesting(prober: AgentModelProber | null): void {
+export function setAgentModelProberForTesting({ prober }: { prober: AgentModelProber | null }, _options = {}): void {
   agentModelProber = prober;
   defaultInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
 }

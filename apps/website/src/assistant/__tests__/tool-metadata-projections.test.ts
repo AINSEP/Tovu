@@ -37,12 +37,12 @@ test('projected search, approval and callback metadata exactly matches the revie
 test('every baseline ID retains its exchange and fresh-callback refusal rules', () => {
   for (const id of Object.keys(nativeToolMetadata.byId)) {
     const admitted = baseline.redeemableIds.includes(id);
-    assert.equal(isMcpUiToolCallPermitted(id, true), admitted, `${id} answering an exchange`);
-    assert.equal(isMcpUiToolCallPermitted(id, false), admitted && !baseline.exchangeOnlyIds.includes(id), `${id} executing a fresh callback`);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), admitted, `${id} answering an exchange`);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), admitted && !baseline.exchangeOnlyIds.includes(id), `${id} executing a fresh callback`);
   }
-  assert.equal(isMcpUiToolCallPermitted('unknown_tool', true), false);
-  assert.equal(isMcpUiToolCallPermitted('mcp__remote__delete', false), false);
-  assert.equal(isMcpUiToolCallPermitted('mcp__remote__delete', true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'unknown_tool', answersAnExchange: true }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'mcp__remote__delete', answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'mcp__remote__delete', answersAnExchange: true }), true);
 });
 
 test('the production domain registrations carry their projected action policy', async () => {
@@ -58,6 +58,6 @@ test("permanent-delete baseline pins all 13 opt-in ids and the two forbidden ope
   assert.deepEqual(policy, { defaultEnabled: false, allowedToolIds: PERMANENT_DELETE_TOOLS.map(tool => tool.id), alwaysForbiddenToolIds: ["workspace_delete", "collections_execute_cleanup"] });
   for (const tool of PERMANENT_DELETE_TOOLS) {
     assert.equal(nativeToolMetadata.byId[tool.id]?.approval?.confirmation, "plan");
-    assert.equal(isMcpUiToolCallPermitted(tool.id, false), false, `${tool.id} must not execute as a fresh callback`);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: tool.id, answersAnExchange: false }), false, `${tool.id} must not execute as a fresh callback`);
   }
 });

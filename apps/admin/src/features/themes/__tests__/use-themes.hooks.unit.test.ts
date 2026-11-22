@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
-import { api, type PresentationSettings } from "@/lib/api";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
 import { t as translateThemes } from "../themes-i18n";
@@ -59,7 +60,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("loads settings/themes/tiers from the injected port and never touches the real api client", async () => {
-    const getPresentationSpy = vi.spyOn(api, "getPresentation");
+    const getPresentationSpy = vi.spyOn(themesApi, "getPresentation");
     const port = createFakeThemesPort({
       availableThemeIds: ["basic", "quartz"],
       availableThemes: [{ id: "basic", name: "Basic", tier: "declarative" }, { id: "quartz", tier: "static" }],
@@ -73,13 +74,13 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("routes activate through the injected port and updates settings from its response", async () => {
-    const setActiveSpy = vi.spyOn(api, "setActiveTheme");
+    const setActiveSpy = vi.spyOn(themesApi, "setActiveTheme");
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz"] });
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.settings?.activeThemeId).toBe("quartz");
@@ -113,13 +114,13 @@ describe("useThemes — activate race safety", () => {
     > = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    const setActiveTheme = vi.fn((activeThemeId: string) => {
+    const setActiveTheme = vi.fn(({ activeThemeId }: { activeThemeId: string }) => {
       let resolve!: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void;
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((r) => {
         resolve = r;
       });
       deferred[activeThemeId] = { promise, resolve };
-      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
+      return promise.then(async value => { await persistTheme({ activeThemeId: activeThemeId }); return value; });
     });
     port.setActiveTheme = setActiveTheme;
 
@@ -130,13 +131,13 @@ describe("useThemes — activate race safety", () => {
     // actual, final choice. Activations are serialized onto one lane, so only quartz's call
     // reaches the port; slate's stays queued behind it.
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    expect(setActiveTheme).toHaveBeenCalledWith("quartz");
+    expect(setActiveTheme).toHaveBeenCalledWith({ activeThemeId: "quartz" });
 
     // quartz (clicked first) resolves — but a newer activate (slate) already superseded it before
     // its result ever lands, so it must not paint, and slate's queued call now reaches the port.
@@ -171,7 +172,7 @@ describe("useThemes — activate race safety", () => {
     const deferred: Record<string, { resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     port.setActiveTheme = vi.fn(
-      (activeThemeId: string) =>
+      ({ activeThemeId }: { activeThemeId: string }) =>
         new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
           deferred[activeThemeId] = { resolve };
         })
@@ -181,10 +182,10 @@ describe("useThemes — activate race safety", () => {
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
     expect(result.current.busyTheme).toBe("slate");
@@ -211,22 +212,22 @@ describe("useThemes — activate race safety", () => {
     const promises: Record<string, Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    port.setActiveTheme = vi.fn((activeThemeId: string) => {
+    port.setActiveTheme = vi.fn(({ activeThemeId }: { activeThemeId: string }) => {
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve, reject) => {
         deferred[activeThemeId] = { reject, resolveOk: resolve };
       });
       promises[activeThemeId] = promise;
-      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
+      return promise.then(async value => { await persistTheme({ activeThemeId: activeThemeId }); return value; });
     });
 
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(port.setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
 
@@ -267,13 +268,13 @@ describe("useThemes — two activations back to back persist the theme the scree
     const calls: string[] = [];
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    port.setActiveTheme = vi.fn((themeId: string) => {
+    port.setActiveTheme = vi.fn(({ activeThemeId: themeId }: { activeThemeId: string }) => {
       calls.push(themeId);
       return new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
         inFlight += 1;
         maxInFlight = Math.max(maxInFlight, inFlight);
         pending.push(() => {
-          void persistTheme(themeId);
+          void persistTheme({ activeThemeId: themeId });
           persisted = themeId;
           inFlight -= 1;
           resolve({ settings: settingsFor(themeId), availableThemeIds: ["basic", "quartz", "slate"] });
@@ -285,10 +286,10 @@ describe("useThemes — two activations back to back persist the theme the scree
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz", "slate"]));
 
     act(() => {
-      void result.current.activate("quartz");
+      void result.current.activate({ themeId: "quartz" });
     });
     act(() => {
-      void result.current.activate("slate");
+      void result.current.activate({ themeId: "slate" });
     });
 
     // Release the NEWEST pending request each round — the network order that loses the last click
@@ -336,7 +337,7 @@ describe("useThemes — initial load failure", () => {
     await waitFor(() => expect(result.current.error).toBe("network down"));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.settings).toBeNull();
@@ -396,7 +397,7 @@ describe("useThemes — activate failure (current, non-stale generation)", () =>
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.error).toBe("failed to switch theme");
@@ -410,7 +411,7 @@ describe("useThemes — activate failure (current, non-stale generation)", () =>
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
-      await result.current.activate("quartz");
+      await result.current.activate({ themeId: "quartz" });
     });
 
     expect(result.current.error).toBe("failed to switch theme");
@@ -523,7 +524,7 @@ describe("useWiredThemes", () => {
 
   it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
     vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
-    const getPresentationSpy = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const getPresentationSpy = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "ws", activeThemeId: "basic", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic"],
       availableThemes: [{ id: "basic", tier: "declarative" }],

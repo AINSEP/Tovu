@@ -1,16 +1,19 @@
 import { useCallback, useState } from "react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { useFetchQuery, useInvalidate, type QueryResult } from "@jini-ai/ui/fetch-query";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 
-import { describeApiError, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { ACTIVE_THEME_RESOURCE, activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
  *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
  *  collide with an unrelated app key. The stored value is the principal id that dismissed it, so a
@@ -23,21 +26,18 @@ const DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY = "tovu.admin.default-password-ban
  *  every load (see `rules.ts`'s `shouldShowDefaultPasswordBanner`).
  *  @complexity Time/space: O(1). */
 function readDefaultPasswordBannerDismissedBy(): string | null {
-  try {
+  return orFallbackSync({ work: () => {
     return localStorage.getItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY);
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read password banner dismissal" });
 }
 
 /** Best-effort write — silent no-op on any storage failure, for the same reason the read above is.
  *  @complexity Time/space: O(1). */
-function writeDefaultPasswordBannerDismissedBy(principalId: string): void {
-  try {
+function writeDefaultPasswordBannerDismissedBy({ principalId }: { principalId: string }, _optional = {}): void {
+  // best-effort; see this file's header note on the Dismiss control.
+  orFallbackSync({ work: () => {
     localStorage.setItem(DEFAULT_CREDENTIAL_BANNER_DISMISSED_KEY, principalId);
-  } catch {
-    // best-effort; see this file's header note on the Dismiss control.
-  }
+  }, fallback: undefined, step: "Remember password banner dismissal" });
 }
 
 /**
@@ -141,7 +141,7 @@ export interface DashboardDependencies {
  *  @complexity Time/space: O(1) beyond the read itself. */
 async function readOrDescribe<T>({ read, locale, key }: { read: () => Promise<T>; locale: string; key: string }): Promise<T> {
   try { return await read(); }
-  catch (error) { throw new Error(describeApiError(error, translate({ locale, key }))); }
+  catch (error) { throw new Error(describeApiError({ e: error, fallback: translate({ locale, key }) })); }
 }
 
 /** The five stat reads, each owning its own query and error slot (see this file's header).
@@ -180,13 +180,13 @@ const THEME_KEY = ["themes", "presentation"] as const;
 function useActiveThemeRefresh(): void {
   const invalidate = useInvalidate();
   const refresh = useCallback(() => invalidate({ key: THEME_KEY }), [invalidate]);
-  useContentRefreshSubscription(ACTIVE_THEME_RESOURCE, refresh);
+  useContentRefreshSubscription({ resource: ACTIVE_THEME_RESOURCE, onRefresh: refresh });
 }
 
-/** One stat card's state: `count(data)` once the read settles, `null` while pending or failed.
+/** One stat card's state: `count({ data })` once the read settles, `null` while pending or failed.
  *  @complexity Time/space: whatever `count` costs. */
-function statState<T>({ query, count }: { query: QueryResult<T>; count: (data: T) => number }): StatState {
-  return { value: query.data === undefined ? null : count(query.data), error: query.error?.message ?? null };
+function statState<T>({ query, count }: { query: QueryResult<T>; count: (required: { data: T }, optional?: Record<string, never>) => number }): StatState {
+  return { value: query.data === undefined ? null : count({ data: query.data }), error: query.error?.message ?? null };
 }
 
 /** How many `rows` carry `status`, or `null` while the rows are still pending.
@@ -199,7 +199,7 @@ function countWithStatus({ rows, status }: { rows: ReadonlyArray<{ status: strin
  *  one of the two settles.
  *  @complexity Time: O(n log n) via `mergeRecent`. */
 function recentActivity({ posts, pages }: { posts: AdminPost[] | undefined; pages: AdminPost[] | undefined }): AdminPost[] | null {
-  return posts || pages ? mergeRecent(posts ?? null, pages ?? []) : null;
+  return posts || pages ? mergeRecent({ prev: posts ?? null, incoming: pages ?? [] }) : null;
 }
 
 type DashboardStats = Pick<DashboardController,
@@ -210,12 +210,12 @@ type DashboardStats = Pick<DashboardController,
 function deriveStats(queries: ReturnType<typeof useStatQueries>): DashboardStats {
   const { postsQuery, pagesQuery, mediaQuery, commentsQuery, themeQuery } = queries;
   return {
-    posts: statState({ query: postsQuery, count: rows => rows.length }),
+    posts: statState({ query: postsQuery, count: ({ data: rows }, _optional = {}) => rows.length }),
     published: countWithStatus({ rows: postsQuery.data, status: "published" }),
-    pages: statState({ query: pagesQuery, count: rows => rows.length }),
+    pages: statState({ query: pagesQuery, count: ({ data: rows }, _optional = {}) => rows.length }),
     drafts: countWithStatus({ rows: pagesQuery.data, status: "draft" }),
-    media: statState({ query: mediaQuery, count: data => data.media.filter(item => item.status === "active").length }),
-    comments: statState({ query: commentsQuery, count: data => data.items.length }),
+    media: statState({ query: mediaQuery, count: ({ data }, _optional = {}) => data.media.filter(item => item.status === "active").length }),
+    comments: statState({ query: commentsQuery, count: ({ data }, _optional = {}) => data.items.length }),
     themeId: themeQuery.data?.settings.activeThemeId ?? null,
     themeName: themeQuery.data ? activeThemeName(themeQuery.data) : null,
     themeError: themeQuery.error?.message ?? null,
@@ -237,12 +237,12 @@ function useDefaultPasswordBanner({ port }: { port: DashboardPort }): Pick<Dashb
   const [dismissedBy, setDismissedBy] = useState<string | null>(readDefaultPasswordBannerDismissedBy);
   return {
     showDefaultPasswordBanner: shouldShowDefaultPasswordBanner(
-      passwordStatus?.usesDefaultPassword ?? null,
-      passwordStatus !== null && dismissedBy === passwordStatus.principalId,
+      { usesDefault: passwordStatus?.usesDefaultPassword ?? null,
+      dismissed: passwordStatus !== null && dismissedBy === passwordStatus.principalId },
     ),
     dismissDefaultPasswordBanner: () => {
       if (passwordStatus === null) return;
-      writeDefaultPasswordBannerDismissedBy(passwordStatus.principalId);
+      writeDefaultPasswordBannerDismissedBy({ principalId: passwordStatus.principalId });
       setDismissedBy(passwordStatus.principalId);
     },
   };
@@ -258,7 +258,7 @@ function useSiteKeyBanner({ port, t }: { port: DashboardPort; t: Translate }): P
   // undefined until the site-key status fetch settles (or forever if it fails).
   // shouldShowSiteKeyBanner treats undefined as "don't show".
   const siteKeyState = siteKeyQuery.data?.state;
-  return { showSiteKeyBanner: shouldShowSiteKeyBanner(siteKeyState), siteKeyBannerMessage: siteKeyBannerCopy(siteKeyState, t) };
+  return { showSiteKeyBanner: shouldShowSiteKeyBanner({ state: siteKeyState }), siteKeyBannerMessage: siteKeyBannerCopy({ state: siteKeyState, t }) };
 }
 
 /**

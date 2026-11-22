@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../local-sites.js";
-import { LocalSiteError, type LocalSiteSupervisorPort, type LocalSiteState } from "#src/platform/site-dir/local-site-supervisor";
+import { LocalSiteError } from "#src/platform/site-dir/index";
+import type { LocalSiteSupervisorPort, LocalSiteState } from "#src/platform/site-dir/local-site-supervisor";
 import { createCapturingResponse, extractRouteHandler, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 const ROOT = "/api/admin/v1/workspaces/:workspaceId/system/sites";
@@ -64,7 +65,7 @@ test("lifecycle catches principal/auth failures and sanitizes typed and opaque e
     [new Error("private connection details"), 500, "INTERNAL_ERROR"], ["opaque", 500, "INTERNAL_ERROR"],
     ...Object.entries({ VALIDATION_ERROR: 400, SITE_CONFIRM_REQUIRED: 400, SITE_NOT_FOUND: 404, SITE_SERVING: 409,
       SITE_RUNNING: 409, SITE_RUNNING_ELSEWHERE: 409, SITE_LIMIT: 409, SITE_ALREADY_EXISTS: 409, SITE_PATH_UNSAFE: 409,
-      SITE_STOP_FAILED: 409, SITE_HOST_STOPPING: 500 }).map(([code, status]): [unknown, number, string] => [new LocalSiteError(code), status, code]),
+      SITE_STOP_FAILED: 409, SITE_HOST_STOPPING: 500 }).map(([code, status]): [unknown, number, string] => [new LocalSiteError({ code }), status, code]),
   ];
   for (const [error, status, code] of failures) {
     const f = await fixture({ t }, { overrides: { authorize: async () => { throw error; } } });

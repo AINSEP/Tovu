@@ -40,7 +40,7 @@
 import { createHash } from "node:crypto";
 import type { FormFileStorage } from "./form-file-storage.js";
 import type { Logger } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import {
   createFormDefinition as createPackageFormDefinition,
   updateFormDefinition as updatePackageFormDefinition,
@@ -61,7 +61,7 @@ import { createFormAuthoring, htmlSubmissionDefinition } from "@jini-ai/cms/form
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { toSlug } from "../../platform/html/slug.js";
 import { MAX_SUFFIX_ATTEMPTS } from "../content-duplication/derive-available-name.js";
-import { capSubmissionFieldLengths } from "./field-length-caps.js";
+import { capSubmissionFieldLengths } from "@jini-ai/cms/forms";
 
 export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
 
@@ -72,7 +72,7 @@ export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
 const RESERVED_SLUGS = new Set(["new"]);
 const FORMS_PERMISSION = "admin.forms.manage";
 const authoring = createFormAuthoring({ permission: "pages.edit_html" }, {});
-export const formSlugPolicy = { slugify: toSlug, maxAttempts: MAX_SUFFIX_ATTEMPTS, reservedSlugs: RESERVED_SLUGS };
+export const formSlugPolicy = { slugify: (text: string) => toSlug({ text }), maxAttempts: MAX_SUFFIX_ATTEMPTS, reservedSlugs: RESERVED_SLUGS };
 
 /** Tovu's command-gateway adapter. Policy stays here; validation and audited writes live in Jini. */
 export interface FormWriteServiceDeps extends Omit<PackageWriteDeps, "permission" | "reservedSlugs"> {
@@ -119,10 +119,10 @@ export async function createFormDefinition({ deps, input }: CreateFormDefinition
 }
 
 /** Authoring authorization/pre-read ordering and the single gateway decision belong to Jini. */
-export function updateFormDefinition({ deps, input }: UpdateFormDefinitionRequired, _optional = {}) {
+export function updateFormDefinition({ deps, input }: UpdateFormDefinitionRequired, optional: { expectedVersion?: number } = {}) {
   const { idempotencyKey, ...values } = input;
   return updatePackageFormDefinition({ deps: packageDeps(deps), input: values }, {
-    authoring, idempotencyKey, outbox: deps.outbox,
+    authoring, idempotencyKey, outbox: deps.outbox, ...optional,
   });
 }
 
@@ -174,7 +174,10 @@ export function submitForm(
     outbox: { enqueue: (event) => deps.outbox.enqueue({ ...event, payload: {
       ...event.payload, deliveryMode: "live", ...(analyticsProvenance ? { analyticsProvenance } : {}),
     } }) },
-    transaction: (work) => deps.submissionRepo.transaction!(work), dispatcher: { dispatch }, logger,
+    transaction: (work) => {
+      if (!deps.submissionRepo.transaction) throw new Error("Form submission repository has no transaction");
+      return deps.submissionRepo.transaction(work);
+    }, dispatcher: { dispatch }, logger,
   }, input }, {
     definitionView: (view) => capSubmissionFieldLengths({ definition: htmlSubmissionDefinition(view), body: view.body }),
     validateEmails: true, dispatch, attempts,
@@ -185,17 +188,10 @@ export function submitForm(
 // and the import that brings stored submissions back. Generic; no host is named in this feature.
 export { buildFormDeliveryForm, buildFormDestinationManifest, type FormDestinationManifestForm } from "./form-destination-manifest.js";
 export {
-  importRemoteFormSubmissions,
   type FormDestinationPullReport,
-  type FormImportCounts,
   type FormPullCounts,
-  type FormSubmissionReceiptPort,
   type FormSubmissionsPullResult,
   type FormsAutoPullPort,
   type FormSubmissionsPullPort,
-  type ImportRemoteSubmissionsDeps,
-  type RemoteImportResult,
-  type RemoteSubmissionInput,
 } from "./import-remote-submissions.js";
 export type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "./delivery-status.js";
-export { DELIVERY_STATUS_MAX_LIMIT } from "./agent-tools.js";

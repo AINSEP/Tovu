@@ -28,20 +28,20 @@ function chunkStream(chunks: string[]): ReadableStream<Uint8Array> {
 
 describe("parseFrame", () => {
   test("an explicit event: line overrides the default 'message' event", () => {
-    expect(parseFrame("event: custom\ndata: hello")).toEqual({ event: "custom", data: "hello" });
+    expect(parseFrame({ rawFrame: "event: custom\ndata: hello" })).toEqual({ event: "custom", data: "hello" });
   });
 
   test("no event: line defaults to 'message'", () => {
-    expect(parseFrame("data: hello")).toEqual({ event: "message", data: "hello" });
+    expect(parseFrame({ rawFrame: "data: hello" })).toEqual({ event: "message", data: "hello" });
   });
 
   test("multiple data: lines join with a newline", () => {
-    expect(parseFrame("data: line1\ndata: line2")).toEqual({ event: "message", data: "line1\nline2" });
+    expect(parseFrame({ rawFrame: "data: line1\ndata: line2" })).toEqual({ event: "message", data: "line1\nline2" });
   });
 
   test("a frame with no data: lines at all (e.g. a bare id-only keepalive) returns null", () => {
-    expect(parseFrame("id: 5")).toBeNull();
-    expect(parseFrame("")).toBeNull();
+    expect(parseFrame({ rawFrame: "id: 5" })).toBeNull();
+    expect(parseFrame({ rawFrame: "" })).toBeNull();
   });
 });
 

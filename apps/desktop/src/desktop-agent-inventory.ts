@@ -9,7 +9,8 @@
  * Cached once per process like the site's: a PATH probe spawns every installed CLI for its version
  * and model list, which is far too slow to repeat on every pane mount. `rescan` forces a fresh one.
  */
-import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
+import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { RunnerAgentSummary } from "./contracts/runtime-inventory.ts";
 
 /** The slice of `@jini-ai/agent-runtime` this module reads — injected so tests probe nothing. */
@@ -25,10 +26,14 @@ interface AgentRuntimePorts {
  * says why it is unavailable.
  * @complexity O(models + reasoning options) time and space, plus one model probe when available.
  */
-async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): Promise<RunnerAgentSummary> {
+async function summarizeAgent({ def, ports }: { def: RuntimeAgentDef; ports: AgentRuntimePorts }, _optional = {}): Promise<RunnerAgentSummary> {
   const launch = ports.resolveLaunch({ def });
   const available = Boolean(launch.launchPath);
-  const models = available ? (await ports.probeModels({ def }).catch(() => ({ models: def.fallbackModels }))).models : def.fallbackModels;
+  let models = def.fallbackModels;
+  if (available) {
+    const probe = ports.probeModels({ def });
+    models = (await orFallback({ work: () => probe, fallback: { models: def.fallbackModels }, step: "Probe desktop agent models" })).models;
+  }
   return {
     id: def.id,
     name: def.name,
@@ -50,7 +55,7 @@ async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): P
 function createAgentInventory(ports: AgentRuntimePorts): (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]> {
   let cached: Promise<RunnerAgentSummary[]> | null = null;
   const probe = () => {
-    const pending = Promise.all(ports.defs.filter((def) => ports.supportsTools({ def })).map((def) => summarizeAgent(def, ports)))
+    const pending = Promise.all(ports.defs.filter((def) => ports.supportsTools({ def })).map((def) => summarizeAgent({ def, ports })))
       .then((rows) => [...rows].sort((a, b) => Number(b.available) - Number(a.available)));
     // A failed probe must not poison the cache forever.
     pending.catch(() => { if (cached === pending) cached = null; });

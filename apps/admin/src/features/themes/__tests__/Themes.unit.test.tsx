@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";
-import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 
 /**
  * @file `Themes` (Themes screen) — driven through the `useThemesHook` dependency-injection
@@ -131,7 +131,7 @@ describe("theme grid", () => {
     expect(toggle).toBeChecked();
     expect(toggle).toHaveAttribute("title", "Turn the theme off");
     await user.click(toggle);
-    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
+    expect(activate).toHaveBeenCalledWith({ themeId: NO_THEME_ID });
   });
 
   it("gives every inactive theme an OFF Activate switch that calls activate(themeId)", async () => {
@@ -144,7 +144,7 @@ describe("theme grid", () => {
     expect(toggle).not.toBeChecked();
     expect(toggle).toHaveAttribute("title", "Activate");
     await user.click(toggle);
-    expect(activate).toHaveBeenCalledWith("column");
+    expect(activate).toHaveBeenCalledWith({ themeId: "column" });
   });
 
   it("keeps every card where it is after activating, so a double-click cannot hit a second theme", () => {
@@ -404,7 +404,7 @@ describe("theme card preview", () => {
     // first in the grid instead of the one actually clicked.
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
-    const dialog = card.querySelector("dialog.image-preview-modal")!;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
     expect(dialog.querySelector("img")).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.jpg");
   });
@@ -415,7 +415,7 @@ describe("theme card preview", () => {
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
     await user.click(within(card).getByRole("button", { name: "Close preview" }));
-    const dialog = card.querySelector("dialog.image-preview-modal")!;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal")!;
     expect(dialog.hasAttribute("open")).toBe(false);
   });
 
@@ -434,7 +434,7 @@ describe("theme card preview", () => {
     render(<Themes useThemesHook={() => baseController({ t })} />);
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
-    const dialog = card.querySelector("dialog.image-preview-modal") as HTMLElement;
+    const dialog = card.querySelector("dialog.jini-image-preview-modal") as HTMLElement;
 
     expect(within(dialog).getByRole("button", { name: "[es] Close preview" })).toBeInTheDocument();
     expect(dialog.querySelector("img")).toHaveAttribute("alt", "[es] signal vista previa");
@@ -527,7 +527,7 @@ describe("no theme (state 3 — the operator handles styling themselves)", () =>
     render(<Themes useThemesHook={() => baseController({ activate })} />);
 
     fireEvent.click(screen.getByRole("button", { name: /turn the theme off/i }));
-    expect(activate).toHaveBeenCalledWith(NO_THEME_ID);
+    expect(activate).toHaveBeenCalledWith({ themeId: NO_THEME_ID });
   });
 
   it("says so persistently while the theme is off, and does not call it a problem", () => {

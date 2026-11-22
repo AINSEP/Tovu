@@ -72,7 +72,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserDisableRoute(app, deps);
+  registerAdminUserDisableRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -273,7 +273,7 @@ test("INV-08: DISABLE_PRINCIPAL route: 409 OWNER_REQUIRED when disabling the tar
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserDisableRoute(app, deps);
+  registerAdminUserDisableRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${urlFor(lastOwnerId)}`, { method: "POST" });

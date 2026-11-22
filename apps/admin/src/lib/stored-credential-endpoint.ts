@@ -1,7 +1,8 @@
-import { ApiError } from "./api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { ApiError } from "./admin-http/request";
+
 import { trimCharsEnd } from "@jini-ai/core/primitives";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Rules for a BYOK key the server holds write-only and will only send to the endpoint it was saved
  * for — the endpoint pin in the server's `stored-credential-probe.ts`.
@@ -30,7 +31,7 @@ export const STORED_KEY_NO_ENDPOINT_COPY = "Your saved key has no provider saved
 /** Mirrors `normalizeEndpoint` in the server's `stored-credential-probe.ts` (trim, strip trailing
  *  slashes, no case folding). The two must agree, or a screen and the server disagree about which
  *  endpoint a stored key belongs to. */
-function normalizeEndpoint(baseUrl: string): string {
+function normalizeEndpoint({ baseUrl }: { baseUrl: string }, _options = {}): string {
   return trimCharsEnd({ text: baseUrl.trim(), chars: "/" });
 }
 
@@ -45,10 +46,10 @@ function normalizeEndpoint(baseUrl: string): string {
  *
  * @complexity Time/space: O(n) in the two URL lengths.
  */
-export function storedKeyIsForOtherEndpoint(stored: StoredCredentialEndpoint | null, baseUrl: string): boolean {
+export function storedKeyIsForOtherEndpoint({ stored, baseUrl }: { stored: StoredCredentialEndpoint | null; baseUrl: string }, _options = {}): boolean {
   const storedBaseUrl = stored?.isSet ? stored.baseUrl?.trim() : "";
   if (!storedBaseUrl) return false;
-  return normalizeEndpoint(storedBaseUrl) !== normalizeEndpoint(baseUrl);
+  return normalizeEndpoint({ baseUrl: storedBaseUrl }) !== normalizeEndpoint({ baseUrl });
 }
 
 /** A key a probe can use HERE — typed into the field, or stored on the server for this endpoint. A
@@ -56,9 +57,9 @@ export function storedKeyIsForOtherEndpoint(stored: StoredCredentialEndpoint | n
  *
  * @complexity Time/space: O(n) in the two URL lengths.
  */
-export function hasUsableKey(apiKey: string, stored: StoredCredentialEndpoint | null, baseUrl: string): boolean {
+export function hasUsableKey({ apiKey, stored, baseUrl }: { apiKey: string; stored: StoredCredentialEndpoint | null; baseUrl: string }, _options = {}): boolean {
   if (apiKey.trim()) return true;
-  return stored?.isSet === true && !storedKeyIsForOtherEndpoint(stored, baseUrl);
+  return stored?.isSet === true && !storedKeyIsForOtherEndpoint({ stored, baseUrl });
 }
 
 /**
@@ -68,8 +69,8 @@ export function hasUsableKey(apiKey: string, stored: StoredCredentialEndpoint | 
  *
  * @complexity Time/space: O(n) in the key and URL lengths.
  */
-export function storedKeyBlocksProbe(apiKey: string, stored: StoredCredentialEndpoint | null, baseUrl: string): boolean {
-  return !apiKey.trim() && storedKeyIsForOtherEndpoint(stored, baseUrl);
+export function storedKeyBlocksProbe({ apiKey, stored, baseUrl }: { apiKey: string; stored: StoredCredentialEndpoint | null; baseUrl: string }, _options = {}): boolean {
+  return !apiKey.trim() && storedKeyIsForOtherEndpoint({ stored, baseUrl });
 }
 
 /**
@@ -79,7 +80,7 @@ export function storedKeyBlocksProbe(apiKey: string, stored: StoredCredentialEnd
  *
  * @complexity Time/space: O(1).
  */
-export function describeProbeError(e: unknown, fallback: string): string {
+export function describeProbeError({ e, fallback }: { e: unknown; fallback: string }, _options = {}): string {
   if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_MISMATCH") return STORED_KEY_OTHER_PROVIDER_COPY;
   if (e instanceof ApiError && e.code === "STORED_CREDENTIAL_ENDPOINT_UNSET") return STORED_KEY_NO_ENDPOINT_COPY;
   return e instanceof Error ? e.message : fallback;
@@ -94,6 +95,6 @@ export function describeProbeError(e: unknown, fallback: string): string {
  *
  * @complexity Time/space: O(1) per call.
  */
-export function createProbeErrorDescriber(t: Translate): (error: unknown) => string {
-  return (error) => t(describeProbeError(error, String(error)));
+export function createProbeErrorDescriber({ t }: { t: Translate }, _optional: Record<string, never> = {}): (error: unknown) => string {
+  return (error) => t(describeProbeError({ e: error, fallback: String(error) }));
 }

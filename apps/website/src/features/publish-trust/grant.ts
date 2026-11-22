@@ -118,7 +118,7 @@ export type PublishTrustGrantParse =
   | { readonly ok: false; readonly reason: string };
 
 /** @complexity O(1). */
-function fail(reason: string): PublishTrustGrantParse {
+function fail({ reason }: { reason: string }, _optional = {}): PublishTrustGrantParse {
   return { ok: false, reason };
 }
 
@@ -134,7 +134,7 @@ function isBoundedString(value: unknown): value is string {
  * @returns The key, or a reason string.
  * @complexity O(1).
  */
-function parsePublicKeyEntry(entry: unknown): PublishTrustPublicKey | string {
+function parsePublicKeyEntry({ entry }: { entry: unknown }, _optional = {}): PublishTrustPublicKey | string {
   if (typeof entry !== "object" || entry === null) return "each 'publicKeys' entry must be an object";
   const { publicKeyB64u, generation } = entry as Record<string, unknown>;
   if (!isBoundedString(publicKeyB64u)) return "each 'publicKeys' entry needs a 'publicKeyB64u' string";
@@ -153,13 +153,13 @@ function parsePublicKeyEntry(entry: unknown): PublishTrustPublicKey | string {
  * @complexity O(n²) in the key count, which is bounded by {@link MAX_PUBLIC_KEYS} — an explicit
  *   pairwise scan is clearer here than a set, at four elements.
  */
-function parsePublicKeys(raw: unknown): readonly PublishTrustPublicKey[] | string {
+function parsePublicKeys({ raw }: { raw: unknown }, _optional = {}): readonly PublishTrustPublicKey[] | string {
   if (!Array.isArray(raw) || raw.length === 0) return "'publicKeys' must be a non-empty array";
   if (raw.length > MAX_PUBLIC_KEYS) return `'publicKeys' must hold at most ${MAX_PUBLIC_KEYS} keys`;
 
   const keys: PublishTrustPublicKey[] = [];
   for (const entry of raw) {
-    const key = parsePublicKeyEntry(entry);
+    const key = parsePublicKeyEntry({ entry });
     if (typeof key === "string") return key;
     if (keys.some((k) => k.generation === key.generation)) return `'publicKeys' repeats generation ${key.generation}`;
     keys.push(key);
@@ -176,7 +176,7 @@ function parsePublicKeys(raw: unknown): readonly PublishTrustPublicKey[] | strin
  *
  * @complexity O(n) in the claimed capability count.
  */
-function parseCapabilities(raw: unknown): readonly PublishingCapability[] | string {
+function parseCapabilities({ raw }: { raw: unknown }, _optional = {}): readonly PublishingCapability[] | string {
   if (!Array.isArray(raw) || raw.length === 0) return "'capabilities' must be a non-empty array";
   const capabilities: PublishingCapability[] = [];
   for (const entry of raw) {
@@ -189,7 +189,7 @@ function parseCapabilities(raw: unknown): readonly PublishingCapability[] | stri
 }
 
 /** @complexity O(n) in the entity-type count. */
-function parseEntityTypes(raw: unknown): readonly string[] | string {
+function parseEntityTypes({ raw }: { raw: unknown }, _optional = {}): readonly string[] | string {
   if (!Array.isArray(raw)) return "'entityTypes' must be an array";
   if (raw.length > MAX_ENTITY_TYPES) return `'entityTypes' must hold at most ${MAX_ENTITY_TYPES} types`;
   for (const entry of raw) {
@@ -207,19 +207,19 @@ function parseEntityTypes(raw: unknown): readonly string[] | string {
  *
  * @complexity O(n) in the document's field count.
  */
-export function parsePublishTrustGrant(raw: unknown): PublishTrustGrantParse {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail("grant must be a JSON object");
+export function parsePublishTrustGrant({ raw }: { raw: unknown }, _optional = {}): PublishTrustGrantParse {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return fail({ reason: "grant must be a JSON object" });
   const doc = raw as Record<string, unknown>;
 
   const scalars = parseScalarFields(doc);
-  if (typeof scalars === "string") return fail(scalars);
+  if (typeof scalars === "string") return fail({ reason: scalars });
 
-  const publicKeys = parsePublicKeys(doc.publicKeys);
-  if (typeof publicKeys === "string") return fail(publicKeys);
-  const capabilities = parseCapabilities(doc.capabilities);
-  if (typeof capabilities === "string") return fail(capabilities);
-  const entityTypes = parseEntityTypes(doc.entityTypes);
-  if (typeof entityTypes === "string") return fail(entityTypes);
+  const publicKeys = parsePublicKeys({ raw: doc.publicKeys });
+  if (typeof publicKeys === "string") return fail({ reason: publicKeys });
+  const capabilities = parseCapabilities({ raw: doc.capabilities });
+  if (typeof capabilities === "string") return fail({ reason: capabilities });
+  const entityTypes = parseEntityTypes({ raw: doc.entityTypes });
+  if (typeof entityTypes === "string") return fail({ reason: entityTypes });
 
   return {
     ok: true,
@@ -264,7 +264,7 @@ function parseScalarFields(
  *
  * @complexity O(1).
  */
-export function isGrantActive(grant: PublishTrustGrant, nowIso: string): boolean {
+export function isGrantActive({ grant, nowIso }: { grant: PublishTrustGrant; nowIso: string }, _optional = {}): boolean {
   const now = Date.parse(nowIso);
   const notAfter = Date.parse(grant.notAfter);
   if (Number.isNaN(now) || Number.isNaN(notAfter)) return false;
@@ -276,7 +276,7 @@ export function isGrantActive(grant: PublishTrustGrant, nowIso: string): boolean
  *
  * @complexity O(n) in the grant's capability count (at most {@link PUBLISHING_CAPABILITIES}.length).
  */
-export function grantAllowsCapability(grant: PublishTrustGrant, capability: string): boolean {
+export function grantAllowsCapability({ grant, capability }: { grant: PublishTrustGrant; capability: string }, _optional = {}): boolean {
   return grant.capabilities.includes(capability as PublishingCapability);
 }
 
@@ -289,7 +289,7 @@ export function grantAllowsCapability(grant: PublishTrustGrant, capability: stri
  *
  * @complexity O(n) in the grant's entity-type count.
  */
-export function grantAllowsEntityType(grant: PublishTrustGrant, entityType: string): boolean {
+export function grantAllowsEntityType({ grant, entityType }: { grant: PublishTrustGrant; entityType: string }, _optional = {}): boolean {
   return grant.entityTypes.includes(entityType);
 }
 
@@ -303,7 +303,7 @@ export function grantAllowsEntityType(grant: PublishTrustGrant, entityType: stri
  *
  * @complexity O(n·m) in the route count and path segment count; both are small constants.
  */
-export function isPublishTrustRoute(method: string, path: string): boolean {
+export function isPublishTrustRoute({ method, path }: { method: string; path: string }, _optional = {}): boolean {
   const wanted = method.toUpperCase();
   const actual = (path.split("?")[0] ?? "").split("/");
   return PUBLISH_TRUST_ROUTES.some((route) => {

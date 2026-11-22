@@ -1,15 +1,9 @@
 import { useMemo, type ForwardedRef, type RefObject } from "react";
 
-import {
-  accessTokenProviderMatchesQuery,
-  customCredentialReadyToSave,
-  isValidHttpUrl,
-  otherCredentialMatchesQuery,
-  sortAccessTokenGroups,
-  type AccessTokenGroupSortInput,
-  type AccessTokenRow,
-  type OtherCredentialStoreInfo,
-} from "./rules";
+import { accessTokenProviderMatchesQuery, type AccessTokenRow } from "./access-token-rows";
+import { customCredentialReadyToSave, isValidHttpUrl } from "./custom-credential-forms";
+import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./other-credential-stores";
+import { sortAccessTokenGroups, type AccessTokenGroupSortInput } from "./rules";
 import type { AccessTokensController, AccessTokenProviderGroupState } from "./hooks/use-access-tokens.hooks";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 
@@ -38,16 +32,20 @@ export interface RemoveConfirmDialogActions {
 /**
  * `RemoveConfirmDialog`'s close/confirm — extracted verbatim, same two calls, same order.
  *
- * @param ref - The forwarded ref `RemoveConfirmDialog` receives from its caller.
- * @param row - The token row this confirm dialog is for.
- * @param controller - `AccessTokensController.removeToken` is the one call this hook makes.
+ * @param required - The dialog and controller inputs.
+ * @param required.ref - The forwarded ref `RemoveConfirmDialog` receives from its caller.
+ * @param required.row - The token row this confirm dialog is for.
+ * @param required.controller - `AccessTokensController.removeToken` is the one call this hook makes.
  * @returns `close`/`confirm`, wired directly to the dialog's Cancel/"Remove from Tovu" buttons.
  * @complexity O(1).
  */
 export function useRemoveConfirmDialog(
-  ref: ForwardedRef<HTMLDialogElement>,
-  row: AccessTokenRow,
-  controller: AccessTokensController
+  { ref, row, controller }: {
+    ref: ForwardedRef<HTMLDialogElement>;
+    row: AccessTokenRow;
+    controller: AccessTokensController;
+  },
+  _optional: Record<string, never> = {},
 ): RemoveConfirmDialogActions {
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();
@@ -82,7 +80,7 @@ export function useAddCustomCredentialDialog(
 ): AddCustomCredentialDialogState {
   const form = controller.customAddForm;
   const readyToSave = customCredentialReadyToSave(form);
-  const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl(form.baseUrl.trim());
+  const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl({ value: form.baseUrl.trim() });
 
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();
@@ -170,18 +168,21 @@ function otherCredentialGroupEntries(group: OtherCredentialGroupState): MergedSe
  * bound {@link sortAccessTokenGroups} itself documents), space O(n) for the built entry list.
  */
 export function useMergedSecretsOrder(
-  controller: AccessTokensController,
-  otherController: OtherCredentialsController,
-  query: string
+  { controller, otherController, query }: {
+    controller: AccessTokensController;
+    otherController: OtherCredentialsController;
+    query: string;
+  },
+  _optional: Record<string, never> = {},
 ): readonly MergedSecretsEntry[] {
   const providerGroups = controller.groups;
   const otherGroups = otherController.groups;
   return useMemo(() => {
     const visibleProviders = (providerGroups ?? []).filter(
-      (group) => accessTokenProviderMatchesQuery(group.info, query) || group.rows.length > 0
+      (group) => accessTokenProviderMatchesQuery({ info: group.info, query }) || group.rows.length > 0
     );
     const visibleOther = (otherGroups ?? []).filter(
-      (group) => otherCredentialMatchesQuery(group.store, undefined, query) || group.rows.length > 0
+      (group) => otherCredentialMatchesQuery({ store: group.store, itemName: undefined, query }) || group.rows.length > 0
     );
     const providerEntries: MergedSecretsEntry[] = visibleProviders.map((group) => ({
       kind: "provider",
@@ -191,6 +192,6 @@ export function useMergedSecretsOrder(
       rows: group.rows,
     }));
     const otherEntries: MergedSecretsEntry[] = visibleOther.flatMap(otherCredentialGroupEntries);
-    return sortAccessTokenGroups([...providerEntries, ...otherEntries]);
+    return sortAccessTokenGroups({ groups: [...providerEntries, ...otherEntries] });
   }, [providerGroups, otherGroups, query]);
 }

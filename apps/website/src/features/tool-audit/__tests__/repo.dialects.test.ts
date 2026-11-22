@@ -6,7 +6,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { MAX_VISITOR_ROWS_PER_WORKSPACE, SqlToolAttemptAuditSink } from "../repo.js";
 import { createInMemoryToolAttemptAuditSink } from "../repo.memory.js";
-import type { ToolAttemptEvent } from "../types.js";
+import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 /** @file The tool-attempt audit sink's one Kysely body on SQLite and PGlite (storage plan §4). */
 
@@ -110,7 +110,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
           return kernel.run(work);
         },
       };
-      const sink = new SqlToolAttemptAuditSink(broken, { maxRowsPerWorkspace: 1, pruneCheckInterval: 1, onError: (e) => errors.push(e) });
+      const sink = new SqlToolAttemptAuditSink(broken, { maxRowsPerWorkspace: 1, pruneCheckInterval: 1, onError: ({ error: e }) => errors.push(e) });
       await assert.doesNotReject(() => sink.append(event({ attemptId: "newest" })));
       assert.equal(calls, failingRun, "the selected retention operation must be reached");
       assert.deepEqual(errors, [failure]);
@@ -123,7 +123,7 @@ describeEachDialect("ToolAttemptAuditSink", { tables: ["agent_tool_attempts"], m
     const kernel = makeKernel();
     const errors: unknown[] = [];
     const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
-    await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken, { onError: (e) => errors.push(e) }).append(event()));
+    await assert.doesNotReject(() => new SqlToolAttemptAuditSink(broken, { onError: ({ error: e }) => errors.push(e) }).append(event()));
     assert.equal(errors.length, 1);
   });
 });

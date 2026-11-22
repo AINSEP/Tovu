@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { Response } from "express";
 
@@ -16,11 +18,7 @@ import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
  *
  * @complexity O(1).
  */
-async function parseMagicLinkRequest(
-  deps: Pick<MembersRouteDeps, "magicLinkPerEmailLimiter">,
-  res: Response,
-  rawBody: unknown
-): Promise<{ rawEmail: string; redirectPath: string | undefined } | null> {
+async function parseMagicLinkRequest({ deps, res, rawBody }: { deps: Pick<MembersRouteDeps, "magicLinkPerEmailLimiter">; res: Response; rawBody: unknown }, _optional = {}): Promise<{ rawEmail: string; redirectPath: string | undefined } | null> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const rawEmail = String(body.email ?? "");
   const emailKey = rawEmail.trim().toLowerCase();
@@ -57,34 +55,19 @@ async function parseMagicLinkRequest(
  * *after* this `authorize()` call, never before, so an unauthorized caller
  * cannot consume rate-limit budget for a target email as a side channel.
  */
-export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/members/request-magic-link", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
 
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "member.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "member",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'member.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "member.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "member.manage", workspaceId: deps.workspaceId, entityType: "member" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const parsed = await parseMagicLinkRequest(deps, res, req.body);
+      const parsed = await parseMagicLinkRequest({ deps, res, rawBody: req.body });
       if (!parsed) {
         return;
       }

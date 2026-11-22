@@ -13,7 +13,7 @@ import { registerAdminPostUpdateRoute } from "../update.js";
 import { registerAdminPostAutosaveRoute } from "../autosave.js";
 
 async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   let sequence = 0;
   const deps = { workspaceId: "ws", postRepo, clock: { nowMs: () => Date.parse("2026-10-09T00:00:00Z"), nowIso: () => "2026-10-09T00:00:00.000Z" },
     idGen: { newId: () => `author-rest-${++sequence}` }, changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(),
@@ -22,9 +22,9 @@ async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "human" }; next(); });
-  registerAdminPostCreateRoute(app, deps);
-  registerAdminPostUpdateRoute(app, deps);
-  registerAdminPostAutosaveRoute(app, deps);
+  registerAdminPostCreateRoute({ app, deps });
+  registerAdminPostUpdateRoute({ app, deps });
+  registerAdminPostAutosaveRoute({ app, deps });
   const server = createServer(app);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");

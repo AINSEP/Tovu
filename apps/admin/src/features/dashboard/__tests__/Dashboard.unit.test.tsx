@@ -130,13 +130,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   vi.unstubAllGlobals();
 });
 
 it.each([false, true])("Publish All availability follows the live-site flag %s", async (available) => {
   fetchMock.mockImplementation(routeFetch(successRoutes()));
-  setPublishToLiveAvailable(available);
+  setPublishToLiveAvailable({ next: available });
   render(<Dashboard />);
   await screen.findByText("editorial");
   if (available) expect(screen.getByRole("button", { name: "Publish All" })).toBeInTheDocument();
@@ -475,7 +475,7 @@ it("shows no manual-send (publish backstop) section even when publish to live is
     "/publish-content/peers": () => Promise.resolve(jsonResponse({ peers: [{ id: "live", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "ws-live" }] })),
     "/backstop/gaps": () => Promise.resolve(jsonResponse({ gaps: [] })),
   }));
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   const { container } = render(<Dashboard />);
   expect(await screen.findByText("Recently updated")).toBeInTheDocument();
   await waitFor(() => expect(within(statCard(container, "Posts")).getByText("3")).toBeInTheDocument());
@@ -544,4 +544,12 @@ it("shows the empty activity state when there are no posts or pages yet", async 
   }));
   render(<Dashboard />);
   expect(await screen.findByText("Nothing published or drafted yet.")).toBeInTheDocument();
+});
+
+it("hides Publish All when the injected usePublishToLiveAvailableHook reports the live site unavailable", async () => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  setPublishToLiveAvailable({ next: true });
+  render(<Dashboard usePublishToLiveAvailableHook={() => false} />);
+  await screen.findByText("editorial");
+  expect(screen.queryByRole("button", { name: "Publish All" })).not.toBeInTheDocument();
 });

@@ -1,7 +1,8 @@
 /** S3 trusted sites-home bridge. The CLI owns persistence; main owns dialogs, files and scheduling.
  * Shared keys are project references: nothing here copies a key into a site or opens an owner store.
  */
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { describeErrorForLog } from '@jini-ai/core/model-facing-tool-errors';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { ownerStoreFailure } from './owner-store-cli.ts';
 import { OWNER_STORE_CHANNELS, type LegacyImportReport, type LegacyImportSource, type OwnerStoreAction,
   type OwnerStoreCliFields, type OwnerStoreReply, type SharedOAuthDisconnectReport } from './contracts/owner-store.ts';
@@ -18,7 +19,7 @@ interface OwnerStorePorts {
   confirmDisconnect?: (input: { report: SharedOAuthDisconnectReport }) => Promise<boolean>;
 }
 interface OwnerStoreEvent { senderFrame: { url: string; parent: unknown } | null }
-type Serialize = <T>(work: () => Promise<T>) => Promise<T>;
+type Serialize = <T>(required: { work: () => Promise<T> }, options?: {}) => Promise<T>;
 export interface OwnerStoreController {
   execute: (input: { action: OwnerStoreAction; input: unknown }, options?: {}) => Promise<OwnerStoreReply>;
 }
@@ -69,12 +70,12 @@ async function importRequest({ request, ports, serialize }: {
 }, _options = {}): Promise<OwnerStoreReply<'import'>> {
   const fields = await importFields({ request, ports });
   if (fields === null) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
-  const dryRun = await serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: false } }));
+  const dryRun = await serialize({ work: () => ports.run({ action: 'import', fields: { ...fields, apply: false } }) });
   if (!dryRun.ok || !dryRun.data.items.some(item => item.status === 'new')) return dryRun;
   if (!await ports.confirmImport({ report: dryRun.data })) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
   // The CLI rereads the source; naming the confirmed dry run's digest refuses a source replaced meanwhile.
   const expectedDigest = dryRun.data.sourceDigest;
-  return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }));
+  return serialize({ work: () => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }) });
 }
 
 /** Only main binds the apply to the source digest; the renderer's reply never carries it. */
@@ -92,10 +93,10 @@ async function disconnectRequest({ request, ports, serialize }: {
   const expectedRevision = request.expectedRevision;
   if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error(INVALID_REQUEST);
   const fields = { id, expectedRevision };
-  const reviewed = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: false } }));
+  const reviewed = await serialize({ work: () => ports.run({ action: 'disconnect', fields: { ...fields, apply: false } }) });
   if (!reviewed.ok) return reviewed;
   if (!ports.confirmDisconnect || !await ports.confirmDisconnect({ report: reviewed.data })) return ownerStoreFailure({ action: 'disconnect', code: 'cancelled' });
-  const result = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: true, expectedDigest: reviewed.data.sourceDigest } }));
+  const result = await serialize({ work: () => ports.run({ action: 'disconnect', fields: { ...fields, apply: true, expectedDigest: reviewed.data.sourceDigest } }) });
   if (!result.ok) return result;
   const { sourceDigest: _mainOnly, ...data } = result.data;
   return { ...result, data };
@@ -110,11 +111,11 @@ async function executeRequest({ action, input, ports, serialize }: {
   const request = requestInput({ action, input });
   // A total Record keeps the exhaustiveness check without a switch.
   const handlers: Record<OwnerStoreAction, () => Promise<OwnerStoreReply>> = {
-    status: () => serialize(() => ports.run({ action: 'status', fields: {} })),
-    list: () => serialize(() => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} })),
+    status: () => serialize({ work: () => ports.run({ action: 'status', fields: {} }) }),
+    list: () => serialize({ work: () => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} }) }),
     // Project attachments reference the original row; a save never creates a site copy.
-    put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
-    delete: () => serialize(() => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } })),
+    put: () => serialize({ work: () => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } }) }),
+    delete: () => serialize({ work: () => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } }) }),
     import: async () => withoutSourceDigest(await importRequest({ request, ports, serialize })),
     disconnect: () => disconnectRequest({ request, ports, serialize }),
   };
@@ -128,8 +129,8 @@ async function executeRequest({ action, input, ports, serialize }: {
  * @example const store = createOwnerStoreController({ run, pickBackup, confirmImport });
  */
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
-  const queue = createKeyedSerializer();
-  const serialize: Serialize = work => queue.run('owner-store', work);
+  const queue = createKeyedSerializer({});
+  const serialize: Serialize = ({ work }, _options = {}) => queue.run({ key: 'owner-store', fn: work });
   return {
     execute: async ({ action, input }, _options = {}) => {
       try { return await executeRequest({ action, input, ports, serialize }); }
@@ -153,10 +154,10 @@ const SKIPPED: Record<NonNullable<LegacyImportReport['items'][number]['reason']>
 export function importConfirmation({ report }: { report: LegacyImportReport }, _options = {}): { message: string; detail: string } {
   const name = (item: LegacyImportReport['items'][number]) => item.provider ? `${item.label} (${item.provider})` : item.label;
   const fresh = report.items.filter(item => item.status === 'new');
-  const skipped = report.items.filter(item => item.reason !== undefined);
+  const skipped = report.items.filter((item): item is typeof item & { reason: NonNullable<typeof item.reason> } => item.reason !== undefined);
   const same = report.items.filter(item => item.status === 'already-imported').length;
   const lines = [`Imports into your project:`, ...fresh.map(item => `• ${name(item)}`)];
-  if (skipped.length) lines.push('', 'Not imported:', ...skipped.map(item => `• ${name(item)}: ${SKIPPED[item.reason!]}`));
+  if (skipped.length) lines.push('', 'Not imported:', ...skipped.map(item => `• ${name(item)}: ${SKIPPED[item.reason]}`));
   if (same) lines.push('', `Already in your project: ${same}`);
   if (report.pending.length) {
     lines.push('', 'These sites keep their own copies. To use the project key there, attach it on that site\'s Keys screen:',
@@ -182,16 +183,16 @@ export function disconnectConfirmation({ report }: { report: SharedOAuthDisconne
  * @example await settleLegacyOwnerStore({ run, removeFiles, notify, log });
  */
 export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: {
-  run: OwnerStoreRun; removeFiles: () => void; notify: () => void; log: (message: string) => void;
+  run: OwnerStoreRun; removeFiles: () => void; notify: () => void; log: (required: { message: string }) => void;
 }, _options = {}): Promise<'none' | 'removed' | 'available' | 'settled' | 'failed'> {
   try {
     const reply = await run({ action: 'status', fields: {} });
-    if (!reply.ok) { log('tovu desktop: the older shared-key store could not be checked; it was left in place.'); return 'failed'; }
+    if (!reply.ok) { log({ message: 'tovu desktop: the older shared-key store could not be checked; it was left in place.' }); return 'failed'; }
     if (reply.data.legacy === 'empty') { removeFiles(); return 'removed'; }
     if (reply.data.legacy === 'available') notify();
     return reply.data.legacy;
-  } catch {
-    log('tovu desktop: the older shared-key store could not be checked; it was left in place.');
+  } catch (error) {
+    log({ message: `tovu desktop: the older shared-key store could not be checked; it was left in place. Cause: ${describeErrorForLog({ err: error })}` });
     return 'failed';
   }
 }
@@ -204,12 +205,12 @@ export async function settleLegacyOwnerStore({ run, removeFiles, notify, log }: 
  */
 export function registerOwnerStoreIpc({ ipcMain, allowed, controller }: {
   ipcMain: { handle: (channel: string, listener: (event: OwnerStoreEvent, input: unknown) => Promise<OwnerStoreReply>) => void };
-  allowed: (url: string) => boolean; controller: Pick<OwnerStoreController, 'execute'>;
+  allowed: (required: { url: string }) => boolean; controller: Pick<OwnerStoreController, 'execute'>;
 }, _options = {}): void {
   for (const action of Object.keys(OWNER_STORE_CHANNELS) as OwnerStoreAction[]) {
     ipcMain.handle(OWNER_STORE_CHANNELS[action], (event, input) => {
       // Same S2 boundary: sharing the file URL does not make an embedded subframe sites home.
-      if (!event.senderFrame || event.senderFrame.parent !== null || !allowed(event.senderFrame.url)) {
+      if (!event.senderFrame || event.senderFrame.parent !== null || !allowed({ url: event.senderFrame.url })) {
         throw new Error('Shared keys are only available in the sites home window.');
       }
       return controller.execute({ action, input });

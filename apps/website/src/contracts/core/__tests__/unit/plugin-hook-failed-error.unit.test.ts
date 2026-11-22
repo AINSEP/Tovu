@@ -29,7 +29,7 @@ test("PluginHookFailedError carries name, pluginId, message and cause", () => {
 });
 
 test("toModelFacingPluginHookError publishes only the fixed refusal and the plugin id", () => {
-  const out = toModelFacingPluginHookError(new PluginHookFailedError("seo", "raw /secret/path"));
+  const out = toModelFacingPluginHookError({ err: new PluginHookFailedError("seo", "raw /secret/path") });
   assert.ok(out instanceof ToolInputError);
   assert.equal(out.message, "PLUGIN_HOOK_FAILED: a site plugin (seo) refused this save; the content was not saved");
 });
@@ -43,9 +43,9 @@ test("PluginHookFailedError has no refused item unless a multi-item apply names 
 });
 
 test("toModelFacingPluginHookError names the refused item and that earlier items stay saved", () => {
-  const out = toModelFacingPluginHookError(
-    new PluginHookFailedError("seo", "raw /secret/path", { refusedItemRef: "post:p-2" })
-  );
+  const out = toModelFacingPluginHookError({
+    err: new PluginHookFailedError("seo", "raw /secret/path", { refusedItemRef: "post:p-2" }),
+  });
   assert.ok(out instanceof ToolInputError);
   assert.equal(
     out.message,
@@ -55,7 +55,7 @@ test("toModelFacingPluginHookError names the refused item and that earlier items
 
 test("toModelFacingPluginHookError returns any other rejection unchanged", () => {
   const other = new Error("boom");
-  assert.equal(toModelFacingPluginHookError(other), other);
+  assert.equal(toModelFacingPluginHookError({ err: other }), other);
 });
 
 test("withPluginHookRefusals passes success and arguments through and reclassifies a refusal", async () => {

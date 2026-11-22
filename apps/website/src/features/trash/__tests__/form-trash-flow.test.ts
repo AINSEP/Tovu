@@ -11,10 +11,11 @@ import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { createTrashService, type TrashRegistry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
@@ -41,26 +42,26 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   // Needed for `form`'s purgeFirst -> `form_submission` phantom-row cleanup (T1 item 5) — same ref
   // shape `deps.ts` builds at composition.
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   let seq = 0;
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
   return {
     db,
     registry,
     trash,
-    definitions: new SqliteFormDefinitionRepo(db),
-    submissions: new SqliteFormSubmissionRepo(db),
+    definitions: new SqliteFormDefinitionRepo({ store: db }),
+    submissions: new SqliteFormSubmissionRepo({ store: db }),
   };
 }
 
@@ -96,7 +97,7 @@ async function trashForm(h: Harness, id: string): Promise<void> {
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }
@@ -118,6 +119,7 @@ function refusingSubmitDeps(h: Harness): SubmitFormDeps {
     throw new Error(`submitForm reached ${name} for a trashed form`);
   };
   return {
+    crypto: globalThis.crypto,
     definitionRepo: h.definitions,
     submissionRepo: h.submissions,
     outbox: { enqueue: unreachable("outbox") } as unknown as SubmitFormDeps["outbox"],
@@ -160,7 +162,7 @@ test("public submit to a trashed form is refused as not-found, and writes no sub
 test("a contact-form widget embedding a trashed form renders the target-disabled placeholder", async () => {
   const h = harness();
   seedFormWithSubmissions(h, "f1", 0);
-  const resolver = createContactFormResolver({ formDefinitionRepo: h.definitions });
+  const resolver = createContactFormResolver({ formDefinitionRepo: h.definitions, crypto: globalThis.crypto });
   const instance = { id: "w1", config: { formDefinitionId: "f1" } };
 
   const before = await resolver.resolveMany([instance] as never, { workspaceId: WS } as never);
@@ -214,7 +216,7 @@ test("a form_submission moved to the Trash shows the form's name and the time, n
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async (params) =>
         params.permission === "admin.forms.submissions.delete"
           ? { allowed: true, reason: "matched" }
@@ -248,7 +250,7 @@ test("purge of a form removes the Trash row of a submission that was independent
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }

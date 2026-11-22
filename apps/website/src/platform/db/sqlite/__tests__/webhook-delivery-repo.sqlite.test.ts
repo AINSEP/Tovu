@@ -5,12 +5,15 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "#src/features/webhooks/repo.memory";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/repo.memory";
+import { processDueDeliveries } from "#src/features/webhooks/delivery";
+import { createFixedSecretSigner } from "#src/features/webhooks/signing";
+import { createSubscription } from "#src/features/webhooks/subscriptions";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
 import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
-import type { WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
+import type { HttpClientPort, WebhookDeliveryRepoPort } from "#src/features/webhooks/ports";
 import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "#src/features/webhooks/types";
 
 /**
@@ -348,11 +351,11 @@ runContractSuite("InMemory", () => {
   });
 });
 
-runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo(openContentDb(":memory:")));
+runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo({ store: openContentDb(":memory:") }));
 
 test("ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue()'s optional envelope argument is durably readable BEFORE any separate save() call ever runs", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
 
   // The envelope rides into enqueue() itself — save() is never called in this test at all. If
   // this were the old two-step design (enqueue() always leaves payload_json NULL, only save()
@@ -369,17 +372,83 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
   try {
     const writer = openContentDb(dbPath);
     try {
-      const first = new SqliteWebhookDeliveryRepo(writer);
+      const first = new SqliteWebhookDeliveryRepo({ store: writer });
       await first.enqueue({ record: makeDelivery() });
       await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
     } finally { writer.$client.close(); }
     const reader = openContentDb(dbPath);
     try {
-      const rehydrated = new SqliteWebhookDeliveryRepo(reader);
+      const rehydrated = new SqliteWebhookDeliveryRepo({ store: reader });
       assert.deepEqual(await rehydrated.findById({ workspaceId: "workspace-1", id: "delivery-1" }), makeDelivery());
       assert.deepEqual(await rehydrated.find({ deliveryId: "delivery-1" }), makeEnvelope());
     } finally { reader.$client.close(); }
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+async function prepareWebhookReplay() {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-webhook-replay-"));
+  const dbPath = join(dir, "content.db");
+  const time = { iso: "2026-07-10T00:00:00.000Z" };
+  const clock = { nowIso: () => time.iso };
+  const subscriptionRepo = new InMemoryWebhookSubscriptionRepo();
+  for (const id of ["sub-1", "sub-2"]) {
+    await createSubscription({
+      deps: { repo: subscriptionRepo, clock, idGenerator: { newId: () => id }, isAllowedTarget: async () => true },
+      input: { workspaceId: "workspace-1", ownerPrincipalId: "principal-1", createdByPrincipalId: "principal-1",
+        label: id, targetUrl: "https://example.com/hooks", topics: ["post.published"] },
+    });
+  }
+  const signer = createFixedSecretSigner({ secrets: new Map([
+    ["sub-1", Buffer.from("shared-secret")], ["sub-2", Buffer.from("shared-secret")],
+  ]) });
+  return { dir, dbPath, store: openContentDb(dbPath), time, clock, subscriptionRepo, signer };
+}
+
+test("an accepted webhook POST replays after lost settlement with a stable ID and fenced attempts", async t => {
+  const rig = await prepareWebhookReplay();
+  const posts: Parameters<HttpClientPort["send"]>[0][] = []; const effects = new Set<string>();
+  let staleSettlementRow: WebhookDeliveryRecord | null = null;
+  const sentinel = new Error("settlement lost before writing");
+  let repo = new SqliteWebhookDeliveryRepo({ store: rig.store });
+  const httpClient: HttpClientPort = { async send(request) {
+    posts.push(request); effects.add(`${request.url}|${request.headers["tovu-delivery-id"]}`);
+    if (posts.length === 2) {
+      await repo.markDelivered({ workspaceId: "workspace-1", id: "delivery-1", responseStatus: 204, deliveredAtIso: rig.clock.nowIso() }, { claimedAttempts: 1 });
+      staleSettlementRow = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    }
+    return { status: 204, headers: {}, bodyText: "" };
+  } };
+  const deps = { deliveryRepo: repo, envelopeStore: repo, subscriptionRepo: rig.subscriptionRepo,
+    signer: rig.signer, clock: rig.clock, httpClient };
+  try {
+    try {
+      await repo.enqueue({ record: makeDelivery() }, { envelope: makeEnvelope() });
+      t.mock.method(repo, "markDelivered", async () => { throw sentinel; });
+      await assert.rejects(processDueDeliveries({ deps }, { claimLeaseMs: 1_000 }), error => error === sentinel,
+        "a successful POST with a failed settlement propagates the exact storage failure");
+      assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }),
+        makeDelivery({ status: "delivering", attempts: 1, nextAttemptAt: "2026-07-10T00:00:01.000Z" }), "the accepted attempt remains leased and unsettled");
+    } finally { rig.store.$client.close(); }
+    const store = openContentDb(rig.dbPath);
+    try {
+      repo = new SqliteWebhookDeliveryRepo({ store }); deps.deliveryRepo = repo; deps.envelopeStore = repo;
+      rig.time.iso = "2026-07-10T00:00:01.000Z";
+      await processDueDeliveries({ deps }, { claimLeaseMs: 1_000 });
+      assert.deepEqual(staleSettlementRow, makeDelivery({ status: "delivering", attempts: 2, nextAttemptAt: "2026-07-10T00:00:02.000Z" }),
+        "the stale attempt-one settlement leaves the reclaimed attempt-two row delivering");
+      assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" }),
+        makeDelivery({ status: "delivered", attempts: 2, nextAttemptAt: "2026-07-10T00:00:02.000Z", lastResponseStatus: 204, deliveredAt: rig.clock.nowIso() }),
+        "the real attempt-two settlement delivers the reclaimed row");
+      assert.deepEqual(posts.map(request => [request.method, request.headers["tovu-delivery-id"]]),
+        [["POST", "delivery-1"], ["POST", "delivery-1"]], "both POSTs carry the persisted delivery ID across restart");
+      assert.deepEqual([...effects], ["https://example.com/hooks|delivery-1"], "the receiver applies one effect for the repeated destination and delivery ID");
+      await repo.enqueue({ record: makeDelivery({ id: "delivery-2", subscriptionId: "sub-2" }) }, { envelope: makeEnvelope({ deliveryId: "delivery-2" }) });
+      await processDueDeliveries({ deps }, { claimLeaseMs: 1_000 });
+      assert.equal(posts[2]!.headers["tovu-delivery-id"], "delivery-2", "the second subscription receives its own persisted delivery ID");
+      assert.deepEqual(posts.map(request => request.headers["tovu-event-id"]), ["event-1", "event-1", "event-1"], "both subscriptions retain the same event identity");
+      assert.deepEqual([...effects], ["https://example.com/hooks|delivery-1", "https://example.com/hooks|delivery-2"], "the second subscription produces a second receiver effect");
+    } finally { store.$client.close(); }
+  } finally { rmSync(rig.dir, { recursive: true, force: true }); }
 });
 
 /**
@@ -389,7 +458,7 @@ test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlyi
  */
 test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the unique index) is also a silent no-op", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
   await repo.enqueue({ record: makeDelivery() });
 
   // Same id as the row above, but a different (workspaceId, subscriptionId, eventId) — this trips
@@ -404,7 +473,7 @@ test("SqliteWebhookDeliveryRepo.enqueue: a colliding id (PRIMARY KEY, not the un
  *  NULL failure on `topic`) must propagate, not be swallowed as "already enqueued". */
 test("SqliteWebhookDeliveryRepo.enqueue: a non-uniqueness constraint violation (NOT NULL) is rethrown, not swallowed", async () => {
   const db = openContentDb(":memory:");
-  const repo = new SqliteWebhookDeliveryRepo(db);
+  const repo = new SqliteWebhookDeliveryRepo({ store: db });
 
   // `topic` is `NOT NULL` in the schema; `WebhookTopic` itself disallows null, so this cast is the
   // only way to construct the malformed record this test needs to reach the real SQLite driver.

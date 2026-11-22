@@ -1,3 +1,4 @@
+import { OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS } from '../migrations/0042_optimistic_concurrency_versions.js';
 import { OWNER_PASSKEYS_SQL } from '../migrations/0041_owner_passkeys.js';
 import { OWNER_MFA_SQL } from '../migrations/0040_owner_mfa.js';
 import { OWNER_RECOVERY_CODES_SQL } from '../migrations/0039_owner_recovery_codes.js';
@@ -21,7 +22,8 @@ import { documentBlobOwnershipStatements } from "../migrations/0015_document_blo
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
 import { FORM_DELIVERY_PLANS_STATEMENTS } from "../migrations/0019_form_delivery_plans.js";
-import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
+import { CONTENT_MIGRATIONS } from "../migrations/index.js";
+import { type MigrationStep } from "@jini-ai/core/contracts/storage";
 import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
 import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empty_core_commerce_tables.js";
@@ -29,6 +31,7 @@ import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migratio
 import { widenedVaultTableDdl } from "../migrations/0020_vault_api_connection_kind.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import { sqliteClientOf, type NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file Synchronous construction of a BRAND-NEW Tovu content database at head.
@@ -54,15 +57,44 @@ import { sqliteClientOf, type NativeSqliteDatabase } from "../kernel/drivers/sql
 export function bootstrapFreshContentDb(
   { db }: { db: { $client: NativeSqliteDatabase } },
   // Injectable for the drift guard's own test; production always uses the real step list.
-  { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep[] } = {},
+  { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep<KyselyKernel<unknown>>[] } = {},
 ): boolean {
-  const client = sqliteClientOf(db);
+  const client = sqliteClientOf({ source: db });
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;
   if (hasTables()) return false;
 
   // These are Tovu's fresh-schema operations, not a second existing-database migrator.
   // Use the real history's IDs/checksums so the ordinary site runner sees head on first boot.
   const operations: Readonly<Record<string, () => void>> = {
+    ...freshBaselineOperations(client),
+    ...freshSubmissionOperations(client),
+    ...freshVaultOperations(client),
+    ...freshContentOperations(client),
+    ...freshSiteOperations(client),
+  };
+  if (migrations.length !== Object.keys(operations).length ||
+      migrations.some(step => !Object.hasOwn(operations, step.id))) {
+    throw new Error("fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard");
+  }
+
+  return client.transaction(() => {
+    // Another process may have built this file while we were waiting for its write lock.
+    if (hasTables()) return false;
+    // Ledger and schema commit together. A failure leaves an empty database that can be retried.
+    client.exec("CREATE TABLE tovu_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL)");
+    const record = client.prepare("INSERT INTO tovu_migrations (id, checksum, applied_at) VALUES (?, ?, ?)");
+    for (const step of migrations) {
+      const operation = operations[step.id];
+      if (!operation) throw new Error(`fresh content bootstrap has no operation for ${step.id}`);
+      operation();
+      record.run(step.id, step.checksum, new Date().toISOString());
+    }
+    return true;
+  }).immediate();
+}
+
+function freshBaselineOperations(client: ReturnType<typeof sqliteClientOf>): Readonly<Record<string, () => void>> {
+  return {
     "0000_legacy_baseline": () => {
       client.exec("CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)");
       const record = client.prepare('INSERT INTO __drizzle_migrations ("hash", "created_at") VALUES (?, ?)');
@@ -88,7 +120,12 @@ export function bootstrapFreshContentDb(
     },
     "0005_media_createdby": () => {
       client.exec("ALTER TABLE media ADD COLUMN created_by text");
-    },
+    }
+  };
+}
+
+function freshSubmissionOperations(client: ReturnType<typeof sqliteClientOf>): Readonly<Record<string, () => void>> {
+  return {
     "0006_submission_ip_retention": () => {
       // SQLite rebuilds this table to relax NOT NULL. Preserve all baseline indexes/triggers;
       // this is a fresh table, so no existing site data or external plugin objects are present.
@@ -132,7 +169,12 @@ export function bootstrapFreshContentDb(
     },
     "0009_posts_author": () => {
       for (const statement of POSTS_AUTHOR_SQLITE_STATEMENTS) client.exec(statement);
-    },
+    }
+  };
+}
+
+function freshVaultOperations(client: ReturnType<typeof sqliteClientOf>): Readonly<Record<string, () => void>> {
+  return {
     "0010_members_credentials_revoked_at": () => client.exec(MEMBERS_CREDENTIALS_REVOKED_AT_SQL),
     "0011_archive_legacy_commerce": () => {}, // Fresh baseline has no commerce rows to preserve.
     "0011_drop_empty_core_commerce_tables": () => {
@@ -175,7 +217,12 @@ export function bootstrapFreshContentDb(
     "0022_workspace_mcp_cascade": () => client.exec(WORKSPACE_MCP_CASCADE_SQLITE),
     "0023_mail_ledgers": () => {
       for (const statement of MAIL_LEDGERS_STATEMENTS) client.exec(statement);
-    },
+    }
+  };
+}
+
+function freshContentOperations(client: ReturnType<typeof sqliteClientOf>): Readonly<Record<string, () => void>> {
+  return {
     "0024_domain_bindings": () => {
       for (const statement of DOMAIN_BINDINGS_STATEMENTS) client.exec(statement);
     },
@@ -213,7 +260,15 @@ export function bootstrapFreshContentDb(
     "0038_newsletter_sending_index": () => client.exec(NEWSLETTER_SENDING_INDEX_SQL),
     "0039_owner_recovery_codes": () => client.exec(OWNER_RECOVERY_CODES_SQL),
     "0040_owner_mfa": () => { for (const statement of OWNER_MFA_SQL) client.exec(statement); },
-    "0041_owner_passkeys": () => { for (const statement of OWNER_PASSKEYS_SQL) client.exec(statement); },
+    "0041_owner_passkeys": () => { for (const statement of OWNER_PASSKEYS_SQL) client.exec(statement); }
+  };
+}
+
+function freshSiteOperations(client: ReturnType<typeof sqliteClientOf>): Readonly<Record<string, () => void>> {
+  return {
+    "0042_optimistic_concurrency_versions": () => {
+      for (const statement of OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS) client.exec(statement);
+    },
     "0018_form_submission_remote_receipts": () => {
       for (const statement of FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS) client.exec(statement);
     },
@@ -235,23 +290,7 @@ export function bootstrapFreshContentDb(
         client.exec("PRAGMA legacy_alter_table = OFF");
       }
       for (const object of objects) client.exec(object.sql);
-    },
-  };
-  if (migrations.length !== Object.keys(operations).length ||
-      migrations.some(step => !Object.hasOwn(operations, step.id))) {
-    throw new Error("fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard");
-  }
-
-  return client.transaction(() => {
-    // Another process may have built this file while we were waiting for its write lock.
-    if (hasTables()) return false;
-    // Ledger and schema commit together. A failure leaves an empty database that can be retried.
-    client.exec("CREATE TABLE tovu_migrations (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL)");
-    const record = client.prepare("INSERT INTO tovu_migrations (id, checksum, applied_at) VALUES (?, ?, ?)");
-    for (const step of migrations) {
-      operations[step.id]!();
-      record.run(step.id, step.checksum, new Date().toISOString());
     }
-    return true;
-  }).immediate();
+  };
 }
+

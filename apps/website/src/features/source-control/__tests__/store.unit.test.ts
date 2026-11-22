@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import { credentialScope } from "../../vendor-credentials/vault-adapter.js";
 import type { LoadSourceControlProviders } from "../provider-registry.js";
@@ -24,6 +24,7 @@ import {
   type SourceControlCredentialWriteDeps,
 } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { EgressRefusedError, type HttpClientPort, type HttpRequest } from "#src/platform/http/index";
 
 /** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Mirrors `store.resolve.unit.test.ts`'s own local `BrokenKeyring` (kept local to each test file, not
@@ -52,16 +53,25 @@ const WORKSPACE = "ws-1";
 const NOW = "2026-08-15T00:00:00.000Z";
 
 /** Empty provider registry, distinct from a loaded provider whose identity probe returns null. */
-const noProviders: LoadSourceControlProviders = async (_workspaceId) => ({ list: () => [], get: () => undefined, refusals: [] });
+const noProviders: LoadSourceControlProviders = async (_required) => ({ list: () => [], get: () => undefined, refusals: [] });
 
 /** Reject rather than allowing a fixture token onto the real network. */
-function neverCallRealNetwork(): typeof fetch {
-  return (async () => {
-    throw new Error("test fetchFn stub: no test in this file should reach the real network");
-  }) as unknown as typeof fetch;
+function neverCallRealNetwork(): HttpClientPort {
+  return { send: async () => { throw new Error("test httpClient stub: no test in this file should reach the real network"); } };
 }
 
-function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): SourceControlCredentialWriteDeps {
+/** The guarded client the probe is given, answering from a fetch-shaped stub (a `Response` per call) so each
+ *  test scripts one response; the request's URL, headers and redirect mode reach the stub as `fetch` would see them. */
+function clientFromFetch(fetchStub: typeof fetch): HttpClientPort {
+  return { send: async (request, options) => {
+    const response = await fetchStub(request.url, { method: request.method, headers: { ...request.headers }, ...(options?.redirect ? { redirect: options.redirect } : {}) });
+    return { status: response.status, headers: {}, bodyText: await response.text() };
+  } };
+}
+
+type TestDepsOverrides = Partial<SourceControlCredentialWriteDeps> & { fetchFn?: typeof fetch };
+
+function makeDeps({ fetchFn, ...overrides }: TestDepsOverrides = {}): SourceControlCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
@@ -70,7 +80,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
-    fetchFn: neverCallRealNetwork(),
+    httpClient: fetchFn ? clientFromFetch(fetchFn) : neverCallRealNetwork(),
     loadSourceControlProviders: exampleProviders,
     ...overrides,
   };
@@ -367,7 +377,7 @@ test("updateSourceControlCredential with a NEW connection re-probes and can chan
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t1" } } });
   assert.equal(created.accountLabel, "old-account");
 
-  deps.fetchFn = fetchIdentity("t2", "new-account");
+  deps.httpClient = clientFromFetch(fetchIdentity("t2", "new-account"));
   const updated = await updateSourceControlCredential({ deps: deps, input: {
     workspaceId: WORKSPACE,
     id: created.id,
@@ -388,7 +398,7 @@ test("updateSourceControlCredential with a NEW connection resets accountLabel to
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t1" } } });
   assert.equal(created.accountLabel, "old-account");
 
-  deps.fetchFn = fetchReturningJson(401, { message: "Bad credentials" });
+  deps.httpClient = clientFromFetch(fetchReturningJson(401, { message: "Bad credentials" }));
   const updated = await updateSourceControlCredential({ deps: deps, input: {
     workspaceId: WORKSPACE,
     id: created.id,
@@ -478,24 +488,24 @@ test("updateSourceControlCredential fails closed the same way when a NEW connect
 });
 
 test("isUniqueLabelViolation: a non-Error thrown value is never mistaken for a unique-constraint violation", () => {
-  assert.equal(isUniqueLabelViolation("just a string"), false);
-  assert.equal(isUniqueLabelViolation(null), false);
-  assert.equal(isUniqueLabelViolation({ message: "UNIQUE constraint failed" }), false, "an object merely SHAPED like an Error is not one");
+  assert.equal(isUniqueLabelViolation({ err: "just a string" }), false);
+  assert.equal(isUniqueLabelViolation({ err: null }), false);
+  assert.equal(isUniqueLabelViolation({ err: { message: "UNIQUE constraint failed" } }), false, "an object merely SHAPED like an Error is not one");
 });
 
 test("isUniqueLabelViolation: an Error with better-sqlite3's own .code is recognized, independent of its message text", () => {
   const err = new Error("some unrelated driver wording");
   (err as Error & { code: string }).code = "SQLITE_CONSTRAINT_UNIQUE";
-  assert.equal(isUniqueLabelViolation(err), true);
+  assert.equal(isUniqueLabelViolation({ err }), true);
 });
 
 test("isUniqueLabelViolation: a Postgres/PGlite UNIQUE violation (SQLSTATE 23505, Postgres wording) is recognized", () => {
   const err = Object.assign(new Error('duplicate key value violates unique constraint "source_control_credential_sets_label_idx"'), { code: "23505" });
-  assert.equal(isUniqueLabelViolation(err), true);
+  assert.equal(isUniqueLabelViolation({ err }), true);
 });
 
 test("isUniqueLabelViolation: an Error with neither a matching .code nor matching message text is NOT a unique-constraint violation", () => {
-  assert.equal(isUniqueLabelViolation(new Error("connection reset")), false);
+  assert.equal(isUniqueLabelViolation({ err: new Error("connection reset") }), false);
 });
 
 test("a non-string label (e.g. a number) is rejected the same as a blank one", async () => {
@@ -760,7 +770,7 @@ test('optional and secret fields reuse credential.fields, while undeclared value
     { name: 'password', label: 'Password', required: false, secret: true as const },
   ] } };
   const loaded = { ...base, descriptor };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === descriptor.id ? loaded : undefined, refusals: [] }) });
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-absent', connection: { providerId: descriptor.id, token: 'token-one', undeclared: 'ignored' } } });
   assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-one' });
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-present', isDefault: true, connection: { providerId: descriptor.id, token: 'token-two', note: 'metadata', password: '  paired-secret  ' } } });
@@ -775,7 +785,7 @@ test('non-default declared token names accept canonical admin input and normaliz
     { name: 'accessToken', label: 'Access token', required: true, secret: true as const },
     { name: 'username', label: 'Username', required: true },
   ] } } };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }) });
   // Keep public labels distinct from secret field names so the leak assertion checks the payload.
   for (const [field, label] of [['token', 'canonical-input'], ['accessToken', 'declared-input']] as const) {
     const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label, isDefault: true,
@@ -840,7 +850,7 @@ test('T36: blank-token patches refuse changes to other connection fields', async
     ],
   } } };
   const deps = makeDeps({ loadSourceControlProviders: async () => ({
-    list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
+    list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
   }) });
   const connection = { providerId: loaded.descriptor.id, token: 'saved-fixture-token', baseUrl: 'https://old.example.test' };
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'endpoint', connection } });
@@ -858,7 +868,7 @@ test('token-only providers without a credential form still use token admission; 
   const base = exampleRegistry({ probe: false }).list()[0]!;
   const { credential: _credential, ...descriptor } = base.descriptor;
   const loaded = { ...base, descriptor };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === descriptor.id ? loaded : undefined, refusals: [] }) });
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'no-form', connection: { providerId: descriptor.id, token: 'accepted-secret' } } });
   assert.equal(saved.configured, true);
   const absent = { ...deps, loadSourceControlProviders: undefined };
@@ -884,7 +894,7 @@ test('non-auth HTTP failures report unreachable without removing the saved crede
 
 test('a provider disabled after admission cannot prevent durable storage or run its identity probe', async () => {
   let reads = 0;
-  const deps = makeDeps({ loadSourceControlProviders: async () => ++reads === 1 ? exampleRegistry() : noProviders('') });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ++reads === 1 ? exampleRegistry() : noProviders({ workspaceId: '' }) });
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'racing-disable', connection: { providerId: 'example-git', token: 'stored-secret' } } });
   assert.equal(saved.connection, 'saved');
   assert.equal(saved.accountLabel, null);
@@ -896,4 +906,69 @@ test('a write-only caller can retain an admitted connection if its discovery por
   deps.loadSourceControlProviders = async () => { delete deps.loadSourceControlProviders; return exampleRegistry({ probe: false }); };
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'no-discovery', connection: { providerId: 'example-git', token: 'stored-secret' } } });
   assert.equal(saved.connection, 'saved');
+});
+
+// ---------------------------------------------------------------------------
+// The save-time probe carries the saved token: it leaves only through the guarded client, redirects
+// refused, and never through the global `fetch`.
+// ---------------------------------------------------------------------------
+
+/** Runs `body` with the global `fetch` replaced by one that fails the test if it is ever called. */
+async function withGlobalFetchForbidden<T>(body: (calls: string[]) => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input: string | URL | Request) => { calls.push(String(input)); throw new Error("the global fetch must not carry a saved token"); }) as typeof fetch;
+  try { return await body(calls); } finally { globalThis.fetch = original; }
+}
+
+/** A guarded-client double that records each call (request and options) and answers or fails as scripted. */
+function recordingClient(answer: { status: number; body: unknown } | Error): { client: HttpClientPort; sent: { request: HttpRequest; redirect: string | undefined }[] } {
+  const sent: { request: HttpRequest; redirect: string | undefined }[] = [];
+  const client: HttpClientPort = { send: async (request, options) => {
+    sent.push({ request, redirect: options?.redirect });
+    if (answer instanceof Error) throw answer;
+    return { status: answer.status, headers: {}, bodyText: JSON.stringify(answer.body) };
+  } };
+  return { client, sent };
+}
+
+const probeInput = { workspaceId: WORKSPACE, label: "guarded", connection: { providerId: "example-git", token: "fixture_probe_token" } };
+
+test("the save-time probe sends the token through the guarded client with redirects refused, never the global fetch", async () => {
+  const { client, sent } = recordingClient({ status: 200, body: { account: "octo" } });
+  await withGlobalFetchForbidden(async (globalCalls) => {
+    const saved = await createSourceControlCredential({ deps: makeDeps({ httpClient: client }), input: probeInput });
+    assert.equal(saved.accountLabel, "octo");
+    assert.equal(saved.connection, "connected");
+    assert.deepEqual(globalCalls, []);
+  });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]!.request.url, "https://git.example.test/identity");
+  assert.equal(sent[0]!.request.headers.Authorization, "Bearer fixture_probe_token");
+  assert.equal(sent[0]!.redirect, "error", "a credentialed call must refuse redirects");
+});
+
+test("a redirect refused by the guarded client leaves the label unknown and reports unreachable, after a durable save", async () => {
+  const { client } = recordingClient(new EgressRefusedError({ message: "redirect response refused by the request's redirect policy" }));
+  const deps = makeDeps({ httpClient: client });
+  const saved = await createSourceControlCredential({ deps, input: probeInput });
+  assert.equal(saved.accountLabel, null);
+  assert.equal(saved.connection, "unreachable");
+  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
+});
+
+test("the guarded transport's own idle timeout is reported as a timeout", async () => {
+  const { client } = recordingClient(new Error("request timed out after 10000ms"));
+  const saved = await createSourceControlCredential({ deps: makeDeps({ httpClient: client }), input: probeInput });
+  assert.equal(saved.connection, "timeout");
+});
+
+test("without a guarded client the provider's request fails as a transport error: nothing leaves the process and the save still succeeds", async () => {
+  const { httpClient: _absent, ...withoutClient } = makeDeps();
+  await withGlobalFetchForbidden(async (globalCalls) => {
+    const saved = await createSourceControlCredential({ deps: withoutClient, input: probeInput });
+    assert.equal(saved.accountLabel, null);
+    assert.equal(saved.connection, "saved");
+    assert.deepEqual(globalCalls, []);
+  });
 });

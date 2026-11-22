@@ -33,7 +33,7 @@ afterEach(() => {
 
 test("posts {exchangeId, message} to baseUrl + path, using the message's own action.surfaceId as the exchangeId", async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
-  const post = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
+  const post = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/admin/v1/a2ui/actions" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -49,7 +49,7 @@ test("posts {exchangeId, message} to baseUrl + path, using the message's own act
 
 test("ignores the chat runId for correlation — the message's own surfaceId is the address", async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   await post(undefined, ACTION_MESSAGE);
 
@@ -58,7 +58,7 @@ test("ignores the chat runId for correlation — the message's own surfaceId is 
 });
 
 test("a message with no surfaceId is never posted — reported to the console and returned as a failure", async () => {
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", { version: "v1.0", functionResponse: { functionCallId: "c1", call: "greetUser", value: "hi" } });
 
@@ -68,7 +68,7 @@ test("a message with no surfaceId is never posted — reported to the console an
 });
 
 test("a message that isn't an object at all (not just missing surfaceId) is still handled, not thrown on", async () => {
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", "not an object");
 
@@ -77,7 +77,7 @@ test("a message that isn't an object at all (not just missing surfaceId) is stil
 });
 
 test("a surfaceId-less message with no runId logs 'unknown' rather than the literal 'undefined'", async () => {
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   await post(undefined, { version: "v1.0" });
 
@@ -86,7 +86,7 @@ test("a surfaceId-less message with no runId logs 'unknown' rather than the lite
 
 test("an unmapped status code (not 409/400/401) falls through to the generic reason, carrying the status", async () => {
   fetchMock.mockResolvedValue(new Response("oops", { status: 500 }));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -96,7 +96,7 @@ test("an unmapped status code (not 409/400/401) falls through to the generic rea
 test("a non-ok response whose body can't be read (.text() rejects) still returns a failure outcome", async () => {
   const fakeResponse = { ok: false, status: 503, text: async () => { throw new Error("body stream errored"); } } as unknown as Response;
   fetchMock.mockResolvedValue(fakeResponse);
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -105,7 +105,7 @@ test("a non-ok response whose body can't be read (.text() rejects) still returns
 
 test("a non-2xx response is reported to the console and returned as a failure, not thrown", async () => {
   fetchMock.mockResolvedValue(new Response("that surface is no longer waiting for an answer", { status: 409 }));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -122,7 +122,7 @@ test("a non-2xx response is reported to the console and returned as a failure, n
 
 test("a 400 response maps to a reason distinct from a 409's, so the human isn't told the wrong story", async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: "bad envelope", code: "VALIDATION_ERROR" }), { status: 400 }));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -132,7 +132,7 @@ test("a 400 response maps to a reason distinct from a 409's, so the human isn't 
 
 test("a 401 response is mapped to its own reason, not the generic fallback", async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401 }));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -141,7 +141,7 @@ test("a 401 response is mapped to its own reason, not the generic fallback", asy
 
 test("a network failure is caught and reported as a failure outcome, not thrown", async () => {
   fetchMock.mockRejectedValue(new Error("network down"));
-  const post = createA2uiActionPoster("");
+  const post = createA2uiActionPoster({ baseUrl: "" });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -159,7 +159,7 @@ test("an abort (timeout) is distinguished from an ordinary network failure in th
       });
     })
   );
-  const post = createA2uiActionPoster("", { timeoutMs: 5 });
+  const post = createA2uiActionPoster({ baseUrl: "" }, { timeoutMs: 5 });
 
   const outcome = await post("run-1", ACTION_MESSAGE);
 
@@ -170,7 +170,7 @@ test("an abort (timeout) is distinguished from an ordinary network failure in th
 
 test("forwards custom headers while preserving JSON content type and strips the base URL trailing slash", async () => {
   fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-  const post = createA2uiActionPoster("https://example.test/", {
+  const post = createA2uiActionPoster({ baseUrl: "https://example.test/" }, {
     headers: { "x-test": "custom", "content-type": "text/plain" },
   });
   expect(await post("run-1", ACTION_MESSAGE)).toEqual({ ok: true });
@@ -182,6 +182,6 @@ test("forwards custom headers while preserving JSON content type and strips the 
 test("posts error messages using their own surfaceId", async () => {
   fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
   const message = { version: "v1.0", error: { surfaceId: "error-surface", code: "ERR", message: "failed" } };
-  expect(await createA2uiActionPoster("")("run-1", message)).toEqual({ ok: true });
+  expect(await createA2uiActionPoster({ baseUrl: "" })("run-1", message)).toEqual({ ok: true });
   expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ exchangeId: "error-surface", message });
 });

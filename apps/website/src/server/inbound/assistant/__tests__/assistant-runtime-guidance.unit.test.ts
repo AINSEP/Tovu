@@ -47,7 +47,7 @@ test("the overlay block appends a trailing space per sentence and is empty when 
 
 test("the Claude in Chrome guidance is the owner's exact text", () => {
   assert.equal(CLAUDE_IN_CHROME_GUIDANCE,
-    "Claude in Chrome is available: prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.");
+    "Claude in Chrome is available: use web_screenshot_page and page tools first; prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.");
 });
 
 test("Claude in Chrome is effective only for the owner, with the setting ON, on a supporting runtime", () => {
@@ -67,7 +67,7 @@ test("run options: --chrome + the whole server allowed when effective, explicit 
 function deps(values: Record<string, unknown>) {
   return {
     settingsRepo: new InMemorySettingsRepo(),
-    getEffective: (async (_d: unknown, input: { key: string }) => (input.key in values ? { value: values[input.key], sourceLayer: "user", defVersion: 1 } : null)) as unknown as typeof getEffective,
+    getEffective: (async ({ deps: _d, ...input }: { deps: unknown; key: string }) => (input.key in values ? { value: values[input.key], sourceLayer: "user", defVersion: 1 } : null)) as unknown as typeof getEffective,
     settingsReady: Promise.resolve(),
     workspaceId: "ws",
   };
@@ -77,9 +77,32 @@ const base = { principalId: "p", agentId: "claude", subagentsEnabled: true, isOw
 /** A CLI whose `--help` probe found `--chrome`, so Jini really emits the flag. */
 const probed = { probeChrome: async () => true };
 
-test("launch: defaults on Claude Code for the owner — delegation guidance on, Chrome on (owner default 2026-10-22)", async () => {
+test("launch: defaults on Claude Code for the owner — delegation guidance on, Chrome off (OD-4, 2026-11-17)", async () => {
   assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({}) }, probed),
+    { guidance: { preferSubagents: true, claudeInChrome: false, replyLength: "normal" }, runOptions: { chromeIntegration: false } });
+});
+
+test("launch: a refused browser claim launches with --no-chrome, no Chrome tools and the busy guidance", async () => {
+  const asked: string[] = [];
+  const busy = { ...probed, claimBrowser: () => { asked.push("claim"); return false; } };
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, busy),
+    { guidance: { preferSubagents: true, claudeInChrome: false, browserBusy: true, replyLength: "normal" }, runOptions: { chromeIntegration: false } });
+  assert.deepEqual(asked, ["claim"]);
+  assert.equal(buildAssistantRuntimeGuidance({ input: { preferSubagents: false, claudeInChrome: false, browserBusy: true, replyLength: "normal" } }),
+    "Another chat is using the browser integration. Use web_screenshot_page and page tools. ");
+});
+
+test("launch: a granted claim is the same launch as no lease, and only a run that would use Chrome claims", async () => {
+  const asked: string[] = [];
+  const granted = { ...probed, claimBrowser: () => { asked.push("claim"); return true; } };
+  assert.deepEqual(await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, granted),
     { guidance: { preferSubagents: true, claudeInChrome: true, replyLength: "normal" }, runOptions: { chromeIntegration: true, allowedTools: CLAUDE_IN_CHROME_ALLOWED_TOOLS } });
+  assert.deepEqual(asked, ["claim"]);
+  await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), isOwner: false }, granted);
+  await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }), agentId: "codex" }, granted);
+  await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: false }) }, granted);
+  await resolveAssistantRuntimeLaunch({ ...base, deps: deps({ useClaudeInChrome: true }) }, { claimBrowser: granted.claimBrowser });
+  assert.deepEqual(asked, ["claim"]);
 });
 
 test("launch: the Chrome default still yields --no-chrome for a non-owner, and an explicit OFF wins for the owner", async () => {

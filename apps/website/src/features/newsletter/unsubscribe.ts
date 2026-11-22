@@ -14,9 +14,8 @@
 import { timingSafeEqual } from "node:crypto";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import type { KeyringPort } from "../webhooks/index.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
+import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { NewsletterUnsubscribeTokenInvalidError } from "./errors.js";
 import type { MembersConsentCapability, NewsletterSubscriptionRepoPort } from "./ports.js";
 import type { SubscriptionRow } from "./types.js";
@@ -64,7 +63,7 @@ async function signature(keyring: KeyringPort, claims: UnsubscribeTokenClaims): 
 export async function buildUnsubscribeLink(required: {
   deps: UnsubscribeDeps;
   claims: UnsubscribeTokenClaims;
-}): Promise<string> {
+}, _optional: Record<string, never> = {}): Promise<string> {
   const { deps, claims } = required;
   const sig = await signature(deps.keyring, claims);
   const token = `${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${sig}`;
@@ -73,11 +72,11 @@ export async function buildUnsubscribeLink(required: {
 }
 
 /** Decodes the claims half of a token whose two-part shape `processUnsubscribe` already checked. */
-function decodeClaims(encoded: string): UnsubscribeTokenClaims {
+function decodeClaims({ encoded }: { encoded: string }, _options = {}): UnsubscribeTokenClaims {
   try {
     return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as UnsubscribeTokenClaims;
   } catch {
-    throw new NewsletterUnsubscribeTokenInvalidError("malformed unsubscribe token", "signature_invalid");
+    throw new NewsletterUnsubscribeTokenInvalidError({ message: "malformed unsubscribe token", reason: "signature_invalid" });
   }
 }
 
@@ -88,17 +87,17 @@ function decodeClaims(encoded: string): UnsubscribeTokenClaims {
 export async function processUnsubscribe(required: {
   deps: UnsubscribeDeps;
   input: { rawToken: string };
-}): Promise<{ outcome: "unsubscribed" | "already-unsubscribed" }> {
+}, _optional: Record<string, never> = {}): Promise<{ outcome: "unsubscribed" | "already-unsubscribed" }> {
   const { deps, input } = required;
   const [encoded, providedSig] = input.rawToken.split(".");
   if (!encoded || !providedSig) {
-    throw new NewsletterUnsubscribeTokenInvalidError("malformed unsubscribe token", "signature_invalid");
+    throw new NewsletterUnsubscribeTokenInvalidError({ message: "malformed unsubscribe token", reason: "signature_invalid" });
   }
-  const claims = decodeClaims(encoded);
+  const claims = decodeClaims({ encoded });
 
   const expectedSig = await signature(deps.keyring, claims);
-  if (!timingSafeEqualHex(expectedSig, providedSig)) {
-    throw new NewsletterUnsubscribeTokenInvalidError("unsubscribe token signature is invalid", "signature_invalid");
+  if (!timingSafeEqualHex({ a: expectedSig, b: providedSig })) {
+    throw new NewsletterUnsubscribeTokenInvalidError({ message: "unsubscribe token signature is invalid", reason: "signature_invalid" });
   }
 
   const subscription = await deps.subscriptionRepo.findBySubscriberAndList({
@@ -107,16 +106,16 @@ export async function processUnsubscribe(required: {
     subscriberId: claims.subscriberId,
   });
   if (!subscription) {
-    throw new NewsletterUnsubscribeTokenInvalidError("subscription was not found", "not_found");
+    throw new NewsletterUnsubscribeTokenInvalidError({ message: "subscription was not found", reason: "not_found" });
   }
 
   // INV-04: fail-closed the moment the current consent revision has advanced past this token's
   // mint-time value (e.g. a re-subscribe under a new consent grant since this token was issued).
   if (subscription.consentRevisionIdAtSubscribe !== claims.consentRevisionId) {
-    throw new NewsletterUnsubscribeTokenInvalidError(
-      "unsubscribe token was minted against a stale consent revision",
-      "consent_revision_mismatch"
-    );
+    throw new NewsletterUnsubscribeTokenInvalidError({
+      message: "unsubscribe token was minted against a stale consent revision",
+      reason: "consent_revision_mismatch",
+    });
   }
 
   // EC-03: a repeat of an already-processed token (same still-matching revision) is idempotent
@@ -137,7 +136,7 @@ export async function processUnsubscribe(required: {
 }
 
 /** Constant-time hex comparison (defense in depth against signature timing attacks). */
-function timingSafeEqualHex(a: string, b: string): boolean {
+function timingSafeEqualHex({ a, b }: { a: string; b: string }, _options = {}): boolean {
   if (a.length !== b.length) return false;
   return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
 }

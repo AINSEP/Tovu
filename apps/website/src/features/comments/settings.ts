@@ -9,7 +9,7 @@ import {
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
+import { CommentsSettingsValidationError, MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "@jini-ai/cms/comments";
 import type { CommentsSettings } from "@jini-ai/cms/comments";
 
 export { CommentsSettingsValidationError };
@@ -21,15 +21,15 @@ export { CommentsSettingsValidationError };
  * wiring exists — NOT as a comment table"). Namespace is `site.comments` (not a bare `comments`)
  * — the ledger's namespace owner fence requires every `ownerKind: "site"` definition to start
  * with `site.` (see `COMMENTS_NAMESPACE`'s own comment below), mirroring `site.seo`. Mirrors
- * `src/seo/settings.ts`'s exact shape — same idempotent-definitions / getEffective-read /
+ * `apps/website/src/features/seo/settings.ts`'s exact shape — same idempotent-definitions / getEffective-read /
  * validate-then-set-write structure, applied to Comments' 6 scalar fields instead of SEO's 8.
  *
  * Every `CommentsSettings` field is a plain scalar (boolean/number/nullable-number) — none needs
  * the ledger's `{type:"json"}` escape hatch, which Code Review must keep to its one existing
- * `site.seo.robots_rules` use (see `features/settings/types.ts`'s own doc on that variant).
+ * `site.seo.robots_rules` use (see `Jini packages/core/src/settings/types.ts`'s own doc on that variant).
  */
 
-// ADR-028's namespace owner fence (`features/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
+// ADR-028's namespace owner fence (`Jini packages/core/src/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
 // `ownerKind: "site"` definitions to be namespaced under `site.` — mirrors `site.seo`'s identical
 // constraint (`seo/settings.ts`'s own `SEO_NAMESPACE`). A bare `"comments"` namespace fails REQ-02
 // validation at the write chokepoint (caught directly by this file's own test suite, not
@@ -88,19 +88,17 @@ export async function ensureCommentsSettingDefinitions(
   input: EnsureCommentsSettingDefinitionsInput
 ): Promise<void> {
   await ensureSettingDefinitions(
-    { ...deps, clock: jiniClock(deps.clock), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+    { ...deps, clock: jiniClock({ clock: deps.clock }), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
     { namespace: COMMENTS_NAMESPACE, definitions: COMMENTS_DEFINITIONS, ownerKind: "site", ...input },
   );
 }
 
 async function readKey(
-  settingsRepo: SettingsRepoPort,
-  workspaceId: UUID,
-  key: CommentsSettingKey
+  { settingsRepo, workspaceId, key }: { settingsRepo: SettingsRepoPort; workspaceId: UUID; key: CommentsSettingKey },
+  _optional = {},
 ): Promise<JsonValue | null> {
   const resolved = await getEffective(
-    { repo: settingsRepo },
-    { namespace: COMMENTS_NAMESPACE, key, scopeContext: { workspaceId } }
+    { deps: { repo: settingsRepo }, namespace: COMMENTS_NAMESPACE, key, scopeContext: { workspaceId } },
   );
   return resolved ? resolved.value : null;
 }
@@ -117,12 +115,12 @@ export async function getCommentsSettings(
   input: { workspaceId: UUID }
 ): Promise<CommentsSettings> {
   const [enabled, requireModeration, maxDepth, closeAfterDays, spamAutoRejectScore, maxPerIpPerHour] = await Promise.all([
-    readKey(deps.settingsRepo, input.workspaceId, "enabled"),
-    readKey(deps.settingsRepo, input.workspaceId, "require_moderation"),
-    readKey(deps.settingsRepo, input.workspaceId, "max_depth"),
-    readKey(deps.settingsRepo, input.workspaceId, "close_after_days"),
-    readKey(deps.settingsRepo, input.workspaceId, "spam_auto_reject_score"),
-    readKey(deps.settingsRepo, input.workspaceId, "max_per_ip_per_hour"),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "enabled" }),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "require_moderation" }),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "max_depth" }),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "close_after_days" }),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "spam_auto_reject_score" }),
+    readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "max_per_ip_per_hour" }),
   ]);
 
   return {
@@ -149,12 +147,6 @@ export interface SetCommentsSettingsInput {
   callerPrincipalId: UUID;
 }
 
-// Exported (not just module-local) so `agent-tools.ts`'s published `inputSchema` bounds import
-// these single sources rather than restating the numbers — the same discipline
-// `forms/agent-tools.ts` applies to `forms.ts`'s field constants.
-export const MAX_DEPTH_CEILING = 20;
-export const MAX_PER_IP_PER_HOUR_CEILING = 1000;
-
 /**
  * The three assertion shapes the six `comments.*` fields reduce to. Each takes `unknown` rather
  * than its declared type on purpose: `Partial<CommentsSettings>` describes what a well-behaved
@@ -164,7 +156,7 @@ export const MAX_PER_IP_PER_HOUR_CEILING = 1000;
  */
 
 /** @complexity O(1). */
-function assertBoolean(value: unknown, field: string): void {
+function assertBoolean({ value, field }: { value: unknown; field: string }, _optional = {}): void {
   if (typeof value !== "boolean") {
     throw new CommentsSettingsValidationError(`${field} must be a boolean`);
   }
@@ -181,8 +173,8 @@ function assertBoolean(value: unknown, field: string): void {
  * @complexity O(1).
  */
 function assertBoundedInteger(
-  value: unknown,
-  spec: { field: string; minimum: number; maximum?: number; shapeMessage: string }
+  { value, spec }: { value: unknown; spec: { field: string; minimum: number; maximum?: number; shapeMessage: string } },
+  _optional = {},
 ): void {
   if (typeof value !== "number" || !Number.isInteger(value) || value < spec.minimum) {
     throw new CommentsSettingsValidationError(spec.shapeMessage);
@@ -193,7 +185,7 @@ function assertBoundedInteger(
 }
 
 /** A fractional field constrained to an inclusive range, reported as one message. @complexity O(1). */
-function assertNumberInRange(value: unknown, spec: { minimum: number; maximum: number; message: string }): void {
+function assertNumberInRange({ value, spec }: { value: unknown; spec: { minimum: number; maximum: number; message: string } }, _optional = {}): void {
   if (typeof value !== "number" || value < spec.minimum || value > spec.maximum) {
     throw new CommentsSettingsValidationError(spec.message);
   }
@@ -205,27 +197,27 @@ function assertNumberInRange(value: unknown, spec: { minimum: number; maximum: n
 const COMMENTS_PATCH_FIELDS: ReadonlyArray<{
   field: keyof CommentsSettings;
   key: CommentsSettingKey;
-  validate: (value: unknown) => void;
-  normalize?: (value: JsonValue) => JsonValue;
+  validate: (required: { value: unknown }, optional?: Record<string, never>) => void;
+  normalize?: (required: { value: JsonValue }, optional?: Record<string, never>) => JsonValue;
 }> = [
-  { field: "enabled", key: "enabled", validate: (value) => assertBoolean(value, "enabled") },
-  { field: "requireModeration", key: "require_moderation", validate: (value) => assertBoolean(value, "requireModeration") },
-  { field: "maxDepth", key: "max_depth", validate: (value) => assertBoundedInteger(value, {
+  { field: "enabled", key: "enabled", validate: ({ value }, _optional = {}) => assertBoolean({ value, field: "enabled" }) },
+  { field: "requireModeration", key: "require_moderation", validate: ({ value }, _optional = {}) => assertBoolean({ value, field: "requireModeration" }) },
+  { field: "maxDepth", key: "max_depth", validate: ({ value }, _optional = {}) => assertBoundedInteger({ value, spec: {
     field: "maxDepth", minimum: 0, maximum: MAX_DEPTH_CEILING, shapeMessage: "maxDepth must be a non-negative integer",
-  }) },
+  } }) },
   // `null` is legal ("never closes"), so it skips the number rules entirely.
   // Wraps the sentinel only on write; see `CLOSE_AFTER_DAYS_NEVER_SENTINEL` for why it cannot collide.
-  { field: "closeAfterDays", key: "close_after_days", validate: (value) => {
-    if (value !== null) assertBoundedInteger(value, {
+  { field: "closeAfterDays", key: "close_after_days", validate: ({ value }, _optional = {}) => {
+    if (value !== null) assertBoundedInteger({ value, spec: {
       field: "closeAfterDays", minimum: 0, shapeMessage: "closeAfterDays must be a non-negative integer or null",
-    });
-  }, normalize: (value) => value ?? CLOSE_AFTER_DAYS_NEVER_SENTINEL },
-  { field: "spamAutoRejectScore", key: "spam_auto_reject_score", validate: (value) => assertNumberInRange(value, {
+    } });
+  }, normalize: ({ value }, _optional = {}) => value ?? CLOSE_AFTER_DAYS_NEVER_SENTINEL },
+  { field: "spamAutoRejectScore", key: "spam_auto_reject_score", validate: ({ value }, _optional = {}) => assertNumberInRange({ value, spec: {
     minimum: 0, maximum: 1, message: "spamAutoRejectScore must be a number in [0,1]",
-  }) },
-  { field: "maxPerIpPerHour", key: "max_per_ip_per_hour", validate: (value) => assertBoundedInteger(value, {
+  } }) },
+  { field: "maxPerIpPerHour", key: "max_per_ip_per_hour", validate: ({ value }, _optional = {}) => assertBoundedInteger({ value, spec: {
     field: "maxPerIpPerHour", minimum: 1, maximum: MAX_PER_IP_PER_HOUR_CEILING, shapeMessage: "maxPerIpPerHour must be a positive integer",
-  }) },
+  } }) },
 ];
 
 /**
@@ -237,7 +229,7 @@ const COMMENTS_PATCH_FIELDS: ReadonlyArray<{
 function validateCommentsSettingsPatch(patch: Partial<CommentsSettings>): void {
   for (const spec of COMMENTS_PATCH_FIELDS) {
     const value = patch[spec.field];
-    if (value !== undefined) spec.validate(value);
+    if (value !== undefined) spec.validate({ value });
   }
 }
 
@@ -251,12 +243,12 @@ export async function setCommentsSettings(
   const writes: Array<{ key: CommentsSettingKey; value: JsonValue }> = [];
   for (const spec of COMMENTS_PATCH_FIELDS) {
     const value = input.patch[spec.field];
-    if (value !== undefined) writes.push({ key: spec.key, value: spec.normalize ? spec.normalize(value) : value });
+    if (value !== undefined) writes.push({ key: spec.key, value: spec.normalize ? spec.normalize({ value }) : value });
   }
 
   for (const write of writes) {
     await set({
-      deps: { repo: deps.settingsRepo, clock: jiniClock(deps.clock), ids: deps.ids, authorize: deps.authorize, principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+      deps: { repo: deps.settingsRepo, clock: jiniClock({ clock: deps.clock }), ids: deps.ids, authorize: deps.authorize, principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
       input: {
         namespace: COMMENTS_NAMESPACE,
         key: write.key,
@@ -281,6 +273,6 @@ export async function setCommentsSettings(
 }
 
 /** Tovu's ISO-clock adapter; the shared clock contract/rationale lives in Jini core/primitives. */
-function jiniClock(clock: ClockPort | { nowIso(): string }): ClockPort {
+function jiniClock({ clock }: { clock: ClockPort | { nowIso(): string } }, _optional = {}): ClockPort {
   return "nowMs" in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) };
 }

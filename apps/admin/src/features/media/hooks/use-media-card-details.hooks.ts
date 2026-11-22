@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 const PHONE_QUERY = "(max-width: 640px)";
 const matchViewport = (query: string) =>

@@ -17,7 +17,7 @@ import type { ServerModuleHandle } from "./types.js";
  * (`TM-adr041-043-044-045-audit-001`, 7 rounds, converged PASS 9.2/10), including a real bug
  * (`R6-F1`) in a prior refactor of this exact composition wiring. This module is a narrower,
  * purely additive `Pick`-type extraction — same registrar function bodies, no logic change, no
- * reordering of gates/middleware — but see `routes/admin/database-recovery/deps.ts`'s own header
+ * reordering of gates/middleware — but see `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts`'s own header
  * for the explicit disclosure of how `status.ts`'s `core/operation-lock` read (the prior audit's
  * Finding 3 fix) is preserved unchanged by this move.
  *
@@ -28,7 +28,7 @@ import type { ServerModuleHandle } from "./types.js";
  *  - `registerAdminDatabaseTimelineRoute` (Database's read-first Timeline)
  *  - `registerAdminDatabaseSchemaStateRoute` (2026-08-24, ADR-041 §3 — Database's drift status;
  *    the 8th registration, added after this header's original count. It is the first consumer of
- *    `databaseIntrospection`, which `routes/admin/database-recovery/deps.ts` had excluded from its
+ *    `databaseIntrospection`, which `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts` had excluded from its
  *    narrow `Pick` precisely because nothing here read it — see that file's own 2026-08-24 note.
  *    Read-only: it reports drift, and deliberately offers no repair action. Ordering is
  *    irrelevant for the same reason the note below gives — `/api/admin/v1/database/schema-state`
@@ -57,15 +57,15 @@ import type { ServerModuleHandle } from "./types.js";
 export function createDatabaseRecoveryModule(deps: DatabaseRecoveryRouteDeps): ServerModuleHandle {
   return {
     name: "database-recovery",
-    registerRoutes: (app) => {
-      registerAdminDatabaseTimelineRoute(app, deps);
-      registerAdminDatabaseSchemaStateRoute(app, deps);
-      registerAdminDatabaseRestorePointsListRoute(app, deps);
-      registerAdminDatabaseRestorePointsCreateRoute(app, deps);
-      registerAdminRecoveryRestorePointsListRoute(app, deps);
-      registerAdminRecoveryDisclosureRoute(app, deps);
-      registerAdminRecoveryDeepLinkRoute(app, deps);
-      registerAdminRecoveryStatusRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminDatabaseTimelineRoute({ app, deps });
+      registerAdminDatabaseSchemaStateRoute({ app, deps });
+      registerAdminDatabaseRestorePointsListRoute({ app, deps });
+      registerAdminDatabaseRestorePointsCreateRoute({ app, deps });
+      registerAdminRecoveryRestorePointsListRoute({ app, deps });
+      registerAdminRecoveryDisclosureRoute({ app, deps });
+      registerAdminRecoveryDeepLinkRoute({ app, deps });
+      registerAdminRecoveryStatusRoute({ app, deps });
     },
   };
 }

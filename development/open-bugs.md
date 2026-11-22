@@ -6,8 +6,8 @@ Fixing one is its own piece of work: write the failing test first, then change t
 ## Preserved (pinned by tests, not fixed)
 
 Logged in extract session 1, batch V1, when `cloud/more-jini-1` was merged. The revert code now lives in
-Jini `packages/cms/src/core/commands/revert.ts` (public entry `@jini-ai/cms/core/commands`); Tovu's
-`apps/website/src/contracts/core/commands/revert.ts` is a re-export.
+Jini `packages/cms/src/core/commands/revert.ts` (public entry `@jini-ai/cms/core/commands`); Tovu
+imports it directly.
 
 ### `L079-force-without-principal-kind`
 
@@ -72,3 +72,190 @@ the object-request wrapping from the adapter makes that regression red again; so
 restored and platform rebuilt. The refusal and HTTP-header mutations each make the frozen
 pre-move mail golden red. No plugin edits; no fixture regeneration. Full A2 results are recorded
 in `cloud/reports/extract-s2.md`; this note supersedes the unfinished mutation status above.
+
+## Found at combine-7 (Tovu `integ/merge-7-2026-11-20`, 2026-11-21) — listed, not fixed
+
+### `C7-plugin-contribution-filenames`
+
+Jini merge-7 (jy-pay K9) renamed every bundled agent-plugin contribution file from `tovu-*.json` to
+`jini-*.json` (`cloudflare/jini-deploy-targets.json`, `github/jini-source-control.json`, …), but the
+Tovu host still loads the old names through 14 filename constants (`DEPLOY_TARGETS_FILENAME`,
+`DEPLOY_OPS_FILENAME`, `DEPLOY_CONFIGS_FILENAME`, `SOURCE_CONTROL_PROVIDERS_FILENAME`,
+`MAIL_ADAPTERS_FILENAME`, `LOGIN_PROVIDERS_FILENAME`, `SEARCH_PROVIDERS_FILENAME`,
+`OBJECT_STORES_FILENAME`, `CONSENT_CONTRIBUTIONS_FILENAME`, `API_CONNECTIONS_FILENAME`,
+`AGENT_PLUGIN_TOOLS_FILENAME`, `ADMIN_SURFACES_FILENAME`, `CREDENTIAL_SCHEMES_FILENAME`,
+`FORM_DESTINATIONS_FILENAME`), the three literals in `composition/plugin-credential-cards.ts:71-73`
+and `site-backup/share-file-policy.ts:9`. Against Jini merge-7 the bundled plugins' contributions
+do not load (e.g. `site-backup/__tests__/tool-registrations.unit.test.ts` 62/84 fail with ENOENT
+`…/agent-plugins/github/tovu-source-control.json`). Red since the relink. Full list:
+`cloud-results/combine-7-tovu-renamed-plugin-file-refs.txt`. Owner 11-20 accepted the rename; the
+Tovu repoint (and whether third-party `tovu-*.json` keeps loading) is a decision.
+
+### `C7-jini-directory-trash-exdev-cause`
+
+tv-xd5-publish deleted Tovu's `features/trash/adapters/directory.ts` in favour of Jini's
+`@jini-ai/cms/trash/adapters/directory` (`directory.node.ts:82`). Merge-6 had added
+`{ cause: error }` to the cross-filesystem (`EXDEV`) error in the Tovu copy (04d030b5a); Jini's copy
+throws without the cause, so the original errno is lost. Needs the fix in Jini.
+
+### `C7-theme-preview-refresh-public-barrel`
+
+`server/inbound/public-http/middleware/theme-preview-refresh.ts` (tv-xd5-publish) imports
+`themeRosterPorts` from `#src/features/theme/index`, so the public request path loads feature-wide
+barrels (`worker-import-graph.test.ts` new failing case "…theme-preview-refresh.ts keeps public reads
+separate from feature-wide write/tool barrels").
+
+### `C7-y1-credential-label-prefix`
+
+tv-y1 T5 changed `server/runtime/composition/modules/site-search.ts` `SEARCH_CREDENTIAL_LABEL_PREFIX`
+to `"Jini Search — "`; the prefix builds the credential label the search vendor lookup uses, so a site
+that saved `Tovu Search — <vendor>` before may no longer resolve it (not verified end to end).
+`site-search.unit.test.ts` ×2 still expect `Tovu Search — …`. Opposite drift in the same sheet:
+`mail-provider-contribution.unit.test.ts` expects `Jini Mail — Resend API` while
+`agent-plugins/mail-adapter-registry.ts:10 defaultCredentialLabel` still returns `Tovu Mail — …`.
+
+### Fixed during combine-7 (for the record)
+
+- `apps/desktop/src/renderer/App.tsx:97` `...props,` (rest element with a trailing comma, from
+  7b4fea84a) — the desktop renderer did not compile; fixed `8ec117a4a` together with the desktop's
+  positional `collectProcessTreePids` calls (Jini takes one object) and `site-backend.ts` generic
+  `ReturnType`s.
+- `@tovu/contracts` imported `@jini-ai/agent-runtime` undeclared (tv-ext-rs-c a52) — the packaged
+  desktop would miss it; declared in `196e536c8`.
+
+## cloud-bugs-1120 (Tovu `fix/cloud-bugs-1120`, 2026-11-21)
+
+Triage of the 46 cloud-only rows (`origin/plan/culls-1120:cloud-bugs/list.md`) is in
+`cloud-results/cloud-bugs-1120.md`; rows not listed here were already fixed on the merge-7 bases,
+belong to the lockfile/release run, or need a packaged app / real provider (see that table).
+
+### `552-check-scripts-in-server-build` — FIXED-ON-BRANCH `f57b409e0`
+- Snapshot row 552 (11-02): build-time check scripts shipped in the desktop payload's `dist/src`.
+  `seal-aad-invariant.ts` had been excluded; `features/webhooks/secret-scan-guard.ts` and
+  `features/identity/default-credential-exposure.ts` (run from source by `check:secret-scan` /
+  `check:default-credential`) were still compiled by `tsconfig.json`. Now excluded;
+  `tsconfig.tests.json` still type-checks them. Test: `development/scripts/__tests__/app-runtime-dependencies.test.ts`
+  "repo-scanning check scripts run from source and never ship in the server build" (red on the base).
+
+### `1280-optional-peer-contract` — confirmed, listed (Jini, not fixed)
+- Jini `scripts/__tests__/optional-peer-contract.test.ts` 3/151 red at `06559affb`: stale pins
+  `ui → lexical` and `daemon → express` (neither manifest nor source has them any more) and four
+  `jini.optionalPeers` texts that do not name their opt-in subpath (agentic → protocol, platform → parse5,
+  user-management → ui-kit / react-dom). The other two parts of row 1280 are green after a clean install.
+
+## combine-8 (Tovu `integ/merge-8-2026-11-21`, 2026-11-21)
+
+Found while merging combine-8 against Jini `integ/merge-8-2026-11-21` `3ad0c5671`. Listed, not fixed
+(none blocks build or typecheck). Details: `cloud-results/combine-8-tovu.md`.
+
+### `C8-github-managed-manifest-path` — confirmed (Jini rename, no migration)
+- Jini `d9c625e6` changed the GitHub commit-site adapter's ownership manifest from
+  `<folder>/.tovu/managed-files.json` to `<folder>/.jini/managed-files.json`
+  (`packages/agent-plugins/github/source-control/commit-site.mjs:35`), with no read of the old path.
+  A repository that Tovu already published to keeps its record under `.tovu/`; after the upgrade the
+  adapter cannot see which files it owns (orphaned/unowned files on the next commit).
+- Tovu `content/agent-plugin-overlays/github/GUIDANCE.md:78` still tells the agent `.tovu/managed-files.json`.
+- Witness: `apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-commit-site.unit.test.ts`
+  goes 1 → 37 red now that tv-c7a makes the bundled plugin load (fetch `…/static_sites/.jini/managed-files.json`
+  where the test expects `.tovu/`). Decision needed: dual-read/migrate in Jini, or accept and repoint the tests.
+
+### `C8-dev-select-node-runtime-env` — confirmed (dev tooling)
+- Jini merge-8 made `@jini-ai/devops/local-dev#selectNodeRuntime({ searchFrom, nodePath, env })` require
+  `env` (the option default was removed). `development/scripts/dev.mjs:861` still passes only
+  `{ searchFrom, nodePath }`, so the desktop-Electron probe spawns with `{ ELECTRON_RUN_AS_NODE: '1' }` and
+  no PATH/HOME; a probe that needs them fails and `npm run dev` silently falls back to stock Node.
+  `.mjs`, so no typecheck catches it. Fix: pass `env: process.env` (owed by the Jini combine-8 notes).
+
+### `C8-css-unrenamed-jini-classes` — confirmed (visual, admin)
+- Tovu styles Jini components through `.jini-*` selectors that Jini never emits (jy-cls skipped them):
+  `apps/admin/src/integrations/jini-admin/jini-media.css:601` `.jini-tab-bar-tag` and `:613` `.jini-tab-bar-dot`
+  (Jini `ui/…/tab-strip/react/components/TabBar.tsx:108,116` emits `tab-bar-dot` / `tab-bar-tag`), and `:781`
+  `.jini-row-menu-popup-above` (Jini `admin/…/RowMenu/RowMenu.tsx:106` template literal ` row-menu-popup-above`).
+  Those rules never match. Full reverse-check list (26 selectors): `cloud-results/combine-8-tovu-class-audit.txt`.
+
+## combine-9 (Tovu `integ/merge-9-2026-11-21`, 2026-11-21)
+
+Found while merging combine-9 against Jini `integ/merge-10-2026-11-21` `de4e555b9`. Listed, not fixed
+(none blocks build or typecheck). Details: `cloud-results/combine-9-tovu.md`.
+
+### `C9-share-zip-refusal-vs-acknowledgement` — confirmed (tv-sharezip T5 vs the existing acknowledgement flow)
+- tv-sharezip T5 (`apps/website/src/features/site-backup/share-backend.ts`, `requireNoShareCredentialWarnings`,
+  called right after both ZIP builds) now throws `SiteShareRefusal` `UNSAFE_FILE` whenever the ZIP collector
+  records any credential warning. Before it, the same warnings produced a share with
+  `needsAcknowledgement: true`, a 403 `ACKNOWLEDGE_CREDENTIALS` download block and a
+  `POST …/site-shares/<id>/acknowledge` route. That whole acknowledgement path is now unreachable.
+- Red on the tip, green on the base (merge-8 + lockfile pair): `features/site-backup/__tests__/credential-warnings.integration.test.ts`
+  "export keeps database values and complete plugin packages; download requires a durable acknowledgement"
+  (`SiteShareRefusal: The export contains files with possible credentials…`), and
+  `features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts` "exports and imports contain
+  no saved keys or inherited grants" (inSite) and (appData): the admin export route returns 400
+  `{"code":"UNSAFE_FILE","message":"Export creation failed: The export contains files with possible credentials…"}`
+  where the test expects 200.
+- Effect: a site whose files carry anything credential-shaped can no longer be exported or shared at all;
+  previously the owner could review and acknowledge. Decision: keep the hard refusal (then delete the
+  acknowledgement route/state and repoint the 3 tests), or scope T5 to the public-token share and keep the
+  acknowledged download for owner exports.
+
+### `C9-site-chat-lockfile-stale` — confirmed (release/lockfile-1120 left one lockfile behind)
+- `release/lockfile-1120` bumped `apps/site-chat/package.json` (`@jini-ai/agentic`, `chat`, `core`, `protocol`
+  → `^0.7.3-next.1`) but did not regenerate `apps/site-chat/package-lock.json`, which still pins 0.7.0.
+  `npm ci --ignore-scripts` in `apps/site-chat` fails: `EUSAGE … lock file's @jini-ai/agentic@0.7.0 does not
+  satisfy @jini-ai/agentic@0.7.3-next.1` (also chat, core, protocol). Root/admin/desktop `npm ci`: 0.
+  Fix: `npm install` in `apps/site-chat` against the published 0.7.3-next.1 and commit the lockfile.
+
+## combine-10 (Tovu `integ/merge-10-2026-11-21`, 2026-11-21)
+
+Follow-ups and cloud items on top of combine-9, against Jini `integ/merge-10-2026-11-21` `de4e555b9`.
+Details: `cloud-results/combine-10-tovu.md`. **No new production bug found.**
+
+- `C9-site-chat-lockfile-stale`: **FIXED** in `47dd8b157`. Only the `@jini-ai/*` entries were re-resolved
+  to 0.7.3-next.1; every other locked version is unchanged. `npm ci --ignore-scripts` in `apps/site-chat`: 0.
+- `C9-share-zip-refusal-vs-acknowledgement`: **still open**. Owner decision pending; tv-sharezip left as merged.
+- Not production: the 3 tv-w2 I2-T media reds and the 3 lockfile-1120 pin reds were stale tests (repointed in
+  `ab038aae8` and `75900acdf`). `byte-size.ts` still reports `null` for an unknown size.
+- Test infrastructure (not production): with `TOVU_CHAT_TEST_POSTGRES_URL` set, every `*.dialects.test.ts`
+  file shares one real Postgres database. `chat-dialect-matrix.ts` `emptiedPostgresChatKernel()` truncates the
+  four `ai_chat.*` tables per make, so files running at the same time wipe each other's rows. Each file is green
+  alone. Needs a per-process database/schema, or serial dialect files.
+
+## combine-11 (Tovu `integ/merge-11-2026-11-21`, 2026-11-21)
+
+Eleven merges on top of combine-10, against Jini `integ/merge-11-2026-11-21` `1ac1cbbd1` (published 0.7.3-next.2).
+Details: `cloud-results/combine-11-tovu.md`.
+
+### `C11-agui-run-error-raw-message` — OPEN (tv-ag1 × bugs1 T4)
+- bugs1 T4 changed the catch in Tovu's own `drainAgUiStream`. On a dropped daemon stream the AG-UI `RUN_ERROR`
+  carried the approved sentence "The assistant’s response was interrupted. Send your request again." in place
+  of the transport text.
+- tv-ag1 deleted that function, and Tovu now calls Jini `drainRunFramesToAgUi`. Its catch
+  (`packages/chat/src/core/ag-ui/event-projection.ts:280` at `1ac1cbbd1`) writes `error.message` again.
+- Witness: `assistant-ag-ui-wire.golden.test.ts` "a dropped daemon stream closes partial text and reports a
+  private interruption message" fails with actual `'aborted'`.
+- Fix options: a Jini change (a fixed message, or a host-supplied `interruptedMessage`), or a Tovu `write`
+  wrapper that rewrites the catch-path `RUN_ERROR`. Not one line, so not fixed in combine-11.
+
+### `C11-share-ack-403-admin` — FIXED (`c3ac7bd03`)
+- bugs1 SHARE-ZIP moved `site-shares.ts` acknowledgement-required downloads from 409 to 403.
+- The admin `use-share-credential-gate.hooks.ts:69` still opened the acknowledgement checkbox only for 409.
+  The owner saw "Download failed." for a warned export.
+- Fixed in one line (`!== 403`). The sheet's admin test is now 16/16.
+
+### `C11-stage-payload-empty-refusal` — FIXED (`623bbbab7`), only on the merge
+- main `d2edbcb43` added `failIfShellIsIncomplete` with `fail(string)`. The integ object-arg refactor's `fail`
+  takes `{ message }`, so the refusal printed nothing (desktop tsc TS2345).
+- Fixed in one line.
+
+### `C11-installed-plugin-id-upgrade` — OPEN (known PARTIAL, now with a failing proof)
+- Installed `tovu/<x>` bundled plugins from 0.7.2 (25 IDs) never reach `jini/<x>`. Canonical seeding keeps the
+  old revision silently.
+- Witness: `installed-plugin-id-upgrade.unit.test.ts` (red).
+
+### Not production / listed
+- `C10-A7` real-Postgres dialect contention: **FIXED** in test support (`1baf41c6f`).
+- `vendor-neutrality` "no generic seam file names the first provider": 4 hits outside T-VENDOR's scope
+  (`bundled-catalog.ts:47,48,57`, `shared-owner.ts:81`). This is BASE-RED and meets the T-VENDOR STOP.
+- New complexity violations (CI step is non-blocking): `backup-service.ts:681 pushPlannedBackup` 11 (tv-own Q3),
+  `use-copy-keys.hooks.ts:24 useCopyKeys` 11 (tv-gate T46), `plugin-activation-polling.ts:46
+  reconcilePluginActivationsOnce` 13 (main's backoff in integ's signature).
+- Size: `backup-service.ts` 547 (baseline 535).
+- why-comments: 77 → 79 (`b3ec582b7325`, `096121b6167d`).

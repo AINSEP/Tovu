@@ -1,4 +1,4 @@
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 
 /**
  * @file What `MediaPickerDialog.hooks.tsx` needs from the outside world, as an interface rather
@@ -29,5 +29,5 @@ export interface MediaPickerPort {
    * injected port rather than `MediaPickerDialog.tsx` calling `api.mediaOriginalUrl` itself. See
    * `lib/api.ts`'s own `mediaOriginalUrl` for the exact URL shape this mirrors.
    */
-  mediaOriginalUrl(id: string): string;
+  mediaOriginalUrl(required: { id: string }, optional?: Record<string, never>): string;
 }

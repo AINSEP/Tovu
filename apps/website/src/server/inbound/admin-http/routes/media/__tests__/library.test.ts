@@ -22,11 +22,11 @@ function appFixture() {
   const { deps, deny } = libraryFixture(); const app = express();
   app.use(express.json({ limit: '16mb' }));
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register(app, deps);
+  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register({ app, deps });
   registerAdminMediaTextRoute({ app, deps });
   // Private documents must short-circuit before unrelated post/member lookups.
-  registerMediaRenditionRoute(app, deps as MediaRenditionRouteDeps);
-  registerMediaOriginalVideoRoute(app, deps as MediaRenditionRouteDeps);
+  registerMediaRenditionRoute({ app, deps: deps as MediaRenditionRouteDeps });
+  registerMediaOriginalVideoRoute({ app, deps: deps as MediaRenditionRouteDeps });
   return { app, deps, deny };
 }
 const root = '/api/admin/v1/workspaces/site-a/media';
@@ -69,7 +69,7 @@ test('Library HTTP: allowed formats ignore MIME labels, list/download/rename/tex
   const listed = (await (await fetch(base + root + '?kind=document')).json()).media;
   assert.equal(listed.length, 13);
   const rows = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
-  assert.ok([...(await resolveMediaPublicUrls(deps, rows)).values()].every(url => url === null));
+  assert.ok([...(await resolveMediaPublicUrls({ deps, assets: rows })).values()].every(url => url === null));
   for (const row of rows) for (const key of [row.id, row.slug]) for (const suffix of [
     '/original', '/public.v1/private.png',
     `/original?v=${row.source.sha256.slice(0, 12)}`, `/public.v1/private.png?v=${row.source.sha256.slice(0, 12)}`,

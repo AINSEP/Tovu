@@ -5,7 +5,7 @@ import { buildBaseSystemOverlay } from "../../server/inbound/assistant/assistant
 import { SYSTEM_PREAMBLE } from "../../server/runtime/composition/modules/assistant-byok.js";
 
 test("daemon and BYOK pin the same credential-card policy", () => {
-  for (const prompt of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), SYSTEM_PREAMBLE]) {
+  for (const prompt of [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), SYSTEM_PREAMBLE]) {
     assert.equal(prompt.includes(CREDENTIAL_GUIDANCE), true);
     for (const clause of [
       "Never ask the human to type or paste a key, token, password or connection string into chat, assistant_ask_choice or a question-form.",

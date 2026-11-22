@@ -195,7 +195,7 @@ async function mountRoute(chain: Chain, t: Parameters<typeof startTestServer>[1]
     res.locals.principal = { id: String(req.header(PRINCIPAL_HEADER) ?? "") };
     next();
   });
-  registerAdminFsFilesCustomRootRoutes(app, deps);
+  registerAdminFsFilesCustomRootRoutes({ app, deps: deps });
   return startTestServer(app, t);
 }
 

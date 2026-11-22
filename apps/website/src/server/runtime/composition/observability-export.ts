@@ -34,7 +34,7 @@ function desktopPackagingFact(
  */
 export function resolveTovuObservabilityExport(
   { env = process.env, packagedDesktop }: { env?: NodeJS.ProcessEnv; packagedDesktop?: boolean },
-  { checkout = existsSync(path.join(resolveCheckoutRoot(), '.git')) }: { checkout?: boolean } = {},
+  { checkout = existsSync(path.join(resolveCheckoutRoot({}), '.git')) }: { checkout?: boolean } = {},
 ): boolean {
   const fact = desktopPackagingFact({ env, packagedDesktop });
   const isDevelopmentLaunch = developmentLaunch({ env });

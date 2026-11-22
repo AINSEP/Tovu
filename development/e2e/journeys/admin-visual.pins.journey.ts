@@ -18,6 +18,849 @@ import { loginAsAdmin, pinSessionHeaders, pinSessionRequest } from "../support/b
 import { BASELINE_TIME, narrowListForBaseline } from "./_fixtures.js";
 
 // Migrated from admin-visual-regression.spec.ts; original pin intent and why comments follow.
+{
+
+
+interface PanelCapture { id: string; label: string; soon: boolean }
+
+
+interface TabPage { route: string; ids: string[]; shell?: boolean; clickOnly?: boolean }
+
+
+type AdminStorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+
+interface SeedEntities { page: string; post: string; menu: string; form: string; entry: string; widget: string }
+
+interface AdminSeed { storageState: AdminStorageState; entities: SeedEntities }
+
+  type Content = { id: string; slug: string };
+
+
+function property(object: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined {
+  const member = object.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText() === name);
+  return member && ts.isPropertyAssignment(member) ? member.initializer : undefined;
+}
+function createPanelInventoryReader({ REPO_ROOT }: { REPO_ROOT: ReturnType<typeof path.resolve> }) {
+
+function readPanelCaptures(): PanelCapture[] {
+  const filename = path.join(REPO_ROOT, "apps/admin/src/panels.tsx");
+  const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const captures = adminPanelsLiteral(source).elements.map(element => {
+    if (!ts.isObjectLiteralExpression(element)) throw new Error("Unrecognized panel declaration; refusing to silently lose coverage.");
+    const id = property(element, "id");
+    if (!id || !ts.isStringLiteral(id)) throw new Error("Panel id must be a string literal.");
+    const nav = property(element, "nav");
+    const label = nav && ts.isObjectLiteralExpression(nav) ? property(nav, "label") : undefined;
+    const soon = nav && ts.isObjectLiteralExpression(nav) ? property(nav, "soon") : undefined;
+    return { id: id.text, label: label && ts.isStringLiteral(label) ? label.text : id.text, soon: soon?.kind === ts.SyntaxKind.TrueKeyword };
+  });
+  if (captures.length === 0 || new Set(captures.map(p => p.id)).size !== captures.length) {
+    throw new Error("Empty/duplicate admin capture manifest.");
+  }
+  return captures;
+}
+  return readPanelCaptures;
+}
+
+
+
+/** Parse tab declarations without importing React or browser-only feature dependencies.
+ * Fail closed on unsupported syntax so source changes cannot silently remove captures. */
+function readLiteralArray(filename: string, name: string): ts.Expression[] {
+  const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true);
+  let initializer: ts.Expression | undefined;
+  function visit(node: ts.Node): void {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) initializer = node.initializer;
+    if (name === "jsx:tabs" && ts.isJsxAttribute(node) && node.name.getText(source) === "tabs" && node.initializer && ts.isJsxExpression(node.initializer)) initializer = node.initializer.expression;
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  while (initializer && (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer) || ts.isParenthesizedExpression(initializer))) initializer = initializer.expression;
+  if (!initializer || !ts.isArrayLiteralExpression(initializer)) throw new Error(`Expected literal tab array ${name} in ${filename}`);
+  return Array.from(initializer.elements);
+}
+function createTabInventoryReader({ REPO_ROOT }: { REPO_ROOT: ReturnType<typeof path.resolve> }) {
+
+function tabValues(file: string, name: string, field?: string): string[] {
+  // Screens that moved into @jini-ai/admin keep their tab ids in the package's built rules files.
+  const jini = "@jini-ai/admin/";
+  const filename = file.startsWith(jini)
+    ? path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai/admin/dist", file.slice(jini.length))
+    : path.join(REPO_ROOT, "apps/admin/src/features", file);
+  // 2667cbdfd gates Observability's Queries tab as `...(visible ? [{ id: "queries", … }] : [])`.
+  // The journey owner on the default TanStack adapter sees it, so capture the whenTrue literals.
+  const values = readLiteralArray(filename, name).flatMap(element => {
+    if (!ts.isSpreadElement(element)) return [element];
+    let spread = element.expression;
+    while (ts.isParenthesizedExpression(spread)) spread = spread.expression;
+    if (ts.isConditionalExpression(spread) && ts.isArrayLiteralExpression(spread.whenTrue)
+      && ts.isArrayLiteralExpression(spread.whenFalse) && spread.whenFalse.elements.length === 0) return Array.from(spread.whenTrue.elements);
+    throw new Error(`Unsupported spread in ${name} in ${file}`);
+  }).map(element => {
+    const value = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
+    if (value && ts.isIdentifier(value)) return topLevelConstString(value);
+    if (!value || !ts.isStringLiteral(value)) throw new Error(`Nonliteral ${name}.${field ?? "id"} in ${file}`);
+    return value.text;
+  });
+  if (!values.length || new Set(values).size !== values.length) throw new Error(`Empty/duplicate tabs: ${file}:${name}`);
+  return values;
+}
+  return tabValues;
+}
+
+function prepareVisualTabPages({ tabValues, themeTabIds }: { tabValues: ReturnType<typeof createTabInventoryReader>; themeTabIds: ReturnType<ReturnType<typeof createTabInventoryReader>> }) {
+const tabPages: TabPage[] = [
+  { route: "sites", ids: tabValues("sites/Sites.hooks.tsx", "SITES_TAB_IDS") },
+  { route: "ai-assistant", ids: tabValues("ai-assistant/hooks/use-ai-assistant.hooks.ts", "AI_ASSISTANT_TAB_IDS"), shell: true },
+  { route: "pages", ids: tabValues("pages/Pages.tsx", "jsx:tabs", "id") },
+  { route: "media", ids: tabValues("media/hooks/use-media-tabs.hooks.ts", "MEDIA_TABS", "id") },
+  { route: "roles", ids: tabValues("roles/Roles.hooks.tsx", "ROLES_TAB_IDS") },
+  { route: "seo", ids: tabValues("@jini-ai/admin/seo/rules.js", "SEO_TAB_IDS") },
+  { route: "themes", ids: themeTabIds },
+  { route: "appearance", ids: themeTabIds },
+  { route: "plugins", ids: tabValues("plugins/Plugins.tsx", "PLUGINS_TAB_IDS") },
+  { route: "agent-plugins", ids: tabValues("plugins/AgentPlugins.tsx", "tabs", "id"), shell: true, clickOnly: true },
+  { route: "skills", ids: tabValues("skills/Skills.tsx", "tabs", "id"), shell: true },
+  { route: "providers", ids: tabValues("providers/Providers.tsx", "PROVIDERS_TAB_IDS") },
+  { route: "database", ids: tabValues("database/Database.tsx", "DATABASE_TAB_IDS") },
+  // ea4f8967a moved Recovery's tabs into an inline SettingsDialogShell `tabs` array.
+  { route: "recovery", ids: tabValues("recovery/Recovery.tsx", "tabs", "id"), shell: true },
+  { route: "deployment", ids: tabValues("deployment/Deployment.tsx", "DEPLOYMENT_TAB_IDS") },
+  { route: "source-control", ids: tabValues("source-control/SourceControl.tsx", "SOURCE_CONTROL_TAB_IDS") },
+  { route: "access-tokens", ids: tabValues("security/Security.tsx", "SECURITY_TAB_IDS") },
+  { route: "settings", ids: tabValues("settings/SettingsUi.tsx", "tabs", "id"), shell: true },
+  { route: "authentication", ids: ["home", ...tabValues("authentication/model/provider-schemas.ts", "AUTHENTICATION_PROVIDER_SCHEMAS", "id")], shell: true, clickOnly: true },
+  { route: "observability", ids: tabValues("observability/Observability.tsx", "tabs", "id"), shell: true, clickOnly: true },
+];
+  return { tabPages };
+}
+
+function readVisualPublishTargets() {
+// Each hosting plugin ships its own targets file: read every shipped one (Tovu content plus selected
+// @jini-ai/agent-plugins/<id> packages), in plugin-id order.
+const publishTargets = composedBundledPluginDirs()
+  .map(({ dir }) => path.join(dir, "jini-deploy-targets.json")).filter(file => existsSync(file))
+  .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; label: string }> }).targets);
+  return { publishTargets };
+}
+
+function readVisualProviderPresets({ uiExecutionSource }: { uiExecutionSource: ReturnType<typeof path.join> }) {
+const providerPresets = readLiteralArray(uiExecutionSource, "DEFAULT_PROVIDER_PRESETS").map(element => {
+  if (!ts.isObjectLiteralExpression(element)) throw new Error("Nonliteral provider preset");
+  const id = property(element, "id");
+  const title = property(element, "title");
+  if (!id || !title || !ts.isStringLiteral(id) || !ts.isStringLiteral(title)) throw new Error("Nonliteral provider id/title");
+  return { id: id.text, title: title.text };
+});
+  return { providerPresets };
+}
+
+function createVisualTransportSetup({ WORKSPACE_API }: { WORKSPACE_API: string }) {
+
+async function installDeterministicTransport(context: BrowserContext): Promise<void> {
+  // These are transport fixtures, not screenshot masks. HTTP 204 makes native EventSource
+  // stop reconnecting, so networkidle is reachable without timers or blanket request aborts.
+  // No assistant run is sent in this suite; neither background feed affects the captured states.
+  await context.route(url => url.pathname.endsWith("/settings/events") || url.pathname === "/api/frontend-sessions/stream", route => route.fulfill({ status: 204 }));
+  // Sites is a developer-only screen. Capture that deployment's UI even though the isolated
+  // pin boot defaults the switcher flag off; keep the real list, binding and write restrictions.
+  // No Create/Activate is submitted here, and a failed real read must still fail the capture.
+  await context.route(url => url.pathname === `${WORKSPACE_API}/system/sites`, async route => {
+    if (route.request().method() !== "GET") return route.continue();
+    const response = await route.fetch();
+    await expect(response).toBeOK();
+    await route.fulfill({ response, json: { ...await response.json(), switchingEnabled: true } });
+  });
+  // CLI discovery depends on the runner's installed/authenticated executables. Pin only that
+  // machine inventory; page content, installed skills, guidance and seed writes use the real API.
+  await context.route(url => url.pathname === "/api/agents", route => route.fulfill({
+    // The controlled picker initially selects "claude"; keep that runtime usable before
+    // ledger settings settle, alongside Codex. No executable is actually invoked.
+    json: { agents: [
+      { id: "claude", name: "Claude Code", available: true, authStatus: "ok", supportsTools: true, supportsCustomModel: true, models: [{ id: "default", label: "Default" }] },
+      { id: "codex", name: "Codex", available: true, authStatus: "ok", supportsTools: true, supportsCustomModel: true, models: [{ id: "default", label: "Default" }] },
+    ] },
+  }));
+  // Since 5956b17a4 the Local CLI list reads this cached detection route, which otherwise lists
+  // the runner's own CLIs and their versions. Pin the same two runtimes as /api/agents above.
+  await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/detect-agents`, route => route.fulfill({
+    json: { data: [
+      { id: "claude", label: "Claude Code", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
+      { id: "codex", label: "Codex", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
+    ] },
+  }));
+  // Ollama's keyless discovery would probe the runner's localhost. Pin that optional machine
+  // service to an explicit unavailable response; authenticated providers still use the real API.
+  await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/models`, async route => {
+    const body = route.request().postDataJSON() as { baseUrl?: string };
+    if (body.baseUrl === "http://localhost:11434/v1") {
+      await route.fulfill({ json: { ok: false, models: [], message: "Ollama is not running in the visual regression fixture." } });
+    } else await route.continue();
+  });
+}
+  return installDeterministicTransport;
+}
+
+async function seedVisualTaxonomies({ page, API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN }: { page: Page; API: string; WORKSPACE_API: string; REPO_ROOT: ReturnType<typeof path.resolve>; SKILL_NAME: string; SKILL_MARKDOWN: string }) {
+  // The API client omits Secure cookies on HTTP loopback; reuse the real browser session.
+  const headers = await pinSessionHeaders({ request: page.request });
+  // Like admin-visual-parity, populate flat + hierarchical taxonomies through their real UI.
+  // Workers/projects/retries share this one server: read first so fixture writes are idempotent.
+  const taxonomies = await page.request.get(`${API}/taxonomy`, { headers });
+  await expect(taxonomies).toBeOK();
+  const { items } = await taxonomies.json() as { items: Array<{ taxonomy: { name: string } }> };
+  if (!items.some(item => item.taxonomy.name === "Category")) {
+    await page.goto("/admin/taxonomy");
+    await page.getByRole("button", { name: "New taxonomy", exact: true }).click();
+    await page.getByLabel("New taxonomy", { exact: true }).fill("Category");
+    await page.getByRole("button", { name: "Create taxonomy", exact: true }).click();
+    const group = page.locator(".settings-namespace-group", { hasText: "Category" });
+    for (const term of ["News", "Guides"]) {
+      await group.getByRole("button", { name: "+ Add term", exact: true }).click();
+      await group.getByPlaceholder("Term name").fill(term);
+      await group.getByRole("button", { name: "Add term", exact: true }).click();
+      await expect(group.getByText(term, { exact: true })).toBeVisible();
+    }
+    await page.getByRole("button", { name: "New taxonomy", exact: true }).click();
+    await page.getByLabel("New taxonomy", { exact: true }).fill("Topic");
+    await page.getByRole("checkbox", { name: "Hierarchical", exact: true }).check();
+    await page.getByRole("button", { name: "Create taxonomy", exact: true }).click();
+    const topic = page.locator(".settings-namespace-group", { hasText: "Topic" });
+    for (const term of ["Engineering", "Backend"]) {
+      await topic.getByRole("button", { name: "+ Add term", exact: true }).click();
+      await topic.getByPlaceholder("Term name").fill(term);
+      if (term === "Backend") await topic.locator('select[aria-label="Parent term"]').selectOption({ label: "Engineering" });
+      await topic.getByRole("button", { name: "Add term", exact: true }).click();
+      await expect(topic.getByText(term, { exact: true })).toBeVisible();
+    }
+  }
+  return { page, API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN, headers };
+}
+
+async function seedVisualMediaMenusAndSkills({ page, API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN, headers }: Awaited<ReturnType<typeof seedVisualTaxonomies>>) {
+
+  // The current memory composition seeds posts/pages, but media and menus start empty.
+  // Use a real shipped PNG upload and real menu write rather than replacing list responses.
+  const mediaResponse = await page.request.get(`${WORKSPACE_API}/media`, { headers });
+  await expect(mediaResponse).toBeOK();
+  const media = await mediaResponse.json() as { media: unknown[] };
+  if (media.media.length === 0) {
+    const uploaded = await page.request.post(`${WORKSPACE_API}/media`, { headers, data: {
+      filename: "visual-logo.png", contentType: "image/png", alt: "Tovu visual test logo",
+      dataBase64: readFileSync(path.join(REPO_ROOT, "content/brand/icons/pwa/icon-512.png")).toString("base64"),
+    } });
+    await expect(uploaded).toBeOK();
+  }
+  const menuResponse = await page.request.get(`${WORKSPACE_API}/menus`, { headers });
+  await expect(menuResponse).toBeOK();
+  const menus = await menuResponse.json() as { menus: unknown[] };
+  if (menus.menus.length === 0) {
+    const created = await page.request.post(`${WORKSPACE_API}/menus`, { headers, data: {
+      title: "Main navigation", slug: "visual-main", items: [],
+    } });
+    await expect(created).toBeOK();
+  }
+  const installed = await page.request.get(`${WORKSPACE_API}/skills`, { headers });
+  await expect(installed).toBeOK();
+  const { skills } = await installed.json() as { skills: Array<{ name: string }> };
+  if (!skills.some(skill => skill.name === SKILL_NAME)) {
+    const added = await page.request.post(`${WORKSPACE_API}/skills`, { headers, data: {
+      confirmed: true,
+      files: [{ path: "SKILL.md", contentBase64: Buffer.from(SKILL_MARKDOWN).toString("base64") }],
+    } });
+    await expect(added).toBeOK();
+  }
+  return { page, API, WORKSPACE_API, headers };
+}
+
+async function seedVisualEditors({ page, API, WORKSPACE_API, headers }: Awaited<ReturnType<typeof seedVisualMediaMenusAndSkills>>) {
+
+  // Explicit slugs/titles make entity selection stable across projects and retries. All writes
+  // go to this suite's isolated runtime through production API contracts, never list mocks.
+  async function get<T>(url: string): Promise<T> {
+    const response = await page.request.get(url, { headers });
+    await expect(response).toBeOK();
+    return await response.json() as T;
+  }
+  async function post<T>(url: string, data: unknown): Promise<T> {
+    const response = await page.request.post(url, { headers, data });
+    await expect(response).toBeOK();
+    return await response.json() as T;
+  }
+  const posts = await get<{ posts: Array<{ post: Content }> }>(`${WORKSPACE_API}/posts`);
+  const seededPost = posts.posts.find(item => item.post.slug === "visual-post")?.post
+    ?? (await post<{ post: Content }>(`${WORKSPACE_API}/posts`, {
+      title: "Visual regression post", slug: "visual-post", status: "draft",
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A stable post for editor and preview captures." }] }] },
+    })).post;
+  const pages = await get<{ posts: Array<{ post: Content }> }>(`${WORKSPACE_API}/pages`);
+  let seededPage = pages.posts.find(item => item.post.slug === "visual-page")?.post;
+  if (!seededPage) {
+    seededPage = (await post<{ post: Content }>(`${WORKSPACE_API}/pages`, { title: "Visual regression page", slug: "visual-page" })).post;
+    const html = await page.request.put(`${WORKSPACE_API}/pages/${seededPage.id}/html`, { headers, data: {
+      html: '<main><h1>Visual regression page</h1><p>A stable page for HTML, Interactive and Preview captures.</p></main>',
+    } });
+    await expect(html).toBeOK();
+  }
+  const namedMenus = await get<{ menus: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/menus`);
+  const menu = namedMenus.menus.find(item => item.slug === "visual-main")
+    ?? (await post<{ menu: { id: string } }>(`${WORKSPACE_API}/menus`, { title: "Main navigation", slug: "visual-main", items: [] })).menu;
+  const forms = await get<{ data: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/forms`);
+  const form = forms.data.find(item => item.slug === "visual-contact")
+    ?? (await post<{ data: { id: string } }>(`${WORKSPACE_API}/forms`, {
+      name: "Visual contact", slug: "visual-contact", fields: [
+        { id: "name", label: "Name", type: "text", required: true, maxLength: 120 },
+        { id: "email", label: "Email", type: "email", required: true },
+        { id: "message", label: "Message", type: "textarea", required: false, maxLength: 1000 },
+      ], notify: { enabled: false, recipients: [] },
+    })).data;
+  return { API, WORKSPACE_API, get, post, seededPost, seededPage, menu, form };
+}
+
+async function seedVisualEntriesAndWidgets({ API, WORKSPACE_API, get, post, seededPost, seededPage, menu, form }: Awaited<ReturnType<typeof seedVisualEditors>>) {
+  const types = await get<{ items: Array<{ key: string }> }>(`${API}/content-types`);
+  if (!types.items.some(item => item.key === "visual_notes")) {
+    await post(`${API}/content-types`, { key: "visual_notes", label: "Visual notes", fields: [
+      { name: "summary", kind: "text", required: false, queryable: false },
+    ] });
+  }
+  const entries = await get<{ items: Array<{ id: string; slug: string }> }>(`${API}/entries?type=visual_notes`);
+  const entry = entries.items.find(item => item.slug === "visual-note")
+    ?? (await post<{ entry: { id: string } }>(`${API}/entries`, {
+      type: "visual_notes", slug: "visual-note", title: "Visual note",
+      fieldsJson: { ext: { site: { summary: "Deterministic collection entry" } } },
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A stable collection entry for editor captures." }] }] },
+    })).entry;
+  const widgets = await get<{ widgets: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/widgets`);
+  const widget = widgets.widgets.find(item => item.slug === "visual-widget")
+    ?? (await post<{ widget: { id: string } }>(`${WORKSPACE_API}/widgets`, {
+      widgetType: "text", title: "Visual welcome", slug: "visual-widget", config: { body: "Welcome to the visual regression site." },
+    })).widget;
+  const regions = await get<{ regions: Array<{ regionKey: string }> }>(`${WORKSPACE_API}/widgets/regions`);
+  if (!regions.regions.some(item => item.regionKey === "visual-sidebar")) await post(`${WORKSPACE_API}/widgets/regions`, { regionKey: "visual-sidebar" });
+  return { page: seededPage.slug, post: seededPost.id, menu: menu.id, form: form.id, entry: entry.id, widget: widget.id };
+}
+
+function createVisualContentSeeder({ API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN }: { API: string; WORKSPACE_API: string; REPO_ROOT: ReturnType<typeof path.resolve>; SKILL_NAME: string; SKILL_MARKDOWN: string }) {
+
+async function seedContent(page: Page): Promise<SeedEntities> {
+  const seedVisualTaxonomiesState = await seedVisualTaxonomies({ page, API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN });
+  const seedVisualMediaMenusAndSkillsState = await seedVisualMediaMenusAndSkills(seedVisualTaxonomiesState);
+  const seedVisualEditorsState = await seedVisualEditors(seedVisualMediaMenusAndSkillsState);
+  return await seedVisualEntriesAndWidgets(seedVisualEditorsState);
+}
+  return seedContent;
+}
+
+function createVisualFixtures({ installDeterministicTransport, FIXED_DATE, WORKSPACE_API, seedContent, STILL_CSS }: { installDeterministicTransport: ReturnType<typeof createVisualTransportSetup>; FIXED_DATE: Date; WORKSPACE_API: string; seedContent: ReturnType<typeof createVisualContentSeeder>; STILL_CSS: string }) {
+
+const test = base.extend<{ adminSeed: AdminSeed }>({
+  adminSeed: [async ({ browser, baseURL, journeySite }, use) => {
+    // A separate setup context keeps its taxonomy URL, focused controls and localStorage out
+    // of captures. Reuse only session cookies; every test gets a fresh context/page and draft.
+    const context = await browser.newContext({ baseURL: baseURL, viewport: { width: 1440, height: 900 }, locale: "en-US", timezoneId: "UTC", storageState: journeySite.storageState });
+    try {
+      await installDeterministicTransport(context);
+      const page = await context.newPage();
+      await page.clock.setFixedTime(FIXED_DATE); // Freeze Date only; UI timers and RAF still run.
+      await loginAsAdmin(page);
+      for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
+        const response = await pinSessionRequest({ page, url: `${WORKSPACE_API}/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
+        expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
+      }
+      const entities = await seedContent(page);
+      const state = await context.storageState();
+      await use({ storageState: { cookies: state.cookies, origins: [] }, entities });
+    } finally {
+      await context.close();
+    }
+  }, { timeout: 120_000 }],
+  storageState: async ({ adminSeed }, use) => { await use(adminSeed.storageState); },
+  page: async ({ page, context }, use, testInfo) => {
+    await installDeterministicTransport(context);
+    // Clock.install must precede all other clock APIs. Only nested execution cases need fake
+    // timers; ordinary captures retain the original Date-only freeze and running UI timers.
+    if (testInfo.title.includes(": execution ")) await page.clock.install({ time: FIXED_DATE });
+    await page.clock.setFixedTime(FIXED_DATE);
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
+    // Install before app mount, then reinforce after navigation before each screenshot.
+    await page.addInitScript(css => {
+      document.addEventListener("DOMContentLoaded", () => {
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+      }, { once: true });
+    }, STILL_CSS);
+    await use(page);
+  },
+});
+  return { test };
+}
+
+function registerSeedPreflight({ test }: { test: ReturnType<typeof createVisualFixtures>["test"] }) {
+
+
+// Resolve the seed once in beforeAll so a broken setup fails this file's project once instead
+// of rebooting its site for every capture. Keep per-test seeding because pins reset between tests.
+test.beforeAll("admin seed preflight", async ({ adminSeed }) => { void adminSeed; });
+}
+
+function createVisualSettler({ STILL_CSS }: { STILL_CSS: string }) {
+
+async function settle(page: Page): Promise<void> {
+  await expect(page.locator(".admin-layout")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  for (const frame of page.frames()) {
+    await frame.evaluate(async css => {
+      await document.fonts.ready;
+      await Promise.all(Array.from(document.images).filter(img => img.getAttribute("src")).map(img => img.decode().catch(() => undefined)));
+      const style = document.createElement("style");
+      style.textContent = css;
+      document.head.append(style);
+    }, STILL_CSS);
+  }
+  await page.addStyleTag({ content: STILL_CSS });
+  // Do not approve a loading skeleton/failed content request as an index-page baseline.
+  await expect(page.locator("#main-content")).not.toContainText(/Loading(?:\s|…|\.\.\.)|Checking current status…/);
+  // Memory-only capability warnings (for example the database drift banner) remain visible:
+  // they are part of this boot's actual UI. The index tests separately require a rendered page.
+}
+  return settle;
+}
+
+
+
+/** Jini's `useActiveTabInView` scrolls a deep-linked phone tab strip once, on mount, sometimes before
+ * the web font has loaded, so the strip's offset varied by a few px between runs. Redo its rule with
+ * the final metrics: start-scrolled, then move just far enough to bring the selected tab in view. */
+async function realignDeepLinkedTabStrip(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (const strip of document.querySelectorAll<HTMLElement>("#main-content [role=tablist]")) {
+      const tab = strip.querySelector('[role="tab"][aria-selected="true"]');
+      if (!tab || strip.scrollWidth <= strip.clientWidth) continue;
+      strip.scrollLeft = 0;
+      const stripBox = strip.getBoundingClientRect();
+      const tabBox = tab.getBoundingClientRect();
+      const visibleRight = stripBox.right - (parseFloat(getComputedStyle(strip).paddingRight) || 0);
+      if (tabBox.right > visibleRight) strip.scrollLeft += tabBox.right - visibleRight;
+    }
+  });
+}
+function createVisualCapture({ settle }: { settle: ReturnType<typeof createVisualSettler> }) {
+
+async function capture(page: Page, filename: string): Promise<void> {
+  await settle(page);
+  // MASK INVENTORY (nothing else is masked):
+  // - table body timestamp cells under Updated / Created / Created / Updated (Forms) / Timestamp /
+  //   Time / Removed headers;
+  //   mark by semantic column header, since shared DataTable exposes no column-key DOM attribute.
+  // - .dash-activity-time: server write timestamps in recent activity.
+  // - #main-content time: <time> elements carry write dates (for example a media card's upload date).
+  // - .workspace-identity-grid Created value: server timestamp on the legacy Workspace tab.
+  // - .deployment-facts code: absolute filesystem paths vary with the isolated runtime directory.
+  // - .site-key-fingerprint: per-runtime generated key fingerprint (never reveal the key).
+  // - .site-key-status-note code: absolute per-runtime key-file path.
+  // - [data-visual-random-id]: text under Observability > Queries holding a per-runtime UUID (the
+  //   chart-providers query key carries the signed-in principal's id since Recharts ships enabled).
+  // No other random entity IDs or avatars are displayed by the representative states.
+  // Stable titles, slugs, nav icons, media thumbnails, menu rows, skill chips and popup are visible.
+  await page.evaluate(() => {
+    for (const table of document.querySelectorAll("#main-content table")) {
+      const headings = Array.from(table.querySelectorAll("thead th"));
+      headings.forEach((heading, index) => {
+        const label = (heading.textContent ?? "").replace(/[⇅▲▼]/g, "").trim();
+        if (!/^(Updated|Created|Created \/ Updated|Timestamp|Time|Removed)$/.test(label)) return;
+        for (const row of table.querySelectorAll("tbody tr")) row.children[index]?.setAttribute("data-visual-timestamp", "");
+      });
+    }
+    const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    const scroll = document.querySelector(".observability-queries-scroll");
+    const walker = scroll && document.createTreeWalker(scroll, NodeFilter.SHOW_TEXT);
+    for (let node = walker?.nextNode(); node; node = walker!.nextNode()) {
+      if (uuid.test(node.textContent ?? "")) node.parentElement?.setAttribute("data-visual-random-id", "");
+    }
+  });
+  const masked = [
+    page.locator("[data-visual-timestamp]"),
+    page.locator(".dash-activity-time"),
+    page.locator("#main-content time"),
+    page.locator(".workspace-identity-grid .settings-layer-cell").filter({ hasText: "Created" }).locator("span").last(),
+    page.locator(".deployment-facts code"),
+    page.locator(".site-key-fingerprint"),
+    page.locator(".site-key-status-note code"),
+    page.locator("[data-visual-random-id]"),
+  ];
+  // Playwright paints masks above everything. On a phone the open chat dock is a bottom sheet over
+  // the page, so a masked cell under it would cover the dock's own messages and slash popup. Those
+  // cells are hidden instead; the side-column dock at tablet/desktop never overlaps them.
+  for (const locator of masked) {
+    await locator.evaluateAll(elements => {
+      const dock = document.querySelector(".admin-chat-dock")?.getBoundingClientRect();
+      if (!dock || dock.width === 0 || dock.height === 0) return;
+      for (const element of elements) {
+        const box = element.getBoundingClientRect();
+        if (box.right > dock.left && box.left < dock.right && box.bottom > dock.top && box.top < dock.bottom) element.setAttribute("data-visual-under-dock", "");
+      }
+    });
+  }
+  const masks = masked.map(locator => locator.and(page.locator(":not([data-visual-under-dock])")));
+  // Viewport-sized shots reflect the actual responsive shell and fixed-position chat dock;
+  // fullPage could expand the image to an overflowing off-canvas mobile sidebar's width.
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot(filename, {
+    animations: "disabled", caret: "hide", mask: masks,
+    stylePath: path.join(import.meta.dirname, "admin-visual.under-dock.css"),
+  });
+}
+  return capture;
+}
+
+function registerAdminIndexPins({ panels, test, settle, SKILL_NAME, capture }: { panels: ReturnType<ReturnType<typeof createPanelInventoryReader>>; test: ReturnType<typeof createVisualFixtures>["test"]; settle: ReturnType<typeof createVisualSettler>; SKILL_NAME: string; capture: ReturnType<typeof createVisualCapture> }) {
+
+  for (const panel of panels) {
+    // Soon pages have a real declaration and are captured once in each project, including
+    // previewable Comments/Authentication/Observability. No disabled nav link needs clicking.
+    test(`${panel.id}: ${panel.label}${panel.soon ? " (soon)" : ""}`, async ({ page }) => {
+      await page.goto(`/admin${ADDONS_PANEL_PATHS[panel.id] ?? `/${panel.id}`}`, { waitUntil: "domcontentloaded" });
+      if (panel.id === "workspace") await expect(page).toHaveURL(/\/admin\/settings\?tab=workspace$/);
+      if (panel.id === "integrations") await expect(page).toHaveURL(/\/admin\/addons\/integrations\?tab=webhooks$/);
+      await settle(page);
+      await expect(page.locator("#main-content .page, #main-content .jini-page, #main-content .settings-ui-section").first()).toBeVisible();
+      if (panel.id === "seo") await expect(page.getByRole("heading", { name: "SEO", exact: true })).toBeVisible();
+      if (panel.id === "sites") await expect(page.getByRole("heading", { name: "Sites", exact: true })).toBeVisible();
+      if (panel.id === "taxonomy") await expect(page.getByText("Backend", { exact: true })).toBeVisible();
+      if (panel.id === "skills") await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
+      await expect(page.locator("button.chat-fab")).toBeVisible();
+      await expect(page.locator(".admin-chat-dock")).toBeHidden();
+      await capture(page, `admin-${panel.id}.png`);
+      if (panel.id === "skills") {
+        await page.goto("/admin/addons/skills?tab=add");
+        await expect(page).toHaveURL(/\/admin\/addons\/skills\?tab=add$/);
+        await expect(page.getByRole("textbox", { name: "GitHub URL" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Upload folder", exact: true })).toBeVisible();
+        await expect(page.getByRole("list", { name: "Installed skills" })).toHaveCount(0);
+        await capture(page, "admin-skills-add.png");
+      }
+    });
+  }
+}
+
+function registerAdminIndexSuite({ test, panels, settle, SKILL_NAME, capture }: { test: ReturnType<typeof createVisualFixtures>["test"]; panels: ReturnType<ReturnType<typeof createPanelInventoryReader>>; settle: ReturnType<typeof createVisualSettler>; SKILL_NAME: string; capture: ReturnType<typeof createVisualCapture> }) {
+
+
+test.describe("admin index pages", () => {
+registerAdminIndexPins({ panels, test, settle, SKILL_NAME, capture });
+});
+}
+
+
+
+async function selectShellTab(page: Page, id: string): Promise<void> {
+  const tab = page.getByTestId(`settings-dialog-nav-${id}`);
+  // Inline dialog sidebars can be collapsed at narrow widths; expand through their real control.
+  if (!await tab.isVisible()) await page.getByRole("button", { name: "Expand settings sidebar", exact: true }).click();
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-pressed", "true");
+}
+function registerPageTabPins({ tabPages, test, WORKSPACE_API, settle, capture }: { tabPages: ReturnType<typeof prepareVisualTabPages>["tabPages"]; test: ReturnType<typeof createVisualFixtures>["test"]; WORKSPACE_API: string; settle: ReturnType<typeof createVisualSettler>; capture: ReturnType<typeof createVisualCapture> }) {
+
+  for (const tabPage of tabPages) {
+    for (const [index, id] of tabPage.ids.entries()) {
+      test(`${tabPage.route}: tab ${id}`, async ({ page }) => {
+        const queryId = tabPage.route === "pages" && id === "theme" ? "themes" : id;
+        // cb7cfdcb9 shows Trash only with local site management (switcher + site supervisor), which
+        // the isolated pin boot lacks. Flag only that capability for this capture; the real (empty)
+        // trash list still comes from the API. No Restore/Delete is submitted.
+        if (tabPage.route === "sites" && id === "trash") {
+          await page.route(url => url.pathname === `${WORKSPACE_API}/system/sites`, async route => {
+            if (route.request().method() !== "GET") return route.continue();
+            const response = await route.fetch();
+            await expect(response).toBeOK();
+            const body = await response.json() as { trash?: unknown[] };
+            await route.fulfill({ response, json: { ...body, switchingEnabled: true, localManagementEnabled: true, trash: body.trash ?? [] } });
+          });
+        }
+        await page.goto(`/admin${ADDONS_PANEL_PATHS[tabPage.route] ?? `/${tabPage.route}`}${tabPage.clickOnly ? "" : `?tab=${queryId}`}`);
+        await settle(page);
+        if (tabPage.clickOnly) await selectShellTab(page, id);
+        else if (tabPage.shell) await expect(page.getByTestId(`settings-dialog-nav-${id}`)).toHaveAttribute("aria-pressed", "true");
+        else if (tabPage.route === "sites") await expect(page.locator(`[data-agent-element="sites-tab-${id}"]`)).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
+        else {
+          const tab = page.locator("#main-content .tab-bar").first().getByRole("tab").nth(index);
+          await expect(tab).toHaveAttribute("aria-selected", "true");
+        }
+        await settle(page);
+        await realignDeepLinkedTabStrip(page);
+        await capture(page, `admin-${tabPage.route}-tab-${id}.png`);
+      });
+    }
+  }
+}
+
+function registerSecurityAndPublishPins({ categories, test, settle, capture, publishTargets }: { categories: ReturnType<ReturnType<typeof createTabInventoryReader>>; test: ReturnType<typeof createVisualFixtures>["test"]; settle: ReturnType<typeof createVisualSettler>; capture: ReturnType<typeof createVisualCapture>; publishTargets: ReturnType<typeof readVisualPublishTargets>["publishTargets"] }) {
+
+  for (const [index, id] of categories.entries()) {
+    test(`access-tokens: category ${id}`, async ({ page }) => {
+      await page.goto("/admin/access-tokens?tab=access-tokens");
+      await settle(page);
+      const tab = page.getByRole("tablist", { name: "Filter by category", exact: true }).getByRole("tab").nth(index);
+      await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await capture(page, `admin-access-tokens-category-${id}.png`);
+    });
+  }
+  for (const target of publishTargets) {
+    test(`deployment static-site: target ${target.id}`, async ({ page }) => {
+      await page.goto("/admin/deployment?tab=static-site");
+      await settle(page);
+      const tab = page.getByRole("tablist", { name: "Publish target", exact: true }).getByRole("tab", { name: target.label, exact: true });
+      await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      // The target form is below the export card: keep that tab and its actual body in frame.
+      await tab.evaluate(element => element.closest('[role="tablist"]')?.scrollIntoView({ block: "start", behavior: "instant" }));
+      await capture(page, `admin-deployment-static-site-target-${target.id}.png`);
+    });
+  }
+}
+
+function registerExecutionPanelPins({ providerPresets, test, settle, FIXED_DATE, WORKSPACE_API, capture }: { providerPresets: ReturnType<typeof readVisualProviderPresets>["providerPresets"]; test: ReturnType<typeof createVisualFixtures>["test"]; settle: ReturnType<typeof createVisualSettler>; FIXED_DATE: Date; WORKSPACE_API: string; capture: ReturnType<typeof createVisualCapture> }) {
+
+
+  for (const mount of ["settings", "ai-assistant"] as const) {
+    // A fresh test/context per mode/provider keeps unsaved form selections independent.
+    for (const state of [{ id: "local-cli", title: "Local CLI" }, { id: "byok", title: "BYOK" }, ...providerPresets]) {
+      test(`${mount}: execution ${state.id}`, async ({ page }) => {
+        await page.goto(`/admin/${mount}?tab=${mount === "settings" ? "execution" : "admin"}`);
+        await settle(page);
+        // Pause only after requests/detection have rendered. Prevent the execution slice's
+        // 600ms debounce from persisting a mode/provider choice into later page captures.
+        await page.clock.pauseAt(FIXED_DATE);
+        const ledgerWrites: string[] = [];
+        page.on("request", request => {
+          if (request.method() === "PUT" && new URL(request.url()).pathname === `${WORKSPACE_API}/settings/value`) ledgerWrites.push(request.url());
+        });
+        // BYOK mode and every provider pick start a live-model discovery probe; its result line
+        // ("Could not load live models: …") is absent while loading. Scrolling before it renders
+        // clamped the scroll 23px short (tablet google-gemini flake), so count probes to the end.
+        const probes = { started: 0, settled: 0 };
+        const isProbe = (url: string) => new URL(url).pathname === `${WORKSPACE_API}/assistant/execution/models`;
+        page.on("request", request => { if (isProbe(request.url())) probes.started += 1; });
+        const settleProbe = (request: Request) => { if (isProbe(request.url())) probes.settled += 1; };
+        page.on("requestfinished", settleProbe);
+        page.on("requestfailed", settleProbe);
+        const mode = state.id === "local-cli" ? "Local CLI" : "BYOK";
+        // Settings calls this control "AI agent"; select the exact mode title inside the shared
+        // execution component so host labels and the tab's descriptive subtitle cannot hide it.
+        const modeTab = page.locator(".jini-settings-execution").getByRole("tab").filter({ has: page.getByText(mode, { exact: true }) });
+        await expect(modeTab, `${mount}: execution mode ${mode} must be present`).toBeVisible({ timeout: 5_000 });
+        let probesBefore = probes.started;
+        await modeTab.click({ timeout: 5_000 });
+        await expect(modeTab).toHaveAttribute("aria-selected", "true");
+        if (state.id !== "local-cli" && state.id !== "byok") {
+          const provider = page.locator(".jini-provider-chip-row").getByRole("tab", { name: state.title, exact: true });
+          await expect(provider, `${mount}: provider ${state.id} must be present`).toBeVisible({ timeout: 5_000 });
+          // Anthropic is BYOK's default provider: re-clicking the selected chip starts no new probe.
+          if (await provider.getAttribute("aria-selected") !== "true") probesBefore = probes.started;
+          await provider.click({ timeout: 5_000 });
+          await expect(provider).toHaveAttribute("aria-selected", "true");
+        }
+        if (state.id !== "local-cli") {
+          await expect.poll(() => probes.started > probesBefore && probes.settled === probes.started, { message: `${mount}: ${state.id} model discovery must finish` }).toBe(true);
+          await expect(page.locator(".jini-settings-execution .jini-field-hint.is-error[role=\"status\"]")).toContainText("Could not load live models");
+        }
+        // Keep the mode row, provider chips and form together, including at 390px where the
+        // AI Assistant header/switch would otherwise push the actual provider form below frame.
+        await modeTab.evaluate(element => element.closest('[role="tablist"]')?.scrollIntoView({ block: "start", behavior: "instant" }));
+        await capture(page, `admin-${mount}-execution-${state.id}.png`);
+        expect(ledgerWrites, "Paused execution captures must not change shared settings").toEqual([]);
+      });
+    }
+  }
+}
+
+function registerProviderPresetPins({ providerPresets, test, settle, capture }: { providerPresets: ReturnType<typeof readVisualProviderPresets>["providerPresets"]; test: ReturnType<typeof createVisualFixtures>["test"]; settle: ReturnType<typeof createVisualSettler>; capture: ReturnType<typeof createVisualCapture> }) {
+
+  for (const preset of providerPresets) {
+    test(`ai-assistant visitor: provider ${preset.id}`, async ({ page }) => {
+      await page.goto("/admin/ai-assistant?tab=visitor");
+      await settle(page);
+      // 7b82f7b02 replaced the Visitor tab's provider chip row with one native "Provider" select.
+      const provider = page.getByRole("combobox", { name: "Provider", exact: true });
+      await provider.selectOption(preset.id);
+      await expect(provider).toHaveValue(preset.id);
+      await provider.evaluate(element => element.closest(".visitor-step")?.scrollIntoView({ block: "start", behavior: "instant" }));
+      await capture(page, `admin-ai-assistant-visitor-provider-${preset.id}.png`);
+    });
+  }
+}
+
+function prepareVisualEditors({ tabValues }: { tabValues: ReturnType<typeof createTabInventoryReader> }) {
+  const editors = [
+    { entity: "page", route: "pages", ids: tabValues("pages/PageEditor.tsx", "VIEWS", "key"), labels: tabValues("pages/PageEditor.tsx", "VIEWS", "label") },
+    { entity: "post", route: "posts", ids: tabValues("posts/PostEditor.tsx", "VIEWS", "key"), labels: tabValues("posts/PostEditor.tsx", "VIEWS", "label") },
+    { entity: "theme", route: "themes", ids: tabValues("themes/ThemeExplore.tsx", "VIEWS", "key"), labels: tabValues("themes/ThemeExplore.tsx", "VIEWS", "label") },
+  ] as const;
+  return { editors };
+}
+
+function registerEditorPins({ editors, test, settle, capture, tabValues }: { editors: ReturnType<typeof prepareVisualEditors>["editors"]; test: ReturnType<typeof createVisualFixtures>["test"]; settle: ReturnType<typeof createVisualSettler>; capture: ReturnType<typeof createVisualCapture>; tabValues: ReturnType<typeof createTabInventoryReader> }) {
+
+  for (const editor of editors) {
+    for (const [index, id] of editor.ids.entries()) {
+      test(`${editor.entity} editor: ${id}`, async ({ page, adminSeed }) => {
+        // Use the theme a new site ships so the preview works on a cold boot.
+        // with: tovu-starter since 0fb27e1c2 (tovu-theme, renamed by 85e29beac, is no longer
+        // installed on a fresh site). These tests only preview/read its files.
+        const url = editor.entity === "theme" ? "/admin/themes/explore?theme=tovu-starter&file=theme.json"
+          : `/admin/${editor.route}/${encodeURIComponent(adminSeed.entities[editor.entity])}`;
+        await page.goto(url);
+        await settle(page);
+        const tab = page.getByRole("tablist", { name: "Editor view", exact: true }).getByRole("tab", { name: editor.labels[index], exact: true });
+        await tab.click();
+        await expect(tab).toHaveAttribute("aria-selected", "true");
+        if (editor.entity === "page" && id === "html") await expect(page.getByRole("textbox", { name: "Page HTML", exact: true })).not.toHaveValue("");
+        if (editor.entity === "theme" && id === "html") await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("");
+        if (editor.entity === "post" && id === "preview") {
+          // The draft's preview renders its byline date server-side as today; pin that <time> text
+          // (a mask alone would still vary with the label's width).
+          const date = page.locator("iframe.page-preview-iframe").contentFrame().locator("time");
+          await expect(date).toHaveCount(1);
+          await date.evaluate(element => { element.textContent = "Jan 15, 2026"; });
+        }
+        await capture(page, `admin-${editor.entity}-editor-tab-${id}.png`);
+      });
+    }
+  }
+  for (const [index, id] of tabValues("@jini-ai/admin/forms/rules.js", "FORM_TABS", "id").entries()) {
+    test(`form detail: ${id}`, async ({ page, adminSeed }) => {
+      await page.goto(`/admin/forms/${adminSeed.entities.form}${id === "submissions" ? "/submissions" : ""}`);
+      await settle(page);
+      await expect(page.getByRole("tablist", { name: "Form sections", exact: true }).getByRole("tab").nth(index)).toHaveAttribute("aria-selected", "true");
+      await capture(page, `admin-form-detail-tab-${id}.png`);
+    });
+  }
+}
+
+function prepareVisualDetails() {
+  const details: Array<{ id: string; url: (entities: SeedEntities) => string; heading: string }> = [
+    { id: "menu-editor", url: e => `/admin/menus/${e.menu}`, heading: "Edit menu" },
+    { id: "collection-entries", url: () => "/admin/collections/visual_notes", heading: "Visual notes" },
+    { id: "collection-entry-editor", url: e => `/admin/collections/visual_notes/${e.entry}`, heading: "Edit Visual notes entry" },
+    { id: "widget-editor", url: e => `/admin/widgets/${e.widget}`, heading: "Edit widget" },
+    { id: "widget-regions", url: () => "/admin/widgets/regions", heading: "Widget Regions" },
+    { id: "widget-region-editor", url: () => "/admin/widgets/regions/visual-sidebar", heading: "Region: visual-sidebar" },
+    { id: "change-password", url: () => "/admin/users/change-password", heading: "Users" },
+  ];
+  return { details };
+}
+
+function registerEntityDetailPins({ details, test, API, capture }: { details: ReturnType<typeof prepareVisualDetails>["details"]; test: ReturnType<typeof createVisualFixtures>["test"]; API: string; capture: ReturnType<typeof createVisualCapture> }) {
+
+  for (const detail of details) {
+    test(detail.id, async ({ page, adminSeed }) => {
+      // The masked Updated cell's text width still moves the other columns; pin the server's time.
+      if (detail.id === "collection-entries") await narrowListForBaseline({ page, pathname: `${API}/entries`, keep: () => true }, { pin: { updatedAt: BASELINE_TIME } });
+      await page.goto(detail.url(adminSeed.entities));
+      if (detail.id === "change-password") {
+        // showModal makes the underlying Users page inert and removes its heading from
+        // role queries. Assert the actual routed dialog instead of racing its open effect.
+        await expect(page.getByRole("dialog", { name: "Reset password?", exact: true })).toBeVisible();
+      } else {
+        await expect(page.getByRole("heading", { name: detail.heading, exact: true })).toBeVisible();
+      }
+      await capture(page, `admin-${detail.id}.png`);
+    });
+  }
+}
+
+function registerAssistantVisualPins({ test, capture, SKILL_NAME }: { test: ReturnType<typeof createVisualFixtures>["test"]; capture: ReturnType<typeof createVisualCapture>; SKILL_NAME: string }) {
+
+  test("closed dock: FAB", async ({ page }) => {
+    await page.goto("/admin/dashboard");
+    await expect(page.locator("button.chat-fab")).toBeVisible();
+    await expect(page.locator(".admin-chat-dock")).toBeHidden();
+    await capture(page, "assistant-closed-fab.png");
+  });
+
+  test("open empty dock", async ({ page }) => {
+    await page.goto("/admin/dashboard");
+    await page.locator("button.chat-fab").click();
+    await expect(page.locator(".admin-chat-dock")).toBeVisible();
+    await expect(page.locator("textarea.jini-composer-input")).toHaveValue("");
+    // Measure the rendered pane: a matching class/selector alone cannot prove flex sizing.
+    await expect.poll(() => page.locator(".admin-chat-dock").evaluate(dock => {
+      const pane = dock.querySelector(".admin-chat-dock-drop > .jini-chat-pane");
+      if (!pane) return Number.POSITIVE_INFINITY;
+      const bounds = pane.getBoundingClientRect();
+      return Math.max(Math.abs(dock.clientWidth - bounds.width), Math.abs(dock.clientHeight - bounds.height));
+    })).toBeLessThanOrEqual(1);
+    await capture(page, "assistant-open-empty.png");
+  });
+
+  test("slash popup /sk and a selected skill", async ({ page }) => {
+    await page.goto("/admin/dashboard");
+    await page.locator("button.chat-fab").click();
+    const input = page.locator("textarea.jini-composer-input");
+    await input.pressSequentially("/sk");
+    const popup = page.locator("#jini-composer-slash-menu");
+    await expect(popup).toBeVisible();
+    const skill = popup.getByRole("option", { name: SKILL_NAME });
+    await expect(skill).toBeVisible();
+    await capture(page, "assistant-slash-sk.png");
+    await skill.click();
+    await expect(popup).toBeHidden();
+    await expect(page.locator(".jini-attachment-chip", { hasText: `${SKILL_NAME} · Skill` })).toBeVisible();
+    await expect(input).toHaveValue("");
+    await capture(page, "assistant-skill-picked.png");
+  });
+}
+
+function registerSkillConfirmationPin({ test, SKILL_NAME, SKILL_MARKDOWN, capture }: { test: ReturnType<typeof createVisualFixtures>["test"]; SKILL_NAME: string; SKILL_MARKDOWN: string; capture: ReturnType<typeof createVisualCapture> }) {
+
+
+  test("Skills install-confirm dialog", async ({ page }) => {
+    await page.goto("/admin/addons/skills");
+    await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
+    await page.goto("/admin/addons/skills?tab=add");
+    await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
+    // Real local-file proposal opens the dialog, without fetching GitHub or installing again.
+    await page.getByLabel("Choose skill files", { exact: true }).setInputFiles({
+      name: "SKILL.md", mimeType: "text/markdown", buffer: Buffer.from(SKILL_MARKDOWN),
+    });
+    const dialog = page.getByRole("dialog", { name: "Install skill", exact: true });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Confirm install", exact: true })).toBeEnabled();
+    await capture(page, "skills-install-confirm.png");
+  });
+}
+
+function registerVisualPageSuites({ test, tabPages, WORKSPACE_API, settle, capture, categories, publishTargets, providerPresets, FIXED_DATE, tabValues, API, SKILL_NAME, SKILL_MARKDOWN }: { test: ReturnType<typeof createVisualFixtures>["test"]; tabPages: ReturnType<typeof prepareVisualTabPages>["tabPages"]; WORKSPACE_API: string; settle: ReturnType<typeof createVisualSettler>; capture: ReturnType<typeof createVisualCapture>; categories: ReturnType<ReturnType<typeof createTabInventoryReader>>; publishTargets: ReturnType<typeof readVisualPublishTargets>["publishTargets"]; providerPresets: ReturnType<typeof readVisualProviderPresets>["providerPresets"]; FIXED_DATE: Date; tabValues: ReturnType<typeof createTabInventoryReader>; API: string; SKILL_NAME: string; SKILL_MARKDOWN: string }) {
+
+
+test.describe("every admin page tab", () => {
+registerPageTabPins({ tabPages, test, WORKSPACE_API, settle, capture });
+});
+
+test.describe("nested page tabs", () => {
+registerSecurityAndPublishPins({ categories, test, settle, capture, publishTargets });
+registerExecutionPanelPins({ providerPresets, test, settle, FIXED_DATE, WORKSPACE_API, capture });
+registerProviderPresetPins({ providerPresets, test, settle, capture });
+});
+
+test.describe("seeded entity pages and editor tabs", () => {
+const { editors } = prepareVisualEditors({ tabValues });
+registerEditorPins({ editors, test, settle, capture, tabValues });
+const { details } = prepareVisualDetails();
+registerEntityDetailPins({ details, test, API, capture });
+});
+
+test.describe("assistant chat + Skills confirmation", () => {
+registerAssistantVisualPins({ test, capture, SKILL_NAME });
+registerSkillConfirmationPin({ test, SKILL_NAME, SKILL_MARKDOWN, capture });
+});
+}
+
 test.describe("Bug pin: admin-visual-regression", () => {
 /**
  * Admin + assistant visual regression README
@@ -102,715 +945,23 @@ const STILL_CSS = `
     scroll-behavior: auto !important;
   }
 `;
-
-interface PanelCapture { id: string; label: string; soon: boolean }
-
-function property(object: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined {
-  const member = object.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText() === name);
-  return member && ts.isPropertyAssignment(member) ? member.initializer : undefined;
-}
-
-function readPanelCaptures(): PanelCapture[] {
-  const filename = path.join(REPO_ROOT, "apps/admin/src/panels.tsx");
-  const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const captures = adminPanelsLiteral(source).elements.map(element => {
-    if (!ts.isObjectLiteralExpression(element)) throw new Error("Unrecognized panel declaration; refusing to silently lose coverage.");
-    const id = property(element, "id");
-    if (!id || !ts.isStringLiteral(id)) throw new Error("Panel id must be a string literal.");
-    const nav = property(element, "nav");
-    const label = nav && ts.isObjectLiteralExpression(nav) ? property(nav, "label") : undefined;
-    const soon = nav && ts.isObjectLiteralExpression(nav) ? property(nav, "soon") : undefined;
-    return { id: id.text, label: label && ts.isStringLiteral(label) ? label.text : id.text, soon: soon?.kind === ts.SyntaxKind.TrueKeyword };
-  });
-  if (captures.length === 0 || new Set(captures.map(p => p.id)).size !== captures.length) {
-    throw new Error("Empty/duplicate admin capture manifest.");
-  }
-  return captures;
-}
+const readPanelCaptures = createPanelInventoryReader({ REPO_ROOT });
 
 const panels = readPanelCaptures();
-
-/** Parse tab declarations without importing React or browser-only feature dependencies.
- * Fail closed on unsupported syntax so source changes cannot silently remove captures. */
-function readLiteralArray(filename: string, name: string): ts.Expression[] {
-  const source = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true);
-  let initializer: ts.Expression | undefined;
-  function visit(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) initializer = node.initializer;
-    if (name === "jsx:tabs" && ts.isJsxAttribute(node) && node.name.getText(source) === "tabs" && node.initializer && ts.isJsxExpression(node.initializer)) initializer = node.initializer.expression;
-    ts.forEachChild(node, visit);
-  }
-  visit(source);
-  while (initializer && (ts.isAsExpression(initializer) || ts.isSatisfiesExpression(initializer) || ts.isParenthesizedExpression(initializer))) initializer = initializer.expression;
-  if (!initializer || !ts.isArrayLiteralExpression(initializer)) throw new Error(`Expected literal tab array ${name} in ${filename}`);
-  return Array.from(initializer.elements);
-}
-
-function tabValues(file: string, name: string, field?: string): string[] {
-  // Screens that moved into @jini-ai/admin keep their tab ids in the package's built rules files.
-  const jini = "@jini-ai/admin/";
-  const filename = file.startsWith(jini)
-    ? path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai/admin/dist", file.slice(jini.length))
-    : path.join(REPO_ROOT, "apps/admin/src/features", file);
-  // 2667cbdfd gates Observability's Queries tab as `...(visible ? [{ id: "queries", … }] : [])`.
-  // The journey owner on the default TanStack adapter sees it, so capture the whenTrue literals.
-  const values = readLiteralArray(filename, name).flatMap(element => {
-    if (!ts.isSpreadElement(element)) return [element];
-    let spread = element.expression;
-    while (ts.isParenthesizedExpression(spread)) spread = spread.expression;
-    if (ts.isConditionalExpression(spread) && ts.isArrayLiteralExpression(spread.whenTrue)
-      && ts.isArrayLiteralExpression(spread.whenFalse) && spread.whenFalse.elements.length === 0) return Array.from(spread.whenTrue.elements);
-    throw new Error(`Unsupported spread in ${name} in ${file}`);
-  }).map(element => {
-    const value = field && ts.isObjectLiteralExpression(element) ? property(element, field) : element;
-    if (value && ts.isIdentifier(value)) return topLevelConstString(value);
-    if (!value || !ts.isStringLiteral(value)) throw new Error(`Nonliteral ${name}.${field ?? "id"} in ${file}`);
-    return value.text;
-  });
-  if (!values.length || new Set(values).size !== values.length) throw new Error(`Empty/duplicate tabs: ${file}:${name}`);
-  return values;
-}
-
-interface TabPage { route: string; ids: string[]; shell?: boolean; clickOnly?: boolean }
+const tabValues = createTabInventoryReader({ REPO_ROOT });
 const themeTabIds = tabValues("themes/rules.ts", "THEME_TAB_GROUPS");
-const tabPages: TabPage[] = [
-  { route: "sites", ids: tabValues("sites/Sites.hooks.tsx", "SITES_TAB_IDS") },
-  { route: "ai-assistant", ids: tabValues("ai-assistant/hooks/use-ai-assistant.hooks.ts", "AI_ASSISTANT_TAB_IDS"), shell: true },
-  { route: "pages", ids: tabValues("pages/Pages.tsx", "jsx:tabs", "id") },
-  { route: "media", ids: tabValues("media/hooks/use-media-tabs.hooks.ts", "MEDIA_TABS", "id") },
-  { route: "roles", ids: tabValues("roles/Roles.hooks.tsx", "ROLES_TAB_IDS") },
-  { route: "seo", ids: tabValues("@jini-ai/admin/seo/rules.js", "SEO_TAB_IDS") },
-  { route: "themes", ids: themeTabIds },
-  { route: "appearance", ids: themeTabIds },
-  { route: "plugins", ids: tabValues("plugins/Plugins.tsx", "PLUGINS_TAB_IDS") },
-  { route: "agent-plugins", ids: tabValues("plugins/AgentPlugins.tsx", "tabs", "id"), shell: true, clickOnly: true },
-  { route: "skills", ids: tabValues("skills/Skills.tsx", "tabs", "id"), shell: true },
-  { route: "providers", ids: tabValues("providers/Providers.tsx", "PROVIDERS_TAB_IDS") },
-  { route: "database", ids: tabValues("database/Database.tsx", "DATABASE_TAB_IDS") },
-  // ea4f8967a moved Recovery's tabs into an inline SettingsDialogShell `tabs` array.
-  { route: "recovery", ids: tabValues("recovery/Recovery.tsx", "tabs", "id"), shell: true },
-  { route: "deployment", ids: tabValues("deployment/Deployment.tsx", "DEPLOYMENT_TAB_IDS") },
-  { route: "source-control", ids: tabValues("source-control/SourceControl.tsx", "SOURCE_CONTROL_TAB_IDS") },
-  { route: "access-tokens", ids: tabValues("security/Security.tsx", "SECURITY_TAB_IDS") },
-  { route: "settings", ids: tabValues("settings/SettingsUi.tsx", "tabs", "id"), shell: true },
-  { route: "authentication", ids: ["home", ...tabValues("authentication/model/provider-schemas.ts", "AUTHENTICATION_PROVIDER_SCHEMAS", "id")], shell: true, clickOnly: true },
-  { route: "observability", ids: tabValues("observability/Observability.tsx", "tabs", "id"), shell: true, clickOnly: true },
-];
+const { tabPages } = prepareVisualTabPages({ tabValues, themeTabIds });
 const categories = tabValues("security/rules.ts", "ACCESS_TOKEN_CATEGORIES", "id");
-// Each hosting plugin ships its own targets file: read every shipped one (Tovu content plus selected
-// @jini-ai/agent-plugins/<id> packages), in plugin-id order.
-const publishTargets = composedBundledPluginDirs()
-  .map(({ dir }) => path.join(dir, "tovu-deploy-targets.json")).filter(file => existsSync(file))
-  .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; label: string }> }).targets);
+const { publishTargets } = readVisualPublishTargets();
 const uiExecutionSource = path.join(REPO_ROOT, "apps/admin/node_modules/@jini-ai/ui/src/features/execution/constants.ts");
-const providerPresets = readLiteralArray(uiExecutionSource, "DEFAULT_PROVIDER_PRESETS").map(element => {
-  if (!ts.isObjectLiteralExpression(element)) throw new Error("Nonliteral provider preset");
-  const id = property(element, "id");
-  const title = property(element, "title");
-  if (!id || !title || !ts.isStringLiteral(id) || !ts.isStringLiteral(title)) throw new Error("Nonliteral provider id/title");
-  return { id: id.text, title: title.text };
+const { providerPresets } = readVisualProviderPresets({ uiExecutionSource });
+const installDeterministicTransport = createVisualTransportSetup({ WORKSPACE_API });
+const seedContent = createVisualContentSeeder({ API, WORKSPACE_API, REPO_ROOT, SKILL_NAME, SKILL_MARKDOWN });
+const { test } = createVisualFixtures({ installDeterministicTransport, FIXED_DATE, WORKSPACE_API, seedContent, STILL_CSS });
+registerSeedPreflight({ test });
+const settle = createVisualSettler({ STILL_CSS });
+const capture = createVisualCapture({ settle });
+registerAdminIndexSuite({ test, panels, settle, SKILL_NAME, capture });
+registerVisualPageSuites({ test, tabPages, WORKSPACE_API, settle, capture, categories, publishTargets, providerPresets, FIXED_DATE, tabValues, API, SKILL_NAME, SKILL_MARKDOWN });
 });
-
-type AdminStorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
-interface SeedEntities { page: string; post: string; menu: string; form: string; entry: string; widget: string }
-interface AdminSeed { storageState: AdminStorageState; entities: SeedEntities }
-
-async function installDeterministicTransport(context: BrowserContext): Promise<void> {
-  // These are transport fixtures, not screenshot masks. HTTP 204 makes native EventSource
-  // stop reconnecting, so networkidle is reachable without timers or blanket request aborts.
-  // No assistant run is sent in this suite; neither background feed affects the captured states.
-  await context.route(url => url.pathname.endsWith("/settings/events") || url.pathname === "/api/frontend-sessions/stream", route => route.fulfill({ status: 204 }));
-  // Sites is a developer-only screen. Capture that deployment's UI even though the isolated
-  // pin boot defaults the switcher flag off; keep the real list, binding and write restrictions.
-  // No Create/Activate is submitted here, and a failed real read must still fail the capture.
-  await context.route(url => url.pathname === `${WORKSPACE_API}/system/sites`, async route => {
-    if (route.request().method() !== "GET") return route.continue();
-    const response = await route.fetch();
-    await expect(response).toBeOK();
-    await route.fulfill({ response, json: { ...await response.json(), switchingEnabled: true } });
-  });
-  // CLI discovery depends on the runner's installed/authenticated executables. Pin only that
-  // machine inventory; page content, installed skills, guidance and seed writes use the real API.
-  await context.route(url => url.pathname === "/api/agents", route => route.fulfill({
-    // The controlled picker initially selects "claude"; keep that runtime usable before
-    // ledger settings settle, alongside Codex. No executable is actually invoked.
-    json: { agents: [
-      { id: "claude", name: "Claude Code", available: true, authStatus: "ok", supportsTools: true, supportsCustomModel: true, models: [{ id: "default", label: "Default" }] },
-      { id: "codex", name: "Codex", available: true, authStatus: "ok", supportsTools: true, supportsCustomModel: true, models: [{ id: "default", label: "Default" }] },
-    ] },
-  }));
-  // Since 5956b17a4 the Local CLI list reads this cached detection route, which otherwise lists
-  // the runner's own CLIs and their versions. Pin the same two runtimes as /api/agents above.
-  await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/detect-agents`, route => route.fulfill({
-    json: { data: [
-      { id: "claude", label: "Claude Code", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
-      { id: "codex", label: "Codex", installed: true, version: "1.0.0", models: [{ id: "default", label: "Default" }], authStatus: "ok", discoveryPending: false },
-    ] },
-  }));
-  // Ollama's keyless discovery would probe the runner's localhost. Pin that optional machine
-  // service to an explicit unavailable response; authenticated providers still use the real API.
-  await context.route(url => url.pathname === `${WORKSPACE_API}/assistant/execution/models`, async route => {
-    const body = route.request().postDataJSON() as { baseUrl?: string };
-    if (body.baseUrl === "http://localhost:11434/v1") {
-      await route.fulfill({ json: { ok: false, models: [], message: "Ollama is not running in the visual regression fixture." } });
-    } else await route.continue();
-  });
 }
-
-async function seedContent(page: Page): Promise<SeedEntities> {
-  // The API client omits Secure cookies on HTTP loopback; reuse the real browser session.
-  const headers = await pinSessionHeaders({ request: page.request });
-  // Like admin-visual-parity, populate flat + hierarchical taxonomies through their real UI.
-  // Workers/projects/retries share this one server: read first so fixture writes are idempotent.
-  const taxonomies = await page.request.get(`${API}/taxonomy`, { headers });
-  await expect(taxonomies).toBeOK();
-  const { items } = await taxonomies.json() as { items: Array<{ taxonomy: { name: string } }> };
-  if (!items.some(item => item.taxonomy.name === "Category")) {
-    await page.goto("/admin/taxonomy");
-    await page.getByRole("button", { name: "New taxonomy", exact: true }).click();
-    await page.getByLabel("New taxonomy", { exact: true }).fill("Category");
-    await page.getByRole("button", { name: "Create taxonomy", exact: true }).click();
-    const group = page.locator(".settings-namespace-group", { hasText: "Category" });
-    for (const term of ["News", "Guides"]) {
-      await group.getByRole("button", { name: "+ Add term", exact: true }).click();
-      await group.getByPlaceholder("Term name").fill(term);
-      await group.getByRole("button", { name: "Add term", exact: true }).click();
-      await expect(group.getByText(term, { exact: true })).toBeVisible();
-    }
-    await page.getByRole("button", { name: "New taxonomy", exact: true }).click();
-    await page.getByLabel("New taxonomy", { exact: true }).fill("Topic");
-    await page.getByRole("checkbox", { name: "Hierarchical", exact: true }).check();
-    await page.getByRole("button", { name: "Create taxonomy", exact: true }).click();
-    const topic = page.locator(".settings-namespace-group", { hasText: "Topic" });
-    for (const term of ["Engineering", "Backend"]) {
-      await topic.getByRole("button", { name: "+ Add term", exact: true }).click();
-      await topic.getByPlaceholder("Term name").fill(term);
-      if (term === "Backend") await topic.locator('select[aria-label="Parent term"]').selectOption({ label: "Engineering" });
-      await topic.getByRole("button", { name: "Add term", exact: true }).click();
-      await expect(topic.getByText(term, { exact: true })).toBeVisible();
-    }
-  }
-
-  // The current memory composition seeds posts/pages, but media and menus start empty.
-  // Use a real shipped PNG upload and real menu write rather than replacing list responses.
-  const mediaResponse = await page.request.get(`${WORKSPACE_API}/media`, { headers });
-  await expect(mediaResponse).toBeOK();
-  const media = await mediaResponse.json() as { media: unknown[] };
-  if (media.media.length === 0) {
-    const uploaded = await page.request.post(`${WORKSPACE_API}/media`, { headers, data: {
-      filename: "visual-logo.png", contentType: "image/png", alt: "Tovu visual test logo",
-      dataBase64: readFileSync(path.join(REPO_ROOT, "content/brand/icons/pwa/icon-512.png")).toString("base64"),
-    } });
-    await expect(uploaded).toBeOK();
-  }
-  const menuResponse = await page.request.get(`${WORKSPACE_API}/menus`, { headers });
-  await expect(menuResponse).toBeOK();
-  const menus = await menuResponse.json() as { menus: unknown[] };
-  if (menus.menus.length === 0) {
-    const created = await page.request.post(`${WORKSPACE_API}/menus`, { headers, data: {
-      title: "Main navigation", slug: "visual-main", items: [],
-    } });
-    await expect(created).toBeOK();
-  }
-  const installed = await page.request.get(`${WORKSPACE_API}/skills`, { headers });
-  await expect(installed).toBeOK();
-  const { skills } = await installed.json() as { skills: Array<{ name: string }> };
-  if (!skills.some(skill => skill.name === SKILL_NAME)) {
-    const added = await page.request.post(`${WORKSPACE_API}/skills`, { headers, data: {
-      confirmed: true,
-      files: [{ path: "SKILL.md", contentBase64: Buffer.from(SKILL_MARKDOWN).toString("base64") }],
-    } });
-    await expect(added).toBeOK();
-  }
-
-  // Explicit slugs/titles make entity selection stable across projects and retries. All writes
-  // go to this suite's isolated runtime through production API contracts, never list mocks.
-  async function get<T>(url: string): Promise<T> {
-    const response = await page.request.get(url, { headers });
-    await expect(response).toBeOK();
-    return await response.json() as T;
-  }
-  async function post<T>(url: string, data: unknown): Promise<T> {
-    const response = await page.request.post(url, { headers, data });
-    await expect(response).toBeOK();
-    return await response.json() as T;
-  }
-  type Content = { id: string; slug: string };
-  const posts = await get<{ posts: Array<{ post: Content }> }>(`${WORKSPACE_API}/posts`);
-  const seededPost = posts.posts.find(item => item.post.slug === "visual-post")?.post
-    ?? (await post<{ post: Content }>(`${WORKSPACE_API}/posts`, {
-      title: "Visual regression post", slug: "visual-post", status: "draft",
-      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A stable post for editor and preview captures." }] }] },
-    })).post;
-  const pages = await get<{ posts: Array<{ post: Content }> }>(`${WORKSPACE_API}/pages`);
-  let seededPage = pages.posts.find(item => item.post.slug === "visual-page")?.post;
-  if (!seededPage) {
-    seededPage = (await post<{ post: Content }>(`${WORKSPACE_API}/pages`, { title: "Visual regression page", slug: "visual-page" })).post;
-    const html = await page.request.put(`${WORKSPACE_API}/pages/${seededPage.id}/html`, { headers, data: {
-      html: '<main><h1>Visual regression page</h1><p>A stable page for HTML, Interactive and Preview captures.</p></main>',
-    } });
-    await expect(html).toBeOK();
-  }
-  const namedMenus = await get<{ menus: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/menus`);
-  const menu = namedMenus.menus.find(item => item.slug === "visual-main")
-    ?? (await post<{ menu: { id: string } }>(`${WORKSPACE_API}/menus`, { title: "Main navigation", slug: "visual-main", items: [] })).menu;
-  const forms = await get<{ data: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/forms`);
-  const form = forms.data.find(item => item.slug === "visual-contact")
-    ?? (await post<{ data: { id: string } }>(`${WORKSPACE_API}/forms`, {
-      name: "Visual contact", slug: "visual-contact", fields: [
-        { id: "name", label: "Name", type: "text", required: true, maxLength: 120 },
-        { id: "email", label: "Email", type: "email", required: true },
-        { id: "message", label: "Message", type: "textarea", required: false, maxLength: 1000 },
-      ], notify: { enabled: false, recipients: [] },
-    })).data;
-  const types = await get<{ items: Array<{ key: string }> }>(`${API}/content-types`);
-  if (!types.items.some(item => item.key === "visual_notes")) {
-    await post(`${API}/content-types`, { key: "visual_notes", label: "Visual notes", fields: [
-      { name: "summary", kind: "text", required: false, queryable: false },
-    ] });
-  }
-  const entries = await get<{ items: Array<{ id: string; slug: string }> }>(`${API}/entries?type=visual_notes`);
-  const entry = entries.items.find(item => item.slug === "visual-note")
-    ?? (await post<{ entry: { id: string } }>(`${API}/entries`, {
-      type: "visual_notes", slug: "visual-note", title: "Visual note",
-      fieldsJson: { ext: { site: { summary: "Deterministic collection entry" } } },
-      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A stable collection entry for editor captures." }] }] },
-    })).entry;
-  const widgets = await get<{ widgets: Array<{ id: string; slug: string }> }>(`${WORKSPACE_API}/widgets`);
-  const widget = widgets.widgets.find(item => item.slug === "visual-widget")
-    ?? (await post<{ widget: { id: string } }>(`${WORKSPACE_API}/widgets`, {
-      widgetType: "text", title: "Visual welcome", slug: "visual-widget", config: { body: "Welcome to the visual regression site." },
-    })).widget;
-  const regions = await get<{ regions: Array<{ regionKey: string }> }>(`${WORKSPACE_API}/widgets/regions`);
-  if (!regions.regions.some(item => item.regionKey === "visual-sidebar")) await post(`${WORKSPACE_API}/widgets/regions`, { regionKey: "visual-sidebar" });
-  return { page: seededPage.slug, post: seededPost.id, menu: menu.id, form: form.id, entry: entry.id, widget: widget.id };
-}
-
-const test = base.extend<{ adminSeed: AdminSeed }>({
-  adminSeed: [async ({ browser, baseURL, journeySite }, use) => {
-    // A separate setup context keeps its taxonomy URL, focused controls and localStorage out
-    // of captures. Reuse only session cookies; every test gets a fresh context/page and draft.
-    const context = await browser.newContext({ baseURL: baseURL, viewport: { width: 1440, height: 900 }, locale: "en-US", timezoneId: "UTC", storageState: journeySite.storageState });
-    try {
-      await installDeterministicTransport(context);
-      const page = await context.newPage();
-      await page.clock.setFixedTime(FIXED_DATE); // Freeze Date only; UI timers and RAF still run.
-      await loginAsAdmin(page);
-      for (const pluginId of ["github-pages", "netlify", "vercel", "cloudflare", "s3-compatible"]) {
-        const response = await pinSessionRequest({ page, url: `${WORKSPACE_API}/agent-plugins/${pluginId}`, method: "PATCH", data: { enabled: true } });
-        expect(response.ok, `${pluginId}: explicit host activation`).toBe(true);
-      }
-      const entities = await seedContent(page);
-      const state = await context.storageState();
-      await use({ storageState: { cookies: state.cookies, origins: [] }, entities });
-    } finally {
-      await context.close();
-    }
-  }, { timeout: 120_000 }],
-  storageState: async ({ adminSeed }, use) => { await use(adminSeed.storageState); },
-  page: async ({ page, context }, use, testInfo) => {
-    await installDeterministicTransport(context);
-    // Clock.install must precede all other clock APIs. Only nested execution cases need fake
-    // timers; ordinary captures retain the original Date-only freeze and running UI timers.
-    if (testInfo.title.includes(": execution ")) await page.clock.install({ time: FIXED_DATE });
-    await page.clock.setFixedTime(FIXED_DATE);
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
-    // Install before app mount, then reinforce after navigation before each screenshot.
-    await page.addInitScript(css => {
-      document.addEventListener("DOMContentLoaded", () => {
-        const style = document.createElement("style");
-        style.textContent = css;
-        document.head.append(style);
-      }, { once: true });
-    }, STILL_CSS);
-    await use(page);
-  },
-});
-
-// Resolve the seed once in beforeAll so a broken setup fails this file's project once instead
-// of rebooting its site for every capture. Keep per-test seeding because pins reset between tests.
-test.beforeAll("admin seed preflight", async ({ adminSeed }) => { void adminSeed; });
-
-async function settle(page: Page): Promise<void> {
-  await expect(page.locator(".admin-layout")).toBeVisible();
-  await page.waitForLoadState("networkidle");
-  for (const frame of page.frames()) {
-    await frame.evaluate(async css => {
-      await document.fonts.ready;
-      await Promise.all(Array.from(document.images).filter(img => img.getAttribute("src")).map(img => img.decode().catch(() => undefined)));
-      const style = document.createElement("style");
-      style.textContent = css;
-      document.head.append(style);
-    }, STILL_CSS);
-  }
-  await page.addStyleTag({ content: STILL_CSS });
-  // Do not approve a loading skeleton/failed content request as an index-page baseline.
-  await expect(page.locator("#main-content")).not.toContainText(/Loading(?:\s|…|\.\.\.)|Checking current status…/);
-  // Memory-only capability warnings (for example the database drift banner) remain visible:
-  // they are part of this boot's actual UI. The index tests separately require a rendered page.
-}
-
-/** Jini's `useActiveTabInView` scrolls a deep-linked phone tab strip once, on mount, sometimes before
- * the web font has loaded, so the strip's offset varied by a few px between runs. Redo its rule with
- * the final metrics: start-scrolled, then move just far enough to bring the selected tab in view. */
-async function realignDeepLinkedTabStrip(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    for (const strip of document.querySelectorAll<HTMLElement>("#main-content [role=tablist]")) {
-      const tab = strip.querySelector('[role="tab"][aria-selected="true"]');
-      if (!tab || strip.scrollWidth <= strip.clientWidth) continue;
-      strip.scrollLeft = 0;
-      const stripBox = strip.getBoundingClientRect();
-      const tabBox = tab.getBoundingClientRect();
-      const visibleRight = stripBox.right - (parseFloat(getComputedStyle(strip).paddingRight) || 0);
-      if (tabBox.right > visibleRight) strip.scrollLeft += tabBox.right - visibleRight;
-    }
-  });
-}
-
-async function capture(page: Page, filename: string): Promise<void> {
-  await settle(page);
-  // MASK INVENTORY (nothing else is masked):
-  // - table body timestamp cells under Updated / Created / Created / Updated (Forms) / Timestamp /
-  //   Time / Removed headers;
-  //   mark by semantic column header, since shared DataTable exposes no column-key DOM attribute.
-  // - .dash-activity-time: server write timestamps in recent activity.
-  // - #main-content time: <time> elements carry write dates (for example a media card's upload date).
-  // - .workspace-identity-grid Created value: server timestamp on the legacy Workspace tab.
-  // - .deployment-facts code: absolute filesystem paths vary with the isolated runtime directory.
-  // - .site-key-fingerprint: per-runtime generated key fingerprint (never reveal the key).
-  // - .site-key-status-note code: absolute per-runtime key-file path.
-  // - [data-visual-random-id]: text under Observability > Queries holding a per-runtime UUID (the
-  //   chart-providers query key carries the signed-in principal's id since Recharts ships enabled).
-  // No other random entity IDs or avatars are displayed by the representative states.
-  // Stable titles, slugs, nav icons, media thumbnails, menu rows, skill chips and popup are visible.
-  await page.evaluate(() => {
-    for (const table of document.querySelectorAll("#main-content table")) {
-      const headings = Array.from(table.querySelectorAll("thead th"));
-      headings.forEach((heading, index) => {
-        const label = (heading.textContent ?? "").replace(/[⇅▲▼]/g, "").trim();
-        if (!/^(Updated|Created|Created \/ Updated|Timestamp|Time|Removed)$/.test(label)) return;
-        for (const row of table.querySelectorAll("tbody tr")) row.children[index]?.setAttribute("data-visual-timestamp", "");
-      });
-    }
-    const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    const scroll = document.querySelector(".observability-queries-scroll");
-    const walker = scroll && document.createTreeWalker(scroll, NodeFilter.SHOW_TEXT);
-    for (let node = walker?.nextNode(); node; node = walker!.nextNode()) {
-      if (uuid.test(node.textContent ?? "")) node.parentElement?.setAttribute("data-visual-random-id", "");
-    }
-  });
-  const masked = [
-    page.locator("[data-visual-timestamp]"),
-    page.locator(".dash-activity-time"),
-    page.locator("#main-content time"),
-    page.locator(".workspace-identity-grid .settings-layer-cell").filter({ hasText: "Created" }).locator("span").last(),
-    page.locator(".deployment-facts code"),
-    page.locator(".site-key-fingerprint"),
-    page.locator(".site-key-status-note code"),
-    page.locator("[data-visual-random-id]"),
-  ];
-  // Playwright paints masks above everything. On a phone the open chat dock is a bottom sheet over
-  // the page, so a masked cell under it would cover the dock's own messages and slash popup. Those
-  // cells are hidden instead; the side-column dock at tablet/desktop never overlaps them.
-  for (const locator of masked) {
-    await locator.evaluateAll(elements => {
-      const dock = document.querySelector(".admin-chat-dock")?.getBoundingClientRect();
-      if (!dock || dock.width === 0 || dock.height === 0) return;
-      for (const element of elements) {
-        const box = element.getBoundingClientRect();
-        if (box.right > dock.left && box.left < dock.right && box.bottom > dock.top && box.top < dock.bottom) element.setAttribute("data-visual-under-dock", "");
-      }
-    });
-  }
-  const masks = masked.map(locator => locator.and(page.locator(":not([data-visual-under-dock])")));
-  // Viewport-sized shots reflect the actual responsive shell and fixed-position chat dock;
-  // fullPage could expand the image to an overflowing off-canvas mobile sidebar's width.
-  await page.mouse.move(0, 0);
-  await expect(page).toHaveScreenshot(filename, {
-    animations: "disabled", caret: "hide", mask: masks,
-    stylePath: path.join(import.meta.dirname, "admin-visual.under-dock.css"),
-  });
-}
-
-test.describe("admin index pages", () => {
-  for (const panel of panels) {
-    // Soon pages have a real declaration and are captured once in each project, including
-    // previewable Comments/Authentication/Observability. No disabled nav link needs clicking.
-    test(`${panel.id}: ${panel.label}${panel.soon ? " (soon)" : ""}`, async ({ page }) => {
-      await page.goto(`/admin${ADDONS_PANEL_PATHS[panel.id] ?? `/${panel.id}`}`, { waitUntil: "domcontentloaded" });
-      if (panel.id === "workspace") await expect(page).toHaveURL(/\/admin\/settings\?tab=workspace$/);
-      if (panel.id === "integrations") await expect(page).toHaveURL(/\/admin\/addons\/integrations\?tab=webhooks$/);
-      await settle(page);
-      await expect(page.locator("#main-content .page, #main-content .jini-page, #main-content .settings-ui-section").first()).toBeVisible();
-      if (panel.id === "seo") await expect(page.getByRole("heading", { name: "SEO", exact: true })).toBeVisible();
-      if (panel.id === "sites") await expect(page.getByRole("heading", { name: "Sites", exact: true })).toBeVisible();
-      if (panel.id === "taxonomy") await expect(page.getByText("Backend", { exact: true })).toBeVisible();
-      if (panel.id === "skills") await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
-      await expect(page.locator("button.chat-fab")).toBeVisible();
-      await expect(page.locator(".admin-chat-dock")).toBeHidden();
-      await capture(page, `admin-${panel.id}.png`);
-      if (panel.id === "skills") {
-        await page.goto("/admin/addons/skills?tab=add");
-        await expect(page).toHaveURL(/\/admin\/addons\/skills\?tab=add$/);
-        await expect(page.getByRole("textbox", { name: "GitHub URL" })).toBeVisible();
-        await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
-        await expect(page.getByRole("button", { name: "Upload folder", exact: true })).toBeVisible();
-        await expect(page.getByRole("list", { name: "Installed skills" })).toHaveCount(0);
-        await capture(page, "admin-skills-add.png");
-      }
-    });
-  }
-});
-
-async function selectShellTab(page: Page, id: string): Promise<void> {
-  const tab = page.getByTestId(`settings-dialog-nav-${id}`);
-  // Inline dialog sidebars can be collapsed at narrow widths; expand through their real control.
-  if (!await tab.isVisible()) await page.getByRole("button", { name: "Expand settings sidebar", exact: true }).click();
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-pressed", "true");
-}
-
-test.describe("every admin page tab", () => {
-  for (const tabPage of tabPages) {
-    for (const [index, id] of tabPage.ids.entries()) {
-      test(`${tabPage.route}: tab ${id}`, async ({ page }) => {
-        const queryId = tabPage.route === "pages" && id === "theme" ? "themes" : id;
-        // cb7cfdcb9 shows Trash only with local site management (switcher + site supervisor), which
-        // the isolated pin boot lacks. Flag only that capability for this capture; the real (empty)
-        // trash list still comes from the API. No Restore/Delete is submitted.
-        if (tabPage.route === "sites" && id === "trash") {
-          await page.route(url => url.pathname === `${WORKSPACE_API}/system/sites`, async route => {
-            if (route.request().method() !== "GET") return route.continue();
-            const response = await route.fetch();
-            await expect(response).toBeOK();
-            const body = await response.json() as { trash?: unknown[] };
-            await route.fulfill({ response, json: { ...body, switchingEnabled: true, localManagementEnabled: true, trash: body.trash ?? [] } });
-          });
-        }
-        await page.goto(`/admin${ADDONS_PANEL_PATHS[tabPage.route] ?? `/${tabPage.route}`}${tabPage.clickOnly ? "" : `?tab=${queryId}`}`);
-        await settle(page);
-        if (tabPage.clickOnly) await selectShellTab(page, id);
-        else if (tabPage.shell) await expect(page.getByTestId(`settings-dialog-nav-${id}`)).toHaveAttribute("aria-pressed", "true");
-        else if (tabPage.route === "sites") await expect(page.locator(`[data-agent-element="sites-tab-${id}"]`)).toHaveAttribute("aria-selected", "true", { timeout: 5_000 });
-        else {
-          const tab = page.locator("#main-content .tab-bar").first().getByRole("tab").nth(index);
-          await expect(tab).toHaveAttribute("aria-selected", "true");
-        }
-        await settle(page);
-        await realignDeepLinkedTabStrip(page);
-        await capture(page, `admin-${tabPage.route}-tab-${id}.png`);
-      });
-    }
-  }
-});
-
-test.describe("nested page tabs", () => {
-  for (const [index, id] of categories.entries()) {
-    test(`access-tokens: category ${id}`, async ({ page }) => {
-      await page.goto("/admin/access-tokens?tab=access-tokens");
-      await settle(page);
-      const tab = page.getByRole("tablist", { name: "Filter by category", exact: true }).getByRole("tab").nth(index);
-      await tab.click();
-      await expect(tab).toHaveAttribute("aria-selected", "true");
-      await capture(page, `admin-access-tokens-category-${id}.png`);
-    });
-  }
-  for (const target of publishTargets) {
-    test(`deployment static-site: target ${target.id}`, async ({ page }) => {
-      await page.goto("/admin/deployment?tab=static-site");
-      await settle(page);
-      const tab = page.getByRole("tablist", { name: "Publish target", exact: true }).getByRole("tab", { name: target.label, exact: true });
-      await tab.click();
-      await expect(tab).toHaveAttribute("aria-selected", "true");
-      // The target form is below the export card: keep that tab and its actual body in frame.
-      await tab.evaluate(element => element.closest('[role="tablist"]')?.scrollIntoView({ block: "start", behavior: "instant" }));
-      await capture(page, `admin-deployment-static-site-target-${target.id}.png`);
-    });
-  }
-
-  for (const mount of ["settings", "ai-assistant"] as const) {
-    // A fresh test/context per mode/provider keeps unsaved form selections independent.
-    for (const state of [{ id: "local-cli", title: "Local CLI" }, { id: "byok", title: "BYOK" }, ...providerPresets]) {
-      test(`${mount}: execution ${state.id}`, async ({ page }) => {
-        await page.goto(`/admin/${mount}?tab=${mount === "settings" ? "execution" : "admin"}`);
-        await settle(page);
-        // Pause only after requests/detection have rendered. Prevent the execution slice's
-        // 600ms debounce from persisting a mode/provider choice into later page captures.
-        await page.clock.pauseAt(FIXED_DATE);
-        const ledgerWrites: string[] = [];
-        page.on("request", request => {
-          if (request.method() === "PUT" && new URL(request.url()).pathname === `${WORKSPACE_API}/settings/value`) ledgerWrites.push(request.url());
-        });
-        // BYOK mode and every provider pick start a live-model discovery probe; its result line
-        // ("Could not load live models: …") is absent while loading. Scrolling before it renders
-        // clamped the scroll 23px short (tablet google-gemini flake), so count probes to the end.
-        const probes = { started: 0, settled: 0 };
-        const isProbe = (url: string) => new URL(url).pathname === `${WORKSPACE_API}/assistant/execution/models`;
-        page.on("request", request => { if (isProbe(request.url())) probes.started += 1; });
-        const settleProbe = (request: Request) => { if (isProbe(request.url())) probes.settled += 1; };
-        page.on("requestfinished", settleProbe);
-        page.on("requestfailed", settleProbe);
-        const mode = state.id === "local-cli" ? "Local CLI" : "BYOK";
-        // Settings calls this control "AI agent"; select the exact mode title inside the shared
-        // execution component so host labels and the tab's descriptive subtitle cannot hide it.
-        const modeTab = page.locator(".jini-settings-execution").getByRole("tab").filter({ has: page.getByText(mode, { exact: true }) });
-        await expect(modeTab, `${mount}: execution mode ${mode} must be present`).toBeVisible({ timeout: 5_000 });
-        let probesBefore = probes.started;
-        await modeTab.click({ timeout: 5_000 });
-        await expect(modeTab).toHaveAttribute("aria-selected", "true");
-        if (state.id !== "local-cli" && state.id !== "byok") {
-          const provider = page.locator(".jini-provider-chip-row").getByRole("tab", { name: state.title, exact: true });
-          await expect(provider, `${mount}: provider ${state.id} must be present`).toBeVisible({ timeout: 5_000 });
-          // Anthropic is BYOK's default provider: re-clicking the selected chip starts no new probe.
-          if (await provider.getAttribute("aria-selected") !== "true") probesBefore = probes.started;
-          await provider.click({ timeout: 5_000 });
-          await expect(provider).toHaveAttribute("aria-selected", "true");
-        }
-        if (state.id !== "local-cli") {
-          await expect.poll(() => probes.started > probesBefore && probes.settled === probes.started, { message: `${mount}: ${state.id} model discovery must finish` }).toBe(true);
-          await expect(page.locator(".jini-settings-execution .jini-field-hint.is-error[role=\"status\"]")).toContainText("Could not load live models");
-        }
-        // Keep the mode row, provider chips and form together, including at 390px where the
-        // AI Assistant header/switch would otherwise push the actual provider form below frame.
-        await modeTab.evaluate(element => element.closest('[role="tablist"]')?.scrollIntoView({ block: "start", behavior: "instant" }));
-        await capture(page, `admin-${mount}-execution-${state.id}.png`);
-        expect(ledgerWrites, "Paused execution captures must not change shared settings").toEqual([]);
-      });
-    }
-  }
-  for (const preset of providerPresets) {
-    test(`ai-assistant visitor: provider ${preset.id}`, async ({ page }) => {
-      await page.goto("/admin/ai-assistant?tab=visitor");
-      await settle(page);
-      // 7b82f7b02 replaced the Visitor tab's provider chip row with one native "Provider" select.
-      const provider = page.getByRole("combobox", { name: "Provider", exact: true });
-      await provider.selectOption(preset.id);
-      await expect(provider).toHaveValue(preset.id);
-      await provider.evaluate(element => element.closest(".visitor-step")?.scrollIntoView({ block: "start", behavior: "instant" }));
-      await capture(page, `admin-ai-assistant-visitor-provider-${preset.id}.png`);
-    });
-  }
-});
-
-test.describe("seeded entity pages and editor tabs", () => {
-  const editors = [
-    { entity: "page", route: "pages", ids: tabValues("pages/PageEditor.tsx", "VIEWS", "key"), labels: tabValues("pages/PageEditor.tsx", "VIEWS", "label") },
-    { entity: "post", route: "posts", ids: tabValues("posts/PostEditor.tsx", "VIEWS", "key"), labels: tabValues("posts/PostEditor.tsx", "VIEWS", "label") },
-    { entity: "theme", route: "themes", ids: tabValues("themes/ThemeExplore.tsx", "VIEWS", "key"), labels: tabValues("themes/ThemeExplore.tsx", "VIEWS", "label") },
-  ] as const;
-  for (const editor of editors) {
-    for (const [index, id] of editor.ids.entries()) {
-      test(`${editor.entity} editor: ${id}`, async ({ page, adminSeed }) => {
-        // Use the theme a new site ships so the preview works on a cold boot.
-        // with: tovu-starter since 0fb27e1c2 (tovu-theme, renamed by 85e29beac, is no longer
-        // installed on a fresh site). These tests only preview/read its files.
-        const url = editor.entity === "theme" ? "/admin/themes/explore?theme=tovu-starter&file=theme.json"
-          : `/admin/${editor.route}/${encodeURIComponent(adminSeed.entities[editor.entity])}`;
-        await page.goto(url);
-        await settle(page);
-        const tab = page.getByRole("tablist", { name: "Editor view", exact: true }).getByRole("tab", { name: editor.labels[index], exact: true });
-        await tab.click();
-        await expect(tab).toHaveAttribute("aria-selected", "true");
-        if (editor.entity === "page" && id === "html") await expect(page.getByRole("textbox", { name: "Page HTML", exact: true })).not.toHaveValue("");
-        if (editor.entity === "theme" && id === "html") await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("");
-        if (editor.entity === "post" && id === "preview") {
-          // The draft's preview renders its byline date server-side as today; pin that <time> text
-          // (a mask alone would still vary with the label's width).
-          const date = page.locator("iframe.page-preview-iframe").contentFrame().locator("time");
-          await expect(date).toHaveCount(1);
-          await date.evaluate(element => { element.textContent = "Jan 15, 2026"; });
-        }
-        await capture(page, `admin-${editor.entity}-editor-tab-${id}.png`);
-      });
-    }
-  }
-  for (const [index, id] of tabValues("@jini-ai/admin/forms/rules.js", "FORM_TABS", "id").entries()) {
-    test(`form detail: ${id}`, async ({ page, adminSeed }) => {
-      await page.goto(`/admin/forms/${adminSeed.entities.form}${id === "submissions" ? "/submissions" : ""}`);
-      await settle(page);
-      await expect(page.getByRole("tablist", { name: "Form sections", exact: true }).getByRole("tab").nth(index)).toHaveAttribute("aria-selected", "true");
-      await capture(page, `admin-form-detail-tab-${id}.png`);
-    });
-  }
-  const details: Array<{ id: string; url: (entities: SeedEntities) => string; heading: string }> = [
-    { id: "menu-editor", url: e => `/admin/menus/${e.menu}`, heading: "Edit menu" },
-    { id: "collection-entries", url: () => "/admin/collections/visual_notes", heading: "Visual notes" },
-    { id: "collection-entry-editor", url: e => `/admin/collections/visual_notes/${e.entry}`, heading: "Edit Visual notes entry" },
-    { id: "widget-editor", url: e => `/admin/widgets/${e.widget}`, heading: "Edit widget" },
-    { id: "widget-regions", url: () => "/admin/widgets/regions", heading: "Widget Regions" },
-    { id: "widget-region-editor", url: () => "/admin/widgets/regions/visual-sidebar", heading: "Region: visual-sidebar" },
-    { id: "change-password", url: () => "/admin/users/change-password", heading: "Users" },
-  ];
-  for (const detail of details) {
-    test(detail.id, async ({ page, adminSeed }) => {
-      // The masked Updated cell's text width still moves the other columns; pin the server's time.
-      if (detail.id === "collection-entries") await narrowListForBaseline({ page, pathname: `${API}/entries`, keep: () => true }, { pin: { updatedAt: BASELINE_TIME } });
-      await page.goto(detail.url(adminSeed.entities));
-      if (detail.id === "change-password") {
-        // showModal makes the underlying Users page inert and removes its heading from
-        // role queries. Assert the actual routed dialog instead of racing its open effect.
-        await expect(page.getByRole("dialog", { name: "Reset password?", exact: true })).toBeVisible();
-      } else {
-        await expect(page.getByRole("heading", { name: detail.heading, exact: true })).toBeVisible();
-      }
-      await capture(page, `admin-${detail.id}.png`);
-    });
-  }
-});
-
-test.describe("assistant chat + Skills confirmation", () => {
-  test("closed dock: FAB", async ({ page }) => {
-    await page.goto("/admin/dashboard");
-    await expect(page.locator("button.chat-fab")).toBeVisible();
-    await expect(page.locator(".admin-chat-dock")).toBeHidden();
-    await capture(page, "assistant-closed-fab.png");
-  });
-
-  test("open empty dock", async ({ page }) => {
-    await page.goto("/admin/dashboard");
-    await page.locator("button.chat-fab").click();
-    await expect(page.locator(".admin-chat-dock")).toBeVisible();
-    await expect(page.locator("textarea.jini-composer-input")).toHaveValue("");
-    // Measure the rendered pane: a matching class/selector alone cannot prove flex sizing.
-    await expect.poll(() => page.locator(".admin-chat-dock").evaluate(dock => {
-      const pane = dock.querySelector(".admin-chat-dock-drop > .jini-chat-pane");
-      if (!pane) return Number.POSITIVE_INFINITY;
-      const bounds = pane.getBoundingClientRect();
-      return Math.max(Math.abs(dock.clientWidth - bounds.width), Math.abs(dock.clientHeight - bounds.height));
-    })).toBeLessThanOrEqual(1);
-    await capture(page, "assistant-open-empty.png");
-  });
-
-  test("slash popup /sk and a selected skill", async ({ page }) => {
-    await page.goto("/admin/dashboard");
-    await page.locator("button.chat-fab").click();
-    const input = page.locator("textarea.jini-composer-input");
-    await input.pressSequentially("/sk");
-    const popup = page.locator("#jini-composer-slash-menu");
-    await expect(popup).toBeVisible();
-    const skill = popup.getByRole("option", { name: SKILL_NAME });
-    await expect(skill).toBeVisible();
-    await capture(page, "assistant-slash-sk.png");
-    await skill.click();
-    await expect(popup).toBeHidden();
-    await expect(page.locator(".jini-attachment-chip", { hasText: `${SKILL_NAME} · Skill` })).toBeVisible();
-    await expect(input).toHaveValue("");
-    await capture(page, "assistant-skill-picked.png");
-  });
-
-  test("Skills install-confirm dialog", async ({ page }) => {
-    await page.goto("/admin/addons/skills");
-    await expect(page.getByRole("list", { name: "Installed skills" })).toContainText(SKILL_NAME);
-    await page.goto("/admin/addons/skills?tab=add");
-    await expect(page.getByRole("button", { name: "Upload files", exact: true })).toBeVisible();
-    // Real local-file proposal opens the dialog, without fetching GitHub or installing again.
-    await page.getByLabel("Choose skill files", { exact: true }).setInputFiles({
-      name: "SKILL.md", mimeType: "text/markdown", buffer: Buffer.from(SKILL_MARKDOWN),
-    });
-    const dialog = page.getByRole("dialog", { name: "Install skill", exact: true });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Confirm install", exact: true })).toBeEnabled();
-    await capture(page, "skills-install-confirm.png");
-  });
-});
-});

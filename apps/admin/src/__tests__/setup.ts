@@ -53,7 +53,7 @@ if (typeof window !== "undefined") Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// `ResizeObserver` (`App.hooks.tsx`'s `useChatDockLayout`, split out of `App.tsx` 2026-08-12) is
+// `ResizeObserver` (`App.hooks.ts`'s `useChatDockLayout`, split out of `App.tsx` 2026-08-12) is
 // DELIBERATELY left unstubbed. jsdom does not implement it either, and it is the next thing a test
 // that drives the REAL hook and opens chat in sheet mode (`isSheetMode && chatOpen`, gated right
 // above its construction) will hit. Do not add a no-op stub here: `useChatDockLayout` uses it to

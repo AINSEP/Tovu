@@ -1,4 +1,4 @@
-import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
+import { invalidateMediaAccessEvidence } from "#src/platform/media-access-evidence";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "kysely";
@@ -12,7 +12,7 @@ import type {
   PostRevisionInput,
   PostRevisionRecord,
 } from "./post.js";
-import type { GoLiveCandidatesPort } from "./go-live.js";
+import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
 import { toPostSearchDocument } from "./search.js";
 import { currentIso } from "../../contracts/core/scheduled-publish.js";
@@ -83,14 +83,18 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
-  async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+  async listHtmlByKind(required: { workspaceId: string; kind: import("#src/contracts/core/post-kind").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+    const before = required.before;
     const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
       .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)
       .where("body_format", "=", "html").where("body_html", "is not", null).where("deleted_at", "is", null)
-      .$if(required.before !== undefined, qb => qb.where(eb => eb.or([
-        eb("updated_at", "<", required.before!.updatedAt),
-        eb.and([eb("updated_at", "=", required.before!.updatedAt), eb("id", ">", required.before!.id)]),
-      ])))
+      .$if(before !== undefined, qb => {
+        if (before === undefined) throw new Error("Post pagination has no cursor");
+        return qb.where(eb => eb.or([
+          eb("updated_at", "<", before.updatedAt),
+          eb.and([eb("updated_at", "=", before.updatedAt), eb("id", ">", before.id)]),
+        ]));
+      })
       .orderBy("updated_at", "desc").orderBy("id", "asc").limit(required.limit).execute());
     return rows.map(toRecord);
   }
@@ -156,7 +160,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .onConflict((oc) => oc.column("id").doUpdateSet(updatableColumns(row)))
           .execute()
       );
-      await this.search.upsert(this.kernel, toPostSearchDocument(record));
+      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(record) });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -184,7 +188,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .execute()
       );
       if (updated.length === 0) return { applied: false };
-      await this.search.upsert(this.kernel, toPostSearchDocument(required.record));
+      await this.search.upsert({ kernel: this.kernel, document: toPostSearchDocument(required.record) });
       return { applied: true };
     });
     if (result.applied) invalidateMediaAccessEvidence({ owner: this });
@@ -242,7 +246,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
       );
       // Keyed on the post id alone (no workspace column on the projection), so it is dropped only
       // when the scoped delete above actually removed the row it projects.
-      if (removed.length > 0) await this.search.remove(this.kernel, required.id);
+      if (removed.length > 0) await this.search.remove({ kernel: this.kernel, postId: required.id });
     });
     invalidateMediaAccessEvidence({ owner: this });
   }
@@ -324,7 +328,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
           .executeTakeFirst()
       );
       const id = randomUUID();
-      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow(input, id)).execute());
+      await this.kernel.run((db) => db.insertInto("post_revisions").values(toRevisionRow({ input, id })).execute());
       return { id, previousId: prior?.id ?? null };
     });
   }
@@ -346,13 +350,13 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
 
   /** See `PostRepoPort.transaction`'s own doc: repo calls made inside `fn` join ONE transaction
    *  (the post write, then `appendRevision`). Nested calls join the outer one. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
     try { return await this.kernel.transaction(fn); }
     finally { invalidateMediaAccessEvidence({ owner: this }); }
   }
 }
 
 /** The post repo for `kernel`, with its dialect's search projection. */
-export function postRepoFor(kernel: ContentKernel): SqlPostRepo {
+export function postRepoFor(kernel: ContentKernel, _optional: Record<string, never> = {}): SqlPostRepo {
   return new SqlPostRepo(kernel, postSearchFor(kernel));
 }

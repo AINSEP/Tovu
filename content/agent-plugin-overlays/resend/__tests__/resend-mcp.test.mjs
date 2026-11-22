@@ -10,7 +10,7 @@ import { federatedCallConfirmationForAction } from "@jini-ai/mcp/federation";
 import { classifyAgentPluginMcpServerTrust } from "../../../../apps/website/src/features/agent-plugins/capability-projection.ts";
 import { planAgentPluginMcpFederation, provisionAgentPluginMcpServers } from "../../../../apps/website/src/features/agent-plugins/federate-mcp.ts";
 import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
-import { parsePluginCredentialCards } from "../../../../apps/website/src/features/agent-plugins/credential-cards.ts";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildAgentPluginAccessTokenForm } from "../../../../apps/website/src/features/agent-plugins/connect-card-ui.ts";
 import { buildAgentPluginConnectRegistrations } from "../../../../apps/website/src/features/agent-plugins/tool-registrations.ts";
 import { saveAgentPluginToken } from "../../../../apps/website/src/features/agent-plugins/access-token-tool.ts";
@@ -140,7 +140,7 @@ async function saveAccountKey({ toolId }, _optional = {}) {
   const parsed = parsePluginCredentialCards({ raw: await readFile(path.join(PACKAGE_ROOT, "plugin.json"), "utf8") });
   assert.equal(parsed.ok, true);
   const card = { ...parsed.descriptors.find(entry => entry.providerId === "resend-mcp"), pluginId: "resend" };
-  const mail = await readJson("tovu-mail-adapters.json");
+  const mail = await readJson("jini-mail-adapters.json");
   const label = mail.adapters[0].credentialLabel;
   const workspaceId = "resend-key-test";
   const repo = new InMemoryExternalMcpServerRepo();

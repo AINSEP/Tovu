@@ -18,37 +18,37 @@ import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation 
 
 test("normalizePackageEntryPath: rejects a lexical '..' segment", () => {
   for (const entry of ["../outside", "skills/../../x", "a/b/../../../x", ".", ""]) {
-    assert.throws(() => normalizePackageEntryPath(entry), PackagePathViolation, entry);
+    assert.throws(() => normalizePackageEntryPath({ rawEntryPath: entry }), PackagePathViolation, entry);
   }
 });
 
 test("normalizePackageEntryPath: rejects an absolute POSIX path", () => {
-  assert.throws(() => normalizePackageEntryPath("/etc/passwd"), PackagePathViolation);
+  assert.throws(() => normalizePackageEntryPath({ rawEntryPath: "/etc/passwd" }), PackagePathViolation);
 });
 
 test("normalizePackageEntryPath: rejects a Windows drive-absolute path", () => {
-  assert.throws(() => normalizePackageEntryPath("C:\\Windows\\System32"), PackagePathViolation);
+  assert.throws(() => normalizePackageEntryPath({ rawEntryPath: "C:\\Windows\\System32" }), PackagePathViolation);
 });
 
 test("normalizePackageEntryPath: rejects a NUL byte", () => {
-  assert.throws(() => normalizePackageEntryPath("skills/a\0/SKILL.md"), PackagePathViolation);
+  assert.throws(() => normalizePackageEntryPath({ rawEntryPath: "skills/a\0/SKILL.md" }), PackagePathViolation);
 });
 
 test("normalizePackageEntryPath: accepts a normal relative path unchanged", () => {
-  assert.equal(normalizePackageEntryPath("skills/./a"), "skills/a");
-  assert.equal(normalizePackageEntryPath("./x"), "x");
-  assert.equal(normalizePackageEntryPath("skills/a/SKILL.md"), "skills/a/SKILL.md");
+  assert.equal(normalizePackageEntryPath({ rawEntryPath: "skills/./a" }), "skills/a");
+  assert.equal(normalizePackageEntryPath({ rawEntryPath: "./x" }), "x");
+  assert.equal(normalizePackageEntryPath({ rawEntryPath: "skills/a/SKILL.md" }), "skills/a/SKILL.md");
 });
 
 test("normalizePackageEntryPath: normalizes backslashes to forward slashes", () => {
-  assert.equal(normalizePackageEntryPath("skills\\a\\SKILL.md"), "skills/a/SKILL.md");
+  assert.equal(normalizePackageEntryPath({ rawEntryPath: "skills\\a\\SKILL.md" }), "skills/a/SKILL.md");
 });
 
 test("assertContainedOnDisk: accepts a path that resolves inside the root", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-package-paths-test-"));
   try {
     await mkdir(path.join(root, "skills", "a"), { recursive: true });
-    const resolved = await assertContainedOnDisk(root, "skills/a/SKILL.md");
+    const resolved = await assertContainedOnDisk({ packageRoot: root, entryPath: "skills/a/SKILL.md" });
     // Compared against the REALPATH'd root, not the raw tmpdir() string: on macOS `/var` is itself
     // a symlink to `/private/var`, and this function's whole job is to resolve through symlinks —
     // asserting against the un-resolved root would fail for a reason unrelated to what's under test.
@@ -69,7 +69,7 @@ test("assertContainedOnDisk: rejects a path whose PARENT is a symlink escaping t
     // symlink entry, then a second entry that walks through it) the spec's MUST clause exists for.
     await symlink(outside, path.join(root, "escape"));
     await assert.rejects(
-      () => assertContainedOnDisk(root, "escape/planted.txt"),
+      () => assertContainedOnDisk({ packageRoot: root, entryPath: "escape/planted.txt" }),
       PackagePathViolation,
     );
   } finally {
@@ -86,7 +86,7 @@ test("assertContainedOnDisk: rejects when the target ITSELF is a symlink escapin
   try {
     await symlink(outsideTarget, path.join(root, "leak.txt"));
     await assert.rejects(
-      () => assertContainedOnDisk(root, "leak.txt"),
+      () => assertContainedOnDisk({ packageRoot: root, entryPath: "leak.txt" }),
       PackagePathViolation,
     );
   } finally {
@@ -104,10 +104,10 @@ test("assertContainedOnDisk: re-resolves the root fresh on every call (no cached
     await mkdir(path.join(first, "skills"), { recursive: true });
     await mkdir(path.join(second, "skills"), { recursive: true });
     await symlink(first, alias);
-    assert.equal(await assertContainedOnDisk(alias, "skills"), path.join(await realpath(first), "skills"));
+    assert.equal(await assertContainedOnDisk({ packageRoot: alias, entryPath: "skills" }), path.join(await realpath(first), "skills"));
     await rm(alias);
     await symlink(second, alias);
-    assert.equal(await assertContainedOnDisk(alias, "skills"), path.join(await realpath(second), "skills"));
+    assert.equal(await assertContainedOnDisk({ packageRoot: alias, entryPath: "skills" }), path.join(await realpath(second), "skills"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -6,7 +6,7 @@ import { isDevTlsExplicitlyDisabled } from "../dev-tls-disable-flag";
 
 /**
  * @file Regression coverage for `vite.config.ts`'s `TOVU_DISABLE_DEV_TLS` gate — the admin sibling of
- * `apps/website/src/server/runtime/boot/dev-tls.ts`'s and `development/scripts/dev.mjs`'s own copies
+ * `apps/website/src/platform/dev-host/dev-tls.ts`'s and `development/scripts/dev.mjs`'s own copies
  * of this same parse (see each file's own header for why there are three copies, not one shared
  * module).
  *
@@ -40,21 +40,21 @@ const readTlsConfig = `
 `;
 
 test("isDevTlsExplicitlyDisabled: true only for \"1\"/\"true\" (case-insensitive)", () => {
-  expect(isDevTlsExplicitlyDisabled("1")).toBe(true);
-  expect(isDevTlsExplicitlyDisabled("true")).toBe(true);
-  expect(isDevTlsExplicitlyDisabled("TRUE")).toBe(true);
+  expect(isDevTlsExplicitlyDisabled({ raw: "1" })).toBe(true);
+  expect(isDevTlsExplicitlyDisabled({ raw: "true" })).toBe(true);
+  expect(isDevTlsExplicitlyDisabled({ raw: "TRUE" })).toBe(true);
 });
 
 test('REGRESSION (2026-09-05 audit finding): "false" and "0" must NOT disable dev TLS', () => {
   // vite.config.ts used to check `Boolean(process.env.TOVU_DISABLE_DEV_TLS)` — a bare truthy check
   // that treated ANY non-empty string as "disable", silently inverting an operator's explicit
   // TOVU_DISABLE_DEV_TLS=false "keep TLS on" intent.
-  expect(isDevTlsExplicitlyDisabled("false")).toBe(false);
-  expect(isDevTlsExplicitlyDisabled("0")).toBe(false);
+  expect(isDevTlsExplicitlyDisabled({ raw: "false" })).toBe(false);
+  expect(isDevTlsExplicitlyDisabled({ raw: "0" })).toBe(false);
 });
 
 test("isDevTlsExplicitlyDisabled: undefined (unset) does not disable", () => {
-  expect(isDevTlsExplicitlyDisabled(undefined)).toBe(false);
+  expect(isDevTlsExplicitlyDisabled({ raw: undefined })).toBe(false);
 });
 
 test.each([
@@ -88,5 +88,5 @@ test.each([
   ["", false],
   ["yes", false],
 ] as const)("isDevTlsExplicitlyDisabled(%j) is %s", (flag, disabled) => {
-  expect(isDevTlsExplicitlyDisabled(flag)).toBe(disabled);
+  expect(isDevTlsExplicitlyDisabled({ raw: flag })).toBe(disabled);
 });

@@ -4,7 +4,11 @@ import test, { type TestContext } from "node:test";
 
 import express from "express";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ErrorReport,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 import { setPublicAssistantSettings } from "#src/assistant/index";
@@ -38,9 +42,9 @@ async function boot({ t }: { t: TestContext }) {
     authorize: async () => ({ allowed: true, reason: "test" }),
   }, { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
   const app = express();
-  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(parsePublicJsonBody);
-  createSiteAssistantModule(deps, {}).registerRoutes?.(app);
+  createSiteAssistantModule(deps, { env: {} }).registerRoutes?.({ app });
   return { reports, logs, baseUrl: await startTestServer(app, t) };
 }
 

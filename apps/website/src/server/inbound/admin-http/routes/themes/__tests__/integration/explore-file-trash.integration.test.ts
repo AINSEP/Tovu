@@ -8,7 +8,8 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 
 import { discoverAllBuiltInThemes, listThemeFiles } from "#src/features/theme/index";
-import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
+import { buildThemesRegistrations } from "#src/features/theme/tool-registrations";
+import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import type { ContentRouteDeps } from "../../../content/deps.js";
 import { registerAdminThemeDetailRoute, registerAdminThemeFileDeleteRoute } from "../../explore.js";
@@ -37,8 +38,8 @@ function fixture(t: TestContext) {
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-  registerAdminThemeDetailRoute(app, deps as unknown as ContentRouteDeps);
-  registerAdminThemeFileDeleteRoute(app, deps as unknown as ContentRouteDeps);
+  registerAdminThemeDetailRoute({ app, deps: deps as unknown as ContentRouteDeps });
+  registerAdminThemeFileDeleteRoute({ app, deps: deps as unknown as ContentRouteDeps });
   const files = () => listThemeFiles({ themeDir, themesRoot: root });
   return { app, deps, themeDir, files };
 }

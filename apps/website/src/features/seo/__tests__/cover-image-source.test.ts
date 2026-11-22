@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SeoMeta } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
-import { withContentImageSource } from "../cover-image.js";
+import { withContentImageSource, withCoverSeoDefaults } from "@jini-ai/cms/seo/cover-image";
 
 function meta(openGraph: Partial<SeoMeta["openGraph"]> = {}): SeoMeta {
   return {
@@ -44,4 +44,15 @@ test("a projected cover with no stored override (absent, empty or malformed SEO)
     assert.equal(result.openGraph.image, "https://images.example/cover.jpg");
     assert.equal(overridden.openGraph.imageSource, "override", "the evaluated meta is not mutated");
   }
+});
+
+test("malformed stored SEO uses body defaults while an explicit matching override stays authoritative", () => {
+  const cover = { url: "https://images.example/cover.jpg", alt: "Cover", width: null, height: null };
+  const malformed = buildPostRecord({ seoExtJson: "{broken", featuredMediaId: null });
+  const projected = withCoverSeoDefaults({ post: malformed, cover });
+  assert.equal(JSON.parse(projected.seoExtJson!).ogImage, cover.url);
+  assert.equal(withContentImageSource({ meta: meta(), rawPost: malformed }).openGraph.imageSource, "content");
+  const explicit = buildPostRecord({ seoExtJson: JSON.stringify({ ogImage: cover.url }), featuredMediaId: null });
+  assert.equal(withContentImageSource({ meta: meta(), rawPost: explicit }).openGraph.imageSource, "override");
+  assert.equal(JSON.parse(withCoverSeoDefaults({ post: explicit, cover }).seoExtJson!).ogImage, cover.url);
 });

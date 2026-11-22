@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
-import { createPost, MAX_TITLE_LENGTH, PostValidationError, updatePost, type PostRecord, type UpdatePostDeps } from "../post.js";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
+import { createPost } from "../post-create.js";
+import { MAX_TITLE_LENGTH } from "../post-write-fields.js";
+import { PostValidationError, type PostRecord } from "../post.js";
+import { updatePost, type UpdatePostDeps } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -49,7 +52,7 @@ function retitle(record: PostRecord, title: string) {
 
 /** The exact message `createPost` raises for an over-long title — the update path must match it. */
 async function createRejection(title: string): Promise<string> {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   try {
     await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "post-new", title } });
   } catch (err) {
@@ -61,7 +64,7 @@ async function createRejection(title: string): Promise<string> {
 
 test("updatePost refuses a 201-character title with create's exact message, writing nothing", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const tooLong = "t".repeat(MAX_TITLE_LENGTH + 1);
   const createMessage = await createRejection(tooLong);
 
@@ -82,7 +85,7 @@ test("updatePost refuses a 201-character title with create's exact message, writ
 
 test("updatePost accepts a title of exactly 200 characters", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   const { post } = await updatePost({ deps: deps(repo), input: retitle(record, "t".repeat(MAX_TITLE_LENGTH)) });
 
@@ -91,7 +94,7 @@ test("updatePost accepts a title of exactly 200 characters", async () => {
 
 test("updatePost measures the trimmed title, as create does: 200 characters plus padding saves", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   const { post } = await updatePost({ deps: deps(repo), input: retitle(record, `  ${"t".repeat(MAX_TITLE_LENGTH)}  `) });
 
@@ -100,7 +103,7 @@ test("updatePost measures the trimmed title, as create does: 200 characters plus
 
 test("an empty title is still refused on update with its own message, ahead of the length rule", async () => {
   const record = seed();
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
 
   await assert.rejects(
     () => updatePost({ deps: deps(repo), input: retitle(record, "   ") }),

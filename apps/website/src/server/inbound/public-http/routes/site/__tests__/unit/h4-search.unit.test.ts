@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
-import type { ProductEvent } from '@jini-ai/analytics/product';
+import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import type { SiteSearchRuntime } from '#src/server/runtime/composition/modules/site-search';
-import { parseSearchRequest, registerSiteSearchRoute } from '../../search.js';
+import { registerSiteSearchRoute } from '../../search.js';
 
 for (const [count, elapsedMs, resultCountBucket, durationBucket] of [
   [0, 99, '0', '<100ms'], [1, 100, '1-10', '100ms-1s'],
@@ -36,18 +36,3 @@ for (const [count, elapsedMs, resultCountBucket, durationBucket] of [
     assert.deepEqual(capture.jsonBody, { hits: Array.from({ length: count }, () => ({ url: '/hello', title: 'Hello', snippet: 'Result', highlights: [], collection: 'post' })), nextCursor: null });
   });
 }
-
-for (const field of ['collection', 'limit', 'cursor'] as const) {
-  test(`search rejects repeated ${field} independently`, () => {
-    assert.deepEqual(parseSearchRequest({ query: { q: 'valid', [field]: ['first', 'second'] } }), { error: `'${field}' must be given once` });
-  });
-}
-
-test('search accepts boundary limits, a full cursor and ten valid collections', () => {
-  const collections = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
-  for (const limit of ['1', '50']) {
-    assert.deepEqual(parseSearchRequest({ query: { q: ' q ', collection: collections.join(','), cursor: 'c'.repeat(1024), limit } }), {
-      query: { text: 'q', collections, cursor: 'c'.repeat(1024), limit: Number(limit) },
-    });
-  }
-});

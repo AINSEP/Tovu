@@ -35,7 +35,11 @@ function isPlainHttps({ parsed, raw }: { parsed: URL; raw: string }, _optional =
  * @complexity O(total HTML bytes).
  */
 export function rewriteFormActions(required: { files: readonly DeployFile[]; submitUrl: string }, _optional: Record<string, never> = {}): DeployFile[] {
-  const base = assertSubmitUrl({ submitUrl: required.submitUrl }).replace(/[&"<>]/g, (char) => HTML_ESCAPES[char]!);
+  const base = assertSubmitUrl({ submitUrl: required.submitUrl }).replace(/[&"<>]/g, (char) => {
+    const escaped = HTML_ESCAPES[char];
+    if (escaped === undefined) throw new Error(`Form destination has no HTML escape for ${char}`);
+    return escaped;
+  });
   return required.files.map((file) => {
     if (!file.file.toLowerCase().endsWith(".html")) return file;
     const text = typeof file.data === "string" ? file.data : file.data.toString("utf8");

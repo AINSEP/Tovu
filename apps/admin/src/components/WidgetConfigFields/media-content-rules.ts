@@ -1,5 +1,6 @@
-import type { AdminMedia } from "../../lib/api";
-import { parseMediaHtmlAttributes } from "../../features/media/rules";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
 
 /**
  * @file Pure rules behind `MediaContentEditor` — the two-tab ("Media" / "Raw HTML") editor for a
@@ -24,12 +25,12 @@ export type MediaLayout = "single" | "grid" | "carousel" | "masonry";
 
 /** Layouts the structured tab offers, in toolbar order. A saved `gallery` widget's own
  *  `configSchema` enum has no `single` (Jini `registry.ts`), so the gallery alias drops it. */
-export function mediaLayoutsFor(widgetType: string): readonly MediaLayout[] {
+export function mediaLayoutsFor({ widgetType }: { widgetType: string }, _options: Record<string, never> = {}): readonly MediaLayout[] {
   return widgetType === "gallery" ? ["grid", "carousel", "masonry"] : ["single", "grid", "carousel", "masonry"];
 }
 
 /** Columns only mean something when more than one item sits side by side. */
-export function layoutUsesColumns(layout: MediaLayout): boolean {
+export function layoutUsesColumns({ layout }: { layout: MediaLayout }, _optional: Record<string, never> = {}): boolean {
   return layout !== "single";
 }
 
@@ -60,15 +61,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function optionalString(value: unknown): string | undefined {
+function optionalString({ value }: { value: unknown }, _options: Record<string, never> = {}): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
 /** A row for `slug` carrying the record's string `alt`/`caption` and nothing else. */
-function itemWithText(slug: string, record: Record<string, unknown>): MediaItem {
+function itemWithText({ slug, record }: { slug: string; record: Record<string, unknown> }, _options: Record<string, never> = {}): MediaItem {
   const item: MediaItem = { slug };
-  const alt = optionalString(record.alt);
-  const caption = optionalString(record.caption);
+  const alt = optionalString({ value: record.alt });
+  const caption = optionalString({ value: record.caption });
   if (alt !== undefined) item.alt = alt;
   if (caption !== undefined) item.caption = caption;
   return item;
@@ -76,7 +77,7 @@ function itemWithText(slug: string, record: Record<string, unknown>): MediaItem 
 
 /** Copies only the keys a structured item may carry — never `src`/`mediaId` (contract). */
 function readItem(value: unknown): MediaItem[] {
-  return isRecord(value) && typeof value.slug === "string" ? [itemWithText(value.slug, value)] : [];
+  return isRecord(value) && typeof value.slug === "string" ? [itemWithText({ slug: value.slug, record: value })] : [];
 }
 
 /**
@@ -91,7 +92,7 @@ export function legacyImagesToItems(required: { images: unknown[]; library: read
   const slugById = new Map((required.library ?? []).map((asset) => [asset.id, asset.slug]));
   return required.images.flatMap((image) => {
     if (!isRecord(image) || typeof image.mediaId !== "string") return [];
-    return [itemWithText(slugById.get(image.mediaId) ?? image.mediaId, image)];
+    return [itemWithText({ slug: slugById.get(image.mediaId) ?? image.mediaId, record: image })];
   });
 }
 
@@ -101,9 +102,18 @@ function readMode(config: Record<string, unknown>): MediaContentMode {
 }
 
 /** Structured `items` win over legacy `images`; neither means an empty list. */
-function readItems(config: Record<string, unknown>, library: readonly AdminMedia[] | null): MediaItem[] {
+function readItems({ config, library }: { config: Record<string, unknown>; library: readonly AdminMedia[] | null }, _options: Record<string, never> = {}): MediaItem[] {
   if (Array.isArray(config.items)) return config.items.flatMap(readItem);
   return Array.isArray(config.images) ? legacyImagesToItems({ images: config.images, library }) : [];
+}
+
+/** Carries the optional layout fields a config already holds onto the draft; absent or blank ones stay unset. */
+function copyOptionalMediaFields({ config, media }: { config: Record<string, unknown>; media: MediaDraft }, _options: Record<string, never> = {}): void {
+  if (typeof config.columns === "number") media.columns = config.columns;
+  for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
+    const value = optionalString({ value: config[key] });
+    if (value !== undefined) media[key] = value;
+  }
 }
 
 /**
@@ -118,15 +128,12 @@ export function readMediaContent(
 ): MediaContentState {
   const { config, widgetType } = required;
   const mode = readMode(config);
-  const layouts = mediaLayoutsFor(widgetType);
-  const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0]!;
-  const media: MediaDraft = { items: readItems(config, optional.library ?? null), layout };
-  if (typeof config.columns === "number") media.columns = config.columns;
-  for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
-    const value = optionalString(config[key]);
-    if (value !== undefined) media[key] = value;
-  }
-  return { mode, media, html: mode === "html" ? optionalString(config.html) ?? "" : "" };
+  const layouts = mediaLayoutsFor({ widgetType });
+  const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0];
+  if (layout === undefined) throw new Error(`media widget ${widgetType} has no layouts`);
+  const media: MediaDraft = { items: readItems({ config, library: optional.library ?? null }), layout };
+  copyOptionalMediaFields({ config, media });
+  return { mode, media, html: mode === "html" ? optionalString({ value: config.html }) ?? "" : "" };
 }
 
 /**
@@ -141,7 +148,7 @@ export function toMediaConfig(required: { state: MediaContentState }): Record<st
   if (state.mode === "html") return { mode: "html", html: state.html };
   const { media } = state;
   const config: Record<string, unknown> = { mode: "media", items: media.items.map((item) => ({ ...item })), layout: media.layout };
-  if (media.columns !== undefined && layoutUsesColumns(media.layout)) config.columns = media.columns;
+  if (media.columns !== undefined && layoutUsesColumns({ layout: media.layout })) config.columns = media.columns;
   for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
     const value = media[key]?.trim();
     if (value) config[key] = value;
@@ -223,7 +230,8 @@ export function moveMediaItem(required: { items: MediaItem[]; from: number; to: 
   if (from < 0 || from >= items.length || from === to) return items;
   const next = items.slice();
   const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved!);
+  if (moved === undefined) throw new Error(`media item is missing at index ${from}`);
+  next.splice(to, 0, moved);
   return next;
 }
 
@@ -237,12 +245,12 @@ export type MediaSlugProblem = "empty" | "invalid" | "duplicate" | "unknown" | "
  * character resolves left-to-right and RTL just moves the overflow. A leading digit or a trailing
  * hyphen would be visibly reordered ("2024-gala" shown as "gala-2024"), so those keep the plain box.
  */
-export function slugCanShowEnd(slug: string): boolean {
+export function slugCanShowEnd({ slug }: { slug: string }, _options: Record<string, never> = {}): boolean {
   return /^[a-z](?:.*[a-z0-9])?$/is.test(slug);
 }
 
 /** The server's slug key rule: nonempty, at most 200 characters, no slash or whitespace. */
-export function isValidMediaSlug(slug: string): boolean {
+export function isValidMediaSlug({ slug }: { slug: string }, _options: Record<string, never> = {}): boolean {
   return slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && !/[\s/]/.test(slug);
 }
 
@@ -256,7 +264,7 @@ export function isValidMediaSlug(slug: string): boolean {
 export function mediaSlugProblem(required: { slug: string; items: readonly MediaItem[]; library: readonly AdminMedia[] | null }): MediaSlugProblem | null {
   const slug = required.slug.trim();
   if (slug === "") return "empty";
-  if (!isValidMediaSlug(slug)) return "invalid";
+  if (!isValidMediaSlug({ slug })) return "invalid";
   if (required.items.length >= MAX_MEDIA_ITEMS) return "full";
   if (required.items.some((item) => item.slug === slug)) return "duplicate";
   if (required.library && !required.library.some((asset) => asset.slug === slug)) return "unknown";
@@ -286,7 +294,7 @@ export function appendMediaSlugs(required: { items: MediaItem[]; slugs: readonly
 export type MediaKind = "image" | "video" | "audio" | "unknown";
 
 /** Which thumbnail a row shows: a real image, or an icon for video/audio. */
-export function mediaKindOf(contentType: string | null | undefined): MediaKind {
+export function mediaKindOf({ contentType }: { contentType: string | null | undefined }, _options: Record<string, never> = {}): MediaKind {
   if (!contentType) return "unknown";
   if (contentType.startsWith("image/")) return "image";
   if (contentType.startsWith("video/")) return "video";
@@ -300,17 +308,17 @@ export interface HtmlAttributeRow {
   value: string;
 }
 
-/** Same loose token shape as `features/media/rules.ts`'s `HTML_ATTRIBUTE_TOKEN` (not exported
+/** Same loose token shape as the media HTML-attribute tokenizer in `@jini-ai/cms/widgets/markers` (not exported
  *  there): `name`, or `name="value"` / `name='value'` / `name=value`. */
 const ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
 
 /** Values are stored as typed; only a double quote inside a double-quoted value is escaped. */
-function decodeAttributeValue(value: string): string {
+function decodeAttributeValue({ value }: { value: string }, _options: Record<string, never> = {}): string {
   return value.replace(/&quot;/g, '"');
 }
 
 /** Quotes one value: double quotes, or single quotes when it holds `"` but no `'`, else `&quot;`. */
-function quoteAttributeValue(value: string): string {
+function quoteAttributeValue({ value }: { value: string }, _options: Record<string, never> = {}): string {
   if (!value.includes('"')) return `"${value}"`;
   if (!value.includes("'")) return `'${value}'`;
   return `"${value.replace(/"/g, "&quot;")}"`;
@@ -323,7 +331,7 @@ function quoteAttributeValue(value: string): string {
  *
  * @complexity O(n) in the string length (one regex pass).
  */
-export function htmlAttributesToRows(text: string | undefined): HtmlAttributeRow[] {
+export function htmlAttributesToRows({ text }: { text: string | undefined }, _options: Record<string, never> = {}): HtmlAttributeRow[] {
   const source = (text ?? "").trim();
   const rows: HtmlAttributeRow[] = [];
   ATTRIBUTE_TOKEN.lastIndex = 0;
@@ -332,7 +340,7 @@ export function htmlAttributesToRows(text: string | undefined): HtmlAttributeRow
     const skipped = source.slice(consumed, match.index).trim();
     if (skipped !== "") rows.push({ name: skipped, value: "" });
     consumed = match.index + match[0].length;
-    rows.push({ name: match[1]!, value: decodeAttributeValue(match[2] ?? match[3] ?? match[4] ?? "") });
+    rows.push({ name: match[1], value: decodeAttributeValue({ value: match[2] ?? match[3] ?? match[4] ?? "" }) });
   }
   const trailing = source.slice(consumed).trim();
   if (trailing !== "") rows.push({ name: trailing, value: "" });
@@ -346,12 +354,12 @@ export function htmlAttributesToRows(text: string | undefined): HtmlAttributeRow
  *
  * @complexity O(total row text).
  */
-export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string {
+export function rowsToHtmlAttributes({ rows }: { rows: readonly HtmlAttributeRow[] }, _optional: Record<string, never> = {}): string {
   return rows
     .filter((row) => row.name.trim() !== "")
     .map((row) => {
       const name = row.name.trim();
-      return row.value === "" ? name : `${name}=${quoteAttributeValue(row.value)}`;
+      return row.value === "" ? name : `${name}=${quoteAttributeValue({ value: row.value })}`;
     })
     .join(" ");
 }
@@ -360,7 +368,7 @@ export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string 
  *  off the list) — reuses the media attribute validator rather than a second allowlist. */
 export function isDroppedAttributeRow(row: HtmlAttributeRow): boolean {
   if (row.name.trim() === "") return false;
-  return parseMediaHtmlAttributes(rowsToHtmlAttributes([row])).error !== null;
+  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes({ rows: [row] }), policy: embedPolicy }).error !== null;
 }
 
 /**
@@ -370,7 +378,7 @@ export function isDroppedAttributeRow(row: HtmlAttributeRow): boolean {
  */
 export function mediaSnippetFor(required: { slug: string; alt?: string; contentType?: string | null }): string {
   const slug = required.slug.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  const kind = mediaKindOf(required.contentType);
+  const kind = mediaKindOf({ contentType: required.contentType });
   if (kind === "video") return `<video data-media-slug="${slug}" controls></video>`;
   if (kind === "audio") return `<audio data-media-slug="${slug}" controls></audio>`;
   const alt = (required.alt ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;");
@@ -386,7 +394,7 @@ export function insertAtSelection(required: { text: string; start: number; end: 
 }
 
 /** Line count for the Raw HTML gutter (an empty text is still one line). */
-export function lineCount(text: string): number {
+export function lineCount({ text }: { text: string }, _options: Record<string, never> = {}): number {
   let count = 1;
   for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) count++;
   return count;

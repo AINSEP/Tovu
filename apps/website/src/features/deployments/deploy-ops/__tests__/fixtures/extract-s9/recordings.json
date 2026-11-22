@@ -566,7 +566,7 @@
     ],
     "stored": null,
     "logs": [
-      "[deploy-ops] destination history write failed after accepted deploy"
+      "[deploy-ops] destination history write failed after accepted deploy Error"
     ]
   }
 }

@@ -16,7 +16,7 @@ import ts from "typescript";
 import { getTableConfig, integer, real, sqliteTable } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import type { ColumnDecl } from "#src/features/plugins/data-module";
+import type { ColumnDecl } from "@jini-ai/db/data-modules";
 import {
   assertIdentifierFits,
   classifyAllCoreColumns,
@@ -27,7 +27,6 @@ import {
   collectIdentityColumns,
   computeCoreTableCopyOrder,
   DERIVED_OBJECTS,
-  type ForeignKeyEdge,
   IDENTITY_COLUMN_INSERT_OVERRIDE,
   isJsonColumnName,
   isTimestampColumnName,
@@ -35,9 +34,7 @@ import {
   reseedSequenceSql,
   REVIEWED_INTEGER_ID_COLUMNS,
   REVIEWED_JSON_COLUMNS,
-  TableCopyOrderCycleError,
   TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z,
-  topologicalTableCopyOrder,
   WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY,
 } from "../migration/manifest.js";
 import * as pgSchema from "../schema.postgres.js";
@@ -312,7 +309,7 @@ test("REVIEWED_JSON_COLUMNS has no stale entries — every key names a real colu
 });
 
 test("REVIEWED_JSON_COLUMNS has no redundant entries — no key already matches isJsonColumnName (the allowlist exists ONLY for columns the naming convention cannot see)", () => {
-  const redundant = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => isJsonColumnName(key.split(".")[1]!));
+  const redundant = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => isJsonColumnName({ sqlColumnName: key.split(".")[1]! }));
   assert.deepEqual(redundant, [], "a REVIEWED_JSON_COLUMNS entry already matches the *_json naming convention and should not be in this allowlist at all");
 });
 
@@ -695,7 +692,7 @@ test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonCol
 
   const offenders: string[] = [];
   for (const { sqlColumnName, qualifiedName, docComment, declLine } of textColumnDeclarations()) {
-    if (isJsonColumnName(sqlColumnName) || reviewedQualified.has(qualifiedName)) continue;
+    if (isJsonColumnName({ sqlColumnName }) || reviewedQualified.has(qualifiedName)) continue;
     const commentSignal = jsonMentionInOwnComment.test(docComment);
     const defaultSignal = jsonLiteralDefault.test(declLine);
     if (!commentSignal && !defaultSignal) continue;
@@ -777,18 +774,18 @@ test("utc-timestamp-text classification agrees with a GENUINELY independent orac
 });
 
 test("isTimestampColumnName: bare 'at' and '*_at' match; '*_at_capture' point-in-time snapshots do not", () => {
-  assert.equal(isTimestampColumnName("at"), true);
-  assert.equal(isTimestampColumnName("created_at"), true);
-  assert.equal(isTimestampColumnName("last_hit_at"), true);
-  assert.equal(isTimestampColumnName("from_path_at_capture"), false);
-  assert.equal(isTimestampColumnName("format"), false);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "created_at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "last_hit_at" }), true);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "from_path_at_capture" }), false);
+  assert.equal(isTimestampColumnName({ sqlColumnName: "format" }), false);
 });
 
 test("isJsonColumnName: '*_json' matches, unrelated columns do not", () => {
-  assert.equal(isJsonColumnName("body_json"), true);
-  assert.equal(isJsonColumnName("event_props_json"), true);
-  assert.equal(isJsonColumnName("json"), false);
-  assert.equal(isJsonColumnName("body_html"), false);
+  assert.equal(isJsonColumnName({ sqlColumnName: "body_json" }), true);
+  assert.equal(isJsonColumnName({ sqlColumnName: "event_props_json" }), true);
+  assert.equal(isJsonColumnName({ sqlColumnName: "json" }), false);
+  assert.equal(isJsonColumnName({ sqlColumnName: "body_html" }), false);
 });
 
 test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence, GREATEST-clamped to the sequence's minimum of 1", () => {
@@ -799,7 +796,7 @@ test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence
   // for sequence ... (1..9223372036854775807)" — AFTER the row copy that produced that id had
   // already landed. See migration-manifest-postgres.test.ts for the live proof of both the old
   // failure and the fix across empty / positive / non-positive / mixed-sign cases.
-  const sql = reseedSequenceSql("analytics_events", "id");
+  const sql = reseedSequenceSql({ sqlTableName: "analytics_events", sqlColumnName: "id" });
   assert.match(sql, /setval\(pg_get_serial_sequence\('analytics_events', 'id'\)/);
   assert.match(sql, /GREATEST\(COALESCE\(\(SELECT max\(id\) FROM analytics_events\), 0\), 1\)/);
   assert.match(sql, /COALESCE\(\(SELECT max\(id\) FROM analytics_events\), 0\) >= 1/);
@@ -807,14 +804,14 @@ test("reseedSequenceSql produces a setval statement using pg_get_serial_sequence
 
 test("reseedSequenceSql rejects an over-long identifier rather than emitting SQL Postgres would silently truncate", () => {
   const tooLong = "a".repeat(64);
-  assert.throws(() => reseedSequenceSql(tooLong, "id"), /64 bytes, exceeding PostgreSQL's 63-byte/);
+  assert.throws(() => reseedSequenceSql({ sqlTableName: tooLong, sqlColumnName: "id" }), /64 bytes, exceeding PostgreSQL's 63-byte/);
 });
 
 test("assertIdentifierFits: every real table and column identifier in the source schema fits in 63 bytes today", () => {
   for (const { table } of collectCoreTables()) {
     const cfg = getTableConfig(table);
-    assert.doesNotThrow(() => assertIdentifierFits(cfg.name, "table name"));
-    for (const col of cfg.columns) assert.doesNotThrow(() => assertIdentifierFits(col.name, "column name"));
+    assert.doesNotThrow(() => assertIdentifierFits({ identifier: cfg.name, what: "table name" }));
+    for (const col of cfg.columns) assert.doesNotThrow(() => assertIdentifierFits({ identifier: col.name, what: "column name" }));
   }
 });
 
@@ -844,60 +841,6 @@ test("IDENTITY_COLUMN_INSERT_OVERRIDE names the exact clause an INSERT-based cop
 });
 
 // --- HIGH #6: copy ordering derived from the FK graph ----------------------------------------------
-
-test("topologicalTableCopyOrder orders every referenced table before every table that references it (synthetic DAG, not the real schema)", () => {
-  const edges: ForeignKeyEdge[] = [
-    { fromExportName: "c", fromSqlTableName: "c", toExportName: "b", toSqlTableName: "b", selfReferencing: false },
-    { fromExportName: "b", fromSqlTableName: "b", toExportName: "a", toSqlTableName: "a", selfReferencing: false },
-  ];
-  const order = topologicalTableCopyOrder(["c", "b", "a", "d"], edges);
-  assert.deepEqual(new Set(order), new Set(["a", "b", "c", "d"]));
-  assert.ok(order.indexOf("a") < order.indexOf("b"), "a (referenced by b) must come before b");
-  assert.ok(order.indexOf("b") < order.indexOf("c"), "b (referenced by c) must come before c");
-});
-
-test("topologicalTableCopyOrder throws TableCopyOrderCycleError for a cycle across different tables (synthetic — the real schema has none today, proven below)", () => {
-  const edges: ForeignKeyEdge[] = [
-    { fromExportName: "a", fromSqlTableName: "a", toExportName: "b", toSqlTableName: "b", selfReferencing: false },
-    { fromExportName: "b", fromSqlTableName: "b", toExportName: "c", toSqlTableName: "c", selfReferencing: false },
-    { fromExportName: "c", fromSqlTableName: "c", toExportName: "a", toSqlTableName: "a", selfReferencing: false },
-  ];
-  assert.throws(
-    () => topologicalTableCopyOrder(["a", "b", "c"], edges),
-    (err: unknown) => {
-      assert.ok(err instanceof TableCopyOrderCycleError, "must throw TableCopyOrderCycleError specifically");
-      assert.deepEqual(new Set((err as TableCopyOrderCycleError).stuckExportNames), new Set(["a", "b", "c"]));
-      return true;
-    }
-  );
-});
-
-test("topologicalTableCopyOrder excludes self-referencing edges from the ordering graph — a table cannot be sequenced before itself, but still appears exactly once", () => {
-  const edges: ForeignKeyEdge[] = [
-    { fromExportName: "tree", fromSqlTableName: "tree", toExportName: "tree", toSqlTableName: "tree", selfReferencing: true },
-  ];
-  const order = topologicalTableCopyOrder(["tree", "other"], edges);
-  assert.deepEqual(new Set(order), new Set(["tree", "other"]));
-  assert.equal(order.filter((n) => n === "tree").length, 1, "a self-referencing table must appear exactly once, not be dropped or duplicated");
-});
-
-/**
- * Characterization test (pre-refactor pin): `topologicalTableCopyOrder` re-sorts a table into the
- * READY QUEUE the moment its in-degree hits zero, rather than sorting once up front and then
- * appending newly-ready tables to the end. This distinguishes it from a naive FIFO queue — those two
- * strategies diverge on this exact input. Initial ready set (in-degree 0) is {a, m, z}, alphabetically
- * a, m, z. Processing "a" makes "b" ready. A "sort once, append to end" queue would process the
- * already-ready m, z before ever seeing b, yielding [a, m, z, b]. This function instead re-inserts
- * "b" into its alphabetically-sorted position among the still-ready {m, z}, yielding [a, b, m, z] —
- * "process alphabetically among currently-ready tables" holds at every step, not just the first.
- */
-test("topologicalTableCopyOrder re-sorts a newly-ready table into its alphabetical position among already-ready tables, not just appended to the end (pins the insert-on-ready tie-break)", () => {
-  const edges: ForeignKeyEdge[] = [
-    { fromExportName: "b", fromSqlTableName: "b", toExportName: "a", toSqlTableName: "a", selfReferencing: false },
-  ];
-  const order = topologicalTableCopyOrder(["a", "m", "z", "b"], edges);
-  assert.deepEqual(order, ["a", "b", "m", "z"]);
-});
 
 test("collectForeignKeyEdges finds real foreign keys in the core schema, and none are self-referencing today", () => {
   const edges = collectForeignKeyEdges();
@@ -983,13 +926,6 @@ test("classifyPluginColumn: REAL and BLOB pass through as their own kinds", () =
 test("classifyCoreColumn rejects an unreviewed autoincrement key and an unsupported core kind", () => {
   const fixture = sqliteTable("unreviewed_probe", { id: integer("id").primaryKey({ autoIncrement: true }), amount: real("amount") });
   const columns = getTableConfig(fixture).columns;
-  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "id")!), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
-  assert.throws(() => classifyCoreColumn("unreviewed_probe", columns.find((column) => column.name === "amount")!), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
-});
-
-test("topologicalTableCopyOrder rejects either unnamed edge endpoint", () => {
-  for (const [from, to] of [["missing", "named"], ["named", "missing"]]) {
-    const edge = { fromExportName: from, fromSqlTableName: from, toExportName: to, toSqlTableName: to, selfReferencing: false };
-    assert.throws(() => topologicalTableCopyOrder(["named"], [edge]), { message: `edge references "${from}" -> "${to}", but allExportNames does not list both — topologicalTableCopyOrder() requires every edge endpoint to be one of the named tables.` });
-  }
+  assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "id")! }), /autoincrement primary key "unreviewed_probe.id" has no entry in REVIEWED_INTEGER_ID_COLUMNS/);
+  assert.throws(() => classifyCoreColumn({ sqlTableName: "unreviewed_probe", col: columns.find((column) => column.name === "amount")! }), /unmapped column kind "SQLiteReal" on "unreviewed_probe.amount"/);
 });

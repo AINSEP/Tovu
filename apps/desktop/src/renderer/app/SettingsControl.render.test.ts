@@ -20,18 +20,18 @@ test('Loaded sites keeps a newer menu preference when the initial read arrives l
   let changed!: (value: number) => void;
   const writes: number[] = [];
   const getBridge = () => ({ getMaximumLiveSiteViews: () => new Promise<number>(resolve => { finish = resolve; }),
-    onMaximumLiveSiteViewsChanged: (listener: (value: number) => void) => { changed = listener; return () => {}; },
-    setMaximumLiveSiteViews: async (value: number) => { writes.push(value); return value; },
+    onMaximumLiveSiteViewsChanged: ({ listener }: { listener: (value: number) => void }, _options = {}) => { changed = listener; return () => {}; },
+    setMaximumLiveSiteViews: async ({ maximum: value }: { maximum: number }, _options = {}) => { writes.push(value); return value; },
   });
   function Setting() {
     const setting = useLoadedSites({}, { getBridge });
-    return createElement('button', { onClick: () => setting.save(1) }, String(setting.value));
+    return createElement('button', { onClick: () => setting.save({ next: 1 }) }, String(setting.value));
   }
   const view = mount({ t, element: createElement(Setting) });
   await act(async () => { changed(4); });
   await act(async () => { finish(1); });
   assert.equal(view.container.querySelector('button')?.textContent, '4');
-  await view.click(view.container.querySelector('button'));
+  await view.click({ el: view.container.querySelector('button') });
   assert.deepEqual(writes, [1]);
 });
 
@@ -45,7 +45,7 @@ function renderSettings(t: TestContext, { theme = 'system', bridge = {} }: { the
     useSiteSettings: settings.useSiteSettings,
   }) });
   const menu = () => view.container.querySelector('[role="menu"]');
-  return { ...view, menu, themes, appearance: () => appearance, shown: settings.shown, gear: () => view.byLabel('Settings')! };
+  return { ...view, menu, themes, appearance: () => appearance, shown: settings.shown, gear: () => view.byLabel({ label: 'Settings' })! };
 }
 
 test('SettingsControl: the gear toggles the menu and reports opening it', async (t) => {
@@ -53,58 +53,58 @@ test('SettingsControl: the gear toggles the menu and reports opening it', async 
   const view = renderSettings(t);
   assert.equal(view.menu(), null, 'closed until asked');
   assert.equal(view.gear().getAttribute('aria-expanded'), 'false');
-  await view.click(view.gear());
+  await view.click({ el: view.gear() });
   assert.ok(view.menu());
   assert.equal(view.gear().getAttribute('aria-expanded'), 'true');
   assert.ok(view.gear().classList.contains('is-active'));
   assert.deepEqual(payloads, [{ kind: 'action', id: 'open_settings' }]);
-  await view.click(view.gear());
+  await view.click({ el: view.gear() });
   assert.equal(view.menu(), null, 'a second press closes it');
 });
 
 test('SettingsControl: Sites settings… opens the sites dialog and closes the menu', async (t) => {
   const view = renderSettings(t);
-  await view.click(view.gear());
-  await view.click(view.byText('Sites settings…', '[role="menuitem"]'));
+  await view.click({ el: view.gear() });
+  await view.click({ el: view.byText({ text: 'Sites settings…' }, { selector: '[role="menuitem"]' }) });
   assert.equal(view.shown(), 1);
   assert.equal(view.menu(), null);
 });
 
 test('SettingsControl: Appearance opens the Appearance page', async (t) => {
   const view = renderSettings(t);
-  await view.click(view.gear());
-  await view.click(view.all('[role="menuitem"]').find((row) => row.textContent?.includes('Appearance')));
+  await view.click({ el: view.gear() });
+  await view.click({ el: view.all({ selector: '[role="menuitem"]' }).find((row) => row.textContent?.includes('Appearance')) });
   assert.equal(view.appearance(), 1);
 });
 
 test('SettingsControl: the theme radios mark the current theme and report the one picked', async (t) => {
   const view = renderSettings(t, { theme: 'light' });
-  await view.click(view.gear());
-  const radios = view.all('[role="menuitemradio"]');
+  await view.click({ el: view.gear() });
+  const radios = view.all({ selector: '[role="menuitemradio"]' });
   assert.deepEqual(radios.map((radio) => [radio.getAttribute('aria-label'), radio.getAttribute('data-tip'), radio.getAttribute('aria-checked')]),
     [['Light', 'Light', 'true'], ['System', 'System', 'false'], ['Dark', 'Dark', 'false']]);
   assert.ok(radios[0]?.classList.contains('is-on'));
   assert.equal(radios[1]?.classList.contains('is-on'), false);
-  await view.click(view.byLabel('Dark'));
+  await view.click({ el: view.byLabel({ label: 'Dark' }) });
   assert.deepEqual(view.themes, ['dark']);
   assert.equal(view.menu(), null, 'picking a theme closes the menu');
 });
 
 test('SettingsControl: without checkForUpdates on the bridge there is no update row', async (t) => {
   const view = renderSettings(t);
-  await view.click(view.gear());
-  assert.equal(view.all('[role="menuitem"]').some((row) => row.textContent?.includes('updates')), false);
+  await view.click({ el: view.gear() });
+  assert.equal(view.all({ selector: '[role="menuitem"]' }).some((row) => row.textContent?.includes('updates')), false);
 });
 
 test('SettingsControl: Check for updates… reads Checking… until main answers, then the menu closes', async (t) => {
   const payloads = recordTelemetry({ t });
   let answer!: () => void;
   const view = renderSettings(t, { bridge: { checkForUpdates: () => new Promise<void>((resolve) => { answer = resolve; }) } });
-  await view.click(view.gear());
-  const row = () => view.all('[role="menuitem"]').find((item) => /updates…|Checking…/.test(item.textContent ?? ''));
+  await view.click({ el: view.gear() });
+  const row = () => view.all({ selector: '[role="menuitem"]' }).find((item) => /updates…|Checking…/.test(item.textContent ?? ''));
   assert.equal(row()?.textContent?.trim(), 'Check for updates…');
   assert.equal(row()?.getAttribute('aria-disabled'), 'false');
-  await view.click(row());
+  await view.click({ el: row() });
   assert.equal(row()?.textContent?.trim(), 'Checking…');
   assert.equal(row()?.getAttribute('aria-disabled'), 'true');
   assert.deepEqual(payloads.at(-1), { kind: 'action', id: 'check_updates' });
@@ -116,23 +116,23 @@ test('SettingsControl: Check for updates… reads Checking… until main answers
 test('SettingsControl: sleep choices sit beside Loaded sites, load the saved value and retain it after a failed save', async t => {
   const writes: number[] = [];
   const view = renderSettings(t, { bridge: {
-    getMaximumLiveSiteViews: async () => 1, setMaximumLiveSiteViews: async value => value,
+    getMaximumLiveSiteViews: async () => 1, setMaximumLiveSiteViews: async ({ maximum: value }, _options = {}) => value,
     getIdleSiteSleepMinutes: async () => 30,
     setIdleSiteSleepMinutes: async value => { writes.push(value); if (value === 5) throw new Error('disk full'); return value; },
   } });
   await settle();
-  await view.click(view.gear());
-  const rows = view.all('.settings__row');
+  await view.click({ el: view.gear() });
+  const rows = view.all({ selector: '.settings__row' });
   assert.match(rows.at(-2)?.textContent ?? '', /Loaded sites/);
   assert.match(rows.at(-1)?.textContent ?? '', /Sleep idle sites after/);
   const group = view.container.querySelector('[aria-label="Sleep idle sites after"]')!;
   const choices = [...group.querySelectorAll<HTMLButtonElement>('button')];
   assert.deepEqual(choices.map(choice => choice.textContent), ['Off', '5', '10', '30']);
   assert.equal(choices[3]?.getAttribute('aria-checked'), 'true');
-  await view.click(choices[0]);
+  await view.click({ el: choices[0] });
   await settle();
   assert.equal(choices[0]?.getAttribute('aria-checked'), 'true');
-  await view.click(choices[1]);
+  await view.click({ el: choices[1] });
   await settle();
   assert.equal(choices[0]?.getAttribute('aria-checked'), 'true');
   assert.match(view.container.querySelector('[role="alert"]')?.textContent ?? '', /could not be saved/);
@@ -146,12 +146,12 @@ test('SettingsControl: sleep defaults to ten and a late startup read cannot repl
     getIdleSiteSleepMinutes: () => new Promise<30>(resolve => { finish = resolve; }),
     setIdleSiteSleepMinutes: async value => value,
   } });
-  await view.click(view.gear());
-  assert.equal(view.byLabel('10 min')?.getAttribute('aria-checked'), 'true');
-  await view.click(view.byLabel('5 min'));
+  await view.click({ el: view.gear() });
+  assert.equal(view.byLabel({ label: '10 min' })?.getAttribute('aria-checked'), 'true');
+  await view.click({ el: view.byLabel({ label: '5 min' }) });
   await act(async () => { finish(30); });
-  assert.equal(view.byLabel('5 min')?.getAttribute('aria-checked'), 'true');
-  await view.click(view.gear());
-  await view.click(view.gear());
-  assert.equal(view.byLabel('5 min')?.getAttribute('aria-checked'), 'true');
+  assert.equal(view.byLabel({ label: '5 min' })?.getAttribute('aria-checked'), 'true');
+  await view.click({ el: view.gear() });
+  await view.click({ el: view.gear() });
+  assert.equal(view.byLabel({ label: '5 min' })?.getAttribute('aria-checked'), 'true');
 });

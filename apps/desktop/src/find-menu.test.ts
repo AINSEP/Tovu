@@ -1,6 +1,6 @@
 /**
  * @file Coverage for `find-menu.ts`, plus the wiring that only source text can show: that
- * `site-history-menu.ts` splices the Find menu into `sitesHomeMenuTemplate`, that the preload
+ * `main/boot/boot-sequence.ts` splices the Find menu into `appWideMenuTemplate`, that the preload
  * subscribes to the same channel, and that the inlined channel literal still matches
  * `contracts/find-in-page.ts`. Mirrors `site-history-menu.test.ts`.
  */
@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { FIND_TOGGLE_CHANNEL, sendFindToggle, findMenu } from "./find-menu.ts";
-import { sitesHomeMenuTemplate } from "./site-history-menu.ts";
+import { appWideMenuTemplate } from "./main/boot/boot-sequence.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
@@ -53,7 +53,7 @@ test("with no focused window, a destroyed one, or one without webContents, nothi
 
 test("the sites-home menu adds Find between History and Window", () => {
   const roles = (template: { role?: string; label?: string }[]) => template.map((entry) => entry.role ?? entry.label);
-  assert.deepEqual(roles(sitesHomeMenuTemplate({ platform: "darwin" })), [
+  assert.deepEqual(roles(appWideMenuTemplate({ platform: "darwin", settings: () => ({ label: "Settings" }) })), [
     "appMenu",
     "fileMenu",
     "editMenu",
@@ -62,6 +62,7 @@ test("the sites-home menu adds Find between History and Window", () => {
     "Find",
     "windowMenu",
     "help",
+    "Settings",
   ]);
 });
 
@@ -72,5 +73,5 @@ test("the inlined channel literal matches contracts/find-in-page.ts", () => {
 });
 
 test("the preload subscribes to that channel", () => {
-  assert.match(read("preload", "preload.mts"), /onFindToggle:[^\n]*\n?\s*subscribe[^\n]*FIND_TOGGLE_CHANNEL, listener\)/);
+  assert.match(read("preload", "preload.mts"), /onFindToggle:[^\n]*\n?\s*subscribe[^\n]*\{ channel: FIND_TOGGLE_CHANNEL, listener \}\)/);
 });

@@ -11,7 +11,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import type { MediaRecord } from "#src/features/media/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -64,7 +64,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoGetEntryRoute(app, deps);
+  registerAdminSeoGetEntryRoute({ app, deps });
   return app;
 }
 
@@ -101,11 +101,11 @@ test("get-entry: unknown entry 404s (SEO_ENTRY_NOT_FOUND)", async (t) => {
 test("get-entry: valid entry returns effective SEO meta (200)", async (t) => {
   const base = createRouteDeps();
   await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
-  const postRepo = new InMemoryPostRepo([{
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [{
     id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Canary entry", slug: "seo-canary",
     kind: "post", status: "published", bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null,
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
-  }]);
+  }] });
   await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "Canary description" } });
@@ -155,7 +155,7 @@ for (const source of ["library", "external", "override"] as const) {
         ? { type: "media", attrs: { assetId: "body" } }
         : { type: "image", attrs: { src: external } }] },
     });
-    const postRepo = new InMemoryPostRepo([post]);
+    const postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
     const before = structuredClone(post);
     const asset: MediaRecord = {
       id: "body", workspaceId: WORKSPACE_ID, title: "Body", slug: "body", alt: "", caption: "", credit: "",

@@ -1,0 +1,5 @@
+src/tracked-sites.test.ts
+src/site-child-registry.test.ts
+src/renderer/use-site-folders.hooks.test.ts
+src/renderer/use-workspace-chat-pane.hooks.test.ts
+src/site-dir-store.test.ts

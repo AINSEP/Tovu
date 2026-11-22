@@ -73,10 +73,10 @@ describe("buildListPendingChatAttachmentsTool", () => {
       const otherClaimed = await stage("other-claimed-conversation", "claimed.webm", videoBytes);
       await store.claim({ attachments: [otherClaimed], runId: "other-run" }, {});
       assert.deepEqual([image.kind, video.kind, file.kind], ["image", "file", "file"]);
-      const accepted = parseRunStartContextRef(JSON.stringify({
+      const accepted = parseRunStartContextRef({ contextRef: JSON.stringify({
         prompt: "tell me about these attachments", principalId: "principal-under-test",
         conversationId: "current-conversation", attachmentIds: [image.path, video.path, file.path],
-      }));
+      }) });
       assert.deepEqual(accepted.attachmentIds, [image.path, video.path, file.path]);
       const registration = buildListPendingChatAttachmentsTool({
         getStore: () => store,

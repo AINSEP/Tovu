@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { describeUsersError as describeApiError, formatGrantLabel, userRowMenuItems } from "@jini-ai/user-management/react";
 import { t } from "../users-i18n";
 
@@ -30,20 +31,20 @@ describe("describeApiError", () => {
     ["RESOURCE_CONFLICT", "That username is already in use."],
     ["OWNER_REQUIRED", "The workspace must keep at least one active owner."],
   ])("overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError({ error: new ApiError("raw", 400, code), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(expected);
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 400 }, { code }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(expected);
   });
 
   it("VALIDATION_ERROR prefers the server's own message, falling back when blank", () => {
-    expect(describeApiError({ error: new ApiError("username too short", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "username too short", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "username too short",
     );
-    expect(describeApiError({ error: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "Please correct the highlighted fields.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError({ error: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw message", status: 500 }, { code: "SOMETHING_ELSE" }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "raw message",
     );
   });
@@ -61,19 +62,19 @@ describe("describeApiError", () => {
     ["RESOURCE_CONFLICT", "Ese nombre de usuario ya está en uso."],
     ["OWNER_REQUIRED", "El espacio de trabajo debe conservar al menos un propietario activo."],
   ])("translates the %s override into the operator's locale (es)", (code, expected) => {
-    const translated = describeApiError({ error: new ApiError("raw", 400, code), fallback: "fallback", translate: key => t({ locale: "es", key: key }) });
+    const translated = describeApiError({ error: new ApiError({ message: "raw", status: 400 }, { code }), fallback: "fallback", translate: key => t({ locale: "es", key: key }) });
     expect(translated).toBe(expected);
     expect(translated).not.toBe(STATIC_ENGLISH[code]);
   });
 
   it("translates the VALIDATION_ERROR fallback into the operator's locale (es)", () => {
-    expect(describeApiError({ error: new ApiError("", 400, "VALIDATION_ERROR"), fallback: "fallback", translate: key => t({ locale: "es", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "", status: 400 }, { code: "VALIDATION_ERROR" }), fallback: "fallback", translate: key => t({ locale: "es", key: key }) })).toBe(
       "Corrige los campos resaltados.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError({ error: new ApiError("raw", 400, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "xx", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 400 }, { code: "FORBIDDEN" }), fallback: "fallback", translate: key => t({ locale: "xx", key: key }) })).toBe(
       "You do not have permission to do that.",
     );
   });
@@ -148,7 +149,7 @@ describe("users-i18n — delete-user plan v2 keys", () => {
     ["USER_IN_TRASH", "This user is in the Trash; restore them first."],
     ["USERNAME_IN_TRASH", "A user with this username is in the Trash; restore or delete them permanently first."],
   ])("describeApiError overrides code %s with a fixed message", (code, expected) => {
-    expect(describeApiError({ error: new ApiError("raw", 409, code), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(expected);
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 409 }, { code }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(expected);
   });
 });
 

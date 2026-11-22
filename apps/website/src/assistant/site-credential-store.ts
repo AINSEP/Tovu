@@ -1,9 +1,10 @@
 import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
-import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
-import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "./assistant-vault.js";
-import { credentialViewFields, credentialWriteFields } from './credential-store-fields.js';
+import type { VaultRecord } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret } from "../features/webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault, writeAssistantVault } from "./assistant-vault.js";
+import { credentialViewFields } from './credential-store-fields.js';
 
 /** The site visitor assistant owns this feature contract. Jini owns vault persistence and
  * JSON sealing. Omitted keys preserve envelopes; clearing retains settings. Legacy AAD is opened
@@ -86,7 +87,7 @@ export interface SetSiteAssistantCredentialInput {
   model?: string;
 }
 
-function assertValidSiteAssistantCredentialApiKey(apiKey: string | undefined): void {
+function assertValidSiteAssistantCredentialApiKey({ apiKey }: { apiKey: string | undefined }, _options = {}): void {
   if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new SiteAssistantCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
@@ -111,7 +112,7 @@ function assertValidSiteAssistantCredentialStringFields(input: Pick<SetSiteAssis
  *  purely to keep that function's complexity under the shop ceiling — behavior (including message
  *  text and ordering) is unchanged. */
 function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCredentialInput): void {
-  assertValidSiteAssistantCredentialApiKey(input.apiKey);
+  assertValidSiteAssistantCredentialApiKey({ apiKey: input.apiKey });
   assertValidSiteAssistantCredentialStringFields(input);
 }
 
@@ -120,25 +121,19 @@ function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCrede
  * @complexity Constant singleton/identity reads and one CAS write, O(payload size) sealing. */
 export async function setSiteAssistantCredential(deps: SiteAssistantCredentialWriteDeps, input: SetSiteAssistantCredentialInput): Promise<SiteAssistantCredentialView> {
   assertValidSetSiteAssistantCredentialInput(input);
-  const repo = assistantVaultRepo({ repo: deps.repo });
-  const context = assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" });
-  const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
-    throw new SiteAssistantSecretStoreUnconfiguredError(`site assistant secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
-  } });
-  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
-    provider: input.provider ?? existing?.provider ?? "google",
-    meta: siteMetadata({ input, existing }),
+  const { record, tokenHint } = await writeAssistantVault({
+    deps, context: assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" }), apiKey: input.apiKey,
+    unconfigured: ({ detail }) => new SiteAssistantSecretStoreUnconfiguredError(`site assistant secret store is unconfigured: ${detail}`),
+    settings: ({ existing }) => ({
+      provider: input.provider ?? existing?.provider ?? "google",
+      meta: siteMetadata({ input, existing }),
+    }),
   });
-  const saved = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
-  let tokenHint: CredentialTokenHint | null;
-  if (input.apiKey !== undefined) tokenHint = credentialTokenHint({ token: input.apiKey });
-  else tokenHint = (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record: saved })).tokenHint;
-  return toView({ record: saved, tokenHint });
+  return toView({ record, tokenHint });
 }
 
 /** Clears the envelope through the compatibility port; settings and scope remain intact. */
-export async function deleteSiteAssistantCredential(deps: SiteAssistantCredentialReadDeps & { clock: ClockPort }, input: { workspaceId: UUID }): Promise<SiteAssistantCredentialView> {
+export async function deleteSiteAssistantCredential({ deps, ...input }: { deps: SiteAssistantCredentialReadDeps & { clock: ClockPort } } & { workspaceId: UUID }, _optional: Record<string, never> = {}): Promise<SiteAssistantCredentialView> {
   await deps.repo.clearKey({ ...input, updatedAt: readNowIso({ clock: deps.clock }) });
   return getSiteAssistantCredential(deps, input);
 }
@@ -152,8 +147,9 @@ export interface ResolvedSiteAssistantCredential {
 
 /** Runtime fail-closed read: one indexed singleton lookup and at most one Jini open. Metadata and
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
-export async function resolveSiteAssistantApiKey(deps: { repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID },
-  onDecryptFailure: (error: unknown) => void = () => {},
+export async function resolveSiteAssistantApiKey(
+  { deps, input }: { deps: { repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID } },
+  { onDecryptFailure = () => {} }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {},
 ): Promise<ResolvedSiteAssistantCredential | null> {
   try {
     const context = assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" });
@@ -162,5 +158,5 @@ export async function resolveSiteAssistantApiKey(deps: { repo: SiteAssistantCred
     const { summary, payload } = opened;
     return { apiKey: payload!.apiKey as string, provider: summary.provider!, baseUrl: summary.meta.baseUrl as string | null,
       model: summary.meta.model as string | null, };
-  } catch (error) { onDecryptFailure(error); return null; }
+  } catch (error) { onDecryptFailure({ error }); return null; }
 }

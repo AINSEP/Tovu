@@ -11,13 +11,13 @@ test("chat attachment handler redacts unexpected read errors while passing the a
   const calls: unknown[] = [];
   const { registerAdminChatAttachmentReadRoute } = await import("../get-chat-attachment.js");
   const app = express();
-  registerAdminChatAttachmentReadRoute(app, {
+  registerAdminChatAttachmentReadRoute({ app, deps: {
     uploadDirectory: "/test-owned/uploads",
     readChatAttachmentForOwner: async (deps, input) => {
       calls.push({ deps, input });
       throw new Error("filesystem failure /private/uploads with secret sidecar");
     },
-  });
+  } });
   const handler = extractRouteHandler(app, "get", "/api/attachments/:ref");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "uploader-7" };

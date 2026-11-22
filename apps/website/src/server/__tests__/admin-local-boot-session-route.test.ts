@@ -22,7 +22,7 @@ const dev = { NODE_ENV: "development", TOVU_DEV_OWNER_SIGNIN: "1", TOVU_HOST: "1
 function site(env: Record<string, string | undefined> = dev, { deps = createRouteDeps() } = {}) {
   const app = express(); app.use(express.json());
   const localOwnerSignIn = resolveLocalOwnerSignIn({ env }, { pathExists: () => false });
-  registerAuthRoutes(app, deps, { localOwnerSignIn });
+  registerAuthRoutes({ app, deps }, { localOwnerSignIn });
   app.use("/api/admin", requireAdminSession(deps, { localOwnerSignIn }));
   app.get("/api/admin/protected", (_req, res) => res.json({ ok: true }));
   return { app, deps };
@@ -365,7 +365,7 @@ function pullSite({ port, env }: { port?: AdminSignInPort; env?: Record<string, 
   const localOwnerSignIn = resolveLocalOwnerSignIn({ env: env ?? {} }, { pathExists: () => false });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps, { localOwnerSignIn, onAdminSignIn: port ?? { signedIn: () => { signals += 1; } } });
+  registerAuthRoutes({ app, deps }, { localOwnerSignIn, onAdminSignIn: port ?? { signedIn: () => { signals += 1; } } });
   app.use("/api/admin", requireAdminSession(deps, { localOwnerSignIn }));
   return { app, deps, signals: () => signals, roleChecks };
 }

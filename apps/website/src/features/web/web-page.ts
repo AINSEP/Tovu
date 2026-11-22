@@ -5,11 +5,6 @@ import {
 } from "@jini-ai/platform/web";
 import type { HttpClientPort } from "#src/platform/http/index";
 
-export {
-  readWebFetchInput, WEB_FETCH_FORMATS, DEFAULT_MAX_CHARS, MAX_MAX_CHARS,
-  MAX_URL_LENGTH, DEFAULT_TIMEOUT_MS, UNTRUSTED_NOTICE,
-} from "@jini-ai/platform/web";
-export type { WebFetchInput, WebFetchResult, WebFetchFormat, WebFetchEvent } from "@jini-ai/platform/web";
 export const WEB_FETCH_USER_AGENT = "Tovu/0.1 (web_fetch_page; site assistant page reader)";
 export interface WebFetchPorts extends Omit<JiniWebFetchPorts, "httpClient" | "userAgent"> {
   httpClient: HttpClientPort;

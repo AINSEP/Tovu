@@ -94,7 +94,7 @@ describe('fq action completion', () => {
     const installPort = { preview: async () => ({ plugin }), install: async () => ({ plugin }) };
     const { result } = renderHook(() => usePlugins({ port, installPort, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([]));
-    act(() => result.current.install!.setFolder('/example'));
+    act(() => result.current.install!.setFolder({ value: '/example' }));
     await act(async () => { await result.current.install!.review(); });
     const refresh = deferred<Awaited<ReturnType<typeof port.listPlugins>>>();
     let refreshStarted = false;
@@ -146,7 +146,7 @@ describe('accepted writes with failed refreshes', () => {
     const read = port.listRecoveryRestorePoints;
     let writes = 0;
     const create = port.createRestorePoint;
-    port.createRestorePoint = async options => { writes++; return create(options); };
+    port.createRestorePoint = async (input, options) => { writes++; return create(input, options); };
     port.listRecoveryRestorePoints = async () => { throw new Error('Recovery refresh failed'); };
     await act(async () => { await result.current.recovery.createRestorePoint(); });
     await waitFor(() => expect(result.current.recovery.error).toBe('Recovery refresh failed'));
@@ -205,7 +205,7 @@ describe('accepted writes with failed refreshes', () => {
     const installPort = { preview: async () => ({ plugin }), install: async () => { writes++; return { plugin }; } };
     const { result } = renderHook(() => usePlugins({ port, installPort, locale: 'en', t: key => key }));
     await waitFor(() => expect(result.current.plugins).toEqual([]));
-    act(() => result.current.install!.setFolder('/example'));
+    act(() => result.current.install!.setFolder({ value: '/example' }));
     await act(async () => { await result.current.install!.review(); });
     port.listPlugins = async () => { throw new Error('Installed plugin roster refresh failed'); };
     await act(async () => { await result.current.install!.install(); });

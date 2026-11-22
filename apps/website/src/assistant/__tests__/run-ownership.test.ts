@@ -1,4 +1,4 @@
-import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { daemonSource, daemonStatements, statementsFor } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
@@ -10,23 +10,18 @@ import express from "express";
 import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
-import { registerRunRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
-import { type AdapterContext } from "@jini-ai/http-kit";
+import { runRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
+import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
-import {
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-  type RunOwnerRegistry,
-} from "../daemon-access.js";
+import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER, type RunOwnerRegistry } from "../daemon-access.js";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface
  * (`assistant/run-ownership.ts`).
  *
  * The app under test mounts the ownership middleware and the owner-scoped list handler ahead of
- * the REAL `@jini-ai/http-kit` `registerRunRoutes`, against a REAL `RunLifecycle` — the same
+ * the REAL `@jini-ai/daemon` `runRoutes`, against a REAL `RunLifecycle` — the same
  * composition `agent-daemon-server.ts` performs. That matters for more than realism: the central
  * claim of the 404-over-403 decision is that a non-owner's refusal is indistinguishable from a
  * genuinely unknown run, and only a test that provokes both responses from the same server can
@@ -73,11 +68,13 @@ async function bootDaemonRoutes(): Promise<Harness> {
   app.use(express.json());
   app.use("/api/runs/:runId", requireRunOwnership({ registry: registry, lifecycle: lifecycle }, {}));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }, {}));
-  const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
+  const resolvedPortRef = { current: 0 };
+  const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
-    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
-  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -86,7 +83,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
   // http-kit's `requireSameOrigin` routes (run start, run cancel) compare the request's `Host`
   // against this ref, so it has to hold the ephemeral port the OS just handed out — the real
   // daemon sets it to its own fixed port for the same reason.
-  adapter.resolvedPortRef.current = port;
+  resolvedPortRef.current = port;
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     lifecycle,
@@ -109,6 +106,25 @@ async function startRun(harness: Harness, principalId: string, prompt = "hello")
 function asPrincipal(principalId: string): Record<string, string> {
   return { [RUN_PRINCIPAL_HEADER]: principalId };
 }
+
+// Characterization of the origin gate the daemon binds with `createLocalSameOriginPolicy`: a browser page on
+// another origin cannot start a run, even through a loopback address, and a page the daemon itself served can.
+test("the daemon's same-origin policy refuses a foreign-origin run start and admits its own page", async (t) => {
+  const harness = await bootDaemonRoutes();
+  t.after(harness.close);
+  const start = (origin: string) => fetch(`${harness.baseUrl}/api/runs`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, [RUN_PRINCIPAL_HEADER]: ALICE },
+    body: JSON.stringify({ contextRef: contextRefFor(ALICE, "hello") }),
+  });
+
+  const foreign = await start("https://evil.example");
+  const own = await start(harness.baseUrl);
+
+  assert.equal(foreign.status, 403);
+  assert.deepEqual(await foreign.json(), { error: { code: "FORBIDDEN", message: "cross-origin request rejected" } });
+  assert.equal(own.status, 201);
+});
 
 test("a non-owner cannot read another principal's run status", async (t) => {
   const harness = await bootDaemonRoutes();
@@ -312,27 +328,35 @@ test("the production daemon mounts ownership before run routes and records the d
   const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
   const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim();
+  const text = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()).replace(/\s+/g, " ").trim();
   // Only unconditional top-level statements count: dead branches and comments cannot satisfy this.
-  const statements = daemonStatements.map(text);
+  const httpStatements = ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']
+    .flatMap(owner => statementsFor('agent-daemon-scope-http.ts', owner));
+  const statements = httpStatements.map(text);
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
-  const routes = daemonStatements.findIndex(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
-    && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "registerRunRoutes");
+  // The run routes are a list handed to `mountJiniRoutes`: the statement is `mountJiniRoutes({ app, routes: runRoutes({ ... }) })`.
+  const mountsRunRoutes = (node: ts.Statement): boolean => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "mountJiniRoutes"
+    && node.expression.arguments.some((argument) => ts.isObjectLiteralExpression(argument) && argument.properties.some((property) =>
+      ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "routes"
+      && ts.isCallExpression(property.initializer) && ts.isIdentifier(property.initializer.expression) && property.initializer.expression.text === "runRoutes"));
+  const routes = httpStatements.findIndex(mountsRunRoutes);
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 
-  const declaration = daemonStatements.flatMap((node) => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
-    .find((node) => ts.isIdentifier(node.name) && node.name.text === "onStarted");
-  assert.ok(declaration?.initializer && ts.isArrowFunction(declaration.initializer));
-  const body = declaration.initializer.body;
-  assert.ok(ts.isBlock(body));
-  const record = body.statements.findIndex((node) => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});");
-  assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
-  const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
-    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef(request.contextRef);")
-    && node.tryBlock.statements.some((statement) => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
-    && node.catchClause?.block.statements.some(ts.isReturnStatement));
-  assert.ok(decode >= 0 && decode < record, "ownership must use the validated contextRef principal, with malformed input returning before recording");
+  const registration = statementsFor("agent-daemon-run-start.ts", "registerLiveRun");
+  assert.ok(registration.some(node => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});"));
+  const decoding = statementsFor("agent-daemon-run-start.ts", "decodeRunStart");
+  assert.ok(decoding.some(node => ts.isTryStatement(node)
+    && node.tryBlock.statements.some(statement => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
+    && node.tryBlock.statements.some(statement => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
+    && node.catchClause?.block.statements.some(ts.isReturnStatement)));
+  const handler = statementsFor("agent-daemon-run-start.ts", "onStarted").map(text);
+  const decode = handler.findIndex(statement => statement.startsWith("const decoded = decodeRunStart("));
+  const refusal = handler.findIndex(statement => statement === "if (!decoded) return;");
+  const record = handler.indexOf("registerLiveRun(runPorts);");
+  assert.ok(decode >= 0 && refusal > decode && record > refusal);
+
 });

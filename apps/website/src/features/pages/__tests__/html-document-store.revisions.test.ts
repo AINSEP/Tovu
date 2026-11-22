@@ -15,7 +15,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  * `deps.revisions` is supplied, so an html Page's edit history is recoverable the same way a Post's
  * already is (see `html-document-store.sqlite.ts`'s `PagesHtmlDocumentStoreDeps.revisions` doc).
  *
- * One kernel shared between the store and the repo, matching production (`server/deps.ts` wires
+ * One kernel shared between the store and the repo, matching production (`server/runtime/composition/deps.ts` wires
  * both off the SAME `db`) — a second database would give the two a disconnected set of rows, per
  * `html-document-store.memory.ts`'s own header on exactly this trap. Runs on SQLite and PGlite, so
  * the store's writes joining `repo.transaction()` is proven on both.
@@ -65,8 +65,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
       { kernel: db, clock, revisions: repo }
     );
 
-    await store.ensureHtmlFormat('<section data-region="a"></section>');
-    await store.write('<section data-region="a">x</section>');
+    await store.ensureHtmlFormat({ seedHtml: '<section data-region="a"></section>' });
+    await store.write({ html: '<section data-region="a">x</section>' });
 
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
     assert.equal(revisions.length, 3, "pre-conversion, post-conversion, and post-write — one row each");
@@ -87,7 +87,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await insertPage(db, { id: "page-2", html: "<p>seed</p>" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { kernel: db, clock, revisions: repo });
 
-    await store.ensureHtmlFormat("<p>ignored, already born</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>ignored, already born</p>" });
 
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-2" });
     assert.equal(revisions.length, 0);
@@ -98,8 +98,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await insertPage(db, { id: "page-3" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { kernel: db, clock });
 
-    await store.ensureHtmlFormat('<section data-region="a"></section>');
-    await store.write('<section data-region="a">x</section>');
+    await store.ensureHtmlFormat({ seedHtml: '<section data-region="a"></section>' });
+    await store.write({ html: '<section data-region="a">x</section>' });
 
     const row = await db.run((q) => q.selectFrom("posts").select(["body_html", "version"]).where("id", "=", "page-3").executeTakeFirstOrThrow());
     assert.equal(row.body_html, '<section data-region="a">x</section>');
@@ -126,7 +126,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
       const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
       if (operation === "write") await store.read();
       await assert.rejects(
-        operation === "write" ? store.write("<p>new</p>") : store.ensureHtmlFormat("<p>converted</p>"),
+        operation === "write" ? store.write({ html: "<p>new</p>" }) : store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" }),
         (err) => err === failure
       );
       assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), before);
@@ -143,9 +143,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     const stale = new SqlPagesHtmlDocumentStore(scope, deps);
     await winner.read();
     await stale.read();
-    await winner.write("<p>winner</p>");
+    await winner.write({ html: "<p>winner</p>" });
     const before = await repo.listRevisions(scope);
-    await assert.rejects(stale.write("<p>loser</p>"), PageConcurrentEditError);
+    await assert.rejects(stale.write({ html: "<p>loser</p>" }), PageConcurrentEditError);
     assert.deepEqual(await repo.listRevisions(scope), before);
     assert.equal(await winner.read(), "<p>winner</p>");
   });
@@ -159,15 +159,15 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
       findById: repo.findById.bind(repo),
       listRevisions: repo.listRevisions.bind(repo),
       appendRevision: repo.appendRevision.bind(repo),
-      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => {
         // Another writer commits after ensureHtmlFormat's SELECT, before its transaction.
         await db.run((q) => q.updateTable("posts").set({ version: 2, title: "winning edit" }).where("id", "=", id).execute());
         winningRow = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow());
-        return repo.transaction(fn);
+        return repo.transaction({ fn });
       },
     };
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
-    await assert.rejects(store.ensureHtmlFormat("<p>loser</p>"), PageConcurrentEditError);
+    await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>loser</p>" }), PageConcurrentEditError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", id).executeTakeFirstOrThrow()), winningRow);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
   });
@@ -182,7 +182,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
       actorId: "original-editor", recordedAt: "2026-09-01T00:00:00.000Z" });
     const before = await repo.listRevisions({ workspaceId: WS, postId: id });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions: repo });
-    await store.ensureHtmlFormat("<p>converted</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" });
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: id });
     assert.equal(revisions.length, 2);
     assert.deepEqual(revisions[0], before[0]);
@@ -198,13 +198,13 @@ describeEachDialect("SqlPagesHtmlDocumentStore revisions", {
     await insertPage(db, { id });
     const revisions = {
       findById: repo.findById.bind(repo), listRevisions: repo.listRevisions.bind(repo), appendRevision: repo.appendRevision.bind(repo),
-      transaction: async <T>(fn: () => Promise<T>): Promise<T> => {
+      transaction: async <T>({ fn }: { fn: () => Promise<T> }): Promise<T> => {
         await repo.hardDelete({ workspaceId: WS, id });
-        return repo.transaction(fn);
+        return repo.transaction({ fn });
       },
     };
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: id }, { kernel: db, clock, revisions });
-    await assert.rejects(store.ensureHtmlFormat("<p>cannot land</p>"), PageConcurrentEditError);
+    await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>cannot land</p>" }), PageConcurrentEditError);
     assert.equal(await repo.findById({ workspaceId: WS, id }), null);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: id }), []);
     assert.equal(store.capturedVersion(), null);

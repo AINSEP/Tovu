@@ -1,14 +1,15 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { useId, type ReactNode } from "react";
 import { AgentPluginLinkedLock } from "./AgentPluginLinkedLock";
-import { AgentPluginMaturity } from "./AgentPluginMaturity";
+import { AgentPluginMaturity, SOON_PLUGIN_TIP } from "./AgentPluginMaturity";
 
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
-import type { AdminAgentPlugin } from "@/lib/api";
-import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, TrashIcon } from "./agent-plugins-visuals";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "./agent-plugins-visuals";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One installed Agent Plugin, as a ROW rather than a card (redesign, 2026-09-09).
  *
@@ -108,6 +109,26 @@ function AgentPluginRowStateArea({
   agentHandleBase: string;
   displayName: string;
 }) {
+  // "Soon" plugins are locked off (owner 2026-11-10): the server refuses to switch one on, so the
+  // switch shows disabled on both tabs, ahead of a linked face's padlock. A disabled control is not
+  // focusable, so the padlock tip beside it carries the reason to keyboard and touch. A Soon plugin
+  // still on (boot switches those off) keeps its real switch so it can be turned off.
+  if (plugin.maturity === "soon" && !plugin.enabled) {
+    return (
+      <>
+        {/* Same shape as the linked row: the state word, then the padlock in the switch's column. The
+            disabled switch stays in the DOM (its name and state) but is visually hidden, so the
+            divider, word, eye and trash columns line up down the list. */}
+        <span className="agent-plugin-state">{t("Disabled")}</span>
+        <button type="button" role="switch" aria-checked={false} aria-label={agentPluginToggleAriaLabel({ plugin, locale })} disabled className="agent-plugin-switch agent-plugin-switch--locked">
+          <span className="agent-plugin-switch-knob" aria-hidden="true" />
+        </button>
+        <span className="agent-plugin-linked-lock">
+          <InfoTip label={t(SOON_PLUGIN_TIP)} icon={<LockIcon />} agentHandle={`${agentHandleBase}-soon`} />
+        </span>
+      </>
+    );
+  }
   // One vendor, one switch (owner 2026-10-25): this plugin follows its provider plugin's switch on
   // the Plugins screen, so on both tabs it shows its state beside a padlock that explains and links
   // there, instead of a switch of its own.
@@ -115,34 +136,41 @@ function AgentPluginRowStateArea({
     return <AgentPluginLinkedLock plugin={plugin} providerPlugin={plugin.providerPlugin} t={t} agentHandleBase={agentHandleBase} />;
   }
   if (stateControl.kind === "toggle") {
-    return (
-      <>
-        {/* The word, not just the switch's position — see this file's header. */}
-        <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={plugin.enabled}
-          aria-label={agentPluginToggleAriaLabel(plugin, locale)}
-          aria-busy={busy}
-          disabled={busy}
-          className="agent-plugin-switch"
-          onClick={stateControl.onToggleEnabled}
-          // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
-          // member, and `checkbox` is the two-state control a page driver already knows how to
-          // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
-          // above, which stays `switch` because that is what assistive tech should hear.
-          {...agentHandle({ handle: `${agentHandleBase}-enabled` }, {
-            role: "checkbox",
-            label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
-          })}
-        >
-          <span className="agent-plugin-switch-knob" aria-hidden="true" />
-        </button>
-      </>
-    );
+    return <AgentPluginToggleState plugin={plugin} t={t} locale={locale} busy={busy} agentHandleBase={agentHandleBase} displayName={displayName} stateControl={stateControl} />;
   }
+  return <AgentPluginActionState plugin={plugin} t={t} locale={locale} busy={busy} stateControl={stateControl} agentHandleBase={agentHandleBase} displayName={displayName} />;
+}
 
+function AgentPluginToggleState({ plugin, t, locale, busy, agentHandleBase, displayName, stateControl }: Omit<Parameters<typeof AgentPluginRowStateArea>[0], "stateControl"> & { stateControl: Extract<AgentPluginRowStateControl, { kind: "toggle" }> }) {
+  return (
+    <>
+      {/* The word, not just the switch's position — see this file's header. */}
+      <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={plugin.enabled}
+        aria-label={agentPluginToggleAriaLabel({ plugin, locale })}
+        aria-busy={busy}
+        disabled={busy}
+        className="agent-plugin-switch"
+        onClick={stateControl.onToggleEnabled}
+        // `checkbox`, not `switch`: `AgentElementRole` (`@jini-ai/agentic`) has no `switch`
+        // member, and `checkbox` is the two-state control a page driver already knows how to
+        // read and flip. That vocabulary is the DRIVER's, independent of the ARIA `role`
+        // above, which stays `switch` because that is what assistive tech should hear.
+        {...agentHandle({ handle: `${agentHandleBase}-enabled` }, {
+          role: "checkbox",
+          label: `${plugin.enabled ? "Disable" : "Enable"} the "${displayName}" Agent Plugin`,
+        })}
+      >
+        <span className="agent-plugin-switch-knob" aria-hidden="true" />
+      </button>
+    </>
+  );
+}
+
+function AgentPluginActionState({ plugin, t, locale, busy, stateControl, agentHandleBase, displayName }: Omit<Parameters<typeof AgentPluginRowStateArea>[0], "stateControl"> & { stateControl: Extract<AgentPluginRowStateControl, { kind: "remove-or-enable" }> }) {
   // Downloaded: a single action, not a toggle — its own label already names the state (a row
   // reading "Turn off" is implicitly on; one reading "Enable" is implicitly off), so this does not
   // need a second, separate state word the way the switch does.
@@ -154,7 +182,7 @@ function AgentPluginRowStateArea({
       aria-busy={busy}
       disabled={busy}
       onClick={enabled ? stateControl.onRemove : stateControl.onEnable}
-      aria-label={agentPluginRemoveOrEnableAriaLabel(plugin, locale)}
+      aria-label={agentPluginRemoveOrEnableAriaLabel({ plugin, locale })}
       {...agentHandle({ handle: `${agentHandleBase}-${enabled ? "remove" : "enable"}` }, {
         role: "button",
         label: `${actionWord} the "${displayName}" Agent Plugin`,
@@ -205,127 +233,11 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
     // `data-linked`: a linked plugin's row reads as disabled here; it is switched on the Plugins page.
     <li className="agent-plugin-row" data-enabled={plugin.enabled} data-linked={plugin.providerPlugin ? true : undefined} aria-label={displayName}>
       <div className="agent-plugin-row-main">
-        <button
-          type="button"
-          className="agent-plugin-row-summary"
-          aria-expanded={expanded}
-          aria-controls={detailId}
-          // The description lives INSIDE this button so the whole row is one comfortable hit
-          // target, but it must not become the button's accessible name — verified rendered, the
-          // name was the entire 60-word manifest description read aloud on focus. Pointing at the
-          // heading narrows the name to "Site Compliance v1.0.0" while the description stays
-          // visible, and stays reachable in browse mode, exactly as before.
-          aria-labelledby={headingId}
-          onClick={onToggleExpanded}
-          {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${displayName}" package details` })}
-        >
-          <span className="agent-plugin-row-glyph">
-            <Glyph size={18} />
-          </span>
-          <span className="agent-plugin-row-text">
-            <span className="agent-plugin-row-heading" id={headingId}>
-              <span className="agent-plugin-row-name">{displayName}</span>
-              {/* Shown only when the installed package actually carries a version — both are
-                  genuinely optional in the Agent Plugins spec, and an invented "1.0.0" would be
-                  worse than an absent chip.
-
-                  The explicit `{" "}` is load-bearing, not formatting: this heading IS the summary
-                  button's accessible name (`aria-labelledby`), and accessible-name computation
-                  concatenates adjacent inline elements with no separator. The flex `gap` that
-                  visually separates them is invisible to it, so without a real text node a screen
-                  reader announced "Site Compliancev1.0.0". */}
-              {plugin.version ? (
-                <>
-                  {" "}
-                  <span className="agent-plugin-row-version">v{plugin.version}</span>
-                </>
-              ) : null}
-              {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
-                  wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
-                  also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
-              {plugin.maturity ? (
-                <>
-                  {" "}
-                  <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
-                    <AgentPluginMaturity maturity={plugin.maturity} t={t} />
-                  </span>
-                </>
-              ) : null}
-            </span>
-            {plugin.connectionStatus ? <span className="agent-plugin-row-desc">{t({
-              connected: "Signed in", disconnected: "Not signed in", pending: "Waiting for sign-in", needs_reauth: "Sign in again",
-            }[plugin.connectionStatus])}</span> : null}
-            {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
-                a hover tooltip, not a substitute for the unclamped copy below in the expanded
-                panel (screen readers and touch have no hover; that copy is the real fix). */}
-            {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
-                turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
-            {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
-              <span key={line} className="agent-plugin-row-desc">{line}</span>
-            ))}
-            {blurb ? (
-              <span className="agent-plugin-row-desc" title={blurb}>
-                {blurb}
-              </span>
-            ) : null}
-          </span>
-          <span className="agent-plugin-row-chevron">
-            <ChevronIcon />
-          </span>
-        </button>
+        {renderAgentPluginSummary({ expanded, detailId, headingId, onToggleExpanded, agentHandleBase, displayName, Glyph, plugin, t, blurb })}
 
         {/* Outside the actions column, against its divider: the switch stays at the same x on every row. */}
         {manage ? <div className="agent-plugin-row-manage">{manage}</div> : null}
-        <div className="agent-plugin-row-actions">
-          <AgentPluginRowStateArea
-            plugin={plugin}
-            t={t}
-            locale={locale}
-            busy={busy}
-            stateControl={stateControl}
-            agentHandleBase={agentHandleBase}
-            displayName={displayName}
-          />
-          <button
-            type="button"
-            className="agent-plugin-icon-btn"
-            onClick={onInspect}
-            // Preserved verbatim from the text button this replaced: "Inspect package files" reads
-            // identically on every row, so the plugin's own name must stay in the accessible name.
-            aria-label={`${t("Inspect package files")} — ${displayName}`}
-            {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${displayName}" package files` })}
-          >
-            <EyeIcon />
-          </button>
-          {/* HONEST-DISABLED, not decorative, and the domain agrees.
-              `features/agent-plugins/uninstall.ts`'s `uninstallAgentPlugin()` (landed 2026-09-09,
-              concurrently with this redesign) REFUSES any package whose activation record says
-              `origin: "bundled"`, with `AgentPluginNotUninstallableError` — precisely because
-              `recordBundledAgentPluginIfAbsent` re-seeds it on the next boot, so a delete would
-              appear to succeed and then silently reappear. That function's own header names this
-              screen's enable/disable control (the switch on Installed, Remove/Enable on Downloaded
-              — see this file's own header) as the lever an operator actually has for a bundled
-              package.
-
-              Every installed package today is bundled — `installAgentPluginFromUrl` exists but has
-              zero production callers, so nothing can arrive as `operator-installed` — and there is
-              no HTTP uninstall route either (the only wrapper is an assistant tool). So a live
-              button here would refuse on every row that exists. It becomes real when an
-              install-from-url path ships; until then the affordance holds its place and says why.
-
-              The reason is stated once at section level and referenced by every row via
-              `aria-describedby`: a disabled control is not focusable, so a per-row tooltip would
-              never be read. */}
-          <button
-            type="button"
-            className="agent-plugin-icon-btn"
-            disabled
-            aria-label={`${t("Uninstall")} ${displayName} — ${t("unavailable")}`}
-            aria-describedby={uninstallNoteId}
-          >
-            <TrashIcon />
-          </button>
-        </div>
+        {renderAgentPluginActions({ plugin, t, locale, busy, stateControl, agentHandleBase, displayName, onInspect, uninstallNoteId })}
       </div>
 
       <div className="agent-plugin-row-detail" id={detailId} hidden={!expanded}>
@@ -343,5 +255,159 @@ export function AgentPluginRow(props: AgentPluginRowProps) {
         {props.update ?? null}
       </div>
     </li>
+  );
+}
+
+function renderAgentPluginActions(
+  { plugin, t, locale, busy, stateControl, agentHandleBase, displayName, onInspect, uninstallNoteId }:
+    Pick<AgentPluginRowProps, "plugin" | "t" | "locale" | "busy" | "stateControl" | "agentHandleBase" | "onInspect" | "uninstallNoteId"> &
+    { displayName: ReturnType<typeof agentPluginDisplayName> }
+) {
+  return (
+    <div className="agent-plugin-row-actions">
+      <AgentPluginRowStateArea
+        plugin={plugin}
+        t={t}
+        locale={locale}
+        busy={busy}
+        stateControl={stateControl}
+        agentHandleBase={agentHandleBase}
+        displayName={displayName}
+      />
+      {renderAgentPluginInspect({ onInspect, t, displayName, agentHandleBase })}
+      {/* HONEST-DISABLED, not decorative, and the domain agrees.
+          `features/agent-plugins/uninstall.ts`'s `uninstallAgentPlugin()` (landed 2026-09-09,
+          concurrently with this redesign) REFUSES any package whose activation record says
+          `origin: "bundled"`, with `AgentPluginNotUninstallableError` — precisely because
+          `recordBundledAgentPluginIfAbsent` re-seeds it on the next boot, so a delete would
+          appear to succeed and then silently reappear. That function's own header names this
+          screen's enable/disable control (the switch on Installed, Remove/Enable on Downloaded
+          — see this file's own header) as the lever an operator actually has for a bundled
+          package.
+
+          Every installed package today is bundled — `installAgentPluginFromUrl` exists but has
+          zero production callers, so nothing can arrive as `operator-installed` — and there is
+          no HTTP uninstall route either (the only wrapper is an assistant tool). So a live
+          button here would refuse on every row that exists. It becomes real when an
+          install-from-url path ships; until then the affordance holds its place and says why.
+
+          The reason is stated once at section level and referenced by every row via
+          `aria-describedby`: a disabled control is not focusable, so a per-row tooltip would
+          never be read. */}
+      <button
+        type="button"
+        className="agent-plugin-icon-btn"
+        disabled
+        aria-label={`${t("Uninstall")} ${displayName} — ${t("unavailable")}`}
+        aria-describedby={uninstallNoteId}
+      >
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+function renderAgentPluginInspect(
+  { onInspect, t, displayName, agentHandleBase }:
+    Pick<Parameters<typeof renderAgentPluginActions>[0], "onInspect" | "t" | "displayName" | "agentHandleBase">
+) {
+  return (
+    <button
+      type="button"
+      className="agent-plugin-icon-btn"
+      onClick={onInspect}
+      // Preserved verbatim from the text button this replaced: "Inspect package files" reads
+      // identically on every row, so the plugin's own name must stay in the accessible name.
+      aria-label={`${t("Inspect package files")} — ${displayName}`}
+      {...agentHandle({ handle: `${agentHandleBase}-inspect` }, { role: "button", label: `Inspect the "${displayName}" package files` })}
+    >
+      <EyeIcon />
+    </button>
+  );
+}
+
+function renderAgentPluginSummary(
+  { expanded, detailId, headingId, onToggleExpanded, agentHandleBase, displayName, Glyph, plugin, t, blurb }:
+    Pick<AgentPluginRowProps, "expanded" | "onToggleExpanded" | "agentHandleBase" | "plugin" | "t"> &
+    { detailId: ReturnType<typeof useId>; headingId: ReturnType<typeof useId>; displayName: ReturnType<typeof agentPluginDisplayName>; Glyph: (typeof AGENT_PLUGIN_GLYPHS)[ReturnType<typeof agentPluginGlyphKind>]; blurb: ReturnType<typeof agentPluginBlurb> }
+) {
+  return (
+    <button
+      type="button"
+      className="agent-plugin-row-summary"
+      aria-expanded={expanded}
+      aria-controls={detailId}
+      // The description lives INSIDE this button so the whole row is one comfortable hit
+      // target, but it must not become the button's accessible name — verified rendered, the
+      // name was the entire 60-word manifest description read aloud on focus. Pointing at the
+      // heading narrows the name to "Site Compliance v1.0.0" while the description stays
+      // visible, and stays reachable in browse mode, exactly as before.
+      aria-labelledby={headingId}
+      onClick={onToggleExpanded}
+      {...agentHandle({ handle: `${agentHandleBase}-details` }, { role: "button", label: `Show or hide the "${displayName}" package details` })}
+    >
+      <span className="agent-plugin-row-glyph">
+        <Glyph size={18} />
+      </span>
+      <span className="agent-plugin-row-text">
+        {renderAgentPluginHeading({ headingId, displayName, plugin, t })}
+        {plugin.connectionStatus ? <span className="agent-plugin-row-desc">{t({
+          connected: "Signed in", disconnected: "Not signed in", pending: "Waiting for sign-in", needs_reauth: "Sign in again",
+        }[plugin.connectionStatus])}</span> : null}
+        {/* `title` is the ONLY way to read the rest of a clamped line without opening the row —
+            a hover tooltip, not a substitute for the unclamped copy below in the expanded
+            panel (screen readers and touch have no hover; that copy is the real fix). */}
+        {/* Compatibility first: "Not for this Tovu version" explains a switch that refuses to
+            turn on, and "Needs …" names capabilities no other enabled plugin provides. */}
+        {agentPluginCompatibilityLines({ plugin, translate: t }).map((line) => (
+          <span key={line} className="agent-plugin-row-desc">{line}</span>
+        ))}
+        {blurb ? (
+          <span className="agent-plugin-row-desc" title={blurb}>
+            {blurb}
+          </span>
+        ) : null}
+      </span>
+      <span className="agent-plugin-row-chevron">
+        <ChevronIcon />
+      </span>
+    </button>
+  );
+}
+
+function renderAgentPluginHeading(
+  { headingId, displayName, plugin, t }:
+    Pick<Parameters<typeof renderAgentPluginSummary>[0], "headingId" | "displayName" | "plugin" | "t">
+) {
+  return (
+    <span className="agent-plugin-row-heading" id={headingId}>
+      <span className="agent-plugin-row-name">{displayName}</span>
+      {/* Shown only when the installed package actually carries a version — both are
+          genuinely optional in the Agent Plugins spec, and an invented "1.0.0" would be
+          worse than an absent chip.
+
+          The explicit `{" "}` is load-bearing, not formatting: this heading IS the summary
+          button's accessible name (`aria-labelledby`), and accessible-name computation
+          concatenates adjacent inline elements with no separator. The flex `gap` that
+          visually separates them is invisible to it, so without a real text node a screen
+          reader announced "Site Compliancev1.0.0". */}
+      {plugin.version ? (
+        <>
+          {" "}
+          <span className="agent-plugin-row-version">v{plugin.version}</span>
+        </>
+      ) : null}
+      {/* Beside the version (owner, 2026-10-24), so it sits inside the summary button: the
+          wrapper keeps a tap on the pill opening its warning (mobile has no hover) instead of
+          also toggling the row. Its "Soon"/"Untested" label joins the row's accessible name. */}
+      {plugin.maturity ? (
+        <>
+          {" "}
+          <span className="agent-plugin-row-maturity" onClick={(e) => e.stopPropagation()}>
+            <AgentPluginMaturity maturity={plugin.maturity} t={t} />
+          </span>
+        </>
+      ) : null}
+    </span>
   );
 }

@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { loadTheme } from "../theme.js";
-import { applicableThemeTemplates, parseTemplateFor } from "../template-applicability.js";
-import { validateManifestV2 } from "../validation/manifest-v2.js";
+import { applicableThemeTemplates, parseTemplateFor, rejectTemplateFor } from "@jini-ai/cms/themes/template-applicability";
+import { validateManifestV2 } from "@jini-ai/cms/themes/manifest-v2";
+import { validateScripts } from "@jini-ai/cookie-consent/policy";
+import { isSourceDirGeneratedConflict } from "../theme-file-policy.js";
 
 const templates = ["post.html", "shared.html", "page.html", "both.html"];
 const templateFor = { "post.html": ["post"], "page.html": ["page"], "both.html": ["post", "page"] } as const;
@@ -24,7 +26,7 @@ for (const copy of ["static", "__original-themes__/static"]) {
 
 test("templateFor: schema accepts declared kinds and loader preserves the mapping", (t) => {
   const raw = { apiVersion: 2, id: "fixture", name: "Fixture", version: "1.0.0", templates, templateFor };
-  assert.deepEqual(validateManifestV2({ raw }), []);
+  assert.deepEqual(validateManifestV2({ raw, validateScripts, isSourceDirGeneratedConflict }), [], "Declared template kinds pass manifest validation");
   const root = mkdtempSync(join(tmpdir(), "tovu-templatefor-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   // A templated fixture isolates manifest parsing from static HTML conformance.
@@ -44,31 +46,7 @@ test("templateFor: schema accepts declared kinds and loader preserves the mappin
 for (const value of [null, [], "post", { "post.html": "post" }, { "post.html": [] }, { "post.html": ["product"] }, { "post.html": ["post", "post"] }, { "missing.html": ["page"] }]) {
   test(`templateFor: schema and loader parser reject ${JSON.stringify(value)}`, () => {
     const raw = { apiVersion: 2, id: "fixture", name: "Fixture", version: "1.0.0", templates, templateFor: value };
-    assert.ok(validateManifestV2({ raw }).some((issue) => issue.ruleId === "v2-template-for"));
-    assert.throws(() => parseTemplateFor({ value, templates }), /templateFor/);
+    assert.ok(validateManifestV2({ raw, validateScripts, isSourceDirGeneratedConflict }).some((issue) => issue.ruleId === "v2-template-for"), "Invalid templateFor declarations produce a schema finding");
+    assert.throws(() => parseTemplateFor({ onInvalid: rejectTemplateFor, value, templates }), /templateFor/);
   });
 }
-
-test("templateFor: filters by kind in manifest order, sharing omitted and explicitly dual-kind entries", () => {
-  const manifest = { templates, templateFor };
-  assert.deepEqual(applicableThemeTemplates({ manifest, kind: "post" }), ["post.html", "shared.html", "both.html"]);
-  assert.deepEqual(applicableThemeTemplates({ manifest, kind: "page" }), ["shared.html", "page.html", "both.html"]);
-  assert.deepEqual(applicableThemeTemplates({ manifest: { templates }, kind: "post" }), templates);
-  assert.deepEqual(applicableThemeTemplates({ manifest: { templates }, kind: "page" }), templates);
-  assert.deepEqual(applicableThemeTemplates({ manifest }), templates);
-  assert.deepEqual(applicableThemeTemplates({}), []);
-});
-
-test("templateFor: inherited object names remain unlisted and apply to both kinds", () => {
-  const manifest = { templates: ["constructor", "toString"], templateFor: {} };
-  for (const kind of ["post", "page"] as const) {
-    assert.deepEqual(applicableThemeTemplates({ manifest, kind }), manifest.templates);
-  }
-});
-
-test("templateFor without any declared templates: an empty mapping parses, any named template is refused", () => {
-  assert.deepEqual(parseTemplateFor({ value: {} }), {});
-  assert.throws(() => parseTemplateFor({ value: { "landing.html": ["page"] } }), {
-    message: "theme.json templateFor 'landing.html' is not listed in templates",
-  });
-});

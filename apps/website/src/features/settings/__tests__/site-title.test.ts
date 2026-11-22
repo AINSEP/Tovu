@@ -99,8 +99,7 @@ async function systemPinRevisions(ledger: Ledger, workspaceId: string): Promise<
 
 async function effectiveTitle(ledger: Ledger, workspaceId: string) {
   const resolved = await getEffective(
-    { repo: ledger.settingsRepo },
-    { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } }
+    { deps: { repo: ledger.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
   );
   return { value: resolved?.value, sourceLayer: resolved?.sourceLayer };
 }
@@ -110,7 +109,7 @@ function resolveDeps(
   options: { siteDisplayName?: string; workspaceRepo?: Pick<WorkspaceRepoPort, "findById"> } = {}
 ) {
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = options.workspaceRepo ?? {
-    findById: async ({ id }) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z", version: 1 }),
   };
   return {
     settingsRepo: ledger.settingsRepo,
@@ -140,7 +139,7 @@ test("AC-07 (REQ-06, REQ-11): a pending workspace is pinned to Tovu Demo Site th
   assert.deepEqual(result, { pinnedWorkspaceIds: ["ws-pre"], skippedWorkspaceIds: [], failedWorkspaceIds: [] });
   assert.deepEqual(await effectiveTitle(ledger, "ws-pre"), { value: "Tovu Demo Site", sourceLayer: "workspace" });
   assert.equal((await systemPinRevisions(ledger, "ws-pre")).length, 1);
-  assert.equal(await ledger.preservationStore.isPending("ws-pre"), false, "a pinned workspace is no longer pending");
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-pre" }), false, "a pinned workspace is no longer pending");
 });
 
 test("AC-08 (REQ-06): after an owner reset, later preservation runs append no system revision, and the site renders its no-owner-title value", async () => {
@@ -167,7 +166,7 @@ test("INV-02 (REQ-06): a still-pending workspace whose value row is cleared (the
 
   assert.deepEqual(result, { pinnedWorkspaceIds: [], skippedWorkspaceIds: ["ws-pre"], failedWorkspaceIds: [] });
   assert.equal((await systemPinRevisions(ledger, "ws-pre")).length, 0);
-  assert.equal(await ledger.preservationStore.isPending("ws-pre"), false, "a skipped workspace is resolved, not retried");
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-pre" }), false, "a skipped workspace is resolved, not retried");
 });
 
 test("AC-09 (REQ-06, INV-02): an owner title set before preservation runs is kept, and the workspace is reported skipped", async () => {
@@ -197,14 +196,14 @@ test("AC-17 (REQ-11, REQ-07): a pin write that throws for one of two workspaces 
     errors.some((args) => args.some((arg) => String(arg).includes("ws-b"))),
     "each failed workspace id is logged"
   );
-  assert.equal(await ledger.preservationStore.isPending("ws-b"), true, "a failed pin stays pending, so the next boot retries it");
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-b" }), true, "a failed pin stays pending, so the next boot retries it");
   assert.equal(
     await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), { workspaceId: "ws-b" }),
     "Tovu Demo Site"
   );
   ledger.settingsRepo.saveWorkspaceValue = saveWorkspaceValue;
   assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: ["ws-b"], skippedWorkspaceIds: [], failedWorkspaceIds: [] });
-  assert.equal(await ledger.preservationStore.isPending("ws-b"), false);
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-b" }), false);
   assert.deepEqual(await effectiveTitle(ledger, "ws-b"), { value: "Tovu Demo Site", sourceLayer: "workspace" });
   assert.equal((await systemPinRevisions(ledger, "ws-a")).length, 1, "retry must not repin the already successful workspace");
   assert.equal((await systemPinRevisions(ledger, "ws-b")).length, 1);
@@ -217,7 +216,7 @@ test("REQ-11: with core.site/title not registered, every pending workspace is re
   const result = await preserve(ledger);
 
   assert.deepEqual(result, { pinnedWorkspaceIds: [], skippedWorkspaceIds: [], failedWorkspaceIds: ["ws-a"] });
-  assert.equal(await ledger.preservationStore.isPending("ws-a"), true);
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-a" }), true);
   assert.ok(errors.some((args) => args.some((arg) => String(arg).includes("ws-a"))), "the failed workspace id is logged");
 });
 
@@ -288,7 +287,7 @@ test("REQ-09: an unusable owner value renders the no-owner-title value: the disp
 test("REQ-09: a blank display name falls back to workspaces.name, and a blank workspace name to Tovu Demo Site", async () => {
   const ledger = await makeLedger();
   const blankWorkspace: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async ({ id }) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z", version: 1 }),
   };
   const missingWorkspace: Pick<WorkspaceRepoPort, "findById"> = { findById: async () => null };
 
@@ -346,8 +345,8 @@ test("REQ-07: the pending marker is read before the value, so a pin that lands m
     return row;
   };
   const isPending = ledger.preservationStore.isPending.bind(ledger.preservationStore);
-  ledger.preservationStore.isPending = async (workspaceId) => {
-    const pending = await isPending(workspaceId);
+  ledger.preservationStore.isPending = async ({ workspaceId }) => {
+    const pending = await isPending({ workspaceId });
     if (armed) {
       armed = false;
       await preserve(ledger);
@@ -418,27 +417,27 @@ test("a committed pin with a failed preservation marker is resolved on retry wit
   };
   assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: [], skippedWorkspaceIds: [], failedWorkspaceIds: ["ws-pre"] });
   assert.deepEqual(await effectiveTitle(ledger, "ws-pre"), { value: "Tovu Demo Site", sourceLayer: "workspace" });
-  assert.equal(await ledger.preservationStore.isPending("ws-pre"), true);
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-pre" }), true);
   const before = await systemPinRevisions(ledger, "ws-pre");
   assert.equal(before.length, 1);
   assert.deepEqual(await preserve(ledger), { pinnedWorkspaceIds: [], skippedWorkspaceIds: ["ws-pre"], failedWorkspaceIds: [] });
-  assert.equal(await ledger.preservationStore.isPending("ws-pre"), false);
+  assert.equal(await ledger.preservationStore.isPending({ workspaceId: "ws-pre" }), false);
   assert.deepEqual(await systemPinRevisions(ledger, "ws-pre"), before);
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: SITE_DISPLAY_NAME }), { workspaceId: "ws-pre" }), "Tovu Demo Site");
 });
 
 test("REQ-08: title normalization accepts trimmed bounds and rejects non-string values", () => {
   for (const value of [undefined, null, 42, true, {}, [], "", " \t\n", "x".repeat(201)]) {
-    assert.equal(normalizeSiteTitle(value), undefined);
+    assert.equal(normalizeSiteTitle({ value }), undefined);
   }
-  assert.equal(normalizeSiteTitle("  A  "), "A");
-  assert.equal(normalizeSiteTitle(` ${"x".repeat(200)} `), "x".repeat(200));
+  assert.equal(normalizeSiteTitle({ value: "  A  " }), "A");
+  assert.equal(normalizeSiteTitle({ value: ` ${"x".repeat(200)} ` }), "x".repeat(200));
 });
 
 test("preservation markers default to empty, deduplicate and sort ids, and resolve idempotently", async () => {
   const empty = new InMemorySiteTitlePreservationStore();
   assert.deepEqual(await empty.listPendingWorkspaceIds(), []);
-  assert.equal(await empty.isPending("missing"), false);
+  assert.equal(await empty.isPending({ workspaceId: "missing" }), false);
   const store = new InMemorySiteTitlePreservationStore(["ws-z", "ws-a", "ws-z"]);
   assert.deepEqual(await store.listPendingWorkspaceIds(), ["ws-a", "ws-z"]);
   await store.markPreserved({ workspaceId: "ws-a", preservedAt: clock.nowIso() });
@@ -452,7 +451,7 @@ test("REQ-05: renderable configured and workspace names are trimmed before rende
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "  Configured title  " }), { workspaceId: "ws-new" }),
     "Configured title");
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso() }),
+    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso(), version: 1 }),
   };
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "x".repeat(201), workspaceRepo }), { workspaceId: "ws-new" }),
     "Workspace title");

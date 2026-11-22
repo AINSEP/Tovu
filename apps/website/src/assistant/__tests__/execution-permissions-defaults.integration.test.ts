@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective, set } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "../execution-mode-settings.js";
 import { readAssistantCliPermissions } from "../subagent-settings.js";
-import { resolveAssistantCliPermissions } from "../../contracts/core/assistant-native-fallbacks.js";
+import { resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 const localDefaults = {
   shell: true, fileWrite: true, userMcp: true, subagents: true,
@@ -27,9 +27,7 @@ async function bootDefinitions() {
 
 test("A4/A6: untouched local owner permissions default every capability ON, personal MCP included", async () => {
   const { deps, read } = await bootDefinitions();
-  assert.deepEqual(await getEffective({ repo: deps.settingsRepo }, {
-    namespace: "core.assistant-full-cli", key: "permissions", scopeContext: { workspaceId: "site-a", principalId: "owner-a" },
-  }), { value: {}, sourceLayer: "default", defVersion: 1 });
+  assert.deepEqual(await getEffective({ deps: { repo: deps.settingsRepo }, namespace: "core.assistant-full-cli", key: "permissions", scopeContext: { workspaceId: "site-a", principalId: "owner-a" } }), { value: {}, sourceLayer: "default", defVersion: 1 });
   const settings = await read();
   assert.deepEqual(settings, { enabled: true, capabilities: localDefaults });
   assert.deepEqual(resolveAssistantCliPermissions({ isOwner: true, env: {}, settings }), settings);

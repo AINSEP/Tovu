@@ -3,7 +3,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
@@ -16,6 +16,7 @@ import {
 } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `PluginPackageFilesModal`'s data: one `PLUGIN_FILES` read for the inspected plugin, mapped
  * onto the shared `PackageFilesModal`'s row shape, plus which file is selected. The Agent Plugins
@@ -32,7 +33,7 @@ export interface PluginPackageFilesDependencies {
   readonly queryRoot?: "plugins" | "agent-plugins";
   /** Any read that yields a listing — `PluginsPort.getPluginFiles`, or an adapter over
    *  `AgentPluginsPort.getAgentPluginFiles`. */
-  readonly port: { getPluginFiles(pluginId: string): Promise<PackageFilesListing> };
+  readonly port: { getPluginFiles(required: { id: string }, optional?: Record<string, never>): Promise<PackageFilesListing> };
   readonly t: Translate;
 }
 
@@ -69,17 +70,17 @@ interface SettledRead extends PackageFilesRead {
 export function usePluginPackageFiles({ pluginId, port, t, queryRoot = "plugins" }: PluginPackageFilesDependencies): PluginPackageFilesController {
   const [selectedPath, setSelectedPath] = useState("");
   const queryFetch = useQueryFetchCallback(async () => {
-    try { return await port.getPluginFiles(pluginId); }
-    catch (error) { throw new Error(describeApiError(error, t("failed to load package files"))); }
+    try { return await port.getPluginFiles({ id: pluginId }); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: t("failed to load package files") })); }
   }, [port, pluginId]);
   const query = useFetchQuery({ key: [queryRoot, "files", pluginId], fetch: queryFetch }, { staleTime: 0 });
   const read: PackageFilesRead | null = packageFilesRead(query);
-  return { ...packageFilesViewState(read, selectedPath, t), selectFile: setSelectedPath, t };
+  return { ...packageFilesViewState({ read, selectedPath, translate: t }), selectFile: setSelectedPath, t };
 }
 
 /** Binds the real `/api/.../plugins/:id/files` client and a `plugins-i18n.ts` translator for the
  *  current admin locale. */
-export function useWiredPluginPackageFiles(pluginId: string): PluginPackageFilesController {
+export function useWiredPluginPackageFiles({ pluginId }: { pluginId: string }, _optional = {}): PluginPackageFilesController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
   return usePluginPackageFiles({ pluginId, port: defaultPluginsPort, t });

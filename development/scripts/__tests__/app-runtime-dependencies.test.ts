@@ -102,3 +102,25 @@ test("every file the server build compiles imports only root dependencies or wor
   });
   assert.deepEqual(problems, [], "move dev-only checks out of the server build, or declare the runtime dependency");
 });
+
+/** Files the server build (`tsc -p tsconfig.json`) compiles into dist/, repo-relative. O(files). */
+function serverBuildFiles(_required = {}, _optional = {}): string[] {
+  const config = ts.getParsedCommandLineOfConfigFile(path.join(repoRoot, "tsconfig.json"), {}, {
+    ...ts.sys, onUnRecoverableConfigFileDiagnostic: diagnostic => { throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")); },
+  });
+  assert.ok(config && config.fileNames.length > 0, "root tsconfig.json compiles no files");
+  return config.fileNames.map(file => path.relative(repoRoot, file));
+}
+
+test("repo-scanning check scripts run from source and never ship in the server build", () => {
+  // Bug 552 (2026-11-02): the build-time checks the root `check:*` scripts run with tsx
+  // (secret-scan-guard, default-credential-exposure) were compiled into dist/src, so the desktop
+  // payload shipped repo scanners that read git history and the admin source tree.
+  const scripts: Record<string, string> = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8")).scripts;
+  const checks = Object.entries(scripts).filter(([name]) => name.startsWith("check:"))
+    .flatMap(([, command]) => command.match(/apps\/website\/src\/[^\s"']+\.ts/g) ?? []);
+  assert.ok(checks.length > 0, "no check:* script runs a website source file; update this test's scan");
+  const built = new Set(serverBuildFiles());
+  assert.deepEqual(checks.filter(file => built.has(file)), [],
+    "exclude these check scripts from tsconfig.json (tsconfig.tests.json still type-checks them)");
+});

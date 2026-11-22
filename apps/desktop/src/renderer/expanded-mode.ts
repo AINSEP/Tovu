@@ -5,8 +5,7 @@
  * applies lives here instead, so it can be called with real inputs and asserted against directly.
  * This package has no React renderer at all — no jsdom, no testing-library, no react-test-renderer
  * — so a hook cannot be invoked from a test and a component cannot be mounted in one; see
- * `use-site-rename.hooks.test.ts`'s own header for the empirical verification of that, and
- * `folder-drop.ts` for the same extraction done for the same reason. Rules in this shape are
+ * `use-site-rename.hooks.test.ts`'s own header for the empirical verification of that. Rules in this shape are
  * testable; the identical rules inlined in an effect body or a JSX guard are not.
  *
  * The invariant every rule here serves: expanded mode hides the only navigation there is, so the
@@ -21,7 +20,7 @@
 export const COLLAPSE_KEY = 'Escape';
 
 /** The workspace bar's toggle: expanded mode's one deliberate on/off switch. */
-export function nextExpanded(expanded: boolean): boolean {
+export function nextExpanded({ expanded }: { expanded: boolean }, _options = {}): boolean {
   return !expanded;
 }
 
@@ -29,11 +28,11 @@ export function nextExpanded(expanded: boolean): boolean {
  * Expanded state after a keydown lands in Tovu's own chrome.
  *
  * Escape collapses; every other key leaves the mode exactly as it was. Collapsing something already
- * collapsed is a no-op — `expandedAfterKeyDown(false, 'Escape')` is `false` — which is what makes
+ * collapsed is a no-op — `expandedAfterKeyDown({ expanded: false, key: 'Escape' })` is `false` — which is what makes
  * this safe to call for any key and from any state rather than only from inside the listener that
  * is attached while expanded.
  */
-export function expandedAfterKeyDown(expanded: boolean, key: string): boolean {
+export function expandedAfterKeyDown({ expanded, key }: { expanded: boolean; key: string }, _options = {}): boolean {
   if (key === COLLAPSE_KEY) return false;
   return expanded;
 }
@@ -46,7 +45,7 @@ export function expandedAfterKeyDown(expanded: boolean, key: string): boolean {
  * nothing immersed in it and no way back — so a false `showSiteTab` collapses unconditionally,
  * whatever the mode was.
  */
-export function expandedAfterWorkspaceChange(expanded: boolean, showSiteTab: boolean): boolean {
+export function expandedAfterWorkspaceChange({ expanded, showSiteTab }: { expanded: boolean; showSiteTab: boolean }, _options = {}): boolean {
   return showSiteTab ? expanded : false;
 }
 

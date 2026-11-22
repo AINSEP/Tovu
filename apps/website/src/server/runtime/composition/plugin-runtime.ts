@@ -1,7 +1,8 @@
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
-import { createPluginRuntimeCore, type PluginRuntimeCoreBindings, type PluginRuntimeSource, type PluginRuntimeText } from "@jini-ai/plugins/host/node";
+import { type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
+import { nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { createPluginModuleImporter, createPluginRuntimeCore, type PluginRuntimeCoreBindings, type PluginRuntimeSource, type PluginRuntimeText } from "@jini-ai/plugins/host/node";
 import type { BundledBrowserProviderApproval, PluginSourcePolicyPort } from '@jini-ai/plugins/host';
 import { createSitePluginPolicy } from '#src/features/plugin-runtime/install';
 
@@ -78,7 +79,8 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
     pluginSourcePolicy: pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env, hostSignals: resolveHostSignals({ env: process.env }) }),
     tier2CallRunner: tier2CallRunner ?? createTier2WorkerRunner({}),
     pluginSdkBinding: pluginHostBinding.pluginSdkBinding,
-    hostBinding: pluginHostBinding,
+    // The source service's cross-process lock is a Node effect: bound here, not in `pluginHostBinding`, which the tier-2 worker also imports.
+    hostBinding: { ...pluginHostBinding, fileLock: nodeFileLock },
     createModuleImporter: createPluginModuleImporter,
     text: TOVU_PLUGIN_RUNTIME_TEXT,
     quarantineTelemetry: ({ pluginId }) => ({ event: { name: "plugin_quarantined", userId: "system" }, options: { properties: { pluginId, pluginKind: "cms", reasonClass: "lifecycle" } } }),

@@ -3,9 +3,10 @@ import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
-import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
-import { checkSitePathname, hasControlCharacter } from "#src/platform/routing/index";
-import type { SitePathCheck } from "#src/platform/routing/index";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import { readBoundedBody, toCookieShapes, type CookieShape } from "@jini-ai/diagnostics/web-evidence";
+import { resolveSitePath } from "./site-path-policy.js";
 
 /**
  * @file `fetchPublishedPage()` — renders ONE route of this site's own public surface and returns
@@ -26,14 +27,14 @@ import type { SitePathCheck } from "#src/platform/routing/index";
  * re-validate against a denylist of private ranges.
  *
  * The origin is one this process CREATES for the duration of a single call: `createSiteApp()`'s own
- * Express app on an ephemeral `127.0.0.1` port, exactly the way `export/site-exporter.ts` already
+ * Express app on an ephemeral `127.0.0.1` port, exactly the way `apps/website/src/features/site-export/site-exporter.ts` already
  * renders the site for a static export. Nothing in the input can steer that origin. Even a caller
  * that smuggles an absolute URL past the string checks would fail the explicit
- * `url.origin === base.origin` assertion in {@link resolveSameOriginPath}, which compares against
+ * `url.origin === base.origin` assertion in `resolveSameOriginPath` (`@jini-ai/diagnostics/web-evidence`), which compares against
  * the origin this module minted rather than against a pattern.
  *
  * On top of that, the path itself is validated allowlist-style before it is used
- * ({@link resolveSameOriginPath}): must be root-relative, no protocol-relative `//` prefix, no
+ * (`resolveSitePath`, which binds that guard to this site's pathname policy): must be root-relative, no protocol-relative `//` prefix, no
  * backslashes, no control characters (CR/LF request splitting), no `..` segments after a single
  * percent-decode, and not under `/api/` — see that function's own doc for why each one is there.
  *
@@ -47,7 +48,7 @@ import type { SitePathCheck } from "#src/platform/routing/index";
  * - **All response headers except `set-cookie`.** An allowlist would defeat the point: "does this
  *   site emit an unexpected header" is exactly the kind of question this tool exists to answer.
  *   These are headers this site's own code emits; none of them is a stored credential.
- * - **`set-cookie` is projected to name + attributes, never a value** ({@link toCookieShapes}).
+ * - **`set-cookie` is projected to name + attributes, never a value** (`toCookieShapes` in `@jini-ai/diagnostics/web-evidence`).
  *   For the compliance case the cookie NAME and its `Secure`/`HttpOnly`/`SameSite`/`Max-Age`
  *   attributes are the whole signal; the value is the only part that could carry a session token.
  * - **The body, capped** at {@link DEFAULT_MAX_BODY_BYTES} with an explicit `truncated` flag. The
@@ -57,32 +58,11 @@ import type { SitePathCheck } from "#src/platform/routing/index";
 
 export { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "./page-body.js";
 
-/** Longest path string accepted before validation even begins. */
-export const MAX_PATH_LENGTH = 2_048;
-
 /** Wall clock for one render+fetch, including booting the ephemeral app. */
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 /** The origin this module mints for every call. Fixed loopback host; only the port varies. */
 const LOOPBACK_HOST = "http://127.0.0.1";
-
-/**
- * Raised when `path` is not a fetchable same-origin site path. Its own class so the tool layer can
- * publish the input schema back with it: every rejection here is one a DIFFERENT `path` would fix.
- */
-export class PublishedPagePathError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PublishedPagePathError";
-  }
-}
-
-/** One `Set-Cookie` header, with the value removed. */
-export interface PublishedPageCookieShape {
-  name: string;
-  /** `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`, ... — verbatim, minus the `name=value` pair. */
-  attributes: string[];
-}
 
 export interface PublishedPageMetadata {
   /** The canonical path actually requested, after normalization — not the raw caller string. */
@@ -93,7 +73,7 @@ export interface PublishedPageMetadata {
   /** Response headers, lowercased, `set-cookie` excluded (see {@link cookies}). */
   headers: Record<string, string>;
   /** `Set-Cookie` headers with their values stripped — see this file's header. */
-  cookies: PublishedPageCookieShape[];
+  cookies: CookieShape[];
   /** Bytes actually read into {@link body} (not `Content-Length`, which may disagree). */
   bodyBytes: number;
   /** `true` when the cap stopped the read before the response ended. */
@@ -139,269 +119,8 @@ export interface FetchPublishedPageOptions extends PageBodyOptions {
   timeoutMs?: number;
 }
 
-/**
- * Refuses any `..` segment in a raw path, before and after ONE percent-decode.
- *
- * Runs on the RAW string rather than a parsed `URL.pathname` because `new URL()` resolves `..`
- * away silently — see the call site's own comment. One decode pass is the right depth: a
- * double-encoded `%252e%252e` decodes to the literal text `%2e%2e`, which a static-file handler
- * treats as a filename, not as traversal.
- *
- * @param pathOnly - The raw path with any query string already removed.
- * @param raw - The caller's original string, for the error message.
- * @throws {PublishedPagePathError} On a raw or singly-encoded `..` segment, or on a malformed
- * percent-encoding (which cannot be decoded and therefore cannot be cleared).
- * @complexity O(L) in the path length.
- * @example assertNoTraversalSegment("/a/%2e%2e/b", "/a/%2e%2e/b"); // throws
- */
-function assertNoTraversalSegment(pathOnly: string, raw: string): void {
-  for (const segment of pathOnly.split("/")) {
-    if (segment === "..") {
-      throw new PublishedPagePathError(`path must not contain a '..' segment (encoded or not): '${raw}'.`);
-    }
-    if (!segment.includes("%")) continue;
-    let decoded: string;
-    try {
-      decoded = decodeURIComponent(segment);
-    } catch {
-      throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
-    }
-    if (decoded === "..") {
-      throw new PublishedPagePathError(`path must not contain a '..' segment (encoded or not): '${raw}'.`);
-    }
-  }
-}
-
-/**
- * The syntactic rejections that operate on the raw caller value, before any URL parsing happens.
- * Split out of {@link resolveSameOriginPath} purely to keep that function's own complexity below
- * the repo's gate — the checks, their order, and every message are unchanged.
- *
- * @throws {PublishedPagePathError} On the first rule `raw` fails.
- * @returns `raw`, narrowed to `string`, once every rule has passed.
- */
-function assertRawPathShape(raw: unknown): string {
-  if (typeof raw !== "string" || raw.length === 0) {
-    throw new PublishedPagePathError("path must be a non-empty string, e.g. '/' or '/blog/hello'.");
-  }
-  if (raw.length > MAX_PATH_LENGTH) {
-    throw new PublishedPagePathError(`path must be at most ${MAX_PATH_LENGTH} characters, got ${raw.length}.`);
-  }
-  if (!raw.startsWith("/")) {
-    throw new PublishedPagePathError(
-      `path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got '${raw}'.`,
-    );
-  }
-  if (raw.startsWith("//")) {
-    throw new PublishedPagePathError(
-      "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches.",
-    );
-  }
-  if (raw.includes("\\")) {
-    throw new PublishedPagePathError("path must not contain a backslash — URL parsers treat '\\' as '/'.");
-  }
-  if (hasControlCharacter(raw)) {
-    throw new PublishedPagePathError("path must not contain control characters (including CR/LF).");
-  }
-  // BEFORE `new URL()`, because the URL parser RESOLVES `..` away rather than reporting it:
-  // `new URL("/a/../../etc/passwd", base).pathname` is already `/etc/passwd`, so a check on the
-  // parsed pathname sees nothing to reject. Silent normalization is exactly the "rewrite rather
-  // than refuse" behavior this validator must not have — a caller that wrote `..` gets told so.
-  assertNoTraversalSegment(raw.split("?")[0] ?? "", raw);
-  return raw;
-}
-
-/**
- * Parses `raw` against `base` and asserts the result stayed on `base`'s origin. Split out of
- * {@link resolveSameOriginPath} purely to keep that function's own complexity below the repo's
- * gate — the structural same-origin assertion itself is unchanged.
- *
- * @throws {PublishedPagePathError} If `raw` does not parse, or parses off-origin.
- */
-function resolveWithinOrigin(raw: string, base: string): URL {
-  const baseUrl = new URL(base);
-  let resolved: URL;
-  try {
-    resolved = new URL(raw, baseUrl);
-  } catch {
-    throw new PublishedPagePathError(`path is not a valid URL path: '${raw}'.`);
-  }
-  if (resolved.origin !== baseUrl.origin) {
-    throw new PublishedPagePathError(
-      `path resolved off-origin (to '${resolved.origin}') — this tool only fetches routes on this site.`,
-    );
-  }
-  return resolved;
-}
-
-/**
- * Why a resolved pathname was refused, phrased for this module's caller.
- *
- * Split out of {@link assertNoDisallowedDecodedForm} so the wording lives next to the verdict
- * union it exhausts: with an explicit `string | null` return type and no `default` arm, a future
- * case added to `SitePathCheck` is a compile error here rather than a silent fall-through to
- * "allowed". Mirrors `redirects.ts`'s `siteRelativeRefusalReason`, the sibling that already gets
- * this right for `SiteRelativeTargetCheck`.
- *
- * The rule itself is deliberately NOT restated here: `redirects`' write chokepoint has to refuse
- * exactly the same surfaces for a stored redirect target, and two copies of a denylist is how one
- * of them ends up a decode or a case-fold behind the other.
- *
- * @param check - The verdict from `checkSitePathname`.
- * @param raw - The original caller-supplied path, for the error message only.
- * @returns The refusal message, or `null` when the path is allowed.
- * @complexity O(1).
- */
-function disallowedFormReason(check: SitePathCheck, raw: string): string | null {
-  switch (check.kind) {
-    case "ok":
-      return null;
-    case "malformed-encoding":
-      return `path contains a malformed percent-encoding: '${raw}'.`;
-    case "disallowed-character":
-      return "path decodes to a backslash or control character, which is refused.";
-    case "reserved":
-      return `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`;
-    default: {
-      const unhandled: never = check;
-      throw new TypeError(`Unknown site path verdict: ${String(unhandled)}`);
-    }
-  }
-}
-
-/**
- * Applies `platform/routing`'s shared reserved-path rule to the resolved pathname and maps its
- * verdict onto this module's own error type. Split out purely to keep {@link resolveSameOriginPath}
- * below the repo's complexity gate.
- *
- * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
- * or a path that resolves onto `/admin` or `/api`.
- */
-function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
-  const reason = disallowedFormReason(checkSitePathname(resolved), raw);
-  if (reason !== null) throw new PublishedPagePathError(reason);
-}
-
-/**
- * Validates and canonicalizes a caller-supplied site path against the loopback origin this module
- * minted, following canonicalize-then-validate order.
- *
- * Each rule closes a specific hole rather than being defensive in general:
- * - **must be a non-empty string within {@link MAX_PATH_LENGTH}** — bounds the work every later
- *   check does.
- * - **must start with `/`** — rejects an absolute URL (`http://evil.example/x`) and a bare relative
- *   path, both of which would resolve somewhere other than this site's root.
- * - **must not start with `//`** — a protocol-relative URL resolves to a DIFFERENT HOST while still
- *   starting with a slash. This is the single most commonly missed same-origin bypass.
- * - **no backslash anywhere** — `\` is treated as `/` by URL parsers and browsers, so `/\evil.com`
- *   is a protocol-relative URL wearing a disguise.
- * - **no C0/C1 control characters** — CR/LF in a request target is HTTP request splitting; NUL and
- *   friends are path-truncation tricks.
- * - **`new URL(raw, base)` must keep `base`'s origin** — the structural assertion. Everything above
- *   is belt; this is braces, and it compares against the origin this process minted rather than
- *   against a pattern someone has to keep correct.
- * - **no `..` segment after ONE percent-decode** — blocks `%2e%2e` and its double-encoded variants
- *   from reaching a static-file handler. `..` cannot escape the origin, but it can escape a
- *   directory, and a single decode pass is enough because the check runs on the decoded form and
- *   rejects a remaining `%` sequence that decodes to a traversal.
- * - **not on `/admin` or `/api`** — the site app, the admin SPA and the admin API share one
- *   Express app (`admin-static.ts`'s `app.use("/admin", ...)`, `core.ts`'s
- *   `app.use("/api/admin", ...)`). Both are session-gated, so an unauthenticated in-process request
- *   already fails, but "a published page" is a claim about the public site and this tool must not
- *   become a second, unaudited door to the admin surface. Defense in depth, stated as a rule rather
- *   than relied on as a side effect. The comparison is per SEGMENT and post-decode
- *   (`platform/routing/reserved-paths.ts`), so `/%61dmin` is refused while `/administer-survey`
- *   — ordinary site content that merely starts with the same letters — is not.
- *
- * @param raw - The caller's path, untrusted.
- * @param base - The loopback origin this call minted, e.g. `http://127.0.0.1:53142`.
- * @returns The canonical `pathname + search` to request, re-encoded by the URL parser.
- * @throws {PublishedPagePathError} With a message naming the specific rule that rejected it, so the
- * model can fix the input in one turn instead of guessing.
- * @complexity O(L) in the path length, bounded by {@link MAX_PATH_LENGTH}.
- * @example resolveSameOriginPath("/blog/hello", "http://127.0.0.1:53142"); // => "/blog/hello"
- */
-export function resolveSameOriginPath(raw: unknown, base: string): string {
-  const path = assertRawPathShape(raw);
-  const resolved = resolveWithinOrigin(path, base);
-  assertNoDisallowedDecodedForm(resolved, path);
-  return `${resolved.pathname}${resolved.search}`;
-}
-
-/**
- * Strips the value from each `Set-Cookie` header, keeping the name and the attribute list.
- *
- * `Headers.getSetCookie()` is used rather than `headers.get("set-cookie")` because the latter joins
- * multiple cookies with `, `, which is ambiguous (an `Expires` attribute legally contains a comma)
- * and would corrupt the split.
- *
- * @param headers - The fetch response's headers.
- * @returns One entry per `Set-Cookie` header, in wire order. Empty array when none were sent.
- * @complexity O(C * A) in cookie count and attributes per cookie — both bounded by the response.
- * @example toCookieShapes(res.headers); // => [{ name: "sid", attributes: ["Path=/", "HttpOnly"] }]
- */
-export function toCookieShapes(headers: Headers): PublishedPageCookieShape[] {
-  const raw = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
-  return raw.map((cookie) => {
-    const parts = cookie.split(";");
-    const pair = parts[0] ?? "";
-    const equals = pair.indexOf("=");
-    return {
-      name: (equals >= 0 ? pair.slice(0, equals) : pair).trim(),
-      attributes: parts.slice(1).map((part) => part.trim()).filter((part) => part.length > 0),
-    };
-  });
-}
-
-/**
- * Reads at most `maxBytes` from a fetch response body, stopping the stream once the cap is hit.
- *
- * Stops rather than buffering-then-slicing so an unexpectedly large route cannot be used to
- * exhaust memory. Decoding is UTF-8 and non-strict, so a multi-byte character split by the cap
- * degrades to a replacement character instead of throwing.
- *
- * @param response - The fetch response.
- * @param maxBytes - Cap, already clamped by the caller.
- * @returns The decoded text, how many bytes were read, and whether the cap stopped the read.
- * @complexity O(min(B, maxBytes)) in the response size.
- * @example await readBoundedBody(res, 200_000);
- */
-export async function readBoundedBody(
-  response: Response,
-  maxBytes: number,
-): Promise<{ body: string; bodyBytes: number; truncated: boolean }> {
-  if (!response.body) return { body: "", bodyBytes: 0, truncated: false };
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  let truncated = false;
-
-  try {
-    let done = false;
-    while (!done && !truncated) {
-      const next = await reader.read();
-      done = next.done === true;
-      const value = next.value;
-      if (!done && value) {
-        const remaining = maxBytes - total;
-        truncated = value.byteLength > remaining;
-        const size = truncated ? remaining : value.byteLength;
-        chunks.push(value.subarray(0, size));
-        total += size;
-      }
-    }
-  } finally {
-    await reader.cancel().catch(() => {
-      // The response is already being abandoned; a cancel failure adds nothing the caller can act on.
-    });
-  }
-
-  return { body: new TextDecoder("utf-8").decode(Buffer.concat(chunks)), bodyBytes: total, truncated };
-}
-
 /** Clamps `maxBytes` into `[1, MAX_MAX_BODY_BYTES]`, defaulting when absent or nonsensical. */
-function resolveMaxBytes(requested: number | undefined): number {
+function resolveMaxBytes({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined || !Number.isInteger(requested) || requested < 1) return DEFAULT_MAX_BODY_BYTES;
   return Math.min(requested, MAX_MAX_BODY_BYTES);
 }
@@ -438,7 +157,7 @@ export async function openLoopbackSiteServer(
     origin: `${LOOPBACK_HOST}:${address.port}`,
     async close() {
       server.closeAllConnections?.();
-      // Resolves once the server is fully closed. Mirrors `export/site-exporter.ts`'s own teardown.
+      // Resolves once the server is fully closed. Mirrors `Jini packages/devops/src/static-export/node-adapters.ts`'s own teardown.
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
@@ -457,7 +176,7 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
     });
   } catch (err) {
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-      const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`);
+      const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`, { cause: err });
       timeout.name = "PublishedPageTimeoutError";
       throw timeout;
     }
@@ -470,7 +189,7 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
  *
  * Boots the site's real Express app on an ephemeral loopback port for the duration of ONE call,
  * requests the validated path, and tears the server down in a `finally` — the same lifecycle
- * `export/site-exporter.ts` uses to render a static export, so this observes the real render path
+ * `apps/website/src/features/site-export/site-exporter.ts` uses to render a static export, so this observes the real render path
  * rather than a second, agreeing-today copy of it.
  *
  * A per-call server rather than a memoized one is deliberate: a long-lived listening socket in the
@@ -484,27 +203,26 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
  * @param options.timeoutMs - Wall clock for the whole call, default {@link DEFAULT_FETCH_TIMEOUT_MS}.
  * @returns A {@link PublishedPageResult}. A 404 or 30x is a RESULT, not an error — the caller
  * asked what is live, and "nothing is there" is a true answer.
- * @throws {PublishedPagePathError} When `path` fails {@link resolveSameOriginPath}.
+ * @throws {SameOriginPathError} When `path` fails {@link resolveSitePath}.
  * @throws {Error} Named `PublishedPageTimeoutError` when the render exceeds `timeoutMs`.
  * @complexity O(min(B, maxBytes)) in the rendered response size, plus one Express app construction.
  * @example
- * const live = await fetchPublishedPage(routeDeps, { path: "/privacy" }, { maxBytes: 50_000 });
+ * const live = await fetchPublishedPage({ deps: routeDeps, input: { path: "/privacy" } }, { maxBytes: 50_000 });
  * if (live.status === 404) console.log("no privacy policy is published");
  */
 export async function fetchPublishedPage(
-  deps: FetchPublishedPageDeps,
-  input: { path: string },
+  { deps, input }: { deps: FetchPublishedPageDeps; input: { path: string } },
   options: FetchPublishedPageOptions = {},
 ): Promise<PublishedPageResult> {
-  const maxBytes = resolveMaxBytes(options.maxBytes);
+  const maxBytes = resolveMaxBytes({ requested: options.maxBytes });
   const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 
   const site = await openLoopbackSiteServer({ deps });
   const baseUrl = site.origin;
 
   try {
-    // Validated against the origin this call just minted — see `resolveSameOriginPath`'s doc.
-    const path = resolveSameOriginPath(input.path, baseUrl);
+    // Validated against the origin this call just minted — see `resolveSitePath`'s doc.
+    const path = resolveSitePath({ raw: input.path, base: baseUrl });
 
     const response = await requestPublishedPage({ deps, baseUrl, path, timeoutMs });
 
@@ -514,17 +232,17 @@ export async function fetchPublishedPage(
       if (key.toLowerCase() !== "set-cookie") headers[key.toLowerCase()] = value;
     });
 
-    const raw = await readBoundedBody(response, options.textOnly || options.find !== undefined ? MAX_MAX_BODY_BYTES : maxBytes);
+    const raw = await readBoundedBody({ response, maxBytes: options.textOnly || options.find !== undefined ? MAX_MAX_BODY_BYTES : maxBytes });
     // Preserve exact byte accounting/decoding for legacy reads, including split UTF-8.
     const legacy = !options.textOnly && options.find === undefined;
-    const shaped = legacy ? raw : shapePageBody(raw.body, { ...options, maxBytes });
+    const shaped = legacy ? raw : shapePageBody({ body: raw.body, options: { ...options, maxBytes } });
 
     return {
       path,
       status: response.status,
       ok: response.status >= 200 && response.status < 300,
       headers,
-      cookies: toCookieShapes(response.headers),
+      cookies: toCookieShapes({ headers: response.headers }),
       ...shaped,
       truncated: raw.truncated || shaped.truncated,
     };

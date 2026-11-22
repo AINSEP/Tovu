@@ -1,6 +1,6 @@
 import type { SearchProvider } from "@jini-ai/search";
 import { defineSearchProviderContribution } from "@jini-ai/search/contribution";
-import type { LoadedProviderContribution, PluginContributionResult } from "@jini-ai/agent-plugins/lifecycle";
+import { defineProviderContribution, type LoadedProviderContribution, type PluginContributionResult } from "@jini-ai/agent-plugins/lifecycle";
 
 import { type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "./lifecycle.js";
 
@@ -23,11 +23,11 @@ import { type LoadPluginContributions, loadPluginContributionsFromSource, type T
  */
 
 /** The file a plugin ships at its root to contribute search providers. */
-export const SEARCH_PROVIDERS_FILENAME = "tovu-search-providers.json";
+export const SEARCH_PROVIDERS_FILENAME = "jini-search-providers.json";
 
 export type LoadedSearchProviders = PluginContributionResult<LoadedProviderContribution<SearchProvider>>;
 
-const searchProviderContribution = defineSearchProviderContribution({ filename: SEARCH_PROVIDERS_FILENAME });
+const searchProviderContribution = defineSearchProviderContribution({ filename: SEARCH_PROVIDERS_FILENAME, define: spec => defineProviderContribution(spec) });
 
 /**
  * The search providers this workspace's installed, active, Tovu-shipped Agent Plugins contribute.

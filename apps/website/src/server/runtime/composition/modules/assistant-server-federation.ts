@@ -1,8 +1,9 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolAccessChange } from '@jini-ai/daemon';
 import { lowerAssistantToolAccess } from './assistant-tool-access-lowering.js';
 import type { ByokToolSurface } from "#src/assistant/byok-tool-surface";
 import { onExternalMcpRosterChanged } from "#src/assistant/external-mcp-roster-change";
-import { readServerAdmissions } from "../../services/external-mcp-admissions.js";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 
 /**
  * Demand ports over the server's single existing tool surface. Constructing this starts nothing.
@@ -39,27 +40,27 @@ export function createAssistantServerFederation(
   return {
     admissions: () => readServerAdmissions({ awaitFederation: toolSurface.awaitFederation, readAdmissions }, {}),
     reload,
-    registerRosterListener: () => onExternalMcpRosterChanged("byok", async lowered => {
+    registerRosterListener: () => onExternalMcpRosterChanged({ key: "byok", listener: async lowered => {
       if (lowered) {
         await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
         // Stop/cleanup certifies OFF; optional discovery latency must not turn that into a failure.
-        void reload({}, {}).catch(() => {});
+        void reload({}, {}).catch((error: unknown) => console.error("[assistant] Could not reload the tool federation", describeErrorForLog({ err: error })));
         return;
       }
       await reload({}, {});
-    }),
+    } }),
     daemonCalls: {
       executor: {
         ...toolSurface.daemonCalls.executor,
         execute: async (call, optional) => {
-          await toolSurface.awaitFederation(5_000);
+          await toolSurface.awaitFederation({ timeoutMs: 5_000 });
           return toolSurface.daemonCalls.executor.execute(call, optional);
         },
       },
       listToolsFor: async (required, optional) => {
         // Native tools remain usable while optional remote connections finish admission.
         // The next catalog read picks up late admissions from the same live surface.
-        await toolSurface.awaitFederation(5_000);
+        await toolSurface.awaitFederation({ timeoutMs: 5_000 });
         return toolSurface.daemonCalls.listToolsFor(required, optional);
       },
     },

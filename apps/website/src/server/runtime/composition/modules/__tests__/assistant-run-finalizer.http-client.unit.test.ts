@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
-import { createHttpRunDaemonClient } from "../assistant-run-finalizer.js";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
+import { createHttpRunDaemonClient } from "../run-daemon-http-client.js";
 
 const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
 const observability = createNoopObservabilityPort({});

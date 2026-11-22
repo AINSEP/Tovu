@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
-import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "./api/deployment-api.types";
+
 import {
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
@@ -17,10 +17,11 @@ import {
 import { CapabilityList, FullSiteIcon, StaticSiteIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Overview tab — the screen's actual "which path" moment, above how THIS instance happens to
  * be running right now. Every diagnostic value here is either `AdminDeploymentOverview` (read live
- * from `GET .../system/deployment-overview`, see `src/server/routes/admin/system/deployment-
+ * from `GET .../system/deployment-overview`, see `apps/website/src/server/inbound/admin-http/routes/system/deployment-
  * overview.ts`) or a translated label derived from it by `rules.ts`'s pure helpers — nothing on
  * this tab is invented.
  *
@@ -51,6 +52,7 @@ import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hook
  * middle-click and copy-link all keep working.
  */
 export interface OverviewTabProps {
+  hooks?: { useDeploymentOverviewHook: typeof useWiredDeploymentOverview };
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
 }
@@ -192,7 +194,7 @@ function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarS
         </span>
         <span className={`status status-${tone}`}>{t(envVarStatusLabelKey(varStatus))}</span>
       </div>
-      <p className="deployment-env-note">{t(deploymentEnvVarNoteKey(varStatus.name))}</p>
+      <p className="deployment-env-note">{t(deploymentEnvVarNoteKey({ name: varStatus.name }))}</p>
     </li>
   );
 }
@@ -214,7 +216,7 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
         </div>
         <div className="deployment-facts">
           <OverviewFact label={t("Runtime mode")}>
-            <span className="status status-neutral">{t(runtimeModeLabelKey(snapshot.mode))}</span>
+            <span className="status status-neutral">{t(runtimeModeLabelKey({ mode: snapshot.mode }))}</span>
           </OverviewFact>
           <OverviewFact label={t("Production readiness gate")}>
             <span className={`status status-${snapshot.productionReadinessGate.applicable ? "ok" : "neutral"}`}>
@@ -223,12 +225,12 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
           </OverviewFact>
           <OverviewFact label={t("Owner password")}>
             <span className={`status status-${snapshot.defaultOwnerPasswordUnsafe ? "warning" : "ok"}`}>
-              {t(ownerPasswordLabelKey(snapshot.defaultOwnerPasswordUnsafe))}
+              {t(ownerPasswordLabelKey({ defaultOwnerPasswordUnsafe: snapshot.defaultOwnerPasswordUnsafe }))}
             </span>
           </OverviewFact>
           <OverviewFact label={t("Agent daemon")}>
             <span className={`status status-${snapshot.daemonKnownFailed ? "warning" : "ok"}`}>
-              {t(daemonStatusLabelKey(snapshot.daemonKnownFailed))}
+              {t(daemonStatusLabelKey({ daemonKnownFailed: snapshot.daemonKnownFailed }))}
             </span>
           </OverviewFact>
           <OverviewFact label={t("Database file")}>
@@ -266,7 +268,8 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
  *  cyclomatic-complexity count from counting a second branch for the empty-props case (same
  *  reasoning `SettingsUi.tsx`'s `resolveSettingsUiHook` documents for its own props). */
 function resolveDeploymentOverviewHook(
-  override: typeof useWiredDeploymentOverview | undefined
+  { override }: { override: typeof useWiredDeploymentOverview | undefined },
+  _options = {},
 ): typeof useWiredDeploymentOverview {
   return override ?? useWiredDeploymentOverview;
 }
@@ -295,8 +298,8 @@ function OverviewDiagnostics({
 }
 
 export function OverviewTab(props: OverviewTabProps) {
-  const useDeploymentOverviewHook = resolveDeploymentOverviewHook(props.useDeploymentOverviewHook);
-  const { snapshot, error, t } = useDeploymentOverviewHook();
+  const { hooks = { useDeploymentOverviewHook: resolveDeploymentOverviewHook({ override: props.useDeploymentOverviewHook }) } } = props;
+  const { snapshot, error, t } = hooks.useDeploymentOverviewHook();
 
   return (
     <div className="deployment-tab">

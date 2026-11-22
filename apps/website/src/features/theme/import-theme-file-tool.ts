@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { ToolContributor } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { protectThemeFileTools } from './file-mutation-tools.js';
 
@@ -125,11 +125,12 @@ function buildImportThemeFileHandler(
     return withSchemaOnRejection({
       toolId,
       catalog: CATALOG_BY_ID,
-      isShapeRejection: ({ error }) => isShapeRejection(error) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
-      fn: () => withCallerSafeEgressRefusal(logEgressRefusal, async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
-        assertThemeFileWritable(theme, relativePath);
+      isShapeRejection: ({ error }) => isShapeRejection({ error }) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
+      fn: () => withCallerSafeEgressRefusal({ log: logEgressRefusal, work: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
+        assertThemeFileWritable({ theme, relativePath });
         const destination = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
+        ctx.signal.throwIfAborted();
         const imported = toolId === "theme_import_local_file"
           ? await importThemeFileFromLocalFile({
               ...destination,
@@ -137,13 +138,13 @@ function buildImportThemeFileHandler(
             })
           : await importThemeFileFromUrl(
               { ...destination, httpClient: routeDeps.mediaImportHttpClient, url: requireString({ input, key: "url" }) },
-              { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
+              { plainHttpTestOrigins: routeDeps.outboundTestOrigins, signal: ctx.signal },
             );
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
         return { themeId, ...imported,
           ...(toolId === "theme_import_local_file" ? { sourcePath: requireString({ input, key: "sourcePath" }) } : {}),
           status: reloaded.status, errors: reloaded.errors };
-      }, { toolId }),
+      } }, { toolId }),
     });
   };
 }

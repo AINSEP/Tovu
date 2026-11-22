@@ -22,10 +22,10 @@ export function useAgentScreenRoute({ path, section, view }: AgentScreenRoute): 
  * Publishes the entry an editor has open (`lib/agent-screen-context.ts`) while the editor is mounted,
  * and clears it on unmount so a list screen never reports the entry the operator just left.
  *
- * @param entry - The loaded entry, or `null` while it is still loading (or failed to load) — nothing
+ * @param required.entry - The loaded entry, or `null` while it is still loading (or failed to load) — nothing
  *   is published then, so the assistant is told the section without a guessed entry.
  */
-export function useAgentScreenEntry(entry: AgentScreenEntry | null): void {
+export function useAgentScreenEntry({ entry }: { entry: AgentScreenEntry | null }, _options = {}): void {
   const kind = entry?.kind;
   const id = entry?.id;
   const title = entry?.title;

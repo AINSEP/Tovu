@@ -4,12 +4,12 @@
  *
  * Boot-only functions (`boot-site-dir.ts`, `init-site.ts`, `read-site-dir.ts`,
  * `resolve-install-dir-target.ts`, `resolve-workspace.ts`, `schema-guard.ts`'s guard) are deliberately
- * NOT re-exported here — each has exactly one caller in `cli/**`/`server/deps.ts`'s own boot
+ * NOT re-exported here — each has exactly one caller in `cli/**`/`apps/website/src/server/runtime/composition/deps.ts`'s own boot
  * sequence, so there is nothing to consolidate behind a door. Only the typed exit-code errors
  * and `ConfigJson` — the shapes `cli/errors.ts` and `cli/commands/serve.ts` need — live here.
  *
  * `site-root.ts` IS re-exported, unlike the boot-only files above, because it is the opposite
- * case: three independent callers in three different top-level modules (`server/deps.ts`,
+ * case: three independent callers in three different top-level modules (`apps/website/src/server/runtime/composition/deps.ts`,
  * `features/skills/layout.ts`, `features/agent-plugins/layout.ts`) that each used to compute
  * `<cwd>/infra/...` for themselves. That is exactly the "cross-module data contract" this barrel
  * exists for, and routing the two feature callers through the door keeps them off a deep import
@@ -94,7 +94,7 @@ export { isSiteSwitcherEnabled } from "./site-switcher-enabled.js";
  * itself (`compareSchemaVersion`) stays boot-only, off this barrel (`no-deep-imports:platform/site-dir`
  * is `error`-severity).
  */
-export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.js";
+export { runtimeSchemaVersion, isBundledSchemaIdentity, type RuntimeSchemaVersion } from "./schema-guard.js";
 /**
  * `findSiteKeyDependentData` joined 2026-09-29: the admin site key route (`server/inbound/**`)
  * reads it to report `"missing-with-data"` on every storage kind, and the boot callers inject it
@@ -110,6 +110,7 @@ export { readTemplate } from "./read-template.js";
 export { createSitesWorkspace, assertTestHomeIsolation, type SitesWorkspace } from "./sites-home.js";
 export { buildSiteMetaForNewKey } from "./key-only-site-meta.js";
 export { STORAGE_SECRET_FILENAME } from "./layout.js";
+export { waitForLocalAdminBuild } from "./local-admin-bundle.js";
 export {
   LocalSiteError,
   createLocalSiteSupervisor,

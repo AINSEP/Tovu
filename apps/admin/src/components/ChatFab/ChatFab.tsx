@@ -1,8 +1,8 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useFabPosition } from "./ChatFab.hooks";
 import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry } from '@jini-ai/core/text';
 interface ChatFabProps {
   open: boolean;
   onToggle: () => void;
@@ -12,7 +12,7 @@ interface ChatFabProps {
    * directly — this component has no other data-dependent hook today, and the existing unit tests
    * render it with no locale at all, so `DEFAULT_LOCALE` ("en") is what every un-parameterized call
    * — tests included — keeps getting. Only the "Open"/"Close" verb template is this component's own
-   * to translate; `label` itself is the caller's word (see `App.tsx`'s `dockT("assistant")`).
+   * to translate; `label` itself is the caller's word (see `App.tsx`'s `dockT({ key: "assistant" })`).
    */
   locale?: string;
   /**
@@ -66,11 +66,14 @@ const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
   tr: { open: "{label} aç", close: "{label} kapat" },
   th: { open: "เปิด {label}", close: "ปิด {label}" },
   it: { open: "Apri {label}", close: "Chiudi {label}" },
+  hi: { open: "{label} खोलें", close: "{label} बंद करें" },
+  ur: { open: "{label} کھولیں", close: "{label} بند کریں" },
+  bn: { open: "{label} খুলুন", close: "{label} বন্ধ করুন" },
 };
 
 /** "Open {label}"/"Close {label}" in the caller's locale — `label` itself is already translated
- *  (by the caller; see `App.tsx`'s `dockT("assistant")`) by the time it reaches this component. */
-function fabActionLabel(locale: string, action: "open" | "close", label: string): string {
+ *  (by the caller; see `App.tsx`'s `dockT({ key: "assistant" })`) by the time it reaches this component. */
+function fabActionLabel({ locale, action, label }: { locale: string; action: "open" | "close"; label: string }, _options: Record<string, never> = {}): string {
   const forms = localeEntry({ table: FAB_ACTION_TEMPLATE, locale });
   return interpolate({ template: forms[action], vars: { label } });
 }
@@ -78,7 +81,7 @@ function fabActionLabel(locale: string, action: "open" | "close", label: string)
 /**
  * Floating toggle for the global assistant dock (ADR-049), and — per MSG-09 — draggable to
  * wherever the operator wants it out of the way. Mirrors
- * `examples/reference-web/src/ChatFab.tsx`'s role in Jini's own reference app: a fixed-position
+ * `Jini packages/chat/src/react/components/ChatFab.tsx`'s role in Jini's own reference app: a fixed-position
  * button that opens/closes the docked chat pane without ever unmounting it — see
  * `AssistantDock.tsx`'s module doc for why the dock itself uses `hidden`, not conditional render.
  *
@@ -102,7 +105,7 @@ export function ChatFab({
   agentHandle: handle,
 }: ChatFabProps) {
   const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
-  const actionLabel = fabActionLabel(locale, open ? "close" : "open", label);
+  const actionLabel = fabActionLabel({ locale, action: open ? "close" : "open", label });
 
   return (
     <button

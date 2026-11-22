@@ -34,10 +34,10 @@ const V2 = { id: "postal", label: "Postal", module: "adapters/postal.mjs", crede
 
 test("v1 descriptor IDs accepted by the parser register unchanged as mail providers", () => {
   const ids = ["a", "custom_mail", `a${"0".repeat(63)}`];
-  const parsed = parseMailAdaptersFile(JSON.stringify({
+  const parsed = parseMailAdaptersFile({ raw: JSON.stringify({
     schemaVersion: 1,
     adapters: ids.map(id => ({ id, label: id, module: "a.mjs", credentialLabel: "Mail key" })),
-  }));
+  }) });
   assert.ok(parsed.ok);
   const registry = createMailProviderRegistry();
   const result = contributeMailProviders({ registry, adapters: adapters(parsed.descriptors.map(descriptor => adapter(descriptor))) });
@@ -47,23 +47,23 @@ test("v1 descriptor IDs accepted by the parser register unchanged as mail provid
 
 test("v1 descriptors reject IDs the mail provider registry cannot register", () => {
   for (const id of ["my-mail", "7mail", "a".repeat(65)]) {
-    const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: [{ id, label: "Mail", module: "a.mjs", credentialLabel: "Mail key" }] }));
+    const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 1, adapters: [{ id, label: "Mail", module: "a.mjs", credentialLabel: "Mail key" }] }) });
     assert.deepEqual(parsed, { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" }, id);
   }
 });
 
 test("parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback and defaults the credential label", () => {
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [V2] })), {
+  assert.deepEqual(parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [V2] }) }), {
     ok: true,
-    descriptors: [{ schemaVersion: 2, id: "postal", label: "Postal", module: "adapters/postal.mjs", credentialLabel: "Tovu Mail — Postal API", credentialKeys: ["token"], feedback: true }],
-  });
-  const labelled = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialLabel: "Postal key" }] }));
+    descriptors: [{ schemaVersion: 2, id: "postal", label: "Postal", module: "adapters/postal.mjs", credentialLabel: "Mail — Postal API", credentialKeys: ["token"], feedback: true }],
+  }, "default mail descriptors use the canonical credential label");
+  const labelled = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialLabel: "Postal key" }] }) });
   assert.equal(labelled.ok && labelled.descriptors[0]!.credentialLabel, "Postal key");
-  assert.equal(defaultCredentialLabel({ label: "Resend" }), "Tovu Mail — Resend API");
+  assert.equal(defaultCredentialLabel({ label: "Resend" }), "Mail — Resend API", "the Resend default uses the canonical mail label");
 });
 
 test("parseMailAdaptersFile refuses malformed v2 entries", () => {
-  const parse = (entry: unknown) => parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [entry] }));
+  const parse = (entry: unknown) => parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [entry] }) });
   assert.deepEqual(parse("x"), { ok: false, reason: "adapters[0] must be an object" });
   assert.deepEqual(parse({ ...V2, id: "Bad-Id" }), { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" });
   assert.deepEqual(parse({ ...V2, module: "x.js" }), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" });
@@ -121,7 +121,7 @@ test("contributeMailProviders surfaces registry refusals: a v1 hyphenated id and
 });
 
 test("parseMailAdaptersFile v1 still refuses a non-array list, a non-object entry, a bad id and a blank label", () => {
-  const v1 = (adapters: unknown) => parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters }));
+  const v1 = (adapters: unknown) => parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 1, adapters }) });
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
   assert.deepEqual(v1("x"), { ok: false, reason: "adapters must be an array" });
   assert.deepEqual(v1([7]), { ok: false, reason: "adapters[0] must be an object" });
@@ -133,11 +133,11 @@ const CARD = { title: "Connect Postal", intro: "Connect Postal to send mail.", h
 
 test('mail cards preserve bounded usedFor text and refuse bad copy without dropping the adapter', () => {
   const usedFor = [' Send site mail ', ...Array(7).fill('x'.repeat(120))];
-  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor } }] }));
+  const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor } }] }) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.descriptors[0]!.credentialCard?.usedFor, usedFor.map(value => value.trim()));
   for (const invalid of [null, 'Send mail', [7], [''], ['   '], ['x'.repeat(121)], Array(9).fill('Send mail')]) {
-    const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor: invalid } }] }));
+    const result = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { ...CARD, usedFor: invalid } }] }) });
     assert.ok(result.ok, 'invalid optional copy must not disable mail');
     assert.equal(result.descriptors[0]!.credentialCard, undefined);
     assert.match(result.descriptors[0]!.credentialCardRefusal!, /usedFor/);
@@ -145,17 +145,17 @@ test('mail cards preserve bounded usedFor text and refuse bad copy without dropp
 });
 
 test("parseMailAdaptersFile keeps a v2 credentialCard, and a descriptor without one has none", () => {
-  const withCard = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: CARD }] }));
+  const withCard = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: CARD }] }) });
   assert.deepEqual(withCard.ok && withCard.descriptors[0]!.credentialCard, CARD);
-  const minimal = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { title: "Connect Postal", baseUrl: "https://api.postal.example" } }] }));
+  const minimal = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard: { title: "Connect Postal", baseUrl: "https://api.postal.example" } }] }) });
   assert.deepEqual(minimal.ok && minimal.descriptors[0]!.credentialCard, { title: "Connect Postal", baseUrl: "https://api.postal.example" });
-  const without = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [V2] }));
+  const without = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [V2] }) });
   assert.ok(without.ok && !("credentialCard" in without.descriptors[0]!) && !("credentialCardRefusal" in without.descriptors[0]!));
 });
 
 test("an invalid credentialCard is ignored with a note, and the adapter still loads", () => {
   const parse = (credentialCard: unknown) => {
-    const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard }] }));
+    const result = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{ ...V2, credentialCard }] }) });
     assert.ok(result.ok, "a bad card never drops the adapter");
     assert.ok(!("credentialCard" in result.descriptors[0]!));
     return result.descriptors[0]!.credentialCardRefusal;
@@ -170,6 +170,6 @@ test("an invalid credentialCard is ignored with a note, and the adapter still lo
 });
 
 test("a v1 descriptor's credentialCard is not read", () => {
-  const result = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: [{ id: "a", label: "A", module: "a.mjs", credentialLabel: "A key", credentialCard: CARD }] }));
+  const result = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 1, adapters: [{ id: "a", label: "A", module: "a.mjs", credentialLabel: "A key", credentialCard: CARD }] }) });
   assert.ok(result.ok && !("credentialCard" in result.descriptors[0]!));
 });

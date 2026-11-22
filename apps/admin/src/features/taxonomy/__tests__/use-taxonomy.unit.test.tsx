@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
@@ -382,7 +382,7 @@ describe("useTaxonomy — injected port", () => {
 
   it("a taxonomy delete refused as having children lands in deleteTaxonomyBlocked for that taxonomy", async () => {
     const base = createFakeTaxonomyPort({ groups: [GROUP] });
-    const port = { ...base, trashTaxonomy: () => Promise.reject(new ApiError("has children", 409, "TERM_HAS_CHILDREN", { count: 3 })) };
+    const port = { ...base, trashTaxonomy: () => Promise.reject(new ApiError({ message: "has children", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { count: 3 } })) };
     const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));

@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
@@ -5,7 +6,7 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { DuplicateThemeError, duplicateDiscoveredTheme } from "./duplicate-theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { applyActiveTheme, type SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
 import { THEME_STYLING_REQUIRED_MESSAGE } from "./active-theme.js";
 
@@ -50,6 +51,8 @@ const DUPLICATE_THEME_CATALOG: AgentToolDefinition = {
       sourceThemeId: {
         type: "string",
         minLength: 1,
+        // The audit's `sourceId`: the near-miss rule cannot bridge it, so it is declared (the run says `sourceId→sourceThemeId`).
+        aliases: ["sourceId"],
         description: "Id of the theme to copy, exactly as returned by theme_list (e.g. the active theme's id).",
       },
       newName: {
@@ -90,10 +93,10 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: duplicateThemeAgentToolCatalog
 function duplicationMode(input: Record<string, unknown>): "full" | "structure-only" {
   const mode = input.mode ?? "full";
   if (mode !== "full" && mode !== "structure-only") {
-    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", "mode must be 'full' or 'structure-only'. Choose structure-only for a new design.");
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: "mode must be 'full' or 'structure-only'. Choose structure-only for a new design." });
   }
   if (mode === "structure-only" && input.activate === true) {
-    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", THEME_STYLING_REQUIRED_MESSAGE);
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: THEME_STYLING_REQUIRED_MESSAGE });
   }
   return mode;
 }
@@ -130,7 +133,7 @@ function buildDuplicateThemeHandlers(routeDeps: DuplicateThemeToolDeps): Record<
         isShapeRejection: ({ error }) => error instanceof DuplicateThemeError,
         fn: async () => duplicateDiscoveredTheme({ themes: routeDeps.themes, themesDir: routeDeps.themesDir, sourceThemeId, newName }, { newId, mode: duplicationMode(input) }),
       });
-      requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+      requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
 
       const activation = activate ? await applyActiveTheme({ routeDeps, themeId: result.id, actorId: ctx.principal.id }) : undefined;
       return {

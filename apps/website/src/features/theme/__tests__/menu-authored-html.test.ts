@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
-import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderStaticPage } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
@@ -31,9 +31,9 @@ function menu(doc: Partial<NavMenuEntry["doc"]>): NavMenuEntry {
 }
 
 async function render(page: string, row: NavMenuEntry): Promise<string> {
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]), menuRepo: new InMemoryMenuRepo({}, { initialRows: [row] }) };
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }), menuRepo: new InMemoryMenuRepo({}, { initialRows: [row] }) };
   const t = theme(page);
-  const menus = await resolveStaticMenusForRender(deps, t, "/");
+  const menus = await resolveStaticMenusForRender({ deps, theme: t, currentPath: "/" });
   return renderStaticPage({ theme: t, pageId: "index", menus }) ?? "";
 }
 

@@ -1,8 +1,9 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
-import type { TabBarTab } from "@jini-ai/ui/tab-strip";
-import { ExportSiteIcon, ImportSiteIcon } from "../sites";
 
+
+import type { TabBarTab } from "@jini-ai/ui/tab-strip";
+import { Icon } from "@jini-ai/ui";
+
+import { type Translate, resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Import & Export page's tabs (owner, 2026-10-25, option A): Export and Import moved here
  * from Sites, so they work on every host — the desktop app and a hosted install have no Sites
@@ -15,21 +16,8 @@ export type ImportExportTabId = (typeof IMPORT_EXPORT_TAB_IDS)[number];
 
 /** Falls back to Export for an absent or unrecognized `?tab=`, through the shared guard Sites and
  *  Deployment use — a stale bookmark or a typo must open a tab, never a blank panel. */
-export function resolveImportExportTabId(tabId: string | null | undefined): ImportExportTabId {
+export function resolveImportExportTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): ImportExportTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: IMPORT_EXPORT_TAB_IDS, defaultId: "export" });
-}
-
-/** Other — three dots, the plain "more" mark: the remaining ways out (static HTML, Git backup).
- *  Same 24px grid, 1.5 stroke and `aria-hidden` as `sites-visuals.tsx`, so it sits with the Export
- *  and Import glyphs; without it Other was the one icon-less row in an admin of icon-led tab bars. */
-function OtherIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden>
-      <circle cx="6" cy="12" r="1" />
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="18" cy="12" r="1" />
-    </svg>
-  );
 }
 
 /**
@@ -44,21 +32,23 @@ export function resolveImportExportTabs(
     {
       id: "export",
       label: t("Export"),
-      icon: <ExportSiteIcon />,
+      icon: <Icon name="tray-export" size={16} strokeWidth={1.5} />,
       handle: "import-export-tab-export",
       handleLabel: "Switch to the Export tab — make a .tovu.zip of this site and manage its share links",
     },
     {
       id: "import",
       label: t("Import"),
-      icon: <ImportSiteIcon />,
+      // Import uses the same tray as Export, with the arrow pointing in.
+      icon: <Icon name="tray-import" size={16} strokeWidth={1.5} />,
       handle: "import-export-tab-import",
       handleLabel: "Switch to the Import tab — import a share link, a .tovu.zip or a live website",
     },
     {
       id: "other",
       label: t("Other"),
-      icon: <OtherIcon />,
+      // Other uses the three-dot ‘more’ mark for the remaining paths: static HTML and Git backup.
+      icon: <Icon name="more-horizontal-outline" size={16} strokeWidth={1.5} />,
       handle: "import-export-tab-other",
       handleLabel: "Switch to the Other tab — static site export and Git backup",
     },

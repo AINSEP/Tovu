@@ -5,7 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { formatByteSize } from "#src/features/site-backup/sources";
-import { sendAdminFailure } from "./site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">;
 
@@ -21,68 +21,90 @@ function importStep({ req }: { req: Request }, _options = {}): string {
 const UPLOAD_DEADLINE_MS = 120_000;
 const UPLOAD_IDLE_MS = 30_000;
 
-/** Authenticated uploads/history and principal-bound password setup, shared with tools.
- * GET returns the setup contract for the separately-owned UI; no source markup enters admin.
- * `uploadDeadlineMs`/`uploadIdleMs` default to the production stall limits; tests shorten them.
- * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
- */
-export function registerAdminSiteImportRoutes(
-  required: { app: Express; deps: Deps },
-  { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
-): void {
-  const { app, deps } = required;
-  const root = "/api/admin/v1/workspaces/:workspaceId/site-imports";
-  let uploadBusy = false;
-  const fail = (res: Response, error: unknown, req: Request) => {
-    const step = importStep({ req });
-    if (error instanceof SiteShareRefusal) {
-      res.status(error.code === "NOT_FOUND" ? 404 : 400).json({ code: error.code, message: `${step} failed: ${error.message}` });
-      return;
-    }
-    // entity.too.large carries the parser's configured byte limit, independent of the step label.
-    const { type, limit } = (error ?? {}) as { type?: string; limit: number };
-    const tooLarge = type === "entity.too.large";
-    // Parser refusals are bad uploads; a backend failure is an internal incident, never a 400.
-    const parserMessages = new Map([
-      ["encoding.unsupported", "send an uncompressed request body."],
-      ["entity.parse.failed", "the request body could not be parsed."],
-      ["request.aborted", "the request ended before the complete body arrived."],
-      ["request.size.invalid", "the body size does not match the Content-Length header."],
-    ]);
-    const parserMessage = parserMessages.get(type ?? "");
-    if (tooLarge || parserMessage) {
-      res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
-        message: `${step} failed: ${tooLarge ? `the request is over the ${formatByteSize(limit)} limit for this step.` : parserMessage}` });
-      return;
-    }
-    sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: `site-import:${step}`, code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.`, field: "message" });
-  };
-  const gate = async (req: Request, res: Response, permission: string) => {
-    res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
-    if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${importStep({ req })} failed: this workspace is not available.` }); return false; }
-    if (!await authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" })) return false;
-    if (!deps.siteImportBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${importStep({ req })} requires local site creation and a configured sites home.` }); return false; }
-    return true;
-  };
-  const requestSignal = (req: Request, res: Response) => {
-    const controller = new AbortController();
-    req.once("aborted", () => controller.abort());
-    res.once("close", () => { if (!res.writableEnded) controller.abort(); });
-    return controller.signal;
-  };
+function requestSignal(req: Request, res: Response) {
+  const controller = new AbortController();
+  req.once("aborted", () => controller.abort());
+  res.once("close", () => { if (!res.writableEnded) controller.abort(); });
+  return controller.signal;
+}
+
+/** What each import route registrar needs: the app, deps, mount path and the shared guards. */
+interface ImportRouteContext {
+  app: Express;
+  deps: Deps;
+  root: string;
+  fail: (res: Response, error: unknown, req: Request) => void;
+  gate: (req: Request, res: Response, permission: string) => Promise<false | NonNullable<Deps["siteImportBackend"]>>;
+  ownerGate: (req: Request, res: Response) => Promise<false | NonNullable<Deps["siteImportBackend"]>>;
+}
+
+/** Maps a failed import step onto its HTTP answer: refusals and parser errors are 4xx, anything else is an incident. */
+function importFailure(input: { deps: Deps; req: Request; res: Response; error: unknown }): void {
+  const { deps, req, res, error } = input;
+  const step = importStep({ req });
+  if (error instanceof SiteShareRefusal) {
+    res.status(error.code === "NOT_FOUND" ? 404 : 400).json({ code: error.code, message: `${step} failed: ${error.message}` });
+    return;
+  }
+  // entity.too.large carries the parser's configured byte limit, independent of the step label.
+  const { type, limit } = (error ?? {}) as { type?: string; limit: number };
+  const tooLarge = type === "entity.too.large";
+  // Parser refusals are bad uploads; a backend failure is an internal incident, never a 400.
+  const parserMessages = new Map([
+    ["encoding.unsupported", "send an uncompressed request body."],
+    ["entity.parse.failed", "the request body could not be parsed."],
+    ["request.aborted", "the request ended before the complete body arrived."],
+    ["request.size.invalid", "the body size does not match the Content-Length header."],
+  ]);
+  const parserMessage = parserMessages.get(type ?? "");
+  if (tooLarge || parserMessage) {
+    res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
+      message: `${step} failed: ${tooLarge ? `the request is over the ${formatByteSize({ bytes: limit })} limit for this step.` : parserMessage}` });
+    return;
+  }
+  sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: `site-import:${step}`, code: "IMPORT_FAILED", message: `${step} failed. No existing site was changed.`, field: "message" });
+}
+
+/** Common headers, workspace match, authorization and backend-availability gate; returns the backend or `false` after answering. */
+async function gateImport(input: { deps: Deps; req: Request; res: Response; permission: string }) {
+  const { deps, req, res, permission } = input;
+  res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
+  if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${importStep({ req })} failed: this workspace is not available.` }); return false; }
+  if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" } })) return false;
+  if (!deps.siteImportBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${importStep({ req })} requires local site creation and a configured sites home.` }); return false; }
+  return deps.siteImportBackend;
+}
+
+/** Owner-setup gate: a signed-in session only, then the normal write gate and an existing-import check. */
+async function gateImportOwner(input: { ctx: Pick<ImportRouteContext, "deps" | "gate">; req: Request; res: Response }) {
+  const { ctx, req, res } = input;
+  const { gate } = ctx;
+  if (!rejectUnlessSessionCredential({ res, message: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.", permission: "system.write" })) return false;
+  const backend = await gate(req, res, "system.write");
+  if (!backend) return false;
+  backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
+  return backend;
+}
+
+function registerListAndImportRoutes({ app, root, fail, gate }: ImportRouteContext, _options = {}): void {
   app.get(root, async (req, res) => {
-    try { if (await gate(req, res, "system.read")) res.json({ imports: await deps.siteImportBackend!.list({ principalId: getAuthedPrincipal(res).id }) }); }
+    try { const backend = await gate(req, res, "system.read"); if (backend) res.json({ imports: await backend.list({ principalId: getAuthedPrincipal(res).id }) }); }
     catch (error) { fail(res, error, req); }
   });
   app.post(root, async (req, res) => {
     try {
-      if (!await gate(req, res, "system.write")) return;
+      const backend = await gate(req, res, "system.write");
+      if (!backend) return;
       const input = parseSiteImportInput({ input: req.body });
       const principalId = getAuthedPrincipal(res).id;
-      const imported = await deps.siteImportBackend!.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
+      const imported = await backend.importBackup({ ...input, principalId }, { signal: requestSignal(req, res) });
       res.json(imported);
     } catch (error) { fail(res, error, req); }
   });
+}
+
+function registerUploadRoute({ app, deps, root, fail, gate }: ImportRouteContext, { uploadDeadlineMs, uploadIdleMs }: { uploadDeadlineMs: number; uploadIdleMs: number }): void {
+  let uploadBusy = false;
   app.post(root + "/uploads", async (req, res, next) => {
     try {
       if (!await gate(req, res, "system.write")) return;
@@ -99,19 +121,19 @@ export function registerAdminSiteImportRoutes(
   }, async (req, res) => {
     try {
       if (!Buffer.isBuffer(req.body)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Upload raw application/zip bytes, not a filesystem path or base64 JSON." });
-      res.status(201).json(await deps.siteImportBackend!.upload({ principalId: getAuthedPrincipal(res).id, archive: req.body }));
+      const backend = deps.siteImportBackend;
+      if (!backend) throw new Error("site import ZIP upload has no import backend");
+      res.status(201).json(await backend.upload({ principalId: getAuthedPrincipal(res).id, archive: req.body }));
     } catch (error) { fail(res, error, req); }
   });
-  const ownerGate = async (req: Request, res: Response) => {
-    if (!rejectUnlessSessionCredential(res, { message: "Open owner setup in your signed-in browser; passwords are never submitted through an agent tool.", permission: "system.write" })) return false;
-    if (!await gate(req, res, "system.write")) return false;
-    deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
-    return true;
-  };
+}
+
+function registerOwnerRoutes({ app, deps, root, fail, ownerGate }: ImportRouteContext, _options = {}): void {
   app.get(root + "/:importId/owner", async (req, res) => {
     try {
-      if (!await ownerGate(req, res)) return;
-      const imported = deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
+      const backend = await ownerGate(req, res);
+      if (!backend) return;
+      const imported = backend.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
       res.json({ ...imported, ownerSetup: { method: "POST", field: "adminPassword", username: "admin", sessionRequired: true, ...(imported.hasEncryptedKeys ? { savedKeysPasswordField: "savedKeysPassword" } : {}) } });
     } catch (error) { fail(res, error, req); }
   });
@@ -130,7 +152,32 @@ export function registerAdminSiteImportRoutes(
   }, async (req, res) => {
     try {
       if (!req.body || Object.keys(req.body).some(key => !["adminPassword", "savedKeysPassword"].includes(key))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only the new owner password and optional saved keys password are accepted." });
-      res.json(await deps.siteImportBackend!.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword, ...(req.body.savedKeysPassword === undefined ? {} : { savedKeysPassword: req.body.savedKeysPassword }) }, { signal: requestSignal(req, res) }));
+      const backend = deps.siteImportBackend;
+      if (!backend) throw new Error("site import owner setup has no import backend");
+      res.json(await backend.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword, ...(req.body.savedKeysPassword === undefined ? {} : { savedKeysPassword: req.body.savedKeysPassword }) }, { signal: requestSignal(req, res) }));
     } catch (error) { fail(res, error, req); }
   });
+}
+
+/** Authenticated uploads/history and principal-bound password setup, shared with tools.
+ * GET returns the setup contract for the separately-owned UI; no source markup enters admin.
+ * `uploadDeadlineMs`/`uploadIdleMs` default to the production stall limits; tests shorten them.
+ * @complexity O(body bytes), bounded raw parsing AFTER authorization and concurrency admission.
+ */
+export function registerAdminSiteImportRoutes(
+  required: { app: Express; deps: Deps },
+  { uploadDeadlineMs = UPLOAD_DEADLINE_MS, uploadIdleMs = UPLOAD_IDLE_MS }: { uploadDeadlineMs?: number; uploadIdleMs?: number } = {},
+): void {
+  const { app, deps } = required;
+  const context: ImportRouteContext = {
+    app,
+    deps,
+    root: "/api/admin/v1/workspaces/:workspaceId/site-imports",
+    fail: (res, error, req) => importFailure({ deps, req, res, error }),
+    gate: (req, res, permission) => gateImport({ deps, req, res, permission }),
+    ownerGate: (req, res) => gateImportOwner({ ctx: context, req, res }),
+  };
+  registerListAndImportRoutes(context);
+  registerUploadRoute(context, { uploadDeadlineMs, uploadIdleMs });
+  registerOwnerRoutes(context);
 }

@@ -17,6 +17,16 @@ function packagedManifest(): PackagedManifest {
   return JSON.parse(readFileSync(path.join(RECHARTS_RUNTIME_SOURCE.sourceDir, "jini.plugin.json"), "utf8")) as PackagedManifest;
 }
 
+// Pin drift is how charts silently fell back to the table (pin 0.7.0 against an installed 0.7.1): the
+// bundle folder is named for the PACKAGE version, so the dependency must be exact and equal to the pin.
+test("the pin is the exact version the manifest declares and the lockfile installs", () => {
+  const root = path.resolve(import.meta.dirname, "../../../../../../..");
+  const declared = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).dependencies[RECHARTS_PACKAGE_NAME];
+  const locked = JSON.parse(readFileSync(path.join(root, "package-lock.json"), "utf8")).packages[`node_modules/${RECHARTS_PACKAGE_NAME}`].version;
+  assert.equal(declared, RECHARTS_BROWSER_APPROVAL.version, `${RECHARTS_PACKAGE_NAME} must be an exact version equal to the pin, not a range`);
+  assert.equal(locked, RECHARTS_BROWSER_APPROVAL.version);
+});
+
 test("the source directory is the pinned version inside the installed package, not content/plugins", () => {
   assert.ok(existsSync(RECHARTS_RUNTIME_SOURCE.sourceDir), `${RECHARTS_PACKAGE_NAME} must ship plugins/charts-recharts/${RECHARTS_BROWSER_APPROVAL.version}`);
   assert.match(RECHARTS_RUNTIME_SOURCE.sourceDir.replaceAll("\\", "/"), /\/provider-plugins\/plugins\/charts-recharts\/[^/]+$/);
@@ -48,7 +58,7 @@ test("the runtime manifest is the approval: a package cannot widen its own trust
   assert.equal(manifest.version, RECHARTS_BROWSER_APPROVAL.version);
   assert.equal(manifest.integrity, RECHARTS_BROWSER_APPROVAL.integrity);
   assert.equal(manifest.browserProviders, RECHARTS_BROWSER_APPROVAL.browserProviders);
-  assert.deepEqual(manifest.extensions, { tovu: { id: "tovu/charts-recharts" } });
+  assert.deepEqual(manifest.extensions, { jini: { id: "jini/charts-recharts" } });
   assert.equal(RECHARTS_DEFAULT_PROVIDER, "plugin.recharts");
   assert.equal(RECHARTS_BROWSER_APPROVAL.browserProviders[0]?.id, RECHARTS_DEFAULT_PROVIDER);
 });

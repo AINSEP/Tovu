@@ -37,7 +37,7 @@ export interface UseRunnerConversations {
   /**
    * `ChatPane`'s `onMessagesChange`. Fires once on MOUNT with whatever `initialMessages` seeded it
    * with (`useChatPane.hooks.ts`'s effect on `conversation.messages`), so a fresh pane with nothing
-   * selected calls this with `[]` at mount — `persistableMessages([]).length === 0` makes that a
+   * selected calls this with `[]` at mount — `persistableMessages({ messages: [] }).length === 0` makes that a
    * no-op in the controller (`runner-conversation-controller.ts`), rather than mistaking a mount
    * echo for new content to save.
    */
@@ -61,14 +61,21 @@ export function useRunnerConversations(
 ): UseRunnerConversations {
   const bridge = useMemo(() => getBridge(), [getBridge]);
   const controller = useMemo(() => createRunnerConversationController({ bridge }), [bridge]);
-  const state = useSyncExternalStore(controller.subscribe, controller.getState);
+  const subscribe = useCallback((listener: () => void) => controller.subscribe({ listener }), [controller]);
+  const state = useSyncExternalStore(subscribe, controller.getState);
 
   useEffect(() => {
     void controller.refresh();
   }, [controller]);
 
-  const { select, create, remove, rename, onMessagesChange } = controller;
-  return { ...state, select, create, remove, rename, onMessagesChange };
+  const actions = useMemo(() => ({
+    select: (id: string) => controller.select({ id }),
+    create: controller.create,
+    remove: (id: string) => controller.remove({ id }),
+    rename: (id: string, title: string) => controller.rename({ id, title }),
+    onMessagesChange: (messages: ChatMessage[]) => controller.onMessagesChange({ messages }),
+  }), [controller]);
+  return { ...state, ...actions };
 }
 
 export interface ConversationDeleteConfirmationState {
@@ -85,7 +92,7 @@ export interface ConversationDeleteConfirmationState {
    */
   confirmDelete: (item: ConversationListItem) => Promise<boolean>;
   /** Answers the pending confirmation, if any. A no-op when nothing is pending. */
-  resolvePending: (confirmed: boolean) => void;
+  resolvePending: (input: { confirmed: boolean }) => void;
 }
 
 /**
@@ -109,7 +116,7 @@ export function useConversationDeleteConfirmation(): ConversationDeleteConfirmat
     });
   }, []);
 
-  const resolvePending = useCallback((confirmed: boolean) => {
+  const resolvePending = useCallback(({ confirmed }: { confirmed: boolean }) => {
     resolverRef.current?.(confirmed);
     resolverRef.current = null;
     setPendingTitle(null);

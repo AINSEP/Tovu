@@ -9,8 +9,8 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
-import { renderSite } from "../render.js";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
+import { renderSite } from "../render-site.js";
 
 // The Landing body the admin Interactive editor's locked script blocks (d6b6bbce6) are pinned against.
 const body = readFileSync(new URL("../../../../../../../../admin/src/features/pages/__tests__/fixtures/landing-scriptblocks.html", import.meta.url), "utf8");
@@ -40,13 +40,13 @@ test("no-theme public render keeps the landing page scripts and button SVGs", as
 test("static-tier template render keeps the landing page scripts and button SVGs, saved and pending", async () => {
   const deps = createRouteDeps();
   const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml: body });
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   const theme = {
     manifest: { id: "landing-test", name: "Landing test", version: "1.0.0", tier: "static", engine: 1, templates: ["post.html"] },
     dir: "/nonexistent/landing-test", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
     pages: { post: `<html><head><title>{{title}}</title></head><body><main data-embed-config='{"type":"content"}'></main></body></html>` },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme;
-  assertPageScriptsAndIcons(await renderViaTemplate(deps, theme, post, undefined), "saved");
-  assertPageScriptsAndIcons(await renderViaTemplate(deps, theme, post, undefined, undefined, body), "pending");
+  assertPageScriptsAndIcons(await renderViaTemplate({ deps, theme, post, staticMenus: undefined }), "saved");
+  assertPageScriptsAndIcons(await renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyJson: undefined, pendingBodyHtml: body }), "pending");
 });

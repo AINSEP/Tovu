@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
 import { UploadIcon } from "./agent-plugins-visuals";
@@ -83,7 +83,8 @@ export function AddPluginPanel({ controller: c }: { controller: PluginInstallCon
 /** The trust review shown after Preview: what the package is, what it may do, and any clashes. */
 function PluginInstallPreviewDetails({ controller: c }: { controller: PluginInstallController }) {
   const { t } = c;
-  const d = c.previewDisplay!;
+  const d = c.previewDisplay;
+  if (!d) throw new Error("plugin install review has no preview");
   return (
     <div className="install-tab-review" aria-live="polite">
       <h3 className="install-tab-option-heading">{d.title}</h3>

@@ -11,7 +11,8 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
-import { fetchPublishedPage, PublishedPagePathError } from "./published-page.js";
+import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
+import { fetchPublishedPage } from "./published-page.js";
 import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
 
@@ -68,7 +69,7 @@ export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   //    admin screen constant, and one content-type list read. No writes anywhere on the path.
   ["site_describe_capabilities", "none"],
   // -> fetchPublishedPage(): boots the site's own Express app on a loopback port and issues one
-  //    GET, the same thing `export/site-exporter.ts` does per route. The handler writes nothing.
+  //    GET, the same thing `apps/website/src/features/site-export/site-exporter.ts` does per route. The handler writes nothing.
   //    See the catalog entry's own comment for the one disclosed caveat (a path matching a live
   //    redirect rule records a redirect hit, exactly as a real visit would).
   ["fetch_published_page", "none"],
@@ -80,7 +81,7 @@ export const siteInspectionDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
  *  the published schema. A named class rather than a bare `Error` for the same reason
  *  `features/theme/tool-registrations.ts` declares `ThemeNotFoundError`. */
 class SiteInspectionInputError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "SiteInspectionInputError";
   }
@@ -89,7 +90,7 @@ class SiteInspectionInputError extends Error {
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the tool's schema back with.
  *  A timeout or an underlying repo failure is not one of these: retrying with different arguments
  *  would not help, and appending a schema would imply otherwise. */
-function isShapeRejection(error: unknown): boolean {
+function isShapeRejection({ error }: { error: unknown }, _optional = {}): boolean {
   return error instanceof PublishedPagePathError || error instanceof SiteInspectionInputError;
 }
 
@@ -122,12 +123,12 @@ function readSections<N extends string>(input: Record<string, unknown>, vocabula
   if (raw === undefined || raw === null) return undefined;
   const validNames = vocabulary.join(", ");
   if (!Array.isArray(raw)) {
-    throw new SiteInspectionInputError(`sections must be an array of section names — valid names are: ${validNames}`);
+    throw new SiteInspectionInputError({ message: `sections must be an array of section names — valid names are: ${validNames}` });
   }
   const known = new Set<string>(vocabulary);
   for (const candidate of raw) {
     if (typeof candidate !== "string" || !known.has(candidate)) {
-      throw new SiteInspectionInputError(`unknown section '${String(candidate)}' — valid names are: ${validNames}`);
+      throw new SiteInspectionInputError({ message: `unknown section '${String(candidate)}' — valid names are: ${validNames}` });
     }
   }
   return raw as N[];
@@ -140,12 +141,8 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
 
       // NO blanket `requireToolPermission` here — see this file's header. `buildSiteProfile`
       // authorizes each section against that section's own domain permission.
-      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () =>
-        buildSiteProfile(
-          toSiteProfileDeps(routeDeps),
-          { principalId: ctx.principal.id },
-          { sections: readSections(input, SITE_PROFILE_SECTION_NAMES), pageLimit: optionalNumber({ input: input, key: "pageLimit" }) },
-        ) });
+      return withSchemaOnRejection({ toolId: "site_get_profile", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () =>
+        buildSiteProfile({ deps: toSiteProfileDeps(routeDeps), input: { principalId: ctx.principal.id } }, { sections: readSections(input, SITE_PROFILE_SECTION_NAMES), pageLimit: optionalNumber({ input: input, key: "pageLimit" }) }) });
     },
 
     site_describe_capabilities: async (ctx) => {
@@ -153,12 +150,8 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
 
       // NO blanket gate here either — `buildSiteCapabilities` authorizes each of its three sections
       // against that section's own permission.
-      return withSchemaOnRejection({ toolId: "site_describe_capabilities", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () =>
-          buildSiteCapabilities(
-            toSiteCapabilitiesDeps(routeDeps),
-            { principalId: ctx.principal.id },
-            { sections: readSections(input, SITE_CAPABILITIES_SECTION_NAMES) },
-          ) });
+      return withSchemaOnRejection({ toolId: "site_describe_capabilities", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () =>
+          buildSiteCapabilities({ deps: toSiteCapabilitiesDeps(routeDeps), input: { principalId: ctx.principal.id } }, { sections: readSections(input, SITE_CAPABILITIES_SECTION_NAMES) }) });
     },
 
     fetch_live_url: async ctx => {
@@ -176,7 +169,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
       const options = readPageBodyOptions(input);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITE_INSPECTION_READ_PERMISSION }, { entityType: "published-page" });
 
-      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => fetchPublishedPage(routeDeps, { path }, options) });
+      return withSchemaOnRejection({ toolId: "fetch_published_page", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => fetchPublishedPage({ deps: routeDeps, input: { path } }, options) });
     },
   };
 
@@ -192,7 +185,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
 
 /**
  * Contributes Site Inspection's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. Same seam every other converted domain uses; this module never imports `server/`, and
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.

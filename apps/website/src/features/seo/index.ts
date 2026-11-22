@@ -7,9 +7,10 @@ import type {
   SeoFeaturedImagePort, SeoPostListPort, SeoPostWritePort, SeoSitemapDeps,
   SitemapInvalidationDeps,
 } from "@jini-ai/cms/seo";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import {
-  createPublicPostReader, extractPlainTextFromHtml, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
+  createPublicPostReader, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,
 } from "../post/index.js";
 import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefinitionRepoPort } from "../media/index.js";
@@ -22,7 +23,7 @@ import { resolveRuntimeMode } from "../../contracts/core/runtime-mode.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { getSeoSettings, isDefaultRobotsNoindexExplicitlySet } from "./settings.js";
 
-export { withCoverReadDeps, withContentImageSource } from "./cover-image.js";
+export { createSeoPageHeadHook } from "./page-head-contributor.js";
 
 export {
   ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings, isDefaultRobotsNoindexExplicitlySet,
@@ -41,9 +42,9 @@ export function createSeoPostPort({ postRepo }: { postRepo: PostRepoPort }, _opt
     // Call through the receiver so prototype methods keep `this` and fault-injection remains live.
     findById: reader.findById,
     list: reader.list,
-    extractPlainText: ({ html }) => extractPlainTextFromHtml(html),
+    extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }),
     isTrashed: ({ post }) => isTrashed(post),
-    transaction: ({ fn }) => postRepo.transaction(fn),
+    transaction: ({ fn }) => postRepo.transaction({ fn }),
     // The read port returns the COMPLETE PostRecord; Jini spreads it rather than projecting it.
     // These casts restore the host type at storage boundaries, never manufacture missing fields.
     saveIfVersion: ({ record, ifVersion }) => postRepo.saveIfVersion({ record: record as PostRecord, ifVersion }),
@@ -98,8 +99,8 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
       urlFor: ({ target, ctx }) => urlFor({ deps: { postRepo: deps.postRepo }, target, ctx }),
     },
     liveness: {
-      isScheduledAt: ({ post, nowIso }) => isScheduledAt(post, nowIso),
-      isLiveAt: ({ post, nowIso }) => isLiveAt(post, nowIso),
+      isScheduledAt: ({ post, nowIso }) => isScheduledAt({ record: post, nowIso }),
+      isLiveAt: ({ post, nowIso }) => isLiveAt({ record: post, nowIso }),
       postDisplayDateIso: ({ post }) => postDisplayDateIso(post),
     },
     clock: { nowIso: deps.clock.nowIso.bind(deps.clock) },
@@ -109,16 +110,15 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
     },
     // A sitemap has no visitor session: only the member owner's anonymous/public decision
     // applies. Members/paid/tiers and malformed/unknown visibility fail closed (ADR-030 §4).
-    isPubliclyAccessible: ({ post }) => resolvePostMemberAccess(post.memberAccessJson).visibility === "public",
+    isPubliclyAccessible: ({ post }) => resolvePostMemberAccess({ raw: post.memberAccessJson }).visibility === "public",
     runtimeMode: resolveRuntimeMode(),
     rootSlug: ROOT_SLUG,
     // Only an explicit workspace title counts for the root entry, not the default/display fallback.
     siteTitle: async ({ workspaceId }) => {
       const setting = await getEffective(
-        { repo: deps.settingsRepo },
-        { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
+        { deps: { repo: deps.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
       );
-      return setting?.sourceLayer === "workspace" ? normalizeSiteTitle(setting.value) : undefined;
+      return setting?.sourceLayer === "workspace" ? normalizeSiteTitle({ value: setting.value }) : undefined;
     },
     // The daemon outbox is enqueue-only; the existing host owner controls actual delivery.
     dispatch: (input) => processOutbox(input),

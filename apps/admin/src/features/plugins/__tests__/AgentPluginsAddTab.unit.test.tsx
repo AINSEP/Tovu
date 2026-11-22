@@ -6,7 +6,8 @@ import { AgentPlugins } from "../AgentPlugins";
 import { createFakeAgentPluginInstallPort, defaultAgentPluginInstallPort } from "../hooks/agent-plugin-install-dependencies.hooks";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins, type AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The Agent Plugins "Add a plugin" tab: one `.zip` chosen or dropped, validated before upload,
@@ -149,7 +150,7 @@ describe("AgentPlugins — Add a plugin", () => {
   });
 
   it("shows a server refusal in plain words and keeps the file for another try", async () => {
-    const port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER }, { failWith: new ApiError("taken", 409, "AGENT_PLUGIN_PLUGIN_ID_TAKEN") });
+    const port = createFakeAgentPluginInstallPort({ row: NOTE_TAKER }, { failWith: new ApiError({ message: "taken", status: 409 }, { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN" }) });
     const { onInstalled } = renderAddTab(port);
     await openAddTab();
 

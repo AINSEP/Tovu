@@ -3,17 +3,17 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 
 import type { MailerPort } from "../../../platform/mail/index.js";
-import type { MailProviderConfiguration } from "../../../platform/mail/mail-status.js";
-import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/suppression-admin.repo.js";
-import { MailActivityForbiddenError } from "../activity.js";
+import type { MailProviderConfiguration } from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "../feedback-setup.js";
+import { MAIL_PERMISSION_IDS } from "../permissions.js";
 import {
-  listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval, type MailSuppressionDeps,
-} from "../suppressions.js";
+  listMailSuppressions, MailActivityForbiddenError, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
+  type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry,
+} from "@jini-ai/platform/mail";
 
 /**
  * @file Email phase 5's shared operations with DI fakes: suppression list input, permission and
@@ -52,7 +52,7 @@ function grantsFor(list: string[]) {
 }
 
 function deps(rows: MailSuppressionEntry[], list = ["*"], removed: unknown[] = []): MailSuppressionDeps {
-  return { ownerPrincipalId: Promise.resolve("owner"), workspaceId: "ws", authorize: grantsFor(list).authorize, mailSuppressionAdmin: memoryRepo(rows, removed) };
+  return { ownerPrincipalId: Promise.resolve("owner"), workspaceId: "ws", authorize: grantsFor(list).authorize, permissions: MAIL_PERMISSION_IDS, mailSuppressionAdmin: memoryRepo(rows, removed) };
 }
 
 test("readMailSuppressionQuery: defaults, filters, blank search and every refusal", () => {
@@ -74,7 +74,7 @@ test("listMailSuppressions needs mail.activity.read, pages with a cursor and lab
   assert.equal((await listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: { reason: "manual" } }) }, deps: deps(rows) })).empty, "no_matches");
   await assert.rejects(listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: deps(rows, ["admin.forms.manage"]) }),
     (err: unknown) => err instanceof MailActivityForbiddenError && err.permission === "mail.activity.read");
-  await assert.rejects(listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: { workspaceId: "ws", authorize: grantsFor(["*"]).authorize } }), MailSuppressionsUnavailableError);
+  await assert.rejects(listMailSuppressions({ ...{ principalId: "p", query: readMailSuppressionQuery({ input: {} }) }, deps: { workspaceId: "ws", authorize: grantsFor(["*"]).authorize, permissions: MAIL_PERMISSION_IDS } }), MailSuppressionsUnavailableError);
 });
 
 test("readMailSuppressionRemoval normalizes the address and requires a scope and a 3-500 character reason", () => {

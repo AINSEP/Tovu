@@ -30,7 +30,7 @@ test("External MCP setup and live diagnostics rank in the top 3 of the productio
   await deps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(r);
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(QUERIES)) for (const query of queries) {

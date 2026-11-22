@@ -16,23 +16,23 @@ const DELETE_TEMPLATE = 'Delete "{title}"? This cannot be undone.';
 
 describe("createChatI18nAdapter — interpolation", () => {
   it("substitutes a {token} present in vars", () => {
-    const t = createChatI18nAdapter("es").t;
+    const t = createChatI18nAdapter({ locale: "es" }).t;
     expect(t(DELETE_TEMPLATE, { title: "My Post" })).toBe('¿Eliminar "My Post"? Esta acción no se puede deshacer.');
   });
 
   it("leaves an unknown {token} visible rather than silently dropping it", () => {
-    const t = createChatI18nAdapter("es").t;
+    const t = createChatI18nAdapter({ locale: "es" }).t;
     // `vars` is supplied but does not carry the `title` key the template asks for.
     expect(t(DELETE_TEMPLATE, {})).toBe('¿Eliminar "{title}"? Esta acción no se puede deshacer.');
   });
 
   it("returns the template unchanged when no vars are given at all", () => {
-    const t = createChatI18nAdapter("es").t;
+    const t = createChatI18nAdapter({ locale: "es" }).t;
     expect(t(DELETE_TEMPLATE, undefined)).toBe('¿Eliminar "{title}"? Esta acción no se puede deshacer.');
   });
 
   it("falls back to the raw English key for an unrecognized locale, then still interpolates it", () => {
-    const t = createChatI18nAdapter("xx-unknown").t;
+    const t = createChatI18nAdapter({ locale: "xx-unknown" }).t;
     expect(t(DELETE_TEMPLATE, { title: "My Post" })).toBe('Delete "My Post"? This cannot be undone.');
   });
 });
@@ -43,7 +43,7 @@ const CHAT_LOCALES = [
 ];
 
 it.each(CHAT_LOCALES)('%s translates the plugin usage chip through the chat dictionary', locale => {
-  const t = createChatI18nAdapter(locale).t;
+  const t = createChatI18nAdapter({ locale }).t;
   for (const key of ['Using:', 'Stop using', 'Stops future use in this chat. Guidance already loaded stays in the current context.']) {
     expect(t(key)).not.toBe(key);
     expect(t(key).trim().length).toBeGreaterThan(0);
@@ -51,18 +51,18 @@ it.each(CHAT_LOCALES)('%s translates the plugin usage chip through the chat dict
 });
 
 it.each(CHAT_LOCALES)("%s translates the shared Rename chat label", (locale) => {
-  expect(createChatI18nAdapter(locale).t("Rename chat")).not.toBe("Rename chat");
+  expect(createChatI18nAdapter({ locale }).t("Rename chat")).not.toBe("Rename chat");
 });
 
 describe("createChatI18nAdapter — the approval card's countdown and expired label", () => {
   it.each(CHAT_LOCALES)("%s translates the countdown and keeps the time in it", (locale) => {
-    const text = createChatI18nAdapter(locale).t("Expires in {time}", { time: "4:59" });
+    const text = createChatI18nAdapter({ locale }).t("Expires in {time}", { time: "4:59" });
     expect(text).not.toBe("Expires in 4:59");
     expect(text).toContain("4:59");
   });
 
   it.each(CHAT_LOCALES)("%s translates the expired label", (locale) => {
-    expect(createChatI18nAdapter(locale).t("This question expired")).not.toBe("This question expired");
+    expect(createChatI18nAdapter({ locale }).t("This question expired")).not.toBe("This question expired");
   });
 });
 
@@ -74,17 +74,17 @@ describe("createChatI18nAdapter — the typed-answer notices", () => {
   ];
 
   it.each(CHAT_LOCALES)("%s translates both notices and the closed-question button", (locale) => {
-    for (const notice of NOTICES) expect(createChatI18nAdapter(locale).t(notice)).not.toBe(notice);
+    for (const notice of NOTICES) expect(createChatI18nAdapter({ locale }).t(notice)).not.toBe(notice);
   });
 });
 
 it.each(CHAT_LOCALES)("%s translates the folder-window note a browser tab shows", (locale) => {
   const key = "Folder window opened on the computer running Tovu";
-  expect(createChatI18nAdapter(locale).t(key)).not.toBe(key);
+  expect(createChatI18nAdapter({ locale }).t(key)).not.toBe(key);
 });
 
 it.each(CHAT_LOCALES)("%s translates folder chips and preserves exact path/count interpolation", locale => {
-  const t = createChatI18nAdapter(locale).t;
+  const t = createChatI18nAdapter({ locale }).t;
   expect(t('Choose a folder')).not.toBe('Choose a folder');
   for (const key of ['Folders ({count})', 'Copy folder path: {path}', 'Remove folder: {path}']) {
     const path = String.raw`C:\A B`;
@@ -100,7 +100,7 @@ it.each(CHAT_LOCALES)("%s translates folder chips and preserves exact path/count
 it.each(CHAT_LOCALES)("%s translates the multi-folder drop notice as one sentence and keeps every path", locale => {
   const key = "Folders added to the message: {paths}. Active file root: {path}.";
   const vars = { paths: String.raw`/Users/x/one, C:\A B`, path: String.raw`C:\A B` };
-  const text = createChatI18nAdapter(locale).t(key, vars);
+  const text = createChatI18nAdapter({ locale }).t(key, vars);
   expect(text).not.toBe(`Folders added to the message: ${vars.paths}. Active file root: ${vars.path}.`);
   expect(text).toContain(vars.paths);
   expect(text).not.toContain("{");

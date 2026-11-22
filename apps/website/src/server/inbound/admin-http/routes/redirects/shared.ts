@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { EntityNotLiveError } from "@jini-ai/cms/core";
@@ -17,7 +17,7 @@ import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError
 /** One entry in a redirects route's `catch` block: which thrown error class maps to which HTTP
  *  status/code pair. */
 export interface RedirectErrorMapping {
-  readonly matches: (err: unknown) => boolean;
+  readonly matches: (required: { err: unknown }, optional?: Record<string, never>) => boolean;
   readonly status: number;
   readonly code: string;
 }
@@ -27,11 +27,11 @@ export interface RedirectErrorMapping {
  *
  * @complexity O(n) in the mapping table length, which is a small fixed list per caller.
  */
-export function respondToRedirectError(res: Response, err: unknown, mappings: readonly RedirectErrorMapping[]): void {
+export function respondToRedirectError({ res, err, mappings }: { res: Response; err: unknown; mappings: readonly RedirectErrorMapping[] }, _options: Record<string, never> = {}): void {
   const message = err instanceof Error ? err.message : String(err);
 
   for (const mapping of mappings) {
-    if (mapping.matches(err)) {
+    if (mapping.matches({ err })) {
       res.status(mapping.status).json({ error: message, code: mapping.code });
       return;
     }
@@ -44,9 +44,9 @@ export const REDIRECT_WRITE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
   // S7 (web-high fix plan 2026-09-24) — first, ahead of the others: a rule in the Trash rejects
   // with a fixed code regardless of which OTHER field the caller tried to change. Redirects are
   // never tombstoned-state (only `EntityLiveness`'s "trashed"), so one fixed code is complete here.
-  { matches: (e) => e instanceof EntityNotLiveError, status: 409, code: "ENTITY_IN_TRASH" },
-  { matches: (e) => e instanceof RedirectValidationError, status: 400, code: "REDIRECT_VALIDATION_ERROR" },
-  { matches: (e) => e instanceof RedirectTargetNotAllowedError, status: 400, code: "REDIRECT_TARGET_NOT_ALLOWED" },
-  { matches: (e) => e instanceof RedirectConflictError, status: 409, code: "REDIRECT_CONFLICT" },
-  { matches: (e) => e instanceof RedirectLoopError, status: 409, code: "REDIRECT_LOOP_DETECTED" },
+  { matches: ({ err }, _options = {}) => err instanceof EntityNotLiveError, status: 409, code: "ENTITY_IN_TRASH" },
+  { matches: ({ err }, _options = {}) => err instanceof RedirectValidationError, status: 400, code: "REDIRECT_VALIDATION_ERROR" },
+  { matches: ({ err }, _options = {}) => err instanceof RedirectTargetNotAllowedError, status: 400, code: "REDIRECT_TARGET_NOT_ALLOWED" },
+  { matches: ({ err }, _options = {}) => err instanceof RedirectConflictError, status: 409, code: "REDIRECT_CONFLICT" },
+  { matches: ({ err }, _options = {}) => err instanceof RedirectLoopError, status: 409, code: "REDIRECT_LOOP_DETECTED" },
 ];

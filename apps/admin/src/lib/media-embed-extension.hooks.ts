@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import { api } from "./api";
+import { mediaApi } from "../features/media/api/media-api";
 import { t as mediaT } from "../features/media/media-i18n";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
@@ -25,7 +25,7 @@ export interface MediaEmbedAttrs {
   htmlAttributes: string | null;
 }
 
-function stringOr<T>(value: unknown, fallback: T): string | T {
+function stringOr<T>({ value, fallback }: { value: unknown; fallback: T }, _options = {}): string | T {
   return typeof value === "string" ? value : fallback;
 }
 
@@ -39,11 +39,11 @@ function stringOr<T>(value: unknown, fallback: T): string | T {
  */
 export function readMediaEmbedAttrs(attrs: Record<string, unknown>): MediaEmbedAttrs {
   return {
-    assetId: stringOr(attrs.assetId, ""),
-    transformName: stringOr(attrs.transformName, ""),
-    alt: stringOr(attrs.alt, ""),
-    cssClass: stringOr(attrs.cssClass, null),
-    htmlAttributes: stringOr(attrs.htmlAttributes, null),
+    assetId: stringOr({ value: attrs.assetId, fallback: "" }),
+    transformName: stringOr({ value: attrs.transformName, fallback: "" }),
+    alt: stringOr({ value: attrs.alt, fallback: "" }),
+    cssClass: stringOr({ value: attrs.cssClass, fallback: null }),
+    htmlAttributes: stringOr({ value: attrs.htmlAttributes, fallback: null }),
   };
 }
 
@@ -53,11 +53,11 @@ export type MediaPreviewKind = "pending" | "image" | "video";
  * Maps an asset's `Content-Type` to the element that previews it — `video/*` is a video, anything
  * else (including `""` from a failed lookup) is an `<img>`, matching `renderDocMedia`'s own rule.
  *
- * @param contentType - The asset's `Content-Type` header value, possibly with parameters.
+ * @param input.contentType - The asset's `Content-Type` header value, possibly with parameters.
  * @returns `"video"` or `"image"`.
  * @complexity O(1).
  */
-export function mediaPreviewKind(contentType: string): "image" | "video" {
+export function mediaPreviewKind({ contentType }: { contentType: string }, _options = {}): "image" | "video" {
   return contentType.trim().toLowerCase().startsWith("video/") ? "video" : "image";
 }
 
@@ -66,13 +66,13 @@ export function mediaPreviewKind(contentType: string): "image" | "video" {
  * is in flight, and again whenever `assetId` changes (a Replace), so one asset's verdict never
  * carries over to the next. A failed lookup previews as an image.
  */
-function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Promise<string>): MediaPreviewKind {
+function usePreviewKind({ assetId, contentTypeOf }: { assetId: string; contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string> }, _options = {}): MediaPreviewKind {
   const [resolved, setResolved] = useState<{ assetId: string; kind: "image" | "video" } | null>(null);
   useEffect(() => {
     if (!assetId) return undefined;
     let live = true;
-    contentTypeOf(assetId).then(
-      (contentType) => live && setResolved({ assetId, kind: mediaPreviewKind(contentType) }),
+    contentTypeOf({ id: assetId }).then(
+      (contentType) => live && setResolved({ assetId, kind: mediaPreviewKind({ contentType }) }),
       () => live && setResolved({ assetId, kind: "image" })
     );
     return () => {
@@ -86,7 +86,7 @@ function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Pro
 export interface MediaEmbedNodeViewController {
   assetId: string;
   alt: string;
-  /** `api.mediaOriginalUrl(assetId)` for a complete ref (`assetId` AND `transformName`), else `""` —
+  /** `api.mediaOriginalUrl({ id: assetId })` for a complete ref (`assetId` AND `transformName`), else `""` —
    *  the node view shows its broken-reference label for `""`. */
   previewSrc: string;
   /** Seeds `MediaEditDialog` from the node's current per-instance attrs. */
@@ -101,15 +101,15 @@ export interface MediaEmbedNodeViewController {
   openPicker: () => void;
   closePicker: () => void;
   /** Points the node at the picked asset and closes the picker. */
-  replaceWith: (item: { id: string; alt: string; title: string }) => void;
+  replaceWith: (item: { id: string; alt: string; title: string }, optional?: Record<string, never>) => void;
   editing: boolean;
   openEdit: () => void;
   closeEdit: () => void;
   /** Writes the dialog's `alt`/`cssClass`/`htmlAttributes` onto the node and closes the dialog. */
-  saveEdit: (value: MediaEditDialogValue) => void;
+  saveEdit: (value: MediaEditDialogValue, optional?: Record<string, never>) => void;
   remove: () => void;
   /** Translates the node view's copy (`media-i18n.ts`, keyed by the English string). */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 /**
@@ -124,41 +124,41 @@ export interface MediaEmbedNodeViewController {
  */
 export function useMediaEmbedNodeView(
   props: NodeViewProps,
-  deps: { locale: string; contentTypeOf: (assetId: string) => Promise<string> }
+  deps: { locale: string; contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string> }
 ): MediaEmbedNodeViewController {
   const { assetId, transformName, alt, cssClass, htmlAttributes } = readMediaEmbedAttrs(props.node.attrs);
   const [picking, setPicking] = useState(false);
   const [editing, setEditing] = useState(false);
   const isRef = assetId.length > 0 && transformName.length > 0;
-  const previewKind = usePreviewKind(isRef ? assetId : "", deps.contentTypeOf);
+  const previewKind = usePreviewKind({ assetId: isRef ? assetId : "", contentTypeOf: deps.contentTypeOf });
 
   return {
     assetId,
     alt,
-    previewSrc: isRef ? api.mediaOriginalUrl(assetId) : "",
+    previewSrc: isRef ? mediaApi.mediaOriginalUrl({ id: assetId }) : "",
     editInitial: { alt, cssClass, htmlAttributes },
     previewKind,
     picking,
     openPicker: () => setPicking(true),
     closePicker: () => setPicking(false),
-    replaceWith: (item) => {
+    replaceWith: (item, _optional = {}) => {
       props.updateAttributes({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
       setPicking(false);
     },
     editing,
     openEdit: () => setEditing(true),
     closeEdit: () => setEditing(false),
-    saveEdit: (value) => {
+    saveEdit: (value, _optional = {}) => {
       props.updateAttributes({ alt: value.alt, cssClass: value.cssClass, htmlAttributes: value.htmlAttributes });
       setEditing(false);
     },
     remove: () => props.deleteNode(),
-    t: (key) => mediaT({ locale: deps.locale, key: key }),
+    t: ({ key }, _optional = {}) => mediaT({ locale: deps.locale, key }),
   };
 }
 
 /** Binds the real `useAdminLocale()` and `api.mediaContentType` — what `MediaEmbedNodeView` composes. */
 export function useWiredMediaEmbedNodeView(props: NodeViewProps): MediaEmbedNodeViewController {
   const locale = useAdminLocale();
-  return useMediaEmbedNodeView(props, { locale, contentTypeOf: api.mediaContentType });
+  return useMediaEmbedNodeView(props, { locale, contentTypeOf: mediaApi.mediaContentType });
 }

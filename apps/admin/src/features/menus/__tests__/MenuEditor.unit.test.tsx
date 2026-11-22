@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
-import type { AdminMenuItem } from "../../../lib/api";
+import type { AdminMenuItem } from "../api/menus-api.types";
 import { installInternalLinkInterceptor, useRouteLocation } from "../../../lib/router";
 
 /**
@@ -556,7 +556,7 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     // `loading: true` renders the loading notice regardless of `isNew`/`menuId` — reaching it
     // synchronously, with no fetch queued, is only possible via the injected fake.
     expect(screen.getByText("Loading menu…")).toBeInTheDocument();
-    expect(useMenuEditorHook).toHaveBeenCalledWith("m1");
+    expect(useMenuEditorHook).toHaveBeenCalledWith({ menuId: "m1" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -585,7 +585,7 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     const childFields = screen.getByDisplayValue("Child").closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
     await user.click(within(childFields).getByRole("button", { name: "+ child" }));
     expect(controller.addChildAt).toHaveBeenCalledTimes(1);
-    expect(controller.addChildAt).toHaveBeenCalledWith([0, 0]);
+    expect(controller.addChildAt).toHaveBeenCalledWith({ path: [0, 0] });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -607,8 +607,8 @@ describe("injected hook seam (useMenuEditorHook)", () => {
     const unlabelled = { id: "bare", target: { kind: "url", href: "/" } } as unknown as AdminMenuItem;
     // The updater reads the input's value when applied, so apply it inside the change event.
     const applied: Array<{ path: number[]; next: AdminMenuItem }> = [];
-    const changeAt = vi.fn((path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => {
-      applied.push({ path, next: update(unlabelled) });
+    const changeAt = vi.fn(({ path, fn }: { path: number[]; fn: (item: AdminMenuItem) => AdminMenuItem }) => {
+      applied.push({ path, next: fn(unlabelled) });
     });
     const controller = fakeController({ loading: false, items: [unlabelled], changeAt });
     render(<MenuEditor menuId={null} useMenuEditorHook={() => controller} />);

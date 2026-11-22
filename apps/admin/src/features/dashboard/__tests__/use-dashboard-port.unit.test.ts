@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
 import type { DashboardPort } from "../hooks/dashboard-port.hooks";
-import { ApiError, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
 import { createElement, type ReactNode } from "react";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
@@ -267,7 +268,7 @@ describe("useDashboard — boundary pins (L162 refactor)", () => {
   });
 
   it("an ApiError with an empty message falls back to the English source string", async () => {
-    const port: DashboardPort = { ...createFakeDashboardPort(), listPosts: () => Promise.reject(new ApiError("", 500)) };
+    const port: DashboardPort = { ...createFakeDashboardPort(), listPosts: () => Promise.reject(new ApiError({ message: "", status: 500 })) };
     const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
 
     await waitFor(() => expect(result.current.posts.error).toBe("failed to load posts"));

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveThemeOriginalSource } from "#src/features/theme/theme-files";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { builtInThemesDir, createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createSiteRouteDepsForWorkspace } from "../../runtime/composition/deps.js";
 
@@ -67,7 +67,7 @@ test("admin HTTP routes path: createSiteRouteDeps wires packageThemesDir to the 
   const dbPath = mkTempDbPath();
   const themesDir = mkTempThemesDir();
   try {
-    const deps = await createSiteRouteDeps(dbPath, { themesDir });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: { themesDir } });
 
     assert.equal(
       deps.packageThemesDir,

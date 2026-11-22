@@ -1,7 +1,5 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useT } from "@jini-ai/ui";
-
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { SeeMore } from "@jini-ai/ui/admin-widgets";
 
@@ -19,6 +17,7 @@ import {
 import { displayToolDescription, isToolRowLocked, toolPickerFooterLocks, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The write-tool picker — Phase 4 of
  * `ADS-memory/reports/pipeline/external-mcp-write-tools/implementation-outline.md`, named there and
@@ -82,8 +81,8 @@ function ToolPickerRowItem(props: {
 }) {
   const { row, handle, t, onEnabled, onMayWrite } = props;
   const locked = isToolRowLocked(row);
-  const lockReason = describeToolRowLock(row, t);
-  const badges = describeToolRowBadges(row, t);
+  const lockReason = describeToolRowLock({ row, t });
+  const badges = describeToolRowBadges({ row, t });
 
   return (
     <li className="external-mcp-tool-row" data-locked={locked || undefined}>
@@ -135,7 +134,7 @@ function ToolPickerRowItem(props: {
           toggleAriaLabel={`See more of ${row.remoteName}'s description`}
           agentHandle={`${handle}-description-toggle`}
         >
-          {displayToolDescription(row.description)}
+          {displayToolDescription({ description: row.description })}
         </SeeMore>
       ) : null}
 
@@ -327,17 +326,23 @@ export interface ExternalMcpToolPickerProps {
   /** This server's card handle, from `resolveExternalMcpCardHandles` — the picker derives its own
    *  namespace from it so the two never collide. */
   cardHandle: string;
+  useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
+  useTHook?: typeof useT;
+  useWiredExternalMcpToolPickerHook?: typeof useWiredExternalMcpToolPicker;
+  useToolRowHandlesHook?: typeof useToolRowHandles;
+  useToolPickerFilterHook?: typeof useToolPickerFilter;
 }
 
-export function ExternalMcpToolPicker(props: ExternalMcpToolPickerProps) {
+export function ExternalMcpToolPicker({ useExternalMcpDriftCopyHook = useExternalMcpDriftCopy, useTHook = useT, useWiredExternalMcpToolPickerHook = useWiredExternalMcpToolPicker, useToolRowHandlesHook = useToolRowHandles,
+  useToolPickerFilterHook = useToolPickerFilter, ...props }: ExternalMcpToolPickerProps) {
   const { serverId, active, connectionEnabled, allowedToolNames, writeAllowedToolNames, saving, onSave, onCancel, cardHandle } = props;
-  const t = useExternalMcpDriftCopy();
-  const tUi = useT();
-  const picker = useWiredExternalMcpToolPicker({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
-  const base = toolPickerHandle(cardHandle);
-  const handles = useToolRowHandles(base, picker.rows);
-  const filter = useToolPickerFilter(picker.rows, { handles, base, setEnabled: picker.setEnabled });
-  const countLabel = describeToolCount(picker.enabledCount, picker.advertisedCount || picker.rows.length, t);
+  const t = useExternalMcpDriftCopyHook();
+  const tUi = useTHook();
+  const picker = useWiredExternalMcpToolPickerHook({ serverId, active, allowedToolNames, writeAllowedToolNames, t });
+  const base = toolPickerHandle({ cardHandle });
+  const handles = useToolRowHandlesHook({ base, rows: picker.rows });
+  const filter = useToolPickerFilterHook(picker.rows, { handles, base, setEnabled: picker.setEnabled });
+  const countLabel = describeToolCount({ enabled: picker.enabledCount, total: picker.advertisedCount || picker.rows.length, t });
 
   return (
     <section className="external-mcp-tool-picker" {...agentHandle({ handle: base }, { role: "region", label: "External tool permissions" })}>

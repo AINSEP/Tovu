@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
@@ -15,6 +15,9 @@ import {
 } from "#src/features/source-control/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin Source Control page's credential CRUD backend.
@@ -37,15 +40,15 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `publish-credentials.ts`'s own header gives for its single-permission-on-every-verb shape, which
  * this route mirrors with its own dedicated permission string instead. Matches the established
  * per-feature permission convention `deployments.read`/`deployments.credentials.write` and
- * `analytics.read`/`backup.read`/`comments.read` already set (`routes/admin/deployments/list.ts`'s
- * own header traces the precedent): a NEW dot-namespaced permission, not a reused one, and the
+ * `analytics.read`/`backup.read`/`comments.read` already set (the deployments permission
+ * precedent): a NEW dot-namespaced permission, not a reused one, and the
  * seeded owner's wildcard grant authorizes it immediately with no seed edit required.
  *
- * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.
+ * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,
-  "projectKeys" | "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "observability"
+  "projectKeys" | "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "customCredentialsHttpClient"
 >;
 
 const PERMISSION = "source-control.credentials.write";
@@ -62,7 +65,7 @@ const PROVIDERS_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-cont
  *  `publish-credentials.ts`'s own doc comment on this same function for the fuller story (found via
  *  an AST scan over every `app.<verb>()` handler in `src/server/routes/**`, which is also how this
  *  file's `GET`/`DELETE` were found with no `try`/`catch` at all). */
-function sendStoreError(res: Response, err: unknown): void {
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof SourceControlCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
@@ -84,7 +87,7 @@ function sendStoreError(res: Response, err: unknown): void {
   sendAdminFailure({ res, error: err }, { operation: "routes/system/source-control-credentials", code: "INTERNAL_ERROR" });
 }
 
-export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: AdminSourceControlCredentialsDeps): void {
+export function registerAdminSourceControlCredentialsRoutes({ app, deps }: { app: Express; deps: AdminSourceControlCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const readDeps = { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
   const writeDeps = {
     repo: deps.sourceControlCredentialSetRepo,
@@ -92,7 +95,8 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
-    observability: deps.observability,
+    // why: the save-time account probe carries the token, so it goes through the guarded client (never native fetch).
+    httpClient: deps.customCredentialsHttpClient,
     loadSourceControlProviders: deps.loadSourceControlProviders,
   };
 
@@ -101,36 +105,29 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
    *  `rejectUnlessAuthorized`. Returns `true` and has already written the response iff the caller
    *  should stop. */
   async function rejectUnlessAuthorized(req: Request, res: Response): Promise<boolean> {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return true;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
     const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: PERMISSION,
-      workspaceId: deps.workspaceId,
-      entityType: ENTITY_TYPE,
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for '${PERMISSION}' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: PERMISSION, reason: authResult.reason },
-      });
-      return true;
-    }
+    const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: ENTITY_TYPE };
+    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
     return false;
   }
+  registerSourceControlProvidersRoute(app, deps, rejectUnlessAuthorized);
+  registerSourceControlListRoute(app, deps, { readDeps, rejectUnlessAuthorized });
+  registerSourceControlCreateRoute(app, deps, { writeDeps, rejectUnlessAuthorized });
+  registerSourceControlUpdateRoute(app, deps, { writeDeps, rejectUnlessAuthorized });
+  registerSourceControlDeleteRoute(app, deps, { readDeps, rejectUnlessAuthorized });
+}
+
+function registerSourceControlProvidersRoute(app: Express, deps: AdminSourceControlCredentialsDeps, rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean>): void {
 
   // The hosts the page renders a row for, from the plugins (the way `publish-targets` lists deploy
   // hosts): id, label, the declared credential form and its translations (`i18n`). `switchedOff` names each host an installed
   // but switched-off plugin declares, so the page can say which plugin to turn back on. Plugin load
   // refusals go to the server log, never the response.
-  app.get(PROVIDERS_PATH, async (req, res) => {
+  app.get(PROVIDERS_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
-      const registry = await deps.loadSourceControlProviders(deps.workspaceId);
+      const registry = await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
       for (const refusal of registry.refusals) console.warn(`[source-control-providers] ${refusal}`);
       res.status(200).json({
         providers: registry.list().map(({ descriptor }) => ({
@@ -142,21 +139,27 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
         switchedOff: [...(registry.switchedOff ?? [])].map(([id, pluginId]) => ({ id, pluginId })),
       });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
-  });
+  } }));
+}
 
-  app.get(BASE_PATH, async (req, res) => {
+function registerSourceControlListRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { readDeps, rejectUnlessAuthorized }: { readDeps: Parameters<typeof listSourceControlCredentials>[0]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
+
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const credentials: SourceControlCredentialSummary[] = await listSourceControlCredentials(readDeps, { workspaceId: deps.workspaceId });
       res.status(200).json({ credentials });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
-  });
+  } }));
+}
 
-  app.post(BASE_PATH, async (req, res) => {
+function registerSourceControlCreateRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { writeDeps, rejectUnlessAuthorized }: { writeDeps: Parameters<typeof createSourceControlCredential>[0]["deps"]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
+
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -173,11 +176,14 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       if (credential.scope === "project") await deps.projectKeys?.use({ keyId: credential.id, use: true });
       res.status(201).json({ credential });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
-  });
+  } }));
+}
 
-  app.put(`${BASE_PATH}/:id`, async (req, res) => {
+function registerSourceControlUpdateRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { writeDeps, rejectUnlessAuthorized }: { writeDeps: Parameters<typeof createSourceControlCredential>[0]["deps"]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
+
+  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -190,11 +196,14 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       } });
       res.status(200).json({ credential });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
-  });
+  } }));
+}
 
-  app.delete(`${BASE_PATH}/:id`, async (req, res) => {
+function registerSourceControlDeleteRoute(app: Express, deps: AdminSourceControlCredentialsDeps, { readDeps, rejectUnlessAuthorized }: { readDeps: Parameters<typeof listSourceControlCredentials>[0]; rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean> }): void {
+
+  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       // Idempotent — `deleteSourceControlCredential`/`SourceControlCredentialSetRepoPort.delete` are
@@ -204,7 +213,8 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       await deleteSourceControlCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       res.status(204).end();
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
-  });
+  } }));
 }
+

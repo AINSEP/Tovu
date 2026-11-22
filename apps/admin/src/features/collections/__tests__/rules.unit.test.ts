@@ -23,7 +23,8 @@ import {
   visibleEntryEditorError,
   type DraftField,
 } from "../rules";
-import { ApiError, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file Pure logic for the top-level `Collections` screen — validation, draft-field-list
@@ -50,50 +51,50 @@ function contentType(overrides: Partial<AdminContentType> = {}): AdminContentTyp
 
 describe("validateKey", () => {
   it("accepts a lowercase key with digits/underscores", () => {
-    expect(validateKey("recipe_2")).toBeNull();
+    expect(validateKey({ key: "recipe_2" })).toBeNull();
   });
 
   it("rejects a key starting with a digit or uppercase letter", () => {
-    expect(validateKey("2recipe")).not.toBeNull();
-    expect(validateKey("Recipe")).not.toBeNull();
+    expect(validateKey({ key: "2recipe" })).not.toBeNull();
+    expect(validateKey({ key: "Recipe" })).not.toBeNull();
   });
 
   it.each(["my-recipe", "recipE", "my recipe"])("rejects an invalid character within key %s", (key) => {
-    expect(validateKey(key)).toBe("Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
+    expect(validateKey({ key })).toBe("Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).");
   });
 
   it("rejects an empty key", () => {
-    expect(validateKey("")).not.toBeNull();
+    expect(validateKey({ key: "" })).not.toBeNull();
   });
 
   it("rejects a key over 64 characters", () => {
-    expect(validateKey("a" + "b".repeat(64))).not.toBeNull();
+    expect(validateKey({ key: "a" + "b".repeat(64) })).not.toBeNull();
   });
 
   it("accepts a key at exactly 64 characters", () => {
-    expect(validateKey("a" + "b".repeat(63))).toBeNull();
+    expect(validateKey({ key: "a" + "b".repeat(63) })).toBeNull();
   });
 
   it("rejects the reserved keys 'post' and 'page'", () => {
-    expect(validateKey("post")).toContain("reserved");
-    expect(validateKey("page")).toContain("reserved");
+    expect(validateKey({ key: "post" })).toContain("reserved");
+    expect(validateKey({ key: "page" })).toContain("reserved");
     for (const key of ["post", "page"]) {
-      expect(validateKey(key)).toBe(`"${key}" is a reserved key (built-in content already uses it).`);
+      expect(validateKey({ key })).toBe(`"${key}" is a reserved key (built-in content already uses it).`);
     }
   });
 });
 
 describe("validateFieldName", () => {
   it("accepts a valid field name", () => {
-    expect(validateFieldName("prep_time")).toBeNull();
+    expect(validateFieldName({ name: "prep_time" })).toBeNull();
   });
 
   it.each(["prep-time", "prep Time", "prepTime", "", "a" + "b".repeat(64)])("rejects invalid field name %s with the validation message", (name) => {
-    expect(validateFieldName(name)).toBe("Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
+    expect(validateFieldName({ name })).toBe("Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
   });
 
   it("rejects an invalid field name", () => {
-    expect(validateFieldName("Prep-Time")).not.toBeNull();
+    expect(validateFieldName({ name: "Prep-Time" })).not.toBeNull();
   });
 });
 
@@ -108,10 +109,10 @@ describe("nextRowId — shared, monotonic, never resets (deliberate landmine)", 
 
   it("draftFieldsFromContentType assigns fresh, increasing _rowIds off the SAME counter emptyField uses", () => {
     const before = emptyField();
-    const seeded = draftFieldsFromContentType([
+    const seeded = draftFieldsFromContentType({ fields: [
       { name: "a", kind: "text", required: false, queryable: false },
       { name: "b", kind: "text", required: false, queryable: false },
-    ]);
+    ] });
     expect(seeded[0]._rowId).toBeGreaterThan(before._rowId);
     expect(seeded[1]._rowId).toBeGreaterThan(seeded[0]._rowId);
     // Continuing to call emptyField afterward keeps advancing past draftFieldsFromContentType's
@@ -124,7 +125,7 @@ describe("nextRowId — shared, monotonic, never resets (deliberate landmine)", 
   it("LANDMINE: the counter does not reset between independent dialog sessions — simulates 'open New, cancel, open Edit'", () => {
     const openNewDialogFirstId = emptyField()._rowId;
     // ...dialog cancelled, unmounted...
-    const openEditDialogFirstId = draftFieldsFromContentType([{ name: "x", kind: "text", required: false, queryable: false }])[0]._rowId;
+    const openEditDialogFirstId = draftFieldsFromContentType({ fields: [{ name: "x", kind: "text", required: false, queryable: false }] })[0]._rowId;
     expect(openEditDialogFirstId).toBeGreaterThan(openNewDialogFirstId);
   });
 });
@@ -135,14 +136,14 @@ describe("updateDraftField", () => {
       { _rowId: 1, name: "a", kind: "text", required: false, queryable: false },
       { _rowId: 2, name: "b", kind: "text", required: false, queryable: false },
     ];
-    const result = updateDraftField(fields, 2, { name: "b2" });
+    const result = updateDraftField({ fields, rowId: 2, patch: { name: "b2" } });
     expect(result[0]).toEqual(fields[0]);
     expect(result[1].name).toBe("b2");
   });
 
   it("returns the list unchanged (by value) when rowId matches nothing", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "a", kind: "text", required: false, queryable: false }];
-    expect(updateDraftField(fields, 999, { name: "z" })).toEqual(fields);
+    expect(updateDraftField({ fields, rowId: 999, patch: { name: "z" } })).toEqual(fields);
   });
 });
 
@@ -152,14 +153,14 @@ describe("removeDraftField", () => {
       { _rowId: 1, name: "a", kind: "text", required: false, queryable: false },
       { _rowId: 2, name: "b", kind: "text", required: false, queryable: false },
     ];
-    expect(removeDraftField(fields, 1)).toEqual([fields[1]]);
+    expect(removeDraftField({ fields, rowId: 1 })).toEqual([fields[1]]);
   });
 });
 
 describe("addDraftField", () => {
   it("appends one new empty field with a fresh _rowId", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "a", kind: "text", required: false, queryable: false }];
-    const result = addDraftField(fields);
+    const result = addDraftField({ fields });
     expect(result).toHaveLength(2);
     expect(result[1]).toMatchObject({ name: "", kind: "text", required: false, queryable: false });
     expect(result[1]._rowId).not.toBe(1);
@@ -169,20 +170,20 @@ describe("addDraftField", () => {
 describe("stripDraftFieldRowIds", () => {
   it("drops _rowId from every field", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "a", kind: "text", required: true, queryable: true }];
-    const result: ContentTypeFieldDef[] = stripDraftFieldRowIds(fields);
+    const result: ContentTypeFieldDef[] = stripDraftFieldRowIds({ fields });
     expect(result).toEqual([{ name: "a", kind: "text", required: true, queryable: true }]);
     expect(result[0]).not.toHaveProperty("_rowId");
   });
 
   it("handles an empty list", () => {
-    expect(stripDraftFieldRowIds([])).toEqual([]);
+    expect(stripDraftFieldRowIds({ fields: [] })).toEqual([]);
   });
 });
 
 describe("firstDraftFieldError", () => {
   it("returns null when every field name is valid", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "prep_time", kind: "text", required: false, queryable: false }];
-    expect(firstDraftFieldError(fields)).toBeNull();
+    expect(firstDraftFieldError({ fields })).toBeNull();
   });
 
   it("returns the first failure, quoting the field's own name", () => {
@@ -190,17 +191,17 @@ describe("firstDraftFieldError", () => {
       { _rowId: 1, name: "ok_field", kind: "text", required: false, queryable: false },
       { _rowId: 2, name: "Bad-Name", kind: "text", required: false, queryable: false },
     ];
-    expect(firstDraftFieldError(fields)).toContain('Field "Bad-Name"');
+    expect(firstDraftFieldError({ fields })).toContain('Field "Bad-Name"');
   });
 
   it("labels an unnamed field as '(unnamed)' rather than showing an empty quoted name", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "", kind: "text", required: false, queryable: false }];
-    expect(firstDraftFieldError(fields)).toContain('Field "(unnamed)"');
+    expect(firstDraftFieldError({ fields })).toContain('Field "(unnamed)"');
   });
 
   it("trims whitespace before validating a field name", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "  prep_time  ", kind: "text", required: false, queryable: false }];
-    expect(firstDraftFieldError(fields)).toBeNull();
+    expect(firstDraftFieldError({ fields })).toBeNull();
   });
 });
 
@@ -208,65 +209,65 @@ describe("validateNewContentTypeDraft", () => {
   const validField: DraftField = { _rowId: 1, name: "prep_time", kind: "text", required: false, queryable: false };
 
   it("returns null for a fully valid draft", () => {
-    expect(validateNewContentTypeDraft({ key: "recipe", label: "Recipe", fields: [validField] })).toBeNull();
+    expect(validateNewContentTypeDraft({ draft: { key: "recipe", label: "Recipe", fields: [validField] } })).toBeNull();
   });
 
   it("checks key BEFORE label — an invalid key wins even if label is also blank", () => {
-    const result = validateNewContentTypeDraft({ key: "", label: "", fields: [validField] });
+    const result = validateNewContentTypeDraft({ draft: { key: "", label: "", fields: [validField] } });
     expect(result).not.toContain("Label is required");
   });
 
   it("checks label before field errors when key is valid", () => {
     const badField: DraftField = { _rowId: 1, name: "Bad-Name", kind: "text", required: false, queryable: false };
-    const result = validateNewContentTypeDraft({ key: "recipe", label: "", fields: [badField] });
+    const result = validateNewContentTypeDraft({ draft: { key: "recipe", label: "", fields: [badField] } });
     expect(result).toBe("Label is required.");
   });
 
   it("trims the key and label before validating", () => {
-    expect(validateNewContentTypeDraft({ key: "  recipe  ", label: "  Recipe  ", fields: [validField] })).toBeNull();
+    expect(validateNewContentTypeDraft({ draft: { key: "  recipe  ", label: "  Recipe  ", fields: [validField] } })).toBeNull();
   });
 
   it("falls through to field errors once key and label are valid", () => {
     const badField: DraftField = { _rowId: 1, name: "Bad-Name", kind: "text", required: false, queryable: false };
-    const result = validateNewContentTypeDraft({ key: "recipe", label: "Recipe", fields: [badField] });
+    const result = validateNewContentTypeDraft({ draft: { key: "recipe", label: "Recipe", fields: [badField] } });
     expect(result).toContain('Field "Bad-Name"');
   });
 });
 
 describe("validateEditFieldsDraft", () => {
   it("rejects an empty field list — a content type cannot be edited down to zero fields", () => {
-    expect(validateEditFieldsDraft([])).toBe("At least one field is required.");
+    expect(validateEditFieldsDraft({ fields: [] })).toBe("At least one field is required.");
   });
 
   it("returns null when at least one field remains and all names are valid", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "prep_time", kind: "text", required: false, queryable: false }];
-    expect(validateEditFieldsDraft(fields)).toBeNull();
+    expect(validateEditFieldsDraft({ fields })).toBeNull();
   });
 
   it("falls through to field-name errors once the length check passes", () => {
     const fields: DraftField[] = [{ _rowId: 1, name: "Bad-Name", kind: "text", required: false, queryable: false }];
-    expect(validateEditFieldsDraft(fields)).toContain('Field "Bad-Name"');
+    expect(validateEditFieldsDraft({ fields })).toContain('Field "Bad-Name"');
   });
 });
 
 describe("describeEditFieldsError", () => {
   it("maps a 409 ApiError to the shared stale-version message", () => {
-    const err = new ApiError("Conflict", 409, "VERSION_CONFLICT");
-    expect(describeEditFieldsError(err)).toBe(STALE_VERSION_MESSAGE);
+    const err = new ApiError({ message: "Conflict", status: 409 }, { code: "VERSION_CONFLICT" });
+    expect(describeEditFieldsError({ e: err })).toBe(STALE_VERSION_MESSAGE);
   });
 
   it("does not use the stale-version message for a non-409 ApiError", () => {
-    const err = new ApiError("Server error", 500, "INTERNAL");
-    expect(describeEditFieldsError(err)).not.toBe(STALE_VERSION_MESSAGE);
-    expect(describeEditFieldsError(err)).toBe("Server error");
+    const err = new ApiError({ message: "Server error", status: 500 }, { code: "INTERNAL" });
+    expect(describeEditFieldsError({ e: err })).not.toBe(STALE_VERSION_MESSAGE);
+    expect(describeEditFieldsError({ e: err })).toBe("Server error");
   });
 
   it("falls back to the generic 'Failed to update fields' message for a thrown non-Error value", () => {
-    expect(describeEditFieldsError("not an Error instance")).toBe("Failed to update fields");
+    expect(describeEditFieldsError({ e: "not an Error instance" })).toBe("Failed to update fields");
   });
 
   it("uses a plain Error's own message rather than the fallback", () => {
-    expect(describeEditFieldsError(new Error("network down"))).toBe("network down");
+    expect(describeEditFieldsError({ e: new Error("network down") })).toBe("network down");
   });
 });
 
@@ -292,18 +293,18 @@ describe("isUserCollection", () => {
   it("hides every ADMIN_SYSTEM_CONTENT_TYPES entry (widget/widget_area/menu)", () => {
     expect(ADMIN_SYSTEM_CONTENT_TYPES).toEqual(["widget", "widget_area", "menu"]);
     for (const key of ADMIN_SYSTEM_CONTENT_TYPES) {
-      expect(isUserCollection(key)).toBe(false);
+      expect(isUserCollection({ key })).toBe(false);
     }
   });
 
   it("shows a user-defined content type", () => {
-    expect(isUserCollection("recipe")).toBe(true);
+    expect(isUserCollection({ key: "recipe" })).toBe(true);
   });
 });
 
 describe("collectionEmbedSnippet", () => {
   it("embeds the content-type key as `id`, never a UUID", () => {
-    expect(collectionEmbedSnippet("tovu_feature")).toBe(
+    expect(collectionEmbedSnippet({ key: "tovu_feature" })).toBe(
       '<div data-embed-config=\'{"type":"collection","id":"tovu_feature"}\'></div>',
     );
   });
@@ -318,12 +319,12 @@ describe("contentTypeMenuItems", () => {
   };
 
   it("always includes Edit fields", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "active" }), handlers, locale: "en" });
     expect(items.map((i) => i.key)).toContain("edit-fields");
   });
 
   it("active status: offers Deprecate and Tombstone, not Reactivate", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "active" }), handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).toContain("deprecate");
     expect(keys).not.toContain("reactivate");
@@ -331,7 +332,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("deprecated status: offers Reactivate and Tombstone, not Deprecate", () => {
-    const items = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers, "en");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "deprecated" }), handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).not.toContain("deprecate");
     expect(keys).toContain("reactivate");
@@ -339,7 +340,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("tombstone status: offers neither Deprecate nor Reactivate nor Tombstone (already terminal)", () => {
-    const items = contentTypeMenuItems(contentType({ status: "tombstone" }), handlers, "en");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "tombstone" }), handlers, locale: "en" });
     const keys = items.map((i) => i.key);
     expect(keys).not.toContain("deprecate");
     expect(keys).not.toContain("reactivate");
@@ -347,7 +348,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("marks Tombstone destructive, and Deprecate/Reactivate plain", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "active" }), handlers, locale: "en" });
     expect(items.find((i) => i.key === "tombstone")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "deprecate")?.destructive).toBeFalsy();
   });
@@ -356,17 +357,17 @@ describe("contentTypeMenuItems", () => {
     const ct = contentType({ status: "active", key: "recipe" });
     const onEditFields = vi.fn();
     const onDeprecate = vi.fn();
-    const items = contentTypeMenuItems(ct, { ...handlers, onEditFields, onDeprecate }, "en");
+    const items = contentTypeMenuItems({ contentType: ct, handlers: { ...handlers, onEditFields, onDeprecate }, locale: "en" });
     items.find((i) => i.key === "edit-fields")!.onSelect();
     items.find((i) => i.key === "deprecate")!.onSelect();
     expect(onEditFields).toHaveBeenCalledWith(ct);
-    expect(onDeprecate).toHaveBeenCalledWith(ct);
+    expect(onDeprecate).toHaveBeenCalledWith({ contentType: ct });
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "es");
+    const items = contentTypeMenuItems({ contentType: contentType({ status: "active" }), handlers, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Editar campos", "Marcar obsoleto", "Eliminar definitivamente"]);
-    const deprecated = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers, "es");
+    const deprecated = contentTypeMenuItems({ contentType: contentType({ status: "deprecated" }), handlers, locale: "es" });
     expect(deprecated.find((i) => i.key === "reactivate")?.label).toBe("Reactivar");
   });
 });
@@ -380,7 +381,7 @@ describe("visibleEntryEditorError — version conflicts", () => {
     lifecycleFallback: "Failed to publish entry",
     versionConflictMessage: "CONFLICT COPY",
   };
-  const conflict = new ApiError("expected version 2 for entry 'e1', found 3", 409, "VERSION_CONFLICT");
+  const conflict = new ApiError({ message: "expected version 2 for entry 'e1', found 3", status: 409 }, { code: "VERSION_CONFLICT" });
 
   it("shows the conflict copy, not the server message, when a save loses the compare-and-set", () => {
     expect(visibleEntryEditorError({ ...base, updateError: conflict })).toBe("CONFLICT COPY");
@@ -391,13 +392,13 @@ describe("visibleEntryEditorError — version conflicts", () => {
   });
 
   it("keeps the server message for a code-less 409", () => {
-    const slugTaken = new ApiError("slug 'x' already exists", 409);
+    const slugTaken = new ApiError({ message: "slug 'x' already exists", status: 409 });
     expect(visibleEntryEditorError({ ...base, updateError: slugTaken })).toBe("slug 'x' already exists");
     expect(visibleEntryEditorError({ ...base, lifecycleError: slugTaken })).toBe("slug 'x' already exists");
   });
 
   it("describes a create failure with the save fallback", () => {
-    expect(visibleEntryEditorError({ ...base, createError: new ApiError("", 500) })).toBe("save failed");
+    expect(visibleEntryEditorError({ ...base, createError: new ApiError({ message: "", status: 500 }) })).toBe("save failed");
   });
 
   it("shows nothing for a lifecycle error with no attempted op, or when nothing failed", () => {

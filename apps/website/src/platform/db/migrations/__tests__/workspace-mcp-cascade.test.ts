@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { openContentDb } from "../../sqlite/content-db.js";
 import { WORKSPACE_MCP_CASCADE_ID, WORKSPACE_MCP_CASCADE_SQLITE } from "../0022_workspace_mcp_cascade.js";
 import { CONTENT_MIGRATIONS } from "../index.js";
@@ -13,7 +13,7 @@ import { insertFixture, seedParityRows, stamp, vaultFixture } from "./secrets-va
 type Row = Record<string, unknown>;
 
 /** Observe every column, including opaque envelopes, pointers, and approval fingerprints. */
-async function snapshot({ kernel }: { kernel: StorageKernel<unknown> }, _options = {}) {
+async function snapshot({ kernel }: { kernel: KyselyKernel<unknown> }, _options = {}) {
   return {
     vault: await kernel.query<Row>(sql`SELECT * FROM secrets_vault ORDER BY workspace_id,id`),
     servers: await kernel.query<Row>(sql`SELECT * FROM external_mcp_servers ORDER BY workspace_id,server_id`),
@@ -27,7 +27,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     const { kernel } = fixture;
     try {
       await seedParityRows(fixture, dialect);
-      await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id < WORKSPACE_MCP_CASCADE_ID));
+      await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id < WORKSPACE_MCP_CASCADE_ID) });
       const before = await snapshot({ kernel });
       const server = before.servers.find(row => row.workspace_id === "ws" && row.server_id === "server")!;
       assert.equal(typeof server.env_secret_id, "string");
@@ -39,7 +39,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         assert.deepEqual(await snapshot({ kernel }), before, "the failed 0021 delete is atomic");
       }
 
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [WORKSPACE_MCP_CASCADE_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID) })).applied, [WORKSPACE_MCP_CASCADE_ID]);
       assert.deepEqual(await snapshot({ kernel }), before, "0022 must preserve every stored column");
       for (const pointer of [server.env_secret_id, server.oauth_secret_id]) {
         await assert.rejects(kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id = 'ws' AND id = ${String(pointer)}`),
@@ -56,7 +56,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       for (const key of ["vault", "servers", "approvals"] as const) {
         assert.deepEqual(after[key], before[key].filter(row => row.workspace_id !== "ws"), key);
       }
-      assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID))).applied, [], "rerun is a no-op");
+      assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.filter(step => step.id <= WORKSPACE_MCP_CASCADE_ID) })).applied, [], "rerun is a no-op");
     } finally {
       await kernel.close();
     }
@@ -65,7 +65,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
 
 test("sqlite: fresh databases install the same ordering trigger and can delete linked MCP secrets", async () => {
   const db = openContentDb(":memory:");
-  const kernel = sqliteKernel<unknown>(db);
+  const kernel = sqliteKernel<unknown>({ source: db });
   try {
     assert.deepEqual(await kernel.query(sql`SELECT sql FROM sqlite_schema WHERE name = 'workspaces_mcp_delete_first'`),
       [{ sql: WORKSPACE_MCP_CASCADE_SQLITE }]);
@@ -76,7 +76,7 @@ test("sqlite: fresh databases install the same ordering trigger and can delete l
       enabled: 1, env_secret_id: "secret", created_at: stamp, updated_at: stamp });
     await kernel.execute(sql`DELETE FROM workspaces WHERE id = 'ws'`);
     assert.deepEqual(await snapshot({ kernel }), { vault: [], servers: [], approvals: [] });
-    assert.deepEqual((await runMigrations(kernel, CONTENT_MIGRATIONS)).applied, [], "fresh ledger is at head");
+    assert.deepEqual((await runMigrations({ kernel, steps: CONTENT_MIGRATIONS })).applied, [], "fresh ledger is at head");
   } finally {
     db.$client.close();
   }

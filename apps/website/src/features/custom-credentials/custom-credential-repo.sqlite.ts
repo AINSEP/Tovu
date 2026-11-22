@@ -2,7 +2,7 @@ import { SqlCustomCredentialSetRepo } from "./custom-credential-repo.js";
 
 /**
  * @file The custom credential set repo on a site's SQLite `content.db`: {@link
- * SqlCustomCredentialSetRepo} (the one Kysely query body, `repos/custom-credential-repo.ts`), kept
+ * SqlCustomCredentialSetRepo} (the one Kysely query body, `apps/website/src/features/custom-credentials/custom-credential-repo.ts`), kept
  * as a named class so the call sites that build it from the composed kernel stay as they are.
  *
  * The kernel is supplied by composition; `optional.project` is the

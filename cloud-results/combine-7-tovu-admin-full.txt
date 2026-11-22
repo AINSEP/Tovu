@@ -1,0 +1,682 @@
+
+ RUN  v4.1.11 apps/admin
+
+Not implemented: Window's confirm() method
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts (53 tests | 6 failed) 105ms
+     × a non-ok response throws in @ag-ui/client's own 'HTTP <status>: <body>' format 12ms
+     × a network-level fetch rejection is rethrown as an Error 4ms
+     × a network-level fetch rejection with a non-Error value is wrapped in a real Error 3ms
+     × a non-ok response with an empty body still carries the 'HTTP <status>: ' prefix with an empty detail 5ms
+     × a non-ok response whose body stream errors while reading detail surfaces the raw read error unwrapped — @ag-ui/client does not status-wrap it 1ms
+     × a transport failure after the run started reports the error AND still hands onDone the events collected before it 10ms
+ ❯ src/features/themes/__tests__/Themes.unit.test.tsx (53 tests | 3 failed) 2777ms
+     × opens the ImagePreviewModal at the same image when the thumbnail is clicked 82ms
+     × closes the modal on the close button, dropping the dialog's open attribute 92ms
+     × translates the expanded preview's close button and alt text through the screen's own t, not raw English 30ms
+12:24:16 AM [vite] (client) Failed to load source map for apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open 'apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at loadAndTransform (file://apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+ ❯ src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts (15 tests | 1 failed) 3193ms
+     × every locale dictionary is consumed only through its own translator 3137ms
+ ❯ src/lib/__tests__/credential-input-autocomplete.unit.test.ts (22 tests | 1 failed) 768ms
+     × every credential-shaped input has an explicit, honored autoComplete 10ms
+ ❯ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx (13 tests | 3 failed) 3253ms
+     × reports an error when the picked media is no longer active 1060ms
+     × reports an error when the media list cannot be read 1027ms
+     × renders nothing of its own while the host picker is open, then an alert with Cancel if choosing fails 1029ms
+Not implemented: Window's scrollTo() method
+ ❯ src/lib/__tests__/admin-literal-copy.unit.test.ts (38 tests | 1 failed) 1421ms
+   × production admin features and shared components add no untranslated JSX copy 1378ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts (13 tests | 13 failed) 213ms
+   × a bar chart of whole counts gets whole-number y ticks 172ms
+   × a line chart of whole counts gets whole-number y ticks 3ms
+   × a bar chart with fractional values keeps fractional y ticks 12ms
+   × a line chart with fractional values keeps fractional y ticks 4ms
+   × a bar chart of small whole counts ends its y axis at the largest count 3ms
+   × a line chart of small whole counts ends its y axis at the largest count 3ms
+   × a bar chart of all-zero counts still draws whole-number ticks 4ms
+   × a line chart of all-zero counts still draws whole-number ticks 2ms
+   × a bar chart of large whole counts keeps at most 5 ticks 2ms
+   × a line chart of large whole counts keeps at most 5 ticks 2ms
+   × keeps middle-dot label separators with a word at 180px 1ms
+   × keeps middle-dot label separators with a word at 240px 3ms
+   × keeps middle-dot label separators with a word at 375px 1ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 28 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the picked media is no longer active
+AssertionError: expected { …(5) } to be 'Unable to choose media. Please try ag…' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33mdata-jini-part[39m=[32m"kit.overlay"[39m
+    [36m/>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected:
+"Unable to choose media. Please try again."
+
++ Received:
+{
+  "action": "Cancel and choose the media again.",
+  "cause": "Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23",
+  "copyText": "Message: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23",
+  "message": "The media could not be chosen.",
+  "step": "Choose media",
+}
+
+ ❯ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx:97:54
+     95|     const { result } = renderHook(() => useJiniMediaPicker({ onSelect,…
+     96|     await act(async () => { calls[0]!.resolve({ id: "m3" }); });
+     97|     await waitFor(() => expect(result.current.error).toBe("Unable to c…
+       |                                                      ^
+     98|     expect(onSelect).not.toHaveBeenCalled();
+     99|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/28]⎯
+
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > useJiniMediaPicker > reports an error when the media list cannot be read
+AssertionError: expected { …(5) } to be 'Unable to choose media. Please try ag…' // Object.is equality
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33mdata-jini-part[39m=[32m"kit.overlay"[39m
+    [36m/>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected:
+"Unable to choose media. Please try again."
+
++ Received:
+{
+  "action": "Cancel and choose the media again.",
+  "cause": "Error: boom
+    at buildRequestFailedError (apps/admin/src/lib/admin-http/request.ts:313:17)
+    at requestOnce (apps/admin/src/lib/admin-http/request.ts:344:26)
+    at requestRidingOutRestart (apps/admin/src/lib/admin-http/request.ts:367:20)
+    at request (apps/admin/src/lib/admin-http/request.ts:388:12)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:94:19)
+{\"status\":500,\"body\":{\"error\":\"boom\"}}",
+  "copyText": "Message: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: boom
+    at buildRequestFailedError (apps/admin/src/lib/admin-http/request.ts:313:17)
+    at requestOnce (apps/admin/src/lib/admin-http/request.ts:344:26)
+    at requestRidingOutRestart (apps/admin/src/lib/admin-http/request.ts:367:20)
+    at request (apps/admin/src/lib/admin-http/request.ts:388:12)
+    at read (/home/user/Jini/packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:94:19)
+{\"status\":500,\"body\":{\"error\":\"boom\"}}",
+  "message": "The media could not be chosen.",
+  "step": "Choose media",
+}
+
+ ❯ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx:106:54
+    104|     const { result } = renderHook(() => useJiniMediaPicker({ onSelect:…
+    105|     await act(async () => { calls[0]!.resolve({ id: "m1" }); });
+    106|     await waitFor(() => expect(result.current.error).toBe("Unable to c…
+       |                                                      ^
+    107|   });
+    108|
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/28]⎯
+
+ FAIL  src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx > MediaPickerDialog under the host picker > renders nothing of its own while the host picker is open, then an alert with Cancel if choosing fails
+TestingLibraryElementError: Found multiple elements with the role "alert"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mrole[39m=[32m"alert"[39m
+[36m>[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"notice error"[39m
+    [33mrole[39m=[32m"alert"[39m
+  [36m>[39m
+    [36m<p>[39m
+      [0mThe media could not be chosen.[0m
+    [36m</p>[39m
+    [36m<p>[39m
+      [0mCancel and choose the media again.[0m
+    [36m</p>[39m
+    [36m<details>[39m
+      [36m<summary>[39m
+        [0mShow details[0m
+      [36m</summary>[39m
+      [36m<pre[39m
+        [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+      [36m>[39m
+        [0mMessage: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23[0m
+      [36m</pre>[39m
+      [36m<button[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mCopy details[0m
+      [36m</button>[39m
+    [36m</details>[39m
+  [36m</div>[39m
+  [36m<button[39m
+    [33mtype[39m=[32m"button"[39m
+  [36m>[39m
+    [0mCancel[0m
+  [36m</button>[39m
+[36m</div>[39m
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33mclass[39m=[32m"notice error"[39m
+  [33mrole[39m=[32m"alert"[39m
+[36m>[39m
+  [36m<p>[39m
+    [0mThe media could not be chosen.[0m
+  [36m</p>[39m
+  [36m<p>[39m
+    [0mCancel and choose the media again.[0m
+  [36m</p>[39m
+  [36m<details>[39m
+    [36m<summary>[39m
+      [0mShow details[0m
+    [36m</summary>[39m
+    [36m<pre[39m
+      [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+    [36m>[39m
+      [0mMessage: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23[0m
+    [36m</pre>[39m
+    [36m<button[39m
+      [33mtype[39m=[32m"button"[39m
+    [36m>[39m
+      [0mCopy details[0m
+    [36m</button>[39m
+  [36m</details>[39m
+[36m</div>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"notice error"[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mThe media could not be chosen.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mCancel and choose the media again.[0m
+        [36m</p>[39m
+        [36m<details>[39m
+          [36m<summary>[39m
+            [0mShow details[0m
+          [36m</summary>[39m
+          [36m<pre[39m
+            [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+          [36m>[39m
+            [0mMessage: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23[0m
+          [36m</pre>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mCopy details[0m
+          [36m</button>[39m
+        [36m</details>[39m
+      [36m</div>[39m
+      [36m<button[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mCancel[0m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-jini-part[39m=[32m"kit.overlay"[39m
+  [36m/>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mrole[39m=[32m"alert"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"notice error"[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [36m<p>[39m
+          [0mThe media could not be chosen.[0m
+        [36m</p>[39m
+        [36m<p>[39m
+          [0mCancel and choose the media again.[0m
+        [36m</p>[39m
+        [36m<details>[39m
+          [36m<summary>[39m
+            [0mShow details[0m
+          [36m</summary>[39m
+          [36m<pre[39m
+            [33mstyle[39m=[32m"white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;"[39m
+          [36m>[39m
+            [0mMessage: The media could not be chosen.
+Next action: Cancel and choose the media again.
+Step: Choose media
+Cause: Error: Selected media is unavailable
+    at apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts:29:23[0m
+          [36m</pre>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mCopy details[0m
+          [36m</button>[39m
+        [36m</details>[39m
+      [36m</div>[39m
+      [36m<button[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mCancel[0m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mdata-jini-part[39m=[32m"kit.overlay"[39m
+  [36m/>[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx:201:32
+    199|
+    200|     await act(async () => { calls[0]!.resolve({ id: "gone" }); });
+    201|     const alert = await screen.findByRole("alert");
+       |                                ^
+    202|     expect(alert).toHaveTextContent("Unable to choose media. Please tr…
+    203|     fireEvent.click(within(alert).getByRole("button", { name: "Cancel"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/28]⎯
+
+ FAIL  src/lib/__tests__/admin-literal-copy.unit.test.ts > production admin features and shared components add no untranslated JSX copy
+AssertionError: Translate new copy through its owner:
+features/collections/ContentTypeFieldsSection.tsx:48 placeholder "e.g. prep_time"
+features/collections/NewContentTypeDialog.tsx:48 placeholder "e.g. recipe": expected [ { …(4) }, { …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "file": "features/collections/ContentTypeFieldsSection.tsx",
++     "kind": "placeholder",
++     "line": 48,
++     "text": "e.g. prep_time",
++   },
++   {
++     "file": "features/collections/NewContentTypeDialog.tsx",
++     "kind": "placeholder",
++     "line": 48,
++     "text": "e.g. recipe",
++   },
++ ]
+
+ ❯ src/lib/__tests__/admin-literal-copy.unit.test.ts:120:174
+    118|   const actual = ["features", "components"].flatMap((directory) => sca…
+    119|   const additions = newLiteralCopy({ actual, baseline: baseline.sites …
+    120|   expect(additions, `Translate new copy through its owner:\n${addition…
+       |                                                                                                                                                                              ^
+    121|   // The ratchet only shrinks: a resolved site left in the baseline wo…
+    122|   const stale = newLiteralCopy({ actual: baseline.sites, baseline: act…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response throws in @ag-ui/client's own 'HTTP <status>: <body>' format
+AssertionError: expected [Function] to throw error matching /^HTTP 502: agent daemon rejected the …/ but got 'The agent run stream stopped with an …'
+
+- Expected:
+/^HTTP 502: agent daemon rejected the run$/
+
++ Received:
+"The agent run stream stopped with an error (Error); send the message again."
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:384:141
+    382|     vi.stubGlobal("fetch", fetchMock);
+    383|
+    384|     await expect(agUiRunClient.startAgUiRun({ input: { history: HISTOR…
+       |                                                                                                                                             ^
+    385|       /^HTTP 502: agent daemon rejected the run$/,
+    386|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a network-level fetch rejection is rethrown as an Error
+AssertionError: expected [Function] to throw error including 'Failed to fetch' but got 'The agent run stream stopped with an …'
+
+Expected: "Failed to fetch"
+Received: "The agent run stream stopped with an error (TypeError); send the message again."
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:395:141
+    393|     vi.stubGlobal("fetch", fetchMock);
+    394|
+    395|     await expect(agUiRunClient.startAgUiRun({ input: { history: HISTOR…
+       |                                                                                                                                             ^
+    396|   });
+    397|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a network-level fetch rejection with a non-Error value is wrapped in a real Error
+AssertionError: expected [Function] to throw error including 'connection reset' but got 'The agent run stream stopped with an …'
+
+Expected: "connection reset"
+Received: "The agent run stream stopped with an error (string); send the message again."
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:404:141
+    402|     vi.stubGlobal("fetch", fetchMock);
+    403|
+    404|     await expect(agUiRunClient.startAgUiRun({ input: { history: HISTOR…
+       |                                                                                                                                             ^
+    405|   });
+    406|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response with an empty body still carries the 'HTTP <status>: ' prefix with an empty detail
+AssertionError: expected [Function] to throw error matching /^HTTP 500: $/ but got 'The agent run stream stopped with an …'
+
+- Expected:
+/^HTTP 500: $/
+
++ Received:
+"The agent run stream stopped with an error (Error); send the message again."
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:411:141
+    409|     vi.stubGlobal("fetch", fetchMock);
+    410|
+    411|     await expect(agUiRunClient.startAgUiRun({ input: { history: HISTOR…
+       |                                                                                                                                             ^
+    412|   });
+    413|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — request shape > a non-ok response whose body stream errors while reading detail surfaces the raw read error unwrapped — @ag-ui/client does not status-wrap it
+AssertionError: expected [Function] to throw error matching /^body read failed$/ but got 'The agent run stream stopped with an …'
+
+- Expected:
+/^body read failed$/
+
++ Received:
+"The agent run stream stopped with an error (Error); send the message again."
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:423:141
+    421|     vi.stubGlobal("fetch", fetchMock);
+    422|
+    423|     await expect(agUiRunClient.startAgUiRun({ input: { history: HISTOR…
+       |                                                                                                                                             ^
+    424|       /^body read failed$/,
+    425|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/28]⎯
+
+ FAIL  src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts > startAgUiRun — SSE frame streaming end to end > a transport failure after the run started reports the error AND still hands onDone the events collected before it
+AssertionError: expected [ Array(1) ] to deeply equal [ 'connection reset' ]
+
+- Expected
++ Received
+
+  [
+-   "connection reset",
++   "The agent run stream stopped with an error (Error); send the message again.",
+  ]
+
+ ❯ src/lib/__tests__/assistant-transport.ag-ui.unit.test.ts:540:44
+    538|     await flushMicrotasks();
+    539|
+    540|     expect(h.errors.map((e) => e.message)).toEqual(["connection reset"…
+       |                                            ^
+    541|     expect(h.done).toEqual([
+    542|       { kind: "status", code: "step_start", label: "", data: { message…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/28]⎯
+
+ FAIL  src/lib/__tests__/credential-input-autocomplete.unit.test.ts > Jini UI credential inputs the admin renders (linked checkout only) > every credential-shaped input has an explicit, honored autoComplete
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "react/testing.tsx:10: credential input has no autoComplete",
++ ]
+
+ ❯ src/lib/__tests__/credential-input-autocomplete.unit.test.ts:329:34
+    327|
+    328|   it("every credential-shaped input has an explicit, honored autoCompl…
+    329|     expect(violations(findings)).toEqual([]);
+       |                                  ^
+    330|   });
+    331| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/28]⎯
+
+ FAIL  src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consumed only through its own translator
+AssertionError: expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "features/posts/posts-i18n.ts: imports EDITOR_FAILURE_DICT",
++   "features/posts/posts-i18n.ts: indexes EDITOR_FAILURE_DICT",
++ ]
+
+ ❯ src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts:339:48
+    337|     const declared = files.filter((f) => /_DICT\s*:\s*Record</.test(f.…
+    338|     expect(declared).toBeGreaterThan(30);
+    339|     expect(findInlineDictionaryLookups(files)).toEqual([]);
+       |                                                ^
+    340|   }, 30_000); // Whole-admin AST scan competes with the other suites i…
+    341| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/28]⎯
+
+ FAIL  src/features/themes/__tests__/Themes.unit.test.tsx > theme card preview > opens the ImagePreviewModal at the same image when the thumbnail is clicked
+TypeError: Cannot read properties of null (reading 'hasAttribute')
+ ❯ src/features/themes/__tests__/Themes.unit.test.tsx:408:19
+    406|     await user.click(within(card).getByRole("button", { name: "Expand …
+    407|     const dialog = card.querySelector("dialog.image-preview-modal")!;
+    408|     expect(dialog.hasAttribute("open")).toBe(true);
+       |                   ^
+    409|     expect(dialog.querySelector("img")).toHaveAttribute("src", "/theme…
+    410|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/28]⎯
+
+ FAIL  src/features/themes/__tests__/Themes.unit.test.tsx > theme card preview > closes the modal on the close button, dropping the dialog's open attribute
+TypeError: Cannot read properties of null (reading 'hasAttribute')
+ ❯ src/features/themes/__tests__/Themes.unit.test.tsx:419:19
+    417|     await user.click(within(card).getByRole("button", { name: "Close p…
+    418|     const dialog = card.querySelector("dialog.image-preview-modal")!;
+    419|     expect(dialog.hasAttribute("open")).toBe(false);
+       |                   ^
+    420|   });
+    421|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/28]⎯
+
+ FAIL  src/features/themes/__tests__/Themes.unit.test.tsx > theme card preview > translates the expanded preview's close button and alt text through the screen's own t, not raw English
+TypeError: Expected container to be an Element, a Document or a DocumentFragment but got null.
+ ❯ checkContainerType node_modules/@testing-library/dom/dist/helpers.js:61:11
+ ❯ queryAllByRole node_modules/@testing-library/dom/dist/queries/role.js:34:35
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:74:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/features/themes/__tests__/Themes.unit.test.tsx:439:27
+    437|     const dialog = card.querySelector("dialog.image-preview-modal") as…
+    438|
+    439|     expect(within(dialog).getByRole("button", { name: "[es] Close prev…
+       |                           ^
+    440|     expect(dialog.querySelector("img")).toHaveAttribute("alt", "[es] s…
+    441|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of whole counts gets whole-number y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of whole counts gets whole-number y ticks
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:52:16
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ yTicks src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:51:3
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:65:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart with fractional values keeps fractional y ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart with fractional values keeps fractional y ticks
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:52:16
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ yTicks src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:51:3
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:71:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of small whole counts ends its y axis at the largest count
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of small whole counts ends its y axis at the largest count
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:52:16
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ yTicks src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:51:3
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:79:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of all-zero counts still draws whole-number ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of all-zero counts still draws whole-number ticks
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:52:16
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ yTicks src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:51:3
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:84:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a bar chart of large whole counts keeps at most 5 ticks
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > a line chart of large whole counts keeps at most 5 ticks
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:52:16
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:47:24
+ ❯ process.env.NODE_ENV.exports.act node_modules/react/cjs/react.development.js:890:22
+ ❯ node_modules/@testing-library/react/dist/act-compat.js:46:25
+ ❯ yTicks src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:51:3
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:90:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/28]⎯
+
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 180px
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 240px
+ FAIL  src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts > keeps middle-dot label separators with a word at 375px
+TypeError: t is not a function
+ ❯ u ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22628
+
+ ❯ vJ ../../../Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js:134:22838
+ ❯ src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts:106:20
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/28]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+ReferenceError: window is not defined
+ ❯ performWorkOnRootViaSchedulerTask node_modules/react-dom/cjs/react-dom-client.development.js:20644:7
+ ❯ Immediate.performWorkUntilDeadline node_modules/scheduler/cjs/scheduler.development.js:45:48
+ ❯ processImmediate node:internal/timers:574:21
+
+This error originated in "src/__tests__/unit/main-entry-signed-in.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  7 failed | 898 passed (905)
+      Tests  28 failed | 14854 passed | 2 skipped (14884)
+     Errors  1 error
+   Start at  00:19:24
+   Duration  1457.23s (transform 101.03s, setup 137.91s, import 1154.96s, tests 696.44s, environment 729.88s)
+
+exit=1

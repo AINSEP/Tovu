@@ -8,7 +8,7 @@ import type { ToolDescriptor } from '@jini-ai/core';
 import { createExpiringSurfaces } from '../../__tests__/support/expiring-surfaces.js';
 import { capabilityCard as widgets } from '../../features/widgets/capability-card.js';
 import { capabilityCard as plugins } from '../../features/plugin-runtime/capability-card.js';
-import type { CapabilityCard } from '../../features/site-guide/contracts.js';
+import type { GuideTopic as CapabilityCard } from '@jini-ai/agentic/core';
 import { postAgentToolCatalog } from '../../features/post/agent-tools.js';
 import { context, harness } from '../../features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.js';
 import { buildPluginsRegistrations } from '../../features/plugin-runtime/tool-registrations.js';
@@ -35,7 +35,7 @@ async function modelTurn({ prompt, tools, executeTool }: {
   let answer = '';
   const result = await runByokProviderTurn({ protocol, model, apiKey, tools,
     ...(process.env.TOVU_GUIDANCE_BASE_URL ? { baseUrl: process.env.TOVU_GUIDANCE_BASE_URL } : {}),
-    system: buildBaseSystemOverlay(false), messages: [{ role: 'user', content: prompt }],
+    system: buildBaseSystemOverlay({ bashProhibitionEnabled: false }), messages: [{ role: 'user', content: prompt }],
     maxToolTurns: 6, maxTokens: 2_000, signal: AbortSignal.timeout(110_000),
     executeTool: async call => { calls.push(call); return executeTool(call); },
     onEvent: event => {

@@ -19,34 +19,7 @@
  * after printing the diagnosis (if the signature matched) and the raw logs for every failing pair.
  */
 import { readFileSync } from "node:fs";
-
-/** Each entry matches one shape `tsc` produces for a missing @jini-ai/* export/module. */
-const SIGNATURE_PATTERNS = [
-  {
-    // tsc quotes a module specifier as `'"@jini-ai/cms/media"'` (single quotes from its own
-    // diagnostic wrapping, double quotes from the literal in source) — match one or two
-    // quote characters on each side rather than assuming exactly one.
-    re: /Module ["']{1,2}@jini-ai\/[^"']+["']{1,2} has no exported member ["']([^"']+)["']/g,
-    describe: (m) => `missing export '${m[1]}'`,
-  },
-  {
-    re: /Cannot find module ["']{1,2}(@jini-ai\/[^"']+)["']{1,2} or its corresponding type declarations/g,
-    describe: (m) => `missing module '${m[1]}'`,
-  },
-];
-
-/**
- * @param {string} log - raw combined stdout+stderr from a `tsc` run
- * @returns {string[]} human-readable descriptions of every signature hit found, may contain dupes
- * @complexity O(n) over the log's length
- */
-function findSignatureHits(log) {
-  const hits = [];
-  for (const { re, describe } of SIGNATURE_PATTERNS) {
-    for (const match of log.matchAll(re)) hits.push(describe(match));
-  }
-  return hits;
-}
+import { diagnosePublishedTypes } from "@jini-ai/devops/checks/published-types";
 
 function parseArgs(argv) {
   if (argv.length === 0 || argv.length % 2 !== 0) {
@@ -71,17 +44,10 @@ function main() {
     return;
   }
 
-  const hitsByFile = failing
-    .map((pair) => {
-      let log = "";
-      try {
-        log = readFileSync(pair.logFile, "utf8");
-      } catch {
-        // Missing log file (e.g. an earlier step never ran) — nothing to scan, no hits.
-      }
-      return { ...pair, hits: findSignatureHits(log) };
-    })
-    .filter((entry) => entry.hits.length > 0);
+  const logs = buildLogs(failing);
+  const hitsByFile = diagnosePublishedTypes({ scope: "@jini-ai", logs }).failures
+    .filter((entry) => entry.hits.length > 0)
+    .map((entry) => ({ logFile: entry.projectKey, hits: entry.hits }));
 
   if (hitsByFile.length > 0) {
     console.error("");
@@ -112,6 +78,12 @@ function main() {
   }
 
   console.error("Raw typecheck output for every failing project follows:");
+  reportFailingTypecheckLogs(failing);
+
+  process.exitCode = 1;
+}
+
+function reportFailingTypecheckLogs(failing) {
   for (const { exitCode, logFile } of failing) {
     console.error(`\n----- ${logFile} (exit ${exitCode}) -----`);
     try {
@@ -120,8 +92,19 @@ function main() {
       console.error(`(could not read ${logFile}: ${err.message})`);
     }
   }
+}
 
-  process.exitCode = 1;
+
+function buildLogs(failing) {
+  return failing.map(({ exitCode, logFile }) => {
+    let log = "";
+    try {
+      log = readFileSync(logFile, "utf8");
+    } catch {
+      // Missing log file (e.g. an earlier step never ran) — nothing to scan, no hits.
+    }
+    return { projectKey: logFile, exitCode, stdout: log, stderr: "" };
+  });
 }
 
 main();

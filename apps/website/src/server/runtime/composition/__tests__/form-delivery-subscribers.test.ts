@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryPlan, type FormDeliveryPlanPort } from "@jini-ai/cms/forms";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
@@ -39,7 +39,7 @@ async function webhookSubscribedToSubmissions() {
   const repo = new InMemoryWebhookSubscriptionRepo();
   await repo.save({ id: "hook-1", workspaceId: W, ownerPrincipalId: "owner", label: "Endpoint", targetUrl: "https://example.com/hooks",
     topics: ["form.submission.received"], secretVersion: 1, previousSecretVersion: null, status: "active", createdByPrincipalId: "owner",
-    createdByPluginId: null, createdAt: T0, updatedAt: T0, disabledAt: null });
+    createdByPluginId: null, createdAt: T0, updatedAt: T0, disabledAt: null, version: 1 });
   return repo;
 }
 

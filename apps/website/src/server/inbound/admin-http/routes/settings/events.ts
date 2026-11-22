@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/settings/events` — a Server-Sent Events stream
  * that tells an open admin tab when settings it can read have changed, so it re-reads without a
@@ -24,7 +25,7 @@
  * for that, and both used to get it wrong in the same way: the page query took `limit` rows
  * globally and filtered afterwards in JS, so a busy tenant's writes crowded out a quiet one's, and
  * the resume cursor accepted any client-supplied `Last-Event-ID` without bounding it to the ledger.
- * The query is now workspace-predicated (see `features/settings/ports.ts`) and the cursor is
+ * The query is now workspace-predicated (see `Jini packages/core/src/settings/ports.ts`) and the cursor is
  * clamped to the head below. Disclosure was never the issue and is unchanged — `change-feed.ts`
  * remains the only thing that decides what a subscriber is told.
  *
@@ -38,7 +39,7 @@
  * ## Disclosure
  *
  * Frames carry namespace NAMES only, never values, and only for revisions
- * `features/settings/change-feed.ts` deems visible to the subscribing principal. A client re-reads
+ * `Jini packages/core/src/settings/change-feed.ts` deems visible to the subscribing principal. A client re-reads
  * through the ordinary authorized `getSettingsEffective` path, so this endpoint cannot become a
  * way to obtain a value the caller could not already fetch. `settings.read` gates the subscription
  * itself, matching `get-effective.ts`.
@@ -68,15 +69,18 @@
  */
 
 import { authorizeChangeFeed } from "./preview-feed-access.js";
-import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/theme/index";
+import { createThemePreviewFeed, readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
   type ChangeFeedBatch,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type IntervalHandle = ReturnType<typeof setInterval>;
 
@@ -148,7 +152,7 @@ function sseWriteHeadHeaders(req: Request): Record<string, string> {
  * The timers this stream schedules on, falling back to the globals.
  * @complexity O(1).
  */
-function resolveFeedTimers(feedTimers: FeedTimers | undefined): Required<FeedTimers> {
+function resolveFeedTimers({ feedTimers }: { feedTimers: FeedTimers | undefined }, _options: Record<string, never> = {}): Required<FeedTimers> {
   const { scheduleInterval = setInterval, clearScheduledInterval = clearInterval } = feedTimers ?? {};
   return { scheduleInterval, clearScheduledInterval };
 }
@@ -161,16 +165,14 @@ function resolveFeedTimers(feedTimers: FeedTimers | undefined): Required<FeedTim
  */
 async function admitSubscriber(required: { req: Request; res: Response; deps: SettingsEventsDeps }): Promise<Admission | null> {
   const { req, res, deps } = required;
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return null;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
 
   let principal: { id: string };
   try {
     await deps.settingsReady;
     principal = getAuthedPrincipal(res);
-  } catch {
+  } catch (err) {
+    console.error("[settings] change feed admission failed", describeErrorForLog({ err }));
     res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
     return null;
   }
@@ -221,131 +223,31 @@ function runChangeFeed(required: Admission & {
 }): void {
   const { req, res, deps, principal, includePreview } = required;
   const { scheduleInterval, clearScheduledInterval } = required.timers;
-  let { access, cursor } = required;
+  const state: ChangeFeedState = { access: required.access, cursor: required.cursor, lastEmittedId: required.cursor, closed: false, ticking: false };
   const viewer: ChangeFeedViewer = { workspaceId: deps.workspaceId, principalId: principal.id };
-
-  /** The last id written to the wire — workspace-scoped, unlike `cursor`. See where it is emitted. */
-  let lastEmittedId = cursor;
-
-  /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
-   *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
-  const namespaceBySettingId = new Map<string, string | null>();
-  const resolveNamespace = async (settingId: string): Promise<string | null> => {
-    const cached = namespaceBySettingId.get(settingId);
-    if (cached !== undefined) return cached;
-    const definition = await deps.settingsRepo.findDefinitionBySettingId({ settingId });
-    const namespace = definition?.namespace ?? null;
-    namespaceBySettingId.set(settingId, namespace);
-    return namespace;
-  };
+  const resolveNamespace = createNamespaceResolver(deps);
 
   // One tiny site-local marker bridges saves from the separate agent-daemon process.
   // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
-  const previewFeed = createThemePreviewFeed({
-    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
-    emit: (frame) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
+  const previewFeed = createThemePreviewFeed({ isReservedPath: isReservedThemePreviewPath,
+    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }) : null,
+    emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
   }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
-  let closed = false;
-  /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
-  let ticking = false;
+
   const close = (): void => {
-    if (closed) return;
-    closed = true;
+    if (state.closed) return;
+    state.closed = true;
     clearScheduledInterval(pollTimer);
     clearScheduledInterval(keepaliveTimer);
     clearScheduledInterval(reauthorizeTimer);
   };
-
-  /**
-   * Re-runs the same authorization that opened the stream, and ends it the
-   * moment that stops holding or cannot be confirmed.
-   *
-   * Fail closed on errors: a later channel check may throw after settings.read was denied,
-   * leaving the cached grant unchanged. Closing also suppresses any poll already in flight.
-   */
-  const reauthorize = async (): Promise<void> => {
-    if (closed) return;
-    try {
-      access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
-      // Each channel is authorized independently; a theme-only subscriber never gets namespaces.
-      if (closed || access.settings || access.preview) return;
-    } catch (error) {
-      console.error("[settings] change feed re-authorization failed", error);
-    }
-    close();
-    res.end();
-  };
-
-  /** Write one visible batch, checking the current grant again after the ledger reads. */
-  const emitSettingsChange = (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
-    if (closed || !access.settings || batch.namespaces.length === 0) return;
-
-    // Emit the WORKSPACE-scoped position, not the internal `cursor`.
-    //
-    // `cursor` is advanced to the global ledger head so this connection can
-    // skip past other tenants' rows, but the id is the one part of the frame
-    // a subscriber can read. Emitting the global head would let a tab watch
-    // its own event ids jump and count another workspace's write volume — a
-    // metadata channel that only exists because the ledger is shared. The
-    // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
-    // from it re-examines rows already examined, which the workspace
-    // predicate makes cheap, and cannot skip anything.
-    lastEmittedId = Math.max(lastEmittedId, batch.cursor);
-    res.write(`id: ${lastEmittedId}\n`);
-    res.write("event: settings-changed\n");
-    res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
-  };
-
-  /**
-   * One poll. Never throws: a transient read failure must not tear down a subscription the client
-   * would then reconnect anyway, and `cursor` is left untouched so the same window is re-examined
-   * on the next tick rather than skipped.
-   */
-  const tick = async (): Promise<void> => {
-    if (closed || ticking) return;
-    // `setInterval` does not await an async callback, and one tick does two
-    // repo round trips plus a definition lookup per visible revision. A tick
-    // slower than the poll interval would otherwise have the next one start
-    // mid-await: both read the same `cursor`, both query the same window, both
-    // can emit the same frame, and the `cursor` write becomes a lost update.
-    ticking = true;
-    try {
-      if (!closed && access.preview) previewFeed();
-      if (!access.settings) return;
-      // Read the head BEFORE the page, so every row counted by it was already durable when the
-      // query below ran. Reading it after would let a concurrent write inflate the head past rows
-      // the query never had a chance to see, and the cursor advance would skip them.
-      const ledgerHead = await deps.settingsRepo.maxRevisionSeq();
-      const revisions = await deps.settingsRepo.listRevisionsSince({
-        sinceSeq: cursor,
-        limit: REVISION_PAGE_SIZE,
-        workspaceId: deps.workspaceId,
-      });
-
-      const batch = await collectChangedNamespaces({
-        revisions, viewer, resolveNamespace: ({ settingId }) => resolveNamespace(settingId),
-      });
-      // Advance even when nothing was visible, so writes this viewer cannot see are examined once
-      // rather than on every tick forever.
-      //
-      // A SHORT page is what makes that true now that the query is workspace-filtered: fewer than
-      // `REVISION_PAGE_SIZE` rows means the predicate ran out of matches before it ran out of
-      // ledger, so everything up to `ledgerHead` has been examined and can be skipped past.
-      // Advancing only to `batch.cursor` would leave the cursor parked behind a busy neighbour's
-      // rows and re-walk them on every tick for the life of the connection.
-      const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
-      cursor = Math.max(cursor, examined, batch.cursor);
-      emitSettingsChange(batch);
-    } catch (error) {
-      console.error("[settings] change feed poll failed", error);
-    } finally {
-      ticking = false;
-    }
-  };
+  const reauthorize = createChangeFeedReauthorizer(required, state, close);
+  const emitSettingsChange = createSettingsChangeEmitter(res, state);
+  const tick = createChangeFeedTick(required, state, { previewFeed, viewer, resolveNamespace, emitSettingsChange });
 
   const pollTimer = scheduleInterval(() => void tick(), POLL_INTERVAL_MS);
   const keepaliveTimer = scheduleInterval(() => {
-    if (!closed) res.write(": keepalive\n\n");
+    if (!state.closed) res.write(": keepalive\n\n");
   }, KEEPALIVE_INTERVAL_MS);
   const reauthorizeTimer = scheduleInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
 
@@ -359,16 +261,160 @@ function runChangeFeed(required: Admission & {
   res.write(": connected\n\n");
 }
 
-export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEventsDeps): void => {
-  app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", async (req, res) => {
+type ChangeFeedState = {
+  access: ChangeFeedAccess;
+  cursor: number;
+  /** The last id written to the wire — workspace-scoped, unlike `cursor`. See where it is emitted. */
+  lastEmittedId: number;
+  closed: boolean;
+  /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
+  ticking: boolean;
+};
+
+function createNamespaceResolver(deps: SettingsEventsDeps) {
+
+
+  /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
+   *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
+  const namespaceBySettingId = new Map<string, string | null>();
+  const resolveNamespace = async ({ settingId }: { settingId: string }, _options: Record<string, never> = {}): Promise<string | null> => {
+    const cached = namespaceBySettingId.get(settingId);
+    if (cached !== undefined) return cached;
+    const definition = await deps.settingsRepo.findDefinitionBySettingId({ settingId });
+    const namespace = definition?.namespace ?? null;
+    namespaceBySettingId.set(settingId, namespace);
+    return namespace;
+  };
+  return resolveNamespace;
+}
+
+/**
+   * Re-runs the same authorization that opened the stream, and ends it the
+   * moment that stops holding or cannot be confirmed.
+   *
+   * Fail closed on errors: a later channel check may throw after settings.read was denied,
+   * leaving the cached grant unchanged. Closing also suppresses any poll already in flight.
+   */
+function createChangeFeedReauthorizer(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, close: () => void) {
+  const { deps, principal, includePreview, res } = required;
+  return async (): Promise<void> => {
+    if (state.closed) return;
+    try {
+      state.access = await authorizeChangeFeed({ authorize: deps.authorize, principalId: principal.id, workspaceId: deps.workspaceId, includePreview });
+      // Each channel is authorized independently; a theme-only subscriber never gets namespaces.
+      if (state.closed || state.access.settings || state.access.preview) return;
+    } catch (error) {
+      console.error("[settings] change feed re-authorization failed", error);
+    }
+    close();
+    res.end();
+  };
+}
+
+/** Write one visible batch, checking the current grant again after the ledger reads. */
+function createSettingsChangeEmitter(res: Response, state: ChangeFeedState) {
+  
+  return (batch: ChangeFeedBatch, _optional: Record<string, never> = {}): void => {
+    if (state.closed || !state.access.settings || batch.namespaces.length === 0) return;
+
+    // Emit the WORKSPACE-scoped position, not the internal `cursor`.
+    //
+    // `cursor` is advanced to the global ledger head so this connection can
+    // skip past other tenants' rows, but the id is the one part of the frame
+    // a subscriber can read. Emitting the global head would let a tab watch
+    // its own event ids jump and count another workspace's write volume — a
+    // metadata channel that only exists because the ledger is shared. The
+    // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
+    // from it re-examines rows already examined, which the workspace
+    // predicate makes cheap, and cannot skip anything.
+    state.lastEmittedId = Math.max(state.lastEmittedId, batch.cursor);
+    res.write(`id: ${state.lastEmittedId}\n`);
+    res.write("event: settings-changed\n");
+    res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
+  };
+}
+
+/**
+   * One poll. Never throws: a transient read failure must not tear down a subscription the client
+   * would then reconnect anyway, and `cursor` is left untouched so the same window is re-examined
+   * on the next tick rather than skipped.
+   */
+function createChangeFeedTick(required: Parameters<typeof runChangeFeed>[0], state: ChangeFeedState, { previewFeed, viewer, resolveNamespace, emitSettingsChange }: { previewFeed: () => void; viewer: ChangeFeedViewer; resolveNamespace: ReturnType<typeof createNamespaceResolver>; emitSettingsChange: (batch: ChangeFeedBatch) => void }) {
+  const { deps } = required;
+  return async (): Promise<void> => {
+    if (state.closed || state.ticking) return;
+    // `setInterval` does not await an async callback, and one tick does two
+    // repo round trips plus a definition lookup per visible revision. A tick
+    // slower than the poll interval would otherwise have the next one start
+    // mid-await: both read the same `cursor`, both query the same window, both
+    // can emit the same frame, and the `cursor` write becomes a lost update.
+    state.ticking = true;
+    try {
+      if (!state.closed && state.access.preview) previewFeed();
+      if (!state.access.settings) return;
+      // Read the head BEFORE the page, so every row counted by it was already durable when the
+      // query below ran. Reading it after would let a concurrent write inflate the head past rows
+      // the query never had a chance to see, and the cursor advance would skip them.
+      const ledgerHead = await deps.settingsRepo.maxRevisionSeq();
+      const revisions = await deps.settingsRepo.listRevisionsSince({
+        sinceSeq: state.cursor,
+        limit: REVISION_PAGE_SIZE,
+        workspaceId: deps.workspaceId,
+      });
+
+      const batch = await collectChangedNamespaces({
+        revisions, viewer, resolveNamespace,
+      });
+      // Advance even when nothing was visible, so writes this viewer cannot see are examined once
+      // rather than on every tick forever.
+      //
+      // A SHORT page is what makes that true now that the query is workspace-filtered: fewer than
+      // `REVISION_PAGE_SIZE` rows means the predicate ran out of matches before it ran out of
+      // ledger, so everything up to `ledgerHead` has been examined and can be skipped past.
+      // Advancing only to `batch.cursor` would leave the cursor parked behind a busy neighbour's
+      // rows and re-walk them on every tick for the life of the connection.
+      const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
+      state.cursor = Math.max(state.cursor, examined, batch.cursor);
+      emitSettingsChange(batch);
+    } catch (error) {
+      console.error("[settings] change feed poll failed", error);
+    } finally {
+      state.ticking = false;
+    }
+  };
+}
+
+
+export const registerAdminSettingsEventsRoute = ({ app, deps }: { app: Express; deps: SettingsEventsDeps }, _optional: Record<string, never> = {}): void => {
+  app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {
     // Resolved per request, not at registration: a test that swaps the global timers after the
     // route is registered must still be the one this stream schedules on.
-    const timers = resolveFeedTimers(deps.feedTimers);
+    const timers = resolveFeedTimers({ feedTimers: deps.feedTimers });
     const admission = await admitSubscriber({ req, res, deps });
     if (!admission) return;
 
     res.writeHead(200, sseWriteHeadHeaders(req));
-    const cursor = resumeCursor({ req, head: await deps.settingsRepo.maxRevisionSeq() });
-    runChangeFeed({ ...admission, req, res, deps, timers, cursor });
-  });
+    const head = await readHeadOrEndStream({ res, deps });
+    if (head === null) return;
+    runChangeFeed({ ...admission, req, res, deps, timers, cursor: resumeCursor({ req, head }) });
+  } }));
 };
+
+/**
+ * Reads the ledger head after the stream's headers are already sent. A failure here cannot become
+ * an HTTP error any more, so it is turned into one `error` event in plain words and the stream is
+ * ended: without it the open tab sat silent, believing live updates were still coming. The raw
+ * cause goes to the server log only, since it may carry a path or a SQL fragment.
+ * @returns The head sequence, or `null` once the stream has been ended.
+ * @complexity O(1) plus one indexed read.
+ */
+async function readHeadOrEndStream({ res, deps }: { res: Response; deps: SettingsEventsDeps }, _options: Record<string, never> = {}): Promise<number | null> {
+  try {
+    return await deps.settingsRepo.maxRevisionSeq();
+  } catch (error) {
+    console.error("[settings] change feed could not read the revision head", error);
+    res.write(`event: error\ndata: ${JSON.stringify({ code: "FEED_UNAVAILABLE", message: "Live settings updates stopped because the server could not read the latest settings change. Reload the page to reconnect." })}\n\n`);
+    res.end();
+    return null;
+  }
+}

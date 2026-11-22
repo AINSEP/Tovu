@@ -26,7 +26,7 @@ const FEATURED_MEDIA_ID = "33333333-3333-3333-3333-333333333333";
 
 function makeDeps(rows: PostRecord[]) {
   const outbox = new InMemoryOutbox();
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
@@ -134,7 +134,7 @@ test("a row without a schedule or featured image packs without either key", asyn
 test("toPublishableState agrees with the packed hash for a scheduled row (planRetire/retire hash it)", async () => {
   for (const row of [post(), post({ publishAt: PUBLISH_AT, featuredMediaId: FEATURED_MEDIA_ID })]) {
     const [entity] = await packAll([row]);
-    assert.equal(contentHash("post", toPublishableState(row)), entity?.contentHash);
+    assert.equal(contentHash({ entityType: "post", state: toPublishableState(row) }), entity?.contentHash);
   }
 });
 
@@ -142,7 +142,7 @@ test("the featured image is a reference, so a scoped publish carries the media a
   const [entity] = await packAll([post({ featuredMediaId: FEATURED_MEDIA_ID })]);
   assert.ok(entity);
   const handler = contributePostPublish().build(makeDeps([]));
-  const refs = handler.references?.(entity) ?? [];
+  const refs = handler.references?.({ entity }) ?? [];
   assert.deepEqual(
     refs.filter((ref) => ref.entityType === "media"),
     [{ entityType: "media", key: FEATURED_MEDIA_ID }]

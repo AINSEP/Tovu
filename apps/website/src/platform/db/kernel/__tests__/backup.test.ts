@@ -20,7 +20,7 @@ after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test("SQLite backupTo writes a readable copy with the committed rows", async () => {
   const client = new Database(path.join(tmp, "source.db"));
-  const kernel = sqliteKernel<unknown>(client);
+  const kernel = sqliteKernel<unknown>({ source: client });
   await kernel.execute(sql`CREATE TABLE t (id text)`);
   await kernel.execute(sql`INSERT INTO t VALUES ('a')`);
   await kernel.backupTo(path.join(tmp, "copy.db"));

@@ -1,4 +1,5 @@
 import { shareSiteDirectories, rememberSharedSiteOpen, type SitesWorkspace } from "./shared-sites.ts";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 /**
  * @file Where the desktop app's site dir — and therefore its `content.db` — lives, and how a user
  * chooses it.
@@ -29,13 +30,15 @@ import { finished } from "node:stream";
 import type { Readable, Writable } from "node:stream";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
-import { readJsonFile, quarantineUnreadableFile, withFileLock, writeJsonFileAtomic } from "./durable-json-file.ts";
+import { readRecentDirectories, rememberRecentDirectory } from "@jini-ai/platform/fs";
+import { desktopJsonFile } from "./durable-json-file.ts";
 import type { QuarantineNotice } from "./durable-json-file.ts";
 
 /** Matches Runner's own quick-pick list length — an affordance, not a full history. */
 const MAX_RECENT_SITE_DIRS = 10;
 
 const STATE_FILE_NAME = "desktop-state.json";
+export const RECENT_SITE_DIRS_FIELD = "recentSiteDirs";
 
 /** How a damaged MRU file is announced on stderr — see {@link rememberSiteDir} for why starting the
  *  list over is the right answer for this file and the wrong one for `tracked-sites.ts`'. */
@@ -55,6 +58,7 @@ const RECENT_SITES_QUARANTINE_NOTICE: QuarantineNotice = {
  */
 const SITE_MARKER_FILE = "config.json";
 const SITE_META_FILE = ".site-meta.json";
+const SITE_IDENTITY_MARKER = { markerFile: SITE_META_FILE, identityField: "siteId" };
 
 /** Raised when the user dismisses the folder picker — a cancellation, not a failure to diagnose. */
 class SiteDirSelectionCancelled extends Error {}
@@ -83,61 +87,8 @@ interface InitChildLike {
 type InitSpawnFn = (command: string, args: string[], options: SpawnOptions) => InitChildLike;
 
 /** @returns the MRU file's path inside Electron's per-user `userData` directory. */
-function stateFilePath(userDataDir: string): string {
+function stateFilePath({ userDataDir }: { userDataDir: string }, _options: Record<string, never> = {}): string {
   return path.join(userDataDir, STATE_FILE_NAME);
-}
-
-/** The persisted MRU shape — the only thing {@link readDesktopState} ever returns. */
-interface DesktopState {
-  recentSiteDirs: string[];
-}
-
-/** {@link readRecentSiteDirs}' answer: the list, plus whether the file it came from is damaged. */
-interface RecentSiteDirsRead extends DesktopState {
-  damaged: boolean;
-}
-
-/**
- * Read the persisted state, treating any unreadable or malformed file as "no state yet".
- *
- * Deliberately forgiving: this file holds a convenience list, and refusing to launch because a
- * cache got truncated would trade a real failure for a cosmetic one. Unlike
- * `tracked-sites.ts`, nothing here is salvaged out of a damaged file: every dir this list holds is
- * either already a tracked project or one folder-pick away, so recovering the cache would buy back
- * the ordering of a menu, not anything the operator made.
- *
- * @complexity O(n) in file size.
- */
-function readDesktopState(statePath: string): DesktopState {
-  const { recentSiteDirs } = readRecentSiteDirs(statePath);
-  return { recentSiteDirs };
-}
-
-/**
- * {@link readDesktopState} plus the one fact a WRITER also needs: whether the file it is about to
- * replace is damaged, and therefore must be moved aside rather than written over.
- *
- * @complexity O(n) in file size.
- */
-function readRecentSiteDirs(statePath: string): RecentSiteDirsRead {
-  const read = readJsonFile(statePath);
-  if (read.state === "missing") return { recentSiteDirs: [], damaged: false };
-  const recent = (read.state === "ok" ? read.value : null) as { recentSiteDirs?: unknown } | null;
-  if (!Array.isArray(recent?.recentSiteDirs)) return { recentSiteDirs: [], damaged: true };
-  return { recentSiteDirs: recent.recentSiteDirs.filter((entry): entry is string => typeof entry === "string"), damaged: false };
-}
-
-/**
- * Replace the persisted state, atomically — a crash partway through leaves the previous file whole
- * rather than a torn one that the next launch would read as an empty list and then persist as that
- * (`durable-json-file.ts`, and `tracked-sites.ts`'s header for the full shape of that bug).
- *
- * A whole-value replace, so it takes no lock of its own; a caller that first READS this file holds
- * the lock across both halves — see {@link rememberSiteDir}, the only one there is.
- * @complexity O(n) in the MRU length.
- */
-function writeDesktopState(statePath: string, state: DesktopState): void {
-  writeJsonFileAtomic(statePath, state);
 }
 
 /**
@@ -158,19 +109,19 @@ function writeDesktopState(statePath: string, state: DesktopState): void {
  * @returns the new list, most-recent first — what was persisted, or what would have been.
  * @complexity O(n) in the MRU length, plus the lock wait.
  */
-function rememberSiteDir(statePath: string, dir: string, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
+function rememberSiteDir({ statePath, dir }: { statePath: string; dir: string }, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
   if (workspace) {
     // Import old state before the first shared write; all later MRU reads/writes use the catalog.
-    existingRecentSiteDirs(statePath, { workspace });
+    existingRecentSiteDirs({ statePath }, { workspace });
     rememberSharedSiteOpen({ workspace, dir });
-    return existingRecentSiteDirs(statePath, { workspace });
+    return existingRecentSiteDirs({ statePath }, { workspace });
   }
-  return withFileLock(statePath, () => {
-    const previous = readRecentSiteDirs(statePath);
-    const recentSiteDirs = [dir, ...previous.recentSiteDirs.filter((entry) => entry !== dir)].slice(0, MAX_RECENT_SITE_DIRS);
-    if (previous.damaged && !quarantineUnreadableFile(statePath, RECENT_SITES_QUARANTINE_NOTICE)) return recentSiteDirs;
-    writeDesktopState(statePath, { recentSiteDirs });
-    return recentSiteDirs;
+  return rememberRecentDirectory({
+    file: desktopJsonFile({ filePath: statePath }),
+    field: RECENT_SITE_DIRS_FIELD,
+    directory: dir,
+    maxEntries: MAX_RECENT_SITE_DIRS,
+    notice: RECENT_SITES_QUARANTINE_NOTICE,
   });
 }
 
@@ -182,13 +133,13 @@ function rememberSiteDir(statePath: string, dir: string, { workspace }: { worksp
  *
  * @complexity O(n) stat calls, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
-function existingRecentSiteDirs(statePath: string, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
+function existingRecentSiteDirs({ statePath }: { statePath: string }, { workspace }: { workspace?: SitesWorkspace } = {}): string[] {
   if (workspace) {
-    const entries = shareSiteDirectories({ workspace, dirs: readDesktopState(statePath).recentSiteDirs, createdBy: "desktop-legacy", migration: `mru:${statePath}` });
+    const entries = shareSiteDirectories({ workspace, dirs: readRecentDirectories({ file: desktopJsonFile({ filePath: statePath }), field: RECENT_SITE_DIRS_FIELD }), createdBy: "desktop-legacy", migration: `mru:${statePath}` });
     return entries.sort((a, b) => (b.lastOpened ? Date.parse(b.lastOpened) : 0) - (a.lastOpened ? Date.parse(a.lastOpened) : 0))
-      .map((entry) => entry.path).filter((dir) => classifySiteDirSafely(dir) === "site").slice(0, MAX_RECENT_SITE_DIRS);
+      .map((entry) => entry.path).filter((dir) => classifySiteDirSafely({ dir }) === "site").slice(0, MAX_RECENT_SITE_DIRS);
   }
-  return readDesktopState(statePath).recentSiteDirs.filter((dir) => classifySiteDirSafely(dir) === "site");
+  return readRecentDirectories({ file: desktopJsonFile({ filePath: statePath }), field: RECENT_SITE_DIRS_FIELD }, { isEligible: ({ directory }) => classifySiteDirSafely({ dir: directory }) === "site" });
 }
 
 /**
@@ -198,7 +149,7 @@ function existingRecentSiteDirs(statePath: string, { workspace }: { workspace?: 
  * @returns a subset of `[SITE_MARKER_FILE, SITE_META_FILE]`, in that fixed order.
  * @complexity O(1) — two `fs.existsSync` calls.
  */
-function missingSiteMarkers(dir: string): string[] {
+function missingSiteMarkers({ dir }: { dir: string }, _options: Record<string, never> = {}): string[] {
   const missing: string[] = [];
   if (!fs.existsSync(path.join(dir, SITE_MARKER_FILE))) missing.push(SITE_MARKER_FILE);
   if (!fs.existsSync(path.join(dir, SITE_META_FILE))) missing.push(SITE_META_FILE);
@@ -216,12 +167,11 @@ function missingSiteMarkers(dir: string): string[] {
  *   throw `SITE_DIR_INVALID`).
  * @complexity O(1) probes plus bounded marker reads (64 KiB each); one entry read for other dirs.
  */
-function classifySiteDir(dir: string): SiteClassification {
+function classifySiteDir({ dir }: { dir: string }, _options: Record<string, never> = {}): SiteClassification {
   if (!fs.existsSync(dir)) return "empty";
-  const missing = missingSiteMarkers(dir);
+  const missing = missingSiteMarkers({ dir });
   if (missing.length === 0) {
-    try { readCatalogSite({ siteDir: dir }); return "site"; }
-    catch { return "incomplete"; }
+    return orFallbackSync({ work: (): SiteClassification => { readCatalogSite({ siteDir: dir }); return "site"; }, fallback: "incomplete", step: "Read discovered site" });
   }
   if (missing.length === 1) return "incomplete";
   const directory = fs.opendirSync(dir);
@@ -253,12 +203,8 @@ function classifySiteDir(dir: string): SiteClassification {
  *   ELOOP on a symlink cycle.
  * @complexity same as {@link classifySiteDir}.
  */
-function classifySiteDirSafely(dir: string): SiteClassification | "unreadable" {
-  try {
-    return classifySiteDir(dir);
-  } catch {
-    return "unreadable";
-  }
+function classifySiteDirSafely({ dir }: { dir: string }, _options: Record<string, never> = {}): SiteClassification | "unreadable" {
+  return orFallbackSync({ work: () => classifySiteDir({ dir }), fallback: "unreadable", step: "Classify site directory" });
 }
 
 /** Input to {@link initSiteDir}. */
@@ -275,7 +221,7 @@ interface InitSiteDirInput {
    *  read — and checked there before anything is created. */
   agentPluginTokens?: Readonly<Record<string, string>>;
   /** Called with `tovu init`'s output once it succeeds (its `agent-plugin-tokens:` line). */
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**
@@ -322,7 +268,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     stdio: [withTokens || withPassword ? "pipe" : "ignore", "pipe", "pipe"],
   });
   const payload = initStdinPayload({ adminPassword: input.adminPassword, tokens });
-  const tokenDelivery = deliverTokens(child.stdin, payload);
+  const tokenDelivery = deliverTokens({ stdin: child.stdin, payload });
 
   return new Promise((resolve, reject) => {
     let output = "";
@@ -333,7 +279,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     child.once("error", reject);
     child.once("exit", (code) => {
       if (code !== 0) {
-        const cliError = parseCliErrorLine(output);
+        const cliError = parseCliErrorLine({ text: output });
         const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
         reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
         return;
@@ -344,7 +290,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
           reject(new Error(`tovu init for ${input.dir} could not receive its ${subject}: ${deliveryError.message}`));
           return;
         }
-        input.onInitOutput?.(output);
+        input.onInitOutput?.({ output });
         resolve(input.dir);
       });
     });
@@ -372,7 +318,7 @@ function initStdinPayload(
  *
  * @complexity O(1) beyond the write itself.
  */
-function deliverTokens(stdin: Writable | null | undefined, payload: string | null): Promise<Error | null> {
+function deliverTokens({ stdin, payload }: { stdin: Writable | null | undefined; payload: string | null }, _options: Record<string, never> = {}): Promise<Error | null> {
   if (payload === null || !stdin) return Promise.resolve(null);
   const delivered = new Promise<Error | null>((resolve) => finished(stdin, (error) => resolve(error ?? null)));
   stdin.end(payload);
@@ -394,7 +340,7 @@ interface ResolveOrInitSiteDirInput {
   cliMode?: CliMode;
   /** See {@link InitSiteDirInput}. Used only when this call runs `tovu init`. */
   agentPluginTokens?: Readonly<Record<string, string>>;
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**
@@ -422,12 +368,12 @@ interface ResolveOrInitSiteDirInput {
  * @complexity O(1) beyond `classifySiteDir`'s and, for `"init"` on an empty dir, `initSiteDir`'s own cost.
  */
 async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<string> {
-  const kind = classifySiteDir(input.dir);
+  const kind = classifySiteDir({ dir: input.dir });
   if (kind === "occupied") {
     throw new Error(`${input.dir} is not a Tovu site and is not empty. Choose an empty folder to create a new site, or a folder that already contains a site (one with a ${SITE_MARKER_FILE} and a ${SITE_META_FILE}).`);
   }
   if (kind === "incomplete") {
-    const missing = missingSiteMarkers(input.dir).join(" and ");
+    const missing = missingSiteMarkers({ dir: input.dir }).join(" and ");
     throw new Error(`${input.dir} is missing ${missing} — it looks like a half-initialized site, not a complete one. Choose a different folder.`);
   }
   if (kind === "empty") {
@@ -437,10 +383,11 @@ async function resolveOrInitSiteDir(input: ResolveOrInitSiteDirInput): Promise<s
       );
     }
     // `repoRoot` is required by `initSiteDir` itself; every real caller on the "init" path supplies
-    // one (the picker and "+ Create website" always know the repo root), so this is a non-null
-    // assertion on an already-existing contract rather than a new one.
+    // one (the picker and "+ Create website" always know the repo root), so validate that contract
+    // before initializing an empty folder.
+    if (input.repoRoot === undefined) throw new Error('site initialization has no repository root');
     await initSiteDir({
-      repoRoot: input.repoRoot!,
+      repoRoot: input.repoRoot,
       dir: input.dir,
       name: input.name,
       adminPassword: input.adminPassword,
@@ -467,7 +414,7 @@ interface AdoptSiteDirInput {
   cliMode?: CliMode;
   /** See {@link InitSiteDirInput}. */
   agentPluginTokens?: Readonly<Record<string, string>>;
-  onInitOutput?: (output: string) => void;
+  onInitOutput?: (input: { output: string }, options?: Record<string, never>) => void;
 }
 
 /**
@@ -482,7 +429,7 @@ interface AdoptSiteDirInput {
  */
 async function adoptSiteDir(input: AdoptSiteDirInput): Promise<string> {
   await resolveOrInitSiteDir({ ...input, onMissingSite: "init" });
-  rememberSiteDir(input.statePath, input.dir, { workspace: input.sharedSites });
+  rememberSiteDir({ statePath: input.statePath, dir: input.dir }, { workspace: input.sharedSites });
   return input.dir;
 }
 
@@ -512,21 +459,21 @@ interface ResolveDevFallbackResult {
  *   null` rather than a fabricated reason.
  * @complexity O(1) beyond `classifySiteDir`'s own cost.
  */
-function resolveDevFallback(devFallbackDir: string | null | undefined): ResolveDevFallbackResult {
+function resolveDevFallback({ devFallbackDir }: { devFallbackDir: string | null | undefined }, _options: Record<string, never> = {}): ResolveDevFallbackResult {
   if (!devFallbackDir) return { useDir: null, rejected: null };
   // Safely: a candidate NOBODY picked must be turned down, never allowed to take the launch with
   // it. `resolveStartupSiteDirs` runs this inside the `whenReady()` chain (D-01).
-  const kind = classifySiteDirSafely(devFallbackDir);
+  const kind = classifySiteDirSafely({ dir: devFallbackDir });
   if (kind === "site") return { useDir: devFallbackDir, rejected: null };
   const rejected: RejectedDevFallback = { dir: devFallbackDir, kind };
   if (kind === "incomplete" || kind === "occupied") {
-    rejected.missing = missingSiteMarkers(devFallbackDir);
+    rejected.missing = missingSiteMarkers({ dir: devFallbackDir });
   }
   return { useDir: null, rejected };
 }
 
 /** `resolveSiteDir`'s own picker seam — see that function's param doc. */
-type PickDirFn = (rejectedDefault: RejectedDevFallback | null) => string | null | undefined | Promise<string | null | undefined>;
+type PickDirFn = (required: { rejectedDefault: RejectedDevFallback | null }) => string | null | undefined | Promise<string | null | undefined>;
 
 /** Input to {@link resolveSiteDir}. */
 interface ResolveSiteDirInput {
@@ -542,6 +489,30 @@ interface ResolveSiteDirInput {
   spawnFn?: InitSpawnFn;
   cliMode?: CliMode;
   pickDir?: PickDirFn;
+}
+
+/**
+ * Step 1 of {@link resolveSiteDir}: the operator's `TOVU_DESKTOP_SITE_DIR` override, which always
+ * wins. Routed through {@link resolveOrInitSiteDir} under the policy the caller declared.
+ *
+ * @throws {Error} when the caller declared no `onMissingSite` policy for the override, and
+ *   everything {@link resolveOrInitSiteDir} throws for a directory that is not a usable site.
+ * @complexity O(1) plus {@link resolveOrInitSiteDir}'s own cost.
+ */
+async function resolveOverrideSiteDir({ envDir, input }: { envDir: string; input: ResolveSiteDirInput }, _options = {}): Promise<string> {
+  if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
+    throw new Error('resolveSiteDir: input.onMissingSite must be "init" or "fail" when envDir is set.');
+  }
+  return await resolveOrInitSiteDir({
+    dir: envDir,
+    onMissingSite: input.onMissingSite,
+    repoRoot: input.repoRoot,
+    name: input.name,
+    adminPassword: input.adminPassword,
+    baseEnv: input.baseEnv,
+    spawnFn: input.spawnFn,
+    cliMode: input.cliMode,
+  });
 }
 
 /**
@@ -578,29 +549,16 @@ interface ResolveSiteDirInput {
  */
 async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
   const envDir = input.envDir?.trim();
-  if (envDir) {
-    if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
-      throw new Error('resolveSiteDir: input.onMissingSite must be "init" or "fail" when envDir is set.');
-    }
-    return await resolveOrInitSiteDir({
-      dir: envDir,
-      onMissingSite: input.onMissingSite,
-      repoRoot: input.repoRoot,
-      name: input.name,
-      adminPassword: input.adminPassword,
-      baseEnv: input.baseEnv,
-      spawnFn: input.spawnFn,
-      cliMode: input.cliMode,
-    });
-  }
+  if (envDir) return await resolveOverrideSiteDir({ envDir, input });
 
-  const [mostRecent] = existingRecentSiteDirs(input.statePath, { workspace: input.sharedSites });
+  const [mostRecent] = existingRecentSiteDirs({ statePath: input.statePath }, { workspace: input.sharedSites });
   if (mostRecent !== undefined) return mostRecent;
 
-  const fallback = resolveDevFallback(input.devFallbackDir);
+  const fallback = resolveDevFallback({ devFallbackDir: input.devFallbackDir });
   if (fallback.useDir) return fallback.useDir;
 
-  const picked = await input.pickDir!(fallback.rejected);
+  if (!input.pickDir) throw new Error('site directory selection has no folder picker');
+  const picked = await input.pickDir({ rejectedDefault: fallback.rejected });
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }
@@ -620,11 +578,10 @@ export {
   MAX_RECENT_SITE_DIRS,
   SITE_MARKER_FILE,
   SITE_META_FILE,
+  SITE_IDENTITY_MARKER,
   STATE_FILE_NAME,
   SiteDirSelectionCancelled,
   stateFilePath,
-  readDesktopState,
-  writeDesktopState,
   rememberSiteDir,
   existingRecentSiteDirs,
   classifySiteDir,

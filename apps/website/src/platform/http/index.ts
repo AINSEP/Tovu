@@ -4,7 +4,7 @@
 // The error class is a deliberate runtime exception: instanceof distinguishes policy refusal
 // from transport failure without fragile message matching, and grants no construction capability.
 export type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
-export type { PinnedPeer, EgressPolicy } from "@jini-ai/platform/http/guarded";
+export type { PinnedPeer, EgressPolicy } from "@jini-ai/core/contracts/runtime";
 // Binary/truncation rationale: Jini/packages/core/src/primitives/http.ts; SNI: platform/src/http/guarded/types.ts.
 // Refusal/redaction rationale: Jini/packages/platform/src/http/guarded/errors.ts.
 // ADR-038 / SEC-05: agent boundaries must surface a recognizable, caller-safe egress refusal.

@@ -13,8 +13,9 @@ import {
   type DelegatedInternalErrorContext,
   type ToolFailureRecord,
 } from "../tool-recovery-preset.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -52,6 +53,7 @@ async function harness(registry: ToolRegistry = createToolRegistry({})): Promise
           resolvePrincipal: () => PRINCIPAL,
           onInternalError: () => undefined,
           ...delegatedToolErrorDisclosure({}, toolFailures),
+          reportInternalError: reportRouteInternalError,
           ...overrides,
         } }, { signal: signal }
       ),

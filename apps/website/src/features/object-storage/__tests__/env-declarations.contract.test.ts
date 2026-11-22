@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
-import { parseObjectStoresFile, readBundledObjectStoreEnvDeclarations } from "../registry.js";
+import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
+import { readBundledObjectStoreEnvDeclarations } from "../registry.js";
 
 const env = { selector: "example", settings: { bucket: "EXAMPLE_BUCKET" }, credentialFields: {}, secret: "EXAMPLE_SECRET", required: ["EXAMPLE_BUCKET", "EXAMPLE_SECRET"] };
 const entry = { id: "example-store", module: "provider.mjs", env };
@@ -13,7 +14,7 @@ function sources(t: TestContext, entries: unknown[][]): string {
   for (const [index, providers] of entries.entries()) {
     const dir = path.join(sourceRoot, `example-${index}`); mkdirSync(dir);
     writeFileSync(path.join(dir, "plugin.json"), "{}");
-    writeFileSync(path.join(dir, "tovu-object-stores.json"), JSON.stringify({ schemaVersion: 1, providers }));
+    writeFileSync(path.join(dir, "jini-object-stores.json"), JSON.stringify({ schemaVersion: 1, providers }));
     writeFileSync(path.join(dir, "provider.mjs"), 'throw new Error("data discovery must not execute");');
   }
   return sourceRoot;
@@ -37,7 +38,7 @@ test("malformed mapping fields never reach media selection", t => {
 });
 test("unreadable declarations are synchronous errors", t => {
   const sourceRoot = sources(t, [[entry]]);
-  const file = path.join(sourceRoot, "example-0", "tovu-object-stores.json");
+  const file = path.join(sourceRoot, "example-0", "jini-object-stores.json");
   rmSync(file); mkdirSync(file);
-  assert.throws(() => readBundledObjectStoreEnvDeclarations({ sourceRoot }));
+  assert.throws(() => readBundledObjectStoreEnvDeclarations({ sourceRoot }), { constructor: Error, name: "Error", code: "EISDIR", message: "EISDIR: illegal operation on a directory, read" });
 });

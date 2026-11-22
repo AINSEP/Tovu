@@ -15,7 +15,7 @@ import { useCreateWebsiteForm } from './use-create-website-form.hooks.js';
 import { canSubmitRename, renameSubmission } from './use-site-rename.hooks.js';
 
 function formHarness(t: TestContext, onCreate: (input: CreateSiteInput) => Promise<void>, { withInputs = true } = {}) {
-  const hook = renderHook(t, () => useCreateWebsiteForm(onCreate), (form) => (withInputs ? createElement('div', null,
+  const hook = renderHook(t, () => useCreateWebsiteForm({ onCreate }), (form) => (withInputs ? createElement('div', null,
     createElement('input', { id: 'supabase-key', ref: form.supabaseKeyRef }),
     createElement('input', { id: 'custom-credential', ref: form.customCredentialRef })) : null));
   const submit = () => {
@@ -159,13 +159,13 @@ test('useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the s
     submit();
     await settle();
     assert.equal(hook.current().formError, SITE_NAME_ERROR);
-    assert.deepEqual(renameSubmission({} as RunnerInventoryBridge, '/site', name), { kind: 'refused', message: SITE_NAME_ERROR });
-    assert.equal(canSubmitRename(name, false), false);
+    assert.deepEqual(renameSubmission({ bridge: {} as RunnerInventoryBridge, id: '/site', draft: name }), { kind: 'refused', message: SITE_NAME_ERROR });
+    assert.equal(canSubmitRename({ draft: name, saving: false }), false);
   }
   assert.deepEqual(created, [], 'no picker call for an invalid name');
   for (const name of ['a', 'x'.repeat(200), '  Café ☕ 日本語  ']) {
     act(() => hook.current().setName(name));
     assert.deepEqual([hook.current().canCreate, hook.current().nameError], [true, null], name);
-    assert.equal(canSubmitRename(name, false), true, name);
+    assert.equal(canSubmitRename({ draft: name, saving: false }), true, name);
   }
 });

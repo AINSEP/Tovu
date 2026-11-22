@@ -2,15 +2,17 @@ import type { PagesHtmlDocumentStoreDeps } from "./html-document-store.js";
 import type { PluginEmbedDiagnostic } from "../agent-plugins/exports/diagnostics.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
+import { assertEntityLive } from "@jini-ai/cms/core";
+import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
-import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
-import type { PostKind } from "../post/contracts.js";
+import { announcePendingGoLive } from "@jini-ai/cms/entries";
+import { SYSTEM_ACTOR_ID } from "../post/index.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
@@ -73,7 +75,7 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see PagesHtmlDocumentStore's own `reindexEntryRefs` private method for the full rationale. */
-  private async reindexEntryRefs(html: string): Promise<void> {
+  private async reindexEntryRefs({ html }: { html: string }, _optional = {}): Promise<void> {
     if (!this.deps.entryRefsRepo) return;
     const refs = extractHtmlEntryRefs({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, html });
     await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
@@ -90,7 +92,7 @@ export class InMemoryPagesHtmlDocumentStore {
    * is what this whole double is built over — see this file's header), so there is no "supplied or
    * not" branch: every call appends.
    */
-  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+  private async appendRevision({ seq, recordedAt }: { seq: number; recordedAt: string }, _optional = {}): Promise<void> {
     const row = await this.load();
     if (!row) return;
     await this.deps.repo.appendRevision({
@@ -105,12 +107,12 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see SqlPagesHtmlDocumentStore's `catchUpGoLive`; `row` is the row before this write. */
-  private async catchUpGoLive(row: PostRecord, nowIso: string): Promise<void> {
+  private async catchUpGoLive({ row, nowIso }: { row: PostRecord; nowIso: string }, _optional = {}): Promise<void> {
     if (this.deps.outbox) await announcePendingGoLive({ outbox: this.deps.outbox, post: row, nowIso });
   }
 
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
-  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml, expectedVersion }: { seedHtml: string; expectedVersion?: number }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.load();
@@ -121,6 +123,7 @@ export class InMemoryPagesHtmlDocumentStore {
       throw new PageKindMismatchError(`'${this.scope.postId}' is not an allowed HTML document kind`);
     }
 
+    if (expectedVersion !== undefined && row.version !== expectedVersion) throw new PageConcurrentEditError(`page '${this.scope.postId}' is at version ${row.version}, not the expected version ${expectedVersion} — re-read and retry`);
     if (row.bodyFormat === "html") {
       this.lastReadVersion = row.version;
       return;
@@ -130,25 +133,25 @@ export class InMemoryPagesHtmlDocumentStore {
     const nextVersion = row.version + 1;
     const updatedAt = clockNowIso({ clock: this.deps.clock });
 
-    await this.deps.repo.transaction(async () => {
+    await this.deps.repo.transaction({ fn: async () => {
       // Pre-conversion snapshot — see the real store's `ensureHtmlFormat` for why this is skipped
       // when a revision at this exact `seq` already exists.
       const existing = await this.deps.repo.listRevisions({ workspaceId: this.scope.workspaceId, postId: this.scope.postId });
       if (!existing.some((revision) => revision.seq === row.version)) {
-        await this.appendRevision(row.version, updatedAt);
+        await this.appendRevision({ seq: row.version, recordedAt: updatedAt });
       }
-      await this.deps.repo.save({
-        ...row,
+      const { applied } = await this.deps.repo.saveIfVersion({ record: { ...row,
         bodyFormat: "html",
         bodyHtml: seedHtml,
         version: nextVersion,
         updatedAt,
-      });
-      await this.appendRevision(nextVersion, updatedAt);
-      await this.catchUpGoLive(row, updatedAt);
-    });
+      }, ifVersion: row.version });
+      if (!applied) throw new PageConcurrentEditError(`page '${this.scope.postId}' was edited elsewhere while it was being converted to HTML — retry`);
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+      await this.catchUpGoLive({ row, nowIso: updatedAt });
+    } });
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(seedHtml);
+    await this.reindexEntryRefs({ html: seedHtml });
   }
 
   /** @see PagesHtmlDocumentStore.read */
@@ -179,7 +182,7 @@ export class InMemoryPagesHtmlDocumentStore {
    * Pinned by `__tests__/html-document-store.memory.test.ts`'s "BUG: two write() calls truly IN
    * FLIGHT AT ONCE" case.
    */
-  async write(authoredHtml: string): Promise<void> {
+  async write({ html: authoredHtml }: { html: string }, _optional?: Record<string, never>): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
@@ -218,9 +221,9 @@ export class InMemoryPagesHtmlDocumentStore {
     // S1 (fix plan 2026-09-24 row 14) — after, not inside, `saveIfVersion`: that call is this
     // store's own atomic compare-and-set (see this method's own header), so there is nothing left to
     // wrap in a `transaction()` by the time `applied` is known true.
-    await this.appendRevision(nextVersion, updatedAt);
-    await this.catchUpGoLive(row, updatedAt);
+    await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+    await this.catchUpGoLive({ row, nowIso: updatedAt });
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(html);
+    await this.reindexEntryRefs({ html });
   }
 }

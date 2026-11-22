@@ -1,4 +1,4 @@
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 
 /**
  * Wraps the credential repo so every persistence write (insert/update and the vault's put/applyBatch)

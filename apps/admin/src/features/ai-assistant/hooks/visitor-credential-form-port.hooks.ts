@@ -1,4 +1,4 @@
-import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
 
 /**
  * @file What `use-visitor-credential-form.hooks.ts` needs from the outside world, as an interface
@@ -18,5 +18,5 @@ import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/li
  */
 export interface VisitorCredentialFormPort {
   getAssistantSiteCredential(): Promise<{ data: SiteAssistantCredential }>;
-  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch): Promise<{ data: SiteAssistantCredential }>;
+  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch, optional?: Record<string, never>): Promise<{ data: SiteAssistantCredential }>;
 }

@@ -14,7 +14,7 @@ import {
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
 import { uploadMedia } from "#src/features/media/index";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentContributor, PackedEntity } from "#src/features/publish-content/type-registry";
 
 /**
@@ -196,12 +196,12 @@ test("GET .../publish-content/export streams registered post/page entities for a
     assert.equal(Object.hasOwn(entity.state, "author"), !isPage);
     assert.equal(Object.hasOwn(entity.state, "showAuthor"), false);
     assert.deepEqual(entity.state.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] });
-    assert.equal(entity.contentHash, contentHash(entity.entityType, {
+    assert.equal(entity.contentHash, contentHash({ entityType: entity.entityType, state: {
       title, slug: row.slug, kind: isPage ? "page" : "post", status: "draft",
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] },
       bodyFormat: "doc", bodyHtml: null, seoExtJson: null, templateChoice: null,
       overridesThemePage: null, memberAccessJson: null, ...(!isPage ? { author: "admin" } : {}),
-    }));
+    } }));
   }
   assert.notEqual(byId.get(post.id)?.contentHash, byId.get(page.id)?.contentHash);
   assert.notEqual(byId.get(post.id)?.contentHash, byId.get(otherPost.id)?.contentHash);
@@ -324,7 +324,7 @@ test("GET .../publish-content/export reads the contributor registry FRESH per re
       },
     }),
   };
-  registerPublishContentContributor(canaryContributor);
+  registerPublishContentContributor({ contributor: canaryContributor });
 
   const after = await fetchExport(baseUrl, ownerCookie);
   const bundle = JSON.parse(after.raw) as ExportBundle;

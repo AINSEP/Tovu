@@ -46,8 +46,8 @@ it("masks extra secret fields and routes edits by provider and declared field na
   await user.type(secret, "!");
   await user.type(account, "z");
   expect(setField.mock.calls).toEqual([
-    ["atlas", "client secret", "sealed!"],
-    ["atlas", "account", "alicez"],
+    [{ providerId: "atlas", name: "client secret", value: "sealed!" }],
+    [{ providerId: "atlas", name: "account", value: "alicez" }],
   ]);
   expect(controller.setToken).not.toHaveBeenCalled();
 });

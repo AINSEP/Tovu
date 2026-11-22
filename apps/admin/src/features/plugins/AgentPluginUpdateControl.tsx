@@ -1,9 +1,10 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import type { AgentPluginUpdateState } from "./hooks/use-agent-plugin-update.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginUpdateControlProps {
   /** The row's update state and upload controller, composed by the wired list
    *  (`AgentPlugins.tsx`'s `AgentPluginUpdateSlot`, from `useAgentPluginUpdate`). */

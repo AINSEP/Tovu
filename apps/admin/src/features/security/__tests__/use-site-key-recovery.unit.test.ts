@@ -1,7 +1,8 @@
 import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { isSiteKeyLocked, useSiteKeyRecovery, type SiteKeyRecoveryPort } from "../hooks/use-site-key-recovery.hooks";
 
 /**
@@ -37,12 +38,12 @@ function status(state: AdminSiteKeyStatus["state"]): AdminSiteKeyStatus {
 
 describe("isSiteKeyLocked", () => {
   it("is true for missing-with-data and mismatch, or after generate was refused as locked", () => {
-    expect(isSiteKeyLocked(status("missing-with-data"), null)).toBe(true);
-    expect(isSiteKeyLocked(status("mismatch"), null)).toBe(true);
-    expect(isSiteKeyLocked(status("missing"), { kind: "locked", code: "KEY_DEPENDENT_DATA", detail: "x" })).toBe(true);
-    expect(isSiteKeyLocked(status("active"), null)).toBe(false);
-    expect(isSiteKeyLocked(status("missing"), null)).toBe(false);
-    expect(isSiteKeyLocked(undefined, null)).toBe(false);
+    expect(isSiteKeyLocked({ status: status("missing-with-data"), generateError: null })).toBe(true);
+    expect(isSiteKeyLocked({ status: status("mismatch"), generateError: null })).toBe(true);
+    expect(isSiteKeyLocked({ status: status("missing"), generateError: { kind: "locked", code: "KEY_DEPENDENT_DATA", detail: "x" } })).toBe(true);
+    expect(isSiteKeyLocked({ status: status("active"), generateError: null })).toBe(false);
+    expect(isSiteKeyLocked({ status: status("missing"), generateError: null })).toBe(false);
+    expect(isSiteKeyLocked({ status: undefined, generateError: null })).toBe(false);
   });
 });
 
@@ -50,12 +51,12 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
   it("unlocks with the pasted token, clears it from state, reports the result and refreshes the tab", async () => {
     const port = makePort({ importSiteKey: vi.fn(async () => ({ outcome: "unlocked" as const, fingerprint: "fp", keyFilePath: "/k", resealed: 2, runtimeMode: "local" as const })) });
     const onRecovered = vi.fn(async () => {});
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, onRecovered));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
 
     act(() => result.current.setSiteKey(`  ${HEX}\n`));
     await act(async () => result.current.unlock());
 
-    expect(port.importSiteKey).toHaveBeenCalledWith(HEX);
+    expect(port.importSiteKey).toHaveBeenCalledWith({ siteKey: HEX });
     expect(result.current.siteKey).toBe("");
     expect(result.current.unlockError).toBeNull();
     expect(result.current.resultMessage).toBe("Unlocked. Your saved credentials work again. 2 saved since were moved over.");
@@ -64,9 +65,9 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 
   it("shows the server's sentence when the token doesn't open anything, and keeps the input", async () => {
     const detail = "That site key does not open this site's saved credentials. Nothing was changed.";
-    const port = makePort({ importSiteKey: vi.fn(async () => { throw new ApiError("SITE_KEY_DOES_NOT_OPEN", 409, undefined, { error: "SITE_KEY_DOES_NOT_OPEN", detail }); }) });
+    const port = makePort({ importSiteKey: vi.fn(async () => { throw new ApiError({ message: "SITE_KEY_DOES_NOT_OPEN", status: 409 }, { code: undefined, body: { error: "SITE_KEY_DOES_NOT_OPEN", detail } }); }) });
     const onRecovered = vi.fn();
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, onRecovered));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
 
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
@@ -79,7 +80,7 @@ describe("useSiteKeyRecovery — Paste your old site key", () => {
 
   it("does nothing for an empty paste", async () => {
     const port = makePort();
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, vi.fn()));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.unlock());
 
@@ -94,7 +95,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
       if (fail) throw new Error("Preview service unavailable");
       return PREVIEW;
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
     await act(async () => result.current.openStartFresh());
     expect(result.current.preview).toEqual(PREVIEW);
     act(() => result.current.cancelStartFresh());
@@ -110,7 +111,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it("finishes recovery without a refresh callback", async () => {
-    const { result } = renderHook(() => useSiteKeyRecovery(makePort(), t, undefined));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port: makePort(), t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
     expect(result.current.resultMessage).toBe("Unlocked. Your saved credentials work again.");
@@ -125,14 +126,14 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it.each([
-    [new ApiError("Recovery forbidden", 403, undefined, { detail: 42 }), "Recovery forbidden"],
-    [new ApiError("Recovery unavailable", 503), "Recovery unavailable"],
+    [new ApiError({ message: "Recovery forbidden", status: 403 }, { code: undefined, body: { detail: 42 } }), "Recovery forbidden"],
+    [new ApiError({ message: "Recovery unavailable", status: 503 }), "Recovery unavailable"],
     ["unexpected refusal", "unknown error"],
   ])("uses the shared fallback for a refusal without a string detail (%s)", async (failure, message) => {
     const port = makePort({ importSiteKey: async () => {
       throw failure;
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     await act(async () => result.current.unlock());
     expect(result.current.unlockError).toBe(message);
@@ -144,12 +145,12 @@ describe("useSiteKeyRecovery — Start fresh", () => {
     const base = makePort();
     let release!: () => void;
     const imported: string[] = [];
-    const port = makePort({ importSiteKey: async token => {
-      imported.push(token);
+    const port = makePort({ importSiteKey: async ({ siteKey }) => {
+      imported.push(siteKey);
       await new Promise<void>(resolve => { release = resolve; });
-      return base.importSiteKey(token);
+      return base.importSiteKey({ siteKey });
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
     act(() => result.current.setSiteKey(HEX));
     let pending!: Promise<void>;
     act(() => { pending = result.current.unlock(); });
@@ -165,12 +166,12 @@ describe("useSiteKeyRecovery — Start fresh", () => {
     const base = makePort();
     let release!: () => void;
     const confirmations: string[] = [];
-    const port = makePort({ startFresh: async phrase => {
-      confirmations.push(phrase);
+    const port = makePort({ startFresh: async ({ confirm }) => {
+      confirmations.push(confirm);
       await new Promise<void>(resolve => { release = resolve; });
-      return base.startFresh(phrase);
+      return base.startFresh({ confirm });
     } });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, undefined));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: undefined }));
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
     let pending!: Promise<void>;
@@ -192,7 +193,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
         affectedWebhooks: [], runtimeMode: "local" as const,
       })),
     });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, vi.fn()));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
@@ -204,7 +205,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   it("loads the preview first, confirms only on the exact phrase, then names the affected webhooks", async () => {
     const port = makePort();
     const onRecovered = vi.fn(async () => {});
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, onRecovered));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered }));
 
     await act(async () => result.current.openStartFresh());
     expect(result.current.startFreshStep).toBe("confirm");
@@ -219,7 +220,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
     expect(result.current.canConfirmStartFresh).toBe(true);
     await act(async () => result.current.startFresh());
 
-    expect(port.startFresh).toHaveBeenCalledWith("START FRESH");
+    expect(port.startFresh).toHaveBeenCalledWith({ confirm: "START FRESH" });
     expect(result.current.startFreshStep).toBe("closed");
     expect(result.current.resultMessage).toBe(
       "Done. Re-enter any credentials that were removed. Update these webhooks' receivers with their new signing secret: Order sync (https://hooks.example.test/orders)."
@@ -229,8 +230,8 @@ describe("useSiteKeyRecovery — Start fresh", () => {
 
   it("shows the server's sentence when start fresh is refused, and keeps the confirm step open", async () => {
     const detail = "A restore point can't be made for this site's database right now, so nothing was changed.";
-    const port = makePort({ startFresh: vi.fn(async () => { throw new ApiError("RESTORE_POINT_UNAVAILABLE", 409, undefined, { error: "RESTORE_POINT_UNAVAILABLE", detail }); }) });
-    const { result } = renderHook(() => useSiteKeyRecovery(port, t, vi.fn()));
+    const port = makePort({ startFresh: vi.fn(async () => { throw new ApiError({ message: "RESTORE_POINT_UNAVAILABLE", status: 409 }, { code: undefined, body: { error: "RESTORE_POINT_UNAVAILABLE", detail } }); }) });
+    const { result } = renderHook(() => useSiteKeyRecovery({ port, t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START FRESH"));
@@ -242,7 +243,7 @@ describe("useSiteKeyRecovery — Start fresh", () => {
   });
 
   it("cancel closes the confirm step and clears the typed phrase", async () => {
-    const { result } = renderHook(() => useSiteKeyRecovery(makePort(), t, vi.fn()));
+    const { result } = renderHook(() => useSiteKeyRecovery({ port: makePort(), t, onRecovered: vi.fn() }));
 
     await act(async () => result.current.openStartFresh());
     act(() => result.current.setConfirmText("START"));

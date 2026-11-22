@@ -1,11 +1,10 @@
+import { createThemePublishClick } from "./ThemeExplore.hooks";
 import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
 import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
-import { CodeView, CodeWrapToggle } from "../../components/CodeView/CodeView";
-import { useCodeWrap } from "../../components/CodeView/use-code-wrap.hooks";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { Icon, Toast } from "@jini-ai/ui";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
+import { CodeWithLines, CodeWrapToggle, Icon, Toast, useCodeWrap } from "@jini-ai/ui";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -14,9 +13,7 @@ import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreview
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+
 import {
   canResetThemeFile,
   dispatchPublishToggle,
@@ -37,6 +34,7 @@ import { useThemeExploreFullscreen } from "./ThemeExplore.hooks";
 import { useWiredThemeExploreTheme } from "./hooks/use-theme-explore-theme.hooks";
 import { useThemeExploreFileGroups, type ThemeExploreFileGroupsController } from "./hooks/use-theme-explore-file-groups.hooks";
 
+import { type Translate, splitOnPlaceholders } from '@jini-ai/core/text';
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
  *
@@ -109,7 +107,7 @@ export interface ThemeExploreProps {
   fileId?: string;
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
   useThemeExploreHook?: typeof useWiredThemeExplore;
-  useThemeExplorePreviewHook?: typeof useThemeExplorePreview;
+  useThemeExplorePreviewHook?: typeof useThemeExplorePreview; useDevicePreviewDeviceHook?: typeof useDevicePreviewDevice; useThemeExploreFullscreenHook?: typeof useThemeExploreFullscreen; useTabBarKeyboardHook?: typeof useTabBarKeyboard; useCodeWrapHook?: typeof useCodeWrap; useWiredThemeExploreThemeHook?: typeof useWiredThemeExploreTheme;
 }
 
 /**
@@ -159,7 +157,7 @@ function themeExplorePreviewNotice(t: Translate): string {
  *
  * @complexity O(1).
  */
-function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
+function canSaveSelectedFile({ file }: { file: ThemeExploreFile | undefined }, _optional = {}): boolean {
   return file === undefined || file.editable;
 }
 
@@ -183,7 +181,7 @@ function ThemeExploreHtmlPane({
   setSource: (value: string) => void;
   t: Translate;
 }) {
-  const mode = themeExploreHtmlMode(file, sourceLoaded);
+  const mode = themeExploreHtmlMode({ file, sourceLoaded });
 
   if (mode === "binary") {
     // Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and saving that back
@@ -361,7 +359,7 @@ function ThemeExploreFileRow({
           onChange={(e) => setRenameDraft(e.target.value)}
           onKeyDown={(e) => handleFileRowRenameKeyDown(e, { commitRename, cancelRename })}
           onBlur={cancelRename}
-          aria-label={t("New name for {file}").replace("{file}", file.label)}
+          aria-label={t("New name for {file}").replace("{file}", () => file.label)}
         />
       ) : (
         <button
@@ -389,7 +387,7 @@ function ThemeExploreFileRow({
           own delete `ConfirmDialog` for why that pause, unlike Rename's, is unconditional whenever
           the file IS eligible: deleting is the one operation here with no undo at all. */}
       {!file.inherited && <RowMenu
-        triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
+        triggerLabel={t("More actions for {file}").replace("{file}", () => file.label)}
         agentHandle={`${agentBase}-menu`}
         items={[
           {
@@ -422,10 +420,10 @@ function ThemeExploreFileRow({
  *
  * @complexity O(g) for the fixed group count.
  */
-function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGroupsController; t: Translate }) {
+function ThemeExploreFileGroupTabs({ groups, t, useTabBarKeyboardHook = useTabBarKeyboard }: { groups: ThemeExploreFileGroupsController; t: Translate; useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
   const { tabs, activeGroup, chooseGroup } = groups;
   const activeId = activeGroup ?? "";
-  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId, onChange: (id) => chooseGroup(id as ThemeFileGroup) });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs, activeId, onChange: (id) => chooseGroup({ group: id as ThemeFileGroup }) });
   return (
     <div className="theme-explore-groups" role="tablist" aria-label={t("File groups")} onKeyDown={onKeyDown}>
       {tabs.map((tab) => (
@@ -438,7 +436,7 @@ function ThemeExploreFileGroupTabs({ groups, t }: { groups: ThemeExploreFileGrou
           aria-controls="theme-explore-files-panel"
           className={tab.key === activeGroup ? "theme-explore-group is-active" : "theme-explore-group"}
           tabIndex={resolveTabBarTabIndex({ tabs, activeId, tab })}
-          onClick={() => chooseGroup(tab.key)}
+          onClick={() => chooseGroup({ group: tab.key })}
           {...agentHandle({ handle: `theme-explore-group-${tab.key}` }, { role: "button", label: `Show this theme's ${tab.label} files` })}
         >
           {t(tab.label)}
@@ -503,7 +501,7 @@ function ThemeExploreFileList({
   copyingPath,
   copyFile,
   openDeleteConfirm,
-  t,
+  t, useThemeExploreFileGroupsHook = useThemeExploreFileGroups,
 }: {
   files: ThemeExploreFile[];
   selected: string | null;
@@ -517,7 +515,7 @@ function ThemeExploreFileList({
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
   openDeleteConfirm: (path: string) => void;
-  t: Translate;
+  t: Translate; useThemeExploreFileGroupsHook?: typeof useThemeExploreFileGroups;
 }) {
   // File paths are globally unique across every group (a theme's editable surface is a flat set of
   // relative paths, just displayed grouped by kind), so they disambiguate one row's menu from
@@ -526,8 +524,8 @@ function ThemeExploreFileList({
   // group filter, so a path's handle never depends on which group tab is showing.
   const fileMenuHandles = buildAgentListHandles({ prefix: "theme-explore-file", ids: files.map((file) => file.path) }
   );
-  const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]!]));
-  const groups = useThemeExploreFileGroups({ files, highlightedPath: selected });
+  const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]]));
+  const groups = useThemeExploreFileGroupsHook({ files, highlightedPath: selected });
   return (
     <nav className="theme-explore-files" aria-label={t("Theme files")}>
       <ThemeExploreFileGroupTabs groups={groups} t={t} />
@@ -538,8 +536,10 @@ function ThemeExploreFileList({
         className="theme-explore-files-panel"
       >
         <ul className="theme-explore-file-chips">
-          {groups.visibleFiles.map((file) => (
-            <ThemeExploreFileRow
+          {groups.visibleFiles.map((file) => {
+            const handle = fileMenuHandleByPath.get(file.path);
+            if (handle === undefined) throw new Error(`theme file ${file.path} has no row handle`);
+            return <ThemeExploreFileRow
               key={file.path}
               file={file}
               selected={selected}
@@ -553,10 +553,10 @@ function ThemeExploreFileList({
               copyingPath={copyingPath}
               copyFile={copyFile}
               openDeleteConfirm={openDeleteConfirm}
-              agentBase={fileMenuHandleByPath.get(file.path)!}
+              agentBase={handle}
               t={t}
-            />
-          ))}
+            />;
+          })}
         </ul>
         <ThemeExploreShowAllToggle groups={groups} t={t} />
       </div>
@@ -832,7 +832,7 @@ function ThemeExploreToolbarButtons({
       {/* Absent, not disabled, for a read-only file — a greyed-out button invites "why can't I?",
           where absence just means the option does not apply to this file. `dirty` can never become
           true for a read-only file (its textarea has no `onChange`), so this is belt-and-suspenders. */}
-      {canSaveSelectedFile(selectedFile) ? (
+      {canSaveSelectedFile({ file: selectedFile }) ? (
         <button
           className="btn-primary"
           disabled={!dirty || saving}
@@ -848,7 +848,7 @@ function ThemeExploreToolbarButtons({
           for a read-only file, though: it can only ever write back the file's ORIGINAL bytes, never
           operator-authored content, so "read-only" here means "cannot be AUTHORED from this screen,"
           not "cannot be restored" — the restriction Save enforces has no bearing on what Reset does. */}
-      {canResetThemeFile(selectedFile) ? (
+      {canResetThemeFile({ file: selectedFile }) ? (
         <button
           type="button"
           className="btn-danger"
@@ -856,7 +856,7 @@ function ThemeExploreToolbarButtons({
           onClick={openResetConfirm}
           title={t("Restore this file to the original theme's version")}
         >
-          {themeExploreResetLabel({ resetting, file: selectedFile }, t)}
+          {themeExploreResetLabel({ resetting, file: selectedFile! }, t)}
         </button>
       ) : null}
     </>
@@ -1000,12 +1000,7 @@ function ThemeExplorePublishToggle({
   const disabled = state.kind === "locked" || publishing;
   const reasonId = state.kind === "locked" ? "theme-explore-publish-reason" : undefined;
 
-  // Guarded on `state.kind` (inside `dispatchPublishToggle`) rather than relying solely on the DOM's
-  // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
-  // publish call no matter what wraps or simulates the click.
-  function handleClick() {
-    dispatchPublishToggle(state, setPagePublished);
-  }
+  const handleClick = createThemePublishClick({ state, setPagePublished, dispatchPublishToggle });
 
   return (
     <div className="theme-explore-publish-toggle">
@@ -1024,7 +1019,7 @@ function ThemeExplorePublishToggle({
       </button>
       {/* `descriptionId` keeps the locked reason as the switch's `aria-describedby` text: InfoTip
           renders the label in a hidden span with that id, so screen readers still hear why. */}
-      <InfoTip label={publishToggleTipLabel(state, t)} descriptionId={reasonId} />
+      <InfoTip label={publishToggleTipLabel({ state, t })} descriptionId={reasonId} />
     </div>
   );
 }
@@ -1039,7 +1034,7 @@ function ThemeExplorePublishToggle({
  * heavily than sequential ones at the same depth.
  *
  * 2026-10-10: a data/style/script file (`previewMode === "code"`) shows its text in the shared
- * read-only `CodeView` at normal size instead of the device-scaled iframe. An unloaded buffer shows
+ * read-only `CodeWithLines` at normal size instead of the device-scaled iframe. An unloaded buffer shows
  * as empty, same as the HTML tab's `"unloaded"` case: whatever it holds is not this file.
  *
  * @complexity O(n) for n characters of source in the code branch; O(1) otherwise.
@@ -1075,7 +1070,7 @@ function ThemeExploreMainPane({
   if (previewMode === "code") {
     return (
       <div className="theme-explore-code-view" role="region" aria-label={t("Theme file source (read-only)")}>
-        <CodeView text={sourceLoaded ? source : ""} wrap={wrap} />
+        <CodeWithLines text={sourceLoaded ? source : ""} wrap={wrap} />
       </div>
     );
   }
@@ -1148,13 +1143,13 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore(props: ThemeExploreProps) {
-  const resolved = useWiredThemeExploreTheme({ themeId: props.themeId });
+export function ThemeExplore({ useWiredThemeExploreThemeHook = useWiredThemeExploreTheme, ...props }: ThemeExploreProps) {
+  const resolved = useWiredThemeExploreThemeHook({ themeId: props.themeId });
   if (resolved.loading) return <div className="notice">{resolved.t("Loading theme…")}</div>;
   if (!resolved.themeId) return (
     <div className={`notice${resolved.error ? " error" : ""}`}>
       <p>{resolved.error ?? resolved.t("No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.")}</p>
-      <a href={siteUrl("/admin/themes")}>{resolved.t("Themes")}</a>
+      <a href={siteUrl({ path: "/admin/themes" })}>{resolved.t("Themes")}</a>
     </div>
   );
   return <ThemeExploreContent {...props} themeId={resolved.themeId} />;
@@ -1165,7 +1160,7 @@ function ThemeExploreContent({
   pageId,
   fileId,
   useThemeExploreHook = useWiredThemeExplore,
-  useThemeExplorePreviewHook = useThemeExplorePreview,
+  useThemeExplorePreviewHook = useThemeExplorePreview, useDevicePreviewDeviceHook = useDevicePreviewDevice, useThemeExploreFullscreenHook = useThemeExploreFullscreen, useTabBarKeyboardHook = useTabBarKeyboard, useCodeWrapHook = useCodeWrap,
 }: ThemeExploreProps) {
   const {
     detail,
@@ -1214,7 +1209,7 @@ function ThemeExploreContent({
     publishing,
     setPagePublished,
     t,
-  } = useThemeExploreHook(themeId, { pageId, fileId });
+  } = useThemeExploreHook({ themeId }, { pageId, fileId });
 
   // STAYS LOCAL — deliberately not moved into `useThemeExploreHook`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). This is interactive DOM chrome, not async/API state: nothing
@@ -1227,7 +1222,7 @@ function ThemeExploreContent({
   // local `updatedSort`: pure view state with no I/O is allowed to live outside the injected hook.
   // Async/API state (the rest of this controller) is NOT exempt — this carve-out is for DOM-chrome
   // state asserted through real interaction only.
-  const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
+  const { device, setDevice, width: previewWidth } = useDevicePreviewDeviceHook();
   const {
     fullscreen,
     setFullscreen,
@@ -1236,21 +1231,20 @@ function ThemeExploreContent({
     closeFullscreen,
     handleFullscreenCancel,
     handleFullscreenBackdropClick,
-  } = useThemeExploreFullscreen();
+  } = useThemeExploreFullscreenHook();
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
+  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboardHook({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as ThemeExploreView) });
 
   const previewSrc = useThemeExplorePreviewHook({ themeId, detail, files, selected, previewNonce });
   // Shared by the toolbar's Wrap toggle and the Preview tab's code view; only read for "code" files.
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = useCodeWrapHook();
 
-  if (error && !detail) return <div className="notice error">{error}</div>;
-  if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
+  if (!detail) return <ThemeExploreLoading error={error} t={t} />;
 
   const selectedFile = files.find((f) => f.path === selected);
-  const publishState = selectedFilePublishState(selectedFile, t);
-  const previewMode = themeExplorePreviewMode(selectedFile);
+  const publishState = selectedFilePublishState({ file: selectedFile, t });
+  const previewMode = themeExplorePreviewMode({ file: selectedFile });
 
   return (
     <div className="page">
@@ -1287,14 +1281,14 @@ function ThemeExploreContent({
             redundant wrapping anchor rather than the button; `navigate()` is a real client-side
             route change, same as `ThemeGrid`'s own "Explore" button in `Themes.tsx` right above
             this file. Icon-only since 2026-10-11: `aria-label` names it, `title` is the hover tip
-            (same pair `ThemePreviewReloadButton` uses). */}
+            (same pair `ThemePreviewReloadControl` uses). */}
         <button
           type="button"
           className="theme-explore-back"
           aria-label={t("All themes")}
           title={t("All themes")}
           onClick={() => {
-            if (confirmLeave()) navigate("/themes");
+            if (confirmLeave()) navigate({ routePath: "/themes" });
           }}
         >
           <Icon name="arrow-left" size={22} aria-hidden="true" />
@@ -1334,10 +1328,8 @@ function ThemeExploreContent({
           vanished on a clock, so the close button is the only way this goes away. `role="alert"` so
           screen readers announce it immediately, matching the "the error is the feature" reasoning
           the owner gave for keeping Rename attemptable everywhere instead of disabling it. */}
-      {error ? (
-        <Toast message={error} tone="error" role="alert" placement="top" ttlMs={0} onDismiss={dismissError} />
-      ) : null}
-      {notice ? <Toast message={notice} tone="success" ttlMs={5000} onDismiss={dismissNotice} /> : null}
+      <ThemeExploreErrorNotice error={error} dismissError={dismissError} />
+      <ThemeExploreSuccessNotice notice={notice} dismissNotice={dismissNotice} />
 
       {/* File picker on top, then the toolbar and preview at full width (owner, 2026-10-11). This
           wrapper is the screen's size container (`container-type` in styles.css), so its layout
@@ -1384,7 +1376,7 @@ function ThemeExploreContent({
                   state={publishState}
                   publishing={publishing}
                   setPagePublished={setPagePublished}
-                  fileLabel={selectedFileLabel(selectedFile)}
+                  fileLabel={selectedFileLabel({ file: selectedFile })}
                   t={t}
                 />
               ) : null}
@@ -1484,9 +1476,9 @@ function ThemeExploreContent({
  * set), adapted for a real `src` URL instead of `SrcDocSandbox`'s `srcDoc` — see this file's header
  * comment for why the preview has to be a real URL at all.
  */
-function ThemeExplorePreview({ src, width, title }: { src: string; width: number; title: string }) {
+function ThemeExplorePreview({ src, width, title, usePreviewPaneWidthHook = usePreviewPaneWidth }: { src: string; width: number; title: string; usePreviewPaneWidthHook?: typeof usePreviewPaneWidth; }) {
   // The frame's REAL rendered width, not a guessed constant — see `usePreviewPaneWidth`'s own doc.
-  const { frameRef, paneWidth } = usePreviewPaneWidth();
+  const { frameRef, paneWidth } = usePreviewPaneWidthHook();
 
   return (
     <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth}>
@@ -1496,3 +1488,7 @@ function ThemeExplorePreview({ src, width, title }: { src: string; width: number
     </DevicePreviewFrame>
   );
 }
+
+function ThemeExploreLoading({ error, t }: Pick<ReturnType<typeof useWiredThemeExplore>, "error" | "t">) { return error ? <div className="notice error">{error}</div> : <div className="notice">{t("Loading theme…")}</div>; }
+function ThemeExploreErrorNotice({ error, dismissError }: Pick<ReturnType<typeof useWiredThemeExplore>, "error" | "dismissError">) { return error ? <Toast message={error} tone="error" role="alert" placement="top" ttlMs={0} onDismiss={dismissError} /> : null; }
+function ThemeExploreSuccessNotice({ notice, dismissNotice }: Pick<ReturnType<typeof useWiredThemeExplore>, "notice" | "dismissNotice">) { return notice ? <Toast message={notice} tone="success" ttlMs={5000} onDismiss={dismissNotice} /> : null; }

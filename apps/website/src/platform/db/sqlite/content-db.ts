@@ -1,9 +1,11 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
-import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import type { SqliteSyncOpener } from "@jini-ai/core/contracts/storage";
 import { DatabaseDiskSpaceError, pruneDatabaseCopies } from "@jini-ai/db/sqlite";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
@@ -72,12 +74,11 @@ export interface ContentDbSeedData {
  */
 export interface ContentDbOpenOptions { readonly open?: SqliteSyncOpener<NativeSqliteDatabase> }
 
-export function openSqliteContentConnection(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export function openSqliteContentConnection({ filePath }: { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
   const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
-  // SPEC-033 — defense in depth alongside `store-plugin.ts`'s identical fix: this connection can
+  // SPEC-033 — defense in depth alongside the store plugin's identical fix: this connection can
   // itself be the "second" connection relative to a separate one (e.g. the store plugin's own
   // dedicated handle) transiently holding a lock. Retry internally rather than throwing immediately.
   sqlite.pragma("busy_timeout = 5000");
@@ -94,20 +95,20 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  * (the newest five per site are kept). Nothing pending: nothing is written. Low disk space warns
  * and skips only the backup: a production boot must still be able to apply its pending migrations.
  *
- * @param filePath - the file `db` was opened on (`:memory:`: no copy).
+ * @param required.filePath - the file `db` was opened on (`:memory:`: no copy).
  * @throws LegacyHistoryError when the file's drizzle history cannot be matched to the frozen chain;
  *   the database is left as it was (the copy is kept).
  */
-export async function migrateSqliteContentFile(db: ContentDb, filePath: string): Promise<MigrationReport> {
-  const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath(filePath);
-  const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath, onBackupError: ({ error, backupPath: failed }) => {
-    if (!isDiskFull(error)) throw error;
+export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb; filePath: string }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath({ filePath });
+  const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
+    if (!isDiskFull({ error })) throw error;
     // A half-written copy only holds the space that ran out; the boot continues without it.
     fs.rmSync(failed, { force: true });
     console.warn(`[migrations] Skipping pre-migration backup: ${error instanceof Error ? error.message : String(error)}`);
   }, onBackupComplete: async ({ backupPath: written }) => {
     // Recovery-window cleanup cannot turn a successful copy into a production boot refusal.
-    await removeOlderMigrationBackups(written).catch(() => console.warn("[migrations] Could not prune older pre-migration backups."));
+    await removeOlderMigrationBackups({ kept: written }).catch(error => console.warn(`[migrations] Could not prune older pre-migration backups. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`));
   } });
   if (report.applied.length > 0) {
     console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);
@@ -117,11 +118,11 @@ export async function migrateSqliteContentFile(db: ContentDb, filePath: string):
 }
 
 /** The preflight refusal, or SQLite running out of space mid-copy (the 11-01 prod error). */
-function isDiskFull(error: unknown): boolean {
+function isDiskFull({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof DatabaseDiskSpaceError || (typeof error === "object" && error !== null && "code" in error && error.code === "SQLITE_FULL");
 }
 
-function migrationBackupPath(filePath: string): string {
+function migrationBackupPath({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): string {
   const opsDir = path.join(path.dirname(path.resolve(filePath)), "ops");
   return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
 }
@@ -129,7 +130,7 @@ function migrationBackupPath(filePath: string): string {
 /** Only the exact filenames this writer owns enter the shared retention policy (ISO stamps give the
  * order); a removed copy takes any `-wal`/`-shm` a reader left beside it. Foreign files are left alone.
  * @complexity O(n log n) in files beside the new copy. */
-async function removeOlderMigrationBackups(kept: string): Promise<void> {
+async function removeOlderMigrationBackups({ kept }: { kept: string }, _optional: Record<string, never> = {}): Promise<void> {
   const dir = path.dirname(kept);
   const copies = fs.readdirSync(dir, { withFileTypes: true })
     .filter(entry => entry.isFile() && /^pre-migrations-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db$/.test(entry.name))
@@ -158,7 +159,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
     if (!bootstrapFreshContentDb({ db })) migrate(db, { migrationsFolder: MIGRATIONS_DIR });
     return db;
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
 }
@@ -171,7 +172,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
  * `--dry-run` flag, this function cannot perform either: `better-sqlite3`'s own `readonly: true`
  * connection mode rejects any write at the SQLite level, not just at this module's call sites — the
  * same guarantee a `--dry-run` script needs and `openContentDb` structurally cannot give it (see the
- * `development/scripts/backfill-*-aad.ts` family and `backfill-custom-credential-usernames.ts`,
+ * AAD backfill script family and the custom credential username backfill,
  * each of which now opens its dry-run path through this function instead).
  *
  * A caller that needs to read a column only a not-yet-applied migration would add gets a loud SQLite
@@ -182,8 +183,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
  *   "create" in a read-only open), or whatever `better-sqlite3` throws for a malformed/locked file.
  * @complexity O(1) — one connection open, no migration sweep.
  */
-export function openContentDbReadOnly(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export function openContentDbReadOnly({ filePath }: { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
   const sqlite = open(filePath, { readonly: true, fileMustExist: true });
   sqlite.pragma("busy_timeout = 5000");
   return drizzle(sqlite, { schema }) as ContentDb;

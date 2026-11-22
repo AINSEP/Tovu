@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminContentType, type ContentTypeLifecycleOp } from "@/lib/api";
+import type { AdminContentType, ContentTypeLifecycleOp } from "@/features/collections/api/collections-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -28,8 +29,8 @@ import type { CollectionsPort } from "./collections-port.hooks";
  * `t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that hook,
  * not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts` established):
  * injected alongside `port`/`locale` because `Collections.tsx` and its three dialogs need translated
- * UI copy. `collections-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid
- * colliding with this file's own bound `(key) => string` closure — stays a direct, uninjected
+ * UI copy. `collections-i18n.ts`'s own `t({ locale, key })` — aliased `translate` here to avoid
+ * colliding with this file's own bound `({ key }) => string` closure — stays a direct, uninjected
  * import: it's a pure `COLLECTIONS_DICT[locale]?.[key] ?? key` lookup that already takes `locale`
  * as an explicit argument, not a host reach (see wired-hooks-convention.md's "pure, no-I/O rules"
  * carve-out). `useAdminLocale()` and `COLLECTIONS_DICT` are read only inside
@@ -67,13 +68,13 @@ export interface CollectionsController {
    *  the operator can copy it by hand instead of getting a silent dead click. `null` otherwise; a
    *  later successful copy clears it. */
   copyFallback: { key: string; snippet: string } | null;
-  /** Writes `collectionEmbedSnippet(contentType.key)` to the clipboard and flips `copiedKey` for
+  /** Writes `collectionEmbedSnippet({ key: contentType.key })` to the clipboard and flips `copiedKey` for
    *  1.5s, mirroring `use-edit-media-panel.hooks.ts`'s `copyHash`/`copyUrl` precedent. A failed
    *  write sets {@link copyFallback} instead — this row has no visible snippet text of its own. */
   copyEmbedCode: (contentType: AdminContentType) => Promise<void>;
   /** Bound translator — `Collections.tsx`'s and its three dialogs' only source of UI copy; see this
    *  file's own header for why it arrives via the hook rather than direct `useAdminLocale()`. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   /** The raw resolved locale — exposed only because `contentTypeMenuItems` (`../rules.ts`)
    *  genuinely needs it, not `t`, same "row-menu builder is a different, out-of-scope thing"
    *  precedent `use-pages.hooks.ts` cites for `pageRowMenuItems`. */
@@ -83,7 +84,7 @@ export interface CollectionsController {
 export interface CollectionsDependencies {
   port: CollectionsPort;
   locale: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function useCollections(deps: CollectionsDependencies): CollectionsController {
@@ -91,7 +92,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listContentTypes() });
   // System types (`widget`/`widget_area`/`menu`) back platform mechanics, not a collection an
   // operator manages here — never shown on this screen.
-  const types = list.data?.items ? list.data.items.filter((ct) => isUserCollection(ct.key)) : null;
+  const types = list.data?.items ? list.data.items.filter((ct) => isUserCollection({ key: ct.key })) : null;
 
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [pendingLifecycle, setPendingLifecycle] = useState<{ op: LifecycleConfirmOp; contentType: AdminContentType } | null>(null);
@@ -124,7 +125,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
   }
 
   async function copyEmbedCode(contentType: AdminContentType): Promise<void> {
-    const snippet = collectionEmbedSnippet(contentType.key);
+    const snippet = collectionEmbedSnippet({ key: contentType.key });
     try {
       await navigator.clipboard.writeText(snippet);
       setCopyFallback(null);
@@ -137,10 +138,10 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     }
   }
 
-  const error = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load content types" })) : null;
+  const error = list.error ? describeApiError({ e: list.error, fallback: translate({ locale: locale, key: "failed to load content types" }) }) : null;
   const actionError =
     lifecycleMutation.error && lastAttempt
-      ? describeApiError(lifecycleMutation.error, lifecycleFailureMessage(locale, lastAttempt.op, lastAttempt.contentType.label))
+      ? describeApiError({ e: lifecycleMutation.error, fallback: lifecycleFailureMessage({ locale, op: lastAttempt.op, label: lastAttempt.contentType.label }) })
       : null;
 
   return {
@@ -172,6 +173,6 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
  */
 export function useWiredCollections(): CollectionsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
   return useCollections({ port: defaultCollectionsPort, locale, t });
 }

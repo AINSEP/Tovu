@@ -1,8 +1,13 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import type { Express, RequestHandler } from "express";
-import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
-import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "#src/features/theme/theme-roster-ports";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
 export function freshThemePreviewHtml(
@@ -76,21 +81,22 @@ export function registerThemePreviewRefresh(
       authenticate: requireAdminSession(deps),
       rememberRevision: ({ revision }) => {
         authenticatedRevisions.add(revision);
-        if (authenticatedRevisions.size > 512) authenticatedRevisions.delete(authenticatedRevisions.values().next().value!);
+        if (authenticatedRevisions.size > 512) {
+          const oldest = authenticatedRevisions.values().next();
+          if (oldest.done) throw new Error("theme preview revision cache has no oldest entry");
+          authenticatedRevisions.delete(oldest.value);
+        }
       },
       syncThemes: () => {
-        syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+        syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
       },
     }),
   );
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/themes/preview-reload",
     requireAdminSession(deps),
-    async (req, res) => {
-      if (String(req.params.workspaceId) !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+    asyncRoute({ handler: async (req, res) => {
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       const principal = getAuthedPrincipal(res);
       const auth = await deps.authorize({
         principalId: principal.id,
@@ -103,11 +109,11 @@ export function registerThemePreviewRefresh(
         return;
       }
       try {
-        res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir }));
-      } catch {
-        res.status(500).json({ error: "preview reload failed" });
+        res.json(requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }));
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "theme-preview:refresh", message: "The preview could not be reloaded." });
       }
-    },
+    } }),
   );
   return ({ revision }) => authenticatedRevisions.has(revision);
 }

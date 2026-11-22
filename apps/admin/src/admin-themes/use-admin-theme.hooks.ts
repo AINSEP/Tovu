@@ -62,7 +62,7 @@ export function useAdminThemeState(_required: object, { root = document.document
   }, [root]);
   const value = useSyncExternalStore(subscribe, snapshot, () => "classic/light");
   const [themeId, scheme] = value.split("/");
-  return { themeId: themeId!, scheme: scheme as "light" | "dark" };
+  return { themeId, scheme: scheme as "light" | "dark" };
 }
 
 /** The shared compatibility boundary for screens whose Classic dark paint is unverified. */
@@ -131,8 +131,8 @@ export interface AdminThemePicker {
   themeId: string | undefined;
   preference: SettingsThemeChoice | undefined;
   error: string | null;
-  selectTheme(themeId: string): void;
-  selectPreference(preference: SettingsThemeChoice): void;
+  selectTheme(input: { themeId: string }, options?: Record<string, never>): void;
+  selectPreference(input: { preference: SettingsThemeChoice }, options?: Record<string, never>): void;
 }
 
 function withoutField(choice: Partial<AdminThemeChoice>, field: keyof AdminThemeChoice): Partial<AdminThemeChoice> {
@@ -205,7 +205,7 @@ export function useAdminThemePicker(_required: object, { port = defaultAdminThem
     themeId,
     preference,
     error,
-    selectTheme: (nextId) => {
+    selectTheme: ({ themeId: nextId }, _options = {}) => {
       if (!interfaceConfig || !appearance || preference === undefined || nextId === themeId) return;
       commit({
         next: { themeId: nextId, preference },
@@ -215,7 +215,7 @@ export function useAdminThemePicker(_required: object, { port = defaultAdminThem
         field: "themeId",
       });
     },
-    selectPreference: (nextPreference) => {
+    selectPreference: ({ preference: nextPreference }, _options = {}) => {
       if (!interfaceConfig || !appearance || themeId === undefined || nextPreference === preference) return;
       commit({
         next: { themeId, preference: nextPreference },

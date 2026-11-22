@@ -23,7 +23,7 @@ test("daemon catalog demand admits server federation before returning remote too
   const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
   const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
   await acceptToolRun({ deps: fixture.deps, runId: "catalog-demand", principalId: "owner" });
-  const module = createAssistantByokModule(fixture.deps, fixture.surface);
+  const module = createAssistantByokModule({ routeDeps: fixture.deps }, { toolSurface: fixture.surface });
   const app = express();
   module.registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
@@ -77,7 +77,7 @@ test("a remote tool's Allow for this chat survives the move to the server and st
   const { acceptToolRun } = await import("./assistant-tool-exec.fixture.js");
   const { startTestServer } = await import("#src/server/__tests__/helpers/http-test-server");
   await acceptToolRun({ deps: fixture.deps, runId: "remembered-run", principalId: "owner" });
-  const module = createAssistantByokModule(fixture.deps, undefined, { federationConnect: async () => session });
+  const module = createAssistantByokModule({ routeDeps: fixture.deps }, { federationConnect: async () => session });
   const app = express();
   module.registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
@@ -188,7 +188,7 @@ test("new admissions appear in daemon-call catalogs", async t => {
   const next = await runtime.daemonCalls.listToolsFor({ principalId: "owner" });
   assert.equal(next.filter(tool => tool.id === "mcp__second__echo").length, 1);
   assert.deepEqual(connected.sort(), ["hosted", "second"]);
-  const search = await surface.executeMetaTool({ id: "owner" }, { id: "run" }, { name: "search_tools", input: { query: "Plexquorn server catalog echo" } });
+  const search = await surface.executeMetaTool({ principal: { id: "owner" }, run: { id: "run" }, call: { name: "search_tools", input: { query: "Plexquorn server catalog echo" } } });
   assert.match(JSON.stringify(search), /mcp__second__echo/);
   assert.equal(isAssistantDaemonReady(), false);
 });

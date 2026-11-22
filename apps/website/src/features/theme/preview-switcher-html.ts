@@ -53,7 +53,7 @@ measure();if(typeof ResizeObserver!=='undefined')new ResizeObserver(measure).obs
 function renderBanner({ config, activeThemeId, currentThemeId, path, delivery }: PreviewPage, _options = {}): string {
   const choices = config.themes.map(theme => {
     const href = delivery === "static" ? previewThemePath({ themeId: theme.themeId, activeThemeId, path }) : `${path}?theme=${encodeURIComponent(theme.themeId)}`;
-    return `<a class="tovu-theme-preview-choice" href="${escapeHtml(href)}"${theme.themeId === currentThemeId ? ' aria-current="true"' : ""}>${escapeHtml(theme.label)}</a>`;
+    return `<a class="tovu-theme-preview-choice" href="${escapeHtml({ text: href })}"${theme.themeId === currentThemeId ? ' aria-current="true"' : ""}>${escapeHtml({ text: theme.label })}</a>`;
   }).join("");
   return `<div class="tovu-theme-preview-host" style="all:initial!important;display:block!important;position:fixed!important;top:0!important;left:0!important;right:0!important;width:100%!important;z-index:2147483647!important"><template shadowrootmode="open"><style>${BANNER_CSS}</style><nav class="tovu-theme-preview-bar" aria-label="Theme preview"><span class="tovu-theme-preview-label">Theme preview</span>${choices}</nav></template></div>`;
 }
@@ -99,7 +99,7 @@ function previewHead({ page }: { page: PreviewPage }, _options = {}): string {
   canonical.searchParams.delete("theme");
   const robots = page.preview && page.delivery === "static" ? '<meta name="robots" content="noindex">' : "";
   const canonicalHref = page.origin ? canonical.href : canonical.pathname + canonical.search;
-  return `<link rel="canonical" href="${escapeHtml(canonicalHref)}">${robots}<style id="tovu-theme-preview-spacing">body{padding-top:calc(var(--tovu-theme-preview-base-padding,0px) + var(--tovu-theme-preview-height,44px))!important}</style>`;
+  return `<link rel="canonical" href="${escapeHtml({ text: canonicalHref })}">${robots}<style id="tovu-theme-preview-spacing">body{padding-top:calc(var(--tovu-theme-preview-base-padding,0px) + var(--tovu-theme-preview-height,44px))!important}</style>`;
 }
 
 /** Decorate the real renderer's finished HTML for every theme tier. O(HTML size), no I/O.

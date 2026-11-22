@@ -5,7 +5,10 @@
  * it runs against fakes instead of being pinned by reading `index.ts` as text.
  */
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
-import { sitesHomeMenuTemplate, type SitesHomeMenuEntry } from "../../site-history-menu.ts";
+import { workspaceMenuTemplate, viewMenu, historyMenu, type WorkspaceMenuEntry } from "@jini-ai/desktop-host/electron/usability";
+import { SITE_HISTORY_CHANNEL } from "../../contracts/project.ts";
+import { findMenu, type FindMenu } from "../../find-menu.ts";
+import { zoomMenuItems, type ZoomMenuItem } from "../../zoom-menu.ts";
 import type { BootMode } from "./boot-steps.ts";
 import { shouldReopenOnActivate } from "./own-server-boot.ts";
 
@@ -93,12 +96,17 @@ export async function bootInMode({ mode, ports }: { mode: BootMode; ports: BootM
 /**
  * Electron's default menu, rebuilt, plus History: Back (Cmd+[) and Forward (Cmd+]) for the visible
  * project tab, then Settings. A menu accelerator still fires with focus inside a tab's guest. See
- * `site-history-menu.ts`. `settings` is a thunk so it is read after the home menus, as the inline
+ * Jini desktop-host/electron/usability. `settings` is a thunk so it is read after the home menus, as the inline
  * template always did.
  * @complexity O(1).
  */
-export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (SitesHomeMenuEntry | Settings)[] {
-  return [...sitesHomeMenuTemplate({ platform }), settings()];
+export function appWideMenuTemplate<Settings>({ platform, settings }: { platform: NodeJS.Platform; settings: () => Settings }, _optional = {}): (WorkspaceMenuEntry<FindMenu, ZoomMenuItem> | Settings)[] {
+  return [...workspaceMenuTemplate({
+    platform,
+    view: viewMenu({ label: "View", zoomItems: zoomMenuItems({}) }),
+    history: historyMenu({ channel: SITE_HISTORY_CHANNEL, labels: { menu: "History", back: "Back", forward: "Forward" } }),
+    find: findMenu({}),
+  }), settings()];
 }
 
 /** Opening a single-window mode's window, and reopening it from the Dock. */
@@ -106,7 +114,7 @@ export interface SingleWindowPorts {
   selftest: boolean;
   installSelftestTracker: (input: { expectedCount: number }) => void;
   openWindow: () => void;
-  onActivate: (listener: () => void) => void;
+  onActivate: (required: { listener: () => void }) => void;
   windowCount: () => number;
   quitPhase: () => QuitPhase;
 }
@@ -120,17 +128,17 @@ export interface SingleWindowPorts {
 export function openSingleWindow({ ports }: { ports: SingleWindowPorts }, _optional = {}): void {
   if (ports.selftest) ports.installSelftestTracker({ expectedCount: 1 });
   ports.openWindow();
-  ports.onActivate(() => {
+  ports.onActivate({ listener: () => {
     if (shouldReopenOnActivate({ windowCount: ports.windowCount(), quitPhase: ports.quitPhase() })) ports.openWindow();
-  });
+  } });
 }
 
 /** The sites-home steps, in `runSitesHomeBoot`'s order. `Deps` is `project-ipc.ts`'s deps bag. */
 export interface SitesHomeBootPorts<Deps> extends SingleWindowPorts {
   settleDevFallbackRows: () => void;
   buildProjectDeps: () => Deps;
-  registerSiteIpcHandlers: (deps: Deps) => void;
-  startSiteDiscovery: (deps: Deps) => void;
+  registerSiteIpcHandlers: (required: { deps: Deps }) => void;
+  startSiteDiscovery: (required: { deps: Deps }) => void;
   registerAppVersionIpc: () => void;
   registerResourcesIpc: () => void;
   registerOwnerStoreIpc: () => void;
@@ -156,12 +164,12 @@ export function runSitesHomeBoot<Deps>({ ports }: { ports: SitesHomeBootPorts<De
   const projectDeps = ports.buildProjectDeps();
   // Registered BEFORE the stubs: `ipcMain.handle` throws on a duplicate registration, so these
   // real handlers must claim their channels first — see `project-ipc.ts`'s own header.
-  ports.registerSiteIpcHandlers(projectDeps);
+  ports.registerSiteIpcHandlers({ deps: projectDeps });
   // The boot discovery pass, and the answer to "a site created by `tovu init` outside the shell
   // never appears": until this existed the Projects screen rendered `desktop-projects.json` and
   // nothing else. The read-only worker starts here without delaying the window; the normal
   // list poll picks up its discoveries. A stalled/removable volume cannot hold boot hostage.
-  ports.startSiteDiscovery(projectDeps);
+  ports.startSiteDiscovery({ deps: projectDeps });
   ports.registerAppVersionIpc();
   ports.registerResourcesIpc();
   ports.registerOwnerStoreIpc();

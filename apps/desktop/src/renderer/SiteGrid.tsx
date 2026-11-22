@@ -1,3 +1,4 @@
+import { siteCardParentFolder } from './SiteGrid.hooks.js';
 import { namePasteHandler } from '../contracts/site-name.js';
 /**
  * The site grid: one card per website, and each card's inline delete-confirm overlay. Split out
@@ -42,15 +43,16 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * the header's "Create website" fill — while the site is on (owner 2026-10-30). Nothing is reachable two ways, which is the rule that keeps the column readable as it
  * grows.
  */
-import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteListController } from '@jini-ai/ui/site-card';
-import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, cardOpenProps, closeMenuThen, duplicateDisplayNames, type SiteListController } from '@jini-ai/ui/site-card';
+import { useDeleteConfirmation } from './App.hooks.js';
+import { useDismissibleDropdown } from './use-dropdown-menu.hooks.js';
 import { useSiteListPrefs } from './use-site-list-prefs.hooks.js';
 import { useSiteRename, renameInputKeyDown, showsInvalidNameHint } from './use-site-rename.hooks.js';
 import { useSiteActions } from './use-site-actions.hooks.js';
 import { codeSpans, externalStopConfirm, powerControl, useSitePower } from './use-site-power.hooks.js';
 import { useSiteLocate } from './use-site-locate.hooks.js';
 import { useSitePreview } from './use-site-preview.hooks.js';
-import { cardOpenClass, cardOpenProps, duplicateDisplayNames, siteCardTone, cardOverlay, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
+import { cardOpenClass, siteCardTone, cardOverlay, databaseLabel, deleteActionCopy, isCardOpenable, type CardOverlayMode, type DeleteActionCopy } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
 import type { SiteRecord } from '../contracts/project.js';
@@ -63,7 +65,7 @@ import { ToolIcon } from './tool-icons.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
- * never its result. Written as `useDeleteState = useDeleteConfirmation(onDelete)` it would only
+ * never its result. Written as `useDeleteState = useDeleteConfirmation({ onDelete })` it would only
  * run when a caller omitted the prop, so hook order would vary by call site; as written it is
  * called unconditionally below and the order is fixed.
  *
@@ -88,7 +90,7 @@ export function SiteGrid({
   usePower = useSitePower,
   useLocate = useSiteLocate,
   usePreview = useSitePreview,
-  useListPrefs = useSiteListPrefs,
+  useListPrefs = useSiteListPrefs, useSiteListViewHook = useSiteListView,
 }: {
   projects: readonly SiteRecord[];
   onOpen: (id: string) => void;
@@ -114,18 +116,18 @@ export function SiteGrid({
    *  the same reason as the others, so a test can render a card with a capture. */
   usePreview?: typeof useSitePreview;
   /** This window's sort, pins and hidden sites. Injectable for the same reason as the others. */
-  useListPrefs?: typeof useSiteListPrefs;
+  useListPrefs?: typeof useSiteListPrefs; useSiteListViewHook?: typeof useSiteListView;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
-    useDeleteState(onDelete);
-  const rename = useRenameState(onRenamed);
+    useDeleteState({ onDelete });
+  const rename = useRenameState({}, { onRenamed });
   const actions = useActions();
   // Start opens the site once it is running, through the very `onOpen` a card click calls — see
   // `runPowerToggle`.
-  const power = usePower(onSiteUpdated, { onStarted: onOpen });
-  const locate = useLocate(onSiteUpdated);
+  const power = usePower({}, { onSiteUpdated, onStarted: onOpen });
+  const locate = useLocate({}, { onLocated: onSiteUpdated });
   const { prefs, onPrefsChange } = useListPrefs();
-  const list = useSiteListView({
+  const list = useSiteListViewHook({
     items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, running: project.status === 'running', project })),
     prefs,
     onPrefsChange,
@@ -143,7 +145,7 @@ export function SiteGrid({
           project={project}
           list={list}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={cardOverlay(project.id, pendingId, rename.renamingId, power.confirmingStopId ?? null)}
+          overlay={cardOverlay({ id: project.id, pendingDeleteId: pendingId, renamingId: rename.renamingId }, { confirmingStopId: power.confirmingStopId ?? null })}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -151,9 +153,9 @@ export function SiteGrid({
           actions={actions}
           power={power}
           locate={locate}
-          onRequestDelete={requestDelete}
+          onRequestDelete={(id) => requestDelete({ id })}
           onCancelDelete={cancelDelete}
-          onConfirmDelete={confirmDelete}
+          onConfirmDelete={(id) => confirmDelete({ id })}
           usePreview={usePreview}
         />
       ))}
@@ -214,9 +216,9 @@ function SiteCard({
   // ANY overlay makes the card inert, which is why the two are one value rather than two booleans:
   // the click that commits or dismisses an overlay must not also open the site underneath it, and
   // that is true of the rename form for exactly the reason it is true of the delete confirmation.
-  const openable = isCardOpenable(project, overlay !== null);
+  const openable = isCardOpenable({ project, confirming: overlay !== null });
   // All five open-affordance attributes from one decision — see `cardOpenProps`.
-  const openProps = cardOpenProps(openable, () => onOpen(project.id));
+  const openProps = cardOpenProps({ openable, onOpen: () => onOpen(project.id) });
   // What this card's destructive control means for THIS project — a delete that erases the folder,
   // or a removal that only drops the card. See `deleteActionCopy`'s own doc on why one word for
   // both would be a lie in whichever direction the operator happened to read it.
@@ -227,20 +229,9 @@ function SiteCard({
   // The polled status, or the transition THIS window started and is still waiting on — see
   // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
   const status = power.statusOf(project);
-  const powerError = power.errorOf(project.id);
+  const powerError = power.errorOf({ id: project.id });
   const connection = sitePortPresentation({ port: project.port, status });
   const statusCopy = siteCardStatus({ project, connection });
-  /** Parent-folder display keeps the saved path spelling, including Windows separators. O(n). */
-  function siteCardParentFolder({ installDir }: { installDir: string }, _options = {}): string {
-    const separator = (index: number) => installDir[index] === '/' || installDir[index] === "\\";
-    let end = installDir.length;
-    while (separator(end - 1)) end--;
-    let start = end;
-    while (start > 0 && !separator(start - 1)) start--;
-    if (start === 0) return installDir || '/';
-    while (separator(start - 1)) start--;
-    return installDir.slice(0, start) || '/';
-  }
   const parentFolder = siteCardParentFolder({ installDir: project.installDir });
 
   // The inline panel owns the card; its actions must not share space with the menu trigger, and the
@@ -287,7 +278,7 @@ function SiteCard({
           {project.templateVersion && <> · Tovu {project.templateVersion}</>}
         </>
       )}
-      status={<SiteCardStatus label={STATUS_LABEL[status]} tone={siteCardTone(status)} title={statusCopy.title} />}
+      status={<SiteCardStatus label={STATUS_LABEL[status]} tone={siteCardTone({ status })} title={statusCopy.title} />}
       notes={<SiteCardNotes project={project} detail={statusCopy.detail} powerError={powerError} locate={locate} />}
       actions={(
         <CardActions
@@ -345,7 +336,7 @@ function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, p
   power: SitePower;
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => Promise<void>;
-}, _options = {}) {
+}) {
   return <>
     {overlay === 'rename' && <CardRenameOverlay project={project} rename={rename} />}
     {overlay === 'confirm' && (
@@ -376,11 +367,11 @@ function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, p
 
 /**
  * The body lines of a card whose folder is gone. Only for a folder main could not find on its own —
- * every rename it can prove it has already healed (`site-relocation.ts`). Locate / Remove sit in the
+ * every rename it can prove it has already healed (`tracked-site-relocation.ts`). Locate / Remove sit in the
  * action column; a refused Locate's reason, main's own sentence, shows here.
  */
 function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate: SiteLocate }) {
-  const error = locate.errorOf(project.id);
+  const error = locate.errorOf({ id: project.id });
   return (
     <>
       {project.folderMissing && <p className="card__missing">Folder moved or not a site</p>}
@@ -423,7 +414,7 @@ function CardConfirmOverlay({
     >
       <p className="card__confirmtitle">{copy.confirmTitle}</p>
       <p className="card__confirmbody">
-        {codeSpans(copy.confirmBody).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}
+        {codeSpans({ text: copy.confirmBody }).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}
       </p>
       {error && <p className="card__confirmerror" role="alert">{error}</p>}
       <div className="card__confirmacts">
@@ -495,7 +486,7 @@ function CardActions({
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
-  const control = powerControl(status, { external: Boolean(project.externalUrl) && !project.externalLauncher });
+  const control = powerControl({ status }, { external: Boolean(project.externalUrl) && !project.externalLauncher });
   const restart = power.restartControlOf?.(project);
 
   return (
@@ -515,7 +506,7 @@ function CardActions({
             className="button button--create card__power"
             disabled={locate.locatingId === project.id}
             aria-label={`Locate the folder for ${project.displayName}`}
-            onClick={() => void locate.locate(project.id)}
+            onClick={() => void locate.locate({ id: project.id })}
           >
             {locate.locatingId === project.id ? 'Locating…' : 'Locate…'}
           </button>
@@ -614,7 +605,7 @@ function SiteCardMenu({
   onToggleHidden,
   onRename,
   onRequestDelete,
-  actions,
+  actions, useDismissibleDropdownHook = useDismissibleDropdown,
 }: {
   project: SiteRecord;
   status: SiteRecord['status'];
@@ -623,13 +614,13 @@ function SiteCardMenu({
   onToggleHidden: () => void;
   onRename: () => void;
   onRequestDelete: (id: string) => void;
-  actions: SiteActions;
+  actions: SiteActions; useDismissibleDropdownHook?: typeof useDismissibleDropdown;
 }) {
-  const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
+  const { open, setOpen, containerRef } = useDismissibleDropdownHook<HTMLDivElement>();
   const running = status === 'running';
 
   // Every entry closes the menu first, then acts. See `closeMenuThen`.
-  const choose = closeMenuThen(setOpen);
+  const choose = closeMenuThen({ setOpen });
 
   return (
     <div
@@ -657,7 +648,7 @@ function SiteCardMenu({
       </button>
       {open && (
         <div className="card__menulist" role="menu">
-          <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onRename)}>
+          <button type="button" role="menuitem" className="card__menuitem" onClick={choose({ act: onRename })}>
             Rename…
           </button>
           {running && (
@@ -665,12 +656,12 @@ function SiteCardMenu({
               type="button"
               role="menuitem"
               className="card__menuitem"
-              onClick={choose(() => void actions.openInBrowser(project.id))}
+              onClick={choose({ act: () => void actions.openInBrowser({ id: project.id }) })}
             >
               Open in browser
             </button>
           )}
-          <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onToggleHidden)}>
+          <button type="button" role="menuitem" className="card__menuitem" onClick={choose({ act: onToggleHidden })}>
             {hidden ? 'Show in list' : 'Hide from list'}
           </button>
           {/* Always present, and last: the destructive entry belongs at the bottom of the list,
@@ -680,7 +671,7 @@ function SiteCardMenu({
             type="button"
             role="menuitem"
             className={project.deleteErasesFiles ? 'card__menuitem card__menuitem--danger' : 'card__menuitem'}
-            onClick={choose(() => onRequestDelete(project.id))}
+            onClick={choose({ act: () => onRequestDelete(project.id) })}
           >
             {copy.menuItemLabel}
           </button>
@@ -708,7 +699,7 @@ function SiteCardMenu({
  * @complexity O(1).
  */
 function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: SiteRenameState }) {
-  const invalid = showsInvalidNameHint(rename.draft);
+  const invalid = showsInvalidNameHint({ draft: rename.draft });
 
   return (
     <div
@@ -735,7 +726,7 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         onChange={(event) => rename.setDraft(event.target.value)}
         onPaste={namePasteHandler({ setName: rename.setDraft })}
         // Escape cancels, Enter submits when Save is enabled. See `renameInputKeyDown`.
-        onKeyDown={renameInputKeyDown(rename, project.id)}
+        onKeyDown={renameInputKeyDown({ rename, id: project.id })}
         disabled={rename.saving}
       />
       {invalid && <p className="card__confirmerror">A name must be 1 to 200 characters, not counting spaces at either end.</p>}
@@ -748,7 +739,7 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         <button
           type="button"
           className="button button--contrast"
-          onClick={() => void rename.submitRename(project.id)}
+          onClick={() => void rename.submitRename({ id: project.id })}
           disabled={!rename.canSave}
         >
           {rename.saving ? 'Saving…' : 'Save'}

@@ -4,8 +4,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { copySqliteInto } from "@jini-ai/db/kernel/sqlite";
-import { createNodeAtomicFilesystem, writeJsonFileAtomic, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
-import { readSiteIdentity } from "./project-delete-guard.ts";
+import { createNodeAtomicFilesystem, readDirectoryIdentity, writeJsonFileAtomic, type AtomicFilesystemPort } from "@jini-ai/platform/fs";
+import { SITE_IDENTITY_MARKER } from "./site-dir-store.ts";
 import { withFileLock } from "./durable-json-file.ts";
 import { createSitesWorkspace, type SitesWorkspace } from "./shared-sites.ts";
 
@@ -22,7 +22,7 @@ export interface SiteIdentityOptions {
  * @complexity O(r + m + database bytes) time, O(r + m) JS space for r catalog rows and m marker bytes.
  */
 export function ensureIndependentSiteIdentity({ siteDir }: { siteDir: string }, options: SiteIdentityOptions = {}): void {
-  const id = readSiteIdentity(siteDir);
+  const id = readDirectoryIdentity({ directory: siteDir, ...SITE_IDENTITY_MARKER });
   // Legacy markerless identities belong to the existing admission/boot owner.
   if (id === null) return;
   const workspace = options.workspace ?? createSitesWorkspace({});
@@ -33,9 +33,9 @@ export function ensureIndependentSiteIdentity({ siteDir }: { siteDir: string }, 
 
   const marker = path.join(canonical, ".site-meta.json");
   try {
-    withFileLock(marker, () => replaceCopiedIdentity({ marker, id }, { ...options, workspace }));
-  } catch {
-    throw new Error("This copied website could not start because Tovu could not give its folder a separate identity.");
+    withFileLock({ filePath: marker, critical: () => replaceCopiedIdentity({ marker, id }, { ...options, workspace }) });
+  } catch (error) {
+    throw new Error("This copied website could not start because Tovu could not give its folder a separate identity.", { cause: error });
   }
 }
 
@@ -68,8 +68,9 @@ function withCopiedDatabases({ siteDir, id, siteId, workspace, commit }: {
     from: workspace.databasePath({ dir: siteDir, id, filename }),
     to: workspace.databasePath({ dir: siteDir, id: siteId, filename, placement: 'appData' }),
   })).filter(row => fs.existsSync(row.from) && !fs.realpathSync(row.from).startsWith(siteDir + path.sep));
-  if (sources.length === 0) { commit(); return; }
-  const targetDir = path.dirname(sources[0]!.to);
+  const [firstSource] = sources;
+  if (firstSource === undefined) { commit(); return; }
+  const targetDir = path.dirname(firstSource.to);
   if (fs.existsSync(targetDir)) throw new Error('Copied database target already exists.');
   const links: { from: string; backup: string }[] = [];
   fs.mkdirSync(path.dirname(targetDir), { recursive: true });

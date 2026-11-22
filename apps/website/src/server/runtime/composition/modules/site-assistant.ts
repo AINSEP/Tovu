@@ -1,5 +1,8 @@
 import { createVisitorPageTargets } from '../visitor-page-targets.js';
 import { createVisitorFrontendControl } from '#src/assistant/site/visitor-frontend-control';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '../jini-routes.js';
+import { requestHookInput } from '#src/server/inbound/shared/request-facts';
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
@@ -13,9 +16,12 @@ import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
 import { readVisitorToolsSnapshot } from "#src/features/settings/visitor-tools-write";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
 import { randomBytes } from "node:crypto";
-import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
+import {
+  isSameOrigin,
+  normalizeOriginCandidate,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";
@@ -42,7 +48,7 @@ import {
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
 // own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
-// (`server/routes/site/pages.ts`, `server/middleware/theme-page-preview.ts`) — this is the same edge,
+// (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`, `apps/website/src/server/inbound/public-http/middleware/theme-page-preview.ts`) — this is the same edge,
 // added here so `assistant/site/*` can depend on the FUNCTION via injection instead of a static
 // import, which is what let `post` convert to the tool-contribution registry without closing a
 // `[assistant, features/post]` module cycle. See
@@ -161,7 +167,10 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  *
  * @complexity O(1).
  */
-function resolveModel(protocol: ByokProtocol, storedModel: string | null, envModel: string | undefined): string {
+function resolveModel(
+  { protocol, storedModel, envModel }: { protocol: ByokProtocol; storedModel: string | null; envModel: string | undefined },
+  _optional = {},
+): string {
   return storedModel?.trim() || envModel || (protocol === "google" ? DEFAULT_MODEL : "");
 }
 
@@ -196,7 +205,10 @@ function resolveModel(protocol: ByokProtocol, storedModel: string | null, envMod
  *
  * @complexity O(1).
  */
-function resolveBaseUrl(storedBaseUrl: string | null, envBaseUrl: string | undefined): string | undefined {
+function resolveBaseUrl(
+  { storedBaseUrl, envBaseUrl }: { storedBaseUrl: string | null; envBaseUrl: string | undefined },
+  _optional = {},
+): string | undefined {
   return storedBaseUrl?.trim() || envBaseUrl || undefined;
 }
 
@@ -225,7 +237,7 @@ export const SYSTEM_PREAMBLE = [
 ].join(" ");
 
 /** SSE framing. Kept in one place so the event names cannot drift between the branches below. */
-function sse(res: Response, event: string, data: unknown): void {
+function sse({ res, event, data }: { res: Response; event: string; data: unknown }, _optional = {}): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -300,7 +312,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
   // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
   // actively sending; `history` is passive background context they did not just author.
-  const priorTurns = resolveBoundedHistory(body.history);
+  const priorTurns = resolveBoundedHistory({ rawHistory: body.history });
 
   // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
   // budget never reaches the provider call (or its 501/503 config-error branches either) —
@@ -326,7 +338,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
  *  accepts any string, so anything outside the four protocols `byok-provider-turn.ts` dispatches
  *  is a real operator mistake that has to be named rather than rounded to Google.
  *  @complexity O(n) in provider length. */
-function toByokProtocol(provider: string): ByokProtocol | null {
+function toByokProtocol({ provider }: { provider: string }, _optional = {}): ByokProtocol | null {
   return resolveByokProtocol({ provider });
 }
 
@@ -346,7 +358,7 @@ function toByokProtocol(provider: string): ByokProtocol | null {
  *
  * @complexity O(1).
  */
-function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): string {
+function describeMissingKey({ protocol, storedKeyPresent }: { protocol: ByokProtocol; storedKeyPresent: boolean }, _optional = {}): string {
   const unopenable = storedKeyPresent
     ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_SITE_KEY is the same one it was saved under, then re-save the key."
     : "";
@@ -363,7 +375,10 @@ function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): 
 /** `res.status(503).json(...)`, in the one shape the site-chat widget's transport already reads off
  *  a failed `fetch()` (`site-assistant-transport.ts` reads `body.error`). Always returns `null` so
  *  each caller below is a single `return respondUnavailable(...)`. */
-function respondUnavailable(res: Response, reportError: SiteAssistantErrorReporter, code: string, error: unknown): null {
+function respondUnavailable(
+  { res, reportError, code, error }: { res: Response; reportError: SiteAssistantErrorReporter; code: string; error: unknown },
+  _optional = {},
+): null {
   respondPublicError({ res, status: 503, reportError, code, diagnostic: error });
   return null;
 }
@@ -394,11 +409,14 @@ function respondPublicError(
  *   read only on the fallback path, where the row is the sole record of which provider was chosen.
  */
 async function resolveProviderConfigOrRespond(
-  res: Response,
-  deps: RouteDeps,
-  env: NodeJS.ProcessEnv,
-  resolution: SiteAssistantModeResolution,
-  reportError: SiteAssistantErrorReporter,
+  { res, deps, env, resolution, reportError }: {
+    res: Response;
+    deps: RouteDeps;
+    env: NodeJS.ProcessEnv;
+    resolution: SiteAssistantModeResolution;
+    reportError: SiteAssistantErrorReporter;
+  },
+  _optional = {},
 ): Promise<SiteAssistantProviderConfig | null> {
   if (resolution.mode === "cli") {
     // Demo only. Reaching the daemon means matching its run-start contract, which this route
@@ -426,8 +444,8 @@ async function resolveProviderConfigOrRespond(
   let credentialFailure: unknown;
   const availability = await resolvePublicAssistantAvailability({
     repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, workspaceId: deps.workspaceId,
-  }, { onCredentialFailure: error => { credentialFailure = error; } });
-  if (!availability.ready) return respondUnavailable(res, reportError, availability.code, credentialFailure ?? availability.error);
+  }, { onCredentialFailure: ({ error }) => { credentialFailure = error; } });
+  if (!availability.ready) return respondUnavailable({ res, reportError, code: availability.code, error: credentialFailure ?? availability.error });
   const stored = availability.credential;
   // Historical fallback rationale, superseded by visitorai's saved-credential requirement:
   // Read only when the key did NOT resolve. The row is then the sole surviving record of which
@@ -435,7 +453,7 @@ async function resolveProviderConfigOrRespond(
   // eligible fallback — without it this route cannot tell "no credential at all" (Google's env key
   // is the documented answer) from "an Anthropic workspace whose key is missing or unreadable"
   // (where spending a Google key is the bug). Never decrypts, never throws (ADR-058 §4).
-  return resolveProviderFromCredential(res, env, toCredentialChoice({ stored }), reportError);
+  return resolveProviderFromCredential({ res, env, choice: toCredentialChoice({ stored }), reportError });
 }
 
 /** The workspace's credential as the decision below needs to see it, folded from whichever of the
@@ -480,17 +498,17 @@ export interface SiteAssistantEnvFallbacks {
 const NO_ENV_FALLBACKS: SiteAssistantEnvFallbacks = { apiKey: undefined, baseUrl: undefined, model: undefined };
 
 /** @complexity O(1). */
-export function siteAssistantEnvFallbacks(env: NodeJS.ProcessEnv, protocol: ByokProtocol): SiteAssistantEnvFallbacks {
+export function siteAssistantEnvFallbacks({ env, protocol }: { env: NodeJS.ProcessEnv; protocol: ByokProtocol }, _optional: Record<string, never> = {}): SiteAssistantEnvFallbacks {
   if (protocol !== "google") return NO_ENV_FALLBACKS;
   return {
-    apiKey: nonBlank(env.GEMINI_API_KEY),
-    baseUrl: nonBlank(env.TOVU_SITE_ASSISTANT_BASE_URL),
-    model: nonBlank(env.TOVU_SITE_ASSISTANT_MODEL),
+    apiKey: nonBlank({ value: env.GEMINI_API_KEY }),
+    baseUrl: nonBlank({ value: env.TOVU_SITE_ASSISTANT_BASE_URL }),
+    model: nonBlank({ value: env.TOVU_SITE_ASSISTANT_MODEL }),
   };
 }
 
 /** `value` trimmed, or `undefined` when absent or whitespace-only. @complexity O(n) in its length. */
-function nonBlank(value: string | undefined): string | undefined {
+function nonBlank({ value }: { value: string | undefined }, _optional = {}): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
@@ -502,34 +520,29 @@ function nonBlank(value: string | undefined): string | undefined {
  * @complexity O(1).
  */
 export function resolveProviderFromCredential(
-  res: Response,
-  env: NodeJS.ProcessEnv,
-  choice: SiteAssistantCredentialChoice,
-  reportError: SiteAssistantErrorReporter,
+  { res, env, choice, reportError }: {
+    res: Response;
+    env: NodeJS.ProcessEnv;
+    choice: SiteAssistantCredentialChoice;
+    reportError: SiteAssistantErrorReporter;
+  },
+  _optional = {},
 ): SiteAssistantProviderConfig | null {
-  const protocol = toByokProtocol(choice.provider);
+  const protocol = toByokProtocol({ provider: choice.provider });
   if (!protocol) {
-    return respondUnavailable(
-      res, reportError,
-      "PROVIDER_UNSUPPORTED",
-      `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.`,
-    );
+    return respondUnavailable({ res, reportError, code: "PROVIDER_UNSUPPORTED", error: `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.` });
   }
 
-  const envFallbacks = siteAssistantEnvFallbacks(env, protocol);
+  const envFallbacks = siteAssistantEnvFallbacks({ env, protocol });
 
   const apiKey = choice.apiKey ?? envFallbacks.apiKey;
   if (!apiKey) {
-    return respondUnavailable(res, reportError, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
+    return respondUnavailable({ res, reportError, code: "NOT_CONFIGURED", error: describeMissingKey({ protocol, storedKeyPresent: choice.keyStored }) });
   }
 
-  const model = resolveModel(protocol, choice.model, envFallbacks.model);
+  const model = resolveModel({ protocol, storedModel: choice.model, envModel: envFallbacks.model });
   if (!model) {
-    return respondUnavailable(
-      res, reportError,
-      "MODEL_NOT_CONFIGURED",
-      `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).`,
-    );
+    return respondUnavailable({ res, reportError, code: "MODEL_NOT_CONFIGURED", error: `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).` });
   }
 
   // t91 F3.1-A: a STORED baseUrl applies only together with that SAME row's stored key. `choice.apiKey`
@@ -538,7 +551,7 @@ export function resolveProviderFromCredential(
   // wrote, only against the matching env endpoint or the provider's own default. See
   // {@link resolveBaseUrl}'s doc for the full pairing rule.
   const usingEnvSourcedKey = choice.apiKey == null;
-  const baseUrl = usingEnvSourcedKey ? envFallbacks.baseUrl : resolveBaseUrl(choice.baseUrl, envFallbacks.baseUrl);
+  const baseUrl = usingEnvSourcedKey ? envFallbacks.baseUrl : resolveBaseUrl({ storedBaseUrl: choice.baseUrl, envBaseUrl: envFallbacks.baseUrl });
 
   return { protocol, apiKey, baseUrl, model };
 }
@@ -561,40 +574,18 @@ async function runSiteAssistantPreflight(
   const guard = await guardMessageAndRateLimit(req, res, deps, reportError);
   if (!guard.ok) return { ok: false };
 
-  const provider = await resolveProviderConfigOrRespond(res, deps, env, resolution, reportError);
+  const provider = await resolveProviderConfigOrRespond({ res, deps, env, resolution, reportError });
   if (!provider) return { ok: false };
 
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
 }
 
-export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
-  const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
-    exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: createTimeoutScheduler({}),
-      // This generator is cryptographic; the site's ordinary IDs can be time ordered.
-      idGenerator: { newId: () => randomBytes(16).toString("base64url") }, defaultChannel: "visitor-tool-confirmation" },
-    { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS }) });
-  const pageTargets = createVisitorPageTargets({ deps });
-  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock,
-    enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
-      { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
-    canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }),
-  });
-  const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
-  const resolution = resolveSiteAssistantMode(env);
-  // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
-  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
-  const log = deps.siteAssistantErrorLog ?? ((entry: SiteAssistantErrorLogEntry) => console.error("[site-assistant]", entry));
-  const reporter = createSiteAssistantErrorReporter({
-    ids: deps.idGen, redact: redactSecrets,
-    // Failures (not visitor-caused answers) also reach the error tracker, with the same redacted
-    // diagnostic and the public error id; the visitor still gets only the fixed public message.
-    log: (entry) => {
-      log(entry);
-      const incident = siteAssistantIncident({ entry });
-      if (incident) deps.tracker.error({ error: incident }, { context: { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } } });
-    },
-  });
-
+/** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
+ *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
+ *  ending without waiting out the 60 s the visitor is given. */
+export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle {
+  const context = createSiteAssistantContext(deps, env);
+  const { resolution } = context;
   return {
     name: "site-assistant",
 
@@ -612,7 +603,43 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       }
     },
 
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => registerSiteAssistantRoutes(app, context),
+  };
+}
+
+function createSiteAssistantContext(deps: Parameters<typeof createSiteAssistantModule>[0], env: NodeJS.ProcessEnv) {
+  const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
+    exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
+      // This generator is cryptographic; the site's ordinary IDs can be time ordered.
+      idGenerator: { newId: () => randomBytes(16).toString("base64url") }, defaultChannel: "visitor-tool-confirmation" },
+    { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS }) });
+  const pageTargets = createVisitorPageTargets({ deps });
+  const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
+  const resolution = resolveSiteAssistantMode(env);
+  // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
+  const visitorToolBudgets = createVisitorToolBudgets({ clock: deps.clock });
+  const log = deps.siteAssistantErrorLog ?? ((entry: SiteAssistantErrorLogEntry) => console.error("[site-assistant]", entry));
+  const reporter = createSiteAssistantErrorReporter({
+    ids: deps.idGen, redact: redactSecrets,
+    // Failures (not visitor-caused answers) also reach the error tracker, with the same redacted
+    // diagnostic and the public error id; the visitor still gets only the fixed public message.
+    log: (entry) => {
+      log(entry);
+      const incident = siteAssistantIncident({ entry });
+      if (incident) deps.tracker.error({ error: incident }, { context: { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } } });
+    },
+  });
+
+  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput },
+    enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
+      { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+    canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
+  });
+  return { deps, env, confirmations, pageTargets, confirmLimiter, resolution, visitorToolBudgets, reporter, frontend };
+}
+
+function registerSiteAssistantRoutes(app: Express, context: ReturnType<typeof createSiteAssistantContext>): void {
+      const { deps, env, confirmations, confirmLimiter, reporter, frontend } = context;
       frontend.mount({ app });
       registerSiteAssistantConfirm({ app, ports: {
         confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner,
@@ -624,7 +651,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
           return isSameOrigin({ target, canonical });
         },
-        reportError: error => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
+        reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
       } });
       // The app's public JSON parser runs before this module. Handle its errors here, before the
       // generic size/error middleware, so oversized/malformed visitor requests also get safe ids.
@@ -644,12 +671,12 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       app.post(CHAT_PATH, (req: Request, res: Response) => {
         const secrets: string[] = env.GEMINI_API_KEY ? [env.GEMINI_API_KEY] : [];
         const reportError: SiteAssistantErrorReporter = required => reporter(required, { exactSecrets: secrets });
-        void handleChat(req, res, reportError, secrets).catch((error: unknown) => {
+        void handleChat(req, res, { ...context, reportError, secrets }).catch((error: unknown) => {
           // The stream may already be open, in which case status codes are no longer available —
           // report on the stream if we can, and never leave a visitor's connection hanging.
           const publicError = reportError({ code: "unavailable", diagnostic: error });
           if (res.headersSent) {
-            sse(res, "error", publicError);
+            sse({ res, event: "error", data: publicError });
             res.end();
           } else {
             const { message, ...metadata } = publicError;
@@ -657,18 +684,20 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           }
         });
       });
+    }
 
-      async function handleChat(req: Request, res: Response, reportError: SiteAssistantErrorReporter, secrets: string[]): Promise<void> {
+async function handleChat(req: Request, res: Response, context: ReturnType<typeof createSiteAssistantContext> & { reportError: SiteAssistantErrorReporter; secrets: string[] }): Promise<void> {
+        const { deps, env, resolution, frontend, reportError, secrets } = context;
         const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution, reportError);
         if (!preflight.ok) return;
         const { message, priorTurns, provider } = preflight;
         secrets.push(provider.apiKey);
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
         const logicalRunId = deps.idGen.newId();
-        let terminalNavigation = false;
-        const capture = async (name: string, properties: Record<string, string | number | boolean>) => {
+        const navigation = { terminalNavigation: false };
+        const capture = async ({ name, properties }: { name: string; properties: Record<string, string | number | boolean> }, _optional = {}) => {
           if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
-          (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
+          void (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
         };
         const memberResolver = new DefaultMemberAccessResolver({
           sessions: deps.memberSessionRepo, subscriptions: deps.memberSubscriptionRepo, tiers: deps.memberTierRepo,
@@ -691,36 +720,13 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
         const { owner, publication, release: releaseFrontend } = binding;
         res.once('close', releaseFrontend);
-        const reportPolicyError = (error: unknown) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
-        const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
-          reportError: reportPolicyError });
-        // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
-        const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
-          initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
-          readSnapshot: async () => {
-            const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId });
-            return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
-          },
-          ...visitorConfirmationChannel({ confirmations, res }),
-          ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: logicalRunId, owner: owner ?? undefined, publicationRevision: publication?.revision, clock: deps.clock,
-          ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
-            const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
-            const committed = sink.appendCommitted ? await sink.appendCommitted(event, optional) : (await sink.append(event, optional), false);
-            if (committed && event.phase !== "requested") await capture("assistant_tool_used", { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
-              outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` });
-          } }, signal: abort.signal,
-          reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
-        };
-        const capabilities = createSiteCapabilityRegistry({
-          postRepo: deps.postRepo,
-          workspaceId: deps.workspaceId,
-          listPublishedPosts,
-          taxonomy: { taxonomies: deps.taxonomyRepo, terms: deps.termRepo },
-          memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
-        }, { visitorExecution, ...visitorPageOptions({ binding, frontend, pageTargets }), siteGuide: { inputSchema: VISITOR_SITE_GUIDE_SCHEMA,
-          run: ({ input, availableTools }) => runPublicSiteGuide({ input }, { availableTools }) } });
+        const capabilities = await createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }, context);
+        const executeTool = createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }, navigation);
 
-        /**
+        await runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation });
+      }
+
+/**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the
          * `ByokToolResult` shape `runByokProviderTurn` expects (each provider adapter maps that onto
          * its own wire shape — Gemini's `functionResponse`, Anthropic's `tool_result`, OpenAI's
@@ -735,17 +741,21 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
          * for human confirmation. The visitor delegate separately emits that summary
          * while held; its challenge is human-only and never part of this model-facing return value.
          */
-        const executeTool = async (call: ByokToolCall): Promise<ByokToolResult> => {
-          if (terminalNavigation) return { content: VISITOR_TOOL_REFUSAL, isError: true };
+function createVisitorToolExecutor({ capabilities, res, releaseFrontend, abort, reportError }: {
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; res: Response; releaseFrontend: () => void;
+  abort: AbortController; reportError: SiteAssistantErrorReporter;
+}, navigation: { terminalNavigation: boolean }): (call: ByokToolCall) => Promise<ByokToolResult> {
+  return async (call: ByokToolCall): Promise<ByokToolResult> => {
+          if (navigation.terminalNavigation) return { content: VISITOR_TOOL_REFUSAL, isError: true };
           const input = (call.input ?? {}) as Record<string, unknown>;
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
             case "ok":
-              if (outcome.directive) sse(res, "client_directive", outcome.directive);
+              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
               if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
-                terminalNavigation = true;
-                sse(res, 'text', { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' });
-                sse(res, 'end', { reason: 'navigation' });
+                navigation.terminalNavigation = true;
+                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
+                sse({ res, event: 'end', data: { reason: 'navigation' } });
                 releaseFrontend();
                 res.end();
                 abort.abort();
@@ -764,12 +774,85 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             default: return undefined as never;
           }
         };
+}
 
+
+
+function visitorPageOptions({ binding, frontend, pageTargets }: {
+  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;
+  frontend: ReturnType<typeof createVisitorFrontendControl>; pageTargets: ReturnType<typeof createVisitorPageTargets>;
+}) {
+  return binding.publication ? { page: { publication: binding.publication, registrations: frontend.control.toolRegistrations,
+    listPages: () => pageTargets.list({}), assertPath: pageTargets.assertPath } } : {};
+}
+
+function isTerminalVisitorAction({ name, result }: { name: string; result: unknown }): boolean {
+  if (name === 'page.navigate') return true;
+  return name === 'page.click' && Boolean((result as { terminalSubmission?: boolean } | null)?.terminalSubmission);
+}
+
+function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { terminalNavigation: boolean; aborted: boolean; runOutcome: string }): string {
+  if (terminalNavigation) return 'completed';
+  return aborted ? 'cancelled' : runOutcome;
+}
+
+function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
+  // Content tools still need Ask confirmation when page credentials/publication are absent.
+  // The gate binds the request to its IP and adds the authenticated owner when available.
+  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
+}
+
+async function createVisitorCapabilities({ req, res, reportError, abort, binding, owner, publication, capture, logicalRunId, memberResolver }: {
+  req: Request; res: Response; reportError: SiteAssistantErrorReporter; abort: AbortController;
+  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>;
+  owner: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["owner"];
+  publication: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>["bindRequest"]>>["publication"];
+  capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
+  logicalRunId: string; memberResolver: DefaultMemberAccessResolver;
+}, { deps, env, confirmations, pageTargets, visitorToolBudgets, frontend }: ReturnType<typeof createSiteAssistantContext>) {
+        const reportPolicyError = ({ error }: { error: unknown }) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
+        const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
+          reportError: reportPolicyError });
+        // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
+        const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
+          initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
+          readSnapshot: async () => {
+            const snapshot = await readVisitorToolsSnapshot({ repo: deps.settingsRepo, workspaceId: deps.workspaceId });
+            return { policy: snapshot.policy, revision: String(snapshot.revisionSeq) };
+          },
+          ...visitorConfirmationChannel({ confirmations, res }),
+          ip: resolveClientIp(req), workspaceId: deps.workspaceId, runId: logicalRunId, owner: owner ?? undefined, publicationRevision: publication?.revision, clock: deps.clock,
+          ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
+            const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
+            const committed = sink.appendCommitted ? await sink.appendCommitted(event, optional) : (await sink.append(event, optional), false);
+            if (committed && event.phase !== "requested") await capture({ name: "assistant_tool_used", properties: { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
+              outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` } });
+          } }, signal: abort.signal,
+          reportError: ({ error }: { error: unknown }) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
+        };
+        const capabilities = createSiteCapabilityRegistry({
+          postRepo: deps.postRepo,
+          workspaceId: deps.workspaceId,
+          listPublishedPosts,
+          taxonomy: { taxonomies: deps.taxonomyRepo, terms: deps.termRepo },
+          memberAccess: { resolvePostMemberAccess, decide: memberResolver.decide.bind(memberResolver) },
+        }, { visitorExecution, ...visitorPageOptions({ binding, frontend, pageTargets }), siteGuide: { inputSchema: VISITOR_SITE_GUIDE_SCHEMA,
+          run: ({ input, availableTools }) => runPublicSiteGuide({ input }, { availableTools }) } });
+  return capabilities;
+}
+
+
+async function runVisitorProviderTurn({ req, res, provider, priorTurns, message, capabilities, executeTool, abort, releaseFrontend, capture, logicalRunId, reportError, navigation }: {
+  req: Request; res: Response; provider: SiteAssistantProviderConfig; priorTurns: SiteAssistantHistoryTurn[]; message: string;
+  capabilities: Awaited<ReturnType<typeof createVisitorCapabilities>>; executeTool: ReturnType<typeof createVisitorToolExecutor>;
+  abort: AbortController; releaseFrontend: () => void; capture: (required: { name: string; properties: Record<string, string | number | boolean> }) => Promise<void>;
+  logicalRunId: string; reportError: SiteAssistantErrorReporter; navigation: { terminalNavigation: boolean };
+}): Promise<void> {
         beginStream(req, res);
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
-        await capture("assistant_message_sent", { inputKind: "text", eventId: `assistant-message:${logicalRunId}` });
-        await capture("assistant_run_started", { logicalRunId, eventId: `assistant-start:${logicalRunId}` });
+        await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
+        await capture({ name: "assistant_run_started", properties: { logicalRunId, eventId: `assistant-start:${logicalRunId}` } });
         let runOutcome = "completed";
         try { await runByokProviderTurn({
           protocol: provider.protocol,
@@ -806,42 +889,16 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             // it is written directly from `executeTool` above, the moment a page-action capability
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
-            if (terminalNavigation) return;
-            if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
-            else if (event.type === "error") { runOutcome = "failed"; sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message })); }
+            if (navigation.terminalNavigation) return;
+            if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
+            else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
             else {
-              if (event.type === "end") sse(res, "end", { reason: event.reason });
+              if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
             }
           },
         });
-        } catch (error) { if (!terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
-        finally { releaseFrontend(); await capture("assistant_run_finished", { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` }); }
+        } catch (error) { if (!navigation.terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
+        finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation: navigation.terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
         res.end();
-      }
-    },
-  };
-}
-
-function visitorPageOptions({ binding, frontend, pageTargets }: {
-  binding: Awaited<ReturnType<ReturnType<typeof createVisitorFrontendControl>['bindRequest']>>;
-  frontend: ReturnType<typeof createVisitorFrontendControl>; pageTargets: ReturnType<typeof createVisitorPageTargets>;
-}) {
-  return binding.publication ? { page: { publication: binding.publication, registrations: frontend.control.toolRegistrations,
-    listPages: () => pageTargets.list({}), assertPath: pageTargets.assertPath } } : {};
-}
-
-function isTerminalVisitorAction({ name, result }: { name: string; result: unknown }): boolean {
-  if (name === 'page.navigate') return true;
-  return name === 'page.click' && Boolean((result as { terminalSubmission?: boolean } | null)?.terminalSubmission);
-}
-
-function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { terminalNavigation: boolean; aborted: boolean; runOutcome: string }): string {
-  if (terminalNavigation) return 'completed';
-  return aborted ? 'cancelled' : runOutcome;
-}
-
-function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
-  // Content tools still need Ask confirmation when page credentials/publication are absent.
-  // The gate binds the request to its IP and adds the authenticated owner when available.
-  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse(res, 'client_directive', directive); } } };
+      
 }

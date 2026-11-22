@@ -7,7 +7,7 @@
  */
 import { sql, type ExpressionBuilder } from "kysely";
 
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { encodeSearchKey } from "@jini-ai/search";
 import type {
   SearchIndexStatePort, SearchIndexStateRow, SearchIndexStatus, SearchSiteTargets,
@@ -74,68 +74,11 @@ function toStateColumns(row: SearchIndexStateRow): StateTable {
 }
 
 /** A stored pointer pair, or `null` when that half is empty (the CHECK keeps both columns in step). */
-function toTarget(siteId: string, providerId: string | null, generation: number | null): SearchTarget | null {
+function toTarget({ siteId, providerId, generation }: { siteId: string; providerId: string | null; generation: number | null }, _optional = {}): SearchTarget | null {
   return providerId === null || generation === null ? null : { siteId, providerId, generation: Number(generation) };
 }
-
-/** The bookkeeping half. @complexity each method is one indexed statement (deleteTarget: two). */
-function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchIndexStatePort {
-  const scoped = (target: SearchTarget) => ({ site_id: target.siteId, provider_id: target.providerId, generation: target.generation });
+function createIndexWatermarks(kernel: KyselyKernel<SearchIndexDatabase>, scoped: (target: SearchTarget) => { site_id: string; provider_id: string; generation: number }): Pick<SearchIndexStatePort, 'getWatermark' | 'putWatermark' | 'deleteTarget'> {
   return {
-    async get({ target, key }) {
-      const row = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
-        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
-        .where("generation", "=", target.generation).where("doc_key", "=", encodeSearchKey({ key }))
-        .executeTakeFirst());
-      return row ? toStateRow(row) : null;
-    },
-    async put({ row }) {
-      const values = toStateColumns(row);
-      const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
-      await kernel.run(db => db.insertInto("search_index_state").values(values)
-        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "doc_key"]).doUpdateSet(updatable))
-        .execute());
-    },
-    /**
-     * Compare-and-swap settle: ONE UPDATE that matches only while the stored row still carries the
-     * observed revision and task, so an older write's completion never replaces a newer revision's
-     * bookkeeping. @complexity O(1), one primary-key UPDATE.
-     */
-    async settle({ row, expected }) {
-      const values = toStateColumns(row);
-      const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
-      const result = await kernel.run(db => db.updateTable("search_index_state").set(updatable)
-        .where("site_id", "=", values.site_id).where("provider_id", "=", values.provider_id)
-        .where("generation", "=", values.generation).where("doc_key", "=", values.doc_key)
-        .where("revision", "=", expected.revision)
-        .where("task_id", expected.taskId === null ? "is" : "=", expected.taskId)
-        .executeTakeFirst());
-      return Number(result.numUpdatedRows) === 1;
-    },
-    async listByStatus({ target, statuses, limit }, { failedBelowAttempts } = {}) {
-      // `IN ()` is not valid SQL; asking for no status matches no row.
-      if (statuses.length === 0) return [];
-      const retryable = (eb: ExpressionBuilder<SearchIndexDatabase, "search_index_state">) =>
-        eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts!)]);
-      const rows = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
-        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
-        .where("generation", "=", target.generation).where("status", "in", [...statuses])
-        // Exhausted failures leave the candidate set BEFORE the limit, so they cannot starve the rest.
-        .$if(failedBelowAttempts !== undefined, qb => qb.where(retryable))
-        // Oldest first so a retry sweep reaches every row, with the key breaking ties stably.
-        .orderBy("updated_at_ms", "asc").orderBy("doc_key", "asc")
-        .limit(limit).execute());
-      return rows.map(toStateRow);
-    },
-    async counts({ target }) {
-      const rows = await kernel.run(db => db.selectFrom("search_index_state")
-        .select(eb => ["status", eb.fn.countAll<Big>().as("n")])
-        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
-        .where("generation", "=", target.generation).groupBy("status").execute());
-      const counts = Object.fromEntries(STATUSES.map(status => [status, 0])) as Record<SearchIndexStatus, number>;
-      for (const row of rows) counts[row.status as SearchIndexStatus] = Number(row.n);
-      return counts as SearchStatusCounts;
-    },
     async getWatermark({ target, collection }) {
       const row = await kernel.run(db => db.selectFrom("search_index_watermarks").select(["cursor", "done"])
         .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
@@ -157,7 +100,76 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
             .where("provider_id", "=", target.providerId).where("generation", "=", target.generation).execute());
         }
       });
+    }
+  };
+}
+async function readIndexCounts(kernel: KyselyKernel<SearchIndexDatabase>, { target }: Parameters<SearchIndexStatePort['counts']>[0]): Promise<SearchStatusCounts> {
+      const rows = await kernel.run(db => db.selectFrom("search_index_state")
+        .select(eb => ["status", eb.fn.countAll<Big>().as("n")])
+        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
+        .where("generation", "=", target.generation).groupBy("status").execute());
+      const counts = Object.fromEntries(STATUSES.map(status => [status, 0])) as Record<SearchIndexStatus, number>;
+      for (const row of rows) counts[row.status as SearchIndexStatus] = Number(row.n);
+      return counts as SearchStatusCounts;
+    }
+
+
+
+/** The bookkeeping half. @complexity each method is one indexed statement (deleteTarget: two). */
+function createIndexState(kernel: KyselyKernel<SearchIndexDatabase>): SearchIndexStatePort {
+  const scoped = (target: SearchTarget) => ({ site_id: target.siteId, provider_id: target.providerId, generation: target.generation });
+  return {
+    async get({ target, key }) {
+      const row = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
+        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
+        .where("generation", "=", target.generation).where("doc_key", "=", encodeSearchKey({ key }))
+        .executeTakeFirst());
+      return row ? toStateRow(row) : null;
     },
+    async put({ row }) {
+      const values = toStateColumns(row);
+      const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
+      const result = await kernel.run(db => db.insertInto("search_index_state").values(values)
+        .onConflict(oc => oc.columns(["site_id", "provider_id", "generation", "doc_key"]).doUpdateSet(updatable)
+          .where("search_index_state.revision", "<=", row.revision))
+        .executeTakeFirst());
+      return Number(result.numInsertedOrUpdatedRows ?? 0n) === 1;
+    },
+    /**
+     * Compare-and-swap settle: ONE UPDATE that matches only while the stored row still carries the
+     * observed revision and task, so an older write's completion never replaces a newer revision's
+     * bookkeeping. @complexity O(1), one primary-key UPDATE.
+     */
+    async settle({ row, expected }) {
+      const values = toStateColumns(row);
+      const { site_id: _s, provider_id: _p, generation: _g, doc_key: _k, ...updatable } = values;
+      const result = await kernel.run(db => db.updateTable("search_index_state").set(updatable)
+        .where("site_id", "=", values.site_id).where("provider_id", "=", values.provider_id)
+        .where("generation", "=", values.generation).where("doc_key", "=", values.doc_key)
+        .where("revision", "=", expected.revision)
+        .where("task_id", expected.taskId === null ? "is" : "=", expected.taskId)
+        .executeTakeFirst());
+      return Number(result.numUpdatedRows) === 1;
+    },
+    async listByStatus({ target, statuses, limit }, { failedBelowAttempts } = {}) {
+      // `IN ()` is not valid SQL; asking for no status matches no row.
+      if (statuses.length === 0) return [];
+      const retryable = (eb: ExpressionBuilder<SearchIndexDatabase, "search_index_state">) => {
+        if (failedBelowAttempts === undefined) throw new Error("Search retry filter has no attempt limit");
+        return eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts)]);
+      };
+      const rows = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
+        .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
+        .where("generation", "=", target.generation).where("status", "in", [...statuses])
+        // Exhausted failures leave the candidate set BEFORE the limit, so they cannot starve the rest.
+        .$if(failedBelowAttempts !== undefined, qb => qb.where(retryable))
+        // Oldest first so a retry sweep reaches every row, with the key breaking ties stably.
+        .orderBy("updated_at_ms", "asc").orderBy("doc_key", "asc")
+        .limit(limit).execute());
+      return rows.map(toStateRow);
+    },
+    counts: input => readIndexCounts(kernel, input),
+    ...createIndexWatermarks(kernel, scoped),
   };
 }
 
@@ -168,7 +180,7 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
  * @complexity O(1), one primary-key UPDATE.
  */
 async function swapPointers(
-  kernel: StorageKernel<SearchIndexDatabase>,
+  kernel: KyselyKernel<SearchIndexDatabase>,
   required: { siteId: string; expected: SearchTarget; active: SearchTarget | null; nowMs: number },
 ): Promise<boolean> {
   const { siteId, expected, active, nowMs } = required;
@@ -187,22 +199,22 @@ async function swapPointers(
 }
 
 /** The pointer half. `promote` is the atomic generation switch. @complexity O(1) per call. */
-function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => number): SearchTargetPort {
+function createTargets({ kernel, now }: { kernel: KyselyKernel<SearchIndexDatabase>; now: () => number }, _optional = {}): SearchTargetPort {
   const retainRetired = async ({ siteId, active }: { siteId: string; active: SearchTarget }, _options = {}) => {
     await kernel.run(db => db.insertInto("search_index_retired")
       .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
       .onConflict(oc => oc.columns(["site_id", "provider_id", "generation"]).doNothing()).execute());
   };
-  const read = async (siteId: string): Promise<SearchSiteTargets> => {
+  const read = async ({ siteId }: { siteId: string }, _optional = {}): Promise<SearchSiteTargets> => {
     const row = await kernel.run(db => db.selectFrom("search_index_targets").selectAll().where("site_id", "=", siteId).executeTakeFirst());
     if (!row) return { active: null, building: null };
     return {
-      active: toTarget(siteId, row.active_provider_id, row.active_generation),
-      building: toTarget(siteId, row.building_provider_id, row.building_generation),
+      active: toTarget({ siteId, providerId: row.active_provider_id, generation: row.active_generation }),
+      building: toTarget({ siteId, providerId: row.building_provider_id, generation: row.building_generation }),
     };
   };
   return {
-    get: ({ siteId }) => read(siteId),
+    get: ({ siteId }) => read({ siteId }),
     async setBuilding({ target }) {
       const building = { building_provider_id: target.providerId, building_generation: target.generation, updated_at_ms: now() };
       await kernel.run(db => db.insertInto("search_index_targets")
@@ -210,7 +222,7 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
         .onConflict(oc => oc.column("site_id").doUpdateSet(building)).execute());
     },
     promote: ({ siteId, expected }) => kernel.transaction(async () => {
-      const { active } = await read(siteId);
+      const { active } = await read({ siteId });
       const swapped = await swapPointers(kernel, { siteId, expected, active, nowMs: now() });
       if (!swapped) return false;
       // Same transaction as the switch: the replaced index is dropped later even if this process dies now.
@@ -242,11 +254,11 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
  * @complexity O(1) to build; see each half for per-call cost.
  */
 export function createSqlSearchIndexStore<DB>(
-  required: { readonly kernel: StorageKernel<DB>; readonly now: () => number },
+  required: { readonly kernel: KyselyKernel<DB>; readonly now: () => number },
   _optional: Record<string, never> = {},
 ): SqlSearchIndexStore {
   // The content kernel is typed against the generated schema, which never lists 0027's raw-SQL
   // tables; the same kernel is re-typed for them (Kysely types are compile-time only).
-  const kernel = required.kernel as unknown as StorageKernel<SearchIndexDatabase>;
-  return { indexState: createIndexState(kernel), targets: createTargets(kernel, required.now) };
+  const kernel = required.kernel as unknown as KyselyKernel<SearchIndexDatabase>;
+  return { indexState: createIndexState(kernel), targets: createTargets({ kernel, now: required.now }) };
 }

@@ -1,7 +1,8 @@
 import { validatePageLink } from "@jini-ai/agentic";
 import { ADMIN_SCREENS } from "../features/site-inspection/admin-screens.generated.js";
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -55,7 +56,7 @@ import { ToolInputError } from "@jini-ai/core";
  * features/origin's OriginRegistryPort is keyed by workspaceId, but this tool's build signature
  * receives neither a workspace-scoped dependency bag nor a workspaceId — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
  * `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request either — no `req`,
- * no `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
+ * no `Host` header, nothing `platform/express/public-origin.ts`'s
  * `resolvePublicOrigin(req)` could read. So this tool still falls back to a bare relative path by
  * default, following the same INV-07 rule `buildRobots` documents ("SEO never fabricates a local
  * origin") for a different structural reason. The one place it goes further than a bare relative path:
@@ -63,10 +64,7 @@ import { ToolInputError } from "@jini-ai/core";
  * env var `resolvePublicOrigin` itself prefers before ever touching `req` — reading it here is not a
  * fabrication, it is the deployment's own declared origin. {@link resolveConfiguredPublicOrigin} below
  * is a small, deliberately local re-implementation of only that one branch (no `req` fallback exists
- * to reuse), matching this codebase's own "duplicate the tiny type/helper, never share it across
- * features/files" convention (see e.g. `features/custom-credentials/agent-tools.ts`'s own header,
- * citing `features/deployments/publish-agent-tools.ts`'s identical `AgentToolDefinition` duplication)
- * rather than reaching into `public-origin.ts` and reshaping a shared, security-sensitive OAuth
+ * to reuse), rather than reaching into `public-origin.ts` and reshaping a shared, security-sensitive OAuth
  * callback helper for an unrelated caller.
  *
  * ## A known, disclosed limitation of the relative-path fallback
@@ -84,16 +82,6 @@ import { ToolInputError } from "@jini-ai/core";
  */
 
 export const ADMIN_SCREEN_LINK_TOOL_ID = "assistant_admin_screen_link";
-
-/** Local declaration, not shared — see this file's header for why (the "duplicate the tiny type"
- *  convention `features/custom-credentials/agent-tools.ts`'s own header cites). */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /** Fixed at `/admin` — same constant `apps/admin/src/lib/router.ts`'s `DEFAULT_ADMIN_BASE` names as
  *  hard-coded across the stack (`vite.config.ts`'s `base`, the server's own route patterns) and
@@ -164,7 +152,7 @@ export function buildAdminScreenPath(input: { path: string; tab?: string }, _opt
  * Resolves `TOVU_PUBLIC_URL` into an absolute origin, or `undefined` when it is unset, blank, or not
  * a valid `http(s)` URL.
  *
- * Deliberately narrower than `server/inbound/public-http/routes/oauth/public-origin.ts`'s
+ * Deliberately narrower than `platform/express/public-origin.ts`'s
  * `resolvePublicOrigin(req)`: that function's SECOND branch (`req.get("host")`) needs an HTTP
  * request this tool handler never has (see this file's header). This is only its first branch,
  * duplicated locally rather than imported — see the header for why importing/reshaping that file was

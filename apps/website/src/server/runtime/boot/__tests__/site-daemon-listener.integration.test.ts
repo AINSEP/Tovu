@@ -2,7 +2,7 @@ import '../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import { requireToolExecutionCaller } from '@jini-ai/daemon/http';
+import { requireToolExecutionCallerExpress } from '../../composition/modules/tool-execution-caller-express.js';
 import { createDaemonCoreClient } from '../../../inbound/assistant/agent-daemon-core-client.js';
 import { createAgentDaemonCoreDeps } from '../../composition/agent-daemon-core-deps.js';
 import { startSiteDaemonListener } from '../site-daemon-listener.js';
@@ -11,7 +11,7 @@ for (const publicOrigin of ['http://192.168.1.20:4200', 'https://[2001:db8::20]:
   test(`chat can reach authenticated retained state when the site listens on ${publicOrigin}`, async () => {
     const app = express();
     const token = 'site-private-test';
-    const gate = requireToolExecutionCaller({}, { tokenEnvVar: 'PRIVATE_SITE_TOKEN', env: { PRIVATE_SITE_TOKEN: token } });
+    const gate = requireToolExecutionCallerExpress({ env: { PRIVATE_SITE_TOKEN: token } }, { tokenEnvVar: 'PRIVATE_SITE_TOKEN' });
     app.post('/internal/agent-daemon-core', gate, express.json(), (_req, res) => res.json({ value: {
       workspaceId: 'site-a', ownerPrincipalId: 'owner', siteBinding: { dir: '/sites/a', name: 'a' },
       siteStoragePaths: { contentDbPath: '/sites/a/content.db', mediaUploadsDir: '/sites/a/uploads', chatAttachmentsDir: '/sites/a/attachments' },

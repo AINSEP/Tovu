@@ -2,10 +2,10 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor, type SqlPostRepo } from "#src/features/post/repo";
-import { announceDueGoLives } from "#src/features/post/go-live";
+import { announceDueGoLives } from "@jini-ai/cms/entries";
 import { SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 
 /**
@@ -87,7 +87,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const outbox = recordingOutbox();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
     await store.read();
-    await store.write("<p>v2</p>");
+    await store.write({ html: "<p>v2</p>" });
     await sweep(repo, outbox, LATER);
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID, GO_LIVE_ID]);
   });
@@ -98,7 +98,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     const outbox = recordingOutbox();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt("2026-10-21T11:00:00.000Z"), revisions: repo, outbox });
     await store.read();
-    await store.write("<p>v2</p>");
+    await store.write({ html: "<p>v2</p>" });
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID]);
     await sweep(repo, outbox, GO_LIVE);
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID, GO_LIVE_ID]);
@@ -109,7 +109,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     await insertScheduledPage(db);
     const outbox = recordingOutbox();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
-    await store.ensureHtmlFormat("<p>seed</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" });
     assert.deepEqual(outbox.ids, [SAVED_ID, UPDATED_ID, GO_LIVE_ID]);
   });
 
@@ -120,7 +120,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     outbox.failing = true;
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), revisions: repo, outbox });
     await store.read();
-    await assert.rejects(store.write("<p>v2</p>"), /outbox unavailable/);
+    await assert.rejects(store.write({ html: "<p>v2</p>" }), /outbox unavailable/);
     assert.equal(await bodyHtml(db), "<p>v1</p>", "rolled back");
     outbox.failing = false;
     await sweep(repo, outbox, LATER);
@@ -134,7 +134,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore go-live catch-up", {
     outbox.failing = true;
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock: clockAt(LATER), outbox });
     await store.read();
-    await assert.rejects(store.write("<p>v2</p>"), /outbox unavailable/);
+    await assert.rejects(store.write({ html: "<p>v2</p>" }), /outbox unavailable/);
     assert.equal(await bodyHtml(db), "<p>v1</p>");
   });
 });

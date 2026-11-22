@@ -1,8 +1,10 @@
 export { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAccessSnapshot, readExternalMcpToolGrants, validateExternalMcpToolNames } from "../../contracts/core/external-mcp-access.js";
 import type { ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, ExternalMcpServerRecord, ExternalMcpServerConfig, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
-import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "../../contracts/core/credential-token.js";
+import { assertCredentialFreeField } from "../../contracts/core/credential-token.js";
+import { CredentialInputError, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { ExternalMcpConfigFailure } from "@jini-ai/core/contracts/hosted-mcp";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpStorePorts } from "@jini-ai/mcp/federation/hosted";
 import { externalMcpVaultPorts } from "./external-mcp-vault.js";
@@ -13,7 +15,7 @@ export { ExternalMcpSecretStoreUnconfiguredError };
 
 // The operator-editable MCP roster store moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1b, source
 // blob 23042de1). This path binds Tovu's credential policy, vault ports and settings path ONCE and keeps
-// every old export name and signature.
+// the existing export names.
 export { EXTERNAL_MCP_VAULT_VERSION, EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, applyExternalMcpAccess, parseArgs,
   parseAllowedToolNames, parseWriteAllowedToolNames, externalMcpRecordHasStoredToken, toResolvedFederatedConnections,
   parseOAuthScopes, hydrateExternalMcpOAuthPayload, deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
@@ -27,22 +29,22 @@ const externalMcpStorePorts: HostedMcpStorePorts = {
   reauthRequiredCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
 };
 
-export function parseEnvBlock(text: string): Record<string, string> {
-  return hosted.parseEnvBlock(text, externalMcpStorePorts);
+export function parseEnvBlock({ text }: { text: string }, _optional = {}): Record<string, string> {
+  return hosted.parseEnvBlock({ text, ports: externalMcpStorePorts });
 }
 
 export async function listExternalMcpServerViews(
-  deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>,
-  workspaceId: UUID,
+  { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>; workspaceId: UUID },
+  _optional: Record<string, never> = {},
 ): Promise<ExternalMcpServerView[]> {
-  return hosted.listExternalMcpServerViews({ repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, workspaceId);
+  return hosted.listExternalMcpServerViews({ deps: { repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, workspaceId });
 }
 
 export async function readEnabledExternalMcpConfigs(
-  deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer"> & { oauth?: ExternalMcpOAuthTokenResolverPort },
-  workspaceId: UUID,
-): Promise<{ configs: ExternalMcpServerConfig[]; failures: { serverId: string; reason: string }[] }> {
-  return hosted.readEnabledExternalMcpConfigs({ repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, workspaceId);
+  { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer"> & { oauth?: ExternalMcpOAuthTokenResolverPort }; workspaceId: UUID },
+  _optional: Record<string, never> = {},
+): Promise<{ configs: ExternalMcpServerConfig[]; failures: ExternalMcpConfigFailure[] }> {
+  return hosted.readEnabledExternalMcpConfigs({ deps: { repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, workspaceId });
 }
 
 export async function openExternalMcpOAuthPayload(
@@ -53,11 +55,9 @@ export async function openExternalMcpOAuthPayload(
 }
 
 export async function sealExternalMcpOAuthPayload(
-  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: { workspaceId: string; serverId: string },
-  payload: ExternalMcpSealedOAuthPayload,
+  { deps, identity, payload }: { deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">; identity: { workspaceId: string; serverId: string }; payload: ExternalMcpSealedOAuthPayload }, _optional = {},
 ): Promise<SealedExternalMcpOAuth> {
-  return hosted.sealExternalMcpOAuthPayload({ sealer: deps.sealer, keyring: deps.keyring, ...externalMcpStorePorts }, identity, payload);
+  return hosted.sealExternalMcpOAuthPayload({ deps: { sealer: deps.sealer, keyring: deps.keyring, ...externalMcpStorePorts }, identity, payload });
 }
 
 export function normalizeExternalMcpAccessToken(

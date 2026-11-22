@@ -42,7 +42,7 @@ function makeCounterRepo(inner: PostRepoPort) {
     // names (the beforeSaveHook throw-before-save guarantee), not the revision ledger.
     appendRevision: (r) => inner.appendRevision(r),
     listRevisions: (r) => inner.listRevisions(r),
-    transaction: (fn) => inner.transaction(fn),
+    transaction: ({ fn }) => inner.transaction({ fn }),
   };
   return { repo, counter };
 }
@@ -70,7 +70,7 @@ async function seedPost(repo: PostRepoPort, overrides: Partial<PostRecord> = {})
 }
 
 test("AC-01/REQ-05/REQ-06: updatePost merges the injected beforeSaveHook's returned ext patch onto the saved/returned post", async () => {
-  const memoryRepo = new InMemoryPostRepo();
+  const memoryRepo = new InMemoryPostRepo({});
   const priorExt = { "word-count": { count: 5, prior: true }, "other-plugin": { retained: "yes" } };
   await seedPost(memoryRepo, { ext: priorExt });
   const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "new body" }] }] };
@@ -99,7 +99,7 @@ test("AC-01/REQ-05/REQ-06: updatePost merges the injected beforeSaveHook's retur
 });
 
 test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must prevent repo.save() from ever being called — no partial write", async () => {
-  const memoryRepo = new InMemoryPostRepo();
+  const memoryRepo = new InMemoryPostRepo({});
   await seedPost(memoryRepo);
   const { repo, counter } = makeCounterRepo(memoryRepo);
 
@@ -122,7 +122,7 @@ test("CIC U-004-B1/F1 (Binding — post.ts side): a throwing beforeSaveHook must
 });
 
 test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook supplied behaves exactly as it does today (no-op default) — this must ALREADY pass, proving the optional dependency does not regress the zero-plugin path", async () => {
-  const memoryRepo = new InMemoryPostRepo();
+  const memoryRepo = new InMemoryPostRepo({});
   const priorExt = { "word-count": { count: 5 }, "other-plugin": { retained: true } };
   await seedPost(memoryRepo, { ext: priorExt });
 
@@ -138,7 +138,7 @@ test("behavior.spec.md §10 / regression seam: updatePost with NO beforeSaveHook
 });
 
 test("REQ-11/AC-14: an entry with no contributing plugin carries no ext object at all on its DTO-equivalent in-memory record", async () => {
-  const memoryRepo = new InMemoryPostRepo();
+  const memoryRepo = new InMemoryPostRepo({});
   await seedPost(memoryRepo);
 
   const { post } = await updatePost({
@@ -151,7 +151,7 @@ test("REQ-11/AC-14: an entry with no contributing plugin carries no ext object a
 
 
 test("createPost passes the new draft to its hook and persists the derived extension", async () => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "created body" }] }] };
   const { post } = await createPost({
     deps: { repo, clock, outbox, beforeSaveHook: async (draft) => {

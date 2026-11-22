@@ -25,7 +25,7 @@ export class SqlSiteTitlePreservationStore implements SiteTitlePreservationStore
   }
 
   /** @complexity O(log n), one primary-key lookup. */
-  async isPending(workspaceId: string): Promise<boolean> {
+  async isPending({ workspaceId }: { workspaceId: string }, _optional = {}): Promise<boolean> {
     const row = await this.kernel.run((db) =>
       db
         .selectFrom("site_title_preexisting_workspaces")

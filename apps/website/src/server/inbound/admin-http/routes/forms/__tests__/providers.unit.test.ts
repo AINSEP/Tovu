@@ -16,7 +16,7 @@ function fixture(register: FormsRouteRegistrar, overrides: Record<string, unknow
   const deps: FormsRouteDeps = { ...createRouteDeps(), workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'fixture' }), ...overrides };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  register(app, deps);
+  register({ app, deps });
   return { app, deps };
 }
 
@@ -75,7 +75,7 @@ test('admin lists provider-owned settings and unavailable descriptions from its 
 
 test('provider discovery does not intercept an existing form named providers', async () => {
   const stored = { id: 'form-1', workspaceId: 'workspace-local', name: 'Providers', slug: 'providers', fields: [], status: 'active', notify: { enabled: false, recipients: [] }, createdAt: '2026-11-05T00:00:00Z', updatedAt: '2026-11-05T00:00:00Z', version: 1 };
-  const { app } = fixture((app, deps) => { registerAdminFormsProvidersRoute(app, deps); registerAdminFormsGetRoute(app, deps); }, {
+  const { app } = fixture(({ app, deps }) => { registerAdminFormsProvidersRoute({ app, deps }); registerAdminFormsGetRoute({ app, deps }); }, {
     formDefinitionRepo: { findBySlug: async ({ slug }: { slug: string }) => slug === stored.slug ? stored : null, findById: async () => null },
   });
   const form = await dispatchJsonRequest(app, 'GET', `${BASE}/forms/providers`);

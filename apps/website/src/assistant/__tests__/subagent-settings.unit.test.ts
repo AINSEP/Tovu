@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readAssistantCliPermissions, readAssistantSubagentsEnabled } from "../subagent-settings.js";
-import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "../../contracts/headless/index.js";
-import { assistantCliPermissions } from "../assistant-subagents-policy.js";
+import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "@tovu/contracts/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 type CliRequired = Parameters<typeof readAssistantCliPermissions>[0];
 type Effective = Awaited<ReturnType<CliRequired["getEffective"]>>;
@@ -13,7 +13,7 @@ const DENIED = assistantCliPermissions({ enabled: false });
 function cliRequired(answers: { snapshot?: Effective | Error; legacy?: Effective | Error }): CliRequired {
   return {
     settingsRepo: {} as CliRequired["settingsRepo"], settingsReady: Promise.resolve(), workspaceId: "site", principalId: "owner",
-    getEffective: async (_deps, input) => {
+    getEffective: async (input) => {
       const answer = input.key === ASSISTANT_CLI_PERMISSIONS_KEY ? answers.snapshot : answers.legacy;
       if (answer instanceof Error) throw answer;
       return answer ?? null;
@@ -75,7 +75,7 @@ for (const [name, value] of [
 
 test("a malformed snapshot rethrows the validation error when the caller opts into propagation", async () => {
   await assert.rejects(readAssistantCliPermissions(cliRequired({ snapshot: userLayer({ enabled: true }) }), { readFailure: "throw" }),
-    { message: "Invalid CLI permissions" });
+    { name: "Error", message: "Invalid CLI permissions" });
 });
 
 test("a failed legacy fallback denies all access instead of defaulting ON", async () => {
@@ -99,7 +99,7 @@ test("without a warn port the CLI permissions denial is logged through console.w
 
 test("the legacy boolean reads the workspace-scoped enabled key", async () => {
   const inputs: unknown[] = [];
-  const required = { ...cliRequired({}), getEffective: async (_deps: unknown, input: unknown) => { inputs.push(input); return null; } };
+  const required = { ...cliRequired({}), getEffective: async ({ deps: _deps, ...input }: { deps: unknown }) => { inputs.push(input); return null; } };
   assert.equal(await readAssistantSubagentsEnabled(required), true);
   assert.deepEqual(inputs, [{ namespace: "core.assistant-full-cli", key: ASSISTANT_SUBAGENTS_KEY, scopeContext: { workspaceId: "site" } }]);
 });
@@ -128,10 +128,11 @@ test("without a warn port the legacy denial is logged through console.warn", asy
 });
 
 test("per-agent choices survive reads and apply only to the selected agent after the host gate", async () => {
-  const { resolveAssistantCliPermissions } = await import("../../contracts/core/assistant-native-fallbacks.js");
+  const { resolveAssistantCliPermissions } = await import("@tovu/contracts/assistant-native-fallbacks");
   const saved = { ...assistantCliPermissions({ enabled: true }), byAgent: { antigravity: { capabilities: { userMcp: true } }, claude: { capabilities: { shell: false } } } };
   const parsed = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer(saved) }));
   assert.deepEqual(parsed.byAgent, saved.byAgent);
+  assert.strictEqual(parsed.byAgent, saved.byAgent);
   const resolve = (agentId: string, isOwner = true) => resolveAssistantCliPermissions({ isOwner, env: {}, settings: parsed, agentId });
   assert.equal(resolve("antigravity").capabilities.userMcp, true);
   assert.equal(resolve("claude").capabilities.userMcp, true); // the site default, on since 2026-11-10

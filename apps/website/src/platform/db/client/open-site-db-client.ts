@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "../chat-kernel.js";
-import type { StorageKernel } from "../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { SiteStorage } from "../../site-dir/index.js";
 
 /**
@@ -40,8 +40,7 @@ export type ImportSiteDbDriver = <K extends keyof SiteDbDrivers>(
 
 /** Reads a Postgres site's connection string (composition passes `resolvePostgresConnectionString` from `storage-secret.ts`). */
 export type ResolvePostgresConnectionString = (
-  storage: Extract<SiteStorage, { kind: "postgres" }>,
-  required: { siteDir: string },
+  required: { storage: Extract<SiteStorage, { kind: "postgres" }>; siteDir: string },
   optional: { env?: NodeJS.ProcessEnv }
 ) => Promise<string>;
 
@@ -109,7 +108,7 @@ export async function openSiteDbClient(required: OpenSiteDbClientRequired, optio
       ? openPgliteKernel({ env }, await importDriver({ kind: "pglite" }))
       : await openPostgresKernel({ ...required, storage, env }, await importDriver({ kind: "postgres" }));
   // The same connection(s), typed per history: content in `public`, chat in `ai_chat` (ADR-067).
-  return { content: base as ContentKernel, chat: pgChatKernel(base), close: () => base.close() };
+  return { content: base as ContentKernel, chat: pgChatKernel({ kernel: base }), close: () => base.close() };
 }
 
 async function openSqliteClient(required: OpenSiteDbClientRequired, driver: SiteDbDrivers["sqlite"]): Promise<SiteDbClient> {
@@ -118,10 +117,10 @@ async function openSqliteClient(required: OpenSiteDbClientRequired, driver: Site
       throw new Error(`${filePath} does not exist: the site's API process creates and migrates it at boot; start the site, then retry`);
     }
   }
-  const content = driver.openSqliteFileKernel<ContentDatabase>(required.dbPath);
-  let chat: StorageKernel<ChatDatabase>;
+  const content = driver.openSqliteFileKernel<ContentDatabase>({ filePath: required.dbPath });
+  let chat: KyselyKernel<ChatDatabase>;
   try {
-    chat = driver.openSqliteFileKernel<ChatDatabase>(required.chatDbPath);
+    chat = driver.openSqliteFileKernel<ChatDatabase>({ filePath: required.chatDbPath });
   } catch (err) {
     await content.close();
     throw err;
@@ -139,7 +138,7 @@ async function openSqliteClient(required: OpenSiteDbClientRequired, driver: Site
   };
 }
 
-function openPgliteKernel(required: { env: NodeJS.ProcessEnv }, driver: SiteDbDrivers["pglite"]): StorageKernel<unknown> {
+function openPgliteKernel(required: { env: NodeJS.ProcessEnv }, driver: SiteDbDrivers["pglite"]): KyselyKernel<unknown> {
   const socketPath = required.env[PG_SOCKET_ENV]?.trim();
   if (!socketPath) {
     throw new Error(`this site is stored on pglite and ${PG_SOCKET_ENV} is not set: the daemon supervisor passes the owner's socket`);
@@ -153,10 +152,9 @@ async function openPostgresKernel(
     env: NodeJS.ProcessEnv;
   },
   driver: SiteDbDrivers["postgres"]
-): Promise<StorageKernel<unknown>> {
+): Promise<KyselyKernel<unknown>> {
   const connectionString = await required.resolvePostgresConnectionString(
-    required.storage,
-    { siteDir: dirname(required.dbPath) },
+    { storage: required.storage, siteDir: dirname(required.dbPath) },
     { env: required.env }
   );
   return driver.openPostgresKernel<unknown>({ connectionString });

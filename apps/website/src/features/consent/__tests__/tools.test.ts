@@ -3,21 +3,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { buildConsentRegistrations, consentDerivedRisk, contributeConsentTools } from '../tool-registrations.js';
 import { consentFixture } from './fixture.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 import { SITE_CONSENT_DEFAULT_CSS } from '../config.js';
+import { contentKernel } from '#src/platform/db/content-kernel';
+import { createSiteConsentStore } from '../revisions.repo.js';
 
-function tools({ t }: { t: import('node:test').TestContext }, _options = {}) {
+function tools({ t, signal }: { t: import('node:test').TestContext; signal?: AbortSignal }, _options = {}) {
   const f = consentFixture({ t });
   let exchangeCount = 0;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => `exchange-${++exchangeCount}` }, defaultChannel: 'mcp-ui' });
   const registrations = buildConsentRegistrations({ siteConsent: f.service }, { surfaceExchanges });
   const call = (name: string, input: unknown = {}, options: ToolExecutionOptions = {}) => {
     const tool = registrations.find(item => item.descriptor.id === name); assert.ok(tool);
-    const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal };
+    const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: signal ?? new AbortController().signal };
     return tool.handler(ctx, options);
   };
   const answer = (toolId: string, decision: 'confirm' | 'cancel' | 'typed' = 'confirm', before?: () => void | Promise<void>): ToolExecutionOptions => ({ emitSurface: async () => {
@@ -66,6 +68,43 @@ test('confirmed draft and publish use fixed values; a changed draft invalidates 
   assert.equal((await f.store.read({})).published?.config.title, 'Changed during review');
 });
 
+test('confirmed draft aborts before the first SQL write', async t => {
+  const controller = new AbortController();
+  const reason = new DOMException('consent write cancelled', 'AbortError');
+  const f = tools({ t, signal: controller.signal });
+  const kernel = contentKernel({ store: f.db });
+  const store = createSiteConsentStore({ workspaceId: 'ws', kernel: {
+    query: kernel.query.bind(kernel),
+    execute: kernel.execute.bind(kernel),
+    transaction: kernel.transaction.bind(kernel),
+    lockKey: async key => { await kernel.lockKey(key); controller.abort(reason); },
+  } });
+  f.ports.store = store;
+  await assert.rejects(f.call('consent_update_settings', { config: f.config, expectedDraftId: null }, f.answer('consent_update_settings')), reason, 'The confirmed draft rejects with the cancellation reason');
+  assert.deepEqual(await store.read({}), { draft: null, published: null }, 'Cancellation leaves both consent pointers empty');
+});
+
+test('confirmed publication aborts before changing the public pointer', async t => {
+  const controller = new AbortController();
+  const reason = new DOMException('consent publication cancelled', 'AbortError');
+  const f = tools({ t, signal: controller.signal });
+  const saved = await f.service.saveDraft({ principalId: 'owner', config: f.config, expectedDraftId: null });
+  const published = t.mock.fn(async () => {});
+  f.ports.published = published;
+  const kernel = contentKernel({ store: f.db });
+  const store = createSiteConsentStore({ workspaceId: 'ws', kernel: {
+    query: kernel.query.bind(kernel),
+    execute: kernel.execute.bind(kernel),
+    transaction: kernel.transaction.bind(kernel),
+    lockKey: async key => { await kernel.lockKey(key); controller.abort(reason); },
+  } });
+  f.ports.store = store;
+  await assert.rejects(f.call('consent_publish_settings', { draftId: saved.revision.id, expectedPublishedId: null }, f.answer('consent_publish_settings')), reason, 'The confirmed publication rejects with the cancellation reason');
+  const state = await store.read({});
+  assert.equal(state.draft?.id, saved.revision.id, 'Cancellation preserves the saved draft');
+  assert.equal(state.published, null, 'Cancellation leaves the public pointer empty');
+  assert.equal(published.mock.callCount(), 0, 'Cancellation does not refresh the published policy');
+});
 
 for (const name of ['consent_update_settings', 'consent_publish_settings']) test(`${name} does not acknowledge a failed durable write`, async t => {
   const f = tools({ t });

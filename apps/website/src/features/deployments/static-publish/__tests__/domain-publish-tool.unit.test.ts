@@ -15,7 +15,7 @@ import { buildStaticPublishRegistrations } from '../../publish-agent-tools.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
-import { deploymentRefusal } from '#src/features/consent/service';
+import { deploymentRefusal } from '#src/contracts/core/consent-refusal';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
 import { buildGatewayDeps } from '#src/contracts/core/gated-mutations/composition';
 import { InMemoryTokenStore, type TokenStorePort } from '#src/contracts/core/gated-mutations/token';
@@ -26,6 +26,7 @@ import type { PublishCredentialSource } from '../types.js';
 import type { StaticPublishInput } from '../adapter.js';
 import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '../../deploy-targets/types.js';
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';
@@ -42,8 +43,8 @@ async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' 
   const tokenOwner = new InMemoryTokenStore();
   const tokens: TokenStorePort = {
     save: record => tokenOwner.save(record),
-    findByToken: async token => {
-      const record = await tokenOwner.findByToken(token);
+    findByToken: async ({ token }) => {
+      const record = await tokenOwner.findByToken({ token });
       if (options.tokenState === 'fault') throw new Error('typed-store-test-failure');
       if (!record) return null;
       if (options.tokenState === 'foreign') return { ...record, confirmerPrincipalId: 'someone-else' };
@@ -202,9 +203,9 @@ test('an approved domain publish refuses while another publish run is still runn
   const gate = new Promise<void>(resolve => { release = resolve; });
   try {
     const result = f.handler(f.ctx, { emitSurface: async surface => {
-      startPublishRun({ credentialSource: f.credentialSource, loadDeployTargets: f.deps.loadDeployTargets }, {
+      startPublishRun({ deps: { credentialSource: f.credentialSource, loadDeployTargets: f.deps.loadDeployTargets }, input: {
         workspaceId: f.deps.workspaceId, publishOutputRootDir: f.deps.publishOutputRootDir, idGen: f.deps.idGen, config: { target: 'fixture' }, projectName: 'other',
-        exportSiteBound: async () => { await gate; throw new Error('other run released'); } }, { nowIso: () => new Date().toISOString() }, f.historyStore);
+        exportSiteBound: async () => { await gate; throw new Error('other run released'); } }, clock: { nowIso: () => new Date().toISOString() }, historyStore: f.historyStore });
       await confirmAs(f).emitSurface(surface);
     } });
     await assert.rejects(result, /ALREADY_RUNNING: A publish is running/);
@@ -281,9 +282,9 @@ for (const noPreview of [false, true]) test(`assembled custom-domain publish (pr
   let routeExecutions = 0;
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...executor, execute: (...args) => { routeExecutions++; return executor.execute(...args); },
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   let approvalCards = 0;
   const executed = await executor.execute({ principal: f.ctx.principal, run: f.ctx.run,

@@ -1,10 +1,10 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
@@ -13,6 +13,7 @@ import { usePluginInstall, type PluginInstallController } from "./use-plugin-ins
 import { defaultPluginInstallPort } from "./plugin-install-dependencies.hooks";
 import type { PluginInstallPort } from "./plugin-install-port.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Plugins list does, so `Plugins.tsx` is only markup.
  *
@@ -76,7 +77,7 @@ export interface PluginsController {
    *  (2026-09-10) from a bare `useState` in `Plugins.tsx`. */
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
-  onToggleExpanded: (id: string) => void;
+  onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   /** The plugin open in `PluginPackageFilesModal`, looked up fresh from `plugins` by id so a reload
    *  never shows a stale row; `null` while the viewer is closed. */
   inspectedPlugin: AdminPlugin | null;
@@ -113,7 +114,7 @@ export interface PluginsController {
  *  independently kept, as `use-agent-plugins.hooks.ts`'s own `withId` — this feature's established
  *  precedent (`rules.ts`'s `humanizeAgentPluginId`) is a private per-screen copy over a shared
  *  cross-screen import for a two-line pure function. */
-function withId(ids: ReadonlySet<string>, id: string, present: boolean): ReadonlySet<string> {
+function withId({ ids, id, present }: { ids: ReadonlySet<string>; id: string; present: boolean }, _optional = {}): ReadonlySet<string> {
   const next = new Set(ids);
   if (present) next.add(id);
   else next.delete(id);
@@ -140,9 +141,103 @@ function findPluginById({ plugins, id }: {
  * @overallScore 92
  */
 export function usePlugins({ port, locale, t, installPort = defaultPluginInstallPort }: PluginsDependencies): PluginsController {
+  const {
+    loader, plugins, canInstallFolder, write, error, rowError, setRowError, rowSavingId, setRowSavingId, expandedIds, setExpandedIds, inspectedPluginId,
+    setInspectedPluginId, settingsPluginId, setSettingsPluginId, settingsNotice, setSettingsNotice, pendingRemoveId, setPendingRemoveId, reload,
+  } = usePluginsState({ port, locale, t });
+  const { onToggleEnabled, onRemovePlugin } = createPluginActions({ rowSavingId, setRowSavingId, setRowError, write, port, loader, locale, t });
+
+  const install = usePluginInstall({ port: installPort, t, onInstalled: reload });
+
+  return {
+    install,
+    canInstallFolder,
+    plugins,
+    error,
+    rowError,
+    rowSavingId,
+    onToggleEnabled,
+    onRemovePlugin,
+    expandedIds,
+    onToggleExpanded: ({ id }, _optional = {}) => setExpandedIds((ids) => withId({ ids, id, present: !ids.has(id) })),
+    inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
+    onInspectPlugin: setInspectedPluginId,
+    onCloseInspector: () => setInspectedPluginId(null),
+    settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
+    onOpenSettings: setSettingsPluginId,
+    onCloseSettings: () => setSettingsPluginId(null),
+    onSettingsSaved: () => {
+      const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
+      setSettingsPluginId(null);
+      setSettingsNotice(interpolate({ template: t("{name} settings saved"), vars: { name } }));
+    },
+    settingsNotice,
+    dismissSettingsNotice: () => setSettingsNotice(null),
+    pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
+    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
+    onConfirmRemove: (plugin: AdminPlugin) => {
+      setPendingRemoveId(null);
+      void onRemovePlugin(plugin);
+    },
+    onCancelRemove: () => setPendingRemoveId(null),
+    t,
+    locale,
+  };
+}
+
+function createPluginActions(
+  { rowSavingId, setRowSavingId, setRowError, write, port, loader, locale, t }:
+    Pick<ReturnType<typeof usePluginsState>, "rowSavingId" | "setRowSavingId" | "setRowError" | "write" | "loader"> &
+    Pick<Parameters<typeof usePlugins>[0], "port" | "locale" | "t">
+) {
+  async function onToggleEnabled(plugin: AdminPlugin) {
+    // EC-11: a second activation of this row's own toggle while its request is outstanding is a
+    // no-op — the client-side single-flight discipline is the guard, no `Idempotency-Key` is sent.
+    if (rowSavingId === plugin.id) return;
+    setRowSavingId(plugin.id);
+    setRowError(null);
+    try {
+      await write.mutate({ input: () => port.setPluginEnabled({ id: plugin.id, patch: { enabled: !plugin.enabled } }) });
+      await loader.load().catch(() => {}); // Join invalidation before unlocking; query.error owns a failed read.
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: translate({ locale: locale, key: "failed to update plugin" }) }, { translate: t }));
+    } finally {
+      // Only clear THIS row's lock — `rowSavingId` is shared with `onRemovePlugin`, and the EC-11
+      // guard above is per-row, so a second row's action starts freely while this one is still
+      // outstanding. An unconditional `setRowSavingId(null)` here would re-enable THAT row's control
+      // the moment this request settled, while its own request was still on the wire (same S4b bug
+      // fixed in `use-posts.hooks.ts` 26fbe22c5 / `use-pages.hooks.ts` f4f2fe899).
+      setRowSavingId((current) => (current === plugin.id ? null : current));
+    }
+  }
+
+  async function onRemovePlugin(plugin: AdminPlugin) {
+    // Same single-flight discipline as `onToggleEnabled` — a second activation of this row's own
+    // Remove (or of any other row's action) while a request is outstanding is a no-op.
+    if (rowSavingId === plugin.id) return;
+    setRowSavingId(plugin.id);
+    setRowError(null);
+    try {
+      await write.mutate({ input: () => port.uninstallPlugin({ id: plugin.id }) });
+      await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
+    } catch (e) {
+      setRowError(describeApiError({ e, fallback: translate({ locale: locale, key: "failed to remove plugin" }) }, { translate: t }));
+    } finally {
+      // Symmetric guard to `onToggleEnabled`'s — see its comment. Keeps this correct regardless of
+      // which of the two in-flight actions settles first.
+      setRowSavingId((current) => (current === plugin.id ? null : current));
+    }
+  }
+  return { onToggleEnabled, onRemovePlugin };
+}
+
+function usePluginsState(
+  { port, locale, t }:
+    Pick<Parameters<typeof usePlugins>[0], "port" | "locale" | "t">
+) {
   const queryFetch = useCallback(async () => {
     try { return await port.listPlugins(); }
-    catch (error) { throw new Error(describeApiError(error, translate({ locale, key: "failed to load plugins" }), { translate: t })); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translate({ locale, key: "failed to load plugins" }) }, { translate: t })); }
   }, [port, locale]);
   const key = useMemo(() => ["plugins", "list"] as const, []);
   const query = useFetchQuery({ key, fetch: queryFetch }, { staleTime: 0 });
@@ -168,82 +263,10 @@ export function usePlugins({ port, locale, t, installPort = defaultPluginInstall
   // Assistant tool results already publish through this bridge; re-read via our authorized port.
   // The query exposes the read error. No `.catch` here: `reload` already swallows its own load
   // failure, so the promise it returns never rejects (a second catch could never run).
-  useContentRefreshSubscription(PLUGINS_RESOURCE, () => { void reload(); });
-
-  async function onToggleEnabled(plugin: AdminPlugin) {
-    // EC-11: a second activation of this row's own toggle while its request is outstanding is a
-    // no-op — the client-side single-flight discipline is the guard, no `Idempotency-Key` is sent.
-    if (rowSavingId === plugin.id) return;
-    setRowSavingId(plugin.id);
-    setRowError(null);
-    try {
-      await write.mutate({ input: () => port.setPluginEnabled(plugin.id, { enabled: !plugin.enabled }) });
-      await loader.load().catch(() => {}); // Join invalidation before unlocking; query.error owns a failed read.
-    } catch (e) {
-      setRowError(describeApiError(e, translate({ locale: locale, key: "failed to update plugin" }), { translate: t }));
-    } finally {
-      // Only clear THIS row's lock — `rowSavingId` is shared with `onRemovePlugin`, and the EC-11
-      // guard above is per-row, so a second row's action starts freely while this one is still
-      // outstanding. An unconditional `setRowSavingId(null)` here would re-enable THAT row's control
-      // the moment this request settled, while its own request was still on the wire (same S4b bug
-      // fixed in `use-posts.hooks.ts` 26fbe22c5 / `use-pages.hooks.ts` f4f2fe899).
-      setRowSavingId((current) => (current === plugin.id ? null : current));
-    }
-  }
-
-  async function onRemovePlugin(plugin: AdminPlugin) {
-    // Same single-flight discipline as `onToggleEnabled` — a second activation of this row's own
-    // Remove (or of any other row's action) while a request is outstanding is a no-op.
-    if (rowSavingId === plugin.id) return;
-    setRowSavingId(plugin.id);
-    setRowError(null);
-    try {
-      await write.mutate({ input: () => port.uninstallPlugin(plugin.id) });
-      await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
-    } catch (e) {
-      setRowError(describeApiError(e, translate({ locale: locale, key: "failed to remove plugin" }), { translate: t }));
-    } finally {
-      // Symmetric guard to `onToggleEnabled`'s — see its comment. Keeps this correct regardless of
-      // which of the two in-flight actions settles first.
-      setRowSavingId((current) => (current === plugin.id ? null : current));
-    }
-  }
-
-  const install = usePluginInstall({ port: installPort, t, onInstalled: reload });
-
+  useContentRefreshSubscription({ resource: PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
   return {
-    install,
-    canInstallFolder,
-    plugins,
-    error,
-    rowError,
-    rowSavingId,
-    onToggleEnabled,
-    onRemovePlugin,
-    expandedIds,
-    onToggleExpanded: (id: string) => setExpandedIds((ids) => withId(ids, id, !ids.has(id))),
-    inspectedPlugin: findPluginById({ plugins, id: inspectedPluginId }),
-    onInspectPlugin: setInspectedPluginId,
-    onCloseInspector: () => setInspectedPluginId(null),
-    settingsPlugin: findPluginById({ plugins, id: settingsPluginId }),
-    onOpenSettings: setSettingsPluginId,
-    onCloseSettings: () => setSettingsPluginId(null),
-    onSettingsSaved: () => {
-      const name = findPluginById({ plugins, id: settingsPluginId })?.name ?? settingsPluginId ?? "";
-      setSettingsPluginId(null);
-      setSettingsNotice(interpolate({ template: t("{name} settings saved"), vars: { name } }));
-    },
-    settingsNotice,
-    dismissSettingsNotice: () => setSettingsNotice(null),
-    pendingRemovePlugin: findPluginById({ plugins, id: pendingRemoveId }),
-    onRequestRemove: (plugin: AdminPlugin) => setPendingRemoveId(plugin.id),
-    onConfirmRemove: (plugin: AdminPlugin) => {
-      setPendingRemoveId(null);
-      void onRemovePlugin(plugin);
-    },
-    onCancelRemove: () => setPendingRemoveId(null),
-    t,
-    locale,
+    loader, plugins, canInstallFolder, write, error, rowError, setRowError, rowSavingId, setRowSavingId, expandedIds, setExpandedIds, inspectedPluginId,
+    setInspectedPluginId, settingsPluginId, setSettingsPluginId, settingsNotice, setSettingsNotice, pendingRemoveId, setPendingRemoveId, reload,
   };
 }
 

@@ -1,7 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { findStoredTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** Wire shape for one `THEMES_LIST` entry (SPEC-004 api.spec.md §5). */
 interface ThemeListItem {
@@ -52,29 +54,14 @@ function sortThemesForList(themes: readonly DiscoveredTheme[]): DiscoveredTheme[
  * so each message is surfaced here as `{ code: null, file: null, message }`
  * rather than fabricating a code the validator never actually determined.
  */
-export const registerAdminThemesListRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemesListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.set",
-        workspaceId: deps.workspaceId,
-        entityType: "presentation",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.set", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // No settings-not-found 404 here (unlike PRESENTATION_GET) — api.spec.md §6's THEMES_LIST
       // status map lists only "unknown workspace" as a 404 cause. A missing/absent presentation

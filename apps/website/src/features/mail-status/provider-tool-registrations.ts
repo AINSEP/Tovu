@@ -1,11 +1,11 @@
 import { toolMetadata } from "../../contracts/core/tool-metadata/mail-status.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
-import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
+import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailProviderControl, MailProviderConfigurationReport } from "../../platform/mail/index.js";
 import { mailProviderAgentToolCatalog } from "./provider-agent-tools.js";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";
@@ -46,7 +46,10 @@ export async function asToolInputError<T>({ run }: { run: () => Promise<T> }, _o
 /** The lanes before a switch, when this root can describe them; a describe fault hides only this detail. */
 export async function readCurrentLanes(required: { control: MailProviderControl }, _options: Record<string, never> = {}): Promise<MailProviderConfigurationReport["setting"] | undefined> {
   if (!required.control.describe) return undefined;
-  return (await required.control.describe().catch(() => undefined))?.setting;
+  return (await required.control.describe().catch((error: unknown) => {
+    console.error("[mail] Could not read the current provider lanes", describeErrorForLog({ err: error }));
+    return undefined;
+  }))?.setting;
 }
 
 /** A split-lane setup is shown before it is flattened, never silently. */

@@ -1,11 +1,12 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { urlencoded, type Express, type RequestHandler } from "express";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js";
+import { resolveProtocol, resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
 /**
  * @file ADR-031 §4 (SPEC-033) — the public, unauthenticated comment submission route. The ONLY
@@ -13,7 +14,7 @@ import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js"
  * is `CommentIngressPolicy` (rate-limit, honeypot, sanitize, spam-classify — see `Jini/packages/cms/src/comments/ingress.ts`).
  *
  * `authorIpHash` is computed HERE, at the HTTP boundary, from the raw request IP — the raw IP
- * itself is never passed into `ingressContext` or stored (mirrors `analytics/ingest.ts`'s
+ * itself is never passed into `ingressContext` or stored (mirrors `Jini packages/analytics/src/ingest.ts`'s
  * discard-raw-IP-at-the-boundary discipline).
  *
  * The salt is resolved once by the composition root (`resolveCommentsIpHashSalt`,
@@ -76,7 +77,7 @@ export function isSameOriginCommentPost({ request }: { request: Parameters<Reque
  *   request, once the salt promise has settled.
  * @complexity O(1) route setup; request work belongs to the Jini handler.
  */
-export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDeps): void {
+export function registerCommentsSubmitRoute({ app, deps }: { app: Express; deps: CommentsSubmitDeps }, _optional: Record<string, never> = {}): void {
   // Named refusal rather than "Cannot read properties of undefined (reading 'then')", which is
   // what a caller missing this dependency produced on 2026-10-08.
   if (typeof deps.ipHashSalt?.then !== "function") {
@@ -97,7 +98,10 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
     ? commentFormReturnTo({ value: request.body?.returnTo }) : undefined }));
   // Observed here so a construction failure is not an unhandled rejection at boot; each request
   // below re-awaits the same promise and hands that failure to Express's error path instead.
-  handler.catch(() => undefined);
+  handler.catch((error: unknown) => {
+    console.error("[comments] Could not prepare the comment submission handler:",
+      describeErrorForLog({ err: error }));
+  });
   const submit: RequestHandler = async (request, response, next) => {
     if (!isSameOriginCommentPost({ request })) {
       response.status(403).json({ error: 'A same-origin comment submission is required' });

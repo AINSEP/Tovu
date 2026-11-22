@@ -31,6 +31,6 @@ export async function readMediaObjectStoreSetting(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<string> {
-  const effective = await getEffective({ repo: required.settingsRepo }, { namespace: STORAGE_SETTINGS_NAMESPACE, key: MEDIA_OBJECT_STORE_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const effective = await getEffective({ deps: { repo: required.settingsRepo }, namespace: STORAGE_SETTINGS_NAMESPACE, key: MEDIA_OBJECT_STORE_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return typeof effective?.value === "string" ? effective.value.trim() : "";
 }

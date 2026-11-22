@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createSitesWorkspace, desktopSourceRoots, desktopAppDataDir, shareAvailableDirectories, shareSiteDirectories, attachRunningSite, rememberSharedSiteOpen, sitesSettingsFile } from "./shared-sites.ts";
-import { handleCreate, handleList } from "./project-ipc.ts";
+import { handleCreate } from "./project-ipc.create.ts";
+import { handleList } from "./project-ipc.catalog.ts";
 import { discoverSiteDirs } from "./tracked-sites.ts";
 import { assertSpecificSiteRoot } from "./site-scan-policy.ts";
 import { existingRecentSiteDirs } from "./site-dir-store.ts";
@@ -23,9 +24,9 @@ test("desktop creates inside the shared home and reads Web/external entries as a
     const deps = { sharedSites: workspace, projectsPath: path.join(root, "profile", "projects.json"), statePath: path.join(root, "profile", "desktop-state.json"),
       repoRoot: path.join(root, "repo"), cliMode: "source" as const, openSites: new Map(),
       dialog: { showOpenDialog: async () => { throw new Error("Creation must not ask for another folder"); } },
-      classifySiteDir: (dir: string) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const,
+      classifySiteDir: ({ dir }: { dir: string }) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const,
       adoptSiteDir: async ({ dir, name }: { dir: string; name?: string }) => { writeSite(dir, "11111111-1111-4111-8111-111111111111", name); return dir; },
-      readSiteName: (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name as string,
+      readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name as string,
       readPreviewVersion: () => null,
     };
     const created = await handleCreate({ displayName: "My Website", database: { kind: "sqlite" } }, deps);
@@ -44,12 +45,12 @@ test("MRU import is once-only and recent entries become a sorted view of shared 
     const statePath = path.join(root, "desktop-state.json"), first = path.join(root, "first"), second = path.join(root, "second");
     writeSite(first, "first-id"); writeSite(second, "second-id");
     fs.writeFileSync(statePath, JSON.stringify({ recentSiteDirs: [first] }));
-    assert.deepEqual(existingRecentSiteDirs(statePath, { workspace }), [first]);
+    assert.deepEqual(existingRecentSiteDirs({ statePath }, { workspace }), [first]);
     fs.writeFileSync(statePath, JSON.stringify({ recentSiteDirs: [second] }));
-    assert.deepEqual(existingRecentSiteDirs(statePath, { workspace }), [first]);
+    assert.deepEqual(existingRecentSiteDirs({ statePath }, { workspace }), [first]);
     shareSiteDirectories({ workspace, dirs: [second], createdBy: "Web" });
     workspace.registry({}).opened({ path: second, at: "2026-10-09T01:00:00.000Z" });
-    assert.deepEqual(existingRecentSiteDirs(statePath, { workspace }), [second, first]);
+    assert.deepEqual(existingRecentSiteDirs({ statePath }, { workspace }), [second, first]);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 test("attaching to a Web server preserves its scheme/port and Stop never kills that owner", async () => {
@@ -84,10 +85,10 @@ test("missing-volume MRU import remains pending and imports the original entry a
   try {
     const workspace = createSitesWorkspace({}, { homeDir: root, env: {} }), state = path.join(root, "state.json"), missing = path.join(root, "volume", "site");
     fs.writeFileSync(state, JSON.stringify({ recentSiteDirs: [missing] }));
-    assert.deepEqual(existingRecentSiteDirs(state, { workspace }), []);
+    assert.deepEqual(existingRecentSiteDirs({ statePath: state }, { workspace }), []);
     assert.equal(workspace.registry({}).hasMigration({ migration: `mru:${state}` }), false);
     writeSite(missing, "mounted-id");
-    assert.deepEqual(existingRecentSiteDirs(state, { workspace }), [missing]);
+    assert.deepEqual(existingRecentSiteDirs({ statePath: state }, { workspace }), [missing]);
     assert.equal(workspace.registry({}).hasMigration({ migration: `mru:${state}` }), true);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
@@ -111,14 +112,23 @@ test("discovery cannot steal an unavailable appData site's reserved identity wit
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test("successful open remains owned when catalog discovery or last-opened bookkeeping is unreadable", () => {
+test("successful open remains owned when catalog discovery or last-opened bookkeeping is unreadable", (t) => {
   let opened = 0;
+  const warnings = t.mock.method(console, "warn", () => {});
   const workspace = { registry: () => ({
-    list: () => { throw new Error("Unreadable catalog"); },
-    opened: () => { opened++; throw new Error("Catalog write unavailable"); },
+    list: () => { throw new Error("Unreadable catalog boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); },
+    opened: () => { opened++; throw new Error("Catalog write unavailable boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); },
   }) } as unknown as Parameters<typeof rememberSharedSiteOpen>[0]["workspace"];
   assert.doesNotThrow(() => rememberSharedSiteOpen({ workspace, dir: "/opened-site" }));
   assert.equal(opened, 1);
+  assert.equal(warnings.mock.callCount(), 2);
+  const [discovery, bookkeeping] = warnings.mock.calls.map(call => call.arguments.join(" "));
+  assert.match(discovery ?? "", /shared catalog bookkeeping is unavailable.*Unreadable catalog boom/s);
+  assert.match(bookkeeping ?? "", /could not remember the opened website.*Catalog write unavailable boom/s);
+  for (const log of [discovery, bookkeeping]) {
+    assert.match(log ?? "", /shared-sites-home\.test\.ts/);
+    assert.doesNotMatch(log ?? "", /SECRETSECRETSECRETSECRET/);
+  }
 });
 
 
@@ -171,7 +181,7 @@ test("default discovery uses its injected home for policy and never admits the u
     writeSite(path.join(parent, "alpha"), "alpha-id"); writeSite(path.join(workspace.home({}), "sites", "beta"), "beta-id");
     writeSite(path.join(local, "keep-local"), "local-id");
     assert.throws(() => assertSpecificSiteRoot({ root: local }, { homeDir: root }), /too broad/);
-    const classifySiteDir = (dir: string) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const;
+    const classifySiteDir = ({ dir }: { dir: string }) => fs.existsSync(path.join(dir, "config.json")) ? "site" as const : "empty" as const;
     assert.deepEqual(discoverSiteDirs({ scanRoots: workspace.roots({}), knownDirs: [], classifySiteDir }, { homeDir: root, sitesHome: workspace.home({}) }), [path.join(parent, "alpha"), path.join(workspace.home({}), "sites", "beta")]);
     assert.throws(() => discoverSiteDirs({ scanRoots: [local], knownDirs: [], classifySiteDir }, { homeDir: root, sitesHome: workspace.home({}) }), /too broad/);
     const fallback = createSitesWorkspace({}, { homeDir: root, env: { TOVU_SITES_HOME: path.join(local, "sites") }, platform: "linux" });
@@ -280,7 +290,7 @@ test("an attached server reports the owner's exit once its lease changes, and St
   const claim = workspace.claim({ path: dir, app: "Web", port: 3456 });
   const server = attachRunningSite({ workspace, dir })!;
   const exits: unknown[] = [];
-  server.onExit((exit) => exits.push(exit));
+  server.onExit({ listener: (exit) => exits.push(exit) });
   t.mock.timers.tick(2000);
   assert.deepEqual(exits, [], "the same lease is still live");
   workspace.running({ path: dir }).release({ token: claim.record.token });
@@ -292,7 +302,7 @@ test("an attached server reports the owner's exit once its lease changes, and St
   const again = workspace.claim({ path: dir, app: "Web", port: 3457 });
   const second = attachRunningSite({ workspace, dir })!;
   const later: unknown[] = [];
-  second.onExit((exit) => later.push(exit));
+  second.onExit({ listener: (exit) => later.push(exit) });
   void second.stop();
   workspace.running({ path: dir }).release({ token: again.record.token });
   t.mock.timers.tick(10_000);

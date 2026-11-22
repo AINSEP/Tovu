@@ -1,5 +1,5 @@
 import type { DeployTargetDescriptor } from "../deploy-targets/types.js";
-import type { CredentialTokenHint } from '../../../contracts/core/credential-token.js';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 /**

@@ -51,7 +51,7 @@ function testRouteDeps(): ReturnType<typeof createRouteDeps> {
 
 /** Await the production entrypoint's settlement hook, without polling or sleeping. */
 function runPublishForTest(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, history: InMemoryPublishHistoryStore): Promise<import('../types.js').StaticPublishOutcome> {
-  return new Promise((resolve, reject) => startPublishRun(deps, input, clock, history, {
+  return new Promise((resolve, reject) => startPublishRun({ deps, input, clock, historyStore: history }, {
     triggeredBy: "agent_tool",
     onSettled: () => {
       const snapshot = getPublishRunSnapshot();
@@ -238,15 +238,22 @@ test("startPublishRun: a history-store failure never changes the reported outcom
   /** The real in-memory store, except every write fails. */
   class BrokenHistoryStore extends InMemoryPublishHistoryStore {
     override async recordSuccess(): Promise<never> {
-      throw new Error("disk full; database parameters: PRIVATE_TOKEN");
+      throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "ENOSPC" });
     }
   }
   const brokenHistory = new BrokenHistoryStore();
-  const input = githubInput(routeDeps);
+  const input = { ...githubInput(routeDeps), exportSiteBound: async ({ outputDir }: { outputDir: string }) => ({
+    outputDir, routes: { succeeded: [{ path: "/", kind: "home" as const, outputFile: "index.html", data: "site" }], failed: [] },
+    assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [],
+  }) };
 
   const outcome = await runPublishForTest(deps, input, clock, brokenHistory);
-  assert.equal(outcome.ok, true, "the real, successful outcome must still be returned even though recording it failed");
-  assert.deepEqual(warnings, [["[static-publish] destination history write failed after publish"]]);
+  assert.equal(outcome.ok, true, `the real, successful outcome must still be returned even though recording it failed: ${JSON.stringify(outcome)}`);
+  const warning = warnings.find(args => args[0] === "[static-publish] destination history write failed after publish");
+  assert.ok(warning, "the history failure is logged");
+  assert.match(String(warning[1]), /Error/);
+  assert.match(String(warning[1]), /ENOSPC/);
+  assert.doesNotMatch(JSON.stringify(warning), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("a registry reload failure logs a sanitized warning and preserves outcome-only history", async (t) => {
@@ -255,9 +262,9 @@ test("a registry reload failure logs a sanitized warning and preserves outcome-o
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   let loads = 0;
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget(),
-    loadDeployTargets: async workspaceId => {
+    loadDeployTargets: async ({ workspaceId }) => {
       if (++loads > 1) throw new Error("plugin config: PRIVATE_TOKEN");
-      return routeDeps.loadDeployTargets(workspaceId);
+      return routeDeps.loadDeployTargets({ workspaceId });
     } };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
@@ -276,7 +283,7 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
 
   let finish!: () => void;
   const completed = new Promise<void>(resolve => { finish = resolve; });
-  const started = startPublishRun(deps, input, clock, history, { onSettled: () => finish() });
+  const started = startPublishRun({ deps, input, clock, historyStore: history }, { onSettled: () => finish() });
   assert.equal(started.status, "running");
   assert.equal(getPublishRunSnapshot().status, "running");
   await completed;
@@ -320,7 +327,7 @@ test("Publish destinations: successful Vercel-like run records replay config and
     buildTarget: () => fakeDeployTarget("https://my-site.vercel.app"),
   };
   assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
-  const rows = await listStaticPublishDestinations({ workspaceId: input.workspaceId, historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+  const rows = await listStaticPublishDestinations({ workspaceId: input.workspaceId, historyStore: history, registry: await routeDeps.loadDeployTargets({ workspaceId: input.workspaceId }) });
   assert.deepEqual(rows, [{
     id: "static:vercel:my-site", kind: "static", label: "Vercel: my-site", url: "https://my-site.vercel.app",
     lastPublishedAt: clock.nowIso(),
@@ -353,7 +360,7 @@ for (const explicit of [false, true]) {
     const history = new InMemoryPublishHistoryStore();
     assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
     const [destination] = await listStaticPublishDestinations({ workspaceId: input.workspaceId,
-      historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+      historyStore: history, registry: await routeDeps.loadDeployTargets({ workspaceId: input.workspaceId }) });
     assert.equal(destination!.credentialId, saved.id);
     await deletePublishCredential(writeDeps, { workspaceId: input.workspaceId, id: saved.id });
     const replacement = await createPublishCredential(writeDeps, { workspaceId: input.workspaceId, label: "Replacement",
@@ -381,8 +388,8 @@ test("a host's destinationConfig refines the recorded replay config from the pro
   const routeDeps = testRouteDeps();
   const history = new InMemoryPublishHistoryStore();
   const seen: unknown[] = [];
-  const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async (workspaceId) => {
-    const registry = await routeDeps.loadDeployTargets(workspaceId);
+  const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async ({ workspaceId }) => {
+    const registry = await routeDeps.loadDeployTargets({ workspaceId });
     return { ...registry, get: (id) => {
       const target = registry.get(id);
       return target && id === "vercel" ? { ...target, module: { ...target.module, destinationConfig: (input: { providerMetadata?: unknown }) => { seen.push(input.providerMetadata); return { teamId: "team-from-provider" }; } } } : target;
@@ -406,7 +413,7 @@ for (const failure of ["returned", "thrown"] as const) {
       return { targetId: "vercel", status: "failed", url: "https://failed.vercel.app", deploymentId: "dpl_failed", statusMessage: message };
     };
     const input = { ...githubInput(routeDeps), config: { target: "vercel" } };
-    await new Promise<void>(resolve => startPublishRun({ credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => target }, input, clock, history, { onSettled: () => resolve() }));
+    await new Promise<void>(resolve => startPublishRun({ deps: { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => target }, input, clock, historyStore: history }, { onSettled: () => resolve() }));
     assert.equal(getPublishRunSnapshot().status, "errored");
     assert.deepEqual(getPublishRunSnapshot().result, { ok: false, code: "PROVIDER_ERROR", message });
     assert.equal(await history.getLast({ workspaceId: input.workspaceId, target: "vercel" }), null);

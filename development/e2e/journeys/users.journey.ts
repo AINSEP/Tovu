@@ -85,6 +85,26 @@ async function loginAs(page: Page, username: string): Promise<void> {
 }
 
 test.describe("W8 users and roles", () => {
+  registerEditorRoleTests();
+
+  test("a disabled editor cannot log in and gets a readable error", { tag: ["@unrun"] }, async ({ browser, request }) => {
+    const editor = await createEditorViaApi(request);
+    const editorSide = await freshContext(browser);
+    try {
+      const disabled = await request.post(`${WS_API}/users/${editor.principalId}/disable`);
+      await expectStatus(disabled, 200, "user disable");
+      await attemptLoginAsAdmin(editorSide.page, { username: editor.username, password: EDITOR_PASSWORD });
+      await expect(editorSide.page.locator(".login-error")).toBeVisible();
+      await expect(editorSide.page.locator(".admin-layout")).toHaveCount(0);
+      expect(editorSide.errors).toEqual([]);
+    } finally {
+      await editorSide.context.close();
+      await deleteUser(request, editor.principalId);
+    }
+  });
+});
+
+function registerEditorRoleTests() {
   test("admin creates a user in the UI, grants editor, and the editor works with their own session but cannot manage users", { tag: ["@unrun"] }, async ({ page, browser, request }) => {
     const username = uniqSlug("journey-editor");
     let principalId: string | undefined;
@@ -100,6 +120,36 @@ test.describe("W8 users and roles", () => {
       const created = await createdResponse;
       expect(created.status()).toBe(201);
       principalId = (await created.json()).user.principalId;
+      await verifyEditorPermissionsAndSession(page, request, { username, principalId, editorSide });
+    } finally {
+      await editorSide.context.close();
+      if (principalId) await deleteUser(request, principalId);
+    }
+  });
+
+  // Asserts the INTENDED behaviour. The admin nav is not filtered by permission today (`panels.tsx`
+  // carries no permission per panel; `AdminModulesProvider` only scopes the media module), so this
+  // likely fails until the nav learns the session's grants.
+  test("an editor's nav hides Users and Roles & Permissions but keeps Posts and Media", { tag: ["@unrun"] }, async ({ browser, request }) => {
+    const editor = await createEditorViaApi(request);
+    const editorSide = await freshContext(browser);
+    try {
+      await loginAs(editorSide.page, editor.username);
+      const nav = editorSide.page.getByRole("navigation", { name: "Admin" });
+      await expect(nav.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Media", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Users", exact: true })).toHaveCount(0);
+      await expect(nav.getByRole("link", { name: "Roles & Permissions", exact: true })).toHaveCount(0);
+      await expect(editorSide.page).toHaveScreenshot("editor-nav.png", { mask: [editorSide.page.locator("main")] });
+      expect(editorSide.errors).toEqual([]);
+    } finally {
+      await editorSide.context.close();
+      await deleteUser(request, editor.principalId);
+    }
+  });
+}
+
+async function verifyEditorPermissionsAndSession(page: Page, request: APIRequestContext, { username, principalId, editorSide }: { username: string; principalId: string | undefined; editorSide: Awaited<ReturnType<typeof freshContext>> }) {
 
       // The username cell is the Manage toggle (`Users.tsx` `UserRow`).
       await page.getByRole("button", { name: username, exact: true }).click();
@@ -140,46 +190,4 @@ test.describe("W8 users and roles", () => {
       const adminMe = await request.get(`${API}/auth/me`);
       expect(adminMe.status()).toBe(200);
       expect(editorSide.errors, "uncaught page errors in the editor's session").toEqual([]);
-    } finally {
-      await editorSide.context.close();
-      if (principalId) await deleteUser(request, principalId);
-    }
-  });
-
-  // Asserts the INTENDED behaviour. The admin nav is not filtered by permission today (`panels.tsx`
-  // carries no permission per panel; `AdminModulesProvider` only scopes the media module), so this
-  // likely fails until the nav learns the session's grants.
-  test("an editor's nav hides Users and Roles & Permissions but keeps Posts and Media", { tag: ["@unrun"] }, async ({ browser, request }) => {
-    const editor = await createEditorViaApi(request);
-    const editorSide = await freshContext(browser);
-    try {
-      await loginAs(editorSide.page, editor.username);
-      const nav = editorSide.page.getByRole("navigation", { name: "Admin" });
-      await expect(nav.getByRole("link", { name: "Posts", exact: true })).toBeVisible();
-      await expect(nav.getByRole("link", { name: "Media", exact: true })).toBeVisible();
-      await expect(nav.getByRole("link", { name: "Users", exact: true })).toHaveCount(0);
-      await expect(nav.getByRole("link", { name: "Roles & Permissions", exact: true })).toHaveCount(0);
-      await expect(editorSide.page).toHaveScreenshot("editor-nav.png", { mask: [editorSide.page.locator("main")] });
-      expect(editorSide.errors).toEqual([]);
-    } finally {
-      await editorSide.context.close();
-      await deleteUser(request, editor.principalId);
-    }
-  });
-
-  test("a disabled editor cannot log in and gets a readable error", { tag: ["@unrun"] }, async ({ browser, request }) => {
-    const editor = await createEditorViaApi(request);
-    const editorSide = await freshContext(browser);
-    try {
-      const disabled = await request.post(`${WS_API}/users/${editor.principalId}/disable`);
-      await expectStatus(disabled, 200, "user disable");
-      await attemptLoginAsAdmin(editorSide.page, { username: editor.username, password: EDITOR_PASSWORD });
-      await expect(editorSide.page.locator(".login-error")).toBeVisible();
-      await expect(editorSide.page.locator(".admin-layout")).toHaveCount(0);
-      expect(editorSide.errors).toEqual([]);
-    } finally {
-      await editorSide.context.close();
-      await deleteUser(request, editor.principalId);
-    }
-  });
-});
+  }

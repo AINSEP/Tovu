@@ -1,5 +1,6 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
-import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-providers/catalog";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
  * @file Agent-tool catalog for `features/media-generation` — closes the "I cannot generate images,
@@ -24,65 +25,13 @@ import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-provider
  * (`tool-registrations.ts`'s heavier import) would.
  */
 
-/** Local declaration, not shared — same "duplicate the tiny type, never share across
- *  features/files" convention `custom-credentials/agent-tools.ts`'s own `AgentToolDefinition` doc
- *  establishes. */
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/** Shared catalog contract with this domain's side-effect vocabulary. */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
-/**
- * Every catalogued image model whose vendor the catalogue itself marks `integrated` (a real vendor,
- * not a planned/placeholder entry — see `MediaProvider.integrated`'s own doc in
- * `@jini-ai/integrations/media-providers`). Computed at import time from `IMAGE_MODELS`, the SAME
- * catalogue the dispatch engine itself validates `model` against (`engine.ts`'s own
- * `findMediaModel`/`modelsForSurface`) — replaces this file's old `OPENAI_IMAGE_MODELS`, a fixed
- * 3-entry literal that made every non-OpenAI vendor (including this machine's actually-configured
- * one, Nano Banana / `nanobanana`) unreachable through this tool no matter what credential existed.
- * Exported (not module-private) so `tool-registrations.ts` can validate `model` at the handler level
- * against the SAME set the published schema's `enum` names — the schema's `enum` is descriptive only
- * (the kernel "neither parses nor validates" a tool's schema, per `@jini-ai/core`'s own
- * `ToolDescriptor.inputSchema` doc), so a caller-supplied `model` outside this set must be rejected in
- * the handler, not merely described here.
- *
- * As of the 2026-09-02 catalogue fix, this filter IS a perfect proxy for "the dispatch engine has a
- * real adapter wired up": `hyperframes`/`fal`/`leonardo` used to ship `integrated: true` with zero
- * `mediaVendorRegistry.register(...)` calls anywhere for them (a catalogue lie caught by
- * `providers.test.ts`'s adapter-coverage assertion), so selecting one of their models used to reach
- * the dispatch engine's own clean `no renderer configured for provider "..." ... pass
- * allowStubFallback: true` error at generation time instead of a real image. Now that all three are
- * `integrated: false`, every image-surface provider this filter includes
- * (`openai`/`nanobanana`/`grok`/`volcengine`/`imagerouter`/`senseaudio`/`openrouter`/`custom-image`/
- * `aihubmix`) has a registered adapter (`dispatch/vendor-registry.ts`'s `mediaVendorRegistry`, which
- * this dependency-free file deliberately does not import — see this file's own header), same as every
- * excluded provider (`fal`/`leonardo`/`bfl`/`replicate`/`google`/`kling`/`midjourney`/`comfyui`/
- * `suno`/`udio`) is genuinely unwired anywhere in this codebase — so this filter is reading the
- * catalogue's own signal, not a guess.
- */
-export const IMAGE_MODEL_IDS: readonly string[] = imageModelIdsFrom({ catalog: { modelsForSurface: () => IMAGE_MODELS, findProvider } });
-
-/** The two catalogue reads the enum needs — structurally a `MediaModelCatalog` / `MediaProviderRegistry`
- *  (declared locally so this file keeps importing only the dependency-free catalog subpath). */
-export interface ImageModelCatalog {
-  modelsForSurface(required: { surface: "image" }): readonly { readonly id: string; readonly provider: string }[];
-  findProvider(required: { id: string }): { readonly integrated: boolean } | null;
-}
-
-/**
- * {@link IMAGE_MODEL_IDS}'s rule applied to any catalogue — the live media provider registry in
- * production (2026-10-21), so a plugin-contributed vendor's image models are advertised and accepted.
- * Catalogue order is kept: it is the default-model resolution order.
- * @complexity O(m) image models.
- */
-export function imageModelIdsFrom({ catalog }: { catalog: ImageModelCatalog }, _optional: Record<string, never> = {}): string[] {
-  return catalog.modelsForSurface({ surface: "image" })
-    .filter((model) => catalog.findProvider({ id: model.provider })?.integrated === true)
-    .map((model) => model.id);
-}
+// The `model` enum is `IMAGE_MODEL_IDS` from the media-providers catalog (vendors marked integrated, in
+// catalogue order). It replaced this file's old `OPENAI_IMAGE_MODELS`, a fixed 3-entry literal that made
+// every non-OpenAI vendor (including a machine's only configured one, Nano Banana / `nanobanana`)
+// unreachable through this tool no matter what credential existed.
 
 const generateSchema = (imageModelIds: readonly string[]) => ({
   type: "object",
@@ -99,8 +48,8 @@ const generateSchema = (imageModelIds: readonly string[]) => ({
       enum: [...imageModelIds],
       description:
         "Which image model to use — picking a model also picks its vendor; there is no separate provider field. " +
-        "Defaults to 'gpt-image-2' (OpenAI) when omitted. Other options include 'gemini-3.1-flash-image-preview' " +
-        "(Nano Banana / Google Gemini) and 'grok-imagine-image' (xAI Grok), across every registered vendor. Which " +
+        "When omitted, the model saved with a vendor's credential is used; otherwise the first model in this list whose vendor has a credential configured; if no vendor " +
+        "has one, the call fails and says so. Which " +
         "ones actually work depends on which vendor has a credential configured for this workspace (Admin -> Media " +
         "-> 'Media providers') or set as an environment variable on this install — an unconfigured vendor fails " +
         "with a clear message rather than silently substituting a different one.",
@@ -131,7 +80,7 @@ export function buildMediaGenerationAgentToolCatalog({ imageModelIds }: { imageM
     {
       name: "media_generate_asset",
       description:
-        "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Generates one image from `prompt` using whichever vendor the `model` field selects (see that field's own description — every registered vendor is supported, not just OpenAI), then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl, placeholder) is the SAME shape media_upload_asset/content_read.media_asset return plus one extra field: `placeholder` is true only on the rare deterministic-stub fallback (see the `allowStubFallback` field), false for a real generation. The same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Credentials are resolved per-vendor: a saved one from Admin -> Media -> 'Media providers' first, an environment variable second. A vendor with neither configured fails with a clear message pointing at the Media providers tab rather than a raw API error — call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved. Costs real money per call for a real (non-placeholder) generation — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
+        "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Generates one image from `prompt` using whichever vendor the `model` field selects (see that field's own description — every registered vendor is supported, not just OpenAI), then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl, placeholder) is the SAME shape media_upload_asset/content_read.media_asset return plus one extra field: `placeholder` is true only on the rare deterministic-stub fallback (see the `allowStubFallback` field), false for a real generation. Beside `media` the result carries `model` (the exact image model id used) and `provider` (the vendor id that actually ran it, e.g. openai) — always tell the user which model and vendor made the image (or, when `placeholder` is true, that no model drew it and it is a stand-in). The same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Credentials are resolved per-vendor: a saved one from Admin -> Media -> 'Media providers' first, an environment variable second. A vendor with neither configured fails with a clear message pointing at the Media providers tab rather than a raw API error — call credential_save with kind media-provider in this turn, then retry the original generation exactly once after the key is saved. Costs real money per call for a real (non-placeholder) generation — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "media.upload" },
       inputSchema: generateSchema(imageModelIds),

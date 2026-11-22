@@ -1,5 +1,5 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -35,7 +35,7 @@ function openSeededDb() {
 
 test("publish credentials: insert survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteVendorCredentialSetRepo(contentKernel(db));
+  const repo = new SqliteVendorCredentialSetRepo(contentKernel({ store: db }));
   const record = {
     workspaceId: WORKSPACE,
     id: "cred-1",
@@ -56,7 +56,7 @@ test("publish credentials: insert survives another caller's rollback", async () 
 
 test("media provider credentials: replaceWorkspace survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteMediaProviderCredentialRepo(contentKernel(db));
+  const repo = new SqliteMediaProviderCredentialRepo(contentKernel({ store: db }));
   const record = {
     workspaceId: WORKSPACE,
     providerId: "openai",
@@ -71,12 +71,12 @@ test("media provider credentials: replaceWorkspace survives another caller's rol
   await writeDuringOthersRollback(db, () =>
     repo.replaceWorkspace({ workspaceId: WORKSPACE, plan: () => ({ upserts: [record], tombstoneProviderIds: [] }) })
   );
-  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), [record]);
+  assert.deepEqual(await repo.listByWorkspaceId({ workspaceId: WORKSPACE }), [record]);
 });
 
 test("change sets: insert survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteChangeSetRepo(db);
+  const repo = new SqliteChangeSetRepo({ store: db });
   const record = {
     id: "cs-1",
     workspaceId: WORKSPACE,
@@ -92,7 +92,7 @@ test("change sets: insert survives another caller's rollback", async () => {
 
 test("outbox: a claim survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   await outbox.enqueue({ id: "evt-1", name: "change-set.applied", occurredAt: NOW, workspaceId: WORKSPACE, payload: {} });
   await writeDuringOthersRollback(db, () => outbox.claimPending({ batchSize: 10, nowIso: NOW }));
   assert.deepEqual(await outbox.claimPending({ batchSize: 10, nowIso: NOW }), [], "the claimed row stays leased");
@@ -100,7 +100,7 @@ test("outbox: a claim survives another caller's rollback", async () => {
 
 test("gated mutation tokens: a redeem survives another caller's rollback (no second redeem)", async () => {
   const db = openSeededDb();
-  const store = new SqliteTokenStore(db);
+  const store = new SqliteTokenStore({ store: db });
   const record = mintToken({ planId: "plan-1", planHash: "hash-1", scopeId: "scope-1", confirmerPrincipalId: "user-1", now: NOW });
   await store.save(record);
   await writeDuringOthersRollback(db, () => store.tryRedeem({ token: record.confirmationToken, now: NOW }));
@@ -109,7 +109,7 @@ test("gated mutation tokens: a redeem survives another caller's rollback (no sec
 
 test("media: save and remove survive another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteMediaRepo(db);
+  const repo = new SqliteMediaRepo({ store: db });
   const record = {
     id: "media-1",
     workspaceId: WORKSPACE,
@@ -147,18 +147,18 @@ test("user purge: the deletes and the audit event survive another caller's rollb
     sessions: db.$client.prepare("SELECT * FROM sessions WHERE principal_id = ?").all(principalId),
   });
   const neighborBefore = snapshot("principal-neighbor");
-  const purge = new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues });
+  const purge = new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues });
   const removed = await writeDuringOthersRollback(db, () =>
     purge.purgeUser({
       workspaceId: WORKSPACE,
       principalId: "principal-1",
-      buildEvent: (removed) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
+      buildEvent: ({ removed }) => ({ id: "evt-purge", name: "identity.user.purged", occurredAt: NOW, workspaceId: WORKSPACE, payload: { removed } }),
     })
   );
   assert.deepEqual(removed, { roles: 0, policies: 0, sessions: 1, apiKeys: 0, userSettings: 0 });
   assert.deepEqual(snapshot("principal-1"), { principal: [], user: [], sessions: [] });
   assert.deepEqual(snapshot("principal-neighbor"), neighborBefore);
-  const events = await new SqliteOutboxAdapter(db).claimPending({ batchSize: 10, nowIso: NOW });
+  const events = await new SqliteOutboxAdapter({ store: db }).claimPending({ batchSize: 10, nowIso: NOW });
   assert.deepEqual(events.map((record) => record.id), ["evt-purge"]);
   assert.deepEqual(events[0]!.event.payload, { removed });
 });

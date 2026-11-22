@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { vaultFixture, vaultStep, insertFixture, stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { vaultApiConnectionKind } from "#src/platform/db/migrations/0020_vault_api_connection_kind";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -30,7 +30,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await kernel.transaction(() => vaultApiConnectionKind({ checksum: "c".repeat(64) }).up(kernel, { note: () => {} }));
       const workspaceId = "ws-fresh-plugin-state";
       await insertFixture(kernel, "workspaces", { id: workspaceId, name: "Fresh", slug: workspaceId, created_at: stamp });
-      const repo = new SqlSecretsVaultRepo({ kernel: kernel as StorageKernel<SecretsVaultDatabase> });
+      const repo = new SqlSecretsVaultRepo({ kernel: kernel as KyselyKernel<SecretsVaultDatabase> });
       const clock = { nowMs: () => Date.parse(stamp) };
       const makeHost = () => createApiConnectionHost({
         workspaceId, vaultRepo: repo, keyring, sealer, clock, runtime: "hosted", env: harness.env,

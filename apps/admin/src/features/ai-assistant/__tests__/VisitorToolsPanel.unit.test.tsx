@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fet
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import {
   VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE,
@@ -195,7 +195,7 @@ describe("VisitorToolsPanel", () => {
     mount(fake.port);
     await screen.findByText("Tool list_posts");
     fake.changeElsewhere(view({ revisionSeq: 9, tools: [tool("list_posts", { mode: "off" }), tool("site_guide", { mode: "off" })] }));
-    fake.failNext(new ApiError("stale", 409, VISITOR_TOOLS_CONFLICT_CODE));
+    fake.failNext(new ApiError({ message: "stale", status: 409 }, { code: VISITOR_TOOLS_CONFLICT_CODE }));
     await userEvent.click(within(row("Tool list_posts")).getByRole("radio", { name: "Ask first" }));
     expect((await screen.findByRole("status")).textContent).toBe("Changed somewhere else. Showing the latest — try again.");
     await waitFor(() => expect((within(row("Tool list_posts")).getByRole("radio", { name: "Off" }) as HTMLInputElement).checked).toBe(true));
@@ -206,7 +206,7 @@ describe("VisitorToolsPanel", () => {
     const fake = fakePort();
     mount(fake.port);
     await screen.findByText("Tool list_posts");
-    fake.failNext(new ApiError("visitor-tools.manage is required", 403, "FORBIDDEN"));
+    fake.failNext(new ApiError({ message: "visitor-tools.manage is required", status: 403 }, { code: "FORBIDDEN" }));
     await userEvent.click(within(row("Tool list_posts")).getByRole("radio", { name: "Off" }));
     expect((await screen.findByRole("alert")).textContent).toBe("visitor-tools.manage is required");
     expect((within(row("Tool list_posts")).getByRole("radio", { name: "Auto" }) as HTMLInputElement).checked).toBe(true);

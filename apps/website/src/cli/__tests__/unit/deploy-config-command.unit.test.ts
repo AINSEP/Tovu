@@ -18,7 +18,7 @@ const FIXTURE_PLUGINS_DIR = path.resolve(import.meta.dirname, "../fixtures/deplo
 
 function capture(env: Record<string, string> = {}) {
   const out: string[] = []; const err: string[] = [];
-  return { out, err, ports: { env, stdout: (m: string) => { out.push(m); }, stderr: (m: string) => { err.push(m); } } };
+  return { out, err, ports: { env, stdout: ({ message: m }: { message: string }, _optional = {}) => { out.push(m); }, stderr: ({ message: m }: { message: string }, _optional = {}) => { err.push(m); } } };
 }
 
 function captureFixture() {
@@ -41,7 +41,7 @@ test("keeps the product's Chromium note when cwd has deployment inputs but no ov
   // Reuse the neutral renderer so this pins the CLI's host-note wiring, not Fly's generator rules.
   await writeFile(path.join(pluginRoot, "generator.mjs"), await readFile(path.join(FIXTURE_PLUGINS_DIR, "example-host/deploy-configs/example-host.mjs")));
   await writeFile(path.join(pluginRoot, "plugin.json"), JSON.stringify({ name: "fly", version: "1.0.0" }));
-  await writeFile(path.join(pluginRoot, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "fly", label: "Fixture host", module: "generator.mjs" }] }));
+  await writeFile(path.join(pluginRoot, "jini-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "fly", label: "Fixture host", module: "generator.mjs" }] }));
   // Descriptor inputs still come from cwd; this directory deliberately has no product overlays.
   await writeFile(path.join(root, "Dockerfile"), 'FROM node:24\nVOLUME ["/data/sites"]\nEXPOSE 4321\n');
   // Pretty-printed like the real root package.json: the descriptor reads `"name"` at a line start.
@@ -110,7 +110,7 @@ test("a refused generator is explained on stderr before the target is rejected",
   const root = await mkdtemp(path.join(tmpdir(), "tovu-deploy-config-refusal-")); t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "broken"));
   await writeFile(path.join(root, "broken", "plugin.json"), JSON.stringify({ name: "broken", version: "1.0.0" }));
-  await writeFile(path.join(root, "broken", "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "broken", label: "Broken", module: "gen.mjs" }] }));
+  await writeFile(path.join(root, "broken", "jini-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id: "broken", label: "Broken", module: "gen.mjs" }] }));
   await writeFile(path.join(root, "broken", "gen.mjs"), "export const notRender = 1;\n");
   const io = capture();
   await assert.rejects(runDeployConfigCommand({ target: "broken" }, { ...io.ports, env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: root } }), { name: "ValidationError" });

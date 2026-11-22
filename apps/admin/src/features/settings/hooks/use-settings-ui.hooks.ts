@@ -128,7 +128,7 @@ export function useSettingsUi(): SettingsUiController {
   });
   const instructions = useSettingsSlice<string>({
     load: loadInstructions,
-    save: saveInstructions,
+    save: (next, previous) => saveInstructions({ next, previous }),
     defaultValue: DEFAULT_INSTRUCTIONS,
     namespaces: [INSTRUCTIONS_NAMESPACE],
   });
@@ -146,7 +146,7 @@ export function useSettingsUi(): SettingsUiController {
   });
   const language = useSettingsSlice<string>({
     load: loadLanguage,
-    save: saveLanguage,
+    save: (next, previous) => saveLanguage({ next, previous }),
     defaultValue: DEFAULT_LOCALE,
     namespaces: [LANGUAGE_NAMESPACE],
   });
@@ -159,9 +159,8 @@ export function useSettingsUi(): SettingsUiController {
 
   const slices = [execution, instructions, notifications, privacy, language, interfacePrefs];
   const save = useMemo(
-    () => mergeSaveStates(slices.map((slice) => slice.saveState)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    slices.map((slice) => slice.saveState),
+    () => mergeSaveStates([execution.saveState, instructions.saveState, notifications.saveState, privacy.saveState, language.saveState, interfacePrefs.saveState]),
+    [execution.saveState, instructions.saveState, notifications.saveState, privacy.saveState, language.saveState, interfacePrefs.saveState],
   );
 
   return {
@@ -177,8 +176,8 @@ export function useSettingsUi(): SettingsUiController {
     language,
     interface: interfacePrefs,
 
-    loading: areAnySlicesLoading(slices),
-    loadError: firstLoadError(slices),
+    loading: areAnySlicesLoading({ slices }),
+    loadError: firstLoadError({ slices }),
     save,
   };
 }

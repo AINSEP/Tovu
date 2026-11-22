@@ -9,7 +9,7 @@ import ts from "typescript";
  * `sqlite/origin-repo.sqlite.ts` when this guard was written) of `createVerifiedOrigin`.
  *
  * `origin/index.ts` is the `origin` module's public door — every real VALUE consumer of
- * `createVerifiedOrigin` elsewhere in this codebase (`server/deps.ts`, `server/app.ts`) imports it
+ * `createVerifiedOrigin` elsewhere in this codebase (`server/runtime/composition/deps.ts`, `server/runtime/composition/app.ts`) imports it
  * through that barrel (as `"../features/origin/index.js"` — this project's `nodenext` module
  * resolution requires the explicit `.js` extension on every relative specifier), not by reaching
  * into the internal `origin/types.ts` file it happens to be defined in. The SQLite adapter
@@ -83,8 +83,8 @@ test("origin-repo.ts imports the createVerifiedOrigin VALUE through Jini's canon
     );
     assert.equal(
       specifier!,
-      "@jini-ai/http-kit/verified-origin",
-      `createVerifiedOrigin must be imported through Jini's canonical verified-origin entry, got "${specifier}"`
+      "@jini-ai/core/contracts/server/verified-origin",
+      `createVerifiedOrigin must be imported through Jini's canonical verified-origin entry (@jini-ai/core/contracts/server/verified-origin), got "${specifier}"`
     );
   }
 });

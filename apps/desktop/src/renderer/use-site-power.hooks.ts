@@ -14,7 +14,7 @@
  *
  * **Two sources of that status, and the local one is the smaller.** Main owns it — `handleStart`
  * and `handleStop` mark the site `starting`/`stopping` for as long as their work runs
- * (`site-transitions.ts`), and every reader of the polled record sees it. But the poll is every 4 s,
+ * (`@jini-ai/sidecar/supervisor`), and every reader of the polled record sees it. But the poll is every 4 s,
  * so between the click and the next poll the card would still be showing the pre-click status. The
  * `pending` map here closes exactly that gap, and it is dropped the moment the call settles; it is
  * never an answer of its own about a site.
@@ -34,12 +34,12 @@ type SitePowerOperation = SitePowerAction | 'restart';
 /** Await a graceful stop before starting; never start if stopping failed. */
 export async function performSiteRestart({ id, bridge }: {
   id: string;
-  bridge: Parameters<typeof performPowerAction>[2];
+  bridge: Parameters<typeof performPowerAction>[0]['bridge'];
 }, { onStopped }: { onStopped?: (record: SiteRecord) => void } = {}): Promise<SitePowerResult> {
-  const stopped = await performPowerAction('stop', id, bridge);
+  const stopped = await performPowerAction({ action: 'stop', id, bridge });
   if (stopped.error !== undefined) return stopped;
   onStopped?.(stopped.record);
-  return performPowerAction('start', id, bridge);
+  return performPowerAction({ action: 'start', id, bridge });
 }
 
 export function restartControl({ project, status, restarting }: {
@@ -92,7 +92,7 @@ export function externalStopConfirm(
  * Pure: no effects or errors.
  * @complexity O(n) in text length.
  */
-export function codeSpans(text: string): { text: string; code: boolean }[] {
+export function codeSpans({ text }: { text: string }, _options: Record<string, never> = {}): { text: string; code: boolean }[] {
   return text.split('`').map((part, index) => ({ text: part, code: index % 2 === 1 })).filter((part) => part.text !== '');
 }
 
@@ -128,7 +128,7 @@ const STARTABLE_STATUSES: readonly SiteLifecycleStatus[] = ['stopped', 'failed',
  *
  * @complexity O(1).
  */
-export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
+export function powerControl({ status }: { status: SiteLifecycleStatus }, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
   if (external) return null;
   if (status === 'running') return { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true };
   if (STARTABLE_STATUSES.includes(status)) return { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false };
@@ -143,7 +143,7 @@ export interface SitePower {
    *  window started and is still waiting on. */
   statusOf: (project: SiteRecord) => SiteLifecycleStatus;
   /** Why this site's last start or stop failed, or `null`. Main's own sentence, verbatim. */
-  errorOf: (id: string) => string | null;
+  errorOf: (required: { id: string }, options?: {}) => string | null;
   /** Start a stopped site or stop a running one. A no-op while one is already in flight. A Stop of a
    *  site another process serves only opens the confirm unless `confirmed`. */
   toggle: (project: SiteRecord, options?: { confirmed?: boolean }) => Promise<void>;
@@ -181,13 +181,11 @@ export type SitePowerResult = { record: SiteRecord; error?: undefined } | { reco
  * @complexity O(1) beyond the IPC round trip, which for a stop includes the child's own drain.
  */
 export async function performPowerAction(
-  action: SitePowerAction,
-  id: string,
-  bridge: { startSite: (id: string) => Promise<SiteRecord>; stopSite: (id: string) => Promise<SiteRecord> } | undefined,
+  { action, id, bridge }: { action: SitePowerAction; id: string; bridge: { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>; stopSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined }, _options: Record<string, never> = {},
 ): Promise<SitePowerResult> {
   if (bridge === undefined) return { error: 'The desktop bridge is unavailable.' };
   try {
-    return { record: action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id) };
+    return { record: action === 'start' ? await bridge.startSite({ id }) : await bridge.stopSite({ id }) };
   } catch (err) {
     if (action === 'start') return { error: siteOperationError({ error: err, operation: 'start' }) };
     return { error: err instanceof Error ? err.message : String(err) };
@@ -219,11 +217,11 @@ export interface SitePowerCallbacks {
  * @complexity O(1) beyond the IPC round trip.
  */
 export async function runPowerToggle(
-  { action, id, bridge }: { action: SitePowerAction; id: string; bridge: Parameters<typeof performPowerAction>[2] },
+  { action, id, bridge }: { action: SitePowerAction; id: string; bridge: Parameters<typeof performPowerAction>[0]['bridge'] },
   { onSiteUpdated, onStarted }: SitePowerCallbacks = {},
 ): Promise<string | null> {
   reportShellTelemetry({ payload: { kind: 'action', id: action === 'start' ? 'start_site' : 'stop_site' } });
-  const result = await performPowerAction(action, id, bridge);
+  const result = await performPowerAction({ action, id, bridge });
   if (result.error !== undefined) return result.error;
   onSiteUpdated?.(result.record);
   if (action === 'start' && result.record.status === 'running') onStarted?.(id);
@@ -249,20 +247,20 @@ export function powerToggleIntent({ action, project, inFlight, confirmed }: {
 }
 
 /**
- * @param onSiteUpdated applies the refreshed record main resolves with. Optional, and the card is
+ * @param options.onSiteUpdated applies the refreshed record main resolves with. Optional, and the card is
  *   still correct without it — the 4 s poll would catch up — but up to four seconds of showing a
  *   stopped site as running is exactly the lie this control exists not to tell, so `App.tsx` wires
  *   it. The record is main's, never one composed here from what was clicked.
- * @param onStarted the card's open callback; a Start that comes back running calls it with the
+ * @param options.onStarted the card's open callback; a Start that comes back running calls it with the
  *   site's id. See {@link runPowerToggle}.
  * @returns the three things a card needs: the status to render, the failure to show, the click.
  * @complexity O(1) per call; the two maps hold one entry per site with an unsettled action.
  */
 export function useSitePower(
-  onSiteUpdated?: (record: SiteRecord) => void,
-  { onStarted, getBridge = runnerInventoryBridge }: Pick<SitePowerCallbacks, 'onStarted'> & {
+  _required: Record<string, never>,
+  { onSiteUpdated, onStarted, getBridge = runnerInventoryBridge }: SitePowerCallbacks & {
     /** The bridge port, read at press time; defaults to the preload's `window.tovuRunner`. */
-    getBridge?: () => Parameters<typeof performPowerAction>[2];
+    getBridge?: () => Parameters<typeof performPowerAction>[0]['bridge'];
   } = {},
 ): SitePower {
   const [pending, setPending] = useState<Readonly<Record<string, SitePowerOperation>>>({});
@@ -281,11 +279,11 @@ export function useSitePower(
     [pending],
   );
 
-  const errorOf = useCallback((id: string) => errors[id] ?? null, [errors]);
+  const errorOf = useCallback(({ id }: { id: string }, _options = {}) => errors[id] ?? null, [errors]);
 
   const toggle = useCallback(
     async (project: SiteRecord, { confirmed = false }: { confirmed?: boolean } = {}) => {
-      const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
+      const action = powerControl({ status: statusOf(project) }, { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
       const intent = powerToggleIntent({ action, project, inFlight, confirmed });
       if (intent === null) return;
       if (intent === 'confirm-stop') {
@@ -296,7 +294,7 @@ export function useSitePower(
       const id = project.id;
       inFlight.add(id);
       setPending((current) => ({ ...current, [id]: intent }));
-      setErrors((current) => withoutKey(current, id));
+      setErrors((current) => withoutKey({ record: current, key: id }));
 
       try {
         const error = await runPowerToggle({ action: intent, id, bridge: getBridge() }, { onSiteUpdated, onStarted });
@@ -306,7 +304,7 @@ export function useSitePower(
         // polled record already says. Holding `starting` after that would be the button remembering
         // its own press — the one thing this control must never do.
         inFlight.delete(id);
-        setPending((current) => withoutKey(current, id));
+        setPending((current) => withoutKey({ record: current, key: id }));
       }
     },
     [onSiteUpdated, onStarted, statusOf, inFlight, getBridge],
@@ -321,14 +319,14 @@ export function useSitePower(
     const id = project.id;
     inFlight.add(id);
     setPending(current => ({ ...current, [id]: 'restart' as const }));
-    setErrors(current => withoutKey(current, id));
+    setErrors(current => withoutKey({ record: current, key: id }));
     try {
       const result = await performSiteRestart({ id, bridge: getBridge() }, { onStopped: onSiteUpdated });
       if (result.error === undefined) onSiteUpdated?.(result.record);
       else setErrors(current => ({ ...current, [id]: result.error }));
     } finally {
       inFlight.delete(id);
-      setPending(current => withoutKey(current, id));
+      setPending(current => withoutKey({ record: current, key: id }));
     }
   }, [inFlight, onSiteUpdated, restartControlOf, getBridge]);
 
@@ -347,7 +345,7 @@ export function useSitePower(
  *
  * @complexity O(n) in the map's size, which is the number of sites with an action in flight.
  */
-function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
+function withoutKey<T>({ record, key }: { record: Readonly<Record<string, T>>; key: string }, _options: Record<string, never> = {}): Record<string, T> {
   const { [key]: _removed, ...rest } = record;
   return rest;
 }

@@ -6,7 +6,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useSourceControlCredentials, useWiredSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
-import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { SOURCE_CONTROL_PROVIDERS_SNAPSHOT } from "./source-control-providers.fixture";
 
 /** The fake port with the fixture hosts listed (GitHub, and Forge with a required username). */
@@ -55,14 +56,14 @@ describe("useSourceControlCredentials", () => {
         ],
       } }], switchedOff: [] }),
     });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
-    act(() => { result.current.setToken("example-access", "first-secret"); result.current.setField("example-access", "username", "operator"); });
+    act(() => { result.current.setToken({ providerId: "example-access", value: "first-secret" }); result.current.setField({ providerId: "example-access", name: "username", value: "operator" }); });
     await act(() => result.current.save("example-access"));
     expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "example-access", token: "first-secret", username: "operator" } });
-    act(() => { result.current.setToken("example-access", "replacement-secret"); result.current.setField("example-access", "username", "new-operator"); });
+    act(() => { result.current.setToken({ providerId: "example-access", value: "replacement-secret" }); result.current.setField({ providerId: "example-access", name: "username", value: "new-operator" }); });
     await act(() => result.current.save("example-access"));
-    expect(updateCredential).toHaveBeenCalledWith(saved.id, { connection: { providerId: "example-access", token: "replacement-secret", username: "new-operator" } });
+    expect(updateCredential).toHaveBeenCalledWith({ id: saved.id, input: { connection: { providerId: "example-access", token: "replacement-secret", username: "new-operator" } } });
     expect(result.current.rows![0]!.saved).toEqual(rotated);
     expect(result.current.rows![0]!.token).toBe("");
   });
@@ -72,12 +73,12 @@ describe("useSourceControlCredentials", () => {
     const updated = githubCredential({ updatedAt: "2026-10-17T12:00:00.000Z" });
     const port = fakePort({ listCredentials: async () => ({ credentials: [listed] }), updateCredential: async () => updated });
     const { result } = renderHook(() => {
-      const controller = useSourceControlCredentials(port, T, "en");
+      const controller = useSourceControlCredentials({ port: port, t: T, locale: "en" });
       const query = useFetchQuery({ key: ["source-control", "credentials"], fetch: () => port.listCredentials() });
       return { controller, query, invalidate: useInvalidate() };
     }, { wrapper });
     await waitFor(() => expect(result.current.controller.rows).toBeDefined());
-    act(() => result.current.controller.setToken("github", "replacement"));
+    act(() => result.current.controller.setToken({ providerId: "github", value: "replacement" }));
     await act(() => result.current.controller.save("github"));
     expect(result.current.controller.rows!.find(row => row.providerId === "github")!.saved).toEqual(updated);
     listed = githubCredential({ label: "Stale background copy" });
@@ -90,9 +91,9 @@ describe("useSourceControlCredentials", () => {
     const createCredential = vi.fn();
     const updateCredential = vi.fn();
     const port = fakePort({ createCredential, updateCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
-    act(() => result.current.setToken("missing", "valid-token"));
+    act(() => result.current.setToken({ providerId: "missing", value: "valid-token" }));
     await act(() => result.current.save("missing"));
     expect(result.current.rows!.map(row => row.providerId)).toEqual(["github", "forge"]);
     expect(createCredential).not.toHaveBeenCalled();
@@ -106,9 +107,9 @@ describe("useSourceControlCredentials", () => {
       listCredentials: async () => ({ credentials: [githubCredential(), other] }),
       updateCredential: async () => updated,
     });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
-    act(() => result.current.setToken("github", "replacement"));
+    act(() => result.current.setToken({ providerId: "github", value: "replacement" }));
     await act(() => result.current.save("github"));
     expect(result.current.rows!.find(row => row.providerId === "github")!.saved).toEqual(updated);
     expect(result.current.rows!.find(row => row.providerId === "forge")!.saved).toEqual(other);
@@ -124,12 +125,12 @@ describe("useSourceControlCredentials", () => {
       createCredential,
     });
     const { result } = renderHook(() => {
-      const controller = useSourceControlCredentials(port, T, "en");
+      const controller = useSourceControlCredentials({ port: port, t: T, locale: "en" });
       const catalog = useFetchQuery({ key: ["source-control", "providers"], fetch: () => port.listProviders() });
       return { controller, catalog: catalog.data };
     }, { wrapper });
     await waitFor(() => expect(result.current.catalog).toEqual(SOURCE_CONTROL_PROVIDERS_SNAPSHOT));
-    act(() => result.current.controller.setToken("github", "new-token"));
+    act(() => result.current.controller.setToken({ providerId: "github", value: "new-token" }));
     await act(() => result.current.controller.save("github"));
     expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "github", token: "new-token" } });
     await waitFor(() => expect(result.current.controller.rows?.find(row => row.providerId === "github")?.saved).toEqual(saved));
@@ -162,7 +163,7 @@ describe("useSourceControlCredentials", () => {
 
   it("starts with rows undefined, then resolves one row per listed host once both lists load", async () => {
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
 
     expect(result.current.rows).toBeUndefined();
 
@@ -173,7 +174,7 @@ describe("useSourceControlCredentials", () => {
 
   it("marks a provider's row saved once its default credential is present in the initial load", async () => {
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }) });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
 
     await waitFor(() => expect(result.current.rows).toBeDefined());
     const githubRow = result.current.rows!.find((row) => row.providerId === "github");
@@ -184,7 +185,7 @@ describe("useSourceControlCredentials", () => {
 
   it("sets a load error when listCredentials rejects, without throwing", async () => {
     const port = fakePort({ listCredentials: () => Promise.reject(new Error("network down")) });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
 
     await waitFor(() => expect(result.current.loadError).not.toBeNull());
     expect(result.current.loadError).toContain("network down");
@@ -192,11 +193,11 @@ describe("useSourceControlCredentials", () => {
 
   it("setToken/setField update only the targeted row's own draft state", async () => {
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }) });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("github", "ghp_abc"));
-    act(() => result.current.setField("forge", "username", "alice"));
+    act(() => result.current.setToken({ providerId: "github", value: "ghp_abc" }));
+    act(() => result.current.setField({ providerId: "forge", name: "username", value: "alice" }));
 
     const github = result.current.rows!.find((row) => row.providerId === "github")!;
     const forge = result.current.rows!.find((row) => row.providerId === "forge")!;
@@ -210,7 +211,7 @@ describe("useSourceControlCredentials", () => {
   it("save() is a no-op (no create call) when the row isn't ready — e.g. a blank token", async () => {
     const createCredential = vi.fn();
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
     await act(() => result.current.save("github"));
@@ -220,10 +221,10 @@ describe("useSourceControlCredentials", () => {
   it("save() CREATEs with the fixed row label when this provider has nothing saved yet, then clears the draft", async () => {
     const createCredential = vi.fn().mockResolvedValue(githubCredential());
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("github", "ghp_abc"));
+    act(() => result.current.setToken({ providerId: "github", value: "ghp_abc" }));
     await act(() => result.current.save("github"));
 
     expect(createCredential).toHaveBeenCalledWith({ label: "default", connection: { providerId: "github", token: "ghp_abc" } });
@@ -239,13 +240,13 @@ describe("useSourceControlCredentials", () => {
       listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }),
       updateCredential,
     });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("github", "ghp_new"));
+    act(() => result.current.setToken({ providerId: "github", value: "ghp_new" }));
     await act(() => result.current.save("github"));
 
-    expect(updateCredential).toHaveBeenCalledWith("cred-github-1", { connection: { providerId: "github", token: "ghp_new" } });
+    expect(updateCredential).toHaveBeenCalledWith({ id: "cred-github-1", input: { connection: { providerId: "github", token: "ghp_new" } } });
     const githubRow = result.current.rows!.find((row) => row.providerId === "github")!;
     expect(githubRow.saved).toEqual(updated);
     expect(githubRow.token).toBe("");
@@ -255,14 +256,14 @@ describe("useSourceControlCredentials", () => {
   it("save() requires the token AND every required declared field before it will call createCredential", async () => {
     const createCredential = vi.fn().mockResolvedValue(githubCredential({ providerId: "forge" }));
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("forge", "app-pw"));
+    act(() => result.current.setToken({ providerId: "forge", value: "app-pw" }));
     await act(() => result.current.save("forge"));
     expect(createCredential).not.toHaveBeenCalled();
 
-    act(() => result.current.setField("forge", "username", "alice"));
+    act(() => result.current.setField({ providerId: "forge", name: "username", value: "alice" }));
     await act(() => result.current.save("forge"));
     expect(createCredential).toHaveBeenCalledWith({
       label: "default",
@@ -272,16 +273,16 @@ describe("useSourceControlCredentials", () => {
 
   it.each([
     [new Error("server exploded"), "Could not save this connection (server exploded)."],
-    [new ApiError("duplicate", 409, "DUPLICATE_LABEL"), "This connection was already saved — reload the page and try again."],
-    [new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" }), "Could not save this connection (token is required)."],
-    [new ApiError("server exploded", 500), "Could not save this connection (server exploded)."],
+    [new ApiError({ message: "duplicate", status: 409 }, { code: "DUPLICATE_LABEL" }), "This connection was already saved — reload the page and try again."],
+    [new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } }), "Could not save this connection (token is required)."],
+    [new ApiError({ message: "server exploded", status: 500 }), "Could not save this connection (server exploded)."],
   ])("save() surfaces %s as the row error and clears saving", async (failure, expected) => {
     const createCredential = vi.fn().mockRejectedValue(failure);
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [] }), createCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
-    act(() => result.current.setToken("github", "ghp_abc"));
+    act(() => result.current.setToken({ providerId: "github", value: "ghp_abc" }));
     await act(() => result.current.save("github"));
 
     const githubRow = result.current.rows!.find((row) => row.providerId === "github")!;
@@ -294,13 +295,13 @@ describe("useSourceControlCredentials", () => {
   it("keeps a saved connection whose host is not listed as a row marked unlisted, and never saves to it (IRON RULE)", async () => {
     const createCredential = vi.fn();
     const port = fakePort({ listCredentials: () => Promise.resolve({ credentials: [githubCredential({ id: "gl-1", providerId: "gitlab" })] }), createCredential });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
 
     const gitlab = result.current.rows!.find((row) => row.providerId === "gitlab")!;
     expect(gitlab.info.listed).toBe(false);
     expect(gitlab.saved?.id).toBe("gl-1");
-    act(() => result.current.setToken("gitlab", "glpat"));
+    act(() => result.current.setToken({ providerId: "gitlab", value: "glpat" }));
     await act(() => result.current.save("gitlab"));
     expect(createCredential).not.toHaveBeenCalled();
   });
@@ -310,7 +311,7 @@ describe("useSourceControlCredentials", () => {
       listProviders: () => Promise.reject(new Error("down")),
       listCredentials: () => Promise.resolve({ credentials: [githubCredential()] }),
     });
-    const { result } = renderHook(() => useSourceControlCredentials(port, T, "en"), { wrapper });
+    const { result } = renderHook(() => useSourceControlCredentials({ port: port, t: T, locale: "en" }), { wrapper });
     await waitFor(() => expect(result.current.rows).toBeDefined());
     expect(result.current.rows!.map((row) => [row.providerId, row.info.listed])).toEqual([["github", false]]);
   });

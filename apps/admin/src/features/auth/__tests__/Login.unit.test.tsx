@@ -29,24 +29,16 @@ function stubHook(overrides: Partial<LoginController> = {}): () => LoginControll
 }
 
 describe("Login", () => {
-  it("renders translated copy controls with the anonymous-safe incident details", async () => {
+  it("shows the error ID without Copy details for an anonymous sign-in failure", () => {
     const locale = vi.spyOn(localeHooks, "useWiredAdminLocale").mockReturnValue("es");
-    const user = userEvent.setup();
-    const writeText = vi.fn(async () => {});
-    const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const failure = formatUserFacingError({ message: "Sign-in could not finish.", action: "Try signing in again.", step: "auth-login", cause: "Approved anonymous explanation" }, { errorId: "login-incident" });
     try {
       render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ error: "failure", failure })} />);
-      expect(screen.getByRole("alert")).toHaveTextContent("Sign-in could not finish.");
-      await user.click(screen.getByText("Mostrar detalles"));
-      await user.click(screen.getByRole("button", { name: "Copiar detalles" }));
-      expect(writeText).toHaveBeenCalledWith(failure.copyText);
-      expect(await screen.findByRole("status")).toHaveTextContent("Copiado");
+      expect(screen.getByRole("alert"), "The sign-in failure keeps its message").toHaveTextContent("Sign-in could not finish.");
+      expect(screen.getByRole("alert"), "Anonymous visitors can report the error ID in their locale").toHaveTextContent("login-incident — Informa de este ID de error.");
+      expect(screen.queryByText("Copiar detalles"), "Anonymous sign-in failures do not offer Copy details").not.toBeInTheDocument();
     } finally {
       locale.mockRestore();
-      if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard);
-      else Reflect.deleteProperty(navigator, "clipboard");
     }
   });
   it("passes the onLogin prop straight through to useLoginHook, unmodified", () => {

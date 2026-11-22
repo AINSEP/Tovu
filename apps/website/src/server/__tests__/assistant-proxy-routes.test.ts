@@ -11,15 +11,15 @@ import express from "express";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, isAssistantDaemonKnownFailed } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level tests for `server/modules/assistant.ts`, the session-gated reverse proxy in
+ * @file Route-level tests for `server/runtime/composition/modules/assistant.ts`, the session-gated reverse proxy in
  * front of the standalone agent daemon. A stand-in daemon records exactly what arrives on the
  * wire, so these are end-to-end assertions about the proxy hop, not assertions about its internals.
  *
@@ -31,7 +31,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * 2. `Last-Event-ID` is forwarded. The daemon's SSE route (`@jini-ai/http-kit`'s
  *    `requestedAfterCursor`) resumes from that header; dropping it made a browser tab's automatic
  *    `EventSource` reconnect replay the whole run and duplicate every chat message.
- * 3. `GET /api/runs` (list runs) is proxied at all — `registerRunRoutes` mounts it on the daemon,
+ * 3. `GET /api/runs` (list runs) is proxied at all — `runRoutes` lists it on the daemon,
  *    but Tovu's proxy never forwarded it, so it 404'd at Tovu's own router.
  * 4. every forwarded request names the session-verified principal in `RUN_PRINCIPAL_HEADER`, and
  *    names it from `res.locals` rather than from anything inbound. That header is the only thing
@@ -119,7 +119,7 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         res.end(`id: cursor-7\ndata: {"kind":"end"}\n\n`);
         return;
       }
-      // Stand-in for `@jini-ai/http-kit`'s real tool-catalog routes (`registerToolCatalogRoutes`,
+      // Stand-in for `@jini-ai/http-kit`'s real tool-catalog routes (`toolCatalogRoutes`,
       // mounted daemon-side by `agent-daemon-server.ts`) — answers the same two shapes the real
       // route does, so the proxy tests below assert against realistic response bodies rather than
       // the generic `{runs: [...]}` fallback every other route in this stand-in happens to share.
@@ -162,8 +162,8 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
 
 /**
  * One-time process-wide setup: the stand-in daemon must be listening and `JINI_AGENT_DAEMON_URL`
- * must be set BEFORE `server/modules/assistant.ts` is first evaluated, hence the dynamic imports
- * (`server/app.ts` imports the assistant module statically, so it has to be deferred too).
+ * must be set BEFORE `server/runtime/composition/modules/assistant.ts` is first evaluated, hence the dynamic imports
+ * (`server/runtime/composition/app.ts` imports the assistant module statically, so it has to be deferred too).
  */
 let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort) => express.Express; daemon: Server }> | null = null;
 function harness() {
@@ -191,12 +191,12 @@ function harness() {
         } });
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
+        registerAuthRoutes({ app, deps });
         // A fresh, empty store: none of this file's requests carry an exchangeId, so the local-first
         // delivery branch never triggers and every request still reaches the stand-in daemon exactly
         // as before — see `modules/assistant.ts`'s own doc for why the real store must be shared with
         // `assistant-byok.ts` in production, which this proxy-only harness has no need to compose.
-        createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
+        createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
         return app;
       },
     };
@@ -319,7 +319,7 @@ test("a streamed multi-chunk SSE response is relayed incrementally as it arrives
 });
 
 /**
- * Regression test for `proxyMcpUiToolCall`'s fall-through branch (`server/modules/assistant.ts`,
+ * Regression test for `proxyMcpUiToolCall`'s fall-through branch (`server/runtime/composition/modules/assistant.ts`,
  * the route ending around line 403-409). `forwardToAgentDaemon` was refactored to return
  * `Response | null` instead of relaying internally, and this one call site was not migrated: it
  * fetched the daemon's answer and never wrote to `res`, hanging the browser until timeout so the
@@ -617,7 +617,7 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
   // this fix) would happily reach it and get a 200, exactly like the ordinary passing tests above.
   // A leaked port in production is squatted by a DIFFERENT (orphaned) process, not by nothing, so
   // "the daemon answered" must stop being trusted once we know OUR OWN spawn is dead.
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
@@ -638,7 +638,7 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
 
 test("known-failed availability fails from the API without contacting the daemon", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("controlled crash cap");
+  recordAssistantDaemonFailure({ reasonCode: "controlled crash cap" });
   t.after(() => clearAssistantDaemonFailure());
   const response = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
   assert.equal(response.status, 503);
@@ -647,7 +647,7 @@ test("known-failed availability fails from the API without contacting the daemon
 
 test("a known-failed daemon also short-circuits the SSE run-events route", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/runs/run-1/events`, { headers: { cookie } });
@@ -658,7 +658,7 @@ test("a known-failed daemon also short-circuits the SSE run-events route", async
 
 test("a known-failed daemon short-circuits the dedicated attachment-upload proxy too, which has its own fetch path", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/attachments`, {
@@ -679,7 +679,7 @@ test("a known-failed daemon short-circuits the dedicated attachment-upload proxy
 
 test("clearing the failure (the future-retry hook) restores normal proxying", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
 
   const failed = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
   assert.equal(failed.status, 503);
@@ -695,7 +695,7 @@ test("clearing the failure (the future-retry hook) restores normal proxying", as
  * ---- Tool catalog enumeration (`GET /api/tools/search`, `GET /api/tools/:id`) ----
  *
  * The browser-reachable proxy in front of the daemon's `requireSameOrigin`-gated
- * `registerToolCatalogRoutes` (see `modules/assistant.ts`'s own doc at the mount site for the full
+ * `toolCatalogRoutes` (see `modules/assistant.ts`'s own doc at the mount site for the full
  * same-origin trace). Written and first run against the pre-change router — where both routes
  * 404 at Tovu's own Express app before ever reaching the stand-in daemon — as this dispatch's
  * required RED evidence; see the Programmer handoff for the verbatim red output.
@@ -733,6 +733,21 @@ test("GET /api/tools/:id is proxied to the daemon, including its 404 for an unkn
   assert.equal(recorded.length, 2);
 });
 
+// Tovu's router matches a path in any letter case and with one trailing slash, and the proxy builds
+// its daemon request from the path as the client sent it. So the daemon is asked with the client's
+// spelling, and whether such a request is answered depends on how the daemon matches paths.
+for (const spelling of ["/API/Tools/Search?q=posts", "/api/tools/search/?q=posts", "/api/tools/SEARCH?q=posts"]) {
+  test(`GET ${spelling} is routed like /api/tools/search and reaches the daemon spelled exactly as the client sent it`, async (t) => {
+    const { baseUrl, cookie } = await bootProxy(t);
+
+    await fetch(`${baseUrl}${spelling}`, { headers: { cookie } });
+
+    assert.equal(recorded.length, 1, "the request must be forwarded, not answered 404 by Tovu's own router");
+    assert.equal(recorded[0].method, "GET");
+    assert.equal(recorded[0].url, spelling);
+  });
+}
+
 test("the tool catalog routes are session-gated like every other route in this module — no cookie, no daemon call", async (t) => {
   const { baseUrl } = await bootProxy(t);
 
@@ -754,7 +769,7 @@ test("the tool catalog proxy carries the daemon bearer token, same as every othe
 
 test("a known-failed daemon also short-circuits the tool catalog routes to 503, never reaching the daemon's port", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/tools/search?q=search`, { headers: { cookie } });

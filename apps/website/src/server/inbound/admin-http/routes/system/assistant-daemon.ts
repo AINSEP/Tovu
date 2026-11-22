@@ -1,15 +1,17 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { restartAssistantDaemon as restartAssistantDaemonReal, type RestartAssistantDaemonResult } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin "Restart assistant" action — `POST /api/admin/v1/workspaces/:workspaceId/system/
  * assistant-daemon/restart`, the manual recovery seam for the locally-spawned agent daemon
- * (`src/assistant/daemon-supervisor.ts`). Sibling to the on-demand recovery wired into
- * `server/modules/assistant.ts`'s daemon-proxy code (`respondIfDaemonKnownFailed` now calls
+ * (`apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`). Sibling to the on-demand recovery wired into
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts`'s daemon-proxy code (`respondIfDaemonKnownFailed` now calls
  * `ensureAssistantDaemonStarted()` automatically on every known-failed request) — this route exists
  * for the case an operator wants to force it NOW rather than wait for the next request to trigger
  * it, or wants to recover a daemon whose crash-loop cap has already tripped (on-demand recovery
@@ -49,31 +51,16 @@ export type AdminAssistantDaemonDeps = Pick<RouteDeps, "workspaceId" | "authoriz
   restartAssistantDaemon?: () => RestartAssistantDaemonResult;
 };
 
-export function registerAdminAssistantDaemonRoutes(app: Express, deps: AdminAssistantDaemonDeps): void {
+export function registerAdminAssistantDaemonRoutes({ app, deps }: { app: Express; deps: AdminAssistantDaemonDeps }, _optional: Record<string, never> = {}): void {
   const restartAssistantDaemon = deps.restartAssistantDaemon ?? restartAssistantDaemonReal;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-daemon",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.write", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "assistant-daemon" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = restartAssistantDaemon();
       if (!result.ok) {

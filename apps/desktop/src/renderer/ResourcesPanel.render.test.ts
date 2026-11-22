@@ -64,7 +64,7 @@ test('M2 shows provenance on toolbar, tooltip, site card, panel totals and indiv
   const footprint = { ...metrics, rssBytes: 550_000_000, memoryMetric: 'physical-footprint' as const, memoryWarning: false, cpuWarning: false };
   const snapshot = { ...SNAPSHOT, total: { ...footprint, memoryMetric: 'mixed-rss' as const }, app: { ...footprint, siteId: null, processes: [] },
     sites: [{ ...footprint, siteId: SITE.id, processes: [{ ...SNAPSHOT.sites[0]!.processes[0]!, rssBytes: 78_000_000, memoryMetric: 'rss' as const }] }] };
-  const usePower: typeof useSitePower = () => useSitePower(() => {}, { getBridge: () => ({}) as never });
+  const usePower: typeof useSitePower = () => useSitePower({}, { onSiteUpdated: () => {}, getBridge: () => ({}) as never });
   const Panel: typeof ResourcesPanel = props => createElement(ResourcesPanel, { ...props, usePower, Shell, useTrap() {} });
   const { host } = mount(t, createElement(ResourcesMonitor, {
     projects: [SITE], onSiteUpdated() {}, useReadings: () => snapshot, Panel,
@@ -139,7 +139,7 @@ test('panel is a Process | PID | Memory | CPU table with a subtotal row per grou
       { pid: 23743, ppid: 1, name: 'Tovu', role: 'app', rssBytes: 110_000_000, cpuPercent: 2, cpuWarning: false },
       { pid: 23745, ppid: 23743, name: 'Tovu Helper', role: 'process', rssBytes: 112_000_000, cpuPercent: 1, cpuWarning: false }] } };
   const { host } = mount(t, createElement(ResourcesPanel, {
-    projects: [SITE], snapshot, onSiteUpdated() {}, onClose() {}, usePower: () => useSitePower(() => {}, { getBridge: () => ({}) as never }), Shell, useTrap() {},
+    projects: [SITE], snapshot, onSiteUpdated() {}, onClose() {}, usePower: () => useSitePower({}, { onSiteUpdated: () => {}, getBridge: () => ({}) as never }), Shell, useTrap() {},
   }));
   const table = host.querySelector('table.resources-table')!;
   assert.deepEqual([...table.querySelectorAll('thead th')].map((th) => th.textContent), ['Process', 'PID', 'Memory', 'CPU', 'Actions']);
@@ -166,9 +166,9 @@ test('panel Stop reaches the existing stop API once, applies main record and sho
   let fail = false;
   const bridge = {
     startSite: async () => { assert.fail('resource panel cannot start a site'); },
-    stopSite: (id: string) => { calls.push(id); return fail ? Promise.reject(new Error('Stop failed.')) : new Promise<SiteRecord>((resolve) => { finish = resolve; }); },
+    stopSite: ({ id }: { id: string }, _options = {}) => { calls.push(id); return fail ? Promise.reject(new Error('Stop failed.')) : new Promise<SiteRecord>((resolve) => { finish = resolve; }); },
   };
-  const usePower: typeof useSitePower = (onUpdated) => useSitePower(onUpdated, { getBridge: () => bridge });
+  const usePower: typeof useSitePower = (_required, options) => useSitePower({}, { ...options, getBridge: () => bridge });
   const { host } = mount(t, createElement(ResourcesPanel, {
     projects: [SITE], snapshot: SNAPSHOT, onSiteUpdated: (record) => updates.push(record), onClose() {}, usePower, Shell, useTrap() {},
   }));

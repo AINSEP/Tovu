@@ -9,7 +9,7 @@ import path from "node:path";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import { sitePluginZip } from "#src/features/plugin-runtime/__tests__/fixtures/site-plugin-zip";
-import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
+import { MAX_PLUGIN_ARCHIVE_BYTES } from "@jini-ai/plugins/host/node";
 
 test("ZIP upload -> review -> install stays off; unreviewed and changed digest refuse", async (t) => {
   const old = process.env.TOVU_PLUGIN_LOCAL_INSTALL; process.env.TOVU_PLUGIN_LOCAL_INSTALL = "1";

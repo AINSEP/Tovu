@@ -1,16 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
-import { startThemeWatcher } from "#src/features/theme/theme-watcher";
-import { startPostGoLiveSweep } from "#src/features/post/go-live";
+import { createThemeWatcher } from "@jini-ai/cms/themes/preview/watcher";
+import { refreshWatchedThemes, reportThemeWatchError } from "#src/features/theme/index";
+import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
-import { createApp, type CreateAppOptions } from "./app.js";
+import { createApp } from "./app.js";
+import type { CreateAppOptions } from "./create-app-options.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
 import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";
 import { startSiteSearchMaintenance, type SiteSearchMaintenance } from "./modules/site-search.js";
+
+// Only the website serving runtime starts this service. Recomposition/site switches replace its
+// active site's watcher; exporter apps and the separate agent daemon never own another one.
+const startThemeWatcher = createThemeWatcher({ onError: reportThemeWatchError });
 
 /**
  * @file `createApp` plus the site-serving process's background loops — the outbox drainer
@@ -72,7 +78,7 @@ export function createServingApp(
 ): { app: Express; outboxDrainer: OutboxDrainer; trashSweeper: TrashSweeper; themeWatcher: ReturnType<typeof startThemeWatcher>; formPullTrigger: { stop(): Promise<void> }; postGoLiveSweep: { stop(): Promise<void> }; webhookDeliveryWorker: WebhookDeliveryWorker; domainBindingSweeper: DomainBindingSweeper; siteSearchMaintenance: SiteSearchMaintenance; bootWork: Promise<void>[] } {
   const bootWork: Promise<void>[] = [];
   const formPull = createServingFormPullTrigger({ autoPull: routeDeps.formSubmissionsAutoPull, workspaceId: routeDeps.workspaceId });
-  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: (work) => bootWork.push(work), onAdminSignIn: formPull.signIn });
+  const app = createApp(routeDeps, { stopForIdle: optional.stopForIdle, activateAssistantFederation: true, recoverAssistantChatRuns: true, onBootWork: ({ work }) => bootWork.push(work), onAdminSignIn: formPull.signIn });
   const outboxDrainer = startOutboxDrainer(
     { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock },
     { intervalMs: optional.outboxDrainIntervalMs, tracker: routeDeps.tracker }
@@ -84,7 +90,7 @@ export function createServingApp(
   // from a process nobody is watching, on a schedule nobody set.
   const trashSweeper = startTrashSweeper(
     {
-      sweep: routeDeps.sweepTrash, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
+      sweep: (...args) => routeDeps.tracker.trace({ name: "trash.purge", run: () => routeDeps.sweepTrash(...args) }), clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
       scheduler: createTrashScheduler({}), leaseOwner: `trash-sweeper-${randomUUID()}`
     },
     {
@@ -94,15 +100,16 @@ export function createServingApp(
   );
   const candidates = routeDeps.postGoLiveCandidates;
   const postGoLiveSweep = candidates
-    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId })
+    ? startPostGoLiveSweep({ deps: { repo: candidates, outbox: routeDeps.outbox, clock: routeDeps.clock }, workspaceId: routeDeps.workspaceId }, { tracker: routeDeps.tracker })
     : { stop: async () => {} };
-  const themeWatcher = startThemeWatcher({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  const themeWatcher = startThemeWatcher({ themesDir: routeDeps.themesDir, refresh: ({ themesDir }) => refreshWatchedThemes({ themes: routeDeps.themes, themesDir }) });
   const webhookDeliveryWorker = startServingWebhookDeliveryWorker(
     { deps: routeDeps },
     optional.webhookDeliveryIntervalMs === undefined ? {} : { intervalMs: optional.webhookDeliveryIntervalMs }
   );
+  const verifyDue = routeDeps.verifyDueDomainBindings;
   const domainBindingSweeper = startDomainBindingSweeper(
-    { sweep: routeDeps.verifyDueDomainBindings },
+    { sweep: verifyDue && ((input) => routeDeps.tracker.trace({ name: "domain.bindings.sweep", run: () => verifyDue(input) })) },
     optional.domainBindingSweepIntervalMs === undefined ? {} : { intervalMs: optional.domainBindingSweepIntervalMs }
   );
   // After `createApp`: the pulled submissions' events need their subscribers attached.

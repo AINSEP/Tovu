@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
 import { deleteExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -16,10 +16,10 @@ import { guardExternalMcpRequest } from "./guard.js";
  * because the running assistant still holds the open connection and lists the tools until it
  * restarts. The delete itself is unchanged and permanent.
  */
-export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
 
       if (isBuiltInExternalMcpServer({ serverId: String(req.params.serverId ?? ""), ids: deps.builtInExternalMcpServerIds })) {
         res.status(409).json({ error: "built-in MCP connections cannot be removed", code: "BUILT_IN_CONNECTION" });

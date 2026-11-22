@@ -14,7 +14,7 @@ test("comment card reads an approved comment directly, scopes the lookup and omi
         bodyText: "Hello", spamScore: null, createdAt: "2026-10-09T00:00:00.000Z", version: 2, authorIpHash: "internal" };
     } },
   } as unknown as CommentsToolDeps;
-  const card = deriveContentReadRegistrations(buildCommentsRegistrations(deps)).find(r => r.descriptor.id === "content_read.comment");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: buildCommentsRegistrations(deps) }).find(r => r.descriptor.id === "content_read.comment");
   assert.ok(card);
   const result = await card.handler({ input: { commentId: "c" }, principal: { id: "owner" } } as ToolExecutionContext);
   assert.deepEqual(calls, [{ workspaceId: "ws", id: "c" }]);

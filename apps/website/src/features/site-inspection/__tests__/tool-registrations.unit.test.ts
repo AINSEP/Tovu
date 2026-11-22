@@ -15,7 +15,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { listToolCatalogEntries } from "#src/assistant/tool-catalog-query";
 import { ADMIN_SCREENS } from "../admin-screens.generated.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
-import { PublishedPagePathError } from "../published-page.js";
+import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "../site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "../site-profile.js";
 import {
@@ -162,6 +162,7 @@ test("site_get_profile: a canary in a sealed credential store never appears in t
   await deps.externalMcpServerRepo.upsert({
     workspaceId: deps.workspaceId,
     serverId: "canary-mcp",
+    version: 1,
     label: "Canary MCP",
     provisionedByPluginId: null,
     transport: "stdio",
@@ -309,7 +310,7 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
   await assert.rejects(
     async () => {
       const { fetchPublishedPage } = await import("../published-page.js");
-      await fetchPublishedPage(deps, { path: "//evil.example" });
+      await fetchPublishedPage({ deps, input: { path: "//evil.example" } });
     },
     PublishedPagePathError,
   );

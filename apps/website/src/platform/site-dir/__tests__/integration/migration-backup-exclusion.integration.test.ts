@@ -55,7 +55,7 @@ function copyTraces(dir: string): string[] {
 }
 
 test("ops/ (where the copy lives) is not a portable site entry", () => {
-  assert.equal(isPortableSiteEntry("ops"), false);
+  assert.equal(isPortableSiteEntry({ entryName: "ops" }), false);
 });
 
 test("duplicateSite never carries the source's pre-migrations copy", async (t) => {
@@ -103,8 +103,8 @@ test("a static export of the site writes no trace of the pre-migrations copy", a
 
 test("agent file tools and publish trees deny the copy and its sidecars by name", () => {
   for (const name of [COPY_NAME, `${COPY_NAME}-wal`, `${COPY_NAME}-shm`]) {
-    assert.equal(isDeniedFsFileName(name), true, `${name} is denied to agent file tools`);
-    assert.notEqual(checkTreePath(`ops/${name}`), null, `${name} is refused in a publish tree`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `${name} is denied to agent file tools`);
+    assert.notEqual(checkTreePath({ relPath: `ops/${name}` }), null, `${name} is refused in a publish tree`);
   }
 });
 

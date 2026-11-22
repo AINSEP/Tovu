@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
-import { describeApiError, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -138,7 +139,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
   // thing this closure ever needs is `invalidate`, itself already stable per `useInvalidate`'s doc.
   const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(MEDIA_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: MEDIA_RESOURCE, onRefresh: invalidateList });
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
@@ -196,7 +197,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     setReadError(null);
     clearOtherWriteErrors(uploadMutation);
     try {
-      const dataBase64 = await readFileAsBase64(file).catch((readFailure: unknown) => {
+      const dataBase64 = await readFileAsBase64({ file }).catch((readFailure: unknown) => {
         setReadError(readFailure);
         throw readFailure;
       });
@@ -287,7 +288,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const media = list.data?.media ?? null;
   const uploadFailure = readError ?? uploadMutation.error;
   // Local FileReader errors bypass the mutation; translate known copy while retaining diagnostics.
-  const uploadError = uploadFailure ? translate({ locale, key: describeApiError(uploadFailure, "upload failed") }) : null;
+  const uploadError = uploadFailure ? translate({ locale, key: describeApiError({ e: uploadFailure, fallback: "upload failed" }) }) : null;
   const error = visibleMediaError({
     trashError: trashMutation.error,
     purgeError: purgeMutation.error,
@@ -316,7 +317,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     upload,
     editingId,
     setEditingId,
-    editingItem: findEditingItem(media, editingId),
+    editingItem: findEditingItem({ media, editingId }),
     toggleEditing,
     onMetadataSaved,
     trash,

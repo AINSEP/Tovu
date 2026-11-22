@@ -54,7 +54,7 @@ test("ensureMediaObjectStoreSetting: registers core.storage/mediaObjectStore as 
   assert.equal(definition.defaultValue, "");
   assert.equal(definition.scopes, SCOPE_BIT.workspace);
 
-  const effective = await getEffective({ repo: deps.settingsRepo }, { namespace: "core.storage", key: "mediaObjectStore", scopeContext: { workspaceId: WORKSPACE_ID } });
+  const effective = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: "core.storage", key: "mediaObjectStore", scopeContext: { workspaceId: WORKSPACE_ID } });
   assert.equal(effective?.value, "");
   assert.equal(await read(deps), "");
 });
@@ -90,7 +90,7 @@ test("readMediaObjectStoreSetting: a non-string effective value (a definition re
   await ensureSettingDefinitions(deps, { namespace: STORAGE_SETTINGS_NAMESPACE, systemPrincipalId: SYSTEM_PRINCIPAL_ID, definitions: [
     { key: MEDIA_OBJECT_STORE_KEY, schema: { type: "number" }, defaultValue: 42, scopes: SCOPE_BIT.workspace },
   ] });
-  const effective = await getEffective({ repo: deps.settingsRepo }, { namespace: STORAGE_SETTINGS_NAMESPACE, key: MEDIA_OBJECT_STORE_KEY, scopeContext: { workspaceId: WORKSPACE_ID } });
+  const effective = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: STORAGE_SETTINGS_NAMESPACE, key: MEDIA_OBJECT_STORE_KEY, scopeContext: { workspaceId: WORKSPACE_ID } });
   assert.equal(effective?.value, 42, "precondition: the ledger really holds a non-string value");
   assert.equal(await read(deps), "");
 });

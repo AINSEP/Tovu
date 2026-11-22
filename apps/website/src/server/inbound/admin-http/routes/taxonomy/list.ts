@@ -1,9 +1,10 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { listTaxonomiesWithTerms } from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file design-spec.md §2.2/§2.8 — `GET /api/admin/v1/taxonomy` (Categories & Tags' two-pane
@@ -11,24 +12,12 @@ import type { TaxonomyRouteDeps } from "./deps.js";
  * for this whole domain (no `.read`/`.write` split), so this list route reuses it rather than
  * inventing an unratified `admin.taxonomy.read` string.
  */
-export function registerAdminTaxonomyListRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyListRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/taxonomy", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.taxonomy.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "taxonomy",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.taxonomy.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.taxonomy.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.taxonomy.manage", workspaceId: deps.workspaceId, entityType: "taxonomy" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await listTaxonomiesWithTerms({ taxonomies: deps.taxonomyRepo, terms: deps.termRepo });
       res.json(result);

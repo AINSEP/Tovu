@@ -25,7 +25,7 @@ function fixture({ mode = "ask", channel = true, allow = true, fail = false, res
     confirmation: channel ? { request: async required => { required.emit({ kind: "tool_confirmation", challengeId: "a".repeat(22), title: required.title, summary: required.summary }); return allow; },
       confirm: async () => false, emit: directive => { directives.push(directive); } } : undefined,
     budgets: { charge: async () => true }, clock: { nowMs: () => 0, nowIso: () => "now" }, ids: { newId: () => "id" }, workspaceId: "w", runId: "run", ip: "ip",
-    sink: { append: async () => {} }, reportError: error => { errors.push(error); reported(); }, signal: abort.signal };
+    sink: { append: async () => {} }, reportError: ({ error }) => { errors.push(error); reported(); }, signal: abort.signal };
   const gate = createVisitorConfirmationGate({ ports, resume: ({ decision }) => {
     if (resumeError) throw new Error("confirmation already settled");
     resumed(decision);
@@ -113,7 +113,9 @@ test("a resume racing another cancellation is reported without an unhandled reje
 
 test("confirmation copy projects only declared fields and strips controls, links and excess text", async () => {
   const f = fixture({ toolId: "search_published_entries" });
-  const input = { query: `\u0000\u0085\u200e\u200f\u202a\u202e\u2066\u2069https://evil.test/login\n\t${"x".repeat(5000)}`,
+  const bidiControls = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069";
+  assert.equal(bidiControls.length, 11);
+  const input = { query: `\u0000\u0085${bidiControls}https://evil.test/login\n\t${"x".repeat(5000)}`,
     secret: "do not display", nested: { query: "do not display either" } };
   f.gate.delegate.onConfirm!({ ...f.request, input });
   await f.result;

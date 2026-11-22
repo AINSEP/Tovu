@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { expandPartials } from "../../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../../contracts/core/theme-slots.js";
 import { renderStaticPage, renderStaticPartial } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
@@ -47,14 +48,14 @@ function makeTheme(overrides: Partial<DiscoveredTheme> = {}): DiscoveredTheme {
 test("expandPartials replaces a bare partial marker with the partial (marker element itself disappears)", () => {
   const theme = makeTheme();
   const html = `<html><body><div data-embed-config='{"type":"partial","id":"nav"}'></div></body></html>`;
-  assert.equal(expandPartials(html, theme), "<html><body><nav>Main Nav</nav></body></html>");
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme }), "<html><body><nav>Main Nav</nav></body></html>");
 });
 
 test("expandPartials keeps an attributed partial marker's wrapper element around the partial, with data-embed-config stripped", () => {
   const theme = makeTheme();
   const html = `<html><body><div class="x" id="y" data-embed-config='{"type":"partial","id":"nav"}'></div></body></html>`;
   assert.equal(
-    expandPartials(html, theme),
+    expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme }),
     `<html><body><div class="x" id="y"><nav>Main Nav</nav></div></body></html>`
   );
 });
@@ -62,7 +63,7 @@ test("expandPartials keeps an attributed partial marker's wrapper element around
 test("renderStaticPage over already-expanded HTML is byte-identical to over raw HTML (idempotent)", () => {
   const theme = makeTheme();
   const rawHtml = `<html><body><div data-embed-config='{"type":"partial","id":"nav"}'></div></body></html>`;
-  const alreadyExpanded = expandPartials(rawHtml, theme);
+  const alreadyExpanded = expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: rawHtml, theme: theme });
 
   const fromRaw = renderStaticPage({ theme, pageId: "index", htmlOverride: rawHtml });
   const fromExpanded = renderStaticPage({ theme, pageId: "index", htmlOverride: alreadyExpanded });
@@ -72,8 +73,8 @@ test("renderStaticPage over already-expanded HTML is byte-identical to over raw 
 
 test("an undeclared partial slot keeps its authored fallback; a missing declared source disappears", () => {
   const html = `<main><div data-embed-config='{"type":"partial","id":"unknown"}'>Fallback</div></main>`;
-  assert.equal(expandPartials(html, makeTheme()), html);
-  assert.equal(expandPartials(`<main><div data-embed-config='{"type":"partial","id":"nav"}'>Fallback</div></main>`, makeTheme({ partials: {} })), "<main></main>");
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: makeTheme() }), html);
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: `<main><div data-embed-config='{"type":"partial","id":"nav"}'>Fallback</div></main>`, theme: makeTheme({ partials: {} }) }), "<main></main>");
 });
 
 /** A `theme.json` slot whose `source` omits `.html` (`parseSlots` accepts any string) — the partial id is the source as written. */
@@ -86,17 +87,33 @@ function extensionlessSlotTheme(): DiscoveredTheme {
 
 test("expandPartials resolves a slot whose source has no .html extension to the partial of the same id", () => {
   const html = `<main><div data-embed-config='{"type":"partial","id":"nav"}'></div></main>`;
-  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Main Nav</nav></main>");
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: extensionlessSlotTheme() }), "<main><nav>Main Nav</nav></main>");
 });
 
 test("expandPartials resolves an extensionless explicit variant source to the partial of the same id", () => {
   const html = `<main><div data-embed-config='{"type":"partial","id":"nav","variant":"compact"}'></div></main>`;
-  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Compact</nav></main>");
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: extensionlessSlotTheme() }), "<main><nav>Compact</nav></main>");
 });
 
 test("expandPartials builds the <stem>-<variant> convention from an extensionless slot source", () => {
   const html = `<main><div data-embed-config='{"type":"partial","id":"nav","variant":"tight"}'></div></main>`;
-  assert.equal(expandPartials(html, extensionlessSlotTheme()), "<main><nav>Tight</nav></main>");
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: extensionlessSlotTheme() }), "<main><nav>Tight</nav></main>");
+});
+
+test("expandPartials leaves a nested partial marker for a later pass", () => {
+  const nested = `<div data-embed-config='{"type":"partial","id":"footer"}'></div>`;
+  const theme = makeTheme({
+    manifest: { ...makeTheme().manifest, slots: { nav: { source: "nav.html" }, footer: { source: "footer.html" } } },
+    partials: { nav: `<nav>${nested}</nav>`, footer: "<footer>Footer</footer>" },
+  });
+  const html = `<main><div data-embed-config='{"type":"partial","id":"nav"}'></div></main>`;
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: html, theme: theme }), `<main><nav>${nested}</nav></main>`);
+});
+
+test("expandPartials leaves a self-referencing partial marker for a later pass", () => {
+  const marker = `<div data-embed-config='{"type":"partial","id":"nav"}'></div>`;
+  const theme = makeTheme({ partials: { nav: `<nav>${marker}</nav>` } });
+  assert.equal(expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: `<main>${marker}</main>`, theme: theme }), `<main><nav>${marker}</nav></main>`);
 });
 
 test("standalone partial previews inject both token sets and rewrite their assets", () => {

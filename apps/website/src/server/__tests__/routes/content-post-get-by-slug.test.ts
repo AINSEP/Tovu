@@ -37,7 +37,7 @@ function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Expres
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerContentPostGetRoute(app, deps);
+  registerContentPostGetRoute({ app, deps });
   return { app, deps };
 }
 
@@ -206,7 +206,7 @@ test("GET content post by slug: an unrelated or malformed cookie header does not
 });
 
 test("GET content post by slug: an entitled signed-in member CAN read a members-only post's real content", async (t) => {
-  const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]) });
+  const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession()] }) });
   const baseUrl = await startTestServer(app, t);
   await deps.postRepo.save(
     makePost({
@@ -232,10 +232,10 @@ test("GET content post by slug: an entitled signed-in member CAN read a members-
 for (const visibility of ["paid", "tiers"] as const) {
   test(`GET content post by slug: ${visibility} content requires a valid entitled session`, async (t) => {
     const expiredToken = "expired-member-token";
-    const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo([
+    const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [
       activeMemberSession(),
       { ...activeMemberSession(), id: "expired-session", expiresAt: "2000-01-01T00:00:00.000Z", tokenHash: createHash("sha256").update(expiredToken).digest("hex") },
-    ]) });
+    ] }) });
     const baseUrl = await startTestServer(app, t);
     const post = makePost({ id: `p-${visibility}`, slug: `${visibility}-post`, title: "Tier Secret Title",
       bodyJson: { type: "doc", content: [{ type: "text", text: "TIER_SECRET_BODY" }] },

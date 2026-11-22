@@ -4,7 +4,7 @@ import { getLatestTransformDefinition, registerTransform, type RegisterTransform
 
 /**
  * @file Boot-time registration of the core transforms this host needs before the public `/m/`
- * rendition route (`server/routes/site/media-rendition.ts`, ADR-027 §4) can serve ANY asset at
+ * rendition route (`apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts`, ADR-027 §4) can serve ANY asset at
  * all.
  *
  * `resolveMediaRendition` (`@jini-ai/cms/media`) looks up `(assetId, transformName, version)`
@@ -25,7 +25,7 @@ export const CORE_PUBLIC_TRANSFORM_NAME = "public";
  * `/m/{assetId}/public.v{version}/...` URL always resolves for any active asset (subject to the
  * generation-bound rules `resolveMediaRendition` itself enforces). Mirrors
  * `newsletter/lists.ts`'s `ensureDefaultList` shape exactly: find-latest-or-create, called once
- * per boot from `server/deps.ts`'s existing `Ready`-chain sequence.
+ * per boot from `server/runtime/composition/deps.ts`'s existing `Ready`-chain sequence.
  *
  * **Why find-or-create, not a bare `registerTransform` call.** `registerTransform` is
  * deliberately NOT idempotent — it is append-only and always mints `version = currentMax + 1`
@@ -80,5 +80,7 @@ export async function ensureCoreMediaTransform(
     definitions.set(transform.name, definition);
   }
   // The fixed list above always resolves public; preserve this function's existing return contract.
-  return { definition: definitions.get(CORE_PUBLIC_TRANSFORM_NAME)! };
+  const definition = definitions.get(CORE_PUBLIC_TRANSFORM_NAME);
+  if (definition === undefined) throw new Error('Media bootstrap has no public transform definition');
+  return { definition };
 }

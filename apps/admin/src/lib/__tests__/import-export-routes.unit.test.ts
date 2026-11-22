@@ -16,10 +16,10 @@ describe("resolveImportExportRoute (owner, 2026-10-25: Sites → Export/Import m
   });
 
   it("runs in parseRoute, so the route is Import & Export before the Sites gate sees it", () => {
-    const route = parseRoute("/sites?tab=import");
+    const route = parseRoute({ routePath: "/sites?tab=import" });
     expect(route.panelId).toBe("import-export");
     expect(route.query.get("tab")).toBe("import");
     expect(route.redirectPath).toBe("/import-export?tab=import");
-    expect(parseRoute("/sites?tab=new")).toMatchObject({ panelId: "sites", redirectPath: undefined });
+    expect(parseRoute({ routePath: "/sites?tab=new" })).toMatchObject({ panelId: "sites", redirectPath: undefined });
   });
 });

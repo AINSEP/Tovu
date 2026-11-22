@@ -38,11 +38,13 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { postAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-post-model-facing";
@@ -53,7 +55,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
 function makeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
@@ -105,7 +107,7 @@ let toolUseCounter = 0;
 async function call(harness: Harness, toolId: string, input: unknown) {
   return delegatedToolExecuteRoute.handle({
     input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    deps: harness as never,
+    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
   });
 }
 
@@ -353,6 +355,7 @@ test("an UNLISTED failure stays redacted — the allowlist is not a blanket unwr
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
-  assert.equal(result.error.message, "an internal error occurred");
+  // Jini daemon delegated-tools.ts (44ae8070): an unlisted fault now answers with this fixed server-fault guidance.
+  assert.equal(result.error.message, "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.");
   assert.ok(!JSON.stringify(result).includes("content.db"), "an unlisted error must not disclose an internal path");
 });

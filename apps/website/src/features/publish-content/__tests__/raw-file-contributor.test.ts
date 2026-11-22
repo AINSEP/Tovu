@@ -8,8 +8,9 @@ import { contentHash } from "../content-hash.js";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { BackstopRefusal } from "../backstop-policy.js";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
-import { createFileBlobIndex } from "../file-blob-index.js";
-import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
@@ -24,7 +25,7 @@ async function fixture(t: test.TestContext) {
   const deps: PublishContentDeps = { workspaceId: "ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
     idGen: { newId: () => `id-${++id}` }, changeSets: new InMemoryChangeSetRepo([], [], outbox), outbox,
     authorize: async () => ({ allowed: true, reason: "test" }), ports: { media: {
-      repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
+      repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } },
     backstop: { files, blobs, fileBlobIndex: createFileBlobIndex(), fileRollbacks: [], coveredTables: [], coveredRoots: ["themes"], selection: { files: ["snippets/footer.html"] } } };
   const handler = contributeRawFilePublish().build(deps);
@@ -48,12 +49,12 @@ test("destination rechecks deny paths, links and actual blob secrets without tru
   await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
   const [entity] = await f.pack();
   assert.ok(entity);
-  const privatePathRefusal = await f.handler.precheck({ ...entity, id: ".env", state: { ...entity.state, path: ".env" } });
+  const privatePathRefusal = await f.handler.precheck({ entity: { ...entity, id: ".env", state: { ...entity.state, path: ".env" } } });
   assert.ok(typeof privatePathRefusal === "string");
   assert.match(privatePathRefusal, /never|environment/);
   await mkdir(path.join(f.siteDir, "other"));
   await symlink(path.join(f.siteDir, "other"), path.join(f.siteDir, "link"));
-  const linkedPathRefusal = await f.handler.precheck({ ...entity, id: "link/footer.html", state: { ...entity.state, path: "link/footer.html" } });
+  const linkedPathRefusal = await f.handler.precheck({ entity: { ...entity, id: "link/footer.html", state: { ...entity.state, path: "link/footer.html" } } });
   assert.ok(typeof linkedPathRefusal === "string");
   assert.match(linkedPathRefusal, /[Ll]ink/);
   const planted = Buffer.from("sk-ant-api03-" + "X".repeat(120));
@@ -63,8 +64,8 @@ test("destination rechecks deny paths, links and actual blob secrets without tru
   const sha256 = createHash("sha256").update(planted).digest("hex");
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256, bytes: planted });
   const state = { ...entity.state, sha256, size: planted.byteLength };
-  const forged = { ...entity, state, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256] };
-  const credentialRefusal = await f.handler.precheck(forged);
+  const forged = { ...entity, state, contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [sha256] };
+  const credentialRefusal = await f.handler.precheck({ entity: forged });
   assert.ok(typeof credentialRefusal === "string");
   assert.match(credentialRefusal, /looks like it holds a key/);
 });
@@ -79,7 +80,7 @@ test("replace then undo restores bytes, and a later live edit is skipped", async
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256, bytes: Buffer.from("new footer") });
   await writeFile(file, "old footer");
   const inverse = await f.files.capture({ relPath: entity.id });
-  const inspected = await f.handler.inspect(entity.id);
+  const inspected = await f.handler.inspect({ id: entity.id });
   await f.handler.apply({ entity, expectedVersion: inspected!.version, principalId: "admin", idempotencyKey: "replace" });
   assert.equal(await readFile(file, "utf8"), "new footer");
   assert.equal(await undoRawFile({ deps: f.deps, entity, before: inverse, afterHash: entity.contentHash }), null);
@@ -100,7 +101,7 @@ test("creating then undoing removes only the new file, never other live files", 
   await writeFile(path.join(f.siteDir, "snippets/live-only.html"), "live only");
   await f.handler.apply({ entity, expectedVersion: undefined, principalId: "admin", idempotencyKey: "create" });
   assert.equal(await undoRawFile({ deps: f.deps, entity, before, afterHash: entity.contentHash }), null);
-  assert.equal(await f.handler.inspect(entity.id), null);
+  assert.equal(await f.handler.inspect({ id: entity.id }), null);
   assert.equal(await readFile(path.join(f.siteDir, "snippets/live-only.html"), "utf8"), "live only");
 });
 
@@ -110,28 +111,28 @@ test("L044 validation rejects malformed metadata before reading blobs", async (t
   const [entity] = await f.pack();
   assert.ok(entity);
   const states = [{ sha256: 1 }, { sha256: "bad" }, { size: "6" }, { size: 1.5 }, { size: -1 }, { size: 50 * 1024 * 1024 + 1 }, { mode: 0o777 }];
-  for (const patch of states) assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, ...patch } }), "The raw file has an invalid address, size, mode or checksum.");
+  for (const patch of states) assert.equal(await f.handler.precheck({ entity: { ...entity, state: { ...entity.state, ...patch } } }), "The raw file has an invalid address, size, mode or checksum.");
   for (const requiredBlobs of [[], ["wrong"], [entity.state.sha256 as string, "extra"]]) {
-    const blobAddressRefusal = await f.handler.precheck({ ...entity, requiredBlobs });
+    const blobAddressRefusal = await f.handler.precheck({ entity: { ...entity, requiredBlobs } });
     assert.ok(typeof blobAddressRefusal === "string");
     assert.match(blobAddressRefusal, /invalid address/);
   }
-  const pathMismatchRefusal = await f.handler.precheck({ ...entity, id: "different" });
+  const pathMismatchRefusal = await f.handler.precheck({ entity: { ...entity, id: "different" } });
   assert.ok(typeof pathMismatchRefusal === "string");
   assert.match(pathMismatchRefusal, /invalid address/);
-  assert.equal(await f.handler.precheck({ ...entity, state: { ...entity.state, path: 1 } }), "Choose a regular file inside the site folder.");
-  const missingBytesRefusal = await f.handler.precheck(entity);
+  assert.equal(await f.handler.precheck({ entity: { ...entity, state: { ...entity.state, path: 1 } } }), "Choose a regular file inside the site folder.");
+  const missingBytesRefusal = await f.handler.precheck({ entity });
   assert.ok(typeof missingBytesRefusal === "string");
   assert.match(missingBytesRefusal, /verified bytes are missing/);
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256: entity.state.sha256 as string, bytes: Buffer.from("footer") });
-  assert.equal(await f.handler.precheck(entity), null);
-  const contentHashRefusal = await f.handler.precheck({ ...entity, contentHash: "wrong" });
+  assert.equal(await f.handler.precheck({ entity }), null);
+  const contentHashRefusal = await f.handler.precheck({ entity: { ...entity, contentHash: "wrong" } });
   assert.ok(typeof contentHashRefusal === "string");
   assert.match(contentHashRefusal, /checked content hash/);
   const noMedia = contributeRawFilePublish().build({ ...f.deps, ports: {} });
-  assert.equal(await noMedia.precheck(entity), "Library documents cannot be published");
+  assert.equal(await noMedia.precheck({ entity }), "Library documents cannot be published");
   const unavailable = contributeRawFilePublish().build({ ...f.deps, backstop: undefined });
-  assert.equal(await unavailable.precheck(entity), "Send by hand is not available on this destination.");
+  assert.equal(await unavailable.precheck({ entity }), "Send by hand is not available on this destination.");
 });
 
 test("L044 pack preserves missing/refusal skips, propagates unexpected errors, resets skips and enforces selection caps", async (t) => {
@@ -189,10 +190,10 @@ test("L044 pack availability, aggregate byte cap and byte verification use typed
     putIfAbsent: async () => { throw new Error("no writes expected"); },
     remove: async () => { throw new Error("no writes expected"); },
   } } });
-  const wrongBytesRefusal = await wrongBytes.precheck(entity);
+  const wrongBytesRefusal = await wrongBytes.precheck({ entity });
   assert.ok(typeof wrongBytesRefusal === "string");
   assert.match(wrongBytesRefusal, /verified bytes are missing/);
-  const wrongSizeRefusal = await wrongBytes.precheck({ ...entity, state: { ...entity.state, size: 7 } });
+  const wrongSizeRefusal = await wrongBytes.precheck({ entity: { ...entity, state: { ...entity.state, size: 7 } } });
   assert.ok(typeof wrongSizeRefusal === "string");
   assert.match(wrongSizeRefusal, /verified bytes are missing/);
 });
@@ -208,7 +209,7 @@ test("L044 recorded inverses support compensation and reject later drift", async
   const inverses: NonNullable<NonNullable<PublishContentDeps["backstop"]>["inverses"]> = [];
   const fileRollbacks: Array<() => Promise<void>> = [];
   const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, inverses, fileRollbacks } });
-  const prior = await handler.inspect(entity.id);
+  const prior = await handler.inspect({ id: entity.id });
   await handler.apply({ entity, expectedVersion: prior!.version, principalId: "admin", idempotencyKey: "compensate" });
   assert.equal(inverses.length, 1);
   assert.equal(fileRollbacks.length, 1);
@@ -227,7 +228,7 @@ test("L044 undo refuses newly covered roots regardless of case and leaves live b
   assert.ok(entity);
   for (const root of ["SNIPPETS", "SnIpPeTs/", "SNIPPETS/FOOTER.HTML"]) {
     const deps = { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: [root] } };
-    assert.equal(await contributeRawFilePublish().build(deps).inspect(entity.id), null);
+    assert.equal(await contributeRawFilePublish().build(deps).inspect({ id: entity.id }), null);
     assert.equal(await undoRawFile({ deps, entity, before, afterHash: entity.contentHash }),
       "File 'snippets/footer.html' already publishes normally; it was left alone.");
     assert.equal(await readFile(target, "utf8"), "new footer");
@@ -243,11 +244,11 @@ test("a destination without a blob store treats verified bytes as missing, and a
   const [entity] = await f.pack();
   assert.ok(entity);
   const noBlobs = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs: undefined } });
-  const missingBlobRefusal = await noBlobs.precheck(entity);
+  const missingBlobRefusal = await noBlobs.precheck({ entity });
   assert.ok(typeof missingBlobRefusal === "string");
   assert.match(missingBlobRefusal, /verified bytes are missing/);
   const unreadable = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw new Error("EACCES"); } } } });
-  assert.equal(await unreadable.inspect(entity.id), null);
+  assert.equal(await unreadable.inspect({ id: entity.id }), null);
 });
 
 test("precheck turns only typed row refusals into reasons; an unexpected port failure still propagates", async (t) => {
@@ -256,7 +257,7 @@ test("precheck turns only typed row refusals into reasons; an unexpected port fa
   const [entity] = await f.pack();
   assert.ok(entity);
   const failing = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, check: async () => { throw new Error("disk gone"); } } } });
-  await assert.rejects(failing.precheck(entity), /disk gone/);
+  await assert.rejects(failing.precheck({ entity }), /disk gone/);
 });
 
 test("apply refuses to write when the stored bytes change between the check and the write", async (t) => {
@@ -271,7 +272,7 @@ test("apply refuses to write when the stored bytes change between the check and 
     get: async () => Buffer.from(++gets === 1 ? "footer" : "swapped"),
   } as unknown as NonNullable<PublishContentDeps["backstop"]>["blobs"];
   const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, blobs } });
-  const inspected = await handler.inspect(entity.id);
+  const inspected = await handler.inspect({ id: entity.id });
   await assert.rejects(handler.apply({ entity, expectedVersion: inspected!.version, principalId: "admin", idempotencyKey: "swap" }), /bytes changed before apply/);
   assert.equal(gets, 2);
   assert.equal(await readFile(target, "utf8"), "footer");
@@ -297,7 +298,7 @@ test("a change-set write failing after the file was replaced rolls the live file
   await writeFile(target, "old");
   const changeSets = f.deps.changeSets!;
   changeSets.insert = async () => { throw new Error("audit store down"); };
-  const prior = await f.handler.inspect(entity.id);
+  const prior = await f.handler.inspect({ id: entity.id });
   await assert.rejects(f.handler.apply({ entity, expectedVersion: prior!.version, principalId: "admin", idempotencyKey: "rollback" }), /audit store down/);
   assert.equal(await readFile(target, "utf8"), "old");
 });

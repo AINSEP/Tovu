@@ -48,7 +48,7 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 test("setEntrySeoOverrides appends a post_revisions row, attributed to the real caller — SEO edits must not escape the ledger", async () => {
-  const postRepo = new InMemoryPostRepo([seedPost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seedPost()] });
 
   const { overrides } = await setEntrySeoOverrides({
     deps: { postRepo: createSeoPostPort({ postRepo }, {}), media, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate, clock },
@@ -70,7 +70,7 @@ test("setEntrySeoOverrides appends a post_revisions row, attributed to the real 
 });
 
 test("setEntrySeoOverrides's revision chains after a prior revision, like any other post write", async () => {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const { id: createRevisionId } = await postRepo.appendRevision({
     postId: ENTRY_ID,
     workspaceId: WORKSPACE,
@@ -104,7 +104,7 @@ test("setEntrySeoOverrides's revision chains after a prior revision, like any ot
 
 for (const adapter of ["memory", "sqlite"] as const) {
   test(`setEntrySeoOverrides: ${adapter} transaction rolls the row and ledger back when revision append fails`, async () => {
-    const postRepo = adapter === "memory" ? new InMemoryPostRepo() : new SqlitePostRepo(openContentDb(":memory:"));
+    const postRepo = adapter === "memory" ? new InMemoryPostRepo({}) : new SqlitePostRepo({ store: openContentDb(":memory:") });
     const original = seedPost({ seoExtJson: JSON.stringify({ description: "Original description" }) });
     await postRepo.save(original);
     await postRepo.appendRevision({ postId: ENTRY_ID, workspaceId: WORKSPACE, seq: 1, op: "create",

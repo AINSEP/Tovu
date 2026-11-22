@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import type { VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { LoadedDeployTarget, DeployTargetRegistry } from '#src/features/deployments/deploy-targets/types';
@@ -21,10 +21,10 @@ test('publish preview logs registry refusals and redacts credential metadata rea
   t.mock.method(console, 'error', () => {});
   const app = express();
   let reads = 0;
-  registerAdminPublishSiteRoutes(app, portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
+  registerAdminPublishSiteRoutes({ app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
     authorize: async () => ({ allowed: true, reason: 'owner' }), loadDeployTargets: async () => registry,
     vendorCredentialSetRepo: { vault: portFake<VaultRepoPort>({ list: async () => { reads++; throw new Error('private credential database'); } }) },
-  }));
+  }) });
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', `${ROOT}/publish/preview`)({ params: { workspaceId: 'ws' }, query: { target: 'fixture' } }, res);
   assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
@@ -36,10 +36,10 @@ for (const suffix of ['/publish', '/publish/preview', '/publish/destinations', '
   test(`publish read ${suffix} refuses before registry or credential reads`, async () => {
     const app = express();
     const permissions: string[] = [];
-    registerAdminPublishSiteRoutes(app, portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
+    registerAdminPublishSiteRoutes({ app, deps: portFake<AdminPublishSiteDeps>({ workspaceId: 'ws', publishExecutionMode: 'hosted-api-only',
       authorize: async ({ permission }) => { permissions.push(permission); return { allowed: false, reason: 'no_grant' }; },
       loadDeployTargets: async () => assert.fail('denied request must not load providers'),
-    }));
+    }) });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'reader' };
     await extractRouteHandler(app, 'get', ROOT + suffix)({ params: { workspaceId: 'ws' }, query: { target: 'fixture' } }, res);
     const permission = suffix === '/publish' ? 'system.publish' : 'system.read';

@@ -27,7 +27,7 @@ export type {
 // no-deep-imports rule recognizes only the top-level index, not nested guarded modules.
 
 // `ExportEngine`/`ExportRunCounts`/`ExportRunSnapshot`/`ExportRunStatus` are the shape
-// `server/routes/admin/system/export-site.ts` (the one composed caller) and `server/routes/types.ts`
+// `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` (the one composed caller) and `server/routes/types.ts`
 // (its `RouteDeps` field) need; `startExportRun`/`getExportRunSnapshot` are the two functions that
 // route actually calls. `ExportRunReportLike` has no external caller today and stays un-re-exported.
 export {
@@ -40,7 +40,7 @@ export {
 } from "./export-run.js";
 
 // `readDockerfileSource`/`writeDockerfileSource`/`writeDockerfileSourceWithIfMatch` back the admin
-// Dockerfile tab's read/write routes (`server/routes/admin/system/dockerfile-source.ts`) and their
+// Dockerfile tab's read/write routes (`apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`) and their
 // route-level tests. `writeDockerfileSource` (the unconditional write) is kept for those tests' own
 // before/after cleanup — see `dockerfile.ts`'s own doc for why the route itself uses the `-WithIfMatch`
 // variant instead.
@@ -70,7 +70,6 @@ export {
 } from "./deploy-config.js";
 export {
   DEPLOY_CONFIGS_FILENAME,
-  isContainedDeployConfigPath,
   readBundledDeployConfigDescriptors,
   readBundledDeployConfigCandidatePaths,
   readBundledDeployWorkflowFile,
@@ -89,5 +88,4 @@ export {
 // so unrelated consumers do not inherit its tool/composition dependencies. EXTRA_TO_EXEMPT and
 // TOOL_REGISTRATION_SEAM_TO admit its registration contract tests directly.
 
-export { loadDeployOpsRegistry } from "./deploy-ops/registry.js";
-export type { DeployOpsRegistry } from "./deploy-ops/types.js";
+export type { DeployOpsRegistry } from "@jini-ai/devops/deploy";

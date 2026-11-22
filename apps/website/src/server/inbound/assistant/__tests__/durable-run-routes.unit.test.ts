@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
-import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { registerCredentialRunIntake, registerDurableToolGuard, registerDurableRunStartRoute } from "../durable-run-routes.js";
-import { UNKNOWN_MUTATION_ERROR } from "#src/assistant/durable-runs/continuation";
+import { UNKNOWN_MUTATION_ERROR } from "@jini-ai/chat/server/durable-runs";
 
 function router() {
   const routes = new Map<string, (req: Request, res: Response, next: NextFunction) => void>();

@@ -34,7 +34,7 @@ export function buildAnalyticsProviders(
   _optional: Record<string, never> = {},
 ): NonNullable<RouteDeps["analyticsProviders"]> {
   const { workspaceId, loadContributions, clock, findCredential, httpClient } = required;
-  const resolve = async (label: string): Promise<AnalyticsForwarderCredential | null> => {
+  const resolve = async ({ label }: { label: string }, _optional = {}): Promise<AnalyticsForwarderCredential | null> => {
     const resolved = await findCredential({ workspaceId, label });
     if (!resolved) return null;
     const { token, username } = resolved.connection;
@@ -49,7 +49,7 @@ export function buildAnalyticsProviders(
       const now = clock.nowMs();
       const hit = credentials.get(label);
       if (hit && now - hit.at < ANALYTICS_PROVIDERS_TTL_MS) return hit.value;
-      const value = resolve(label);
+      const value = resolve({ label });
       credentials.set(label, { at: now, value });
       value.catch(() => { if (credentials.get(label)?.value === value) credentials.delete(label); });
       return value;
@@ -66,7 +66,7 @@ export function buildAnalyticsProviders(
 export function analyticsProviderRouteDeps(
   routeDeps: RouteDeps,
   _optional: Record<string, never> = {},
-): Pick<AnalyticsIngestRouteDeps, "forwarders" | "hooks"> {
+): Pick<AnalyticsIngestRouteDeps<Request>, "forwarders" | "hooks" | "vendorHooksAllowed"> {
   const providers = routeDeps.analyticsProviders;
   if (!providers) return {};
   return {
@@ -80,5 +80,6 @@ export function analyticsProviderRouteDeps(
       httpClient: providers.httpClient,
     }),
     hooks: createPluginAnalyticsHooks({ loadProviders: providers.load }),
+    vendorHooksAllowed: async ({ request }) => (await readSiteVisitorConsent({ deps: routeDeps, req: request })).analyticsLevel === 'full',
   };
 }

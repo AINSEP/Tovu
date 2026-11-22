@@ -6,7 +6,7 @@ import { createDestinationExchangeReporter } from '../destination-exchange.js';
 import { buildDestinationForm, buildDestinationOutcome } from '../destination-ui.js';
 import type { SavedDatabaseDestination } from '../destination-store.js';
 
-async function report({ result, payload = { resource: buildDestinationForm('pin') }, get = async () => null,
+async function report({ result, payload = { resource: buildDestinationForm({ exchangeId: 'pin' }) }, get = async () => null,
   locale = 'en', localeError, handlerError, outcome }: {
   result: unknown; payload?: SurfaceEmission['payload']; get?: () => Promise<SavedDatabaseDestination | null>;
   locale?: string; localeError?: Error; handlerError?: Error; outcome?: SurfaceEmission;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError } from "../api";
+import { API_UNREACHABLE_CODE, ApiError } from "../admin-http/request";
 import { isAbortError, retryWhileUnreachable } from "../retry-unreachable";
 
 /**
@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 function unreachable(): ApiError {
-  return new ApiError("cannot reach the Tovu API — is the server running?", 0, API_UNREACHABLE_CODE, {});
+  return new ApiError({ message: "cannot reach the Tovu API — is the server running?", status: 0 }, { code: API_UNREACHABLE_CODE, body: {} });
 }
 
 test("an already-aborted signal stops before the first wait, leaving no timer behind", async () => {
@@ -31,7 +31,7 @@ test("an already-aborted signal stops before the first wait, leaving no timer be
 
   const error = await retryWhileUnreachable({ load, signal: controller.signal }).catch((e: unknown) => e);
 
-  expect(isAbortError(error)).toBe(true);
+  expect(isAbortError({ error })).toBe(true);
   expect((error as Error).message).toBe("retry cancelled");
   expect(load).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
@@ -63,18 +63,18 @@ test("a success after a retry resolves with that result", async () => {
 });
 
 test("isAbortError matches by name only", () => {
-  expect(isAbortError(new DOMException("x", "AbortError"))).toBe(true);
-  expect(isAbortError({ name: "AbortError" })).toBe(true);
-  expect(isAbortError(new Error("AbortError"))).toBe(false);
-  expect(isAbortError(unreachable())).toBe(false);
-  expect(isAbortError(null)).toBe(false);
-  expect(isAbortError("AbortError")).toBe(false);
+  expect(isAbortError({ error: new DOMException("x", "AbortError") })).toBe(true);
+  expect(isAbortError({ error: { name: "AbortError" } })).toBe(true);
+  expect(isAbortError({ error: new Error("AbortError") })).toBe(false);
+  expect(isAbortError({ error: unreachable() })).toBe(false);
+  expect(isAbortError({ error: null })).toBe(false);
+  expect(isAbortError({ error: "AbortError" })).toBe(false);
 });
 
 // L13 Stryker: `error instanceof ApiError && error.code === API_UNREACHABLE_CODE` — each clause alone.
 test("only an ApiError carrying the unreachable code is retried", async () => {
   for (const error of [
-    new ApiError("not found", 404, "NOT_FOUND", {}), new ApiError("timeout", 0, "REQUEST_TIMEOUT", {}),
+    new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND", body: {} }), new ApiError({ message: "timeout", status: 0 }, { code: "REQUEST_TIMEOUT", body: {} }),
     Object.assign(new Error("look-alike"), { code: API_UNREACHABLE_CODE }), "unreachable",
   ]) {
     const load = vi.fn(async () => { throw error; });

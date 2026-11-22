@@ -12,7 +12,7 @@ import { readDefinedPlugin } from "../../plugin-export.js";
 
 test("accepts a definePlugin() default export and returns it", () => {
   const plugin = definePlugin({ setup() {} });
-  assert.equal(readDefinedPlugin({ default: plugin }), plugin);
+  assert.equal(readDefinedPlugin({ moduleValue: { default: plugin } }), plugin);
 });
 
 const rejected: ReadonlyArray<[string, unknown]> = [
@@ -26,6 +26,6 @@ const rejected: ReadonlyArray<[string, unknown]> = [
 ];
 for (const [label, moduleValue] of rejected) {
   test(`rejects ${label}`, () => {
-    assert.equal(readDefinedPlugin(moduleValue), null);
+    assert.equal(readDefinedPlugin({ moduleValue }), null);
   });
 }

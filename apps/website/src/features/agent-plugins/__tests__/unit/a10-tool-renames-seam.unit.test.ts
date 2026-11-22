@@ -11,7 +11,7 @@ function harness() {
   const row = { provisionedByPluginId: 'acme', url: URL_, allowedToolNames: '["old_read"]', writeAllowedToolNames: '["old_write"]' } as unknown as AgentPluginMcpRecord;
   const saved: AgentPluginMcpRecord[] = [];
   const repo = {
-    findByServerId: async () => row, upsert: async (next: AgentPluginMcpRecord) => { saved.push(next); return next; },
+    findByServerId: async () => row, updateIfVersion: async ({ record }: { record: AgentPluginMcpRecord }) => { saved.push(record); return true; },
     deleteByServerId: async () => false, updateAccessIfCurrent: async () => null,
   } as unknown as AgentPluginMcpRepo;
   const servers: Record<string, McpServerConfig> = { main: { type: 'streamable-http', url: URL_, renamedTools: { old_read: 'new_read', old_write: 'new_write' } } };
@@ -35,9 +35,9 @@ test('portable renames: object API, host actor and host plugin listing are used'
 
 test('Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes', async () => {
   const h = harness();
-  await tovuApply({ workspaceId: 'w', get agentPluginLayout(): never { throw new Error('layout must stay lazy'); },
+  await tovuApply({ deps: { workspaceId: 'w', get agentPluginLayout(): never { throw new Error('layout must stay lazy'); },
     externalMcpServerRepo: h.repo, clock: { nowMs: () => 0 }, listPlugins: async () => [{ pluginId: 'acme', servers: h.servers }],
-    notifyRosterChanged: async () => {} }, { info: () => {}, warn: m => h.logs.push(m) });
+    notifyRosterChanged: async () => {} }, log: { info: () => {}, warn: m => h.logs.push(m) } });
   assert.equal(h.saved[0]?.writeGrantsUpdatedByPrincipalId, 'system:tool-renames');
   assert.deepEqual(h.logs, []);
 });

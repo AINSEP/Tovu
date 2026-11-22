@@ -1,10 +1,10 @@
 import { sql } from "kysely";
 import { AesGcmSecretSealer, type SealedSecret } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import type { VaultKind } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultKind } from "@jini-ai/core/contracts/vault";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 import { secretsVault, SECRETS_VAULT_ID } from "../0012_secrets_vault.js";
@@ -21,17 +21,17 @@ export interface FixtureEnvelope {
   plaintext: string; sealed: SealedSecret; prefix: string;
 }
 
-export async function insertFixture(kernel: StorageKernel<unknown>, table: string, values: Values): Promise<void> {
+export async function insertFixture(kernel: KyselyKernel<unknown>, table: string, values: Values): Promise<void> {
   await kernel.execute(sql`INSERT INTO ${sql.table(table)} (${sql.join(Object.keys(values).map(name => sql.ref(name)))})
     VALUES (${sql.join(Object.values(values).map(value => sql`${value}`))})`);
 }
 
 /** `options.kernel`: an empty database of the given dialect's family (real Postgres for the
  * `*.postgres.test.ts` parity file); otherwise a fresh in-memory one. */
-export async function vaultFixture(dialect: "sqlite" | "pglite", options: { kernel?: StorageKernel<unknown> } = {}) {
+export async function vaultFixture(dialect: "sqlite" | "pglite", options: { kernel?: KyselyKernel<unknown> } = {}) {
   const kernel = options.kernel ?? (dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>());
   try {
-    await runMigrations(kernel, previous);
+    await runMigrations({ kernel, steps: previous });
     for (const id of ["ws", "ws-empty"]) await insertFixture(kernel, "workspaces", { id, name: id, slug: id, created_at: stamp });
     await insertFixture(kernel, "principals", { id: "p", workspace_id: "ws", kind: "user", display_name: "Person", status: "active", created_at: stamp });
     const keyring = new InMemoryKeyring({ hkdfSalt: "vault-step-test" });
@@ -96,7 +96,7 @@ export async function vaultFixture(dialect: "sqlite" | "pglite", options: { kern
  * oauth-only and bare, and a real `github` source row. Same historical AAD literals as above; rows
  * are added on the pre-0012 schema so 0012 and the boot re-seal carry them like a live site's.
  */
-export async function seedParityRows(fixture: { kernel: StorageKernel<unknown>; keyring: InMemoryKeyring; sealer: AesGcmSecretSealer },
+export async function seedParityRows(fixture: { kernel: KyselyKernel<unknown>; keyring: InMemoryKeyring; sealer: AesGcmSecretSealer },
   dialect: "sqlite" | "pglite"): Promise<void> {
   const { kernel, keyring, sealer } = fixture;
   const key = await keyring.activeKey({});

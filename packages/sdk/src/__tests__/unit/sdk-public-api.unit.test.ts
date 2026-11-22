@@ -106,7 +106,8 @@ test("REQ-08/C-001: definePlugin performs no filesystem writes or fetches and th
 test("SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions", () => {
   // The compiler API checks this consumer; tsx alone does not check types.
   const fixture = path.resolve(import.meta.dirname, "before-save-consumer.ts");
-  const source = `import type { BeforeSaveFilter, PluginSdk, PluginProviderContribution, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "../../index.js";
+  const source = `import type { BeforeSaveFilter, PluginSdk } from "../../index.js";
+    import type { PluginProviderContribution, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "@jini-ai/core/contracts/plugin-sdk";
     const syncFilter: BeforeSaveFilter = () => ({ count: 1 });
     const asyncFilter: BeforeSaveFilter = async () => ({ count: 1 });
     const route: PluginRouteContribution = { method: 'GET', path: '/items', access: 'public', handler: async ({ auth }) => ({ body: auth.workspaceId }) };
@@ -139,9 +140,9 @@ test("SDK consumer types resolve for sync/async filters and route/tool/widget/pr
 test('SDK external type contracts are declared package dependencies for standalone consumers', () => {
   const root = path.resolve(import.meta.dirname, '../../..');
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(manifest.dependencies['@jini-ai/plugins'], '^0.6.17');
+  assert.equal(manifest.dependencies['@jini-ai/core'], '^0.7.3-next.2');
   const hostManifest = JSON.parse(fs.readFileSync(path.join(root, '../../package.json'), 'utf8'));
-  assert.equal(hostManifest.dependencies['@jini-ai/plugins'], manifest.dependencies['@jini-ai/plugins']);
+  assert.equal(hostManifest.dependencies['@jini-ai/core'], manifest.dependencies['@jini-ai/core']);
   const tree = ts.createSourceFile('index.ts', fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
   const external = new Set<string>();
   const visit = (node: ts.Node) => {
@@ -151,7 +152,7 @@ test('SDK external type contracts are declared package dependencies for standalo
     ts.forEachChild(node, visit);
   };
   visit(tree);
-  assert.ok(external.has('@jini-ai/plugins/host'));
+  assert.ok(external.has('@jini-ai/core/contracts/plugin-sdk'));
   for (const specifier of external) {
     const packageName = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0]!;
     assert.ok(manifest.dependencies?.[packageName], `undeclared SDK dependency ${packageName}`);

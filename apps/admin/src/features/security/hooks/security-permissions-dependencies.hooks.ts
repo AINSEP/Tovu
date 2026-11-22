@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { SecurityPermissionsPort } from "./security-permissions-port.hooks";
 
 /**
@@ -9,5 +9,5 @@ import type { SecurityPermissionsPort } from "./security-permissions-port.hooks"
 /** The live implementation, as a module-level singleton — matches `comments-dependencies
  *  .hooks.ts`'s `defaultCommentsPort`. */
 export const defaultSecurityPermissionsPort: SecurityPermissionsPort = {
-  me: () => api.me(),
+  me: () => authApi.me(),
 };

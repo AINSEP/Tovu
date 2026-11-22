@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -19,7 +20,7 @@ import {
   type AdminSurfaceRequestContext,
   type AdminSurfaceSource,
 } from "#src/features/agent-plugins/admin-surfaces/surfaces";
-import { isSameOriginAdminWrite } from "#src/features/agent-plugins/admin-surfaces/same-origin";
+import { isSameOriginBrowserWrite } from "@jini-ai/core/contracts/server";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.js";
@@ -38,7 +39,7 @@ import type { AgentPluginsRouteDeps, AgentPluginsRouteRegistrar } from "./deps.j
  *
  * Why the two POSTs need more than the session: bootstrap data may carry a short-lived access token
  * and actions run host handlers, so both refuse API-key credentials (a surface is a browser UI) and
- * cross-origin requests (`same-origin.ts`) BEFORE authorization or any lookup. The surface files
+ * cross-origin requests (`isSameOriginBrowserWrite`) BEFORE authorization or any lookup. The surface files
  * themselves are served by the public route in `public-http/routes/agent-plugin-surfaces/files.ts`,
  * because a sandboxed frame's module-script fetches carry no cookie.
  *
@@ -61,21 +62,25 @@ function sourceFor(deps: AgentPluginsRouteDeps): AdminSurfaceSource {
 
 /** Workspace check + permission; `false` when a response was already sent. @complexity O(1) + authorize. */
 async function admit(req: Request, res: Response, deps: AgentPluginsRouteDeps, permission: string): Promise<boolean> {
-  if (String(req.params.workspaceId) !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return false;
-  }
-  return authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId });
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId } });
 }
 
 /** The CSRF and credential-kind gates for the two writes; `false` when a 403 was already sent.
+ * Why on top of the `SameSite=Strict` session cookie: these two routes hand a surface short-lived
+ * credentials and run host handlers on its behalf, so a request must also prove it came from this
+ * admin origin's own scripts. A browser always sends `Origin` on a cross-origin or POST fetch, and
+ * a sandboxed frame's requests carry `Origin: null`, which never matches: the frame must go through
+ * the host page, never straight to these routes. Fetch metadata, when the browser sends it, must
+ * agree. This is browser protection, not proof against a client that forges every header; such a
+ * client still needs the session cookie.
  * @complexity O(1). */
 function admitWrite(req: Request, res: Response): boolean {
-  if (!isSameOriginAdminWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") })) {
+  if (!isSameOriginBrowserWrite({ origin: req.get("origin"), host: req.get("host"), fetchSite: req.get("sec-fetch-site") })) {
     res.status(403).json({ error: "admin surface requests must come from the admin page itself", code: "CROSS_ORIGIN_REFUSED" });
     return false;
   }
-  return rejectUnlessSessionCredential(res, { message: "admin surfaces accept only a signed-in admin session", permission: WRITE_PERMISSION });
+  return rejectUnlessSessionCredential({ res, message: "admin surfaces accept only a signed-in admin session", permission: WRITE_PERMISSION });
 }
 
 /** Resolves the URL's surface, or sends 404. @complexity O(s) admitted surfaces. */
@@ -85,33 +90,33 @@ async function surfaceOrRespond(req: Request, res: Response, deps: AgentPluginsR
   return surface;
 }
 
-function contextFor(res: Response, deps: AgentPluginsRouteDeps, surface: LoadedAdminSurface): AdminSurfaceRequestContext {
+function contextFor({ res, deps, surface }: { res: Response; deps: AgentPluginsRouteDeps; surface: LoadedAdminSurface }, _optional = {}): AdminSurfaceRequestContext {
   return { workspaceId: deps.workspaceId, principalId: getAuthedPrincipal(res).id, pluginId: surface.plugin.pluginId, surfaceId: surface.descriptor.id };
 }
 
 /** Runs a handler body; any throw becomes a generic 500 that names no server detail. */
-async function guarded(res: Response, body: () => Promise<void>): Promise<void> {
+async function guarded({ res, body }: { res: Response; body: () => Promise<void> }, _optional = {}): Promise<void> {
   try { await body(); } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/admin-surfaces", code: "INTERNAL_ERROR" }); }
 }
 
-export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {
-  app.get(SURFACE_PATH, (req, res) => guarded(res, async () => {
+export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  app.get(SURFACE_PATH, (req, res) => guarded({ res, body: async () => {
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
     const pluginId = String(req.params.pluginId);
     const surfaces = (await sourceFor(deps).list({ workspaceId: deps.workspaceId })).filter((surface) => surface.plugin.pluginId === pluginId);
     res.json({ pluginId, surfaces: surfaces.map(({ descriptor }) => ({ id: descriptor.id, title: descriptor.title, src: adminSurfaceFileUrl({ pluginId, surfaceId: descriptor.id, path: descriptor.entry }), actions: descriptor.actions, linkOrigins: descriptor.linkOrigins ?? [] })) });
-  }));
+  } }));
 
-  app.post(`${SURFACE_PATH}/:surfaceId/bootstrap`, (req, res) => guarded(res, async () => {
+  app.post(`${SURFACE_PATH}/:surfaceId/bootstrap`, (req, res) => guarded({ res, body: async () => {
     if (!admitWrite(req, res) || !(await admit(req, res, deps, WRITE_PERMISSION))) return;
     const surface = await surfaceOrRespond(req, res, deps);
     if (!surface) return;
     const host = deps.adminSurfaceHost ?? NO_ADMIN_SURFACE_HOST;
-    const data = await host.bootstrapData({ context: contextFor(res, deps, surface) });
+    const data = await host.bootstrapData({ context: contextFor({ res, deps, surface }) });
     res.set(adminSurfaceBootstrapHeaders()).json(createAdminSurfaceBootstrap({ surfaceId: surface.descriptor.id, data, nowMs: deps.clock.nowMs() }));
-  }));
+  } }));
 
-  app.post(`${SURFACE_PATH}/:surfaceId/actions`, (req, res) => guarded(res, async () => {
+  app.post(`${SURFACE_PATH}/:surfaceId/actions`, (req, res) => guarded({ res, body: async () => {
     if (!admitWrite(req, res) || !(await admit(req, res, deps, WRITE_PERMISSION))) return;
     const surface = await surfaceOrRespond(req, res, deps);
     if (!surface) return;
@@ -126,6 +131,6 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
       onHandlerError: ({ surfaceId, action, error }) => console.error("[admin-surfaces] action handler failed", { pluginId: surface.plugin.pluginId, surfaceId, action, error: error instanceof Error ? error.name : typeof error }),
     });
     const { action, payload } = body;
-    res.set("Cache-Control", "no-store").json(await withAdminSurfaceSignIns({ host, run: () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) }) }));
-  }));
+    res.set("Cache-Control", "no-store").json(await withAdminSurfaceSignIns({ host, run: () => dispatcher.dispatch({ action, payload, context: contextFor({ res, deps, surface }) }) }));
+  } }));
 };

@@ -2,7 +2,10 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 import { publishStaticSite } from "../adapter.js";
 

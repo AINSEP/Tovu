@@ -302,7 +302,7 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
   });
   assert.equal(createResponse.status, 201);
 
-  // `listByWorkspace` sorts newest-first (see `core/commands/repo.memory.ts`).
+  // `listByWorkspace` sorts newest-first (see Jini `InMemoryChangeSetRepo`, `@jini-ai/cms/core/commands`).
   const changeSets = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
   const latest = changeSets[0];
   assert.equal(latest.actorId, editorPrincipalId, "the change-set actorId is the real principal, not 'user-local'");
@@ -310,7 +310,7 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
 
 test("malformed admin session cookies remain unauthenticated instead of throwing", async () => {
   const deps = createRouteDeps();
-  assert.equal(await currentCredential(deps, { headers: { cookie: "tovu_session=%E0%A4%A" } } as express.Request), null);
+  assert.equal(await currentCredential({ deps, req: { headers: { cookie: "tovu_session=%E0%A4%A" } } as express.Request }), null);
 });
 
 test("login and logout append their session cookies without replacing an earlier cookie", async t => {
@@ -318,7 +318,7 @@ test("login and logout append their session cookies without replacing an earlier
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const server = createServer(app);
   server.listen(0);
   await once(server, "listening");

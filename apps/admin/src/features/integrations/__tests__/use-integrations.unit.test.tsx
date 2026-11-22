@@ -6,7 +6,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-ref
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { WEBHOOKS_RESOURCE } from "../rules";
-import type { AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file `useIntegrations` — the Integrations LIST screen's load/create/pause/delete state.
@@ -15,7 +15,7 @@ import type { AdminWebhookSubscription } from "@/lib/api";
  * injection exists.
  *
  * `t`/`locale` (2026-08-11, standing i18n rule — see `use-integrations.hooks.ts`'s own file
- * header): every `useIntegrations(port, ...)` call below passes `fakeT`/`fakeLocale`, matching
+ * header): every `useIntegrations({ port, t, locale })` call below passes `fakeT`/`fakeLocale`, matching
  * `wired-hooks-convention.md`'s own `t: (k) => k` example — except the dedicated "injected t/locale
  * are genuinely returned" group, which uses distinctive fakes to prove the values are not built
  * internally.
@@ -30,7 +30,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 /** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
-const fakeT = (key: string): string => key;
+const fakeT = ({ key }: { key: string }): string => key;
 const fakeLocale = "en";
 
 function subscriptionFixture(overrides: Partial<AdminWebhookSubscription> = {}): AdminWebhookSubscription {
@@ -74,7 +74,7 @@ describe("the integrations fake preserves subscription state", () => {
   it("rejects deleting an unknown subscription without removing an existing one", async () => {
     const seed = subscriptionFixture();
     const port = createFakeIntegrationsPort({ subscriptions: [seed] });
-    await expect(port.deleteIntegrationSubscription("missing")).rejects.toThrow("fake integrations port: unknown subscription missing");
+    await expect(port.deleteIntegrationSubscription({ id: "missing" })).rejects.toThrow("fake integrations port: unknown subscription missing");
     expect(await port.listIntegrationSubscriptions()).toEqual({ subscriptions: [seed] });
   });
 });
@@ -83,7 +83,7 @@ describe("useIntegrations — injected port", () => {
   it("resumes a paused subscription through the port and refreshes its status", async () => {
     const paused = subscriptionFixture({ status: "paused" });
     const port = createFakeIntegrationsPort({ subscriptions: [paused] });
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([paused]));
 
     await act(async () => result.current.onTogglePause(paused));
@@ -96,7 +96,7 @@ describe("useIntegrations — injected port", () => {
     const subscription = subscriptionFixture();
     const port = createFakeIntegrationsPort({ subscriptions: [subscription] });
     const deleteSubscription = vi.spyOn(port, "deleteIntegrationSubscription");
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([subscription]));
 
     await act(async () => result.current.onDelete());
@@ -112,7 +112,7 @@ describe("useIntegrations — injected port", () => {
       ...createFakeIntegrationsPort(),
       createIntegrationSubscription: async () => { throw new Error("creation denied"); },
     };
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([]));
     act(() => {
       result.current.setFormOpen(true);
@@ -137,7 +137,7 @@ describe("useIntegrations — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
 
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
     expect(result.current.subscriptions).toEqual([subscriptionFixture()]);
@@ -151,7 +151,7 @@ describe("useIntegrations — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort();
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toEqual([]));
 
     act(() => {
@@ -177,7 +177,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onTogglePause flips status through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture({ status: "active" })] });
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     await act(async () => {
@@ -191,7 +191,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onDelete removes the pending subscription through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     act(() => result.current.setPendingDelete(subscriptionFixture()));
@@ -209,7 +209,7 @@ describe("useIntegrations — injected port", () => {
 describe("useIntegrations — injected t/locale are genuinely returned, not built internally", () => {
   /**
    * Standing i18n rule (2026-08-11, `Integrations.tsx` no longer imports `useAdminLocale` itself):
-   * `t`/`locale` must come from the hook's own second/third parameters, not something this hook
+   * `t`/`locale` must come from the hook's required arguments, not something this hook
    * quietly rebuilds internally. Distinctive fakes (not the identity `fakeT`/`"en"` every other
    * test in this file uses) prove the returned values are literally the ones passed in — an
    * identity `t` or the same `fakeLocale` value would pass this same assertion even if the hook
@@ -218,12 +218,12 @@ describe("useIntegrations — injected t/locale are genuinely returned, not buil
    */
   it("result.current.t/locale are exactly the injected values, not hook-internal ones", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+    const distinctiveT = ({ key }: { key: string }): string => `TRANSLATED[${key}]`;
 
-    const { result } = renderHook(() => useIntegrations(port, distinctiveT, "fr"), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: distinctiveT, locale: "fr" }), { wrapper });
 
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
-    expect(result.current.t("Integrations")).toBe("TRANSLATED[Integrations]");
+    expect(result.current.t({ key: "Integrations" })).toBe("TRANSLATED[Integrations]");
     expect(result.current.t).toBe(distinctiveT);
     expect(result.current.locale).toBe("fr");
   });
@@ -234,7 +234,7 @@ describe("useIntegrations — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-created webhook subscription appears without a reload", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     // The assistant's `webhooks_create_subscription` call landing server-side — the screen has no
@@ -249,7 +249,7 @@ describe("useIntegrations — content refresh bus", () => {
 
   it("refreshes on a notification that names webhooks, and ignores one that names only other resources", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
@@ -265,7 +265,7 @@ describe("useIntegrations — content refresh bus", () => {
   it("stops re-reading once unmounted", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
     const listSpy = vi.spyOn(port, "listIntegrationSubscriptions");
-    const { result, unmount } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    const { result, unmount } = renderHook(() => useIntegrations({ port: port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     const callsWhileMounted = listSpy.mock.calls.length;

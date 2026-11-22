@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, parseAllowedToolNames, parseArgs, parseEnvBlock, parseWriteAllowedToolNames, readEnabledExternalMcpConfigs, saveExternalMcpServer, toResolvedFederatedConnections } from "../external-mcp-store.js";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
@@ -84,7 +84,7 @@ test("saves a server and reads it back with its env decrypted", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput());
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.equal(failures.length, 0);
   assert.equal(configs.length, 1);
   assert.deepEqual(stdioTarget(configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
@@ -107,7 +107,7 @@ test("the admin read model carries env names but never env values", async () => 
   const { deps, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput());
 
-  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.equal(views.length, 1);
   assert.deepEqual(views[0]?.envNames, ["GITHUB_TOKEN"]);
   assert.equal(JSON.stringify(views[0]).includes("ghp_secret_value"), false);
@@ -119,14 +119,14 @@ test("omitting env and an exact empty update preserve the stored credentials", a
 
   // A toggle from the summary row sends no env — the UI never received the value to send back.
   await saveExternalMcpServer(deps, { ...validInput(), enabled: true, env: undefined, label: "Renamed" });
-  const kept = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const kept = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(stdioTarget(kept.configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
   assert.equal(kept.configs[0]?.label, "Renamed");
 
   await saveExternalMcpServer(deps, { ...validInput(), env: "" });
-  const cleared = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const cleared = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(stdioTarget(cleared.configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
-  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.deepEqual(views[0]?.envNames, ["GITHUB_TOKEN"]);
 });
 
@@ -135,7 +135,7 @@ test("an omitted or whitespace-only label falls back to the serverId, the same a
   await saveExternalMcpServer(deps, validInput({ serverId: "no-label", label: undefined }));
   await saveExternalMcpServer(deps, validInput({ serverId: "blank-label", label: "   " }));
 
-  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.equal(views.find((v) => v.serverId === "no-label")?.label, "no-label");
   assert.equal(views.find((v) => v.serverId === "blank-label")?.label, "blank-label");
 });
@@ -144,9 +144,9 @@ test("omitting env on a BRAND NEW server (nothing existing to preserve) saves wi
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, { ...validInput(), env: undefined });
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(stdioTarget(configs[0]).env, {});
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.deepEqual(view?.envNames, []);
 });
 
@@ -154,10 +154,10 @@ test("disabled servers are not returned to the daemon", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ enabled: false }));
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.equal(configs.length, 0);
   // Still visible in the tab — disabled is a state, not a deletion.
-  assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE)).length, 1);
+  assert.equal((await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE })).length, 1);
 });
 
 test("rows are isolated per workspace", async () => {
@@ -165,7 +165,7 @@ test("rows are isolated per workspace", async () => {
   await saveExternalMcpServer(deps, validInput());
   await saveExternalMcpServer(deps, validInput({ workspaceId: OTHER_WORKSPACE, serverId: "other" }));
 
-  const mine = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const mine = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(mine.configs.map((c) => c.serverId), ["github"]);
   assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "other" }), false);
 });
@@ -197,27 +197,27 @@ test("a stdio server with no command is refused", async () => {
 
 test("a malformed env line is reported rather than silently dropped", () => {
   assert.throws(
-    () => parseEnvBlock("GITHUB_TOKEN=ok\nthis-line-has-no-equals"),
+    () => parseEnvBlock({ text: "GITHUB_TOKEN=ok\nthis-line-has-no-equals" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
 
 test("env parsing keeps values containing '=' and honours comments and blanks", () => {
-  const env = parseEnvBlock("# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n");
+  const env = parseEnvBlock({ text: "# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n" });
   assert.deepEqual(env, { DSN: "postgres://u:p@h/db?x=1", SPACED: "value" });
 });
 
 test("a duplicated env variable is refused rather than last-write-wins", () => {
   assert.throws(
-    () => parseEnvBlock("TOKEN=a\nTOKEN=b"),
+    () => parseEnvBlock({ text: "TOKEN=a\nTOKEN=b" }),
     (err: unknown) => err instanceof ExternalMcpValidationError,
   );
 });
 
 test("argv is split without shell quoting, and the allowlist de-duplicates", () => {
-  assert.deepEqual(parseArgs("  -y   pkg@1.2.3 "), ["-y", "pkg@1.2.3"]);
-  assert.deepEqual(parseAllowedToolNames("a, b ,a"), ["a", "b"]);
-  assert.deepEqual(parseAllowedToolNames(""), []);
+  assert.deepEqual(parseArgs({ raw: "  -y   pkg@1.2.3 " }), ["-y", "pkg@1.2.3"]);
+  assert.deepEqual(parseAllowedToolNames({ raw: "a, b ,a" }), ["a", "b"]);
+  assert.deepEqual(parseAllowedToolNames({ raw: "" }), []);
 });
 
 test("parseArgs keeps a double-quoted argument containing spaces as ONE argument (Windows paths)", () => {
@@ -225,22 +225,22 @@ test("parseArgs keeps a double-quoted argument containing spaces as ONE argument
   const raw =
     '"C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts"' +
     ' --user-data-dir "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop"';
-  assert.deepEqual(parseArgs(raw), [
+  assert.deepEqual(parseArgs({ raw }), [
     "C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts",
     "--user-data-dir",
     "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop",
   ]);
-  assert.deepEqual(parseArgs('""'), [""]);
+  assert.deepEqual(parseArgs({ raw: '""' }), [""]);
 });
 
 test("parseArgs leaves a quote that does not open a token literal, as before", () => {
-  assert.deepEqual(parseArgs('--name="x" a"b'), ['--name="x"', 'a"b']);
+  assert.deepEqual(parseArgs({ raw: '--name="x" a"b' }), ['--name="x"', 'a"b']);
 });
 
 test("parseArgs refuses an unterminated or run-on quoted argument", () => {
   for (const raw of ['"C:\\Users\\John Smith', '"a b"c']) {
     assert.throws(
-      () => parseArgs(raw),
+      () => parseArgs({ raw }),
       (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
       raw,
     );
@@ -249,7 +249,7 @@ test("parseArgs refuses an unterminated or run-on quoted argument", () => {
 
 test("an allowlist entry the trust tier would refuse is rejected at save time", () => {
   assert.throws(
-    () => parseAllowedToolNames("valid_name, not a valid name"),
+    () => parseAllowedToolNames({ raw: "valid_name, not a valid name" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "allowedToolNames",
   );
 });
@@ -271,7 +271,7 @@ test("a row whose credentials cannot be decrypted is skipped, never thrown on", 
 
   // A site key rotated out from under an existing row — the realistic cause.
   const strangerSealer = new AesGcmSecretSealer(new InMemoryKeyring());
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer: strangerSealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer: strangerSealer }, workspaceId: WORKSPACE });
 
   assert.equal(configs.length, 0);
   assert.equal(failures.length, 2, "both rows report a reason rather than one poisoning the pass");
@@ -281,9 +281,9 @@ test("a row whose credentials cannot be decrypted is skipped, never thrown on", 
 test("federation connections carry the operator allowlist and Tovu's own shared ceilings", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput());
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
 
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.equal(connection?.config.connectionId, "github");
   assert.deepEqual(connection?.config.allowedToolNames, ["search_repositories", "get_file_contents"]);
   assert.equal(stdioLaunch(connection).command, "npx");
@@ -310,8 +310,8 @@ test("toResolvedFederatedConnections stamps a roster origin whose admissionRevis
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.ok(row);
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.deepEqual(connection?.config.origin, { kind: "roster", admissionRevision: externalMcpAdmissionRevision(row) });
 });
 
@@ -466,8 +466,8 @@ test("the admission revision changes when a connection is deleted and re-created
 test("the stored allowlist really gates admission when handed to the real trust tier", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ allowedToolNames: "search_repositories" }));
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
 
   // A hostile-ish server: it advertises the one allowlisted tool plus a destructive one it labels
@@ -491,8 +491,8 @@ test("the stored allowlist really gates admission when handed to the real trust 
 test("an allowlisted tool the server never advertises is reported rather than swallowed", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ allowedToolNames: "search_repositories, typo_tool" }));
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
 
   const report = admitRemoteTools({
@@ -518,8 +518,8 @@ test("a write-authorized tool round-trips through save, the real trust tier, and
     deps,
     validInput({ allowedToolNames: "search_repositories, delete_repository", writeAllowedToolNames: "delete_repository" }),
   );
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
   assert.deepEqual(connection.config.writeAllowedToolNames, ["delete_repository"]);
 
@@ -556,7 +556,7 @@ test("a write entry not in the allowlist is rejected at save, naming the offendi
 
 test("a write entry outside the pattern the trust tier would refuse is rejected at save time", () => {
   assert.throws(
-    () => parseWriteAllowedToolNames("valid_name, not a valid name"),
+    () => parseWriteAllowedToolNames({ raw: "valid_name, not a valid name" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "writeAllowedToolNames",
   );
 });
@@ -596,6 +596,7 @@ function storedRow(fields: Pick<ExternalMcpServerRecord, "serverId"> & Partial<E
     oauthAadVersion: 0,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
+    version: 1,
     ...fields,
   };
 }
@@ -628,6 +629,7 @@ test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list"
     oauthAadVersion: 0,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
+    version: 1,
   };
   await repo.upsert({
     ...base,
@@ -646,7 +648,7 @@ test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list"
     writeGrantsUpdatedAt: null,
   });
 
-  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.deepEqual(views.find((v) => v.serverId === "null-write-list")?.writeAllowedToolNames, []);
   assert.deepEqual(views.find((v) => v.serverId === "empty-write-list")?.writeAllowedToolNames, []);
 });
@@ -662,7 +664,7 @@ test("the admin read model exposes the write list and its attribution, but still
     }),
   );
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.deepEqual(view?.writeAllowedToolNames, ["delete_repository"]);
   assert.equal(view?.writeGrantsUpdatedByPrincipalId, "operator-9");
   assert.equal(view?.writeGrantsUpdatedAt, "2026-08-09T00:00:00.000Z");
@@ -784,7 +786,7 @@ test("a brand-new server saved with an empty write list gets no attribution at a
 test("more than 64 environment variables are refused", () => {
   const block = Array.from({ length: 65 }, (_, i) => `VAR_${i}=x`).join("\n");
   assert.throws(
-    () => parseEnvBlock(block),
+    () => parseEnvBlock({ text: block }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
@@ -792,7 +794,7 @@ test("more than 64 environment variables are refused", () => {
 test("more than 64 args are refused", () => {
   const raw = Array.from({ length: 65 }, (_, i) => `arg${i}`).join(" ");
   assert.throws(
-    () => parseArgs(raw),
+    () => parseArgs({ raw }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
   );
 });
@@ -800,7 +802,7 @@ test("more than 64 args are refused", () => {
 test("more than 64 allowed tool names are refused", () => {
   const raw = Array.from({ length: 65 }, (_, i) => `tool_${i}`).join(",");
   assert.throws(
-    () => parseAllowedToolNames(raw),
+    () => parseAllowedToolNames({ raw }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "allowedToolNames",
   );
 });
@@ -838,7 +840,7 @@ test("the admin read model degrades corrupt stored JSON to safe defaults rather 
     updatedAt: "2026-08-09T00:00:00.000Z",
   }));
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.ok(view);
   assert.equal(view.label, "corrupt", "falls back to serverId when label is null");
   assert.equal(view.command, "", "falls back to '' when command is null");
@@ -864,7 +866,7 @@ test("the admin read model treats a null args/allowedToolNames/envNames column a
     updatedAt: "2026-08-09T00:00:00.000Z",
   }));
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.deepEqual(view?.args, []);
   assert.deepEqual(view?.allowedToolNames, []);
   assert.deepEqual(view?.envNames, []);
@@ -891,7 +893,7 @@ test("readEnabledExternalMcpConfigs reports a stored row with an unsupported tra
   assert.ok(unsupported);
   await repo.upsert({ ...unsupported, serverId: "missing-command", transport: "stdio", command: null });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.equal(configs.length, 0);
   assert.equal(failures.length, 2);
   assert.equal(failures[0]?.serverId, "legacy-http");
@@ -937,7 +939,7 @@ test("deleting a server removes it and reports whether anything was removed", as
 
   assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "github" }), true);
   assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "github" }), false);
-  assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE)).length, 0);
+  assert.equal((await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE })).length, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -1010,7 +1012,7 @@ test("a connected hosted OAuth row resolves to its endpoint with the token in an
   await seedHostedRow(repo);
   const resolver = fakeTokenResolver("at-live-1");
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: resolver.port }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: resolver.port }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.equal(httpTarget(configs[0]).url, "https://mcp.higgsfield.example/mcp");
@@ -1024,7 +1026,7 @@ test("a hosted row with no project in its URL resolves like any other — core h
   const { repo, sealer } = makeDeps();
   const url = "https://mcp.supabase.com/mcp?features=account,database,development,docs,debugging";
   await seedHostedRow(repo, { serverId: "supabase", oauthProviderId: "supabase", url });
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver().port }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.equal(httpTarget(configs[0]).url, url);
@@ -1037,7 +1039,7 @@ test("a hosted row needs NO tokenEnvName — that is a stdio-only concept", asyn
   // server that has no child process.
   await seedHostedRow(repo, { oauthTokenEnvName: null });
 
-  const { failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+  const { failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver().port }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
 });
@@ -1046,8 +1048,8 @@ test("a hosted row reaches federation as an HTTP launch spec carrying the same h
   const { repo, sealer } = makeDeps();
   await seedHostedRow(repo);
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver("at-2").port }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver("at-2").port }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
 
   assert.ok(connection);
   assert.ok("url" in connection.launch, "a hosted row must not be handed to the stdio adapter");
@@ -1062,7 +1064,7 @@ test("a hosted row whose authorization expired is REPORTED, not silently dropped
   const { repo, sealer } = makeDeps();
   await seedHostedRow(repo, { oauthStatus: "needs_reauth" });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver().port }, workspaceId: WORKSPACE });
 
   assert.equal(configs.length, 0);
   // The operator whose tools vanished needs the reason, and this string is the only thing carrying
@@ -1074,7 +1076,7 @@ test("a hosted row with no URL fails with a reason naming the URL, not a missing
   const { repo, sealer } = makeDeps();
   await seedHostedRow(repo, { url: null });
 
-  const { failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+  const { failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver().port }, workspaceId: WORKSPACE });
 
   assert.match(failures[0]?.reason ?? "", /no URL is configured to reach it/);
 });
@@ -1084,7 +1086,7 @@ test("a hosted row's pasted env block is NOT promoted into request headers", asy
   const sealed = await sealExternalMcpVaultPayload({ deps: { sealer, keyring }, identity: { workspaceId: WORKSPACE, serverId: "higgsfield" }, kind: "mcp-env", payload: { SOME_LOCAL_VAR: "value" } });
   await seedHostedRow(repo, { envNames: JSON.stringify(["SOME_LOCAL_VAR"]), sealedEnv: sealed });
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver().port }, workspaceId: WORKSPACE });
 
   // An operator typing FOO=bar meant an environment variable. Promoting it to a header would send a
   // value they scoped to a local process to a third party over the network.
@@ -1095,7 +1097,7 @@ test("a hosted row with no OAuth at all carries no Authorization header rather t
   const { repo, sealer } = makeDeps();
   await seedHostedRow(repo, { authMode: "none", oauthStatus: null, oauthProviderId: null, oauthGrant: null, oauthClientId: null });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(httpTarget(configs[0]).headers, {});
@@ -1111,7 +1113,7 @@ test("a stdio OAuth row still receives its token as an environment variable", as
     oauthTokenEnvName: "MCP_TOKEN",
   });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver("at-stdio").port }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver("at-stdio").port }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.equal(stdioTarget(configs[0]).env.MCP_TOKEN, "at-stdio");
@@ -1300,7 +1302,7 @@ test("INV-003: hasStoredToken tracks the TOKEN across every lifecycle state, not
     }),
   );
 
-  const stored = new Map((await listExternalMcpServerViews({ repo }, WORKSPACE)).map((view) => [view.serverId, view.oauth.hasStoredToken]));
+  const stored = new Map((await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE })).map((view) => [view.serverId, view.oauth.hasStoredToken]));
 
   assert.equal(stored.get("disconnected-with-secret"), false, "a blob holding only a client secret is not a stored token");
   assert.equal(stored.get("needs-reauth-with-secret"), false, "markNeedsReauth clears the token and keeps the secret");
@@ -1364,7 +1366,7 @@ test("static_env access token: sealed, absent from the read model and the row, d
   const row = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
   assert.equal(JSON.stringify(row).includes("tok-secret-1"), false);
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(failures, []);
   assert.deepEqual(stdioTarget(configs[0]).env, { BASE_URL: "https://api.example", GITHUB_TOKEN: "tok-secret-1" });
 });
@@ -1377,7 +1379,7 @@ test("static_env access token on a hosted server is sent as Authorization: Beare
   );
   assert.equal(view.accessTokenEnvName, null);
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(failures, []);
   assert.deepEqual(httpTarget(configs[0]).headers, { authorization: "Bearer tok-hosted" });
 });
@@ -1389,12 +1391,12 @@ test("static_env access token: omitted and exactly empty tokens keep the stored 
 
   const kept = await saveExternalMcpServer(deps, validInput({ ...base, label: "Renamed" }));
   assert.equal(kept.hasAccessToken, true);
-  let { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  let { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.equal(stdioTarget(configs[0]).env.API_KEY, "tok-keep");
 
   const cleared = await saveExternalMcpServer(deps, validInput({ ...base, accessToken: "" }));
   assert.equal(cleared.hasAccessToken, true);
-  ({ configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE));
+  ({ configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE }));
   assert.equal(stdioTarget(configs[0]).env.API_KEY, "tok-keep");
 });
 
@@ -1422,9 +1424,9 @@ test("static_env access token: leaving static_env drops it, and coming back with
 });
 
 test('TW3 JSON env preserves multiline values and rejects every invalid entry shape', () => {
-  assert.deepEqual(parseEnvBlock(JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' })), { TOKEN: 'first\nsecond', EMPTY: '' });
+  assert.deepEqual(parseEnvBlock({ text: JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' }) }), { TOKEN: 'first\nsecond', EMPTY: '' });
   for (const input of ['{', '{"9NAME":"value"}', '{"NAME":2}', JSON.stringify({ NAME: 'bad\0value' }), JSON.stringify({ NAME: 'x'.repeat(8193) }), JSON.stringify(Object.fromEntries(Array.from({ length: 65 }, (_, n) => [`VAR_${n}`, 'value'])))]) {
-    assert.throws(() => parseEnvBlock(input), ExternalMcpValidationError);
+    assert.throws(() => parseEnvBlock({ text: input }), ExternalMcpValidationError);
   }
 });
 
@@ -1432,14 +1434,14 @@ test('TW3 external views tolerate failed hint opens and expose only hints when o
   const { deps, repo, sealer } = makeDeps();
   const token = ['test', 'credential', '4321'].join('-');
   await saveExternalMcpServer(deps, validInput({ env: `TOKEN=${token}`, authMode: 'static_env', accessToken: token, accessTokenEnvName: 'TOKEN' }));
-  const [hinted] = await listExternalMcpServerViews({ repo, sealer }, WORKSPACE);
+  const [hinted] = await listExternalMcpServerViews({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.equal(hinted?.accessTokenHint?.last4, '4321');
   assert.equal(hinted?.envTokenHints?.TOKEN?.last4, '4321');
-  const [plain] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [plain] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.equal(plain?.accessTokenHint, null);
   assert.equal(plain?.envTokenHints, undefined);
   const broken = { open: async () => { throw new Error('unavailable'); }, seal: sealer.seal.bind(sealer) };
-  const [unreadable] = await listExternalMcpServerViews({ repo, sealer: broken }, WORKSPACE);
+  const [unreadable] = await listExternalMcpServerViews({ deps: { repo, sealer: broken }, workspaceId: WORKSPACE });
   assert.equal(unreadable?.accessTokenHint, null);
   assert.equal(unreadable?.envTokenHints, undefined);
   assert.equal(unreadable?.label, 'GitHub');
@@ -1448,32 +1450,32 @@ test('TW3 external views tolerate failed hint opens and expose only hints when o
 test('TW3 hosted OAuth target validates tokens and preserves resolver failures', async () => {
   const { deps, repo, sealer } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ transport: 'streamable_http', url: 'https://example.test/mcp', authMode: 'none', env: '' }));
-  const anonymous = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const anonymous = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(anonymous.configs[0]?.target, { kind: 'streamable_http', url: 'https://example.test/mcp', headers: {} });
   const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: 'github' });
   assert.ok(record);
   await repo.upsert({ ...record, authMode: 'oauth', oauthStatus: 'connected' });
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => 'valid-token' } }, WORKSPACE);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: { resolveAccessToken: async () => 'valid-token' } }, workspaceId: WORKSPACE });
   assert.deepEqual(resolved.configs[0]?.target, { kind: 'streamable_http', url: 'https://example.test/mcp', headers: { authorization: 'Bearer valid-token' } });
   for (const value of ['invalid\nheader', '']) {
-    const invalid = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => value } }, WORKSPACE);
+    const invalid = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: { resolveAccessToken: async () => value } }, workspaceId: WORKSPACE });
     assert.equal(invalid.configs.length, 0);
     assert.equal(invalid.failures.length, 1);
   }
-  const failed = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: { resolveAccessToken: async () => { throw new Error('offline'); } } }, WORKSPACE);
+  const failed = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: { resolveAccessToken: async () => { throw new Error('offline'); } } }, workspaceId: WORKSPACE });
   assert.equal(failed.configs.length, 0);
   assert.equal(failed.failures.length, 1);
   await repo.upsert({ ...record, url: null });
-  const missing = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const missing = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.match(missing.failures[0]?.reason ?? '', /no URL/);
 });
 
 test('TW3 NAME=VALUE silently drops the __proto__ variable (reported, not fixed)', () => {
   const text = '__proto__=operator-value';
-  const parsed = parseEnvBlock(text);
+  const parsed = parseEnvBlock({ text });
   assert.equal(Object.hasOwn(parsed, '__proto__'), false);
   assert.deepEqual(Object.entries(parsed), []);
-  const json = parseEnvBlock('{"__proto__":"operator-value"}');
+  const json = parseEnvBlock({ text: '{"__proto__":"operator-value"}' });
   assert.equal(Object.hasOwn(json, '__proto__'), true);
   assert.equal(json.__proto__, 'operator-value');
 });
@@ -1535,7 +1537,7 @@ test("a save from a caller that predates writeAllowedToolNames degrades to no wr
 test("federation retains the provisioning plugin for immediate access lowering", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ provisionedByPluginId: "mail-plugin" }));
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  const [connection] = toResolvedFederatedConnections(configs);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.equal(connection?.config.provisionedByPluginId, "mail-plugin");
 });

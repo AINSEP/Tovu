@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Release gate: authenticated desktop HTTP plus the two shipped CLI bridges, without a daemon/model. */
 import { existsSync, readdirSync } from "node:fs";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,10 +38,10 @@ async function runSmokeBridgeGate({ argv }: { argv: string[] }, ports: SmokeBrid
   if (!ports.exists(targets.executablePath) || !ports.exists(targets.nodeModulesDir)) {
     throw new Error("smoke-bridge: packaged executable or node_modules is missing");
   }
-  await ports.isolate({ targets, run: (isolated, directory) => runGate(isolated, directory, ports) });
+  await ports.isolate({ targets, run: ({ targets: isolated, directory }, _options = {}) => runGate({ targets: isolated, directory, ports }) });
 }
 
-async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, directory: string, ports: SmokeBridgeGatePorts): Promise<void> {
+async function runGate({ targets, directory, ports }: { targets: ReturnType<typeof resolveSmokeTargets>; directory: string; ports: SmokeBridgeGatePorts }, _options = {}): Promise<void> {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
   const resolved = ports.spawnResolver(targets.executablePath, ["-e", buildJiniEntryScript({ resourcesDir, executablePath: targets.executablePath })], {
     env: buildBridgeEnv({ hostEnv: ports.env, entryEnv: { ELECTRON_RUN_AS_NODE: "1" } }),
@@ -61,7 +61,7 @@ async function runGate(targets: ReturnType<typeof resolveSmokeTargets>, director
 
 /** The one stderr line a failed gate prints: redacted and bounded, an Error's message or the value
  *  itself. @complexity O(n) in the message length. */
-function formatGateFailure(error: unknown): string {
+function formatGateFailure({ error }: { error: unknown }, _options = {}): string {
   return sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n";
 }
 
@@ -71,7 +71,7 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
     exists: existsSync, readDirectory: readdirSync, isolate: withIsolatedSmokeTargets, spawnResolver: spawnSync,
     smoke: smokeBridge, out: process.stdout.write.bind(process.stdout), env: process.env, platform: process.platform,
   }).catch((error: unknown) => {
-    process.stderr.write(formatGateFailure(error));
+    process.stderr.write(formatGateFailure({ error }));
     process.exitCode = 1;
   });
 }

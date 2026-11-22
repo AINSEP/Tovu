@@ -1,7 +1,10 @@
 import { isIP } from "node:net";
 import type { Express } from "express";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
-import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type {
+  OriginRegistryPort,
+  VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 /** Select only the configured origin's www counterpart; local hosts and dev seeds are not aliases.
  * Returns no destination for any other Host. No I/O; O(h) time/space for host text of length h. */

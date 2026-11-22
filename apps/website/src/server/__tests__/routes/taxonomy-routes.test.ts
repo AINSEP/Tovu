@@ -33,18 +33,18 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminTaxonomyListRoute(app, deps);
-  registerAdminTaxonomyCreateRoute(app, deps);
-  registerAdminTaxonomyCreateTermRoute(app, deps);
-  registerAdminTaxonomyRenameTermRoute(app, deps);
-  registerAdminTaxonomyAssignTermsRoute(app, deps);
-  registerAdminTaxonomyUnassignTermsRoute(app, deps);
-  registerAdminTaxonomyAssignedTermsRoute(app, deps);
-  registerAdminTaxonomyDeleteRoute(app, deps);
-  registerAdminTaxonomyDeleteTermRoute(app, deps);
+  registerAdminTaxonomyListRoute({ app, deps });
+  registerAdminTaxonomyCreateRoute({ app, deps });
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyRenameTermRoute({ app, deps });
+  registerAdminTaxonomyAssignTermsRoute({ app, deps });
+  registerAdminTaxonomyUnassignTermsRoute({ app, deps });
+  registerAdminTaxonomyAssignedTermsRoute({ app, deps });
+  registerAdminTaxonomyDeleteRoute({ app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ app, deps });
   return { app, deps };
 }
 

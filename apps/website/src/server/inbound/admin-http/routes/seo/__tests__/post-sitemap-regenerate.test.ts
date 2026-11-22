@@ -9,7 +9,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,
@@ -58,7 +58,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoPostSitemapRegenerateRoute(app, deps);
+  registerAdminSeoPostSitemapRegenerateRoute({ app, deps });
   return app;
 }
 
@@ -112,7 +112,7 @@ test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t
     kind: "post" as const, status: "published" as const, bodyJson: { type: "doc", content: [] }, bodyFormat: "doc" as const, bodyHtml: null,
     version: 1, updatedAt: "2026-09-01T00:00:00.000Z", seoExtJson: null,
   };
-  const postRepo = new InMemoryPostRepo([original]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [original] });
   const originRegistry = {
     isAllowedRedirectTarget: base.originRegistry.isAllowedRedirectTarget.bind(base.originRegistry),
     isAllowedEgressTarget: base.originRegistry.isAllowedEgressTarget.bind(base.originRegistry),

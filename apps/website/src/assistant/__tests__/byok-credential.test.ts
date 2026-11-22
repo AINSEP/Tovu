@@ -5,10 +5,8 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
-import {
-  createRequestSuppliedExecutionCredentialPort,
-  createStoredExecutionCredentialPort,
-} from "../byok-credential.js";
+import { createRequestSuppliedExecutionCredentialPort } from "@jini-ai/agent-runtime/providers/credentials";
+import { createStoredExecutionCredentialPort } from "../byok-credential.js";
 
 /**
  * @file `byok-credential.ts`'s two `ExecutionCredentialPort` implementations.
@@ -146,7 +144,7 @@ test("a decrypt failure on the stored row degrades to null, it does not throw", 
   );
 
   // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   const port = createStoredExecutionCredentialPort({ repo, sealer: otherSealer });
   const resolved = await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(resolved, null);

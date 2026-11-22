@@ -6,8 +6,8 @@ import { renderHookWithView as renderHook } from './app-hooks.test-support.js';
 import { site } from './app-render-harness.js';
 import { useSiteToast } from './use-site-toast.hooks.js';
 
-const created = (displayName: string) => ({ ...site('c', { displayName }), createdAt: 1 }) as never;
-const imported = (displayName: string, warnings: string[]) => ({ ...site('i', { displayName }), warnings }) as never;
+const created = (displayName: string) => ({ ...site({ id: 'c' }, { fields: { displayName } }), createdAt: 1 }) as never;
+const imported = (displayName: string, warnings: string[]) => ({ ...site({ id: 'i' }, { fields: { displayName } }), warnings }) as never;
 const wait = (ms: number) => act(async () => { await new Promise((resolve) => setTimeout(resolve, ms)); });
 
 test('useSiteToast: a created site announces itself; an import says how many notices it has and keeps each one', (t) => {
@@ -27,9 +27,9 @@ test('useSiteToast: a created site announces itself; an import says how many not
 
 test('useSiteToast: an added folder is announced, one already on the list is not, and dismiss clears it', (t) => {
   const hook = renderHook(t, () => useSiteToast({ lastCreated: null }));
-  act(() => hook.current().announceAdded({ ...site('a', { displayName: 'Old' }), alreadyTracked: true }));
+  act(() => hook.current().announceAdded({ ...site({ id: 'a' }, { fields: { displayName: 'Old' } }), alreadyTracked: true }));
   assert.equal(hook.current().toast, null);
-  act(() => hook.current().announceAdded(site('b', { displayName: 'Folder site' })));
+  act(() => hook.current().announceAdded(site({ id: 'b' }, { fields: { displayName: 'Folder site' } })));
   assert.deepEqual(hook.current().toast, { message: 'Website added: Folder site' });
   act(() => hook.current().dismiss());
   assert.equal(hook.current().toast, null);
@@ -37,7 +37,7 @@ test('useSiteToast: an added folder is announced, one already on the list is not
 
 test('useSiteToast: a plain toast hides itself; one with a note stays at least twelve seconds', async (t) => {
   const hook = renderHook(t, () => useSiteToast({ lastCreated: null }, { autoHideMs: 20 }));
-  act(() => hook.current().announceAdded(site('b')));
+  act(() => hook.current().announceAdded(site({ id: 'b' })));
   await wait(60);
   assert.equal(hook.current().toast, null, 'a plain toast went away by itself');
   act(() => hook.current().announceImported(imported('Shop', ['Read me.'])));

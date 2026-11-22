@@ -2,11 +2,13 @@
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
 import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
-import { ToolInputError } from '@jini-ai/core';
-import type { AuthorizeFn } from '#src/contracts/core/commands/index';
+import { formatErrorForLog, ToolInputError } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
-import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';
+import { consentConfigProblems, parseConsentConfig } from './validation.js';
+import { deploymentRefusal, type ConsentProblem } from '#src/contracts/core/consent-refusal';
 import { CATEGORIES as CONSENT_CATEGORIES } from '@jini-ai/cookie-consent';
 import { DEFAULT_MAX_AGE_MS as CONSENT_MAX_AGE_MS } from '@jini-ai/cookie-consent/policy';
 import { CONSENT_MAX_CSS_LENGTH } from '@jini-ai/cookie-consent/render';
@@ -74,12 +76,7 @@ function legacyEditorConsentConfig({ config }: { config: ConsentConfig }, _optio
   }
   return normalized;
 }
-
-/** Creates one workspace's adapters over the engine and durable policy store.
- * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
- * @example createSiteConsentService({ ports })
- * @complexity Fixed repository operations; readiness scans receipt filenames and renders one bounded page, never executes JS. */
-export function createSiteConsentService({ ports }: { ports: ConsentServicePorts }, _options = {}) {
+function createConsentReader(ports: ConsentServicePorts) {
   /** Deny before touching readiness, configuration or rendered content. */
   const authorize = async ({ principalId, write = false }: { principalId: string; write?: boolean }, _optional = {}) => {
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: ports.authorize }), principalId, workspaceId: ports.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read' }, { entityType: 'site-consent' });
@@ -87,6 +84,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
     if (!ports.store) throw new Error('The durable site consent policy store is unavailable.');
     return ports.store;
   };
+
   /** Resolve draft and published separately; malformed published data never falls back to OFF. */
   const read = async ({ principalId }: { principalId: string }, _optional = {}) => {
     const store = await authorize({ principalId });
@@ -102,12 +100,10 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
         categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })),
         rules: { gpc: 'always-enforced', preferenceMaxAgeMs: CONSENT_MAX_AGE_MS, staticReceipts: false } } };
   };
-  /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
-  const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
-    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: false });
-    if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
-    return found;
-  };
+  return { authorize, read };
+}
+
+function createConsentReadiness(ports: ConsentServicePorts, read: ReturnType<typeof createConsentReader>['read'], problems: (input: { config: ConsentConfig }) => Promise<ConsentProblem[]>) {
   /** Readiness needs writable proof storage as well as a safe local page sample.
    * Storage errors expose no private paths; render failure/truncation also blocks readiness. */
   const readiness = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
@@ -129,48 +125,22 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       blockingProblems.push(...dryRun.problems);
       return { ...metadata, ready: blockingProblems.length === 0, categories: dryRun.categories, declarations: dryRun.declarations, warnings: dryRun.warnings, truncated: dryRun.truncated || page.truncated,
         limitations: ['One server-rendered page sample; dynamic requests, server cookies and legal compliance require separate review.'] };
-    } catch {
+    } catch (error) {
+      console.warn('[consent] The page could not be rendered; readiness remains unavailable.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       blockingProblems.push({ code: 'RENDER_FAILED', message: 'The page could not be rendered safely. Readiness cannot be established.' });
       return { ...metadata, ready: false, categories: CONSENT_CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false })), declarations: [], warnings: [], truncated: false, limitations: ['Rendered evidence unavailable.'] };
     }
   };
-  /** A separate scriptless banner preview; no page content is parsed or represented as protected. */
-  const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
-    const state = await read({ principalId });
-    const config = sampleConsentConfig({ state, proposed });
-    consentPagePath({ path });
-    const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion });
-    const html = `<!doctype html><html ${rendered.htmlAttrs}><head><meta charset="utf-8">${rendered.head}</head><body>${rendered.body}</body></html>`;
-    const diagnostics = { warnings: rendered.problems.map(problem => ({ ...problem, field: 'appearance' })) };
-    return { html, blockingProblems: await problems({ config }), ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
-  };
-  /** Append an immutable draft; invalid CSS rules are diagnosed and dropped by the preview compiler. */
-  const saveDraft = async ({ principalId, config: value, expectedDraftId }: { principalId: string; config: unknown; expectedDraftId: string | null }, _optional = {}) => {
-    const store = await authorize({ principalId, write: true });
-    const config = parseConsentConfig({ value });
-    const blockingProblems = await problems({ config });
-    const revision = { id: ports.ids.newId(), config, actorId: principalId, createdAt: ports.clock.nowIso() };
-    await store.saveDraft({ revision, expectedDraftId });
-    return { revision, blockingProblems };
-  };
-  /** The stored draft, never caller replacement fields, is what becomes public atomically. */
-  const publish = async ({ principalId, draftId, expectedPublishedId }: { principalId: string; draftId: string; expectedPublishedId: string | null }, _optional = {}) => {
-    const store = await authorize({ principalId, write: true });
-    const state = await store.read({});
-    if (state.draft?.id !== draftId) throw new SiteConsentConflict();
-    const config = parseConsentConfig({ value: state.draft.config });
-    const blockingProblems = await problems({ config });
-    if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
-    await store.publish({ draftId, expectedPublishedId });
-    try { await ports.published?.(); }
-    catch { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.'); }
-    return { published: true, revisionId: draftId };
-  };
+  return { readiness };
+}
+
+function createConsentDeploymentCheck(ports: ConsentServicePorts, problems: (input: { config: ConsentConfig }) => Promise<ConsentProblem[]>) {
   const staticDeploymentRefusal = async ({ config }: { config: ConsentConfig }, _options = {}) => {
     const blockingProblems = await problems({ config });
     // The cookie-consent banner works on a static host (choices kept in the browser, labelled so).
     return blockingProblems.length ? deploymentRefusal({ problems: blockingProblems }) : null;
   };
+
   /** Static publication uses browser-local evidence, with the same policy and privacy checks.
    * Unknown configuration remains blocking; explicit OFF remains a readable rollback. */
   const deploymentCheck = async ({ principalId, permission }: { principalId: string; permission: 'system.publish' | 'deployments.publish' }, _optional = {}) => {
@@ -187,20 +157,62 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       if (effective.enabled === false) return null;
       const config = parseConsentConfig({ value: effective });
       return await staticDeploymentRefusal({ config });
-    } catch {
+    } catch (error) {
+      console.warn('[consent] The consent policy could not be verified; deployment remains blocked.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       return deploymentRefusal({ problems: [{ code: 'CONSENT_UNAVAILABLE', message: 'The published consent policy could not be verified. Deployment was not started.' }] });
     }
   };
+  return { deploymentCheck };
+}
+
+
+/** Creates one workspace's adapters over the engine and durable policy store.
+ * Authorization remains in each operation so direct/tool callers cannot bypass the HTTP guard.
+ * @example createSiteConsentService({ ports })
+ * @complexity Fixed repository operations; readiness scans receipt filenames and renders one bounded page, never executes JS. */
+export function createSiteConsentService({ ports }: { ports: ConsentServicePorts }, _options = {}) {
+  const { authorize, read } = createConsentReader(ports);
+  /** Engine validation plus this site's privacy-page linkage; no HTTP fetch to external policies. */
+  const problems = async ({ config }: { config: ConsentConfig }, _optional = {}): Promise<ConsentProblem[]> => {
+    const found = consentConfigProblems({ config, trustedRegion: ports.trustedRegion }, { cssBlocks: false });
+    if (config.enabled && config.privacyPolicyUrl && !found.some(problem => problem.field === 'privacyPolicyUrl') && !await ports.privacyPageExists({ url: config.privacyPolicyUrl })) found.push({ code: 'PRIVACY_PAGE_MISSING', field: 'privacyPolicyUrl', message: 'Publish the linked privacy page before enabling consent.' });
+    return found;
+  };
+  const { readiness } = createConsentReadiness(ports, read, problems);
+  /** A separate scriptless banner preview; no page content is parsed or represented as protected. */
+  const preview = async ({ principalId, path = '/', config: proposed }: { principalId: string; path?: string; config?: unknown }, _optional = {}) => {
+    const state = await read({ principalId });
+    const config = sampleConsentConfig({ state, proposed });
+    consentPagePath({ path });
+    const rendered = renderSiteConsentPreview({ config, policy: config.policyVersion });
+    const html = `<!doctype html><html ${rendered.htmlAttrs}><head><meta charset="utf-8">${rendered.head}</head><body>${rendered.body}</body></html>`;
+    const diagnostics = { warnings: rendered.problems.map(problem => ({ ...problem, field: 'appearance' })) };
+    return { html, blockingProblems: await problems({ config }), ...diagnostics, sandbox: '', revisionId: state.draft?.id ?? state.published?.id ?? null };
+  };
+  /** Append an immutable draft; invalid CSS rules are diagnosed and dropped by the preview compiler. */
+  const saveDraft = async ({ principalId, config: value, expectedDraftId, signal }: { principalId: string; config: unknown; expectedDraftId: string | null; signal?: AbortSignal }, _optional = {}) => {
+    const store = await authorize({ principalId, write: true });
+    const config = parseConsentConfig({ value });
+    const blockingProblems = await problems({ config });
+    const revision = { id: ports.ids.newId(), config, actorId: principalId, createdAt: ports.clock.nowIso() };
+    await store.saveDraft({ revision, expectedDraftId, signal });
+    return { revision, blockingProblems };
+  };
+  /** The stored draft, never caller replacement fields, is what becomes public atomically. */
+  const publish = async ({ principalId, draftId, expectedPublishedId, signal }: { principalId: string; draftId: string; expectedPublishedId: string | null; signal?: AbortSignal }, _optional = {}) => {
+    const store = await authorize({ principalId, write: true });
+    const state = await store.read({});
+    if (state.draft?.id !== draftId) throw new SiteConsentConflict();
+    const config = parseConsentConfig({ value: state.draft.config });
+    const blockingProblems = await problems({ config });
+    if (blockingProblems.length) throw new ToolInputError({ message: blockingProblems.map(problem => problem.message).join(' ') });
+    await store.publish({ draftId, expectedPublishedId, signal });
+    try { await ports.published?.(); }
+    catch (error) { console.warn('[consent] Cookie preferences were published, but the public preview could not refresh. A later request will try again.', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
+    return { published: true, revisionId: draftId };
+  };
+  const { deploymentCheck } = createConsentDeploymentCheck(ports, problems);
   return { read, readiness, preview, saveDraft, publish, deploymentCheck };
 }
 export type SiteConsentService = ReturnType<typeof createSiteConsentService>;
 
-/** The existing HTTP 409 / choice envelope; clients perform a reviewed settings publication, then retry.
- * Keeping the choice declarative prevents an untrusted flag from disabling consent in a crawler. */
-export function deploymentRefusal({ problems }: { problems: ConsentProblem[] }, _options = {}) {
-  return { code: 'CONSENT_REVIEW_REQUIRED', error: 'Review cookie consent before publishing this site.', blockingProblems: problems,
-    choices: [
-      { id: 'fix-now', label: 'Fix now', href: '/consent?tab=overview', action: 'Review declarations, the privacy policy and readiness before publishing again.' },
-      { id: 'publish-without-banner', label: 'Publish without banner', href: '/consent?tab=rules&intent=publish-without-banner', action: 'Explicitly save enabled:false through PUT consent/settings, POST consent/publish with current revision ids, then retry deployment.', warning: 'This disables the banner and optional-content enforcement on the live site too. Optional scripts may run without a visitor choice.' },
-    ] };
-}

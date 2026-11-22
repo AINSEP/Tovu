@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createApp } from "../../app.js";
+import { createInMemoryApp } from "../../memory-route-deps.js";
 import { createAgentPluginsModule } from "../agent-plugins.js";
 import { createAnalyticsModule } from "../analytics.js";
 import { createApiKeysModule } from "../api-keys.js";
@@ -120,6 +120,7 @@ const CASES: readonly ModuleCase[] = [
     routes: [
       `GET ${W}/forms`,
       `POST ${W}/forms`,
+      `GET ${W}/forms/_providers`,
       `GET ${W}/forms/:formId`,
       `PUT ${W}/forms/:formId`,
       `PUT ${W}/forms/:formId/authoring`,
@@ -318,13 +319,13 @@ for (const c of CASES) {
     assert.equal(typeof handle.registerRoutes, "function");
 
     const app = express();
-    handle.registerRoutes!(app);
+    handle.registerRoutes!({ app });
     assert.deepEqual(routesOf(app), c.routes);
   });
 }
 
 test("createApp() mounts every route-only module: each module's routes are on the real router", () => {
-  const mounted = new Set(routesOf(createApp()));
+  const mounted = new Set(routesOf(createInMemoryApp()));
   const missing = CASES.flatMap((c) => c.routes.filter((r) => !mounted.has(r)).map((r) => `${c.name}: ${r}`));
   assert.deepEqual(missing, []);
 });

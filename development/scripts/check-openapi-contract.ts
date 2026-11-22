@@ -46,7 +46,7 @@
  * - **422/429/503/410/416** — each is route-specific (e.g. rate limiting, range requests) rather
  *   than a mechanically derivable probe; not attempted here.
  *
- * All requests run against `createRouteDeps()`'s in-memory repos (see `src/server/app.ts`) — the
+ * All requests run against `createRouteDeps()`'s in-memory repos (see `src/server/runtime/composition/app.ts`) — the
  * server is thrown away when the script exits, so nothing here touches a persisted database.
  *
  * Usage: npx tsx development/scripts/check-openapi-contract.ts
@@ -245,42 +245,9 @@ async function main(): Promise<void> {
   const results: ProbeResult[] = [];
   const touched = new Set<string>();
 
-  const probeAuthErrors = async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
-    const key = `${op.file}#${op.operationId}`;
-    if (op.requiresAuth && op.statusCodes.includes("401")) {
-      results.push(await probeOperation({ probeType: "AUTH_401", op, baseUrl: server.baseUrl, headers: {} }));
-      touched.add(key);
-    }
-    if (op.requiresAuth && op.statusCodes.includes("403")) {
-      results.push(await probeOperation({ probeType: "PERM_403", op, baseUrl: server.baseUrl, headers: { cookie: bareCookie } }));
-      touched.add(key);
-    }
-
-  };
-  const probeMissingTargets = async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
-    const key = `${op.file}#${op.operationId}`;
-    if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
-      results.push(await probeOperation({ probeType: "WORKSPACE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
-      touched.add(key);
-    }
-    if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
-      results.push(await probeOperation({ probeType: "RESOURCE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
-      touched.add(key);
-    }
-
-  };
-  const probeInvalidBody = async ({ op, formSlug }: { op: OpenApiOperation; formSlug: string }, _options = {}): Promise<void> => {
-    const key = `${op.file}#${op.operationId}`;
-    if (
-      ["post", "put", "patch"].includes(op.method) &&
-      op.requestBodyRequired &&
-      op.pathParams.length <= 1 &&
-      op.statusCodes.includes("400")
-    ) {
-      results.push(await probeOperation({ probeType: "VALIDATION_400", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }, { formSlug }));
-      touched.add(key);
-    }
-  };
+  const probeAuthErrors = createProbeAuthErrors({ results, server, touched, bareCookie });
+  const probeMissingTargets = createProbeMissingTargets({ results, server, ownerCookie, touched });
+  const probeInvalidBody = createProbeInvalidBody({ results, server, ownerCookie, touched });
 
   try {
     const formSlug = await seedContractProbeForm({ request: fetch, baseUrl: server.baseUrl, ownerCookie, workspaceId: WORKSPACE_ID });
@@ -299,7 +266,74 @@ async function main(): Promise<void> {
     await server.close();
   }
 
-  const reportMismatches = ({ failures }: { failures: ProbeResult[] }, _options = {}): void => {
+  const reportMismatches = createReportMismatches();
+  const reportProbeResults = createReportProbeResults(results, reportMismatches);
+  const failures = reportProbeResults({});
+
+  const gaps = coverageGaps(operations, touched);
+  console.log("=".repeat(78));
+  console.log(`COVERAGE — ${touched.size}/${operations.length} operations touched by at least one probe`);
+  console.log("=".repeat(78));
+  const noErrorContract = gaps.filter((g) => g.reason.startsWith("no documented"));
+  const deferredContract = gaps.filter((g) => !g.reason.startsWith("no documented"));
+  console.log(`${noErrorContract.length} operations document no error status at all (nothing to check)`);
+  console.log(`${deferredContract.length} operations have a documented error status this v1 doesn't probe (413/500/422/429/503/410/416, or 400/409 on update-by-id routes needing a seeded fixture):`);
+  for (const g of deferredContract) console.log(`  - ${g.key}: ${g.reason}`);
+
+  if (failures.length > 0) {
+    process.exitCode = 1;
+  } else {
+    console.log("\ncheck:openapi-contract — OK: every probed operation's live status matched its documented contract.");
+  }
+}
+
+function createProbeMissingTargets({ results, server, ownerCookie, touched }: { results: ProbeResult[]; server: Awaited<ReturnType<typeof startTovuServer>>; ownerCookie: Awaited<ReturnType<typeof loginOwner>>; touched: Set<string> }) {
+  return async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (op.pathParams.includes("workspaceId") && op.statusCodes.includes("404")) {
+      results.push(await probeOperation({ probeType: "WORKSPACE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+      touched.add(key);
+    }
+    if (op.pathParams.length >= 2 && op.statusCodes.includes("404")) {
+      results.push(await probeOperation({ probeType: "RESOURCE_404", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }));
+      touched.add(key);
+    }
+
+  };
+}
+
+function createProbeAuthErrors({ results, server, touched, bareCookie }: { results: ProbeResult[]; server: Awaited<ReturnType<typeof startTovuServer>>; touched: Set<string>; bareCookie: Awaited<ReturnType<typeof loginBarePrincipal>> }) {
+  return async ({ op }: { op: OpenApiOperation }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (op.requiresAuth && op.statusCodes.includes("401")) {
+      results.push(await probeOperation({ probeType: "AUTH_401", op, baseUrl: server.baseUrl, headers: {} }));
+      touched.add(key);
+    }
+    if (op.requiresAuth && op.statusCodes.includes("403")) {
+      results.push(await probeOperation({ probeType: "PERM_403", op, baseUrl: server.baseUrl, headers: { cookie: bareCookie } }));
+      touched.add(key);
+    }
+
+  };
+}
+
+function createProbeInvalidBody({ results, server, ownerCookie, touched }: { results: ProbeResult[]; server: Awaited<ReturnType<typeof startTovuServer>>; ownerCookie: Awaited<ReturnType<typeof loginOwner>>; touched: Set<string> }) {
+  return async ({ op, formSlug }: { op: OpenApiOperation; formSlug: string }, _options = {}): Promise<void> => {
+    const key = `${op.file}#${op.operationId}`;
+    if (
+      ["post", "put", "patch"].includes(op.method) &&
+      op.requestBodyRequired &&
+      op.pathParams.length <= 1 &&
+      op.statusCodes.includes("400")
+    ) {
+      results.push(await probeOperation({ probeType: "VALIDATION_400", op, baseUrl: server.baseUrl, headers: cookieHeader(op, ownerCookie) }, { formSlug }));
+      touched.add(key);
+    }
+  };
+}
+
+function createReportMismatches() {
+  return ({ failures }: { failures: ProbeResult[] }, _options = {}): void => {
     if (failures.length > 0) {
       console.log("=".repeat(78));
       console.log(`MISMATCHES (${failures.length}) — spec says one status, live server returned another`);
@@ -315,7 +349,10 @@ async function main(): Promise<void> {
     }
 
   };
-  const reportProbeResults = (_required: Record<string, never>, _options = {}): ProbeResult[] => {
+}
+
+function createReportProbeResults(results: ProbeResult[], reportMismatches: ReturnType<typeof createReportMismatches>) {
+  return (_required: Record<string, never>, _options = {}): ProbeResult[] => {
     const byType = new Map<ProbeType, ProbeResult[]>();
     for (const r of results) byType.set(r.probeType, [...(byType.get(r.probeType) ?? []), r]);
 
@@ -339,23 +376,6 @@ async function main(): Promise<void> {
 
     return failures;
   };
-  const failures = reportProbeResults({});
-
-  const gaps = coverageGaps(operations, touched);
-  console.log("=".repeat(78));
-  console.log(`COVERAGE — ${touched.size}/${operations.length} operations touched by at least one probe`);
-  console.log("=".repeat(78));
-  const noErrorContract = gaps.filter((g) => g.reason.startsWith("no documented"));
-  const deferredContract = gaps.filter((g) => !g.reason.startsWith("no documented"));
-  console.log(`${noErrorContract.length} operations document no error status at all (nothing to check)`);
-  console.log(`${deferredContract.length} operations have a documented error status this v1 doesn't probe (413/500/422/429/503/410/416, or 400/409 on update-by-id routes needing a seeded fixture):`);
-  for (const g of deferredContract) console.log(`  - ${g.key}: ${g.reason}`);
-
-  if (failures.length > 0) {
-    process.exitCode = 1;
-  } else {
-    console.log("\ncheck:openapi-contract — OK: every probed operation's live status matched its documented contract.");
-  }
 }
 
 main().catch((err) => {

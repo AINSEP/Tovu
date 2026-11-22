@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "./lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for `App.tsx`'s own shell-level copy — currently just the "are you sure you
  * want to log out?" confirmation dialog (owner-requested, 2026-08-31: a misclick on the sidebar's
@@ -15,7 +15,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  * duplicating it here — see `App.tsx`'s call site.
  *
  * Also the no-access state `App.tsx`'s `NoAccess` shows for a section the operator holds no
- * permission for (`lib/panel-access.ts`).
+ * permission for (`@jini-ai/admin/core`'s `isPanelAccessible`).
  *
  * Same 21-locale set and order as `admin-nav-i18n.ts`/every feature `*-i18n.ts` file in this app.
  */

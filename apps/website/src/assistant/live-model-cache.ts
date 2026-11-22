@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
-import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
+import { listProviderModels } from "@jini-ai/agent-runtime";
+import { type ProviderModelOption } from "@jini-ai/core/contracts/agents";
 import { ModelCatalogCache, unionModels as unionModelCatalog } from "@jini-ai/agent-runtime/model-catalog/cache";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { AgentModelSummary } from "@jini-ai/daemon/http";
 
-import type { SecretSealerPort } from "../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 
 /**
@@ -88,7 +89,7 @@ export function createLiveModelDiscovery(
   }, { ttlMs });
   return {
     async getLiveClaudeModels(key) {
-      const stored = await resolveExecutionCredential({ repo, sealer }, key);
+      const stored = await resolveExecutionCredential({ deps: { repo, sealer }, input: key });
       if (!stored || stored.protocol !== "anthropic" || !stored.apiKey.trim()) return null;
       const baseUrl = stored.baseUrl ?? VENDOR_API_BASE_URLS.anthropic;
       const credentialFingerprint = createHash("sha256").update(stored.apiKey).digest("hex");
@@ -149,8 +150,8 @@ export async function fetchLiveClaudeModels(
  *   `fallback`, one pass over `live`.
  */
 export function unionModels(
-  fallback: readonly AgentModelSummary[],
-  live: readonly ProviderModelOption[],
+  { fallback, live }: { fallback: readonly AgentModelSummary[]; live: readonly ProviderModelOption[] },
+  _optional: Record<string, never> = {},
 ): AgentModelSummary[] {
   // Preserve Tovu's client-safe projection: fallback metadata survives, while discovered entries
   // expose only the model ID and label. Deduplication/order belong to the package merger.

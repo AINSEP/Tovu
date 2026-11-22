@@ -107,14 +107,14 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
     );
 
     // alpha.md is selected by default and defaults wrapped, via the grid renderer.
-    expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
+    expect(container.querySelector(".jini-code-viewer--wrap")).toBeInTheDocument();
     expect(container.querySelector(".gutter")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("treeitem", { name: "plugin.json" }));
 
     // plugin.json is not markdown, but defaults wrapped too now — the extension no longer decides
     // the default (owner correction, 2026-09-10).
-    expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
+    expect(container.querySelector(".jini-code-viewer--wrap")).toBeInTheDocument();
     expect(container.querySelector(".gutter")).not.toBeInTheDocument();
   });
 
@@ -129,12 +129,12 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
       <AgentPluginDetailsModal plugin={PLUGIN} onClose={vi.fn()} t={identity} useDetails={useFakeLongLineDetails} />,
     );
 
-    // WrappedFileContent lays out one CSS grid row per source line (`.line-number` paired with its
-    // own `.line-content` in the same row), not two independent `white-space: pre` blocks kept in
+    // WrappedFileContent lays out one CSS grid row per source line (`.jini-code-viewer__line-number` paired with its
+    // own `.jini-code-viewer__line-content` in the same row), not two independent `white-space: pre` blocks kept in
     // sync by both refusing to wrap — so a long line's row simply grows taller and the count of
     // gutter numbers stays exactly the source line count regardless of how many visual rows the
     // long line wraps to.
-    const lineNumbers = container.querySelectorAll(".line-number");
+    const lineNumbers = container.querySelectorAll(".jini-code-viewer__line-number");
     expect(Array.from(lineNumbers).map((el) => el.textContent)).toEqual(["1", "2", "3"]);
   });
 
@@ -146,16 +146,16 @@ describe("AgentPluginDetailsModal wrap toggle", () => {
     const toggle = screen.getByRole("button", { name: WRAP_TOGGLE_NAME });
 
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
+    expect(container.querySelector(".jini-code-viewer--wrap")).toBeInTheDocument();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(container.querySelector(".code-viewer--wrap")).not.toBeInTheDocument();
+    expect(container.querySelector(".jini-code-viewer--wrap")).not.toBeInTheDocument();
     expect(container.querySelector(".gutter")).toBeInTheDocument();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector(".code-viewer--wrap")).toBeInTheDocument();
+    expect(container.querySelector(".jini-code-viewer--wrap")).toBeInTheDocument();
     expect(container.querySelector(".gutter")).not.toBeInTheDocument();
   });
 

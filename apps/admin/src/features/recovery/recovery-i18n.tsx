@@ -1,8 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Recovery screen (`/admin/recovery`) — the restore-points
  * list, the discarded-write-window disclosure, and the plan/confirm/execute restore ceremony.
@@ -1132,21 +1131,21 @@ const SINCE_DISCARD_FRAGMENTS: Record<string, { before: string; after: string }>
   ru: { before: "С ", after: " восстановление здесь приведёт к потере как минимум:" },
   fa: { before: "از ", after: "، بازیابی در اینجا حداقل موارد زیر را دور می‌ریزد:" },
   ar: { before: "منذ ", after: "، ستؤدي الاستعادة هنا إلى فقدان ما لا يقل عن:" },
-  ja: { before: "", after: " 以降にここで復元すると、少なくとも次を破棄します:" },
-  ko: { before: "", after: " 이후 여기서 복원하면 최소한 다음이 삭제됩니다:" },
+  ja: { before: "基準日時 ", after: " 以降の変更のうち、ここで復元すると少なくとも次が失われます:" },
+  ko: { before: "기준 시각 ", after: " 이후의 변경 사항 중 여기서 복원하면 최소한 다음 항목이 삭제됩니다:" },
   pl: { before: "Od ", after: ", przywrócenie tutaj spowoduje utratę co najmniej:" },
-  hu: { before: "", after: " óta itt végzett visszaállítás legalább a következőket dobja el:" },
+  hu: { before: "A ", after: " óta történt változtatások közül az itteni visszaállítás legalább az alábbiakat elvetné:" },
   fr: { before: "Depuis ", after: ", la restauration ici entraînerait la perte d'au moins :" },
   uk: { before: "Від ", after: " відновлення тут призведе до втрати щонайменше:" },
-  tr: { before: "", after: " tarihinden bu yana burada geri yükleme yapmak en az şunları silecektir:" },
+  tr: { before: "Şu ", after: " tarihinden bu yana yapılan değişikliklerden en az aşağıdakiler burada geri yükleme yapılırsa silinir:" },
   th: { before: "ตั้งแต่ ", after: " การกู้คืนที่นี่จะละทิ้งอย่างน้อย:" },
   it: { before: "Dal ", after: ", il ripristino qui scarterebbe almeno:" },
-  hi: { before: "", after: " से, यहां पुनर्स्थापित करने पर कम से कम निम्नलिखित छूट जाएगा:" },
-  ur: { before: "", after: " سے، یہاں بحال کرنے پر کم از کم درج ذیل ضائع ہو جائے گا:" },
-  bn: { before: "", after: " থেকে, এখানে পুনরুদ্ধার করলে অন্তত নিম্নলিখিতগুলি বাদ যাবে:" },
+  hi: { before: "दिनांक ", after: " से किए गए बदलावों में से यहां पुनर्स्थापित करने पर कम से कम ये बदलाव हट जाएंगे:" },
+  ur: { before: "تاریخ ", after: " سے کی گئی تبدیلیوں میں سے یہاں بحال کرنے پر کم از کم درج ذیل ضائع ہو جائیں گی:" },
+  bn: { before: "তারিখ ", after: " থেকে হওয়া পরিবর্তনগুলির মধ্যে এখানে পুনরুদ্ধার করলে অন্তত নিচেরগুলি হারিয়ে যাবে:" },
 };
 
-export function sinceDiscardMessage(locale: string, createdAt: string): ReactNode {
+export function sinceDiscardMessage({ locale, createdAt }: { locale: string; createdAt: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: SINCE_DISCARD_FRAGMENTS, locale });
   return (
     <>
@@ -1201,7 +1200,7 @@ const UNKNOWN_DISCARD_COUNT_PREFIX: Record<string, string> = {
  * INV-05 requires (an `"unknown"` is never a `0`) is now visible in the type itself and not only
  * in the words.
  */
-export function discardCountLine(locale: string, count: number | "unknown", categoryLabelText: string): ReactNode {
+export function discardCountLine({ locale, count, categoryLabelText }: { locale: string; count: number | "unknown"; categoryLabelText: string }, _options: Record<string, never> = {}): ReactNode {
   if (count === "unknown") {
     const prefix = localeEntry({ table: UNKNOWN_DISCARD_COUNT_PREFIX, locale });
     return (
@@ -1251,7 +1250,7 @@ const BASELINE_UNAVAILABLE_TEXT: Record<string, string> = {
   bn: 'এই সাইটের জন্য বাতিল করা লেখা-উইন্ডোর বেসলাইন এখনই গণনা করা যায়নি — উপরের প্রতিটি গণনা "অজানা" হিসেবে দেখানো হয়েছে, যাচাইকৃত শূন্য হিসেবে নয়।',
 };
 
-export function baselineUnavailableMessage(locale: string): ReactNode {
+export function baselineUnavailableMessage({ locale }: { locale: string }, _options: Record<string, never> = {}): ReactNode {
   return <>{localeEntry({ table: BASELINE_UNAVAILABLE_TEXT, locale })}</>;
 }
 
@@ -1348,7 +1347,7 @@ const RESTORE_PLAN_READY_FRAGMENTS: Record<string, { before: string; after: stri
   },
 };
 
-export function restorePlanReadyMessage(locale: string, planId: string): ReactNode {
+export function restorePlanReadyMessage({ locale, planId }: { locale: string; planId: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: RESTORE_PLAN_READY_FRAGMENTS, locale });
   return (
     <>
@@ -1380,14 +1379,14 @@ const RESTORE_DONE_FRAGMENTS: Record<string, { before: string; middle: string; a
   fr: { before: "L'exécution de restauration ", middle: " s'est terminée à l'état ", after: "." },
   uk: { before: "Виконання відновлення ", middle: " завершилося у стані ", after: "." },
   tr: { before: "Geri yükleme çalıştırması ", middle: " şu durumda tamamlandı: ", after: "." },
-  th: { before: "การรันการกู้คืน ", middle: " เสร็จสิ้นในสถานะ ", after: "" },
+  th: { before: "การรันการกู้คืน ", middle: " เสร็จสิ้นในสถานะ ", after: " แล้ว" },
   it: { before: "L'esecuzione del ripristino ", middle: " è terminata nello stato ", after: "." },
   hi: { before: "पुनर्स्थापना रन ", middle: " की स्थिति ", after: " में समाप्त हुई।" },
   ur: { before: "بحالی رن ", middle: " کی حالت ", after: " میں مکمل ہوئی۔" },
   bn: { before: "পুনরুদ্ধার রান ", middle: "-এর অবস্থা ", after: "-এ শেষ হয়েছে।" },
 };
 
-export function restoreDoneMessage(locale: string, restoreRunId: string, stateNode: ReactNode): ReactNode {
+export function restoreDoneMessage({ locale, restoreRunId, stateNode }: { locale: string; restoreRunId: string; stateNode: ReactNode }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: RESTORE_DONE_FRAGMENTS, locale });
   return (
     <>

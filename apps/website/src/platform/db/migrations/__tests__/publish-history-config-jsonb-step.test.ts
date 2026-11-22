@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 
@@ -15,7 +15,7 @@ for (const adapter of eachDialect({ tables: ["publish_history"], make: db => db 
     await db.execute(sql`INSERT INTO publish_history VALUES ('json', ${JSON.stringify(config)}), ('legacy', NULL)`);
     const step = CONTENT_MIGRATIONS.find(entry => entry.id === "0036_publish_history_config_jsonb")!;
     const options = { ledgerTable: "publish_config_test_migrations" };
-    assert.deepEqual((await runMigrations(db as StorageKernel<unknown>, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, [step.id]);
     const rows = await db.query<{ id: string; config_fields_json: unknown }>(sql`SELECT * FROM publish_history ORDER BY id`);
     const value = rows[0]!.config_fields_json;
     assert.deepEqual(typeof value === "string" ? JSON.parse(value) : value, config);
@@ -24,6 +24,6 @@ for (const adapter of eachDialect({ tables: ["publish_history"], make: db => db 
       ? await db.query<{ type: string }>(sql`SELECT udt_name AS type FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'publish_history' AND column_name = 'config_fields_json'`)
       : await db.query<{ type: string }>(sql`SELECT type FROM pragma_table_info('publish_history') WHERE name = 'config_fields_json'`);
     assert.equal(types[0]!.type, adapter.dialect === "postgres" ? "jsonb" : "TEXT");
-    assert.deepEqual((await runMigrations(db as StorageKernel<unknown>, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel: db as KyselyKernel<unknown>, steps: [step] }, options)).applied, []);
   });
 }

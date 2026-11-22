@@ -20,7 +20,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 /**
  * @file Route-level tests for the integrations admin HTTP API (ADR-036 admin wiring).
  *
- * `src/server/app.ts` is out of scope for this task (see the handoff report for the `createApp`
+ * `src/server/runtime/composition/app.ts` is out of scope for this task (see the handoff report for the `createApp`
  * wiring lines), so these tests build a standalone Express app the same way `app.ts` composes
  * one — auth middleware + the route registrars under test — instead of exercising `createApp()`
  * directly. `createRouteDeps()` (already exported by `app.ts`, unmodified) supplies the base
@@ -103,14 +103,14 @@ function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminIntegrationsListRoute(app, deps);
-  registerAdminIntegrationsCreateRoute(app, deps);
-  registerAdminIntegrationsPauseRoute(app, deps);
-  registerAdminIntegrationsDeleteRoute(app, deps);
-  registerAdminIntegrationsDeliveriesRoute(app, deps);
+  registerAdminIntegrationsListRoute({ app, deps });
+  registerAdminIntegrationsCreateRoute({ app, deps });
+  registerAdminIntegrationsPauseRoute({ app, deps });
+  registerAdminIntegrationsDeleteRoute({ app, deps });
+  registerAdminIntegrationsDeliveriesRoute({ app, deps });
 
   return { app, deps };
 }
@@ -425,7 +425,7 @@ test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
   const app = express();
-  registerAdminIntegrationsDeleteRoute(app, deps);
+  registerAdminIntegrationsDeleteRoute({ app, deps });
   const handler = extractHandler(
     app,
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"

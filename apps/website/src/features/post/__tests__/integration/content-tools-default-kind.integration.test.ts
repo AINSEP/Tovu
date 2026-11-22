@@ -13,7 +13,8 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { postAgentToolCatalog, TIPTAP_DOC_SCHEMA } from "../../agent-tools.js";
+import { postAgentToolCatalog } from "../../agent-tools.js";
+import { TIPTAP_DOC_SCHEMA } from "../../tiptap-doc-schema.js";
 import { InMemoryPostRepo } from "../../repo.memory.js";
 import { contributePostTools } from "../../tool-registrations.js";
 import { buildPostRecord } from "../post-record.fixture.js";
@@ -27,7 +28,7 @@ const TEXT_DOC = { type: "doc", content: [{ type: "paragraph", content: [{ type:
 /** Fresh composition per test; fixed domain time/IDs make persisted effects deterministic. */
 function harness(_required: Record<string, never>, { allowed = true }: { allowed?: boolean } = {}) {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -46,7 +47,7 @@ function harness(_required: Record<string, never>, { allowed = true }: { allowed
   contributions.contributors.register({ contribution: contributePostTools() });
   const registrations = buildAssistantToolRegistrations(
     toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }),
-    undefined, { contributions },
+    { surfaces: undefined, options: { contributions } },
   );
   const registry = createToolRegistry({});
   for (const registration of registrations) registry.register(registration);

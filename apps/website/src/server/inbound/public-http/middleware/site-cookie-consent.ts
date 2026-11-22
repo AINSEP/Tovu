@@ -2,6 +2,10 @@ import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import type { ConsentConfig } from '@jini-ai/cookie-consent';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 /** Public declared-script assets, published context, receipts and plugin admission.
  * Documents receive asset contributions during construction; public responses are never scanned. */
 import { createHash, randomBytes } from 'node:crypto';
@@ -17,11 +21,14 @@ import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles }
 import { createNodeAtomicFilesystem, writeJsonFileAtomic } from '@jini-ai/platform/fs';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
-import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from '#src/features/theme/active-theme';
 import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
-import { isStaticExportRequest } from '../routes/site/pages.js';
+import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
+import { asyncRoute } from "../../../../platform/express/async-route.js";
+import { browserDiagnosticsEnabled, siteBrowserDiagnosticsBridge, siteBrowserDiagnosticsModule } from '../../../runtime/composition/browser-diagnostics.js';
 
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 
@@ -36,8 +43,10 @@ function loadClient(_required = {}, { resolve = createRequire(import.meta.url).r
     const body = fs.readFileSync(resolve('@jini-ai/cookie-consent/client.min.js'));
     const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
     return { body, src: `${CONSENT_ENDPOINT}/client-${hash}.min.js` };
-  } catch {
-    console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.');
+  } catch (error) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn('[consent] The cookie preferences client could not be loaded. Its browser route is disabled.', errorDiagnostic);
     return undefined;
   }
 }
@@ -94,7 +103,13 @@ function mountReceipts({ app, deps }: { app: Express; deps: RouteDeps }, _option
       } }, { regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto',
         allow: async () => (await limiter.check({ key: consentRateLimitKey({ address: resolveClientIp(req) }) })).allowed });
       res.status(response.status).set(Object.fromEntries(response.headers)).send(await response.text());
-    } catch { console.error('[consent] save failed'); res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.' }); }
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:save' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] save failed', '[diagnostic unavailable]');
+      }
+      res.status(503).set('Cache-Control', 'no-store').json({ error: 'Your choice could not be saved. Try again.', ...(errorId ? { errorId } : {}) });
+    }
   });
 }
 
@@ -229,7 +244,10 @@ async function documentDeclarations({ consent }: { consent?: SiteCookieConsentDe
 async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }): Promise<ConsentConfig | null> {
   const state = consent && documentStates.get(consent);
   if (!state) return null;
-  if (state.now() >= state.nextReadAt) void state.refresh?.().catch(() => undefined);
+  if (state.now() >= state.nextReadAt) {
+    // The refresh logs its own failure; visitors keep the last good policy.
+    void state.refresh?.().catch(() => undefined);
+  }
   if (state.policy) return state.policy;
   await briefPendingRead({ state });
   return state.policy ?? null;
@@ -238,12 +256,13 @@ async function documentPolicy({ consent }: { consent?: SiteCookieConsentDeps }):
 /** Wait at most 250 ms for a read in flight; with none, resolve at once. A late success still lands. */
 async function briefPendingRead({ state }: { state: DocumentState }): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // The refresh logs its own failure; a failed or slow read leaves the last good policy in use.
   try { await Promise.race([state.pending?.catch(() => undefined), new Promise(resolve => { timer = setTimeout(resolve, 250); })]); }
   finally { clearTimeout(timer); }
 }
 
 /** Document construction consumes data, never a completed response body. */
-export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
+export async function siteConsentDocumentAssets({ deps, request, scripts, static: staticDocument }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; scripts: readonly DeclaredScript[]; static?: true }, _optional = {}): Promise<DocumentAssets> {
   const consent = deps.cookieConsent;
   const config = await documentPolicy({ consent });
   if (staticDocument) return staticDocumentAssets({ config, request, scripts, consent });
@@ -269,7 +288,7 @@ async function staticDocumentAssets({ config, request, scripts, consent }: {
 
 /** Render the shared banner and client assets once a usable snapshot has been selected. */
 async function renderDocumentConsent({ deps, request, consent, config, scripts }: {
-  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; request: Request; consent: SiteCookieConsentDeps;
+  deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; request: Request; consent: SiteCookieConsentDeps;
   config: ConsentConfig; scripts: readonly DeclaredScript[];
 }): Promise<DocumentAssets> {
   const live = !isStaticExportRequest(request);
@@ -288,7 +307,10 @@ export async function siteConsentExportAssets({ deps }: { deps: Pick<RouteDeps, 
   const declared = await documentDeclarations({ consent: deps.cookieConsent });
   const local = declared.filter(script => script.src.startsWith('/') && (config || script.consent === undefined)).map(script => script.src);
   if (!config || siteBannerMode({ config }) === 'off') return local;
-  return [...(documentStates.get(deps.cookieConsent!)?.client ? [documentStates.get(deps.cookieConsent!)!.client!.src] : []), EXTENSION_SRC, ...local];
+  const consent = deps.cookieConsent;
+  if (!consent) throw new Error('cookie consent export has no consent configuration');
+  const client = documentStates.get(consent)?.client;
+  return [...(client ? [client.src] : []), EXTENSION_SRC, ...local];
 }
 
 /** Public context shares the site's publication retry window and keeps visitor state out of HTML caches. */
@@ -305,7 +327,13 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
         clearLegacyCookie({ req, res });
       }
       res.json({ enabled, policy: config.policyVersion, regionMode: config.regionMode === 'opt-in' ? 'opt-in' : 'auto' });
-    } catch { console.error('[consent] public context unavailable'); res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.' }); }
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:public-context' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] public context unavailable', '[diagnostic unavailable]');
+      }
+      res.status(503).json({ error: 'Cookie preferences could not be loaded. Wait a minute, then reload to try again.', ...(errorId ? { errorId } : {}) });
+    }
   });
 }
 
@@ -314,7 +342,7 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
 function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.get(CONSENT_LOADER_SRC, async (req, res) => {
     try {
-    const theme = deps.resolveActiveThemeId ? resolveActiveTheme(deps, await deps.resolveActiveThemeId()) : null;
+    const theme = deps.resolveActiveThemeId ? resolveActiveTheme({ deps, activeThemeId: await deps.resolveActiveThemeId() }) : null;
     const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
     const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
     const markup = JSON.stringify(assets.head + assets.body);
@@ -337,9 +365,12 @@ function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }
         for(const attr of node.attributes)script.setAttribute(attr.name,attr.value);
         script.async=false;document.body.append(script);}
     })();`);
-    } catch {
-      console.error('[consent] static loader unavailable');
-      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send('/* Cookie preferences could not be loaded. Wait a minute, then reload to try again. */');
+    } catch (error) {
+      let errorId: string | undefined;
+      try { ({ errorId } = reportServerFailure({ error, operation: 'consent:static-loader' }, { tracker: res.locals.adminFailureTracker })); } catch { /* Keep the original failure path if diagnostics fail. */
+        console.error('[consent] static loader unavailable', '[diagnostic unavailable]');
+      }
+      res.status(503).type('text/javascript').set('Cache-Control', 'no-store').send(`/* Cookie preferences could not be loaded. Wait a minute, then reload to try again.${errorId ? ` Reference: ${errorId}` : ''} */`);
     }
   });
 }
@@ -350,7 +381,8 @@ function refreshDocumentState({ state, deps, consent }: { state: DocumentState; 
   if (state.pending) return state.pending;
   state.nextReadAt = state.now() + 60_000;
   const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
-    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again.');
+    console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
+      describeErrorForLog({ err: error }));
     throw error;
   });
   const lastGoodScripts = state.scripts;
@@ -378,10 +410,12 @@ function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent
   // Answered for one export run, before it renders. A good policy is never cleared, so no later page
   // can lose its banner when this finds one; a run starts from a fresh read, as it always has.
   consent.exportWarning = async () => {
+    // The refresh logs its own failure; the export uses the last good policy or its warning.
     void refresh().catch(() => undefined);
     await briefPendingRead({ state });
     return state.policy ? undefined : 'Cookie preferences could not be loaded. This published copy has no cookie banner.';
   };
+  // The refresh logs its own failure; startup continues without an unavailable policy.
   void refresh().catch(() => undefined);
   return state;
 }
@@ -389,27 +423,36 @@ function siteDocumentState({ deps, consent, client }: { deps: RouteDeps; consent
 /** Routes and a construction-time snapshot only; no page-response capture or cookie work. */
 export function applySiteCookieConsent({ app, deps, consent }: { app: Express; deps: RouteDeps; consent: SiteCookieConsentDeps }, { client: suppliedClient }: { client?: { body: Buffer; src: string } } = {}): void {
   const { client } = siteDocumentState({ deps, consent, client: () => suppliedClient ?? loadClient() });
-  app.use(async (req, res, next) => {
+  app.use(asyncRoute({ handler: async (req, res, next) => {
     // Resolve the cached publication before widget rendering; consent-off pages have no activation runtime.
     await documentPolicy({ consent });
     res.locals.siteConsentAssets = (required: { scripts: readonly DeclaredScript[]; static?: true }) => siteConsentDocumentAssets({ deps, request: req, ...required });
     next();
-  });
+  } }));
   if (client) app.get(client.src, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=31536000, immutable').send(client.body); });
   const resolve = createRequire(import.meta.url).resolve;
   try {
     const extension = fs.readFileSync(path.join(path.dirname(resolve('@jini-ai/cookie-consent/client.min.js')), 'extensions.min.js'));
     app.get(EXTENSION_SRC, (_req, res) => { res.type('text/javascript').set('Cache-Control', 'public, max-age=60').send(extension); });
-  } catch { console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.'); }
+  } catch (error) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    console.warn('[consent] The cookie preferences extensions could not be loaded. Their browser route is disabled.', errorDiagnostic);
+  }
   mountStaticThemeLoader({ app, deps });
+  app.get('/_jini/browser-analytics/site/diagnostics.js', async (_req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    if (!(await browserDiagnosticsEnabled({ observability: deps.observability }, deps))) { res.status(404).end(); return; }
+    res.type('text/javascript').send(siteBrowserDiagnosticsModule);
+  });
   mountContext({ app, consent });
   mountReceipts({ app, deps });
   mountPluginHttp({ app, deps });
 }
 
-async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'>; live: boolean }): Promise<readonly RawContribution[]> {
+async function documentPlugins({ deps, live }: { deps: Pick<RouteDeps, 'cookieConsent' | 'consentAdapters'> & Partial<Pick<RouteDeps, 'settingsRepo' | 'workspaceId' | 'observability'>>; live: boolean }): Promise<readonly RawContribution[]> {
   if (!live) return [];
-  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? []];
+  return [...deps.consentAdapters?.({ base: PLUGIN_BASE }).map(item => item.adapter) ?? [], ...await deps.cookieConsent?.browserPlugins?.() ?? [], ...(await browserDiagnosticsEnabled({ observability: deps.observability }, deps) ? [siteBrowserDiagnosticsBridge] : [])];
 }
 
 function requestPrivacy({ deps, req }: { deps: RouteDeps; req: Request }) {

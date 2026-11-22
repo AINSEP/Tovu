@@ -1,7 +1,7 @@
 /** Provider diagnostics use the existing Jini secret owner, before truncating for activity/UI. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { safeMailProviderText } from "../../provider-error.js";
+import { safeMailProviderText } from "@jini-ai/platform/mail";
 import { createProviderMailer } from "#src/server/runtime/boot/mail-provider-catalog";
 
 const message = { workspaceId: "w", to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "Test" };

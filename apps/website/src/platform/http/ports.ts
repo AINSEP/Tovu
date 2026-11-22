@@ -3,9 +3,9 @@
 // ADR-038/ADR-040: host allowlists come from origin.isAllowedEgressTarget, never per-consumer settings.
 // Raw transports are composition-only; product consumers must receive createHttpClient's decorator.
 import type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
-import type { EgressPolicy, PinnedPeer } from "@jini-ai/platform/http/guarded";
+import type { EgressPolicy, PinnedPeer } from "@jini-ai/core/contracts/runtime";
 export type { HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
-export type { EgressPolicy, PinnedPeer } from "@jini-ai/platform/http/guarded";
+export type { EgressPolicy, PinnedPeer } from "@jini-ai/core/contracts/runtime";
 
 /** Product consumers send an existing request through the guarded host boundary. */
 export interface HttpClientPort {

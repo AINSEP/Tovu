@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   activationOutlook,
   createdTokensNoteKey,
@@ -43,30 +44,30 @@ function snapshotFixture(overrides: Partial<AdminSitesSnapshot> = {}): AdminSite
 
 describe("siteRowState", () => {
   it("reports the row whose dir the server actually resolved as serving", () => {
-    expect(siteRowState(siteFixture(), snapshotFixture())).toBe("serving");
+    expect(siteRowState({ site: siteFixture(), snapshot: snapshotFixture() })).toBe("serving");
   });
 
   it("reports a persisted-but-not-yet-live row as pending-restart, NEVER as serving", () => {
     const snapshot = snapshotFixture({ persistedSiteName: "beta" });
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("pending-restart");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("pending-restart");
   });
 
   it("reports an untouched row as idle", () => {
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshotFixture())).toBe("idle");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot: snapshotFixture() })).toBe("idle");
   });
 
   it("matches on dir, not name — a same-named folder elsewhere is not what is being served", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRowState(siteFixture(), snapshot)).toBe("idle");
+    expect(siteRowState({ site: siteFixture(), snapshot })).toBe("idle");
   });
 
   it("still reports serving when TOVU_SITE_DIR happens to point at a listed row's own directory", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: true, listed: true },
     });
-    expect(siteRowState(siteFixture(), snapshot)).toBe("serving");
+    expect(siteRowState({ site: siteFixture(), snapshot })).toBe("serving");
   });
 
   it("reports idle, NEVER pending-restart, for the persisted choice when TOVU_SITE_DIR overrides it — the badge must agree with the banner's own 'will not pick it up' warning, not run a second guess", () => {
@@ -74,21 +75,21 @@ describe("siteRowState", () => {
       persistedSiteName: "beta",
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("idle");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("idle");
   });
 });
 
 describe("siteRowState presentation", () => {
   it("never labels a pending row with the serving copy", () => {
-    expect(siteRowStateLabelKey("pending-restart")).toBe("Default for next launch");
-    expect(siteRowStateLabelKey("serving")).toBe("Serving now");
-    expect(siteRowStateLabelKey("idle")).toBe("Not in use");
+    expect(siteRowStateLabelKey({ state: "pending-restart" })).toBe("Default for next launch");
+    expect(siteRowStateLabelKey({ state: "serving" })).toBe("Serving now");
+    expect(siteRowStateLabelKey({ state: "idle" })).toBe("Not in use");
   });
 
   it("gives pending a warning tone, not the ok tone that would read as 'switched'", () => {
-    expect(siteRowStateToneClass("pending-restart")).toBe("status-warning");
-    expect(siteRowStateToneClass("serving")).toBe("status-ok");
-    expect(siteRowStateToneClass("idle")).toBe("status-neutral");
+    expect(siteRowStateToneClass({ state: "pending-restart" })).toBe("status-warning");
+    expect(siteRowStateToneClass({ state: "serving" })).toBe("status-ok");
+    expect(siteRowStateToneClass({ state: "idle" })).toBe("status-neutral");
   });
 });
 
@@ -138,11 +139,11 @@ describe("sitesInDisplayOrder", () => {
 
 describe("readSnapshot", () => {
   it("defaults switchingEnabled to FALSE before the first load, so nothing offers a write mid-load", () => {
-    expect(readSnapshot(undefined)).toEqual({ sites: [], switchingEnabled: false, outlook: { kind: "none" } });
+    expect(readSnapshot({ snapshot: undefined })).toEqual({ sites: [], switchingEnabled: false, outlook: { kind: "none" } });
   });
 
   it("passes the loaded snapshot's own values through", () => {
-    const view = readSnapshot(snapshotFixture({ persistedSiteName: "beta" }));
+    const view = readSnapshot({ snapshot: snapshotFixture({ persistedSiteName: "beta" }) });
     expect(view.switchingEnabled).toBe(true);
     expect(view.outlook).toEqual({ kind: "pending", name: "beta" });
     expect(view.sites).toHaveLength(1);
@@ -151,22 +152,22 @@ describe("readSnapshot", () => {
 
 describe("siteNameErrorKey", () => {
   it("accepts a lowercase dashed name", () => {
-    expect(siteNameErrorKey("my-second-site")).toBeNull();
+    expect(siteNameErrorKey({ raw: "my-second-site" })).toBeNull();
   });
 
   it("rejects an empty or whitespace-only name", () => {
-    expect(siteNameErrorKey("")).toBe("Enter a folder name.");
-    expect(siteNameErrorKey("   ")).toBe("Enter a folder name.");
+    expect(siteNameErrorKey({ raw: "" })).toBe("Enter a folder name.");
+    expect(siteNameErrorKey({ raw: "   " })).toBe("Enter a folder name.");
   });
 
   it("rejects uppercase, spaces, and path separators", () => {
-    expect(siteNameErrorKey("Bad Name!")).toBe("Use lowercase letters, digits, and dashes only.");
-    expect(siteNameErrorKey("../escape")).toBe("Use lowercase letters, digits, and dashes only.");
+    expect(siteNameErrorKey({ raw: "Bad Name!" })).toBe("Use lowercase letters, digits, and dashes only.");
+    expect(siteNameErrorKey({ raw: "../escape" })).toBe("Use lowercase letters, digits, and dashes only.");
   });
 
   it("rejects a name over 100 characters", () => {
-    expect(siteNameErrorKey("a".repeat(101))).toBe("That name is too long (100 characters maximum).");
-    expect(siteNameErrorKey("a".repeat(100))).toBeNull();
+    expect(siteNameErrorKey({ raw: "a".repeat(101) })).toBe("That name is too long (100 characters maximum).");
+    expect(siteNameErrorKey({ raw: "a".repeat(100) })).toBeNull();
   });
 });
 
@@ -181,32 +182,32 @@ describe("siteWriteErrorKey", () => {
     ["AGENT_PLUGIN_TOKEN_INVALID", "That access token didn't work. Check it, or leave it empty and connect later from chat. No site was created."],
     ["AGENT_PLUGIN_TOKEN_UNSUPPORTED", "That service can't be connected with an access token here. Leave it empty and connect later from chat. No site was created."],
   ])("explains %s with its own recovery guidance", (code, expected) => {
-    expect(siteWriteErrorKey(new ApiError("write refused", 409, code))).toBe(expected);
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "write refused", status: 409 }, { code }) })).toBe(expected);
   });
 
   it("translates the capability refusal and the occupied-folder conflict", () => {
-    expect(siteWriteErrorKey(new ApiError("nope", 403, "SITE_SWITCHING_DISABLED"))).toBe(
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "nope", status: 403 }, { code: "SITE_SWITCHING_DISABLED" }) })).toBe(
       "Site switching is turned off on this deployment.",
     );
-    expect(siteWriteErrorKey(new ApiError("nope", 409, "SITE_ALREADY_EXISTS"))).toBe(
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "nope", status: 409 }, { code: "SITE_ALREADY_EXISTS" }) })).toBe(
       "A folder with that name already exists under sites/.",
     );
   });
 
   it("defers to the shared fallback for an unrecognised ApiError code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 500, "INTERNAL_ERROR"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "boom", status: 500 }, { code: "INTERNAL_ERROR" }) })).toBeNull();
   });
 
   it("defers to the shared fallback for an ApiError that carries no code", () => {
-    expect(siteWriteErrorKey(new ApiError("boom", 502))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "boom", status: 502 }) })).toBeNull();
   });
 
   it("defers to the shared fallback for a failure that is not an ApiError", () => {
-    expect(siteWriteErrorKey(new Error("network down"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new Error("network down") })).toBeNull();
   });
 
   it("defers to the shared fallback for a code that names an Object.prototype member", () => {
-    expect(siteWriteErrorKey(new ApiError("odd", 400, "toString"))).toBeNull();
+    expect(siteWriteErrorKey({ e: new ApiError({ message: "odd", status: 400 }, { code: "toString" }) })).toBeNull();
   });
 });
 
@@ -217,11 +218,11 @@ describe("siteRegistration", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, listed: false },
     });
-    expect(siteRegistration(siteFixture(), snapshot)).toBe("unregistered");
+    expect(siteRegistration({ site: siteFixture(), snapshot })).toBe("unregistered");
   });
 
   it("reports the served row as registered when currentSite.listed is true", () => {
-    expect(siteRegistration(siteFixture(), snapshotFixture())).toBe("registered");
+    expect(siteRegistration({ site: siteFixture(), snapshot: snapshotFixture() })).toBe("registered");
   });
 
   it("reports a NON-served row as registered even while the served one is not — the flag must not smear across the grid", () => {
@@ -231,14 +232,14 @@ describe("siteRegistration", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
     });
-    expect(siteRegistration(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("registered");
+    expect(siteRegistration({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("registered");
   });
 
   it("matches on dir, not name, so a TOVU_SITE_DIR override pointing elsewhere does not flag the same-named row", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRegistration(siteFixture(), snapshot)).toBe("registered");
+    expect(siteRegistration({ site: siteFixture(), snapshot })).toBe("registered");
   });
 });
 
@@ -257,10 +258,10 @@ describe("createdTokensNoteKey", () => {
     ["saved", "will connect when this site first starts."],
     ["failed", "couldn't be saved. Open the site and ask the assistant to connect it."],
   ] as const)("explains a %s token outcome", (status, expected) => {
-    expect(createdTokensNoteKey(status)).toBe(expected);
+    expect(createdTokensNoteKey({ status: status })).toBe(expected);
   });
 
   it.each(["none", undefined] as const)("says nothing for a %s token outcome", (status) => {
-    expect(createdTokensNoteKey(status)).toBeNull();
+    expect(createdTokensNoteKey({ status: status })).toBeNull();
   });
 });

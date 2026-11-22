@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DeployTargetRegistry, DeployTargetInspection, DeployHostKit } from '../../deploy-targets/types.js';
+import type { DeployTargetRegistry, DeployTargetInspection } from '../../deploy-targets/types.js';
+import type { PluginDeployHostKit as DeployHostKit } from '@jini-ai/devops/deploy';
 import { createDeployHostKit } from '../../deploy-targets/host-kit.js';
 import { inspectStaticPublish } from '../inspection.js';
 import type { PublishCredentialSource } from '../types.js';
@@ -64,11 +65,19 @@ test('unavailable credential and provider errors are actionable and redact secre
   }
 });
 
-test('a connection that cannot be opened refuses with the repair step and never echoes the vault fault', async () => {
+test('a connection that cannot be opened refuses with the repair step and never echoes the vault fault', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const f = setup();
-  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => { throw new Error('vault fault secret-token'); } };
+  const credentialSource: PublishCredentialSource = { isConfigured: async () => ({ configured: true }), resolve: async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } };
   await assert.rejects(inspectStaticPublish({ deps: { ...f.deps, credentialSource }, input: { workspaceId: 'workspace', config: { target: 'fixture' }, projectName: 'site' } }),
     { message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(' ') ?? '';
+  assert.match(log, /saved connection could not be resolved for inspection/);
+  assert.match(log, /Error/);
+  assert.match(log, /EIO/);
+  assert.doesNotMatch(log, /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test('a provider preview that throws a non-Error value gets the generic actionable message', async () => {

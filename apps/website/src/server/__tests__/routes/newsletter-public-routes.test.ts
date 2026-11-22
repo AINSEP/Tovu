@@ -51,7 +51,7 @@ function buildPublicApp(consentCapability?: MembersConsentCapability): { app: ex
   };
   // Only the PUBLIC half of the module is exercised here — no admin registrar, no session
   // middleware at all exists in this app instance (unlike `newsletter-auth.test.ts`'s admin app).
-  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.(app);
+  createNewsletterModule({ admin: deps, public: publicDeps }).registerRoutes?.({ app });
   return { app, deps };
 }
 

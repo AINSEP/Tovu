@@ -3,8 +3,7 @@ import test from "node:test";
 import { postAgentToolCatalog } from '#src/features/post/agent-tools';
 import { pagesAgentToolCatalog } from '#src/features/pages/agent-tools';
 import { SYSTEM_PREAMBLE } from '#src/server/runtime/composition/modules/assistant-byok';
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
-import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions, TOOLS_FIRST_RULE } from "@tovu/contracts/assistant-native-fallbacks";
 
 import {
   ASSISTANT_DISALLOWED_TOOLS,
@@ -23,9 +22,9 @@ import {
 
 test("relay guidance is included verbatim only when enabled for the run", () => {
   const sentence = "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation.";
-  assert.ok(buildBaseSystemOverlay(false, { messageRelayEnabled: true }).includes(sentence));
-  assert.equal(buildBaseSystemOverlay(false).includes(sentence), false);
-  assert.equal(buildBaseSystemOverlay(true, { messageRelayEnabled: false }).includes(sentence), false);
+  assert.ok(buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { messageRelayEnabled: true }).includes(sentence));
+  assert.equal(buildBaseSystemOverlay({ bashProhibitionEnabled: false }).includes(sentence), false);
+  assert.equal(buildBaseSystemOverlay({ bashProhibitionEnabled: true }, { messageRelayEnabled: false }).includes(sentence), false);
 });
 
 test("resolveBashProhibitionEnabled defaults to false with no env var set", () => {
@@ -42,12 +41,12 @@ test("resolveBashProhibitionEnabled reads the '1' sentinel exactly", () => {
   assert.equal(resolveBashProhibitionEnabled({ TOVU_AGENT_FORBID_BASH: "1" }), true);
 });
 
-test("buildBashProhibitionBlock(false) is BASH_GUIDANCE_BLOCK verbatim, unmodified", () => {
-  assert.equal(buildBashProhibitionBlock(false), BASH_GUIDANCE_BLOCK);
+test("buildBashProhibitionBlock({ enabled: false }) is BASH_GUIDANCE_BLOCK verbatim, unmodified", () => {
+  assert.equal(buildBashProhibitionBlock({ enabled: false }), BASH_GUIDANCE_BLOCK);
 });
 
-test("buildBashProhibitionBlock(true) is BASH_PROHIBITION_BLOCK verbatim, unmodified", () => {
-  assert.equal(buildBashProhibitionBlock(true), BASH_PROHIBITION_BLOCK);
+test("buildBashProhibitionBlock({ enabled: true }) is BASH_PROHIBITION_BLOCK verbatim, unmodified", () => {
+  assert.equal(buildBashProhibitionBlock({ enabled: true }), BASH_PROHIBITION_BLOCK);
 });
 
 // Regression: a same-day change dropped the original HEAD steering text entirely when the
@@ -55,14 +54,14 @@ test("buildBashProhibitionBlock(true) is BASH_PROHIBITION_BLOCK verbatim, unmodi
 // yesterday. The owner approved restoring it verbatim as the flag-off default — this is the core
 // defect this file exists to fix.
 test("default (flag off): the base overlay carries the original steering text, not the prohibition", () => {
-  const overlay = buildBaseSystemOverlay(false);
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false });
   assert.equal(overlay.includes(BASH_GUIDANCE_BLOCK), true);
   assert.equal(overlay.includes("ABSOLUTE PROHIBITION"), false);
   assert.equal(overlay.includes("THE BASH TOOL IS FORBIDDEN"), false);
 });
 
 test("flag on: the base overlay contains the prohibition block verbatim, not the steering text", () => {
-  const overlay = buildBaseSystemOverlay(true);
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: true });
   assert.equal(overlay.includes("ABSOLUTE PROHIBITION"), true);
   assert.equal(overlay.includes(BASH_PROHIBITION_BLOCK), true);
   assert.equal(overlay.includes(BASH_GUIDANCE_BLOCK), false);
@@ -72,8 +71,8 @@ test("the rest of the base overlay is identical whether the flag is on or off", 
   // Splitting each overlay on its own variant of the Bash slot isolates exactly the one piece
   // allowed to differ; every other character — tool-catalog protocol, ask-choice guidance,
   // credential-auth-diagnostic instructions, etc — must be byte-for-byte the same either way.
-  const overlayOff = buildBaseSystemOverlay(false);
-  const overlayOn = buildBaseSystemOverlay(true);
+  const overlayOff = buildBaseSystemOverlay({ bashProhibitionEnabled: false });
+  const overlayOn = buildBaseSystemOverlay({ bashProhibitionEnabled: true });
   assert.equal(
     overlayOn.replace(BASH_PROHIBITION_BLOCK, ""),
     overlayOff.replace(BASH_GUIDANCE_BLOCK, ""),
@@ -82,7 +81,7 @@ test("the rest of the base overlay is identical whether the flag is on or off", 
 
 test("search-first applies when no visible tool fits or before a native fallback", () => {
   for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
-    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess });
     assert.match(overlay, /Before any native Bash\/file fallback, or when no visible tool fits: call search_tools FIRST/);
     assert.equal(overlay.match(/phrasing the query as a description of what the tool DOES/g)?.length, 1);
     assert.equal(overlay.includes("What to do instead when you believe no tool fits"), !nativeToolAccess);
@@ -97,11 +96,11 @@ test("native file fallbacks and Tool gap reports require a search and retry with
   assert.match(TOOLS_FIRST_RULE, /Only after those searches, report the fallback/);
   assert.ok(TOOLS_FIRST_RULE.includes("`Tool gap: <what you needed> — no Tovu tool for it.`"));
   assert.match(TOOLS_FIRST_RULE, /Include the queries you searched in <what you needed>/);
-  assert.ok(buildBaseSystemOverlay(false, { nativeToolAccess: true }).includes(TOOLS_FIRST_RULE));
+  assert.ok(buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true }).includes(TOOLS_FIRST_RULE));
 });
 
 test("native fallback guidance maps shell intents to existing tools and states the PDF limit", () => {
-  const overlay = buildBaseSystemOverlay(false, { nativeToolAccess: true });
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true });
   assert.match(overlay, /theme list\/read\/search → theme_list_files \/ theme_read_file \(find, startLine, lineCount\)/);
   assert.match(overlay, /site\/handoff\/plugin text → fs_list_files \/ fs_read_file/);
   assert.match(overlay, /page HTML\/localhost routes → fetch_published_page \(site path, never curl\)/);
@@ -111,7 +110,7 @@ test("native fallback guidance maps shell intents to existing tools and states t
 });
 
 test("native fallback guidance stops after one denial and confines genuine shell gaps for every CLI", () => {
-  const overlay = buildBaseSystemOverlay(false, { nativeToolAccess: true });
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true });
   assert.match(overlay, /After ONE "Operation not permitted" or permission refusal, do not retry the same kind of command/);
   assert.match(overlay, /even with another shell, flags or path spelling/);
   assert.match(overlay, /Switch to the mapped tool; otherwise stop and tell the owner in one line: `Tool gap:/);
@@ -123,7 +122,7 @@ test("native fallback guidance stops after one denial and confines genuine shell
 
 test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools page ids", () => {
   for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
-    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess });
     assert.match(overlay, /For visual site checks, prefer Tovu's web_screenshot_page; use web_fetch_page/);
     assert.match(overlay, /this site's own pages, use web_screenshot_page with sitePath/);
     assert.match(overlay, /mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first/);
@@ -135,7 +134,7 @@ test("every overlay prefers Tovu visual tools and requires fresh Chrome DevTools
 
 test("every overlay names where file searches may run, so the no-system-search hook and 20 s search timeouts are avoided", () => {
   for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
-    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess });
     assert.match(overlay, /File searches \(Grep, Glob, rg, find\) must stay inside your working directory/);
     for (const folder of ["themes/", "plugins/", "agent-plugins/", "skills/"]) assert.ok(overlay.includes(folder), `names ${folder}`);
     assert.match(overlay, /Never search \/, ~ or \$HOME/);
@@ -166,14 +165,14 @@ test("every overlay names where file searches may run, so the no-system-search h
 // load-bearing phrases the behavior depends on instead.
 test("every overlay tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up", () => {
   for (const prohibited of [false, true]) for (const nativeToolAccess of [false, true]) {
-    const overlay = buildBaseSystemOverlay(prohibited, { nativeToolAccess });
+    const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess });
     assert.match(overlay, /search again with a higher limit \(up to 25\) or different phrasing/);
     assert.match(overlay, /weak evidence, not proof that no matching tool exists/);
   }
 });
 
 test("neither overlay names a coverage percentage — a hardcoded retrieval number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today", () => {
-  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true)]) {
+  for (const overlay of [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true })]) {
     assert.doesNotMatch(overlay, /\d+%/);
   }
 });
@@ -301,7 +300,7 @@ test("ASSISTANT_SETTING_SOURCES is empty: an assistant run loads no user, projec
 // handed back through `--settings` with its exact user-settings entry, alongside auto-memory off.
 test("resolveAssistantRunSettings: auto-memory is disabled alongside the no-system-search hook, same matcher and timeout", () => {
   const hook = "/home/op/.claude/hooks/no-system-search";
-  const settings = resolveAssistantRunSettings("/home/op", (p) => p === hook);
+  const settings = resolveAssistantRunSettings({ homeDir: "/home/op", fileExists: (p) => p === hook });
   assert.deepEqual(JSON.parse(settings), {
     autoMemoryEnabled: false,
     hooks: { PreToolUse: [{ matcher: "Bash|Glob|Grep", hooks: [{ type: "command", command: hook, timeout: 5 }] }] },
@@ -309,11 +308,11 @@ test("resolveAssistantRunSettings: auto-memory is disabled alongside the no-syst
 });
 
 test("resolveAssistantRunSettings: absent hook still disables auto-memory without adding hooks", () => {
-  assert.equal(resolveAssistantRunSettings("/home/op", () => false), '{"autoMemoryEnabled":false}');
+  assert.equal(resolveAssistantRunSettings({ homeDir: "/home/op", fileExists: () => false }), '{"autoMemoryEnabled":false}');
 });
 
 test("published content guidance prioritizes the live URL and requires explicit overwrite", () => {
-  const overlay = buildBaseSystemOverlay(false);
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false });
   assert.match(overlay, /publicUrl first/);
   assert.match(overlay, /adminUrl is only a secondary edit link/);
   assert.match(overlay, /overwrite:true only when the user explicitly asked/);
@@ -321,7 +320,7 @@ test("published content guidance prioritizes the live URL and requires explicit 
 
 test("every assistant overlay explains automatic editor updates and slug navigation after content edits", () => {
   const overlays = [SYSTEM_PREAMBLE, ...[false, true].flatMap(prohibited =>
-    [false, true].map(nativeToolAccess => buildBaseSystemOverlay(prohibited, { nativeToolAccess })))];
+    [false, true].map(nativeToolAccess => buildBaseSystemOverlay({ bashProhibitionEnabled: prohibited }, { nativeToolAccess })))];
   for (const overlay of overlays) {
     assert.match(overlay, /open post\/page editor automatically picks up successful assistant edits/);
     assert.match(overlay, /editor URL follows a changed slug/);
@@ -343,7 +342,7 @@ test('all post/page write descriptions explain editor synchronization without re
 
 test("default prompt describes the enforced host tool grant", () => {
   assert.equal(ASSISTANT_DISALLOWED_TOOLS.includes("Bash"), true);
-  const overlay = buildBaseSystemOverlay(false);
+  const overlay = buildBaseSystemOverlay({ bashProhibitionEnabled: false });
   assert.equal(overlay.includes("Bash is unavailable because it is disabled for this assistant."), true);
   assert.equal(overlay.includes("Bash and file access remain available"), false);
   assert.equal(overlay.includes("Read remains available for reading Tovu's own source"), true);
@@ -351,19 +350,19 @@ test("default prompt describes the enforced host tool grant", () => {
 
 test("every overlay tells the model to batch the same operation on several items into one items call", () => {
   assert.match(BATCH_GUIDANCE, /same operation to several items, pass them as items: \[\{\.\.\.\}, \.\.\.\] in ONE call/);
-  for (const overlay of [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), buildBaseSystemOverlay(false, { nativeToolAccess: true })]) {
+  for (const overlay of [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true })]) {
     assert.ok(overlay.includes(BATCH_GUIDANCE));
   }
 });
 
 test("buildBashGuidanceBlock: the live grant disallows Bash, so the default block is the 'unavailable' text", () => {
   assert.ok(ASSISTANT_DISALLOWED_TOOLS.includes("Bash"));
-  assert.equal(BASH_GUIDANCE_BLOCK, buildBashGuidanceBlock(ASSISTANT_DISALLOWED_TOOLS));
+  assert.equal(BASH_GUIDANCE_BLOCK, buildBashGuidanceBlock({ disallowedTools: ASSISTANT_DISALLOWED_TOOLS }));
   assert.ok(BASH_GUIDANCE_BLOCK.startsWith("Bash is unavailable because it is disabled for this assistant. "));
 });
 
 test("buildBashGuidanceBlock: a grant that leaves Bash available narrows it to reading Tovu's own source", () => {
-  const text = buildBashGuidanceBlock(["Write", "Edit"]);
+  const text = buildBashGuidanceBlock({ disallowedTools: ["Write", "Edit"] });
   assert.ok(text.startsWith("Bash and file access remain available for one narrow purpose: reading Tovu's own source"));
   assert.ok(text.endsWith("you are about to do it the wrong way — search_tools again instead. "));
   assert.notEqual(text, BASH_GUIDANCE_BLOCK);

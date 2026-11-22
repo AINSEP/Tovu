@@ -1,7 +1,9 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
-import type { SecretSealerPort } from "../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
@@ -89,17 +91,17 @@ export function createStoredExternalMcpConnectionSource(
       try {
         const repo = await withoutLegacyDesktop({ deps, isPluginEnabled });
         const { configs, failures } = await readEnabledExternalMcpConfigs(
-          { repo, sealer: deps.sealer, oauth: deps.oauth },
-          deps.workspaceId,
+          { deps: { repo, sealer: deps.sealer, oauth: deps.oauth },
+          workspaceId: deps.workspaceId },
         );
         for (const failure of failures) {
           console.warn(`${deps.log} mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
         }
         configFailures = failures.map((failure) => ({ connectionId: failure.serverId, reason: failure.reason }));
-        return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }));
+        return toResolvedFederatedConnections({ configs }, { readOnlyRemoteNamesByServer: await pluginReadOnlyNames({ deps, configs, resolvePluginReads }) });
       } catch (error) {
         console.warn(
-          `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail(error)}`,
+          `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail({ error: error })}`,
         );
         configFailures = [];
         return [];
@@ -121,7 +123,7 @@ async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExt
     try {
       const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
       if (row && legacy(row)) await deps.repo.deleteByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
-    } catch { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed`); }
+    } catch (error) { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   }
   return {
     listByWorkspaceId: async workspaceId => {
@@ -131,6 +133,9 @@ async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExt
     },
     findByServerId: input => deps.repo.findByServerId(input),
     upsert: record => deps.repo.upsert(record),
+    insert: input => deps.repo.insert(input),
+    updateIfVersion: input => deps.repo.updateIfVersion(input),
+    updateOAuthRuntime: input => deps.repo.updateOAuthRuntime(input),
     updateAccessIfCurrent: input => deps.repo.updateAccessIfCurrent(input),
     deleteByServerId: input => deps.repo.deleteByServerId(input),
     tryClaimOAuthRefreshLease: input => deps.repo.tryClaimOAuthRefreshLease(input),
@@ -144,7 +149,7 @@ function createPluginEnabledReader(inputs: Pick<StoredExternalMcpConnectionSourc
   let pluginReader: Promise<(pluginId: string) => Promise<boolean>> | undefined;
   return async pluginId => {
     pluginReader ??= import('../features/agent-plugins/activation-effects.js').then(({ createAgentPluginEnabledReader }) =>
-      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace(inputs.workspaceId).root }));
+      createAgentPluginEnabledReader({ workspaceRoot: inputs.agentPluginLayout.forWorkspace({ workspaceId: inputs.workspaceId }).root }));
     return (await pluginReader)(pluginId);
   };
 }
@@ -176,14 +181,14 @@ async function pluginReadOnlyNames({ deps, configs, resolvePluginReads }: {
       }));
     } catch (error) {
       // Classification fails closed without dropping unrelated, otherwise usable connections.
-      console.warn(`${deps.log} mcp-federation: plugin read declarations for '${config.serverId}' unavailable — ${errorDetail(error)}`);
+      console.warn(`${deps.log} mcp-federation: plugin read declarations for '${config.serverId}' unavailable — ${errorDetail({ error: error })}`);
     }
   }
   return readOnlyNames;
 }
 
 /** A thrown value's message for a diagnostic line. */
-function errorDetail(error: unknown): string {
+function errorDetail({ error }: { error: unknown }, _optional = {}): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -231,7 +236,7 @@ export function buildExternalMcpFederationDeps(inputs: {
     workspaceId: inputs.workspaceId,
     assertConnectionUsable,
     ...(oauth
-      ? { onAuthFailed: (connectionId: string, error: McpAuthFailedError) => oauth.reportAuthFailure(connectionId, error) }
+      ? { onAuthFailed: ({ connectionId, error }: { connectionId: string; error: McpAuthFailedError }) => oauth.reportAuthFailure(connectionId, error) }
       : {}),
     ...(surfaceExchanges
       ? {

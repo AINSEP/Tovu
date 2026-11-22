@@ -2,16 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger, RunSettlement } from "#src/assistant/index";
-import { createAssistantRunFinalizer, type RunDaemonClient } from "../assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
+import { type RunDaemonClient } from "../run-daemon-http-client.js";
 
 /** TW2 L136: characterize reconnect decisions before simplifying the follow loop. */
 function ledgerFixture() {
   const settled: RunSettlement[] = [];
   const ledger: ChatRunLedger = {
     hasActiveRuns: async () => false,
-    unlessSettled: async (_run, write) => ({ written: true, value: await write() }),
+    unlessSettled: async ({ write }) => ({ written: true, value: await write() }),
     checkpoint: async () => true,
     settle: async value => { settled.push(value); return true; },
     reconcileInterrupted: async () => 0,
@@ -25,6 +26,23 @@ const scheduler: SupervisorScheduler = { schedule({ delayMs, run }) {
 } };
 const message: ChatMessage = { id: "answer", role: "assistant", content: "", runId: "run-pin", runStatus: "running", createdAt: 0 };
 const ended = () => new Response('event: end\ndata: {"kind":"end","payload":{"status":"succeeded","code":0}}\n\n');
+
+test('failed credential release records only its error class and code', async (t) => {
+  const warnings = t.mock.method(console, 'warn', () => undefined);
+  const { ledger } = ledgerFixture();
+  const daemon: RunDaemonClient = {
+    openEvents: async () => ended(), runStatus: async () => 200,
+    release: () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); },
+  };
+  const finalizer = createAssistantRunFinalizer({ ledger, daemon });
+  finalizer.watch({ principalId: 'owner', conversationId: 'chat', message });
+  await finalizer.idle();
+  assert.equal(finalizer.activeCount(), 0);
+  assert.equal(warnings.mock.calls[0]?.arguments[0], '[assistant-run-finalizer] attempt resource cleanup unavailable');
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /Error/);
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(warnings.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET/);
+});
 
 for (const status of [200, 404, 503, null]) {
   test(`reconnect pins: fresh status ${status} after a dropped stream`, async () => {

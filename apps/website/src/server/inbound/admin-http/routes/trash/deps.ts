@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import type { TrashAuthorizeFn, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
-import type { TrashPort } from "@jini-ai/cms/trash";
+import type { TrashAuthorizeFn, TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
 
 /**
@@ -34,7 +34,7 @@ export interface TrashRouteDeps {
   movers?: ReadonlyMap<string, TrashKindMover>;
 }
 
-export type TrashRouteRegistrar = (app: Express, deps: TrashRouteDeps) => void;
+export type TrashRouteRegistrar = (required: { app: Express; deps: TrashRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Rows per page when the caller does not say. Matches the screen's own first render. */
 export const DEFAULT_TRASH_PAGE_SIZE = 50;

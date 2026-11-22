@@ -1,5 +1,6 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
 
@@ -40,15 +41,6 @@ export const DEMO_IMAGE_TOOL_ID = "assistant_demo_image";
  *  test can assert exact pixel bytes without threading a color through the tool-call layer too. */
 const SWATCH_COLOR: RgbColor = { r: 79, g: 70, b: 229 };
 
-/** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts`'s identical field. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
-
 export const demoImageAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: DEMO_IMAGE_TOOL_ID,
@@ -71,11 +63,11 @@ const CATALOG_BY_ID = new Map(demoImageAgentToolCatalog.map((entry) => [entry.na
 /**
  * Builds this tool's registration unconditionally; see the module header.
  *
- * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * @param optional._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature (`tool-registrations.ts`'s `DomainSlice.build`).
  * @returns A single registration.
  */
-export function buildDemoImageRegistrations(_routeDeps?: unknown): ToolRegistration[] {
+export function buildDemoImageRegistrations(_required: Record<string, never>, { _routeDeps }: { _routeDeps?: unknown } = {}): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [DEMO_IMAGE_TOOL_ID]: async () => {
       const png = renderSolidColorPng({ color: SWATCH_COLOR });

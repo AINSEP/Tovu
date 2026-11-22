@@ -1,9 +1,15 @@
-import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 
 import { MediaConflictError, MediaSourceImmutableError, resolveWriteOnceSource, replaceMediaFile, MediaValidationError, sniffContentType } from "./index.js";
-import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord, VersionedMediaRepoPort } from "./index.js";
-import type { MediaSourceReplacement } from "#src/features/publish-content/type-registry";
+import type { VersionedMediaRepoPort } from "@jini-ai/cms/media";
+import type { AssetBlobRecord, AssetBlobRepoPort, BlobStorePort, MediaRecord } from "./index.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
+
+/** The reviewed source a replace-on-import may overwrite (publish-content's precheck refusal carries it). */
+interface MediaSourceReplacement {
+  readonly version: number;
+  readonly sourceSha256: string;
+}
 
 /**
  * @file Task 12 of the publish-content (Publish Content) feature —
@@ -14,7 +20,7 @@ import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
  * `uploadMedia` (`@jini-ai/cms/media`'s `media-service.ts`, composed with `UploadMediaInput`) has NO
  * `id` field on its input — it always mints a fresh id via `deps.idGen.newId()`. A post's `bodyJson`
  * references an embedded image BY id (`{type:"image", attrs:{assetId, transformName}}` —
- * `server/inbound/public-http/http/site/render.ts`'s ref-image path). Importing media through the
+ * `server/inbound/public-http/http/site/render/doc/doc-nodes.ts`'s ref-image path). Importing media through the
  * ordinary `uploadMedia` path therefore uploads the bytes fine but breaks EVERY image embed in every
  * imported post: the post's `assetId` still points at the SOURCE system's id, which no longer
  * resolves to anything at the destination. The failure is silent — bytes intact, links dead.
@@ -145,7 +151,7 @@ export type ImportMediaEntityResult =
  *
  * @complexity O(1).
  */
-function describeVersionMismatch(baseVersion: number | null, current: MediaRecord | null): string | null {
+function describeVersionMismatch({ baseVersion, current }: { baseVersion: number | null; current: MediaRecord | null }, _optional: Record<string, never> = {}): string | null {
   if (baseVersion === null) {
     return current === null ? null : `expected no existing row, found version ${current.version}`;
   }
@@ -175,9 +181,8 @@ function describeVersionMismatch(baseVersion: number | null, current: MediaRecor
  * @complexity O(1) — one repo write, plus at most one re-read on either refusal path.
  */
 async function writeMediaRowConditionally(
-  deps: ImportMediaEntityDeps,
-  row: MediaRecord,
-  baseVersion: number | null
+  { deps, row, baseVersion }: { deps: ImportMediaEntityDeps; row: MediaRecord; baseVersion: number | null },
+  _optional: Record<string, never> = {}
 ): Promise<ImportMediaEntityResult | null> {
   let applied: boolean;
   try {
@@ -199,7 +204,7 @@ async function writeMediaRowConditionally(
 
   const current = await deps.mediaRepo.findById({ workspaceId: row.workspaceId, id: row.id });
   const reason =
-    describeVersionMismatch(baseVersion, current) ??
+    describeVersionMismatch({ baseVersion, current }) ??
     (baseVersion === null
       ? "expected no existing row, but the id is already in use"
       : `expected version ${baseVersion}, but a concurrent write landed first`);
@@ -228,7 +233,7 @@ function checkedBytes({ record, bytes }: { record: MediaRecord; bytes: Uint8Arra
 
   // Safety property 1 (sha256 shape + match) — checked first, before any repo read even, since a
   // malformed/mismatched claim makes every other check moot.
-  if (!isValidSha256Hex(record.source.sha256)) {
+  if (!isValidSha256Hex({ value: record.source.sha256 })) {
     return { status: "blocked", code: "precondition", reason: `malformed source sha256 '${record.source.sha256}'` };
   }
   if (!bytesMatchSha256({ bytes, claimedSha256: record.source.sha256 })) {
@@ -253,7 +258,7 @@ function basisRefusal(
   // Safety property 5 (compare-and-set basis) — checked before the slug check, so a caller whose
   // basis is already stale gets `conflict` (this row changed on the destination) rather than a
   // `blocked`/`slug-taken` that describes a state the caller was never even importing against.
-  const mismatch = describeVersionMismatch(baseVersion, existingById);
+  const mismatch = describeVersionMismatch({ baseVersion, current: existingById });
   if (mismatch) return { status: "conflict", reason: mismatch };
 
   // Safety property 2 (slug collision) — before any write.
@@ -378,7 +383,7 @@ export async function importMediaEntity(required: {
 
   // Safety property 5 (compare-and-set write) — the version compare traveled INTO this write via
   // `baseVersion`; see this function's own header and `writeMediaRowConditionally`'s doc.
-  const refusal = await writeMediaRowConditionally(deps, row, baseVersion);
+  const refusal = await writeMediaRowConditionally({ deps, row, baseVersion });
   if (refusal) return refusal;
 
   return { status: "imported", id: record.id, blobWritten };
@@ -390,7 +395,8 @@ export async function importMediaEntity(required: {
 async function replaceImportedMedia({ deps, input, existing, bytes }: {
   deps: ImportMediaEntityDeps; input: ImportMediaEntityInput; existing: MediaRecord | null; bytes: Uint8Array;
 }, _options = {}): Promise<ImportMediaEntityResult> {
-  const reviewed = input.sourceReplacement!;
+  const reviewed = input.sourceReplacement;
+  if (reviewed === undefined) throw new Error("Media replacement has no reviewed source");
   if (!existing || existing.version !== reviewed.version || existing.source.sha256 !== reviewed.sourceSha256) {
     return { status: "conflict", reason: "The live file changed after review. Plan publishing again and review Overwrite on live." };
   }
@@ -407,10 +413,14 @@ async function replaceImportedMedia({ deps, input, existing, bytes }: {
     return saved ? { status: "imported", id: existing.id, blobWritten }
       : { status: "conflict", reason: "The live file changed during replacement. Plan publishing again." };
   } catch (error) {
-    if (error instanceof MediaValidationError) return { status: "blocked", code: "precondition", reason: error.message };
-    if (error instanceof MediaConflictError) return { status: "blocked", code: "slug-taken", reason: error.message };
-    throw error;
+    return importedMediaReplacementError(error);
   }
+}
+
+function importedMediaReplacementError(error: unknown): ImportMediaEntityResult {
+  if (error instanceof MediaValidationError) return { status: "blocked", code: "precondition", reason: error.message };
+  if (error instanceof MediaConflictError) return { status: "blocked", code: "slug-taken", reason: error.message };
+  throw error;
 }
 
 /** A replacement rollback restores bytes through the same CAS/rendition transaction, never save().

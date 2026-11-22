@@ -8,7 +8,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import {
@@ -61,11 +62,11 @@ for (const scenario of scenarios) {
     } as unknown as ContentRouteDeps;
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-    registerAdminThemeDetailRoute(app, deps);
-    registerAdminThemeFileDeleteRoute(app, deps);
-    registerAdminThemeFileRenameRoute(app, deps);
-    registerAdminThemeFileGetRoute(app, deps);
-    registerAdminThemeFileResetRoute(app, deps);
+    registerAdminThemeDetailRoute({ app, deps });
+    registerAdminThemeFileDeleteRoute({ app, deps });
+    registerAdminThemeFileRenameRoute({ app, deps });
+    registerAdminThemeFileGetRoute({ app, deps });
+    registerAdminThemeFileResetRoute({ app, deps });
     const fault = Object.assign(new Error("injected I/O failure"), { code: "EIO" });
     const original = fs[operation] as (...args: unknown[]) => unknown;
     let faultReached = false;

@@ -29,7 +29,7 @@ test("MEMBER_DISABLE route: 400 VALIDATION_ERROR when disableMember throws Membe
       },
     },
   } as unknown as MembersRouteDeps;
-  registerAdminMemberDisableRoute(app, deps);
+  registerAdminMemberDisableRoute({ app, deps });
   const routeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable");
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-123" };

@@ -41,8 +41,8 @@ for (const [name, makeStore] of adapters) {
 
   test(`${name}: isPending is true only for a recorded, unresolved workspace`, async () => {
     const store = makeStore(["ws-a"]);
-    assert.equal(await store.isPending("ws-a"), true);
-    assert.equal(await store.isPending("ws-never-recorded"), false);
+    assert.equal(await store.isPending({ workspaceId: "ws-a" }), true);
+    assert.equal(await store.isPending({ workspaceId: "ws-never-recorded" }), false);
   });
 
   test(`${name}: markPreserved resolves one workspace, leaves the rest pending, and is a no-op when repeated or unrecorded`, async () => {
@@ -52,9 +52,9 @@ for (const [name, makeStore] of adapters) {
     await store.markPreserved({ workspaceId: "ws-a", preservedAt: "2026-09-13T00:00:00.000Z" });
     await store.markPreserved({ workspaceId: "ws-never-recorded", preservedAt: "2026-09-12T00:00:00.000Z" });
 
-    assert.equal(await store.isPending("ws-a"), false);
-    assert.equal(await store.isPending("ws-b"), true);
-    assert.equal(await store.isPending("ws-never-recorded"), false, "marking an unrecorded id must not record it");
+    assert.equal(await store.isPending({ workspaceId: "ws-a" }), false);
+    assert.equal(await store.isPending({ workspaceId: "ws-b" }), true);
+    assert.equal(await store.isPending({ workspaceId: "ws-never-recorded" }), false, "marking an unrecorded id must not record it");
     assert.deepEqual(await store.listPendingWorkspaceIds(), ["ws-b"]);
   });
 }

@@ -33,12 +33,12 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaUploadRoute(app, deps);
-  registerAdminMediaTrashRoute(app, deps);
-  registerAdminMediaOriginalRoute(app, deps);
+  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaTrashRoute({ app, deps });
+  registerAdminMediaOriginalRoute({ app, deps });
   return { app, deps };
 }
 
@@ -216,6 +216,7 @@ test("media original route: Range requests — full body without a Range header,
   const clampedTail = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie, Range: "bytes=15-9999" } });
   assert.equal(clampedTail.status, 206);
   assert.equal(clampedTail.headers.get("content-range"), "bytes 15-19/20");
+  assert.equal(clampedTail.headers.get("content-length"), "5");
   assert.equal(await clampedTail.text(), "FGHIJ");
 
   const suffix = await fetch(originalUrl(baseUrl, mediaId), { headers: { cookie, Range: "bytes=-5" } });

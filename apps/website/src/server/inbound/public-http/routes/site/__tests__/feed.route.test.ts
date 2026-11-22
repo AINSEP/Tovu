@@ -1,3 +1,5 @@
+import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -25,7 +27,7 @@ async function buildFeedOnlyApp(depsOverrides: Partial<SeoRouteDeps>): Promise<e
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerFeedRoute(app, deps);
+  registerFeedRoute({ app, deps });
   return app;
 }
 
@@ -49,7 +51,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 }
 
 async function fetchFeed(t: test.TestContext, posts: PostRecord[]): Promise<{ res: Response; body: string; baseUrl: string }> {
-  const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo(posts) });
+  const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo({}, { initialRows: posts }) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
   return { res, body: await res.text(), baseUrl };
@@ -100,7 +102,7 @@ test("GET /feed.xml: newest first, at most 20 items", async (t) => {
 });
 
 test("GET /feed.xml: a post-read failure is a plain-text 500", async (t) => {
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };
@@ -108,5 +110,28 @@ test("GET /feed.xml: a post-read failure is a plain-text 500", async (t) => {
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
   assert.equal(res.status, 500);
-  assert.equal(await res.text(), "internal error");
+  assert.match(await res.text(), /couldn’t load the feed.*Error ID:/);
+});
+
+test("unexpected feed failure keeps plain text and one redacted matching incident", async t => {
+  const cause = new Error("feed storage context password=PUBLIC_CANARY");
+  const reports: unknown[] = [];
+  const logs = t.mock.method(console, "error", () => {});
+  const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerFeedRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/feed.xml`);
+  const text = await res.text();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.match(text, /couldn’t load the feed/);
+  const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
+  assert.ok(id);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(id));
+  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
 });

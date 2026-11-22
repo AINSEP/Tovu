@@ -1,50 +1,23 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
 /**
- * @file Comments' half of ADR-049 Decision 4 (ADR-031/SPEC-033/SPEC-035): maps `agent-tools.ts`'s
- * seven catalog entries onto the moderation queue, the four moderation transitions, and the two
- * settings operations, as `ToolRegistration`s. The entire catalog is wired.
- *
- * Authorization shape, and why it differs from Forms/Identity/content-types: `comments/
- * write-service.ts`'s own file header records that "Routes call authorize() first ... then this
- * service, never the repo directly" — the domain functions carry no `authorize()` call to inherit.
- * Six of the seven handlers here therefore perform that check themselves, via the kit's
- * `requireToolPermission`, mirroring each route's exact sequence. That is still ADR-021 §2's "one
- * evaluator": for those six, the single evaluation happens at the handler because that is where the
- * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
- * documented at its own handler.
+ * @file Comments' half of ADR-049 Decision 4 (ADR-031/SPEC-033/SPEC-035), the host binding: the
+ * catalog, the ten handlers, the authored risk map and the typed-error mapping live in
+ * `@jini-ai/cms/comments` (`buildCommentsToolRegistrations`). This file supplies what is Tovu's: the
+ * settings ledger operations and its refusal class, the approval wrapper and the unexpected-key
+ * refusal, the search vocabulary and approval policy (`toolMetadata`), and the default surface store.
  */
-import { buildDomainRegistrations, indexCatalogById, optionalOneOf, optionalString, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
-import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
-// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
-// than redacting it into a message-stripped 500.
-import { ToolInputError } from "@jini-ai/core";
-import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { ToolContributor } from "@jini-ai/core";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { commentsAgentToolCatalog } from "./agent-tools.js";
-import type { CommentRepoPort } from "@jini-ai/cms/comments";
-import { CommentNotFoundError, CommentsSettingsValidationError, CommentVersionConflictError } from "@jini-ai/cms/comments";
-import { getCommentsSettings, setCommentsSettings } from "./settings.js";
-import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
-import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueuePage } from "@jini-ai/cms/comments";
-import type { CommentWriteService } from "@jini-ai/cms/comments";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
+import { buildCommentsToolRegistrations, commentsDerivedRisk, type CommentRepoPort, type CommentsPackageToolDeps, type CommentWriteService } from "@jini-ai/cms/comments";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
+import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
+import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';
-
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: commentsAgentToolCatalog });
-
-/** The model relays this verbatim, so it says what is off and that nothing stored was lost. */
-function providerNote({ providerId, adapterReady }: { providerId: string | null; adapterReady: boolean }, _options = {}): string {
-  if (providerId === null) return 'Public comments are off. Stored comments, settings and the moderation queue are kept; select built-in to show them again.';
-  if (!adapterReady) return `The '${providerId}' provider is selected but not ready yet; comments are not showing. Try again shortly.`;
-  return `The '${providerId}' provider is selected but comments are disabled in comments settings; enable them there.`;
-}
+import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
+import { getCommentsSettings, setCommentsSettings } from "./settings.js";
 
 /**
  * The exact slice of the route-deps bag Comments' tool handlers read. Declared structurally
@@ -66,315 +39,50 @@ export interface CommentsToolDeps {
   principalRepo: PrincipalRepoPort;
 }
 
-const MUTATES_DURABLE_STATE = 'mutates-durable-state' as const;
-
 /**
- * This wiring layer's OWN risk classification, authored from what each handler below actually
- * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration.
+ * The route deps as the package-side ports. Every field reads the route deps at call time (a getter,
+ * not a copy) because the route deps bag is mutable: a caller that swaps `authorize` or the provider
+ * registry after the registrations were built is seen by the next tool call, as it was before the
+ * handlers took ports.
  */
-export const commentsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  ['comments_get_provider', 'none'],
-  ['comments_set_provider', MUTATES_DURABLE_STATE],
-  // -> commentRepo.listModerationQueue: read only.
-  ["comments_list_moderation_queue", "none"],
-  // Workspace-scoped findById, projected through the same moderation view.
-  ["comments_get_comment", "none"],
-  // -> getCommentsSettings (settings.ts): settingsRepo read only.
-  ["comments_get_settings", "none"],
-  // -> setCommentsSettings (settings.ts): N ledger set() calls, one per changed field.
-  ["comments_update_settings", MUTATES_DURABLE_STATE],
-  // -> commentWriteService.applyModeration: status flip + moderation_log append + outbox/hooks.
-  ["comments_approve_comment", MUTATES_DURABLE_STATE],
-  ["comments_mark_comment_spam", MUTATES_DURABLE_STATE],
-  ["comments_trash_comment", MUTATES_DURABLE_STATE],
-  ["comments_restore_comment", MUTATES_DURABLE_STATE],
-]);
-
-/** What a comment looks like to the model — trims `CommentRecord` to what a moderation decision actually needs. */
-function toCommentModerationView(record: {
-  id: string;
-  entryId: string;
-  parentId: string | null;
-  status: CommentStatus;
-  authorName: string;
-  authorEmail: string | null;
-  bodyText: string;
-  spamScore: number | null;
-  createdAt: string;
-  version: number;
-}) {
+function toPackageDeps({ routeDeps }: { routeDeps: CommentsToolDeps }, _optional = {}): CommentsPackageToolDeps {
   return {
-    id: record.id,
-    entryId: record.entryId,
-    parentId: record.parentId,
-    status: record.status,
-    authorName: record.authorName,
-    authorEmail: record.authorEmail,
-    bodyText: record.bodyText,
-    spamScore: record.spamScore,
-    createdAt: record.createdAt,
-    version: record.version,
-  };
-}
-
-/** Projects a `ModerationQueuePage` into the model-facing shape — `workspaceId`/internal fields (threadRootId, depth, authorIpHash, spamProvider, updatedAt) dropped, same discipline as content-types' `toContentTypeView`. */
-function toModerationQueueToolView(page: ModerationQueuePage): { items: ReturnType<typeof toCommentModerationView>[]; nextCursor: string | null } {
-  return { items: page.items.map(toCommentModerationView), nextCursor: page.nextCursor };
-}
-
-/**
- * The Comments refusals safe to show the model verbatim (wm S16). Without this list every one of
- * them — a permission denial, a stale `expectedVersion`, an unknown id — reached the model as the
- * transport's redacted INTERNAL_ERROR, so it could not tell "retry with the fresh version" from a
- * crash. The messages carry only ids/versions the caller itself supplied or must resend; comment
- * bodies and author data never appear in them.
- */
-const COMMENTS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule({ domainPrefix: "COMMENTS", error: ForbiddenError }),
-  // `comments_update_settings` is refused by the settings kit's own ForbiddenError (a separate
-  // class, not a subclass of the cms one) — see that handler's note on self-enforcement.
-  forbiddenRule({ domainPrefix: "COMMENTS", error: SettingsForbiddenError }),
-  { error: CommentNotFoundError, code: "COMMENTS_NOT_FOUND" },
-  {
-    error: CommentVersionConflictError,
-    code: "COMMENTS_VERSION_CONFLICT",
-    guidance: "Re-read it with comments_list_moderation_queue and retry with the fresh version",
-  },
-];
-
-/** Maps `applyModeration`'s returned failure to the typed domain error the handlers throw. */
-function moderationFailureError(required: { commentId: string; result: { reason: "not-found" | "conflict"; currentVersion?: number } }): Error {
-  const { commentId, result } = required;
-  return result.reason === "conflict"
-    ? new CommentVersionConflictError({ commentId, ...(result.currentVersion !== undefined ? { currentVersion: result.currentVersion } : {}) })
-    : new CommentNotFoundError({ commentId });
-}
-
-/**
- * Builds one moderation-action tool handler — shared by approve/mark_spam/trash/restore, which
- * differ only in the permission gated on and the `action`/`toStatus` pair passed to
- * `commentWriteService.applyModeration`. Factored out rather than four near-duplicate handlers.
- *
- * `applyModeration`'s success half is `{ok:true}` with no updated record (a real interface
- * limitation, not a shortcut this file takes — `CommentWriteService`'s declared return type
- * carries nothing else back), so the acknowledgement echoes what the model already told it
- * (commentId, the resulting status) — the same "echo the id back" convention
- * `identity_role_delete` uses for a void-resolving domain call.
- *
- * @complexity O(1) beyond the wrapped `applyModeration` call.
- * @overallScore 100
- */
-function buildCommentsModerationHandler(
-  routeDeps: CommentsToolDeps,
-  spec: { permission: string; action: ModerationAction; toStatus: CommentStatus },
-): ToolHandler {
-  return async (ctx) => {
-    const input = requireInputRecord({ input: ctx.input });
-    const commentId = requireString({ input: input, key: "commentId" });
-
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: spec.permission }, { entityType: "comment", entityId: commentId });
-
-    await routeDeps.commentsReady;
-    const result = await routeDeps.commentWriteService.applyModeration({
-      workspaceId: routeDeps.workspaceId,
-      id: commentId,
-      expectedVersion: requireNumber({ input, key: "expectedVersion" }),
-      action: spec.action,
-      toStatus: spec.toStatus,
-      actorPrincipalId: ctx.principal.id,
-      note: typeof input.note === "string" ? input.note : null,
-    });
-    if (!result.ok) {
-      throw moderationFailureError({ commentId, result });
-    }
-
-    return { moderated: { commentId, toStatus: spec.toStatus } };
-  };
-}
-
-const COMMENTS_TRASH_TOOL_ID = "comments_trash_comment";
-
-/** See `trash/trash-item-tool.ts`'s identical constant's doc — duplicated here rather than
- *  imported, the same "structurally typed, no `features/trash` import" convention this file's own
- *  header already follows. */
-const ASSISTANT_ACTOR_PLUGIN_ID = "assistant";
-
-/** Reads the optional patch members of `comments_update_settings`, requiring at least one — mirrors Forms' `requireFormsPatch`'s identical "no accepted-as-no-op empty patch" discipline. */
-function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<CommentsSettings> {
-  const patch: Partial<CommentsSettings> = {};
-  if (typeof input.enabled === "boolean") patch.enabled = input.enabled;
-  if (typeof input.requireModeration === "boolean") patch.requireModeration = input.requireModeration;
-  if (typeof input.maxDepth === "number") patch.maxDepth = input.maxDepth;
-  if (input.closeAfterDays === null || typeof input.closeAfterDays === "number") patch.closeAfterDays = input.closeAfterDays as number | null;
-  if (typeof input.spamAutoRejectScore === "number") patch.spamAutoRejectScore = input.spamAutoRejectScore;
-  if (typeof input.maxPerIpPerHour === "number") patch.maxPerIpPerHour = input.maxPerIpPerHour;
-  if (Object.keys(patch).length === 0) {
-    throw new ToolInputError({ message: "at least one of enabled, requireModeration, maxDepth, closeAfterDays, spamAutoRejectScore, maxPerIpPerHour is required" });
-  }
-  return patch;
-}
-
-export function buildCommentsRegistrations(
-  routeDeps: CommentsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
-  const providerRegistry = (_required = {}, _options = {}) => {
-    if (!routeDeps.commentsProviders) throw new ToolInputError({ message: 'Comments provider service is unavailable.' });
-    return routeDeps.commentsProviders;
-  };
-  const providerPermission = async ({ principalId }: { principalId: string }, _options = {}) => {
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId, permission: 'comments.configure' }, { entityType: 'comments-provider' });
-    await Promise.all([routeDeps.commentsReady, routeDeps.commentsSettingsReady]);
-  };
-  const handlers: Record<string, ToolHandler> = {
-    comments_get_provider: async ctx => {
-      await providerPermission({ principalId: ctx.principal.id });
-      const active = await providerRegistry().active({ siteId: routeDeps.workspaceId });
-      const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      const ready = !!active.adapter && settings.enabled;
-      return { providerId: active.providerId, revision: active.revision, ready,
-        pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }),
-        ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
-    },
-    comments_set_provider: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
-        if (input.providerId !== null && input.providerId !== 'built-in') throw new ToolInputError({ message: 'Select built-in or null to disable comments.' });
-        const expectedRevision = requireNumber({ input, key: 'expectedRevision' });
-        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new ToolInputError({ message: 'expectedRevision must be a non-negative integer.' });
-        await providerPermission({ principalId: ctx.principal.id });
-        const current = await providerRegistry().active({ siteId: routeDeps.workspaceId });
-        if (current.revision !== expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
-        return { providerId: input.providerId as string | null, previousProviderId: current.providerId, expectedRevision,
-          pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
-      },
-      describe: ({ ctx, prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
-        access: { resources: [{ id: 'core.comments.provider', label: 'Provider', scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId },
-          previous: prepared.previousProviderId ?? 'Disabled', proposed: prepared.providerId ?? 'Disabled', revision: String(prepared.expectedRevision) }] },
-        details: [{ label: 'Pending stored comments', value: String(prepared.pendingCount) }],
-        warning: 'Switching or disabling hides public stored comments. Stored data and the readable moderation queue are preserved.', confirmLabel: 'Change provider' }),
-      run: async ({ ctx, prepared }) => {
-        await providerPermission({ principalId: ctx.principal.id });
-        const pendingCount = await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' });
-        if (pendingCount > prepared.pendingCount) throw new ToolInputError({ message: 'More comments arrived. Review a fresh provider confirmation.' });
-        await providerRegistry().select({ siteId: routeDeps.workspaceId, providerId: prepared.providerId, expectedRevision: prepared.expectedRevision, actorPrincipalId: ctx.principal.id });
-        return { changed: true, providerId: prepared.providerId };
-      },
-    }, { flag: 'changed' }),
-    /** Reads any status directly; pagination cannot establish that an id is absent. */
-    comments_get_comment: async (ctx) => {
-      const commentId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "commentId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment", entityId: commentId });
-      await routeDeps.commentsReady;
-      const comment = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
-      if (!comment) throw new CommentNotFoundError({ commentId });
-      return { comment: toCommentModerationView(comment) };
-    },
-    comments_list_moderation_queue: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment" });
-
-      await routeDeps.commentsReady;
-      const status: CommentStatus = optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending";
-      const limit = readToolLimit({ input, max: 100, fallback: 20 });
-      // A non-string cursor is refused, not read as "no cursor" and page 1.
-      const cursor = optionalString({ input, key: "cursor" }) ?? null;
-      const page = await routeDeps.commentRepo.listModerationQueue({ workspaceId: routeDeps.workspaceId, status, limit, cursor });
-      return toModerationQueueToolView(page);
-    },
-
-    comments_get_settings: async (ctx) => {
-      // `getCommentsSettings` has no `authorize` in its deps at all (unlike `setCommentsSettings`,
-      // which self-enforces via its own `set()` call below) — the GET route gates explicitly
-      // before calling it, so this handler mirrors that same explicit call.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.configure" }, { entityType: "comments-settings" });
-
-      await routeDeps.commentsSettingsReady;
-      const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      return { settings };
-    },
-
-    comments_update_settings: async (ctx) => {
-      const patch = requireCommentsSettingsPatch(requireInputRecord({ input: ctx.input }));
-
+    get commentsProviders() { return routeDeps.commentsProviders; },
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get commentsReady() { return routeDeps.commentsReady; },
+    get commentsSettingsReady() { return routeDeps.commentsSettingsReady; },
+    get commentRepo() { return routeDeps.commentRepo; },
+    get commentWriteService() { return routeDeps.commentWriteService; },
+    commentsSettings: {
+      get: (input) => getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, input),
       // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
       // (settings.ts) self-enforces internally — its `set()` call is invoked with
       // `requiredPermissionOverride: 'comments.configure'` HARD-CODED inside settings.ts itself, so
       // passing `authorize: routeDeps.authorize` through is exactly ADR-021 §2's "one evaluator",
       // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
       // of this file uses. See settings.ts's own comment on that override for why.
-      await routeDeps.commentsSettingsReady;
-      const settings = await setCommentsSettings(
-        {
-          settingsRepo: routeDeps.settingsRepo,
-          clock: routeDeps.clock,
-          ids: routeDeps.idGen,
-          authorize: routeDeps.authorize,
-          principals: routeDeps.principalRepo,
-        },
-        { workspaceId: routeDeps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
-      ).catch((error: unknown) => {
-        if (error instanceof CommentsSettingsValidationError) throw new ToolInputError({ message: error.message });
-        throw error;
-      });
-      return { settings };
+      set: (input) => setCommentsSettings(
+        { settingsRepo: routeDeps.settingsRepo, clock: routeDeps.clock, ids: routeDeps.idGen, authorize: routeDeps.authorize, principals: routeDeps.principalRepo },
+        input,
+      ),
     },
-
-    comments_approve_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "approve", toStatus: "approved" }),
-    comments_mark_comment_spam: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "mark_spam", toStatus: "spam" }),
-
-    /** Reversibly trashes a comment through the existing moderation and version checks. */
-    comments_trash_comment: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const commentId = requireString({ input: input, key: "commentId" });
-      const expectedVersion = requireNumber({ input, key: "expectedVersion" });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
-
-      await routeDeps.commentsReady;
-      const existing = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
-      if (!existing) throw new CommentNotFoundError({ commentId });
-
-      // Re-check authorization immediately before the service write.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
-      const result = await routeDeps.commentWriteService.applyModeration({
-        workspaceId: routeDeps.workspaceId,
-        id: commentId,
-        expectedVersion,
-        action: "trash",
-        toStatus: "trash",
-        actorPrincipalId: ctx.principal.id,
-        actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
-        note: typeof input.note === "string" ? input.note : null,
-      });
-      if (!result.ok) {
-        throw moderationFailureError({ commentId, result });
-      }
-
-      return { trashed: true, cancelled: false, moderated: { commentId, toStatus: "trash" } };
-
-    },
-
-    comments_restore_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "restore", toStatus: "approved" }),
+    settingsForbiddenError: SettingsForbiddenError,
+    approvalHandler: approvalToolHandler,
+    refuseUnexpectedKeys,
   };
+}
 
-  // No `unwiredToolIds`: Comments wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "comments",
-    catalogModule: "comments/agent-tools.ts",
-    catalog: CATALOG_BY_ID,
-    // Wrapped once over the whole map, never per handler — see `withModelFacingErrors`' own doc.
-    handlers: withModelFacingErrors({ handlers, rules: COMMENTS_MODEL_FACING_ERRORS }),
-    derivedRisk: commentsDerivedRisk,
-  });
+export function buildCommentsRegistrations(
+  routeDeps: CommentsToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildCommentsToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
  * Contributes Comments' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildCommentsRegistrations`/
  * `commentsDerivedRisk` by name; this is the seam that replaced it (2026-08-17 — see
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with

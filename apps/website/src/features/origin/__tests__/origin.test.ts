@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { OriginRegistry } from "@jini-ai/http-kit/verified-origin";
-import { InMemoryOriginSettingRepo } from "@jini-ai/http-kit/verified-origin";
-import { OriginNotVerifiedError, createVerifiedOrigin, InsecureOriginSourceError } from "@jini-ai/http-kit/verified-origin";
+import { OriginRegistry, InMemoryOriginSettingRepo, OriginNotVerifiedError, createVerifiedOrigin, InsecureOriginSourceError } from "@jini-ai/core/contracts/server/verified-origin";
 
 const WORKSPACE = "workspace-1";
 

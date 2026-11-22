@@ -15,7 +15,7 @@ import {
  */
 export class SqliteMemberExternalIdentityRepo extends SqlMemberExternalIdentityRepo {
   constructor(required: { store: ContentKernel | ContentDb }, _options: Record<string, never> = {}) {
-    super({ kernel: contentKernel(required.store) });
+    super({ kernel: contentKernel({ store: required.store }) });
   }
 }
 
@@ -28,42 +28,42 @@ export class SqliteMemberExternalIdentityRepo extends SqlMemberExternalIdentityR
 
 export class SqliteMemberRepo extends SqlMemberRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMemberTierRepo extends SqlMemberTierRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMemberSubscriptionRepo extends SqlMemberSubscriptionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMemberSessionRepo extends SqlMemberSessionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMagicLinkTokenRepo extends SqlMagicLinkTokenRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMemberConsentRepo extends SqlMemberConsentRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }

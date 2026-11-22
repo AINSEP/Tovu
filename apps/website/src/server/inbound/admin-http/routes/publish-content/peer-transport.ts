@@ -1,6 +1,6 @@
 import type { PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
 // Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
@@ -31,12 +31,10 @@ import {
   bodyRecord,
   mappedErrorResponse,
   OVERWRITE_REFUSED,
-  rejectForeignWorkspace,
-  routeParam,
   sendRefusal,
   type MappedErrorClass,
-  type RouteParamsRequest,
 } from "./route-helpers.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -100,7 +98,7 @@ const PEER_ACTION_ERRORS: readonly MappedErrorClass[] = [
 /** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
  *  failure reaches the owner there as the same actionable answer; `message` names its private 500.
  *  @complexity O(1). */
-export function respondWithError(res: Response, err: unknown, { message }: { message?: string } = {}): void {
+export function respondWithError({ res, err }: { res: Response; err: unknown }, { message }: { message?: string } = {}): void {
   if (err instanceof PublishContentPeerTransportError) {
     // 502: this instance is fine and the request was well-formed; the PEER (or the path to it) is
     // what failed. A 500 here would send an operator looking in the wrong server's logs — and for
@@ -111,16 +109,16 @@ export function respondWithError(res: Response, err: unknown, { message }: { mes
   }
   // The mapper needs the registered template to distinguish preparation from an uncertain send.
   // Concrete request paths and mounted base URLs can contain private IDs and never enter copy.
-  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, {
+  sendRefusal({ res, refusal: mappedErrorResponse({ err, table: PEER_ACTION_ERRORS }, {
     tracker: res.locals?.adminFailureTracker, message, method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
-  }));
+  }) });
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.
  *  @complexity O(1) plus one repo read and one AEAD open. */
-async function openPeer(deps: PublishContentRouteDeps, peerId: string): Promise<PeerCallDeps> {
+async function openPeer({ deps, peerId }: { deps: PublishContentRouteDeps; peerId: string }, _options: Record<string, never> = {}): Promise<PeerCallDeps> {
   const credential = await resolvePublishDestinationCredential({
     deps: {
       repo: deps.publishContentPeerRepo,
@@ -149,8 +147,8 @@ const INVALID_SELECTION = Symbol("invalid-selection");
  *
  * @complexity O(n) in the submitted key count.
  */
-function readSelectedEntityKeys(body: unknown): readonly string[] | null | typeof INVALID_SELECTION {
-  const raw = bodyRecord(body);
+function readSelectedEntityKeys({ body }: { body: unknown }, _options: Record<string, never> = {}): readonly string[] | null | typeof INVALID_SELECTION {
+  const raw = bodyRecord({ body });
   if (raw.selectedEntityKeys === undefined || raw.selectedEntityKeys === null) return null;
   if (!Array.isArray(raw.selectedEntityKeys)) return INVALID_SELECTION;
   if (!raw.selectedEntityKeys.every((key): key is string => typeof key === "string")) return INVALID_SELECTION;
@@ -181,8 +179,8 @@ function isNonEmptyStringArrayField(value: unknown): value is readonly string[] 
  *   (`"scope"` itself when it is not an object or names neither field — never read as "everything").
  * @complexity O(n) in the submitted array lengths.
  */
-function readPublishScope(body: unknown): { scope: PublishScope | null } | { invalidField: ScopeInvalidField } {
-  const raw = bodyRecord(body);
+function readPublishScope({ body }: { body: unknown }, _options: Record<string, never> = {}): { scope: PublishScope | null } | { invalidField: ScopeInvalidField } {
+  const raw = bodyRecord({ body });
   if (raw.scope === undefined || raw.scope === null) return { scope: null };
   if (typeof raw.scope !== "object" || Array.isArray(raw.scope)) return { invalidField: "scope" };
   const scopeBody = raw.scope as Record<string, unknown>;
@@ -214,10 +212,10 @@ function scopeErrorMessage(invalidField: ScopeInvalidField): string {
  * @returns the 400 message for the first malformed one, or both read values.
  * @complexity O(n) in the submitted array lengths.
  */
-function readPushPlanNarrowing(body: unknown): { error: string } | { scope: PublishScope | null; selectedEntityKeys: readonly string[] | null } {
-  const selectedEntityKeys = readSelectedEntityKeys(body);
+function readPushPlanNarrowing({ body }: { body: unknown }, _options: Record<string, never> = {}): { error: string } | { scope: PublishScope | null; selectedEntityKeys: readonly string[] | null } {
+  const selectedEntityKeys = readSelectedEntityKeys({ body });
   if (selectedEntityKeys === INVALID_SELECTION) return { error: "'selectedEntityKeys' must be an array of strings" };
-  const scopeResult = readPublishScope(body);
+  const scopeResult = readPublishScope({ body });
   if ("invalidField" in scopeResult) return { error: scopeErrorMessage(scopeResult.invalidField) };
   return { scope: scopeResult.scope, selectedEntityKeys };
 }
@@ -232,115 +230,153 @@ function readPushPlanNarrowing(body: unknown): { error: string } | { scope: Publ
  * @returns `true` when the request may proceed. On `false` the 403 has already been sent.
  * @complexity O(1).
  */
-function mayOverwrite(res: Response, overwriteEntityKeys: readonly string[] | null): boolean {
+function mayOverwrite({ res, overwriteEntityKeys }: { res: Response; overwriteEntityKeys: readonly string[] | null }, _options: Record<string, never> = {}): boolean {
   if (overwriteEntityKeys === null || overwriteEntityKeys.length === 0) return true;
-  return rejectUnlessSessionCredential(res, {
+  return rejectUnlessSessionCredential({ res,
     message: "'overwriteEntityKeys' can only be sent from a signed-in admin session",
     permission: "publish_content.apply",
   });
 }
 
-export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = (app, deps) => {
-  const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId";
+type PeerRouteDeps = Parameters<PublishContentRouteRegistrar>[0]["deps"];
+type PeerGuard = (input: { req: Pick<Request, "params">; res: Response }) => Promise<string | null>;
 
-  /** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
-   *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
-   *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
-  const guard = async (req: RouteParamsRequest, res: Response): Promise<string | null> => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return null;
-    return authorizedPrincipalId(res, deps, "publish_content.apply");
-  };
+/** What each peer route registrar needs: the app, deps, the shared path prefix and the two guards. */
+interface PeerRouteContext {
+  app: Parameters<PublishContentRouteRegistrar>[0]["app"];
+  deps: PeerRouteDeps;
+  base: string;
+  guard: PeerGuard;
+  pushGuard: PeerGuard;
+}
 
-  /** The push routes' extra preamble: the live site is the publish destination, so it never pushes
-   *  (`live-site-policy.ts`). Runs before {@link guard} — nothing about the caller changes the answer. */
-  const pushGuard: typeof guard = async (req, res) => {
-    if (!canPublishToLive()) {
-      res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
-      return null;
-    }
-    return guard(req, res);
-  };
+/** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
+ *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
+ *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
+async function peerGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
+  const { deps, req, res } = input;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
+  return authorizedPrincipalId({ res, deps, permission: "publish_content.apply" });
+}
 
+/** The push routes' extra preamble: the live site is the publish destination, so it never pushes
+ *  (`live-site-policy.ts`). Runs before {@link peerGuard} — nothing about the caller changes the answer. */
+async function peerPushGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
+  const { deps, req, res } = input;
+  if (!canPublishToLive()) {
+    res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
+    return null;
+  }
+  return peerGuard({ deps, req, res });
+}
+
+function registerPushPlanRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/plan`, async (req, res) => {
     try {
-      const principalId = await pushGuard(req, res);
+      const principalId = await pushGuard({ req, res });
       if (principalId === null) return;
 
-      const narrowing = readPushPlanNarrowing(req.body);
+      const narrowing = readPushPlanNarrowing({ body: req.body });
       if ("error" in narrowing) {
         res.status(400).json({ error: narrowing.error, code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, bodyRecord(req.body).overwriteEntityKeys, mayOverwrite);
+      const overwriteEntityKeys = acceptOverwriteEntityKeys({ res, raw: bodyRecord({ body: req.body }).overwriteEntityKeys, mayOverwrite });
       if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
+      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
       res.json(await planPublishToPeer({
         deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) },
         peer,
         principalId,
       }, { scope: narrowing.scope, selectedEntityKeys: narrowing.selectedEntityKeys, overwriteEntityKeys }));
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
+}
 
+function registerPushConfirmRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/confirm`, async (req, res) => {
     try {
-      const principalId = await pushGuard(req, res);
+      const principalId = await pushGuard({ req, res });
       if (principalId === null) return;
 
-      const { planId, planHash } = bodyRecord(req.body);
+      const { planId, planHash } = bodyRecord({ body: req.body });
       if (typeof planId !== "string" || typeof planHash !== "string") {
         res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
-      res.json(await confirmPeerImport(peer, { planId, planHash }));
+      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
+      res.json(await confirmPeerImport({ deps: peer, required: { planId, planHash } }));
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
+}
 
+function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/execute`, async (req, res) => {
     try {
-      const principalId = await pushGuard(req, res);
+      const principalId = await pushGuard({ req, res });
       if (principalId === null) return;
 
-      const body = bodyRecord(req.body);
+      const body = bodyRecord({ body: req.body });
       const { bundleId, confirmationToken } = body;
       if (typeof bundleId !== "string" || typeof confirmationToken !== "string") {
         res.status(400).json({ error: "'bundleId' and 'confirmationToken' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
-      const overwriteEntityKeys = acceptOverwriteEntityKeys(res, body.overwriteEntityKeys, mayOverwrite);
+      const overwriteEntityKeys = acceptOverwriteEntityKeys({ res, raw: body.overwriteEntityKeys, mayOverwrite });
       if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
+      const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
       res.json(
-        await executePeerImport(peer, {
-          bundleId,
-          confirmationToken,
-          ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
-        })
+        await executePeerImport({
+                                  deps: peer,
+                                  required: {
+            bundleId,
+            confirmationToken,
+            ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
+          }
+                                })
       );
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
+}
 
+function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
   app.post(`${base}/pull`, async (req, res) => {
     try {
-      const principalId = await guard(req, res);
+      const principalId = await guard({ req, res });
       if (principalId === null) return;
 
-      res.status(201).json(await pullAndStageFromPeer(deps, {
-        peerId: routeParam(req, "peerId"),
-        principalId,
-      }));
+      res.status(201).json(await pullAndStageFromPeer({
+                                                        deps,
+                                                        input: {
+          peerId: readRouteParam({ req, name: "peerId" }),
+          principalId,
+        }
+                                                      }));
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
+}
+
+export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const context: PeerRouteContext = {
+    app,
+    deps,
+    base: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId",
+    guard: ({ req, res }) => peerGuard({ deps, req, res }),
+    pushGuard: ({ req, res }) => peerPushGuard({ deps, req, res }),
+  };
+  registerPushPlanRoute(context);
+  registerPushConfirmRoute(context);
+  registerPushExecuteRoute(context);
+  registerPullRoute(context);
 };

@@ -18,7 +18,7 @@ describe("useJsonFieldControl — M2 validity reporting", () => {
       useJsonFieldControl({ value: { price: 2 }, onChange: vi.fn(), fieldName: "meta", setFieldValidity })
     );
 
-    act(() => result.current.handleTextChange('{"price":2'));
+    act(() => result.current.handleTextChange({ nextText: '{"price":2' }));
 
     expect(setFieldValidity).toHaveBeenCalledWith("meta", false);
     expect(result.current.parseError).toBe(true);
@@ -31,7 +31,7 @@ describe("useJsonFieldControl — M2 validity reporting", () => {
       useJsonFieldControl({ value: {}, onChange, fieldName: "meta", setFieldValidity })
     );
 
-    act(() => result.current.handleTextChange('{"price":2}'));
+    act(() => result.current.handleTextChange({ nextText: '{"price":2}' }));
 
     expect(setFieldValidity).toHaveBeenCalledWith("meta", true);
     expect(onChange).toHaveBeenCalledWith({ price: 2 });
@@ -50,7 +50,7 @@ describe("useJsonFieldControl — M2 validity reporting", () => {
     const { result, unmount } = renderHook(() =>
       useJsonFieldControl({ value: {}, onChange: vi.fn(), fieldName: "meta", setFieldValidity })
     );
-    act(() => result.current.handleTextChange("{not valid json"));
+    act(() => result.current.handleTextChange({ nextText: "{not valid json" }));
     expect(setFieldValidity).toHaveBeenLastCalledWith("meta", false);
 
     unmount();
@@ -64,8 +64,18 @@ describe("useJsonFieldControl — M2 validity reporting", () => {
       useJsonFieldControl({ value: {}, onChange: vi.fn(), fieldName: "extra_notes", setFieldValidity })
     );
 
-    act(() => result.current.handleTextChange("{not valid"));
+    act(() => result.current.handleTextChange({ nextText: "{not valid" }));
 
     expect(setFieldValidity).toHaveBeenCalledWith("extra_notes", false);
   });
+});
+
+it("propagates a field callback rejection without marking valid JSON invalid", () => {
+  const cause = new Error("callback canary");
+  const setFieldValidity = vi.fn();
+  const { result } = renderHook(() => useJsonFieldControl({ value: {}, fieldName: "meta", setFieldValidity, onChange: () => { throw cause; } }));
+  act(() => expect(() => result.current.handleTextChange({ nextText: '{"price":2}' })).toThrow(cause));
+  expect(result.current.parseError).toBe(false);
+  expect(setFieldValidity).toHaveBeenLastCalledWith("meta", true);
+  expect(setFieldValidity).not.toHaveBeenCalledWith("meta", false);
 });

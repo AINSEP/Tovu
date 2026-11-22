@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { buildRobots } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
@@ -11,7 +12,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
  * tasks.md T046).
  */
-export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/robots.txt", async (req, res) => {
     try {
       await deps.seoReady;
@@ -29,8 +30,9 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
       }
       for (const url of policy.sitemapUrls) lines.push(`Sitemap: ${url}`);
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/plain").send(lines.join("\n") + (lines.length > 0 ? "\n" : ""));
-    } catch {
-      res.status(500).type("text/plain").send("internal error");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "public:robots" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("text/plain").send(`The site couldn’t load the crawler rules. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
     }
   });
 };

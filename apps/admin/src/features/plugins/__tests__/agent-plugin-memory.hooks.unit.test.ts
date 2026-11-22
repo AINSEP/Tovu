@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, test } from 'vitest';
+import { ApiError } from '@/lib/admin-http/request';
+import { adminFailureChannel } from '@/lib/admin-failure-channel';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';
 import { PLUGIN_MEMORY_DICT } from '../plugins-memory-i18n';
@@ -19,7 +21,7 @@ test('editor saves a user note through its port and keeps learned facts separate
   };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Original note'));
-  act(() => result.current.setText('User brand rule'));
+  act(() => result.current.setText({ text: 'User brand rule' }));
   await act(async () => { await result.current.save(); });
   expect(calls).toEqual([{ pluginId: 'example', entryPath: 'project.md', text: 'User brand rule' }]);
   expect(result.current.listing?.learned).toEqual(state.learned);
@@ -63,7 +65,7 @@ test('empty-state messages wait for a successful read and update after saving th
   expect(result.current.editorDisabled).toBe(false);
   expect(result.current.notesEmptyMessage).toBe('No note files yet. Save a project note to get started.');
   expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
-  act(() => result.current.setText('First note'));
+  act(() => result.current.setText({ text: 'First note' }));
   await act(async () => { await result.current.save(); });
   expect(result.current.notesEmptyMessage).toBeNull();
   expect(result.current.learnedEmptyMessage).toBe('Nothing learned yet. The assistant saves what it verifies here.');
@@ -92,14 +94,20 @@ test('the editor stays disabled while a save is in flight and becomes editable a
 });
 
 test('status moves from loading to idle and reports a failed save with the bound translator', async () => {
+  adminFailureChannel.reset();
+  let failure: Error = new ApiError({ message: 'The note path is invalid. Choose another path.', status: 422 });
   const port: AgentPluginMemoryPort = {
     read: async () => listing('example', 'Original'),
-    saveNote: async () => { throw new Error('write refused'); },
+    saveNote: async () => { throw failure; },
   };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t: key => `T:${key}` }));
   expect(result.current.status).toBe('T:Loading memory…');
   await waitFor(() => expect(result.current.editorDisabled).toBe(false));
   expect(result.current.status).toBeNull();
+  await act(async () => { await result.current.save(); });
+  expect(result.current.status).toBe('The note path is invalid. Choose another path.');
+  expect(adminFailureChannel.getSnapshot()).toBeNull();
+  failure = new Error('');
   await act(async () => { await result.current.save(); });
   expect(result.current.status).toBe('T:Could not save note.');
 });
@@ -127,9 +135,9 @@ test('choosing a note file loads that file into the editor, and a new path start
   const port: AgentPluginMemoryPort = { read: async () => state, saveNote: async () => state };
   const { result } = renderHook(() => useAgentPluginMemory({ pluginId: 'example', port, t }));
   await waitFor(() => expect(result.current.text).toBe('Project text'));
-  act(() => result.current.setPath('brand.md'));
+  act(() => result.current.setPath({ entryPath: 'brand.md' }));
   expect(result.current).toMatchObject({ entryPath: 'brand.md', text: 'Brand text' });
-  act(() => result.current.setPath('new-file.md'));
+  act(() => result.current.setPath({ entryPath: 'new-file.md' }));
   expect(result.current).toMatchObject({ entryPath: 'new-file.md', text: '' });
 });
 

@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file SPEC-019 C-307 / REQ-23-REQ-25 / INV-06 — Recovery's agent-tool catalog (ADR-045
  * "Rejected alternatives": "Letting an agent hold a direct restore lever" — rejected, ADR-041 §6).
@@ -10,7 +11,7 @@
  *
  * Widened this dispatch (`assistant/tool-registrations.ts`'s wiring pass):
  *   - `inputSchema` added to `AgentToolDefinition` (optional, mirroring
- *     `features/content-types/agent-tools.ts`).
+ *     `Jini packages/cms/src/content-types/agent-tools.ts`).
  *   - `backup_create_restore_point` is declared here (pre-existing, SPEC-019) but deliberately left
  *     UNWIRED by `buildRecoveryRegistrations` — see that function's own comment. Short version: this
  *     tool id collides with `features/database/agent-tools.ts`'s own `backup_create_restore_point`
@@ -21,7 +22,7 @@
  *     `database/restore-points.ts`'s own file header records as already fixed.
  *   - `recovery_get_status` and `recovery_resolve_deep_link` are NEW catalog entries this dispatch
  *     adds (not part of SPEC-019's original REQ-23-REQ-25 set) — both are read-only, zero-side-effect
- *     admin-UI sections (`routes/admin/recovery/status.ts`, `routes/admin/recovery/deep-link.ts`)
+ *     admin-UI sections (`apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`, `apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts`)
  *     this catalog did not previously cover at all. Added under the same "read-only admin-UI section
  *     is safe to wrap directly" bar the rest of this catalog already uses, per ADR-045 §4/§5.
  *
@@ -35,21 +36,14 @@ const BACKUP_READ_PERMISSION = "backup.read" as const;
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
-   * matching `features/content-types/agent-tools.ts`'s convention.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
+ * matching `Jini packages/cms/src/content-types/agent-tools.ts`'s convention.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** No arguments — shared by every parameterless read tool in this catalog. */
 const NO_INPUT_SCHEMA = {
@@ -74,7 +68,7 @@ const PLAN_RESTORE_SCHEMA = {
   },
 } as const;
 
-/** `recovery_resolve_deep_link`'s input — mirrors `features/recovery/deep-link.ts`'s
+/** `recovery_resolve_deep_link`'s input — mirrors `@jini-ai/db/recovery/deep-link`'s
  * `DatabaseContextEnvelope` shape field-for-field. Every id inside is untrusted and re-looked-up
  * server-side on arrival (INV-04); nothing in this schema grants authority, it only carries display
  * continuity (ADR-041 §7). */
@@ -158,7 +152,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     // NEW this dispatch (not part of SPEC-019's original set) — read-only, admin-UI "Recovery
-    // status bar + degraded banner" section (`routes/admin/recovery/status.ts`, ADR-045 §4).
+    // status bar + degraded banner" section (`apps/website/src/server/inbound/admin-http/routes/recovery/status.ts`, ADR-045 §4).
     name: "recovery_get_status",
     description:
       "Reports this site's current restore-point cost class plus the single highest-precedence degraded-state banner (migration interrupted, pending migration, an operation already in flight, cost class unavailable, or watermark baseline unavailable), if any.",
@@ -168,7 +162,7 @@ export const recoveryAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     // NEW this dispatch (not part of SPEC-019's original set) — read-only re-resolution of a
-    // deep-link envelope (`routes/admin/recovery/deep-link.ts`, ADR-041 §7/ADR-045 §5). Never
+    // deep-link envelope (`apps/website/src/server/inbound/admin-http/routes/recovery/deep-link.ts`, ADR-041 §7/ADR-045 §5). Never
     // trusts the envelope's own carried values; every id is re-looked-up server-side (INV-04).
     name: "recovery_resolve_deep_link",
     description:

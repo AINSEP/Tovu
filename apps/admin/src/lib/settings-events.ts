@@ -32,14 +32,15 @@ interface SettingsChangedFrame {
   namespaces?: readonly string[];
 }
 
-function eventsUrl(workspaceId: string): string {
+function eventsUrl({ workspaceId }: { workspaceId: string }, _options = {}): string {
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/settings/events?themePreview=1`;
 }
 
+type Frame = { kind: "settings-changed" | "theme-preview-refresh" | "open"; data: string; id: string };
+
 /**
  * Shares the change feed for this workspace/principal across tabs and returns a disposer.
- * The positional workspace argument is retained for existing hook consumers.
- *
+ * Existing hook consumers share this workspace-scoped subscription.
  * Never throws and never rejects. A workspace whose server predates this endpoint, a proxy that
  * refuses `text/event-stream`, a revoked `settings.read` grant — every one surfaces as
  * `EventSource`'s opaque `error`, and none of them should break the admin. The tab simply keeps the
@@ -49,7 +50,9 @@ function eventsUrl(workspaceId: string): string {
  * `EventSource` retries forever otherwise, including after the component that opened it is gone.
  * @complexity O(1).
  */
-export function subscribeToSettingsChanges(workspaceId: string, {
+
+
+export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: string }, {
   open = (url: string) => new EventSource(url, { withCredentials: true }),
   principalId = "session", ports, activity = adminStreamActivity,
   publishSettings = publishSettingsRefresh, publishPreview = publishThemePreviewRefresh,
@@ -58,39 +61,18 @@ export function subscribeToSettingsChanges(workspaceId: string, {
   principalId?: string; ports?: BrowserStreamPorts; activity?: StreamActivity;
   publishSettings?: typeof publishSettingsRefresh; publishPreview?: typeof publishThemePreviewRefresh;
 } = {}): () => void {
-  let cursor = "";
-  let themeRevision = "";
-  let opened = false;
-  type Frame = { kind: "settings-changed" | "theme-preview-refresh" | "open"; data: string; id: string };
+  const state = {
+    cursor: "",
+    themeRevision: "",
+    opened: false,
+  };
+  
   return startBrowserStream<Frame>({
     // Workspace and principal are both disclosure boundaries; never share across identities.
     key: `settings/${encodeURIComponent(workspaceId)}/${encodeURIComponent(principalId)}`,
-    connect: ({ emit }) => {
-      let source: Pick<EventSource, "addEventListener" | "close" | "readyState">;
-      const afterRevision = cursor ? "&afterRevision=" + encodeURIComponent(cursor) : "";
-      const themeRevisionParam = themeRevision ? "&themeRevision=" + encodeURIComponent(themeRevision) : "";
-      const resume = afterRevision + themeRevisionParam;
-      try { source = open(eventsUrl(workspaceId) + resume); }
-      catch (error) {
-        console.warn("[admin] settings change feed unavailable", error);
-        return () => {};
-      }
-      for (const kind of ["theme-preview-refresh", "settings-changed", "open"] as const) {
-        source.addEventListener(kind, (event) => {
-          const message = event as MessageEvent<string>;
-          emit({ kind, data: message.data ?? "", id: message.lastEventId ?? "" });
-        });
-      }
-      // Deliberately not closed here: EventSource reconnects with backoff on its own, and a
-      // transient blip must not permanently silence the feed for the tab's remaining lifetime.
-      // Logged at debug volume because a reconnect is ordinary, not an incident.
-      source.addEventListener("error", () => {
-        if (source.readyState === 2) console.warn("[admin] settings change feed closed by the server; no further updates on this connection");
-      });
-      return () => source.close();
-    },
+    connect: createSettingsFeedConnector(state, open, workspaceId),
     receive: ({ frame }) => {
-      if (frame.id) cursor = frame.id;
+      if (frame.id) state.cursor = frame.id;
       if (frame.kind === "open") {
         // A new leader/follower connection may have no cursor yet. Re-read after boot so a
         // handoff cannot leave stale values even when no settings frame preceded it.
@@ -98,15 +80,15 @@ export function subscribeToSettingsChanges(workspaceId: string, {
         // The FIRST attach belongs to boot's fresh reads, not a change. Later opens still cover
         // reconnects/leadership handoffs, including those for which no cursor was received.
         // A prior frame can supply the resume cursor even if that source never emitted open.
-        if (opened || cursor) publishSettings();
-        opened = true;
+        if (state.opened || state.cursor) publishSettings();
+        state.opened = true;
         return;
       }
       if (frame.kind === "theme-preview-refresh") {
         try {
           const preview = JSON.parse(frame.data) as ThemePreviewRefresh;
           publishPreview(preview);
-          themeRevision = preview.revision;
+          state.themeRevision = preview.revision;
         } catch { /* A malformed theme frame must not break the independent settings feed. */ }
         return;
       }
@@ -118,4 +100,31 @@ export function subscribeToSettingsChanges(workspaceId: string, {
       } catch { publishSettings(); }
     },
   }, { ports, activity });
+}
+
+function createSettingsFeedConnector(state: { cursor: string; themeRevision: string; opened: boolean; }, open: (url: string) => Pick<EventSource, "addEventListener" | "close" | "readyState">, workspaceId: string): Parameters<typeof startBrowserStream<Frame>>[0]["connect"] {
+  return ({ emit }) => {
+      let source: Pick<EventSource, "addEventListener" | "close" | "readyState">;
+      const afterRevision = state.cursor ? "&afterRevision=" + encodeURIComponent(state.cursor) : "";
+      const themeRevisionParam = state.themeRevision ? "&themeRevision=" + encodeURIComponent(state.themeRevision) : "";
+      const resume = afterRevision + themeRevisionParam;
+      try { source = open(eventsUrl({ workspaceId }) + resume); }
+      catch (error) {
+        console.warn("[admin] settings change feed unavailable", error);
+        return () => {};
+      }
+      for (const kind of ["theme-preview-refresh", "settings-changed", "open"] as const) {
+        source.addEventListener(kind, (event) => {
+          const message = event as MessageEvent<string>;
+          emit({ frame: { kind, data: message.data ?? "", id: message.lastEventId ?? "" } });
+        });
+      }
+      // Deliberately not closed here: EventSource reconnects with backoff on its own, and a
+      // transient blip must not permanently silence the feed for the tab's remaining lifetime.
+      // Logged at debug volume because a reconnect is ordinary, not an incident.
+      source.addEventListener("error", () => {
+        if (source.readyState === 2) console.warn("[admin] settings change feed closed by the server; no further updates on this connection");
+      });
+      return () => source.close();
+    };
 }

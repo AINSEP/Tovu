@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/diagnostics/observability';
-import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
+import { isNoopProductAnalytics } from '@jini-ai/analytics/product';
+import { type ProductEvent, createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/core/contracts/observability';
 import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, loadProductProviders, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
 import { PRODUCT_EVENTS, projectProductEvent } from '../product-events.js';
 
@@ -255,7 +255,7 @@ test('missing/corrupt config, invalid shape and load/init failure yield both noo
       const product = await bootProductTelemetry(f.required, { warn: message => warnings.push(message),
         loadProviders: async () => { throw new Error('fake init failed with PRIVATE_CONFIG_VALUE'); } });
       assert.equal(isNoopObservabilityPort(product.observability), true);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled']);
       assert.equal(product.crashUpload, undefined);
       await product.dispose(); messages.push(...warnings);
@@ -269,7 +269,7 @@ test('post-load failure disposes resources and a throwing warning sink cannot fa
   try {
     f.raw.observability.crashUpload = () => { throw new Error('fake capability failure'); };
     const product = await bootProductTelemetry(f.required, { ...f.options, warn() { throw new Error('fake warning failure'); } });
-    assert.equal(isNoopProductAnalytics(product.productAnalytics), true);
+    assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true);
     assert.equal(f.disposed(), 1);
   } finally { await f.close(); }
 });
@@ -446,7 +446,7 @@ test('standalone lookup, discovery, integrity and init failures release earlier 
       const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
       assert.equal(product.active, undefined, failure);
       assert.equal(isNoopObservabilityPort(product.observability), true, failure);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true, failure);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
       const signals = await f.signals();
       assert.deepEqual(signals.filter(signal => signal.type === 'dispose').map(signal => signal.id), ['fake-errors'], failure);
@@ -468,7 +468,7 @@ test('missing or malformed catalog and unknown selections fail closed before imp
       const warnings: string[] = [];
       const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
       assert.equal(isNoopObservabilityPort(product.observability), true, failure);
-      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.equal(isNoopProductAnalytics({ port: product.productAnalytics }), true, failure);
       assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
       assert.deepEqual(f.resolved, failure === 'missing-distribution'
         ? ['@jini-ai/plugin-catalog/catalog', '@jini-ai/provider-plugins/package.json']
@@ -494,9 +494,9 @@ test('Tovu consumes agent and provider subpaths and declares no standalone vendo
     assert.deepEqual(Object.keys(manifest[field] ?? {}).filter(name => name.startsWith('@jini-ai/plugin-') && name !== '@jini-ai/plugin-catalog'), []);
   }
   for (const name of ['@jini-ai/plugin-catalog']) {
-    assert.equal(manifest.dependencies[name], '^0.6.23');
+    assert.equal(manifest.dependencies[name], '^0.7.3-next.2'); // 25ec2e966: Tovu moved onto the published Jini 0.7.0 line; 0740ca85a (lockfile-1120) moved it to 0.7.3-next.1; combine-11 moved it to the published 0.7.3-next.2
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
-    assert.equal(lock.packages[`node_modules/${name}`].version, '0.6.23');
+    assert.equal(lock.packages[`node_modules/${name}`].version, '0.7.3-next.2');
     assert.equal(lock.packages[`node_modules/${name}`].dev, undefined);
   }
 });

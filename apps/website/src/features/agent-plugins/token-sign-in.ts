@@ -1,5 +1,5 @@
 /** Tovu compatibility shim (A10c seam). The portable body lives in `@jini-ai/agent-plugins/connect`; these
- * entries keep their positional signatures and bind Tovu's credential token rule (R1). */
+ * entries bind Tovu's credential token rule (R1). */
 import type { PluginCredentialsPort } from "./service-ports.js";
 import { tovuTokenValidator } from "./access-token-tool.js";
 import type { ResolvedAgentPluginForConnect } from "./connect-tool.js";
@@ -10,10 +10,10 @@ import {
 } from "@jini-ai/agent-plugins/connect";
 export type { TokenSignInPlugin, TokenCheckOutcome } from "@jini-ai/agent-plugins/connect";
 
-/** Same signature as the pre-seam entry. */
+/** Lists token sign-in choices using the injected plugin reader. */
 export function listTokenSignInPlugins(
-  workspaceId: string,
-  listPlugins: (workspaceId: string) => Promise<readonly InstalledAgentPluginServers[]>,
+  { workspaceId, listPlugins }: { workspaceId: string; listPlugins: (workspaceId: string) => Promise<readonly InstalledAgentPluginServers[]> },
+  _optional: Record<string, never> = {},
 ): Promise<readonly TokenSignInPlugin[]> {
   return listWithPorts({ workspaceId, listPlugins });
 }

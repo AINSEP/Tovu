@@ -1,7 +1,6 @@
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
-import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import { createContributionRegistry, type ToolContributor as OwnedToolContributor, type DerivedToolContributor as OwnedDerivedToolContributor, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,12 +8,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
-import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
-import { createPost } from "#src/features/post/post";
+import { createPost } from "#src/features/post/index";
 import { createRouteDeps } from "../app.js";
 import { createSiteRouteDeps } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -45,7 +42,7 @@ function pagesWriteHtml(routeDeps: RootDeps): ToolRegistration {
   installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const allowAll: RegistryDeps["authorize"] = async () => ({ allowed: true, reason: "test" });
-  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, { surfaces: undefined, options: { contributions } });
   const registration = registrations.find((r) => r.descriptor.id === "pages_write_html");
   assert.ok(registration, "pages_write_html must be registered by the real first-party registry");
   return registration;
@@ -75,7 +72,7 @@ async function assertLedgered(routeDeps: RootDeps, id: string): Promise<void> {
 test("createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-pages-revisions-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   await deps.identityReady;
 
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-w", title: "Landing", kind: "page", bodyJson: DOC } });

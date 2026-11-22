@@ -22,7 +22,7 @@ function renderHost(t: TestContext, hidden: boolean) {
   });
   const view = mount({ t, element: element(hidden) });
   const host = () => view.container.querySelector<HTMLElement>('.create-website-host')!;
-  return { ...view, created, backs: () => backs, host, setHidden: (next: boolean) => view.render(element(next)) };
+  return { ...view, created, backs: () => backs, host, setHidden: (next: boolean) => view.render({ next: element(next) }) };
 }
 
 test('CreateWebsiteHost: hidden is a class and aria-hidden on a host that stays mounted', (t) => {
@@ -39,10 +39,10 @@ test('CreateWebsiteHost: hidden is a class and aria-hidden on a host that stays 
 
 test('CreateWebsiteHost: the form\'s Cancel goes back and a submitted name is created', async (t) => {
   const view = renderHost(t, false);
-  await view.click(view.all('.create-website-host button').find((button) => /^cancel$/i.test(button.textContent?.trim() ?? '')));
+  await view.click({ el: view.all({ selector: '.create-website-host button' }).find((button) => /^cancel$/i.test(button.textContent?.trim() ?? '')) });
   assert.equal(view.backs(), 1);
   const name = view.host().querySelector<HTMLInputElement>('input[type="text"], input:not([type])')!;
-  await view.type(name, 'New site');
+  await view.type({ input: name, value: 'New site' });
   await act(async () => { view.host().querySelector('form')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); });
   await settle();
   assert.equal(view.created.length, 1);

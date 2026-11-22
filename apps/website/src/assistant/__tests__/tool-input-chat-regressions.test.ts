@@ -46,10 +46,10 @@ for (const id of ['theme_trash_file', 'fetch_published_page']) {
 
 test('chat-input regression: menu canonical id and legacy menuId reach the same source selector', async () => {
   const inputs: unknown[] = [];
-  const registrations = deriveContentReadRegistrations([
+  const registrations = deriveContentReadRegistrations({ sourceRegistrations: [
     recordingRegistration({ id: 'menus_get_menu', schema: { type: 'object', additionalProperties: false, required: ['menuId'], properties: { menuId: { type: 'string' } } }, inputs }),
     recordingRegistration({ id: 'menus_list_menus', schema: { type: 'object', additionalProperties: false, properties: {} }, inputs }),
-  ]);
+  ] });
   const registration = registrations.find(tool => tool.descriptor.id === 'content_read.menu')!;
   for (const input of [{ id: 'm-1' }, { menuId: 'm-1' }]) {
     assert.equal((await executeRegisteredTool({ registration, input })).status, 'completed');
@@ -86,9 +86,9 @@ test('chat-input regression: empty theme replacement is valid input but still re
 
 test('a raw media card without the host target adapter refuses unsupported filters', async () => {
   const inputs: unknown[] = [];
-  const [registration] = deriveContentReadRegistrations([
+  const [registration] = deriveContentReadRegistrations({ sourceRegistrations: [
     recordingRegistration({ id: 'media_list_assets', schema: { type: 'object', additionalProperties: false, properties: { site: { type: 'string' } } }, inputs }),
-  ]);
+  ] });
   assert.ok(registration);
   const result = await executeRegisteredTool({ registration, input: { slug: 'tovu-promo-01' } });
   assert.equal(result.errorKind, 'validation');
@@ -101,10 +101,10 @@ test('a raw media card without the host target adapter refuses unsupported filte
 
 test('chat-input regression: media lookup retains the peer site selector and refuses conflicting aliases', async () => {
   const inputs: unknown[] = [];
-  const [registration] = deriveContentReadRegistrations([{
+  const [registration] = deriveContentReadRegistrations({ sourceRegistrations: [{
     ...recordingRegistration({ id: 'media_list_assets', schema: { type: 'object', additionalProperties: false, properties: { site: { type: 'string' } } }, inputs }),
     handler: async (ctx) => { inputs.push(ctx.input); return { media: [{ id: 'peer-asset', title: 'Peer photo' }, { id: 'other' }] }; },
-  }]);
+  }] });
   assert.ok(registration);
   const selected = await executeRegisteredTool({ registration, input: { id: 'peer-asset', site: 'peer' } });
   assert.equal(selected.status, 'completed');
@@ -120,7 +120,7 @@ test('chat-input regression: media lookup retains the peer site selector and ref
 
 test('raw page writers leave slug resolution to the shared host adapter', async () => {
   let reads = 0;
-  const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo([]),
+  const registrations = buildPagesRegistrations({ workspaceId: 'ws', postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     authorize: async () => ({ allowed: true, reason: 'test' }),
     pagesHtmlStore: () => { reads++; throw new Error('no store should open'); },
   });

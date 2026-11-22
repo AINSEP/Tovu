@@ -1,0 +1,5 @@
+
+> tovu@0.1.0 check:complexity
+> node --import tsx development/scripts/check-src-complexity-drift.ts
+
+New violation: apps/website/src/assistant/tool-registrations.ts:317 collectDomainRegistrations#1 [sonarjs/cognitive-complexity] 12

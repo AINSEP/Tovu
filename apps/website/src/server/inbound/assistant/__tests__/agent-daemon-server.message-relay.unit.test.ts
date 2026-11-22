@@ -3,10 +3,12 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { createDaemonAuthMiddleware, registerMessageRelayRoutes } from "@jini-ai/daemon/http";
-import { bearerTokenFromHeader } from "@jini-ai/http-kit";
+import { messageRelayRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware } from "@jini-ai/http-kit/middleware";
+import { mountJiniRoutes } from "../../../runtime/composition/jini-routes.js";
+import { bearerTokenFromHeader } from "@jini-ai/core/contracts/server";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, createRunOwnerRegistry, requireAgentDaemonToken, requireRunOwnership } from "#src/assistant/daemon-access";
-import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { statementsFor, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 const CLAIM = "/api/runs/live-run/messages/claim";
 
@@ -20,14 +22,19 @@ async function harness(t: TestContext) {
   runOwners.record({ runId: "live-run", principalId: "alice" }, {});
   runOwners.record({ runId: "other-run", principalId: "bob" }, {});
   // Read only top-level AST statements, preserving the real mount order and route middleware.
-  const start = daemonSource.statements.findIndex(statement => statement.getText(daemonSource).startsWith('app.post("/api/runs/:runId/messages/claim",'));
-  const end = daemonSource.statements.findIndex(statement => statement.getText(daemonSource).startsWith('app.use(express.json('));
-  const ownership = daemonSource.statements.find(statement => statement.getText(daemonSource).startsWith('app.use("/api/runs/:runId", requireRunOwnership('));
+  const mountStatements = [
+    ...statementsFor("agent-daemon-scope-http.ts", "mountIntake"),
+    ...statementsFor("agent-daemon-scope-http.ts", "mountGuards"),
+    ...statementsFor("agent-daemon-scope-http.ts", "mountRunRoutes"),
+  ];
+  const start = mountStatements.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith('app.post("/api/runs/:runId/messages/claim",'));
+  const end = mountStatements.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith('app.use(express.json('));
+  const ownership = mountStatements.find(statement => statement.getText(statement.getSourceFile()).startsWith('app.use("/api/runs/:runId", requireRunOwnership('));
   assert.ok(start >= 0 && end > start && ownership);
-  const statements = [...daemonSource.statements.slice(start, end + 1), ownership];
+  const statements = [...mountStatements.slice(start, end + 1), ownership];
   assert.equal(statements.length, 5, "claim auth and mount, global auth/parser, and ownership must all be exercised");
   await evaluateDaemonStatements(statements, {
-    app, express, createDaemonAuthMiddleware, bearerTokenFromHeader, registerMessageRelayRoutes, runCredentials, runOwners,
+    app, express, createDaemonAuthMiddleware, bearerTokenFromHeader, messageRelayRoutes, mountJiniRoutes, runCredentials, runOwners,
     requireAgentDaemonToken: (input: Parameters<typeof requireAgentDaemonToken>[0], options: {}) => requireAgentDaemonToken({
       ...input, env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: "proxy-token" },
     }, options),
@@ -87,5 +94,16 @@ test("relay access admits only the claim POST and preserves other run-route rest
   }
   assert.equal((await h.request("/api/runs/other-run", { method: "GET" })).status, 404);
   assert.equal((await h.request("/api/runs/live-run", { method: "GET" })).status, 200);
+  assert.deepEqual(h.claims, []);
+});
+
+test("the 1 KB parser in front stays the effective limit; a body it accepted is never refused as too large by the route", async t => {
+  const h = await harness(t);
+  const padded = (size: number) => { const base = '{"via":"check_messages","p":""}'; return `{"via":"check_messages","p":"${"x".repeat(size - base.length)}"}`; };
+  assert.equal((await h.request(CLAIM, { body: padded(1024) })).status, 400, "1024 bytes: parsed, then the claim's own refusal of the extra key");
+  assert.equal((await h.request(CLAIM, { body: padded(1025) })).status, 413, "1025 bytes: the parser's refusal");
+  // `1e20` is 4 bytes here and 21 once written out again: 150 numbers fit under 1 KB and grow to about 3.3 KB.
+  const numbers = Array.from({ length: 150 }, () => "1e20").join(",");
+  assert.equal((await h.request(CLAIM, { body: `{"via":"check_messages","n":[${numbers}]}` })).status, 400);
   assert.deepEqual(h.claims, []);
 });

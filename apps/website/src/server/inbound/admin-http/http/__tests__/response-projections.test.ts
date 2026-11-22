@@ -60,15 +60,15 @@ test("subscription projection sends the delivery summary, clones topics, and rep
   const subscription = {
     id: "subscription-4", label: "Audit", targetUrl: "https://example.org/audit", topics: ["post.updated", "post.created"],
     status: "paused" as const, secretVersion: 4, previousSecretVersion: 3,
-    createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z", disabledAt: null,
+    createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z", disabledAt: null, version: 7,
     workspaceId: "ws-7", ownerPrincipalId: "owner-1", createdByPrincipalId: "owner-1", createdByPluginId: "plugin-2",
     secret: "never-send-this",
-  } as Parameters<typeof toAdminSubscriptionResponse>[0]["subscription"];
+  };
   const result = toAdminSubscriptionResponse({ subscription, lastDelivery: delivery() });
   assert.deepEqual(result, {
     id: "subscription-4", label: "Audit", targetUrl: "https://example.org/audit", topics: ["post.updated", "post.created"],
     status: "paused", secretVersion: 4, previousSecretVersion: 3,
-    createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z", disabledAt: null,
+    createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-11T00:00:00Z", disabledAt: null, version: 7,
     lastDelivery: {
       id: "delivery-9", status: "failed", attempts: 3, lastResponseStatus: 502, lastError: "gateway unavailable",
       createdAt: "2026-09-11T00:00:00Z", deliveredAt: "2026-09-11T01:00:00Z",
@@ -155,9 +155,9 @@ test("role and policy projections retain built-in and frozen flags without inter
 });
 
 test("workspace projection includes creation time and emits only the public identity fields", () => {
-  const workspace = { id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z", internal: "hidden" };
+  const workspace = { id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z", version: 1, internal: "hidden" };
   assert.deepEqual(toAdminWorkspaceResponse(workspace), {
-    id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z",
+    id: "ws-7", name: "Studio Seven", slug: "studio-seven", createdAt: "2026-09-08T00:00:00Z", version: 1,
   });
 });
 

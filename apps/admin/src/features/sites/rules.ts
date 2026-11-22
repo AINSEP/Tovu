@@ -1,5 +1,5 @@
-import { ApiError } from "../../lib/api";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 import type { QueryKey } from "@jini-ai/core/fetch";
 
 /**
@@ -31,7 +31,7 @@ export function tokensForCreate(tokens: Readonly<Record<string, string>>): Recor
 
 /** The line under "was created." for tokens given with the create, or `null` when none were.
  *  @complexity O(1). */
-export function createdTokensNoteKey(status: "none" | "saved" | "failed" | undefined): string | null {
+export function createdTokensNoteKey({ status }: { status: "none" | "saved" | "failed" | undefined }, _optional = {}): string | null {
   if (status === "saved") return "will connect when this site first starts.";
   if (status === "failed") return "couldn't be saved. Open the site and ask the assistant to connect it.";
   return null;
@@ -73,7 +73,7 @@ export type SiteRowState = "serving" | "pending-restart" | "idle";
  *
  * @complexity Time/space: O(1).
  */
-export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRowState {
+export function siteRowState({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): SiteRowState {
   if (site.dir === snapshot.currentSite.dir) return "serving";
   const outlook = activationOutlook(snapshot);
   if (outlook.kind === "pending" && outlook.name === site.name) return "pending-restart";
@@ -84,7 +84,7 @@ export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnaps
  *  bound `t`. Kept next to the state it describes so a new state cannot be added without one.
  *
  *  @complexity Time/space: O(1). */
-export function siteRowStateLabelKey(state: SiteRowState): string {
+export function siteRowStateLabelKey({ state }: { state: SiteRowState }, _optional: Record<string, never> = {}): string {
   if (state === "serving") return "Serving now";
   if (state === "pending-restart") return "Default for next launch";
   return "Not in use";
@@ -94,7 +94,7 @@ export function siteRowStateLabelKey(state: SiteRowState): string {
  *  nothing has happened yet, and a green badge would read as "switched".
  *
  *  @complexity Time/space: O(1). */
-export function siteRowStateToneClass(state: SiteRowState): string {
+export function siteRowStateToneClass({ state }: { state: SiteRowState }, _optional: Record<string, never> = {}): string {
   if (state === "serving") return "status-ok";
   if (state === "pending-restart") return "status-warning";
   return "status-neutral";
@@ -125,7 +125,7 @@ export type SiteRegistration = "registered" | "unregistered";
  *
  * @complexity Time/space: O(1).
  */
-export function siteRegistration(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRegistration {
+export function siteRegistration({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): SiteRegistration {
   if (site.dir !== snapshot.currentSite.dir) return "registered";
   return snapshot.currentSite.listed ? "registered" : "unregistered";
 }
@@ -151,7 +151,7 @@ export type ActivationOutlook =
  *
  * @complexity Time/space: O(1).
  */
-export function activationOutlook(snapshot: AdminSitesSnapshot): ActivationOutlook {
+export function activationOutlook(snapshot: AdminSitesSnapshot, _optional: Record<string, never> = {}): ActivationOutlook {
   const name = snapshot.persistedSiteName;
   if (name === null || name === snapshot.currentSite.name) return { kind: "none" };
   return snapshot.currentSite.dirOverridden ? { kind: "pending-ignored", name } : { kind: "pending", name };
@@ -166,7 +166,7 @@ export function activationOutlook(snapshot: AdminSitesSnapshot): ActivationOutlo
  *
  * @complexity Time/space: O(n) in the name's own length, bounded by what a human types.
  */
-export function siteNameErrorKey(raw: string): string | null {
+export function siteNameErrorKey({ raw }: { raw: string }, _optional = {}): string | null {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "Enter a folder name.";
   if (trimmed.length > MAX_SITE_NAME_LENGTH) return "That name is too long (100 characters maximum).";
@@ -203,7 +203,7 @@ const SITE_WRITE_ERROR_KEYS: ReadonlyMap<string | undefined, string> = new Map([
  *
  * @complexity Time/space: O(1) — one `instanceof` and one map lookup.
  */
-export function siteWriteErrorKey(e: unknown): string | null {
+export function siteWriteErrorKey({ e }: { e: unknown }, _optional = {}): string | null {
   if (!(e instanceof ApiError)) return null;
   return SITE_WRITE_ERROR_KEYS.get(e.code) ?? null;
 }
@@ -222,7 +222,7 @@ export function siteWriteErrorKey(e: unknown): string | null {
  * @complexity Time: O(n log n) in the number of sites — bounded by how many an operator created.
  *   Space: O(n) for the copy.
  */
-export function sitesInDisplayOrder(snapshot: AdminSitesSnapshot): AdminSiteListEntry[] {
+export function sitesInDisplayOrder(snapshot: AdminSitesSnapshot, _optional: Record<string, never> = {}): AdminSiteListEntry[] {
   return [...snapshot.sites].sort((a, b) => {
     const aServing = a.dir === snapshot.currentSite.dir;
     const bServing = b.dir === snapshot.currentSite.dir;
@@ -252,7 +252,7 @@ export interface SnapshotView {
  *
  * @complexity Dominated by `sitesInDisplayOrder`'s O(n log n); O(1) otherwise.
  */
-export function readSnapshot(snapshot: AdminSitesSnapshot | undefined): SnapshotView {
+export function readSnapshot({ snapshot }: { snapshot: AdminSitesSnapshot | undefined }, _optional = {}): SnapshotView {
   if (snapshot === undefined) return { sites: [], switchingEnabled: false, outlook: { kind: "none" } };
   return {
     sites: sitesInDisplayOrder(snapshot),

@@ -104,7 +104,7 @@ describe("details notes for a locked page added after install", () => {
 describe("useThemePageDetailsModal before its dialog ref is attached", () => {
   it("does nothing (and does not throw) while no dialog element is attached", () => {
     const onClose = vi.fn();
-    const { result, rerender } = renderHook(({ open }) => useThemePageDetailsModal(open, onClose), { initialProps: { open: true } });
+    const { result, rerender } = renderHook(({ open }) => useThemePageDetailsModal({ open, onClose }), { initialProps: { open: true } });
     rerender({ open: false });
     expect(result.current.dialogRef.current).toBeNull();
     expect(onClose).not.toHaveBeenCalled();

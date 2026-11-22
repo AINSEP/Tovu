@@ -8,18 +8,19 @@
 
 // Implementation: /Users/la/Programming/Jini/packages/http-kit/src/rate-limit.ts
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import type { RateLimiter as CoreRateLimiter, RateLimitResult } from "@jini-ai/core/contracts/server";
 import {
   createMemoryCounterStore,
   createRateLimiter as createHttpRateLimiter,
   resolveClientIp as resolveHttpClientIp,
   type ClientIpSource,
   type CounterStore,
-  type RateLimiter as HttpRateLimiter,
   type RateLimitProfile,
 } from "@jini-ai/http-kit/rate-limit";
 
 /** Tovu profiles and proxy policy; fixed-window counting is owned by HTTP-kit. */
-export type { ClientIpSource, RateLimitProfile, RateLimitResult } from "@jini-ai/http-kit/rate-limit";
+export type { ClientIpSource, RateLimitProfile } from "@jini-ai/http-kit/rate-limit";
+export type { RateLimitResult };
 
 /**
  * A `RateLimitProfile` bound to one in-memory counter store. Call `check` once
@@ -35,7 +36,7 @@ export type { ClientIpSource, RateLimitProfile, RateLimitResult } from "@jini-ai
  * key active within the trailing window (SPEC-046 REQ-8 — no longer "one
  * entry per key ever seen").
  */
-export type RateLimiter = Pick<HttpRateLimiter, "check"> & Partial<Pick<HttpRateLimiter, "size">>;
+export type RateLimiter = Pick<CoreRateLimiter, "check"> & Partial<Pick<CoreRateLimiter, "size">>;
 
 /** api.spec §3: `LOGIN_STRICT` — brute-force guard on `AUTH_LOGIN`, keyed by client IP. */
 export const LOGIN_STRICT: RateLimitProfile = {
@@ -94,7 +95,7 @@ export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
 
 /**
  * Admin routes that make a real outbound call to a third-party service on every hit, today the
- * external-MCP probe (`routes/admin/external-mcp/probe.ts`). Session auth alone does not bound how
+ * external-MCP probe (`apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts`). Session auth alone does not bound how
  * often they can be called, and a retry storm (a double-clicked button, a buggy client retry loop)
  * can get the workspace's own credential rate-limited or blocked provider-side: a self-inflicted
  * denial of service against every admin, not just the caller. Keyed by `resolveClientIp(req)`,
@@ -108,7 +109,7 @@ export const OUTBOUND_CALL_PER_IP: RateLimitProfile = {
 
 /**
  * `POST .../mcp-servers/:serverId/oauth/connect` and its device-poll sibling
- * (`routes/admin/external-mcp/oauth-connect.ts`, `.../oauth-device-poll.ts`).
+ * (`apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts`, `.../oauth-device-poll.ts`).
  *
  * Same self-DoS class {@link OUTBOUND_CALL_PER_IP} closes, with one addition specific to OAuth:
  * every hit mints a pending `state` (or starts a device authorization) and makes a real outbound
@@ -191,7 +192,7 @@ export function createRateLimiter(
     store?: CounterStore;
     getMax?: (required: { key: string }, optional: Record<string, never>) => number | Promise<number>;
   } = {},
-): HttpRateLimiter {
+): CoreRateLimiter {
   return createHttpRateLimiter({ profile, clock, store }, getMax ? { getMax } : {});
 }
 

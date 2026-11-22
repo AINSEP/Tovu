@@ -6,10 +6,11 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo, SqliteAssetBlobRepo, SqliteAssetRenditionRepo, SqliteMediaContentTypeStore } from "#src/platform/db/sqlite/media-repo.sqlite";
-import { InMemoryBlobStore, InMemoryVersionedMediaRepo, mediaPublicPath, replaceMediaFile, type MediaRecord } from "../index.js";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryBlobStore, mediaPublicPath, replaceMediaFile, type MediaRecord } from "../index.js";
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
 import { planImport } from "#src/features/publish-content/planner";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PublishContentDeps } from "#src/features/publish-content/type-registry";
 
@@ -21,10 +22,10 @@ const digest = (value: Uint8Array) => createHash("sha256").update(value).digest(
 async function fixture(t: TestContext, { privateSource = false }: { privateSource?: boolean } = {}) {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const repo = new SqliteMediaRepo(db);
-  const assetBlobRepo = new SqliteAssetBlobRepo(db);
-  const renditions = new SqliteAssetRenditionRepo(db);
-  const contentTypeStore = new SqliteMediaContentTypeStore(db);
+  const repo = new SqliteMediaRepo({ store: db });
+  const assetBlobRepo = new SqliteAssetBlobRepo({ store: db });
+  const renditions = new SqliteAssetRenditionRepo({ store: db });
+  const contentTypeStore = new SqliteMediaContentTypeStore({ store: db });
   const blobStore = new InMemoryBlobStore();
   const prior: MediaRecord = { id: "photo", workspaceId, kind: "media", originalFilename: "first.jpg", createdBy: "creator",
     title: "Before", slug: "before", alt: "Old alt", caption: "", credit: "", source: { sha256: digest(oldBytes), ...(privateSource ? { private: true } : {}) },
@@ -58,17 +59,17 @@ test("changed bytes require Overwrite even when the destination still matches it
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
-  const destination = await f.handler.inspect(f.prior.id);
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  const destination = await f.handler.inspect({ id: f.prior.id });
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] };
   const deps = { publishContentDeps: f.deps, hasBlob: async () => true,
     getBaseline: async () => ({ hashAtLastSync: destination!.hash, hashVersion: CONTENT_HASH_VERSION }) };
-  const blocked = (await planImport(bundle, deps)).rows[0]!;
+  const blocked = (await planImport({ bundle, deps })).rows[0]!;
   assert.equal(blocked.outcome, "blocked");
   assert.equal(blocked.writes, false);
   assert.equal(blocked.canOverwrite, true);
   assert.match(blocked.reason!, /Tick Overwrite on live/);
-  const forced = (await planImport(bundle, { ...deps, forcedEntityKeys: new Set(["media:photo"]) })).rows[0]!;
+  const forced = (await planImport({ bundle, deps: { ...deps, forcedEntityKeys: new Set(["media:photo"]) } })).rows[0]!;
   assert.equal(forced.outcome, "forced");
   assert.deepEqual(forced.sourceReplacement, f.sourceReplacement);
   assert.equal((await f.repo.findById({ workspaceId, id: "photo" }))!.version, 3);
@@ -106,7 +107,7 @@ test("packed overwrite flags cannot authorize replacement and ordinary imports s
 
 test("a locally replaced file packs and overwrites the same media identity on live", async t => {
   const f = await fixture(t);
-  const localRepo = new InMemoryVersionedMediaRepo([f.prior]);
+  const localRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [f.prior] });
   const replaced = await replaceMediaFile({ deps: { workspaceId, ...f.deps.ports.media!,
     mediaRepo: localRepo, clock: f.deps.clock, idGen: f.deps.idGen }, media: f.prior,
     bytes, contentType: "image/jpeg", provenance: { kind: "upload" }, principalId: "local-editor" });
@@ -118,7 +119,7 @@ test("a locally replaced file packs and overwrites the same media identity on li
   const entity = entities[0]!;
   await assert.rejects(f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
     idempotencyKey: "local-replace-unconfirmed" }), MediaApplyBlockedError);
-  const refusal = await f.handler.precheck(entity);
+  const refusal = await f.handler.precheck({ entity });
   assert.ok(refusal && typeof refusal === "object" && refusal.sourceReplacement);
   await f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
     idempotencyKey: "local-replace-confirmed", sourceReplacement: refusal.sourceReplacement });
@@ -126,7 +127,7 @@ test("a locally replaced file packs and overwrites the same media identity on li
   assert.equal(live.id, replaced!.id);
   assert.deepEqual(live.source, replaced!.source);
   assert.equal(live.version, f.prior.version + 1);
-  assert.equal((await f.handler.inspect(live.id))!.hash, entity.contentHash);
+  assert.equal((await f.handler.inspect({ id: live.id }))!.hash, entity.contentHash);
 });
 
 test("a live edit during staged-byte I/O refuses replacement without invalidating previews", async t => {
@@ -195,7 +196,7 @@ test("stale reviewed source or version cannot replace the live file", async t =>
 test("a missing replacement adapter remains a hard refusal even when overwrite is requested", async t => {
   const f = await fixture(t);
   f.repo.replaceFileIfVersion = undefined as never;
-  const refusal = await f.handler.precheck(f.entity);
+  const refusal = await f.handler.precheck({ entity: f.entity });
   assert.equal(typeof refusal, "string");
   assert.match(refusal as string, /Update the live site/);
   await assert.rejects(f.apply(), MediaApplyBlockedError);
@@ -233,7 +234,7 @@ for (const failure of ["missing", "mismatched"] as const) {
 test("private submitted media refuses Overwrite during planning", async t => {
   // Privacy is stamped at creation; metadata saves deliberately cannot change source flags.
   const f = await fixture(t, { privateSource: true });
-  const refusal = await f.handler.precheck(f.entity);
+  const refusal = await f.handler.precheck({ entity: f.entity });
   assert.equal(typeof refusal, "string");
   assert.match(refusal as string, /private.*file|submitted.*file/i);
   await assert.rejects(f.apply(), MediaApplyBlockedError);
@@ -244,12 +245,15 @@ test("file replacement offers explain destination edits since the last sync", as
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
-  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] }, {
-    publishContentDeps: f.deps, hasBlob: async () => true,
-    getBaseline: async () => ({ hashAtLastSync: "before-live-edit", hashVersion: CONTENT_HASH_VERSION }),
-  });
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  const report = await planImport({
+                                    bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] },
+                                    deps: {
+      publishContentDeps: f.deps, hasBlob: async () => true,
+      getBaseline: async () => ({ hashAtLastSync: "before-live-edit", hashVersion: CONTENT_HASH_VERSION }),
+    }
+                                  });
   assert.match(report.rows[0]!.reason!, /edited on the destination since the last sync/);
   assert.match(report.rows[0]!.reason!, /Tick Overwrite/);
 });

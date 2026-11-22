@@ -1,7 +1,7 @@
 import { resolveByokProtocol } from "./byok-provider-turn.js";
 import { resolveSiteAssistantApiKey, type ResolvedSiteAssistantCredential } from "./site-credential-store.js";
 import type { SiteAssistantCredentialRepoPort } from "./site-credential-store.js";
-import type { SecretSealerPort } from "../features/webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 export type PublicAssistantAvailability =
   | { ready: true; credential: ResolvedSiteAssistantCredential }
@@ -13,10 +13,10 @@ export type PublicAssistantAvailability =
  * @complexity O(n) in credential-field lengths, one repository read and at most one decrypt. */
 export async function resolvePublicAssistantAvailability(required: {
   repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort; workspaceId: string;
-}, options: { onCredentialFailure?: (error: unknown) => void } = {}): Promise<PublicAssistantAvailability> {
+}, options: { onCredentialFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}): Promise<PublicAssistantAvailability> {
   // The public readiness outcome stays key-free; the visitor route separately correlates the
   // credential owner's real failure with its safe response id in the redacted operator log.
-  const credential = await resolveSiteAssistantApiKey(required, { workspaceId: required.workspaceId }, options.onCredentialFailure);
+  const credential = await resolveSiteAssistantApiKey({ deps: required, input: { workspaceId: required.workspaceId } }, { onDecryptFailure: options.onCredentialFailure });
   if (!credential?.apiKey.trim()) {
     return { ready: false, code: "NOT_CONFIGURED", error: "site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant." };
   }

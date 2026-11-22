@@ -7,10 +7,12 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
-import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError, type EmailTemplateDeps } from "#src/features/email-templates/operations";
+import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
 import { buildTrashRegistry } from "../registry.js";
 
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { filterVisibleTrashItems, mayActOnEntityType } from "../permissions.js";
@@ -24,7 +26,7 @@ const ACTOR = { principalId: "admin-1", pluginId: null };
 function harness(_required = {}, _options = {}) {
   const db = openContentDb(":memory:");
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const clock = createFakeClock({ startIso: AT });
   const postRepo = postRepoFor(kernel);
   let sequence = 0;
@@ -33,11 +35,11 @@ function harness(_required = {}, _options = {}) {
     pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
   };
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
-  const adapters = new Map<string, TrashAdapter>([...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })]));
-  const transaction = createContentDbTransactionRunner(kernel);
+  const trashDb = contentKernel({ store: db });
+  const adapters = new Map<string, TrashAdapter>([...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })]));
+  const transaction = createContentDbTransactionRunner({ store: kernel });
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(kernel), adapters, idGen: { newId: () => `trash-${++sequence}` },
+    repo: new SqliteTrashRepo({ store: kernel }), adapters, idGen: { newId: () => `trash-${++sequence}` },
     transaction: ({ work }) => transaction(work), entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
   const granted = new Set(["pages.edit_html"]);
@@ -50,11 +52,11 @@ function harness(_required = {}, _options = {}) {
 test("template moves out of Email, appears in Trash, and restores its HTML, title and revision history", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "Welcome", html: "<title>Hello</title><p>Keep this HTML</p>" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "Welcome", html: "<title>Hello</title><p>Keep this HTML</p>" }, actorId: ACTOR.principalId });
   const revisions = await h.deps.postRepo.listRevisions({ workspaceId: WS, postId: template.id });
   assert.deepEqual(await h.move({ id: template.id }), { ok: true, version: template.version + 1 });
-  assert.deepEqual((await listEmailTemplates({ deps: h.deps })).templates, []);
-  await assert.rejects(getEmailTemplate({ deps: h.deps, id: template.id }), EmailTemplateNotFoundError);
+  assert.deepEqual((await listEmailTemplates({ store: emailTemplateStore({ deps: h.deps }) })).templates, []);
+  await assert.rejects(getEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), id: template.id }), EmailTemplateNotFoundError);
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
   assert.equal(page.items.length, 1);
   assert.equal(page.items[0]!.entityType, "email-template");
@@ -65,19 +67,19 @@ test("template moves out of Email, appears in Trash, and restores its HTML, titl
   assert.equal((await mayActOnEntityType(h.routeDeps, { principalId: ACTOR.principalId, entityType: "email-template" })).allowed, false);
   h.granted.add("pages.edit_html");
   assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "email-template", entityId: template.id, at: AT }), "restored");
-  const restored = await getEmailTemplate({ deps: h.deps, id: template.id });
+  const restored = await getEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), id: template.id });
   assert.equal(restored.html, template.html);
   assert.equal(restored.name, template.name);
   assert.equal(restored.version, template.version + 2);
   assert.deepEqual(await h.deps.postRepo.listRevisions({ workspaceId: WS, postId: template.id }), revisions);
-  assert.equal((await listEmailTemplates({ deps: h.deps })).templates.length, 1);
+  assert.equal((await listEmailTemplates({ store: emailTemplateStore({ deps: h.deps }) })).templates.length, 1);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
 });
 
 test("template trash refuses denied actors, other workspaces and ordinary pages sharing posts storage", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "A" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "A" }, actorId: ACTOR.principalId });
   h.granted.clear();
   assert.deepEqual(await h.move({ id: template.id }), { ok: false, reason: "forbidden", permission: "pages.edit_html" });
   h.granted.add("pages.edit_html");
@@ -91,7 +93,7 @@ test("template trash refuses denied actors, other workspaces and ordinary pages 
 test("template purge uses the registered cascades for Pages revisions and search projection", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "A" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "A" }, actorId: ACTOR.principalId });
   await h.move({ id: template.id });
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
   const result = await h.trash.purgeSelected({ workspaceId: WS, ids: [page.items[0]!.id], actor: ACTOR, authorizeItem: async () => true });

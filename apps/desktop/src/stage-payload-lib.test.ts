@@ -85,35 +85,35 @@ function writePackage(dir: string, dependencies: Record<string, string> = {}): v
 
 test("returns 0 for a path that does not exist", () => {
   const dir = tempDir();
-  assert.equal(newestMtime(path.join(dir, "nope")), 0);
+  assert.equal(newestMtime({ abs: path.join(dir, "nope") }), 0);
 });
 
 test("returns a bundle-input file's own mtime when given a plain file directly", () => {
   const dir = tempDir();
   const file = path.join(dir, "shell.tsx");
   const stored = touch(file, 1_700_000_010_000);
-  assert.equal(newestMtime(file), stored);
+  assert.equal(newestMtime({ abs: file }), stored);
 });
 
 test("returns 0 for a single file that is not a bundle input (a .test.js file)", () => {
   const dir = tempDir();
   const file = path.join(dir, "shell.test.js");
   touch(file, 1_700_000_010_000);
-  assert.equal(newestMtime(file), 0);
+  assert.equal(newestMtime({ abs: file }), 0);
 });
 
 test("returns the newest mtime among sibling files in a flat directory", () => {
   const dir = tempDir();
   touch(path.join(dir, "older.ts"), 1_000_000);
   const newer = touch(path.join(dir, "newer.ts"), 2_000_000);
-  assert.equal(newestMtime(dir), newer);
+  assert.equal(newestMtime({ abs: dir }), newer);
 });
 
 test("excludes an entire node_modules subtree, even when it is the newest thing present", () => {
   const dir = tempDir();
   const source = touch(path.join(dir, "source.ts"), 1_000);
   touch(path.join(dir, "node_modules", "pkg", "index.js"), 9_999_999);
-  assert.equal(newestMtime(dir), source);
+  assert.equal(newestMtime({ abs: dir }), source);
 });
 
 test("excludes dotfile entries and dot-directories, even when newest", () => {
@@ -121,41 +121,41 @@ test("excludes dotfile entries and dot-directories, even when newest", () => {
   const source = touch(path.join(dir, "source.ts"), 1_000);
   touch(path.join(dir, ".git", "HEAD"), 9_999_999);
   touch(path.join(dir, ".env"), 8_888_888);
-  assert.equal(newestMtime(dir), source);
+  assert.equal(newestMtime({ abs: dir }), source);
 });
 
 test("excludes a __tests__ directory's contents entirely, even when newest", () => {
   const dir = tempDir();
   const source = touch(path.join(dir, "source.ts"), 1_000);
   touch(path.join(dir, "__tests__", "unit", "source.unit.test.ts"), 9_999_999);
-  assert.equal(newestMtime(dir), source);
+  assert.equal(newestMtime({ abs: dir }), source);
 });
 
 test("excludes a __measurements__ directory's contents entirely, even when newest", () => {
   const dir = tempDir();
   const source = touch(path.join(dir, "source.ts"), 1_000);
   touch(path.join(dir, "__measurements__", "run.json"), 9_999_999);
-  assert.equal(newestMtime(dir), source);
+  assert.equal(newestMtime({ abs: dir }), source);
 });
 
 test("excludes a stray *.test.js file sitting directly in a walked directory (not inside __tests__)", () => {
   const dir = tempDir();
   const source = touch(path.join(dir, "source.ts"), 1_000);
   touch(path.join(dir, "source.test.ts"), 9_999_999);
-  assert.equal(newestMtime(dir), source);
+  assert.equal(newestMtime({ abs: dir }), source);
 });
 
 test("recurses into nested directories to find the newest mtime several levels deep", () => {
   const dir = tempDir();
   touch(path.join(dir, "shallow.ts"), 1_000);
   const deep = touch(path.join(dir, "a", "b", "c", "deep.ts"), 3_000_000);
-  assert.equal(newestMtime(dir), deep);
+  assert.equal(newestMtime({ abs: dir }), deep);
 });
 
 test("returns 0 for an empty directory", () => {
   const dir = tempDir();
   fs.mkdirSync(dir, { recursive: true });
-  assert.equal(newestMtime(dir), 0);
+  assert.equal(newestMtime({ abs: dir }), 0);
 });
 
 test("stageDir keeps a package's nested node_modules unless asked to drop them", () => {
@@ -165,8 +165,8 @@ test("stageDir keeps a package's nested node_modules unless asked to drop them",
   fs.writeFileSync(path.join(src, "index.js"), "module.exports = 1;\n");
   fs.writeFileSync(path.join(src, "node_modules", "inner", "index.js"), "module.exports = 2;\n");
 
-  stageDir(src, path.join(tmp, "kept", "pkg"), false);
-  stageDir(src, path.join(tmp, "dropped", "pkg"), true);
+  stageDir({ src, dest: path.join(tmp, "kept", "pkg"), dropNestedModules: false });
+  stageDir({ src, dest: path.join(tmp, "dropped", "pkg"), dropNestedModules: true });
 
   assert.equal(fs.readFileSync(path.join(tmp, "kept", "pkg", "node_modules", "inner", "index.js"), "utf8"), "module.exports = 2;\n");
   assert.equal(fs.existsSync(path.join(tmp, "dropped", "pkg", "node_modules")), false);
@@ -175,11 +175,11 @@ test("stageDir keeps a package's nested node_modules unless asked to drop them",
 
 test("declaredDependencies: a folder with no package.json, or a manifest with no dependencies field, declares none", () => {
   const tmp = tempDir();
-  assert.deepEqual(declaredDependencies(tmp), []);
+  assert.deepEqual(declaredDependencies({ packageDir: tmp }), []);
   fs.writeFileSync(path.join(tmp, "package.json"), JSON.stringify({ name: "bare" }));
-  assert.deepEqual(declaredDependencies(tmp), []);
+  assert.deepEqual(declaredDependencies({ packageDir: tmp }), []);
   writePackage(tmp, { foo: "1", bar: "2" });
-  assert.deepEqual(declaredDependencies(tmp), ["foo", "bar"]);
+  assert.deepEqual(declaredDependencies({ packageDir: tmp }), ["foo", "bar"]);
 });
 
 test("findPackageDir: a dependency found nowhere up to the filesystem root is undefined, not a guess", () => {
@@ -188,9 +188,9 @@ test("findPackageDir: a dependency found nowhere up to the filesystem root is un
   fs.mkdirSync(deep, { recursive: true });
   const unique = `tovu-no-such-package-${path.basename(tmp)}`;
 
-  assert.equal(findPackageDir(deep, unique), undefined);
+  assert.equal(findPackageDir({ fromDir: deep, depName: unique }), undefined);
   writePackage(path.join(tmp, "node_modules", unique));
-  assert.equal(findPackageDir(deep, unique), path.join(tmp, "node_modules", unique));
+  assert.equal(findPackageDir({ fromDir: deep, depName: unique }), path.join(tmp, "node_modules", unique));
 });
 
 test("stageTransitiveDependencies: stages nothing and returns 0 when a root declares no dependencies", () => {
@@ -454,35 +454,35 @@ function writeStagedFiles(outDir: string, files: readonly string[]): string {
   return modulesDir;
 }
 
-const survives = (relative: string) => strippableReason(relative) === undefined;
+const survives = (relative: string) => strippableReason({ relPath: relative }) === undefined;
 
 test("strippableReason: every declaration extension is condemned, in any scope", () => {
-  assert.equal(strippableReason("drizzle-orm/index.d.ts"), "declaration");
-  assert.equal(strippableReason("drizzle-orm/index.d.mts"), "declaration");
-  assert.equal(strippableReason("drizzle-orm/index.d.cts"), "declaration");
+  assert.equal(strippableReason({ relPath: "drizzle-orm/index.d.ts" }), "declaration");
+  assert.equal(strippableReason({ relPath: "drizzle-orm/index.d.mts" }), "declaration");
+  assert.equal(strippableReason({ relPath: "drizzle-orm/index.d.cts" }), "declaration");
   // First-party too: the keep-list is about source maps, not declarations. Nothing reads a .d.ts at runtime.
-  assert.equal(strippableReason("@jini-ai/ui/dist/index.d.ts"), "declaration");
+  assert.equal(strippableReason({ relPath: "@jini-ai/ui/dist/index.d.ts" }), "declaration");
 });
 
 test("strippableReason: a .d.ts.map goes with the declaration it serves, even under a kept scope", () => {
   // Ordering matters -- the declaration rule has to win over the source-map keep-list, or 10k
   // declaration maps would survive with nothing left for them to map.
-  assert.equal(strippableReason("@jini-ai/ui/dist/index.d.ts.map"), "declaration");
-  assert.equal(strippableReason("drizzle-orm/index.d.ts.map"), "declaration");
+  assert.equal(strippableReason({ relPath: "@jini-ai/ui/dist/index.d.ts.map" }), "declaration");
+  assert.equal(strippableReason({ relPath: "drizzle-orm/index.d.ts.map" }), "declaration");
 });
 
 test("strippableReason: third-party source maps go, @jini-ai source maps stay", () => {
-  assert.equal(strippableReason("drizzle-orm/index.js.map"), "sourceMap");
-  assert.equal(strippableReason("recharts/lib/chart/LineChart.js.map"), "sourceMap");
-  assert.equal(strippableReason("@jini-ai/ui/dist/index.js.map"), undefined);
-  assert.equal(strippableReason("@jini-ai/agent-runtime/dist/deep/nested/run.js.map"), undefined);
+  assert.equal(strippableReason({ relPath: "drizzle-orm/index.js.map" }), "sourceMap");
+  assert.equal(strippableReason({ relPath: "recharts/lib/chart/LineChart.js.map" }), "sourceMap");
+  assert.equal(strippableReason({ relPath: "@jini-ai/ui/dist/index.js.map" }), undefined);
+  assert.equal(strippableReason({ relPath: "@jini-ai/agent-runtime/dist/deep/nested/run.js.map" }), undefined);
 });
 
 test("strippableReason: the keep-list matches the scope, not a prefix of it", () => {
-  assert.equal(strippableReason("@jini-ai-fork/ui/dist/index.js.map"), "sourceMap");
-  assert.equal(strippableReason("jini-ai/dist/index.js.map"), "sourceMap");
+  assert.equal(strippableReason({ relPath: "@jini-ai-fork/ui/dist/index.js.map" }), "sourceMap");
+  assert.equal(strippableReason({ relPath: "jini-ai/dist/index.js.map" }), "sourceMap");
   // A kept package's own nested copy of a third-party one is NOT first-party source.
-  assert.equal(strippableReason("es-toolkit/node_modules/@jini-ai/x/index.js.map"), "sourceMap");
+  assert.equal(strippableReason({ relPath: "es-toolkit/node_modules/@jini-ai/x/index.js.map" }), "sourceMap");
 });
 
 test("strippableReason: executable code and data survive, including near-miss names", () => {
@@ -619,43 +619,43 @@ function stageNativePackages(outDir: string, { sqlitePrebuilds = BETTER_SQLITE3_
 const listPrebuilds = (modulesDir: string, pkg: string) => fs.readdirSync(path.join(modulesDir, pkg, "prebuilds")).sort();
 
 test("prebuildTarget: parses both prebuildify layouts, a flat .node file and a directory", () => {
-  assert.deepEqual(prebuildTarget("darwin-x64.node"), { platform: "darwin", architectures: ["x64"] });
-  assert.deepEqual(prebuildTarget("darwin-x64"), { platform: "darwin", architectures: ["x64"] });
-  assert.deepEqual(prebuildTarget("linuxmusl-arm64.node"), { platform: "linuxmusl", architectures: ["arm64"] });
-  assert.deepEqual(prebuildTarget("linux-arm"), { platform: "linux", architectures: ["arm"] });
+  assert.deepEqual(prebuildTarget({ entryName: "darwin-x64.node" }), { platform: "darwin", architectures: ["x64"] });
+  assert.deepEqual(prebuildTarget({ entryName: "darwin-x64" }), { platform: "darwin", architectures: ["x64"] });
+  assert.deepEqual(prebuildTarget({ entryName: "linuxmusl-arm64.node" }), { platform: "linuxmusl", architectures: ["arm64"] });
+  assert.deepEqual(prebuildTarget({ entryName: "linux-arm" }), { platform: "linux", architectures: ["arm"] });
 });
 
 test("prebuildTarget: a multi-architecture tag is a LIST, the way node-gyp-build's parseTuple splits it", () => {
   // Read as the single arch "x64+arm64" it would match no target, and the universal binary serving
   // every target would be the one thing deleted.
-  assert.deepEqual(prebuildTarget("darwin-x64+arm64"), { platform: "darwin", architectures: ["x64", "arm64"] });
-  assert.deepEqual(prebuildTarget("darwin-x64+arm64.node"), { platform: "darwin", architectures: ["x64", "arm64"] });
+  assert.deepEqual(prebuildTarget({ entryName: "darwin-x64+arm64" }), { platform: "darwin", architectures: ["x64", "arm64"] });
+  assert.deepEqual(prebuildTarget({ entryName: "darwin-x64+arm64.node" }), { platform: "darwin", architectures: ["x64", "arm64"] });
 });
 
 test("prebuildTarget: an unrecognized shape is undefined, never a guessed platform", () => {
-  assert.equal(prebuildTarget("node-v127-darwin-x64"), undefined);
-  assert.equal(prebuildTarget("README.md"), undefined);
-  assert.equal(prebuildTarget("darwin"), undefined);
-  assert.equal(prebuildTarget("-x64.node"), undefined);
-  assert.equal(prebuildTarget("darwin-.node"), undefined);
-  assert.equal(prebuildTarget("darwin-x64+.node"), undefined);
+  assert.equal(prebuildTarget({ entryName: "node-v127-darwin-x64" }), undefined);
+  assert.equal(prebuildTarget({ entryName: "README.md" }), undefined);
+  assert.equal(prebuildTarget({ entryName: "darwin" }), undefined);
+  assert.equal(prebuildTarget({ entryName: "-x64.node" }), undefined);
+  assert.equal(prebuildTarget({ entryName: "darwin-.node" }), undefined);
+  assert.equal(prebuildTarget({ entryName: "darwin-x64+.node" }), undefined);
 });
 
 test("resolveTargets: defaults to the host, which is what electron-builder packs with no arch flag", () => {
-  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "x64" }]);
-  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "arm64" }), [{ platform: "darwin", arch: "arm64" }]);
+  assert.deepEqual(resolveTargets({ env: {}, host: { platform: "darwin", arch: "x64" } }), [{ platform: "darwin", arch: "x64" }]);
+  assert.deepEqual(resolveTargets({ env: {}, host: { platform: "darwin", arch: "arm64" } }), [{ platform: "darwin", arch: "arm64" }]);
 });
 
 test("resolveTargets: an explicit env target overrides the host, so a cross-arch build is not packed for the wrong machine", () => {
   // The case the brief named: an x64 host building for arm64 must NOT keep the host's x64 binary.
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "arm64" }, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "arm64" }]);
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, { platform: "darwin", arch: "arm64" }), [
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_ARCH: "arm64" }, host: { platform: "darwin", arch: "x64" } }), [{ platform: "darwin", arch: "arm64" }]);
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, host: { platform: "darwin", arch: "arm64" } }), [
     { platform: "linux", arch: "x64" },
   ]);
 });
 
 test("resolveTargets: universal keeps BOTH macOS architectures", () => {
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }), [
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_ARCH: "universal" }, host: { platform: "darwin", arch: "x64" } }), [
     { platform: "darwin", arch: "x64" },
     { platform: "darwin", arch: "arm64" },
   ]);
@@ -688,7 +688,7 @@ test("pruneNativePrebuilds: a universal target keeps both macOS binaries and not
   const outDir = path.join(tempDir(), "out");
   const modulesDir = stageNativePackages(outDir);
 
-  pruneNativePrebuilds({ outDir, targets: resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }) });
+  pruneNativePrebuilds({ outDir, targets: resolveTargets({ env: { TOVU_TARGET_ARCH: "universal" }, host: { platform: "darwin", arch: "x64" } }) });
 
   assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-arm64.node", "darwin-x64.node"]);
 });
@@ -780,8 +780,8 @@ test("diskBytes: a single file returns its on-disk block size, not its apparent 
 
   // Reference value taken from the SAME stat call diskBytes makes, not a hardcoded block size —
   // see the file header on why this suite never assumes a filesystem's block size.
-  assert.equal(diskBytes(file), fs.lstatSync(file).blocks * 512);
-  assert.ok(diskBytes(file) > fs.readFileSync(file).length, 'a tiny ordinary file occupies more disk space than its content');
+  assert.equal(diskBytes({ abs: file }), fs.lstatSync(file).blocks * 512);
+  assert.ok(diskBytes({ abs: file }) > fs.readFileSync(file).length, 'a tiny ordinary file occupies more disk space than its content');
 });
 
 test("diskBytes: a directory sums the on-disk size of its files, recursing into subdirectories", () => {
@@ -793,8 +793,8 @@ test("diskBytes: a directory sums the on-disk size of its files, recursing into 
   fs.writeFileSync(nested, "deep-content");
 
   const expected = fs.lstatSync(top).blocks * 512 + fs.lstatSync(nested).blocks * 512;
-  assert.equal(diskBytes(dir), expected);
-  assert.equal(diskBytes(dir), diskBytes(top) + diskBytes(nested));
+  assert.equal(diskBytes({ abs: dir }), expected);
+  assert.equal(diskBytes({ abs: dir }), diskBytes({ abs: top }) + diskBytes({ abs: nested }));
 });
 
 test("resolveNpmLsCommand: prefers execPath + npm_execpath when npm set it, on every platform", () => {
@@ -823,12 +823,12 @@ test("resolveNpmLsCommand: falls back to npm through the platform shell on win32
 
 test("parseNpmLsPaths reads LF output: unique, sorted, relative to node_modules, other lines ignored", () => {
   const stdout = ["/repo", "/repo/node_modules/zod", "/repo/node_modules/@scope/pkg", "/repo/node_modules/zod", ""].join("\n");
-  assert.deepEqual(parseNpmLsPaths(stdout, "/repo/node_modules", "/"), ["@scope/pkg", "zod"]);
+  assert.deepEqual(parseNpmLsPaths({ stdout, modulesDir: "/repo/node_modules", sep: "/" }), ["@scope/pkg", "zod"]);
 });
 
 test("parseNpmLsPaths reads CRLF output (npm on Windows) without a trailing carriage return on any name", () => {
   const stdout = ["C:\\repo", "C:\\repo\\node_modules\\zod", "C:\\repo\\node_modules\\@scope\\pkg", ""].join("\r\n");
-  assert.deepEqual(parseNpmLsPaths(stdout, "C:\\repo\\node_modules", "\\"), ["@scope\\pkg", "zod"]);
+  assert.deepEqual(parseNpmLsPaths({ stdout, modulesDir: "C:\\repo\\node_modules", sep: "\\" }), ["@scope\\pkg", "zod"]);
 });
 
 // --- hasNativeBinaryMagic ---------------------------------------------------------------------
@@ -845,7 +845,7 @@ test("hasNativeBinaryMagic: true for each recognized Mach-O/ELF/PE magic", () =>
   const dir = tempDir();
   for (const hex of ["feedface", "feedfacf", "cafebabe", "cefaedfe", "cffaedfe", "7f454c46", "4d5a90"]) {
     const file = writeMagicFixture(dir, `bin-${hex}`, hex);
-    assert.equal(hasNativeBinaryMagic(file), true, `expected ${hex} to be recognized as a native binary`);
+    assert.equal(hasNativeBinaryMagic({ filePath: file }), true, `expected ${hex} to be recognized as a native binary`);
   }
 });
 
@@ -853,14 +853,14 @@ test("hasNativeBinaryMagic: false for ordinary JS text", () => {
   const dir = tempDir();
   const file = path.join(dir, "index.js");
   fs.writeFileSync(file, "module.exports = () => 1;\n");
-  assert.equal(hasNativeBinaryMagic(file), false);
+  assert.equal(hasNativeBinaryMagic({ filePath: file }), false);
 });
 
 test("hasNativeBinaryMagic: false for a file shorter than 4 bytes", () => {
   const dir = tempDir();
   const file = path.join(dir, "tiny");
   fs.writeFileSync(file, Buffer.from("ab", "hex"));
-  assert.equal(hasNativeBinaryMagic(file), false);
+  assert.equal(hasNativeBinaryMagic({ filePath: file }), false);
 });
 
 // --- stageBundledNpm ---------------------------------------------------------------------------
@@ -960,7 +960,7 @@ test("stageBundledNpm returns the staged file count and on-disk byte size", () =
   assert.ok(result.fileCount > 0);
   assert.ok(result.bytes > 0);
   assert.equal(result.fileCount, 5);
-  assert.equal(result.bytes, diskBytes(outDir));
+  assert.equal(result.bytes, diskBytes({ abs: outDir }));
 });
 
 
@@ -983,7 +983,7 @@ test("declared closure includes required peers and installed optionals, but excl
   fs.writeFileSync(path.join(modules, "runtime/package.json"), JSON.stringify({ peerDependencies: { requiredPeer: "1" } }));
   // A required peer cycles back to an already visited runtime package.
   writePackage(path.join(modules, "requiredPeer"), { runtime: "1" });
-  assert.deepEqual(declaredDependencies(source), ["runtime", "requiredPeer", selected]);
+  assert.deepEqual(declaredDependencies({ packageDir: source }), ["runtime", "requiredPeer", selected]);
   const outDir = path.join(tmp, "out");
   assert.equal(stageTransitiveDependencies({ roots: [source], outDir }), 3);
   assert.deepEqual(fs.readdirSync(path.join(outDir, "node_modules/@jini-ai")), ["provider-plugins"]);
@@ -1015,7 +1015,7 @@ for (const preStaged of [false, true]) {
       writePackage(shared);
       fs.writeFileSync(path.join(shared, 'package.json'), JSON.stringify({ name: 'shared', version: `${index + 1}.0.0` }));
     }
-    if (preStaged) stageDir(path.join(roots[0]!, 'node_modules/shared'), path.join(outDir, 'node_modules/shared'), true);
+    if (preStaged) stageDir({ src: path.join(roots[0]!, 'node_modules/shared'), dest: path.join(outDir, 'node_modules/shared'), dropNestedModules: true });
     assert.throws(() => stageTransitiveDependencies({ roots, outDir }), /Package version conflict while flattening shared/);
     if (preStaged) assert.equal(JSON.parse(fs.readFileSync(path.join(outDir, 'node_modules/shared/package.json'), 'utf8')).version, '1.0.0');
     else assert.equal(fs.existsSync(outDir), false, 'validate the entire flattening plan before copying');

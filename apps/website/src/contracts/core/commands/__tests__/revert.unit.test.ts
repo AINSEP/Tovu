@@ -9,9 +9,9 @@ import {
   RevertConflictError,
   RevertForbiddenError,
   type RevertChangeSetDeps,
-} from "../revert.js";
+} from "@jini-ai/cms/core/commands";
 import { createRevertRegistry, type EntityReverter } from "../appliers.js";
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
   ChangeSetItemRecord,
   ChangeSetRecord,
@@ -19,7 +19,7 @@ import type {
   ChangeSetWithItems,
   DomainEvent,
   OutboxPort,
-} from "@jini-ai/cms/core";
+} from "@jini-ai/core/contracts/events";
 
 /**
  * @file Direct unit coverage of `revert.ts`'s `revertChangeSet` — its own precondition ladder

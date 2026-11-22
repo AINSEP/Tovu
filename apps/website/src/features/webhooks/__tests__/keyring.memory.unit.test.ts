@@ -5,7 +5,7 @@ import { InMemoryKeyring } from "../keyring.memory.js";
 
 test("InMemoryKeyring reports the default v1 key id and a caller-chosen key id", async () => {
   assert.deepEqual(await new InMemoryKeyring().activeKey(), { keyId: "v1" });
-  assert.deepEqual(await new InMemoryKeyring("v7").activeKey(), { keyId: "v7" });
+  assert.deepEqual(await new InMemoryKeyring({}, { keyId: "v7" }).activeKey(), { keyId: "v7" });
 });
 
 test("InMemoryKeyring derives deterministic 32-byte signing secrets that vary by subscription and version", async () => {

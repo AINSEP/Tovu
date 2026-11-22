@@ -6,7 +6,7 @@ import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { ThemeExplore } from "../ThemeExplore";
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { ThemeExploreController, ThemeExploreDetail, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
 
 /**
@@ -138,11 +138,11 @@ function renderExplore(overrides: Partial<ThemeExploreController> = {}) {
 
 describe("Explore without a theme query parameter", () => {
   it("loads the active theme before mounting the editor instead of requesting /themes/", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "workspace-local", activeThemeId: "novice", updatedAt: "2026-10-06T00:00:00Z" },
       availableThemeIds: ["novice"], availableThemes: [{ id: "novice", tier: "static" }],
-    } as Awaited<ReturnType<typeof api.getPresentation>>);
-    const getDetail = vi.spyOn(api, "getThemeDetail").mockImplementation(async (themeId) => {
+    } as Awaited<ReturnType<typeof themesApi.getPresentation>>);
+    const getDetail = vi.spyOn(themesApi, "getThemeDetail").mockImplementation(async ({ themeId }) => {
       // The empty ID reproduces the registry-shaped response that caused files.map to fail.
       if (!themeId) return { themes: [] } as never;
       return {
@@ -151,14 +151,14 @@ describe("Explore without a theme query parameter", () => {
         files: [{ path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true }],
       };
     });
-    const getFile = vi.spyOn(api, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<h1>Home</h1>" });
+    const getFile = vi.spyOn(themesApi, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<h1>Home</h1>" });
     try {
       render(<ThemeExplore themeId="" />);
       expect(getDetail.mock.calls).toEqual([]);
       await waitFor(() => expect(screen.getByTitle("Theme preview")).toBeInTheDocument());
       expect(presentation).toHaveBeenCalledTimes(1);
-      expect(getDetail.mock.calls).toEqual([["novice"]]);
-      await waitFor(() => expect(getFile.mock.calls).toEqual([["novice", "pages/index.html"]]));
+      expect(getDetail.mock.calls).toEqual([[{ themeId: "novice" }]]);
+      await waitFor(() => expect(getFile.mock.calls).toEqual([[{ themeId: "novice", path: "pages/index.html" }]]));
       expect(new URL((screen.getByTitle("Theme preview") as HTMLIFrameElement).src).pathname).toBe("/theme-explore/novice/index");
     } finally {
       presentation.mockRestore();
@@ -168,7 +168,7 @@ describe("Explore without a theme query parameter", () => {
   });
 
   it("offers a Themes link when no theme is active and never mounts an empty-ID editor", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "workspace-local", activeThemeId: "", updatedAt: "2026-10-06T00:00:00Z" },
       availableThemeIds: [], availableThemes: [],
       activeThemeTemplates: [], activeThemeStaticPageIds: [],
@@ -264,10 +264,10 @@ describe("preview src — pages, partials, and templates", () => {
   it("toggles the code Preview's line wrapping from the toolbar", async () => {
     const user = userEvent.setup();
     const { container } = renderExplore({ selected: "css/styles.css" });
-    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).not.toBeNull();
+    expect(container.querySelector(".theme-explore-code-view .jini-code-viewer--wrap")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Wrap: on" }));
     expect(screen.getByRole("button", { name: "Wrap: off" })).toHaveAttribute("aria-pressed", "false");
-    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).toBeNull();
+    expect(container.querySelector(".theme-explore-code-view .jini-code-viewer--wrap")).toBeNull();
   });
 
   it("shows an empty code Preview while the selected file's source is not loaded", () => {
@@ -818,7 +818,7 @@ describe("per-file overflow menu — copy, rename, and delete", () => {
  * not `userEvent`.
  *
  * KNOWN GAP (documented fully in `taxonomy-agent-drive.unit.test.tsx`): `RowMenu` portals its
- * dropdown to `document.body`, while Tovu's real agent bridge (`App.hooks.tsx`) scopes its driver to
+ * dropdown to `document.body`, while Tovu's real agent bridge (`App.hooks.ts`) scopes its driver to
  * `contentEl` on purpose — narrower than `document.body`. The trigger is discoverable and clickable
  * through that scoped root; the item it reveals is not. Asserted directly below (`root: container`,
  * matching `contentEl`) rather than against `document.body`, which would hide the gap.
@@ -840,7 +840,7 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
     // the next test, which proves the handle is computed once across ALL files, not per group.
     const { container } = render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     await screen.findByRole("button", { name: "about" });
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this block's own doc comment above.
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -1549,7 +1549,7 @@ describe("toolbar and status states", () => {
 
 describe("Explore — remaining file-list and resolution states", () => {
   it("shows the active-theme lookup failure as an error notice, still offering the Themes link", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockRejectedValue(new Error("Presentation settings unavailable"));
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockRejectedValue(new Error("Presentation settings unavailable"));
     try {
       render(<ThemeExplore themeId="" useThemeExploreHook={() => controller()} />);
       const message = await screen.findByText("Presentation settings unavailable");

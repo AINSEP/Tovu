@@ -10,5 +10,5 @@ test("the fly package's ops manifest loads its contained module with its declare
   const registry = await loadDeployOpsRegistryFromSource({ pluginId: "fly", packageRoot: agentPluginSourceDir({ pluginId: "fly" }) });
   assert.deepEqual(registry.list().map(p => ({ id: p.descriptor.id, hosts: p.descriptor.hosts })), [{ id: "fly", hosts: ["api.machines.dev", "api.fly.io"] }]);
   assert.deepEqual(registry.refusals, []);
-  assert.throws(() => requirePlatform(registry, "missing"), { message: "Unknown deployment ops platform 'missing'. Choose: fly." });
+  assert.throws(() => requirePlatform({ registry, id: "missing" }), { message: "Unknown deployment ops platform 'missing'. Choose: fly." });
 });

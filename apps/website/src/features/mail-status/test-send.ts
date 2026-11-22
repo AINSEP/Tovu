@@ -13,7 +13,7 @@
 import { createMailLaneLimiter } from "@jini-ai/platform/mail";
 import { ToolInputError } from "@jini-ai/core";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import type { MailTestModeSetting } from "../settings/index.js";
+import type { MailTestModeSetting } from "#src/contracts/core/settings-vocabulary";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort, type MailTestApproval } from "../../platform/mail/index.js";
 
 /** Placeholder From for a non-delivering mailer; a real provider gets the site's configured sender. */
@@ -139,7 +139,10 @@ function outcomeOf({ plan, providerMessageId, mailer }: { plan: MailTestSendPlan
 function successResult({ common, plan, providerMessageId, mailer }: { common: Common; plan: MailTestSendPlan; providerMessageId: string; mailer: MailerPort }, _options: Record<string, never> = {}): MailTestSendResult {
   const outcome = outcomeOf({ plan: plan, providerMessageId: providerMessageId, mailer: mailer });
   if (outcome === "captured" || outcome === "console") return { ...common, outcome: "captured", where: outcome === "console" ? "console" : "capture", providerMessageId };
-  if (outcome === "redirected") return { ...common, outcome, redirectedTo: plan.redirectTo!, providerMessageId };
+  if (outcome === "redirected") {
+    if (plan.redirectTo === undefined) throw new Error("Redirected test mail has no recipient");
+    return { ...common, outcome, redirectedTo: plan.redirectTo, providerMessageId };
+  }
   return { ...common, outcome: "accepted", providerMessageId };
 }
 
@@ -163,7 +166,9 @@ export async function runMailTestSend(
   if (existing) return existing;
   const pending = performMailTestSend(required, optional);
   if (deps.mailTestRequests && deps.mailTestRequests.size >= 4096) {
-    deps.mailTestRequests.delete(deps.mailTestRequests.keys().next().value!);
+    const oldest = deps.mailTestRequests.keys().next();
+    if (oldest.done) throw new Error("Test mail request cache has no oldest entry");
+    deps.mailTestRequests.delete(oldest.value);
   }
   deps.mailTestRequests?.set(key, pending);
   // A failed dependency read has not dispatched a message and may be retried.

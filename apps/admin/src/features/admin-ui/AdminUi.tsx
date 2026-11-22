@@ -1,4 +1,4 @@
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
@@ -6,6 +6,7 @@ import { AdminThemes } from "../admin-themes";
 import { t } from "../admin-themes/admin-themes-i18n";
 import { IntegrationsRedirect } from "../integrations";
 import { AdminAppearance } from "../settings";
+import { resolveActiveTabId } from '@jini-ai/core/text';
 import "./admin-ui.css";
 
 const TAB_IDS = ["theme", "appearance"] as const;
@@ -13,8 +14,8 @@ const TAB_IDS = ["theme", "appearance"] as const;
 /** Studio's admin-only presentation settings. Shared tabs own interaction; the URL owns selection.
  * Retired Design System links use the shared history-replacing redirect to Appearance.
  * @complexity O(1): two fixed tabs, with one mounted body at a time. */
-export function AdminUi({ tabId }: { tabId?: string | null }) {
-  const locale = useAdminLocale();
+export function AdminUi({ tabId, useAdminLocaleHook = useAdminLocale }: { tabId?: string | null; useAdminLocaleHook?: typeof useAdminLocale; }) {
+  const locale = useAdminLocaleHook();
   if (tabId === "design-system") return <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />;
   const activeId = resolveActiveTabId({ tabId, validIds: TAB_IDS, defaultId: "theme" });
   const tabs: TabBarTab[] = [
@@ -33,7 +34,7 @@ export function AdminUi({ tabId }: { tabId?: string | null }) {
         ariaLabel={t({ locale, key: "Admin UI" })}
         tabs={tabs}
         activeId={activeId}
-        onChange={(nextTabId) => navigate(`/admin-ui?tab=${nextTabId}`, { replace: true })}
+        onChange={(nextTabId) => navigate({ routePath: `/admin-ui?tab=${nextTabId}` }, { replace: true })}
         containerHandle="admin-ui-tab-bar"
       />
       {activeId === "theme" ? <AdminThemes /> : null}

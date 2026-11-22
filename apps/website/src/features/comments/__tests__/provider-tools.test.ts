@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import type { UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { UIResource } from '@jini-ai/protocol/mcp-ui';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { InMemorySettingsRepo } from '../../settings/index.js';
 import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
-import { buildCommentsRegistrations, commentsDerivedRisk, type CommentsToolDeps } from '../tool-registrations.js';
+import { commentsDerivedRisk } from '@jini-ai/cms/comments';
+import { buildCommentsRegistrations, type CommentsToolDeps } from '../tool-registrations.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 
 function fixture() {

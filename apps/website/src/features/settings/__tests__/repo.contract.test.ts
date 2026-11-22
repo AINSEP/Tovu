@@ -4,7 +4,7 @@ import test from "node:test";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { InMemorySettingsRepo } from "@jini-ai/core/settings";
-import { SqlSettingsRepo } from "../repo.js";
+import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/core/settings";
 
 /** Every workspace id any contract-suite test below references — seeded up front so the SQLite adapter's real FK doesn't reject them. */
@@ -326,7 +326,7 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     // reasoning that in-memory mutations are individually atomic already. They
     // are — but the guarantee this port sells is that a COMPOSITE is
     // all-or-nothing, which is what `resetNamespace` depends on. Gating it left
-    // the in-memory adapter (the wired default in `server/app.ts`) leaving a
+    // the in-memory adapter (the wired default in `server/runtime/composition/app.ts`) leaving a
     // half-applied namespace reset, invisible to CI. Running it against every
     // adapter is the point of a contract suite.
     const repo = makeRepo();
@@ -388,7 +388,7 @@ runContractSuite("InMemorySettingsRepo", () => new InMemorySettingsRepo());
 // The one Kysely body on every dialect (storage plan §4): SQLite, then PGlite.
 for (const each of eachDialect({
   tables: ["setting_definitions", "setting_revisions", "setting_values_global", "setting_values_workspace", "setting_values_user", "workspaces"],
-  make: (kernel) => new SqlSettingsRepo(heldUntil(kernel, seedWorkspaces(kernel, CONTRACT_TEST_WORKSPACE_IDS))),
+  make: (kernel) => new SqliteSettingsRepo({ store: heldUntil(kernel, seedWorkspaces(kernel, CONTRACT_TEST_WORKSPACE_IDS)) }),
 })) {
-  runContractSuite(`SqlSettingsRepo [${each.name}]`, each.make);
+  runContractSuite(`SqliteSettingsRepo [${each.name}]`, each.make);
 }

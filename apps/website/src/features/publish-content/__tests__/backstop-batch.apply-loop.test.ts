@@ -1,5 +1,5 @@
-import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
-import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
+import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
@@ -8,24 +8,24 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contributeRawRowPublish } from "../raw-row-contributor.js";
-import { createPublishContentApplyPort } from "../apply-loop.js";
-import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
+import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "../run-repo.js";
 import { planImport } from "../planner.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "../type-registry.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
-import type { BackstopAuditPort, BackstopAuditRecord } from "../backstop-audit.js";
+import type { BackstopAuditPort, BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 
 test("the real apply loop joins every raw write in one FK-checked transaction and reports rollback honestly", async (t) => {
   const db = new Database(":memory:");
   t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   // The source deliberately contains a dangling reference. Disable enforcement only while
   // seeding it; the destination below must enforce FKs and roll back the real apply batch.
   db.exec("PRAGMA foreign_keys=OFF; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id)); INSERT INTO p_widgets VALUES('a','new'); INSERT INTO p_links VALUES('l','missing');");
-  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) });
   const outbox = new InMemoryOutbox();
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") };
   let serial = 0;
@@ -49,8 +49,8 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  const staged = await stageBundle({ ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, { repo: bundleRepo, clock, idGen });
-  const report = await planImport(bundle, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
+  const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, deps: { repo: bundleRepo, clock, idGen } });
+  const report = await planImport({ bundle, deps: { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true } });
   assert.deepEqual(report.rows.map((r) => r.outcome), ["created", "created"]);
   const apply = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps: deps, clock, idGen });
   await assert.rejects(apply.applyReport({ report, principalId: "admin", bundleId: staged.bundleId, restorePointId: "restore" }), /Foreign key check failed/);
@@ -59,7 +59,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const event = [...events.values()][0]!;
   assert.equal(event.result, "failure");
   assert.deepEqual(event.inverses, []);
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: "ws", runId: event.runId! });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: "ws", runId: event.runId! } });
   assert.equal(status?.phase, "failed");
   assert.ok(status?.report?.rows.every((row) => row.outcome === "blocked" && !row.writes));
 });
@@ -67,12 +67,12 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
 test("a selected row equal to live plans unchanged through the real planner", async (t) => {
   const db = new Database(":memory:"); t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   db.exec("CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_widgets VALUES('a','same');");
   const deps: PublishContentDeps = { workspaceId: "ws", ports: {}, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, idGen: { newId: () => "id" },
-    backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
+    backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
   const entities = []; for await (const entity of contributeRawRowPublish().build(deps).pack()) entities.push(entity);
-  const report = await planImport({ artifactFormatVersion: 1, hashVersion: 1, entities }, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
+  const report = await planImport({ bundle: { artifactFormatVersion: 1, hashVersion: 1, entities }, deps: { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true } });
   assert.equal(report.rows[0]!.outcome, "unchanged");
   assert.equal(report.rows[0]!.writes, false);
 });

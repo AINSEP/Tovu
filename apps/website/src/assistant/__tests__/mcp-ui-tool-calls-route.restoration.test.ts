@@ -6,10 +6,11 @@ import { createToolExecutor } from '@jini-ai/daemon';
 import { withSurfaceExchangeLifetime } from '@jini-ai/daemon/tool-recovery';
 import { createSurfaceExchangeStore, askOnce } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { startTestServer } from '../../server/__tests__/helpers/http-test-server.js';
 import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';
 import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../mcp-ui-tool-calls-route.js';
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 async function fixture(t: import("node:test").TestContext) {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(),
@@ -38,7 +39,7 @@ async function fixture(t: import("node:test").TestContext) {
   const exchangeId = (emissions[0]!.payload['surfaceExchange'] as { exchangeId: string }).exchangeId;
   controller.abort(); await first;
   const app = express(); app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { surfaceExchanges: store, toolExecutor: executor });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, surfaceExchanges: store, toolExecutor: executor } });
   const baseUrl = await startTestServer(app, t);
   return { baseUrl, store, calls, saved, exchangeId };
 }

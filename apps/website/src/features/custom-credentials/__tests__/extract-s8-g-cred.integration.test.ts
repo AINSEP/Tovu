@@ -5,7 +5,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { sql } from "kysely";
 import { FixedRootKeyKeyring } from "@jini-ai/platform/secrets";
-import { buildVaultAad, InMemoryVaultRepo, VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { sqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -13,7 +14,7 @@ import { insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vau
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { HKDF_EXTRACTION_SALT } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { SqlCustomCredentialSetRepo } from "../custom-credential-repo.js";
@@ -116,8 +117,8 @@ interface Site { kernel: ContentKernel; counts: Counts; vault: VaultRepoPort; de
  * SQL facade (indexed `findByLabel` included) behind counting wrappers. */
 async function openSite(optional: { project?: CustomCredentialProjectScope; before?: (name: string) => Promise<void>; keyring?: KeyringPort; ids?: string[] } = {}): Promise<Site> {
   const db = openContentDb(":memory:");
-  const kernel = contentKernel(db);
-  const fixtureKernel = sqliteKernel<unknown>(db);
+  const kernel = contentKernel({ store: db });
+  const fixtureKernel = sqliteKernel<unknown>({ source: db });
   await insertFixture(fixtureKernel, "workspaces", { id: WS, name: WS, slug: WS, created_at: KEY.clock });
   for (const row of ROWS) await insertFixture(fixtureKernel, "secrets_vault", row);
   const counts = newCounts();

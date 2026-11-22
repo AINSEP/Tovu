@@ -1,5 +1,5 @@
-import { createInterface } from "node:readline";
-import { Writable } from "node:stream";
+import { readQuietLine } from "@jini-ai/cli";
+import { readStdinOrRefuse } from "./stdin-input.js";
 
 import { ValidationError } from "../../platform/site-dir/errors.js";
 import { initSite } from "#src/server/runtime/composition/site-dir";
@@ -7,7 +7,6 @@ import { readSiteDir } from "../../platform/site-dir/read-site-dir.js";
 import type { SiteStorage } from "../../platform/site-dir/types.js";
 import { resolveNewSiteAdminPassword } from "../../platform/site-dir/new-site-owner.js";
 import {
-  readAllStdin,
   assertNewSiteAgentPluginTokensAccepted,
   defaultNewSiteAgentPluginTokenCheck,
   readNewSiteAgentPluginTokensFromStdin,
@@ -59,17 +58,17 @@ const STORAGE_KINDS = ["sqlite", "pglite", "postgres"] as const;
  *
  * @throws {ValidationError} an unknown kind, or `--storage-env` without `--storage postgres`.
  */
-export function parseInitStorage(storage: string | undefined, storageEnv: string | undefined): SiteStorage {
+export function parseInitStorage({ storage, storageEnv }: { storage: string | undefined; storageEnv: string | undefined }, _options = {}): SiteStorage {
   const kind = storage ?? "sqlite";
   if (!(STORAGE_KINDS as readonly string[]).includes(kind)) {
-    throw new ValidationError(`init: --storage must be one of ${STORAGE_KINDS.join(", ")}`);
+    throw new ValidationError({ message: `init: --storage must be one of ${STORAGE_KINDS.join(", ")}` });
   }
   if (kind !== "postgres") {
-    if (storageEnv !== undefined) throw new ValidationError("init: --storage-env applies to --storage postgres only");
+    if (storageEnv !== undefined) throw new ValidationError({ message: "init: --storage-env applies to --storage postgres only" });
     return { kind } as SiteStorage;
   }
   if (storageEnv === undefined) return { kind, secretRef: "site" };
-  if (!/^[A-Za-z_]\w*$/.test(storageEnv)) throw new ValidationError("init: --storage-env must be an environment variable name");
+  if (!/^[A-Za-z_]\w*$/.test(storageEnv)) throw new ValidationError({ message: "init: --storage-env must be an environment variable name" });
   return { kind, secretRef: { env: storageEnv } };
 }
 
@@ -84,23 +83,7 @@ export async function readConnectionStringFromUser(
     output?: Pick<NodeJS.WritableStream, "write">;
   } = {},
 ): Promise<string> {
-  if (!input.isTTY) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
-    // Only the first line is the connection string; anything after it is ignored.
-    const text = Buffer.concat(chunks).toString("utf8");
-    const lineEnd = text.search(/\r?\n/);
-    return lineEnd === -1 ? text : text.slice(0, lineEnd);
-  }
-  output.write("Postgres connection string (not shown): ");
-  const muted = new Writable({ write: (_chunk, _encoding, done) => done() });
-  const rl = createInterface({ input, output: muted, terminal: true });
-  try {
-    return await new Promise<string>((resolve) => rl.once("line", resolve));
-  } finally {
-    rl.close();
-    output.write("\n");
-  }
+  return readQuietLine({ input, output, prompt: "Postgres connection string (not shown): " }, {});
 }
 
 /**
@@ -113,7 +96,7 @@ export async function readConnectionStringFromUser(
  * @overallScore 100
  */
 export async function runInitCommand(input: RunInitCommandInput, _options: Record<string, never> = {}): Promise<void> {
-  const storage = parseInitStorage(input.storage, input.storageEnv);
+  const storage = parseInitStorage({ storage: input.storage, storageEnv: input.storageEnv });
   const sealed = storage.kind === "postgres" && storage.secretRef === "site";
   assertSeparateInitStdin({ input, sealed });
   const createInput = await readCreateInput(input);
@@ -126,7 +109,7 @@ export async function runInitCommand(input: RunInitCommandInput, _options: Recor
   const { config } = readSiteDir({ dir: result.dir });
   process.stdout.write(`created site '${config.name}' at ${result.dir}\n`);
   process.stdout.write(`next: tovu serve ${result.dir}\n`);
-  await storeNewSiteAgentPluginTokens(result, tokens, input.sealAgentPluginTokens);
+  await storeNewSiteAgentPluginTokens({ site: result, tokens }, { seal: input.sealAgentPluginTokens });
 }
 
 /** Read desktop's create credentials once, without putting a secret in argv, env, or diagnostics.
@@ -135,18 +118,18 @@ export async function runInitCommand(input: RunInitCommandInput, _options: Recor
 async function readCreateInput(input: RunInitCommandInput, _options: Record<string, never> = {}): Promise<{ adminPassword?: unknown; agentPluginTokens?: unknown }> {
   if (!input.createInputStdin) return {};
   if (input.adminPassword !== undefined || input.agentPluginTokensStdin) {
-    throw new ValidationError("init: --create-input-stdin cannot be combined with --admin-password or --agent-plugin-tokens-stdin");
+    throw new ValidationError({ message: "init: --create-input-stdin cannot be combined with --admin-password or --agent-plugin-tokens-stdin" });
   }
   // The real stdin reader is wired here, at the command edge; tests inject their own.
-  const { readCreateInput: readInput = readAllStdin } = input;
+  const { readCreateInput: readInput = () => readStdinOrRefuse({}, { flag: "--create-input-stdin" }) } = input;
   let raw: unknown;
   try {
     raw = JSON.parse(await readInput());
   } catch {
-    throw new ValidationError("init: --create-input-stdin expects a JSON object on stdin");
+    throw new ValidationError({ message: "init: --create-input-stdin expects a JSON object on stdin" });
   }
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new ValidationError("init: --create-input-stdin expects a JSON object on stdin");
+    throw new ValidationError({ message: "init: --create-input-stdin expects a JSON object on stdin" });
   }
   const value = raw as Record<string, unknown>;
   return { adminPassword: value.adminPassword, agentPluginTokens: value.agentPluginTokens };
@@ -155,7 +138,7 @@ async function readCreateInput(input: RunInitCommandInput, _options: Record<stri
 function assertSeparateInitStdin({ input, sealed }: { input: RunInitCommandInput; sealed: boolean }, _options: Record<string, never> = {}): void {
   if (sealed && (input.agentPluginTokensStdin || input.createInputStdin) && !input.readConnectionString) {
     const stdinFlag = input.createInputStdin ? "--create-input-stdin" : "--agent-plugin-tokens-stdin";
-    throw new ValidationError(`init: ${stdinFlag} cannot share stdin with a Postgres connection string; use --storage-env`);
+    throw new ValidationError({ message: `init: ${stdinFlag} cannot share stdin with a Postgres connection string; use --storage-env` });
   }
 }
 
@@ -165,9 +148,9 @@ async function readAndCheckInitTokens({ input, createInput }: {
 }, _options: Record<string, never> = {}): Promise<Record<string, string>> {
   // Read and checked BEFORE the site is made: a rejected token creates nothing.
   let tokens: Record<string, string>;
-  if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}));
-  else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens);
+  if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: async () => JSON.stringify(createInput.agentPluginTokens ?? {}) });
+  else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: input.readAgentPluginTokens });
   else tokens = {};
-  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck());
+  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted({ tokens, check: input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck({}) });
   return tokens;
 }

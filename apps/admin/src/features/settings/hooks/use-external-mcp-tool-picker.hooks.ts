@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
+
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import {
@@ -16,6 +17,7 @@ import {
   type ToolPickerRow,
 } from "../external-mcp-tool-picker-rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The transport and draft state behind `ExternalMcpToolPicker` — the `useX(deps)` /
  * `useWiredX()` pair this app uses everywhere, so the component composes the real port and a test
@@ -47,11 +49,11 @@ import {
 
 /** The one call this hook makes, injectable so a test composes it with a plain fake. */
 export interface ExternalMcpToolPickerPort {
-  probe(serverId: string): Promise<{ tools: AdminRemoteToolSurfaceEntry[] }>;
+  probe(input: { serverId: string }, options?: Record<string, never>): Promise<{ tools: AdminRemoteToolSurfaceEntry[] }>;
 }
 
 export const defaultExternalMcpToolPickerPort: ExternalMcpToolPickerPort = {
-  probe: (serverId) => api.probeExternalMcpServer(serverId),
+  probe: ({ serverId }, _options = {}) => integrationsApi.probeExternalMcpServer({ serverId }),
 };
 
 export interface ExternalMcpToolPickerController {
@@ -90,9 +92,12 @@ const PROBE_STALE_TIME_MS = 5 * 60_000;
  *  identity is the wrong trigger. Advertised names and the two saved field values, nothing else:
  *  a description change on a tool nobody has ticked must not discard a selection in progress. */
 function toolSurfaceSignature(
-  tools: readonly AdminRemoteToolSurfaceEntry[],
-  allowedToolNames: string | undefined,
-  writeAllowedToolNames: string | undefined,
+  { tools, allowedToolNames, writeAllowedToolNames }: {
+    tools: readonly AdminRemoteToolSurfaceEntry[];
+    allowedToolNames: string | undefined;
+    writeAllowedToolNames: string | undefined;
+  },
+  _options = {},
 ): string {
   return JSON.stringify([tools.map((tool) => tool.remoteName), allowedToolNames ?? "", writeAllowedToolNames ?? ""]);
 }
@@ -128,14 +133,14 @@ export function useExternalMcpToolPicker(deps: {
 
   const probe = useFetchQuery({
     key: ["external-mcp", "probe", serverId],
-    fetch: () => port.probe(serverId),
+    fetch: () => port.probe({ serverId }),
   }, {
     enabled: active,
     staleTime: PROBE_STALE_TIME_MS,
   });
 
   const tools = useMemo(() => probe.data?.tools ?? [], [probe.data]);
-  const signature = toolSurfaceSignature(tools, allowedToolNames, writeAllowedToolNames);
+  const signature = toolSurfaceSignature({ tools, allowedToolNames, writeAllowedToolNames });
 
   const [rows, setRows] = useState<ToolPickerRow[]>([]);
   // Read through a ref so the re-seed effect depends on the SIGNATURE alone. Depending on `tools`
@@ -146,7 +151,7 @@ export function useExternalMcpToolPicker(deps: {
 
   useEffect(() => {
     const seed = seedRef.current;
-    setRows(seedToolPickerRows(seed.tools, seed.allowedToolNames, seed.writeAllowedToolNames));
+    setRows(seedToolPickerRows({ tools: seed.tools, allowedToolNames: seed.allowedToolNames, writeAllowedToolNames: seed.writeAllowedToolNames }));
   }, [signature]);
 
   // A refresh that changes a tool's annotations but not its name leaves `signature` alone, so the
@@ -156,32 +161,32 @@ export function useExternalMcpToolPicker(deps: {
   const declarations = toolDeclarationsSignature(tools);
   useEffect(() => {
     const seed = seedRef.current;
-    setRows((current) => refreshToolRowDeclarations(current, seed.tools, seed.allowedToolNames, seed.writeAllowedToolNames));
+    setRows((current) => refreshToolRowDeclarations({ rows: current, tools: seed.tools, allowedToolNames: seed.allowedToolNames, writeAllowedToolNames: seed.writeAllowedToolNames }));
   }, [declarations]);
 
   const reset = useCallback(() => {
     const seed = seedRef.current;
-    setRows(seedToolPickerRows(seed.tools, seed.allowedToolNames, seed.writeAllowedToolNames));
+    setRows(seedToolPickerRows({ tools: seed.tools, allowedToolNames: seed.allowedToolNames, writeAllowedToolNames: seed.writeAllowedToolNames }));
   }, []);
 
   const setEnabled = useCallback((remoteName: string, enabled: boolean) => {
-    setRows((current) => setToolRowEnabled(current, remoteName, enabled));
+    setRows((current) => setToolRowEnabled({ rows: current, remoteName, enabled }));
   }, []);
 
   const setMayWrite = useCallback((remoteName: string, mayWrite: boolean) => {
-    setRows((current) => setToolRowMayWrite(current, remoteName, mayWrite));
+    setRows((current) => setToolRowMayWrite({ rows: current, remoteName, mayWrite }));
   }, []);
 
-  const fieldValues = useCallback(() => toolPickerFieldValues(rows), [rows]);
+  const fieldValues = useCallback(() => toolPickerFieldValues({ rows }), [rows]);
 
   return {
     loading: active && probe.status === "loading",
     refreshing: probe.isFetching,
-    unreachable: probe.error ? describeProbeUnreachable(probe.error, t) : null,
+    unreachable: probe.error ? describeProbeUnreachable({ error: probe.error, t }) : null,
     rows,
     advertisedCount: tools.length,
-    enabledCount: countEnabledToolRows(rows),
-    dirty: isToolPickerDirty(rows, allowedToolNames, writeAllowedToolNames),
+    enabledCount: countEnabledToolRows({ rows }),
+    dirty: isToolPickerDirty({ rows, allowedToolNames, writeAllowedToolNames }),
     setEnabled,
     setMayWrite,
     reset,

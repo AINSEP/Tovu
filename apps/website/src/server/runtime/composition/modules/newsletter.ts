@@ -41,33 +41,33 @@ export function createNewsletterModule(deps: {
 }): ServerModuleHandle {
   return {
     name: "newsletter",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       // Campaign routes.
-      registerAdminNewsletterListCampaignsRoute(app, deps.admin);
-      registerAdminNewsletterGetCampaignRoute(app, deps.admin);
-      registerAdminNewsletterCreateCampaignRoute(app, deps.admin);
-      registerAdminNewsletterUpdateCampaignRoute(app, deps.admin);
-      registerAdminNewsletterCancelCampaignRoute(app, deps.admin);
-      registerAdminNewsletterScheduleCampaignRoute(app, deps.admin);
-      registerAdminNewsletterSendCampaignRoute(app, deps.admin);
-      registerAdminNewsletterSendTestCampaignRoute(app, deps.admin);
-      registerAdminNewsletterPauseCampaignRoute(app, deps.admin);
-      registerAdminNewsletterResumeCampaignRoute(app, deps.admin);
+      registerAdminNewsletterListCampaignsRoute({ app, deps: deps.admin });
+      registerAdminNewsletterGetCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterCreateCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterUpdateCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterCancelCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterScheduleCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterSendCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterSendTestCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterPauseCampaignRoute({ app, deps: deps.admin });
+      registerAdminNewsletterResumeCampaignRoute({ app, deps: deps.admin });
       // List routes.
-      registerAdminNewsletterListListsRoute(app, deps.admin);
-      registerAdminNewsletterCreateListRoute(app, deps.admin);
-      registerAdminNewsletterArchiveListRoute(app, deps.admin);
+      registerAdminNewsletterListListsRoute({ app, deps: deps.admin });
+      registerAdminNewsletterCreateListRoute({ app, deps: deps.admin });
+      registerAdminNewsletterArchiveListRoute({ app, deps: deps.admin });
       // Subscription routes.
-      registerAdminNewsletterListSubscriptionsRoute(app, deps.admin);
-      registerAdminNewsletterCreateSubscriptionRoute(app, deps.admin);
-      registerAdminNewsletterRemoveSubscriptionRoute(app, deps.admin);
-      registerAdminNewsletterImportSubscriptionsRoute(app, deps.admin);
+      registerAdminNewsletterListSubscriptionsRoute({ app, deps: deps.admin });
+      registerAdminNewsletterCreateSubscriptionRoute({ app, deps: deps.admin });
+      registerAdminNewsletterRemoveSubscriptionRoute({ app, deps: deps.admin });
+      registerAdminNewsletterImportSubscriptionsRoute({ app, deps: deps.admin });
       // Confirmation + send-log.
-      registerAdminNewsletterResendConfirmationRoute(app, deps.admin);
-      registerAdminNewsletterListSendLogRoute(app, deps.admin);
+      registerAdminNewsletterResendConfirmationRoute({ app, deps: deps.admin });
+      registerAdminNewsletterListSendLogRoute({ app, deps: deps.admin });
       // Public, cookie-less, token-only routes (outside /api/admin's session gate).
-      registerPublicNewsletterConfirmRoute(app, deps.public);
-      registerPublicNewsletterUnsubscribeRoute(app, deps.public);
+      registerPublicNewsletterConfirmRoute({ app, deps: deps.public });
+      registerPublicNewsletterUnsubscribeRoute({ app, deps: deps.public });
     },
   };
 }

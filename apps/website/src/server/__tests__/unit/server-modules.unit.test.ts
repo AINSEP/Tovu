@@ -10,11 +10,13 @@ import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { createIntegrationsModule } from "../../runtime/composition/modules/integrations.js";
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import { ConsoleMailerAdapter } from "#src/features/members/index";
+import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
+import { requestSignInLink, type MembersWriteServiceDeps, type OutboundEmail } from "#src/features/members/index";
+import type { MailerSendOptions } from "#src/platform/mail/index";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`
@@ -27,7 +29,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", async (t) => {
   setReadinessSnapshot({ ok: true, modules: [] });
   const app = express();
-  createCoreModule(createRouteDeps()).registerRoutes?.(app);
+  createCoreModule(createRouteDeps()).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await fetch(`${baseUrl}/health`)).status, 200);
@@ -58,6 +60,7 @@ test("createIntegrationsModule().start() enqueues a webhook delivery when a form
     createdAt: nowIso,
     updatedAt: nowIso,
     disabledAt: null,
+    version: 1,
   });
 
   createIntegrationsModule({ bus, webhookSubscriptionRepo, webhookDeliveryRepo, idGen, clock }).start?.();
@@ -82,7 +85,7 @@ test("createFormsModule().start() registers the C-009 notify subscriber without 
   const handle = createFormsModule({
     tracker: createTracker({}),
     bus,
-    mailer: new ConsoleMailerAdapter(),
+    mailer: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) }),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
   });
@@ -96,3 +99,50 @@ test("readiness-state getter/setter round-trips (used by /readyz and the module-
   assert.deepEqual(getReadinessSnapshot(), snapshot);
   setReadinessSnapshot({ ok: true, modules: [] }); // restore default for subsequent tests in this process
 });
+
+
+for (const mode of ["local", "production"] as const) {
+  test(`memory mail composition preserves ${mode} delivery policy and logs the full sign-in link`, async (t) => {
+    const previous = process.env.TOVU_RUNTIME_MODE;
+    t.after(() => {
+      if (previous === undefined) delete process.env.TOVU_RUNTIME_MODE;
+      else process.env.TOVU_RUNTIME_MODE = previous;
+    });
+    process.env.TOVU_RUNTIME_MODE = mode;
+    const lines: string[] = [];
+    t.mock.method(console, "log", (line: string) => { if (line.startsWith("[mail:console]")) lines.push(line); });
+    const route = createRouteDeps();
+    const { mailer, workspaceId } = route;
+    process.env.TOVU_RUNTIME_MODE = mode === "local" ? "production" : "local";
+    assert.equal(mailer.capabilities().driver, "console");
+    const sent: OutboundEmail[] = [];
+    const deps: MembersWriteServiceDeps = {
+      clock: route.clock, ids: route.idGen, members: route.memberRepo, tiers: route.memberTierRepo,
+      subscriptions: route.memberSubscriptionRepo, sessions: route.memberSessionRepo,
+      magicLinks: route.magicLinkRepo, principals: route.principalRepo, origin: route.originRegistry,
+      passwordHasher: { hash: async () => "fixture-code-hash", verify: async () => false },
+      senderIdentity: { resolve: async () => ({ email: "members@example.test" }) },
+      mailer: { ...mailer, capabilities: () => ({ ...mailer.capabilities(), driver: "memory" }),
+        send: async (message, options) => { sent.push(message); return mailer.send(message, options); } },
+    };
+    assert.equal((await requestSignInLink({ deps, input: { workspaceId, email: "ada@example.test",
+      redirectPath: "/members/" + "area".repeat(60) } })).delivered, true);
+    const message = sent[0]!;
+    const options: MailerSendOptions = { workspaceId, idempotencyKey: "memory-signin", sourceContext: { module: "members" }, purpose: "transactional", lane: "interactive" };
+    assert.equal(lines.length, 1);
+    const deliveredLink = message.text!.match(/https?:\/\/\S+/)?.[0];
+    assert.ok(deliveredLink?.includes("#magic="));
+    assert.ok(lines[0]!.includes(deliveredLink!), "the logged sign-in link must equal the delivered text URL");
+    assert.ok(lines[0]!.includes(message.text!), "the console provider logs the complete delivered text");
+    for (const lane of ["notification", undefined] as const) {
+      const before: number = lines.length;
+      if (mode === "production") {
+        await assert.rejects(mailer.send(message, { ...options, lane }), /MAILER_SEND_REFUSED_NO_DURABLE_PATH/);
+        assert.equal(lines.length, before, "refusal precedes provider logging when readiness is false");
+      } else {
+        assert.equal((await mailer.send(message, { ...options, lane })).ok, true);
+        assert.equal(lines.length, before + 1);
+      }
+    }
+  });
+}

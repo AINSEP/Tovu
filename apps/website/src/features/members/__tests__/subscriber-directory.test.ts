@@ -33,7 +33,7 @@ test("getContact: returns null for an unknown subscriber id", async () => {
 test("getContact: an active + verified member is emailDeliverable, subscriberId = memberId", async () => {
   const member = makeMember();
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([member]),
+    members: new InMemoryMemberRepo({}, { initialRows: [member] }),
   });
 
   const contact = await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: member.id });
@@ -49,7 +49,7 @@ test("getContact: an active + verified member is emailDeliverable, subscriberId 
 test("getContact: an unverified member is not emailDeliverable", async () => {
   const member = makeMember({ id: "member-unverified", emailVerifiedAt: undefined });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([member]),
+    members: new InMemoryMemberRepo({}, { initialRows: [member] }),
   });
 
   const contact = await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: member.id });
@@ -60,7 +60,7 @@ test("getContact: an unverified member is not emailDeliverable", async () => {
 test("getContact: a pending (not-yet-active) member is not emailDeliverable", async () => {
   const member = makeMember({ id: "member-pending", status: "pending", emailVerifiedAt: undefined });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([member]),
+    members: new InMemoryMemberRepo({}, { initialRows: [member] }),
   });
 
   const contact = await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: member.id });
@@ -71,7 +71,7 @@ test("getContact: a pending (not-yet-active) member is not emailDeliverable", as
 test("getContact: a disabled member (even if previously verified) is not emailDeliverable", async () => {
   const member = makeMember({ id: "member-disabled", status: "disabled" });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([member]),
+    members: new InMemoryMemberRepo({}, { initialRows: [member] }),
   });
 
   const contact = await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: member.id });
@@ -82,7 +82,7 @@ test("getContact: a disabled member (even if previously verified) is not emailDe
 test("getContact: a member in another workspace is not visible (workspace scoping)", async () => {
   const member = makeMember({ workspaceId: OTHER_WORKSPACE_ID });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([member]),
+    members: new InMemoryMemberRepo({}, { initialRows: [member] }),
   });
 
   const contact = await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: member.id });
@@ -94,7 +94,7 @@ test("getContacts: returns one contact per found id, in no particular required o
   const active = makeMember({ id: "member-active", email: "active@example.com" });
   const unverified = makeMember({ id: "member-unverified", email: "unverified@example.com", emailVerifiedAt: undefined });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([active, unverified]),
+    members: new InMemoryMemberRepo({}, { initialRows: [active, unverified] }),
   });
 
   const contacts = await directory.getContacts({
@@ -115,7 +115,7 @@ test("getContacts: returns one contact per found id, in no particular required o
 test("getContacts: unknown ids are silently omitted from the result, not errored or null-padded", async () => {
   const known = makeMember({ id: "member-known" });
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([known]),
+    members: new InMemoryMemberRepo({}, { initialRows: [known] }),
   });
 
   const contacts = await directory.getContacts({
@@ -138,7 +138,7 @@ test("getContacts: an empty subscriberIds array returns an empty array", async (
 // F4.4: verification must not mask the independent active-status gate.
 test("getContact: a pending but verified member is still not emailDeliverable", async () => {
   const directory = new MembersSubscriberDirectory({
-    members: new InMemoryMemberRepo([makeMember({ id: "pending-verified", status: "pending" })]),
+    members: new InMemoryMemberRepo({}, { initialRows: [makeMember({ id: "pending-verified", status: "pending" })] }),
   });
   assert.deepEqual(await directory.getContact({ workspaceId: WORKSPACE_ID, subscriberId: "pending-verified" }), {
     subscriberId: "pending-verified", workspaceId: WORKSPACE_ID, email: "reader@example.com", emailDeliverable: false,

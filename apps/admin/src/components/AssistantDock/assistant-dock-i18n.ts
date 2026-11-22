@@ -1,9 +1,10 @@
 import { SETTINGS_DIALOG_DICTIONARIES, type Locale } from "@jini-ai/ui";
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
 import type { I18nAdapter } from "@jini-ai/chat/react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { COMMON_I18N } from "../../lib/i18n-common";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for the assistant dock's OWN chrome — `AssistantDock.tsx`'s pane
  * header/placeholder, plus the mobile-sheet chrome and `ChatFab`'s "assistant" label that live in
@@ -963,13 +964,13 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
 /** `ASSISTANT_DOCK_DICT[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` via
  *  `createDictionaryTranslator` (same fallback `trash-i18n.ts` uses) — a shared word this dict
  *  doesn't carry for a locale still renders translated instead of falling straight to English.
- *  Exported so `App.hooks.tsx`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
+ *  Exported so `apps/admin/src/App.hooks.ts`'s `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s
  *  `useAssistantDockChrome` can both call it directly instead of each duplicating the lookup. */
 const translateDockCopy = createDictionaryTranslator(
   { featureDictionary: ASSISTANT_DOCK_DICT }, { commonDictionary: COMMON_I18N },
 );
 // Keep the dock's host binding stable while its hook is being edited by another worker.
-export const t = (locale: string, key: string): string => translateDockCopy({ locale, key });
+export const t = ({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string => translateDockCopy({ locale, key });
 
 /**
  * @file Spanish dictionary backing `@jini-ai/chat/react`'s OWN `I18nAdapter` contract
@@ -2163,7 +2164,7 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
 /** Same `{token}` substitution `@jini-ai/chat/react`'s own `PASSTHROUGH_I18N` uses
  *  (`hooks/context.ts`) — matched here so a translated template interpolates exactly like the
  *  package's default does, and an unknown `{token}` is left visible rather than silently dropped. */
-function interpolate(template: string, vars: Record<string, string | number> | undefined): string {
+function interpolate({ template, vars }: { template: string; vars: Record<string, string | number> | undefined }, _options: Record<string, never> = {}): string {
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_match, name: string) => {
     const value = vars[name];
@@ -2174,7 +2175,7 @@ function interpolate(template: string, vars: Record<string, string | number> | u
 /**
  * Builds the `I18nAdapter` `AssistantDock.tsx` passes to `<JiniChatProvider i18n={...}>`.
  *
- * @param locale - `useAdminLocale()`'s current value.
+ * @param input.locale - `useAdminLocale()`'s current value.
  * @returns An adapter whose `t()` translates the bounded `CHAT_PANE_I18N_DICT` key set and passes
  *   every other key through unchanged — identical to the package's own default passthrough for any
  *   key this dictionary does not cover.
@@ -2183,14 +2184,14 @@ function interpolate(template: string, vars: Record<string, string | number> | u
  * @overallScore 100 — no branches beyond the dictionary-miss fallback, no I/O, no state.
  */
 /** The two keys whose copy the settings dialog owns; every other key has none here. */
-function sharedSettingsCopy(locale: string, key: string): string | undefined {
+function sharedSettingsCopy({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string | undefined {
   if (key !== SECRET_REDACTED_NOTICE && key !== CREDENTIAL_CARD_GUIDANCE) return undefined;
   return SETTINGS_DIALOG_DICTIONARIES[locale as Locale]?.[key];
 }
 
-export function createChatI18nAdapter(locale: string): I18nAdapter {
+export function createChatI18nAdapter({ locale }: { locale: string }, _options: Record<string, never> = {}): I18nAdapter {
   return {
     locale,
-    t: (key, vars) => interpolate(CHAT_PANE_I18N_DICT[locale]?.[key] ?? sharedSettingsCopy(locale, key) ?? key, vars),
+    t: (key, vars) => interpolate({ template: CHAT_PANE_I18N_DICT[locale]?.[key] ?? sharedSettingsCopy({ locale, key }) ?? key, vars }),
   };
 }

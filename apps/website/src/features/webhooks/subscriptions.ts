@@ -26,7 +26,7 @@
  * routes and admin/AI tool surfaces call these functions, never the repo directly.
  *
  * Egress allowlist check for a candidate `target_url` (beyond the flat `https://` scheme
- * requirement enforced here). Injected rather than importing `src/origin` directly — see the
+ * requirement enforced here). Injected rather than importing `Jini packages/http-kit/src/verified-origin/origin.ts` directly — see the
  * file header. Production wiring: `core/origin`'s `isAllowedEgressTarget` (ADR-040).
  *
  * Create a new webhook subscription. Starts `active` with `secretVersion: 1` and no rotation in
@@ -82,7 +82,7 @@ export type { UpdateSubscriptionInput, PauseSubscriptionInput, PauseSubscription
 
 export interface WebhookSubscriptionDeps extends Omit<JiniSubscriptionDeps, "isAllowedTarget" | "clock"> {
   clock: { nowIso(): string };
-  isAllowedTarget: (url: string) => Promise<boolean>;
+  isAllowedTarget: (required: { url: string }, optional?: Record<string, never>) => Promise<boolean>;
 }
 export interface CreateSubscriptionInput extends JiniCreateInput { createdByPluginId?: string | null; }
 export interface CreateSubscriptionRequired { deps: WebhookSubscriptionDeps; input: CreateSubscriptionInput; }
@@ -90,13 +90,12 @@ export interface UpdateSubscriptionRequired { deps: WebhookSubscriptionDeps; inp
 export interface PauseSubscriptionRequired { deps: WebhookSubscriptionDeps; input: PauseSubscriptionInput; }
 export interface DeleteSubscriptionRequired { deps: WebhookSubscriptionDeps; input: DeleteSubscriptionInput; }
 
-/** Existing origin ports accept a URL string; adapt to Jini's required callback object. */
+/** Adapts the ISO clock contract to Jini's `nowMs` clock. */
 function adaptSubscriptionDeps(deps: WebhookSubscriptionDeps): JiniSubscriptionDeps {
   return {
     ...deps,
     // Existing routes and excluded durable adapters keep their ISO clock contract.
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
-    isAllowedTarget: ({ url }) => deps.isAllowedTarget(url),
   };
 }
 
@@ -111,7 +110,7 @@ export function createSubscription({ deps, input }: CreateSubscriptionRequired, 
 }
 
 /** Translate the target-policy callback; validation completes before the replacement is saved. */
-export function updateSubscription({ deps, input }: UpdateSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+export function updateSubscription({ deps, input }: UpdateSubscriptionRequired, optional: WebhookSubscriptionOptional & { expectedVersion?: number } = {}) {
   return updateWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
 }
 
@@ -121,7 +120,7 @@ export function pauseSubscription({ deps, input }: PauseSubscriptionRequired, op
 }
 
 /** Translate the host callback while retaining soft-delete audit history. */
-export function deleteSubscription({ deps, input }: DeleteSubscriptionRequired, optional: WebhookSubscriptionOptional = {}) {
+export function deleteSubscription({ deps, input }: DeleteSubscriptionRequired, optional: WebhookSubscriptionOptional & { expectedVersion?: number } = {}) {
   return deleteWebhookSubscription({ deps: adaptSubscriptionDeps(deps), input }, optional);
 }
 // Lifecycle/egress rationale: Jini/packages/integrations/src/webhooks/subscriptions.ts (ADR-036).

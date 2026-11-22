@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
 import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "../git-backup-rules";
 import { createFakeGitBackupPort, defaultGitBackupPort, type GitBackupPlan, type GitBackupPort } from "../hooks/git-backup-port.hooks";
@@ -62,7 +63,7 @@ describe("GitBackupCard", () => {
   });
 
   it("shows a connections load failure", async () => {
-    render(<Harness port={createFakeGitBackupPort({ listConnections: () => Promise.reject(new ApiError("Boom", 500)) })} />);
+    render(<Harness port={createFakeGitBackupPort({ listConnections: () => Promise.reject(new ApiError({ message: "Boom", status: 500 })) })} />);
     expect((await screen.findByRole("alert")).textContent).toBe("Boom");
   });
 
@@ -133,7 +134,7 @@ describe("GitBackupCard", () => {
     const results: Array<() => Promise<GitBackupPlan | { planned: false; code: string; message: string }>> = [
       async () => PLAN,
       async () => ({ planned: false, code: "REPOSITORY_NOT_PRIVATE", message: "me/site-backups is public." }),
-      () => Promise.reject(new ApiError("You do not have permission to back up this site.", 403)),
+      () => Promise.reject(new ApiError({ message: "You do not have permission to back up this site.", status: 403 })),
     ];
     const port = createFakeGitBackupPort({
       listConnections: async () => [connection(), connection({ id: "c2", providerId: "gitlab" as AdminSourceControlCredentialSummary["providerId"], label: "GitLab" })],
@@ -197,8 +198,8 @@ describe("useGitBackup guards", () => {
     expect(push).not.toHaveBeenCalled();
     await act(async () => { await controller.planBackup(); });
     expect(plan).not.toHaveBeenCalled();
-    act(() => { controller.setField("owner", "me"); });
-    act(() => { controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); });
+    act(() => { controller.setField({ field: "repo", value: "r" }); });
     expect(controller.form).toEqual({ connection: "GitHub", owner: "me", repo: "r", branch: "" });
     let first!: Promise<void>;
     act(() => { first = controller.planBackup(); });
@@ -221,7 +222,7 @@ describe("useGitBackup guards", () => {
     function Probe() { controller = useGitBackup({ port, t }); return null; }
     unmount = render(<Probe />).unmount;
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
-    act(() => { controller.setField("owner", "me"); controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
     await act(async () => { await controller.planBackup(); });
     await act(async () => { await controller.pushBackup(); });
     expect(pushes).toBe(2);
@@ -234,7 +235,7 @@ describe("useGitBackup guards", () => {
     function Probe() { controller = useGitBackup({ port, t }); return null; }
     const view = render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual(["GitHub"]));
-    act(() => { controller.setField("owner", "me"); controller.setField("repo", "r"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); controller.setField({ field: "repo", value: "r" }); });
     let pending!: Promise<void>;
     act(() => { pending = controller.planBackup(); });
     view.unmount();
@@ -245,7 +246,7 @@ describe("useGitBackup guards", () => {
 
 describe("git-backup rules", () => {
   it("offers each default connection once", () => {
-    expect(backupConnectionLabels([connection(), connection({ id: "c2" }), connection({ id: "c3", label: "Other", isDefault: false })])).toEqual(["GitHub"]);
+    expect(backupConnectionLabels({ credentials: [connection(), connection({ id: "c2" }), connection({ id: "c3", label: "Other", isDefault: false })] })).toEqual(["GitHub"]);
   });
 
   it("sends a trimmed branch only when one is typed", () => {
@@ -261,7 +262,7 @@ describe("git-backup rules", () => {
     [{ code: "NO_PUSH_PERMISSION", message: "This token cannot push." }, "This token cannot push."],
     [{}, "Git backup failed."],
   ])("says %j as %s", (refusal, line) => {
-    expect(gitBackupRefusalMessage(refusal, t)).toBe(line);
+    expect(gitBackupRefusalMessage({ result: refusal, t })).toBe(line);
   });
 });
 
@@ -291,7 +292,7 @@ describe("live Git backup port", () => {
     function Probe() { controller = useWiredGitBackup({ t }); return null; }
     render(<Probe />);
     await waitFor(() => expect(controller.connections).toEqual([]));
-    act(() => { controller.setField("owner", "me"); });
+    act(() => { controller.setField({ field: "owner", value: "me" }); });
     expect(controller.form.connection).toBe("");
   });
 });

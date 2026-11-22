@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createApp } from "../../runtime/composition/app.js";
+import { createInMemoryApp } from "../../runtime/composition/memory-route-deps.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — structural route-class precedence check.
@@ -54,7 +55,7 @@ test("route enumeration includes mounted routers at their actual registration po
 });
 
 test("the site catch-all (GET /:slug) is registered after every other route", () => {
-  const app = createApp();
+  const app = createInMemoryApp();
   const layers = routeLayers(app);
 
   assert.ok(layers.length > 50, `expected a large number of registered routes, saw ${layers.length}`);
@@ -70,7 +71,7 @@ test("the site catch-all (GET /:slug) is registered after every other route", ()
 });
 
 test("no other route in the app shares the literal path '/:slug'", () => {
-  const app = createApp();
+  const app = createInMemoryApp();
   const layers = routeLayers(app);
   const slugRoutes = layers.filter((l) => l.path === "/:slug");
   assert.equal(slugRoutes.length, 1, "expected exactly one GET /:slug registration (the site catch-all)");

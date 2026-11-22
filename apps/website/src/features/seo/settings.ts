@@ -9,7 +9,7 @@ import {
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import { SeoSettingsValidationError, seoImageRefRefusal, type SeoFeaturedImagePort, type RobotsDirective, type RobotsRule, type SeoSettingKey, type SeoSettings } from "@jini-ai/cms/seo";
+import { DEFAULT_DESCRIPTION_MAX_LENGTH, DEFAULT_OG_IMAGE_MAX_LENGTH, MAX_ROBOTS_RULES, MAX_RULE_PATH_ENTRIES, TITLE_TEMPLATE_MAX_LENGTH, TWITTER_SITE_MAX_LENGTH, SeoSettingsValidationError, seoImageRefRefusal, type SeoFeaturedImagePort, type RobotsDirective, type RobotsRule, type SeoSettingKey, type SeoSettings } from "@jini-ai/cms/seo";
 
 /**
  * @file `getSeoSettings`/`setSeoSettings`/`ensureSeoSettingDefinitions`
@@ -56,14 +56,14 @@ export interface EnsureSeoSettingDefinitionsDeps {
 
 export interface EnsureSeoSettingDefinitionsInput {
   workspaceId: UUID;
-  /** The trusted boot-time actor these writes are attributed to (mirrors `migration.ts`'s convention). */
+  /** The trusted boot-time actor these writes are attributed to (mirrors `settings migration`'s convention). */
   systemPrincipalId: UUID;
 }
 
 function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
   return {
     repo: deps.settingsRepo,
-    clock: jiniClock(deps.clock),
+    clock: jiniClock({ clock: deps.clock }),
     ids: deps.ids,
     authorize: deps.authorize,
     principals: createSettingsPrincipalLookup({ repo: deps.principals }),
@@ -72,7 +72,7 @@ function callerWriteServiceDeps(deps: SeoSettingsWriteDeps) {
 
 /**
  * REQ-11 — idempotently registers the 8 `site.seo.*` definitions (skip if
- * already registered, mirrors `migration.ts`'s `ensureCoreDefinition`/
+ * already registered, mirrors `settings migration`'s `ensureCoreDefinition`/
  * `ensureThemeDefinitions` pattern exactly). Safe to call on every boot.
  * Boot-time infra work is trusted by construction: the shared registrar uses
  * boot trust rather than caller-supplied authorization, since no request-scoped
@@ -85,25 +85,23 @@ export async function ensureSeoSettingDefinitions(
   input: EnsureSeoSettingDefinitionsInput
 ): Promise<void> {
   await ensureSettingDefinitions(
-    { ...deps, clock: jiniClock(deps.clock), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
+    { ...deps, clock: jiniClock({ clock: deps.clock }), principals: createSettingsPrincipalLookup({ repo: deps.principals }) },
     { namespace: SEO_NAMESPACE, definitions: SEO_DEFINITIONS, ownerKind: "site", ...input },
   );
 }
 
 async function readKey(
-  settingsRepo: SettingsRepoPort,
-  workspaceId: UUID,
-  key: SeoSettingKey
+  { settingsRepo, workspaceId, key }: { settingsRepo: SettingsRepoPort; workspaceId: UUID; key: SeoSettingKey },
+  _optional = {}
 ): Promise<JsonValue | null> {
   const resolved = await getEffective(
-    { repo: settingsRepo },
-    { namespace: SEO_NAMESPACE, key, scopeContext: { workspaceId } }
+    { deps: { repo: settingsRepo }, namespace: SEO_NAMESPACE, key, scopeContext: { workspaceId } },
   );
   return resolved ? resolved.value : null;
 }
 
 /** Unwraps this file's own `""`-means-absent sentinel (see `SEO_DEFINITIONS`' doc comment). */
-function undefinedIfEmpty(value: JsonValue | null): string | undefined {
+function undefinedIfEmpty({ value }: { value: JsonValue | null }, _optional = {}): string | undefined {
   return typeof value === "string" && value !== "" ? value : undefined;
 }
 
@@ -123,8 +121,7 @@ export async function isDefaultRobotsNoindexExplicitlySet(
   _optional: Record<string, never> = {},
 ): Promise<boolean> {
   const resolved = await getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: SEO_NAMESPACE, key: "default_robots_noindex", scopeContext: { workspaceId: input.workspaceId } },
+    { deps: { repo: deps.settingsRepo }, namespace: SEO_NAMESPACE, key: "default_robots_noindex", scopeContext: { workspaceId: input.workspaceId } },
   );
   return resolved !== null && resolved.sourceLayer !== "default";
 }
@@ -136,21 +133,21 @@ export async function getSeoSettings(
 ): Promise<SeoSettings> {
   const [titleTemplate, defaultDescription, defaultOgImage, twitterSite, noindex, nofollow, sitemapEnabled, robotsRules] =
     await Promise.all([
-      readKey(deps.settingsRepo, input.workspaceId, "title_template"),
-      readKey(deps.settingsRepo, input.workspaceId, "default_description"),
-      readKey(deps.settingsRepo, input.workspaceId, "default_og_image"),
-      readKey(deps.settingsRepo, input.workspaceId, "twitter_site"),
-      readKey(deps.settingsRepo, input.workspaceId, "default_robots_noindex"),
-      readKey(deps.settingsRepo, input.workspaceId, "default_robots_nofollow"),
-      readKey(deps.settingsRepo, input.workspaceId, "sitemap_enabled"),
-      readKey(deps.settingsRepo, input.workspaceId, "robots_rules"),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "title_template" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "default_description" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "default_og_image" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "twitter_site" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "default_robots_noindex" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "default_robots_nofollow" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "sitemap_enabled" }),
+      readKey({ settingsRepo: deps.settingsRepo, workspaceId: input.workspaceId, key: "robots_rules" }),
     ]);
 
   return {
     titleTemplate: typeof titleTemplate === "string" ? titleTemplate : "%s",
-    defaultDescription: undefinedIfEmpty(defaultDescription),
-    defaultOgImage: undefinedIfEmpty(defaultOgImage),
-    twitterSite: undefinedIfEmpty(twitterSite),
+    defaultDescription: undefinedIfEmpty({ value: defaultDescription }),
+    defaultOgImage: undefinedIfEmpty({ value: defaultOgImage }),
+    twitterSite: undefinedIfEmpty({ value: twitterSite }),
     defaultRobots: { noindex: noindex === true, nofollow: nofollow === true },
     sitemapEnabled: sitemapEnabled !== false,
     robotsRules: Array.isArray(robotsRules) ? (robotsRules as unknown as RobotsRule[]) : [],
@@ -185,16 +182,6 @@ export interface SetSeoSettingsInput {
   callerPrincipalId: UUID;
 }
 
-// Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema for `seo_set_settings`
-// cannot drift from the bounds this chokepoint actually validates — same rationale as
-// `write-service.ts`'s identical export note just above its own field-bound constants.
-export const MAX_ROBOTS_RULES = 50;
-export const MAX_RULE_PATH_ENTRIES = 100;
-export const TITLE_TEMPLATE_MAX_LENGTH = 500;
-export const DEFAULT_DESCRIPTION_MAX_LENGTH = 500;
-export const DEFAULT_OG_IMAGE_MAX_LENGTH = 2048;
-export const TWITTER_SITE_MAX_LENGTH = 100;
-
 /** The only keys `setSeoSettings`'s patch may contain — mirrors `SeoSettings`' own field list. */
 const KNOWN_PATCH_KEYS: ReadonlySet<string> = new Set([
   "titleTemplate",
@@ -225,7 +212,7 @@ function validatePatchKeys(patch: SeoSettingsPatch): void {
   }
 }
 
-function validateTitleTemplate(titleTemplate: string | undefined): void {
+function validateTitleTemplate({ titleTemplate }: { titleTemplate: string | undefined }, _optional = {}): void {
   if (titleTemplate === undefined) return;
   if (typeof titleTemplate !== "string" || !titleTemplate.includes("%s")) {
     throw new SeoSettingsValidationError("titleTemplate must contain '%s' at least once");
@@ -236,7 +223,10 @@ function validateTitleTemplate(titleTemplate: string | undefined): void {
 }
 
 /** Shared shape of `defaultDescription`/`defaultOgImage`: nullable-on-write (see `SEO_DEFINITIONS`' doc comment), bounded when a string is given. */
-function validateBoundedNullableString(value: string | null | undefined, fieldLabel: string, maxLength: number): void {
+function validateBoundedNullableString(
+  { value, fieldLabel, maxLength }: { value: string | null | undefined; fieldLabel: string; maxLength: number },
+  _optional = {}
+): void {
   if (value === undefined || value === null) return;
   if (typeof value !== "string") {
     throw new SeoSettingsValidationError(`${fieldLabel} must be a string`);
@@ -246,7 +236,7 @@ function validateBoundedNullableString(value: string | null | undefined, fieldLa
   }
 }
 
-function validateDefaultRobots(defaultRobots: RobotsDirective | undefined): void {
+function validateDefaultRobots({ defaultRobots }: { defaultRobots: RobotsDirective | undefined }, _optional = {}): void {
   if (defaultRobots === undefined) return;
   if (
     typeof defaultRobots !== "object" ||
@@ -258,7 +248,7 @@ function validateDefaultRobots(defaultRobots: RobotsDirective | undefined): void
   }
 }
 
-function validateSitemapEnabled(sitemapEnabled: boolean | undefined = undefined): void {
+function validateSitemapEnabled(_required: Record<string, never> = {}, { sitemapEnabled }: { sitemapEnabled?: boolean } = {}): void {
   if (sitemapEnabled !== undefined && typeof sitemapEnabled !== "boolean") {
     throw new SeoSettingsValidationError("sitemapEnabled must be a boolean");
   }
@@ -280,7 +270,7 @@ function validateRobotsRule(rule: RobotsRule): void {
   }
 }
 
-function validateRobotsRules(robotsRules: RobotsRule[] | undefined): void {
+function validateRobotsRules({ robotsRules }: { robotsRules: RobotsRule[] | undefined }, _optional = {}): void {
   if (robotsRules === undefined) return;
   if (!Array.isArray(robotsRules)) {
     throw new SeoSettingsValidationError("robotsRules must be an array");
@@ -295,13 +285,13 @@ function validateRobotsRules(robotsRules: RobotsRule[] | undefined): void {
 
 function validateSeoSettingsPatch(patch: SeoSettingsPatch): void {
   validatePatchKeys(patch);
-  validateTitleTemplate(patch.titleTemplate);
-  validateBoundedNullableString(patch.defaultDescription, "defaultDescription", DEFAULT_DESCRIPTION_MAX_LENGTH);
-  validateBoundedNullableString(patch.defaultOgImage, "defaultOgImage", DEFAULT_OG_IMAGE_MAX_LENGTH);
-  validateBoundedNullableString(patch.twitterSite, "twitterSite", TWITTER_SITE_MAX_LENGTH);
-  validateDefaultRobots(patch.defaultRobots);
-  validateSitemapEnabled(patch.sitemapEnabled);
-  validateRobotsRules(patch.robotsRules);
+  validateTitleTemplate({ titleTemplate: patch.titleTemplate });
+  validateBoundedNullableString({ value: patch.defaultDescription, fieldLabel: "defaultDescription", maxLength: DEFAULT_DESCRIPTION_MAX_LENGTH });
+  validateBoundedNullableString({ value: patch.defaultOgImage, fieldLabel: "defaultOgImage", maxLength: DEFAULT_OG_IMAGE_MAX_LENGTH });
+  validateBoundedNullableString({ value: patch.twitterSite, fieldLabel: "twitterSite", maxLength: TWITTER_SITE_MAX_LENGTH });
+  validateDefaultRobots({ defaultRobots: patch.defaultRobots });
+  validateSitemapEnabled({}, { sitemapEnabled: patch.sitemapEnabled });
+  validateRobotsRules({ robotsRules: patch.robotsRules });
 }
 
 type SeoSettingWrite = { key: SeoSettingKey; value: JsonValue };
@@ -314,12 +304,12 @@ type SeoSettingWrite = { key: SeoSettingKey; value: JsonValue };
 const SCALAR_FIELD_WRITERS: ReadonlyArray<{
   patchKey: "titleTemplate" | "defaultDescription" | "defaultOgImage" | "twitterSite";
   settingKey: SeoSettingKey;
-  normalize?: (value: string | null | undefined) => JsonValue;
+  normalize?: (required: { value: string | null | undefined }, optional?: Record<string, never>) => JsonValue;
 }> = [
   { patchKey: "titleTemplate", settingKey: "title_template" },
-  { patchKey: "defaultDescription", settingKey: "default_description", normalize: (value) => value ?? "" },
-  { patchKey: "defaultOgImage", settingKey: "default_og_image", normalize: (value) => value ?? "" },
-  { patchKey: "twitterSite", settingKey: "twitter_site", normalize: (value) => value ?? "" },
+  { patchKey: "defaultDescription", settingKey: "default_description", normalize: ({ value }) => value ?? "" },
+  { patchKey: "defaultOgImage", settingKey: "default_og_image", normalize: ({ value }) => value ?? "" },
+  { patchKey: "twitterSite", settingKey: "twitter_site", normalize: ({ value }) => value ?? "" },
 ];
 
 function buildScalarWrites(patch: SeoSettingsPatch): SeoSettingWrite[] {
@@ -327,13 +317,13 @@ function buildScalarWrites(patch: SeoSettingsPatch): SeoSettingWrite[] {
   for (const field of SCALAR_FIELD_WRITERS) {
     const raw = patch[field.patchKey];
     if (raw === undefined) continue;
-    writes.push({ key: field.settingKey, value: field.normalize ? field.normalize(raw) : raw });
+    writes.push({ key: field.settingKey, value: field.normalize ? field.normalize({ value: raw }) : raw });
   }
   return writes;
 }
 
 /** `defaultRobots` decomposes into 2 ledger writes (Decision §3's mapping table). */
-function buildDefaultRobotsWrites(defaultRobots: RobotsDirective | undefined): SeoSettingWrite[] {
+function buildDefaultRobotsWrites({ defaultRobots }: { defaultRobots: RobotsDirective | undefined }, _optional = {}): SeoSettingWrite[] {
   if (defaultRobots === undefined) return [];
   return [
     { key: "default_robots_noindex", value: defaultRobots.noindex },
@@ -341,11 +331,11 @@ function buildDefaultRobotsWrites(defaultRobots: RobotsDirective | undefined): S
   ];
 }
 
-function buildSitemapEnabledWrites(sitemapEnabled: boolean | undefined = undefined): SeoSettingWrite[] {
+function buildSitemapEnabledWrites(_required: Record<string, never> = {}, { sitemapEnabled }: { sitemapEnabled?: boolean } = {}): SeoSettingWrite[] {
   return sitemapEnabled === undefined ? [] : [{ key: "sitemap_enabled", value: sitemapEnabled }];
 }
 
-function buildRobotsRulesWrites(robotsRules: RobotsRule[] | undefined): SeoSettingWrite[] {
+function buildRobotsRulesWrites({ robotsRules }: { robotsRules: RobotsRule[] | undefined }, _optional = {}): SeoSettingWrite[] {
   return robotsRules === undefined ? [] : [{ key: "robots_rules", value: robotsRules as unknown as JsonValue }];
 }
 
@@ -366,9 +356,9 @@ export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSe
   // 2 writes, then sitemapEnabled, then robotsRules) — write order is preserved on purpose.
   const writes: SeoSettingWrite[] = [
     ...buildScalarWrites(input.patch),
-    ...buildDefaultRobotsWrites(input.patch.defaultRobots),
-    ...buildSitemapEnabledWrites(input.patch.sitemapEnabled),
-    ...buildRobotsRulesWrites(input.patch.robotsRules),
+    ...buildDefaultRobotsWrites({ defaultRobots: input.patch.defaultRobots }),
+    ...buildSitemapEnabledWrites({}, { sitemapEnabled: input.patch.sitemapEnabled }),
+    ...buildRobotsRulesWrites({ robotsRules: input.patch.robotsRules }),
   ];
 
   for (const write of writes) {
@@ -404,6 +394,6 @@ export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSe
 }
 
 /** Tovu's ISO-clock adapter; the shared clock contract/rationale lives in Jini core/primitives. */
-function jiniClock(clock: ClockPort | { nowIso(): string }): ClockPort {
+function jiniClock({ clock }: { clock: ClockPort | { nowIso(): string } }, _optional = {}): ClockPort {
   return "nowMs" in clock ? clock : { nowMs: () => Date.parse(clock.nowIso()) };
 }

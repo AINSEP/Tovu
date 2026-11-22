@@ -1,11 +1,12 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Reload only this tab's public guest; Electron can throw from calls on detached webviews. */
 import type { SiteThemePreviewRefresh } from '../contracts/project.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 
-function publicPath(path: string): boolean {
+function publicPath({ path }: { path: string }, _options: Record<string, never> = {}): boolean {
   if (!path.startsWith('/') || path.startsWith('//') || /[\\\u0000-\u0020]/.test(path)) return false;
   try {
-    const decoded = decodeURIComponent(path.split(/[?#]/, 1)[0]!);
+    const decoded = decodeURIComponent(path.split(/[?#]/, 1).join(''));
     const normalized = new URL(path, 'https://preview.invalid').pathname;
     return !/[\\\u0000-\u0020]|^\/\/|(?:^|\/)\.\.(?:\/|$)|^\/(?:admin|api)(?:\/|$)/i.test(decoded)
       && !/^\/(?:admin|api)(?:\/|$)/i.test(normalized);
@@ -22,22 +23,25 @@ export function subscribeWorkspaceThemePreview(
 ): (() => void) | undefined {
   if (!running || !guest || !bridge?.watchSitePreview) return undefined;
   const origin = `http://127.0.0.1:${port}`;
-  const ownPublicUrl = (raw: string) => {
+  const ownPublicUrl = ({ raw }: { raw: string }, _options: Record<string, never> = {}) => {
     try {
       const live = new URL(raw);
       return live.origin === origin && !/^\/(?:admin|api)(?:\/|$)/i.test(live.pathname);
     } catch { return false; }
   };
-  if (!ownPublicUrl(url)) return undefined;
+  if (!ownPublicUrl({ raw: url })) return undefined;
   let closed = false, previous: string | undefined;
   const dispose = bridge.watchSitePreview({ siteDir, listener: (frame: SiteThemePreviewRefresh) => {
     if (closed || !refreshFrameAccepted({ frame, siteDir, previous })) return;
     previous = frame.revision;
     try {
       // Navigation may precede React's next render; check the actual guest before touching it.
-      if (!ownPublicUrl(guest.getURL?.() ?? url)) return;
+      if (!ownPublicUrl({ raw: guest.getURL?.() ?? url })) return;
       if (frame.path === undefined) guest.reloadIgnoringCache();
-      else void guest.loadURL(new URL(frame.path, origin).href, { extraHeaders: 'pragma: no-cache\n' }).catch(() => undefined);
+      else void guest.loadURL(new URL(frame.path, origin).href, { extraHeaders: 'pragma: no-cache\n' }).catch((error: unknown) => {
+        // Another navigation can supersede this preview refresh.
+        if (!(error instanceof Error && error.message.includes('ERR_ABORTED'))) console.error('[theme-preview] Could not refresh the page', describeErrorForLog({ err: error }));
+      });
       dispatch({ type: 'soft-load' });
     } catch { /* An unattached guest must never blank the host window; its normal load will recover. */ }
   } });
@@ -51,5 +55,5 @@ function refreshFrameAccepted(
   { frame, siteDir, previous }: { frame: SiteThemePreviewRefresh; siteDir: string; previous: string | undefined }, _options = {},
 ): boolean {
   if (frame.siteDir !== siteDir || frame.revision === previous || !/^[\w-]{1,100}$/.test(frame.revision)) return false;
-  return frame.path === undefined || publicPath(frame.path);
+  return frame.path === undefined || publicPath({ path: frame.path });
 }

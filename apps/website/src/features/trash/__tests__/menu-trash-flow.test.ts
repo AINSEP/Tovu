@@ -9,13 +9,14 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { createNavMenuReadModel, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuReadModel } from "#src/features/navigation/index";
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
-import { withFollowUps } from "@jini-ai/cms/trash";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
@@ -52,9 +53,9 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
-  const menuRepo = new SqliteMenuRepo(db);
-  const bindingRepo = new SqliteNavLocationBindingRepo(db);
+  const trashDb = contentKernel({ store: db });
+  const menuRepo = new SqliteMenuRepo({ store: db });
+  const bindingRepo = new SqliteNavLocationBindingRepo({ store: db });
 
   const events: DomainEvent[] = [];
   const unreachable = (name: string) => async () => {
@@ -71,7 +72,7 @@ function harness(): Harness {
   const clock = { nowMs: () => Date.parse(AT2), nowIso: () => AT2 };
 
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   // Same wiring `deps.ts` performs at composition: the generic status-marker adapter plus this
   // type's own hide/unhide/purge follow-up events.
@@ -86,10 +87,10 @@ function harness(): Harness {
   );
 
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => `trash-${randomUUID()}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -130,7 +131,7 @@ async function trashMenu(h: Harness, id: string, expectedVersion = 1): Promise<v
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: createFakeClock({ startIso: AT2 }),
     }

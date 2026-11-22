@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type SurfaceEmitter } from '@jini-ai/core';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
@@ -121,8 +121,8 @@ test('tool schema, metadata, callback admission and batch mirrors cover the work
     handler: async () => ({}), policy: { authorize: () => 'allow' as const } })) }).map(tool => tool.toolId);
   for (const name of ['plugin_source_read', 'plugin_source_write', 'plugin_source_edit']) assert.equal(batchable.includes(name), true);
   assert.equal(batchable.includes('plugin_source_delete'), false, 'a permanent delete never batches per item');
-  assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', true), true);
-  assert.equal(isMcpUiToolCallPermitted('plugin_source_delete', false), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'plugin_source_delete', answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'plugin_source_delete', answersAnExchange: false }), false);
 });
 
 test('a non-string field is refused by name before the port is called', async () => {

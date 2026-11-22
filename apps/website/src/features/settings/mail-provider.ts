@@ -1,3 +1,4 @@
+import type { MailTestModeSetting } from "../../contracts/core/settings-vocabulary.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { ensureSettingDefinitions, getEffective, resolveDefinitionRaw, DefinitionNotFoundError, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SetValueRequired, type SettingsRepoPort, type SettingsValueWriteOptions } from "@jini-ai/core/settings";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";
@@ -21,7 +22,6 @@ export const MAIL_PROVIDER_NAMESPACE = "core.mail";
 export const MAIL_PROVIDER_KEY = "provider";
 export const MAIL_TEST_MODE_KEY = "testMode";
 
-export type MailTestModeSetting = { mode: "off" } | { mode: "redirect"; to: string } | { mode: "capture" };
 
 const UNCONFIGURED: MailProviderSetting = { transactional: null, bulk: null };
 
@@ -64,7 +64,7 @@ export async function readMailProviderSetting(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<MailProviderSetting | null> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_PROVIDER_KEY, scopeContext: { workspaceId: required.workspaceId } });
   if (!found || found.sourceLayer === "default") return null;
   return parseMailProviderSetting({ value: found.value });
 }
@@ -121,6 +121,6 @@ export async function readMailTestMode(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<MailTestModeSetting> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_TEST_MODE_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: MAIL_PROVIDER_NAMESPACE, key: MAIL_TEST_MODE_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return parseMailTestMode({ value: found?.value });
 }

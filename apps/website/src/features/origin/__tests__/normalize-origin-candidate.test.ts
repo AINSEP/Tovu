@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
+import { normalizeOriginCandidate } from "@jini-ai/core/contracts/server/verified-origin";
 
 test("normalizeOriginCandidate accepts a plain https URL with default port", () => {
   const result = normalizeOriginCandidate({ rawUrl: "https://good.com/path" });

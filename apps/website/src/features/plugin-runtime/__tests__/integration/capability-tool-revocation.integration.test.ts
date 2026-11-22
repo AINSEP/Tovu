@@ -69,13 +69,13 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
-    postRead: requiredPostReader({ repo: new InMemoryPostRepo([post()]) }),
+    postRead: requiredPostReader({ repo: new InMemoryPostRepo({}, { initialRows: [post()] }) }),
     discoverPlugins: async () => [RECORD],
     pluginActivationRepo: repo,
-  });
+  } });
   assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
@@ -137,7 +137,7 @@ test("moving a plugin to Trash retains its disabled activation and leaves the to
   assert.equal(after.status, "denied", "a trashed plugin's retained disabled activation must keep its tool revoked");
 });
 
-test("an activation read that throws DENIES and says why in the server log — it never completes", async (t) => {
+test("an activation read that throws DENIES and says why in the server log (class label only) — it never completes", async (t) => {
   const inner = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   let failReads = false;
   const flaky: PluginActivationRepoPort = {
@@ -157,7 +157,7 @@ test("an activation read that throws DENIES and says why in the server log — i
 
   assert.equal(result.status, "denied");
   const matched = warn.mock.calls.filter(
-    (call) => call.arguments[0] === "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (database is locked)",
+    (call) => call.arguments[0] === "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (Error)",
   );
   assert.equal(matched.length, 1, `expected exactly one matching warn call, got: ${JSON.stringify(warn.mock.calls.map((c) => c.arguments))}`);
 });

@@ -4,7 +4,7 @@ import { createSettlementWorker, type CommerceWorkerRequired, type CommerceWorke
 /** Bind host timer and filesystem ownership to the reusable settlement state machine. */
 export function createCommerceWorker(required: CommerceWorkerRequired & { directory: string }, optional: Partial<CommerceWorkerOptional> & { acquire?: () => () => void } = {}) {
   const acquire = optional.acquire ?? (() => acquireOwnerLock({ dataDir: required.directory, lockFileName: 'commerce-worker.lock' }));
-  return createSettlementWorker(required, {
+  return createSettlementWorker({ ...required,
     withOwnership: optional.withOwnership ?? (async run => {
       const release = acquire();
       try { await run(); return { acquired: true }; } finally { release(); }

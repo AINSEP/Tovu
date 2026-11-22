@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import {
@@ -10,6 +10,8 @@ import {
 } from "#src/features/deployments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
 
@@ -44,7 +46,7 @@ export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
  * (`export-run.ts`) reads `RouteDeps.exportOutputRootDir` — the same `TOVU_EXPORT_DIR`
  * env-then-default value `cli/commands/export.ts`'s `resolveExportOutputDir` falls back to when its
  * own CLI-only `--out` flag is absent, both ultimately resolved once by the composition root
- * (`server/deps.ts`'s `resolveExportOutputRootDir`) — rather than accepting a caller-supplied path —
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s `resolveExportOutputRootDir`) — rather than accepting a caller-supplied path —
  * the brief's own instruction ("do not invent a new location") doubles as a path-injection guard:
  * nothing here ever builds a filesystem path out of request input.
  *
@@ -86,7 +88,7 @@ function normalizeBasePath(raw: Record<string, unknown>): string | undefined {
 /** Validates the trigger request's optional JSON body. Never throws — every malformed shape maps
  *  to a `{ error }` result the route turns into a `400`, per secure-input-handling discipline for
  *  a request body this route hands straight into a filesystem-writing operation's options. */
-function parseTriggerRequestBody(body: unknown): { ok: true; clean: boolean; basePath?: string } | { ok: false; error: string } {
+function parseTriggerRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; clean: boolean; basePath?: string } | { ok: false; error: string } {
   if (body === undefined || body === null) return { ok: true, clean: false };
   if (typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "request body must be a JSON object" };
 
@@ -100,29 +102,14 @@ function parseTriggerRequestBody(body: unknown): { ok: true; clean: boolean; bas
   return { ok: true, clean: raw.clean === true, ...(basePath !== undefined ? { basePath } : {}) };
 }
 
-export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSiteDeps): void {
+export function registerAdminExportSiteRoutes({ app, deps }: { app: Express; deps: AdminExportSiteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.export",
-        workspaceId: deps.workspaceId,
-        entityType: "site-export",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.export' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.export", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.export", workspaceId: deps.workspaceId, entityType: "site-export" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // No `await` between this check and `startExportRun` below — this whole block runs as one
       // synchronous stretch of the event loop, so two concurrent POSTs cannot both observe "idle".
@@ -135,7 +122,7 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
         return;
       }
 
-      const parsedBody = parseTriggerRequestBody(req.body);
+      const parsedBody = parseTriggerRequestBody({ body: req.body });
       if (!parsedBody.ok) {
         res.status(400).json({ error: parsedBody.error });
         return;
@@ -154,27 +141,12 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "site-export",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-export" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       res.status(200).json(getExportRunSnapshot());
     } catch (err) {

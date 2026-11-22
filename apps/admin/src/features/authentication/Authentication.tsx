@@ -1,3 +1,4 @@
+import { createAuthenticationTranslator } from "./Authentication.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import {
@@ -10,8 +11,8 @@ import "@jini-ai/ui/settings-dialog.css";
 import type { ReactElement } from "react";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { providerBackendNote, t as translateAuthentication } from "./authentication-i18n";
+
+import { providerBackendNote } from "./authentication-i18n";
 import {
   AUTHENTICATION_PROVIDER_SCHEMAS,
   type AuthenticationCredentialFieldSchema,
@@ -19,6 +20,7 @@ import {
   type AuthenticationProviderSchema,
 } from "./model/provider-schemas";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Provider-specific credential requirements for `/admin/authentication`.
  *
@@ -87,7 +89,7 @@ function AuthenticationProviderPanel(props: { provider: AuthenticationProviderSc
   return (
     <section className="jini-settings-section" aria-label={`${props.provider.label} authentication setup`}>
       <p id={noteId} className="settings-ui-inert-note" role="note">
-        {providerBackendNote(props.locale, props.provider.label)}
+        {providerBackendNote({ locale: props.locale, provider: props.provider.label })}
       </p>
       <fieldset
         className="source-config-add-form settings-ui-inert-control"
@@ -136,10 +138,10 @@ function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
  * @example
  * <Authentication />
  */
-export function Authentication(): ReactElement {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const locale = useAdminLocale();
-  const t: Translate = (key) => translateAuthentication({ locale: locale, key: key });
+export function Authentication({ useAdminThemeBoundaryHook = useAdminThemeBoundary, useAdminLocaleHook = useAdminLocale }: { useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary; useAdminLocaleHook?: typeof useAdminLocale } = {}): ReactElement {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
+  const locale = useAdminLocaleHook();
+  const t: Translate = createAuthenticationTranslator({ locale });
   const tabs: SettingsDialogTab[] = [
     {
       id: "home",

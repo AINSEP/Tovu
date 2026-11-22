@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ensureSettingDefinitions, getEffective, type EnsureSettingDefinitionsDeps, type SettingsRepoPort, type SettingDefinitionSpec } from '@jini-ai/core/settings';
 
 import { SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_PLACEMENTS, SITE_CONSENT_REGION_MODES, type SiteConsentSettings } from './config.js';
@@ -34,7 +36,7 @@ export function createSiteConsentReadiness({ after, systemPrincipalId, ...requir
   const ready = after.then(() => ensureSiteConsentDefinitions(required, { systemPrincipalId })).then(async () => {
     // An optional content repair must not prevent the owner opening consent settings to fix it.
     try { await ensurePrivacyDefaults?.(); }
-    catch (error) { console.error(`[consent] privacy defaults failed: ${error instanceof Error ? error.message : ''}`); }
+    catch (error) { console.error(`[consent] privacy defaults failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   });
   // Attach a rejection observer now; a request may arrive long after registration fails.
   void ready.catch(() => undefined);
@@ -48,7 +50,7 @@ type Deps = { settingsRepo: SettingsRepoPort; workspaceId: string };
 
 /** @complexity O(1), one ledger read. */
 async function readSetting({ settingsRepo, workspaceId }: Deps, key: keyof SiteConsentSettings) {
-  return getEffective({ repo: settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
+  return getEffective({ deps: { repo: settingsRepo }, namespace: SITE_CONSENT_NAMESPACE, key, scopeContext: { workspaceId } });
 }
 
 /** Resolve whether consent applies, honoring an explicit owner choice over the product default.

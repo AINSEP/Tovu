@@ -44,7 +44,7 @@ import { contributeServerLogsTools } from "#src/features/server-logs/tool-regist
 import { contributeObservabilityTools } from "#src/features/observability/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
-import { contributeSitesListTools } from "#src/features/sites/list-tool";
+import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import {
@@ -63,8 +63,8 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/index";
-import type { EgressPolicy } from "#src/platform/http/index";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
 import { createSiteWebFetchEgressPolicy } from "#src/platform/http/egress-policies";
 import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
@@ -85,13 +85,13 @@ import { contributeDeploymentsTools } from "#src/features/deployments/tool-regis
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
-import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
-import { readServerAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import { probeExternalMcpServer } from "#src/features/external-mcp/external-mcp-probe";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 import type { ExternalMcpOperations } from "#src/features/external-mcp/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
-import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/index";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -99,12 +99,22 @@ import { contributeSkillsInstallTools } from "#src/features/skills/install-tool"
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
 import { contributePublishContentTools } from "#src/features/publish-content/tool-registrations";
 import { installFirstPartyPublishContentTypes } from "./publish-content-manifest.js";
-import { contributePostTools, contributePostDuplicateHandlers, contributeContentStatsTools, contributePostPreviewTools } from "#src/features/post/tool-registrations";
+import { contributePostTools } from "#src/features/post/tool-registrations";
+import { contributePostDuplicateHandlers } from "#src/features/post/post-tool-duplicate";
+// Keep the standalone read tool on the existing registration seam, outside the content barrel.
+import { contributeContentStatsTools } from "#src/features/post/content-stats-tool";
+// Keep assistant contribution ports on the registration seam, outside the general post barrel.
+import { contributePostPreviewTools } from "#src/features/post/preview-tool";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
-import { contributeThemesTools, contributeSetActiveThemeTools, contributePreviewSwitcherTools, contributeDuplicateThemeTools, contributeImportThemeFileTools, contributeTrashThemeTools } from "#src/features/theme/tool-registrations";
+import { contributeThemesTools } from "#src/features/theme/tool-registrations";
+import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
+import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
+import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
+import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
+import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
-import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
+import { contributeWorkspaceTools } from "#src/features/workspace/index";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
@@ -127,7 +137,8 @@ import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/feat
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
-import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
+import { deriveTrashItemRegistrations } from "#src/features/trash/trash-item-tool";
+import { trashItemDerivedRisk } from "@jini-ai/cms/trash";
 import { buildPublishHostCredentialHandler, contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
 
@@ -370,6 +381,27 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  installStatusAndAgentTools(contributions, () => findPublishCandidate);
+  const bundledPluginsRoot = installResourceTools(contributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts });
+  installPublishingAndPluginTools(contributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate: () => findPublishCandidate });
+  installWebReadTools(contributions, { createHttpClient, observability });
+  contributions.contributors.register({ contribution: contributeSourceControlTools() });
+  contributions.contributors.register({ contribution: contributeStaticPublishTools() });
+  contributions.contributors.register({ contribution: {
+    domain: "credential-copy", risk: credentialCopyDerivedRisk,
+    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
+  } });
+  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
+  const committedRoot = resolveCommittedConfigRoot();
+  // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
+  // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
+  installCredentialSaveTools(contributions);
+  installWorkspaceToolContributors(contributions);
+}
+
+function installStatusAndAgentTools(contributions: AssistantToolContributions, getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination>) {
+
   toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
@@ -403,7 +435,7 @@ export function installFirstPartyToolContributors(
   // header for why the two halves use different wiring seams.
   contributions.contributors.register({ contribution: contributeIdentityPolicyListPermissionsTools() });
   contributions.contributors.register({ contribution: contributeSitesListTools() });
-  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePublishContentDisconnectTools(), build: (deps, surfaces) => contributePublishContentDisconnectTools().build({ ...deps, findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeThemeSetPagePublishedTools() });
   contributions.contributors.register({ contribution: contributeAgentPluginSearchTools() });
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
@@ -416,6 +448,10 @@ export function installFirstPartyToolContributors(
         externalMcpOAuth: deps.externalMcpOAuth, apiConnections: deps.apiConnections }),
     }, surfaces);
   } } });
+}
+
+function installResourceTools(contributions: AssistantToolContributions, { deployOpsRegistry, createHttpClient, observability, readExternalMcpToolNames, readAdmissions, mediaVideoPorts }: { deployOpsRegistry?: DeployOpsRegistry; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; readExternalMcpToolNames?: NonNullable<Parameters<typeof installFirstPartyToolContributors>[1]>["readExternalMcpToolNames"]; readAdmissions: ExternalMcpOperations["admissions"]; mediaVideoPorts: MediaVideoToolPorts }) {
+
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
@@ -438,7 +474,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDatabaseTransferTools({ adapters: createDatabaseTransferAdapters({}) }) });
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
-  const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
+  const domainDnsHttpClient = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability });
   const bundledPluginsRoot = bundledAgentPluginsDir();
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   const publicDnsResolver = createBundledPublicDnsResolver({ client: domainDnsHttpClient, sourceRoot: bundledPluginsRoot }, domainDnsDiagnostics);
@@ -470,6 +506,11 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
+  return bundledPluginsRoot;
+}
+
+function installPublishingAndPluginTools(contributions: AssistantToolContributions, { readInstallAttachment, createHttpClient, observability, getFindPublishCandidate }: { readInstallAttachment: InstallAttachmentReader; createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort; getFindPublishCandidate: () => () => ReturnType<typeof findCandidateDestination> }) {
+
   const plugins = contributePluginsTools();
   contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
     pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps: { ...deps,
@@ -487,8 +528,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: { ...agentPluginsInstall, build: (deps, surfaces) => agentPluginsInstall.build({ ...deps, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
-  contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
-    try { return await renderPostPreview(deps as Parameters<typeof renderPostPreview>[0], input); }
+  contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async ({ deps, input }) => {
+    try { return await renderPostPreview({ deps: deps as Parameters<typeof renderPostPreview>[0]["deps"], input }); }
     catch (error) {
       if (error instanceof TemplatePreviewRenderError) throw new ToolInputError({ message: `content_post_preview: ${error.message}` });
       throw error;
@@ -500,7 +541,7 @@ export function installFirstPartyToolContributors(
   // Publish dialog — see that feature's `tool-registrations.ts` header.
   // Pull planning/execution also use this domain. Inject the HTTP importer's complete projection
   // so registered content types see the same ports through either entry point.
-  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? findPublishCandidate }) }) });
+  contributions.contributors.register({ contribution: contributePublishContentTools({ buildPublishContentDeps: deps => ({ ...toPublishContentDeps(deps), findPublishCandidate: deps.findPublishCandidate ?? getFindPublishCandidate() }) }) });
   // Those tools count and publish whatever the publish-content TYPE registry holds, and the agent
   // daemon never runs `createApp()` (whose publish-content module is the other caller). Without
   // this line the daemon's registry is empty and every publish answer is "nothing to publish".
@@ -519,11 +560,15 @@ export function installFirstPartyToolContributors(
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
-  contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }) });
-  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
+  contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability })) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
+}
+
+function installWebReadTools(contributions: AssistantToolContributions, { createHttpClient, observability }: { createHttpClient: typeof createDefaultHttpClient; observability?: ObservabilityPort }) {
+
   // `web_fetch_page` (2026-10-08): reads any PUBLIC page for every assistant path (daemon CLIs and
   // BYOK alike), through its own guarded client — every redirect hop is re-checked for private addresses.
   const publicBrowserPool = createRenderBrowserPool({
@@ -540,9 +585,9 @@ export function installFirstPartyToolContributors(
   }, { maxConcurrent: 2 });
   // One composition for raw and rendered reads; both use the selected site's same egress boundary.
   const webPortsForPolicy = ({ policy }: { policy: EgressPolicy }, _options = {}): Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage"> => {
-    const renderedClient = createHttpClient({ ...policy, maxRedirects: 0 }, { observability });
+    const renderedClient = createHttpClient({ policy: { ...policy, maxRedirects: 0 } }, { observability });
     return {
-      httpClient: createHttpClient(policy, { observability }), htmlToMarkdown,
+      httpClient: createHttpClient({ policy }, { observability }), htmlToMarkdown,
       // Resolve Playwright in the host; Jini is also consumed through published npm packages.
       renderPage: ({ input }, optional = {}) => renderPublicPage({ input, httpClient: { send: ({ request }) => renderedClient.send(request) } }, {
         ...optional, browserPool: publicBrowserPool,
@@ -561,7 +606,7 @@ export function installFirstPartyToolContributors(
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPageCaptureForHost({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+      capture: createPageCaptureForHost({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
@@ -574,17 +619,10 @@ export function installFirstPartyToolContributors(
       saveCaptureFilesFor: (routeDeps) => (request) => createCaptureFileWriter({ rootDir: captureRootFor({ siteDir: routeDeps.siteBinding.dir }) })(request),
     },
   ) });
-  contributions.contributors.register({ contribution: contributeSourceControlTools() });
-  contributions.contributors.register({ contribution: contributeStaticPublishTools() });
-  contributions.contributors.register({ contribution: {
-    domain: "credential-copy", risk: credentialCopyDerivedRisk,
-    build: (deps, surfaces) => buildCredentialCopyRegistrations({ deps, surfaces, saveNew: buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces }).create }),
-  } });
-  const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledPluginsRoot });
-  const committedRoot = resolveCommittedConfigRoot();
-  // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
-  // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: relative => path.join(committedRoot, relative) }, { candidatePaths });
+}
+
+function installCredentialSaveTools(contributions: AssistantToolContributions) {
+
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,
@@ -608,15 +646,20 @@ export function installFirstPartyToolContributors(
           } }) } : {}),
         } satisfies import("#src/features/custom-credentials/credential-save-tool").CredentialSaveAdapters;
       };
+      const projectKeys = originalDeps.projectKeys;
       return buildCredentialSaveRegistrations({
         adapters: adaptersFor(loadPluginCredentialCards),
-        savedResult: originalDeps.projectKeys ? input => originalDeps.projectKeys!.savedResult(input) : undefined,
+        savedResult: projectKeys ? input => projectKeys.savedResult(input) : undefined,
         loadPluginCredentialCards: () => loadPluginCredentialCards(originalDeps.workspaceId),
         authorizePluginProvider: ctx => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: originalDeps.authorize }), workspaceId: originalDeps.workspaceId, principalId: ctx.principal.id, permission: 'custom-credentials.write' }, { entityType: 'custom-credentials' }),
         adaptersForCards: ({ cards }) => adaptersFor(async () => cards),
       });
     },
   } });
+}
+
+function installWorkspaceToolContributors(contributions: AssistantToolContributions) {
+
   contributions.contributors.register({ contribution: {
     domain: "project-keys", risk: projectKeysRisk,
     build: (deps, surfaces) => buildProjectKeyRegistrations({ keys: deps.projectKeys, surfaces, restart: devRestartPortFromEnv(),
@@ -658,7 +701,7 @@ export function installFirstPartyToolContributors(
   // and `trash_item`'s `theme` delegate, so it must be registered before that derived pass runs.
   contributions.contributors.register({ contribution: contributeTrashThemeTools() });
   // `trashUser` gives `trash_item` its `user` kind through the Users screen's own delete (see that port's doc).
-  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations(input, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
+  contributions.derivedContributors.register({ contribution: { domain: "trash-item", derive: (input) => deriveTrashItemRegistrations({ registrations: input.registrations, routeDeps: input.routeDeps }, { trashUser: bindTrashUserForTool(input.routeDeps) }), risk: trashItemDerivedRisk } });
   contributions.contributors.register({ contribution: contributeWidgetsTools() });
   contributions.contributors.register({ contribution: contributeWorkspaceTools() });
 

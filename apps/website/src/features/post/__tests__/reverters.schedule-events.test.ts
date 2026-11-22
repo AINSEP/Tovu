@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  DomainEvent,
+  OutboxPort,
+} from "@jini-ai/core/contracts/events";
 import { revertChangeSet } from "#src/contracts/core/commands/index";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/repo.memory";
-import { announceDueGoLives } from "../go-live.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import { announceDueGoLives } from "@jini-ai/cms/entries";
 import type { PostRecord } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { createPostRevertRegistry } from "../reverters.js";
@@ -52,7 +57,7 @@ const scheduledPreImage = { title: "Scheduled", slug: "p1", bodyJson: { type: "d
 const sweep = (repo: InMemoryPostRepo, outbox: OutboxPort, nowIso: string) => announceDueGoLives({ deps: { repo, outbox }, input: { workspaceId: WS, nowIso } });
 
 test("History undo restoring a still-scheduled pre-image emits nothing; the sweep announces it at go-live", async () => {
-  const repo = new InMemoryPostRepo([row({ status: "draft", publishAt: null })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row({ status: "draft", publishAt: null })] });
   const outbox = recordingOutbox();
   await undo({ repo, outbox, nowIso: SAVED, item: { operation: "update", inversePayload: scheduledPreImage } });
   assert.deepEqual(outbox.ids, [], "embargoed until go-live");
@@ -61,14 +66,14 @@ test("History undo restoring a still-scheduled pre-image emits nothing; the swee
 });
 
 test("History undo of a row that went live unannounced announces the go-live before it moves updatedAt", async () => {
-  const repo = new InMemoryPostRepo([row()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row()] });
   const outbox = recordingOutbox();
   await undo({ repo, outbox, nowIso: LATER, item: { operation: "update", inversePayload: { ...scheduledPreImage, status: "draft" } } });
   assert.deepEqual(outbox.ids, [GO_LIVE_ID, "p1-entry.unpublished-3"]);
 });
 
 test("Trash undo of a still-scheduled post emits nothing; the sweep announces it at go-live", async () => {
-  const repo = new InMemoryPostRepo([row({ deletedAt: SAVED })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row({ deletedAt: SAVED })] });
   const outbox = recordingOutbox();
   await undo({ repo, outbox, nowIso: SAVED, item: { operation: "delete", inversePayload: { deletedAt: null } } });
   assert.equal((await repo.findById({ workspaceId: WS, id: "p1" }))?.deletedAt, null, "restored");
@@ -78,21 +83,21 @@ test("Trash undo of a still-scheduled post emits nothing; the sweep announces it
 });
 
 test("Trash undo after the scheduled time passed publishes it now", async () => {
-  const repo = new InMemoryPostRepo([row({ deletedAt: SAVED })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row({ deletedAt: SAVED })] });
   const outbox = recordingOutbox();
   await undo({ repo, outbox, nowIso: LATER, item: { operation: "delete", inversePayload: { deletedAt: null } } });
   assert.deepEqual(outbox.ids, ["p1-entry.published-3"]);
 });
 
 test("an undo whose event enqueue fails rolls the restore back", async () => {
-  const repo = new InMemoryPostRepo([row({ deletedAt: SAVED, publishAt: null })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row({ deletedAt: SAVED, publishAt: null })] });
   const outbox = { ...recordingOutbox(), enqueue: async () => { throw new Error("outbox unavailable"); } };
   await assert.rejects(undo({ repo, outbox, nowIso: LATER, item: { operation: "delete", inversePayload: { deletedAt: null } } }), /outbox unavailable/);
   assert.equal((await repo.findById({ workspaceId: WS, id: "p1" }))?.deletedAt, SAVED, "still in the Trash");
 });
 
 test("both reverters' currentActor: the actor of the current revision, else null (missing row or ledger)", async () => {
-  const repo = new InMemoryPostRepo([row()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [row()] });
   const reverters = createPostRevertRegistry({ postRepo: repo, clock: { nowMs: () => Date.parse(SAVED) }, outbox: recordingOutbox(), forgetRemoved: async () => {} });
   const update = reverters.resolve("post", "update")!;
   const remove = reverters.resolve("post", "delete")!;

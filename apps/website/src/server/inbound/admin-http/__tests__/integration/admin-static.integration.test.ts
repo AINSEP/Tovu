@@ -29,7 +29,7 @@ test("embedded admin assets win over dev proxy and fall back to the SPA for miss
     return Uint8Array.from(Buffer.from(value)).buffer;
   });
   const app = express();
-  registerAdminStatic(app, { distDir: "/unused-in-sea" });
+  registerAdminStatic({ app, distDir: "/unused-in-sea" });
   const base = await startTestServer(app, t);
   for (const url of ["/admin", "/admin/", "/admin/settings/users"]) {
     const response = await fetch(base + url);
@@ -59,7 +59,7 @@ test("built admin serves real files and deep SPA paths serve index.html", async 
   await writeFile(path.join(dir, "index.html"), "<h1>Built admin</h1>");
   await writeFile(path.join(dir, "main.js"), "console.log('built');");
   const app = express();
-  registerAdminStatic(app, { distDir: dir });
+  registerAdminStatic({ app, distDir: dir });
   const base = await startTestServer(app, t);
   const asset = await fetch(base + "/admin/main.js");
   assert.equal(asset.status, 200);

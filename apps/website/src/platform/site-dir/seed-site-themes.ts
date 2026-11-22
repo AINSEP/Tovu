@@ -12,7 +12,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * which replace the package's stock tree.
  *
  * A site now owns `<site>/themes/`. The package keeps a read-only STOCK tree
- * (`server/deps.ts`'s `builtInThemesDir()`), and this function copies it into the site the first
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s `builtInThemesDir()`), and this function copies it into the site the first
  * time that site boots. After that the site's copy is the only one anything reads or writes
  * (`RouteDeps.themesDir`), so an upgrade can replace the package tree freely.
  *
@@ -25,7 +25,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * Discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`), so a theme left
  * out here does not exist to that site's admin UI. The seeded theme's `__original-themes__/` entry
  * comes along: `theme-files.ts` resolves "reset to original" at `join(themesRoot,
- * THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to original" silently
+ * @jini-ai/cms/themes/layout's THEME_CATALOG_DIR, ...)` off the SITE's themes root — omit it and "reset to original" silently
  * has nothing to restore from. Originals of themes not seeded are left out too, so the catalog
  * never claims a theme the site does not have.
  *
@@ -33,7 +33,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  *
  * Architectural role:
  * Pure filesystem effect, no domain logic and no port. Called from the real composition root
- * (`server/deps.ts`'s `createSiteRouteDeps`) only — deliberately NOT from `server/app.ts`'s
+ * (`server/runtime/composition/deps.ts`'s `createSiteRouteDeps`) only — deliberately NOT from `server/runtime/composition/app.ts`'s
  * in-memory `createRouteDeps()`, which is the hermetic/test path and would copy the whole tree per
  * test run.
  */
@@ -70,7 +70,7 @@ export interface SeedSiteThemesRequired {
  */
 export const SEEDED_STOCK_THEME_IDS: readonly string[] = ["tovu-starter"];
 
-/** `features/theme/theme.ts`'s `THEME_CATALOG_DIR`, the "reset to original" copies — same cycle reason. */
+/** `@jini-ai/cms/themes/layout`'s `THEME_CATALOG_DIR`, the "reset to original" copies — same cycle reason. */
 const CATALOG_DIR_NAME = "__original-themes__";
 
 /**
@@ -87,8 +87,9 @@ function isSeededStockPath(required: { stockDir: string; path: string }): boolea
   const parts = rel.split(sep);
   const inCatalog = parts[0] === CATALOG_DIR_NAME;
   const scoped = inCatalog ? parts.slice(1) : parts;
-  if (scoped.length === 0) return true;
-  const topLevelTheme = existsSync(join(required.stockDir, ...(inCatalog ? [CATALOG_DIR_NAME] : []), scoped[0]!, "theme.json"));
+  const first = scoped[0];
+  if (first === undefined) return true;
+  const topLevelTheme = existsSync(join(required.stockDir, ...(inCatalog ? [CATALOG_DIR_NAME] : []), first, "theme.json"));
   const themeId = topLevelTheme ? scoped[0] : scoped[1];
   // A tier folder itself, or a file at the root/catalog root.
   if (themeId === undefined) return true;

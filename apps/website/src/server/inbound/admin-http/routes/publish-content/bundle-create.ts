@@ -1,17 +1,18 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "@jini-ai/cms/publish/transfer";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
-import type { BackstopMetadata } from "#src/features/publish-content/backstop-audit";
+import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
 import { getPublishTrustContext, type PublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";
 
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { authorizedPrincipalId, bodyRecord, rejectForeignWorkspace, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { authorizedPrincipalId, bodyRecord, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -55,7 +56,7 @@ function envelopeVersionError(body: Record<string, unknown>): string | undefined
 }
 
 /** One entity's envelope fields. @complexity O(1). */
-function entityError(entity: unknown, index: number): string | undefined {
+function entityError({ entity, index }: { entity: unknown; index: number }, _options: Record<string, never> = {}): string | undefined {
   if (typeof entity !== "object" || entity === null || Array.isArray(entity)) return `entities[${index}] must be an object`;
   const candidate = entity as Record<string, unknown>;
   if (typeof candidate.entityType !== "string" || candidate.entityType.length === 0) {
@@ -66,10 +67,10 @@ function entityError(entity: unknown, index: number): string | undefined {
 }
 
 /** `entities` itself, then each entry in order; the first refusal wins. @complexity O(n). */
-function entitiesError(entities: unknown): string | undefined {
+function entitiesError({ entities }: { entities: unknown }, _options: Record<string, never> = {}): string | undefined {
   if (!Array.isArray(entities)) return "entities must be an array";
   for (const [index, entity] of entities.entries()) {
-    const error = entityError(entity, index);
+    const error = entityError({ entity, index });
     if (error) return error;
   }
   return undefined;
@@ -90,9 +91,9 @@ function manifestAndLabelError(body: Record<string, unknown>): string | undefine
  *  shape — that is `planImport`'s job (Task 5, already built); duplicating it here would just be a
  *  second, driftable copy of the same rule.
  *  @complexity O(n) in `blobManifest.length` (one type check per element). */
-export function validateBundleBody(rawBody: unknown): ValidatedBundle | { error: string } {
-  const body = bodyRecord(rawBody);
-  const error = envelopeVersionError(body) ?? entitiesError(body.entities) ?? manifestAndLabelError(body);
+export function validateBundleBody({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): ValidatedBundle | { error: string } {
+  const body = bodyRecord({ body: rawBody });
+  const error = envelopeVersionError(body) ?? entitiesError({ entities: body.entities }) ?? manifestAndLabelError(body);
   if (error) return { error };
   return {
     artifactFormatVersion: body.artifactFormatVersion as number,
@@ -134,7 +135,7 @@ function schemaVersionRefusal(deps: PublishContentRouteDeps, entities: readonly 
  * permission nobody stated.
  * @complexity O(n · t) in entities and granted types.
  */
-function grantRefusal(publishTrust: PublishTrustContext | null, entities: readonly ValidatedBundleEntity[]): RouteRefusal | null {
+function grantRefusal({ publishTrust, entities }: { publishTrust: PublishTrustContext | null; entities: readonly ValidatedBundleEntity[] }, _options: Record<string, never> = {}): RouteRefusal | null {
   if (entities.some(({ entityType }) => isBackstopEntityType({ entityType }) && !backstopGrantAllows({ grant: publishTrust, entityType }))) {
     return { status: 403, body: { error: "Send by hand requires the destination's backstop grant and raw entity type.",
       code: "FORBIDDEN", details: { permission: "publish_content.backstop", reason: "backstop_not_granted" } } };
@@ -169,7 +170,7 @@ function grantRefusal(publishTrust: PublishTrustContext | null, entities: readon
  * destination, and the audit storage must be installed. `null` for a bundle with no raw entity.
  * @complexity O(n) in entities, plus one audit-table probe.
  */
-async function backstopRefusal(host: string | undefined, deps: PublishContentRouteDeps, entities: readonly ValidatedBundleEntity[]): Promise<RouteRefusal | null> {
+async function backstopRefusal({ host, deps, entities }: { host: string | undefined; deps: PublishContentRouteDeps; entities: readonly ValidatedBundleEntity[] }, _options: Record<string, never> = {}): Promise<RouteRefusal | null> {
   let metadata: BackstopMetadata | null;
   try {
     // Envelope validation leaves entity fields opaque; the planner checks their full
@@ -186,18 +187,18 @@ async function backstopRefusal(host: string | undefined, deps: PublishContentRou
   return null;
 }
 
-export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/publish-content/bundles",
     rejectOversizedJsonBody({ maxBytes: PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
-        const principalId = await authorizedPrincipalId(res, deps, "publish_content.apply");
+        const principalId = await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" });
         if (principalId === null) return;
 
-        const validated = validateBundleBody(req.body);
+        const validated = validateBundleBody({ rawBody: req.body });
         if ("error" in validated) {
           res.status(400).json({ error: validated.error });
           return;
@@ -205,24 +206,26 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
 
         const refusal =
           schemaVersionRefusal(deps, validated.entities) ??
-          grantRefusal(getPublishTrustContext(res), validated.entities) ??
-          (await backstopRefusal(req.get("host"), deps, validated.entities));
+          grantRefusal({ publishTrust: getPublishTrustContext(res), entities: validated.entities }) ??
+          (await backstopRefusal({ host: req.get("host"), deps, entities: validated.entities }));
         if (refusal) {
-          sendRefusal(res, refusal);
+          sendRefusal({ res, refusal });
           return;
         }
 
         const { bundleId, expiresAt } = await stageBundle(
           {
-            workspaceId: deps.workspaceId,
-            sourcePrincipalId: principalId,
-            artifactFormatVersion: validated.artifactFormatVersion,
-            hashVersion: validated.hashVersion,
-            sourceLabel: validated.sourceLabel,
-            entities: validated.entities,
-            blobManifest: validated.blobManifest,
-          },
-          { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+            input: {
+              workspaceId: deps.workspaceId,
+              sourcePrincipalId: principalId,
+              artifactFormatVersion: validated.artifactFormatVersion,
+              hashVersion: validated.hashVersion,
+              sourceLabel: validated.sourceLabel,
+              entities: validated.entities,
+              blobManifest: validated.blobManifest,
+            },
+            deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+          }
         );
 
         res.status(201).json({ bundleId, expiresAt });

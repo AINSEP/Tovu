@@ -26,7 +26,7 @@ type FlushOutcome = { kind: "flushed"; html: string | undefined } | { kind: "fai
  *
  * @complexity O(1); one timer, cleared once `flush` settles first.
  */
-function settleFlush(flush: Promise<string | undefined>, timeoutMs: number): Promise<FlushOutcome> {
+function settleFlush({ flush, timeoutMs }: { flush: Promise<string | undefined>; timeoutMs: number }, _options = {}): Promise<FlushOutcome> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<FlushOutcome>((resolve) => {
     timer = setTimeout(() => resolve({ kind: "timed-out" }), timeoutMs);
@@ -52,8 +52,7 @@ function settleFlush(flush: Promise<string | undefined>, timeoutMs: number): Pro
  *   flush undo that, so the HTML tab and the saved page read as authored.
  * @complexity Time/space: O(1) setup.
  */
-export function useInteractiveEditorFlush(
-  setHtml: (value: string) => void,
+export function useInteractiveEditorFlush({ setHtml }: { setHtml: (value: string) => void }, _options = {}
 ): {
   interactiveEditorRef: RefObject<InteractiveHtmlEditorHandle | null>;
   flushInteractiveEdits: () => Promise<string | undefined>;
@@ -80,7 +79,7 @@ export function useInteractiveEditorFlush(
   const flushInteractiveEdits = useCallback(async (): Promise<string | undefined> => {
     const handle = interactiveEditorRef.current;
     if (!handle) return undefined;
-    const outcome = await settleFlush(Promise.resolve().then(() => handle.flush()), INTERACTIVE_FLUSH_TIMEOUT_MS);
+    const outcome = await settleFlush({ flush: Promise.resolve().then(() => handle.flush()), timeoutMs: INTERACTIVE_FLUSH_TIMEOUT_MS });
     if (outcome.kind === "failed") {
       if (isEditorSourceError({ error: outcome.error }, {})) throw outcome.error;
       console.warn("[useInteractiveEditorFlush] flush failed; saving the working copy without the open edit", outcome.error);

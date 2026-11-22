@@ -12,15 +12,16 @@ import { registerInstalledAgentPluginTools } from '../../tool-registrations.js';
 import { selectedPluginSourceRoot } from '../fixtures/bundled-source-root.js';
 import { forceRemove } from '../fixtures/force-remove.js';
 
+// No `formspree`: parked 2026-11-10 (owner), so Tovu no longer ships it (`RETIRED_BUNDLED_AGENT_PLUGINS`).
 const pluginIds = ['higgsfield-media', 'resend', 'supabase', 'composio', 'github-pages', 'meilisearch', 'google-workspace',
   'github', 'site-compliance', 'wordpress', 'opentelemetry', 'posthog', 'sentry', 'commerce',
-  'formspree', 'google-forms', 'cloudflare', 'netlify', 'vercel', 's3-compatible', 'fly', 'railway', 'render'];
+  'google-forms', 'cloudflare', 'netlify', 'vercel', 's3-compatible', 'fly', 'railway', 'render'];
 const overlayRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugin-overlays');
 const requiredTools: Record<string, readonly string[]> = {
   'higgsfield-media': ['agent_plugin_connect', 'media_import_from_url'],
   resend: ['agent_plugin_connect', 'system_get_mail_status', 'mail_set_provider', 'mail_send_test'], supabase: ['agent_plugin_connect'],
-  composio: ['agent_plugin_connect'], 'github-pages': ['credential_save'], meilisearch: ['credential_save', 'Tovu Search — Meilisearch'],
-  'google-workspace': ['_tovu_submission_id', '_tovu_submitted_at', 'TOVU_GOOGLE_PICKER_BROWSER_KEY', 'TOVU_GOOGLE_PICKER_APP_ID'],
+  composio: ['agent_plugin_connect'], 'github-pages': ['credential_save'], meilisearch: ['credential_save', 'Search — Meilisearch'],
+  'google-workspace': ['_tovu_submission_id', '_tovu_submitted_at', 'JINI_GOOGLE_PICKER_BROWSER_KEY', 'JINI_GOOGLE_PICKER_APP_ID'],
   github: ['site_backup_plan', 'site_backup_push', 'source_control_get_capabilities', 'source_control_execute_commit'],
   'site-compliance': ['site_get_profile', 'site_collect_page_evidence'],
   wordpress: ['dns_plan', 'dns_instructions', 'dns_verify'],
@@ -28,7 +29,7 @@ const requiredTools: Record<string, readonly string[]> = {
   posthog: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
   sentry: ['provider_status', 'plugins_set_enabled', 'project_key_use', 'site_restart'],
   commerce: ['provider_status', 'commerce_get_status', 'commerce_create_product', 'commerce_create_price', 'settings_list_definitions', 'settings_set_value'],
-  formspree: ['forms_update_definition'], 'google-forms': ['forms_update_definition'],
+  'google-forms': ['forms_update_definition'],
   cloudflare: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
   netlify: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
   vercel: ['deployment_get_static_publish_capabilities', 'deployment_preview_static_publish', 'deployment_execute_static_publish'],
@@ -46,16 +47,16 @@ test('Tovu delivers host tool rules beside portable skills, including tools-firs
   const layout = resolveAgentPluginLayout({ siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: source.root, hostOverlaysDir: overlayRoot });
   const workspaceId = 'workspace-local';
-  const workspace = layout.forWorkspace(workspaceId);
+  const workspace = layout.forWorkspace({ workspaceId });
   const seed = await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: source.root });
   assert.equal(seed.ledgerFailure, undefined);
   for (const pluginId of pluginIds) await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId, enabled: true, actor: 'test:operator' });
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, { workspaceId, agentPluginLayout: layout, withExtensionApprovalPolicy }, { overlaysDir: overlayRoot });
+  await registerInstalledAgentPluginTools({ registry, ctx: { workspaceId, agentPluginLayout: layout, withExtensionApprovalPolicy } }, { overlaysDir: overlayRoot });
   const executor = createToolExecutor({ registry });
   for (const pluginId of pluginIds) {
     const toolId = `agent_plugin_${pluginId.replaceAll('-', '_')}`;
-    const pointer = await lifecycle.resolveAgentPluginRefs([pluginId], workspace, 'pointer');
+    const pointer = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'pointer' });
     assert.equal(pointer.ok, true, pluginId);
     assert.match(pointer.promptPrefix, /MANDATORY/);
     assert.ok(pointer.promptPrefix.includes(toolId), pluginId);
@@ -72,9 +73,9 @@ test('Tovu delivers host tool rules beside portable skills, including tools-firs
     if (pluginId === 'resend') {
       assert.match(guidance, /target:\s*"resend-mcp"/);
       assert.match(guidance, /target:\s*"resend"/);
-      assert.ok(guidance.includes('Tovu Mail — Resend API'));
+      assert.ok(guidance.includes('Mail — Resend API'), 'Resend host guidance names the canonical sending credential');
     }
-    const injected = await lifecycle.resolveAgentPluginRefs([pluginId], workspace, 'inject');
+    const injected = await lifecycle.resolveAgentPluginRefs({ pluginRefIds: [pluginId], workspaceLayout: workspace }, { deliveryMode: 'inject' });
     assert.equal(injected.ok, true, pluginId);
     assert.ok(injected.promptPrefix.includes(overlay), pluginId);
     assert.ok(injected.promptPrefix.includes(skill), pluginId);

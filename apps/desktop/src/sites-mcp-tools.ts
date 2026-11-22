@@ -73,7 +73,7 @@ type ClassifySiteDirFn = typeof classifySiteDirSafely;
 interface ToolContext {
   userDataDir?: string;
   projectsPath: string;
-  revealPath: (target: string) => Promise<void>;
+  revealPath: (required: { target: string }) => Promise<void>;
   classifySiteDir?: ClassifySiteDirFn;
 }
 
@@ -117,10 +117,10 @@ interface McpToolResult {
  * @throws {ToolInputError} when the value is absent, not a string, or blank.
  * @complexity O(1).
  */
-function requireStringArg(args: ToolArgs, name: string): string {
+function requireStringArg({ args, name }: { args: ToolArgs; name: string }, _optional = {}): string {
   const value = args?.[name];
   if (typeof value !== "string" || value.trim() === "") {
-    throw new ToolInputError(`'${name}' is required and must be a non-empty string.`);
+    throw new ToolInputError({ message: `'${name}' is required and must be a non-empty string.` });
   }
   return value;
 }
@@ -129,7 +129,7 @@ function requireStringArg(args: ToolArgs, name: string): string {
  *  {@link runSitesMcpTool} can answer the model with a correctable message and still let a
  *  genuine internal fault surface as one. */
 class ToolInputError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ToolInputError";
   }
@@ -167,12 +167,12 @@ const SITE_DIR_SCHEMA = Object.freeze({
  * @complexity O(n) in the tracked-row count, one `stat` pair per row.
  */
 function listSites(_args: ToolArgs, context: ToolContext): ToolHandlerResult {
-  const sites = readTrackedSites(context.projectsPath).map((row) => ({
+  const sites = readTrackedSites({ projectsPath: context.projectsPath }).map((row) => ({
     siteDir: row.siteDir,
     name: path.basename(row.siteDir),
     origin: row.origin,
     addedAt: row.createdAt,
-    present: (context.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site",
+    present: (context.classifySiteDir ?? classifySiteDirSafely)({ dir: row.siteDir }) === "site",
   }));
   return {
     structured: { sites, count: sites.length },
@@ -197,7 +197,7 @@ function listSites(_args: ToolArgs, context: ToolContext): ToolHandlerResult {
  * @complexity O(n) in the tracked-row count, plus one classification.
  */
 function addSitePointerTool(args: ToolArgs, context: ToolContext): ToolHandlerResult {
-  const requested = requireStringArg(args, "siteDir");
+  const requested = requireStringArg({ args, name: "siteDir" });
   const result = addSitePointer({
     siteDir: requested,
     projectsPath: context.projectsPath,
@@ -239,16 +239,16 @@ function describeAddResult(result: ReturnType<typeof addSitePointer>): string {
  * @complexity O(n) in the tracked-row count.
  */
 async function revealSiteFolder(args: ToolArgs, context: ToolContext): Promise<ToolHandlerResult> {
-  const requested = requireStringArg(args, "siteDir");
+  const requested = requireStringArg({ args, name: "siteDir" });
   const siteDir = path.resolve(path.sep, requested);
-  const tracked = readTrackedSites(context.projectsPath).some((row) => row.siteDir === siteDir);
+  const tracked = readTrackedSites({ projectsPath: context.projectsPath }).some((row) => row.siteDir === siteDir);
   if (!tracked) {
-    throw new ToolInputError(
-      `${siteDir} is not one of this app's websites, so it will not be opened. Call 'list_sites' and use one of the 'siteDir' values it returns.`,
-    );
+    throw new ToolInputError({
+      message: `${siteDir} is not one of this app's websites, so it will not be opened. Call 'list_sites' and use one of the 'siteDir' values it returns.`,
+    });
   }
 
-  await context.revealPath(siteDir);
+  await context.revealPath({ target: siteDir });
   return {
     structured: { siteDir, revealed: true },
     text: `Opened ${siteDir} in a file-manager window. You can act on the folder there yourself — nothing was changed.`,
@@ -343,23 +343,23 @@ function describeSitesMcpTools() {
  *
  * @complexity O(n) in the tool count, plus the chosen handler's own cost.
  */
-async function runSitesMcpTool(name: string, args: ToolArgs, context: ToolContext): Promise<McpToolResult> {
+async function runSitesMcpTool({ name, args, context }: { name: string; args: ToolArgs; context: ToolContext }, _optional = {}): Promise<McpToolResult> {
   const tool = SITES_MCP_TOOLS.find((entry) => entry.name === name);
   if (tool === undefined) {
-    return toolError(`Unknown tool '${name}'. Available: ${SITES_MCP_TOOLS.map((entry) => entry.name).join(", ")}.`);
+    return toolError({ message: `Unknown tool '${name}'. Available: ${SITES_MCP_TOOLS.map((entry) => entry.name).join(", ")}.` });
   }
   try {
     const { text, structured } = await tool.handler(args ?? {}, context);
     return { content: [{ type: "text", text }], structuredContent: structured };
   } catch (err) {
-    if (err instanceof ToolInputError) return toolError(err.message);
-    if (err instanceof AddSitePointerError) return toolError(err.message, { code: err.code });
-    return toolError(`The Tovu desktop app could not complete '${name}': ${err instanceof Error ? err.message : String(err)}`);
+    if (err instanceof ToolInputError) return toolError({ message: err.message });
+    if (err instanceof AddSitePointerError) return toolError({ message: err.message }, { structured: { code: err.code } });
+    return toolError({ message: `The Tovu desktop app could not complete '${name}': ${err instanceof Error ? err.message : String(err)}` });
   }
 }
 
 /** One failed tool result. @complexity O(1). */
-function toolError(message: string, structured: Record<string, unknown> = {}): McpToolResult {
+function toolError({ message }: { message: string }, { structured = {} }: { structured?: Record<string, unknown> } = {}): McpToolResult {
   return { content: [{ type: "text", text: message }], structuredContent: { error: message, ...structured }, isError: true };
 }
 
@@ -380,8 +380,8 @@ export function createSitesMcpToolHost({ context }: { context: ToolContext }, _o
       // Preserve the stdio bridge's read-modify-write ordering across all HTTP connections.
       // Reuse core's serial task owner so rejection still permits the next accepted call.
       pending = appendSerialTask({ previous: pending, onError: reject, task: async () => {
-        if (ctx.signal?.aborted) { resolve(toolError("Desktop call cancelled before dispatch.")); return; }
-        resolve(await runSitesMcpTool(tool.name, args, context));
+        if (ctx.signal?.aborted) { resolve(toolError({ message: "Desktop call cancelled before dispatch." })); return; }
+        resolve(await runSitesMcpTool({ name: tool.name, args, context }));
       } });
     }),
   }));

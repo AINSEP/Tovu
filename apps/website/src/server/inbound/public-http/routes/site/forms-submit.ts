@@ -9,15 +9,16 @@ import { createFormSubmitHandler, type CreateFormSubmitHandlerRequired } from "@
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { isHttpsRequest } from "../oauth/public-origin.js";
-import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery,
-  encodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../http/site/render.js";
+import { isHttpsRequest } from "../../../../../platform/express/public-origin.js";
+import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery } from "@jini-ai/cms/forms/result-query";
+import { encodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../http/site/form-wire-policy.js";
 
 /**
  * @file Public submission route for `forms` (SPEC-010 `FORMS_POST_SUBMIT`, REQ-05).
  *
  * Mirrors `routes/site/analytics-ingest.ts`'s public-route shape: no session required, registered
- * before the site `/:slug` catch-all (see `server/app.ts`'s wiring). Reuses `resolveClientIp`
+ * before the site `/:slug` catch-all (see `apps/website/src/server/runtime/composition/app.ts`'s wiring). Reuses `resolveClientIp`
  * (`core/rate-limit/rate-limit.ts`) rather than re-deriving IP resolution — all real validation
  * happens inside `submitForm` (C-008); this file owns only the HTTP boundary.
  *
@@ -54,16 +55,16 @@ export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
  * submission regardless of the redirect fix. A `fetch`/JSON caller (every pre-existing test in this
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
-export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
+export function registerFormsSubmitRoute({ app, deps }: { app: Express; deps: RegisterFormsSubmitRouteDeps }, _optional: Record<string, never> = {}): void {
   const resultDeps: Omit<CreateFormSubmitHandlerRequired, "submit"> = {
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,
     resolveClientIp,
     isHttpsRequest,
     resultCodec: {
-      encodeResultQuery: encodeFormSubmissionResultQuery,
-      clearResultQueryParams: clearFormSubmissionResultQueryParams,
-      encodeFlashCookie: encodeFormFlashCookieValue,
+      encodeResultQuery: result => encodeFormSubmissionResultQuery({ result, keys: FORM_RESULT_QUERY_KEYS }),
+      clearResultQueryParams: params => clearFormSubmissionResultQueryParams({ params, keys: FORM_RESULT_QUERY_KEYS }),
+      encodeFlashCookie: payload => encodeFormFlashCookieValue({ payload }),
       flashCookieName: FORM_FLASH_COOKIE_NAME,
     },
     targetRefusalReason: target => siteRelativeTargetReason({ target, reservedSegments: RESERVED_SEGMENTS }, {}),

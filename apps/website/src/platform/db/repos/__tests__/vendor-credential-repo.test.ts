@@ -53,7 +53,7 @@ function seedSqliteWorkspaces(db: ReturnType<typeof openContentDb>, ids: string[
 async function openSeededDb() {
   const db = openContentDb(":memory:");
   seedSqliteWorkspaces(db, [WORKSPACE, OTHER_WORKSPACE]);
-  await ensureVaultRepoFixture({ kernel: contentKernel(db) });
+  await ensureVaultRepoFixture({ kernel: contentKernel({ store: db }) });
   return db;
 }
 
@@ -295,7 +295,7 @@ test("the vault FK rejects a workspace that does not exist", async () => {
 
 test("deleting a workspace CASCADEs to its credential sets", async () => {
   const db = await openSeededDb();
-  const repo = new SqliteVendorCredentialSetRepo(contentKernel(db));
+  const repo = new SqliteVendorCredentialSetRepo(contentKernel({ store: db }));
   await repo.insert(makeRecord());
 
   db.delete(workspaces).where(eq(workspaces.id, WORKSPACE)).run();

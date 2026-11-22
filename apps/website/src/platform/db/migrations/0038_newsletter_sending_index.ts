@@ -1,5 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule } from 'kysely';
-import type { MigrationStep } from './step.js';
+import type { MigrationStep } from '@jini-ai/core/contracts/storage';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 
 /** Common DDL for upgrades and the synchronous fresh SQLite constructor; no campaign data changes. */
 export function newsletterSendingIndexSchema({ schema }: { schema: SchemaModule }, _options = {}) {
@@ -15,7 +16,7 @@ export const NEWSLETTER_SENDING_INDEX_SQL = newsletterSendingIndexSchema({ schem
  * @returns The append-only ADR-066 migration; no data changes.
  * @complexity O(campaigns) once at migration; later probes are indexed and return one scalar.
  */
-export function newsletterSendingIndex({ checksum }: { checksum: string }, _options = {}): MigrationStep {
+export function newsletterSendingIndex({ checksum }: { checksum: string }, _options = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: '0038_newsletter_sending_index', checksum,
     async up(kernel) {
       await kernel.run(db => newsletterSendingIndexSchema({ schema: db.schema }).execute());

@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin page transport for the same visitor-tools service that assistant chat uses. */
 import type { Express, Request, Response } from "express";
 import { ForbiddenError, ValueValidationFailedError } from "@jini-ai/core/settings";
@@ -31,10 +32,7 @@ function respondError({ error, res }: { error: unknown; res: Response }, _option
 async function handle({ req, res, deps, operation }: {
   req: Request; res: Response; deps: VisitorToolsRouteDeps; operation: "list" | "configure";
 }, _options = {}): Promise<void> {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
   try {
     const service = deps.visitorToolsManagement;
     if (!service) throw new Error("Visitor tools service unavailable.");

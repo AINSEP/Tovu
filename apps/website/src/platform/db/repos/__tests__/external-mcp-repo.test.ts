@@ -63,6 +63,7 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     oauthAadVersion: 1,
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
   for (const kind of ["mcp-env", "mcp-auth"] as const) {
@@ -124,9 +125,9 @@ test("independent SQLite connections race for one OAuth lease and persist exactl
     const file = path.join(dir, "content.db");
     first = openContentDb(file);
     first.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WORKSPACE, WORKSPACE, WORKSPACE, NOW);
-    await prepareVault(contentKernel(first));
-    second = openSqliteContentConnection(file);
-    const repos = [new SqlExternalMcpServerRepo(contentKernel(first)), new SqlExternalMcpServerRepo(contentKernel(second))];
+    await prepareVault(contentKernel({ store: first }));
+    second = openSqliteContentConnection({ filePath: file });
+    const repos = [new SqlExternalMcpServerRepo(contentKernel({ store: first })), new SqlExternalMcpServerRepo(contentKernel({ store: second }))];
     await repos[0].upsert(makeOAuthRecord());
     const claims = [
       { workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER },

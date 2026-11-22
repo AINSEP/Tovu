@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml, renderHtmlPageBody, renderWidgetRegion, renderWidgetIr } from "../render.js";
-import type { SiteRenderContext } from "../render.js";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
+import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
+import type { SiteRenderContext } from "../render-context.js";
 
 test("repeated Builder forms across embeds and regions keep every ID and association within its occurrence", () => {
   for (const collectionPlan of [undefined, { kind: "post", external: true, action: "https://forms.example.test/submit" }]) {
@@ -11,7 +14,7 @@ test("repeated Builder forms across embeds and regions keep every ID and associa
       { id: "email", label: "Email", type: "email", helpText: "Your email", required: true },
     ], ...(collectionPlan ? { collectionPlan } : {}) } };
     const resolved = new Map([["form", new Map([["contact", ir]])]]);
-    const embeds = renderHtmlPageBody('<div data-embed-config=\'{"type":"form","id":"contact"}\'></div>'.repeat(2), resolved);
+    const embeds = renderHtmlPageBody({ html: '<div data-embed-config=\'{"type":"form","id":"contact"}\'></div>'.repeat(2), resolved });
     const ctx = { widgetRegions: { footer: [ir, ir], sidebar: [ir] } } as unknown as SiteRenderContext;
     const html = embeds + renderWidgetRegion({ ctx, regionKey: "footer" }) + renderWidgetRegion({ ctx, regionKey: "sidebar" });
     const forms = [...html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(match => match[1]!);
@@ -34,17 +37,22 @@ function formHtml(): string {
 }
 
 test("a successful contact form is hidden by the emitted stylesheet in a browser", async () => {
+  const { sentNoticeHandlers } = await import(import.meta.resolve("@jini-ai/agent-plugins/cloudflare/worker/forms-receiver.mjs"));
+  const [[selector]] = sentNoticeHandlers({ slug: "contact" });
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
     await page.setContent(formHtml());
+    const success = page.locator(selector);
+    assert.equal(await success.count(), 1, "the shipped Worker class selector locates exactly one rendered success slot");
+    assert.equal(await success.getAttribute("hidden"), "", "the Worker's success slot starts hidden");
     const form = page.locator("form.tovu-form");
     assert.equal(await form.isVisible(), true);
-    await page.setContent(injectFormSubmissionResultIntoHtml(formHtml(), { kind: "success", slug: "contact" }));
+    await page.setContent(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }));
     assert.equal(await form.getAttribute("hidden"), "");
     assert.equal(await form.evaluate((el) => getComputedStyle(el).display), "none");
     assert.equal(await form.isVisible(), false);
-    assert.equal(await page.locator(".tovu-form-success").isVisible(), true);
+    assert.equal(await success.isVisible(), true, "the same Worker-selected success slot is visible after a successful render");
   } finally {
     await browser.close();
   }
@@ -56,16 +64,16 @@ test("contact form fallback error and success colors apply in both modes without
     const page = await browser.newPage();
     for (const [mode, danger, success] of [["dark", "rgb(248, 113, 113)", "rgb(74, 222, 128)"], ["light", "rgb(185, 28, 28)", "rgb(22, 101, 52)"]]) {
       const document = (body: string) => `<html data-theme="${mode}"><body>${body}</body></html>`;
-      await page.setContent(document(injectFormSubmissionResultIntoHtml(formHtml(), {
+      await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: {
         kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "Required" }],
-      })));
+      }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK })));
       for (const selector of [".tovu-form-error", ".widget-form-field-error"]) {
         const error = page.locator(selector);
         assert.equal(await error.isVisible(), true);
         assert.equal(await error.evaluate((el) => getComputedStyle(el).color), danger, `${mode}: ${selector}`);
       }
-      await page.setContent(document(injectFormSubmissionResultIntoHtml(formHtml(), { kind: "success", slug: "contact" })));
-      const message = page.locator(".tovu-form-success");
+      await page.setContent(document(injectFormSubmissionResultIntoHtml({ html: formHtml(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK })));
+      const message = page.locator(".jini-form-success");
       assert.equal(await message.isVisible(), true);
       assert.equal(await message.evaluate((el) => getComputedStyle(el).color), success, mode);
     }

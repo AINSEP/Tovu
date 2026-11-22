@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createMemoryWidgetsApi } from '@jini-ai/admin/widgets/adapters/memory';
 import type { AdminWidget } from '@jini-ai/admin/widgets';
 import { widgets } from '@jini-ai/admin/widgets/react';
+import { reactModuleUi } from '@jini-ai/admin/core/react';
 import { createAdmin } from '@jini-ai/admin/core/module';
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from '../../../features/widgets';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
@@ -14,7 +15,7 @@ import { widgetsEvents, widgetsNavigation } from '../widgets-ports';
 import { WidgetsConfigFieldsSlot } from '../widgets-module.hooks';
 import { WidgetAddControl } from '../../../components/WidgetPickerDialog/WidgetPickerDialog';
 import { WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../../components/WidgetConfigFields/WidgetConfigFields';
-import type { AdminWidgetType as HostWidgetType } from '../../../lib/api';
+import type { AdminWidgetType as HostWidgetType } from '../../../features/widgets/api/widgets-api.types';
 import { tovuKit } from '../kit';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 import { setPublishToLiveAvailable } from '../../../features/publish-content/hooks/publish-availability.store';
@@ -24,7 +25,7 @@ afterEach(() => {
   cleanup();
   for (const scope of scopes.splice(0)) { scope.admin.dispose(); scope.overlays.dispose(); }
   resetContentRefreshBus(); vi.unstubAllGlobals();
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   window.history.replaceState(null, '', '/');
 });
 
@@ -57,7 +58,7 @@ describe('Jini widgets host switch', () => {
   });
 
   it('mounts the library loading notice, row handles, create route and publish contribution', async () => {
-    setPublishToLiveAvailable(true);
+    setPublishToLiveAvailable({ next: true });
     const { node } = fixture();
     render(node(<WidgetsLibrary />));
     expect(screen.getByText('Loading widgets…')).toHaveClass('notice');
@@ -90,8 +91,8 @@ describe('Jini widgets host switch', () => {
   it('uses shared config copy even when the page translator is an English passthrough', () => {
     // Keep the old mixed suite's discriminating seam: page copy intentionally stays English.
     // Only the actual host slot's separate dictionary can produce Texto in this harness.
-    const feature = widgets({ slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
-      widgetTypes: WIDGET_TYPE_OPTIONS, defaultConfig: type => defaultWidgetConfig(type as HostWidgetType),
+    const feature = widgets({ ui: reactModuleUi, slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
+      widgetTypes: WIDGET_TYPE_OPTIONS, defaultConfig: type => defaultWidgetConfig({ widgetType: type as HostWidgetType }),
     }, { locale: 'es', t: key => key });
     const admin = createAdmin({ modules: [feature], ports: { widgetsApi: createMemoryWidgetsApi({}) } });
     try {

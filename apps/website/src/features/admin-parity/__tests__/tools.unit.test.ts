@@ -115,7 +115,7 @@ test("sites list: registered active site and pending choice stay distinct", asyn
 
 test("disconnect: removes connected destination, reverses grant, and is idempotent", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await saveConnectedDestination({ repo, clock, idGen }, { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" });
+  await saveConnectedDestination({ deps: { repo, clock, idGen }, input: { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" } });
   let reversals = 0;
   const r = await registration("publish_content_disconnect", { ...auth().deps, clock, idGen, publishContentPeerRepo: repo,
     siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(1) },
@@ -130,7 +130,7 @@ test("disconnect: removes connected destination, reverses grant, and is idempote
 
 test("disconnect: failed grant reversal restores peer and exposes an actionable refusal", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await saveConnectedDestination({ repo, clock, idGen }, { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" });
+  await saveConnectedDestination({ deps: { repo, clock, idGen }, input: { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" } });
   const r = await registration("publish_content_disconnect", { ...auth().deps, clock, idGen, publishContentPeerRepo: repo,
     siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(1) },
     publishTrustProvisioning: { disconnect: async () => ({ ok: false, reason: "read-only disk" }) },
@@ -158,13 +158,13 @@ test("page publish: first toggle only publishes selected page, refreshes runtime
   const f = themeFixture(t);
   const r = await registration("theme_set_page_published", { ...auth().deps, ...f });
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: true }), { page: "about", published: true, publishedPages: ["about"] });
-  assert.equal(isStandaloneThemePage(f.themes[0], "about"), true);
-  assert.equal(isStandaloneThemePage(f.themes[0], "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "about" }), true);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "pricing" }), false);
   fs.writeFileSync(f.manifestPath, JSON.stringify({ ...f.manifest, name: "Fresh name", publishedPages: ["pricing"] }));
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: true }), { page: "about", published: true, publishedPages: ["about", "pricing"] });
   assert.equal(JSON.parse(fs.readFileSync(f.manifestPath, "utf8")).name, "Fresh name");
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: false }), { page: "about", published: false, publishedPages: ["pricing"] });
-  assert.equal(isStandaloneThemePage(f.themes[0], "about"), false);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "about" }), false);
 });
 test("page publish: wrong types, missing themes, non-static tiers, shells and traversal refuse before writing", async (t) => {
   const f = themeFixture(t);

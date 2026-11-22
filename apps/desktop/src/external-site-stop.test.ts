@@ -22,11 +22,11 @@ function fakePorts(table: Record<number, { ppid: number; command: string; startM
   const signals: Array<[number, string]> = [];
   let now = 0;
   const ports: ExternalStopPorts = {
-    readCommand: (pid) => table[pid]?.command ?? null,
-    readParentPid: (pid) => table[pid]?.ppid ?? null,
-    readStartMs: (pid) => table[pid]?.startMs ?? null,
-    kill: (pid, signal) => { signals.push([pid, signal]); onKill?.(pid); },
-    sleep: async (ms) => { now += ms; },
+    readCommand: ({ pid }) => table[pid]?.command ?? null,
+    readParentPid: ({ pid }) => table[pid]?.ppid ?? null,
+    readStartMs: ({ pid }) => table[pid]?.startMs ?? null,
+    kill: ({ pid, signal }) => { signals.push([pid, signal]); onKill?.(pid); },
+    sleep: async ({ ms }) => { now += ms; },
     nowMs: () => now,
   };
   return { ports, signals };
@@ -65,7 +65,7 @@ test("stop SIGTERMs dev.mjs once and waits for both the lease and the launcher t
   const { ports, signals } = fakePorts(table, { onKill: () => { lease = null; } });
   const sleep = ports.sleep;
   // dev.mjs outlives the lease by a few polls (it SIGKILLs leftovers after 1.5 s, then exits).
-  ports.sleep = async (ms) => { polls += 1; if (polls === 3) delete table[11]; await sleep(ms); };
+  ports.sleep = async ({ ms }) => { polls += 1; if (polls === 3) delete table[11]; await sleep({ ms }); };
   await stopExternalSite({ lease: LEASE, readLease: () => lease }, { ports });
   assert.deepEqual(signals, [[11, "SIGTERM"]]);
   assert.equal(polls, 3, "kept waiting while dev.mjs was still alive after the lease cleared");
@@ -81,14 +81,14 @@ test("stop refuses without signalling when identity cannot be proved, or changed
   const swapped = fakePorts(table);
   const read = swapped.ports.readCommand;
   let reads = 0;
-  swapped.ports.readCommand = (pid) => (pid === 11 && ++reads > 1 ? "vim notes.txt" : read(pid));
+  swapped.ports.readCommand = ({ pid }) => (pid === 11 && ++reads > 1 ? "vim notes.txt" : read({ pid }));
   await assert.rejects(stopExternalSite({ lease: LEASE, readLease: () => LEASE }, { ports: swapped.ports }), { message: EXTERNAL_STOP_UNCONFIRMED });
   assert.deepEqual(swapped.signals, []);
 
   const late = fakePorts({ ...DEV_TREE, 11: { ...DEV_TREE[11]!, startMs: CLAIMED - 1 } });
   let checks = 0;
   const start = late.ports.readStartMs;
-  late.ports.readStartMs = (pid) => (pid === 11 && ++checks > 1 ? CLAIMED + 1 : start(pid));
+  late.ports.readStartMs = ({ pid }) => (pid === 11 && ++checks > 1 ? CLAIMED + 1 : start({ pid }));
   await assert.rejects(stopExternalSite({ lease: LEASE, readLease: () => LEASE }, { ports: late.ports }), { message: EXTERNAL_STOP_UNCONFIRMED });
   assert.deepEqual(late.signals, []);
 });
@@ -111,7 +111,7 @@ test("stop polling waits for the matching lease even after the target exits", as
   const { ports, signals } = fakePorts({});
   let polls = 0;
   const sleep = ports.sleep;
-  ports.sleep = async (ms) => { assert.equal(ms, 75); polls++; lease = undefined; await sleep(ms); };
+  ports.sleep = async ({ ms }) => { assert.equal(ms, 75); polls++; lease = undefined; await sleep({ ms }); };
   await waitForExternalSiteStop({ lease: LEASE, target: { pid: 11, launcher: "npm-run-dev", command: "dev.mjs" }, readLease: () => lease, ports }, { pollMs: 75 });
   assert.equal(polls, 1);
   assert.deepEqual(signals, [], "polling itself must never signal");
@@ -122,7 +122,7 @@ test("stop polling waits for the original launcher after the lease changes", asy
   const { ports } = fakePorts(table);
   let polls = 0;
   const sleep = ports.sleep;
-  ports.sleep = async (ms) => { polls++; table[11]!.startMs = CLAIMED + 1; await sleep(ms); };
+  ports.sleep = async ({ ms }) => { polls++; table[11]!.startMs = CLAIMED + 1; await sleep({ ms }); };
   await waitForExternalSiteStop({ lease: LEASE, target: { pid: 11, launcher: "npm-run-dev", command: "dev.mjs" }, readLease: () => ({ token: "new-owner" }), ports });
   assert.equal(polls, 1, "a recycled launcher PID ends this wait");
 });
@@ -141,7 +141,7 @@ test("launcherOf caches proved answers per lease token, and never caches a failu
   const { ports } = fakePorts(table);
   let reads = 0;
   const read = ports.readCommand;
-  ports.readCommand = (pid) => { reads += 1; return read(pid); };
+  ports.readCommand = ({ pid }) => { reads += 1; return read({ pid }); };
   const stopper = createExternalSiteStopper({}, { ports });
   assert.equal(stopper.launcherOf({ lease: LEASE }), "npm-run-dev");
   const after = reads;
@@ -165,24 +165,24 @@ test("the stopper's stop delegates to stopExternalSite with its ports", async ()
 });
 
 test("real ports read this test process, argv-only, and win32 reads nothing", async () => {
-  const startMs = readProcessStartMs(process.pid);
+  const startMs = readProcessStartMs({ pid: process.pid });
   assert.ok(startMs !== null && startMs <= Date.now());
-  assert.equal(readProcessStartMs(process.pid, "win32"), null);
-  assert.equal(readProcessStartMs(2 ** 22 + 12345), null, "a pid that does not exist");
-  assert.equal(NODE_PORTS.readStartMs(process.pid), startMs);
-  assert.match(NODE_PORTS.readCommand(process.pid) ?? "", /node/);
-  assert.equal(NODE_PORTS.readParentPid(process.pid), process.ppid);
+  assert.equal(readProcessStartMs({ pid: process.pid }, { platform: "win32" }), null);
+  assert.equal(readProcessStartMs({ pid: 2 ** 22 + 12345 }), null, "a pid that does not exist");
+  assert.equal(NODE_PORTS.readStartMs({ pid: process.pid }), startMs);
+  assert.match(NODE_PORTS.readCommand({ pid: process.pid }) ?? "", /node/);
+  assert.equal(NODE_PORTS.readParentPid({ pid: process.pid }), process.ppid);
   assert.ok(Math.abs(NODE_PORTS.nowMs() - Date.now()) < 1_000);
-  await NODE_PORTS.sleep(1);
-  NODE_PORTS.kill(process.pid, 0 as unknown as NodeJS.Signals); // signal 0: an existence probe, sends nothing
+  await NODE_PORTS.sleep({ ms: 1 });
+  NODE_PORTS.kill({ pid: process.pid, signal: 0 as unknown as NodeJS.Signals }); // signal 0: an existence probe, sends nothing
 });
 
 test("readProcessStartMs asks ps for argv-free lstart and reads output that is not a date as unknown", () => {
   const calls: string[][] = [];
   const fixedStart = new Date(2026, 9, 21, 9, 30, 15);
   const lstart = fixedStart.toString().slice(0, 24);
-  assert.equal(readProcessStartMs(4242, "linux", { runPs: (args) => (calls.push(args), `  ${lstart}\n`) }), fixedStart.getTime());
+  assert.equal(readProcessStartMs({ pid: 4242 }, { platform: "linux", runPs: ({ args }) => (calls.push(args), `  ${lstart}\n`) }), fixedStart.getTime());
   assert.deepEqual(calls, [["-o", "lstart=", "-p", "4242"]]);
-  assert.equal(readProcessStartMs(4242, "darwin", { runPs: () => "\n" }), null, "an empty answer is not a start time");
-  assert.equal(readProcessStartMs(4242, "darwin", { runPs: () => "ps: lstart: keyword not found" }), null);
+  assert.equal(readProcessStartMs({ pid: 4242 }, { platform: "darwin", runPs: () => "\n" }), null, "an empty answer is not a start time");
+  assert.equal(readProcessStartMs({ pid: 4242 }, { platform: "darwin", runPs: () => "ps: lstart: keyword not found" }), null);
 });

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { useResetPasswordFields, type ResetPasswordFieldsInput } from "@jini-ai/user-management/react";
 
 /**

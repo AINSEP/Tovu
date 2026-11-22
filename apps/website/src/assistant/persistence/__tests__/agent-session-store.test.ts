@@ -6,6 +6,10 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 
 import { createInMemoryAgentSessionStore, createSqliteAgentSessionStore } from "../agent-session-store.js";
+import type { Clock } from "@jini-ai/core/primitives";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 /**
  * @file `createSqliteAgentSessionStore`/`createInMemoryAgentSessionStore` had no test before this
@@ -29,7 +33,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("returns null for a (conversation, agent) pair with no stored session", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);
     db.close();
@@ -38,7 +42,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("round-trips a stored session id", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
     assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), "sess-abc");
@@ -48,7 +52,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("overwrites the prior session id on a second set for the same pair, rather than erroring or duplicating", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-old" });
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-new" });
@@ -62,7 +66,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("keeps two agent ids for the same conversation independent", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-claude" });
     await store.setSessionId({ conversationId: "c1", agentId: "codex", sessionId: "sess-codex" });
@@ -75,7 +79,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("cascades the delete of its parent conversation, matching migration 0023's own ai_chat_messages cascade", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-abc" });
     db.exec(`DELETE FROM ai_chats WHERE id = 'c1'`);
@@ -88,7 +92,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("H1 regression: clearSessionId removes a stored id so the next getSessionId returns null", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-dead" });
     await store.clearSessionId({ conversationId: "c1", agentId: "claude" });
@@ -102,7 +106,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("clearSessionId only removes the targeted (conversation, agent) pair, leaving a sibling agent's session intact", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await store.setSessionId({ conversationId: "c1", agentId: "claude", sessionId: "sess-claude" });
     await store.setSessionId({ conversationId: "c1", agentId: "codex", sessionId: "sess-codex" });
@@ -116,7 +120,7 @@ describe("createSqliteAgentSessionStore", () => {
   it("clearSessionId is a silent no-op when nothing is stored for the pair", async () => {
     const db = openTestDb();
     db.exec(`INSERT INTO ai_chats (id) VALUES ('c1')`);
-    const store = createSqliteAgentSessionStore(db);
+    const store = createSqliteAgentSessionStore({ store: db, clock: testClock });
 
     await assert.doesNotReject(store.clearSessionId({ conversationId: "c1", agentId: "claude" }));
     assert.equal(await store.getSessionId({ conversationId: "c1", agentId: "claude" }), null);

@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { NO_THEME_ID } from "@/lib/api";
+import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
 import { createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
 import {
   themePageCollisionAdminPath,
@@ -43,7 +43,7 @@ describe("useThemePages", () => {
         { pageId: "pricing", filePath: "render/pages/pricing.html", published: true, resettable: true, collidingContent: null },
       ]);
       expect(result.current.error).toBeNull();
-      expect(detailSpy).toHaveBeenCalledExactlyOnceWith("storefront");
+      expect(detailSpy).toHaveBeenCalledExactlyOnceWith({ themeId: "storefront" });
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
@@ -231,7 +231,7 @@ describe("useThemePages", () => {
       expect(result.current.savingPageId).toBeNull();
       expect(result.current.error).toBeNull();
       expect(result.current.pages).toBeNull();
-      expect((await readDetail("basic")).files).toContainEqual({ ...ABOUT, published: true });
+      expect((await readDetail({ themeId: "basic" })).files).toContainEqual({ ...ABOUT, published: true });
 
       await act(async () => { releaseDetail(); });
       await waitFor(() => expect(result.current.pages).toEqual([
@@ -251,7 +251,7 @@ describe("useThemePages", () => {
       expect(result.current.pages).toEqual([
         { pageId: "about", filePath: ABOUT.path, published: false, resettable: true, collidingContent: null },
       ]);
-      expect((await port.getThemeDetail("basic")).files).toEqual([ABOUT]);
+      expect((await port.getThemeDetail({ themeId: "basic" })).files).toEqual([ABOUT]);
     });
 
     it("publishes a row and updates it in place, tracking savingPageId only for that row", async () => {
@@ -271,8 +271,8 @@ describe("useThemePages", () => {
       expect(result.current.savingPageId).toBeNull();
       expect(result.current.pages?.find((p) => p.pageId === "about")?.published).toBe(true);
       expect(result.current.pages?.find((p) => p.pageId === "pricing")?.published).toBe(true);
-      expect(publishSpy).toHaveBeenCalledExactlyOnceWith("storefront", "about", true);
-      const persisted = await port.getThemeDetail("storefront");
+      expect(publishSpy).toHaveBeenCalledExactlyOnceWith({ themeId: "storefront", page: "about", published: true });
+      const persisted = await port.getThemeDetail({ themeId: "storefront" });
       expect(persisted.files.find((f) => f.path === ABOUT.path)?.published).toBe(true);
     });
 
@@ -343,21 +343,21 @@ describe("themePagePublishSummary", () => {
   const t = (key: string) => key;
 
   it("reports 'Live' for a published candidate page", () => {
-    expect(themePagePublishSummary(row({ published: true }), t)).toBe("Live");
+    expect(themePagePublishSummary({ row: row({ published: true }), t })).toBe("Live");
   });
 
   it("reports 'Not live' for an unpublished candidate page", () => {
-    expect(themePagePublishSummary(row({ published: false }), t)).toBe("Not live");
+    expect(themePagePublishSummary({ row: row({ published: false }), t })).toBe("Not live");
   });
 
   it("reports the locked reason for index, verbatim", () => {
-    expect(themePagePublishSummary(row({ pageId: "index", published: null }), t)).toBe(
+    expect(themePagePublishSummary({ row: row({ pageId: "index", published: null }), t })).toBe(
       "Home page fallback — shown at / until one of your pages is set as the home page",
     );
   });
 
   it("reports the locked reason for a declared template shell", () => {
-    expect(themePagePublishSummary(row({ pageId: "blog-post", published: null }), t)).toBe(
+    expect(themePagePublishSummary({ row: row({ pageId: "blog-post", published: null }), t })).toBe(
       "Not a standalone page — used as a content template",
     );
   });

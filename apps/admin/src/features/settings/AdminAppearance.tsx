@@ -1,6 +1,10 @@
 import { ACCENT_SWATCHES, I18nProvider, resolveAccentColor, SETTINGS_DIALOG_DICTIONARIES, useT } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandleProps, agentSubHandle, buildAgentListHandles } from "@jini-ai/agentic";
+import {
+  agentHandleProps,
+  agentSubHandle,
+  buildAgentListHandles,
+} from "@jini-ai/core/agent-handles";
 import type { AdminThemeDocumentEnv, AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { useAdminThemeBoundary, useAdminThemeState } from "../../admin-themes/use-admin-theme.hooks";
 import { adminThemeAccentDefaults, findAdminTheme } from "../../admin-themes/registry";
@@ -13,20 +17,36 @@ import { t as settingsT } from "./settings-i18n";
 
 /** Admin UI composes the compact scheme picker and Jini-backed accent fields.
  * @complexity O(1): a fixed palette; persistence stays in the existing controllers. */
-export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings, port, env }: {
+export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings, port, env,
+  useAdminLocaleHook = useAdminLocale,
+  useAdminThemeBoundaryHook = useAdminThemeBoundary,
+  useAdminThemeStateHook = useAdminThemeState }: {
   useAppearanceHook?: typeof useAdminAppearanceSettings;
   port?: AdminThemePort;
   env?: AdminThemeDocumentEnv;
+  useAdminLocaleHook?: typeof useAdminLocale;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useAdminThemeStateHook?: typeof useAdminThemeState;
 } = {}) {
-  const locale = useAdminLocale();
+  const locale = useAdminLocaleHook();
   const root = env?.root ?? document.documentElement;
-  const boundary = useAdminThemeBoundary({}, { root });
-  const { themeId, scheme } = useAdminThemeState({}, { root });
+  const boundary = useAdminThemeBoundaryHook({}, { root });
+  const state = useAdminThemeStateHook({}, { root });
   const appearance = useAppearanceHook({}, { root });
+  return <AdminAppearanceContent locale={locale} port={port} env={env} boundary={boundary} state={state} appearance={appearance} />;
+}
+
+function AdminAppearanceContent({ locale, port, env, boundary, state, appearance }: {
+  locale: ReturnType<typeof useAdminLocale>; port?: AdminThemePort; env?: AdminThemeDocumentEnv;
+  boundary: ReturnType<typeof useAdminThemeBoundary>; state: ReturnType<typeof useAdminThemeState>;
+  appearance: ReturnType<typeof useAdminAppearanceSettings>;
+}) {
+  const { themeId, scheme } = state;
   // Loading precedes the dialog provider, so use the settings-shell translator here.
   if (!appearance.value) return <p role="status">{settingsT({ locale, key: "Loading appearance…" })}</p>;
   const value = appearance.value;
-  const preview = findAdminTheme({ id: themeId }).preview[scheme]!;
+  const preview = findAdminTheme({ id: themeId }).preview[scheme];
+  if (!preview) throw new Error(`admin theme ${themeId} has no ${scheme} preview`);
   return (
     <I18nProvider key={locale} initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} syncDocumentAttributes={false}>
       {/* Classic retains its unverified-dark light pin; Glass follows the document scheme. */}
@@ -50,8 +70,10 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
 const TOVU_ACCENT_SWATCHES = ["#ffba3e"] as const;
 
 /** Host composition of Jini's palette/validation. Default clears the override; CSS is preview-only. */
-function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange, locale }: { accentColor: string | undefined; defaultAccent: string; defaultPickerAccent: string; onChange: (color: string | undefined) => void; locale: string }) {
-  const t = useT();
+function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange, locale,
+  useTHook = useT }: { accentColor: string | undefined; defaultAccent: string; defaultPickerAccent: string; onChange: (color: string | undefined) => void; locale: string;
+  useTHook?: typeof useT; }) {
+  const t = useTHook();
   const resolvedAccent = resolveAccentColor({ value: accentColor ?? defaultPickerAccent });
   const swatches = [...new Set([defaultAccent, ...ACCENT_SWATCHES, ...TOVU_ACCENT_SWATCHES])];
   const swatchHandles = buildAgentListHandles({ prefix: agentSubHandle({ base: "settings-appearance", action: "swatch" }), ids: swatches });
@@ -61,7 +83,7 @@ function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, on
       <div className="jini-accent-swatches" role="radiogroup" aria-label={t("Accent color")}>
         {swatches.map((color, index) => {
           // A colour name, not the hex (owner bug 11-01); the hex stays in the tooltip below.
-          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName(color) });
+          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName({ color }) });
           const selected = color === defaultAccent ? accentColor === undefined : accentColor !== undefined && resolvedAccent === color;
           return (
             <button

@@ -10,12 +10,12 @@ import express from "express";
 import { A2UI_ACTIONS_PATH, AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level tests for `server/modules/assistant.ts`'s MCP-UI confirmation redemption proxy
+ * @file Route-level tests for `server/runtime/composition/modules/assistant.ts`'s MCP-UI confirmation redemption proxy
  * (`proxyMcpUiToolCall`, ADR-053 Decision 3) — the browser-facing half of the endpoint
  * `@jini-ai/chat`'s `createMcpUiToolCaller` posts to. Mirrors `assistant-proxy-routes.test.ts`'s
  * stand-in-daemon harness: a plain HTTP server records exactly what crosses the wire, so these
@@ -80,10 +80,10 @@ function harness() {
         const deps: RouteDeps = createRouteDeps();
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
+        registerAuthRoutes({ app, deps });
         // A fresh, empty store: redemption replies name daemon-held exchanges, so the local
         // delivery branch cannot consume them. The daemon owns and validates those exchanges.
-        createAssistantModule(Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
+        createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
         return app;
       },
     };
@@ -243,8 +243,8 @@ async function bootWithStore(t: import("node:test").TestContext) {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
-  createAssistantModule(Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), surfaceExchanges).registerRoutes?.(app);
+  registerAuthRoutes({ app, deps });
+  createAssistantModule({ routeDeps: Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), byokSurfaceExchanges: surfaceExchanges }).registerRoutes?.({ app });
 
   recorded = [];
   const baseUrl = await startTestServer(app, t);

@@ -6,13 +6,13 @@ import test from "node:test";
 import { createTovuOAuthGuard, createTovuOAuthHttpPorts, withTovuOAuthCopy, assertSafeProviderEndpoint, assertSafeUserFacingUrl, tovuOAuthMessages } from "../endpoint-safety.js";
 
 test("safe URLs return normalized URLs and permit plaintext only on loopback", () => {
-  assert.equal(assertSafeProviderEndpoint("  https://AUTH.example.com/token?q=7  ", "token endpoint").href,
+  assert.equal(assertSafeProviderEndpoint({ raw: "  https://AUTH.example.com/token?q=7  ", label: "token endpoint" }).href,
     "https://auth.example.com/token?q=7");
   for (const raw of ["http://localhost:8080/token", "http://127.0.0.1:8080/token", "http://[::1]:8080/token"]) {
-    assert.equal(assertSafeProviderEndpoint(raw, "token endpoint").href, raw);
-    assert.equal(assertSafeUserFacingUrl(raw).href, raw);
+    assert.equal(assertSafeProviderEndpoint({ raw, label: "token endpoint" }).href, raw);
+    assert.equal(assertSafeUserFacingUrl({ raw }).href, raw);
   }
-  assert.equal(assertSafeUserFacingUrl("https://auth.example.com/activate?code=ABC").href,
+  assert.equal(assertSafeUserFacingUrl({ raw: "https://auth.example.com/activate?code=ABC" }).href,
     "https://auth.example.com/activate?code=ABC");
 });
 
@@ -26,11 +26,11 @@ for (const [raw, reason, action] of [
   ["https://[fd00::1]/token", "resolves to an internal address, which is not allowed", "Point this provider at a publicly reachable authorization server."],
 ] as const) {
   test(`endpoint and displayed link refuse ${raw} with the correct subject and action`, () => {
-    assert.throws(() => assertSafeProviderEndpoint(raw, "token endpoint"), {
+    assert.throws(() => assertSafeProviderEndpoint({ raw, label: "token endpoint" }), {
       name: "OAuthError", code: "OAUTH_UNSAFE_ENDPOINT", message: `token endpoint: provider endpoint ${reason}`,
       operatorAction: action,
     });
-    assert.throws(() => assertSafeUserFacingUrl(raw), {
+    assert.throws(() => assertSafeUserFacingUrl({ raw }), {
       name: "OAuthError", code: "OAUTH_UNSAFE_ENDPOINT", message: `provider-supplied link ${reason}`,
       operatorAction: action,
     });
@@ -39,8 +39,8 @@ for (const [raw, reason, action] of [
 
 for (const raw of ["https://user@auth.example.com/activate", "https://:password@auth.example.com/activate"]) {
   test(`userinfo is accepted for operator endpoints but refused in displayed links: ${raw}`, () => {
-    assert.equal(assertSafeProviderEndpoint(raw, "token endpoint").href, raw);
-    assert.throws(() => assertSafeUserFacingUrl(raw), {
+    assert.equal(assertSafeProviderEndpoint({ raw, label: "token endpoint" }).href, raw);
+    assert.throws(() => assertSafeUserFacingUrl({ raw }), {
       name: "OAuthError", code: "OAUTH_UNSAFE_ENDPOINT", message: "provider-supplied link embeds credentials in the URL",
       operatorAction: "This provider's device-authorization response is malformed — do not open the link.",
     });
@@ -96,7 +96,7 @@ test("guarded clipping retains its malformed-response code through a fetch wrapp
 
 // PIN: the operator endpoint wrapper names its label and keeps the label-free legacy error as its cause.
 test("operator endpoint refusals prefix the label and chain the label-free legacy error as cause", () => {
-  assert.throws(() => assertSafeProviderEndpoint("https://10.1.2.3/token", "token endpoint"), (error) => {
+  assert.throws(() => assertSafeProviderEndpoint({ raw: "https://10.1.2.3/token", label: "token endpoint" }), (error) => {
     assert.ok(error instanceof OAuthError);
     assert.equal(error.message, "token endpoint: provider endpoint resolves to an internal address, which is not allowed");
     assert.ok(error.cause instanceof OAuthError);
@@ -110,7 +110,7 @@ test("operator endpoint refusals prefix the label and chain the label-free legac
 
 // PIN: the displayed-link refusal is a fresh label-free error with no cause.
 test("displayed-link refusals carry no cause", () => {
-  assert.throws(() => assertSafeUserFacingUrl("https://10.1.2.3/activate"), (error) => {
+  assert.throws(() => assertSafeUserFacingUrl({ raw: "https://10.1.2.3/activate" }), (error) => {
     assert.ok(error instanceof OAuthError);
     assert.equal(error.message, "provider-supplied link resolves to an internal address, which is not allowed");
     assert.equal(error.cause, undefined);
@@ -121,14 +121,14 @@ test("displayed-link refusals carry no cause", () => {
 // PIN: the duplicate-subject repair happens before the caller's label is prepended, so a label that
 // itself reads "provider endpoint" is preserved verbatim.
 test("a caller label equal to the legacy subject is still prepended once", () => {
-  assert.throws(() => assertSafeProviderEndpoint("/relative", "provider endpoint"), {
+  assert.throws(() => assertSafeProviderEndpoint({ raw: "/relative", label: "provider endpoint" }), {
     code: "OAUTH_UNSAFE_ENDPOINT", message: "provider endpoint: provider endpoint is not a valid absolute URL",
   });
 });
 
 // PIN: the legacy seam's loopback exception covers only http on loopback, not other private hosts.
 test("the legacy seam refuses plaintext to a private non-loopback host on the scheme gate", () => {
-  assert.throws(() => assertSafeProviderEndpoint("http://10.0.0.1/token", "token endpoint"), {
+  assert.throws(() => assertSafeProviderEndpoint({ raw: "http://10.0.0.1/token", label: "token endpoint" }), {
     code: "OAUTH_UNSAFE_ENDPOINT", message: "token endpoint: provider endpoint must use https (http is permitted only for loopback)",
   });
 });

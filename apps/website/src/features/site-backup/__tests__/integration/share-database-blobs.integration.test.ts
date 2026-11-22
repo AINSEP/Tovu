@@ -6,7 +6,7 @@ import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { declareDataModule, type DataModuleDecl } from "#src/features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { sanitizeShareDatabase } from "../../share-database/repo.sqlite.js";
 import { buildShareZip } from "../../share-zip.js";
@@ -31,7 +31,7 @@ for (const notNull of [false, true]) test(`sharing plugin BLOB columns retains c
     name: "records", columns: [{ name: "id", type: "TEXT", primaryKey: true }, { name: "payload_json", type: "BLOB", notNull }, { name: "text", type: "TEXT" }],
     portability: { kind: "portable", columns: ["id", "payload_json", "text"] },
   }] };
-  assert.equal((await declareDataModule({ db: contentKernel(source), dbPath: ":memory:", decl })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel({ store: source }), dbPath: ":memory:", decl })).ok, true);
   const insert = source.$client.prepare("INSERT INTO p_blobfixture__records VALUES (?, ?, ?)");
   for (const row of records) insert.run(row.id, row.bytes, row.id === "vendor" ? key : "ordinary text");
   if (!notNull) insert.run("null", null, null);

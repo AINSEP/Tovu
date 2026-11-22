@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The one read-state shape every Email tab uses: loading, 403, failed (with the server's
@@ -14,13 +14,16 @@ export type LoadView<T> =
   | { kind: "loaded"; data: T };
 
 /** The server's caller-safe message for a failed request, or a generic line. Pure. */
-export function errorMessage(error: unknown, fallback = "Something went wrong. Try again."): string {
+export function errorMessage(
+  { error }: { error: unknown },
+  { fallback = "Something went wrong. Try again." }: { fallback?: string } = {},
+): string {
   if (error instanceof ApiError && error.message) return error.message;
   return fallback;
 }
 
 /** Whether a failure is a permission refusal (403). Pure. */
-export function isForbidden(error: unknown): boolean {
+export function isForbidden({ error }: { error: unknown }, _options = {}): boolean {
   return error instanceof ApiError && error.status === 403;
 }
 
@@ -37,7 +40,7 @@ export function useLoad<T>(required: { load: () => Promise<T> }): { view: LoadVi
     setView((previous) => (previous.kind === "loaded" ? previous : { kind: "loading" }));
     load().then(
       (data) => { if (live) setView({ kind: "loaded", data }); },
-      (error: unknown) => { if (live) setView(isForbidden(error) ? { kind: "forbidden" } : { kind: "error", message: errorMessage(error) }); },
+      (error: unknown) => { if (live) setView(isForbidden({ error }) ? { kind: "forbidden" } : { kind: "error", message: errorMessage({ error }) }); },
     );
     return () => { live = false; };
   }, [load, attempt]);

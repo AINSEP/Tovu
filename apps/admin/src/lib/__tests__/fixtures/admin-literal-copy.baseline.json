@@ -190,137 +190,118 @@
       "reason": "Exact brand, protocol, unit or editor notation."
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 232,
+      "file": "features/posts/editor/PostDeleteConfirmDialog.tsx",
+      "line": 35,
       "kind": "text",
-      "text": "B",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "(&quot;"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 233,
+      "file": "features/posts/editor/PostDeleteConfirmDialog.tsx",
+      "line": 35,
       "kind": "text",
-      "text": "I",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "&quot;)"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 234,
+      "file": "features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx",
+      "line": 33,
       "kind": "text",
-      "text": "S",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "B"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 235,
+      "file": "features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx",
+      "line": 34,
       "kind": "text",
-      "text": "U",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "I"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 236,
+      "file": "features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx",
+      "line": 35,
       "kind": "text",
-      "text": "H",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "U"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 237,
+      "file": "features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx",
+      "line": 36,
       "kind": "text",
-      "text": "X₂",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "H"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 238,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 14,
       "kind": "text",
-      "text": "X²",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "B"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 239,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 15,
       "kind": "text",
-      "text": "&lt;/&gt;",
-      "reason": "Encoded punctuation, not prose."
+      "text": "I"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 258,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 16,
       "kind": "text",
-      "text": "H1",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "S"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 259,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 17,
       "kind": "text",
-      "text": "H2",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "U"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 260,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 18,
       "kind": "text",
-      "text": "H3",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "H"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 266,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 19,
       "kind": "text",
-      "text": "&ldquo;",
-      "reason": "Encoded punctuation, not prose."
+      "text": "X₂"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 505,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 20,
       "kind": "text",
-      "text": "YouTube",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "X²"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 621,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 21,
       "kind": "text",
-      "text": "B",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "&lt;/&gt;"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 622,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 46,
       "kind": "text",
-      "text": "I",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "H1"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 623,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 47,
       "kind": "text",
-      "text": "U",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "H2"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 624,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 48,
       "kind": "text",
-      "text": "H",
-      "reason": "Exact brand, protocol, unit or editor notation."
+      "text": "H3"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 1392,
+      "file": "features/posts/editor/toolbar/ToolbarFormattingGroup.tsx",
+      "line": 60,
       "kind": "text",
-      "text": "(&quot;",
-      "reason": "Encoded punctuation, not prose."
+      "text": "&ldquo;"
     },
     {
-      "file": "features/posts/PostEditor.tsx",
-      "line": 1392,
+      "file": "features/posts/editor/toolbar/insert-controls.tsx",
+      "line": 76,
       "kind": "text",
-      "text": "&quot;)",
-      "reason": "Encoded punctuation, not prose."
+      "text": "YouTube"
     },
     {
       "file": "features/posts/PostUrlDialog.tsx",
@@ -437,6 +418,13 @@
     {
       "file": "features/sites/SiteImportTab.tsx",
       "line": 142,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/sites/SiteImportTab.tsx",
+      "line": 225,
       "kind": "placeholder",
       "text": "https://",
       "reason": "Literal example of a URL, identifier or markup."

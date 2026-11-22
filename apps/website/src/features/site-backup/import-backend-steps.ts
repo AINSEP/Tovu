@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { FetchTimeoutError } from "@jini-ai/platform/fetch-with-timeout";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { assertPortableSiteName, reconcileSiteCreation } from "#src/platform/site-dir/index";
@@ -23,7 +25,7 @@ export interface SiteImportView {
 }
 export interface ParsedSiteImportInput { source: SiteImportSource; displayName?: string; requestId?: string }
 
-export function refusal(code: string, message: string): never { throw new SiteShareRefusal({ code, message }); }
+export function refusal({ code, message }: { code: string; message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code, message }); }
 
 const INPUT_KEYS = ["url", "uploadId", "displayName", "requestId"];
 const REQUEST_ID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -32,49 +34,49 @@ const ARCHIVE_CONTENT_TYPES = ["application/zip", "application/x-zip-compressed"
 
 /** Source union is enforced at every remote boundary; server paths are never accepted. */
 export function parseImportInput(required: { input: unknown }): ParsedSiteImportInput {
-  const input = requireSourceShape(required.input);
-  if (input.displayName !== undefined && !isDisplayName(input.displayName)) refusal("INVALID_INPUT", "displayName must be 1..200 characters.");
-  if (input.requestId !== undefined && (typeof input.requestId !== "string" || !REQUEST_ID.test(input.requestId))) refusal("INVALID_INPUT", "requestId must be 1..128 letters, digits, dashes or underscores.");
+  const input = requireSourceShape({ value: required.input });
+  if (input.displayName !== undefined && !isDisplayName({ value: input.displayName })) refusal({ code: "INVALID_INPUT", message: "displayName must be 1..200 characters." });
+  if (input.requestId !== undefined && (typeof input.requestId !== "string" || !REQUEST_ID.test(input.requestId))) refusal({ code: "INVALID_INPUT", message: "requestId must be 1..128 letters, digits, dashes or underscores." });
   const source = input.url !== undefined ? parseUrlSource({ url: input.url }) : parseUploadSource({ uploadId: input.uploadId });
   return { source, ...(input.displayName !== undefined ? { displayName: input.displayName as string } : {}), ...(input.requestId !== undefined ? { requestId: input.requestId as string } : {}) };
 }
 
-function requireSourceShape(value: unknown): Record<string, unknown> {
+function requireSourceShape({ value }: { value: unknown }, _optional: Record<string, never> = {}): Record<string, unknown> {
   const input = value as Record<string, unknown>;
   const invalidRecord = !input || typeof input !== "object" || Array.isArray(input);
   if (invalidRecord || Object.keys(input).some(key => !INPUT_KEYS.includes(key)) ||
-      (input.url !== undefined) === (input.uploadId !== undefined)) refusal("INVALID_INPUT", "Provide exactly one source: url or uploadId; optional displayName and requestId only.");
+      (input.url !== undefined) === (input.uploadId !== undefined)) refusal({ code: "INVALID_INPUT", message: "Provide exactly one source: url or uploadId; optional displayName and requestId only." });
   return input;
 }
 
-function isDisplayName(value: unknown): boolean {
+function isDisplayName({ value }: { value: unknown }, _optional: Record<string, never> = {}): boolean {
   return typeof value === "string" && Boolean(value.trim()) && value.length <= 200;
 }
 
 function parseUrlSource(required: { url: unknown }): SiteImportSource {
-  if (typeof required.url !== "string" || required.url.length > 4096) refusal("INVALID_INPUT", "url must be an HTTPS share URL.");
+  if (typeof required.url !== "string" || required.url.length > 4096) refusal({ code: "INVALID_INPUT", message: "url must be an HTTPS share URL." });
   let url: URL;
-  try { url = new URL(required.url); } catch { refusal("INVALID_INPUT", "url must be an HTTPS share URL."); }
-  if (url.protocol !== "https:" || url.username || url.password || url.hash) refusal("INVALID_INPUT", "Import URLs require HTTPS without credentials or fragments.");
+  try { url = new URL(required.url); } catch { refusal({ code: "INVALID_INPUT", message: "url must be an HTTPS share URL." }); }
+  if (url.protocol !== "https:" || url.username || url.password || url.hash) refusal({ code: "INVALID_INPUT", message: "Import URLs require HTTPS without credentials or fragments." });
   return { url: url.href };
 }
 
 function parseUploadSource(required: { uploadId: unknown }): SiteImportSource {
-  if (typeof required.uploadId !== "string" || !UPLOAD_ID.test(required.uploadId)) refusal("INVALID_INPUT", "uploadId must come from the authenticated ZIP upload endpoint.");
+  if (typeof required.uploadId !== "string" || !UPLOAD_ID.test(required.uploadId)) refusal({ code: "INVALID_INPUT", message: "uploadId must come from the authenticated ZIP upload endpoint." });
   return { uploadId: required.uploadId };
 }
 
 /** Refuses when the volume holding `dir` has less than three expanded-archive caps free. */
 export function requireFreeSpace(required: { dir: string; message: string }): void {
   const space = fs.statfsSync(required.dir);
-  if (space.bavail * space.bsize < SHARE_LIMITS.maxExpandedBytes * 3) refusal("INSUFFICIENT_STORAGE", required.message);
+  if (space.bavail * space.bsize < SHARE_LIMITS.maxExpandedBytes * 3) refusal({ code: "INSUFFICIENT_STORAGE", message: required.message });
 }
 
 /** At most four private payloads (uploads or stages) and 900 MiB free before retaining more bytes. */
 export function requireStagingBudget(required: { registry: SiteImportRegistry }): void {
   required.registry.expire({});
   const payloads = fs.readdirSync(required.registry.directory).filter(name => name.endsWith(".upload.zip") || name.endsWith(".stage"));
-  if (payloads.length >= 4) refusal("BUSY", "Four imports are staged. Complete owner setup or wait for expiry before uploading another.");
+  if (payloads.length >= 4) refusal({ code: "BUSY", message: "Four imports are staged. Complete owner setup or wait for expiry before uploading another." });
   requireFreeSpace({ dir: required.registry.directory, message: "Import requires 900 MiB of free private staging space." });
 }
 
@@ -86,7 +88,7 @@ export function deadlineSignal(required: { timeoutMs: number }, optional: { sign
 /** Marks one unconsumed upload as consumed by `importId` and returns its id. */
 export function consumeUpload(required: { registry: SiteImportRegistry; uploadId: string; principalId: string; importId: string }): string {
   const upload = required.registry.getUpload({ uploadId: required.uploadId, principalId: required.principalId });
-  if (upload.consumedBy) refusal("UPLOAD_USED", "This upload was already imported. Use the original requestId or upload again for a separate site.");
+  if (upload.consumedBy) refusal({ code: "UPLOAD_USED", message: "This upload was already imported. Use the original requestId or upload again for a separate site." });
   required.registry.saveUpload({ row: { ...upload, consumedBy: required.importId } });
   return upload.uploadId;
 }
@@ -99,12 +101,12 @@ export function consumeUpload(required: { registry: SiteImportRegistry; uploadId
 export async function downloadShareArchive(required: { http: HttpClientPort; url: string; signal: AbortSignal }): Promise<Buffer> {
   // Keep the final minute of the import budget for verification and restore.
   const response = await required.http.send({ method: "GET", url: required.url, headers: { Accept: "application/zip", "Accept-Encoding": "identity" }, idleTimeoutMs: 30_000, totalDeadlineMs: 240_000, maxResponseBytes: SHARE_LIMITS.maxArchiveBytes, bodyAs: "bytes", signal: required.signal }).catch((error: unknown) => {
-    if (error instanceof FetchTimeoutError) refusal("DOWNLOAD_TIMEOUT", `The share download from ${new URL(required.url).origin} timed out after ${error.timeoutMs / 1000} seconds. Download the ZIP file and import it.`);
+    if (error instanceof FetchTimeoutError) refusal({ code: "DOWNLOAD_TIMEOUT", message: `The share download from ${new URL(required.url).origin} timed out after ${error.timeoutMs / 1000} seconds. Download the ZIP file and import it.` });
     throw error;
   });
-  if (response.status !== 200 || !response.bodyBytes || response.bodyBytesTruncated !== false) refusal("DOWNLOAD_FAILED", "Share download failed or exceeded the 300 MiB archive cap.");
+  if (response.status !== 200 || !response.bodyBytes || response.bodyBytesTruncated !== false) refusal({ code: "DOWNLOAD_FAILED", message: "Share download failed or exceeded the 300 MiB archive cap." });
   const contentType = Object.entries(response.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1]?.split(";", 1)[0]?.trim().toLowerCase();
-  if (!contentType || !ARCHIVE_CONTENT_TYPES.includes(contentType)) refusal("INVALID_CONTENT_TYPE", "Share download must have a ZIP or binary Content-Type.");
+  if (!contentType || !ARCHIVE_CONTENT_TYPES.includes(contentType)) refusal({ code: "INVALID_CONTENT_TYPE", message: "Share download must have a ZIP or binary Content-Type." });
   return Buffer.isBuffer(response.bodyBytes) ? response.bodyBytes : Buffer.from(response.bodyBytes.buffer, response.bodyBytes.byteOffset, response.bodyBytes.byteLength);
 }
 
@@ -143,8 +145,8 @@ export function importSiteSlug(required: { displayName: string }, _optional = {}
 
 /** The owner-setup gate: only a pending import, and never without a new password. */
 export function requireOwnerSetup(required: { row: SiteImportRecord; adminPassword: unknown }): void {
-  if (required.row.status !== "needs-owner") refusal("INVALID_STATE", "This import is not awaiting owner setup. Import the archive again if it failed or expired.");
-  if (required.adminPassword === undefined || required.adminPassword === "tovu-dev") refusal("INVALID_PASSWORD", "Choose a new owner password; the development default cannot be used for an import.");
+  if (required.row.status !== "needs-owner") refusal({ code: "INVALID_STATE", message: "This import is not awaiting owner setup. Import the archive again if it failed or expired." });
+  if (required.adminPassword === undefined || required.adminPassword === "tovu-dev") refusal({ code: "INVALID_PASSWORD", message: "Choose a new owner password; the development default cannot be used for an import." });
 }
 
 /** Owner and restore are committed; a start failure is recorded, never retried as a new site. */
@@ -152,7 +154,10 @@ export async function startImportedSite(required: { row: SiteImportRecord; name:
   try {
     const started = await required.startSite({ name: required.name });
     return { ...required.row, adminUrl: started.adminUrl, ...(started.adminUrl ? {} : { error: "Site created; start it from Sites to open admin." }) };
-  } catch { return { ...required.row, error: "Site created with its owner. Start it from Sites to open admin." }; }
+  } catch (error) {
+    console.warn("[site-import] The imported site could not start; the site remains available from Sites.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+    return { ...required.row, error: "Site created with its owner. Start it from Sites to open admin." };
+  }
 }
 
 /** The public view of a stored import row. */

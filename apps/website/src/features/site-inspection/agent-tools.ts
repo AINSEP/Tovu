@@ -1,6 +1,8 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
-import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
+import { MAX_PATH_LENGTH } from "@jini-ai/diagnostics/web-evidence";
+import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "./published-page.js";
 import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
 
 /**
@@ -50,13 +52,7 @@ import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** Visibility floor for `site_get_profile` and `fetch_published_page` — see this file's header for
  *  why this is not the gate for `site_get_profile`. Reused rather than invented: `content.read` is
@@ -182,7 +178,7 @@ export const siteInspectionAgentToolCatalog: readonly AgentToolDefinition[] = [
       "Throws PublishedPagePathError when the path is refused (fix the path and retry) and PublishedPageTimeoutError when the render exceeds its time budget (a real fault; do not retry the same path repeatedly).",
     ].join(" "),
     // The handler issues one ordinary GET against this site's own public surface — the same thing
-    // the static exporter (`export/site-exporter.ts`) does for every route, and the same thing any
+    // the static exporter (`apps/website/src/features/site-export/site-exporter.ts`) does for every route, and the same thing any
     // visitor does. It writes nothing itself. One disclosed caveat rather than a silent one: a path
     // that matches a live redirect rule records a redirect HIT through the ordinary redirect
     // middleware, exactly as a real visit to that path would. That is an analytics counter moving,

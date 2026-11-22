@@ -25,7 +25,7 @@ export const SEED_ACTOR = "system:seed";
 /** Whether `pluginId`'s activation record is a disabled one someone other than the seeder wrote.
  *  Shared with `switch-on-saved-token.ts`. @complexity One activations read. */
 export async function isPluginOffByOperator(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout; pluginId: string }, _options = {}): Promise<boolean> {
-  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root });
+  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root });
   if (!Object.hasOwn(activations.plugins, input.pluginId)) return false;
   const record = activations.plugins[input.pluginId];
   return record?.enabled === false && record.updatedBy !== SEED_ACTOR;
@@ -64,13 +64,13 @@ export type ApplyConnectDefaultsDeps = Omit<PortableApplyConnectDefaultsDeps, 'p
 };
 
 export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: Parameters<typeof createWithPorts>[1] = {}): (serverId: string) => Promise<void> {
-  return createWithPorts(withOverrides(withAgentPluginMcpPorts(deps), {
+  return createWithPorts(withOverrides({ target: withAgentPluginMcpPorts(deps), overrides: {
     resolveServers: deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout })),
     enablePlugin: deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout })),
     isPluginOffByOperator: deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId })),
     actors: tovuConnectActors,
     combinedGrantRejected: tovuEnableAccessMessages.combinedGrantRejected,
-  }), options);
+  } }), options);
 }
 
 export function recordAgentPluginAccessDeclined(input: Omit<Parameters<typeof recordDeclinedWithActor>[0], 'actorId'>, _options = {}): Promise<void> {

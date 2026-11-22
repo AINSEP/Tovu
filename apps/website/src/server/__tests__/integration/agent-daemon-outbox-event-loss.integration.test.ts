@@ -26,7 +26,7 @@ for (const memory of [false, true]) {
     process.env.TOVU_SITE_DIR = dir;
     let close = async () => {};
     t.after(async () => { await close(); if (previous === undefined) delete process.env.TOVU_SITE_DIR; else process.env.TOVU_SITE_DIR = previous; rmSync(dir, { recursive: true, force: true }); });
-    const server = memory ? createRouteDeps() : await createSiteRouteDeps(path.join(dir, "content.db"), { themesDir: path.join(dir, "themes"), onStoreOpened: store => { close = () => store.close(); } });
+    const server = memory ? createRouteDeps() : await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: { themesDir: path.join(dir, "themes"), onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); } } });
     await Promise.all(Object.entries(server).filter(([key]) => key.endsWith("Ready")).map(([, work]) => work));
     const core = await coreForSite({ deps: server, t, env: memory ? { TOVU_DB: "memory" } : {} });
     assert.equal("outbox" in core, false); assert.equal("bus" in core, false);

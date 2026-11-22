@@ -7,8 +7,8 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createAiGenerationSink, withProductAnalyticsGuards, type ProductAiGeneration } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, withProductAnalyticsGuards } from "@jini-ai/analytics/product";
+import { type ProductAiGeneration, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import { createRouteDeps } from "../../app.js";
 import { createByokToolSurface } from "#src/assistant/index";
@@ -49,8 +49,8 @@ test(`a failed BYOK turn reports once, including a throw after its error event (
     }
     next();
   });
-  registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+  registerAuthRoutes({ app, deps });
+  createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await fetch(`${baseUrl}${BYOK_TURN_PATH}`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({
     messages: [{ role: "user", content: "my private question" }],

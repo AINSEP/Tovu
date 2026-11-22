@@ -1,13 +1,14 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { attachPolicy } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendAttachPolicyError(res: Response, err: unknown): void {
+function sendAttachPolicyError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -38,12 +39,9 @@ function sendAttachPolicyError(res: Response, err: unknown): void {
  * policy carries. See `grant-service.ts`'s `attachPolicy` for the full
  * contract.
  */
-export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/policies", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -60,7 +58,7 @@ export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = (app, dep
 
       res.status(201).json({ attachment });
     } catch (err) {
-      sendAttachPolicyError(res, err);
+      sendAttachPolicyError({ res, err });
     }
   });
 };

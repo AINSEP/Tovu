@@ -1,8 +1,10 @@
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { isNonArrayRecord } from '@jini-ai/core/records';
 import { requireWidgetsPermissionOrRespond, mapWidgetErrorToResponse } from '#src/server/inbound/admin-http/http/widgets';
-import type { RouteDeps, RouteRegistrar } from '#src/server/routes/types';
+import type { Express } from 'express';
+import type { RouteDeps } from '#src/server/routes/types';
 import { renderWidgetPreview, type WidgetPreviewInput } from './preview-render.js';
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** A JSON object config, bounded before entering the registry's own type-specific validation.
  * @complexity O(n) for the serialized request size (at most 128 KiB).
@@ -20,21 +22,16 @@ export function parseWidgetPreviewBody({ raw }: { raw: unknown }, _optional: Rec
 /** Admin middleware authenticates this route, just like saved-widget routes. This local guard
  * also fails closed for direct invocation; permission/workspace checks precede rendering.
  */
-export function registerAdminWidgetPreviewRoute(
-  app: Parameters<RouteRegistrar>[0], deps: RouteDeps,
-  { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {},
-): void {
+export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
   app.post('/api/admin/v1/workspaces/:workspaceId/widgets/preview', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     if (!res.locals.principal) { res.status(401).json({ error: 'authentication required' }); return; }
-    if (String(req.params.workspaceId ?? '') !== deps.workspaceId) {
-      res.status(404).json({ error: 'workspace was not found' }); return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if (!await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, 'widgets.read', res)) return;
+      if (!await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: 'widgets.read', res })) return;
       const input = parseWidgetPreviewBody({ raw: req.body });
       if (!input) { res.status(400).json({ error: 'widgetType and content are required', code: 'VALIDATION_ERROR' }); return; }
       res.json(await render({ deps, input }));
-    } catch (error) { mapWidgetErrorToResponse(error, res); }
+    } catch (error) { mapWidgetErrorToResponse({ err: error, res }); }
   });
 }

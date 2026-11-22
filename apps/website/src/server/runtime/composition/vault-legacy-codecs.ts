@@ -1,6 +1,11 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
-import { VaultError, type VaultRecord, type VaultMeta, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultRecord,
+  type VaultMeta,
+  type VaultOptions,
+} from "@jini-ai/core/contracts/vault";
 import type { TovuVaultPolicy } from "#src/platform/secrets/vault-kinds";
 
 /** Historical formats and their original rationale, copied verbatim for S2 recovery.
@@ -11,7 +16,7 @@ const AAD_VERSION = "v1";
 
 /**
  * @file The ONE place `site_assistant_credentials`' AES-GCM additional authenticated data (AAD)
- * string is formatted — same convention as `features/vendor-credentials/aad.ts` and its siblings:
+ * string is formatted — same convention as `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` and its siblings:
  * every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
@@ -44,7 +49,7 @@ export function buildSiteAssistantCredentialAad(input: { workspaceId: UUID }, _o
 
 /**
  * @file The ONE place `admin_execution_credentials`' AES-GCM additional authenticated data (AAD)
- * string is formatted — same convention as `features/vendor-credentials/aad.ts` and its siblings:
+ * string is formatted — same convention as `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` and its siblings:
  * every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
@@ -77,7 +82,7 @@ export function buildExecutionCredentialAad(input: { workspaceId: UUID; principa
 // Original source: assistant/external-mcp-aad.ts
 /**
  * @file The ONE place `external_mcp_servers`' AES-GCM additional authenticated data (AAD) strings
- * are formatted — same convention as `execution-credential-aad.ts` and its siblings: every
+ * are formatted — same convention as `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` and its siblings: every
  * `seal()`/`open()` call for this table MUST go through these functions so sealing and opening can
  * never drift onto two different formats (which would make every row permanently unopenable, since
  * AAD is authenticated but never stored — see `../features/webhooks/secret-sealer.aesgcm.ts`).
@@ -103,7 +108,7 @@ export function buildExecutionCredentialAad(input: { workspaceId: UUID; principa
  * any other.
  *
  * Legacy no-AAD blobs remain readable through `aad_version`/`oauth_aad_version`; see the schema
- * contract and `development/scripts/backfill-external-mcp-aad.ts`. The discriminators must retain
+ * contract and the external MCP AAD backfill. The discriminators must retain
  * each blob's sealing mode.
  */
 
@@ -142,8 +147,8 @@ export function buildExternalMcpOAuthAad(input: ExternalMcpAadIdentity, _options
 
 /**
  * @file The ONE place `media_provider_credentials`' AES-GCM additional authenticated data (AAD)
- * string is formatted — mirrors `features/vendor-credentials/aad.ts`/`features/custom-credentials/
- * aad.ts`/`features/source-control/aad.ts`/`features/deployments/publish-credentials/aad.ts`
+ * string is formatted — mirrors `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts`/`features/custom-credentials/
+ * aad.ts`/`apps/website/src/server/runtime/composition/vault-legacy-codecs.ts`/`apps/website/src/server/runtime/composition/vault-legacy-codecs.ts`
  * exactly, all four of whose file headers this one repeats verbatim: every `seal()`/`open()` call
  * for this table MUST go through this function so sealing and opening can never drift onto two
  * different formats (which would make every row in the table permanently unopenable, since AAD is
@@ -157,8 +162,8 @@ export function buildExternalMcpOAuthAad(input: ExternalMcpAadIdentity, _options
  * provider's ciphertext, even within the same workspace.
  *
  * This table's rows predate AAD entirely (2026-09-02 gap closure) — see `media_provider_
- * credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and `development/scripts/backfill-media-
- * provider-credential-aad.ts` for how existing rows are migrated without becoming unreadable.
+ * credentials.aad_version`'s own doc in `db/schema.sqlite.ts` and the media provider credential AAD
+ * backfill for how existing rows are migrated without becoming unreadable.
  */
 
 /**
@@ -177,10 +182,10 @@ export function buildMediaProviderCredentialAad(input: { workspaceId: UUID; prov
 
 /**
  * @file The ONE place `custom_credential_sets`' AES-GCM additional authenticated data (AAD) string
- * is formatted — mirrors `features/source-control/aad.ts` exactly. Every `seal()`/`open()` call for
+ * is formatted — mirrors `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` exactly. Every `seal()`/`open()` call for
  * this table MUST go through this function so sealing and opening can never drift onto two
  * different formats (which would make every row in the table permanently unopenable, since AAD is
- * authenticated but never stored — see `integrations/secret-sealer.aesgcm.ts`'s file header).
+ * authenticated but never stored — see `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `custom-credential-set:v1:${workspaceId}:${id}` — versioned (`v1`), and bound to both
  * scoping dimensions this table actually has (no `providerId` — see `types.ts`'s own header for
@@ -202,11 +207,11 @@ export function buildCustomCredentialAad(input: { workspaceId: UUID; id: UUID },
 
 /**
  * @file The ONE place `source_control_credential_sets`' AES-GCM additional authenticated data
- * (AAD) string is formatted — mirrors `features/deployments/publish-credentials/aad.ts` exactly.
+ * (AAD) string is formatted — mirrors `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` exactly.
  * Every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
- * `integrations/secret-sealer.aesgcm.ts`'s file header).
+ * `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `source-control-credential-set:v1:${workspaceId}:${providerId}:${id}` — versioned (`v1`)
  * so a future format change is an explicit, reviewed migration path rather than a silent
@@ -232,12 +237,12 @@ export function buildSourceControlCredentialAad(input: { workspaceId: UUID; prov
 // Generic formatter and rationale: Jini/packages/platform/src/secrets/aad.ts; the row namespace stays here.
 /**
  * @file The ONE place `vendor_credential_sets`' AES-GCM additional authenticated data (AAD) string
- * is formatted — mirrors `features/deployments/publish-credentials/aad.ts` and
- * `features/source-control/aad.ts` exactly, both of whose file headers this one repeats verbatim:
+ * is formatted — mirrors `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` and
+ * `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` exactly, both of whose file headers this one repeats verbatim:
  * every `seal()`/`open()` call for this table MUST go through this function so sealing and opening
  * can never drift onto two different formats (which would make every row in the table permanently
  * unopenable, since AAD is authenticated but never stored — see
- * `integrations/secret-sealer.aesgcm.ts`'s file header).
+ * `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `vendor-credential-set:v1:${workspaceId}:${vendorId}:${id}` — a FRESH `v1`, not a `v2` of
  * either predecessor table's own format. This table is a new table with its own AAD lineage, not a
@@ -270,7 +275,7 @@ export function buildVendorCredentialAad(input: { workspaceId: UUID; vendorId: s
  *
  * The ONE place `publish_content_peers`' AES-GCM additional authenticated data (AAD) string is
  * formatted — every `seal()`/`open()` call for this table MUST go through this function, exactly as
- * `features/deployments/publish-credentials/aad.ts` does for `publish_credential_sets`. AAD is
+ * `apps/website/src/server/runtime/composition/vault-legacy-codecs.ts` does for `publish_credential_sets`. AAD is
  * authenticated but never stored, so if sealing and opening ever drift onto two different formats
  * every row in the table becomes permanently unopenable.
  *
@@ -327,7 +332,7 @@ export function buildDatabaseDestinationAad(input: { workspaceId: string }, _opt
  * is formatted — every `seal()`/`open()` call for this table MUST go through this function so sealing
  * and opening can never drift onto two different formats (which would make every row in the table
  * permanently unopenable, since AAD is authenticated but never stored — see
- * `integrations/secret-sealer.aesgcm.ts`'s file header).
+ * `Jini packages/platform/src/secrets/secret-sealer.aesgcm.ts`'s file header).
  *
  * Format: `publish-credential-set:v1:${workspaceId}:${providerId}:${id}` — versioned (`v1`) so a
  * future format change is an explicit, reviewed migration path (bump to `v2`, re-seal every row under
@@ -479,7 +484,8 @@ export function legacyTargetProvider(
   { record, legacy, policy }: { record: VaultRecord; legacy: VaultLegacyContext; policy: TovuVaultPolicy },
   _options: VaultOptions = {},
 ): { provider: string | null; tokenField?: string } {
-  const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider! });
+  if (legacy.provider === undefined || legacy.provider === null) throw new Error("legacy publish credential has no provider");
+  const spec = policy.legacyPublishCredential({ workspaceId: record.workspaceId, providerId: legacy.provider });
   if (!spec) throw new Error("VAULT_CATALOG_UNAVAILABLE");
   return { provider: spec.vendorId, tokenField: spec.tokenField };
 }

@@ -1,11 +1,10 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type ToolContributor } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
-import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { ToolContributor } from "@jini-ai/core";
-import { getAdminPostById, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { getAdminPostById } from "./post-read.js";
+import { PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 
@@ -13,7 +12,7 @@ import { readPostTemplateOptions, type PostTemplateDeps } from "./template-optio
 export interface PostPreviewToolDeps extends PostTemplateDeps { authorize: AuthorizeFn; postRepo: PostRepoPort }
 export interface PostPreviewInput { post: PostRecord; templateChoice?: string | null; bodyJson?: JsonObject; bodyHtml?: string }
 export interface PostPreviewRenderer {
-  renderPostPreview(deps: PostPreviewToolDeps, input: PostPreviewInput): Promise<{ html: string; templateChoice: string | null }>;
+  renderPostPreview({ deps, input }: { deps: PostPreviewToolDeps; input: PostPreviewInput }, optional?: Record<string, never>): Promise<{ html: string; templateChoice: string | null }>;
 }
 export const postPreviewAgentToolCatalog = [{
   name: "content_post_preview",
@@ -59,7 +58,7 @@ function readPreviewInput(input: Record<string, unknown>, _options: Record<strin
 }
 
 /** Builds the read-only preview handler; authorization precedes lookup and any render read. */
-export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, renderer: PostPreviewRenderer): ToolRegistration[] {
+export function buildPostPreviewRegistrations({ deps, renderer }: { deps: PostPreviewToolDeps; renderer: PostPreviewRenderer }, _optional: Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "post-preview", catalogModule: "features/post/preview-tool.ts", catalog: CATALOG, derivedRisk: postPreviewDerivedRisk, handlers: {
     content_post_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
@@ -72,14 +71,14 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
         if (error instanceof PostNotFoundError) throw new ToolInputError({ message: `content_post_preview: no post or page with id or slug '${postId}'. Use content_read.content_post to find it.` });
         throw error;
       }
-      const rendered = await renderer.renderPostPreview(deps, { post, ...overrides });
+      const rendered = await renderer.renderPostPreview({ deps, input: { post, ...overrides } });
       const availableTemplates = await readPostTemplateOptions({ deps, kind: post.kind });
-      const shaped: ShapedPageBody = shapePageBody(rendered.html, options);
+      const shaped: ShapedPageBody = shapePageBody({ body: rendered.html, options });
       return { postId: post.id, title: post.title, status: post.status, templateChoice: rendered.templateChoice, availableTemplates, ...shaped };
     },
   } });
 }
 /** Contributes under its own domain, preserving all of post's existing tools. */
-export function contributePostPreviewTools(renderer: PostPreviewRenderer): ToolContributor<PostPreviewToolDeps, unknown> {
-  return { domain: "post-preview", build: deps => buildPostPreviewRegistrations(deps, renderer), risk: postPreviewDerivedRisk };
+export function contributePostPreviewTools(renderer: PostPreviewRenderer, _optional: Record<string, never> = {}): ToolContributor<PostPreviewToolDeps, unknown> {
+  return { domain: "post-preview", build: deps => buildPostPreviewRegistrations({ deps, renderer }), risk: postPreviewDerivedRisk };
 }

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { duplicateThemeIds, findStoredTheme, findTheme, resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId, validThemeIds, type DiscoveredTheme } from "../theme.js";
+import { duplicateThemeIds, findStoredTheme, findTheme, validThemeIds } from "../theme-discovery.js";
+import { resolveHandlebarsTemplateId, resolveLiquidTemplateId, resolveTemplateId } from "../render-contract.js";
+import { type DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Characterization tests for `resolveTemplateId`/`resolveLiquidTemplateId`/
@@ -25,8 +27,8 @@ test("discovered IDs expose collisions and invalid themes while stored lookup pr
   const current = { manifest: { id: "tovu-theme" }, status: "valid" } as DiscoveredTheme;
   const invalid = { manifest: { id: "broken" }, status: "invalid" } as DiscoveredTheme;
   const themes = [retired, invalid, current, retired, invalid, retired];
-  assert.deepEqual(duplicateThemeIds(themes), ["basic", "broken"]);
-  assert.deepEqual(validThemeIds(themes), ["basic", "tovu-theme", "basic", "basic"]);
+  assert.deepEqual(duplicateThemeIds({ themes }), ["basic", "broken"]);
+  assert.deepEqual(validThemeIds({ themes }), ["basic", "tovu-theme", "basic", "basic"]);
   assert.equal(findTheme({ themes, id: "basic" }), retired);
   assert.equal(findTheme({ themes, id: "broken" }), invalid);
   assert.equal(findTheme({ themes, id: "missing" }), undefined);

@@ -1,4 +1,4 @@
-import { directPageAction } from "../../../../website/src/assistant/assistant-tool-approval-policy.js";
+import { directPageAction } from "@tovu/headless";
 import {
   PAGE_CAPABILITIES, executePageCapability, toWebMcpTool,
   type PageDriver, type WebMcpToolRegistration,
@@ -9,7 +9,7 @@ import { getBrowserAgentEnabled } from "./browser-agent-settings.hooks";
 /** The authenticated host adapter owns confirmation and execution of opaque page effects. */
 export type RequestAdminPageAction = (required: {
   capabilityId: string; input: Record<string, unknown>; signal: AbortSignal;
-}) => Promise<unknown>;
+}, options?: Record<string, never>) => Promise<unknown>;
 
 /** Thin CMS/admin policy adapter. Jini keeps projection, schema validation and direct page guards.
  * Protected actions use the authenticated ToolExecutor/card exchange; the browser agent never
@@ -39,16 +39,7 @@ export function registerAdminPageWebMcpTools(
   const assertOpen = () => {
     if (signal.aborted || !isEnabled()) throw new Error("WebMCP admin access is disabled or closed");
   };
-  const register = (registration: WebMcpToolRegistration) => {
-    try {
-      const pending = modelContext.registerTool({ tool: registration }, registration.registerOptions);
-      void Promise.resolve(pending).catch((error: unknown) => {
-        if (!signal.aborted) onError({ name: registration.name, error });
-      });
-    } catch (error) {
-      if (!signal.aborted) onError({ name: registration.name, error });
-    }
-  };
+  const register = createToolRegistrationHandler(modelContext, signal, onError);
   for (const definition of PAGE_CAPABILITIES) {
     const registration = toWebMcpTool({
       // Owner 2026-10-07: ordinary edits run directly; opaque clicks require explicit consent.
@@ -73,3 +64,17 @@ export function registerAdminPageWebMcpTools(
     register(registration);
   }
 }
+
+function createToolRegistrationHandler(modelContext: AgentModelContextLike, signal: AbortSignal, onError: (required: { name: string; error: unknown; }) => void) {
+  return (registration: WebMcpToolRegistration) => {
+    try {
+      const pending = modelContext.registerTool({ tool: registration }, registration.registerOptions);
+      void Promise.resolve(pending).catch((error: unknown) => {
+        if (!signal.aborted) onError({ name: registration.name, error });
+      });
+    } catch (error) {
+      if (!signal.aborted) onError({ name: registration.name, error });
+    }
+  };
+}
+

@@ -31,14 +31,14 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaListRoute(app, deps);
-  registerAdminMediaUploadRoute(app, deps);
-  registerAdminMediaUpdateRoute(app, deps);
-  registerAdminMediaTrashRoute(app, deps);
-  registerAdminMediaDeleteRoute(app, deps);
+  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ app, deps });
+  registerAdminMediaTrashRoute({ app, deps });
+  registerAdminMediaDeleteRoute({ app, deps });
   return { app, deps };
 }
 

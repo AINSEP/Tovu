@@ -5,7 +5,7 @@
  *
  * Domain types only — no I/O, no sealer/keyring dependency. `../deployments/publish-credentials/store.ts`
  * is the one place a connection is validated, serialized, and sealed; `../deployments/publish-credentials/
- * repo.memory.ts` and `platform/db/repos/vendor-credential-repo.ts` are the two adapters (ADR-006
+ * repo.memory.ts` and `apps/website/src/features/vendor-credentials/vendor-credential-repo.ts` are the two adapters (ADR-006
  * rule-of-two), both over `vault-adapter.ts`.
  *
  * Open: a deploy plugin's host declares its own vendor (`DeployTargetCredentialSpec.vendorId`).
@@ -16,10 +16,14 @@
 // Credential-contract rationale: Jini packages/platform/src/secrets/credential-sets/types.ts.
 // Migration 0045 backfilled destination-based credentials into vendor groups; store.ts remains the
 // validation/sealing boundary, with memory and SQLite repositories under ADR-006/ADR-007.
-import type { VaultRepoPort, VendorCredentialSetRecord as JiniVendorRecord, VendorCredentialSetRepoPort as JiniVendorRepo } from "@jini-ai/platform/secrets/credential-sets";
-import type { CredentialTokenHint } from "../../contracts/core/credential-token.js";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-export type { VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
+import type {
+  VaultRepoPort,
+  VendorCredentialSetRecord as JiniVendorRecord,
+  VendorCredentialSetRepoPort as JiniVendorRepo,
+} from "@jini-ai/core/contracts/vault";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+export type { VendorCredentialSetSummary } from "@jini-ai/core/contracts/vault";
 export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly tokenHint?: CredentialTokenHint | null }
 /** Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1).
  *

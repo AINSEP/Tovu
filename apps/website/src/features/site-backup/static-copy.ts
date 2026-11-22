@@ -1,9 +1,9 @@
 import { mkdtemp, readdir, readFile, lstat, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { ExportReport } from "../site-export/site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 import { shareFileStem } from "./share-service.js";
-import { downloadForms } from "../site-export/export-html-policy.js";
+import { downloadForms } from "./static-download-html.js";
 
 export interface StaticSiteMetadata {
   exportedAt: string;
@@ -34,7 +34,8 @@ function exportStamp({ date, timeZone }: { date: Date; timeZone?: string }, _opt
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZoneName: "longOffset" }).formatToParts(date);
   const fields = Object.fromEntries(parts.map(part => [part.type, part.value]));
   const day = `${fields.year}-${fields.month}-${fields.day}`;
-  const offset = fields.timeZoneName === "GMT" ? "+00:00" : fields.timeZoneName!.replace("GMT", "");
+  if (fields.timeZoneName === undefined) throw new Error("Static export timestamp has no time zone offset");
+  const offset = fields.timeZoneName === "GMT" ? "+00:00" : fields.timeZoneName.replace("GMT", "");
   return { iso: `${day}T${fields.hour}:${fields.minute}:${fields.second}${offset}`, filename: `${day}-${fields.hour}${fields.minute}`,
     words: `${new Intl.DateTimeFormat("en-US", { timeZone: zone, dateStyle: "full" }).format(date)} at ${new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)}` };
 }
@@ -128,7 +129,8 @@ async function partialFiles({ outputDir }: { outputDir: string }, _options = {})
 /** Render through the injected owner. A thrown render becomes a disclosed failure, retaining partial output. */
 async function renderCopy({ ports, outputDir, themeId, publicUrl }: { ports: StaticSitePorts; outputDir: string; themeId?: string; publicUrl?: string }, _options = {}) {
   try {
-    const report = await ports.render!({ outputDir, clean: true, ...(publicUrl === undefined ? {} : { publicUrl }), ...(themeId === undefined ? {} : { themeId }) });
+    if (!ports.render) throw new Error("Static export has no renderer");
+    const report = await ports.render({ outputDir, clean: true, ...(publicUrl === undefined ? {} : { publicUrl }), ...(themeId === undefined ? {} : { themeId }) });
     return prepareStaticReport({ report });
   } catch (error) {
     const downloads = downloadableFiles({ files: await partialFiles({ outputDir }), pages: new Map() });

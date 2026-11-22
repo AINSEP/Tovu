@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { askOnce, askThenReport, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

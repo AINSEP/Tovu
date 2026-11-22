@@ -1,17 +1,19 @@
+import type { ExportReport } from "#src/contracts/core/export-report";
 import type { SiteCookieConsentDeps } from '../../contracts/headless/site-cookie-consent.js';
 import type { RequestListener } from "node:http";
-import { resolveConfiguredOrigin } from "@jini-ai/http-kit/verified-origin";
+import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import path from "node:path";
 import { rm } from "node:fs/promises";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
 import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource } from "@jini-ai/devops/static-export/node";
 import { extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
-import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
-import { resolveThemeLayout } from "#src/features/theme/index";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { type RouteManifestDeps } from "./route-manifest.js";
 import { withSecurityMeta } from "./static-security-headers.js";
 import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
-import { themePreviewExportSize, type ThemePreviewExportSize } from "./theme-preview-report.js";
+import { themePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
 import { exportPublicOrigin, rewriteExportOriginResponse } from "./public-origin-policy.js";
@@ -19,17 +21,9 @@ import { exportHtml } from "./export-html-policy.js";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
-export interface ExportReport extends BaseExportReport {
-  /** Static pages were rendered before cookie preferences became available. */
-  consentWarning?: string;
-  /** Public registry evidence used for this copy; absent when identity/discovery falls back. */
-  publicOrigin?: string;
-  /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
-  themePreview?: ThemePreviewExportSize;
-}
 export { firstExportFailure, type ExportFailureSummary } from "./export-failure-summary.js";
 
-// App boot is injected via createSiteApp(): importing server/app.ts, even lazily, would close
+// App boot is injected via createSiteApp(): importing apps/website/src/server/runtime/composition/app.ts, even lazily, would close
 // the export/server cycle and can expose half-initialized boot state. The composition root binds
 // that nullary factory once. Structural ExportSiteRouteDeps keep this feature independent of RouteDeps.
 /**
@@ -41,7 +35,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * this repo already carries the cost of two render paths (editor vs. public site) diverging, which
  * is why UI bugs here need end-to-end tests to catch. A hand-rolled export renderer would be a
  * THIRD path. Driving the real app over real HTTP — the same mechanism
- * `server/routes/site/__tests__/pages.route.test.ts` already uses to test these routes — is the
+ * `apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts` already uses to test these routes — is the
  * only way the exported HTML is guaranteed byte-identical to what a live visitor gets, including
  * whichever theme tier (declarative/templated/handlebars/static/code) is active and whatever
  * worker-thread sandbox a templated/handlebars theme renders inside (`render.ts:2002-2044`).
@@ -181,7 +175,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  */
 /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
-/** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
+/** The same composition-root object `createApp`/`apps/website/src/server/runtime/composition/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
 /** By default, replace this export's files and keep unrelated files (removing files this process
    *  did not write is destructive — see `cli/commands/export.ts` for the `--clean` flag).
@@ -214,18 +208,22 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 // against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
 // real browser) both resolve OFF this origin and get refused, the same reasoning
 // `features/theme/static-render.ts`'s own copy of this constant documents at length.
+// (Retired 2026-11-17: the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation/href`,
+// now does this, and Jini's `href.ts` documents the reasoning.)
 /**
  * Scheme allowlist for a redirect-stub target, applied before {@link escapeHtmlAttr} embeds it
  * into `renderRedirectStub`'s three sinks. `escapeHtmlAttr` alone only neutralizes
  * quote/attribute-breakout characters — it does nothing to stop a `javascript:`/`data:` scheme
  * from executing once emitted into an `href`, the exact gap `a69f5892`/`0a41515c`
  * closed for every other comparable sink in `features/theme/static-render.ts` and
- * `server/inbound/public-http/http/site/render.ts`. THIS is a third, deliberate duplicate of
+ * `server/inbound/public-http/http/site/render.ts`. THIS was a third, deliberate duplicate of
  * those two files' own byte-identical `safeHref` — not a shared import, because `features/site-export`
  * pulling a private helper out of either of those modules would need it exported first, widening
- * a surface neither module wants widened for one more caller; those two files already document
- * this exact "duplicate, don't share" precedent for the identical reason. If this logic changes,
- * BOTH of those copies must change too — none of the three update each other automatically.
+ * a surface neither module wants widened for one more caller; those two files already documented
+ * this exact "duplicate, don't share" precedent for the identical reason. If this logic changed,
+ * BOTH of those copies had to change too — none of the three updated each other automatically.
+ * All three sinks now call the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation/href`,
+ * so there is no Tovu-side copy to keep in step (the duplicates were retired 2026-11-17).
  *
  * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
  *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
@@ -283,8 +281,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * expected to already be base-path-prefixed by the caller when applicable — this function only
  * embeds it, the same "one place decides the path" split every rewrite above already follows.
  */
-  // Scheme-checked FIRST, escaped second — matching every other href sink's `escapeHtml(safeHref(x))`
-  // order in `render.ts`/`static-render.ts`. `safeHref` degrades an unsafe scheme to `"#"` rather
+  // Scheme-checked FIRST, escaped second — matching every other href sink's `escapeHtml(toAllowedHref(x))`
+  // order in `render.ts`/`static-render.ts`. `toAllowedHref` degrades an unsafe scheme to `"#"` rather
   // than refusing to render the page: this stub's whole job is being a working redirect, and a
   // `javascript:`/`data:` target was never a real destination to preserve. Used for all three
   // sinks (meta refresh, canonical, and the visible link's `href`) — the label text below is
@@ -474,7 +472,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 /** Writes every manifest route to disk, collecting succeeded/failed routes plus every asset URL discovered in their HTML. */
 /** `unreferencedThemeFiles` needs a theme to diff against — no theme discovered means nothing to report. */
   // Injected via `RouteDeps.createSiteApp` (see the file-header note and that field's own doc in
-  // `server/routes/types.ts`) rather than imported from `server/app.ts` — no `require` left here at
+  // `server/routes/types.ts`) rather than imported from `server/runtime/composition/app.ts` — no `require` left here at
   // all, lazy or otherwise. Since 2026-08-20 (RouteDeps-narrowing pass 2) it is already closed
   // over its own `routeDeps` at composition-root construction time. Only a selected capture passes
   // a request-local theme override; ordinary exports still call it without arguments.
@@ -498,7 +496,7 @@ export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDe
 }
 
 export interface ExportSiteOptions {
-  /** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
+  /** The same composition-root object `createApp`/`apps/website/src/server/runtime/composition/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
   routeDeps: ExportSiteRouteDeps;
   outputDir: string;
@@ -525,7 +523,7 @@ export interface ExportSiteOptions {
 
 
 /** Legacy decision signature, forwarded to the one export owner. */
-export function redirectOutcomeFor(status: number, locationHeader: string | null, manifestTarget: string | undefined) {
+export function redirectOutcomeFor({ status, locationHeader, manifestTarget }: { status: number; locationHeader: string | null; manifestTarget: string | undefined }, _optional = {}) {
   return redirectDecision({ status, locationHeader }, { ...(manifestTarget !== undefined ? { manifestTarget } : {}) });
 }
 
@@ -559,7 +557,7 @@ async function resolveExportIdentity({ routeDeps, publicUrl }: Pick<ExportSiteOp
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
 export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews, themeId, publicUrl }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
-  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
+  const { manifest, themeCount } = await exportManifestForTheme({ routeDeps }, { themeId, includeThemePreviews });
   const { publicOrigin, publicBaseUrl, sourceOrigin } = await resolveExportIdentity({ routeDeps, publicUrl });
   // The resolved destination owns its prefix: custom domains and user Pages sites can be at root.
   const outputBasePath = publicBaseUrl ? new URL(publicBaseUrl).pathname : basePath;
@@ -582,13 +580,13 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
-      pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,
+      pagesDir: resolveThemeLayout({}, { apiVersion: theme.apiVersion as 2 | undefined }).pagesDir,
       assetUrlPrefix: `/theme-assets/${theme.id}/`,
     }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],
     assetUrls: async () => [...declaredThemeAssets({ routeDeps, activeThemeId: manifest.activeTheme?.id }), ...(await routeDeps.cookieConsent?.exportAssets?.() ?? [])],
     requestHeaders: { "x-tovu-static-export": "1" },
-    security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin: publicBaseUrl })) },
+    security: { transformHtml: ({ html }) => withSecurityMeta({ html: exportHtml({ html, publicOrigin: publicBaseUrl }) }) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },
     assetPathFailureReason: "asset URL resolved outside the output directory — refused",
@@ -604,6 +602,14 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
   return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning });
+}
+
+/** The site's manifest for its active theme, or for one chosen theme rendered as if active (then without previews). */
+function exportManifestForTheme(
+  { routeDeps }: Pick<ExportSiteOptions, "routeDeps">,
+  { themeId, includeThemePreviews }: Pick<ExportSiteOptions, "themeId" | "includeThemePreviews"> = {},
+) {
+  return buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
 }
 
 /** Return publication diagnostics after the exporter has closed its fresh app session. */

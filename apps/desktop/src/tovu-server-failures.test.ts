@@ -110,7 +110,7 @@ test('the site server receives launch credentials over IPC, with no private keys
 test("T5: a boot failure after long startup logs reports the final CLI error", async (t) => {
   const f = fixture({ t });
   const started = startTovuServer(f.input);
-  f.child.stdout.write("Startup diagnostics\n".repeat(120)); // More than 2000 characters before the error.
+  f.child.stdout.write("Startup diagnostics\n".repeat(1200)); // More than 2000 characters before the error.
   f.child.stderr.write("tovu: PORT_IN_USE: Port 4321 is already in use.\n");
   f.child.exitCode = 4;
   f.child.emit("exit", 4, null);
@@ -149,7 +149,7 @@ test("an error after readiness cannot replace the handle, and the supervisor sti
   f.child.stdout.write("tovu serve: dir=/fixture port=4321 schemaVersion=58 workspaceId=fixture\n");
   const handle = await started;
   const seen: unknown[] = [];
-  handle.onExit((exit) => { seen.push(exit); });
+  handle.onExit({ listener: (exit) => { seen.push(exit); } });
   f.child.emit("error", new Error("late child error"));
   f.child.exitCode = 7;
   f.child.emit("exit", 7, null);
@@ -187,7 +187,7 @@ test("the default Windows stop invokes taskkill for the whole tree and waits for
   assert.deepEqual(taskkills, [[command, ["/pid", String(f.child.pid), "/T", "/F"], { stdio: "ignore" }]]);
   assert.deepEqual(directKills, [], "direct termination would orphan the agent daemon");
   await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(stopped, false);
+  assert.equal(stopped, false, "tree-kill acceptance must wait for observed exit");
   f.child.signalCode = "SIGKILL";
   f.child.emit("exit", null, "SIGKILL");
   await stopping;

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { api } from "../api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -9,7 +9,7 @@ it("sends a strict force flag only for an explicit CLI Rescan", async () => {
     bodies.push(JSON.parse(String(options.body)));
     return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
   });
-  await api.detectExecutionAgents({}, {});
-  await api.detectExecutionAgents({}, { force: true });
+  await aiAssistantApi.detectExecutionAgents({}, {});
+  await aiAssistantApi.detectExecutionAgents({}, { force: true });
   expect(bodies).toEqual([{}, { force: true }]);
 });

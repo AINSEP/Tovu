@@ -14,7 +14,7 @@ import type { CommentRecord } from "@jini-ai/cms/comments";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "../tool-registrations.js";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

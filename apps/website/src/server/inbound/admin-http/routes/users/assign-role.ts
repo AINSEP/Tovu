@@ -1,13 +1,14 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { assignRole } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendAssignRoleError(res: Response, err: unknown): void {
+function sendAssignRoleError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -37,12 +38,9 @@ function sendAssignRoleError(res: Response, err: unknown): void {
  * INV-07 grant clamp must pass over every permission carried by the role's
  * policies. See `grant-service.ts`'s `assignRole` for the full contract.
  */
-export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/roles", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -59,7 +57,7 @@ export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps)
 
       res.status(201).json({ assignment });
     } catch (err) {
-      sendAssignRoleError(res, err);
+      sendAssignRoleError({ res, err });
     }
   });
 };

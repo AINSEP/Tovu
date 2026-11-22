@@ -111,11 +111,14 @@ test("any failure (config, load, consent, credential, create) forwards nothing a
     const { resolve, warnings } = forwarding(overrides as never);
     assert.deepEqual(await resolve({ request: "r" }), []);
     assert.equal(warnings.length, 1);
-    assert.equal(warnings[0], "[analytics] vendor forwarding skipped: resolution failed");
+    assert.match(warnings[0] ?? "", /^\[analytics\] vendor forwarding skipped: resolution failed Cause: /);
   }
-  const v = { credentialLabel: "GA4 key", create: () => { throw new Error("bad key SECRET-TOKEN-1"); } };
+  const v = { credentialLabel: "GA4 key", create: () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); } };
   const leaky = forwarding({ sink: "ga4", loadProviders: async () => providerSet({ ga4: v as never }), resolveCredential: async () => ({ token: "SECRET-TOKEN-1", baseUrl: "https://x" }) });
   assert.deepEqual(await leaky.resolve({ request: "r" }), []);
+  assert.match(leaky.warnings.join("\n"), /Error/);
+  assert.match(leaky.warnings.join("\n"), /EIO/);
+  assert.doesNotMatch(leaky.warnings.join("\n"), /boom/);
   assert.doesNotMatch(leaky.warnings.join("\n"), /SECRET/);
 });
 
@@ -130,7 +133,7 @@ test("default warn goes to console.warn", async () => {
     });
     assert.deepEqual(await resolve({ request: "r" }), []);
     const hooks = createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}, [{ beforeIngest: async () => { throw new Error("h"); } }]) });
-    await hooks.beforeIngest(hit());
+    await hooks.beforeIngest({ hit: hit() });
     const load = cacheAnalyticsProviders({ load: async () => providerSet({}, [], ["refused one"]), clock: { nowMs: () => 0 } });
     await load();
   } finally {
@@ -187,16 +190,16 @@ test("cacheAnalyticsProviders keeps a newer cache entry when an older load rejec
 
 test("createPluginAnalyticsHooks: no handlers or a failed load pass the hit unchanged; handlers chain", async () => {
   const h = hit();
-  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}) }).beforeIngest(h), h);
-  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => { throw new Error("x"); } }).beforeIngest(h), h);
+  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}) }).beforeIngest({ hit: h }), h);
+  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => { throw new Error("x"); } }).beforeIngest({ hit: h }), h);
 
   const warnings: string[] = [];
   const hooks = createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}, [
     { beforeIngest: async () => { throw new Error("broken"); } },
     { beforeIngest: async ({ hit: x }) => (x.path === "/internal" ? null : { ...x, path: `${x.path}/tagged` }) },
   ]) }, { warn: (m) => warnings.push(m) });
-  assert.equal((await hooks.beforeIngest(hit("/a")))?.path, "/a/tagged");
-  assert.equal(await hooks.beforeIngest(hit("/internal")), null);
+  assert.equal((await hooks.beforeIngest({ hit: hit("/a") }))?.path, "/a/tagged");
+  assert.equal(await hooks.beforeIngest({ hit: hit("/internal") }), null);
   assert.deepEqual(warnings, [
     "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",
     "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",

@@ -1,3 +1,4 @@
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 // Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
@@ -6,10 +7,10 @@ import { resolveApiConnectionRuntime, resolveRuntimeMode, type RuntimeMode } fro
 
 type Read = (file: string, encoding: 'utf8') => string;
 function documentAt({ file, read }: { file: string; read: Read }, _optional = {}): Record<string, unknown> {
-  try {
+  return orFallbackSync({ work: () => {
     const value: unknown = JSON.parse(read(file, 'utf8'));
     return value !== null && typeof value === 'object' ? value as Record<string, unknown> : {};
-  } catch { return {}; }
+  }, fallback: {}, step: 'Read build metadata' });
 }
 
 /** Only build-owned version labels can become telemetry dimensions. */
@@ -33,7 +34,7 @@ export function readBuildRelease({ productRoot }: { productRoot: string }, { rea
 let release: string | undefined;
 /** Resolve once per process so live config changes cannot rewrite build identity. */
 export function processBuildRelease(_required: Record<string, never>, _optional: Record<string, never> = {}): string {
-  release ??= readBuildRelease({ productRoot: resolveProductRoot() });
+  release ??= readBuildRelease({ productRoot: resolveProductRoot({}) });
   return release;
 }
 

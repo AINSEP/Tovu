@@ -20,7 +20,7 @@ import {
  *
  * Gated by `apikey.manage` plus the INV-07 issuance clamp, both enforced inside `issueApiKey`.
  */
-export const registerAdminApiKeyIssueRoute: ApiKeysRouteRegistrar = (app, deps) => {
+export const registerAdminApiKeyIssueRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/api-keys", async (req, res) => {
     try {
       if (!rejectApiKeyCredential(res)) return;
@@ -40,7 +40,7 @@ export const registerAdminApiKeyIssueRoute: ApiKeysRouteRegistrar = (app, deps) 
 
       res.status(201).json({ apiKey: toApiKeyIssueResponse({ apiKey, rawKey }) });
     } catch (err) {
-      sendApiKeyError(res, err);
+      sendApiKeyError({ res, err });
     }
   });
 };

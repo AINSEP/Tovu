@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
 
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import {
   createPost,
@@ -73,20 +73,20 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const trashRepo = new SqliteTrashRepo(client);
+  const trashRepo = new SqliteTrashRepo({ store: client });
   let seq = 0;
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
   const trash = createTrashService({
     repo: trashRepo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
   return {
     client,
-    postRepo: new SqlitePostRepo(db),
+    postRepo: new SqlitePostRepo({ store: db }),
     trashRepo,
     outbox: recordingOutbox(),
     removePost: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

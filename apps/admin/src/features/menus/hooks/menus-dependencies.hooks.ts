@@ -1,4 +1,7 @@
-import { api, type AdminMenu } from "@/lib/api";
+import { pagesApi } from "@/features/pages/api/pages-api";
+import { trashApi } from "@/features/trash/api/trash-api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { menusApi } from "@/features/menus/api/menus-api";
 import type { MenusPort } from "./menus-port.hooks";
 import { pagePublicPath } from "../../pages/rules";
 
@@ -13,12 +16,12 @@ import { pagePublicPath } from "../../pages/rules";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMenusPort: MenusPort = {
-  listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath(post.slug) })) }),
-  listMenus: () => api.listMenus(),
-  getMenu: (id) => api.getMenu(id),
-  createMenu: (input, options) => api.createMenu(input, options),
-  updateMenuTree: (target, options) => api.updateMenuTree(target, options),
-  trash: ({ id }) => api.trash({ type: "menu", id }),
+  listPages: async (_required, _optional = {}) => ({ pages: (await pagesApi.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath({ slug: post.slug }) })) }),
+  listMenus: () => menusApi.listMenus(),
+  getMenu: ({ id }, _optional = {}) => menusApi.getMenu({ id }),
+  createMenu: ({ input, options }, _optional = {}) => menusApi.createMenu(input, options),
+  updateMenuTree: ({ target, options }, _optional = {}) => menusApi.updateMenuTree(target, options),
+  trash: ({ id }) => trashApi.trash({ type: "menu", id }),
 };
 
 /** Seed state for {@link createFakeMenusPort}. */
@@ -44,7 +47,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menus: [...menus] };
     },
 
-    async getMenu(id) {
+    async getMenu({ id }, _optional = {}) {
       // Id or slug, same fallback as the real server route (readable-slugs S6b) — a test that loads
       // by slug shouldn't need to fake out a whole HTTP layer to see that behavior.
       const menu = menus.find((m) => m.id === id || m.slug === id);
@@ -52,7 +55,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menu };
     },
 
-    async createMenu(input, createOptions) {
+    async createMenu({ input, options: createOptions }, _optional = {}) {
       const created: AdminMenu = {
         id: `fake-${menus.length + 1}`,
         workspaceId: "fake-ws",
@@ -70,18 +73,18 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
       return { menu: created };
     },
 
-    async updateMenuTree({ id, items }, updateOptions) {
+    async updateMenuTree({ target: { id, items }, options: updateOptions }, _optional = {}) {
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
       const updated: AdminMenu = {
-        ...menus[index]!,
+        ...menus[index],
         items,
-        title: updateOptions.title ?? menus[index]!.title,
-        slug: updateOptions.slug ?? menus[index]!.slug,
+        title: updateOptions.title ?? menus[index].title,
+        slug: updateOptions.slug ?? menus[index].slug,
         // Same keep-when-omitted rule as the server's `updateMenuTree`.
-        mode: updateOptions.mode ?? menus[index]!.mode,
-        html: updateOptions.html ?? menus[index]!.html,
-        version: menus[index]!.version + 1,
+        mode: updateOptions.mode ?? menus[index].mode,
+        html: updateOptions.html ?? menus[index].html,
+        version: menus[index].version + 1,
       };
       menus[index] = updated;
       return { menu: updated };
@@ -90,7 +93,7 @@ export function createFakeMenusPort(options: FakeMenusPortOptions = {}): MenusPo
     async trash({ id }) {
       const index = menus.findIndex((m) => m.id === id);
       if (index < 0) throw new Error(`fake menu not found: ${id}`);
-      const trashed: AdminMenu = { ...menus[index]!, status: "trash" };
+      const trashed: AdminMenu = { ...menus[index], status: "trash" };
       menus[index] = trashed;
       return { ok: true, version: trashed.version };
     },

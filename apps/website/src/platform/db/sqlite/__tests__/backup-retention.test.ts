@@ -12,7 +12,7 @@ import { SqlPublishContentRunRepo } from "../../repos/publish-content-run-repo.j
 
 test("saving restore points retains newest five row/file pairs, preserving foreign files and folders", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-retention-"));
-  const journal = journalKernel(path.join(dir, "journal.db"));
+  const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
   const other = path.join(dir, "other");
@@ -33,7 +33,7 @@ test("saving restore points retains newest five row/file pairs, preserving forei
 
 test("a caller-supplied publish trigger label cannot bypass restore-point retention", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-trigger-"));
-  const journal = journalKernel(path.join(dir, "journal.db"));
+  const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
   for (let i = 1; i <= 8; i++) {
@@ -46,10 +46,10 @@ test("a caller-supplied publish trigger label cannot bypass restore-point retent
 
 test("retention cleanup cannot turn a save into an error, and an unlink failure keeps its row", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-cleanup-"));
-  const journal = journalKernel(path.join(dir, "journal.db"));
+  const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s" });
-  t.mock.method(fsp, "rm", async () => { throw new Error("EACCES"); });
+  t.mock.method(fsp, "rm", async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); });
   const warnings = t.mock.method(console, "warn", () => {});
   for (let i = 1; i <= 6; i++) {
     const artifactRef = path.join(dir, `restore-point-s-wm0-${i}.db`);
@@ -59,19 +59,24 @@ test("retention cleanup cannot turn a save into an error, and an unlink failure 
   assert.ok((await repo.list()).some(row => row.id === "r1"));
   assert.ok(fs.existsSync(path.join(dir, "restore-point-s-wm0-1.db")));
   assert.equal(warnings.mock.calls.length, 1);
+  const log = warnings.mock.calls[0]?.arguments.join(" ") ?? "";
+  assert.match(log, /Could not prune older restore points/);
+  assert.match(log, /boom/);
+  assert.match(log, /backup-retention\.test\.ts/);
+  assert.doesNotMatch(log, /SECRETSECRETSECRETSECRET/);
 });
 
 test("in-flight publish runs keep their restore points; finished runs do not pin theirs forever", async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "backup-inflight-"));
   const content = openContentDb(path.join(dir, "content.db"));
-  const journal = journalKernel(path.join(dir, "journal.db"));
+  const journal = journalKernel({ filePath: path.join(dir, "journal.db") });
   t.after(async () => { await journal.close(); content.$client.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const runs = new SqlPublishContentRunRepo(contentKernel(content));
+  const runs = new SqlPublishContentRunRepo(contentKernel({ store: content }));
   const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s", protectedRestorePointIds: () => runs.inFlightRestorePointIds({ workspaceId: "s" }) });
   // Every import records its restore point on its run, so finished runs must not protect them.
   for (const [i, phase] of [[1, "applying"], [2, "planned"], [3, "applied"], [4, "failed"]] as const) {
-    await runs.save({ id: `run${i}`, workspaceId: "s", direction: "import", peerPrincipalId: "peer", peerLabel: null,
-      phase, restorePointId: `r${i}`, changeSetIdsJson: null, actorId: "owner", startedAt: "2026-11-01T00:00:00Z", finishedAt: null, reportJson: null, itemsJson: null });
+    await runs.save({ record: { id: `run${i}`, workspaceId: "s", direction: "import", peerPrincipalId: "peer", peerLabel: null,
+      phase, restorePointId: `r${i}`, changeSetIdsJson: null, actorId: "owner", startedAt: "2026-11-01T00:00:00Z", finishedAt: null, reportJson: null, itemsJson: null } });
   }
   for (let i = 1; i <= 9; i++) {
     const artifactRef = path.join(dir, `restore-point-s-wm0-${i}.db`);

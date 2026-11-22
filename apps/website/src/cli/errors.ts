@@ -30,11 +30,11 @@ import { ExportOutputNotEmptyError } from "../features/site-export/index.js";
 
 /** `PORT_IN_USE` (exit 1) — the HTTP listener's `EADDRINUSE`, the one CLI-layer-native error this file itself declares (errors.spec.md: "Produced By: HTTP listener EADDRINUSE"). */
 export class PortInUseError extends Error {
-  constructor(
-    message: string,
-    public readonly port: number
-  ) {
+  public readonly port: number;
+
+  constructor({ message, port }: { message: string; port: number }) {
     super(message);
+    this.port = port;
     this.name = "PortInUseError";
   }
 }
@@ -44,7 +44,7 @@ export class PortInUseError extends Error {
  *  printed) — a genuinely distinct outcome from a crash (`INTERNAL`) or a bad argument
  *  (`VALIDATION`): the export partially succeeded and wrote everything it could. */
 export class ExportIncompleteError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ExportIncompleteError";
   }
@@ -57,7 +57,7 @@ export class ExportIncompleteError extends Error {
  * where the crawl ran but some routes failed to render.
  */
 export class ExportBlockedPendingRecoveryError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ExportBlockedPendingRecoveryError";
   }
@@ -110,7 +110,7 @@ const OUTCOME_BY_REPAIR_REFUSAL: Record<SiteRepairRefusalReason, "SITE_DIR_INVAL
   CONTENT_DB_DIVERGED: "SITE_NEWER_THAN_RUNTIME",
 };
 
-function stderrLine(code: string, message: string): string {
+function stderrLine({ code, message }: { code: string; message: string }, _options = {}): string {
   return `tovu: ${code}: ${message}`;
 }
 
@@ -142,25 +142,25 @@ const COMMANDER_SUCCESS_CODES = new Set(["commander.helpDisplayed", "commander.h
  * @returns the outcome, or `undefined` when `err` is not one of these — never a partial match.
  * @complexity O(1) — a fixed sequence of `instanceof` checks.
  */
-function mapSiteDirError(err: unknown): CliOutcome | undefined {
+function mapSiteDirError({ err }: { err: unknown }, _options = {}): CliOutcome | undefined {
   if (err instanceof ValidationError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine({ code: "VALIDATION", message: err.message }) };
   }
   if (err instanceof InitDirNotEmptyError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INIT_DIR_NOT_EMPTY, stderrLine: stderrLine("INIT_DIR_NOT_EMPTY", err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INIT_DIR_NOT_EMPTY, stderrLine: stderrLine({ code: "INIT_DIR_NOT_EMPTY", message: err.message }) };
   }
   if (err instanceof SiteDirInvalidError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_DIR_INVALID, stderrLine: stderrLine("SITE_DIR_INVALID", err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_DIR_INVALID, stderrLine: stderrLine({ code: "SITE_DIR_INVALID", message: err.message }) };
   }
   if (err instanceof SiteNewerThanRuntimeError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_NEWER_THAN_RUNTIME, stderrLine: stderrLine("SITE_NEWER_THAN_RUNTIME", err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_NEWER_THAN_RUNTIME, stderrLine: stderrLine({ code: "SITE_NEWER_THAN_RUNTIME", message: err.message }) };
   }
   if (err instanceof SiteCorruptError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_CORRUPT, stderrLine: stderrLine("SITE_CORRUPT", err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.SITE_CORRUPT, stderrLine: stderrLine({ code: "SITE_CORRUPT", message: err.message }) };
   }
   if (err instanceof SiteRepairRefusedError) {
     const code = OUTCOME_BY_REPAIR_REFUSAL[err.reason];
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine(code, err.message) };
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine({ code: code, message: err.message }) };
   }
   return undefined;
 }
@@ -168,42 +168,42 @@ function mapSiteDirError(err: unknown): CliOutcome | undefined {
 /**
  * Map any error `cli/main.ts` catches to `{ exitCode, stderrLine?, printUsage? }`.
  *
- * @param err - whatever `program.parseAsync()` (commander) or an action handler (`site-dir`
+ * @param required.err - whatever `program.parseAsync()` (commander) or an action handler (`site-dir`
  *   errors, `PortInUseError`, or a genuinely unexpected bug) throws/rejects with.
  * @returns the exit code and (when applicable) the exact single stderr line to print.
  * @complexity O(1) — a fixed sequence of `instanceof`/set-membership checks, not a function of
  *   any caller-controlled collection.
  * @overallScore 100
  */
-export function mapErrorToCliOutcome(err: unknown): CliOutcome {
-  if (err instanceof PluginInstallError) return { exitCode: 2, stderrLine: stderrLine(err.code, err.message) };
+export function mapErrorToCliOutcome({ err }: { err: unknown }, _options = {}): CliOutcome {
+  if (err instanceof PluginInstallError) return { exitCode: 2, stderrLine: stderrLine({ code: err.code, message: err.message }) };
   if (err instanceof CommanderError) return mapCommanderError({ err });
 
-  const siteDirOutcome = mapSiteDirError(err);
+  const siteDirOutcome = mapSiteDirError({ err: err });
   if (siteDirOutcome) return siteDirOutcome;
 
-  if (err instanceof PortInUseError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.PORT_IN_USE, stderrLine: stderrLine("PORT_IN_USE", err.message) };
-  }
-  if (err instanceof ExportOutputNotEmptyError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_OUTPUT_NOT_EMPTY, stderrLine: stderrLine("EXPORT_OUTPUT_NOT_EMPTY", err.message) };
-  }
-  if (err instanceof ExportIncompleteError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_INCOMPLETE, stderrLine: stderrLine("EXPORT_INCOMPLETE", err.message) };
-  }
-  if (err instanceof ExportBlockedPendingRecoveryError) {
-    return {
-      exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_BLOCKED_PENDING_RECOVERY,
-      stderrLine: stderrLine("EXPORT_BLOCKED_PENDING_RECOVERY", err.message),
-    };
-  }
-  if (err instanceof InternalError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine("INTERNAL", err.message) };
-  }
+  const coded = mapCodedError({ err });
+  if (coded) return coded;
 
   // errors.spec.md §4: "INTERNAL | any uncaught error".
   const message = err instanceof Error ? err.message : String(err);
-  return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine("INTERNAL", message) };
+  return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine({ code: "INTERNAL", message: message }) };
+}
+
+/** The error classes that carry their own stable code, in the order `mapErrorToCliOutcome` checks them. */
+const CODED_ERRORS: ReadonlyArray<{ type: abstract new (...args: never[]) => Error; code: string }> = [
+  { type: PortInUseError, code: "PORT_IN_USE" },
+  { type: ExportOutputNotEmptyError, code: "EXPORT_OUTPUT_NOT_EMPTY" },
+  { type: ExportIncompleteError, code: "EXPORT_INCOMPLETE" },
+  { type: ExportBlockedPendingRecoveryError, code: "EXPORT_BLOCKED_PENDING_RECOVERY" },
+  { type: InternalError, code: "INTERNAL" },
+];
+
+function mapCodedError({ err }: { err: unknown }, _options: Record<string, never> = {}): CliOutcome | undefined {
+  for (const { type, code } of CODED_ERRORS) {
+    if (err instanceof type) return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine({ code, message: err.message }) };
+  }
+  return undefined;
 }
 
 function mapCommanderError({ err }: { err: CommanderError }, _options: Record<string, never> = {}): CliOutcome {
@@ -211,7 +211,7 @@ function mapCommanderError({ err }: { err: CommanderError }, _options: Record<st
     return { exitCode: 0 };
   }
   const knownValidationCode = COMMANDER_VALIDATION_CODES.has(err.code);
-  const outcome = { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine("VALIDATION", err.message.replace(/^error:\s*/, "")) };
+  const outcome = { exitCode: EXIT_CODE_BY_ERROR_CODE.VALIDATION, stderrLine: stderrLine({ code: "VALIDATION", message: err.message.replace(/^error:\s*/, "") }) };
   if (knownValidationCode) {
     return { ...outcome, printUsage: err.code === "commander.unknownCommand" };
   }

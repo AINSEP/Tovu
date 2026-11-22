@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import type { RouteDeps } from "../routes/types.js";
 

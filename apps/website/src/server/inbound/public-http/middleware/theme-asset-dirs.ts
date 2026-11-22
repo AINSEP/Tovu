@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 
 import { resolvePathWithin } from "#src/contracts/core/path-containment";
-import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
+import { themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
  * @file Maps a request's `:themeId` to the theme folders `theme-static-assets.ts` may serve from.
@@ -24,8 +24,8 @@ import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
  */
 export function resolveThemeDirs(required: { roots: readonly string[]; themeId: string | undefined }, _optional: {}): string[] {
   const themeId = String(required.themeId ?? "");
-  return themeIdCandidates(themeId)
-    .map((id) => resolveThemeDir(required.roots, id))
+  return themeIdCandidates({ id: themeId })
+    .map((id) => resolveThemeDir({ roots: required.roots, themeId: id }))
     .filter((dir): dir is string => dir !== null);
 }
 
@@ -60,7 +60,7 @@ export function resolveThemeDirs(required: { roots: readonly string[]; themeId: 
  *   surface 201->202, core size 16.84%->17.05%) for a single string constant.
  * - anything that simply is not there, which falls through to the next root, then to the normal 404.
  */
-function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
+function resolveThemeDir({ roots, themeId }: { roots: readonly string[]; themeId: string }, _optional = {}): string | null {
   if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(".")) return null;
   for (const root of roots) {
     const candidate = resolvePathWithin({ root: root, segment: themeId }, {});

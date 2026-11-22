@@ -5,17 +5,17 @@ import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs } from "../../external-mcp/external-mcp-store.js";
-import { probeExternalMcpServer } from '../../../server/runtime/services/external-mcp-probe.js';
+import { probeExternalMcpServer } from '../../external-mcp/external-mcp-probe.js';
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { SealedDatabaseDestinationStore, type SavedDatabaseDestination } from '../../database-transfer/destination-store.js';
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
-import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { McpProtocolError } from '@jini-ai/mcp/federation';
 import type { SurfaceEmission } from '@jini-ai/core';
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -31,17 +31,17 @@ async function fixture() {
 }
 for (const status of [401, 403]) test(`hosted probe maps ${status} to auth, without echoing upstream text`, async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { throw Object.assign(new Error('hostile upstream credential body'), { status }); } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { throw Object.assign(new Error('hostile upstream credential body'), { status }); } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: 401, body: { error: 'The server rejected this token.', code: 'MCP_AUTH_REJECTED' } });
 });
 for (const [name, expected] of [['AbortError', 'timeout'], ['TimeoutError', 'timeout'], ['Error', 'unreachable']] as const) test(`hosted probe distinguishes ${name}`, async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { const error = new Error('upstream private text'); error.name = name; throw error; } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { const error = new Error('upstream private text'); error.name = name; throw error; } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: expected === 'timeout' ? 504 : 502, body: { error: expected === 'timeout' ? 'The connection timed out.' : 'Could not reach the server.', code: expected === 'timeout' ? 'MCP_TIMEOUT' : 'MCP_SERVER_UNREACHABLE' } });
 });
 test('a successful hosted probe closes its session', async () => {
   const deps = await fixture(); let closed = 0;
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => ({ listTools: async () => [], callTool: async () => { throw new Error('unused'); }, close: async () => { closed++; } }) }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => ({ listTools: async () => [], callTool: async () => { throw new Error('unused'); }, close: async () => { closed++; } }) }, serverId: 'fixture' });
   assert.equal(result.ok, true); assert.equal(closed, 1);
 });
 async function submitCard({ transport = 'streamable_http', token, code = 'MCP_AUTH_REJECTED' }: { transport?: 'streamable_http' | 'stdio'; token: string; code?: string }) {
@@ -69,7 +69,7 @@ test('chat card saves then probes; reports auth separately and includes the serv
   assert.equal(answer.emissions.length, 2);
   assert.equal(JSON.stringify(answer.emissions).includes(token), false);
   assert.equal(JSON.stringify(answer.result).includes(token), false);
-  const { configs } = await readEnabledExternalMcpConfigs(answer, workspaceId);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: answer, workspaceId });
   const target = configs[0]?.target;
   assert.equal(target?.kind === 'streamable_http' && target.headers.authorization === `Bearer ${token}`, true, 'the rejected token is still durably saved');
 });
@@ -97,7 +97,7 @@ test('database destination uses real sealing, keeps blank updates, refuses white
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: SurfaceEmission[] = [];
   const exchange = exchanges.open({ binding: { toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner' }, emit: async emission => { emitted.push(emission); } });
   const report = createDestinationExchangeReporter({ store, workspaceId });
-  const pending = report({ exchange, confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildDestinationForm(exchange.id) } }, handle: async () => ({ result: { saved: true } }) });
+  const pending = report({ exchange, confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildDestinationForm({ exchangeId: exchange.id }) } }, handle: async () => ({ result: { saved: true } }) });
   await new Promise(resolve => setImmediate(resolve));
   exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} }, { toolId: SET_DESTINATION_TOOL_ID });
   const result = await pending;
@@ -133,7 +133,7 @@ test('publish verifier validates before probing and maps 401/403 independently o
 
 test('Jini protocol HTTP 403 is an auth verdict at the connection-check boundary', async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { throw new McpProtocolError({ message: "mcp-federation: the server answered 'initialize' with HTTP 403" }); } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { throw new McpProtocolError({ message: "mcp-federation: the server answered 'initialize' with HTTP 403" }); } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: 401, body: { error: 'The server rejected this token.', code: 'MCP_AUTH_REJECTED' } });
 });
 
@@ -159,7 +159,7 @@ async function reportDestinationResult({ t, result, payload, get = async () => n
   assert.deepEqual(exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} },
     { toolId: SET_DESTINATION_TOOL_ID }), { ok: true });
   const output = await report({ exchange, confirmationEmission: { channel: 'mcp-ui',
-    payload: payload ?? { resource: buildDestinationForm(exchange.id) } },
+    payload: payload ?? { resource: buildDestinationForm({ exchangeId: exchange.id }) } },
     handle: async answer => {
       assert.deepEqual(answer, { status: 'received', params: {} });
       return { result };

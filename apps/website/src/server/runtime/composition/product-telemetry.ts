@@ -6,10 +6,12 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/diagnostics/observability';
-import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsPort } from '@jini-ai/analytics/product';
+import { describeTelemetryFailure } from '@jini-ai/diagnostics/observability';
+import { createAsyncLocalSpanScope } from '@jini-ai/diagnostics/observability/node';
+import { createNoopProductAnalytics, withProductAnalyticsGuards } from '@jini-ai/analytics/product';
+import { type ProductAnalyticsPort, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import { redactLocalText } from '#src/platform/server-logs/redact-local-text';
+import { redactLocalText } from '@jini-ai/diagnostics/local-text';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
 // Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
 import { resolveTovuObservabilityExport } from '#src/server/runtime/composition/observability-export';
@@ -117,7 +119,7 @@ function productProviderOf({ records, pluginId, contract }: { records: readonly 
 export async function loadProductProviders(required: ProductProviderInput, { resolvePackage = createRequire(import.meta.url).resolve }: {
   resolvePackage?: NodeJS.RequireResolve;
 } = {}): Promise<ProductTelemetry> {
-  const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath }, { pluginHostBinding, createPluginModuleImporter }, { PROVIDER_CONTRACTS }] = await Promise.all([
+  const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath, createPluginModuleImporter }, { pluginHostBinding }, { PROVIDER_CONTRACTS }] = await Promise.all([
     import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-contracts.js'),
   ]);
   // The staged desktop bundle has no node_modules ancestor: resolve from the payload/shell roots too.
@@ -145,7 +147,7 @@ export async function loadProductProviders(required: ProductProviderInput, { res
         importModule: createPluginModuleImporter({ manifest, source: 'built-in' }),
         coreDeps: { getCurrentEntry: unavailable, writeExtField: unavailable, attachFilter: unavailable } },
         contracts: PROVIDER_CONTRACTS, contract, id: provider.id,
-        input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {}, ...(contract === 'observability' ? { exportEnabled: required.observabilityExportEnabled } : {}) } });
+        input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {}, ...(contract === 'observability' ? { exportEnabled: required.observabilityExportEnabled, scope: createAsyncLocalSpanScope({}) } : { describeTelemetryFailure }) } });
       resources.push(resource);
       // The provider host validated the selected contract before returning its opaque port.
       Object.assign(result, { [key]: resource.port });

@@ -1,21 +1,20 @@
-import { useCallback, useMemo } from "react";
-import { useMembers as useJiniMembers, type MembersController as JiniController, type IdentityRefreshPort } from "@jini-ai/user-management/react";
-import { WORKSPACE_ID } from "@/lib/api";
+import { useCallback } from "react";
+import { useMembers as useJiniMembers, type MembersController as JiniController, type IdentityRefreshPort, type MembersPort } from "@jini-ai/user-management/react";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
-import { defaultMembersPort, MEMBERS_RESOURCE, toJiniMembersPort } from "./members-dependencies.hooks";
-import type { MembersPort } from "./members-port.hooks";
+import { defaultMembersPort, MEMBERS_RESOURCE } from "./members-dependencies.hooks";
 import { t } from "../members-i18n";
 
 // Agent-written member changes must re-read the list through the authorized host API.
 const refresh: IdentityRefreshPort = {
-  subscribe: ({ onRefresh }) => subscribeToContentRefresh(scope => {
-    if (contentRefreshApplies(scope, MEMBERS_RESOURCE)) onRefresh();
-  }),
+  subscribe: ({ onRefresh }) => subscribeToContentRefresh({ listener: scope => {
+    if (contentRefreshApplies({ scope, resource: MEMBERS_RESOURCE })) onRefresh();
+  } }),
 };
 export type MembersController = Omit<JiniController, "stateFor"> & {
   locale: string;
-  stateFor: (id: string) => ReturnType<JiniController["stateFor"]>;
+  stateFor: (required: { id: string }, optional?: Record<string, never>) => ReturnType<JiniController["stateFor"]>;
 };
 export interface MembersDependencies { port: MembersPort }
 
@@ -23,9 +22,8 @@ export interface MembersDependencies { port: MembersPort }
 export function useMembers({ port }: MembersDependencies, _optional: Record<string, never> = {}): MembersController {
   const locale = useAdminLocale();
   const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
-  const jiniPort = useMemo(() => toJiniMembersPort({ port }), [port]);
-  const controller = useJiniMembers({ port: jiniPort, translate, queryScope: WORKSPACE_ID }, { refresh });
-  return { ...controller, locale, stateFor: id => controller.stateFor({ id }) };
+  const controller = useJiniMembers({ port, translate, queryScope: WORKSPACE_ID }, { refresh });
+  return { ...controller, locale, stateFor: ({ id }, _optional = {}) => controller.stateFor({ id }) };
 }
 
 /**

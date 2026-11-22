@@ -1,7 +1,7 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { AlertIcon, GaugeIcon, PulseIcon, QueriesIcon } from "./observability-visuals";
 import { useWiredObservabilityStatus, type ObservabilityStatusController } from "./hooks/use-observability-status.hooks";
@@ -11,8 +11,8 @@ import { ToolGapsPanel } from "./tool-gaps-panel";
 import { QueriesPanel } from "./queries-panel";
 import { useWiredQueriesTab } from "./hooks/use-queries-tab.hooks";
 import { useObservabilityTab } from "./hooks/use-observability-tab.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
 
 /**
@@ -178,6 +178,8 @@ export interface ObservabilityProps {
   /** Adapter/owner visibility seam; the panel itself mounts only on tab selection. */
   useQueriesTabHook?: typeof useWiredQueriesTab;
   QueriesPanelComponent?: typeof QueriesPanel;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useObservabilityTabHook?: typeof useObservabilityTab;
 }
 
 /**
@@ -206,8 +208,8 @@ export interface ObservabilityProps {
  * The page header reuses the active tab's translated subtitle. Its hook adapts Jini's tab state
  * to `?tab=` navigation; the controlled shell renders only that tab's panel.
  */
-export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel }: ObservabilityProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel, useAdminThemeBoundaryHook = useAdminThemeBoundary, useObservabilityTabHook = useObservabilityTab }: ObservabilityProps = {}) {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   const controller = useObservabilityStatusHook();
   const queriesTab = useQueriesTabHook();
   const { t, locale } = controller;
@@ -252,7 +254,7 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
     }] : []),
   ];
 
-  const { activeTabId, onTabChange, subtitle } = useObservabilityTab({ tabs, tabId });
+  const { activeTabId, onTabChange, subtitle } = useObservabilityTabHook({ tabs, tabId });
   return (
     <div className="page observability-page">
       <div
@@ -276,7 +278,7 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
           <SettingsDialogShell
             tabs={tabs}
             activeTabId={activeTabId}
-            onActiveTabIdChange={onTabChange}
+            onActiveTabIdChange={(nextTabId) => onTabChange({ nextTabId })}
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}

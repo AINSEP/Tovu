@@ -1,4 +1,4 @@
-import type { AdminContentType, ContentTypeLifecycleOp } from "@/lib/api";
+import type { AdminContentType, ContentTypeLifecycleOp } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file What `use-collections.hooks.ts` needs from the outside world, as an interface rather than a
@@ -11,5 +11,5 @@ export interface CollectionsPort {
     key: string;
     op: ContentTypeLifecycleOp;
     expectedVersion: number;
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

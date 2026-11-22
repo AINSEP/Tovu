@@ -1,16 +1,19 @@
 /**
- * @file The SQLite `TrashRepoPort`: {@link SqlTrashRepo} (`repo.ts`, the one Kysely body) over a
+ * @file The SQLite `TrashRepoPort`: {@link SqlTrashRepo} (Jini's `@jini-ai/cms/trash/sql`, the one Kysely body) over a
  * `content.db` handle's storage kernel — a thin subclass while call sites still hold the handle.
  * Also the content db's {@link createContentDbTransactionRunner}.
  */
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { SqliteConnectionSource } from "../../platform/db/kernel/index.js";
-import { SqlTrashRepo } from "./repo.js";
+import { SqlTrashRepo } from "@jini-ai/cms/trash/sql";
+
+/** The one table name the Trash binds: the generated schema's `trashed_items`. Every Jini Trash SQL adapter is handed it. */
+export const TRASH_TABLES = { trashedItems: "trashed_items" } as const;
 
 export class SqliteTrashRepo extends SqlTrashRepo {
-  /** @param store the content db handle, its better-sqlite3 client, or the kernel itself. */
-  constructor(store: ContentKernel | SqliteConnectionSource) {
-    super(contentKernel(store));
+  /** @param required.store the content db handle, its better-sqlite3 client, or the kernel itself. */
+  constructor({ store }: { store: ContentKernel | SqliteConnectionSource }) {
+    super({ kernel: schemaErasedKernel({ store }), tables: TRASH_TABLES }, {});
   }
 }
 
@@ -23,11 +26,11 @@ export class SqliteTrashRepo extends SqlTrashRepo {
  * back both. A concurrent caller (another async context) waits for its own transaction instead of
  * joining someone else's.
  *
- * @param store the content db handle, its better-sqlite3 client, or the kernel itself.
+ * @param required.store the content db handle, its better-sqlite3 client, or the kernel itself.
  * @complexity O(1) beyond `fn`.
  */
-export function createContentDbTransactionRunner(store: ContentKernel | SqliteConnectionSource) {
-  const kernel = contentKernel(store);
+export function createContentDbTransactionRunner({ store }: { store: ContentKernel | SqliteConnectionSource }, _optional = {}) {
+  const kernel = contentKernel({ store });
   return function runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return kernel.transaction(fn);
   };

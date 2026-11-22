@@ -86,7 +86,7 @@ describe("useSocialLinksConfig — addLink's own cap guard", () => {
   it("is a no-op once links is already at the 20-link cap", () => {
     const onChange = vi.fn();
     const links = Array.from({ length: 20 }, (_, i) => ({ platform: `p${i}`, url: `https://${i}` }));
-    const { result } = renderHook(() => useSocialLinksConfig({ links }, onChange));
+    const { result } = renderHook(() => useSocialLinksConfig({ config: { links }, onChange }));
 
     act(() => result.current.addLink());
 
@@ -96,7 +96,7 @@ describe("useSocialLinksConfig — addLink's own cap guard", () => {
   it("still appends normally one below the cap", () => {
     const onChange = vi.fn();
     const links = Array.from({ length: 19 }, (_, i) => ({ platform: `p${i}`, url: `https://${i}` }));
-    const { result } = renderHook(() => useSocialLinksConfig({ links }, onChange));
+    const { result } = renderHook(() => useSocialLinksConfig({ config: { links }, onChange }));
 
     act(() => result.current.addLink());
 
@@ -106,14 +106,14 @@ describe("useSocialLinksConfig — addLink's own cap guard", () => {
 
 describe("humanizeFieldName", () => {
   it("turns snake_case, kebab-case and camelCase field names into a sentence-case label", () => {
-    expect(humanizeFieldName("docs_page")).toBe("Docs page");
-    expect(humanizeFieldName("publishedAt")).toBe("Published at");
-    expect(humanizeFieldName("hero-image")).toBe("Hero image");
-    expect(humanizeFieldName("title")).toBe("Title");
+    expect(humanizeFieldName({ name: "docs_page" })).toBe("Docs page");
+    expect(humanizeFieldName({ name: "publishedAt" })).toBe("Published at");
+    expect(humanizeFieldName({ name: "hero-image" })).toBe("Hero image");
+    expect(humanizeFieldName({ name: "title" })).toBe("Title");
   });
 
   it("returns an empty label for a name made only of separators", () => {
-    expect(humanizeFieldName("__-")).toBe("");
+    expect(humanizeFieldName({ name: "__-" })).toBe("");
   });
 });
 
@@ -122,7 +122,7 @@ describe("humanizeFieldName", () => {
 function renderRecentEntries(initial: Record<string, unknown>) {
   let config = initial;
   const onChange = vi.fn((next: Record<string, unknown>) => { config = next; });
-  const view = renderHook(() => useRecentEntriesConfig(config, onChange));
+  const view = renderHook(() => useRecentEntriesConfig({ config, onChange }));
   return { view, onChange, latest: () => config, sync: () => view.rerender() };
 }
 
@@ -149,19 +149,19 @@ describe("useRecentEntriesConfig — reading config.where back as the filter row
 describe("useRecentEntriesConfig — writing the filter value per field kind", () => {
   it("keeps a text field's value as the raw string", () => {
     const { view, latest } = renderRecentEntries({ where: { title: "old" } });
-    act(() => view.result.current.setFilterValue("Hello", "text"));
+    act(() => view.result.current.setFilterValue({ raw: "Hello", kind: "text" }));
     expect(latest().where).toEqual({ title: "Hello" });
   });
 
   it("stores a real-number field's value as a number", () => {
     const { view, latest } = renderRecentEntries({ where: { rating: 1 } });
-    act(() => view.result.current.setFilterValue("2.5", "real"));
+    act(() => view.result.current.setFilterValue({ raw: "2.5", kind: "real" }));
     expect(latest().where).toEqual({ rating: 2.5 });
   });
 
   it("keeps a non-numeric value typed into an integer field as the raw string rather than NaN", () => {
     const { view, latest } = renderRecentEntries({ where: { count: 1 } });
-    act(() => view.result.current.setFilterValue("abc", "integer"));
+    act(() => view.result.current.setFilterValue({ raw: "abc", kind: "integer" }));
     expect(latest().where).toEqual({ count: "abc" });
   });
 });
@@ -169,7 +169,7 @@ describe("useRecentEntriesConfig — writing the filter value per field kind", (
 describe("useRecentEntriesConfig — field and layout controls", () => {
   it("clearing the filter field drops the stored clause and leaves no field chosen", () => {
     const { view, latest, sync } = renderRecentEntries({ where: { title: "x" }, collection: "docs" });
-    act(() => view.result.current.setFilterField(""));
+    act(() => view.result.current.setFilterField({ name: "" }));
     expect(latest()).toEqual({ collection: "docs" });
     sync();
     expect(view.result.current.filterField).toBe("");
@@ -178,17 +178,17 @@ describe("useRecentEntriesConfig — field and layout controls", () => {
 
   it("clearing the layout removes both layout and columns from config", () => {
     const { view, latest } = renderRecentEntries({ layout: "cards", columns: 3 });
-    act(() => view.result.current.setLayout(""));
+    act(() => view.result.current.setLayout({ value: "" }));
     expect(latest()).toEqual({});
   });
 
   it("keeps columns when switching to the cards layout, drops them for any other layout", () => {
     const cards = renderRecentEntries({ layout: "list", columns: 2 });
-    act(() => cards.view.result.current.setLayout("cards"));
+    act(() => cards.view.result.current.setLayout({ value: "cards" }));
     expect(cards.latest()).toEqual({ layout: "cards", columns: 2 });
 
     const list = renderRecentEntries({ layout: "cards", columns: 2 });
-    act(() => list.view.result.current.setLayout("list"));
+    act(() => list.view.result.current.setLayout({ value: "list" }));
     expect(list.latest()).toEqual({ layout: "list" });
   });
 });

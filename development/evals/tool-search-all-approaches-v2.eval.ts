@@ -77,20 +77,7 @@ function run(): void {
   const noKeywords = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
 
   // --- Approach 1: doc2query. Blind-generated questions appended to each tool's indexed description.
-  const doc2Db = new Database(":memory:");
-  ensureToolCatalogTables({ db: doc2Db });
-  reseedToolCatalog({
-    db: doc2Db,
-    entries: descriptors.map((d) => {
-      const qs = DOC2QUERY[d.id];
-      return {
-        id: d.id,
-        description: qs ? `${d.description ?? ""} — ${qs.join(" ")}` : (d.description ?? ""),
-        inputSchema: d.inputSchema,
-        source: sourceForToolId(d.id),
-      };
-    }),
-  });
+  const doc2Db = buildDoc2queryCatalog(descriptors);
 
   const configs = [
     { name: "no keywords (pre-fix)", vecs: hitVectors((c) => noKeywords.search({ query: c.query }, { limit: 10 }).map((h) => h.id)) },
@@ -116,6 +103,44 @@ function run(): void {
   // --- Approach 2: hierarchical domain routing. One index row per domain, text = concatenation of that
   // --- domain's member tools' indexed descriptions. Scores DOMAIN top-1 — a different unit from the
   // --- table above, which is why it gets its own section rather than a row.
+  reportHierarchicalDomainRouting(descriptors, n, configs);
+
+  // --- Approach 3: rerank ceiling. A reranker can only reorder what retrieval already surfaced, so
+  // --- found@10 is its hard ceiling and top-1 is its floor. The gap is everything it could win.
+  console.log(`\n  Rerank ceiling decomposition (what a perfect reranker could and could not fix)\n`);
+  console.log(`  ${"over which retrieval".padEnd(26)}${"already #1".padEnd(14)}${"addressable".padEnd(14)}${"unreachable".padEnd(14)}ceiling`);
+  for (const cfg of [configs[1]!, configs[3]!]) {
+    const t1 = cfg.vecs[1].filter(Boolean).length;
+    const f10 = cfg.vecs[10].filter(Boolean).length;
+    console.log(
+      `  ${cfg.name.padEnd(26)}${`${t1}/${n} (${((t1 / n) * 100).toFixed(0)}%)`.padEnd(14)}${`${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(0)}pp)`.padEnd(14)}${`${n - f10} (${(((n - f10) / n) * 100).toFixed(0)}%)`.padEnd(14)}${((f10 / n) * 100).toFixed(0)}%`,
+    );
+  }
+
+  // --- Paired significance for every approach vs. the shipped-keywords baseline, at every cutoff.
+  reportPairedApproachComparisons(configs, n);
+}
+
+function buildDoc2queryCatalog(descriptors: ReturnType<ReturnType<typeof buildEvalToolRegistry>["list"]>) {
+  const doc2Db = new Database(":memory:");
+  ensureToolCatalogTables({ db: doc2Db });
+  reseedToolCatalog({
+    db: doc2Db,
+    entries: descriptors.map((d) => {
+      const qs = DOC2QUERY[d.id];
+      return {
+        id: d.id,
+        description: qs ? `${d.description ?? ""} — ${qs.join(" ")}` : (d.description ?? ""),
+        inputSchema: d.inputSchema,
+        source: sourceForToolId(d.id),
+      };
+    }),
+  });
+  return doc2Db;
+}
+
+
+function reportHierarchicalDomainRouting(descriptors: ReturnType<ReturnType<typeof buildEvalToolRegistry>["list"]>, n: number, configs: readonly [{ readonly name: "no keywords (pre-fix)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "shipped keywords"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "doc2query (blind)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "HyDE via prompt (free)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "doc2query + HyDE prompt"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }]) {
   const byDomain = new Map<string, string[]>();
   for (const d of descriptors) {
     const dom = sourceForToolId(d.id);
@@ -139,25 +164,15 @@ function run(): void {
     // (`sourceForToolId(d.id)`), and every retired Tier-1 read id now lives under the `content_read.*`
     // prefix rather than its old domain — resolving `want` from the raw retired id would compare
     // against a domain bucket that no longer exists.
-    const want = sourceForToolId(currentToolIdFor(c.expect));
+    const want = sourceForToolId(currentToolIdFor({ toolId: c.expect }));
     if (searchToolCatalog({ db: domDb, query: c.query }, { limit: 5 })[0]?.id === want) domTop1++;
   }
   console.log(`\n  Hierarchical domain routing (different unit — DOMAIN top-1, over ${byDomain.size} domains)`);
   console.log(`     domain top-1 ${domTop1}/${n} (${((domTop1 / n) * 100).toFixed(0)}%)   vs flat tool top-1 of ${((configs[1]!.vecs[1].filter(Boolean).length / n) * 100).toFixed(0)}% on the same cases`);
+}
 
-  // --- Approach 3: rerank ceiling. A reranker can only reorder what retrieval already surfaced, so
-  // --- found@10 is its hard ceiling and top-1 is its floor. The gap is everything it could win.
-  console.log(`\n  Rerank ceiling decomposition (what a perfect reranker could and could not fix)\n`);
-  console.log(`  ${"over which retrieval".padEnd(26)}${"already #1".padEnd(14)}${"addressable".padEnd(14)}${"unreachable".padEnd(14)}ceiling`);
-  for (const cfg of [configs[1]!, configs[3]!]) {
-    const t1 = cfg.vecs[1].filter(Boolean).length;
-    const f10 = cfg.vecs[10].filter(Boolean).length;
-    console.log(
-      `  ${cfg.name.padEnd(26)}${`${t1}/${n} (${((t1 / n) * 100).toFixed(0)}%)`.padEnd(14)}${`${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(0)}pp)`.padEnd(14)}${`${n - f10} (${(((n - f10) / n) * 100).toFixed(0)}%)`.padEnd(14)}${((f10 / n) * 100).toFixed(0)}%`,
-    );
-  }
 
-  // --- Paired significance for every approach vs. the shipped-keywords baseline, at every cutoff.
+function reportPairedApproachComparisons(configs: readonly [{ readonly name: "no keywords (pre-fix)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "shipped keywords"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "doc2query (blind)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "HyDE via prompt (free)"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }, { readonly name: "doc2query + HyDE prompt"; readonly vecs: Record<10 | 1 | 3 | 5, boolean[]>; }], n: number) {
   const base = configs[1]!.vecs;
   console.log(`\n  PAIRED McNemar exact vs. shipped keywords (same ${n} cases)\n`);
   console.log(`  ${"approach".padEnd(26)}${CUTOFFS.map((k) => (k === 10 ? "found@10" : `top-${k}`).padEnd(18)).join("")}`);
@@ -166,7 +181,7 @@ function run(): void {
     const cells = CUTOFFS.map((k) => {
       let b = 0;
       let c = 0;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0;i < n;i++) {
         if (base[k][i] && !cfg.vecs[k][i]) b++;
         else if (!base[k][i] && cfg.vecs[k][i]) c++;
       }
@@ -178,5 +193,6 @@ function run(): void {
   }
   console.log(`\n  (+N = N more cases won than lost vs. baseline. p is the exact two-sided paired test.)\n`);
 }
+
 
 run();

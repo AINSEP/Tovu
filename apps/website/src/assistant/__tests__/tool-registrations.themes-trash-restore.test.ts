@@ -12,12 +12,12 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { UIResource } from "../index.js";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -481,7 +481,7 @@ test("a trash-then-restore round trip refreshes the live routeDeps.themes entry 
 test("n06: theme trash is reversible, so the host policy runs it without approval and the bytes stay restorable", async () => {
   const {deps, themesDir} = fakeRouteDeps();
   const original = fs.readFileSync(path.join(themesDir, "plain", "styles.css"));
-  const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find(r => r.descriptor.id === "theme_trash_file")!;
+  const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).find(r => r.descriptor.id === "theme_trash_file")!;
   const result = await headless.handler(executionContext({ themeId: "plain", path: "styles.css" })) as {trashed: boolean; trashedPath: string};
   assert.equal(result.trashed, true);
   assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath)), original);

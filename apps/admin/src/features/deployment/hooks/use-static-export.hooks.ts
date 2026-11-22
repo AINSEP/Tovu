@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminExportRunSnapshot } from "@/lib/api";
+import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "../deployment-i18n";
 import { DEPLOYMENT_EXPORT_RESOURCE } from "../rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
 import type { StaticExportPort } from "./static-export-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Static Site tab's "Build static export" action does, so `StaticSiteTab.tsx`
  * is only markup. Wired 2026-08-15 against `POST`/`GET .../system/export`
- * (`src/server/routes/admin/system/export-site.ts`) — see that route's header for the trigger+poll
+ * (`apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`) — see that route's header for the trigger+poll
  * shape this hook mirrors: a real export is seconds to minutes, so a click starts the run and this
  * hook polls the status route until it settles, rather than holding one request open.
  *
@@ -108,96 +110,12 @@ const EXPORT_POLL_INTERVAL_MS = 1500;
  *  (server crash, revoked auth) on a dead spinner indefinitely. */
 const POLL_FAILURE_LIMIT = 3;
 
-export function useStaticExport(port: StaticExportPort, t: Translate, locale: string): StaticExportController {
-  const query = useFetchQuery({ key: ["deployment", "export"], fetch: () => port.getSiteExportStatus() });
-  const [run, setRun] = useState<AdminExportRunSnapshot | undefined>(undefined);
-  const [clean, setClean] = useState(false);
-  const [triggering, setTriggering] = useState(false);
-  const [triggerError, setTriggerError] = useState<string | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
-
-  // Seeds `run` from the query's first successful load, exactly once — see this file's header.
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (seededRef.current || query.status === "loading" || !query.data) return;
-    seededRef.current = true;
-    setRun(query.data);
-  }, [query.status, query.data]);
-
-  const loadError = query.error ? exportLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
-
-  // See this file's header for why this bypasses the query/`seededRef` entirely rather than being
-  // the usual `useInvalidate()` one-liner. A failed background refresh is swallowed rather than
-  // surfaced through `loadError`/`triggerError` — this is a best-effort catch-up read, not a load or
-  // trigger the operator directly asked for, and the visible `run` simply stays what it was.
-  const refreshRun = useCallback(async () => {
-    try {
-      const status = await port.getSiteExportStatus();
-      setRun(status);
-    } catch {
-      // best-effort; see comment above
-    }
-  }, [port]);
-  // `useContentRefreshSubscription`'s `onRefresh` is a synchronous `() => void` — wrapping rather
-  // than passing `refreshRun` directly, mirroring `use-access-tokens.hooks.ts`'s identical
-  // `reloadAllStores`/`triggerReload` split, so the subscription never hands the bus a dangling
-  // Promise.
-  const triggerRefresh = useCallback(() => {
-    void refreshRun();
-  }, [refreshRun]);
-  useContentRefreshSubscription(DEPLOYMENT_EXPORT_RESOURCE, triggerRefresh);
-
-  // Counts CONSECUTIVE poll failures for the `POLL_FAILURE_LIMIT` bound below — a ref, not state,
-  // because it is read and written only from inside the poll loop's own effect and must never itself
-  // trigger a render (only the `pollError` it may eventually set does that).
-  const pollFailuresRef = useRef(0);
-
-  const isRunning = run?.status === "running" && pollError === null;
-
-  // Poll loop: re-armed only when `isRunning` FLIPS to true (mount-while-running counts), not on
-  // every `run` update the loop itself produces — a dependency on `run` here would re-schedule (or,
-  // worse, fail to reschedule after a transient fetch error that never touched `run`) on every tick
-  // instead of running as one self-scheduling loop. Each iteration decides whether to continue from
-  // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
-  // inside a single effect run. A fetch failure retries on the same schedule rather than silently
-  // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-armed only when `isRunning` flips true; `run`/`port` deliberately excluded — see comment above.
-  useEffect(() => {
-    if (!isRunning) return undefined;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-
-    function scheduleNext() {
-      timer = setTimeout(poll, EXPORT_POLL_INTERVAL_MS);
-    }
-    async function poll() {
-      try {
-        const status = await port.getSiteExportStatus();
-        if (cancelled) return;
-        pollFailuresRef.current = 0;
-        setRun(status);
-        if (status.status === "running") scheduleNext();
-      } catch (err) {
-        if (cancelled) return;
-        pollFailuresRef.current += 1;
-        if (pollFailuresRef.current >= POLL_FAILURE_LIMIT) {
-          // Bounded (C2): give up rather than retry forever. Setting `pollError` also flips
-          // `isRunning` false on the next render, which re-arms this very effect's cleanup and
-          // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
-          // stops the loop; it must not depend on that later render having happened yet.
-          setPollError(exportPollErrorMessage(locale, describeApiError(err, "unknown error")));
-          return;
-        }
-        scheduleNext();
-      }
-    }
-    scheduleNext();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [isRunning]);
+export function useStaticExport({ port, t, locale }: { port: StaticExportPort; t: Translate; locale: string }, _options = {}): StaticExportController {
+  const {
+    run, setRun, clean, setClean, triggering, setTriggering, triggerError, setTriggerError, pollError, setPollError, seededRef, loadError, pollFailuresRef,
+    isRunning, pollInputs,
+  } = useStaticExportState({ port, locale });
+  useStaticExportPolling({ isRunning, pollInputs, pollFailuresRef, setRun, setPollError });
 
   // Synchronous duplicate-submit guard — same reasoning as `use-static-publish.hooks.ts`'s
   // `publishingRef` (C4): two calls in one tick both read this render's `triggering: false`
@@ -221,10 +139,10 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
     setTriggerError(null);
     setTriggering(true);
     try {
-      const started = await port.triggerSiteExport({ clean });
+      const started = await port.triggerSiteExport({}, { options: { clean } });
       setRun(started);
     } catch (err) {
-      setTriggerError(exportTriggerErrorMessage(locale, describeApiError(err, "unknown error")));
+      setTriggerError(exportTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
     } finally {
       triggeringRef.current = false;
       setTriggering(false);
@@ -232,6 +150,112 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
   }
 
   return { run, isRunning, loadError, pollError, triggerError, triggering, clean, setClean, trigger, t };
+}
+
+function useStaticExportPolling(
+  { isRunning, pollInputs, pollFailuresRef, setRun, setPollError }:
+    Pick<ReturnType<typeof useStaticExportState>, "isRunning" | "pollInputs" | "pollFailuresRef" | "setRun" | "setPollError">
+) {
+  // Poll loop: re-armed only when `isRunning` FLIPS to true (mount-while-running counts), not on
+  // every `run` update the loop itself produces — a dependency on `run` here would re-schedule (or,
+  // worse, fail to reschedule after a transient fetch error that never touched `run`) on every tick
+  // instead of running as one self-scheduling loop. Each iteration decides whether to continue from
+  // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
+  // inside a single effect run. A fetch failure retries on the same schedule rather than silently
+  // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
+  useEffect(() => {
+    if (!isRunning) return undefined;
+    const { port: pollPort, locale: pollLocale } = pollInputs.current;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    function scheduleNext() {
+      timer = setTimeout(poll, EXPORT_POLL_INTERVAL_MS);
+    }
+    async function poll() {
+      try {
+        const status = await pollPort.getSiteExportStatus();
+        if (cancelled) return;
+        pollFailuresRef.current = 0;
+        setRun(status);
+        if (status.status === "running") scheduleNext();
+      } catch (err) {
+        if (cancelled) return;
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current >= POLL_FAILURE_LIMIT) {
+          // Bounded (C2): give up rather than retry forever. Setting `pollError` also flips
+          // `isRunning` false on the next render, which re-arms this very effect's cleanup and
+          // re-enables the Build button — but `return` here (no `scheduleNext()`) is what actually
+          // stops the loop; it must not depend on that later render having happened yet.
+          setPollError(exportPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: "unknown error" }) }));
+          return;
+        }
+        scheduleNext();
+      }
+    }
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isRunning]);
+}
+
+function useStaticExportState(
+  { port, locale }:
+    Pick<Parameters<typeof useStaticExport>[0], "port" | "locale">
+) {
+  const query = useFetchQuery({ key: ["deployment", "export"], fetch: () => port.getSiteExportStatus() });
+  const [run, setRun] = useState<AdminExportRunSnapshot | undefined>(undefined);
+  const [clean, setClean] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
+
+  // Seeds `run` from the query's first successful load, exactly once — see this file's header.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || query.status === "loading" || !query.data) return;
+    seededRef.current = true;
+    setRun(query.data);
+  }, [query.status, query.data]);
+
+  const loadError = query.error ? exportLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) }) : null;
+
+  // See this file's header for why this bypasses the query/`seededRef` entirely rather than being
+  // the usual `useInvalidate()` one-liner. A failed background refresh is swallowed rather than
+  // surfaced through `loadError`/`triggerError` — this is a best-effort catch-up read, not a load or
+  // trigger the operator directly asked for, and the visible `run` simply stays what it was.
+  const refreshRun = useCallback(async () => {
+    try {
+      const status = await port.getSiteExportStatus();
+      setRun(status);
+    } catch {
+      // best-effort; see comment above
+    }
+  }, [port]);
+  // `useContentRefreshSubscription`'s `onRefresh` is a synchronous `() => void` — wrapping rather
+  // than passing `refreshRun` directly, mirroring `use-access-tokens.hooks.ts`'s identical
+  // `reloadAllStores`/`triggerReload` split, so the subscription never hands the bus a dangling
+  // Promise.
+  const triggerRefresh = useCallback(() => {
+    void refreshRun();
+  }, [refreshRun]);
+  useContentRefreshSubscription({ resource: DEPLOYMENT_EXPORT_RESOURCE, onRefresh: triggerRefresh });
+
+  // Counts CONSECUTIVE poll failures for the `POLL_FAILURE_LIMIT` bound below — a ref, not state,
+  // because it is read and written only from inside the poll loop's own effect and must never itself
+  // trigger a render (only the `pollError` it may eventually set does that).
+  const pollFailuresRef = useRef(0);
+
+  const isRunning = run?.status === "running" && pollError === null;
+  const pollInputs = useRef({ port, locale });
+  pollInputs.current = { port, locale };
+  return {
+    run, setRun, clean, setClean, triggering, setTriggering, triggerError, setTriggerError, pollError, setPollError, seededRef, loadError, pollFailuresRef,
+    isRunning, pollInputs,
+  };
 }
 
 /**
@@ -242,5 +266,5 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
 export function useWiredStaticExport(): StaticExportController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useStaticExport(defaultStaticExportPort, t, locale);
+  return useStaticExport({ port: defaultStaticExportPort, t, locale });
 }

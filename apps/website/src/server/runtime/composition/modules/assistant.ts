@@ -2,16 +2,18 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
-import { tryRestoreSurface } from '@jini-ai/daemon/http';
+import { restoreSurface } from '@jini-ai/daemon/http';
+import { answerSurface } from '#src/assistant/surface-answer';
+import { nodeIntervalScheduler } from '../jini-routes.js';
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon
- * (`src/assistant/agent-daemon-server.ts`, a separate OS process `src/index.ts` spawns after its
+ * (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`, a separate OS process `src/index.ts` spawns after its
  * own boot completes). It owns exactly one thing the daemon cannot: verifying the browser's admin
  * session. Everything downstream of that is the daemon's to decide, so this module's job is to
  * report the verified principal accurately and nothing more — stamped into a new run's
  * `contextRef` at creation, and asserted in `RUN_PRINCIPAL_HEADER` on every request thereafter so
- * the daemon can compare it against the run's recorded owner (`src/assistant/run-ownership.ts`).
+ * the daemon can compare it against the run's recorded owner (`apps/website/src/assistant/daemon-access.ts`).
  * Authorization deliberately does NOT live here: the daemon owns run state, so it is the only
  * process where an ownership record and the run it protects share a lifetime.
  *
@@ -23,7 +25,7 @@ import { tryRestoreSurface } from '@jini-ai/daemon/http';
  *
  * Authentication, both directions: inbound, `requireAdminSession` gates every route below.
  * Outbound, `forwardToAgentDaemon` attaches `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` —
- * the daemon rejects any request without it (`src/assistant/daemon-auth.ts`), so this proxy is the
+ * the daemon rejects any request without it (`apps/website/src/assistant/daemon-access.ts`), so this proxy is the
  * only thing on the machine that can reach it. That env var is read INSIDE the request path, never
  * at module scope: ES module imports are all evaluated before `src/index.ts`'s own top-level
  * `main()` call runs, and `main()` is what mints the token — a module-scope read would capture
@@ -68,9 +70,11 @@ import {
   MCP_UI_TOOL_CALLS_PATH,
   readA2uiAction,
   RUN_PRINCIPAL_HEADER,
+} from "#src/assistant/index";
+import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "#src/assistant/index";
+} from "@jini-ai/daemon/surface-exchanges";
 import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -79,8 +83,9 @@ import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon,
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
-import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
-import type { DurableRun, DurableRunHead, DurableRunPoll } from "#src/assistant/durable-runs/ports";
+import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
+import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
@@ -93,7 +98,7 @@ type AssistantRouteDeps = RouteDeps & {
  *
  * Cancels on `res`'s `"close"`, not `req`'s. Node's `IncomingMessage` ("`req`") emits `"close"` once
  * its body has been fully consumed — for a request with a JSON body (e.g. `POST /api/runs`, whose
- * body Express's global `express.json()` parser (`src/server/app.ts`) already reads in full before
+ * body Express's global `express.json()` parser (`apps/website/src/server/inbound/shared/json-body-parsers.ts`) already reads in full before
  * this function ever runs), that happens almost immediately, independent of the actual client
  * connection. A listener attached here — necessarily AFTER the `await fetch(...)` to the daemon in
  * `forwardToAgentDaemon`, itself after body-parsing — is registered too late to ever observe that
@@ -116,6 +121,7 @@ async function relayResponse(upstream: globalThis.Response, req: Request, res: R
   }
   const reader = upstream.body.getReader();
   res.on("close", () => {
+    // The downstream connection is closed, so upstream cancellation is best-effort cleanup.
     reader.cancel().catch(() => undefined);
   });
   try {
@@ -176,7 +182,10 @@ async function proxyAcceptedRun(
     const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
     const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
       onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
-      launch: (required, optional) => client.launch!(required, optional),
+      launch: (required, optional) => {
+        if (!client.launch) throw new Error("assistant daemon has no launch operation");
+        return client.launch(required, optional);
+      },
       attach: (run) => finalizer.watch({ principalId: principal.id, conversationId: run.conversationId, message: run.message }),
     }, {});
     const run = await acceptance.accept({ principalId: principal.id, workspaceId: deps.workspaceId,
@@ -203,6 +212,7 @@ export async function activateFrontendDaemon({ req, res }: { req: Request; res: 
   const response = await fetchAgentDaemon(req, res, { ...daemon, path: "/api/active", method: "GET" });
   if (!response) return;
   if (!response.ok) {
+    // A non-JSON refusal still reports the upstream status to the browser.
     const body: unknown = await response.json().catch(() => undefined);
     const detail = maskLocalPaths({ text: redactSecrets({ input: JSON.stringify(body ?? { status: response.status }) },
       { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
@@ -219,8 +229,13 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
   const messageId = req.method === "GET" ? req.query.messageId : (req.body as { messageId?: unknown } | undefined)?.messageId;
-  const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : await store.find({ runId: req.params.runId!, principalId }, {});
-  return run?.principalId === principalId && run.workspaceId === deps.workspaceId ? run : null;
+  const runId = req.params.runId;
+  const run = typeof messageId === "string" ? await (store.head ?? store.load)({ messageId }, {}) : runId === undefined ? null : await store.find({ runId, principalId }, {});
+  return ownedRunOrNull({ run, principalId, workspaceId: deps.workspaceId });
+}
+
+function ownedRunOrNull({ run, principalId, workspaceId }: { run: DurableRunHead | null | undefined; principalId: string; workspaceId: string }, _optional = {}): DurableRunHead | null {
+  return run?.principalId === principalId && run.workspaceId === workspaceId ? run : null;
 }
 
 /** Write raw JSON from the store without reserializing its event tree. An unchanged owned
@@ -259,7 +274,8 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
   await finalizer.recover({ messageId: run.messageId, trigger: "browser" }, {});
-  const store = deps.chatRunLedger.durable!;
+  const store = deps.chatRunLedger.durable;
+  if (!store) throw new Error("assistant recovery has no durable run store");
   const current = await (store.head ?? store.load)({ messageId: run.messageId }, {});
   if (!current) { res.status(404).json({ error: "not found" }); return; }
   res.json({ message: current.message, conversationId: current.conversationId });
@@ -269,7 +285,9 @@ async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res:
   let run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
-  await deps.chatRunLedger.durable!.cancel({ runId: run.runId, reason: "user-stop" }, {});
+  const store = deps.chatRunLedger.durable;
+  if (!store) throw new Error("assistant cancellation has no durable run store");
+  await store.cancel({ runId: run.runId, reason: "user-stop" }, {});
   await assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {})
     .recover({ messageId: run.messageId, trigger: "browser" }, {});
   res.json({ run: { id: run.runId, state: "cancelled" } });
@@ -311,7 +329,7 @@ async function enrichAgentWithLiveModels(
   if (agent.id !== "claude") return agent;
   const live = await liveModels.getLiveClaudeModels({ workspaceId, principalId });
   if (!live || live.length === 0) return agent;
-  return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
+  return { ...agent, models: unionModels({ fallback: agent.models ?? [], live }), modelsSource: "live" };
 }
 
 export async function respondWithEnrichedAgentList(
@@ -353,7 +371,7 @@ export async function respondWithEnrichedAgentList(
  *    reports `unknown-or-closed` (including every request with no `exchangeId` at all, which never
  *    reaches the local branch below): `forwardToAgentDaemon` attaches the daemon bearer token and
  *    {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
- *    route trusts both the same way `run-ownership.ts`'s routes do.
+ *    route trusts both the same way `apps/website/src/assistant/daemon-access.ts`'s routes do.
  */
 /**
  * Tries LOCAL delivery against `byokSurfaceExchanges` for a redeemable `exchangeId`. Returns
@@ -363,11 +381,14 @@ export async function respondWithEnrichedAgentList(
  * exchange may belong to the DAEMON's own store, a Local CLI run this process cannot see).
  */
 function tryLocalMcpUiDelivery(
-  res: Response,
-  byokSurfaceExchanges: SurfaceExchangeStore,
-  exchangeId: unknown,
-  params: Record<string, unknown>,
-  toolName: string,
+  { res, byokSurfaceExchanges, exchangeId, params, toolName }: {
+    res: Response;
+    byokSurfaceExchanges: SurfaceExchangeStore;
+    exchangeId: unknown;
+    params: Record<string, unknown>;
+    toolName: string;
+  },
+  _optional = {},
 ): boolean {
   if (typeof exchangeId !== "string" || exchangeId.length === 0) return false;
 
@@ -405,19 +426,19 @@ function tryLocalMcpUiDelivery(
  * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
  */
 async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const action = readA2uiAction(req.body);
+  const action = readA2uiAction({ rawBody: req.body });
   if (!action.ok) {
     res.status(400).json(action.error);
     return;
   }
   const principalId = getAuthedPrincipal(res).id;
-  const delivered = deliverA2uiAction(byokSurfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
+  const delivered = deliverA2uiAction({ store: byokSurfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
   if (delivered.ok) {
     res.status(202).json({ delivered: true });
     return;
   }
   if (delivered.reason === "binding-mismatch") {
-    res.status(409).json(a2uiNotPendingBody(delivered.reason));
+    res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
     return;
   }
   await proxyPassthrough(req, res, daemon);
@@ -448,7 +469,7 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
  * @returns False after sending the refusal; no delivery or daemon call occurs.
  * @complexity O(1), using the identity freshly resolved by requireAdminSession. */
 function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): boolean {
-  if (!rejectUnlessSessionCredential(res, {
+  if (!rejectUnlessSessionCredential({ res,
     message: "Answer this dialog from your signed-in browser session. Nothing was changed.",
     permission: "assistant.confirm",
   })) return false;
@@ -481,7 +502,7 @@ function readAllowedMcpUiCallback({ body, res }: {
   // open card, never be executed.
   const typedAnswer = isTypedSurfaceAnswer(params);
   const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || typedAnswer;
-  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange, { typedAnswer })) {
+  if (!isMcpUiToolCallPermitted({ toolName: toolName, answersAnExchange: answersAnExchange }, { typedAnswer })) {
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
@@ -495,10 +516,13 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   const { toolName, params, exchangeId } = callback;
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
-  if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
-  if (typeof target === 'string' && await tryRestoreSurface({
-    res, store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName,
-  }, restoreOnly ? {} : { params })) return;
+  if (!restoreOnly && tryLocalMcpUiDelivery({ res, byokSurfaceExchanges, exchangeId: target, params, toolName })) return;
+  if (typeof target === 'string' && await answerSurface({ res, produce: async ({ signal }) => {
+    const restored = await restoreSurface({
+      store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName, scheduler: nodeIntervalScheduler, signal,
+    }, restoreOnly ? {} : { params });
+    return restored.handled ? restored.response : undefined;
+  } })) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
   // for itself. Without the relay in `proxyPassthrough` this route fetches the daemon's answer and
@@ -516,7 +540,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * did not parse) instead of the file.
  *
  * That `content-type` mismatch is exactly what keeps this safe to read directly: Tovu's app-wide
- * `app.use(express.json({limit:"15mb"}))` (`server/app.ts`) only consumes a request whose
+ * `app.use(express.json({limit:"15mb"}))` (`apps/website/src/server/inbound/shared/json-body-parsers.ts`) only consumes a request whose
  * `content-type` it recognizes as JSON — for anything else it calls `next()` without touching the
  * stream at all, so `req` (a `http.IncomingMessage`, itself an async-iterable readable stream)
  * reaches this handler completely intact regardless of where in the middleware stack this route
@@ -527,7 +551,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * `RUN_PRINCIPAL_HEADER` IS stamped here, even though (unlike every other forwarded route) an
  * attachment upload has no `runId` yet to compare it against (a run doesn't exist until
  * `POST /api/runs`, which happens after the composer has already staged its uploads) — so it is not
- * for `run-ownership.ts`'s own check. `agent-daemon-server.ts` instead reads it via
+ * for `apps/website/src/assistant/daemon-access.ts`'s own check. `agent-daemon-server.ts` instead reads it via
  * `AttachmentsHttpDeps.resolveOwnerId` and records it as the attachment's `ownerId`
  * (`@jini-ai/http-kit`'s `attachments.ts`), which is what lets `chat_list_pending_attachments`
  * later find an attachment the model was never told about in-run. Safe to assert here for the same
@@ -536,7 +560,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * is always a server-verified session principal, never anything the browser chose. Authentication
  * is still enforced twice: `requireAdminSession` (browser session) and the bearer token this
  * function still attaches (proves the call came from Tovu's own proxy, not an arbitrary local
- * process) — see `daemon-auth.ts`.
+ * process) — see `apps/website/src/assistant/daemon-access.ts`.
  */
 async function forwardAttachmentUpload(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
   if (!(await awaitDaemonForResponse({ res }, daemon))) return;
@@ -569,6 +593,166 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
   await relayResponse(upstream, req, res);
 }
 
+/** What each route-group mounter of the assistant module needs; one object so every group sees the same daemon and stores. */
+interface AssistantMountContext {
+  readonly app: Express;
+  readonly routeDeps: AssistantRouteDeps;
+  readonly daemon: DaemonCallOptions;
+  readonly liveModels: ReturnType<typeof createLiveModelDiscovery>;
+  readonly byokSurfaceExchanges: SurfaceExchangeStore;
+}
+
+/** The chat-run proxy routes, each behind the admin session. */
+function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon } = required;
+  app.use("/api/runs", requireAdminSession(routeDeps));
+  app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
+    proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
+      if (error instanceof RunSlotBusyError) { res.status(409).json({ error: error.message, code: "CHAT_RUN_BUSY" }); return; }
+      next(error);
+    });
+  });
+  // `@jini-ai/daemon`'s `runRoutes` lists `GET /api/runs` (list runs, optionally
+  // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
+  // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
+  // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.
+  // The daemon answers it with the caller's own runs only — http-kit's version lists every
+  // run on the box, which would hand one admin the ids of every other admin's runs.
+  app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
+  app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
+  app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
+  // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
+  // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
+  // pane whether to deliver live or queue the text after the current run. A durable run's id is the
+  // daemon's own (`launch` hands it over), so no ledger lookup is needed.
+  app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+}
+
+/** The agent list and read-only tool-catalog routes, each behind the admin session. */
+function mountAgentAndToolRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon, liveModels } = required;
+  app.use("/api/agents", requireAdminSession(routeDeps));
+  app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
+  app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
+
+  // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
+  // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
+  // from `@jini-ai/daemon`'s `toolCatalogRoutes` (mounted daemon-side by
+  // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
+  // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
+  // header, so it passes the daemon's same-origin check the way a browser's cross-origin
+  // request never could) plus the daemon bearer token. `proxyPassthrough` satisfies both of
+  // those the identical way that subprocess does: `forwardToAgentDaemon`'s outbound `fetch`
+  // carries no `Origin` header either (Node's `fetch`, not a browser's) and attaches the same
+  // bearer token every other route in this module does — so this proxy reaches the daemon route
+  // exactly like its one existing legitimate caller, without loosening `requireSameOrigin`
+  // itself by one bit. `requireAdminSession` below is the ONLY new gate a browser caller must
+  // pass, replacing "must be that subprocess" with "must be a signed-in admin".
+  //
+  // BOUNDARY, stated plainly because the next reader will otherwise conflate it with item 1's
+  // MCP-UI allowlist: this exposes tool **names and descriptions** to an authenticated admin
+  // session, in the admin's own page. It is **read-only enumeration, never execution** — no
+  // `toolName`/`params` body is accepted here, there is no POST/PUT/DELETE mounted on this
+  // path, and nothing on this path can reach `ToolExecutor.execute`. A tool becomes callable
+  // from the browser only through `MCP_UI_TOOL_CALLS_PATH`'s own allowlist
+  // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
+  // widen.
+  //
+  // Proxy failure remains bounded: known-failed daemon boots return 503 without a fetch,
+  // and unreachable daemons return 502. Enumeration cannot hang on an unavailable daemon.
+  app.use("/api/tools", requireAdminSession(routeDeps));
+  app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+}
+
+/** The agent-driven control routes for the admin's own tab. */
+function mountFrontendSessionRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon } = required;
+  // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
+  // stream carries invocations down to the browser and the response route carries answers
+  // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
+  //
+  // Proxied rather than reached directly for the same reason every other route here is: the
+  // daemon requires a bearer token the browser must never hold, and `requireAdminSession`
+  // is what proves a caller is an admin at all. The stream in particular depends on
+  // `relayResponse` above streaming rather than buffering — it is SSE, exactly like
+  // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
+  // invocation until the connection closed.
+  app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
+  // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
+  app.post("/api/frontend-sessions/activate", (req, res, next) => {
+    activateFrontendDaemon({ req, res }, daemon).catch(next);
+  });
+  app.post("/api/frontend-sessions/request", (req, res, next) => {
+    proxyPassthrough(req, res, daemon).catch(next);
+  });
+  app.get("/api/frontend-sessions/stream", (req, res, next) => {
+    if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
+    proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);
+  });
+  app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
+    proxyPassthrough(req, res, daemon).catch(next),
+  );
+}
+
+/** Composer attachments plus the MCP-UI and A2UI inbound action endpoints. */
+function mountAttachmentAndActionRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon, byokSurfaceExchanges } = required;
+  // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
+  // `AssistantDock.tsx`). Same session-auth requirement as every other route in this module —
+  // an unauthenticated upload endpoint is an arbitrary-file-write primitive reachable by
+  // anyone who can reach this port, so this gate is not optional. `POST` needs the dedicated
+  // raw-stream proxy above; `DELETE`'s body is real small JSON
+  // (`{batchId, paths}` — `create-daemon-attachment-uploader.ts`'s `deletePartialUpload`), so
+  // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
+  app.use("/api/attachments", requireAdminSession(routeDeps));
+  app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
+    forwardAttachmentUpload(req, res, daemon).catch(next);
+  });
+  app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+
+  // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
+  // had, so until now bytes could be uploaded and never fetched again and the admin's preview
+  // modal could only show attachments from the current session out of a client-side `File`
+  // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
+  // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
+  // attachment with no recorded owner is readable by nobody).
+  //
+  // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it
+  // that will surprise the next reader: the daemon owns the live `AttachmentStore`, but that
+  // port exposes no non-mutating owner-scoped read (`resolveForRun` CLAIMS what it resolves,
+  // and `listPendingForOwner` returns no path and excludes exactly the already-claimed
+  // attachments this feature exists for). Serving it here instead also means the principal is
+  // compared in the same process that mints it, with no trusted-header hop between the check
+  // and the value being checked.
+  //
+  // Registered inside this module rather than as its own, for the `app.use` two lines above:
+  // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
+  // this route is covered by the same mount that covers the upload it reads back. A separate
+  // module would have to re-mount the same guard, which is a second thing to keep in sync.
+  registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir } });
+
+  // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
+  // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
+  // `/api/delegated-tool-calls`, which is intentionally NOT mounted in this module at all (see
+  // this file's header) and whose trust boundary this endpoint does not reuse or widen.
+  app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
+  app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
+    proxyMcpUiToolCall(req, res, byokSurfaceExchanges, daemon).catch(next);
+  });
+
+  // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
+  // see `proxyA2uiAction`'s doc. No allowlist: there is no `toolName` on an A2UI action (the
+  // daemon-side route has none either — A2UI has no execution surface to allowlist).
+  app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
+  app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
+    proxyA2uiAction(req, res, byokSurfaceExchanges, daemon).catch(next);
+  });
+}
+
 /**
  * @param byokSurfaceExchanges - The SAME `SurfaceExchangeStore` `modules/assistant-byok.ts`'s tool
  * surface was composed with (`ByokToolSurface.surfaceExchanges`), built once by `app.ts` and passed
@@ -576,7 +760,7 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
  * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
  * every confirmation would 404/409 against an exchange this store never opened.
  */
-export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
+export function createAssistantModule({ routeDeps, byokSurfaceExchanges }: { routeDeps: AssistantRouteDeps; byokSurfaceExchanges: SurfaceExchangeStore }, _optional: Record<string, never> = {}): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
   const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
@@ -588,141 +772,12 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
   });
   return {
     name: "assistant",
-    registerRoutes: (app: Express) => {
-      app.use("/api/runs", requireAdminSession(routeDeps));
-      app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
-        proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
-          if (error instanceof RunSlotBusyError) { res.status(409).json({ error: error.message, code: "CHAT_RUN_BUSY" }); return; }
-          next(error);
-        });
-      });
-      // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
-      // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
-      // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
-      // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.
-      // The daemon answers it with the caller's own runs only — http-kit's version lists every
-      // run on the box, which would hand one admin the ids of every other admin's runs.
-      app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
-      app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
-      app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
-      // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
-      // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
-      // pane whether to deliver live or queue the text after the current run. A durable run's id is the
-      // daemon's own (`launch` hands it over), so no ledger lookup is needed.
-      app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      app.use("/api/agents", requireAdminSession(routeDeps));
-      app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
-      app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
-
-      // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
-      // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
-      // from `@jini-ai/http-kit`'s `registerToolCatalogRoutes` (mounted daemon-side by
-      // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
-      // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
-      // header, so it passes the daemon's same-origin check the way a browser's cross-origin
-      // request never could) plus the daemon bearer token. `proxyPassthrough` satisfies both of
-      // those the identical way that subprocess does: `forwardToAgentDaemon`'s outbound `fetch`
-      // carries no `Origin` header either (Node's `fetch`, not a browser's) and attaches the same
-      // bearer token every other route in this module does — so this proxy reaches the daemon route
-      // exactly like its one existing legitimate caller, without loosening `requireSameOrigin`
-      // itself by one bit. `requireAdminSession` below is the ONLY new gate a browser caller must
-      // pass, replacing "must be that subprocess" with "must be a signed-in admin".
-      //
-      // BOUNDARY, stated plainly because the next reader will otherwise conflate it with item 1's
-      // MCP-UI allowlist: this exposes tool **names and descriptions** to an authenticated admin
-      // session, in the admin's own page. It is **read-only enumeration, never execution** — no
-      // `toolName`/`params` body is accepted here, there is no POST/PUT/DELETE mounted on this
-      // path, and nothing on this path can reach `ToolExecutor.execute`. A tool becomes callable
-      // from the browser only through `MCP_UI_TOOL_CALLS_PATH`'s own allowlist
-      // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
-      // widen.
-      //
-      // Proxy failure remains bounded: known-failed daemon boots return 503 without a fetch,
-      // and unreachable daemons return 502. Enumeration cannot hang on an unavailable daemon.
-      app.use("/api/tools", requireAdminSession(routeDeps));
-      app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
-      // stream carries invocations down to the browser and the response route carries answers
-      // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
-      //
-      // Proxied rather than reached directly for the same reason every other route here is: the
-      // daemon requires a bearer token the browser must never hold, and `requireAdminSession`
-      // is what proves a caller is an admin at all. The stream in particular depends on
-      // `relayResponse` above streaming rather than buffering — it is SSE, exactly like
-      // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
-      // invocation until the connection closed.
-      app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
-      // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
-      app.post("/api/frontend-sessions/activate", (req, res, next) => {
-        activateFrontendDaemon({ req, res }, daemon).catch(next);
-      });
-      app.post("/api/frontend-sessions/request", (req, res, next) => {
-        proxyPassthrough(req, res, daemon).catch(next);
-      });
-      app.get("/api/frontend-sessions/stream", (req, res, next) => {
-        if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
-        proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);
-      });
-      app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
-        proxyPassthrough(req, res, daemon).catch(next),
-      );
-
-      // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
-      // `AssistantDock.tsx`). Same session-auth requirement as every other route in this module —
-      // an unauthenticated upload endpoint is an arbitrary-file-write primitive reachable by
-      // anyone who can reach this port, so this gate is not optional. `POST` needs the dedicated
-      // raw-stream proxy above; `DELETE`'s body is real small JSON
-      // (`{batchId, paths}` — `create-daemon-attachment-uploader.ts`'s `deletePartialUpload`), so
-      // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
-      app.use("/api/attachments", requireAdminSession(routeDeps));
-      app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
-        forwardAttachmentUpload(req, res, daemon).catch(next);
-      });
-      app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
-      // had, so until now bytes could be uploaded and never fetched again and the admin's preview
-      // modal could only show attachments from the current session out of a client-side `File`
-      // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
-      // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
-      // attachment with no recorded owner is readable by nobody).
-      //
-      // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it
-      // that will surprise the next reader: the daemon owns the live `AttachmentStore`, but that
-      // port exposes no non-mutating owner-scoped read (`resolveForRun` CLAIMS what it resolves,
-      // and `listPendingForOwner` returns no path and excludes exactly the already-claimed
-      // attachments this feature exists for). Serving it here instead also means the principal is
-      // compared in the same process that mints it, with no trusted-header hop between the check
-      // and the value being checked.
-      //
-      // Registered inside this module rather than as its own, for the `app.use` two lines above:
-      // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
-      // this route is covered by the same mount that covers the upload it reads back. A separate
-      // module would have to re-mount the same guard, which is a second thing to keep in sync.
-      registerAdminChatAttachmentReadRoute(app, { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir });
-
-      // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
-      // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
-      // `/api/delegated-tool-calls`, which is intentionally NOT mounted in this module at all (see
-      // this file's header) and whose trust boundary this endpoint does not reuse or widen.
-      app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
-      app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyMcpUiToolCall(req, res, byokSurfaceExchanges, daemon).catch(next);
-      });
-
-      // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
-      // see `proxyA2uiAction`'s doc. No allowlist: there is no `toolName` on an A2UI action (the
-      // daemon-side route has none either — A2UI has no execution surface to allowlist).
-      app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
-      app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyA2uiAction(req, res, byokSurfaceExchanges, daemon).catch(next);
-      });
+    registerRoutes: ({ app }, _options = {}) => {
+      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges };
+      mountRunRoutes(mount);
+      mountAgentAndToolRoutes(mount);
+      mountFrontendSessionRoutes(mount);
+      mountAttachmentAndActionRoutes(mount);
     },
   };
 }

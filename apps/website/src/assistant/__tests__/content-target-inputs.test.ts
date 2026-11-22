@@ -13,7 +13,7 @@ import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import { withContentTargets } from "./fixtures/content-target-inputs.js";
 import { withBatchInput } from "@jini-ai/core";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
-import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
 function mediaRecord({ id, slug, workspaceId = "w" }: { id: string; slug: string; workspaceId?: string }): MediaRecord {
   return { id, slug, workspaceId, title: slug, alt: "", caption: "", credit: "", source: { sha256: id }, status: "active",
@@ -24,9 +24,9 @@ function mediaRecord({ id, slug, workspaceId = "w" }: { id: string; slug: string
 test("shared content target input resolves preview slug, root id, and legacy postId in default batches", async () => {
   const { deps, writes } = bareDeps([{ ...barePost, slug: "/" }]);
   const rendered: string[] = [];
-  const registrations = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, {
-    renderPostPreview: async (_deps, { post }) => { rendered.push(post.id); return { html: "<p>Home</p>", templateChoice: "" }; },
-  }) });
+  const registrations = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: {
+    renderPostPreview: async ({ input: { post } }) => { rendered.push(post.id); return { html: "<p>Home</p>", templateChoice: "" }; },
+  } }) });
   const registration = applyBatchInputs({ registrations })[0]!;
   const input = { items: [{ slug: "/" }, { id: "/" }, { postId: "/" }, { id: "missing" }, { id: barePost.id, invented: true }] };
   const before = structuredClone(input);
@@ -48,7 +48,7 @@ test("shared content target input handles media card reads and list batches, met
   await mediaRepo.save(mediaRecord({ id: "foreign", slug: "private", workspaceId: "other" }));
   const site = { ...deps, mediaRepo };
   const raw = buildMediaRegistrations(site);
-  const cards = deriveContentReadRegistrations(raw);
+  const cards = deriveContentReadRegistrations({ sourceRegistrations: raw });
   const registrations = applyBatchInputs({ registrations: withContentTargets({ registrations: cards, deps: site }) });
   const registration = registrations.find(tool => tool.descriptor.id === "content_read.media_asset")!;
   const result = await executeRegisteredTool({ registration, input: { items: [{ id: "dashboard" }, { slug: "logo" }, { id: "missing" }, {}, { id: "private" }, { id: "asset-1" }] } });
@@ -72,9 +72,9 @@ test("shared lookup follows authorization for reads and writes", async () => {
   const { deps, repo } = bareDeps();
   const denied = { ...deps, authorize: async () => ({ allowed: false, reason: "denied" }) };
   repo.findById = repo.findBySlug = async () => assert.fail("permission must precede target lookup");
-  const registration = withContentTargets({ deps: denied, registrations: buildPostPreviewRegistrations(denied, {
+  const registration = withContentTargets({ deps: denied, registrations: buildPostPreviewRegistrations({ deps: denied, renderer: {
     renderPostPreview: async () => assert.fail("denied previews must not render"),
-  }) })[0]!;
+  } }) })[0]!;
   const result = await executeRegisteredTool({ registration, input: { slug: "/" } });
   assert.notEqual(result.status, "completed");
   assert.match(result.error!, /not authorized/);
@@ -129,8 +129,9 @@ test("page writes use the shared root resolver and still validate page kind and 
   const stale = await executeRegisteredTool({ registration, input: { slug: "/", html, expectedVersion: barePost.version } });
   assert.notEqual(stale.status, "completed");
   assert.match(stale.error!, /VERSION_CONFLICT|version|changed/i);
-  // Pages returns a kind mismatch as a model-facing reason, not a thrown error.
-  const wrongKind = await executeRegisteredTool({ registration, input: { slug: "news", html } });
+  // Pages returns a kind mismatch as a model-facing reason, not a thrown error. expectedVersion is
+  // required since S7b, so the call carries it to reach the kind check.
+  const wrongKind = await executeRegisteredTool({ registration, input: { slug: "news", html, expectedVersion: barePost.version } });
   const refused = wrongKind.output as { written: boolean; reason: string };
   assert.equal(refused.written, false);
   assert.match(refused.reason, /^'ordinary-post' is a post, not a page/);

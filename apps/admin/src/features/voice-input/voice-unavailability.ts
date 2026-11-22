@@ -3,9 +3,9 @@
  * an operator can act on. Pure — no React, no DOM — so every code's copy is directly assertable.
  *
  * The codes themselves are produced by two places and are NOT invented here:
- * - `apps/desktop/src/speech/transcription-port.cjs` — `unsupported-platform:<platform>`.
- * - `apps/desktop/src/speech/tovu-speech-helper.swift` (surfaced through
- *   `mac-on-device-transcriber.cjs`) — `speech-recognition-not-authorized:<status>`,
+ * - `apps/desktop/src/speech/transcription-port.ts` — `unsupported-platform:<platform>`.
+ * - `Jini packages/desktop-host/src/speech/macos/speech-helper.swift` (surfaced through
+ *   `apps/desktop/src/speech/mac-on-device-transcriber.ts`) — `speech-recognition-not-authorized:<status>`,
  *   `no-recognizer-for-locale`, `on-device-recognition-unavailable`, `swiftc-not-found: …`,
  *   `swiftc-failed: …`.
  *
@@ -45,12 +45,12 @@ const FALLBACK_COPY = "Voice input is not available on this machine.";
 /**
  * Maps a transcription-port reason code to one short operator-facing line.
  *
- * @param reason - The code, or `undefined` when the port reported unavailability without one.
+ * @param required.reason - The code, or `undefined` when the port reported unavailability without one.
  * @returns Copy suitable for a tooltip or an `aria-label`. English, doubling as its own i18n key
  *   per this app's convention — the caller passes it through `t()`.
  * @complexity Time: O(k) in the (fixed, small) table size. Space: O(1).
  */
-export function describeVoiceUnavailability(reason: string | undefined): string {
+export function describeVoiceUnavailability({ reason }: { reason: string | undefined }, _options = {}): string {
   if (reason === undefined) return FALLBACK_COPY;
   const match = REASON_COPY.find(([prefix]) => reason.startsWith(prefix));
   return match ? match[1] : FALLBACK_COPY;

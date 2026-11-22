@@ -62,7 +62,7 @@ export async function readFormsAutoPull(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {},
 ): Promise<boolean> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: AUTO_PULL_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: NAMESPACE, key: AUTO_PULL_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return found?.value !== false;
 }
 
@@ -76,7 +76,7 @@ export async function readFormDeliveryBindings(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {},
 ): Promise<FormDeliveryBinding[]> {
-  const found = await getEffective({ repo: required.settingsRepo }, { namespace: NAMESPACE, key: BINDINGS_KEY, scopeContext: { workspaceId: required.workspaceId } });
+  const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: NAMESPACE, key: BINDINGS_KEY, scopeContext: { workspaceId: required.workspaceId } });
   return parseFormDeliveryBindings({ value: found?.value ?? [] });
 }
 
@@ -106,12 +106,12 @@ export function enforceFormDeliveryBindingsWrite(input: SetValueRequired["input"
  */
 export function parseFormDeliveryBindings(required: { value: unknown }, _optional: Record<string, never> = {}): FormDeliveryBinding[] {
   const { value } = required;
-  if (!Array.isArray(value)) throw invalid("must be a JSON list of bindings.");
-  if (value.length > MAX_FORM_DELIVERY_BINDINGS) throw invalid(`has ${value.length} bindings; at most ${MAX_FORM_DELIVERY_BINDINGS} are allowed. Remove some, then save again.`);
+  if (!Array.isArray(value)) throw invalid({ detail: "must be a JSON list of bindings." });
+  if (value.length > MAX_FORM_DELIVERY_BINDINGS) throw invalid({ detail: `has ${value.length} bindings; at most ${MAX_FORM_DELIVERY_BINDINGS} are allowed. Remove some, then save again.` });
   const seen = new Set<string>();
   return value.map((entry: unknown, index) => {
     const binding = parseBinding({ value: entry, where: `binding ${index + 1}` });
-    if (seen.has(binding.bindingId)) throw invalid(`binding ${index + 1} repeats bindingId ${quote(binding.bindingId)}; give every binding its own id.`);
+    if (seen.has(binding.bindingId)) throw invalid({ detail: `binding ${index + 1} repeats bindingId ${quote({ text: binding.bindingId })}; give every binding its own id.` });
     seen.add(binding.bindingId);
     return binding;
   });
@@ -119,10 +119,10 @@ export function parseFormDeliveryBindings(required: { value: unknown }, _optiona
 
 function parseBinding(required: { value: unknown; where: string }): FormDeliveryBinding {
   const { value, where } = required;
-  if (!isPlainObject(value)) throw invalid(`${where} must be an object.`);
+  if (!isPlainObject(value)) throw invalid({ detail: `${where} must be an object.` });
   const unknown = Object.keys(value).find(key => !BINDING_FIELDS.has(key));
-  if (unknown !== undefined) throw invalid(`${where} has unknown field ${quote(unknown)}; allowed fields are ${[...BINDING_FIELDS].join(", ")}.`);
-  if (typeof value.enabled !== "boolean") throw invalid(`${where}: enabled must be true or false.`);
+  if (unknown !== undefined) throw invalid({ detail: `${where} has unknown field ${quote({ text: unknown })}; allowed fields are ${[...BINDING_FIELDS].join(", ")}.` });
+  if (typeof value.enabled !== "boolean") throw invalid({ detail: `${where}: enabled must be true or false.` });
   const formIds = parseFormIds({ value: value.formIds, where });
   return {
     bindingId: parseReference({ value: value.bindingId, where, field: "bindingId" }),
@@ -139,7 +139,7 @@ function parseBinding(required: { value: unknown; where: string }): FormDelivery
 function parseReference(required: { value: unknown; where: string; field: string }): string {
   const { value, where, field } = required;
   if (typeof value !== "string" || value.length === 0 || value.length > MAX_REFERENCE_LENGTH) {
-    throw invalid(`${where}: ${field} must be a non-empty string of at most ${MAX_REFERENCE_LENGTH} characters.`);
+    throw invalid({ detail: `${where}: ${field} must be a non-empty string of at most ${MAX_REFERENCE_LENGTH} characters.` });
   }
   assertNotSecretValue({ path: field, value, where });
   return value;
@@ -148,15 +148,15 @@ function parseReference(required: { value: unknown; where: string; field: string
 function parseFormIds(required: { value: unknown; where: string }): string[] | undefined {
   const { value, where } = required;
   if (value === undefined) return undefined;
-  if (!Array.isArray(value)) throw invalid(`${where}: formIds must be a list of form ids (omit it for every form).`);
-  if (value.length > MAX_FORM_DELIVERY_FORM_IDS) throw invalid(`${where}: formIds has ${value.length} entries; at most ${MAX_FORM_DELIVERY_FORM_IDS} are allowed (omit formIds to mean every form).`);
+  if (!Array.isArray(value)) throw invalid({ detail: `${where}: formIds must be a list of form ids (omit it for every form).` });
+  if (value.length > MAX_FORM_DELIVERY_FORM_IDS) throw invalid({ detail: `${where}: formIds has ${value.length} entries; at most ${MAX_FORM_DELIVERY_FORM_IDS} are allowed (omit formIds to mean every form).` });
   return value.map((id: unknown) => parseReference({ value: id, where, field: "every formIds entry" }));
 }
 
 /** Walks the config iteratively (no recursion limit to hit) and returns a deep copy. */
 function parseConfig(required: { value: unknown; where: string }): Record<string, unknown> {
   const { value, where } = required;
-  if (!isPlainObject(value)) throw invalid(`${where}: config must be an object (use {} when the destination needs none).`);
+  if (!isPlainObject(value)) throw invalid({ detail: `${where}: config must be an object (use {} when the destination needs none).` });
   const pending: { path: string; value: unknown }[] = [{ path: "config", value }];
   for (let next = pending.pop(); next; next = pending.pop()) {
     if (typeof next.value === "string") {
@@ -173,20 +173,20 @@ function parseConfig(required: { value: unknown; where: string }): Record<string
 function childrenOf(required: { path: string; value: object; where: string }): { path: string; value: unknown }[] {
   return Object.entries(required.value).map(([key, child]) => {
     const path = `${required.path}.${key}`;
-    if (SECRET_KEY.test(key.toLowerCase().replace(/[^a-z0-9]/g, ""))) throw invalid(`${required.where}: ${quote(path)} is named like a secret. ${FIX_HINT}`);
+    if (SECRET_KEY.test(key.toLowerCase().replace(/[^a-z0-9]/g, ""))) throw invalid({ detail: `${required.where}: ${quote({ text: path })} is named like a secret. ${FIX_HINT}` });
     return { path, value: child };
   });
 }
 
 function assertNotSecretValue(required: { path: string; value: string; where: string }): void {
-  if (SECRET_VALUES.some(pattern => pattern.test(required.value)) || isBasicCredential(required.value)) {
-    throw invalid(`${required.where}: ${quote(required.path)} holds a value that looks like a credential. ${FIX_HINT}`);
+  if (SECRET_VALUES.some(pattern => pattern.test(required.value)) || isBasicCredential({ value: required.value })) {
+    throw invalid({ detail: `${required.where}: ${quote({ text: required.path })} holds a value that looks like a credential. ${FIX_HINT}` });
   }
 }
 
 /** An HTTP Basic Authorization value: base64 that decodes to `user:password`. Decoding keeps plain
  *  words after "Basic" (a "Basic tier" plan name) usable. */
-function isBasicCredential(value: string): boolean {
+function isBasicCredential({ value }: { value: string }, _optional = {}): boolean {
   const encoded = BASIC_VALUE.exec(value)?.[1];
   return encoded !== undefined && Buffer.from(encoded, "base64").toString("utf8").includes(":");
 }
@@ -196,10 +196,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Names from the setting are echoed bounded and quoted, never config values. */
-function quote(text: string): string {
+function quote({ text }: { text: string }, _optional = {}): string {
   return JSON.stringify(text.length > 80 ? `${text.slice(0, 80)}…` : text);
 }
 
-function invalid(detail: string): ValueValidationFailedError {
+function invalid({ detail }: { detail: string }, _optional = {}): ValueValidationFailedError {
   return new ValueValidationFailedError(`Form delivery bindings (${NAMESPACE}.${BINDINGS_KEY}) ${detail}`);
 }

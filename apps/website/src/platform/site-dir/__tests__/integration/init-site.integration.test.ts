@@ -117,7 +117,7 @@ test("R1h: a new SQLite site is built through the migration runner, so its first
     );
 
     const bytesBefore = fs.readFileSync(dbPath);
-    closeSqliteConnection(await openSiteContentDb(dbPath));
+    closeSqliteConnection({ source: await openSiteContentDb({ dbPath }) });
     assert.equal(fs.existsSync(path.join(target, "ops")), false, "the first boot takes no pre-migrations copy of a site init just built");
     assert.ok(fs.readFileSync(dbPath).equals(bytesBefore), "the first boot migrates nothing");
   } finally {

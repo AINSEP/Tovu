@@ -20,6 +20,7 @@
  * file inside the tracked `sites/<name>/` would.
  */
 import nodeFs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import path from "node:path";
 import { SITE_NAME_PATTERN, type SiteBinding } from "#src/platform/site-dir/index";
 
@@ -56,33 +57,25 @@ export function createSitePreviewStore(
   { fs = nodeFs, pid = process.pid }: { fs?: SitePreviewFs; pid?: number } = {},
 ): SitePreviewStore {
   /** `null` for anything that is not a valid site folder name — never a path built from it. */
-  function fileFor(name: string): string | null {
+  function fileFor({ name }: { name: string }, _optional = {}): string | null {
     if (name.length < 1 || name.length > 100 || !SITE_NAME_PATTERN.test(name)) return null;
     return path.join(root, `${name}${EXTENSION}`);
   }
 
   return {
     version({ name }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
-      try {
-        return fs.statSync(file).mtimeMs;
-      } catch {
-        // No capture yet is the ordinary state for every new or never-started site.
-        return null;
-      }
+      // No capture yet is the ordinary state for every new or never-started site.
+      return orFallbackSync({ work: () => fs.statSync(file).mtimeMs, fallback: null, step: "Read preview cache timestamp" });
     },
     read({ name }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
-      try {
-        return fs.readFileSync(file);
-      } catch {
-        return null;
-      }
+      return orFallbackSync({ work: () => fs.readFileSync(file), fallback: null, step: "Read preview cache image" });
     },
     write({ name, bytes }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
       const temp = `${file}.${pid}.tmp`;
       try {

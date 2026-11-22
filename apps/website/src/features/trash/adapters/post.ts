@@ -5,9 +5,9 @@
  * unparseable is still trashable and restorable.
  */
 import { tableExists } from "@jini-ai/db/kernel";
-import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { loose } from "@jini-ai/cms/trash/sql";
 
 export const POST_ENTITY_TYPE = "post";
 
@@ -77,7 +77,7 @@ export function createPostTrashAdapter(store: MarkerStore): TrashAdapter {
           await kernel().run((db) =>
             loose(db).deleteFrom(POST_REVISIONS_TABLE).where("workspace_id", "=", workspaceId).where("post_id", "=", entityId).execute()
           );
-          hasSearchDocument ??= tableExists(kernel(), POST_SEARCH_DOCUMENT_TABLE).catch((error: unknown) => {
+          hasSearchDocument ??= tableExists({ kernel: kernel(), table: POST_SEARCH_DOCUMENT_TABLE }).catch((error: unknown) => {
             hasSearchDocument = undefined; // a failed probe is not an answer; ask again next time
             throw error;
           });

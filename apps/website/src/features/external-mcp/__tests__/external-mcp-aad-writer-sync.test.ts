@@ -11,7 +11,7 @@ import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
 import { EXTERNAL_MCP_VAULT_VERSION } from "../external-mcp-store.js";
 import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import type { VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultMeta } from "@jini-ai/core/contracts/vault";
 
 /**
  * @file Characterize every OAuth writer against normalized vault envelopes: callback, refresh,

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import { processOutbox } from "#src/contracts/core/events/outbox-worker";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 
 /**

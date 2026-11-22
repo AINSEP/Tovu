@@ -20,7 +20,8 @@ import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delet
 import { nativeToolMetadata } from './tool-metadata/index.js';
 import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type AccessApprovalDescription, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
-import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { accessApprovalDetails, buildConfirmationSurface, toolApprovalPresentation, type SurfaceDetail } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 import { approvalText } from './approval-i18n.js';
 
 import {
@@ -194,15 +195,15 @@ export function humanConfirmedToolHandler<TPrepared>(
   surfaces: ChatDeleteSurfaceDeps,
   spec: {
     flag: string;
-    prepare: (ctx: ToolExecutionContext) => Promise<TPrepared>;
+    prepare: (required: { ctx: ToolExecutionContext }) => Promise<TPrepared>;
     dialog: (prepared: TPrepared) => HumanConfirmSpec;
-    run: (ctx: ToolExecutionContext, prepared: TPrepared, confirmer: HumanConfirmer) => Promise<unknown>;
+    run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer }) => Promise<unknown>;
   },
 ): ToolHandler {
   return approvalToolHandler({ surfaces,
-    prepare: ({ ctx }) => spec.prepare(ctx),
+    prepare: ({ ctx }) => spec.prepare({ ctx }),
     describe: ({ prepared }) => spec.dialog(prepared),
-    run: ({ ctx, prepared, confirmer }) => spec.run(ctx, prepared, confirmer),
+    run: ({ ctx, prepared, confirmer }) => spec.run({ ctx, prepared, confirmer }),
   }, { flag: spec.flag });
 }
 
@@ -276,33 +277,40 @@ function renderHumanConfirmation(
   _optional: Record<string, never> = {},
 ): ReturnType<typeof buildConfirmationSurface> {
   const { toolId } = spec;
-  const action = (decision: "confirm" | "cancel", choice?: string) => ({
+  const action = ({ decision }: { decision: "confirm" | "cancel" }, { choice }: { choice?: string } = {}) => ({
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
   });
-  const description = spec.description ?? nativeToolMetadata.byId[toolId]?.summary;
   return buildConfirmationSurface({
     uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
     title: spec.title,
     // Redemption acknowledges receipt; the held-open tool still owns execution and its outcome.
     text: { done: "Response received." },
-    ...(description ? { description } : {}),
-    details: confirmationDetails({ spec }),
-    ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
-    ...(spec.warning ? { warning: spec.warning } : {}),
-    ...(spec.notice ? { notice: spec.notice } : {}),
+    ...confirmationCopy({ spec }),
     danger: spec.danger ?? false,
-    confirm: { label: spec.confirmLabel, ...action("confirm") },
+    confirm: { label: spec.confirmLabel, ...action({ decision: "confirm" }) },
     ...(alternatives.length > 0
-      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
+      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action({ decision: "confirm" }, { choice: alternative.choice }) })) }
       : {}),
-    cancel: { label: spec.cancelLabel ?? "Cancel", ...action("cancel") },
+    cancel: { label: spec.cancelLabel ?? "Cancel", ...action({ decision: "cancel" }) },
     app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
     // The chat counts this down and closes the card when it passes, so nobody answers a card the
     // exchange has stopped waiting on.
     expiresAtMs: exchange.expiresAtMs(),
   });
+}
+
+/** The card's explanatory copy: description (the tool's own summary by default), details, disclosure, warning, notice. */
+function confirmationCopy({ spec }: { spec: HumanConfirmSpec }, _optional: Record<string, never> = {}) {
+  const description = spec.description ?? nativeToolMetadata.byId[spec.toolId]?.summary;
+  return {
+    ...(description ? { description } : {}),
+    details: confirmationDetails({ spec }),
+    ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
+    ...(spec.warning ? { warning: spec.warning } : {}),
+    ...(spec.notice ? { notice: spec.notice } : {}),
+  };
 }
 
 /** Keep access rows fixed while preserving the domain's existing warnings and context. */

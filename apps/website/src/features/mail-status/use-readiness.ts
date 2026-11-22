@@ -22,7 +22,7 @@ import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerPort } from "../../platform/mail/index.js";
 import type { MailPurposeGateProbe } from "../../platform/mail/index.js";
 import { evaluateLaunchGate, type LaunchGateDeps, type LaunchGatePrecondition } from "../newsletter/index.js";
-import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "../mail/activity.repo.js";
+import type { MailActivityOutcome, MailActivityRepo, MailActivityUse } from "@jini-ai/platform/mail";
 
 export type MailUseState = "ready" | "blocked" | "disabled" | "not_configured" | "unknown";
 export type MailUseId = "sign_in" | "newsletter_confirmation" | "form_notifications" | "newsletter";
@@ -116,21 +116,21 @@ async function launchGateFindings({ gate, workspaceId, isTestSend }: { gate: Lau
   return result.unmetPreconditions.filter((code) => code !== "mailer_adapter_not_production").map((code) => ({ state: LAUNCH_GATE_STATE[code], reason: code }));
 }
 
-const CHECKS: Record<MailUseId, (deps: MailUseReadinessDeps) => Promise<Check>> = {
-  sign_in: (deps) => sharedFindings(deps, SPECS.sign_in),
-  newsletter_confirmation: async (deps) => {
+const CHECKS: Record<MailUseId, (required: { deps: MailUseReadinessDeps }) => Promise<Check>> = {
+  sign_in: ({ deps }) => sharedFindings(deps, SPECS.sign_in),
+  newsletter_confirmation: async ({ deps }) => {
     const own = await launchGateFindings({ gate: deps.newsletterLaunchGate as LaunchGateDeps, workspaceId: deps.workspaceId, isTestSend: true });
     const shared = await sharedFindings(deps, SPECS.newsletter_confirmation);
     return { ...shared, findings: [...own, ...shared.findings] };
   },
-  form_notifications: async (deps) => {
+  form_notifications: async ({ deps }) => {
     if (!deps.formDefinitionRepo) throw new Error("forms_unavailable");
     const forms = await deps.formDefinitionRepo.list({ workspaceId: deps.workspaceId });
     const formsConfigured = forms.filter((form) => form.notify.enabled && form.notify.recipients.length > 0).length;
     if (formsConfigured === 0) return { findings: [{ state: "not_configured", reason: "no_form_notifications" }], sender: null, formsConfigured };
     return { ...(await sharedFindings(deps, SPECS.form_notifications)), formsConfigured };
   },
-  newsletter: async (deps) => {
+  newsletter: async ({ deps }) => {
     const own = await launchGateFindings({ gate: deps.newsletterLaunchGate as LaunchGateDeps, workspaceId: deps.workspaceId, isTestSend: false });
     const shared = await sharedFindings(deps, SPECS.newsletter);
     return { ...shared, findings: [...own, ...shared.findings] };
@@ -156,7 +156,7 @@ async function rowFor(deps: MailUseReadinessDeps, use: MailUseId): Promise<MailU
   const base = { use, label: spec.label, sendLane: spec.sendLane, mailLane: spec.mailLane, owner: spec.owner };
   const evidence = await evidenceFor(deps, spec);
   try {
-    const check = await CHECKS[use](deps);
+    const check = await CHECKS[use]({ deps });
     return { ...base, state: stateOf({ findings: check.findings }), reasons: check.findings.map((finding) => finding.reason), sender: check.sender,
       ...(check.formsConfigured === undefined ? {} : { formsConfigured: check.formsConfigured }), evidence };
   } catch (err) {

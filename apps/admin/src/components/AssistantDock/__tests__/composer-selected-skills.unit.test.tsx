@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { Composer, useComposer, ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
-import { useComposerDiscoverySelect } from "../hooks/AssistantDock.hooks";
+import { useComposerDiscoverySelect } from "../hooks/composer-discovery.hooks";
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
 import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
 import { FakeEventSource } from "@/lib/__tests__/assistant-transport.test-helpers";
@@ -13,7 +13,7 @@ import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
 
 const guidance = 'Use and follow the "ui-ux-design" skill for this task.\n\nKeep focus visible.\n\nRead bundled files with fs_read_file as needed:\n[{"kind":"references","root":"site","path":"skills/ws/workspace-local/ui-ux-design/references/check.md"}]\n\nTask: ';
-const makeProjection = () => projectComposerCapabilities([{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }]);
+const makeProjection = () => projectComposerCapabilities({ sources: [{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }] });
 afterEach(() => vi.unstubAllGlobals());
 const mockGuidance = () => vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skillName: "ui-ux-design", guidance: "Keep focus visible.", bundledFiles: [{ kind: "references", root: "site", path: "skills/ws/workspace-local/ui-ux-design/references/check.md" }] })));
 
@@ -27,7 +27,7 @@ it("pick adds a removable chip, preserves the user's draft, and only the run pay
     const onDiscoverySelect = useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn(), addSkill: skills.addSkill, readDraft: () => composer.draft });
     return <div onChangeCapture={discovery.captureDraft}>
       <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} />
-      <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills(composer.draft, { selectedSkills: skills.selectedSkills }) })}</output>
+      <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills({ prompt: composer.draft, context: { selectedSkills: skills.selectedSkills } }) })}</output>
       <Composer composer={composer} onSend={vi.fn()} slots={{ discoveryGroups: discovery.groups, onDiscoverySelect }} />
     </div>;
   }

@@ -1,12 +1,14 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import type { PluginsRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file `PLUGIN_PROVIDER_SETTINGS` — `GET`/`PUT /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/provider-settings`
@@ -45,7 +47,8 @@ const PATH = "/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/provider-s
  */
 async function hasLegacyCredential({ deps, pluginId, saved }: { deps: ProviderSettingsRouteDeps; pluginId: string; saved: unknown }): Promise<boolean> {
   if (saved || !deps.legacyProviderCredential) return false;
-  return deps.legacyProviderCredential({ pluginId }).catch(() => false);
+  const credentialPromise = deps.legacyProviderCredential({ pluginId });
+  return orFallback({ work: () => credentialPromise, fallback: false, step: "Check legacy provider credential" });
 }
 
 /** A public field's declared choices (`default`, `options`, `allowCustom`), passed to the card as declared. */
@@ -76,9 +79,9 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
 
 /** Shared guard: workspace, principal permission, plugin with declared settings, a configured store. */
 async function resolveCard({ req, res, deps, permission }: { req: Request; res: Response; deps: ProviderSettingsRouteDeps; permission: string }) {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return undefined; }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
   const principal = getAuthedPrincipal(res);
-  if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return undefined;
+  if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } }))) return undefined;
   const pluginId = String(req.params.pluginId ?? "");
   const records = await deps.discoverPlugins();
   const fields = declaredProviderSettingFields({ records, pluginId });
@@ -97,14 +100,14 @@ function isProjectKeyUseInput(input: Record<string, unknown> | null, _optional =
   return !!input && typeof input.use === "boolean" && !Object.keys(input).some(key => key !== "use");
 }
 
-const internalError = (res: Response, error: unknown) => sendAdminFailure({ res, error });
+const internalError = ({ res, error }: { res: Response; error: unknown }, _optional = {}) => sendAdminFailure({ res, error });
 
-export function registerPluginProviderSettingsRoutes(app: Express, deps: ProviderSettingsRouteDeps): void {
+export function registerPluginProviderSettingsRoutes({ app, deps }: { app: Express; deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get(PATH, async (req, res) => {
     try {
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.read" });
       if (card) res.json(await cardOf(card));
-    } catch (error) { internalError(res, error); }
+    } catch (error) { internalError({ res, error }); }
   });
   app.put(PATH, async (req, res) => {
     try {
@@ -114,30 +117,36 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
       if ("refusal" in saved) { res.status(saved.refusal.code === "PROVIDER_SETTINGS_UNAVAILABLE" ? 503 : 400).json(saved.refusal); return; }
       const attached = deps.projectKeys ? await deps.projectKeys.savedResult({ result: saved }) as typeof saved : saved;
       res.json({ ...(await cardOf(card)), appliesAt: attached.appliesAt, ...(attached.message ? { message: attached.message } : {}) });
-    } catch (error) { internalError(res, error); }
+    } catch (error) { internalError({ res, error }); }
   });
   registerProjectKeyUseRoute(app, deps);
+}
+
+/** Only the installation owner's own session may change saved-key grants; refusals are answered here. */
+async function isOwnerSession({ res, deps, principalId }: { res: Response; deps: ProviderSettingsRouteDeps; principalId: string }, _options = {}): Promise<boolean> {
+  if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return false;
+  if (principalId !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return false; }
+  return true;
 }
 
 /** Admin and chat share the same attachment owner and per-kind save permission. */
 function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDeps): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/project-keys/:keyId/use", async (req, res) => {
     try {
-      if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       const principal = getAuthedPrincipal(res);
-      if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return;
-      if (principal.id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return; }
+      if (!await isOwnerSession({ res, deps, principalId: principal.id })) return;
       if (!deps.projectKeys) { res.status(503).json({ error: "This site has no project key store." }); return; }
       const input = req.body as Record<string, unknown> | null;
       if (!isProjectKeyUseInput(input)) { res.status(400).json({ error: "use must be true or false" }); return; }
       const keyId = String(req.params.keyId);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId } })) return;
       const permission = await deps.projectKeys.permissionFor({ keyId });
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } })) return;
       res.json(await deps.projectKeys.use({ keyId, use: input.use }));
     } catch (error) {
       if (error instanceof Error && error.name === "ToolInputError") { res.status(400).json({ error: error.message }); return; }
-      internalError(res, error);
+      internalError({ res, error });
     }
   });
 }

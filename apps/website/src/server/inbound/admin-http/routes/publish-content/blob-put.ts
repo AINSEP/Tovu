@@ -1,11 +1,12 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { bytesMatchSha256, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -35,22 +36,19 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  *  characters outside the alphabet instead of refusing them), so a bare try/catch around it can
  *  never fire — see that function's own header.
  *  @complexity O(n) in the encoded payload length. */
-function decodeBlobBytes(rawBody: unknown): Uint8Array | null {
+function decodeBlobBytes({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): Uint8Array | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const dataBase64 = body.dataBase64;
   if (typeof dataBase64 !== "string" || !dataBase64) return null;
-  return decodeStrictBase64(dataBase64);
+  return decodeStrictBase64({ value: dataBase64 });
 }
 
-export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const claimedSha256 = String(req.params.sha ?? "");
-    if (!isValidSha256Hex(claimedSha256)) {
+    if (!isValidSha256Hex({ value: claimedSha256 })) {
       res.status(400).json({ error: "sha must be a lowercase 64-character hex sha256 digest" });
       return;
     }
@@ -58,15 +56,15 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "publish_content.apply",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
-      const bytes = decodeBlobBytes(req.body);
+      const bytes = decodeBlobBytes({ rawBody: req.body });
       if (!bytes) {
         res.status(400).json({ error: "dataBase64 is required and must be valid base64" });
         return;

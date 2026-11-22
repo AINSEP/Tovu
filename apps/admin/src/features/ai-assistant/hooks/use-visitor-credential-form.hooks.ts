@@ -10,8 +10,8 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
-import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
-import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import { createExecutionPort } from "@/lib/execution-settings";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,
@@ -33,6 +33,7 @@ import {
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything `VisitorCredentialForm` does, so the component in `AiAssistant.tsx` is only
  * markup. Extracted verbatim — same state, same order, same effects, same error strings.
@@ -120,7 +121,7 @@ export interface VisitorCredentialFormController {
   providerGroups: VisitorProviderGroup[];
   /** The `<select>`'s change handler: looks the preset up by id and runs {@link selectPreset}, so
    *  autosave and field population are identical to the chips it replaced. Unknown ids are ignored. */
-  selectPresetById: (presetId: string) => void;
+  selectPresetById: (required: { presetId: string }, optional?: Record<string, never>) => void;
   /** Writes the KEY only — see {@link saveVisitorKey}. */
   saveKey: () => Promise<void>;
   /** Writes provider/baseUrl/model only, never a key — see {@link saveVisitorSettings}. */
@@ -177,7 +178,7 @@ export async function saveVisitorKey(deps: {
     // masked placeholder now carries the "which key" answer the field would otherwise be giving.
     setConfig((current) => ({ ...current, apiKey: "" }));
   } catch (e) {
-    setSaveState({ status: "error", message: describeApiError(e, "failed to save the key") });
+    setSaveState({ status: "error", message: describeApiError({ e, fallback: "failed to save the key" }) });
   }
 }
 
@@ -212,7 +213,7 @@ export async function saveVisitorSettings(deps: {
     setSettingsSaveState({ status: "saved", at: data.updatedAt });
     setDirty(false);
   } catch (e) {
-    setSettingsSaveState({ status: "error", message: describeApiError(e, "failed to save the settings") });
+    setSettingsSaveState({ status: "error", message: describeApiError({ e, fallback: "failed to save the settings" }) });
   }
 }
 
@@ -246,16 +247,14 @@ function seedDiscoveredModel(models: readonly string[]): (current: ByokConfig) =
  * field is blank and cannot distinguish "nothing was ever saved" from "a key is saved and working",
  * an ambiguity worse than four characters.
  *
- * @param t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
+ * @param optional.t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
  *   locale-unaware calls, which keep asserting the exact English strings they always have.
- * @param storedKeyIsForOtherEndpoint - The controller's flag of the same name. When set, the idle line
+ * @param optional.storedKeyIsForOtherEndpoint - The controller's flag of the same name. When set, the idle line
  *   asks for this provider's key instead of reporting a stored key this provider cannot use.
  */
 export function visitorCredentialSaveStatusMessage(
-  saveState: VisitorCredentialFormController["saveState"],
-  stored: VisitorCredentialFormController["stored"],
-  t: Translate = (key) => key,
-  storedKeyIsForOtherEndpoint = false,
+  { saveState, stored }: { saveState: VisitorCredentialFormController["saveState"]; stored: VisitorCredentialFormController["stored"] },
+  { t = (key) => key, storedKeyIsForOtherEndpoint = false }: { t?: Translate; storedKeyIsForOtherEndpoint?: boolean } = {},
 ): string | null {
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
@@ -320,7 +319,7 @@ async function runVisitorKeyTest(deps: {
         : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
     );
   } catch (e) {
-    setDiscovery({ status: "error", message: describeProbeError(e, "Could not reach the provider with that key") });
+    setDiscovery({ status: "error", message: describeProbeError({ e, fallback: "Could not reach the provider with that key" }) });
   }
 }
 
@@ -346,7 +345,7 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
   } catch (error) {
     // The connection result is the answer the operator asked for, so keep it. The separate
     // discovery state must still explain why the model list could not be refreshed.
-    setDiscovery({ status: "error", message: describeProbeError(error, "Model discovery failed") });
+    setDiscovery({ status: "error", message: describeProbeError({ e: error, fallback: "Model discovery failed" }) });
   }
 }
 
@@ -355,7 +354,7 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
  *  inline optional-chain/`||`/ternary cluster that put the parent at 10/5 — over the ceiling on
  *  cyclomatic alone once it tightened to ≤9/≤9 mid-pass. Same treatment as `AiAssistant.tsx`'s
  *  `visitorCredentialSaveStatusMessage` sibling. */
-function connectionTestStateFromResult(result: { ok: boolean; message?: string } | undefined): ConnectionTestState {
+function connectionTestStateFromResult({ result }: { result: { ok: boolean; message?: string } | undefined }, _options: Record<string, never> = {}): ConnectionTestState {
   if (!result) return { status: "error", message: "Connection test failed" };
   if (result.ok) return { status: "ok", message: result.message };
   return { status: "error", message: result.message || "Connection test failed" };
@@ -373,10 +372,10 @@ async function runVisitorTestConnection(deps: {
   setConnectionTest({ status: "testing" });
   try {
     const result = await port.testConnection?.(config);
-    setConnectionTest(connectionTestStateFromResult(result));
+    setConnectionTest(connectionTestStateFromResult({ result }));
     if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
   } catch (e) {
-    setConnectionTest({ status: "error", message: describeProbeError(e, "Connection test failed") });
+    setConnectionTest({ status: "error", message: describeProbeError({ e, fallback: "Connection test failed" }) });
   }
 }
 
@@ -425,7 +424,7 @@ export function useVisitorCredentialForm({
   // `rules.ts`'s `defaultVisitorCredentialConfig` / `hasSavedVisitorCredential`.
   const [config, setConfig] = useState<ByokConfig>(defaultVisitorCredentialConfig);
 
-  const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
+  const preset = useMemo(() => resolveSelectedPreset({ presets: DEFAULT_PROVIDER_PRESETS, config }), [config]);
   // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
   // these are the SAME admin routes the Settings screen probes with, and they take the credential in
   // the request body rather than reading a stored one. That is what makes both controls below work
@@ -479,12 +478,12 @@ export function useVisitorCredentialForm({
       .then(({ data }) => {
         if (cancelled) return;
         setStored(data);
-        setConfig((current) => hydrateVisitorCredentialConfig(current, data));
+        setConfig((current) => hydrateVisitorCredentialConfig({ current, stored: data }));
         setLoadState({ status: "ready" });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setLoadState({ status: "error", message: describeApiError(error, "Could not load saved settings.") });
+        setLoadState({ status: "error", message: describeApiError({ e: error, fallback: "Could not load saved settings." }) });
       });
     return () => {
       cancelled = true;
@@ -492,8 +491,12 @@ export function useVisitorCredentialForm({
   }, []);
 
   const { apiKey, baseUrl, protocol } = config;
-  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule(stored, baseUrl);
-  const usableKey = hasUsableKey(apiKey, stored, baseUrl);
+  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule({ stored, baseUrl });
+  const usableKey = hasUsableKey({ apiKey, stored, baseUrl });
+  const discoveryConfig = useRef(config);
+  discoveryConfig.current = config;
+  const storedEndpointMismatch = useRef(storedKeyIsForOtherEndpoint);
+  storedEndpointMismatch.current = storedKeyIsForOtherEndpoint;
 
   /**
    * Discovery on load, for a key this browser does not have.
@@ -511,14 +514,14 @@ export function useVisitorCredentialForm({
    * flag: it also flips when "Save settings" re-points the stored row at the form's endpoint, and an
    * automatic probe at that moment would send the previous provider's key to the new one unasked.
    */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on stored flag + endpoint only — see doc comment above; `config` as a whole would re-run on every model/max-tokens edit.
   useEffect(() => {
     // Missing optional discovery must not leave the form waiting for work it cannot start.
     const listModels = port.current.listModels?.bind(port.current);
-    if (!stored?.isSet || apiKey.trim() || storedKeyIsForOtherEndpoint || !listModels) return undefined;
+    const config = discoveryConfig.current;
+    if (!stored?.isSet || config.apiKey.trim() || storedEndpointMismatch.current || !listModels) return undefined;
     let cancelled = false;
     setDiscovery({ status: "loading" });
-    listModels({ ...config, apiKey: "" })
+    listModels({ ...config, apiKey: "", baseUrl, protocol })
       .then((models) => {
         if (cancelled) return;
         setDiscovery({ status: "ok", models });
@@ -526,7 +529,7 @@ export function useVisitorCredentialForm({
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setDiscovery({ status: "error", message: describeProbeError(e, "Model discovery failed") });
+        setDiscovery({ status: "error", message: describeProbeError({ e, fallback: "Model discovery failed" }) });
       });
     return () => {
       cancelled = true;
@@ -537,7 +540,7 @@ export function useVisitorCredentialForm({
   // buttons. Why an explicit press rather than the debounce this used to be, and why each patch
   // carries what it carries — see `saveVisitorKey`/`saveVisitorSettings`'s own doc comments above
   // (moved WITH the functions in the complexity-pass extraction, not summarised here).
-  const hasStoredKey = hasStoredCredential(stored);
+  const hasStoredKey = hasStoredCredential({ stored });
 
   // One lane for both Save buttons, which can be enabled at the same time. The server builds every
   // write from the row it reads first (`site-credential-store.ts`'s `setSiteAssistantCredential`:
@@ -565,7 +568,7 @@ export function useVisitorCredentialForm({
   // `isPresetSuppliedEndpoint` (in `../rules.ts`) is the SECURITY GATE for the debounced discovery
   // effect below — read its doc comment there before touching either. Memoised on `baseUrl` alone,
   // matching the effect's own dependency list.
-  const presetSuppliedEndpoint = useMemo(() => isPresetSuppliedEndpoint(baseUrl), [baseUrl]);
+  const presetSuppliedEndpoint = useMemo(() => isPresetSuppliedEndpoint({ baseUrl }), [baseUrl]);
 
   /**
    * Debounced, key-driven model discovery.
@@ -576,7 +579,6 @@ export function useVisitorCredentialForm({
    * key for the first time and the only useful moment to look up its models is right after they
    * finish typing it. The debounce is what makes keying on the key affordable.
    */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the credential itself (key+endpoint); `config` intentionally excluded so editing model/max-tokens doesn't re-trigger discovery.
   useEffect(() => {
     // The endpoint condition is the security gate above — NOT an optimization. Removing it
     // reintroduces the prefix-walk credential leak; read that comment before touching this line.
@@ -588,6 +590,7 @@ export function useVisitorCredentialForm({
     }
     let cancelled = false;
     setDiscovery({ status: "loading" });
+    const config = discoveryConfig.current;
     const timer = setTimeout(() => {
       listModels({ ...config, apiKey, baseUrl, protocol })
         // `cancelled` guards the classic out-of-order finish: a slow request for an earlier,
@@ -623,12 +626,12 @@ export function useVisitorCredentialForm({
   // the server would refuse, and the key line already asks for this provider's key. The buttons are
   // disabled in that state too; this keeps the hook honest for any other caller.
   function runKeyTest() {
-    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
+    if (storedKeyBlocksProbe({ apiKey, stored, baseUrl })) return Promise.resolve();
     return runVisitorKeyTest({ port: port.current, config, setDiscovery, setConfig });
   }
 
   function runTestConnection() {
-    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
+    if (storedKeyBlocksProbe({ apiKey, stored, baseUrl })) return Promise.resolve();
     return runVisitorTestConnection({ port: port.current, config, setConnectionTest, setDiscovery });
   }
 
@@ -651,14 +654,14 @@ export function useVisitorCredentialForm({
    * the second one.
    */
   const selectPreset = (next: ProviderPreset) => {
-    editConfig(nextConfigForPresetSelect(config, next));
+    editConfig(nextConfigForPresetSelect({ config, preset: next }));
     // Both are properties OF THE OUTGOING PROVIDER and neither survives the switch. Left in place,
     // the previous provider's "42 models available" and green connection result would sit under a
     // different provider's empty key field, describing a credential that is no longer in the form.
     setDiscovery({ status: "idle" });
     setConnectionTest({ status: "idle" });
   };
-  const selectPresetById = (presetId: string) => {
+  const selectPresetById = ({ presetId }: { presetId: string }, _options: Record<string, never> = {}) => {
     const next = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === presetId);
     if (next) selectPreset(next);
   };
@@ -680,7 +683,7 @@ export function useVisitorCredentialForm({
     storedKeyIsForOtherEndpoint,
     configuredPresetIds: configuredIds,
     selectPreset,
-    providerGroups: visitorProviderGroups(configuredIds),
+    providerGroups: visitorProviderGroups({ configuredIds }),
     selectPresetById,
     saveKey,
     saveSettings,

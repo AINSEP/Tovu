@@ -33,16 +33,16 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminSettingsRegisterDefinitionsRoute(app, deps);
-  registerAdminSettingsGetEffectiveRoute(app, deps);
-  registerAdminSettingsGetRawRoute(app, deps);
-  registerAdminSettingsListDefinitionsRoute(app, deps);
-  registerAdminSettingsSetRoute(app, deps);
-  registerAdminSettingsClearRoute(app, deps);
-  registerAdminSettingsResetRoute(app, deps);
+  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  registerAdminSettingsGetEffectiveRoute({ app, deps });
+  registerAdminSettingsGetRawRoute({ app, deps });
+  registerAdminSettingsListDefinitionsRoute({ app, deps });
+  registerAdminSettingsSetRoute({ app, deps });
+  registerAdminSettingsClearRoute({ app, deps });
+  registerAdminSettingsResetRoute({ app, deps });
   return { app, deps };
 }
 

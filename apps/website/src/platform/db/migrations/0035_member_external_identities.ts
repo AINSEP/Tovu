@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /** Shared DDL for the async runner and the synchronous fresh-SQLite bootstrap.
  * Unlinked rows retain both keys so an anonymous callback cannot silently relink an account.
@@ -15,11 +15,11 @@ export const MEMBER_EXTERNAL_IDENTITIES_STATEMENTS = [
 /** Add the association table in the runner's transaction. DDL failures propagate.
  * @complexity O(1) DDL on a new empty table; existing members and credentials are untouched.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of MEMBER_EXTERNAL_IDENTITIES_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Immutable ADR-066 step. @example memberExternalIdentities({ checksum: pinnedChecksum }) */
-export function memberExternalIdentities(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function memberExternalIdentities(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: "0035_member_external_identities", checksum: required.checksum, up };
 }

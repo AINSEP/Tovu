@@ -89,6 +89,16 @@ test("theme destination writes through the theme binary writer, no card, and rel
   assert.equal(fs.existsSync(path.join(h.themesDir, "escape.png")), false);
 });
 
+test("an unknown theme destination is a caller error that carries the tool's schema", async (t) => {
+  // Theme shape errors (`isShapeRejection`) must be classed as caller errors, so the refusal
+  // publishes the schema back instead of surfacing as an undecorated failure.
+  const h = await harness(t);
+  await assert.rejects(
+    () => h.call({ source: SOURCE, outputs: [{ path: "assets/og.png", format: "png" }], destination: { kind: "theme", themeId: "no-such-theme" } }),
+    new RegExp(`Schema for '${IMAGE_TRANSFORM_TOOL_ID}'`),
+  );
+});
+
 test("a write without a destination, an unknown destination, and ico into the media library are refused", async (t) => {
   const h = await harness(t);
   await assert.rejects(() => h.call({ source: SOURCE, outputs: FAVICONS }), /destination/);

@@ -1,4 +1,4 @@
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 
 /**
  * @file Strings for the Visitor's AI Assistant inner tabs and the Visitor tools tab (2026-10-22), in
@@ -433,7 +433,11 @@ const ROWS: Record<string, readonly string[]> = {
 };
 
 export const VISITOR_TOOLS_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(ROWS).map(([locale, values]) => [locale, Object.fromEntries(KEYS.map((key, index) => [key, values[index]!]))]),
+  Object.entries(ROWS).map(([locale, values]) => [locale, Object.fromEntries(KEYS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`visitor tools dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  }))]),
 );
 export const VISITOR_TOOLS_KEYS: readonly string[] = KEYS;
 

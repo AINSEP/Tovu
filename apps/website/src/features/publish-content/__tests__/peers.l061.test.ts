@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createPublishContentPeer, updatePublishContentPeer, InMemoryPublishContentPeerRepo, PublishContentPeerDuplicateLabelError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerNotFoundError, VaultPublishContentPeerRepo, type PublishContentPeerWriteDeps } from "../peers.js";
@@ -16,18 +16,18 @@ function fixture(_required = {}, _options = {}) {
 
 test("L061 peer rename preserves credential bytes and defaults; rotation preserves metadata", async () => {
   const { deps, repo, input } = fixture();
-  const created = await createPublishContentPeer(deps, input);
+  const created = await createPublishContentPeer({ deps, input });
   const before = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(before);
   await repo.vault.put({ record: { ...before, meta: { ...before.meta, migration: { originalLabel: "preserved" } }, isDefault: true, revision: before.revision + 1 }, expectedRevision: before.revision });
-  await updatePublishContentPeer(deps, { workspaceId: "ws", id: created.id, label: "Renamed", baseUrl: "https://other.example", remoteWorkspaceId: "remote-2" });
+  await updatePublishContentPeer({ deps, input: { workspaceId: "ws", id: created.id, label: "Renamed", baseUrl: "https://other.example", remoteWorkspaceId: "remote-2" } });
   const renamed = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(renamed);
   assert.deepEqual(renamed.sealed, before.sealed);
   assert.equal(renamed.isDefault, true);
   assert.equal(renamed.createdAt, before.createdAt);
   assert.deepEqual(renamed.meta.migration, { originalLabel: "preserved" });
-  await updatePublishContentPeer(deps, { workspaceId: "ws", id: created.id, apiKey: ["replacement", "credential"].join("-") });
+  await updatePublishContentPeer({ deps, input: { workspaceId: "ws", id: created.id, apiKey: ["replacement", "credential"].join("-") } });
   const rotated = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(rotated);
   assert.deepEqual(rotated.meta.migration, { originalLabel: "preserved" });
@@ -36,10 +36,10 @@ test("L061 peer rename preserves credential bytes and defaults; rotation preserv
 
 test("L061 vault facade handles absent updates and nullable/short/legacy hints without decryption", async () => {
   const { deps, repo, input } = fixture();
-  const created = await createPublishContentPeer(deps, input);
+  const created = await createPublishContentPeer({ deps, input });
   const record = await repo.findById({ workspaceId: "ws", id: created.id });
   assert.ok(record);
-  await repo.update({ ...record, id: "absent" });
+  await repo.update({ record: { ...record, id: "absent" } });
   assert.equal(await repo.findById({ workspaceId: "ws", id: "absent" }), null);
   const vault = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(vault);
@@ -55,28 +55,28 @@ test("L061 vault facade handles absent updates and nullable/short/legacy hints w
   }
   const current = await repo.findById({ workspaceId: "ws", id: created.id });
   assert.ok(current);
-  await repo.update(current);
+  await repo.update({ record: current });
   assert.equal((await repo.vault.find({ workspaceId: "ws", id: created.id }))?.last4, null);
 });
 
 test("L061 create and rotation preserve duplicate-label and sanitized crypto error mapping", async () => {
   const { deps, input } = fixture();
-  const first = await createPublishContentPeer(deps, input);
-  const second = await createPublishContentPeer(deps, { ...input, label: "Second" });
-  await assert.rejects(createPublishContentPeer(deps, input), PublishContentPeerDuplicateLabelError);
-  for (const apiKey of [undefined, input.apiKey]) await assert.rejects(updatePublishContentPeer(deps, { workspaceId: "ws", id: second.id, label: "Live", apiKey }), PublishContentPeerDuplicateLabelError);
+  const first = await createPublishContentPeer({ deps, input });
+  const second = await createPublishContentPeer({ deps, input: { ...input, label: "Second" } });
+  await assert.rejects(createPublishContentPeer({ deps, input }), PublishContentPeerDuplicateLabelError);
+  for (const apiKey of [undefined, input.apiKey]) await assert.rejects(updatePublishContentPeer({ deps, input: { workspaceId: "ws", id: second.id, label: "Live", apiKey } }), PublishContentPeerDuplicateLabelError);
   for (const failure of [new Error("private driver detail"), new VaultError({ code: "conflict" }), new VaultError({ code: "context" })]) {
     const failing: PublishContentPeerWriteDeps = { ...deps, sealer: { ...deps.sealer, seal: async () => { throw failure; }, open: deps.sealer.open.bind(deps.sealer) } };
-    for (const work of [() => createPublishContentPeer(failing, { ...input, label: "Unused" }), () => updatePublishContentPeer(failing, { workspaceId: "ws", id: first.id, apiKey: input.apiKey })]) {
+    for (const work of [() => createPublishContentPeer({ deps: failing, input: { ...input, label: "Unused" } }), () => updatePublishContentPeer({ deps: failing, input: { workspaceId: "ws", id: first.id, apiKey: input.apiKey } })]) {
       await assert.rejects(work(), (err: unknown) => failure instanceof VaultError ? err === failure : err instanceof PublishContentPeerSecretStoreUnconfiguredError && !err.message.includes("private driver detail"));
     }
   }
-  await assert.rejects(updatePublishContentPeer(deps, { workspaceId: "ws", id: "absent" }), PublishContentPeerNotFoundError);
+  await assert.rejects(updatePublishContentPeer({ deps, input: { workspaceId: "ws", id: "absent" } }), PublishContentPeerNotFoundError);
 });
 
 test("L061 vault projection retains every context guard", async () => {
   const { deps, repo, input } = fixture();
-  const created = await createPublishContentPeer(deps, input);
+  const created = await createPublishContentPeer({ deps, input });
   const stored = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(stored);
   for (const patch of [{ kind: "other" }, { ownerKey: "other" }, { principalId: "other" }, { provider: "other" }, { binding: "other" }]) {
@@ -88,7 +88,7 @@ test("L061 vault projection retains every context guard", async () => {
 
 test("L061 facade rethrows write failures that are not label conflicts", async () => {
   const { deps, repo, input } = fixture();
-  const created = await createPublishContentPeer(deps, input);
+  const created = await createPublishContentPeer({ deps, input });
   const record = await repo.findById({ workspaceId: "ws", id: created.id });
   assert.ok(record);
   for (const failure of [new Error("driver failure"), new VaultError({ code: "context" }), new VaultError({ code: "conflict" })]) {
@@ -96,18 +96,18 @@ test("L061 facade rethrows write failures that are not label conflicts", async (
       find: repo.vault.find.bind(repo.vault), list: repo.vault.list.bind(repo.vault),
       put: async () => { throw failure; }, delete: repo.vault.delete.bind(repo.vault), patchMeta: repo.vault.patchMeta.bind(repo.vault),
     };
-    await assert.rejects(new VaultPublishContentPeerRepo({ vault }).update(record), (err: unknown) => err === failure);
+    await assert.rejects(new VaultPublishContentPeerRepo({ vault }).update({ record }), (err: unknown) => err === failure);
   }
 });
 
 test("L061 metadata update rethrows driver failures and rotation refuses a disappeared vault row", async () => {
   const { deps, repo, input } = fixture();
-  const created = await createPublishContentPeer(deps, input);
+  const created = await createPublishContentPeer({ deps, input });
   const failure = new Error("driver failure");
   const failingRepo = { vault: repo.vault, insert: repo.insert.bind(repo), update: async () => { throw failure; },
     findById: repo.findById.bind(repo), listByWorkspace: repo.listByWorkspace.bind(repo), delete: repo.delete.bind(repo) };
-  await assert.rejects(updatePublishContentPeer({ ...deps, repo: failingRepo }, { workspaceId: "ws", id: created.id }), (err: unknown) => err === failure);
+  await assert.rejects(updatePublishContentPeer({ deps: { ...deps, repo: failingRepo }, input: { workspaceId: "ws", id: created.id } }), (err: unknown) => err === failure);
   const missingVault: VaultRepoPort = { find: async () => null, list: repo.vault.list.bind(repo.vault), put: repo.vault.put.bind(repo.vault),
     delete: repo.vault.delete.bind(repo.vault), patchMeta: repo.vault.patchMeta.bind(repo.vault) };
-  await assert.rejects(updatePublishContentPeer({ ...deps, repo: { ...failingRepo, vault: missingVault } }, { workspaceId: "ws", id: created.id, apiKey: input.apiKey }), PublishContentPeerNotFoundError);
+  await assert.rejects(updatePublishContentPeer({ deps: { ...deps, repo: { ...failingRepo, vault: missingVault } }, input: { workspaceId: "ws", id: created.id, apiKey: input.apiKey } }), PublishContentPeerNotFoundError);
 });

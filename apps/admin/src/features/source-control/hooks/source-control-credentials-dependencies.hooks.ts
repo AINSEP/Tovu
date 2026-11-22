@@ -1,9 +1,5 @@
-import {
-  api,
-  type AdminSourceControlConnectionInput,
-  type AdminSourceControlCredentialsSnapshot,
-  type AdminSourceControlProvidersSnapshot,
-} from "@/lib/api";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialsSnapshot, AdminSourceControlProvidersSnapshot } from "@/features/source-control/api/source-control-api.types";
+import { sourceControlApi } from "@/features/source-control/api/source-control-api";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
 /**
@@ -23,13 +19,13 @@ import type { SourceControlCredentialsPort } from "./source-control-credentials-
 /** The live implementation, as a module-level singleton — matches
  *  `publish-credentials-dependencies.hooks.ts`'s `defaultPublishCredentialsPort`. */
 export const defaultSourceControlCredentialsPort: SourceControlCredentialsPort = {
-  listProviders: () => api.listSourceControlProviders(),
-  listCredentials: () => api.listSourceControlCredentials(),
+  listProviders: () => sourceControlApi.listSourceControlProviders(),
+  listCredentials: () => sourceControlApi.listSourceControlCredentials(),
   createCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    api.createSourceControlCredential(input).then((res) => res.credential),
-  updateCredential: (id: string, input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    api.updateSourceControlCredential(id, input).then((res) => res.credential),
-  deleteCredential: (id: string) => api.deleteSourceControlCredential(id),
+    sourceControlApi.createSourceControlCredential(input).then((res) => res.credential),
+  updateCredential: ({ id, input }, _optional = {}) =>
+    sourceControlApi.updateSourceControlCredential({ id, input }).then((res) => res.credential),
+  deleteCredential: ({ id }, _optional = {}) => sourceControlApi.deleteSourceControlCredential({ id }),
 };
 
 /** An in-memory {@link SourceControlCredentialsPort} for tests. Each of the four calls defaults to a

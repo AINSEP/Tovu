@@ -2,6 +2,7 @@ import { saveSubscription } from "#src/features/newsletter/subscriptions";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const VALID_SOURCES = new Set(["admin", "import", "api"]);
 
@@ -10,14 +11,11 @@ const VALID_SOURCES = new Set(["admin", "import", "api"]);
  * `admin.newsletter.subscriber.manage`-gated. `subscriberId` must resolve to an existing Members
  * principal (REQ-10); `source` defaults to `admin`.
  */
-export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.subscriberId !== "string") {
@@ -31,13 +29,7 @@ export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = (a
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.subscriber.manage",
-        "newsletter_subscription",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -50,9 +42,9 @@ export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = (a
           source: source as "admin" | "import" | "api",
         },
       });
-      res.status(201).json(toDataResponse(subscription));
+      res.status(201).json(toDataResponse({ data: subscription }));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

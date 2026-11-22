@@ -3,6 +3,7 @@ import test from "node:test";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { ChildProcess, Serializable } from "node:child_process";
+import { createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createDesktopAgentService, siteScopeKey } from "./desktop-agent-service.ts";
 
 class DaemonChild extends EventEmitter {
@@ -265,6 +266,43 @@ test("disconnect alone never authorizes a second live boot", async () => {
     old.child.exitCode = 1; old.child.emit("exit", 1, null);
     assert.ok(((await contender.register()).payload as { token?: string }).token);
   } finally { await h.service.shutdown({}, {}); }
+});
+
+test("native IPC preserves refusals and replacement endpoints and rejects an invalid registration", async t => {
+  const h = harness();
+  const old = serverBoot(h, "old");
+  const contender = serverBoot(h, "new");
+  const peer = Object.assign(new EventEmitter(), {
+    connected: true,
+    send(message: Serializable, callback: (error: Error | null) => void): boolean {
+      contender.child.emit("message", message); callback(null); return true;
+    },
+  });
+  t.mock.method(contender.child, "send", (message: Serializable, callback: (error: Error | null) => void) => {
+    peer.emit("message", message); callback(null); return true;
+  });
+  const channel = createNodeIpcChannel({ peer });
+  const payload = { operation: "register", siteId: "workspace-local", token: "new",
+    env: { TOVU_SITE_DIR: "/sites/story-squid", TOVU_SITE_LISTENER_ORIGIN: "http://127.0.0.1:3200" } };
+  try {
+    await old.register();
+    await assert.rejects(channel.request({ payload }, {}),
+      { message: "The assistant service still holds an older copy of this site. Restart the site or the app." },
+      "the real requester receives the explicit occupied-binding refusal");
+    old.child.exitCode = 1; old.child.emit("exit", 1, null);
+    const reply = await channel.request({ payload }, {});
+    assert.ok(typeof reply === "object" && reply !== null, "the replacement returns an endpoint object");
+    assert.ok("url" in reply && "pid" in reply && "token" in reply, "the reply preserves every endpoint field");
+    assert.equal(reply.url, `http://127.0.0.1:7700/s/${siteScopeKey({ siteDir: "/sites/story-squid" })}`,
+      "the requester receives the replacement's scoped URL");
+    assert.equal(typeof reply.pid, "number", "the requester receives a numeric daemon PID");
+    assert.equal(reply.pid, h.children[0]!.pid, "the returned PID belongs to the shared daemon");
+    assert.ok(typeof reply.token === "string" && reply.token.length > 0, "the requester receives the site's capability token");
+    const operations = h.children[0]!.messages.length;
+    await assert.rejects(channel.request({ payload: { operation: "register", token: "new", env: payload.env } }, {}),
+      /IPC request refused/, "the Desktop decoder refuses registration without a siteId");
+    assert.equal(h.children[0]!.messages.length, operations, "invalid registration adds no daemon operation");
+  } finally { channel.dispose({}); await h.service.shutdown({}, {}); }
 });
 
 test("a different directory under the same scope key remains refused, even after death", async () => {

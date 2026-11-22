@@ -1,4 +1,5 @@
-import { render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import userEvent from "@testing-library/user-event";
 import { useState, type ComponentProps, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -124,7 +125,7 @@ describe("AssistantDock Chat settings", () => {
     render(<AssistantDock useChats={fakeChats} />);
     await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toEqual({
       nativeToolAccess: true, cliParity: true, permissionMode: "bypass", nativeCapabilities: {
-        shell: true, fileWrite: true, userMcp: false, subagents: true,
+        shell: true, fileWrite: true, userMcp: true, subagents: true,
         userSettings: true, web: true, workflows: true, loginEnvironment: true,
       },
     }));
@@ -134,7 +135,7 @@ describe("AssistantDock Chat settings", () => {
     let stored: ChatDisplayPreferences = { toolCalls: "show", showUsageLine: true, showThinking: false };
     const port = {
       load: async () => ({ ...stored }),
-      save: async (next: ChatDisplayPreferences) => { stored = { ...next }; },
+      save: async ({ next }: { next: ChatDisplayPreferences }) => { stored = { ...next }; },
       subscribeToSettingsRefresh: () => () => {},
     };
     const useStoredDisplay = () => useStoredDisplayPreferences(port);
@@ -238,13 +239,13 @@ describe("AssistantDock Chat settings", () => {
     return modal;
   }
 
-  it("keeps personal MCP opt-in and the master OFF while other local-owner permissions default ON", async () => {
+  it("defaults every local-owner permission ON, personal MCP and the master included", async () => {
     const modal = await openPermissions(userEvent.setup());
-    // 4d39ba5232 requires an explicit grant for personal MCP, even with Full CLI enabled.
+    // Owner decision 2026-11-10 ("defaulted to yes") supersedes the 2026-10-23 explicit-grant rule for
+    // personal MCP; the master reads ON because every capability is ON (see assistantCliPermissions).
     await waitFor(() => expect(within(modal).getByRole("switch", { name: "Bash/shell" })).toBeEnabled());
-    expect(within(modal).getByRole("switch", { name: "Full CLI access" })).not.toBeChecked();
-    expect(within(modal).getByRole("switch", { name: "Your MCP servers" })).not.toBeChecked();
-    for (const name of ["Bash/shell", "File edit/write", "Subagents/Task", "Your skills and settings", "Web fetch/search", "Workflows", "Your shell environment"]) {
+    expect(within(modal).getByRole("switch", { name: "Full CLI access" })).toBeChecked();
+    for (const name of ["Your MCP servers", "Bash/shell", "File edit/write", "Subagents/Task", "Your skills and settings", "Web fetch/search", "Workflows", "Your shell environment"]) {
       expect(within(modal).getByRole("switch", { name })).toBeChecked();
     }
     for (const toggle of within(modal).getAllByRole("switch")) expect(toggle).toBeEnabled();

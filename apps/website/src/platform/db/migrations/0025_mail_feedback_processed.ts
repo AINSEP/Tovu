@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0025: `mail_feedback_inbox.processed_at`, the inbox's processing state.
@@ -20,11 +20,11 @@ export const MAIL_FEEDBACK_PROCESSED_STATEMENTS = [
   "ALTER TABLE mail_feedback_inbox ADD COLUMN processed_at text",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of MAIL_FEEDBACK_PROCESSED_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example mailFeedbackProcessed({ checksum: pinnedChecksum }) */
-export function mailFeedbackProcessed(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function mailFeedbackProcessed(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: MAIL_FEEDBACK_PROCESSED_ID, checksum: required.checksum, up };
 }

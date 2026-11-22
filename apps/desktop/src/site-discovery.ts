@@ -15,10 +15,10 @@ type DiscoveryWorker = Pick<Worker, 'once' | 'removeAllListeners' | 'terminate' 
  * @complexity O(1) orchestration beyond the supplied discovery/sweep operations.
  */
 export async function startDesktopSiteDiscovery({ scan, sweep, report }: {
-  scan: () => Promise<unknown>; sweep: () => void; report: (failure: unknown) => void;
+  scan: () => Promise<unknown>; sweep: () => void; report: (required: { failure: unknown }) => void;
 }, _options = {}): Promise<void> {
   try { await scan(); }
-  catch (failure) { report(failure); }
+  catch (failure) { report({ failure }); }
   sweep();
 }
 
@@ -34,7 +34,7 @@ export function discoverDesktopSites(input: DesktopDiscoveryInput, {
   return new Promise((resolve, reject) => {
     const worker = createWorker();
     let settled = false;
-    const finish = (error?: Error, found: string[] = []): void => {
+    const finish = (_required: {}, { error, found = [] }: { error?: Error; found?: string[] } = {}): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
@@ -46,14 +46,14 @@ export function discoverDesktopSites(input: DesktopDiscoveryInput, {
       if (error) reject(error);
       else resolve(found);
     };
-    const cancel = () => finish(new Error('Sites discovery was cancelled.'));
-    const timer = setTimeout(() => finish(new Error('Sites discovery timed out. Disconnect unavailable volumes or choose smaller sites folders and try again.')), timeoutMs);
+    const cancel = () => finish({}, { error: new Error('Sites discovery was cancelled.') });
+    const timer = setTimeout(() => finish({}, { error: new Error('Sites discovery timed out. Disconnect unavailable volumes or choose smaller sites folders and try again.') }), timeoutMs);
     signal?.addEventListener('abort', cancel, { once: true });
     worker.once('message', (result: { found?: string[]; error?: string }) => {
-      if (result.error) finish(new Error(result.error));
-      else finish(undefined, result.found ?? []);
+      if (result.error) finish({}, { error: new Error(result.error) });
+      else finish({}, { found: result.found ?? [] });
     });
-    worker.once('error', (error: Error) => finish(error));
-    worker.once('exit', () => finish(new Error('Sites discovery worker exited before returning websites.')));
+    worker.once('error', (error: Error) => finish({}, { error }));
+    worker.once('exit', () => finish({}, { error: new Error('Sites discovery worker exited before returning websites.') }));
   });
 }

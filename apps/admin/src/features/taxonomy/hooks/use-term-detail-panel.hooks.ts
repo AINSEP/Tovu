@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { describeApiError, type AdminTerm } from "@/lib/api";
+import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
@@ -72,17 +73,18 @@ export function useTermDetailPanel(
   // already reset it.
   const activeTermIdRef = useRef(term.id);
   activeTermIdRef.current = term.id;
+  const resetRename = renameMutation.reset;
 
   // `renameMutation` intentionally excluded — same deps as the pre-migration effect
   // ([term.id, term.name]); including the mutation object would re-run this on every status change.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `renameMutation` intentionally excluded — including it would re-run this on every status change.
   useEffect(() => {
+    if (activeTermIdRef.current !== term.id) return;
     setNewName(term.name);
     setMessage(null);
     setError(null);
     setSaving(false);
-    renameMutation.reset();
-  }, [term.id, term.name]);
+    resetRename();
+  }, [term.id, term.name, resetRename]);
 
   async function rename(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +100,7 @@ export function useTermDetailPanel(
       onRenamed();
     } catch (err) {
       if (activeTermIdRef.current !== renamingForTermId) return;
-      setError(describeApiError(err, t({ locale: locale, key: "Failed to rename term" })));
+      setError(describeApiError({ e: err, fallback: t({ locale: locale, key: "Failed to rename term" }) }));
     } finally {
       if (activeTermIdRef.current === renamingForTermId) setSaving(false);
     }

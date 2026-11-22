@@ -1,0 +1,8 @@
+
+> tovu@0.1.0 check:errors
+> node development/scripts/check-error-gate.mjs
+
+New: [failure-text-from-catalog] apps/website/src/assistant/subagent-settings.ts (1)
+93 entries improved or are gone: run with --update to lower the debt list.
+Error gate (WARN mode): 1 new or worse entries. Not failing the build yet; fix them or use a named idiom.
+EXIT 0

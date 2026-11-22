@@ -14,11 +14,11 @@ import {
 } from "@jini-ai/cms/media";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 
-import { renderDocNode } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap.js";
 
 /**
- * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/deps.ts` chains
+ * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/runtime/composition/deps.ts` chains
  * into its `Ready` sequence. The property under test is entirely about idempotency: this is the
  * ONE guard standing between a normal `tsx watch` restart and a `transform_registry` that grows a
  * new "public" version on every file save (see `bootstrap.ts`'s own file header for the disclosed
@@ -50,8 +50,7 @@ test("ensureCoreMediaTransform: on an empty registry, registers a new 'public' d
   const rows = await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: CORE_PUBLIC_TRANSFORM_NAME });
   assert.equal(rows.length, 1, "exactly one row minted on first call");
   const registered = await deps.transformRepo.listByName({ workspaceId: WORKSPACE_ID, name: "public" });
-  const html = renderDocNode({ type: "image", attrs: { assetId: "boot-asset", transformName: "public", alt: "Boot embed" } }, undefined,
-    new Map(registered.map((row) => [row.name, row.version])));
+  const html = renderDocNode({ node: { type: "image", attrs: { assetId: "boot-asset", transformName: "public", alt: "Boot embed" } } }, { mediaTransformVersions: new Map(registered.map((row) => [row.name, row.version])) });
   assert.match(html, /<img src="\/m\/boot-asset\/public\.v1\/image\.jpg"/);
   assert.doesNotMatch(html, /media-ph/);
 });

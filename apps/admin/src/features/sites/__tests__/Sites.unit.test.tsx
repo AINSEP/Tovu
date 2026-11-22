@@ -1,11 +1,11 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Sites } from "../Sites";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import type { SitesController } from "../hooks/use-sites.hooks";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file `Sites` — driven entirely through the `useSitesHook` DI seam, so no `FetchQueryProvider` or
@@ -615,4 +615,10 @@ describe("Sites — local management states", () => {
       vi.unstubAllGlobals();
     }
   });
+});
+
+it("hands the created-site return to the injected useReturnToSiteListOnCreateHook", () => {
+  const useReturnToSiteListOnCreateHook = vi.fn();
+  render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controllerFixture()} useReturnToSiteListOnCreateHook={useReturnToSiteListOnCreateHook} />);
+  expect(useReturnToSiteListOnCreateHook).toHaveBeenCalledWith(expect.objectContaining({ returnToList: expect.any(Function) }));
 });

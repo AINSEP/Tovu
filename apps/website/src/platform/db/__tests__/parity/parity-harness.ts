@@ -1,13 +1,13 @@
 import { exampleRegistry } from "#src/features/source-control/__tests__/fixtures/example-provider";
 import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
 import { runMigrations } from "../../migrations/runner.js";
@@ -30,8 +30,9 @@ import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/
  * @file Query-parity harness (DBMERGE-PLAN §2b/§2d). The pre-vault stores and repos are gone from
  * the tree, so ONE scripted transcript runs against either code generation: `loadParityModules`
  * imports the same stores and repos from a source root (the working tree, or a `git archive` of
- * the last pre-vault commit for the one-time golden capture). Store and repo names and signatures
- * did not change across 0012, which is what makes a single transcript possible. Repo paths moved
+ * the last pre-vault commit for the one-time golden capture). Store and repo names stayed stable
+ * across 0012. The archived credential resolvers are adapted to the current argument shape
+ * below so the same transcript still covers both versions. Repo paths moved
  * to their domains in 2a0c60acb; the archived pre-vault source retains platform/db/repos. Sealed bytes
  * legitimately change (0012 copies, the boot re-seal rewrites), so the transcript records the
  * consumer projection: views, decrypted plaintext, hints, order, and error classes.
@@ -49,13 +50,27 @@ export const GOLDEN_PATH = join(import.meta.dirname, "__fixtures__/vault-parity.
 export async function loadParityModules(root: string): Promise<ParityModules> {
   const load = (path: string) => import(pathToFileURL(join(root, path)).href);
   const loadRepo = (relative: string) => load(root === CURRENT_SRC ? relative : `platform/db/repos/${basename(relative)}`);
+  const site = await load("assistant/site-credential-store.ts");
+  const exec = await load("assistant/execution-credential-store.ts");
+  const peers = await load("features/publish-content/peers.ts");
   return {
     current: root === CURRENT_SRC,
-    site: await load("assistant/site-credential-store.ts"),
-    exec: await load("assistant/execution-credential-store.ts"),
+    site: root === CURRENT_SRC ? site : {
+      ...site,
+      resolveSiteAssistantApiKey: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}) =>
+        // The old snapshot's callback is positional; adapt it to the object-shaped callback.
+        site.resolveSiteAssistantApiKey(deps, input, onDecryptFailure && ((error: unknown) => onDecryptFailure({ error }))),
+    },
+    exec: root === CURRENT_SRC ? exec : {
+      ...exec,
+      resolveExecutionCredential: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}) =>
+        exec.resolveExecutionCredential(deps, input, onDecryptFailure && ((error: unknown) => onDecryptFailure({ error }))),
+    },
     media: await load("features/media/provider-credential-store.ts"),
     custom: await load("features/custom-credentials/store.ts"),
-    peers: await load("features/publish-content/peers.ts"),
+    peers: root === CURRENT_SRC ? peers : Object.fromEntries(Object.entries(peers).map(([name, fn]) =>
+      // The archived peer store is positional (deps, input); adapt it to the current { deps, input } shape.
+      [name, typeof fn === "function" ? ({ deps, input }: Loose) => fn(deps, input) : fn])),
     destination: await load("features/database-transfer/destination-store.ts"),
     destinationRepo: await load("features/database-transfer/destination-repo.ts"),
     source: await load("features/source-control/store.ts"),
@@ -71,7 +86,7 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     mcpRepo: await loadRepo("features/external-mcp/external-mcp-repo.ts"),
     userPurge: await load("features/identity/user-purge.ts"),
     tableCatalog: await load("features/database-transfer/table-catalog.ts"),
-    snapshotSource: await load("features/database-transfer/sqlite-source.ts"),
+    snapshotSource: root === CURRENT_SRC ? await import("@jini-ai/db/transfer") : await load("features/database-transfer/sqlite-source.ts"),
     exclusions: await load("features/database-transfer/exclusions.ts"),
     keyDependent: await load("platform/db/key-dependent-data.ts"),
   };
@@ -91,7 +106,7 @@ export const parityDeployTargets = {
 };
 
 export interface ParityContext {
-  kernel: StorageKernel<unknown>;
+  kernel: KyselyKernel<unknown>;
   keyring: InMemoryKeyring;
   sealer: AesGcmSecretSealer;
 }
@@ -114,11 +129,11 @@ export const parityVaultKinds = createTovuVaultKinds({ policy: {
 /** The legacy fixture plus parity rows, upgraded the way a live site is: the REAL pinned 0012 step
  * through the runner, then the boot re-seal for every workspace (clock = the seed stamp, so a
  * re-seal does not move `updatedAt`). Close `kernel` when done. */
-export async function migratedParityFixture(dialect: ParityDialect, options: { kernel?: StorageKernel<unknown> } = {}) {
+export async function migratedParityFixture(dialect: ParityDialect, options: { kernel?: KyselyKernel<unknown> } = {}) {
   const fixture = await vaultFixture(dialect, options);
   try {
     await seedParityRows(fixture, dialect);
-    await runMigrations(fixture.kernel, CONTENT_MIGRATIONS);
+    await runMigrations({ kernel: fixture.kernel, steps: CONTENT_MIGRATIONS });
     for (const workspaceId of PARITY_WORKSPACES) {
       const report = await normalizeVaultAtBoot({ ...fixture, workspaceId, siteId: `parity-${dialect}-${workspaceId}`,
         clock: { nowMs: () => Date.parse(stamp) }, registry: parityVaultKinds });
@@ -185,9 +200,9 @@ export interface RecordedStatement { kind: string; sql: string; parameters: read
 
 /** `kernel` recording every statement it executes (compiled SQL + parameters), for the hot-path
  * query counts and plans. Repos built over the wrapper go through it for every call. */
-export function countingKernel<DB>(kernel: StorageKernel<DB>): { kernel: StorageKernel<DB>; statements: RecordedStatement[] } {
+export function countingKernel<DB>(kernel: KyselyKernel<DB>): { kernel: KyselyKernel<DB>; statements: RecordedStatement[] } {
   const statements: RecordedStatement[] = [];
-  const wrapped: StorageKernel<DB> = {
+  const wrapped: KyselyKernel<DB> = {
     ...kernel,
     run: fn => kernel.run(db => {
       const plugin: KyselyPlugin = {
@@ -210,7 +225,7 @@ export function countingKernel<DB>(kernel: StorageKernel<DB>): { kernel: Storage
 /** The plan of one recorded statement, flattened to text: SQLite `EXPLAIN QUERY PLAN`, Postgres
  * `EXPLAIN (FORMAT JSON)` with sequential scans disabled so a usable index is always preferred
  * (tiny fixture tables would otherwise be scanned regardless of the indexes). */
-export async function explainPlan(kernel: StorageKernel<unknown>, statement: RecordedStatement): Promise<string> {
+export async function explainPlan(kernel: KyselyKernel<unknown>, statement: RecordedStatement): Promise<string> {
   if (kernel.dialect === "sqlite") {
     const parameters = statement.parameters.map(value => typeof value === "boolean" ? Number(value) : value);
     const rows = await kernel.run(db => db.executeQuery(CompiledQuery.raw(`EXPLAIN QUERY PLAN ${statement.sql}`, parameters)));
@@ -245,7 +260,7 @@ export function assertPostgresVaultPlanIndexed(plan: string, message: string): v
  * migrated SQL rows. External MCP server rows live outside the vault, so `mcp` stays on SQL. */
 export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext): Promise<ParityDeps> {
   const vault = new InMemoryVaultRepo({});
-  const sqlVault = new SqlSecretsVaultRepo({ kernel: ctx.kernel as StorageKernel<SecretsVaultDatabase> });
+  const sqlVault = new SqlSecretsVaultRepo({ kernel: ctx.kernel as KyselyKernel<SecretsVaultDatabase> });
   for (const { workspace_id: workspaceId, id } of await ctx.kernel.query<{ workspace_id: string; id: string }>(sql`SELECT workspace_id, id FROM secrets_vault ORDER BY id`)) {
     const record = await sqlVault.find({ workspaceId, id });
     // A fresh insert must be revision 1; the boot re-seal already moved the SQL rows to 2.
@@ -283,7 +298,7 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
   for (const workspaceId of ["ws", "ws2", "ws-empty"]) {
     const at = (name: string) => `${name}@${workspaceId}`;
     t[at("site.get")] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId }));
-    t[at("site.resolve")] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId }));
+    t[at("site.resolve")] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId } }));
     t[at("media.get")] = await outcome(() => mods.media.getMediaProviderCredentials(d.media, { workspaceId }));
     for (const providerId of ["media-test", "openai"]) {
       t[at(`media.resolve.${providerId}`)] = await outcome(() => mods.media.resolveMediaProviderCredential(d.media, { workspaceId, providerId }));
@@ -292,9 +307,9 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
     for (const label of ["Custom", "AI keys"]) {
       t[at(`custom.resolve.${label}`)] = await outcome(() => mods.custom.resolveCustomCredentialByLabel(d.custom, { workspaceId, label }));
     }
-    t[at("peer.list")] = await outcome(() => mods.peers.listPublishContentPeers(d.peer, { workspaceId }));
+    t[at("peer.list")] = await outcome(() => mods.peers.listPublishContentPeers({ deps: d.peer, input: { workspaceId } }));
     for (const id of ["peer", "peer-empty", "peer-ws2"]) {
-      t[at(`peer.resolve.${id}`)] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId, id }));
+      t[at(`peer.resolve.${id}`)] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId, id } }));
     }
     t[at("destination.get")] = await outcome(() => d.destination.get(workspaceId));
     t[at("destination.lastRun")] = await outcome(() => d.destination.lastRun(workspaceId));
@@ -305,13 +320,13 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
     }
     t[at("source.list")] = await outcome(() => mods.source.listSourceControlCredentials(d.source, { workspaceId }));
     t[at("source.resolveDefault.github")] = await outcome(() => mods.source.resolveDefaultForSourceControl(d.source, { workspaceId, providerId: "github" }));
-    t[at("mcp.list")] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, workspaceId));
-    t[at("mcp.enabled")] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs(d.mcp, workspaceId));
+    t[at("mcp.list")] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId }));
+    t[at("mcp.enabled")] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs({ deps: d.mcp, workspaceId }));
   }
   for (const [workspaceId, principalId] of [["ws", "p"], ["ws", "p2"], ["ws2", "q"], ["ws2", "p"]]) {
     const at = (name: string) => `${name}@${workspaceId}/${principalId}`;
     t[at("exec.get")] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId, principalId }));
-    t[at("exec.resolve")] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId, principalId }));
+    t[at("exec.resolve")] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId, principalId } }));
   }
   return t;
 }
@@ -378,21 +393,21 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["custom.9.list"] = await outcome(() => mods.custom.listCustomCredentials(d.custom, { workspaceId: ws }));
   }
   if (run("peer")) {
-    const created = await outcome(() => mods.peers.createPublishContentPeer(d.peer, { workspaceId: ws, label: "New peer",
-      baseUrl: "https://new-peer.example.test", remoteWorkspaceId: "remote-new", apiKey: "new-peer-key-1234567890" }));
+    const created = await outcome(() => mods.peers.createPublishContentPeer({ deps: d.peer, input: { workspaceId: ws, label: "New peer",
+      baseUrl: "https://new-peer.example.test", remoteWorkspaceId: "remote-new", apiKey: "new-peer-key-1234567890" } }));
     t["peer.1.create"] = created;
     const id = "ok" in created ? (created.ok as { id: string }).id : "missing";
-    t["peer.2.rename-keeps-key"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id, label: "Renamed peer" }));
-    t["peer.3.resolve"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.4.rekey"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id, apiKey: "rekeyed-peer-key-1234567890" }));
-    t["peer.5.resolve"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.6.key-the-keyless"] = await outcome(() => mods.peers.updatePublishContentPeer(d.peer, { workspaceId: ws, id: "peer-empty", apiKey: "late-key-1234567890" }));
-    t["peer.7.resolve-keyless"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id: "peer-empty" }));
-    t["peer.8.duplicate-label"] = await outcome(() => mods.peers.createPublishContentPeer(d.peer, { workspaceId: ws, label: "Peer",
-      baseUrl: "https://dup.example.test", remoteWorkspaceId: "dup", apiKey: "dup-key-1234567890" }));
-    t["peer.9.delete"] = await outcome(() => mods.peers.deletePublishContentPeer(d.peer, { workspaceId: ws, id }));
-    t["peer.10.resolve-deleted"] = await outcome(() => mods.peers.resolvePeerCredential(d.peer, { workspaceId: ws, id }));
-    t["peer.11.list"] = await outcome(() => mods.peers.listPublishContentPeers(d.peer, { workspaceId: ws }));
+    t["peer.2.rename-keeps-key"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id, label: "Renamed peer" } }));
+    t["peer.3.resolve"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.4.rekey"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id, apiKey: "rekeyed-peer-key-1234567890" } }));
+    t["peer.5.resolve"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.6.key-the-keyless"] = await outcome(() => mods.peers.updatePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id: "peer-empty", apiKey: "late-key-1234567890" } }));
+    t["peer.7.resolve-keyless"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id: "peer-empty" } }));
+    t["peer.8.duplicate-label"] = await outcome(() => mods.peers.createPublishContentPeer({ deps: d.peer, input: { workspaceId: ws, label: "Peer",
+      baseUrl: "https://dup.example.test", remoteWorkspaceId: "dup", apiKey: "dup-key-1234567890" } }));
+    t["peer.9.delete"] = await outcome(() => mods.peers.deletePublishContentPeer({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.10.resolve-deleted"] = await outcome(() => mods.peers.resolvePeerCredential({ deps: d.peer, input: { workspaceId: ws, id } }));
+    t["peer.11.list"] = await outcome(() => mods.peers.listPublishContentPeers({ deps: d.peer, input: { workspaceId: ws } }));
   }
   if (run("media")) {
     t["media.1.save"] = await outcome(() => mods.media.saveMediaProviderCredentials(d.media, { workspaceId: ws, providers: {
@@ -421,7 +436,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     const base = { workspaceId: ws, transport: "stdio", enabled: true, command: "mcp-new", args: "", allowedToolNames: "", writeAllowedToolNames: "" };
     t["mcp.1.save-env"] = await outcome(() => mods.mcp.saveExternalMcpServer(d.mcp, { ...base, serverId: "new-env", label: "New env", authMode: "static_env", env: "A=one" }));
     t["mcp.2.save-keeps-env"] = await outcome(() => mods.mcp.saveExternalMcpServer(d.mcp, { ...base, serverId: "new-env", label: "Renamed env", authMode: "static_env" }));
-    t["mcp.3.enabled"] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs(d.mcp, ws));
+    t["mcp.3.enabled"] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs({ deps: d.mcp, workspaceId: ws }));
     const lease = { workspaceId: ws, serverId: "server", nowIso: stamp, leaseUntil: "2026-10-11T12:05:00.000Z" };
     t["mcp.4.claim"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
     t["mcp.5.claim-again"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
@@ -429,18 +444,18 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["mcp.7.claim-after-release"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
     t["mcp.8.delete"] = await outcome(() => mods.mcp.deleteExternalMcpServer(d.mcp, { workspaceId: ws, serverId: "server" }));
     t["mcp.9.delete-again"] = await outcome(() => mods.mcp.deleteExternalMcpServer(d.mcp, { workspaceId: ws, serverId: "server" }));
-    t["mcp.10.list"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, ws));
+    t["mcp.10.list"] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: ws }));
   }
   if (run("assistant")) {
     t["assistant.1.site-set"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", apiKey: "ws2-new-site-key-1234567890" }));
-    t["assistant.2.site-resolve"] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws2" }));
+    t["assistant.2.site-resolve"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws2" } }));
     t["assistant.3.site-metadata-only"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", model: "ws2-next" }));
-    t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
+    t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential({ deps: d.site, workspaceId: "ws2" }));
     t["assistant.5.site-get"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
     t["assistant.6.exec-set"] = await outcome(() => mods.exec.setExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2", model: "next-model" }));
-    t["assistant.7.exec-resolve"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2" }));
-    t["assistant.8.exec-delete"] = await outcome(() => mods.exec.deleteExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2" }));
-    t["assistant.9.exec-other-untouched"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: ws, principalId: "p" }));
+    t["assistant.7.exec-resolve"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p2" } }));
+    t["assistant.8.exec-delete"] = await outcome(() => mods.exec.deleteExecutionCredential({ deps: d.exec, workspaceId: ws, principalId: "p2" }));
+    t["assistant.9.exec-other-untouched"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p" } }));
   }
   return t;
 }
@@ -448,7 +463,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
 /** The transfer and key-probe boundary (§2d `vault-boundary-parity`), SQLite only: the snapshot
  * plan needs a serialized SQLite file. Table lists are sorted; the plan's own order has its tests. */
 export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext): Promise<Record<string, unknown>> {
-  const bytes = sqliteConnectionOf(ctx.kernel)!.serialize();
+  const bytes = sqliteConnectionOf({ kernel: ctx.kernel })!.serialize();
   const source = mods.current
     ? mods.snapshotSource.openSqliteSnapshotSource({ bytes, open: (data: Buffer) => openSqliteSnapshot({ data }) })
     : mods.snapshotSource.openSqliteSnapshotSource(bytes);
@@ -461,7 +476,7 @@ export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext
       leftOut: plan.leftOut.map((entry: { table: string }) => entry.table).sort(),
       excluded: Object.keys(mods.exclusions.EXCLUDED_CORE_TABLES).sort(),
       partiallyExcluded: Object.keys(mods.exclusions.PARTIALLY_EXCLUDED_TABLES).sort(),
-      keyDependent: await mods.keyDependent.hasKeyDependentData(ctx.kernel),
+      keyDependent: await mods.keyDependent.hasKeyDependentData(mods.current ? { kernel: ctx.kernel } : ctx.kernel),
     };
   } finally { source.close(); }
 }
@@ -478,14 +493,14 @@ export async function cascadeTranscript(mods: ParityModules, ctx: ParityContext)
   const t: Transcript = {};
   const purge = new mods.userPurge.SqlUserPurge(mods.current ? { kernel: ctx.kernel, eventValues: outboxEventValues } : ctx.kernel);
   t["purge.1.user-p2"] = await outcome(() => purge.purgeUser({ workspaceId: "ws", principalId: "p2",
-    buildEvent: (removed: unknown) => ({ id: "purge-event", name: "identity.user.deleted", occurredAt: stamp, aggregateId: "p2",
-      workspaceId: "ws", actorId: "parity", payload: { principalId: "p2", removed } }) }));
-  t["purge.2.p2-key"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p2" }));
-  t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
+    buildEvent: (input: unknown) => ({ id: "purge-event", name: "identity.user.deleted", occurredAt: stamp, aggregateId: "p2",
+      workspaceId: "ws", actorId: "parity", payload: { principalId: "p2", removed: mods.current ? (input as { removed: unknown }).removed : input } }) }));
+  t["purge.2.p2-key"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p2" } }));
+  t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p" } }));
   t["principal.1.delete-p"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM principals WHERE id = 'p'`));
   t["principal.2.p-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
-  t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
-  t["principal.4.site-kept"] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws" }));
+  t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
+  t["principal.4.site-kept"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws" } }));
   t["workspace.1.delete-ws2"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM workspaces WHERE id = 'ws2'`));
   t["workspace.2.site"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
   t["workspace.3.q-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws2", principalId: "q" }));

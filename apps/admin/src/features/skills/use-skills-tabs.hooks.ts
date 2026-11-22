@@ -1,7 +1,8 @@
 import { useCallback } from "react";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate, useRouteLocation } from "../../lib/router";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const SKILLS_TAB_IDS = ["skills", "add"] as const;
 
 /** URL-backed tabs using the sibling pages' `?tab=` and replacement navigation. */
@@ -11,7 +12,7 @@ export function useSkillsTabs() {
   const activeTabId = resolveActiveTabId({ tabId: requestedTab, validIds: SKILLS_TAB_IDS, defaultId: "skills" });
   const onTabChange = useCallback((tabId: string) => {
     const nextTab = resolveActiveTabId({ tabId: tabId, validIds: SKILLS_TAB_IDS, defaultId: "skills" });
-    navigate(`/addons/skills?tab=${nextTab}`, { replace: true });
+    navigate({ routePath: `/addons/skills?tab=${nextTab}` }, { replace: true });
   }, []);
   const onShowSkills = useCallback(() => onTabChange("skills"), [onTabChange]);
   const onShowAdd = useCallback(() => onTabChange("add"), [onTabChange]);

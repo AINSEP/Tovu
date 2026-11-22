@@ -1,8 +1,9 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * `ChatTransport` over Electron IPC — the renderer half of the fleet chat.
  *
  * The port is written for a streaming transport, and Electron's `invoke` is not one. The shape that
- * closes the gap is documented on the main-process side (`main/workspace-chat-ipc.ts`); what matters
+ * closes the gap is documented on the main-process side (`apps/desktop/src/workspace-chat-ipc.ts`); what matters
  * here is the consequence: every run's events arrive on ONE shared push channel, tagged with a
  * subscription id this module minted. So this module owns a demultiplexer — one channel listener,
  * installed once, fanning out to per-subscription records — rather than a listener per run. A
@@ -82,7 +83,7 @@ function mintSubscriptionId(): string {
 }
 
 /** `@jini-ai/protocol` spells it `cancelled`; `@jini-ai/chat` spells it `canceled`. One L, one place. */
-function toChatRunStatus(state: WorkspaceChatRunState): ChatRunStatus {
+function toChatRunStatus({ state }: { state: WorkspaceChatRunState }, _options: Record<string, never> = {}): ChatRunStatus {
   switch (state) {
     case 'queued':
     case 'starting':
@@ -107,19 +108,19 @@ function isMediaBlock(value: unknown): value is ToolResultMediaBlock {
   return block.type === 'image' && typeof block.mimeType === 'string' && typeof block.data === 'string';
 }
 
-function mediaBlocks(media: unknown): readonly ToolResultMediaBlock[] {
+function mediaBlocks({ media }: { media: unknown }, _options: Record<string, never> = {}): readonly ToolResultMediaBlock[] {
   return Array.isArray(media) ? media.filter(isMediaBlock) : [];
 }
 
-function translateStatus(payload: Extract<RunAgentPayload, { type: 'status' }>): AgentEvent | null {
+function translateStatus({ payload }: { payload: Extract<RunAgentPayload, { type: 'status' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'status', label: payload.label, ...(payload.detail === undefined ? {} : { detail: payload.detail }) };
 }
 
-function translateTextDelta(payload: Extract<RunAgentPayload, { type: 'text_delta' }>): AgentEvent | null {
+function translateTextDelta({ payload }: { payload: Extract<RunAgentPayload, { type: 'text_delta' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'text', text: payload.delta };
 }
 
-function translateThinkingDelta(payload: Extract<RunAgentPayload, { type: 'thinking_delta' }>): AgentEvent | null {
+function translateThinkingDelta({ payload }: { payload: Extract<RunAgentPayload, { type: 'thinking_delta' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'thinking', text: payload.delta };
 }
 
@@ -135,8 +136,10 @@ function translateThinkingStart(): AgentEvent | null {
  * and it carries the real verb name rather than the client's MCP alias — so the agent's mirror is
  * dropped here, along with the `tool_result` that will follow it.
  */
-function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }>, record: SubscriptionRecord): AgentEvent | null {
-  if (desktopVerbForAgentToolName(payload.name) !== undefined) {
+function translateToolUse(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_use' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
+  if (desktopVerbForAgentToolName({ agentToolName: payload.name }) !== undefined) {
     record.mirroredToolUseIds.add(payload.id);
     return null;
   }
@@ -146,14 +149,18 @@ function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }
 }
 
 /** An ephemeral live preview the port routes through its own handler rather than the persisted event list. */
-function translateToolInputDelta(payload: Extract<RunAgentPayload, { type: 'tool_input_delta' }>, record: SubscriptionRecord): AgentEvent | null {
+function translateToolInputDelta(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_input_delta' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
   record.handlers.onToolInputDelta?.(payload.id, payload.name, payload.delta);
   return null;
 }
 
-function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_result' }>, record: SubscriptionRecord): AgentEvent | null {
+function translateToolResult(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_result' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
   if (record.mirroredToolUseIds.has(payload.toolUseId)) return null;
-  const blocks = mediaBlocks(payload.media);
+  const blocks = mediaBlocks({ media: payload.media });
   return {
     kind: 'tool_result',
     toolUseId: payload.toolUseId,
@@ -167,15 +174,15 @@ function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_res
 }
 
 // Share the usage owner with web chat, including cumulative/session cost guards.
-function translateUsage(payload: Extract<RunAgentPayload, { type: 'usage' }>): AgentEvent | null {
+function translateUsage({ payload }: { payload: Extract<RunAgentPayload, { type: 'usage' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return parseUsageEvent({ payload: { ...payload } });
 }
 
-function translateRaw(payload: Extract<RunAgentPayload, { type: 'raw' }>): AgentEvent | null {
+function translateRaw({ payload }: { payload: Extract<RunAgentPayload, { type: 'raw' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'raw', line: payload.line };
 }
 
-type PayloadTranslator = (payload: RunAgentPayload, record: SubscriptionRecord) => AgentEvent | null;
+type PayloadTranslator = (input: { payload: RunAgentPayload; record: SubscriptionRecord }) => AgentEvent | null;
 
 /**
  * One entry per named wire variant, keyed by `payload.type`. Anything not listed here — `stage_*`,
@@ -201,7 +208,7 @@ const payloadTranslators: Record<string, PayloadTranslator> = {
  * rather than a switch over ten variants — each variant's own logic lives in its own named
  * `translate*` function above, independently readable and independently low-complexity.
  */
-function translateAgentPayload(payload: RunAgentPayload, record: SubscriptionRecord): AgentEvent | null {
+function translateAgentPayload({ payload, record }: { payload: RunAgentPayload; record: SubscriptionRecord }, _options: Record<string, never> = {}): AgentEvent | null {
   const translator = payloadTranslators[payload.type];
   if (translator === undefined) {
     // Every remaining variant is host-specific scaffolding no producer in this app emits. Carried
@@ -209,7 +216,7 @@ function translateAgentPayload(payload: RunAgentPayload, record: SubscriptionRec
     // transcript instead of vanishing.
     return { kind: 'ext', name: payload.type, data: payload };
   }
-  return translator(payload, record);
+  return translator({ payload, record });
 }
 
 function settle(record: SubscriptionRecord): void {
@@ -224,42 +231,42 @@ function settle(record: SubscriptionRecord): void {
  *  every token twice. */
 const NOOP_RUN_EVENT_KINDS = new Set<RunProtocolEvent['kind']>(['start', 'stdout', 'stderr']);
 
-function applyAgentEvent(record: SubscriptionRecord, payload: RunAgentPayload): void {
-  const translated = translateAgentPayload(payload, record);
+function applyAgentEvent({ record, payload }: { record: SubscriptionRecord; payload: RunAgentPayload }, _options: Record<string, never> = {}): void {
+  const translated = translateAgentPayload({ payload, record });
   if (translated === null) return;
   record.events.push(translated);
   record.handlers.onEvent(translated);
 }
 
-function applyRunEndEvent(record: SubscriptionRecord, event: Extract<RunProtocolEvent, { kind: 'end' }>): void {
+function applyRunEndEvent({ record, event }: { record: SubscriptionRecord; event: Extract<RunProtocolEvent, { kind: 'end' }> }, _options: Record<string, never> = {}): void {
   // A failed run that never emitted an `error` event still has to surface as an error, or the pane
   // shows a turn that simply stopped mid-sentence with no explanation.
   const failedSilently = event.payload.status === 'failed' && !record.errored;
   if (failedSilently) {
     record.errored = true;
-    record.handlers.onError(new Error(exitDescription(event.payload.code, event.payload.signal ?? null)));
+    record.handlers.onError(new Error(exitDescription({ code: event.payload.code, signal: event.payload.signal ?? null })));
   }
   settle(record);
 }
 
-function applyRunEvent(record: SubscriptionRecord, event: RunProtocolEvent): void {
+function applyRunEvent({ record, event }: { record: SubscriptionRecord; event: RunProtocolEvent }, _options: Record<string, never> = {}): void {
   if (record.settled) return;
   if (NOOP_RUN_EVENT_KINDS.has(event.kind)) return;
   switch (event.kind) {
     case 'agent':
-      applyAgentEvent(record, event.payload);
+      applyAgentEvent({ record, payload: event.payload });
       return;
     case 'error':
       record.errored = true;
       record.handlers.onError(new Error(event.payload.message));
       return;
     case 'end':
-      applyRunEndEvent(record, event);
+      applyRunEndEvent({ record, event });
       return;
   }
 }
 
-function exitDescription(code: number | null, signal: string | null): string {
+function exitDescription({ code, signal }: { code: number | null; signal: string | null }, _options: Record<string, never> = {}): string {
   if (signal !== null) return `The agent process was terminated by ${signal}.`;
   if (code !== null) return `The agent process exited with code ${code}.`;
   return 'The agent run failed before producing a result.';
@@ -288,7 +295,7 @@ interface ChatStartPayload {
   attachmentPaths?: readonly string[];
 }
 
-function buildChatStartPayload(subscriptionId: string, agentId: string, input: StartRunInput): ChatStartPayload {
+function buildChatStartPayload({ subscriptionId, agentId, input }: { subscriptionId: string; agentId: string; input: StartRunInput }, _options: Record<string, never> = {}): ChatStartPayload {
   return {
     subscriptionId,
     prompt: buildTranscript({ history: input.history }, { targetAgentId: agentId }),
@@ -298,7 +305,7 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
     ...(input.context?.['reasoning'] === undefined ? {} : { reasoning: String(input.context['reasoning']) }),
     // `StartRunInput.attachments` is `ChatPane`'s own record of this turn's staged `+` files
     // (`chat-attachments.ts` populated their `.path` when `uploadAttachments` ran) — only their
-    // paths cross into main, which is the only part `runner-daemon.ts` forwards on to the agent.
+    // paths cross into main, which is the only part `apps/desktop/src/desktop-agent.ts` forwards on to the agent.
     ...(input.attachments === undefined || input.attachments.length === 0
       ? {}
       : { attachmentPaths: input.attachments.map((attachment) => attachment.path) }),
@@ -311,12 +318,12 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
  * explicitly rather than closing over the outer one, so this stays testable independent of
  * `createWorkspaceChatTransport`'s closure.
  */
-function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSignal | undefined, runId: string): void {
+function wireCancelSignal({ bridge, cancelSignal, runId }: { bridge: RunnerInventoryBridge; cancelSignal: AbortSignal | undefined; runId: string }, _options: Record<string, never> = {}): void {
   if (cancelSignal?.aborted === true) {
-    void bridge.chatStop(runId).catch(() => {});
+    void bridge.chatStop({ runId }).catch((error: unknown) => console.error("[workspace-chat] Could not stop the run", describeErrorForLog({ err: error })));
     return;
   }
-  cancelSignal?.addEventListener('abort', () => void bridge.chatStop(runId).catch(() => {}), { once: true });
+  cancelSignal?.addEventListener('abort', () => void bridge.chatStop({ runId }).catch((error: unknown) => console.error('[workspace-chat] Could not stop the run', describeErrorForLog({ err: error }))), { once: true });
 }
 
 export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): WorkspaceChatTransport {
@@ -324,81 +331,15 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
 
   // One listener per transport instance, installed at construction. `WorkspaceChatPane` memoizes the
   // transport, so this is one registration per pane lifetime, not per turn.
-  const offChatEvent = bridge.onChatEvent((message: WorkspaceChatEventMessage) => {
-    const record = records.get(message.subscriptionId);
-    if (record === undefined) return;
-    if (message.kind === 'event') {
-      applyRunEvent(record, message.event);
-      return;
-    }
-    if (message.kind === 'closed') {
-      if (message.reason !== 'terminal' && !record.settled) {
-        record.errored = true;
-        record.handlers.onError(
-          new Error(
-            message.reason === 'unknown-run'
-              ? 'Runner no longer has this run; send the message again.'
-              : "Runner couldn't replay this run's history; send the message again.",
-          ),
-        );
-      }
-      settle(record);
-      records.delete(message.subscriptionId);
-    }
-  });
+  const offChatEvent = listenToWorkspaceChatEvents(bridge, records);
 
-  function open(handlers: RunHandlers): { subscriptionId: string; record: SubscriptionRecord } {
-    const subscriptionId = mintSubscriptionId();
-    const record: SubscriptionRecord = {
-      handlers,
-      events: [],
-      renderedToolUseIds: new Set(),
-      mirroredToolUseIds: new Set(),
-      runId: null,
-      errored: false,
-      settled: false,
-      finish: null,
-    };
-    records.set(subscriptionId, record);
-    return { subscriptionId, record };
-  }
+  const open = createSubscriptionOpener(records);
 
   /** Detaches the browser side. The run keeps going in main — that is exactly `StartRunInput.signal`'s contract. */
-  function detach(subscriptionId: string): void {
-    if (!records.delete(subscriptionId)) return;
-    void bridge.chatDetach(subscriptionId).catch(() => {
-      // The renderer is already done with this subscription; a failed teardown invoke (window
-      // closing, main already torn down) has no remedy and nothing left to report to.
-    });
-  }
+  const detach = createSubscriptionDetacher(records, bridge);
 
   return {
-    async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
-      const agentId = input.agentId;
-      if (agentId === undefined || agentId === '') {
-        throw new Error('Choose an agent runtime before sending a message.');
-      }
-
-      // Registered BEFORE the invoke. Main attaches its subscription inside the `start` handler, so
-      // the first events can be pushed while this promise is still in flight; without the record
-      // already in place they would arrive with nowhere to go.
-      const { subscriptionId, record } = open(handlers);
-      const alreadyDetached = input.signal.aborted;
-      if (alreadyDetached) records.delete(subscriptionId);
-      else input.signal.addEventListener('abort', () => detach(subscriptionId), { once: true });
-
-      try {
-        const { runId } = await bridge.chatStart(buildChatStartPayload(subscriptionId, agentId, input));
-        record.runId = runId;
-        // Main now owns the subscription; a pane that was already gone must detach it too.
-        if (alreadyDetached) void bridge.chatDetach(subscriptionId).catch(() => {});
-        wireCancelSignal(bridge, input.cancelSignal, runId);
-        return { runId };
-      } catch (error) {
-        records.delete(subscriptionId);
-        throw error;
-      }
-    },
+    startRun: createWorkspaceRunStarter({ open, records, detach, bridge }),
 
     async reattachRun(runId: string, handlers: RunHandlers, options?: ReattachRunOptions): Promise<void> {
       const { subscriptionId, record } = open(handlers);
@@ -411,7 +352,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       });
 
       const abort = (): void => {
-        detach(subscriptionId);
+        detach({ subscriptionId });
         record.finish?.();
       };
       if (options?.signal?.aborted === true) {
@@ -430,17 +371,100 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
     },
 
     async fetchRunStatus(runId: string): Promise<ChatRunStatus | null> {
-      const snapshot = await bridge.chatStatus(runId);
-      return snapshot === null ? null : toChatRunStatus(snapshot.state);
+      const snapshot = await bridge.chatStatus({ runId });
+      return snapshot === null ? null : toChatRunStatus({ state: snapshot.state });
     },
 
     async stopRun(runId: string): Promise<void> {
-      await bridge.chatStop(runId);
+      await bridge.chatStop({ runId });
     },
 
     dispose(): void {
       offChatEvent();
-      for (const subscriptionId of [...records.keys()]) detach(subscriptionId);
+      for (const subscriptionId of [...records.keys()]) detach({ subscriptionId });
     },
   };
+}
+
+function createWorkspaceRunStarter({ open, records, detach, bridge }: { open: ReturnType<typeof createSubscriptionOpener>; records: Map<string, SubscriptionRecord>; detach: ReturnType<typeof createSubscriptionDetacher>; bridge: RunnerInventoryBridge }) {
+  return async function startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
+      const agentId = input.agentId;
+      if (agentId === undefined || agentId === '') {
+        throw new Error('Choose an agent runtime before sending a message.');
+      }
+
+      // Registered BEFORE the invoke. Main attaches its subscription inside the `start` handler, so
+      // the first events can be pushed while this promise is still in flight; without the record
+      // already in place they would arrive with nowhere to go.
+      const { subscriptionId, record } = open(handlers);
+      const alreadyDetached = input.signal.aborted;
+      if (alreadyDetached) records.delete(subscriptionId);
+      else input.signal.addEventListener('abort', () => detach({ subscriptionId }), { once: true });
+
+      try {
+        const { runId } = await bridge.chatStart(buildChatStartPayload({ subscriptionId, agentId, input }));
+        record.runId = runId;
+        // Main now owns the subscription; a pane that was already gone must detach it too.
+        // The pane is gone, so a late teardown failure has no remaining listener to notify.
+        if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});
+        wireCancelSignal({ bridge, cancelSignal: input.cancelSignal, runId });
+        return { runId };
+      } catch (error) {
+        records.delete(subscriptionId);
+        throw error;
+      }
+    };
+}
+
+function createSubscriptionDetacher(records: Map<string, SubscriptionRecord>, bridge: RunnerInventoryBridge) {
+  return function detach({ subscriptionId }: { subscriptionId: string }, _options: Record<string, never> = {}): void {
+    if (!records.delete(subscriptionId)) return;
+    void bridge.chatDetach({ subscriptionId }).catch(() => {
+      // The renderer is already done with this subscription; a failed teardown invoke (window
+      // closing, main already torn down) has no remedy and nothing left to report to.
+    });
+  };
+}
+
+function createSubscriptionOpener(records: Map<string, SubscriptionRecord>) {
+  return function open(handlers: RunHandlers): { subscriptionId: string; record: SubscriptionRecord } {
+    const subscriptionId = mintSubscriptionId();
+    const record: SubscriptionRecord = {
+      handlers,
+      events: [],
+      renderedToolUseIds: new Set(),
+      mirroredToolUseIds: new Set(),
+      runId: null,
+      errored: false,
+      settled: false,
+      finish: null,
+    };
+    records.set(subscriptionId, record);
+    return { subscriptionId, record };
+  };
+}
+
+function listenToWorkspaceChatEvents(bridge: RunnerInventoryBridge, records: Map<string, SubscriptionRecord>) {
+  return bridge.onChatEvent({ listener: (message: WorkspaceChatEventMessage) => {
+    const record = records.get(message.subscriptionId);
+    if (record === undefined) return;
+    if (message.kind === 'event') {
+      applyRunEvent({ record, event: message.event });
+      return;
+    }
+    if (message.kind === 'closed') {
+      if (message.reason !== 'terminal' && !record.settled) {
+        record.errored = true;
+        record.handlers.onError(
+          new Error(
+            message.reason === 'unknown-run'
+              ? 'Runner no longer has this run; send the message again.'
+              : "Runner couldn't replay this run's history; send the message again.",
+          ),
+        );
+      }
+      settle(record);
+      records.delete(message.subscriptionId);
+    }
+  } });
 }

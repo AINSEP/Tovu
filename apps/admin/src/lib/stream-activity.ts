@@ -46,7 +46,10 @@ export type TrackedRunHandlers = RunHandlers & { [subscriptionEnded]?: () => voi
 export function trackTransportActivity(
   { transport, activity }: { transport: ChatTransport; activity: StreamActivity }, _optional = {},
 ): ChatTransport {
-  async function track<Result>(handlers: RunHandlers, signal: AbortSignal | undefined, work: (tracked: RunHandlers) => Promise<Result>): Promise<Result> {
+  async function track<Result>(
+    { handlers, signal, work }: { handlers: RunHandlers; signal: AbortSignal | undefined; work: (tracked: RunHandlers) => Promise<Result> },
+    _options = {},
+  ): Promise<Result> {
     const release = activity.retain({});
     const finish = () => { signal?.removeEventListener("abort", finish); release(); };
     if (signal?.aborted) finish();
@@ -59,7 +62,7 @@ export function trackTransportActivity(
   }
   return {
     ...transport,
-    startRun: (input, handlers) => track(handlers, input.signal, (tracked) => transport.startRun(input, tracked)),
-    reattachRun: (runId, handlers, options) => track(handlers, options?.signal, (tracked) => transport.reattachRun(runId, tracked, options)),
+    startRun: (input, handlers) => track({ handlers, signal: input.signal, work: (tracked) => transport.startRun(input, tracked) }),
+    reattachRun: (runId, handlers, options) => track({ handlers, signal: options?.signal, work: (tracked) => transport.reattachRun(runId, tracked, options) }),
   };
 }

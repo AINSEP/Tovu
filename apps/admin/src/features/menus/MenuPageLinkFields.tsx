@@ -1,13 +1,14 @@
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import type { MenuPageChoice } from "./page-link-rules";
 import { useMenuPageLinkFields } from "./MenuPageLinkFields.hooks";
 
 /** Existing entryRef transport stores the stable page id; the public resolver owns its URL. */
-export function MenuPageLinkFields({ item, path, pages, onChange, t }: {
+export function MenuPageLinkFields({ item, path, pages, onChange, t, useMenuPageLinkFields: useMenuPageLinkFieldsHook = useMenuPageLinkFields }: {
   item: AdminMenuItem; path: number[]; pages?: readonly MenuPageChoice[]; t: (key: string) => string;
   onChange: (path: number[], update: (item: AdminMenuItem) => AdminMenuItem) => void;
+  useMenuPageLinkFields?: typeof useMenuPageLinkFields;
 }) {
-  const state = useMenuPageLinkFields({ item, path, pages, onChange, t });
+  const state = useMenuPageLinkFieldsHook({ item, path, pages, onChange, t });
   return <>
     <label className="a11y-label-wrap">
       <span className="visually-hidden">{t("Page")}</span>

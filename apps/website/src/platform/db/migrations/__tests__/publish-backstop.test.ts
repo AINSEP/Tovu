@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import { listColumns, listIndexes, tableExists } from "#src/platform/db/kernel/dialect";
+import { listColumns, listIndexes, tableExists } from "@jini-ai/db/kernel";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { runMigrations } from "../runner.js";
 import { publishBackstop } from "../0007_publish_backstop.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
 import { CONTENT_MIGRATIONS } from "../index.js";
 
 /** Owner follow-up 2026-10-04 / ADR-066: additive audit storage, both dialects, exactly once. */
-const adapters: { name: string; make: () => StorageKernel<unknown> }[] = [
+const adapters: { name: string; make: () => KyselyKernel<unknown> }[] = [
   { name: "sqlite", make: () => openMemorySqliteKernel<unknown>() },
   { name: "pglite", make: () => openPgliteKernel<unknown>() },
 ];
@@ -31,9 +31,9 @@ for (const adapter of adapters) {
     const step = publishBackstop({ checksum: MIGRATION_CHECKSUMS["0007_publish_backstop"]! });
     const options = { ledgerTable: "publish_backstop_test_migrations" };
     try {
-      assert.equal(await tableExists(kernel, "publish_backstop_log"), false);
-      assert.deepEqual((await runMigrations(kernel, [step], options)).applied, ["0007_publish_backstop"]);
-      const columns = await listColumns(kernel, "publish_backstop_log");
+      assert.equal(await tableExists({ kernel, table: "publish_backstop_log" }), false);
+      assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, ["0007_publish_backstop"]);
+      const columns = await listColumns({ kernel, table: "publish_backstop_log" });
       assert.deepEqual(columns.map(column => column.name), [
         "id", "workspace_id", "direction", "actor_id", "destination", "reason", "at",
         "items_json", "gap_labels_json", "result", "run_id", "details_json", "inverses_json",
@@ -42,7 +42,7 @@ for (const adapter of adapters) {
         assert.equal(column.notNull, column.name !== "run_id", column.name);
         assert.equal(column.type.toLowerCase(), kernel.dialect === "postgres" && column.name.endsWith("_json") ? "jsonb" : "text", column.name);
       }
-      assert.deepEqual([...await listIndexes(kernel, "publish_backstop_log")].sort(), [
+      assert.deepEqual([...await listIndexes({ kernel, table: "publish_backstop_log" })].sort(), [
         ["publish_backstop_log_run", { name: "publish_backstop_log_run", columns: ["workspace_id", "run_id"], unique: false }],
         ["publish_backstop_log_workspace_at", { name: "publish_backstop_log_workspace_at", columns: ["workspace_id", "at"], unique: false }],
       ]);
@@ -54,7 +54,7 @@ for (const adapter of adapters) {
       await insert("source-1", "source");
       await insert("destination-1", "destination");
       await assert.rejects(insert("invalid", "sideways"), /check constraint|CHECK constraint/i);
-      assert.deepEqual((await runMigrations(kernel, [step], options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, []);
       const rows = await kernel.query<{ direction: string; run_id: string | null; inverses: string }>(
         sql`SELECT direction, run_id, CAST(inverses_json AS text) AS inverses FROM publish_backstop_log ORDER BY direction`);
       assert.deepEqual(rows.map(row => ({ ...row, inverses: JSON.parse(row.inverses) })), [

@@ -3,7 +3,8 @@ import { externalMcpAccessSnapshot, externalMcpAdmissionRevision, readExternalMc
 import { externalMcpRecordHasStaticAccessToken, resolveExternalMcpOAuthStatus } from '../../contracts/core/external-mcp-auth.js';
 import { ExternalMcpSecretStoreUnconfiguredError } from '@jini-ai/mcp/federation/hosted';
 import { OAuthError } from '../../platform/oauth/errors.js';
-import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from './service-ports.js';
+import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 
 export const agentPluginMcpProjections: AgentPluginMcpProjections = {
   accessSnapshot: externalMcpAccessSnapshot, admissionRevision: externalMcpAdmissionRevision,
@@ -35,9 +36,9 @@ export function isAgentPluginSignInRefusal({ error }: { error: unknown }, _optio
  * would evaluate fixture/host getters eagerly. O(k) own keys, no I/O. */
 export function withAgentPluginMcpPorts<T extends AgentPluginMcpContext>(context: T, _optional: Record<string, never> = {}): T & AgentPluginMcpProjectionPorts {
   if (context.projections) return context as T & AgentPluginMcpProjectionPorts;
-  return withOverrides(context, agentPluginMcpPortsOf(context)) as T & AgentPluginMcpProjectionPorts;
+  return withOverrides({ target: context, overrides: agentPluginMcpPortsOf(context) }) as T & AgentPluginMcpProjectionPorts;
 }
 /** Shallow copy preserving own property descriptors, then `overrides` assigned on top. */
-export function withOverrides<T extends object, O extends object>(target: T, overrides: O): Omit<T, keyof O> & O {
+export function withOverrides<T extends object, O extends object>({ target, overrides }: { target: T; overrides: O }, _optional: Record<string, never> = {}): Omit<T, keyof O> & O {
   return Object.assign(Object.defineProperties({}, Object.getOwnPropertyDescriptors(target)), overrides) as Omit<T, keyof O> & O;
 }

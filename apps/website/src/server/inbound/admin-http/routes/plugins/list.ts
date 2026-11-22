@@ -1,5 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express } from "express";
@@ -26,7 +26,7 @@ export type PluginsListRouteDeps = Pick<PluginsRouteDeps, "workspaceId" | "autho
  * `toAdminPluginResponse()` alongside its activation row. Verified against
  * `__tests__/integration/plugins-http.integration.test.ts`.
  */
-export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDeps): void => {
+export const registerPluginsListRoute = ({ app, deps }: { app: Express; deps: PluginsListRouteDeps }, _optional: Record<string, never> = {}): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -36,11 +36,11 @@ export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDep
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
@@ -53,7 +53,7 @@ export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDep
             workspaceId: deps.workspaceId,
             pluginId: record.id,
           });
-          return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
+          return toAdminPluginResponse({ discovery: record, activation }, { conflicts: conflicts.get(record.id) ?? [] });
         })
       );
 

@@ -8,8 +8,6 @@ import type { ProvisioningEvent, ProvisioningFileIo, PublishTrustResolution } fr
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
-  describeConnection,
-  describePublishTrustState,
   findGrantForSource,
   grantNotAfterFrom,
   MAX_PROVISIONED_GRANTS,
@@ -20,6 +18,7 @@ import {
   resolvePublishTrust,
   serializeGrantDocument,
 } from "../provisioning.js";
+import { describeConnection, describePublishTrustState } from "../provisioning-status.js";
 
 /**
  * @file Proofs for how a grant reaches the destination.
@@ -53,8 +52,8 @@ function memoryIo(seed: Record<string, string> = {}): ProvisioningFileIo & { fil
   const files = { ...seed };
   return {
     files,
-    read: async (path) => (path in files ? files[path] : null),
-    write: async (path, contents) => {
+    read: async ({ path }) => (path in files ? files[path] : null),
+    write: async ({ path, contents }) => {
       files[path] = contents;
     },
   };
@@ -65,11 +64,11 @@ function memoryIo(seed: Record<string, string> = {}): ProvisioningFileIo & { fil
 // ---------------------------------------------------------------------------
 
 test("a single grant object is accepted, but is re-serialised as a list", () => {
-  const parsed = parseGrantDocument(JSON.stringify(grantFor("laptop")));
+  const parsed = parseGrantDocument({ text: JSON.stringify(grantFor("laptop")) });
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.grants.length, 1);
 
-  const written = serializeGrantDocument(parsed.ok ? parsed.grants : [], { pretty: true });
+  const written = serializeGrantDocument({ grants: parsed.ok ? parsed.grants : [], options: { pretty: true } });
   assert.equal(JSON.parse(written).length, 1, "a one-grant document still writes as an array");
 });
 
@@ -91,7 +90,7 @@ test("connecting a second computer keeps the first one connected", async () => {
 
 test("reconnecting the same computer replaces its entry in place", () => {
   const rotated = grantFor("laptop", { publicKeys: [{ publicKeyB64u: "pk-new", generation: 1 }] });
-  const merged = mergeGrant([grantFor("laptop"), grantFor("desktop")], rotated);
+  const merged = mergeGrant({ existing: [grantFor("laptop"), grantFor("desktop")], incoming: rotated });
 
   assert.equal(merged.ok, true);
   assert.equal(merged.ok && merged.grants.length, 2);
@@ -114,20 +113,20 @@ test("an unchanged reconnect reports changed:false so there is nothing to commit
 
 test("the grant list is bounded", () => {
   const full = Array.from({ length: MAX_PROVISIONED_GRANTS }, (_, i) => grantFor(`m${i}`));
-  const overflow = mergeGrant(full, grantFor("one-too-many"));
+  const overflow = mergeGrant({ existing: full, incoming: grantFor("one-too-many") });
   assert.equal(overflow.ok, false);
   assert.match(overflow.ok ? "" : overflow.reason, /disconnect one first/);
 });
 
 test("a document repeating one source is refused, not de-duplicated", () => {
-  const parsed = parseGrantDocument(JSON.stringify([grantFor("laptop"), grantFor("laptop")]));
+  const parsed = parseGrantDocument({ text: JSON.stringify([grantFor("laptop"), grantFor("laptop")]) });
   assert.equal(parsed.ok, false);
   assert.match(parsed.ok ? "" : parsed.reason, /repeats source installation laptop/);
 });
 
 test("a document whose grant would widen authority is refused whole", () => {
   const hostile = { ...grantFor("laptop"), capabilities: ["content.write"] };
-  const parsed = parseGrantDocument(JSON.stringify([grantFor("desktop"), hostile]));
+  const parsed = parseGrantDocument({ text: JSON.stringify([grantFor("desktop"), hostile]) });
   assert.equal(parsed.ok, false, "one bad element must reject the document, not yield the good half");
 });
 
@@ -140,8 +139,8 @@ test("an install that has never been published to says so in a sentence", () => 
   assert.equal(res.state, "absent");
   assert.equal(res.origin, "none");
   assert.deepEqual(res.grants, []);
-  assert.match(describePublishTrustState(res), /^No computer is connected to this site for publishing yet\./);
-  assert.doesNotMatch(describePublishTrustState(res), /[A-Z_]{6,}/, "the empty state must not surface an error code");
+  assert.match(describePublishTrustState({ res }), /^No computer is connected to this site for publishing yet\./);
+  assert.doesNotMatch(describePublishTrustState({ res }), /[A-Z_]{6,}/, "the empty state must not surface an error code");
 });
 
 test("an empty committed trust file is absent rather than revoked", () => {
@@ -159,13 +158,13 @@ test("a malformed grant document disables publishing without pretending to be co
   const res = resolvePublishTrust({ envValue: undefined, fileContents: "{ not json" });
   assert.equal(res.state, "invalid");
   assert.deepEqual(res.grants, [], "an unreadable document must never yield a usable grant");
-  assert.equal(findGrantForSource(res, "laptop"), null);
+  assert.equal(findGrantForSource({ res, sourceInstallationId: "laptop" }), null);
 });
 
 test("findGrantForSource refuses every state but configured", () => {
   const revoked = resolvePublishTrust({ envValue: "", fileContents: JSON.stringify([grantFor("laptop")]) });
   assert.equal(revoked.state, "revoked");
-  assert.equal(findGrantForSource(revoked, "laptop"), null);
+  assert.equal(findGrantForSource({ res: revoked, sourceInstallationId: "laptop" }), null);
 });
 
 test("a hand-built resolution cannot smuggle grants past a non-configured state", () => {
@@ -177,7 +176,7 @@ test("a hand-built resolution cannot smuggle grants past a non-configured state"
     grants: [grantFor("laptop")],
     reason: "held over from a previous read",
   };
-  assert.equal(findGrantForSource(smuggled, "laptop"), null);
+  assert.equal(findGrantForSource({ res: smuggled, sourceInstallationId: "laptop" }), null);
 });
 
 test("a configured install resolves the right source's grant and only that one", () => {
@@ -186,8 +185,8 @@ test("a configured install resolves the right source's grant and only that one",
     fileContents: JSON.stringify([grantFor("laptop"), grantFor("desktop")]),
   });
   assert.equal(res.state, "configured");
-  assert.equal(findGrantForSource(res, "desktop")?.publicKeys[0].publicKeyB64u, "pk-desktop");
-  assert.equal(findGrantForSource(res, "phone"), null);
+  assert.equal(findGrantForSource({ res, sourceInstallationId: "desktop" })?.publicKeys[0].publicKeyB64u, "pk-desktop");
+  assert.equal(findGrantForSource({ res, sourceInstallationId: "phone" }), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -200,7 +199,7 @@ test("an operator with only the provider console can switch publishing off", () 
 
   assert.equal(res.state, "revoked", "the env var must override the committed file, or there is no kill switch");
   assert.equal(res.origin, "env");
-  assert.match(describePublishTrustState(res), new RegExp(PUBLISH_TRUST_ENV_VAR));
+  assert.match(describePublishTrustState({ res }), new RegExp(PUBLISH_TRUST_ENV_VAR));
 });
 
 test("an operator with only the repository can switch publishing off", () => {
@@ -230,7 +229,7 @@ test("disconnecting one computer leaves the others publishing", async () => {
 });
 
 test("disconnecting a computer that was never connected is a no-op, not an error", () => {
-  const edit = removeGrant([grantFor("desktop")], "laptop");
+  const edit = removeGrant({ existing: [grantFor("desktop")], sourceInstallationId: "laptop" });
   assert.equal(edit.ok && edit.changed, false);
   assert.equal(edit.ok && edit.grants.length, 1);
 });
@@ -308,7 +307,7 @@ test("an expired grant is expired, and a soon-to-expire one warns before it bite
 });
 
 test("a freshly written grant is dated from now, not from a fixed calendar point", () => {
-  const notAfter = grantNotAfterFrom(NOW, { lifetimeDays: 30 });
+  const notAfter = grantNotAfterFrom({ nowIso: NOW }, { lifetimeDays: 30 });
   assert.equal(notAfter, "2026-10-19T12:00:00.000Z");
 });
 
@@ -366,7 +365,7 @@ test("the port names where the grant went and what to do next", () => {
 });
 
 test("an oversized document is refused before it is parsed", () => {
-  const parsed = parseGrantDocument(JSON.stringify([grantFor("laptop", { entityTypes: ["x".repeat(400)] })]).padEnd(20_000, " "));
+  const parsed = parseGrantDocument({ text: JSON.stringify([grantFor("laptop", { entityTypes: ["x".repeat(400)] })]).padEnd(20_000, " ") });
   assert.equal(parsed.ok, false);
   assert.match(parsed.ok ? "" : parsed.reason, /exceeds/);
 });
@@ -397,18 +396,18 @@ test("a codec encode refusal leaves the stored document untouched", async () => 
 });
 
 test("whitespace documents are empty and an overfull document is refused whole", () => {
-  assert.deepEqual(parseGrantDocument(" \t\n"), { ok: true, grants: [] });
+  assert.deepEqual(parseGrantDocument({ text: " \t\n" }), { ok: true, grants: [] });
   const grants = Array.from({ length: MAX_PROVISIONED_GRANTS + 1 }, (_, i) => grantFor(`source-${i}`));
-  assert.deepEqual(parseGrantDocument(JSON.stringify(grants)), {
+  assert.deepEqual(parseGrantDocument({ text: JSON.stringify(grants) }), {
     ok: false, reason: "grant document holds more than 8 grants",
   });
 });
 
 test("compact serialization round-trips without the committed file's whitespace", () => {
   const grants = [grantFor("laptop"), grantFor("desktop")];
-  const text = serializeGrantDocument(grants, { pretty: false });
+  const text = serializeGrantDocument({ grants, options: { pretty: false } });
   assert.equal(text.includes("\n"), false);
-  assert.deepEqual(parseGrantDocument(text), { ok: true, grants });
+  assert.deepEqual(parseGrantDocument({ text }), { ok: true, grants });
 });
 
 test("an env grant configures the running install in preference to the committed file", () => {
@@ -422,22 +421,22 @@ test("an env grant configures the running install in preference to the committed
 });
 
 test("destination status messages distinguish one computer, several, revocation and invalid settings", () => {
-  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one")], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "configured", origin: "file", grants: [grantFor("one")], reason: null } }),
     "1 computer can publish to this site.");
-  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one"), grantFor("two")], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "configured", origin: "file", grants: [grantFor("one"), grantFor("two")], reason: null } }),
     "2 computers can publish to this site.");
-  assert.equal(describePublishTrustState({ state: "revoked", origin: "file", grants: [], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "revoked", origin: "file", grants: [], reason: null } }),
     "Publishing to this site is switched off. No computer is connected.");
   for (const reason of [null, "Bad version."]) {
-    assert.equal(describePublishTrustState({ state: "invalid", origin: "file", grants: [], reason }),
+    assert.equal(describePublishTrustState({ res: { state: "invalid", origin: "file", grants: [], reason } }),
       "This site's publishing settings could not be read, so nobody can publish to it." + (reason ? ` ${reason}` : ""));
   }
 });
 
 test("expiry uses the default lifetime when options or lifetimeDays are omitted and honors zero", () => {
-  assert.equal(grantNotAfterFrom(NOW), "2027-09-19T12:00:00.000Z");
-  assert.equal(grantNotAfterFrom(NOW, {}), "2027-09-19T12:00:00.000Z");
-  assert.equal(grantNotAfterFrom(NOW, { lifetimeDays: 0 }), NOW);
+  assert.equal(grantNotAfterFrom({ nowIso: NOW }), "2027-09-19T12:00:00.000Z");
+  assert.equal(grantNotAfterFrom({ nowIso: NOW }, {}), "2027-09-19T12:00:00.000Z");
+  assert.equal(grantNotAfterFrom({ nowIso: NOW }, { lifetimeDays: 0 }), NOW);
 });
 
 test("connection renewal warnings include the boundary and singular day wording", () => {

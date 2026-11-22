@@ -13,7 +13,7 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
 }
 
 /**
- * Layer resolution and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Layer resolution and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * `state === "set"` yields stored data; cleared or absent layers read as null.
  *
  * GET the per-layer raw values of one setting key (SPEC-007 api.spec.md
@@ -38,7 +38,7 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
  * missing/tombstoned definition 404s `DEFINITION_NOT_FOUND`, mirroring
  * `set.ts`/`clear.ts`'s identical mapping for the same error.
  */
-export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/raw",
     handle: async ({ request: req, principal, authorize }) => {
       await authorize({ permission: "settings.read.raw", entityType: "setting-value" });

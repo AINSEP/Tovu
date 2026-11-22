@@ -29,7 +29,7 @@ import {
  * already-a-plain-module store that ships its own direct test seam
  * (`setPlaygroundRenderTarget`/`resetPlaygroundRenderTargetBus`) — `RoutedA2uiSurfaceCard.unit
  * .test.tsx` already drives every branch of this hook that way, with no mock and no friction, the
- * same way `use-media-tabs.hooks.ts`/`use-escape-to-cancel.hooks.ts` (both plain hooks, no port,
+ * same way `use-media-tabs.hooks.ts`/`useEscapeToCancel hook` (both plain hooks, no port,
  * no wired pair) get driven directly. The rest of this hook's state (`dismissed`, the refused-
  * surfaceId tracking) is local component state, not I/O at all. Per this workspace's ratified rule —
  * "a hook doing NO I/O gets NO port; injection with nothing to inject is ceremony" — wrapping the bus
@@ -41,7 +41,7 @@ const SURFACE_ID_KEYS = ["createSurface", "updateComponents", "updateDataModel",
 
 /** Mirrors `A2uiSurfaceCard.tsx`'s own (unexported) `extractSurfaceId` — duplicated rather than
  * imported because the original is not exported and the extraction itself is a few stable lines. */
-export function surfaceIdOf(message: unknown): string | undefined {
+export function surfaceIdOf({ message }: { message: unknown }, _options: Record<string, never> = {}): string | undefined {
   if (typeof message !== "object" || message === null) return undefined;
   for (const key of SURFACE_ID_KEYS) {
     const body = (message as Record<string, unknown>)[key];
@@ -57,7 +57,7 @@ export function surfaceIdOf(message: unknown): string | undefined {
 export function latestSurfaceIdIn(events: readonly unknown[]): string | undefined {
   let latest: string | undefined;
   for (const event of events) {
-    const id = surfaceIdOf(event);
+    const id = surfaceIdOf({ message: event });
     if (id) latest = id;
   }
   return latest;
@@ -129,7 +129,7 @@ export function useRoutedA2uiSurfaceCard(props: A2uiSurfaceCardProps) {
   // failure.
   const hasError = refusedSurfaceId !== null && refusedSurfaceId === currentSurfaceId;
   const dismissed = dismissedFor !== null && dismissedFor.surfaceId === currentSurfaceId;
-  const setDismissed = (value: boolean) => setDismissedFor(value ? { surfaceId: currentSurfaceId } : null);
+  const setDismissed = ({ value }: { value: boolean }, _options: Record<string, never> = {}) => setDismissedFor(value ? { surfaceId: currentSurfaceId } : null);
 
   const handleAgentAction: A2uiSurfaceCardProps["onAgentAction"] = (runId, message) => {
     if (isErrorMessage(message)) {

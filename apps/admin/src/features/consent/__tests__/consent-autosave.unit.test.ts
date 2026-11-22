@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { createConsentAutosave, type ConsentTimers } from '../consent-autosave';
 import type { ConsentDraftSaved } from '../settings.hooks';
 import { CONSENT_CONFIG, conflict, saved } from './consent-fixtures';
@@ -7,7 +7,7 @@ import { CONSENT_CONFIG, conflict, saved } from './consent-fixtures';
 /** Timers the test fires by hand, so debounce order is explicit. */
 function manualTimers() {
   let next: (() => void) | null = null;
-  const timers: ConsentTimers = { setTimeout: callback => { next = callback; return callback; }, clearTimeout: handle => { if (handle === next) next = null; } };
+  const timers: ConsentTimers = { setTimeout: ({ callback }, _optional = {}) => { next = callback; return callback; }, clearTimeout: ({ handle }, _optional = {}) => { if (handle === next) next = null; } };
   return { timers, fire: () => { const callback = next; next = null; callback?.(); }, pending: () => next !== null };
 }
 
@@ -114,7 +114,7 @@ describe('createConsentAutosave', () => {
     const autosave = createConsentAutosave({ port, draftId: 'd0', events: handlers }, { timers, delayMs: 5 });
     autosave.change({ config: CONSENT_CONFIG });
     fire();
-    calls[0]!.settle.reject(new ApiError('Cookie consent settings are unavailable.', 503));
+    calls[0]!.settle.reject(new ApiError({ message: 'Cookie consent settings are unavailable.', status: 503 }));
     await tick();
     autosave.change({ config: CONSENT_CONFIG });
     fire();

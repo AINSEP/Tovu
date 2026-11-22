@@ -21,9 +21,9 @@ async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, sett
   let changed: ((maximum: number) => void) | undefined;
   const bridge: Partial<RunnerInventoryBridge> = {
     getMaximumLiveSiteViews: async () => saved,
-    onMaximumLiveSiteViewsChanged: (listener) => { changed = listener; return () => { changed = undefined; }; },
+    onMaximumLiveSiteViewsChanged: ({ listener }, _options = {}) => { changed = listener; return () => { changed = undefined; }; },
   };
-  if (setter) bridge.setMaximumLiveSiteViews = async (maximum) => {
+  if (setter) bridge.setMaximumLiveSiteViews = async ({ maximum }, _options = {}) => {
     if (fail) throw new Error('disk full');
     writes.push(maximum);
     return Math.min(maximum, 5);
@@ -34,8 +34,8 @@ async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, sett
     theme: 'system', onThemeChange: () => {}, onOpenAppearance: () => {}, useSiteSettings: settings.useSiteSettings,
   }) });
   await settle();
-  await view.click(view.byLabel('Settings'));
-  const input = () => view.byLabel('Loaded sites') as HTMLInputElement | null;
+  await view.click({ el: view.byLabel({ label: 'Settings' }) });
+  const input = () => view.byLabel({ label: 'Loaded sites' }) as HTMLInputElement | null;
   const key = async (name: string) => {
     await act(async () => { input()!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true })); });
     await settle();
@@ -44,7 +44,7 @@ async function renderLoadedSites(t: TestContext, { saved = 1, fail = false, sett
     await act(async () => { input()!.dispatchEvent(new dom.window.FocusEvent('focusout', { bubbles: true })); });
     await settle();
   };
-  const typeIn = async (value: string) => { await view.type(input()!, value); await settle(); };
+  const typeIn = async (value: string) => { await view.type({ input: input()!, value }); await settle(); };
   return { ...view, writes, input, key, blur, typeIn, change: async (value: number) => { await act(async () => { changed!(value); }); await settle(); } };
 }
 
@@ -55,7 +55,7 @@ test('Loaded sites: a labelled 1-to-5 spinbutton under Theme, showing the saved 
   assert.deepEqual(['role', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow', 'inputmode'].map((name) => input.getAttribute(name)),
     ['spinbutton', '1', '5', '3', 'numeric']);
   assert.equal(input.value, '3');
-  assert.deepEqual(view.all('.settings__row > .settings__label').map((label) => label.textContent), ['Theme', 'Loaded sites']);
+  assert.deepEqual(view.all({ selector: '.settings__row > .settings__label' }).map((label) => label.textContent), ['Theme', 'Loaded sites']);
   const group = input.closest('[role="group"]')!;
   assert.equal(document.getElementById(group.getAttribute('aria-labelledby')!)?.textContent, 'Loaded sites');
   // The tip sits on the field as well as the whole control: a tap focuses the field, and a focused
@@ -69,23 +69,23 @@ test('Loaded sites: a labelled 1-to-5 spinbutton under Theme, showing the saved 
 
 test('Loaded sites: + and − step by one, save each step at once, and stop at 1 and 5', async (t) => {
   const view = await renderLoadedSites(t, { saved: 4 });
-  const more = () => view.byLabel('More loaded sites') as HTMLButtonElement;
-  const fewer = () => view.byLabel('Fewer loaded sites') as HTMLButtonElement;
+  const more = () => view.byLabel({ label: 'More loaded sites' }) as HTMLButtonElement;
+  const fewer = () => view.byLabel({ label: 'Fewer loaded sites' }) as HTMLButtonElement;
   assert.equal(more().disabled, false);
-  await view.click(more());
+  await view.click({ el: more() });
   assert.deepEqual(view.writes, [5]);
   assert.equal(view.input()!.value, '5');
   assert.equal(view.input()!.getAttribute('aria-valuenow'), '5');
   assert.equal(more().disabled, true, 'five is the most');
-  await view.click(fewer());
+  await view.click({ el: fewer() });
   assert.deepEqual(view.writes, [5, 4]);
   assert.ok(view.container.querySelector('[role="menu"]'), 'a step keeps the menu open');
 });
 
 test('Loaded sites: − is off at one loaded site', async (t) => {
   const view = await renderLoadedSites(t, { saved: 1 });
-  assert.equal((view.byLabel('Fewer loaded sites') as HTMLButtonElement).disabled, true);
-  assert.equal((view.byLabel('More loaded sites') as HTMLButtonElement).disabled, false);
+  assert.equal((view.byLabel({ label: 'Fewer loaded sites' }) as HTMLButtonElement).disabled, true);
+  assert.equal((view.byLabel({ label: 'More loaded sites' }) as HTMLButtonElement).disabled, false);
 });
 
 test('Loaded sites: a typed digit saves at once, clamped to 1-5; a cleared field shows the saved value again on leaving it', async (t) => {
@@ -132,7 +132,7 @@ test('Loaded sites: a failed save puts the saved value back and says so', async 
   const errors: unknown[] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { errors.push(args); });
   const view = await renderLoadedSites(t, { saved: 2, fail: true });
-  await view.click(view.byLabel('More loaded sites'));
+  await view.click({ el: view.byLabel({ label: 'More loaded sites' }) });
   assert.equal(view.input()!.value, '2');
   assert.equal(view.container.querySelector('[role="alert"]')?.textContent, 'Loaded sites could not be saved.');
   assert.ok(errors.some((args) => String((args as unknown[])[0]).includes('save loaded sites: disk full')), 'the failure is logged');
@@ -141,5 +141,5 @@ test('Loaded sites: a failed save puts the saved value back and says so', async 
 test('Loaded sites: an older preload with no save channel leaves the row out', async (t) => {
   const view = await renderLoadedSites(t, { setter: false });
   assert.equal(view.input(), null);
-  assert.deepEqual(view.all('.settings__row > .settings__label').map((label) => label.textContent), ['Theme']);
+  assert.deepEqual(view.all({ selector: '.settings__row > .settings__label' }).map((label) => label.textContent), ['Theme']);
 });

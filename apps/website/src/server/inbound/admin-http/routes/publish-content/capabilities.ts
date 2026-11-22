@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -6,6 +6,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file S-F1 of `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.
@@ -31,21 +32,18 @@ import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.
  * nothing here has to special-case that absence. `peer-transport.ts`'s own probe reads a 404 as
  * "legacy `{post,page,media}`", the fixed set every pre-S-F1 destination accepted.
  */
-export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "publish_content.apply",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -10,16 +10,16 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  * running process (see feature.spec.md's Architectural Finding section). Gated by
  * `workspace.manage`.
  */
-export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "workspace.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

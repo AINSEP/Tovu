@@ -7,7 +7,7 @@ import type { CollectionsController } from "../hooks/use-collections.hooks";
 import type { NewContentTypeDialogController } from "../hooks/use-new-content-type-dialog.hooks";
 import type { EditFieldsDialogController } from "../hooks/use-edit-fields-dialog.hooks";
 import type { LifecycleConfirmDialogController } from "../hooks/use-lifecycle-confirm-dialog.hooks";
-import type { AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file `Collections` — the `/admin/collections` list screen (design-spec.md §1, ADR-022/ADR-043)
@@ -66,7 +66,7 @@ function collectionsController(overrides: Partial<CollectionsController> = {}): 
     // unmocked `useAdminLocale()` call in this render-only test (defaults to `DEFAULT_LOCALE`
     // synchronously; `COLLECTIONS_DICT` has no "en" entries, so every lookup already fell through
     // to `?? key`), so every existing literal-English-string assertion below stays valid unchanged.
-    t: (key: string) => key,
+    t: ({ key }: { key: string }, _optional = {}) => key,
     locale: "en",
     ...overrides,
   };
@@ -337,7 +337,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.type(screen.getByLabelText("Name"), "x");
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { name: "x" });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { name: "x" } });
   });
 
   it("changing the Kind select calls updateField with { kind }", async () => {
@@ -346,7 +346,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.selectOptions(screen.getByLabelText("Kind"), "real");
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { kind: "real" });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { kind: "real" } });
   });
 
   it("toggling Required calls updateField with { required }", async () => {
@@ -355,7 +355,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.click(screen.getByRole("checkbox", { name: "Required" }));
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { required: true });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { required: true } });
   });
 
   it("toggling Queryable calls updateField with { queryable }", async () => {
@@ -364,7 +364,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.click(screen.getByRole("checkbox", { name: "Use for filtering and sorting" }));
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { queryable: true });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { queryable: true } });
   });
 
   it("clicking 'Remove field' (only shown when >1 field) calls removeField", async () => {
@@ -378,7 +378,7 @@ describe("NewContentTypeDialog", () => {
     newDialogRef.current = dlg;
     renderCollections({ showNewDialog: true });
     await user.click(screen.getAllByRole("button", { name: "Remove field" })[0]);
-    expect(dlg.removeField).toHaveBeenCalledWith(1);
+    expect(dlg.removeField).toHaveBeenCalledWith({ rowId: 1 });
   });
 
   it("clicking 'Add field' calls addField", async () => {
@@ -489,7 +489,7 @@ describe("EditFieldsDialog", () => {
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
     await user.click(screen.getByRole("button", { name: "Remove field" }));
-    expect(dlg.removeField).toHaveBeenCalledWith(1);
+    expect(dlg.removeField).toHaveBeenCalledWith({ rowId: 1 });
   });
 
   it("typing the field name calls updateField with { name }", async () => {
@@ -498,7 +498,7 @@ describe("EditFieldsDialog", () => {
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
     await user.type(screen.getByLabelText("Name"), "x");
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { name: "x" });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { name: "x" } });
   });
 
   it("changing the Kind select calls updateField with { kind }", async () => {
@@ -507,7 +507,7 @@ describe("EditFieldsDialog", () => {
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
     await user.selectOptions(screen.getByLabelText("Kind"), "boolean");
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { kind: "boolean" });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { kind: "boolean" } });
   });
 
   it("toggling Required calls updateField with { required }", async () => {
@@ -516,7 +516,7 @@ describe("EditFieldsDialog", () => {
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
     await user.click(screen.getByRole("checkbox", { name: "Required" }));
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { required: true });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { required: true } });
   });
 
   it("toggling Queryable calls updateField with { queryable }", async () => {
@@ -525,7 +525,7 @@ describe("EditFieldsDialog", () => {
     editDialogRef.current = dlg;
     renderCollections({ editingFieldsFor: TYPE });
     await user.click(screen.getByRole("checkbox", { name: "Use for filtering and sorting" }));
-    expect(dlg.updateField).toHaveBeenCalledWith(1, { queryable: true });
+    expect(dlg.updateField).toHaveBeenCalledWith({ rowId: 1, patch: { queryable: true } });
   });
 
   it("clicking 'Add field' calls addField", async () => {

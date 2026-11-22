@@ -24,9 +24,9 @@ function stdoutFrame(lines: readonly unknown[]): string {
 }
 
 test("asString preserves text, serializes structured values and renders null as empty text", () => {
-  assert.equal(asString("hello"), "hello");
-  assert.equal(asString({ answer: 42 }), '{"answer":42}');
-  assert.equal(asString(null), "");
+  assert.equal(asString({ v: "hello" }), "hello");
+  assert.equal(asString({ v: { answer: 42 } }), '{"answer":42}');
+  assert.equal(asString({ v: null }), "");
 });
 
 test("parseUsageEvent preserves numeric usage without coercing missing or malformed fields", () => {
@@ -37,25 +37,25 @@ test("parseUsageEvent preserves numeric usage without coercing missing or malfor
 
 test("terminal notices use Tovu's actionable copy and keep failures distinct from cancellation", () => {
   const raw = JSON.stringify({ payload: { status: "failed", code: 2, signal: null, resumable: true } });
-  assert.deepEqual(readTerminalOutcome(raw), { status: "failed", code: "2", signal: "none", resumable: "yes" });
-  assert.deepEqual(terminalOutcomeNotice(raw), {
+  assert.deepEqual(readTerminalOutcome({ raw: raw }), { status: "failed", code: "2", signal: "none", resumable: "yes" });
+  assert.deepEqual(terminalOutcomeNotice({ raw: raw }), {
     kind: "status", label: "Run failed — the agent process exited without answering",
     detail: "exit code 2, signal none, resumable yes. The agent CLI's own stderr is shown above when it printed anything; otherwise check the server log for `[agent-daemon] run <id> ended`.",
   });
-  assert.equal(terminalFailureError(raw)?.message,
+  assert.equal(terminalFailureError({ raw: raw })?.message,
     "The agent process exited without answering (exit code 2, signal none, resumable yes).");
-  assert.equal(terminalFailureError(JSON.stringify({ payload: { status: "canceled" } })), null);
-  assert.deepEqual(terminalReasonNotice("max_tool_turns"), {
+  assert.equal(terminalFailureError({ raw: JSON.stringify({ payload: { status: "canceled" } }) }), null);
+  assert.deepEqual(terminalReasonNotice({ reason: "max_tool_turns" }), {
     kind: "status", label: "Stopped early — tool-step limit reached",
     detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
   });
-  assert.equal(terminalReasonNotice("stop"), null);
-  assert.equal(readTerminalReason('{"payload":{"reason":"stop"}}', true), "stop");
-  assert.equal(readTerminalReason('{"reason":"end_turn"}', false), "end_turn");
+  assert.equal(terminalReasonNotice({ reason: "stop" }), null);
+  assert.equal(readTerminalReason({ raw: '{"payload":{"reason":"stop"}}', wrapped: true }), "stop");
+  assert.equal(readTerminalReason({ raw: '{"reason":"end_turn"}', wrapped: false }), "end_turn");
 });
 
 test("SSE helpers preserve named frames across chunk boundaries", async () => {
-  assert.deepEqual(parseFrame("event: agent\ndata: hello"), { event: "agent", data: "hello" });
+  assert.deepEqual(parseFrame({ rawFrame: "event: agent\ndata: hello" }), { event: "agent", data: "hello" });
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
@@ -71,22 +71,22 @@ test("SSE helpers preserve named frames across chunk boundaries", async () => {
 });
 
 test("only daemon run ids qualify for daemon lookup", () => {
-  assert.equal(isDaemonRunId("run-123"), true);
-  assert.equal(isDaemonRunId("byok:123"), false);
-  assert.equal(isDaemonRunId("agui:123"), false);
+  assert.equal(isDaemonRunId({ runId: "run-123" }), true);
+  assert.equal(isDaemonRunId({ runId: "byok:123" }), false);
+  assert.equal(isDaemonRunId({ runId: "agui:123" }), false);
 });
 
 test("a connection carry suppresses the remainder of a split stdout echo and keeps later output", () => {
   const carry: RunFrameCarry = {};
   const chunk = (text: string) => JSON.stringify({ payload: { chunk: text } });
-  assert.deepEqual(translateRunFrame("stdout", chunk('{"type":"assistant","message":"par'), carry).events, []);
-  assert.deepEqual(translateRunFrame("stdout", chunk('tial"}\nvisible output\n'), carry).events,
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: chunk('{"type":"assistant","message":"par') }, { carry: carry }).events, []);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: chunk('tial"}\nvisible output\n') }, { carry: carry }).events,
     [{ kind: "raw", line: "visible output\n" }]);
 });
 
 test("translateRunFrame: an api_retry heartbeat becomes a typed status event with the attempt numbers", () => {
   const retry = { type: "system", subtype: "api_retry", attempt: 4, max_retries: 10, retry_delay_ms: 518, error_status: 529, error: "overloaded" };
-  const { events } = translateRunFrame("stdout", stdoutFrame([retry]));
+  const { events } = translateRunFrame({ kind: "stdout", raw: stdoutFrame([retry]) });
   assert.deepEqual(
     events.filter((e) => e.kind === "status"),
     [{ kind: "status", code: "api_retry", label: "api_retry", detail: "529 overloaded", data: { attempt: 4, maxAttempts: 10, service: "Claude" } }],
@@ -96,7 +96,7 @@ test("translateRunFrame: an api_retry heartbeat becomes a typed status event wit
 test("translateRunFrame: tool_progress and thinking_tokens heartbeats become status events", () => {
   const progress = { type: "tool_progress", tool_use_id: "t-heartbeat-0", tool_name: "mcp__jini__execute_delegated_tool", parent_tool_use_id: "t", elapsed_time_seconds: 30, heartbeat: true };
   const thinking = { type: "system", subtype: "thinking_tokens", estimated_tokens: 50, estimated_tokens_delta: 50 };
-  const { events } = translateRunFrame("stdout", stdoutFrame([progress, thinking]));
+  const { events } = translateRunFrame({ kind: "stdout", raw: stdoutFrame([progress, thinking]) });
   assert.deepEqual(
     events.filter((e) => e.kind === "status"),
     [
@@ -109,11 +109,11 @@ test("translateRunFrame: tool_progress and thinking_tokens heartbeats become sta
 test("translateRunFrame: stream_event echo lines are dropped from raw; other lines are kept verbatim", () => {
   const delta = { type: "stream_event", event: { type: "content_block_delta", delta: { type: "text_delta", text: "Hi" } } };
   const hook = { type: "system", subtype: "hook_started" };
-  assert.deepEqual(translateRunFrame("stdout", stdoutFrame([delta])).events, []);
-  assert.deepEqual(translateRunFrame("stdout", stdoutFrame([delta, hook])).events, [{ kind: "raw", line: `${JSON.stringify(hook)}\n` }]);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: stdoutFrame([delta]) }).events, []);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: stdoutFrame([delta, hook]) }).events, [{ kind: "raw", line: `${JSON.stringify(hook)}\n` }]);
   // A chunk that is not JSON lines (a plain-format CLI) stays one raw event, byte for byte.
   const plain = JSON.stringify({ runId: "r1", kind: "stdout", payload: { chunk: "hello\nworld" } });
-  assert.deepEqual(translateRunFrame("stdout", plain).events, [{ kind: "raw", line: "hello\nworld" }]);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: plain }).events, [{ kind: "raw", line: "hello\nworld" }]);
 });
 
 test("translateRunAgentPayload: tool_input_delta is not kept as an event (it duplicates the tool_use input)", () => {
@@ -136,10 +136,10 @@ test("translateRunFrame: assistant/user message echo lines are dropped from raw,
   const assistant = { type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "Hi" }] }, session_id: "s" };
   const user = { type: "user", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t", content: "big" }] } };
   const init = { type: "system", subtype: "init", session_id: "s" };
-  assert.deepEqual(translateRunFrame("stdout", stdoutFrame([assistant, init, user])).events, [{ kind: "raw", line: `${JSON.stringify(init)}\n` }]);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: stdoutFrame([assistant, init, user]) }).events, [{ kind: "raw", line: `${JSON.stringify(init)}\n` }]);
   // A 65 KB line arrives over several stdout chunks; its first piece is not valid JSON on its own.
   const head = JSON.stringify({ runId: "r1", kind: "stdout", payload: { chunk: '{"type":"user","message":{"role":"user","content":[{"tool_use_id":"t","type":"tool_result","content":"<persisted' } });
-  assert.deepEqual(translateRunFrame("stdout", head).events, []);
+  assert.deepEqual(translateRunFrame({ kind: "stdout", raw: head }).events, []);
 });
 
 test("runEventsForSave: streamed text deltas are saved as one text event, content unchanged", () => {

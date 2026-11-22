@@ -1,10 +1,12 @@
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { buildVaultAad, type VaultQuery, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SealedSecret, SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultQuery, type VaultRecord } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort, RootKeyHandle } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "./content-kernel.js";
-import type { StorageKernel } from "./kernel/port.js";
-import { listColumns, listTables } from "./kernel/dialect.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { deviceAad } from "./repos/oauth-pending-store.js";
 
 /** @file Host inventory over Jini's vault plus catalog coverage for unknown sealed columns.
@@ -70,7 +72,7 @@ export interface VaultCredentialSnapshot {
 /** Catalog suffix of every sealed envelope column; shared with the key-minting gate's scan. */
 export const SEALED_COLUMN_SUFFIX = "sealed_ciphertext";
 /** Quad siblings for a catalog name, quoted verbatim by callers. */
-export function siblingColumns(column: string): { keyId: string; nonce: string; alg: string } {
+export function siblingColumns({ column }: { column: string }, _optional: Record<string, never> = {}): { keyId: string; nonce: string; alg: string } {
   const prefix = column.slice(0, -SEALED_COLUMN_SUFFIX.length);
   return { keyId: `${prefix}sealed_key_id`, nonce: `${prefix}sealed_nonce`, alg: `${prefix}sealed_alg` };
 }
@@ -79,11 +81,11 @@ export function isVaultRestoreArtifact({ table }: { table: string }): boolean {
   return table.startsWith("_vault_backup_");
 }
 /** Catalog truth, in code-unit order. O(t) catalog reads for t live tables. */
-export async function discoverSealedColumns(kernel: ContentKernel): Promise<DiscoveredSealedColumn[]> {
+export async function discoverSealedColumns({ kernel }: { kernel: ContentKernel }, _optional: Record<string, never> = {}): Promise<DiscoveredSealedColumn[]> {
   const refs: DiscoveredSealedColumn[] = [];
-  for (const table of (await listTables(kernel)).sort()) {
+  for (const table of (await listTables({ kernel })).sort()) {
     if (isVaultRestoreArtifact({ table })) continue;
-    const columns = await listColumns(kernel, table);
+    const columns = await listColumns({ kernel, table });
     const tableColumns = new Set(columns.map(column => column.name));
     for (const column of columns) {
       if (column.name.endsWith(SEALED_COLUMN_SUFFIX)) refs.push({ table, column: column.name, tableColumns, notNull: column.notNull });
@@ -96,7 +98,7 @@ interface VaultScope { workspace_id: string; kind: VaultQuery["kind"]; owner_key
 async function readVault({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<{
   values: VaultCredentialValue[]; metadataOnly: SealedCredentialInventory["metadataOnly"];
 }> {
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const scopes = await deps.kernel.query<VaultScope>(sql`
     SELECT DISTINCT workspace_id,kind,owner_key,principal_id FROM secrets_vault ORDER BY workspace_id,kind,owner_key`);
   const values: VaultCredentialValue[] = [];
@@ -127,13 +129,13 @@ function selectVaultAad({ deps, record }: { deps: VaultCredentialKeyDeps; record
 }
 /** Device codes still have a live owner. Other catalog columns remain visible but unclassified. */
 async function readOther({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<VaultCredentialValue[]> {
-  const siblings = siblingColumns(ref.column);
-  const optional = (name: string) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
+  const siblings = siblingColumns({ column: ref.column });
+  const optional = ({ name }: { name: string }, _optional: Record<string, never> = {}) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
   const device = isDeviceCodeColumn({ ref });
   const workspaceColumn = device ? sql.id("workspace_id") : sql`NULL`;
   const serverColumn = device ? sql.id("server_id") : sql`NULL`;
   const rows = await deps.kernel.query<Record<string, unknown>>(sql`SELECT ${sql.id(ref.column)} AS ciphertext,
-    ${optional(siblings.keyId)} AS key_id, ${optional(siblings.nonce)} AS nonce, ${optional(siblings.alg)} AS alg,
+    ${optional({ name: siblings.keyId })} AS key_id, ${optional({ name: siblings.nonce })} AS nonce, ${optional({ name: siblings.alg })} AS alg,
     ${workspaceColumn} AS workspace_id,
     ${serverColumn} AS server_id FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
   return rows.map(row => otherValue({ ref, siblings, row, identity: device ? deviceIdentity({ row }) : undefined }));
@@ -169,7 +171,7 @@ function otherValue({ ref, siblings, row, identity }: {
   return { ref, sealed, ciphertext: String(row.ciphertext),
     guard: Object.fromEntries([[ref.column, row.ciphertext], [siblings.keyId, row.key_id], [siblings.nonce, row.nonce], [siblings.alg, row.alg]]
       .filter(([column]) => ref.tableColumns.has(column as string))), ...(identity ? { device: identity } : {}),
-    aad: identity ? deviceAad(identity.workspaceId, identity.serverId) : undefined,
+    aad: identity ? deviceAad({ workspaceId: identity.workspaceId, serverId: identity.serverId }) : undefined,
     reason,
     entry: otherEntry({ ref, row, identity }) };
 }
@@ -196,7 +198,7 @@ export async function snapshotVaultCredentials(deps: VaultCredentialKeyDeps,
 ): Promise<VaultCredentialSnapshot> {
   if (!Number.isSafeInteger(maxEntries) || maxEntries < 1) throw new RangeError("maxEntries must be a positive integer");
   return deps.kernel.transaction(async () => {
-    const refs = await discoverSealedColumns(deps.kernel);
+    const refs = await discoverSealedColumns({ kernel: deps.kernel });
     const count = await countSealedRows({ deps, refs });
     if (count > maxEntries) throw new SealedCredentialInventoryLimitError({ sealedRows: count, maxEntries });
     const snapshot: VaultCredentialSnapshot = { values: [], metadataOnly: [], columns: [] };
@@ -217,7 +219,7 @@ export async function opensVaultCredential({ value, sealer }: { value: VaultCred
   try { await sealer.open({ sealed: value.sealed }, { aad: value.aad }); return true; } catch { return false; }
 }
 /** Probe before classification and after failed opens: a broken active key is unknown, not dead data. */
-async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: SiteKeyHandle }): Promise<string | null> {
+async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: RootKeyHandle }): Promise<string | null> {
   try {
     const plaintext = "sealed-credential-inventory-probe";
     const aad = "sealed-credential-inventory-probe:v1";
@@ -226,7 +228,7 @@ async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: 
   } catch { return null; }
 }
 /** Whether a key source exists, the active key when it can be read, and the algorithm its probe proved. */
-interface ActiveKeyCheck { present: boolean; key: SiteKeyHandle | null; alg: string | null }
+interface ActiveKeyCheck { present: boolean; key: RootKeyHandle | null; alg: string | null }
 /**
  * Reads the active key once, only when a source exists, and probes it. Never mints a key and never
  * surfaces a keyring or crypto error: an unreadable key is a null key.
@@ -235,7 +237,7 @@ interface ActiveKeyCheck { present: boolean; key: SiteKeyHandle | null; alg: str
  */
 async function checkActiveKey({ deps }: { deps: SealedCredentialInventoryDeps }): Promise<ActiveKeyCheck> {
   const present = deps.hasSiteKeySource();
-  let key: SiteKeyHandle | null = null;
+  let key: RootKeyHandle | null = null;
   if (present) { try { key = await deps.keyring.activeKey({}); } catch { /* Safe unknown verdict below. */ } }
   const alg = key ? await probe({ deps, key }) : null;
   return { present, key, alg };
@@ -247,7 +249,7 @@ async function checkActiveKey({ deps }: { deps: SealedCredentialInventoryDeps })
  * @complexity O(1).
  */
 function readyKeyFor({ value, check }: { value: VaultCredentialValue; check: ActiveKeyCheck }):
-  { key: SiteKeyHandle } | { reason: SealedCredentialUnknownReason } {
+  { key: RootKeyHandle } | { reason: SealedCredentialUnknownReason } {
   if (value.reason) return { reason: value.reason };
   if (!check.present) return { reason: "no-site-key" };
   if (!check.key || !check.alg) return { reason: "active-key-unavailable" };

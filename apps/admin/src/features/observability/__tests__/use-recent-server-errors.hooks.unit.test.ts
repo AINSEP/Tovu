@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminServerLogs } from "@/lib/api";
+import type { AdminServerLogs } from "@/features/observability/api/observability-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeRecentServerErrorsPort, defaultRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
 import { RECENT_ERRORS_LIMIT, useRecentServerErrors, useWiredRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
 
@@ -160,7 +161,7 @@ describe("useRecentServerErrors", () => {
   });
 
   it("surfaces a failed read as error and stops loading", async () => {
-    const port = createFakeRecentServerErrorsPort({ failWith: new ApiError("principal 'x' is not authorized for 'system.read'", 403) });
+    const port = createFakeRecentServerErrorsPort({ failWith: new ApiError({ message: "principal 'x' is not authorized for 'system.read'", status: 403 }) });
     const { result } = renderHook(() => useRecentServerErrors({ port, locale: "en", t }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toContain("not authorized for 'system.read'");

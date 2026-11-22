@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
@@ -6,12 +6,13 @@ import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError,
 import { removePolicyPermission } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope — the same mapping
  *  `delete-policy.ts` uses, minus `IdentityConflictError`: `removePolicyPermission` has no
  *  reference guard to violate (a permission row is a leaf, nothing points at it).
  *  @complexity O(1). */
-function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
+function sendRemovePolicyPermissionError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof OwnerRequiredError) {
     res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
@@ -49,14 +50,11 @@ function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
  *
  * Returns 204, matching `delete-policy.ts`'s convention for a delete with nothing to echo back.
  */
-export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         const caller = getAuthedPrincipal(res);
@@ -83,7 +81,7 @@ export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = (ap
 
         res.status(204).send();
       } catch (err) {
-        sendRemovePolicyPermissionError(res, err);
+        sendRemovePolicyPermissionError({ res, err });
       }
     }
   );

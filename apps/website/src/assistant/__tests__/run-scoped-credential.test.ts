@@ -1,4 +1,4 @@
-import { daemonSource, daemonStatements } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
+import { daemonSource, statementsFor } from "../../server/inbound/assistant/__tests__/helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
@@ -12,17 +12,14 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
-import { type AdapterContext } from "@jini-ai/http-kit";
+import { delegatedToolExecuteRoute, runRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
+import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
-import {
-  createOwnedRunListHandler,
-  createRunOwnerRegistry,
-  requireRunOwnership,
-  RUN_PRINCIPAL_HEADER,
-} from "../daemon-access.js";
+import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership, RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createRunScopedCredentials, type RunScopedCredentials } from "../daemon-access.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
  * @file The run-scoped credential a spawned `jini-mcp` bridge presents to the agent daemon
@@ -80,17 +77,19 @@ async function bootDaemon(): Promise<Harness> {
   app.use("/api/runs/:runId", requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }, {}));
   app.post("/api/federation/reload", (_req, res) => void res.json({ reloaded: true }));
-  const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
+  const resolvedPortRef = { current: 0 };
+  const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
-    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
-  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
-  adapter.resolvedPortRef.current = port;
+  resolvedPortRef.current = port;
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     lifecycle,
@@ -388,7 +387,7 @@ async function scopeHarness({ exempt = false } = {}) {
         answer.body = { error: parsed.error };
         return answer;
       }
-      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: {
+      const result = await delegatedToolExecuteRoute.handle({ input: parsed.value, deps: { reportInternalError: reportRouteInternalError,
         lifecycle, toolExecutor,
         resolvePrincipal: ({ request: { runId } }) => {
           const id = live.get(runId);
@@ -404,8 +403,8 @@ async function scopeHarness({ exempt = false } = {}) {
     if (!await passes(requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}))) return answer;
     const runId = String(req.params.runId);
     const result = method === "POST"
-      ? await runCancelRoute.handle({ input: { runId }, deps: { lifecycle } })
-      : await runStatusRoute.handle({ input: runId, deps: { lifecycle } });
+      ? await runCancelRoute.handle({ input: { runId }, deps: { reportInternalError: reportRouteInternalError, lifecycle } })
+      : await runStatusRoute.handle({ input: runId, deps: { reportInternalError: reportRouteInternalError, lifecycle } });
     answer.status = result.ok ? 200 : 404;
     answer.body = result.ok ? result.value : { error: result.error };
     return answer;
@@ -578,11 +577,13 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const source = readFileSync(new URL("../../server/inbound/assistant/agent-daemon-scope.ts", import.meta.url), "utf8");
   const parsed = daemonSource;
   const printer = ts.createPrinter({ removeComments: true });
-  const statements = daemonStatements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, parsed).replace(/\s+/g, " ").trim());
+  const httpStatements = ['mountIntake', 'mountGuards', 'mountRunRoutes', 'mountDelegatedRoutes', 'mountSurfaceRoutes']
+    .flatMap(owner => statementsFor('agent-daemon-scope-http.ts', owner));
+  const statements = httpStatements.map((node) => printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile()).replace(/\s+/g, " ").trim());
   const auth = statements.indexOf("app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
   const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
-  const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
+  const route = statements.indexOf("mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,
     "delegated run binding must execute after JSON parsing and before the real delegated route");

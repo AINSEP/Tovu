@@ -5,7 +5,7 @@ import type { ContentEntryDraft, ExtPatch, HookContext, PluginSdk } from "@tovu/
 
 import { analyzeContent } from "../../analyze-content.js";
 import contentAnalyzerPlugin, { buildContentAnalyzerPatch, readMetaDescription } from "../../plugin.js";
-import { summarizeReport } from "../../summary.js";
+import { summarizeReport } from "@jini-ai/cms/seo/content-analysis";
 import { tiptapToBlocks } from "../../tiptap-blocks.js";
 
 /**
@@ -67,7 +67,7 @@ test("the filter returns the 6-field patch (un-prefixed keys) computed from titl
   await contentAnalyzerPlugin.definition.setup(sdk);
   const patch = await captured[0]!.filter(entry(), { pluginId: "content-analyzer", workspaceId: "ws-1" });
 
-  const expected = analyzeContent({ title: entry().title, blocks: tiptapToBlocks(BODY) });
+  const expected = analyzeContent({ title: entry().title, blocks: tiptapToBlocks({ bodyJson: BODY }) });
   assert.deepEqual(Object.keys(patch).sort(), ["readability", "readingTimeMinutes", "report", "score", "summary", "wordCount"]);
   assert.equal(patch.score, expected.score);
   assert.equal(patch.wordCount, 8);

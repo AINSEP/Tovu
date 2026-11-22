@@ -8,7 +8,7 @@ import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, typ
 import { createToolExecutor } from "@jini-ai/daemon";
 import type { Express, Request, Response } from "express";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
+import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { describeInput, withToolAttemptAudit } from "#src/assistant/tool-audit-preset";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
@@ -16,15 +16,18 @@ import { createInMemoryToolAttemptAuditSink } from "../../tool-audit/repo.memory
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCredentialWriteDeps } from "../store.js";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -81,6 +84,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
@@ -274,7 +279,7 @@ test("a token submitted through the delivery route never enters the durable tool
     assert.equal(routePath, MCP_UI_TOOL_CALLS_PATH);
     route = handler;
   } } as unknown as Express;
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges } });
   const sentinel = "sentinel-rotation-secret-do-not-audit-20260930";
   const req = {
     get: (name: string) => name === RUN_PRINCIPAL_HEADER ? PRINCIPAL_ID : undefined,
@@ -283,10 +288,13 @@ test("a token submitted through the delivery route never enters the durable tool
   let statusCode = 0;
   let responseBody: unknown;
   const res = {
+    on: () => res, off: () => res,
     status: (code: number) => { statusCode = code; return res; },
     json: (body: unknown) => { responseBody = body; return res; },
   } as unknown as Response;
   await route(req, res);
+  // The route's wrapper does not return the handler's promise, and the answer is now produced across a few awaits: let them run.
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(statusCode, 202);
   assert.deepEqual(responseBody, { delivered: true });
   const result = await pending;

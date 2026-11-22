@@ -17,9 +17,9 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * `en` entry mapping each key to itself would be dead weight.
  */
 
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 import { ADMIN_LOCALES } from "../../lib/settings-tabs";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 const SETTINGS_EXECUTION_DICT: Record<string, Record<string, string>> = {
   es: {
     "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI está oculto por ahora en los sitios desplegados. Se usa BYOK; tu elección guardada no cambia.",

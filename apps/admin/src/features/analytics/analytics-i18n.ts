@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Analytics screen (`/admin/analytics`) — the raw recent-hits table and
  * its "not a dashboard yet" honesty notice. **21 locales**, not one: es, id, de, zh-CN, zh-TW,
@@ -6,13 +7,11 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * translation" until 2026-08-24 — accurate when written at `300406e7`, when the file held exactly
  * one locale, and falsified by `8d800679` which added 17 more without touching it.)
  *
- * Each key IS the English sentence rendered by `Analytics.tsx`. `lib/dictionary-translator.ts`
+ * Each key IS the English sentence rendered by `Analytics.tsx`. `Jini packages/ui/src/features/i18n/dictionary-translator.ts`
  * resolves a miss as `?? key`, so a key edited in one place and not here renders English in every
  * other locale — silently, with no error and no failing test. Editing a string here or there is a
  * 21-block change, always.
  */
-
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const ANALYTICS_DICT: Record<string, Record<string, string>> = {
   es: {

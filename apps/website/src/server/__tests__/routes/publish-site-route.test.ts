@@ -14,7 +14,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
@@ -722,8 +722,8 @@ test("publish-site: branch, teamId and projectName reach the provider port and a
   const deps = testRouteDeps();
   const originalLoad = deps.loadDeployTargets;
   const calls: Array<{ target: string; config: DeployTargetCreateContext["config"]; projectName: string }> = [];
-  deps.loadDeployTargets = async (workspaceId) => {
-    const registry = await originalLoad(workspaceId);
+  deps.loadDeployTargets = async ({ workspaceId }) => {
+    const registry = await originalLoad({ workspaceId });
     const targets = registry.list().map((target): LoadedDeployTarget => ({
       ...target,
       module: {
@@ -961,7 +961,7 @@ test("publish-targets: lists every registry target with its label and declared c
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { targets: { id: string; label: string; configFields: { name: string; label: string; required: boolean }[] }[] };
-  const expected = (await deps.loadDeployTargets(deps.workspaceId)).list();
+  const expected = (await deps.loadDeployTargets({ workspaceId: deps.workspaceId })).list();
   assert.deepEqual(
     body.targets.map((target) => target.id),
     expected.map((target) => target.descriptor.id),
@@ -1008,7 +1008,7 @@ test("publish-targets: a target's i18n block crosses the response exactly as its
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { targets: { id: string; i18n?: Record<string, Record<string, string>> }[] };
-  const declared = (await deps.loadDeployTargets(deps.workspaceId)).get("vercel")?.descriptor.i18n;
+  const declared = (await deps.loadDeployTargets({ workspaceId: deps.workspaceId })).get("vercel")?.descriptor.i18n;
   assert.ok(declared?.es, "the bundled vercel target ships Spanish translations");
   assert.deepEqual(body.targets.find((target) => target.id === "vercel")?.i18n, declared);
 });
@@ -1067,9 +1067,9 @@ test("publish destinations: peer rows and deploy links require publish_content.r
   const authorize = deps.authorize;
   deps.authorize = input => input.permission === "publish_content.read" && !peerReadAllowed
     ? Promise.resolve({ allowed: false, reason: "denied" }) : authorize(input);
-  await deps.publishContentPeerRepo.insert({ workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
+  await deps.publishContentPeerRepo.insert({ record: { workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
     baseUrl: "https://live.example.test", remoteWorkspaceId: "remote", sealed: null, masked: null,
-    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" } });
   const common = { url: "https://live.example.test/", reachable: true, status: "applied", publishedAt: "2026-10-18T03:00:00Z", triggeredBy: "admin_ui" as const };
   await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "tovu-peer", target: "peer-saved", projectName: "" } });
   await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "deploy", target: "custom-server", projectName: "Site", publishedAt: "2026-10-18T02:00:00Z" } });

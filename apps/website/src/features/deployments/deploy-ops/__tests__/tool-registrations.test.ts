@@ -119,21 +119,21 @@ function fakeClock() { let now = 0; const sleeps: number[] = []; return { sleeps
 const status = (state: string) => ({ platform: "example", target: "shop", state, summary: state, items: [], checkedAt: AT });
 test("wait reaches healthy on poll three with exact result and sleeps", async () => {
   const clock = fakeClock(); let polls = 0;
-  assert.deepEqual(await waitForDeployOps({ status: async () => status(++polls === 3 ? "healthy" : "deploying") as any, clock }, { until: "healthy", timeoutSeconds: 25 }), { reached: true, waitedSeconds: 20, polls: 3, last: status("healthy") });
+  assert.deepEqual(await waitForDeployOps({ deps: { status: async () => status(++polls === 3 ? "healthy" : "deploying") as any, clock }, until: "healthy" }, { timeoutSeconds: 25 }), { reached: true, waitedSeconds: 20, polls: 3, last: status("healthy") });
   assert.deepEqual(clock.sleeps, [10000, 10000]);
 });
 test("timeout returns false and never sleeps beyond its deadline; unknown is not finished", async () => {
   const clock = fakeClock();
-  assert.deepEqual(await waitForDeployOps({ status: async () => status("unknown") as any, clock }, { until: "finished", timeoutSeconds: 25 }), { reached: false, waitedSeconds: 25, polls: 3, last: status("unknown") });
+  assert.deepEqual(await waitForDeployOps({ deps: { status: async () => status("unknown") as any, clock }, until: "finished" }, { timeoutSeconds: 25 }), { reached: false, waitedSeconds: 25, polls: 3, last: status("unknown") });
   assert.deepEqual(clock.sleeps, [10000, 10000, 5000]);
 });
 for (const state of ["healthy", "failing", "stopped"]) test(`finished recognizes terminal ${state}`, async () => {
-  assert.deepEqual(await waitForDeployOps({ status: async () => status(state) as any, clock: fakeClock() }, { until: "finished", timeoutSeconds: 10 }), { reached: true, waitedSeconds: 0, polls: 1, last: status(state) });
+  assert.deepEqual(await waitForDeployOps({ deps: { status: async () => status(state) as any, clock: fakeClock() }, until: "finished" }, { timeoutSeconds: 10 }), { reached: true, waitedSeconds: 0, polls: 1, last: status(state) });
 });
 test("abort stops waiting without another poll; already aborted calls never request", async () => {
   const controller = new AbortController(); let polls = 0;
   const clock = { now: () => 0, sleep: async () => { controller.abort(); } };
-  await assert.rejects(waitForDeployOps({ status: async () => { polls++; return status("deploying") as any; }, clock }, { until: "healthy", timeoutSeconds: 10, signal: controller.signal }), { name: "ToolInputError", message: "Deployment ops wait was aborted." });
+  await assert.rejects(waitForDeployOps({ deps: { status: async () => { polls++; return status("deploying") as any; }, clock }, until: "healthy" }, { timeoutSeconds: 10, signal: controller.signal }), { name: "ToolInputError", message: "Deployment ops wait was aborted." });
   assert.equal(polls, 1);
   const f = await fixture();
   await assert.rejects(buildDeployOpsRegistrations(f.deps)[2]!.handler(execution({ platform: "example-host", target: "shop", until: "healthy" }, controller.signal)), { name: "ToolInputError", message: "Deployment ops wait was aborted." });
@@ -142,7 +142,7 @@ test("abort stops waiting without another poll; already aborted calls never requ
 test("wait cancels an in-flight poll promptly and starts no later requests", async () => {
   const controller = new AbortController();
   let received: AbortSignal | undefined; let polls = 0;
-  const waiting = waitForDeployOps({ status: async signal => { received = signal; polls++; controller.abort(); return new Promise(() => {}); }, clock: fakeClock() }, { until: "healthy", timeoutSeconds: 10, signal: controller.signal });
+  const waiting = waitForDeployOps({ deps: { status: async signal => { received = signal; polls++; controller.abort(); return new Promise(() => {}); }, clock: fakeClock() }, until: "healthy" }, { timeoutSeconds: 10, signal: controller.signal });
   await assert.rejects(waiting, { name: "ToolInputError", message: "Deployment ops wait was aborted." });
   assert.equal(received!.aborted, true); assert.equal(polls, 1);
 });
@@ -158,7 +158,7 @@ test("a stalled first poll still returns a timeout result at the deadline", asyn
   t.mock.timers.enable({ apis: ["setTimeout"] });
   let now = 0; let received: AbortSignal | undefined;
   const initial = { ...status("unknown"), summary: "No status received before timeout." } as any;
-  const waiting = waitForDeployOps({ initial, clock: { now: () => now, sleep: async () => { throw new Error("unexpected sleep"); } }, status: async signal => { received = signal; return new Promise(() => {}); } }, { until: "healthy", timeoutSeconds: 10 });
+  const waiting = waitForDeployOps({ deps: { initial, clock: { now: () => now, sleep: async () => { throw new Error("unexpected sleep"); } }, status: async signal => { received = signal; return new Promise(() => {}); } }, until: "healthy" }, { timeoutSeconds: 10 });
   now = 10000; t.mock.timers.tick(10000);
   assert.deepEqual(await waiting, { reached: false, waitedSeconds: 10, polls: 1, last: { platform: "example", target: "shop", state: "unknown", summary: "No status received before timeout.", items: [], checkedAt: AT } });
   assert.equal(received!.aborted, true);

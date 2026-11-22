@@ -1,12 +1,11 @@
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { AdminSourceControlProviderId } from "../../lib/api";
+
+import type { AdminSourceControlProviderId } from "./api/source-control-api.types";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
@@ -15,6 +14,8 @@ import type {
   SourceControlCredentialsController,
 } from "./hooks/use-source-control-credentials.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Providers tab — `SourceControl.tsx`'s one tab today, and this feature's actual content.
  * Three always-visible rows — GitHub, GitLab, Bitbucket, in that order (GitHub is the one that
@@ -80,23 +81,22 @@ export interface ProvidersTabProps {
   /** DI seam for tests — same convention as every other wired-hook prop in this app
    *  (`StaticSiteTabProps.usePublishCredentialsHook`). */
   useSourceControlCredentialsHook?: typeof useWiredSourceControlCredentials;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /** Resolves {@link ProvidersTabProps}'s one DI seam to its real hook when a caller passes none —
  *  same small-resolver shape `deployment/StaticSiteTab.tsx`'s `resolvePublishCredentialsHook`
  *  documents (a resolver counts one branch here rather than an inline `??` counting against the
  *  component body's own complexity budget). */
-function resolveSourceControlCredentialsHook(
-  override: typeof useWiredSourceControlCredentials | undefined
-): typeof useWiredSourceControlCredentials {
-  return override ?? useWiredSourceControlCredentials;
-}
 
-export function ProvidersTab(props: ProvidersTabProps) {
+
+export function ProvidersTab({
+  useAdminLocaleHook = useAdminLocale,
+  useSourceControlCredentialsHook = useWiredSourceControlCredentials, ...props }: ProvidersTabProps) {
   // Subscribes to the admin locale so a language switch re-renders this tab; every string itself
   // goes through the controller's own `t`.
-  useAdminLocale();
-  const useSourceControlCredentialsHook = resolveSourceControlCredentialsHook(props.useSourceControlCredentialsHook);
+  useAdminLocaleHook();
+
   const controller = useSourceControlCredentialsHook();
 
   return (
@@ -136,7 +136,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
       <button
         type="button"
         className="link-button"
-        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        onClick={() => navigate({ routePath: "/access-tokens?tab=access-tokens" })}
         {...agentHandle({ handle: "source-control-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
@@ -301,16 +301,18 @@ function SourceControlRowSummary({
   connected: boolean;
   t: Translate;
 }) {
+  const saved = row.saved;
+  if (connected && !saved) throw new Error(`source control provider ${row.providerId} has no saved credential`);
   return (
     <summary className="source-control-row-summary">
       <span className={connected ? "source-control-row-marker source-control-row-marker-done" : "source-control-row-marker"} aria-hidden="true">
         {connected ? <ConnectedMarkIcon /> : null}
       </span>
       <span className="source-control-row-summary-text">
-        {connected ? (
+        {connected && saved ? (
           <>
             <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-            {translate("saved")} {formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" })} <CredentialHint hint={row.saved!.tokenHint} />
+            {translate("saved")} {formatTimestamp({ iso: saved.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })} <CredentialHint hint={saved.tokenHint} />
           </>
         ) : (
           <h3 className="source-control-row-title">
@@ -401,7 +403,7 @@ function SourceControlCredentialFields({
             // design. See `security/AccessTokensTab.tsx`'s token input for the full reasoning.
             autoComplete="new-password"
             value={row.token}
-            onChange={(e) => controller.setToken(row.providerId, e.target.value)}
+            onChange={(e) => controller.setToken({ providerId: row.providerId, value: e.target.value })}
             {...agentHandle({ handle: `source-control-credentials-token-${row.providerId}` }, {
               role: "field",
               label: `${info.label} access token — stored encrypted, never shown again once saved`,
@@ -415,26 +417,27 @@ function SourceControlCredentialFields({
           <SourceControlScopeGuidance info={info} providerId={row.providerId} t={translate} />
         </div>
 
-        {info.fields.map((field) => (
-          <div className="field" key={field.name}>
-            <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}>
+        {info.fields.map((field) => {
+          const help = fieldHelpText({ field });
+          return <div className="field" key={field.name}>
+            <label className="field-label" htmlFor={`source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}`}>
               {translate(field.label)}
             </label>
             <SecretInput
               label={translate(field.label)}
               secret={field.secret === true}
-              id={`source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}`}
+              id={`source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}`}
               autoComplete="new-password"
               value={row.values[field.name] ?? ""}
-              onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
-              {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment(field.name)}-${row.providerId}` }, {
+              onChange={(e) => controller.setField({ providerId: row.providerId, name: field.name, value: e.target.value })}
+              {...agentHandle({ handle: `source-control-credentials-${fieldNameHandleSegment({ fieldName: field.name })}-${row.providerId}` }, {
                 role: "field",
                 label: `${info.label} ${field.label}`,
               })}
             />
-            {fieldHelpText(field) !== undefined ? <p className="field-hint">{translate(fieldHelpText(field)!)}</p> : null}
-          </div>
-        ))}
+            {help !== undefined ? <p className="field-hint">{translate(help)}</p> : null}
+          </div>;
+        })}
       </div>
 
       <div className="source-control-action">

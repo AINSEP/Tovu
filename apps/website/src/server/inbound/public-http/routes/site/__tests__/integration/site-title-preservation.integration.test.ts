@@ -21,7 +21,7 @@ import { readTemplate } from "#src/platform/site-dir/read-template";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import type { SiteTitlePreservationStorePort } from "#src/features/settings/site-title";
 import { SqliteSiteTitlePreservationStore } from "#src/features/settings/site-title-preservation.sqlite";
-import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { createCommerceSiteTestApp as createApp } from "../commerce-site-app.js";
 import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import { builtInThemesDir, createSiteRouteDeps, createSiteRouteDepsForWorkspace } from "#src/server/runtime/composition/deps";
@@ -103,7 +103,7 @@ async function createPreExistingSite(t: TestContext): Promise<string> {
     copyRowsIntoOlderSchema({
       target: db,
       tables: ["workspaces", "posts", "presentation_settings"],
-      populate: (current) => seedContentStore(contentKernel(current), seed),
+      populate: (current) => seedContentStore({ kernel: contentKernel({ store: current }), ...seed }),
     })
   );
 
@@ -158,15 +158,15 @@ async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (stor
   }
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  siteClosers.get(t)!.push(() => closeSiteDirBoot(boot, composed));
-  const deps = await createSiteRouteDeps(siteContentDbPath(dir), {
+  siteClosers.get(t)!.push(() => closeSiteDirBoot(boot, { composed }));
+  const deps = await createSiteRouteDeps({}, { dbPath: siteContentDbPath(dir), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => { composed = store; },
+    onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   publishPricingPage(deps);
   return deps;
 }
@@ -254,8 +254,7 @@ test("AC-10, AC-01, AC-02, AC-07 (T-W1): a database seeded before this feature b
   await assertSiteTitleSurfaces(site, LEGACY_TITLE);
 
   const effective = await getEffective(
-    { repo: site.deps.settingsRepo },
-    { namespace: "core.site", key: "title", scopeContext: { workspaceId: site.deps.workspaceId } }
+    { deps: { repo: site.deps.settingsRepo }, namespace: "core.site", key: "title", scopeContext: { workspaceId: site.deps.workspaceId } },
   );
   assert.deepEqual({ value: effective?.value, sourceLayer: effective?.sourceLayer }, { value: LEGACY_TITLE, sourceLayer: "workspace" });
   assert.equal((await systemPinRevisions(site.deps)).length, 1, "exactly one op='set' revision by system-settings-migration");
@@ -619,7 +618,7 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWo
   let composed: { close(): Promise<void> } | undefined;
   try {
     deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, {
-      dbPath: siteContentDbPath(dir), onStoreOpened: (store) => { composed = store; },
+      dbPath: siteContentDbPath(dir), onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     });
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");

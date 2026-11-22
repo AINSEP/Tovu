@@ -23,7 +23,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
 import { trackStartingBrowser, type StartingBrowser } from "#src/features/api-connections/__tests__/support/starting-browser";
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -133,7 +133,7 @@ let browser: StartingBrowser | undefined;
 /** Serves the public callback for this composition (only) on the local "site". */
 export function mountCallback(composition: AcmeComposition): void {
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host: composition.apiConnections.host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host: composition.apiConnections.host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} } });
   site.removeAllListeners("request");
   site.on("request", app);
 }

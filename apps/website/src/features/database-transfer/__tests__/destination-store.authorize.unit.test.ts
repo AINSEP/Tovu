@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import { authorizeDestinationVaultContext } from "../destination-store.js";
 
 /**

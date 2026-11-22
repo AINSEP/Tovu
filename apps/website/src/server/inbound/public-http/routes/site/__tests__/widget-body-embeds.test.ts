@@ -5,9 +5,12 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderHtmlPageBody, renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { renderSite } from "#src/server/inbound/public-http/http/site/render-site";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderBareEntryDocument } from "#src/server/inbound/public-http/http/site/bare-page";
-import { finishStaticTierDocument, renderViaTemplate, resolveHtmlEmbedsForRender } from "../pages.js";
+import { renderViaTemplate } from "../pages/template-render.js";
+import { finishStaticTierDocument } from "../pages/static-tier.js";
+import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
 
 const WIDGET_ID = "9004b382-ba7d-4191-82fb-84d0c533ad14";
 const NOW = "2026-10-06T00:00:00.000Z";
@@ -50,22 +53,22 @@ function assertBody(html: string, content: string) {
 
 test("a page body with a legacy widget UUID marker renders the existing widget server-side", async () => {
   const { deps, post } = await fixture();
-  const resolved = await resolveHtmlEmbedsForRender(deps, post);
-  assert.equal(renderHtmlPageBody(post.bodyHtml!, resolved),
+  const resolved = await resolveHtmlEmbedsForRender({ deps, post });
+  assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved }),
     `<section id="widget-regression"><p>before</p>${WIDGET_HTML}<p>after</p></section>`);
 });
 
 for (const kind of ["page", "post"] as const) {
   test(`${kind}: legacy widgets render through the public fallback render path`, async () => {
     const { deps, post } = await fixture(kind);
-    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
     const html = await renderSite({ theme: null, route: "post", siteTitle: "Widgets", posts: [post], post, pageHtmlEmbeds });
     assertBody(html, WIDGET_HTML);
   });
 
   test(`${kind}: legacy widgets render through a static theme's content template`, async () => {
     const { deps, post } = await fixture(kind);
-    assertBody(await renderViaTemplate(deps, theme(), post, undefined), WIDGET_HTML);
+    assertBody(await renderViaTemplate({ deps, theme: theme(), post, staticMenus: undefined }), WIDGET_HTML);
   });
 
   for (const tier of ["declarative", "templated", "handlebars"] as const) {
@@ -76,7 +79,7 @@ for (const kind of ["page", "post"] as const) {
       activeTheme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
       activeTheme.liquidTemplates.entry = "{{ post.content | raw }}";
       activeTheme.handlebarsTemplates.entry = "{{{post.content}}}";
-      const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+      const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
       assertBody(await renderSite({ theme: activeTheme, route: "post", siteTitle: "Widgets", posts: [post], post, pageHtmlEmbeds }), WIDGET_HTML);
     });
   }
@@ -87,7 +90,7 @@ for (const fullDocument of [false, true]) {
     const { deps, post } = await fixture();
     post.templateChoice = "";
     if (fullDocument) post.bodyHtml = `<!doctype html><html><body>${post.bodyHtml}</body></html>`;
-    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
     assertBody(renderBareEntryDocument({ post, siteTitle: "Widgets", pageHtmlEmbeds }), WIDGET_HTML);
   });
 }
@@ -106,10 +109,10 @@ test("a legacy menu widget and a current menu marker render together through the
   });
   const widgetHtml = '<nav class="widget widget-menu"><h3 class="widget-menu-title">Body menu</h3><ul><li><a href="/">Journey Home</a></li></ul></nav>';
   const menuHtml = '<nav data-tovu-menu="body-menu"><ul data-tovu-menu-list data-depth="0"><li data-tovu-menu-item data-depth="0" data-current="true" data-active="true" data-has-children="false"><a href="/" aria-current="page" data-toolname="menu_body-menu_0" data-tooldescription="Journey Home" data-tool-action="navigate">Journey Home</a></li></ul></nav>';
-  const html = await finishStaticTierDocument(deps, {
+  const html = await finishStaticTierDocument({ deps, input: {
     theme: theme(), pageId: "content-template", currentPath: "/", staticMenus: undefined,
     html: post.bodyHtml!.replace("<p>after</p>", `<div data-embed-config='{"type":"menu","id":"body-menu","mode":"html"}'></div><p>after</p>`),
-  });
+  } }, {});
   assertBody(html, widgetHtml + menuHtml);
 });
 
@@ -117,10 +120,10 @@ test("HTML-mode static documents and partials use the same widget expansion", as
   const { deps, post } = await fixture();
   const activeTheme = theme();
   activeTheme.partials.nav = post.bodyHtml!;
-  const html = await finishStaticTierDocument(deps, {
+  const html = await finishStaticTierDocument({ deps, input: {
     theme: activeTheme, pageId: "content-template", currentPath: "/body-page", staticMenus: undefined,
     html: '<html><body><div data-embed-config=\'{"type":"partial","id":"nav"}\'></div></body></html>',
-  });
+  } }, {});
   assertBody(html, WIDGET_HTML);
 });
 
@@ -128,8 +131,8 @@ for (const marker of [LEGACY_MARKER, CURRENT_MARKER]) {
   test(`a missing widget renders nothing: ${marker}`, async () => {
     const missing = marker.replace(WIDGET_ID, "does-not-exist");
     const { deps, post } = await fixture("page", missing);
-    assert.equal(renderHtmlPageBody(post.bodyHtml!, await resolveHtmlEmbedsForRender(deps, post)),
+    assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved: await resolveHtmlEmbedsForRender({ deps, post }) }),
       '<section id="widget-regression"><p>before</p><p>after</p></section>');
-    assertBody(await renderViaTemplate(deps, theme(), post, undefined), "");
+    assertBody(await renderViaTemplate({ deps, theme: theme(), post, staticMenus: undefined }), "");
   });
 }

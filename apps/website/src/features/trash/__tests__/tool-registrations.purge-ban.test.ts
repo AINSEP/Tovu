@@ -37,10 +37,10 @@ async function productionDeps(t: TestContext) {
     await store?.close();
     await rm(dir, { recursive: true, force: true });
   });
-  deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     siteBinding: { dir, name: "delete-catalog", dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: opened => { store = opened; },
-  });
+    onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
+  } });
   return deps;
 }
 
@@ -50,8 +50,8 @@ for (const collapse of [true, false]) {
     const deps = toAssistantRegistryDeps({ routeDeps: await productionDeps(t) });
     const policy = await readAssistantPermanentDeletesPolicy({ ...deps, settingsReady: deps.settingsUiTabsReady });
     assert.deepEqual(policy, { enabled: false, allowedToolIds: [] }, "the real site setting defaults OFF");
-    const tools = buildAssistantToolRegistrations(deps, undefined,
-      { contributions, includeContentReadCollapse: collapse });
+    const tools = buildAssistantToolRegistrations(deps, { surfaces: undefined,
+      options: { contributions, includeContentReadCollapse: collapse } });
     const ids = new Set(tools.map(tool => tool.descriptor.id));
     // Independent expected set: a mistaken removal from the policy cannot weaken this contract.
     for (const id of ["trash_empty", "trash_purge_item", "media_purge_asset", "comments_purge_comment",
@@ -69,9 +69,9 @@ for (const collapse of [true, false]) {
     const schema = trashItem.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
     assert.ok(schema.properties.entityType.enum.includes("member"), "production composition must wire member Trash");
     // pdel permits only checked tools after opt-in; recoverable deletion remains the default.
-    const optedIn = buildAssistantToolRegistrations(deps, undefined, { contributions,
+    const optedIn = buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions,
       includeContentReadCollapse: collapse, permanentDeletePolicy: { enabled: true, allowedToolIds: ["trash_empty", "identity_role_delete"] },
-    });
+    } });
     for (const tool of PERMANENT_DELETE_TOOLS) {
       const registration = optedIn.find(entry => entry.descriptor.id === tool.id);
       assert.equal(Boolean(registration), ["trash_empty", "identity_role_delete"].includes(tool.id), tool.id);
@@ -85,9 +85,9 @@ for (const collapse of [true, false]) {
 test("opt-in absorbs the old ban: only checked tools return, forbidden tools never do", () => {
   installFirstPartyToolContributors({ contributions });
   const deps = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
-  const tools = buildAssistantToolRegistrations(deps, undefined, { contributions,
+  const tools = buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions,
     permanentDeletePolicy: { enabled: true, allowedToolIds: ["trash_empty", "identity_role_delete", "workspace_delete", "collections_execute_cleanup"] },
-  });
+  } });
   const ids = new Set(tools.map(tool => tool.descriptor.id));
   for (const tool of PERMANENT_DELETE_TOOLS) assert.equal(ids.has(tool.id), ["trash_empty", "identity_role_delete"].includes(tool.id), tool.id);
   for (const id of ["workspace_delete", "collections_execute_cleanup"]) assert.equal(ids.has(id), false);

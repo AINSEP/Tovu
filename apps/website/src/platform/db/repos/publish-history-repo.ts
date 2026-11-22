@@ -11,7 +11,7 @@ import type {
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishHistoryTable } from "../content-database.generated.js";
-import { toBool } from "../kernel/index.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file THE `PublishHistoryStore` adapter over `publish_history`: one Kysely query body for every
@@ -30,7 +30,7 @@ function toRecord(row: Selectable<PublishHistoryTable>): PublishHistoryEntry {
     ...(row.kind && row.kind !== "static" ? { kind: row.kind as NonNullable<PublishHistoryEntry["kind"]> } : {}),
     url: row.url,
     // `toBool` is null only for a NULL column, which `reachable NOT NULL` never yields; read it as false.
-    reachable: toBool(row.reachable) === true,
+    reachable: toBool({ value: row.reachable }) === true,
     status: row.status,
     projectName: row.project_name,
     ...(row.credential_id !== null ? { credentialId: row.credential_id } : {}),
@@ -126,7 +126,7 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
   }
 
   async list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]> {
-    const limit = resolvePublishHistoryListLimit(input.limit);
+    const limit = resolvePublishHistoryListLimit({ requested: input.limit });
     const rows = await this.kernel.run((db) => {
       let query = db.selectFrom("publish_history").selectAll().where("workspace_id", "=", input.workspaceId);
       if (input.target !== undefined) query = query.where("target", "=", input.target);

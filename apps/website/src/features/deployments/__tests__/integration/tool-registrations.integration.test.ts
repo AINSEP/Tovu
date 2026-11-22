@@ -21,7 +21,7 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * way `features/pages/__tests__/tool-registrations.test.ts`'s harness is: `deployment_trigger_export`
  * needs the full composition-root deps bag `exportSite` boots a real in-process app from (see
  * `tool-registrations.ts`'s own file header for why), so every test here starts from the real
- * `createRouteDeps()` hermetic fixture `server/app.ts`'s own route tests already use, overriding only
+ * `createRouteDeps()` hermetic fixture `server/runtime/composition/app.ts`'s own route tests already use, overriding only
  * `authorize` where a test needs to.
  *
  * `RouteDeps.exportOutputRootDir` is pointed at a throwaway temp directory for this whole file (via
@@ -153,7 +153,7 @@ test("deployment_set_dockerfile refuses a stale ifMatch with a message the assis
   // a real change to the same real file in between. Reproduced with a real second `writeFileSync`
   // (via the domain function the HTTP route itself calls), not a hand-crafted mismatched string.
   const concurrentContents = `# concurrent human edit ${Date.now()}\nFROM node:22\n`;
-  writeDockerfileSource(concurrentContents);
+  writeDockerfileSource({ contents: concurrentContents });
 
   // The assistant now tries to save its own edit, still carrying the etag from before the
   // concurrent write.

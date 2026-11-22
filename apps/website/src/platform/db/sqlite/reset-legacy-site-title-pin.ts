@@ -1,5 +1,5 @@
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { tableExists } from "../kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**
@@ -64,12 +64,12 @@ export interface ResetLegacySiteTitlePinResult {
 export async function resetLegacySiteTitlePin(required: {
   db: ContentKernel | SqliteConnectionSource;
 }): Promise<ResetLegacySiteTitlePinResult> {
-  const kernel = contentKernel(required.db);
+  const kernel = contentKernel({ store: required.db });
   return kernel.transaction(async () => {
-    const markerRowsDeleted = (await tableExists(kernel, MARKER_TABLE))
+    const markerRowsDeleted = (await tableExists({ kernel, table: MARKER_TABLE }))
       ? await kernel.run(async (db) => Number((await db.deleteFrom(MARKER_TABLE).executeTakeFirst()).numDeletedRows))
       : 0;
-    const pinTablesPresent = (await tableExists(kernel, VALUES_TABLE)) && (await tableExists(kernel, DEFINITIONS_TABLE));
+    const pinTablesPresent = (await tableExists({ kernel, table: VALUES_TABLE })) && (await tableExists({ kernel, table: DEFINITIONS_TABLE }));
     const pinRowsDeleted = pinTablesPresent
       ? await kernel.run(async (db) => {
           const titleSettingIds = db

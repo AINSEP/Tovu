@@ -1,10 +1,10 @@
 import { lstatSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files.js";
-import { TRASH_DIR_NAME } from "../theme-layout.js";
-import type { ThemeBuildInfo } from "../theme.js";
-import type { ThemeValidationIssue } from "./profiles.js";
+import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
+import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
+import type { ThemeBuildInfo } from "../render-contract.js";
+import type { ThemeValidationIssue } from "@jini-ai/cms/themes/manifest-v2";
 
 /**
  * @file Package-tree shape checks: file-count/depth/size/symlink ceilings (every schema version),
@@ -77,7 +77,7 @@ const INSTALL_LOCAL_FILES: ReadonlySet<string> = new Set([".tovu-lineage.json"])
  * literal name, so it needs a pattern rather than a set membership check. */
 const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
 
-function isApprovedV2Root(name: string): boolean {
+function isApprovedV2Root({ name }: { name: string }, _optional = {}): boolean {
   return name === TRASH_DIR_NAME || V2_APPROVED_ROOTS.has(name) || INSTALL_LOCAL_FILES.has(name) || TOKENS_MODE_FILE_PATTERN.test(name);
 }
 
@@ -107,11 +107,20 @@ export interface PackageWalkResult {
  * the file-size check) levels inside `walk`'s own `for` loop cost far more there than they do at a
  * function's own top level (the same lesson `build-conformance.ts`'s `walk` needed today). */
 function visitPackageEntry(
-  dir: string,
-  name: string,
-  base: string,
-  files: PackageWalkEntry[],
-  issues: ThemeValidationIssue[]
+  {
+    dir,
+    name,
+    base,
+    files,
+    issues,
+  }: {
+    dir: string;
+    name: string;
+    base: string;
+    files: PackageWalkEntry[];
+    issues: ThemeValidationIssue[];
+  },
+  _optional = {}
 ): { recurseInto: string } | undefined {
   const full = join(dir, name);
   // lstatSync, NEVER statSync — statSync follows the link, so a circular symlink (a -> b -> a) makes
@@ -155,7 +164,7 @@ export function walkThemePackage(
   // realpathSync(themeDir)`) — mirrored here rather than rediscovered differently.
   const base = realpathSync(themeDir);
 
-  const walk = (dir: string, depth: number): void => {
+  const walk = ({ dir, depth }: { dir: string; depth: number }, _optional = {}): void => {
     if (truncated) return;
     if (depth > MAX_PACKAGE_DEPTH) {
       issues.push({ ruleId: "structure-max-depth", message: `package exceeds the ${MAX_PACKAGE_DEPTH}-directory depth ceiling under '${relative(base, dir)}'` });
@@ -174,11 +183,11 @@ export function walkThemePackage(
         issues.push({ ruleId: "structure-max-files", message: `package exceeds the ${MAX_PACKAGE_FILES}-file ceiling` });
         return;
       }
-      const next = visitPackageEntry(dir, name, base, files, issues);
-      if (next) walk(next.recurseInto, depth + 1);
+      const next = visitPackageEntry({ dir, name, base, files, issues });
+      if (next) walk({ dir: next.recurseInto, depth: depth + 1 });
     }
   };
-  walk(base, 0);
+  walk({ dir: base, depth: 0 });
 
   return { files, issues };
 }
@@ -202,7 +211,7 @@ export function checkApprovedRoots(
     return [{ ruleId: "structure-unreadable-dir", message: `cannot read theme directory: ${(err as Error).message}` }];
   }
   for (const name of entries) {
-    if (!isApprovedV2Root(name)) {
+    if (!isApprovedV2Root({ name })) {
       issues.push({
         ruleId: "structure-unapproved-root",
         message: `'${name}' is not an approved schema v2 root (theme-authoring-guide-v2.md §3) — approved roots are: ${[...V2_APPROVED_ROOTS].join(", ")}`,
@@ -232,7 +241,10 @@ export function checkApprovedRoots(
 /** The escapes-check and the root-check together: both reject `build.sourceDir` outright (the
  * caller reports just that one issue and stops), so both live in one function returning either the
  * normalized path or the single issue to report — one `if` at the call site instead of two. */
-function normalizeSourceDirOrIssue(sourceDir: string): { normalized: string } | { issue: ThemeValidationIssue } {
+function normalizeSourceDirOrIssue(
+  { sourceDir }: { sourceDir: string },
+  _optional = {}
+): { normalized: string } | { issue: ThemeValidationIssue } {
   if (sourceDir.startsWith("/") || sourceDir.includes("..")) {
     return {
       issue: { ruleId: "structure-sourcedir-escapes", message: `build.sourceDir '${sourceDir}' must be a relative, contained path (no leading '/', no '..')` },
@@ -250,7 +262,10 @@ function normalizeSourceDirOrIssue(sourceDir: string): { normalized: string } | 
 
 /** v2-strict only: does `normalized`'s first path segment collide with one of §3's OTHER invariant
  * roots (not `package.json`, and not a dotted `tokens.<mode>.json`-style pattern entry)? */
-function checkSourceDirRootConflict(sourceDir: string, normalized: string): ThemeValidationIssue | undefined {
+function checkSourceDirRootConflict(
+  { sourceDir, normalized }: { sourceDir: string; normalized: string },
+  _optional = {}
+): ThemeValidationIssue | undefined {
   const firstSegment = normalized.split("/")[0] ?? "";
   const otherReservedRoots = [...V2_APPROVED_ROOTS].filter((root) => root !== "package.json" && !root.includes("."));
   if (!otherReservedRoots.includes(firstSegment)) return undefined;
@@ -280,19 +295,19 @@ export function checkSourceDirContainment(
   const { build, schemaVersion } = required;
   if (build.source !== "compiled" || !build.sourceDir) return [];
 
-  const resolved = normalizeSourceDirOrIssue(build.sourceDir);
+  const resolved = normalizeSourceDirOrIssue({ sourceDir: build.sourceDir });
   if ("issue" in resolved) return [resolved.issue];
   const { normalized } = resolved;
 
   const issues: ThemeValidationIssue[] = [];
-  if (isSourceDirGeneratedConflict(normalized)) {
+  if (isSourceDirGeneratedConflict({ sourceDir: normalized })) {
     issues.push({
       ruleId: "structure-sourcedir-generated-conflict",
       message: `build.sourceDir '${build.sourceDir}' must not name or contain a reserved generated directory (${GENERATED_THEME_DIRS.join(", ")})`,
     });
   }
   if (schemaVersion === 2) {
-    const rootConflict = checkSourceDirRootConflict(build.sourceDir, normalized);
+    const rootConflict = checkSourceDirRootConflict({ sourceDir: build.sourceDir, normalized });
     if (rootConflict) issues.push(rootConflict);
   }
   return issues;

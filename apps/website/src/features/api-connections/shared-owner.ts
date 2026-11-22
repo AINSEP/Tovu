@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import type { Clock } from '@jini-ai/core/primitives';
 import { ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionDescriptor, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
 import type { OAuthClient } from '@jini-ai/oauth';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
-import type { SecretsVaultService, VaultMeta } from '@jini-ai/platform/secrets/credential-sets';
-import { apiConnectionVaultScope, createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, PLUGIN_STATE_FORMAT } from './vault-stores.js';
+import type { KeyringPort, SecretSealerPort, VaultRepoPort, VaultMeta } from '@jini-ai/core/contracts/vault';
+import type { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
+import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
+import { createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from './vault-stores.js';
 
 /** Issuing configuration is sealed in the owner store; a consuming site's client cannot replace it. */
 export interface SharedOAuthIssuingContext {
@@ -18,7 +18,7 @@ export interface SharedOAuthIssuingContext {
 
 export interface SharedOAuthOwnerScope { readonly workspaceId: string; readonly repo: VaultRepoPort; readonly keyring: KeyringPort; readonly sealer: SecretSealerPort }
 
-const contextId = (credentialId: string) => `plugin-state:tovu-shared-oauth:${createHash('sha256').update(credentialId).digest('hex')}`;
+const contextId = ({ credentialId }: { credentialId: string }, _optional = {}) => `plugin-state:tovu-shared-oauth:${createHash('sha256').update(credentialId).digest('hex')}`;
 const unavailable = () => new ApiConnectionError({ code: 'connection-not-found', message: 'This saved connection is no longer available. Choose a saved connection again or sign in.' });
 
 /** Refuse an issuing context whose declared identity and sealed client disagree. */
@@ -33,7 +33,7 @@ function assertIssuingContext(context: SharedOAuthIssuingContext): void {
  * @complexity One selected owner-vault read; no inventory or polling.
  */
 export async function readSharedOAuthContext(required: { vault: SecretsVaultService; credentialId: string }, _optional = {}): Promise<SharedOAuthIssuingContext | null> {
-  const found = await required.vault.get({ ...apiConnectionVaultScope({ workspaceId: 'project' }), id: contextId(required.credentialId) });
+  const found = await required.vault.get({ ...apiConnectionVaultScope({ workspaceId: 'project' }), id: contextId({ credentialId: required.credentialId }) });
   if (!found) return null;
   const context = found.payload?.value as unknown as SharedOAuthIssuingContext | undefined;
   if (!context || context.credentialId !== required.credentialId) throw unavailable();
@@ -60,7 +60,7 @@ export function createSharedOAuthOwnerStorage(required: { scope: SharedOAuthOwne
         if (JSON.stringify(existing) !== JSON.stringify(context)) throw new ApiConnectionError({ code: 'account-changed', message: 'This shared connection uses its original sign-in client. Use that saved connection or create a separate local connection.' });
         return;
       }
-      const id = contextId(credentialId);
+      const id = contextId({ credentialId });
       await vault.put({ ...apiConnectionVaultScope({ workspaceId: 'project' }), id, expectedRevision: null, provider: null, label: id,
         meta: { credentialFormat: PLUGIN_STATE_FORMAT }, payload: { value: context as unknown as VaultMeta } });
     },

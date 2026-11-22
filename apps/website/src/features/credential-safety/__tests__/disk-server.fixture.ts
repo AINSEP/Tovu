@@ -6,7 +6,7 @@ import { SqliteExternalMcpServerRepo } from "../../external-mcp/external-mcp-rep
 import { InMemoryExternalMcpToolApprovalRepo } from '../../../assistant/external-mcp-tool-approval-adapters.js';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { createNoopObservabilityPort } from '../../../platform/observability/index.js';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import { registerAdminExternalMcpPutRoute } from '../../../server/inbound/admin-http/routes/external-mcp/put.js';
 import { registerAdminExternalMcpListRoute } from '../../../server/inbound/admin-http/routes/external-mcp/list.js';
 import { registerAdminExternalMcpProbeRoute, createExternalMcpProbeLimiter, type ExternalMcpProbeRouteDeps } from '../../../server/inbound/admin-http/routes/external-mcp/probe.js';
@@ -20,12 +20,12 @@ const keyring = new InMemoryKeyring();
 const deps: ExternalMcpProbeRouteDeps = {
   workspaceId, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
   authorize: async () => ({ allowed: true, reason: 'matched' }),
-  externalMcpServerRepo: new SqliteExternalMcpServerRepo(db),
+  externalMcpServerRepo: new SqliteExternalMcpServerRepo({ store: db }),
   externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
   builtInExternalMcpServerIds: [], observability: createNoopObservabilityPort({}),
   siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
   // A hostile upstream error with a credential is the regression: production must discard its text.
-  connect: async spec => { throw Object.assign(new Error(`hostile upstream ${spec.headers?.authorization ?? ''}`), { status: 401 }); },
+  connect: async ({ spec }) => { throw Object.assign(new Error(`hostile upstream ${spec.headers?.authorization ?? ''}`), { status: 401 }); },
 };
 const app = express();
 app.use(express.json());
@@ -34,9 +34,9 @@ app.use((_request, response, next) => {
   response.on('finish', () => console.log(JSON.stringify({ status: response.statusCode })));
   next();
 });
-registerAdminExternalMcpPutRoute(app, deps);
-registerAdminExternalMcpListRoute(app, deps);
-registerAdminExternalMcpProbeRoute(app, deps, createExternalMcpProbeLimiter(deps));
+registerAdminExternalMcpPutRoute({ app, deps });
+registerAdminExternalMcpListRoute({ app, deps });
+registerAdminExternalMcpProbeRoute({ app, deps, limiter: createExternalMcpProbeLimiter(deps) });
 const server = createServer(app);
 server.listen(0, '127.0.0.1', () => {
   const address = server.address();

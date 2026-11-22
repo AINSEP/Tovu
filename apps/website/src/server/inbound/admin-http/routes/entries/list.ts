@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { listEntries } from "#src/features/entries/index";
@@ -9,24 +10,12 @@ import type { ContentTypesRouteDeps } from "../content-types/deps.js";
  * @file design-spec.md §1.4/§1.9 — `GET /api/admin/v1/entries?type=` (a Collection's entry list,
  * ADR-022/ADR-043). Gated by `admin.collections.read`.
  */
-export function registerAdminEntryListRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryListRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.read",
-        workspaceId: deps.workspaceId,
-        entityType: "entry",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.read", workspaceId: deps.workspaceId, entityType: "entry" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const type = typeof req.query.type === "string" ? req.query.type : undefined;
       const result = await listEntries({ repo: deps.entryRepo, workspaceId: deps.workspaceId }, { type });

@@ -28,7 +28,7 @@ export type { StoreBoundServices } from "./store-bound-contracts.js";
 export function pgOnlyServices(kernel: ContentKernel): StoreBoundServices {
   return {
     dbOps: new PostgresDbOpsAdapter(),
-    stampWatermark: kernelStampWatermark(kernel),
+    stampWatermark: kernelStampWatermark({ kernel }),
   };
 }
 
@@ -37,6 +37,6 @@ export function pgOnlyServices(kernel: ContentKernel): StoreBoundServices {
  *
  * @param dbPath - `content.db` (SQLite restore points copy it); unused on Postgres.
  */
-export function storeBoundServicesFor(store: SiteStore, dbPath: string): StoreBoundServices {
-  return store.sqliteDb !== undefined ? sqliteOnlyServices(store.sqliteDb, dbPath) : pgOnlyServices(store.content);
+export function storeBoundServicesFor({ store, dbPath }: { store: SiteStore; dbPath: string }, _optional = {}): StoreBoundServices {
+  return store.sqliteDb !== undefined ? sqliteOnlyServices({ db: store.sqliteDb, dbPath }) : pgOnlyServices(store.content);
 }

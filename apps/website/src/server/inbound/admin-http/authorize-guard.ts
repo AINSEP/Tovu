@@ -46,21 +46,44 @@ export interface AuthorizeGuardParams {
  *
  * @complexity O(1) — one `authorize()` call, one branch.
  */
-export async function authorizeOrRespond(
-  res: Response,
-  authorize: RouteDeps["authorize"],
-  params: AuthorizeGuardParams
-): Promise<boolean> {
+export async function authorizeOrRespond({ res, authorize, params }: { res: Response; authorize: RouteDeps["authorize"]; params: AuthorizeGuardParams }, _optional = {}): Promise<boolean> {
   const publishTrust = getPublishTrustContext(res);
   const effectiveAuthorize = publishTrust ? publishTrustAuthorizeFor(publishTrust) : authorize;
   const authResult = await effectiveAuthorize(params);
   if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${params.principalId}' is not authorized for '${params.permission}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission: params.permission, reason: authResult.reason },
-    });
+    writeForbidden({ res, params, reason: authResult.reason });
     return false;
   }
   return true;
+}
+
+/**
+ * Runs `authorize` and, on denial, writes the standard 403 FORBIDDEN body (the same shape
+ * `authorizeOrRespond` writes) and returns `false`.
+ *
+ * Deliberately calls `authorize` directly instead of `authorizeOrRespond`: these routes have never
+ * consulted the publishing-credential capability override that helper adds, and switching them
+ * over is an authorization change for the owner to decide, not part of a refactor.
+ * (Moved here from `routes/media/route-guards.ts`'s `authorizeMediaOrRespond`, dedupe plan group
+ * RG2, so the ~85 routes that hand-rolled this block share one copy.)
+ *
+ * @complexity O(1) — one `authorize()` call.
+ */
+export async function authorizeDirectOrRespond(
+  { res, authorize, params }: { res: Response; authorize: RouteDeps["authorize"]; params: AuthorizeGuardParams },
+  _optional: Record<string, never> = {},
+): Promise<boolean> {
+  const authResult = await authorize(params);
+  if (authResult.allowed) return true;
+  writeForbidden({ res, params, reason: authResult.reason });
+  return false;
+}
+
+/** The one definition of the admin 403 body both guards above write. @complexity O(1). */
+function writeForbidden({ res, params, reason }: { res: Response; params: AuthorizeGuardParams; reason: string }): void {
+  res.status(403).json({
+    error: `principal '${params.principalId}' is not authorized for '${params.permission}' (${reason})`,
+    code: "FORBIDDEN",
+    details: { permission: params.permission, reason },
+  });
 }

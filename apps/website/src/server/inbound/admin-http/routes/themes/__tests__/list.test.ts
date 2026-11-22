@@ -12,12 +12,12 @@ function theme(id: string, source: string, errors: string[] = []) {
 }
 async function invoke(themes: unknown[], settings: unknown, fail = false) {
   const app = express();
-  registerAdminThemesListRoute(app, {
+  registerAdminThemesListRoute({ app, deps: {
     workspaceId: "ws-7", themes, authorize: async () => ({ allowed: true, reason: "matched" }),
     presentationRepo: { findByWorkspaceId: async (required: { workspaceId: string }) => {
       assert.deepEqual(required, { workspaceId: "ws-7" }); if (fail) throw new Error("secret db failure"); return settings;
     } },
-  } as any);
+  } as any });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/themes")({ params: { workspaceId: "ws-7" } }, res);
@@ -52,13 +52,13 @@ test("an absent or foreign workspace 404s and a caller without theme.set gets 40
   let reads = 0;
   let allowed = false;
   const app = express();
-  registerAdminThemesListRoute(app, portFake<ContentRouteDeps>({
+  registerAdminThemesListRoute({ app, deps: portFake<ContentRouteDeps>({
     workspaceId: "ws-7", themes: [], authorize: async (input: unknown) => {
       assert.deepEqual(input, { principalId: "principal-7", permission: "theme.set", workspaceId: "ws-7", entityType: "presentation" });
       return { allowed, reason: "no grant" };
     },
     presentationRepo: { findByWorkspaceId: async () => { reads++; return null; } },
-  }));
+  }) });
   const call = async (params: Record<string, string>) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

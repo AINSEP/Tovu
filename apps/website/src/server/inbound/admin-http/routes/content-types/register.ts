@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -7,33 +8,21 @@ import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { registerContentType } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-import { contentTypeWriteErrorStatus } from "./write-error-status.js";
+import { contentTypeWriteErrorStatus } from "@jini-ai/cms/content-types";
 
 /**
  * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types` (creates a Collection's
  * content type, ADR-043 §4). Gated by `admin.collections.manage`; the write-service's own
  * `registerContentType` re-checks the same permission internally (chokepoint discipline) — this
  * route's own pre-check exists only for a fast, structured 403 before touching the body at all,
- * mirroring `routes/admin/settings/register-definitions.ts`'s identical pattern.
+ * mirroring `apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts`'s identical pattern.
  */
-export function registerAdminContentTypeRegisterRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeRegisterRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/content-types", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "content-type",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.manage", workspaceId: deps.workspaceId, entityType: "content-type" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       if (typeof body.key !== "string" || typeof body.label !== "string") {

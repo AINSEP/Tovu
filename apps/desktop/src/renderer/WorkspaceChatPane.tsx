@@ -21,7 +21,7 @@ interface WorkspaceChatPaneComponents {
 export function WorkspaceChatPane({
   onClose,
   ports,
-  components: { ConversationList: Conversations = ConversationList, ChatPane: Chat = ChatPane } = {},
+  components: { ConversationList: Conversations = ConversationList, ChatPane: Chat = ChatPane } = {}, useWorkspaceChatPaneHook = useWorkspaceChatPane,
 }: {
   onClose: () => void;
   /** `useWorkspaceChatPane`'s hook ports, passed straight through; production passes none. */
@@ -31,7 +31,7 @@ export function WorkspaceChatPane({
    * because a linked `@jini-ai/chat` resolves its own copy of React outside a bundler, and because
    * what this pane owns is the props it hands them — the components themselves are tested in Jini.
    */
-  components?: WorkspaceChatPaneComponents;
+  components?: WorkspaceChatPaneComponents; useWorkspaceChatPaneHook?: typeof useWorkspaceChatPane;
 }) {
   // Everything this pane holds and every handler it wires, including the capture-phase folder drop
   // (`captureFolderDrop`) and `WORKSPACE_RUN_CONTEXT`. See `use-workspace-chat-pane.hooks.ts`.
@@ -48,7 +48,7 @@ export function WorkspaceChatPane({
     setWorkingDirectory,
     composerHandle,
     onDropCapture,
-  } = useWorkspaceChatPane({}, ports);
+  } = useWorkspaceChatPaneHook({}, ports);
 
   return (
     <aside className="runner-chat-pane" aria-label="Runner chat" onDropCapture={onDropCapture}>
@@ -86,13 +86,13 @@ export function WorkspaceChatPane({
             Delete “{deleteConfirmation.pendingTitle}”? This can’t be undone.
           </p>
           <div className="runner-chat-pane__confirm-actions">
-            <button type="button" onClick={() => deleteConfirmation.resolvePending(false)}>
+            <button type="button" onClick={() => deleteConfirmation.resolvePending({ confirmed: false })}>
               Cancel
             </button>
             <button
               type="button"
               className="runner-chat-pane__confirm-delete"
-              onClick={() => deleteConfirmation.resolvePending(true)}
+              onClick={() => deleteConfirmation.resolvePending({ confirmed: true })}
             >
               Delete
             </button>
@@ -134,7 +134,7 @@ export function WorkspaceChatPane({
           // Deliberately unrestricted, unlike Tovu's `attachmentAccept="image/*"`: that limit
           // exists because Tovu's daemon-side pipeline only handles images today, and Runner has
           // no such pipeline to outrun — a staged file's absolute path is simply handed to the
-          // fleet agent (`runner-daemon.ts`'s `imagePaths`/`extraAllowedDirs`), which already has
+          // fleet agent (`apps/desktop/src/desktop-agent.ts`'s `imagePaths`/`extraAllowedDirs`), which already has
           // full filesystem/Bash access on this machine and can act on any file type directly.
         />
       )}

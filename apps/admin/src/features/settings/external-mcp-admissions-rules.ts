@@ -1,9 +1,4 @@
-import type {
-  AdminExternalMcpAdmissionsSnapshot,
-  AdminExternalMcpConfigFailure,
-  AdminFederatedAdmissionEntry,
-  AdminToolRefusalReason,
-} from "@/lib/api";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What the RUNNING assistant actually admitted, turned into operator-facing rows — the
@@ -251,7 +246,7 @@ export function admissionRestartHelps(
  *
  * @complexity O(c · e) in connections and their rows.
  */
-export function describeDriftHeadline(connections: readonly AdmissionDriftConnection[]): string {
+export function describeDriftHeadline({ connections }: { connections: readonly AdmissionDriftConnection[] }, _optional: Record<string, never> = {}): string {
   const restartHelps = admissionRestartHelps({ connections });
   return restartHelps ? RESTART_HEADLINE_KEY : NO_RESTART_HEADLINE_KEY;
 }
@@ -260,7 +255,7 @@ export function describeDriftHeadline(connections: readonly AdmissionDriftConnec
  * a child dependency. POSIX, drive-rooted Windows and UNC paths are read regardless of the
  * browser's OS because the launcher runs on the site's host.
  * @complexity O(n) time in command/reason length, O(command length) additional space. */
-function isMissingLauncher(saved: SavedConnectionIntent, reason: string): boolean {
+function isMissingLauncher({ saved, reason }: { saved: SavedConnectionIntent; reason: string }, _options = {}): boolean {
   if (saved.transport !== "stdio" || !saved.command) return false;
   const absoluteCommand = /^(?:\/|[a-z]:[\\/]|\\\\)/i.test(saved.command);
   return absoluteCommand && reason.includes(`spawn ${saved.command} ENOENT`);
@@ -281,7 +276,7 @@ function isMissingLauncher(saved: SavedConnectionIntent, reason: string): boolea
  *
  * @complexity O(1).
  */
-function isDecryptFailureReason(reason: string): boolean {
+function isDecryptFailureReason({ reason }: { reason: string }, _options = {}): boolean {
   return reason.includes("could not be decrypted");
 }
 
@@ -339,9 +334,15 @@ function driftEntries(entry: AdminFederatedAdmissionEntry): AdmissionDriftEntry[
  *
  * @complexity O(t) in the connection's admitted tool count.
  */
-function liveOnlyEntries(entry: AdminFederatedAdmissionEntry, savedAllowedToolNames: string | undefined): AdmissionDriftEntry[] {
+function liveOnlyEntries(
+  { entry, savedAllowedToolNames }: {
+    entry: AdminFederatedAdmissionEntry;
+    savedAllowedToolNames: string | undefined;
+  },
+  _options = {},
+): AdmissionDriftEntry[] {
   if (savedAllowedToolNames === undefined) return [];
-  const saved = new Set(parseSavedToolNames(savedAllowedToolNames));
+  const saved = new Set(parseSavedToolNames({ value: savedAllowedToolNames }));
   return entry.admitted
     .filter((tool) => !saved.has(tool.remoteName))
     .map((tool): AdmissionDriftEntry => ({
@@ -355,7 +356,7 @@ function liveOnlyEntries(entry: AdminFederatedAdmissionEntry, savedAllowedToolNa
 
 /** `"a, b , c"` as the roster card stores it, back to names. Mirrors `use-external-mcp.hooks.ts`'s
  *  own `join(", ")` on the way out; blanks are dropped so an empty field is zero names, not one. */
-export function parseSavedToolNames(value: string | undefined): string[] {
+export function parseSavedToolNames({ value }: { value: string | undefined }, _options = {}): string[] {
   return (value ?? "")
     .split(",")
     .map((name) => name.trim())
@@ -366,20 +367,23 @@ export function parseSavedToolNames(value: string | undefined): string[] {
  * One connection's drift, or `null` when the live assistant and the saved roster agree — the
  * common case, which must render nothing at all rather than a reassuring banner nobody needs.
  *
- * @param entry - This connection's live admission report from the daemon.
- * @param savedAllowedToolNames - The roster card's own `allowedToolNames` field, verbatim, or
+ * @param input.entry - This connection's live admission report from the daemon.
+ * @param input.savedAllowedToolNames - The roster card's own `allowedToolNames` field, verbatim, or
  *   `undefined` when this connection has no roster card at all (an env preset). The two are NOT
  *   interchangeable — see {@link liveOnlyEntries}.
  * @complexity O(t) in the connection's advertised/refused/admitted tool count.
  * @overallScore 100
  */
 export function describeConnectionDrift(
-  entry: AdminFederatedAdmissionEntry,
-  savedAllowedToolNames: string | undefined,
+  { entry, savedAllowedToolNames }: {
+    entry: AdminFederatedAdmissionEntry;
+    savedAllowedToolNames: string | undefined;
+  },
+  _options = {},
 ): AdmissionDriftConnection | null {
-  const entries = [...refusalEntries(entry), ...driftEntries(entry), ...liveOnlyEntries(entry, savedAllowedToolNames)];
+  const entries = [...refusalEntries(entry), ...driftEntries(entry), ...liveOnlyEntries({ entry, savedAllowedToolNames })];
   const live = new Set(entry.admitted.map((tool) => tool.remoteName));
-  const saved = parseSavedToolNames(savedAllowedToolNames);
+  const saved = parseSavedToolNames({ value: savedAllowedToolNames });
   const notLoaded = saved.filter((name) => !live.has(name));
 
   if (entries.length === 0 && notLoaded.length === 0) return null;
@@ -401,7 +405,7 @@ export function describeConnectionDrift(
  * @returns The disagreement's kind, or `null` when intent and reality agree.
  * @complexity O(1).
  */
-function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolCount: number): "not-running" | "disabled-but-running" | null {
+function resolveConnectionLevelKind({ enabled, isLive, liveToolCount }: { enabled: boolean; isLive: boolean; liveToolCount: number }, _options = {}): "not-running" | "disabled-but-running" | null {
   if (!isLive) return enabled ? "not-running" : null;
   // A live connection with an empty admitted set says nothing either way — the daemon may hold the
   // session open having admitted none of its tools, which the per-tool rows already explain.
@@ -423,18 +427,21 @@ function resolveConnectionLevelKind(enabled: boolean, isLive: boolean, liveToolC
  * @complexity O(n) time in the failure text and command length, O(command length) additional space.
  */
 function resolveNotRunningCopy(
-  kind: "not-running" | "disabled-but-running",
-  configFailureReason: string | undefined,
-  saved: SavedConnectionIntent,
+  { kind, configFailureReason, saved }: {
+    kind: "not-running" | "disabled-but-running";
+    configFailureReason: string | undefined;
+    saved: SavedConnectionIntent;
+  },
+  _options = {},
 ): { readonly kind: AdmissionDriftKind; readonly messageKey: string; readonly messageVars: Readonly<Record<string, string>> } {
   if (kind === "not-running" && saved.needsSignIn) {
     return { kind: "needs-sign-in", messageKey: NEEDS_SIGN_IN_KEY, messageVars: {} };
   }
   if (kind === "not-running" && configFailureReason !== undefined) {
-    if (isMissingLauncher(saved, configFailureReason)) {
+    if (isMissingLauncher({ saved, reason: configFailureReason })) {
       return { kind: "missing-launcher", messageKey: "Launcher missing", messageVars: {} };
     }
-    return isDecryptFailureReason(configFailureReason)
+    return isDecryptFailureReason({ reason: configFailureReason })
       ? { kind: "decrypt-failed", messageKey: DECRYPT_FAILED_KEY, messageVars: {} }
       : { kind: "failed-to-start", messageKey: FAILED_TO_START_KEY, messageVars: { reason: configFailureReason } };
   }
@@ -451,23 +458,25 @@ function resolveNotRunningCopy(
  * still-live is the same freeze seen from the other side. The other two agree and must render
  * nothing: an off server that is not running is not a fault, it is the switch working.
  *
- * @param configFailureReason - The daemon's own boot-time reason this connection never even reached
+ * @param options.configFailureReason - The daemon's own boot-time reason this connection never even reached
  *   an admission attempt, when one was reported (`describeAdmissionDrift`'s `configFailures`). See
  *   {@link resolveNotRunningCopy}.
  * @returns The connection row, or `null` when intent and reality agree.
  * @complexity O(t) in the saved name count.
  */
 function connectionLevelEntry(
-  connectionId: string,
-  saved: SavedConnectionIntent,
-  liveEntry: AdminFederatedAdmissionEntry | undefined,
-  configFailureReason?: string,
+  { connectionId, saved, liveEntry }: {
+    connectionId: string;
+    saved: SavedConnectionIntent;
+    liveEntry: AdminFederatedAdmissionEntry | undefined;
+  },
+  { configFailureReason }: { configFailureReason?: string } = {},
 ): AdmissionDriftConnection | null {
-  const savedNames = parseSavedToolNames(saved.allowedToolNames);
+  const savedNames = parseSavedToolNames({ value: saved.allowedToolNames });
   const liveToolCount = liveEntry?.admitted.length ?? 0;
-  const kind = resolveConnectionLevelKind(saved.enabled, liveEntry !== undefined, liveToolCount);
+  const kind = resolveConnectionLevelKind({ enabled: saved.enabled, isLive: liveEntry !== undefined, liveToolCount });
   if (!kind) return null;
-  const resolved = resolveNotRunningCopy(kind, configFailureReason, saved);
+  const resolved = resolveNotRunningCopy({ kind, configFailureReason, saved });
 
   return {
     connectionId,
@@ -499,10 +508,10 @@ function connectionLevelEntry(
  * live entry, or a switched-off one that is still live (2026-09-07, ADM-001). A live, agreeing
  * connection is claimed by neither.
  *
- * @param snapshot - `getExternalMcpAdmissions()`'s response. `undefined` means the daemon could not
+ * @param input.snapshot - `getExternalMcpAdmissions()`'s response. `undefined` means the daemon could not
  *   be asked, and returns `[]` deliberately: the caller renders that as its own sentence, and
  *   inventing "not running" rows out of a failed read would put a wrong diagnosis under a right one.
- * @param savedById - Each roster card's saved intent, keyed by its id. A connection the daemon
+ * @param input.savedById - Each roster card's saved intent, keyed by its id. A connection the daemon
  *   reports that is absent here is EITHER an env preset (no roster card by design) OR a roster
  *   connection the operator just deleted — {@link describeLiveConnection} tells the two apart via
  *   the entry's own `isPreset`, not via this map, because this map cannot: a deleted card leaves
@@ -511,8 +520,11 @@ function connectionLevelEntry(
  * @overallScore 100
  */
 export function describeAdmissionDrift(
-  snapshot: AdminExternalMcpAdmissionsSnapshot | undefined,
-  savedById: Readonly<Record<string, SavedConnectionIntent>>,
+  { snapshot, savedById }: {
+    snapshot: AdminExternalMcpAdmissionsSnapshot | undefined;
+    savedById: Readonly<Record<string, SavedConnectionIntent>>;
+  },
+  _options = {},
 ): readonly AdmissionDriftConnection[] {
   if (!snapshot) return [];
   const liveIds = new Set(snapshot.connections.map((entry) => entry.connectionId));
@@ -524,10 +536,10 @@ export function describeAdmissionDrift(
   );
 
   return [
-    ...snapshot.connections.map((entry) => describeLiveConnection(entry, savedById[entry.connectionId])),
+    ...snapshot.connections.map((entry) => describeLiveConnection({ entry, saved: savedById[entry.connectionId] })),
     ...Object.entries(savedById)
       .filter(([connectionId]) => !liveIds.has(connectionId))
-      .map(([connectionId, saved]) => connectionLevelEntry(connectionId, saved, undefined, configFailureReasonById.get(connectionId))),
+      .map(([connectionId, saved]) => connectionLevelEntry({ connectionId, saved, liveEntry: undefined }, { configFailureReason: configFailureReasonById.get(connectionId) })),
   ].filter((connection): connection is AdmissionDriftConnection => connection !== null);
 }
 
@@ -578,15 +590,18 @@ function removedButStillRunningEntry(entry: AdminFederatedAdmissionEntry): Admis
  *  older daemon build that predates this field is read as "not a preset" — the fail-loud direction,
  *  since it surfaces a possibly-real orphaned connection instead of silently assuming it away. */
 function describeLiveConnection(
-  entry: AdminFederatedAdmissionEntry,
-  saved: SavedConnectionIntent | undefined,
+  { entry, saved }: {
+    entry: AdminFederatedAdmissionEntry;
+    saved: SavedConnectionIntent | undefined;
+  },
+  _options = {},
 ): AdmissionDriftConnection | null {
   if (saved) {
-    const connectionLevel = connectionLevelEntry(entry.connectionId, saved, entry);
-    return connectionLevel ?? describeConnectionDrift(entry, saved.allowedToolNames);
+    const connectionLevel = connectionLevelEntry({ connectionId: entry.connectionId, saved, liveEntry: entry });
+    return connectionLevel ?? describeConnectionDrift({ entry, savedAllowedToolNames: saved.allowedToolNames });
   }
   if (!entry.isPreset) return removedButStillRunningEntry(entry);
-  return describeConnectionDrift(entry, undefined);
+  return describeConnectionDrift({ entry, savedAllowedToolNames: undefined });
 }
 
 /**
@@ -603,8 +618,14 @@ function describeLiveConnection(
  * @complexity O(n) in the current grant count.
  * @overallScore 100
  */
-export function grantWriteFieldValue(currentWriteAllowedToolNames: string | undefined, remoteName: string): string {
-  const names = parseSavedToolNames(currentWriteAllowedToolNames);
+export function grantWriteFieldValue(
+  { currentWriteAllowedToolNames, remoteName }: {
+    currentWriteAllowedToolNames: string | undefined;
+    remoteName: string;
+  },
+  _options = {},
+): string {
+  const names = parseSavedToolNames({ value: currentWriteAllowedToolNames });
   if (names.includes(remoteName)) return names.join(", ");
   return [...names, remoteName].join(", ");
 }

@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
-import type { SecretSealerPort } from "#src/features/webhooks/ports";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
-import type { SealedSecret } from "#src/features/webhooks/types";
+import type { SealedSecret } from "#src/features/webhooks/index";
 
 import { siteSecretSealer, type SiteSecretSealer } from "./storage-secret.js";
 
@@ -28,7 +28,7 @@ interface PendingTokensFile {
 }
 
 /** Binds a ciphertext to its plugin id, so one plugin's token never opens as another's. */
-function pendingTokenAad(pluginId: string): string {
+function pendingTokenAad({ pluginId }: { pluginId: string }, _optional = {}): string {
   return `tovu:agent-plugin-pending-token:v1:${pluginId}`;
 }
 
@@ -49,7 +49,7 @@ export async function sealPendingAgentPluginTokensForNewSite(
   // refusal and sealing arms in-process without minting a key under the real home directory.
   {
     ensure = ensureSiteKey,
-    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer(required.siteDir, process.env, siteKeyIdForSite),
+    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer({ siteDir: required.siteDir }, { env: process.env, siteKeyId: siteKeyIdForSite }),
   }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
 ): Promise<void> {
   const { siteDir, siteKeyId, tokens } = required;
@@ -62,18 +62,15 @@ export async function sealPendingAgentPluginTokensForNewSite(
   const key = await keyring.activeKey();
   const file: PendingTokensFile = { version: 1, tokens: {} };
   for (const [pluginId, token] of Object.entries(tokens)) {
-    file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad(pluginId) });
+    file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad({ pluginId }) });
   }
-  writePendingTokensFile(siteDir, file);
+  writePendingTokensFile({ siteDir, file });
 }
 
 /** Writes the file 0600 via a temp file and rename, so a rewrite never leaves it half-written and
  *  never inherits a wider mode from the file it replaces. */
-function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void {
-  const target = path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
-  const temp = path.join(siteDir, `.${PENDING_AGENT_PLUGIN_TOKENS_FILENAME}.${process.pid}.${randomUUID()}.tmp`);
-  fs.writeFileSync(temp, JSON.stringify(file, null, 2), { mode: 0o600 });
-  fs.renameSync(temp, target);
+function writePendingTokensFile({ siteDir, file }: { siteDir: string; file: PendingTokensFile }, _optional = {}): void {
+  writeJsonFileAtomic({ filePath: path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), data: file, fs: createNodeAtomicFilesystem({}, {}) }, { mode: 0o600 });
 }
 
 /**
@@ -83,7 +80,7 @@ function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void 
  *
  * @complexity One small file read.
  */
-export function listPendingAgentPluginTokenIds(siteDir: string): ReadonlySet<string> {
+export function listPendingAgentPluginTokenIds({ siteDir }: { siteDir: string }, _optional = {}): ReadonlySet<string> {
   try {
     const file = JSON.parse(fs.readFileSync(path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), "utf8")) as Partial<PendingTokensFile> | null;
     const tokens = file?.tokens;
@@ -110,9 +107,10 @@ export async function applyPendingAgentPluginTokens(
   required: {
     siteDir: string;
     sealer: SecretSealerPort;
-    importToken: (pluginId: string, token: string) => Promise<"saved" | "saved-left-off" | "already-connected">;
+    importToken: ({ pluginId, token }: { pluginId: string; token: string }, optional?: Record<string, never>) => Promise<"saved" | "saved-left-off" | "already-connected">;
+    log: PendingTokenLog;
   },
-  log: PendingTokenLog,
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   const target = path.join(required.siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   let file: PendingTokensFile;
@@ -120,19 +118,19 @@ export async function applyPendingAgentPluginTokens(
     file = JSON.parse(fs.readFileSync(target, "utf8")) as PendingTokensFile;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
-    log.warn(`[agent-plugins] ${target} is not valid JSON; removing it. Connect the plugin from chat instead.`);
+    required.log.warn(`[agent-plugins] ${target} is not valid JSON; removing it. Connect the plugin from chat instead.`);
     fs.rmSync(target, { force: true });
     return;
   }
   const remaining: Record<string, SealedSecret> = {};
   for (const [pluginId, sealed] of Object.entries(file?.tokens ?? {})) {
-    if (await applyPendingToken({ required, log, pluginId, sealed })) remaining[pluginId] = sealed;
+    if (await applyPendingToken({ required, log: required.log, pluginId, sealed })) remaining[pluginId] = sealed;
   }
   if (Object.keys(remaining).length === 0) {
     fs.rmSync(target, { force: true });
     return;
   }
-  writePendingTokensFile(required.siteDir, { version: 1, tokens: remaining });
+  writePendingTokensFile({ siteDir: required.siteDir, file: { version: 1, tokens: remaining } });
 }
 
 /** Handle one sealed credential; true retains it for retry, false consumes it. O(1) plus import I/O. */
@@ -147,13 +145,13 @@ async function applyPendingToken(
 ): Promise<boolean> {
   let token: string;
   try {
-    token = await required.sealer.open({ sealed }, { aad: pendingTokenAad(pluginId) });
+    token = await required.sealer.open({ sealed }, { aad: pendingTokenAad({ pluginId }) });
   } catch {
     log.warn(`[agent-plugins] the access token saved for '${pluginId}' when this site was created does not open with this site's key; it was dropped. Connect '${pluginId}' from chat instead.`);
     return false;
   }
   try {
-    const outcome = await required.importToken(pluginId, token);
+    const outcome = await required.importToken({ pluginId, token });
     if (outcome === "saved") log.info(`[agent-plugins] connected '${pluginId}' with the access token given when this site was created.`);
     if (outcome === "saved-left-off") log.info(`[agent-plugins] saved the access token given for '${pluginId}' when this site was created; it stays off because an operator turned it off.`);
   } catch {

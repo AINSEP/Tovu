@@ -22,7 +22,7 @@ import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "#src/features/comments/tool-registrations";
 
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
@@ -31,10 +31,16 @@ import { buildWidgetsRegistrations, type WidgetsToolDeps } from "#src/features/w
 import { memoryWidgetTrash } from "#src/features/widgets/__tests__/support/memory-widget-trash";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
+import { buildThemesRegistrations } from "#src/features/theme/tool-registrations";
+import { type ThemeToolDeps } from "#src/features/theme/asset-operations";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
@@ -47,8 +53,9 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#s
 import { createSubscription } from "#src/features/webhooks/subscriptions";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/features/webhooks/tool-registrations";
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -310,7 +317,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
       clock,
       repo: webhookSubscriptionRepo,
       idGenerator: idGen,
-      isAllowedTarget: (url: string) => originRegistry.isAllowedEgressTarget({ context: { workspaceId }, url: url }),
+      isAllowedTarget: ({ url }: { url: string }) => originRegistry.isAllowedEgressTarget({ context: { workspaceId }, url: url }),
     },
     input: {
       workspaceId,
@@ -375,7 +382,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -410,7 +417,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -456,7 +463,7 @@ for (const scenario of TRASH_SCENARIOS) {
     };
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor: countingExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges } });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

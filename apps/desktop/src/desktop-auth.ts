@@ -38,6 +38,7 @@
  */
 import crypto from "node:crypto";
 import path from "node:path";
+import { assertLoopbackHttpUrl, ensureSession } from "@jini-ai/user-management/session-bootstrap";
 
 /** The owner account this shell seeds and logs in as. **Must stay Tovu's own default owner
  *  username** (`features/identity/wiring.ts:120`) — see this file's header for the measured reason
@@ -64,11 +65,6 @@ const SESSION_PROBE_PATH = "/api/admin/v1/auth/me";
  *  import: this directory stays self-contained (see `main.ts`'s header), so nothing under
  *  `apps/website/` has to change, or even be resolvable, for this shell to build. */
 const SESSION_COOKIE_NAME = "tovu_session";
-
-/** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
- *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
- *  always knows the literal address its own child bound. */
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "[::1]"]);
 
 /** What {@link redeemBootSession} and {@link endSiteSession} resolve with. */
 interface AuthOutcome {
@@ -116,6 +112,9 @@ interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
   request(options: AuthRequestOptions<TSession>): TRequest;
 }
 
+/** Hosts a spawned-by-us server can legitimately be reached on. `localhost` is excluded on purpose:
+ *  it is a NAME, resolvable through `/etc/hosts` or DNS to somewhere else entirely, and this shell
+ *  always knows the literal address its own child bound. */
 /**
  * Throw unless `adminUrl` names a plain-HTTP loopback origin.
  *
@@ -127,20 +126,12 @@ interface AuthNet<TSession, TRequest extends AuthRequest = AuthRequest> {
  * @throws {Error} when the url is unparseable, not `http:`, or not a loopback literal.
  * @complexity O(1).
  */
-function assertLoopbackAdminUrl(adminUrl: string): URL {
-  let parsed: URL;
-  try {
-    parsed = new URL(adminUrl);
-  } catch {
-    throw new Error(`desktop sign-in refused: ${adminUrl} is not a valid URL.`);
-  }
-  if (parsed.protocol !== "http:") {
-    throw new Error(`desktop sign-in refused: ${parsed.protocol}// is not plain-HTTP loopback.`);
-  }
-  if (!LOOPBACK_HOSTS.has(parsed.hostname)) {
-    throw new Error(`desktop sign-in refused: ${parsed.hostname} is not a loopback address.`);
-  }
-  return parsed;
+function assertLoopbackAdminUrl({ adminUrl }: { adminUrl: string }, _options = {}): URL {
+  return assertLoopbackHttpUrl({ url: adminUrl }, { message: ({ reason, detail }) => {
+    if (reason === 'invalid') return `desktop sign-in refused: ${detail} is not a valid URL.`;
+    if (reason === 'scheme') return `desktop sign-in refused: ${detail}// is not plain-HTTP loopback.`;
+    return `desktop sign-in refused: ${detail} is not a loopback address.`;
+  } });
 }
 
 /**
@@ -150,11 +141,11 @@ function assertLoopbackAdminUrl(adminUrl: string): URL {
  * syntax (`persist:` prefix, `/` separators) and does not leak the operator's directory layout into
  * a partition directory name under `userData`.
  *
- * @param siteDir absolute site directory.
+ * @param input.siteDir absolute site directory.
  * @returns e.g. `persist:tovu-site-1f3c…`
  * @complexity O(n) in the path length.
  */
-function sitePartition(siteDir: string): string {
+function sitePartition({ siteDir }: { siteDir: string }, _options = {}): string {
   const digest = crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
   return `persist:tovu-site-${digest}`;
 }
@@ -171,7 +162,7 @@ export function armDesktopOwnerSignIn({ session, adminUrl, capability }: {
   ): void } };
   adminUrl: string; capability: string;
 }, _options = {}): void {
-  const origin = assertLoopbackAdminUrl(adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl });
   if (!/^[a-f0-9]{64}$/.test(capability) || origin.username || origin.password) throw new Error("Invalid desktop owner sign-in capability or origin.");
   const urls = ["local-boot-session", "reset-owner"].map(action => new URL(`/api/admin/v1/auth/${action}`, origin.origin).href);
   session.webRequest.onBeforeSendHeaders({ urls }, (details, callback) => {
@@ -213,7 +204,7 @@ async function redeemBootSession<TSession>(deps: {
   // `async` so the loopback guard REJECTS rather than throwing synchronously. A Promise-returning
   // function that can also throw before returning its promise is a trap for any caller using
   // `.catch()`, and this particular throw is the security guard.
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   const body = JSON.stringify({ token: deps.bootToken });
 
   return new Promise((resolve) => {
@@ -327,7 +318,7 @@ async function hasValidSession<TSession>(deps: {
   session: TSession & CookieJarSession;
   adminUrl: string;
 }): Promise<boolean> {
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
   if (!(await hasActiveSessionCookie(deps))) return false;
 
   return new Promise((resolve) => {
@@ -387,10 +378,7 @@ async function ensureSiteSession<TSession>(deps: {
   adminUrl: string;
   redeem: () => Promise<boolean>;
 }): Promise<{ authenticated: boolean; redeemed: boolean }> {
-  if (await hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl })) {
-    return { authenticated: true, redeemed: false };
-  }
-  return { authenticated: await deps.redeem(), redeemed: true };
+  return ensureSession({ probe: () => hasValidSession({ net: deps.net, session: deps.session, adminUrl: deps.adminUrl }), redeem: deps.redeem }, {});
 }
 
 /**
@@ -416,7 +404,7 @@ async function endSiteSession<TSession>(deps: {
   session: TSession;
   adminUrl: string;
 }): Promise<AuthOutcome> {
-  const origin = assertLoopbackAdminUrl(deps.adminUrl);
+  const origin = assertLoopbackAdminUrl({ adminUrl: deps.adminUrl });
 
   return new Promise((resolve) => {
     const request = deps.net.request({

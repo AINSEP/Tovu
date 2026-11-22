@@ -54,7 +54,7 @@ const listeners = new Set<Listener>();
  * component would invalidate a cache on behalf of a screen that is no longer mounted.
  * @complexity O(1).
  */
-export function subscribeToContentRefresh(listener: Listener): () => void {
+export function subscribeToContentRefresh({ listener }: { listener: Listener }, _optional: Record<string, never> = {}): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -92,7 +92,7 @@ export function publishContentRefresh(resources?: readonly string[]): void {
  *
  * @complexity O(n) in the notification's own resource list (typically 0-1 entries).
  */
-export function contentRefreshApplies(scope: ContentRefreshScope, resource: string): boolean {
+export function contentRefreshApplies({ scope, resource }: { scope: ContentRefreshScope; resource: string }, _optional: Record<string, never> = {}): boolean {
   return scope === null || scope.includes(resource);
 }
 

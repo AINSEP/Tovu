@@ -57,11 +57,11 @@ test('only one save registration and five protected card ids remain; retired ids
   assert.equal(applyToolApprovalPolicy({ registration: f.registrations[0]!, surfaces: {} as never }), f.registrations[0], 'the card owns approval without a second confirmation');
   assert.deepEqual([...SECRET_FORM_TOOL_IDS].sort(), ['credential_save', 'database_transfer_set_destination', 'deployment_ops_set_secret', 'external_mcp_save', 'identity_user_create']);
   for (const id of ['custom_credential_create', 'custom_credential_set_token', 'media_propose_provider_credential', 'source_control_propose_credential', 'deployment_propose_custom_provider_credential', 'agent_plugin_set_access_token']) {
-    assert.equal(isMcpUiToolCallPermitted(id, false), false);
-    assert.equal(isMcpUiToolCallPermitted(id, true), false);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), false);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), false);
   }
-  assert.equal(isMcpUiToolCallPermitted('credential_save', false), false);
-  assert.equal(isMcpUiToolCallPermitted('credential_save', true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'credential_save', answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'credential_save', answersAnExchange: true }), true);
 });
 
 test('unknown kinds, cross-kind fields, secret arguments and target replacement never call an owner', async () => {

@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `TermPicker`'s own state and async action — the Categories & Tags box the post, page and
  * collection-entry editors all mount (`TermPicker.tsx`). One content ref (`contentType` +
@@ -108,9 +110,9 @@ function pickerError({ saveError, assignedError, taxonomiesError, locale }: {
   taxonomiesError: unknown;
   locale: string;
 }): string | null {
-  if (saveError) return describeApiError(saveError, t({ locale: locale, key: "Failed to save categories & tags" }));
+  if (saveError) return describeApiError({ e: saveError, fallback: t({ locale: locale, key: "Failed to save categories & tags" }) });
   const loadError = assignedError ?? taxonomiesError;
-  return loadError ? describeApiError(loadError, t({ locale: locale, key: "Failed to load categories & tags" })) : null;
+  return loadError ? describeApiError({ e: loadError, fallback: t({ locale: locale, key: "Failed to load categories & tags" }) }) : null;
 }
 
 /**
@@ -199,13 +201,13 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   async function addTerm(taxonomyId: string) {
     const group = groupOf(taxonomyId);
     if (!group) return;
-    const wanted = splitTermNames(names[taxonomyId] ?? "", group.taxonomy.hierarchical);
+    const wanted = splitTermNames({ text: names[taxonomyId] ?? "", hierarchical: group.taxonomy.hierarchical });
     if (wanted.length === 0) return;
     setCreateTarget(taxonomyId);
     const ids: string[] = [];
     try {
       for (const name of wanted) {
-        const existing = findTermByName(group.terms, name);
+        const existing = findTermByName({ terms: group.terms, name });
         ids.push(existing ? existing.id : (await createMutation.mutate({ input: { taxonomyId, name } })).term.id);
       }
     } catch {
@@ -221,7 +223,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   }
 
   function pickSuggestion(taxonomyId: string, name: string) {
-    const existing = findTermByName(groupOf(taxonomyId)?.terms ?? [], name);
+    const existing = findTermByName({ terms: groupOf(taxonomyId)?.terms ?? [], name });
     if (!existing) {
       setNewTermName(taxonomyId, name);
       return;
@@ -291,7 +293,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   return {
     taxonomies,
     hidden,
-    subject: termPickerSubject(props.contentType),
+    subject: termPickerSubject({ contentType: props.contentType }),
     selected,
     toggle,
     loading,
@@ -313,7 +315,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
     creating: (taxonomyId) => createTarget === taxonomyId && createMutation.status === "pending",
     createError: (taxonomyId) =>
       createTarget === taxonomyId && createMutation.error
-        ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" }))
+        ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create term" }) })
         : null,
     suggestions: (taxonomyId) =>
       (groupOf(taxonomyId)?.terms ?? []).filter((term) => !selected.has(term.id)).map((term) => term.name),

@@ -1,8 +1,9 @@
 import { adminSurfaceFrameAttributes } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./hooks/agent-plugin-surfaces-port.hooks";
 import { useAdminSurfaceFrame } from "./hooks/use-admin-surface-frame.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One plugin-owned admin surface (for example a plugin's "Manage connection" screen) in
  * Jini's sandboxed frame: `sandbox="allow-scripts"` only (never `allow-same-origin`, which with
@@ -12,14 +13,15 @@ import { useAdminSurfaceFrame } from "./hooks/use-admin-surface-frame.hooks";
  */
 
 export interface AgentPluginSurfaceFrameProps {
+  useAdminSurfaceFrame?: typeof useAdminSurfaceFrame;
   readonly pluginId: string;
   readonly surface: AgentPluginSurfaceSummary;
   readonly port: AgentPluginSurfacesPort;
   readonly t: Translate;
 }
 
-export function AgentPluginSurfaceFrame({ pluginId, surface, port, t }: AgentPluginSurfaceFrameProps) {
-  const frame = useAdminSurfaceFrame({ pluginId, surface, port });
+export function AgentPluginSurfaceFrame({ pluginId, surface, port, t, useAdminSurfaceFrame: useAdminSurfaceFrameHook = useAdminSurfaceFrame }: AgentPluginSurfaceFrameProps) {
+  const frame = useAdminSurfaceFrameHook({ pluginId, surface, port });
   if (frame.status === "navigated") return <p className="field-hint" role="status">{t("This view left its page and was closed. Close and reopen the plugin to use it again.")}</p>;
   if (frame.status === "failed") return <p className="field-hint" role="alert">{t("Could not open this view. Close and reopen the plugin to try again.")}</p>;
   const attributes = adminSurfaceFrameAttributes({ src: surface.src, title: surface.title });

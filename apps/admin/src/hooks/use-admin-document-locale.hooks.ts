@@ -9,6 +9,6 @@ export function useAdminDocumentLocale(
   useEffect(() => {
     root.lang = locale;
     // Same RTL languages as Jini's I18nProvider; accept regional tags from stored settings too.
-    root.dir = ["ar", "fa", "he", "ur"].includes(locale.toLowerCase().split("-")[0]!) ? "rtl" : "ltr";
+    root.dir = ["ar", "fa", "he", "ur"].includes(locale.toLowerCase().split("-")[0]) ? "rtl" : "ltr";
   }, [locale, root]);
 }

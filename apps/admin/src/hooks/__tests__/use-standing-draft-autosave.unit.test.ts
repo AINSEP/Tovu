@@ -49,7 +49,7 @@ function createFakePort(overrides: Partial<StandingDraftAutosavePort> = {}): Sta
   let discardAutosaveCalls = 0;
   return {
     getAutosave: vi.fn(async () => ({ autosave: null })),
-    putAutosave: vi.fn(async (_id: string, draft: StandingDraftAutosaveInput) => {
+    putAutosave: vi.fn(async ({ draft }: { id: string; draft: StandingDraftAutosaveInput }) => {
       putAutosaveCalls.push(draft);
       return { applied: true };
     }),
@@ -91,7 +91,7 @@ describe("useStandingDraftAutosave", () => {
     expect(recovered.result.current.recoverableDraft?.title).toBe("Typed before expiry");
     expect(afterLogin.putAutosave).not.toHaveBeenCalled();
     await act(async () => recovered.result.current.clearStandingDraft());
-    expect(readStandingDraftLocalBackup("expired-post")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "expired-post" })).toBeNull();
   });
 
   it("scopes failed saves to the captured operator and entry, and clears only that draft", async () => {
@@ -109,7 +109,7 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(recovered.result.current.recoverableDraft).toMatchObject({ title: "Alice text", savedByPrincipalId: "alice", serverUpdatedAt: "2099-01-01T00:00:00.000Z" });
     await act(async () => recovered.result.current.clearStandingDraft());
-    expect(readStandingDraftLocalBackup("same-entry", { principalId: "alice" })).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "same-entry" }, { principalId: "alice" })).toBeNull();
   });
 
   it("a 403 never parks a draft as a session expiry", async () => {
@@ -117,7 +117,7 @@ describe("useStandingDraftAutosave", () => {
     const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "forbidden", enabled: true }));
     await act(async () => vi.advanceTimersByTimeAsync(0));
     act(() => result.current.preserveFailedSave({ error: { status: 403 }, draft: DOC_DRAFT }));
-    expect(readStandingDraftLocalBackup("forbidden")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "forbidden" })).toBeNull();
   });
 
   it("a late 401 cannot recreate a backup after Save or Discard clears it", async () => {
@@ -127,10 +127,10 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     act(() => result.current.scheduleAutosave(DOC_DRAFT));
     await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
-    let clearing!: Promise<void>;
+    let clearing!: Promise<{ discarded: boolean }>;
     act(() => { clearing = result.current.clearStandingDraft(); });
     await act(async () => { rejectWrite({ status: 401 }); await clearing; });
-    expect(readStandingDraftLocalBackup("late-401")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "late-401" })).toBeNull();
   });
 
   it("a late failure stays scoped to the original operator after the host switches identities", async () => {
@@ -140,8 +140,8 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     operator = "bob";
     act(() => result.current.preserveFailedSave({ error: { status: 401 }, draft: DOC_DRAFT }));
-    expect(readStandingDraftLocalBackup("late-operator", { principalId: "alice" })?.title).toBe("Hello");
-    expect(readStandingDraftLocalBackup("late-operator", { principalId: "bob" })).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "late-operator" }, { principalId: "alice" })?.title).toBe("Hello");
+    expect(readStandingDraftLocalBackup({ entryId: "late-operator" }, { principalId: "bob" })).toBeNull();
   });
 
   it("checks for a recoverable draft exactly once on mount, and never auto-applies it", async () => {
@@ -151,7 +151,7 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(result.current.recoverableDraft).toEqual(fakeSnapshot());
     expect(port.getAutosave).toHaveBeenCalledTimes(1);
-    expect(port.getAutosave).toHaveBeenCalledWith("post-1");
+    expect(port.getAutosave).toHaveBeenCalledWith({ id: "post-1" });
     // Nothing calls putAutosave/discardAutosave just from a recoverable draft existing — recovery
     // is inert until the caller explicitly acts on it.
     expect(port.putAutosave).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe("useStandingDraftAutosave", () => {
     expect(port.putAutosave).not.toHaveBeenCalled();
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(port.putAutosave).toHaveBeenCalledTimes(1);
-    expect(port.putAutosave).toHaveBeenCalledWith("post-1", { ...DOC_DRAFT, title: "Edit 7" }, { keepalive: false });
+    expect(port.putAutosave).toHaveBeenCalledWith({ id: "post-1", draft: { ...DOC_DRAFT, title: "Edit 7" } }, { keepalive: false });
   });
 
   it("clearStandingDraft cancels a still-pending (not yet fired) autosave — the timer never fires at all", async () => {
@@ -462,7 +462,7 @@ describe("useStandingDraftAutosave", () => {
 
   it("resumes autosaving on its own once the caller supplies a fresh basis — a reload needs no manual reset", async () => {
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, draft: StandingDraftAutosaveInput) => ({ applied: draft.baseVersion !== 1 })),
+      putAutosave: vi.fn(async ({ draft }: { id: string; draft: StandingDraftAutosaveInput }) => ({ applied: draft.baseVersion !== 1 })),
     });
     const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "post-1", enabled: true }));
 
@@ -481,7 +481,7 @@ describe("useStandingDraftAutosave", () => {
     // Read off the mock, not `putAutosaveCalls` — this test supplies its OWN `putAutosave`, which
     // does not feed the fake's recorder.
     expect(port.putAutosave).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(port.putAutosave).mock.calls.map(([, draft]) => draft)).toEqual([DOC_DRAFT, fresh]);
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([{ draft }]) => draft)).toEqual([DOC_DRAFT, fresh]);
   });
 
   it("keeps the refused text in a per-tab local backup, and offers it as a recoverable draft after a reload the server has nothing parked for", async () => {
@@ -552,13 +552,13 @@ describe("useStandingDraftAutosave", () => {
     // would silently repopulate.
     act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, baseVersion: 2, title: "After the reload" }));
 
-    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "An hour of work", baseVersion: 1 });
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toMatchObject({ title: "An hour of work", baseVersion: 1 });
     unmount();
   });
 
   it("does not carry a stale basis across an entryId change — a gate for one entry must not silence another", async () => {
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput) => ({ applied: _id === "post-1" ? false : true })),
+      putAutosave: vi.fn(async ({ id }: { id: string; draft: StandingDraftAutosaveInput }) => ({ applied: id === "post-1" ? false : true })),
     });
     const { result, rerender } = renderHook(
       ({ entryId }: { entryId: string }) => useStandingDraftAutosave({ port, entryId, enabled: true }),
@@ -576,7 +576,7 @@ describe("useStandingDraftAutosave", () => {
 
     act(() => result.current.scheduleAutosave(DOC_DRAFT));
     await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
-    expect(vi.mocked(port.putAutosave).mock.calls.map(([id]) => id)).toEqual(["post-1", "post-2"]);
+    expect(vi.mocked(port.putAutosave).mock.calls.map(([{ id }]) => id)).toEqual(["post-1", "post-2"]);
   });
 
   /**
@@ -597,7 +597,7 @@ describe("useStandingDraftAutosave", () => {
 
     expect(port.putAutosave).not.toHaveBeenCalled();
     expect(result.current.staleBasis).toBeNull();
-    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toBeNull();
   });
 
   it("supersedeBasis drops an older-basis schedule that arrives AFTER it, and still sends one on the new basis", async () => {
@@ -639,7 +639,7 @@ describe("useStandingDraftAutosave", () => {
     });
 
     expect(result.current.staleBasis).toBeNull();
-    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toBeNull();
   });
 
   it("supersedeBasis lifts a gate recorded on an older basis, but keeps that refusal's mirror", async () => {
@@ -654,7 +654,7 @@ describe("useStandingDraftAutosave", () => {
 
     expect(result.current.staleBasis).toBeNull();
     // Nothing has accepted that text anywhere, so the mirror is still its only durable copy.
-    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "Refused before the replacement" });
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toMatchObject({ title: "Refused before the replacement" });
   });
 
   it("supersedeBasis does not carry across an entryId change — another entry's version 1 is not 'older'", async () => {
@@ -727,7 +727,7 @@ describe("exit flushes use an unload-safe transport", () => {
   function portRecordingOptions() {
     const optionsSeen: Array<{ keepalive?: boolean } | undefined> = [];
     const port = createFakePort({
-      putAutosave: vi.fn(async (_id: string, _draft: StandingDraftAutosaveInput, options?: { keepalive?: boolean }) => {
+      putAutosave: vi.fn(async (_required: { id: string; draft: StandingDraftAutosaveInput }, options?: { keepalive?: boolean }) => {
         optionsSeen.push(options);
         return { applied: true };
       }),

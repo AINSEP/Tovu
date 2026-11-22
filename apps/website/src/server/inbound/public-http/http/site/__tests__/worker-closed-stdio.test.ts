@@ -18,8 +18,8 @@ test("both theme engines render and enforce their allowlists with the parent's s
       ["liquid-worker", "Liquid", '{% include "leak" %}', /disallowed Liquid usage.*disallowed tag "include"/],
       ["handlebars-worker", "Handlebars", "{{> leak}}", /disallowed Handlebars usage.*disallowed partial "leak"/],
     ]) {
-      assert.equal(await renderInWorkerSandbox(worker, label, { source: "<h1>{{site.title}}</h1>", ctx }), "<h1>Detached fixture</h1>");
-      await assert.rejects(renderInWorkerSandbox(worker, label, { source: disallowed, ctx }), expected);
+      assert.equal(await renderInWorkerSandbox({ workerBasename: worker, errorLabel: label, input: { source: "<h1>{{site.title}}</h1>", ctx } }), "<h1>Detached fixture</h1>");
+      await assert.rejects(renderInWorkerSandbox({ workerBasename: worker, errorLabel: label, input: { source: disallowed, ctx } }), expected);
     }
     console.log("closed stdin: both renders and allowlists verified");
   `;

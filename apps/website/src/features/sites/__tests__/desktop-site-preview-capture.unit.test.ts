@@ -17,7 +17,10 @@ test('Sites/Themes preview passes the native PNG through the established JPEG re
 
 test('native preview failure remains a null preview with a safe diagnostic', async () => {
   const logs: string[] = [];
-  const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { capture: { async captureUrl() { throw new Error('sensitive address'); } }, log: text => logs.push(text) });
+  const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { capture: { async captureUrl() { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); } }, log: text => logs.push(text) });
   assert.equal(await port.capture({ url: 'http://127.0.0.1:4200/' }), null);
-  assert.deepEqual(logs, ['[site-preview] native capture failed']);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0] ?? '', /\[site-preview\] native capture failed.*boom/s);
+  assert.match(logs[0] ?? '', /desktop-site-preview-capture\.unit\.test\.ts/);
+  assert.doesNotMatch(logs[0] ?? '', /SECRETSECRETSECRETSECRET/);
 });

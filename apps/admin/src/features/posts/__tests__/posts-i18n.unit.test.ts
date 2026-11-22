@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement as h } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import { api } from "@/lib/api";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "../PostPublishingFields";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
+import { formatUploadFailureMessage } from "../hooks/post-editor-file-upload";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 
@@ -122,6 +123,9 @@ const REQUIRED_POST_COPY = [
   "failed to load post", "could not re-read the current version — your changes are still here, try again",
   "delete failed", "failed to load posts", "failed to create post", "failed to publish post",
   "failed to unpublish post", "failed to delete post", "Publish at", "Scheduled", "Alt text (optional)", "Insert",
+  // Added by fix/hang-bugs: a failed recovered-draft discard and a failed drop/paste upload.
+  "Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it.",
+  "Could not add {name}. Nothing was inserted. Cause: {cause}", "no reason was given",
 ];
 
 it.each(REQUIRED_POST_COPY)("provides the required screen key %j in every locale", (key) => {
@@ -152,8 +156,8 @@ for (const copy of LOCALIZED) {
     it("renders translated scheduling text and the URL dialog's accessible controls", async () => {
       language.locale = copy.locale;
       const port = createFakePostEditorPort();
-      function useEditor(id: string) {
-        return usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+      function useEditor({ postId }: { postId: string }) {
+        return usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
       await screen.findByTitle(copy.drag);
@@ -169,8 +173,8 @@ for (const copy of LOCALIZED) {
     it.each(["saved", "published"] as const)("renders the translated %s version notice after saving", async (kind) => {
       const port = createFakePostEditorPort();
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -188,8 +192,8 @@ for (const copy of LOCALIZED) {
       const port = createFakePostEditorPort();
       const create = vi.spyOn(port, "createPost").mockRejectedValue(null);
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       // New Post now opens an unsaved local editor; creation happens on its first Save.
@@ -208,12 +212,12 @@ for (const copy of LOCALIZED) {
       language.locale = copy.locale;
       const post = createFakePostEditorPort().post;
       if (action === "unpublish") post.status = "published";
-      vi.spyOn(api, "listPosts").mockImplementation(async () => {
+      vi.spyOn(postsApi, "listPosts").mockImplementation(async () => {
         if (action === "load") throw null;
         return { posts: [{ post }] };
       });
-      vi.spyOn(api, "updatePost").mockRejectedValue(null);
-      vi.spyOn(api, "deletePost").mockRejectedValue(null);
+      vi.spyOn(postsApi, "updatePost").mockRejectedValue(null);
+      vi.spyOn(postsApi, "deletePost").mockRejectedValue(null);
       render(h(Posts));
       if (action !== "load") {
         await screen.findByRole("link", { name: post.title });
@@ -233,8 +237,8 @@ for (const copy of LOCALIZED) {
       if (action === "editorLoad") vi.spyOn(port, "getPost").mockRejectedValue(null);
       vi.spyOn(port, "deletePost").mockRejectedValue(null);
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -247,8 +251,8 @@ for (const copy of LOCALIZED) {
           fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
         }
         else {
-          port.simulateConcurrentSave();
-          await act(() => controller.save());
+          port.simulateConcurrentSave({});
+          await act(() => controller.save({}));
           expect(controller.saveConflict).not.toBeNull();
           vi.spyOn(port, "getPost").mockRejectedValue(null);
           await act(() => controller.saveOverwritingConflict());
@@ -258,3 +262,24 @@ for (const copy of LOCALIZED) {
     });
   });
 }
+
+describe("upload failure message", () => {
+  const key = "Could not add {name}. Nothing was inserted. Cause: {cause}";
+
+  it("keeps both placeholders in every locale, so the file name and the cause are never lost", () => {
+    for (const locale of Object.keys(POSTS_DICT)) {
+      const copy = t({ locale, key });
+      expect(copy, `${locale} keeps {name}`).toContain("{name}");
+      expect(copy, `${locale} keeps {cause}`).toContain("{cause}");
+    }
+  });
+
+  it("names the file and the cause in the operator's language", () => {
+    const file = new File(["x"], "photo.png", { type: "image/png" });
+    const translated = (locale: string) => (copyKey: string) => t({ locale, key: copyKey });
+    expect(formatUploadFailureMessage({ file, error: new Error("quota reached"), t: translated("es") }))
+      .toBe("No se pudo añadir photo.png. No se insertó nada. Causa: quota reached");
+    expect(formatUploadFailureMessage({ file, error: new Error(""), t: translated("de") }))
+      .toBe("photo.png konnte nicht hinzugefügt werden. Es wurde nichts eingefügt. Ursache: es wurde kein Grund angegeben");
+  });
+});

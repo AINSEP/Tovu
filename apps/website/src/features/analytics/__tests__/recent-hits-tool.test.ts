@@ -25,7 +25,7 @@ test("projects exactly the safe hit fields, never visitorHash or session identit
 test("defaults to 100 and clamps direct handler limits to 1..500 before the sink read", async () => {
   const { deps, tool } = harness();
   for (const [input, expected] of [[{}, 100], [{ limit: 0 }, 1], [{ limit: 1000 }, 500], [{ limit: 17 }, 17]] as const) {
-    deps.analyticsSink.list = async (args) => { assert.deepEqual(args, { limit: expected }); return []; };
+    deps.analyticsSink.list = async (_required, args) => { assert.deepEqual(args, { limit: expected }); return []; };
     assert.deepEqual(await tool.handler(ctx(input)), { hits: [] });
   }
   for (const limit of [1.2, null, "5", Number.NaN, Number.POSITIVE_INFINITY]) await assert.rejects(() => tool.handler(ctx({ limit })), { message: "analytics_list_recent_hits: limit must be a finite integer." });
@@ -121,7 +121,7 @@ test("recent-hit validation rejects each invalid option before authorization or 
 test("valid options preserve defaulting, clamping, empty paths and explicit summary booleans", async () => {
   const { deps, tool } = harness();
   const reads: Array<{ limit?: number } | undefined> = [];
-  deps.analyticsSink.list = async input => { reads.push(input); return []; };
+  deps.analyticsSink.list = async (_required, input) => { reads.push(input); return []; };
   for (const input of [{}, { limit: undefined, path: undefined, summarize: undefined }, { limit: -10, path: "", summarize: false }, { limit: 501, path: "/a", summarize: true }]) {
     const result = await tool.handler(ctx(input));
     const expected = input.summarize

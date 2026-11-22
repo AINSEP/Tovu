@@ -1,10 +1,10 @@
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
 // suffix — unlike a relative specifier, which does. `#src/assistant/mcp-services` below is the same shape.
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contracts.js";
 
 /**
@@ -12,7 +12,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contr
  *
  * Declared STRUCTURALLY (not `Pick<RouteDeps, ...>`) for the same reason `features/site-inspection/
  * deps.ts` gives: this module carries no back-edge into `server/routes/types.ts`'s `RouteDeps` god
- * type. `server/routes/admin/external-mcp/deps.ts` (the HTTP route's own narrow slice) satisfies
+ * type. `apps/website/src/server/inbound/admin-http/routes/external-mcp/deps.ts` (the HTTP route's own narrow slice) satisfies
  * this structurally by passing its existing `RouteDeps` object — nothing there changes.
  *
  * `ExternalMcpServerRepoPort`/`ExternalMcpOAuthService` are type-imported from `#src/assistant/
@@ -21,12 +21,12 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contr
  * ADR-058's shared sealer/keyring types, the same instances the BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
  * `listExternalMcpServerViews`/etc. from that same `#src/assistant/mcp-services` barrel — the identical
- * seam `server/routes/admin/external-mcp/put.ts` uses — so importing their types from there too adds
+ * seam `apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts` uses — so importing their types from there too adds
  * no new edge, it is the same one already being crossed.
  *
  * ## `externalMcpOAuth` is OPTIONAL here, unlike the HTTP route's own narrowing
  *
- * `server/routes/admin/external-mcp/oauth.ts` narrows it to REQUIRED on its own deps type, because
+ * `apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts` narrows it to REQUIRED on its own deps type, because
  * that file registers nothing but OAuth routes — a composition root that mounts them without the
  * service could not compile. This domain is different: `external_mcp_list`/`external_mcp_save`/
  * `external_mcp_test_connection` need no OAuth service at all (test_connection degrades to reporting
@@ -47,7 +47,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contr
  * see, so the human's completed browser sign-in failed to redeem.
  *
  * That gap is closed: the authorization-code redirect state is now sealed with the site key and
- * carried through the browser (no table; `assistant/external-mcp-oauth.ts`'s `sealedRedirectState`),
+ * carried through the browser (no table; `OAuth redirect-state handling`'s `sealedRedirectState`),
  * and device-authorization state lives in the `content.db` table `oauth_device_authorizations` behind
  * a SQLite-backed adapter (`platform/db/sqlite/oauth-pending-store.sqlite.ts`), shared by every
  * composition root that opens the same `content.db` handle. A chat-started `authorization_code`

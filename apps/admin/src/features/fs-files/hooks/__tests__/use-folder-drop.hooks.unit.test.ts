@@ -1,10 +1,10 @@
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, createRef, type DragEvent } from "react";
 import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import type { ChatTransport } from "@jini-ai/chat/core";
 
-import { ApiError } from "../../../../lib/api";
+import { ApiError } from "../../../../lib/admin-http/request";
 import type { FolderDropPort } from "../../folder-drop-port";
 import { useFolderDrop } from "../use-folder-drop.hooks";
 
@@ -396,7 +396,7 @@ describe("useFolderDrop", () => {
   it("inserts the composer text even when the custom-root call fails (ui.spec.md §4, REQ-01 never regresses)", async () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/gone"]);
-    const setCustomRoot = vi.fn().mockRejectedValue(new ApiError("'/Users/x/gone' does not exist", 400, "INVALID_PATH", { error: "'/Users/x/gone' does not exist" }));
+    const setCustomRoot = vi.fn().mockRejectedValue(new ApiError({ message: "'/Users/x/gone' does not exist", status: 400 }, { code: "INVALID_PATH", body: { error: "'/Users/x/gone' does not exist" } }));
     const getCustomRoot = vi.fn().mockResolvedValue({ path: null });
     const { result } = renderHook(() =>
       useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot }),
@@ -416,7 +416,7 @@ describe("useFolderDrop", () => {
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/a-file"]);
     const setCustomRoot = vi
       .fn()
-      .mockRejectedValue(new ApiError("'/Users/x/a-file' is not a directory", 400, "INVALID_PATH", { error: "'/Users/x/a-file' is not a directory" }));
+      .mockRejectedValue(new ApiError({ message: "'/Users/x/a-file' is not a directory", status: 400 }, { code: "INVALID_PATH", body: { error: "'/Users/x/a-file' is not a directory" } }));
     const { result } = renderHook(() =>
       useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }) }),
     );
@@ -434,7 +434,7 @@ describe("useFolderDrop", () => {
     const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
       getPort: () => port,
       getCustomRoot: async () => ({ path: null }),
-      setCustomRoot: async () => { throw new ApiError("invalid path", 400, "INVALID_PATH", body); },
+      setCustomRoot: async () => { throw new ApiError({ message: "invalid path", status: 400 }, { code: "INVALID_PATH", body }); },
     }));
 
     await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
@@ -450,7 +450,7 @@ describe("useFolderDrop", () => {
     const { result } = renderHook(() => useFolderDrop({ composerHandle }, {
       getPort: () => port,
       getCustomRoot: async () => ({ path: null }),
-      setCustomRoot: async () => { throw new ApiError("does not exist", 503, "UNAVAILABLE", { error: "does not exist" }); },
+      setCustomRoot: async () => { throw new ApiError({ message: "does not exist", status: 503 }, { code: "UNAVAILABLE", body: { error: "does not exist" } }); },
     }));
 
     await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
@@ -756,7 +756,7 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
     act(() => result.current.handleDropCapture(fakeDropEvent(b.dataTransfer)));
     await flushMicrotasks();
 
-    sA.reject(new ApiError("'/Users/x/a' does not exist", 400, "INVALID_PATH", { error: "'/Users/x/a' does not exist" }));
+    sA.reject(new ApiError({ message: "'/Users/x/a' does not exist", status: 400 }, { code: "INVALID_PATH", body: { error: "'/Users/x/a' does not exist" } }));
     await waitFor(() => expect(getCustomRoot).toHaveBeenCalledTimes(2));
     await flushMicrotasks();
     readB.resolve({ path: null });

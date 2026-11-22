@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { mock, type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import type { BackstopAuditRecord, BackstopInverse } from "#src/features/publish-content/backstop-audit";
+import type { BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
 import * as rawFileContributor from "#src/features/publish-content/raw-file-contributor";
 import * as rawRowContributor from "#src/features/publish-content/raw-row-contributor";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -65,7 +65,7 @@ async function destination(t: TestContext, inverses: readonly BackstopInverse[],
   const db = new Database(":memory:"); t.after(() => db.close());
   // Test-only schema; no active migration is created or installed.
   db.exec(AUDIT_TABLE);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const audit = createBackstopAuditSqlitePort({ kernel });
   await audit.save({ record: record(inverses) });
   if (options.refuseAuditWrites) {

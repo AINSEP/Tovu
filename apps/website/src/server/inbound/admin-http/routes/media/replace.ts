@@ -5,8 +5,9 @@ import { DEFAULT_ALLOWED_MIME_TYPES, MediaValidationError, TOVU_MAX_UPLOAD_BYTES
   resolveUploadContentType, type MediaRecord } from '#src/features/media/index';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { MediaRouteDeps } from './deps.js';
-import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace, sendMediaNotFound,
-  sendValidationOrInternalError } from './route-guards.js';
+import { sendMediaNotFound, sendValidationOrInternalError } from './route-guards.js';
+import { readRouteParam, rejectForeignWorkspace } from '#src/server/inbound/shared/route-guards';
+import { authorizeDirectOrRespond } from '#src/server/inbound/admin-http/authorize-guard';
 import { toStoredMediaResponse } from './stored-media-response.js';
 
 /** The declared content type and base64 payload, refused unless the filename, type and payload are
@@ -28,7 +29,7 @@ function readReplacementFields({ body }: { body: unknown }): { filename: string;
  *  @complexity O(n) in the payload length. */
 function parseReplacement({ body }: { body: unknown }) {
   const { filename, contentType, dataBase64 } = readReplacementFields({ body });
-  const bytes = decodeStrictBase64(dataBase64);
+  const bytes = decodeStrictBase64({ value: dataBase64 });
   if (!bytes) throw new MediaValidationError({ message: 'dataBase64 is not valid base64' });
   if (bytes.byteLength > TOVU_MAX_UPLOAD_BYTES) {
     throw new MediaValidationError({ message: `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES / (1024 * 1024)} MB size cap` });
@@ -65,7 +66,7 @@ export function registerAdminMediaReplaceRoute({ app, deps }: { app: Express; de
     try {
       const id = readRouteParam({ req, name: 'mediaId' });
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
         permission: 'media.update', workspaceId: deps.workspaceId, entityType: 'media', entityId: id } });
       if (!authorized) return;
       const media = await findReplaceableMedia({ deps, res, id });

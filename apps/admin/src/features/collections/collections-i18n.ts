@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Collections.tsx` (list + its three modals), `CollectionEntries.tsx`
  * (per-type entry list), and `CollectionEntryEditor.tsx` (entry editor). Same
@@ -9,8 +10,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * label) sits in the middle of the Spanish sentence, not always in the same relative position
  * English puts it.
  */
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -1256,9 +1255,8 @@ const LIFECYCLE_FAILURE_TEMPLATE: Record<string, string> = {
  *  sentence, so it can't be a flat `COLLECTIONS_DICT` entry. Reuses this dictionary's own
  *  Deprecate/Reactivate/Tombstone verb translations rather than inventing new wording. */
 export function lifecycleFailureMessage(
-  locale: string,
-  op: "deprecate" | "reactivate" | "tombstone",
-  label: string,
+  { locale, op, label }: { locale: string; op: "deprecate" | "reactivate" | "tombstone"; label: string },
+  _optional = {},
 ): string {
   const verb = localeEntry({ table: LIFECYCLE_VERB, locale })[op];
   return interpolate({ template: localeEntry({ table: LIFECYCLE_FAILURE_TEMPLATE, locale }), vars: { verb, label } });
@@ -1301,6 +1299,6 @@ const ENTRY_LIFECYCLE_FAILURE: Record<string, Record<"publish" | "unpublish", st
 /** `useCollectionEntryEditor`'s `toggleLifecycle` failure message — embeds the raw op
  *  ("publish"/"unpublish"), so it can't be a flat `COLLECTIONS_DICT` entry. Reuses this
  *  dictionary's own Publish/Unpublish verb translations. */
-export function entryLifecycleFailureMessage(locale: string, op: "publish" | "unpublish"): string {
+export function entryLifecycleFailureMessage({ locale, op }: { locale: string; op: "publish" | "unpublish" }, _optional = {}): string {
   return localeEntry({ table: ENTRY_LIFECYCLE_FAILURE, locale })[op];
 }

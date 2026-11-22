@@ -2,7 +2,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import type { DiscoveredTheme } from "./theme.js";
 import { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
@@ -40,6 +41,7 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
       if (typeof input.page !== "string" || input.page.trim() === "") throw new ToolInputError({ message: "page must be a non-empty string." });
       if (typeof input.published !== "boolean") throw new ToolInputError({ message: "published must be a boolean." });
       try {
+        ctx.signal.throwIfAborted();
         return setThemePagePublished(deps, { themeId: input.themeId, page: input.page, published: input.published });
       } catch (error) {
         if (error instanceof ThemePagePublicationError || error instanceof ThemePathError) throw new ToolInputError({ message: error.message });

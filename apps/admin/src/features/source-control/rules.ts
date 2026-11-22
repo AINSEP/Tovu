@@ -1,11 +1,6 @@
-import {
-  ApiError,
-  type AdminPublishTargetField,
-  type AdminSourceControlConnectionInput,
-  type AdminSourceControlCredentialSummary,
-  type AdminSourceControlProviderDescriptor,
-  type AdminSourceControlProviderId,
-} from "../../lib/api";
+import { classifyCredentialSubmitError, type CredentialSubmitFailure } from "../../lib/credential-submit-error";
+import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlProviderDescriptor, AdminSourceControlProviderId } from "./api/source-control-api.types";
 
 /**
  * @file Pure data and computation for the Source Control page — no React, no fetch, no `t()` calls
@@ -13,7 +8,7 @@ import {
  * `rules.ts`-holds-the-logic convention `deployment/rules.ts`/`integrations/rules.ts` follow.
  *
  * This page is a CONNECTION page, not git integration — see `SourceControl.tsx`'s own header for
- * the scope boundary. The hosts are data: each comes from a plugin's `tovu-source-control.json`
+ * the scope boundary. The hosts are data: each comes from a plugin's `jini-source-control.json`
  * (`GET .../system/source-control/providers`), which also declares its credential form and guidance.
  * This file turns those descriptors into rows and holds the same connect/validate/build trio the
  * publish credential form needs.
@@ -70,8 +65,7 @@ function unlistedSourceControlProviderInfo(id: AdminSourceControlProviderId): So
  * @complexity O(p + c * p) in the host and saved-connection counts (both small).
  */
 export function sourceControlProviders(
-  descriptors: readonly AdminSourceControlProviderDescriptor[] | undefined,
-  credentials: readonly Pick<AdminSourceControlCredentialSummary, "providerId">[]
+  { descriptors, credentials }: { descriptors: readonly AdminSourceControlProviderDescriptor[] | undefined; credentials: readonly Pick<AdminSourceControlCredentialSummary, "providerId">[] }, _optional = {}
 ): SourceControlProviderInfo[] {
   const providers = (descriptors ?? []).map(sourceControlProviderInfoFromDescriptor);
   for (const credential of credentials) {
@@ -95,8 +89,8 @@ export interface SourceControlCredentialFormFields {
  * @complexity O(f + c) time, O(f + c) space for f declared fields containing c characters.
  */
 export function buildSourceControlConnectionInput(
-  fields: SourceControlCredentialFormFields,
-  declaredFields: readonly Pick<AdminPublishTargetField, "name" | "secret">[]
+  { fields, declaredFields }: { fields: SourceControlCredentialFormFields; declaredFields: readonly Pick<AdminPublishTargetField, "name" | "secret">[] },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlConnectionInput {
   const values: Record<string, string> = {};
   for (const field of declaredFields) {
@@ -119,8 +113,8 @@ export const SOURCE_CONTROL_CREDENTIAL_ROW_LABEL = "default";
  * @complexity O(n) in this workspace's total saved-credential count (small).
  */
 export function sourceControlCredentialsForProvider(
-  credentials: readonly AdminSourceControlCredentialSummary[],
-  providerId: AdminSourceControlProviderId
+  { credentials, providerId }: { credentials: readonly AdminSourceControlCredentialSummary[]; providerId: AdminSourceControlProviderId },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlCredentialSummary[] {
   return credentials.filter((credential) => credential.providerId === providerId);
 }
@@ -130,10 +124,10 @@ export function sourceControlCredentialsForProvider(
  *  `defaultCredentialForProvider`'s exact reasoning in `deployment/rules.ts`.
  *  @complexity O(n) in this provider's own (small) saved-connection count. */
 export function defaultSourceControlCredentialForProvider(
-  credentials: readonly AdminSourceControlCredentialSummary[],
-  providerId: AdminSourceControlProviderId
+  { credentials, providerId }: { credentials: readonly AdminSourceControlCredentialSummary[]; providerId: AdminSourceControlProviderId },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlCredentialSummary | undefined {
-  const forProvider = sourceControlCredentialsForProvider(credentials, providerId);
+  const forProvider = sourceControlCredentialsForProvider({ credentials, providerId });
   return forProvider.find((credential) => credential.isDefault) ?? forProvider[0];
 }
 
@@ -143,7 +137,7 @@ export function defaultSourceControlCredentialForProvider(
  * keeps the stored secret untouched). An unlisted host takes no new token.
  * @complexity O(f) in the declared field count.
  */
-export function sourceControlCredentialRowReadyToSave(fields: SourceControlCredentialFormFields, info: SourceControlProviderInfo): boolean {
+export function sourceControlCredentialRowReadyToSave({ fields, info }: { fields: SourceControlCredentialFormFields; info: SourceControlProviderInfo }, _optional: Record<string, never> = {}): boolean {
   if (!info.listed || fields.token.trim() === "") return false;
   return info.fields.every((field) => field.required !== true || (fields.values[field.name] ?? "").trim() !== "");
 }
@@ -151,7 +145,7 @@ export function sourceControlCredentialRowReadyToSave(fields: SourceControlCrede
 /** What a rejected credential create/update means for the FORM — a dictionary-key-shaped result to
  *  translate and apply, mirroring `PublishCredentialSubmitFailure` exactly. `"generic"` is the
  *  catch-all every other kind falls back to. */
-export type SourceControlCredentialSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };
+export type SourceControlCredentialSubmitFailure = CredentialSubmitFailure;
 
 /**
  * Classifies a rejected create/update call. Checks BOTH `e.code` and `e.message` for the two known
@@ -161,13 +155,6 @@ export type SourceControlCredentialSubmitFailure = { kind: "duplicate-label" } |
  * shape every other admin write route in this app uses.
  * @complexity O(1).
  */
-export function classifySourceControlCredentialSubmitError(e: unknown): SourceControlCredentialSubmitFailure {
-  if (!(e instanceof ApiError)) return { kind: "generic" };
-  const marker = e.code ?? e.message;
-  if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
-  if (marker === "VALIDATION") {
-    const detail = typeof e.body?.detail === "string" ? e.body.detail : e.message;
-    return { kind: "validation", detail };
-  }
-  return { kind: "generic" };
+export function classifySourceControlCredentialSubmitError({ e }: { e: unknown }, _optional = {}): SourceControlCredentialSubmitFailure {
+  return classifyCredentialSubmitError({ error: e });
 }

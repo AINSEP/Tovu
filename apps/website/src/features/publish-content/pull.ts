@@ -1,5 +1,5 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
-import { stageBundle, type StageBundleDeps } from "./bundle-staging.js";
+import { stageBundle, type StageBundleDeps } from "@jini-ai/cms/publish/transfer";
 import { resolvePublishDestinationCredential, type PublishDestinationCredentialDeps } from "./destination-credential.js";
 import { pullBlobsFromPeer, pullBundleFromPeer } from "./peer-transport.js";
 
@@ -13,7 +13,7 @@ export interface PublishContentPullDeps {
   publishContentPeerHttpClient: PublishDestinationCredentialDeps["httpClient"];
   siteAssistantSecretSealer: PublishDestinationCredentialDeps["sealer"];
   siteAssistantSecretKeyring: PublishDestinationCredentialDeps["keyring"];
-  blobStore: Parameters<typeof pullBlobsFromPeer>[0]["blobSink"];
+  blobStore: Parameters<typeof pullBlobsFromPeer>[0]["deps"]["blobSink"];
 }
 
 export interface StagedPeerPull {
@@ -40,8 +40,11 @@ export interface StagedPeerPull {
  * @example await pullAndStageFromPeer(deps, { peerId: "live", principalId: "owner" });
  */
 export async function pullAndStageFromPeer(
-  deps: PublishContentPullDeps,
-  input: { peerId: string; principalId: string },
+  { deps, input }: {
+    deps: PublishContentPullDeps;
+    input: { peerId: string; principalId: string };
+  },
+  _optional = {},
 ): Promise<StagedPeerPull> {
   const credential = await resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo,
@@ -55,22 +58,28 @@ export async function pullAndStageFromPeer(
   // after planning would make the plan stale immediately. A hash mismatch aborts without staging.
   // Use this instance's workspace for local storage; the peer's workspace belongs only in its URL.
   const blobs = await pullBlobsFromPeer({
-    ...peer,
-    blobSink: deps.blobStore,
-    workspaceId: deps.workspaceId,
-    computeStorageKey: sha256 => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
-  }, { blobManifest: envelope.blobManifest });
+                                          deps: {
+      ...peer,
+      blobSink: deps.blobStore,
+      workspaceId: deps.workspaceId,
+      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+    },
+                                          required: { blobManifest: envelope.blobManifest }
+                                        });
   const staged = await stageBundle({
-    // The common staging path computes expiry server-side and binds baselines to the authenticated
-    // principal. A peer-declared identity must never claim another operator's sync memory.
-    workspaceId: deps.workspaceId,
-    sourcePrincipalId: input.principalId,
-    artifactFormatVersion: envelope.artifactFormatVersion,
-    hashVersion: envelope.hashVersion,
-    sourceLabel: envelope.sourceLabel,
-    entities: envelope.entities,
-    blobManifest: envelope.blobManifest,
-  }, { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen });
+                                     input: {
+      // The common staging path computes expiry server-side and binds baselines to the authenticated
+      // principal. A peer-declared identity must never claim another operator's sync memory.
+      workspaceId: deps.workspaceId,
+      sourcePrincipalId: input.principalId,
+      artifactFormatVersion: envelope.artifactFormatVersion,
+      hashVersion: envelope.hashVersion,
+      sourceLabel: envelope.sourceLabel,
+      entities: envelope.entities,
+      blobManifest: envelope.blobManifest,
+    },
+                                     deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+                                   });
   return {
     peerId: credential.id,
     peerLabel: credential.label,

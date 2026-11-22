@@ -25,7 +25,7 @@
  *  Declared here (the wire-contract side) rather than in `use-theme-explore.hooks.ts`, which
  *  imports it from this file — the reverse would make the port file import from the hook it's
  *  meant to be injected into. */
-import type { ThemeFileGroup } from "@/lib/api";
+import type { ThemeFileGroup } from "@/features/themes/api/themes-api.types";
 export type { ThemeFileGroup };
 
 /** The live content record occupying a theme page's own slug — mirrors the server's
@@ -65,32 +65,32 @@ export interface ThemeExploreFileEntry {
 }
 
 export interface ThemeExplorePort {
-  getThemeDetail(themeId: string): Promise<{
+  getThemeDetail(required: { themeId: string }, optional?: Record<string, never>): Promise<{
     id: string;
     name: string;
     tier: string;
     /** Manifest schema version (`2`, or `undefined` for v1) — 2026-08-19 architecture audit
      *  findings 1 & 2: `use-theme-explore.hooks.ts`'s own rename-lock pre-check needs this to
      *  resolve the same apiVersion-aware layout the server route used to classify `files` below,
-     *  via the shared `@tovu/theme-layout` resolver. */
+     *  via the shared `@jini-ai/cms/themes/layout` resolver. */
     apiVersion?: 2;
     status: string;
     errors: string[];
     hasOriginal: boolean;
     files: ThemeExploreFileEntry[];
   }>;
-  getThemeFile(themeId: string, path: string): Promise<{ content: string }>;
-  putThemeFile(themeId: string, path: string, content: string): Promise<{ path: string; bytes: number }>;
-  resetThemeFile(themeId: string, path: string): Promise<{ content: string | null }>;
+  getThemeFile(required: { themeId: string; path: string }, optional?: Record<string, never>): Promise<{ content: string }>;
+  putThemeFile(required: { themeId: string; path: string; content: string }, optional?: Record<string, never>): Promise<{ path: string; bytes: number }>;
+  resetThemeFile(required: { themeId: string; path: string }, optional?: Record<string, never>): Promise<{ content: string | null }>;
   /** Save the theme's current files as its stored original (refused when it already has one). */
-  saveThemeOriginal(themeId: string): Promise<{ saved: true }>;
-  renameThemeFile(themeId: string, path: string, name: string): Promise<{ path: string }>;
-  copyThemeFile(themeId: string, path: string): Promise<{ path: string }>;
+  saveThemeOriginal(required: { themeId: string }, optional?: Record<string, never>): Promise<{ saved: true }>;
+  renameThemeFile(required: { themeId: string; path: string; name: string }, optional?: Record<string, never>): Promise<{ path: string }>;
+  copyThemeFile(required: { themeId: string; path: string }, optional?: Record<string, never>): Promise<{ path: string }>;
   /** Delete one file inside a theme, permanently — see `use-theme-explore.hooks.ts`'s `confirmDelete`
    *  for the confirmation gate this sits behind. */
-  deleteThemeFile(themeId: string, path: string): Promise<{ path: string }>;
+  deleteThemeFile(required: { themeId: string; path: string }, optional?: Record<string, never>): Promise<{ path: string }>;
   /** Publish or unpublish one of this theme's own pages — see `use-theme-explore.hooks.ts`'s
    *  `setPagePublished` for the client-side gate (refused when the selected file has no publish
    *  state at all) and `ThemeManifest.publishedPages` (`theme.ts`) for the full contract. */
-  setPagePublished(themeId: string, page: string, published: boolean): Promise<{ page: string; published: boolean }>;
+  setPagePublished(required: { themeId: string; page: string; published: boolean }, optional?: Record<string, never>): Promise<{ page: string; published: boolean }>;
 }

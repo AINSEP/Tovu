@@ -9,7 +9,7 @@ import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/hel
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -45,7 +45,7 @@ async function harness(t: test.TestContext, options: { replaces?: string; allowe
       },
     }),
   };
-  const registration = buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, {surfaceExchanges: surfaces}).find(tool => tool.descriptor.id === "database_transfer_run")!;
+  const registration = buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, surfaceExchanges: surfaces }).find(tool => tool.descriptor.id === "database_transfer_run")!;
   const ctx = {executionId: "exec", run: {id: "run"}, principal: {id: "owner"}, input: {planId: plan.planId}, signal: new AbortController().signal};
   return {registration, ctx, scripts, surfaces};
 }

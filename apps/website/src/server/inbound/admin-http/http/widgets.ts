@@ -1,8 +1,9 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PrincipalRecord } from "@jini-ai/user-management";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { pluginHookFailedBody } from "./plugin-hook-error.js";
@@ -12,7 +13,7 @@ import type { WidgetAreaEntry, WidgetInstanceEntry } from "@jini-ai/cms/widgets"
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `widgets` HTTP surface
- * (SPEC-043, ADR-047). Mirrors `server/http/admin/menus.ts`'s split: HTTP-facing serialization +
+ * (SPEC-043, ADR-047). Mirrors `apps/website/src/server/inbound/admin-http/http/menus.ts`'s split: HTTP-facing serialization +
  * error mapping only — no widgets business logic lives here (that stays in `widgets/*.ts`).
  *
  * Every admin `widgets` route (`server/routes/admin/widgets/*.ts`) is a `RouteRegistrar`
@@ -30,26 +31,13 @@ import type { WidgetAreaEntry, WidgetInstanceEntry } from "@jini-ai/cms/widgets"
  * no such domain-function wrapper to delegate to (`regions-list.ts`, `region-get.ts` read directly
  * off `widgetBindingRepo`/`entryRepo`, not through a `widgets.read`-checking service function) — this
  * helper is THIS package's own explicit gate for exactly those routes, mirroring
- * `routes/admin/menus/create.ts`'s inline `authorize()`+403 pattern rather than inventing a new one.
+ * `apps/website/src/server/inbound/admin-http/routes/menus/create.ts`'s inline `authorize()`+403 pattern rather than inventing a new one.
  * Returns the authed principal on success, or `null` after already writing the 403 response.
  */
-export async function requireWidgetsPermissionOrRespond(
-  authorize: AuthorizeFn,
-  workspaceId: string,
-  permission: string,
-  res: Response
-): Promise<PrincipalRecord | null> {
+export async function requireWidgetsPermissionOrRespond({ authorize, workspaceId, permission, res }: { authorize: AuthorizeFn; workspaceId: string; permission: string; res: Response }, _optional = {}): Promise<PrincipalRecord | null> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await authorize({ principalId: principal.id, permission, workspaceId, entityType: "widget" });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for '${permission}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission, reason: authResult.reason },
-    });
-    return null;
-  }
-  return principal;
+  const params = { principalId: principal.id, permission, workspaceId, entityType: "widget" };
+  return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
 }
 
 export function toAdminWidgetResponse(instance: WidgetInstanceEntry): { widget: WidgetInstanceEntry } {
@@ -73,7 +61,7 @@ export interface WidgetErrorResponse {
  * themselves — REQ-40's "same gate for human and AI-originated calls") carries only a message, not
  * a structured permission field; extracted here so this 403's body shape matches every other admin
  * route's `{ error, code, details: { permission, reason } }` convention
- * (`routes/admin/menus/create.ts`) rather than diverging just because the check happened one layer
+ * (`apps/website/src/server/inbound/admin-http/routes/menus/create.ts`) rather than diverging just because the check happened one layer
  * down. Falls back to an empty string if the message shape ever changes upstream — still a valid
  * 403, just without the extracted detail.
  *
@@ -149,13 +137,13 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
 
 /**
  * Pure typed-error -> `{status, body}` mapping, mirroring the `{error, code, ...}` envelope shape
- * `routes/admin/menus/create.ts` and every other admin route in this codebase already establish.
+ * `apps/website/src/server/inbound/admin-http/routes/menus/create.ts` and every other admin route in this codebase already establish.
  * `mapWidgetErrorToResponse` below is the usual way to consume this (send it straight to `res`);
  * exported separately for the rare caller (`agent-tools.ts`'s `widgets.create` — Fable adversarial-
  * review fix, 2026-07-21, Finding D) that needs to merge extra fields into the body before sending,
  * since a `Response` can only be finalized once.
  */
-export function widgetErrorToResponse(err: unknown, options: AdminFailurePorts = {}): WidgetErrorResponse {
+export function widgetErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): WidgetErrorResponse {
   for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
@@ -167,7 +155,7 @@ export function widgetErrorToResponse(err: unknown, options: AdminFailurePorts =
  * generic 500 for anything unrecognized — callers still wrap this in their own try/catch, this
  * function never throws.
  */
-export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = widgetErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
+export function mapWidgetErrorToResponse({ err, res }: { err: unknown; res: Response }, _optional = {}): void {
+  const { status, body } = widgetErrorToResponse({ err }, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }

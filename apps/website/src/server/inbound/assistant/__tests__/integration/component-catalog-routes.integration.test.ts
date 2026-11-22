@@ -7,6 +7,8 @@ import * as path from "node:path";
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
+import { ensureToolExecToken } from "#src/assistant/daemon-access";
+import { bootSite } from "#src/server/__tests__/helpers/unrun-site-boot";
 import { childProcessCoverageEnv } from "#src/contracts/core/__tests__/helpers/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
@@ -16,8 +18,8 @@ const require = createRequire(import.meta.url);
  * socket against the real agent daemon entry point (`agent-daemon-server.ts`), not a fake
  * stand-in.
  *
- * Why this exists: `registerComponentCatalogRoutes(app, { catalog: buildComponentCatalogQuery() },
- * adapter)` reads as correctly wired, but so did the sibling `registerToolCatalogRoutes` call right
+ * Why this exists: `componentCatalogRoutes({ deps: { catalog: buildComponentCatalogQuery() },
+ * host })` reads as correctly wired, but so did the sibling `toolCatalogRoutes` call right
  * above it — which turned out to be silently unmounted for weeks (see the doc comment above both
  * calls in `agent-daemon-server.ts`). `daemon-boots.integration.test.ts` proves the real process
  * starts and listens, but asserts nothing about any individual route actually answering a request.
@@ -52,12 +54,20 @@ async function reserveFreePort(): Promise<number> {
 test("the real daemon answers component-catalog search, describe, and a 404 over real HTTP", async (t) => {
   const port = await reserveFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
+  const site = await bootSite(t, "sqlite");
+  const siteRpcToken = ensureToolExecToken({}, {});
 
   const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
     env: {
       ...childProcessCoverageEnv(WORKER_COVERAGE_DIR),
       JINI_AGENT_DAEMON_PORT: String(port),
-      TOVU_WORKSPACE: "workspace-local",
+      TOVU_WORKSPACE: site.deps.workspaceId,
+      // ADR-070: the standalone daemon binds exactly one serving site (scope key, callback origin, tool-exec
+      // token) and reads that site's tool catalog at boot, so it is pointed at a real unrun site fixture.
+      TOVU_SITE_DIR: site.siteDir,
+      TOVU_SITE_PROCESS_CWD: site.siteDir,
+      TOVU_SITE_CALLBACK_ORIGIN: site.baseUrl,
+      TOVU_TOOL_EXEC_TOKEN: siteRpcToken,
       // Never touch the developer's real content.db.
       TOVU_DB: "memory",
       TOVU_AGENT_DAEMON_TOKEN: DAEMON_TOKEN,

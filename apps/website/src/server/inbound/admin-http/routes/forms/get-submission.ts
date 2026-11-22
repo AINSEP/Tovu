@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { toAdminFormSubmissionResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteDeps, FormsRouteRegistrar } from "./deps.js";
@@ -11,65 +13,51 @@ import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
  * call site (cyclomatic-complexity gate, not a behavior change — see forms-submissions.test.ts's
  * cross-form-mismatch regression test for the behavior this preserves).
  */
-async function findSubmissionScopedToDefinition(
-  deps: Pick<FormsRouteDeps, "workspaceId" | "formSubmissionRepo">,
-  definitionId: string,
-  submissionId: string
-) {
+async function findSubmissionScopedToDefinition({ deps, definitionId, submissionId }: { deps: Pick<FormsRouteDeps, "workspaceId" | "formSubmissionRepo">; definitionId: string; submissionId: string }, _optional = {}) {
   const submission = await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submissionId });
   return submission && submission.formDefinitionId === definitionId ? submission : undefined;
 }
 
+/** Add the submission's notification delivery summary when this host reports one. */
+async function withNotificationDelivery({ deps, response, submissionId }: {
+  deps: Pick<FormsRouteDeps, "workspaceId" | "formDeliveryStatus">; response: ReturnType<typeof toAdminFormSubmissionResponse>; submissionId: string;
+}, _options = {}) {
+  if (deps.formDeliveryStatus?.notificationSummary) response.data.notificationDelivery = await deps.formDeliveryStatus.notificationSummary({ workspaceId: deps.workspaceId, submissionId });
+  return response;
+}
+
 /** GET one submission's full field values (`FORMS_GET_SUBMISSION`, REQ-13). */
-export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const formId = String(req.params.formId ?? "");
       const submissionId = String(req.params.submissionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: "admin.forms.submissions.read",
-          workspaceId: deps.workspaceId,
-          entityType: "form_submission",
-          entityId: submissionId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'admin.forms.submissions.read' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: "admin.forms.submissions.read", reason: authResult.reason },
-          });
-          return;
-        }
+        const params = { principalId: principal.id, permission: "admin.forms.submissions.read", workspaceId: deps.workspaceId, entityType: "form_submission", entityId: submissionId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
         // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
         // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
         // param straight through as `formId` here.
-        const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+        const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
         if (!definition) {
           res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
           return;
         }
 
-        const submission = await findSubmissionScopedToDefinition(deps, definition.id, submissionId);
+        const submission = await findSubmissionScopedToDefinition({ deps, definitionId: definition.id, submissionId });
         if (!submission) {
           res
             .status(404)
             .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });
           return;
         }
-        const response = toAdminFormSubmissionResponse(submission);
-        if (deps.formDeliveryStatus?.notificationSummary) response.data.notificationDelivery = await deps.formDeliveryStatus.notificationSummary({ workspaceId: deps.workspaceId, submissionId });
-        res.json(response);
+        res.json(await withNotificationDelivery({ deps, response: toAdminFormSubmissionResponse(submission), submissionId }));
       } catch (error) {
         sendAdminFailure({ res, error }, { operation: "routes/forms/get-submission", code: "INTERNAL_ERROR" });
       }

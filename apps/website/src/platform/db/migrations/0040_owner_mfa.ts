@@ -1,6 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule } from 'kysely';
-import type { StorageDialect } from '../kernel/port.js';
-import type { MigrationStep } from './step.js';
+import type { StorageDialect, MigrationStep } from '@jini-ai/core/contracts/storage';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 
 /** Shared owner-factor DDL; only sealed secrets and the last accepted library timestep persist. */
 export function ownerMfaSchema(
@@ -34,7 +34,7 @@ export const OWNER_MFA_SQL = ownerMfaSchema({ schema: sqliteSchema, dialect: 'sq
 /** Append owner MFA storage without changing existing credentials or recovery kits.
  * @complexity O(1) DDL: two empty tables and one unique lookup index.
  */
-export function ownerMfa({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function ownerMfa({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: '0040_owner_mfa', checksum,
     async up(kernel) {
       await kernel.run(async db => {

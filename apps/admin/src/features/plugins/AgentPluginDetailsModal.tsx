@@ -1,7 +1,7 @@
 import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "./AgentPluginMaturity";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
 import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
@@ -14,6 +14,7 @@ import {
   type AgentPluginDetailsModalController,
 } from "./hooks/use-agent-plugin-details-modal.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginDetailsModalProps {
   readonly plugin: InspectedAgentPlugin;
   /** `AgentPlugins`' bound translator — the modal's title copy. */
@@ -21,7 +22,7 @@ export interface AgentPluginDetailsModalProps {
   readonly onClose: () => void;
   /** Injectable seam for the listing. Defaults to the real {@link useWiredAgentPluginDetailsModal};
    *  a test can pass a fake to exercise the modal's rendering with a fixed file list/selection. */
-  readonly useDetails?: (pluginId: string) => AgentPluginDetailsModalController;
+  readonly useDetails?: (required: { pluginId: string }, optional?: Record<string, never>) => AgentPluginDetailsModalController;
   /** Plugin-owned admin surfaces (2026-10-20); a test passes a typed fake. */
   readonly surfacesPort?: AgentPluginSurfacesPort;
 }
@@ -40,7 +41,7 @@ export interface AgentPluginDetailsModalProps {
 export function AgentPluginDetailsModal({ plugin, t, onClose, useDetails = useWiredAgentPluginDetailsModal, surfacesPort = defaultAgentPluginSurfacesPort }: AgentPluginDetailsModalProps) {
   const memory = useWiredAgentPluginMemory({ pluginId: plugin.id });
   const view = useAgentPluginDetailsView({ displayName: plugin.displayName, t, memoryT: memory.t });
-  const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails(plugin.id);
+  const { files, selectedFile, selectFile, status = null, listNotice = null } = useDetails({ pluginId: plugin.id });
   const listed = useAgentPluginSurfaces({ pluginId: plugin.id, port: surfacesPort });
   // Opened from "Manage": the row already listed the screens, so the first render has their tabs
   // (the shell picks its starting view once, at mount).

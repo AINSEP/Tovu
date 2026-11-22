@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
@@ -29,7 +29,7 @@ function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Expr
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminWorkspaceCreateRoute(app, deps);
+  registerAdminWorkspaceCreateRoute({ app, deps });
   return app;
 }
 
@@ -58,7 +58,7 @@ test("create: returns 201 with id on success", async (t) => {
   assert.equal(body.id, "id-1");
   assert.deepEqual(authorizationCalls, [{ principalId: "test-principal", workspaceId: "ws-1", permission: "workspace.manage" }]);
   assert.deepEqual(await workspaceRepo.findBySlug({ slug: "acme" }), {
-    id: body.id, name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z",
+    id: body.id, name: "Acme", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z", version: 1,
   });
   assert.deepEqual(events, [{
     id: "id-1", name: "workspace.created", occurredAt: "2026-01-01T00:00:00.000Z",
@@ -96,7 +96,7 @@ test("create: returns 400 when name/slug fail validation", async (t) => {
 });
 
 test("create: returns 409 when slug already exists", async (t) => {
-  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z" }] });
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: "existing", name: "Existing", slug: "acme", createdAt: "2026-01-01T00:00:00.000Z", version: 1 }] });
   const app = buildApp({ workspaceRepo });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
@@ -156,5 +156,6 @@ test("create: a failed event delivery returns 201 and retains the event for retr
   const retry = await outbox.claimPending({ batchSize: 20, nowIso: "2026-01-01T00:01:00.000Z" });
   assert.equal(retry.length, 1);
   assert.equal(retry[0].event.name, "workspace.created");
-  assert.equal(retry[0].lastError, "subscriber unavailable");
+  // Why: the retained last error is class-only (Jini describeErrorForLog); the subscriber's message never reaches the outbox row.
+  assert.equal(retry[0].lastError, "Error");
 });

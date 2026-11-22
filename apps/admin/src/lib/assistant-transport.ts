@@ -18,7 +18,7 @@ const client = createAssistantTransportClient({ ports: {
  runsUrl: RUNS_URL, byokTurnUrl: "/api/admin/v1/assistant/byok-turn", byokRunIdPrefix: "byok:", notices: RUN_NOTICES,
  fetch: (url, init) => fetch(url, init),
  mintId: () => uniqueId(),
- projectPrompt: ({ prompt, context }) => promptWithSelectedSkills(prompt, context),
+ projectPrompt: ({ prompt, context }) => promptWithSelectedSkills({ prompt, context }),
  projectInput: ({ input }) => withSelectedSkillGuidance(input),
  bindRun: ({ runId, binding }) => { durableRunBindings.set(runId, binding); },
  runBinding: ({ runId }) => durableRunBindings.get(runId),
@@ -59,7 +59,7 @@ export interface CreateTovuAssistantTransportOptions {
    * agentId this set contains: "the caller trusts this adapter's CLI to carry its own multi-turn
    * conversation memory... and should skip resending the rendered transcript on follow-up turns"
    * (`types.ts`). Resending it anyway would duplicate everything the daemon's own `--resume`/
-   * `session/load` already restores (`agent-session-resume.ts`).
+   * `session/load` already restores (`Jini packages/daemon/src/session-coordination.ts`).
    *
    * Read fresh on every `startRun` call, same "never captured" convention {@link getExecutionConfig}/
    * {@link getAgUiEnabled} already establish: the admin's own `/api/agents` probe resolves
@@ -128,11 +128,26 @@ type JiniHostOptions = NonNullable<Parameters<typeof client.createAssistantTrans
  */
 function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHostOptions {
  return {
-  getExecutionConfig: options.getExecutionConfig && (() => options.getExecutionConfig!()),
-  getAgUiEnabled: options.getAgUiEnabled && (() => options.getAgUiEnabled!()),
-  getResumeCapableAgentIds: options.getResumeCapableAgentIds && (() => options.getResumeCapableAgentIds!()),
-  ensureConversationId: options.ensureConversationId && (() => options.ensureConversationId!()),
-  persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => options.persistUserTurn!(conversationId, message)),
+  getExecutionConfig: options.getExecutionConfig && (() => {
+    if (!options.getExecutionConfig) throw new Error("assistant transport has no execution config callback");
+    return options.getExecutionConfig();
+  }),
+  getAgUiEnabled: options.getAgUiEnabled && (() => {
+    if (!options.getAgUiEnabled) throw new Error("assistant transport has no AG-UI enabled callback");
+    return options.getAgUiEnabled();
+  }),
+  getResumeCapableAgentIds: options.getResumeCapableAgentIds && (() => {
+    if (!options.getResumeCapableAgentIds) throw new Error("assistant transport has no resumable agents callback");
+    return options.getResumeCapableAgentIds();
+  }),
+  ensureConversationId: options.ensureConversationId && (() => {
+    if (!options.ensureConversationId) throw new Error("assistant transport has no conversation id callback");
+    return options.ensureConversationId();
+  }),
+  persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => {
+    if (!options.persistUserTurn) throw new Error("assistant transport has no user turn persistence callback");
+    return options.persistUserTurn(conversationId, message);
+  }),
  };
 }
 
@@ -140,5 +155,5 @@ function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHost
 function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {
   // Jini refuses a turn with no user message before projecting, so the newest user message exists.
   const userIndex = input.history.map((message) => message.role).lastIndexOf("user");
-  return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills(message.content, input.context) } : message) };
+  return { ...input, history: input.history.map((message, index) => index === userIndex ? { ...message, content: promptWithSelectedSkills({ prompt: message.content, context: input.context }) } : message) };
 }

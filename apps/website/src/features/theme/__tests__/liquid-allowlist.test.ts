@@ -19,15 +19,15 @@ function dispatchTemplate(name: "home" | "entry"): string {
 }
 
 test("a clean template with no tags/filters at all reports no violations", () => {
-  assert.deepEqual(lintLiquidTemplate("<p>plain HTML, no Liquid</p>"), []);
+  assert.deepEqual(lintLiquidTemplate({ source: "<p>plain HTML, no Liquid</p>" }), []);
 });
 
 test("the live themes/dispatch home template uses only allowed tags/filters", () => {
-  assert.deepEqual(lintLiquidTemplate(dispatchTemplate("home")), []);
+  assert.deepEqual(lintLiquidTemplate({ source: dispatchTemplate("home") }), []);
 });
 
 test("the live themes/dispatch entry template uses only allowed tags/filters", () => {
-  assert.deepEqual(lintLiquidTemplate(dispatchTemplate("entry")), []);
+  assert.deepEqual(lintLiquidTemplate({ source: dispatchTemplate("entry") }), []);
 });
 
 test("every tag the dispatch templates actually use is on the allowlist (sanity check on the allowlist itself)", () => {
@@ -40,24 +40,24 @@ test("every tag the dispatch templates actually use is on the allowlist (sanity 
 });
 
 test("a filesystem-reading tag (include) is rejected", () => {
-  const violations = lintLiquidTemplate('{% include "partial" %}');
+  const violations = lintLiquidTemplate({ source: '{% include "partial" %}' });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed tag "include"/);
 });
 
 test("render (LiquidJS's own partial tag, distinct from render_block) is rejected", () => {
-  const violations = lintLiquidTemplate('{% render "partial" %}');
+  const violations = lintLiquidTemplate({ source: '{% render "partial" %}' });
   assert.match(violations[0], /disallowed tag "render"/);
 });
 
 test("layout and block (template-inheritance, also filesystem-backed) are rejected", () => {
-  const violations = lintLiquidTemplate('{% layout "base" %}{% block "content" %}x{% endblock %}');
+  const violations = lintLiquidTemplate({ source: '{% layout "base" %}{% block "content" %}x{% endblock %}' });
   assert.ok(violations.some((v) => /disallowed tag "layout"/.test(v)));
   assert.ok(violations.some((v) => /disallowed tag "block"/.test(v)));
 });
 
 test("a disallowed filter is rejected", () => {
-  const violations = lintLiquidTemplate("{{ secret | sha256 }}");
+  const violations = lintLiquidTemplate({ source: "{{ secret | sha256 }}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed filter "sha256"/);
 });
@@ -69,29 +69,27 @@ for (const template of [
   "{{ secret | escape | sha256 }}",
 ]) {
   test(`a disallowed filter is rejected in this template: ${template}`, () => {
-    assert.deepEqual(lintLiquidTemplate(template), ['disallowed filter "sha256"']);
+    assert.deepEqual(lintLiquidTemplate({ source: template }), ['disallowed filter "sha256"']);
   });
 }
 
 test("a dynamic-expression filter (where_exp) is rejected even though it is a built-in LiquidJS filter", () => {
-  const violations = lintLiquidTemplate('{{ posts | where_exp: "p", "p.title" }}');
+  const violations = lintLiquidTemplate({ source: '{{ posts | where_exp: "p", "p.title" }}' });
   assert.match(violations[0], /disallowed filter "where_exp"/);
 });
 
 test("a disallowed tag inside an if/for body is still caught (nested AST walk, not just top level)", () => {
-  const violations = lintLiquidTemplate(
-    '{% for post in posts %}{% if post.slug %}{% include "leak" %}{% endif %}{% endfor %}'
-  );
+  const violations = lintLiquidTemplate({ source: '{% for post in posts %}{% if post.slug %}{% include "leak" %}{% endif %}{% endfor %}' });
   assert.ok(violations.some((v) => /disallowed tag "include"/.test(v)));
 });
 
 test("a disallowed tag smuggled via the {% liquid %} multi-statement shorthand is still caught", () => {
-  const violations = lintLiquidTemplate('{% liquid\ninclude "leak"\nassign x = 1\n%}');
+  const violations = lintLiquidTemplate({ source: '{% liquid\ninclude "leak"\nassign x = 1\n%}' });
   assert.ok(violations.some((v) => /disallowed tag "include"/.test(v)));
 });
 
 test("a Liquid syntax error is reported as a violation message rather than thrown", () => {
-  const violations = lintLiquidTemplate("{% if unterminated %}");
+  const violations = lintLiquidTemplate({ source: "{% if unterminated %}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /Liquid syntax error/);
 });
@@ -100,7 +98,7 @@ test("walking a template that contains include/render never touches the real fil
   // If the walker ever flipped `partials` to true, this would attempt to read
   // a real file named "/etc/hosts" relative to the process cwd and throw a
   // filesystem error instead of cleanly reporting the disallowed tag.
-  const violations = lintLiquidTemplate('{% include "/etc/hosts" %}{% render "/etc/hosts" %}');
+  const violations = lintLiquidTemplate({ source: '{% include "/etc/hosts" %}{% render "/etc/hosts" %}' });
   assert.deepEqual(
     violations.sort(),
     ['disallowed tag "include"', 'disallowed tag "render"'].sort()
@@ -120,26 +118,24 @@ test("walking a template that contains include/render never touches the real fil
 // ---------------------------------------------------------------------------
 
 test("a for-loop over a huge literal numeric range is rejected", () => {
-  const violations = lintLiquidTemplate("{% for i in (1..2000000000) %}{{ i }}{% endfor %}");
+  const violations = lintLiquidTemplate({ source: "{% for i in (1..2000000000) %}{{ i }}{% endfor %}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /for-loop range \(1\.\.2000000000\) exceeds the maximum allowed span/);
 });
 
 test("a for-loop over a small literal numeric range is allowed", () => {
-  assert.deepEqual(lintLiquidTemplate("{% for i in (1..100) %}{{ i }}{% endfor %}"), []);
+  assert.deepEqual(lintLiquidTemplate({ source: "{% for i in (1..100) %}{{ i }}{% endfor %}" }), []);
 });
 
 test("a for-loop over an array/variable (not a literal range) is never flagged by the range-span guard, regardless of the array's real size", () => {
   // `posts` here is just an identifier, not a `(a..b)` range literal — the
   // guard only inspects RangeToken collections. This is the shape every
   // real theme actually uses (themes/dispatch: `for post in posts`).
-  assert.deepEqual(lintLiquidTemplate("{% for post in posts %}{{ post.title }}{% endfor %}"), []);
+  assert.deepEqual(lintLiquidTemplate({ source: "{% for post in posts %}{{ post.title }}{% endfor %}" }), []);
 });
 
 test("an oversized range nested inside an if/for body is still caught (nested AST walk, not just top level)", () => {
-  const violations = lintLiquidTemplate(
-    '{% for post in posts %}{% if post.slug %}{% for i in (1..2000000000) %}{{ i }}{% endfor %}{% endif %}{% endfor %}'
-  );
+  const violations = lintLiquidTemplate({ source: '{% for post in posts %}{% if post.slug %}{% for i in (1..2000000000) %}{{ i }}{% endfor %}{% endif %}{% endfor %}' });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /for-loop range \(1\.\.2000000000\)/);
 });

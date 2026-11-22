@@ -10,7 +10,7 @@ import { createDurableRunStore } from "../durable-run-store.js";
  */
 test("a run with no attempt row is classified by Tovu's run-ID prefixes", async () => {
   const kernel = freshSqliteChatKernel();
-  const history = createChatStoreFactory(kernel)({ kind: "user", workspaceId: "ws", userId: "admin" });
+  const history = createChatStoreFactory({ store: kernel })({ kind: "user", workspaceId: "ws", userId: "admin" });
   await history.create({ id: "chat" });
   await history.appendMessage({ conversationId: "chat", message: { id: "byok-answer", role: "assistant", content: "draft", runId: "byok:r1", runStatus: "running" } });
   await history.appendMessage({ conversationId: "chat", message: { id: "daemon-answer", role: "assistant", content: "draft", runId: "run-7", runStatus: "running" } });

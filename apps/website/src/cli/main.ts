@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   try {
     await program.parseAsync(argv, { from: "user" });
   } catch (err) {
-    const outcome = mapErrorToCliOutcome(err);
+    const outcome = mapErrorToCliOutcome({ err: err });
     if (outcome.stderrLine) {
       process.stderr.write(`${outcome.stderrLine}\n`);
     }

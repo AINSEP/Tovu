@@ -75,7 +75,7 @@ function baseSubscription(): SubscriptionRow {
 }
 
 function makeDeps(consentCapability: MembersConsentCapability | null) {
-  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo([baseSubscription()]);
+  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: [baseSubscription()] });
   const mailer = makeMailer();
   const deps: ConfirmationDeps = {
     tokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),

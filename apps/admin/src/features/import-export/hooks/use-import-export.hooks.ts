@@ -1,11 +1,12 @@
 import { useCallback } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { api } from "@/lib/api";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import { isDesktopAdmin } from "@/features/settings/ai-agent-presentation";
 import { sitesTranslator, useSitesSnapshot } from "../../sites";
 import { t as dictionaryT } from "../import-export-i18n";
 
+import { type Translate } from '@jini-ai/core/text';
 /** This panel's `t`, bound to the admin's resolved locale — the one place it reads the locale, same
  *  split as `useWiredSites`. @complexity O(1) per lookup. */
 export function useImportExportTranslate(): Translate {
@@ -21,11 +22,12 @@ export function useSiteTransferTranslate(): Translate {
 }
 
 /**
- * Whether this deployment has a Sites section, so the Import tab may link to its New site tab.
- * The same rule `App.hooks.ts`'s `useSiteSectionAvailability` applies to the sidebar and router —
+ * Whether this deployment has a Sites section, so the Import tab may make a new site for a live
+ * website (until 2026-11-10 it linked to the New site tab instead).
+ * The same rule `site-section-availability.hooks.ts`'s `useSiteSectionAvailability` applies to the sidebar and router —
  * never in the desktop shell, otherwise the server's `switchingEnabled` — over the same cached read
  * (the boot scope's principal key is the one App passes), so it costs no extra request. A read still
- * loading counts as no: a link that bounces to the dashboard is worse than one that shows a moment late.
+ * loading counts as no: an offer that fails is worse than one that shows a moment late.
  * A failed refresh counts as no too, even over cached data, because the router then gates Sites off.
  * @complexity O(1) plus the shared, cached sites read; none in the desktop shell.
  */
@@ -33,6 +35,6 @@ export function useSitesSectionAvailable(
   _required: Record<string, never> = {},
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): boolean {
-  const snapshot = useSitesSnapshot({ port: api }, { enabled: !desktop });
+  const snapshot = useSitesSnapshot({ port: sitesApi }, { enabled: !desktop });
   return !desktop && !snapshot.error && snapshot.data?.switchingEnabled === true;
 }

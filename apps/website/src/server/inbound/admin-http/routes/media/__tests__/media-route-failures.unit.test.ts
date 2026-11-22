@@ -21,15 +21,15 @@ import { WS, BASE, INTERNAL, allowed, fixture, testRouteFailureMatrix, type Rout
 
 const routes: RouteFailureCase[] = [
   { name: 'media delete', register: registerAdminMediaDeleteRoute, method: 'DELETE', path: `${BASE}/media/media` , failure: {"message":"The media item removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove media item"} },
-  { name: 'media import', register: (app, deps) => registerAdminMediaImportUrlRoute({ app, deps }), method: 'POST', path: `${BASE}/media/import-url` , failure: {"message":"The media item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation"} },
+  { name: 'media import', register: ({ app, deps }) => registerAdminMediaImportUrlRoute({ app, deps }), method: 'POST', path: `${BASE}/media/import-url` , failure: {"message":"The media item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation"} },
   { name: 'media list', register: registerAdminMediaListRoute, method: 'GET', path: `${BASE}/media` , failure: {"message":"The media library could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media","includeAction":false} },
   { name: 'media original', register: registerAdminMediaOriginalRoute, method: 'GET', path: `${BASE}/media/media/original` , failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} },
   { name: 'media providers', register: registerAdminMediaPutProvidersRoute, method: 'PUT', path: `${BASE}/media/providers`, coded: true , failure: {"message":"The media item save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save media item"} },
-  { name: 'media replace', register: (app, deps) => registerAdminMediaReplaceRoute({ app, deps }), method: 'POST', path: `${BASE}/media/media/replace` , failure: {"message":"The media upload or change could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation","includeAction":false} },
-  { name: 'media text', register: (app, deps) => registerAdminMediaTextRoute({ app, deps }), method: 'GET', path: `${BASE}/media/media/text` , failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} },
+  { name: 'media replace', register: ({ app, deps }) => registerAdminMediaReplaceRoute({ app, deps }), method: 'POST', path: `${BASE}/media/media/replace` , failure: {"message":"The media upload or change could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation","includeAction":false} },
+  { name: 'media text', register: ({ app, deps }) => registerAdminMediaTextRoute({ app, deps }), method: 'GET', path: `${BASE}/media/media/text` , failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} },
   { name: 'media trash', register: registerAdminMediaTrashRoute, method: 'POST', path: `${BASE}/media/media/trash` , failure: {"message":"The trash item operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"trash item operation"} },
   { name: 'media upload', register: registerAdminMediaUploadRoute, method: 'POST', path: `${BASE}/media`, body: { filename: 'a.png', contentType: 'image/png', dataBase64: 'YQ==' } , failure: {"message":"The media upload or change could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"media item operation","includeAction":false} },
-  { name: 'media usage', register: (app, deps) => registerAdminMediaWhereUsedRoute({ app, deps }), method: 'GET', path: `${BASE}/media/media/where-used` , failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} },
+  { name: 'media usage', register: ({ app, deps }) => registerAdminMediaWhereUsedRoute({ app, deps }), method: 'GET', path: `${BASE}/media/media/where-used` , failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -66,7 +66,7 @@ test('media trash: disappearance after successful marker flip is 404', async () 
 for (const body of [undefined, null, [], 'https://example.com/a.png', {}, { url: ' ' }, { url: 1 }]) {
   test(`media import: malformed input ${JSON.stringify(body)} never reaches outbound HTTP`, async () => {
     let requests = 0;
-    const { app } = fixture((app, deps) => registerAdminMediaImportUrlRoute({ app, deps }), {
+    const { app } = fixture(({ app, deps }) => registerAdminMediaImportUrlRoute({ app, deps }), {
       mediaImportHttpClient: { send: async () => { requests++; throw new Error('must not fetch'); } },
     });
     assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, body), { status: 400, body: { error: 'url is required' } });
@@ -77,7 +77,7 @@ for (const body of [undefined, null, [], 'https://example.com/a.png', {}, { url:
 for (const query of ['?offset=-1', '?offset=1.5', '?offset[]=1', '?offset=NaN']) {
   test(`media text: rejects invalid byte paging ${query}`, async () => {
     let reads = 0;
-    const { app } = fixture((app, deps) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById: async () => { reads++; return null; } } });
+    const { app } = fixture(({ app, deps }) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById: async () => { reads++; return null; } } });
     assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/text${query}`), {
       status: 400, body: { error: 'offset must be a non-negative byte offset' },
     });
@@ -86,7 +86,7 @@ for (const query of ['?offset=-1', '?offset=1.5', '?offset[]=1', '?offset=NaN'])
 }
 
 test('media replace: incomplete transactional capability refuses before decoding bytes', async () => {
-  const { app } = fixture((app, deps) => registerAdminMediaReplaceRoute({ app, deps }), {
+  const { app } = fixture(({ app, deps }) => registerAdminMediaReplaceRoute({ app, deps }), {
     mediaRepo: { findById: async () => ({ id: 'media', status: 'active' }), replaceFileIfVersion: async () => true },
   });
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/media/replace`, { filename: 'bad' }), {
@@ -97,7 +97,7 @@ test('media replace: incomplete transactional capability refuses before decoding
 for (const thrown of [new Error('private fetch failure'), new EgressRefusedError({ message: 'DNS 10.0.0.1' }, { callerSafeMessage: 'Target is not public' })]) {
   test(`media import: ${thrown.name} keeps transport details out of the response`, async () => {
     const logs: string[] = [];
-    const { app, deps } = fixture((app, deps) => registerAdminMediaImportUrlRoute({ app, deps }, { logEgressRefusal: line => logs.push(line) }), {
+    const { app, deps } = fixture(({ app, deps }) => registerAdminMediaImportUrlRoute({ app, deps }, { logEgressRefusal: line => logs.push(line) }), {
       mediaImportHttpClient: { send: async () => { throw thrown; } },
     });
     assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, { url: 'https://example.com/photo.png' }), expected: {
@@ -148,11 +148,11 @@ for (const [label, sizeOf, bytes] of [
 test('media original: callers can supply their own not-found response without reading a blob', async () => {
   let reads = 0;
   let resolved: unknown = 'not called';
-  const { app } = fixture((app, deps) => {
+  const { app } = fixture(({ app, deps }) => {
     app.get('/original-missing', async (_req, res) => {
-      resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: WS, mediaId: 'unknown' }, target => {
+      resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: WS, mediaId: 'unknown' } }, { onNotFound: target => {
         target.status(404).json({ error: 'public response' });
-      });
+      } });
     });
   }, { mediaRepo: { findBySlug: async () => null, findById: async () => null }, assetBlobRepo: { findByHash: async () => { reads++; return null; } } });
   assert.deepEqual(await dispatchJsonRequest(app, 'GET', '/original-missing'), { status: 404, body: { error: 'public response' } });
@@ -192,7 +192,7 @@ for (const body of [undefined, { filename: 'file', contentType: 'image/png' }, {
   { filename: 'file', contentType: 'image/png', dataBase64: 1 }, { filename: ' ', contentType: 'image/png', dataBase64: 'YQ==' }]) {
   test(`media replace: malformed replacement ${JSON.stringify(body)} leaves the source unchanged`, async () => {
     let writes = 0;
-    const { app } = fixture((app, deps) => registerAdminMediaReplaceRoute({ app, deps }), {
+    const { app } = fixture(({ app, deps }) => registerAdminMediaReplaceRoute({ app, deps }), {
       mediaRepo: { findById: async () => ({ id: 'media', status: 'active' }),
         replaceFileIfVersion: async () => { writes++; }, saveRenditionIfSource: async () => { writes++; } },
     });
@@ -208,7 +208,7 @@ test('media providers: omitted provider map clears the whole set', async () => {
   const saved = await dispatchJsonRequest(app, 'PUT', `${BASE}/media/providers`, { openai: { apiKey: 'test-key' } });
   assert.equal(saved.status, 200);
   assert.deepEqual(await dispatchJsonRequest(app, 'PUT', `${BASE}/media/providers`), { status: 200, body: {} });
-  assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId(WS), []);
+  assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: WS }), []);
 });
 
 test('media list: documents include only active records and keep their type tied to filename', async t => {
@@ -242,7 +242,7 @@ test('media list: an unknown ?kind is a 400 before authorization or any reposito
 test('media import: with no injected logger, an egress refusal\'s full diagnosis goes to the operator console only', async t => {
   const warnings: unknown[][] = [];
   t.mock.method(console, 'warn', (...args: unknown[]) => { warnings.push(args); });
-  const { app } = fixture((app, deps) => registerAdminMediaImportUrlRoute({ app, deps }), {
+  const { app } = fixture(({ app, deps }) => registerAdminMediaImportUrlRoute({ app, deps }), {
     mediaImportHttpClient: { send: async () => { throw new EgressRefusedError({ message: 'DNS 10.0.0.1' }, { callerSafeMessage: 'Target is not public' }); } },
   });
   assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, { url: 'https://example.com/photo.png' }), {
@@ -253,7 +253,7 @@ test('media import: with no injected logger, an egress refusal\'s full diagnosis
 
 test('media text: valid paging of an absent document is 404 and repository failure is 500', async () => {
   for (const [findById, status] of [[async () => null, 404], [async () => { throw new Error('private'); }, 500]] as const) {
-    const { app } = fixture((app, deps) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById } });
+    const { app } = fixture(({ app, deps }) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById } });
     const response = await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/text?offset=0`);
     assert.equal(response.status, status);
     assertAdminResponse({ actual: response.body, expected: status === 500 ? INTERNAL : { error: 'document was not found' } }, { failure: {"message":"The media could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load media"} });
@@ -262,7 +262,7 @@ test('media text: valid paging of an absent document is 404 and repository failu
 
 test('media usage: unknown asset is 404 and no reference information is queried', async () => {
   let queries = 0;
-  const { app } = fixture((app, deps) => registerAdminMediaWhereUsedRoute({ app, deps }), {
+  const { app } = fixture(({ app, deps }) => registerAdminMediaWhereUsedRoute({ app, deps }), {
     mediaRepo: { findById: async () => null },
     entryRefsRepo: { findByTarget: async () => { queries++; return []; } },
     postRepo: { list: async () => { queries++; return []; } },
@@ -273,7 +273,7 @@ test('media usage: unknown asset is 404 and no reference information is queried'
 
 test('media usage (direct invoke): missing :workspaceId 404s and a missing :mediaId is looked up as "", never "undefined"', async () => {
   const lookedUp: string[] = [];
-  const { app } = fixture((app, deps) => registerAdminMediaWhereUsedRoute({ app, deps }), {
+  const { app } = fixture(({ app, deps }) => registerAdminMediaWhereUsedRoute({ app, deps }), {
     mediaRepo: { findById: async ({ id }: { id: string }) => { lookedUp.push(id); return null; } },
   });
   const handler = lastRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used');

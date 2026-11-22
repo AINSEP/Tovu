@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { createFakeThemesPort, defaultThemesPort } from "../hooks/themes-dependencies.hooks";
 
 /**
@@ -19,7 +19,7 @@ afterEach(() => {
 
 describe("defaultThemesPort — real api wiring", () => {
   it("getPresentation delegates to api.getPresentation", async () => {
-    const spy = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "ws", activeThemeId: "basic", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic"],
       availableThemes: [{ id: "basic", tier: "declarative" }],
@@ -31,7 +31,7 @@ describe("defaultThemesPort — real api wiring", () => {
   });
 
   it("rescanThemes delegates to api.rescanThemes", async () => {
-    const spy = vi.spyOn(api, "rescanThemes").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "rescanThemes").mockResolvedValue({
       added: [],
       removed: [],
       total: 1,
@@ -43,14 +43,14 @@ describe("defaultThemesPort — real api wiring", () => {
   });
 
   it("setActiveTheme delegates to api.setActiveTheme with the given id", async () => {
-    const spy = vi.spyOn(api, "setActiveTheme").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "setActiveTheme").mockResolvedValue({
       settings: { workspaceId: "ws", activeThemeId: "quartz", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic", "quartz"],
     });
-    await expect(defaultThemesPort.setActiveTheme("quartz")).resolves.toMatchObject({
+    await expect(defaultThemesPort.setActiveTheme({ activeThemeId: "quartz" })).resolves.toMatchObject({
       settings: { activeThemeId: "quartz" },
     });
-    expect(spy).toHaveBeenCalledWith("quartz");
+    expect(spy).toHaveBeenCalledWith({ activeThemeId: "quartz" });
   });
 
   it("duplicateTheme delegates to api.duplicateTheme with the source id and new name", async () => {
@@ -60,9 +60,9 @@ describe("defaultThemesPort — real api wiring", () => {
       files: 3,
       availableThemeIds: ["basic", "quartz", "quartz-copy"],
     };
-    const spy = vi.spyOn(api, "duplicateTheme").mockResolvedValue(copy);
-    await expect(defaultThemesPort.duplicateTheme("quartz", "Quartz copy")).resolves.toEqual(copy);
-    expect(spy).toHaveBeenCalledWith("quartz", "Quartz copy");
+    const spy = vi.spyOn(themesApi, "duplicateTheme").mockResolvedValue(copy);
+    await expect(defaultThemesPort.duplicateTheme({ themeId: "quartz", newName: "Quartz copy" })).resolves.toEqual(copy);
+    expect(spy).toHaveBeenCalledWith({ themeId: "quartz", newName: "Quartz copy" });
   });
 
 });
@@ -70,7 +70,7 @@ describe("defaultThemesPort — real api wiring", () => {
 describe("createFakeThemesPort — duplicateTheme", () => {
   it("rejects a copy of a theme that is not installed and leaves the list unchanged", async () => {
     const port = createFakeThemesPort();
-    await expect(port.duplicateTheme("missing", "Copy")).rejects.toThrow("theme 'missing' was not found");
+    await expect(port.duplicateTheme({ themeId: "missing", newName: "Copy" })).rejects.toThrow("theme 'missing' was not found");
     await expect(port.getPresentation()).resolves.toMatchObject({ availableThemeIds: ["basic"] });
   });
 });

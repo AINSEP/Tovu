@@ -19,7 +19,7 @@ import { classifyAddress } from "#src/platform/http/client";
 export { AUTHORITATIVE_DNS_TIMEOUT_MS, type DnsResolverLike };
 
 /** The host policy: only addresses the HTTP client would call public may be queried. */
-export const isPublicDnsAddress = ({ address }: { address: string }): boolean => classifyAddress(address) === "public";
+export const isPublicDnsAddress = ({ address }: { address: string }): boolean => classifyAddress({ ip: address }) === "public";
 
 /**
  * Build the adapter.

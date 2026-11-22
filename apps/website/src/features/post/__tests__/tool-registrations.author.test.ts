@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
 
 function fixture() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   let sequence = 0;
   const deps = {
     workspaceId: "ws-author-tools", clock: { nowMs: () => Date.parse("2026-10-09T00:00:00Z") },
@@ -21,9 +22,9 @@ function fixture() {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     userRepo: { findByPrincipalId: async () => ({ username: "admin" }) },
   } as unknown as PostToolDeps;
-  const registrations = deriveContentReadRegistrations(buildPostRegistrations(deps, {
+  const registrations = deriveContentReadRegistrations({ sourceRegistrations: buildPostRegistrations(deps, {
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-  }));
+  }) });
   function call(id: string, input: unknown) {
     const registration: ToolRegistration | undefined = registrations.find(tool => tool.descriptor.id === id);
     assert.ok(registration, `missing tool ${id}`);

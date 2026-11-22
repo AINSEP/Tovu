@@ -32,7 +32,7 @@
  */
 
 import type { PublishTrustGrant } from "./grant.js";
-import { isGrantActive, parsePublishTrustGrant } from "./grant.js";
+import { parsePublishTrustGrant } from "./grant.js";
 
 /** The env var a destination reads at boot. Non-secret by construction — see this file's header. */
 export const PUBLISH_TRUST_ENV_VAR = "TOVU_PUBLISH_TRUST";
@@ -65,7 +65,7 @@ export const GRANT_LIFETIME_DAYS = 365;
 /** How far ahead of `notAfter` the source starts saying "renew this on your next deploy". */
 export const RENEWAL_WARNING_DAYS = 30;
 
-const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86_400_000;
 
 // ---------------------------------------------------------------------------
 // The document: a LIST of grants, never one
@@ -95,7 +95,7 @@ export type GrantDocumentParse =
  * @complexity O(n²) in the grant count for the duplicate scan, bounded by
  *   {@link MAX_PROVISIONED_GRANTS} — a pairwise scan reads clearer than a set at eight elements.
  */
-export function parseGrantDocument(text: string): GrantDocumentParse {
+export function parseGrantDocument({ text }: { text: string }, _optional = {}): GrantDocumentParse {
   if (text.length > MAX_DOCUMENT_BYTES) {
     return { ok: false, reason: `grant document exceeds ${MAX_DOCUMENT_BYTES} bytes` };
   }
@@ -115,7 +115,7 @@ export function parseGrantDocument(text: string): GrantDocumentParse {
 
   const grants: PublishTrustGrant[] = [];
   for (const entry of entries) {
-    const parsed = parsePublishTrustGrant(entry);
+    const parsed = parsePublishTrustGrant({ raw: entry });
     if (!parsed.ok) return { ok: false, reason: parsed.reason };
     if (grants.some((g) => g.sourceInstallationId === parsed.grant.sourceInstallationId)) {
       return { ok: false, reason: `grant document repeats source installation ${parsed.grant.sourceInstallationId}` };
@@ -138,8 +138,11 @@ export function parseGrantDocument(text: string): GrantDocumentParse {
  * @complexity O(n) in the grant count.
  */
 export function serializeGrantDocument(
-  grants: readonly PublishTrustGrant[],
-  options: { readonly pretty: boolean }
+  { grants, options }: {
+    grants: readonly PublishTrustGrant[];
+    options: { readonly pretty: boolean };
+  },
+  _optional = {}
 ): string {
   return options.pretty ? `${JSON.stringify(grants, null, 2)}\n` : JSON.stringify(grants);
 }
@@ -159,7 +162,7 @@ export type GrantListEdit =
  *
  * @complexity O(n) in the existing grant count.
  */
-export function mergeGrant(existing: readonly PublishTrustGrant[], incoming: PublishTrustGrant): GrantListEdit {
+export function mergeGrant({ existing, incoming }: { existing: readonly PublishTrustGrant[]; incoming: PublishTrustGrant }, _optional = {}): GrantListEdit {
   const index = existing.findIndex((g) => g.sourceInstallationId === incoming.sourceInstallationId);
   if (index >= 0) {
     const grants = existing.map((g, i) => (i === index ? incoming : g));
@@ -180,7 +183,10 @@ export function mergeGrant(existing: readonly PublishTrustGrant[], incoming: Pub
  *
  * @complexity O(n) in the existing grant count.
  */
-export function removeGrant(existing: readonly PublishTrustGrant[], sourceInstallationId: string): GrantListEdit {
+export function removeGrant(
+  { existing, sourceInstallationId }: { existing: readonly PublishTrustGrant[]; sourceInstallationId: string },
+  _optional = {}
+): GrantListEdit {
   const grants = existing.filter((g) => g.sourceInstallationId !== sourceInstallationId);
   return { ok: true, grants, changed: grants.length !== existing.length };
 }
@@ -190,8 +196,11 @@ export function removeGrant(existing: readonly PublishTrustGrant[], sourceInstal
  *
  * @complexity O(1).
  */
-export function grantNotAfterFrom(nowIso: string, options?: { readonly lifetimeDays?: number }): string {
-  const days = options?.lifetimeDays ?? GRANT_LIFETIME_DAYS;
+export function grantNotAfterFrom(
+  { nowIso }: { nowIso: string },
+  { lifetimeDays }: { readonly lifetimeDays?: number } = {}
+): string {
+  const days = lifetimeDays ?? GRANT_LIFETIME_DAYS;
   return new Date(Date.parse(nowIso) + days * MS_PER_DAY).toISOString();
 }
 
@@ -216,30 +225,31 @@ export interface PublishTrustResolution {
  *  `configured` can authorise anything" a property of the type rather than of a guard someone has
  *  to remember to write.
  *  @complexity O(1). */
-function configured(origin: "env" | "file", grants: readonly PublishTrustGrant[]): PublishTrustResolution {
+function configured(
+  { origin, grants }: { origin: "env" | "file"; grants: readonly PublishTrustGrant[] },
+  _optional = {}
+): PublishTrustResolution {
   return { state: "configured", origin, grants, reason: null };
 }
 
 /** @complexity O(1). */
 function withoutGrants(
-  state: Exclude<PublishTrustState, "configured">,
-  origin: PublishTrustResolution["origin"],
-  reason: string | null = null
+  { state, origin }: { state: Exclude<PublishTrustState, "configured">; origin: PublishTrustResolution["origin"] },
+  { reason = null }: { reason?: string | null } = {}
 ): PublishTrustResolution {
   return { state, origin, grants: [], reason };
 }
 
 /** @complexity O(n) in the document's grant count. */
 function resolveText(
-  text: string,
-  origin: "env" | "file",
-  emptyState: Exclude<PublishTrustState, "configured">
+  { text, origin, emptyState }: { text: string; origin: "env" | "file"; emptyState: Exclude<PublishTrustState, "configured"> },
+  _optional = {}
 ): PublishTrustResolution {
-  if (text.trim().length === 0) return withoutGrants(emptyState, origin);
-  const parsed = parseGrantDocument(text);
-  if (!parsed.ok) return withoutGrants("invalid", origin, parsed.reason);
-  if (parsed.grants.length === 0) return withoutGrants("revoked", origin);
-  return configured(origin, parsed.grants);
+  if (text.trim().length === 0) return withoutGrants({ state: emptyState, origin });
+  const parsed = parseGrantDocument({ text });
+  if (!parsed.ok) return withoutGrants({ state: "invalid", origin }, { reason: parsed.reason });
+  if (parsed.grants.length === 0) return withoutGrants({ state: "revoked", origin });
+  return configured({ origin, grants: parsed.grants });
 }
 
 /**
@@ -268,10 +278,10 @@ function resolveText(
 export function resolvePublishTrust(input: {
   readonly envValue: string | undefined;
   readonly fileContents: string | null;
-}): PublishTrustResolution {
-  if (input.envValue !== undefined) return resolveText(input.envValue, "env", "revoked");
-  if (input.fileContents !== null) return resolveText(input.fileContents, "file", "absent");
-  return withoutGrants("absent", "none");
+}, _optional = {}): PublishTrustResolution {
+  if (input.envValue !== undefined) return resolveText({ text: input.envValue, origin: "env", emptyState: "revoked" });
+  if (input.fileContents !== null) return resolveText({ text: input.fileContents, origin: "file", emptyState: "absent" });
+  return withoutGrants({ state: "absent", origin: "none" });
 }
 
 /**
@@ -285,113 +295,11 @@ export function resolvePublishTrust(input: {
  * @complexity O(n) in the resolved grant count.
  */
 export function findGrantForSource(
-  res: PublishTrustResolution,
-  sourceInstallationId: string
+  { res, sourceInstallationId }: { res: PublishTrustResolution; sourceInstallationId: string },
+  _optional = {}
 ): PublishTrustGrant | null {
   if (res.state !== "configured") return null;
   return res.grants.find((g) => g.sourceInstallationId === sourceInstallationId) ?? null;
-}
-
-/**
- * One plain sentence describing what this site currently accepts — the destination-side empty
- * state, and the reason a fresh install shows a sentence instead of an error code.
- *
- * @complexity O(1).
- */
-export function describePublishTrustState(res: PublishTrustResolution): string {
-  switch (res.state) {
-    case "configured": {
-      const n = res.grants.length;
-      return `${n} ${n === 1 ? "computer" : "computers"} can publish to this site.`;
-    }
-    case "revoked":
-      return res.origin === "env"
-        ? `Publishing to this site is switched off in this deployment's own settings (${PUBLISH_TRUST_ENV_VAR}), which overrides whatever the repository carries.`
-        : "Publishing to this site is switched off. No computer is connected.";
-    case "invalid":
-      return `This site's publishing settings could not be read, so nobody can publish to it. ${res.reason ?? ""}`.trim();
-    case "absent":
-      return "No computer is connected to this site for publishing yet. Connect one, then deploy — the connection travels with the deploy, and there is nothing to copy.";
-    default:
-      return undefined as never;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// The source's question: is this computer connected to that site?
-// ---------------------------------------------------------------------------
-
-export type ConnectionVerdict =
-  | "connected"
-  | "expiring-soon"
-  | "expired"
-  | "superseded-key"
-  | "not-connected"
-  | "unavailable";
-
-export interface ConnectionStatus {
-  readonly verdict: ConnectionVerdict;
-  /** Plain language, naming the site and the next action. Never an error code. */
-  readonly message: string;
-}
-
-/** @complexity O(1). */
-function daysUntil(iso: string, nowIso: string): number {
-  return Math.floor((Date.parse(iso) - Date.parse(nowIso)) / MS_PER_DAY);
-}
-
-/**
- * Whether the destination described by `resolution` currently accepts publishes signed by
- * `publicKeyB64u` from `sourceInstallationId`.
- *
- * MATCHES ON THE PUBLIC KEY, NOT THE GENERATION, and that distinction is the whole point. Rotation
- * bumps the generation, but regenerating the site key changes the derived key while leaving the
- * generation alone (`keys.ts`: the key is HKDF over the site key). A grant naming the right
- * generation and the previous key is therefore DEAD, and a generation comparison would report it
- * as current — publishing would fail with the destination insisting it was connected.
- *
- * @complexity O(n) in the grant's public-key count (at most four, per `grant.ts`).
- */
-export function describeConnection(input: {
-  readonly resolution: PublishTrustResolution;
-  readonly sourceInstallationId: string;
-  readonly publicKeyB64u: string;
-  readonly siteLabel: string;
-  readonly nowIso: string;
-}): ConnectionStatus {
-  const { resolution: res, siteLabel, nowIso } = input;
-  if (res.state !== "configured") {
-    return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState(res)}` };
-  }
-
-  const grant = findGrantForSource(res, input.sourceInstallationId);
-  if (grant === null) {
-    return {
-      verdict: "not-connected",
-      message: `${siteLabel} does not recognise this computer yet. Connect it and deploy once — nothing to copy, and no key to keep.`,
-    };
-  }
-  if (!isGrantActive(grant, nowIso)) {
-    return {
-      verdict: "expired",
-      message: `This computer's connection to ${siteLabel} expired on ${grant.notAfter}. Reconnect and deploy to restore it.`,
-    };
-  }
-  if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) {
-    return {
-      verdict: "superseded-key",
-      message: `${siteLabel} is still carrying an older key for this computer, so it will refuse a publish. This happens after the Site key is regenerated. Reconnect and deploy to finish the change.`,
-    };
-  }
-
-  const remaining = daysUntil(grant.notAfter, nowIso);
-  if (remaining <= RENEWAL_WARNING_DAYS) {
-    return {
-      verdict: "expiring-soon",
-      message: `This computer can publish to ${siteLabel} for ${remaining} more ${remaining === 1 ? "day" : "days"}. Reconnecting and deploying renews it.`,
-    };
-  }
-  return { verdict: "connected", message: `This computer can publish to ${siteLabel}.` };
 }
 
 // ---------------------------------------------------------------------------
@@ -412,8 +320,8 @@ export interface ProvisioningTarget {
  *  a filesystem, and so nothing in this feature reaches for `node:fs` on its own. */
 export interface ProvisioningFileIo {
   /** File contents, or `null` when the file does not exist. */
-  read(path: string): Promise<string | null>;
-  write(path: string, contents: string): Promise<void>;
+  read(required: { path: string }, optional?: Record<string, never>): Promise<string | null>;
+  write(required: { path: string; contents: string }, optional?: Record<string, never>): Promise<void>;
 }
 
 /** Instrumentation seam for the only I/O this feature performs (Constitution Article VIII). The
@@ -449,9 +357,9 @@ export interface PublishTrustProvisioningPort {
   /** What the repo's deploy config carries today. */
   readProvisioned(): Promise<ProvisionedRead>;
   /** Add or replace one source's grant, leaving every other source untouched. */
-  connect(input: { readonly grant: PublishTrustGrant }): Promise<ProvisioningWrite>;
+  connect(input: { readonly grant: PublishTrustGrant }, optional?: {}): Promise<ProvisioningWrite>;
   /** Remove one source's grant. */
-  disconnect(input: { readonly sourceInstallationId: string }): Promise<ProvisioningWrite>;
+  disconnect(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<ProvisioningWrite>;
 }
 
 /**
@@ -469,9 +377,9 @@ export interface ProvisioningCodec {
   readonly pretty: boolean;
   readonly nextStep: string;
   /** Extract the grant document from the config file's text; `null` when it carries none. */
-  decode(fileContents: string | null): string | null;
+  decode(required: { fileContents: string | null }, optional?: Record<string, never>): string | null;
   /** Put `document` back, preserving everything else in the file. */
-  encode(input: { readonly fileContents: string | null; readonly document: string }):
+  encode(input: { readonly fileContents: string | null; readonly document: string }, optional?: {}):
     | { readonly ok: true; readonly contents: string }
     | { readonly ok: false; readonly reason: string };
 }
@@ -484,7 +392,7 @@ export const COMMITTED_JSON_CODEC: ProvisioningCodec = {
   defaultPath: PUBLISH_TRUST_CONFIG_PATH,
   pretty: true,
   nextStep: `Commit ${PUBLISH_TRUST_CONFIG_PATH} and deploy. It holds public keys only — there is nothing secret in it.`,
-  decode: (fileContents) => fileContents,
+  decode: ({ fileContents }) => fileContents,
   encode: ({ document }) => ({ ok: true, contents: document }),
 };
 
@@ -504,59 +412,79 @@ export function createFileProvisioning(deps: {
   readonly codec: ProvisioningCodec;
   readonly path: string;
   readonly onEvent?: (event: ProvisioningEvent) => void;
-}): PublishTrustProvisioningPort {
+}, _optional = {}): PublishTrustProvisioningPort {
   const { io, codec, path, onEvent } = deps;
   const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
-
-  const grantsIn = (fileContents: string | null): ProvisionedRead => {
-    const parsed = parseGrantDocument(codec.decode(fileContents) ?? "");
-    if (!parsed.ok) {
-      onEvent?.({ kind: "error", target, reason: parsed.reason });
-      return { ok: false, reason: parsed.reason };
-    }
-    return { ok: true, grants: parsed.grants };
-  };
-
-  const readGrants = async (): Promise<ProvisionedRead> => {
-    const current = grantsIn(await io.read(path));
-    if (current.ok) onEvent?.({ kind: "read", target, grants: current.grants.length });
-    return current;
-  };
-
-  const applyEdit = async (edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit): Promise<ProvisioningWrite> => {
-    // One read, reused for both the parse and the re-encode: reading twice could decode one
-    // version of the file and write its edit back into another.
-    const fileContents = await io.read(path);
-    const current = grantsIn(fileContents);
-    if (!current.ok) return current;
-
-    const next = edit(current.grants);
-    if (!next.ok) {
-      onEvent?.({ kind: "error", target, reason: next.reason });
-      return next;
-    }
-    if (!next.changed) {
-      onEvent?.({ kind: "write", target, grants: next.grants.length, changed: false });
-      return { ok: true, grants: next.grants, changed: false, target };
-    }
-
-    const encoded = codec.encode({
-      fileContents,
-      document: serializeGrantDocument(next.grants, { pretty: codec.pretty }),
-    });
-    if (!encoded.ok) {
-      onEvent?.({ kind: "error", target, reason: encoded.reason });
-      return encoded;
-    }
-    await io.write(path, encoded.contents);
-    onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
-    return { ok: true, grants: next.grants, changed: true, target };
-  };
+  const file: ProvisioningFile = { io, codec, path, target, onEvent };
 
   return {
     target,
-    readProvisioned: readGrants,
-    connect: ({ grant }) => applyEdit((grants) => mergeGrant(grants, grant)),
-    disconnect: ({ sourceInstallationId }) => applyEdit((grants) => removeGrant(grants, sourceInstallationId)),
+    readProvisioned: () => readProvisionedGrants({ file }),
+    connect: ({ grant }) => applyGrantEdit({ file, edit: (grants) => mergeGrant({ existing: grants, incoming: grant }) }),
+    disconnect: ({ sourceInstallationId }) => applyGrantEdit({ file, edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
   };
+}
+
+/** The one config file a provisioning port works on. Every field is fixed when the port is built,
+ *  so the functions below read nothing that can change between two calls on the same port. */
+interface ProvisioningFile {
+  readonly io: ProvisioningFileIo;
+  readonly codec: ProvisioningCodec;
+  readonly path: string;
+  readonly target: ProvisioningTarget;
+  readonly onEvent?: (event: ProvisioningEvent) => void;
+}
+
+/** Decodes and parses the grant document out of the file's text; a parse failure is reported as an
+ *  event and returned, never thrown. @complexity O(n) in the document length. */
+function grantsInFile({ file, fileContents }: { file: ProvisioningFile; fileContents: string | null }, _optional = {}): ProvisionedRead {
+  const parsed = parseGrantDocument({ text: file.codec.decode({ fileContents }) ?? "" });
+  if (!parsed.ok) {
+    file.onEvent?.({ kind: "error", target: file.target, reason: parsed.reason });
+    return { ok: false, reason: parsed.reason };
+  }
+  return { ok: true, grants: parsed.grants };
+}
+
+/** Reads the provisioned grants and reports the read. @complexity One file read, O(n) parse. */
+async function readProvisionedGrants({ file }: { file: ProvisioningFile }, _optional = {}): Promise<ProvisionedRead> {
+  const current = grantsInFile({ file, fileContents: await file.io.read({ path: file.path }) });
+  if (current.ok) file.onEvent?.({ kind: "read", target: file.target, grants: current.grants.length });
+  return current;
+}
+
+/** Applies one edit to the grant list: read, decode, parse, edit, encode, write. An edit that
+ *  changes nothing writes nothing. @complexity One file read and at most one write. */
+async function applyGrantEdit({ file, edit }: {
+  file: ProvisioningFile;
+  edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit;
+}, _optional = {}): Promise<ProvisioningWrite> {
+  const { io, codec, path, target, onEvent } = file;
+  // One read, reused for both the parse and the re-encode: reading twice could decode one
+  // version of the file and write its edit back into another.
+  const fileContents = await io.read({ path });
+  const current = grantsInFile({ file, fileContents });
+  if (!current.ok) return current;
+
+  const next = edit(current.grants);
+  if (!next.ok) {
+    onEvent?.({ kind: "error", target, reason: next.reason });
+    return next;
+  }
+  if (!next.changed) {
+    onEvent?.({ kind: "write", target, grants: next.grants.length, changed: false });
+    return { ok: true, grants: next.grants, changed: false, target };
+  }
+
+  const encoded = codec.encode({
+    fileContents,
+    document: serializeGrantDocument({ grants: next.grants, options: { pretty: codec.pretty } }),
+  });
+  if (!encoded.ok) {
+    onEvent?.({ kind: "error", target, reason: encoded.reason });
+    return encoded;
+  }
+  await io.write({ path, contents: encoded.contents });
+  onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
+  return { ok: true, grants: next.grants, changed: true, target };
 }

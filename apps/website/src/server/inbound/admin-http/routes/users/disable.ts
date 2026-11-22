@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
@@ -7,6 +7,7 @@ import { disablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * Loads the paired `UserRecord` and role/policy links for `principal` and builds the admin
@@ -35,7 +36,7 @@ async function assembleDisabledUserResponse(
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendUserDisableError(res: Response, err: unknown): void {
+function sendUserDisableError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof SelfDeleteError) {
     res.status(409).json({ error: err.message, code: "SELF_DELETE" });
     return;
@@ -63,18 +64,15 @@ function sendUserDisableError(res: Response, err: unknown): void {
  * POST users/:principalId/disable — `DISABLE_PRINCIPAL` (SPEC-006 0.6.0, REQ-11, first HTTP route
  * for a transition specified since v0.5.0). Gated by `user.manage`; refuses the seeded owner
  * unconditionally and refuses any disable that would drop the active owner-`*` count to zero
- * (INV-08) — see `identity/admin-crud-service.ts`'s `disablePrincipal` for the full contract.
+ * (INV-08) — see `Jini packages/user-management/src/server/admin-crud-service.ts`'s `disablePrincipal` for the full contract.
  *
  * `disablePrincipal` returns only the updated `PrincipalRecord` — `toAdminUserResponse` also needs
  * the paired `UserRecord` (every `kind='user'` principal has one by construction, CREATE_USER's
  * atomicity guarantee, so the second lookup below is defensive, not an expected runtime path).
  */
-export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/disable", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -98,7 +96,7 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) =>
 
       res.json({ user: await assembleDisabledUserResponse(deps, principal) });
     } catch (err) {
-      sendUserDisableError(res, err);
+      sendUserDisableError({ res, err });
     }
   });
 };

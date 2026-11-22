@@ -28,25 +28,25 @@ function readConfig(dir: string): Record<string, unknown> {
 }
 
 test("normalizeSiteName enforces validateConfig's rule: 1..200 chars AFTER trimming", () => {
-  assert.equal(normalizeSiteName("My Site"), "My Site");
+  assert.equal(normalizeSiteName({ raw: "My Site" }), "My Site");
   // Trimmed, so the stored value is what `tovu serve` would itself compute.
-  assert.equal(normalizeSiteName("  My Site  "), "My Site");
-  assert.equal(normalizeSiteName("a".repeat(200)), "a".repeat(200));
+  assert.equal(normalizeSiteName({ raw: "  My Site  " }), "My Site");
+  assert.equal(normalizeSiteName({ raw: "a".repeat(200) }), "a".repeat(200));
 
   // Trim happens BEFORE the length check, so whitespace is empty rather than length 3 — the same
   // order `read-site-dir.ts`'s `validateConfig` uses. A name that passed here but failed there
   // would stop the site booting, which is the whole reason this rule is duplicated at all.
-  assert.equal(normalizeSiteName("   "), null);
-  assert.equal(normalizeSiteName(""), null);
-  assert.equal(normalizeSiteName("a".repeat(201)), null);
+  assert.equal(normalizeSiteName({ raw: "   " }), null);
+  assert.equal(normalizeSiteName({ raw: "" }), null);
+  assert.equal(normalizeSiteName({ raw: "a".repeat(201) }), null);
   // 201 chars of content plus padding still fails: the bound is on the trimmed value.
-  assert.equal(normalizeSiteName(`  ${"a".repeat(201)}  `), null);
+  assert.equal(normalizeSiteName({ raw: `  ${"a".repeat(201)}  ` }), null);
 });
 
 test("normalizeSiteName refuses a non-string rather than coercing one", () => {
   // The renderer cannot be trusted to have sent a string — this arrives over IPC.
   for (const value of [undefined, null, 42, {}, ["a"], true]) {
-    assert.equal(normalizeSiteName(value), null, `${JSON.stringify(value) ?? "undefined"} must not be a name`);
+    assert.equal(normalizeSiteName({ raw: value }), null, `${JSON.stringify(value) ?? "undefined"} must not be a name`);
   }
 });
 
@@ -56,7 +56,7 @@ test("writeSiteName writes the trimmed name and PRESERVES every other key", () =
   // stands in for a field a newer Tovu adds that this shell has never heard of.
   const dir = writeConfig({ name: "old", domain: "example.com", port: 4321, future: { kept: true } });
 
-  assert.equal(writeSiteName(dir, "  new name  "), "new name");
+  assert.equal(writeSiteName({ siteDir: dir, rawName: "  new name  " }), "new name");
 
   assert.deepEqual(readConfig(dir), {
     name: "new name",
@@ -69,7 +69,7 @@ test("writeSiteName writes the trimmed name and PRESERVES every other key", () =
 test("writeSiteName refuses an invalid name BEFORE touching the file", () => {
   const dir = writeConfig({ name: "original", port: 4321 });
 
-  assert.throws(() => writeSiteName(dir, "   "), /1 to 200 characters/);
+  assert.throws(() => writeSiteName({ siteDir: dir, rawName: "   " }), /1 to 200 characters/);
 
   // The refusal must leave the site exactly as it was. A validation that ran after an open-and-
   // truncate would refuse the name and still break the next boot.
@@ -78,7 +78,7 @@ test("writeSiteName refuses an invalid name BEFORE touching the file", () => {
 
 test("writeSiteName refuses a directory with no readable config.json rather than creating one", () => {
   const dir = tempDir();
-  assert.throws(() => writeSiteName(dir, "new name"), /could not be read as a site config/);
+  assert.throws(() => writeSiteName({ siteDir: dir, rawName: "new name" }), /could not be read as a site config/);
   // Emphatically not created: a `config.json` written into a folder that is not a site would make
   // `classifySiteDir` start calling it half a site.
   assert.equal(fs.existsSync(path.join(dir, "config.json")), false);
@@ -89,7 +89,7 @@ test("writeSiteName refuses a config.json that is not a JSON object", () => {
     const dir = tempDir();
     fs.writeFileSync(path.join(dir, "config.json"), body);
     const before = fs.readFileSync(path.join(dir, "config.json"));
-    assert.throws(() => writeSiteName(dir, "new name"), /could not be read as a site config/, `body: ${body}`);
+    assert.throws(() => writeSiteName({ siteDir: dir, rawName: "new name" }), /could not be read as a site config/, `body: ${body}`);
     assert.deepEqual(fs.readFileSync(path.join(dir, "config.json")), before);
   }
 });
@@ -100,7 +100,7 @@ test("writeSiteName refuses an oversized config.json instead of parsing it", () 
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "x", pad: "p".repeat(70 * 1024) }));
   const before = fs.readFileSync(path.join(dir, "config.json"));
-  assert.throws(() => writeSiteName(dir, "new name"), /could not be read as a site config/);
+  assert.throws(() => writeSiteName({ siteDir: dir, rawName: "new name" }), /could not be read as a site config/);
   assert.deepEqual(fs.readFileSync(path.join(dir, "config.json")), before);
 });
 
@@ -108,7 +108,7 @@ test("writeSiteName leaves no temp file behind on success", () => {
   // The temp-then-rename is what makes the write atomic, but the temp file lives INSIDE the
   // operator's own site directory — the one place this app should leave no litter.
   const dir = writeConfig({ name: "old" });
-  writeSiteName(dir, "new");
+  writeSiteName({ siteDir: dir, rawName: "new" });
   assert.deepEqual(fs.readdirSync(dir), ["config.json"]);
 });
 
@@ -118,7 +118,7 @@ test("writeSiteName reports a failed write as operator-facing and leaves config.
   // best-effort cleanup cannot remove it — the original failure is still the one reported.
   const squatter = path.join(dir, `config.json.${process.pid}.tmp`);
   fs.mkdirSync(path.join(squatter, "inside"), { recursive: true });
-  assert.throws(() => writeSiteName(dir, "new"), {
+  assert.throws(() => writeSiteName({ siteDir: dir, rawName: "new" }), {
     message: new RegExp(`^${path.join(dir, "config.json").replaceAll("\\", "\\\\")} could not be written: EISDIR`),
   });
   assert.deepEqual(readConfig(dir), { name: "old", port: 4321 });
@@ -128,7 +128,7 @@ test("the written file is valid JSON that round-trips, with a trailing newline",
   // The next thing to read this file is `tovu serve`'s own `JSON.parse`. A file that needs this
   // module to read it back is not good enough.
   const dir = writeConfig({ name: "old", domain: null, port: null });
-  writeSiteName(dir, "Café Münster");
+  writeSiteName({ siteDir: dir, rawName: "Café Münster" });
   const raw = fs.readFileSync(path.join(dir, "config.json"), "utf8");
   assert.equal(raw.endsWith("\n"), true, "POSIX text file should end with a newline");
   assert.equal(JSON.parse(raw).name, "Café Münster");

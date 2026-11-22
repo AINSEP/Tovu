@@ -1,7 +1,7 @@
 /** Assistant-owned host ports; server composition supplies their implementations. */
 import type { Principal, ToolRegistration } from '@jini-ai/core';
 import type { CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
-import type { AuthorizeFn } from '@jini-ai/cms/core';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { ChatStoreFactory } from './persistence/tenant-scope.js';
 
 export type { ProviderConfigSource } from '@jini-ai/plugins/host';
@@ -13,7 +13,7 @@ export interface CommerceToolHost {
 
 /** Registered local source identity, shared with the host's discovery adapter. */
 export type RegisteredSiteSource = { siteId: string; name: string; dir: string };
-type BuildRegistrations<TDeps> = (deps: TDeps) => ToolRegistration[];
+type BuildRegistrations<TDeps> = (required: { deps: TDeps }, optional?: Record<string, never>) => ToolRegistration[];
 type PeerResolution = { handler: ToolRegistration['handler']; principal: Principal; site: RegisteredSiteSource };
 
 export interface PeerSiteReads<TDeps> {

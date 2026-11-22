@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { createMailActivityRepo } from "../activity.repo.js";
 import { createMailAttemptObserver } from "../attempts.repo.js";
 import { MAIL_ACTIVITY_RETENTION_MS } from "../retention.js";
@@ -16,7 +16,7 @@ const T = (s: number) => new Date(Date.parse("2026-10-22T12:00:00.000Z") + s * 1
 
 type Seed = { key: string; to?: string; outcome: string; msg?: string | null; code?: string | null; at: number; ws?: string; lane?: string; provider?: string };
 
-async function seed(db: StorageKernel<unknown>, rows: Seed[]) {
+async function seed(db: KyselyKernel<unknown>, rows: Seed[]) {
   await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('wa', 'A', 'wa', ${T(0)}), ('wb', 'B', 'wb', ${T(0)})`);
   for (const row of rows) {
     await db.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, provider_message_id, error_code, created_at, updated_at, activity_id)
@@ -24,7 +24,7 @@ async function seed(db: StorageKernel<unknown>, rows: Seed[]) {
   }
 }
 
-async function feedback(db: StorageKernel<unknown>, events: { id: string; kind: string; msg: string; at: number; ws?: string; provider?: string; hard?: number }[]) {
+async function feedback(db: KyselyKernel<unknown>, events: { id: string; kind: string; msg: string; at: number; ws?: string; provider?: string; hard?: number }[]) {
   for (const e of events) {
     await db.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at, processed_at)
       VALUES (${e.provider ?? "smtp"}, ${e.id}, ${e.ws ?? "wa"}, 'a@x.test', ${e.kind}, ${e.hard ?? 0}, ${e.msg}, ${T(e.at)}, ${T(e.at + 5)}, ${T(e.at + 5)})`);
@@ -34,7 +34,7 @@ async function feedback(db: StorageKernel<unknown>, events: { id: string; kind: 
 describeEachDialect("mail activity repo", {
   tables: ["mail_activity_attempts", "mail_send_ledger", "mail_feedback_inbox", "workspaces"],
   make: (kernel) => {
-    const db = kernel as StorageKernel<unknown>;
+    const db = kernel as KyselyKernel<unknown>;
     return { db, repo: createMailActivityRepo({ db }) };
   },
 }, (make) => {

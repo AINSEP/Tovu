@@ -2,7 +2,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
 import { createMailSendLedgerRepo } from "../ledger.repo.js";

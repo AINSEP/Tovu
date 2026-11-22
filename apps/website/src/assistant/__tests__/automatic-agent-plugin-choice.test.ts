@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { askAgentPluginChoice, ASK_CHOICE_TOOL_ID } from '../ask-choice-tool.js';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 
 for (const action of ['use', 'skip', 'auto'] as const) test(`plugin ask-choice: checked matching options and ${action} round trip`, async () => {

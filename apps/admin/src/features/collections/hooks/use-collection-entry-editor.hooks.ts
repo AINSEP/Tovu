@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import {
-  describeApiError,
-  type AdminContentType,
-  type AdminEntry,
-} from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
@@ -38,18 +35,18 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * `t` is now ALSO injected (standing i18n rule, 2026-08-11, superseding this file's earlier
  * "stays a direct import" note above — see `use-collections.hooks.ts`'s identical update) so
  * `CollectionEntryEditor.tsx` sources its UI copy from this hook instead of its own
- * `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t(locale, key)` —
- * aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
+ * `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t({ locale, key })` —
+ * aliased `translate` here to avoid colliding with this file's bound `({ key }) => string` closure —
  * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
  * takes `locale` explicitly, not a host reach.
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the combined content-type/entry read is one
- * `useFetchQuery` keyed on `KEYS.entry(contentTypeKey, entryId)` — a SIBLING of `use-collection-
- * entries.hooks.ts`'s `KEYS.entries(key)`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
+ * `useFetchQuery` keyed on `KEYS.entry({ contentTypeKey, entryId })` — a SIBLING of `use-collection-
+ * entries.hooks.ts`'s `KEYS.entries({ contentTypeKey: key })`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
  * doc for the regression that nesting caused: every save background-refetched this SAME hook's own
  * read, firing 3 extra requests right after the save's own one and breaking several "the last fetch
  * call was the save" test assertions). `save()`/`toggleLifecycle()` still `invalidates:
- * [KEYS.entries(contentTypeKey)]` directly, so the sibling entries LIST still refreshes — this hook's
+ * [KEYS.entries({ contentTypeKey })]` directly, so the sibling entries LIST still refreshes — this hook's
  * own read just isn't a fellow traveller of that invalidation. It IS still nested under `KEYS.list`,
  * so a content-type field/lifecycle change (from `use-collections.hooks.ts`/`use-edit-fields-
  * dialog.hooks.ts`) still refreshes an open editor, which is wanted. `entry`/`title`/`slug`/
@@ -83,21 +80,21 @@ export interface CollectionEntryEditorController {
   busy: boolean;
   editor: Editor | null;
   save: () => Promise<void>;
-  toggleLifecycle: (op: "publish" | "unpublish") => Promise<void>;
+  toggleLifecycle: (required: { op: "publish" | "unpublish" }, optional?: Record<string, never>) => Promise<void>;
   /** M2: a `json`-kind dynamic field control reports its own parse validity here on every change
    *  (and clears it to valid on unmount) — see `use-json-field-control.hooks.ts`. `save()`/
    *  Publish refuse to write while any field is reporting invalid. */
   setFieldValidity: (fieldName: string, valid: boolean) => void;
   /** Bound translator — `CollectionEntryEditor.tsx`'s only source of UI copy; see this file's own
    *  header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export interface CollectionEntryEditorDependencies {
   port: CollectionEntryEditorPort;
   navigate: (path: string, options?: { replace?: boolean }) => void;
   locale: string;
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 export function useCollectionEntryEditor(
@@ -107,134 +104,166 @@ export function useCollectionEntryEditor(
   },
   deps: CollectionEntryEditorDependencies
 ): CollectionEntryEditorController {
-  const { port, navigate, locale, t } = deps;
-  const [entry, setEntry] = useState<AdminEntry | null>(null);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [extFields, setExtFields] = useState<Record<string, unknown>>({});
-  const [message, setMessage] = useState<string | null>(null);
-  // The op the CURRENTLY (or most recently) in-flight `toggleLifecycle` call was for — needed
-  // because `entryLifecycleFailureMessage` names it, and unlike `save()` (one fallback string for
-  // both create/update), publish/unpublish share one mutation object with no other way to recover
-  // which op a given failure was for.
-  const [lastLifecycleOp, setLastLifecycleOp] = useState<"publish" | "unpublish" | null>(null);
-  // M2: which `json`-kind dynamic fields currently hold unparseable text — see
-  // `use-json-field-control.hooks.ts`'s own header. `save()`/`publishWithSave()` refuse to write
-  // while this is non-empty, rather than silently sending the last value that DID parse under a
-  // "Saved" message (the bug: an entry could show "Saved · version N" for text that was never
-  // stored).
-  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const {
+    port, navigate, locale, t, entry, setEntry, title, setTitle, slug, setSlug, extFields, setExtFields, message, setMessage, lastLifecycleOp,
+    setLastLifecycleOp, invalidFields, validationError, setValidationError, setFieldValidity, editor,
+  } = useCollectionEntryWorkingCopy({ deps });
+  const { list, contentType, loaded, loadError } = useCollectionEntryQuery({ props, port, locale });
+  useCollectionEntrySeed({ setTitle, setSlug, setExtFields, editor, props, list, setEntry, navigate });
+  const { updateMutation, createMutation, lifecycleMutation } = useCollectionEntryMutations({ port, props });
+  const { saveExisting, save } = createCollectionEntrySave({
+    updateMutation, title, extFields, editor, setEntry, contentType, setMessage, setValidationError, invalidFields, locale, entry, createMutation, props, slug,
+    navigate,
+  });
+  const { toggleLifecycle } = createCollectionEntryLifecycle({
+    setMessage, setValidationError, invalidFields, locale, setLastLifecycleOp, saveExisting, lifecycleMutation, setEntry, entry,
+  });
+  return createCollectionEntryController({
+    updateMutation, createMutation, lifecycleMutation, validationError, locale, lastLifecycleOp, contentType, entry, title, setTitle, slug, setSlug,
+    extFields, setExtFields, message, loadError, loaded, editor, save, toggleLifecycle, setFieldValidity, t,
+  });
+}
 
-  /**
-   * Stable setter passed down to every dynamic field control (`setFieldValidity` on the
-   * controller) — `useCallback` with a functional update, so a field re-reporting the SAME
-   * validity it already had returns the identical `Set` instance rather than a new one, keeping
-   * `invalidFields` referentially stable across renders that don't actually change it.
-   *
-   * @complexity Time/space: O(1) amortized — a `Set` copy only on an actual validity flip.
-   */
-  const setFieldValidity = useCallback((fieldName: string, valid: boolean) => {
-    setInvalidFields((current) => {
-      const currentlyInvalid = current.has(fieldName);
-      if (valid === !currentlyInvalid) return current;
-      const next = new Set(current);
-      if (valid) next.delete(fieldName);
-      else next.add(fieldName);
-      return next;
-    });
-  }, []);
-
-  // Names the ProseMirror `contenteditable`, which had none. `role` is restated for the reason
-  // `use-post-editor.hooks.ts`'s own `editorProps.attributes` gives.
-  const editor = useEditor({
-    extensions: [StarterKit, WidgetEmbed],
-    content: "",
-    editorProps: { attributes: { role: "textbox", "aria-label": t("Content") } },
+function createCollectionEntryController(
+  {
+    updateMutation, createMutation, lifecycleMutation, validationError, locale, lastLifecycleOp, contentType, entry, title, setTitle, slug, setSlug, extFields,
+    setExtFields, message, loadError, loaded, editor, save, toggleLifecycle, setFieldValidity, t,
+  }:
+    Pick<ReturnType<typeof useCollectionEntryMutations>, "updateMutation" | "createMutation" | "lifecycleMutation"> &
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "validationError" | "locale" | "lastLifecycleOp" | "entry" | "title" | "setTitle" | "slug"
+    | "setSlug" | "extFields" | "setExtFields" | "message" | "editor" | "setFieldValidity" | "t"> &
+    Pick<ReturnType<typeof useCollectionEntryQuery>, "contentType" | "loadError" | "loaded"> &
+    Pick<ReturnType<typeof createCollectionEntrySave>, "save"> &
+    Pick<ReturnType<typeof createCollectionEntryLifecycle>, "toggleLifecycle">
+) {
+  const saving = updateMutation.status === "pending" || createMutation.status === "pending";
+  // Publish now folds a save into its lifecycle write (H2), so a second click must be blocked for
+  // BOTH legs, not just the save leg `saving` alone would cover.
+  const busy = saving || lifecycleMutation.status === "pending";
+  // Precedence logic lives in `rules.ts`'s `visibleEntryEditorError` — extracted out of this hook
+  // (not just for the usual "computes a value" reason, but because the branching here pushed the
+  // hook's own complexity over ESLint's ceiling). `validationError` (M2) takes precedence over it,
+  // mirroring `use-new-content-type-dialog`'s own local-validation-first ordering: an unparseable
+  // JSON field blocks the write entirely, so its message should win over a stale mutation error
+  // from a previous attempt.
+  const error = validationError ?? visibleEntryEditorError({
+    updateError: updateMutation.error,
+    createError: createMutation.error,
+    lifecycleError: lifecycleMutation.error,
+    saveFallback: translate({ locale: locale, key: "save failed" }),
+    lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage({ locale, op: lastLifecycleOp }) : null,
+    versionConflictMessage: translate({ locale: locale, key: VERSION_CONFLICT_MESSAGE }),
   });
 
-  const list = useFetchQuery({
-    key: KEYS.entry(props.contentTypeKey, props.entryId),
-    fetch: async () => {
-      const [typesResult, entriesResult] = await Promise.all([
-        port.listContentTypes(),
-        props.entryId ? port.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
-      ]);
-      return {
-        contentType: typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null,
-        // Id or slug (readable-slugs S6b) — id first, since entry slugs are only unique per content
-        // type while ids are globally unique; a slug is checked only when the id lookup misses.
-        entry: props.entryId
-          ? (entriesResult.items.find((e) => e.id === props.entryId || e.slug === props.entryId) ?? null)
-          : null,
-      };
-    },
-  });
+  return {
+    contentType,
+    entry,
+    title,
+    setTitle,
+    slug,
+    setSlug,
+    extFields,
+    setExtFields,
+    message,
+    error,
+    loadError,
+    loaded,
+    saving,
+    busy,
+    editor,
+    save,
+    toggleLifecycle,
+    setFieldValidity,
+    t,
+  };
+}
 
-  const contentType = list.data?.contentType;
-  const loaded = list.status !== "loading";
-  const loadError = list.error ? describeApiError(list.error, translate({ locale: locale, key: "failed to load entry" })) : null;
+function createCollectionEntryLifecycle(
+  { setMessage, setValidationError, invalidFields, locale, setLastLifecycleOp, saveExisting, lifecycleMutation, setEntry, entry }:
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "setMessage" | "setValidationError" | "invalidFields" | "locale" | "setLastLifecycleOp" | "setEntry"
+    | "entry"> &
+    Pick<ReturnType<typeof createCollectionEntrySave>, "saveExisting"> &
+    Pick<ReturnType<typeof useCollectionEntryMutations>, "lifecycleMutation">
+) {
+  const { publishWithSave } = createCollectionEntryPublisher({ setMessage, setValidationError, invalidFields, locale, setLastLifecycleOp, saveExisting, lifecycleMutation, setEntry });
 
-  function seedExistingWorkingCopy(
-    { found, editor }: { found: AdminEntry; editor: Editor },
-    _options: Record<string, never> = {},
-  ): void {
-    setTitle(found.title);
-    setSlug(found.slug);
-    const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
-    setExtFields(site ? { ...site } : {});
-    editor.commands.setContent((found.bodyJson ?? "") as never);
-  }
-
-  // Seeds `entry`/`title`/`slug`/`extFields`/the editor's content from `list.data` exactly once per
-  // `(contentTypeKey, entryId)` identity — see this file's own header for why a background refetch
-  // of the SAME identity (e.g. this hook's own `save()` invalidating its parent key) must NOT re-run
-  // this and clobber in-progress edits.
-  const seededIdentityRef = useRef<string | null>(null);
-  useEffect(() => {
-    const identity = `${props.contentTypeKey}:${props.entryId ?? "new"}`;
-    if (seededIdentityRef.current !== identity) seededIdentityRef.current = null;
-    if (!editor || list.status === "loading" || !list.data) return;
-    if (seededIdentityRef.current === identity) return;
-    seededIdentityRef.current = identity;
-
-    const found = list.data.entry;
-    setEntry(found);
-    if (found) {
-      seedExistingWorkingCopy({ found, editor });
-      // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
-      // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already apply.
-      // No separate `if (props.entryId)` guard: `found` is only non-null when `list`'s fetch looked
-      // an entry up by a truthy `props.entryId`, and even a missing id stringifies to a non-UUID
-      // (`"undefined"`), which `slugRedirectPath` already answers with `null` — so no redirect.
-      const redirectPath = slugRedirectPath(`/collections/${props.contentTypeKey}`, String(props.entryId), found);
-      if (redirectPath) navigate(redirectPath, { replace: true });
-    } else {
-      setTitle("");
-      setSlug("");
-      setExtFields({});
-      editor.commands.setContent("");
+  async function toggleLifecycle({ op }: { op: "publish" | "unpublish" }, _optional = {}) {
+    if (!entry) return;
+    if (op === "publish") {
+      await publishWithSave(entry);
+      return;
     }
-  }, [props.contentTypeKey, props.entryId, editor, list.status, list.data]);
+    setLastLifecycleOp(op);
+    try {
+      const { entry: saved } = await lifecycleMutation.mutate({ input: { id: entry.id, op, expectedVersion: entry.version } });
+      setEntry(saved);
+      setMessage(`Entry ${op}ed · version ${saved.version}`);
+    } catch {
+      // already surfaced through lifecycleMutation.error -> error below
+    }
+  }
+  return { toggleLifecycle };
+}
 
-  const updateMutation = useFetchMutation({
-    run: ({ input }: { input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } } }) =>
-      port.updateEntry(input.target, input.patch),
-  }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
-  });
-  const createMutation = useFetchMutation({
-    run: ({ input }: { input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } } }) =>
-      port.createEntry(input.input, input.options),
-  }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
-  });
-  const lifecycleMutation = useFetchMutation({
-    run: ({ input }: { input: { id: string; op: "publish" | "unpublish"; expectedVersion: number } }) => port.entryLifecycle(input),
-  }, {
-    invalidates: [KEYS.entries(props.contentTypeKey)],
-  });
+function createCollectionEntryPublisher(
+  { setMessage, setValidationError, invalidFields, locale, setLastLifecycleOp, saveExisting, lifecycleMutation, setEntry }:
+    Pick<Parameters<typeof createCollectionEntryLifecycle>[0], "setMessage" | "setValidationError" | "invalidFields" | "locale" | "setLastLifecycleOp"
+    | "saveExisting" | "lifecycleMutation" | "setEntry">
+) {
+  /**
+   * H2 fix: Publish was wired straight to `lifecycleMutation`, so it published whatever was last
+   * SAVED, silently dropping any edit made since — the button's own label claims it saves "its
+   * current title, fields and body". This saves the working copy first (through `saveExisting`,
+   * shared with `save()`) and only publishes once that save lands, against the SAVE's own new
+   * version rather than the stale `entry.version` a same-tick save+publish would otherwise race.
+   * A save failure stops here (its own error already surfaces via `updateMutation.error`) and
+   * leaves the entry unpublished — the safe direction, per the plan's own fix note.
+   *
+   * @complexity Time/space: O(1) — at most two sequential mutation calls.
+   */
+  async function publishWithSave(current: AdminEntry) {
+    // No `if (!editor) return` guard here: the only caller, `toggleLifecycle`, already requires a
+    // loaded `entry`, and `entry` is only ever seeded by the load effect above, which itself waits
+    // for a live `editor` — so by the time Publish can run, the editor exists.
+    setMessage(null);
+    setValidationError(null);
+    if (invalidFields.size > 0) {
+      setValidationError(translate({ locale: locale, key: "Fix the invalid JSON before saving." }));
+      return;
+    }
+    setLastLifecycleOp("publish");
+    let saved: AdminEntry;
+    try {
+      saved = await saveExisting(current);
+    } catch {
+      return; // already surfaced through updateMutation.error -> error below
+    }
+    try {
+      const { entry: published } = await lifecycleMutation.mutate({ input: {
+        id: saved.id,
+        op: "publish",
+        expectedVersion: saved.version,
+      } });
+      setEntry(published);
+      setMessage(`Entry published · version ${published.version}`);
+    } catch {
+      // already surfaced through lifecycleMutation.error -> error below
+    }
+  }
+  return { publishWithSave };
+}
 
+function createCollectionEntrySave(
+  {
+    updateMutation, title, extFields, editor, setEntry, contentType, setMessage, setValidationError, invalidFields, locale, entry, createMutation, props, slug,
+    navigate,
+  }:
+    Pick<ReturnType<typeof useCollectionEntryMutations>, "updateMutation" | "createMutation"> &
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "title" | "extFields" | "editor" | "setEntry" | "setMessage" | "setValidationError" | "invalidFields"
+    | "locale" | "entry" | "slug" | "navigate"> &
+    Pick<ReturnType<typeof useCollectionEntryQuery>, "contentType"> &
+    { props: Parameters<typeof useCollectionEntryEditor>[0] }
+) {
   /**
    * Writes the existing entry's current working copy (title/fields/body) through `updateMutation`
    * and mirrors the saved row into `entry` — the one place that write happens, shared by `save()`
@@ -281,103 +310,164 @@ export function useCollectionEntryEditor(
       // already surfaced through updateMutation.error/createMutation.error -> error below
     }
   }
+  return { saveExisting, save };
+}
 
-  /**
-   * H2 fix: Publish was wired straight to `lifecycleMutation`, so it published whatever was last
-   * SAVED, silently dropping any edit made since — the button's own label claims it saves "its
-   * current title, fields and body". This saves the working copy first (through `saveExisting`,
-   * shared with `save()`) and only publishes once that save lands, against the SAVE's own new
-   * version rather than the stale `entry.version` a same-tick save+publish would otherwise race.
-   * A save failure stops here (its own error already surfaces via `updateMutation.error`) and
-   * leaves the entry unpublished — the safe direction, per the plan's own fix note.
-   *
-   * @complexity Time/space: O(1) — at most two sequential mutation calls.
-   */
-  async function publishWithSave(current: AdminEntry) {
-    // No `if (!editor) return` guard here: the only caller, `toggleLifecycle`, already requires a
-    // loaded `entry`, and `entry` is only ever seeded by the load effect above, which itself waits
-    // for a live `editor` — so by the time Publish can run, the editor exists.
-    setMessage(null);
-    setValidationError(null);
-    if (invalidFields.size > 0) {
-      setValidationError(translate({ locale: locale, key: "Fix the invalid JSON before saving." }));
-      return;
-    }
-    setLastLifecycleOp("publish");
-    let saved: AdminEntry;
-    try {
-      saved = await saveExisting(current);
-    } catch {
-      return; // already surfaced through updateMutation.error -> error below
-    }
-    try {
-      const { entry: published } = await lifecycleMutation.mutate({ input: {
-        id: saved.id,
-        op: "publish",
-        expectedVersion: saved.version,
-      } });
-      setEntry(published);
-      setMessage(`Entry published · version ${published.version}`);
-    } catch {
-      // already surfaced through lifecycleMutation.error -> error below
-    }
+function useCollectionEntryMutations(
+  { port, props }:
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "port"> &
+    { props: Parameters<typeof useCollectionEntryEditor>[0] }
+) {
+  const updateMutation = useFetchMutation({
+    run: ({ input }: { input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } } }) =>
+      port.updateEntry({ target: input.target, patch: input.patch }),
+  }, {
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
+  });
+  const createMutation = useFetchMutation({
+    run: ({ input }: { input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } } }) =>
+      port.createEntry({ input: input.input, options: input.options }),
+  }, {
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
+  });
+  const lifecycleMutation = useFetchMutation({
+    run: ({ input }: { input: { id: string; op: "publish" | "unpublish"; expectedVersion: number } }) => port.entryLifecycle(input),
+  }, {
+    invalidates: [KEYS.entries({ contentTypeKey: props.contentTypeKey })],
+  });
+  return { updateMutation, createMutation, lifecycleMutation };
+}
+
+function useCollectionEntrySeed(
+  { setTitle, setSlug, setExtFields, editor, props, list, setEntry, navigate }:
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "setTitle" | "setSlug" | "setExtFields" | "editor" | "setEntry" | "navigate"> &
+    Pick<ReturnType<typeof useCollectionEntryQuery>, "list"> &
+    { props: Parameters<typeof useCollectionEntryEditor>[0] }
+) {
+  function seedExistingWorkingCopy(
+    { found, editor }: { found: AdminEntry; editor: Editor },
+    _options: Record<string, never> = {},
+  ): void {
+    setTitle(found.title);
+    setSlug(found.slug);
+    const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
+    setExtFields(site ? { ...site } : {});
+    editor.commands.setContent((found.bodyJson ?? "") as never);
   }
 
-  async function toggleLifecycle(op: "publish" | "unpublish") {
-    if (!entry) return;
-    if (op === "publish") {
-      await publishWithSave(entry);
-      return;
-    }
-    setLastLifecycleOp(op);
-    try {
-      const { entry: saved } = await lifecycleMutation.mutate({ input: { id: entry.id, op, expectedVersion: entry.version } });
-      setEntry(saved);
-      setMessage(`Entry ${op}ed · version ${saved.version}`);
-    } catch {
-      // already surfaced through lifecycleMutation.error -> error below
-    }
-  }
+  // Seeds `entry`/`title`/`slug`/`extFields`/the editor's content from `list.data` exactly once per
+  // `(contentTypeKey, entryId)` identity — see this file's own header for why a background refetch
+  // of the SAME identity (e.g. this hook's own `save()` invalidating its parent key) must NOT re-run
+  // this and clobber in-progress edits.
+  const seededIdentityRef = useRef<string | null>(null);
+  useEffect(() => {
+    const identity = `${props.contentTypeKey}:${props.entryId ?? "new"}`;
+    if (seededIdentityRef.current !== identity) seededIdentityRef.current = null;
+    if (!editor || list.status === "loading" || !list.data) return;
+    if (seededIdentityRef.current === identity) return;
+    seededIdentityRef.current = identity;
 
-  const saving = updateMutation.status === "pending" || createMutation.status === "pending";
-  // Publish now folds a save into its lifecycle write (H2), so a second click must be blocked for
-  // BOTH legs, not just the save leg `saving` alone would cover.
-  const busy = saving || lifecycleMutation.status === "pending";
-  // Precedence logic lives in `rules.ts`'s `visibleEntryEditorError` — extracted out of this hook
-  // (not just for the usual "computes a value" reason, but because the branching here pushed the
-  // hook's own complexity over ESLint's ceiling). `validationError` (M2) takes precedence over it,
-  // mirroring `use-new-content-type-dialog`'s own local-validation-first ordering: an unparseable
-  // JSON field blocks the write entirely, so its message should win over a stale mutation error
-  // from a previous attempt.
-  const error = validationError ?? visibleEntryEditorError({
-    updateError: updateMutation.error,
-    createError: createMutation.error,
-    lifecycleError: lifecycleMutation.error,
-    saveFallback: translate({ locale: locale, key: "save failed" }),
-    lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage(locale, lastLifecycleOp) : null,
-    versionConflictMessage: translate({ locale: locale, key: VERSION_CONFLICT_MESSAGE }),
+    const found = list.data.entry;
+    setEntry(found);
+    if (found) {
+      seedExistingWorkingCopy({ found, editor });
+      // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
+      // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets/menus already apply.
+      // No separate `if (props.entryId)` guard: `found` is only non-null when `list`'s fetch looked
+      // an entry up by a truthy `props.entryId`, and even a missing id stringifies to a non-UUID
+      // (`"undefined"`), which `slugRedirectPath` already answers with `null` — so no redirect.
+      const redirectPath = slugRedirectPath({ base: `/collections/${props.contentTypeKey}`, requestedId: String(props.entryId), item: found });
+      if (redirectPath) navigate(redirectPath, { replace: true });
+    } else {
+      setTitle("");
+      setSlug("");
+      setExtFields({});
+      editor.commands.setContent("");
+    }
+  }, [props.contentTypeKey, props.entryId, editor, list.status, list.data]);
+}
+
+function useCollectionEntryQuery(
+  { props, port, locale }:
+    Pick<ReturnType<typeof useCollectionEntryWorkingCopy>, "port" | "locale"> &
+    { props: Parameters<typeof useCollectionEntryEditor>[0] }
+) {
+  const list = useFetchQuery({
+    key: KEYS.entry({ contentTypeKey: props.contentTypeKey, entryId: props.entryId }),
+    fetch: async () => {
+      const [typesResult, entriesResult] = await Promise.all([
+        port.listContentTypes(),
+        props.entryId ? port.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
+      ]);
+      return {
+        contentType: typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null,
+        // Id or slug (readable-slugs S6b) — id first, since entry slugs are only unique per content
+        // type while ids are globally unique; a slug is checked only when the id lookup misses.
+        entry: props.entryId
+          ? (entriesResult.items.find((e) => e.id === props.entryId || e.slug === props.entryId) ?? null)
+          : null,
+      };
+    },
   });
 
+  const contentType = list.data?.contentType;
+  const loaded = list.status !== "loading";
+  const loadError = list.error ? describeApiError({ e: list.error, fallback: translate({ locale: locale, key: "failed to load entry" }) }) : null;
+  return { list, contentType, loaded, loadError };
+}
+
+function useCollectionEntryWorkingCopy(
+  { deps }:
+    { deps: Parameters<typeof useCollectionEntryEditor>[1] }
+) {
+  const { port, navigate, locale, t } = deps;
+  const [entry, setEntry] = useState<AdminEntry | null>(null);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [extFields, setExtFields] = useState<Record<string, unknown>>({});
+  const [message, setMessage] = useState<string | null>(null);
+  // The op the CURRENTLY (or most recently) in-flight `toggleLifecycle` call was for — needed
+  // because `entryLifecycleFailureMessage` names it, and unlike `save()` (one fallback string for
+  // both create/update), publish/unpublish share one mutation object with no other way to recover
+  // which op a given failure was for.
+  const [lastLifecycleOp, setLastLifecycleOp] = useState<"publish" | "unpublish" | null>(null);
+  // M2: which `json`-kind dynamic fields currently hold unparseable text — see
+  // `use-json-field-control.hooks.ts`'s own header. `save()`/`publishWithSave()` refuse to write
+  // while this is non-empty, rather than silently sending the last value that DID parse under a
+  // "Saved" message (the bug: an entry could show "Saved · version N" for text that was never
+  // stored).
+  const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  /**
+   * Stable setter passed down to every dynamic field control (`setFieldValidity` on the
+   * controller) — `useCallback` with a functional update, so a field re-reporting the SAME
+   * validity it already had returns the identical `Set` instance rather than a new one, keeping
+   * `invalidFields` referentially stable across renders that don't actually change it.
+   *
+   * @complexity Time/space: O(1) amortized — a `Set` copy only on an actual validity flip.
+   */
+  const setFieldValidity = useCallback((fieldName: string, valid: boolean) => {
+    setInvalidFields((current) => {
+      const currentlyInvalid = current.has(fieldName);
+      if (valid === !currentlyInvalid) return current;
+      const next = new Set(current);
+      if (valid) next.delete(fieldName);
+      else next.add(fieldName);
+      return next;
+    });
+  }, []);
+
+  // Names the ProseMirror `contenteditable`, which had none. `role` is restated for the reason
+  // `use-post-editor.hooks.ts`'s own `editorProps.attributes` gives.
+  const editor = useEditor({
+    extensions: [StarterKit, WidgetEmbed],
+    content: "",
+    editorProps: { attributes: { role: "textbox", "aria-label": t({ key: "Content" }) } },
+  });
   return {
-    contentType,
-    entry,
-    title,
-    setTitle,
-    slug,
-    setSlug,
-    extFields,
-    setExtFields,
-    message,
-    error,
-    loadError,
-    loaded,
-    saving,
-    busy,
-    editor,
-    save,
-    toggleLifecycle,
-    setFieldValidity,
-    t,
+    port, navigate, locale, t, entry, setEntry, title, setTitle, slug, setSlug, extFields, setExtFields, message, setMessage, lastLifecycleOp,
+    setLastLifecycleOp, invalidFields, validationError, setValidationError, setFieldValidity, editor,
   };
 }
 
@@ -393,6 +483,7 @@ export function useWiredCollectionEntryEditor(props: {
   entryId: string | null;
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
-  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
+  const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
+  const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? defaultNavigate({ routePath }) : defaultNavigate({ routePath }, options), []);
+  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate, locale, t });
 }

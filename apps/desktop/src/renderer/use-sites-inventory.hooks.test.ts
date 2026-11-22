@@ -14,6 +14,6 @@ function siteWithStatus(status: SiteRecord['status']): SiteRecord {
 
 test('countRunningSites counts running sites and nothing else', () => {
   const projects = (['running', 'starting', 'running', 'provisioning', 'blocked'] as const).map(siteWithStatus);
-  assert.equal(countRunningSites(projects), 2);
-  assert.equal(countRunningSites([]), 0);
+  assert.equal(countRunningSites({ projects }), 2);
+  assert.equal(countRunningSites({ projects: [] }), 0);
 });

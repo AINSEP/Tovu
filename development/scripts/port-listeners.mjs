@@ -12,6 +12,7 @@
  * without an `lsof` on the box (and without a port that happens to be busy on the test machine).
  */
 import { spawnSync } from "node:child_process";
+import { parseLsofListeners as parseSharedLsofListeners } from "@jini-ai/devops/local-dev";
 
 /**
  * Parses `lsof -nP -iTCP:<port> -sTCP:LISTEN -F pc` output into pid/command rows.
@@ -25,16 +26,7 @@ import { spawnSync } from "node:child_process";
  * @complexity O(n) in lines of output.
  */
 export function parseLsofListeners(stdout) {
-  const found = [];
-  let pid = null;
-  for (const line of stdout.split("\n")) {
-    if (line.startsWith("p")) pid = line.slice(1);
-    else if (line.startsWith("c") && pid) {
-      found.push({ pid, command: line.slice(1) });
-      pid = null;
-    }
-  }
-  return found;
+  return parseSharedLsofListeners({ stdout });
 }
 
 /**

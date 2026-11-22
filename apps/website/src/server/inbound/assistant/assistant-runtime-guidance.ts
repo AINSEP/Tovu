@@ -2,7 +2,9 @@
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
 import type { ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
-import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
+import { orFallback } from '@jini-ai/core/errors/idioms';
+import { agentSupportsChromeIntegration, agentSupportsSubagents } from "@jini-ai/agent-runtime";
+import { type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/core/contracts/agents";
 import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
 
 /** Reply guidance; Normal deliberately contributes no text to the existing overlay. */
@@ -37,7 +39,10 @@ export function buildPreferSubagentsGuidance({ effective }: { effective: boolean
 
 /** Exact Claude in Chrome guidance (owner decision 2026-10-21). */
 export const CLAUDE_IN_CHROME_GUIDANCE =
-  "Claude in Chrome is available: prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.";
+  "Claude in Chrome is available: use web_screenshot_page and page tools first; prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.";
+
+/** Told to a run that wanted the browser integration while another chat holds it. */
+export const BROWSER_BUSY_GUIDANCE = "Another chat is using the browser integration. Use web_screenshot_page and page tools.";
 
 /**
  * The whole Claude in Chrome MCP server, in Claude Code's permission-rule forms: a bare server name
@@ -59,6 +64,11 @@ export function resolveClaudeInChromeEffective(
   return useClaudeInChrome && runtimeSupportsChrome && isOwner;
 }
 
+/** The busy sentence, only for a run that wanted Chrome and was refused it. Pure, O(1). */
+export function buildBrowserBusyGuidance({ input }: { input: Pick<AssistantRuntimeGuidanceInput, "browserBusy"> | undefined }, _options = {}): string {
+  return input?.browserBusy === true ? BROWSER_BUSY_GUIDANCE : "";
+}
+
 /** Run options for the executor. A runtime without Chrome support gets nothing (byte-identical
  * argv); a supporting runtime is always told explicitly — `--chrome` plus the server's tools on the
  * allow-list when effective, `--no-chrome` otherwise, so a CLI-level default cannot turn it on.
@@ -75,6 +85,8 @@ export function buildClaudeInChromeRunOptions(
 export interface AssistantRuntimeGuidanceInput {
   preferSubagents: boolean;
   claudeInChrome: boolean;
+  /** The person wanted Claude in Chrome but another chat on this daemon holds it. */
+  browserBusy?: boolean;
   replyLength: AssistantRuntimePreferences["replyLength"];
   /** The folder the person picked with the composer's folder control (the site's custom fs root). */
   pickedFolder?: string;
@@ -101,6 +113,7 @@ export function buildAssistantRuntimeGuidance({ input }: { input: AssistantRunti
   return [
     buildPreferSubagentsGuidance({ effective: input?.preferSubagents === true }),
     input?.claudeInChrome === true ? CLAUDE_IN_CHROME_GUIDANCE : "",
+    buildBrowserBusyGuidance({ input }),
     buildReplyLengthGuidance({ replyLength: input?.replyLength }),
     input?.pickedFolder ? buildPickedFolderGuidance({ path: input.pickedFolder }) : "",
     input?.chatSettings ? `Tools provided here — this run's settings: ${JSON.stringify(input.chatSettings)}` : "",
@@ -140,35 +153,47 @@ export interface AssistantChromeProbeDeps {
  */
 export function createAssistantChromeProbe(deps: AssistantChromeProbeDeps, _options = {}): AssistantChromeProbe {
   return async ({ agentId }) => {
-    try {
+    return orFallback({ work: async () => {
       const def = deps.getDef({ id: agentId });
       const launchPath = def ? deps.resolveAgentLaunch({ def }).launchPath : null;
       if (!def || !launchPath) return false;
       // The def's declared env is a default the host env overrides, as in the executor's own launch.
       await deps.ensureAgentCapabilities({ def, launchPath, env: { ...def.env, ...deps.env } });
       return deps.capabilities.get(def.id)?.chrome === true;
-    } catch {
-      return false;
-    }
+    }, fallback: false, step: 'Probe assistant Chrome capability' });
   };
+}
+
+/** The daemon's one browser integration: claimed only when this run would use it. A refused claim
+ * means another chat holds it, so this run launches without Chrome and is told why. No port: no limit.
+ * Pure over the port, O(1). */
+function claimBrowserWhenWanted(
+  { wanted, claimBrowser }: { wanted: boolean; claimBrowser: (() => boolean) | undefined },
+  _options = {},
+): { effective: boolean; busy: boolean } {
+  if (!wanted) return { effective: false, busy: false };
+  const granted = claimBrowser === undefined || claimBrowser();
+  return { effective: granted, busy: !granted };
 }
 
 /** Read the person's preferences fresh and combine them with the runtime's declared support and
  * this run's resolved native capabilities. A failed read falls back to the registered defaults.
  * Chrome support also needs `probeChrome` to confirm the CLI accepts `--chrome`; without a probe
  * it is treated as unsupported, which emits no flag (byte-identical to Jini's own drop).
+ * `claimBrowser` is asked only for a run that would use Chrome (owner, supported, switched on).
  * @complexity O(k) for k fixed preference keys plus one registry lookup and at most one probe. */
 export async function resolveAssistantRuntimeLaunch(
   { deps, principalId, agentId, subagentsEnabled, isOwner }: { deps: AssistantRuntimePreferenceDeps; principalId: string; agentId: string; subagentsEnabled: boolean; isOwner: boolean },
-  { getDef, probeChrome }: { getDef?: RuntimeDefLookup; probeChrome?: AssistantChromeProbe } = {},
+  { getDef, probeChrome, claimBrowser }: { getDef?: RuntimeDefLookup; probeChrome?: AssistantChromeProbe; claimBrowser?: () => boolean } = {},
 ): Promise<AssistantRuntimeLaunch> {
   const preferences = await readAssistantRuntimePreferences({ deps, principalId }, {});
   const lookup = getDef ? { getDef } : {};
   const runtimeSupportsSubagents = agentSupportsSubagents({ agentId }, lookup);
   const runtimeSupportsChrome = agentSupportsChromeIntegration({ agentId }, lookup) && await probeChrome?.({ agentId }) === true;
-  const claudeInChrome = resolveClaudeInChromeEffective({ useClaudeInChrome: preferences.useClaudeInChrome, runtimeSupportsChrome, isOwner });
+  const wanted = resolveClaudeInChromeEffective({ useClaudeInChrome: preferences.useClaudeInChrome, runtimeSupportsChrome, isOwner });
+  const { effective: claudeInChrome, busy: browserBusy } = claimBrowserWhenWanted({ wanted, claimBrowser });
   return {
-    guidance: { preferSubagents: resolvePreferSubagentsEffective({ preferSubagents: preferences.preferSubagents, runtimeSupportsSubagents, subagentsEnabled }), claudeInChrome, replyLength: preferences.replyLength },
+    guidance: { preferSubagents: resolvePreferSubagentsEffective({ preferSubagents: preferences.preferSubagents, runtimeSupportsSubagents, subagentsEnabled }), claudeInChrome, ...(browserBusy ? { browserBusy } : {}), replyLength: preferences.replyLength },
     runOptions: buildClaudeInChromeRunOptions({ runtimeSupportsChrome, effective: claudeInChrome }),
   };
 }

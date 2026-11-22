@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { createPost, PostConflictError, PostValidationError } from "#src/features/post/index";
@@ -9,13 +9,14 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendPageCreateError(res: Response, err: unknown): void {
-  if (sendPluginHookFailedError(res, err)) return;
+function sendPageCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (sendPluginHookFailedError({ res, err })) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({
       error: err.message,
@@ -54,15 +55,12 @@ function sendPageCreateError(res: Response, err: unknown): void {
  * oversized request 413s before `createPost`/the command gateway ever runs — mirrors
  * `posts/create.ts`'s identical wiring.
  */
-export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/pages",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
       const pageId = deps.idGen.newId();
@@ -87,10 +85,27 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
             idempotencyKey,
             permission: "content.write",
           },
-          mutation: {
+          mutation: createPageMutation(deps, { pageId, principal, req }),
+        });
+
+        // A page created directly as `status: "published"` now enqueues `entry.published`
+        // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
+        // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
+        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
+        res.status(201).json(toAdminPostResponse(result.post));
+      } catch (err) {
+        sendPageCreateError({ res, err });
+      }
+    }
+  );
+};
+
+function createPageMutation(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
+  return {
             entityType: "post",
             entityId: pageId,
-            operation: "create",
+            operation: "create" as const,
             captureInverse: async () => null,
             execute: () =>
               createPost({
@@ -107,19 +122,6 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
                   analyticsSource: "admin",
                 },
               }),
-            captureEntityVersion: ({ result }) => result.post.version,
-          },
-        });
-
-        // A page created directly as `status: "published"` now enqueues `entry.published`
-        // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache
-        // invalidation subscriber actually sees it, mirroring `posts/create.ts`'s identical fix.
-        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
-
-        res.status(201).json(toAdminPostResponse(result.post));
-      } catch (err) {
-        sendPageCreateError(res, err);
-      }
-    }
-  );
-};
+            captureEntityVersion: ({ result }: { result: Awaited<ReturnType<typeof createPost>> }) => result.post.version,
+          };
+}

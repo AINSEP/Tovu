@@ -11,7 +11,6 @@ import {
   createContentDbTransactionRunner,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
-  createTableTrashAdapter,
   createTrashService,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
@@ -19,6 +18,8 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
@@ -188,22 +189,22 @@ function buildTrashHarness(): TrashHarness {
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const sqliteTrashDb = contentKernel(db);
+  const sqliteTrashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.
     ...[...registry.values()].map(
-      (entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const
+      (entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: sqliteTrashDb, tables: TRASH_TABLES })] as const
     ),
   ]);
   let seq = 0;
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(client),
+    repo: new SqliteTrashRepo({ store: client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
 
@@ -219,9 +220,9 @@ function buildTrashHarness(): TrashHarness {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, base);
+  registerAuthRoutes({ app, deps: base });
   app.use("/api/admin", requireAdminSession(base));
-  createTrashModule(trashDeps).registerRoutes?.(app);
+  createTrashModule(trashDeps).registerRoutes?.({ app });
 
   return { app, deps: base, client, trash };
 }

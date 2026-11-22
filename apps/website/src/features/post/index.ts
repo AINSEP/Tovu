@@ -1,52 +1,15 @@
-export {
-  classifyStatusTransition,
-  createPost,
-  createPublicPostReader,
-  isPublicPost,
-  deletePost,
-  isTrashed,
-  getAdminPostById,
-  getAdminPostByIdOrSlug,
-  getPublishedPostBySlug,
-  findPublishedPostById,
-  findPublishedPostBySlug,
-  listAdminPages,
-  listAdminPosts,
-  listPublishedPosts,
-  listPublishedPostPreviews,
-  normalizeFeaturedMediaId,
-  normalizePostAuthor,
-  normalizePublishAt,
-  presentScheduleFields,
-  restorePostForward,
-  updatePost,
-  EMAIL_TEMPLATE_KIND,
-  SYSTEM_ACTOR_ID,
-  hasPostBeenPublished,
-  DEFAULT_BODY_JSON,
-  MAX_SLUG_LENGTH,
-  MAX_TITLE_LENGTH,
-  ROOT_SLUG,
-  SLUG_FORMAT_PATTERN,
-  PostConflictError,
-  PostNotFoundError,
-  PostValidationError,
-  PostVersionConflictError,
-  type PostRecord,
-  type PublicPostRecord,
-  type PublicPostReaderPort,
-  type PublicPostKind,
-  type PostRepoPort,
-  type PostBodyFormat,
-  type PostKind,
-  type PostStatus,
-  type BeforeSaveHookPort,
-  type UpdatePostInput,
-  type PostAutosaveSnapshot,
-  type ForgetRemovedPostFn,
-  type RemovePostFn,
-  type SlugChangeCaptureLookup,
-} from "./post.js";
+export { classifyStatusTransition } from "./post-write-effects.js";
+export { createPost } from "./post-create.js";
+export { createPublicPostReader, getAdminPostById, getAdminPostByIdOrSlug, getPublishedPostBySlug, findPublishedPostById, findPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts, listPublishedPostPreviews, type PublicPostReaderPort } from "./post-read.js";
+export { isPublicPost, EMAIL_TEMPLATE_KIND, SYSTEM_ACTOR_ID, DEFAULT_BODY_JSON, ROOT_SLUG, PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord, type PublicPostRecord, type PostRepoPort, type PostBodyFormat, type PostAutosaveSnapshot } from "./post.js";
+export { deletePost, restorePostForward, type ForgetRemovedPostFn, type RemovePostFn } from "./post-trash.js";
+export { isTrashed } from "../../contracts/core/soft-delete.js";
+export { normalizeFeaturedMediaId, normalizePostAuthor, normalizePublishAt, presentScheduleFields, MAX_TITLE_LENGTH } from "./post-write-fields.js";
+export { updatePost, type UpdatePostInput } from "./post-update.js";
+export { hasPostBeenPublished, type SlugChangeCaptureLookup } from "./post-slugs.js";
+export { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "./slug.js";
+export type { PostKind } from "#src/contracts/core/post-kind";
+export type { BeforeSaveHookPort } from "./post-before-save.js";
 // The optimistic-concurrency boundary, shared by the admin HTTP route and the `content_post_update`
 // agent tool — see `expected-version.ts` for why it is a module of its own rather than a copy in
 // each arm.
@@ -72,8 +35,7 @@ export {
   type PostSearchPort,
   type PostSearchQuery,
 } from "./search.js";
-export { extractPlainTextFromHtml } from "./html-plain-text.js";
-export { announcePendingGoLive, startPostGoLiveSweep, type GoLiveCandidatesPort } from "./go-live.js";
+export { startPostGoLiveSweep } from "./go-live-sweep.js";
 export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";

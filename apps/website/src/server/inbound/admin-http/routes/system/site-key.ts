@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -32,6 +32,8 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Admin Secrets panel → Site key tab's backend: `GET`, `POST .../generate`, and
@@ -148,11 +150,11 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-key";
  */
 export function resolveSiteKeySources(
   deps: Pick<AdminSiteKeyDeps, "siteBinding">,
-  env: NodeJS.ProcessEnv = process.env
+  { env = process.env }: { env?: NodeJS.ProcessEnv } = {}
 ): { sources: SiteKeySource[]; keyFilePath: string | undefined } {
   const mode = resolveRuntimeMode({ env });
   const sources = siteKeySourcesForSiteDir({ siteDir: deps.siteBinding.dir, mode, env, home: homedir(), cwd: process.cwd() });
-  return { sources, keyFilePath: siteKeyFilePathFrom(sources) };
+  return { sources, keyFilePath: siteKeyFilePathFrom({ sources }) };
 }
 
 export interface SiteKeyStateInput {
@@ -205,9 +207,9 @@ export function siteKeyState(input: SiteKeyStateInput): SiteKeyState {
 async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean> {
   const siteDir = deps.siteBinding.dir;
   if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
-  if (deps.contentKernel === undefined) return findSiteKeyDependentData(siteDir);
+  if (deps.contentKernel === undefined) return findSiteKeyDependentData({ siteDir });
   try {
-    return await hasKeyDependentData(deps.contentKernel);
+    return await hasKeyDependentData({ kernel: deps.contentKernel });
   } catch {
     return true;
   }
@@ -223,8 +225,8 @@ async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean>
  *
  * @complexity O(1) — one read, at most one atomic write.
  */
-function stampSiteKeyFingerprint(siteDir: string, fingerprint: string): void {
-  const meta = readSiteMetaJson(siteDir);
+function stampSiteKeyFingerprint({ siteDir, fingerprint }: { siteDir: string; fingerprint: string }, _optional = {}): void {
+  const meta = readSiteMetaJson({ siteDir });
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
   writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
@@ -240,52 +242,24 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   // guards (the key that decrypts every other stored credential) must stay reachable only by a real
   // admin session, never by a machine credential a leaked key could replay.
   if (
-    !rejectUnlessSessionCredential(res, {
+    !rejectUnlessSessionCredential({ res,
       message: "api-key credentials may not read or manage the site key; use an admin session",
       permission: SITE_KEY_MANAGE_PERMISSION,
     })
   ) {
     return true;
   }
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return true;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
   const principal = getAuthedPrincipal(res);
-  return !(await authorizeOrRespond(res, deps.authorize, {
+  return !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
     permission: SITE_KEY_MANAGE_PERMISSION,
     workspaceId: deps.workspaceId,
-  }));
+  } }));
 }
 
-export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): void {
-  app.get(BASE_PATH, async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res, deps)) return;
-    const { sources } = resolveSiteKeySources(deps);
-    const status = inspectSiteKeyMaterial({ sources });
-    const state = siteKeyState({
-      active: status.active,
-      invalid: status.invalid,
-      reason: status.reason,
-      fingerprint: status.fingerprint,
-      metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
-      hasKeyDependentData:
-        !status.active && !status.invalid ? await siteHasKeyDependentData(deps) : false,
-    });
-    res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
-  });
-
-  app.post(`${BASE_PATH}/reveal`, async (req, res) => {
-    if (await rejectUnlessAuthorized(req, res, deps)) return;
-    const { sources } = resolveSiteKeySources(deps);
-    const reveal = revealSiteKeyMaterial({ sources });
-    // The raw key value goes out in this body — never let a shared/browser cache retain it.
-    res.set("Cache-Control", "no-store");
-    res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
-  });
-
-  app.post(`${BASE_PATH}/generate`, async (req, res) => {
+function registerAdminSiteKeyGenerateRoute({ app, deps, siteKey }: { app: Express; deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter }) {
+  app.post(`${BASE_PATH}/generate`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     try {
       const result = await generateSiteKey(deps, siteKey);
@@ -302,27 +276,55 @@ export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps,
 
       sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
     }
-  });
+  } }));
+}
 
-  app.post(`${BASE_PATH}/import`, async (req, res) => {
+export function registerAdminSiteKeyRoutes({ app, deps, siteKey }: { app: Express; deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter }, _optional = {}): void {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    await respondWithRecovery(res, () => importSiteKey(deps, siteKey, { siteKey: (req.body as { siteKey?: unknown } | undefined)?.siteKey, actorId: getAuthedPrincipal(res).id }));
-  });
+    const { sources } = resolveSiteKeySources(deps);
+    const status = inspectSiteKeyMaterial({ sources });
+    const state = siteKeyState({
+      active: status.active,
+      invalid: status.invalid,
+      reason: status.reason,
+      fingerprint: status.fingerprint,
+      metaFingerprint: status.active ? resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) : undefined,
+      hasKeyDependentData:
+        !status.active && !status.invalid ? await siteHasKeyDependentData(deps) : false,
+    });
+    res.status(200).json({ ...status, state, runtimeMode: resolveRuntimeMode() });
+  } }));
 
-  app.get(`${BASE_PATH}/start-fresh`, async (req, res) => {
+  app.post(`${BASE_PATH}/reveal`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
-    await respondWithRecovery(res, () => previewStartFresh(deps, siteKey));
-  });
+    const { sources } = resolveSiteKeySources(deps);
+    const reveal = revealSiteKeyMaterial({ sources });
+    // The raw key value goes out in this body — never let a shared/browser cache retain it.
+    res.set("Cache-Control", "no-store");
+    res.status(200).json({ ...reveal, runtimeMode: resolveRuntimeMode() });
+  } }));
+  registerAdminSiteKeyGenerateRoute({ app, deps, siteKey });
 
-  app.post(`${BASE_PATH}/start-fresh`, async (req, res) => {
+  app.post(`${BASE_PATH}/import`, asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    await respondWithRecovery({ res, run: () => importSiteKey({ deps, siteKey, input: { siteKey: (req.body as { siteKey?: unknown } | undefined)?.siteKey, actorId: getAuthedPrincipal(res).id } }) });
+  } }));
+
+  app.get(`${BASE_PATH}/start-fresh`, asyncRoute({ handler: async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res, deps)) return;
+    await respondWithRecovery({ res, run: () => previewStartFresh(deps, siteKey) });
+  } }));
+
+  app.post(`${BASE_PATH}/start-fresh`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps)) return;
     const confirm = (req.body as { confirm?: unknown } | undefined)?.confirm;
-    await respondWithRecovery(res, () => startFresh(deps, siteKey, { confirm, actorId: getAuthedPrincipal(res).id }));
-  });
+    await respondWithRecovery({ res, run: () => startFresh({ deps, siteKey, input: { confirm, actorId: getAuthedPrincipal(res).id } }) });
+  } }));
 }
 
 /** Sends a recovery result `no-store` (the request carried a token; never let a cache keep either). */
-async function respondWithRecovery(res: Response, run: () => Promise<RouteResult>): Promise<void> {
+async function respondWithRecovery({ res, run }: { res: Response; run: () => Promise<RouteResult> }, _optional = {}): Promise<void> {
   res.set("Cache-Control", "no-store");
   try {
     const result = await run();
@@ -370,7 +372,7 @@ export type SiteKeyInstallOutcome =
 export interface SiteKeyKeyWriter {
   readonly ensureSiteKeyForSite: (input: {
     siteDir: string;
-    findSiteKeyDependentData: (siteDir: string) => Promise<boolean>;
+    findSiteKeyDependentData: (required: { siteDir: string }) => Promise<boolean>;
   }) => Promise<SiteKeyEnsureOutcome | undefined>;
   readonly checkKey: (input: SiteKeyStoreInput) => Promise<SiteKeyKeyCheck>;
   readonly discardNotOpening: (input: SiteKeyStoreInput) => Promise<{ discarded: number; kept: number }>;
@@ -405,11 +407,11 @@ const REFUSALS = {
   CONFIRMATION_REQUIRED: "Type START FRESH to confirm. Nothing was changed.",
 } as const;
 
-function refusal(code: keyof typeof REFUSALS, status = 409): RouteResult {
+function refusal({ code }: { code: keyof typeof REFUSALS }, { status = 409 }: { status?: number } = {}): RouteResult {
   return { status, body: { error: code, detail: REFUSALS[code] } };
 }
 
-function success(outcome: GenerateOutcome, fingerprint: string, keyFilePath: string): GenerateResult {
+function success({ outcome, fingerprint, keyFilePath }: { outcome: GenerateOutcome; fingerprint: string; keyFilePath: string }, _optional = {}): GenerateResult {
   return { status: outcome === "created" ? 201 : 200, body: { outcome, fingerprint, keyFilePath } };
 }
 
@@ -432,12 +434,12 @@ async function generateSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter
   const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
   const mode = resolveRuntimeMode();
   // Refuse before the shared writer derives metadata, which re-reads an existing corrupt file.
-  if (mode !== "production" && existsSync(join(deps.siteBinding.dir, ".site-meta.json")) && readSiteMetaJson(deps.siteBinding.dir) === undefined) {
-    return refusal("SITE_META_UNREADABLE");
+  if (mode !== "production" && existsSync(join(deps.siteBinding.dir, ".site-meta.json")) && readSiteMetaJson({ siteDir: deps.siteBinding.dir }) === undefined) {
+    return refusal({ code: "SITE_META_UNREADABLE" });
   }
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
-  if (mode === "production" || ensured?.action === "production-noop") return generateProductionSiteKey(deps, hasData);
-  if (ensured === undefined) return refusal("SITE_META_UNREADABLE");
+  if (mode === "production" || ensured?.action === "production-noop") return generateProductionSiteKey({ deps, hasData });
+  if (ensured === undefined) return refusal({ code: "SITE_META_UNREADABLE" });
   return ensuredSiteKeyResult({ ensured: { ...ensured, action: ensured.action } });
 }
 
@@ -448,13 +450,13 @@ function ensuredSiteKeyResult({ ensured }: { ensured: SiteKeyEnsureOutcome & { a
     case "adopt":
     case "mint":
       if (fingerprint === undefined || perSiteFilePath === undefined) throw new Error(`site key '${action}' carried no fingerprint or path`);
-      return success(({ noop: "already-active", adopt: "recovered", mint: "created" } as const)[action], fingerprint, perSiteFilePath);
+      return success({ outcome: ({ noop: "already-active", adopt: "recovered", mint: "created" } as const)[action], fingerprint, keyFilePath: perSiteFilePath });
     case "refuse":
-      return refusal("KEY_DEPENDENT_DATA");
+      return refusal({ code: "KEY_DEPENDENT_DATA" });
     case "mismatch":
-      return refusal("KEY_MISMATCH");
+      return refusal({ code: "KEY_MISMATCH" });
     case "invalid":
-      return refusal("KEY_INVALID");
+      return refusal({ code: "KEY_INVALID" });
     // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
     default: return undefined as never;
   }
@@ -462,22 +464,22 @@ function ensuredSiteKeyResult({ ensured }: { ensured: SiteKeyEnsureOutcome & { a
 
 /** {@link generateSiteKey}'s production branch: the env var or the durable-volume file.
  *  @complexity O(1) file reads plus at most one key-dependent-data scan. */
-async function generateProductionSiteKey(deps: AdminSiteKeyDeps, hasData: () => Promise<boolean>): Promise<GenerateResult> {
+async function generateProductionSiteKey({ deps, hasData }: { deps: AdminSiteKeyDeps; hasData: () => Promise<boolean> }, _optional = {}): Promise<GenerateResult> {
   const { sources, keyFilePath } = resolveSiteKeySources(deps);
   const status = inspectSiteKeyMaterial({ sources });
-  if (status.active && status.fingerprint !== undefined) return success("already-active", status.fingerprint, status.keyFilePath);
-  if (status.invalid) return refusal("KEY_INVALID");
-  if (await hasData()) return refusal("KEY_DEPENDENT_DATA");
-  if (keyFilePath === undefined) return refusal("SITE_META_UNREADABLE");
+  if (status.active && status.fingerprint !== undefined) return success({ outcome: "already-active", fingerprint: status.fingerprint, keyFilePath: status.keyFilePath });
+  if (status.invalid) return refusal({ code: "KEY_INVALID" });
+  if (await hasData()) return refusal({ code: "KEY_DEPENDENT_DATA" });
+  if (keyFilePath === undefined) return refusal({ code: "SITE_META_UNREADABLE" });
   const generated = generateFileSiteKey({ keyFilePath });
-  stampSiteKeyFingerprint(deps.siteBinding.dir, generated.fingerprint);
-  return success("created", generated.fingerprint, generated.keyFilePath);
+  stampSiteKeyFingerprint({ siteDir: deps.siteBinding.dir, fingerprint: generated.fingerprint });
+  return success({ outcome: "created", fingerprint: generated.fingerprint, keyFilePath: generated.keyFilePath });
 }
 
 /** Takes and records a restore point before recovery changes the database (pattern:
  *  `features/database/gated-hooks.ts`'s migrate-forward). `undefined` when this site's database
  *  cannot take one. @complexity O(1) plus one capture and one save. */
-async function takeRestorePoint(deps: AdminSiteKeyDeps, actorId: string, trigger: string): Promise<string | undefined> {
+async function takeRestorePoint({ deps, actorId, trigger }: { deps: AdminSiteKeyDeps; actorId: string; trigger: string }, _optional = {}): Promise<string | undefined> {
   const capabilities = await deps.dbOps.getCapabilities();
   if (capabilities.restorePoint.costClass === "unavailable") return undefined;
   const captured = await deps.dbOps.captureRestorePoint({ scopeId: deps.workspaceId });
@@ -507,8 +509,8 @@ async function resealForImport(required: {
 }, _options = {}): Promise<RouteResult | { restorePointId?: string; resealed: number }> {
   const { deps, siteKey, store, current, fingerprint, check, actorId } = required;
   if ((current.hex !== undefined && current.fingerprint !== fingerprint) || (check.legacy ?? 0) > 0) {
-    const restorePointId = await takeRestorePoint(deps, actorId, "site-key-import");
-    if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
+    const restorePointId = await takeRestorePoint({ deps, actorId, trigger: "site-key-import" });
+    if (restorePointId === undefined) return refusal({ code: "RESTORE_POINT_UNAVAILABLE" });
     const { resealed } = await siteKey.resealFrom({ ...store, previousHex: current.hex ?? store.hex });
     return { restorePointId, resealed };
   }
@@ -524,24 +526,24 @@ async function resealForImport(required: {
  *
  * @complexity one sealed-value scan, plus one re-seal pass when another key is in place.
  */
-async function importSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, input: { siteKey: unknown; actorId: string }): Promise<RouteResult> {
-  const parsed = parseSiteKeyHex(typeof input.siteKey === "string" ? input.siteKey : "");
-  if (!parsed.ok) return refusal("SITE_KEY_INVALID", 400);
+async function importSiteKey({ deps, siteKey, input }: { deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter; input: { siteKey: unknown; actorId: string } }, _optional = {}): Promise<RouteResult> {
+  const parsed = parseSiteKeyHex({ raw: typeof input.siteKey === "string" ? input.siteKey : "" });
+  if (!parsed.ok) return refusal({ code: "SITE_KEY_INVALID" }, { status: 400 });
   const siteDir = deps.siteBinding.dir;
-  const fingerprint = fingerprintSiteKeyHex(parsed.hex);
+  const fingerprint = fingerprintSiteKeyHex({ hex: parsed.hex });
   const current = revealSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
-  if (current.source === "env" && current.fingerprint !== fingerprint) return refusal("ENV_KEY_SET");
+  if (current.source === "env" && current.fingerprint !== fingerprint) return refusal({ code: "ENV_KEY_SET" });
   const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
   const check = await siteKey.checkKey(store);
   const proven = keyOpensSite({ check, siteDir, fingerprint });
-  if (!proven) return refusal("SITE_KEY_DOES_NOT_OPEN");
+  if (!proven) return refusal({ code: "SITE_KEY_DOES_NOT_OPEN" });
 
   const recovery = await resealForImport({ deps, siteKey, store, current, fingerprint, check, actorId: input.actorId });
   if ("status" in recovery) return recovery;
   const { restorePointId, resealed } = recovery;
   const installed = siteKey.installSiteKey({ siteDir, hex: parsed.hex });
-  if (installed === undefined) return refusal("SITE_META_UNREADABLE");
-  if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
+  if (installed === undefined) return refusal({ code: "SITE_META_UNREADABLE" });
+  if (installed.outcome === "env-key-set") return refusal({ code: "ENV_KEY_SET" });
   return { status: 200, body: { outcome: "unlocked", fingerprint, keyFilePath: installed.keyFilePath, resealed, restorePointId } };
 }
 
@@ -562,11 +564,11 @@ interface StartFreshPlan {
  *  @complexity one sealed-value scan plus one webhook list. */
 async function planStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): Promise<StartFreshPlan | RouteResult> {
   const current = revealSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
-  if (current.source === "env" && current.hex === undefined) return refusal("ENV_KEY_SET");
+  if (current.source === "env" && current.hex === undefined) return refusal({ code: "ENV_KEY_SET" });
   const hex = current.hex ?? siteKey.mintSiteKeyHex();
   const check = await siteKey.checkKey({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex });
-  if (check.storageSecret === "locked") return refusal("STORAGE_SECRET_LOCKED");
-  const keepsSecrets = resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) === fingerprintSiteKeyHex(hex);
+  if (check.storageSecret === "locked") return refusal({ code: "STORAGE_SECRET_LOCKED" });
+  const keepsSecrets = resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) === fingerprintSiteKeyHex({ hex });
   const webhooks = keepsSecrets ? [] : await deps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: deps.workspaceId as UUID });
   return { hex, check, affectedWebhooks: webhooks.map((webhook) => ({ label: webhook.label, targetUrl: webhook.targetUrl })) };
 }
@@ -576,7 +578,7 @@ function isRouteResult(value: StartFreshPlan | RouteResult): value is RouteResul
 }
 
 /** The confirm step's plain sentence. @complexity O(W) in the affected webhooks. */
-export function startFreshDetail(removes: number, affectedWebhooks: readonly AffectedWebhook[]): string {
+export function startFreshDetail({ removes, affectedWebhooks }: { removes: number; affectedWebhooks: readonly AffectedWebhook[] }, _optional = {}): string {
   const noun = removes === 1 ? "credential" : "credentials";
   const removal = removes === 0
     ? "Every saved credential can be unlocked; nothing will be removed."
@@ -591,7 +593,7 @@ async function previewStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWrit
   const plan = await planStartFresh(deps, siteKey);
   if (isRouteResult(plan)) return plan;
   const removes = plan.check.sealed - plan.check.opens;
-  return { status: 200, body: { removes, metadataOnly: plan.check.metadataOnly ?? 0, affectedWebhooks: plan.affectedWebhooks, detail: startFreshDetail(removes, plan.affectedWebhooks) } };
+  return { status: 200, body: { removes, metadataOnly: plan.check.metadataOnly ?? 0, affectedWebhooks: plan.affectedWebhooks, detail: startFreshDetail({ removes, affectedWebhooks: plan.affectedWebhooks }) } };
 }
 
 /**
@@ -602,16 +604,16 @@ async function previewStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWrit
  *
  * @complexity one sealed-value scan for the plan, one for the discard.
  */
-async function startFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter, input: { confirm: unknown; actorId: string }): Promise<RouteResult> {
-  if (input.confirm !== "START FRESH") return refusal("CONFIRMATION_REQUIRED", 400);
+async function startFresh({ deps, siteKey, input }: { deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter; input: { confirm: unknown; actorId: string } }, _optional = {}): Promise<RouteResult> {
+  if (input.confirm !== "START FRESH") return refusal({ code: "CONFIRMATION_REQUIRED" }, { status: 400 });
   const plan = await planStartFresh(deps, siteKey);
   if (isRouteResult(plan)) return plan;
-  const restorePointId = await takeRestorePoint(deps, input.actorId, "site-key-start-fresh");
-  if (restorePointId === undefined) return refusal("RESTORE_POINT_UNAVAILABLE");
+  const restorePointId = await takeRestorePoint({ deps, actorId: input.actorId, trigger: "site-key-start-fresh" });
+  if (restorePointId === undefined) return refusal({ code: "RESTORE_POINT_UNAVAILABLE" });
   const { discarded, kept } = await siteKey.discardNotOpening({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex: plan.hex });
   const installed = siteKey.installSiteKey({ siteDir: deps.siteBinding.dir, hex: plan.hex });
-  if (installed === undefined) return refusal("SITE_META_UNREADABLE");
-  if (installed.outcome === "env-key-set") return refusal("ENV_KEY_SET");
+  if (installed === undefined) return refusal({ code: "SITE_META_UNREADABLE" });
+  if (installed.outcome === "env-key-set") return refusal({ code: "ENV_KEY_SET" });
   return {
     status: 200,
     body: { outcome: "started-fresh", fingerprint: installed.fingerprint, keyFilePath: installed.keyFilePath, discarded, kept, restorePointId, affectedWebhooks: plan.affectedWebhooks },

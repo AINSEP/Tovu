@@ -30,16 +30,15 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { InMemoryVersionedMediaRepo, type VersionedMediaRepoPort } from "@jini-ai/cms/media";
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryMediaContentTypeStore,
   InMemoryBlobStore,
-  InMemoryVersionedMediaRepo,
   type AssetBlobRecord,
   type BlobStorePort,
   type MediaRecord,
-  type VersionedMediaRepoPort,
 } from "#src/features/media/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
@@ -48,7 +47,8 @@ import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content
 import { planImport } from "#src/features/publish-content/planner";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
+import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -89,7 +89,7 @@ function packedFrom(record: MediaRecord) {
     entityType: "media",
     id: record.id,
     schemaVersion: 1,
-    contentHash: contentHash("media", { ...record }),
+    contentHash: contentHash({ entityType: "media", state: { ...record } }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [record.source.sha256],
     state: { ...record } as unknown as Record<string, unknown>,
@@ -117,7 +117,7 @@ interface Fixture {
 async function makeFixture(
   options: { mediaRows?: MediaRecord[]; blobRows?: AssetBlobRecord[]; mediaRepo?: VersionedMediaRepoPort } = {}
 ): Promise<Fixture> {
-  const mediaRepo = options.mediaRepo ?? new InMemoryVersionedMediaRepo(options.mediaRows ? [...options.mediaRows] : []);
+  const mediaRepo = options.mediaRepo ?? new InMemoryVersionedMediaRepo({}, { initialRows: options.mediaRows ? [...options.mediaRows] : [] });
   if (options.mediaRepo && options.mediaRows) {
     for (const row of options.mediaRows) await mediaRepo.save(row);
   }
@@ -216,7 +216,7 @@ test("apply() + renderDocNode: a post's embed authored against the SOURCE asset 
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
-  const html = renderDocNode(postBodyDoc, undefined, mediaTransformVersions, mediaAssetMetadata);
+  const html = renderDocNode({ node: postBodyDoc }, { mediaTransformVersions, mediaAssetMetadata });
 
   assert.match(
     html,
@@ -468,8 +468,8 @@ function gateBlobGets(store: InMemoryBlobStore, expected: number) {
 }
 
 for (const [label, makeRepo] of [
-  ["sqlite", () => new SqliteMediaRepo(openContentDb(":memory:"))],
-  ["memory", () => new InMemoryVersionedMediaRepo()],
+  ["sqlite", () => new SqliteMediaRepo({ store: openContentDb(":memory:") })],
+  ["memory", () => new InMemoryVersionedMediaRepo({})],
 ] as const) {
   test(`[${label}] apply(): two concurrent updates planned against the same version cannot both land — one wins, the other is a conflict`, async () => {
     const seeded = makeMediaRecord({ title: "Old Title", version: 3 });
@@ -600,14 +600,14 @@ test("apply() no longer throws Task 12's 'not wired yet' stub error", async () =
 
 test("precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted", async () => {
   const fixture = await makeFixture();
-  const reason = await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord()));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: packedFrom(makeMediaRecord()) });
   assert.equal(reason, `required blob '${PHOTO_SHA256}' is not available on this destination`);
 });
 
 test("precheck() returns null once the blob has been staged and no slug holds the name", async () => {
   const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
-  assert.equal(await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord())), null);
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity: packedFrom(makeMediaRecord()) }), null);
 });
 
 for (const operation of ["create", "update"] as const) {
@@ -639,7 +639,7 @@ test("ordinary uploaded media retains its content hash after publishing", async 
   const handler = handlerFor(fixture.deps);
   const entity = packedFrom(record);
   await handler.apply({ entity, expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: 'ordinary-upload-round-trip' });
-  assert.equal((await handler.inspect(record.id))!.hash, entity.contentHash,
+  assert.equal((await handler.inspect({ id: record.id }))!.hash, entity.contentHash,
     'losing uploaded source metadata must not make the next publish look like a destination edit');
 });
 
@@ -647,12 +647,12 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "media-publish-roundtrip-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const sourceDb = openContentDb(path.join(root, "source.db"));
-  t.after(() => closeSqliteConnection(sourceDb));
+  t.after(() => closeSqliteConnection({ source: sourceDb }));
   const destinationDb = openContentDb(path.join(root, "destination.db"));
-  t.after(() => closeSqliteConnection(destinationDb));
+  t.after(() => closeSqliteConnection({ source: destinationDb }));
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const videoBytes = new TextEncoder().encode("disposable video bytes for the publish hashing contract");
   const videoSha = createHash("sha256").update(videoBytes).digest("hex");
   const poster = makeMediaRecord({ id: "poster", slug: "poster", createdBy: "source-owner",
@@ -660,8 +660,8 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   const video = makeMediaRecord({ id: "video", slug: "video", createdBy: "source-owner",
     htmlAttributes: 'poster="/m/poster/public.v1/image.webp"',
     source: { sha256: videoSha, contentType: "video/mp4", provenance: { kind: "upload" } } });
-  const source = await makeFixture({ mediaRepo: new SqliteMediaRepo(sourceDb), mediaRows: [poster, video] });
-  const destination = await makeFixture({ mediaRepo: new SqliteMediaRepo(destinationDb) });
+  const source = await makeFixture({ mediaRepo: new SqliteMediaRepo({ store: sourceDb }), mediaRows: [poster, video] });
+  const destination = await makeFixture({ mediaRepo: new SqliteMediaRepo({ store: destinationDb }) });
   const destinationWorkspaceId = "22222222-2222-2222-2222-222222222222";
   const destinationDeps = { ...destination.deps, workspaceId: destinationWorkspaceId };
   for (const [sha256, bytes] of [[PHOTO_SHA256, PHOTO_BYTES], [videoSha, videoBytes]] as const) {
@@ -674,10 +674,13 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   for (const entity of entities) await handler.apply({ entity, expectedVersion: undefined,
     principalId: OPERATOR_ID, idempotencyKey: `roundtrip-${entity.id}` });
   assert.deepEqual(await handler.verifyApplied!({ entities }), []);
-  const report = await planImport({ artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities }, {
-    publishContentDeps: destinationDeps, getBaseline: async () => null,
-    hasBlob: async sha256 => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
-  });
+  const report = await planImport({
+                                    bundle: { artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities },
+                                    deps: {
+      publishContentDeps: destinationDeps, getBaseline: async () => null,
+      hasBlob: async ({ sha256 }) => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
+    }
+                                  });
   assert.equal(report.refused, false);
   assert.deepEqual(report.rows.map(row => [row.entityId, row.outcome, row.writes]).sort(),
     [["poster", "unchanged", false], ["video", "unchanged", false]]);

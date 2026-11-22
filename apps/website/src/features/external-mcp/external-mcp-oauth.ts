@@ -51,7 +51,7 @@ export class ExternalMcpReauthRequiredError extends Error {
     );
     this.name = "ExternalMcpReauthRequiredError";
     this.serverId = input.serverId;
-    this.settingsLink = externalMcpSettingsDeepLink(input.serverId);
+    this.settingsLink = externalMcpSettingsDeepLink({ serverId: input.serverId });
   }
 }
 
@@ -75,7 +75,7 @@ export function createExternalMcpReauthRequiredError(input: { serverId: string; 
  *
  * @complexity O(1).
  */
-export function externalMcpSettingsDeepLink(serverId: string): string {
+export function externalMcpSettingsDeepLink({ serverId }: { serverId: string }, _options = {}): string {
   return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
 }
 
@@ -111,6 +111,10 @@ export const tovuRegistrationIdentity = {
   sharedClientName: "Tovu",
 } as const;
 
+/** Adapts the hosted package's positional port to the site's argument-object store API. */
+export const tovuSealExternalMcpOAuthPayload: HostedMcpSignInPorts["store"]["sealPayload"] =
+  (deps, identity, payload) => sealExternalMcpOAuthPayload({ deps, identity, payload });
+
 /**
  * @agent-note Tovu's ONE binding of the hosted sign-in ports, shared by the sign-in service and its shared-owner sign-in. Every
  * member is Tovu's real implementation, never a copy: `oauthFlowOperations` and real `OAuthError`s; the canonical
@@ -127,7 +131,7 @@ export const tovuSignInPorts: HostedMcpSignInPorts = {
     isUnconfigured: (error) => error instanceof ExternalMcpSecretStoreUnconfiguredError,
     reauthRequired: createExternalMcpReauthRequiredError,
   },
-  store: { openPayload: openExternalMcpOAuthPayload, sealPayload: sealExternalMcpOAuthPayload },
+  store: { openPayload: openExternalMcpOAuthPayload, sealPayload: tovuSealExternalMcpOAuthPayload },
   projections: { authMode: resolveExternalMcpAuthMode, oauthStatus: resolveExternalMcpOAuthStatus },
   aad: { format: formatAad },
   signInLink: hostedMcpSignInLink,

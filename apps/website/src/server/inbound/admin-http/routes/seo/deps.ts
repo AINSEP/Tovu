@@ -19,7 +19,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `sitemap.ts`) previously passed this bag as the media dependency. They now use `seoDeps`'s
  * bindings to those same post/media owners in Jini/packages/cms/src/seo. `sitemapService` keeps
  * routes/tools/subscriptions on one app's cache. `put-settings.ts` reads `deps.clock`/`deps.idGen`/
- * `deps.principalRepo`. This is a genuine narrowing (mirrors `routes/admin/taxonomy/deps.ts`'s
+ * `deps.principalRepo`. This is a genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s
  * identical rationale), not a `RouteDeps`-widening extension.
  */
 export type SeoRouteDeps = Pick<
@@ -51,4 +51,4 @@ export type SeoRouteDeps = Pick<
   | "siteDisplayName"
 >;
 
-export type SeoRouteRegistrar = (app: Express, deps: SeoRouteDeps) => void;
+export type SeoRouteRegistrar = (required: { app: Express; deps: SeoRouteDeps }, optional?: Record<string, never>) => void;

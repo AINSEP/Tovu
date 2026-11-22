@@ -40,7 +40,7 @@ import { LEGACY_PLUGIN_SDK_SPECIFIER, PLUGIN_SDK_SPECIFIERS } from "@jini-ai/plu
 
 /** Used only by `resolveDefaultSdkModulePath()` below to reach real Node package resolution for
  * the `@tovu/sdk` bare specifier — same idiom as `admin-static.ts`, `composition/deps.ts`,
- * `platform/observability/otel.ts`, and `worker-sandbox.ts` elsewhere in this codebase. */
+ * `OpenTelemetry package resolution`, and `worker-sandbox.ts` elsewhere in this codebase. */
 const require = createRequire(import.meta.url);
 
 /**

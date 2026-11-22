@@ -1,5 +1,5 @@
 import { requestRunToolConsent, type RunToolConsentPorts, type RunToolConsentSnapshot, type RunToolConsentResult } from '@jini-ai/daemon';
-import type { RuntimeAgentDef } from '@jini-ai/agent-runtime';
+import type { RuntimeAgentDef } from '@jini-ai/core/contracts/agents';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';

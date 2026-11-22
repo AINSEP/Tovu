@@ -29,6 +29,7 @@ import {
 } from './use-site-workspace.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import type { SiteHistoryCommand, SiteRecord } from '../contracts/project.js';
+import { PROJECT_NOT_OPEN_MESSAGE } from '../contracts/project.js';
 import { powerControl, restartControl } from './use-site-power.hooks.js';
 
 type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => void;
@@ -135,17 +136,17 @@ function actionsFor(input: {
 // ---------------------------------------------------------------------------------------------
 
 test('a guest that is not attached yet reads as no history rather than throwing', () => {
-  assert.deepEqual(readHistory(fakeGuest({ notReady: true, canGoBack: true }).guest), {
+  assert.deepEqual(readHistory({ guest: fakeGuest({ notReady: true, canGoBack: true }).guest }), {
     canGoBack: false,
     canGoForward: false,
   });
-  assert.deepEqual(readHistory(null), { canGoBack: false, canGoForward: false });
+  assert.deepEqual(readHistory({ guest: null }), { canGoBack: false, canGoForward: false });
 });
 
 test('did-navigate re-reads canGoBack/canGoForward from the guest and reports the new url', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.options.canGoBack = true;
   fake.fire('did-navigate', { url: 'http://127.0.0.1:4100/admin/posts' });
@@ -158,7 +159,7 @@ test('did-navigate re-reads canGoBack/canGoForward from the guest and reports th
 test('did-navigate-in-page (the admin router pushState) updates the arrows too', () => {
   const fake = fakeGuest({ canGoBack: true, canGoForward: true });
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.fire('did-navigate-in-page', { url: 'http://127.0.0.1:4100/admin/media', isMainFrame: true });
 
@@ -170,7 +171,7 @@ test('did-navigate-in-page (the admin router pushState) updates the arrows too',
 test('an in-page navigation inside a SUBFRAME refreshes the arrows but never replaces the main url', () => {
   const fake = fakeGuest({ canGoBack: true });
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.fire('did-navigate-in-page', { url: 'http://127.0.0.1:4100/preview#frame', isMainFrame: false });
 
@@ -181,7 +182,7 @@ test('an in-page navigation inside a SUBFRAME refreshes the arrows but never rep
 
 test('the teardown detaches both navigation listeners', () => {
   const fake = fakeGuest();
-  const teardown = trackGuestNavigation(fake.guest, recorder().dispatch);
+  const teardown = trackGuestNavigation({ guest: fake.guest, dispatch: recorder().dispatch });
   assert.deepEqual([...fake.listeners.keys()].sort(), ['did-navigate', 'did-navigate-in-page']);
   teardown();
   assert.equal(fake.listeners.size, 0);
@@ -207,27 +208,27 @@ test('the reducer stores what a navigation reported, and a new guest node starts
 
 test('Back calls goBack only when the guest can go back', () => {
   const able = fakeGuest({ canGoBack: true });
-  assert.equal(stepHistory(able.guest, 'back'), true);
+  assert.equal(stepHistory({ guest: able.guest, command: 'back' }), true);
   assert.deepEqual(able.calls, ['goBack']);
 
   const unable = fakeGuest({ canGoBack: false, canGoForward: true });
-  assert.equal(stepHistory(unable.guest, 'back'), false);
+  assert.equal(stepHistory({ guest: unable.guest, command: 'back' }), false);
   assert.deepEqual(unable.calls, []);
 });
 
 test('Forward calls goForward only when the guest can go forward', () => {
   const able = fakeGuest({ canGoForward: true });
-  assert.equal(stepHistory(able.guest, 'forward'), true);
+  assert.equal(stepHistory({ guest: able.guest, command: 'forward' }), true);
   assert.deepEqual(able.calls, ['goForward']);
 
   const unable = fakeGuest({ canGoBack: true, canGoForward: false });
-  assert.equal(stepHistory(unable.guest, 'forward'), false);
+  assert.equal(stepHistory({ guest: unable.guest, command: 'forward' }), false);
   assert.deepEqual(unable.calls, []);
 });
 
 test('Back and Forward are no-ops with no guest mounted or a guest not attached yet', () => {
-  assert.equal(stepHistory(null, 'back'), false);
-  assert.equal(stepHistory(fakeGuest({ notReady: true, canGoForward: true }).guest, 'forward'), false);
+  assert.equal(stepHistory({ guest: null, command: 'back' }), false);
+  assert.equal(stepHistory({ guest: fakeGuest({ notReady: true, canGoForward: true }).guest, command: 'forward' }), false);
 });
 
 test('the toolbar actions route goBack/goForward to the guest', () => {
@@ -297,11 +298,11 @@ test('the recovery panel retry always remounts, and a remount changes the <webvi
 // ---------------------------------------------------------------------------------------------
 
 test('surfaceOfUrl reads the admin from its path and everything else as the site', () => {
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin/'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin/posts?id=1'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/'), 'site');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/administrators'), 'site');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin/' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin/posts?id=1' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/' }), 'site');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/administrators' }), 'site');
   assert.equal(siteSurfaceUrl({ port: 4100, view: 'admin' }), 'http://127.0.0.1:4100/admin/');
   assert.equal(siteSurfaceUrl({ port: 4100, view: 'site' }), 'http://127.0.0.1:4100/');
 });
@@ -320,7 +321,7 @@ test('choosing the surface already on screen does nothing', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'site' as const, liveUrl: 'http://127.0.0.1:4100/admin/posts' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('admin');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'admin' });
   assert.deepEqual(dispatched, []);
   assert.deepEqual(fake.calls, []);
 });
@@ -328,7 +329,7 @@ test('choosing the surface already on screen does nothing', () => {
 test('choosing a surface other than the requested one changes src', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
-  actionsFor({ guest: fake.guest, dispatch }).selectView('site');
+  actionsFor({ guest: fake.guest, dispatch }).selectView({ option: 'site' });
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'site' }]);
   assert.deepEqual(fake.calls, [], 'the src change is the navigation; nothing imperative runs');
 });
@@ -339,7 +340,7 @@ test('after Back crossed to the other surface, choosing the requested one loads 
   const fake = fakeGuest({ abortLoad: true });
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, liveUrl: 'http://127.0.0.1:4100/about' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('admin');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'admin' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(fake.calls, ['loadURL http://127.0.0.1:4100/admin/']);
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'admin' }, { type: 'soft-load' }]);
@@ -348,7 +349,7 @@ test('after Back crossed to the other surface, choosing the requested one loads 
 test('that imperative load falls back to a remount when the guest cannot take it', () => {
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, liveUrl: 'http://127.0.0.1:4100/about' };
-  actionsFor({ guest: null, state, dispatch }).selectView('admin');
+  actionsFor({ guest: null, state, dispatch }).selectView({ option: 'admin' });
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'admin' }, { type: 'remount' }]);
 });
 
@@ -385,7 +386,7 @@ test('on a restored guest the view toggle loads the other surface imperatively, 
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, restoreUrl: 'http://127.0.0.1:4100/admin/posts', liveUrl: 'http://127.0.0.1:4100/admin/posts' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('site');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'site' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(fake.calls, ['loadURL http://127.0.0.1:4100/']);
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'site' }, { type: 'soft-load' }]);
@@ -406,6 +407,16 @@ test('Open in browser sends the surface on screen, not the one last requested', 
   assert.deepEqual(sent, [{ siteId: 'site-1', view: 'site' }]);
 });
 
+test('Open in browser treats the IPC not-open message as an expected refusal', async (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const bridge = {
+    openSiteExternal: async () => { throw new Error(`Error invoking remote method: ${PROJECT_NOT_OPEN_MESSAGE}`); },
+  } as unknown as RunnerInventoryBridge;
+  actionsFor({ guest: null, dispatch: recorder().dispatch, bridge }).openInBrowser();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(errors.mock.callCount(), 0, 'the expected IPC refusal stays quiet');
+});
+
 // ---------------------------------------------------------------------------------------------
 // Cmd+[ / Cmd+] routing
 // ---------------------------------------------------------------------------------------------
@@ -414,7 +425,7 @@ function fakeHistoryBridge() {
   const subscribers: Array<(command: SiteHistoryCommand) => void> = [];
   let unsubscribed = 0;
   const bridge = {
-    onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => {
+    onSiteHistory: ({ listener }: { listener: (command: SiteHistoryCommand) => void }, _options = {}) => {
       subscribers.push(listener);
       return () => {
         unsubscribed += 1;
@@ -461,10 +472,10 @@ test('history steps and navigation listener setup/teardown contain every detache
     goBack: () => { throw new Error('detached'); }, goForward: () => { throw new Error('detached'); },
     addEventListener: () => { throw new Error('detached'); }, removeEventListener: () => { throw new Error('detached'); },
   } as unknown as WorkspaceGuest;
-  assert.doesNotThrow(() => stepHistory(guest, 'back'));
-  assert.doesNotThrow(() => stepHistory(guest, 'forward'));
+  assert.doesNotThrow(() => stepHistory({ guest, command: 'back' }));
+  assert.doesNotThrow(() => stepHistory({ guest, command: 'forward' }));
   let dispose = () => {};
-  assert.doesNotThrow(() => { dispose = trackGuestNavigation(guest, () => {}); });
+  assert.doesNotThrow(() => { dispose = trackGuestNavigation({ guest, dispatch: () => {} }); });
   assert.doesNotThrow(dispose);
 });
 
@@ -479,7 +490,7 @@ test('shared running websites retain their HTTPS origin for both admin and publi
 test('a foreign workspace waits for main to attach before using its URL', async () => {
   const project = { id: '/outside/site', externalUrl: 'https://localhost:3456/admin/' };
   const calls: string[] = [];
-  const bridge = { startSite: async (id: string) => { calls.push(id); return { ...project, port: 3456, status: 'running' } as import('../contracts/project.js').SiteRecord; } };
+  const bridge = { startSite: async ({ id }: { id: string }, _options = {}) => { calls.push(id); return { ...project, port: 3456, status: 'running' } as import('../contracts/project.js').SiteRecord; } };
   assert.equal(await prepareExternalWorkspace({ project, bridge }), project.externalUrl);
   assert.deepEqual(calls, [project.id]);
   await assert.rejects(prepareExternalWorkspace({ project, bridge: undefined }), { message: 'The desktop bridge is unavailable.' });
@@ -488,6 +499,6 @@ test('a foreign workspace waits for main to attach before using its URL', async 
 
 test('foreign running sites have no stop action and cannot restart the owning app', () => {
   const project = { id: '/outside/site', displayName: 'Site', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
-  assert.equal(powerControl('running', { external: true }), null);
+  assert.equal(powerControl({ status: 'running' }, { external: true }), null);
   assert.equal(restartControl({ project, status: 'running', restarting: false }).disabled, true);
 });

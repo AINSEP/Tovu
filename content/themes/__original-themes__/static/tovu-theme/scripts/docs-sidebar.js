@@ -38,7 +38,7 @@
    * item just set — which made the highlight work only when the current item happened to be the
    * last child of its section, and silently fail for every first or middle child.
    */
-  function setActive(entry) {
+  function setActive({ entry }, _optional = {}) {
     nav.querySelectorAll(".menu-item.is-current, .menu-item.is-active").forEach(function (li) {
       li.classList.remove("is-current", "is-active");
     });
@@ -82,7 +82,7 @@
       var match = targets.filter(function (t) {
         return t.el === top.target;
       })[0];
-      if (match) setActive(match);
+      if (match) setActive({ entry: match });
     },
     { rootMargin: "-88px 0px -70% 0px", threshold: 0 }
   );
@@ -98,7 +98,7 @@
   targets.forEach(function (t) {
     t.link.addEventListener("click", function () {
       lockedUntil = Date.now() + 700;
-      setActive(t);
+      setActive({ entry: t });
     });
   });
 })();

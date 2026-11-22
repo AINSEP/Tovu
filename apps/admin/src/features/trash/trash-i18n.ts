@@ -1,11 +1,11 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Dictionary for the Trash feature.
  *
  * Every copy string on this screen goes through `t(locale, key)` with the English copy AS the key,
- * which is this app's convention (`comments-i18n.ts`, `redirects-i18n.ts`, …). `createDictionaryTranslator`
+ * which is this app's convention (`comments-i18n.ts`, `apps/admin/src/features/redirects/redirects-i18n.tsx`, …). `createDictionaryTranslator`
  * falls through to the shared `COMMON_I18N` (which already carries "Trash", "Delete permanently", "Cancel",
  * "Delete", "Kind", "Title", "Status") and then to the English key itself, so a locale/key this file does
  * not carry renders the English source string rather than a placeholder.
@@ -23,7 +23,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
  *
  * Plural note: `"{count} selected"` and `"{count} item(s) will be deleted permanently. …"` go through
  * this file's own flat `t()` + `interpolate()` call sites in `Trash.tsx`/`rules.ts` — there is no
- * `pickPlural` wiring at those call sites (see `lib/template-i18n.ts`), so these translations follow
+ * `pickPlural` wiring at those call sites (see `Jini packages/ui/src/features/i18n/template-i18n.ts`), so these translations follow
  * the SAME precedent `taxonomy-i18n.ts` already established for its own `"{count} …(s)…"` string:
  * languages with a written singular/plural noun contrast keep the source's own "(s)"-style
  * parenthetical marker (`es`, `de`, `pt-BR`, `fr`, `it`), and languages where numeral + noun does not

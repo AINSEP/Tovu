@@ -21,7 +21,7 @@ test('rapid Restart and Stop presses share one synchronous guard, and a failed R
     stopSite: () => new Promise<SiteRecord>((_resolve, reject) => { stops.push({ reject }); }),
     startSite: async () => RUNNING,
   };
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower({}, { getBridge: () => bridge }) });
   const first = hook.current();
   const restarting = first.restart(RUNNING);
   // The same render's closures: nothing has re-rendered yet, so only the synchronous lock can
@@ -35,7 +35,7 @@ test('rapid Restart and Stop presses share one synchronous guard, and a failed R
   stops[0]!.reject(new Error('stop failed'));
   await restarting;
   await settle();
-  assert.equal(hook.current().errorOf(RUNNING.id), 'stop failed');
+  assert.equal(hook.current().errorOf({ id: RUNNING.id }), 'stop failed');
   assert.equal(hook.current().statusOf(RUNNING), 'running', 'the pending mark is gone');
   assert.equal(hook.current().restartControlOf(RUNNING).label, 'Restart');
   void hook.current().toggle(RUNNING);

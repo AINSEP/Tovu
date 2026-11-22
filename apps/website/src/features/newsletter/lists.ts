@@ -30,13 +30,13 @@ export interface ListsDeps {
 export async function saveList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID; id?: UUID; name: string; slug: string };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   if (input.name.trim().length === 0) {
-    throw new NewsletterValidationError("name must not be empty", "name", "required");
+    throw new NewsletterValidationError({ message: "name must not be empty", field: "name", reason: "required" });
   }
   if (input.slug.trim().length === 0) {
-    throw new NewsletterValidationError("slug must not be empty", "slug", "required");
+    throw new NewsletterValidationError({ message: "slug must not be empty", field: "slug", reason: "required" });
   }
 
   const siblingLists = await deps.listRepo.list({ workspaceId: input.workspaceId });
@@ -44,7 +44,7 @@ export async function saveList(required: {
   if (slugCollision) {
     // Lists carry no optimistic-concurrency version (unlike campaigns) — `expectedVersion`/
     // `actualVersion` are not meaningful here; `0`/`0` are inert placeholders, not a real version pair.
-    throw new NewsletterConflictError(`a list with slug '${input.slug}' already exists`, "list", slugCollision.id, 0, 0);
+    throw new NewsletterConflictError({ message: `a list with slug '${input.slug}' already exists`, entity: "list", id: slugCollision.id, expectedVersion: 0, actualVersion: 0 });
   }
 
   const now = deps.clock.nowIso();
@@ -74,12 +74,12 @@ export async function saveList(required: {
 export async function archiveList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID; id: UUID };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   const existing = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) throw new NewsletterListNotFoundError(`list ${input.id} was not found`);
   if (existing.isDefault) {
-    throw new NewsletterDefaultListProtectedError(`the default list cannot be archived`, existing.id);
+    throw new NewsletterDefaultListProtectedError({ message: `the default list cannot be archived`, listId: existing.id });
   }
   const list: NewsletterListRow = { ...existing, status: "archived", updatedAt: deps.clock.nowIso() };
   await deps.listRepo.save(list);
@@ -94,7 +94,7 @@ export async function archiveList(required: {
 export async function ensureDefaultList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID };
-}): Promise<{ list: NewsletterListRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ list: NewsletterListRow }> {
   const { deps, input } = required;
   const existing = await deps.listRepo.findDefault({ workspaceId: input.workspaceId });
   if (existing) return { list: existing };

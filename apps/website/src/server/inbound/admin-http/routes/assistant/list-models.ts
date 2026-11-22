@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -19,12 +21,7 @@ export const NO_SERVER_KEY_MESSAGE = "No API key saved on the server. Save one f
  *
  * @complexity O(n) in the returned model count (one `.map()`).
  */
-async function fetchListModelsResponse(
-  protocol: SupportedExecutionProtocol,
-  credential: Extract<ProbeCredentialResolution, { ok: true }>,
-  apiVersion: string | undefined,
-  deps: AssistantExecutionRouteDeps
-) {
+async function fetchListModelsResponse({ protocol, credential, apiVersion, deps }: { protocol: SupportedExecutionProtocol; credential: Extract<ProbeCredentialResolution, { ok: true }>; apiVersion: string | undefined; deps: AssistantExecutionRouteDeps }, _optional = {}) {
   const result = await listProviderModels({
     protocol,
     baseUrl: credential.baseUrl,
@@ -77,36 +74,21 @@ interface ListModelsRequestBody {
  * actually holds the boundary now. A correct sentence about the wrong boundary reads like a safety
  * argument and audits like one too.
  */
-export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/models", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-execution",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-execution" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = (req.body ?? {}) as ListModelsRequestBody;
-      const protocol = readOptionalString(body.protocol, "");
-      const baseUrl = readOptionalString(body.baseUrl, "");
-      const apiVersion = readOptionalString(body.apiVersion, undefined);
+      const protocol = readOptionalString({ value: body.protocol, fallback: "" });
+      const baseUrl = readOptionalString({ value: body.baseUrl, fallback: "" });
+      const apiVersion = readOptionalString({ value: body.apiVersion, fallback: undefined });
 
-      const protocolError = validateSupportedProtocol(protocol);
+      const protocolError = validateSupportedProtocol({ protocol });
       if (protocolError) {
         res.status(400).json(protocolError);
         return;
@@ -140,7 +122,7 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
        */
       const credential = await resolveProbeCredential(deps, {
         requestedBaseUrl: baseUrl,
-        typedKey: readOptionalString(body.apiKey, ""),
+        typedKey: readOptionalString({ value: body.apiKey, fallback: "" }),
         useStoredCredential: body.useStoredCredential === true,
         useAdminStoredCredential: body.useAdminStoredCredential === true,
         principalId: principal.id,
@@ -150,7 +132,7 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
         return;
       }
 
-      res.json(await fetchListModelsResponse(protocol as SupportedExecutionProtocol, credential, apiVersion, deps));
+      res.json(await fetchListModelsResponse({ protocol: protocol as SupportedExecutionProtocol, credential, apiVersion, deps }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/list-models", code: "INTERNAL_ERROR" });
     }

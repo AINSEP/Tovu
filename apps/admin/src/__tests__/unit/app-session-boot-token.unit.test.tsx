@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { isPublishToLiveAvailable, setPublishToLiveAvailable } from "../../features/publish-content/hooks/publish-availability.store";
 import { useAdminSession } from "../../App.hooks";
 import { Login } from "../../features/auth";
-import { api } from "../../lib/api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 
 /**
  * @file `useAdminSession`'s boot-token redemption (run-from-zip plan S2,
@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/admin/");
 });
@@ -151,8 +151,8 @@ it.each([401, 403, 404, 500])("local bootstrap HTTP %s shows username/password l
   // Repeated settings failures after fallback must not re-enter the loading gate or retry boot.
   await act(async () => {
     await Promise.all([
-      api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
-      api.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
     ]);
   });
   expect(screen.queryByText("Loading Tovu…")).toBeNull();
@@ -167,7 +167,7 @@ it.each([
   [{ canPublishToLive: true }, true],
   [{}, true],
 ] as const)("boot auth/me publishes availability %j into the real store", async (flag, expected) => {
-  setPublishToLiveAvailable(!expected);
+  setPublishToLiveAvailable({ next: !expected });
   vi.stubGlobal("fetch", vi.fn(async (url: string) => {
     if (String(url) !== "/api/admin/v1/auth/me") throw new Error(`unexpected session URL ${url}`);
     return new Response(JSON.stringify({ user: { id: "owner-1", username: "admin" }, ...flag }), {

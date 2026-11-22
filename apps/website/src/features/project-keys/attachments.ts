@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import { jsonText, type KyselyKernel } from "@jini-ai/db/kernel";
 
 /** Host-owned project transaction; callers share the vault and reference commit boundary. */
 export type ProjectKeyTransaction = <T>(required: { run: () => Promise<T> }, optional?: Record<string, never>) => Promise<T>;
@@ -16,12 +16,23 @@ export interface KeyAttachments {
   renameSite(required: { siteId: string; siteName: string }, optional?: Record<string, never>): Promise<void>;
 }
 
+/** A vault row's `meta.worksFor` labels; SQLite hands `meta` back as JSON text, Postgres as an object. */
+function worksForOf(meta: string | Record<string, unknown>): readonly unknown[] {
+  const parsed = typeof meta === "string" ? (JSON.parse(meta) as Record<string, unknown>) : meta;
+  return Array.isArray(parsed.worksFor) ? parsed.worksFor : [];
+}
+
 /** One indexed lookup per check; no cache so attach/detach changes the next credential read. */
-export function createKeyAttachments({ kernel }: { kernel: StorageKernel<unknown> }, _optional = {}): KeyAttachments {
+export function createKeyAttachments({ kernel }: { kernel: KyselyKernel<unknown> }, _optional = {}): KeyAttachments {
   return {
     async keyForLabel({ siteId, label }) {
       if (!siteId) return null;
-      const rows = await kernel.query<{ key_id: string }>(sql`SELECT a.key_id FROM secrets_vault v JOIN site_key_attachments a ON a.key_id=v.id AND a.site_id=${siteId} WHERE v.workspace_id='project' AND (v.label=${label} OR EXISTS (SELECT 1 FROM json_each(v.meta, '$.worksFor') WHERE value=${label})) AND (v.kind='custom' OR (v.kind='vendor' AND json_extract(v.meta, '$.credentialType')='custom')) LIMIT 2`);
+      // The `worksFor` array lives in JSON the dialect helpers cannot search, so match it here: the rows are
+      // this one site's attachments, which `keysFor` also caps at 100.
+      const credentialType = jsonText({ dialect: kernel.dialect, column: sql.ref("v.meta"), path: ["credentialType"] });
+      const candidates = await kernel.query<{ key_id: string; label: string; meta: string | Record<string, unknown> }>(sql`SELECT a.key_id, v.label, v.meta FROM secrets_vault v JOIN site_key_attachments a ON a.key_id=v.id AND a.site_id=${siteId} WHERE v.workspace_id='project' AND (v.kind='custom' OR (v.kind='vendor' AND ${credentialType}='custom')) ORDER BY a.key_id LIMIT 101`);
+      if (candidates.length > 100) throw new Error("This site uses more than 100 saved keys. Remove unused site grants in Shared Keys before continuing.");
+      const rows = candidates.filter(row => row.label === label || worksForOf(row.meta).includes(label));
       if (rows.length > 1) throw new Error("More than one granted key has this label. Revoke the extra site grant in Shared Keys and choose one key.");
       return rows[0]?.key_id ?? null;
     },

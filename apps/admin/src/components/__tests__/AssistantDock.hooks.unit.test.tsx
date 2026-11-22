@@ -1,10 +1,11 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { StrictMode, type ReactNode, type SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
-import { onUnauthenticated } from "../../lib/api";
+import { onUnauthenticated } from "../../lib/admin-http/request";
 import { adminFrontendTabId } from "../../lib/admin-frontend-session";
 
 /**
@@ -96,31 +97,18 @@ vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({
   useFolderDrop: mockUseFolderDrop,
 }));
 
-import {
-  resolveRunContext,
-  shouldPublishContentOnToolProgress,
-  shouldPublishOnMessagesChange,
-  useAssistantDockChrome,
-  useAssistantTransport,
-  useAttachmentUploader,
-  useByokRuntime,
-  useChatI18n,
-  useChatsSeam,
-  useComposerDiscoverySelect,
-  useExecutionConfig,
-  useLocalCliSelection,
-  useMessagesChangeHandler,
-  useRunContext,
-  useAgentsPlaceholder,
-  getResumeCapableAgentIds,
-  useRuntimeAccess,
-  useSelectedAgentPlugins,
-  useSelectedPluginChips,
-  useWorkingDirectoryAccess,
-  useWorkingDirectoryAccessSeam,
-  useFolderDropBridge,
-  useLocalCliDaemonPrewarm,
-} from "../AssistantDock/hooks/AssistantDock.hooks";
+import { resolveRunContext, useRunContext } from "../AssistantDock/hooks/run-context.hooks";
+import { shouldPublishContentOnToolProgress, shouldPublishOnMessagesChange, useMessagesChangeHandler } from "../AssistantDock/hooks/messages-change.hooks";
+import { useAssistantDockChrome, useChatI18n, useChatsSeam } from "../AssistantDock/hooks/dock-chrome.hooks";
+import { useAttachmentUploader, useWorkingDirectoryAccess, useWorkingDirectoryAccessSeam, useFolderDropBridge } from "../AssistantDock/hooks/composer-files.hooks";
+import { useComposerDiscoverySelect } from "../AssistantDock/hooks/composer-discovery.hooks";
+import { useSelectedAgentPlugins, useSelectedPluginChips } from "../AssistantDock/hooks/selected-agent-plugins.hooks";
+import { useAssistantTransport, useLocalCliDaemonPrewarm } from "../AssistantDock/hooks/assistant-transport.hooks";
+import { useAgentsPlaceholder, useRuntimeAccess } from "../AssistantDock/hooks/runtime-access.hooks";
+import { getResumeCapableAgentIds } from "../AssistantDock/hooks/agents-inventory.hooks";
+import { useByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
+import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import { publishAssistantDockState, resetAssistantDockBus } from "../../lib/assistant-dock-bus";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -212,6 +200,19 @@ afterEach(() => {
 });
 
 describe("useExecutionConfig", () => {
+  it("adopts a deferred initial read after a same-value mode pick", async () => {
+    let resolveLoad!: (config: ExecutionConfig) => void;
+    mockLoadExecutionConfig.mockReturnValue(new Promise((resolve) => { resolveLoad = resolve; }));
+    const { result } = renderHook(() => useExecutionConfig(), { wrapper: FetchQueryProvider });
+    act(() => result.current.handleExecutionModeChange("local"));
+    expect(mockSaveExecutionConfig).not.toHaveBeenCalled();
+    const loaded = byokConfig();
+    await act(async () => { resolveLoad(loaded); });
+    await waitFor(() => expect(result.current.configLoaded).toBe(true));
+    expect(result.current.executionConfig).toBe(loaded);
+    expect(result.current.executionConfigRef.current).toBe(loaded);
+  });
+
   it("starts on the default config and adopts the loaded one once the fetch resolves", async () => {
     const loaded: ExecutionConfig = { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" };
     mockLoadExecutionConfig.mockResolvedValue(loaded);
@@ -829,7 +830,7 @@ describe("useLocalCliSelection", () => {
   });
 
   it("does not discard a normalized model on an unrelated config change after hydration", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     try {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const setExecutionConfig = stubSetExecutionConfig(config);
@@ -847,7 +848,7 @@ describe("useLocalCliSelection", () => {
   });
 
   it("a send-time read keeps ChatPane's normalized model while the saved axes are unchanged, and follows the ledger once they change", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     try {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const { result } = renderHook(() => useLocalCliSelection({ executionConfig: config, setExecutionConfig: stubSetExecutionConfig(config), configLoaded: true }));
@@ -891,7 +892,7 @@ describe("useLocalCliSelection", () => {
       { id: "codex", name: "Codex", models: [{ id: "gpt-5", label: "GPT-5" }], reasoningOptions: [{ id: "medium", label: "Medium" }] },
       { id: "aider", name: "Aider", available: false },
     ];
-    beforeEach(() => writeAgentsSnapshot(inventory));
+    beforeEach(() => writeAgentsSnapshot({ agents: inventory }));
     afterEach(() => localStorage.clear());
 
     it("an echo before the ledger settles writes nothing and still lets hydration apply", () => {
@@ -1231,7 +1232,7 @@ describe("resolveRunContext", () => {
 
 describe("useChatI18n", () => {
   it("builds an adapter matching createChatI18nAdapter's own contract for the given locale", () => {
-    const { result } = renderHook(() => useChatI18n("es"));
+    const { result } = renderHook(() => useChatI18n({ locale: "es" }));
 
     expect(result.current.locale).toBe("es");
     expect(result.current.t("Conversations")).toBe("Conversaciones");
@@ -1240,7 +1241,7 @@ describe("useChatI18n", () => {
   });
 
   it("memoizes the adapter across re-renders while locale is unchanged", () => {
-    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n({ locale }), {
       initialProps: { locale: "es" },
     });
     const first = result.current;
@@ -1251,7 +1252,7 @@ describe("useChatI18n", () => {
   });
 
   it("rebuilds the adapter when locale changes", () => {
-    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n({ locale }), {
       initialProps: { locale: "es" },
     });
     const first = result.current;
@@ -1267,7 +1268,7 @@ describe("useAssistantDockChrome", () => {
   it("defaults to the real useWiredAdminLocale when no override is passed", () => {
     mockUseWiredAdminLocale.mockReturnValue("fr");
 
-    const { result } = renderHook(() => useAssistantDockChrome(undefined));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: undefined }));
 
     expect(mockUseWiredAdminLocale).toHaveBeenCalled();
     expect(result.current.locale).toBe("fr");
@@ -1275,7 +1276,7 @@ describe("useAssistantDockChrome", () => {
 
   it("uses the injected override instead of the real hook when one is passed", () => {
     const override = vi.fn(() => "xx-TEST"); // not a real locale any dictionary or fetch could produce
-    const { result } = renderHook(() => useAssistantDockChrome(override));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: override }));
 
     expect(override).toHaveBeenCalled();
     expect(mockUseWiredAdminLocale).not.toHaveBeenCalled();
@@ -1283,25 +1284,25 @@ describe("useAssistantDockChrome", () => {
   });
 
   it("t() translates a dictionary-covered key for the resolved locale", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
-    expect(result.current.t("Tovu assistant")).toBe("Asistente de Tovu");
+    expect(result.current.t({ key: "Tovu assistant" })).toBe("Asistente de Tovu");
   });
 
   it("t() falls back to the raw key for a locale/key combination the dictionary does not cover", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
-    expect(result.current.t("Some unmapped key")).toBe("Some unmapped key");
+    expect(result.current.t({ key: "Some unmapped key" })).toBe("Some unmapped key");
   });
 
   it("t() falls back to the raw key entirely for a locale with no dictionary entry at all", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "xx-TEST"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "xx-TEST" }));
 
-    expect(result.current.t("Tovu assistant")).toBe("Tovu assistant");
+    expect(result.current.t({ key: "Tovu assistant" })).toBe("Tovu assistant");
   });
 
   it("chatI18n is the same adapter useChatI18n(locale) would build — composed, not reimplemented", () => {
-    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+    const { result } = renderHook(() => useAssistantDockChrome({ useAdminLocaleOverride: () => "es" }));
 
     expect(result.current.chatI18n.locale).toBe("es");
     expect(result.current.chatI18n.t("Conversations")).toBe("Conversaciones");
@@ -1411,7 +1412,7 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
     const agentBridge = { bindToken: () => token } as unknown as FrontendSessionBridge;
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
-      onDaemonStartingChange: starting => { if (!starting) token = undefined; },
+      onDaemonStartingChange: ({ starting }) => { if (!starting) token = undefined; },
     }, { createTransport, prepareBinding: async () => "live-before-settlement" }));
     await expect(result.current.startRun({ agentId: "codex" } as unknown as RunInput, handlers)).rejects.toThrow(/not attached/);
     expect(startRun).not.toHaveBeenCalled();
@@ -1424,7 +1425,7 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
     const agentBridge = { bindToken: () => "live" } as unknown as FrontendSessionBridge;
     const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge,
-      onDaemonStartingChange: starting => { if (!starting) stop.abort(reason); },
+      onDaemonStartingChange: ({ starting }) => { if (!starting) stop.abort(reason); },
     }, { createTransport, prepareBinding: async () => "live" }));
     await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toBe(reason);
     expect(startRun).not.toHaveBeenCalled();
@@ -1461,7 +1462,7 @@ describe("useLocalCliDaemonPrewarm", () => {
   it("opening the dock in API · BYOK mode never wakes the daemon: BYOK runs in the API process", () => {
     const activate = vi.fn().mockResolvedValue(undefined);
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "byok", configLoaded: true }, { activate }));
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(activate).not.toHaveBeenCalled();
   });
 
@@ -1470,7 +1471,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     const { rerender } = renderHook(({ configLoaded }) => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded }, { activate }), {
       initialProps: { configLoaded: false },
     });
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     // The default mode is local-cli, so a still-loading BYOK site must not wake it either.
     expect(activate).not.toHaveBeenCalled();
     rerender({ configLoaded: true });
@@ -1486,7 +1487,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     });
     expect(activate).not.toHaveBeenCalled();
     rerender({ mode: "byok" });
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(activate).not.toHaveBeenCalled();
     rerender({ mode: "local-cli" });
     expect(activate).toHaveBeenCalledTimes(1);
@@ -1499,7 +1500,7 @@ describe("useLocalCliDaemonPrewarm", () => {
     const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
     const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
     expect(rebind).not.toHaveBeenCalled();
     await act(async () => { ready(); });
     expect(rebind).toHaveBeenCalledTimes(1);
@@ -1511,8 +1512,8 @@ describe("useLocalCliDaemonPrewarm", () => {
     const rebind = vi.fn().mockResolvedValue({ sessionId: "new", bindToken: "fresh" });
     const agentBridge = { rebind, bindToken: () => "fresh" } as unknown as FrontendSessionBridge;
     renderHook(() => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded: true, agentBridge }, { activate }));
-    act(() => publishAssistantDockState(true));
-    act(() => publishAssistantDockState(false));
+    act(() => publishAssistantDockState({ open: true }));
+    act(() => publishAssistantDockState({ open: false }));
     await act(async () => { ready(); });
     expect(rebind).not.toHaveBeenCalled();
   });
@@ -1825,7 +1826,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
   });
 
   it("placeholder falls back to the stored snapshot of the last live list", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     vi.stubGlobal("fetch", vi.fn());
     const { result } = renderAgents();
 
@@ -1833,7 +1834,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
   });
 
   it("placeholder prefers the cached live list over the snapshot once one has loaded", async () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     vi.stubGlobal("fetch", vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }])));
     const { result, rerender } = renderAgents();
 
@@ -1856,7 +1857,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
 
 describe("useComposerDiscoverySelect", () => {
   async function projectionWith(capabilities: readonly TovuComposerCapability[]) {
-    return projectComposerCapabilities([{ id: "test", list: async () => capabilities }]);
+    return projectComposerCapabilities({ sources: [{ id: "test", list: async () => capabilities }] });
   }
 
   it("navigates for the existing client-local /mcp route via the injected navigate", async () => {
@@ -1867,7 +1868,7 @@ describe("useComposerDiscoverySelect", () => {
 
     const outcome = await result.current({ item: { id: "mcp:settings", label: "mcp" }, source: "slash" });
 
-    expect(mockNavigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
+    expect(mockNavigate).toHaveBeenCalledWith({ routePath: "/settings?tab=external-mcp" });
     expect(outcome).toBeUndefined();
   });
 
@@ -2017,7 +2018,7 @@ describe("useMessagesChangeHandler", () => {
 
     act(() => result.current(messages));
 
-    expect(chats.onMessagesChange).toHaveBeenCalledWith(messages);
+    expect(chats.onMessagesChange).toHaveBeenCalledWith({ messages });
   });
 
   it("publishes a settings refresh once a run reaches a terminal status", () => {
@@ -2248,7 +2249,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   it("defaults to usable native directory access in a supported browser", async () => {
     const picker = vi.fn().mockResolvedValue({ name: "seam-project" });
     vi.stubGlobal("showDirectoryPicker", picker);
-    const { result, rerender } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+    const { result, rerender } = renderHook(() => useWorkingDirectoryAccessSeam({ override: undefined }));
     const first = result.current;
     expect(first).toBeDefined();
     rerender();
@@ -2259,7 +2260,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   });
 
   it("defaults to the real useWorkingDirectoryAccess when no override is given", () => {
-    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(undefined));
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam({ override: undefined }));
 
     expect(result.current).toBeUndefined();
   });
@@ -2267,7 +2268,7 @@ describe("useWorkingDirectoryAccessSeam", () => {
   it("uses the override instead of the real hook when one is given", () => {
     const fakeAccess = { pickWorkingDirectory: vi.fn() } as never;
 
-    const { result } = renderHook(() => useWorkingDirectoryAccessSeam(() => fakeAccess));
+    const { result } = renderHook(() => useWorkingDirectoryAccessSeam({ override: () => fakeAccess }));
 
     expect(result.current).toBe(fakeAccess);
   });
@@ -2278,7 +2279,7 @@ describe("useChatsSeam", () => {
     const fakeChats = { activeId: null } as unknown as UseAssistantChats;
     mockUseWiredAssistantChats.mockReturnValue(fakeChats);
 
-    const { result } = renderHook(() => useChatsSeam(undefined));
+    const { result } = renderHook(() => useChatsSeam({ override: undefined }));
 
     expect(result.current).toBe(fakeChats);
     expect(mockUseWiredAssistantChats).toHaveBeenCalled();
@@ -2288,7 +2289,7 @@ describe("useChatsSeam", () => {
     const fakeChats = { activeId: "conv-1" } as unknown as UseAssistantChats;
     const override = vi.fn(() => fakeChats);
 
-    const { result } = renderHook(() => useChatsSeam(override));
+    const { result } = renderHook(() => useChatsSeam({ override }));
 
     expect(result.current).toBe(fakeChats);
     expect(mockUseWiredAssistantChats).not.toHaveBeenCalled();
@@ -2314,7 +2315,7 @@ describe("useFolderDropBridge", () => {
     desktop.tovuFiles = {};
     try {
       // No `onSkillDropError`: a host may omit it, and the drop must still be captured.
-      const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+      const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle: { current: null } }, onReady: undefined }, { proposeSkillFiles }));
       result.current.handleDropCapture(event);
       await waitFor(() => expect(proposeSkillFiles).toHaveBeenCalledTimes(1));
       expect(proposeSkillFiles.mock.calls[0]![0]).toEqual([skillFile]);
@@ -2342,7 +2343,7 @@ describe("useFolderDropBridge", () => {
     } as unknown as Parameters<ReturnType<typeof useFolderDropBridge>["handleDropCapture"]>[0];
     expect((window as unknown as { tovuFiles?: unknown }).tovuFiles).toBeUndefined();
     const proposeSkillFiles = vi.fn();
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle: { current: null } }, undefined, proposeSkillFiles));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle: { current: null } }, onReady: undefined }, { proposeSkillFiles }));
     result.current.handleDropCapture(event);
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
@@ -2356,7 +2357,7 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady }));
 
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(onReady).toHaveBeenCalledWith(result.current.handleDropCapture);
@@ -2369,7 +2370,7 @@ describe("useFolderDropBridge", () => {
     mockUseFolderDrop.mockReturnValue({ notice: null, dismiss: vi.fn(), retry: vi.fn(), handleDropCapture: vi.fn() });
     const composerHandle = { current: null };
 
-    expect(() => renderHook(() => useFolderDropBridge({ composerHandle }, undefined))).not.toThrow();
+    expect(() => renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady: undefined }))).not.toThrow();
   });
 
   it("re-publishes only when handleDropCapture's identity actually changes", () => {
@@ -2379,7 +2380,7 @@ describe("useFolderDropBridge", () => {
     const onReady = vi.fn();
     const composerHandle = { current: null };
 
-    const { result, rerender } = renderHook(() => useFolderDropBridge({ composerHandle }, onReady));
+    const { result, rerender } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady }));
     const published = result.current.handleDropCapture;
     expect(onReady).toHaveBeenCalledTimes(1);
 
@@ -2403,7 +2404,7 @@ describe("useFolderDropBridge", () => {
     mockUseFolderDrop.mockReturnValue(fake);
     const composerHandle = { current: null };
 
-    const { result } = renderHook(() => useFolderDropBridge({ composerHandle }, undefined));
+    const { result } = renderHook(() => useFolderDropBridge({ input: { composerHandle }, onReady: undefined }));
 
     expect(result.current.notice).toBe(fake.notice);
     expect(result.current.dismiss).toBe(fake.dismiss);

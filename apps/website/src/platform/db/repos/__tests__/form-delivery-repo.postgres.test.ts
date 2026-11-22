@@ -3,11 +3,12 @@ import { after, before, test } from "node:test";
 
 import { dropDatabase, freshPostgresContentDatabase } from "#src/platform/db/__tests__/postgres-database";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import type { ContentKernel } from "#src/platform/db/content-kernel";
+import { schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { planFormDeliveries } from "@jini-ai/cms/forms";
-import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "../form-delivery-repo.js";
-import { SqlOutboxAdapter } from "../outbox-repo.js";
+import { SqlFormPullLeaseRepo } from "@jini-ai/cms/forms/sql";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file The receiver pull lease on a REAL Postgres server with two connection pools: two pulls
@@ -59,10 +60,10 @@ test("postgres: two pulls racing for one receiver admit exactly one; the other i
   const resume = Promise.race([secondReadDone, new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
   const claim = { workspaceId: "w", receiverKey: "host:https://r.example", nowIso: T0, recentMs: 0, leaseMs: 60_000 };
 
-  const winner = new SqlFormPullLeaseRepo({ kernel: afterFirstRead(first, () => {}, resume) }).claim({ ...claim, token: "a" });
+  const winner = new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: afterFirstRead(first, () => {}, resume) }), table: "form_receiver_pulls" }).claim({ ...claim, token: "a" });
   // Let the first claimer take its lock and read before the second starts.
   await new Promise((resolve) => setTimeout(resolve, 200));
-  const loser = new SqlFormPullLeaseRepo({ kernel: afterFirstRead(second, secondRead, Promise.resolve()) }).claim({ ...claim, token: "b" });
+  const loser = new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: afterFirstRead(second, secondRead, Promise.resolve()) }), table: "form_receiver_pulls" }).claim({ ...claim, token: "b" });
 
   assert.deepEqual(await Promise.all([winner, loser]), [{ claimed: true }, { claimed: false, reason: "already-running" }]);
 });
@@ -80,8 +81,8 @@ async function jobRow(kernel: ContentKernel, jobId: string) {
 // pending, and its retry would have sent the blanked answers.
 test("postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job", async () => {
   const workspaceId = "w-purge";
-  const repo = new SqlFormDeliveryRepo({ kernel: first });
-  const outbox = new SqlOutboxAdapter(first);
+  const repo = createSiteFormDeliveryRepo({ kernel: first });
+  const outbox = outboxOn({ kernel: first });
   await planFormDeliveries({
     workspaceId, submissionId: "s1", formId: "f1",
     deps: {

@@ -24,6 +24,7 @@ import { RUNNER_WORKING_DIRECTORY_CHANNELS as WORKDIR } from "../contracts/worki
 import { FIND_IN_PAGE_CHANNELS as FIND, FIND_RESULT_CHANNEL } from "../contracts/find-in-page.ts";
 import { RUNNER_CHAT_ATTACHMENT_CHANNELS as ATTACHMENT } from "../contracts/chat-attachments.ts";
 import { WORKSPACE_CONVERSATION_CHANNELS as CONVERSATION } from "../contracts/workspace-conversations.ts";
+import { IMPORT_HANDOFF_CHANNELS as IMPORT_HANDOFF } from "../contracts/import-handoff.ts";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,7 +83,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
   const telemetry = exposed.get('tovuTelemetry')!;
   assert.ok(Object.isFrozen(telemetry));
   assert.deepEqual(Object.keys(telemetry), ['report']);
-  telemetry.report!({ kind: 'action', id: 'open_admin' });
+  telemetry.report!({ payload: { kind: 'action', id: 'open_admin' } });
   assert.deepEqual(sends, [['tovu:product-telemetry', { kind: 'action', id: 'open_admin' }]]);
   const runner = exposed.get("tovuRunner")!;
   const bridgeSource = ts.createSourceFile("runner-api.ts", fs.readFileSync(path.join(__dirname, "../renderer/runner-api.ts"), "utf8"), ts.ScriptTarget.Latest, true);
@@ -97,7 +98,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
     ["onZoomCommand", "runner:zoom:command", "in"],
   ] as const) {
     const received: unknown[] = [];
-    const off = runner[method]!((value: unknown) => received.push(value)) as () => void;
+    const off = runner[method]!({ listener: (value: unknown) => received.push(value) }) as () => void;
     assert.equal(listeners.get(channel)?.size, 1, `${method} must subscribe to its native channel`);
     for (const handler of listeners.get(channel)!) handler({ sender: "must not cross bridge" }, payload);
     assert.deepEqual(received, [payload]);
@@ -110,7 +111,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
   assert.deepEqual(Object.keys(voice), ["isAvailable", "transcribe"]);
   assert.equal(await voice.isAvailable!(), availability);
   const samples = new Float32Array([0.1, -0.2]);
-  assert.equal(await voice.transcribe!(samples, 48000), transcription);
+  assert.equal(await voice.transcribe!({ samples, sampleRate: 48000 }), transcription);
   assert.deepEqual(invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 48000]]);
   assert.equal(invokes[1]![1], samples);
   const ownerStore = exposed.get("tovuOwnerStore")!;
@@ -147,7 +148,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     ["getResources", [{ panelOpen: true }, {}], [RUNNER_RESOURCES_GET_CHANNEL, { panelOpen: true }]],
     ["checkForUpdates", [], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]],
     ["getMaximumLiveSiteViews", [], [VIEWS.read]],
-    ["setMaximumLiveSiteViews", [3], [VIEWS.write, 3]],
+    ["setMaximumLiveSiteViews", [{ maximum: 3 }], [VIEWS.write, 3]],
     ["listAgents", [], [INVENTORY.list]],
     ["rescanAgents", [], [INVENTORY.rescan]],
     ["daemonOnline", [], [INVENTORY.daemonOnline]],
@@ -166,29 +167,29 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     ["createSite", [input], [SITE.create, input]],
     ["listTokenSignInPlugins", [], [SITE.tokenSignInPlugins]],
     ["renameSite", [input], [SITE.rename, input]],
-    ["getSitePreview", ["site-1"], [SITE.preview, "site-1"]],
-    ["locateSite", ["site-1"], [SITE.locate, "site-1"]],
-    ["startSite", ["site-1"], [SITE.start, "site-1"]],
-    ["stopSite", ["site-1"], [SITE.stop, "site-1"]],
-    ["deleteSite", ["site-1"], [SITE.delete, "site-1"]],
+    ["getSitePreview", [{ id: "site-1" }], [SITE.preview, "site-1"]],
+    ["locateSite", [{ id: "site-1" }], [SITE.locate, "site-1"]],
+    ["startSite", [{ id: "site-1" }], [SITE.start, "site-1"]],
+    ["stopSite", [{ id: "site-1" }], [SITE.stop, "site-1"]],
+    ["deleteSite", [{ id: "site-1" }], [SITE.delete, "site-1"]],
     ["openSiteExternal", [input], [SITE.openExternal, input]],
     ["chatStart", [input], [CHAT.start, input]],
     ["chatReattach", [input], [CHAT.reattach, input]],
-    ["chatDetach", ["sub-1"], [CHAT.detach, { subscriptionId: "sub-1" }]],
-    ["chatStop", ["run-1"], [CHAT.stop, { runId: "run-1" }]],
-    ["chatStatus", ["run-1"], [CHAT.status, { runId: "run-1" }]],
+    ["chatDetach", [{ subscriptionId: "sub-1" }], [CHAT.detach, { subscriptionId: "sub-1" }]],
+    ["chatStop", [{ runId: "run-1" }], [CHAT.stop, { runId: "run-1" }]],
+    ["chatStatus", [{ runId: "run-1" }], [CHAT.status, { runId: "run-1" }]],
     ["findInPage", [input], [FIND.find, input]],
     ["stopFindInPage", [], [FIND.stop]],
-    ["pickWorkingDirectory", ["/cur"], [WORKDIR.pick, "/cur"]],
+    ["pickWorkingDirectory", [{}, { currentDirectory: "/cur" }], [WORKDIR.pick, "/cur"]],
     ["recentWorkingDirectories", [], [WORKDIR.recent]],
-    ["workingDirectoryExists", ["/d"], [WORKDIR.exists, "/d"]],
-    ["normalizeWorkingDirectory", ["/d"], [WORKDIR.normalize, "/d"]],
+    ["workingDirectoryExists", [{ directory: "/d" }], [WORKDIR.exists, "/d"]],
+    ["normalizeWorkingDirectory", [{ directory: "/d" }], [WORKDIR.normalize, "/d"]],
     ["saveChatAttachment", [input], [ATTACHMENT.save, input]],
     ["listConversations", [], [CONVERSATION.list]],
     ["createConversation", [], [CONVERSATION.create]],
     ["renameConversation", [input], [CONVERSATION.rename, input]],
-    ["deleteConversation", ["c1"], [CONVERSATION.delete, { id: "c1" }]],
-    ["loadConversationMessages", ["c1"], [CONVERSATION.loadMessages, { conversationId: "c1" }]],
+    ["deleteConversation", [{ id: "c1" }], [CONVERSATION.delete, { id: "c1" }]],
+    ["loadConversationMessages", [{ conversationId: "c1" }], [CONVERSATION.loadMessages, { conversationId: "c1" }]],
     ["saveConversationMessage", [input], [CONVERSATION.saveMessage, input]],
   ];
   for (const [method, args, expected] of cases) {
@@ -197,9 +198,9 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
     assert.deepEqual(invokes, [expected], method);
   }
 
-  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL], ["onMaximumLiveSiteViewsChanged", VIEWS.changed]] as const) {
+  for (const [method, channel] of [["onChatEvent", CHAT.event], ["onNavigate", CHAT.navigate], ["onFindResult", FIND_RESULT_CHANNEL], ["onMaximumLiveSiteViewsChanged", VIEWS.changed], ["onOpenImport", IMPORT_HANDOFF.open]] as const) {
     const received: unknown[] = [];
-    const off = runner[method]!((value: unknown) => received.push(value)) as () => void;
+    const off = runner[method]!({ listener: (value: unknown) => received.push(value) }) as () => void;
     for (const handler of listeners.get(channel)!) handler({ sender: "must not cross bridge" }, "payload");
     off();
     assert.deepEqual(received, ["payload"], method);
@@ -207,7 +208,7 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   }
 
   assert.equal(runner.getZoomLevel!(), 2);
-  runner.setZoomLevel!(1.5);
+  runner.setZoomLevel!({ level: 1.5 });
   assert.equal(runner.getPathForFile!(file), "/Users/me/photo.png");
   assert.deepEqual(frameCalls, [["getZoomLevel"], ["setZoomLevel", 1.5], ["getPathForFile", file]]);
 
@@ -221,6 +222,6 @@ async function assertEveryRunnerMethod({ exposed, invokes, listeners, frameCalls
   assert.equal(invokes[1]![0], THEME.unwatch);
 
   const covered = new Set([...cases.map(([method]) => method), "onChatEvent", "onNavigate", "onFindResult", "getZoomLevel", "setZoomLevel",
-    "getPathForFile", "watchSitePreview", "onSiteHistory", "onMaximumLiveSiteViewsChanged", "onFindToggle", "onZoomCommand"]);
+    "getPathForFile", "watchSitePreview", "onSiteHistory", "onMaximumLiveSiteViewsChanged", "onFindToggle", "onZoomCommand", "onOpenImport"]);
   assert.deepEqual(Object.keys(runner).filter((key) => !covered.has(key)), [], "a new bridge method needs a case here");
 }

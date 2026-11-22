@@ -49,7 +49,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   };
   const app = express();
   app.use(express.json());
-  registerPublicMemberSignInRequestRoute(app, deps);
+  registerPublicMemberSignInRequestRoute({ app, deps });
   return { app, deps };
 }
 
@@ -187,7 +187,7 @@ test("a redirectPath is carried into the minted sign-in link", async (t) => {
   };
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in`, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: "redirect-path@example.com", redirectPath: "/welcome" }),
+    body: JSON.stringify({ email: "redirect-path@example.com", redirectPath: "/welcome?tab=a b&from=sign-in" }),
   });
   assert.equal(res.status, 200);
   await delivered;
@@ -198,7 +198,8 @@ test("a redirectPath is carried into the minted sign-in link", async (t) => {
   const link = new URL(actionableLink, baseUrl);
   assert.equal(link.pathname, "/signin");
   const fragment = new URLSearchParams(link.hash.slice(1));
-  assert.equal(fragment.get("redirect"), "/welcome");
+  assert.equal(fragment.get("redirect"), "/welcome?tab=a b&from=sign-in");
+  assert.ok(link.hash.includes("&redirect=%2Fwelcome%3Ftab%3Da%20b%26from%3Dsign-in"));
   const rawToken = fragment.get("magic");
   assert.ok(rawToken);
   const storedToken = await deps.magicLinkRepo.findByTokenHash({

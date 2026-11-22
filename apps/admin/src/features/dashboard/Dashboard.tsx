@@ -1,9 +1,8 @@
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost } from "../posts/api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { agentHandle } from "@jini-ai/agentic";
+
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { useRecentActivityDisclosure } from "./hooks/use-recent-activity-disclosure.hooks";
@@ -11,6 +10,8 @@ import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from 
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Admin landing screen — markup only.
  *
@@ -29,6 +30,7 @@ export interface DashboardProps {
    * house convention this follows.
    */
   useDashboardHook?: typeof useWiredDashboard;
+  usePublishToLiveAvailableHook?: typeof usePublishToLiveAvailable;
 }
 
 /** One row in the "Recently updated" activity list. */
@@ -39,7 +41,7 @@ function ActivityRow({ row, t }: { row: AdminPost; t: Translate }) {
         {row.title || t("Untitled")}
       </a>
       <span className="dash-kind">{row.kind}</span>
-      <span className="dash-activity-time">{formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}</span>
+      <span className="dash-activity-time">{formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}</span>
     </div>
   );
 }
@@ -101,14 +103,15 @@ function RecentActivityBody(props: {
  *  down when open. Open state and its localStorage persistence live in
  *  `use-recent-activity-disclosure.hooks.ts`. The body stays mounted and is only `hidden`, so the
  *  button's `aria-controls` always names an element that exists. */
-function RecentActivityPanel(props: {
+function RecentActivityPanel({ useRecentActivityDisclosureHook = useRecentActivityDisclosure, ...props }: {
   recent: AdminPost[] | null;
   postsError: string | null;
   pagesError: string | null;
   t: Translate;
+  useRecentActivityDisclosureHook?: typeof useRecentActivityDisclosure;
 }) {
   const { t } = props;
-  const { open, toggle, panelId } = useRecentActivityDisclosure();
+  const { open, toggle, panelId } = useRecentActivityDisclosureHook();
   return (
     <div className={`dash-panel${open ? "" : " is-collapsed"}`}>
       <div className="dash-panel-head">
@@ -173,7 +176,7 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
       <p>{t("It is recommended to change your password before deploying")}</p>
       <a
         className="dash-password-banner-action"
-        href={adminHref("/users/change-password")}
+        href={adminHref({ routePath: "/users/change-password" })}
         {...agentHandle({ handle: "dashboard-password-banner-change" }, { role: "link", label: "Go change your own password" })}
       >
         {t("Change password")}
@@ -213,7 +216,7 @@ function SiteKeyWarningBanner({ message }: { message: string }) {
   );
 }
 
-export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
+export function Dashboard({ useDashboardHook = useWiredDashboard, usePublishToLiveAvailableHook = usePublishToLiveAvailable }: DashboardProps = {}) {
   const {
     posts,
     published,
@@ -231,80 +234,17 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     siteKeyBannerMessage,
   } = useDashboardHook();
   // `false` on the live site, which has nowhere to publish to (`publish-availability.store.ts`).
-  const canPublish = usePublishToLiveAvailable();
+  const canPublish = usePublishToLiveAvailableHook();
 
   return (
     <div className="page dashboard-page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">{t("Overview")}</p>
-          <h1 className="page-title">{t("Dashboard")}</h1>
-          <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
-        </div>
-        <div className="page-actions dash-header-actions">
-          {/* Orange/`.btn-primary`, left of "View site" on one row (owner 2026-10-06; it used to sit
-              stacked under it) — a deliberate, meaningful action, not a nav link. See
-              `PublishContentDialog.tsx` for why the dialog it opens exists and why its own Confirm
-              is a stub. */}
-          {canPublish ? (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => requestPublish({})}
-              {...agentHandle({ handle: "dashboard-publish-content" }, {
-                role: "button",
-                label: "Publish all content to the live site",
-              })}
-            >
-              {t("Publish All")}
-            </button>
-          ) : null}
-          <a
-            className="btn-secondary"
-            href={siteUrl("/")}
-            target="_blank"
-            rel="noreferrer"
-            {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
-          >
-            {t("View site ↗")}
-          </a>
-        </div>
-      </div>
+      {renderDashboardHeader({ t, canPublish })}
 
       {showSiteKeyBanner ? <SiteKeyWarningBanner message={siteKeyBannerMessage} /> : null}
       {showDefaultPasswordBanner ? <DefaultPasswordBanner onDismiss={dismissDefaultPasswordBanner} t={t} /> : null}
 
       <div className="dash-top">
-        <div className="dash-stats">
-          <Stat
-            href="/admin/posts"
-            label={t("Posts")}
-            state={posts}
-            meta={postsStatMeta(published, t)}
-            agentHandleId="dashboard-stat-posts"
-          />
-          <Stat
-            href="/admin/pages"
-            label={t("Pages")}
-            state={pages}
-            meta={pagesStatMeta(drafts, t)}
-            agentHandleId="dashboard-stat-pages"
-          />
-          <Stat
-            href="/admin/media"
-            label={t("Media")}
-            state={media}
-            meta={t("items in the library")}
-            agentHandleId="dashboard-stat-media"
-          />
-          <Stat
-            href="/admin/comments"
-            label={t("Comments")}
-            state={comments}
-            meta={commentsStatMeta(comments.value, t)}
-            agentHandleId="dashboard-stat-comments"
-          />
-        </div>
+        {renderDashboardStats({ t, posts, published, pages, drafts, media, comments })}
         <div className="dash-panel">
           <div className="dash-panel-head">
             <h2 className="dash-panel-title">{t("Appearance")}</h2>
@@ -320,6 +260,88 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
 
       <div className="dash-panels">
         <RecentActivityPanel recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
+      </div>
+    </div>
+  );
+}
+
+function renderDashboardStats(
+  { t, posts, published, pages, drafts, media, comments }:
+    Pick<ReturnType<NonNullable<DashboardProps["useDashboardHook"]>>, "t" | "posts" | "published" | "pages" | "drafts" | "media" | "comments">
+) {
+  return (
+    <div className="dash-stats">
+      <Stat
+        href="/admin/posts"
+        label={t("Posts")}
+        state={posts}
+        meta={postsStatMeta({ published, t })}
+        agentHandleId="dashboard-stat-posts"
+      />
+      <Stat
+        href="/admin/pages"
+        label={t("Pages")}
+        state={pages}
+        meta={pagesStatMeta({ drafts, t })}
+        agentHandleId="dashboard-stat-pages"
+      />
+      <Stat
+        href="/admin/media"
+        label={t("Media")}
+        state={media}
+        meta={t("items in the library")}
+        agentHandleId="dashboard-stat-media"
+      />
+      <Stat
+        href="/admin/comments"
+        label={t("Comments")}
+        state={comments}
+        meta={commentsStatMeta({ pendingCount: comments.value, t })}
+        agentHandleId="dashboard-stat-comments"
+      />
+    </div>
+  );
+}
+
+function renderDashboardHeader(
+  { t, canPublish }:
+    Pick<ReturnType<NonNullable<DashboardProps["useDashboardHook"]>>, "t"> &
+    { canPublish: ReturnType<NonNullable<DashboardProps["usePublishToLiveAvailableHook"]>> }
+) {
+  return (
+    <div className="page-header">
+      <div className="page-header-text">
+        <p className="page-kicker">{t("Overview")}</p>
+        <h1 className="page-title">{t("Dashboard")}</h1>
+        <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
+      </div>
+      <div className="page-actions dash-header-actions">
+        {/* Orange/`.btn-primary`, left of "View site" on one row (owner 2026-10-06; it used to sit
+            stacked under it) — a deliberate, meaningful action, not a nav link. See
+            `PublishContentDialog.tsx` for why the dialog it opens exists and why its own Confirm
+            is a stub. */}
+        {canPublish ? (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => requestPublish({})}
+            {...agentHandle({ handle: "dashboard-publish-content" }, {
+              role: "button",
+              label: "Publish all content to the live site",
+            })}
+          >
+            {t("Publish All")}
+          </button>
+        ) : null}
+        <a
+          className="btn-secondary"
+          href={siteUrl({ path: "/" })}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
+        >
+          {t("View site ↗")}
+        </a>
       </div>
     </div>
   );

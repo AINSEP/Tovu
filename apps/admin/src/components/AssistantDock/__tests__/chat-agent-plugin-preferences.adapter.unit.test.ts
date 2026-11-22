@@ -22,11 +22,11 @@ function fakeDeps(stored: Map<string, unknown> = new Map()) {
   const listeners: Array<(scope: SettingsRefreshScope) => void> = [];
   let unsubscribed = 0;
   const deps: ChatAgentPluginsPreferenceDeps = {
-    loadValues: async (namespace) => {
+    loadValues: async ({ namespace }) => {
       loads.push(namespace);
       return stored;
     },
-    saveEntries: async (namespace, scope, candidates) => {
+    saveEntries: async ({ namespace, scope, candidates }) => {
       saves.push({ namespace, scope, candidates });
       return [];
     },

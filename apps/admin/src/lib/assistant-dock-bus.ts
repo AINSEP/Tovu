@@ -71,7 +71,7 @@ export function getAssistantDockOpen(): boolean {
  *
  * @complexity O(n) in the subscriber count, O(1) when unchanged.
  */
-export function publishAssistantDockState(open: boolean): void {
+export function publishAssistantDockState({ open }: { open: boolean }, _optional: Record<string, never> = {}): void {
   if (open === dockOpen) return;
   dockOpen = open;
   for (const listener of [...listeners]) {
@@ -89,7 +89,7 @@ export function publishAssistantDockState(open: boolean): void {
  * @returns A disposer; call it from the owner's effect cleanup.
  * @complexity O(1).
  */
-export function subscribeToAssistantDockRequests(listener: RequestListener): () => void {
+export function subscribeToAssistantDockRequests({ listener }: { listener: RequestListener }, _optional: Record<string, never> = {}): () => void {
   requestListeners.add(listener);
   return () => {
     requestListeners.delete(listener);
@@ -106,7 +106,7 @@ export function subscribeToAssistantDockRequests(listener: RequestListener): () 
  *
  * @complexity O(n) in the handler count.
  */
-export function requestAssistantDock(open: boolean): void {
+export function requestAssistantDock({ open }: { open: boolean }, _optional: Record<string, never> = {}): void {
   for (const listener of [...requestListeners]) {
     try {
       listener(open);

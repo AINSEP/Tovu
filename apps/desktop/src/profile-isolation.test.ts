@@ -6,7 +6,8 @@ import path from "node:path";
 import { createSitesWorkspace } from "./shared-sites.ts";
 import { createSitesWorkspace as createCliWorkspace } from "../../website/src/platform/site-dir/sites-home.ts";
 import { createSiteFolders } from "./site-folders.ts";
-import { registerSiteIpcHandlers, SITE_IPC_CHANNELS, type ProjectIpcDeps } from "./project-ipc.ts";
+import { registerSiteIpcHandlers, SITE_IPC_CHANNELS } from "./project-ipc.ts";
+import { type ProjectIpcDeps } from "./project-ipc.types.ts";
 import { buildCliEnv } from "./tovu-server.ts";
 import { IDLE_SITE_SLEEP_CHANNELS } from "./contracts/site-view-preference.ts";
 

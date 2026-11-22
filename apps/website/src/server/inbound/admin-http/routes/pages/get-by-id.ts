@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -6,6 +7,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportCatalogRow, PluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Only describe exports already authored on this page; catalog discovery still belongs to
  * plugins_list. A failed catalog is unavailable, never a broken page editor or a ready button.
@@ -15,7 +17,8 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
   if (!required.runtime) return [];
   const markers = markersOfType({ html: required.html, type: "plugin" });
   if (!markers.length) return [];
-  const catalog = await required.runtime.catalog({ workspaceId: required.workspaceId }).catch(() => new Map<string, readonly PluginExportCatalogRow[]>());
+  const catalogPromise = required.runtime.catalog({ workspaceId: required.workspaceId });
+  const catalog = await orFallback({ work: () => catalogPromise, fallback: new Map<string, readonly PluginExportCatalogRow[]>(), step: "Read page plugin catalog" });
   const rows = new Map<string, PluginExportCatalogRow>([...catalog.values()].flat().map(row => [JSON.stringify([row.plugin, row.component]), row]));
   return markers.map(({ config }) => {
     const plugin = typeof config.plugin === "string" ? config.plugin : "";
@@ -44,12 +47,9 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
  * errors.spec.md §1/§4 requires `code` on every new endpoint's error response,
  * and names `ENTRY_NOT_FOUND` as exactly this route's not-found/kind-mismatch code.
  */
-export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     // Route param kept as `pageId` (external URL shape, untouched) — the value it carries is
     // either the row's id or its slug, resolved below by `getAdminPostByIdOrSlug`.
@@ -58,11 +58,11 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

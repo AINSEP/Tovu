@@ -1,4 +1,4 @@
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,7 +10,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 /**
  * @file RED-first coverage for `UserPurgePort`'s two adapters (delete-user plan Slice 1): seed the
@@ -106,7 +106,7 @@ async function seedFullUser(kernel: ContentKernel, principalId: string, workspac
 /** The `buildEvent` callback `purgeUser` calls with the counts it actually removed — mirrors
  *  `delete-user-service.ts`'s real event shape closely enough to exercise the port contract. */
 function makeBuildEvent(principalId: string, eventId = "event-1") {
-  return (removed: PurgeCounts): DomainEvent => ({
+  return ({ removed }: { removed: PurgeCounts }): DomainEvent => ({
     id: eventId,
     name: "identity.user.deleted",
     occurredAt: NOW,

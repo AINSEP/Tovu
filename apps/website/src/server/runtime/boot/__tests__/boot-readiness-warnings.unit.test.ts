@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { collectBootReadinessWarnings, detectDeploymentSignals, warnOnBootReadinessGaps } from "../boot-readiness-warnings.js";
-import { evaluateHostSignals } from "#src/contracts/core/host-signals";
+import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 
 /**

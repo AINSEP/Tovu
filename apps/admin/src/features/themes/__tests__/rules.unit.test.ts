@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 import {
   defaultThemeTabGroup,
   groupThemesByTabGroup,
@@ -30,84 +30,84 @@ const SETTINGS: PresentationSettings = {
 
 describe("isActiveTheme", () => {
   it("is true for the currently active theme", () => {
-    expect(isActiveTheme(SETTINGS, "signal")).toBe(true);
+    expect(isActiveTheme({ settings: SETTINGS, themeId: "signal" })).toBe(true);
   });
 
   it("is false for any other theme", () => {
-    expect(isActiveTheme(SETTINGS, "column")).toBe(false);
-    expect(isActiveTheme(SETTINGS, "tovu-official")).toBe(false);
+    expect(isActiveTheme({ settings: SETTINGS, themeId: "column" })).toBe(false);
+    expect(isActiveTheme({ settings: SETTINGS, themeId: "tovu-official" })).toBe(false);
   });
 });
 
 describe("isStrandedActiveTheme", () => {
   it("is false when the active theme id is present in the discovered set", () => {
-    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column", "signal"])).toBe(false);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: ["tovu-official", "column", "signal"] })).toBe(false);
   });
 
   it("is true when the active theme id resolves to nothing the server discovered — the stranded case", () => {
-    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column"])).toBe(true);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: ["tovu-official", "column"] })).toBe(true);
   });
 
   it("is true against an empty theme catalogue (every theme id would be stranded)", () => {
-    expect(isStrandedActiveTheme(SETTINGS, [])).toBe(true);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: [] })).toBe(true);
   });
 
   it("is false for an empty activeThemeId — nothing chosen yet is not the same as chosen-but-missing", () => {
-    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "" }, ["tovu-official"])).toBe(false);
+    expect(isStrandedActiveTheme({ settings: { ...SETTINGS, activeThemeId: "" }, themes: ["tovu-official"] })).toBe(false);
   });
 });
 
 describe("themeTier", () => {
   it("returns the mapped tier for a known theme id", () => {
-    expect(themeTier("basic", { basic: "static" })).toBe("static");
+    expect(themeTier({ themeId: "basic", themeTiers: { basic: "static" } })).toBe("static");
   });
 
   it("falls back to declarative for an id absent from the map — same as theme.json's own absent-tier default", () => {
-    expect(themeTier("some-unknown-theme", {})).toBe("declarative");
-    expect(themeTier("some-unknown-theme", { basic: "static" })).toBe("declarative");
+    expect(themeTier({ themeId: "some-unknown-theme", themeTiers: {} })).toBe("declarative");
+    expect(themeTier({ themeId: "some-unknown-theme", themeTiers: { basic: "static" } })).toBe("declarative");
   });
 });
 
 describe("themeTabGroup", () => {
   it("folds handlebars into the same 'templated' group as templated — a UI-only merge, ThemeTier itself keeps five values", () => {
-    expect(themeTabGroup("h1", { h1: "handlebars" })).toBe("templated");
-    expect(themeTabGroup("t1", { t1: "templated" })).toBe("templated");
+    expect(themeTabGroup({ themeId: "h1", themeTiers: { h1: "handlebars" } })).toBe("templated");
+    expect(themeTabGroup({ themeId: "t1", themeTiers: { t1: "templated" } })).toBe("templated");
   });
 
   it("maps declarative, static, and code 1:1", () => {
-    expect(themeTabGroup("d1", { d1: "declarative" })).toBe("declarative");
-    expect(themeTabGroup("s1", { s1: "static" })).toBe("static");
-    expect(themeTabGroup("c1", { c1: "code" })).toBe("code");
+    expect(themeTabGroup({ themeId: "d1", themeTiers: { d1: "declarative" } })).toBe("declarative");
+    expect(themeTabGroup({ themeId: "s1", themeTiers: { s1: "static" } })).toBe("static");
+    expect(themeTabGroup({ themeId: "c1", themeTiers: { c1: "code" } })).toBe("code");
   });
 });
 
 describe("groupThemesByTabGroup", () => {
   it("buckets every theme id under its tab group, in the four-group tab order", () => {
-    const grouped = groupThemesByTabGroup(
-      ["basic", "tovu-official", "gracious-timing"],
-      { basic: "static", "gracious-timing": "static" },
-    );
+    const grouped = groupThemesByTabGroup({
+      themes: ["basic", "tovu-official", "gracious-timing"],
+      themeTiers: { basic: "static", "gracious-timing": "static" },
+    });
     expect(Object.keys(grouped)).toEqual([...THEME_TAB_GROUPS]);
     expect(grouped.static).toEqual(["basic", "gracious-timing"]);
     expect(grouped.declarative).toEqual(["tovu-official"]);
   });
 
   it("merges handlebars-tier and templated-tier themes into the same 'templated' bucket", () => {
-    const grouped = groupThemesByTabGroup(
-      ["hbs-theme", "liquid-theme"],
-      { "hbs-theme": "handlebars", "liquid-theme": "templated" },
-    );
+    const grouped = groupThemesByTabGroup({
+      themes: ["hbs-theme", "liquid-theme"],
+      themeTiers: { "hbs-theme": "handlebars", "liquid-theme": "templated" },
+    });
     expect(grouped.templated).toEqual(["hbs-theme", "liquid-theme"]);
   });
 
   it("gives every group an array, including ones with zero themes — the empty-tab requirement", () => {
-    const grouped = groupThemesByTabGroup(["signal"], {});
+    const grouped = groupThemesByTabGroup({ themes: ["signal"], themeTiers: {} });
     expect(grouped.code).toEqual([]);
     expect(grouped.templated).toEqual([]);
   });
 
   it("only produces four groups, not five — handlebars/templated never get separate keys", () => {
-    const grouped = groupThemesByTabGroup([], {});
+    const grouped = groupThemesByTabGroup({ themes: [], themeTiers: {} });
     expect(Object.keys(grouped)).toHaveLength(4);
     expect(Object.keys(grouped)).not.toContain("handlebars");
   });
@@ -150,11 +150,11 @@ describe("the no-theme sentinel", () => {
   it("is not reported as a stranded theme — the operator chose it", () => {
     // The sentinel is never in `themes` either (it is not a theme), so without an explicit guard
     // every deliberately-themeless site would raise the "your site cannot render" warning.
-    expect(isStrandedActiveTheme(themeOff, installed)).toBe(false);
+    expect(isStrandedActiveTheme({ settings: themeOff, themes: installed })).toBe(false);
   });
 
   it("a genuinely stranded theme is STILL reported — the guard must not blanket-suppress", () => {
-    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "deleted-theme" }, installed)).toBe(true);
+    expect(isStrandedActiveTheme({ settings: { ...SETTINGS, activeThemeId: "deleted-theme" }, themes: installed })).toBe(true);
   });
 
   it("opens on the first tab, and does so independently of what `themeTiers` says about the sentinel", () => {
@@ -166,22 +166,22 @@ describe("the no-theme sentinel", () => {
     expect(defaultThemeTabGroup(themeOff, {})).toBe(THEME_TAB_GROUPS[0]);
 
     const shadowed = { [NO_THEME_ID]: "code" } as const;
-    expect(themeTabGroup(NO_THEME_ID, shadowed)).toBe("code");
+    expect(themeTabGroup({ themeId: NO_THEME_ID, themeTiers: shadowed })).toBe("code");
     expect(defaultThemeTabGroup(themeOff, shadowed)).toBe(THEME_TAB_GROUPS[0]);
   });
 });
 
 describe("theme display names", () => {
   it("maps each named theme's id to its name and leaves unnamed ones out", () => {
-    expect(themeNamesById([{ id: "tovu-theme", name: "Tovu Theme" }, { id: "bare" }, { id: "empty", name: "" }])).toEqual({
+    expect(themeNamesById({ themes: [{ id: "tovu-theme", name: "Tovu Theme" }, { id: "bare" }, { id: "empty", name: "" }] })).toEqual({
       "tovu-theme": "Tovu Theme",
     });
   });
 
   it("shows the name as authored, and the id when the theme has no name", () => {
     const names = { "storefront": "Storefront" };
-    expect(themeDisplayName("storefront", names)).toBe("Storefront");
-    expect(themeDisplayName("bare", names)).toBe("bare");
+    expect(themeDisplayName({ themeId: "storefront", themeNames: names })).toBe("Storefront");
+    expect(themeDisplayName({ themeId: "bare", themeNames: names })).toBe("bare");
   });
 });
 
@@ -197,7 +197,7 @@ describe("sortThemesForDisplay", () => {
 
   it("puts the active theme first, then the rest A-Z by display name, ignoring case", () => {
     const shown = ["fashion-modern", "kuinetic", "storefront", "onyx", "meridian", "tovu-theme"];
-    expect(sortThemesForDisplay(shown, "tovu-theme", names)).toEqual([
+    expect(sortThemesForDisplay({ themeIds: shown, activeThemeId: "tovu-theme", themeNames: names })).toEqual([
       "tovu-theme",
       "fashion-modern",
       "kuinetic",
@@ -209,12 +209,12 @@ describe("sortThemesForDisplay", () => {
 
   it("sorts an unnamed theme by its id, and breaks a name tie by id", () => {
     const twins = { b: "Same", a: "Same" };
-    expect(sortThemesForDisplay(["zeta", "b", "alpha", "a"], "none", twins)).toEqual(["alpha", "a", "b", "zeta"]);
+    expect(sortThemesForDisplay({ themeIds: ["zeta", "b", "alpha", "a"], activeThemeId: "none", themeNames: twins })).toEqual(["alpha", "a", "b", "zeta"]);
   });
 
   it("leaves the input array untouched", () => {
     const shown = ["onyx", "meridian"];
-    sortThemesForDisplay(shown, "onyx", names);
+    sortThemesForDisplay({ themeIds: shown, activeThemeId: "onyx", themeNames: names });
     expect(shown).toEqual(["onyx", "meridian"]);
   });
 });

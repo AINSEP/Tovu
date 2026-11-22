@@ -48,7 +48,7 @@ function bootHarness({ launch, argv = ["electron", "."], isPackaged = false, env
   const calls: string[] = [];
   const bootInputs: Parameters<NonNullable<ProductTelemetryBootOptions["boot"]>>[0][] = [];
   const memoryInputs: Parameters<NonNullable<ProductTelemetryBootOptions["startMemory"]>>[0][] = [];
-  const ipcPredicates: ((url: string) => boolean)[] = [];
+  const ipcPredicates: ((required: { url: string }) => boolean)[] = [];
   const scheduled: { ms: number; visibility: unknown }[] = [];
   const exportInputs: unknown[] = [];
   const app = fakeApp({ isPackaged });
@@ -62,7 +62,7 @@ function bootHarness({ launch, argv = ["electron", "."], isPackaged = false, env
     webContents: { getAllWebContents: () => [{ getOSProcessId: () => 11 }, { getOSProcessId: () => 12 }, { getOSProcessId: () => 11 }] },
     windows: { getFocusedWindow: () => null },
     preferencePath: "/ud/desktop-preferences.json",
-    isShellPage: url => url.startsWith("file:///shell") || url.startsWith("http://127.0.0.1:5173"),
+    isShellPage: ({ url }) => url.startsWith("file:///shell") || url.startsWith("http://127.0.0.1:5173"),
     monitor: { get: async () => { throw new Error("not sampled in these tests"); } },
     state,
     armConsent: () => calls.push("armConsent"),
@@ -84,11 +84,11 @@ function bootHarness({ launch, argv = ["electron", "."], isPackaged = false, env
     },
     startMemory: (input, { schedule }) => {
       memoryInputs.push(input);
-      schedule(() => {}, 300_000);
+      schedule({ tick: () => {}, ms: 300_000 });
       calls.push("memory");
       return { tick: async () => {}, dispose: () => calls.push("dispose:memory") };
     },
-    schedule: (_tick, ms, visibility) => { scheduled.push({ ms, visibility }); return () => {}; },
+    schedule: ({ periodMs: ms }, { doc: visibility } = {}) => { scheduled.push({ ms, visibility }); return () => {}; },
   };
   return { args, options, calls, bootInputs, memoryInputs, ipcPredicates, scheduled, exportInputs, app, product, state, errors };
 }
@@ -167,9 +167,9 @@ test("product IPC accepts only shell pages served from file:", async () => {
   const h = bootHarness();
   await initializeDesktopProductTelemetry(h.args, h.options);
   const allowed = h.ipcPredicates[0]!;
-  assert.equal(allowed("file:///shell/index.html"), true);
-  assert.equal(allowed("http://127.0.0.1:5173/admin"), false, "a supervised admin origin is a shell page for speech, not for product IPC");
-  assert.equal(allowed("file:///elsewhere/index.html"), false);
+  assert.equal(allowed({ url: "file:///shell/index.html" }), true);
+  assert.equal(allowed({ url: "http://127.0.0.1:5173/admin" }), false, "a supervised admin origin is a shell page for speech, not for product IPC");
+  assert.equal(allowed({ url: "file:///elsewhere/index.html" }), false);
 });
 
 test("crashed renderers and children are reported to the booted product; clean exits are not", async () => {

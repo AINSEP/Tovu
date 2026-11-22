@@ -4,7 +4,7 @@ import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
 import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "./saved-keys-port.js";
-import { isBundledSchemaIdentity } from "#src/platform/site-dir/schema-guard";
+import { isBundledSchemaIdentity } from "#src/platform/site-dir/index";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
 export const ARCHIVE_DATABASE_PATH = "content.db";
@@ -169,7 +169,13 @@ function validateSchemaVersion({ identity, schema }: { identity: ArchiveManifest
  * @returns A path/size/hash record, or throws SiteShareRefusal for malformed input.
  */
 export function requireArchiveFileRecord(required: { file: unknown }, _optional = {}): ArchiveFile {
-  const file = required.file as any;
-  if (typeof file?.path !== "string" || !Number.isSafeInteger(file.bytes) || file.bytes < 0 || !HASH.test(file.sha256)) invalid();
+  const file = required.file;
+  if (typeof file !== "object" || file === null || !("path" in file) || typeof file.path !== "string") invalid();
+  requireArchiveFileMetadata(file);
   return file as ArchiveFile;
+}
+
+function requireArchiveFileMetadata(file: object): void {
+  if (!("bytes" in file) || typeof file.bytes !== "number" || !Number.isSafeInteger(file.bytes) || file.bytes < 0
+    || !("sha256" in file) || typeof file.sha256 !== "string" || !HASH.test(file.sha256)) invalid();
 }

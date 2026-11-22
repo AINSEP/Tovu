@@ -1,7 +1,7 @@
 import { runResetOwnerCommand } from "./commands/reset-owner.js";
 import { Command } from "commander";
 import { runPluginInstallCommand } from "./commands/plugin/install.js";
-import { runPluginIntegrityCommand } from "./commands/plugin/integrity.js";
+import { runPluginIntegrityCommand } from "@jini-ai/plugins/host/node";
 
 import { runAdoptCommand } from "./commands/adopt.js";
 import { runTokenSignInPluginsCommand } from "./commands/agent-plugin-tokens.js";
@@ -22,34 +22,7 @@ import { runThemeValidateCommand } from "./commands/theme/validate.js";
 import { introspectProgram } from "./introspect.js";
 
 const JSON_SUMMARY_DESCRIPTION = "print the full machine-readable result instead of a human-readable summary";
-
-/**
- * @file SPEC-003 — the single `commander` `Command` program: the one source of truth for the
- * `tovu` CLI's subcommands and options (ADR-PIPE-003 v1.1.0 Enforcement — no command may
- * hand-roll its own argv tokenization alongside this).
- *
- * Purpose:
- * Declares `init`/`serve` and their positional/option shape. Commander itself performs argv
- * tokenization and basic coercion (e.g. required-argument enforcement); all VALUE-level
- * validation (empty `--name`, out-of-range `--port`) is `site-dir`'s / the command modules' job,
- * not commander's, so validation error text and classes stay stable regardless of the parsing
- * library underneath.
- *
- * `configureOutput({ writeErr: () => {} })` suppresses commander's OWN default error/usage
- * writes to stderr — `cli/main.ts` is the sole writer of the `tovu: <CODE>: <message>` stderr
- * contract (errors.spec.md §1: "exactly one machine-parseable stderr line"); commander's help
- * output (`--help`, `helpInformation()`) still goes through `writeOut` (stdout), unaffected.
- *
- * Architectural role:
- * `cli` layer. Never imports Drizzle types directly (dependency-cruiser rule
- * `cli-no-direct-drizzle-imports`).
- */
-export function createProgram(): Command {
-  const program = new Command("tovu");
-  program.description("Tovu — the website product you own. Manage local site install directories.");
-  program.exitOverride();
-  program.configureOutput({ writeErr: () => {} });
-  registerOwnerStoreCommands({ program });
+function registerSiteCommands(program: Command): void {
   program.command("reset-owner").description("recover the stored site owner using hidden password input or TOVU_ADMIN_RESET_PASSWORD; never accepts a password argument")
     .argument("<dir>", "site directory with an already-migrated identity database")
     .action(async (dir: string) => { await runResetOwnerCommand({ dir }); });
@@ -85,6 +58,9 @@ export function createProgram(): Command {
       });
       console.log(JSON.stringify({ to }));
     });
+}
+
+function registerPluginCommands(program: Command): void {
 
   const pluginProgram = program.command("plugin").description("install and inspect local site plugins");
   pluginProgram.command("install").argument("<dir>", "plugin package folder")
@@ -97,6 +73,9 @@ export function createProgram(): Command {
   pluginProgram.command("integrity").argument("<dir>", "plugin package folder")
     .option("--write", "write the complete integrity map to jini.plugin.json")
     .action(async (dir: string, options: { write?: boolean }) => { await runPluginIntegrityCommand({ dir, ...options }); });
+}
+
+function registerInitCommand(program: Command): void {
 
   program
     .command("init")
@@ -121,6 +100,9 @@ export function createProgram(): Command {
         agentPluginTokensStdin: options.agentPluginTokensStdin === true,
       });
     });
+}
+
+function registerStorageCommands(program: Command): void {
 
   program
     .command("agent-plugins")
@@ -129,7 +111,7 @@ export function createProgram(): Command {
     .description("list the bundled Agent Plugins a new site can connect with a pasted access token")
     .option("--json", "print JSON (the only format)")
     .action(async () => {
-      await runTokenSignInPluginsCommand();
+      await runTokenSignInPluginsCommand({});
     });
 
   program
@@ -157,6 +139,9 @@ export function createProgram(): Command {
     .action(async (dir: string, options: { name?: string; dryRun?: boolean }) => {
       await runAdoptCommand({ dir, name: options.name, dryRun: options.dryRun === true });
     });
+}
+
+function registerServeExportCommands(program: Command): void {
 
   program
     .command("serve")
@@ -186,13 +171,9 @@ export function createProgram(): Command {
     .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean; basePath?: string; publicUrl?: string }) => {
       await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean, basePath: options.basePath, publicUrl: options.publicUrl });
     });
+}
 
-  // Namespaced command group (2026-08-18, Milestone 2 of the theme v2 build) — a sibling `theme
-  // migrate`/`theme package` are expected from later milestones, hence a real subcommand group
-  // rather than a flat `theme-validate` command. `theme` itself has no `.action()`: invoked alone it
-  // prints commander's own default usage for a group with subcommands, which is the right behavior
-  // for a namespace that is not itself invocable.
-  const themeProgram = program.command("theme").description("theme package authoring/validation commands");
+function registerThemeValidationCommands(themeProgram: Command): void {
   themeProgram
     .command("validate")
     .description("validate a theme package directory against the theme.json schema, package shape, and markup rules")
@@ -211,6 +192,9 @@ export function createProgram(): Command {
     .action(async (dir: string, options: { dryRun?: boolean; json?: boolean }) => {
       await runThemeMigrateCommand({ dir, dryRun: options.dryRun, json: options.json });
     });
+}
+
+function registerThemeBuildCommands(themeProgram: Command): void {
   themeProgram
     .command("generate-index")
     .description("(re)generate a static-tier theme's portability-backup root index.html — real nav/footer partials spliced in, dynamic menu/post/content markers placeholdered")
@@ -239,6 +223,9 @@ export function createProgram(): Command {
     .action(async (dir: string, options: { primaryStylesheet?: string; pages?: string; json?: boolean }) => {
       await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: options.primaryStylesheet, pages: options.pages, json: options.json });
     });
+}
+
+function registerDeployCommands(program: Command): void {
 
   // Namespaced command group (mirrors `theme`'s own group above) — `deploy config` today, with room
   // for sibling `deploy` subcommands later without a flat-command rename.
@@ -255,6 +242,51 @@ export function createProgram(): Command {
     .action(async (options: { target?: string; region?: string; site?: string; out?: string }) => {
       await runDeployConfigCommand({ target: options.target, region: options.region, site: options.site, out: options.out });
     });
+}
+
+
+/**
+ * @file SPEC-003 — the single `commander` `Command` program: the one source of truth for the
+ * `tovu` CLI's subcommands and options (ADR-PIPE-003 v1.1.0 Enforcement — no command may
+ * hand-roll its own argv tokenization alongside this).
+ *
+ * Purpose:
+ * Declares `init`/`serve` and their positional/option shape. Commander itself performs argv
+ * tokenization and basic coercion (e.g. required-argument enforcement); all VALUE-level
+ * validation (empty `--name`, out-of-range `--port`) is `site-dir`'s / the command modules' job,
+ * not commander's, so validation error text and classes stay stable regardless of the parsing
+ * library underneath.
+ *
+ * `configureOutput({ writeErr: () => {} })` suppresses commander's OWN default error/usage
+ * writes to stderr — `cli/main.ts` is the sole writer of the `tovu: <CODE>: <message>` stderr
+ * contract (errors.spec.md §1: "exactly one machine-parseable stderr line"); commander's help
+ * output (`--help`, `helpInformation()`) still goes through `writeOut` (stdout), unaffected.
+ *
+ * Architectural role:
+ * `cli` layer. Never imports Drizzle types directly (dependency-cruiser rule
+ * `cli-no-direct-drizzle-imports`).
+ */
+export function createProgram(): Command {
+  const program = new Command("tovu");
+  program.description("Tovu — the website product you own. Manage local site install directories.");
+  program.exitOverride();
+  program.configureOutput({ writeErr: () => {} });
+  registerOwnerStoreCommands({ program });
+  registerSiteCommands(program);
+  registerPluginCommands(program);
+  registerInitCommand(program);
+  registerStorageCommands(program);
+  registerServeExportCommands(program);
+
+  // Namespaced command group (2026-08-18, Milestone 2 of the theme v2 build) — a sibling `theme
+  // migrate`/`theme package` are expected from later milestones, hence a real subcommand group
+  // rather than a flat `theme-validate` command. `theme` itself has no `.action()`: invoked alone it
+  // prints commander's own default usage for a group with subcommands, which is the right behavior
+  // for a namespace that is not itself invocable.
+  const themeProgram = program.command("theme").description("theme package authoring/validation commands");
+  registerThemeValidationCommands(themeProgram);
+  registerThemeBuildCommands(themeProgram);
+  registerDeployCommands(program);
 
   program
     .command("introspect")

@@ -6,8 +6,8 @@ import userEvent from "@testing-library/user-event";
 import { SiteKeyGenerateAction, SiteKeyTab } from "../SiteKeyTab";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
-import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/agentic";
-import type { AdminSiteKeyStatus } from "@/lib/api";
+import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/core/agent-handles";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file First dedicated test file for `SiteKeyTab.tsx`. It exists because the 2026-09-09 copy

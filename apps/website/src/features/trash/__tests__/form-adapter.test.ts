@@ -9,7 +9,8 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
@@ -52,7 +53,7 @@ function harness(): Harness {
   // `form`'s purgeFirst declares `entityType: "form_submission"` (T1 item 5's phantom-row cleanup) —
   // needed even though this file never independently trashes a submission first, since `runCascade`
   // requires the ref whenever the cascade declares `entityType` at all.
-  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, db: contentKernel(db) });
+  const adapter = createTableTrashAdapter({ entry: registry.get("form")!, kernel: contentKernel({ store: db }), tables: TRASH_TABLES });
   return { client, adapter };
 }
 
@@ -208,14 +209,14 @@ test("through createTrashService: trash lists the form snapshot, and restore lea
   seedSubmission(h.client, "sub-1", "form-1");
   seedSubmission(h.client, "sub-2", "form-1");
 
-  const repo = new SqliteTrashRepo(h.client);
+  const repo = new SqliteTrashRepo({ store: h.client });
   const adapters = new Map<string, TrashAdapter>([["form", h.adapter]]);
   let seq = 0;
   const trash: TrashPort = createTrashService({
     repo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 

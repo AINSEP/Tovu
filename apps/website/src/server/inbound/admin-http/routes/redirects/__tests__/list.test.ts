@@ -38,7 +38,7 @@ function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): { app: expres
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminRedirectListRoute(app, deps);
+  registerAdminRedirectListRoute({ app, deps });
   return { app, deps };
 }
 

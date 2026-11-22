@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
-import { isValidElementHandle } from "@jini-ai/agentic";
+import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { OtherCredentialEntry } from "../OtherCredentialsSection";
 import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
-import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../rules";
+import { otherCredentialStoreInfo, type OtherCredentialStoreInfo } from "../other-credential-stores";
 
 /**
  * @file `OtherCredentialEntry` — Tier 2's one top-level row component (`AccessTokensTab.hooks.tsx`'s
@@ -67,14 +67,14 @@ function rowFixture(store: OtherCredentialStoreInfo, overrides: Partial<OtherCre
 
 describe("OtherCredentialEntry — placeholder vs configured", () => {
   it("renders the 'Not configured' placeholder and its deep link when row is undefined", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     render(<OtherCredentialEntry store={store} row={undefined} controller={makeController()} />);
     expect(screen.getByText("Not configured")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Manage on AI Assistant/ })).toBeInTheDocument();
   });
 
   it("renders a configured item under its own item name, not the store's generic label", () => {
-    const store = otherCredentialStoreInfo("media-provider");
+    const store = otherCredentialStoreInfo({ id: "media-provider" });
     const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByText("Cloudinary")).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("OtherCredentialEntry — placeholder vs configured", () => {
   // ALWAYS simultaneously in the DOM once `useMergedSecretsOrder` mounts one `OtherCredentialEntry`
   // per configured item. Before `row.name` was appended, both read identically ("Remove from Tovu").
   it("gives two entries for the same store DISTINCT Remove-button accessible names, by row name", () => {
-    const store = otherCredentialStoreInfo("media-provider");
+    const store = otherCredentialStoreInfo({ id: "media-provider" });
     const rows = [rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" }), rowFixture(store, { itemId: "grok", name: "xAI Grok" })];
     render(
       <>
@@ -103,7 +103,7 @@ describe("OtherCredentialEntry — placeholder vs configured", () => {
 
 describe("OtherCredentialEntryBody dispatch", () => {
   it("a store that supports Replace renders the disabled masked-value field (OtherCredentialReplaceableRow)", () => {
-    const store = otherCredentialStoreInfo("site-assistant"); // supportsReplace: true
+    const store = otherCredentialStoreInfo({ id: "site-assistant" }); // supportsReplace: true
     const row = rowFixture(store, { valueFact: "••••live" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByLabelText("Access token")).toHaveValue("••••live");
@@ -111,7 +111,7 @@ describe("OtherCredentialEntryBody dispatch", () => {
   });
 
   it("a store that does NOT support Replace renders just the value fact and a direct Remove (OtherCredentialStaticRow)", () => {
-    const store = otherCredentialStoreInfo("external-mcp"); // supportsReplace: false
+    const store = otherCredentialStoreInfo({ id: "external-mcp" }); // supportsReplace: false
     const row = rowFixture(store, { valueFact: "2 environment variables set" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByText("2 environment variables set")).toBeInTheDocument();
@@ -136,7 +136,7 @@ describe("OtherCredentialStaticRow", () => {
   for (const { storeId, itemId, name, body } of STATIC_CASES) {
     it(`${storeId}: Remove opens a confirm dialog and does NOT call controller.remove on the first click`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const store = otherCredentialStoreInfo(storeId);
+      const store = otherCredentialStoreInfo({ id: storeId });
       const row = rowFixture(store, { itemId, name });
       const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
@@ -154,7 +154,7 @@ describe("OtherCredentialStaticRow", () => {
 
     it(`${storeId}: Cancel closes the dialog without calling controller.remove`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const store = otherCredentialStoreInfo(storeId);
+      const store = otherCredentialStoreInfo({ id: storeId });
       const row = rowFixture(store, { itemId, name });
       const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
@@ -168,7 +168,7 @@ describe("OtherCredentialStaticRow", () => {
 
     it(`${storeId}: confirming calls controller.remove exactly once, with this row`, () => {
       const remove = vi.fn().mockResolvedValue(undefined);
-      const store = otherCredentialStoreInfo(storeId);
+      const store = otherCredentialStoreInfo({ id: storeId });
       const row = rowFixture(store, { itemId, name });
       const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
@@ -183,7 +183,7 @@ describe("OtherCredentialStaticRow", () => {
   }
 
   it("shows the saved timestamp only when updatedAt is set", () => {
-    const store = otherCredentialStoreInfo("external-mcp");
+    const store = otherCredentialStoreInfo({ id: "external-mcp" });
     const withDate = rowFixture(store, { itemId: "a", updatedAt: "2026-08-01T00:00:00.000Z" });
     const { container, rerender } = render(<OtherCredentialEntry store={store} row={withDate} controller={makeController()} />);
     // Scoped to the summary's own meta span — this row now also renders its (closed) Remove dialog,
@@ -196,7 +196,7 @@ describe("OtherCredentialStaticRow", () => {
   });
 
   it("shows a visible alert with the row's own error text when present", () => {
-    const store = otherCredentialStoreInfo("external-mcp");
+    const store = otherCredentialStoreInfo({ id: "external-mcp" });
     const row = rowFixture(store, { error: "Couldn't save this token: network down" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save this token: network down");
@@ -205,7 +205,7 @@ describe("OtherCredentialStaticRow", () => {
 
 describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
   it("shows the saved timestamp in the field label only when updatedAt is set", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     const withDate = rowFixture(store, { updatedAt: "2026-08-01T00:00:00.000Z" });
     const { container, rerender } = render(<OtherCredentialEntry store={store} row={withDate} controller={makeController()} />);
     expect(container.querySelector(".access-tokens-field-label-meta")).toHaveTextContent(/saved/);
@@ -216,7 +216,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
   });
 
   it("shows a visible alert with the row's own error text when present", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     const row = rowFixture(store, { error: "Couldn't save this token: network down" });
     render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save this token: network down");
@@ -226,7 +226,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
   // two stores their own wording — `otherCredentialRemoveDialogBody` must keep routing these through
   // the shared "does NOT revoke" template unchanged.
   it("the confirm dialog body for a replaceable store is the shared 'does NOT revoke' copy, unchanged", () => {
-    const store = otherCredentialStoreInfo("media-provider");
+    const store = otherCredentialStoreInfo({ id: "media-provider" });
     const row = rowFixture(store, { itemId: "cloudinary", name: "Cloudinary" });
     const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
 
@@ -239,7 +239,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
 
   it("clicking Remove opens the confirm dialog, and Cancel closes it without calling controller.remove", () => {
     const remove = vi.fn().mockResolvedValue(undefined);
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     const row = rowFixture(store, { name: "Site assistant model key" });
     const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
@@ -258,7 +258,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
 
   it("confirming the dialog calls controller.remove(row) with this row", () => {
     const remove = vi.fn().mockResolvedValue(undefined);
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     const row = rowFixture(store, { name: "Site assistant model key" });
     const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController({ remove })} />);
 
@@ -277,7 +277,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
   // `<dialog>` gets no accessible name for free from an `<h2>` inside it; that link has to be
   // stated via `aria-labelledby`.
   it("the confirm dialog's accessible name comes from aria-labelledby pointing at its own <h2>", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     const row = rowFixture(store, { name: "Site assistant model key" });
     const { container } = render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />);
 
@@ -293,7 +293,7 @@ describe("OtherCredentialReplaceableRow + remove confirm dialog", () => {
 
 describe("OtherCredentialEntry — agentHandle id safety (unsafe item ids never crash the row)", () => {
   it("publishes opaque item ids under safe handles without altering draft or mutation keys", () => {
-    const store = otherCredentialStoreInfo("external-mcp");
+    const store = otherCredentialStoreInfo({ id: "external-mcp" });
     const itemId = 'vault:["publish_credential_sets","e6b6ec84-1234-4567-89ab-0123456789ab"]:0';
     const row = rowFixture(store, { itemId, key: `${store.id}:${itemId}`, name: "Opaque credential" });
     const remove = vi.fn(async () => {});
@@ -310,7 +310,7 @@ describe("OtherCredentialEntry — agentHandle id safety (unsafe item ids never 
     expect(row.itemId).toBe(itemId);
   });
   it("renders an external-mcp row whose raw item id is not handle-safe (contains an underscore), without throwing", () => {
-    const store = otherCredentialStoreInfo("external-mcp");
+    const store = otherCredentialStoreInfo({ id: "external-mcp" });
     const row = rowFixture(store, { itemId: "google_calendar", name: "Google Calendar" });
     expect(() => render(<OtherCredentialEntry store={store} row={row} controller={makeController()} />)).not.toThrow();
     expect(screen.getByText("Google Calendar")).toBeInTheDocument();

@@ -13,12 +13,12 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { buildExternalMcpRegistrations, contributeExternalMcpTools } from "../../tool-registrations.js";
 import { externalMcpAgentToolCatalog } from "../../agent-tools.js";
 import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "../../save-form.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 for (const transport of ["streamable_http", "stdio"]) test(`static ${transport} token has a human-only secret field`, () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "hosted", transport, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, true);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "hosted", transport, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, isUpdate: true });
   const token = fields.find(f => f.name === "accessToken");
   assert.deepEqual(token, { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Leave blank to keep the stored token." });
   assert.equal(fields.some(f => f.name === "accessTokenEnvName"), transport === "stdio");
@@ -46,26 +46,26 @@ test("hosted static token entered through the form is sealed, used as bearer aut
     assert.deepEqual(Object.keys(result as object).sort(), ["connection", "message", "saved", "server"]);
     assert.equal((result as { saved: boolean }).saved, true);
     assert.equal(JSON.stringify(result).includes(secret), false);
-    const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, deps.workspaceId);
+    const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: deps.workspaceId });
     assert.deepEqual(resolved.failures, []);
     assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
   }
 });
 
 for (const authMode of ["none", "oauth"]) test(`${authMode} auth never asks for a static token`, () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv", transport: "streamable_http", authMode }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv", transport: "streamable_http", authMode }, isUpdate: false });
   assert.equal(fields.some(field => field.name === "accessToken" || field.name === "accessTokenEnvName"), false);
 });
 
 test("an omitted auth mode uses the store's static-token default and a new token field has no prefill", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv", transport: "streamable_http" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv", transport: "streamable_http" }, isUpdate: false });
   assert.deepEqual(fields.find(field => field.name === "accessToken"), { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Enter the API key or bearer token for this server." });
 });
 
 test("stdio token env-name hints preserve stored names unless explicitly changed", () => {
   const existing = { accessTokenEnvName: "STORED_TOKEN", args: [], allowedToolNames: [], writeAllowedToolNames: [], oauth: { scopes: [] } } as never;
-  assert.equal(mergeExternalMcpSavePrefill({ id: "srv", transport: "stdio" }, existing).accessTokenEnvName, "STORED_TOKEN");
-  assert.equal(mergeExternalMcpSavePrefill({ id: "srv", transport: "stdio", accessTokenEnvName: "NEW_TOKEN" }, existing).accessTokenEnvName, "NEW_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill({ input: { id: "srv", transport: "stdio" }, existing }).accessTokenEnvName, "STORED_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill({ input: { id: "srv", transport: "stdio", accessTokenEnvName: "NEW_TOKEN" }, existing }).accessTokenEnvName, "NEW_TOKEN");
 });
 
 for (const [env, message] of [
@@ -201,7 +201,7 @@ test("the submitted stdio token and env reach runtime while optional non-string 
   assert.match(result.message, /Saved, not tested\./);
   assert.match(result.message, /…oken, 18 chars/);
   assert.match(result.message, /EXTRA_TOKEN/);
-  const resolved = await readEnabledExternalMcpConfigs({ repo: f.repo, sealer: f.sealer }, f.deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: f.repo, sealer: f.sealer }, workspaceId: f.deps.workspaceId });
   assert.deepEqual(resolved.failures, []);
   assert.equal(resolved.configs.length, 1);
   assert.deepEqual(resolved.configs[0]!.target, { kind: "stdio", command: "node", args: [], env: { EXTRA_TOKEN: "env-secret", SERVICE_TOKEN: "human-static-token" } });
@@ -291,7 +291,7 @@ for (const probe of [
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "public", transport: "streamable_http", authMode: "none", enabled: true,
     url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
   });
-  const contributor = contributeExternalMcpTools({ probe: async (deps, serverId) => {
+  const contributor = contributeExternalMcpTools({ probe: async ({ deps, serverId }) => {
     assert.equal(deps, f.deps);
     assert.equal(serverId, "public");
     return probe;
@@ -328,7 +328,7 @@ test("omitting the model auth mode saves with the store's static-token default",
   const stored = await f.repo.findByServerId({ workspaceId: f.deps.workspaceId, serverId: "default-auth" });
   assert.ok(stored);
   assert.equal(stored.authMode, "static_env");
-  const resolved = await readEnabledExternalMcpConfigs({ repo: f.repo, sealer: f.sealer }, f.deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: f.repo, sealer: f.sealer }, workspaceId: f.deps.workspaceId });
   assert.deepEqual(resolved.failures, []);
   assert.equal(resolved.configs.length, 1);
   assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: "Bearer default-static-token" } });

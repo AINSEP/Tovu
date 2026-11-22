@@ -1,7 +1,7 @@
 import type { ProviderKeyUsage } from "../project-keys/service.js";
 import { requireInputRecord, requireString, ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 
@@ -41,7 +41,7 @@ export type ProviderSettingsSaveResult =
 
 /** The select option that reveals a field's free-text twin (`allowCustom`). */
 const CUSTOM = "__custom";
-const customName = (name: string) => `${name}__custom`;
+const customName = ({ name }: { name: string }, _optional = {}) => `${name}__custom`;
 
 /** All controls retain the provider's conditional requirement metadata. */
 function fieldRequirements({ field }: { field: PluginProviderSettingField }, _options = {}) {
@@ -59,7 +59,7 @@ function choiceFields({ field, value }: { field: PluginProviderSettingField; val
     ...fieldRequirements({ field }),
     options: [...options, ...(field.allowCustom ? [{ value: CUSTOM, label: "Custom…" }] : [])], value: custom && field.allowCustom ? CUSTOM : value ?? field.default };
   if (!field.allowCustom) return [select];
-  return [select, { kind: "string", name: customName(field.name), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
+  return [select, { kind: "string", name: customName({ name: field.name }), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
 }
 
 /** A secret control never carries its value; conditional blanks reach the shared server save rule. */
@@ -118,7 +118,7 @@ export function buildProviderSettingsForm({ prep }: { prep: Prep }, _optional = 
 export function readProviderSettingsValues({ fields, values }: { fields: readonly PluginProviderSettingField[]; values: Readonly<Record<string, unknown>> }): Record<string, string> {
   const out: Record<string, string> = {};
   for (const field of fields) {
-    const chosen = values[field.name] === CUSTOM ? values[customName(field.name)] : values[field.name];
+    const chosen = values[field.name] === CUSTOM ? values[customName({ name: field.name })] : values[field.name];
     if (typeof chosen === "string") out[field.name] = chosen;
   }
   return out;
@@ -146,9 +146,10 @@ function savedMessage({ result }: { result: Extract<ProviderSettingsSaveResult, 
 }
 
 function outcomeOf({ result, title }: { result: ProviderSettingsSaveResult; title: string }): SurfaceOutcomeSpec | undefined {
-  if (!result.saved && result.message === undefined) return undefined;
+  const message = result.saved ? savedMessage({ result }) : result.message;
+  if (message === undefined) return undefined;
   return { title, state: result.saved && result.appliesAt !== "failed" ? "success" : "failure", app: { appName: "tovu-provider-settings-outcome", appVersion: "1" },
-    message: result.saved ? savedMessage({ result }) : result.message! };
+    message };
 }
 
 /** Thrown with fixed refusal text from the shared rule (names fields, never values). */

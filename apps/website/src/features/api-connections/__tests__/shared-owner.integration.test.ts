@@ -12,12 +12,14 @@ import { apiConnectionCallbackFieldRules } from '../oauth-bindings.js';
 import { createTokenRefresher, type OAuthTokenSet, type TokenRefreshPort } from '@jini-ai/oauth';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
-import { InMemoryVaultRepo, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
+import { type VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { openProjectStore } from '../../../server/runtime/composition/project-store.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
 import { disconnectSharedOAuth, inspectSharedOAuthDisconnect } from '../../project-keys/shared-oauth-disconnect.js';
 import { createSharedOAuthOwnerStorage, type SharedOAuthIssuingContext } from '../shared-owner.js';
-import { apiConnectionVaultScope, createApiConnectionVault } from '../vault-stores.js';
+import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
+import { createApiConnectionVault } from '../vault-stores.js';
 
 const clock = { nowMs: () => Date.parse('2026-11-05T19:00:00Z') };
 const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { pluginId: 'shared-fixture', connectionId: 'account',

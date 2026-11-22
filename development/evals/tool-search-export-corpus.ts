@@ -36,7 +36,7 @@ const tools = registry.list({}).map((d) => {
     // `indexedDescriptionFor` is the real composer used by `buildToolCatalogQuery` — reconstructing
     // it by hand here would silently score a different corpus than production indexes.
     plain: base,
-    withKeywords: indexedDescriptionFor(d.id, base),
+    withKeywords: indexedDescriptionFor({ toolId: d.id, description: base }),
     withDoc2query: d2q ? `${base} — ${d2q.join(" ")}` : base,
   };
 });
@@ -48,7 +48,7 @@ const tools = registry.list({}).map((d) => {
 const cases = HELD_OUT_V2.map((c) => ({
   query: c.query,
   hyde: HYDE_PROMPT_EXPANSIONS_V2[c.query] ?? null,
-  expect: currentToolIdFor(c.expect),
+  expect: currentToolIdFor({ toolId: c.expect }),
   alsoAcceptable: (c.alsoAcceptable ?? []).map(currentToolIdFor),
 }));
 

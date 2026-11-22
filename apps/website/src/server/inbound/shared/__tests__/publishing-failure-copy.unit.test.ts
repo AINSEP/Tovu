@@ -18,8 +18,8 @@ for (const row of cases) {
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
     const deps = { workspaceId: "ws", authorize: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } } as never;
-    registerPublishContentPeerTransportRoutes(app, deps);
-    registerPublishBackstopRoutes(app, deps);
+    registerPublishContentPeerTransportRoutes({ app, deps });
+    registerPublishBackstopRoutes({ app, deps });
     const response = await dispatchJsonRequest(app, "POST", row.path, { bundleId: "b", confirmationToken: "c" });
     assert.equal(response.status, 500);
     const body = response.body as any;
@@ -37,7 +37,7 @@ for (const row of cases) {
 test("publishing mapper sends anonymous failures without a details envelope", async t => {
   t.mock.method(console, "error", () => {});
   const app = express();
-  registerPublishContentPeerTransportRoutes(app, { workspaceId: "ws" } as never);
+  registerPublishContentPeerTransportRoutes({ app, deps: { workspaceId: "ws" } as never });
   const response = await dispatchJsonRequest(app, "POST", cases[0].path, {});
   assert.equal(response.status, 500);
   const body = response.body as any;

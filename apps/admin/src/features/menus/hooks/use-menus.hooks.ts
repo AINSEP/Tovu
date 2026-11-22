@@ -1,13 +1,15 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useState } from "react";
-import { ApiError, type AdminMenu } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Menus LIST does, so `Menus.tsx` is only markup.
  *
@@ -66,9 +68,8 @@ export interface MenusController {
  * @complexity Time/space: O(1) — one `instanceof` check plus two fixed comparisons.
  */
 function describeMenuTrashError(
-  e: unknown,
-  fallback: string,
-  translate: Translate,
+  { e, fallback, translate }: { e: unknown; fallback: string; translate: Translate },
+  _optional = {},
 ): { alreadyGone: boolean; message: string | null } {
   if (e instanceof ApiError) {
     if (e.status === 404) return { alreadyGone: true, message: null };
@@ -82,7 +83,7 @@ function describeMenuTrashError(
 export function useMenus({ port, t }: MenusDependencies): MenusController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listMenus()).menus; }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load menus"); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("failed to load menus", { cause: error }); }
   }, [port]);
   const query = useFetchQuery({ key: ["menus", "list"], fetch: queryFetch }, { staleTime: 0 });
   const menus = query.data ?? null;
@@ -119,7 +120,7 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
     try {
       await trash.mutate({ input: menu.id });
     } catch (e) {
-      const { alreadyGone, message } = describeMenuTrashError(e, "delete failed", t);
+      const { alreadyGone, message } = describeMenuTrashError({ e: e, fallback: "delete failed", translate: t });
       if (alreadyGone) {
         load();
       } else {

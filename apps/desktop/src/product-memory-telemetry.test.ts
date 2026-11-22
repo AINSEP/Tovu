@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EventEmitter } from 'node:events';
+import { focusVisibility } from './main/updates/product-telemetry-boot.ts';
 import { createNoopTracker, type TrackerErrorContext } from '@jini-ai/diagnostics/observability';
 import { createDesktopResources } from './desktop-resources.ts';
 import { projectMemoryProcesses, startProductMemoryTelemetry } from './product-memory-telemetry.ts';
 import type { ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
-import { startVisibleInterval } from './renderer/visible-interval.ts';
+import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 
 const MB = 1_000_000, MINUTE = 60_000, DAY = 24 * 60 * MINUTE;
 function fixture() {
@@ -25,7 +27,7 @@ function fixture() {
     rendererPids: () => new Set([2, 3]), heapUsedBytes: () => 25.6 * MB, uptime: () => at / 1000,
     tracker: { ...createNoopTracker({}), capture() { assert.fail('memory uses metrics'); },
       metric: (input, options) => { metrics.push({ input, options }); }, error: ({ error }, { context } = {}) => { errors.push({ error, context }); } },
-  }, { now: () => at, schedule: (_tick, ms) => { cadence = ms; return () => { cancelled++; }; } });
+  }, { now: () => at, schedule: ({ ms }) => { cadence = ms; return () => { cancelled++; }; } });
   return { memory, monitor, metrics, errors, at: (next: number) => { at = next; }, rss: (value: number) => { rssMb = value; },
     consent: (next: ProductConsent) => { consent = next; }, reads: () => reads, cancelled: () => cancelled, cadence: () => cadence };
 }
@@ -57,20 +59,17 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
   const snapshot = await f.monitor.get({ panelOpen: false });
   f.memory.dispose();
   let visible = false, reads = 0, cadence = 0;
-  const listeners = new Set<() => void>(), timers = new Map<number, () => void>();
-  const setVisible = (next: boolean) => { visible = next; for (const listener of listeners) listener(); };
+  const app = new EventEmitter(), timers = new Map<number, () => void>();
+  const visibility = focusVisibility({ app, windows: { getFocusedWindow: () => visible ? app : null } });
+  const setVisible = (next: boolean) => { visible = next; app.emit(next ? 'browser-window-focus' : 'browser-window-blur'); };
   const memory = startProductMemoryTelemetry({
     monitor: { get: async () => { reads++; return snapshot; } }, tracker: createNoopTracker({}),
     readConsent: () => ({ crashes: true, usage: true, installationId: 'FAKE_INSTALL' }),
     desktopPid: 1, rendererPids: () => new Set([2]), heapUsedBytes: () => 0, uptime: () => 0,
-  }, { schedule: (tick, ms) => startVisibleInterval(tick, ms, {
-    get visibilityState() { return visible ? 'visible' : 'hidden'; },
-    addEventListener: (_type, listener) => { listeners.add(listener); },
-    removeEventListener: (_type, listener) => { assert.equal(listeners.delete(listener), true); },
-  }, {
-    setInterval: (callback, ms) => { timers.set(1, callback); cadence = ms; return 1; },
-    clearInterval: handle => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
-  }) });
+  }, { schedule: ({ tick, ms }) => startVisibleInterval({ tick, periodMs: ms }, { doc: visibility, timers: {
+    setInterval: ({ callback, ms }) => { timers.set(1, callback); cadence = ms; return 1; },
+    clearInterval: ({ handle }) => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
+  } }) });
   assert.equal(timers.size, 0);
   assert.equal(reads, 0);
   setVisible(true);
@@ -89,7 +88,8 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
   await memory.tick();
   memory.dispose();
   assert.equal(timers.size, 0);
-  assert.equal(listeners.size, 0);
+  assert.equal(app.listenerCount('browser-window-focus'), 0);
+  assert.equal(app.listenerCount('browser-window-blur'), 0);
   await memory.tick();
   assert.equal(reads, 3);
 });
@@ -191,4 +191,36 @@ test('telemetry keeps raw RSS when the display switches between footprint and fa
   snapshot.app.processes = snapshot.app.processes.map(row => ({ ...row, memoryMetric: 'rss' as const }));
   assert.deepEqual(project(), before);
   f.memory.dispose();
+});
+
+test('sampling failures log once per streak, reset on success, and redact the cause', async (t) => {
+  const f = fixture();
+  const snapshot = await f.monitor.get({ panelOpen: false });
+  f.memory.dispose();
+  let failing = true;
+  let consent: ProductConsent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' };
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'error', (...args: unknown[]) => { logs.push(args); });
+  const memory = startProductMemoryTelemetry({
+    monitor: { get: async () => {
+      if (failing) throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET');
+      return snapshot;
+    } },
+    tracker: createNoopTracker({}), readConsent: () => consent,
+    desktopPid: 1, rendererPids: () => new Set(), heapUsedBytes: () => 0, uptime: () => 0,
+  }, { schedule: () => () => {} });
+  await memory.tick(); await memory.tick();
+  assert.equal(logs.length, 1, 'only the first failure in a streak is logged');
+  const firstLog = logs[0]?.join(' ') ?? '';
+  assert.match(firstLog, /\[desktop\] Could not sample memory/);
+  assert.match(firstLog, /boom/);
+  assert.match(firstLog, /product-memory-telemetry\.test\.ts/);
+  assert.doesNotMatch(firstLog, /SECRETSECRETSECRETSECRET/);
+  consent = { crashes: false, usage: false, installationId: null }; await memory.tick();
+  consent = { crashes: true, usage: true, installationId: 'FAKE_INSTALL' }; await memory.tick();
+  assert.equal(logs.length, 1, 'a skipped sample does not end a failure streak');
+  failing = false; await memory.tick();
+  failing = true; await memory.tick(); await memory.tick();
+  assert.equal(logs.length, 2, 'a successful sample starts a new failure streak');
+  memory.dispose();
 });

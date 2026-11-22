@@ -20,17 +20,17 @@ test("deskfx2 NIT: existing site boots with a themes override whose parent is ab
     await initSite({ dir, name: "Nested themes" });
     boot = await bootSiteDir({ dir });
     const themesDir = path.join(dir, "custom", "nested", "themes");
-    deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
-      onStoreOpened: (store) => { composed = store; }, uploadsDir: path.join(dir, "uploads"), themesDir,
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; }, uploadsDir: path.join(dir, "uploads"), themesDir,
       siteBinding: { dir, name: "site", dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     await drainBootReadiness(deps);
     assert.equal(deps.themesDir, themesDir);
     assert.equal(fs.existsSync(path.join(themesDir, "static", "tovu-starter", "theme.json")), true);
   } finally {
     if (deps) await drainBootReadiness(deps).catch(() => undefined);
-    if (boot) await closeSiteDirBoot(boot, composed);
+    if (boot) await closeSiteDirBoot(boot, { composed });
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });

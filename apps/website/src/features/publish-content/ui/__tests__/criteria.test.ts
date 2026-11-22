@@ -42,7 +42,7 @@ test("types filter keeps matching kinds, plural/alias forms accepted, and desele
   );
 
   // "pages" -> page, "nav" -> menu (plan §2's documented aliases).
-  const selection = applyPublishCriteria(rows, { types: ["pages", "nav"] });
+  const selection = applyPublishCriteria({ rows, criteria: { types: ["pages", "nav"] } });
 
   assert.deepEqual([...selection.deselectedKeys].sort(), ["post:post-1", "redirect:r-1"]);
 });
@@ -56,7 +56,7 @@ test("items filter matches a label case-insensitively and deselects every other 
     ])
   );
 
-  const selection = applyPublishCriteria(rows, { items: ["about"] });
+  const selection = applyPublishCriteria({ rows, criteria: { items: ["about"] } });
 
   assert.deepEqual([...selection.deselectedKeys].sort(), ["page:p-2", "post:post-1"]);
 });
@@ -73,7 +73,7 @@ test("overwrite:true ticks only overwritable rows that also match the criteria",
     ])
   );
 
-  const selection = applyPublishCriteria(rows, { types: ["page"], overwrite: true });
+  const selection = applyPublishCriteria({ rows, criteria: { types: ["page"], overwrite: true } });
 
   assert.deepEqual([...selection.overwriteKeys], ["page:p-1"]);
 });
@@ -85,9 +85,9 @@ test("item IDs, qualified keys and intersected type/title filters select exact r
     row({ outcome: "created", entityType: "post", entityId: "p1", entityLabel: "About" }),
     row({ outcome: "created", entityType: "post", entityId: "post2", entityLabel: "Other" }),
   ]));
-  assert.deepEqual([...applyPublishCriteria(rows, { items: ["p1"] }).deselectedKeys].sort(), ["page:p2", "post:post2"]);
-  assert.deepEqual([...applyPublishCriteria(rows, { items: ["page:p1"] }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
-  assert.deepEqual([...applyPublishCriteria(rows, { types: ["page"], items: ["About"] }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
+  assert.deepEqual([...applyPublishCriteria({ rows, criteria: { items: ["p1"] } }).deselectedKeys].sort(), ["page:p2", "post:post2"]);
+  assert.deepEqual([...applyPublishCriteria({ rows, criteria: { items: ["page:p1"] } }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
+  assert.deepEqual([...applyPublishCriteria({ rows, criteria: { types: ["page"], items: ["About"] } }).deselectedKeys].sort(), ["page:p2", "post:p1", "post:post2"]);
 });
 
 test("overwrite omitted ticks nothing, even for a matching overwritable row", () => {
@@ -95,7 +95,7 @@ test("overwrite omitted ticks nothing, even for a matching overwritable row", ()
     report([row({ outcome: "blocked", entityType: "page", entityId: "p-1", canOverwrite: true, reason: "slug taken" })])
   );
 
-  const selection = applyPublishCriteria(rows, { types: ["page"] });
+  const selection = applyPublishCriteria({ rows, criteria: { types: ["page"] } });
 
   assert.deepEqual([...selection.overwriteKeys], []);
 });
@@ -105,7 +105,7 @@ test("unmatchedItems and unknownTypes name what named nothing in the plan", () =
     report([row({ outcome: "created", entityType: "page", entityId: "p-1", entityLabel: "About" })])
   );
 
-  const selection = applyPublishCriteria(rows, { items: ["About", "Nonexistent Page"], types: ["page", "redirect"] });
+  const selection = applyPublishCriteria({ rows, criteria: { items: ["About", "Nonexistent Page"], types: ["page", "redirect"] } });
 
   assert.deepEqual(selection.unmatchedItems, ["Nonexistent Page"]);
   assert.deepEqual(selection.unknownTypes, ["redirect"]);
@@ -119,7 +119,7 @@ test("empty criteria give empty sets, the same as today's dialog", () => {
     ])
   );
 
-  const selection = applyPublishCriteria(rows, {});
+  const selection = applyPublishCriteria({ rows, criteria: {} });
 
   assert.deepEqual(selection.deselectedKeys, new Set());
   assert.deepEqual(selection.overwriteKeys, new Set());
@@ -135,7 +135,7 @@ test("a non-selectable row is never put in deselectedKeys, whatever the criteria
     ])
   );
 
-  const selection = applyPublishCriteria(rows, { types: ["page"] });
+  const selection = applyPublishCriteria({ rows, criteria: { types: ["page"] } });
 
   assert.equal(
     rows.find((r) => r.key === "post:post-1")?.selectable,
@@ -149,45 +149,45 @@ test("a non-selectable row is never put in deselectedKeys, whatever the criteria
 // (`/admin/?publish=<encoded>`). Round trip and hostile input for `decodePublishCriteriaFromQuery`.
 test("round-trips types/items/overwrite through the query encoding", () => {
   const criteria = { types: ["page", "menu"], items: ["About", "post-1"], overwrite: true };
-  const decoded = decodePublishCriteriaFromQuery(encodePublishCriteriaToQuery(criteria));
+  const decoded = decodePublishCriteriaFromQuery({ raw: encodePublishCriteriaToQuery(criteria) });
   assert.deepEqual(decoded, criteria);
 });
 
 test("encodes empty criteria as a value that decodes back to empty criteria", () => {
-  const decoded = decodePublishCriteriaFromQuery(encodePublishCriteriaToQuery({}));
+  const decoded = decodePublishCriteriaFromQuery({ raw: encodePublishCriteriaToQuery({}) });
   assert.deepEqual(decoded, {});
 });
 
 test("omits false/empty fields from the encoded payload rather than round-tripping them literally", () => {
   const encoded = encodePublishCriteriaToQuery({ types: [], items: [], overwrite: false });
-  assert.deepEqual(decodePublishCriteriaFromQuery(encoded), {});
+  assert.deepEqual(decodePublishCriteriaFromQuery({ raw: encoded }), {});
 });
 
 test("decode rejects a value that isn't JSON at all", () => {
-  assert.equal(decodePublishCriteriaFromQuery("not json{{{"), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: "not json{{{" }), null);
 });
 
 test("decode rejects a JSON array — only an object is a valid criteria payload", () => {
-  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify(["page"]))), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: encodeURIComponent(JSON.stringify(["page"])) }), null);
 });
 
 test("decode rejects a JSON primitive", () => {
-  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify("page"))), null);
-  assert.equal(decodePublishCriteriaFromQuery(encodeURIComponent(JSON.stringify(null))), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: encodeURIComponent(JSON.stringify("page")) }), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: encodeURIComponent(JSON.stringify(null)) }), null);
 });
 
 test("decode rejects the empty string", () => {
-  assert.equal(decodePublishCriteriaFromQuery(""), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: "" }), null);
 });
 
 test("decode rejects a value over the size cap", () => {
   const huge = encodeURIComponent(JSON.stringify({ items: ["x".repeat(5000)] }));
-  assert.equal(decodePublishCriteriaFromQuery(huge), null);
+  assert.equal(decodePublishCriteriaFromQuery({ raw: huge }), null);
 });
 
 test("decode drops unknown fields rather than rejecting the whole payload", () => {
   const encoded = encodeURIComponent('{"types":["page"],"__proto__":{"polluted":true},"evil":{"ignored":true}}');
-  const decoded = decodePublishCriteriaFromQuery(encoded);
+  const decoded = decodePublishCriteriaFromQuery({ raw: encoded });
   assert.deepEqual(decoded, { types: ["page"] });
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
 });
@@ -200,13 +200,13 @@ test("decode drops non-string/oversized/wrong-typed entries from types and items
       overwrite: "true", // not a boolean — dropped, not coerced
     })
   );
-  assert.deepEqual(decodePublishCriteriaFromQuery(encoded), { types: ["page", "menu"], items: ["About"] });
+  assert.deepEqual(decodePublishCriteriaFromQuery({ raw: encoded }), { types: ["page", "menu"], items: ["About"] });
 });
 
 test("decode caps an oversized types/items array rather than rejecting it", () => {
   // Short entries, so the array-length cap (50) is what trips here, not the overall query-size cap.
   const encoded = encodeURIComponent(JSON.stringify({ types: Array.from({ length: 60 }, (_, i) => `t${i}`) }));
-  const decoded = decodePublishCriteriaFromQuery(encoded);
+  const decoded = decodePublishCriteriaFromQuery({ raw: encoded });
   assert.equal(decoded?.types?.length, 50);
 });
 
@@ -259,11 +259,11 @@ test("items match a row's source names, and excludeItems deselects a row the oth
   );
   const rows = [{ ...about!, names: ["About us", "about-us"] }, { ...contact!, names: ["Contact"] }];
 
-  const byName = applyPublishCriteria(rows, { items: ["ABOUT-US"] });
+  const byName = applyPublishCriteria({ rows, criteria: { items: ["ABOUT-US"] } });
   assert.deepEqual([...byName.deselectedKeys], ["page:p-2"]);
   assert.deepEqual(byName.unmatchedItems, []);
 
-  const excluded = applyPublishCriteria(rows, { types: ["pages"], excludeItems: ["contact"] });
+  const excluded = applyPublishCriteria({ rows, criteria: { types: ["pages"], excludeItems: ["contact"] } });
   assert.deepEqual([...excluded.deselectedKeys], ["page:p-2"]);
 });
 
@@ -276,7 +276,7 @@ test("items also match an exact entity id or row key, and a blank item matches n
     ])
   );
 
-  const selection = applyPublishCriteria(rows, { items: ["p-1", "page:p-2", "   "] });
+  const selection = applyPublishCriteria({ rows, criteria: { items: ["p-1", "page:p-2", "   "] } });
 
   assert.deepEqual([...selection.deselectedKeys], ["page:p-3"]);
   assert.deepEqual(selection.unmatchedItems, ["   "]);

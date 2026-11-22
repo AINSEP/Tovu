@@ -23,10 +23,8 @@ export async function readChatPermanentDeletesPolicy(
  * @complexity O(13) time/space and one effective workspace-setting resolution. */
 export async function readAssistantPermanentDeletesPolicy(required: PermanentDeleteSettingsDeps, _optional = {}): Promise<AssistantPermanentDeletesPolicy> {
   await required.settingsReady;
-  const result = await required.getEffective({ repo: required.settingsRepo }, {
-    namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: ASSISTANT_PERMANENT_DELETES_KEY,
-    scopeContext: { workspaceId: required.workspaceId },
-  });
+  const result = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE, key: ASSISTANT_PERMANENT_DELETES_KEY,
+    scopeContext: { workspaceId: required.workspaceId } });
   const value = result?.value as Partial<AssistantPermanentDeletesPolicy> | null;
   const fallback = { ...DEFAULT_PERMANENT_DELETES_POLICY, allowedToolIds: [] };
   if (!value || typeof value.enabled !== "boolean" || !Array.isArray(value.allowedToolIds)) return fallback;

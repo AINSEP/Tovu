@@ -85,7 +85,7 @@ function registryDepsWithoutHost(deps: PluginsToolDeps): Omit<AssistantToolRegis
 test("the contributor builds through the injected host factory only when the deps carry no host", () => {
   const { deps, surfaceExchanges } = harness();
   const host = deps.pluginHost;
-  assert.ok(host);
+  assert.ok(host, "the harness binds a plugin host");
   const created: PluginsToolDeps[] = [];
   const contributor = contributePluginsTools({ createPluginHost: ({ deps: received }) => { created.push(received); return host; } });
   assert.deepEqual([contributor.domain, contributor.risk], ["plugins", pluginsDerivedRisk]);
@@ -100,7 +100,7 @@ test("the contributor builds through the injected host factory only when the dep
 test("with no host bound and no factory, an Agent Plugin operation is an explicit refusal", async () => {
   const { deps, surfaceExchanges } = harness();
   const uninstall = contributePluginsTools().build(registryDepsWithoutHost(deps), { surfaceExchanges }).find((registration) => registration.descriptor.id === "plugins_uninstall");
-  assert.ok(uninstall);
+  assert.ok(uninstall, "plugins_uninstall is registered without a bound host");
   await assert.rejects(uninstall.handler(context({ family: "agent-plugin", pluginId: "higgsfield" }), {}),
     (error: unknown) => error instanceof ToolInputError && error.message === "The host does not provide agent-plugin lifecycle operations.");
 });
@@ -110,7 +110,7 @@ function layoutAt(root: string): AgentPluginLayout {
   const unread = (): string => assert.fail("only the workspace root is read");
   return {
     root: "/fake", workspacesDir: "/fake/ws",
-    forWorkspace: (workspaceId) => ({ root: `${root}/${workspaceId}`, packages: "", staging: "", pluginRootDir: unread, pluginPackagesDir: unread, pluginMemoryDir: unread, pluginDataDir: unread }),
+    forWorkspace: ({ workspaceId }) => ({ root: `${root}/${workspaceId}`, packages: "", staging: "", pluginRootDir: unread, pluginPackagesDir: unread, pluginMemoryDir: unread, pluginDataDir: unread }),
   };
 }
 
@@ -122,7 +122,7 @@ test("injected Agent Plugin owners are used in place of the host capability, sco
     confirmEnable: () => false,
     injected: {
       assertAgentPluginActivationsWritable: async (required) => { calls.push(["assert", required]); },
-      listInstalledAgentPlugins: async (workspaceRoot) => { calls.push(["list", workspaceRoot]); return [installedAgentPlugin()]; },
+      listInstalledAgentPlugins: async ({ workspaceRoot }) => { calls.push(["list", workspaceRoot]); return [installedAgentPlugin()]; },
       setAgentPluginEnabled: async (required) => { calls.push(["set", required.enabled, required.agentPluginLayout === layout]); return { pluginId: required.pluginId, enabled: required.enabled }; },
     },
   });
@@ -249,6 +249,33 @@ test("the injected provider link refuses a face before identity, confirmation or
     restartRequired: false, reason: "linked", code: failure.code, providerPluginId: "provider", note: `Nothing changed. ${failure.message}` });
   assert.deepEqual(calls, [{ pluginId: "higgsfield" }, { pluginId: "higgsfield", providerPluginId: "provider" }]);
   assert.deepEqual(h.events, ["assertWritable"]);
+});
+
+test("a Soon plugin is refused in plain words before confirmation or write; a linked Soon face says not-ready, not linked", async () => {
+  const failure = { code: "AGENT_PLUGIN_NOT_READY", message: "Higgsfield isn't ready yet, so it can't be turned on. You can still view its files." };
+  const expected = { changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield", restartRequired: false, reason: "not-ready", code: failure.code,
+    note: `Nothing changed. ${failure.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` };
+  const asked: unknown[] = [];
+  const plain = harness({ confirmEnable: () => true, providerFaces: { describeNotReady: async (input) => { asked.push(input); return failure; } } });
+  assert.deepEqual(await plain.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog }), expected);
+  assert.deepEqual(asked, [{ pluginId: "higgsfield" }]);
+  assert.ok(!plain.events.some(event => event.startsWith("setEnabled")), "nothing is written");
+  const linked = harness({ confirmEnable: () => true, providerFaces: {
+    linkedProvider: async () => "provider",
+    describeNotReady: async () => failure,
+  } });
+  assert.deepEqual(await linked.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog }), expected);
+  assert.ok(!linked.events.some(event => event.startsWith("setEnabled")), "nothing is written");
+});
+
+test("turning a Soon plugin off is never refused, and a ready plugin is not refused as not-ready", async () => {
+  const off = harness({ providerFaces: { describeNotReady: async () => assert.fail("turning off never asks whether the plugin is ready") } });
+  await off.tool("plugins_set_enabled").handler(context({ ...AGENT_ENABLE, enabled: false }), { emitSurface: noDialog });
+  assert.ok(off.events.includes("setEnabled:false"), "turning a plugin off writes setEnabled:false");
+  const ready = harness({ confirmEnable: () => false, providerFaces: { describeNotReady: async () => undefined } });
+  const result = await approveEnable({ h: ready, input: AGENT_ENABLE }) as { changed: boolean; reason?: string };
+  assert.notEqual(result.reason, "not-ready");
+  assert.ok(ready.events.includes("setEnabled:true"), "a ready plugin writes setEnabled:true");
 });
 
 test("the injected classifier keeps the owner's linked-switch refusal at write time", async () => {

@@ -1,3 +1,4 @@
+import { useAgentPluginConfirmation } from "./AgentPlugins.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import {
   I18nProvider,
@@ -6,11 +7,10 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandle } from "@jini-ai/agentic";
-import { useId, useState } from "react";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
+import { useId } from "react";
 
-import type { AdminAgentPlugin } from "@/lib/api";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";
 import { addPluginTabSoonTag, marketplaceTabSoonTag } from "./add-plugin-tab-soon";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
@@ -25,9 +25,10 @@ import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-depe
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
 /**
@@ -153,7 +154,7 @@ function AgentPluginList({
           locale={controller.locale}
           expanded={controller.expandedIds.has(plugin.pluginId)}
           busy={controller.togglingIds.has(plugin.pluginId)}
-          onToggleExpanded={() => controller.onToggleExpanded(plugin.pluginId)}
+          onToggleExpanded={() => controller.onToggleExpanded({ pluginId: plugin.pluginId })}
           stateControl={stateControlFor(plugin)}
           onInspect={() =>
             controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity })
@@ -163,13 +164,13 @@ function AgentPluginList({
               pluginId={plugin.pluginId}
               displayName={agentPluginDisplayName(plugin)}
               t={controller.t}
-              agentHandleBase={rowHandles[index]!}
+              agentHandleBase={rowHandles[index]}
               onManage={(surfaces) => controller.inspectPlugin({ id: plugin.pluginId, displayName: agentPluginDisplayName(plugin), maturity: plugin.maturity, surfaces })}
             />
           ) : undefined}
           uninstallNoteId={uninstallNoteId}
-          agentHandleBase={rowHandles[index]!}
-          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index]!, port: updatePort })}
+          agentHandleBase={rowHandles[index]}
+          update={updateSlotFor({ plugin, controller, agentHandleBase: rowHandles[index], port: updatePort })}
         />
       ))}
     </ul>
@@ -405,37 +406,8 @@ export function AgentPlugins({
   // for why the reason is stated once at section level rather than once per row.
   const uninstallNoteId = useId();
 
-  // Which plugin (by id) is waiting on a disable/remove confirm dialog, and which CONTROL asked —
-  // `null` when neither tab has one open. Lives here rather than in `useAgentPlugins` — this is
-  // presentation flow ("has the operator confirmed yet"), not a network mutation, the same split
-  // `ExternalMcpSettingsPanel.tsx`'s own `confirmRemoveId` draws for the identical shape of
-  // interstitial. An id rather than a plugin object so the confirmed row is always looked up fresh
-  // against the current `agentPlugins` — a stale object reference could not reflect the plugin
-  // toggling or vanishing by some other route while the dialog sat open. `variant` travels alongside
-  // the id (not derived from `plugin.enabled` at render time) because Installed's switch and
-  // Downloaded's Remove button can both open this for an enabled row, and the dialog's own wording
-  // must match whichever one the operator actually clicked, not the plugin's state.
-  const [pendingDisable, setPendingDisable] = useState<{ pluginId: string; variant: "disable" | "remove" } | null>(
-    null,
-  );
-  const pendingDisablePlugin = agentPlugins?.find((plugin) => plugin.pluginId === pendingDisable?.pluginId) ?? null;
-
-  /** Installed's switch: enabling stays a plain one-click toggle, disabling opens the confirm
-   *  dialog (`variant: "disable"`) instead of calling the mutation immediately. */
-  function onRequestToggleEnabled(plugin: AdminAgentPlugin): void {
-    if (plugin.enabled) {
-      setPendingDisable({ pluginId: plugin.pluginId, variant: "disable" });
-    } else {
-      void onToggleEnabled(plugin);
-    }
-  }
-
-  /** Downloaded's Remove action — shown only for a currently-enabled row (see `AgentPluginRow`'s
-   *  own state-area rendering), so unlike `onRequestToggleEnabled` this has no direct-call branch:
-   *  Remove always asks first, with `variant: "remove"` so the dialog reads accordingly. */
-  function onRequestRemove(plugin: AdminAgentPlugin): void {
-    setPendingDisable({ pluginId: plugin.pluginId, variant: "remove" });
-  }
+  const { pendingDisable, setPendingDisable, pendingDisablePlugin, onRequestToggleEnabled, onRequestRemove } =
+    useAgentPluginConfirmation({ agentPlugins, onToggleEnabled });
 
   const tabs: SettingsDialogTab[] = [
     {
@@ -477,7 +449,7 @@ export function AgentPlugins({
       label: t("Add a plugin"),
       // `TabbedDialogTab` has no tag slot, so the "Soon" tag rides `navHint`; styles.css turns this
       // screen's nav hint into the sidebar's `.soon` pill beside the label.
-      navHint: addPluginTabSoonTag(locale),
+      navHint: addPluginTabSoonTag({ locale }),
       icon: <UploadIcon />,
       title: t("Agent Plugins"),
       subtitle: t("Install a package you already have."),
@@ -486,7 +458,7 @@ export function AgentPlugins({
     {
       id: "marketplace",
       label: t("Marketplace"),
-      navHint: marketplaceTabSoonTag(locale),
+      navHint: marketplaceTabSoonTag({ locale }),
       icon: <MarketplaceIcon />,
       title: t("Agent Plugin Marketplace"),
       subtitle: t("A future place to discover portable Agent Plugins."),
@@ -528,7 +500,7 @@ export function AgentPlugins({
             // id alone rather than threaded down from whichever tab's row is currently mounted —
             // that function derives a handle from the id, not list position, so this always matches
             // the handle the row published, in either tab.
-            agentHandleBase={buildAgentListHandles({ prefix: "agent-plugin-row", ids: [pendingDisablePlugin.pluginId] })[0]!}
+            agentHandleBase={buildAgentListHandles({ prefix: "agent-plugin-row", ids: [pendingDisablePlugin.pluginId] })[0]}
             onConfirm={() => {
               setPendingDisable(null);
               void onToggleEnabled(pendingDisablePlugin);

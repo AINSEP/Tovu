@@ -2,7 +2,7 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
- * @file Contract tests for `tool-contribution-registry.ts` and `server/tool-catalog-manifest.ts` —
+ * @file Contract tests for `tool-contribution-registry.ts` and `server/runtime/composition/tool-catalog-manifest.ts` —
  * the 2026-08-17 registry that replaced `assistant/tool-registrations.ts` importing `comments` and
  * `newsletter` by name (see that file's own header for why: it used to close the `[assistant,
  * comments, features/plugins, newsletter]` module cycle `check:architecture` flagged). `post` was
@@ -27,7 +27,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { type ToolContributor } from "../tool-registrations.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 
 const contributions = {
@@ -97,7 +97,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // Stage 1 (2026-08-17): comments, newsletter. Stage 2 batch 1 (same day): identity, members,
   // redirects, taxonomy. Stage 2 batch 2 (same day, run as two parallel worker groups): group A
   // did widgets, content-types, forms, menus, recovery, plugins, entries; group B did integrations,
-  // workspace, pages, seo — see `server/tool-catalog-manifest.ts`'s own header for the running
+  // workspace, pages, seo — see `server/runtime/composition/tool-catalog-manifest.ts`'s own header for the running
   // count. `themes` was also tried in Stage 2 batch 1 and reverted (new module cycle through
   // `export`); `database` (group A) and `source-control`/`deployments`/`static-publish`/`media`
   // (group B) were all tried in Stage 2 batch 2 and reverted (see each one's own trailing comment
@@ -110,7 +110,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // `db/`, `check:architecture` confirmed 0 module cycles with `database` converted too (see
   // `features/database/tool-registrations.ts`'s own header) — so it is now present below as well.
   // `settings` is ALSO present below, but unlike every domain above it does NOT have its own
-  // `contribute<Domain>Tools()` — `server/tool-catalog-manifest.ts`'s
+  // `contribute<Domain>Tools()` — `server/runtime/composition/tool-catalog-manifest.ts`'s
   // `installFirstPartyToolContributors()` registers it inline instead, a deliberate one-off
   // exception (see that function's own DELIBERATE ONE-OFF EXCEPTION comment and
   // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md`): the standard
@@ -366,7 +366,7 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
   contributions.contributors.register({ contribution: fakeContributor("dup-b", ["shared_tool_id"]) });
 
   assert.throws(
-    () => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }),
+    () => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }),
     /'shared_tool_id' is registered by both the dup-a and dup-b domains/,
   );
 });
@@ -392,7 +392,7 @@ test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the 
   // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
   // test that proves a seam still behaves correctly is worthless once there is no seam.
   contributions.contributors.register({ contribution: fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]) });
-  assert.throws(() => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
+  assert.throws(() => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------
@@ -406,16 +406,16 @@ test("a real catalog entry from a NOT-installed contributor fails assertRiskMeta
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment");
   assert.ok(entry, "sanity: the catalog entry itself still exists independent of wiring");
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry!, contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry! }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else", async () => {
   const { contributeCommentsTools } = await import("../../features/comments/tool-registrations.js");
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry }, { contributions: contributions }));
   contributions.contributors.register({ contribution: contributeCommentsTools() });
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
   installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
 
   assert.ok(ids.includes("agent_plugin_connect"), "the generic Agent Plugin Connect tool must stay registered");
   assert.ok(!ids.includes("supabase_get_database"), "supabase_get_database must not be registered");
@@ -469,7 +469,7 @@ test("daemon remote discovery and the real BYOK root expose the identical tool-i
   const byokDeps = createRouteDeps();
   await byokDeps.identityReady;
   const daemonRegistry = await buildDaemonToolSurface(daemonDeps);
-  const byok = createAssistantByokModule(byokDeps);
+  const byok = createAssistantByokModule({ routeDeps: byokDeps });
   await byok.toolSurface.ready;
   const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
   const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();

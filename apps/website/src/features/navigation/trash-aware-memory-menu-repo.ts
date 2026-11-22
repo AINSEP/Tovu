@@ -7,7 +7,7 @@ import { MenuVersionConflictError } from "./menu-version-conflict-error.js";
 /**
  * @file The in-memory twin of `repo.sqlite.ts`'s Trash rules, for the hermetic composition
  * (`server/runtime/composition/app.ts`), which has no `content.db`. Wraps Jini's `InMemoryMenuRepo`
- * (precedent: `features/entries/trash-aware-memory-repo.ts`).
+ * (precedent: Jini's `TrashAwareInMemoryEntryRepo`, `@jini-ai/cms/entries`).
  *
  * Unlike entries, `NavMenuEntry.status` already natively supports `"trash"` as a real `MenuStatus`
  * value, so no separate `deletedAt` side-map is needed to detect hidden state — `status === "trash"`

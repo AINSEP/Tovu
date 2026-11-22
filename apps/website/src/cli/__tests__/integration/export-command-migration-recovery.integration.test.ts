@@ -70,7 +70,7 @@ async function plantInterruptedMigration(installDir: string, siteId: string): Pr
   // `tovu init` never creates `ops/` (only the real composition root does, on first boot) — this
   // fixture plants the row BEFORE any boot has run, so it must create the directory itself.
   fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-  const journal = openDatabaseJournalDb(journalPath);
+  const journal = openDatabaseJournalDb({ filePath: journalPath });
   try {
     const now = new Date().toISOString();
     await new SqliteMigrationRunsRepo({ db: journal, siteId }).insert({

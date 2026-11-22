@@ -11,7 +11,7 @@ const WS = "ws-1";
 const HTML = '<html><head><meta name="email-fields" content="name=Ada"><title>Hi {{name}}</title></head><body><p>Hello {{name}}</p></body></html>';
 
 function harness(granted: ReadonlySet<string>) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const clock = { nowMs: () => Date.parse("2026-10-22T00:00:00.000Z") };
   const asked: string[] = [];
   let n = 0;
@@ -64,4 +64,23 @@ test("operation failures reach the model with stable codes", async () => {
   await assert.rejects(call("email_template_get", {}), /EMAIL_TEMPLATES_INVALID_INPUT/);
   const created = (await call("email_template_create", { name: "W", html: HTML })) as { id: string };
   await assert.rejects(call("email_template_edit", { id: created.id, html: HTML, expectedVersion: 99 }), /EMAIL_TEMPLATES_VERSION_CONFLICT/);
+});
+
+test("S7b: a delayed basis-less template edit cannot overwrite a completed save", async () => {
+  const { call, byName } = harness(new Set(["content.read", "pages.edit_html"]));
+  const created = await call("email_template_create", { name: "Welcome", html: HTML }) as { id: string };
+  const first = await call("email_template_get", { id: created.id }) as { version: number };
+  const delayed = await call("email_template_get", { id: created.id }) as { version: number };
+  const saved = await call("email_template_edit", {
+    id: created.id, html: HTML.replace("Hello", "First writer"), expectedVersion: first.version,
+  }) as { version: number };
+
+  await assert.rejects(call("email_template_edit", { id: created.id, html: HTML.replace("Hello", "Delayed writer") }), {
+    name: "ToolInputError", message: /expectedVersion.*required.*email_template_get/,
+  });
+  await assert.rejects(call("email_template_edit", {
+    id: created.id, html: HTML.replace("Hello", "Delayed writer"), expectedVersion: delayed.version,
+  }), { name: "ToolInputError", message: new RegExp(`EMAIL_TEMPLATES_VERSION_CONFLICT:.*version ${saved.version}, not ${delayed.version}`) });
+  assert.deepEqual(await call("email_template_get", { id: created.id }), saved);
+  assert.deepEqual((byName.get("email_template_edit")!.descriptor.inputSchema as { required: string[] }).required, ["id", "html", "expectedVersion"]);
 });

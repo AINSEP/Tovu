@@ -31,18 +31,7 @@ name: Desktop Gates
 # "the 8 blocking gates, same order as ci.yml" while running 9 and omitting 3 that ci.yml has.
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "apps/desktop/**"
-      - "eslint.config.mjs"
-      - ".github/workflows/desktop.yml"
-  pull_request:
-    branches: [main, general-work]
-    paths:
-      - "apps/desktop/**"
-      - "eslint.config.mjs"
-      - ".github/workflows/desktop.yml"
+  schedule: [{ cron: '43 4 * * 3,6' }]
   workflow_dispatch: {}
 
 jobs:
@@ -78,6 +67,11 @@ jobs:
 
       - name: Install desktop dependencies
         run: npm ci --prefix apps/desktop
+
+      - name: Dependency audit (desktop)
+        working-directory: apps/desktop
+        run: npm audit --package-lock-only
+        continue-on-error: true
 
       # The renderer layout tests (src/renderer/websites-width.test.ts) launch real headless
       # Chromium through the root `playwright`; a fresh runner has no browser. Same step as

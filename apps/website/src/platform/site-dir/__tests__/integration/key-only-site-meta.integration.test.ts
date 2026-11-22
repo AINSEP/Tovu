@@ -72,7 +72,7 @@ test("bootSiteDir: a key-only .site-meta.json is completed in place and the site
     assert.equal(meta.siteId, SITE_KEY_ID);
     assert.equal(meta.templateId, "unknown");
     assert.equal(meta.templateVersion, "0.0.0");
-    const identity = await readAppliedSchemaIdentityOfFile(path.join(dir, "content.db"));
+    const identity = await readAppliedSchemaIdentityOfFile({ dbPath: path.join(dir, "content.db") });
     assert.notEqual(typeof identity, "string");
     assert.deepEqual({ v: meta.schemaVersion, t: meta.schemaTag }, { v: (identity as { idx: number }).idx, t: (identity as { tag: string }).tag });
     assert.equal(meta.createdAt, fs.statSync(dir).birthtime.toISOString());
@@ -135,15 +135,15 @@ test("bootSiteDir: a genuinely malformed meta (siteId: 5) is still refused and l
 });
 
 test("parseKeyOnlySiteMeta: only the key-only shape is recognised", () => {
-  assert.deepEqual(parseKeyOnlySiteMeta({ siteKeyId: "k" }), { siteKeyId: "k" });
-  assert.deepEqual(parseKeyOnlySiteMeta({ siteKeyId: "k", siteKeyFingerprint: "f", storage: { kind: "pglite" } }), { siteKeyId: "k", siteKeyFingerprint: "f", storage: { kind: "pglite" } });
-  assert.equal(parseKeyOnlySiteMeta({ siteKeyId: "k", siteId: 5 }), undefined);
-  assert.equal(parseKeyOnlySiteMeta({ siteKeyId: "" }), undefined);
-  assert.equal(parseKeyOnlySiteMeta({ siteKeyId: 5 }), undefined);
-  assert.equal(parseKeyOnlySiteMeta({ siteKeyId: "k", siteKeyFingerprint: 1 }), undefined);
-  assert.equal(parseKeyOnlySiteMeta({}), undefined);
-  assert.equal(parseKeyOnlySiteMeta([]), undefined);
-  assert.equal(parseKeyOnlySiteMeta(null), undefined);
+  assert.deepEqual(parseKeyOnlySiteMeta({ parsed: { siteKeyId: "k" } }), { siteKeyId: "k" });
+  assert.deepEqual(parseKeyOnlySiteMeta({ parsed: { siteKeyId: "k", siteKeyFingerprint: "f", storage: { kind: "pglite" } } }), { siteKeyId: "k", siteKeyFingerprint: "f", storage: { kind: "pglite" } });
+  assert.equal(parseKeyOnlySiteMeta({ parsed: { siteKeyId: "k", siteId: 5 } }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: { siteKeyId: "" } }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: { siteKeyId: 5 } }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: { siteKeyId: "k", siteKeyFingerprint: 1 } }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: {} }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: [] }), undefined);
+  assert.equal(parseKeyOnlySiteMeta({ parsed: null }), undefined);
 });
 
 test("bootSiteDir: a key-only meta with no content.db is refused with the reason, file untouched", async () => {
@@ -180,7 +180,7 @@ test("bootSiteDir: a key-only meta naming PGlite storage is completed with this 
 test("repairSite: a dir whose only marker is a key-only meta is adopted, carrying the key fields forward", async () => {
   const dir = buildDevSite({ config: false });
   try {
-    assert.equal(classifySiteMarkers(dir).state, "none");
+    assert.equal(classifySiteMarkers({ target: dir }).state, "none");
     const result = await repairSite({ dir, name: "Adopted" });
     assert.equal(result.siteId, SITE_KEY_ID);
     const meta = readMeta(dir);
@@ -195,7 +195,7 @@ test("repairSite: a dir whose only marker is a key-only meta is adopted, carryin
 test("classifySiteMarkers: config.json + key-only meta is partial with keyOnlyMeta set; repair still refuses to overwrite config.json", async () => {
   const dir = buildDevSite();
   try {
-    const markers = classifySiteMarkers(dir);
+    const markers = classifySiteMarkers({ target: dir });
     assert.deepEqual(markers, { state: "partial", present: ["config.json"], missing: [".site-meta.json"], keyOnlyMeta: true });
     await assert.rejects(() => planRepairSite({ dir }), (err: unknown) => err instanceof SiteRepairRefusedError && err.reason === "MARKER_ALREADY_EXISTS");
   } finally {
@@ -251,7 +251,7 @@ test("ensureSiteKeyForBoot: with no content.db yet it mints the key-only shape (
 test("classifySiteMarkers: both markers of a full meta are complete with nothing missing", () => {
   const dir = buildDevSite({ db: false, metaText: JSON.stringify({ siteId: "full", templateId: "blank", templateVersion: "1", schemaVersion: 0, schemaTag: "t", createdAt: "2026-01-01T00:00:00.000Z" }) });
   try {
-    assert.deepEqual(classifySiteMarkers(dir), { state: "complete", present: ["config.json", ".site-meta.json"], missing: [], keyOnlyMeta: false });
+    assert.deepEqual(classifySiteMarkers({ target: dir }), { state: "complete", present: ["config.json", ".site-meta.json"], missing: [], keyOnlyMeta: false });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

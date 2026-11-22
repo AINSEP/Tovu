@@ -3,9 +3,9 @@
  *
  * Purpose:
  * One class per error this module originates, mirroring the
- * `DefinitionNotFoundError`/`ForbiddenError` convention in `src/features/settings/errors.ts` and
- * `src/members/types.ts`'s error-class pattern. Route handlers map these 1:1 to the HTTP codes in
- * errors.spec.md §2 (see `src/server/routes/admin/newsletter/deps.ts`'s error-mapping helper).
+ * `DefinitionNotFoundError`/`ForbiddenError` convention in `Jini packages/core/src/settings/errors.ts` and
+ * `apps/website/src/features/members/types.ts`'s error-class pattern. Route handlers map these 1:1 to the HTTP codes in
+ * errors.spec.md §2 (see `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s error-mapping helper).
  */
 
 export class NewsletterCampaignNotFoundError extends Error {}
@@ -16,8 +16,7 @@ export class NewsletterSubscriptionNotFoundError extends Error {}
 export class NewsletterSubscriberNotFoundError extends Error {
   public readonly subscriberId: string;
   constructor(
-    message: string,
-    subscriberId: string
+    { message, subscriberId }: { message: string; subscriberId: string }
   ) {
     super(message);
     this.subscriberId = subscriberId;
@@ -29,9 +28,7 @@ export class NewsletterValidationError extends Error {
   public readonly field: string;
   public readonly reason: string;
   constructor(
-    message: string,
-    field: string,
-    reason: string
+    { message, field, reason }: { message: string; field: string; reason: string }
   ) {
     super(message);
     this.field = field;
@@ -44,9 +41,7 @@ export class NewsletterCampaignNotEditableError extends Error {
   public readonly currentStatus: string;
   public readonly attemptedAction: string;
   constructor(
-    message: string,
-    currentStatus: string,
-    attemptedAction: string
+    { message, currentStatus, attemptedAction }: { message: string; currentStatus: string; attemptedAction: string }
   ) {
     super(message);
     this.currentStatus = currentStatus;
@@ -58,8 +53,7 @@ export class NewsletterCampaignNotEditableError extends Error {
 export class NewsletterDefaultListProtectedError extends Error {
   public readonly listId: string;
   constructor(
-    message: string,
-    listId: string
+    { message, listId }: { message: string; listId: string }
   ) {
     super(message);
     this.listId = listId;
@@ -73,11 +67,7 @@ export class NewsletterConflictError extends Error {
   public readonly expectedVersion: number;
   public readonly actualVersion: number;
   constructor(
-    message: string,
-    entity: "campaign" | "list" | "subscription",
-    id: string,
-    expectedVersion: number,
-    actualVersion: number
+    { message, entity, id, expectedVersion, actualVersion }: { message: string; entity: "campaign" | "list" | "subscription"; id: string; expectedVersion: number; actualVersion: number }
   ) {
     super(message);
     this.entity = entity;
@@ -91,8 +81,7 @@ export class NewsletterConflictError extends Error {
 export class NewsletterLaunchGateBlockedError extends Error {
   public readonly unmetPreconditions: readonly string[];
   constructor(
-    message: string,
-    unmetPreconditions: readonly string[]
+    { message, unmetPreconditions }: { message: string; unmetPreconditions: readonly string[] }
   ) {
     super(message);
     this.unmetPreconditions = unmetPreconditions;
@@ -103,8 +92,7 @@ export class NewsletterLaunchGateBlockedError extends Error {
 export class NewsletterConfirmTokenInvalidError extends Error {
   public readonly reason: "expired" | "already_consumed" | "not_found";
   constructor(
-    message: string,
-    reason: "expired" | "already_consumed" | "not_found"
+    { message, reason }: { message: string; reason: "expired" | "already_consumed" | "not_found" }
   ) {
     super(message);
     this.reason = reason;
@@ -115,8 +103,7 @@ export class NewsletterConfirmTokenInvalidError extends Error {
 export class NewsletterUnsubscribeTokenInvalidError extends Error {
   public readonly reason: "consent_revision_mismatch" | "signature_invalid" | "expired" | "not_found";
   constructor(
-    message: string,
-    reason: "consent_revision_mismatch" | "signature_invalid" | "expired" | "not_found"
+    { message, reason }: { message: string; reason: "consent_revision_mismatch" | "signature_invalid" | "expired" | "not_found" }
   ) {
     super(message);
     this.reason = reason;

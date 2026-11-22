@@ -40,7 +40,7 @@ import test from "node:test";
  *  uses, simplified to a fixed 32-byte seed since this test only needs ONE valid keypair to
  *  generate a genuine signature to mutate away from. */
 function fixedKeyring() {
-  return { derive: async () => new Uint8Array(32).fill(7) } as unknown as import("#src/features/webhooks/index").KeyringPort;
+  return { derive: async () => new Uint8Array(32).fill(7) } as unknown as import("@jini-ai/integrations/webhooks").KeyringPort;
 }
 
 test("verifyPublishSignature: a malformed public key never reaches createPublicKey/verify — the line-177 guard fires before any crypto call, not merely via the outer catch's coincidental throw", async () => {
@@ -63,7 +63,7 @@ test("verifyPublishSignature: a malformed public key never reaches createPublicK
     generation: 1,
   });
   const message = "message-to-verify";
-  const goodSignature = key.sign(message);
+  const goodSignature = key.sign({ message });
 
   assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: goodSignature }), true);
   assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: goodSignature }, cryptoEffect), true);

@@ -1,7 +1,8 @@
 /** Thin HTTP binding for the existing plugin host. A live Router per request generation avoids
  * Express stack surgery: disabled/reloaded handlers have no route entry to dispatch to. */
 import express, { type Express, type RequestHandler, type ErrorRequestHandler, type Response } from 'express';
-import type { PluginAuthContext, PluginContributionsSnapshot, PluginRouteResult } from '@jini-ai/plugins/host';
+import type { PluginContributionsSnapshot } from '@jini-ai/plugins/host';
+import type { PluginAuthContext, PluginRouteResult } from '@jini-ai/core/contracts/plugin-sdk';
 import type { RouteDeps } from '../../../routes/types.js';
 import { authorizeOrRespond } from '../../admin-http/authorize-guard.js';
 import { requireAdminSession } from '../../admin-http/dev-auth.js';
@@ -21,10 +22,10 @@ export function createPluginRouteAuthPorts({ deps }: { deps: RouteDeps }, _optio
     // plugin execution needs the same operator permission as plugin tools, not just a cookie.
     admin: (req, res, next) => operatorSession(req, res, error => {
       if (error) { next(error); return; }
-      void authorizeOrRespond(res, deps.authorize, { principalId: res.locals.principal.id,
+      void authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: res.locals.principal.id,
         permission: 'admin.plugins.enable', workspaceId: deps.workspaceId,
         entityType: 'plugin', entityId: res.locals.pluginOwnerId,
-      }).then(allowed => { if (allowed) next(); }).catch(next);
+      } }).then(allowed => { if (allowed) next(); }).catch(next);
     }),
     member: async (req, res, next) => {
       try {
@@ -44,7 +45,7 @@ type PluginRouteDeps = Pick<RouteDeps, 'workspaceId' | 'pluginContributions' | '
 type PluginRouteErrorReporter = (required: { pluginId: string; error: unknown }, optional?: Record<string, never>) => void;
 
 const respondNotFound = (res: Response): void => { res.status(404).json({ code: 'NOT_FOUND' }); };
-const warnPluginRouteFailure: PluginRouteErrorReporter = failure => console.warn(`[plugins] Plugin '${failure.pluginId}' route failed`, failure.error);
+const warnPluginRouteFailure: PluginRouteErrorReporter = ({ pluginId, error }, _optional = {}) => console.warn(`[plugins] Plugin '${pluginId}' route failed`, error);
 
 /** Whether the durable activation row says the plugin is enabled right now. */
 async function isPluginActivated({ deps, pluginId }: { deps: PluginRouteDeps; pluginId: string }): Promise<boolean> {

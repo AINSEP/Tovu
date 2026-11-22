@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, type FormDeliveryJob, type FormDeliveryQueuedJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import { set, type AuthorizeFn, type SettingsWriteServiceDeps } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
@@ -157,10 +157,10 @@ export interface FixtureSite {
 /** Composes the site at `dir` (fresh or reopened) and waits for every boot step to settle. */
 export async function bootSite(required: { dir: string }): Promise<FixtureSite> {
   let store: SiteStore | undefined;
-  const deps = await createSiteRouteDeps(path.join(required.dir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(required.dir, "content.db"), overrides: {
     siteBinding: { dir: required.dir, name: path.basename(required.dir), dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (opened) => { store = opened; },
-  });
+    onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
+  } });
   await Promise.allSettled(Object.entries(deps).filter(([key, value]) => key.endsWith("Ready") && value instanceof Promise).map(([, value]) => value));
   assert.ok(deps.contentKernel, "the SQLite composition exposes its content kernel");
   assert.ok(store, "the composition reported its store");
@@ -192,7 +192,7 @@ export async function installFixturePlugin(required: { deps: SiteDeps }): Promis
     };
     for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(pluginRoot, name), content);
     await deps.agentPluginLifecycle.seedBundledAgentPlugins({ layout: deps.agentPluginLayout, workspaceId: deps.workspaceId, sourceRoot });
-    await deps.agentPluginLifecycle.setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
+    await deps.agentPluginLifecycle.setAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, pluginId: PLUGIN_ID, enabled: true, actor: "test" });
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
   }

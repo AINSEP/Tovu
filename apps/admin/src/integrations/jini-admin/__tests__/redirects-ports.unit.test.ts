@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AdminApiError, describeApiError } from '@jini-ai/admin/core';
+import { AdminApiError, describeApiError } from '@jini-ai/core/admin-runtime';
 import type { RedirectsTransportPort } from '@jini-ai/admin/redirects/adapters/http';
-import { ApiError } from '../../../lib/api';
+import { ApiError } from '../../../lib/admin-http/request';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 import { createRedirectsHostPorts, createRedirectsTranslator, redirectsEvents, redirectsSessionGrants } from '../redirects-ports';
 
@@ -54,7 +54,7 @@ describe('redirects host ports', () => {
 
   it.each(['', 'operator error'])('retains host error fallback and details for message %j', async message => {
     const body = { detail: 'original detail' };
-    const transport: RedirectsTransportPort = { request: async () => { throw new ApiError(message, 409, 'CONFLICT', body); }, url: ({ path }) => path };
+    const transport: RedirectsTransportPort = { request: async () => { throw new ApiError({ message, status: 409 }, { code: 'CONFLICT', body }); }, url: ({ path }) => path };
     const { redirectsApi } = createRedirectsHostPorts({ transport });
     const error = await redirectsApi.listRedirects({}).catch(value => value);
     expect(error).toBeInstanceOf(AdminApiError);

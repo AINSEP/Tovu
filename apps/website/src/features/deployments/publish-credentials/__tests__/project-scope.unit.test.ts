@@ -1,4 +1,4 @@
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminPublishCredentialsRoutes, type AdminPublishCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
@@ -9,7 +9,8 @@ import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -52,7 +53,7 @@ function projectStore() {
   const keyring = new InMemoryKeyring();
   return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
-type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort; vault: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort };
+type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/core/contracts/vault").VaultRepoPort; vault: import("@jini-ai/core/contracts/vault").VaultRepoPort };
 
 let ids = 0;
 /** One site: its own vault, with both credential stores' project halves over the same project vault
@@ -270,7 +271,7 @@ test('a Deployments-page save attaches its project key to this site and survives
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminPublishCredentialsRoutes(app, {
+  registerAdminPublishCredentialsRoutes({ app, deps: {
     observability: createNoopObservabilityPort({}), publishExecutionMode: "hosted-api-only",
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
     vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,
@@ -280,7 +281,7 @@ test('a Deployments-page save attaches its project key to this site and survives
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  });
+  } });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials';
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' };
@@ -310,4 +311,13 @@ test('a Deployments-page save attaches its project key to this site and survives
   const orphan = (await project.vault.list({ workspaceId: 'project', kind: 'vendor', ownerKey: 'tovu', principalId: null })).find(row => row.label === 'Unattached')!;
   assert.equal(orphan.isDefault, false);
   assert.deepEqual(await attachments.usersOf({ keyId: orphan.id }), []);
+});
+
+test("a projectKeyCreateVault conflict maps to PublishCredentialDuplicateLabelError", async () => {
+  const project = projectStore();
+  await saveVercel(site(project).deps, SITE_A, "Taken", secret("first"));
+  const view = attachedOnlyVault({ vault: project.vault, attachments: fakeAttachments(), siteId: SITE_B });
+  const b = site({ ...project, vault: view, createVault: projectKeyCreateVault({ owner: project.vault, view }) });
+  await assert.rejects(saveVercel(b.deps, SITE_B, "Taken", secret("second")), error =>
+    error instanceof PublishCredentialDuplicateLabelError && error.message.includes("P25_KEY_CREATE_CONFLICT"));
 });

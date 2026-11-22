@@ -19,7 +19,7 @@ import { CHAT_MIGRATIONS } from "../index.js";
 
 const T0 = 1_790_000_000_000;
 const USER = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
-const GUEST = { scopeId: "ws", ownerKind: "guest", ownerId: hashSessionKey("disposable-guest-cookie") } as const;
+const GUEST = { scopeId: "ws", ownerKind: "guest", ownerId: hashSessionKey({ sessionKey: "disposable-guest-cookie" }) } as const;
 const LEDGER = [
   { id: "0000_chat_baseline", checksum: "d7673b2b2ac8af992a396b375fa38da8ffbf852285c772016dc47c82d66d17a9", applied_at: "2026-09-05T01:02:03.000Z" },
   { id: "0001_sqlite_chat_tables", checksum: "6ab892750dcd9201f17bd05df3f3f69f84a6342d54647984d6c834dd7d5d164f", applied_at: "2026-09-05T01:02:04.000Z" },
@@ -79,11 +79,11 @@ function assertIdleIndex(db: Database.Database): void {
 }
 
 async function readBoth(db: Database.Database) {
-  const kernel = chatKernel(db);
-  assert.equal(kernel, sqliteKernel<ChatDatabase>(db), "host and package must resolve the exact same memoized kernel");
+  const kernel = chatKernel({ store: db });
+  assert.equal(kernel, sqliteKernel<ChatDatabase>({ source: db }), "host and package must resolve the exact same memoized kernel");
   for (const [scope, id] of [[USER, "user-chat"], [GUEST, "guest-chat"]] as const) {
     const original = beforeAdoption(kernel, scope);
-    const adopted = createChatHistoryStore(kernel, scope);
+    const adopted = createChatHistoryStore({ kernel: kernel, scope: scope });
     assert.deepEqual(await adopted.list(), await original.list());
     assert.deepEqual(await adopted.get({ id }), await original.get(id));
     assert.deepEqual(await adopted.messages({ conversationId: id }), await original.messages(id));
@@ -110,7 +110,7 @@ test("normal bootstrap, adopted and rollback readers preserve existing schema, a
     let upgraded: ReturnType<typeof snapshot> | undefined;
     db.close(); db = undefined;
     for (let i = 0; i < 2; i++) {
-      db = await openSiteChatDb(chatFile);
+      db = await openSiteChatDb({ filePath: chatFile });
       assert.equal(db.name, chatFile, "the host opens the original physical database");
       assert.equal(db.pragma("foreign_keys", { simple: true }), 1);
       assert.equal(db.pragma("journal_mode", { simple: true }), "wal");
@@ -139,7 +139,7 @@ test("constructing and reading the package adapter alone leaves checkpointed mai
     db = seed(file, true); db.close(); db = undefined;
     const initial = readFileSync(file);
     db = new Database(file, { readonly: true, fileMustExist: true });
-    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER });
+    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>({ source: db }), scope: USER, clock: { nowMs: () => Date.now() } });
     assert.equal((await history.list())[0]?.id, "user-chat");
     assert.equal((await history.messages({ conversationId: "user-chat" }))[0]?.createdAt, T0 + 1);
     await history.pageConversations({}); await history.pageMessages({ conversationId: "user-chat" });
@@ -154,7 +154,7 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
   try {
     const file = join(dir, "chat.db"); db = seed(file, false);
     const initial = snapshot(db); db.close(); db = undefined;
-    db = await openSiteChatDb(file);
+    db = await openSiteChatDb({ filePath: file });
     assertIdleIndex(db);
     const adopted = snapshot(db);
     for (const name of Object.keys(initial.values)) assert.deepEqual(adopted.values[name], initial.values[name]);
@@ -164,7 +164,7 @@ test("a pre-ledger fixture retains every chat value while adopting only its firs
     assert.deepEqual(ledger.map(({ id, checksum }) => ({ id, checksum })), CHAT_MIGRATIONS.map(({ id, checksum }) => ({ id, checksum })));
     for (const row of ledger) assert.match(row.applied_at, /^\d{4}-\d{2}-\d{2}T/);
     await readBoth(db);
-    db.close(); db = await openSiteChatDb(file);
+    db.close(); db = await openSiteChatDb({ filePath: file });
     assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), ledger);
   } finally { db?.close(); rmSync(dir, { recursive: true, force: true }); }
 });
@@ -189,6 +189,7 @@ test("C3 changes zero bytes in historical SQL, metadata, chat steps or checksum 
     ...readdirSync(resolve(root, "apps/website/src/platform/db/migrations/chat")).filter(n => n.endsWith(".ts")).map(n => `apps/website/src/platform/db/migrations/chat/${n}`),
   ];
   // Later migrations are additive; freeze the C3 inventory and its hashes, not future filenames.
+  // Why: chat 0000/0001 were re-pinned once after wave B's import-only rewrite (1be21a4f: StorageKernel -> KyselyKernel types; SQL statements and ledger checksums untouched).
   assert.deepEqual(actualFiles.filter(file => Object.hasOwn(expected, file)).sort(), Object.keys(expected).sort());
   for (const [file, hash] of Object.entries(expected)) {
     assert.equal(createHash("sha256").update(readFileSync(resolve(root, file))).digest("hex"), hash, `${file}: historical bytes changed after the C3 handoff`);

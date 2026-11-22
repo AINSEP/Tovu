@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { buildPluginCredentialForm } from "../../../../apps/website/src/contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "../../../../apps/website/src/features/custom-credentials/plugin-credential-card.js";
 import path from 'node:path';

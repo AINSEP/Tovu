@@ -1,4 +1,4 @@
-import type { AdminMenuItem } from "../../lib/api";
+import type { AdminMenuItem } from "./api/menus-api.types";
 
 /**
  * @file `ItemRow`'s Remove-button confirmation logic (audit Major finding: Remove previously
@@ -7,7 +7,7 @@ import type { AdminMenuItem } from "../../lib/api";
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (admin TSX-logic-sweep, 2026-09-05).
  * `MenuEditor.tsx`'s own state/API calls all live in `hooks/use-menu-editor.hooks.ts`; this is a
  * second, LOCAL hook for markup-adjacent interaction logic that hook has no reason to own — same
- * split `SitemapModal.hooks.tsx` uses for its own regenerate-then-refetch sequencing.
+ * split `Jini packages/admin/src/seo/react/hooks/SitemapModal.hooks.ts` uses for its own regenerate-then-refetch sequencing.
  *
  * `countDescendants` moves here too (rather than staying in `MenuEditor.tsx` and being imported
  * back, which would make the two files import each other): its one caller is
@@ -29,17 +29,16 @@ function countDescendants(item: AdminMenuItem): number {
  * `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals; an item with
  * descendants asks for confirmation naming exactly how many nested items would go with it.
  *
- * @param item - The item the Remove button belongs to; only its own descendant count is read.
- * @param path - Forwarded to `onRemove` unchanged.
- * @param onRemove - Called with `path` once the removal is confirmed (or needed no confirmation).
+ * @param required.item - The item the Remove button belongs to; only its own descendant count is read.
+ * @param required.path - Forwarded to `onRemove` unchanged.
+ * @param required.onRemove - Called with `path` once the removal is confirmed (or needed no confirmation).
  * @returns `handleRemoveClick`, wired directly to the Remove button's `onClick`.
  * @complexity O(n) in the item's own subtree size, via `countDescendants` — same cost the
  *   original inline call already paid.
  */
 export function useMenuItemRemove(
-  item: AdminMenuItem,
-  path: number[],
-  onRemove: (path: number[]) => void
+  { item, path, onRemove }: { item: AdminMenuItem; path: number[]; onRemove: (path: number[]) => void },
+  _optional = {},
 ): { handleRemoveClick: () => void } {
   function handleRemoveClick(): void {
     const descendantCount = countDescendants(item);

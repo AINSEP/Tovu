@@ -27,7 +27,8 @@ import { forceRemove } from "../fixtures/force-remove.js";
  * lost-lock injection removes the real lock before assertHeld(), preserving the no-write proof.
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
@@ -64,7 +65,7 @@ function timeoutBehavior(pid: number): typeof behavior {
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -195,7 +196,7 @@ test("B5: a lock LOST right before the rename maps to AgentPluginActivationsBusy
   }
 });
 
-test("B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing", async () => {
+test("B6: a busy pre-flight fails every bundled plugin with the fixed class label (no lock path), installing nothing", async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "tovu-seed-lock-busy-"));
   const bundledRoot = await mkdtemp(path.join(os.tmpdir(), "tovu-seed-lock-busy-bundled-"));
   try {
@@ -209,8 +210,10 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     const outcome = result.outcomes[0] as { pluginId: string; status: string; reason?: string };
     assert.equal(outcome.pluginId, "mini-bundled");
     assert.equal(outcome.status, "failed");
-    assert.match(outcome.reason ?? "", /write lock/);
-    assert.deepEqual(await listInstalledPlugins(layout.forWorkspace(WORKSPACE_ID).root), []);
+    // Jini's seed path reports failures through describeErrorForLog (log lines carry fixed words,
+    // bc545d4d / d68cdd24): the busy error's message, which quotes the host lock path, is never the reason.
+    assert.equal(outcome.reason, "Error");
+  assert.deepEqual(await listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root }), []);
   } finally {
     behavior = realFsp.open;
     await forceRemove(cwd);

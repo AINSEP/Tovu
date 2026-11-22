@@ -11,7 +11,7 @@ import { bootstrapFreshContentDb } from "../fresh-content-db.js";
 const BEHIND = "fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard";
 const tables = (db: ContentDb) => (db.$client.prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{ name: string }>).map(row => row.name);
 function withDb(work: (db: ContentDb) => void) {
-  const db = openSqliteContentConnection(":memory:");
+  const db = openSqliteContentConnection({ filePath: ":memory:" });
   try { work(db); } finally { db.$client.close(); }
 }
 

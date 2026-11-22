@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, describeApiError } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { describeApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The row-level "Connect" button behind Settings → External MCP (2026-10-23): starts the
@@ -22,7 +23,7 @@ import { api, describeApiError } from "@/lib/api";
 /** Must match `EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE` in the website's `routes/oauth/callback-page.ts`. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";
 
-export type ExternalMcpOAuthConnectPort = Pick<typeof api, "connectExternalMcpOAuth" | "pollExternalMcpOAuthDevice">;
+export type ExternalMcpOAuthConnectPort = Pick<typeof integrationsApi, "connectExternalMcpOAuth" | "pollExternalMcpOAuthDevice">;
 
 export type ExternalMcpOAuthConnectState =
   | { phase: "idle"; error?: string }
@@ -32,14 +33,14 @@ export type ExternalMcpOAuthConnectState =
 
 /** Browser seams, so a test drives the flow without a real window. */
 export interface ExternalMcpOAuthConnectWindow {
-  open: (url: string) => { location: { href: string }; close: () => void } | null;
+  open: (input: { url: string }, options?: Record<string, never>) => { location: { href: string }; close: () => void } | null;
   addEventListener: Window["addEventListener"];
   removeEventListener: Window["removeEventListener"];
   origin: string;
 }
 
 const browserWindow = (): ExternalMcpOAuthConnectWindow => ({
-  open: (url) => window.open(url, "_blank", "popup,width=520,height=720"),
+  open: ({ url }, _options = {}) => window.open(url, "_blank", "popup,width=520,height=720"),
   addEventListener: window.addEventListener.bind(window),
   removeEventListener: window.removeEventListener.bind(window),
   origin: window.location.origin,
@@ -56,7 +57,7 @@ const browserWindow = (): ExternalMcpOAuthConnectWindow => ({
  */
 export function useExternalMcpOAuthConnect(
   { serverId, grant, onConnected }: { serverId: string; grant: string; onConnected: () => void },
-  { port = api, win = browserWindow, fallbackError = "Sign-in could not start." }: { port?: ExternalMcpOAuthConnectPort; win?: () => ExternalMcpOAuthConnectWindow; fallbackError?: string } = {},
+  { port = integrationsApi, win = browserWindow, fallbackError = "Sign-in could not start." }: { port?: ExternalMcpOAuthConnectPort; win?: () => ExternalMcpOAuthConnectWindow; fallbackError?: string } = {},
 ) {
   const [state, setState] = useState<ExternalMcpOAuthConnectState>({ phase: "idle" });
   // Everything that must stop on cancel/unmount: a poll timer, the message/focus listeners.
@@ -96,7 +97,7 @@ export function useExternalMcpOAuthConnect(
     let stopped = false;
     const tick = async () => {
       try {
-        const result = await port.pollExternalMcpOAuthDevice(serverId);
+        const result = await port.pollExternalMcpOAuthDevice({ serverId });
         if (stopped) return;
         if (result.status === "connected") {
           finish();
@@ -104,7 +105,7 @@ export function useExternalMcpOAuthConnect(
         }
         timer = setTimeout(() => void tick(), result.retryAfterSeconds * 1000);
       } catch (error) {
-        if (!stopped) finish(describeApiError(error, fallbackError));
+        if (!stopped) finish(describeApiError({ e: error, fallback: fallbackError }));
       }
     };
     timer = setTimeout(() => void tick(), intervalSeconds * 1000);
@@ -114,24 +115,24 @@ export function useExternalMcpOAuthConnect(
   const connect = useCallback(async (options: { destination?: "shared" } = {}) => {
     stop();
     const w = win();
-    const popup = grant === "device_code" ? null : w.open("about:blank");
+    const popup = grant === "device_code" ? null : w.open({ url: "about:blank" });
     setState({ phase: "starting" });
     try {
       const { auth } = await startConnection({ port, serverId, options });
       if (auth.kind === "redirect_required") {
         if (popup) popup.location.href = auth.authorizationUrl;
-        else w.open(auth.authorizationUrl);
+        else w.open({ url: auth.authorizationUrl });
         awaitRedirect(w);
         return;
       }
       popup?.close();
       const verificationUri = auth.verificationUriComplete ?? auth.verificationUri;
-      w.open(verificationUri);
+      w.open({ url: verificationUri });
       setState({ phase: "device", userCode: auth.userCode, verificationUri });
       pollDevice(auth.intervalSeconds);
     } catch (error) {
       popup?.close();
-      setState({ phase: "idle", error: describeApiError(error, fallbackError) });
+      setState({ phase: "idle", error: describeApiError({ e: error, fallback: fallbackError }) });
     }
   }, [stop, win, grant, port, serverId, awaitRedirect, pollDevice, fallbackError]);
 
@@ -145,5 +146,5 @@ export function useExternalMcpOAuthConnect(
 
 /** Preserve the existing one-argument local port call while making shared saving explicit. */
 function startConnection({ port, serverId, options }: { port: ExternalMcpOAuthConnectPort; serverId: string; options: { destination?: "shared" } }) {
-  return options.destination ? port.connectExternalMcpOAuth(serverId, options) : port.connectExternalMcpOAuth(serverId);
+  return options.destination ? port.connectExternalMcpOAuth({ serverId }, options) : port.connectExternalMcpOAuth({ serverId });
 }

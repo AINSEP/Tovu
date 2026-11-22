@@ -18,7 +18,7 @@ import {
 import type { SaveState } from "@/hooks/use-settings-slice.hooks";
 import { firstLoadError } from "../rules";
 import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
-import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@/lib/api";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file Pure-logic coverage for `features/settings/rules.ts` — the "everything resolved" gate,
@@ -33,54 +33,54 @@ function slice(value: unknown, loadError: string | null = null): SliceLoadState 
 
 describe("mergeSourceUpdate", () => {
   it("defaults an unknown source to empty fields and enabled", () => {
-    expect(mergeSourceUpdate(undefined, {})).toEqual({ fields: {}, enabled: true, label: undefined });
+    expect(mergeSourceUpdate({ previous: undefined, patch: {} })).toEqual({ fields: {}, enabled: true, label: undefined });
   });
 
   it("defaults missing previous fields and enabled while retaining its label", () => {
-    expect(mergeSourceUpdate({ label: "Local" }, {})).toEqual({ fields: {}, enabled: true, label: "Local" });
+    expect(mergeSourceUpdate({ previous: { label: "Local" }, patch: {} })).toEqual({ fields: {}, enabled: true, label: "Local" });
   });
 
   it("keeps explicit false and blank labels and merges fields without mutating the prior source", () => {
     const previous = { fields: { command: "node", args: "old" }, enabled: true, label: "Local" };
     const patch = { fields: { args: "new" }, enabled: false, label: "" };
-    expect(mergeSourceUpdate(previous, patch)).toEqual({ fields: { command: "node", args: "new" }, enabled: false, label: "" });
+    expect(mergeSourceUpdate({ previous, patch })).toEqual({ fields: { command: "node", args: "new" }, enabled: false, label: "" });
     expect(previous).toEqual({ fields: { command: "node", args: "old" }, enabled: true, label: "Local" });
     expect(patch).toEqual({ fields: { args: "new" }, enabled: false, label: "" });
   });
 
   it("preserves a disabled source when the patch omits enabled", () => {
-    expect(mergeSourceUpdate({ fields: { command: "node" }, enabled: false, label: "Local" }, {}))
+    expect(mergeSourceUpdate({ previous: { fields: { command: "node" }, enabled: false, label: "Local" }, patch: {} }))
       .toEqual({ fields: { command: "node" }, enabled: false, label: "Local" });
   });
 });
 
 describe("areAnySlicesLoading", () => {
   it("is false for an empty slice set", () => {
-    expect(areAnySlicesLoading([])).toBe(false);
+    expect(areAnySlicesLoading({ slices: [] })).toBe(false);
   });
 
   it("is false once every slice has settled (non-null value)", () => {
-    expect(areAnySlicesLoading([slice("a"), slice({ theme: "dark" }), slice(0)])).toBe(false);
+    expect(areAnySlicesLoading({ slices: [slice("a"), slice({ theme: "dark" }), slice(0)] })).toBe(false);
   });
 
   it("is true while any single slice is still null, regardless of position", () => {
-    expect(areAnySlicesLoading([slice(null), slice("a")])).toBe(true);
-    expect(areAnySlicesLoading([slice("a"), slice(null)])).toBe(true);
+    expect(areAnySlicesLoading({ slices: [slice(null), slice("a")] })).toBe(true);
+    expect(areAnySlicesLoading({ slices: [slice("a"), slice(null)] })).toBe(true);
   });
 });
 
 describe("firstLoadError", () => {
   it("is null when no slice reports an error", () => {
-    expect(firstLoadError([slice("a"), slice("b")])).toBeNull();
+    expect(firstLoadError({ slices: [slice("a"), slice("b")] })).toBeNull();
   });
 
   it("returns the first error in slice order, ignoring later ones", () => {
-    const result = firstLoadError([slice("a"), slice(null, "first failure"), slice(null, "second failure")]);
+    const result = firstLoadError({ slices: [slice("a"), slice(null, "first failure"), slice(null, "second failure")] });
     expect(result).toBe("first failure");
   });
 
   it("is null for an empty slice set", () => {
-    expect(firstLoadError([])).toBeNull();
+    expect(firstLoadError({ slices: [] })).toBeNull();
   });
 });
 
@@ -97,7 +97,7 @@ describe("describeSaveStatus", () => {
 
 describe("resolveByokConfig", () => {
   it("falls back to DEFAULT_EXECUTION_CONFIG.byok while executionConfig is still null", () => {
-    expect(resolveByokConfig(null)).toBe(DEFAULT_EXECUTION_CONFIG.byok);
+    expect(resolveByokConfig({ executionConfig: null })).toBe(DEFAULT_EXECUTION_CONFIG.byok);
   });
 
   it("passes a loaded config's own byok through unchanged", () => {
@@ -105,7 +105,7 @@ describe("resolveByokConfig", () => {
       ...DEFAULT_EXECUTION_CONFIG,
       byok: { ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" },
     };
-    expect(resolveByokConfig(executionConfig)).toEqual({ ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" });
+    expect(resolveByokConfig({ executionConfig })).toEqual({ ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" });
   });
 });
 
@@ -288,6 +288,7 @@ describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's 
    * than a snapshot of today's fields.
    */
   const TOP_LEVEL_FIELDS: Record<keyof AdminExternalMcpServerInput, true> = {
+    expectedVersion: true,
     label: true,
     transport: true,
     enabled: true,
@@ -324,10 +325,11 @@ describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's 
    *    itself (a fixed "Label" input outside the per-item field-spec loop), not by this module.
    *  - `enabled` — rendered by that same package's enable/disable checkbox in the card header, gated
    *    on `source.enabled !== undefined` rather than a field spec.
+   *  - `expectedVersion` — the basis the tab sends back (the `version` it last loaded or saved), never typed by an operator.
    *  - `oauth` — a wire-body CONTAINER, not a control an operator fills in directly; its own members
    *    are `OAUTH_FIELDS` below, each checked against its own `oauth<Field>` spec key.
    */
-  const RENDERED_OUTSIDE_FIELD_SPECS = new Set<keyof AdminExternalMcpServerInput>(["label", "enabled", "oauth"]);
+  const RENDERED_OUTSIDE_FIELD_SPECS = new Set<keyof AdminExternalMcpServerInput>(["label", "enabled", "oauth", "expectedVersion"]);
 
   /**
    * The union of every spec key `buildExternalMcpFieldSpecs` can produce across the field set's two
@@ -407,22 +409,22 @@ describe("validateExternalMcpOAuthIdentity", () => {
 
 describe("buildExternalMcpCardHandles", () => {
   it("derives a legible handle from the server's own id, not its position", () => {
-    expect(buildExternalMcpCardHandles(["higgsfield", "github"])).toEqual([
+    expect(buildExternalMcpCardHandles({ sourceIds: ["higgsfield", "github"] })).toEqual([
       "mcp-server-higgsfield",
       "mcp-server-github",
     ]);
   });
 
   it("slugifies an id that is not already handle-shaped, since a handle is [a-z0-9-] only", () => {
-    expect(buildExternalMcpCardHandles(["My_Server.1"])).toEqual(["mcp-server-my-server-1"]);
+    expect(buildExternalMcpCardHandles({ sourceIds: ["My_Server.1"] })).toEqual(["mcp-server-my-server-1"]);
   });
 
   it("falls back to the position for an id with nothing sluggable left in it", () => {
-    expect(buildExternalMcpCardHandles(["***", "…"])).toEqual(["mcp-server-1", "mcp-server-2"]);
+    expect(buildExternalMcpCardHandles({ sourceIds: ["***", "…"] })).toEqual(["mcp-server-1", "mcp-server-2"]);
   });
 
   it("keeps two ids that slugify identically apart", () => {
-    expect(buildExternalMcpCardHandles(["My_Server", "my.server"])).toEqual([
+    expect(buildExternalMcpCardHandles({ sourceIds: ["My_Server", "my.server"] })).toEqual([
       "mcp-server-my-server",
       "mcp-server-my-server-2",
     ]);
@@ -433,20 +435,20 @@ describe("buildExternalMcpCardHandles", () => {
   // they make every `page.click`/`page.fill` aimed at either card resolve to whichever the DOM
   // reaches first. This is why the suffix search is a loop.
   it("keeps a de-duplication suffix from colliding with an id that already looks like one", () => {
-    const handles = buildExternalMcpCardHandles(["x", "x-3", "x"]);
+    const handles = buildExternalMcpCardHandles({ sourceIds: ["x", "x-3", "x"] });
     expect(new Set(handles).size).toBe(3);
     expect(handles).toEqual(["mcp-server-x", "mcp-server-x-3", "mcp-server-x-2"]);
   });
 
   it("never repeats a handle, however adversarial the id list", () => {
     const ids = ["x", "x-2", "x", "x-3", "x", "X", "x_", "-x-", "x-2-2"];
-    const handles = buildExternalMcpCardHandles(ids);
+    const handles = buildExternalMcpCardHandles({ sourceIds: ids });
     expect(handles).toHaveLength(ids.length);
     expect(new Set(handles).size).toBe(ids.length);
   });
 
   it("returns nothing for an empty list", () => {
-    expect(buildExternalMcpCardHandles([])).toEqual([]);
+    expect(buildExternalMcpCardHandles({ sourceIds: [] })).toEqual([]);
   });
 });
 

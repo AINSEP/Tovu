@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api as pluginsApi, type AdminAgentPlugin } from "../../../lib/api";
+import type { AdminAgentPlugin } from "../../integrations/api/integrations-api.types";
+import { integrationsApi } from "../../integrations/api/integrations-api";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
@@ -35,7 +36,7 @@ export interface EmailProviderController {
 }
 
 /** Email orchestration only; the Plugins API owns activation and trust checks. */
-type PluginApi = Pick<typeof pluginsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
+type PluginApi = Pick<typeof integrationsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
 function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Promise<MailProviderConfigurationReport> }, _optional = {}) {
   const { pluginApi, refresh } = required;
   const [choices, setChoices] = useState<AdminAgentPlugin[] | null>(null);
@@ -49,7 +50,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     let live = true;
     pluginApi.listAgentPlugins().then(({ agentPlugins }) => {
       if (live) setChoices(agentPlugins.filter((p) => !p.enabled && p.provides?.includes("outbound-mail")));
-    }, (error: unknown) => { if (live) setAddError(errorMessage(error)); });
+    }, (error: unknown) => { if (live) setAddError(errorMessage({ error })); });
     return () => { live = false; };
   }, [pluginApi, attempt]);
   const addProvider = useCallback(async ({ pluginId }: { pluginId: string }, _optional = {}) => {
@@ -60,7 +61,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
     setAddError(null);
     setAddWarning(null);
     try {
-      const { warnings } = await pluginApi.setAgentPluginEnabled(pluginId, { enabled: true });
+      const { warnings } = await pluginApi.setAgentPluginEnabled({ pluginId, enabled: true });
       setAddWarning(warnings?.join(" ") || null);
       const report = await refresh();
       const provider = report.providers.find((p) => p.pluginId === pluginId);
@@ -68,7 +69,7 @@ function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Pro
       setChoices((rows) => rows?.filter((p) => p.pluginId !== pluginId) ?? null);
       return provider.id;
     } catch (error) {
-      setAddError(error instanceof Error ? error.message : errorMessage(error));
+      setAddError(error instanceof Error ? error.message : errorMessage({ error }));
       return undefined;
     } finally {
       locked.current = false;
@@ -89,7 +90,7 @@ export function isFullyActive(provider: MailProviderConfiguration): boolean {
 }
 
 /** The body a key save sends: trimmed, blank parts left out (a rotation may change just one). Pure. */
-export function credentialBody(draft: MailProviderCredentialInput | undefined): MailProviderCredentialInput {
+export function credentialBody({ draft }: { draft: MailProviderCredentialInput | undefined }, _options = {}): MailProviderCredentialInput {
   const out: MailProviderCredentialInput = {};
   for (const key of ["token", "username", "baseUrl"] as const) {
     const value = draft?.[key]?.trim();
@@ -121,7 +122,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
   }, []);
 
   const saveKey = useCallback(async (provider: MailProviderConfiguration) => {
-    const body = credentialBody(drafts[provider.id]);
+    const body = credentialBody({ draft: drafts[provider.id] });
     if (!provider.credential.saved && !body.token) {
       setNotice({ providerId: provider.id, tone: "error", text: "Enter the key first." });
       return;
@@ -135,7 +136,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage(error) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
     } finally {
       setBusyId(null);
     }
@@ -152,7 +153,7 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
       reload();
       onChanged?.();
     } catch (error) {
-      setNotice({ providerId: provider.id, tone: "error", text: errorMessage(error) });
+      setNotice({ providerId: provider.id, tone: "error", text: errorMessage({ error }) });
     } finally {
       setBusyId(null);
       setPendingSwitch(null);
@@ -166,5 +167,5 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
 
 /** The real API port. */
 export function useWiredEmailProvider(optional: { onChanged?: () => void } = {}): EmailProviderController {
-  return useEmailProvider({ api: emailApi, pluginApi: pluginsApi }, optional);
+  return useEmailProvider({ api: emailApi, pluginApi: integrationsApi }, optional);
 }

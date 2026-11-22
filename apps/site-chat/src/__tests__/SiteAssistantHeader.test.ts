@@ -215,4 +215,19 @@ describe("SiteAssistantHeader", () => {
     assert.doesNotThrow(() => pressEscape());
     assert.equal(resetCount, 0, "an unmounted component's onReset must never fire");
   });
+
+  it("renders the copy, close label and keyboard supplied through the injected useSiteAssistantHeaderHook", () => {
+    const useSiteAssistantHeaderHook = () => ({
+      t: (key: string) => `«${key}»`,
+      keyboard: { subscribe: () => () => {} },
+      copy: { eyebrow: "", newThread: "Injected new thread", cancel: "Injected cancel", discard: "Injected discard" },
+    });
+    act(() => {
+      root.render(React.createElement(SiteAssistantHeader, { title: "My Site", hasMessages: true, onReset: () => {}, onClose: () => {}, useSiteAssistantHeaderHook }));
+    });
+
+    const labels = Array.from(container.querySelectorAll("button")).map((b) => b.textContent ?? "");
+    assert.ok(labels.includes("Injected new thread"));
+    assert.equal(container.querySelector(".jini-chat-pane__close")?.getAttribute("aria-label"), "«Close chat»");
+  });
 });

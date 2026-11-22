@@ -44,7 +44,7 @@ async function inventoryClient({ t, deps }: { t: import("node:test").TestContext
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerAdminCustomCredentialsRoutes(app, deps);
+  registerAdminCustomCredentialsRoutes({ app, deps });
   const root = await startTestServer(app, t);
   return (init?: RequestInit) => fetch(`${root}/api/admin/v1/workspaces/${deps.workspaceId}/system/custom/credentials`, init);
 }

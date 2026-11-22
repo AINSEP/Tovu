@@ -70,7 +70,7 @@ export function canRequestPlan(phase: PublishContentPhase): boolean {
 export function canConfirmPlan(phase: PublishContentPhase): boolean {
   if (phase.kind !== "planned") return false;
   if (phase.plan.details.refused) return false;
-  return summarizePublishReport(toPublishReportRows(phase.plan.details)).publishing > 0;
+  return summarizePublishReport({ rows: toPublishReportRows(phase.plan.details) }).publishing > 0;
 }
 
 /**

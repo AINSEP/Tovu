@@ -1,6 +1,8 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentProps } from 'react';
 import { widgets, useWidgetsOptions, type WidgetsReactOptions, type WidgetsSlots } from '@jini-ai/admin/widgets/react';
-import type { AdminWidgetType as HostWidgetType } from '../../lib/api';
+import type { AdminWidgetType as HostWidgetType } from '../../features/widgets/api/widgets-api.types';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/WidgetConfigFields';
 import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPickerDialog';
@@ -23,21 +25,22 @@ const widgetsHostDefaults: Pick<WidgetsReactOptions, 'slots' | 'widgetTypes' | '
   slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
   widgetTypes: WIDGET_TYPE_OPTIONS,
   // Jini's type vocabulary is open; the host owns the closed v1 config dispatcher/catalog.
-  defaultConfig: type => defaultWidgetConfig(type as HostWidgetType),
+  defaultConfig: type => defaultWidgetConfig({ widgetType: type as HostWidgetType }),
 };
 
 /** Compose live locale and retained host slots with stable lazy pages and controller identity.
  * @returns Widgets bindings; disposing the enclosing admin scope retires its API scope. O(1).
  */
-export function createHostWidgetsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof widgets> {
-  const feature = widgets(widgetsHostDefaults);
+export function createHostWidgetsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof widgets<HostModulePage, LazyTabView>> {
+  const feature = widgets({ ...widgetsHostDefaults, ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Locale refresh must not replace the factory/pages and discard an unsaved config or placement.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
     const locale = useAdminLocaleHook();
     const options = useMemo<WidgetsReactOptions>(() => ({ ...widgetsHostDefaults, locale,
-      t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel(value, locale),
-      slugRedirectPath, headerActions: createElement(PublishSectionButton, { section: 'widgets' }),
+      t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel({ value, locale }),
+      slugRedirectPath: (base, requestedId, item) => slugRedirectPath({ base, requestedId, item }),
+      headerActions: createElement(PublishSectionButton, { section: 'widgets' }),
     }), [locale]);
     return createElement(ScopeProvider, { admin, options, children });
   }

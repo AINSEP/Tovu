@@ -4,10 +4,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { resolveProductRoot } from '#src/platform/site-dir/product-root';
 import { loadTheme } from '#src/features/theme/theme';
-import { pageShell } from '../render.js';
+import { pageShell } from '../render/document-shell.js';
 
 test('the public page shell emits the pre-extraction font link bytes from theme declarations', () => {
-  const root = path.join(resolveProductRoot(), 'content/themes');
+  const root = path.join(resolveProductRoot({}), 'content/themes');
   const golden = JSON.parse(readFileSync(new URL('../../../../../../features/theme/__tests__/fixtures/font-links.json', import.meta.url), 'utf8'));
   for (const [relative, expected] of Object.entries(golden)) {
     const theme = loadTheme({ themeDir: path.join(root, relative), id: path.basename(relative), source: 'built-in' });

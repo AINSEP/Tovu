@@ -9,7 +9,7 @@ test("resolves the operator allowlist once and reports exactly the boot policy",
   const env = { get TOVU_PUBLISH_CONTENT_DEV_HOSTS() { reads++; return " LocalHost, peer.internal, "; } };
   const policies: EgressPolicy[] = []; const reports: string[][] = [];
   const client: HttpClientPort = { send: async () => { throw new Error("unused"); } };
-  const result = resolvePublishContentPeerHttpClient({}, { env, createClient: policy => { policies.push(policy); return client; }, onDevHosts: ({ hosts }) => { reports.push([...hosts]); } });
+  const result = resolvePublishContentPeerHttpClient({}, { env, createClient: ({ policy }) => { policies.push(policy); return client; }, onDevHosts: ({ hosts }) => { reports.push([...hosts]); } });
   assert.equal(result, client); assert.equal(reads, 1);
   assert.deepEqual(policies[0]?.devHostAllowlist, ["localhost", "peer.internal"]);
   assert.deepEqual(reports, [["localhost", "peer.internal"]]);

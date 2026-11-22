@@ -130,10 +130,10 @@ function requirementNames(target: Target): string[] {
   return [...new Set(target.requirements.flatMap(requirement => requirement.records).map(record => normalizeDnsName({ name: record.name })))];
 }
 
-const inZone = (name: string, zone: string): boolean => name === zone || name.endsWith(`.${zone}`);
+const inZone = ({ name, zone }: { name: string; zone: string }, _options = {}): boolean => name === zone || name.endsWith(`.${zone}`);
 
 /** `a.b.example.com` → itself and each parent below the TLD (a wildcard label is dropped). */
-function selfAndAncestors(name: string): string[] {
+function selfAndAncestors({ name }: { name: string }, _options = {}): string[] {
   const names: string[] = [];
   for (let candidate = normalizeDnsName({ name }).replace(/^\*\./, ""); candidate.includes("."); candidate = candidate.slice(candidate.indexOf(".") + 1)) names.push(candidate);
   return names;
@@ -148,18 +148,18 @@ function caaNames(target: Target): string[] {
   if (!target.requirements.some(requirement => requirement.caa !== undefined)) return [];
   const listed = new Set(requirementNames(target));
   const covered = target.requirements.flatMap(requirement => [requirement.domain, ...requirement.records.map(record => record.name)]);
-  return [...new Set(covered.flatMap(selfAndAncestors))].filter(name => !listed.has(name));
+  return [...new Set(covered.flatMap(name => selfAndAncestors({ name })))].filter(name => !listed.has(name));
 }
 
 /** The provider's zone ref for a name outside the target zone; `null` when no zone serves it, `undefined` when unreadable. */
-async function zoneRefOf(name: string, target: Target, ports: DnsChangePorts): Promise<string | null | undefined> {
+async function zoneRefOf({ name, target, ports }: { name: string; target: Target; ports: DnsChangePorts }, _options = {}): Promise<string | null | undefined> {
   const result = await settlePort({ call: () => target.provider.findZone(ports.context, { hostname: name }) });
   return result.status === "ok" ? (result.value?.ref ?? null) : undefined;
 }
 
 /** The CAA set at one ancestor, read from whichever zone serves it (a parent zone above a delegated child included). */
-async function caaAt(name: string, zone: Zone, target: Target, ports: DnsChangePorts): Promise<Listed> {
-  const ref = inZone(name, zone.zone) ? zone.ref : await zoneRefOf(name, target, ports);
+async function caaAt({ name, zone, target, ports }: { name: string; zone: Zone; target: Target; ports: DnsChangePorts }, _options = {}): Promise<Listed> {
+  const ref = inZone({ name, zone: zone.zone }) ? zone.ref : await zoneRefOf({ name, target, ports });
   // No zone serves the name: nothing there can restrict issuance.
   if (ref === null) return { records: [], inventory: "complete" };
   if (ref === undefined) return { records: [], inventory: "unknown" };
@@ -172,19 +172,19 @@ async function caaAt(name: string, zone: Zone, target: Target, ports: DnsChangeP
  * Current records at the required names, plus the CAA sets of their ancestors; anything unreadable
  * is `unknown`, never "empty" (an unread CAA restriction must not pass as no restriction).
  */
-async function listCurrent(target: Target, zone: Zone, ports: DnsChangePorts): Promise<Listed> {
+async function listCurrent({ target, zone, ports }: { target: Target; zone: Zone; ports: DnsChangePorts }, _options = {}): Promise<Listed> {
   const names = requirementNames(target);
   const [result, ancestors] = await Promise.all([
     settlePort({ call: () => target.provider.listRecords(ports.context, { zoneRef: zone.ref, names }) }),
-    Promise.all(caaNames(target).map(name => caaAt(name, zone, target, ports))),
+    Promise.all(caaNames(target).map(name => caaAt({ name, zone, target, ports }))),
   ]);
   const own: Listed = result.status === "ok" ? result.value : { records: [], inventory: "unknown" };
   return { records: [...own.records, ...ancestors.flatMap(read => read.records)], inventory: worstInventory([own.inventory, ...ancestors.map(read => read.inventory)]) };
 }
 
 /** Which zone serves `name`, as far as can be read: the target zone unless proven otherwise. */
-async function authorityOf(name: string, zone: Zone, target: Target, ports: DnsChangePorts): Promise<string | undefined> {
-  if (!inZone(name, zone.zone)) return undefined;
+async function authorityOf({ name, zone, target, ports }: { name: string; zone: Zone; target: Target; ports: DnsChangePorts }, _options = {}): Promise<string | undefined> {
+  if (!inZone({ name, zone: zone.zone })) return undefined;
   if (name === zone.zone || name === normalizeDnsName({ name: target.hostname })) return zone.zone;
   const result = await settlePort({ call: () => target.provider.findZone(ports.context, { hostname: name }) });
   // An unreadable lookup is not proof of another zone.
@@ -200,7 +200,7 @@ async function assertSingleZone(required: { target: Target; zone: Zone; errorPre
   const { target, zone } = required;
   const misplaced: string[] = [];
   for (const name of requirementNames(target)) {
-    const authority = await authorityOf(name, zone, target, ports);
+    const authority = await authorityOf({ name, zone, target, ports });
     if (authority !== zone.zone) misplaced.push(authority === undefined ? `${name} (outside it)` : `${name} (served by the delegated zone ${authority})`);
   }
   if (misplaced.length === 0) return;
@@ -214,7 +214,7 @@ async function locateCheckedZone(required: { target: Target; errorPrefix: string
   return zone;
 }
 
-function hostBlockers(hostname: string, delegation: DelegationCheck | null): DomainDnsBlocker[] {
+function hostBlockers({ hostname, delegation }: { hostname: string; delegation: DelegationCheck | null }, _options = {}): DomainDnsBlocker[] {
   // No delegation is read only when no zone was found.
   if (delegation === null) {
     return [{ code: "zone_not_found", name: hostname, message: `No DNS zone serving ${hostname} could be found, so its current records were not read.`, suggestion: "Check that the domain is registered and has nameservers, then plan again." }];
@@ -227,14 +227,14 @@ function hostBlockers(hostname: string, delegation: DelegationCheck | null): Dom
 async function planTarget(required: { target: Target; errorPrefix: string }, ports: DnsChangePorts): Promise<DomainDnsPlan> {
   const { target } = required;
   const zone = await locateCheckedZone(required, ports);
-  const delegation = zone.found ? await checkDelegation({ zone: zone.zone }, { resolver: ports.resolver }) : null;
-  const current = delegation?.state === "delegated" ? await listCurrent(target, zone, ports) : { records: [], inventory: "unknown" as const };
+  const delegation = zone.found ? await checkDelegation({ zone: zone.zone, resolver: ports.resolver }) : null;
+  const current = delegation?.state === "delegated" ? await listCurrent({ target, zone, ports }) : { records: [], inventory: "unknown" as const };
   const { capabilities } = target.provider;
   const plan = planDnsChanges(
     { providerId: target.providerId, zone: zone.zone, current: current.records, requirements: target.requirements, inventory: current.inventory },
     { apexFlattening: capabilities.apexFlattening, recordTypes: capabilities.recordTypes },
   );
-  return { hostname: target.hostname, providerId: target.providerId, zone: zone.zone, zoneFound: zone.found, delegation, plan, blockers: [...hostBlockers(target.hostname, delegation), ...plan.blockers] };
+  return { hostname: target.hostname, providerId: target.providerId, zone: zone.zone, zoneFound: zone.found, delegation, plan, blockers: [...hostBlockers({ hostname: target.hostname, delegation }), ...plan.blockers] };
 }
 
 /**
@@ -279,11 +279,11 @@ export async function inspectDomainDns(required: DnsChangeRequest, ports: DnsCha
   const errorPrefix = "dns_status";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const planned = await planTarget({ target, errorPrefix }, ports);
-  const verification = planned.zoneFound ? await verifyRequirements({ zone: planned.zone, requirements: target.requirements }, { resolver: ports.resolver }) : null;
+  const verification = planned.zoneFound ? await verifyRequirements({ zone: planned.zone, requirements: target.requirements, resolver: ports.resolver }) : null;
   return { planned, instructions: instructionsFor(target, planned), verification, binding: target.binding };
 }
 
-const iso = (ms: number): string => new Date(ms).toISOString();
+const iso = ({ ms }: { ms: number }, _options = {}): string => new Date(ms).toISOString();
 
 /** A propagated check is final; past the 48 h cap anything else is a timeout, reported not hidden. */
 function statusFor(required: { state: DnsVerification["state"]; startedAt: string; now: number }): DomainBindingStatus {
@@ -292,7 +292,7 @@ function statusFor(required: { state: DnsVerification["state"]; startedAt: strin
 }
 
 /** New requirements, a new zone or a timed-out binding start a fresh propagation window. */
-function restarts(previous: DomainBinding | null, requirements: DnsPlanRequirement[], zone: string): boolean {
+function restarts({ previous, requirements, zone }: { previous: DomainBinding | null; requirements: DnsPlanRequirement[]; zone: string }, _options = {}): boolean {
   return previous === null || previous.status === "timeout" || previous.zone !== zone
     || canonicalJson({ value: previous.requirements }) !== canonicalJson({ value: requirements });
 }
@@ -308,15 +308,15 @@ function summarize(verification: DnsVerification, delegation: DelegationCheck): 
 
 function nextBinding(required: { target: Target; zone: string; delegation: DelegationCheck; verification: DnsVerification; now: number }): DomainBinding {
   const { target, zone, delegation, verification, now } = required;
-  const previous = restarts(target.binding, target.requirements, zone) ? null : target.binding;
+  const previous = restarts({ previous: target.binding, requirements: target.requirements, zone }) ? null : target.binding;
   const attempt = previous === null ? 0 : previous.attempt + 1;
-  const startedAt = previous === null ? iso(now) : previous.startedAt;
+  const startedAt = previous === null ? iso({ ms: now }) : previous.startedAt;
   const status = statusFor({ state: verification.state, startedAt, now });
   const done = status === "propagated" || status === "timeout";
   return {
     hostname: target.hostname, providerId: target.providerId, zone, requirements: target.requirements, status,
-    delegation: delegation.state, attempt, startedAt, nextCheckAt: done ? null : iso(now + nextCheckDelayMs({ attempt })),
-    lastCheckedAt: iso(now), lastResult: summarize(verification, delegation), version: (target.binding?.version ?? 0) + 1,
+    delegation: delegation.state, attempt, startedAt, nextCheckAt: done ? null : iso({ ms: now + nextCheckDelayMs({ attempt }) }),
+    lastCheckedAt: iso({ ms: now }), lastResult: summarize(verification, delegation), version: (target.binding?.version ?? 0) + 1,
   };
 }
 
@@ -339,11 +339,11 @@ async function verifyOnce(required: DnsChangeRequest, ports: VerifyPorts): Promi
   const errorPrefix = "dns_verify";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const { zone } = await locateCheckedZone({ target, errorPrefix }, ports);
-  const delegation = await checkDelegation({ zone }, { resolver: ports.resolver });
-  const verification = await verifyRequirements({ zone, requirements: target.requirements }, { resolver: ports.resolver });
+  const delegation = await checkDelegation({ zone, resolver: ports.resolver });
+  const verification = await verifyRequirements({ zone, requirements: target.requirements, resolver: ports.resolver });
   const now = ports.now();
   const binding = nextBinding({ target, zone, delegation, verification, now });
-  const saved = await ports.bindings.put({ binding, now: iso(now), expectedVersion: target.binding?.version ?? null });
+  const saved = await ports.bindings.put({ binding, now: iso({ ms: now }), expectedVersion: target.binding?.version ?? null });
   return saved ? { binding, delegation, verification } : null;
 }
 
@@ -369,7 +369,7 @@ export async function verifyDomainDns(required: DnsChangeRequest, ports: VerifyP
  * its newer state standing, and comes due again on its own schedule.
  */
 export async function verifyDueDomainBindings(required: { limit: number }, ports: VerifyPorts): Promise<string[]> {
-  const due = await ports.bindings.listDue({ now: iso(ports.now()), limit: required.limit });
+  const due = await ports.bindings.listDue({ now: iso({ ms: ports.now() }), limit: required.limit });
   const checked: string[] = [];
   for (const binding of due) {
     if (await verifyOnce({ hostname: binding.hostname }, ports)) checked.push(binding.hostname);

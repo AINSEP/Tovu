@@ -34,21 +34,21 @@ import type { SiteStorage } from "./types.js";
  *
  * @complexity O(1) file checks plus one store open and `hasKeyDependentData`'s cost.
  */
-export async function findSiteKeyDependentData(siteDir: string, optional: { env?: NodeJS.ProcessEnv } = {}): Promise<boolean> {
+export async function findSiteKeyDependentData({ siteDir }: { siteDir: string }, optional: { env?: NodeJS.ProcessEnv } = {}): Promise<boolean> {
   if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
   let storage: SiteStorage;
   try {
-    storage = resolveSiteStorage(siteDir);
+    storage = resolveSiteStorage({ siteDir });
   } catch {
     return true;
   }
   switch (storage.kind) {
     case "sqlite": {
       const contentDbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
-      return existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+      return existsSync(contentDbPath) ? findKeyDependentData({ dbPaths: [contentDbPath] }) : false;
     }
     case "pglite":
-      return pgliteHasKeyDependentData(join(siteDir, PGLITE_DATA_DIR_NAME));
+      return pgliteHasKeyDependentData({ dataDir: join(siteDir, PGLITE_DATA_DIR_NAME) });
     case "postgres":
       return postgresHasKeyDependentData(storage, optional.env ?? process.env);
     default: {
@@ -59,16 +59,16 @@ export async function findSiteKeyDependentData(siteDir: string, optional: { env?
 }
 
 /** `PG_VERSION` is written by initdb: without it there is no database in the dir, and opening one would create it. */
-async function pgliteHasKeyDependentData(dataDir: string): Promise<boolean> {
+async function pgliteHasKeyDependentData({ dataDir }: { dataDir: string }, _optional = {}): Promise<boolean> {
   if (!existsSync(join(dataDir, "PG_VERSION"))) return false;
   let releaseLock: () => void;
   try {
-    releaseLock = acquireOwnerLock(dataDir);
+    releaseLock = acquireOwnerLock({ dataDir });
   } catch {
     return true;
   }
   try {
-    return await scanOpenedKernel(() => openPgliteKernel<unknown>({ dataDir }));
+    return await scanOpenedKernel({ open: () => openPgliteKernel<unknown>({ dataDir }) });
   } finally {
     releaseLock();
   }
@@ -79,5 +79,5 @@ async function postgresHasKeyDependentData(storage: Extract<SiteStorage, { kind:
   if (storage.secretRef === "site") return true;
   const connectionString = env[storage.secretRef.env];
   if (connectionString === undefined || connectionString.trim() === "") return true;
-  return scanOpenedKernel(() => openPostgresKernel<unknown>({ connectionString, max: 1 }));
+  return scanOpenedKernel({ open: () => openPostgresKernel<unknown>({ connectionString, max: 1 }) });
 }

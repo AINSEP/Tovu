@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { createNoopObservabilityPort, isNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  isNoopObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { definePlugin } from "@tovu/sdk";
 import { WORD_COUNT_MANIFEST } from "#src/features/plugin-runtime/built-ins/word-count/index";
 
@@ -127,7 +130,8 @@ test("a provider plugin whose import/setup stalls is bounded: boot continues, an
   const { events, runtime, ready } = fixture({ setupGate: new Promise<void>((resolve) => { release = resolve; }) });
   await ready;
   assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: ["obs-fake"] }, { timeoutMs: 20 }), []);
-  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^\[plugin-runtime\] provider plugin 'obs-fake' failed to load; its contract stays on the noop: .*timed out/);
+  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^\[plugin-runtime\] provider plugin 'obs-fake' failed to load; its contract stays on the noop: Error$/);
+  // Why: the warning names only the error class now (log lines carry fixed words), so the timeout wording no longer reaches it.
   release();
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(events, ["setup"]);

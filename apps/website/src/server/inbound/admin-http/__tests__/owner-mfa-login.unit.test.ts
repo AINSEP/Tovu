@@ -28,7 +28,7 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
   const mfa = await ownerMfaDepsFrom({ deps });
   factor = { ...scope, lastStep: 0, sealedSecret: await mfa.secrets.seal({ ...scope, secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' }) };
   const app = express();
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const saved = t.mock.method(deps.sessionRepo, 'save');
   function response() {
     const { res, capture } = createCapturingResponse();
@@ -73,7 +73,7 @@ test('password login waits for a valid TOTP and consumes the pending proof befor
   await deps.mfaStore.savePending({ ...scope, purpose: 'passkey-login', tokenHash: 'passkey-proof-hash',
     expiresAt: 359000, attempts: 0, sealedSecret: '{"challenge":"not-a-secret"}' });
   assert.equal(proofs.size, 2);
-  registerAdminUserResetPasswordRoute(app, deps);
+  registerAdminUserResetPasswordRoute({ app, deps });
   const reset = response();
   reset.res.send = () => reset.res;
   reset.res.locals.principal = await deps.principalRepo.findById({ workspaceId: scope.workspaceId, id: scope.principalId });

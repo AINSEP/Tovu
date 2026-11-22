@@ -236,7 +236,7 @@ test("GET .../blobs/:sha serves a blob that exists only in the file index, never
   const content = "body { color: red; } /* file-index-only fixture */";
   writeFileSync(filePath, content);
   const sha = sha256Of(Buffer.from(content));
-  deps.fileBlobIndex.set(sha, { absPath: filePath, size: content.length });
+  deps.fileBlobIndex.set({ sha256: sha, entry: { absPath: filePath, size: content.length } });
 
   const reader = await loginWithPermissions(deps, baseUrl, { username: "file-index-reader", permissions: ["publish_content.read"] });
   const res = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
@@ -258,7 +258,7 @@ test("GET .../blobs/:sha 404s BLOB_NOT_FOUND when the indexed file changed on di
   const original = "body { color: red; }";
   writeFileSync(filePath, original);
   const sha = sha256Of(Buffer.from(original));
-  deps.fileBlobIndex.set(sha, { absPath: filePath, size: original.length });
+  deps.fileBlobIndex.set({ sha256: sha, entry: { absPath: filePath, size: original.length } });
 
   // The author edits the same theme file after the operator opened the publish dialog (packed it) —
   // bytes on disk no longer hash to the sha the index recorded them under.

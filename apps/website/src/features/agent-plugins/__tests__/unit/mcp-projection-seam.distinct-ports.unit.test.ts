@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ToolInputError } from '@jini-ai/core';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';
@@ -19,7 +19,7 @@ import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
 import { forceRemove } from '../fixtures/force-remove.js';
-import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '../../service-ports.js';
+import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 
 // S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.
@@ -64,7 +64,7 @@ async function install(f: Awaited<ReturnType<typeof store>>): Promise<void> {
   await writeFile(path.join(source, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'images', version: '1.0.0' }));
   await writeFile(path.join(source, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
     mcpServers: { media: { type: 'streamable-http', url: 'https://media.example.test/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow: ['models', 'generate'], write: ['generate'] } } } }));
-  const packed = await packAgentPluginDirectory(source);
+  const packed = await packAgentPluginDirectory({ sourceDir: source });
   await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: f.layout, workspaceId: 'site' });
 }
 

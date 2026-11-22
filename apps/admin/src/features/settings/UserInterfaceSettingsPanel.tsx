@@ -1,7 +1,7 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { createUserInterfaceSettingsPanelTranslator } from "./UserInterfaceSettingsPanel.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "./user-interface-settings.css";
-import { t as tInterface } from "./settings-interface-i18n";
 import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-user-interface-tab.hooks";
 
 /**
@@ -12,15 +12,17 @@ import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-use
  * values live (`useInterfacePreferences`). The switch reuses `.agent-plugin-switch`'s paint, and
  * the label says the on/off meaning in words so position is never the only signal.
  */
-export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice; locale: string }) {
-  const tab = useUserInterfaceTab(props.slice);
-  const t = (key: string) => tInterface({ locale: props.locale, key: key });
+export function UserInterfaceSettingsPanel({
+  useUserInterfaceTabHook = useUserInterfaceTab, ...props }: { slice: UserInterfaceTabSlice; locale: string;
+  useUserInterfaceTabHook?: typeof useUserInterfaceTab; }) {
+  const tab = useUserInterfaceTabHook(props.slice);
+  const t = createUserInterfaceSettingsPanelTranslator({ locale: props.locale });
   return (
     <>
       <InterfaceSwitchRow
         id="settings-interface-hide-fab-label"
-        label={t("Hide the chat button while the chat is open")}
-        hint={t("On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it.")}
+        label={t({ key: "Hide the chat button while the chat is open" })}
+        hint={t({ key: "On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it." })}
         checked={tab.hideChatFabWhileOpen}
         onToggle={tab.toggleHideChatFabWhileOpen}
         handle="settings-interface-hide-chat-fab"
@@ -28,8 +30,8 @@ export function UserInterfaceSettingsPanel(props: { slice: UserInterfaceTabSlice
       />
       <InterfaceSwitchRow
         id="settings-interface-wrap-tabs-label"
-        label={t("Wrap tabs instead of scrolling")}
-        hint={t("On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways.")}
+        label={t({ key: "Wrap tabs instead of scrolling" })}
+        hint={t({ key: "On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways." })}
         checked={tab.wrapTabs}
         onToggle={tab.toggleWrapTabs}
         handle="settings-interface-wrap-tabs"

@@ -27,7 +27,7 @@ import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSett
  */
 
 const WS = "ws-life";
-const LABEL = "Tovu Mail — Fake Mail API";
+const LABEL = "Mail — Fake Mail API";
 const MESSAGE = { workspaceId: WS, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" };
 const OPTIONS = { idempotencyKey: "k1", workspaceId: WS, sourceContext: { module: "test" } };
 
@@ -86,6 +86,30 @@ function deps(required: { creds: CustomCredentialWriteDeps; registry: MailAdapte
 
 async function saveKey(creds: CustomCredentialWriteDeps, token: string): Promise<string> {
   return (await createCustomCredential(creds, { workspaceId: WS, label: LABEL, category: "ops", baseUrl: "https://api.fake.test", connection: { token } })).id;
+}
+
+for (const label of ["Jini Mail — Fake Mail API", "Tovu Mail — Fake Mail API"]) {
+  test(`a saved ${label} key sends, reports its identity, rotates and yields to a canonical key`, async () => {
+    const creds = credentialDeps();
+    const { id } = await createCustomCredential(creds, { workspaceId: WS, label, category: "ops", baseUrl: "https://api.fake.test", connection: { token: "original-key" } });
+    const { keys, registry } = fakeProvider();
+    const resolved = createResolvedMailer(deps({ creds, registry }));
+    assert.equal((await resolved.mailer.send(MESSAGE, OPTIONS)).ok, true, "the original saved key can send after the label upgrade");
+    assert.deepEqual(keys, ["original-key"], "the provider receives the historical row token");
+    const report = await resolved.describeProviders();
+    const credential = report.providers.find(provider => provider.id === "fakemail")!.credential;
+    assert.equal(credential.saved, true, "the historical sending key is reported as saved");
+    assert.equal(credential.credentialId, id, "status preserves the original credential identity");
+    assert.equal(credential.label, LABEL, "status displays the canonical mail label");
+    await updateCustomCredential(creds, { workspaceId: WS, id, connection: { token: "rotated-key" } });
+    assert.equal((await resolved.mailer.send(MESSAGE, OPTIONS)).ok, true, "the next send succeeds after rotating the historical row");
+    assert.deepEqual(keys, ["original-key", "rotated-key"], "the fingerprint notices an in-place historical key rotation");
+    const canonicalId = await saveKey(creds, "canonical-key");
+    assert.equal((await resolved.mailer.send(MESSAGE, OPTIONS)).ok, true, "a newly saved canonical key can send");
+    assert.deepEqual(keys, ["original-key", "rotated-key", "canonical-key"], "the canonical key takes precedence over the historical row");
+    const canonical = (await resolved.describeProviders()).providers.find(provider => provider.id === "fakemail")!.credential;
+    assert.equal(canonical.credentialId, canonicalId, "status and sending select the same canonical row");
+  });
 }
 
 test("a key replaced in the store is used by the very next send, with no invalidate and no restart", async () => {

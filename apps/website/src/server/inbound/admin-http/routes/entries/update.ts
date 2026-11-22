@@ -1,36 +1,23 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { toEntryOutbox } from "#src/features/entries/index";
 import { updateEntry } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-import { entryWriteErrorStatus } from "./write-error-status.js";
+import { entriesDeps, entryWriteErrorStatus } from "@jini-ai/cms/entries";
 
 /**
  * @file design-spec.md §1.5/§1.9 — `PUT /api/admin/v1/entries/:id` (updates an entry's
  * title/fieldsJson, REQ-28). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryUpdateRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.put("/api/admin/v1/entries/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "entry",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.manage", workspaceId: deps.workspaceId, entityType: "entry" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       if (typeof body.expectedVersion !== "number") {
@@ -39,21 +26,14 @@ export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRo
       }
 
       const result = await updateEntry({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          clock: deps.clock,
-          // Jini passes entity scope separately; merge it into the host evaluator's request.
-          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
-          outbox: toEntryOutbox(deps),
-        },
+        deps: entriesDeps(deps),
         input: {
           actorId: principal.id,
           workspaceId: deps.workspaceId,
           id: String(req.params.id),
           title: typeof body.title === "string" ? body.title : undefined,
           fieldsJson: body.fieldsJson,
-          // Forwarded rather than dropped. `features/entries/write-service.ts`'s
+          // Forwarded rather than dropped. `Jini packages/cms/src/entries/write-service.ts`'s
           // `updateEntry` has always supported `bodyJson` (and leaves the stored
           // value alone when it is `undefined`), but this route never read it —
           // so a rich-text edit to an existing entry returned 200 while the body

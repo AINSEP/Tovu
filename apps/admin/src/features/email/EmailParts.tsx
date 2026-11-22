@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
 import { t } from "./email-i18n";
@@ -96,7 +96,7 @@ export function CopyButton(props: { text: string; label: string; locale: string;
 }
 
 /** A local date-time for an ISO stamp; the raw text when it does not parse. Pure. */
-export function when(iso: string, locale: string): string {
+export function when({ iso, locale }: { iso: string; locale: string }, _options = {}): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
 }

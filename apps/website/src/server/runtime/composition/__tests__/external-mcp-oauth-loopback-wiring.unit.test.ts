@@ -9,7 +9,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { createSystemClock, type HttpClientPort } from "@jini-ai/core/primitives";
+import { type HttpClientPort } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { beginAuthorizationCode, createPendingAuthorizationStore, type OAuthHttpPorts } from "@jini-ai/oauth";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { resolveApiConnectionRuntime } from "../agent-plugin-connections.js";
@@ -22,7 +23,7 @@ const randomBytesFn = ({ byteLength }: { byteLength: number }) => randomBytes(by
  * Select the one real ports call by AST, excluding comments, and supply only its boot dependencies.
  * Reads one source file; no network, database, process launch, or mutation of the real environment.
  * @throws AssertionError if the root no longer has exactly one OAuth ports call.
- * @complexity O(n) time/space in the source length, bounded to the three composition roots below.
+ * @complexity O(n) time/space in the source length, bounded to the two composition roots below.
  */
 function wiredOAuthPorts(
   { file, env }: { file: string; env: Readonly<Record<string, string | undefined>> },
@@ -59,7 +60,8 @@ function beginRedirect(
   });
 }
 
-for (const file of ["../app.ts", "../deps.ts", "../../../inbound/assistant/agent-daemon-server.ts"]) {
+// Why: the daemon server no longer builds its own OAuth ports (it takes `externalMcpOAuthHttpPorts` from deps.ts, already on terra), so only the one shared composition root that calls the factory remains to pin.
+for (const file of ["../outbound-http.ts"]) {
   test(`${file}: desktop accepts a loopback OAuth callback; hosted requires HTTPS`, async () => {
     for (const electronRunAsNode of ["1", undefined, "true"]) {
       const ports = wiredOAuthPorts({ file, env: { ELECTRON_RUN_AS_NODE: electronRunAsNode } });

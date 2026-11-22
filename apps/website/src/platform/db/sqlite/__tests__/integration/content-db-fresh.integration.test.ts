@@ -7,7 +7,7 @@ import test from "node:test";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { sqliteKernel } from "../../../kernel/drivers/sqlite.js";
-import { readSchemaShape } from "../../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { collectCoreTables } from "../../../migration/manifest.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../../../migrations/index.js";
 import { media, workspaces } from "../../../schema.sqlite.js";
@@ -50,9 +50,9 @@ test("fresh in-memory openContentDb includes media.created_by and supports Drizz
 
 test("fresh synchronous content databases match every declared table's columns and the real TS migration head", async () => {
   const sync = openContentDb(":memory:");
-  const asyncDb = openSqliteContentConnection(":memory:");
+  const asyncDb = openSqliteContentConnection({ filePath: ":memory:" });
   try {
-    const actual = await readSchemaShape(sqliteKernel<unknown>(sync), { exclude: BOOKKEEPING });
+    const actual = await readSchemaShape({ kernel: sqliteKernel<unknown>({ source: sync }) }, { exclude: BOOKKEEPING });
     for (const { table } of collectCoreTables()) {
       const declared = getTableConfig(table);
       const columns = sync.$client.prepare("SELECT name FROM pragma_table_info(?) ORDER BY name")
@@ -60,9 +60,9 @@ test("fresh synchronous content databases match every declared table's columns a
       assert.deepEqual(columns.map(column => column.name), declared.columns.map(column => column.name).sort(),
         `fresh content DB column drift: ${declared.name}`);
     }
-    const report = await migrateContentDatabase(sqliteKernel<unknown>(asyncDb));
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: asyncDb }) });
     assert.ok(report.applied.includes("0036_publish_history_config_jsonb"));
-    assert.deepEqual(actual, await readSchemaShape(sqliteKernel<unknown>(asyncDb), { exclude: BOOKKEEPING }));
+    assert.deepEqual(actual, await readSchemaShape({ kernel: sqliteKernel<unknown>({ source: asyncDb }) }, { exclude: BOOKKEEPING }));
     // 0036 only converts Postgres: both SQLite paths retain nullable config text and the kind default.
     for (const db of [sync, asyncDb]) {
       const columns = db.$client.prepare("PRAGMA table_info(publish_history)").all() as Array<{ name: string; type: string; notnull: number; dflt_value: string | null }>;
@@ -92,7 +92,7 @@ test("fresh file openContentDb preserves creator attribution on reopen and needs
     db = undefined;
     db = openContentDb(file);
     assert.equal(db.select({ createdBy: media.createdBy }).from(media).get()?.createdBy, "user:owner");
-    const report = await migrateContentDatabase(sqliteKernel<unknown>(db));
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) });
     assert.deepEqual(report.applied, []);
     assert.deepEqual(report.alreadyApplied, CONTENT_MIGRATIONS.map(step => step.id));
   } finally {

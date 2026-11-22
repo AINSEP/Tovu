@@ -1,4 +1,4 @@
-import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/lib/api";
+import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
 
 /**
  * @file What `use-plugins.hooks.ts` needs from the outside world, as an interface rather than a
@@ -18,16 +18,16 @@ export interface PluginsPort {
    *  re-fetching the authoritative list via `reload()` afterward. Kept exactly as narrow as the
    *  real route and the one caller need. */
   setPluginEnabled(
-    id: string,
-    patch: { enabled: boolean }
+    required: { id: string; patch: { enabled: boolean } },
+    optional?: Record<string, never>
   ): Promise<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>;
   /** Moves a site plugin to the 60-day Trash; the caller reloads the authoritative list. */
-  uninstallPlugin(id: string): Promise<{ pluginId: string; trashed: true }>;
+  uninstallPlugin(required: { id: string }, optional?: Record<string, never>): Promise<{ pluginId: string; trashed: true }>;
   /** `PLUGIN_FILES` (`GET /workspaces/:id/plugins/:pluginId/files`) — the read-only package-files
    *  listing behind `PluginPackageFilesModal`. */
-  getPluginFiles(id: string): Promise<AdminPluginFiles>;
+  getPluginFiles(required: { id: string }, optional?: Record<string, never>): Promise<AdminPluginFiles>;
   /** `PLUGIN_PROVIDER_SETTINGS` read — the provider plugin's settings card (secrets never returned). */
-  getProviderSettings(id: string): Promise<AdminPluginProviderSettings>;
+  getProviderSettings(required: { id: string }, optional?: Record<string, never>): Promise<AdminPluginProviderSettings>;
   /** `PLUGIN_PROVIDER_SETTINGS` save; a blank secret keeps the saved one. */
-  saveProviderSettings(id: string, values: Record<string, string>): Promise<AdminPluginProviderSettings>;
+  saveProviderSettings(required: { id: string; values: Record<string, string> }, optional?: Record<string, never>): Promise<AdminPluginProviderSettings>;
 }

@@ -1,5 +1,5 @@
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import {
   duplicateSite as duplicateSiteReal,

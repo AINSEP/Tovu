@@ -6,8 +6,8 @@ import { RemixIcon } from "@jini-ai/ui";
  * it holds the mic's slot so the footer keeps its final shape (owner, 2026-10-30), and says voice
  * is coming. `aria-disabled` rather than `disabled`, so it stays focusable and its label is read.
  */
-export function VoiceInputPlaceholder() {
-  const t = useT();
+export function VoiceInputPlaceholder({ useTHook = useT }: { useTHook?: typeof useT } = {}) {
+  const t = useTHook();
   const label = t("Voice input (coming soon)");
   return (
     <button type="button" className="jini-composer-attach tovu-voice-placeholder" aria-disabled="true" title={label} aria-label={label}>

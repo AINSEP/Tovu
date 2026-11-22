@@ -60,12 +60,12 @@ function setup(overrides: Partial<AutoUpdateControllerDeps> = {}) {
     pid: SELF,
     presenceDir,
     now: () => clock,
-    isAlive: (pid) => alive.has(pid),
-    promptUpdateReady: async (version) => {
+    isAlive: ({ pid }) => alive.has(pid),
+    promptUpdateReady: async ({ version }) => {
       events.push(`prompt ${version}`);
       return restartChoice;
     },
-    explainOthersOpen: (count) => events.push(`others ${count}`),
+    explainOthersOpen: ({ count }) => events.push(`others ${count}`),
     quit: () => events.push("quit"),
     log: () => {},
     stageTimeoutMs: 60_000,
@@ -135,11 +135,13 @@ test("an older live sibling with a stale heartbeat cannot suppress this instance
 
 test("a failed check is logged, not thrown, and frees the next due check", async () => {
   const logs: string[] = [];
-  const t = setup({ log: (message) => logs.push(message) });
+  const t = setup({ log: ({ message }) => logs.push(message) });
   t.updater.checkResult = Promise.reject(new Error("offline"));
   t.controller.tick();
   await flush();
-  assert.deepEqual(logs, ["auto-update: check failed: offline"]);
+  // Jini words the reason: its pinned release prints the error's own text, its next one a fixed label.
+  assert.equal(logs.length, 1);
+  assert.ok(["auto-update: check failed: offline", "auto-update: check failed: Error"].includes(String(logs[0])), `unexpected log line: ${String(logs[0])}`);
   assert.deepEqual(t.calls, ["check"]);
   t.updater.checkResult = Promise.resolve(null);
   t.advance(UPDATE_CHECK_INTERVAL_MS);

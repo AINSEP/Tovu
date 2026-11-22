@@ -9,12 +9,12 @@ import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant/index.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/modules/assistant.ts`) —
+ * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/runtime/composition/modules/assistant.ts`) —
  * the `GET /api/agents` / `POST /api/agents/rescan` handler that replaced the raw streaming
  * `proxyPassthrough` for those two routes. Complements `live-model-cache.test.ts` (which proves the
  * credential/cache/union logic in isolation) by proving the wiring: the real session-authenticated
@@ -125,8 +125,8 @@ function harness() {
         } });
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
-        createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
+        registerAuthRoutes({ app, deps });
+        createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
         return { app, deps };
       },
     };

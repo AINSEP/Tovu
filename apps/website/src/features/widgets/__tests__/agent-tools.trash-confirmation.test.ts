@@ -4,9 +4,9 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
@@ -14,7 +14,7 @@ import { buildWidgetsDeps } from "../deps.js";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import type { WidgetInstanceEntry } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

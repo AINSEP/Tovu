@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -18,15 +18,18 @@ interface PreviewDraft {
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isOptionalString = (value: unknown): boolean => value === undefined || typeof value === "string";
+const isOptionalString = ({ value }: { value: unknown }, _optional = {}): boolean => value === undefined || typeof value === "string";
+
+/** True when every given value is absent or a string (the draft's optional string fields). */
+const areOptionalStrings = ({ values }: { values: unknown[] }, _optional = {}): boolean => values.every((value) => isOptionalString({ value }));
 
 /** The body's draft, including the editor's unsaved meta description, or `null` when invalid.
  * @complexity O(1). */
-function parsePreviewDraft(body: unknown): PreviewDraft | null {
+function parsePreviewDraft({ body }: { body: unknown }, _optional = {}): PreviewDraft | null {
   if (!isPlainObject(body)) return null;
   const { postId, title, slug, bodyJson, metaDescription } = body;
   if (typeof title !== "string" || !isPlainObject(bodyJson)) return null;
-  if (!isOptionalString(postId) || !isOptionalString(slug) || !isOptionalString(metaDescription)) return null;
+  if (!areOptionalStrings({ values: [postId, slug, metaDescription] })) return null;
   return {
     title,
     bodyJson,
@@ -40,7 +43,7 @@ function parsePreviewDraft(body: unknown): PreviewDraft | null {
  *  (422 — the draft could not be processed), in the save routes' `PLUGIN_HOOK_FAILED` envelope with
  *  fixed preview text — never the plugin's own error; anything else names no internals.
  *  @complexity O(1). */
-function sendPluginPreviewError(res: Response, err: unknown): void {
+function sendPluginPreviewError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof PluginHookFailedError) {
     res.status(422).json(pluginHookFailedBody(err, { publicText: `a site plugin (${err.pluginId}) failed on this draft; nothing was saved` }));
     return;
@@ -68,7 +71,14 @@ function sendPluginPreviewError(res: Response, err: unknown): void {
  * without the admin plugin list (`admin.plugins.read`, which a built-in editor lacks). `enabled` is
  * the activation row's, exactly as `PLUGINS_LIST` projects it.
  */
-export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => {
+type PluginPreviewRoute = Parameters<PluginsRouteRegistrar>[0];
+
+export const registerPluginPreviewRoute: PluginsRouteRegistrar = (route, _options = {}) => {
+  registerPluginPreviewStatusRoute(route);
+  registerPluginPreviewRunRoute(route);
+};
+
+function registerPluginPreviewStatusRoute({ app, deps }: PluginPreviewRoute, _options = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -80,11 +90,11 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.write",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
@@ -96,10 +106,12 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
       const activation = await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId });
       res.json({ pluginId, enabled: activation?.enabled ?? false });
     } catch (err) {
-      sendPluginPreviewError(res, err);
+      sendPluginPreviewError({ res, err });
     }
   });
+}
 
+function registerPluginPreviewRunRoute({ app, deps }: PluginPreviewRoute, _options = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -111,15 +123,15 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.write",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
-      const draft = parsePreviewDraft(req.body);
+      const draft = parsePreviewDraft({ body: req.body });
       if (!draft) {
         res.status(400).json({
           error: "title (string) and bodyJson (object) are required; postId, slug and metaDescription must be strings",
@@ -149,7 +161,7 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
       }
       res.json({ pluginId, fields });
     } catch (err) {
-      sendPluginPreviewError(res, err);
+      sendPluginPreviewError({ res, err });
     }
   });
-};
+}

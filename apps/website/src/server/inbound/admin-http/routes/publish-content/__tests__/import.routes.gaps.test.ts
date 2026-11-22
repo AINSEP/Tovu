@@ -26,7 +26,7 @@ function routeApp(options: { jsonBody: boolean; deps?: Partial<Record<string, un
   const app = express();
   if (options.jsonBody) app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishContentImportRoutes(app, deps);
+  registerPublishContentImportRoutes({ app, deps });
   return app;
 }
 

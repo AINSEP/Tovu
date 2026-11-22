@@ -18,7 +18,7 @@ import express from "express";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
+import { deriveApiConnectionKey, CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "@jini-ai/integrations/api-connections";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
@@ -31,7 +31,6 @@ import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connecti
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { parseApiConnectionsFile } from "../contribution.js";
-import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
@@ -125,7 +124,7 @@ let browser: StartingBrowser | undefined;
 
 async function mountCallback(host: ReturnType<typeof makeHost>, logs: string[]): Promise<void> {
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => logs.push(line) });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => logs.push(line) } });
   if (callbackServer) await new Promise((resolve) => callbackServer.close(resolve));
   callbackServer = createServer(app);
   siteOrigin = await listen(callbackServer);
@@ -158,8 +157,8 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => {
       // F1: the card gets the host's sign-in link (the provider URL stays off the transcript).
-      assert.match(new URL(signInUrl).pathname, /\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
-      assert.equal(new URL(signInUrl).search, "");
+      // Jini hands hosted cards the same-origin PATH, not an absolute URL (integrations connect.ts).
+      assert.match(signInUrl, /^\/api\/admin\/v1\/workspaces\/ws-1\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
       assert.equal(new URL(browser!.providerUrl(signInUrl)).searchParams.get("code_challenge_method"), "S256");
       const response = await followConsent(signInUrl);
       callbackPage = await response.text();
@@ -433,7 +432,7 @@ function fixtureCopy(t: { after(fn: () => void): void }, edit: (declaration: Rec
   const root = mkdtempSync(path.join(tmpdir(), "acme-byo-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   cpSync(fixtureRoot, root, { recursive: true });
-  const file = path.join(root, "tovu-connections.json");
+  const file = path.join(root, "jini-connections.json");
   const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };
   edit(parsed.connections[0]!);
   writeFileSync(file, JSON.stringify(parsed));

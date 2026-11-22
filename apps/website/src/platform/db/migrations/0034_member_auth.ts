@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageDialect, StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { StorageDialect, MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /** Keep legacy credentials usable; Postgres counters follow the generated schema's bigint mapping. */
 export function memberAuthStatements(required: { dialect: StorageDialect }, _options: Record<string, never> = {}): readonly string[] {
@@ -14,11 +14,11 @@ export function memberAuthStatements(required: { dialect: StorageDialect }, _opt
 /** Add credential storage inside the runner's transaction; errors propagate.
  * @complexity O(1) additive DDL, without a credential or challenge data rewrite.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of memberAuthStatements({ dialect: kernel.dialect })) await kernel.execute(sql.raw(statement));
 }
 
 /** Immutable member credential migration. @example memberAuth({ checksum }) */
-export function memberAuth(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function memberAuth(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: "0034_member_auth", checksum: required.checksum, up };
 }

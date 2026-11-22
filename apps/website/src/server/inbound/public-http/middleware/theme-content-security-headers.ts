@@ -48,7 +48,7 @@ import type { NextFunction, Request, Response } from "express";
  *
  * `default-src 'none'` is redundant with `sandbox` for the script-execution risk specifically (sandbox
  * already blocks script), but is included anyway to match the exact, already-proven pattern this
- * codebase uses for the identical problem in `server/routes/admin/media/original.ts`'s
+ * codebase uses for the identical problem in `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s
  * `DISALLOWED_INLINE_CONTENT_TYPES` handling — one convention, not two independently-invented ones for
  * the same risk.
  *

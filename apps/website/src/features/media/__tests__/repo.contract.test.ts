@@ -20,8 +20,8 @@ import {
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
-import { InMemoryVersionedMediaRepo } from "#src/features/media/index";
 import {
+  InMemoryVersionedMediaRepo,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
@@ -29,6 +29,7 @@ import {
   MediaConflictError,
 } from "@jini-ai/cms/media";
 import type {
+  VersionedMediaRepoPort,
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
   MediaRepoPort,
@@ -38,7 +39,6 @@ import type {
   MediaRecord,
   TransformDefinitionRecord,
 } from "@jini-ai/cms/media";
-import type { VersionedMediaRepoPort } from "#src/features/media/index";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo
@@ -144,7 +144,7 @@ for (const each of mediaDialects) runMediaSuite(each.name, each.make);
 // `InMemoryMediaRepo` (same `findById`/`findBySlug`/`list`/`save`/`remove` shape, see that class's
 // own doc) — running it through the SAME order-agnostic suite proves that parity directly, rather
 // than by inspection.
-runMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 
 /**
  * ADR-046 / sol-review 2026-09-20 finding 1 — the `VersionedMediaRepoPort` compare-and-set surface
@@ -237,7 +237,7 @@ function runVersionedMediaSuite(label: string, makeRepo: () => VersionedMediaRep
   });
 }
 
-runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runVersionedMediaSuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 for (const each of mediaDialects) runVersionedMediaSuite(each.name, each.make);
 
 /**
@@ -362,7 +362,7 @@ function runSlugHistorySuite(label: string, makeRepo: () => VersionedMediaRepoPo
   });
 }
 
-runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo());
+runSlugHistorySuite("memory-versioned", () => new InMemoryVersionedMediaRepo({}));
 for (const each of mediaDialects) runSlugHistorySuite(each.name, each.make);
 
 /**
@@ -579,7 +579,19 @@ function runAssetBlobSuite(label: string, makeRepo: () => AssetBlobRepoPort) {
 }
 
 runAssetBlobSuite("memory", () => new InMemoryAssetBlobRepo({}));
-for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) runAssetBlobSuite(each.name, each.make);
+for (const each of eachDialect({ tables: ["asset_blobs"], make: (kernel) => new SqlAssetBlobRepo(kernel) })) {
+  runAssetBlobSuite(each.name, each.make);
+  test(`[${each.name}] blob list filters hashes within the requested workspace`, async () => {
+    const repo = each.make();
+    const sha256 = "b".repeat(64);
+    const own = makeAssetBlob({ id: "own", sha256 });
+    await repo.save(own);
+    await repo.save(makeAssetBlob({ id: "other-workspace", workspaceId: "workspace-2", sha256, storageKey: "other/blob" }));
+    await repo.save(makeAssetBlob({ id: "other-hash", sha256: "c".repeat(64) }));
+    const rows = await repo.list({ workspaceId: WORKSPACE_ID }, { sha256s: [sha256] });
+    assert.deepEqual(rows, [own], "the supplied hash excludes both foreign-workspace and unrelated blob rows");
+  });
+}
 
 function makeRendition(overrides: Partial<AssetRenditionRecord> = {}): AssetRenditionRecord {
   return {
@@ -708,19 +720,19 @@ test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_regist
   try {
     const db1 = openContentDb(dbPath);
     const media = makeMedia({ width: 1280, height: 720, cssClass: "restart-video", htmlAttributes: 'poster="/m/poster/original"' });
-    await new SqliteMediaRepo(db1).save(media);
-    await new SqliteAssetBlobRepo(db1).save(makeAssetBlob());
-    await new SqliteAssetRenditionRepo(db1).save(makeRendition());
-    await new SqliteTransformDefinitionRepo(db1).insert(makeTransformDef());
+    await new SqliteMediaRepo({ store: db1 }).save(media);
+    await new SqliteAssetBlobRepo({ store: db1 }).save(makeAssetBlob());
+    await new SqliteAssetRenditionRepo({ store: db1 }).save(makeRendition());
+    await new SqliteTransformDefinitionRepo({ store: db1 }).insert(makeTransformDef());
 
     db1.$client.close();
     // "Restart": brand-new content.db handles against the SAME on-disk file — the in-memory
     // adapters this replaces would have lost all four rows entirely.
     const db2 = openContentDb(dbPath);
-    assert.deepEqual(await new SqliteMediaRepo(db2).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), media);
-    assert.deepEqual(await new SqliteAssetBlobRepo(db2).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
-    assert.deepEqual(await new SqliteAssetRenditionRepo(db2).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
-    assert.deepEqual(await new SqliteTransformDefinitionRepo(db2).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());
+    assert.deepEqual(await new SqliteMediaRepo({ store: db2 }).findById({ workspaceId: WORKSPACE_ID, id: "media-1" }), media);
+    assert.deepEqual(await new SqliteAssetBlobRepo({ store: db2 }).findByHash({ workspaceId: WORKSPACE_ID, sha256: "b".repeat(64) }), makeAssetBlob());
+    assert.deepEqual(await new SqliteAssetRenditionRepo({ store: db2 }).findOne({ workspaceId: WORKSPACE_ID, assetId: "blob-1", transformName: "thumb", version: 1 }), makeRendition());
+    assert.deepEqual(await new SqliteTransformDefinitionRepo({ store: db2 }).findByNameVersion({ workspaceId: WORKSPACE_ID, name: "thumb", version: 1 }), makeTransformDef());
     db2.$client.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });

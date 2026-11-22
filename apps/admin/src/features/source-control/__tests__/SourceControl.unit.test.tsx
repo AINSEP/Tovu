@@ -7,12 +7,12 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
-import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlProviders, type SourceControlProviderInfo } from "../rules";
 import { FORGE_PROVIDER, GITHUB_PROVIDER } from "./source-control-providers.fixture";
 
 /** Three listed hosts: GitHub, Codeberg (token only), Forge (token plus a required username). */
-const PROVIDERS: readonly SourceControlProviderInfo[] = sourceControlProviders([GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], []);
+const PROVIDERS: readonly SourceControlProviderInfo[] = sourceControlProviders({ descriptors: [GITHUB_PROVIDER, { id: "codeberg", label: "Codeberg" }, FORGE_PROVIDER], credentials: [] });
 
 /**
  * @file `SourceControl`, driven through its one `useSourceControlCredentialsHook` DI seam — same
@@ -39,7 +39,7 @@ function credentialRowFixture(
   providerId: AdminSourceControlProviderId,
   overrides: Partial<SourceControlCredentialRowState> = {}
 ): SourceControlCredentialRowState {
-  const info = PROVIDERS.find((provider) => provider.id === providerId) ?? sourceControlProviders([], [{ providerId }])[0]!;
+  const info = PROVIDERS.find((provider) => provider.id === providerId) ?? sourceControlProviders({ descriptors: [], credentials: [{ providerId }] })[0]!;
   return { providerId, info, saved: undefined, token: "", values: {}, readyToSave: false, saving: false, error: null, ...overrides };
 }
 
@@ -178,7 +178,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     });
     render(
       <FetchQueryProvider>
-        <SourceControl useSourceControlCredentialsHook={() => useSourceControlCredentials(port, fakeT, "en")} />
+        <SourceControl useSourceControlCredentialsHook={() => useSourceControlCredentials({ port: port, t: fakeT, locale: "en" })} />
       </FetchQueryProvider>,
     );
     const codebergHeading = await screen.findByRole("heading", { name: /Connect Codeberg/ });

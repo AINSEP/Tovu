@@ -1,10 +1,11 @@
-import { ErrorNotice, type Translate } from '@jini-ai/ui/panel-kit';
-import type { UserFacingError } from '@jini-ai/core';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/agentic';
+import { createRecoveryKitDownload, useDesktopOwnerReset, useRecoveryKit } from './RecoveryCodesCard.hooks';
+import { ErrorNotice } from '@jini-ai/ui/panel-kit';
+import { useEffect, useMemo, useState } from 'react';
+import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
 import { ownerRecoveryPort, ownerRecoveryFailure, type OwnerRecoveryPort, type OwnerRecoveryStatus } from '../../lib/owner-recovery-api';
 
+import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;
 
 /** Existing Security page adapter. Codes live only in component memory until saved/dismissed.
@@ -38,15 +39,10 @@ export function RecoveryCodesCard({ port = ownerRecoveryPort, t = identityTransl
 /** Issue only after password proof; never persist raw codes or leave the submitted password in state.
  * @complexity O(1), one rotation per submit and at most ten codes in memory.
  */
-function RecoveryKit({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
-  const [password, setPassword] = useState(''), [code, setCode] = useState(''), [codes, setCodes] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false), [error, setError] = useState<UserFacingError | null>(null);
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setBusy(true); setError(null); setCodes([]);
-    try { setCodes((await port.issue({ password, ...(code ? { code } : {}) })).codes); }
-    catch (error) { setError(ownerRecoveryFailure({ error, message: 'Recovery codes could not be generated.', action: 'Follow the server explanation before generating another set. Ask the host operator for help if it continues.', step: 'owner-recovery-issue', t, secrets: [password, code] })); }
-    finally { setPassword(''); setCode(''); setBusy(false); }
-  }
+function RecoveryKit({ port, t,
+  useRecoveryKitHook = useRecoveryKit }: { port: OwnerRecoveryPort; t: Translate;
+  useRecoveryKitHook?: typeof useRecoveryKit; }) {
+  const { password, setPassword, code, setCode, codes, setCodes, busy, error, submit } = useRecoveryKitHook({ port, t });
   return <div>
     <form onSubmit={submit}>
       <label htmlFor="recovery-current-password">{t('Current owner password')}</label>
@@ -64,11 +60,7 @@ function RecoveryKit({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
  * @complexity O(1), one local blob of ten codes (~650 bytes), immediately released.
  */
 function RecoveryKitOutput({ codes, dismiss, t }: { codes: string[]; dismiss: () => void; t: Translate }) {
-  function download() {
-    const url = URL.createObjectURL(new Blob([codes.join('\n') + '\n'], { type: 'text/plain' }));
-    const link = document.createElement('a'); link.href = url; link.download = 'tovu-owner-recovery-codes.txt'; link.click();
-    URL.revokeObjectURL(url); dismiss();
-  }
+  const download = createRecoveryKitDownload({ codes, dismiss });
   return <div {...{ [AGENT_PRIVATE_ATTRIBUTE]: '' }}>
     <pre>{codes.join('\n')}</pre>
     <button type="button" className="btn-secondary" onClick={download}>{t('Download codes')}</button>
@@ -79,18 +71,10 @@ function RecoveryKitOutput({ codes, dismiss, t }: { codes: string[]; dismiss: ()
 /** Desktop proof restores the ordinary owner session before this action is offered by the server.
  * @complexity O(1) UI state, one reset request per explicit submit; no staff promotion.
  */
-function DesktopOwnerReset({ port, t }: { port: OwnerRecoveryPort; t: Translate }) {
-  const [password, setPassword] = useState(''), [confirmation, setConfirmation] = useState('');
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
-  const [failure, setFailure] = useState<UserFacingError | null>(null);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (password !== confirmation) { setMessage(t('The passwords do not match. Enter the same password in both fields. Details: desktop-owner-confirmation')); return; }
-    setBusy(true); setMessage(''); setFailure(null);
-    try { await port.reset({ password }); setMessage(t('Owner password reset. All sessions and recovery codes were invalidated. Reopen the site or sign in with your new password.')); }
-    catch (error) { setFailure(ownerRecoveryFailure({ error, message: 'The owner password could not be reset.', action: 'Follow the server explanation. Reopen this site in the desktop app to renew local proof if it was refused.', step: 'desktop-owner-reset', t, secrets: [password] })); }
-    finally { setPassword(''); setConfirmation(''); setBusy(false); }
-  }
+function DesktopOwnerReset({ port, t,
+  useDesktopOwnerResetHook = useDesktopOwnerReset }: { port: OwnerRecoveryPort; t: Translate;
+  useDesktopOwnerResetHook?: typeof useDesktopOwnerReset; }) {
+  const { password, setPassword, confirmation, setConfirmation, busy, message, failure, submit } = useDesktopOwnerResetHook({ port, t });
   return <details><summary>{t('Reset owner password')}</summary>
     <p>{t('Your desktop launch restored your owner session. Choose a new password; this signs out all sessions and invalidates recovery codes.')}</p>
     <form onSubmit={submit}>

@@ -1,5 +1,6 @@
 import { runInNewContext } from "node:vm";
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import { render, renderHook } from "@/__tests__/chat-surfaces-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useChatPaneRuntimeInventory, type ChatPaneAgent } from "@jini-ai/chat/react";
 
@@ -16,15 +17,10 @@ vi.mock("../../../features/plugins/composer-capabilities", async (importOriginal
   };
 });
 
-import {
-  buildAssistantMcpUiSandboxProxyUrl,
-  extractResumeCapableAgentIds,
-  getResumeCapableAgentIds,
-  openMcpUiLink,
-  resetResumeCapableAgentIds,
-  useComposerCapabilities,
-  useRuntimeAccess,
-} from "../hooks/AssistantDock.hooks";
+import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "../hooks/assistant-mcp-ui";
+import { useComposerCapabilities } from "../hooks/composer-discovery.hooks";
+import { extractResumeCapableAgentIds, getResumeCapableAgentIds, resetResumeCapableAgentIds } from "../hooks/agents-inventory.hooks";
+import { useRuntimeAccess } from "../hooks/runtime-access.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
@@ -80,7 +76,7 @@ describe("useComposerCapabilities", () => {
       act(() => document.dispatchEvent(new Event("visibilitychange")));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(3);
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       expect(vi.getTimerCount()).toBe(0);
       await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
       expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -94,17 +90,19 @@ describe("useComposerCapabilities", () => {
       act(() => window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT)));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(6);
-      act(() => publishAssistantDockState(false));
+      act(() => publishAssistantDockState({ open: false }));
       expect(vi.getTimerCount()).toBe(0);
       await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
       expect(fetchMock).toHaveBeenCalledTimes(6);
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(7);
       expect(vi.getTimerCount()).toBe(1);
       unmount();
       expect(vi.getTimerCount()).toBe(0);
-      publishAssistantDockState(true);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(7);
+      publishAssistantDockState({ open: true });
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event(SKILLS_CHANGED_EVENT));
       document.dispatchEvent(new Event("visibilitychange"));
@@ -125,7 +123,7 @@ describe("useComposerCapabilities", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ skills: [] }), { headers: { ETag: 'W/"skills"' } }))
       .mockResolvedValueOnce(new Response(null, { status: 304 }));
     vi.stubGlobal("fetch", fetchMock);
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
     const { result, unmount } = renderHook(() => useComposerCapabilities());
     try {
       await act(async () => { await vi.advanceTimersByTimeAsync(0); });
@@ -278,12 +276,12 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
   const hostOrigin = "https://admin.example.com";
 
   it("returns a data: URL, not a same-origin http(s) route — a data: URL's origin is always opaque", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
     expect(url.protocol).toBe("data:");
   });
 
   it("bakes the given host origin into the served script instead of trusting window.location.origin", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
     const encoded = url.href.slice(url.href.indexOf(",") + 1);
     const html = decodeURIComponent(encoded);
     expect(html).toContain(`var hostOrigin = ${JSON.stringify(hostOrigin)};`);
@@ -291,7 +289,7 @@ describe("buildAssistantMcpUiSandboxProxyUrl", () => {
   });
 
   it("executes the proxy handshake with an exact host origin and ignores foreign senders", () => {
-    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    const url = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin });
     const html = decodeURIComponent(url.href.slice(url.href.indexOf(",") + 1));
     const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
     const host = { postMessage: vi.fn() };
@@ -335,7 +333,7 @@ describe("openMcpUiLink", () => {
   it("opens an https URL in a new, unreferrered tab", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    openMcpUiLink("https://example.com/docs");
+    openMcpUiLink({ url: "https://example.com/docs" });
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith("https://example.com/docs", "_blank", "noopener,noreferrer");
@@ -344,7 +342,7 @@ describe("openMcpUiLink", () => {
   it("refuses a javascript: URL — a View cannot run script in this admin origin via a rendered link", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("javascript:alert(document.cookie)")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink({ url: "javascript:alert(document.cookie)" })).toThrow("This link is not a valid https:// address, so it was not opened.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });
@@ -356,14 +354,14 @@ describe("openMcpUiLink", () => {
     "blob:https://admin.example.com/1234",
   ])("refuses a non-https URL: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
-    expect(() => openMcpUiLink(url)).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink({ url })).toThrow("This link is not a valid https:// address, so it was not opened.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
   it("reports an unparseable URL to the host", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("not a url")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink({ url: "not a url" })).toThrow("This link is not a valid https:// address, so it was not opened.");
     expect(openSpy).not.toHaveBeenCalled();
   });
 
@@ -376,7 +374,7 @@ describe("openMcpUiLink", () => {
   ])("opens the relative sign-in card path against the admin origin: %s", (url) => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    openMcpUiLink(url);
+    openMcpUiLink({ url });
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(`${window.location.origin}${url}`, "_blank", "noopener,noreferrer");
@@ -385,7 +383,7 @@ describe("openMcpUiLink", () => {
   it("refuses a protocol-relative URL — it names another host, not an in-app path", () => {
     const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
 
-    expect(() => openMcpUiLink("//evil.example.com/x")).toThrow("Could not open the link.");
+    expect(() => openMcpUiLink({ url: "//evil.example.com/x" })).toThrow("This link is not a valid https:// address, so it was not opened.");
 
     expect(openSpy).not.toHaveBeenCalled();
   });

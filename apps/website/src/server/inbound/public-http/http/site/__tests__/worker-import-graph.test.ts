@@ -98,9 +98,17 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
  * and CMS plugin-export/consent-category/server-fragment (9ed0d7d5d). They produce or validate
  * rendered HTML; retain a small margin for them while banning non-rendering forms code explicitly.
  */
+// raised by 10 for the render.ts split into feature files (no new code); owner 2026-11-16
+// +1 (merge-a 2026-11-16): Jini core's text barrel now carries format-byte-size.js (6f8dc8c24, "one byte-size
+// label in core/text"), which the Handlebars worker loads through that barrel; no Tovu module was added.
+// The CSS-value allowlists now share one @jini-ai/cms/html/style-values leaf (R5b), including
+// safeTextAlign/safeAspectRatio and the four allowlists previously split into a local platform file.
+// +1 (href-standard 2026-11-17): the theme tier's `safeHref` copy (inside already-loaded `render-contract.ts`) was replaced by
+// Jini's one href standard, `@jini-ai/cms/navigation/href` (a dependency-free leaf, one file); the barrel is not an option here.
+// +1 (R5a): the managed document template now lives in CMS presentation/document-shell.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 165,
-  "liquid-worker.ts": 125,
+  "handlebars-worker.ts": 179,
+  "liquid-worker.ts": 136,
 } as const;
 
 /** Loads one entry in a bounded child, preserving errors so incomplete graphs cannot pass.
@@ -147,7 +155,12 @@ for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"] as const) 
     const formServices = modules.filter((module) => FORBIDDEN_FORM_SERVICES.test(module));
     assert.deepEqual(formServices, [], `${workerFile} pulled in forms services: ${formServices.join(", ")}`);
     // tsx and its esbuild transpiler are development-loader overhead, absent from deployed JS workers.
-    const renderingModules = modules.filter((module) => !/\/node_modules\/(?:tsx|esbuild)\//.test(module));
+    // A linked Jini checkout (`npm run link:jini`) carries its own node_modules, so a dependency both repos
+    // install (parse5, entities) is loaded from two physical copies. A registry install has one; count each
+    // dependency file once, by its path under the last node_modules, so the budget measures the real graph.
+    const renderingModules = [...new Set(modules
+      .filter((module) => !/\/node_modules\/(?:tsx|esbuild)\//.test(module))
+      .map((module) => module.slice(Math.max(0, module.lastIndexOf("/node_modules/")))))];
     const budget = WORKER_MODULE_BUDGETS[workerFile];
     assert.ok(renderingModules.length <= budget,
       `${workerFile} loaded ${renderingModules.length} rendering modules (budget ${budget})`);

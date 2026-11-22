@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useEmailTemplates } from "../hooks/use-email-templates.hooks";
 import { createEmailFake, TEMPLATE } from "./email.test-helpers";
 
@@ -48,8 +48,8 @@ describe("useEmailTemplates", () => {
   it("shows a failed create without navigating, and retains a template when trash fails", async () => {
     const api = createEmailFake();
     const open = vi.fn();
-    api.createTemplate.mockRejectedValue(new ApiError("Create refused", 403));
-    api.trashTemplate.mockRejectedValue(new ApiError("Trash refused", 403));
+    api.createTemplate.mockRejectedValue(new ApiError({ message: "Create refused", status: 403 }));
+    api.trashTemplate.mockRejectedValue(new ApiError({ message: "Trash refused", status: 403 }));
     const { result } = renderHook(() => useEmailTemplates({ api }, { open }));
     await waitFor(() => expect(result.current.view.kind).toBe("loaded"));
     await act(() => result.current.create());

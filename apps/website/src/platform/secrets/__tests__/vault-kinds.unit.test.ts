@@ -1,7 +1,13 @@
 import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, type VaultContext, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultContext,
+  type VaultKind,
+  type VaultMeta,
+} from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";
@@ -35,8 +41,11 @@ test("api-connection formats reject extra fields, bad attempts and malformed rec
     for (const patch of [{ unexpected: true }, { normalization: ["conflict"] }, { normalization: 1 },
       { normalization: "unknown" }, { migration: [] }, { migration: null }, { legacyAad: {} }]) {
       const input = { kind: "api-connection" as const, meta: { ...plain, ...patch } };
-      assert.throws(() => registry.metaParsers[input.kind](input));
-      assert.throws(() => parseTovuStoreMeta(input));
+      const expected: Record<string, unknown> = plain.credentialFormat === "oauth-token-set" && "unexpected" in patch
+        ? { name: "OAuthTokenStoreError", code: "invalid-record", message: "OAuth token store: the stored credential is not a valid OAuth token record." }
+        : { constructor: VaultError, name: "VaultError", code: "invalid-meta", message: "Secrets vault: invalid-meta" };
+      assert.throws(() => registry.metaParsers[input.kind](input), expected);
+      assert.throws(() => parseTovuStoreMeta(input), expected);
     }
   }
   for (const expiresAtMs of [null, "123", 1.5]) {
@@ -48,7 +57,7 @@ test("api-connection formats reject extra fields, bad attempts and malformed rec
 test("only the api-connection kind dispatches OAuth metadata; legacy MCP metadata remains supported", () => {
   const registry = createTovuVaultKinds({ policy });
   assert.deepEqual(registry.metaParsers["mcp-auth"]({ meta: {} }), {});
-  assert.throws(() => registry.metaParsers["mcp-auth"]({ meta: apiConnectionMeta[3] }));
+  assert.throws(() => registry.metaParsers["mcp-auth"]({ meta: apiConnectionMeta[3] }), { constructor: VaultError, name: "VaultError", code: "invalid-meta", message: "Secrets vault: invalid-meta" });
   assert.throws(() => registry.metaParsers["api-connection"]({ meta: {} }), { name: "OAuthTokenStoreError", code: "invalid-record" });
 });
 const parsers = createTovuVaultKinds({ policy }).metaParsers;
@@ -301,7 +310,7 @@ test("the store passes the original crypto error to its feature storage-error tr
   const f = storeFixture();
   const failure = new Error("key unavailable");
   const service = createTovuStoreVault({ ...f.required, sealer: { seal: async () => { throw failure; }, open: f.required.sealer.open.bind(f.required.sealer) },
-    storageError: error => new Error("safe feature failure", { cause: error }) });
+    storageError: (_required, { error } = {}) => new Error("safe feature failure", { cause: error }) });
   await assert.rejects(service.put({ ...f.input, id: "media" }), error => {
     assert.ok(error instanceof Error);
     assert.equal(error.message, "safe feature failure");
@@ -314,7 +323,7 @@ test("a missing keyring is translated twice: the inner storage error becomes the
   const f = storeFixture();
   const calls: unknown[][] = [];
   const service = createTovuStoreVault({ ...f.required, keyring: undefined, newId: () => "new",
-    storageError: (...args: unknown[]) => { calls.push(args); return new Error(`storage failure ${calls.length}`); } });
+    storageError: (_required, options) => { calls.push(options ? [options.error] : []); return new Error(`storage failure ${calls.length}`); } });
   await assert.rejects(service.put(f.input), { message: "storage failure 2" });
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], []);

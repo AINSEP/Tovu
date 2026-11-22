@@ -1,0 +1,48 @@
+✔ delivery mode is pointer only when asked for exactly; unset or a typo stays inject (1.015911ms)
+✔ the import-time layout never selects a site: every workspace lookup refuses (0.431721ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ pack, bundled reader and install round-trip through the binding's positional wrappers (57.708841ms)
+✔ inject pinned guidance discloses maturity untested (53.518561ms)
+✔ pointer pinned guidance discloses maturity untested (31.721125ms)
+✔ inject pinned guidance discloses maturity soon (32.703056ms)
+✔ pointer pinned guidance discloses maturity soon (29.721376ms)
+✔ inject pinned guidance discloses maturity (absent) (34.952333ms)
+✔ pointer pinned guidance discloses maturity (absent) (24.315346ms)
+✔ inject run references put maturity first, then the overlay GUIDANCE, then the plugin's section (32.074074ms)
+✔ pointer run references add no overlay guidance (the tool call carries it); a selected skill in pointer mode does (32.808655ms)
+✔ a host/ file is appended after the owner's default section, and a missing one refuses like a missing plugin file (46.91003ms)
+✔ a disabled plugin gets the owner's refusal and no overlay (34.032467ms)
+✔ explicit read-only discovery loads an off plugin and its host guidance while pinned runs stay refused (28.332673ms)
+✔ a plugin without an overlay keeps the owner's prefix unchanged (32.032812ms)
+✔ pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking (2.873911ms)
+✔ recordBundledAgentPluginDigests passes an injected clock through and the ledger reads back (6.522966ms)
+✔ uninstall preview and uninstall go through the caller's layout (32.004106ms)
+✔ trusted-package lookup reports switched-off packages to onInactive (49.140989ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-IBF56c/ws/workspace-local
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+✔ a seeded bundled plugin refuses uninstall with Tovu's disable recovery, and retirement with nothing retired is a no-op (56.950197ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-rfYDPr/ws/workspace-local
+✔ the seeded Cloudflare plugin keeps its qualified identity and starts inactive (124.953776ms)
+✔ a host archive reader's non-file entries pass through the positional adapter unchanged (28.940144ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-FSjgD7/ws/workspace-local
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+✔ a trusted bundled package's files and modules are read through the binding (71.376248ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-TNLn0o/ws/workspace-local
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Legacy extensions.tovu agent-plugin metadata is deprecated; compatibility is retained through at least 2027-05-06. Portable packages use extensions.jini and unprefixed MCP metadata.
+✔ a trusted plugin's own supersedes declaration refuses the packages and descriptors it names (143.534961ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-0HGKwa/ws/workspace-local
+✔ without any supersedes declaration every package contributes and the caller's packageRefusal still applies (133.106181ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-8jfK1S/ws/workspace-local
+✔ an installed successor that predates its declaration is superseded through the build's bundled source manifest (97.075385ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1765.599704

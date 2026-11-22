@@ -52,11 +52,19 @@ test('a granted provider settings card cannot replace the shared owner key', asy
 });
 
 
-test('a shared read failure is unconfigured, never a boot refusal', async () => {
+test('a shared read failure is unconfigured, never a boot refusal', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const attachments = fakeAttachments();
   await attachments.attach({ siteId: 'a', siteName: 'A', keyId });
   const project = source('project');
-  project.read = async () => { throw Object.assign(new Error('private fixture'), { code: 'SQLITE_BUSY' }); };
+  project.read = async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'SQLITE_BUSY' }); };
   const view = withAttachedProject({ site: emptySite() }, { project, attachments, siteId: 'a' });
   assert.equal(await view.read({ pluginId: 'example' }), null);
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(' ') ?? '';
+  assert.match(log, /P25_SHARED_PROVIDER_READ_FAILED/);
+  assert.match(log, /Error/);
+  assert.match(log, /SQLITE_BUSY/);
+  assert.doesNotMatch(log, /boom|SECRETSECRETSECRETSECRET/);
 });

@@ -34,7 +34,7 @@ function menuHarness(options: {
     preferencePath: "/ud/desktop-preferences.json",
     product: { launch, consentChanged: (saved) => calls.push(`changed:${saved.crashes}/${saved.usage}`) },
     setAutomaticUpdates: ({ enabled }) => calls.push(`automatic:${enabled}`),
-    showErrorBox: (title, content) => errors.push([title, content]),
+    showErrorBox: ({ title, content }) => errors.push([title, content]),
   }, {
     readAutomatic: ({ preferencePath }) => { calls.push(`readAutomatic:${preferencePath}`); return automatic; },
     readSharing: () => preference,
@@ -73,7 +73,7 @@ test("a failed update-preference save shows the localized error with the failure
     const menu = desktopSettingsMenu({
       locale: "en-US", preferencePath: "/p", product: { launch: undefined, consentChanged() {} },
       setAutomaticUpdates: () => { throw thrown; },
-      showErrorBox: (title, content) => errors.push([title, content]),
+      showErrorBox: ({ title, content }) => errors.push([title, content]),
     }, { readAutomatic: () => true });
     const item = { checked: false };
     (menu.submenu[0] as Clickable).click(item);

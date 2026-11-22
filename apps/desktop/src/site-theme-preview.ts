@@ -21,7 +21,7 @@ export function openSiteThemePreviewStream(
   { target, getRevision, onFrame, fetch }: {
     target: SiteThemePreviewTarget;
     getRevision: () => string | undefined;
-    onFrame: (frame: ThemePreviewFrame) => void;
+    onFrame: (required: { frame: ThemePreviewFrame }, optional?: {}) => void;
     fetch: NonNullable<StreamFetch>;
   },
   { open = (url, options) => new EventSource(url, options) }: {
@@ -42,7 +42,7 @@ export function openSiteThemePreviewStream(
     try {
       const frame: unknown = JSON.parse(event.data);
       const refresh = themePreviewFrame({ frame });
-      if (refresh) onFrame(refresh);
+      if (refresh) onFrame({ frame: refresh });
     } catch { /* A bad frame must never break independent settings notifications or the host window. */ }
   });
   return () => { closed = true; source.close(); };
@@ -70,13 +70,13 @@ function hasPreviewRevision(input: { frame: unknown }, _options = {}): input is 
 
 export interface SiteThemePreviewPorts {
   current: (required: { siteDir: string }, optional: {}) => SiteThemePreviewTarget | undefined;
-  open: (required: { siteDir: string; target: SiteThemePreviewTarget; getRevision: () => string | undefined; onFrame: (frame: ThemePreviewFrame) => void }, optional: {}) => () => void;
+  open: (required: { siteDir: string; target: SiteThemePreviewTarget; getRevision: () => string | undefined; onFrame: (required: { frame: ThemePreviewFrame }, optional?: {}) => void }, optional: {}) => () => void;
 }
 
 export function createSiteThemePreviewSubscriptions(
   { ports }: { ports: SiteThemePreviewPorts }, _optional = {},
 ) {
-  const watchers = new Map<string, Set<(frame: SiteThemePreviewRefresh) => void>>();
+  const watchers = new Map<string, Set<(required: { frame: SiteThemePreviewRefresh }, optional?: {}) => void>>();
   const streams = new Map<string, { target: SiteThemePreviewTarget; close?: () => void; revision?: string }>();
   const stop = ({ siteDir }: { siteDir: string }, _optional = {}) => {
     const stream = streams.get(siteDir);
@@ -92,20 +92,22 @@ export function createSiteThemePreviewSubscriptions(
     const stream: { target: SiteThemePreviewTarget; close?: () => void; revision?: string } = { target };
     streams.set(siteDir, stream);
     try {
-      stream.close = ports.open({ siteDir, target, getRevision: () => stream.revision, onFrame: (frame) => {
+      stream.close = ports.open({ siteDir, target, getRevision: () => stream.revision, onFrame: ({ frame }, _optional = {}) => {
         if (streams.get(siteDir) !== stream || ports.current({ siteDir }, {})?.lifecycle !== target.lifecycle || stream.revision === frame.revision) return;
         stream.revision = frame.revision;
         // A live stream implies watchers for its site: `sync` opens one only for a watched site, and
         // every path that empties a site's watchers (`watch`'s unsubscribe, `dispose`) stops it first.
-        for (const listener of watchers.get(siteDir)!) {
-          try { listener({ siteDir, ...frame }); } catch { /* A destroyed renderer cannot stop other tabs' notifications. */ }
+        const listeners = watchers.get(siteDir);
+        if (!listeners) throw new Error(`theme preview stream has no watchers for ${siteDir}`);
+        for (const listener of listeners) {
+          try { listener({ frame: { siteDir, ...frame } }); } catch { /* A destroyed renderer cannot stop other tabs' notifications. */ }
         }
       } }, {});
     } catch { streams.delete(siteDir); }
   };
   return {
     sync, stop,
-    watch({ siteDir, listener }: { siteDir: string; listener: (frame: SiteThemePreviewRefresh) => void }, _optional = {}) {
+    watch({ siteDir, listener }: { siteDir: string; listener: (required: { frame: SiteThemePreviewRefresh }, optional?: {}) => void }, _optional = {}) {
       const listeners = watchers.get(siteDir) ?? new Set();
       watchers.set(siteDir, listeners); listeners.add(listener); sync({ siteDir });
       return () => {

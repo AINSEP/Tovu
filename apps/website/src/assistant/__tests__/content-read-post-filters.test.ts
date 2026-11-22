@@ -12,7 +12,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -30,7 +30,7 @@ function fixture() {
       routeDeps: {
         ...createRouteDeps(),
         workspaceId: "ws",
-        postRepo: new InMemoryPostRepo(),
+        postRepo: new InMemoryPostRepo({}),
         authorize: async () => ({ allowed: true, reason: "matched" }),
       },
     }),
@@ -44,7 +44,7 @@ function fixture() {
       return r.handler(ctx);
     },
   }));
-  const card = deriveContentReadRegistrations(wrapped).find(
+  const card = deriveContentReadRegistrations({ sourceRegistrations: wrapped }).find(
     (r) => r.descriptor.id === "content_read.content_post",
   );
   assert.ok(card);

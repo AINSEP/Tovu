@@ -1,4 +1,5 @@
-import { api, type AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { IntegrationsPort } from "./integrations-port.hooks";
 
 /**
@@ -9,10 +10,10 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultIntegrationsPort: IntegrationsPort = {
-  listIntegrationSubscriptions: () => api.listIntegrationSubscriptions(),
-  createIntegrationSubscription: (input) => api.createIntegrationSubscription(input),
-  pauseIntegrationSubscription: ({ id, paused }) => api.pauseIntegrationSubscription({ id, paused }),
-  deleteIntegrationSubscription: (id) => api.deleteIntegrationSubscription(id),
+  listIntegrationSubscriptions: () => integrationsApi.listIntegrationSubscriptions(),
+  createIntegrationSubscription: (input, _optional = {}) => integrationsApi.createIntegrationSubscription(input),
+  pauseIntegrationSubscription: ({ id, paused }) => integrationsApi.pauseIntegrationSubscription({ id, paused }),
+  deleteIntegrationSubscription: ({ id }, _optional = {}) => integrationsApi.deleteIntegrationSubscription({ id }),
 };
 
 /** Seed state for {@link createFakeIntegrationsPort}. */
@@ -39,7 +40,7 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
       return { subscriptions: [...subscriptions] };
     },
 
-    async createIntegrationSubscription(input) {
+    async createIntegrationSubscription(input, _optional = {}) {
       const created: AdminWebhookSubscription = {
         id: `fake-${subscriptions.length + 1}`,
         label: input.label,
@@ -60,16 +61,16 @@ export function createFakeIntegrationsPort(options: FakeIntegrationsPortOptions 
     async pauseIntegrationSubscription({ id, paused }) {
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
-      const updated = { ...subscriptions[index]!, status: (paused ? "paused" : "active") as AdminWebhookSubscription["status"] };
+      const updated = { ...subscriptions[index], status: (paused ? "paused" : "active") as AdminWebhookSubscription["status"] };
       subscriptions[index] = updated;
       return { subscription: updated };
     },
 
-    async deleteIntegrationSubscription(id) {
+    async deleteIntegrationSubscription({ id }, _optional = {}) {
       const index = subscriptions.findIndex((s) => s.id === id);
       if (index < 0) throw new Error(`fake integrations port: unknown subscription ${id}`);
       const [removed] = subscriptions.splice(index, 1);
-      return { subscription: removed! };
+      return { subscription: removed };
     },
   };
 }

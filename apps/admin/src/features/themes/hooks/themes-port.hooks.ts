@@ -1,4 +1,4 @@
-import type { PresentationSettings, ThemeTier } from "@/lib/api";
+import type { PresentationSettings, ThemeTier } from "@/features/themes/api/themes-api.types";
 
 /**
  * @file What `use-themes.hooks.ts` needs from the outside world, as an interface rather than a
@@ -21,9 +21,9 @@ export interface ThemesPort {
     availableThemes: Array<{ id: string; name?: string; tier: ThemeTier; previewImageUrl?: string | null; builtIn?: boolean }>;
   }>;
   rescanThemes(): Promise<{ added: string[]; removed: string[]; total: number; availableThemeIds: string[]; duplicateIds: string[] }>;
-  setActiveTheme(activeThemeId: string): Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>;
+  setActiveTheme(required: { activeThemeId: string }, optional?: Record<string, never>): Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>;
   /** Copy a theme into a new one named `newName` (server derives the id). Resolves with the copy's id and name. */
-  duplicateTheme(themeId: string, newName: string): Promise<{ theme: { id: string; name: string } }>;
+  duplicateTheme(required: { themeId: string; newName: string }, optional?: Record<string, never>): Promise<{ theme: { id: string; name: string } }>;
   /** Move a whole theme to the Trash (the generic `POST /trash/items`, `type: "theme"`). The server
    *  refuses the active theme (`THEME_ACTIVE`); restoring happens from the Trash screen. */
   trashTheme(required: { themeId: string }): Promise<void>;

@@ -1,5 +1,11 @@
 import React from "react";
 import { KitProvider } from "@jini-ai/ui-kit/react";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { UiKitProvider } from "@jini-ai/ui/react-kit";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
+import { ChatSurfacesProvider } from "@jini-ai/chat/react";
+import { chatSurfaces } from "./integrations/jini-surfaces";
+import { adminKit, uiKit, userManagementKit } from "./integrations/jini-kits";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
@@ -58,8 +64,10 @@ redirectLegacyHashUrl();
 /** Keep one session owner above App so Jini receives the current queue identity before rendering.
  * Boot and login still use App's existing gates. O(1) composition; session I/O stays in its hook.
  */
-function SessionApp() {
-  const session = useAdminSession();
+function SessionApp({
+  useAdminSessionHook = useAdminSession }: {
+  useAdminSessionHook?: typeof useAdminSession; } = {}) {
+  const session = useAdminSessionHook();
   const app = <App useSession={() => session} />;
   if (session.checking || !session.user) return app;
   return <CommentQueueScopeProvider scope={createCommentsQueueScope({ principalId: session.user.id })}>
@@ -67,17 +75,27 @@ function SessionApp() {
   </CommentQueueScopeProvider>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("admin app root element is missing");
+ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemetry })).render(
   <React.StrictMode>
     {/* Server-state cache for every section that reads through `fetch-query`.
         Sections not yet migrated are unaffected — they still call `api.*`
         directly, and the two styles coexist without interfering. */}
     <KitProvider kit={tovuKit} agent={tovuAgentAttrs}>
     <FetchQueryProvider>
+      <UiKitProvider kit={uiKit}>
+      <ChatSurfacesProvider surfaces={chatSurfaces}>
+      <AdminKitProvider kit={adminKit}>
+      <UserManagementKitProvider kit={userManagementKit}>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
       <ServerRestartingBanner />
       <AdminFailureNotice />
       <SessionApp />
+      </UserManagementKitProvider>
+      </AdminKitProvider>
+      </ChatSurfacesProvider>
+      </UiKitProvider>
     </FetchQueryProvider>
     </KitProvider>
   </React.StrictMode>

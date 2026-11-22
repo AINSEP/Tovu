@@ -1,17 +1,18 @@
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { withFormPullLease, type FormDefinitionRepoPort, type FormPullLeasePort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { processOutbox } from "#src/contracts/core/events/index";
 import type { CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import type { StaticPublishFormDestinationPort } from "#src/features/deployments/static-publish/index";
 import { createFormDestinationPort, FORM_PULL_LEASE_MS, formDestinationKey, listFormDestinations, pullFromFormDestination, type FormDestinationAddress, type FormDestinationRegistry } from "#src/features/form-destinations/index";
 import { readFormDestinationSetting } from "#src/features/settings/form-destination";
 import { readFormsAutoPull } from "#src/features/settings/index";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormImportCounts, type FormPullCounts, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort, type RemoteImportResult, type RemoteSubmissionInput } from "#src/features/forms/index";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import { importRemoteFormSubmissions, type FormImportCounts, type FormSubmissionReceiptPort, type RemoteImportResult, type RemoteSubmissionInput } from "@jini-ai/cms/forms/html";
+import { buildFormDestinationManifest, type FormDestinationPullReport, type FormPullCounts, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort } from "#src/features/forms/index";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /**
  * @file Composes the site's form destination once: the publish-side port (active forms, the receiver
@@ -35,7 +36,7 @@ export interface FormSubmissionsCompositionDeps {
   readonly clock: Clock & { nowIso(): string };
   readonly idGen: IdGenerator;
   readonly credentials: CustomCredentialWriteDeps;
-  readonly loadFormDestinations: (workspaceId: string) => Promise<FormDestinationRegistry>;
+  readonly loadFormDestinations: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<FormDestinationRegistry>;
   /** For the site's `core.forms` `receiver` read (`features/settings/form-destination.ts`). */
   readonly settingsRepo: SettingsRepoPort;
 }
@@ -87,7 +88,7 @@ async function pullAll(
   // target id for a co-hosted receiver.
   const saved = await listFormDestinations({ credentials: deps.credentials, workspaceId }, optional.targetId ? { scope: optional.targetId } : {});
   if (saved.length === 0) return { message: "No published site receives form submissions yet. Publish the site with its forms to a hosting target that supports them, then pull again.", destinations: [], forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 }, ran: true };
-  const registry = await deps.loadFormDestinations(workspaceId);
+  const registry = await deps.loadFormDestinations({ workspaceId });
   const kit = optional.kit ?? createDeployHostKit({ observability: optional.observability });
   const receivers: ReceiverPull[] = [];
   for (const { scope, destination } of saved) {
@@ -204,7 +205,9 @@ async function pullResult(
   };
   const base = { message: pullMessage({ destinations }), destinations, forms, totals };
   // `pullAll` returns before this when no receiver is saved, so there is always a first report.
-  const refusal = destinations[0]!.refused;
+  const first = destinations[0];
+  if (!first) throw new Error("form submission pull has no destination report");
+  const refusal = first.refused;
   return refusal && destinations.every((report) => report.refused) ? { ...base, ran: false, reason: refusal } : { ...base, ran: true };
 }
 

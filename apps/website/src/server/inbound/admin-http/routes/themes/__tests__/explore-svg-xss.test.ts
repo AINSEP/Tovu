@@ -8,7 +8,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerThemeStaticAssets } from "#src/server/inbound/public-http/middleware/theme-static-assets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
@@ -90,12 +91,12 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFilePutRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
-  // Same-origin static mount every real deployment runs (server/app.ts), wired here so the write and
+  registerAdminThemeFilePutRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
+  // Same-origin static mount every real deployment runs (server/runtime/composition/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
-  registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")] });
+  registerThemeStaticAssets({ app, themeRoots: [path.join(themesDir, "static")] });
   return app;
 }
 

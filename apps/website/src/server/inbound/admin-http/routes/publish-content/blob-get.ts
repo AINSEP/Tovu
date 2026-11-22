@@ -1,14 +1,15 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `GET /api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha` — the DOWNLOAD half of the
@@ -45,7 +46,7 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  *    directory opens with.
  * 2. A real permission check against the AUTHENTICATED principal (above). Knowing a sha — even
  *    having uploaded those very bytes under `publish_content.apply` — grants nothing;
- *    `__tests__/../publish-content-blob-get.test.ts` pins that case directly.
+ *    `apps/website/src/server/__tests__/routes/publish-content-blob-get.test.ts` pins that case directly.
  * 3. The storage key is DERIVED, never accepted: `computeBlobStorageKey({workspaceId, sha256})`
  *    with this composition's own `workspaceId`. A caller supplies 64 hex characters and nothing
  *    else, so there is no path/traversal surface and no way to address another workspace's bytes.
@@ -69,15 +70,12 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  * AND a hostile peer, which a server-side check cannot. Hashing here too would double the CPU per
  * download to re-prove a property the only trust boundary already enforces.
  */
-export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const sha256 = String(req.params.sha ?? "");
-    if (!isValidSha256Hex(sha256)) {
+    if (!isValidSha256Hex({ value: sha256 })) {
       res.status(400).json({ error: "sha must be a lowercase 64-character hex sha256 digest" });
       return;
     }
@@ -85,11 +83,11 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "publish_content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

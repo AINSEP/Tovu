@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { registerAdminThemesListRoute } from "../inbound/admin-http/routes/themes/list.js";
 import { registerAdminWidgetListRoute } from "../inbound/admin-http/routes/widgets/list.js";
 import { registerAdminWidgetGetRoute } from "../inbound/admin-http/routes/widgets/get-by-id.js";
@@ -20,10 +20,10 @@ const WS = "ws-b07";
 const ROOT = "/api/admin/v1/workspaces/:workspaceId";
 const allow = async () => ({ allowed: true, reason: "granted" });
 
-async function invoke(register: (app: express.Express, deps: never) => void, deps: object, path: string,
+async function invoke(register: (required: { app: express.Express; deps: never }, options?: Record<string, never>) => void, deps: object, path: string,
   params: Record<string, string> = {}, query: object = {}) {
   const app = express();
-  register(app, deps as never);
+  register({ app, deps: deps as never });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "reader-b07" };
   await extractRouteHandler(app, "get", path)({ params: { workspaceId: WS, ...params }, query }, res);
@@ -105,7 +105,7 @@ test("widget list filters type and only the literal true query includes inactive
     [{ widgetType: ["text"], includeInactive: true }, ["nav-active", "text-active"]],
   ] as const;
   for (const [query, ids] of cases) {
-    const capture = await invoke(registerAdminWidgetListRoute, { workspaceId: WS, entryRepo, authorize: allow }, `${ROOT}/widgets`, {}, query);
+    const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), { workspaceId: WS, entryRepo, authorize: allow }, `${ROOT}/widgets`, {}, query);
     assert.equal(capture.statusCode, 200);
     const body = capture.jsonBody as { widgets: { id: string; config: object }[] };
     assert.deepEqual(body.widgets.map((widget) => widget.id).sort(), ids);
@@ -121,14 +121,14 @@ test("widget list identifies corrupt rows and removes diagnostic keys after the 
     bodyJson: null, fieldsJson: {}, publishedAt: "2026-09-01T00:00:00Z", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 3 };
   await entryRepo.save(bad);
   const deps = { workspaceId: WS, entryRepo, authorize: allow };
-  const capture = await invoke(registerAdminWidgetListRoute, deps, `${ROOT}/widgets`);
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), deps, `${ROOT}/widgets`);
   assert.equal(capture.statusCode, 200);
   const body = capture.jsonBody as { widgets: { id: string }[]; skippedCount: number; skippedIds: string[] };
   assert.deepEqual(body.widgets.map((widget) => widget.id).sort(), ["nav-active", "text-active"]);
   assert.equal(body.skippedCount, 1);
   assert.deepEqual(body.skippedIds, ["corrupt"]);
   await entryRepo.save({ ...bad, fieldsJson: { ext: { widget: { payload: '{"widgetType":"text","status":"active","config":{"body":"Repaired"}}' } } } });
-  const repaired = await invoke(registerAdminWidgetListRoute, deps, `${ROOT}/widgets`);
+  const repaired = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), deps, `${ROOT}/widgets`);
   assert.equal(repaired.statusCode, 200);
   assert.deepEqual(Object.keys(repaired.jsonBody as object), ["widgets"]);
   assert.deepEqual((repaired.jsonBody as { widgets: { id: string }[] }).widgets.map((widget) => widget.id).sort(), ["corrupt", "nav-active", "text-active"]);
@@ -149,7 +149,7 @@ test("widget get resolves a slug and discloses the resolved instance's region an
   await entryRefsRepo.rebuildForWorkspace({ workspaceId: "foreign", refs: [
     { workspaceId: "foreign", sourceEntryId: "private-page", sourceKind: "widget-embed", fieldPath: "bodyJson.content[0]", targetKind: "entry", targetId: "text-active" },
   ] });
-  const capture = await invoke(registerAdminWidgetGetRoute, { workspaceId: WS, entryRepo, entryRefsRepo, authorize: allow }, `${ROOT}/widgets/:id`, { id: "footer-note" });
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetGetRoute({ app, deps }), { workspaceId: WS, entryRepo, entryRefsRepo, authorize: allow }, `${ROOT}/widgets/:id`, { id: "footer-note" });
   assert.equal(capture.statusCode, 200);
   assert.deepEqual(capture.jsonBody, {
     widget: { id: "text-active", workspaceId: WS, slug: "footer-note", title: "Title text-active", status: "active", widgetType: "text",
@@ -174,7 +174,7 @@ test("widget region get resolves healthy widget types and retains disabled, miss
     fieldsJson: { ext: { widgets: { payload: JSON.stringify({ regionKey: "footer", doc: { schemaVersion: 1, placements } }) } } },
     bodyJson: null, publishedAt: "2026-09-01T00:00:00Z", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 4 });
   const reads: unknown[] = [];
-  const capture = await invoke(registerAdminWidgetRegionGetRoute, { workspaceId: WS, entryRepo, authorize: allow,
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetRegionGetRoute({ app, deps }), { workspaceId: WS, entryRepo, authorize: allow,
     widgetBindingRepo: { async findByRegion(input: unknown) {
       reads.push(input);
       return { areaEntryId: "footer-area" };
@@ -204,7 +204,7 @@ test("policy and role lists preserve picker metadata and scope repository reads 
     [registerAdminRoleListRoute, "roles", "roleRepo", roles, { roles }],
   ] as const) {
     const reads: unknown[] = [];
-    const capture = await invoke(register, { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
+    const capture = await invoke(({ app, deps }, _options = {}) => register({ app, deps }), { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
       reads.push(input);
       return rows.map((row) => ({ ...row, privateStorageField: "hidden" }));
     } } }, `${ROOT}/${suffix}`);
@@ -221,11 +221,11 @@ test("policy permission listing refuses an absent parent and conceals repository
     policyRepo: { async findById(input: unknown) { reads.push(input); return null; } },
     policyPermissionRepo: { async listByPolicyId() { permissionReads++; return []; } },
   };
-  const missing = await invoke(registerAdminPolicyPermissionListRoute, deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
+  const missing = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   assert.deepEqual(reads, [{ workspaceId: WS, id: "absent-b07" }]);
   assert.equal(permissionReads, 0);
   assert.deepEqual(missing, { statusCode: 404, jsonBody: { error: "policy 'absent-b07' was not found", code: "RESOURCE_NOT_FOUND" } });
-  const failed = await invoke(registerAdminPolicyPermissionListRoute, { ...deps, policyRepo: { async findById() {
+  const failed = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), { ...deps, policyRepo: { async findById() {
     throw new Error("private connection string");
   } } }, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   // Shared admin failure envelope: a correlatable id, never the repository's cause.

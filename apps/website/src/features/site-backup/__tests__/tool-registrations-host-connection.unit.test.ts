@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";

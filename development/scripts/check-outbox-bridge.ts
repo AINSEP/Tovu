@@ -119,48 +119,33 @@ function collectSourceFiles(dir: string): string[] {
  */
 function stripCommentsAndStrings(source: string): string {
   const out = source.split("");
-  let i = 0;
+  const cursor = {
+    i: 0,
+  };
   const blankLineComment = (_required: Record<string, never>, _options = {}): void => {
-    while (i < out.length && out[i] !== "\n") {
-      out[i] = " ";
-      i++;
+    while (cursor.i < out.length && out[cursor.i] !== "\n") {
+      out[cursor.i] = " ";
+      cursor.i++;
     }
   };
   const blankBlockComment = (_required: Record<string, never>, _options = {}): void => {
-    out[i] = " ";
-    out[i + 1] = " ";
-    i += 2;
-    while (i < out.length && !(out[i] === "*" && out[i + 1] === "/")) {
-      if (out[i] !== "\n") out[i] = " ";
-      i++;
+    out[cursor.i] = " ";
+    out[cursor.i + 1] = " ";
+    cursor.i += 2;
+    while (cursor.i < out.length && !(out[cursor.i] === "*" && out[cursor.i + 1] === "/")) {
+      if (out[cursor.i] !== "\n") out[cursor.i] = " ";
+      cursor.i++;
     }
-    if (i < out.length) {
-      out[i] = " ";
-      out[i + 1] = " ";
-      i += 2;
-    }
-  };
-  const blankString = ({ quote }: { quote: string }, _options = {}): void => {
-    out[i] = " ";
-    i++;
-    while (i < out.length && out[i] !== quote) {
-      if (out[i] === "\\") {
-        out[i] = " ";
-        i++;
-        if (i < out.length) out[i] = " ";
-      } else if (out[i] !== "\n") {
-        out[i] = " ";
-      }
-      i++;
-    }
-    if (i < out.length) {
-      out[i] = " ";
-      i++;
+    if (cursor.i < out.length) {
+      out[cursor.i] = " ";
+      out[cursor.i + 1] = " ";
+      cursor.i += 2;
     }
   };
-  while (i < out.length) {
-    const ch = out[i];
-    const next = out[i + 1];
+  const blankString = createBlankString(out, cursor);
+  while (cursor.i < out.length) {
+    const ch = out[cursor.i];
+    const next = out[cursor.i + 1];
     if (ch === "/" && next === "/") {
       blankLineComment({});
       continue;
@@ -169,13 +154,39 @@ function stripCommentsAndStrings(source: string): string {
       blankBlockComment({});
       continue;
     }
-    if (ch === "'" || ch === '"' || ch === "`") {
+    if (isSourceQuote(ch)) {
       blankString({ quote: ch });
       continue;
     }
-    i++;
+    cursor.i++;
   }
   return out.join("");
+}
+
+function isSourceQuote(ch: string) {
+  return ch === "'" || ch === '"' || ch === "`";
+}
+
+
+function createBlankString(out: string[], cursor: { i: number; }) {
+  return ({ quote }: { quote: string }, _options = {}): void => {
+    out[cursor.i] = " ";
+    cursor.i++;
+    while (cursor.i < out.length && out[cursor.i] !== quote) {
+      if (out[cursor.i] === "\\") {
+        out[cursor.i] = " ";
+        cursor.i++;
+        if (cursor.i < out.length) out[cursor.i] = " ";
+      } else if (out[cursor.i] !== "\n") {
+        out[cursor.i] = " ";
+      }
+      cursor.i++;
+    }
+    if (cursor.i < out.length) {
+      out[cursor.i] = " ";
+      cursor.i++;
+    }
+  };
 }
 
 /** Returns the index 1 past `stripped[openIndex]`'s matching close bracket. `stripped` must

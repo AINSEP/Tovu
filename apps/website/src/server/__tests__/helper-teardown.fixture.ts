@@ -34,18 +34,18 @@ const bindings = {
   defaultPgliteSocketDir: () => socketDir,
   initSite: async () => { if (fault === "init") throw new Error("init failed"); },
   bootSiteDir: async () => { if (fault === "boot") throw new Error("boot failed"); return { workspaceId: "ws" }; },
-  createSiteRouteDeps: async (_file: string, options: { onStoreOpened(store: unknown): void }) => {
-    options.onStoreOpened({ marker: "composed" });
+  createSiteRouteDeps: async (_required: Record<string, never>, { overrides }: { overrides: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void } }) => {
+    overrides.onStoreOpened({ store: { marker: "composed" } });
     if (fault === "compose") throw new Error("compose failed");
     return { workspaceId: "ws" };
   },
   resolveSiteDatabasePaths: () => ({ contentDbPath: "fake.db" }),
   drainBootReadiness: async () => { if (fault === "readiness") throw new Error("readiness failed"); },
-  createApp: (_deps: unknown, options: { onBootWork(work: Promise<void>): void }) => {
+  createApp: (_deps: unknown, options: { onBootWork({ work }: { work: Promise<void> }): void }) => {
     const work = fault === "work" ? Promise.reject(new Error("background boot failed")) : Promise.resolve();
     void work.catch(() => {}); // The real app observes its boot pass too; teardown still sees the rejection.
-    options.onBootWork(work);
-    if (fault === "work") options.onBootWork(new Promise(resolve => setImmediate(() => { console.log("sibling work settled"); resolve(); })));
+    options.onBootWork({ work });
+    if (fault === "work") options.onBootWork({ work: new Promise(resolve => setImmediate(() => { console.log("sibling work settled"); resolve(); })) });
     const app = express();
     app.post("/api/admin/v1/auth/login", (_req, res) => { res.setHeader("set-cookie", "session=fixture"); res.json({}); });
     return app;
@@ -78,7 +78,7 @@ const bindings = {
     if (fault === "login") throw new Error("login failed after listening");
     return { baseUrl: "http://fixture", cookie: "session" };
   },
-  closeSiteDirBoot: async (_boot: unknown, composed: { marker: string }) => {
+  closeSiteDirBoot: async (_boot: unknown, { composed }: { composed?: { marker: string } } = {}) => {
     if (composed?.marker !== "composed") throw new Error("composed store was not retained");
     console.log("database closed");
     if (fault === "close") throw new Error("database close failed");

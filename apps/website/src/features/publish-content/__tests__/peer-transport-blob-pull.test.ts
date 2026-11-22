@@ -86,7 +86,7 @@ function pullDeps(httpClient: HttpClientPort, blobSink: RecordingBlobSink, overr
     credential: CREDENTIAL,
     blobSink,
     workspaceId: WORKSPACE,
-    computeStorageKey: (sha256: string) => computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }),
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }),
     ...overrides,
   };
 }
@@ -103,7 +103,7 @@ test("pull downloads each missing blob and writes the bytes it verified, under t
   });
   const sink = new RecordingBlobSink();
 
-  const result = await pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [firstSha, secondSha] });
+  const result = await pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [firstSha, secondSha] } });
 
   assert.deepEqual([...result.downloaded], [firstSha, secondSha]);
   assert.deepEqual([...result.unavailable], []);
@@ -131,7 +131,7 @@ test("pull never re-downloads a blob this instance already holds", async () => {
   const peer = new FakeBlobPeer({ [sha]: { json: { sha256: sha, dataBase64: bytes.toString("base64") } } });
   const sink = new RecordingBlobSink(new Set([computeBlobStorageKey({ workspaceId: WORKSPACE, sha256: sha })]));
 
-  const result = await pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [sha] });
+  const result = await pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [sha] } });
 
   assert.deepEqual([...result.alreadyPresent], [sha]);
   assert.deepEqual([...result.downloaded], []);
@@ -145,7 +145,7 @@ test("a repeated sha in the manifest is fetched ONCE", async () => {
   const peer = new FakeBlobPeer({ [sha]: { json: { sha256: sha, dataBase64: bytes.toString("base64") } } });
   const sink = new RecordingBlobSink();
 
-  const result = await pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [sha, sha, sha] });
+  const result = await pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [sha, sha, sha] } });
 
   assert.deepEqual([...result.downloaded], [sha]);
   assert.equal(peer.calls.length, 1);
@@ -159,7 +159,7 @@ test("bytes that do not hash to the requested sha FAIL LOUDLY and are never writ
   const sink = new RecordingBlobSink();
 
   await assert.rejects(
-    () => pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [requested] }),
+    () => pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [requested] } }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError, `expected a typed transport error, got ${String(err)}`);
       assert.equal(err.code, "PEER_RESPONSE_INVALID");
@@ -180,7 +180,7 @@ test("a peer that answers a blob fetch with a non-object, or with no dataBase64,
   const notAnObject = new FakeBlobPeer({ [shaA]: { bodyText: JSON.stringify(["not", "an", "object"]) } });
   const sinkA = new RecordingBlobSink();
   await assert.rejects(
-    () => pullBlobsFromPeer(pullDeps(notAnObject, sinkA), { blobManifest: [shaA] }),
+    () => pullBlobsFromPeer({ deps: pullDeps(notAnObject, sinkA), required: { blobManifest: [shaA] } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
   );
   assert.equal(sinkA.written.length, 0);
@@ -188,7 +188,7 @@ test("a peer that answers a blob fetch with a non-object, or with no dataBase64,
   const noBytes = new FakeBlobPeer({ [shaB]: { json: { sha256: shaB } } });
   const sinkB = new RecordingBlobSink();
   await assert.rejects(
-    () => pullBlobsFromPeer(pullDeps(noBytes, sinkB), { blobManifest: [shaB] }),
+    () => pullBlobsFromPeer({ deps: pullDeps(noBytes, sinkB), required: { blobManifest: [shaB] } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
   );
   assert.equal(sinkB.written.length, 0);
@@ -202,7 +202,7 @@ test("a blob the peer does not hold is REPORTED, not thrown — the entity that 
   const peer = new FakeBlobPeer({ [heldSha]: { json: { sha256: heldSha, dataBase64: held.toString("base64") } } });
   const sink = new RecordingBlobSink();
 
-  const result = await pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [goneSha, heldSha] });
+  const result = await pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [goneSha, heldSha] } });
 
   assert.deepEqual([...result.unavailable], [goneSha]);
   assert.deepEqual([...result.downloaded], [heldSha], "one absent blob must not abort the rest of the pull");
@@ -215,7 +215,7 @@ test("a peer failure that is NOT a 404 aborts the pull instead of being silently
   const sink = new RecordingBlobSink();
 
   await assert.rejects(
-    () => pullBlobsFromPeer(pullDeps(peer, sink), { blobManifest: [sha] }),
+    () => pullBlobsFromPeer({ deps: pullDeps(peer, sink), required: { blobManifest: [sha] } }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_REJECTED");
@@ -239,7 +239,7 @@ test("the number of blobs one pull will fetch is CAPPED; the remainder is deferr
   const peer = new FakeBlobPeer(bodies);
   const sink = new RecordingBlobSink();
 
-  const result = await pullBlobsFromPeer(pullDeps(peer, sink, { maxBlobs: 2 }), { blobManifest: shas });
+  const result = await pullBlobsFromPeer({ deps: pullDeps(peer, sink, { maxBlobs: 2 }), required: { blobManifest: shas } });
 
   assert.deepEqual([...result.downloaded], shas.slice(0, 2));
   assert.deepEqual([...result.deferredOverCap], shas.slice(2));

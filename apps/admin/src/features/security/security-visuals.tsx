@@ -1,24 +1,17 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { Icon } from "@jini-ai/ui";
 /**
  * @file This page's own small icon set — no icon dependency, same rationale
  * `source-control/source-control-visuals.tsx`'s header gives for its own set. This page owns no code
  * dependency on `deployment/`/`source-control/` beyond their shared `rules.ts` data tables (see
- * `rules.ts`'s own header), so its icons are redrawn locally rather than imported cross-feature too.
+ * `rules.ts`'s own header), so its icons are redrawn locally rather than imported cross-feature too. The shared stroke attributes come from `components/line-icon.ts`.
  *
  * No brand marks anywhere in this file — every provider name (source-control and hosting alike)
  * renders as plain `translate="no"` text with a generic connection/checkmark glyph beside them, same
  * treatment every provider name in this app gets.
  */
 
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+
 
 /** The Access Tokens tab's own icon — a key, i.e. the shape a credential is. Added for the Security
  *  page's tab row (owner request, the same pass that added Deployment's five and Source Control's

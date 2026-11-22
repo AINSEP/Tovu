@@ -20,9 +20,9 @@ const { getThemeDetail, setThemePagePublished } = vi.hoisted(() => ({
   setThemePagePublished: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, getThemeDetail, setThemePagePublished } };
+vi.mock("../../../themes/api/themes-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../themes/api/themes-api")>();
+  return { ...actual, themesApi: { ...actual.themesApi, getThemeDetail, setThemePagePublished } };
 });
 
 const { createFakeThemePagesPort, defaultThemePagesPort } = await import("../theme-pages-dependencies.hooks");
@@ -33,22 +33,22 @@ describe("defaultThemePagesPort", () => {
   it("getThemeDetail forwards themeId to api.getThemeDetail, returning the files unchanged", async () => {
     const response = { files: [ABOUT] };
     getThemeDetail.mockResolvedValue(response);
-    await expect(defaultThemePagesPort.getThemeDetail("basic")).resolves.toEqual(response);
-    expect(getThemeDetail).toHaveBeenCalledWith("basic");
+    await expect(defaultThemePagesPort.getThemeDetail({ themeId: "basic" })).resolves.toEqual(response);
+    expect(getThemeDetail).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("setPagePublished forwards themeId/page/published to api.setThemePagePublished", async () => {
     const response = { page: "about", published: true };
     setThemePagePublished.mockResolvedValue(response);
-    await expect(defaultThemePagesPort.setPagePublished("basic", "about", true)).resolves.toEqual(response);
-    expect(setThemePagePublished).toHaveBeenCalledWith("basic", "about", true);
+    await expect(defaultThemePagesPort.setPagePublished({ themeId: "basic", page: "about", published: true })).resolves.toEqual(response);
+    expect(setThemePagePublished).toHaveBeenCalledWith({ themeId: "basic", page: "about", published: true });
   });
 });
 
 describe("createFakeThemePagesPort — setPagePublished not-found guard", () => {
   it("throws 'fake theme page not found' for a page absent from pageFiles", async () => {
     const port = createFakeThemePagesPort({ pageFiles: [ABOUT] });
-    await expect(port.setPagePublished("basic", "missing-page", true)).rejects.toThrow(
+    await expect(port.setPagePublished({ themeId: "basic", page: "missing-page", published: true })).rejects.toThrow(
       "fake theme page not found: missing-page",
     );
   });

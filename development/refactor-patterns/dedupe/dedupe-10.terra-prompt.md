@@ -1,0 +1,55 @@
+# Terra job dedupe-10: OWNER-GATED (run only the groups the owner approved)
+
+READY (2026-11-13; revised after review d3r: T11 moved to the Opus UI backlog, `opus-ui-backlog.md`; size rule). JR01 and J46a are the only groups, both under owner decision O2. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu+Jini clone you are given.
+
+Each group below needs the owner's yes first (see PLAN.md, Owner decisions). Skip every group the dispatch does not name as approved.
+
+## Rules for every group in this job (read before editing)
+- HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
+- Do exactly the recipe. If a recipe's "before" text is not in the file (code moved or changed), search the same file for the same code by content; if it is gone or differs in behavior, SKIP that group and report it as `STALE <id>: <what you saw>`. Never improvise a different design.
+- No `eslint-disable`, no `as any`, no non-null `!`, no `@ts-ignore`.
+- Signatures: every function this job creates or gives a new shared home takes `(required: {...}, optional: {...} = {})`; with nothing optional write `_optional: Record<string, never> = {}`, with nothing required `_required: Record<string, never> = {}`. A defaulted trailing object never breaks an existing caller. Where an existing exported name has a different shape and callers exist, keep that name as a one-line adapter over the new function. Only three shapes are exempt: React components (one props object), callbacks whose shape a library fixes (e.g. DataTable compare `(a, b)`), and the positional type guards owner decision O2 covers. Each recipe that uses an exemption names it.
+- Size: every function you create, move or merge is at most 50 lines, with cyclomatic AND cognitive complexity at most 10 (at most 9/9 under Tovu `apps/admin`). A recipe that moves code says how to split it when needed. If a body you move is still over a limit, split it only by pure extract-function: the same statements in the same order, locals passed in one object, and each comment moving with its lines. If that cannot be done without changing behavior, SKIP the group and report `OVER-LIMIT <id>: <function> <lines>/<complexity>`.
+- "Why" comments are never deleted: when code moves, its comment moves with it to the survivor; when two copies carry different why-comments, the survivor keeps both.
+- Do not change response text, status codes, error messages, defaults or ordering unless the recipe says so. Where a recipe says "behavior differs", write the failing test first (run it, see it RED), then make the change, then see it GREEN.
+- Plugins never import each other (`packages/agent-plugins/src/<id>/`, `content/agent-plugins/<id>/`); no new package; a shared helper goes only where the recipe says.
+- Tests: run ONLY the single files the recipe lists (and any test file you edit), one at a time. No suites, no full `tsc`, no watch modes; vitest always `--maxWorkers=2`; Tovu node tests always `--test-concurrency=1`. Leave no process running. Jini: after editing a package, type-check that package only, no emit (`cd packages/<pkg> && npx tsc --noEmit -p tsconfig.json`), and do NOT rebuild/publish it.
+- Tovu single-file test command: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=1 --experimental-test-module-mocks <file>`.
+- Commit once per group (or once per job if the groups are tiny), by explicit paths: `git add -- <paths> && git commit -F msg -- <paths>`. Never `git add -A`, never stash/checkout/reset, never push.
+- Report: per group `DONE | STALE | SKIPPED` + lines removed (from `git diff --stat`), tests run with pass/fail counts, anything that looked like a bug (do not fix bugs that are not in the recipe; list them).
+
+## Groups in this job (decision, risk, expected saving, divergence, tests)
+- **JR01** EXTRACT SHARED HELPER — risk L; est. −80 lines; divergence: none for the 26 replaced copies (all are non-null + non-array). Excluded on purpose: array-permissive copies (agent-runtime claude-segment-usage, qoder-stream, pi-rpc/internal, elevenlabs; agentic a2ui/surface-properties; chat run-activity; search registry), shape-typed guards (commerce Candidate, search contribution Shape, agent-runtime json-event-stream JsonObject export), protocol/delegated-result (protocol has no core dependency)
+  - tests: cd packages/core && npx vitest run --maxWorkers=2 src/records.test.ts ; then npx tsc --noEmit -p packages/<pkg>/tsconfig.json for each touched package ; per touched file run its colocated test: cd packages/<pkg> && npx vitest run --maxWorkers=2 $(rg -l '<basename-without-ext>' src --glob '*.test.ts' | head -3)
+- **T11** moved to the Opus UI backlog (it must reuse ui-kit's existing `useNativeDialog`, not add a second native-dialog lifecycle; owner decision O3).
+- **T33** moved to job dedupe-03.
+
+## Recipes (exact before → after)
+
+## JR01 isRecord copies -> core `isObjectRecord` (EXTRACT, core + 11 packages) - OWNER DECISION O2: positional guard
+Exemption from the two-object form: `isObjectRecord(value)` is a positional type guard (O2), named here as the rules require.
+Phase A = step 1 (core only; commit; report `JR01 PHASE A DONE (needs H6)`). Phase B = steps 2-4, only after the dispatch says "H6 done: @jini-ai/core built".
+1. `packages/core/src/records.ts`, after `isNonArrayRecord`:
+```ts
+/**
+ * Positional twin of {@link isNonArrayRecord}. TypeScript narrows only the argument a guard names,
+ * so the object-arg form cannot narrow a caller's own variable in place; this one can.
+ * Same check: non-null, non-array object (class instances and null-prototype records included).
+ * @complexity O(1) time and space.
+ * @example isObjectRecord([]); // false
+ */
+export function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return isNonArrayRecord({ value });
+}
+```
+Add to `src/records.test.ts`: `{}` true, `[]` false, `null` false, `Object.create(null)` true.
+2. In each of these 26 files delete the local `isRecord` (function or const), add `isObjectRecord` to the file's `@jini-ai/core/records` import (or add `import { isObjectRecord } from '@jini-ai/core/records';`), and rename `isRecord(` to `isObjectRecord(` inside that file only:
+agent-plugins/src/admin-surfaces/{surface-capabilities,surface-handlers,delivery-bindings}.ts; agent-plugins/src/lifecycle/tools/manifest.ts; agent-runtime/src/{claude-stream,mmd-routes}.ts; agent-runtime/src/ai-trace/usage.ts; agent-runtime/src/providers/{anthropic-messages,google-messages,google-schema,operation-schema,ollama-chat,openai-chat}.ts; agentic/src/core/mcp-ui-apps.ts; chat/src/core/run-events/entry.ts; cms/src/widgets/markers/gallery.ts; desktop-host/src/bridge.ts; integrations/src/api-connections/descriptor.ts; integrations/src/api-connections/token-store/record.ts; mcp/src/server/{schema-ref-scope,tools/delegated-tool}.ts; platform/src/mail/provider-setup.ts; platform/src/secrets/passphrase-envelope.ts; plugins/src/host/declarative-content-types.ts; ui/src/features/mcp-ui/resource.ts; ui/src/features/mcp-ui/surfaces/structured-details.ts.
+   - `agentic/src/core/mcp-ui-apps.ts`: its "Arrays excluded deliberately: …" comment moves to sit above the first `isObjectRecord(` call.
+   - The 4 `Readonly<Record<…>>` copies (3 admin-surfaces, provider-setup) narrow to `Record<string, unknown>` now; that is assignable everywhere the readonly form was.
+3. `mcp/src/server/tool-arguments.ts` exports `isRecord`: replace its definition with `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` so its importers stay unchanged.
+4. J46a (same owner gate O2; runs with JR01): new `daemon/src/core/is-record.ts` containing `export { isObjectRecord as isRecord } from '@jini-ai/core/records';` plus this moved comment: "Positional on purpose: TypeScript narrows only the argument a guard names, so core's object-arg `isNonArrayRecord` cannot narrow `input.body` in place." Then, in each of these 22 files, delete the local `isRecord` (all have the body `typeof value === 'object' && value !== null && !Array.isArray(value)` or the same with operands reordered) and import `isRecord` from the new module by relative path: `run-lifecycle.ts`, `tool-result-surfaces.ts`, `tool-result-media.ts`, `terminal-session.ts`, `remote-tool-executor.ts`, `http/remote-run-events.ts`, `http/media.ts`, `http/research.ts`, `http/db-ops.ts`, `http/frontend-sessions.ts`, `http/routines.ts`, `http/memory.ts`, `http/tool-execution-routes.ts`, `http/runs.ts`, `http/attachment-lookup-routes.ts`, `http/xai.ts`, `http/connectors.ts`, `http/delegated-tools.ts`, `http/frontend-request-route.ts` (all under `packages/daemon/src/`). The three EXPORTED copies keep their export so importers stay unchanged: `http/model-proxy-fields.ts`, `http/resource-request.ts`, `agent-executor/values.ts` each become `export { isRecord } from '<relative>/core/is-record.js';`.
+NOT touched (one line each): array-permissive copies (agent-runtime claude-segment-usage, qoder-stream, pi-rpc/internal, elevenlabs; agentic a2ui/surface-properties; chat run-activity; search registry) change behavior if replaced; shape-typed guards (commerce `Candidate`, search contribution `Shape`, agent-runtime json-event-stream `JsonObject` export); protocol/delegated-result.ts (protocol does not depend on core).
+
+### T33
+Moved to job dedupe-03 (both launch-gate bindings are now passed in explicitly, so the merge no longer needs O4's answer). Nothing to do here.

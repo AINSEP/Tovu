@@ -7,8 +7,12 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { DuplicateThemeError, duplicateDiscoveredTheme, duplicateTheme, MAX_DUPLICATE_THEME_BYTES, themeIdFromName } from "../duplicate-theme.js";
-import { discoverAllBuiltInThemes, MIGRATION_STAGING_DIR_PREFIX, THEME_CATALOG_DIR, type DiscoveredTheme } from "../theme.js";
-import { MAX_LISTED_FILES, MAX_WALK_DEPTH, resolveThemeOriginalSource } from "../theme-files.js";
+import { discoverAllBuiltInThemes, MIGRATION_STAGING_DIR_PREFIX } from "../theme-discovery.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
+import { type DiscoveredTheme } from "../theme.js";
+import { MAX_LISTED_FILES } from "../theme-file-listing.js";
+import { MAX_WALK_DEPTH } from "../theme-files.js";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { writableThemeIds, ThemeStylingRequiredError } from "../active-theme.js";
 
 /**
@@ -378,9 +382,9 @@ test("a failure writing the stored original removes the copy too — never a cop
 });
 
 test("themeIdFromName folds diacritics and punctuation into single hyphens", () => {
-  assert.equal(themeIdFromName("  Café — Noir!! "), "cafe-noir");
-  assert.equal(themeIdFromName("***"), "");
-  assert.equal(themeIdFromName("a".repeat(60)).length, 48);
+  assert.equal(themeIdFromName({ name: "  Café — Noir!! " }), "cafe-noir");
+  assert.equal(themeIdFromName({ name: "***" }), "");
+  assert.equal(themeIdFromName({ name: "a".repeat(60) }).length, 48);
 });
 
 /** Refusal with both the specific code and the message that names what failed. */

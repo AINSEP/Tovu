@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { listPublishedPostPreviews, type PostRecord, type PostRepoPort } from "../post.js";
+import { listPublishedPostPreviews } from "../post-read.js";
+import type { PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
@@ -41,8 +42,8 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 const ADAPTERS: { name: string; make: () => PostRepoPort }[] = [
-  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 
@@ -106,12 +107,12 @@ for (const adapter of ADAPTERS) {
 }
 
 test("listPublishedPostPreviews: wraps the bounded repo call, returning only what the repo already filtered", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     post({ id: "one", slug: "one" }),
     post({ id: "two", slug: "two", kind: "page" }),
     post({ id: "newest", slug: "newest", updatedAt: "2026-09-03T00:00:00.000Z" }),
     post({ id: "middle", slug: "middle", updatedAt: "2026-09-02T00:00:00.000Z" }),
-  ]);
+  ] });
   const { posts } = await listPublishedPostPreviews({ deps: { repo }, input: { workspaceId: WORKSPACE_ID, limit: 2 } });
   assert.deepEqual(posts.map((p) => p.id), ["newest", "middle"]);
 });

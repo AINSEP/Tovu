@@ -36,10 +36,10 @@ test("memory daemon composition does not build site route dependencies", async (
     assert.equal(await deps.agentSessions.getSessionId({ conversationId: "chat", agentId: "codex" }), "session");
     assert.equal(await deps.agentSessions.getSessionId({ conversationId: "another", agentId: "codex" }), null);
     const key = { conversationId: "chat", principalId: "owner", connectionId: "native:ws", toolName: "page.click", fingerprint: "v1" };
-    await deps.conversationToolApprovals.grant(key, "2026-11-03");
+    await deps.conversationToolApprovals.grant({ key: key, grantedAt: "2026-11-03" });
     assert.equal(await deps.conversationToolApprovals.has(key), true);
     assert.equal(await deps.conversationToolApprovals.has({ ...key, conversationId: "another" }), false);
-    assert.equal((await deps.getEffective({ repo: deps.settingsRepo }, { namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: "ws" } }))?.value, "fresh instructions");
+    assert.equal((await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: "core.instructions", key: "custom", scopeContext: { workspaceId: "ws" } }))?.value, "fresh instructions");
     await deps.chatRunLedger.durable.find({ runId: "accepted-at-site" }, {});
     assert.ok(f.calls.some(call => call.operation === "find"), "attempt lookup reaches the site, never a local ledger");
     deps.tracker.error({ error: new Error("daemon failure") }, { context: { operation: "test", attributes: { process: "daemon" } } });

@@ -7,7 +7,8 @@ import { usePageEditor, type PageEditorController } from "../hooks/use-page-edit
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import type { InteractiveHtmlEditorHandle } from "@jini-ai/ui/html-editor";
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -101,7 +102,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     t: (key) => key,
     dirty: false,
     contentDirty: false,
-    templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
+    templatePreviewUrl: page ? postsApi.templatePreviewUrl({ id: page.id, templateChoice }) : "",
     previewFormRef: vi.fn(),
     previewFormTarget: page ? `page-preview-pending-${page.id}` : "",
     // "ready" — the interactive surface, not "interactive-pending" — see `rules.ts`'s
@@ -190,8 +191,8 @@ describe("PageEditor — recovered content remount", () => {
         savedByPrincipalId: "user-local",
       },
     });
-    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
-    const usePageEditorHook = (slug: string) => usePageEditor(slug, deps);
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+    const usePageEditorHook = ({ routeSlug }: { routeSlug: string }) => usePageEditor({ routeSlug, deps });
     const view = render(<PageEditor slug="about" usePageEditorHook={usePageEditorHook} />);
     try {
       await screen.findByRole("button", { name: "Restore" });

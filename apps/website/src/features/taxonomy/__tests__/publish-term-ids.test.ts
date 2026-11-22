@@ -21,13 +21,13 @@ test("apply replaces the assignment set and revert restores the exact pre-image 
   await h.site.taxonomies.insert({ id: "tx", name: "Tags", hierarchical: false, status: "active", updatedAt: AT, version: 1 });
   for (const id of ["old", "keep", "new"]) await h.site.terms.insert({ id, taxonomyId: "tx", parentId: null, name: id, status: "active", updatedAt: AT, version: 1 });
   for (const termId of ["old", "keep"]) await h.site.entryTerms.upsert({ contentType: "post", contentId: "post-8", termId, addedAt: AT });
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep", "old"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep", "old"]);
   const sync = await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["new", "keep"] });
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep", "old"], "preparation writes nothing");
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep", "old"], "preparation writes nothing");
   await sync.apply();
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep", "new"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep", "new"]);
   await sync.revert();
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep", "old"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep", "old"]);
 });
 
 test("missing and trashed added terms are blocked before any assignment is written", async (t) => {
@@ -61,13 +61,13 @@ test("unwired empty syncs are harmless, unwired nonempty syncs fail, and state c
   const noop = await prepareTermSync({ ...target, ports: undefined, deps, wanted: [] });
   await noop.apply(); await noop.revert();
   await assert.rejects(prepareTermSync({ ...target, ports: undefined, deps, wanted: ["t"] }), { message: "publish-content: post 'post-8' carries term assignments, but this deps bag wires no taxonomy ports — wire ports.term." });
-  assert.equal(await readTermIds(undefined, "post", "post-8"), undefined);
+  assert.equal(await readTermIds({ ports: undefined, contentType: "post", contentId: "post-8" }), undefined);
   const state = Object.freeze({ title: "Eight" });
   const ids = ["term-b", "term-a"];
-  const result = withTermIds(state, ids);
+  const result = withTermIds({ state, termIds: ids });
   ids.push("term-c");
   assert.deepEqual(result, { title: "Eight", termIds: ["term-b", "term-a"] });
-  assert.equal(withTermIds(state, undefined), state);
+  assert.equal(withTermIds({ state, termIds: undefined }), state);
 });
 
 test("an unchanged wired assignment set needs no write authorization or outbox", async (t) => {
@@ -78,10 +78,10 @@ test("an unchanged wired assignment set needs no write authorization or outbox",
   const sync = await prepareTermSync({ ...target, ports: h.ports, deps: { ...h.deps, authorize: undefined, outbox: undefined }, wanted: ["keep"] });
   await sync.apply();
   await sync.revert();
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep"]);
   const empty = await prepareTermSync({ ...target, entityId: "untagged", ports: h.ports, deps: { ...h.deps, authorize: undefined, outbox: undefined }, wanted: null });
   await empty.apply();
-  assert.equal(await readTermIds(h.ports, "post", "untagged"), undefined);
+  assert.equal(await readTermIds({ ports: h.ports, contentType: "post", contentId: "untagged" }), undefined);
 });
 
 // why: the 2026-10-20 pin assumed a trashed assignment stays "retained", but readTermIds (via the
@@ -97,10 +97,10 @@ test("preflight reads only added terms, in wanted order, and leaves retained liv
   await h.site.entryTerms.upsert({ contentType: "post", contentId: "post-8", termId: "keep", addedAt: AT });
   const seen: string[] = [];
   const find = h.ports.terms.findAnyById.bind(h.ports.terms);
-  t.mock.method(h.ports.terms, "findAnyById", async (id: string) => { seen.push(id); return find(id); });
+  t.mock.method(h.ports.terms, "findAnyById", async ({ id }: { id: string }) => { seen.push(id); return find({ id }); });
   await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["new-b", "keep", "new-a"] });
   assert.deepEqual(seen, ["new-b", "new-a"]);
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["keep"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["keep"]);
 });
 
 test("a wanted term already assigned but trashed at the destination is blocked, not silently retained", async (t) => {
@@ -118,7 +118,7 @@ test("a wanted term already assigned but trashed at the destination is blocked, 
 test("preflight stops at the first invalid addition and authorization precedes term reads", async (t) => {
   const h = fixture(t);
   const seen: string[] = [];
-  t.mock.method(h.ports.terms, "findAnyById", async (id: string) => { seen.push(id); return null; });
+  t.mock.method(h.ports.terms, "findAnyById", async ({ id }: { id: string }) => { seen.push(id); return null; });
   await assert.rejects(prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["missing-first", "missing-next"] }), {
     name: "PublishContentApplyRowError", rowOutcome: "blocked",
     message: "post 'post-8' is tagged with term 'missing-first', which is missing at this destination — publish or restore that term first",
@@ -138,13 +138,13 @@ test("addition-only and non-array removal-only syncs apply and revert without th
   await h.site.terms.insert({ id: "only", taxonomyId: "tx", parentId: null, name: "Only", status: "active", updatedAt: AT, version: 1 });
   const addition = await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: ["only"] });
   await addition.apply();
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["only"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["only"]);
   await addition.revert();
-  assert.equal(await readTermIds(h.ports, "post", "post-8"), undefined);
+  assert.equal(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), undefined);
   await addition.apply();
   const removal = await prepareTermSync({ ...target, ports: h.ports, deps: h.deps, wanted: "only" });
   await removal.apply();
-  assert.equal(await readTermIds(h.ports, "post", "post-8"), undefined);
+  assert.equal(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), undefined);
   await removal.revert();
-  assert.deepEqual(await readTermIds(h.ports, "post", "post-8"), ["only"]);
+  assert.deepEqual(await readTermIds({ ports: h.ports, contentType: "post", contentId: "post-8" }), ["only"]);
 });

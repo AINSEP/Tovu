@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { injectPageTitle } from "../static-render.js";
+import { injectPageTitle } from "../static-render-content.js";
 
 /**
  * @file Certifies {@link injectPageTitle}, substituting a template's `<title>` placeholder with the
@@ -14,17 +14,17 @@ import { injectPageTitle } from "../static-render.js";
 
 test("substitutes the placeholder inside <title> with the real title", () => {
   const template = "<head><title>{{title}}</title></head>";
-  assert.equal(injectPageTitle(template, "FAQ"), "<head><title>FAQ</title></head>");
+  assert.equal(injectPageTitle({ html: template, title: "FAQ" }), "<head><title>FAQ</title></head>");
 });
 
 test("HTML-escapes a title carrying reserved characters", () => {
   const template = "<title>{{title}}</title>";
-  assert.equal(injectPageTitle(template, 'Terms & "Conditions" <2026>'), "<title>Terms &amp; &quot;Conditions&quot; &lt;2026&gt;</title>");
+  assert.equal(injectPageTitle({ html: template, title: 'Terms & "Conditions" <2026>' }), "<title>Terms &amp; &quot;Conditions&quot; &lt;2026&gt;</title>");
 });
 
 test("REGRESSION GUARD: a template with no placeholder is returned unchanged", () => {
   const template = "<head><title>Fixed Title</title></head>";
-  assert.equal(injectPageTitle(template, "FAQ"), template);
+  assert.equal(injectPageTitle({ html: template, title: "FAQ" }), template);
 });
 
 test("REGRESSION GUARD: an authoring comment that mentions the placeholder as prose does not shadow the real <title> slot", () => {
@@ -35,7 +35,7 @@ test("REGRESSION GUARD: an authoring comment that mentions the placeholder as pr
   // the whole `<title>{{title}}</title>` element, so an incidental mention elsewhere is structurally
   // unable to collide with it.
   const template = "<!-- the title placeholder is {{title}} --><title>{{title}}</title>";
-  const out = injectPageTitle(template, "FAQ");
+  const out = injectPageTitle({ html: template, title: "FAQ" });
   assert.ok(out.includes("<title>FAQ</title>"), "the real <title> tag must be filled");
   assert.ok(out.includes("<!-- the title placeholder is {{title}} -->"), "the comment's own prose is untouched");
 });
@@ -45,5 +45,5 @@ test("a title that is itself the literal placeholder text renders as that litera
   // own output for this specific input. The chosen implementation matches once, up front, so this is
   // not actually reachable with the current regex-based match, but pins the contract explicitly.
   const template = "<title>{{title}}</title>";
-  assert.equal(injectPageTitle(template, "{{title}}"), "<title>{{title}}</title>");
+  assert.equal(injectPageTitle({ html: template, title: "{{title}}" }), "<title>{{title}}</title>");
 });

@@ -30,7 +30,7 @@ test("createApp hands onBootWork the installed-extension pass, which settles onl
   };
   const work: Promise<void>[] = [];
 
-  createApp(deps, { onBootWork: (pending) => work.push(pending) });
+  createApp(deps, { onBootWork: ({ work: pending }) => work.push(pending) });
 
   assert.equal(work.length, 1);
   const [pass] = work;
@@ -60,7 +60,7 @@ test("in-memory consent readiness registers definitions without creating privacy
   const before = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   await deps.siteConsentReady;
   assert.deepEqual(await deps.postRepo.list({ workspaceId: deps.workspaceId }), before);
-  const url = await getEffective({ repo: deps.settingsRepo }, { namespace: SITE_CONSENT_NAMESPACE,
+  const url = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: SITE_CONSENT_NAMESPACE,
     key: 'privacyPolicyUrl', scopeContext: { workspaceId: deps.workspaceId } });
   assert.ok(url, 'consent definitions still register');
   assert.equal(url.value, '');

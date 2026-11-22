@@ -12,7 +12,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { createHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryScheduler } from "../webhook-delivery-worker.js";
 
 /**
@@ -39,9 +39,9 @@ function openSite(path: string) {
   const db = openContentDb(path);
   let now = T0;
   const deps = {
-    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(db),
-    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(db),
-    webhookSigner: createFixedSecretSigner(new Map([["sub-1", Buffer.from("shared-secret")]])),
+    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo({ store: db }),
+    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo({ store: db }),
+    webhookSigner: createFixedSecretSigner({ secrets: new Map([["sub-1", Buffer.from("shared-secret")]]) }),
     clock: { nowIso: () => now },
     observability: createNoopObservabilityPort({}),
   };
@@ -57,7 +57,7 @@ async function seed(site: ReturnType<typeof openSite>) {
     id: "sub-1", workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: "Endpoint",
     targetUrl: "https://example.com/hooks", topics: ["form.submission.received"], secretVersion: 1,
     previousSecretVersion: null, status: "active", createdByPrincipalId: "principal-1", createdByPluginId: null,
-    createdAt: T0, updatedAt: T0, disabledAt: null,
+    createdAt: T0, updatedAt: T0, disabledAt: null, version: 1,
   });
   for (const id of ["d1", "d2", "d3"]) {
     const record = delivery(id);

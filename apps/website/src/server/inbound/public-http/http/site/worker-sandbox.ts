@@ -135,14 +135,9 @@ export function resolveDefaultTimeoutMs(): number {
  * @throws On capacity exhaustion, timeout, worker failure, invalid reply or rejected template; renderSite handles fallback.
  * @complexity O(e) environment copying for e variables, plus one cold source build; excludes rendering.
  */
-export async function renderInWorkerSandbox(
-  workerBasename: string,
-  errorLabel: string,
-  input: SandboxRenderInput,
-  options: SandboxOptions = {},
-): Promise<string> {
+export async function renderInWorkerSandbox({ workerBasename, errorLabel, input }: { workerBasename: string; errorLabel: string; input: SandboxRenderInput }, options: SandboxOptions = {}): Promise<string> {
   const isTsSource = import.meta.filename.endsWith(".ts");
-  const productRoot = options.productRoot ?? resolveProductRoot();
+  const productRoot = options.productRoot ?? resolveProductRoot({});
   const isThemeWorker = workerBasename === "handlebars-worker" || workerBasename === "liquid-worker";
   let workerDir = import.meta.dirname;
   if (isTsSource && isThemeWorker) {

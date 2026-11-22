@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { resolveThemeOriginalSource } from "#src/features/theme/index";
+import { resolveThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { collectSiteBackupFiles, readPlannedFile, type PlannedDiskFile, type SiteBackupSources } from "./sources.js";
 import type { ArchivePlugin } from "./archive-manifest.js";
@@ -21,9 +21,9 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
   const workspaceId = [...workspaces][0];
   if (workspaceId) {
     const lifecycle = createTovuAgentPluginLifecycle({ layout: required.sources.agentPlugins });
-    const workspaceRoot = required.sources.agentPlugins.forWorkspace(workspaceId).root;
-    const candidates = await lifecycle.listInstalledPlugins(workspaceRoot);
-    const bundled = await lifecycle.readBundledAgentPluginDigests(workspaceRoot);
+    const workspaceRoot = required.sources.agentPlugins.forWorkspace({ workspaceId }).root;
+    const candidates = await lifecycle.listInstalledPlugins({ workspaceRoot });
+    const bundled = await lifecycle.readBundledAgentPluginDigests({ workspaceRoot });
     const installed = lifecycle.preferBundledAgentPluginDigests(candidates, bundled);
     if (new Set(installed.map(plugin => plugin.pluginId)).size !== installed.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: "Export requires one installed digest per plugin id." });
     const activations = await lifecycle.readAgentPluginActivations({ workspaceRoot });
@@ -50,14 +50,14 @@ function isSupersededBundledRevision(required: { file: PlannedDiskFile; selected
 async function includeThemeOriginals(required: { sources: SiteBackupSources; files: PlannedDiskFile[]; notices: string[] }, optional: { packageThemesRoot?: string }): Promise<void> {
   const themes = required.files.filter(file => /^themes\/(static|declarative|code)\/[^/]+\/theme.json$/.test(file.path));
   for (const file of themes) {
-    const [, tier, id] = file.path.split("/");
+    // The filter above kept only `themes/<tier>/<id>/theme.json`, so both segments exist.
+    const [, tier, id] = file.path.split("/") as [string, string, string];
     const originalPrefix = `themes/__original-themes__/${tier}/${id}/`;
     if (required.files.some(file => file.path.startsWith(originalPrefix))) continue;
-    const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id: id! }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
+    const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
     if (original) {
       const collected = await collectSiteBackupFiles({ sources: { ...required.sources, themesDir: original.originalDir }, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
-      required.notices.push(...(collected.notices ?? []));
-      if (collected.skipped.length) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${collected.skipped[0]!.reason}.` });
+      recordThemeOriginalCollection(required.notices, collected, id);
       required.files.push(...collected.files.filter(file => file.path.startsWith("themes/")).map(file => ({ ...file, path: originalPrefix + file.path.slice("themes/".length) })));
     } else {
       // A theme without a recorded baseline still needs a recoverable original in v2.
@@ -65,6 +65,15 @@ async function includeThemeOriginals(required: { sources: SiteBackupSources; fil
       const livePrefix = `themes/${tier}/${id}/`;
       required.files.push(...required.files.filter(file => file.path.startsWith(livePrefix)).map(file => ({ ...file, path: originalPrefix + file.path.slice(livePrefix.length) })));
     }
+  }
+}
+
+function recordThemeOriginalCollection(notices: string[], collected: Awaited<ReturnType<typeof collectSiteBackupFiles>>, id: string): void {
+  notices.push(...(collected.notices ?? []));
+  if (collected.skipped.length) {
+    const skipped = collected.skipped[0];
+    if (skipped === undefined) throw new Error("Theme original export has no skipped-file details");
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${skipped.reason}.` });
   }
 }
 
@@ -97,12 +106,13 @@ async function unindexedAgentRecords(required: { files: readonly PlannedDiskFile
   for (const file of required.files) {
     const match = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(file.path);
     if (!match) continue;
-    const [, id, digest] = match;
-    const previous = known.get(id!);
+    const id = match[1]!;
+    const digest = match[2]!;
+    const previous = known.get(id);
     if (previous && previous !== digest) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: `Plugin '${id}' has multiple installed digests.` });
     if (!previous) {
-      known.set(id!, digest!);
-      extras.push({ kind: "agent", id: id!, version: "unknown", digest: digest!, enabled: false, shipped: true });
+      known.set(id, digest);
+      extras.push({ kind: "agent", id, version: "unknown", digest, enabled: false, shipped: true });
     }
   }
   return extras;

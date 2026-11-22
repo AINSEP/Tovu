@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { persistActiveSite, readEnvLine, readPersistedActiveSite, upsertEnvLine } from "../../active-site.js";
+import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
+import { persistActiveSite, readPersistedActiveSite } from "../../active-site.js";
 
 /**
  * @file 2026-09-04 sites-switcher decision — TDD for `active-site.ts`'s Activate persistence half.
@@ -20,19 +21,19 @@ function mkRepoRootFixture(): string {
 }
 
 test("upsertEnvLine: appends a new KEY=value to an empty source", () => {
-  assert.equal(upsertEnvLine("", "TOVU_SITE", "my-site"), "TOVU_SITE=my-site\n");
+  assert.equal(upsertEnvLine({ source: "", key: "TOVU_SITE", value: "my-site" }), "TOVU_SITE=my-site\n");
 });
 
 test("upsertEnvLine: appends without disturbing existing lines (order and content untouched)", () => {
   const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE_KEY=abc\n";
-  const result = upsertEnvLine(source, "TOVU_SITE", "my-site");
+  const result = upsertEnvLine({ source, key: "TOVU_SITE", value: "my-site" });
   assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE_KEY=abc\nTOVU_SITE=my-site\n");
 });
 
 test("TOVU_SITE persistence preserves prefix siblings and comments when the exact key is absent", () => {
   const source = "TOVU_SITE_DIR=/x\n# TOVU_SITE=old\n";
-  assert.equal(readEnvLine(source, "TOVU_SITE"), null);
-  assert.equal(upsertEnvLine(source, "TOVU_SITE", "queued"), `${source}TOVU_SITE=queued\n`);
+  assert.equal(readEnvLine({ source, key: "TOVU_SITE" }), null);
+  assert.equal(upsertEnvLine({ source, key: "TOVU_SITE", value: "queued" }), `${source}TOVU_SITE=queued\n`);
   const cwd = mkRepoRootFixture();
   try {
     fs.writeFileSync(path.join(cwd, ".env"), source);
@@ -40,7 +41,7 @@ test("TOVU_SITE persistence preserves prefix siblings and comments when the exac
     persistActiveSite({ name: "queued" }, { cwd });
     assert.equal(fs.readFileSync(path.join(cwd, ".env"), "utf8"), `${source}TOVU_SITE=queued\n`);
     assert.equal(readPersistedActiveSite({ cwd }), "queued");
-    assert.equal(readEnvLine(fs.readFileSync(path.join(cwd, ".env"), "utf8"), "TOVU_SITE_DIR"), "/x");
+    assert.equal(readEnvLine({ source: fs.readFileSync(path.join(cwd, ".env"), "utf8"), key: "TOVU_SITE_DIR" }), "/x");
   } finally {
     fs.rmSync(cwd, { recursive: true, force: true });
   }
@@ -70,12 +71,12 @@ test("persistence defaults to the child process working directory for both write
 
 test("upsertEnvLine: replaces an existing KEY=value in place, preserving every other line verbatim", () => {
   const source = "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=old-site\nTOVU_SITE_KEY=abc\n";
-  const result = upsertEnvLine(source, "TOVU_SITE", "new-site");
+  const result = upsertEnvLine({ source, key: "TOVU_SITE", value: "new-site" });
   assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=new-site\nTOVU_SITE_KEY=abc\n");
 });
 
 test("upsertEnvLine: a source with no trailing newline still gets exactly one new line appended (no blank line inserted)", () => {
-  const result = upsertEnvLine("TOVU_ADMIN_PASSWORD=secret123", "TOVU_SITE", "my-site");
+  const result = upsertEnvLine({ source: "TOVU_ADMIN_PASSWORD=secret123", key: "TOVU_SITE", value: "my-site" });
   assert.equal(result, "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE=my-site\n");
 });
 
@@ -114,22 +115,39 @@ test("persistActiveSite: never touches this process's own process.env", () => {
 });
 
 test("readEnvLine: returns null when the key is absent", () => {
-  assert.equal(readEnvLine("TOVU_ADMIN_PASSWORD=secret123\n", "TOVU_SITE"), null);
+  assert.equal(readEnvLine({ source: "TOVU_ADMIN_PASSWORD=secret123\n", key: "TOVU_SITE" }), null);
 });
 
 test("readEnvLine: returns the value for a present key, trimmed", () => {
-  assert.equal(readEnvLine("TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE= my-site \n", "TOVU_SITE"), "my-site");
+  assert.equal(readEnvLine({ source: "TOVU_ADMIN_PASSWORD=secret123\nTOVU_SITE= my-site \n", key: "TOVU_SITE" }), "my-site");
 });
 
 test("readEnvLine: reads back exactly what upsertEnvLine wrote (round trip)", () => {
-  const written = upsertEnvLine("TOVU_ADMIN_PASSWORD=secret123\n", "TOVU_SITE", "round-trip-site");
-  assert.equal(readEnvLine(written, "TOVU_SITE"), "round-trip-site");
+  const written = upsertEnvLine({ source: "TOVU_ADMIN_PASSWORD=secret123\n", key: "TOVU_SITE", value: "round-trip-site" });
+  assert.equal(readEnvLine({ source: written, key: "TOVU_SITE" }), "round-trip-site");
 });
 
 test("readEnvLine: the FIRST matching line wins — the same one upsertEnvLine would replace", () => {
   const source = "TOVU_SITE=first\nTOVU_SITE=second\n";
-  assert.equal(readEnvLine(source, "TOVU_SITE"), "first");
-  assert.equal(upsertEnvLine(source, "TOVU_SITE", "third"), "TOVU_SITE=third\nTOVU_SITE=second\n");
+  assert.equal(readEnvLine({ source, key: "TOVU_SITE" }), "first");
+  assert.equal(upsertEnvLine({ source, key: "TOVU_SITE", value: "third" }), "TOVU_SITE=third\nTOVU_SITE=second\n");
+});
+
+test("persistence replaces and reads the first duplicate TOVU_SITE while preserving unrelated bytes", () => {
+  const cwd = mkRepoRootFixture();
+  const envPath = path.join(cwd, ".env");
+  try {
+    fs.writeFileSync(envPath, "# pending site\nTOVU_SITE=first\nUNRELATED=  keep these bytes  \nTOVU_SITE=second\n");
+
+    persistActiveSite({ name: "queued" }, { cwd });
+
+    const written = fs.readFileSync(envPath, "utf8");
+    assert.equal(written, "# pending site\nTOVU_SITE=queued\nUNRELATED=  keep these bytes  \nTOVU_SITE=second\n");
+    assert.equal(readPersistedActiveSite({ cwd }), "queued");
+    assert.equal(readEnvLine({ source: written, key: "TOVU_SITE" }), "queued");
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test("readPersistedActiveSite: null when there is no .env file at all", () => {

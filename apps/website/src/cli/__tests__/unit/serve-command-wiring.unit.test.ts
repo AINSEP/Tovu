@@ -14,7 +14,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
  * `serve-site-dir-pin.unit.test.ts` (calls it directly, asserts the env mutation and every
  * downstream resolver that reads `TOVU_SITE_DIR`). What NONE of those tests prove is that
  * `runServeCommand` — the only production call site — actually calls it. Delete
- * `serve.ts`'s `pinServedSiteDirIntoEnv(target);` line and every one of those tests still passes,
+ * `serve.ts`'s `pinServedSiteDirIntoEnv({ target: target });` line and every one of those tests still passes,
  * because they invoke the primitive directly; the API/daemon `TOVU_SITE_DIR` split-brain the audit
  * fixed comes back silently.
  *
@@ -25,7 +25,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
  *
  * Why this is a source-text check, not a behavioral one: `runServeCommand` takes no injectable
  * deps or env (`RunServeCommandInput` is just `{ dir, port?, workspaceId?, emitBootToken? }`), and
- * `pinServedSiteDirIntoEnv(target)` is called with no env argument, so it always mutates the real
+ * `pinServedSiteDirIntoEnv({ target: target })` is called with no env option, so it always mutates the real
  * `process.env`. Every step around it in `runServeCommand` (`bootSiteDir`, `runBootLifecycle`,
  * `app.listen(port)`) does real filesystem/DB/network work ending in an actual bound TCP listener
  * — precisely the boot-and-bind sequence this dispatch prohibits exercising here. A behavioral test
@@ -37,7 +37,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
 
 const SERVE_TS_PATH = path.resolve(import.meta.dirname, "../../commands/serve.ts");
 const RUN_SERVE_COMMAND_SIGNATURE = "export async function runServeCommand(";
-const PIN_CALL = "pinServedSiteDirIntoEnv(target)";
+const PIN_CALL = "pinServedSiteDirIntoEnv({ target: target })";
 
 /**
  * `runServeCommand` is declared last in `serve.ts`, so everything from its signature to end of
@@ -55,7 +55,7 @@ function readRunServeCommandBody(source: string): string {
   return source.slice(start);
 }
 
-test("runServeCommand's body actually CALLS pinServedSiteDirIntoEnv(target), not just imports/defines it", () => {
+test("runServeCommand's body actually CALLS pinServedSiteDirIntoEnv, not just imports/defines it", () => {
   const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
   const body = readRunServeCommandBody(source);
 
@@ -84,8 +84,8 @@ test("sanity: the exact call-site text is not also the primitive's own declarati
     occurrences,
     1,
     `expected "${PIN_CALL}" to appear exactly once in serve.ts (the call site); found ${occurrences}. ` +
-      "The primitive's own declaration is `export function pinServedSiteDirIntoEnv(target: string, ...)` " +
-      "-- note the `: string` after `target`, which is why it does not also match this literal string."
+      "The primitive's own declaration destructures and types the target, so it does not also " +
+      "match this literal call string."
   );
 });
 
@@ -95,13 +95,13 @@ test("sanity: the exact call-site text is not also the primitive's own declarati
  * `serve-command*.integration.test.ts` family is the only suite that would exercise a real bound
  * listener's actual interface, so a source-text check is the only net available here too.
  */
-test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST)", () => {
+test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })", () => {
   const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
   const body = readRunServeCommandBody(source);
   assert.ok(
-    body.includes("resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST)"),
+    body.includes("resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })"),
     "runServeCommand no longer resolves --host/TOVU_HOST with " +
-      "resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST) -- deleting or rewording " +
+      "resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST }) -- deleting or rewording " +
       "that call silently reintroduces the all-interfaces default for tovu serve, or drops --host's precedence " +
       "over TOVU_HOST (see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md)."
   );
@@ -186,7 +186,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     },
   });
   module("../../../platform/site-dir/boot-site-dir.ts", {
-    closeSiteDirBoot: async (boot: unknown, store: unknown) => {
+    closeSiteDirBoot: async (boot: unknown, { composed: store }: { composed?: unknown } = {}) => {
       assert.equal(boot, bootResult);
       assert.equal(store, composedStore);
       closeStarted = true;
@@ -194,11 +194,11 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     },
   });
   module("../../../server/runtime/composition/deps.ts", {
-    createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(store: unknown): void; siteBinding: { dir: string } }) => {
+    createSiteRouteDeps: async (_required: Record<string, never>, { dbPath, overrides }: { dbPath: string; overrides: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void; siteBinding: { dir: string } } }) => {
       // The site's resolved placement (data.nosync on a sites-home site since 1cffdf3cf), not a fixed root file.
       assert.equal(dbPath, resolveSiteDatabasePaths({ dir: process.env.TOVU_SITE_DIR! }).contentDbPath);
-      assert.equal(options.siteBinding.dir, process.env.TOVU_SITE_DIR);
-      options.onStoreOpened(composedStore);
+      assert.equal(overrides.siteBinding.dir, process.env.TOVU_SITE_DIR);
+      overrides.onStoreOpened({ store: composedStore });
       return deps;
     },
   });
@@ -235,7 +235,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
   // Startup IPC and the private callback listener are approved boot steps. Keep this
   // wiring test entirely in-process; the listener's implementation has its own tests.
-  module("../../../server/runtime/boot/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
+  module("../../../platform/secrets/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
   module("../../../server/runtime/boot/site-daemon-listener.ts", { startSiteDaemonListener: async () => ({ origin: "http://127.0.0.1:4568", close: async () => {} }) });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });
@@ -260,7 +260,9 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   }) as typeof process.once);
   t.mock.method(process, "exit", ((code: number) => { exitCode = code; }) as typeof process.exit);
   const logged: string[] = [];
-  t.mock.method(console, "log", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); });
+  let sequence = 0;
+  const loggedSequence: number[] = [];
+  t.mock.method(console, "info", (...args: unknown[]) => { logged.push(args.map(String).join(" ")); loggedSequence.push(sequence++); });
   const errors: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { errors.push(args); });
   const stderr: string[] = [];
@@ -269,6 +271,13 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     stderr.push(String(chunk));
     return (writeStderr as (...args: unknown[]) => boolean)(chunk, ...rest);
   }) as typeof process.stderr.write);
+  const stdout: string[] = [];
+  const stdoutSequence: number[] = [];
+  t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
+    stdout.push(String(chunk));
+    stdoutSequence.push(sequence++);
+    return true;
+  });
   const readinessFailure = new Error("identity seeding failed");
   const { runServeCommand } = await import("../../commands/serve.js");
   try {
@@ -289,6 +298,10 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       daemonStarts.length = 0;
       errors.length = 0;
       logged.length = 0;
+      loggedSequence.length = 0;
+      stdout.length = 0;
+      stdoutSequence.length = 0;
+      sequence = 0;
       stderr.length = 0;
       if (scenario.identityFails === true) {
         const failing = Promise.reject(readinessFailure);
@@ -311,9 +324,12 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       const startup = `tovu serve: dir=${target} port=4567 schemaVersion=`;
       const startupIndex = logged.findIndex(line => line.startsWith(startup));
       assert.ok(startupIndex >= 0, "the documented startup line is printed once the listener is bound");
-      const tokenIndex = logged.findIndex(line => /^tovu serve: bootToken=\S+$/.test(line));
-      if (scenario.emitBootToken === true) assert.equal(tokenIndex, startupIndex - 1, "the boot token is printed on its own line just before the startup line");
-      else assert.equal(tokenIndex, -1, "no boot token is printed unless asked for");
+      assert.equal(logged.some(line => line.includes("bootToken")), false);
+      if (scenario.emitBootToken === true) {
+        assert.equal(stdout.length, 1);
+        assert.match(stdout[0], /^tovu serve: bootToken=\S+\n$/);
+        assert.ok(stdoutSequence[0] < loggedSequence[startupIndex], "the boot token is written before the startup line");
+      } else assert.deepEqual(stdout, []);
       const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);
       else assert.deepEqual(widened, [`tovu serve: warning: listening on ${scenario.expected ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`]);

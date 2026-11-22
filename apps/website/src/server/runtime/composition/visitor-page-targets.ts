@@ -23,16 +23,16 @@ export function createVisitorPageTargets({ deps }: { deps: RouteDeps }, _options
       // occupied slugs. A second DB read costs a full list and can disagree during a publish.
       const publicPosts = await readAnonymousPublishedPosts({ deps: { ...content, listPublishedPosts: async () => all } });
       const occupied = new Set(all.posts.map(post => post.slug));
-      const theme = resolveActiveTheme(deps, await resolveActiveThemeId(deps));
+      const theme = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
       const themePages = !theme || theme === 'none' || theme.manifest.tier !== 'static' ? [] : Object.keys(theme.pages)
-        .filter(id => isStandaloneThemePage(theme, id) && !occupied.has(id) && !['signin', 'signup'].includes(id))
+        .filter(id => isStandaloneThemePage({ theme, pageId: id }) && !occupied.has(id) && !['signin', 'signup'].includes(id))
         .map(id => ({ id: `theme:${id}`, label: id === 'index' ? 'Home' : id, path: id === 'index' ? '/' : `/${id}` }));
       return [...publicPosts.map(post => ({ id: post.id, label: post.title, path: postPublicPath({ slug: post.slug }) })), ...themePages]
-        .filter(page => checkSiteRelativeTarget(page.path).kind === 'ok' && !/[?#]/.test(page.path));
+        .filter(page => checkSiteRelativeTarget({ raw: page.path }).kind === 'ok' && !/[?#]/.test(page.path));
     },
     /** Refuse any redirect rather than following a chain into an unreviewed destination. */
     async assertPath({ path }: { path: string }, _optional = {}): Promise<void> {
-      if (checkSiteRelativeTarget(path).kind !== 'ok') throw new Error('Reserved route');
+      if (checkSiteRelativeTarget({ raw: path }).kind !== 'ok') throw new Error('Reserved route');
       const report = await redirects.resolveWithRefusals({ workspaceId: deps.workspaceId, path, phase: 'pre_content' });
       if (report.resolution.matched || report.refused.length) throw new Error('Redirect navigation refused');
     },

@@ -1,5 +1,5 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "./api";
-export { ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/headless";
+import { authenticatedAdminRequest } from "./admin-http/request";
+import { WORKSPACE_ID } from "./admin-http/config";
 
 export const SUBAGENT_DANGERS = [
   "Security risk: subagents can act independently.",
@@ -7,7 +7,7 @@ export const SUBAGENT_DANGERS = [
   "You may not see what they do; the chat does not show subagent tool calls.",
   "Cost and machine load multiply with each subagent.",
 ] as const;
-import type { AssistantCliPermissions } from "@tovu/headless";
+import type { AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 export interface AssistantSubagentsSettings {
   /** canEdit identifies a local owner; unavailableReason can still lock full access on this machine. */
   enabled: boolean; canEdit: boolean; capabilities?: Partial<AssistantCliPermissions["capabilities"]>; unavailableReason?: string;
@@ -26,5 +26,5 @@ const path = `/workspaces/${WORKSPACE_ID}/system/assistant-full-cli`;
 /** Thin host adapter: shared authenticated requests retain the session/error boundary. */
 export const assistantSubagentsPort: AssistantSubagentsPort = {
   read: () => authenticatedAdminRequest({ path, method: "GET" }),
-  write: (body) => authenticatedAdminRequest({ path, method: "PUT", body }),
+  write: (body, _optional = {}) => authenticatedAdminRequest({ path, method: "PUT", body }),
 };

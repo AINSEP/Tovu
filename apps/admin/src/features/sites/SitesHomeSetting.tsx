@@ -1,9 +1,10 @@
 import { useId, type ReactNode } from "react";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { SettingsDialogShell } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { useSitesConfig } from "./hooks/use-sites-config.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 type SitesSettings = ReturnType<typeof useSitesConfig>;
 
 /** Jini supplies settings dialog chrome; the hook owns loading, drafts, saving and remedies.
@@ -129,10 +130,10 @@ function SitesRootRows({ settings, disabled, t }: { settings: SitesSettings; dis
             <input className="field-mono" value={root} title={root} spellCheck={false} autoComplete="off" disabled={disabled}
               autoFocus={index === settings.addedIndex}
               aria-label={interpolate({ template: t("Extra folder {number}"), vars: { number: index + 1 } })}
-              onChange={(event) => settings.setRootAt(index, event.target.value)} />
+              onChange={(event) => settings.setRootAt({ index, value: event.target.value })} />
             <button type="button" className="btn-ghost sites-settings-root-remove" disabled={disabled}
               aria-label={interpolate({ template: t("Remove folder {number}"), vars: { number: index + 1 } })}
-              onClick={() => settings.removeRoot(index)}><CloseIcon /></button>
+              onClick={() => settings.removeRoot({ index })}><CloseIcon /></button>
           </li>
         ))}
       </ul>}

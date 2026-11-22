@@ -10,7 +10,8 @@ import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "@j
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
-import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../inbound/admin-http/routes/external-mcp/probe.js";
+import type { ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";
+import type { ExternalMcpProbeRouteDeps } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { registerAdminExternalMcpProbeRoute } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";
@@ -66,15 +67,15 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   const base = createRouteDeps();
   const probeDeps: ExternalMcpProbeRouteDeps = { ...base, ...(options.externalMcpOAuth ? { externalMcpOAuth: options.externalMcpOAuth } : {}), ...(options.connect ? { connect: options.connect } : {}) };
   // `createExternalMcpModule` only reads the fields it knows about off whatever shape it is handed
-  // — passing the widened `probeDeps` through as `RouteDeps` mirrors how `server/deps.ts` composes
+  // — passing the widened `probeDeps` through as `RouteDeps` mirrors how `server/runtime/composition/deps.ts` composes
   // one real deps object for every module, including this one.
   const deps = probeDeps as unknown as RouteDeps;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  if (options.limiter) registerAdminExternalMcpProbeRoute(app, probeDeps, options.limiter);
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  if (options.limiter) registerAdminExternalMcpProbeRoute({ app, deps: probeDeps, limiter: options.limiter });
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -239,9 +240,9 @@ test("a successful probe describes every advertised tool, admitted or not, with 
   // A holder object, not a bare `let`: TS's control-flow analysis cannot see the closure's write,
   // so a `let seenSpec = null` stays narrowed to `null` (and `.url` to `never`) at the assertion.
   const seen: { spec: McpHttpLaunchSpec | null; timeout: number | undefined } = { spec: null, timeout: undefined };
-  const connect: ExternalMcpProbeSessionFactory = async (spec, timeout) => {
+  const connect: ExternalMcpProbeSessionFactory = async ({ spec, requestTimeoutMs }) => {
     seen.spec = spec;
-    seen.timeout = timeout;
+    seen.timeout = requestTimeoutMs;
     return scriptedSession({
       tools: [
         { name: "generate_image", description: "Makes an image.", inputSchema: {}, annotations: { readOnlyHint: false } },
@@ -306,7 +307,7 @@ test("INV-006: the response carries no secret — not the OAuth bearer token, no
     },
   };
   let seenAuthHeader: string | undefined;
-  const connect: ExternalMcpProbeSessionFactory = async (spec) => {
+  const connect: ExternalMcpProbeSessionFactory = async ({ spec }) => {
     seenAuthHeader = spec.headers.authorization;
     return scriptedSession({ tools: [{ name: "generate_image", description: "d", inputSchema: {}, annotations: { readOnlyHint: false } }] });
   };
@@ -362,7 +363,7 @@ test("an exhausted probe budget returns 429 and Retry-After without another conn
 function recordRegisteredRoutes(deps: RouteDeps): string[] {
   const routes: string[] = [];
   const app = new Proxy({}, { get: (_target, method) => (path: unknown) => { routes.push(`${String(method)} ${String(path)}`); } });
-  createExternalMcpModule(deps).registerRoutes?.(app as never);
+  createExternalMcpModule(deps).registerRoutes?.({ app: app as never });
   return routes;
 }
 

@@ -7,8 +7,8 @@ import { fetchAgentDaemon } from "../../composition/modules/assistant-daemon-cli
 import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../../../../admin/src/lib/assistant-daemon-activation.js";
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
-import { createHttpRunDaemonClient } from "../../composition/modules/assistant-run-finalizer.js";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createHttpRunDaemonClient } from "../../composition/modules/run-daemon-http-client.js";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { assistantDaemonToken, delegatedAssistantDaemonConnection, previousAssistantDaemonConnection, setAssistantDaemonConnection } from "../assistant-daemon-connection.js";
 import { ensureAssistantDaemonReady, isAssistantDaemonReady, resetAssistantDaemonSingletonForTests, registerSiteIdleStopHook, shutdownAssistantDaemon, startAssistantDaemon } from "../daemon-supervisor.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";
@@ -122,7 +122,7 @@ test("an activation failure without JSON reports its HTTP status and a recovery 
 test("a latched failure retains its code while exposing the current readiness reason", async t => {
   const reason = "The assistant service lost its connection. Restart the site or the app.";
   const reasonCode = "previous-daemon-crash";
-  recordAssistantDaemonFailure(reasonCode);
+  recordAssistantDaemonFailure({ reasonCode });
   t.mock.method(console, "error", () => {});
   let body: unknown;
   const res = { status(code: number) { assert.equal(code, 503); return res; }, json(value: unknown) { body = value; return res; } };

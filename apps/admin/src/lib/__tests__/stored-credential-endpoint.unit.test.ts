@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminExecutionCredential } from "../api";
+import type { AdminExecutionCredential } from "../../features/ai-assistant/api/ai-assistant-api.types";
+import { ApiError } from "../admin-http/request";
 import {
   STORED_KEY_NO_ENDPOINT_COPY,
   STORED_KEY_OTHER_PROVIDER_COPY,
@@ -37,15 +38,15 @@ function adminView(overrides: Partial<AdminExecutionCredential> = {}): AdminExec
 
 describe("storedKeyIsForOtherEndpoint — admin credential view", () => {
   it("is true only when a key is stored for a different endpoint than the form's", () => {
-    expect(storedKeyIsForOtherEndpoint(adminView(), OPENAI)).toBe(true);
-    expect(storedKeyIsForOtherEndpoint(adminView(), GOOGLE)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(adminView({ isSet: false }), OPENAI)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(null, OPENAI)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: adminView(), baseUrl: OPENAI })).toBe(true);
+    expect(storedKeyIsForOtherEndpoint({ stored: adminView(), baseUrl: GOOGLE })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: adminView({ isSet: false }), baseUrl: OPENAI })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: null, baseUrl: OPENAI })).toBe(false);
   });
 
   it("treats an unknown stored endpoint as not provably another one", () => {
-    expect(storedKeyIsForOtherEndpoint(adminView({ baseUrl: null }), OPENAI)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(adminView({ baseUrl: "   " }), OPENAI)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: adminView({ baseUrl: null }), baseUrl: OPENAI })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: adminView({ baseUrl: "   " }), baseUrl: OPENAI })).toBe(false);
   });
 });
 
@@ -59,39 +60,39 @@ describe("storedKeyBlocksProbe", () => {
     { name: "stored key with no saved endpoint (the server answers)", apiKey: "", stored: adminView({ baseUrl: null }), baseUrl: OPENAI, blocked: false },
     { name: "not hydrated yet (the server answers)", apiKey: "", stored: null, baseUrl: OPENAI, blocked: false },
   ])("$name -> blocked=$blocked", ({ apiKey, stored, baseUrl, blocked }) => {
-    expect(storedKeyBlocksProbe(apiKey, stored, baseUrl)).toBe(blocked);
+    expect(storedKeyBlocksProbe({ apiKey, stored, baseUrl })).toBe(blocked);
   });
 
   it("is exactly the case hasUsableKey rules out for a stored key", () => {
     // The two must never both say "go": a blocked probe has no usable key.
-    expect(storedKeyBlocksProbe("", adminView(), OPENAI)).toBe(true);
-    expect(hasUsableKey("", adminView(), OPENAI)).toBe(false);
-    expect(hasUsableKey("", adminView(), GOOGLE)).toBe(true);
+    expect(storedKeyBlocksProbe({ apiKey: "", stored: adminView(), baseUrl: OPENAI })).toBe(true);
+    expect(hasUsableKey({ apiKey: "", stored: adminView(), baseUrl: OPENAI })).toBe(false);
+    expect(hasUsableKey({ apiKey: "", stored: adminView(), baseUrl: GOOGLE })).toBe(true);
   });
 });
 
 describe("describeProbeError — the admin branch's endpoint-pin text", () => {
   it("replaces the server's MISMATCH refusal (owner screenshot 29) with the plain ask", () => {
     const refusal = new ApiError(
-      `the admin execution credential is saved for '${GOOGLE}' and cannot be probed against '${OPENAI}' — save the new endpoint first, or supply an apiKey for it in this request`,
-      400,
-      "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
+      { message: `the admin execution credential is saved for '${GOOGLE}' and cannot be probed against '${OPENAI}' — save the new endpoint first, or supply an apiKey for it in this request`,
+      status: 400 },
+      { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" },
     );
-    expect(describeProbeError(refusal, "fallback")).toBe(STORED_KEY_OTHER_PROVIDER_COPY);
+    expect(describeProbeError({ e: refusal, fallback: "fallback" })).toBe(STORED_KEY_OTHER_PROVIDER_COPY);
   });
 
   it("replaces the server's UNSET refusal with plain language", () => {
     const refusal = new ApiError(
-      "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
-      400,
-      "STORED_CREDENTIAL_ENDPOINT_UNSET",
+      { message: "the admin execution credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+      status: 400 },
+      { code: "STORED_CREDENTIAL_ENDPOINT_UNSET" },
     );
-    expect(describeProbeError(refusal, "fallback")).toBe(STORED_KEY_NO_ENDPOINT_COPY);
+    expect(describeProbeError({ e: refusal, fallback: "fallback" })).toBe(STORED_KEY_NO_ENDPOINT_COPY);
   });
 
   it("keeps any other error's own message, and the fallback for a non-Error", () => {
-    expect(describeProbeError(new Error("API key not valid"), "fallback")).toBe("API key not valid");
-    expect(describeProbeError("boom", "fallback")).toBe("fallback");
+    expect(describeProbeError({ e: new Error("API key not valid"), fallback: "fallback" })).toBe("API key not valid");
+    expect(describeProbeError({ e: "boom", fallback: "fallback" })).toBe("fallback");
   });
 });
 
@@ -100,12 +101,12 @@ describe("createProbeErrorDescriber — ExecutionTab's describeProbeError, in a 
     key === STORED_KEY_OTHER_PROVIDER_COPY ? "Tu clave guardada es de otro proveedor. Pega una clave para este." : key;
 
   it("translates the plain-language copy that replaces an endpoint-pin refusal", () => {
-    const refusal = new ApiError("saved for another endpoint", 400, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
-    expect(createProbeErrorDescriber(spanish)(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
+    const refusal = new ApiError({ message: "saved for another endpoint", status: 400 }, { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" });
+    expect(createProbeErrorDescriber({ t: spanish })(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
   });
 
   it("keeps a provider's own message, and words a non-Error throw by its string form", () => {
-    expect(createProbeErrorDescriber(spanish)(new Error("API key not valid"))).toBe("API key not valid");
-    expect(createProbeErrorDescriber(spanish)("boom")).toBe("boom");
+    expect(createProbeErrorDescriber({ t: spanish })(new Error("API key not valid"))).toBe("API key not valid");
+    expect(createProbeErrorDescriber({ t: spanish })("boom")).toBe("boom");
   });
 });

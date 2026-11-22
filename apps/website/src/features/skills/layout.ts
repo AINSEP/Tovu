@@ -50,7 +50,7 @@ export interface SkillLayout {
    * @throws {Error} If `workspaceId` does not match the safe path-segment grammar (see
    * Jini skills/install/layout.ts's SAFE_ID_SEGMENT_PATTERN).
    */
-  forWorkspace(workspaceId: string): SkillWorkspaceLayout;
+  forWorkspace(required: { workspaceId: string }, optional?: Record<string, never>): SkillWorkspaceLayout;
 }
 
 export interface ResolveSkillLayoutOptional {
@@ -80,7 +80,7 @@ export function resolveSkillLayout(optional: ResolveSkillLayoutOptional = {}): S
   const root = path.resolve(override ?? path.join(optional.siteDir ?? resolveSiteRoot({ cwd, env }), "skills"));
 
   const layout = createSkillLayout({ root, stagingRoot: path.join(root, ".staging"), workspaceDirectory: "ws", stateFileName: ".tovu-install.json" });
-  return { root, forWorkspace(workspaceId) {
+  return { root, forWorkspace({ workspaceId }, _optional = {}) {
     try { return { root: layout.resolve({ workspaceId }).workspaceRoot }; }
     catch {
       // Quotes the RAW input, not the normalized one, so the message names what the caller passed.

@@ -1,4 +1,5 @@
-import type { AdminPost, AdminSiteKeyState } from "@/lib/api";
+import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file What `use-dashboard.hooks.ts` needs from the outside world, as an interface rather than a
@@ -22,7 +23,7 @@ export interface DashboardPort {
   listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   listPages(): Promise<{ posts: Array<{ post: AdminPost }> }>;
   listMedia(): Promise<{ media: Array<{ status: string }> }>;
-  listCommentsQueue(options: { status: "pending" }): Promise<{ items: unknown[] }>;
+  listCommentsQueue(options: { status: "pending" }, optional?: Record<string, never>): Promise<{ items: unknown[] }>;
   getPresentation(): Promise<{ settings: { activeThemeId: string }; availableThemes?: Array<{ id: string; name?: string }> }>;
   /** Password-banner plan (2026-09-24), Slice 3 — whether the SIGNED-IN caller's own stored
    *  credential still verifies against the default password (`GET /auth/me/password-status`,

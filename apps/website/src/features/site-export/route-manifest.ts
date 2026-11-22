@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
-import { NO_THEME_ID, resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
 import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
@@ -69,7 +70,7 @@ import type { ManifestRoute, ManifestSkip, RouteManifest } from "./ports.js";
  * `resolveStorefrontProducts` is now NULLARY (`() => Promise<RouteManifestProduct[]>`), not
  * `(routeDeps: RouteDeps) => ...` — the matching 2026-08-20 field-contract change on `RouteDeps`
  * itself (see that field's own doc in `server/routes/types.ts`) that is what lets this file drop
- * `RouteDeps` entirely: the real implementation (`server/routes/site/products.ts`) is now bound to
+ * `RouteDeps` entirely: the real implementation (`apps/website/src/server/inbound/public-http/routes/site/products.ts`) is now bound to
  * its own `routeDeps` ONCE, at composition-root construction time, the same way
  * `RouteDeps.exportSiteBound` already binds `exportSite` itself. See {@link RouteManifestProduct}'s
  * own doc for why its return type is a local minimal shape rather than an import of the real
@@ -96,7 +97,7 @@ export interface RouteManifestDeps {
 
 /**
  * The exact 2 fields {@link buildRouteManifest} reads off each resolved storefront product — a
- * minimal structural slice of the real `SiteProduct` (`server/http/site/render.ts`), not an import
+ * minimal structural slice of the real `SiteProduct` (`apps/website/src/server/inbound/public-http/http/site/render-context.ts`), not an import
  * of it: importing `SiteProduct` here would relocate this file's `RouteDeps` back-edge rather than
  * remove it (`SiteProduct` itself lives under `src/server/**`, same as `RouteDeps`). Return-type
  * covariance means the real `resolveStorefrontProducts` (which returns full `SiteProduct[]`, a
@@ -178,7 +179,7 @@ function buildThemePageRoutes(
   for (const pageId of Object.keys(theme.pages)) {
     // `index`/`404`/template-shell exclusion, shared with the live `GET /:slug` resolver rather
     // than respelled here — see `isStandaloneThemePage`'s own doc (`features/theme/theme.ts`).
-    if (!isStandaloneThemePage(theme, pageId)) continue;
+    if (!isStandaloneThemePage({ theme, pageId })) continue;
 
     const collidingPost = postBySlug.get(pageId);
     // An overriding post is added by the post loop instead.
@@ -213,9 +214,12 @@ function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySe
  * human-readable sentence distinguishes them.
  */
 function resolveThemeAndPostRoutes(
-  theme: DiscoveredTheme | undefined | "deliberate",
-  posts: readonly PostRecord[],
-  skipped: ManifestSkip[]
+  { theme, posts, skipped }: {
+    theme: DiscoveredTheme | undefined | "deliberate";
+    posts: readonly PostRecord[];
+    skipped: ManifestSkip[];
+  },
+  _optional = {}
 ): { activeTheme?: RouteManifest["activeTheme"]; routes: ManifestRoute[] } {
   if (theme === undefined || theme === "deliberate") {
     skipped.push({
@@ -245,7 +249,7 @@ function buildProductRoutes(products: readonly RouteManifestProduct[]): Manifest
 }
 
 /** `exact` redirect rules become routes; every other match type is recorded in `skipped` (see file header). */
-function buildRedirectRoutes(redirectRules: readonly RedirectRecord[], skipped: ManifestSkip[]): ManifestRoute[] {
+function buildRedirectRoutes({ redirectRules, skipped }: { redirectRules: readonly RedirectRecord[]; skipped: ManifestSkip[] }, _optional = {}): ManifestRoute[] {
   const routes: ManifestRoute[] = [];
   for (const rule of redirectRules) {
     if (rule.matchType !== "exact") {
@@ -286,7 +290,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   const skipped: ManifestSkip[] = [
     // Also convention-addressed and also invisible to a crawl — but unlike robots.txt/sitemap.xml,
     // Tovu registers no `/favicon.ico` or web-app-manifest route at all today (grep-confirmed
-    // against `server/app.ts`/`server/routes/site/*`), so there is nothing here to enumerate, not a
+    // against `apps/website/src/server/runtime/composition/app.ts`/`server/routes/site/*`), so there is nothing here to enumerate, not a
     // route this manifest failed to find. Recorded so the export report names the gap rather than
     // looking complete — the fix, if wanted, is a product-level route, not an exporter change.
     {
@@ -297,7 +301,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
 
   const [activeThemeId, { posts }] = await Promise.all([deps.resolveActiveThemeId(), deps.listPublishedPosts()]);
 
-  const theme = resolveActiveTheme(deps, activeThemeId);
+  const theme = resolveActiveTheme({ deps, activeThemeId });
   // Slugs claimed by a theme-owned static page THIS pass are tracked inside `resolveThemeAndPostRoutes`
   // so the post loop can skip a post shadowed at its own slug (pages.ts:765-786: tri-state
   // `overridesThemePage` — post wins unless the stored value is explicitly `false`; see that
@@ -307,11 +311,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   // (`| undefined`). Both mean the same absent-theme case, so normalize rather than widening the
   // helper's signature to accept two spellings of nothing. `NO_THEME_ID` is NOT normalized with
   // them — it is a third state that reports differently (see the helper's own doc).
-  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(
-    theme === NO_THEME_ID ? "deliberate" : (theme ?? undefined),
-    posts,
-    skipped
-  );
+  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes({ theme: theme === NO_THEME_ID ? "deliberate" : (theme ?? undefined), posts, skipped });
   // Content-owned homepage (SPEC-0XX): a `kind: "page"` row may claim the reserved "/" slug and
   // `buildPostRoutes` above already resolves its path through the same `postPublicPath` the live
   // `GET /` handler uses, so it can appear in `themeAndPostRoutes` at path "/" too. The seeded
@@ -330,7 +330,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   routes.push(...buildProductRoutes(products));
 
   const redirectRules = await deps.redirectRepo.list({ workspaceId: deps.workspaceId, status: "active" });
-  routes.push(...buildRedirectRoutes(redirectRules, skipped));
+  routes.push(...buildRedirectRoutes({ redirectRules, skipped }));
 
   const claimedPaths = new Set(routes.map((route) => route.path));
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });

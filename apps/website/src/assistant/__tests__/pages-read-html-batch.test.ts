@@ -17,12 +17,12 @@ import type { BatchResult } from "../batch-tool-inputs.js";
 async function harness({ resolveTargets = false } = {}) {
   const workspaceId = "page-batch", principalId = "page-reader";
   const clock = { nowMs: () => Date.parse("2026-10-17T00:00:00.000Z") };
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const pagesHtmlStore = (scope: { workspaceId: string; postId: string; actorId?: string }) =>
     new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
   for (const id of ["first", "second", "third", "home"]) {
     await createPost({ deps: { repo, clock }, input: { workspaceId, id, title: id, kind: "page", ...(id === "home" ? { slug: "/" } : {}) } });
-    await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat(`<main>${id}</main>`);
+    await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat({ seedHtml: `<main>${id}</main>` });
   }
   const checks: unknown[] = [];
   let deniedCheck = -1;
@@ -37,7 +37,7 @@ async function harness({ resolveTargets = false } = {}) {
     checks.push(input);
     return { allowed: !denyAll && checks.length !== deniedCheck, reason: "batch fixture" };
   } } as unknown as RegistryDepsWithoutLimiter;
-  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
     .find(tool => tool.descriptor.id === "pages_read_html");
   assert.ok(registration);
   const call = (input: unknown) => invokeRegisteredTool(registration, {

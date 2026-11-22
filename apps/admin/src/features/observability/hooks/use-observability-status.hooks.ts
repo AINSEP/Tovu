@@ -1,13 +1,14 @@
 import { useCallback as useQueryFetchCallback, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { describeApiError, type AdminObservabilityStatus, type AdminTelemetryTestResult } from "@/lib/api";
+import type { AdminObservabilityStatus, AdminTelemetryTestResult } from "@/features/observability/api/observability-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultObservabilityStatusPort } from "./observability-status-dependencies.hooks";
 import type { ObservabilityStatusPort } from "./observability-status-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Observability screen's Overview tab, so `Observability.tsx` is only markup —
  * same split as `features/plugins/hooks/use-agent-plugins.hooks.ts` (`AgentPlugins.tsx`'s hook).
@@ -48,7 +49,7 @@ export interface ObservabilityStatusController {
 export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusDependencies): ObservabilityStatusController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.getObservabilityStatus(); }
-    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load observability status" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translateObservability({ locale, key: "failed to load observability status" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["observability", "status"], fetch: queryFetch }, { staleTime: 0 });
   const status = query.data ?? null;
@@ -60,7 +61,7 @@ export function useObservabilityStatus({ port, locale, t }: ObservabilityStatusD
     if (sendingTestError || !port.sendTestError) return;
     setSendingTestError(true); setTestResult(null); setTestError(null);
     try { setTestResult(await port.sendTestError()); query.refetch(); }
-    catch (failure) { setTestError(describeApiError(failure, t("Failed to send test error"))); }
+    catch (failure) { setTestError(describeApiError({ e: failure, fallback: t("Failed to send test error") })); }
     finally { setSendingTestError(false); }
   };
   return { status, error, t, locale, sendingTestError, testResult, testError, sendTestError, refresh: query.refetch };

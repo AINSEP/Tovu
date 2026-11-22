@@ -40,7 +40,7 @@ describe("usePushToTalk — availability", () => {
   it.each([undefined, {}])("resolves the desktop bridge when voicePort is not overridden (%j)", async overrides => {
     const port = fakePort();
     Object.defineProperty(window, "tovuVoice", { configurable: true, value: port });
-    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, overrides));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides }));
     await waitFor(() => expect(result.current.available).toBe(true));
     expect(result.current.unavailableReason).toBeUndefined();
     expect(port.isAvailable).toHaveBeenCalledTimes(1);
@@ -51,7 +51,7 @@ describe("usePushToTalk — availability", () => {
     let reject!: (error: Error) => void;
     const pending = new Promise<VoiceInputAvailability>((done, fail) => { resolve = done; reject = fail; });
     const oldPort = fakePort({ isAvailable: () => pending });
-    const { result, rerender } = renderHook(({ port }) => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: port }), {
+    const { result, rerender } = renderHook(({ port }) => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: port } }), {
       initialProps: { port: oldPort },
     });
     expect(result.current.available).toBeNull();
@@ -67,7 +67,7 @@ describe("usePushToTalk — availability", () => {
   });
 
   it("reports unavailable immediately when there is no voice port at all (plain browser tab)", async () => {
-    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: null }));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: null } }));
     await waitFor(() => expect(result.current.available).toBe(false));
     // The affordance now renders in this state, so the reason has to be real copy an operator can
     // act on — not an empty tooltip and not the raw code.
@@ -78,7 +78,7 @@ describe("usePushToTalk — availability", () => {
 
   it("starts null (probe in flight) then settles to the port's own isAvailable() result", async () => {
     const port = fakePort({ isAvailable: vi.fn().mockResolvedValue({ available: true }) });
-    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: port }));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: port } }));
     expect(result.current.available).toBeNull();
     expect(result.current.unavailableReason).toBeUndefined();
     await waitFor(() => expect(result.current.available).toBe(true));
@@ -88,7 +88,7 @@ describe("usePushToTalk — availability", () => {
 
   it("settles to false when the port reports itself unavailable (e.g. on-device assets missing)", async () => {
     const port = fakePort({ isAvailable: vi.fn().mockResolvedValue({ available: false, reason: "on-device-recognition-unavailable" }) });
-    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: port }));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: port } }));
     await waitFor(() => expect(result.current.available).toBe(false));
     // The port's machine-readable code, mapped to operator copy — proves the code reaches the UI
     // rather than being dropped on the floor as it was before.
@@ -99,7 +99,7 @@ describe("usePushToTalk — availability", () => {
 
   it("settles to false rather than throwing when isAvailable() itself rejects", async () => {
     const port = fakePort({ isAvailable: vi.fn().mockRejectedValue(new Error("IPC channel closed")) });
-    const { result } = renderHook(() => usePushToTalk({ onTranscript: vi.fn() }, { voicePort: port }));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: port } }));
     await waitFor(() => expect(result.current.available).toBe(false));
     // An unrecognized code falls back rather than leaking an internal message into the tooltip.
     expect(result.current.unavailableReason).toBe("Voice input is not available on this machine.");
@@ -112,7 +112,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     const port = fakePort();
     const onTranscript = vi.fn();
     const createCapture = vi.fn(() => capture);
-    const { result } = renderHook(() => usePushToTalk({ onTranscript }, { voicePort: port, createCapture }));
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript }, overrides: { voicePort: port, createCapture } }));
     await waitFor(() => expect(result.current.available).toBe(true));
     act(() => result.current.startHold());
     await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
@@ -135,9 +135,9 @@ describe("usePushToTalk — recording lifecycle", () => {
     const port = fakePort();
     const onTranscript = vi.fn();
     let attempts = 0;
-    const { result } = renderHook(() => usePushToTalk({ onTranscript }, {
+    const { result } = renderHook(() => usePushToTalk({ options: { onTranscript }, overrides: {
       voicePort: port, createCapture: () => attempts++ === 0 ? discarded : next,
-    }));
+    } }));
     await waitFor(() => expect(result.current.available).toBe(true));
     act(() => result.current.startHold());
     act(() => result.current.endHold());
@@ -157,7 +157,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     const port = fakePort();
     const onTranscript = vi.fn();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript }, { voicePort: port, createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: port, createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -176,7 +176,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     const capture = fakeCapture({ stopAndTranscribe: vi.fn().mockResolvedValue("   ") });
     const onTranscript = vi.fn();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -191,7 +191,7 @@ describe("usePushToTalk — recording lifecycle", () => {
   it("mic permission denial surfaces as the error indicator, not a silent no-op", async () => {
     const capture = fakeCapture({ start: vi.fn().mockRejectedValue(new Error("Permission denied")) });
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript: vi.fn() }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -204,7 +204,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     const capture = fakeCapture({ stopAndTranscribe: vi.fn().mockRejectedValue(new Error("on-device-recognition-unavailable")) });
     const onTranscript = vi.fn();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -219,7 +219,7 @@ describe("usePushToTalk — recording lifecycle", () => {
   it("ignores a hold start while unavailable — never starts a capture with no confirmed port", async () => {
     const capture = fakeCapture();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript: vi.fn() }, { voicePort: null, createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: null, createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(false));
 
@@ -231,7 +231,7 @@ describe("usePushToTalk — recording lifecycle", () => {
   it("ignores a pointerup with no prior pointerdown (no matching in-flight capture)", async () => {
     const capture = fakeCapture();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript: vi.fn() }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -255,7 +255,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     const capture = fakeCapture({ start: vi.fn().mockReturnValue(startPromise) });
     const onTranscript = vi.fn();
     const { result } = renderHook(() =>
-      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
 
@@ -282,9 +282,7 @@ describe("usePushToTalk — recording lifecycle", () => {
     let callCount = 0;
     const onTranscript = vi.fn();
     const { result } = renderHook(() =>
-      usePushToTalk(
-        { onTranscript },
-        { voicePort: fakePort(), createCapture: () => (callCount++ === 0 ? deniedCapture : grantedCapture) },
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: fakePort(), createCapture: () => (callCount++ === 0 ? deniedCapture : grantedCapture) } }
       ),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
@@ -305,7 +303,8 @@ describe("usePushToTalk — recording lifecycle", () => {
  * waiting on the permission prompt.
  */
 describe("usePushToTalk — unmount releases the microphone", () => {
-  it.each(["recording", "requesting-mic"] as const)("discards cleanup failures after unmount from %s", async phase => {
+  it.each(["recording", "requesting-mic"] as const)("reports cleanup failures after unmount from %s", async phase => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
     let grant!: () => void;
     const start = new Promise<void>(resolve => { grant = resolve; });
     const capture = fakeCapture({
@@ -314,7 +313,7 @@ describe("usePushToTalk — unmount releases the microphone", () => {
     });
     const port = fakePort();
     const onTranscript = vi.fn();
-    const { result, unmount } = renderHook(() => usePushToTalk({ onTranscript }, { voicePort: port, createCapture: () => capture }));
+    const { result, unmount } = renderHook(() => usePushToTalk({ options: { onTranscript }, overrides: { voicePort: port, createCapture: () => capture } }));
     await waitFor(() => expect(result.current.available).toBe(true));
     act(() => result.current.startHold());
     if (phase === "recording") await waitFor(() => expect(result.current.indicator.isRecording).toBe(true));
@@ -326,13 +325,15 @@ describe("usePushToTalk — unmount releases the microphone", () => {
     }
     expect(capture.stopAndTranscribe).toHaveBeenCalledTimes(1);
     expect(onTranscript).not.toHaveBeenCalled();
+    await waitFor(() => expect(logError).toHaveBeenCalledWith("[voice] Could not stop or transcribe voice capture", "Error"));
+    logError.mockRestore();
   });
 
   it("unmount while recording stops the capture", async () => {
     const capture = fakeCapture();
     const onTranscript = vi.fn();
     const { result, unmount } = renderHook(() =>
-      usePushToTalk({ onTranscript }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
     act(() => result.current.startHold());
@@ -356,7 +357,7 @@ describe("usePushToTalk — unmount releases the microphone", () => {
       ),
     });
     const { result, unmount } = renderHook(() =>
-      usePushToTalk({ onTranscript: vi.fn() }, { voicePort: fakePort(), createCapture: () => capture }),
+      usePushToTalk({ options: { onTranscript: vi.fn() }, overrides: { voicePort: fakePort(), createCapture: () => capture } }),
     );
     await waitFor(() => expect(result.current.available).toBe(true));
     act(() => result.current.startHold());

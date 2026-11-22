@@ -8,7 +8,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialSetRecord, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import { createCustomCredentialConnectionPort } from "../connection-port.js";
 import { createFormDestinationDeliverer } from "../deliver.js";
-import { buildFormDestinationRegistry } from "../registry.js";
+import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
 import type { FormDestinationCredential, FormDestinationKit, FormDestinationModule } from "../types.js";
 
 /**

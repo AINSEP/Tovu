@@ -53,7 +53,7 @@ export interface ApiKeyServiceDeps extends AuthServiceDeps {
 // Repo-bag assembly and its sharing rationale now live in Jini user-management/server (grant-service.ts).
 
 /** Trim-and-bound one of the two name fields, or throw `IdentityValidationError`. */
-function requireBoundedName(value: unknown, field: string): string {
+function requireBoundedName({ value, field }: { value: unknown; field: string }, _options = {}): string {
   const trimmed = typeof value === "string" ? value.trim() : "";
   if (trimmed.length < NAME_MIN_LENGTH || trimmed.length > NAME_MAX_LENGTH) {
     throw new IdentityValidationError({ message: `'${field}' must be ${NAME_MIN_LENGTH}..${NAME_MAX_LENGTH} characters after trimming` });
@@ -63,10 +63,10 @@ function requireBoundedName(value: unknown, field: string): string {
 
 /** True iff `rows` carries `permission` with BOTH `resourceType` and `constraintJson` null — or the
  *  owner wildcard, which is an unconstrained hold of every permission (INV-07). */
-function holdsUnconstrained(rows: readonly PolicyPermissionRecord[], permission: string): boolean {
-  const unconstrained = (row: PolicyPermissionRecord, id: string) =>
+function holdsUnconstrained({ rows, permission }: { rows: readonly PolicyPermissionRecord[]; permission: string }, _options = {}): boolean {
+  const unconstrained = ({ row, id }: { row: PolicyPermissionRecord; id: string }, _options = {}) =>
     row.permission === id && row.resourceType == null && row.constraintJson == null;
-  return rows.some((row) => unconstrained(row, "*")) || rows.some((row) => unconstrained(row, permission));
+  return rows.some((row) => unconstrained({ row, id: "*" })) || rows.some((row) => unconstrained({ row, id: permission }));
 }
 
 /**
@@ -94,7 +94,7 @@ async function assertGrantClamp(required: {
     workspaceId: required.workspaceId,
   });
 
-  const offending = distinct.filter((permission) => !holdsUnconstrained(effectiveRows, permission));
+  const offending = distinct.filter((permission) => !holdsUnconstrained({ rows: effectiveRows, permission }));
   if (offending.length > 0) {
     throw new GrantExceedsIssuerError({ message: `principal '${required.callerPrincipalId}' cannot grant permission(s) it does not hold unconstrained: ${offending.join(", ")}`, offendingPermissions: offending });
   }
@@ -153,7 +153,7 @@ export async function createApiKeyPrincipal(required: {
   if (input.kind !== undefined && input.kind !== "api_key") {
     throw new IdentityValidationError({ message: `'kind' must be 'api_key', got '${String(input.kind)}'` });
   }
-  const displayName = requireBoundedName(input.displayName, "displayName");
+  const displayName = requireBoundedName({ value: input.displayName, field: "displayName" });
 
   const principal: PrincipalRecord = {
     id: deps.idGen.newId(),
@@ -178,7 +178,7 @@ export interface IssueApiKeyInput {
 }
 
 /** Read `policyIds` off an untyped body: a non-empty array of non-blank strings, or 400. */
-function requirePolicyIds(value: unknown): string[] {
+function requirePolicyIds({ value }: { value: unknown }, _options = {}): string[] {
   if (!Array.isArray(value) || value.length === 0) {
     throw new IdentityValidationError({ message: "'policyIds' must be a non-empty array of policy ids" });
   }
@@ -242,7 +242,7 @@ async function collectSnapshotSourceRows(required: {
 }
 
 /** Optional `expiresAt`: absent/null means no expiry; anything else must parse as a real date. */
-function readOptionalExpiry(value: unknown): ISODateTime | undefined {
+function readOptionalExpiry({ value }: { value: unknown }, _options = {}): ISODateTime | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = new Date(String(value)).getTime();
   if (Number.isNaN(parsed)) {
@@ -252,6 +252,46 @@ function readOptionalExpiry(value: unknown): ISODateTime | undefined {
   // accident of the offset the caller happened to send.
   return new Date(parsed).toISOString();
 }
+function apiKeyPolicySnapshot({ snapshotPolicyId, workspaceId, keyId, label }: { snapshotPolicyId: string; workspaceId: UUID; keyId: string; label: string }): Parameters<ApiKeyServiceDeps['repos']['policies']['save']>[0] {
+  return {
+      id: snapshotPolicyId,
+      workspaceId,
+      name: `api-key:${keyId}`,
+      description: `Issuance snapshot for API key '${label}'`,
+      isBuiltin: false,
+      isFrozen: true,
+    };
+}
+
+function apiKeySnapshotPermission({ deps, workspaceId, snapshotPolicyId, row }: { deps: ApiKeyServiceDeps; workspaceId: UUID; snapshotPolicyId: string; row: Awaited<ReturnType<typeof collectSnapshotSourceRows>>[number] }): Parameters<ApiKeyServiceDeps['repos']['policyPermissions']['save']>[0] {
+  return {
+        id: deps.idGen.newId(),
+        workspaceId,
+        policyId: snapshotPolicyId,
+        permission: row.permission,
+        resourceType: row.resourceType ?? null,
+        constraintJson: row.constraintJson ?? null,
+      };
+}
+
+function issuedApiKeyRecord({ deps, keyId, workspaceId, boundPrincipalId, label, minted, snapshotPolicyId, expiresAt }: {
+  deps: ApiKeyServiceDeps; keyId: string; workspaceId: UUID; boundPrincipalId: string; label: string;
+  minted: ReturnType<typeof mintApiKey>; snapshotPolicyId: string; expiresAt: ApiKeyRecord['expiresAt'];
+}, keyHash: string): ApiKeyRecord {
+  return {
+      id: keyId,
+      workspaceId,
+      principalId: boundPrincipalId,
+      label,
+      keyHash,
+      prefix: minted.prefix,
+      issuedPolicyId: snapshotPolicyId,
+      createdAt: new Date(deps.clock.nowMs()).toISOString(),
+      expiresAt,
+    };
+}
+
+
 
 /**
  * `ISSUE_API_KEY` (state.spec §3). Snapshots the requested policies into a fresh `isFrozen` policy,
@@ -289,9 +329,9 @@ export async function issueApiKey(required: {
       callerPrincipalId: input.callerPrincipalId,
     });
 
-    const label = requireBoundedName(input.label, "label");
-    const policyIds = requirePolicyIds(input.policyIds);
-    const expiresAt = readOptionalExpiry(input.expiresAt);
+    const label = requireBoundedName({ value: input.label, field: "label" });
+    const policyIds = requirePolicyIds({ value: input.policyIds });
+    const expiresAt = readOptionalExpiry({ value: input.expiresAt });
     const boundPrincipalId = typeof input.principalId === "string" ? input.principalId.trim() : "";
     if (boundPrincipalId.length === 0) {
       throw new IdentityValidationError({ message: "'principalId' is required" });
@@ -312,26 +352,12 @@ export async function issueApiKey(required: {
 
     // The frozen snapshot: a machine-owned policy, 1:1 with this key. `name` embeds the key id so it
     // is unique per workspace (the `policies` table's own uniqueness constraint) without a retry loop.
-    await deps.repos.policies.save({
-      id: snapshotPolicyId,
-      workspaceId,
-      name: `api-key:${keyId}`,
-      description: `Issuance snapshot for API key '${label}'`,
-      isBuiltin: false,
-      isFrozen: true,
-    });
+    await deps.repos.policies.save(apiKeyPolicySnapshot({ snapshotPolicyId, workspaceId, keyId, label }));
 
     // Copied field-identically — `resourceType`/`constraintJson` are preserved per row and never
     // widened. A snapshot that dropped a constraint would grant MORE than its source.
     for (const row of sourceRows) {
-      await deps.repos.policyPermissions.save({
-        id: deps.idGen.newId(),
-        workspaceId,
-        policyId: snapshotPolicyId,
-        permission: row.permission,
-        resourceType: row.resourceType ?? null,
-        constraintJson: row.constraintJson ?? null,
-      });
+      await deps.repos.policyPermissions.save(apiKeySnapshotPermission({ deps, workspaceId, snapshotPolicyId, row }));
     }
 
     await deps.repos.principalPolicies.save({
@@ -342,17 +368,7 @@ export async function issueApiKey(required: {
     });
 
     const minted = mintApiKey();
-    const apiKey: ApiKeyRecord = {
-      id: keyId,
-      workspaceId,
-      principalId: boundPrincipalId,
-      label,
-      keyHash: await deps.secretHasher.hash(minted.secret),
-      prefix: minted.prefix,
-      issuedPolicyId: snapshotPolicyId,
-      createdAt: new Date(deps.clock.nowMs()).toISOString(),
-      expiresAt,
-    };
+    const apiKey: ApiKeyRecord = issuedApiKeyRecord({ deps, keyId, workspaceId, boundPrincipalId, label, minted, snapshotPolicyId, expiresAt }, await deps.secretHasher.hash({ secret: minted.secret }));
     await deps.apiKeys.save(apiKey);
 
     return { apiKey, rawKey: minted.rawKey };
@@ -443,7 +459,7 @@ export async function authenticateApiKey(required: {
 }): Promise<{ principal: PrincipalRecord; apiKey: ApiKeyRecord } | null> {
   const { deps, input } = required;
 
-  const parsed = parseApiKey(input.rawKey);
+  const parsed = parseApiKey({ rawKey: input.rawKey });
   if (!parsed) return null;
 
   const candidate = await deps.apiKeys.findByPrefix({
@@ -451,11 +467,11 @@ export async function authenticateApiKey(required: {
     prefix: parsed.prefix,
   });
   if (!candidate) {
-    await deps.secretHasher.verify(await decoyKeyHash(deps.secretHasher), parsed.secret);
+    await deps.secretHasher.verify({ storedHash: await decoyKeyHash(deps.secretHasher), secret: parsed.secret });
     return null;
   }
 
-  const matches = await deps.secretHasher.verify(candidate.keyHash, parsed.secret);
+  const matches = await deps.secretHasher.verify({ storedHash: candidate.keyHash, secret: parsed.secret });
   if (!matches) return null;
 
   const now = new Date(deps.clock.nowMs()).toISOString();

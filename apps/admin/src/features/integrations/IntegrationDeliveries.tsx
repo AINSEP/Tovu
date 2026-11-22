@@ -24,19 +24,19 @@ export function IntegrationDeliveries({
   subscriptionId,
   useIntegrationDeliveriesHook = useWiredIntegrationDeliveries,
 }: IntegrationDeliveriesProps) {
-  const { deliveries, error, t } = useIntegrationDeliveriesHook(subscriptionId);
+  const { deliveries, error, t } = useIntegrationDeliveriesHook({ subscriptionId });
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!deliveries) return <div className="notice">{t("Loading delivery log…")}</div>;
+  if (!deliveries) return <div className="notice">{t({ key: "Loading delivery log…" })}</div>;
 
   return (
     <div className="page">
-      <a href="/admin/addons/integrations?tab=webhooks">{t("← Integrations")}</a>
+      <a href="/admin/addons/integrations?tab=webhooks">{t({ key: "← Integrations" })}</a>
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Integrations")}</p>
-          <h1 className="page-title">{t("Delivery log")}</h1>
-          <p className="page-description">{t("Every delivery attempt logged for this webhook subscription.")}</p>
+          <p className="page-kicker">{t({ key: "Integrations" })}</p>
+          <h1 className="page-title">{t({ key: "Delivery log" })}</h1>
+          <p className="page-description">{t({ key: "Every delivery attempt logged for this webhook subscription." })}</p>
         </div>
       </div>
       <DataTable
@@ -45,22 +45,22 @@ export function IntegrationDeliveries({
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t("No deliveries yet for this subscription.")}</p>
+              <p>{t({ key: "No deliveries yet for this subscription." })}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "status",
-            header: t("Status"),
+            header: t({ key: "Status" }),
             cell: (delivery) => (
               <span className={`status status-delivery-${delivery.status}`}><ServerLabel value={delivery.status} /></span>
             ),
           },
-          { key: "attempts", header: t("Attempts"), cell: (delivery) => delivery.attempts },
+          { key: "attempts", header: t({ key: "Attempts" }), cell: (delivery) => delivery.attempts },
           {
             key: "last-response",
-            header: t("Last response"),
+            header: t({ key: "Last response" }),
             cell: (delivery) => (
               <>
                 {delivery.lastResponseStatus ?? "—"}
@@ -68,7 +68,7 @@ export function IntegrationDeliveries({
               </>
             ),
           },
-          { key: "timestamp", header: t("Timestamp"), cell: (delivery) => displayTimestamp(delivery) },
+          { key: "timestamp", header: t({ key: "Timestamp" }), cell: (delivery) => displayTimestamp(delivery) },
         ]}
       />
     </div>

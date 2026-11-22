@@ -32,7 +32,7 @@ async function list({ switching }: { switching: boolean }) {
     isSiteSwitcherEnabled: () => switching, localSiteSupervisor, sitePreviews,
     listSites: () => SITES, readPersistedActiveSite: () => null, listSiteTrash: () => [], devRestart: null,
   };
-  const app = express(); registerAdminSitesRoutes(app, deps);
+  const app = express(); registerAdminSitesRoutes({ app, deps });
   const get = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/sites");
   const response = createCapturingResponse(); response.res.locals.principal = { id: "operator" };
   await get({ params: { workspaceId: "ws" }, socket: { localPort: 3000, encrypted: true } }, response.res);

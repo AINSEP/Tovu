@@ -1,6 +1,6 @@
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
 import { tmpdir } from "node:os";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import test from "node:test";
@@ -9,7 +9,7 @@ import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assis
 import { CLAUDE_IN_CHROME_ALLOWED_TOOLS, CLAUDE_IN_CHROME_GUIDANCE, PREFER_SUBAGENTS_GUIDANCE, SHORT_REPLY_GUIDANCE, DETAILED_REPLY_GUIDANCE, buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { agentCapabilities, getAgentDef } from "@jini-ai/agent-runtime";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
-import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for the per-person runtime preferences: evaluates the daemon's real
@@ -24,7 +24,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
   const stored: Record<string, unknown> = { preferSubagents, useClaudeInChrome, replyLength };
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
   const assistantCliCapabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
-  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
+  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance, assistantRuntimeGuidanceContext,
     assistantCliCapabilitiesContext, assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },
@@ -37,7 +37,7 @@ async function launchOverlay({ enabled, agentId, preferSubagents, useClaudeInChr
     routeDeps: {
       ownerPrincipalId: Promise.resolve(owner), siteBinding: { dir: tmpdir() }, workspaceId: "ws",
       toolAttemptAuditSink: { append: async () => {} }, settingsRepo: {}, siteTitleReady: Promise.resolve(),
-      getEffective: async (_deps: unknown, input: { key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
+      getEffective: async ({ deps: _deps, ...input }: { deps: unknown; key: string }) => { reads.push(input); return { value: stored[input.key], sourceLayer: "user", defVersion: 1 }; },
     },
     assistantRuntimeGuidanceContext, assistantCliCapabilitiesContext, probeAssistantChrome: async () => chromeProbed,
     readAssistantCliPermissions: async () => assistantCliPermissions({ enabled }),
@@ -72,7 +72,7 @@ test("the real overlay enables message relay guidance for Codex and excludes nat
 });
 
 test("the real overlay excludes engines without an injected MCP bridge", () => {
-  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter"), {
+  const augmenter = evaluateDaemonExpression<Overlay>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef: () => ({ ...getAgentDef({ id: "codex" }), externalMcpInjection: undefined }),
     buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
     assistantRuntimeGuidanceContext: new AsyncLocalStorage(), assistantCliCapabilitiesContext: new AsyncLocalStorage(),

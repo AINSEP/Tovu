@@ -1,4 +1,4 @@
-import { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } from "#src/features/plugins/migration-recovery";
+import { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } from "@jini-ai/db/data-modules";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
@@ -27,18 +27,17 @@ import { runBootDataRepairs } from "./boot-data-repairs.js";
  * @param dbPath - the content.db file (created when absent), or `:memory:`.
  * @returns the open, migrated, prepared handle; the caller owns it.
  */
-export async function openSiteContentDb(required: string | { dbPath: string }, options: ContentDbOpenOptions = {}): Promise<ContentDb> {
-  const dbPath = typeof required === "string" ? required : required.dbPath;
+export async function openSiteContentDb({ dbPath }: { dbPath: string }, options: ContentDbOpenOptions = {}): Promise<ContentDb> {
   let db = openSqliteContentConnection({ filePath: dbPath }, options);
   // Tracked here rather than read off the native handle: the restore closes it mid-sequence.
   let open = true;
   try {
     const recovery = await recoverIncompleteDataModuleMigrations({
-      store: contentKernel(db),
+      store: contentKernel({ store: db }),
       restoreSnapshots: (entries) => {
-        closeSqliteConnection(db);
+        closeSqliteConnection({ source: db });
         open = false;
-        restoreSqliteSnapshots(dbPath, entries);
+        restoreSqliteSnapshots({ dbPath, entries });
       },
     });
     if (recovery.recovered > 0) {
@@ -48,15 +47,15 @@ export async function openSiteContentDb(required: string | { dbPath: string }, o
         console.error(`[migration-recovery] restored ${dbPath} from ${entry.snapshotPath} (interrupted dataModule migration of plugin '${entry.pluginId}')`);
       }
     }
-    await migrateSqliteContentFile(db, dbPath);
-    await prepareContentStore(contentKernel(db), {
+    await migrateSqliteContentFile({ db, filePath: dbPath });
+    await prepareContentStore({ kernel: contentKernel({ store: db }) }, {
       seed: { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
     });
-    await runBootDataRepairs({ kernel: contentKernel(db) });
+    await runBootDataRepairs({ kernel: contentKernel({ store: db }) });
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.
-    if (open) closeSqliteConnection(db);
+    if (open) closeSqliteConnection({ source: db });
     throw error;
   }
 }

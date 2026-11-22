@@ -86,13 +86,13 @@ export function fakeOAuthServer(reply: (request: FakeTokenRequest) => FakeTokenR
 /** Opens (and migrates) a SQLite content database file and adds the disposable vault table. */
 export async function openFrozenDb(filePath: string): Promise<{ db: ContentDb; kernel: ContentKernel }> {
   const db = openContentDb(filePath);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   await ensureVaultRepoFixture({ kernel });
   return { db, kernel };
 }
 
 export function closeFrozenDb(db: ContentDb): void {
-  closeSqliteConnection(db);
+  closeSqliteConnection({ source: db });
 }
 
 /** Loads the frozen SQL text (INSERT statements only) into an opened, migrated database. */

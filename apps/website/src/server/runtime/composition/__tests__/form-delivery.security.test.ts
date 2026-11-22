@@ -1,22 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, type AuthorizeFn } from "@jini-ai/core/settings";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, processOutbox } from "#src/contracts/core/events/index";
-import { buildFormDestinationRegistry, createFormDestinationDeliverer, type FormDeliveryConnectionPort, type FormDestinationKit } from "#src/features/form-destinations/index";
+import { buildFormDestinationRegistry } from "@jini-ai/cms/forms";
+import { createFormDestinationDeliverer, type FormDeliveryConnectionPort, type FormDestinationKit } from "#src/features/form-destinations/index";
 import { buildFormsRegistrations } from "#src/features/forms/tool-registrations";
 import { createSettingsPrincipalLookup, ensureFormDeliverySettings, writeFormDeliveryBindings } from "#src/features/settings/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { Kysely } from "kysely";
-import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { type SqlFormDeliveryRepo } from "@jini-ai/cms/forms/sql";
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { composeFormDelivery } from "../form-delivery.js";
 
 /**
@@ -80,8 +82,8 @@ async function seedForms(workspaceId: string) {
 
 /** Plans one submission of `workspaceId` and runs one outbox drain over its child jobs. */
 async function deliverOnce(kernel: ContentKernel, workspaceId: string) {
-  const plans = new SqlFormDeliveryRepo({ kernel });
-  const outbox = new SqlOutboxAdapter(kernel);
+  const plans = createSiteFormDeliveryRepo({ kernel });
+  const outbox = outboxOn({ kernel });
   const bus = new InMemoryEventBus();
   const forms = await seedForms(workspaceId);
   let next = 0;
@@ -106,7 +108,7 @@ function deliveryJobRows(db: Kysely<ContentDatabase>) {
   return db.selectFrom("outbox_events as o").innerJoin("form_delivery_jobs as j", "j.job_id", "o.id").where("o.workspace_id", "=", W);
 }
 
-function statusTool(required: { workspaceId: string; plans: SqlFormDeliveryRepo; outbox: SqlOutboxAdapter }) {
+function statusTool(required: { workspaceId: string; plans: SqlFormDeliveryRepo; outbox: ReturnType<typeof outboxOn> }) {
   const authorize = async () => ({ allowed: true, reason: "matched" });
   const registration = buildFormsRegistrations({ executeCommand, authorize, workspaceId: required.workspaceId, clock, idGen: { newId: () => "tool-id" },
     changeSets: new InMemoryChangeSetRepo(), outbox: required.outbox, formDefinitionRepo: new InMemoryFormDefinitionRepo(),

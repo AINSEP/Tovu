@@ -1,6 +1,7 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { SiteImport, SiteImportState, SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 
+import { formatByteSize, type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure display rules for the Export Site and Import Site tabs: labels, pill tones and short
  * forms of links. No React, so each rule is tested directly.
@@ -8,16 +9,13 @@ import type { SiteImport, SiteImportState, SiteShare } from "./hooks/site-transf
 
 /** An archive size in B / KB / MB / GB, one decimal from MB up. `—` for a missing or bad value.
  *  @complexity O(1). */
-export function formatTransferBytes(bytes: number | null | undefined): string {
+export function formatTransferBytes({ bytes }: { bytes: number | null | undefined }, _optional = {}): string {
   if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  return formatByteSize({ bytes });
 }
 
 /** The pill for one export: its label and the shared `.status-*` tone class. */
-export function shareStatusView(status: SiteShare["status"], t: Translate): { label: string; className: string } {
+export function shareStatusView({ status, t }: { status: SiteShare["status"]; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   if (status === "active") return { label: t("Active"), className: "status status-ok" };
   if (status === "revoked") return { label: t("Revoked"), className: "status status-neutral" };
   return { label: t("Failed"), className: "status status-error" };
@@ -34,14 +32,14 @@ const IMPORT_STATE_VIEWS: Record<SiteImportState, { label: string; tone: string 
 };
 
 /** The pill for one import. An unknown state from a newer server reads as Failed, never blank. */
-export function importStateView(state: SiteImportState, t: Translate): { label: string; className: string } {
+export function importStateView({ state, t }: { state: SiteImportState; t: Translate }, _optional: Record<string, never> = {}): { label: string; className: string } {
   const view = IMPORT_STATE_VIEWS[state] ?? IMPORT_STATE_VIEWS.failed;
   return { label: t(view.label), className: `status ${view.tone}` };
 }
 
 /** A link shown short: host and path, no scheme or query, so a table cell stays readable. The full
  *  link is still what Copy link copies. */
-export function shortLink(link: string): string {
+export function shortLink({ link }: { link: string }, _optional = {}): string {
   try {
     const url = new URL(link);
     return `${url.host}${url.pathname === "/" ? "" : url.pathname}`;
@@ -51,14 +49,29 @@ export function shortLink(link: string): string {
 }
 
 /** Where an import came from: the share link's host, or "Uploaded zip". Never a server path. */
-export function importSourceLabel(source: SiteImport["source"], t: Translate): string {
-  return "url" in source ? shortLink(source.url) : t("Uploaded zip");
+export function importSourceLabel({ source, t }: { source: SiteImport["source"]; t: Translate }, _optional: Record<string, never> = {}): string {
+  return "url" in source ? shortLink({ link: source.url }) : t("Uploaded zip");
 }
 
 /** The one ⓘ beside "Import Site"'s heading: a line per way in (the `groupOptionTooltips` idiom). */
-export function importOptionsTip(t: Translate): string {
+export function importOptionsTip({ t }: { t: Translate }, _optional: Record<string, never> = {}): string {
   return [
     `• ${t("Share link or zip")}: ${t("Makes a new site from another Tovu site's export. This site stays as it is.")}`,
-    `• ${t("Live website")}: ${t("The assistant copies a public website's pages into this site. You read its request first, then press Send.")}`,
+    `• ${t("Live website")}: ${t("Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send.")}`,
   ].join("\n");
+}
+
+/**
+ * What "From a live website" does on this page (owner, 2026-11-10: it makes a NEW site, never
+ * imports into this one): `this-new-site` on the site made for it (its address came in the URL),
+ * `new-site` where this host can make sites, `desktop` inside the desktop app (its Import tab makes
+ * the site; `desktopImport` = the app's hand-off bridge is there), else `unavailable`. @complexity O(1).
+ */
+export function liveImportMode(
+  { arrivedForImport, canMakeSites }: { arrivedForImport: boolean; canMakeSites: boolean },
+  { desktopImport = false }: { desktopImport?: boolean } = {},
+): "this-new-site" | "new-site" | "desktop" | "unavailable" {
+  if (arrivedForImport) return "this-new-site";
+  if (canMakeSites) return "new-site";
+  return desktopImport ? "desktop" : "unavailable";
 }

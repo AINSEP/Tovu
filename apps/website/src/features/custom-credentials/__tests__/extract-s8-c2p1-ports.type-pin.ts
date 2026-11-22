@@ -24,7 +24,10 @@ import type {
   CustomCredentialVerificationResult,
 } from "@jini-ai/integrations/credentialed-http";
 import type { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlProvider } from "../../source-control/provider-module.js";
-import type { bindCredentialedRequestPort, bindSourceControlWritePort } from "../credential-ports.js";
+import type { bindCredentialedRequestPort } from "../credential-ports.js";
+import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
+import type { bindPublishCompatibility } from "../../deployments/publish-credentials/compatibility-port.js";
+import type { PublishCompatibilityPort } from "../publish-compatibility-port.js";
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;
@@ -42,4 +45,6 @@ export type C2p1TypePins = [
   Assert<SourceControlProvider extends SourceControlFileWriter ? true : false>,
   Assert<Same<ReturnType<typeof bindCredentialedRequestPort>, CredentialedRequestPort>>,
   Assert<Same<ReturnType<typeof bindSourceControlWritePort>, SourceControlWritePort>>,
+  // `deployments` binds the port without importing it, so this is what holds the two shapes together.
+  Assert<Same<ReturnType<typeof bindPublishCompatibility>, PublishCompatibilityPort>>,
 ];

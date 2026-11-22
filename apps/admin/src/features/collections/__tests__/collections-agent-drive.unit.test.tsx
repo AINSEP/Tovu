@@ -8,7 +8,7 @@ import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import { CollectionEntries } from "../CollectionEntries";
 import { Collections } from "../Collections";
 import type { CollectionsController } from "../hooks/use-collections.hooks";
-import type { AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file Regression test for this batch's agent-control tagging on the `collections` feature
@@ -156,7 +156,7 @@ describe("addressing the collections list", () => {
       copiedKey: null,
       copyFallback: null,
       copyEmbedCode: vi.fn(async () => {}),
-      t: (key: string) => key,
+      t: ({ key }: { key: string }, _optional = {}) => key,
       locale: "en",
       ...overrides,
     };

@@ -21,12 +21,13 @@
  *
  * Interfaces and types only — no feature logic.
  */
+import type { ListPage } from "@jini-ai/core/list-page";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailStatus } from "@jini-ai/platform/mail";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -54,12 +55,9 @@ export interface MemberRepoPort {
   findPasswordHash(required: { workspaceId: UUID; memberId: UUID }, options?: Record<string, never>): Promise<string | null>;
   /** Update only the hash; reject a missing/trashed member. Profile saves never write this column. */
   setPasswordHash(required: { workspaceId: UUID; memberId: UUID; passwordHash: string }, options?: Record<string, never>): Promise<void>;
-  list(required: {
-    workspaceId: UUID;
-    /** Keyset cursor (ULID id) for stable pagination; omit for first page. */
-    afterId?: UUID;
-    limit?: number;
-  }): Promise<MemberRecord[]>;
+  /** Members ordered by id, at most 100 per page. `nextCursor` is null on the last page; pass it back
+   *  as `cursor` for the next one. A cursor that is not one of these is refused, never read as page one. */
+  list(required: { workspaceId: UUID }, optional?: { limit?: number; cursor?: string | null }): Promise<ListPage<MemberRecord>>;
   save(record: MemberRecord): Promise<void>;
 }
 
@@ -86,7 +84,12 @@ export interface MemberTierRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<MemberTierRecord | null>;
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<MemberTierRecord | null>;
   list(required: { workspaceId: UUID }): Promise<MemberTierRecord[]>;
-  save(record: MemberTierRecord): Promise<void>;
+  /**
+   * Upsert without `expectedVersion` (create/import); with it, a compare-and-set that throws
+   * `RecordVersionConflictError` (`@jini-ai/core/optimistic-concurrency`) when the stored version is
+   * no longer the one the editor read — two editors never silently overwrite each other.
+   */
+  save(record: MemberTierRecord, optional?: { expectedVersion?: number }): Promise<void>;
 }
 
 export interface MemberSubscriptionRepoPort {
@@ -168,7 +171,7 @@ export interface MemberConsentRepoPort {
    * a same-tick passthrough (no real rollback possible/needed); the SQLite
    * adapter uses a real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`.
    */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(required: { fn: () => Promise<T> }, optional?: Record<string, never>): Promise<T>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -229,7 +232,7 @@ export interface MembersWriteServiceDeps {
   /** Password writes require the SAME kernel as members/sessions. No non-atomic fallback.
    * Optional for compositions that only use the other member workflows.
    */
-  credentialLifecycle?: Pick<StorageKernel<unknown>, "transaction" | "lockKey">;
+  credentialLifecycle?: Pick<KyselyKernel<unknown>, "transaction" | "lockKey">;
   clock: ClockPort;
   ids: IdGeneratorPort;
   members: MemberRepoPort;
@@ -261,6 +264,43 @@ export interface MembersWriteServiceDeps {
    * `SenderIdentityNotConfiguredError`.
    */
   senderIdentity?: MailSenderIdentityPort;
+}
+
+export type MembersWriteServiceSourceDeps = {
+  clock: MembersWriteServiceDeps["clock"];
+  idGen: MembersWriteServiceDeps["ids"];
+  memberRepo: MembersWriteServiceDeps["members"];
+  memberTierRepo: MembersWriteServiceDeps["tiers"];
+  memberSubscriptionRepo: MembersWriteServiceDeps["subscriptions"];
+  memberSessionRepo: MembersWriteServiceDeps["sessions"];
+  magicLinkRepo: MembersWriteServiceDeps["magicLinks"];
+  mailer: MembersWriteServiceDeps["mailer"];
+  mailStatus?: MembersWriteServiceDeps["mailStatus"];
+  originRegistry?: MembersWriteServiceDeps["origin"];
+  principalRepo: MembersWriteServiceDeps["principals"];
+  mailSenderIdentity?: MembersWriteServiceDeps["senderIdentity"];
+};
+
+/** Assembles the write-service bundle in the feature: importing from the HTTP admin layer would
+ * invert the codebase's ports/adapters direction. @complexity O(1), object construction only. */
+export function buildMembersWriteServiceDeps(
+  { deps }: { deps: MembersWriteServiceSourceDeps },
+  _optional: Record<string, never> = {},
+): MembersWriteServiceDeps {
+  return {
+    clock: deps.clock,
+    ids: deps.idGen,
+    members: deps.memberRepo,
+    tiers: deps.memberTierRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    sessions: deps.memberSessionRepo,
+    magicLinks: deps.magicLinkRepo,
+    mailer: deps.mailer,
+    mailStatus: deps.mailStatus,
+    origin: deps.originRegistry,
+    principals: deps.principalRepo,
+    senderIdentity: deps.mailSenderIdentity,
+  };
 }
 
 /** Exactly one challenge credential; the link and code spend the same consumption stamp. */

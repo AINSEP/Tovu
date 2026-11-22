@@ -1,15 +1,15 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Dictionary for the Comments feature, covering all 18 target locales. Covers `rules.ts`'s
  * moderation-queue row-menu labels (`commentRowMenuItems`: Approve/Spam/Trash/Restore/Purge), the
  * hook-level notice/error strings from `use-comment-queue.hooks.ts` and
  * `use-comment-settings.hooks.ts` (`describeApiError` fallbacks, `setNotice` copy), and
- * `Comments.tsx`'s own markup (table headers, queue/settings copy, the purge-confirm dialog) — the
+ * `Jini packages/admin/src/comments/react/pages/CommentsPage.tsx`'s own markup (table headers, queue/settings copy, the purge-confirm dialog) — the
  * last of these was the one gap left after the rest of this admin app's JSX-only i18n pass (see
  * `redirects-i18n.tsx`/`integrations-i18n.tsx`/`recovery-i18n.tsx`'s matching notes for that
  * earlier pass), now closed.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const COMMENTS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -26,7 +26,7 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     // inventing a literal "Purgar".
     Purge: "Eliminar permanentemente",
 
-    // Comments.tsx markup (this pass) — the screen's own JSX was never wired to translation
+    // Jini packages/admin/src/comments/react/pages/CommentsPage.tsx markup (this pass) — the screen's own JSX was never wired to translation
     // before now; see the file header.
     "Loading…": "Cargando…",
     Author: "Autor",

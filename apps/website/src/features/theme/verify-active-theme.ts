@@ -1,12 +1,15 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { ToolInputError } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 
 import { setActiveTheme, type PresentationSettingsRepoPort } from "#src/features/presentation/index";
 
-import { NO_THEME_ID } from "./active-theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
-import { findStoredTheme, type DiscoveredTheme } from "./theme.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
+import { findStoredTheme } from "./theme-discovery.js";
+import { type DiscoveredTheme } from "./theme.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 
 /**
  * @file The "did the switch actually take" check behind `theme_set_active` (and `theme_duplicate`'s
@@ -47,7 +50,7 @@ export async function verifyActiveThemeResolves(
 ): Promise<void> {
   const { deps, activeThemeId, previousThemeId } = required;
   if (activeThemeId === NO_THEME_ID) return;
-  syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
+  syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
   const theme = findStoredTheme({ themes: deps.themes, id: activeThemeId });
   if (theme?.status === "valid") return;
 
@@ -55,7 +58,7 @@ export async function verifyActiveThemeResolves(
     deps: { repo: deps.presentationRepo, clock: deps.clock, availableThemeIds: [previousThemeId] },
     input: { workspaceId: deps.workspaceId, activeThemeId: previousThemeId },
   });
-  requestThemePreviewRefresh({ themesDir: deps.themesDir });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
 
   const why = theme
     ? `it fails validation: ${theme.errors.join("; ") || "no detail recorded"}`

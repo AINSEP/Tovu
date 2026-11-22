@@ -1,6 +1,9 @@
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
 import fs from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { createHash } from "node:crypto";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { DirectoryRecord } from "@jini-ai/platform/fs";
 import os from "node:os";
 import path from "node:path";
@@ -55,9 +58,9 @@ function nestedSitesCompat({ workspace }: { workspace: ReturnType<typeof createN
   const nestedSitesRoot = (_required: Record<string, never>, _options = {}) => nestedRoot({ workspace }, { ports });
   return { nestedSitesRoot, roots: (_required: Record<string, never>, _options = {}) => {
     const roots = workspace.roots({}), nested = nestedSitesRoot({});
-    try {
+    return orFallbackSync({ work: () => {
       return nested && fs.readdirSync(nested).some((name) => fs.existsSync(path.join(nested, name, ".site-meta.json"))) ? [...new Set([...roots, nested])] : roots;
-    } catch { return roots; }
+    }, fallback: roots, step: "Discover shared site roots" });
   } };
 }
 
@@ -79,12 +82,12 @@ function nestedRoot({ workspace }: { workspace: ReturnType<typeof createNodeDire
   if (saved.state === "unreadable") return undefined;
   if (saved.state === "ok" && (saved.value as { sitesHome?: unknown } | null)?.sitesHome !== undefined) return undefined;
   const root = path.join(workspace.home({}), "sites");
-  try {
+  return orFallbackSync({ work: () => {
     if (!fs.lstatSync(root).isDirectory()) return undefined;
     // A real website named "sites" is a website, never a compatibility container.
     if (fs.existsSync(path.join(root, ".site-meta.json"))) return undefined;
     return root;
-  } catch { return undefined; }
+  }, fallback: undefined, step: "Find nested sites root" });
 }
 
 
@@ -170,8 +173,8 @@ export function shareSiteDirectories(
     // Missing-volume MRU entries are retried after remount; do not certify an incomplete import.
     if (migration && !unavailable) registry.merge({ entries: [], migration });
     return registry.list({});
-  } catch {
-    report("tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable.");
+  } catch (error) {
+    report(`tovu desktop: shared catalog bookkeeping is unavailable; local websites remain usable. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
     return [];
   }
 }
@@ -197,7 +200,7 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
       for (const timer of timers) clearInterval(timer);
       timers.clear();
     },
-    onExit(listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void) {
+    onExit({ listener }: { listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void }) {
       let reported = false;
       const timer = setInterval(() => {
         if (stopped || reported) return;
@@ -215,5 +218,5 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
 export function rememberSharedSiteOpen({ workspace, dir }: { workspace: SitesWorkspace; dir: string }, _options = {}): void {
   shareSiteDirectories({ workspace, dirs: [dir], createdBy: "Desktop" });
   try { workspace.registry({}).opened({ path: dir, at: new Date().toISOString() }); }
-  catch { console.warn("tovu desktop: could not remember the opened website in the shared catalog."); }
+  catch (error) { console.warn("tovu desktop: could not remember the opened website in the shared catalog.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
 }

@@ -26,7 +26,7 @@
  * That predicate is not reimplemented in this file. `readPublished()` below calls
  * `deps.listPublishedPosts` — INJECTED (see `SiteAssistantToolDeps.listPublishedPosts`'s own doc),
  * not statically imported from `features/post` — but wired at the one production composition root
- * (`server/modules/site-assistant.ts`) to the real `features/post`'s own `listPublishedPosts`, the
+ * (`apps/website/src/server/runtime/composition/modules/site-assistant.ts`) to the real `features/post`'s own `listPublishedPosts`, the
  * SAME function `routes/site/pages.ts` calls to decide what a visitor's browser renders. "What is
  * publicly visible" has exactly one definition in this codebase; this file consumes it rather than
  * keeping a second copy that happens to agree today. A second copy is exactly how the assistant would
@@ -92,7 +92,7 @@ export interface SiteAssistantToolDeps {
    * (see this file's header for the security reasoning behind calling that exact function, and the
    * `ListPublishedPosts` type doc above for the module-cycle reason it is injected rather than
    * imported). Wired to the real implementation at the one production composition root,
-   * `server/modules/site-assistant.ts`. Tests may pass the real `features/post` export directly (test
+   * `apps/website/src/server/runtime/composition/modules/site-assistant.ts`. Tests may pass the real `features/post` export directly (test
    * files are exempt from `check:architecture`'s module-cycle graph) or a fake with the same shape —
    * either way, this field is never reimplemented locally.
    */
@@ -128,7 +128,7 @@ function toSummary(post: PostRecord): PublicEntrySummary {
 /** True once there is no more `extractText` budget, or `node` is not a walkable object at all
  *  (`null`, a primitive). Split out purely to keep that function's complexity under the shop
  *  ceiling. */
-function isExtractTextBudgetExhausted(node: unknown, budget: { left: number }): boolean {
+function isExtractTextBudgetExhausted({ node, budget }: { node: unknown; budget: { left: number } }, _options = {}): boolean {
   return budget.left <= 0 || node === null || typeof node !== "object";
 }
 
@@ -136,24 +136,24 @@ function isExtractTextBudgetExhausted(node: unknown, budget: { left: number }): 
  *  node with no usable `text`. Split out of {@link extractText} purely to keep that function's
  *  complexity under the shop ceiling; behavior (including the in-place `budget.left` decrement) is
  *  unchanged. */
-function pushExtractedText(record: Record<string, unknown>, out: string[], budget: { left: number }): void {
+function pushExtractedText({ record, out, budget }: { record: Record<string, unknown>; out: string[]; budget: { left: number } }, _options = {}): void {
   if (typeof record.text !== "string" || record.text.length === 0) return;
   const slice = record.text.slice(0, budget.left);
   budget.left -= slice.length;
   out.push(slice);
 }
 
-function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEXT_CHARS }): string[] {
-  if (isExtractTextBudgetExhausted(node, budget)) return out;
+function extractText({ node }: { node: unknown }, { out = [], budget = { left: MAX_TEXT_CHARS } }: { out?: string[]; budget?: { left: number } } = {}): string[] {
+  if (isExtractTextBudgetExhausted({ node: node, budget: budget })) return out;
 
   if (Array.isArray(node)) {
-    for (const child of node) extractText(child, out, budget);
+    for (const child of node) extractText({ node: child }, { out: out, budget: budget });
     return out;
   }
 
   const record = node as Record<string, unknown>;
-  pushExtractedText(record, out, budget);
-  if (Array.isArray(record.content)) extractText(record.content, out, budget);
+  pushExtractedText({ record: record, out: out, budget: budget });
+  if (Array.isArray(record.content)) extractText({ node: record.content }, { out: out, budget: budget });
   return out;
 }
 
@@ -165,7 +165,7 @@ function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEX
  *  @complexity O(n) in the body's node count or HTML length. */
 function entryText(post: PostRecord): string {
   if (post.bodyFormat === "html") return htmlToText({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
-  return extractText(post.bodyJson).join(" ").trim();
+  return extractText({ node: post.bodyJson }).join(" ").trim();
 }
 
 export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options = {}) {
@@ -199,7 +199,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
      * it does substring matching is fine as long as this comment exists. If it needs to be better,
      * that is a real feature, not a tweak here.
      */
-    async search_published_entries(input: { query?: unknown }): Promise<readonly PublicEntrySummary[]> {
+    async search_published_entries(input: { query?: unknown }): Promise<{ entries: readonly PublicEntrySummary[]; truncated: boolean }> {
       const query = typeof input?.query === "string" ? input.query.trim().toLowerCase() : "";
       const entries = await readPublished();
       const matched = query.length === 0
@@ -207,7 +207,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
         : entries.filter(
             (e) => e.title.toLowerCase().includes(query) || e.slug.toLowerCase().includes(query),
           );
-      return matched.slice(0, limit).map(toSummary);
+      return { entries: matched.slice(0, limit).map(toSummary), truncated: matched.length > limit };
     },
 
     /**
@@ -256,7 +256,7 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
   {
     name: "search_published_entries",
     description:
-      "Search this site's published posts and pages by title or slug. Returns summaries only. Omit query to list everything published.",
+      "Search this site's published posts and pages by title or slug. Returns summaries only, at most 20 by default; truncated: true means more matched. Omit query to list published entries.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "Text to match against title or slug." } },

@@ -78,10 +78,23 @@ test("an undecodable body is a 400", async (t) => {
   assert.deepEqual(await response.json(), { ok: false, error: "unreadable body" });
 });
 
-test("a handler failure is a redacted 500", async (t) => {
-  const route = fakeRoute(async () => { throw new Error("secret detail"); });
+test("a handler failure is a redacted 500 whose error ID matches one redacted server log", async (t) => {
+  const secret = "sk-ant-api03-" + "a".repeat(40);
+  const route = fakeRoute(async () => { throw new Error(`store failed near ${secret}`); });
+  const logged = t.mock.method(console, "error", () => {});
   const base = await serve(t, route);
   const response = await fetch(`${base}/hooks/mail/resend`, { method: "POST", body: "{}" });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { ok: false, error: "feedback could not be recorded" });
+  const body = await response.json() as { ok: boolean; error: string; errorId: string };
+  assert.deepEqual({ ...body, errorId: "ID" }, { ok: false, error: "The mail provider's delivery report could not be recorded. The provider retries it.", errorId: "ID" });
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+  // The caller is unauthenticated: the reply carries the ID only, never the cause.
+  assert.doesNotMatch(JSON.stringify(body), /store failed/);
+  assert.equal(logged.mock.callCount(), 1);
+  const line = JSON.stringify(logged.mock.calls[0]!.arguments);
+  assert.match(line, /\[mail-feedback:record\]/);
+  assert.ok(line.includes(body.errorId), "the log carries the same error ID");
+  assert.match(line, /store failed near/, "the log keeps the message");
+  assert.match(line, /mail-feedback\.unit\.test/, "the log keeps the stack");
+  assert.ok(!line.includes(secret), "secrets are redacted from the log");
 });

@@ -7,8 +7,8 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "#src/assistant/index";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -23,7 +23,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { buildPluginsRegistrations, contributePluginsTools, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
@@ -113,7 +113,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 
 function pluginsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("plugins_") || r.descriptor.id === "content_read.plugin")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -192,13 +192,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.plugin") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a plugins catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for set_enabled fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("plugins_set_enabled", { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "plugins_set_enabled", catalogEntry: { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

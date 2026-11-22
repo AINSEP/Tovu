@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
-import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
+import { listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 import { resolveSmokeTargets } from "../src/smoke-native.ts";
 import { withIsolatedSmokeTargets } from "../src/packaged-gate-isolation.ts";
 import { allocatePort, buildServeEnv, startTovuServer } from "../src/tovu-server.ts";
@@ -27,7 +28,7 @@ import { smokePackagedChatCli, withInterruptSignal } from "../src/smoke-packaged
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(desktopRoot, "../..");
 
-process.exitCode = await withInterruptSignal({ events: process }, signal => smokePackagedChatCli({
+process.exitCode = await withInterruptSignal({ events: process, run: ({ signal }) => smokePackagedChatCli({
   desktopRoot, scratchRoot: path.join(repoRoot, "ADS-memory/.local-artifacts"),
   argv: process.argv.slice(2), platform: process.platform, pid: process.pid, env: process.env, signal,
   fs: { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile }, userInfo,
@@ -35,4 +36,4 @@ process.exitCode = await withInterruptSignal({ events: process }, signal => smok
   processes: { collectProcessTreePids, listProcessSnapshots, stopProcesses },
   allocatePort, buildServeEnv, startTovuServer, initSiteDir, resolveSmokeTargets, withIsolatedSmokeTargets,
   stdout: process.stdout, stderr: process.stderr,
-}));
+}) });

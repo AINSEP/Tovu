@@ -45,7 +45,7 @@ const savedSocketEnv = process.env[PG_SOCKET_ENV];
 before(async () => {
   parent = fs.mkdtempSync(path.join(os.tmpdir(), "r1f-pglite-site-"));
   siteDir = path.join(parent, "site");
-  socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
+  socketDir = defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) });
   socketPath = path.join(socketDir, PGLITE_SOCKET_FILE);
   process.env[PG_SOCKET_ENV] = socketPath;
   // `tovu init --storage pglite`: the data dir at head with the starter template, store closed.
@@ -78,13 +78,13 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 /** The API process (store owner), booted as `tovu serve <dir>` does. */
 async function bootOwner(t: TestContext) {
   const boot = await bootSiteDir({ dir: siteDir });
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: SITE_NAME, dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   t.after(async () => {
     await drainBootReadiness(deps).catch(() => undefined);
     await closeSiteDirBoot(boot).catch(() => undefined); // idempotent: the test may have stopped it already
@@ -266,7 +266,7 @@ test("a site composition client started before the owner serves waits for the so
   // A server composition client retains its existing readiness wait. The lean daemon starts only
   // after the site listens and uses the leaf client exercised above; it never boots site services.
   const opened: { client?: SiteStore } = {};
-  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (opened.client = store) });
+  const clientDeps = createSiteRouteDeps({}, { dbPath, overrides: { storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => (opened.client = store) } });
   const openedClient = (): SiteStore | undefined => opened.client;
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(openedClient(), undefined, "the client is still waiting: nobody serves the socket yet");

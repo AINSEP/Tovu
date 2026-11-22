@@ -1,4 +1,9 @@
-import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
+import type {
+  DomainEvent,
+  EventBusPort,
+  OutboxPort,
+  OutboxRecord,
+} from "@jini-ai/core/contracts/events";
 
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "./outbox-worker.js";
 
@@ -11,7 +16,7 @@ import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "./outbox-worker.js";
  *
  * How it relates to the project:
  * - Implements interfaces from `src/contracts/core/ports.ts`.
- * - Used by `src/server/app.ts` as the concrete runtime wiring in development.
+ * - Used by `apps/website/src/server/runtime/composition/app.ts` as the concrete runtime wiring in development.
  * - Works with `src/contracts/core/events/outbox-worker.ts` to demonstrate hybrid sync + async flow.
  * - Used by tests to validate behavior without external dependencies.
  *
@@ -73,7 +78,7 @@ export class InMemoryEventBus implements EventBusPort {
 }
 
 /** A row is claimable when it is due and was either never claimed or is held by an expired claim lease. */
-function isClaimable(row: OutboxRecord, nowIso: string): boolean {
+function isClaimable({ row, nowIso }: { row: OutboxRecord; nowIso: string }, _options = {}): boolean {
   return (row.status === "pending" || row.status === "processing") && row.nextAttemptAt <= nowIso;
 }
 
@@ -118,7 +123,7 @@ export class InMemoryOutbox implements OutboxPort {
    */
   async claimPending({ batchSize, nowIso }: { batchSize: number; nowIso: string }): Promise<OutboxRecord[]> {
     const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
-    const due = this.records.filter((row) => isClaimable(row, nowIso)).slice(0, batchSize);
+    const due = this.records.filter((row) => isClaimable({ row: row, nowIso: nowIso })).slice(0, batchSize);
 
     return due.map((row) => {
       const claimed: OutboxRecord = { ...row, status: "processing", attempts: row.attempts + 1 };

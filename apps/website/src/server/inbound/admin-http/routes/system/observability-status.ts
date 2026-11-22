@@ -1,9 +1,11 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { isNoopObservabilityPort } from "#src/platform/observability/index";
+import { isNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) —
@@ -29,29 +31,14 @@ function observabilityStatusBody(
     ...(testAccess ? { canSendTestError: testAccess.allowed } : {}) };
 }
 
-export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminObservabilityStatusDeps): void {
+export function registerAdminObservabilityStatusRoute({ app, deps }: { app: Express; deps: AdminObservabilityStatusDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/observability-status", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "observability",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "observability" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // Whether a configured provider plugin backs the port, and the fixed service identity it
       // reports under. Never the collector endpoint, DSN or any credential: those live only in the
@@ -65,9 +52,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
     }
   });
   app.post("/api/admin/v1/workspaces/:workspaceId/system/observability/test-error", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" }); return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const access = await deps.authorize({ principalId: principal.id, permission: "system.write",
@@ -77,7 +62,6 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       // No submitted error text: only the fixed diagnostic bound by the composition root is sent.
       res.status(200).json(await deps.sendTelemetryTest({}));
     } catch (error) {
-      deps.tracker.error({ error: error instanceof Error ? error : new Error("telemetry test failed") }, { context: { operation: "telemetry.test_action" } });
       sendAdminFailure({ res, error }, { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" });
     }
   });

@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
@@ -6,9 +6,10 @@ import { updateRole } from "@jini-ai/user-management/server";
 import { toAdminRoleResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendRoleUpdateError(res: Response, err: unknown): void {
+function sendRoleUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -28,12 +29,9 @@ function sendRoleUpdateError(res: Response, err: unknown): void {
  * PATCH roles/:roleId — `UPDATE_ROLE` (SPEC-006 0.6.0, REQ-18) — rename a non-built-in role. Gated
  * by `role.manage`; a built-in target is refused `VALIDATION_ERROR` (INV-06 extended, AC-30).
  */
-export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/roles/:roleId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -51,7 +49,7 @@ export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = (app, deps) => 
 
       res.json({ role: toAdminRoleResponse(role) });
     } catch (err) {
-      sendRoleUpdateError(res, err);
+      sendRoleUpdateError({ res, err });
     }
   });
 };

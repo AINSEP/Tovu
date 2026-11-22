@@ -1,0 +1,146 @@
+== own-Q3-guard | apps/website/src/features/site-backup/backup-service.ts | -'  if (plan.credentialWarnings?.length) return pushRefusal(' +'  if (false && plan.credentialWarnings?.length) return pushRefusal('
+1|2|1 apps/website/src/features/site-backup/__tests__/integration/archive-round-trip.integration.test.ts
+== own-T7-cancel-as-notpushed | apps/website/src/features/site-backup/backup-service.ts | -'cancelled ? "cancelled" : "not_pushed"' +'"not_pushed"'
+1|5|2 apps/website/src/features/site-backup/__tests__/push-cancellation.unit.test.ts
+== own-T7-bypass-observed | apps/website/src/features/site-backup/backup-service.ts | -'run: ({ signal, progress }) => runObservedBackupPush(' +'run: ({ signal, progress }) => pushPlannedBackup('
+1|2|5 apps/website/src/features/site-backup/__tests__/push-cancellation.unit.test.ts
+== own-T7-reject-unsettled | apps/website/src/features/site-backup/backup-service.ts | -'    operation.end({ outcome: "failed", failed: true });
+    throw error;' +'    throw error;'
+1|6|1 apps/website/src/features/site-backup/__tests__/push-cancellation.unit.test.ts
+== own-W-taxonomy | apps/website/src/server/inbound/public-http/http/site/render/content-html.ts | -'"@jini-ai/cms/taxonomy/render-entry"' +'"@jini-ai/cms/taxonomy"'
+1|22|4 apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+== own-W-forms | apps/website/src/server/inbound/public-http/http/site/render/contact-form-widget.ts | -'"@jini-ai/cms/forms/field-length-caps"' +'"@jini-ai/cms/forms"'
+1|22|4 apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+== own-W-media | apps/website/src/server/inbound/public-http/http/site/render/widgets/media.ts | -'"@jini-ai/cms/widgets/html/media-html"' +'"@jini-ai/cms/widgets/html"'
+1|22|4 apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+== own-W-seo | apps/website/src/server/inbound/public-http/routes/site/pages/extra-head.ts | -'"#src/features/seo/page-head-contributor"' +'"#src/features/seo/index"'
+1|24|2 apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+== own-W-post | apps/website/src/features/widgets/deps.ts | -'import { updatePost } from "../post/post-update.js";' +'import { updatePost } from "../post/index.js";'
+1|23|3 apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+== own-T2PREP-no-otlp | apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts | -'    await installOtlpProvider({ port, collector });' +''
+1|15|2 apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+== own-T2-no-sample | apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts | -'  await initSite({ dir, name }, { withSampleContent: true });' +'  await initSite({ dir, name }, {});'
+1|11|6 apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+== abort-08-draft | apps/website/src/features/consent/revisions.repo.ts | -'      signal?.throwIfAborted();
+      await kernel.execute(sql`INSERT INTO site_consent_revisions' +'      await kernel.execute(sql`INSERT INTO site_consent_revisions'
+1|21|1 apps/website/src/features/consent/__tests__/tools.test.ts
+== abort-09-publish | apps/website/src/features/consent/revisions.repo.ts | -'      signal?.throwIfAborted();
+      await kernel.execute(sql`UPDATE site_consent_heads' +'      await kernel.execute(sql`UPDATE site_consent_heads'
+1|21|1 apps/website/src/features/consent/__tests__/tools.test.ts
+== ag1-old-drain | apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts | file restored to 0973a5fdc8
+1|9|1 apps/website/src/server/__tests__/assistant-ag-ui-wire.golden.test.ts
+== ag1-no-res-end | apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts | -'    runFinished = true;
+    res.end();
+    runTracker.setOutcome(outcome);' +'    runFinished = true;
+    runTracker.setOutcome(outcome);'
+1|3|1 apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts
+1|3|7 apps/website/src/server/__tests__/assistant-ag-ui-wire.golden.test.ts
+== ag1-no-reader-cancel | apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts | -'    reader?.cancel().catch(() => undefined);' +''
+1|36|1 apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts
+== gate-A10-confirm | apps/website/src/features/database/tool-registrations.ts | -'          signal: ctx.signal,
+          principalId: confirmer.id,' +'          principalId: confirmer.id,'
+1|62|1 apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+== gate-A10-execute | apps/website/src/features/database/tool-registrations.ts | -'              signal: ctx.signal,
+              principalId: ctx.principal.id,' +'              principalId: ctx.principal.id,'
+1|62|1 apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+== gate-A18-confirm | apps/website/src/features/publish-content/tool-registrations.ts | -'planHash: planned.planHash, signal: ctx.signal' +'planHash: planned.planHash'
+1|12|1 apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts
+== gate-A18-execute | apps/website/src/features/publish-content/tool-registrations.ts | -'confirmationToken: token.confirmationToken, signal: ctx.signal' +'confirmationToken: token.confirmationToken'
+1|12|1 apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts
+== gate-A19-confirm | apps/website/src/features/recovery/tool-registrations.ts | -'                    signal: confirmer.signal,
+' +''
+1|62|1 apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+== gate-A19-execute | apps/website/src/features/recovery/tool-registrations.ts | -'                    confirmationToken: params.confirmationToken,
+                    signal: ctx.signal,' +'                    confirmationToken: params.confirmationToken,'
+1|62|1 apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+== gate-T46-no-limit | apps/website/src/server/runtime/composition/other-site-keys.ts | -'LIMIT ${rowId === undefined ? MAX_ROWS_PER_SITE : 1}' +'LIMIT ${rowId === undefined ? 100000 : 1}'
+0|4|0 apps/website/src/server/inbound/admin-http/routes/system/__tests__/credential-copy.tw4.pins.test.ts
+1|9|1 apps/website/src/server/runtime/composition/__tests__/other-site-keys.integration.test.ts
+== gate-T46-no-omitted | apps/website/src/server/runtime/composition/other-site-keys.ts | -', ...(index === 0 && row.sourceCount > MAX_ROWS_PER_SITE ? { omittedCount: row.sourceCount - MAX_ROWS_PER_SITE } : {})' +''
+0|4|0 apps/website/src/server/inbound/admin-http/routes/system/__tests__/credential-copy.tw4.pins.test.ts
+1|9|1 apps/website/src/server/runtime/composition/__tests__/other-site-keys.integration.test.ts
+== gate-T46-get-projection | apps/website/src/server/inbound/admin-http/routes/system/credential-copy.ts | -'      ...(row.omittedCount !== undefined ? { omittedCount: row.omittedCount } : {}),' +''
+1|3|1 apps/website/src/server/inbound/admin-http/routes/system/__tests__/credential-copy.tw4.pins.test.ts
+== gate-T46-no-notice | apps/admin/src/features/security/CopyKeysDialog.tsx | -'          {dialog.omissions.map(omission => <p key={omission.id}>{omission.siteName}: {omission.count} {t("more not show' +''
+1|2|1 apps/admin/src/features/security/__tests__/CopyKeysDialog.unit.test.tsx
+== bugs1-T1-agentSessions | apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts | -'    agentSessions: createSqliteAgentSessionStore({ store, clock: base.clock }),' +'    agentSessions: base.agentSessions,'
+1|5|1 apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts
+== bugs1-T2-limit | apps/website/src/server/inbound/admin-http/routes/newsletter/list-send-log.ts | -'afterId, limit: limit + 1 });' +'afterId, limit });'
+1|4|1 apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/list-send-log.test.ts
+== bugs-T3-DISKPINS-uuid | apps/website/src/server/inbound/shared/admin-failure.ts | file restored to 0973a5fdc8
+1|4|4 apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import-errors.test.ts
+1|1|1 apps/website/src/server/inbound/shared/__tests__/unexpected-admin-escape-paths.unit.test.ts
+== bugs2-SEEDLOG | apps/website/src/server/runtime/boot/process-error-guards.ts | file restored to 0973a5fdc8
+1|7|1 apps/website/src/server/runtime/boot/__tests__/fatal-boot-failure.unit.test.ts
+== bugs2-I18N | development/scripts/hygiene-audit.mjs | file restored to 0973a5fdc8
+1|0|1 development/scripts/__tests__/hygiene-audit-translation-entry.test.mjs
+== bugs1-SZ-409 | apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts | -'res.status(403).json({ code: "ACKNOWLEDGE_CREDENTIALS"' +'res.status(409).json({ code: "ACKNOWLEDGE_CREDENTIALS"'
+1|3|1 apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+== bugs1-SZ-token-predicate | apps/website/src/features/site-backup/share-registry.ts | -' && !row.needsAcknowledgement && !row.credentialWarnings?.length;' +' && !row.needsAcknowledgement;'
+1|3|1 apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+1|7|1 apps/website/src/server/inbound/public-http/routes/__tests__/site-share.unit.test.ts
+== bugs1-SZ-provider-refusal | apps/website/src/features/site-backup/share-backend.ts | -'  if (delivery) requireNoShareCredentialWarnings({ credentialWarnings });' +''
+0|4|0 apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+1|13|1 apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts
+== ci-T4-no-admission | apps/website/src/features/agent-plugins/admin-surfaces/public-config.ts | -'|JINI_GOOGLE_PICKER_APP_ID|JINI_GOOGLE_PICKER_BROWSER_KEY)$/;' +')$/;'
+1|19|1 apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+== ci-T4-broaden | apps/website/src/features/agent-plugins/admin-surfaces/public-config.ts | -'|JINI_GOOGLE_PICKER_APP_ID|JINI_GOOGLE_PICKER_BROWSER_KEY)$/;' +'|JINI_[A-Z0-9_]{1,48}_(APP_ID|CLIENT_ID|BROWSER_KEY|PUBLIC_KEY))$/;'
+1|19|1 apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+== ci-T5-no-jini-parse | apps/website/src/features/api-connections/contribution.ts | -'    const jini = parseApiConnectionDeclarations({ raw, clientNamespace: "JINI_" });
+    return jini.ok ? jini : parsed;' +'    return parsed;'
+1|28|2 apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts
+== ci-T5-no-namespace | apps/website/src/features/api-connections/contribution.ts | -'clientNamespace: item.pluginId === "google-workspace" ? "JINI_" : CLIENT_NAMESPACE' +'clientNamespace: CLIENT_NAMESPACE'
+1|28|2 apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts
+== ci-T3-no-dryrun | .github/workflows/desktop-release.yml | -'    if: ${{ !inputs.dry_run && (needs.store-identity.outputs.ready == 'true') }}' +'    if: needs.store-identity.outputs.ready == 'true''
+1|3|1 development/scripts/__tests__/desktop-assistant-release-gate.unit.test.ts
+== upg-T2-no-jini-candidate | apps/website/src/server/runtime/boot/resolve-mailer.ts | -'  return [label, `Jini ${label}`, `Tovu ${label}`];' +'  return [label, `Tovu ${label}`];'
+0|8|0 apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+1|13|1 apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts
+== upg-T2-no-tovu-candidate | apps/website/src/server/runtime/boot/resolve-mailer.ts | -'  return [label, `Jini ${label}`, `Tovu ${label}`];' +'  return [label, `Jini ${label}`];'
+0|8|0 apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+1|13|1 apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts
+== upg-T2-historical-first | apps/website/src/server/runtime/boot/resolve-mailer.ts | -'  return [label, `Jini ${label}`, `Tovu ${label}`];' +'  return [`Jini ${label}`, `Tovu ${label}`, label];'
+0|8|0 apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+1|12|2 apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts
+== upg-T2-describe-direct | apps/website/src/server/runtime/boot/resolve-mailer.ts | -'    describeProviders: describeMailProvidersWithLegacyLabels' +'    describeProviders: describeMailProviders'
+0|8|0 apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+1|12|2 apps/website/src/server/runtime/boot/__tests__/resolve-mailer-lifecycle.unit.test.ts
+== upg-T3-old-default | apps/website/src/features/agent-plugins/mail-adapter-registry.ts | -'return `Mail — ${label} API`; }' +'return `Tovu Mail — ${label} API`; }'
+1|12|1 apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts
+1|7|1 apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-setup.unit.test.ts
+0|8|0 apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+== upg-FED-skip-reload | apps/website/src/server/runtime/composition/modules/assistant-server-federation.ts | -'      await reload({}, {});' +''
+1|4|2 apps/website/src/server/runtime/composition/modules/__tests__/assistant-server-federation.integration.test.ts
+== upg-GH-omit | apps/website/src/features/source-control/commit-site.ts | -'...(providerId === "github" ? { previousManagedManifestPath: ".tovu/managed-files.json" } : {})' +'...({})'
+1|42|1 apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+== upg-GH-all | apps/website/src/features/source-control/commit-site.ts | -'...(providerId === "github" ? { previousManagedManifestPath: ".tovu/managed-files.json" } : {})' +'...({ previousManagedManifestPath: ".tovu/managed-files.json" })'
+1|42|1 apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+== howto-delete-post-line | content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md | -'A post is a dated article (blog, news, update). Landing, service and about pages, anything with a custom or complex layo' +''
+1|2|1 content/agent-plugins/how-tovu-works/__tests__/bundled-package.test.mjs
+== wip-no-locked-class | apps/admin/src/features/plugins/AgentPluginRow.tsx | -'disabled className="agent-plugin-switch agent-plugin-switch--locked">' +'disabled className="agent-plugin-switch">'
+0|2|? apps/admin/src/__tests__/unit/agent-plugin-switch-locked-css.unit.test.ts
+1|17|2 apps/admin/src/features/plugins/__tests__/AgentPluginRow.unit.test.tsx
+== b1-lock-noop | apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.ts | -'  await client.query("SELECT pg_advisory_lock($1)", [REAL_POSTGRES_CHAT_LOCK]);' +'  await client.query("SELECT 1");'
+1|0|1 apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts
+== b1-lock-noop | apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.ts | -'  await client.query("SELECT pg_advisory_lock($1)", [REAL_POSTGRES_CHAT_LOCK]);' +'  await client.query("SELECT 1");'
+1|0|1 apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts
+== b2-digest | apps/website/src/server/runtime/composition/charts-recharts-source.ts | -'sha256-8bf7290ed757364db0ab99e55f2ab682647f572fbdda622f1c39937727e8eb3c' +'sha256-0bf7290ed757364db0ab99e55f2ab682647f572fbdda622f1c39937727e8eb3c'
+1|3|2 apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts
+1|6|2 apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts
+== main-poll-no-backoff | apps/website/src/server/runtime/composition/plugin-activation-polling.ts | -'if (current || shouldWaitBeforeRetry(failures.get(pluginId), activeVersion)) continue;' +'if (current) continue;'
+1|6|1 apps/website/src/server/runtime/composition/__tests__/agent-daemon-deps.plugin-activation-poll.test.ts
+== main-slug-pagecaps | apps/website/src/assistant/site/__tests__/visitor-schemas-gemini.unit.test.ts | -'    ...VISITOR_PAGE_CAPABILITIES.map(capability' +'    ...PAGE_CAPABILITIES.map(capability'
+1|1|1 apps/website/src/assistant/site/__tests__/visitor-schemas-gemini.unit.test.ts
+0|2|0 apps/website/src/assistant/site/__tests__/visitor-slug-navigation.unit.test.ts
+== bugs1-SZ-unconditional | apps/website/src/features/site-backup/share-backend.ts | -'  if (delivery) requireNoShareCredentialWarnings({ credentialWarnings });' +'  requireNoShareCredentialWarnings({ credentialWarnings });'
+1|3|1 apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+0|14|0 apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts
+== main-slug-schema-override | apps/website/src/assistant/site/visitor-page-tools.ts | -'  capability.id === 'page.navigate' ? { ...capability, ...VISITOR_NAVIGATE } : capability);' +'  capability);'
+0|2|0 apps/website/src/assistant/site/__tests__/visitor-schemas-gemini.unit.test.ts
+1|1|1 apps/website/src/assistant/site/__tests__/visitor-slug-navigation.unit.test.ts
+== upg-CRED1-no-jini | apps/website/src/server/runtime/composition/modules/site-search.ts | -'      if (saved === null) saved = await required.resolveCredential({ label: `Jini Search — ${provider.label}` });' +''
+0|20|0 apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts
+1|24|1 apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts
+== upg-CRED1-no-tovu | apps/website/src/server/runtime/composition/modules/site-search.ts | -'      if (saved === null) saved = await required.resolveCredential({ label: `Tovu Search — ${provider.label}` });' +''
+0|20|0 apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts
+1|24|1 apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts

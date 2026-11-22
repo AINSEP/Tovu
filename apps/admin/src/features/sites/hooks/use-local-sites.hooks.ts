@@ -1,13 +1,15 @@
 /** Local lifecycle writes and confirmation live in the controller, never in card markup. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@/lib/visible-interval";
-import { describeApiError, type AdminLocalSiteAction, type AdminSitesSnapshot } from "@/lib/api";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@jini-ai/ui/visible-interval";
+import type { AdminLocalSiteAction, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
+
 import { KEYS, SERVING_CHAT_WARNING_KEY, siteWriteErrorKey } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
 
-const nativeConfirm = (message: string) => window.confirm(message);
+import { interpolate, type Translate } from '@jini-ai/core/text';
+const nativeConfirm = ({ message }: { message: string }, _optional = {}) => window.confirm(message);
 export const LOCAL_SITE_CONFIRM_KEYS = {
   trash: "Move this site to Trash? You can restore it later.",
   delete: "Permanently delete this site and all its data? This cannot be undone.",
@@ -44,16 +46,16 @@ function localActionConfirmMessage(
 }
 
 /** Whether the host accepted Switch now and is restarting, rather than only saving the default. */
-function restartAccepted(result: unknown): boolean {
+function restartAccepted({ result }: { result: unknown }, _optional = {}): boolean {
   return (result as { restarting?: boolean } | undefined)?.restarting === true;
 }
 
 /** The operator-facing message for a failed lifecycle write: this feature's own copy for its codes,
  *  otherwise the shared `describeApiError` fallback. */
-function localActionErrorMessage(failure: unknown, t: Translate): string {
-  const key = siteWriteErrorKey(failure);
+function localActionErrorMessage({ failure, t }: { failure: unknown; t: Translate }, _optional = {}): string {
+  const key = siteWriteErrorKey({ e: failure });
   if (key) return t(key);
-  return describeApiError(failure instanceof Error ? failure : new Error("Request failed"), t("That request failed."));
+  return describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("That request failed.") });
 }
 
 /** Only an enabled local host with an unfinished start needs startup polling. */
@@ -69,7 +71,7 @@ export function useLocalSites(
   { port, snapshot, t }: { port: SitesPort; snapshot: AdminSitesSnapshot | undefined; t: Translate },
   { confirm = nativeConfirm, visibility = document, timers }: {
     /** Receives the translated message plus the action, so a modal can title and tone itself. */
-    confirm?: (message: string, context: { action: ConfirmableAction }) => boolean | Promise<boolean>;
+    confirm?: (required: { message: string; action: ConfirmableAction }, optional?: Record<string, never>) => boolean | Promise<boolean>;
     /** Visibility and timer ports keep lifecycle polling testable without replacing modules. */
     visibility?: VisibilitySource;
     timers?: IntervalTimers;
@@ -81,13 +83,49 @@ export function useLocalSites(
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [switchTarget, setSwitchTarget] = useState<{ name: string; deadline: number } | null>(null);
   const busy = useRef(false);
+  const { enabled, canSwitchNow, stopServing, stopServingTarget, activeSiteName } = localSiteCapabilities(snapshot);
+  const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
+  const starting = localSiteIsStarting({ enabled, snapshot });
+  useLocalSitePolling({ starting, switchTarget, activeSiteName, refresh, visibility, timers, setSwitchTarget });
+  function handleSwitchResult({ name, result }: { name: string; result: unknown }, _optional = {}) {
+    const url = (result as { url?: unknown } | undefined)?.url;
+    if (typeof url === "string") port.openSite?.({ url });
+    else if (restartAccepted({ result: result })) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
+    else setError(t("This host could not switch now. The default is saved for the next launch."));
+  }
+  const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
+    if (busy.current || !port.manageLocalSite) return;
+    if (!localActionAllowed({ action, canSwitchNow, enabled, deleteChecked: checked[name] === true, stopServingTarget })) return;
+    busy.current = true;
+    setBusyName(name); setError(null);
+    try {
+      if (isConfirmable(action) && !(await confirm({ message: localActionConfirmMessage({ action, name, stopServing, t }), action }))) return;
+      const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
+      applyLocalSiteActionResult({ action, name, stopServingTarget }, result, handleSwitchResult);
+      refresh();
+    } catch (failure) {
+      setError(localActionErrorMessage({ failure: failure, t: t }));
+    }
+    finally { busy.current = false; setBusyName(null); }
+  }, [port, canSwitchNow, enabled, stopServing, stopServingTarget, checked, confirm, t, refresh]);
+  const toggleChecked = useCallback((id: string, value: boolean) => setChecked((current) => ({ ...current, [id]: value })), []);
+  return { busyName, error, checked, toggleChecked, run };
+}
+
+function localSiteCapabilities(snapshot: AdminSitesSnapshot | undefined) {
   const enabled = snapshot?.localManagementEnabled === true;
   const canSwitchNow = snapshot?.canSwitchNow === true;
   const stopServing = snapshot?.stopServing;
   const stopServingTarget = stopServing?.available === true ? stopServing.target : null;
   const activeSiteName = snapshot?.currentSite.name;
-  const refresh = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  const starting = localSiteIsStarting({ enabled, snapshot });
+  return { enabled, canSwitchNow, stopServing, stopServingTarget, activeSiteName };
+}
+
+function useLocalSitePolling({ starting, switchTarget, activeSiteName, refresh, visibility, timers, setSwitchTarget }: {
+  starting: boolean; switchTarget: { name: string; deadline: number } | null; activeSiteName: string | undefined;
+  refresh: () => void; visibility: VisibilitySource; timers: IntervalTimers | undefined;
+  setSwitchTarget: (target: { name: string; deadline: number } | null) => void;
+}) {
   // Idle hosts need no timer. Refresh only an unfinished start or accepted restart; broad
   // idle invalidation used to refetch shares and publish permissions every three seconds.
   useEffect(() => {
@@ -97,35 +135,20 @@ export function useLocalSites(
     }
     if (!starting && !switchTarget) return undefined;
     // Replace the slow poll while a restart is pending; a saved default alone is not completion.
-    return startVisibleInterval(() => {
+    return startVisibleInterval({ tick: () => {
       if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
       refresh();
-    }, switchTarget ? 300 : 3000, visibility, timers);
+    }, periodMs: switchTarget ? 300 : 3000 }, { doc: visibility, timers });
   }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
-  function handleSwitchResult(name: string, result: unknown) {
-    const url = (result as { url?: unknown } | undefined)?.url;
-    if (typeof url === "string") port.openSite?.(url);
-    else if (restartAccepted(result)) setSwitchTarget({ name, deadline: Date.now() + 60_000 });
-    else setError(t("This host could not switch now. The default is saved for the next launch."));
-  }
-  const run = useCallback(async (name: string, action: AdminLocalSiteAction) => {
-    if (busy.current || !port.manageLocalSite) return;
-    if (!localActionAllowed({ action, canSwitchNow, enabled, deleteChecked: checked[name] === true, stopServingTarget })) return;
-    busy.current = true;
-    setBusyName(name); setError(null);
-    try {
-      if (isConfirmable(action) && !(await confirm(localActionConfirmMessage({ action, name, stopServing, t }), { action }))) return;
-      const result = await port.manageLocalSite({ name, action, confirmed: true, checked: checked[name] === true });
-      if (action === "switch") handleSwitchResult(name, result);
-      // The server restarts onto the hand-over target, so the page waits for that site, not this one.
-      if (action === "stop-serving" && stopServingTarget !== null) handleSwitchResult(stopServingTarget, result);
-      refresh();
-    } catch (failure) {
-      setError(localActionErrorMessage(failure, t));
-    }
-    finally { busy.current = false; setBusyName(null); }
-  }, [port, canSwitchNow, enabled, stopServing, stopServingTarget, checked, confirm, t, refresh]);
-  const toggleChecked = useCallback((id: string, value: boolean) => setChecked((current) => ({ ...current, [id]: value })), []);
-  return { busyName, error, checked, toggleChecked, run };
 }
+
+function applyLocalSiteActionResult(
+  { action, name, stopServingTarget }: { action: AdminLocalSiteAction; name: string; stopServingTarget: string | null },
+  result: unknown, handleSwitchResult: (required: { name: string; result: unknown }) => void,
+): void {
+  if (action === "switch") handleSwitchResult({ name: name, result: result });
+  // The server restarts onto the hand-over target, so the page waits for that site, not this one.
+  if (action === "stop-serving" && stopServingTarget !== null) handleSwitchResult({ name: stopServingTarget, result: result });
+}
+
 export type LocalSitesController = ReturnType<typeof useLocalSites>;

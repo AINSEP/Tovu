@@ -196,7 +196,7 @@ describe("host-retained Select helpers", () => {
   }
 
   it("buildOptionId shares one id scheme between the option row and aria-activedescendant", () => {
-    expect(buildOptionId("lb-1", 3)).toBe("lb-1-option-3");
+    expect(buildOptionId({ listboxId: "lb-1", index: 3 })).toBe("lb-1-option-3");
   });
 
   describe("focusableInDomOrder", () => {
@@ -208,13 +208,13 @@ describe("host-retained Select helpers", () => {
         <input id="field" />
         <div id="skip" tabindex="-1"></div>
         <div id="tab" tabindex="0"></div>`;
-      expect(focusableInDomOrder(null).map((el) => el.id)).toEqual(["link", "on", "field", "tab"]);
+      expect(focusableInDomOrder({ exclude: null }).map((el) => el.id)).toEqual(["link", "on", "field", "tab"]);
     });
 
     it("leaves out everything inside the excluded subtree (the portaled panel)", () => {
       document.body.innerHTML = `<button id="before">b</button><div id="panel"><button id="inside">i</button></div><button id="after">a</button>`;
       const panel = document.getElementById("panel")!;
-      expect(focusableInDomOrder(panel).map((el) => el.id)).toEqual(["before", "after"]);
+      expect(focusableInDomOrder({ exclude: panel }).map((el) => el.id)).toEqual(["before", "after"]);
     });
   });
 
@@ -273,7 +273,7 @@ describe("host-retained Select helpers", () => {
       withViewport({ width: 800, height: 600 }, () => {
         const onOutOfView = vi.fn();
         const setPosition = vi.fn();
-        repositionOrClose(fakeTrigger(rect), onOutOfView, setPosition);
+        repositionOrClose({ trigger: fakeTrigger(rect), onOutOfView, setPosition });
         expect(onOutOfView).toHaveBeenCalledTimes(1);
         expect(setPosition).not.toHaveBeenCalled();
       });
@@ -285,7 +285,7 @@ describe("host-retained Select helpers", () => {
           expect(typeof document.elementFromPoint).not.toBe("function");
           const onOutOfView = vi.fn();
           const setPosition = vi.fn();
-          repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition);
+          repositionOrClose({ trigger: fakeTrigger(inView), onOutOfView, setPosition });
           expect(onOutOfView).not.toHaveBeenCalled();
           expect(setPosition).toHaveBeenCalledWith({ top: 134, left: 20, width: 200, maxHeight: 462 });
         });
@@ -297,7 +297,7 @@ describe("host-retained Select helpers", () => {
         const trigger = fakeTrigger(inView);
         const probe = vi.fn((_x: number, _y: number) => trigger as Element);
         withElementFromPoint(probe, () => {
-          repositionOrClose(trigger, vi.fn(), vi.fn());
+          repositionOrClose({ trigger, onOutOfView: vi.fn(), setPosition: vi.fn() });
         });
         expect(probe).toHaveBeenCalledWith(120, 115);
       });
@@ -310,7 +310,7 @@ describe("host-retained Select helpers", () => {
         trigger.appendChild(label);
         const onOutOfView = vi.fn();
         const setPosition = vi.fn();
-        withElementFromPoint(() => label, () => repositionOrClose(trigger, onOutOfView, setPosition));
+        withElementFromPoint(() => label, () => repositionOrClose({ trigger, onOutOfView, setPosition }));
         expect(onOutOfView).not.toHaveBeenCalled();
         expect(setPosition).toHaveBeenCalledTimes(1);
       });
@@ -323,7 +323,7 @@ describe("host-retained Select helpers", () => {
         wrapper.appendChild(trigger);
         const onOutOfView = vi.fn();
         const setPosition = vi.fn();
-        withElementFromPoint(() => wrapper, () => repositionOrClose(trigger, onOutOfView, setPosition));
+        withElementFromPoint(() => wrapper, () => repositionOrClose({ trigger, onOutOfView, setPosition }));
         expect(onOutOfView).not.toHaveBeenCalled();
         expect(setPosition).toHaveBeenCalledTimes(1);
       });
@@ -334,7 +334,7 @@ describe("host-retained Select helpers", () => {
         const onOutOfView = vi.fn();
         const setPosition = vi.fn();
         withElementFromPoint(() => document.createElement("div"), () =>
-          repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition),
+          repositionOrClose({ trigger: fakeTrigger(inView), onOutOfView, setPosition }),
         );
         expect(onOutOfView).toHaveBeenCalledTimes(1);
         expect(setPosition).not.toHaveBeenCalled();
@@ -345,7 +345,7 @@ describe("host-retained Select helpers", () => {
       withViewport({ width: 800, height: 600 }, () => {
         const onOutOfView = vi.fn();
         const setPosition = vi.fn();
-        withElementFromPoint(() => null, () => repositionOrClose(fakeTrigger(inView), onOutOfView, setPosition));
+        withElementFromPoint(() => null, () => repositionOrClose({ trigger: fakeTrigger(inView), onOutOfView, setPosition }));
         expect(onOutOfView).toHaveBeenCalledTimes(1);
         expect(setPosition).not.toHaveBeenCalled();
       });
@@ -363,36 +363,36 @@ describe("host-retained Select helpers", () => {
 
     it("returns the trigger's next DOM-order neighbour on Tab and its previous one on Shift+Tab", () => {
       const { trigger, panel } = layout();
-      expect(resolveTabTarget(panel, trigger, false)?.id).toBe("next");
-      expect(resolveTabTarget(panel, trigger, true)?.id).toBe("prev");
+      expect(resolveTabTarget({ panel, trigger, shiftKey: false })?.id).toBe("next");
+      expect(resolveTabTarget({ panel, trigger, shiftKey: true })?.id).toBe("prev");
     });
 
     it("returns null when there is no neighbour in that direction", () => {
       document.body.innerHTML = `<button id="trigger">t</button>`;
       const trigger = document.getElementById("trigger")!;
-      expect(resolveTabTarget(null, trigger, false)).toBeNull();
-      expect(resolveTabTarget(null, trigger, true)).toBeNull();
+      expect(resolveTabTarget({ panel: null, trigger, shiftKey: false })).toBeNull();
+      expect(resolveTabTarget({ panel: null, trigger, shiftKey: true })).toBeNull();
     });
 
     it("returns null (do not move focus) when the trigger is missing or no longer focusable", () => {
       const { trigger, panel } = layout();
-      expect(resolveTabTarget(panel, null, false)).toBeNull();
+      expect(resolveTabTarget({ panel, trigger: null, shiftKey: false })).toBeNull();
       trigger.setAttribute("disabled", "");
-      expect(resolveTabTarget(panel, trigger, false)).toBeNull();
+      expect(resolveTabTarget({ panel, trigger, shiftKey: false })).toBeNull();
     });
   });
 
   it("edgeHighlightIndex picks the first/last row, or -1 for an empty list", () => {
-    expect(edgeHighlightIndex(3, "first")).toBe(0);
-    expect(edgeHighlightIndex(3, "last")).toBe(2);
-    expect(edgeHighlightIndex(0, "first")).toBe(-1);
-    expect(edgeHighlightIndex(0, "last")).toBe(-1);
+    expect(edgeHighlightIndex({ filteredLength: 3, edge: "first" })).toBe(0);
+    expect(edgeHighlightIndex({ filteredLength: 3, edge: "last" })).toBe(2);
+    expect(edgeHighlightIndex({ filteredLength: 0, edge: "first" })).toBe(-1);
+    expect(edgeHighlightIndex({ filteredLength: 0, edge: "last" })).toBe(-1);
   });
 
   it("highlightedOptionOrNull returns the highlighted row, or null for -1 or a stale index", () => {
-    expect(highlightedOptionOrNull(FEW_OPTIONS, 1)).toEqual(FEW_OPTIONS[1]);
-    expect(highlightedOptionOrNull(FEW_OPTIONS, -1)).toBeNull();
-    expect(highlightedOptionOrNull(FEW_OPTIONS, 7)).toBeNull();
+    expect(highlightedOptionOrNull({ filtered: FEW_OPTIONS, highlightedIndex: 1 })).toEqual(FEW_OPTIONS[1]);
+    expect(highlightedOptionOrNull({ filtered: FEW_OPTIONS, highlightedIndex: -1 })).toBeNull();
+    expect(highlightedOptionOrNull({ filtered: FEW_OPTIONS, highlightedIndex: 7 })).toBeNull();
   });
 
   describe("applyHighlightKey", () => {
@@ -417,19 +417,19 @@ describe("host-retained Select helpers", () => {
       ["Enter", 2, ["preventDefault", "select c"]],
     ])("%s prevents the default before applying its highlight change", (key, highlighted, expected) => {
       const { calls, actions } = recordingActions();
-      expect(applyHighlightKey(key, FEW_OPTIONS, highlighted, actions)).toBe(true);
+      expect(applyHighlightKey({ key, filtered: FEW_OPTIONS, highlightedIndex: highlighted, actions })).toBe(true);
       expect(calls).toEqual(expected);
     });
 
     it("Enter still prevents the default but selects nothing when no row is highlighted", () => {
       const { calls, actions } = recordingActions();
-      expect(applyHighlightKey("Enter", FEW_OPTIONS, -1, actions)).toBe(true);
+      expect(applyHighlightKey({ key: "Enter", filtered: FEW_OPTIONS, highlightedIndex: -1, actions })).toBe(true);
       expect(calls).toEqual(["preventDefault"]);
     });
 
     it("reports an unhandled key as not recognized and does nothing", () => {
       const { calls, actions } = recordingActions();
-      expect(applyHighlightKey("a", FEW_OPTIONS, 0, actions)).toBe(false);
+      expect(applyHighlightKey({ key: "a", filtered: FEW_OPTIONS, highlightedIndex: 0, actions })).toBe(false);
       expect(calls).toEqual([]);
     });
   });

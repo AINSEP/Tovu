@@ -2,14 +2,15 @@ import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases
 import path from "node:path";
 
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
-import { exportSite, type ExportReport } from "../../features/site-export/index.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
+import { exportSite } from "../../features/site-export/index.js";
 import { closeSiteDirBoot } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
-import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
+import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
 
 /**
@@ -48,10 +49,10 @@ export interface RunExportCommandInput {
  *
  * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
  * (`createSiteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
- * precedence chain exactly once (`server/deps.ts`'s `resolveExportOutputRootDir`); only the
+ * precedence chain exactly once (`apps/website/src/server/runtime/composition/site-paths.ts`'s `resolveExportOutputRootDir`); only the
  * CLI-only `--out` flag is decided here. This function never reads `process.env` itself.
  */
-function resolveExportOutputDir(input: RunExportCommandInput, exportOutputRootDir: string): string {
+function resolveExportOutputDir({ input, exportOutputRootDir }: { input: RunExportCommandInput; exportOutputRootDir: string }, _options = {}): string {
   if (input.out !== undefined) return path.resolve(input.out);
   return exportOutputRootDir;
 }
@@ -94,6 +95,18 @@ function printExportReport(report: ExportReport): void {
   }
 }
 
+/** Reject an export that reported a failed route or asset after printing the report.
+ * @throws {ExportIncompleteError} when either failure list is nonempty.
+ * @complexity O(1) time and space.
+ */
+function assertExportComplete({ report }: { report: ExportReport }, _optional = {}): void {
+  if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
+    throw new ExportIncompleteError(
+      { message: `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above` }
+    );
+  }
+}
+
 export interface RunExportCommandOptional {
   /** Command effects stay injectable so cleanup can be exercised without replacing modules. */
   bootSiteDir?: typeof bootSiteDir;
@@ -119,7 +132,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   // boot step and with no `await` ahead of it, mirroring `index.ts`'s and `serve.ts`'s own ordering.
   (optional.registerPluginSdkResolver ?? registerPluginSdkResolver)();
 
-  const target = resolveInstallDirTarget(input.dir);
+  const target = resolveInstallDirTarget({ dirArg: input.dir });
   const bootResult = await (optional.bootSiteDir ?? bootSiteDir)({ dir: target }, { workspaceId: input.workspaceId });
   // The composition's store (`onStoreOpened`): closing it stops its guest-chat sweep, then the store.
   let composedStore: SiteStore | undefined;
@@ -132,25 +145,25 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   try {
     const paths = resolveSiteDatabasePaths({ dir: target });
     const dbPath = paths.contentDbPath;
-    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)(dbPath, {
-      db: bootResult.db,
-      chatDbPath: paths.chatDbPath,
-      store: bootResult.store,
-      workspaceId: bootResult.workspaceId,
-      uploadsDir: path.join(target, "uploads"),
-      // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
-      // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
-      // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
-      themesDir: path.join(target, "themes"),
-      // The site this command exports. Without it the binding falls back to `describeSiteBinding()`,
-      // `<cwd>/sites/<name>`, and every `<site>/...` default the composition derives from it (the
-      // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
-      // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
-      siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: (store) => (composedStore = store),
-    });
+    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)({}, { dbPath, overrides: {
+        db: bootResult.db,
+        chatDbPath: paths.chatDbPath,
+        store: bootResult.store,
+        workspaceId: bootResult.workspaceId,
+        uploadsDir: path.join(target, "uploads"),
+        // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
+        // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
+        // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
+        themesDir: path.join(target, "themes"),
+        // The site this command exports. Without it the binding falls back to `describeSiteBinding()`,
+        // `<cwd>/sites/<name>`, and every `<site>/...` default the composition derives from it (the
+        // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
+        // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
+        siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
+        onStoreOpened: ({ store }, _optional = {}) => (composedStore = store),
+    } });
     routeDepsForCleanup = routeDeps;
-    const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
+    const outputDir = resolveExportOutputDir({ input: input, exportOutputRootDir: routeDeps.exportOutputRootDir });
 
     // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
     // before this command ever crawls a route — a site left mid-migration by a crash must never be
@@ -163,17 +176,13 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
     });
     if (reconciliation.blocked) {
       throw new ExportBlockedPendingRecoveryError(
-        `refusing to export ${target} — a crash-interrupted migration was detected and this site is now BLOCKED_PENDING_RECOVERY; resolve it via Recovery before exporting.`
+        { message: `refusing to export ${target} — a crash-interrupted migration was detected and this site is now BLOCKED_PENDING_RECOVERY; resolve it via Recovery before exporting.` }
       );
     }
 
     const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath, publicUrl: input.publicUrl });
     printExportReport(report);
-    if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
-      throw new ExportIncompleteError(
-        `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above`
-      );
-    }
+    assertExportComplete({ report });
   } finally {
     await closeExportBoot({ routeDeps: routeDepsForCleanup, bootResult, composedStore }, optional);
   }
@@ -192,5 +201,5 @@ async function closeExportBoot(
   await awaitBootWorkWithinBound({
     work: [...(legacyPublishCredentialsReady ? [legacyPublishCredentialsReady] : []), ...(siteAppBootWork ?? [])],
   });
-  await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, composedStore);
+  await (optional.closeSiteDirBoot ?? closeSiteDirBoot)(bootResult, { composed: composedStore });
 }

@@ -1,8 +1,8 @@
 import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { LifecycleConfirmDialog } from "../Collections";
-import type { AdminContentType } from "@/lib/api";
+import { LifecycleConfirmDialog } from "../LifecycleConfirmDialog";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 import { useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**
@@ -31,7 +31,7 @@ describe("native lifecycle dialog", () => {
   it("native cancel reaches onCancel without confirming", () => {
     const onCancel = vi.fn(), onConfirm = vi.fn();
     render(<LifecycleConfirmDialog op="tombstone" contentType={{ label: "Recipe" } as AdminContentType}
-      onConfirm={onConfirm} onCancel={onCancel} t={(key) => key} />);
+      onConfirm={onConfirm} onCancel={onCancel} t={({ key }, _optional = {}) => key} />);
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
@@ -39,7 +39,7 @@ describe("native lifecycle dialog", () => {
 
   it("uses native modality and keeps destructive confirmation off initial focus", () => {
     render(<LifecycleConfirmDialog op="tombstone" contentType={{ label: "Recipe" } as AdminContentType}
-      onConfirm={vi.fn()} onCancel={vi.fn()} t={(key) => key} />);
+      onConfirm={vi.fn()} onCancel={vi.fn()} t={({ key }, _optional = {}) => key} />);
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();

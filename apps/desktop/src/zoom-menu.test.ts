@@ -1,6 +1,6 @@
 /**
  * @file Coverage for `zoom-menu.ts`, plus the wiring that only source text can show: that
- * `site-history-menu.ts` splices the Zoom items into its View menu, that the preload subscribes to
+ * Jini desktop-host/electron/usability splices the Zoom items into its View menu, that the preload subscribes to
  * the same channel, and that the inlined channel literal still matches `contracts/zoom.ts`. Mirrors
  * `find-menu.test.ts`.
  */
@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ZOOM_COMMAND_CHANNEL, sendZoomCommand, zoomMenuItems } from "./zoom-menu.ts";
-import { viewMenu } from "./site-history-menu.ts";
+import { viewMenu } from "@jini-ai/desktop-host/electron/usability";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
@@ -65,7 +65,7 @@ test("with no focused window, a destroyed one, or one without webContents, nothi
 });
 
 test("the View menu is Reload, Force Reload, Toggle Dev Tools, a separator, the four Zoom items, a separator, then Toggle Full Screen", () => {
-  const menu = viewMenu({});
+  const menu = viewMenu({ label: "View", zoomItems: zoomMenuItems({}) });
   assert.equal(menu.label, "View");
   assert.deepEqual(
     menu.submenu.map((entry) => ("role" in entry ? entry.role : "type" in entry ? entry.type : entry.label)),
@@ -80,5 +80,5 @@ test("the inlined channel literal matches contracts/zoom.ts", () => {
 });
 
 test("the preload subscribes to that channel", () => {
-  assert.match(read("preload", "preload.mts"), /onZoomCommand:[^\n]*\n?\s*subscribe[^\n]*ZOOM_COMMAND_CHANNEL, listener\)/);
+  assert.match(read("preload", "preload.mts"), /onZoomCommand:[^\n]*\n?\s*subscribe[^\n]*\{ channel: ZOOM_COMMAND_CHANNEL, listener \}\)/);
 });

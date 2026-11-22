@@ -15,7 +15,7 @@ import { applyDatabaseJournalSchema } from "./database-journal-schema.js";
  * local SQLite file on every content dialect.
  *
  * How it relates to the project:
- * The composition root (`server/deps.ts`) opens this alongside `content.db`, at
+ * The composition root (`apps/website/src/server/runtime/composition/deps.ts`) opens this alongside `content.db`, at
  * `<install-dir>/ops/database-journal.db` (ADR-012's install-dir tree), and injects the kernel into
  * `database-journal-repo.ts`'s adapters.
  *
@@ -33,13 +33,13 @@ export type DatabaseJournalDb = JournalKernel;
  * through the kernel right after, and every call on the kernel waits for them (`ready`) and fails
  * with their error if they failed. The parent directory must exist.
  */
-export function journalKernel(filePath: string): JournalKernel {
-  const kernel = openSqliteFileKernel<JournalDatabase>(filePath);
+export function journalKernel({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): JournalKernel {
+  const kernel = openSqliteFileKernel<JournalDatabase>({ filePath });
   const ready = (async () => {
     await kernel.query(sql`PRAGMA journal_mode = WAL`);
-    await applyDatabaseJournalSchema(kernel);
+    await applyDatabaseJournalSchema({ kernel });
   })();
-  return gateJournalKernel(kernel, ready);
+  return gateJournalKernel({ kernel, ready });
 }
 
 /** Open (or create) `ops/database-journal.db` — {@link journalKernel}, under the name its call sites use. */

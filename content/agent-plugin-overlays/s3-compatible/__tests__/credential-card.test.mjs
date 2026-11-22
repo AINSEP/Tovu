@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import path from 'node:path';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
@@ -23,7 +23,7 @@ for (const [target, kind, title, permissions, helpUrl] of [
 
 test('non-secret connection fields are declared explicitly', () => {
   // Publish-host cards use their deploy target's form; the card does not own those inputs.
-  const target = JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'tovu-deploy-targets.json'), 'utf8')).targets.find(entry => entry.id === 's3-compatible');
+  const target = JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'jini-deploy-targets.json'), 'utf8')).targets.find(entry => entry.id === 's3-compatible');
   assert.equal(card().fields, undefined);
   assert.deepEqual(target.credential.fields.filter(f => !f.secret).map(f => f.name), ['endpoint', 'region', 'bucket', 'accessKeyId', 'publicUrl', 'mediaBucket', 'mediaKeyPrefix']);
   assert.equal(target.credential.tokenField, 'secretAccessKey');

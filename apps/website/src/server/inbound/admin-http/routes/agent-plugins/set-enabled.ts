@@ -1,13 +1,14 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from "#src/features/agent-plugins/federate-mcp";
 import { grantDeclaredToolsToSignedInRows } from "#src/features/agent-plugins/grant-signed-in-defaults";
 import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bindings";
-import { AgentPluginLinkedError, AgentPluginNotInstalledError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
+import { AgentPluginLinkedError, AgentPluginNotInstalledError, AgentPluginNotReadyError, setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -22,7 +23,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
  * plugin on from the admin at all.
  *
  * This is a real gate, not a cosmetic flag. `resolveAgentPluginRefs`
- * (`features/agent-plugins/resolve-agent-plugin-refs.ts`) re-reads `activations.json` on EVERY run
+ * (`Jini packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts`) re-reads `activations.json` on EVERY run
  * and refuses a run that pins a disabled plugin, and `tool-registrations.ts` filters the dynamic
  * per-plugin tools through the same record.
  *
@@ -114,12 +115,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
 /** The `list.ts` row shape, for one plugin, so the client can replace a row in place rather than
  *  re-fetching the whole list after a toggle. `enabled` comes from the record just written, not
  *  from the pre-write read. */
-function sendUpdatedRow(
-  res: Response,
-  candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number],
-  enabled: boolean,
-  warnings: readonly string[] = [],
-): void {
+function sendUpdatedRow({ res, candidate, enabled }: { res: Response; candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number]; enabled: boolean }, { warnings = [] }: { warnings?: readonly string[] } = {}): void {
   res.json({
     warnings,
     agentPlugin: {
@@ -166,7 +162,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
   } catch (error) {
     console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text}`,
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${describeErrorForLog({ err: error })}`,
     );
   }
 }
@@ -193,7 +189,7 @@ async function provisionAgentPluginMcpServersBestEffort(
  *   log only; the response body is fixed and path-free, like the UNREADABLE case above.
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
-function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+function sendSetEnabledError({ res, pluginId, error }: { res: Response; pluginId: string; error: unknown }, _optional = {}): void {
   if (error instanceof ToolAccessLoweringError) {
     res.status(503).json({ error: error.message, code: error.code });
     return;
@@ -201,6 +197,11 @@ function sendSetEnabledError(res: Response, pluginId: string, error: unknown): v
   // Not for this host (enable only), or an interrupted update awaits boot recovery
   // (PLUGIN_UPDATE_PENDING): both conflicts with the installed state, never a 500.
   if (error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginUpdateError) {
+    res.status(409).json({ code: error.code, error: error.message });
+    return;
+  }
+  // A "Soon" plugin is locked off (`features/agent-plugins/soon-lock.ts`); nothing was written.
+  if (error instanceof AgentPluginNotReadyError) {
     res.status(409).json({ code: error.code, error: error.message });
     return;
   }
@@ -249,10 +250,7 @@ function validateSetEnabledRequest(
   res: Response,
   deps: AgentPluginsRouteDeps,
 ): { pluginId: string; enabled: boolean } | undefined {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return undefined;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
 
   const pluginId = String(req.params.pluginId ?? "");
   const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;
@@ -264,7 +262,7 @@ function validateSetEnabledRequest(
   return { pluginId, enabled };
 }
 
-export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId", async (req, res) => {
     const validated = validateSetEnabledRequest(req, res, deps);
     if (validated === undefined) return;
@@ -273,13 +271,13 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.enable",
           workspaceId: deps.workspaceId,
           entityType: "agent-plugin",
           entityId: pluginId,
-        }))
+        } }))
       )
         return;
 
@@ -302,9 +300,9 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {});
       }
 
-      sendUpdatedRow(res, candidate, written.enabled, written.warnings);
+      sendUpdatedRow({ res, candidate, enabled: written.enabled }, { warnings: written.warnings });
     } catch (error) {
-      sendSetEnabledError(res, pluginId, error);
+      sendSetEnabledError({ res, pluginId, error });
     }
   });
 };

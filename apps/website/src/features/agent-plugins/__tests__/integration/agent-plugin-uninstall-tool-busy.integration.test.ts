@@ -12,7 +12,7 @@ import test from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -35,7 +35,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * The historical module replacement above is now filesystem DI into that same uninstall owner.
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
@@ -171,7 +172,7 @@ function timeoutBehavior(pid: number, lockBasename = "activations.json.lock"): t
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== lockBasename) return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
@@ -223,7 +224,7 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
 test("t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-confirm");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     const activationsPath = path.join(workspaceLayout.root, "activations.json");
@@ -256,7 +257,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
 test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-state-lock");
-    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_A });
     const pluginPackagesDir = workspaceLayout.pluginPackagesDir({ pluginId: "operator-plugin" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     try {

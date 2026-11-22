@@ -2,11 +2,14 @@ import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
-import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
-import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
+import { addCustomAnswerFields, customAnswerExchanges, mergeCustomAnswer, withCustomAnswerReveal, type CustomAnswerCall } from "./ask-choice-custom-answer.js";
 import { requireAccessApprover } from "../contracts/core/human-confirm.js";
 import type { ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { askOnce, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
@@ -95,15 +98,6 @@ const ASK_CHOICE_FORGED_ANSWER_MESSAGE =
   "'choice' or 'selections' yourself. If a decision is still needed, call assistant_ask_choice " +
   "again with the question and wait for the real response.";
 
-/** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts`'s identical field. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
-
 // Typed MCP validates the published descriptor before the domain normalizer can run. Extend the
 // shared schema at this adapter boundary; the gate still owns aliases and refuses mixed shapes.
 const askChoiceOptionSchema = {
@@ -122,6 +116,7 @@ const askChoiceInputSchema = {
     ...ASK_CHOICE_INPUT_SCHEMA.properties,
     title: { type: "string", minLength: 1, description: "Card title; also the question when question is omitted." },
     label: { type: "string", minLength: 1, description: "Flat options label; defaults to question, then title." },
+    allowCustom: { type: "boolean", description: "Adds a 'Something else' choice with a text box. Defaults to true; pass false only when no other answer makes sense." },
     options: askChoiceOptionsSchema,
     singleSelect: {
       ...ASK_CHOICE_INPUT_SCHEMA.properties.singleSelect,
@@ -147,7 +142,7 @@ export const askChoiceAgentToolCatalog: AgentToolDefinition[] = [
       "instructions or permission level need confirmation; their tools provide the confirmation card. " +
       "Do not add a second confirmation question before those cards. " +
       "Do not describe the options in prose and wait for a reply instead: the " +
-      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are included in the visible option label. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
+      "administrator has no reliable way to notice a question was asked that way. Supply {question, title?, options: [{label, value?, id?, description?}], multiple?: boolean}; title can replace question. Use value or id, never both; the value defaults to label. Option descriptions are included in the visible option label. The card adds a 'Something else' choice with a text box; its answer arrives as freeText. Pass allowCustom: false only when no answer outside your options makes sense. Nested title/singleSelect/multiSelect remains a legacy alias. Supply the question " +
       "and every option yourself — nothing here is pre-filled.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
@@ -164,7 +159,7 @@ export const askChoiceDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 const CATALOG_BY_ID = new Map(askChoiceAgentToolCatalog.map((entry) => [entry.name, entry]));
 
 /** Builds the field list `buildFormSurface` renders, from the model's parsed input. */
-function buildAskChoiceFields(parsed: AskChoiceQuestion): SurfaceField[] {
+function buildAskChoiceFields(parsed: AskChoiceQuestion, { customAnswer = false }: { customAnswer?: boolean } = {}): SurfaceField[] {
   const fields: SurfaceField[] = [];
   if (parsed.singleSelect) {
     fields.push({
@@ -186,7 +181,7 @@ function buildAskChoiceFields(parsed: AskChoiceQuestion): SurfaceField[] {
       ...(parsed.multiSelect.value ? { value: [...parsed.multiSelect.value] } : {}),
     });
   }
-  return fields;
+  return customAnswer ? addCustomAnswerFields({ fields }) : fields;
 }
 
 /** Builds the form with Tovu's resource identity, labels, radio/checklist layout and app metadata.
@@ -196,7 +191,7 @@ function buildAskChoiceFields(parsed: AskChoiceQuestion): SurfaceField[] {
  */
 function buildAskChoiceFormSurface(
   { toolName, principalId, question: parsed, baseParams }: Omit<AskChoiceForm, "cancelParams">,
-  { cancelParams }: Pick<AskChoiceForm, "cancelParams"> = {},
+  { cancelParams, customAnswer = false }: Pick<AskChoiceForm, "cancelParams"> & { customAnswer?: boolean } = {},
 ): ReturnType<typeof buildFormSurface> {
   const uri: UIResourceUri = `ui://tovu/ask-choice/${principalId}/${Date.now()}`;
   return buildFormSurface({
@@ -205,13 +200,36 @@ function buildAskChoiceFormSurface(
     ...(parsed.description === undefined ? {} : { description: parsed.description }),
     submitLabel: parsed.submitLabel ?? "Submit",
     toolName,
-    baseParams: { ...baseParams, ...(parsed.actions?.[0] ? { __choiceAction: parsed.actions[0].id } : {}) },
-    additionalSubmitActions: parsed.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params: { __choiceAction: action.id } })) ?? [],
-    fields: buildAskChoiceFields(parsed),
+    ...choiceActionButtons({ question: parsed, baseParams }),
+    fields: buildAskChoiceFields(parsed, { customAnswer }),
     cancel: cancelParams ? { label: parsed.actions ? "Skip" : "Cancel", toolName, params: cancelParams } : { label: "Cancel" },
     app: { appName: "tovu-ask-choice", appVersion: "1" },
     preferredFrameSize: ["100%", "420px"],
   });
+}
+
+/** The question's own actions: the first rides on Submit, the rest become extra submit buttons. */
+function choiceActionButtons(
+  { question, baseParams }: { question: Pick<AskChoiceForm["question"], "actions">; baseParams: AskChoiceForm["baseParams"] },
+  _options = {},
+) {
+  return {
+    baseParams: { ...baseParams, ...(question.actions?.[0] ? { __choiceAction: question.actions[0].id } : {}) },
+    additionalSubmitActions: question.actions?.slice(1).map(action => ({ id: action.id, label: action.label, params: { __choiceAction: action.id } })) ?? [],
+  };
+}
+
+/** The card renderer for one call; with a call it adds "Something else" and records the shown question.
+ * Fallback-ticket forms never get it: a ticket answer is checked against the listed options only.
+ * @complexity O(n) in offered options plus the rendered length.
+ */
+function askChoiceFormRenderer({ call }: { call: CustomAnswerCall | undefined }, _options = {}): AskChoicePresentation["render"] {
+  return (form, { cancelParams } = {}) => {
+    const customAnswer = call !== undefined && !Object.hasOwn(form.baseParams, ASK_CHOICE_ANSWER_TICKET_PARAM);
+    if (call) call.question = form.question;
+    const ui = buildAskChoiceFormSurface(form, { ...(cancelParams ? { cancelParams } : {}), customAnswer });
+    return customAnswer ? withCustomAnswerReveal({ ui }) : ui;
+  };
 }
 
 const askChoiceMessages: AskChoiceMessages = {
@@ -344,6 +362,25 @@ function askChoiceExchanges({ surfaces }: { surfaces: AssistantSurfaceDeps }, _o
     },
   };
 }
+function createAskChoiceToolFactory(pendingQuestions: ReturnType<typeof createAskChoiceAnswerTicketStore>, surfaceExchanges: ReturnType<typeof askChoiceExchanges>) {
+  return ({ call }: { call: CustomAnswerCall | undefined }) => createAskChoiceTool({
+    toolId: ASK_CHOICE_TOOL_ID,
+    description: askChoiceAgentToolCatalog[0]!.description,
+    permission: "admin.assistant.use",
+    pendingQuestions,
+    surfaceExchanges: call ? customAnswerExchanges({ exchanges: surfaceExchanges, call }) : surfaceExchanges,
+    presentation: { render: askChoiceFormRenderer({ call }), buildResult: askChoiceToolResult },
+    messages: askChoiceMessages,
+    policy: {
+      // Core ToolExecutor checks the registration's permission before invoking this handler.
+      // Its context intentionally has no authorization escape hatch; retain that single gate.
+      authorize: () => undefined,
+      inputError: ({ message }) => new ToolInputError({ message }),
+      shapeError: ({ message, toolId }) => decorateWithSchema({ message, toolId, catalog: CATALOG_BY_ID }),
+    },
+  });
+}
+
 
 /**
  * Builds this tool's registration, binding Tovu's policy/presentation to the package handler.
@@ -373,33 +410,21 @@ export function buildAskChoiceRegistrations(
     ttlMs: ASK_CHOICE_TICKET_TTL_MS,
   });
   const surfaceExchanges = askChoiceExchanges({ surfaces });
-  const presentation: AskChoicePresentation = {
-    render: buildAskChoiceFormSurface,
-    buildResult: askChoiceToolResult,
-  };
-  const tool = createAskChoiceTool({
-    toolId: ASK_CHOICE_TOOL_ID,
-    description: askChoiceAgentToolCatalog[0]!.description,
-    permission: "admin.assistant.use",
-    pendingQuestions,
-    surfaceExchanges,
-    presentation,
-    messages: askChoiceMessages,
-    policy: {
-      // Core ToolExecutor checks the registration's permission before invoking this handler.
-      // Its context intentionally has no authorization escape hatch; retain that single gate.
-      authorize: () => undefined,
-      inputError: ({ message }) => new ToolInputError({ message }),
-      shapeError: ({ message, toolId }) => decorateWithSchema({ message, toolId, catalog: CATALOG_BY_ID }),
-    },
-  });
+  const toolFor = createAskChoiceToolFactory(pendingQuestions, surfaceExchanges);
+  // Construction is O(1); a call with "Something else" gets its own state, the stores stay shared.
+  const tool = toolFor({ call: undefined });
   const handlers: Record<string, ToolHandler> = {
-    [ASK_CHOICE_TOOL_ID]: (ctx, { emitSurface } = {}) => tool.handler({ ctx: {
-      principalId: ctx.principal.id,
-      input: ctx.input,
-      signal: ctx.signal,
-      ...(emitSurface ? { emitSurface: ({ emission }) => emitSurface(emission) } : {}),
-    } }),
+    [ASK_CHOICE_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
+      const allowCustom = (ctx.input as { allowCustom?: unknown } | null)?.allowCustom !== false;
+      const call: CustomAnswerCall | undefined = allowCustom ? { split: {} } : undefined;
+      const result = await toolFor({ call }).handler({ ctx: {
+        principalId: ctx.principal.id,
+        input: ctx.input,
+        signal: ctx.signal,
+        ...(emitSurface ? { emitSurface: ({ emission }) => emitSurface(emission) } : {}),
+      } });
+      return call ? mergeCustomAnswer({ result, split: call.split }) : result;
+    },
   };
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "ask-choice",

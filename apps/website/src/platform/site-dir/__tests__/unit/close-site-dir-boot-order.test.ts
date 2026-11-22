@@ -15,7 +15,7 @@ import { closeSiteDirBoot, type SqliteSiteDirBoot } from "../../boot-site-dir.js
 
 function sqliteBoot(): { boot: SqliteSiteDirBoot; open: () => boolean; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "close-site-dir-boot-"));
-  const db = openSqliteContentConnection(path.join(dir, "content.db"));
+  const db = openSqliteContentConnection({ filePath: path.join(dir, "content.db") });
   const boot = { storage: { kind: "sqlite" }, db, workspaceId: "ws", config: {} } as unknown as SqliteSiteDirBoot;
   return { boot, open: () => db.$client.open, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
@@ -24,12 +24,12 @@ test("SQLite: content.db is still open while the composition's close runs, and c
   const { boot, open, cleanup } = sqliteBoot();
   try {
     let openDuringComposedClose: boolean | undefined;
-    await closeSiteDirBoot(boot, {
+    await closeSiteDirBoot(boot, { composed: {
       close: async () => {
         await new Promise((resolve) => setImmediate(resolve));
         openDuringComposedClose = open();
       },
-    });
+    } });
     assert.equal(openDuringComposedClose, true);
     assert.equal(open(), false);
   } finally {
@@ -40,7 +40,7 @@ test("SQLite: content.db is still open while the composition's close runs, and c
 test("SQLite: a composition close that rejects still releases content.db and surfaces its error", async () => {
   const { boot, open, cleanup } = sqliteBoot();
   try {
-    await assert.rejects(closeSiteDirBoot(boot, { close: async () => { throw new Error("sweep failed"); } }), /^Error: sweep failed$/);
+    await assert.rejects(closeSiteDirBoot(boot, { composed: { close: async () => { throw new Error("sweep failed"); } } }), /^Error: sweep failed$/);
     assert.equal(open(), false);
   } finally {
     cleanup();

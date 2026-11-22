@@ -9,7 +9,7 @@ import type { DeployFile } from "@jini-ai/devops/deploy";
 import * as exportEngine from "@jini-ai/devops/static-export";
 import * as exportNode from "@jini-ai/devops/static-export/node";
 import type { LoadedDeployTarget } from "../../deploy-targets/types.js";
-import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
+import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-origin";
 
 // Replace only the export engine's socket/disk transport. The CMS page handler, SEO,
 // export response transforms, publish adapter and uploaded bytes all remain real.

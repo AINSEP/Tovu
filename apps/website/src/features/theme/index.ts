@@ -1,30 +1,7 @@
-export {
-  discoverThemes,
-  discoverAllBuiltInThemes,
-  loadTheme,
-  findTheme,
-  findStoredTheme,
-  validThemeIds,
-  rescanThemes,
-  duplicateThemeIds,
-  nextAvailableThemeId,
-  resolveTemplateId,
-  resolveLiquidTemplateId,
-  resolveHandlebarsTemplateId,
-  isStandaloneThemePage,
-  isPublishableThemePageCandidate,
-  ENGINE_SUBFOLDERS,
-  THEME_CATALOG_DIR,
-  type ThemeManifest,
-  type ThemeBuildInfo,
-  type ThemeTier,
-  type ThemeTokens,
-  type TemplateNode,
-  type DiscoveredTheme,
-} from "./theme.js";
-
-export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
-export { isPackageShippedTheme } from "./theme-files.js";
+export { discoverThemes, discoverAllBuiltInThemes, findTheme, findStoredTheme, validThemeIds, rescanThemes, duplicateThemeIds, nextAvailableThemeId } from "./theme-discovery.js";
+export { loadTheme, type ThemeTokens, type DiscoveredTheme } from "./theme.js";
+export { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId, type ThemeManifest, type ThemeBuildInfo, type ThemeTier, type TemplateNode } from "./render-contract.js";
+export { isStandaloneThemePage, isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
 
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
@@ -49,7 +26,6 @@ export { checkBuiltThemeConformance, type ConformanceIssue } from "./build-confo
 export {
   validateThemePackage,
   type ThemeValidationProfile,
-  type ThemeValidationIssue,
   type ThemeValidationSeverity,
   type ThemeValidationFinding,
   type ValidateThemePackageResult,
@@ -86,24 +62,14 @@ export {
   type NormalizeBuildOutputResult,
 } from "./code-tier-asset-normalizer.js";
 
-export { renderStaticPage, renderStaticPartial, injectCurrentEntityContentId, injectPageTitle, postAuthorForContentHeader, resolveTemplate, isEligibleForTemplateBranch, isBarePageChoice, resolveStaticTierPageShellFallback, resolveTemplateBranchChoice, type TemplateBranchChoice, scanMenuEmbedIds, postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreviewsPage, type StaticMenuItem, type StaticHtmlMenu, type StaticMenuContent, type StaticPostPreview, type StaticListingBatch, type PostTemplateResolution, // C5 (collections plan, 2026-09-23): the route layer (`pages.ts`'s
-  // `resolveCollectionListsForRender`) needs the same per-marker identity key and inner-content
-  // splitter `injectCollectionEmbeds` uses, so both sides agree on how a `collection` marker is
-  // addressed and how its authored `<template>` is found.
-  collectionMarkerKey, splitCollectionMarkerInner, type StaticCollectionList, type StaticFeaturedImage } from "./static-render.js";
+export { renderStaticPage, renderStaticPartial } from "./static-render.js";
+export { injectCurrentEntityContentId, injectPageTitle, injectPostAuthor, postAuthorForContentHeader, renderCoverImageTag, type StaticFeaturedImage } from "./static-render-content.js";
+export { resolveTemplate, type PostTemplateResolution } from "./static-template-resolution.js";
+export { isEligibleForTemplateBranch, isBarePageChoice, resolveTemplateBranchChoice, type TemplateBranchChoice } from "./static-template-choice.js";
+export { resolveStaticTierPageShellFallback } from "./static-page-shell.js";
+export { scanMenuEmbedIds, type StaticMenuItem, type StaticHtmlMenu, type StaticMenuContent } from "./static-render-menus.js";
+export { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreviewsPage, type StaticPostPreview, type StaticListingBatch } from "./static-render-previews.js";
 
-
-// C5 (collections plan, 2026-09-23) — the pure entry-list renderer `pages.ts`'s
-// `resolveCollectionListsForRender` calls once per distinct `collection` marker config, plus the
-// item/field shapes it builds to feed that renderer. No I/O lives here (see `entry-list-render.ts`'s
-// own `@file` doc); the route layer supplies already-fetched, already-formatted values.
-export {
-  renderEntryList,
-  withEntryListStyleOnce,
-  type EntryListItem,
-  type EntryListFieldValue,
-  type EntryListRenderOptions,
-} from "./entry-list-render.js";
 
 // 2026-08-16 (export<->server decoupling follow-up) — "given discovered themes + a candidate id,
 // which theme renders" query, moved here from `server/routes/site/pages.ts` so `export/
@@ -121,18 +87,16 @@ export {
   ThemeStylingRequiredError,
   DEFAULT_THEME_ID,
   DEFAULT_THEME_IDS,
-  NO_THEME_ID,
   type ActiveThemeResolution,
   type ActiveThemeResolutionDeps,
 } from "./active-theme.js";
-export { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
 
-// ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `server/http/site/liquid-worker.ts`
+// ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `apps/website/src/server/inbound/public-http/http/site/liquid-render.ts`
 // can run the same lint defensively at render time that `loadTheme()` runs at publish time.
 export { lintLiquidTemplate, ALLOWED_LIQUID_TAGS, ALLOWED_LIQUID_FILTERS } from "./liquid-allowlist.js";
 
 // Same ADR-020 §3 (C6) pairing for the Handlebars tier: re-exported so
-// `server/http/site/handlebars-worker.ts` can run the same lint defensively at render time that
+// `apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts` can run the same lint defensively at render time that
 // `loadTheme()` runs at publish time.
 export {
   lintHandlebarsTemplate,
@@ -142,33 +106,19 @@ export {
   ALLOWED_HANDLEBARS_DATA_VARS,
 } from "./handlebars-allowlist.js";
 
-// The Explore screen's file read/write surface (`server/routes/admin/themes/explore.ts`) —
+// The Explore screen's file read/write surface (`apps/website/src/server/inbound/admin-http/routes/themes/explore.ts`) —
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
-export {
-  copyThemeFile,
-  isGeneratedThemePath,
-  listThemeFiles,
-  MAX_THEME_FILE_BYTES,
-  nextAvailableFileName,
-  readThemeFile,
-  renameThemeFile,
-  resetThemeFileToOriginal,
-  resolveThemeFileWriteScope,
-  resolveThemeOriginalSource,
-  restoreBuiltThemeGeneratedTree,
-  themeFileDiffersFromOriginal,
-  themeOriginalResetRefusal,
-  writeThemeFile,
-  ThemePathError,
-  type ThemeFileWriteScope,
-  type ThemeOriginalResetRefusal,
-  type ThemeOriginalSource,
-} from "./theme-files.js";
+export { isGeneratedThemePath, resolveThemeFileWriteScope, type ThemeFileWriteScope } from "./theme-file-policy.js";
+export { listThemeFiles } from "./theme-file-listing.js";
+export { MAX_THEME_FILE_BYTES, readThemeFile, ThemePathError } from "./theme-files.js";
+export { themeFileMovePorts, themeOriginalFilePorts } from "./theme-file-write-ports.js";
+export { ORIGINAL_LAYOUT_MISMATCH_REFUSAL, type ThemeOriginalResetRefusal } from "./theme-file-errors.js";
+export { restoreBuiltThemeGeneratedTree } from "./theme-generated-restore.js";
+export { writeThemeFile } from "./theme-file-writing.js";
 
 // 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
-// shared by `server/routes/admin/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
-// `apps/admin/vite.config.ts`) the admin SPA. See `theme-layout.ts`'s own file header.
-export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout } from "./theme-layout.js";
+// shared by `apps/website/src/server/inbound/admin-http/routes/themes/explore.ts` and the admin SPA,
+// is imported directly from `@jini-ai/cms/themes/layout` so both runtimes use the same path facts.
 
 // 2026-08-19 architecture audit finding 4 — re-exported so `routes/site/pages.ts`'s missing-template
 // diagnostic builder can pick the same apiVersion-correct `<link>` sentinel `renderStaticPage` itself
@@ -189,7 +139,6 @@ export {
   requiredThemeFiles,
   validateFileIdentityChange,
   IDENTITY_LOCKED_GROUPS,
-  TRASH_DIR_NAME,
   type ThemeFileGroup,
   type FileIdentityLockResult,
 } from "./file-identity-lock.js";
@@ -213,9 +162,10 @@ export { saveThemeAsOriginal, type SaveThemeOriginalRefusal } from "./save-theme
 export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
 export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";
 
-export { createThemePreviewFeed, readThemePreviewRefresh, requestThemePreviewRefresh, validatePreviewPath, type ThemePreviewRefresh } from "./preview-refresh.js";
 // 2026-10-08 — a theme another process created, edited or trashed reaches this process's roster.
-export { syncThemeRoster, themeRosterFingerprint } from "./theme-roster-sync.js";
+export { themeRosterPorts } from "./theme-roster-ports.js";
 
 // Both deletion surfaces share the assistant's restorable file lifecycle.
 export { trashThemeFile, ThemeFileReadOnlyError } from "./asset-operations.js";
+
+export { refreshWatchedThemes, reportThemeWatchError } from "./theme-watch-bindings.js";

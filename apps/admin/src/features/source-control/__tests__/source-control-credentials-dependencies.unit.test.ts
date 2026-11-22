@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 
 /**
  * @file Coverage for `source-control-credentials-dependencies.hooks.ts` (1/11 funcs) —
@@ -18,12 +18,9 @@ const { listSourceControlProviders, listSourceControlCredentials, createSourceCo
   deleteSourceControlCredential: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential },
-  };
+vi.mock("../api/source-control-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/source-control-api")>();
+  return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } };
 });
 
 const { createFakeSourceControlCredentialsPort, defaultSourceControlCredentialsPort } = await import("../hooks/source-control-credentials-dependencies.hooks");
@@ -66,14 +63,14 @@ describe("defaultSourceControlCredentialsPort", () => {
   it("updateCredential forwards id + input to api.updateSourceControlCredential and unwraps the envelope", async () => {
     const c = credential({ label: "Renamed" });
     updateSourceControlCredential.mockResolvedValue({ credential: c });
-    await expect(defaultSourceControlCredentialsPort.updateCredential("sc-1", { label: "Renamed" })).resolves.toEqual(c);
-    expect(updateSourceControlCredential).toHaveBeenCalledWith("sc-1", { label: "Renamed" });
+    await expect(defaultSourceControlCredentialsPort.updateCredential({ id: "sc-1", input: { label: "Renamed" } })).resolves.toEqual(c);
+    expect(updateSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1", input: { label: "Renamed" } });
   });
 
   it("deleteCredential forwards id to api.deleteSourceControlCredential", async () => {
     deleteSourceControlCredential.mockResolvedValue(undefined);
-    await expect(defaultSourceControlCredentialsPort.deleteCredential("sc-1")).resolves.toBeUndefined();
-    expect(deleteSourceControlCredential).toHaveBeenCalledWith("sc-1");
+    await expect(defaultSourceControlCredentialsPort.deleteCredential({ id: "sc-1" })).resolves.toBeUndefined();
+    expect(deleteSourceControlCredential).toHaveBeenCalledWith({ id: "sc-1" });
   });
 });
 
@@ -90,12 +87,12 @@ describe("createFakeSourceControlCredentialsPort — defaults", () => {
   it("create/update reject with a named 'not stubbed for this test' error", async () => {
     const port = createFakeSourceControlCredentialsPort();
     await expect(port.createCredential({ label: "x", connection: { providerId: "github", token: "t" } })).rejects.toThrow("createCredential not stubbed for this test");
-    await expect(port.updateCredential("id", {})).rejects.toThrow("updateCredential not stubbed for this test");
+    await expect(port.updateCredential({ id: "id", input: {} })).rejects.toThrow("updateCredential not stubbed for this test");
   });
 
   it("deleteCredential defaults to a safe idempotent resolve, never throwing", async () => {
     const port = createFakeSourceControlCredentialsPort();
-    await expect(port.deleteCredential("id")).resolves.toBeUndefined();
+    await expect(port.deleteCredential({ id: "id" })).resolves.toBeUndefined();
   });
 
   it("an override wins over each default", async () => {

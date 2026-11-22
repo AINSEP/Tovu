@@ -1,14 +1,15 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendUserDeleteError(res: Response, err: unknown): void {
+function sendUserDeleteError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -45,12 +46,9 @@ function sendUserDeleteError(res: Response, err: unknown): void {
  * (`NOT_SUPPORTED`, the in-memory identity store) — see `delete-user-service.ts`'s `trashUser` for
  * the full rule set. Permanent deletion happens only through the Trash's own purge, never here.
  */
-export const registerAdminUserDeleteRoute: UsersRouteRegistrar = (app, deps: UsersRouteDeps) => {
+export const registerAdminUserDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -68,7 +66,7 @@ export const registerAdminUserDeleteRoute: UsersRouteRegistrar = (app, deps: Use
 
       res.status(204).send();
     } catch (err) {
-      sendUserDeleteError(res, err);
+      sendUserDeleteError({ res, err });
     }
   });
 };

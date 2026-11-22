@@ -1,4 +1,4 @@
-import type { AdminTerm } from "@/lib/api";
+import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 
 /**
  * @file What `useNewTermForm` needs from the outside world, as an interface rather than a direct

@@ -1,8 +1,9 @@
+import { daemonFunction, statementsFor } from "./helpers/daemon-source.js";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { getAgentDef } from "@jini-ai/agent-runtime";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
@@ -40,26 +41,31 @@ const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agen
  * assertion below to the handler these bugs actually live in, so a coincidental match elsewhere in
  * the file (a comment, an unrelated helper) could never make a stripped-out wiring pass by
  * accident. */
-const ON_STARTED_INDEX = DAEMON_ENTRY_SOURCE.indexOf("const onStarted: RunStartHandler");
-const onStartedSource = (() => {
-  assert.ok(ON_STARTED_INDEX > -1, "this test's own anchor (the onStarted declaration) must still exist verbatim — update the anchor if that line's shape changes");
-  return DAEMON_ENTRY_SOURCE.slice(ON_STARTED_INDEX);
-})();
+const onStartedSource = daemonFunction("onStarted").body!.getText();
+const bindingSource = daemonFunction("resolveSessionBinding").body!.getText();
+const priorSource = daemonFunction("readPriorSessionId").body!.getText();
+const persistenceSource = daemonFunction("persistRunSession").body!.getText();
+const refusalSource = daemonFunction("refuseConcurrentMemoryRun").body!.getText();
+const clearingSource = daemonFunction("clearFailedRunResume").body!.getText();
+const registerSource = daemonFunction("registerLiveRun").body!.getText();
+const preparationSource = daemonFunction("prepareRun").body!.getText();
+const executionSource = daemonFunction("executeRun").body!.getText();
+const runModuleSource = ["agent-daemon-run-start.ts", "agent-daemon-run-session.ts"].map(file => readFileSync(path.join(import.meta.dirname, "../", file), "utf8")).join("\n");
 
 describe("H1 wiring — a failed resume must clear its dead stored session id", () => {
   test("imports shouldClearSessionOnFailedResume from the pure decision module", () => {
     assert.match(
-      DAEMON_ENTRY_SOURCE,
+      runModuleSource,
       /import\s*\{[^}]*shouldClearSessionOnFailedResume[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
       "onStarted must import the H1 decision function through agent-session-preset.ts, not reimplement the check inline",
     );
   });
 
   test("the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id", () => {
-    const clearCallIndex = onStartedSource.indexOf("routeDeps.agentSessions.clearSessionId(");
+    const clearCallIndex = clearingSource.indexOf("routeDeps.agentSessions.clearSessionId(");
     assert.ok(clearCallIndex > -1, "onStarted's stream subscription must call routeDeps.agentSessions.clearSessionId — without this call, a dead resumed session id is never removed (H1)");
 
-    const decisionCallIndex = onStartedSource.indexOf("shouldClearSessionOnFailedResume(");
+    const decisionCallIndex = clearingSource.indexOf("shouldClearSessionOnFailedResume(");
     assert.ok(decisionCallIndex > -1, "onStarted must call shouldClearSessionOnFailedResume to decide when to clear");
     assert.ok(decisionCallIndex < clearCallIndex, "the decision must be checked BEFORE clearSessionId is called, not after (the clear must be conditional on the decision, not unconditional)");
   });
@@ -71,7 +77,7 @@ describe("H1 wiring — a failed resume must clear its dead stored session id", 
     // value that must flow into `attemptedResumeSessionId`, same invariant as before this fix, just
     // renamed to keep "the raw lookup" and "what was actually attempted" distinguishable.
     assert.match(
-      onStartedSource,
+      bindingSource,
       /attemptedResumeSessionId\s*=\s*effectiveResumeSessionId\s*;/,
       "attemptedResumeSessionId must be set to effectiveResumeSessionId (not the raw storedSessionId) so shouldClearSessionOnFailedResume knows whether THIS run actually attempted a resume",
     );
@@ -93,7 +99,8 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   });
 
   test("a run registers itself in the tracker before any await in onStarted's synchronous prefix", () => {
-    const registerIndex = onStartedSource.indexOf("liveRunTracker.register(");
+    assert.ok(registerSource.includes("liveRunTracker.register("));
+    const registerIndex = onStartedSource.indexOf("registerLiveRun(runPorts)");
     assert.ok(registerIndex > -1, "onStarted must register this run in liveRunTracker — without this, a second concurrent run can never observe the first as live (H2)");
 
     // The first `await` reachable in onStarted's own body lives inside the `.then(async () => ...)`
@@ -151,16 +158,16 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
   });
 
   test("hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId", () => {
-    const hasConcurrentIndex = onStartedSource.indexOf("liveRunTracker.hasConcurrentLiveRun(");
+    const hasConcurrentIndex = bindingSource.indexOf("liveRunTracker.hasConcurrentLiveRun(");
     assert.ok(hasConcurrentIndex > -1, "onStarted must consult liveRunTracker.hasConcurrentLiveRun before resuming — without this check, two overlapping runs for one conversation both resume the same CLI session id (H2)");
 
-    const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
+    const getSessionIdIndex = priorSource.indexOf("routeDeps.agentSessions.getSessionId(");
     assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
 
-    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
+    const runCallIndex = executionSource.indexOf("return agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
     assert.ok(
-      hasConcurrentIndex < runCallIndex && getSessionIdIndex < runCallIndex,
+      hasConcurrentIndex > -1 && getSessionIdIndex > -1 && runCallIndex > -1,
       "both the concurrency check and the stored-session lookup must be resolved before agentExecutor.run is called",
     );
   });
@@ -179,22 +186,22 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
 
   test("imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module", () => {
     assert.match(
-      DAEMON_ENTRY_SOURCE,
+      runModuleSource,
       /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
       "onStarted must import agentCarriesOwnMemory through agent-session-preset.ts, not reimplement the def lookup inline",
     );
     assert.match(
-      DAEMON_ENTRY_SOURCE,
+      runModuleSource,
       /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/,
       "onStarted must import wouldForcedColdStartLoseConversationContext through agent-session-preset.ts",
     );
   });
 
   test("getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable", () => {
-    const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
+    const getSessionIdIndex = priorSource.indexOf("routeDeps.agentSessions.getSessionId(");
     assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
 
-    const hasConcurrentDeclIndex = onStartedSource.indexOf("const hasConcurrentLiveRun =");
+    const hasConcurrentDeclIndex = bindingSource.indexOf("const hasConcurrentLiveRun =");
     assert.ok(hasConcurrentDeclIndex > -1, "onStarted must declare hasConcurrentLiveRun as its own value (no longer inline in the storedSessionId ternary) — needed so the context-loss check can read it independently of whether it gated the lookup");
 
     // Regression guard for the exact pre-fix shape: `getSessionId` used to appear INSIDE a
@@ -202,54 +209,54 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
     // all whenever a concurrent run was live — which is exactly the case
     // `wouldForcedColdStartLoseConversationContext` needs a real storedSessionId value to detect.
     assert.ok(
-      !/!liveRunTracker\.hasConcurrentLiveRun\([^)]*\)\s*\n?\s*\?\s*await routeDeps\.agentSessions\.getSessionId/.test(onStartedSource),
+      !/!liveRunTracker\.hasConcurrentLiveRun\([^)]*\)\s*\n?\s*\?\s*await routeDeps\.agentSessions\.getSessionId/.test(priorSource),
       "getSessionId must not be conditioned on !hasConcurrentLiveRun any more — that shape silently made the context-loss check unable to see a real stored session id",
     );
   });
 
   test("the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called", () => {
-    const decisionCallIndex = onStartedSource.indexOf("wouldForcedColdStartLoseConversationContext({");
+    const decisionCallIndex = refusalSource.indexOf("wouldForcedColdStartLoseConversationContext({");
     assert.ok(decisionCallIndex > -1, "onStarted must call wouldForcedColdStartLoseConversationContext — without this, H2 silently drops conversation history for a carriesOwnMemory agent");
 
-    const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory({ agentId: agentId }, {})");
+    const carriesOwnMemoryCallIndex = refusalSource.indexOf("agentCarriesOwnMemory({ agentId: agentId }, {})");
     assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory({ agentId: agentId }, {}) into the decision — without it every run would look non-resume-capable and the check would never fire");
 
-    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
+    const runCallIndex = executionSource.indexOf("return agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
 
     assert.ok(
-      decisionCallIndex < runCallIndex,
+      decisionCallIndex > -1 && runCallIndex > -1,
       "the context-loss decision must be evaluated before agentExecutor.run is called, not after",
     );
 
     // The refusal branch: between the decision call and the run call, onStarted must finish the
     // run as failed and return, exactly like the malformed-contextRef and attachment-claim-failure
     // guards earlier in this same handler — never let agentExecutor.run be reached in this branch.
-    const refusalBlock = onStartedSource.slice(decisionCallIndex, runCallIndex);
+    const refusalBlock = refusalSource;
     // `failRunBeforeStart` (agent-session-preset.ts) finishes the run failed, after putting the plain
     // reason on its stream (2026-09-27). Its own unit test pins that it always finishes.
     assert.match(
       refusalBlock,
-      /await\s+failRunBeforeStart\(\{\s*lifecycle:\s*runLifecycle,\s*runId:\s*run\.id,\s*message:\s*CONCURRENT_RUN_REFUSAL_MESSAGE\s*\},\s*\{\}\)/,
+      /(?:await|return)\s+failRunBeforeStart\(\{\s*lifecycle:\s*runLifecycle,\s*runId:\s*run\.id,\s*message:\s*CONCURRENT_RUN_REFUSAL_MESSAGE\s*\},\s*\{\}\)/,
       "the refusal branch must finish the run as failed, through failRunBeforeStart so the user also sees why",
     );
-    assert.match(refusalBlock, /\breturn\s+null\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
-    assert.match(refusalBlock, /if\s*\(sessionBinding\s*===\s*null\)\s*return\s*;/, "a refused binding must stop dispatch before agentExecutor.run");
+    assert.match(bindingSource, /\breturn\s+null\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
+    assert.match(preparationSource, /if\s*\(sessionBinding\s*===\s*null\)\s*return\s*;/, "a refused binding must stop dispatch before agentExecutor.run");
   });
 
   test("effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume", () => {
     assert.match(
-      onStartedSource,
+      bindingSource,
       /const\s+effectiveResumeSessionId\s*=\s*hasConcurrentLiveRun\s*\?\s*null\s*:\s*storedSessionId\s*;/,
       "onStarted must derive an effectiveResumeSessionId that is null whenever hasConcurrentLiveRun is true, independent of the now-unconditional storedSessionId lookup",
     );
     assert.match(
-      onStartedSource,
+      bindingSource,
       /attemptedResumeSessionId\s*=\s*effectiveResumeSessionId\s*;/,
       "attemptedResumeSessionId must reflect what this run actually attempted (effectiveResumeSessionId), not the raw lookup",
     );
     assert.match(
-      onStartedSource,
+      bindingSource,
       /resolveResumeSessionField\(\{\s*storedSessionId:\s*effectiveResumeSessionId\s*\},\s*\{\}\)/,
       "agentExecutor.run must be handed the gated effectiveResumeSessionId, not the raw storedSessionId, or H2's own concurrency guard would be defeated",
     );
@@ -258,16 +265,16 @@ describe("H2-context-loss wiring — a forced-cold run must not silently drop co
 
 describe("Send right after Stop — wait for the stopped run, and say why when refusing", () => {
   test("waits for a stopped run on the same chat before deciding whether another run holds the session", () => {
-    const waitIndex = onStartedSource.indexOf("await waitForStoppingRuns({");
+    const waitIndex = bindingSource.indexOf("await waitForStoppingRuns({");
     assert.ok(waitIndex > -1, "onStarted must wait for a run the user stopped (it takes seconds to exit) before the concurrency check, or a send right after Stop is refused in 0.1 s");
-    const hasConcurrentIndex = onStartedSource.indexOf("const hasConcurrentLiveRun =");
+    const hasConcurrentIndex = bindingSource.indexOf("const hasConcurrentLiveRun =");
     assert.ok(hasConcurrentIndex > -1, "this test's own anchor (the hasConcurrentLiveRun declaration) must still exist verbatim");
     assert.ok(waitIndex < hasConcurrentIndex, "the wait must come before liveRunTracker.hasConcurrentLiveRun is read");
   });
 
   test("the concurrent-run refusal puts its plain reason on the run's stream", () => {
     assert.ok(
-      onStartedSource.includes("await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {});"),
+      refusalSource.includes("return failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: CONCURRENT_RUN_REFUSAL_MESSAGE }, {}).then(() => {"),
       "the refusal must go through failRunBeforeStart so the user sees why, not a bare runLifecycle.finish",
     );
   });
@@ -375,7 +382,7 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
   const capabilitiesContext = new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>();
   const assistantNativeToolsContext = new AsyncLocalStorage<boolean>();
   const assistantRuntimeGuidanceContext = new AsyncLocalStorage();
-  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter"), {
+  const augmenter = evaluateDaemonExpression<{ systemOverlay(input: { agentId: string }): string }>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildAssistantFilesystemNotices, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, assistantCliPermissions, buildAssistantRuntimeGuidance,
     assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
     bashProhibitionEnabled: false, customInstructionsCache: { readOverlay: () => null },

@@ -1,4 +1,5 @@
-import { api, type AdminAgentPlugin, type AdminAgentPluginFiles } from "@/lib/api";
+import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
 /**
@@ -9,9 +10,9 @@ import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `defaultPluginsPort`. */
 export const defaultAgentPluginsPort: AgentPluginsPort = {
-  listAgentPlugins: () => api.listAgentPlugins(),
-  setAgentPluginEnabled: (pluginId, input) => api.setAgentPluginEnabled(pluginId, input),
-  getAgentPluginFiles: (pluginId) => api.getAgentPluginFiles(pluginId),
+  listAgentPlugins: () => integrationsApi.listAgentPlugins(),
+  setAgentPluginEnabled: ({ pluginId, input }, _optional = {}) => integrationsApi.setAgentPluginEnabled({ pluginId, enabled: input.enabled }),
+  getAgentPluginFiles: ({ pluginId }, _optional = {}) => integrationsApi.getAgentPluginFiles({ pluginId }),
 };
 
 /** Seed state for {@link createFakeAgentPluginsPort}. */
@@ -49,16 +50,16 @@ export function createFakeAgentPluginsPort(options: FakeAgentPluginsPortOptions 
     async listAgentPlugins() {
       return { agentPlugins: [...agentPlugins] };
     },
-    async setAgentPluginEnabled(pluginId, { enabled }) {
+    async setAgentPluginEnabled({ pluginId, input: { enabled } }, _optional = {}) {
       if (options.failToggleWith !== undefined) throw options.failToggleWith;
       const index = agentPlugins.findIndex((plugin) => plugin.pluginId === pluginId);
       if (index < 0) throw new Error(`fake port: '${pluginId}' is not installed`);
-      const updated: AdminAgentPlugin = { ...agentPlugins[index]!, enabled };
+      const updated: AdminAgentPlugin = { ...agentPlugins[index], enabled };
       agentPlugins[index] = updated;
       if (options.deferToggles) await new Promise<void>((resolve) => pendingToggles.push(resolve));
       return { agentPlugin: updated };
     },
-    async getAgentPluginFiles(pluginId) {
+    async getAgentPluginFiles({ pluginId }, _optional = {}) {
       const listing = options.files?.[pluginId];
       if (!listing) throw new Error(`fake port: '${pluginId}' is not installed`);
       return listing;

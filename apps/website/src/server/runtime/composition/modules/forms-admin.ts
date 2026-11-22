@@ -26,17 +26,17 @@ import type { ServerModuleHandle } from "./types.js";
 export function createFormsAdminModule(deps: FormsRouteDeps): ServerModuleHandle {
   return {
     name: "forms-admin",
-    registerRoutes: (app) => {
-      registerAdminFormsListRoute(app, deps);
-      registerAdminFormsCreateRoute(app, deps);
-      registerAdminFormsProvidersRoute(app, deps);
-      registerAdminFormsGetRoute(app, deps);
-      registerAdminFormsUpdateRoute(app, deps);
-      registerAdminFormsAuthoringRoute(app, deps);
-      registerAdminFormsListSubmissionsRoute(app, deps);
-      registerAdminFormsGetSubmissionRoute(app, deps);
-      registerAdminFormsDeleteSubmissionRoute(app, deps);
-      registerAdminFormsPullSubmissionsRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminFormsListRoute({ app, deps });
+      registerAdminFormsCreateRoute({ app, deps });
+      registerAdminFormsProvidersRoute({ app, deps });
+      registerAdminFormsGetRoute({ app, deps });
+      registerAdminFormsUpdateRoute({ app, deps });
+      registerAdminFormsAuthoringRoute({ app, deps });
+      registerAdminFormsListSubmissionsRoute({ app, deps });
+      registerAdminFormsGetSubmissionRoute({ app, deps });
+      registerAdminFormsDeleteSubmissionRoute({ app, deps });
+      registerAdminFormsPullSubmissionsRoute({ app, deps });
     },
   };
 }

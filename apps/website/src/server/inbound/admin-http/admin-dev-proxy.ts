@@ -49,7 +49,7 @@ const devUpstreamHttpAgent = new HttpAgent({ keepAlive: true });
  * @param url - the incoming request's full path + query string.
  * @complexity O(n) in `url`'s length (one indexOf, one slice).
  */
-export function resolveAdminDevProxyPath(url: string): string {
+export function resolveAdminDevProxyPath({ url }: { url: string }, _optional = {}): string {
   const queryIndex = url.indexOf("?");
   const pathname = queryIndex === -1 ? url : url.slice(0, queryIndex);
   if (pathname !== "/admin") return url;
@@ -94,7 +94,7 @@ interface AdminDevProxyUpstream {
 }
 
 /** @complexity O(1). */
-function resolveAdminDevProxyUpstream(devProxyUrl: string): AdminDevProxyUpstream {
+function resolveAdminDevProxyUpstream({ devProxyUrl }: { devProxyUrl: string }, _optional = {}): AdminDevProxyUpstream {
   const target = new URL(devProxyUrl);
   const isHttps = target.protocol === "https:";
   return {
@@ -116,7 +116,7 @@ function buildProxyRequestOptions(
     // (`server.allowedHosts`) and this keeps that check, and any base-URL logic Vite derives from
     // the Host header, seeing exactly what it would see when hit directly.
     headers: { ...req.headers, host: upstream.target.host },
-    path: resolveAdminDevProxyPath(req.url),
+    path: resolveAdminDevProxyPath({ url: req.url }),
     method: req.method,
     agent: upstream.agent,
   };
@@ -131,14 +131,19 @@ function buildProxyRequestOptions(
  *
  * @complexity O(1) setup per request; the actual byte volume is bounded by whatever Vite serves.
  */
-export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestHandler {
-  const upstream = resolveAdminDevProxyUpstream(devProxyUrl);
+export function createAdminDevProxyRequestHandler({ devProxyUrl }: { devProxyUrl: string }, _optional = {}): RequestHandler {
+  const upstream = resolveAdminDevProxyUpstream({ devProxyUrl });
 
   return (req: Request, res: Response) => {
     const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, req), (proxyRes) => {
       // A client-side `IncomingMessage` handed to a `request()` response callback always carries the
       // parsed status line, so `statusCode` is set here (it is only optional on the server-side type).
-      res.writeHead(proxyRes.statusCode!, stripHopByHopHeaders(proxyRes.headers));
+      if (proxyRes.statusCode === undefined) {
+        proxyRes.resume();
+        proxyReq.destroy(new Error("admin dev proxy response has no status code"));
+        return;
+      }
+      res.writeHead(proxyRes.statusCode, stripHopByHopHeaders(proxyRes.headers));
       proxyRes.pipe(res);
     });
     proxyReq.on("error", (error) => {
@@ -158,7 +163,7 @@ export function createAdminDevProxyRequestHandler(devProxyUrl: string): RequestH
 /** Formats an upstream upgrade response's raw headers back into wire format for the client socket.
  *  The `upgrade` event only fires for a parsed `101` response, so its status code and reason phrase
  *  (possibly empty, never absent) are always present on the client-side `IncomingMessage`. */
-function formatUpgradeResponseHead(statusCode: number, statusMessage: string, rawHeaders: string[]): string {
+function formatUpgradeResponseHead({ statusCode, statusMessage, rawHeaders }: { statusCode: number; statusMessage: string; rawHeaders: string[] }, _optional = {}): string {
   let headerLines = "";
   for (let i = 0; i < rawHeaders.length; i += 2) {
     headerLines += `${rawHeaders[i]}: ${rawHeaders[i + 1]}\r\n`;
@@ -201,11 +206,16 @@ function destroyOnTermination(terminator: Socket, victim: Socket): void {
  *
  * @complexity O(1) setup; the connection then runs as a plain byte pipe for its lifetime.
  */
-function proxyAdminUpgrade(upstream: AdminDevProxyUpstream, req: IncomingMessage & { url: string }, clientSocket: Socket, head: Buffer): void {
+function proxyAdminUpgrade({ upstream, req, clientSocket, head }: { upstream: AdminDevProxyUpstream; req: IncomingMessage & { url: string }; clientSocket: Socket; head: Buffer }, _optional = {}): void {
   const proxyReq = upstream.requestFn(buildProxyRequestOptions(upstream, { method: req.method, headers: req.headers, url: req.url }));
 
   proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-    clientSocket.write(formatUpgradeResponseHead(proxyRes.statusCode!, proxyRes.statusMessage!, proxyRes.rawHeaders));
+    if (proxyRes.statusCode === undefined || proxyRes.statusMessage === undefined) {
+      proxySocket.destroy();
+      clientSocket.destroy(new Error("admin dev proxy upgrade response has no status line"));
+      return;
+    }
+    clientSocket.write(formatUpgradeResponseHead({ statusCode: proxyRes.statusCode, statusMessage: proxyRes.statusMessage, rawHeaders: proxyRes.rawHeaders }));
     if (proxyHead.length > 0) clientSocket.write(proxyHead);
     if (head.length > 0) proxySocket.write(head);
     proxySocket.pipe(clientSocket);
@@ -245,10 +255,10 @@ export function registerAdminDevProxyUpgrade(server: { on(event: "upgrade", list
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (!devProxyUrl || isSeaRuntime()) return;
 
-  const upstream = resolveAdminDevProxyUpstream(devProxyUrl);
+  const upstream = resolveAdminDevProxyUpstream({ devProxyUrl });
   server.on("upgrade", (req, socket, head) => {
     // Only `/admin*` upgrades are claimed, so the URL is known to be present past this check.
     if (!isAdminUpgradeRequest(req)) return;
-    proxyAdminUpgrade(upstream, req, socket, head);
+    proxyAdminUpgrade({ upstream, req, clientSocket: socket, head });
   });
 }

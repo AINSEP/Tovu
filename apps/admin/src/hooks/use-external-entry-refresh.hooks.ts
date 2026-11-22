@@ -8,7 +8,7 @@ import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
  * @file The stateful half of "did this row change out from under an open editor" (see
  * `lib/external-entry-refresh.ts`'s header for the pure decision rule this wraps). Each editor hook
  * (`use-page-editor.hooks.ts`, `use-post-editor.hooks.ts`) owns its own
- * `useContentRefreshSubscription(RESOURCE, controller.checkForExternalChange)` call — this hook does
+ * `useContentRefreshSubscription({ resource: RESOURCE, onRefresh: controller.checkForExternalChange })` call — this hook does
  * NOT subscribe to the bus itself, so the `content-refresh-coverage.unit.test.ts` tripwire on each
  * editor file actually guards the wiring, rather than a shared internal subscription hiding it.
  *
@@ -22,7 +22,7 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
   /** The row the editor treats as its saved basis; `null` before load. */
   loaded: Row | null;
   /** Re-reads the row by id through the editor's own injected port. */
-  fetchLatest: (id: string) => Promise<Row>;
+  fetchLatest: (input: { id: string }, options?: Record<string, never>) => Promise<Row>;
   /** Called when the fetch SETTLES — must reflect the working copy at that instant, not at the
    *  moment the fetch started. */
   isDirty: () => boolean;
@@ -32,7 +32,7 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
    *  path and Load latest. */
   applyLatest: (row: Row) => void;
   /** Load latest only — the editor's `autosave.clearStandingDraft`. */
-  discardStandingDraft: () => Promise<void>;
+  discardStandingDraft: () => Promise<unknown>;
   /** Both apply paths, called with the applied row's version just before `applyLatest` — the
    *  editor's `autosave.supersedeBasis`, so no autosave built on the replaced version can still be
    *  refused and pause autosaving afterwards. */
@@ -59,31 +59,72 @@ export interface ExternalEntryRefreshController {
 export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
   input: ExternalEntryRefreshInput<Row>
 ): ExternalEntryRefreshController {
-  // Read through a ref so `checkForExternalChange`/`loadExternalChange` keep a stable identity
-  // regardless of how often the editor's closures (isDirty, applyLatest, ...) change identity.
-  // Updated in an effect rather than during render: this hook's reads all happen in awaited
-  // continuations, after the commit's effects have flushed, so there is no child-effect ordering
-  // hazard the way there is for a port a child reads inside the SAME commit (see
-  // `use-assistant-chats.hooks.ts`'s `portRef` doc for that distinct case).
-  const latestRef = useRef(input);
-  useEffect(() => {
-    latestRef.current = input;
-  });
+  const { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef } = useExternalRefreshState<Row>({ input });
+  const { checkForExternalChange } = useExternalRefreshCheck<Row>({ latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion });
+  const { loadExternalChange } = useExternalRefreshLoad<Row>({ latestRef, setNotifiedVersion, dismissedForBasisRef, generations, loadInFlightRef, checkDeferredRef, checkForExternalChange });
 
-  const generations = useSettlementGeneration();
-  useEffect(() => {
-    return () => {
-      // A fetch that settles after unmount must not touch state on a dead hook instance.
-      generations.next();
-    };
-  }, [generations]);
+  const dismissExternalChange = useCallback(() => {
+    dismissedForBasisRef.current = latestRef.current.loaded?.version ?? null;
+    setNotifiedVersion(null);
+  }, []);
 
-  const dismissedForBasisRef = useRef<number | null>(null);
-  const [notifiedVersion, setNotifiedVersion] = useState<number | null>(null);
-  // True while a Load latest click waits on its re-read, and whether a check arrived meanwhile.
-  const loadInFlightRef = useRef(false);
-  const checkDeferredRef = useRef(false);
+  const pendingExternalVersion =
+    notifiedVersion !== null && input.loaded !== null && notifiedVersion > input.loaded.version ? notifiedVersion : null;
 
+  return { pendingExternalVersion, checkForExternalChange, loadExternalChange, dismissExternalChange };
+}
+
+function useExternalRefreshLoad<Row extends ExternalEntryRevision>(
+  { latestRef, setNotifiedVersion, dismissedForBasisRef, generations, loadInFlightRef, checkDeferredRef, checkForExternalChange }:
+    Pick<ReturnType<typeof useExternalRefreshState<Row>>, "latestRef" | "setNotifiedVersion" | "dismissedForBasisRef" | "generations" | "loadInFlightRef"
+    | "checkDeferredRef"> &
+    Pick<ReturnType<typeof useExternalRefreshCheck<Row>>, "checkForExternalChange">
+) {
+  /** Load latest's apply half, once its re-read succeeded. @complexity O(1) plus the callbacks. */
+  const applyLoadedLatest = useCallback((fresh: Row) => {
+    const current = latestRef.current;
+    setNotifiedVersion(null);
+    dismissedForBasisRef.current = null;
+    // Discard first: its synchronous prefix cancels the pending autosave timer, lifts the stale-basis
+    // gate and drops the local mirror before the working copy changes. That alone did not stop a
+    // write on the replaced basis: a render that committed just before this one (GrapesJS syncing
+    // canvas text on the click) can still run its autosave effect afterwards. The basis supersede
+    // closes that, and ignores the refusal of a write already in flight.
+    void current.discardStandingDraft();
+    current.supersedeStandingDraftBasis(fresh.version);
+    current.applyLatest(fresh);
+  }, []);
+
+  const loadExternalChange = useCallback(async () => {
+    const loaded = latestRef.current.loaded;
+    if (loaded === null || latestRef.current.isSaving()) return;
+    const generation = generations.next();
+    loadInFlightRef.current = true;
+    const fresh = await latestRef.current.fetchLatest({ id: loaded.id }).then(
+      (row) => row,
+      () => null
+    );
+    // A later click (or unmount) owns the in-flight state and any deferred check now.
+    if (!generations.isCurrent({ generation })) return;
+    loadInFlightRef.current = false;
+    if (fresh === null) {
+      latestRef.current.onLoadLatestFailed();
+    } else {
+      applyLoadedLatest(fresh);
+    }
+    if (checkDeferredRef.current) {
+      checkDeferredRef.current = false;
+      checkForExternalChange();
+    }
+  }, [applyLoadedLatest, checkForExternalChange, generations]);
+  return { loadExternalChange };
+}
+
+function useExternalRefreshCheck<Row extends ExternalEntryRevision>(
+  { latestRef, loadInFlightRef, checkDeferredRef, generations, dismissedForBasisRef, setNotifiedVersion }:
+    Pick<ReturnType<typeof useExternalRefreshState<Row>>, "latestRef" | "loadInFlightRef" | "checkDeferredRef" | "generations" | "dismissedForBasisRef"
+    | "setNotifiedVersion">
+) {
   const checkForExternalChange = useCallback(() => {
     const loaded = latestRef.current.loaded;
     if (loaded === null) return;
@@ -97,7 +138,7 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
     }
     const generation = generations.next();
     latestRef.current
-      .fetchLatest(loaded.id)
+      .fetchLatest({ id: loaded.id })
       .then((fresh) => {
         if (!generations.isCurrent({ generation })) return;
         const current = latestRef.current;
@@ -122,52 +163,36 @@ export function useExternalEntryRefresh<Row extends ExternalEntryRevision>(
         // it knows about; the operator sees nothing wrong that isn't already true.
       });
   }, [generations]);
+  return { checkForExternalChange };
+}
 
-  /** Load latest's apply half, once its re-read succeeded. @complexity O(1) plus the callbacks. */
-  const applyLoadedLatest = useCallback((fresh: Row) => {
-    const current = latestRef.current;
-    setNotifiedVersion(null);
-    dismissedForBasisRef.current = null;
-    // Discard first: its synchronous prefix cancels the pending autosave timer, lifts the stale-basis
-    // gate and drops the local mirror before the working copy changes. That alone did not stop a
-    // write on the replaced basis: a render that committed just before this one (GrapesJS syncing
-    // canvas text on the click) can still run its autosave effect afterwards. The basis supersede
-    // closes that, and ignores the refusal of a write already in flight.
-    void current.discardStandingDraft();
-    current.supersedeStandingDraftBasis(fresh.version);
-    current.applyLatest(fresh);
-  }, []);
+function useExternalRefreshState<Row extends ExternalEntryRevision>(
+  { input }:
+    { input: ExternalEntryRefreshInput<Row> }
+) {
+  // Read through a ref so `checkForExternalChange`/`loadExternalChange` keep a stable identity
+  // regardless of how often the editor's closures (isDirty, applyLatest, ...) change identity.
+  // Updated in an effect rather than during render: this hook's reads all happen in awaited
+  // continuations, after the commit's effects have flushed, so there is no child-effect ordering
+  // hazard the way there is for a port a child reads inside the SAME commit (see
+  // `use-assistant-chats.hooks.ts`'s `portRef` doc for that distinct case).
+  const latestRef = useRef(input);
+  useEffect(() => {
+    latestRef.current = input;
+  });
 
-  const loadExternalChange = useCallback(async () => {
-    const loaded = latestRef.current.loaded;
-    if (loaded === null || latestRef.current.isSaving()) return;
-    const generation = generations.next();
-    loadInFlightRef.current = true;
-    const fresh = await latestRef.current.fetchLatest(loaded.id).then(
-      (row) => row,
-      () => null
-    );
-    // A later click (or unmount) owns the in-flight state and any deferred check now.
-    if (!generations.isCurrent({ generation })) return;
-    loadInFlightRef.current = false;
-    if (fresh === null) {
-      latestRef.current.onLoadLatestFailed();
-    } else {
-      applyLoadedLatest(fresh);
-    }
-    if (checkDeferredRef.current) {
-      checkDeferredRef.current = false;
-      checkForExternalChange();
-    }
-  }, [applyLoadedLatest, checkForExternalChange, generations]);
+  const generations = useSettlementGeneration();
+  useEffect(() => {
+    return () => {
+      // A fetch that settles after unmount must not touch state on a dead hook instance.
+      generations.next();
+    };
+  }, [generations]);
 
-  const dismissExternalChange = useCallback(() => {
-    dismissedForBasisRef.current = latestRef.current.loaded?.version ?? null;
-    setNotifiedVersion(null);
-  }, []);
-
-  const pendingExternalVersion =
-    notifiedVersion !== null && input.loaded !== null && notifiedVersion > input.loaded.version ? notifiedVersion : null;
-
-  return { pendingExternalVersion, checkForExternalChange, loadExternalChange, dismissExternalChange };
+  const dismissedForBasisRef = useRef<number | null>(null);
+  const [notifiedVersion, setNotifiedVersion] = useState<number | null>(null);
+  // True while a Load latest click waits on its re-read, and whether a check arrived meanwhile.
+  const loadInFlightRef = useRef(false);
+  const checkDeferredRef = useRef(false);
+  return { latestRef, generations, dismissedForBasisRef, notifiedVersion, setNotifiedVersion, loadInFlightRef, checkDeferredRef };
 }

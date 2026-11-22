@@ -16,8 +16,8 @@
  * - `../features/plugins` — the ADR-023 declared-schema shape core executes.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent } from "@jini-ai/cms/core";
-import type { DataModuleDecl } from "../plugins/index.js";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
+import type { DataModuleDecl } from "@jini-ai/db/data-modules";
 
 /* ------------------------------------------------------------------------------------------------
  * 1. Campaign editorial state — reuses ADR-022 `entries` (content-type `newsletter_campaign`)
@@ -136,7 +136,7 @@ export interface CampaignRevision {
  * ------------------------------------------------------------------------------------------------
  * Relational, high-volume, per-recipient state that the ext-bag cannot carry. Every row is
  * composite-scoped on `(workspace_id, id)` (ADR-021 §4 / ADR-007). Rows here are what
- * `../features/plugins/data-module` declares and core alone creates + writes (typed, ADR-023 §7).
+ * `@jini-ai/db/data-modules` declares and core alone creates + writes (typed, ADR-023 §7).
  */
 
 /** A named send audience. Small parent table; subscriptions FK to it. */

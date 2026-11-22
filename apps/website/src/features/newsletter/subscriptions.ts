@@ -38,7 +38,7 @@ export interface SubscriptionsDeps {
 export async function saveSubscription(required: {
   deps: SubscriptionsDeps;
   input: { workspaceId: UUID; listId: UUID; subscriberId: UUID; source: SubscriptionRow["source"] };
-}): Promise<{ subscription: SubscriptionRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
 
   const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
@@ -48,7 +48,7 @@ export async function saveSubscription(required: {
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
-    throw new NewsletterSubscriberNotFoundError(`subscriber ${input.subscriberId} was not found`, input.subscriberId);
+    throw new NewsletterSubscriberNotFoundError({ message: `subscriber ${input.subscriberId} was not found`, subscriberId: input.subscriberId });
   }
 
   const existing = await deps.subscriptionRepo.findBySubscriberAndList({
@@ -100,7 +100,7 @@ export interface UnsubscribeSubscriptionDeps {
 export async function unsubscribeSubscription(required: {
   deps: UnsubscribeSubscriptionDeps;
   input: { workspaceId: UUID; id: UUID };
-}): Promise<{ subscription: SubscriptionRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
   const existing = await deps.subscriptionRepo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) {
@@ -131,11 +131,11 @@ export async function importSubscriptions(required: {
 }): Promise<{ created: SubscriptionRow[]; failed: { index: number; code: string; message: string }[] }> {
   const { deps, input } = required;
   if (input.subscribers.length < 1 || input.subscribers.length > IMPORT_BATCH_MAX) {
-    throw new NewsletterValidationError(
-      `import batch must be between 1 and ${IMPORT_BATCH_MAX} rows`,
-      "subscribers",
-      "length"
-    );
+    throw new NewsletterValidationError({
+      message: `import batch must be between 1 and ${IMPORT_BATCH_MAX} rows`,
+      field: "subscribers",
+      reason: "length",
+    });
   }
   // Checked ONCE for the whole batch (the same `listId` applies to every row) rather than letting
   // every row independently fail — an unknown list is a malformed-request condition, not a
@@ -150,21 +150,26 @@ export async function importSubscriptions(required: {
   const failed: { index: number; code: string; message: string }[] = [];
 
   for (let index = 0; index < input.subscribers.length; index += 1) {
-    const row = input.subscribers[index]!;
+    const row = input.subscribers[index];
     try {
+      if (row === undefined) throw new Error(`Newsletter import has no subscriber at index ${index}`);
       const { subscription } = await saveSubscription({
         deps,
         input: { workspaceId: input.workspaceId, listId: input.listId, subscriberId: row.subscriberId, source: row.source },
       });
       created.push(subscription);
     } catch (err) {
-      if (err instanceof NewsletterSubscriberNotFoundError) {
-        failed.push({ index, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", message: err.message });
-      } else {
-        failed.push({ index, code: "INTERNAL_ERROR", message: (err as Error).message });
-      }
+      failed.push(subscriptionImportFailure(err, index));
     }
   }
 
   return { created, failed };
+}
+
+function subscriptionImportFailure(err: unknown, index: number): { index: number; code: string; message: string } {
+  if (err instanceof NewsletterSubscriberNotFoundError) {
+    return { index, code: "NEWSLETTER_SUBSCRIBER_NOT_FOUND", message: err.message };
+  } else {
+    return { index, code: "INTERNAL_ERROR", message: (err as Error).message };
+  }
 }

@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
 import { createFakeSchemaStateSectionPort, defaultSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 

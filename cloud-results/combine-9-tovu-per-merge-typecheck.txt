@@ -1,0 +1,158 @@
+== pm1 27b94e9a1 merge: release/lockfile-1120 (0740ca85a) into combine-9 — published @jini-ai 0
+typecheck exit=2 secs=30
+admin-tsc exit=0 secs=47
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=10
+desktop-tsc-main exit=2 secs=24
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=89
+typecheck-scripts exit=2 secs=24
+  [typecheck] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-tests] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+  [desktop-tsc-main] ../website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+== pm2 c965d4734 merge: codex/tv-sharezip (6d61166940) — share ZIP refuses files with credentia
+typecheck exit=2 secs=33
+admin-tsc exit=0 secs=51
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=8
+desktop-tsc-main exit=2 secs=20
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=85
+typecheck-scripts exit=2 secs=21
+  [typecheck] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-tests] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+  [desktop-tsc-main] ../website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+== pm3 f3b032a1a merge: codex/tv-engaps2 (2095ffdd47; stack tv-engaps 7edb010316) — T1 in-proce
+typecheck exit=2 secs=23
+admin-tsc exit=0 secs=36
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=9
+desktop-tsc-main exit=2 secs=17
+desktop-tsc-live-verify exit=0 secs=2
+typecheck-tests exit=2 secs=73
+typecheck-scripts exit=2 secs=22
+  [typecheck] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-tests] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] apps/website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+  [desktop-tsc-main] ../website/src/features/agent-plugins/tool-registrations.ts(114,50): error TS2345: Argument of type '{ workspaceId: string; ports: AgentPluginHostToolPorts; }' is not assignable to parameter of type 'AgentPluginSearchToolDeps & { requirePermission: RequireHostToolPermission; }'.
+== pm4 4692bc9a1 merge: codex/tv-dgc2 (35723a55ee; stack tv-dgc 45f44c2d9a) — V1 plugin-search 
+admin-tsc exit=0 secs=45
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=8
+typecheck exit=0 secs=56
+desktop-tsc-main exit=0 secs=24
+desktop-tsc-live-verify exit=0 secs=4
+typecheck-tests exit=2 secs=99
+typecheck-scripts exit=2 secs=29
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm5 8f225c932 merge: codex/tv-dg-contract (7cd473cfe5) — 3A-3D, 3F Jini-Tovu contract tests
+admin-tsc exit=0 secs=61
+desktop-tsc-preload exit=0 secs=2
+desktop-tsc-renderer exit=0 secs=11
+typecheck exit=0 secs=76
+desktop-tsc-main exit=0 secs=28
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=93
+typecheck-scripts exit=2 secs=26
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm6 a208c78d1 merge: codex/tv-dg-durable (f9bd5307bf) — 8A persisted-names registry, 8B targ
+admin-tsc exit=0 secs=57
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=10
+typecheck exit=0 secs=71
+desktop-tsc-main exit=0 secs=28
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=89
+typecheck-scripts exit=2 secs=25
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm7 2abf2da14 merge: codex/tv-dg-bnd2 (c57b87742b; stack tv-dg-boundaries 7b27b41291) — DG2-
+admin-tsc exit=0 secs=51
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=9
+typecheck exit=0 secs=65
+desktop-tsc-main exit=0 secs=27
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=82
+typecheck-scripts exit=2 secs=26
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm8 8c643e088 merge: codex/tv-w1 (764cbc04a8) — TV-ES1 error-notice fix, E-O-T, K-04b-T, L15
+admin-tsc exit=0 secs=49
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=9
+typecheck exit=0 secs=64
+desktop-tsc-main exit=0 secs=26
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=88
+typecheck-scripts exit=2 secs=26
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm9 f3af9031a merge: codex/tv-w3 (f7811805ae; stack tv-w2 b53b3595cc) — AG0-T, I2-T media by
+admin-tsc exit=0 secs=51
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=10
+typecheck exit=0 secs=66
+desktop-tsc-main exit=0 secs=27
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=85
+typecheck-scripts exit=2 secs=27
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm10 b42ac42a9 test(combine-9): FIX-IF-CHEAP test repoints + AG0-T debt note
+admin-tsc exit=0 secs=54
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=10
+typecheck exit=0 secs=73
+desktop-tsc-main exit=0 secs=27
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=2 secs=86
+typecheck-scripts exit=2 secs=25
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,54): error TS7006: Parameter 'oldPath' implicitly has an 'any' type.
+  [typecheck-tests] apps/website/src/features/theme/__tests__/theme-file-safety.test.ts(240,63): error TS7006: Parameter 'newPath' implicitly has an 'any' type.
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.
+== pm11 a963e5a78 fix(test): type the renameSync mock parameters in theme-file-safety (tv-dgc2 V3,
+admin-tsc exit=0 secs=58
+desktop-tsc-preload exit=0 secs=3
+typecheck exit=0 secs=72
+desktop-tsc-renderer exit=0 secs=11
+desktop-tsc-main exit=0 secs=29
+desktop-tsc-live-verify exit=0 secs=3
+typecheck-tests exit=0 secs=89
+typecheck-scripts exit=2 secs=31
+  [typecheck-scripts] development/scripts/agent-plugin-activation.ts(100,23): error TS2554: Expected 1-2 arguments, but got 0.
+  [typecheck-scripts] development/scripts/check-size-drift.ts(9,8): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+  [typecheck-scripts] development/scripts/dev-admin-build.ts(6,12): error TS2339: Property 'VITE_TOVU_SITE_URL' does not exist on type '{ NODE_ENV: string; }'.

@@ -30,7 +30,7 @@ function makeDeps() {
   };
   const deps = {
     mediaRepo: new InMemoryMediaRepo({}, { initialRows: [] }),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     settingsRepo,
     transformDefinitionRepo,
     originRegistry: { marker: "origins" },
@@ -45,7 +45,7 @@ test("createSeoDeps: siteTitle counts only an explicit workspace title, never th
   await ensureSiteTitleSettingDefinition(ledger, { systemPrincipalId: "system-seo-index" });
   const seo = createSeoDeps({ deps } as never, {});
 
-  assert.equal((await getEffective({ repo: settingsRepo }, { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: WORKSPACE } }))?.sourceLayer !== "workspace", true);
+  assert.equal((await getEffective({ deps: { repo: settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: WORKSPACE } }))?.sourceLayer !== "workspace", true);
   assert.equal(await seo.siteTitle({ workspaceId: WORKSPACE }), undefined, "the default layer is not an explicit title");
 
   await set({
@@ -104,7 +104,7 @@ test("createSeoPostPort: every port method calls through the host repo with its 
     tag: "repo",
     async findById(this: { tag: string }, input: unknown) { calls.push(`${this.tag}:findById:${JSON.stringify(input)}`); return null; },
     async list(this: { tag: string }, input: unknown) { calls.push(`${this.tag}:list:${JSON.stringify(input)}`); return []; },
-    async transaction(this: { tag: string }, fn: () => Promise<string>) { calls.push(`${this.tag}:transaction`); return fn(); },
+    async transaction(this: { tag: string }, { fn }: { fn: () => Promise<string> }) { calls.push(`${this.tag}:transaction`); return fn(); },
     async saveIfVersion(this: { tag: string }, input: { ifVersion: number }) { calls.push(`${this.tag}:saveIfVersion:${input.ifVersion}`); return true; },
     async appendRevision(this: { tag: string }, input: { stateJson: { id: string } }) { calls.push(`${this.tag}:appendRevision:${input.stateJson.id}`); },
   };

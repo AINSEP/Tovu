@@ -1,21 +1,17 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { toEntryOutbox } from "#src/features/entries/index";
 import { createEntry } from "#src/features/entries/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
-import { entryWriteErrorStatus } from "./write-error-status.js";
+import { entriesDeps, entryWriteErrorStatus } from "@jini-ai/cms/entries";
 
 /** This route's required `type`/`slug`/`title` (strings) plus the optional `fieldsJson`/`bodyJson`
  *  fields, read off an untyped body in one place. `null` means the required strings failed
  *  validation. @complexity O(1). */
-function parseCreateEntryBody(
-  rawBody: unknown
-): { type: string; slug: string; title: string; fieldsJson: unknown; bodyJson: unknown } | null {
+function parseCreateEntryBody({ rawBody }: { rawBody: unknown }, _optional = {}): { type: string; slug: string; title: string; fieldsJson: unknown; bodyJson: unknown } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (typeof body.type !== "string" || typeof body.slug !== "string" || typeof body.title !== "string") return null;
   return {
@@ -31,34 +27,26 @@ function parseCreateEntryBody(
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries` (creates a Collection entry,
  * REQ-13/14/19). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryCreateRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.collections.manage",
         workspaceId: deps.workspaceId,
         entityType: "entry",
-      });
+      } });
       if (!authorized) return;
 
-      const parsedBody = parseCreateEntryBody(req.body);
+      const parsedBody = parseCreateEntryBody({ rawBody: req.body });
       if (!parsedBody) {
         res.status(400).json({ error: "'type', 'slug', and 'title' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
 
       const result = await createEntry({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          // Jini passes entity scope separately; merge it into the host evaluator's request.
-          authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
-          outbox: toEntryOutbox(deps),
-        },
+        deps: entriesDeps(deps),
         input: {
           actorId: principal.id,
           workspaceId: deps.workspaceId,

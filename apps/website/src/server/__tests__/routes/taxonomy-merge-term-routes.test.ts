@@ -22,12 +22,12 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminTaxonomyCreateRoute(app, deps);
-  registerAdminTaxonomyCreateTermRoute(app, deps);
-  registerAdminTaxonomyMergeTermRoutes(app, deps);
+  registerAdminTaxonomyCreateRoute({ app, deps });
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyMergeTermRoutes({ app, deps });
   return { app, deps };
 }
 
@@ -193,7 +193,7 @@ async function invokeMerge(app: express.Express, step: "plan" | "confirm" | "exe
 }
 function mergeApp(deps: RouteDeps): express.Express {
   const app = express();
-  registerAdminTaxonomyMergeTermRoutes(app, deps);
+  registerAdminTaxonomyMergeTermRoutes({ app, deps });
   return app;
 }
 async function ownerOf(deps: RouteDeps): Promise<string> {

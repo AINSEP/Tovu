@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
-import type { PackedEntity, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { InMemoryMediaContentTypeStore } from "../content-type-store.js";
 import { verifyPublishedMedia } from "../verify-published-media.js";
-import { InMemoryVersionedMediaRepo } from "../versioned-media-repo.js";
 
 const WS = "ws-b08";
 const SHA = "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6";
@@ -16,15 +16,15 @@ function media(overrides: Partial<MediaRecord> = {}): MediaRecord {
 function packed(record: MediaRecord): PackedEntity {
   return { entityType: "media", id: record.id, state: { ...record }, schemaVersion: 1, hashVersion: 1, contentHash: "unused", requiredBlobs: [record.source.sha256] };
 }
-function ports(records: MediaRecord[] = []): NonNullable<PublishContentPorts["media"]> {
-  return { repo: new InMemoryVersionedMediaRepo(records), blobStore: new InMemoryBlobStore(), contentTypeStore: new InMemoryMediaContentTypeStore(), assetBlobRepo: new InMemoryAssetBlobRepo({}) };
+function ports(records: MediaRecord[] = []): NonNullable<TovuPublishPorts["media"]> {
+  return { repo: new InMemoryVersionedMediaRepo({}, { initialRows: records }), blobStore: new InMemoryBlobStore(), contentTypeStore: new InMemoryMediaContentTypeStore(), assetBlobRepo: new InMemoryAssetBlobRepo({}) };
 }
 
 test("a missing type is repaired from stored bytes and read back in the same workspace only", async () => {
   const p = ports([media()]);
   await p.blobStore.putIfAbsent({ workspaceId: WS, sha256: SHA, bytes: PNG });
   assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: WS, sha256s: [SHA] }), new Map());
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(media())]), []);
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(media())] }), []);
   assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: WS, sha256s: [SHA] }), new Map([[SHA, "image/png"]]));
   assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: "other", sha256s: [SHA] }), new Map());
 });
@@ -37,13 +37,13 @@ for (const fault of ["blob-read", "type-write"] as const) {
     const unavailable = async (): Promise<never> => { throw new Error("storage unavailable"); };
     // F3.4/F5.5: fake only the failing I/O boundary; verification stays real.
     const mock = fault === "blob-read" ? t.mock.method(p.blobStore, "get", unavailable) : t.mock.method(p.contentTypeStore, "set", unavailable);
-    assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(media()), packed(missing)]), [
+    assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(media()), packed(missing)] }), [
       "Media 'intro': the site could not read its file type, so a video may show as a broken image.",
       "Media 'lost-photo' was published but is not on the site.",
     ]);
     assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: WS, sha256s: [SHA] }), new Map());
     mock.mock.restore();
-    assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(media())]), []);
+    assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(media())] }), []);
     assert.deepEqual(await p.contentTypeStore.getMany({ workspaceId: WS, sha256s: [SHA] }), new Map([[SHA, "image/png"]]));
   });
 }
@@ -53,9 +53,9 @@ test("empty batches do not access storage, and inactive media need neither bytes
   const typeRead = t.mock.method(p.contentTypeStore, "getMany");
   const blobRead = t.mock.method(p.blobStore, "get");
   const blobExists = t.mock.method(p.blobStore, "exists");
-  assert.deepEqual(await verifyPublishedMedia(p, WS, []), []);
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [] }), []);
   assert.equal(typeRead.mock.callCount(), 0);
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(media({ status: "trashed" }))]), []);
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(media({ status: "trashed" }))] }), []);
   assert.equal(typeRead.mock.callCount(), 1);
   assert.equal(blobRead.mock.callCount(), 0);
   assert.equal(blobExists.mock.callCount(), 0);
@@ -67,7 +67,7 @@ test("a recorded type skips blob reads while multiple missing attribute referenc
   await p.blobStore.putIfAbsent({ workspaceId: WS, sha256: SHA, bytes: PNG });
   await p.contentTypeStore.set({ workspaceId: WS, sha256: SHA, contentType: "image/png" });
   const get = t.mock.method(p.blobStore, "get");
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(record)]), [
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(record)] }), [
     "Media 'intro' uses 'missing-poster' in its HTML attributes, but 'missing-poster' is not on the site, so it will not load.",
     "Media 'intro' uses 'missing-thumb' in its HTML attributes, but 'missing-thumb' is not on the site, so it will not load.",
   ]);
@@ -91,7 +91,7 @@ for (const fault of ["row-lookup", "blob-exists"] as const) {
       t.mock.method(p.blobStore, "exists", async (query: Parameters<typeof p.blobStore.exists>[0]) => { requests.push(query); failuresDelivered++; throw new Error("blob storage unavailable"); });
     }
     const missing = media({ id: "missing", slug: "lost-photo" });
-    const problems = await verifyPublishedMedia(p, WS, [packed(media()), packed(missing)]);
+    const problems = await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(media()), packed(missing)] });
     // F1.2/F6.2: swallowing the first item's failure while checking later items must fail.
     assert.deepEqual(problems, [
       "Media 'intro' could not be checked on the site, so it may not show.",
@@ -110,7 +110,7 @@ test("an active row without bytes reports the missing file before attempting typ
   const p = ports([record]);
   const reads = t.mock.method(p.blobStore, "get");
   const lookups = t.mock.method(p.repo, "findBySlug");
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [packed(record)]), [
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [packed(record)] }), [
     "Media 'intro' is on the site without its file, so it cannot be shown.",
   ]);
   assert.equal(reads.mock.callCount(), 0);
@@ -124,7 +124,7 @@ test("missing media with an empty or absent slug is identified by its source id"
   const empty = packed(media({ id: "empty-slug", slug: "" }));
   const absent = packed(media({ id: "absent-slug" }));
   delete absent.state.slug;
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [empty, absent]), [
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [empty, absent] }), [
     "Media 'empty-slug' was published but is not on the site.",
     "Media 'absent-slug' was published but is not on the site.",
   ]);
@@ -137,6 +137,6 @@ test("a packed entity without a source hash is left out of the batched type read
   p.contentTypeStore.getMany = async (input) => { asked.push([...input.sha256s]); return getMany(input); };
   const entity = packed(media({ id: "no-hash" }));
   delete entity.state.source;
-  assert.deepEqual(await verifyPublishedMedia(p, WS, [entity]), ["Media 'intro' is on the site without its file, so it cannot be shown."]);
+  assert.deepEqual(await verifyPublishedMedia({ ports: p, workspaceId: WS, entities: [entity] }), ["Media 'intro' is on the site without its file, so it cannot be shown."]);
   assert.deepEqual(asked, [[]]);
 });

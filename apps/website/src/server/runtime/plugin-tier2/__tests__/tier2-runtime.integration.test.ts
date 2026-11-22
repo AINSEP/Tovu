@@ -97,7 +97,7 @@ function draft(title: string): ContentEntryDraft {
 test("built-in tier-2: enable probes in a worker, save writes ext through a worker, preview saves nothing", async () => {
   const importedInProcess: string[] = [];
   const { runtime } = await enabledRuntime(builtInSource("tier2-echo", importedInProcess), SUCCESS_TIMEOUT_MS);
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
 
   await createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id: "p1", title: "Hello" } });
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "p1" }))?.ext, {
@@ -113,7 +113,7 @@ test("built-in tier-2: enable probes in a worker, save writes ext through a work
 
 test("built-in tier-2: a throwing filter fails the save closed and quarantines at the threshold", async () => {
   const { runtime, repo } = await enabledRuntime(builtInSource("tier2-throw", []), SUCCESS_TIMEOUT_MS);
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: "throw" } });
 
   await assert.rejects(save("t1"), PluginHookFailedError);

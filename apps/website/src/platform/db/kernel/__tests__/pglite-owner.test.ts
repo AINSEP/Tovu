@@ -11,7 +11,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { sql } from "kysely";
 import pg from "pg";
 
-import { jsonText, listTables, toBool } from "../dialect.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
+import { jsonText, listTables } from "@jini-ai/db/kernel";
 import {
   acquireOwnerLock,
   assertSocketPathFits,
@@ -25,7 +26,7 @@ import {
   startPgliteOwner,
 } from "../drivers/pglite-owner.js";
 import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 
 /**
@@ -76,17 +77,17 @@ test("@electric-sql/pglite is pinned to exactly 0.5.8 (the ReadyForQuery filter 
 describe("owner lock", () => {
   test("a live owner (this process or another) refuses; a dead pid's lock is taken over", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
-    assert.throws(() => acquireOwnerLock(dir), PgliteOwnerLockedError);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), PgliteOwnerLockedError);
     release();
     assert.equal(existsSync(join(dir, OWNER_LOCK_FILE)), false);
 
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
-    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error.pid === process.ppid);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), (error: PgliteOwnerLockedError) => error.pid === process.ppid);
 
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${deadPid()}\n`);
-    const takeover = acquireOwnerLock(dir);
+    const takeover = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.pid}\n`);
     takeover();
   });
@@ -95,12 +96,12 @@ describe("owner lock", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
     const lockPath = join(dir, OWNER_LOCK_FILE);
     writeFileSync(lockPath, "");
-    assert.throws(() => acquireOwnerLock(dir), (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === undefined);
+    assert.throws(() => acquireOwnerLock({ dataDir: dir }), (error: PgliteOwnerLockedError) => error instanceof PgliteOwnerLockedError && error.pid === undefined);
     assert.equal(readFileSync(lockPath, "utf8"), "", "the starter's lock is left alone");
 
     const old = new Date(Date.now() - 60_000);
     utimesSync(lockPath, old, old);
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     assert.equal(readFileSync(lockPath, "utf8"), `${process.pid}\n`);
     release();
   });
@@ -128,7 +129,7 @@ describe("owner lock", () => {
 
   test("release never deletes a lock that another owner has taken since", () => {
     const dir = mkdtempSync(join(scratch, "lock-"));
-    const release = acquireOwnerLock(dir);
+    const release = acquireOwnerLock({ dataDir: dir });
     writeFileSync(join(dir, OWNER_LOCK_FILE), `${process.ppid}\n`);
     release();
     assert.equal(readFileSync(join(dir, OWNER_LOCK_FILE), "utf8"), `${process.ppid}\n`);
@@ -137,44 +138,44 @@ describe("owner lock", () => {
 
 describe("socket location", () => {
   test("socket paths over 103 bytes are refused before the data dir is touched", async () => {
-    assert.doesNotThrow(() => assertSocketPathFits(`/${"a".repeat(102)}`));
-    assert.throws(() => assertSocketPathFits(`/${"a".repeat(103)}`), /at most 103/);
+    assert.doesNotThrow(() => assertSocketPathFits({ socketPath: `/${"a".repeat(102)}` }));
+    assert.throws(() => assertSocketPathFits({ socketPath: `/${"a".repeat(103)}` }), /at most 103/);
     const dataDir = join(scratch, "never-created");
     await assert.rejects(startPgliteOwner({ dataDir }, { socketDir: `/tmp/${"d".repeat(100)}` }), /at most 103/);
     assert.equal(existsSync(dataDir), false);
   });
 
   test("the default socket dir is under ~/.tovu/run, or /tmp/tovu-<uid> when home is too deep", () => {
-    const short = defaultPgliteSocketDir("/sites/a/pglite", "/Users/me");
+    const short = defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: "/Users/me" });
     assert.match(short, /^\/Users\/me\/\.tovu\/run\/[0-9a-f]{8}$/);
-    assert.equal(defaultPgliteSocketDir("/sites/a/pglite", "/Users/me"), short, "stable, so clients can find it");
-    assert.notEqual(defaultPgliteSocketDir("/sites/b/pglite", "/Users/me"), short, "one per data dir");
-    const deep = defaultPgliteSocketDir("/sites/a/pglite", `/Users/${"x".repeat(90)}`);
+    assert.equal(defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: "/Users/me" }), short, "stable, so clients can find it");
+    assert.notEqual(defaultPgliteSocketDir({ dataDir: "/sites/b/pglite" }, { home: "/Users/me" }), short, "one per data dir");
+    const deep = defaultPgliteSocketDir({ dataDir: "/sites/a/pglite" }, { home: `/Users/${"x".repeat(90)}` });
     assert.equal(deep, `/tmp/tovu-${process.getuid!()}/${short.slice(-8)}`);
-    assertSocketPathFits(join(deep, PGLITE_SOCKET_FILE));
+    assertSocketPathFits({ socketPath: join(deep, PGLITE_SOCKET_FILE) });
   });
 
   test("a socket dir that is a symlink is refused", () => {
     const target = mkdtempSync(join(scratch, "target-"));
     const link = join(scratch, "link");
     symlinkSync(target, link);
-    assert.throws(() => ensurePrivateDir(link), /not a directory owned by this user/);
+    assert.throws(() => ensurePrivateDir({ dir: link }), /not a directory owned by this user/);
   });
 
   test("the per-user parent (the /tmp/tovu-<uid> fallback) must be a 0700 non-symlink dir of ours, else refused", () => {
     const loose = mkdtempSync(join(scratch, "root-"));
     chmodSync(loose, 0o777);
-    assert.throws(() => ensurePrivateDir(join(loose, "key"), { privateParent: true }), /refusing socket parent .*: not a 0700 directory owned by this user/);
+    assert.throws(() => ensurePrivateDir({ dir: join(loose, "key") }, { privateParent: true }), /refusing socket parent .*: not a 0700 directory owned by this user/);
     assert.equal(existsSync(join(loose, "key")), false, "nothing is created inside a parent others can write");
 
     const target = mkdtempSync(join(scratch, "root-target-"));
     const linked = join(scratch, "root-link");
     symlinkSync(target, linked);
-    assert.throws(() => ensurePrivateDir(join(linked, "key"), { privateParent: true }), /refusing socket parent/);
+    assert.throws(() => ensurePrivateDir({ dir: join(linked, "key") }, { privateParent: true }), /refusing socket parent/);
     assert.equal(existsSync(join(target, "key")), false);
 
     const fresh = join(scratch, "root-fresh");
-    ensurePrivateDir(join(fresh, "key"), { privateParent: true });
+    ensurePrivateDir({ dir: join(fresh, "key") }, { privateParent: true });
     assert.equal(statSync(fresh).mode & 0o777, 0o700, "a missing parent is created 0700");
     assert.equal(statSync(join(fresh, "key")).mode & 0o777, 0o700);
   });
@@ -183,7 +184,7 @@ describe("socket location", () => {
 describe("a running owner", () => {
   let owner: PgliteOwner;
   let site: { dataDir: string; socketDir: string };
-  let kernel: StorageKernel<ProbeDb>;
+  let kernel: KyselyKernel<ProbeDb>;
 
   before(async () => {
     site = freshSite();
@@ -227,7 +228,7 @@ describe("a running owner", () => {
     const second = await startPgliteOwner({ dataDir: other.dataDir }, { socketDir: other.socketDir });
     try {
       const otherKernel = openPgliteSocketKernel<ProbeDb>({ socketPath: second.socketPath });
-      assert.equal((await listTables(otherKernel as StorageKernel<unknown>)).includes("kernel_probe"), false);
+      assert.equal((await listTables({ kernel: otherKernel as KyselyKernel<unknown> })).includes("kernel_probe"), false);
       await otherKernel.close();
     } finally {
       await second.close();
@@ -240,7 +241,7 @@ describe("a running owner", () => {
 
   const ids = async () =>
     (await kernel.run((db) => db.selectFrom("kernel_probe").select("id").orderBy("id").execute())).map((row) => row.id);
-  const insert = (id: string, on: StorageKernel<ProbeDb> = kernel) =>
+  const insert = (id: string, on: KyselyKernel<ProbeDb> = kernel) =>
     on.run((db) => db.insertInto("kernel_probe").values({ id, doc: null, n: null, flag: null }).execute());
   const reset = () => kernel.execute(sql`DELETE FROM kernel_probe`);
 
@@ -299,14 +300,14 @@ describe("a running owner", () => {
     await upsert(1, true);
     await upsert(2, false);
     const [row] = await kernel.query<{ n: number; flag: boolean; lang: string }>(
-      sql`SELECT n, flag, ${jsonText(kernel.dialect, sql.ref("doc"), ["meta", "lang"])} AS lang FROM kernel_probe`
+      sql`SELECT n, flag, ${jsonText({ dialect: kernel.dialect, column: sql.ref("doc"), path: ["meta", "lang"] })} AS lang FROM kernel_probe`
     );
-    assert.deepEqual({ n: row!.n, flag: toBool(row!.flag), lang: row!.lang }, { n: 2, flag: false, lang: "en" });
+    assert.deepEqual({ n: row!.n, flag: toBool({ value: row!.flag }), lang: row!.lang }, { n: 2, flag: false, lang: "en" });
   });
 
   test("the content schema installs through runExclusive and is visible to socket clients", async () => {
     await owner.runExclusive((db) => ensurePgContentSchema(db));
-    const tables = await listTables(kernel as StorageKernel<unknown>);
+    const tables = await listTables({ kernel: kernel as KyselyKernel<unknown> });
     assert.ok(tables.includes("posts"), `content tables present: ${tables.length}`);
   });
 });

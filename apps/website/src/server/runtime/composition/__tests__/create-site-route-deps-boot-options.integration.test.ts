@@ -23,12 +23,12 @@ const BOOT_ENV = [
   "TOVU_ADMIN_RESET_PASSWORD",
   "TOVU_ADMIN_RESET_USERNAME",
   "TOVU_MEDIA_BLOB_STORE",
-  "TOVU_S3_BUCKET",
-  "TOVU_S3_REGION",
-  "TOVU_S3_ACCESS_KEY_ID",
-  "TOVU_S3_SECRET_ACCESS_KEY",
-  "TOVU_S3_ENDPOINT",
-  "TOVU_S3_KEY_PREFIX",
+  "JINI_S3_BUCKET",
+  "JINI_S3_REGION",
+  "JINI_S3_ACCESS_KEY_ID",
+  "JINI_S3_SECRET_ACCESS_KEY",
+  "JINI_S3_ENDPOINT",
+  "JINI_S3_KEY_PREFIX",
 ] as const;
 
 test("a reset secret left set to the stored credential creates no backup or credential write on repeated boots", async t => {
@@ -37,7 +37,7 @@ test("a reset secret left set to the stored credential creates no backup or cred
   const dbPath = path.join(siteDir(t), "content.db");
   let hash: string | undefined;
   for (let boot = 0; boot < 2; boot++) {
-    const deps = await createSiteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps({}, { dbPath });
     try {
       await settleBoot(deps);
       const user = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -114,7 +114,7 @@ test("TOVU_ADMIN_RESET_PASSWORD resets the admin password at boot: the new one l
   withBootEnv(t, { TOVU_ADMIN_RESET_PASSWORD: NEW_PASSWORD });
   const errors = captureErrors(t);
   const dir = siteDir(t);
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   closeAfter(t, deps);
   await deps.identityReady;
   assert.ok(deps.adminPasswordResetReady, "the real composition exposes the boot reset's completion");
@@ -132,7 +132,7 @@ test("a boot reset for a username that does not exist resolves without throwing,
   withBootEnv(t, { TOVU_ADMIN_RESET_PASSWORD: NEW_PASSWORD, TOVU_ADMIN_RESET_USERNAME: "no-such-admin" });
   const errors = captureErrors(t);
   const dir = siteDir(t);
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   closeAfter(t, deps);
   await deps.identityReady;
   await deps.adminPasswordResetReady;
@@ -146,14 +146,14 @@ test("a boot reset for a username that does not exist resolves without throwing,
 test("an unknown TOVU_MEDIA_BLOB_STORE refuses to boot, naming the accepted backends", async (t) => {
   withBootEnv(t, { TOVU_MEDIA_BLOB_STORE: "gcs" });
   const dir = siteDir(t);
-  await assert.rejects(createSiteRouteDeps(path.join(dir, "content.db")), { message: "Unknown TOVU_MEDIA_BLOB_STORE 'gcs' — expected 'local' or 's3'." });
+  await assert.rejects(createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") }), { message: "Unknown TOVU_MEDIA_BLOB_STORE 'gcs' — expected 'local' or 's3'." });
 });
 
 test("TOVU_MEDIA_BLOB_STORE=s3 with missing variables refuses to boot, naming every required one and exactly the missing ones", async (t) => {
-  withBootEnv(t, { TOVU_MEDIA_BLOB_STORE: "s3", TOVU_S3_BUCKET: "tovu-media", TOVU_S3_ACCESS_KEY_ID: "AKIA-F2244" });
+  withBootEnv(t, { TOVU_MEDIA_BLOB_STORE: "s3", JINI_S3_BUCKET: "tovu-media", JINI_S3_ACCESS_KEY_ID: "AKIA-F2244" });
   const dir = siteDir(t);
-  await assert.rejects(createSiteRouteDeps(path.join(dir, "content.db")), {
-    message: "TOVU_MEDIA_BLOB_STORE=s3 requires TOVU_S3_BUCKET, TOVU_S3_REGION, TOVU_S3_ACCESS_KEY_ID, TOVU_S3_SECRET_ACCESS_KEY — missing: TOVU_S3_REGION, TOVU_S3_SECRET_ACCESS_KEY.",
+  await assert.rejects(createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") }), {
+    message: "TOVU_MEDIA_BLOB_STORE=s3 requires JINI_S3_BUCKET, JINI_S3_REGION, JINI_S3_ACCESS_KEY_ID, JINI_S3_SECRET_ACCESS_KEY — missing: JINI_S3_REGION, JINI_S3_SECRET_ACCESS_KEY.",
   });
 });
 
@@ -162,14 +162,14 @@ test("a complete S3 config boots with the S3 blob store, and the site backup the
   // rather than reach a real bucket.
   withBootEnv(t, {
     TOVU_MEDIA_BLOB_STORE: "s3",
-    TOVU_S3_BUCKET: "tovu-media",
-    TOVU_S3_REGION: "eu-west-1",
-    TOVU_S3_ACCESS_KEY_ID: "AKIA-F2244",
-    TOVU_S3_SECRET_ACCESS_KEY: "secret-F2244",
-    TOVU_S3_ENDPOINT: "http://127.0.0.1:9",
+    JINI_S3_BUCKET: "tovu-media",
+    JINI_S3_REGION: "eu-west-1",
+    JINI_S3_ACCESS_KEY_ID: "AKIA-F2244",
+    JINI_S3_SECRET_ACCESS_KEY: "secret-F2244",
+    JINI_S3_ENDPOINT: "http://127.0.0.1:9",
   });
   const dir = siteDir(t);
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   closeAfter(t, deps);
   await deps.identityReady;
 
@@ -182,7 +182,7 @@ test("a complete S3 config boots with the S3 blob store, and the site backup the
 test("the composed plugin callbacks: enabling word-count over HTTP makes the next post save carry its count, disabling it stops that", async (t) => {
   withBootEnv(t, {});
   const dir = siteDir(t);
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
   closeAfter(t, deps);
   await deps.identityReady;
   await deps.pluginRuntimeReady;
@@ -216,7 +216,7 @@ test("boot re-attaches a persisted enabled plugin after the SDK host exists", as
   withBootEnv(t, {});
   const dir = siteDir(t);
   const dbPath = path.join(dir, "content.db");
-  const seeded = await createSiteRouteDeps(dbPath);
+  const seeded = await createSiteRouteDeps({}, { dbPath });
   await settleBoot(seeded);
   try {
     await seeded.pluginActivationRepo.save({ workspaceId: seeded.workspaceId, pluginId: "word-count",
@@ -224,7 +224,7 @@ test("boot re-attaches a persisted enabled plugin after the SDK host exists", as
   } finally { await seeded.contentKernel?.close(); }
 
   const warnings = t.mock.method(console, "warn", () => {});
-  const rebooted = await createSiteRouteDeps(dbPath);
+  const rebooted = await createSiteRouteDeps({}, { dbPath });
   closeAfter(t, rebooted);
   await rebooted.pluginRuntimeReady;
   assert.ok(rebooted.pluginHost);

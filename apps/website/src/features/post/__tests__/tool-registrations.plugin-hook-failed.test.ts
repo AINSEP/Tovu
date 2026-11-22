@@ -25,10 +25,12 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { BeforeSaveHookPort } from "../post.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import type { BeforeSaveHookPort } from "../post-before-save.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-post-plugin-hook";
@@ -49,7 +51,7 @@ function refusingHook(): BeforeSaveHookPort {
 
 function makeDeps(hook: BeforeSaveHookPort) {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
@@ -77,7 +79,7 @@ async function call(deps: PostToolDeps, toolId: string, input: unknown) {
   const harness = { run, lifecycle, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: "p" }) };
   return delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input },
-    deps: harness as never,
+    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
   });
 }
 

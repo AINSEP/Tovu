@@ -8,7 +8,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../../../db/kernel/drivers/pglite.js";
 import { OWNER_LOCK_FILE } from "../../../db/kernel/drivers/pglite-owner.js";
-import type { StorageKernel } from "../../../db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { duplicatePgliteStore } from "../../duplicate-pglite-store.js";
 import { InternalError, ValidationError } from "../../errors.js";
 
@@ -28,7 +28,7 @@ async function seedLedger(sourceDataDir: string, empty = false): Promise<void> {
   }
 }
 
-async function read<T>(dataDir: string, body: (kernel: StorageKernel<unknown>) => Promise<T>): Promise<T> {
+async function read<T>(dataDir: string, body: (kernel: KyselyKernel<unknown>) => Promise<T>): Promise<T> {
   const kernel = openPgliteKernel<unknown>({ dataDir });
   try { return await body(kernel); } finally { await kernel.close(); }
 }

@@ -1,6 +1,9 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file P0c fix (hooks v2 plan, 2026-09-23) — `PluginHookFailedError`'s own doc comment
@@ -34,8 +37,7 @@ export interface PluginHookFailedBody {
  * @complexity O(n) in the diagnostic text scanned for secrets.
  */
 export function pluginHookFailedBody(err: PluginHookFailedError, optional: { publicText?: string } = {}): PluginHookFailedBody {
-  // eslint-disable-next-line no-console
-  console.warn(redactSecretShapes({ text: `[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}` }).text);
+  consoleLogger.warn({ message: redactSecretShapes({ text: `[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}` }).text });
   return { error: optional.publicText ?? pluginHookRefusalText(err), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
 }
 
@@ -46,7 +48,7 @@ export function pluginHookFailedBody(err: PluginHookFailedError, optional: { pub
  * branches unchanged.
  * @complexity O(n) in the diagnostic text when a hook failure is handled.
  */
-export function sendPluginHookFailedError(res: PluginHookErrorResponse, err: unknown): boolean {
+export function sendPluginHookFailedError({ res, err }: { res: PluginHookErrorResponse; err: unknown }, _optional = {}): boolean {
   if (!(err instanceof PluginHookFailedError)) return false;
   res.status(500).json(pluginHookFailedBody(err));
   return true;

@@ -2,7 +2,8 @@ import { navAvailability } from '../nav-availability.js';
 import { reportShellTelemetry } from '../product-telemetry.js';
 import { GearIcon, MenuIcon } from '../icons.js';
 import type { ThemePreference } from '../theme.js';
-import { settingsControlHandlers, useDismissibleDropdown, useMenuKeyboard } from '../App.hooks.js';
+import { settingsControlHandlers, useDismissibleDropdown } from '../use-dropdown-menu.hooks.js';
+import { useMenuKeyboard } from '@jini-ai/ui/browser';
 import { useUpdateCheck } from '../use-update-check.hooks.js';
 import { SitesFoldersDialog } from '../SitesFolders.js';
 import { useSiteStorageSettings } from '../use-site-storage-settings.hooks.js';
@@ -22,20 +23,25 @@ export function SettingsControl({
   theme,
   onThemeChange,
   onOpenAppearance,
-  useSiteSettings = useSiteStorageSettings,
+  useSiteSettings = useSiteStorageSettings, useDismissibleDropdownHook = useDismissibleDropdown, useMenuKeyboardHook = useMenuKeyboard, useUpdateCheckHook = useUpdateCheck, useLoadedSitesHook = useLoadedSites, useIdleSiteSleepHook = useIdleSiteSleep,
 }: {
   theme: ThemePreference;
   onThemeChange: (next: ThemePreference) => void;
   onOpenAppearance: () => void;
   useSiteSettings?: typeof useSiteStorageSettings;
+  useDismissibleDropdownHook?: typeof useDismissibleDropdown;
+  useMenuKeyboardHook?: typeof useMenuKeyboard;
+  useUpdateCheckHook?: typeof useUpdateCheck;
+  useLoadedSitesHook?: typeof useLoadedSites;
+  useIdleSiteSleepHook?: typeof useIdleSiteSleep;
 }) {
-  const { open, setOpen, containerRef } = useDismissibleDropdown<HTMLDivElement>();
-  const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboard<HTMLDivElement, HTMLButtonElement>({ open });
+  const { open, setOpen, containerRef } = useDismissibleDropdownHook<HTMLDivElement>();
+  const { menuRef, triggerRef, onMenuKeyDown } = useMenuKeyboardHook<HTMLDivElement, HTMLButtonElement>({ open });
   const sitesSettings = useSiteSettings({});
-  const updateCheck = useUpdateCheck({ onDone: () => setOpen(false) });
+  const updateCheck = useUpdateCheckHook({ onDone: () => setOpen(false) });
   // Read while the menu is closed too, so the row opens on the saved number, never a flash of the default.
-  const loadedSites = useLoadedSites();
-  const idleSiteSleep = useIdleSiteSleep();
+  const loadedSites = useLoadedSitesHook();
+  const idleSiteSleep = useIdleSiteSleepHook();
   // The menu used to share NavLink's temporary lock. Local sites settings now has a real
   // shared-config owner, so Settings can open without unlocking unfinished section links.
   // That lock is therefore permanently off: the gear passes `disabled: false` below and carries
@@ -79,16 +85,11 @@ export function SettingsControl({
             </svg>
           </button>
           {/* Stays open reading "Checking…" until main shows its answer, then closes. */}
-          {updateCheck.available && (
-            <button type="button" role="menuitem" className="settings__item" aria-disabled={updateCheck.checking} onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'check_updates' } }); void updateCheck.checkForUpdates(); }}>
-              <MenuIcon kind="update" />
-              <span className="settings__label">{updateCheck.checking ? 'Checking…' : 'Check for updates…'}</span>
-            </button>
-          )}
+          <UpdateCheckMenuItem updateCheck={updateCheck} />
           <div className="settings__sep" role="separator" />
           <div className="settings__row">
             <span className="settings__label" id="settings-theme-label">Theme</span>
-            <ThemeControl value={theme} onChange={chooseTheme} />
+            <ThemeControl value={theme} onChange={(next) => chooseTheme({ next })} />
           </div>
           <LoadedSitesRow setting={loadedSites} />
           <IdleSiteSleepRow setting={idleSiteSleep} />
@@ -118,7 +119,7 @@ function useIdleSiteSleep() {
     }, () => { if (active && revision.current === initialRevision) setError('Sleep idle sites setting could not be loaded.'); });
     return () => { active = false; };
   }, []);
-  const save = (next: IdleSiteSleepMinutes) => {
+  const save = ({ next }: { next: IdleSiteSleepMinutes }, _options = {}) => {
     if (saving || next === value || !bridge?.setIdleSiteSleepMinutes) return;
     revision.current++;
     setSaving(true);
@@ -147,7 +148,7 @@ function IdleSiteSleepRow({ setting }: { setting: ReturnType<typeof useIdleSiteS
           className={`themer__opt ${setting.value === minutes ? 'is-on' : ''}`}
           aria-checked={setting.value === minutes} aria-label={minutes === 0 ? 'Off' : `${minutes} min`}
           data-tip={minutes === 0 ? 'Off' : `${minutes} min`} disabled={setting.saving}
-          onClick={() => setting.save(minutes)}
+          onClick={() => setting.save({ next: minutes })}
         >{minutes === 0 ? 'Off' : minutes}</button>)}
       </div>
       <span>min</span>
@@ -188,4 +189,13 @@ function ThemeControl({
       })}
     </div>
   );
+}
+
+function UpdateCheckMenuItem({ updateCheck }: { updateCheck: ReturnType<typeof useUpdateCheck> }) {
+  return (updateCheck.available && (
+            <button type="button" role="menuitem" className="settings__item" aria-disabled={updateCheck.checking} onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'check_updates' } }); void updateCheck.checkForUpdates(); }}>
+              <MenuIcon kind="update" />
+              <span className="settings__label">{updateCheck.checking ? 'Checking…' : 'Check for updates…'}</span>
+            </button>
+          ));
 }

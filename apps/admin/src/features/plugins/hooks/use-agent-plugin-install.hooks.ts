@@ -1,13 +1,15 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
+
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
-import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
+import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** The server's own cap (`install.ts`'s `maxArchiveBytes`), checked here first so an oversized file
  *  is refused before any bytes are hashed or sent. */
 export const AGENT_PLUGIN_ZIP_MAX_BYTES = 32 * 1024 * 1024;
@@ -95,28 +97,75 @@ export function useAgentPluginInstall(
   required: { port: AgentPluginInstallPort; t: Translate; onInstalled: (row: AdminAgentPlugin) => void },
   options: { update?: { pluginId: string; expectedOldDigest: string } } = {},
 ) {
-  const { port, t, onInstalled } = required;
-  const [warnings, setWarnings] = useState<readonly string[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [replace, setReplace] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [installed, setInstalled] = useState<{ name: string; alreadyInstalled: boolean } | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const locked = useRef(false);
+  const {
+    port, t, onInstalled, warnings, setWarnings, file, setFile, replace, setReplace, busy, setBusy, error, setError, installed, setInstalled, inputRef, locked,
+    choose,
+  } = useAgentPluginInstallState({ required });
+  const { install } = createAgentPluginInstaller({ locked, file, setBusy, setError, port, replace, options, setWarnings, t, onInstalled, setInstalled, setFile, setReplace });
+  const { drop, folderUpload } = useAgentPluginUploadSources({ locked, choose, setInstalled, setError, t, setFile });
 
-  function choose(next: File | null): void {
-    setError(null);
-    setWarnings([]);
-    setInstalled(null);
-    // Replacement is an explicit choice for these bytes; picking another package revokes it.
-    setReplace(false);
-    if (inputRef.current) inputRef.current.value = "";
-    const problem = next ? fileProblem(next) : null;
-    setFile(problem ? null : next);
-    if (problem) setError(t(problem));
-  }
+  const installedMessage = installed ? t(installedMessageKey({ alreadyInstalled: installed.alreadyInstalled, updating: options.update !== undefined })).replace("{name}", () => installed.name) : null;
 
+  return {
+    updating: options.update !== undefined,
+    labels: installLabels({ t, updating: options.update !== undefined }),
+    warnings,
+    t,
+    file,
+    replace,
+    onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => setReplace(event.target.checked),
+    fileSizeLabel: file ? formatByteSize({ bytes: file.size }, { megabyteLabel: "MiB" }) : "",
+    drop,
+    folderUpload,
+    busy: busy || folderUpload.zipping,
+    error,
+    installedMessage,
+    inputRef,
+    installDisabled: busy || folderUpload.zipping || !file,
+    onChooseFile: () => inputRef.current?.click(),
+    onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose({ next: event.target.files?.[0] ?? null }),
+    onClearFile: () => choose({ next: null }),
+    install: () => void install(),
+  };
+}
+
+function useAgentPluginUploadSources(
+  { locked, choose, setInstalled, setError, t, setFile }:
+    Pick<ReturnType<typeof useAgentPluginInstallState>, "locked" | "choose" | "setInstalled" | "setError" | "t" | "setFile">
+) {
+  const drop = useZipDrop({
+    isLocked: () => locked.current,
+    onDropFiles: ({ files }, _optional = {}) => {
+      const file = files[0];
+      if (files.length === 1 && file) choose({ next: file });
+      else {
+        setInstalled(null);
+        setError(t(ONE_ZIP));
+      }
+    },
+  });
+
+  // A picked folder becomes `<folder>.zip` and goes through `choose` like any picked zip.
+  const folderUpload = useFolderUpload({
+    maxBytes: AGENT_PLUGIN_ZIP_MAX_BYTES,
+    tooLarge: TOO_LARGE,
+    isLocked: () => locked.current,
+    onZipped: (next) => choose({ next }),
+    onError: ({ key }, _optional = {}) => {
+      setInstalled(null);
+      setFile(null);
+      setError(t(key));
+    },
+  });
+  return { drop, folderUpload };
+}
+
+function createAgentPluginInstaller(
+  { locked, file, setBusy, setError, port, replace, options, setWarnings, t, onInstalled, setInstalled, setFile, setReplace }:
+    Pick<ReturnType<typeof useAgentPluginInstallState>, "locked" | "file" | "setBusy" | "setError" | "port" | "replace" | "setWarnings" | "t" | "onInstalled"
+    | "setInstalled" | "setFile" | "setReplace"> &
+    { options: NonNullable<Parameters<typeof useAgentPluginInstall>[1]> }
+) {
   async function install(): Promise<void> {
     if (locked.current || !file) return;
     locked.current = true;
@@ -136,53 +185,37 @@ export function useAgentPluginInstall(
       setBusy(false);
     }
   }
+  return { install };
+}
 
-  const drop = useZipDrop({
-    isLocked: () => locked.current,
-    onDropFiles: (files) => {
-      if (files.length === 1) choose(files[0]!);
-      else {
-        setInstalled(null);
-        setError(t(ONE_ZIP));
-      }
-    },
-  });
+function useAgentPluginInstallState(
+  { required }:
+    { required: Parameters<typeof useAgentPluginInstall>[0] }
+) {
+  const { port, t, onInstalled } = required;
+  const [warnings, setWarnings] = useState<readonly string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [replace, setReplace] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [installed, setInstalled] = useState<{ name: string; alreadyInstalled: boolean } | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const locked = useRef(false);
 
-  // A picked folder becomes `<folder>.zip` and goes through `choose` like any picked zip.
-  const folderUpload = useFolderUpload({
-    maxBytes: AGENT_PLUGIN_ZIP_MAX_BYTES,
-    tooLarge: TOO_LARGE,
-    isLocked: () => locked.current,
-    onZipped: choose,
-    onError: (key) => {
-      setInstalled(null);
-      setFile(null);
-      setError(t(key));
-    },
-  });
-
-  const installedMessage = installed ? t(installedMessageKey({ alreadyInstalled: installed.alreadyInstalled, updating: options.update !== undefined })).replace("{name}", installed.name) : null;
-
+  function choose({ next }: { next: File | null }, _optional = {}): void {
+    setError(null);
+    setWarnings([]);
+    setInstalled(null);
+    // Replacement is an explicit choice for these bytes; picking another package revokes it.
+    setReplace(false);
+    if (inputRef.current) inputRef.current.value = "";
+    const problem = next ? fileProblem(next) : null;
+    setFile(problem ? null : next);
+    if (problem) setError(t(problem));
+  }
   return {
-    updating: options.update !== undefined,
-    labels: installLabels({ t, updating: options.update !== undefined }),
-    warnings,
-    t,
-    file,
-    replace,
-    onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => setReplace(event.target.checked),
-    fileSizeLabel: file ? installArchiveSize({ bytes: file.size }) : "",
-    drop,
-    folderUpload,
-    busy: busy || folderUpload.zipping,
-    error,
-    installedMessage,
-    inputRef,
-    installDisabled: busy || folderUpload.zipping || !file,
-    onChooseFile: () => inputRef.current?.click(),
-    onFileChange: (event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0] ?? null),
-    onClearFile: () => choose(null),
-    install: () => void install(),
+    port, t, onInstalled, warnings, setWarnings, file, setFile, replace, setReplace, busy, setBusy, error, setError, installed, setInstalled, inputRef, locked,
+    choose,
   };
 }
 

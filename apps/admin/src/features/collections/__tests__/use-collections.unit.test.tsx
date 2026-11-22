@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeCollectionsPort } from "../hooks/collections-dependencies.hooks";
 import { useCollections, useWiredCollections } from "../hooks/use-collections.hooks";
@@ -176,7 +177,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("starts with an empty registry when no seed is supplied", async () => {
     const port = createFakeCollectionsPort();
     expect(await port.listContentTypes()).toEqual({ items: [] });
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.types).toEqual([]));
     expect(result.current.error).toBeNull();
@@ -206,7 +207,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       const port = createFakeCollectionsPort({ types: [TYPE] });
-      const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+      const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
       await waitFor(() => expect(result.current.types).not.toBeNull());
 
       expect(result.current.types).toEqual([TYPE]);
@@ -218,7 +219,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("runLifecycle deprecates through the injected port and reloads the list, reflecting the update", async () => {
     const port = createFakeCollectionsPort({ types: [TYPE] });
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     await act(async () => {
@@ -235,8 +236,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
     // An empty-message ApiError, not a plain Error — describeApiError only substitutes the
     // fallback for ApiError.message === "" (matching what a real 500-with-no-body response
     // becomes via `request()`); a plain Error's own (even empty) `.message` always wins.
-    const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError("", 500) });
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError({ message: "", status: 500 }) });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     await act(async () => {
@@ -250,7 +251,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const widget: AdminContentType = { ...TYPE, key: "widget", label: "Widget" };
     const menu: AdminContentType = { ...TYPE, key: "menu", label: "Menu" };
     const port = createFakeCollectionsPort({ types: [TYPE, widget, menu] });
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     expect(result.current.types).toEqual([TYPE]);
@@ -262,7 +263,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const port = createFakeCollectionsPort({ types: [TYPE] });
 
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
     expect(result.current.copiedKey).toBeNull();
 
@@ -286,7 +287,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     const port = createFakeCollectionsPort({ types: [TYPE] });
 
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
     expect(result.current.copyFallback).toBeNull();
 
@@ -311,7 +312,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: undefined });
     const port = createFakeCollectionsPort({ types: [TYPE] });
 
-    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }), { wrapper });
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: ({ key: k }, _optional = {}) => k }), { wrapper });
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     await act(async () => {
@@ -330,6 +331,6 @@ describe("locale binding", () => {
       return Promise.resolve(jsonResponse({ items: [] }));
     });
     const { result } = renderHook(() => useWiredCollections(), { wrapper });
-    await waitFor(() => expect(result.current.t("Collections")).toBe("Colecciones"));
+    await waitFor(() => expect(result.current.t({ key: "Collections" })).toBe("Colecciones"));
   });
 });

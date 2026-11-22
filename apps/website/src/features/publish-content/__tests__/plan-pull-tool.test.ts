@@ -22,7 +22,7 @@ test("plan stages as the caller, runs the shared gateway and maps all outcomes w
   f.destination.set("update", { version: 1, hash: "baseline", title: "Local update" });
   f.destination.set("same", { version: 1, hash: f.entities[2]!.contentHash, title: "Live same" });
   f.destination.set("conflict", { version: 1, hash: "edited", title: "Local conflict" });
-  await f.baselineRepo.upsert({ workspaceId: "local", peerPrincipalId: OWNER, entityType: "pull-fixture", entityId: "update", hashAtLastSync: "baseline", hashVersion: 1, syncedAt: "2026-09-30T00:00:00.000Z", runId: "previous" });
+  await f.baselineRepo.upsert({ record: { workspaceId: "local", peerPrincipalId: OWNER, entityType: "pull-fixture", entityId: "update", hashAtLastSync: "baseline", hashVersion: 1, syncedAt: "2026-09-30T00:00:00.000Z", runId: "previous" } });
   const before = [...f.destination];
   const result = await (await tool(f.deps, ID)).handler(context({}));
   assert.deepEqual(result, { bundleId: "pull-1", expiresAt: "2026-10-02T12:00:00.000Z", peerLabel: "Live site", counts: { create: 1, update: 1, unchanged: 1, blocked: 1 }, conflicts: [{ entityKey: "pull-fixture:conflict", title: "Live conflict", reason: "no prior sync baseline for pull-fixture 'conflict' with this peer — the destination already holds different content" }], blobsUnavailable: [], blobsDeferred: [] });
@@ -42,8 +42,8 @@ test("the gateway's own read denial refuses planning even when the tool's apply 
 });
 test("omitted peer selects the connected destination among saved peers", async () => {
   const f = await fixture();
-  await f.peerRepo.update(peerRow("live", "Live site", true));
-  await f.peerRepo.insert(peerRow("other", "Other site"));
+  await f.peerRepo.update({ record: peerRow("live", "Live site", true) });
+  await f.peerRepo.insert({ record: peerRow("other", "Other site") });
   // Selection reaches the connected row's handshake, rather than opening the other saved key.
   let requested = "";
   f.deps.publishContentPeerHttpClient = { send: async request => { requested = request.url; return { status: 401, headers: {}, bodyText: "{}" }; } };
@@ -52,7 +52,7 @@ test("omitted peer selects the connected destination among saved peers", async (
 });
 test("ambiguous and missing destinations give actionable exact selection messages", async () => {
   const f = await fixture();
-  await f.peerRepo.insert(peerRow("other", "Other site"));
+  await f.peerRepo.insert({ record: peerRow("other", "Other site") });
   await assert.rejects(() => tool(f.deps, ID).then(r => r.handler(context({}))), { message: "Several destinations are saved. Choose a peerId: live (Live site), other (Other site)." });
   await f.peerRepo.delete({ workspaceId: "local", id: "live" });
   await f.peerRepo.delete({ workspaceId: "local", id: "other" });
@@ -102,8 +102,8 @@ test("conflicts are capped at 50 and missing/deferred blob lists survive mapping
 
 test("multiple connected destinations are listed instead of silently choosing the newest", async () => {
   const f = await fixture();
-  await f.peerRepo.update(peerRow("live", "Live site", true));
-  await f.peerRepo.insert({ ...peerRow("other", "Other site", true), updatedAt: "2026-10-01T13:00:00.000Z" });
+  await f.peerRepo.update({ record: peerRow("live", "Live site", true) });
+  await f.peerRepo.insert({ record: { ...peerRow("other", "Other site", true), updatedAt: "2026-10-01T13:00:00.000Z" } });
   await assert.rejects(() => tool(f.deps, ID).then(r => r.handler(context({}))), { message: "Several destinations are saved. Choose a peerId: live (Live site), other (Other site)." });
   assert.deepEqual(f.requests, []);
 });
@@ -133,14 +133,14 @@ test("the production contributor projects the same content ports the import rout
   await realDeps.identityReady;
   const f = await fixture();
   let builds = 0;
-  registerPublishContentContributor({ entityType: "pull-fixture", dependsOn: [], build: publishDeps => {
+  registerPublishContentContributor({ contributor: { entityType: "pull-fixture", dependsOn: [], build: publishDeps => {
     builds++;
     assert.equal(publishDeps.ports.post?.repo, realDeps.postRepo);
     assert.equal(publishDeps.ports.media?.repo, realDeps.mediaRepo);
     assert.equal(publishDeps.ports.menu?.repo, realDeps.menuRepo);
     assert.equal(publishDeps.ports.form?.repo, realDeps.formDefinitionRepo);
     return { entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [], pack: async function* () {}, inspect: async () => null, precheck: async () => null, apply: async () => { throw new Error("planning cannot apply"); } };
-  } });
+  } } });
   contributions.contributors.clear({});
   installFirstPartyToolContributors({ contributions });
   const contributor = contributions.contributors.list({}).find(c => c.domain === "publish-content")!;
@@ -164,16 +164,16 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
   const { PluginHookFailedError } = await import("../../../contracts/core/plugin-hook-failed-error.js");
   const cases: Array<{ error: unknown; message: string }> = [
     { error: new PlanStaleError({ message: "internal stale" }), message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." },
-    { error: new PublishContentBundleNotFoundError("internal missing"), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },
-    { error: new RestorePointUnavailableError("internal backup"), message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." },
-    { error: new PublishContentPeerNotFoundError("internal peer"), message: "The saved destination was removed. Choose a saved peerId or connect the live site again." },
+    { error: new PublishContentBundleNotFoundError({ message: "internal missing" }), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },
+    { error: new RestorePointUnavailableError({ message: "internal backup" }), message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." },
+    { error: new PublishContentPeerNotFoundError({ message: "internal peer" }), message: "The saved destination was removed. Choose a saved peerId or connect the live site again." },
     { error: new PluginHookFailedError("plugin", "private diagnostic", { refusedItemRef: "post:p" }), message: "PLUGIN_HOOK_FAILED: a site plugin (plugin) refused item post:p; items applied before it stay saved, so check the import history before retrying" },
     ...[
       new ForbiddenError({ message: "permission denied", reasonCode: "denied" }),
-      new PublishTrustHandshakeError("handshake refused", "refused"),
-      new PublishContentPeerTransportError("transport refused", "PEER_REJECTED"),
-      new PublishContentPeerCredentialMissingError("credential absent"),
-      new PublishContentPeerSecretStoreUnconfiguredError("store absent"),
+      new PublishTrustHandshakeError({ message: "handshake refused", failure: "refused" }),
+      new PublishContentPeerTransportError({ message: "transport refused", code: "PEER_REJECTED" }),
+      new PublishContentPeerCredentialMissingError({ message: "credential absent" }),
+      new PublishContentPeerSecretStoreUnconfiguredError({ message: "store absent" }),
     ].map(error => ({ error, message: error.message })),
   ];
   const f = await fixture();
@@ -199,7 +199,7 @@ test("L163 default pull selection keeps the lone saved peer and refuses multiple
   const registration = await tool(f.deps, ID);
   const planned = await registration.handler(context({}));
   assert.equal((planned as { peerLabel: string }).peerLabel, "Live site");
-  await f.peerRepo.update(peerRow("live", "Live site", true));
-  await f.peerRepo.insert(peerRow("other", "Other site", true));
+  await f.peerRepo.update({ record: peerRow("live", "Live site", true) });
+  await f.peerRepo.insert({ record: peerRow("other", "Other site", true) });
   await assert.rejects(() => registration.handler(context({})), { message: "Several destinations are saved. Choose a peerId: live (Live site), other (Other site)." });
 });

@@ -1,0 +1,2685 @@
+{
+  "version": 1,
+  "allow": [
+    {
+      "id": "010687fc2a46",
+      "reason": "Moved to Jini @jini-ai/cookie-consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "df71d71beff3",
+      "reason": "Header of the deleted SmtpMailerAdapter wrapper era; the file now only loads nodemailer lazily and its new header says so."
+    },
+    {
+      "id": "7891185bc85e",
+      "reason": "Documented the deleted SmtpMailerAdapterDeps clock seam; the wrapper class is gone (Jini's adapter takes nowMs directly)."
+    },
+    {
+      "id": "51e0e39463a9",
+      "reason": "Documented the deleted Tovu SmtpMailerAdapter wrapper class; the rationale lives on Jini's SmtpMailerAdapter."
+    },
+    {
+      "id": "25186ff8b98a",
+      "reason": "Doc of the deleted wrapper's capabilities() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "3a8732221a51",
+      "reason": "Doc of the deleted wrapper's send() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "5726e7f1e95d",
+      "reason": "Doc of the deleted wrapper's sendBatch() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "6052f781f34f",
+      "reason": "Header of the deleted ports.ts re-export file; platform/mail/index.ts line 1 states the same boundary."
+    },
+    {
+      "id": "b4867ea042ff",
+      "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in Jini packages/cms/src/widgets/sql/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
+    },
+    {
+      "id": "5bca7dbd0f7f",
+      "reason": "Moved to Jini EntryRefsRepoPort.findByTarget doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "4ee6da5e31f8",
+      "reason": "Moved to Jini EntryRefsRepoPort.findBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "c6d6280b3048",
+      "reason": "Moved to Jini EntryRefsRepoPort.replaceForSource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "095f3a73d7fb",
+      "reason": "Moved to Jini EntryRefsRepoPort.removeBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "6e10c61fe7bf",
+      "reason": "Moved to Jini EntryRefsRepoPort.rebuildForWorkspace doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "b807e0195f58",
+      "reason": "File header of the in-memory repo that moved to Jini cms/widgets/entry-refs.memory.ts (Jini 7412f1dbd), reworded there; the rule-of-two pointer sits in Jini packages/cms/src/widgets/sql/entry-refs-repo.ts."
+    },
+    {
+      "id": "41b698d88358",
+      "reason": "File header of the deleted types.ts; the index rationale moved to Jini EntryRefRow (Jini 30954d12c). Its history lines (no running code before SPEC-043) are dropped as plan-approved."
+    },
+    {
+      "id": "95e24310982f",
+      "reason": "Moved to the Jini EntryRefRow.sourceKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "f17d4c67faf8",
+      "reason": "Moved to the Jini EntryRefRow.targetKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "5d5a1fe10e7a",
+      "reason": "Moved to the Jini EntryRefRow doc (Jini 30954d12c)."
+    },
+    {
+      "id": "418a744ddc7a",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): widgets/entry-refs-extractor.ts classifyRefFieldKey doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "0cc349306609",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractEntryRefs doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "01b29c1f23dd",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): the html-pages section comment. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "a1f9611f3518",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_PAGE_EMBED_REFS doc (path text reworded to be neutral). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "c3227988ba6b",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_EMBED_REF_ID_LENGTH doc (path text reworded). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "ffffbd3599f3",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): HTML_EMBED_TARGET_KINDS doc (the inventory-doc path dropped as a Tovu path). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "02450ff24bc2",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): warnRejectedMarkers doc (now describes the injected report). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "cbd9a3ffedda",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractHtmlEntryRefs doc (host-page-store wording). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "76ced6c2706f",
+      "reason": "The generic first sentences (reading the PUBLIC web, vendor = adapter) moved to the @module block of Jini packages/platform/src/web/agent-tools.ts (Jini d478ab5a); the Tovu-specific remainder (Claude Code CLI, owner 2026-10-08, visitor allowlist) stays in the reduced file header."
+    },
+    {
+      "id": "2e09a15983d9",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.loadError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc): 'the reason', since the host now supplies the error wording."
+    },
+    {
+      "id": "a6407d29416f",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.saveError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc)."
+    },
+    {
+      "id": "7d7b2c68858c",
+      "reason": "Header moved to Jini packages/db/src/kernel/sqlite/sqlite-only.ts (Jini 70116fc0), reworded neutrally per the sheet: the Tovu-specific pointers (no-raw-SQLite ratchet place, publish-backstop-row path, 'candidate for Jini' note) are dropped; publish-backstop-row.sqlite.ts keeps its own why and now points at the Jini file."
+    },
+    {
+      "id": "20dfd44675f0",
+      "reason": "Moved with sqlite-only.ts to Jini (Jini 70116fc0); only the tracking sentence 'Kept here until Jini publishes this primitive' is dropped as obsolete (it is published now)."
+    },
+    {
+      "id": "d22eea362a13",
+      "reason": "@file header: neutral part moved to the module header of Jini packages/platform/src/mail/email-template-operations.ts; the Pages/posts storage why stays in the Tovu operations.ts header (Jini fdcf829c)."
+    },
+    {
+      "id": "f01766bf6f51",
+      "reason": "EMAIL_TEMPLATE_NAME_MAX doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "1945bf9d88dc",
+      "reason": "EmailTemplatePreview.mode doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "36b38a7ea0a7",
+      "reason": "createEmailTemplate doc moved to Jini email-template-operations.ts; the storage half (row then ensureHtmlFormat) now documents createTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "45a4b9e70fa2",
+      "reason": "editEmailTemplate doc moved to Jini email-template-operations.ts, reworded to the store port (Jini fdcf829c)."
+    },
+    {
+      "id": "d39d338cfe87",
+      "reason": "renameEmailTemplate doc moved to Jini email-template-operations.ts; the row-title/ledger half stays on renameTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "aede86c64d84",
+      "reason": "listEmailTemplates doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "30a2940da80d",
+      "reason": "previewEmailTemplate doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "490f6d0f03af",
+      "reason": "preview iframe sandbox note moved to Jini email-template-operations.ts, reworded to the host's preview iframe (Jini fdcf829c)."
+    },
+    {
+      "id": "bf34585cdde5",
+      "reason": "renderEmailTemplateForSend doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "cc765880706f",
+      "reason": "Placeholder-origin constant of the deleted theme safeHref copy. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "6ff43c2ce673",
+      "reason": "Port-normalization note of the deleted theme safeHref copy's placeholder constant (the :80/:443 split between the two copies is gone by design: every protocol-relative href is refused). Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "a94a33822655",
+      "reason": "Doc of the deleted theme safeHref copy, including its 'duplicate, not a shared import' rationale (features/theme now imports the Jini leaf @jini-ai/cms/navigation/href) and a stale KNOWN GAP note about widget renderers that now all call the standard. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "7f8bd0d802ae",
+      "reason": "Doc of the deleted platform safeHref helper. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "fa8e6eb34256",
+      "reason": "File header of the gate's test, rewritten for the new mechanism; the synthetic-mismatch proof and live assertion it described are kept in the rewritten tests. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "947685df1eea",
+      "reason": "Synthetic-mismatch note; reworded in place for the two Jini entry points (the proof itself is kept). Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "162fa70c5b3d",
+      "reason": "Section header of the test of loadHrefChecker, deleted with the extraction. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "7595433ecc20",
+      "reason": "Section header of the live test, reworded for the Jini-only comparison plus local-copy scan."
+    },
+    {
+      "id": "b30d4e0b2857",
+      "reason": "Gate file header, rewritten: the still-true dist-vs-src paragraph and the table rationale are kept; the three-copy and extraction paragraphs describe deleted code. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "4251fecbe5d2",
+      "reason": "Section header of the extraction helpers. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "8ae591cf6202",
+      "reason": "Doc of extractBalancedBraces. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "94336564520a",
+      "reason": "Doc of extractSafeHrefDeclaration. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "1a3543ef4e6d",
+      "reason": "Doc of loadHrefChecker. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "972063af4ef6",
+      "reason": "Doc of the three-implementation runMenuHrefAllowlistSync; replaced by a doc of the Jini-entry-point run plus local-copy scan."
+    },
+    {
+      "id": "03c21fe40e10",
+      "reason": "S2a deletes the 17-line re-export shim features/content-types/repo.memory.ts, the subject of this comment (why the shim still existed and what retiring it depended on); its one importer now imports @jini-ai/cms/content-types directly, so the explanation has nothing left to attach to."
+    },
+    {
+      "id": "008d40e2211d",
+      "reason": "wording largely survives at apps/desktop/src/main/updates/desktop-updater.ts (27% shared word triples); code changed in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'"
+    },
+    {
+      "id": "00b31e104996",
+      "reason": "wording largely survives at packages/cms/src/seo/sitemap-documents.ts (26% shared word triples); code changed in 'refactor(website): sitemap.xml and llms.txt routes use the @jini-ai/cms/seo serializers'"
+    },
+    {
+      "id": "028c6dc2fffc",
+      "reason": "wording largely survives at apps/website/src/features/agent-plugins/admin-surfaces/issued-sign-ins.ts (69% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
+    },
+    {
+      "id": "045294caeb66",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "05334bdbcdab",
+      "reason": "wording largely survives at apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts (71% shared word triples); code changed in 'test(assistant): AG-UI S0 goldens — admin wire bytes, exact cancel counts, reducer drift'"
+    },
+    {
+      "id": "07fbe6272722",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (100% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "0a74afe216b6",
+      "reason": "wording largely survives at packages/cli/src/stdin-line.ts (74% shared word triples); code changed in 'refactor(cli): import-local reads its request with @jini-ai/cli readStdinRequestLine'"
+    },
+    {
+      "id": "0d1877b51a93",
+      "reason": "wording largely survives at packages/cms/src/html/__tests__/style-values.test.ts (57% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "10b9b3acae78",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (75% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "110b89ac9ef6",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (28% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "179822cdf7d6",
+      "reason": "wording largely survives at apps/website/src/index.ts (93% shared word triples); code changed in 'refactor(size): split main under 50 lines'"
+    },
+    {
+      "id": "190d29e2184f",
+      "reason": "wording survived at apps/website/src/server/runtime/composition/modules/__tests__/assistant-ag-ui.wire.unit.test.ts (62% shared word triples) until tv-w2 AG0-T deleted that wire suite (its nine assertions are covered by Jini's AG-UI wire tests); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "1936a01b7298",
+      "reason": "wording largely survives at packages/ui/src/features/panel-kit/fetch-query/use-cursor-pages.hooks.ts (100% shared word triples); code changed in 'refactor(admin-database): timeline paging comes from useCursorPages in @jini-ai/ui/fetch-query'"
+    },
+    {
+      "id": "1a77fdfe06c7",
+      "reason": "the code it explained left this spot in 'refactor(assistant): delete the AG-UI forwarders and type re-export (C2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "1c1d97c37d87",
+      "reason": "the code it explained left this spot in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "1ce2aeb37ecf",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (67% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "1dcbcb71d770",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (78% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "1e64fdefb9c5",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "21aff341da07",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (75% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "26818aaea43d",
+      "reason": "wording largely survives at apps/admin/src/lib/retry-unreachable.ts (40% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "269a936804c7",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "26b27d7faf88",
+      "reason": "wording largely survives at apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts (66% shared word triples); code changed in 'refactor(admin): persist the dashboard recent-activity card through @jini-ai/ui usePersistedDisclosure'"
+    },
+    {
+      "id": "274df7efe47e",
+      "reason": "wording largely survives at apps/admin/src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (40% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "277e52d205c5",
+      "reason": "wording largely survives at apps/website/src/features/database-transfer/copy-engine.ts (60% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "297648f94ba4",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2afbcb943f4c",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2b0e20308f28",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2fb52c7ba014",
+      "reason": "the code it explained left this spot in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "309885dfc535",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (95% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "315826f08317",
+      "reason": "wording largely survives at apps/website/src/assistant/site/visitor-confirmations.ts (33% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "3249ae8e6c6b",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (62% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "36fde498ab49",
+      "reason": "wording largely survives at packages/devops/src/local-dev/free-port.ts (51% shared word triples); code changed in 'refactor(scripts): free-port binds @jini-ai/devops/local-dev'"
+    },
+    {
+      "id": "38b1713a70e5",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "39232fd65bb2",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "3b8fe8248451",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (91% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "3c665583afa9",
+      "reason": "wording largely survives at apps/website/src/features/publish-content/type-registry.ts (54% shared word triples); code changed in 'refactor(publish-content): split the host port bag out of the type registry (publish-engine P0.3)'"
+    },
+    {
+      "id": "3d6c4616c17b",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (96% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "3f1c44a4aef7",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (66% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "41f57790edf4",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (73% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "447691409322",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "44d8885ce14f",
+      "reason": "wording largely survives at apps/website/src/contracts/core/gated-mutations/__tests__/unit/actor-identity.unit.test.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "4846db0accb4",
+      "reason": "the code it explained left this spot in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4871c6b666fa",
+      "reason": "wording largely survives at packages/db/src/sqlite/stopped.ts (44% shared word triples); code changed in 'refactor(db): stopped-database admission from @jini-ai/db/sqlite'"
+    },
+    {
+      "id": "48da0acd4a71",
+      "reason": "wording largely survives at apps/website/src/features/agent-plugins/service-ports.ts (36% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "49816eddc943",
+      "reason": "wording largely survives at apps/desktop/src/project-ipc.ts (64% shared word triples); code changed in 'fix(desktop): merge-b desktop part (held cloud patch, pushed --no-verify, owner OK 11-16)'"
+    },
+    {
+      "id": "4a0df02b889f",
+      "reason": "wording largely survives at packages/cms/src/media/__tests__/html-attributes.test.ts (33% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "4b0f91f52574",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4dce5c078daa",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4dfa70646b3a",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (96% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "4e19ae5c3767",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (48% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "4e3db92c77ca",
+      "reason": "the code it explained left this spot in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4ef07f24e6e4",
+      "reason": "the code it explained left this spot in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "501cdc9d74a2",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (100% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "52197a091995",
+      "reason": "wording largely survives at packages/agent-plugins/src/admin-surfaces/node.ts (66% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
+    },
+    {
+      "id": "532fa0e5e676",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (75% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "54bea7eca3b3",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "56a78c95cb54",
+      "reason": "the code it explained left this spot in 'refactor(pages): delete the active-theme re-export; its importer names the defining modules (size-04 step 7)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "570f8df1f797",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (94% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "57b7186f7cad",
+      "reason": "wording largely survives at apps/admin/src/features/sites/AllSitesTab.tsx (27% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "584c5ba6fd4f",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (90% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "598d2beaa624",
+      "reason": "the code it explained left this spot in 'fix(merge): media card metadata takes formatByteSize from @jini-ai/core/text'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "59d414083729",
+      "reason": "wording largely survives at packages/platform/src/object-store/descriptors.ts (47% shared word triples); code changed in 'refactor(object-storage): drop the parseObjectStoresFile forwarder'"
+    },
+    {
+      "id": "5a760055483c",
+      "reason": "wording largely survives at packages/integrations/src/media-providers/image-model-ids.ts (45% shared word triples); code changed in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'"
+    },
+    {
+      "id": "5ba4d4be186b",
+      "reason": "wording largely survives at apps/admin/src/features/users/hooks/users-dependencies.hooks.ts (29% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "5e4ee909b6a7",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "5e7ffa8c6b40",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (56% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "5feab172cea7",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (53% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "611fac83e046",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (80% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "64c6316d26a3",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "6674f104a661",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (61% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "66f05d8c1243",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "696836198311",
+      "reason": "wording largely survives at apps/website/src/assistant/tool-catalog-live-query.ts (50% shared word triples); code changed in 'refactor(daemon): mount the tool-catalog routes as a list (pair of Jini 3a712f55)'"
+    },
+    {
+      "id": "6afc6975b11e",
+      "reason": "the code it explained left this spot in 'refactor(web): delete the html-document re-export shim'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "6cb3663659ee",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (64% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "6d2530f5f3e2",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "6eb3a1b9c24f",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (61% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "70247a29a113",
+      "reason": "the code it explained left this spot in 'refactor(web): delete the html-document re-export shim'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "71ccd056e60e",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (63% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "72c036ad1752",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7307a6bae836",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (97% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "73d113311bac",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "74e8f7b5ae15",
+      "reason": "wording largely survives at apps/website/src/assistant/site/visitor-confirmation-gate.ts (54% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "75bb0faa019d",
+      "reason": "the code it explained left this spot in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "76f34570b3b9",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7786f27da4eb",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "786edb475dc5",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7c7c5f4a1fc7",
+      "reason": "wording largely survives at apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts (28% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "7e7a2461ee5e",
+      "reason": "wording largely survives at apps/admin/src/components/WidgetConfigFields/media-content-rules.ts (55% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "7ec81a385c34",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "81ae25cba5b6",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "8331c1cd25a9",
+      "reason": "wording largely survives at packages/integrations/src/media-providers/image-model-ids.ts (30% shared word triples); code changed in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'"
+    },
+    {
+      "id": "8a3d4a10ce20",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (92% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "8d7a606468c4",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "8e0881485424",
+      "reason": "wording largely survives at apps/website/src/features/deployments/deploy-config-registry.ts (72% shared word triples); code changed in 'refactor(publish-trust): import the deploy-config path guard from @jini-ai/devops (import-cycle S1)'"
+    },
+    {
+      "id": "8efeece17277",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (54% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "91e11858cc6c",
+      "reason": "the code it explained left this spot in 'refactor(publish-content): split the import ceremony into plan, restore-point and execute steps (publish-engin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9390f43bc0c6",
+      "reason": "wording largely survives at apps/website/src/platform/db/postgres/db-ops-adapter.ts (74% shared word triples); code changed in 'refactor(db): fold the Postgres restore-capability evaluation into its adapter'"
+    },
+    {
+      "id": "94224029e803",
+      "reason": "wording largely survives at apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts (29% shared word triples); code changed in 'refactor(admin-database): timeline paging comes from useCursorPages in @jini-ai/ui/fetch-query'"
+    },
+    {
+      "id": "9506bf0b3b6a",
+      "reason": "wording largely survives at apps/admin/src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts (67% shared word triples); code changed in 'fix(charts): re-pin charts-recharts to the published 0.7.1 and keep the pin tied to the dependency'"
+    },
+    {
+      "id": "9583e85dad30",
+      "reason": "wording largely survives at packages/db/src/sqlite/stopped.ts (93% shared word triples); code changed in 'refactor(db): stopped-database admission from @jini-ai/db/sqlite'"
+    },
+    {
+      "id": "96793ec3a1ad",
+      "reason": "wording largely survives at development/scripts/check-jini-registry-drift.mjs (27% shared word triples); code changed in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'"
+    },
+    {
+      "id": "97486d65c8b3",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "985367b154d1",
+      "reason": "wording largely survives at packages/chat/src/core/run-events/entry.ts (46% shared word triples); code changed in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'"
+    },
+    {
+      "id": "9ab817113011",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (94% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "9b7c93c7b408",
+      "reason": "wording largely survives at packages/devops/src/checks/coverage/__tests__/integrity.test.ts (97% shared word triples); code changed in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'"
+    },
+    {
+      "id": "9b9fe02f2ae6",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9cb15a280b9c",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9d98bf5c5d7c",
+      "reason": "the code it explained left this spot in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9dc1a1cc2d05",
+      "reason": "wording largely survives at apps/website/src/features/source-control/commit-site.ts (45% shared word triples); code changed in 'refactor(source-control): call Jini's repositoryTargetError directly; delete the forwarder (import-cycle S3a)'"
+    },
+    {
+      "id": "9ee3b25f309c",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (88% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "a07db47f1811",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "a87c3be42fc4",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/store.ts (32% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "a8c51b3ce12a",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ac721ef67e62",
+      "reason": "wording largely survives at apps/website/src/server/__tests__/identity-routes.test.ts (38% shared word triples); code changed in 'refactor(commands): import InMemoryChangeSetRepo and revert from @jini-ai/cms directly'"
+    },
+    {
+      "id": "ae845e2678bc",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "af7e31440c6b",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (51% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "afb993d1aeb6",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "b22305a903a1",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "b375a96ae78a",
+      "reason": "wording largely survives at development/scripts/check-jini-registry-drift.mjs (43% shared word triples); code changed in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'"
+    },
+    {
+      "id": "b5f9428d869e",
+      "reason": "wording largely survives at apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts (73% shared word triples); code changed in 'refactor(size): split createRawRowSqlitePort under 50 lines'"
+    },
+    {
+      "id": "b63c426b5fe3",
+      "reason": "wording largely survives at packages/admin/src/media/adapters/http.ts (76% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
+    },
+    {
+      "id": "b662b2e1a1c4",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts (57% shared word triples); code changed in 'refactor(run-finalizer): A5 extract run-finalizer/stream.ts and bounded-follow.ts'"
+    },
+    {
+      "id": "ba6bb4834c07",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "bb831b3fbe6b",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (88% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "bc6a4e024127",
+      "reason": "the code it explained left this spot in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "bdf41c2fa537",
+      "reason": "wording largely survives at packages/cli/src/stdin-line.ts (62% shared word triples); code changed in 'refactor(cli): import-local reads its request with @jini-ai/cli readStdinRequestLine'"
+    },
+    {
+      "id": "bdf6ead3515c",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (35% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "beb679c01774",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (63% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "c10645989481",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/event-reduction.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "c455527377f1",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "c97c8154f87d",
+      "reason": "the code it explained left this spot in 'refactor(render): delete render.ts's re-export block; importers name the defining module (size-03 step 7)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "cb4b764ac856",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (84% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "cd21e52ceeed",
+      "reason": "wording largely survives at apps/website/src/features/deployments/publish-agent-tools.ts (25% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
+    },
+    {
+      "id": "cdeb7b60dc2b",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/summary.ts (71% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "cf275d5d85ef",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (63% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "cfed94982195",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (86% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "d0d097da8a71",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (80% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "d17cc37d1b5c",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (48% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "d31c788b6486",
+      "reason": "the code it explained left this spot in 'refactor(admin): byte-size labels use @jini-ai/core/text formatByteSize'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "d64c74e5f76b",
+      "reason": "the code it explained left this spot in 'refactor(size): split useThemes under 50 lines'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "d7e6d9aa53c8",
+      "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts (75% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "da6daa76659e",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (79% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "daef5199858a",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "dbca9bb9c34c",
+      "reason": "wording largely survives at packages/chat/src/core/run-events/entry.ts (55% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "dd0fe8536795",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (77% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "e4a3ed4a0034",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (32% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "e5a8e6b9f251",
+      "reason": "wording largely survives at packages/agentic/src/skills/install/tool-registry-live-registration.ts (78% shared word triples); code changed in 'refactor(skills): live skill registration from @jini-ai/agentic createLiveToolRegistration'"
+    },
+    {
+      "id": "e5f37bad0f6c",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "e67b50919b24",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ea80b2deafeb",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (65% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "eafd3a8ebd7b",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (79% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "ebcb261d7de7",
+      "reason": "wording largely survives at apps/admin/src/features/sites/hooks/use-site-confirm.hooks.ts (51% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "edc57049de8f",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (79% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "ee0051ca2db3",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "f05f0b79e854",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f15e1d1535a2",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (58% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "f4453867d3b2",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f4938768f72f",
+      "reason": "wording largely survives at apps/website/src/server/inbound/admin-http/publish-trust-auth.ts (54% shared word triples); code changed in 'refactor(size): split requirePublishTrust under 50 lines'"
+    },
+    {
+      "id": "f74b8d1ad269",
+      "reason": "wording largely survives at development/scripts/check-coverage-integrity.ts (32% shared word triples); code changed in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'"
+    },
+    {
+      "id": "f786bd1dabc6",
+      "reason": "wording largely survives at apps/admin/src/lib/assistant-agents-snapshot.ts (59% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "f7db4a3e8c0d",
+      "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f7e4643c8f51",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f805139a5d34",
+      "reason": "the code it explained left this spot in 'refactor(publish-content): split planner.ts into planner and plan-rows (publish-engine P0.8)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f8d6cd691675",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (83% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "fb217a1129f7",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (65% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "fd5b21a23371",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (87% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "fe19ed701569",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ff869d24ec10",
+      "reason": "wording largely survives at packages/devops/src/local-dev/free-port.ts (45% shared word triples); code changed in 'refactor(scripts): free-port binds @jini-ai/devops/local-dev'"
+    },
+    {
+      "id": "b292f17aa27e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/components/AssistantDock/assistant-runtime-preferences.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8d93f240ca9c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/features/media/rules.ts (text re-worded, present (bigram containment 0.78)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "381a5117884e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/features/providers/Providers.tsx (\"Hook-calling shell\" doc: the same complexity-ceiling reasoning (injected defaults are branches of the tiny shell, not of the body) restated for the split that replaced `resolveProvidersHook`). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "7d3d3d0d4d80",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/assistant/runtime-preferences.ts (same note re-worded for the OD-4 default-off change (owner-only, probe-gated either way)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "33c81dcf9bb4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/contracts/core/credential-token.ts (header re-worded after the re-exports were removed; still says it only injects the application-key detector). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "5768704f88e3",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/deployments/deploy-config.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b95afd46b575",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (text re-worded, present (bigram containment 0.77)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "16c2f6e3b28f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (QUOTED-sink hazard characters doc, same reasoning). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ec8b0eb62dbe",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (UNQUOTED-YAML plain-scalar characters doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "47b591a5538d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bed5467d65bf",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (field doc \"Opaque; present only with full access\"). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "453a538b0459",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (access-tier doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "797db440a2aa",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "348b3b159fbb",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (file header (permissions and owner gate)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3affb54004ed",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "6ec265fb3655",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (text re-worded, present (bigram containment 0.89)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3136081ee37f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/media/__tests__/provider-credential-store.rethrow.test.ts (header re-worded: the policy is now injected as deps.credentialPolicy instead of mock.module). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f96542aaa4c4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts and location-binding-repo.ts (file headers of the two SQL repositories). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "97cfdad8ed26",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e12a12a1982a",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.85)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "23d1190d3e09",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "569d26ec1958",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/location-binding-repo.ts (text re-worded, present (bigram containment 0.85)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4d833e343486",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (file header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e8b647ff9462",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (text re-worded, present (bigram containment 0.94)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bfe1b1d254bd",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "12b47ca0860c",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (the helper moved to the module that owns SEO text, so the \"lives in post to avoid an import cycle\" placement note no longer describes anything). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "98b506120770",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "12336111d080",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "00fcba061585",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8bc11652e442",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/post/post-vocabulary.ts and Jini packages/cms/src/core/post-vocabulary.ts (storage-kinds doc re-worded around PublicPostKind). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "9aefb4386094",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (text re-worded, present (bigram containment 0.81)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "54c34f33e4d9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (catalog-entry type doc (published inputSchema, every entry wired)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e433a16e2a5e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ca7e014e688f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "02551525fdb2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.83)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c70999e10975",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/media/tool-registrations.ts (text re-worded, present (bigram containment 0.84)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cf3738aec700",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "575f8c0d646b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.94)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "59bf2ef40f57",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "39e8e0f2443b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0d9bb4b4c8e1",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.96)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e5d672aeaf9f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8ed20cb828a9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (reserved-path mapping helper doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cf8c8ffb268c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ad29e84aa82d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/cookie-shapes.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "425de7a1501f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/bounded-body.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cea57e6c7123",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts and Tovu apps/website/src/features/source-control/commit-site.ts (file header: \"wrap, do not reimplement\", never-throw contract). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "45574b8b211f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (toCommitFile separator note). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "68687d341204",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts and Jini packages/devops/src/source-control/contracts.ts (the one seam to the git host). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "81876a818400",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (outcome doc: post-confirm codes are never pre-dialog, with the failure-contract table citation). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "30563adb1d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/contracts.ts (restored note on the outcome type, commit 3363745e) (divergedPaths pass-through doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8c35299f4a6b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (resolveSavedApiKey doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4603577d5dd9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (text re-worded, present (bigram containment 0.78)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4e5c4c123b0e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (ExportSiteBoundFn doc: not named like RouteDeps.runExportSite). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "5ab559b90ad2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (sourceControlExportRootDir doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "98842195fae4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts and Tovu commit-site.ts (per-run export directory and why a fixed path per provider has no concurrency guard). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "54cda4dec8fe",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (commitExportDir doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f630543c4be5",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (history of a lazy `require` that broke an import cycle; the import is now a plain static one inside Jini devops, so there is no cycle to explain). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "251b83de7d46",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (decrypt-failure surfaces as NO_CREDENTIALS_CONFIGURED). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4caa843098a5",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (wrong-provider guard is unreachable but kept explicit). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c8a4685d65ea",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (toCommitFile / separator note). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cb56cd99fa15",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (previewCommitExport doc and Tovu commit-site.ts previewCommitExport doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "25d24f6298e6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (commitSiteToSourceControl doc (fresh export, never throws)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4f59cc9c20cf",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (\"wiring bug\" message and CommitSiteDeps.gitAdapter doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d2e35dafe73e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (text re-worded, present (bigram containment 0.81)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "dff6a6f9ba95",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (commitExportedFiles doc (map outcome, redact message)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e61439ec8875",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "6c6b2aef4d1f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (redactToken doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0ee6b4313dab",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/store.ts (the `fetchFn` test override was removed (owner decision: the probe goes only through the guarded httpClient); the new doc says so). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a6d5496f1ccc",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/store.ts (the `observability` dep of the probe was removed with `fetchFn`; the probe is one guarded httpClient request). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "eeac03fe89a8",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/tool-registrations.ts (`fetchFn` was replaced by `customCredentialsHttpClient`, documented there). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8fad497ff315",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (file header (\"read ports ... types only\")). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "dcb30f43de34",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4a7c9fca9b6d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "86e0cd4dfa97",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/sql/repo.rows.ts (text re-worded, present (bigram containment 0.84)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "9a351e2b4e68",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/ (term-repo.ts, taxonomy-repo.ts, entry-term-repo.ts, liveness.ts) (the repositories file header, split per repository). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "47d15b847a2c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/liveness.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "44b455582b40",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/taxonomy-repo.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "55f03e79a824",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a6a62576cd39",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d4a00a733851",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "39bbb034f26d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (ancestor-chain lookup doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a2b1df260d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a5f6ba8c355f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.87)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0dd117fa3df6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.83)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4b18f9f40e0b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f7e4f3b4e914",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.95)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c00c12d8606e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/tool-handlers.ts and Tovu apps/website/src/features/taxonomy/tool-registrations.ts (authorization-shape and confirm-first notes moved with the handlers; the host header keeps what is Tovu's). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "270c0dcf364f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/tool-handlers.ts (text re-worded, present (bigram containment 0.96)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d6a7aadfe702",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/web-screenshot/web-screenshot.ts (CAPTURE_LIMITS doc: `reserveMs` is held back so a page that loaded but never settled is still shot as it is). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "fed70294931b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/web-screenshot/web-screenshot.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "7d376fe6fbb1",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/agent-tools.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "632ecf3d73a6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/agent-tools.ts (text re-worded, present (bigram containment 0.87)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "34ec56afdbd9",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/cms/src/widgets/html/media-html.ts (\"temporary host placement until Jini dist is rebuilt\" was a transitional note; the file now lives in Jini and the policy description is in its header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "732d3b06d6de",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/html/media-html.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "2aefe2c0ef34",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.89)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bb8d7ec90cc2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "715d338b03b3",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8de87ab8728b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c4df0426471d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "08a10cea6d5c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "100f42bf46d0",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a0d6dfc97b8a",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "33e611133981",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d5485d8ffd45",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b68df76d1678",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bd28135a5e47",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.88)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4d36cd25ba15",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.areas.ts (placement-view resolver doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c607f228f8c9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.instances.ts (the trash handler doc (widgets.read vs widgets.delete split, fresh expectedVersion)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f8dce843e7ab",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.areas.ts (text re-worded, present (bigram containment 0.95)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "97aaf9de54f5",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e7407e739cca",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/workspace/sql/repo.ts (repository header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b45524d761ed",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/workspace/repo.memory.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8f102e6f4436",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/__tests__/console-tee.test.ts (the unterminated-last-line test moved with console-tee). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f97c2c529d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/console-tee.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e2a8de4c2ea6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/console-tee.ts (text re-worded, present (bigram containment 0.99)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "fff3493ebebb",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/local-text.ts (text re-worded, present (bigram containment 0.99)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3f7c9e7fa1c6",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/cms/src/comments/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/comments/agent-tools.ts:1."
+    },
+    {
+      "id": "e860f0bdbc80",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:1."
+    },
+    {
+      "id": "3f444ced7125",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:73."
+    },
+    {
+      "id": "5ec766eb4e8f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:164."
+    },
+    {
+      "id": "a80312ee46f8",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:178."
+    },
+    {
+      "id": "edc9f2808e2f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.98 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:188."
+    },
+    {
+      "id": "b1fbea9fc137",
+      "reason": "Moved or reworded, not lost: bigram containment 0.98 of this block's text in packages/cms/src/forms/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:5."
+    },
+    {
+      "id": "2fbf35f5f574",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/forms/tool-handlers.submissions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:204."
+    },
+    {
+      "id": "6a3f41445322",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/forms/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:294."
+    },
+    {
+      "id": "cd653e7ac3e0",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/forms/tool-handlers.submissions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:427."
+    },
+    {
+      "id": "03593a87f23f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.97 of this block's text in packages/cms/src/forms/duplicate-form.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:513."
+    },
+    {
+      "id": "c8ed91e4ba7d",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/forms/duplicate-form.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:538."
+    },
+    {
+      "id": "23243562d65e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/agent-tools.ts:92."
+    },
+    {
+      "id": "b0a14421ac7a",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/agent-tools.ts:115."
+    },
+    {
+      "id": "b9cd18b2a5c1",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/sql/entry-sql.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/entry-sql.ts:20."
+    },
+    {
+      "id": "9447a90011fa",
+      "reason": "Moved or reworded, not lost: bigram containment 0.88 of this block's text in packages/cms/src/trash/sql/table-adapter.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:78."
+    },
+    {
+      "id": "e11ea69baf32",
+      "reason": "Moved or reworded, not lost: bigram containment 0.83 of this block's text in packages/cms/src/trash/sql/table-adapter.rows.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:157."
+    },
+    {
+      "id": "1c40d0af78a2",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:218."
+    },
+    {
+      "id": "12c8ced364f7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.88 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:249."
+    },
+    {
+      "id": "e9db9cfdd9a2",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:261."
+    },
+    {
+      "id": "fb477c31b143",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:279."
+    },
+    {
+      "id": "ceb4f8b653bc",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/cms/src/trash/sql/table-adapter.purge.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:355."
+    },
+    {
+      "id": "ffe78c5d4ef9",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:2."
+    },
+    {
+      "id": "5a6afc1eec34",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in apps/website/src/features/database/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:28."
+    },
+    {
+      "id": "d121910859aa",
+      "reason": "Moved or reworded, not lost: bigram containment 0.84 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:48."
+    },
+    {
+      "id": "0ea8c4cd905b",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:75."
+    },
+    {
+      "id": "5ad1aa11da52",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:90."
+    },
+    {
+      "id": "f9192392bf4e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.85 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:127."
+    },
+    {
+      "id": "a1816b1c036d",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:167."
+    },
+    {
+      "id": "cb5fefd11e6f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:202."
+    },
+    {
+      "id": "a6ee3e8163e7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.96 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:4."
+    },
+    {
+      "id": "4d243213ec53",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:57."
+    },
+    {
+      "id": "98482c40a139",
+      "reason": "Moved or reworded, not lost: bigram containment 0.97 of this block's text in packages/cms/src/seo/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:68."
+    },
+    {
+      "id": "13bd0a4cbbbb",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:193."
+    },
+    {
+      "id": "ba95dc25aabb",
+      "reason": "Moved or reworded, not lost: bigram containment 0.89 of this block's text in packages/integrations/src/webhooks/tools/tool-views.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:92."
+    },
+    {
+      "id": "74801a46e84e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/integrations/src/webhooks/tools/tool-views.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:101."
+    },
+    {
+      "id": "f3440d14c214",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/integrations/src/webhooks/tools/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:172."
+    },
+    {
+      "id": "d966124e79c7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/diagnostics/src/observability/provider-contract.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/server/runtime/composition/provider-contracts.ts:12."
+    },
+    {
+      "id": "b40ba6da5a0c",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:4-18 (\"@file which admin sections the signed-in operator can use — the sideba...\")."
+    },
+    {
+      "id": "dfc9a6705bda",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:20-20 (\"the per-panel declaration `panels.tsx` carries....\")."
+    },
+    {
+      "id": "79fb5ed0868c",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:22-25 (\"permission ids, exactly as the panel's landing server route checks the...\")."
+    },
+    {
+      "id": "d9b191158ec8",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:29-29 (\"a panel as this module needs to see it: its id plus its declaration....\")."
+    },
+    {
+      "id": "b9ee0325bdee",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:34-42 (\"true when the operator may use `panel`. `permissions: undefined` means...\")."
+    },
+    {
+      "id": "0f4bdd7b7a71",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:53-63 (\"the sidebar nav with every row the operator cannot use removed. drops ...\")."
+    },
+    {
+      "id": "b8b700f966c8",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:80-86 (\"whether the routed panel may render, or the screen should say \"no acce...\")."
+    },
+    {
+      "id": "dda93e44226f",
+      "reason": "Edited in place by T1a (d995b35b): the reference to the deleted lib/panel-access.ts was replaced by @jini-ai/admin/core's isPanelAccessible/withoutInaccessiblePanels; the same statement is at apps/admin/src/panels.tsx:112-121 (TovuAdminPanel doc) and :461-462 (users any-of note). Was apps/admin/src/panels.tsx:113-118 (\"a tovu panel: jini's `adminpanel` plus `anyofpermissions`, the permiss...\")."
+    },
+    {
+      "id": "6278d3328128",
+      "reason": "Edited in place by T1a (d995b35b): the reference to the deleted lib/panel-access.ts was replaced by @jini-ai/admin/core's isPanelAccessible/withoutInaccessiblePanels; the same statement is at apps/admin/src/panels.tsx:112-121 (TovuAdminPanel doc) and :461-462 (users any-of note). Was apps/admin/src/panels.tsx:458-459 (\"any-of, matching `routes/users/list.ts`: the built-in admin role holds...\")."
+    },
+    {
+      "id": "22357ea57974",
+      "reason": "Edited in place by daemon-r7 (the lookup route reads its own 64 KB body now, no Express parser): the same doc, reworded for the route-data mount, is at apps/website/src/assistant/daemon-access.ts:64-67. Was apps/website/src/assistant/daemon-access.ts:63-67 (\"mounts the daemon's attachment lookup (the server's chat-attachment to...\")."
+    },
+    {
+      "id": "fbc2bb49b50c",
+      "reason": "Code moved to Jini by kt-k09-k10: DELIVERY_STATUS_MAX_LIMIT lives in Jini packages/cms/src/forms/delivery-status-limits.ts:1-2 with the neutral doc 'How many unfinished deliveries a delivery-status read lists at most' (engine text may not name the host tool `forms_delivery_status`, guard R5). Was apps/website/src/contracts/headless/form-delivery-status.ts:26-26 (\"`forms_delivery_status` lists at most this many unfinished deliveries ...\")."
+    },
+    {
+      "id": "a4c9628671a0",
+      "reason": "Code moved to Jini by kt-k03-k04 (comments catalog): COMMENT_ID_SCHEMA's doc is at Jini packages/cms/src/comments/agent-tools.ts:60, reworded to 'the moderation queue read' because engine text may not name the host tool `content_read.*` (guard R5). Was apps/website/src/features/comments/agent-tools.ts:60-60 (\"a comment's id, as returned by `content_read.comment_moderation_queue`...\")."
+    },
+    {
+      "id": "843a5277bde6",
+      "reason": "Code moved to Jini by kt-k07/su-cms-3 (the trash catalog is Jini packages/cms/src/trash/agent-tools.ts); its header there restates the list/restore ownership and per-call kinds rule without the Tovu design-of-record paths (engine neutrality), and the per-call rule is at Jini packages/cms/src/trash/tool-registrations.ts:222-226. Was apps/website/src/features/trash/agent-tools.ts:10-29 (\"@file the trash domain's agent-tool catalog (spec-016 req-22's naming/...\")."
+    },
+    {
+      "id": "c4f9ba17a832",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:1-29 (\"@file `createtabletrashadapter` — the one `trashadapter` implementatio...\")."
+    },
+    {
+      "id": "538f5c808930",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:68-75 (\"builds one `trashadapter` for a single {@link trashentry}. registered ...\")."
+    },
+    {
+      "id": "5c811799de22",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:238-239 (\"already trashed -- idempotent success, no write (mirrors `flipmarker`'...\")."
+    },
+    {
+      "id": "400716d5a6e0",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:297-306 (\"physically removes the row. never deletes a live row or its {@link tra...\")."
+    },
+    {
+      "id": "e6d75c32bc8d",
+      "reason": "Code moved to Jini (the catalog build moved with the trash registrations): the same 'built per call, a module-level catalog would freeze the entityType enum' why is at Jini packages/cms/src/trash/tool-registrations.ts:222-226. Was apps/website/src/features/trash/tool-registrations.ts:213-216 (\"built per call, from the kinds this call's registry actually holds (f6...\")."
+    },
+    {
+      "id": "99288f9343aa",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:6-19 (\"@file integrations' half of adr-049 decision 4: maps `agent-tools.ts`'...\")."
+    },
+    {
+      "id": "c7b6fc51b968",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:72-79 (\"bound on how many of a subscription's most recent deliveries are read ...\")."
+    },
+    {
+      "id": "13b19c9c3558",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:82-83 (\"default/cap for `webhooks_get_deliveries`' `limit` — duplicated from `...\")."
+    },
+    {
+      "id": "54277f7b7a52",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:256-258 (\"mirrors `create.ts`'s own dev-mode placeholder: this codebase has no p...\")."
+    },
+    {
+      "id": "fdaf0b1ea645",
+      "reason": "Behaviour changed by daemon-r7 (route sheet decision): a failing run store now reaches the host's error path on both routes (500) instead of the execution route's body-parser handler (400); the test and its comment were rewritten at lines 147-149 of the same file, which also record the old answer. Was apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-authorize-run.integration.test.ts:147-148 (\"recorded as it is: on the execution route the failure is passed to the...\")."
+    },
+    {
+      "id": "05eb54ad9ad0",
+      "reason": "Behaviour changed by daemon-r7 (route sheet decision): a failing run store now reaches the host's error path on both routes (500) instead of the execution route's body-parser handler (400); the test and its comment were rewritten at lines 147-149 of the same file, which also record the old answer. Was apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-authorize-run.integration.test.ts:152-152 (\"the catalog route has no error handler of its own, so the host's answe...\")."
+    },
+    {
+      "id": "732210fec640",
+      "reason": "Reworded in place (combine-4): the comment named Jini's two-argument resetNamespace API, which args-jini-core-mcp replaced by one required object carrying keysInNamespace; the adapter's doc at site-title-write.ts resetNamespace now says it hands that object through unchanged."
+    },
+    {
+      "id": "c16792653055",
+      "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
+    },
+    {
+      "id": "883eca02a27d",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "60eac92a1fca",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "11c850cbb0da",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "7a96406fba5b",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "0444257efa69",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "f275cab21d9b",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "c6222729ee95",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "d71873ec3ed1",
+      "reason": "tv-ext-u2 (U2a) deleted ConsoleMailerAdapter: dev console mail now goes through Jini's createConsoleMailProvider with the host preview callback; the class this documented no longer exists."
+    },
+    {
+      "id": "6bf2452d4ffc",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "145d473e5a09",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "790923855ce4",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "964cff67688d",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "0e38f7220067",
+      "reason": "tv-s7b (lost-update fix S7b) reversed the design this explained: the HTML route now takes the editor's expectedVersion and the store checks it in ensureHtmlFormat instead of capturing the basis with a separate read(); the replacement comments state the new contract."
+    },
+    {
+      "id": "2123d82eea01",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "0f7bb0702784",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "9ed2c4d209a6",
+      "reason": "tv-rf-d03 replaced this local LCOV parsing with @jini-ai/devops/checks/coverage; the helper/field this documented no longer exists in Tovu."
+    },
+    {
+      "id": "74d5c9974f20",
+      "reason": "tv-dx-dock split AssistantDock.hooks.tsx into modules and removed the re-export of resolveComposerDiscoveryOutcome from AssistantDock.tsx (owner rule: no re-export shells); this comment only explained that re-export."
+    },
+    {
+      "id": "d468ddd99b43",
+      "reason": "tv-ex-hw removed the in-file fake roles store (hardwiring sheet A); the fixture helper this documented no longer exists."
+    },
+    {
+      "id": "6f5a1496bc11",
+      "reason": "tv-ex-err changed plainUpdateError's contract (operation-specific guidance, diagnostics redacted into copy details) and rewrote its doc to say so."
+    },
+    {
+      "id": "f59c5e000434",
+      "reason": "tv-ex-err replaced the bare console line with redacted reportServerFailure diagnostics; the new doc states the new contract."
+    },
+    {
+      "id": "d8268eba1aed",
+      "reason": "Owner decision (combine-6): a batch reports per-item results, so 'execution failures stop subsequent items' no longer holds; the rewritten comment beside the test states the per-item contract."
+    },
+    {
+      "id": "8e606356c11e",
+      "reason": "Whole file apps/admin/src/lib/__tests__/visible-interval.unit.test.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "432a48c49d0e",
+      "reason": "Whole file apps/admin/src/lib/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ef56a6202bce",
+      "reason": "Whole file apps/admin/src/lib/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "32819620499d",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7cbcba5f5448",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a5c5b6e45971",
+      "reason": "Whole file apps/desktop/src/keyed-serializer.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "3866b9a646a9",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4113cecd4c9b",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b4227a85d894",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a069ce5c6dea",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "42cfa2114168",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "28e5f1b76b4e",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "6a0e26917cfa",
+      "reason": "Whole file apps/desktop/src/main/windows/last-window-quit.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b4626e9c71b7",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.boundaries.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bc04123ad267",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4501817adaf3",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.test.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4db449b31f17",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4de61ea4272a",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b8807589390b",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4f5763c118c0",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "37258bfa7449",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "56f009712577",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "160f1eb87dd9",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e764748e85d2",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "266d6495998b",
+      "reason": "Whole file apps/desktop/src/project-delete-guard.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "68f57373b239",
+      "reason": "Whole file apps/desktop/src/renderer/persistable-messages.ts deleted by 41c13f3ae (refactor(extraction): desktop Tovu halves repoint to the new Jini owne…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c0e6c9e7d3ae",
+      "reason": "Whole file apps/desktop/src/renderer/visible-interval.test.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4cb412e456a4",
+      "reason": "Whole file apps/desktop/src/renderer/visible-interval.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "458cae8dd734",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "98a72b2c125c",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "cd7ebf512d2c",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ac3786c58869",
+      "reason": "Whole file apps/desktop/src/site-history-menu.ts deleted by 33c81690e (refactor(desktop): extraction round 4 Tovu half — L10b.1, L10b.2, L8b.…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "5d9b75eec706",
+      "reason": "Whole file apps/desktop/src/site-preview-scheduler.ts deleted by f6074b50b (refactor(desktop): extraction round 3 Tovu half — L6b, L8a, L9a, L10a …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "244e6322cc7e",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4c1c6a672689",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a7a860dc5650",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e9ac607a5ea0",
+      "reason": "Whole file apps/desktop/src/site-process-registry.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "dd7d07574405",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "42016e99a4fe",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7beeb7e63ad7",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "06d04055429d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b64dc1ff9298",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4efa4fefb065",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "75dfebecaa75",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f6f66c9c4cb1",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a34104134c47",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "fdc811233990",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b285ebe4e062",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "997cd261e7e5",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4bb479351e79",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "21a710e7958b",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "57fb83788f33",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c34752970a6a",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "eade7655f91d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e4a4d98ecc11",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "8884b5002dc7",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "db4ada4310a5",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e82e20d6c00d",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "93e0150f5614",
+      "reason": "Whole file apps/desktop/src/site-process-registry.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "396287224c6d",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "98e5da60539b",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "43624049de0b",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b3eed0313cbb",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e0b693478b30",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "2ae36b6e4a49",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "4a801bf73f86",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ab2a51e687aa",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c1bf19205871",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ae324bb1ffff",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "732ee0894081",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7f8043c8bab9",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ebb29bb8bc53",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "69f535a99a03",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "aeaf6078b66d",
+      "reason": "Whole file apps/desktop/src/site-relocation.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "754c6adb6ec7",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "87e86d3c3259",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "9a175b600d07",
+      "reason": "Whole file apps/desktop/src/site-supervisor.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "db54e995d12c",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "784d163c0ead",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "54a8686db035",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "13cc08b24efa",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f6e9c2afaf88",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "f28651874caa",
+      "reason": "Whole file apps/desktop/src/site-supervisor.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bb78a84c5507",
+      "reason": "Whole file apps/desktop/src/site-transitions.test.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7d9b531206ea",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "e268e289414f",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "0fb085e5f41b",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "d9596dfc2d14",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "cc7727d64c76",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "381400c806d3",
+      "reason": "Whole file apps/desktop/src/site-transitions.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "20a4262a2a78",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "6a874776517e",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "514045b460b9",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "b011e2309d26",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "95b755fff798",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "95efea6e29c0",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a67cecada307",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "87af27f187c5",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "fa584bfbb1de",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "a1a52f21b461",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "ad0b1d288d60",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "7be6040e327d",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c5983b754b47",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "917f36ead99e",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "2e3bfbbf8777",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "9a5c2afc3cae",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "dc32760fae2a",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "187fd7223063",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "03467d76e87c",
+      "reason": "Whole file apps/desktop/src/tovu-server.start.ts deleted by 1f6b88199 (refactor(extraction): desktop round-2 Tovu halves repoint to Jini and …): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "c6610572df14",
+      "reason": "Whole file apps/website/src/contracts/core/expand-partials.ts deleted by 3057963c4 (refactor(cms): planned extraction Tovu half — S8b-T expand-partials on…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "bb5d887ff4f9",
+      "reason": "Whole file apps/website/src/contracts/core/expand-partials.ts deleted by 3057963c4 (refactor(cms): planned extraction Tovu half — S8b-T expand-partials on…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "adcf423bba41",
+      "reason": "Whole file apps/website/src/platform/db/repos/entry-refs-repo.ts deleted by 6adc57a1e (refactor(cms): planned extraction Tovu halves — S8a-T entry-refs repo,…): the module moved to its Jini owner, whose copy carries the code this comment explained (combine-6)."
+    },
+    {
+      "id": "51db73d688d5",
+      "reason": "89cb9bd72 removed tryLocalOwnerSession from apps/admin/src/lib/local-owner-signin.ts when session bootstrap moved to @jini-ai/user-management/session-bootstrap."
+    },
+    {
+      "id": "22e7b0c19eef",
+      "reason": "bee1daa56 removed AppDataRoot from apps/desktop/src/desktop-user-data-dir.ts when platform path resolution moved to @jini-ai/platform/fs resolveElectronUserDataDir."
+    },
+    {
+      "id": "36de48cea8eb",
+      "reason": "bee1daa56 removed APP_DATA_ROOTS from apps/desktop/src/desktop-user-data-dir.ts when platform path resolution moved to @jini-ai/platform/fs resolveElectronUserDataDir."
+    },
+    {
+      "id": "27bb725d1031",
+      "reason": "41c13f3ae removed MayEraseRowLike from apps/desktop/src/project-ipc.ts when the Jini directory guard began receiving a row projection instead of the indexed-row cast."
+    },
+    {
+      "id": "fbec91029aa6",
+      "reason": "33c81690e removed scrollScript from apps/desktop/src/renderer/use-live-views.hooks.ts when scroll restoration moved to @jini-ai/ui/core."
+    },
+    {
+      "id": "4e1d0a812556",
+      "reason": "f6074b50b removed DesktopState from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "2921530d24b9",
+      "reason": "f6074b50b removed RecentSiteDirsRead from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "40f56c3cf26b",
+      "reason": "f6074b50b removed readDesktopState from apps/desktop/src/site-dir-store.ts in favor of @jini-ai/platform/fs readRecentDirectories."
+    },
+    {
+      "id": "84319db18c75",
+      "reason": "f6074b50b removed readRecentSiteDirs from apps/desktop/src/site-dir-store.ts when MRU persistence moved to @jini-ai/platform/fs."
+    },
+    {
+      "id": "b99ee7a1930d",
+      "reason": "f6074b50b removed writeDesktopState from apps/desktop/src/site-dir-store.ts in favor of @jini-ai/platform/fs rememberRecentDirectory."
+    },
+    {
+      "id": "bc61b72b9714",
+      "reason": "1f6b88199 removed stopChild from apps/desktop/src/tovu-server.ts in favor of @jini-ai/sidecar/supervisor/node stopSpawnedChild."
+    },
+    {
+      "id": "57aa4f2850bf",
+      "reason": "1f6b88199 removed stopChild's bounded post-kill exit wait from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "46650d93b7c4",
+      "reason": "1f6b88199 removed both stopChild and killWin32Tree pid guards from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "65257357f9c0",
+      "reason": "1f6b88199 removed stopChild's signal-error handling from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "efa78b7ad396",
+      "reason": "1f6b88199 removed stopChild's stdin EPIPE listener from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "74dcc3e0b6a2",
+      "reason": "1f6b88199 removed stopChild's polite-signal failure handling from apps/desktop/src/tovu-server.ts when child stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "709364573242",
+      "reason": "1f6b88199 removed killWin32Tree from apps/desktop/src/tovu-server.ts when Windows tree stopping moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "c9f13194f0d4",
+      "reason": "1f6b88199 removed ExitOutcome from apps/desktop/src/tovu-server.ts when replayable exit signals moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "88048911625b",
+      "reason": "1f6b88199 removed ExitSignal from apps/desktop/src/tovu-server.ts when replayable exit signals moved to @jini-ai/sidecar/supervisor/node."
+    },
+    {
+      "id": "97b5740a6741",
+      "reason": "1f6b88199 removed createExitSignal from apps/desktop/src/tovu-server.ts in favor of @jini-ai/sidecar/supervisor/node createChildExitSignal."
+    },
+    {
+      "id": "cfa0c6adefc1",
+      "reason": "b17df641c moved the two credential-port implementations and their parsing out of apps/website/src/assistant/byok-credential.ts into @jini-ai/agent-runtime/providers/credentials; only the stored-row binding remains."
+    },
+    {
+      "id": "b1d1dc53c1e9",
+      "reason": "b17df641c removed RequestSuppliedByokConfig from apps/website/src/assistant/byok-credential.ts in favor of @jini-ai/agent-runtime/providers/credentials RequestSuppliedProviderConfig."
+    },
+    {
+      "id": "d99c8565d488",
+      "reason": "b17df641c removed ExecutionCredentialPort.resolve from apps/website/src/assistant/byok-credential.ts in favor of the port in @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "430fb7be79f6",
+      "reason": "b17df641c removed parseRequestSuppliedCredential from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "720d123d9049",
+      "reason": "b17df641c removed parseByokProtocol from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "cd90857a73cb",
+      "reason": "b17df641c removed parseByokRequiredString from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "0bdc65d437bb",
+      "reason": "b17df641c removed parseByokOptionalString from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "0cd92a0b9d77",
+      "reason": "b17df641c removed parseByokMaxTokens from apps/website/src/assistant/byok-credential.ts when credential parsing moved to @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "eeb1e313c704",
+      "reason": "b17df641c removed createRequestSuppliedExecutionCredentialPort from apps/website/src/assistant/byok-credential.ts in favor of @jini-ai/agent-runtime/providers/credentials."
+    },
+    {
+      "id": "f8ba5eeedccb",
+      "reason": "32278af79 removed readAllStdin from apps/website/src/cli/commands/agent-plugin-tokens.ts in favor of @jini-ai/cli readStreamText through stdin-input.ts."
+    },
+    {
+      "id": "37fbcdfa7d14",
+      "reason": "32278af79 removed the non-TTY first-line parser from apps/website/src/cli/commands/init.ts in favor of @jini-ai/cli readQuietLine."
+    },
+    {
+      "id": "ac925850157a",
+      "reason": "6adc57a1e removed trashItemToolDefinition from apps/website/src/features/trash/trash-item-tool.ts when catalog construction moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "8cdf4b6e28b8",
+      "reason": "6adc57a1e removed the sideEffects declaration from apps/website/src/features/trash/trash-item-tool.ts when catalog construction moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "a882923cbcf3",
+      "reason": "6adc57a1e removed moveToTrashOutcomeToError from apps/website/src/features/trash/trash-item-tool.ts in favor of @jini-ai/cms/trash."
+    },
+    {
+      "id": "bffe74e746cb",
+      "reason": "6adc57a1e removed handlerByEntityType construction from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "900abae35b09",
+      "reason": "6adc57a1e removed the generic registry-handler loop from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "32c6978434b5",
+      "reason": "6adc57a1e removed the live kind-handler lookup and admission check from apps/website/src/features/trash/trash-item-tool.ts when registration dispatch moved to @jini-ai/cms/trash."
+    },
+    {
+      "id": "cb69bc055911",
+      "reason": "32278af79 removed DeliverySourceGoneError from apps/website/src/server/runtime/composition/form-delivery.ts in favor of Jini planFormDeliveries with onSourceGone: empty-plan."
+    },
+    {
+      "id": "a9a54593565f",
+      "reason": "32278af79 removed emptyPlanWhenGone from apps/website/src/server/runtime/composition/form-delivery.ts in favor of Jini planFormDeliveries with onSourceGone: empty-plan."
+    },
+    {
+      "id": "db9d36b21846",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/rules.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d3a8bddfd8cb",
+      "reason": "Moved to Jini packages/ui/src/features/site-card/rules.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cb0e1c467894",
+      "reason": "Moved to Jini packages/ui/src/browser/useMenuKeyboard.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9f868f4c29af",
+      "reason": "Moved to Jini packages/ui/src/features/tab-strip/scrollable.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e681aaa71b93",
+      "reason": "Moved to Jini packages/ui/src/features/tab-strip/scrollable.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "879f8dd7468d",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "328e541fdabf",
+      "reason": "Moved to Jini packages/agentic/src/core/render-surface.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "45f5a7a5cc27",
+      "reason": "Moved to Jini packages/agent-runtime/src/native-permissions.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d9fdc7b543e7",
+      "reason": "Moved to Jini packages/core/src/contracts/server/security-headers.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "5ca31f7549c7",
+      "reason": "Moved to Jini packages/cms/src/forms/html/import-remote-submissions.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "74c8feb556f3",
+      "reason": "Moved to Jini packages/cms/src/forms/html/import-remote-submissions.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7f10d8265161",
+      "reason": "Moved to Jini packages/cms/src/media/guard-rendition-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4f4c01fc9216",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "ecd2124ceeeb",
+      "reason": "Moved to Jini packages/cms/src/media/versioned-repo.ts (Tovu 067a60db52); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "cfbcdfe1b858",
+      "reason": "Moved to Jini packages/cms/src/navigation/menu-render.ts (Tovu 12d16bbdd0); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c450fd6a1d38",
+      "reason": "Moved to Jini packages/plugins/src/host/admin-response.ts (Tovu cb609baa0b); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e865132e1e23",
+      "reason": "Moved to Jini packages/cms/src/media/cover-image.ts (Tovu 7e2422ef1d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "83076738478d",
+      "reason": "Moved to Jini packages/cms/src/media/cover-image.ts (Tovu 7e2422ef1d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "86ef2753ba62",
+      "reason": "Moved to Jini packages/cms/src/publish/transfer/file-blob-index.ts (Tovu 7e5c158ca6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "623b5c8f18f1",
+      "reason": "Moved to Jini packages/devops/src/backup/upload.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9862d040f102",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/render-entry.ts (Tovu dcf867ebf9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6108d66daf5f",
+      "reason": "Moved to Jini packages/cms/src/taxonomy/trash-term.ts (Tovu dcf867ebf9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "29b3aa3aaf1d",
+      "reason": "Moved to Jini packages/cms/src/listing/entry-list.ts (Tovu f54179c73f); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6ec2ad6f6260",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "177b981d1af5",
+      "reason": "Moved to Jini packages/cms/src/themes/files/atomic-write.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "75583b54283e",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "71e11ad716e2",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "43d7ee054639",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a3f2213ef6ef",
+      "reason": "Moved to Jini packages/cms/src/themes/files/original-source.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4e1fc892e648",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "5080e4f4933a",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "a35e2b245fe0",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7b8bb3c9d66e",
+      "reason": "Moved to Jini packages/cms/src/themes/files/moves.node.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "35ea669cdcf3",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6eb6a7e769b4",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9cbe60c630dd",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "6dc8112891e8",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d218a46d5d55",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "298277b3e358",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f8123b7f667d",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "192b335c11e5",
+      "reason": "Moved to Jini packages/cms/src/themes/layout.ts (Tovu a72c714e75); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b61c8842889f",
+      "reason": "Moved to Jini packages/cms/src/themes/files/read-content.node.ts (Tovu 23c00b5bc9); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "86f80ac2e3f9",
+      "reason": "Moved to Jini packages/cms/src/themes/files/trash.node.ts (Tovu 7167a14396); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "634861eb81a8",
+      "reason": "Moved to Jini packages/cms/src/themes/preview/watcher.node.ts (Tovu 7167a14396); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "95b726d71bbb",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8e0a55510d8a",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "927018844f6b",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "d273645bbbbf",
+      "reason": "Moved to Jini packages/cms/src/forms/sql/form-delivery-repo.ts (Tovu 64b0048ed6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "eb9b41a2742f",
+      "reason": "Moved to Jini packages/cms/src/html/style-values.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "397480fdce87",
+      "reason": "Moved to Jini packages/cms/src/html/style-values.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "76fd803c61d4",
+      "reason": "Moved to Jini packages/chat/src/core/ag-ui/__tests__/translation.test.ts (Tovu 7e5c158ca6); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "038c885e4ba2",
+      "reason": "Moved to Jini packages/http-kit/src/range.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1c15dcf52ed3",
+      "reason": "Moved to Jini packages/cms/src/content-types/write-error-status.ts (Tovu 7c4818ea6d); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8650fc45d097",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "b18cf7364a1e",
+      "reason": "Moved to Jini packages/cms/src/forms/express/handler.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "956bf5c68c23",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "32f60f8a424b",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "c739f0d1c126",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "174ed7288b01",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "339e301d88bf",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1f197cf423c9",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "09622bb7ce98",
+      "reason": "Moved to Jini packages/cms/src/forms/result-html.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fd787b063472",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "8d649be99023",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "90d68fe08eb1",
+      "reason": "Moved to Jini packages/cms/src/forms/form-controls.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9420ae4f8e47",
+      "reason": "Moved to Jini packages/cms/src/forms/validation-messages.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e50cc74eabd8",
+      "reason": "Moved to Jini packages/cms/src/presentation/page-head.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "72f2fd50b298",
+      "reason": "Moved to Jini packages/cms/src/seo/types.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "9511cd15c255",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "39b49da63b49",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2eebf52dfcc3",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "73a8429a5e8e",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "0068b978c6d4",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4f56b7ce82fc",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4d36335f9217",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "4cf240e8b7a8",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-attributes.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "e77256fe3895",
+      "reason": "Moved to Jini packages/cms/src/widgets/document-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "482f08c9b7d1",
+      "reason": "Moved to Jini packages/cms/src/html/document-marks.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "7d5e9fabc75b",
+      "reason": "Moved to Jini packages/cms/src/widgets/media-tags.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "061a78b8d799",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "760caa2a47ec",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "fa3855031ce9",
+      "reason": "Moved to Jini packages/cms/src/html/text-layout.ts (Tovu 900ba1e7d4); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "1e2e76c28ba6",
+      "reason": "Moved to Jini packages/cms/src/presentation/html.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "265b99022e12",
+      "reason": "Moved to Jini packages/cms/src/presentation/html.ts (Tovu e9dcd5df5c); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "2166b1492dae",
+      "reason": "Moved to Jini packages/cms/src/navigation/menu-render.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "87725fda854f",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "533817c1aa76",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "171bc374b761",
+      "reason": "Moved to Jini packages/cms/src/listing/request-state.ts (Tovu af7ba5ab0e); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "bae0fa01121d",
+      "reason": "Moved to Jini packages/cms/src/widgets/content-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "f3ea2058f2f7",
+      "reason": "Moved to Jini packages/cms/src/widgets/content-markers.ts (Tovu 16c1875098); the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "554c2ea02b01",
+      "reason": "code deleted by R8b step 6"
+    },
+    {
+      "id": "e2f8783dbd23",
+      "reason": "code deleted by R8b step 6"
+    }
+  ]
+}

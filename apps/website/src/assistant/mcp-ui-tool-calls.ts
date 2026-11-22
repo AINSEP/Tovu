@@ -16,7 +16,7 @@ import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
  * "worse than no gate" outcome ADR-053's Context section names for a confirmation the model can
  * route around. This module is that allowlist, shared by both halves of the redemption path (the
  * daemon-side execution route and Tovu's session-authenticated proxy in front of it — see
- * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
+ * `mcp-ui-tool-calls-route.ts` and `apps/website/src/server/runtime/composition/modules/assistant.ts`) so the two cannot drift apart.
  */
 
 // This host callback policy recognizes the wire namespace without loading federation clients
@@ -47,7 +47,7 @@ export { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from '@ji
  * @complexity O(1) — a `Set` lookup.
  * @overallScore 100
  */
-export function isMcpUiToolCallAllowed(toolName: string): boolean {
+export function isMcpUiToolCallAllowed({ toolName }: { toolName: string }, _optional = {}): boolean {
   return MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName);
 }
 
@@ -67,7 +67,7 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  *
  * @complexity O(1).
  */
-export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean, { typedAnswer = false }: { typedAnswer?: boolean } = {}): boolean {
+export function isMcpUiToolCallPermitted({ toolName, answersAnExchange }: { toolName: string; answersAnExchange: boolean }, { typedAnswer = false }: { typedAnswer?: boolean } = {}): boolean {
   // Only choice cards accept composer text. A typed marker cannot authorize a secret submission,
   // even when the caller also supplies a valid exchange id.
   // Form secrets must reach a parked handler, never a fresh tool execution or its input audit.

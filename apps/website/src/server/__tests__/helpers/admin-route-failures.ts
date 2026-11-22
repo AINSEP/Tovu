@@ -4,6 +4,7 @@ import test from 'node:test';
 import express from 'express';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { createCapturingResponse, type DirectInvokeCapture } from '#src/server/__tests__/helpers/http-test-server';
+import { unwrapRouteHandle } from '#src/server/__tests__/helpers/unwrap-route-handle';
 import { createRouteDeps } from '#src/server/runtime/composition/app';
 
 /** Shared admin-route failure fixture: authorization errors, denied grants and workspace isolation. */
@@ -14,7 +15,7 @@ export const INTERNAL_CODE = { ...INTERNAL, code: 'INTERNAL_ERROR' };
 export const allowed = async () => ({ allowed: true, reason: 'matched' });
 export const limiter = { check: async () => ({ allowed: true as const }) };
 export type Deps = ReturnType<typeof createRouteDeps>;
-export type Register = (app: express.Express, deps: Deps) => void;
+export type Register = (required: { app: express.Express; deps: Deps }, optional?: Record<string, never>) => void;
 
 // Reuse the composition's in-memory ports and the existing native HTTP dispatcher.
 // Scenario overrides replace only the boundary whose failure or input is under test.
@@ -22,7 +23,7 @@ export function fixture(register: Register, overrides: Record<string, unknown> =
   const deps = { ...createRouteDeps(), authorize: allowed, ...overrides } as Deps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  register(app, deps);
+  register({ app, deps });
   return { deps, app };
 }
 
@@ -96,6 +97,6 @@ export async function invokeRouteDirectly(
   // Some routes set response headers before their workspace check (e.g. media text's cache policy);
   // accept them so the guard under test, not a missing `res.set`, decides the response.
   Object.assign(res, { set: () => res });
-  await handler.handle(req, res);
+  await unwrapRouteHandle(handler.handle)(req, res);
   return capture;
 }

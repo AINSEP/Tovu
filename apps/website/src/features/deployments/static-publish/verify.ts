@@ -1,13 +1,14 @@
-import { assertCredentialToken, CredentialInputError } from '../../../contracts/core/credential-token.js';
-import { credentialText } from '../../../contracts/core/credential-copy.js';
+import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
+import { credentialText } from '@tovu/contracts/credential-copy';
 import type { UUID } from "@jini-ai/core/primitives";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
-import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
+import type { DeployCredentialCheck, DeployTargetCredentialSpec, DeployTargetRegistry  } from "../deploy-targets/types.js";
+import type { PluginDeployHostKit as DeployHostKit, DeployTargetCredential } from "@jini-ai/devops/deploy";
 import { resolveForPublish } from "../publish-credentials/store.js";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
@@ -61,26 +62,26 @@ const VERIFY_TIMEOUT_MS = 10_000;
  *
  * @complexity O(1) — one registry lookup.
  */
-export function canYieldAccountLabel(registry: DeployTargetRegistry, target: StaticPublishTargetId): boolean {
+export function canYieldAccountLabel({ registry, target }: { registry: DeployTargetRegistry; target: StaticPublishTargetId }, _optional: Record<string, never> = {}): boolean {
   return registry.get(target)?.descriptor.credential?.yieldsAccountLabel === true;
 }
 
 /** The optional `(HTTP <code>)` suffix shared by both failure messages in {@link buildVerificationMessage}. */
-function statusCodeSuffix(statusCode: number | undefined): string {
+function statusCodeSuffix({ statusCode }: { statusCode: number | undefined }, _options = {}): string {
   return statusCode ? ` (HTTP ${statusCode})` : "";
 }
 
 /** Human-facing text for one check outcome — built centrally (not per module) so every host's
  *  wording stays consistent. Never includes the credential, a raw response body, or any
  *  request/account detail beyond a bare HTTP status. */
-function buildVerificationMessage(label: string, check: DeployCredentialCheck): string {
+function buildVerificationMessage({ label, check }: { label: string; check: DeployCredentialCheck }, _options = {}): string {
   if (check.ok) return `${label} accepted this credential.`;
   if (check.statusCode === 401 || check.statusCode === 403) return credentialText({ id: "auth" });
   if (check.statusCode === 408 || check.statusCode === 504) return credentialText({ id: "timeout" });
   if (check.reason === "rejected") {
-    return `${label} rejected this credential${statusCodeSuffix(check.statusCode)} — it is invalid, expired, or missing the required permissions.`;
+    return `${label} rejected this credential${statusCodeSuffix({ statusCode: check.statusCode })} — it is invalid, expired, or missing the required permissions.`;
   }
-  return `Could not reach ${label} to verify this credential${statusCodeSuffix(check.statusCode)} — this does not necessarily mean the credential is bad.`;
+  return `Could not reach ${label} to verify this credential${statusCodeSuffix({ statusCode: check.statusCode })} — this does not necessarily mean the credential is bad.`;
 }
 
 /** One cached verification outcome. Never carries the credential, its ciphertext, or any raw
@@ -168,7 +169,7 @@ function noCheckReason(target: StaticPublishTargetId): string {
 
 /** An `unreachable` result for a credential nothing here could check (no module, no check, or a saved
  *  row missing its token field): not `invalid`, since no host said so. */
-function cannotVerify(reason: string, clock: { nowIso(): string }): PublishCredentialVerificationResult {
+function cannotVerify({ reason, clock }: { reason: string; clock: { nowIso(): string } }, _options = {}): PublishCredentialVerificationResult {
   return { status: "unreachable", message: `Could not verify this credential: ${reason}.`, checkedAt: clock.nowIso() };
 }
 
@@ -201,12 +202,15 @@ function verificationStatus({ check }: { check: DeployCredentialCheck }, _option
  * @complexity O(1) — one registry lookup plus the module's one bounded request.
  */
 async function computeVerificationResult(
-  context: VerificationContext,
-  target: StaticPublishTargetId,
-  credential: DeployTargetCredential
+  { context, target, credential }: {
+    context: VerificationContext;
+    target: StaticPublishTargetId;
+    credential: DeployTargetCredential;
+  },
+  _options = {},
 ): Promise<PublishCredentialVerificationResult> {
   const loaded = context.registry.get(target);
-  if (loaded?.module.verifyCredential === undefined) return cannotVerify(noCheckReason(target), context.clock);
+  if (loaded?.module.verifyCredential === undefined) return cannotVerify({ reason: noCheckReason(target), clock: context.clock });
   try {
     assertVerificationCredential({ credential, spec: loaded.descriptor.credential });
   } catch (error) {
@@ -218,10 +222,16 @@ async function computeVerificationResult(
   } catch {
     check = { ok: false, reason: "unreachable" };
   }
+  return checkedVerificationResult({ context, loaded, check });
+}
+
+function checkedVerificationResult({ context, loaded, check }: {
+  context: VerificationContext; loaded: NonNullable<ReturnType<DeployTargetRegistry["get"]>>; check: DeployCredentialCheck;
+}): PublishCredentialVerificationResult {
   const status = verificationStatus({ check });
   return {
     status,
-    message: buildVerificationMessage(loaded.descriptor.credential?.vendorLabel ?? loaded.descriptor.label, check),
+    message: buildVerificationMessage({ label: loaded.descriptor.credential?.vendorLabel ?? loaded.descriptor.label, check }),
     checkedAt: context.clock.nowIso(),
     ...(check.ok && check.accountLabel !== undefined ? { accountLabel: check.accountLabel } : {}),
   };
@@ -235,7 +245,7 @@ export interface VerifyPublishCredentialDeps {
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
   /** This workspace's deploy registry: whose module checks the credential. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
   /** Injected by tests; defaults to global `fetch`. Never the DB-scoped `fetchFn` itself. */
   readonly fetchFn?: typeof fetch;
   /** Replaces the whole kit (tests); `fetchFn` is ignored when set. */
@@ -270,8 +280,8 @@ export async function verifyPublishCredential(
     return null;
   }
 
-  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
-  const result = await computeVerificationResult(context, input.target, toDeployTargetCredential(resolved));
+  const context = { registry: await deps.loadDeployTargets({ workspaceId: input.workspaceId }), kit: verificationKit(deps), clock: deps.clock };
+  const result = await computeVerificationResult({ context, target: input.target, credential: toDeployTargetCredential(resolved) });
   deps.cache.set(input, result);
   return result;
 }
@@ -283,7 +293,7 @@ export interface VerifyPublishCredentialByIdDeps {
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
   /** This workspace's deploy registry: which saved field is the token, and whose module checks it. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
   readonly fetchFn?: typeof fetch;
   readonly hostKit?: DeployHostKit;
   readonly observability?: ObservabilityPort;
@@ -319,12 +329,12 @@ export async function verifyPublishCredentialById(
   const resolved = await resolveForPublish(deps, input);
   if (!resolved) return null;
 
-  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
+  const context = { registry: await deps.loadDeployTargets({ workspaceId: input.workspaceId }), kit: verificationKit(deps), clock: deps.clock };
   const spec = context.registry.get(resolved.providerId)?.descriptor.credential;
   const projected = spec === undefined ? undefined : projectConnectionForPublish(resolved.connection, spec);
   const result = projected?.ok
-    ? await computeVerificationResult(context, resolved.providerId, toDeployTargetCredential(projected))
-    : cannotVerify(projected?.reason ?? noCheckReason(resolved.providerId), deps.clock);
+    ? await computeVerificationResult({ context, target: resolved.providerId, credential: toDeployTargetCredential(projected) })
+    : cannotVerify({ reason: projected?.reason ?? noCheckReason(resolved.providerId), clock: deps.clock });
   if (resolved.isDefault) {
     deps.cache.set({ workspaceId: input.workspaceId, target: resolved.providerId }, result);
   }
@@ -341,7 +351,7 @@ export async function verifySubmittedPublishCredential({ deps, workspaceId, targ
   workspaceId: string; target: string; connection: Parameters<typeof projectConnectionForPublish>[0]; spec: DeployTargetCredentialSpec;
 }, _options = {}): Promise<PublishCredentialVerificationResult> {
   const projected = projectConnectionForPublish(connection, spec);
-  if (!projected.ok) return cannotVerify('the submitted connection is incomplete', deps.clock);
-  const registry = await deps.loadDeployTargets(workspaceId);
-  return computeVerificationResult({ registry, kit: verificationKit(deps), clock: deps.clock }, target, toDeployTargetCredential(projected));
+  if (!projected.ok) return cannotVerify({ reason: 'the submitted connection is incomplete', clock: deps.clock });
+  const registry = await deps.loadDeployTargets({ workspaceId });
+  return computeVerificationResult({ context: { registry, kit: verificationKit(deps), clock: deps.clock }, target, credential: toDeployTargetCredential(projected) });
 }

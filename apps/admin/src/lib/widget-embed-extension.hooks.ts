@@ -1,7 +1,10 @@
+import { t as translateForWidgetEmbed } from "../app-i18n";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import { api, describeApiError, type AdminWidget } from "./api";
+import type { AdminWidget } from "../features/widgets/api/widgets-api.types";
+import { widgetsApi } from "../features/widgets/api/widgets-api";
+import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "./widget-embed-placement-content";
@@ -26,18 +29,18 @@ type WidgetPickerDialogProps = ComponentProps<typeof WidgetPickerDialog>;
 export interface WidgetEmbedChangeDialog {
   widgetType: WidgetPickerDialogProps["widgetType"];
   /** Points the node at an existing widget and closes the dialog. */
-  onUseExisting: WidgetPickerDialogProps["onUseExisting"];
+  onUseExisting: (required: { id: string }, optional?: Record<string, never>) => void;
   /** Creates a widget of the current type, then points the node at it. A failed create alerts the
    *  describable error and leaves the node (and the open dialog) untouched. */
-  onCreateNew: WidgetPickerDialogProps["onCreateNew"];
+  onCreateNew: (required: { title: string; config: Record<string, unknown> }, optional?: Record<string, never>) => void;
   onCancel: WidgetPickerDialogProps["onCancel"];
 }
 
 /** The Style dialog's "Content for this spot" draft — only for media/gallery widgets. */
 export interface WidgetEmbedPlacementContent extends PlacementContentDraft {
   widgetType: string;
-  setCustom: (custom: boolean) => void;
-  setContent: (content: Record<string, unknown>) => void;
+  setCustom: (required: { custom: boolean }, optional?: Record<string, never>) => void;
+  setContent: (required: { content: Record<string, unknown> }, optional?: Record<string, never>) => void;
 }
 
 /** Everything `WidgetEmbedNodeView` renders from. */
@@ -71,7 +74,7 @@ export interface WidgetEmbedNodeViewController {
    *  never exposes) and closes it — same shape as `media-embed-extension.hooks.ts`'s `saveEdit`.
    *  For a media/gallery widget it also writes `content` (the override, or `null` for "Use the
    *  widget's content"); for any other type `content` is left exactly as it was. */
-  saveStyle: (value: MediaEditDialogValue) => void;
+  saveStyle: (value: MediaEditDialogValue, optional?: Record<string, never>) => void;
   /** Non-`null` while the Style dialog is open for a media/gallery widget — the per-placement
    *  content override (mediawidget contract) the dialog renders below the style fields. */
   placementContent: WidgetEmbedPlacementContent | null;
@@ -87,17 +90,17 @@ export interface WidgetEmbedNodeViewController {
  */
 export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeViewController {
   const { widgetEntryId, placementId, cssClass, htmlAttributes } = widgetEmbedAttrs(props.node.attrs);
-  const { widget, isBroken } = useResolvedWidget(widgetEntryId);
+  const { widget, isBroken } = useResolvedWidget({ widgetEntryId });
   const [changing, setChanging] = useState(false);
   const [styling, setStyling] = useState(false);
   const [placementDraft, setPlacementDraft] = useState<PlacementContentDraft>({ custom: false, content: {} });
 
-  function changeInstance(newWidgetEntryId: string) {
+  function changeInstance({ newWidgetEntryId }: { newWidgetEntryId: string }, _options = {}) {
     props.updateAttributes({ widgetEntryId: newWidgetEntryId });
     setChanging(false);
   }
 
-  const contentEditable = supportsPlacementContent(widget?.widgetType);
+  const contentEditable = supportsPlacementContent({ widgetType: widget?.widgetType });
 
   return {
     placementId,
@@ -114,7 +117,7 @@ export function useWidgetEmbedNodeView(props: NodeViewProps): WidgetEmbedNodeVie
       setStyling(true);
     },
     closeStyle: () => setStyling(false),
-    saveStyle: (value) => {
+    saveStyle: (value, _optional = {}) => {
       props.updateAttributes({
         cssClass: value.cssClass,
         htmlAttributes: value.htmlAttributes,
@@ -147,11 +150,11 @@ function widgetEmbedAttrs(attrs: NodeViewProps["node"]["attrs"]) {
 
 /**
  * Resolves the widget a node points at, dropping stale settles (see this file's header).
- * @param widgetEntryId The node's widget id; `""` marks the node broken without fetching.
+ * @param input.widgetEntryId The node's widget id; `""` marks the node broken without fetching.
  * @returns `widget` (`undefined` while loading, `null` when unresolvable) and the broken flag.
  * @complexity One `api.getWidget` call per `widgetEntryId` change.
  */
-function useResolvedWidget(widgetEntryId: string): { widget: AdminWidget | null | undefined; isBroken: boolean } {
+function useResolvedWidget({ widgetEntryId }: { widgetEntryId: string }, _options = {}): { widget: AdminWidget | null | undefined; isBroken: boolean } {
   const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);
   const [isBroken, setIsBroken] = useState(false);
 
@@ -164,8 +167,8 @@ function useResolvedWidget(widgetEntryId: string): { widget: AdminWidget | null 
     // Cleared by this run's own cleanup, i.e. as soon as `widgetEntryId` changes or the node view
     // unmounts — see this file's header on why a stale settle must not apply.
     let current = true;
-    api
-      .getWidget(widgetEntryId)
+    widgetsApi
+      .getWidget({ id: widgetEntryId })
       .then((r) => {
         if (!current) return;
         setWidget(r.widget);
@@ -195,8 +198,8 @@ function placementContentController(
   return {
     ...draft,
     widgetType,
-    setCustom: (custom) => setDraft((current) => ({ ...current, custom })),
-    setContent: (content) => setDraft((current) => ({ ...current, content })),
+    setCustom: ({ custom }, _optional = {}) => setDraft((current) => ({ ...current, custom })),
+    setContent: ({ content }, _optional = {}) => setDraft((current) => ({ ...current, content })),
   };
 }
 
@@ -204,22 +207,27 @@ function placementContentController(
 function changeDialogController(
   { widgetType, changeInstance, close }: {
     widgetType: AdminWidget["widgetType"];
-    changeInstance: (widgetEntryId: string) => void;
+    changeInstance: (required: { newWidgetEntryId: string }, optional?: Record<string, never>) => void;
     close: () => void;
   },
 ): WidgetEmbedChangeDialog {
   return {
     widgetType,
-    onUseExisting: (id) => changeInstance(id),
-    onCreateNew: async (title, config) => {
+    onUseExisting: ({ id }, _optional = {}) => changeInstance({ newWidgetEntryId: id }),
+    onCreateNew: async ({ title, config }, _optional = {}) => {
       try {
-        const { widget: created } = await api.createWidget({ widgetType, title, config });
-        changeInstance(created.id);
+        const { widget: created } = await widgetsApi.createWidget({ widgetType, title, config });
+        changeInstance({ newWidgetEntryId: created.id });
       } catch (e) {
-        // eslint-disable-next-line no-alert
-        window.alert(describeApiError(e, "failed to create widget"));
+        // eslint-disable-next-line no-alert -- this controller has no other error surface for the failed create.
+        window.alert(describeApiError({ e, fallback: "failed to create widget" }));
       }
     },
     onCancel: close,
   };
+}
+
+/** Bind this screen's copy to the current locale. */
+export function createWidgetEmbedTranslator({ locale }: { locale: string }, _options = {}) {
+  return ({ key }: { key: string }, _options = {}): string => translateForWidgetEmbed({ locale, key });
 }

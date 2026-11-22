@@ -6,7 +6,7 @@
  * ## Why
  *
  * Shell files import shared website code by relative path (e.g. `src/tovu-server.ts` ->
- * `../../website/src/platform/server-logs/redact-local-text.ts`). In the checkout that resolves to
+ * `../../website/src/server/runtime/boot/startup-secrets.ts`). In the checkout that resolves to
  * `apps/website/src/...`. Packaged, the shell lives in `Resources/app.asar/src/`, so the same
  * specifier resolves to `Resources/website/src/...`, which held nothing: desktop 0.1.21's first
  * package failed `smoke-native` with ERR_MODULE_NOT_FOUND for every such import.
@@ -31,18 +31,18 @@ const OUT_DIR = path.join(DESKTOP_ROOT, "staging", "website-shared");
 const SHARED_SPECIFIER = /["']((?:\.\.\/)+website\/src\/[^"']+)["']/g;
 
 /** Shell source files: what ships in app.asar and can import website code. */
-function shellSources(dir: string): string[] {
+function shellSources({ dir }: { dir: string }, _options = {}): string[] {
   const found: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) found.push(...shellSources(abs));
+    if (entry.isDirectory()) found.push(...shellSources({ dir: abs }));
     else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) found.push(abs);
   }
   return found;
 }
 
 /** Website files the shell imports, as absolute paths. */
-function sharedImports(files: readonly string[]): string[] {
+function sharedImports({ files }: { files: readonly string[] }, _options = {}): string[] {
   const shared = new Set<string>();
   for (const file of files) {
     for (const match of fs.readFileSync(file, "utf8").matchAll(SHARED_SPECIFIER)) {
@@ -53,8 +53,8 @@ function sharedImports(files: readonly string[]): string[] {
   return [...shared].sort();
 }
 
-const sources = [...shellSources(path.join(DESKTOP_ROOT, "src")), ...shellSources(path.join(DESKTOP_ROOT, "bin"))];
-const entryPoints = sharedImports(sources);
+const sources = [...shellSources({ dir: path.join(DESKTOP_ROOT, "src") }), ...shellSources({ dir: path.join(DESKTOP_ROOT, "bin") })];
+const entryPoints = sharedImports({ files: sources });
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 // No package.json sits above Resources/website, so Node would otherwise pick a module type from

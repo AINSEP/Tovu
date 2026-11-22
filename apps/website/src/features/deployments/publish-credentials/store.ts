@@ -1,12 +1,14 @@
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../../contracts/core/credential-token.js';
+import { assertCredentialFreeField } from '../../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { ProjectKeyCreateConflictError } from "../../project-keys/create-vault.js";
-import { isUniqueViolation } from "@jini-ai/db/kernel";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import { ProjectKeyCreateConflictError } from "#src/contracts/core/credential-store";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
-import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import { matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../../vendor-credentials/index.js";
 import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../../vendor-credentials/index.js";
@@ -106,18 +108,20 @@ function vaultSummary({ summary, providerId, publishHosts = [], defaultFor = [] 
     createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
 function vault(deps: PublishCredentialReadDeps & Partial<PublishCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, sealer: deps.sealer!, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return credentialVault({ ...deps, storageError: () => new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
   sealer?: SecretSealerPort;
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
 }
 
 /** The store a listed row came from: rows carry their own store's workspace id. */
 function scopeOfRow<D extends PublishCredentialReadDeps>(deps: D, input: { workspaceId: string; row: { workspaceId: string } }): ScopedCredentialDeps<D> {
   const scopes = credentialScopes(deps, input.workspaceId);
-  return scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0]!;
+  const scope = scopes.find(scoped => scoped.workspaceId === input.row.workspaceId) ?? scopes[0];
+  if (scope === undefined) throw new Error("Publish credential has no storage scope");
+  return scope;
 }
 
 /** The vendor row with this id, from the first store holding it (ids are unique across both). @complexity O(scopes). */
@@ -167,7 +171,7 @@ async function storeInventory({ deps, workspaceId }: { deps: PublishCredentialRe
  * @complexity O(rows × hosts), one metadata inventory and one catalog load.
  */
 export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID }): Promise<PublishCredentialSummary[]> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
   const defaults = new Map<string, string>();
   for (const { descriptor } of registry.list()) {
@@ -182,7 +186,9 @@ export async function listPublishCredentials(deps: PublishCredentialReadDeps, in
     if (providerId === undefined) return [];
     const defaultFor = [...defaults].filter(([, id]) => id === row.id).map(([host]) => host);
     const summary = vaultSummary({ summary: row, providerId, publishHosts, defaultFor });
-    return [{ ...summary, vendorId: row.provider ?? registry.get(providerId)!.descriptor.credential!.vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
+    const vendorId = row.provider ?? registry.get(providerId)?.descriptor.credential?.vendorId;
+    if (vendorId === undefined) throw new Error(`Publish target ${providerId} has no credential vendor`);
+    return [{ ...summary, vendorId, ...reportedScope({ deps, workspaceId: input.workspaceId, row }) }];
   });
 }
 
@@ -200,7 +206,7 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
  * An explicit id must select that authorized row; no secret is opened.
  * @complexity O(rows × compatibility IDs), one metadata inventory per store and one catalog load. */
 export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId; id?: UUID }): Promise<boolean> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const provider = providerContract({ registry, providerId: input.providerId });
   return provider !== null && selectPublishCredential({ registry, credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider, id: input.id }) !== null;
 }
@@ -233,7 +239,7 @@ export interface PublishCredentialWriteDeps extends PublishCredentialReadDeps {
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every rejection
  *  is a {@link PublishCredentialValidationError} the route/tool layer can map to its own `400`. */
-function validateLabel(raw: unknown): string {
+function validateLabel({ raw }: { raw: unknown }, _options = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new PublishCredentialValidationError("label must be a non-empty string");
   }
@@ -253,30 +259,30 @@ function validateLabel(raw: unknown): string {
  *  where the stray space was typed. Extracted (2026-09-05) after `optionalString` was fixed alone once
  *  already and `requireNonEmptyString` was found carrying the identical untrimmed-return bug days
  *  later — a single shared step is what keeps the two from drifting apart a second time. */
-function assertNonEmptyTrimmed(raw: unknown, message: string): string {
+function assertNonEmptyTrimmed({ raw, message }: { raw: unknown; message: string }, _options = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new PublishCredentialValidationError(message);
   }
   return raw.trim();
 }
 
-function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
-  return assertNonEmptyTrimmed(raw, `'${field}' (non-empty string) is required for provider '${providerId}'`);
+function requireNonEmptyString({ raw, field, providerId }: { raw: unknown; field: string; providerId: string }, _options = {}): string {
+  return assertNonEmptyTrimmed({ raw, message: `'${field}' (non-empty string) is required for provider '${providerId}'` });
 }
 
-function optionalString(raw: unknown, field: string): string | undefined {
+function optionalString({ raw, field }: { raw: unknown; field: string }, _options = {}): string | undefined {
   if (raw === undefined) return undefined;
   // A blank optional form field (e.g. an optional zone id left empty) means "not provided", not an
   // invalid value: secure forms send every field, so rejecting "" blocked saving a valid credential.
   if (typeof raw === "string" && raw.trim() === "") return undefined;
-  return assertNonEmptyTrimmed(raw, `'${field}' must be a non-empty string when provided`);
+  return assertNonEmptyTrimmed({ raw, message: `'${field}' must be a non-empty string when provided` });
 }
 
 /** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested" (the same
  *  omitted-means-unchanged convention `label`/`connection` already use); any other non-boolean value
  *  is rejected rather than coerced, so a stray string/number in the request body cannot silently be
  *  read as truthy. */
-function optionalBoolean(raw: unknown, field: string): boolean | undefined {
+function optionalBoolean({ raw, field }: { raw: unknown; field: string }, _options = {}): boolean | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "boolean") {
     throw new PublishCredentialValidationError(`'${field}' must be a boolean when provided`);
@@ -309,7 +315,7 @@ function assertPlainField(required: { value: string; field: string }): void {
   catch (err) { if (err instanceof CredentialInputError) { throw new PublishCredentialValidationError(err.message); } throw err; }
 }
 
-function validateConnection(raw: unknown, registry: DeployTargetRegistry): ValidatedConnection {
+function validateConnection({ raw, registry }: { raw: unknown; registry: DeployTargetRegistry }, _options = {}): ValidatedConnection {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new PublishCredentialValidationError("connection must be an object");
   }
@@ -350,7 +356,7 @@ function validatedConnectionField({ value, field, spec, providerId }: {
 }, _options = {}): string | undefined {
   const secret = isSecretField({ field, spec });
   if (secret && (field.required || value !== undefined)) return normalizeSecret({ value, field: field.name });
-  const normalized = field.required ? requireNonEmptyString(value, field.name, providerId) : optionalString(value, field.name);
+  const normalized = field.required ? requireNonEmptyString({ raw: value, field: field.name, providerId }) : optionalString({ raw: value, field: field.name });
   if (!secret && normalized !== undefined) assertPlainField({ value: normalized, field: field.name });
   return normalized;
 }
@@ -405,10 +411,18 @@ async function saveConnection({ target, input, providerId }: { target: ScopedCre
  */
 async function isPublishLabelConflict({ error, target, input }: { error: unknown; target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
   input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string } }, _options = {}): Promise<boolean> {
-  if (isUniqueViolation(error)) return true;
+  if (isUniqueViolation({ err: error })) return true;
   if (!(error instanceof VaultError) || error.code !== "conflict") return false;
   if (input.expectedRevision === null) return true;
-  const current = await target.deps.repo.vault!.find({ workspaceId: input.workspaceId, id: input.id });
+  return currentPublishLabelConflict({ target, input });
+}
+
+async function currentPublishLabelConflict({ target, input }: {
+  target: ScopedCredentialDeps<PublishCredentialWriteDeps>;
+  input: Parameters<ReturnType<typeof vault>["put"]>[0] & { id: string };
+}): Promise<boolean> {
+  if (!target.deps.repo.vault) throw new VaultError({ code: "invalid-record" });
+  const current = await target.deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
   if (!current || current.revision !== input.expectedRevision) return false;
   // The unique label belongs to its provider, so moving providers can conflict without a rename.
   return current.label !== input.label || (input.provider !== undefined && current.provider !== input.provider);
@@ -417,10 +431,10 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
 
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
-  const label = validateLabel(input.label);
-  const registry = await deps.loadDeployTargets(input.workspaceId);
-  const validated = validateConnection(input.connection, registry);
-  const isDefault = optionalBoolean(input.isDefault, "isDefault");
+  const label = validateLabel({ raw: input.label });
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
+  const validated = validateConnection({ raw: input.connection, registry });
+  const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   const { providerId, ...fields } = validated.connection;
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new PublishCredentialValidationError(message));
@@ -505,18 +519,18 @@ function sharedReplacementScope({ deps, scoped }: { deps: PublishCredentialWrite
 async function updatedConnection({ deps, input, existing, registry, host }: { deps: PublishCredentialWriteDeps; input: UpdatePublishCredentialInput;
   existing: VendorCredentialSetRecord; registry: DeployTargetRegistry; host: PublishProviderId }, _options = {}): Promise<ValidatedConnection> {
   const raw = input.connection;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return validateConnection(raw, registry);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return validateConnection({ raw, registry });
   const values = raw as Record<string, unknown>;
   const { spec } = connectionCredentialSpec({ value: values, registry });
-  if (spec.vendorId !== existing.vendorId) return validateConnection(raw, registry);
+  if (spec.vendorId !== existing.vendorId) return validateConnection({ raw, registry });
   const blankSecrets = spec.fields.filter(field => isSecretField({ field, spec }) && (values[field.name] === "" || values[field.name] === undefined));
   const clearedSecrets = spec.fields.filter(field => isSecretField({ field, spec }) && !field.required && field.name !== spec.tokenField && values[field.name] === null);
-  if (blankSecrets.length === 0 && clearedSecrets.length === 0) return validateConnection(raw, registry);
-  const stored = await decryptRecord(deps, existing, host);
+  if (blankSecrets.length === 0 && clearedSecrets.length === 0) return validateConnection({ raw, registry });
+  const stored = await decryptRecord({ deps, record: existing, providerId: host });
   const merged = { ...stored, ...values };
   for (const field of blankSecrets) merged[field.name] = stored[field.name];
   for (const field of clearedSecrets) delete merged[field.name];
-  return validateConnection(merged, registry);
+  return validateConnection({ raw: merged, registry });
 }
 
 /** Omitted connections retain their sealed envelope/hints and never require a site key.
@@ -526,14 +540,15 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   // Changed where it lives: this site's own row, else the project's (shared by every site).
   const located = await locateById(deps, input);
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const host = located ? registry.list().find(target => target.descriptor.credential?.vendorId === located.existing.vendorId)?.descriptor.id : undefined;
   if (!located || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { existing } = located;
   const scoped = sharedReplacementScope({ deps, scoped: located.scoped });
-  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
-  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
+  const label = input.label !== undefined ? validateLabel({ raw: input.label }) : existing.label;
+  const requestedDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
+  if (!scoped.deps.repo.vault) throw new VaultError({ code: "invalid-record" });
+  const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { providerId, accountLabel, ...changes } = await connectionChanges({ deps: scoped.deps, input, existing, registry, host, row });
   await assertLabelFreeOnSite({ deps, target: scoped, workspaceId: input.workspaceId, vendorId: changes.provider, label, providerId });
@@ -541,7 +556,9 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     expectedRevision: row.revision, label, ...changes,
     meta: { ...row.meta, worksFor: updatedWorksFor({ value: input.worksFor, row, provider: changes.provider, host }), accountLabel },
     ...(requestedDefault === true ? { isDefault: true } : {}) } });
-  return (await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id }))!;
+  const described = await describeCredential(deps, { workspaceId: input.workspaceId, id: summary.id });
+  if (!described) throw new PublishCredentialNotFoundError(`saved publish credential '${summary.id}' could not be found`);
+  return described;
 }
 
 async function connectionChanges({ deps, input, existing, registry, host, row }: {
@@ -580,7 +597,7 @@ export async function findPublishCredentialRecord(deps: { repo: Pick<VendorCrede
  *  A project row is removed only when no other site uses it; its attachments are removed with it. */
 export async function deletePublishCredential(deps: {
   repo: Pick<VendorCredentialSetRepoPort, "delete" | "findById" | "project">;
-  transaction?: Pick<StorageKernel<unknown>, "transaction">;
+  transaction?: Pick<KyselyKernel<unknown>, "transaction">;
 }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   const owner = await ownerOf(deps.repo, input);
   await owner.repo.delete({ workspaceId: owner.workspaceId, id: input.id });
@@ -588,7 +605,7 @@ export async function deletePublishCredential(deps: {
 
 /** Jini checks exact ownership before opening. Keep the typed error used by HTTP and daemon
  * boundaries: a missing key must not become an unhandled rejection in a publishing process. */
-async function decryptRecord(deps: PublishCredentialResolveDeps, record: VendorCredentialSetRecord, providerId: PublishProviderId): Promise<PublishConnectionInput> {
+async function decryptRecord({ deps, record, providerId }: { deps: PublishCredentialResolveDeps; record: VendorCredentialSetRecord; providerId: PublishProviderId }, _options = {}): Promise<PublishConnectionInput> {
   try {
     const resolved = await vault(deps).get({ ...credentialScope({ workspaceId: record.workspaceId, kind: "vendor" }), id: record.id });
     if (!resolved?.payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
@@ -609,7 +626,7 @@ export interface PublishCredentialResolveDeps extends PublishCredentialReadDeps 
 export async function resolveForPublish(deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId },
 ): Promise<{ providerId: PublishProviderId; vendorId: string; label: string; isDefault: boolean; connection: PublishConnectionInput } | null> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
   return resolveFromInventory({ deps, input, registry, rows });
 }
@@ -628,9 +645,19 @@ async function resolveFromInventory({ deps, input, registry, rows }: {
   if (!candidate || !providerId) return null;
   const provider = providerContract({ registry, providerId });
   if (!provider || !selectPublishCredential({ registry, credentials: rows, provider, id: input.id })) return null;
+  return resolveSelectedPublishCredential({ deps, input, registry, rows, candidate, providerId, provider });
+}
+
+async function resolveSelectedPublishCredential({ deps, input, registry, rows, candidate, providerId, provider }: {
+  deps: PublishCredentialResolveDeps; input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId };
+  registry: DeployTargetRegistry; rows: VaultSummary[]; candidate: VaultSummary; providerId: PublishProviderId;
+  provider: NonNullable<ReturnType<typeof providerContract>>;
+}): ReturnType<typeof resolveForPublish> {
   const resolved = await openPublishVaultRecord({ deps, input, candidate });
   if (!resolved || !selectPublishCredential({ registry, credentials: [resolved.summary], provider, id: input.id })) return null;
-  const connection = publishConnectionFromPayload({ providerId, spec: registry.get(providerId)!.descriptor.credential!,
+  const spec = registry.get(providerId)?.descriptor.credential;
+  if (!spec) return null;
+  const connection = publishConnectionFromPayload({ providerId, spec,
     summary: resolved.summary, payload: resolved.payload });
   return { providerId, vendorId: provider.vendorId, label: resolved.summary.label,
     isDefault: selectPublishCredential({ registry, credentials: rows, provider })?.id === input.id, connection };
@@ -659,8 +686,10 @@ function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
 }, _options = {}): PublishConnectionInput {
   if (!payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   const { vendorId: _vendorId, ...fields } = payload as Record<string, string>;
-  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token! } : { ...fields, providerId };
-  if (typeof connection[spec.tokenField] !== "string" || !connection[spec.tokenField]!.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  // A custom payload with no token becomes the blank token the check below refuses.
+  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token ?? "" } : { ...fields, providerId };
+  const token = connection[spec.tokenField];
+  if (typeof token !== "string" || !token.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   return connection;
 }
 
@@ -670,7 +699,7 @@ function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
 export async function resolveDefaultForPublish(deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: PublishProviderId },
 ): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const provider = providerContract({ registry, providerId: input.providerId });
   if (!provider) return null;
   const rows = await inventory({ deps, workspaceId: input.workspaceId });

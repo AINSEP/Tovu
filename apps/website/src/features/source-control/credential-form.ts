@@ -1,6 +1,6 @@
 /**
  * @file The saved-credential form a git-host plugin declares for its host, under `credential` in its
- * `tovu-source-control.json` entry (`./provider-registry.ts`): what a person is asked for on the
+ * `jini-source-control.json` entry (`./provider-registry.ts`): what a person is asked for on the
  * admin Source Control page, the scope guidance shown beside it and where to create the token. Data
  * only, so the admin renders a host's form without core naming the host. Field names are the keys
  * of the saved connection (`token`, and e.g. `username` for a host that authenticates the pair).
@@ -39,7 +39,7 @@ const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set(["providerId"]);
  *
  * @complexity O(f²) time and O(f) space in the declared field count (at most 10).
  */
-export function parseSourceControlCredentialForm(value: unknown, at: string): SourceControlCredentialForm | undefined | string {
+export function parseSourceControlCredentialForm({ value, at }: { value: unknown; at: string }, _optional = {}): SourceControlCredentialForm | undefined | string {
   if (value === undefined) return undefined;
   if (!isPlainObject(value)) return `${at} must be an object`;
   const details = parseFormDetails({ value, at });
@@ -68,7 +68,7 @@ function parseFields({ fields, at }: { fields: unknown; at: string }, _options =
   if (!Array.isArray(fields) || fields.length === 0 || fields.length > MAX_FIELDS) return `${at}.fields must be a list of 1 to ${MAX_FIELDS} fields`;
   const parsed: SourceControlCredentialField[] = [];
   for (const [index, entry] of fields.entries()) {
-    const field = parseField(entry, `${at}.fields[${index}]`);
+    const field = parseField({ entry, at: `${at}.fields[${index}]` });
     if (typeof field === "string") return field;
     if (parsed.some((seen) => seen.name === field.name)) return `${at}.fields[${index}].name '${field.name}' is declared twice`;
     parsed.push(field);
@@ -76,7 +76,7 @@ function parseFields({ fields, at }: { fields: unknown; at: string }, _options =
   return parsed;
 }
 
-function parseField(entry: unknown, at: string): SourceControlCredentialField | string {
+function parseField({ entry, at }: { entry: unknown; at: string }, _optional = {}): SourceControlCredentialField | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { name, label, required, secret } = entry;
   if (typeof name !== "string" || !FIELD_NAME_PATTERN.test(name)) return `${at}.name must be a camelCase identifier`;

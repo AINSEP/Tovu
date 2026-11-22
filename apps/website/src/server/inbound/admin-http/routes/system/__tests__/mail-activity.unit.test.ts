@@ -6,8 +6,7 @@ import express from "express";
 
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { MailActivityRecord } from "#src/features/mail/activity.repo";
-import type { MailSuppressionAdminRepo } from "#src/features/mail/suppression-admin.repo";
+import type { MailActivityRecord, MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import { registerAdminMailActivityRoutes, type AdminMailActivityDeps } from "../mail-activity.js";
 
 /**
@@ -56,7 +55,7 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
 
 async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get") {
   const app = express();
-  registerAdminMailActivityRoutes(app, d);
+  registerAdminMailActivityRoutes({ app, deps: d });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, method, path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);

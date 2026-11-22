@@ -1,8 +1,7 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   resolveCreateInputDisabled,
   resolveCreateSubmitDisabled,
@@ -12,6 +11,7 @@ import {
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 import type { useWiredSites } from "./hooks/use-sites.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The create-a-site form — the body of the **"New site" tab**, not a page of its own.
  *

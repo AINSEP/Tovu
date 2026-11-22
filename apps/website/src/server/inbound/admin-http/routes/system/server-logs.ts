@@ -1,10 +1,12 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { processServerLogSource } from "#src/features/server-logs/process-source";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "#src/features/server-logs/read-server-logs";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/system/server-logs` — recent captured server log
@@ -19,30 +21,15 @@ function queryRecord(query: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(query).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 }
 
-export function registerAdminServerLogsRoute(app: Express, deps: AdminServerLogsDeps, optional: { logs?: ServerLogSourcePort } = {}): void {
+export function registerAdminServerLogsRoute({ app, deps }: { app: Express; deps: AdminServerLogsDeps }, optional: { logs?: ServerLogSourcePort } = {}): void {
   const logs = optional.logs ?? processServerLogSource;
   app.get("/api/admin/v1/workspaces/:workspaceId/system/server-logs", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "server-logs",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "server-logs" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const filters = parseServerLogFilters({ raw: queryRecord(req.query as Record<string, unknown>) });
       res.status(200).json(readServerLogs({ logs }, filters));

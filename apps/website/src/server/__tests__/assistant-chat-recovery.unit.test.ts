@@ -5,11 +5,13 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatRunLedger } from "#src/assistant/index";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createInMemoryChatHistory } from "#src/assistant/persistence/store-factory";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../../assistant/agent-session-preset.js";
 import { wouldForcedColdStartLoseConversationContext } from "../../assistant/agent-session-preset.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
-import { createAssistantRunFinalizer, createHttpRunDaemonClient, assistantRunFinalizerFor, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";
+import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /** Spec/decision: only a serving boot reconciles transcripts. A surviving daemon run is adopted
@@ -101,7 +103,7 @@ for (const status of [null, 401, 403, 503]) {
 test("registering chat routes for a static export never reconciles a live turn", () => {
   const h = harness({ status: 200 });
   const deps = { chatRunLedger: h.ledger } as unknown as RouteDeps;
-  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!(express());
+  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!({ app: express() });
   assert.equal(h.repairs(), 0);
   assert.equal(h.message.runStatus, "running");
   assert.equal(h.finalizer.activeCount(), 0);
@@ -111,8 +113,8 @@ test("serving chat route registration starts recovery exactly once and tracks it
   const h = harness({ status: 200 });
   const work: Promise<void>[] = [];
   createAssistantChatsModule({ chatRunLedger: h.ledger } as unknown as RouteDeps, {
-    finalizer: h.finalizer, recoverInterrupted: true, onBootWork: (promise) => work.push(promise),
-  }).registerRoutes!(express());
+    finalizer: h.finalizer, recoverInterrupted: true, onBootWork: ({ work: promise }) => work.push(promise),
+  }).registerRoutes!({ app: express() });
   await Promise.all(work);
   assert.equal(work.length, 1);
   assert.equal(h.repairs(), 1);

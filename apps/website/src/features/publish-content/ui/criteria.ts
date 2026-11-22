@@ -12,7 +12,7 @@
  * reachability walk treats ANY bare package specifier reached from `index.ts` as an escape — type-only
  * or not, unlike its separate value-import check, it never looks at `edge.typeOnly`. Leaving this
  * constant untyped here costs nothing: every real caller (`frontend-control-capabilities.ts`, and
- * later `App.hooks.tsx`'s WebMCP registration) assigns it into a `CapabilityDef`-typed slot **by
+ * later `apps/admin/src/App.hooks.ts`'s WebMCP registration) assigns it into a `CapabilityDef`-typed slot **by
  * reference**, where TypeScript's ordinary structural assignability applies rather than the
  * excess-property checking a fresh object literal would get.
  */
@@ -59,7 +59,7 @@ const TYPE_ALIASES: Readonly<Record<string, string>> = {
 };
 
 /** @complexity O(1). */
-function normalizeType(type: string): string {
+function normalizeType({ type }: { type: string }, _optional = {}): string {
   const lower = type.trim().toLowerCase();
   return TYPE_ALIASES[lower] ?? lower;
 }
@@ -70,7 +70,7 @@ function normalizeType(type: string): string {
  *
  * @complexity O(1).
  */
-function matchesItem(row: PublishReportRow, item: string): boolean {
+function matchesItem({ row, item }: { row: PublishReportRow; item: string }, _optional = {}): boolean {
   const trimmed = item.trim();
   if (trimmed.length === 0) return false;
   if (row.names?.some(name => name.toLowerCase() === trimmed.toLowerCase())) return true;
@@ -90,17 +90,17 @@ function matchesItem(row: PublishReportRow, item: string): boolean {
  * @complexity O(rows × items) — an `items` list is a handful of named things per request, so this
  * stays well under a millisecond for any plan size the dialog renders.
  */
-export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria: PublishCriteria & { readonly excludeItems?: readonly string[] }): CriteriaSelection {
+export function applyPublishCriteria({ rows, criteria }: { rows: readonly PublishReportRow[]; criteria: PublishCriteria & { readonly excludeItems?: readonly string[] } }, _optional: Record<string, never> = {}): CriteriaSelection {
   const types = criteria.types ?? [];
   const items = criteria.items ?? [];
-  const normalizedTypes = new Set(types.map(normalizeType));
+  const normalizedTypes = new Set(types.map((type) => normalizeType({ type })));
   const hasTypes = normalizedTypes.size > 0;
   const hasItems = items.length > 0;
 
   const matches = (row: PublishReportRow): boolean => {
     const typeOk = !hasTypes || normalizedTypes.has(row.entityType);
-    const itemOk = !hasItems || items.some((item) => matchesItem(row, item));
-    return typeOk && itemOk && !(criteria.excludeItems ?? []).some(item => matchesItem(row, item));
+    const itemOk = !hasItems || items.some((item) => matchesItem({ row, item }));
+    return typeOk && itemOk && !(criteria.excludeItems ?? []).some(item => matchesItem({ row, item }));
   };
 
   const deselectedKeys = new Set<string>();
@@ -111,8 +111,8 @@ export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria
     if (criteria.overwrite === true && row.overwritable && isMatch) overwriteKeys.add(row.key);
   }
 
-  const unmatchedItems = items.filter((item) => !rows.some((row) => matchesItem(row, item)));
-  const unknownTypes = types.filter((type) => !rows.some((row) => row.entityType === normalizeType(type)));
+  const unmatchedItems = items.filter((item) => !rows.some((row) => matchesItem({ row, item })));
+  const unknownTypes = types.filter((type) => !rows.some((row) => row.entityType === normalizeType({ type })));
 
   return { deselectedKeys, overwriteKeys, unmatchedItems, unknownTypes };
 }
@@ -170,11 +170,11 @@ export const PUBLISH_CONTENT_CAPABILITY = {
  */
 export function parsePublishContentToolInput(input: Record<string, unknown>): PublishCriteria {
   const criteria: { types?: readonly string[]; items?: readonly string[]; overwrite?: boolean } = {};
-  const types = readOptionalStringArray(input, "types");
+  const types = readOptionalStringArray({ input, field: "types" });
   if (types !== undefined) criteria.types = types;
-  const items = readOptionalStringArray(input, "items");
+  const items = readOptionalStringArray({ input, field: "items" });
   if (items !== undefined) criteria.items = items;
-  const overwrite = readOptionalBoolean(input, "overwrite");
+  const overwrite = readOptionalBoolean({ input, field: "overwrite" });
   if (overwrite !== undefined) criteria.overwrite = overwrite;
   return criteria;
 }
@@ -182,7 +182,7 @@ export function parsePublishContentToolInput(input: Record<string, unknown>): Pu
 /** One `types`/`items` field off a raw tool-call input — `undefined` when the field is absent
  *  (criteria's own "omitted means everything" convention), thrown by name when present but not an
  *  array of strings. @complexity O(n) in the array's own length. */
-function readOptionalStringArray(input: Record<string, unknown>, field: "types" | "items"): readonly string[] | undefined {
+function readOptionalStringArray({ input, field }: { input: Record<string, unknown>; field: "types" | "items" }, _optional = {}): readonly string[] | undefined {
   const value = input[field];
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) {
@@ -193,7 +193,7 @@ function readOptionalStringArray(input: Record<string, unknown>, field: "types" 
 
 /** `overwrite` off a raw tool-call input — `undefined` when absent, thrown by name when present but
  *  not a boolean. @complexity O(1). */
-function readOptionalBoolean(input: Record<string, unknown>, field: "overwrite"): boolean | undefined {
+function readOptionalBoolean({ input, field }: { input: Record<string, unknown>; field: "overwrite" }, _optional = {}): boolean | undefined {
   const value = input[field];
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
@@ -271,7 +271,7 @@ export function encodePublishCriteriaToQuery(criteria: PublishCriteria): string 
  *
  * @complexity O(n) in the decoded payload's own `types`/`items` length.
  */
-export function decodePublishCriteriaFromQuery(raw: string): PublishCriteria | null {
+export function decodePublishCriteriaFromQuery({ raw }: { raw: string }, _optional = {}): PublishCriteria | null {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_QUERY_LENGTH) return null;
   let parsed: unknown;
   try {
@@ -289,8 +289,8 @@ function sanitizeCriteriaObject(
   { obj }: { obj: Record<string, unknown> },
   _options: Record<string, never> = {},
 ): PublishCriteria {
-  const types = sanitizeCriteriaList(obj.types);
-  const items = sanitizeCriteriaList(obj.items);
+  const types = sanitizeCriteriaList({ value: obj.types });
+  const items = sanitizeCriteriaList({ value: obj.items });
   const overwrite = obj.overwrite === true;
 
   const criteria: { types?: readonly string[]; items?: readonly string[]; overwrite?: boolean } = {};
@@ -308,7 +308,7 @@ function sanitizeCriteriaObject(
  *
  * @complexity O(n).
  */
-function sanitizeCriteriaList(value: unknown): readonly string[] | undefined {
+function sanitizeCriteriaList({ value }: { value: unknown }, _optional = {}): readonly string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const cleaned = value
     .filter((entry): entry is string => typeof entry === "string" && entry.length > 0 && entry.length <= MAX_ENTRY_LENGTH)

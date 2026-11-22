@@ -1,3 +1,4 @@
+import { createAiAssistantTranslator } from "./AiAssistant.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId } from "react";
 import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
@@ -15,7 +16,7 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
@@ -46,10 +47,9 @@ import {
 import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { t as translateAiAssistantLabel } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
  *
@@ -104,7 +104,7 @@ interface RoadmapItem {
  *
  * Per-visitor rate limiting used to be listed here and **shipped** in SPEC-046 REQ-7 — the public
  * chat endpoint is now bounded at 10 requests / 5 min / IP (`SITE_ASSISTANT_PER_IP` in
- * `server/middleware/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
+ * `apps/website/src/contracts/core/rate-limit/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
  * is a code constant, not an operator-editable setting, so a row here would imply a knob that does
  * not exist. Move it into the settings surface above, not back into this list, if it becomes tunable.
  */
@@ -204,7 +204,7 @@ function AdminAssistantSwitch({
     <div className="assistant-switch">
       <AssistantToggleRow t={t} label={t("Open the assistant panel")}
         info={t("Shows or hides the assistant panel in this admin.")}
-        checked={open} onChange={setOpen}
+        checked={open} onChange={(open) => setOpen({ open })}
         inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} />
     </div>
   );
@@ -269,16 +269,18 @@ interface AdminExecutionModeProps {
  * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, since both use the identical
  * `(key: string) => key` fallback.
  */
-function resolveT(override: ((key: string) => string) | undefined): (key: string) => string {
+function resolveT({ override }: { override: ((key: string) => string) | undefined }, _options: Record<string, never> = {}): (key: string) => string {
   return override ?? ((key: string) => key);
 }
 function resolveAdminExecutionModeHook(
-  override: typeof useAdminExecutionMode | undefined
+  { override }: { override: typeof useAdminExecutionMode | undefined },
+  _options: Record<string, never> = {},
 ): typeof useAdminExecutionMode {
   return override ?? useAdminExecutionMode;
 }
 function resolveAdminExecutionCredentialHook(
-  override: typeof useWiredAdminExecutionCredential | undefined
+  { override }: { override: typeof useWiredAdminExecutionCredential | undefined },
+  _options: Record<string, never> = {},
 ): typeof useWiredAdminExecutionCredential {
   return override ?? useWiredAdminExecutionCredential;
 }
@@ -290,9 +292,9 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
   // props object — `{}` when no attributes are given, never `undefined` — and every field on
   // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
-  const useAdminExecutionModeHook = resolveAdminExecutionModeHook(props.useAdminExecutionModeHook);
-  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
-  const t = resolveT(props.t);
+  const useAdminExecutionModeHook = resolveAdminExecutionModeHook({ override: props.useAdminExecutionModeHook });
+  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
+  const t = resolveT({ override: props.t });
   const { port, execution } = useAdminExecutionModeHook();
   const locale = useAdminLocale();
   const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
@@ -302,7 +304,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: adminExecutionByok(execution.value),
+    byok: adminExecutionByok({ config: execution.value }),
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });
 
@@ -336,7 +338,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         canDiscoverModels={adminCredential.canDiscoverModels}
-        describeProbeError={createProbeErrorDescriber(t)}
+        describeProbeError={createProbeErrorDescriber({ t })}
         apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
         formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
       />
@@ -367,7 +369,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
 /**
  * Manual recovery control for the Local CLI daemon process `AdminExecutionMode` just configured —
  * the "human's not gonna know how to restart a Node process" seam
- * (`server/routes/admin/system/assistant-daemon.ts`, backed by `src/assistant/daemon-supervisor.ts`).
+ * (`apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts`, backed by `apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts`).
  *
  * Renders directly under `AdminExecutionMode` in the same tab, not on its own tab: this control is
  * only meaningful in the context of "Local CLI" mode (a BYOK-mode admin has no daemon process to
@@ -394,7 +396,8 @@ interface AssistantDaemonRestartProps {
 }
 
 function resolveAssistantDaemonRestartHook(
-  override: (() => AssistantDaemonRestartController) | undefined
+  { override }: { override: (() => AssistantDaemonRestartController) | undefined },
+  _options: Record<string, never> = {},
 ): () => AssistantDaemonRestartController {
   return override ?? useWiredAssistantDaemonRestart;
 }
@@ -405,7 +408,7 @@ function resolveAssistantDaemonRestartHook(
  *  of a ternary chain inline in the component's JSX. */
 export function assistantDaemonStatusMessage(
   controller: Pick<AssistantDaemonRestartController, "knownFailed" | "checkingStatus" | "statusError">,
-  t: Translate = (key) => key
+  { t = (key) => key }: { t?: Translate } = {},
 ): string | null {
   if (controller.statusError) return controller.statusError;
   if (controller.checkingStatus && controller.knownFailed === null) return t("Checking status…");
@@ -415,11 +418,11 @@ export function assistantDaemonStatusMessage(
 }
 
 export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
-  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook(props.useAssistantDaemonRestartHook);
-  const t = resolveT(props.t);
+  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook({ override: props.useAssistantDaemonRestartHook });
+  const t = resolveT({ override: props.t });
   const controller = useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
-  const statusMessage = assistantDaemonStatusMessage(controller, t);
+  const statusMessage = assistantDaemonStatusMessage(controller, { t });
   // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
   // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
   // whose required config-change sink would have been a no-op nobody could ever invoke here.
@@ -458,7 +461,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
       {restartError ? <div className="save-error">{restartError}</div> : null}
       {!restartError && restartResult ? (
         <p className="assistant-save-line" role="status">
-          {assistantRestartResultMessage(restartResult, t)}
+          {assistantRestartResultMessage({ result: restartResult, t })}
         </p>
       ) : null}
       {statusMessage ? <p className="muted-cell" role="status">{statusMessage}</p> : null}
@@ -482,7 +485,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *   (the ledger never sees it)"). It powers the assistant dock in THIS browser. A deployed server
  *   never sees it, and it cannot serve visitors.
  * - **This tab** is the SITE's key. It must live server-side, because the thing consuming it is
- *   `src/server/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
+ *   `apps/website/src/server/runtime/composition/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
  *   admin's browser is not.
  *
  * That is why the copy below states it in plain language rather than relying on the tab title: the
@@ -555,7 +558,7 @@ function visitorCredentialKeyIdleMessage(t: Translate): string {
 
 export function visitorCredentialKeyStatusMessage(
   discovery: VisitorCredentialFormController["discovery"],
-  t: Translate = (key) => key,
+  { t = (key) => key }: { t?: Translate } = {},
 ): string | null {
   if (discovery.status === "ok") {
     return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
@@ -584,7 +587,7 @@ export function VisitorCredentialKeyActions({
   storedKeyIsForOtherEndpoint,
   t: tProp,
 }: VisitorCredentialKeyActionsProps) {
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
   // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
   const testInfo = visitorCredentialKeyIdleMessage(t);
@@ -614,7 +617,7 @@ export function VisitorCredentialKeyActions({
       >
         {discovery.status === "loading" ? t("Testing…") : t("Test key")}
       </button>
-      <InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" />
+      <InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", () => t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" />
       {/* The ONLY control that writes the KEY on this screen (its sibling
           `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
 
@@ -630,7 +633,7 @@ export function VisitorCredentialKeyActions({
       >
         {saveState.status === "saving" ? t("Saving…") : t("Save key")}
       </button>
-      <InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" />
+      <InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", () => t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" />
     </>
   );
 }
@@ -646,9 +649,9 @@ export function VisitorCredentialKeyFooter({
   // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
   // `AdminExecutionMode` above) rather than inline here — keeps this function's cyclomatic
   // complexity under the ceiling.
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   const lines = visitorKeyFooterLines({ discoveryStatus: discovery.status, saveStatus: saveState.status, storedKeyIsForOtherEndpoint });
-  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, t) : null;
+  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, { t }) : null;
   return (
     <div className="assistant-key-footer">
       {keyStatus ? <p className="assistant-key-status" role="status">{keyStatus}</p> : null}
@@ -665,7 +668,7 @@ export function VisitorCredentialKeyFooter({
 
       {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment for
           the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
-      {lines.saveLine ? <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}</p> : null}
+      {lines.saveLine ? <p className="assistant-save-line">{visitorCredentialSaveStatusMessage({ saveState, stored }, { t, storedKeyIsForOtherEndpoint })}</p> : null}
       {saveState.status === "error" ? <div className="save-error">{t(saveState.message)}</div> : null}
     </div>
   );
@@ -688,7 +691,7 @@ export function VisitorCredentialSettingsFooter({
   saveSettings,
   t: tProp,
 }: VisitorCredentialSettingsFooterProps) {
-  const t = resolveT(tProp);
+  const t = resolveT({ override: tProp });
   const statusLine = visitorCredentialSettingsStatusMessage(settingsSaveState, t);
 
   return (
@@ -773,14 +776,14 @@ export function VisitorCredentialForm({
         <div className="visitor-inline-field">
           <label htmlFor={providerSelectId}>{t("Provider")}</label>
           <select id={providerSelectId} className="jini-input visitor-compact-select" value={visitorPresetId(preset)}
-            onChange={(event) => selectPresetById(event.target.value)}
+            onChange={(event) => selectPresetById({ presetId: event.target.value })}
             {...agentHandle({ handle: "ai-assistant-visitor-provider" }, { role: "field", label: "Visitor assistant provider" })}>
             {preset ? null : <option value="" disabled>{t("Custom endpoint")}</option>}
             {providerGroups.map((group) => (
               <optgroup key={group.label} label={t(group.label)}>
                 {group.options.map(({ preset: option, configured }) => (
                   <option key={option.id} value={option.id}>
-                    {configured ? t("{name} (configured)").replace("{name}", option.title) : option.title}
+                    {configured ? t("{name} (configured)").replace("{name}", () => option.title) : option.title}
                   </option>
                 ))}
               </optgroup>
@@ -909,7 +912,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
   const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateAiAssistantLabel({ locale: locale, key: key });
+  const t = createAiAssistantTranslator({ locale });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">{t("Loading AI assistant settings…")}</div>;
@@ -1060,10 +1063,10 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
 }
 
 /** A restart acknowledgement describes acceptance, never inferred process health. */
-function assistantRestartResultMessage(result: NonNullable<AssistantDaemonRestartController["restartResult"]>, t: (key: string) => string): string {
+function assistantRestartResultMessage({ result, t }: { result: NonNullable<AssistantDaemonRestartController["restartResult"]>; t: (key: string) => string }, _options: Record<string, never> = {}): string {
   return result.ok
     ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
-    : t("Restart refused: {reason}").replace("{reason}", result.reason ?? "");
+    : t("Restart refused: {reason}").replace("{reason}", () => result.reason ?? "");
 }
 
 /** An unrecognized saved endpoint keeps the select on its custom-endpoint placeholder. */
@@ -1072,6 +1075,6 @@ function visitorPresetId(preset: VisitorCredentialFormController["preset"]): str
 }
 
 /** Keep the credential fallback for both unloaded execution and incomplete legacy snapshots. */
-function adminExecutionByok(config: typeof DEFAULT_EXECUTION_CONFIG | null) {
+function adminExecutionByok({ config }: { config: typeof DEFAULT_EXECUTION_CONFIG | null }, _options: Record<string, never> = {}) {
   return config?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }

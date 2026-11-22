@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { ExecutionConfig } from '@jini-ai/ui';
 import type { ChatPaneAgent, ChatPaneAgentSelection, ChatPaneRuntimeAccess } from '@jini-ai/chat/react';
-import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/AssistantDock.hooks';
+import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/execution-config.hooks';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { effectiveExecutionConfig } from '@/lib/tovu-execution-policy';
 import { useTovuExecutionPolicy } from './use-tovu-execution-policy.hooks';
@@ -62,8 +62,8 @@ export function useTovuDockExecution(
     readExecutionConfigForSend,
     handleExecutionModeChange,
     runtimeAccess: (port: ChatPaneRuntimeAccess) => policy.allowed ? port : NO_LOCAL_RUNTIME,
-    agents: (agents: readonly ChatPaneAgent[] | undefined) => policy.allowed ? agents : NO_LOCAL_AGENTS,
-    selectionChange: (change: (selection: ChatPaneAgentSelection) => void) =>
+    agents: ({ agents }: { agents: readonly ChatPaneAgent[] | undefined }, _options = {}) => policy.allowed ? agents : NO_LOCAL_AGENTS,
+    selectionChange: ({ change }: { change: (selection: ChatPaneAgentSelection) => void }, _options = {}) =>
       (selection: ChatPaneAgentSelection) => { if (live.current.policy.allowed) change(selection); },
   };
 }

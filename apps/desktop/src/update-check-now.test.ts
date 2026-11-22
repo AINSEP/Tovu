@@ -68,10 +68,8 @@ test('a failed download is reported in plain words', async () => {
   const h = harness({ result: Promise.resolve(available('0.1.23', Promise.reject(new Error('net::ERR_INTERNET_DISCONNECTED')))) });
   await h.check.checkNow();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(h.notices[1], {
-    type: 'error', message: 'Couldn’t download Tovu 0.1.23',
-    detail: 'Tovu couldn’t reach the update server. Check your internet connection and try again.',
-  });
+  assert.equal(h.notices[1]!.message, 'Couldn’t download Tovu 0.1.23');
+  assert.match(h.notices[1]!.detail, /couldn’t reach the update server.*Copy details/s);
   assert.match(h.logs[0]!, /ERR_INTERNET_DISCONNECTED/);
 });
 
@@ -100,7 +98,8 @@ test('automatic updates off: checks on demand, downloads nothing, and says updat
 test('check errors read in plain words; the raw message goes to the log', async () => {
   const h = harness({ result: Promise.reject(new Error('HttpError: 403 rate limit exceeded')) });
   assert.deepEqual(await h.check.checkNow(), { kind: 'error' });
-  assert.deepEqual(h.notices, [{ type: 'error', message: 'Couldn’t check for updates', detail: 'Something went wrong while checking. Try again in a few minutes.' }]);
+  assert.equal(h.notices[0]!.message, 'Couldn’t check for updates');
+  assert.match(h.notices[0]!.detail, /couldn’t check for updates.*Copy details/s);
   assert.match(h.logs[0]!, /403 rate limit/);
   const offline = harness({ loadUpdater: async () => { throw new Error('getaddrinfo ENOTFOUND github.com'); } });
   await offline.check.checkNow();
@@ -134,4 +133,20 @@ test('the IPC handler registers the contract channel and resolves after the chec
   assert.deepEqual([...handlers.keys()], [RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL]);
   assert.equal(await handlers.get(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL)!(), undefined);
   assert.equal(checks, 1);
+});
+
+test('check and download failures expose redacted copyable diagnostics with distinct recovery', async () => {
+  const check = harness({ loadUpdater: async () => { throw new Error('check context password=UPDATE_CHECK_CANARY'); } });
+  assert.deepEqual(await check.check.checkNow(), { kind: 'error' });
+  assert.match(check.logs[0]!, /check context/);
+  assert.match(check.notices[0]!.detail, /check for updates/);
+  assert.match(check.notices[0]!.detail, /Copy details:/);
+  assert.doesNotMatch(check.logs.join(' ') + check.notices[0]!.detail, /UPDATE_CHECK_CANARY/);
+  const download = harness({ result: Promise.resolve(available('0.1.23', Promise.reject(new Error('download context password=UPDATE_DOWNLOAD_CANARY')))) });
+  await download.check.checkNow();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(download.logs[0]!, /download context/);
+  assert.match(download.notices[1]!.detail, /download.*Check for updates/s);
+  assert.match(download.notices[1]!.detail, /Copy details:/);
+  assert.doesNotMatch(download.logs.join(' ') + download.notices[1]!.detail, /UPDATE_DOWNLOAD_CANARY/);
 });

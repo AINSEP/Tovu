@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
-import { InMemoryPublishContentBundleRepo, type StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
+import { InMemoryPublishContentBundleRepo, type StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
@@ -48,12 +48,12 @@ const ENVELOPE_REFUSALS: ReadonlyArray<[string, unknown, string]> = [
 
 for (const [name, body, error] of ENVELOPE_REFUSALS) {
   test(`validateBundleBody refuses ${name}: ${error}`, () => {
-    assert.deepEqual(validateBundleBody(body), { error });
+    assert.deepEqual(validateBundleBody({ rawBody: body }), { error });
   });
 }
 
 test("validateBundleBody accepts an absent sourceLabel", () => {
-  assert.deepEqual(validateBundleBody(envelope({ sourceLabel: undefined })), {
+  assert.deepEqual(validateBundleBody({ rawBody: envelope({ sourceLabel: undefined }) }), {
     artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, sourceLabel: undefined, entities: [], blobManifest: [],
   });
 });
@@ -72,7 +72,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
 
 /** A bundle repo whose save fails, as a full disk would. */
 class FailingBundleRepo extends InMemoryPublishContentBundleRepo {
-  override async save(_record: StagedBundleRecord): Promise<void> {
+  override async save({ record: _record }: { record: StagedBundleRecord }): Promise<void> {
     throw new Error("SQLITE_FULL");
   }
 }
@@ -149,7 +149,7 @@ function sqliteKernel(t: TestContext, withAuditTable: boolean) {
   const db = new Database(":memory:"); t.after(() => db.close());
   // Test-only schema; no active migration is created or installed.
   if (withAuditTable) db.exec("CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY)");
-  return contentKernel(db);
+  return contentKernel({ store: db });
 }
 
 test("a manual send whose audit table is not installed yet is the 503 BACKSTOP_NOT_INSTALLED", async (t) => {
@@ -166,7 +166,7 @@ test("a manual send with installed audit storage, the right address and a backst
 /** Registers the real raw-row contributor (it speaks `schemaVersion` 1) for this one test. */
 function registerRawRowType(t: TestContext): void {
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
 }
 
 test("POST .../bundles refuses an entity of a registered type at another schemaVersion with the exact 400", async (t) => {

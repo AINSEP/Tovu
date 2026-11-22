@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
 import path from "node:path";

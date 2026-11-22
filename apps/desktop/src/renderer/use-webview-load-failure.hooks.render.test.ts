@@ -35,7 +35,7 @@ function guestNode() {
 test('useWebviewLoadFailure: ignores sub-frame and aborted failures, reports a real one, and a finished load clears both', (t) => {
   const clock = fakeTimers();
   let resetKey = 0;
-  const hook = renderHook(t, () => useWebviewLoadFailure(resetKey, { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey }, { timers: clock.timers }));
   const guest = guestNode();
   assert.equal(clock.pending.size, 0, 'no guest, no stall timer');
   act(() => hook.current().guestRef(guest));
@@ -64,7 +64,7 @@ test('useWebviewLoadFailure: ignores sub-frame and aborted failures, reports a r
 
 test('useWebviewLoadFailure: a real failure cancels the pending stall guess so it can never fire later', (t) => {
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   const guest = guestNode();
   act(() => hook.current().guestRef(guest));
   act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -105 })); });
@@ -73,7 +73,7 @@ test('useWebviewLoadFailure: a real failure cancels the pending stall guess so i
 
 test('useWebviewLoadFailure: a guest that answers clears an earlier failure and marks the admin loaded', (t) => {
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   const guest = guestNode();
   act(() => hook.current().guestRef(guest));
   act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
@@ -83,7 +83,7 @@ test('useWebviewLoadFailure: a guest that answers clears an earlier failure and 
 
 test('useWebviewLoadFailure: unmounting clears a pending stall timer', (t) => {
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   act(() => hook.current().guestRef(guestNode()));
   assert.equal(clock.pending.size, 1);
   hook.unmount();
@@ -95,7 +95,7 @@ test('useWebviewLoadFailure: a guest that mounts after the first render is liste
   // CHANGES when the element mounts; a `RefObject` is the same object forever, so a stopped tab whose
   // site came up (or the failure panel's own retry) mounted a guest no listener or stall timer ever reached.
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   hook.rerender();
   assert.equal(clock.pending.size, 0);
   const late = guestNode();
@@ -107,7 +107,7 @@ test('useWebviewLoadFailure: a guest that mounts after the first render is liste
 
 test('useWebviewLoadFailure: a replacement guest takes over the listeners and the one stall timer from the old one', (t) => {
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   const first = guestNode();
   const second = guestNode();
   act(() => hook.current().guestRef(first));
@@ -127,7 +127,7 @@ test('useWebviewLoadFailure: the failed guest unmounting keeps the failure, so t
   // guest remounts, fails again, and the panel flickers forever. The reset fires only when the
   // operator asks for a fresh judgment.
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'k' }, { timers: clock.timers }));
   const guest = guestNode();
   act(() => hook.current().guestRef(guest));
   act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
@@ -141,7 +141,7 @@ test('useWebviewLoadFailure: only did-finish-load marks the admin loaded, and ev
   // previous navigation's finished state.
   const clock = fakeTimers();
   let resetKey = 0;
-  const hook = renderHook(t, () => useWebviewLoadFailure(resetKey, { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey }, { timers: clock.timers }));
   const guest = guestNode();
   act(() => hook.current().guestRef(guest));
   for (const name of ['did-start-loading', 'dom-ready', 'did-navigate', 'did-stop-loading']) {
@@ -162,7 +162,7 @@ test('useWebviewLoadFailure: only did-finish-load marks the admin loaded, and ev
 
 test('a restarted site shows loading and gets a fresh stall judgment with the same navigation key', (t) => {
   const clock = fakeTimers();
-  const hook = renderHook(t, () => useWebviewLoadFailure('same-key', { timers: clock.timers }));
+  const hook = renderHook(t, () => useWebviewLoadFailure({ resetKey: 'same-key' }, { timers: clock.timers }));
   const first = guestNode();
   act(() => hook.current().guestRef(first));
   act(() => { first.dispatchEvent(loadEvent('did-finish-load')); });

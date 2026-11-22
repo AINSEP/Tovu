@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
-import type { StopProcessesResult } from "@jini-ai/platform/process";
+import type { StopProcessesResult } from "@jini-ai/core/contracts/runtime";
 import {
   createOwnTreeReaper, isEntrypoint, NO_REGISTRY, ownerPidFrom, parentGone, runLocalSiteChild, selfAsDaemonProcess,
   type LocalSiteChildProcess, type WatchdogHandle, type WatchdogTimers,
@@ -27,7 +27,7 @@ function fakeTimers() {
   const state = { tick: undefined as (() => void) | undefined, ms: 0, cleared: [] as WatchdogHandle[] };
   const timers: WatchdogTimers = {
     setInterval(run, ms) { state.tick = run; state.ms = ms; return handle; },
-    clearInterval(cleared) { state.cleared.push(cleared); },
+    clearInterval({ handle: cleared }) { state.cleared.push(cleared); },
   };
   return { timers, handle, state };
 }
@@ -47,7 +47,7 @@ test("T47/site-dir-1#3: owner loss during a pending bundle build prevents the la
   const boot = runLocalSiteChild({}, { proc, timers,
     buildAdminBundle: () => bundle,
     reapOwnTree: async () => { reaped++; },
-    importEntry: async (specifier) => { imported.push(specifier); },
+    importEntry: async ({ specifier }) => { imported.push(specifier); },
   });
 
   // A tree-stop request can settle before the OS has finished terminating the process.
@@ -109,16 +109,17 @@ test("createOwnTreeReaper stops this process's own group; a stop that leaves pro
   const adapter = {
     platform: "linux" as const,
     signalProcess: ((pid: number, signal?: string | number) => { groupSignals.push([pid, signal]); return true; }) as typeof process.kill,
-    listProcessSnapshots: async () => [{ pid: 777, ppid: OWNER, command: "node" }],
   };
+  const processes = (stopped: StopProcessesResult) => ({ listProcessSnapshots: async () => [{ pid: 777, ppid: OWNER, command: "node" }],
+    stopProcesses: async () => stopped, waitForProcessExit: async () => true });
   const clean = fakeProcess({});
-  await createOwnTreeReaper({ proc: clean.proc }, { adapter: { ...adapter, stopProcesses: async () => stopResult([]) } })();
+  await createOwnTreeReaper({ proc: clean.proc }, { adapter, processes: processes(stopResult([])) })();
   assert.deepEqual(groupSignals, [[-777, "SIGTERM"]]);
   assert.deepEqual(clean.exits, []);
 
   const stuck = fakeProcess({});
   const throwingGroup = { ...adapter, signalProcess: (() => { throw errno("ESRCH"); }) as typeof process.kill };
-  await createOwnTreeReaper({ proc: stuck.proc }, { adapter: { ...throwingGroup, stopProcesses: async () => stopResult([777]) } })();
+  await createOwnTreeReaper({ proc: stuck.proc }, { adapter: throwingGroup, processes: processes(stopResult([777])) })();
   assert.deepEqual(stuck.signals, [{ pid: 777, signal: "SIGTERM" }], "a failed group signal falls back to the process itself");
   assert.deepEqual(stuck.exits, [1]);
 });
@@ -146,7 +147,7 @@ test("a live owner builds the shared admin bundle when none is supplied, then bo
       assert.equal(optional?.env, env);
       return "/runtime/admin-build/dist";
     },
-    importEntry: async (specifier) => { calls.push(`import ${specifier} ${env.TOVU_ADMIN_DIST}`); } });
+    importEntry: async ({ specifier }) => { calls.push(`import ${specifier} ${env.TOVU_ADMIN_DIST}`); } });
   assert.deepEqual(calls, ["build /runtime /repo", "import ../../index.js /runtime/admin-build/dist"]);
   assert.equal(state.ms, 1000);
 });
@@ -159,7 +160,7 @@ test("a supplied admin bundle is reused without building; the watchdog reaps onc
   const imported: string[] = [];
   await runLocalSiteChild({}, { proc, timers, reapOwnTree: async () => { reaped++; },
     buildAdminBundle: async () => assert.fail("a supplied bundle is never rebuilt"),
-    siteEntry: "entry.js", importEntry: async (specifier) => { imported.push(specifier); } });
+    siteEntry: "entry.js", importEntry: async ({ specifier }) => { imported.push(specifier); } });
   assert.deepEqual(imported, ["entry.js"]);
   assert.equal(env.TOVU_ADMIN_DIST, "/shared/dist");
   state.tick!();

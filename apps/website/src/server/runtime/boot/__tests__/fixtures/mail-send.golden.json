@@ -172,7 +172,7 @@
           "credential": {
             "required": true,
             "saved": true,
-            "label": "Tovu Mail — Resend API",
+            "label": "Jini Mail — Resend API",
             "credentialId": "id-3",
             "updatedAt": "2026-11-07T00:00:00.000Z"
           },
@@ -292,7 +292,7 @@
           "credential": {
             "required": true,
             "saved": true,
-            "label": "Tovu Mail — Resend API",
+            "label": "Jini Mail — Resend API",
             "credentialId": "id-3",
             "updatedAt": "2026-11-07T00:00:00.000Z"
           },
@@ -656,7 +656,7 @@
         "ok": false,
         "retryable": false,
         "errorCode": "MAIL_PROVIDER_UNAVAILABLE",
-        "message": "[mail] the selected mail provider 'resend' has no saved credential \"Tovu Mail — Resend API\" under Access Tokens (category \"ops\"), so outbound mail is NOT being sent"
+        "message": "[mail] the selected mail provider 'resend' has no saved credential \"Jini Mail — Resend API\" under Access Tokens (category \"ops\"), so outbound mail is NOT being sent"
       },
       "requests": [],
       "counters": {
@@ -763,7 +763,7 @@
       "spec": {
         "pluginId": "resend",
         "providerId": "resend",
-        "label": "Tovu Mail — Resend API",
+        "label": "Jini Mail — Resend API",
         "category": "ops",
         "title": "Connect Resend",
         "intro": "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).",
@@ -782,7 +782,7 @@
         ]
       },
       "sha256": "2d0d32c30e5bdc9f4a422a4bcc6f93cc96afdcf92df2af930f343cabeed2a2f0",
-      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Resend</title>\n\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Resend</h1>\n<p class=\"mcpui-description\">Connect Resend so this site can send its email (sign-in links, confirmations, form notifications). The key is sealed on the server the moment you submit — the assistant never sees it.</p>\n<dl class=\"mcpui-details\">\n  <dt>Get a key at resend.com/api-keys</dt><dd>https://resend.com/api-keys</dd>\n  <dt>Used for</dt><dd>Sends your site&#39;s emails (sign-in links, form notices, newsletters)</dd>\n  <dt>Saved as</dt><dd>Tovu Mail — Resend API</dd>\n</dl>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">API key<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Create a key with Sending access</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show API key\" data-mcpui-hide-secret=\"Hide API key\" aria-label=\"Show API key\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save key\">Save key</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n\n\n</body>\n</html>"
+      "markup": "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'\">\n<title>Connect Resend</title>\n\n</head>\n<body>\n<main class=\"mcpui-surface\">\n<h1 class=\"mcpui-title\">Connect Resend</h1>\n<p class=\"mcpui-description\">Connect Resend so this site can send its email (sign-in links, confirmations, form notifications). The key is sealed on the server the moment you submit — the assistant never sees it.</p>\n<dl class=\"mcpui-details\">\n  <dt>Get a key at resend.com/api-keys</dt><dd>https://resend.com/api-keys</dd>\n  <dt>Used for</dt><dd>Sends your site&#39;s emails (sign-in links, form notices, newsletters)</dd>\n  <dt>Saved as</dt><dd>Jini Mail — Resend API</dd>\n</dl>\n<form id=\"mcpui-form\" novalidate>\n<fieldset class=\"mcpui-fields\">\n<div class=\"mcpui-field\">\n<label class=\"mcpui-label\" for=\"mcpui-field-token\">API key<span class=\"mcpui-required\" aria-hidden=\"true\">*</span></label>\n<span class=\"mcpui-hint\" id=\"mcpui-field-token-hint\">Create a key with Sending access</span>\n<div class=\"mcpui-secret\"><input class=\"mcpui-input\" type=\"password\" id=\"mcpui-field-token\" name=\"token\" required aria-describedby=\"mcpui-field-token-hint\" autocomplete=\"new-password\" spellcheck=\"false\"><button type=\"button\" class=\"mcpui-secret-toggle\" data-mcpui-secret-toggle=\"mcpui-field-token\" data-mcpui-show-secret=\"Show API key\" data-mcpui-hide-secret=\"Hide API key\" aria-label=\"Show API key\" aria-controls=\"mcpui-field-token\" aria-pressed=\"false\"><svg class=\"mcpui-secret-icon-show\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg><svg class=\"mcpui-secret-icon-hide\" aria-hidden=\"true\" focusable=\"false\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a17.8 17.8 0 0 1-2.16 3.19M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M14.12 14.12a3 3 0 1 1-4.24-4.24\"/><path d=\"M2 2l20 20\"/></svg></button></div>\n</div>\n</fieldset>\n\n<div class=\"mcpui-actions\">\n  <button type=\"button\" class=\"mcpui-button mcpui-button-primary\" data-mcpui-action=\"submit\" data-agent-element=\"mcpui-action-submit\" data-agent-role=\"button\" data-agent-label=\"Save key\">Save key</button>\n</div>\n</form>\n<p class=\"mcpui-status\" id=\"mcpui-status\" role=\"status\" aria-live=\"polite\" data-state=\"idle\"></p>\n</main>\n\n\n</body>\n</html>"
     },
     "selection": {
       "transactional": null,

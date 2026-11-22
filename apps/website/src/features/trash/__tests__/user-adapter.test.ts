@@ -1,4 +1,4 @@
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,9 +12,9 @@ import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-mana
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashSweep } from "@jini-ai/cms/trash";
+import { createTrashSweep, type TrashRegistry } from "@jini-ai/cms/trash";
 import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
@@ -50,7 +50,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
   const clock = { nowIso: () => AT, nowMs: () => Date.parse(AT) };
-  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db), workspaceId, clock, idGen: counterIdGenNew() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel({ store: db }), workspaceId, clock, idGen: counterIdGenNew() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
@@ -74,13 +74,13 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry();
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => (idGen).next() },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -291,11 +291,11 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(f.db), purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: f.db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
-    repo: new SqliteTrashRepo(f.db.$client),
+    repo: new SqliteTrashRepo({ store: f.db.$client }),
     adapters,
-    transaction: ({ work }) => (createContentDbTransactionRunner(f.db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: f.db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   });
   const report = await sweep({ now: purgeAfter, leaseOwner: "sweeper-1", leaseUntil: purgeAfter, limit: 10 });
@@ -314,7 +314,7 @@ test("purge: an active principal (a forged/stale index row) is refused as versio
   const targetId = await createBareUser(f, "still-active");
   // Forge a trashed_items row for a principal that was never actually hidden — the index and the
   // domain row have drifted apart, which purge must detect rather than trust.
-  const repo = new SqliteTrashRepo(f.db.$client);
+  const repo = new SqliteTrashRepo({ store: f.db.$client });
   await repo.insert({ row: {
     id: "forged-row",
     workspaceId: WS,
@@ -389,7 +389,7 @@ test("mayActOnEntityType('user'): a principal holding only 'user.manage' is refu
  * never takes the Trash's principal lock, so on Postgres this interleaving is real.
  */
 function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   let reads = 0;
   return new Proxy(kernel, {
     get(target, prop, receiver) {
@@ -407,8 +407,8 @@ test("hide: a status change committed between the read and the write reports ver
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
   const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
-    db: contentKernel(kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId))),
-    purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }),
+    db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)) }),
+    purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });
@@ -424,10 +424,10 @@ test("unhide: a re-enable committed between the read and the write is not overwr
   const targetId = await createBareUser(f, "racing");
   f.db.$client.prepare(`UPDATE principals SET status = 'disabled', disabled_at = ? WHERE id = ?`).run(AT, targetId);
   const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
-    db: contentKernel(kernelWithWriterAfterFirstRead(f.db, () =>
+    db: contentKernel({ store: kernelWithWriterAfterFirstRead(f.db, () =>
       f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
-    )),
-    purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }),
+    ) }),
+    purge: new SqliteUserPurge({ kernel: contentKernel({ store: f.db }), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });

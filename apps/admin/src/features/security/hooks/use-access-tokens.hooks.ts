@@ -1,21 +1,16 @@
-import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
+import { translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 
-import {
-  describeApiError,
-  type AdminCustomCredentialCategoryId,
-  type AdminCustomCredentialSummary,
-  type AdminPublishConnectionInput,
-  type AdminPublishCredentialSummary,
-  type AdminSourceControlConnectionInput,
-  type AdminSourceControlCredentialSummary,
-} from "@/lib/api";
+import type { AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminPublishConnectionInput, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
 import {
   t as defaultT,
@@ -25,41 +20,15 @@ import {
   accessTokenSaveErrorMessage,
   accessTokensLoadErrorMessage,
 } from "../security-i18n";
-import {
-  ACCESS_TOKENS_RESOURCE,
-  accessTokenCategoryMatches,
-  accessTokenExistingRowReadyToSave,
-  accessTokenNameTaken,
-  accessTokenProviderInfo,
-  accessTokenProviders,
-  accessTokenProvidersWithSavedRows,
-  accessTokenRowMatchesQuery,
-  accessTokenRowProviderInfo,
-  accessTokenRowReadyToSave,
-  accessTokenRowsForProvider,
-  buildAccessTokenConnectionInput,
-  buildAccessTokenRows,
-  buildAccessTokenUpdatePatch,
-  buildAdditionalHostsInput,
-  buildCustomCredentialRows,
-  buildCustomCredentialUpdatePatch,
-  buildCustomProviderConnectionInput,
-  classifyAccessTokenSubmitError,
-  customCredentialNameTaken,
-  customCredentialReadyToSave,
-  sortAccessTokenGroups,
-  type AccessTokenCategoryId,
-  type AccessTokenFormFields,
-  type AccessTokenKind,
-  type AccessTokenProviderInfo,
-  type AccessTokenProviderRef,
-  type AccessTokenRow,
-  type AccessTokenRowCategoryId,
-  type CustomCredentialFormFields,
-} from "../rules";
+import { ACCESS_TOKENS_RESOURCE, accessTokenCategoryMatches, sortAccessTokenGroups, type AccessTokenCategoryId, type AccessTokenKind, type AccessTokenRowCategoryId } from "../rules";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave, buildAccessTokenConnectionInput, buildAccessTokenUpdatePatch, classifyAccessTokenSubmitError, type AccessTokenFormFields as CredentialAccessTokenFormFields } from "../access-token-forms";
+import { buildAdditionalHostsInput, buildCustomCredentialUpdatePatch, buildCustomProviderConnectionInput, customCredentialNameTaken, customCredentialReadyToSave, type CustomCredentialFormFields } from "../custom-credential-forms";
+import { accessTokenNameTaken, accessTokenRowMatchesQuery, accessTokenRowsForProvider, buildAccessTokenRows, buildCustomCredentialRows, type AccessTokenRow } from "../access-token-rows";
+import { accessTokenProviderInfo, accessTokenProviders, accessTokenProvidersWithSavedRows, accessTokenRowProviderInfo, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "../access-token-providers";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "unknown error";
 
 /**
@@ -190,8 +159,7 @@ function addFormKey(ref: AccessTokenProviderRef): string {
   return `${ref.kind}:${ref.providerId}`;
 }
 
-export interface AccessTokenExistingRowState {
-  readonly row: AccessTokenRow;
+export interface AccessTokenFormFields {
   readonly name: string;
   readonly token: string;
   /** The provider's extra descriptor fields, keyed by field name. */
@@ -202,6 +170,10 @@ export interface AccessTokenExistingRowState {
   readonly readyToSave: boolean;
   readonly saving: boolean;
   readonly error: string | null;
+}
+
+export interface AccessTokenExistingRowState extends AccessTokenFormFields {
+  readonly row: AccessTokenRow;
 }
 /** Merges one saved row with its own draft/busy state — defaults name to the row's current display
  *  name (Replace's "current Name pre-filled" behavior) and username to the row's own saved username
@@ -210,34 +182,27 @@ export interface AccessTokenExistingRowState {
  *  back" posture every credential form in this app already has.
  *  @complexity O(1). */
 function existingRowState(
-  row: AccessTokenRow,
-  draft: DraftFields | undefined,
-  busy: BusyState | undefined,
-  info: AccessTokenProviderInfo
+  { row, draft, busy, info }: {
+    row: AccessTokenRow;
+    draft: DraftFields | undefined;
+    busy: BusyState | undefined;
+    info: AccessTokenProviderInfo;
+  },
+  _optional: Record<string, never> = {},
 ): AccessTokenExistingRowState {
   const d = existingTokenDraft({ row, draft });
   const b = busy ?? IDLE;
-  const readyToSave = accessTokenExistingRowReadyToSave({ ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info);
+  const readyToSave = accessTokenExistingRowReadyToSave({ fields: { ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info });
   return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
 }
 
-export interface AccessTokenAddFormState {
+export interface AccessTokenAddFormState extends AccessTokenFormFields {
   readonly visible: boolean;
-  readonly name: string;
-  readonly token: string;
-  /** The provider's extra descriptor fields, keyed by field name. */
-  readonly values: Readonly<Record<string, string>>;
-  readonly username: string;
-  readonly worksFor: string[];
-  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
-  readonly readyToSave: boolean;
-  readonly saving: boolean;
-  readonly error: string | null;
 }
 /** @complexity O(1). */
-function addFormState(entry: AddFormEntry | undefined, info: AccessTokenProviderInfo): AccessTokenAddFormState {
+function addFormState({ entry, info }: { entry: AddFormEntry | undefined; info: AccessTokenProviderInfo }, _optional: Record<string, never> = {}): AccessTokenAddFormState {
   const e = entry ?? blankAddFormEntry();
-  const readyToSave = accessTokenRowReadyToSave({ ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info);
+  const readyToSave = accessTokenRowReadyToSave({ fields: { ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info });
   return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, worksFor: e.draft.worksFor, readyToSave, saving: e.saving, error: e.error };
 }
 
@@ -289,7 +254,7 @@ export interface AccessTokensController {
    *  numerator; equals {@link totalCount} when `query` is blank. */
   matchCount: number;
 
-  setExistingField: (rowId: string, patch: Partial<DraftFields>) => void;
+  setExistingField: (required: { rowId: string; patch: Partial<DraftFields> }, optional?: Record<string, never>) => void;
   replaceToken: (row: AccessTokenRow) => Promise<void>;
   removeToken: (row: AccessTokenRow) => Promise<void>;
   makeDefault: (row: AccessTokenRow) => Promise<void>;
@@ -317,11 +282,20 @@ export interface AccessTokensController {
 /** Translates a rejected create/update/delete into a form-ready string — pulled out of the hook body
  *  for the same complexity-budget reason `publishCredentialSubmitErrorMessage` documents in its own
  *  file. @complexity O(1). */
-function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: string, providerLabel: string, attemptedName: string): string {
-  const classified = classifyAccessTokenSubmitError(err);
-  if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage(locale, attemptedName, providerLabel);
-  if (classified.kind === "validation") return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
-  return accessTokenSaveErrorMessage(locale, describeApiError(err, t(UNKNOWN_ERROR)));
+function accessTokenSubmitErrorMessage(
+  { err, t, locale, providerLabel, attemptedName }: {
+    err: unknown;
+    t: Translate;
+    locale: string;
+    providerLabel: string;
+    attemptedName: string;
+  },
+  _optional: Record<string, never> = {},
+): string {
+  const classified = classifyAccessTokenSubmitError({ e: err });
+  if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage({ locale, name: attemptedName, provider: providerLabel });
+  if (classified.kind === "validation") return accessTokenSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
+  return accessTokenSaveErrorMessage({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) });
 }
 
 /** Translates a rejected remove/make-default into a row-ready string via `template` — the
@@ -331,23 +305,34 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
  *  is the plain `describeApiError` extraction alone, worded per-action by the caller's own template
  *  (Terra audit MEDIUM finding, 2026-08-19: neither action surfaced a rejected call at all before
  *  this fix). @complexity O(1). */
-function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: string, template: (locale: string, error: string) => string): string {
-  return template(locale, describeApiError(err, t(UNKNOWN_ERROR)));
+function accessTokenActionErrorMessage(
+  { err, t, locale, template }: {
+    err: unknown;
+    t: Translate;
+    locale: string;
+    template: (input: { locale: string; error: string }) => string;
+  },
+  _optional: Record<string, never> = {},
+): string {
+  return template({ locale, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) });
 }
 
 /** Combines the three independent list-fetch failures (publish, source-control, custom) into one
  *  user-facing message, publish taking priority — pulled out of the hook body for the same
  *  complexity-budget reason {@link accessTokenSubmitErrorMessage} documents. */
 function accessTokensLoadError(
-  publishError: unknown,
-  sourceControlError: unknown,
-  customError: unknown,
-  t: Translate,
-  locale: string
+  { publishError, sourceControlError, customError, t, locale }: {
+    publishError: unknown;
+    sourceControlError: unknown;
+    customError: unknown;
+    t: Translate;
+    locale: string;
+  },
+  _optional: Record<string, never> = {},
 ): string | null {
-  if (publishError) return accessTokensLoadErrorMessage(locale, describeApiError(publishError, t(UNKNOWN_ERROR)));
-  if (sourceControlError) return accessTokensLoadErrorMessage(locale, describeApiError(sourceControlError, t(UNKNOWN_ERROR)));
-  if (customError) return accessTokensLoadErrorMessage(locale, describeApiError(customError, t(UNKNOWN_ERROR)));
+  if (publishError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: publishError, fallback: t(UNKNOWN_ERROR) }) });
+  if (sourceControlError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: sourceControlError, fallback: t(UNKNOWN_ERROR) }) });
+  if (customError) return accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: customError, fallback: t(UNKNOWN_ERROR) }) });
   return null;
 }
 
@@ -369,24 +354,31 @@ function firstRejectionReason(results: readonly PromiseSettledResult<unknown>[])
  *  why this is safe). Split out of {@link useAccessTokens}'s action functions purely to keep each of
  *  those under this repo's complexity gate. */
 async function writeCredential(
-  port: AccessTokensPort,
-  kind: AccessTokenKind,
-  mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string },
-  patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] }
+  { port, kind, mode, patch }: {
+    port: AccessTokensPort;
+    kind: AccessTokenKind;
+    mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string };
+    patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] };
+  },
+  _optional: Record<string, never> = {},
 ): Promise<AdminPublishCredentialSummary | AdminSourceControlCredentialSummary> {
   if (kind === "publish") {
     const connection = patch.connection as AdminPublishConnectionInput | undefined;
-    return mode.type === "create"
-      ? port.publish.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault, worksFor: patch.worksFor })
-      : port.publish.update(mode.id, { ...patch, connection });
+    if (mode.type === "create") {
+      if (!connection) throw new Error("new publish credential has no connection");
+      return port.publish.create({ label: mode.label, connection, isDefault: patch.isDefault, worksFor: patch.worksFor });
+    }
+    return port.publish.update({ id: mode.id, input: { ...patch, connection } });
   }
   const connection = patch.connection as AdminSourceControlConnectionInput | undefined;
-  return mode.type === "create"
-    ? port.sourceControl.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault })
-    : port.sourceControl.update(mode.id, { ...patch, connection });
+  if (mode.type === "create") {
+    if (!connection) throw new Error("new source control credential has no connection");
+    return port.sourceControl.create({ label: mode.label, connection, isDefault: patch.isDefault });
+  }
+  return port.sourceControl.update({ id: mode.id, input: { ...patch, connection } });
 }
 
-export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: string): AccessTokensController {
+export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t: Translate; locale: string }, _optional: Record<string, never> = {}): AccessTokensController {
   const publishQuery = useFetchQuery({ key: ["security", "publish-credentials"], fetch: () => port.publish.list() });
   const sourceControlQuery = useFetchQuery({ key: ["security", "source-control-credentials"], fetch: () => port.sourceControl.list() });
   const customQuery = useFetchQuery({ key: ["security", "custom-credentials"], fetch: () => port.custom.list() });
@@ -399,15 +391,15 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
     () =>
       accessTokenProviders(
-        localizePublishTargets(publishTargetsQuery.data, locale),
-        sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders(sourceControlProvidersQuery.data, locale)
+        { publishTargets: localizePublishTargets({ targets: publishTargetsQuery.data, locale }) },
+        { sourceControlProviders: sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data, locale }) }
       ),
     [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
   );
   // The existing catalogs own ids and labels; no parallel provider list lives in this UI.
   const worksForOptions = useMemo(() => Array.from(new Map([
-    ...(localizePublishTargets(publishTargetsQuery.data, locale) ?? []).map(target => [target.id, { value: target.id, label: target.label }] as const),
-    ...(localizeSourceControlProviders(sourceControlProvidersQuery.data ?? [], locale)).map(provider => [provider.id, { value: provider.id, label: provider.label }] as const),
+    ...(localizePublishTargets({ targets: publishTargetsQuery.data, locale }) ?? []).map(target => [target.id, { value: target.id, label: target.label }] as const),
+    ...(localizeSourceControlProviders({ providers: sourceControlProvidersQuery.data ?? [], locale })).map(provider => [provider.id, { value: provider.id, label: provider.label }] as const),
   ]).values()), [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]);
   const publishTargetsSettled = publishTargetsQuery.status !== "loading" && sourceControlProvidersQuery.status !== "loading";
   const [publishCredentials, setPublishCredentials] = useState<AdminPublishCredentialSummary[] | undefined>(undefined);
@@ -502,7 +494,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
     if (customResult.status === "fulfilled") setCustomCredentials(customResult.value.credentials);
     const failureReason = firstRejectionReason(results);
-    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage(locale, describeApiError(failureReason, t(UNKNOWN_ERROR))));
+    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage({ locale, error: describeApiError({ e: failureReason, fallback: t(UNKNOWN_ERROR) }) }));
     setHasReloadedOnce(true);
   }, [port, locale, t]);
 
@@ -511,7 +503,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const triggerReload = useCallback(() => {
     void reloadAllStores();
   }, [reloadAllStores]);
-  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
+  useContentRefreshSubscription({ resource: ACCESS_TOKENS_RESOURCE, onRefresh: triggerReload });
 
   // Once a reload has completed at least once, `reloadError` alone is authoritative — see
   // `hasReloadedOnce`'s own doc for why the initial-fetch errors below cannot be trusted past that
@@ -519,14 +511,14 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   // load's own three-way priority, falling back to `reloadError` (still its initial `null`).
   const loadError = hasReloadedOnce
     ? reloadError
-    : (accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError);
+    : (accessTokensLoadError({ publishError: publishQuery.error, sourceControlError: sourceControlQuery.error, customError: customQuery.error, t, locale }) ?? reloadError);
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
     return [
-      ...buildAccessTokenRows("publish", publishCredentials, providers),
-      ...buildAccessTokenRows("source-control", sourceControlCredentials, providers),
-      ...buildCustomCredentialRows(customCredentials),
+      ...buildAccessTokenRows({ kind: "publish", raws: publishCredentials, providers }),
+      ...buildAccessTokenRows({ kind: "source-control", raws: sourceControlCredentials, providers }),
+      ...buildCustomCredentialRows({ raws: customCredentials }),
     ];
   }, [publishCredentials, sourceControlCredentials, customCredentials, publishTargetsSettled, providers]);
 
@@ -553,19 +545,19 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       await reloadAllStores();
       setCustomKeyBusy(prev => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t(UNKNOWN_ERROR)) } }));
+      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError({ e: err, fallback: t(UNKNOWN_ERROR) }) } }));
     } finally {
       customKeyPending.current.delete(row.id);
     }
   }
 
-  function mergeCredential(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary, isNew: boolean): void {
+  function mergeCredential({ kind, result, isNew }: { kind: AccessTokenKind; result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary; isNew: boolean }, _optional: Record<string, never> = {}): void {
     if (kind === "publish") {
       const row = result as AdminPublishCredentialSummary;
-      setPublishCredentials((prev) => mergeRaw(prev ?? [], row, isNew));
+      setPublishCredentials((prev) => mergeRaw({ list: prev ?? [], result: row, isNew }));
     } else {
       const row = result as AdminSourceControlCredentialSummary;
-      setSourceControlCredentials((prev) => mergeRaw(prev ?? [], row, isNew));
+      setSourceControlCredentials((prev) => mergeRaw({ list: prev ?? [], result: row, isNew }));
     }
   }
 
@@ -583,8 +575,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  once a custom row can carry a saved {@link AccessTokenRow.username}, touching Token first (before
    *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
    *  it used to blank Name. @complexity O(1). */
-  function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
-    if (patch.token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: patch.token! }, { locale }) } }));
+  function setExistingField({ rowId, patch }: { rowId: string; patch: Partial<DraftFields> }, _optional: Record<string, never> = {}): void {
+    const token = patch.token;
+    if (token !== undefined) setExistingBusy(prev => ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: token }, { locale }) } }));
     setExistingDrafts((prev) => {
       const existing = prev[rowId];
       if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
@@ -593,7 +586,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     });
   }
 
-  /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
+  /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `CredentialAccessTokenFormFields`
    *  shape to build (no `ref`-keyed catalog lookup, no descriptor `values`), so it reuses only what genuinely
    *  applies: {@link customCredentialReplaceReadyToSave}'s readiness rule (rename-alone, username-alone,
    *  or either together is ready, same as a new token — see that function's own doc for why this is
@@ -602,19 +595,19 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
     const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
-    const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
+    const fields: CredentialAccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave(fields, row, accessTokenRowProviderInfo(providers, row))) return;
-    if (customCredentialNameTaken((rows ?? []).filter(candidate => candidate.scope === row.scope), fields.name, row.id)) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
+    if (!accessTokenExistingRowReadyToSave({ fields, row, info: accessTokenRowProviderInfo({ providers, row }) })) return;
+    if (customCredentialNameTaken({ rows: (rows ?? []).filter(candidate => candidate.scope === row.scope), name: fields.name }, { excludeId: row.id })) {
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: t("this workspace") }) } }));
       return;
     }
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username, { currentWorksFor: row.worksFor }));
+      const result = await port.custom.update({ id: row.id, input: buildCustomCredentialUpdatePatch({ fields, nameChanged, hasToken, currentUsername: row.username }, { currentWorksFor: row.worksFor }) });
       // PUT returns credential metadata; retain the latest attachment snapshot from the inventory.
       setCustomCredentials(prev => (prev ?? []).map(item => item.id === result.id
         ? { ...result, usedBy: item.usedBy, usedByThisSite: item.usedByThisSite } : item));
@@ -628,7 +621,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "", worksFor: result.worksFor } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel: t("this workspace"), attemptedName: fields.name }) } }));
     }
   }
 
@@ -644,30 +637,30 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // grows a saved username inherits the correct prefill automatically instead of silently reading
     // blank the same way custom rows used to.
     const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
-    const fields: AccessTokenFormFields = { ref, ...draft };
-    const info = accessTokenProviderInfo(providers, ref);
+    const fields: CredentialAccessTokenFormFields = { ref, ...draft };
+    const info = accessTokenProviderInfo({ providers, ref });
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
-    if (!accessTokenExistingRowReadyToSave(fields, row, info)) return;
+    if (!accessTokenExistingRowReadyToSave({ fields, row, info })) return;
     const providerLabel = info.label;
-    if (accessTokenNameTaken(rows ?? [], ref, fields.name, row.id)) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
+    if (accessTokenNameTaken({ rows: rows ?? [], ref, name: fields.name }, { excludeId: row.id })) {
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: providerLabel }) } }));
       return;
     }
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken, info, { currentWorksFor: row.worksFor });
-      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
-      mergeCredential(row.kind, result, false);
+      const patch = buildAccessTokenUpdatePatch({ fields, nameChanged, hasToken, info }, { currentWorksFor: row.worksFor });
+      const result = await writeCredential({ port, kind: row.kind, mode: { type: "update", id: row.id }, patch });
+      mergeCredential({ kind: row.kind, result, isNew: false });
       // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
       // summary) never carries a `username` fact, so `row.username ?? ""` — not `result.username` —
       // is the only value available, and it is always "" today for these two kinds.
       setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "", worksFor: "worksFor" in result ? result.worksFor : [] } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel, attemptedName: fields.name }) } }));
     }
   }
 
@@ -682,16 +675,16 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     try {
       if (row.kind === "custom") {
-        await port.custom.remove(row.id);
+        await port.custom.remove({ id: row.id });
         setCustomCredentials((await port.custom.list()).credentials);
       } else {
-        if (row.kind === "publish") await port.publish.remove(row.id);
-        else await port.sourceControl.remove(row.id);
+        if (row.kind === "publish") await port.publish.remove({ id: row.id });
+        else await port.sourceControl.remove({ id: row.id });
         await refetchStore(row.kind);
       }
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenRemoveErrorMessage) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage({ err, t, locale, template: accessTokenRemoveErrorMessage }) } }));
     }
   }
 
@@ -705,9 +698,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    *  `TokenRowDefaultIndicator` never renders a "Make default" control for a singleton custom group),
    *  so only the two branches `refetchStore` itself already handles are needed here.
    *  @complexity O(1) dispatch; O(n) inside `withPromotedDefault`. */
-  function applyPromotedDefault(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary): void {
-    if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminPublishCredentialSummary));
-    else setSourceControlCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminSourceControlCredentialSummary));
+  function applyPromotedDefault({ kind, result }: { kind: AccessTokenKind; result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary }, _optional: Record<string, never> = {}): void {
+    if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault({ credentials: prev ?? [], promoted: result as AdminPublishCredentialSummary }));
+    else setSourceControlCredentials((prev) => withPromotedDefault({ credentials: prev ?? [], promoted: result as AdminSourceControlCredentialSummary }));
   }
 
   /** Best-effort re-read after a promotion the server already confirmed — same shape and reasoning as
@@ -727,12 +720,12 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     if (row.isDefault) return;
     setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
     try {
-      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
-      applyPromotedDefault(row.kind, result);
+      const result = await writeCredential({ port, kind: row.kind, mode: { type: "update", id: row.id }, patch: { isDefault: true } });
+      applyPromotedDefault({ kind: row.kind, result });
       await reconcileStore(row.kind);
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenMakeDefaultErrorMessage) } }));
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage({ err, t, locale, template: accessTokenMakeDefaultErrorMessage }) } }));
     }
   }
 
@@ -745,7 +738,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
   function setAddField(ref: AccessTokenProviderRef, patch: Partial<DraftFields>): void {
     const key = addFormKey(ref);
-    if (patch.token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: patch.token! }, { locale, required: true }) } }));
+    const token = patch.token;
+    if (token !== undefined) setAddForms(prev => ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: token }, { locale, required: true }) } }));
     setAddForms((prev) => {
       const entry = prev[key] ?? blankAddFormEntry();
       const compatibility = ref.kind === "publish" ? addWorksForPatch({ draft: entry.draft, patch, options: worksForOptions }) : {};
@@ -756,26 +750,26 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   async function createToken(ref: AccessTokenProviderRef): Promise<void> {
     const key = addFormKey(ref);
     const entry = addForms[key] ?? blankAddFormEntry();
-    const fields: AccessTokenFormFields = { ref, ...entry.draft };
-    const info = accessTokenProviderInfo(providers, ref);
+    const fields: CredentialAccessTokenFormFields = { ref, ...entry.draft };
+    const info = accessTokenProviderInfo({ providers, ref });
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setAddForms(prev => ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
-    if (!accessTokenRowReadyToSave(fields, info)) return;
+    if (!accessTokenRowReadyToSave({ fields, info })) return;
     const providerLabel = info.label;
-    if (accessTokenNameTaken(rows ?? [], ref, fields.name)) {
-      setAddForms((prev) => ({ ...prev, [key]: { ...entry, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
+    if (accessTokenNameTaken({ rows: rows ?? [], ref, name: fields.name })) {
+      setAddForms((prev) => ({ ...prev, [key]: { ...entry, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: providerLabel }) } }));
       return;
     }
     setAddForms((prev) => ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
     try {
-      const connection = buildAccessTokenConnectionInput(fields, info);
-      const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) });
-      mergeCredential(ref.kind, result, true);
+      const connection = buildAccessTokenConnectionInput({ fields, info });
+      const result = await writeCredential({ port, kind: ref.kind, mode: { type: "create", label: fields.name.trim() }, patch: { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) } });
+      mergeCredential({ kind: ref.kind, result, isNew: true });
       setAddForms((prev) => ({ ...prev, [key]: blankAddFormEntry() }));
     } catch (err) {
       setAddForms((prev) => ({
         ...prev,
-        [key]: { ...entry, saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) },
+        [key]: { ...entry, saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel, attemptedName: fields.name }) },
       }));
     }
   }
@@ -788,10 +782,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   const customGroups = useMemo<readonly AccessTokenProviderGroupState[]>(() => {
     if (rows === undefined) return [];
     return rows
-      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches(row.category ?? "general", category) && accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query))
+      .filter((row) => row.kind === "custom" && accessTokenCategoryMatches({ rowCategory: row.category ?? "general", activeCategory: category }) && accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, row }), query }))
       .map((row) => {
-        const info = accessTokenRowProviderInfo(providers, row);
-        return { info, rows: [existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)], addForm: addFormState(undefined, info) };
+        const info = accessTokenRowProviderInfo({ providers, row });
+        return { info, rows: [existingRowState({ row, draft: existingDrafts[row.id], busy: existingBusy[row.id], info })], addForm: addFormState({ entry: undefined, info }) };
       });
   }, [rows, existingDrafts, existingBusy, query, category, providers]);
 
@@ -800,26 +794,27 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     // A provider outside the active category is dropped here, before the query filter ever runs —
     // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
     // A saved row whose provider is not listed still gets its group, so it can be removed.
-    const catalogGroups = accessTokenProvidersWithSavedRows(providers, rows).filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
-      const providerRows = accessTokenRowsForProvider(rows, info).filter((row) => accessTokenRowMatchesQuery(row, info, query));
+    const catalogGroups = accessTokenProvidersWithSavedRows({ providers, rows }).filter((info) => accessTokenCategoryMatches({ rowCategory: info.category, activeCategory: category })).map((info) => {
+      const providerRows = accessTokenRowsForProvider({ rows, ref: info }).filter((row) => accessTokenRowMatchesQuery({ row, info, query }));
       return {
         info,
-        rows: providerRows.map((row) => existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)),
-        addForm: addFormState(addForms[addFormKey(info)], info),
+        rows: providerRows.map((row) => existingRowState({ row, draft: existingDrafts[row.id], busy: existingBusy[row.id], info })),
+        addForm: addFormState({ entry: addForms[addFormKey(info)], info }),
       };
     });
     // Saved-before-unsaved, then category-chip order, then alphabetical by label — the owner's
     // 2026-09-21 ordering ruling (`rules.ts`'s `sortAccessTokenGroups` doc). Applied to the
     // already-category-and-query-filtered list above, so it holds for the "All" chip, any single
     // category chip, and an active search query alike.
-    return sortAccessTokenGroups([...catalogGroups, ...customGroups]);
+    return sortAccessTokenGroups({ groups: [...catalogGroups, ...customGroups] });
   }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups, providers]);
 
   const totalCount = rows?.length ?? 0;
-  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query)).length;
+  const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery({ row, info: accessTokenRowProviderInfo({ providers, row }), query })).length;
 
   function setCustomAddField(patch: Partial<CustomDraftFields>): void {
-    if (patch.token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: patch.token! }, { locale, required: true }) }));
+    const token = patch.token;
+    if (token !== undefined) setCustomAddBusy(prev => ({ ...prev, error: credentialDraftError({ value: token }, { locale, required: true }) }));
     setCustomAddDraft((prev) => ({ ...prev, ...patch, ...addWorksForPatch({ draft: prev, patch, options: worksForOptions }) }));
   }
 
@@ -837,8 +832,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setCustomAddBusy({ saving: false, error }); return false; }
     if (!customCredentialReadyToSave(fields)) return false;
-    if (customCredentialNameTaken((rows ?? []).filter(row => (row.scope ?? "site") === scope), fields.name)) {
-      setCustomAddBusy({ saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) });
+    if (customCredentialNameTaken({ rows: (rows ?? []).filter(row => (row.scope ?? "site") === scope), name: fields.name })) {
+      setCustomAddBusy({ saving: false, error: accessTokenDuplicateNameMessage({ locale, name: fields.name.trim(), provider: t("this workspace") }) });
       return false;
     }
     setCustomAddBusy({ saving: true, error: null });
@@ -849,14 +844,14 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
         worksFor: fields.worksFor,
         category: fields.category,
         baseUrl: fields.baseUrl.trim(),
-        additionalHosts: buildAdditionalHostsInput(fields.additionalHosts),
+        additionalHosts: buildAdditionalHostsInput({ raw: fields.additionalHosts }),
         connection: buildCustomProviderConnectionInput(fields),
       });
-      setCustomCredentials((prev) => mergeRaw(prev ?? [], result, true));
+      setCustomCredentials((prev) => mergeRaw({ list: prev ?? [], result, isNew: true }));
       resetCustomAddForm();
       return true;
     } catch (err) {
-      setCustomAddBusy({ saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) });
+      setCustomAddBusy({ saving: false, error: accessTokenSubmitErrorMessage({ err, t, locale, providerLabel: t("this workspace"), attemptedName: fields.name }) });
       return false;
     }
   }
@@ -891,7 +886,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
 }
 
 /** @complexity O(n) in the provider's own (small) saved-row count. */
-function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew: boolean): T[] {
+function mergeRaw<T extends { id: string }>({ list, result, isNew }: { list: readonly T[]; result: T; isNew: boolean }, _optional: Record<string, never> = {}): T[] {
   return isNew ? [...list, result] : list.map((item) => (item.id === result.id ? result : item));
 }
 
@@ -914,5 +909,5 @@ function mergeRaw<T extends { id: string }>(list: readonly T[], result: T, isNew
 export function useWiredAccessTokens(): AccessTokensController {
   const locale = useAdminLocale();
   const boundT = useCallback((key: string): string => defaultT({ locale: locale, key: key }), [locale]);
-  return useAccessTokens(defaultAccessTokensPort, boundT, locale);
+  return useAccessTokens({ port: defaultAccessTokensPort, t: boundT, locale });
 }

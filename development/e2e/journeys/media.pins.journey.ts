@@ -11,7 +11,7 @@ import { loginAsAdmin } from "../support/bug-pin-auth.js";
 test.use({ viewport: { width: 1280, height: 720 } });
 
 // Migrated from media-picker-cancel.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: media-picker-cancel", () => {
+{
 /**
  * @file Regression coverage for the owner-reported bug (2026-08-21): with real media loaded,
  * `MediaPickerDialog`'s Cancel button renders off-screen and unclickable. A live browser sweep
@@ -44,25 +44,6 @@ test.describe("Bug pin: media-picker-cancel", () => {
 const WORKSPACE_ID = "workspace-local";
 const API_BASE = "/api/admin/v1";
 const SEED_COUNT = 20;
-
-test("Media's Order by label and dropdown share a row with visible spacing", async ({ page }) => {
-  await loginAsAdmin(page);
-  await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
-  const control = page.locator(".media-order-control");
-  await expect(control).toBeVisible();
-
-  // Measure the served page so an unloaded stylesheet or a later override fails this guard.
-  const spacing = await control.evaluate((element) => {
-    const label = element.querySelector("label")!.getBoundingClientRect();
-    const dropdown = element.querySelector("select")!.getBoundingClientRect();
-    return {
-      gap: dropdown.left - label.right,
-      verticalOverlap: Math.min(label.bottom, dropdown.bottom) - Math.max(label.top, dropdown.top),
-    };
-  });
-  expect(spacing.gap).toBeGreaterThan(0);
-  expect(spacing.verticalOverlap).toBeGreaterThan(0);
-});
 
 /** Opens a brand-new post and waits for its editor route — same shape
  *  `post-editor-image-sizing.spec.ts` already uses in this directory (duplicated, not imported,
@@ -120,81 +101,7 @@ async function seedMediaItems(page: Page, count: number): Promise<void> {
     { count, apiBase: API_BASE, workspaceId: WORKSPACE_ID }
   );
 }
-
-test.describe("Media Picker — Cancel button reachability", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-    await seedMediaItems(page, SEED_COUNT);
-  });
-
-  test("Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded", async ({ page }) => {
-    await openFreshPost(page);
-
-    await page.getByRole("button", { name: "Embed" }).click();
-    await page.getByRole("menuitem", { name: "Media" }).click();
-
-    const dialog = page.getByRole("dialog", { name: "Choose media", exact: true });
-    await expect(dialog).toBeVisible();
-
-    // Confirms the seed actually landed content in the grid — a "No media uploaded yet" notice
-    // (the empty-DB state this test exists to avoid) would leave this at 0.
-    await expect(dialog.locator('[data-jini-part="media.card"]')).toHaveCount(SEED_COUNT);
-
-    const viewport = page.viewportSize();
-    if (!viewport) throw new Error("page reported no viewport size");
-
-    // The mechanism, not just the symptom — same idiom `post-editor-image-sizing.spec.ts`'s own
-    // `measureImage` helper uses in this directory (read `getComputedStyle` directly rather than
-    // trust that a rule with the right property exists somewhere in the cascade; this project's own
-    // prior lesson, per `field-attrs-dialog`'s own header comment, is that CSS presence is not proof
-    // of precedence). `.media-picker-dialog` is a bare single-class selector declared AFTER
-    // `.settings-dialog` in `styles.css`, so it only wins on same-file source order — this locks that
-    // in as an observed fact, not an assumption.
-    //
-    // `85vh` is asserted against the page's OWN reported viewport height, not a literal pixel
-    // number: this config's top-level `use.viewport: { height: 900 }` reads like the effective
-    // size, but `projects[].use: { ...devices["Desktop Chrome"] }` (below, same as every sibling
-    // config in this directory) spreads that device preset's OWN `viewport` (1280x720) back over
-    // it, since project-level `use` wins the merge — measured live: the real height here is 720,
-    // not 900. Deriving the expectation from `page.viewportSize()` keeps this correct regardless of
-    // which of the two numbers is actually winning, rather than re-encoding that same trap as a
-    // second hardcoded guess.
-    // Since 2026-10-05 the editor mounts Jini's native picker: 52rem wide, with the grid
-    // itself scrolling. The legacy CSS rationale above records the original regression.
-    expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
-    const dialogStyle = await dialog.evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { maxHeight: cs.maxHeight, width: cs.width };
-    });
-    const expectedMaxHeight = Math.round(viewport.height * 0.85);
-    expect(dialogStyle.maxHeight).toBe(`${expectedMaxHeight}px`);
-    // Retired picker: 32rem — binding, not clamped to the old 26rem default.
-    expect(dialogStyle.width).toBe("832px"); // Current picker: 52rem at this desktop viewport.
-    const bodyOverflow = await dialog.locator('[data-jini-part="media.grid"]').evaluate((el) => getComputedStyle(el).overflowY);
-    expect(bodyOverflow).toBe("auto");
-
-    const cancelButton = dialog.getByRole("button", { name: "Cancel", exact: true });
-    await expect(cancelButton).toBeVisible();
-
-    const box = await cancelButton.boundingBox();
-    if (!box) throw new Error("Cancel button did not report a bounding box");
-
-    // The regression, measured directly: pre-fix this box's y (and y+height) sits far past the
-    // viewport's own height — the live sweep that found this bug measured y=3254 against a 1400px
-    // viewport. Post-fix the whole box must sit inside [0, viewport] on both axes.
-    expect(box.y, "Cancel's top edge is above the viewport").toBeGreaterThanOrEqual(0);
-    expect(box.x, "Cancel's left edge is left of the viewport").toBeGreaterThanOrEqual(0);
-    expect(box.y + box.height, "Cancel's bottom edge is past the viewport height").toBeLessThanOrEqual(viewport.height);
-    expect(box.x + box.width, "Cancel's right edge is past the viewport width").toBeLessThanOrEqual(viewport.width);
-
-    // Not just positioned correctly — actually clickable, and it does its job.
-    await cancelButton.click();
-    await expect(dialog).toHaveCount(0);
-  });
-});
-
-test("Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape", async ({ page }) => {
-  await loginAsAdmin(page);
+async function stubLightboxMedia(page: Page) {
   // Keep the asset list deterministic; focus and keyboard routing use the real browser dialog.
   const media = ["First photo", "Second photo"].map((title, index) => ({
     id: `lightbox-${index}`,
@@ -225,6 +132,108 @@ test("Media lightbox enters modal focus, routes real arrow keys, and restores fo
       body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
     })
   );
+}
+function registerMediaOrdering() {
+  test("Media's Order by label and dropdown share a row with visible spacing", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
+    const control = page.locator(".media-order-control");
+    await expect(control).toBeVisible();
+
+    // Measure the served page so an unloaded stylesheet or a later override fails this guard.
+    const spacing = await control.evaluate((element) => {
+      const label = element.querySelector("label")!.getBoundingClientRect();
+      const dropdown = element.querySelector("select")!.getBoundingClientRect();
+      return {
+        gap: dropdown.left - label.right,
+        verticalOverlap: Math.min(label.bottom, dropdown.bottom) - Math.max(label.top, dropdown.top),
+      };
+    });
+    expect(spacing.gap).toBeGreaterThan(0);
+    expect(spacing.verticalOverlap).toBeGreaterThan(0);
+  });
+}
+function registerPickerCancelReachability() {
+  test.describe("Media Picker — Cancel button reachability", () => {
+    test.beforeEach(async ({ page }) => {
+      await loginAsAdmin(page);
+      await seedMediaItems(page, SEED_COUNT);
+    });
+
+    test("Cancel stays fully inside the viewport and closes the dialog when clicked, with real media loaded", async ({ page }) => {
+      await openFreshPost(page);
+
+      await page.getByRole("button", { name: "Embed" }).click();
+      await page.getByRole("menuitem", { name: "Media" }).click();
+
+      const dialog = page.getByRole("dialog", { name: "Choose media", exact: true });
+      await expect(dialog).toBeVisible();
+
+      // Confirms the seed actually landed content in the grid — a "No media uploaded yet" notice
+      // (the empty-DB state this test exists to avoid) would leave this at 0.
+      await expect(dialog.locator('[data-jini-part="media.card"]')).toHaveCount(SEED_COUNT);
+
+      const viewport = page.viewportSize();
+      if (!viewport) throw new Error("page reported no viewport size");
+
+      // The mechanism, not just the symptom — same idiom `post-editor-image-sizing.spec.ts`'s own
+      // `measureImage` helper uses in this directory (read `getComputedStyle` directly rather than
+      // trust that a rule with the right property exists somewhere in the cascade; this project's own
+      // prior lesson, per `field-attrs-dialog`'s own header comment, is that CSS presence is not proof
+      // of precedence). `.media-picker-dialog` is a bare single-class selector declared AFTER
+      // `.settings-dialog` in `styles.css`, so it only wins on same-file source order — this locks that
+      // in as an observed fact, not an assumption.
+      //
+      // `85vh` is asserted against the page's OWN reported viewport height, not a literal pixel
+      // number: this config's top-level `use.viewport: { height: 900 }` reads like the effective
+      // size, but `projects[].use: { ...devices["Desktop Chrome"] }` (below, same as every sibling
+      // config in this directory) spreads that device preset's OWN `viewport` (1280x720) back over
+      // it, since project-level `use` wins the merge — measured live: the real height here is 720,
+      // not 900. Deriving the expectation from `page.viewportSize()` keeps this correct regardless of
+      // which of the two numbers is actually winning, rather than re-encoding that same trap as a
+      // second hardcoded guess.
+      // Since 2026-10-05 the editor mounts Jini's native picker: 52rem wide, with the grid
+      // itself scrolling. The legacy CSS rationale above records the original regression.
+      expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
+      const dialogStyle = await dialog.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { maxHeight: cs.maxHeight, width: cs.width };
+      });
+      const expectedMaxHeight = Math.round(viewport.height * 0.85);
+      expect(dialogStyle.maxHeight).toBe(`${expectedMaxHeight}px`);
+      // Retired picker: 32rem — binding, not clamped to the old 26rem default.
+      expect(dialogStyle.width).toBe("832px"); // Current picker: 52rem at this desktop viewport.
+      const bodyOverflow = await dialog.locator('[data-jini-part="media.grid"]').evaluate((el) => getComputedStyle(el).overflowY);
+      expect(bodyOverflow).toBe("auto");
+
+      const cancelButton = dialog.getByRole("button", { name: "Cancel", exact: true });
+      await expect(cancelButton).toBeVisible();
+
+      const box = await cancelButton.boundingBox();
+      if (!box) throw new Error("Cancel button did not report a bounding box");
+
+      // The regression, measured directly: pre-fix this box's y (and y+height) sits far past the
+      // viewport's own height — the live sweep that found this bug measured y=3254 against a 1400px
+      // viewport. Post-fix the whole box must sit inside [0, viewport] on both axes.
+      expect(box.y, "Cancel's top edge is above the viewport").toBeGreaterThanOrEqual(0);
+      expect(box.x, "Cancel's left edge is left of the viewport").toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height, "Cancel's bottom edge is past the viewport height").toBeLessThanOrEqual(viewport.height);
+      expect(box.x + box.width, "Cancel's right edge is past the viewport width").toBeLessThanOrEqual(viewport.width);
+
+      // Not just positioned correctly — actually clickable, and it does its job.
+      await cancelButton.click();
+      await expect(dialog).toHaveCount(0);
+    });
+  });
+}
+
+test.describe("Bug pin: media-picker-cancel", () => {
+registerMediaOrdering();
+registerPickerCancelReachability();
+
+test("Media lightbox enters modal focus, routes real arrow keys, and restores focus on Escape", async ({ page }) => {
+  await loginAsAdmin(page);
+  await stubLightboxMedia(page);
   await page.goto("/admin/media", { waitUntil: "domcontentloaded" });
   const expand = page.getByRole("button", { name: 'View "First photo" larger', exact: true });
   await expand.click();
@@ -254,6 +263,7 @@ test("Media lightbox enters modal focus, routes real arrow keys, and restores fo
   await expect(expand).toBeFocused();
 });
 });
+}
 
 // Migrated from media-providers-credentials.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: media-providers-credentials", () => {
@@ -279,32 +289,31 @@ test.describe("Bug pin: media-providers-credentials", () => {
  */
 
 const ADMIN_PATH = "/admin/";
+const gotoMediaProviders = createMediaCredentialsGotoMediaProviders({ ADMIN_PATH });
+const login = createMediaCredentialsLogin({ ADMIN_PATH });
 const DUMMY_KEY = "sk-E2E-DUMMY-NOT-A-REAL-KEY-4242";
+registerCredentialStorageTests({ login, gotoMediaProviders, DUMMY_KEY });
 
-async function login(page: Page): Promise<void> {
-  await page.goto(ADMIN_PATH, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(".login-card", { timeout: 20_000 });
-  await page.fill('.login-card label:has-text("Username") input', "admin");
-  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
-  await page.click('.login-card button:has-text("Sign in")');
-  await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
-}
+test("Clear removes the credential server-side, so a reload does not bring it back", async ({ page }) => {
+  await login(page);
+  await gotoMediaProviders(page);
 
-async function gotoMediaProviders(page: Page): Promise<void> {
-  await page.goto(`${ADMIN_PATH}media`, { waitUntil: "domcontentloaded" });
-  // The roster count is part of the tab's accessible name; its published handle is stable.
-  const tab = page.getByRole("tab").and(page.locator('[data-agent-element="media-tab-external-providers"]'));
-  await expect(tab).toContainText("External Providers");
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator(".media-providers-panel")).toBeVisible();
-  await page.waitForSelector(".jini-media-provider-card", { timeout: 20_000 });
-}
+  const card = openaiCard(page);
+  await card.locator('input[type="password"], input[type="text"]').first().fill(DUMMY_KEY);
+  await page.getByRole("button", { name: /^Save/ }).first().click();
+  await expect(card.locator(".jini-field-status-badge-success")).toBeVisible({ timeout: 15_000 });
 
-/** The OpenAI card — first in the catalogue, and the one every test here edits. */
-function openaiCard(page: Page) {
-  return page.locator(".jini-media-provider-card").filter({ hasText: "OpenAI" }).first();
-}
+  await openaiCard(page).getByRole("button", { name: "Clear" }).click();
+  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+
+  // A local-only clear would reappear here; a server-side delete does not.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await gotoMediaProviders(page);
+  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+});
+});
+
+function registerCredentialStorageTests({ login, gotoMediaProviders, DUMMY_KEY }: { login: ReturnType<typeof createMediaCredentialsLogin>; gotoMediaProviders: ReturnType<typeof createMediaCredentialsGotoMediaProviders>; DUMMY_KEY: string }) {
 
 test("the tab renders the engine's vendor roster, not @jini-ai/ui's curated sample", async ({ page }) => {
   await login(page);
@@ -362,22 +371,37 @@ test("the stored key is never delivered to the browser — the field stays empty
   const value = await openaiCard(page).locator('input[type="password"], input[type="text"]').first().inputValue();
   expect(value).toBe("");
 });
+}
 
-test("Clear removes the credential server-side, so a reload does not bring it back", async ({ page }) => {
-  await login(page);
-  await gotoMediaProviders(page);
 
-  const card = openaiCard(page);
-  await card.locator('input[type="password"], input[type="text"]').first().fill(DUMMY_KEY);
-  await page.getByRole("button", { name: /^Save/ }).first().click();
-  await expect(card.locator(".jini-field-status-badge-success")).toBeVisible({ timeout: 15_000 });
 
-  await openaiCard(page).getByRole("button", { name: "Clear" }).click();
-  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
+/** The OpenAI card — first in the catalogue, and the one every test here edits. */
+function openaiCard(page: Page) {
+  return page.locator(".jini-media-provider-card").filter({ hasText: "OpenAI" }).first();
+}
 
-  // A local-only clear would reappear here; a server-side delete does not.
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await gotoMediaProviders(page);
-  await expect(openaiCard(page).locator(".jini-field-status-badge-success")).toHaveCount(0, { timeout: 15_000 });
-});
-});
+function createMediaCredentialsGotoMediaProviders({ ADMIN_PATH }: { ADMIN_PATH: string }) {
+
+return async function gotoMediaProviders(page: Page): Promise<void> {
+  await page.goto(`${ADMIN_PATH}media`, { waitUntil: "domcontentloaded" });
+  // The roster count is part of the tab's accessible name; its published handle is stable.
+  const tab = page.getByRole("tab").and(page.locator('[data-agent-element="media-tab-external-providers"]'));
+  await expect(tab).toContainText("External Providers");
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".media-providers-panel")).toBeVisible();
+  await page.waitForSelector(".jini-media-provider-card", { timeout: 20_000 });
+}
+}
+
+function createMediaCredentialsLogin({ ADMIN_PATH }: { ADMIN_PATH: string }) {
+
+return async function login(page: Page): Promise<void> {
+  await page.goto(ADMIN_PATH, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(".login-card", { timeout: 20_000 });
+  await page.fill('.login-card label:has-text("Username") input', "admin");
+  await page.fill('.login-card label:has-text("Password") input', PIN_PASSWORD);
+  await page.click('.login-card button:has-text("Sign in")');
+  await page.waitForSelector(".login-card", { state: "detached", timeout: 20_000 });
+}
+}

@@ -13,11 +13,11 @@ import {
   planOriginBoot as planJiniOriginBoot,
   type VerifiedOrigin,
   type OriginBootPlan,
-} from "@jini-ai/http-kit/verified-origin";
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { ISODateTime } from "@jini-ai/core/primitives";
 
-export type { OriginBootPlan } from "@jini-ai/http-kit/verified-origin";
+export type { OriginBootPlan } from "@jini-ai/core/contracts/server/verified-origin";
 export interface ConfiguredOriginOptions {
   /** Defaults to the real `process.env`. Injectable so the refusal pipeline is unit-testable
    *  without mutating the process. */

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
@@ -6,7 +6,7 @@ import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 

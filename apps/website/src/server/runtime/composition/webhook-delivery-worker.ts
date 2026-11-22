@@ -3,7 +3,7 @@ import { processDueDeliveries } from "#src/features/webhooks/delivery";
 import type { WebhookSigner } from "#src/features/webhooks/signing";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { startWebhookDeliveryWorker, type WebhookDeliveryWorker, type WebhookDeliveryWorkerOptional } from "@jini-ai/integrations/webhooks";
 import { webhookEnvelopeStoreFor } from "./modules/integrations.js";
 
@@ -63,7 +63,7 @@ export function startServingWebhookDeliveryWorker(
   optional: WebhookDeliveryWorkerOptional & { httpClient?: HttpClientPort } = {},
 ): WebhookDeliveryWorker {
   const { deps } = required;
-  const { httpClient = createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability: deps.observability }), ...workerOptional } = optional;
+  const { httpClient = createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability: deps.observability }), ...workerOptional } = optional;
   const envelopeStore: DeliveryEnvelopeStore = webhookEnvelopeStoreFor({ deliveryRepo: deps.webhookDeliveryRepo });
   const processDue = ({ signal }: { signal: AbortSignal }) => processDueDeliveries({ deps: {
     deliveryRepo: deps.webhookDeliveryRepo,

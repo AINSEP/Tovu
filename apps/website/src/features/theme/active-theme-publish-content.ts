@@ -2,13 +2,14 @@ import path from "node:path";
 
 import { PresentationSettingsNotFoundError, PresentationSettingsValidationError, setActiveTheme } from "@jini-ai/cms/presentation";
 
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { writableThemeIds } from "./active-theme.js";
 import type { DiscoveredTheme } from "./theme.js";
-import { RENAMED_THEME_IDS, themeIdCandidates } from "./theme-id-aliases.js";
+import { RENAMED_THEME_IDS, themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 /**
  * @file `active-theme` on the publish factory (`features/publish-content/repo-handler.ts`): which
@@ -40,36 +41,36 @@ export interface ActiveThemeRow {
   readonly version: number;
 }
 
-type Ports = PublishContentPorts["active-theme"];
+type Ports = TovuPublishPorts["active-theme"];
 
 /** @complexity O(themes). */
-function installedTheme(ports: Ports, themeId: string): DiscoveredTheme | undefined {
-  return ports.themes.find((t) => t.status === "valid" && themeIdCandidates(themeId).includes(t.manifest.id));
+function installedTheme({ ports, themeId }: { ports: Ports; themeId: string }, _optional = {}): DiscoveredTheme | undefined {
+  return ports.themes.find((t) => t.status === "valid" && themeIdCandidates({ id: themeId }).includes(t.manifest.id));
 }
 
 /** @complexity O(1). */
-function treeOf(theme: DiscoveredTheme | undefined): string | null {
+function treeOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
   return theme ? `${path.basename(path.dirname(theme.dir))}/${path.basename(theme.dir)}` : null;
 }
 
 /** @complexity O(1). */
-function nameOf(theme: DiscoveredTheme | undefined): string | null {
+function nameOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
   const name: unknown = theme?.manifest.name;
   return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
 }
 
 /** @complexity one indexed read plus O(themes). */
-async function findActiveTheme(ports: Ports, workspaceId: string, id: string): Promise<ActiveThemeRow | null> {
+async function findActiveTheme({ ports, workspaceId, id }: { ports: Ports; workspaceId: string; id: string }, _optional: Record<string, never> = {}): Promise<ActiveThemeRow | null> {
   if (id !== ACTIVE_THEME_ID) return null;
   const record = await ports.presentation.findByWorkspaceId({ workspaceId });
   if (!record) return null;
   const themeId = RENAMED_THEME_IDS[record.activeThemeId] ?? record.activeThemeId;
-  const theme = installedTheme(ports, themeId);
-  return { id, label: themeId, themeId, tree: treeOf(theme), themeName: nameOf(theme), version: Date.parse(record.updatedAt) || 0 };
+  const theme = installedTheme({ ports, themeId });
+  return { id, label: themeId, themeId, tree: treeOf({ theme }), themeName: nameOf({ theme }), version: Date.parse(record.updatedAt) || 0 };
 }
 
 /** Plain refusal, rewritten for the owner by `ui/report-rows.ts`. */
-const notInstalled = (themeId: string) => `active theme '${themeId}' is not installed at this destination`;
+const notInstalled = ({ themeId }: { themeId: string }, _optional = {}) => `active theme '${themeId}' is not installed at this destination`;
 
 export const contributeActiveThemePublish = (): PublishContentContributor =>
   createRepoPublishHandler<ActiveThemeRow, Ports>({
@@ -77,26 +78,26 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     coversTables: ["presentation_settings"],
     permission: "theme.set",
     dependsOn: ["theme-files"],
-    ports: (deps) => deps.ports["active-theme"],
-    list: async (p, workspaceId) => {
-      const row = await findActiveTheme(p, workspaceId, ACTIVE_THEME_ID);
+    ports: ({ deps }, _optional = {}) => deps.ports["active-theme"],
+    list: async ({ ports: p, workspaceId }) => {
+      const row = await findActiveTheme({ ports: p, workspaceId, id: ACTIVE_THEME_ID });
       return row ? [row] : [];
     },
-    find: findActiveTheme,
+    find: ({ ports, workspaceId, id }) => findActiveTheme({ ports, workspaceId, id }),
     fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", themeName: "local", version: "local" },
     // The dialog names the row "Tovu Theme", not the id `label` still packs (so hashes stay put).
-    displayLabel: (row) => row.themeName ?? undefined,
-    references: (entity) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
+    displayLabel: ({ row }, _optional = {}) => row.themeName ?? undefined,
+    references: ({ entity }) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
     write: async ({ ports, deps, workspaceId, state, principalId }) => {
       const themeId = state.themeId as string;
-      const { authorize } = gatewayDeps(deps, "active-theme");
+      const { authorize } = gatewayDeps({ deps, entityType: "active-theme" });
       const auth = await authorize({ principalId, permission: "theme.set", workspaceId, entityType: "presentation" });
       if (!auth.allowed) {
-        throw new PublishContentApplyRowError("blocked", `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})`);
+        throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})` });
       }
       const available = writableThemeIds({ themes: [...ports.themes] });
-      const activeThemeId = themeIdCandidates(themeId).find((candidate) => available.includes(candidate));
-      if (!activeThemeId) throw new PublishContentApplyRowError("blocked", notInstalled(themeId));
+      const activeThemeId = themeIdCandidates({ id: themeId }).find((candidate) => available.includes(candidate));
+      if (!activeThemeId) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notInstalled({ themeId }) });
       const { settings } = await setActiveTheme({
         deps: { repo: ports.presentation, clock: deps.clock, availableThemeIds: available },
         input: { workspaceId, activeThemeId },

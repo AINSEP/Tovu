@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "../index.js";
@@ -80,29 +80,29 @@ test("pack(): pinned contentHash and packed state per menu; trashed rows skipped
 test("inspect(): the destination's hash equals the pinned pack hash", async () => {
   const handler = contributeMenusPublish().build(deps());
   for (const [id, hash] of Object.entries(PINNED_HASHES)) {
-    assert.deepEqual(await handler.inspect(id), { version: ROWS.find((r) => r.id === id)!.version, hash });
+    assert.deepEqual(await handler.inspect({ id }), { version: ROWS.find((r) => r.id === id)!.version, hash });
   }
 });
 
 test("precheck(): exact reason strings", async () => {
   const state = { slug: "fresh", title: "Fresh", status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [] };
   assert.equal(
-    await contributeMenusPublish().build(deps(false)).precheck(entity("m", state)),
+    await contributeMenusPublish().build(deps(false)).precheck({ entity: entity("m", state) }),
     "menu entity 'm' cannot be prechecked — no menu port wired for this deps bag"
   );
   const handler = contributeMenusPublish().build(deps());
-  assert.equal(await handler.precheck(entity("menu-new", state)), null);
-  assert.equal(await handler.precheck(entity("menu-empty", { ...state, slug: "empty" })), null);
+  assert.equal(await handler.precheck({ entity: entity("menu-new", state) }), null);
+  assert.equal(await handler.precheck({ entity: entity("menu-empty", { ...state, slug: "empty" }) }), null);
   // The slug sentence drops "menu " and "at this destination" (plan §2.3); the owner-facing rewrite in
   // `ui/report-rows.ts` matches both, so only the shared core is pinned.
-  const collisionRefusal = await handler.precheck(entity("menu-new", { ...state, slug: "header-nav" }));
+  const collisionRefusal = await handler.precheck({ entity: entity("menu-new", { ...state, slug: "header-nav" }) });
   assert.ok(typeof collisionRefusal === "string");
   assert.match(
     collisionRefusal,
     /^(?:menu )?slug 'header-nav' is already held by a different menu \('menu-header-nav'\)/
   );
   const badDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
-  assert.equal(await handler.precheck(entity("menu-new", { ...state, doc: badDoc })), "every menu item requires a non-empty id");
+  assert.equal(await handler.precheck({ entity: entity("menu-new", { ...state, doc: badDoc }) }), "every menu item requires a non-empty id");
 });
 
 test("apply(): exact blocked text, stale version is a conflict, unwired throws naming the port", async () => {

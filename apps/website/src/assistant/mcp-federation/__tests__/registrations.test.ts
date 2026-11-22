@@ -254,7 +254,7 @@ test("onAuthFailed runs on a live McpAuthFailedError, naming the connection, and
   const translated = new Error("supabase is disconnected: its authorization expired or was revoked. Do not retry this tool.");
   const deps = {
     ...base.deps,
-    onAuthFailed: async (connectionId: string, error: McpAuthFailedError): Promise<never> => {
+    onAuthFailed: async ({ connectionId, error }: { connectionId: string; error: McpAuthFailedError }): Promise<never> => {
       seen.push({ connectionId, error });
       throw translated;
     },
@@ -278,7 +278,7 @@ test("onAuthFailed does NOT run for an ordinary transport failure — only an au
   const base = fakeDeps();
   const deps = {
     ...base.deps,
-    onAuthFailed: async (connectionId: string): Promise<never> => {
+    onAuthFailed: async ({ connectionId }: { connectionId: string }): Promise<never> => {
       seen.push(connectionId);
       throw new Error("must not be reached");
     },
@@ -652,7 +652,14 @@ function fakeRegistry(seed: string[] = []): ToolRegistry & { registered: ToolReg
 
 function collectingLogger() {
   const messages: string[] = [];
-  return { messages, logger: { info: (m: string) => messages.push(`info:${m}`), warn: (m: string) => messages.push(`warn:${m}`) } };
+  // Jini's logger port is log({ message }, { error }): the fixed words ride in `message`, and the original
+  // error (whose text names the cause) goes to the host sink as the second argument, so fold both in here.
+  const line = ({ level, message }: { level: string; message: string }, { error }: { error?: unknown } = {}) =>
+    messages.push(`${level}:${message}${error === undefined ? "" : ` — ${error instanceof Error ? error.message : String(error)}`}`);
+  return { messages, logger: {
+    info: ({ message }: { message: string }, optional: { error?: unknown } = {}) => line({ level: "info", message }, optional),
+    warn: ({ message }: { message: string }, optional: { error?: unknown } = {}) => line({ level: "warn", message }, optional),
+  } };
 }
 
 test("with no configuration, the daemon boots exactly as it did before federation existed", async () => {

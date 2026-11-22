@@ -1,4 +1,4 @@
-import { makeSiteTreeWritable } from '../../../apps/desktop/src/remove-site-tree.ts';
+import { makeDirectoryTreeWritable } from '@jini-ai/platform/fs';
 // @unrun: authored 2026-10-04 by an agent, NEVER EXECUTED; selectors and flows unverified.
 import { _electron as electron, expect, type ElectronApplication, type Locator, type Page } from "@playwright/test";
 import fs from "node:fs";
@@ -101,7 +101,7 @@ export function scratchDir(label: string): string {
 
 /** The immutable plugin store belongs to the product; only discarded scratch trees get u+w. */
 export function removeScratchTree({ root }: { root: string }, _optional = {}): void {
-  makeSiteTreeWritable({ root }, {});
+  makeDirectoryTreeWritable({ root }, {});
   fs.rmSync(root, { recursive: true, force: true });
 }
 
@@ -187,7 +187,7 @@ export async function launchDesktop(options: LaunchOptions = {}, { electronArgs 
   if (PACKAGED_APP && options.env?.TOVU_DESKTOP_USER_DATA_DIR !== undefined && options.env.TOVU_DESKTOP_USER_DATA_DIR !== userDataDir) {
     throw new Error("e2e isolation failure: packaged launches cannot override TOVU_DESKTOP_USER_DATA_DIR through options.env.");
   }
-  for (const siteDir of options.trackedSites ?? []) trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
+  for (const siteDir of options.trackedSites ?? []) trackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir }, { origin: SITE_ORIGIN.adopted });
   const app = await electron.launch({
     executablePath: ELECTRON_BIN,
     ...(PACKAGED_APP ? { args: electronArgs } : { args: [...electronArgs, "."], cwd: DESKTOP_DIR }),

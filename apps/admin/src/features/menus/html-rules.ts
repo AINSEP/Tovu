@@ -1,4 +1,4 @@
-import type { AdminMenuAuthoring, AdminMenuItem, AdminMenuMode } from "@/lib/api";
+import type { AdminMenuAuthoring, AdminMenuItem, AdminMenuMode } from "@/features/menus/api/menus-api.types";
 import type { PageMenuTarget } from "./page-link-rules";
 
 /** Same marker shape and attribute escaping as the forms Copy HTML embed control. */
@@ -7,8 +7,12 @@ export function menuHtmlEmbed({ slug }: { slug: string }, _optional = {}): strin
   return `<div data-embed-config='${config}'></div>`;
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
+function escapeHtml({ value }: { value: string }, _optional = {}): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    const escaped = ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char];
+    if (escaped === undefined) throw new Error(`menu HTML escape has no replacement for ${char}`);
+    return escaped;
+  });
 }
 
 /** Best href the admin knows without a server round-trip: a URL's own href, a page link's last
@@ -19,10 +23,10 @@ function starterHref(item: AdminMenuItem): string {
 }
 
 function starterLink(item: AdminMenuItem): string {
-  return `<a href="${escapeHtml(starterHref(item))}">${escapeHtml(item.label ?? "")}</a>`;
+  return `<a href="${escapeHtml({ value: starterHref(item) })}">${escapeHtml({ value: item.label ?? "" })}</a>`;
 }
 
-function starterTree(items: readonly AdminMenuItem[], depth: number): string[] {
+function starterTree({ items, depth }: { items: readonly AdminMenuItem[]; depth: number }, _optional = {}): string[] {
   const pad = "  ".repeat(depth * 2);
   const lines = [`${pad}<ul class="menu-list depth-${depth}">`];
   for (const item of items) {
@@ -32,7 +36,7 @@ function starterTree(items: readonly AdminMenuItem[], depth: number): string[] {
       lines.push(`${pad}  <li class="${classes}">${starterLink(item)}</li>`);
       continue;
     }
-    lines.push(`${pad}  <li class="${classes}">${starterLink(item)}`, ...starterTree(children, depth + 1), `${pad}  </li>`);
+    lines.push(`${pad}  <li class="${classes}">${starterLink(item)}`, ...starterTree({ items: children, depth: depth + 1 }), `${pad}  </li>`);
   }
   lines.push(`${pad}</ul>`);
   return lines;
@@ -52,7 +56,7 @@ function starterTree(items: readonly AdminMenuItem[], depth: number): string[] {
  */
 export function menuHtmlStarter({ items }: { items: readonly AdminMenuItem[] }, _optional = {}): string {
   if (items.length === 0) return `<a href="/">Home</a>`;
-  if (items.some((item) => (item.children ?? []).length > 0)) return starterTree(items, 0).join("\n");
+  if (items.some((item) => (item.children ?? []).length > 0)) return starterTree({ items: items, depth: 0 }).join("\n");
   return items.map(starterLink).join("\n");
 }
 

@@ -41,7 +41,7 @@ function buildApp(
   // own fixture keeps passing a plain array, matching every call site's ergonomics unchanged.
   // `configFailures` stays undefined for every pre-existing test below, on purpose — it proves the
   // route's response is byte-identical to before this field existed when a caller never wires it.
-  registerFederationAdmissionsRoute(app, { reports: () => reports, ...(configFailures ? { configFailures: () => configFailures } : {}) });
+  registerFederationAdmissionsRoute({ app, deps: { reports: () => reports, ...(configFailures ? { configFailures: () => configFailures } : {}) } });
   return app;
 }
 
@@ -121,7 +121,7 @@ test("re-reads reports and config failures after a reload replaces both arrays",
   let configFailures = [{ connectionId: "broken", reason: "credentials unavailable" }];
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: TOKEN } }, {}));
-  registerFederationAdmissionsRoute(app, { reports: () => reports, configFailures: () => configFailures });
+  registerFederationAdmissionsRoute({ app, deps: { reports: () => reports, configFailures: () => configFailures } });
   const baseUrl = await startTestServer(app, t);
   const first = await getAdmissions(baseUrl, { authorization: `Bearer ${TOKEN}` });
   assert.equal(first.status, 200);

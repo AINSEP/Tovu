@@ -27,9 +27,9 @@ for (const role of ["owner", "workspace-client"] as const) {
         import { createAgentDaemonCoreDeps } from ${JSON.stringify(daemonDepsUrl)};
         import { closeStoreOnShutdown, stopServingWithinGrace } from ${JSON.stringify(shutdownUrl)};
         let store;
-        let deps = await createSiteRouteDeps(${JSON.stringify(contentPath)}, {
-          onStoreOpened: opened => { store = opened; },
-        });
+        let deps = await createSiteRouteDeps({}, { dbPath: ${JSON.stringify(contentPath)}, overrides: {
+          onStoreOpened: ({ store: opened }) => { store = opened; },
+        } });
         const bootWork = deps => Object.entries(deps).filter(([key]) => key.endsWith('Ready')).map(([, work]) => work);
         await Promise.all(bootWork(deps));
         if (${JSON.stringify(role)} === 'workspace-client') {

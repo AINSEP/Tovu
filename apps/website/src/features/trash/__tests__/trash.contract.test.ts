@@ -57,10 +57,10 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel({ store: client }))],
   ]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
   const ids = { next: () => `trash-${(seq += 1)}` };
 
@@ -73,7 +73,7 @@ function harness(): Harness {
       repo,
       adapters,
       idGen: { newId: () => (ids).next() },
-      transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+      transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
       entityPolicy: ({ entityType }) => (adapters).has(entityType)
     }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) }),
   };
@@ -210,7 +210,7 @@ test("if the index insert fails, the marker flip rolls back — never hidden-but
     }),
     adapters: h.adapters,
     idGen: { newId: () => (h.ids).next() },
-    transaction: ({ work }) => (createContentDbTransactionRunner(h.client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: h.client }))(work),
     entityPolicy: ({ entityType }) => (h.adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -282,7 +282,7 @@ test("adapters resolve at CALL time, not at registration time", async () => {
   );
 
   // Registered AFTER the service was built — a registration-time snapshot would miss this.
-  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(h.client)));
+  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: h.client })));
   const result = await h.trash.trash({
     workspaceId: WS,
     entityType: POST_ENTITY_TYPE,

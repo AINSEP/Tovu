@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parsePluginCredentialCards, mergePluginCredentialCards, credentialCardsContribution } from '../../credential-cards.js';
+import { parsePluginCredentialCards, mergePluginCredentialCards, credentialCardsContribution } from '@jini-ai/agent-plugins/connect';
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../../../contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues, findPluginCredentialCard } from "../../../custom-credentials/plugin-credential-card.js";
 

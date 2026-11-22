@@ -5,7 +5,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { callPeer, pullBlobsFromPeer, pushBundleToPeer, PublishContentPeerTransportError } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
 import type { PublishContentExportEnvelope } from "../export-bundle.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 
 const credential: ResolvedPeerCredential = { id: "peer", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: ["fixture", "credential"].join("-") };
 
@@ -17,7 +17,7 @@ test("peer failures preserve the live error id and safe typed disk refusal", asy
     [507, { code: "INSUFFICIENT_STORAGE", error: message, errorId }, message],
   ] as const) {
     const deps = client({ reply: () => response({ status, bodyText: JSON.stringify(body) }) });
-    await assert.rejects(callPeer(deps, { method: "POST", path: "/route" }), error => {
+    await assert.rejects(callPeer({ deps, request: { method: "POST", path: "/route" } }), error => {
       assert.ok(error instanceof PublishContentPeerTransportError);
       assert.ok(error.message.includes(expected));
       assert.ok(error.message.includes(errorId));
@@ -37,7 +37,7 @@ test("L061 peer call preserves archive precedence, JSON/null encoding, empty bod
   const deps = client({ reply: () => response({ status: 204 }) });
   const archive = new Uint8Array([1, 2]);
   for (const payload of [{}, { body: null }, { body: { x: 1 } }, { body: { ignored: true }, archive }]) {
-    assert.equal(await callPeer(deps, { method: "POST", path: "/route", ...payload }), undefined);
+    assert.equal(await callPeer({ deps, request: { method: "POST", path: "/route", ...payload } }), undefined);
   }
   assert.equal(deps.calls[0].body, undefined);
   assert.equal(deps.calls[0].headers["content-type"], undefined);
@@ -56,7 +56,7 @@ test("L061 peer call preserves archive precedence, JSON/null encoding, empty bod
 test("L061 peer call retains rejection, invalid JSON and network error contracts", async () => {
   for (const status of [199, 300, 403, 500]) {
     const deps = client({ reply: () => response({ status, bodyText: "x".repeat(500) }) });
-    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), (err: unknown) => {
+    await assert.rejects(callPeer({ deps, request: { method: "GET", path: "/route" } }), (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_REJECTED");
       assert.equal(err.peerStatus, status);
@@ -65,14 +65,14 @@ test("L061 peer call retains rejection, invalid JSON and network error contracts
     });
   }
   const refusal = client({ reply: () => response({ status: 403, bodyText: JSON.stringify({ details: { reason: "credential_kind_not_permitted" } }) }) });
-  await assert.rejects(callPeer(refusal, { method: "POST", path: "/route" }), /Connect this computer/);
+  await assert.rejects(callPeer({ deps: refusal, request: { method: "POST", path: "/route" } }), /Connect this computer/);
   const invalid = client({ reply: () => response({ bodyText: "not-json" }) });
-  await assert.rejects(callPeer(invalid, { method: "GET", path: "/route" }), (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID");
+  await assert.rejects(callPeer({ deps: invalid, request: { method: "GET", path: "/route" } }), (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID");
   const good = client({ reply: () => response({ bodyText: "null" }) });
-  assert.equal(await callPeer(good, { method: "GET", path: "/route" }), null);
+  assert.equal(await callPeer({ deps: good, request: { method: "GET", path: "/route" } }), null);
   for (const failure of [new Error("offline"), "offline"]) {
     const httpClient: HttpClientPort = { send: async () => { throw failure; } };
-    await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), /could not be reached\.$/);
+    await assert.rejects(callPeer({ deps: { httpClient, credential }, request: { method: "GET", path: "/route" } }), /could not be reached\.$/);
   }
 });
 
@@ -84,9 +84,12 @@ test("L061 push pins mixed missing blobs and malformed probe fallback before sta
       if (request.url.endsWith("/bundles")) return response({ bodyText: '{"bundleId":"b"}' });
       return response({});
     } });
-    const result = await pushBundleToPeer({ ...deps, computeStorageKey: (sha) => sha, blobSource: {
-      exists: async ({ sha256 }) => sha256 === "held", get: async () => new Uint8Array([1]),
-    } }, { bundle });
+    const result = await pushBundleToPeer({
+                                            deps: { ...deps, computeStorageKey: ({ sha256: sha }: { sha256: string }, _options: Record<string, never> = {}) => sha, blobSource: {
+        exists: async ({ sha256 }) => sha256 === "held", get: async () => new Uint8Array([1]),
+      } },
+                                            required: { bundle }
+                                          });
     assert.deepEqual(result.blobsUploaded, Array.isArray(missing) ? ["held"] : []);
     assert.deepEqual(result.blobsUnavailable, Array.isArray(missing) ? ["gone"] : []);
     assert.ok(deps.calls.at(-2)?.url.endsWith("/bundles"));
@@ -99,10 +102,13 @@ test("L061 pull cap counts missing fetches, skips held blobs and deduplicates be
   const sha = createHash("sha256").update(bytes).digest("hex");
   const deps = client({ reply: (request) => request.url.endsWith("/gone") ? response({ status: 404 }) : response({ bodyText: JSON.stringify({ dataBase64: bytes.toString("base64") }) }) });
   const written: string[] = [];
-  const result = await pullBlobsFromPeer({ ...deps, workspaceId: "local", maxBlobs: 2, computeStorageKey: (s) => s, blobSink: {
-    exists: async ({ storageKey }) => storageKey === "held",
-    putIfAbsent: async ({ sha256 }) => { written.push(sha256); return { storageKey: sha256, written: true }; },
-  } }, { blobManifest: ["held", "gone", "gone", sha, "deferred", "held"] });
+  const result = await pullBlobsFromPeer({
+                                           deps: { ...deps, workspaceId: "local", maxBlobs: 2, computeStorageKey: ({ sha256: s }: { sha256: string }, _options: Record<string, never> = {}) => s, blobSink: {
+      exists: async ({ storageKey }) => storageKey === "held",
+      putIfAbsent: async ({ sha256 }) => { written.push(sha256); return { storageKey: sha256, written: true }; },
+    } },
+                                           required: { blobManifest: ["held", "gone", "gone", sha, "deferred", "held"] }
+                                         });
   assert.deepEqual(result, { downloaded: [sha], alreadyPresent: ["held"], unavailable: ["gone"], deferredOverCap: ["deferred"] });
   assert.deepEqual(written, [sha]);
   assert.equal(deps.calls.length, 2);
@@ -111,16 +117,19 @@ test("L061 pull cap counts missing fetches, skips held blobs and deduplicates be
 test("L061 pull refuses malformed payloads and non-404 failures before any write", async () => {
   for (const reply of [response({ bodyText: "[]" }), response({}), response({ bodyText: '{"dataBase64":"garbage"}' }), response({ status: 500 })]) {
     const deps = client({ reply: () => reply });
-    await assert.rejects(pullBlobsFromPeer({ ...deps, workspaceId: "local", computeStorageKey: (s) => s, blobSink: {
-      exists: async () => false, putIfAbsent: async () => { assert.fail("must not write"); },
-    } }, { blobManifest: ["a".repeat(64)] }), PublishContentPeerTransportError);
+    await assert.rejects(pullBlobsFromPeer({
+                                             deps: { ...deps, workspaceId: "local", computeStorageKey: ({ sha256: s }: { sha256: string }, _options: Record<string, never> = {}) => s, blobSink: {
+        exists: async () => false, putIfAbsent: async () => { assert.fail("must not write"); },
+      } },
+                                             required: { blobManifest: ["a".repeat(64)] }
+                                           }), PublishContentPeerTransportError);
   }
 });
 
 test("L061 transport errors omit upstream messages and bodies, including opaque credentials", async () => {
   for (const failure of [new Error(credential.apiKey), credential.apiKey, { body: credential.apiKey }]) {
     const httpClient: HttpClientPort = { send: async () => { throw failure; } };
-    await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), (err: unknown) => {
+    await assert.rejects(callPeer({ deps: { httpClient, credential }, request: { method: "GET", path: "/route" } }), (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_UNREACHABLE");
       assert.equal(err.message, "the peer at 'live.example' could not be reached.");
@@ -130,7 +139,7 @@ test("L061 transport errors omit upstream messages and bodies, including opaque 
   }
   for (const status of [401, 403, 500]) {
     const deps = client({ reply: () => response({ status, bodyText: JSON.stringify({ error: credential.apiKey }) }) });
-    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), (err: unknown) => {
+    await assert.rejects(callPeer({ deps, request: { method: "GET", path: "/route" } }), (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_REJECTED");
       assert.equal(err.peerStatus, status);
@@ -144,7 +153,7 @@ test("L061 transport errors omit upstream messages and bodies, including opaque 
 test("L061 diagnostics reuse secret redaction for credential-shaped request context", async () => {
   const secret = ["ghp", "_", "a".repeat(36)].join("");
   const deps = client({ reply: () => response({ status: 500 }) });
-  await assert.rejects(callPeer(deps, { method: "GET", path: `/route/${secret}` }), (err: unknown) => {
+  await assert.rejects(callPeer({ deps, request: { method: "GET", path: `/route/${secret}` } }), (err: unknown) => {
     assert.ok(err instanceof PublishContentPeerTransportError);
     assert.equal(err.code, "PEER_REJECTED");
     assert.equal(err.message.includes(secret), false);
@@ -160,13 +169,16 @@ test("L061 a peer cannot request uploads outside the selected manifest, even aft
       return response({ bodyText: JSON.stringify({ missing }) });
     } });
     const bundle: PublishContentExportEnvelope = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: 1, sourceLabel: "Local", entities: [], blobManifest: ["selected"], skipped: [] };
-    await assert.rejects(pushBundleToPeer({ ...deps,
-      computeStorageKey: () => { return assert.fail("must not compute an unapproved storage key"); },
-      blobSource: {
-        exists: async () => { return assert.fail("must not probe local storage"); },
-        get: async () => { return assert.fail("must not read local bytes"); },
+    await assert.rejects(pushBundleToPeer({
+                                            deps: { ...deps,
+        computeStorageKey: () => { return assert.fail("must not compute an unapproved storage key"); },
+        blobSource: {
+          exists: async () => { return assert.fail("must not probe local storage"); },
+          get: async () => { return assert.fail("must not read local bytes"); },
+        },
       },
-    }, { bundle }), (err: unknown) => {
+                                            required: { bundle }
+                                          }), (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_RESPONSE_INVALID");
       assert.equal(err.message, "the peer requested a blob outside the selected manifest");
@@ -193,7 +205,7 @@ test("L061 known peer refusals keep fixed operator guidance without echoing peer
     const bodyText = body !== null && typeof body === "object"
       ? JSON.stringify({ message: credential.apiKey, ...body }) : String(body);
     const deps = client({ reply: () => response({ status, bodyText }) });
-    await assert.rejects(callPeer(deps, { method: "POST", path: "/route" }), err => {
+    await assert.rejects(callPeer({ deps, request: { method: "POST", path: "/route" } }), err => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.message, `the peer refused POST /route with HTTP ${status}. ${guidance}`);
       assert.equal(err.peerStatus, status);
@@ -203,7 +215,7 @@ test("L061 known peer refusals keep fixed operator guidance without echoing peer
   }
   for (const body of [{ code: credential.apiKey, error: credential.apiKey }, { code: "__proto__" }, { error: `workspace was not found ${credential.apiKey}` }, []]) {
     const deps = client({ reply: () => response({ status: 404, bodyText: JSON.stringify(body) }) });
-    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), { message: "the peer refused GET /route with HTTP 404" });
+    await assert.rejects(callPeer({ deps, request: { method: "GET", path: "/route" } }), { message: "the peer refused GET /route with HTTP 404" });
   }
 });
 
@@ -217,7 +229,7 @@ test("L061 network codes yield fixed diagnostics without exposing messages or ca
     for (const failure of [Object.assign(new Error(credential.apiKey), { code }),
       new Error(credential.apiKey, { cause: { code, message: credential.apiKey } })]) {
       const httpClient: HttpClientPort = { send: async () => { throw failure; } };
-      await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), err => {
+      await assert.rejects(callPeer({ deps: { httpClient, credential }, request: { method: "GET", path: "/route" } }), err => {
         assert.ok(err instanceof PublishContentPeerTransportError);
         assert.equal(err.code, "PEER_UNREACHABLE");
         assert.match(err.message, expected);
@@ -238,10 +250,13 @@ test("L061 a repeated missing sha is probed, read and uploaded only once", async
   } });
   const probes: string[] = [];
   const reads: string[] = [];
-  const result = await pushBundleToPeer({ ...deps, computeStorageKey: sha => sha, blobSource: {
-    exists: async ({ sha256 }) => { probes.push(sha256); return sha256 === "held"; },
-    get: async ({ sha256 }) => { reads.push(sha256); return new Uint8Array([1]); },
-  } }, { bundle });
+  const result = await pushBundleToPeer({
+                                          deps: { ...deps, computeStorageKey: ({ sha256: sha }: { sha256: string }, _options: Record<string, never> = {}) => sha, blobSource: {
+      exists: async ({ sha256 }) => { probes.push(sha256); return sha256 === "held"; },
+      get: async ({ sha256 }) => { reads.push(sha256); return new Uint8Array([1]); },
+    } },
+                                          required: { bundle }
+                                        });
   assert.deepEqual(probes, ["held", "gone"]);
   assert.deepEqual(reads, ["held"]);
   assert.deepEqual(result.blobsUploaded, ["held"]);
@@ -266,7 +281,7 @@ test("security cleanup pins network code precedence and every empty diagnostic b
   ];
   for (const [failure, suffix] of cases) {
     const httpClient: HttpClientPort = { send: async () => { throw failure; } };
-    await assert.rejects(callPeer({ httpClient, credential }, { method: "GET", path: "/route" }), {
+    await assert.rejects(callPeer({ deps: { httpClient, credential }, request: { method: "GET", path: "/route" } }), {
       code: "PEER_UNREACHABLE", message: `the peer at 'live.example' could not be reached.${suffix}`,
     });
   }
@@ -275,7 +290,7 @@ test("security cleanup pins network code precedence and every empty diagnostic b
     get cause() { reads.push("cause"); return { code: "ECONNREFUSED" }; },
     get code() { reads.push("code"); return "ENOTFOUND"; },
   };
-  await assert.rejects(callPeer({ credential, httpClient: { send: async () => { throw failure; } } }, { method: "GET", path: "/route" }));
+  await assert.rejects(callPeer({ deps: { credential, httpClient: { send: async () => { throw failure; } } }, request: { method: "GET", path: "/route" } }));
   assert.deepEqual(reads, ["cause", "code"]);
 });
 
@@ -299,7 +314,7 @@ test("security cleanup pins peer code, legacy sentinel and HTTP fallback precede
   ];
   for (const [status, bodyText, guidance] of cases) {
     const deps = client({ reply: () => response({ status, bodyText }) });
-    await assert.rejects(callPeer(deps, { method: "GET", path: "/route" }), {
+    await assert.rejects(callPeer({ deps, request: { method: "GET", path: "/route" } }), {
       code: "PEER_REJECTED", peerStatus: status,
       message: `the peer refused GET /route with HTTP ${status}${guidance ? `. ${guidance}` : ""}`,
     });

@@ -30,34 +30,32 @@ export interface ImportAgentPluginAccessTokensFromEnvDeps extends ImportAgentPlu
 
 /** Same canonical token target ports and switch owner as the old import path. */
 function tovuImportDeps(deps: ImportAgentPluginAccessTokenDeps): PortableImportDeps {
-  return withOverrides(tovuTargetDeps(deps), {
+  return withOverrides({ target: tovuTargetDeps(deps), overrides: {
     importActor: AGENT_PLUGIN_TOKEN_IMPORT_ACTOR,
     switchOnSavedToken: ({ target }: Parameters<PortableImportDeps['switchOnSavedToken']>[0]) => switchOnSavedTokenConnection(deps, target),
-  });
+  } });
 }
 
 /** Existing positional host signature; token values never enter model events or logs. */
-export function importAgentPluginAccessToken(deps: ImportAgentPluginAccessTokenDeps, input: Parameters<typeof importWithPorts>[0]['input']): ReturnType<typeof importWithPorts> {
+export function importAgentPluginAccessToken({ deps, ...input }: { deps: ImportAgentPluginAccessTokenDeps } & Parameters<typeof importWithPorts>[0]['input'], _optional: Record<string, never> = {}): ReturnType<typeof importWithPorts> {
   return importWithPorts({ deps: tovuImportDeps(deps), input });
 }
 
 /** Every installed plugin in the workspace, one per id (the bundled-preferred digest). */
 export function listInstalledAgentPluginServers(input: { workspaceId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<readonly InstalledAgentPluginServers[]> {
-  return listWithPorts({ workspaceRoot: input.agentPluginLayout.forWorkspace(input.workspaceId).root, lifecycle: tovuInstalledMcpReads });
+  return listWithPorts({ workspaceRoot: input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId }).root, lifecycle: tovuInstalledMcpReads });
 }
 
-/** Existing boot signature; installed reads remain lazy and inside the portable failure boundary. */
+/** Installed reads remain lazy and inside the portable failure boundary at boot. */
 export function importAgentPluginAccessTokensFromEnv(
-  deps: ImportAgentPluginAccessTokensFromEnvDeps,
-  env: Readonly<Record<string, string | undefined>>,
-  log: TokenImportLog,
+  { deps, env, log }: { deps: ImportAgentPluginAccessTokensFromEnvDeps; env: Readonly<Record<string, string | undefined>>; log: TokenImportLog },
   options: Parameters<typeof importEnvWithPorts>[1] = {},
 ): Promise<void> {
-  return importEnvWithPorts({ deps: withOverrides(tovuImportDeps(deps), {
+  return importEnvWithPorts({ deps: withOverrides({ target: tovuImportDeps(deps), overrides: {
     listPlugins: () => (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))(),
     importMessages: {
       pluginsScreen: AGENT_PLUGINS_SCREEN,
       failed: ({ envName, pluginId }: { envName: string; pluginId: string }) => `[agent-plugins] could not copy ${envName} onto the '${pluginId}' plugin. Check the site credential store and try again.`,
     },
-  }), env, log }, options);
+  } }), env, log }, options);
 }

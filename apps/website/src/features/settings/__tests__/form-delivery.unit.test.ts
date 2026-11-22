@@ -57,7 +57,7 @@ async function ledger({ register = true }: { register?: boolean } = {}) {
 
 test("ensureFormDeliverySettings registers deliveryBindings defaulting to no bindings and autoPull defaulting to on", async () => {
   const { settingsRepo } = await ledger();
-  const read = (key: string) => getEffective({ repo: settingsRepo }, { namespace: "core.forms", key, scopeContext: { workspaceId: WS } });
+  const read = (key: string) => getEffective({ deps: { repo: settingsRepo }, namespace: "core.forms", key, scopeContext: { workspaceId: WS } });
   assert.deepEqual((await read("deliveryBindings"))?.value, []);
   assert.equal((await read("autoPull"))?.value, true);
 });

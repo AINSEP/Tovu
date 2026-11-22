@@ -23,7 +23,7 @@ describe("Observability page tab adapter", () => {
     expect(result.current.activeTabId).toBe("overview");
     expect(result.current.subtitle).toBe("Overview copy");
     expect(window.location.pathname + window.location.search).toBe("/admin/observability");
-    act(() => result.current.onTabChange("queries"));
+    act(() => result.current.onTabChange({ nextTabId: "queries" }));
     expect(result.current.subtitle).toBe("Queries copy");
     expect(window.location.pathname + window.location.search).toBe("/admin/observability?tab=queries");
     expect(window.history.length).toBe(historyLength);
@@ -43,7 +43,7 @@ describe("Observability page tab adapter", () => {
   });
   it("also falls back after local selection when an uncontrolled mount loses Queries", () => {
     const { result, rerender } = renderHook(({ available }) => useObservabilityTab({ tabs: available }), { initialProps: { available: tabs } });
-    act(() => result.current.onTabChange("queries"));
+    act(() => result.current.onTabChange({ nextTabId: "queries" }));
     expect(result.current.activeTabId).toBe("queries");
     rerender({ available: tabs.slice(0, 1) });
     expect(result.current.activeTabId).toBe("overview");

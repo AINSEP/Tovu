@@ -5,10 +5,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isSameOriginAdminWrite } from '../../same-origin.js';
+import { isSameOriginBrowserWrite } from '@jini-ai/core/contracts/server';
 
 const HOST = 'admin.acme.test:8443';
-const allowed = (origin: string | undefined, fetchSite?: string) => isSameOriginAdminWrite({ origin, host: HOST, fetchSite });
+const allowed = (origin: string | undefined, fetchSite?: string) => isSameOriginBrowserWrite({ origin, host: HOST, fetchSite });
 
 test('the exact https or http origin of this host is admitted, with or without fetch metadata', () => {
   assert.equal(allowed('https://admin.acme.test:8443'), true);
@@ -18,7 +18,7 @@ test('the exact https or http origin of this host is admitted, with or without f
 test('security: a missing Origin or a missing Host is refused', () => {
   assert.equal(allowed(undefined), false);
   assert.equal(allowed(''), false);
-  assert.equal(isSameOriginAdminWrite({ origin: 'https://admin.acme.test:8443', host: undefined, fetchSite: undefined }), false);
+  assert.equal(isSameOriginBrowserWrite({ origin: 'https://admin.acme.test:8443', host: undefined, fetchSite: undefined }), false);
 });
 
 test('security: fetch metadata other than same-origin is refused even with a matching Origin', () => {

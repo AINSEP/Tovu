@@ -20,14 +20,14 @@ const require = createRequire(import.meta.url);
  * REGRESSION COVER for a live outage on 2026-08-15: the daemon died on every boot with
  *
  *     TypeError: Cannot read properties of undefined (reading 'createInMemoryChatStoreFactory')
- *         at createRouteDeps (src/server/app.ts)
+ *         at createRouteDeps (src/server/runtime/composition/app.ts)
  *
  * caused by an import cycle:
  *
  *     server/app.ts -> ... -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
  * `site-exporter.ts` imports `createApp` on purpose (exporting drives the real app rather than
- * re-implementing rendering), and `server/app.ts` runs its whole boot graph as a side effect of
+ * re-implementing rendering), and `server/runtime/composition/app.ts` runs its whole boot graph as a side effect of
  * being loaded — so re-entering it mid-initialisation hands out half-built module exports.
  *
  * WHY NOTHING CAUGHT IT. Every existing suite either imports `createApp` directly or boots through
@@ -67,6 +67,33 @@ async function reserveFreePort(): Promise<number> {
   await new Promise<void>((resolve) => probe.close(() => resolve()));
   return port;
 }
+
+test("the standalone daemon rejects an invalid listener port without echoing it", async (t) => {
+  const suppliedPort = "70000";
+  const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
+    env: {
+      ...childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+      JINI_AGENT_DAEMON_PORT: suppliedPort,
+      TOVU_DB: "memory",
+      TOVU_DAEMON_LIFECYCLE_LOG: "on",
+    },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+
+  let output = "";
+  child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()));
+  t.after(() => {
+    if (child.exitCode === null) child.kill("SIGKILL");
+  });
+
+  const [code] = await once(child, "close", { signal: AbortSignal.timeout(45_000) });
+  assert.equal(code, 1, "an invalid listener port must exit with a startup failure before the deadline");
+  assert.match(output, /JINI_AGENT_DAEMON_PORT/, "the startup error must name the listener port setting");
+  assert.match(output, /0.*1.*65535/, "the startup error must explain the allowed listener port range");
+  assert.ok(!output.includes(suppliedPort), "the startup error must not disclose the supplied port value");
+  assert.doesNotMatch(output, /listening on/i, "an invalid listener port must not announce a listener");
+});
 
 for (const stopOnEnd of [false, true]) {
 test(stopOnEnd

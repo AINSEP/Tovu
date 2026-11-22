@@ -48,10 +48,11 @@ async function purgeByTitle(request: APIRequestContext, titles: string[]): Promi
   }
 }
 
-test.describe("W4 media lifecycle", () => {
+{
   // Uploads this file's tests leave behind, removed after each test so the library baseline below
   // shows the same empty library whether it runs alone or after the upload tests.
   const uploaded: string[] = [];
+function registerMediaUploadCases() {
   test.beforeEach(async ({ journeySite }) => {
     expect(journeySite.database, "Media requires SQLite first-boot core transforms").toBe("sqlite");
   });
@@ -102,6 +103,10 @@ test.describe("W4 media lifecycle", () => {
     await expect(page.getByRole("button", { name: new RegExp(`^Edit ".*${name.replace(".png", "")}`) })).toHaveCount(1);
     expect(uploads).toBe(1);
   });
+}
+
+test.describe("W4 media lifecycle", () => {
+  registerMediaUploadCases();
 
   test("a disallowed file type is refused with a visible error, and nothing is added", { tag: ["@unrun"] }, async ({ page }) => {
     const name = `${uniqSlug("not-media")}.html`;
@@ -140,3 +145,4 @@ test.describe("W4 media lifecycle", () => {
     await expect(page).toHaveScreenshot("media-library.png", { mask: [page.locator("img")] });
   });
 });
+}

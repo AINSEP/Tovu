@@ -56,20 +56,20 @@ interface SelftestTracker {
 }
 
 /**
- * @param expectedCount how many windows this launch will open, known by the caller before any of
+ * @param input.expectedCount how many windows this launch will open, known by the caller before any of
  *   them exist (e.g. `siteDirs.length`) — see this file's own header, hazard 2.
- * @param callbacks.onWindowLoaded `({ url, title }) => void` — called once per window that finishes
+ * @param input.callbacks.onWindowLoaded `({ url, title }) => void` — called once per window that finishes
  *   loading successfully.
- * @param callbacks.onWindowFailed `({ url, code, description }) => void` — called at most once, for
+ * @param input.callbacks.onWindowFailed `({ url, code, description }) => void` — called at most once, for
  *   the first window (if any) that fails to load.
- * @param callbacks.onAllSettled `({ failed }) => void` — called exactly once, either once every
+ * @param input.callbacks.onAllSettled `({ failed }) => void` — called exactly once, either once every
  *   expected window has loaded successfully (`failed: false`) or as soon as any one fails
  *   (`failed: true`) — never both.
  * @returns `{ add(window) }` — call once per window, as soon as it is created; must be called
  *   exactly `expectedCount` times over this tracker's lifetime.
  * @complexity O(1) to construct; `add()` is O(1) per call.
  */
-function createSelftestTracker(expectedCount: number, callbacks: SelftestCallbacks): SelftestTracker {
+function createSelftestTracker({ expectedCount, callbacks }: { expectedCount: number; callbacks: SelftestCallbacks }, _options: Record<string, never> = {}): SelftestTracker {
   let remaining = expectedCount;
   let failed = false;
 

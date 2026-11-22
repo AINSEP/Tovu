@@ -1,4 +1,4 @@
-import type { AdminContentType, AdminEntry } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file What `use-collection-entries.hooks.ts` needs from the outside world, as an interface rather
@@ -7,5 +7,5 @@ import type { AdminContentType, AdminEntry } from "@/lib/api";
  */
 export interface CollectionEntriesPort {
   listContentTypes(): Promise<{ items: AdminContentType[] }>;
-  listEntries(options: { type?: string }): Promise<{ items: AdminEntry[] }>;
+  listEntries(options: { type?: string }, optional?: Record<string, never>): Promise<{ items: AdminEntry[] }>;
 }

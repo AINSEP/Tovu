@@ -45,7 +45,7 @@ function withProxyEnv(t: import("node:test").TestContext, value: string | undefi
 
 async function boot(t: import("node:test").TestContext, dir: string): Promise<string> {
   const app = express();
-  registerSiteChatStatic(app, { distDir: dir });
+  registerSiteChatStatic({ app, distDir: dir });
   return startTestServer(app, t);
 }
 
@@ -86,7 +86,7 @@ test("built bundle present, no proxy: the dist dir is served at /site-chat", asy
 test("no bundle and no proxy: nothing is mounted, so /site-chat requests fall through to the next handler", async (t) => {
   withProxyEnv(t, undefined);
   const app = express();
-  registerSiteChatStatic(app, { distDir: distDir(t, false) });
+  registerSiteChatStatic({ app, distDir: distDir(t, false) });
   app.use((_req, res) => res.status(404).send("fell through"));
   const baseUrl = await startTestServer(app, t);
 
@@ -101,7 +101,7 @@ test("a dist dir holding files but NOT site-assistant.js counts as unbuilt — i
   const dir = distDir(t, false);
   fs.writeFileSync(path.join(dir, "stray.txt"), "should not be served");
   const app = express();
-  registerSiteChatStatic(app, { distDir: dir });
+  registerSiteChatStatic({ app, distDir: dir });
   app.use((_req, res) => res.status(404).send("fell through"));
   const baseUrl = await startTestServer(app, t);
 

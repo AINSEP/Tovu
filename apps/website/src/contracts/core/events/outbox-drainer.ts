@@ -1,5 +1,5 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { startOutboxDrainer as startJiniOutboxDrainer, type OutboxDrainer } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";

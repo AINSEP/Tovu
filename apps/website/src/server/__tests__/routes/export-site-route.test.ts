@@ -207,7 +207,7 @@ test("export-site: trigger starts a real run (202), honors a real 'basePath', a 
   const barrier = new Promise<void>((resolve) => { release = resolve; });
   let calls = 0;
   let engineFinished: Promise<unknown> | undefined;
-  deps.runExportSite = (options) => {
+  deps.runExportSite = (options, _optional = {}) => {
     calls++;
     const work = barrier.then(() => realExport(options));
     engineFinished = work;

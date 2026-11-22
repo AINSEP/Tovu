@@ -1,12 +1,12 @@
 import type { Express } from "express";
 
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { UUID } from "@jini-ai/core/primitives";
 
 /**
  * @file Narrow `RouteDeps` slice for the `agent-plugins` admin HTTP surface (2026-09-09) — mirrors
- * `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps` narrowing pattern.
+ * `apps/website/src/server/inbound/admin-http/routes/plugins/deps.ts`'s `PluginsRouteDeps` narrowing pattern.
  *
  * Deliberately smaller than `PluginsRouteDeps`: this domain's read model,
  * `loadAgentPluginSearchCandidates()` (`features/agent-plugins/tool-registrations.ts`, shared with
@@ -59,4 +59,4 @@ export interface AgentPluginsRouteDeps {
   readonly tracker: RouteDeps["tracker"];
 }
 
-export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;
+export type AgentPluginsRouteRegistrar = (required: { app: Express; deps: AgentPluginsRouteDeps }, optional?: Record<string, never>) => void;

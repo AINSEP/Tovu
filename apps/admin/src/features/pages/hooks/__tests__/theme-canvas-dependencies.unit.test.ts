@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createFakeThemeCanvasPort, defaultThemeCanvasPort } from "../theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort, defaultThemeCanvasPort, ThemeServerResponseError } from "../theme-canvas-dependencies.hooks";
 
 /**
  * @file Coverage for `theme-canvas-dependencies.hooks.ts`'s `defaultThemeCanvasPort` — neither
@@ -25,20 +25,22 @@ describe("defaultThemeCanvasPort.fetchThemeTokens", () => {
   it("resolves the parsed JSON body when the response is ok", async () => {
     const tokens = { colors: { primary: "#111" } };
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(tokens) }) as typeof fetch;
-    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.json")).resolves.toEqual(tokens);
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.json" })).resolves.toEqual(tokens);
     expect(global.fetch).toHaveBeenCalledWith("/theme-assets/basic/tokens.json");
   });
 
   it("throws naming the status when the response is not ok", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as typeof fetch;
-    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.light.json")).rejects.toThrow(
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toThrow(
       "the theme server responded with 404",
     );
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toBeInstanceOf(ThemeServerResponseError);
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toMatchObject({ status: 404 });
   });
 
   it("surfaces invalid JSON from a successful tokens response", async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response("{invalid", { status: 200 })) as typeof fetch;
-    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.json")).rejects.toBeInstanceOf(SyntaxError);
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.json" })).rejects.toBeInstanceOf(SyntaxError);
     expect(global.fetch).toHaveBeenCalledWith("/theme-assets/basic/tokens.json");
   });
 });
@@ -46,7 +48,7 @@ describe("defaultThemeCanvasPort.fetchThemeTokens", () => {
 describe("defaultThemeCanvasPort.fetchTemplateMarkup", () => {
   it("resolves the response text when the response is ok", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve("<main></main>") }) as typeof fetch;
-    await expect(defaultThemeCanvasPort.fetchTemplateMarkup("/theme-assets/basic/pages/page-shell.html")).resolves.toBe(
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/page-shell.html" })).resolves.toBe(
       "<main></main>",
     );
     expect(global.fetch).toHaveBeenCalledWith("/theme-assets/basic/pages/page-shell.html");
@@ -54,16 +56,18 @@ describe("defaultThemeCanvasPort.fetchTemplateMarkup", () => {
 
   it("throws naming the status when the response is not ok", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as typeof fetch;
-    await expect(defaultThemeCanvasPort.fetchTemplateMarkup("/theme-assets/basic/pages/missing.html")).rejects.toThrow(
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toThrow(
       "the theme server responded with 500",
     );
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toBeInstanceOf(ThemeServerResponseError);
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toMatchObject({ status: 500 });
   });
 });
 
 describe("createFakeThemeCanvasPort.fetchThemeTokens — unseeded URL", () => {
   it("rejects, naming the URL, rather than resolving with undefined", async () => {
     const port = createFakeThemeCanvasPort();
-    await expect(port.fetchThemeTokens("/theme-assets/basic/tokens.json")).rejects.toThrow(
+    await expect(port.fetchThemeTokens({ url: "/theme-assets/basic/tokens.json" })).rejects.toThrow(
       "fake theme canvas port: nothing seeded at /theme-assets/basic/tokens.json",
     );
   });

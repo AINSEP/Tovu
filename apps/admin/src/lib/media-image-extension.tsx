@@ -1,9 +1,9 @@
+import { createMediaImageTranslator, createMediaImageReplace } from "./media-image-extension.hooks";
 import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import { api } from "./api";
+import { mediaApi } from "../features/media/api/media-api";
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
-import { t as translateApp } from "../app-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
 /**
@@ -11,7 +11,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  * `{assetId, transformName}` attrs, PLUS a custom node view that resolves the in-editor preview
  * live from `assetId` rather than persisting a preview URL into `bodyJson`.
  *
- * Stays named `"image"` (`Image.extend`, not a new node type): `server/inbound/public-http/http/site/render.ts`'s
+ * Stays named `"image"` (`Image.extend`, not a new node type): `server/inbound/public-http/http/site/render/doc/doc-nodes.ts`'s
  * `renderDocNode` switches on `node.type === "image"` specifically — introducing a differently
  * named node here would silently fall through to that switch's `default` case (render children,
  * i.e. nothing, for a leaf node — the exact D7 bug this task's own render-path fix just closed)
@@ -25,7 +25,7 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
  * through `getJSON()`/`setContent()` — the stored `src` would sit in `bodyJson` right next to the
  * ref, persisted forever, exactly the shape the ADR calls out by name. Instead, `assetId`/
  * `transformName` are the ONLY ref attrs this node stores; `MediaImageNodeView` computes
- * `api.mediaOriginalUrl(assetId)` (the authenticated admin preview route — safe here because the
+ * `api.mediaOriginalUrl({ id: assetId })` (the authenticated admin preview route — safe here because the
  * editor is itself an authenticated admin surface, unlike the public render path this ref
  * ultimately resolves against via a *different* URL, `/m/{assetId}/{transformName}.v{version}/…`,
  * built server-side at render time) purely for display, on every render, never written back into
@@ -43,45 +43,38 @@ import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 /**
  * The in-canvas rendered representation of an `image` node. Two branches, matching the two shapes
  * this node's schema now accepts:
- *  - REF (`assetId` set): live preview resolved from `api.mediaOriginalUrl(assetId)`, never
+ *  - REF (`assetId` set): live preview resolved from `api.mediaOriginalUrl({ id: assetId })`, never
  *    persisted — see this file's header for why. A "Replace" action reopens
  *    {@link MediaPickerDialog} to swap the referenced asset.
  *  - LEGACY (`src` set, no `assetId`): renders `attrs.src` directly, unchanged from the plain
  *    `@tiptap/extension-image` behavior this replaces — only the in-editor admin surface ever
  *    reads this `src`; the public render path never does (D7/ADR-027 §4).
  */
-export function MediaImageNodeView(props: NodeViewProps) {
+export function MediaImageNodeView({
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: (NodeViewProps) & {
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale; }) {
   const assetId = typeof props.node.attrs.assetId === "string" ? props.node.attrs.assetId : "";
   const transformName = typeof props.node.attrs.transformName === "string" ? props.node.attrs.transformName : "";
   const legacySrc = typeof props.node.attrs.src === "string" ? props.node.attrs.src : "";
   const alt = typeof props.node.attrs.alt === "string" ? props.node.attrs.alt : "";
   const [picking, setPicking] = useState(false);
-  const locale = useWiredAdminLocale();
-  const t = (key: string): string => translateApp({ locale: locale, key: key });
+  const locale = useWiredAdminLocaleHook();
+  const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
-  const previewSrc = isRef ? api.mediaOriginalUrl(assetId) : legacySrc;
+  const previewSrc = isRef ? mediaApi.mediaOriginalUrl({ id: assetId }) : legacySrc;
 
-  function replaceWith(item: { id: string; alt: string; title: string }) {
-    props.updateAttributes({ assetId: item.id, transformName: "public", alt: item.alt || item.title, src: null, title: null });
-    setPicking(false);
-  }
+  const replaceWith = createMediaImageReplace({ props, setPicking });
 
   return (
     <NodeViewWrapper as="div" className="media-image-node" data-drag-handle contentEditable={false}>
-      {previewSrc ? (
-        <img className="media-image-node__preview" src={previewSrc} alt={alt} />
-      ) : (
-        <span className="media-image-node__broken-label" role="img" aria-label={t("Broken image reference")}>
-          {t("⚠ Image unavailable")}
-        </span>
-      )}
+      <MediaImagePreview previewSrc={previewSrc} alt={alt} t={t} />
       <span className="media-image-node__actions">
         <button type="button" onClick={() => setPicking(true)}>
-          {t("Replace")}
+          {t({ key: "Replace" })}
         </button>
         <button type="button" onClick={() => props.deleteNode()}>
-          {t("Remove")}
+          {t({ key: "Remove" })}
         </button>
       </span>
       {picking ? <MediaPickerDialog onSelect={replaceWith} onCancel={() => setPicking(false)} /> : null}
@@ -101,11 +94,24 @@ export const MediaImage = TiptapImage.extend({
   parseHTML() {
     // Ref-based exports have no src; keep the parent's rules for legacy URL images.
     // `TiptapImage` always declares `parseHTML` (its `img[src]` rule), so the parent and its rule
-    // list are always present here; the assertions restate that for the type system.
-    return [...this.parent!()!, { tag: "img[assetid][transformname]" }];
+    // list are expected here; check both before extending the inherited rules.
+    if (!this.parent) throw new Error("media image extension has no parent HTML parser");
+    const rules = this.parent();
+    if (!rules) throw new Error("media image parent HTML parser returned no rules");
+    return [...rules, { tag: "img[assetid][transformname]" }];
   },
 
   addNodeView() {
     return ReactNodeViewRenderer(MediaImageNodeView);
   },
 });
+
+function MediaImagePreview({ previewSrc, alt, t }: { previewSrc: string; alt: string; t: ReturnType<typeof createMediaImageTranslator> }) {
+  return (previewSrc ? (
+        <img className="media-image-node__preview" src={previewSrc} alt={alt} />
+      ) : (
+        <span className="media-image-node__broken-label" role="img" aria-label={t({ key: "Broken image reference" })}>
+          {t({ key: "⚠ Image unavailable" })}
+        </span>
+      ));
+}

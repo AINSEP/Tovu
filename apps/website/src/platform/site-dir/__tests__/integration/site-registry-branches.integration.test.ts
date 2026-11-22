@@ -103,7 +103,7 @@ test("createSite passes the display name and onAllocated with the picked folder 
   const root = tempRoot(t);
   const { init, names } = fakeInit({ siteId: "alpha-id" });
   const allocated: SiteCreationAllocation[] = [];
-  const result = await createSite({ name: "alpha", displayName: "Alpha Site" }, { ...workspaceOptions(root), initSite: init, onAllocated: (allocation) => { allocated.push(allocation); } });
+  const result = await createSite({ name: "alpha", displayName: "Alpha Site" }, { ...workspaceOptions(root), initSite: init, onAllocated: (allocation, _optional = {}) => { allocated.push(allocation); } });
   assert.deepEqual(names, ["Alpha Site"]);
   assert.deepEqual(allocated, [{ siteId: "alpha-id", dir: result.dir, dbPath: path.join(result.dir, "data.nosync", "content.db"), name: "alpha" }]);
 });
@@ -170,7 +170,7 @@ test("collision-safe creation retries the next suffix when initSite finds the fo
   const tried: string[] = [];
   const init: typeof initSite = async (required, optional) => {
     tried.push(path.basename(required.dir));
-    if (tried.length === 1) throw new InitDirNotEmptyError("occupied by a concurrent create");
+    if (tried.length === 1) throw new InitDirNotEmptyError({ message: "occupied by a concurrent create" });
     return commit(required, optional);
   };
   const result = await createSite({ name: "alpha" }, { ...workspaceOptions(root), collisionSafe: true, initSite: init });

@@ -1,11 +1,13 @@
 import { toSlug } from "../../platform/html/slug.js";
 
+/** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. Exported for the same
+ * reason as {@link MAX_TITLE_LENGTH}. */
 export const MAX_SLUG_LENGTH = 120;
 export const DERIVED_SLUG_SUFFIX_ROOM = "-999".length;
 
 /** Leave room for the bounded collision suffix so every derived slug remains editable. */
 export function derivePostSlugBase({ title }: { title: string }, _optional: Record<string, never> = {}): string {
-  const slug = toSlug(title).slice(0, MAX_SLUG_LENGTH - DERIVED_SLUG_SUFFIX_ROOM);
+  const slug = toSlug({ text: title }).slice(0, MAX_SLUG_LENGTH - DERIVED_SLUG_SUFFIX_ROOM);
   let end = slug.length;
   while (end > 0 && slug[end - 1] === "-") end -= 1;
   return slug.slice(0, end) || "untitled";

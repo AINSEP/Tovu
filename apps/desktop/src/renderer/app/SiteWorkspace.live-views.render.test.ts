@@ -20,7 +20,7 @@ import type { RunnerInventoryBridge } from '../runner-api.js';
 after(closeHost);
 
 const IDS = ['a', 'b', 'c', 'd', 'e'] as const;
-const running = (id: string, index: number) => site(id, { status: 'running', port: 4101 + index });
+const running = (id: string, index: number) => site({ id }, { fields: { status: 'running', port: 4101 + index } });
 const SITES: readonly SiteRecord[] = IDS.map(running);
 
 type Reply = { release: boolean; url?: string; x?: number; y?: number; innerY?: number };
@@ -54,9 +54,9 @@ async function renderTabs(t: TestContext, { openSites = SITES, bridge = {} }: { 
   });
   const view = mount({ t, element: element() });
   await settle();
-  const mounted = () => view.all('webview').map((guest) => guest.getAttribute('partition')!.replace('persist:', '')).sort();
+  const mounted = () => view.all({ selector: 'webview' }).map((guest) => guest.getAttribute('partition')!.replace('persist:', '')).sort();
   const guestOf = (id: string) => view.container.querySelector<HTMLElement>(`webview[partition="persist:${id}"]`);
-  const show = async (next: Partial<typeof props>) => { props = { ...props, ...next }; view.render(element()); await settle(); };
+  const show = async (next: Partial<typeof props>) => { props = { ...props, ...next }; view.render({ next: element() }); await settle(); };
   const visit = (id: string) => show({ visibleWorkspaceId: id, inSites: true });
   return { ...view, ...guests, mounted, guestOf, show, visit };
 }
@@ -69,7 +69,7 @@ test('live views: five visited clean tabs keep at most two guests, the two most 
     assert.ok(view.mounted().length <= 2, `after visiting ${id}: ${view.mounted().join(', ')}`);
   }
   assert.deepEqual(view.mounted(), ['d', 'e']);
-  assert.equal(view.all('section.workspace').length, 5, 'every workspace, released or not, keeps its bar');
+  assert.equal(view.all({ selector: 'section.workspace' }).length, 5, 'every workspace, released or not, keeps its bar');
   assert.deepEqual(view.scripts.map(([id]) => id), ['a', 'b', 'c'], 'each release asked the least recently focused guest first');
 });
 
@@ -118,7 +118,7 @@ test('live views: focusing a released tab brings it back on its last route, then
   const restores = view.scripts.filter(([id, code]) => id === 'a' && code !== RELEASE_PROBE).map(([, code]) => code);
   assert.equal(restores.length, 1, 'once per restored guest: a later reload is the operator\'s own');
   assert.match(restores[0]!, /window\.scrollTo\(0, 40\)/);
-  assert.match(restores[0]!, /\.admin-content/);
+  assert.match(restores[0]!, /document\.querySelector\("\.admin-content"\)/);
   assert.match(restores[0]!, /scrollTop = 640/);
 });
 
@@ -126,7 +126,7 @@ test('live views: the menu\'s limit is read from the bridge, and a change applie
   let changed: ((maximum: number) => void) | undefined;
   const view = await renderTabs(t, { bridge: {
     getMaximumLiveSiteViews: async () => 3,
-    onMaximumLiveSiteViewsChanged: (listener) => { changed = listener; return () => { changed = undefined; }; },
+    onMaximumLiveSiteViewsChanged: ({ listener }, _options = {}) => { changed = listener; return () => { changed = undefined; }; },
   } });
   for (const id of IDS.slice(1)) await view.visit(id);
   assert.deepEqual(view.mounted(), ['c', 'd', 'e']);
@@ -151,16 +151,17 @@ test('live views: closing a tab forgets its released route', async (t) => {
   view.replies.a = { release: true, url: 'http://127.0.0.1:4101/admin/posts' };
   await view.visit('b');
   await view.visit('c');
+  assert.equal(view.guestOf('a'), null);
   const reopened = SITES.slice(0, 3);
-  view.render(createElement(SiteWorkspaces, {
+  view.render({ next: createElement(SiteWorkspaces, {
     openSites: SITES.slice(1, 3), inSites: true, visibleWorkspaceId: 'c', expanded: false, adminPages: {},
     onToggleExpanded: () => {}, registerGuest: () => {}, registerZoomGuest: () => {}, onSiteUpdated: () => {},
-  }));
+  }) });
   await settle();
-  view.render(createElement(SiteWorkspaces, {
+  view.render({ next: createElement(SiteWorkspaces, {
     openSites: reopened, inSites: true, visibleWorkspaceId: 'a', expanded: false, adminPages: {},
     onToggleExpanded: () => {}, registerGuest: () => {}, registerZoomGuest: () => {}, onSiteUpdated: () => {},
-  }));
+  }) });
   await settle();
   assert.equal(view.guestOf('a')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/', 'a reopened tab starts on its admin root');
 });
@@ -175,10 +176,14 @@ function runProbe(t: TestContext, listeners: Record<string, (event: Event) => vo
 }
 
 test('release probe: an editor\'s beforeunload guard says no', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/');
+  t.after(() => dom.window.history.replaceState(null, '', '/'));
   assert.equal(runProbe(t, { beforeunload: (event) => { event.preventDefault(); } }).release, false);
 });
 
 test('release probe: a jini:release-check veto says no', (t) => {
+  dom.window.history.replaceState(null, '', '/admin/');
+  t.after(() => dom.window.history.replaceState(null, '', '/'));
   assert.equal(runProbe(t, { 'jini:release-check': (event) => { event.preventDefault(); } }).release, false);
 });
 
@@ -192,6 +197,7 @@ test('release probe: with no guard objecting it says yes, with the page url and 
 });
 
 test('release probe: an unsent public comment survives switching sites without a release listener', t => {
+  dom.window.history.replaceState(null, '', '/');
   const form = dom.window.document.createElement('form');
   form.action = '/api/site/comments';
   form.innerHTML = '<textarea name="body" required maxlength="10000"></textarea>';

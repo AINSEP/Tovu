@@ -1,11 +1,13 @@
 import { bundledAgentPluginsDir } from "./site-paths.js";
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from '#src/features/agent-plugins/lifecycle';
-import { credentialCardsContribution, mergePluginCredentialCards } from '#src/features/agent-plugins/credential-cards';
+import { credentialCardsContribution, mergePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
 import { parseSourceControlProvidersFile } from '#src/features/source-control/provider-registry';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
-import { readProviderPluginLink } from '#src/features/agent-plugins/identity';
+import { readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import type { LoadPluginCredentialCards } from "../../../features/custom-credentials/plugin-credential-card.js";
 import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 
@@ -37,7 +39,7 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
   let lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle> | undefined;
   // Tool catalogs can be built before a site is bound; only a lookup needs the fixed layout.
   const owner = () => lifecycle ??= createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-  const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile(plugin, filename));
+  const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile({ plugin, filename }));
   const definition = { ...credentialCardsContribution, load: async ({ plugin, descriptor }: Parameters<typeof credentialCardsContribution.load>[0]) =>
     await ownsDestination({ plugin, card: descriptor, readFile }) ? { ...descriptor, pluginId: plugin.pluginId }
       : `credential card '${descriptor.providerId}' from '${plugin.pluginId}' was refused: destination is not owned by this plugin` };
@@ -48,8 +50,8 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
       const result = await loadContributions({ workspaceId, definition }, { requireActive: true, orderByPluginId: true });
       for (const refusal of result.refusals) warn(refusal);
       return mergePluginCredentialCards({ mailCards, manifestCards: result.items }, { onRefusal: warn });
-    } catch {
-      warn('Optional manifest cards could not be loaded; retaining mail cards and domain defaults.');
+    } catch (error) {
+      warn(`Optional manifest cards could not be loaded; retaining mail cards and domain defaults. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
       return mailCards;
     }
   };
@@ -66,13 +68,13 @@ async function linkedProviderOf({ plugin, readFile }: { plugin: TrustedPluginPac
 async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPluginPackage; readFile: ReadFile }, _options = {}): Promise<Set<string>> {
   const identities = new Set([plugin.pluginId]);
   const sources = [
-    { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
-    { filename: 'tovu-source-control.json', parse: parseSourceControlProvidersFile },
-    { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
+    { filename: 'jini-deploy-targets.json', parse: parseDeployTargetsFile },
+    { filename: 'jini-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile({ raw }) },
+    { filename: 'jini-mail-adapters.json', parse: parseMailAdaptersFile },
   ];
   for (const source of sources) {
     let parsed: ReturnType<typeof source.parse> | undefined;
-    try { parsed = source.parse(await readFile({ plugin, filename: source.filename })); }
+    try { parsed = source.parse({ raw: await readFile({ plugin, filename: source.filename }) }); }
     catch { /* Missing or broken descriptors grant no ownership. */ }
     if (!parsed?.ok) continue;
     for (const entry of parsed.descriptors) {

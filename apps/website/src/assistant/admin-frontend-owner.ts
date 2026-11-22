@@ -1,14 +1,16 @@
-import type { Request } from 'express';
 import type { FrontendSessionOwner } from '@jini-ai/daemon';
+import type { FrontendHookInput } from '@jini-ai/daemon/http';
+import { readRequestFacts } from '#src/contracts/core/request-facts';
 import { RUN_PRINCIPAL_HEADER } from './daemon-access.js';
 
 /** The proxy authenticates the principal; the private bind token authenticates the tab.
+ * The `tabId` query value is the admin app's own parsed query (the request facts), not a re-parse of the URL: a repeated, bracketed or very late `tabId` is refused, as it always was.
  * @complexity O(1) time and space. No additional session or database read.
  * @overallScore 100
  */
-export function adminFrontendOwner({ req, workspaceId }: { req: Request; workspaceId: string }, _optional = {}): FrontendSessionOwner | null {
-  const principalId = req.get(RUN_PRINCIPAL_HEADER);
-  const tabId = req.get('x-frontend-tab-id') ?? req.query.tabId;
+export function adminFrontendOwner({ request, locals, workspaceId }: FrontendHookInput & { workspaceId: string }, _optional = {}): FrontendSessionOwner | null {
+  const principalId = request.headers.get(RUN_PRINCIPAL_HEADER);
+  const tabId = request.headers.get('x-frontend-tab-id') ?? readRequestFacts({ locals }).query.tabId;
   if (!principalId || typeof tabId !== 'string' || !tabId || tabId.length > 128) return null;
   return { workspaceId, principalId, tabId };
 }

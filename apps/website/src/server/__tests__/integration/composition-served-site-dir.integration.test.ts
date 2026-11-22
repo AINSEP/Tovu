@@ -94,10 +94,10 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     for (const name of layoutEnv) delete process.env[name];
     plantSitePlugin(path.join(siteA, "plugins"), probePluginId);
     // No uploadsDir/themesDir overrides: their defaults are under test too.
-    deps = await createSiteRouteDeps(path.join(siteA, "content.db"), {
+    deps = await createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
       siteBinding: bindingFor(siteA),
-      onStoreOpened: store => { closeStore = () => store.close(); },
-    });
+      onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
+    } });
   });
 
   after(async () => {
@@ -157,8 +157,8 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     const previous = process.env.TOVU_SITE_DIR;
     try {
       process.env.TOVU_SITE_DIR = path.join(siteA, "another-site");
-      assert.equal(deps!.agentPluginLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "agent-plugins", "ws", deps!.workspaceId));
-      assert.equal(deps!.skillLayout.forWorkspace(deps!.workspaceId).root, path.join(siteA, "skills", "ws", deps!.workspaceId));
+      assert.equal(deps!.agentPluginLayout.forWorkspace({ workspaceId: deps!.workspaceId }).root, path.join(siteA, "agent-plugins", "ws", deps!.workspaceId));
+      assert.equal(deps!.skillLayout.forWorkspace({ workspaceId: deps!.workspaceId }).root, path.join(siteA, "skills", "ws", deps!.workspaceId));
     } finally {
       if (previous === undefined) delete process.env.TOVU_SITE_DIR; else process.env.TOVU_SITE_DIR = previous;
     }
@@ -172,11 +172,11 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     fs.mkdirSync(pluginRoot);
     const files = {
       "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "github", version: "1.0.0" }),
-      "tovu-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
-      "tovu-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
-      "tovu-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
-      "tovu-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
-      "tovu-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
+      "jini-source-control.json": JSON.stringify({ schemaVersion: 1, providers: [{ id: "bound-git", label: "Bound Git", apiOrigin: "https://git.fixture.test", module: "fixture.mjs" }] }),
+      "jini-deploy-targets.json": JSON.stringify({ schemaVersion: 1, targets: [{ id: "bound-target", label: "Bound Target", module: "fixture.mjs", config: [] }] }),
+      "jini-deploy-ops.json": JSON.stringify({ schemaVersion: 1, platforms: [{ id: "bound-ops", label: "Bound Ops", module: "fixture.mjs", hosts: ["api.fixture.test"] }] }),
+      "jini-mail-adapters.json": JSON.stringify({ schemaVersion: 1, adapters: [{ id: "bound_mail", label: "Bound Mail", module: "fixture.mjs", credentialLabel: "Fixture Mail Key" }] }),
+      "jini-credential-schemes.json": JSON.stringify({ schemaVersion: 1, schemes: [{ id: "bound-scheme", prefix: "FixtureV1", scheme: "FixtureV1" }] }),
       "fixture.mjs": "export default { create() { return {}; }, validateConfig() { return null; }, async status() {}, async logs() {} };",
     };
     for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(pluginRoot, name), content);
@@ -188,21 +188,21 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     try {
       await lifecycle.seedBundledAgentPlugins({ layout: deps!.agentPluginLayout, workspaceId, sourceRoot });
       for (const name of envNames) process.env[name] = path.join(sourceRoot, "other-site");
-      const providers = await deps!.loadSourceControlProviders(workspaceId);
+      const providers = await deps!.loadSourceControlProviders({ workspaceId });
       assert.deepEqual(providers.refusals, []);
-      assert.equal(providers.get("bound-git")?.pluginId, "github");
-      assert.ok(providers.get("bound-git")!.module);
-      assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "github");
+      assert.equal(providers.get({ providerId: "bound-git" })?.pluginId, "github");
+      assert.ok(providers.get({ providerId: "bound-git" })!.module);
+      assert.equal((await deps!.loadDeployTargets({ workspaceId })).get("bound-target")?.pluginId, "github");
       assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "github");
       assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound_mail"]);
       assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
       assert.equal(fs.existsSync(path.join(sourceRoot, "other-site")), false);
 
       await lifecycle.setAgentPluginActivation({ workspaceRoot: path.join(siteA, "agent-plugins", "ws", workspaceId), pluginId: "github", enabled: false, actor: "test" });
-      const disabled = await deps!.loadSourceControlProviders(workspaceId);
+      const disabled = await deps!.loadSourceControlProviders({ workspaceId });
       assert.deepEqual(disabled.list(), []);
       assert.equal(disabled.switchedOff?.get("bound-git"), "github");
-      assert.deepEqual((await deps!.loadDeployTargets(workspaceId)).list(), []);
+      assert.deepEqual((await deps!.loadDeployTargets({ workspaceId })).list(), []);
       assert.deepEqual((await deps!.loadDeployOps({ workspaceId })).list(), []);
       assert.deepEqual((await loadMail()).list(), []);
       // Data-only credential schemes keep digest trust but deliberately skip activation.
@@ -267,14 +267,14 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps(path.join(siteA, "content.db"), {
+      createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
         db: liveDb,
         workspaceId,
-        onStoreOpened: store => { closeStore = () => store.close(); },
+        onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
-      })
+      } })
     );
     const hydration = await deps.blobHydrationReady;
     assert.equal(hydration?.status, "seeded", `blob hydration must find stock/${siteName}/uploads, got ${JSON.stringify(hydration)}`);
@@ -308,12 +308,12 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps(path.join(siteA, "content.db"), {
-        onStoreOpened: store => { closeStore = () => store.close(); },
+      createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
+        onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
-      })
+      } })
     );
     const found = await deps.workspaceRepo.findById({ id: "served-seed-marker" });
     assert.ok(found, "content.db must be hydrated from the served site's own stock seed");

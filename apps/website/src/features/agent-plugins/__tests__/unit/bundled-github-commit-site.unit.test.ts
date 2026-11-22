@@ -15,7 +15,7 @@ const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "
 
 /** The bundled `github` plugin's site committer, built with the real kit (so `global.fetch` stubs apply). */
 function createGitHubCommitAdapter(): { commit: SourceControlProvider["commitSite"] } {
-  const loaded = registry.get("github");
+  const loaded = registry.get({ providerId: "github" });
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
   return { commit: loaded.module.create({ kit: createSourceControlProviderKit() }).commitSite };
 }
@@ -91,7 +91,7 @@ test('folder commit reads only its local manifest and confines every mutation wh
     { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
     { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
     { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
-    { match: /\/contents\/static_sites\/\.tovu\/managed-files.json\?ref=main$/, status: 200, json: { content: Buffer.from(JSON.stringify(manifest)).toString('base64') } },
+    { match: /\/contents\/static_sites\/\.jini\/managed-files.json\?ref=main$/, status: 200, json: { content: Buffer.from(JSON.stringify(manifest)).toString('base64') } },
     { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'page' } },
     { match: /\/contents\/static_sites\/old.html\?ref=main$/, status: 200, json: { sha } },
     { match: /\/contents\/static_sites\/edited.html\?ref=main$/, status: 200, json: { sha: 'b'.repeat(40) } },
@@ -107,7 +107,7 @@ test('folder commit reads only its local manifest and confines every mutation wh
     assert.deepEqual(result.divergedPaths, ['static_sites/edited.html']);
     const tree = JSON.parse(mock.callLog.find(call => call.url.endsWith('/git/trees'))!.body!);
     assert.equal(tree.base_tree, 'base');
-    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['static_sites/index.html', 'static_sites/old.html', 'static_sites/.tovu/managed-files.json']);
+    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['static_sites/index.html', 'static_sites/old.html', 'static_sites/.jini/managed-files.json'], 'the folder tree writes canonical ownership');
     assert.equal(tree.tree[1].sha, null);
     const manifestBody = JSON.parse(mock.callLog.filter(call => call.url.endsWith('/git/blobs')).at(-1)!.body!);
     assert.deepEqual(JSON.parse(Buffer.from(manifestBody.content, 'base64').toString()), { version: 2, files: [{ path: 'static_sites/index.html', sha: 'page' }] });
@@ -121,7 +121,7 @@ test('folder manifests reject hostile paths before creating any write object', a
       { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
       { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
       { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
-      { match: /\/contents\/static_sites\/\.tovu\/managed-files.json/, status: 200, json: { content: Buffer.from(JSON.stringify({ version: 2, files: [{ path, sha: 'a'.repeat(40) }] })).toString('base64') } },
+      { match: /\/contents\/static_sites\/\.jini\/managed-files.json/, status: 200, json: { content: Buffer.from(JSON.stringify({ version: 2, files: [{ path, sha: 'a'.repeat(40) }] })).toString('base64') } },
     ]);
     try {
       const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', folder: 'static_sites', commitMessage: 'update', files: ONE_FILE });
@@ -133,7 +133,7 @@ test('folder manifests reject hostile paths before creating any write object', a
 });
 
 test('invalid folders and file paths refuse before any network call', async () => {
-  for (const input of [{ folder: '../escape', files: ONE_FILE }, { folder: 'site', files: [{ path: '../escape', data: 'x' }] }, { folder: 'site', files: [{ path: '.tovu/managed-files.json', data: 'x' }] }]) {
+  for (const input of [{ folder: '../escape', files: ONE_FILE }, { folder: 'site', files: [{ path: '../escape', data: 'x' }] }, { folder: 'site', files: [{ path: '.jini/managed-files.json', data: 'x' }] }]) {
     const mock = installMockFetch([]);
     try {
       const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', commitMessage: 'update', ...input });
@@ -148,7 +148,7 @@ test('a missing folder manifest never falls back to root, and an unchanged tree 
     { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
     { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
     { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
-    { match: /\/contents\/nested\/site\/\.tovu\/managed-files.json/, status: 404 },
+    { match: /\/contents\/nested\/site\/\.jini\/managed-files.json/, status: 404 },
     { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'page' } },
     { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'manifest' } },
     { match: /\/git\/trees$/, method: 'POST', status: 201, json: { sha: 'base' } },
@@ -158,7 +158,7 @@ test('a missing folder manifest never falls back to root, and an unchanged tree 
     assert.deepEqual(result, { ok: false, code: 'no-changes', message: "nothing changed since the branch's last commit" });
     const tree = JSON.parse(mock.callLog.at(-1)!.body!);
     assert.equal(tree.base_tree, 'base');
-    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['nested/site/index.html', 'nested/site/.tovu/managed-files.json']);
+    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['nested/site/index.html', 'nested/site/.jini/managed-files.json'], 'the nested tree writes canonical ownership');
     assert.equal(mock.remaining(), 0);
   } finally { mock.restore(); }
 });
@@ -172,7 +172,7 @@ test("commit: existing branch, real content change — advances the branch, neve
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -206,7 +206,7 @@ test("commit: branch omitted — resolves the repo's own default branch, never i
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "trunk" } },
     { match: /\/git\/ref\/heads\/trunk$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -259,7 +259,7 @@ test("commit: a 2xx ref-write response whose body fails to parse as JSON is STIL
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -287,7 +287,7 @@ test("commit: two files with IDENTICAL content dedupe to ONE blob call", async (
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     // Only ONE CONTENT blob step queued for the two same-content files — a second call for THEM would
     // find no step left and throw loudly. A separate manifest blob call is always made regardless.
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-shared" } },
@@ -329,7 +329,7 @@ test("DIVERGED_BRANCH: a non-fast-forward ref update (422) is refused, never ove
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -427,7 +427,7 @@ test("NETWORK_UNREACHABLE on the irreversible ref-write call itself is STILL rep
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -453,7 +453,7 @@ test("PROVIDER_ERROR: a rejected (401) blob creation is reported with GitHub's o
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 401, json: { message: "Bad credentials" } },
   ]);
   try {
@@ -494,7 +494,7 @@ test("NO_CHANGES: the new tree matches the parent's tree — no commit, no ref w
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "same-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     // The new tree happens to equal the parent's own tree sha — nothing changed.
@@ -566,7 +566,7 @@ test("CRITICAL (read-failure defect): a manifest lookup that fails for a reason 
     // The PREVIOUS-MANIFEST lookup fails (network) — this read is now load-bearing for provenance, not
     // a soft optimization: a failure here must abort the whole commit rather than risk silently
     // rewriting the ownership record as empty.
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", networkError: "ECONNRESET" },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", networkError: "ECONNRESET" },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
@@ -587,7 +587,7 @@ test("a manifest read that returns 200 with a body that is not valid JSON blocks
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
     // A 200 response whose body will not parse as JSON at all — a real, received response, distinct
     // from a 404, so it must NOT be folded into "verified: nothing was ever managed."
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, text: "not json at all {{{" },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, text: "not json at all {{{" },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
@@ -604,7 +604,7 @@ test("a manifest read rejected with a non-404 HTTP error (e.g. 500) blocks the c
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 500, json: { message: "Internal error" } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 500, json: { message: "Internal error" } },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
@@ -640,7 +640,7 @@ test("CRITICAL (ownership-trust defect): a LEGACY (pre-provenance) manifest entr
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: "parent-sha" } }), { status: 200 });
     if (/\/git\/commits\/parent-sha$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "parent-tree-sha" } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) {
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) {
       const content = Buffer.from(JSON.stringify(LEGACY_MANIFEST)).toString("base64");
       return new Response(JSON.stringify({ content, encoding: "base64" }), { status: 200 });
     }
@@ -696,7 +696,7 @@ test("CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded sha 
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: "parent-sha" } }), { status: 200 });
     if (/\/git\/commits\/parent-sha$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "parent-tree-sha" } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) {
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) {
       const content = Buffer.from(JSON.stringify(MANIFEST)).toString("base64");
       return new Response(JSON.stringify({ content, encoding: "base64" }), { status: 200 });
     }
@@ -748,7 +748,7 @@ test("a candidate deletion whose LIVE-verification read itself fails is skipped 
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: "parent-sha" } }), { status: 200 });
     if (/\/git\/commits\/parent-sha$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "parent-tree-sha" } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) {
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) {
       const content = Buffer.from(JSON.stringify(MANIFEST)).toString("base64");
       return new Response(JSON.stringify({ content, encoding: "base64" }), { status: 200 });
     }
@@ -806,7 +806,7 @@ test("CRITICAL (concurrency): two commits racing on the SAME branch tip — the 
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: branchTip } }), { status: 200 });
     if (/\/git\/commits\/[^/]+$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "tree-for-" + url.split("/").pop() } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) return new Response("", { status: 404 });
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) return new Response("", { status: 404 });
     if (/\/git\/blobs$/.test(url) && method === "POST") return new Response(JSON.stringify({ sha: `blob-${Math.random().toString(36).slice(2)}` }), { status: 201 });
     if (/\/git\/trees$/.test(url) && method === "POST") return new Response(JSON.stringify({ sha: `tree-${Math.random().toString(36).slice(2)}` }), { status: 201 });
     if (/\/git\/commits$/.test(url) && method === "POST") {
@@ -872,7 +872,7 @@ test("CRITICAL: an existing branch's own content Tovu never wrote survives — t
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: "parent-sha" } } ), { status: 200 });
     if (/\/git\/commits\/parent-sha$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "parent-tree-sha" } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) return new Response("", { status: 404 });
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) return new Response("", { status: 404 });
     if (/\/git\/blobs$/.test(url) && method === "POST") return new Response(JSON.stringify({ sha: `blob-${Math.random().toString(36).slice(2)}` }), { status: 201 });
     if (/\/git\/trees$/.test(url) && method === "POST") {
       capturedTreeBody = JSON.parse(String(init?.body)) as typeof capturedTreeBody;
@@ -908,7 +908,7 @@ test("CRITICAL: an existing branch's own content Tovu never wrote survives — t
   }
 });
 
-test("CRITICAL: a page removed from the export is explicitly deleted (via the previous manifest, its recorded sha VERIFIED against live content), while content Tovu never wrote is left alone", async () => {
+function managedPageDeletionFixture() {
   // 2026-08-19 second audit round: this test used to seed a v1 (bare-paths, no hash) manifest and
   // asserted the listed path was deleted purely from list membership — that IS the ownership-trust
   // defect (see the dedicated legacy-manifest test above for the now-corrected behavior of THAT case).
@@ -922,18 +922,14 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     ["old-page.html", OLD_PAGE_SHA], // previously exported by Tovu, unmodified since, no longer part of this export
   ]);
   let PREVIOUS_MANIFEST = { version: 2, files: [{ path: "old-page.html", sha: OLD_PAGE_SHA }] };
-  let resultingWorld: Map<string, string> | undefined;
-  let manifestBlobContent: string | undefined;
+  return { OLD_PAGE_SHA, INDEX_SHA, MANIFEST_SHA, PRE_EXISTING_WORLD, PREVIOUS_MANIFEST };
+}
 
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
-    const method = init?.method ?? "GET";
-
+function managedPageDeletionReadResponse({ url, PREVIOUS_MANIFEST, OLD_PAGE_SHA, PRE_EXISTING_WORLD }: { url: string; PREVIOUS_MANIFEST: { version: number; files: { path: string; sha: string }[] }; OLD_PAGE_SHA: string; PRE_EXISTING_WORLD: Map<string, string> }) {
     if (/\/repos\/octo\/demo$/.test(url)) return new Response(JSON.stringify({ default_branch: "main" }), { status: 200 });
     if (/\/git\/ref\/heads\/main$/.test(url)) return new Response(JSON.stringify({ object: { sha: "parent-sha" } }), { status: 200 });
     if (/\/git\/commits\/parent-sha$/.test(url)) return new Response(JSON.stringify({ tree: { sha: "parent-tree-sha" } }), { status: 200 });
-    if (/\/contents\/\.tovu\/managed-files\.json/.test(url)) {
+    if (/\/contents\/\.jini\/managed-files\.json/.test(url)) {
       const content = Buffer.from(JSON.stringify(PREVIOUS_MANIFEST)).toString("base64");
       return new Response(JSON.stringify({ content, encoding: "base64" }), { status: 200 });
     }
@@ -941,30 +937,30 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     // sha Tovu itself recorded writing, so this deletion is provably safe.
     if (/\/contents\/old-page\.html/.test(url)) return new Response(JSON.stringify({ sha: OLD_PAGE_SHA }), { status: 200 });
     if (/\/contents\/index\.html/.test(url)) return new Response(JSON.stringify({ sha: PRE_EXISTING_WORLD.get("index.html") }), { status: 200 });
-    if (/\/git\/blobs$/.test(url) && method === "POST") {
+}
+
+function managedPageDeletionBlob({ init }: { init: RequestInit | undefined }) {
       const parsedBody = JSON.parse(String(init?.body)) as { content: string; encoding: string };
       const decoded = Buffer.from(parsedBody.content, "base64").toString("utf8");
-      if (decoded.includes('"files"')) manifestBlobContent = decoded; // the manifest write, identified by shape
-      return new Response(JSON.stringify({ sha: decoded.includes('"files"') ? MANIFEST_SHA : INDEX_SHA }), { status: 201 });
-    }
-    if (/\/git\/trees$/.test(url) && method === "POST") {
+      return decoded;
+}
+
+function managedPageDeletionTree({ init, PRE_EXISTING_WORLD }: { init: RequestInit | undefined; PRE_EXISTING_WORLD: Map<string, string> }) {
       const body = JSON.parse(String(init?.body)) as { base_tree?: string; tree: { path: string; sha: string | null }[] };
       const world = new Map<string, string>(body.base_tree !== undefined ? PRE_EXISTING_WORLD : []);
       for (const entry of body.tree) {
         if (entry.sha === null) world.delete(entry.path);
         else world.set(entry.path, entry.sha);
       }
-      resultingWorld = world;
-      return new Response(JSON.stringify({ sha: "new-tree-sha" }), { status: 201 });
-    }
+      return world;
+}
+
+function managedPageDeletionWriteResponse({ url, method }: { url: string; method: string }) {
     if (/\/git\/commits$/.test(url) && method === "POST") return new Response(JSON.stringify({ sha: "new-commit-sha" }), { status: 201 });
     if (/\/git\/refs\/heads\/main$/.test(url) && method === "PATCH") return new Response(JSON.stringify({}), { status: 200 });
-    throw new Error(`unexpected fetch call in this test: ${method} ${url}`);
-  }) as typeof fetch;
+}
 
-  try {
-    // The current export only produces index.html — old-page.html is no longer part of the site.
-    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+function assertManagedPageDeletion({ result, resultingWorld, manifestBlobContent, INDEX_SHA, MANIFEST_SHA }: { result: Awaited<ReturnType<SourceControlProvider["commitSite"]>>; resultingWorld: Map<string, string> | undefined; manifestBlobContent: string | undefined; INDEX_SHA: string; MANIFEST_SHA: string }) {
     assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
     if (result.ok) {
       assert.equal(result.filesDeleted, 1, "the one removed, previously-Tovu-managed, hash-VERIFIED page must be reported as deleted");
@@ -982,7 +978,40 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     assert.equal(newManifest.files[0]!.path, "index.html");
     assert.equal(newManifest.files[0]!.sha, INDEX_SHA, "the manifest records the index content blob, never another blob's SHA");
     assert.equal(resultingWorld!.get("index.html"), INDEX_SHA);
-    assert.equal(resultingWorld!.get(".tovu/managed-files.json"), MANIFEST_SHA);
+    assert.equal(resultingWorld!.get(".jini/managed-files.json"), MANIFEST_SHA, "the new ownership record uses the canonical path");
+    return newManifest;
+}
+
+test("CRITICAL: a page removed from the export is explicitly deleted (via the previous manifest, its recorded sha VERIFIED against live content), while content Tovu never wrote is left alone", async () => {
+  let { OLD_PAGE_SHA, INDEX_SHA, MANIFEST_SHA, PRE_EXISTING_WORLD, PREVIOUS_MANIFEST } = managedPageDeletionFixture();
+  let resultingWorld: Map<string, string> | undefined;
+  let manifestBlobContent: string | undefined;
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    const readResponse = managedPageDeletionReadResponse({ url, PREVIOUS_MANIFEST, OLD_PAGE_SHA, PRE_EXISTING_WORLD });
+    if (readResponse) return readResponse;
+    if (/\/git\/blobs$/.test(url) && method === "POST") {
+      const decoded = managedPageDeletionBlob({ init });
+      if (decoded.includes('"files"')) manifestBlobContent = decoded; // the manifest write, identified by shape
+      return new Response(JSON.stringify({ sha: decoded.includes('"files"') ? MANIFEST_SHA : INDEX_SHA }), { status: 201 });
+    }
+    if (/\/git\/trees$/.test(url) && method === "POST") {
+      resultingWorld = managedPageDeletionTree({ init, PRE_EXISTING_WORLD });
+      return new Response(JSON.stringify({ sha: "new-tree-sha" }), { status: 201 });
+    }
+    const writeResponse = managedPageDeletionWriteResponse({ url, method });
+    if (writeResponse) return writeResponse;
+    throw new Error(`unexpected fetch call in this test: ${method} ${url}`);
+  }) as typeof fetch;
+
+  try {
+    // The current export only produces index.html — old-page.html is no longer part of the site.
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    const newManifest = assertManagedPageDeletion({ result, resultingWorld, manifestBlobContent, INDEX_SHA, MANIFEST_SHA });
     PREVIOUS_MANIFEST = newManifest;
     PRE_EXISTING_WORLD = new Map(resultingWorld!);
     const next = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "remove index", files: [] });
@@ -1115,7 +1144,7 @@ test("PROVIDER_ERROR: a managed-manifest 200 response whose JSON body has no 'co
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { encoding: "base64" /* no `content` field */ } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, json: { encoding: "base64" /* no `content` field */ } },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
@@ -1135,7 +1164,7 @@ test("PROVIDER_ERROR: a managed-manifest's base64 content decodes to bytes that 
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
     {
-      match: /\/contents\/\.tovu\/managed-files\.json/,
+      match: /\/contents\/\.jini\/managed-files\.json/,
       method: "GET",
       status: 200,
       json: { content: Buffer.from("not json at all {{{").toString("base64"), encoding: "base64" },
@@ -1159,7 +1188,7 @@ test("PROVIDER_ERROR: a managed-manifest that parses as JSON but matches NEITHER
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
     {
-      match: /\/contents\/\.tovu\/managed-files\.json/,
+      match: /\/contents\/\.jini\/managed-files\.json/,
       method: "GET",
       status: 200,
       // Valid JSON, valid base64 — but shaped like neither `{version:1,paths:[...]}` nor
@@ -1184,7 +1213,7 @@ test("PROVIDER_ERROR: tree creation itself rejected by GitHub (e.g. 422 — an i
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 422, json: { message: "Tree SHA does not exist" } },
@@ -1207,7 +1236,7 @@ test("PROVIDER_ERROR: commit-object creation itself rejected by GitHub", async (
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -1266,7 +1295,7 @@ test("a candidate deletion's live-verification GET receiving a real non-ok, non-
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
     {
-      match: /\/contents\/\.tovu\/managed-files\.json/,
+      match: /\/contents\/\.jini\/managed-files\.json/,
       method: "GET",
       status: 200,
       json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" },
@@ -1304,7 +1333,7 @@ test("a candidate deletion's live-verification GET receiving a VERIFIED 404 is c
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
     {
-      match: /\/contents\/\.tovu\/managed-files\.json/,
+      match: /\/contents\/\.jini\/managed-files\.json/,
       method: "GET",
       status: 200,
       json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" },
@@ -1335,7 +1364,7 @@ test("PROVIDER_ERROR: createBlob's 2xx response is missing its own sha field", a
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { message: "created, but no sha field somehow" } },
   ]);
   try {
@@ -1396,7 +1425,7 @@ test("PROVIDER_ERROR: createBlob's 2xx response fails to parse as JSON", async (
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, text: "not json {{{" },
   ]);
   try {
@@ -1416,7 +1445,7 @@ test("PROVIDER_ERROR: createTreeObject's 2xx response fails to parse as JSON", a
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, text: "not json {{{" },
@@ -1438,7 +1467,7 @@ test("PROVIDER_ERROR: createTreeObject's 2xx response is missing its own sha fie
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { url: "https://api.github.com/repos/octo/demo/git/trees/x" /* no sha */ } },
@@ -1460,7 +1489,7 @@ test("PROVIDER_ERROR: createCommitObject's 2xx response fails to parse as JSON",
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -1483,7 +1512,7 @@ test("PROVIDER_ERROR: createCommitObject's 2xx response is missing its own sha f
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -1582,7 +1611,7 @@ test("a branch name containing '/' reaches GitHub's ref URLs with the '/' preser
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/feature\/update-copy$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 404, json: {} },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
     { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
@@ -1613,7 +1642,7 @@ test("a candidate deletion's live-verification GET receiving a 2xx response that
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
     { match: /\/contents\/weird\.html/, method: "GET", status: 200, text: "not json {{{" },
     { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
@@ -1643,7 +1672,7 @@ test("CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded sha 
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
     // No live-verification GET is queued for 'odd-sha.html' — an unparseable recorded sha must skip
     // straight to "no provenance, never verified," the exact same as a legacy v1 entry, WITHOUT ever
     // making the live-content request at all.
@@ -1676,7 +1705,7 @@ test("PROVIDER_ERROR: a v2-shaped manifest with ONE malformed entry (missing pat
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
@@ -1695,7 +1724,7 @@ test("PROVIDER_ERROR: a v1-shaped manifest with a non-string path entry is unrec
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
     { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
-    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    { match: /\/contents\/\.jini\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });

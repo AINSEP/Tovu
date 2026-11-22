@@ -5,7 +5,7 @@
  *
  * Why it matters: a copy run from its disk image cannot update itself (Squirrel cannot replace a
  * read-only bundle) and keeps the image busy so it cannot be ejected — see `isTransientAppPath` in
- * `sites-mcp-registration.ts` for the paths that stops this app from persisting.
+ * `apps/desktop/src/node-toolchain.ts` for the paths that stops this app from persisting.
  *
  * **Several copies at once.** The app has no single-instance lock (the owner runs several). The
  * prompt is not offered while another copy is open (`instance-presence.ts` records): moving a bundle
@@ -22,6 +22,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import { readJsonFile, writeJsonFileAtomic } from "./durable-json-file.ts";
 
@@ -77,48 +78,46 @@ function movePromptSkipReason(env: MovePromptEnvironment): string | null {
 }
 
 /** `<userData>/move-to-applications.json`. @complexity O(1). */
-function moveDeclineFilePath(userDataDir: string): string {
+function moveDeclineFilePath({ userDataDir }: { userDataDir: string }, _options = {}): string {
   return path.join(userDataDir, "move-to-applications.json");
 }
 
 /** @returns the version "Not Now" was chosen on; `null` if never, or the file is unusable.
  *  @complexity O(n) in file size. */
-function readDeclinedVersion(filePath: string): string | null {
-  const read = readJsonFile(filePath);
+function readDeclinedVersion({ filePath }: { filePath: string }, _options = {}): string | null {
+  const read = readJsonFile({ filePath });
   if (read.state !== "ok") return null;
   const version = (read.value as { declinedVersion?: unknown } | null)?.declinedVersion;
   return typeof version === "string" ? version : null;
 }
 
 /** Records "Not Now" for `version`, replacing any earlier one. @complexity O(1). */
-function recordDeclinedVersion(filePath: string, version: string): void {
-  writeJsonFileAtomic(filePath, { declinedVersion: version });
+function recordDeclinedVersion({ filePath, version }: { filePath: string; version: string }, _options = {}): void {
+  writeJsonFileAtomic({ filePath, value: { declinedVersion: version } });
 }
 
 /** @returns the `.app` bundle holding `execPath` (`…/X.app/Contents/MacOS/X`), or `null`.
  *  @complexity O(n) in the path length. */
-function bundlePathFromExecPath(execPath: string): string | null {
+function bundlePathFromExecPath({ execPath }: { execPath: string }, _options = {}): string | null {
   return /^(.*\.app)\/Contents\/MacOS\/[^/]+$/.exec(execPath)?.[1] ?? null;
 }
 
 /** Where `app.moveToApplicationsFolder()` puts the bundle: `/Applications/<its name>`. @complexity O(1). */
-function applicationsTargetPath(bundlePath: string): string {
+function applicationsTargetPath({ bundlePath }: { bundlePath: string }, _options = {}): string {
   return path.join("/Applications", path.basename(bundlePath));
 }
 
 /** @returns a bundle's `CFBundleShortVersionString` from its XML `Info.plist` (what electron-builder
  *  writes), or `null` when it cannot be read. @complexity O(n) in the plist's size. */
-function readBundleVersion(bundlePath: string): string | null {
-  try {
+function readBundleVersion({ bundlePath }: { bundlePath: string }, _options = {}): string | null {
+  return orFallbackSync({ work: () => {
     const plist = fs.readFileSync(path.join(bundlePath, "Contents", "Info.plist"), "utf8");
     return /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1]?.trim() ?? null;
-  } catch {
-    return null;
-  }
+  }, fallback: null, step: "Read application bundle version" });
 }
 
 /** The dotted numeric part of a version (`0.2.0-beta.1` → `[0, 2, 0]`), or `null`. @complexity O(n). */
-function numericParts(version: string | null): number[] | null {
+function numericParts({ version }: { version: string | null }, _options = {}): number[] | null {
   const core = /^(\d+(?:\.\d+)*)/.exec(version ?? "")?.[1];
   return core === undefined ? null : core.split(".").map(Number);
 }
@@ -128,9 +127,9 @@ function numericParts(version: string | null): number[] | null {
  * @returns 1, 0 or -1; `null` when either is not a version.
  * @complexity O(n) in the number of parts.
  */
-function compareVersions(a: string | null, b: string | null): number | null {
-  const left = numericParts(a);
-  const right = numericParts(b);
+function compareVersions({ a, b }: { a: string | null; b: string | null }, _options = {}): number | null {
+  const left = numericParts({ version: a });
+  const right = numericParts({ version: b });
   if (left === null || right === null) return null;
   for (let index = 0; index < Math.max(left.length, right.length); index++) {
     const diff = (left[index] ?? 0) - (right[index] ?? 0);
@@ -155,7 +154,7 @@ type MoveConflictType = "exists" | "existsAndRunning";
  * @complexity O(1).
  */
 function decideMoveConflict(input: { conflictType: MoveConflictType; existingVersion: string | null; currentVersion: string }): "replace" | "open-existing" | "blocked-by-running-copy" {
-  const order = compareVersions(input.existingVersion, input.currentVersion);
+  const order = compareVersions({ a: input.existingVersion, b: input.currentVersion });
   if (order === 1) return "open-existing";
   if (input.conflictType === "exists") return "replace";
   return order === 0 ? "open-existing" : "blocked-by-running-copy";
@@ -170,14 +169,14 @@ interface MovePromptDeps {
   ask: () => Promise<"move" | "not-now">;
   /** `app.moveToApplicationsFolder({ conflictHandler })`. On success Electron relaunches from the new
    *  location and quits this process itself. */
-  move: (conflictHandler: (conflictType: MoveConflictType) => boolean) => boolean;
-  readExistingVersion: (appPath: string) => string | null;
-  openExisting: (appPath: string) => void;
+  move: (required: { conflictHandler: (conflictType: MoveConflictType) => boolean }) => boolean;
+  readExistingVersion: (required: { appPath: string }) => string | null;
+  openExisting: (required: { appPath: string }) => void;
   quit: () => void;
   recordDeclined: () => void;
-  showError: (message: string) => void;
+  showError: (required: { message: string }) => void;
   /** Must block until dismissed: {@link afterRefusedMove} quits right after it. */
-  showInfo: (message: string) => void;
+  showInfo: (required: { message: string }) => void;
 }
 
 type MovePromptOutcome = "declined" | "moved" | "opened-existing" | "blocked-by-running-copy" | "failed";
@@ -194,34 +193,34 @@ async function runMoveToApplicationsPrompt(deps: MovePromptDeps): Promise<MovePr
   }
   let decision: ReturnType<typeof decideMoveConflict> | null = null;
   const conflictHandler = (conflictType: MoveConflictType): boolean => {
-    decision = decideMoveConflict({ conflictType, existingVersion: deps.readExistingVersion(deps.targetPath), currentVersion: deps.currentVersion });
+    decision = decideMoveConflict({ conflictType, existingVersion: deps.readExistingVersion({ appPath: deps.targetPath }), currentVersion: deps.currentVersion });
     // `true` = Electron's own default: replace a stopped copy, or switch to a running one.
     return decision === "replace" || (decision === "open-existing" && conflictType === "existsAndRunning");
   };
   let moved: boolean;
   try {
-    moved = deps.move(conflictHandler);
+    moved = deps.move({ conflictHandler });
   } catch (error) {
-    deps.showError(`${MOVE_PROMPT.moveFailed} ${(error as Error).message}`);
+    deps.showError({ message: `${MOVE_PROMPT.moveFailed} ${(error as Error).message}` });
     return "failed";
   }
-  return moved ? "moved" : afterRefusedMove(deps, decision);
+  return moved ? "moved" : afterRefusedMove({ deps, decision });
 }
 
 /** A move that did not happen: open the newer copy, explain the running older one, or report it.
  *  @complexity O(1). */
-function afterRefusedMove(deps: MovePromptDeps, decision: ReturnType<typeof decideMoveConflict> | null): MovePromptOutcome {
+function afterRefusedMove({ deps, decision }: { deps: MovePromptDeps; decision: ReturnType<typeof decideMoveConflict> | null }, _options = {}): MovePromptOutcome {
   if (decision === "open-existing") {
-    deps.showInfo(MOVE_PROMPT.openingNewer);
-    deps.openExisting(deps.targetPath);
+    deps.showInfo({ message: MOVE_PROMPT.openingNewer });
+    deps.openExisting({ appPath: deps.targetPath });
     deps.quit();
     return "opened-existing";
   }
   if (decision === "blocked-by-running-copy") {
-    deps.showError(MOVE_PROMPT.olderCopyRunning);
+    deps.showError({ message: MOVE_PROMPT.olderCopyRunning });
     return "blocked-by-running-copy";
   }
-  deps.showError(MOVE_PROMPT.moveFailed);
+  deps.showError({ message: MOVE_PROMPT.moveFailed });
   return "failed";
 }
 

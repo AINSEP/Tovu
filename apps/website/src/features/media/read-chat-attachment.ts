@@ -4,7 +4,7 @@
  * ## The capability this closes
  *
  * `@jini-ai/http-kit`'s attachment route pack mounts exactly two routes — `POST /api/attachments`
- * and `DELETE /api/attachments` (`registerAttachmentRoutes`) — so bytes could be staged and
+ * and `DELETE /api/attachments` (`attachmentUploadRoutes`, `attachmentCleanupRoutes`) — so bytes could be staged and
  * abandoned but never read again. The admin's attachment preview modal therefore worked only for
  * the current session, off a client-side `File` cache keyed by upload path
  * (`apps/admin/.../attachment-preview-cache.ts`): anything from an earlier turn, or anything at all
@@ -163,7 +163,7 @@ function refuse(refusal: ChatAttachmentRefusal): ChatAttachmentReadResult {
 /** Sidecar filename for a ref — a line-for-line mirror of `attachments.ts`'s
  *  `attachmentSidecarFileName`, which is exported from that module but not from the package's
  *  single `.` entry point (see this file's header). */
-export function chatAttachmentSidecarFileName(ref: string): string {
+export function chatAttachmentSidecarFileName({ ref }: { ref: string }, _optional: Record<string, never> = {}): string {
   return `${ref.replaceAll(/[^a-zA-Z0-9-]/gu, "_")}.json`;
 }
 
@@ -176,7 +176,8 @@ function hasSidecarFieldTypes({ candidate }: { candidate: Record<string, unknown
 /** `true` when `raw` has the writer's required fields and optional legacy timestamps.
  * Pure, O(1) time/space; malformed fields return `false`.
  */
-export function isChatAttachmentSidecarShape(raw: unknown): raw is SidecarRecord & Record<string, unknown> {
+export function isChatAttachmentSidecarShape(required: { raw: unknown }, _optional: Record<string, never> = {}): required is { raw: SidecarRecord & Record<string, unknown> } {
+  const { raw } = required;
   if (typeof raw !== "object" || raw === null) return false;
   const candidate = raw as Record<string, unknown>;
   if (!hasSidecarFieldTypes({ candidate })) return false;
@@ -190,8 +191,8 @@ export function isChatAttachmentSidecarShape(raw: unknown): raw is SidecarRecord
  * Pure and exported so hostile records can be exercised directly, without staging files on disk.
  */
 export function resolveContainedAttachmentPath(
-  record: SidecarRecord,
-  canonicalUploadDirectory: string
+  { record, canonicalUploadDirectory }: { record: SidecarRecord; canonicalUploadDirectory: string },
+  _optional: Record<string, never> = {}
 ): string | undefined {
   if (!BATCH_ID_PATTERN.test(record.batchId)) return undefined;
   const batchDirectory = resolve(canonicalUploadDirectory, record.batchId);
@@ -203,9 +204,8 @@ export function resolveContainedAttachmentPath(
  *  filename is a LOSSY reduction of an id (`:` becomes `_`), so a filename alone does not prove
  *  which id it describes. */
 async function loadSidecar(
-  sidecarPath: string,
-  canonicalUploadDirectory: string,
-  ref: string
+  { sidecarPath, canonicalUploadDirectory, ref }: { sidecarPath: string; canonicalUploadDirectory: string; ref: string },
+  _optional: Record<string, never> = {}
 ): Promise<{ record: SidecarRecord; filePath: string } | ChatAttachmentRefusal> {
   let raw: unknown;
   try {
@@ -215,10 +215,11 @@ async function loadSidecar(
     // this store never issued, and treated identically.
     return "no-record";
   }
-  if (!isChatAttachmentSidecarShape(raw) || raw.id !== ref) return "record-unreadable";
-  const filePath = resolveContainedAttachmentPath(raw, canonicalUploadDirectory);
+  const candidate = { raw };
+  if (!isChatAttachmentSidecarShape(candidate) || candidate.raw.id !== ref) return "record-unreadable";
+  const filePath = resolveContainedAttachmentPath({ record: candidate.raw, canonicalUploadDirectory });
   if (filePath === undefined) return "record-outside-upload-root";
-  return { record: raw, filePath };
+  return { record: candidate.raw, filePath };
 }
 
 /** Observes one path's identity, including timestamps for Jini's shared integrity gate.
@@ -348,12 +349,12 @@ export async function readChatAttachmentForOwner(
   if (canonicalUploadDirectory === undefined) return refuse("no-record");
 
   const sidecarDirectory = resolve(canonicalUploadDirectory, SIDECAR_DIRECTORY_NAME);
-  const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName(input.ref));
+  const sidecarPath = resolve(sidecarDirectory, chatAttachmentSidecarFileName({ ref: input.ref }));
   // Defense in depth behind the ref pattern: even if that pattern were ever loosened, a path whose
   // parent is not exactly the sidecar directory never gets read.
   if (dirname(sidecarPath) !== sidecarDirectory) return refuse("malformed-ref");
 
-  const loaded = await loadSidecar(sidecarPath, canonicalUploadDirectory, input.ref);
+  const loaded = await loadSidecar({ sidecarPath, canonicalUploadDirectory, ref: input.ref });
   if (typeof loaded === "string") return refuse(loaded);
   // Ownership and size policy live in helpers so the read orchestration stays below its
   // complexity ceiling; these checks still precede every attachment-file operation.

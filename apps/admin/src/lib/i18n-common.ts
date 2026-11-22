@@ -521,7 +521,11 @@ const COMMON_EXTRA_VALUES: Record<string, readonly string[]> = {
 };
 
 const COMMON_EXTRA_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(COMMON_EXTRA_VALUES).map(([locale, values]) => [locale, Object.fromEntries(COMMON_EXTRA_KEYS.map((key, index) => [key, values[index]!]))]),
+  Object.entries(COMMON_EXTRA_VALUES).map(([locale, values]) => [locale, Object.fromEntries(COMMON_EXTRA_KEYS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`common dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  }))]),
 );
 
 /** "Wrap: on"/"Wrap: off" for every read-only code viewer (plugin files, theme templates). Moved here
@@ -704,5 +708,9 @@ const BUILT_IN_I18N: Record<string, string> = {
 };
 
 export const COMMON_I18N: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => [locale, { ...values, "Built-in": BUILT_IN_I18N[locale]!, ...DRAFT_RECOVERY_I18N[locale], ...CODE_WRAP_I18N[locale], ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }]),
+  Object.entries(BASE_COMMON_I18N).map(([locale, values]) => {
+    const builtIn = BUILT_IN_I18N[locale];
+    if (builtIn === undefined) throw new Error(`common dictionary ${locale} is missing Built-in`);
+    return [locale, { ...values, "Built-in": builtIn, ...DRAFT_RECOVERY_I18N[locale], ...CODE_WRAP_I18N[locale], ...Object.entries(COMMON_EXTRA_I18N).find(([extraLocale]) => extraLocale === locale)?.[1] }];
+  }),
 );

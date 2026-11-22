@@ -1,18 +1,16 @@
 /**
- * @file Tovu's bindings of the core credential ports over the EXISTING host functions: the guarded
- * request adapter in `credentialed-request.ts` and the source-control provider registry. Nothing
- * here reimplements a request, a provider build or a commit; each method forwards to the same
+ * @file Tovu's binding of the core credential request port over the EXISTING host function: the
+ * guarded request adapter in `credentialed-request.ts` (the source-control write port is bound in
+ * `source-control/write-port.ts`). Nothing here reimplements a request; each method forwards to the same
  * function the tool handlers call today, with the same dependencies, so audit, egress, diagnostic,
  * not-found and remedy-wording policy stay exactly where they are.
  */
 import type {
   CredentialedRequestErrorClass,
   CredentialedRequestPort,
-  SourceControlWritePort,
 } from "@jini-ai/core/contracts/credentials";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
-import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import {
   CredentialedRequestTransportError,
   CredentialedRequestValidationError,
@@ -23,7 +21,6 @@ import {
   type CredentialedRequestDeps,
 } from "./credentialed-request.js";
 import { CustomCredentialNotFoundError } from "./store.js";
-import { validateRepositoryTarget } from "./write-files-validation.js";
 
 /** Classify by the classes the request adapter actually throws; the thrown object is returned as is.
  * The egress rebuild is the one `tool-registrations.ts` performs before schema decoration.
@@ -55,25 +52,5 @@ export function bindCredentialedRequestPort(required: { deps: CredentialedReques
     verify: (input) => verifyCustomCredential(deps, input),
     probe: (input) => probeCredentialConnection(input, { httpClient: deps.httpClient }),
     classifyError: classifyCredentialedRequestError,
-  };
-}
-
-/** Bind the source-control write port over the installed provider registry.
- * @param required Provider loader, guarded HTTP client and observability exactly as the
- *   `custom_credential_write_files` handler passes them to `buildSourceControlProviderForApi`.
- * @returns A port whose plan/commit run on the provider object `build` returned.
- * @complexity O(1) to build; `build` is one registry load.
- * @example const built = await port.build({ workspaceId, baseUrl }); if (built.ok) port.validateTarget({ provider: built.provider, target });
- */
-export function bindSourceControlWritePort(required: {
-  load: LoadSourceControlProviders;
-  httpClient: HttpClientPort;
-  observability?: ObservabilityPort;
-}, _optional = {}): SourceControlWritePort {
-  return {
-    build: ({ workspaceId, baseUrl }) => buildSourceControlProviderForApi({ load: required.load, workspaceId, baseUrl, httpClient: required.httpClient, observability: required.observability }),
-    validateTarget: ({ provider, target }) => validateRepositoryTarget(target, provider.validateTarget),
-    planFileWrite: ({ provider, input }) => provider.planFileWrite(input),
-    commitFiles: ({ provider, input, plan }) => provider.commitFiles(input, plan),
   };
 }

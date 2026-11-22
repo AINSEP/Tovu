@@ -1,12 +1,14 @@
 export type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlan, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
-import { type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { SealedSecret } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
 
@@ -84,7 +86,7 @@ export async function getMediaProviderCredentials(
   deps: MediaProviderCredentialReadDeps,
   input: { workspaceId: UUID }
 ): Promise<MediaProviderCredentialMap> {
-  return toMap(await deps.repo.listByWorkspaceId(input.workspaceId));
+  return toMap(await deps.repo.listByWorkspaceId({ workspaceId: input.workspaceId }));
 }
 
 /** One provider's incoming edit. `apiKey` present and non-blank sets a new key; absent or blank
@@ -114,7 +116,18 @@ export interface MediaProviderCredentialWriteDeps extends MediaProviderCredentia
   /** The live media provider registry (built-in + plugin vendors, 2026-10-21). A plugin vendor's id is
    *  accepted only when the registry holds that exact public id; omitted, only built-in ids are. */
   providerCatalog?: MediaProviderIdCatalog;
+  /** The credential rules applied to ids, endpoints and keys; omitted, the real pair is used. A port rather
+   *  than a module mock so a test can make the policy fail in a way the real one never does. */
+  credentialPolicy?: MediaProviderCredentialPolicy;
 }
+
+/** Structurally the two real credential rules (`assertCredentialFreeField` binds Tovu's secret-shape detector). */
+export interface MediaProviderCredentialPolicy {
+  assertCredentialFreeField: typeof assertCredentialFreeField;
+  normalizeCredentialToken: typeof normalizeCredentialToken;
+}
+
+const DEFAULT_CREDENTIAL_POLICY: MediaProviderCredentialPolicy = { assertCredentialFreeField, normalizeCredentialToken };
 
 /** Structurally `MediaProviderRegistry['findProvider']` — only the id is read. */
 export interface MediaProviderIdCatalog {
@@ -126,7 +139,7 @@ export type MediaProviderCredentialSaveDeps = Omit<MediaProviderCredentialWriteD
   repo: Pick<MediaProviderCredentialRepoPort, "replaceWorkspace" | "vault">;
 };
 
-function trimmedOrNull(value: string | undefined): string | null {
+function trimmedOrNull({ value }: { value: string | undefined }, _optional: Record<string, never> = {}): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
@@ -141,18 +154,18 @@ function rethrowAsValidation<T>({ run }: { run: () => T }, _options = {}): T {
 }
 
 /** An exact (never alias-resolved) non-built-in id the injected registry holds. @complexity O(m). */
-function isPluginProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
+function isPluginProviderId({ providerId, catalog }: { providerId: string; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): boolean {
   return !KNOWN_PROVIDER_IDS.has(providerId) && catalog?.findProvider({ id: providerId })?.id === providerId;
 }
 
 /** Built-in ids, or a plugin vendor id the injected registry holds. @complexity O(m). */
-function isKnownProviderId(providerId: string, catalog: MediaProviderIdCatalog | undefined): boolean {
-  return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId(providerId, catalog);
+function isKnownProviderId({ providerId, catalog }: { providerId: string; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): boolean {
+  return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId({ providerId, catalog });
 }
 
-function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
-  rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
-  if (!isKnownProviderId(providerId, catalog)) {
+function assertKnownProviderId({ providerId, policy }: { providerId: string; policy: MediaProviderCredentialPolicy }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
+  rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
+  if (!isKnownProviderId({ providerId, catalog })) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
     );
@@ -160,13 +173,13 @@ function assertKnownProviderId({ providerId }: { providerId: string }, { catalog
 }
 
 /** `apiKey` is only type-checked here: token normalization owns its own policy and limit. */
-function assertEntryField({ providerId, field, value }: { providerId: string; field: "apiKey" | "baseUrl" | "model"; value: unknown }, _options = {}): void {
+function assertEntryField({ providerId, field, value, policy }: { providerId: string; field: "apiKey" | "baseUrl" | "model"; value: unknown; policy: MediaProviderCredentialPolicy }, _options = {}): void {
   if (value === undefined) return;
   if (typeof value !== "string") {
     throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
   }
   if (field === "apiKey") return;
-  rethrowAsValidation({ run: () => assertCredentialFreeField({ value, field }) });
+  rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value, field }) });
   if (value.length > MAX_FIELD_LENGTH) {
     throw new MediaProviderCredentialValidationError(
       `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
@@ -175,12 +188,12 @@ function assertEntryField({ providerId, field, value }: { providerId: string; fi
 }
 
 /** Rejects anything the row cannot faithfully hold, before a single write happens. */
-function assertValidEntry(providerId: string, entry: MediaProviderCredentialInput, catalog: MediaProviderIdCatalog | undefined): void {
-  assertKnownProviderId({ providerId }, { catalog });
+function assertValidEntry({ providerId, entry, catalog, policy }: { providerId: string; entry: MediaProviderCredentialInput; catalog: MediaProviderIdCatalog | undefined; policy: MediaProviderCredentialPolicy }, _optional: Record<string, never> = {}): void {
+  assertKnownProviderId({ providerId, policy }, { catalog });
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     throw new MediaProviderCredentialValidationError(`provider "${providerId}" must be an object`);
   }
-  for (const field of ["apiKey", "baseUrl", "model"] as const) assertEntryField({ providerId, field, value: entry[field] });
+  for (const field of ["apiKey", "baseUrl", "model"] as const) assertEntryField({ providerId, field, value: entry[field], policy });
 }
 
 /** Prepare only supplied keys before the replacement transaction. The later planner re-reads
@@ -190,6 +203,7 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
 async function sealNewProviderKeys(
   deps: MediaProviderCredentialSaveDeps,
   input: SaveMediaProviderCredentialsInput,
+  policy: MediaProviderCredentialPolicy,
 ): Promise<Map<string, VaultPutRecord>> {
   const fresh = new Map<string, VaultPutRecord>();
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
@@ -197,12 +211,13 @@ async function sealNewProviderKeys(
   for (const [providerId, entry] of Object.entries(input.providers)) {
     const submitted = entry.apiKey;
     if (submitted === undefined || submitted === "") continue;
-    const apiKey = rethrowAsValidation({ run: () => normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
+    const apiKey = rethrowAsValidation({ run: () => policy.normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
     const scope = mediaVaultScope({ workspaceId: input.workspaceId, providerId });
-    const existing = (await deps.repo.vault!.list(scope))[0];
+    if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+    const existing = (await deps.repo.vault.list(scope))[0];
     fresh.set(providerId, await vault.prepare({ ...scope,
       id: existing?.id ?? mediaVaultId({ providerId }), expectedRevision: existing?.revision ?? null,
-      provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model) },
+      provider: providerId, label: providerId, meta: { ...existing?.meta, baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }) },
       payload: { apiKey }, hintToken: apiKey }));
   }
   return fresh;
@@ -219,7 +234,7 @@ function buildProviderUpsertRow(input: {
   // only) is re-sent by every whole-map save, so refusing it would block every other provider's edit.
   if (!credential) throw new MediaProviderCredentialValidationError('Enter a token. Spaces alone are not a token.');
   const row: MediaProviderCredentialRecord = { workspaceId, providerId,
-    baseUrl: trimmedOrNull(entry.baseUrl), model: trimmedOrNull(entry.model),
+    baseUrl: trimmedOrNull({ value: entry.baseUrl }), model: trimmedOrNull({ value: entry.model }),
     sealed: credential.sealed, keyTail: credential.keyTail, aadVersion: credential.aadVersion,
     createdAt: existing?.createdAt ?? now, updatedAt: now };
   Object.defineProperty(row, "vaultRecord", { value: credential.vaultRecord });
@@ -264,20 +279,21 @@ export async function saveMediaProviderCredentials(
     throw new MediaProviderCredentialValidationError("providers must be an object keyed by provider id");
   }
 
+  const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
   const entries = Object.entries(providers);
-  for (const [providerId, entry] of entries) assertValidEntry(providerId, entry, deps.providerCatalog);
+  for (const [providerId, entry] of entries) assertValidEntry({ providerId, entry, catalog: deps.providerCatalog, policy });
 
   const now = clockNowIso({ clock: deps.clock });
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
-  const sealedByProviderId = await sealNewProviderKeys(deps, input);
+  const sealedByProviderId = await sealNewProviderKeys(deps, input, policy);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
   /** Merges the submitted payload against whatever rows the transaction just read. Synchronous and
    *  pure by contract — it runs inside the open transaction. */
-  const plan: MediaProviderCredentialReplacePlanner = (existingRows) => {
+  const plan: MediaProviderCredentialReplacePlanner = ({ existing: existingRows }, _optional = {}) => {
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
     const upserts = entries.map(([providerId, entry]) =>
       buildProviderUpsertRow({ workspaceId: input.workspaceId, providerId, entry,
@@ -331,7 +347,8 @@ export async function resolveMediaProviderCredential(
   deps: MediaProviderCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: string }
 ): Promise<ResolvedMediaProviderCredential | null> {
-  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault!, providerId: input.providerId }) }, kind: "media-provider",
+  if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const vault = createTovuStoreVault({ ...deps, repo: { vault: mediaProviderVault({ vault: deps.repo.vault, providerId: input.providerId }) }, kind: "media-provider",
     storageError: () => new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
   const resolved = await vault.findOne(mediaVaultScope(input));
   if (!resolved?.payload) return null;

@@ -2,7 +2,7 @@
  * @file Newsletter's `DataModuleDecl` for the 5 relational `p_newsletter__*` tables (ADR-PIPE-011
  * Decision §2/§3; state.spec.md §2).
  *
- * `declareDataModule()` (`src/features/plugins/data-module.ts`) now implements ADR-023's full
+ * `declareDataModule()` (`@jini-ai/db/data-modules`) now implements ADR-023's full
  * accepted T1-T8 safety mechanics (SPEC-032, 2026-07-16) — exclusive-lock-guarded DDL, a durable
  * crash-recovery phase journal with mandatory boot-time restore, disk-headroom preflight, tier
  * gating, and the namespace-adoption guard — closing the gap this comment used to warn about
@@ -15,22 +15,22 @@
  *
  * Scope: first-party bundled invocation only (ADR-034 Round-3 fold, sweep §A.2 sanction) — NOT a
  * general third-party plugin registration surface (ADR-023 §12 still rejects that in v1). Mirrors
- * `src/features/plugins/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
+ * `apps/website/src/features/plugins/store/manifest.ts` / `Jini packages/commerce/src/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
  * this repo's only other real caller of `declareDataModule()`.
  */
-import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "../plugins/index.js";
+import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "@jini-ai/db/data-modules";
 
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 
 /** Fully-qualified table name helper — matches `declareDataModule()`'s own `p_{pluginId}__{name}` convention. */
-export const p = (name: string): string => `p_${NEWSLETTER_PLUGIN_ID}__${name}`;
+export const p = ({ name }: { name: string }, _options = {}): string => `p_${NEWSLETTER_PLUGIN_ID}__${name}`;
 
 export const NEWSLETTER_TABLE_NAMES = {
-  lists: p("lists"),
-  subscriptions: p("subscriptions"),
-  audienceSnapshots: p("audience_snapshots"),
-  sends: p("sends"),
-  confirmationTokens: p("confirmation_tokens"),
+  lists: p({ name: "lists" }),
+  subscriptions: p({ name: "subscriptions" }),
+  audienceSnapshots: p({ name: "audience_snapshots" }),
+  sends: p({ name: "sends" }),
+  confirmationTokens: p({ name: "confirmation_tokens" }),
 } as const;
 
 /**
@@ -129,7 +129,7 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
 };
 
 /**
- * Boot-time invocation (T011 wires the CALL SITE into `server/seed.ts`/`server/deps.ts`; this
+ * Boot-time invocation (T011 wires the CALL SITE into `server/seed.ts`/`apps/website/src/server/runtime/composition/deps.ts`; this
  * function is the callee). Idempotent — `declareDataModule()`'s own skip-if-existing-tables logic
  * makes repeated boot calls safe (W-010).
  *

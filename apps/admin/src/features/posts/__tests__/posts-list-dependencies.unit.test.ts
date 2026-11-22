@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 
 /** A seeded row; the list port has no create (the editor owns creation on first Save). */
@@ -22,11 +22,11 @@ describe("posts list fake port", () => {
     const post = seed("Keep me");
     const port = createFakePostsListPort({ posts: [post] });
     if (action === "concurrent save") {
-      expect(() => port.simulateConcurrentSave("missing")).toThrow("fake post not found: missing");
+      expect(() => port.simulateConcurrentSave({ id: "missing" })).toThrow("fake post not found: missing");
     } else if (action === "update") {
-      await expect(port.updatePost({ id: "missing" }, { title: "Lost" })).rejects.toThrow("fake post not found: missing");
+      await expect(port.updatePost({ target: { id: "missing" }, patch: { title: "Lost" } })).rejects.toThrow("fake post not found: missing");
     } else {
-      await expect(port.deletePost("missing")).rejects.toThrow("fake post not found: missing");
+      await expect(port.deletePost({ id: "missing" })).rejects.toThrow("fake post not found: missing");
     }
     expect(port.posts).toEqual([post]);
   });
@@ -34,7 +34,7 @@ describe("posts list fake port", () => {
   it("allows an update without a version basis and never persists expectedVersion", async () => {
     const post = seed("Original");
     const port = createFakePostsListPort({ posts: [post] });
-    const { post: updated } = await port.updatePost({ id: post.id }, { title: "Updated" });
+    const { post: updated } = await port.updatePost({ target: { id: post.id }, patch: { title: "Updated" } });
     expect(updated).toEqual({ ...post, title: "Updated", version: 2 });
     expect(updated).not.toHaveProperty("expectedVersion");
     expect(port.posts).toEqual([updated]);
@@ -43,8 +43,8 @@ describe("posts list fake port", () => {
   it("a concurrent save defaults its title and rejects a stale version without losing that save", async () => {
     const post = seed("Original");
     const port = createFakePostsListPort({ posts: [post] });
-    port.simulateConcurrentSave(post.id);
-    await expect(port.updatePost({ id: post.id }, { title: "Stale", expectedVersion: 1 })).rejects.toMatchObject({
+    port.simulateConcurrentSave({ id: post.id });
+    await expect(port.updatePost({ target: { id: post.id }, patch: { title: "Stale", expectedVersion: 1 } })).rejects.toMatchObject({
       status: 409, code: "VERSION_CONFLICT",
       message: `post '${post.id}' was modified by another save (expected version 1, current version 2)`,
     });

@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 
 /**
  * @file The widget read used by the host editor.
@@ -42,7 +42,7 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 test("getWidget builds an explicit GET at /widgets/:id with no query string", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getWidget("w1");
+  await widgetsApi.getWidget({ id: "w1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets/w1`);
   expect(calls[0].init?.method).toBe("GET");
 });
@@ -61,5 +61,5 @@ test("getWidget resolves the widget/whereUsed envelope verbatim", async () => {
   };
   const whereUsed = { count: 0, references: [] };
   vi.stubGlobal("fetch", vi.fn(async () => okJson({ widget, whereUsed })));
-  await expect(api.getWidget("w1")).resolves.toEqual({ widget, whereUsed });
+  await expect(widgetsApi.getWidget({ id: "w1" })).resolves.toEqual({ widget, whereUsed });
 });

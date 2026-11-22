@@ -1,8 +1,8 @@
 import "../../styles/select.css";
 import { Select as PackageSelect, resolveSelectTriggerLabel as resolvePackageLabel, type SelectOption, type SelectProps as PackageProps } from "@jini-ai/ui/admin-widgets";
-import type { useSelectDropdown } from "./Select.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useSelectDropdown } from "./Select.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export type { SelectOption } from "@jini-ai/ui/admin-widgets";
 
 export type SelectProps = Omit<PackageProps, "useDropdown"> & {
@@ -10,7 +10,8 @@ export type SelectProps = Omit<PackageProps, "useDropdown"> & {
 };
 
 /** Preserve the host's injectable hook props while the package owns rendering and live effects. */
-export function Select({ useDropdown, ...props }: SelectProps) {
+export function Select({
+  useDropdown = useSelectDropdown, ...props }: SelectProps) {
   const useHostDropdown: PackageProps["useDropdown"] = useDropdown
     ? (required, optional = {}) => useDropdown({ ...required, ...optional })
     : undefined;
@@ -18,7 +19,7 @@ export function Select({ useDropdown, ...props }: SelectProps) {
 }
 
 /** Keep the host's helper contract while Jini resolves translated trigger copy. */
-export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, placeholder: string | undefined, t: Translate = (key) => key) {
+export function resolveSelectTriggerLabel({ selectedOption, placeholder }: { selectedOption: SelectOption | null; placeholder: string | undefined }, { t = (key) => key }: { t?: Translate } = {}) {
   return resolvePackageLabel({ selectedOption, placeholder }, { t });
 }
 // Search/listbox rationale: Jini/packages/ui/src/features/admin-widgets/components/Select/Select.tsx.

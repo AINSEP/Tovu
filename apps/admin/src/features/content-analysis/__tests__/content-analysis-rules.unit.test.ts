@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   CONTENT_ANALYZER_PLUGIN_ID,
   buildContentAnalysisView,
@@ -27,34 +27,34 @@ const marked = (key: string) => `<${key}>`;
 
 describe("parseContentAnalysisReport", () => {
   it("parses a valid v1 report string", () => {
-    expect(parseContentAnalysisReport(VALID_REPORT_JSON)).toEqual(VALID_REPORT);
+    expect(parseContentAnalysisReport({ raw: VALID_REPORT_JSON })).toEqual(VALID_REPORT);
   });
 
   it.each([
     "v", "score", "wordCount", "sentenceCount", "readingTimeMinutes", "readability", "toc", "checks",
   ])("rejects a report missing its required %s field", (field) => {
-    expect(parseContentAnalysisReport(reportJson({ [field]: undefined }))).toBeNull();
+    expect(parseContentAnalysisReport({ raw: reportJson({ [field]: undefined }) })).toBeNull();
   });
 
   describe.each(["score", "wordCount", "sentenceCount", "readingTimeMinutes"])("%s metric", (field) => {
     it.each([null, true, "12", {}, []])("rejects the non-numeric value %j", (value) => {
-      expect(parseContentAnalysisReport(reportJson({ [field]: value }))).toBeNull();
+      expect(parseContentAnalysisReport({ raw: reportJson({ [field]: value }) })).toBeNull();
     });
 
     it.each(["1e400", "-1e400"])("rejects a JSON number that overflows to %s", (literal) => {
       const raw = reportJson({ [field]: "overflow" }).replace('"overflow"', literal);
-      expect(parseContentAnalysisReport(raw)).toBeNull();
+      expect(parseContentAnalysisReport({ raw })).toBeNull();
     });
 
     it.each([0, -1, 1.5, Number.MAX_VALUE])("preserves the finite value %s without range checks", (value) => {
       const report = { ...VALID_REPORT, [field]: value };
-      expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+      expect(parseContentAnalysisReport({ raw: JSON.stringify(report) })).toEqual(report);
     });
   });
 
   it("accepts empty collections and preserves extra report fields", () => {
     const report = { ...VALID_REPORT, toc: [], checks: [], futureField: { enabled: true } };
-    expect(parseContentAnalysisReport(JSON.stringify(report))).toEqual(report);
+    expect(parseContentAnalysisReport({ raw: JSON.stringify(report) })).toEqual(report);
   });
 
   it.each([
@@ -87,34 +87,34 @@ describe("parseContentAnalysisReport", () => {
     ["a check with null params", reportJson({ checks: [{ id: "single-h1", status: "pass", params: null }] })],
     ["a check param that is a boolean", reportJson({ checks: [{ id: "single-h1", status: "pass", params: { h1: true } }] })],
   ])("returns null for %s", (_label, raw) => {
-    expect(parseContentAnalysisReport(raw)).toBeNull();
+    expect(parseContentAnalysisReport({ raw })).toBeNull();
   });
 
   it("keeps a check whose id this admin does not know (a newer plugin's extra check)", () => {
-    const report = parseContentAnalysisReport(reportJson({ checks: [{ id: "future-check", status: "warn", params: { n: 1 } }] }));
+    const report = parseContentAnalysisReport({ raw: reportJson({ checks: [{ id: "future-check", status: "warn", params: { n: 1 } }] }) });
     expect(report?.checks).toEqual([{ id: "future-check", status: "warn", params: { n: 1 } }]);
   });
 });
 
 describe("storedAnalysis", () => {
   it("is missing when the post carries no ext at all", () => {
-    expect(storedAnalysis(undefined)).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: undefined })).toEqual({ kind: "missing" });
   });
 
   it("is missing when no content-analyzer bag is present", () => {
-    expect(storedAnalysis({ "word-count": { words: 3 } })).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: { "word-count": { words: 3 } } })).toEqual({ kind: "missing" });
   });
 
   it("is missing when the bag has no report field", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { score: 80 } })).toEqual({ kind: "missing" });
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { score: 80 } } })).toEqual({ kind: "missing" });
   });
 
   it("is invalid when the stored report does not parse", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { report: "{bad" } })).toEqual({ kind: "invalid" });
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { report: "{bad" } } })).toEqual({ kind: "invalid" });
   });
 
   it("is the stored report when it parses", () => {
-    expect(storedAnalysis({ [CONTENT_ANALYZER_PLUGIN_ID]: { report: VALID_REPORT_JSON } })).toEqual({
+    expect(storedAnalysis({ ext: { [CONTENT_ANALYZER_PLUGIN_ID]: { report: VALID_REPORT_JSON } } })).toEqual({
       kind: "report",
       source: "stored",
       report: VALID_REPORT,
@@ -138,19 +138,19 @@ describe("currentAnalysis", () => {
   const freshState: AnalysisState = { kind: "invalid" };
 
   it("shows the stored analysis when nothing was analyzed on demand", () => {
-    expect(currentAnalysis({ id: "p1", version: 3, ext }, null)).toMatchObject({ kind: "report", source: "stored" });
+    expect(currentAnalysis({ post: { id: "p1", version: 3, ext }, fresh: null })).toMatchObject({ kind: "report", source: "stored" });
   });
 
   it("shows the Analyze-now result while it belongs to the post as loaded", () => {
-    expect(currentAnalysis({ id: "p1", version: 3, ext }, { postId: "p1", version: 3, state: freshState })).toBe(freshState);
+    expect(currentAnalysis({ post: { id: "p1", version: 3, ext }, fresh: { postId: "p1", version: 3, state: freshState } })).toBe(freshState);
   });
 
   it("drops back to the stored analysis once a save moved the version on", () => {
-    expect(currentAnalysis({ id: "p1", version: 4, ext }, { postId: "p1", version: 3, state: freshState })).toMatchObject({ source: "stored" });
+    expect(currentAnalysis({ post: { id: "p1", version: 4, ext }, fresh: { postId: "p1", version: 3, state: freshState } })).toMatchObject({ source: "stored" });
   });
 
   it("never shows another post's Analyze-now result", () => {
-    expect(currentAnalysis({ id: "p2", version: 3 }, { postId: "p1", version: 3, state: freshState })).toEqual({ kind: "missing" });
+    expect(currentAnalysis({ post: { id: "p2", version: 3 }, fresh: { postId: "p1", version: 3, state: freshState } })).toEqual({ kind: "missing" });
   });
 });
 
@@ -158,7 +158,7 @@ describe("isContentAnalysisHidden", () => {
   it("hides while the status read is loading, and when the plugin is off or not installed", () => {
     expect(isContentAnalysisHidden({ data: undefined, error: null })).toBe(true);
     expect(isContentAnalysisHidden({ data: { enabled: false }, error: null })).toBe(true);
-    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND") })).toBe(true);
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" }) })).toBe(true);
   });
 
   it("shows when the plugin is enabled", () => {
@@ -166,7 +166,7 @@ describe("isContentAnalysisHidden", () => {
   });
 
   it("shows (to carry the error) when the status read was refused or failed — never a silent 'off'", () => {
-    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError("forbidden", 403, "FORBIDDEN") })).toBe(false);
+    expect(isContentAnalysisHidden({ data: undefined, error: new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }) })).toBe(false);
     expect(isContentAnalysisHidden({ data: undefined, error: new Error("offline") })).toBe(false);
   });
 });
@@ -186,22 +186,22 @@ describe("previewRequestBody", () => {
 });
 
 describe("buildContentAnalysisView", () => {
-  const stored: AnalysisState = { kind: "report", source: "stored", report: parseContentAnalysisReport(VALID_REPORT_JSON)! };
+  const stored: AnalysisState = { kind: "report", source: "stored", report: parseContentAnalysisReport({ raw: VALID_REPORT_JSON })! };
 
   it("leads with where the analysis came from", () => {
-    expect(buildContentAnalysisView(stored, identity).lead).toBe("From the last save.");
-    expect(buildContentAnalysisView({ ...stored, source: "fresh" } as AnalysisState, identity).lead).toBe(
+    expect(buildContentAnalysisView({ state: stored, t: identity }).lead).toBe("From the last save.");
+    expect(buildContentAnalysisView({ state: { ...stored, source: "fresh" } as AnalysisState, t: identity }).lead).toBe(
       "From your current draft, including unsaved changes."
     );
-    expect(buildContentAnalysisView({ kind: "missing" }, identity)).toEqual({
+    expect(buildContentAnalysisView({ state: { kind: "missing" }, t: identity })).toEqual({
       lead: "Not analyzed yet. Save, or click Analyze now.",
       report: null,
     });
-    expect(buildContentAnalysisView({ kind: "invalid" }, identity)).toEqual({ lead: "Analysis unavailable.", report: null });
+    expect(buildContentAnalysisView({ state: { kind: "invalid" }, t: identity })).toEqual({ lead: "Analysis unavailable.", report: null });
   });
 
   it("builds the four stats with translated, interpolated copy", () => {
-    const view = buildContentAnalysisView(stored, marked);
+    const view = buildContentAnalysisView({ state: stored, t: marked });
     expect(view.report?.stats).toEqual([
       { key: "score", label: "<Score>", value: "84", meta: "<out of 100>" },
       { key: "words", label: "<Words>", value: "420", meta: "<Sentences: {count}>".replace("{count}", "21") },
@@ -219,7 +219,7 @@ describe("buildContentAnalysisView", () => {
     const bands = ["very-easy", "easy", "fairly-easy", "standard", "fairly-difficult", "difficult", "very-difficult"] as const;
     const labels = bands.map((band) => {
       const report = { ...stored.report!, readability: { ...stored.report!.readability, band } };
-      return buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.stats[3]!.meta;
+      return buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.stats[3]!.meta;
     });
     expect(labels).toEqual([
       "Very easy · grade 8.1",
@@ -233,17 +233,17 @@ describe("buildContentAnalysisView", () => {
   });
 
   it("builds the table of contents with a level label and an indent relative to the shallowest heading", () => {
-    const view = buildContentAnalysisView(stored, identity);
+    const view = buildContentAnalysisView({ state: stored, t: identity });
     expect(view.report?.toc).toEqual([
       { key: "0-intro", text: "Intro", levelLabel: "H2", indentRem: 0 },
       { key: "1-details", text: "Details", levelLabel: "H3", indentRem: 1 },
     ]);
-    const empty = buildContentAnalysisView({ kind: "report", source: "stored", report: { ...stored.report!, toc: [] } }, identity);
+    const empty = buildContentAnalysisView({ state: { kind: "report", source: "stored", report: { ...stored.report!, toc: [] } }, t: identity });
     expect(empty.report?.toc).toEqual([]);
   });
 
   it("builds every check with a status label, tone, icon and interpolated message", () => {
-    const view = buildContentAnalysisView(stored, identity);
+    const view = buildContentAnalysisView({ state: stored, t: identity });
     expect(view.report?.checks).toEqual([
       { key: "0-title-length", title: "Title length", status: "pass", statusLabel: "Pass", tone: "status-ok", icon: "✓", message: "Title length is good: 42 characters." },
       { key: "1-meta-description-length", title: "Meta description", status: "skip", statusLabel: "Skipped", tone: "status-neutral", icon: "–", message: "No meta description is set." },
@@ -269,7 +269,7 @@ describe("buildContentAnalysisView", () => {
     ["subheadings", "warn", { words: 450 }, "450 words with no subheadings; add H2–H6 headings."],
   ])("%s %s reads as its own sentence", (id, status, params, message) => {
     const report = { ...stored.report!, checks: [{ id, status, params }] } as never;
-    expect(buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.checks[0]!.message).toBe(message);
+    expect(buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.checks[0]!.message).toBe(message);
   });
 
   it("falls back to the raw id and no message for a check or status combination it has no copy for", () => {
@@ -280,13 +280,13 @@ describe("buildContentAnalysisView", () => {
         { id: "single-h1", status: "fail", params: {} },
       ],
     } as never;
-    const checks = buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.checks;
+    const checks = buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.checks;
     expect(checks[0]).toMatchObject({ title: "future-check", message: "" });
     expect(checks[1]).toMatchObject({ title: "Single H1", statusLabel: "Fail", message: "" });
   });
 
   it("translates a check's template before interpolating its params", () => {
-    const view = buildContentAnalysisView(stored, marked);
+    const view = buildContentAnalysisView({ state: stored, t: marked });
     expect(view.report!.checks[0]!.message).toBe("<Title length is good: 42 characters.>");
   });
 });
@@ -297,13 +297,13 @@ describe("describeAnalysisError", () => {
     ["PLUGIN_NOT_FOUND", "The Content Analyzer plugin is not installed."],
     ["PLUGIN_HOOK_FAILED", "The analyzer could not process this content."],
   ])("maps %s to its own copy", (code, message) => {
-    expect(describeAnalysisError(new ApiError("server words", 409, code), identity)).toBe(message);
+    expect(describeAnalysisError({ error: new ApiError({ message: "server words", status: 409 }, { code }), t: identity })).toBe(message);
   });
 
   it("falls back to the shared API error copy for any other failure", () => {
-    expect(describeAnalysisError(new ApiError("bad body", 400, "VALIDATION"), identity)).toBe("bad body");
-    expect(describeAnalysisError(new ApiError("", 500), identity)).toBe("Analysis failed.");
-    expect(describeAnalysisError("boom", marked)).toBe("<Analysis failed.>");
+    expect(describeAnalysisError({ error: new ApiError({ message: "bad body", status: 400 }, { code: "VALIDATION" }), t: identity })).toBe("bad body");
+    expect(describeAnalysisError({ error: new ApiError({ message: "", status: 500 }), t: identity })).toBe("Analysis failed.");
+    expect(describeAnalysisError({ error: "boom", t: marked })).toBe("<Analysis failed.>");
   });
 });
 

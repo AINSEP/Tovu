@@ -113,7 +113,7 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
       clearKey: unusedByThisRoute("adminExecutionCredentialRepo.clearKey"),
     },
   };
-  registerAdminAssistantTestAgentRoute(app, deps);
+  registerAdminAssistantTestAgentRoute({ app, deps });
   const server = app.listen(0);
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
   const address = server.address();

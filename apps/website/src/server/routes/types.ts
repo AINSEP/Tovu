@@ -1,32 +1,26 @@
 import type { AdmittedBrowserProvider, PluginContributionRegistry, PluginProviderApplyResult, ProviderConfigSource } from "@jini-ai/plugins/host";
-import type { DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
+import type { VersionedMediaRepoPort, DocumentTextExtractorPort, ImageCodecPort } from "@jini-ai/cms/media";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import type { AssistantAgentInventory } from "#src/assistant/agent-discovery";
 import type { Express, Request } from "express";
-import type { RememberedApprovalPort } from "@jini-ai/core";
-import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
-import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
+import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
-import type { ExportReport } from "#src/features/site-export/index";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type {
-  PeerSiteReads,
-  SiteAssistantCredentialRepoPort,
-  AdminExecutionCredentialRepoPort,
-} from "#src/assistant/host-ports";
+import type { PeerSiteReads } from "#src/assistant/host-ports";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
-import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
-import type { RemoveEntity, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
-import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
+import type { RemoveEntity, TrashDb, TrashKindMover } from "#src/features/trash/index";
+import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce, TrashRegistry } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
+import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
+import type { RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,
@@ -40,7 +34,8 @@ import type {
   UserRepoPort,
 } from "@jini-ai/user-management";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
-import type { GoLiveCandidatesPort, PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
+import type { GoLiveCandidatesPort } from "@jini-ai/cms/entries";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord, RemovePostFn, SlugChangeCaptureLookup } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory, ChatRunLedger, AgentSessionStore } from "../../assistant/session-services.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
@@ -58,11 +53,10 @@ import type {
   MemberTierRepoPort,
 } from "../../features/members/index.js";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
-import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
-import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+import type { RemoveMenuFn } from "../../features/navigation/index.js";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
-import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
 import type { PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishFormDestinationPort } from "../../features/deployments/static-publish/index.js";
 import type { FormDeliveryStatusPort, FormsAutoPullPort, FormSubmissionsPullPort } from "../../features/forms/index.js";
@@ -70,13 +64,7 @@ import type { DeployTargetRegistry } from "../../features/deployments/contracts.
 import type { LoadSourceControlProviders } from "../../features/source-control/provider-registry.js";
 import type { LoadPluginCredentialCards } from "../../features/custom-credentials/plugin-credential-card.js";
 import type { CredentialSchemeRule } from "../../features/agent-plugins/auth-schemes.js";
-import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
-import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
-import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
-import type { ExternalMcpServerRepoPort, DeviceAuthorizationStore, ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
-import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/mcp-services.js";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -84,7 +72,6 @@ import type {
   ImageTransformerPort,
   MediaContentTypeStorePort,
   TransformDefinitionRepoPort,
-  VersionedMediaRepoPort,
 } from "../../features/media/index.js";
 // Composition-root-only boot effect, deliberately imported straight from its own file rather than
 // through the `features/media` barrel — same precedent `deps.ts` already follows for
@@ -92,7 +79,7 @@ import type {
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/index.js";
 import type { RemoveMediaFn } from "../../features/media/contracts.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";
@@ -102,50 +89,41 @@ import type {
   RestorePointListPort,
   RestorePointSavePort,
   RestorePointIdempotencyLookupPort,
-} from "../../features/database/restore-points.js";
+} from "@jini-ai/db/tools";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
 import type {
   BootLedgerPort,
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../../features/database/boot/reconcile-interrupted-migration.js";
+} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
-import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/index.js";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
-import type { ContentTypeListPort } from "../../features/content-types/index.js";
-import type { EntryRepoPort } from "../../features/entries/index.js";
-import type { EntryListPort } from "../../features/entries/index.js";
+import type { ContentTypeListPort } from "@jini-ai/cms/content-types";
+import type { EntryRepoPort } from "@jini-ai/cms/entries";
+import type { EntryListPort } from "@jini-ai/cms/entries";
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "../../features/entries/public-list.js";
-import type { EntryPublishReadPort } from "../../features/entries/repo.sqlite.js";
+import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
-  EntryTermRepoPort,
-  TaxonomyListPort,
-  TaxonomyRepoPort,
-  TaxonomyRevisionRepoPort,
-  TermListPort,
-  TermRepoPort,
-  TransactionalRepoPort,
-  UnassignableEntryTermRepoPort,
-  ImportableTaxonomyRepoPort,
-  ImportableTermRepoPort,
 } from "../../features/taxonomy/index.js";
-import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure.js";
-import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link.js";
+import type { EntryTermRepoPort, TaxonomyListPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermListPort, TermRepoPort, UnassignableEntryTermRepoPort, ImportableTaxonomyRepoPort, ImportableTermRepoPort } from "@jini-ai/cms/taxonomy";
+import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
+import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
-import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
-import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "../../features/taxonomy/repo.sqlite.js";
+import type { MergeableEntryTermRepoPort } from "@jini-ai/cms/taxonomy";
+import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {
   RemoveTermFn,
   RemoveTaxonomyFn,
   TermTrashReadPort,
   TaxonomyTrashReadPort,
-} from "../../features/taxonomy/trash-term.js";
+} from "@jini-ai/cms/taxonomy";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
@@ -154,12 +132,13 @@ import type { PluginPackageFiles } from "@jini-ai/plugins/host/node";
 import type { RemovePluginFn } from "@jini-ai/plugins/host";
 import type { ExportEngine } from "../../features/deployments/index.js";
 import type { PublishTrustRevocationPort } from "#src/features/publish-trust/revocations";
-import type { PublishContentBundleRepoPort } from "../../features/publish-content/bundle-staging.js";
+import type { PublishContentBundleRepoPort } from "@jini-ai/cms/publish/transfer";
 import type { PublishContentBaselineRepoPort } from "../../features/publish-content/baseline-repo.js";
 import type { PublishContentApplyPort } from "../../features/publish-content/gated-hooks.js";
 import type { PublishContentRunRepoPort } from "../../features/publish-content/run-repo.js";
 import type { PublishContentPeerRepoPort } from "../../features/publish-content/peers.js";
-import type { FileBlobIndexPort } from "../../features/publish-content/file-blob-index.js";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
+import type { CredentialsDeps } from "./route-deps/credentials-deps.js";
 
 /**
  * The served site's storage locations ({@link RouteDeps.siteStoragePaths}). Each `TOVU_*` override
@@ -206,7 +185,7 @@ export interface IdentityDeps {
   rolePolicyRepo: RolePolicyRepoPort;
   principalRoleRepo: PrincipalRoleRepoPort;
   principalPolicyRepo: PrincipalPolicyRepoPort;
-  /** argon2id hashing seam (INV-05) — see `identity/hasher.ts`. */
+  /** argon2id hashing seam (INV-05) — see `Jini packages/user-management/src/server/hasher.ts`. */
   passwordHasher: PasswordHasherPort;
   /** SPEC-006 REQ-08 — the `api_keys` repo port (`identity/api-key-types.ts`). Declared in this
    *  repo rather than in `@jini-ai/cms/identity`, which scopes API keys out of its own surface. */
@@ -218,9 +197,9 @@ export interface IdentityDeps {
    *  check; see `identity/wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for the
    *  default-then-override story between the two composition roots. */
   removeUser?: RemoveEntity;
-  isInTrash: (principalId: UUID) => Promise<boolean>;
+  isInTrash: (required: { principalId: UUID }, optional?: Record<string, never>) => Promise<boolean>;
   /**
-   * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
+   * Resolves once first-boot identity seeding (`Jini packages/user-management/src/server/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
    * `createRouteDeps()`/`createSiteRouteDeps()` return without waiting on it by kicking
    * the seed off immediately and handing back this promise; auth-adjacent
@@ -281,7 +260,7 @@ export interface MediaDeps {
    * `transform_registry` sidecar; `imageTransformer` is the seam that
    * actually runs the pixel operation (`InMemoryImageTransformer` in the
    * hermetic test/dev composition, `SharpImageTransformer` in the real
-   * running server — see `server/app.ts` / `server/deps.ts`).
+   * running server — see `apps/website/src/server/runtime/composition/app.ts` / `apps/website/src/server/runtime/composition/deps.ts`).
    */
   transformDefinitionRepo: TransformDefinitionRepoPort;
   imageTransformer: ImageTransformerPort;
@@ -292,8 +271,8 @@ export interface MediaDeps {
    * topping up `blobStore` with any stock seed blob it was missing — the fix for the production
    * incident where `content.seed.db` shipped real `media`/`asset_blobs` rows but no deploy path
    * ever shipped the bytes those rows' `storage_key`s point at. Optional (unlike `identityReady`):
-   * only `server/deps.ts`'s real SQLite composition wires this — the in-memory hermetic composition
-   * (`server/app.ts`'s `createRouteDeps()`) has no seed payload to hydrate from and leaves it unset,
+   * only `apps/website/src/server/runtime/composition/deps.ts`'s real SQLite composition wires this — the in-memory hermetic composition
+   * (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`) has no seed payload to hydrate from and leaves it unset,
    * exactly as `mediaTransformReady` is left un-exposed there for the same reason. No route gates on
    * this; it exists so a boot-integration test can await deterministic completion instead of racing
    * a fire-and-forget background copy.
@@ -320,235 +299,6 @@ export interface MediaDeps {
 }
 
 /**
- * ADR-058 credential repositories and shared sealing capabilities. Credential-CRUD
- * routes receive their own repo plus the shared sealer/keyring, never the other credential
- * repositories; inheriting the whole group would widen their secret-adjacent surface.
- */
-export interface CredentialsDeps {
-  /**
-   * The SITE's encrypted provider credential store (ADR-058) — one row per workspace, backing the
-   * "Visitor's AI Assistant" admin tab and `server/modules/site-assistant.ts`'s runtime key
-   * resolution. Unlike `assistantSettingsReady` above, this needs no boot-time definition
-   * registration (it is a plain table, not a `core.execution.*` ledger namespace), so there is no
-   * matching `*Ready` promise — the repo is usable as soon as migrations have run.
-   */
-  siteAssistantCredentialRepo: SiteAssistantCredentialRepoPort;
-  /** Seals/opens the SITE credential above. See `integrations/secret-sealer.aesgcm.ts`'s header for
-   *  why this is one shared sealing capability, not one per workspace. */
-  siteAssistantSecretSealer: SecretSealerPort;
-  /**
-   * The `KeyringPort` `siteAssistantSecretSealer` derives its AES key from — exposed separately
-   * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
-   * `keyring.activeKey()` directly, to know which site-key generation to stamp into a freshly-sealed
-   * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
-   * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
-   * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
-   */
-  siteAssistantSecretKeyring: KeyringPort;
-  /**
-   * Where this site's database copies go (`features/database-transfer`): the address sealed under the
-   * SAME `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` above, in
-   * `database_transfer_destinations`, so it survives a restart. Optional: a composition without a
-   * database (route tests) leaves it out and the tools fall back to an in-memory store.
-   */
-  databaseTransferDestinationStore?: DatabaseDestinationStorePort;
-  /** Online capture from the same chat kernel the running root owns; hermetic roots omit it. */
-  databaseTransferChatSnapshot?: () => Promise<Buffer>;
-  /**
-   * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
-   * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
-   * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
-   * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
-   * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
-   * `db/schema.sqlite.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
-   * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
-   * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
-   * have run.
-   */
-  adminExecutionCredentialRepo: AdminExecutionCredentialRepoPort;
-  /**
-   * Per-workspace media-generation vendor credentials, backing the GET/PUT
-   * `.../media/providers` routes the admin's Media → "Media providers" tab talks to. Sealed via
-   * the same two capabilities above, for the same reason the BYOK store reuses them.
-   *
-   * Multi-row per workspace (one per vendor), unlike both credential repos above — see
-   * `media/provider-credential-store.ts` for why this one is workspace-scoped rather than
-   * per-principal. No matching `*Ready` promise: a plain table, usable as soon as migrations run.
-   */
-  mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
-  /**
-   * The workspace's roster of external MCP servers, backing the admin's Settings → External MCP tab
-   * and read by the agent daemon at boot to decide what to federate
-   * (`assistant/external-mcp-store.ts`).
-   *
-   * Multi-row per workspace like `mediaProviderCredentialRepo` above. Its sealed column holds a
-   * whole `KEY=VALUE` environment block rather than one key, sealed with the same shared ADR-058
-   * sealer/keyring as every other credential table here. No matching `*Ready` promise: a plain
-   * table, usable as soon as migrations run.
-   */
-  externalMcpServerRepo: ExternalMcpServerRepoPort;
-  /** Server federation's live admissions reader. Integration binds it to the SAME tool surface
-   * used by /internal/tool-executions; an unwired preparation build answers unavailable. */
-  externalMcpAdmissions?: import("../../features/external-mcp/operations-tools.js").ExternalMcpOperations["admissions"];
-  bundledSourceRoot: string;
-  mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort & import("../../features/agent-plugins/service-ports.js").AgentPluginMcpContext;
-  preferences: import("../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
-  providerFaces: import("../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
-  notifyRosterChanged: import("../../contracts/core/tool-access-change.js").NotifyToolAccessChanged;
-  /** Runtime-owned connections declared by the desktop host, independent of labels. */
-  builtInExternalMcpServerIds?: readonly string[];
-  /**
-   * G3 "Always allow" approvals for external tools (`external_mcp_tool_approvals`, migration 0077):
-   * one row per site + connection + remote tool, beside the connection's row and deleted with it.
-   * Listed and revoked on the Integrations page. Optional: a composition without it never offers
-   * "Always allow".
-   */
-  externalMcpToolApprovalRepo?: ExternalMcpToolApprovalRepoPort;
-  /**
-   * G3 "Allow for this chat" approvals, kept with the conversation in `chat.db` so they survive a
-   * restart. Optional: a composition without it never offers "Allow for this chat".
-   */
-  conversationToolApprovals?: ConversationToolApprovalStore;
-  /** Native escalation grants use the same conversation-owned store and trusted plugin identity. */
-  nativeApprovalMemory?: RememberedApprovalPort;
-  approvalIdentityForRun?: SettingsToolDeps["approvalIdentityForRun"];
-  /**
-   * The OAuth subsystem for `authMode: "oauth"` external MCP connections
-   * (`assistant/external-mcp-oauth.ts`), or absent.
-   *
-   * OPTIONAL: a narrow test double may have no reason to wire OAuth. The external-MCP module
-   * registers no OAuth routes in that case, since a callback that can complete nothing is useless.
-   */
-  externalMcpOAuth?: ExternalMcpOAuthService;
-  /**
-   * The device-authorization store shared by the web service and the daemon's second service.
-   * Built once per composition root, avoiding a second database handle and repeated migrations.
-   * The SQL root persists device attempts; the hermetic root uses a process-local memory adapter.
-   * A narrow builder may omit it, in which case the daemon falls back to its memory adapter.
-   * Redirect callbacks use sealed state and the same site key, with no pending-store wiring.
-   */
-  externalMcpOAuthDevices?: DeviceAuthorizationStore;
-  /**
-   * This process's listener origin, pinned by the boot entrypoint in TOVU_SITE_LISTENER_ORIGIN
-   * and inherited by the assistant daemon. Also reported by site_guide overview for browser use.
-   * Without that pin, a best-effort origin (`"https://localhost:3000"`-shaped) — the scheme
-   * from whether THIS process terminates TLS itself (`server/runtime/boot/dev-tls.ts`) and the port
-   * from `PORT`, host assumed `localhost` since a composition root has no live client request to
-   * read a `Host` header from. Computed once per boot by both composition roots
-   * (`server/runtime/composition/{deps,app}.ts`), mirroring the identical `devCapabilityScheme`
-   * derivation already there.
-   *
-   * FALLBACK ONLY, and optional for the same reason `externalMcpOAuth` above is: a caller that never
-   * sets it (a narrower test double, say) just gets no fallback rather than a broken build.
-   * `features/external-mcp/tool-registrations.ts`'s `resolveExternalMcpOAuthRedirectUri` is the one
-   * reader today — `TOVU_PUBLIC_URL`, when configured, always wins over this (a real deployment
-   * behind a proxy or custom domain needs that override to keep working; this field only fills the
-   * gap for the chat tool call that has no live request of its own to derive an origin from, the
-   * identical gap `resolvePublicOrigin(req)` closes for the admin HTTP route). 2026-09-10: closes the
-   * defect where a non-technical user's OAuth connect refused outright just because nobody had set an
-   * env var.
-   */
-  derivedPublicOrigin?: string;
-  /** Trusted configured external origin for passkeys; never derived from request headers. */
-  passkeyOrigin?: string;
-  /**
-   * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
-   * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
-   * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
-   * sealing capability app-wide. A deliberately SEPARATE table from the publish credentials in
-   * `vendorCredentialSetRepo` below, not a widened `PublishProviderId` union — see `src/platform/db/schema.sqlite.ts`'s `sourceControlCredentialSets` doc comment for
-   * why.
-   */
-  sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
-  /**
-   * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
-   * credential redesign (`features/vendor-credentials/`; `db/schema.sqlite.ts`'s `vendorCredentialSets`
-   * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
-   * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
-   * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
-   * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
-   * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
-   * `sourceControlCredentialSetRepo` already establishes.
-   *
-   * Since 2026-09-29 this is where publish credentials live (`deployments/publish-credentials/store.ts`
-   * reads and writes them here, by each deploy host's declared vendor); the legacy
-   * `publish_credential_sets` rows are folded by migration 0012 and no longer read. Source-control credentials still live in `sourceControlCredentialSetRepo`.
-   */
-  vendorCredentialSetRepo: VendorCredentialSetRepoPort;
-  /**
-   * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
-   * "Add custom provider" form (`routes/admin/system/custom-credentials.ts`). Real
-   * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
-   * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
-   * one sealing capability app-wide, same reasoning `sourceControlCredentialSetRepo` already
-   * establishes. A deliberately separate table from both of
-   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.sqlite.ts`'s `customCredentialSets` doc
-   * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
-   * vendor-keyed model).
-   */
-  customCredentialSetRepo: CustomCredentialSetRepoPort;
-  /**
-   * The guarded outbound-HTTP seam (ADR-038) backing `features/custom-credentials`'s two agent
-   * tools (`custom_credential_verify`/`custom_credential_make_request`,
-   * `features/custom-credentials/tool-registrations.ts`) — an authenticated call through a saved
-   * custom credential (e.g. "name.com", "my-host") to its own operator-typed `baseUrl`. A genuinely
-   * separate `HttpClientPort` instance from `server/runtime/composition/deps.ts`'s own local mailer
-   * client (that one is a private local, never stored on `RouteDeps`, since only
-   * `createResolvedMailer` ever needed it) — this one is stored here because the new registry-style
-   * tool-contribution seam (`contribute<Domain>Tools()`) receives the SAME shared `RouteDeps` object
-   * for every domain, so a domain's own `ToolDeps` interface can only pick up a field that genuinely
-   * lives on this bag. Built from `platform/http/egress-policies.ts`'s own
-   * `CUSTOM_CREDENTIALS_EGRESS_POLICY` (2026-09-10) — until then this shared the mailer client's
-   * `SINGLE_HOP_HTTPS_EGRESS_POLICY`, but a live GitHub-Actions-log-diagnosis incident showed a
-   * fixed-method, zero-redirect policy does not fit this domain: GitHub's own Actions job-logs
-   * endpoint answers with a 302 to a signed Azure Blob Storage URL, and a `custom_credential_make_request`
-   * GET could not follow it. See that policy's own doc for the full redirect-safety argument (GET
-   * only, every hop re-verified, auth stripped cross-origin, no allowlist widening needed) — see
-   * `features/custom-credentials/credentialed-request.ts`'s own header for why every outbound call
-   * here needs the SSRF-guarded client rather than raw `fetch` (the target host is an arbitrary,
-   * operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
-   */
-  customCredentialsHttpClient: HttpClientPort;
-  /** `site_backup_push`'s client: `SITE_BACKUP_EGRESS_POLICY` (2-minute idle ceiling for large blob
-   *  uploads). Absent (the in-memory runtime), the backup uses {@link customCredentialsHttpClient}. */
-  siteBackupHttpClient?: HttpClientPort;
-  /** Deploy observation requests must not follow vendor redirects, even to another public host. */
-  deployOpsHttpClient?: HttpClientPort;
-  /** Deploy-config owner supplies this workflow; ops plugins never import each other. */
-  loadDeployWorkflowFiles?: (input: { workspaceId: string }) => Promise<readonly string[]>;
-  /**
-   * The guarded `HttpClientPort` backing `features/media-import`'s `media_import_from_url` — the
-   * assistant handing the server a URL and the server fetching it, which is the textbook SSRF sink
-   * and the reason this must never be a raw `fetch`.
-   *
-   * A THIRD instance rather than a reuse of `customCredentialsHttpClient` above, because it is built
-   * from a different `EgressPolicy`: `platform/http/egress-policies.ts`'s
-   * `MEDIA_IMPORT_EGRESS_POLICY`, which follows (and fully re-verifies) up to three redirects, allows
-   * a file-sized response, and waits a download's worth of time — none of which
-   * `SINGLE_HOP_HTTPS_EGRESS_POLICY` does or should. Sharing one client would mean one of the two
-   * call shapes gets the wrong policy; see that policy's own doc for the per-axis reasoning.
-   *
-   * Stored on this bag for the same reason `customCredentialsHttpClient` is: the registry-style
-   * tool-contribution seam (`contribute<Domain>Tools()`) hands the SAME shared `RouteDeps` object to
-   * every domain, so a domain's own `ToolDeps` interface can only pick up a field that genuinely
-   * lives here.
-   */
-  mediaImportHttpClient: HttpClientPort;
-  /**
-   * HARNESS ONLY (`CreateSiteRouteDepsOverrides.outboundTestOrigins`): exact loopback origins the
-   * assistant's URL tools may reach. Absent in every production composition.
-   */
-  outboundTestOrigins?: readonly string[];
-  /** Canonical guard for media generation and all returned-asset downloads; private peers refused. */
-  mediaGenerationHttpClient: import("@jini-ai/core/primitives").HttpClientPort;
-  /** Media-generation vendors (built-in + plugin-contributed), built once per composition root. */
-  mediaProviderRegistry: import("@jini-ai/integrations/media-providers").MediaProviderRegistry;
-}
-
-/**
  * Content-model persistence ports (ADR-022/ADR-043/ADR-044). The core-owned
  * `entryRefsRepo` belongs here as a content-model persistence seam, not with widgets.
  * Mixed-domain routes pick only the fields they need. Structural widget dependencies
@@ -557,7 +307,7 @@ export interface CredentialsDeps {
 export interface ContentTaxonomyDeps {
   /**
    * ADR-022/ADR-043 content-type registry write repo plus its listing capability
-   * (`features/content-types/list.ts`).
+   * (`Jini packages/cms/src/content-types/list.ts`).
    */
   contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
   /**
@@ -583,8 +333,8 @@ export interface ContentTaxonomyDeps {
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
   /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
-   *  `EntryTermReadPort`'s doc above for why these are declared directly against `repo.sqlite.js`/
-   *  `trash-term.js` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
+   *  `EntryTermReadPort`'s doc above for why these are declared directly against Jini's `@jini-ai/cms/taxonomy` read ports/
+   *  `Jini packages/cms/src/taxonomy/trash-term.ts` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
   /** Widened for publish-content (`features/taxonomy/publish-content.ts`) with the id-preserving
    *  import's `ImportableTaxonomyRepoPort` and the trash-inclusive `TaxonomyPublishReadPort`. */
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort & TaxonomyTrashReadPort & ImportableTaxonomyRepoPort & TaxonomyPublishReadPort;
@@ -614,7 +364,7 @@ export interface ContentTaxonomyDeps {
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /**
    * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam
-   * (`core/entry-refs/ports.ts`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
+   * (`@jini-ai/cms/widgets`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
    * `widgets` (the region-area/write-service chokepoint hooks) — consumed here by the admin
    * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
    */
@@ -637,7 +387,7 @@ export interface CommentsDeps {
   commentWriteService: CommentWriteService;
   /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
    * through the ADR-046 Phase 2 boot lifecycle) before relying on the comments plugin tables
-   * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
+   * existing. `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition resolves this immediately (no dataModule
    * declare needed against an in-memory repo). */
   commentsReady: Promise<void>;
   /** SPEC-035 (ADR-028 Settings Layered Ledger wiring) — resolves once the 6 `comments.*` setting
@@ -670,7 +420,7 @@ export interface MembersDeps {
   settleMailer?: () => Promise<void>;
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
-  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("@jini-ai/platform/mail").MailStatusReport>;
   /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
    *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
   mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;
@@ -682,20 +432,20 @@ export interface MembersDeps {
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
   /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
-  mailSenderDomainVerification?: import("#src/platform/mail/sender-domain-verification").SenderDomainVerificationPort;
+  mailSenderDomainVerification?: import("@jini-ai/platform/mail").SenderDomainVerificationPort;
   /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
-  mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
+  mailTestMode?: () => Promise<import("#src/contracts/core/settings-vocabulary").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
   mailTestProvider?: () => Promise<string | null>;
   mailTestRequests?: Map<string, Promise<import("#src/features/mail-status/test-send").MailTestSendResult>>;
   mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
   mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
   /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
-  mailActivity?: import("#src/features/mail/activity.repo").MailActivityRepo;
+  mailActivity?: import("@jini-ai/platform/mail").MailActivityRepo;
   /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
   mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
   /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
-  mailSuppressionAdmin?: import("#src/features/mail/suppression-admin.repo").MailSuppressionAdminRepo;
+  mailSuppressionAdmin?: import("@jini-ai/platform/mail").MailSuppressionAdminRepo;
 }
 
 /**
@@ -727,12 +477,12 @@ export interface DatabaseRecoveryDeps {
    */
   siteStatusRepo: SiteStatusPort;
   /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
-   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
+   * as unavailable (`@jini-ai/db/recovery/lookup-adapters`'s `AlwaysUnavailableWatermarkSource`) — the
    * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
    * see that class's doc comment. */
   disclosureWatermarkSource: DisclosureWatermarkSourcePort;
   /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
-   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
+   * server-side (`@jini-ai/db/recovery/lookup-adapters`'s `RestorePointDeepLinkLookup`, backed by the
    * same real `restorePointsRepo` list above). */
   deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
 }
@@ -818,7 +568,7 @@ export interface PostDeps {
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
   /** Renders a doc Page body as Page HTML, so an assistant edit keeps what the page already holds. */
-  docBodyAsPageHtml?: (bodyJson: unknown) => string;
+  docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
   /**
    * SPEC-009 REQ-15 — routing's slug-change slot lookup (`getSlugChangeCapture`), handed to every
    * `updatePost` call a route or agent tool makes so a published entry's rename leaves a 301 from
@@ -835,7 +585,7 @@ export interface PresentationDeps {
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
   themes: DiscoveredTheme[];
   /**
-   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
+   * The themes root those themes were discovered under (`server/runtime/composition/deps.ts`'s `builtInThemesDir()`).
    *
    * Threaded through as a dependency rather than re-derived where it is needed, because it is the
    * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
@@ -847,9 +597,9 @@ export interface PresentationDeps {
   themesDir: string;
   /**
    * Design C (ADS-memory w4-theme-lifecycle-designs.md §5 / w6 dispatch, 2026-09-16) — the package's
-   * own read-only stock themes root (`server/deps.ts`'s `builtInThemesDir()`), NOT `themesDir` above
+   * own read-only stock themes root (`apps/website/src/server/runtime/composition/deps.ts`'s `builtInThemesDir()`), NOT `themesDir` above
    * (which is the SITE's own themes root in every real boot path except the hermetic one). Threaded
-   * through so `features/theme/theme-files.ts`'s `resolveThemeOriginalSource` can fall back to the
+   * through so `@jini-ai/cms/themes/files/original-source`'s `resolveThemeOriginalSource` can fall back to the
    * package's own generated catalog (Design D, `sync-originals.ts`) when an already-seeded site has
    * no catalog original of its own for a theme — closing that gap for the seven shipped themes that
    * never had a hand-maintained original, without writing anything into the site.
@@ -920,7 +670,7 @@ export interface SettingsDeps {
   /** Host policy/ports for the sole Jini SEO evaluator; shared by routes, tools and head. */
   seoDeps: SeoHostBindings;
   /** Extra head contributors belong to this app; the SEO contributor is constructed per render. */
-  pageHeadContributors?: readonly import("../inbound/public-http/http/site/page-head.js").PageHeadHook[];
+  pageHeadContributors?: readonly import("@jini-ai/cms/seo").PageHeadHook[];
   /** Per composed app, workspace-keyed cache/hooks/expiry; all invalidators use this instance. */
   sitemapService: ReturnType<typeof createSitemapService>;
   /**
@@ -1009,7 +759,7 @@ export interface ObservabilityDeps {
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
   sendTelemetryTest?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<import("@jini-ai/diagnostics/observability").TelemetryTestResult>;
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
-  aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
+  aiTraceSink?: import("@jini-ai/core/contracts/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
@@ -1019,9 +769,9 @@ export interface ObservabilityDeps {
   legacyProviderCredential?: (required: { pluginId: string }) => Promise<boolean>;
   /**
    * `features/tool-audit`'s durable agent tool-attempt sink, BUILT BY THE COMPOSITION ROOT and
-   * injected — not resolved by whichever module happens to want one. `server/deps.ts` builds
+   * injected — not resolved by whichever module happens to want one. `apps/website/src/server/runtime/composition/deps.ts` builds
    * `new SqliteToolAttemptAuditSink(db)` over the SAME open `ContentDb` handle its other repos
-   * already share; `server/app.ts`'s hermetic composition builds `createInMemoryToolAttemptAuditSink()`.
+   * already share; `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition builds `createInMemoryToolAttemptAuditSink()`.
    * `modules/assistant-byok.ts` is the consumer. `agent-daemon-server.ts` is its own composition
    * root and reads this same field off the `RouteDeps` it already builds, so there is exactly one
    * construction per root rather than a hand-written copy per consumer.
@@ -1123,13 +873,13 @@ export interface DatabaseOpsDeps {
   migrationRunsRepo: MigrationRunsRepoPort;
   /** R1b — the site's content kernel (the one open content database), for boot modules that
    * declare plugin tables on it (`store-plugin` in `runtime/boot/bootstrap.ts`) instead of opening
-   * a second connection to the same file. Set only by `server/deps.ts`; `server/app.ts`'s hermetic
+   * a second connection to the same file. Set only by `apps/website/src/server/runtime/composition/deps.ts`; `apps/website/src/server/runtime/composition/app.ts`'s hermetic
    * composition has no content database. */
   contentKernel?: ContentKernel;
   /**
    * One sweep of this workspace's due `domain_binding` checks (`verifyDueDomainBindings`), pre-bound
    * like `sweepTrash` so no route holds the DNS ports. `server/runtime/composition/serving-app.ts` is
-   * the only caller — it owns the timer. Set only by `server/deps.ts` (it needs the content
+   * the only caller — it owns the timer. Set only by `apps/website/src/server/runtime/composition/deps.ts` (it needs the content
    * database); absent elsewhere, including the hermetic root, so no sweep runs there.
    */
   verifyDueDomainBindings?: (required: { limit: number }) => Promise<string[]>;
@@ -1137,8 +887,8 @@ export interface DatabaseOpsDeps {
   /** Owner-only reads of other local SQLite sites; absent in hermetic/deployed roots. */
   peerSiteReads?: PeerSiteReads;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real in
-   * `server/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
-   * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `server/app.ts`'s in-memory composition,
+   * `apps/website/src/server/runtime/composition/deps.ts` (`store-bound-services.ts`): the async kernel stamp on every dialect
+   * (`platform/db/watermark-kernel.ts`), which Jini cms awaits; `noopStampWatermark` in `apps/website/src/server/runtime/composition/app.ts`'s in-memory composition,
    * which has no watermark table to advance. */
   stampWatermark: () => Promise<void> | void;
   /**
@@ -1326,7 +1076,7 @@ export interface TrashDeps {
    * A predicate rather than the map: the adapters carry `purge`, and nothing handed to every route
    * may reach a hard delete.
    */
-  isTrashableEntityType: (entityType: string) => boolean;
+  isTrashableEntityType: (required: { entityType: string }, optional?: Record<string, never>) => boolean;
   /**
    * `TRASHABLE`, built once at composition from the live schema module (`registry.ts`). Read by
    * `moveToTrash` (the generic `POST .../trash/items` route) and by `permissions.ts`'s
@@ -1350,7 +1100,7 @@ export interface TrashDeps {
  * capabilities stay flat. Fields whose types reference `RouteDeps` also stay flat:
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & import("../../features/source-control/commit-site.js").StaticSiteHostPorts & {
   documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
   declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
@@ -1394,8 +1144,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   agentSessions: AgentSessionStore;
   /**
    * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
-   * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
-   * `server/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
+   * over a real `KeyringPort` (`apps/website/src/server/runtime/composition/deps.ts`'s composition uses `EnvOrFileKeyring`;
+   * `apps/website/src/server/runtime/composition/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
    * double instead, to avoid touching real files/env in tests). Not consumed by any route yet —
    * the delivery worker is the first real consumer, and its activation stays gated behind
    * ADR-PIPE-015's Phase 4 "point of no return" until the real signer, guarded transport, and
@@ -1494,7 +1244,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   runExportSite: ExportEngine<RouteDeps>;
   /**
    * `TOVU_EXPORT_DIR` env, then the served site's `<site>/out/export` — the export engine's default output directory
-   * root, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * root, read ONCE at boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolveExportOutputRootDir()` (via `createSiteRouteDeps()`) rather than re-read deep inside
    * `features/deployments/export-run.ts`'s `startExportRun` or `cli/commands/export.ts`'s
    * `runExportCommand` — same "read once at the root, thread the value down" discipline `themesDir`
@@ -1537,7 +1287,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * serves them from, plus the Tovu version stamped into the backup's manifest. Resolved once by
    * `server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`.
    *
-   * Optional because the in-memory `server/app.ts` runtime has no site folder on disk; both
+   * Optional because the in-memory `apps/website/src/server/runtime/composition/app.ts` runtime has no site folder on disk; both
    * site-backup tools then answer `UNAVAILABLE` instead of backing up nothing.
    */
   siteBackupSources?: SiteBackupSources;
@@ -1563,8 +1313,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   notifyExternalMcpRosterChanged?: () => Promise<void>;
   /**
    * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
-   * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
-   * and `server/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the
+   * `isAdminAssistantEnabled()`) by both composition roots — `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`
+   * and `apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps()` — same "read once at the root, thread the
    * value down" discipline `exportOutputRootDir` above establishes for its own env var.
    *
    * `app.ts`'s own module-mounting code reads this SAME field (not a second `isAdminAssistantEnabled()`
@@ -1633,7 +1383,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
    * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s
    * `lastPublish` field. Real `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`)
-   * in `server/deps.ts`; `InMemoryPublishHistoryStore` in `server/app.ts`'s hermetic composition, same
+   * in `apps/website/src/server/runtime/composition/deps.ts`; `InMemoryPublishHistoryStore` in `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition, same
    * rule-of-two every other repo/port here follows. `static-publish/publish-run.ts`'s
    * `startPublishRun`/`runPublishAndAwait` both take a `PublishHistoryStore` as a required
    * (non-defaulted) parameter — `publish-site.ts` and `publish-agent-tools.ts` pass this field
@@ -1651,7 +1401,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   publishExecutionMode: PublishExecutionMode;
   /**
    * `TOVU_PUBLISH_DIR` env, then the served site's `<site>/out/publish` — the static-publish flow's parent output
-   * directory, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * directory, read ONCE at boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolvePublishOutputRootDir()` (via `createSiteRouteDeps()`), same "read once at the root"
    * discipline `exportOutputRootDir` above establishes. `static-publish/adapter.ts`'s
    * `publishOutputDir` joins this with the target id to get the per-target directory it actually
@@ -1659,25 +1409,25 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   publishOutputRootDir: string;
   /** Current public security headers, including app-scoped collection frame declarations. */
-  publicPageSecurityHeaders?: () => import("#src/contracts/core/public-page-security-headers").SecurityHeaderSet;
-  pluginExportHosts?: () => Promise<import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts>;
+  publicPageSecurityHeaders?: () => import("@jini-ai/core/contracts/server/security-headers").SecurityHeaderSet;
+  pluginExportHosts?: () => Promise<import("@jini-ai/core/contracts/server/security-headers").DeclaredPageHosts>;
   /**
    * This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the one place
    * the publish route and the static-publish agent tools learn which targets exist and which config
-   * fields each takes. `server/deps.ts` loads the installed, activated Agent Plugins that ship
-   * targets, in plugin-id order; `server/app.ts`'s hermetic root reads every bundled plugin's source
+   * fields each takes. `apps/website/src/server/runtime/composition/deps.ts` loads the installed, activated Agent Plugins that ship
+   * targets, in plugin-id order; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads every bundled plugin's source
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
   loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
-  /** Fresh installed-plugin trust gates in production; server/app.ts's hermetic root reads the bundled plugins' sources. */
+  /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */
   loadDeployOps: (ctx: { workspaceId: string }) => Promise<import("#src/features/deployments/index").DeployOpsRegistry>;
   /**
    * This workspace's plugin-contributed git-host providers (`source-control/provider-registry.ts`),
    * read by `source_control_*`, `site_backup_*`, `custom_credential_write_files` and the Source
-   * Control credential route. `server/deps.ts` injects its boot-bound lifecycle to read the installed, activated
-   * Agent Plugins; `server/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
+   * Control credential route. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the installed, activated
+   * Agent Plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled `github` plugin's source directly.
    */
   loadSourceControlProviders: LoadSourceControlProviders;
   /**
@@ -1688,9 +1438,9 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   loadPluginCredentialCards: LoadPluginCredentialCards;
   /**
-   * This workspace's self-describing token scheme rules (`custom-credentials/auth-schemes.ts`), read
-   * by `custom_credential_make_request`/`_verify`. `server/deps.ts` injects its boot-bound lifecycle to read the
-   * installed plugins; `server/app.ts`'s hermetic root reads the bundled plugins' sources.
+   * This workspace's self-describing token scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`), read
+   * by `custom_credential_make_request`/`_verify`. `apps/website/src/server/runtime/composition/deps.ts` injects its boot-bound lifecycle to read the
+   * installed plugins; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads the bundled plugins' sources.
    */
   loadAuthSchemes: (ctx: { readonly workspaceId: string }) => Promise<readonly CredentialSchemeRule[]>;
   /**
@@ -1712,14 +1462,12 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `source-control` domain's own export scratch directory (deliberately separate from
    * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
    * the same on-disk output — see `features/source-control/commit-site.ts`'s header), read ONCE at
-   * boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * boot by `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/`apps/website/src/server/runtime/composition/deps.ts`'s
    * `resolveSourceControlExportRootDir()` (via `createSiteRouteDeps()`). `commit-site.ts`'s
    * `commitExportDir` joins this with the provider subdirectory (`"github"`) — never re-reads
    * `process.env` itself.
    */
   sourceControlExportRootDir: string;
-  /** Existing site/theme resolvers, bound for portable static packaging. */
-  staticSiteContext: import("../../features/source-control/commit-site.js").StaticSiteContextFn;
   /**
    * The real export engine pre-bound to this exact `RouteDeps` object, so source-control
    * and static-publish callers provide only `{outputDir; clean?; basePath?}`. Their local
@@ -1739,4 +1487,4 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; publicUrl?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
 };
 
-export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
+export type RouteRegistrar = (required: { app: Express; deps: RouteDeps }, optional?: Record<string, never>) => void;

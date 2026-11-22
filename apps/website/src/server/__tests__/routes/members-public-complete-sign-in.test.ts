@@ -52,8 +52,8 @@ function buildPublicApp(upstreamCookie = false): { app: express.Express; deps: M
   const app = express();
   app.use(express.json());
   if (upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  registerPublicMemberSignInRequestRoute(app, deps);
-  registerPublicMemberCompleteSignInRoute(app, deps);
+  registerPublicMemberSignInRequestRoute({ app, deps });
+  registerPublicMemberCompleteSignInRoute({ app, deps });
   return { app, deps };
 }
 

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPluginFiles } from "@/lib/api";
+import type { AdminPluginFiles } from "@/features/plugins/api/plugins-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginPackageFiles } from "../hooks/use-plugin-package-files.hooks";
 import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";
@@ -57,7 +58,7 @@ describe("usePluginPackageFiles", () => {
 
   it("turns a refusal into an alert using the screen's own error text", async () => {
     const port = createFakePluginsPort();
-    port.getPluginFiles = () => Promise.reject(new ApiError("plugin id or version is not a safe path", 400, "PLUGIN_ID_INVALID"));
+    port.getPluginFiles = () => Promise.reject(new ApiError({ message: "plugin id or version is not a safe path", status: 400 }, { code: "PLUGIN_ID_INVALID" }));
     const { result } = renderHook(() => usePluginPackageFiles({ pluginId: "../escape", port, t: identity }));
 
     await waitFor(() => expect(result.current.status).toEqual({ text: "This plugin's id is invalid.", role: "alert" }));
@@ -83,7 +84,7 @@ describe("usePluginPackageFiles", () => {
     let resolveFirst!: (value: AdminPluginFiles) => void;
     const port = createFakePluginsPort({ packageFiles: { second: listing("second", { files: [] }) } });
     const realGet = port.getPluginFiles.bind(port);
-    port.getPluginFiles = (id) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet(id));
+    port.getPluginFiles = ({ id }) => (id === "first" ? new Promise((resolve) => (resolveFirst = resolve)) : realGet({ id }));
 
     const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },
@@ -99,7 +100,7 @@ describe("usePluginPackageFiles", () => {
   it("a listing already settled for the previous plugin reads as loading under the next one", async () => {
     const port = createFakePluginsPort({ packageFiles: { first: listing("first", { truncated: true }) } });
     const realGet = port.getPluginFiles.bind(port);
-    port.getPluginFiles = (id) => (id === "second" ? new Promise(() => {}) : realGet(id));
+    port.getPluginFiles = ({ id }) => (id === "second" ? new Promise(() => {}) : realGet({ id }));
 
     const { result, rerender } = renderHook(({ pluginId }) => usePluginPackageFiles({ pluginId, port, t: identity }), {
       initialProps: { pluginId: "first" },
@@ -125,9 +126,9 @@ describe("usePluginPackageFiles", () => {
 
 describe("toPackageFileView", () => {
   it("reads an unknown omission reason, or null content with no reason, as unreadable", () => {
-    const unknown = { relativePath: "x", sizeBytes: 0, content: null, omitted: "quarantined" } as unknown as Parameters<typeof toPackageFileView>[0];
-    expect(toPackageFileView(unknown, identity).unavailableReason).toBe("This file could not be read.");
-    expect(toPackageFileView({ relativePath: "y", sizeBytes: 0, content: null, omitted: null }, identity).unavailableReason).toBe(
+    const unknown = { relativePath: "x", sizeBytes: 0, content: null, omitted: "quarantined" } as unknown as Parameters<typeof toPackageFileView>[0]["file"];
+    expect(toPackageFileView({ file: unknown, translate: identity }).unavailableReason).toBe("This file could not be read.");
+    expect(toPackageFileView({ file: { relativePath: "y", sizeBytes: 0, content: null, omitted: null }, translate: identity }).unavailableReason).toBe(
       "This file could not be read.",
     );
   });

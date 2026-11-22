@@ -24,19 +24,20 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
-import type { BeforeSaveHookPort, PostRecord } from "#src/features/post/post";
+import type { BeforeSaveHookPort } from "#src/features/post/index";
+import type { PostRecord } from "#src/features/post/post";
 import { contributePostPublish, toPublishableState } from "#src/features/post/publish-content";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";
 import { context, fixture, OWNER, tool } from "./pull-tool-fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -51,7 +52,7 @@ function livePost(id: string): PackedEntity {
     kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: "2026-09-01T00:00:00.000Z", version: 1, createdByPrincipalId: null,
   };
   const state = toPublishableState(post);
-  return { entityType: "post", id, schemaVersion: 2, hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("post", state), requiredBlobs: [], state };
+  return { entityType: "post", id, schemaVersion: 2, hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [], state };
 }
 
 function refusingSecondPost(): BeforeSaveHookPort {
@@ -66,18 +67,18 @@ function refusingSecondPost(): BeforeSaveHookPort {
 /** The t09 pull fixture with its fake apply port swapped for the REAL one over real posts. */
 async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const f = await fixture([livePost("p-1"), livePost("p-2"), livePost("p-3")]);
-  registerPublishContentContributor(contributeMediaPublish()); // post dependsOn media and term; no ports, so both pack nothing
-  registerPublishContentContributor(contributePostPublish());
-  registerPublishContentContributor(contributeTaxonomyPublish());
-  registerPublishContentContributor(contributeTermPublish());
-  const postRepo = new InMemoryPostRepo();
+  registerPublishContentContributor({ contributor: contributeMediaPublish() }); // post dependsOn media and term; no ports, so both pack nothing
+  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
+  registerPublishContentContributor({ contributor: contributeTermPublish() });
+  const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
   const ports = { post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };
   let changeSetCount = 0;
   const publishContentDeps: PublishContentDeps = {
     workspaceId: "local", clock: f.deps.clock, idGen: { newId: () => `cs-${++changeSetCount}` }, outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox), authorize: async () => ({ allowed: true, reason: "matched" }),
-    beforeSaveHook, ports,
+    ports: { ...ports, hooks: { beforeSave: beforeSaveHook } },
   };
   const deps = {
     ...f.deps, publishContentPorts: ports,
@@ -117,7 +118,7 @@ test("a plugin refusing item 2 of 3 says PLUGIN_HOOK_FAILED with the plugin id a
   // The wording's claim, observed: the item before the refusal landed; the refused one and every
   // item after it did not.
   assert.deepEqual((await postRepo.list({ workspaceId: "local" })).map(row => row.id), ["p-1"]);
-  const run = await getPublishContentRunStatus(runRepo, { workspaceId: "local", runId: "apply-run" });
+  const run = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: "local", runId: "apply-run" } });
   assert.equal(run?.phase, "failed");
   assert.deepEqual(run?.items.map(item => [item.entityId, item.phase]), [["p-1", "completed"], ["p-2", "failed"], ["p-3", "pending"]]);
 });

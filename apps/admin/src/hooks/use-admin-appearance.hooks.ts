@@ -8,11 +8,11 @@ import { advanceAppearancePreview, useAdminAppearanceSnapshot } from "./use-admi
 
 export interface AdminAppearancePort {
   loadAppearance(): Promise<AppearanceConfig>;
-  subscribeToSettingsRefresh(listener: () => void): () => void;
+  subscribeToSettingsRefresh(required: { listener: () => void }): () => void;
 }
 const defaultPort: AdminAppearancePort = {
   loadAppearance,
-  subscribeToSettingsRefresh: (listener) => subscribeToSettingsRefresh((scope) => {
+  subscribeToSettingsRefresh: ({ listener }, _options = {}) => subscribeToSettingsRefresh((scope) => {
     if (scope === null || scope.includes(APPEARANCE_NAMESPACE)) listener();
   }),
 };
@@ -57,9 +57,9 @@ export function useAdminAppearance(_required: object, { port = defaultPort, root
   const paintedTheme = useRef(themeId);
   const query = useAdminAppearanceSnapshot({ port }, { root });
   const invalidate = useInvalidate();
-  useEffect(() => port.subscribeToSettingsRefresh(() => {
+  useEffect(() => port.subscribeToSettingsRefresh({ listener: () => {
     invalidate({ key: ["settings", APPEARANCE_NAMESPACE] });
-  }), [port, root, invalidate]);
+  } }), [port, root, invalidate]);
   useEffect(() => {
     // An older response must not repaint a newer draft, including after a theme switch.
     // Other themes can still resolve their own saved choice; failed reads retain the last accent.

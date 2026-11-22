@@ -8,9 +8,9 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { dropDatabase, freshPostgresDatabase } from "../../__tests__/postgres-database.js";
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 
@@ -20,8 +20,8 @@ const TABLES = ["commerce_order_items", "commerce_product_images", "commerce_web
 const steps = CONTENT_MIGRATIONS.filter(step => [ARCHIVE_ID, "0011_drop_empty_core_commerce_tables"].includes(step.id));
 
 /** Verify restored archives still contain the original data, index and enforced FK. */
-async function assertRetained(kernel: StorageKernel<unknown>): Promise<void> {
-  const tables = await listTables(kernel);
+async function assertRetained(kernel: KyselyKernel<unknown>): Promise<void> {
+  const tables = await listTables({ kernel });
   for (const name of TABLES) {
     assert.ok(tables.includes(`_archive_0011_${name}`));
     assert.equal(tables.includes(name), false);
@@ -54,7 +54,7 @@ test("Postgres: concurrent upgrades archive once with stable relation identities
       WHERE relnamespace = current_schema()::regnamespace AND (relname IN (${sql.join(TABLES)}) OR relname = 'retained_product_payload') ORDER BY oid`);
     const preChange = path.join(dir, "before.dump");
     execFileSync("pg_dump", ["--dbname", url, "--no-owner", "--no-privileges", "--format=custom", "--file", preChange], { timeout: 15_000 });
-    const reports = await Promise.all([runMigrations(first, steps), runMigrations(second, steps)]);
+    const reports = await Promise.all([runMigrations({ kernel: first, steps }), runMigrations({ kernel: second, steps })]);
     assert.deepEqual(reports.flatMap(report => report.applied).sort(), steps.map(step => step.id));
     assert.equal(reports.flatMap(report => report.notes).length, 1);
     assert.match(reports.flatMap(report => report.notes)[0]!, /WARNING.*preserved/);
@@ -63,7 +63,7 @@ test("Postgres: concurrent upgrades archive once with stable relation identities
     assert.deepEqual(after, before.map(row => ({ ...row,
       relname: row.relname === "retained_product_payload" ? row.relname : `_archive_0011_${row.relname}` })));
     await assertRetained(first);
-    assert.deepEqual((await runMigrations(second, steps)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel: second, steps })).applied, []);
     const postChange = path.join(dir, "after.dump");
     execFileSync("pg_dump", ["--dbname", url, "--no-owner", "--no-privileges", "--format=custom", "--file", postChange], { timeout: 15_000 });
     for (const dump of [preChange, postChange]) {
@@ -71,7 +71,7 @@ test("Postgres: concurrent upgrades archive once with stable relation identities
       execFileSync("pg_restore", ["--dbname", restoreUrl, "--no-owner", "--no-privileges", "--exit-on-error", dump], { timeout: 15_000 });
       const restored = openPostgresKernel<unknown>({ connectionString: restoreUrl });
       try {
-        await runMigrations(restored, steps);
+        await runMigrations({ kernel: restored, steps });
         await assertRetained(restored);
       } finally { await restored.close(); }
     }

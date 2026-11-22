@@ -53,7 +53,9 @@ export function findAdminTheme(
   { id }: { id: string },
   { themes = ADMIN_THEMES }: { themes?: readonly AdminThemeManifest[] } = {},
 ): AdminThemeManifest {
-  return themes.find((theme) => theme.id === id) ?? themes.find((theme) => theme.id === DEFAULT_ADMIN_THEME_ID) ?? themes[0]!;
+  const theme = themes.find((candidate) => candidate.id === id) ?? themes.find((candidate) => candidate.id === DEFAULT_ADMIN_THEME_ID) ?? themes[0];
+  if (!theme) throw new Error("admin theme registry has no themes");
+  return theme;
 }
 
 /** The scheme to render: the operator's choice when the theme has it, else the theme's first. */

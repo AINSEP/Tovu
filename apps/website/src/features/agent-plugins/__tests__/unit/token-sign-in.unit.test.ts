@@ -81,7 +81,7 @@ test("a stdio server never counts as the token-auth server", async () => {
 });
 
 test("the sign-in list names each token plugin once, sorted by id, with its tokens page", async () => {
-  const listed = await listTokenSignInPlugins("ws-list", async (workspaceId): Promise<readonly InstalledAgentPluginServers[]> => {
+  const listed = await listTokenSignInPlugins({ workspaceId: "ws-list", listPlugins: async (workspaceId): Promise<readonly InstalledAgentPluginServers[]> => {
     assert.equal(workspaceId, "ws-list");
     return [
       { pluginId: "zeta-db", servers: { z: { ...tokenServer(), tokenAuth: { helpUrl: "https://zeta.example/t", probeUrl: "https://zeta.example/p" } } } },
@@ -89,7 +89,7 @@ test("the sign-in list names each token plugin once, sorted by id, with its toke
       { pluginId: "supabase", servers: { supabase: tokenServer() } },
       { pluginId: "twice", servers: { a: tokenServer(), b: tokenServer() } },
     ];
-  });
+  } });
   assert.deepEqual(listed, [
     { pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" },
     { pluginId: "zeta-db", displayName: "Zeta Db", helpUrl: "https://zeta.example/t" },

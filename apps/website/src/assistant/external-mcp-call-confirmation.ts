@@ -28,7 +28,7 @@
  * Architectural role: `assistant` composition helper, implementing `FederationDeps.confirmCall`.
  */
 import type { UUID } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import {
   buildFederatedCallConfirmSpec as buildJiniSpec,

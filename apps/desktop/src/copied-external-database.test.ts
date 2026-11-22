@@ -7,10 +7,11 @@ import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
 import { addSitePointer } from './add-site-pointer.ts';
-import { handleAddSite, handleStart } from './project-ipc.ts';
+import { handleAddSite } from './project-ipc.import.ts';
+import { handleStart } from './project-ipc.server.ts';
 import { createSitesWorkspace, shareSiteDirectories } from './shared-sites.ts';
 import { trackSite, readTrackedSites } from './tracked-sites.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { createNodeAtomicFilesystem } from '@jini-ai/platform/fs';
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -62,17 +63,17 @@ for (const linked of [false, true]) {
 
 test('Start of a legacy-tracked app-data copy snapshots its content before the server opens it', async (t) => {
   const f = fixture(t, false);
-  trackSite(f.projectsPath, f.copy);
-  await handleStart(f.copy, {
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
-    serializer: createKeyedSerializer(), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
+    serializer: createKeyedSerializer({}), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
     openSiteServer: async () => {
       const meta = JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8'));
       const copiedPath = f.workspace.databasePath({ dir: f.copy, id: meta.siteId, filename: 'content.db' });
       assert.equal(fs.existsSync(copiedPath), true, 'Start must not boot an empty copy');
       assert.notEqual(copiedPath, f.sourcePath);
     },
-  });
+  } });
 });
 
 test('an unreadable external database refuses Add without changing identity or tracking the copy', (t) => {
@@ -82,7 +83,7 @@ test('an unreadable external database refuses Add without changing identity or t
   const before = fs.readFileSync(path.join(f.copy, '.site-meta.json'));
   assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace }), /copied website could not start/);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, '.site-meta.json')), before);
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });
 
 test('a linked data.nosync directory gives the copy independent content and chat databases', (t) => {
@@ -113,5 +114,5 @@ test('failed marker commit restores copied database links and removes its provis
   assert.equal(fs.readlinkSync(path.join(f.copy, 'content.db')), f.sourcePath);
   assert.deepEqual(fs.readdirSync(f.copy).sort(), fs.readdirSync(f.original).sort());
   assert.deepEqual(fs.readdirSync(path.join(f.workspace.config({}).appData, 'databases')), []);
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });

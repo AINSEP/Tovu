@@ -9,7 +9,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * The 5 settings registrars (register-definitions, get-effective, set, clear, reset) only ever
  * read a fixed subset of `RouteDeps` — this is a genuine narrowing (mirrors
- * `routes/admin/taxonomy/deps.ts`'s/`routes/admin/content/deps.ts`'s identical rationale from
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/deps.ts`'s/`apps/website/src/server/inbound/admin-http/routes/content/deps.ts`'s identical rationale from
  * SPEC-034/038), not a widening extension.
  *
  * Each field's real reader, confirmed by reading all 5 registrar files directly:
@@ -30,4 +30,4 @@ export type SettingsRouteDeps = Pick<
 > & { themesDir?: string; set?: RouteDeps["set"]; mailProviderControl?: RouteDeps["mailProviderControl"] };
 
 /** Registrar signature for the settings route modules (mirrors `RouteRegistrar`). */
-export type SettingsRouteRegistrar = (app: Express, deps: SettingsRouteDeps) => void;
+export type SettingsRouteRegistrar = (required: { app: Express; deps: SettingsRouteDeps }, optional?: Record<string, never>) => void;

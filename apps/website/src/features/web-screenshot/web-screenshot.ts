@@ -1,4 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
+import type { CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
 
 /**
  * @file `web_screenshot_page`'s domain logic: input rules, viewport presets, the one-at-a-time
@@ -31,8 +32,9 @@ export const MAX_FULL_PAGE_HEIGHT_PX = 8000;
  *  (one 1280×8000 picture would be downscaled to an unreadable strip). */
 export const TILE_HEIGHT_PX = 1600;
 export const MAX_URL_LENGTH = 2048;
-/** Whole capture, launch to screenshot. */
-export const CAPTURE_DEADLINE_MS = 20_000;
+/** The host's limits for one capture, launch to screenshot (owner decision OD-5: the time grows with the request
+ *  up to 45 s). `reserveMs` is held back at the end so a page that loaded but never settled is still shot as it is. */
+export const CAPTURE_LIMITS: CaptureBudgetLimits = { baseMs: 20_000, fullPageMs: 10_000, capMs: 45_000, reserveMs: 4_000 };
 /** Total time a caller may wait for the single browser, including all earlier captures. */
 export const MAX_QUEUE_WAIT_MS = 60_000;
 export const JPEG_QUALITY = 70;
@@ -82,10 +84,16 @@ export type PageCaptureFailure = "refused" | "unavailable" | "timeout" | "failed
 /** A capture that produced no picture, with a caller-safe reason. */
 export class PageCaptureError extends Error {
   readonly kind: PageCaptureFailure;
-  constructor({ kind, message }: { kind: PageCaptureFailure; message: string }) {
+  /** A `timeout` only: the limit that ended the capture, in ms. A port that does not know it leaves it out. */
+  readonly limitMs: number | undefined;
+  /** A `timeout` only: whether the page had loaded when the limit ended the capture. */
+  readonly loaded: boolean | undefined;
+  constructor({ kind, message, limitMs, loaded }: { kind: PageCaptureFailure; message: string; limitMs?: number; loaded?: boolean }) {
     super(message);
     this.name = "PageCaptureError";
     this.kind = kind;
+    this.limitMs = limitMs;
+    this.loaded = loaded;
   }
 }
 
@@ -119,46 +127,49 @@ export interface WebScreenshotPorts {
   scheduleQueueTimeout?: (required: { delayMs: number; onTimeout: () => void }, optional?: Record<string, never>) => () => void;
 }
 
-function refusal(message: string): ToolInputError {
+function refusal({ message }: { message: string }, _optional = {}): ToolInputError {
   return new ToolInputError({ message: `${WEB_SCREENSHOT_TOOL_ID}: ${message}` });
 }
 
 /** Discovered theme ids are folder names; this only keeps path syntax out (existence is the opener's check). */
 const THEME_ID_SHAPE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
-function readThemeId(raw: unknown, target: WebScreenshotInput["target"]): { themeId?: string } {
+function readThemeId(
+  { raw, target }: { raw: unknown; target: WebScreenshotInput["target"] },
+  _optional = {}
+): { themeId?: string } {
   if (raw === undefined) return {};
-  if (target.kind !== "site") throw refusal("themeId only applies to sitePath (a page of THIS site rendered through that theme); drop it for a url.");
-  if (typeof raw !== "string" || !THEME_ID_SHAPE.test(raw)) throw refusal("themeId must be an installed theme's id, e.g. 'luvira-copy' (see the theme list).");
+  if (target.kind !== "site") throw refusal({ message: "themeId only applies to sitePath (a page of THIS site rendered through that theme); drop it for a url." });
+  if (typeof raw !== "string" || !THEME_ID_SHAPE.test(raw)) throw refusal({ message: "themeId must be an installed theme's id, e.g. 'luvira-copy' (see the theme list)." });
   return { themeId: raw };
 }
 
-function readUrl(raw: unknown): string {
-  if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_URL_LENGTH) throw refusal(`url must be an absolute http(s) URL of at most ${MAX_URL_LENGTH} characters.`);
+function readUrl({ raw }: { raw: unknown }, _optional = {}): string {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_URL_LENGTH) throw refusal({ message: `url must be an absolute http(s) URL of at most ${MAX_URL_LENGTH} characters.` });
   let url: URL;
-  try { url = new URL(raw); } catch { throw refusal("url must be an absolute http(s) URL, e.g. https://example.com/about."); }
-  if (url.protocol !== "http:" && url.protocol !== "https:") throw refusal(`only http and https pages can be captured, not '${url.protocol}'.`);
-  if (url.username || url.password) throw refusal("URLs with embedded credentials (user:password@) are refused.");
+  try { url = new URL(raw); } catch { throw refusal({ message: "url must be an absolute http(s) URL, e.g. https://example.com/about." }); }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw refusal({ message: `only http and https pages can be captured, not '${url.protocol}'.` });
+  if (url.username || url.password) throw refusal({ message: "URLs with embedded credentials (user:password@) are refused." });
   url.hash = "";
   return url.href;
 }
 
 /** A root-relative path on this site: one leading slash, no scheme-relative `//`, no backslashes. */
-function readSitePath(raw: unknown): string {
+function readSitePath({ raw }: { raw: unknown }, _optional = {}): string {
   const invalidPath = typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//");
   if (invalidPath || raw.includes("\\") || raw.length > MAX_URL_LENGTH || /[\u0000-\u001f]/.test(raw)) {
-    throw refusal("sitePath must be a root-relative path on this site, e.g. '/' or '/about'.");
+    throw refusal({ message: "sitePath must be a root-relative path on this site, e.g. '/' or '/about'." });
   }
   return raw;
 }
 
 function readViewport({ viewport }: { viewport: unknown }, _options = {}): ViewportName {
-  if (typeof viewport !== "string" || !(VIEWPORT_NAMES as string[]).includes(viewport)) throw refusal(`viewport must be one of ${VIEWPORT_NAMES.join(", ")}.`);
+  if (typeof viewport !== "string" || !(VIEWPORT_NAMES as string[]).includes(viewport)) throw refusal({ message: `viewport must be one of ${VIEWPORT_NAMES.join(", ")}.` });
   return viewport as ViewportName;
 }
 
 function readWaitMs({ waitMs }: { waitMs: unknown }, _options = {}): number {
-  if (typeof waitMs !== "number" || !Number.isInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) throw refusal(`waitMs must be an integer from 0 to ${MAX_WAIT_MS}.`);
+  if (typeof waitMs !== "number" || !Number.isInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) throw refusal({ message: `waitMs must be an integer from 0 to ${MAX_WAIT_MS}.` });
   return waitMs;
 }
 
@@ -169,17 +180,17 @@ function readWaitMs({ waitMs }: { waitMs: unknown }, _options = {}): number {
  */
 export function readWebScreenshotInput(input: Readonly<Record<string, unknown>>): WebScreenshotInput {
   const { url, sitePath, viewport = "desktop", fullPage = false, waitMs = DEFAULT_WAIT_MS, themeId } = input;
-  if ((url === undefined) === (sitePath === undefined)) throw refusal("pass exactly one of 'url' (a public page) or 'sitePath' (a page of THIS site, e.g. '/').");
+  if ((url === undefined) === (sitePath === undefined)) throw refusal({ message: "pass exactly one of 'url' (a public page) or 'sitePath' (a page of THIS site, e.g. '/')." });
   const validatedViewport = readViewport({ viewport });
-  if (typeof fullPage !== "boolean") throw refusal("fullPage must be a boolean.");
+  if (typeof fullPage !== "boolean") throw refusal({ message: "fullPage must be a boolean." });
   const validatedWaitMs = readWaitMs({ waitMs });
-  if (input.dismissCookieBanners !== undefined && typeof input.dismissCookieBanners !== "boolean") throw refusal("dismissCookieBanners must be a boolean.");
-  const target = url !== undefined ? { kind: "url" as const, url: readUrl(url) } : { kind: "site" as const, path: readSitePath(sitePath) };
-  return { target, viewport: validatedViewport, fullPage, waitMs: validatedWaitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), ...readThemeId(themeId, target) };
+  if (input.dismissCookieBanners !== undefined && typeof input.dismissCookieBanners !== "boolean") throw refusal({ message: "dismissCookieBanners must be a boolean." });
+  const target = url !== undefined ? { kind: "url" as const, url: readUrl({ raw: url }) } : { kind: "site" as const, path: readSitePath({ raw: sitePath }) };
+  return { target, viewport: validatedViewport, fullPage, waitMs: validatedWaitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), ...readThemeId({ raw: themeId, target }) };
 }
 
 /** Lowercase ASCII words joined by `-`, capped so a long URL still makes a short file name. */
-function fileSlug(text: string): string {
+function fileSlug({ text }: { text: string }, _optional = {}): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-$/, "");
 }
 
@@ -193,14 +204,17 @@ export function captureRelativePaths({ capturedAtMs, input, count }: { capturedA
   const iso = new Date(capturedAtMs).toISOString();
   const time = `${iso.slice(11, 19).replaceAll(":", "")}-${iso.slice(20, 23)}`;
   const page = input.target.kind === "url"
-    ? fileSlug(`${new URL(input.target.url).hostname} ${new URL(input.target.url).pathname}`)
-    : fileSlug(`site ${input.target.path.split("?")[0]}`);
-  const stem = [time, page || "page", input.viewport, ...(input.themeId ? [`theme-${fileSlug(input.themeId)}`] : [])].join("-");
+    ? fileSlug({ text: `${new URL(input.target.url).hostname} ${new URL(input.target.url).pathname}` })
+    : fileSlug({ text: `site ${input.target.path.split("?")[0]}` });
+  const stem = [time, page || "page", input.viewport, ...(input.themeId ? [`theme-${fileSlug({ text: input.themeId })}`] : [])].join("-");
   return Array.from({ length: count }, (_, index) => `${iso.slice(0, 10)}/${stem}${count > 1 ? "-" + (index + 1) : ""}.jpg`);
 }
 
 /** Saving is a convenience for citing captures later; a disk problem never costs the caller the pictures. */
-async function saveCaptures(save: SaveCaptureFiles, files: CaptureFile[]): Promise<{ savedFiles: string[]; saveError?: string }> {
+async function saveCaptures(
+  { save, files }: { save: SaveCaptureFiles; files: CaptureFile[] },
+  _optional = {}
+): Promise<{ savedFiles: string[]; saveError?: string }> {
   try {
     return { savedFiles: await save({ files }) };
   } catch (error) {
@@ -210,20 +224,37 @@ async function saveCaptures(save: SaveCaptureFiles, files: CaptureFile[]): Promi
 }
 
 /** Joins a validated site path onto the minted loopback origin, refusing anything that escapes it. */
-function ownSiteUrl(origin: string, path: string): string {
+function ownSiteUrl({ origin, path }: { origin: string; path: string }, _optional = {}): string {
   const url = new URL(path, origin);
-  if (url.origin !== origin) throw refusal("sitePath must stay on this site.");
+  if (url.origin !== origin) throw refusal({ message: "sitePath must stay on this site." });
   url.hash = "";
   return url.href;
 }
 
-function failureMessage(error: PageCaptureError, where: string): string {
+function failureMessage({ error, where }: { error: PageCaptureError; where: string }, _optional = {}): string {
   switch (error.kind) {
     case "refused": return `${where} is not a public internet address (localhost, private-network and cloud-metadata addresses are refused, including via redirects). Use sitePath to capture THIS site.`;
     case "unavailable": return "this server cannot take screenshots: its headless browser (Playwright Chromium) is not installed or failed to start.";
-    case "timeout": return `${where} did not finish rendering within ${CAPTURE_DEADLINE_MS / 1000} seconds.`;
+    case "timeout": return timeoutMessage({ error, where });
     default: return `could not load ${where} (${error.message}). Check the address and that the site is up.`;
   }
+}
+
+/** A timeout says the real number and which part ran out: a site that never answered, or a page that loaded but did not finish.
+ *  A port that does not know its limit (the desktop's native capture) gets no number rather than a wrong one. */
+function timeoutMessage({ error, where }: { error: PageCaptureError; where: string }, _optional = {}): string {
+  if (error.limitMs === undefined) return `${where} did not finish rendering in time.`;
+  const seconds = `${error.limitMs / 1000} seconds`;
+  return error.loaded === false ? `${where} did not answer within ${seconds}.` : `${where} did not finish rendering within ${seconds}.`;
+}
+
+/** The capture request for one validated input: the viewport preset, the full-page height cap and, for an
+ *  own-site render, the one loopback origin the egress guard lets through. @complexity O(1). */
+function captureRequestFor(
+  { input, url, preset, site }: { input: WebScreenshotInput; url: string; preset: ViewportPreset; site: OwnSiteServer | null },
+  _optional = {}
+): PageCaptureRequest {
+  return { url, viewport: preset, fullPage: input.fullPage, maxPageHeightPx: MAX_FULL_PAGE_HEIGHT_PX, settleMs: input.waitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), allowedOrigins: site === null ? [] : [site.origin] };
 }
 
 export interface WebScreenshotService {
@@ -248,9 +279,16 @@ async function buildCaptureResult(
   const height = tiles.reduce((sum, tile) => sum + tile.height, 0);
   const capturedAtMs = ports.nowMs();
   const relPaths = captureRelativePaths({ capturedAtMs, input, count: tiles.length });
-  const saved = saveCaptureFiles ? await saveCaptures(saveCaptureFiles, tiles.map((tile, index) => ({ relPath: relPaths[index]!, bytes: tile.bytes }))) : {};
+  const saved = saveCaptureFiles ? await saveCaptures({
+    save: saveCaptureFiles,
+    files: tiles.map((tile, index) => {
+      const relPath = relPaths[index];
+      if (relPath === undefined) throw new Error(`Screenshot capture has no path for tile ${index}`);
+      return { relPath, bytes: tile.bytes };
+    }),
+  }) : {};
   const facts = {
-    ...(site === null ? { requestedUrl: url, finalUrl: shot.finalUrl } : { sitePath: (input.target as { path: string }).path, finalPath: toSitePath(shot.finalUrl, site.origin) }),
+    ...(site === null ? { requestedUrl: url, finalUrl: shot.finalUrl } : { sitePath: (input.target as { path: string }).path, finalPath: toSitePath({ finalUrl: shot.finalUrl, origin: site.origin }) }),
     ...(input.themeId === undefined ? {} : { themeId: input.themeId }),
     status: shot.status,
     title: shot.title,
@@ -306,7 +344,7 @@ async function waitForScreenshotTurn(
       signal?.addEventListener('abort', onAbort, { once: true });
       cancelTimer = (ports.scheduleQueueTimeout ?? scheduleQueueTimeout)({ delayMs: maxQueueWaitMs, onTimeout: () => {
         ports.observe?.({ target: input.target.kind, origin: input.target.kind === 'url' ? new URL(input.target.url).origin : 'own-site', viewport: input.viewport, outcome: 'busy', durationMs: ports.nowMs() - started });
-        reject(refusal(`waited ${maxQueueWaitMs} ms in the screenshot queue; the browser is still busy. Please retry.`));
+        reject(refusal({ message: `waited ${maxQueueWaitMs} ms in the screenshot queue; the browser is still busy. Please retry.` }));
       } });
       void previous.then(resolve);
     });
@@ -324,37 +362,10 @@ export function createWebScreenshotService(
   { ports }: { ports: WebScreenshotPorts },
   { maxQueueWaitMs = MAX_QUEUE_WAIT_MS }: { maxQueueWaitMs?: number } = {},
 ): WebScreenshotService {
-  if (!Number.isInteger(maxQueueWaitMs) || maxQueueWaitMs < 0 || maxQueueWaitMs > MAX_QUEUE_WAIT_MS) throw refusal('maxQueueWaitMs must be an integer from 0 to 60000.');
+  if (!Number.isInteger(maxQueueWaitMs) || maxQueueWaitMs < 0 || maxQueueWaitMs > MAX_QUEUE_WAIT_MS) throw refusal({ message: 'maxQueueWaitMs must be an integer from 0 to 60000.' });
   let tail: Promise<void> = Promise.resolve();
 
-  async function run(input: WebScreenshotInput, openOwnSite: OpenOwnSite | undefined, saveCaptureFiles: SaveCaptureFiles | undefined, signal: AbortSignal | undefined) {
-    const preset = VIEWPORT_PRESETS[input.viewport];
-    const started = ports.nowMs();
-    const site = input.target.kind === "site" ? await openSite(openOwnSite, input.themeId) : null;
-    const url = site === null ? (input.target as { url: string }).url : ownSiteUrl(site.origin, (input.target as { path: string }).path);
-    const where = site === null ? new URL(url).origin : "this site";
-    const observe = (outcome: WebScreenshotEvent["outcome"], blockedRequests?: number) => ports.observe?.({
-      target: input.target.kind, origin: site === null ? new URL(url).origin : "own-site", viewport: input.viewport, outcome,
-      durationMs: ports.nowMs() - started, ...(blockedRequests === undefined ? {} : { blockedRequests }),
-    });
-    try {
-      let shot: PageCapture;
-      try {
-        shot = await ports.capture.capture(
-          { url, viewport: preset, fullPage: input.fullPage, maxPageHeightPx: MAX_FULL_PAGE_HEIGHT_PX, settleMs: input.waitMs, ...(input.dismissCookieBanners === undefined ? {} : { dismissCookieBanners: input.dismissCookieBanners }), allowedOrigins: site === null ? [] : [site.origin] },
-          signal ? { signal } : {},
-        );
-      } catch (error) {
-        if (!(error instanceof PageCaptureError)) throw error;
-        observe(error.kind);
-        throw refusal(failureMessage(error, where));
-      }
-      observe("captured", shot.blockedRequests);
-      return await buildCaptureResult({ ports, input, site, url, shot, preset }, { saveCaptureFiles });
-    } finally {
-      await site?.close();
-    }
-  }
+  const run = createScreenshotRunner(ports);
 
   return {
     async screenshot({ input, openOwnSite, saveCaptureFiles }, { signal } = {}) {
@@ -364,7 +375,7 @@ export function createWebScreenshotService(
       try {
         await waitForScreenshotTurn({ previous, ports, input }, { signal, maxQueueWaitMs });
         signal?.throwIfAborted();
-        return await run(input, openOwnSite, saveCaptureFiles, signal);
+        return await run({ input, openOwnSite, saveCaptureFiles, signal });
       } finally {
         // MOVE: an expired/cancelled waiter cannot release the browser ahead of its predecessor.
         void previous.then(release);
@@ -373,17 +384,64 @@ export function createWebScreenshotService(
   };
 }
 
-async function openSite(openOwnSite: OpenOwnSite | undefined, themeId: string | undefined): Promise<OwnSiteServer> {
-  if (!openOwnSite) throw refusal("this assistant cannot render this site's own pages here; pass a public url instead.");
+async function openSite(
+  { openOwnSite, themeId }: { openOwnSite: OpenOwnSite | undefined; themeId: string | undefined },
+  _optional = {}
+): Promise<OwnSiteServer> {
+  if (!openOwnSite) throw refusal({ message: "this assistant cannot render this site's own pages here; pass a public url instead." });
   return openOwnSite({}, themeId === undefined ? {} : { themeId });
 }
 
 /** The loopback origin is meaningless to a model; report where the page ended up as a site path. */
-function toSitePath(finalUrl: string, origin: string): string {
+function toSitePath({ finalUrl, origin }: { finalUrl: string; origin: string }, _optional = {}): string {
   try {
     const url = new URL(finalUrl);
     return url.origin === origin ? `${url.pathname}${url.search}` : finalUrl;
   } catch {
     return finalUrl;
   }
+}
+
+function createScreenshotRunner(ports: WebScreenshotPorts) {
+  return async function run(
+    {
+      input,
+      openOwnSite,
+      saveCaptureFiles,
+      signal,
+    }: {
+      input: WebScreenshotInput;
+      openOwnSite: OpenOwnSite | undefined;
+      saveCaptureFiles: SaveCaptureFiles | undefined;
+      signal: AbortSignal | undefined;
+    },
+    _optional = {}
+  ) {
+    const preset = VIEWPORT_PRESETS[input.viewport];
+    const started = ports.nowMs();
+    const site = input.target.kind === "site" ? await openSite({ openOwnSite, themeId: input.themeId }) : null;
+    const url = site === null ? (input.target as { url: string }).url : ownSiteUrl({ origin: site.origin, path: (input.target as { path: string }).path });
+    const where = site === null ? new URL(url).origin : "this site";
+    const observe = (
+      { outcome }: { outcome: WebScreenshotEvent["outcome"] },
+      { blockedRequests }: { blockedRequests?: number } = {}
+    ) => ports.observe?.({
+      target: input.target.kind, origin: site === null ? new URL(url).origin : "own-site", viewport: input.viewport, outcome,
+      durationMs: ports.nowMs() - started, ...(blockedRequests === undefined ? {} : { blockedRequests }),
+    });
+    try {
+      let shot: PageCapture;
+      try {
+        shot = await ports.capture.capture(captureRequestFor({ input, url, preset, site }), signal ? { signal } : {});
+      } catch (error) {
+        if (!(error instanceof PageCaptureError)) throw error;
+        observe({ outcome: error.kind });
+        throw refusal({ message: failureMessage({ error, where }) });
+      }
+      observe({ outcome: "captured" }, { blockedRequests: shot.blockedRequests });
+      return await buildCaptureResult({ ports, input, site, url, shot, preset }, { saveCaptureFiles });
+    } finally {
+      await site?.close();
+    }
+  };
 }

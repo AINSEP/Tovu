@@ -2,14 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { randomUUID } from 'node:crypto';
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
+import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo,
   InMemoryBlobStore, uploadMedia, registerTransform, replaceMediaFile } from '@jini-ai/cms/media';
-import { InMemoryVersionedMediaRepo } from '#src/features/media/versioned-media-repo';
 import { InMemoryPostRepo } from '#src/features/post/repo.memory';
 import { SqlitePostRepo } from '#src/features/post/repo.sqlite';
 import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
-import { TrashAwareInMemoryEntryRepo } from '#src/features/entries/trash-aware-memory-repo';
+import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/trash-aware-entry-repo';
 import { buildWidgetInstanceFieldsJson } from '@jini-ai/cms/widgets';
 import type { MediaRenditionRouteDeps } from '#src/server/inbound/admin-http/routes/media/deps';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
@@ -19,11 +18,11 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
   const db = storage === 'sqlite' ? openContentDb(':memory:') : null;
   if (db) t.after(() => db.$client.close());
   let now = 1_800_000_000_000;
-  const deps = { workspaceId: 'workspace', mediaRepo: new InMemoryVersionedMediaRepo(),
+  const deps = { workspaceId: 'workspace', mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}), blobStore: new InMemoryBlobStore(),
     clock: { nowMs: () => now, nowIso: () => new Date(now).toISOString() }, idGen: { newId: randomUUID },
-    postRepo: db ? new SqlitePostRepo(db) : new InMemoryPostRepo(), entryRepo: db ? new SqliteEntryRepo(db) : new TrashAwareInMemoryEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
+    postRepo: db ? new SqlitePostRepo({ store: db }) : new InMemoryPostRepo({}), entryRepo: db ? new SqliteEntryRepo({ store: db }) : trashAwareEntryRepo(), imageTransformer: { transform: async () => { throw new Error('SVG needs no raster transform'); } },
   };
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>'),
@@ -32,7 +31,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
     input: { workspaceId: deps.workspaceId, name: 'public', params: { format: 'webp' }, owner: 'core' } });
   const app = express();
   // No authorization/member adapters are needed for this unreferenced public asset.
-  registerMediaRenditionRoute(app, deps as unknown as MediaRenditionRouteDeps);
+  registerMediaRenditionRoute({ app, deps: deps as unknown as MediaRenditionRouteDeps });
   const baseUrl = await startTestServer(app, t);
   return { deps, media, url: `${baseUrl}/m/${media.id}/public.v1/cached.webp`, advance: () => { now += 60_000; } };
 }

@@ -1,31 +1,35 @@
 /** Workspace/auth/localization bindings for the existing Jini Forms owner. */
 import { createHttpFormsApi, createHttpFormsTrash, type FormsTransportPort } from '@jini-ai/admin/forms/adapters/http';
-import { FORMS_LIST_RESOURCE, type AdminFormsPort, type FormsTrashPort, type FormsEventsPort, type FormsNavigationPort, type FormsTranslator } from '@jini-ai/admin/forms';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
+import { FORMS_LIST_RESOURCE, type AdminFormsPort, type FormsCatalogPort, type FormsTrashPort, type FormsEventsPort, type FormsNavigationPort, type FormsTranslator } from '@jini-ai/admin/forms';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateForms } from '../../features/forms/forms-i18n';
-import { WORKSPACE_ID } from '../../lib/api';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { navigate } from '../../lib/router';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';
+import { formsCatalog } from './forms-catalog-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface FormsHostPorts {
   formsApi: AdminFormsPort;
+  formsCatalog: FormsCatalogPort;
   formsTrash: FormsTrashPort;
   formsEvents?: FormsEventsPort;
   formsNavigation?: FormsNavigationPort;
 }
 export const formsEvents: FormsEventsPort = {
   subscribe({ onRefresh }, _optional: Record<string, never> = {}) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, FORMS_LIST_RESOURCE)) onRefresh(); });
+    return subscribeToContentRefresh({ listener: scope => { if (contentRefreshApplies({ scope, resource: FORMS_LIST_RESOURCE })) onRefresh(); } });
   },
 };
 /** Delegate request construction to Jini; the host transport owns authentication and errors. */
 export function createFormsHostPorts({ transport }: { transport: FormsTransportPort }, { workspaceId = WORKSPACE_ID }: { workspaceId?: string } = {}): FormsHostPorts {
   return {
     formsApi: createHttpFormsApi({ transport, basePath: `/workspaces/${workspaceId}/forms` }, { mediaBasePath: `/workspaces/${workspaceId}/media` }),
+    formsCatalog,
     formsTrash: createHttpFormsTrash({ transport, basePath: `/workspaces/${workspaceId}/trash/items` }),
     formsEvents,
-    formsNavigation: { navigate({ routePath }, options = {}) { navigate(routePath, options); } },
+    formsNavigation: { navigate({ routePath }, options = {}) { navigate({ routePath }, options); } },
   };
 }
 export const formsHostPorts = createFormsHostPorts({ transport: mediaTransport });

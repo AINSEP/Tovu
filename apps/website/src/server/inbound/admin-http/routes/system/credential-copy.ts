@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "../../dev-auth.js";
 import { authorizeOrRespond } from "../../authorize-guard.js";
@@ -10,7 +10,7 @@ type Deps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "authorize" | "
 const BASE = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
 
 async function authorizedCopy({ res, deps, actorId, permission = "system.write" }: { res: Response; deps: Deps; actorId: string; permission?: string }, _options = {}): Promise<boolean> {
-  if (!await authorizeOrRespond(res, deps.authorize, { principalId: actorId, permission, workspaceId: deps.workspaceId })) return false;
+  if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: actorId, permission, workspaceId: deps.workspaceId } })) return false;
   const instance = deps.gatedMutations.gatewayDeps.authorizeInstance;
   if (instance && !(await instance({ principalId: actorId, permission })).allowed) {
     res.status(403).json({ reasonCode: "owner-only" }); return false;
@@ -21,7 +21,7 @@ async function authorizedCopy({ res, deps, actorId, permission = "system.write" 
 /** Every verb requires the seeded owner's session, existing RBAC and optional instance admission. */
 async function admitted({ req, res, deps }: { req: Request; res: Response; deps: Deps }, _options = {}): Promise<boolean> {
   res.setHeader("Cache-Control", "no-store");
-  if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to use saved keys.", permission: "system.write" })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to use saved keys.", permission: "system.write" })) return false;
   if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }
   const actorId = getAuthedPrincipal(res).id;
   if (actorId !== await deps.ownerPrincipalId) { res.status(403).json({ reasonCode: "owner-only" }); return false; }
@@ -39,23 +39,27 @@ function validCopyIds({ ids }: { ids: unknown }, _options = {}): boolean {
 
 /** Owner-only browser picker; one approval submits one reference to this server-bound site. */
 export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express; deps: Deps }, _options = {}): void {
-  const handle = (action: (req: Request, res: Response) => Promise<void>) => async (req: Request, res: Response) => {
+  const handle = (action: (req: Request, res: Response, projectKeys: NonNullable<Deps["projectKeys"]>) => Promise<void>) => async (req: Request, res: Response) => {
     try {
-      if (await admitted({ req, res, deps })) await action(req, res);
+      if (!await admitted({ req, res, deps })) return;
+      const projectKeys = deps.projectKeys;
+      if (!projectKeys) throw new Error("credential copy has no project keys service after admission");
+      await action(req, res, projectKeys);
     } catch (error) {
       // Never serialize raw driver/crypto exceptions; logs receive only the shared redacted diagnostic.
       if (error instanceof ToolInputError) res.status(409).json({ reasonCode: "saved-key-refused", message: error.message });
       else sendAdminFailure({ res, error }, { operation: "routes/system/credential-copy", code: "INTERNAL_ERROR", field: "message", message: "Using the saved key failed. Reopen Shared Keys and choose the key again.", details: { reasonCode: "copy-failed" } });
     }
   };
-  app.get(BASE, handle(async (_req, res) => {
-    const rows = await deps.projectKeys!.listChoices({});
+  app.get(BASE, handle(async (_req, res, projectKeys) => {
+    const rows = await projectKeys.listChoices({});
     res.json({ sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: rows.map(row => ({
       kind: row.kind, id: row.keyId, label: row.name, provider: null, worksFor: [],
       ...(row.siteName ? { siteName: row.siteName } : {}), ...(row.locked ? { locked: row.locked } : {}),
+      ...(row.omittedCount !== undefined ? { omittedCount: row.omittedCount } : {}),
     })) }] });
   }));
-  app.post(BASE, handle(async (req, res) => {
+  app.post(BASE, handle(async (req, res, projectKeys) => {
     const body = req.body;
     const isObject = body && typeof body === "object" && !Array.isArray(body);
     const validKeys = isObject && !Object.keys(body).some(key => !["sourceSiteId", "ids", "overwrite"].includes(key));
@@ -64,9 +68,9 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
       res.status(400).json({ reasonCode: "invalid-request" }); return;
     }
     const keyId = body.ids[0] as string;
-    const permission = await deps.projectKeys!.permissionFor({ keyId });
+    const permission = await projectKeys.permissionFor({ keyId });
     if (!await authorizedCopy({ res, deps, actorId: getAuthedPrincipal(res).id, permission })) return;
-    const used = await deps.projectKeys!.use({ keyId, use: true });
+    const used = await projectKeys.use({ keyId, use: true });
     res.json({ results: [{ kind: "reference", id: used.keyId, status: "granted" }] });
   }));
 }

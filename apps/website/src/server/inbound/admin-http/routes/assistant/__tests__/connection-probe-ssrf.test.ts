@@ -60,7 +60,7 @@ async function probe(
     next: (error?: unknown) => void,
   ) => unknown;
   let handler: ProbeHandler | undefined;
-  registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, { ...deps, ...options });
+  registrar({ app: { post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps: { ...deps, ...options } });
   let status = 200;
   let body: { ok?: boolean; message?: string; models?: string[]; error?: string; code?: string } | undefined;
   const response = {
@@ -235,10 +235,10 @@ for (const [label, registrar] of [
     type GuardHandler = (req: { params: Record<string, never>; body: unknown }, res: unknown) => unknown;
     let handler: GuardHandler | undefined;
     const authorizations: unknown[] = [];
-    registrar({ post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, {
+    registrar({ app: { post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, deps: {
       ...deps,
       authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "allowed" }; },
-    });
+    } });
     let status = 200;
     let body: unknown;
     const response = {

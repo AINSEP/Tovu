@@ -7,7 +7,7 @@ import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/lay
 import { test } from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -41,7 +41,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
     outbox: { enqueue: async () => {} },
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [],
-    listInstalledAgentPlugins: (dir: Parameters<typeof listBehavior>[0]) => listBehavior(dir),
+    listInstalledAgentPlugins: ({ workspaceRoot }: { workspaceRoot: string }) => listBehavior({ workspaceRoot }),
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: async () => ({ ok: true as const, version: null }),
@@ -80,8 +80,8 @@ function runtimeDeps(): Deps {
 
 test("an installed Agent Plugin's row carries identity/skill names/exports — no absolute paths", async () => {
   const directories: string[] = [];
-  listBehavior = async (dir) => {
-    directories.push(dir);
+  listBehavior = async ({ workspaceRoot }) => {
+    directories.push(workspaceRoot);
     return [
       {
         pluginId: "ui-ux-design",
@@ -95,7 +95,7 @@ test("an installed Agent Plugin's row carries identity/skill names/exports — n
   const result = await callPluginsList(runtimeDeps());
   // Layout B: listInstalledPlugins walks the WORKSPACE root (<ws>/<pluginId>/package/sha256/*), not
   // the retired flat <ws>/packages/sha256 store (spec 2026-09-10-agent-plugin-memory.md).
-  assert.deepEqual(directories, [resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace("ws-tools").root]);
+  assert.deepEqual(directories, [resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: "ws-tools" }).root]);
   assert.equal(directories[0], path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).root, "ws", "ws-tools"));
   assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, [

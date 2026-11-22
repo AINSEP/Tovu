@@ -86,7 +86,7 @@ for (const fixture of [
       const pristine = path.join(root, "pristine.db");
       fs.copyFileSync(file, pristine);
 
-      closeSqliteConnection(await openSiteContentDb(file));
+      closeSqliteConnection({ source: await openSiteContentDb({ dbPath: file }) });
 
       const adopted = readHistory(file);
       assert.equal(adopted.drizzleRows, fixture.duplicate ? 79 : 78);
@@ -128,7 +128,7 @@ for (const fixture of [
       assert.deepEqual(readHistory(path.join(ops, backups[0])), before);
 
       const adoptedBytes = sha(file);
-      closeSqliteConnection(await openSiteContentDb(file));
+      closeSqliteConnection({ source: await openSiteContentDb({ dbPath: file }) });
       assert.equal(sha(file), adoptedBytes, "second boot must write nothing");
       assert.deepEqual(fs.readdirSync(ops).filter(name => name.startsWith(MIGRATION_BACKUP_PREFIX) && name.endsWith(".db")), backups);
     } finally {

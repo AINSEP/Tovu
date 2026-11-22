@@ -8,10 +8,10 @@ import path from "node:path";
 import { requireInputRecord, requireString } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import {
@@ -24,19 +24,19 @@ import {
 } from "../custom-credentials/index.js";
 import { buildAuthorizationHeader } from "@jini-ai/integrations/credentialed-http";
 import { normalizeWriteFilePath, validateBranch, validateCommitMessage, validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { inspectSiteKeyMaterial } from "../webhooks/index.js";
 import { siteKeySources, siteKeySourcesForSiteDir } from "../webhooks/index.js";
 import type { CredentialedRepositoryTarget, InspectBackupRepositoryResult, SourceControlProvider } from "../source-control/provider-module.js";
 import { buildSourceControlProviders, findReservedPath, pickSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
-import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/store.js";
+import { resolveDefaultForSourceControl, SourceControlCredentialSecretStoreUnconfiguredError } from "../source-control/index.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
-import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
-import { SiteBackupPushJobs } from "./push-jobs.js";
+import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
+import { CANCELLED, initialPushProgress, uploadBackupPlan } from "./push-content.js";
+import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import {
   captureDatabaseSnapshot,
   checkSiteBackupLimits,
@@ -61,12 +61,12 @@ import {
  * Why two calls: the plan does every check that can fail (credential, repository visibility and
  * permissions, branch, folder, database snapshot, sizes) and returns what WOULD be written, so the
  * model can report the planned backup. The push uploads exactly what was planned: the database snapshot is
- * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
+ * held in memory with the plan (`plan-content.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
  *
  * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
  * it up to {@link PUSH_WAIT_MS} and otherwise returns its progress; calling the push again with the
- * same planId keeps waiting on the same job. The upload itself is `push-engine.ts`.
+ * same planId keeps waiting on the same job. The upload itself is `push-content.ts`.
  *
  * Safety rules, each re-checked at push time where the world can change in between:
  * - The database is the share projection ({@link captureBackupDatabase}): content, themes and
@@ -139,7 +139,7 @@ export interface SiteBackupToolDeps {
   /** Composition binds the same trusted catalogue and sanitizer as share/export. */
   readonly siteBackupSanitize: ShareDatabaseSanitizer;
   /** Test-only; defaults to the process-wide store. */
-  readonly siteBackupPlanStore?: SiteBackupPlanStore;
+  readonly siteBackupPlanStore?: TovuBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
   readonly siteBackupSiteKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
   /** Test-only; defaults to `console.warn`. Receives only lines built here — never a token. */
@@ -166,7 +166,7 @@ function failureLog(deps: SiteBackupToolDeps): (line: string) => void {
 }
 
 /** Logs a failure's server-only detail (a network failure's class and code). Never the token. */
-function logFailureDetail(deps: SiteBackupToolDeps, toolId: string, failure: { readonly code: string; readonly logDetail?: string }): void {
+function logFailureDetail({ deps, toolId, failure }: { deps: SiteBackupToolDeps; toolId: string; failure: { readonly code: string; readonly logDetail?: string } }, _optional: Record<string, never> = {}): void {
   if (failure.logDetail !== undefined) failureLog(deps)(`[site-backup] ${toolId}: failed code=${failure.code} detail=${failure.logDetail}`);
 }
 
@@ -184,7 +184,7 @@ interface ResolvedBackupCredential {
 }
 
 /** A resolved credential's repository target: its API plus the `Authorization` header built from it. */
-function backupTarget(credential: ResolvedBackupCredential, owner: string, repo: string): CredentialedRepositoryTarget {
+function backupTarget({ credential, owner, repo }: { credential: ResolvedBackupCredential; owner: string; repo: string }, _optional: Record<string, never> = {}): CredentialedRepositoryTarget {
   return { baseUrl: credential.baseUrl, authorization: buildAuthorizationHeader({ connection: credential.connection, schemes: [] }), owner, repo };
 }
 
@@ -204,7 +204,7 @@ async function loadBackupProviders(deps: SiteBackupToolDeps): Promise<{ ok: true
   return { ok: true, providers: built.providers, noProviderMessage: built.noProviderMessage };
 }
 
-function originOf(url: string): string | null {
+function originOf({ url }: { url: string }, _optional: Record<string, never> = {}): string | null {
   try {
     return new URL(url).origin;
   } catch {
@@ -222,7 +222,7 @@ function labelList(labels: readonly string[]): string {
  *
  * @complexity O(saved credentials).
  */
-async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly SourceControlProvider[], requested: string | undefined): Promise<{ ok: true; label: string } | Refusal> {
+async function pickCredentialLabel({ deps, providers, requested }: { deps: SiteBackupToolDeps; providers: readonly SourceControlProvider[]; requested: string | undefined }, _optional: Record<string, never> = {}): Promise<{ ok: true; label: string } | Refusal> {
   const saved = await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId });
   const labels = saved.map((credential) => credential.label);
   if (requested !== undefined) {
@@ -231,8 +231,12 @@ async function pickCredentialLabel(deps: SiteBackupToolDeps, providers: readonly
   }
   const apiOrigins = providers.map((provider) => provider.apiOrigin);
   const where = apiOrigins.join(" or ");
-  const matching = saved.filter((credential) => apiOrigins.includes(originOf(credential.baseUrl) ?? "")).map((credential) => credential.label);
-  if (matching.length === 1) return { ok: true, label: matching[0]! };
+  const matching = saved.filter((credential) => apiOrigins.includes(originOf({ url: credential.baseUrl }) ?? "")).map((credential) => credential.label);
+  if (matching.length === 1) {
+    const label = matching[0];
+    if (label === undefined) throw new Error("Backup credential match has no label");
+    return { ok: true, label };
+  }
   if (matching.length === 0) {
     return {
       ok: false,
@@ -271,7 +275,7 @@ function siteAwareSiteKeyStatus(deps: SiteBackupToolDeps): { active: boolean; in
 /** Why a saved credential could not be decrypted, from THIS SITE's own site key status
  *  ({@link siteAwareSiteKeyStatus}) — never the bare, env/legacy-only default (see that function's
  *  own doc for why that used to misreport an active per-site key as "no site key"). */
-function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): string {
+function unreadableCredentialMessage({ deps, label }: { deps: SiteBackupToolDeps; label: string }, _optional: Record<string, never> = {}): string {
   const status = (deps.siteBackupSiteKeyStatus ?? (() => siteAwareSiteKeyStatus(deps)))();
   if (status.active) {
     return (
@@ -297,7 +301,7 @@ function unreadableCredentialMessage(deps: SiteBackupToolDeps, label: string): s
  *
  * @complexity O(providers) repo reads, at most one decrypt each.
  */
-async function resolveHostConnection(deps: SiteBackupToolDeps, providers: readonly SourceControlProvider[], requested: string | undefined): Promise<ResolvedBackupCredential | Refusal | null> {
+async function resolveHostConnection({ deps, providers, requested }: { deps: SiteBackupToolDeps; providers: readonly SourceControlProvider[]; requested: string | undefined }, _optional: Record<string, never> = {}): Promise<ResolvedBackupCredential | Refusal | null> {
   const repo = deps.sourceControlCredentialSetRepo;
   if (!repo) return null;
   for (const provider of providers) {
@@ -321,7 +325,7 @@ async function findHostConnection(required: {
   try {
     return { ok: true, found: await resolveDefaultForSourceControl({ repo: required.repo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, providerId: required.providerId }) };
   } catch (err) {
-    if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage(deps, `${provider.label} connection`) };
+    if (err instanceof SourceControlCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage({ deps, label: `${provider.label} connection` }) };
     throw err;
   }
 }
@@ -340,23 +344,23 @@ function hostCredential(required: { found: HostConnection; provider: SourceContr
  *
  * @complexity O(saved credentials) plus one decrypt.
  */
-async function resolveBackupCredential(deps: SiteBackupToolDeps, requested: string | undefined): Promise<ResolvedBackupCredential | Refusal> {
+async function resolveBackupCredential({ deps, requested }: { deps: SiteBackupToolDeps; requested: string | undefined }, _optional: Record<string, never> = {}): Promise<ResolvedBackupCredential | Refusal> {
   const providers = await loadBackupProviders(deps);
   if (!providers.ok) return providers;
-  const picked = await pickCredentialLabel(deps, providers.providers, requested);
+  const picked = await pickCredentialLabel({ deps, providers: providers.providers, requested });
   if (!picked.ok) {
     if (picked.code !== "CREDENTIAL_NOT_FOUND") return picked;
-    return (await resolveHostConnection(deps, providers.providers, requested)) ?? picked;
+    return (await resolveHostConnection({ deps, providers: providers.providers, requested })) ?? picked;
   }
   let resolved;
   try {
     resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId, label: picked.label });
   } catch (err) {
-    if (err instanceof CustomCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage(deps, picked.label) };
+    if (err instanceof CustomCredentialSecretStoreUnconfiguredError) return { ok: false, code: "CREDENTIAL_UNREADABLE", message: unreadableCredentialMessage({ deps, label: picked.label }) };
     throw err;
   }
   if (!resolved) return { ok: false, code: "CREDENTIAL_NOT_FOUND", message: `the credential '${picked.label}' was deleted while the backup was being prepared` };
-  const provider = pickSourceControlProviderForApi(providers.providers, resolved.baseUrl, providers.noProviderMessage);
+  const provider = pickSourceControlProviderForApi({ providers: providers.providers, baseUrl: resolved.baseUrl }, { noProviderMessage: providers.noProviderMessage });
   if (!provider.ok) return { ok: false, code: "NO_PROVIDER", message: provider.message };
   return { ok: true, label: picked.label, baseUrl: resolved.baseUrl, connection: resolved.connection, provider: provider.provider };
 }
@@ -378,19 +382,17 @@ const INSPECT_CODES: Record<string, string> = {
 };
 
 /** A provider failure as this tool's `{code, message}`, logging any server-only detail. */
-function providerRefusal(deps: SiteBackupToolDeps, toolId: string, failure: { readonly code: string; readonly message: string; readonly logDetail?: string }): Refusal {
-  logFailureDetail(deps, toolId, failure);
+function providerRefusal({ deps, toolId, failure }: { deps: SiteBackupToolDeps; toolId: string; failure: { readonly code: string; readonly message: string; readonly logDetail?: string } }, _optional: Record<string, never> = {}): Refusal {
+  logFailureDetail({ deps, toolId, failure });
   return { ok: false, code: INSPECT_CODES[failure.code] ?? "PROVIDER_ERROR", message: failure.message };
 }
 
 async function inspect(
-  deps: SiteBackupToolDeps,
-  provider: SourceControlProvider,
-  toolId: string,
-  input: CredentialedRepositoryTarget & { branch?: string; folder: string }
+  { deps, provider, toolId, input }: { deps: SiteBackupToolDeps; provider: SourceControlProvider; toolId: string; input: CredentialedRepositoryTarget & { branch?: string; folder: string } },
+  _optional: Record<string, never> = {}
 ): Promise<Extract<InspectBackupRepositoryResult, { ok: true }> | Refusal> {
   const result = await provider.inspectBackupRepository(input);
-  return result.ok ? result : providerRefusal(deps, toolId, result);
+  return result.ok ? result : providerRefusal({ deps, toolId, failure: result });
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +410,7 @@ interface ParsedPlanInput {
   readonly commitMessage: string | undefined;
 }
 
-function optionalString(raw: Record<string, unknown>, field: string): string | undefined {
+function optionalString({ raw, field }: { raw: Record<string, unknown>; field: string }, _optional: Record<string, never> = {}): string | undefined {
   const value = raw[field];
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new CustomCredentialValidationError(`'${field}' must be a string`);
@@ -416,7 +418,7 @@ function optionalString(raw: Record<string, unknown>, field: string): string | u
 }
 
 /** Every switch defaults to true; anything but a boolean for a known scope is refused. */
-function parseInclude(value: unknown): SiteBackupInclude {
+function parseInclude({ value }: { value: unknown }, _optional: Record<string, never> = {}): SiteBackupInclude {
   if (value === undefined) return { database: true, media: true, themes: true, plugins: true, settings: true };
   const include = readIncludeSwitches({ raw: requireIncludeRecord({ value }) });
   if (!SITE_BACKUP_SCOPES.some((scope) => include[scope])) throw new CustomCredentialValidationError("'include' switches everything off; there would be nothing to back up");
@@ -446,9 +448,9 @@ function readIncludeSwitches(required: { raw: Record<string, unknown> }): SiteBa
 
 /** The backup folder: repository-relative, never `.git`. The host's own reserved folders
  *  ({@link requireUnreservedFolder}) are checked once the credential names the host. */
-function parseFolder(raw: string | undefined): string | undefined {
+function parseFolder({ raw }: { raw: string | undefined }, _optional: Record<string, never> = {}): string | undefined {
   if (raw === undefined) return undefined;
-  return normalizeWriteFilePath(raw);
+  return normalizeWriteFilePath({ rawPath: raw });
 }
 
 /**
@@ -458,25 +460,25 @@ function parseFolder(raw: string | undefined): string | undefined {
  * @throws {CustomCredentialValidationError} naming the reserved folder.
  * @complexity O(r) reserved paths.
  */
-function requireUnreservedFolder(folder: string, provider: SourceControlProvider): void {
-  const reserved = findReservedPath(folder, provider.reservedPaths);
+function requireUnreservedFolder({ folder, provider }: { folder: string; provider: SourceControlProvider }, _optional: Record<string, never> = {}): void {
+  const reserved = findReservedPath({ folder, reservedPaths: provider.reservedPaths });
   if (reserved !== undefined) throw new CustomCredentialValidationError(`the backup folder must not be inside '${reserved}': '${folder}'`);
 }
 
 /** @throws {CustomCredentialValidationError} Any malformed field — before any permission check,
  *  decrypt or network call. Owner and repo are the host's to judge, after the credential is resolved. */
-function parsePlanInput(rawInput: unknown): ParsedPlanInput {
+function parsePlanInput({ rawInput }: { rawInput: unknown }, _optional: Record<string, never> = {}): ParsedPlanInput {
   const raw = requireInputRecord({ input: rawInput });
-  const branch = optionalString(raw, "branch");
-  const commitMessage = optionalString(raw, "commitMessage");
+  const branch = optionalString({ raw, field: "branch" });
+  const commitMessage = optionalString({ raw, field: "commitMessage" });
   return {
-    credential: optionalString(raw, "credential"),
+    credential: optionalString({ raw, field: "credential" }),
     owner: raw.owner,
     repo: raw.repo,
-    branch: branch === undefined ? undefined : validateBranch(branch),
-    folder: parseFolder(optionalString(raw, "folder")),
-    include: parseInclude(raw.include),
-    commitMessage: commitMessage === undefined ? undefined : validateCommitMessage(commitMessage),
+    branch: branch === undefined ? undefined : validateBranch({ value: branch }),
+    folder: parseFolder({ raw: optionalString({ raw, field: "folder" }) }),
+    include: parseInclude({ value: raw.include }),
+    commitMessage: commitMessage === undefined ? undefined : validateCommitMessage({ value: commitMessage }),
   };
 }
 
@@ -488,7 +490,7 @@ async function requireBackupPermissions(deps: SiteBackupToolDeps, ctx: SiteBacku
 const UNAVAILABLE: Refusal = { ok: false, code: "UNAVAILABLE", message: "site backup is not available in this runtime: it has no site folder on disk" };
 
 /** The site's display name from its `config.json`, falling back to the folder name. */
-async function readSiteName(siteDir: string): Promise<string> {
+async function readSiteName({ siteDir }: { siteDir: string }, _optional: Record<string, never> = {}): Promise<string> {
   try {
     const config = JSON.parse(await readFile(path.join(siteDir, "config.json"), "utf8")) as { name?: unknown };
     if (typeof config.name === "string" && config.name.trim() !== "") return config.name;
@@ -514,14 +516,14 @@ function planResult(plan: SiteBackupPlan): Record<string, unknown> {
     include: plan.include,
     fileCount: files.length,
     totalBytes: plan.totalBytes,
-    totalSize: formatByteSize(plan.totalBytes),
+    totalSize: formatByteSize({ bytes: plan.totalBytes }),
     files,
     skipped: plan.skipped,
     credentialWarnings: plan.credentialWarnings ?? [],
     notes: SITE_BACKUP_SCOPES.flatMap((scope) => (plan.scopeNotes[scope] ? [plan.scopeNotes[scope]] : [])),
     nextStep:
       `Show the human this plan: ${plan.owner}/${plan.repo}, branch '${plan.repository.branch}', folder '${plan.folder}' ` +
-      `(${plan.repository.folderExists ? "its current contents will be replaced" : "new"}), ${files.length} files (${formatByteSize(plan.totalBytes)}), plus anything skipped. ` +
+      `(${plan.repository.folderExists ? "its current contents will be replaced" : "new"}), ${files.length} files (${formatByteSize({ bytes: plan.totalBytes })}), plus anything skipped. ` +
       "Then call site_backup_push with this planId within 10 minutes; it pushes the planned backup immediately (a large one may return inProgress: call it again with the same planId). A tovu-backup.json manifest is added at push time.",
   };
 }
@@ -535,20 +537,20 @@ function planResult(plan: SiteBackupPlan): Record<string, unknown> {
  */
 export async function planSiteBackup(required: { deps: SiteBackupToolDeps; call: SiteBackupCall }, _optional: Record<string, never> = {}): Promise<unknown> {
   const { deps, call: ctx } = required;
-  const input = parsePlanInput(ctx.input);
+  const input = parsePlanInput({ rawInput: ctx.input });
   await requireBackupPermissions(deps, ctx);
   const sources = deps.siteBackupSources;
   if (!sources) return { planned: false, code: UNAVAILABLE.code, message: UNAVAILABLE.message };
 
-  const credential = await resolveBackupCredential(deps, input.credential);
+  const credential = await resolveBackupCredential({ deps, requested: input.credential });
   if (!credential.ok) return { planned: false, code: credential.code, message: credential.message };
 
   const folderName = path.basename(sources.siteDir);
-  const folder = input.folder ?? normalizeWriteFilePath(folderName);
+  const folder = input.folder ?? normalizeWriteFilePath({ rawPath: folderName });
   const { owner, repo: repoName } = validateRepositoryTarget({ owner: input.owner, repo: input.repo }, credential.provider.validateTarget);
-  requireUnreservedFolder(folder, credential.provider);
-  const target = backupTarget(credential, owner, repoName);
-  const repo = await inspect(deps, credential.provider, PLAN_TOOL_ID, { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder });
+  requireUnreservedFolder({ folder, provider: credential.provider });
+  const target = backupTarget({ credential, owner, repo: repoName });
+  const repo = await inspect({ deps, provider: credential.provider, toolId: PLAN_TOOL_ID, input: { ...target, ...(input.branch !== undefined ? { branch: input.branch } : {}), folder } });
   if (!repo.ok) return { planned: false, code: repo.code, message: repo.message };
 
   const prepared = await prepareContent({ deps, sources, include: input.include, host: credential.provider });
@@ -571,7 +573,7 @@ async function savePlan(required: {
 }): Promise<SiteBackupPlan> {
   const { deps, input, content } = required;
   const createdAt = (deps.siteBackupNow?.() ?? new Date()).toISOString();
-  const siteName = await readSiteName(required.sources.siteDir);
+  const siteName = await readSiteName({ siteDir: required.sources.siteDir });
   return (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).save({
     principalId: required.ctx.principal.id,
     workspaceId: deps.workspaceId,
@@ -614,7 +616,7 @@ async function captureBackupDatabase(required: { deps: SiteBackupToolDeps }): Pr
   const { deps } = required;
   const snapshot = await captureDatabaseSnapshot({ dbOps: deps.dbOps, scopeId: SNAPSHOT_SCOPE_ID });
   if (!snapshot.ok) {
-    logFailureDetail(deps, PLAN_TOOL_ID, { code: "database-snapshot", ...(snapshot.logDetail !== undefined ? { logDetail: snapshot.logDetail } : {}) });
+    logFailureDetail({ deps, toolId: PLAN_TOOL_ID, failure: { code: "database-snapshot", ...(snapshot.logDetail !== undefined ? { logDetail: snapshot.logDetail } : {}) } });
     return { ok: false, code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message };
   }
   try {
@@ -642,8 +644,8 @@ async function prepareContent({ deps, sources, include, host }: { deps: SiteBack
     credentialWarnings.push(...captured.credentialWarnings);
   }
   const collected = await collectSiteBackupFiles({ sources, include });
-  const fitting = skipOversizedFiles(collected.files, host);
-  const limits = checkSiteBackupLimits([...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...fitting.files], host);
+  const fitting = skipOversizedFiles({ files: collected.files, host });
+  const limits = checkSiteBackupLimits({ files: [...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...fitting.files], host });
   if (!limits.ok) return { ok: false, code: "LIMIT_EXCEEDED", message: limits.message };
   for (const file of fitting.files) {
     const loaded = await readPlannedFile(file);
@@ -673,15 +675,15 @@ function pushRefusal(refusal: Refusal): PushResult {
  * private, branch not moved), upload, commit on the PLAN's parent. Stopping (`signal`) takes effect
  * between files and before the commit, never half-way through one.
  *
- * @complexity O(total bytes); see `push-engine.ts` for the uploads, plus a few fixed tree writes,
+ * @complexity O(total bytes); see `push-content.ts` for the uploads, plus a few fixed tree writes,
  *   one commit and one ref update.
  */
-async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan, run: { signal: AbortSignal; progress: SiteBackupPushProgress }): Promise<PushResult> {
-  const credential = await resolveBackupCredential(deps, plan.credentialLabel);
+async function pushPlannedBackup({ deps, plan, run }: { deps: SiteBackupToolDeps; plan: SiteBackupPlan; run: { signal: AbortSignal; progress: SiteBackupPushProgress } }, _optional: Record<string, never> = {}): Promise<PushResult> {
+  const credential = await resolveBackupCredential({ deps, requested: plan.credentialLabel });
   if (!credential.ok) return pushRefusal(credential);
-  const target = backupTarget(credential, plan.owner, plan.repo);
+  const target = backupTarget({ credential, owner: plan.owner, repo: plan.repo });
 
-  const repo = await inspect(deps, credential.provider, SITE_BACKUP_PUSH_TOOL_ID, { ...target, branch: plan.repository.branch, folder: plan.folder });
+  const repo = await inspect({ deps, provider: credential.provider, toolId: SITE_BACKUP_PUSH_TOOL_ID, input: { ...target, branch: plan.repository.branch, folder: plan.folder } });
   if (!repo.ok) return pushRefusal(repo);
   if (repo.state.parentCommitSha !== plan.repository.parentCommitSha) {
     return pushRefusal({
@@ -691,14 +693,14 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan,
     });
   }
 
-  const uploaded = await uploadPlannedContent({
-    provider: credential.provider,
-    target,
-    plan,
-    signal: run.signal,
-    progress: run.progress,
-    toRefusal: (failure) => providerRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, failure),
-  });
+  if (plan.credentialWarnings?.length) return pushRefusal({ ok: false, code: "UNSAFE_FILE", message: "The export contains files with possible credentials. Remove the credentials and export again." });
+  const uploaded = await uploadBackupPlan({
+    plan, signal: run.signal, progress: run.progress,
+    uploadBlob: async (file, _optional = {}) => {
+      const uploaded = await credential.provider.uploadBackupBlob(target, file);
+      return uploaded.ok ? { ok: true, blobSha: uploaded.blob.blobSha } : providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: uploaded });
+    },
+  }, { inlineTextMaxBytes: credential.provider.backupInlineTextMaxBytes });
   if (!uploaded.ok) return pushRefusal(uploaded);
   if (run.signal.aborted) return pushRefusal(CANCELLED);
 
@@ -712,7 +714,7 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan,
     htmlUrl: plan.repository.htmlUrl,
     entries: uploaded.entries,
   });
-  if (!committed.ok) return pushRefusal(providerRefusal(deps, SITE_BACKUP_PUSH_TOOL_ID, committed));
+  if (!committed.ok) return pushRefusal(providerRefusal({ deps, toolId: SITE_BACKUP_PUSH_TOOL_ID, failure: committed }));
   return {
     pushed: true,
     commitSha: committed.commitSha,
@@ -726,6 +728,19 @@ async function pushPlannedBackup(deps: SiteBackupToolDeps, plan: SiteBackupPlan,
   };
 }
 
+async function runObservedBackupPush(required: Parameters<typeof pushPlannedBackup>[0]): Promise<PushResult> {
+  if (!required.deps.observability) return pushPlannedBackup(required);
+  const operation = required.deps.observability.trackOperation({ name: "site.backup" });
+  return operation.run(() => pushPlannedBackup(required)).then(result => {
+    const cancelled = !result.pushed && (result.cancelled || ("reason" in result && result.reason === "abandoned"));
+    operation.end({ outcome: result.pushed ? "completed" : cancelled ? "cancelled" : "not_pushed", failed: !result.pushed && !cancelled });
+    return result;
+  }, error => {
+    operation.end({ outcome: "failed", failed: true });
+    throw error;
+  });
+}
+
 const PLAN_TAKE_MESSAGES = {
   PLAN_NOT_FOUND: "no backup plan with that planId is waiting (a planId works once, for this principal, and a server restart drops plans). Call site_backup_plan again.",
   PLAN_EXPIRED: "that backup plan expired (plans last 10 minutes). Call site_backup_plan again.",
@@ -735,10 +750,10 @@ const PLAN_TAKE_MESSAGES = {
  *  of a delegated tool call (`push-jobs.ts`), with room for the checks before the upload. */
 export const PUSH_WAIT_MS = 4 * 60 * 1000;
 
-const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>();
+const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>({});
 
 /** What a call returns while its job is still uploading. */
-function inProgressResult(planId: string, progress: SiteBackupPushProgress, elapsedMs: number): PushResult {
+function inProgressResult({ planId, progress, elapsedMs }: { planId: string; progress: SiteBackupPushProgress; elapsedMs: number }, _optional: Record<string, never> = {}): PushResult {
   return {
     pushed: false,
     cancelled: false,
@@ -746,7 +761,7 @@ function inProgressResult(planId: string, progress: SiteBackupPushProgress, elap
     planId,
     progress,
     message:
-      `Still uploading after ${Math.round(elapsedMs / 1000)} s: ${progress.filesDone} of ${progress.filesTotal} files (${formatByteSize(progress.bytesDone)} of ${formatByteSize(progress.bytesTotal)}). ` +
+      `Still uploading after ${Math.round(elapsedMs / 1000)} s: ${progress.filesDone} of ${progress.filesTotal} files (${formatByteSize({ bytes: progress.bytesDone })} of ${formatByteSize({ bytes: progress.bytesTotal })}). ` +
       "Nothing is committed until every file is up. Call site_backup_push again with the same planId to keep waiting; it does not start a second upload.",
   };
 }
@@ -776,11 +791,11 @@ export async function pushSiteBackup(
   if (!job) {
     const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
     if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
-    job = jobs.start(key, initialPushProgress(taken.plan), (signal, progress) => pushPlannedBackup(deps, taken.plan, { signal, progress }));
+    job = jobs.start({ key, progress: initialPushProgress({ plan: taken.plan }), run: ({ signal, progress }) => runObservedBackupPush({ deps, plan: taken.plan, run: { signal, progress } }) });
   }
 
-  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
+  const waited = await jobs.wait({ job, signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
   if (waited.state === "done") return waited.result;
   if (waited.state === "abandoned") return { pushed: false, cancelled: false, reason: "abandoned" };
-  return inProgressResult(planId, waited.progress, waited.elapsedMs);
+  return inProgressResult({ planId, progress: waited.progress, elapsedMs: waited.elapsedMs });
 }

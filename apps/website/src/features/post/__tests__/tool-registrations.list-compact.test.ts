@@ -7,14 +7,11 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { DEFAULT_POST_LIST_LIMIT } from "../post.js";
-import {
-  buildPostRegistrations,
-  POST_LIST_MIN_EXCERPT_CHARS,
-  POST_LIST_TEXT_BUDGET,
-  type PostToolDeps,
-} from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { DEFAULT_POST_LIST_LIMIT } from "../post-read.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { POST_LIST_MIN_EXCERPT_CHARS, POST_LIST_TEXT_BUDGET } from "../post-tool-list.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -31,7 +28,7 @@ const WORKSPACE_ID = "ws-list-compact";
 const NOW = "2026-09-28T00:00:00.000Z";
 
 function fakeRouteDeps() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowIso: () => NOW },

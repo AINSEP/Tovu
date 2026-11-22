@@ -2,6 +2,7 @@ import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { OAuthError } from "@jini-ai/oauth";
 
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../platform/oauth/__tests__/helpers.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
@@ -291,7 +292,7 @@ test("the minted client id is PERSISTED — a second connect registers nothing",
     await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
 
     assert.equal(registrationCalls(fixture), 1);
-    const [view] = await listExternalMcpServerViews(store.deps, WORKSPACE);
+    const [view] = await listExternalMcpServerViews({ deps: store.deps, workspaceId: WORKSPACE });
     assert.equal(view?.oauth.clientId, "minted-client-id");
   } finally {
     await fixture.close();
@@ -525,7 +526,7 @@ test("a client secret the server volunteers is sealed and never appears in a rea
     const payload = await openExternalMcpOAuthPayload(store.sealer, record);
     assert.equal(payload.clientSecret, "server-issued-secret");
 
-    const views = await listExternalMcpServerViews(store.deps, WORKSPACE);
+    const views = await listExternalMcpServerViews({ deps: store.deps, workspaceId: WORKSPACE });
     assert.ok(!JSON.stringify(views).includes("server-issued-secret"), "the client secret must never reach a read model");
   } finally {
     await fixture.close();
@@ -718,7 +719,7 @@ test("a token endpoint that rejects the client as invalid_client makes the next 
   try {
     await save(store, { url: fixture.resourceUrl });
     const service = makeService(store);
-    await assert.rejects(() => connectThroughCallback(service));
+    await assert.rejects(() => connectThroughCallback(service), { constructor: OAuthError, name: "OAuthError", code: "OAUTH_PROVIDER_REJECTED", message: "the authorization server refused the request (HTTP 401, invalid_client)" });
 
     const record = await store.repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
     assert.equal(record?.oauthClientId, null);

@@ -4,7 +4,7 @@ import { createFakeClock } from "../../../../website/src/__tests__/support/fake-
 import type { SurfaceEmission } from "@jini-ai/core";
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { buildCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID, type CredentialCopyToolDeps } from "../../../../website/src/features/custom-credentials/credential-copy-tool.js";
 import { createProjectKeys } from "../../../../website/src/features/project-keys/service.js";
 import { fakeAttachments, vaultRow } from "../../../../website/src/features/project-keys/__tests__/helpers.js";

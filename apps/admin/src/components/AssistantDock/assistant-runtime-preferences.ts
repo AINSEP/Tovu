@@ -19,7 +19,7 @@ export const REPLY_LENGTH_OPTIONS: readonly { value: ReplyLength; label: string 
 export interface AssistantRuntimePreferences {
   /** Delegate multi-step or output-heavy work to a subagent when the runtime supports one. */
   preferSubagents: boolean;
-  /** Let Claude Code use Claude in Chrome (the person's real, logged-in Chrome). Default on (owner-only, probe-gated server-side). */
+  /** Let Claude Code use Claude in Chrome (the person's real, logged-in Chrome). Default off (OD-4; owner-only, probe-gated server-side). */
   useClaudeInChrome: boolean;
   /** How much the assistant writes; Normal preserves the existing prompt. */
   replyLength: ReplyLength;
@@ -27,7 +27,7 @@ export interface AssistantRuntimePreferences {
 
 export const DEFAULT_ASSISTANT_RUNTIME_PREFERENCES: Readonly<AssistantRuntimePreferences> = Object.freeze({
   preferSubagents: true,
-  useClaudeInChrome: true,
+  useClaudeInChrome: false,
   replyLength: 'normal',
 });
 
@@ -39,13 +39,13 @@ const KEYS: Readonly<Record<keyof AssistantRuntimePreferences, string>> = {
 
 /** Missing or invalid stored values use the registered defaults. @complexity O(1) fixed keys. */
 export function readAssistantRuntimePreferences({ values }: { values: Map<string, unknown> }, _options = {}): AssistantRuntimePreferences {
-  const read = (field: 'preferSubagents' | 'useClaudeInChrome'): boolean => {
+  const read = ({ field }: { field: 'preferSubagents' | 'useClaudeInChrome' }, _options: Record<string, never> = {}): boolean => {
     const value = values.get(KEYS[field]);
     return typeof value === 'boolean' ? value : DEFAULT_ASSISTANT_RUNTIME_PREFERENCES[field];
   };
   const replyLength = values.get(REPLY_LENGTH_KEY);
   return {
-    preferSubagents: read('preferSubagents'), useClaudeInChrome: read('useClaudeInChrome'),
+    preferSubagents: read({ field: 'preferSubagents' }), useClaudeInChrome: read({ field: 'useClaudeInChrome' }),
     replyLength: replyLength === 'short' || replyLength === 'detailed' ? replyLength : DEFAULT_ASSISTANT_RUNTIME_PREFERENCES.replyLength,
   };
 }

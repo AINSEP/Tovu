@@ -19,7 +19,7 @@ async function openInstaller(required: { site: string; env: NodeJS.ProcessEnv },
   const target = path.resolve(required.site);
   const boot = await bootSiteDir({ dir: target });
   try {
-    const repo = new SqlPluginActivationRepo({ kernel: (boot.store?.content ?? contentKernel(boot.db!)) as unknown as import("@jini-ai/plugins/host/sql").PluginActivationSqlRequired["kernel"], tables: { activations: "plugin_activations" } });
+    const repo = new SqlPluginActivationRepo({ kernel: (boot.store?.content ?? contentKernel({ store: boot.db! })) as unknown as import("@jini-ai/plugins/host/sql").PluginActivationSqlRequired["kernel"], tables: { activations: "plugin_activations" } });
     return { deps: { ...pluginHostBinding, installDir: env.TOVU_PLUGINS_DIR !== undefined ? path.resolve(env.TOVU_PLUGINS_DIR) : path.join(target, "plugins"), builtInIds: ["word-count"], repo, conflicts: noWorkspaceConflicts }, close: () => closeSiteDirBoot(boot) };
   } catch (e) { await closeSiteDirBoot(boot); throw e; }
 }

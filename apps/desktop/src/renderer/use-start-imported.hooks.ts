@@ -29,9 +29,9 @@ export async function startImportedSite(
   applyRecord({ ...site, status: 'starting' });
   // `performSiteStart` turns a rejection into a short sentence; the person's copy-able details want the real one.
   let raw: unknown;
-  const result = await performSiteStart(site.id, bridge && {
-    startSite: (id) => bridge.startSite(id).catch((error: unknown) => { raw = error; throw error; }),
-  });
+  const result = await performSiteStart({ id: site.id, bridge: bridge && {
+    startSite: ({ id }, _options = {}) => bridge.startSite({ id }).catch((error: unknown) => { raw = error; throw error; }),
+  } });
   if (result.error === undefined) { applyRecord(result.record); return undefined; }
   applyRecord(site);
   return {

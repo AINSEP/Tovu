@@ -70,10 +70,10 @@ export interface ThemePagesPort {
    *  header for why `activeThemeStaticPageIds` was dropped from here. */
   getPresentation(): Promise<{ settings: { activeThemeId: string } }>;
   /** One theme's files, narrowed to {@link ThemePagesFileEntry} — see that interface's own doc. */
-  getThemeDetail(themeId: string): Promise<{ files: ThemePagesFileEntry[] }>;
+  getThemeDetail(required: { themeId: string }): Promise<{ files: ThemePagesFileEntry[] }>;
   /** Publish or unpublish one of this theme's own pages — see `use-theme-pages.hooks.ts`'s
    *  `setPagePublished` for the caller-side contract and `ThemeManifest.publishedPages` (`theme.ts`)
    *  for the full server-side one. Same route Theme Studio's Explore screen writes through
    *  (`ThemeExplorePort.setPagePublished`), so a page toggled from either screen agrees on both. */
-  setPagePublished(themeId: string, page: string, published: boolean): Promise<{ page: string; published: boolean }>;
+  setPagePublished(required: { themeId: string; page: string; published: boolean }): Promise<{ page: string; published: boolean }>;
 }

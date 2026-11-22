@@ -223,74 +223,12 @@ function main(): void {
 
   const count = (arm: string, nos: readonly number[], v: Verdict) => nos.filter((n) => results.get(arm)!.get(n) === v).length;
 
-  console.log(`  ON THE ${inScopeNos.length} IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource\n`);
-  console.log(`  ${"arm".padEnd(44)}${"correct".padEnd(23)}${"WRONG resource".padEnd(23)}${"abstained".padEnd(23)}${"invalid".padEnd(23)}`);
-  for (const arm of armSet) {
-    if (!results.has(arm.id)) continue;
-    const n = inScopeNos.length;
-    console.log(
-      `  ${arm.label.padEnd(44)}${pct(count(arm.id, inScopeNos, "CORRECT"), n)}${pct(count(arm.id, inScopeNos, "WRONG_RESOURCE"), n)}` +
-        `${pct(count(arm.id, inScopeNos, "MISSED_ABSTAIN"), n)}${pct(count(arm.id, inScopeNos, "INVALID"), n)}`,
-    );
-  }
+  reportArgumentFillRates({ inScopeNos, armSet, results, count, outScopeNos });
 
-  console.log(`\n  ON THE ${outScopeNos.length} OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain\n`);
-  console.log(`  ${"arm".padEnd(44)}${"correctly abstained".padEnd(23)}${"FALSE FILL".padEnd(23)}${"invalid".padEnd(23)}`);
-  for (const arm of armSet) {
-    if (!results.has(arm.id)) continue;
-    const n = outScopeNos.length;
-    console.log(
-      `  ${arm.label.padEnd(44)}${pct(count(arm.id, outScopeNos, "CORRECT_ABSTAIN"), n)}${pct(count(arm.id, outScopeNos, "FALSE_FILL"), n)}${pct(count(arm.id, outScopeNos, "INVALID"), n)}`,
-    );
-  }
-
-  const outRead = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "read").map((c) => c.caseNo);
-  const outMutate = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "mutation").map((c) => c.caseNo);
-  console.log(`\n  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own`);
-  console.log(`  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same`);
-  console.log(`  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a`);
-  console.log(`  MUTATION request is the tool being reached for when the operator wanted something changed.\n`);
-  console.log(`  ${"arm".padEnd(44)}${`abstain, read n=${outRead.length}`.padEnd(23)}${`abstain, mutation n=${outMutate.length}`.padEnd(23)}`);
-  for (const arm of armSet) {
-    if (!results.has(arm.id)) continue;
-    console.log(
-      `  ${arm.label.padEnd(44)}${pct(count(arm.id, outRead, "CORRECT_ABSTAIN"), outRead.length)}${pct(count(arm.id, outMutate, "CORRECT_ABSTAIN"), outMutate.length)}`,
-    );
-  }
-
-  console.log(`\n  SCORED SET, n=${scoredNos.length}${unscored.size > 0 ? ` (${unscored.size} ambiguous cases excluded, reported below)` : ""} — abstention counted as correct only where it is\n`);
-  console.log(`  ${"arm".padEnd(44)}${"fully correct".padEnd(23)}${"confidently WRONG".padEnd(23)}`);
-  for (const arm of armSet) {
-    if (!results.has(arm.id)) continue;
-    const ok = count(arm.id, inScopeNos, "CORRECT") + count(arm.id, outScopeNos, "CORRECT_ABSTAIN");
-    const wrong = count(arm.id, inScopeNos, "WRONG_RESOURCE") + count(arm.id, outScopeNos, "FALSE_FILL") + count(arm.id, scoredNos, "INVALID");
-    console.log(`  ${arm.label.padEnd(44)}${pct(ok, scoredNos.length)}${pct(wrong, scoredNos.length)}`);
-  }
+  reportOutOfScopeArgumentFills({ scoredCases, armSet, results, count, scoredNos, unscored, inScopeNos, outScopeNos });
 
   // ---- Paired significance, arm vs the shipped design (C) --------------------------------------
-  if (results.has(baselineArm)) {
-    console.log(`\n  PAIRED McNemar exact vs. the card arm, "fully correct" per case:\n`);
-    const okVec = (arm: string, nos: readonly number[]) =>
-      nos.map((n) => {
-        const v = results.get(arm)!.get(n)!;
-        return v === "CORRECT" || v === "CORRECT_ABSTAIN";
-      });
-    for (const arm of armSet) {
-      if (arm.id === baselineArm || !results.has(arm.id)) continue;
-      for (const [scope, nos] of [["in-scope", inScopeNos], ["out-of-scope", outScopeNos], ["scored set", scoredNos]] as const) {
-        const a = okVec(arm.id, nos);
-        const c = okVec(baselineArm, nos);
-        let b = 0;
-        let d = 0;
-        for (let i = 0; i < nos.length; i++) {
-          if (c[i] && !a[i]) b++;
-          else if (!c[i] && a[i]) d++;
-        }
-        const p = mcnemarExactP(b, d);
-        console.log(`    ${`${arm.id} vs ${baselineArm}, ${scope}`.padEnd(28)}${baselineArm}-only=${String(b).padEnd(4)}${arm.id}-only=${String(d).padEnd(4)}p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? " *" : ""}`);
-      }
-    }
-  }
+  reportArgumentFillSignificance({ results, baselineArm, armSet, inScopeNos, outScopeNos, scoredNos });
 
   // ---- The DETERMINISTIC bound: what a purely lexical model of the fill decision predicts -------
   //
@@ -307,42 +245,131 @@ function main(): void {
   // Note what this arm structurally CANNOT do: BM25 always returns a ranked list, so it has no way
   // to express "none of these" at all. Every out-of-scope case is a forced fill. The abstention
   // behaviour that turns out to dominate the real result is invisible to it in principle.
-  if (family === "read") {
-  const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
-  const descById = new Map((registry.list({}) as readonly { id: string; description?: string }[]).map((d) => [d.id, d.description ?? ""]));
-  const membersOf = new Map<string, string[]>();
-  for (const id of TIER1_CLEAN) membersOf.set(resourceKeyOf(id), [...(membersOf.get(resourceKeyOf(id)) ?? []), id]);
-  const resourceOnlyIndex = buildToolCatalogQuery({
-    list: () =>
-      [...membersOf.entries()].map(([key, ids]) => ({
-        id: key,
-        description: ids.map((id) => indexedDescriptionFor(id, descById.get(id) ?? "")).join(" "),
-        inputSchema: { type: "object" },
-      })) as never,
-  });
-  let lexTop1 = 0;
-  let lexTop3 = 0;
-  const lexMisses: KeyCase[] = [];
-  for (const c of key.cases) {
-    if (c.acceptableResources.length === 0) continue;
-    const ranked = resourceOnlyIndex.search({ query: c.query }, { limit: 3 }).map((h) => h.id);
-    if (ranked.length > 0 && c.acceptableResources.includes(ranked[0]!)) lexTop1++;
-    else lexMisses.push(c);
-    if (ranked.some((r) => c.acceptableResources.includes(r))) lexTop3++;
-  }
-  const nIn = key.cases.filter((c) => c.acceptableResources.length > 0).length;
-  console.log(`\n  DETERMINISTIC LEXICAL BOUND — BM25 over the 29 resource documents alone, no other tools competing`);
-  console.log(`  (this is the model of the fill decision that the "15-point scoring asymmetry" implicitly assumed)\n`);
-  console.log(`    resource picked by BM25 top-1   ${pct(lexTop1, nIn)}`);
-  console.log(`    correct resource in BM25 top-3  ${pct(lexTop3, nIn)}`);
-  console.log(`    can it ever abstain?            no — BM25 always ranks something; every out-of-scope case is a forced fill`);
-  console.log(`\n    In-scope cases BM25 gets wrong but every live arm gets right (${lexMisses.length}):`);
-  for (const c of lexMisses) console.log(`      want=${c.acceptableResources.join("|").padEnd(26)} "${c.query.slice(0, 68)}"`);
+  reportReadArgumentFills(family, key);
+
+  reportAdversarialArgumentFills({ family, key, armSet, results, count, dir, caseNos });
+
+  reportDuplicateArgumentFills({ family, key, armSet, results, count, dir, caseNos, byNo });
+
+  // ---- The failure register: every case where an arm returned confident, plausible, WRONG data ---
+  reportWrongArgumentFills({ armSet, results, caseNos, dir, byNo });
+}
+
+function reportArgumentFillRates({ inScopeNos, armSet, results, count, outScopeNos }: { inScopeNos: number[]; armSet: readonly { id: string; file: string; label: string }[]; results: Map<string, Map<number, Verdict>>; count: (arm: string, nos: readonly number[], v: Verdict) => number; outScopeNos: number[] }) {
+  console.log(`  ON THE ${inScopeNos.length} IN-SCOPE CASES  — the tool CAN serve these; the only question is which resource\n`);
+  console.log(`  ${"arm".padEnd(44)}${"correct".padEnd(23)}${"WRONG resource".padEnd(23)}${"abstained".padEnd(23)}${"invalid".padEnd(23)}`);
+  for (const arm of armSet) {
+    if (!results.has(arm.id)) continue;
+    const n = inScopeNos.length;
+    console.log(
+      `  ${arm.label.padEnd(44)}${pct(count(arm.id, inScopeNos, "CORRECT"), n)}${pct(count(arm.id, inScopeNos, "WRONG_RESOURCE"), n)}` +
+      `${pct(count(arm.id, inScopeNos, "MISSED_ABSTAIN"), n)}${pct(count(arm.id, inScopeNos, "INVALID"), n)}`
+    );
   }
 
+  console.log(`\n  ON THE ${outScopeNos.length} OUT-OF-SCOPE CASES — the tool CANNOT serve these; the only correct answer is to abstain\n`);
+  console.log(`  ${"arm".padEnd(44)}${"correctly abstained".padEnd(23)}${"FALSE FILL".padEnd(23)}${"invalid".padEnd(23)}`);
+  for (const arm of armSet) {
+    if (!results.has(arm.id)) continue;
+    const n = outScopeNos.length;
+    console.log(
+      `  ${arm.label.padEnd(44)}${pct(count(arm.id, outScopeNos, "CORRECT_ABSTAIN"), n)}${pct(count(arm.id, outScopeNos, "FALSE_FILL"), n)}${pct(count(arm.id, outScopeNos, "INVALID"), n)}`
+    );
+  }
+}
+
+
+function reportOutOfScopeArgumentFills({ scoredCases, armSet, results, count, scoredNos, unscored, inScopeNos, outScopeNos }: { scoredCases: KeyCase[]; armSet: readonly { id: string; file: string; label: string }[]; results: Map<string, Map<number, Verdict>>; count: (arm: string, nos: readonly number[], v: Verdict) => number; scoredNos: number[]; unscored: Set<number>; inScopeNos: number[]; outScopeNos: number[] }) {
+  const outRead = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "read").map((c) => c.caseNo);
+  const outMutate = scoredCases.filter((c) => c.acceptableResources.length === 0 && c.truthKind === "mutation").map((c) => c.caseNo);
+  console.log(`\n  OUT-OF-SCOPE, SPLIT BY WHAT THE REQUEST ACTUALLY WANTED (classified from each ground-truth tool's own`);
+  console.log(`  declared readOnly flag, never by judgment). A false fill on a READ request is a near-miss inside the same`);
+  console.log(`  verb and is partly an artifact of these arms offering only the 29 read resources; a false fill on a`);
+  console.log(`  MUTATION request is the tool being reached for when the operator wanted something changed.\n`);
+  console.log(`  ${"arm".padEnd(44)}${`abstain, read n=${outRead.length}`.padEnd(23)}${`abstain, mutation n=${outMutate.length}`.padEnd(23)}`);
+  for (const arm of armSet) {
+    if (!results.has(arm.id)) continue;
+    console.log(
+      `  ${arm.label.padEnd(44)}${pct(count(arm.id, outRead, "CORRECT_ABSTAIN"), outRead.length)}${pct(count(arm.id, outMutate, "CORRECT_ABSTAIN"), outMutate.length)}`
+    );
+  }
+
+  console.log(`\n  SCORED SET, n=${scoredNos.length}${unscored.size > 0 ? ` (${unscored.size} ambiguous cases excluded, reported below)` : ""} — abstention counted as correct only where it is\n`);
+  console.log(`  ${"arm".padEnd(44)}${"fully correct".padEnd(23)}${"confidently WRONG".padEnd(23)}`);
+  for (const arm of armSet) {
+    if (!results.has(arm.id)) continue;
+    const ok = count(arm.id, inScopeNos, "CORRECT") + count(arm.id, outScopeNos, "CORRECT_ABSTAIN");
+    const wrong = count(arm.id, inScopeNos, "WRONG_RESOURCE") + count(arm.id, outScopeNos, "FALSE_FILL") + count(arm.id, scoredNos, "INVALID");
+    console.log(`  ${arm.label.padEnd(44)}${pct(ok, scoredNos.length)}${pct(wrong, scoredNos.length)}`);
+  }
+}
+
+
+function reportArgumentFillSignificance({ results, baselineArm, armSet, inScopeNos, outScopeNos, scoredNos }: { results: Map<string, Map<number, Verdict>>; baselineArm: string; armSet: readonly { id: string; file: string; label: string }[]; inScopeNos: number[]; outScopeNos: number[]; scoredNos: number[] }) {
+  if (results.has(baselineArm)) {
+    console.log(`\n  PAIRED McNemar exact vs. the card arm, "fully correct" per case:\n`);
+    const okVec = (arm: string, nos: readonly number[]) => nos.map((n) => {
+      const v = results.get(arm)!.get(n)!;
+      return v === "CORRECT" || v === "CORRECT_ABSTAIN";
+    });
+    for (const arm of armSet) {
+      if (arm.id === baselineArm || !results.has(arm.id)) continue;
+      for (const [scope, nos] of [["in-scope", inScopeNos], ["out-of-scope", outScopeNos], ["scored set", scoredNos]] as const) {
+        const a = okVec(arm.id, nos);
+        const c = okVec(baselineArm, nos);
+        let b = 0;
+        let d = 0;
+        for (let i = 0;i < nos.length;i++) {
+          if (c[i] && !a[i]) b++;
+          else if (!c[i] && a[i]) d++;
+        }
+        const p = mcnemarExactP(b, d);
+        console.log(`    ${`${arm.id} vs ${baselineArm}, ${scope}`.padEnd(28)}${baselineArm}-only=${String(b).padEnd(4)}${arm.id}-only=${String(d).padEnd(4)}p=${p < 0.0001 ? p.toExponential(1) : p.toFixed(4)}${p < 0.05 ? " *" : ""}`);
+      }
+    }
+  }
+}
+
+
+function reportReadArgumentFills(family: "read" | "delete" | "adversarial" | "duplicate", key: Key) {
+  if (family === "read") {
+    const registry = buildEvalToolRegistry(fakeEvalRouteDeps(), undefined, { includeContentReadCollapse: false });
+    const descById = new Map((registry.list({}) as readonly { id: string; description?: string; }[]).map((d) => [d.id, d.description ?? ""]));
+    const membersOf = new Map<string, string[]>();
+    for (const id of TIER1_CLEAN) membersOf.set(resourceKeyOf(id), [...(membersOf.get(resourceKeyOf(id)) ?? []), id]);
+    const resourceOnlyIndex = buildToolCatalogQuery({
+      list: () => [...membersOf.entries()].map(([key, ids]) => ({
+        id: key,
+        description: ids.map((id) => indexedDescriptionFor({ toolId: id, description: descById.get(id) ?? "" })).join(" "),
+        inputSchema: { type: "object" },
+      })) as never,
+    });
+    let lexTop1 = 0;
+    let lexTop3 = 0;
+    const lexMisses: KeyCase[] = [];
+    for (const c of key.cases) {
+      if (c.acceptableResources.length === 0) continue;
+      const ranked = resourceOnlyIndex.search({ query: c.query }, { limit: 3 }).map((h) => h.id);
+      if (ranked.length > 0 && c.acceptableResources.includes(ranked[0]!)) lexTop1++;
+      else lexMisses.push(c);
+      if (ranked.some((r) => c.acceptableResources.includes(r))) lexTop3++;
+    }
+    const nIn = key.cases.filter((c) => c.acceptableResources.length > 0).length;
+    console.log(`\n  DETERMINISTIC LEXICAL BOUND — BM25 over the 29 resource documents alone, no other tools competing`);
+    console.log(`  (this is the model of the fill decision that the "15-point scoring asymmetry" implicitly assumed)\n`);
+    console.log(`    resource picked by BM25 top-1   ${pct(lexTop1, nIn)}`);
+    console.log(`    correct resource in BM25 top-3  ${pct(lexTop3, nIn)}`);
+    console.log(`    can it ever abstain?            no — BM25 always ranks something; every out-of-scope case is a forced fill`);
+    console.log(`\n    In-scope cases BM25 gets wrong but every live arm gets right (${lexMisses.length}):`);
+    for (const c of lexMisses) console.log(`      want=${c.acceptableResources.join("|").padEnd(26)} "${c.query.slice(0, 68)}"`);
+  }
+}
+
+
+function reportAdversarialArgumentFills({ family, key, armSet, results, count, dir, caseNos }: { family: "read" | "delete" | "adversarial" | "duplicate"; key: Key; armSet: readonly { id: string; file: string; label: string }[]; results: Map<string, Map<number, Verdict>>; count: (arm: string, nos: readonly number[], v: Verdict) => number; dir: string; caseNos: number[] }) {
   if (family === "adversarial") {
-    const bait = key.cases.filter((c) => (c as KeyCase & { bait: string | null }).bait !== null).map((c) => c.caseNo);
-    const control = key.cases.filter((c) => (c as KeyCase & { bait: string | null }).bait === null).map((c) => c.caseNo);
+    const bait = key.cases.filter((c) => (c as KeyCase & { bait: string | null; }).bait !== null).map((c) => c.caseNo);
+    const control = key.cases.filter((c) => (c as KeyCase & { bait: string | null; }).bait === null).map((c) => c.caseNo);
     console.log(`\n  ADVERSARIAL SPLIT — bait cases carry a salient sibling resource the request does NOT target\n`);
     console.log(`  ${"arm".padEnd(48)}${`bait n=${bait.length}`.padEnd(23)}${`control n=${control.length}`.padEnd(23)}`);
     for (const arm of armSet) {
@@ -359,14 +386,17 @@ function main(): void {
       });
       console.log(`\n  Arm ${arm.id} — ${sprung.length} wrong of ${key.cases.length}${sprung.length ? ":" : " (no trap sprung)"}`);
       for (const c of sprung) {
-        const b = (c as KeyCase & { bait: string | null }).bait;
+        const b = (c as KeyCase & { bait: string | null; }).bait;
         console.log(`    ${String(c.caseNo).padStart(3)} got=${answers.get(c.caseNo)!.padEnd(34)} want=${c.expect.padEnd(26)} bait=${b ?? "(control)"}`);
       }
     }
   }
+}
 
+
+function reportDuplicateArgumentFills({ family, key, armSet, results, count, dir, caseNos, byNo }: { family: "read" | "delete" | "adversarial" | "duplicate"; key: Key; armSet: readonly { id: string; file: string; label: string }[]; results: Map<string, Map<number, Verdict>>; count: (arm: string, nos: readonly number[], v: Verdict) => number; dir: string; caseNos: number[]; byNo: Map<number, KeyCase> }) {
   if (family === "duplicate") {
-    type Bucketed = KeyCase & { bucket: string; reallyWants: string | null };
+    type Bucketed = KeyCase & { bucket: string; reallyWants: string | null; };
     const of = (b: string) => key.cases.filter((c) => (c as Bucketed).bucket === b).map((c) => c.caseNo);
     const blind = of("blind-negative");
     const near = of("near-miss");
@@ -380,7 +410,7 @@ function main(): void {
       if (!results.has(arm.id)) continue;
       console.log(
         `  ${arm.label.padEnd(56)}${pct(count(arm.id, pos, "CORRECT"), pos.length)}` +
-          `${pct(count(arm.id, blind, "CORRECT_ABSTAIN"), blind.length)}${pct(count(arm.id, near, "CORRECT_ABSTAIN"), near.length)}`,
+        `${pct(count(arm.id, blind, "CORRECT_ABSTAIN"), blind.length)}${pct(count(arm.id, near, "CORRECT_ABSTAIN"), near.length)}`
       );
     }
     for (const arm of armSet) {
@@ -390,8 +420,10 @@ function main(): void {
       for (const n of amb) console.log(`    got=${answers.get(n)!.padEnd(22)} "${byNo.get(n)!.query}"`);
     }
   }
+}
 
-  // ---- The failure register: every case where an arm returned confident, plausible, WRONG data ---
+
+function reportWrongArgumentFills({ armSet, results, caseNos, dir, byNo }: { armSet: readonly { id: string; file: string; label: string }[]; results: Map<string, Map<number, Verdict>>; caseNos: number[]; dir: string; byNo: Map<number, KeyCase> }) {
   for (const arm of armSet) {
     if (!results.has(arm.id)) continue;
     const bad = caseNos.filter((n) => {
@@ -409,5 +441,6 @@ function main(): void {
   }
   console.log("");
 }
+
 
 main();

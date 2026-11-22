@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { askThenReport, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import type { ExternalMcpServerView } from "../../contracts.js";
@@ -39,6 +39,7 @@ function existingView(overrides: Partial<ExternalMcpServerView> = {}): ExternalM
     envNames: [],
     hasAccessToken: false,
     accessTokenEnvName: null,
+    version: 1,
     oauth: { providerId: null, grant: null, clientId: null, scopes: ["read", "write"], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false },
     ...overrides,
   };
@@ -87,54 +88,54 @@ test("buildExternalMcpSaveForm: the engine routes submit and cancel to the same 
 // ---------------------------------------------------------------------------
 
 test("mergeExternalMcpSavePrefill: with no existing row, returns the input untouched", () => {
-  const result = mergeExternalMcpSavePrefill(BASE_INPUT, undefined);
+  const result = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: undefined });
   assert.equal(result, BASE_INPUT);
 });
 
 test("mergeExternalMcpSavePrefill: explicit input fields win over the existing row's values", () => {
   const input: ExternalMcpSaveInput = { id: "srv-1", transport: "stdio", label: "New Label", command: "node new-server.js" };
-  const result = mergeExternalMcpSavePrefill(input, existingView());
+  const result = mergeExternalMcpSavePrefill({ input, existing: existingView() });
   assert.equal(result.label, "New Label");
   assert.equal(result.command, "node new-server.js");
 });
 
 test("mergeExternalMcpSavePrefill: unset input fields fall back to the existing row's values, joining array fields", () => {
-  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView());
+  const result = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView() });
   assert.equal(result.label, "Existing Label");
   assert.equal(result.command, "npx some-server");
   assert.equal(result.args, "--flag");
   assert.equal(result.allowedToolNames, "tool_a, tool_b");
   assert.equal(result.authMode, "api_key");
   const args = ["-y", "some-pkg"];
-  const multi = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ args }));
+  const multi = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView({ args }) });
   assert.equal(multi.args, "-y some-pkg");
 });
 
 test("mergeExternalMcpSavePrefill: HTTP updates retain the existing URL unless input overrides it", () => {
   const input: ExternalMcpSaveInput = { id: "srv-1", transport: "streamable_http" };
   const existing = existingView({ transport: "streamable_http", url: "https://old.example/mcp" });
-  assert.equal(mergeExternalMcpSavePrefill(input, existing).url, "https://old.example/mcp");
-  assert.equal(mergeExternalMcpSavePrefill({ ...input, url: "https://new.example/mcp" }, existing).url, "https://new.example/mcp");
+  assert.equal(mergeExternalMcpSavePrefill({ input, existing }).url, "https://old.example/mcp");
+  assert.equal(mergeExternalMcpSavePrefill({ input: { ...input, url: "https://new.example/mcp" }, existing }).url, "https://new.example/mcp");
 });
 
 test("mergeExternalMcpSavePrefill: an existing row's write grants prefill writeAllowedToolNames — an update's form does not start from a blank that would read as 'no write access'", () => {
-  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ writeAllowedToolNames: ["tool_a"] }));
+  const result = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView({ writeAllowedToolNames: ["tool_a"] }) });
   assert.equal(result.writeAllowedToolNames, "tool_a");
 });
 
 test("mergeExternalMcpSavePrefill: a row with no write grants prefills an empty writeAllowedToolNames, not undefined", () => {
-  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView({ writeAllowedToolNames: [] }));
+  const result = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView({ writeAllowedToolNames: [] }) });
   assert.equal(result.writeAllowedToolNames, "");
 });
 
 test("mergeExternalMcpSavePrefill: explicit input writeAllowedToolNames wins over the existing row's value", () => {
   const input: ExternalMcpSaveInput = { id: "srv-1", transport: "stdio", writeAllowedToolNames: "tool_b" };
-  const result = mergeExternalMcpSavePrefill(input, existingView({ writeAllowedToolNames: ["tool_a"] }));
+  const result = mergeExternalMcpSavePrefill({ input, existing: existingView({ writeAllowedToolNames: ["tool_a"] }) });
   assert.equal(result.writeAllowedToolNames, "tool_b");
 });
 
 test("mergeExternalMcpSavePrefill: a null existing OAuth field falls back to unset (undefined), not null", () => {
-  const result = mergeExternalMcpSavePrefill(BASE_INPUT, existingView());
+  const result = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView() });
   assert.equal(result.oauthProviderId, undefined);
   assert.equal(result.oauthGrant, undefined);
   assert.equal(result.oauthClientId, undefined);
@@ -144,8 +145,10 @@ test("mergeExternalMcpSavePrefill: a null existing OAuth field falls back to uns
 
 test("mergeExternalMcpSavePrefill: a non-null existing OAuth field is used as fallback", () => {
   const result = mergeExternalMcpSavePrefill(
-    BASE_INPUT,
-    existingView({ oauth: { providerId: "google", grant: "device_code", clientId: "client-1", scopes: [], status: "connected", expiresAt: null, tokenEnvName: "TOKEN_ENV", hasStoredToken: true } }),
+    {
+      input: BASE_INPUT,
+      existing: existingView({ oauth: { providerId: "google", grant: "device_code", clientId: "client-1", scopes: [], status: "connected", expiresAt: null, tokenEnvName: "TOKEN_ENV", hasStoredToken: true } }),
+    },
   );
   assert.equal(result.oauthProviderId, "google");
   assert.equal(result.oauthGrant, "device_code");
@@ -155,7 +158,7 @@ test("mergeExternalMcpSavePrefill: a non-null existing OAuth field is used as fa
 
 test("mergeExternalMcpSavePrefill: OAuth endpoint fields are never merged from existing — carried through from input as-is", () => {
   const input: ExternalMcpSaveInput = { id: "srv-1", transport: "stdio", oauthAuthorizationEndpoint: "https://example.com/authorize" };
-  const result = mergeExternalMcpSavePrefill(input, existingView());
+  const result = mergeExternalMcpSavePrefill({ input, existing: existingView() });
   assert.equal(result.oauthAuthorizationEndpoint, "https://example.com/authorize");
   assert.equal(result.oauthTokenEndpoint, undefined);
   assert.equal(result.oauthDeviceAuthorizationEndpoint, undefined);
@@ -166,7 +169,7 @@ test("mergeExternalMcpSavePrefill: OAuth endpoint fields are never merged from e
 // ---------------------------------------------------------------------------
 
 function fieldNames(input: ExternalMcpSaveInput, isUpdate: boolean): string[] {
-  return buildExternalMcpSaveFormFields(input, isUpdate).map((f) => f.name);
+  return buildExternalMcpSaveFormFields({ input, isUpdate }).map((f) => f.name);
 }
 
 test("stdio, create: id, label, command, args, env and static token fields — in that order, no oauth fields", () => {
@@ -207,7 +210,7 @@ test("oauth + streamable_http: no oauthTokenEnvName field (stdio-only)", () => {
 });
 
 test("a provided value pre-fills the field; an omitted value leaves no `value` key at all", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", label: "My Server" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", label: "My Server" }, isUpdate: false });
   const label = fields.find((f) => f.name === "label") as { value?: string };
   const command = fields.find((f) => f.name === "command") as { value?: string };
   assert.equal(label.value, "My Server");
@@ -223,21 +226,21 @@ test("writeAllowedToolNames: the proposed value is disclosed read-only; omission
 });
 
 test("env field's hint differs between create and update", () => {
-  const createEnv = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio" }, false).find((f) => f.name === "env") as { hint?: string };
-  const updateEnv = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio" }, true).find((f) => f.name === "env") as { hint?: string };
+  const createEnv = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio" }, isUpdate: false }).find((f) => f.name === "env") as { hint?: string };
+  const updateEnv = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio" }, isUpdate: true }).find((f) => f.name === "env") as { hint?: string };
   assert.equal(createEnv.hint, undefined);
   assert.equal(updateEnv.hint, "Leave blank to keep the stored values.");
 });
 
 test("oauthClientSecret's hint differs between create and update", () => {
-  const createSecret = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false).find((f) => f.name === "oauthClientSecret") as { hint?: string };
-  const updateSecret = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, true).find((f) => f.name === "oauthClientSecret") as { hint?: string };
+  const createSecret = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: false }).find((f) => f.name === "oauthClientSecret") as { hint?: string };
+  const updateSecret = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: true }).find((f) => f.name === "oauthClientSecret") as { hint?: string };
   assert.equal(createSecret.hint, "Leave blank if this provider needs none (a public/PKCE client).");
   assert.equal(updateSecret.hint, "Leave blank to keep the stored secret.");
 });
 
 test("neither env nor secret fields ever carry a `value` key, regardless of input", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: false });
   const env = fields.find((f) => f.name === "env");
   const secret = fields.find((f) => f.name === "oauthClientSecret");
   assert.ok(env && secret);
@@ -253,7 +256,7 @@ test("neither env nor secret fields ever carry a `value` key, regardless of inpu
 // of operator effort — which is exactly what a hosted server with no developer console hits.
 
 function requiredOf(input: ExternalMcpSaveInput, isUpdate: boolean, name: string): boolean | undefined {
-  const field = buildExternalMcpSaveFormFields(input, isUpdate).find((f) => f.name === name) as { required?: boolean } | undefined;
+  const field = buildExternalMcpSaveFormFields({ input, isUpdate }).find((f) => f.name === name) as { required?: boolean } | undefined;
   return field?.required;
 }
 
@@ -262,7 +265,7 @@ test("streamable_http + oauth: Client ID is NOT required — the row registers i
 });
 
 test("streamable_http + oauth: Client ID says so, rather than leaving the human hunting for one", () => {
-  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false).find(
+  const field = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "streamable_http", authMode: "oauth" }, isUpdate: false }).find(
     (f) => f.name === "oauthClientId",
   ) as { placeholder?: string };
   assert.equal(field.placeholder, "leave blank to register with this server automatically");
@@ -271,7 +274,7 @@ test("streamable_http + oauth: Client ID says so, rather than leaving the human 
 test("stdio + oauth: Client ID IS required — there is no URL to discover from", () => {
   assert.equal(requiredOf({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false, "oauthClientId"), true);
   assert.equal(
-    (buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false).find((f) => f.name === "oauthClientId") as {
+    (buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: false }).find((f) => f.name === "oauthClientId") as {
       placeholder?: string;
     }).placeholder,
     undefined,
@@ -291,14 +294,14 @@ test("streamable_http + oauth: Sign-in method is NOT required — it is detected
 });
 
 test("streamable_http + oauth: Sign-in method says so, rather than leaving the human guessing", () => {
-  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false).find(
+  const field = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "streamable_http", authMode: "oauth" }, isUpdate: false }).find(
     (f) => f.name === "oauthGrant",
   ) as { hint?: string };
   assert.equal(field.hint, "Detected from the server unless overridden.");
 });
 
 test("stdio + oauth: Sign-in method carries no such hint — there is no server to detect it from", () => {
-  const field = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false).find(
+  const field = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: false }).find(
     (f) => f.name === "oauthGrant",
   ) as { hint?: string };
   assert.equal(field.hint, undefined);
@@ -312,7 +315,7 @@ test("every other oauth field the store treats as optional is rendered optional"
 });
 
 test("a self-configuring remote connection's identity hints do not tell it to supply endpoints", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "streamable_http", authMode: "oauth" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "streamable_http", authMode: "oauth" }, isUpdate: false });
   const hintOf = (name: string) => (fields.find((f) => f.name === name) as { hint?: string }).hint;
   assert.equal(hintOf("oauthProviderId"), "Leave blank unless this server is a registered provider — a hosted server discovers its own endpoints.");
   assert.equal(hintOf("oauthAuthorizationEndpoint"), "Leave blank unless discovery against this server's URL fails.");
@@ -321,7 +324,7 @@ test("a self-configuring remote connection's identity hints do not tell it to su
 });
 
 test("a stdio connection still gets the hints that tell it to supply its own endpoints", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv-1", transport: "stdio", authMode: "oauth" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv-1", transport: "stdio", authMode: "oauth" }, isUpdate: false });
   const hintOf = (name: string) => (fields.find((f) => f.name === name) as { hint?: string }).hint;
   assert.equal(hintOf("oauthProviderId"), "Leave blank to use your own endpoints below.");
   assert.equal(hintOf("oauthAuthorizationEndpoint"), "Needed for Browser sign-in, unless Provider ID is set.");
@@ -339,14 +342,14 @@ test("explicit prefill values, including empty strings, win over every stored va
     oauthTokenEndpoint: "https://new.example/token", oauthDeviceAuthorizationEndpoint: "https://new.example/device",
   };
   const existing = existingView({ accessTokenEnvName: "OLD_TOKEN" });
-  assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), input);
-  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).accessTokenEnvName, "OLD_TOKEN");
-  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existingView()).accessTokenEnvName, undefined);
+  assert.deepEqual(mergeExternalMcpSavePrefill({ input, existing }), input);
+  assert.equal(mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing }).accessTokenEnvName, "OLD_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: existingView() }).accessTokenEnvName, undefined);
 });
 
 test("static_env explicitly selects token entry and none omits credential fields", () => {
   for (const isUpdate of [false, true]) {
-    const fields = buildExternalMcpSaveFormFields({ ...BASE_INPUT, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, isUpdate);
+    const fields = buildExternalMcpSaveFormFields({ input: { ...BASE_INPUT, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, isUpdate });
     const token = fields.find(field => field.name === "accessToken")!;
     assert.equal(token.hint, isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server.");
     assert.equal(Object.hasOwn(token, "value"), false);
@@ -372,7 +375,7 @@ for (const override of [undefined, "", "replacement"]) test(`prefill applies ${S
   const overrides = Object.fromEntries(Object.keys(fallback).map(key => [key, override]));
   const input: ExternalMcpSaveInput = { ...BASE_INPUT, ...overrides };
   const before = structuredClone(existing);
-  assert.deepEqual(mergeExternalMcpSavePrefill(input, existing), {
+  assert.deepEqual(mergeExternalMcpSavePrefill({ input, existing }), {
     id: BASE_INPUT.id, transport: BASE_INPUT.transport, enabled: true,
     ...Object.fromEntries(Object.entries(fallback).map(([key, value]) => [key, override ?? value])),
   });
@@ -382,7 +385,7 @@ for (const override of [undefined, "", "replacement"]) test(`prefill applies ${S
 
 test("common form fields preserve blank prefills, required flags, order and permission hints", () => {
   for (const transport of ["stdio", "streamable_http"]) {
-    const fields = buildExternalMcpSaveFormFields({ id: "server", transport, label: "", url: "", allowedToolNames: "", writeAllowedToolNames: "" }, false);
+    const fields = buildExternalMcpSaveFormFields({ input: { id: "server", transport, label: "", url: "", allowedToolNames: "", writeAllowedToolNames: "" }, isUpdate: false });
     assert.deepEqual(fields.slice(0, 2), [
       { kind: "string", name: "id", label: "ID", required: true, value: "server", hint: "Lowercase letters, digits and dashes." },
       { kind: "string", name: "label", label: "Display name", value: "" },
@@ -410,15 +413,15 @@ test("save cards disclose site-wide access, local OS execution and the tool allo
 
 test("save prefill preserves disabled state and an explicit toggle wins", () => {
   const existing = existingView({ enabled: false });
-  assert.equal(mergeExternalMcpSavePrefill(BASE_INPUT, existing).enabled, false);
-  assert.equal(mergeExternalMcpSavePrefill({ ...BASE_INPUT, enabled: true }, existing).enabled, true);
+  assert.equal(mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing }).enabled, false);
+  assert.equal(mergeExternalMcpSavePrefill({ input: { ...BASE_INPUT, enabled: true }, existing }).enabled, true);
 });
 
 
 test("unchanged argument prefills preserve empty arguments alongside literal equals and Windows paths", () => {
   const args = ["", "--name=x", "C:\\Users\\John Smith\\server", ""];
   const before = existingView({ args });
-  const prefill = mergeExternalMcpSavePrefill(BASE_INPUT, before);
-  assert.deepEqual(parseArgs(prefill.args!), args);
+  const prefill = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: before });
+  assert.deepEqual(parseArgs({ raw: prefill.args! }), args);
   assert.deepEqual(before.args, args, "prefill does not mutate the stored view");
 });

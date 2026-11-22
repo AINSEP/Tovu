@@ -22,7 +22,7 @@ function entry(overrides: Record<string, unknown> = {}): Record<string, unknown>
 }
 
 function reasonFor(text: string): string | null {
-  const read = parseRevocationDocument(text);
+  const read = parseRevocationDocument({ text });
   return read.ok ? null : read.reason;
 }
 
@@ -39,11 +39,11 @@ test("a document one byte over the bound is refused before it is parsed", () => 
 });
 
 test("a whitespace document at the bound is an empty list", () => {
-  assert.deepEqual(parseRevocationDocument(" ".repeat(16_384)), { ok: true, revocations: [] });
+  assert.deepEqual(parseRevocationDocument({ text: " ".repeat(16_384) }), { ok: true, revocations: [] });
 });
 
 test("an empty document is an empty list", () => {
-  assert.deepEqual(parseRevocationDocument(""), { ok: true, revocations: [] });
+  assert.deepEqual(parseRevocationDocument({ text: "" }), { ok: true, revocations: [] });
 });
 
 test("invalid JSON is refused with the parser's own message", () => {
@@ -65,7 +65,7 @@ test("65 records are refused before any record is inspected", () => {
 });
 
 test("64 valid records are accepted", () => {
-  const read = parseRevocationDocument(JSON.stringify(revocations(MAX_REVOCATIONS)));
+  const read = parseRevocationDocument({ text: JSON.stringify(revocations(MAX_REVOCATIONS)) });
   assert.equal(read.ok && read.revocations.length, MAX_REVOCATIONS);
 });
 
@@ -107,7 +107,7 @@ for (const note of ["", "n".repeat(513), 5, false]) {
 
 test("records keep only their three fields, a string note verbatim and an absent note as null", () => {
   const { note: _note, ...withoutNote } = entry({ sourceInstallationId: "src-b" });
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...entry({ note: "lost laptop" }), extra: 1 }, withoutNote])), {
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...entry({ note: "lost laptop" }), extra: 1 }, withoutNote]) }), {
     ok: true,
     revocations: [
       { sourceInstallationId: "src-a", revokedAt: NOW, note: "lost laptop" },

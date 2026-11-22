@@ -1,5 +1,5 @@
-import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
-import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
+import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -8,11 +8,11 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
-import { InMemoryPublishContentBundleRepo, stageBundle } from "#src/features/publish-content/bundle-staging";
+import { InMemoryPublishContentBundleRepo, stageBundle } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { registerPublishContentImportRoutes } from "../import.js";
 import type { PublishContentRouteDeps } from "../deps.js";
@@ -21,19 +21,22 @@ test("real import plan returns safe before/after values for raw rows without req
   const db = new Database(":memory:"); t.after(() => db.close());
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','Old footer');");
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
-  const kernel = contentKernel(db);
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
+  const kernel = contentKernel({ store: db });
   const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel });
   const live = await rows.read({ table: "p_banner", pk: { id: "one" } }); assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
-    contentHash: contentHash("raw-row", state), requiredBlobs: [], state,
+    contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [], state,
     backstop: { mode: "backstop", reason: "Emergency footer fix", sourceActor: "owner", destinationHost: "live.example", gapLabels: ["table:p_banner"] } };
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z") }; let serial = 0;
   const idGen = { newId: () => `id-${++serial}` };
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  const staged = await stageBundle({ workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({
+                                     input: { workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] },
+                                     deps: { repo: bundleRepo, clock, idGen }
+                                   });
   let allowValues = true;
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: permission !== "publish.backstop" || allowValues, reason: "fixture permission" });
   const deps = { workspaceId: "ws", contentKernel: kernel, clock, idGen, authorize,
@@ -42,7 +45,7 @@ test("real import plan returns safe before/after values for raw rows without req
   } as unknown as PublishContentRouteDeps;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishContentImportRoutes(app, deps);
+  registerPublishContentImportRoutes({ app, deps });
   const server = await startTestServer(app, t);
   const request = () => fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/import/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bundleId: staged.bundleId }) });
   const response = await request(); const body = await response.json();

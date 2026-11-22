@@ -4,7 +4,7 @@ import { Suspense, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { api } from "@/lib/api";
+import { mediaApi } from "@/features/media/api/media-api";
 import { ADMIN_PANELS } from "@/panels";
 import { Library as LibraryRoute } from "@/panel-pages";
 import { Placeholder } from "@/components/Placeholder";
@@ -81,9 +81,9 @@ describe("Library panel registration", () => {
 
 describe("Library tabs", () => {
   it("lands on Upload and falls back to it for an unknown tab", () => {
-    expect(resolveLibraryTabId(null)).toBe("upload");
-    expect(resolveLibraryTabId("nope")).toBe("upload");
-    expect(resolveLibraryTabId("documents")).toBe("documents");
+    expect(resolveLibraryTabId({ tabId: null })).toBe("upload");
+    expect(resolveLibraryTabId({ tabId: "nope" })).toBe("upload");
+    expect(resolveLibraryTabId({ tabId: "documents" })).toBe("documents");
   });
 
   it("renders the Upload and Documents tabs, Upload first", async () => {
@@ -95,7 +95,7 @@ describe("Library tabs", () => {
   });
 
   it("shows the documents list on ?tab=documents with name, type, size, date and Unknown uploader", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md", { byteSize: 2048 })] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" }, { overrides: { byteSize: 2048 } })] });
     renderLibrary(port, "documents");
     const table = await screen.findByRole("table");
     expect(within(table).getByRole("button", { name: "notes.md" })).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("Library tabs", () => {
   });
 
   it("Documents is only the list: no upload button and no drop zone", async () => {
-    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument("notes.md")] }), "documents");
+    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] }), "documents");
     expect(await screen.findByRole("table")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload documents" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("file-dropzone-zone")).not.toBeInTheDocument();
@@ -194,9 +194,9 @@ describe("Library upload", () => {
   });
 
   it("api.uploadDocument posts kind=document to the media endpoint", async () => {
-    const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: fakeDocument("a.md") }), { status: 201, headers: { "content-type": "application/json" } }));
+    const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: fakeDocument({ filename: "a.md" }) }), { status: 201, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
-    await api.uploadDocument({ filename: "a.md", dataBase64: "IyBoaQ==" });
+    await mediaApi.uploadDocument({ filename: "a.md", dataBase64: "IyBoaQ==" });
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toMatch(/\/workspaces\/workspace-local\/media$/);
     expect(init.method).toBe("POST");
@@ -206,14 +206,14 @@ describe("Library upload", () => {
   it("api.listDocuments asks for kind=document", async () => {
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
-    await api.listDocuments();
+    await mediaApi.listDocuments();
     expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media\?kind=document$/);
   });
 });
 
 describe("Library rename and Trash", () => {
   it("renames the display stem and keeps the extension", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     const { result } = renderLibraryHook(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
     act(() => result.current.rename.start(result.current.documents![0]!));
@@ -225,7 +225,7 @@ describe("Library rename and Trash", () => {
   });
 
   it("will not save an empty or slash-containing name", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     const { result } = renderLibraryHook(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
     act(() => result.current.rename.start(result.current.documents![0]!));
@@ -236,7 +236,7 @@ describe("Library rename and Trash", () => {
   });
 
   it("moves a document to Trash and drops it from the list", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md"), fakeDocument("b.txt")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" }), fakeDocument({ filename: "b.txt" })] });
     const { result } = renderLibraryHook(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(2));
     await act(() => result.current.trash(result.current.documents!.find((doc) => doc.id === "doc-notes.md")!));
@@ -292,12 +292,12 @@ describe("Library permissions", () => {
     const port = createFakeLibraryPort({ permissions: ["media.read"] });
     const { result } = renderLibraryHook(port);
     await waitFor(() => expect(result.current.permissions.known).toBe(true));
-    const doc = fakeDocument("notes.md");
-    expect(documentMenuItems(doc, result.current).map((item) => item.key)).toEqual(["preview", "download"]);
+    const doc = fakeDocument({ filename: "notes.md" });
+    expect(documentMenuItems({ item: doc, controller: result.current }).map((item) => item.key)).toEqual(["preview", "download"]);
     const full = renderLibraryHook(createFakeLibraryPort({ permissions: ALL })).result;
     await waitFor(() => expect(full.current.permissions.known).toBe(true));
-    expect(documentMenuItems(doc, full.current).map((item) => item.key)).toEqual(["preview", "download", "rename", "trash"]);
-    expect(documentMenuItems(fakeDocument("report.docx"), full.current).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
+    expect(documentMenuItems({ item: doc, controller: full.current }).map((item) => item.key)).toEqual(["preview", "download", "rename", "trash"]);
+    expect(documentMenuItems({ item: fakeDocument({ filename: "report.docx" }), controller: full.current }).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
   });
 
   it("hides the Upload documents button without media.upload", async () => {
@@ -309,7 +309,7 @@ describe("Library permissions", () => {
 
 describe("Library previews never run document content", () => {
   it("renders Markdown with raw HTML escaped inside a scriptless, network-blocked frame", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")], texts: { "doc-notes.md": "# Title\n\n<script>alert(1)</script>" } });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })], texts: { "doc-notes.md": "# Title\n\n<script>alert(1)</script>" } });
     renderLibrary(port, "documents");
     await userEvent.click(await screen.findByRole("button", { name: "notes.md" }));
     const frame = await screen.findByTitle("notes.md");
@@ -322,7 +322,7 @@ describe("Library previews never run document content", () => {
   });
 
   it("shows text escaped, not as markup", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("a.txt")], texts: { "doc-a.txt": "<b>bold?</b>" } });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "a.txt" })], texts: { "doc-a.txt": "<b>bold?</b>" } });
     renderLibrary(port, "documents");
     await userEvent.click(await screen.findByRole("button", { name: "a.txt" }));
     expect(await screen.findByText("<b>bold?</b>")).toBeInTheDocument();
@@ -331,7 +331,7 @@ describe("Library previews never run document content", () => {
   it("shows a PDF through an application/pdf <object>, not a sandboxed iframe Chrome blocks", async () => {
     URL.createObjectURL = vi.fn(() => "blob:fake-pdf");
     URL.revokeObjectURL = vi.fn();
-    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument("guide.pdf")] }), "documents");
+    renderLibrary(createFakeLibraryPort({ documents: [fakeDocument({ filename: "guide.pdf" })] }), "documents");
     await userEvent.click(await screen.findByRole("button", { name: "guide.pdf" }));
     const viewer = await screen.findByTitle("guide.pdf");
     expect(viewer.tagName).toBe("OBJECT");
@@ -341,7 +341,7 @@ describe("Library previews never run document content", () => {
   });
 
   it("frame document carries a CSP that blocks scripts and network", () => {
-    const doc = markdownFrameDocument("<p>x</p>", { text: "black", link: "blue", border: "gray" });
+    const doc = markdownFrameDocument({ html: "<p>x</p>", colors: { text: "black", link: "blue", border: "gray" } });
     expect(doc).toContain(`content="default-src 'none'; style-src 'unsafe-inline'"`);
   });
 });
@@ -408,7 +408,7 @@ function stubController(overrides: Partial<LibraryController> = {}): LibraryCont
     preview: null,
     openPreview: (item) => calls.push(`openPreview:${item.id}`),
     closePreview: () => calls.push("closePreview"),
-    downloadUrl: (item) => `/download/${item.id}`,
+    downloadUrl: ({ item }) => `/download/${item.id}`,
     t: english,
     locale: "en",
   };
@@ -425,7 +425,7 @@ function uploadRow(name: string, status: LibraryUploadRow["status"], error: stri
 
 function previewState(overrides: Partial<LibraryPreviewState> = {}): LibraryPreviewState {
   return {
-    item: fakeDocument("notes.md"),
+    item: fakeDocument({ filename: "notes.md" }),
     kind: "markdown",
     loading: false,
     error: null,
@@ -440,7 +440,7 @@ function previewState(overrides: Partial<LibraryPreviewState> = {}): LibraryPrev
 describe("Library production port (createApiLibraryPort)", () => {
   function recordingClient(): LibraryApiClient & { calls: string[] } {
     const calls: string[] = [];
-    const doc = fakeDocument("a.md");
+    const doc = fakeDocument({ filename: "a.md" });
     return {
       calls,
       listDocuments: async () => {
@@ -455,7 +455,7 @@ describe("Library production port (createApiLibraryPort)", () => {
         calls.push(`updateMedia:${target.id}:${JSON.stringify(patch)}`);
         return { media: doc };
       },
-      trashMedia: async (id) => {
+      trashMedia: async ({ id }, _optional = {}) => {
         calls.push(`trashMedia:${id}`);
         return { media: doc };
       },
@@ -463,7 +463,7 @@ describe("Library production port (createApiLibraryPort)", () => {
         calls.push(`readDocumentText:${target.id}`);
         return { text: "hello", truncated: true };
       },
-      mediaOriginalUrl: (id) => `/original/${id}`,
+      mediaOriginalUrl: ({ id }, _optional = {}) => `/original/${id}`,
       me: async () => {
         calls.push("me");
         return { effectivePermissions: ["media.read"] };
@@ -480,10 +480,10 @@ describe("Library production port (createApiLibraryPort)", () => {
     const port = createApiLibraryPort({ client, fetchFn: async () => ({ ok: true, status: 200, blob: async () => new Blob() }) });
     expect((await port.listDocuments()).media).toHaveLength(1);
     await port.uploadDocument({ filename: "a.md", dataBase64: "eA==" });
-    await port.renameDocument({ id: "d1" }, { title: "New" });
-    await port.trashDocument("d2");
+    await port.renameDocument({ target: { id: "d1" }, input: { title: "New" } });
+    await port.trashDocument({ id: "d2" });
     expect(await port.readDocumentText({ id: "d3" })).toEqual({ text: "hello", truncated: true });
-    expect(port.documentDownloadUrl("d4")).toBe("/original/d4");
+    expect(port.documentDownloadUrl({ id: "d4" })).toBe("/original/d4");
     expect(await port.me()).toEqual({ effectivePermissions: ["media.read"] });
     expect(await port.listUsers?.()).toEqual({ users: [{ principalId: "p1", username: "ada" }] });
     expect(client.calls).toEqual([
@@ -500,12 +500,12 @@ describe("Library production port (createApiLibraryPort)", () => {
   it("fetches a document's original bytes with same-origin credentials", async () => {
     const requests: Array<[string, RequestInit]> = [];
     const bytes = new Blob(["%PDF"], { type: "application/pdf" });
-    const fetchFn: LibraryFetch = async (url, init) => {
+    const fetchFn: LibraryFetch = async ({ url, init }) => {
       requests.push([url, init]);
       return { ok: true, status: 200, blob: async () => bytes };
     };
     const port = createApiLibraryPort({ client: recordingClient(), fetchFn });
-    expect(await port.fetchDocumentBlob("d9")).toBe(bytes);
+    expect(await port.fetchDocumentBlob({ id: "d9" })).toBe(bytes);
     expect(requests).toEqual([["/original/d9", { credentials: "same-origin" }]]);
   });
 
@@ -514,16 +514,16 @@ describe("Library production port (createApiLibraryPort)", () => {
       client: recordingClient(),
       fetchFn: async () => ({ ok: false, status: 403, blob: async () => new Blob() }),
     });
-    await expect(port.fetchDocumentBlob("d9")).rejects.toThrow("download failed (403)");
+    await expect(port.fetchDocumentBlob({ id: "d9" })).rejects.toThrow("download failed (403)");
   });
 
   it("the default port reads the page's fetch at call time and targets the real original route", async () => {
     const fetchFake = vi.fn(async () => new Response("bytes", { status: 200 }));
     vi.stubGlobal("fetch", fetchFake);
-    const blob = await defaultLibraryPort.fetchDocumentBlob("doc 1");
+    const blob = await defaultLibraryPort.fetchDocumentBlob({ id: "doc 1" });
     expect(await blob.text()).toBe("bytes");
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe(api.mediaOriginalUrl("doc 1"));
+    expect(url).toBe(mediaApi.mediaOriginalUrl({ id: "doc 1" }));
     expect(init).toEqual({ credentials: "same-origin" });
   });
 });
@@ -531,23 +531,23 @@ describe("Library production port (createApiLibraryPort)", () => {
 describe("Library fake port honours the port contract", () => {
   it("rejects a rename or Trash of an unknown document", async () => {
     const port = createFakeLibraryPort();
-    await expect(port.renameDocument({ id: "missing" }, { title: "x" })).rejects.toThrow("not found");
-    await expect(port.trashDocument("missing")).rejects.toThrow("not found");
+    await expect(port.renameDocument({ target: { id: "missing" }, input: { title: "x" } })).rejects.toThrow("not found");
+    await expect(port.trashDocument({ id: "missing" })).rejects.toThrow("not found");
   });
 
   it("renames a document with no original filename to the bare title", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("README", { originalFilename: null })] });
-    const { media } = await port.renameDocument({ id: "doc-README" }, { title: "Read me" });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "README" }, { overrides: { originalFilename: null } })] });
+    const { media } = await port.renameDocument({ target: { id: "doc-README" }, input: { title: "Read me" } });
     expect(media.displayFilename).toBe("Read me");
   });
 
   it("answers empty text for a document with no seeded text, and an extensionless filename keeps itself as the title", async () => {
     const port = createFakeLibraryPort();
     expect(await port.readDocumentText({ id: "nothing" })).toEqual({ text: "", truncated: false });
-    expect(fakeDocument("LICENSE").title).toBe("LICENSE");
+    expect(fakeDocument({ filename: "LICENSE" }).title).toBe("LICENSE");
     expect(await port.listUsers?.()).toEqual({ users: [] });
-    expect(port.documentDownloadUrl("d1")).toBe("/api/admin/v1/workspaces/workspace-local/media/d1/original");
-    expect((await port.fetchDocumentBlob("d1")).type).toBe("application/pdf");
+    expect(port.documentDownloadUrl({ id: "d1" })).toBe("/api/admin/v1/workspaces/workspace-local/media/d1/original");
+    expect((await port.fetchDocumentBlob({ id: "d1" })).type).toBe("application/pdf");
   });
 });
 
@@ -685,11 +685,11 @@ describe("Library drop of macOS packages", () => {
 });
 
 describe("Library documents table actions", () => {
-  const doc = fakeDocument("notes.md");
+  const doc = fakeDocument({ filename: "notes.md" });
 
   it("each menu item runs its own action", () => {
     const controller = stubController({ documents: [doc] });
-    const items = documentMenuItems(doc, controller);
+    const items = documentMenuItems({ item: doc, controller });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       controller.calls.push(`anchor:${this.getAttribute("href")}:${this.rel}:${this.hasAttribute("download")}:${this.isConnected}`);
     });
@@ -720,7 +720,7 @@ describe("Library documents table actions", () => {
 });
 
 describe("Library rename field", () => {
-  const doc = fakeDocument("notes.md");
+  const doc = fakeDocument({ filename: "notes.md" });
 
   function renameController(rename: Partial<LibraryController["rename"]> = {}) {
     const controller = stubController({ documents: [doc] });
@@ -785,7 +785,7 @@ describe("Library preview dialog", () => {
     ["Markdown whose HTML has not arrived", { kind: "markdown" as const, html: null }],
     ["text whose source has not arrived", { kind: "text" as const, text: null }],
     ["a PDF without a blob URL", { kind: "pdf" as const, pdfUrl: null }],
-    ["a download-only document", { kind: "download" as const, item: fakeDocument("report.docx") }],
+    ["a download-only document", { kind: "download" as const, item: fakeDocument({ filename: "report.docx" }) }],
   ])("falls back to the no-preview note for %s", (_label, overrides) => {
     renderPreview(previewState(overrides));
     expect(screen.getByText("No preview for this file type. Download it to open it.")).toHaveClass("library-preview-none");
@@ -798,7 +798,7 @@ describe("Library preview dialog", () => {
   });
 
   it("offers the download link and the file's type and size in the header", () => {
-    renderPreview(previewState({ kind: "text", text: "abc", item: fakeDocument("notes.md", { byteSize: 2048 }) }));
+    renderPreview(previewState({ kind: "text", text: "abc", item: fakeDocument({ filename: "notes.md" }, { overrides: { byteSize: 2048 } }) }));
     const dialog = screen.getByRole("dialog", { name: "notes.md" });
     expect(within(dialog).getByRole("link", { name: "Download" })).toHaveAttribute("href", "/download/doc-notes.md");
     expect(within(dialog).getByText("MD · 2.0 KB")).toBeInTheDocument();

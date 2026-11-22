@@ -4,5 +4,4 @@ export { readAssistantCliPermissions } from "./subagent-settings.js";
 export { readAssistantRuntimePreferences } from "./runtime-preferences.js";
 export type { AssistantRuntimePreferenceDeps, AssistantRuntimePreferences } from "./runtime-preferences.js";
 
-export { assistantCliPermissions } from "./assistant-subagents-policy.js";
 export { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";

@@ -47,7 +47,9 @@ test("new-site sealing prepares its identified key file and the default reader r
     fs.writeFileSync(${JSON.stringify(path.join(dir, ".site-meta.json"))}, JSON.stringify({ siteKeyId: ${JSON.stringify(siteKeyId)} }));
     assert.equal(await readSealedConnectionString({ siteDir: ${JSON.stringify(dir)} }), ${JSON.stringify(URL)});
   `;
-  const env: NodeJS.ProcessEnv = { ...process.env, TOVU_RUNTIME_MODE: "local" };
+  // why: the sealer reads HOME/USERPROFILE before os.homedir(), and the isolated-catalog-home helper points
+  // HOME at its own temp catalog, so the child's HOME must name the isolated home too.
+  const env: NodeJS.ProcessEnv = { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome, TOVU_RUNTIME_MODE: "local" };
   delete env.TOVU_SITE_KEY;
   const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "--eval", script],
     { env, encoding: "utf8", timeout: 15_000 });
@@ -78,7 +80,7 @@ test("a sealed connection string round-trips; the file is 0600 and never holds i
   const raw = fs.readFileSync(file, "utf8");
   assert.ok(!raw.includes("PW-SENTINEL-51c3") && !raw.includes("db.example.test"));
   assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: key.sealer }), URL);
-  assert.equal(await resolvePostgresConnectionString({ kind: "postgres", secretRef: "site" }, { siteDir: dir }, { sealer: key.sealer }), URL);
+  assert.equal(await resolvePostgresConnectionString({ storage: { kind: "postgres", secretRef: "site" }, siteDir: dir }, { sealer: key.sealer }), URL);
   assert.deepEqual(fs.readdirSync(dir), [STORAGE_SECRET_FILENAME], "no temp file left behind");
 });
 
@@ -105,9 +107,9 @@ test("another site key, a tampered file or a malformed one is refused without th
 test("secretRef { env }: the variable's value, or an error naming the variable", async (t) => {
   const dir = siteDir(t);
   const storage = { kind: "postgres" as const, secretRef: { env: "SITE_PG_URL" } };
-  assert.equal(await resolvePostgresConnectionString(storage, { siteDir: dir }, { env: { SITE_PG_URL: URL } }), URL);
+  assert.equal(await resolvePostgresConnectionString({ storage, siteDir: dir }, { env: { SITE_PG_URL: URL } }), URL);
   await assert.rejects(
-    resolvePostgresConnectionString(storage, { siteDir: dir }, { env: { SITE_PG_URL: " " } }),
+    resolvePostgresConnectionString({ storage, siteDir: dir }, { env: { SITE_PG_URL: " " } }),
     (err: unknown) => err instanceof StorageSecretError && /environment variable SITE_PG_URL, which is not set/.test(err.message)
   );
 });
@@ -119,7 +121,7 @@ for (const action of ["invalid", "refuse"] as const) {
     const { sealConnectionStringForNewSite } = await import("../storage-secret.js");
     await assert.rejects(
       sealConnectionStringForNewSite({ siteDir: dir, siteKeyId: "k1", connectionString: URL }, {
-        ensure: async (input) => { asked.push({ siteDir: input.siteDir, siteKeyId: input.siteKeyId, dependent: await input.findSiteKeyDependentData!(input.siteDir) }); return action === "invalid" ? { action, perSiteFilePath: "x", reason: "bad" } as never : { action, perSiteFilePath: "x" } as never; },
+        ensure: async (input) => { asked.push({ siteDir: input.siteDir, siteKeyId: input.siteKeyId, dependent: await input.findSiteKeyDependentData!({ siteDir: input.siteDir }) }); return action === "invalid" ? { action, perSiteFilePath: "x", reason: "bad" } as never : { action, perSiteFilePath: "x" } as never; },
         sealerFor: () => { throw new Error("must not build a sealer after a refusal"); },
       }),
       (error: unknown) => error instanceof StorageSecretError && error.message === `could not prepare this site's key to seal its Postgres connection string (${action}); fix the site key, then retry`,

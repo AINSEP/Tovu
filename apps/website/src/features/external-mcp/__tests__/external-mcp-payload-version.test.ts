@@ -7,7 +7,8 @@ process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
-import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 
@@ -42,7 +43,7 @@ async function sealLegacy(payload: unknown) {
 }
 
 test("the sealed plaintext carries a schemaVersion, not just the secret fields", async () => {
-  const { sealedOAuth } = await sealExternalMcpOAuthPayload(deps, IDENTITY, { clientSecret: "s3cr3t", tokens: TOKENS });
+  const { sealedOAuth } = await sealExternalMcpOAuthPayload({ deps, identity: IDENTITY, payload: { clientSecret: "s3cr3t", tokens: TOKENS } });
   assert.ok(sealedOAuth);
 
   // Inspect the actual wire bytes, not the returned object.
@@ -54,10 +55,10 @@ test("the sealed plaintext carries a schemaVersion, not just the secret fields",
 });
 
 test("a round trip preserves the client secret and every token field", async () => {
-  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, IDENTITY, {
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload({ deps, identity: IDENTITY, payload: {
     clientSecret: "s3cr3t",
     tokens: TOKENS,
-  });
+  } });
 
   const opened = await openExternalMcpOAuthPayload(sealer, { ...IDENTITY, sealedOAuth, oauthAadVersion });
 
@@ -79,7 +80,7 @@ test("a legacy payload with NO schemaVersion still opens — the payload schema 
 });
 
 test("the version never leaks into the payload callers see", async () => {
-  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, IDENTITY, { clientSecret: "s3cr3t" });
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload({ deps, identity: IDENTITY, payload: { clientSecret: "s3cr3t" } });
   const opened = await openExternalMcpOAuthPayload(sealer, { ...IDENTITY, sealedOAuth, oauthAadVersion });
 
   // `schemaVersion` is a wire concern. A caller that saw it could start persisting it back.

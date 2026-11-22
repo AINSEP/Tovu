@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DuplicateCommandError, executeCommand, type CommandMutation } from "@jini-ai/cms/core";
+import { DuplicateCommandError, executeCommand } from "@jini-ai/cms/core";
+import { type CommandMutation } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 
@@ -44,7 +45,7 @@ function racingMutation(
 
 test("concurrent executeCommand calls sharing an idempotency key: one wins, the loser gets DuplicateCommandError (not the raw driver error) and is rolled back", async () => {
   const db = openContentDb(":memory:");
-  const changeSets = new SqliteChangeSetRepo(db);
+  const changeSets = new SqliteChangeSetRepo({ store: db });
 
   const rolledBackA = { count: 0 };
   const rolledBackB = { count: 0 };

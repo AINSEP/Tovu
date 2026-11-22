@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { isLoopbackHost } from "#src/server/runtime/boot/bind-host";
-import { isLocalAdminUrl } from "#src/server/runtime/boot/local-owner-signin";
+import { isLocalAdminUrl } from "../../runtime/boot/local-owner-signin.js";
 
 /**
  * @file Whether one admin request came from a browser on this same machine. Shared by the routes
@@ -10,8 +10,8 @@ import { isLocalAdminUrl } from "#src/server/runtime/boot/local-owner-signin";
  */
 
 function loopbackSockets({ req }: { req: Request }, _options = {}): boolean {
-  return isLoopbackHost(req.socket.localAddress?.replace(/^::ffff:/, "")) &&
-    isLoopbackHost(req.socket.remoteAddress?.replace(/^::ffff:/, ""));
+  return isLoopbackHost({ host: req.socket.localAddress?.replace(/^::ffff:/, "") }) &&
+    isLoopbackHost({ host: req.socket.remoteAddress?.replace(/^::ffff:/, "") });
 }
 
 /** Local capability plus real sockets/Host: forwarded headers and a spoofed Host cannot admit a remote caller.

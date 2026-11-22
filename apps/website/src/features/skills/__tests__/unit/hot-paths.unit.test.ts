@@ -26,7 +26,7 @@ const upload = () => installSkill(testSiteLayoutContext({ ...ctx, files: [{ path
 
 test("daemon skill middleware refreshes discovery and refuses removed tools on the same real executor", () => fixture(async () => {
   const registry = createToolRegistry({});
-  await registerInstalledSkillTools(registry, { ...ctx, withExtensionApprovalPolicy });
+  await registerInstalledSkillTools({ registry, ctx: { ...ctx, withExtensionApprovalPolicy } });
   const executor = createToolExecutor({ registry });
   let catalog = buildToolCatalogQuery(registry);
   const middleware = createSkillRefreshMiddleware({ registry, onChanged: () => { catalog = buildToolCatalogQuery(registry); } });
@@ -48,18 +48,18 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
   const deps = { ...ctx, getEffective: async () => null, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
   const surface = createByokToolSurface(deps, {
-    registerInstalledExtensions: (registry, extensionDeps) => registerInstalledSkillTools(registry, { ...extensionDeps, withExtensionApprovalPolicy }),
+    registerInstalledExtensions: ({ registry, deps: extensionDeps }) => registerInstalledSkillTools({ registry, ctx: { ...extensionDeps, withExtensionApprovalPolicy } }),
   });
   await surface.ready;
   await upload();
-  const describe = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
+  const describe = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "skill_incident_response" } } });
   assert.equal(describe.isError, undefined);
   assert.equal(JSON.parse(String(describe.content)).id, "skill_incident_response");
-  const execute = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } });
+  const execute = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } } });
   assert.deepEqual(JSON.parse(String(execute.content)), { skillName: "incident-response", guidance: MD, files: [".tovu-install.json"], bundledFiles: [] });
   await setSkillEnabled(testSiteLayoutContext({ ...ctx, toolId: "skill_incident_response", enabled: false }));
-  const disabled = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "skill_incident_response" } });
+  const disabled = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "skill_incident_response" } } });
   assert.equal(disabled.isError, true);
   assert.equal(surface.registry.has({ toolId: "skill_incident_response" }), false);
-  assert.equal((await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } })).isError, true);
+  assert.equal((await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: "skill_incident_response", input: {} } } })).isError, true);
 }));

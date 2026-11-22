@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { assertSpecificSiteRoot } from './site-scan-policy.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 
 const HOME = '/home/u';
 const broad = (root: string, sitesHome?: string) => assert.throws(() => assertSpecificSiteRoot({ root }, { homeDir: HOME, sitesHome }),
@@ -31,16 +31,16 @@ test('$HOME/Tovu is allowed only when the sites home is exactly its sites/ folde
 });
 
 test('keyed serializer: same key runs in order even when a call is queued behind a still-running one', async () => {
-  const queue = createKeyedSerializer();
+  const queue = createKeyedSerializer({});
   const order: string[] = [];
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  const first = queue.run('k', () => { order.push('1'); });
-  const second = queue.run('k', async () => { await gate; order.push('2'); });
+  const first = queue.run({ key: 'k', fn: () => { order.push('1'); } });
+  const second = queue.run({ key: 'k', fn: async () => { await gate; order.push('2'); } });
   await first;
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
   // The first call's slot cleanup must NOT drop the still-running second call from the chain.
-  const third = queue.run('k', () => { order.push('3'); });
+  const third = queue.run({ key: 'k', fn: () => { order.push('3'); } });
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
   assert.deepEqual(order, ['1']);
   release();
@@ -49,12 +49,12 @@ test('keyed serializer: same key runs in order even when a call is queued behind
 });
 
 test('keyed serializer: a rejection reaches its own caller only; the next call on that key still runs; keys are independent', async () => {
-  const queue = createKeyedSerializer();
-  await assert.rejects(queue.run('k', () => { throw new Error('first failed'); }), { message: 'first failed' });
-  assert.equal(await queue.run('k', () => 'after'), 'after');
+  const queue = createKeyedSerializer({});
+  await assert.rejects(queue.run({ key: 'k', fn: () => { throw new Error('first failed'); } }), { message: 'first failed' });
+  assert.equal(await queue.run({ key: 'k', fn: () => 'after' }), 'after');
   let release!: () => void;
-  const blocked = queue.run('a', () => new Promise<string>(resolve => { release = () => resolve('a'); }));
-  assert.equal(await queue.run('b', () => 'b'), 'b');
+  const blocked = queue.run({ key: 'a', fn: () => new Promise<string>(resolve => { release = () => resolve('a'); }) });
+  assert.equal(await queue.run({ key: 'b', fn: () => 'b' }), 'b');
   release();
   assert.equal(await blocked, 'a');
 });

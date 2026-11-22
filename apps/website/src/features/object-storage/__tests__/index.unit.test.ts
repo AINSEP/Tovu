@@ -19,7 +19,7 @@ test("object-storage barrel re-exports every public value of its four modules, b
     assert.equal((barrel as Record<string, unknown>)[name], value, name);
   }
   assert.equal(barrel.MEDIA_OBJECT_STORE_ENV, "TOVU_MEDIA_BLOB_STORE");
-  assert.equal(barrel.OBJECT_STORES_FILENAME, "tovu-object-stores.json");
+  assert.equal(barrel.OBJECT_STORES_FILENAME, "jini-object-stores.json");
   assert.equal(barrel.STORAGE_SETTINGS_NAMESPACE, "core.storage");
   assert.equal(barrel.MEDIA_OBJECT_STORE_KEY, "mediaObjectStore");
 });

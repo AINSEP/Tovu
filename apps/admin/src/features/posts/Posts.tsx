@@ -1,28 +1,24 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
+import { createPostsTranslator } from "./Posts.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useState, type ReactNode } from "react";
 
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost } from "./api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 import {
   postRowMenuItems,
-  comparePostsByTitle,
-  comparePostsBySlug,
-  comparePostsByStatus,
-  comparePostsByUpdated,
-  postColumnSortLabel,
-  updatedColumnSortLabel,
-  DEFAULT_POST_SORT,
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as translate } from "./posts-i18n";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
+import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Posts list screen — markup only.
  *
@@ -31,6 +27,7 @@ import { PublishSectionButton } from "../publish-content/PublishSectionButton";
  * copy.
  */
 export interface PostsProps {
+  hooks?: { useWiredAdminLocale: typeof useWiredAdminLocale };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`.
@@ -52,13 +49,13 @@ export interface PostsProps {
  * whole screen — matches Pages.tsx/Media.tsx and `@jini-ai/admin/comments/react`. Mirrors `Pages.tsx`'s identical
  * `pagesListNotice`.
  */
-export function postsListNotice(posts: AdminPost[] | null, error: string | null, t: (key: string) => string): ReactNode {
+export function postsListNotice({ posts, error, t }: { posts: AdminPost[] | null; error: string | null; t: (key: string) => string }, _optional = {}): ReactNode {
   if (error && !posts) return <div className="notice error">{error}</div>;
   if (!posts) return <div className="notice">{t("Loading posts…")}</div>;
   return null;
 }
 
-export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
+export function Posts({ usePostsHook = useWiredPosts, hooks = { useWiredAdminLocale } }: PostsProps) {
   const {
     posts,
     error,
@@ -71,8 +68,8 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     removePost,
     rowMenuHandleById,
   } = usePostsHook();
-  const locale = useWiredAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const locale = hooks.useWiredAdminLocale();
+  const t = createPostsTranslator({ locale });
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
   // piece of state on this screen. The line to draw: async/API/data state always moves into the
@@ -86,14 +83,14 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // ever active at a time. Migrated onto `DataTable`'s own shared sort mechanism the same day: this
   // state and its setter are now passed straight through as `sort`/`onSortChange` below, and
   // `DataTable` itself applies each column's comparator, computes the next click's state, and
-  // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
-  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
+  // renders the caret/`aria-sort` — see `lib/admin-post-list-sort.ts` for what's left here.
+  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_ADMIN_POST_SORT);
 
   // `postsListNotice` answers non-null exactly when `posts` is null, so gating on `!posts` returns
   // that notice AND keeps TS's narrowing, so `rows={posts}` below type-checks as `AdminPost[]`
   // without an `as`/`!` assertion. (The earlier `if (notice) return notice; if (!posts) return null;`
   // pair restored that narrowing with a second `!posts` check that was unreachable in practice.)
-  if (!posts) return postsListNotice(posts, error, t);
+  if (!posts) return postsListNotice({ posts, error, t });
 
   return (
     <div className="page">
@@ -135,8 +132,8 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02;
             // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
-            // domain-specific comparator and label wording stay here (`rules.ts`).
-            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel(t, t("Title"), direction) },
+            // domain-specific comparator and label wording live in `lib/admin-post-list-sort.ts`.
+            sort: { compare: compareAdminPostsByTitle, label: (direction) => columnSortLabel({ t: t, columnName: t("Title"), direction: direction }) },
             cell: (post) => (
               <a
                 href={`/admin/posts/${post.slug}`}
@@ -149,10 +146,10 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "slug",
             header: "Slug",
-            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel(t, t("Slug"), direction) },
+            sort: { compare: compareAdminPostsBySlug, label: (direction) => columnSortLabel({ t: t, columnName: t("Slug"), direction: direction }) },
             cell: (post) => (
               <a
-                href={siteUrl(`/${post.slug}`)}
+                href={siteUrl({ path: `/${post.slug}` })}
                 target="_blank"
                 rel="noreferrer"
                 {...agentHandle({ handle: `${rowMenuHandleById.get(post.id)}-view-live` }, { role: "link", label: "Open this post on the live public site" })}
@@ -164,7 +161,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "status",
             header: t("Status"),
-            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel(t, t("Status"), direction) },
+            sort: { compare: compareAdminPostsByStatus, label: (direction) => columnSortLabel({ t: t, columnName: t("Status"), direction: direction }) },
             cell: (post) => <span className={`status status-${post.status}`}><ServerLabel value={post.status} /></span>,
           },
           {
@@ -172,24 +169,24 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("Updated"),
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
-            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel(t, direction) },
-            cell: (post) => formatTimestamp({ iso: post.updatedAt }, { timeZone: "local" }),
+            sort: { compare: compareAdminPostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t: t, direction: direction }) },
+            cell: (post) => formatTimestamp({ iso: post.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }),
           },
           {
             key: "actions",
             header: t("More"),
             cell: (post) => (
               <RowMenu
-                triggerLabel={t('Actions for "{title}"').replace("{title}", post.title)}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", () => post.title)}
                 agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
                 items={postRowMenuItems(
-                  post,
-                  {
-                    onEdit: (p) => navigate(`/posts/${p.slug}`),
+                  { post: post,
+                  handlers: {
+                    onEdit: ({ post }, _optional = {}) => navigate({ routePath: `/posts/${post.slug}` }),
                     onTogglePublish: togglePostPublish,
                     onDelete: setPendingDelete,
                   },
-                  locale,
+                  locale: locale },
                 )}
               />
             ),

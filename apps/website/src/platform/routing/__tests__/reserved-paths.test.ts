@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkSitePathname, checkSiteRelativeTarget, hasControlCharacter } from "../reserved-paths.js";
-import { resolveSameOriginPath } from "#src/features/site-inspection/published-page";
+import { checkSitePathname, checkSiteRelativeTarget } from "../reserved-paths.js";
+import { resolveSitePath as resolveSameOriginPath } from "#src/features/site-inspection/site-path-policy";
 
 /**
  * @file The shared reserved-path rule (`reserved-paths.ts`) and the pin that keeps its two
@@ -35,7 +35,7 @@ const TEST_BASE = "http://reserved-paths-test.invalid";
  * to collapse.
  */
 function checkSitePathnameFixture(pathname: string): ReturnType<typeof checkSitePathname> {
-  return checkSitePathname(new URL(TEST_BASE + pathname));
+  return checkSitePathname({ url: new URL(TEST_BASE + pathname) });
 }
 
 const RESERVED: readonly (readonly [string, "admin" | "api"])[] = [
@@ -103,12 +103,12 @@ test("checkSitePathname decodes exactly ONCE, matching what a browser puts on th
 
 test("checkSiteRelativeTarget refuses a backslash-disguised protocol-relative reference", () => {
   // One leading slash, so `startsWith("//")` says site-relative; a URL parser says evil.example.
-  assert.deepEqual(checkSiteRelativeTarget("/\\evil.example"), { kind: "off-origin" });
-  assert.deepEqual(checkSiteRelativeTarget("/\\\\evil.example/x"), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/\\evil.example" }), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/\\\\evil.example/x" }), { kind: "off-origin" });
 });
 
 test("checkSiteRelativeTarget refuses a raw control character before parsing", () => {
-  assert.deepEqual(checkSiteRelativeTarget("/ok\r\nX-Injected: 1"), { kind: "disallowed-character" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/ok\r\nX-Injected: 1" }), { kind: "disallowed-character" });
 });
 
 /**
@@ -121,35 +121,23 @@ test("checkSiteRelativeTarget refuses a raw control character before parsing", (
  * unnameable, rather than a denylist of its spellings.
  */
 test("checkSiteRelativeTarget refuses a reference that names the probe origin it resolves against", () => {
-  assert.deepEqual(checkSiteRelativeTarget("//reserved-path-probe.invalid/x"), { kind: "off-origin" });
-  assert.deepEqual(checkSiteRelativeTarget("http://reserved-path-probe.invalid/x"), { kind: "off-origin" });
-  assert.deepEqual(checkSiteRelativeTarget("/\\reserved-path-probe.invalid/x"), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "//reserved-path-probe.invalid/x" }), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "http://reserved-path-probe.invalid/x" }), { kind: "off-origin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/\\reserved-path-probe.invalid/x" }), { kind: "off-origin" });
 });
 
 test("checkSiteRelativeTarget passes an ordinary relative target, query and fragment included", () => {
-  assert.deepEqual(checkSiteRelativeTarget("/new"), { kind: "ok" });
-  assert.deepEqual(checkSiteRelativeTarget("/new?utm=1#section"), { kind: "ok" });
-  assert.deepEqual(checkSiteRelativeTarget("new/page"), { kind: "ok" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/new" }), { kind: "ok" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/new?utm=1#section" }), { kind: "ok" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "new/page" }), { kind: "ok" });
 });
 
 test("checkSiteRelativeTarget still applies the reserved-surface rule after parsing", () => {
-  assert.deepEqual(checkSiteRelativeTarget("/%61dmin/settings?x=1"), { kind: "reserved", surface: "admin" });
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "/%61dmin/settings?x=1" }), { kind: "reserved", surface: "admin" });
 });
 
 test("checkSiteRelativeTarget reports an unparseable reference", () => {
-  assert.deepEqual(checkSiteRelativeTarget("http://["), { kind: "unparseable" });
-});
-
-test("hasControlCharacter finds C0 and C1 but not printable ASCII", () => {
-  for (const [code, expected] of [
-    [0x00, true], [0x1f, true], [0x20, false], [0x7e, false],
-    [0x7f, true], [0x80, true], [0x9f, true], [0xa0, false],
-  ] as const) {
-    assert.equal(hasControlCharacter(`/ok${String.fromCharCode(code)}`), expected, `U+${code.toString(16)}`);
-  }
-  assert.equal(hasControlCharacter("/ok"), false);
-  assert.equal(hasControlCharacter("/ok\n"), true);
-  assert.equal(hasControlCharacter("/ok"), true);
+  assert.deepEqual(checkSiteRelativeTarget({ raw: "http://[" }), { kind: "unparseable" });
 });
 
 // ---------------------------------------------------------------------------
@@ -173,12 +161,12 @@ test("published_page_fetch's path validator refuses exactly what the shared rule
 
   for (const pathname of pinned) {
     assert.throws(
-      () => resolveSameOriginPath(pathname, base),
+      () => resolveSameOriginPath({ raw: pathname, base }),
       /must not target '\/(admin|api)'/,
       `expected resolveSameOriginPath to refuse '${pathname}' by naming the reserved surface`
     );
   }
   for (const pathname of ORDINARY) {
-    assert.equal(resolveSameOriginPath(pathname, base), new URL(pathname, base).pathname);
+    assert.equal(resolveSameOriginPath({ raw: pathname, base }), new URL(pathname, base).pathname);
   }
 });

@@ -1,12 +1,16 @@
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
-import { findTheme, isPublishableThemePageCandidate, loadTheme, type DiscoveredTheme } from "./theme.js";
-import { readThemeFile, writeThemeFile } from "./theme-files.js";
+import { isReservedThemePreviewPath } from "./preview-policy.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
+import { findTheme } from "./theme-discovery.js";
+import { isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
+import { loadTheme, type DiscoveredTheme } from "./theme.js";
+import { readThemeFile } from "./theme-files.js";
+import { writeThemeFile } from "./theme-file-writing.js";
 
 /** Expected page-publication refusals shared by HTTP and assistant transports. */
 export class ThemePagePublicationError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(message: string, status: number, code: string) {
+  constructor({ message, status, code }: { message: string; status: number; code: string }) {
     super(message);
     this.status = status;
     this.code = code;
@@ -15,7 +19,7 @@ export class ThemePagePublicationError extends Error {
 }
 
 /** Computes a deterministic add/remove against the freshly read on-disk allowlist. */
-function togglePages(raw: Record<string, unknown>, page: string, published: boolean): string[] {
+function togglePages({ raw, page, published }: { raw: Record<string, unknown>; page: string; published: boolean }, _optional = {}): string[] {
   const value = raw.publishedPages;
   const current = Array.isArray(value) && value.every(entry => typeof entry === "string") ? value as string[] : [];
   const next = new Set(current);
@@ -42,19 +46,19 @@ export function setThemePagePublished(
 ): { page: string; published: boolean; publishedPages: string[] } {
   const { themeId, page, published } = input;
   const theme = findTheme({ themes: deps.themes, id: themeId });
-  if (!theme) throw new ThemePagePublicationError(`theme '${themeId}' was not found. Use content_read.theme to find a theme id.`, 404, "THEME_NOT_FOUND");
+  if (!theme) throw new ThemePagePublicationError({ message: `theme '${themeId}' was not found. Use content_read.theme to find a theme id.`, status: 404, code: "THEME_NOT_FOUND" });
   if (theme.manifest.tier !== "static") {
-    throw new ThemePagePublicationError(`theme '${theme.manifest.id}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes`, 400, "NOT_STATIC_TIER");
+    throw new ThemePagePublicationError({ message: `theme '${theme.manifest.id}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes`, status: 400, code: "NOT_STATIC_TIER" });
   }
-  if (!isPublishableThemePageCandidate(theme, page)) {
-    throw new ThemePagePublicationError(`'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell`, 404, "PAGE_NOT_PUBLISHABLE");
+  if (!isPublishableThemePageCandidate({ theme, pageId: page })) {
+    throw new ThemePagePublicationError({ message: `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell`, status: 404, code: "PAGE_NOT_PUBLISHABLE" });
   }
   const raw = JSON.parse(readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json" })) as Record<string, unknown>;
-  const publishedPages = togglePages(raw, page, published);
+  const publishedPages = togglePages({ raw, page, published });
   raw.publishedPages = publishedPages;
   writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json", content: `${JSON.stringify(raw, null, 2)}\n` });
   const index = deps.themes.indexOf(theme);
   deps.themes[index] = loadTheme({ themeDir: theme.dir, id: theme.manifest.id, source: theme.source });
-  requestThemePreviewRefresh({ themesDir: deps.themesDir });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
   return { page, published, publishedPages };
 }

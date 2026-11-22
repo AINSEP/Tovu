@@ -111,7 +111,8 @@ test("processOutbox catches Error during publish and marks row failed", async ()
   const pendingAgain = await outbox.claimPending({ batchSize: 10, nowIso: "2026-02-22T12:00:00.000Z" });
   assert.equal(pendingAgain.length, 1);
   assert.equal(pendingAgain[0].id, "evt-fail");
-  assert.equal(pendingAgain[0].lastError, "handler failed to execute");
+  // lastError is the fixed class label, never the message: the Jini worker records describeErrorForLog (infra outbox/worker.ts, bc545d4d); the original goes to the logger.
+  assert.equal(pendingAgain[0].lastError, "Error");
 });
 
 test("processOutbox catches non-Error during publish and marks row failed with fallback message", async () => {
@@ -141,7 +142,8 @@ test("processOutbox catches non-Error during publish and marks row failed with f
 
   const pendingAgain = await outbox.claimPending({ batchSize: 10, nowIso: "2026-02-22T12:00:00.000Z" });
   assert.equal(pendingAgain.length, 1);
-  assert.equal(pendingAgain[0].lastError, "unknown outbox error");
+  // A non-Error throw is recorded as its typeof, not a fabricated message (same contract).
+  assert.equal(pendingAgain[0].lastError, "string");
 });
 
 test("processOutbox returns 0 when outbox has no pending records", async () => {
@@ -207,32 +209,32 @@ test("the claim lease outlasts a full default batch whose every delivery runs to
 });
 
 test("computeOutboxBackoffMs stays within [half, full] of the exponential step and respects the cap", () => {
-  const lower = computeOutboxBackoffMs(1, { random: () => 0 });
-  const upper = computeOutboxBackoffMs(1, { random: () => 1 });
+  const lower = computeOutboxBackoffMs({ attempts: 1 }, { random: () => 0 });
+  const upper = computeOutboxBackoffMs({ attempts: 1 }, { random: () => 1 });
   assert.ok(lower > 0);
   assert.ok(upper > lower);
   for (const [index, step] of [30_000, 60_000, 120_000, 240_000, 480_000, 960_000, 1_800_000].entries()) {
-    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 0 }), step / 2);
-    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 0.5 }), step * 0.75);
-    assert.equal(computeOutboxBackoffMs(index + 1, { random: () => 1 }), step);
+    assert.equal(computeOutboxBackoffMs({ attempts: index + 1 }, { random: () => 0 }), step / 2);
+    assert.equal(computeOutboxBackoffMs({ attempts: index + 1 }, { random: () => 0.5 }), step * 0.75);
+    assert.equal(computeOutboxBackoffMs({ attempts: index + 1 }, { random: () => 1 }), step);
   }
 
   // At a high attempt count the exponential step is clamped, so the lower/upper bounds stop
   // growing — proves the cap is real, not just a large-but-still-exponential number. With
   // BASE_BACKOFF_MS=30s and MAX_BACKOFF_STEP_MS=30min, the step first hits the cap at attempts=7
   // (30s * 2^6 = 960s < 1800s cap is attempts=6 still uncapped; attempts=7 -> 1920s, clamped).
-  const cappedLower = computeOutboxBackoffMs(20, { random: () => 0 });
-  const cappedUpper = computeOutboxBackoffMs(20, { random: () => 1 });
+  const cappedLower = computeOutboxBackoffMs({ attempts: 20 }, { random: () => 0 });
+  const cappedUpper = computeOutboxBackoffMs({ attempts: 20 }, { random: () => 1 });
   assert.equal(cappedLower, 900_000);
-  assert.equal(cappedLower, computeOutboxBackoffMs(7, { random: () => 0 }));
+  assert.equal(cappedLower, computeOutboxBackoffMs({ attempts: 7 }, { random: () => 0 }));
   assert.equal(cappedUpper, 1_800_000);
-  assert.equal(cappedUpper, computeOutboxBackoffMs(7, { random: () => 1 }));
+  assert.equal(cappedUpper, computeOutboxBackoffMs({ attempts: 7 }, { random: () => 1 }));
 });
 
 test("computeOutboxBackoffMs uses host randomness when no random port is supplied", (t) => {
   t.mock.method(Math, "random", () => 0.25);
 
-  assert.equal(computeOutboxBackoffMs(1), 18_750);
+  assert.equal(computeOutboxBackoffMs({ attempts: 1 }), 18_750);
 });
 
 test("processOutbox stops retrying and permanently excludes a row once MAX_OUTBOX_ATTEMPTS is reached", async () => {
@@ -435,7 +437,7 @@ test("an overrunning delivery is not published again while its handler still run
 
   // 31s later: comfortably past the old ~15-30s backoff retry window, comfortably inside the new
   // 30-minute claim-lease horizon.
-  const laterIso = new Date(Date.parse(startIso) + computeOutboxBackoffMs(1, { random: () => 1 }) + 1_000).toISOString();
+  const laterIso = new Date(Date.parse(startIso) + computeOutboxBackoffMs({ attempts: 1 }, { random: () => 1 }) + 1_000).toISOString();
   const again = await processOutbox({ outbox: wrapped, bus, clock: { nowMs: () => Date.parse(laterIso) } }, { deliveryTimeoutMs: 20 });
   assert.equal(again, 0, "the row must not be due again while its first handler is still running");
   assert.equal(runs, 1, "the handler was started again while its first run was still going");
@@ -474,7 +476,7 @@ test("an overrunning delivery whose handler later rejects is recorded as a norma
 
   assert.deepEqual(failures, [
     ["evt-late", 'delivery of outbox event "late.event" (evt-late) timed out after 20ms', new Date(Date.parse(nowIso) + DEFAULT_OUTBOX_CLAIM_LEASE_MS).toISOString(), "pending"],
-    ["evt-late", "late handler failure", new Date(Date.parse(nowIso) + computeOutboxBackoffMs(1, { random: () => 0 })).toISOString(), "pending"],
+    ["evt-late", "Error", new Date(Date.parse(nowIso) + computeOutboxBackoffMs({ attempts: 1 }, { random: () => 0 })).toISOString(), "pending"],
   ]);
 });
 

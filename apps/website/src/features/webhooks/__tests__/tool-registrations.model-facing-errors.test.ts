@@ -18,6 +18,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-webhooks-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -51,7 +52,7 @@ async function buildHarness(routeDeps: IntegrationsToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 test("webhooks_get_deliveries for an unknown subscription is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {
@@ -149,7 +150,8 @@ test("an unlisted repository error stays redacted through the delegated transpor
   assert.ok("requestId" in result.error);
   assert.match(String(result.error.requestId), /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
   assert.deepEqual(result.error, {
-    code: "INTERNAL_ERROR", message: "an internal error occurred", requestId: result.error.requestId,
+    // Why: Jini's delegated transport now words an unlisted fault for the model (retry guidance + request ID), Jini 77b3d899 / 44ae8070; still no SQL/path text.
+    code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.", requestId: result.error.requestId,
   });
 });
 
@@ -160,23 +162,23 @@ test("webhook update uses existing egress validation, preserves lifecycle and re
   const created = await call(harness, "webhooks_create_subscription", { label: "Original", targetUrl: "https://example.com/hook", topics: ["post.published"] });
   assert.ok(created.ok);
   const before = (await deps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }))[0];
-  const input = { subscriptionId: before.id, label: " Edited ", targetUrl: "https://example.com/next", topics: ["page.published", "page.published"] };
+  const input = { subscriptionId: before.id, expectedVersion: 1, label: " Edited ", targetUrl: "https://example.com/next", topics: ["page.published", "page.published"] };
   const updated = await call(harness, "webhooks_update_subscription", input);
   assert.ok(updated.ok);
   if (updated.ok) assert.deepEqual(updated.value.result.output, { subscription: {
     id: before.id, label: "Edited", targetUrl: "https://example.com/next", topics: ["page.published"], status: before.status,
-    secretVersion: before.secretVersion, previousSecretVersion: before.previousSecretVersion, createdAt: NOW, updatedAt: NOW, disabledAt: null, lastDelivery: null,
+    secretVersion: before.secretVersion, previousSecretVersion: before.previousSecretVersion, createdAt: NOW, updatedAt: NOW, disabledAt: null, version: 2, lastDelivery: null,
   } });
   const stored = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: before.id });
   assert.equal(stored?.ownerPrincipalId, before.ownerPrincipalId);
   assert.equal(stored?.secretVersion, before.secretVersion);
   deps.originRegistry.isAllowedEgressTarget = async () => false;
-  const refused = await call(harness, "webhooks_update_subscription", { ...input, targetUrl: "https://blocked.example/hook" });
+  const refused = await call(harness, "webhooks_update_subscription", { ...input, expectedVersion: 2, targetUrl: "https://blocked.example/hook" });
   assert.equal(refused.ok, false);
   if (!refused.ok) assert.equal(refused.error.message, "WEBHOOKS_VALIDATION_FAILED: target_url 'https://blocked.example/hook' is not an allowed egress target");
   assert.deepEqual(await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: before.id }), stored);
   deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
-  const denied = await call(harness, "webhooks_update_subscription", input);
+  const denied = await call(harness, "webhooks_update_subscription", { ...input, expectedVersion: 2 });
   assert.equal(denied.ok, false);
   if (!denied.ok) assert.equal(denied.error.message, "WEBHOOKS_FORBIDDEN: principal 'principal-1' is not authorized for 'admin.integrations.manage' (insufficient_permission)");
 });
@@ -184,8 +186,8 @@ test("webhook update uses existing egress validation, preserves lifecycle and re
 test("webhook update rejects a missing row and malformed topics with real reasons", async () => {
   const harness = await buildHarness(makeRouteDeps());
   for (const [input, message] of [
-    [{ subscriptionId: "gone", label: "Hook", targetUrl: "https://example.com/hook", topics: ["post.published"] }, "WEBHOOKS_SUBSCRIPTION_NOT_FOUND: webhook subscription 'gone' was not found"],
-    [{ subscriptionId: "gone", label: "Hook", targetUrl: "https://example.com/hook", topics: [7] }, "WEBHOOKS_VALIDATION_FAILED: topics must be an array of strings"],
+    [{ subscriptionId: "gone", expectedVersion: 1, label: "Hook", targetUrl: "https://example.com/hook", topics: ["post.published"] }, "WEBHOOKS_SUBSCRIPTION_NOT_FOUND: webhook subscription 'gone' was not found"],
+    [{ subscriptionId: "gone", expectedVersion: 1, label: "Hook", targetUrl: "https://example.com/hook", topics: [7] }, "WEBHOOKS_VALIDATION_FAILED: topics must be an array of strings"],
   ] as const) {
     const result = await call(harness, "webhooks_update_subscription", input);
     assert.equal(result.ok, false);
@@ -202,7 +204,7 @@ test("webhook update refuses a soft-deleted subscription with its domain reason 
   const disabled = { ...before, status: "disabled" as const, disabledAt: NOW };
   await deps.webhookSubscriptionRepo.save(disabled);
   const result = await call(harness, "webhooks_update_subscription", {
-    subscriptionId: before.id, label: "Changed", targetUrl: "https://example.com/next", topics: ["page.published"],
+    subscriptionId: before.id, expectedVersion: 1, label: "Changed", targetUrl: "https://example.com/next", topics: ["page.published"],
   });
   assert.equal(result.ok, false);
   if (!result.ok) assert.deepEqual(result.error, {
@@ -224,7 +226,7 @@ test("webhook update returns the existing latest delivery rather than a fabricat
   };
   await deps.webhookDeliveryRepo.enqueue({ record: delivery });
   const result = await call(harness, "webhooks_update_subscription", {
-    subscriptionId: subscription.id, label: "Changed", targetUrl: "https://example.com/next", topics: ["page.published"],
+    subscriptionId: subscription.id, expectedVersion: 1, label: "Changed", targetUrl: "https://example.com/next", topics: ["page.published"],
   });
   assert.ok(result.ok);
   if (result.ok) {

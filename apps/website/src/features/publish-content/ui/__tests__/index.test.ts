@@ -36,6 +36,6 @@ test("the ui barrel re-exports exactly its owning modules' runtime bindings", ()
 
 test("a barrel binding behaves as the dialog relies on: criteria round-trip through the query param", () => {
   const raw = barrel.encodePublishCriteriaToQuery({ types: ["page"], overwrite: true });
-  assert.deepEqual(barrel.decodePublishCriteriaFromQuery(raw), { types: ["page"], overwrite: true });
+  assert.deepEqual(barrel.decodePublishCriteriaFromQuery({ raw }), { types: ["page"], overwrite: true });
   assert.equal(barrel.PUBLISH_CRITERIA_QUERY_PARAM, "publish");
 });

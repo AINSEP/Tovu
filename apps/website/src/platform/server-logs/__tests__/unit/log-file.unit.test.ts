@@ -14,14 +14,14 @@ function memoryFs(options: { failAppend?: boolean } = {}) {
   const files = new Map<string, string>();
   const dirs: string[] = [];
   const port: LogFileFsPort = {
-    appendFile: (p, data) => {
+    appendFile: ({ filePath: p, data }) => {
       if (options.failAppend) throw new Error("ENOSPC");
       files.set(p, (files.get(p) ?? "") + data);
     },
-    size: p => (files.has(p) ? Buffer.byteLength(files.get(p)!) : null),
-    rename: (from, to) => { files.set(to, files.get(from)!); files.delete(from); },
-    mkdirp: dir => { dirs.push(dir); },
-    readTail: (p, maxBytes) => {
+    size: ({ filePath: p }) => (files.has(p) ? Buffer.byteLength(files.get(p)!) : null),
+    rename: ({ from, to }) => { files.set(to, files.get(from)!); files.delete(from); },
+    mkdirp: ({ dir }) => { dirs.push(dir); },
+    readTail: ({ filePath: p, maxBytes }) => {
       const text = files.get(p);
       if (text === undefined) return null;
       const bytes = Buffer.from(text);
@@ -38,9 +38,9 @@ test('each rotated record retains release/environment and its own active trace I
   const mem = memoryFs();
   const filePath = '/site/daemon.log';
   let trace: { traceId: string; spanId: string } | undefined;
-  const logs = createLogBuffer({ redact: text => text }, { metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'desktop', ...trace }) });
+  const logs = createLogBuffer({ redact: ({ text }) => text }, { metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'desktop', ...trace }) });
   const sink = createRotatingLogFileSink({ filePath }, { fs: mem.port, maxBytes: 1 });
-  logs.subscribe(value => sink.write(value));
+  logs.subscribe({ listener: value => sink.write({ entry: value }) });
   logs.append({ level: 'info', source: 'daemon', message: 'boot' });
   trace = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
   logs.append({ level: 'error', source: 'daemon', message: 'active' });
@@ -60,8 +60,8 @@ test('each rotated record retains release/environment and its own active trace I
 test("the sink writes JSON lines and creates the log directory first", () => {
   const mem = memoryFs();
   const sink = createRotatingLogFileSink({ filePath: "/site/ops/logs/server.log" }, { fs: mem.port });
-  sink.write(entry(1));
-  sink.write(entry(2));
+  sink.write({ entry: entry(1) });
+  sink.write({ entry: entry(2) });
   assert.deepEqual(mem.dirs, ["/site/ops/logs"]);
   assert.deepEqual(mem.files.get("/site/ops/logs/server.log")!.trimEnd().split("\n").map(l => JSON.parse(l).seq), [1, 2]);
 });
@@ -70,7 +70,7 @@ test("rotation moves the full file to .1 (replacing the older .1) before exceedi
   const mem = memoryFs();
   const file = "/l/server.log";
   const sink = createRotatingLogFileSink({ filePath: file }, { fs: mem.port, maxBytes: lineBytes * 2 });
-  for (let seq = 1; seq <= 5; seq += 1) sink.write(entry(seq));
+  for (let seq = 1; seq <= 5; seq += 1) sink.write({ entry: entry(seq) });
   const seqs = (p: string) => mem.files.get(p)!.trimEnd().split("\n").map(l => JSON.parse(l).seq);
   assert.deepEqual(seqs(`${file}.1`), [3, 4]);
   assert.deepEqual(seqs(file), [5]);
@@ -80,7 +80,7 @@ test("rotation counts an existing file's size from before this process started",
   const mem = memoryFs();
   mem.files.set("/l/server.log", `${JSON.stringify(entry(1))}\n`);
   const sink = createRotatingLogFileSink({ filePath: "/l/server.log" }, { fs: mem.port, maxBytes: lineBytes * 1 });
-  sink.write(entry(2));
+  sink.write({ entry: entry(2) });
   assert.equal(JSON.parse(mem.files.get("/l/server.log.1")!).seq, 1);
   assert.equal(JSON.parse(mem.files.get("/l/server.log")!).seq, 2);
 });
@@ -88,7 +88,7 @@ test("rotation counts an existing file's size from before this process started",
 test("a failed write disables the sink silently instead of throwing", () => {
   const mem = memoryFs({ failAppend: true });
   const sink = createRotatingLogFileSink({ filePath: "/l/server.log" }, { fs: mem.port });
-  assert.doesNotThrow(() => sink.write(entry(1)));
+  assert.doesNotThrow(() => sink.write({ entry: entry(1) }));
   assert.equal(sink.isHealthy(), false);
 });
 
@@ -147,7 +147,7 @@ test("through the real filesystem: files are owner-only, and a missing pair of f
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-server-logs-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const files = serverLogFilePaths({ siteDir: dir });
-  createRotatingLogFileSink({ filePath: files.daemon }).write(entry(7, "written by the daemon"));
+  createRotatingLogFileSink({ filePath: files.daemon }).write({ entry: entry(7, "written by the daemon") });
   const detach = attachServerLogFile({ filePath: files.server }, { alsoRead: [files.daemon], fs: nodeLogFileFs });
   try {
     assert.ok(readProcessServerLogs().entries.some(e => e.message === "written by the daemon"));
@@ -189,9 +189,9 @@ test("a disabled sink drops later entries even if the filesystem recovers", () =
   const options = { failAppend: true };
   const mem = memoryFs(options);
   const sink = createRotatingLogFileSink({ filePath: "/l/server.log" }, { fs: mem.port });
-  sink.write(entry(1));
+  sink.write({ entry: entry(1) });
   options.failAppend = false;
-  sink.write(entry(2));
+  sink.write({ entry: entry(2) });
   assert.equal(sink.isHealthy(), false);
   assert.deepEqual([...mem.files], []);
   assert.deepEqual(mem.dirs, ["/l"]);
@@ -230,7 +230,7 @@ test("the default filesystem reader returns null for an absent log pair", (t) =>
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-missing-logs-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   assert.equal(readLogFileTail({ filePath: path.join(dir, "missing.log") }), null);
-  assert.equal(nodeLogFileFs.readTail(path.join(dir, "missing.log"), 100), null);
+  assert.equal(nodeLogFileFs.readTail({ filePath: path.join(dir, "missing.log"), maxBytes: 100 }), null);
 });
 
 test("through the real filesystem: rotation renames the full file to .1 and starts a fresh current file", (t) => {
@@ -238,7 +238,7 @@ test("through the real filesystem: rotation renames the full file to .1 and star
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, "logs", "server.log");
   const sink = createRotatingLogFileSink({ filePath: file }, { maxBytes: lineBytes * 2 });
-  for (let seq = 1; seq <= 3; seq += 1) sink.write(entry(seq));
+  for (let seq = 1; seq <= 3; seq += 1) sink.write({ entry: entry(seq) });
   const seqs = (p: string) => fs.readFileSync(p, "utf8").trimEnd().split("\n").map(l => JSON.parse(l).seq);
   assert.deepEqual({ rotated: seqs(`${file}.1`), current: seqs(file) }, { rotated: [1, 2], current: [3] });
 });

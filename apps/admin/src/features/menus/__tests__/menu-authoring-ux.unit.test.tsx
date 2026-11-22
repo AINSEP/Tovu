@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MenuEditor } from '../MenuEditor';
 import { useMenuEditor } from '../hooks/use-menu-editor.hooks';
 import { createFakeMenusPort } from '../hooks/menus-dependencies.hooks';
-import type { AdminMenu } from '@/lib/api';
+import type { AdminMenu } from '@/features/menus/api/menus-api.types';
 
 const existing: AdminMenu = {
   id: 'm1', workspaceId: 'ws1', title: 'Main menu', slug: 'main', status: 'published',
@@ -14,7 +14,7 @@ describe('menu authoring UX', () => {
   it('derives a readable slug while typing and saves a title-only empty menu', async () => {
     const port = createFakeMenusPort();
     const navigate = vi.fn();
-    render(<MenuEditor menuId={null} useMenuEditorHook={(id) => useMenuEditor(id, { port, navigate, t: (key) => key })} />);
+    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate, t: (key) => key } })} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: 'Main Navigation' } });
     expect(screen.getByRole('textbox', { name: 'Menu slug' })).toHaveValue('main-navigation');
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: '' } });
@@ -30,23 +30,23 @@ describe('menu authoring UX', () => {
 
   it.each(['custom-menu', ''])('preserves an explicitly edited slug, including clearing it (%s)', (editedSlug) => {
     const port = createFakeMenusPort();
-    const { result } = renderHook(() => useMenuEditor(null, { port, navigate: vi.fn(), t: (key) => key }));
-    act(() => result.current.setTitle('First title'));
+    const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
+    act(() => result.current.setTitle({ next: 'First title' }));
     expect(result.current.slug).toBe('first-title');
-    act(() => result.current.setSlug(editedSlug));
-    act(() => result.current.setTitle('Another title'));
+    act(() => result.current.setSlug({ next: editedSlug }));
+    act(() => result.current.setTitle({ next: 'Another title' }));
     expect(result.current.slug).toBe(editedSlug);
   });
 
   it('keeps persisted slugs stable and resets derivation when navigating to a new menu', async () => {
     const port = createFakeMenusPort({ menus: [existing] });
-    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useMenuEditor(id, { port, navigate: vi.fn(), t: (key) => key }), { initialProps: { id: 'main' as string | null } });
+    const { result, rerender } = renderHook(({ id }: { id: string | null }) => useMenuEditor({ menuId: id, dependencies: { port, navigate: vi.fn(), t: (key) => key } }), { initialProps: { id: 'main' as string | null } });
     await act(async () => { await Promise.resolve(); });
-    act(() => result.current.setTitle('Renamed menu'));
+    act(() => result.current.setTitle({ next: 'Renamed menu' }));
     expect(result.current.slug).toBe('main');
-    act(() => result.current.setSlug('custom-menu'));
+    act(() => result.current.setSlug({ next: 'custom-menu' }));
     rerender({ id: null });
-    act(() => result.current.setTitle('Fresh menu'));
+    act(() => result.current.setTitle({ next: 'Fresh menu' }));
     expect(result.current.slug).toBe('fresh-menu');
   });
 
@@ -54,7 +54,7 @@ describe('menu authoring UX', () => {
     const port = createFakeMenusPort();
     port.createMenu = async () => { throw new Error('slug must use lowercase letters, numbers, and dashes'); };
     const navigate = vi.fn();
-    render(<MenuEditor menuId={null} useMenuEditorHook={(id) => useMenuEditor(id, { port, navigate, t: (key) => key })} />);
+    render(<MenuEditor menuId={null} useMenuEditorHook={({ menuId: id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate, t: (key) => key } })} />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Menu title' }), { target: { value: 'Main menu' } });
     if (mode === 'html') fireEvent.click(screen.getByRole('tab', { name: 'HTML' }));
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })); });

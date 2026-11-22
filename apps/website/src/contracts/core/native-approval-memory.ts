@@ -17,20 +17,20 @@ export function createNativeApprovalMemory(
     conversationIdForRun: (required: { runId: string; principalId: string }) => string | undefined;
   }, _optional = {},
 ): RememberedApprovalPort {
-  const coordinates = (key: string, principalId: string) => ({
+  const coordinates = ({ key, principalId }: { key: string; principalId: string }, _optional = {}) => ({
     principalId, connectionId: JSON.stringify(['native-escalation', workspaceId]),
     toolName: key, fingerprint: key,
   });
   return {
     has: async ({ ctx, key }) => {
       if (!store.hasIdentity) throw new ToolInputError({ message: 'NATIVE_APPROVAL_MEMORY_UNAVAILABLE: The approval store cannot reuse identity grants. Nothing was changed.' });
-      return store.hasIdentity(coordinates(key, ctx.principal.id));
+      return store.hasIdentity(coordinates({ key, principalId: ctx.principal.id }));
     },
     grant: async ({ ctx, key, confirmer }) => {
       if (confirmer.id !== ctx.principal.id) throw new ToolInputError({ message: "NATIVE_APPROVAL_ACTOR_MISMATCH: The approval actor does not match this call. Nothing was changed." });
       const conversationId = conversationIdForRun({ runId: ctx.run.id, principalId: confirmer.id });
       if (!conversationId) throw new ToolInputError({ message: 'NATIVE_APPROVAL_CONVERSATION_REQUIRED: The human approval could not be saved to this conversation. Nothing was changed.' });
-      await store.grant({ ...coordinates(key, confirmer.id), conversationId }, new Date(clock.nowMs()).toISOString());
+      await store.grant({ key: { ...coordinates({ key, principalId: confirmer.id }), conversationId }, grantedAt: new Date(clock.nowMs()).toISOString() });
     },
   };
 }

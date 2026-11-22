@@ -38,7 +38,8 @@ export interface PublishSectionButtonController {
 export function usePublishSectionButton(section: PublishSectionId): PublishSectionButtonController {
   const locale = useWiredAdminLocale();
   // `PublishSectionId` is derived from the table itself, so the lookup cannot miss.
-  const entry = publishSectionById(section)!;
+  const entry = publishSectionById({ id: section });
+  if (!entry) throw new Error(`publish section ${section} is missing`);
   const visible = usePublishToLiveAvailable();
   return {
     visible,

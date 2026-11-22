@@ -1,8 +1,9 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PrincipalRecord } from "@jini-ai/user-management";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import {
   NewsletterCampaignNotEditableError,
@@ -19,7 +20,7 @@ import {
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface
- * (SPEC-011, ADR-PIPE-011). Mirrors `server/http/admin/widgets.ts`'s split: HTTP-facing
+ * (SPEC-011, ADR-PIPE-011). Mirrors `apps/website/src/server/inbound/admin-http/http/widgets.ts`'s split: HTTP-facing
  * serialization + error mapping only — no newsletter business logic lives here (that stays in
  * `newsletter/*.ts`).
  *
@@ -27,8 +28,8 @@ import {
  * `NewsletterForbiddenError` themselves (api.spec.md's Purpose section: "principal resolved from
  * the authenticated dev-session ... permission checked directly via `deps.authorize()` — not a
  * Bearer-JWT profile"). Every admin route therefore calls `requireNewsletterPermissionOrRespond`
- * as its own first line, mirroring `routes/admin/menus/create.ts`'s inline `authorize()`+403
- * pattern (the same convention `http/admin/widgets.ts`'s doc comment cites for its own handful of
+ * as its own first line, mirroring `apps/website/src/server/inbound/admin-http/routes/menus/create.ts`'s inline `authorize()`+403
+ * pattern (the same convention `apps/website/src/server/inbound/admin-http/http/widgets.ts`'s doc comment cites for its own handful of
  * no-domain-wrapper routes).
  */
 
@@ -40,24 +41,10 @@ export type NewsletterEntityType = "newsletter_campaign" | "newsletter_list" | "
  * the authed principal on success, or `null` after already writing the 403 — callers `return` on
  * `null` without writing anything further.
  */
-export async function requireNewsletterPermissionOrRespond(
-  authorize: AuthorizeFn,
-  workspaceId: string,
-  permission: string,
-  entityType: NewsletterEntityType,
-  res: Response
-): Promise<PrincipalRecord | null> {
+export async function requireNewsletterPermissionOrRespond({ authorize, workspaceId, permission, entityType, res }: { authorize: AuthorizeFn; workspaceId: string; permission: string; entityType: NewsletterEntityType; res: Response }, _optional = {}): Promise<PrincipalRecord | null> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await authorize({ principalId: principal.id, permission, workspaceId, entityType });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for '${permission}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission, reason: authResult.reason },
-    });
-    return null;
-  }
-  return principal;
+  const params = { principalId: principal.id, permission, workspaceId, entityType };
+  return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
 }
 
 export interface NewsletterErrorResponse {
@@ -147,7 +134,7 @@ const NEWSLETTER_ERROR_MAPPERS: ReadonlyArray<
  * surface `NEWSLETTER_LIST_NOT_FOUND` via `campaign-write-service.ts`'s `requireEditableListId`
  * even though that endpoint's own api.spec.md row doesn't separately enumerate it).
  */
-export function newsletterErrorToResponse(err: unknown, options: AdminFailurePorts = {}): NewsletterErrorResponse {
+export function newsletterErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): NewsletterErrorResponse {
   for (const [ErrorClass, mapper] of NEWSLETTER_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
@@ -155,12 +142,12 @@ export function newsletterErrorToResponse(err: unknown, options: AdminFailurePor
 }
 
 /** Maps every typed `newsletter` domain error to its HTTP response; falls through to a generic 500. */
-export function mapNewsletterErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = newsletterErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
+export function mapNewsletterErrorToResponse({ err, res }: { err: unknown; res: Response }, _optional = {}): void {
+  const { status, body } = newsletterErrorToResponse({ err }, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }
 
 /** `{ data: T }` envelope — api.spec.md §5's `CampaignResponse`/`NewsletterListResponse`/etc. shape. */
-export function toDataResponse<T>(data: T): { data: T } {
+export function toDataResponse<T>({ data }: { data: T }, _optional: Record<string, never> = {}): { data: T } {
   return { data };
 }

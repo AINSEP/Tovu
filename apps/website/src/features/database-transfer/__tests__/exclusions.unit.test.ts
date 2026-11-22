@@ -12,7 +12,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { collectTransferTables, countPartialExclusions, planSnapshotTables } from "../copy-engine.js";
 import { SHARE_LEGACY_PRIVATE_TABLES, SHARE_TABLES } from "#src/features/site-backup/share-policy";
 import { EXCLUDED_CORE_TABLES, SECRET_COLUMN_PATTERN } from "../exclusions.js";
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 
 /**
  * @file Owner decision Q2 (2026-09-27): a copy never carries logins or saved keys. A core table that

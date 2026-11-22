@@ -325,7 +325,7 @@ test("AC-06c/INV-05: minting a second workspace row does NOT unlock deleting the
 test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOURCE_NOT_FOUND", () => {
   const { res, capture } = createCapturingResponse();
 
-  sendDeleteWorkspaceError(res, new WorkspaceNotFoundError({ message: "workspace 'nope' was not found" }));
+  sendDeleteWorkspaceError({ res, err: new WorkspaceNotFoundError({ message: "workspace 'nope' was not found" }) });
 
   assert.equal(capture.statusCode, 404);
   assert.deepEqual(capture.jsonBody, {
@@ -336,12 +336,12 @@ test("AC-06d: sendDeleteWorkspaceError maps WorkspaceNotFoundError to 404 RESOUR
 
 test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 LAST_WORKSPACE, and anything else to a generic 500 that leaks no message", () => {
   const last = createCapturingResponse();
-  sendDeleteWorkspaceError(last.res, new WorkspaceLastRemainingError({ message: "the install's last remaining workspace cannot be deleted (INV-03)" }));
+  sendDeleteWorkspaceError({ res: last.res, err: new WorkspaceLastRemainingError({ message: "the install's last remaining workspace cannot be deleted (INV-03)" }) });
   assert.equal(last.capture.statusCode, 409);
   assert.equal((last.capture.jsonBody as { code?: string }).code, "LAST_WORKSPACE");
 
   const generic = createCapturingResponse();
-  sendDeleteWorkspaceError(generic.res, new Error("db exploded: connection string postgres://user:pw@host"));
+  sendDeleteWorkspaceError({ res: generic.res, err: new Error("db exploded: connection string postgres://user:pw@host") });
   assert.equal(generic.capture.statusCode, 500);
   // The untyped branch must stay opaque — a repo error can carry connection strings.
   assertAdminResponse({ actual: generic.capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: { message: "The workspace removal could not be confirmed.", action: "Check the list before repeating the removal. Copy details and report this problem.", step: "Remove workspace" } });

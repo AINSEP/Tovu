@@ -1,8 +1,8 @@
 import { sql } from "kysely";
 
-import { tableExists } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationContext, MigrationStep } from "./step.js";
+import { tableExists } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationContext, MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Step `0002_drop_empty_legacy_chat_tables`: the `content.db` half of the two-database split
@@ -23,10 +23,10 @@ export const DROP_EMPTY_LEGACY_CHAT_TABLES_ID = "0002_drop_empty_legacy_chat_tab
 
 const LEGACY_CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
 
-async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   if (kernel.dialect !== "sqlite") return;
   for (const table of LEGACY_CHAT_TABLES) {
-    if (!(await tableExists(kernel, table))) continue;
+    if (!(await tableExists({ kernel, table }))) continue;
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ${sql.table(table)}`);
     if (Number(row?.n ?? 0) > 0) {
       context.note(`kept legacy chat table ${table}: it has rows`);
@@ -36,4 +36,4 @@ async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Pr
   }
 }
 
-export const dropEmptyLegacyChatTables = (checksum: string): MigrationStep => ({ id: DROP_EMPTY_LEGACY_CHAT_TABLES_ID, checksum, up });
+export const dropEmptyLegacyChatTables = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_EMPTY_LEGACY_CHAT_TABLES_ID, checksum, up });

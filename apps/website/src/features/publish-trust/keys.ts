@@ -1,6 +1,6 @@
 import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Zero-setup publishing auth — key material.
@@ -70,7 +70,7 @@ function toBase64Url(bytes: Uint8Array): string {
  *
  * @complexity O(n) in the input length.
  */
-function fromBase64Url(value: string, expectedBytes: number): Buffer | null {
+function fromBase64Url({ value, expectedBytes }: { value: string; expectedBytes: number }, _optional = {}): Buffer | null {
   if (typeof value !== "string" || value === "") return null;
   const decoded = Buffer.from(value, "base64url");
   return decoded.length === expectedBytes ? decoded : null;
@@ -90,7 +90,7 @@ function fromBase64Url(value: string, expectedBytes: number): Buffer | null {
 export async function deriveInstallationId(input: {
   keyring: KeyringPort;
   workspaceId: string;
-}): Promise<string> {
+}, _optional = {}): Promise<string> {
   const material = await input.keyring.derive({
     workspaceId: input.workspaceId as never,
     purpose: INSTALLATION_ID_PURPOSE,
@@ -101,7 +101,7 @@ export async function deriveInstallationId(input: {
 
 /** The stable principal id a publishing session authenticates as on the destination.
  *  @complexity O(1). */
-export function publishPrincipalIdFor(sourceInstallationId: string): string {
+export function publishPrincipalIdFor({ sourceInstallationId }: { sourceInstallationId: string }, _optional = {}): string {
   return `${PUBLISH_PRINCIPAL_ID_PREFIX}${sourceInstallationId}`;
 }
 
@@ -113,7 +113,7 @@ export interface PublishSigningKey {
   /** Which rotation generation produced this key — audit metadata, never identity. */
   readonly generation: number;
   /** Detached Ed25519 signature over `message` (UTF-8), base64url. */
-  sign(message: string): string;
+  sign(required: { message: string }, optional?: Record<string, never>): string;
 }
 
 /**
@@ -134,7 +134,7 @@ export async function derivePublishSigningKey(input: {
   sourceInstallationId: string;
   targetOrigin: string;
   generation: number;
-}): Promise<PublishSigningKey> {
+}, _optional = {}): Promise<PublishSigningKey> {
   const seed = await input.keyring.derive({
     workspaceId: input.workspaceId as never,
     purpose: SIGNING_KEY_PURPOSE,
@@ -152,7 +152,7 @@ export async function derivePublishSigningKey(input: {
   return {
     publicKeyB64u: toBase64Url(rawPublicKey),
     generation: input.generation,
-    sign(message: string): string {
+    sign({ message }: { message: string }, _optional = {}): string {
       return toBase64Url(cryptoSign(null, Buffer.from(message, "utf8"), privateKey));
     },
   };
@@ -193,8 +193,8 @@ export function verifyPublishSignature(input: {
   /** Malformed material must be refused before entering this injectable crypto effect. */
   verifyDecoded?: (input: DecodedPublishSignature, optional?: Record<string, never>) => boolean;
 } = {}): boolean {
-  const rawPublicKey = fromBase64Url(input.publicKeyB64u, ED25519_RAW_KEY_BYTES);
-  const signature = fromBase64Url(input.signatureB64u, ED25519_SIGNATURE_BYTES);
+  const rawPublicKey = fromBase64Url({ value: input.publicKeyB64u, expectedBytes: ED25519_RAW_KEY_BYTES });
+  const signature = fromBase64Url({ value: input.signatureB64u, expectedBytes: ED25519_SIGNATURE_BYTES });
   if (!rawPublicKey || !signature) return false;
 
   try {

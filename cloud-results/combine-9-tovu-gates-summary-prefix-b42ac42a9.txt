@@ -1,0 +1,18 @@
+HEAD b42ac42a91
+size exit=1 secs=38
+boundaries exit=0 secs=47
+admin-tsc exit=0 secs=52
+desktop-tsc-preload exit=0 secs=3
+desktop-tsc-renderer exit=0 secs=11
+typecheck exit=0 secs=69
+worker-import-graph exit=1 secs=25
+complexity exit=1 secs=41
+desktop-tsc-main exit=0 secs=28
+desktop-tsc-live-verify exit=0 secs=3
+errors exit=0 secs=32
+typecheck-tests exit=2 secs=81
+typecheck-scripts exit=2 secs=23
+architecture exit=1 secs=94
+hooks exit=0 secs=1
+why-comments exit=1 secs=25
+DONE

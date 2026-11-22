@@ -5,6 +5,8 @@ import { once } from 'node:events';
 import { applyRenderThemeOverride } from '../render-theme-override.js';
 import { applySiteCookieConsent, siteConsentDocumentAssets, readSiteVisitorConsent, readSiteAnalyticsProof, siteReceiptAllowsAnalytics } from '../site-cookie-consent.js';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
+import { TELEMETRY_CONSENT } from '../../../../runtime/composition/telemetry-consent.js';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
 import type { RouteDeps } from '#src/server/routes/types';
@@ -246,7 +248,7 @@ async function changingFixture({ preview = false, failAtBoot = false } = {}) {
     consentAdapters: () => [{ adapter: { id: 'tracking', kind: 'consent-adapter', category: 'analytics', src: '/tracking.mjs' } }],
   } as unknown as RouteDeps;
   const app = express();
-  if (preview) applyRenderThemeOverride(app, { themeId: 'preview-theme' });
+  if (preview) applyRenderThemeOverride({ app, themeId: 'preview-theme' });
   applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
   app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [] })));
   await new Promise<void>(resolve => setImmediate(resolve));
@@ -581,3 +583,38 @@ test('a static document with consent off and no declared scripts adds nothing', 
     assert.deepEqual(await f.deps.cookieConsent!.exportAssets!(), []);
   } finally { await f.close(); }
 });
+
+for (const enabled of [true, false]) {
+  test(`diagnostics bridge follows metrics enablement in managed and authored documents with consent ${enabled}`, async () => {
+    const f = await fixture(enabled), repo = new InMemorySettingsRepo(), now = '2026-11-20T00:00:00Z';
+    f.deps.settingsRepo = repo;
+    f.deps.observability = { ...createNoopObservabilityPort({}), supportsMetric: true };
+    await repo.saveDefinition({ settingId: 'metrics', version: 1, workspaceId: null, ...TELEMETRY_CONSENT, ownerKind: 'core', ownerId: null,
+      schema: { type: 'boolean' }, defaultValue: false, scopes: 2, secret: false, status: 'active', aliasOfNamespace: null, aliasOfKey: null, coercionTag: null, createdAt: now, updatedAt: now });
+    f.app.get('/static-assets', async (req, res) => res.json(await siteConsentDocumentAssets({ deps: f.deps, request: req, static: true, scripts: [] })));
+    try {
+      const off = await (await fetch(`${f.url}/assets`)).json();
+      assert.doesNotMatch(JSON.stringify(off), /site-browser-diagnostics/);
+      assert.doesNotMatch(await (await fetch(`${f.url}/_consent/load.js`)).text(), /site-browser-diagnostics/);
+      assert.equal((await fetch(`${f.url}/_jini/browser-analytics/site/diagnostics.js`)).status, 404);
+      await repo.saveWorkspaceValue({ settingId: 'metrics', scope: 'workspace', workspaceId: f.deps.workspaceId, principalId: null,
+        valueJson: true, state: 'set', defVersion: 1, seq: 1, updatedBy: 'owner', updatedAt: now, originPluginId: null });
+      const live = await (await fetch(`${f.url}/assets`)).json();
+      assert.equal(JSON.stringify(live).includes('site-browser-diagnostics'), enabled);
+      const loader = await (await fetch(`${f.url}/_consent/load.js`)).text();
+      const { JSDOM } = await import('jsdom');
+      const dom = new JSDOM('<html><head></head><body>Authored page</body></html>', { url: f.url, runScripts: 'outside-only' });
+      try {
+        dom.window.eval(loader);
+        assert.equal(dom.window.document.getElementById('jini-consent-config')?.textContent?.includes('site-browser-diagnostics') ?? false, enabled);
+      } finally { dom.window.close(); }
+      const module = await fetch(`${f.url}/_jini/browser-analytics/site/diagnostics.js`);
+      assert.equal(module.status, 200);
+      assert.equal(module.headers.get('cache-control'), 'private, no-store');
+      assert.match(await module.text(), /export default/);
+      for (const url of ['/assets', '/_consent/load.js']) assert.doesNotMatch(await (await fetch(f.url + url, { headers: { 'X-Tovu-Static-Export': '1' } })).text(), /site-browser-diagnostics/);
+      assert.doesNotMatch(JSON.stringify(await (await fetch(`${f.url}/static-assets`)).json()), /site-browser-diagnostics/);
+      assert.equal((await f.deps.cookieConsent!.exportAssets!()).includes('/_jini/browser-analytics/site/diagnostics.js'), false);
+    } finally { await f.close(); }
+  });
+}

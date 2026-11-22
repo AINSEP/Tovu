@@ -24,8 +24,10 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
-import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "#src/features/media/index";
+import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";
 
@@ -35,7 +37,7 @@ const SOURCE_BYTES = new TextEncoder().encode("a real imported photo's bytes");
 const SOURCE_SHA256 = "86d9075d85c1cce55da0605a557dceaea6c27f18df8702ce86accccce8a41aa9";
 
 function makeDeps(): ImportMediaEntityDeps & { mediaRepo: InMemoryVersionedMediaRepo } {
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   return {
     mediaRepo,
     assetBlobRepo: new InMemoryAssetBlobRepo({}),
@@ -98,7 +100,7 @@ test("importMediaEntity + renderDocNode: an image node authored against the SOUR
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
 
-  const html = renderDocNode(postBodyDoc, undefined, mediaTransformVersions, mediaAssetMetadata);
+  const html = renderDocNode({ node: postBodyDoc }, { mediaTransformVersions, mediaAssetMetadata });
 
   assert.match(
     html,
@@ -118,6 +120,6 @@ test("importMediaEntity + renderDocNode: the SAME doc node against an unresolved
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
 
-  const html = renderDocNode(postBodyDoc);
+  const html = renderDocNode({ node: postBodyDoc });
   assert.match(html, /media-ph/);
 });

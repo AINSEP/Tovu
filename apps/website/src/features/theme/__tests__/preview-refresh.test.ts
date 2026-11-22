@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "../preview-policy.js";
 import { buildConfirmedThemesRegistrations } from '../../../assistant/__tests__/fixtures/confirmed-registrations.js';
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import assert from "node:assert/strict";
@@ -7,35 +8,22 @@ import os from "node:os";
 import path from "node:path";
 import {
   readThemePreviewRefresh,
-  requestThemePreviewRefresh,
   validatePreviewPath,
-} from "../preview-refresh.js";
-
-test("refresh marker crosses independent readers and clears navigation after a save", (t) => {
-  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-refresh-"));
-  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  const event = requestThemePreviewRefresh(
-    { themesDir },
-    { path: "/create-a-theme?lang=en", revision: "revision-1" },
-  );
-  assert.deepEqual(event, { revision: "revision-1", path: "/create-a-theme?lang=en" });
-  assert.deepEqual(readThemePreviewRefresh({ themesDir }), event);
-  requestThemePreviewRefresh({ themesDir }, { revision: "revision-2" });
-  assert.deepEqual(readThemePreviewRefresh({ themesDir }), { revision: "revision-2" });
-});
+} from "@jini-ai/cms/themes/preview/refresh";
 
 test("preview paths are local public paths, with exact actionable refusals", () => {
-  assert.equal(validatePreviewPath({ path: "/articles/example?tab=1#body" }), "/articles/example?tab=1#body");
+  assert.equal(validatePreviewPath({ path: "/articles/example?tab=1#body", isReservedPath: isReservedThemePreviewPath }), "/articles/example?tab=1#body");
   for (const path of [
     "https://example.com",
     "//example.com",
     "/\\example.com",
     "/api/admin",
+    "/API",
+    "/AdMiN/settings",
     "/%61dmin",
     "/foo/../admin",
   ]) {
-    assert.throws(() => validatePreviewPath({ path }), {
+    assert.throws(() => validatePreviewPath({ path, isReservedPath: isReservedThemePreviewPath }), {
       message: "path must be a site-relative public URL starting with /",
     });
   }
@@ -63,15 +51,15 @@ test("preview_reload is registered by category, authorizes before signaling, and
     principal: { id: "owner" },
   } as never);
   assert.equal(calls.length, 1);
-  assert.deepEqual(result, { reloaded: true, ...readThemePreviewRefresh({ themesDir }) });
+  assert.deepEqual(result, { reloaded: true, ...readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }) });
   deps.authorize = async () => ({ allowed: false }) as never;
-  const before = readThemePreviewRefresh({ themesDir });
+  const before = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   await assert.rejects(() => registration.handler({ input: {}, principal: { id: "owner" } } as never));
-  assert.deepEqual(readThemePreviewRefresh({ themesDir }), before);
+  assert.deepEqual(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), before);
 });
 
 test("admin and assistant save chokepoints both signal, rejected writes do not", async (t) => {
-  const { discoverAllBuiltInThemes } = await import("../theme.js");
+  const { discoverAllBuiltInThemes } = await import("../theme-discovery.js");
   const { reloadTheme } = await import("../../../server/inbound/admin-http/routes/themes/explore.js");
   const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "save-refresh-"));
   t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
@@ -90,9 +78,9 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     resolveActiveThemeId: async () => "",
   };
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  reloadTheme(deps as never, "plain");
-  const first = readThemePreviewRefresh({ themesDir });
+  assert.equal(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), null);
+  reloadTheme({ deps: deps as never, themeId: "plain" });
+  const first = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.ok(first);
   const writer = buildConfirmedThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");
   assert.ok(writer);
@@ -101,7 +89,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     principal: { id: "owner" },
     executionId: 'save', run: { id: 'run' }, signal: new AbortController().signal,
   } as never);
-  const second = readThemePreviewRefresh({ themesDir });
+  const second = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.ok(second);
   assert.notEqual(first.revision, second.revision);
   await assert.rejects(() =>
@@ -111,20 +99,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
       executionId: 'invalid-save', run: { id: 'run' }, signal: new AbortController().signal,
     } as never),
   );
-  assert.deepEqual(readThemePreviewRefresh({ themesDir }), second);
-});
-
-test("feed starts silently, deduplicates ticks and delivers optional navigation on new writes", async () => {
-  const { createThemePreviewFeed } = await import("../preview-refresh.js");
-  let frame = { revision: "initial", path: "/old-tool-path" };
-  const emitted: unknown[] = [];
-  const feed = createThemePreviewFeed({ read: () => frame, emit: (event) => emitted.push(event) });
-  feed();
-  feed();
-  frame = { revision: "changed", path: "/new-tool-path" };
-  feed();
-  feed();
-  assert.deepEqual(emitted, [{ revision: "changed", path: "/new-tool-path" }]);
+  assert.deepEqual(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), second);
 });
 
 test("theme settings publish also signals previews", async (t) => {
@@ -149,19 +124,9 @@ test("theme settings publish also signals previews", async (t) => {
   fs.writeFileSync(path.join(dir, "pages/index.html"), "<html></html>");
   fs.writeFileSync(path.join(dir, "pages/about.html"), "<html></html>");
   const deps = { themesDir, themes: [loadTheme({ themeDir: dir, id: "plain", source: "built-in" })] };
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   await setThemePagePublished(deps, { themeId: "plain", page: "about", published: true });
-  assert.ok(readThemePreviewRefresh({ themesDir }));
-});
-
-test("a tool navigation between connection and first tick is delivered, not treated as historical", async () => {
-  const { createThemePreviewFeed } = await import("../preview-refresh.js");
-  let frame: import("../preview-refresh.js").ThemePreviewRefresh | null = null;
-  const emitted: unknown[] = [];
-  const feed = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) });
-  frame = { revision: "new-tool", path: "/create-a-theme" };
-  feed();
-  assert.deepEqual(emitted, [{ revision: "new-tool", path: "/create-a-theme" }]);
+  assert.ok(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }));
 });
 
 test("both active-theme settings writers signal a new preview revision", async (t) => {
@@ -185,24 +150,23 @@ test("both active-theme settings writers signal a new preview revision", async (
     ),
   };
   const registration = buildSetActiveThemeRegistrations(deps)[0];
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   assert.deepEqual(
     await registration.handler({ input: { themeId: "none" }, principal: { id: "owner" } } as never),
     { previousThemeId: "none", activeThemeId: "none" },
   );
-  const first = readThemePreviewRefresh({ themesDir });
+  const first = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.ok(first);
   let patch: (...args: any[]) => Promise<void> = async (..._args: any[]) => {
     throw new Error("missing handler");
   };
   registerAdminPresentationPatchRoute(
-    {
+    { app: {
       patch: (route: string, handler: typeof patch) => {
         assert.equal(route, "/api/admin/v1/workspaces/:workspaceId/presentation");
         patch = handler;
       },
-    } as never,
-    deps as never,
+    } as never, deps: deps as never },
   );
   let body: any;
   const response = {
@@ -218,68 +182,15 @@ test("both active-theme settings writers signal a new preview revision", async (
     activeThemeId: "none",
     updatedAt: "2026-10-05T00:00:00.000Z",
   });
-  assert.notEqual(readThemePreviewRefresh({ themesDir })?.revision, first.revision);
-});
-
-test("a resumed desktop feed delivers the revision saved during its disconnected interval", async () => {
-  const { createThemePreviewFeed } = await import("../preview-refresh.js");
-  const emitted: unknown[] = [];
-  const frame = { revision: "while-disconnected", path: "/new-path" };
-  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) }, { resumeRevision: "last-delivered" });
-  tick(); tick();
-  assert.deepEqual(emitted, [frame]);
-});
-
-
-test("deskfx M1: a refresh may create themes inside an existing site but never recreate a moved site", (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "preview-no-resurrection-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const themesDir = path.join(root, "themes");
-  requestThemePreviewRefresh({ themesDir }, { revision: "first" });
-  assert.equal(readThemePreviewRefresh({ themesDir })?.revision, "first");
-  requestThemePreviewRefresh({ themesDir }, { revision: "second" });
-  assert.equal(readThemePreviewRefresh({ themesDir })?.revision, "second");
-  const moved = path.join(root, "moved-site");
-  assert.throws(() => requestThemePreviewRefresh({ themesDir: path.join(moved, "themes") }), { code: "ENOENT" });
-  assert.equal(fs.existsSync(moved), false);
-  const file = path.join(root, "file"); fs.writeFileSync(file, "keep");
-  assert.throws(() => requestThemePreviewRefresh({ themesDir: file }), { code: "EEXIST" });
-  assert.equal(fs.readFileSync(file, "utf8"), "keep");
+  assert.notEqual(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath })?.revision, first.revision);
 });
 
 test("preview path refusals: control characters, undecodable escapes and URL-normalised admin paths", () => {
-  for (const path of ["/has space", "/tab\there", "/%E0%A4%A", "/./admin", "/x/%2e%2e/api"]) {
-    assert.throws(() => validatePreviewPath({ path }), {
+  for (const path of ["/has space", "/tab\there", "/%E0%A4%A", "/./admin", "/./api", "/%61pi", "/x/%2e%2e/api"]) {
+    assert.throws(() => validatePreviewPath({ path, isReservedPath: isReservedThemePreviewPath }), {
       message: "path must be a site-relative public URL starting with /",
     }, path);
   }
-  assert.equal(validatePreviewPath({ path: "/administrator" }), "/administrator", "only the exact admin/api segment is reserved");
+  assert.equal(validatePreviewPath({ path: "/administrator", isReservedPath: isReservedThemePreviewPath }), "/administrator", "only the exact admin/api segment is reserved");
 });
 
-test("a marker with an invalid revision or an unsafe stored path reads as no refresh", (t) => {
-  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-refresh-invalid-"));
-  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
-  const marker = path.join(themesDir, ".preview-refresh.json");
-  fs.writeFileSync(marker, JSON.stringify({ revision: 42 }));
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  fs.writeFileSync(marker, JSON.stringify({ revision: "has space" }));
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  fs.writeFileSync(marker, JSON.stringify({ revision: "ok-1", path: "//evil.example" }));
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  fs.writeFileSync(marker, JSON.stringify({ revision: "ok-2", path: "/fine" }));
-  assert.deepEqual(readThemePreviewRefresh({ themesDir }), { revision: "ok-2", path: "/fine" });
-});
-
-test("a feed that starts with no marker stays silent until one appears, and ignores a vanished marker", async () => {
-  const { createThemePreviewFeed } = await import("../preview-refresh.js");
-  let frame: import("../preview-refresh.js").ThemePreviewRefresh | null = null;
-  const emitted: unknown[] = [];
-  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) });
-  tick();
-  assert.deepEqual(emitted, []);
-  frame = { revision: "first" };
-  tick();
-  frame = null;
-  tick();
-  assert.deepEqual(emitted, [{ revision: "first" }]);
-});

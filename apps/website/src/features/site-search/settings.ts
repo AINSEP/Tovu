@@ -15,8 +15,6 @@ import {
 } from "@jini-ai/core/settings";
 import { BUILTIN_SEARCH_PROVIDER_ID } from "@jini-ai/search";
 
-import { set } from "../settings/index.js";
-
 export const SEARCH_SETTINGS_NAMESPACE = "core.search";
 export const SEARCH_PROVIDER_KEY = "provider";
 
@@ -28,7 +26,7 @@ export function isSearchProviderId(value: unknown): value is string {
   return typeof value === "string" && PROVIDER_ID.test(value);
 }
 
-const rejection = (value: unknown) =>
+const rejection = ({ value }: { value: unknown }, _optional = {}) =>
   new ValueValidationFailedError(`value for '${SEARCH_SETTINGS_NAMESPACE}.${SEARCH_PROVIDER_KEY}' must match ${PROVIDER_ID.source}; got ${JSON.stringify(value).slice(0, 80)}`);
 
 /**
@@ -56,14 +54,15 @@ export function readSearchProviderSetting(
   _optional: Record<string, never> = {},
 ): (input: { workspaceId: string }) => Promise<string> {
   return async ({ workspaceId }) => {
-    const found = await getEffective({ repo: required.settingsRepo }, {
-      namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scopeContext: { workspaceId },
-    });
+    const found = await getEffective({ deps: { repo: required.settingsRepo }, namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scopeContext: { workspaceId } });
     const value = found?.value ?? BUILTIN_SEARCH_PROVIDER_ID;
-    if (!isSearchProviderId(value)) throw rejection(value);
+    if (!isSearchProviderId(value)) throw rejection({ value });
     return value;
   };
 }
+
+/** The host settings write (`features/settings` `set`), injected by composition so search never imports settings. */
+export type SearchSettingWriter = (required: SetValueRequired) => Promise<{ value: JsonValue; revisionSeq: number }>;
 
 /**
  * A writer of a site's provider id through the host settings chokepoint. It checks the grammar
@@ -73,12 +72,12 @@ export function readSearchProviderSetting(
  * @complexity O(1) to build; each write is one settings write.
  */
 export function writeSearchProviderSetting(
-  required: { deps: SetValueRequired["deps"] },
+  required: { deps: SetValueRequired["deps"]; writeSetting: SearchSettingWriter },
   _optional: Record<string, never> = {},
 ): (input: { workspaceId: string; callerPrincipalId: string; providerId: string }) => Promise<{ value: JsonValue; revisionSeq: number }> {
   return async ({ workspaceId, callerPrincipalId, providerId }) => {
-    if (!isSearchProviderId(providerId)) throw rejection(providerId);
-    return set({ deps: required.deps, input: {
+    if (!isSearchProviderId(providerId)) throw rejection({ value: providerId });
+    return required.writeSetting({ deps: required.deps, input: {
       namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scope: "workspace", workspaceId, callerPrincipalId, value: providerId,
     } });
   };

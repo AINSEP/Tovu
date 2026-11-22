@@ -67,32 +67,32 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
   });
   const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledAgentPluginsDir() });
   const findCandidate = () =>
-    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) }, { candidatePaths });
+    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(repoRoot, relative) }, { candidatePaths });
 
   return {
     name: "publish-content",
-    registerRoutes: (app) => {
-      registerPublishContentExportRoute(app, deps);
-      registerPublishContentBlobsProbeRoute(app, deps);
-      registerPublishContentBlobPutRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerPublishContentExportRoute({ app, deps });
+      registerPublishContentBlobsProbeRoute({ app, deps });
+      registerPublishContentBlobPutRoute({ app, deps });
       // The download half of the same blob channel (2026-09-19) — what makes the PULL direction
       // able to carry media bytes at all. Gated on `publish_content.read`, not `.apply`; see
       // `blob-get.ts`'s own header for why that is the read-side permission and not a relaxation.
-      registerPublishContentBlobGetRoute(app, deps);
-      registerPublishContentBundleCreateRoute(app, deps);
+      registerPublishContentBlobGetRoute({ app, deps });
+      registerPublishContentBundleCreateRoute({ app, deps });
       // S-F1: what THIS instance can accept, probed by a pushing peer BEFORE it stages a bundle —
       // see `capabilities.ts`'s header for why this has to run ahead of `bundles`, not beside it.
-      registerPublishContentCapabilitiesRoute(app, deps);
-      registerPublishContentImportRoutes(app, deps);
-      registerPublishBackstopRoutes(app, deps);
+      registerPublishContentCapabilitiesRoute({ app, deps });
+      registerPublishContentImportRoutes({ app, deps });
+      registerPublishBackstopRoutes({ app, deps });
       // Task 10: peer CRUD, then the outbound push/pull driver that dials a peer's own copies of
       // the routes registered above.
-      registerPublishContentPeerRoutes(app, deps);
-      registerPublishContentPeerTransportRoutes(app, deps);
+      registerPublishContentPeerRoutes({ app, deps });
+      registerPublishContentPeerTransportRoutes({ app, deps });
       // Zero-setup publishing: the one action that turns a fresh install into one that can publish,
       // without a key ever being minted, displayed or copied. See `destination.ts`'s header for why
       // it lives behind the Publish button rather than on a settings screen.
-      registerPublishContentDestinationRoutes(app, deps, { provisioning, findCandidate });
+      registerPublishContentDestinationRoutes({ app, deps, own: { provisioning, findCandidate } });
     },
   };
 }

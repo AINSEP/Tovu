@@ -1,3 +1,4 @@
+import { createResourceStop } from './ResourcesPanel.hooks.js';
 /** Tovu's resource display adapter over Jini's dialog/list and the existing site power owner. */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { TabbedDialog, useFocusTrap } from '@jini-ai/ui';
@@ -70,12 +71,12 @@ export function resourceGroups({ projects, snapshot, statusOf }: {
 const ROLE_LABELS: Record<ResourceProcess['role'], string> = { 'site-server': 'Site server', daemon: 'Daemon', app: 'Main process', process: '' };
 
 /** A dash for an unknown reading, spoken as "unavailable", never a zero. O(1). */
-function Unknown(_input: Record<string, never>, _options = {}) {
+function Unknown() {
   return <><span aria-hidden="true">—</span><span className="visually-hidden">unavailable</span></>;
 }
 
 /** Memory and CPU cells; CPU is a percent of one core (the note under the table says so). O(1). */
-function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number | null; cpuPercent?: number | null; memoryMetric?: MemoryMetric }, _options = {}) {
+function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number | null; cpuPercent?: number | null; memoryMetric?: MemoryMetric }) {
   return <>
     <td className="num">{rssBytes == null ? <Unknown /> : memoryText({ bytes: rssBytes, memoryMetric })}</td>
     <td className="num">{cpuPercent == null ? <Unknown /> : `${cpuPercent.toFixed(0)}%`}</td>
@@ -84,14 +85,14 @@ function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number
 
 /** One `<tbody>` per group: a heading row with the subtotal (and Stop), then its processes.
  * Executable basenames only, never command arguments. O(p) for the group's p processes. */
-function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onStop: (id: string) => void }, _options = {}) {
+function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onStop: (required: { id: string }, options?: {}) => void }) {
   const warning = resourceWarnings({ metrics: group.metrics });
   return <tbody>
     <tr className="resources-table__group">
       <th scope="rowgroup" colSpan={2}>{group.title}{warning && <span className="resources-table__warning"> · {warning}</span>}</th>
       <MetricCells rssBytes={group.metrics?.rssBytes} memoryMetric={group.metrics?.memoryMetric} cpuPercent={group.metrics?.cpuPercent} />
       <td className="resources-table__action">{group.stop && <button type="button" disabled={group.stop.disabled}
-        onClick={() => onStop(group.id)}>{group.stop.label}</button>}</td>
+        onClick={() => onStop({ id: group.id })}>{group.stop.label}</button>}</td>
     </tr>
     {group.processes.map((row) => <tr key={row.pid}>
       <td className="resources-table__process">{row.name}{ROLE_LABELS[row.role] && <span className="resources-table__role">{ROLE_LABELS[row.role]}</span>}</td>
@@ -103,7 +104,7 @@ function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onSto
 }
 
 /** Process | PID | Memory | CPU, grouped by owner. O(s+p). */
-function ResourcesTable({ groups, onStop }: { groups: readonly ResourceTableGroup[]; onStop: (id: string) => void }, _options = {}) {
+function ResourcesTable({ groups, onStop }: { groups: readonly ResourceTableGroup[]; onStop: (required: { id: string }, options?: {}) => void }) {
   return <table className="resources-table">
     <caption className="visually-hidden">Memory and CPU by process</caption>
     <thead><tr>
@@ -126,7 +127,7 @@ export function ResourcesMonitor({ projects, onSiteUpdated, children, useReading
   useReadings?: typeof useResources;
   /** Panel seam keeps tests on this app's React when linked packages carry a second copy. */
   Panel?: typeof ResourcesPanel;
-}, _options = {}) {
+}) {
   const [open, setOpen] = useState(false);
   const refreshKey = JSON.stringify(projects.map(project => [project.id, project.status, project.externalUrl]));
   const snapshot = useReadings({ panelOpen: open }, { refreshKey });
@@ -149,7 +150,7 @@ function resourceChipReading({ snapshot }: { snapshot: ResourcesSnapshot | null 
 
 /** Total chip next to Settings: a chip icon and the figure, the sentence in a Jini tooltip and the
  * accessible name. The native button supports Enter/Space. O(1), no effects. */
-export function ResourcesChip(_input: Record<string, never>, _options = {}) {
+export function ResourcesChip() {
   const monitor = useContext(ResourcesContext);
   if (!monitor) return null;
   const { warning, label, tip } = resourceChipReading({ snapshot: monitor.snapshot });
@@ -162,7 +163,7 @@ export function ResourcesChip(_input: Record<string, never>, _options = {}) {
 
 /** Site-card reading from the same snapshot as the total; stopped cards carry no stale figure.
  * External servers are outside this desktop's sampler, just as they are in the Resources panel. */
-export function ResourceSiteFigure({ project }: { project: SiteRecord }, _options = {}) {
+export function ResourceSiteFigure({ project }: { project: SiteRecord }) {
   const monitor = useContext(ResourcesContext);
   if (project.status !== 'running' || project.externalUrl) return null;
   const group = monitor?.sites.get(project.id);
@@ -186,19 +187,15 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
   usePower?: typeof useSitePower;
   Shell?: typeof TabbedDialog;
   useTrap?: typeof useFocusTrap;
-}, _options = {}) {
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   useTrap({ containerRef });
   // The shared trap captures the opener first; then enter this panel on its first action.
   useEffect(() => { containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); }, []);
-  const power = usePower(onSiteUpdated);
+  const power = usePower({}, { onSiteUpdated });
   const groups = resourceGroups({ projects, snapshot, statusOf: power.statusOf });
-  const byId = new Map(projects.map((site) => [site.id, site]));
-  const errors = projects.map((site) => power.errorOf(site.id)).filter(Boolean).join(' · ');
-  const onStop = (id: string) => {
-    const site = byId.get(id);
-    if (site && !site.externalUrl && site.status === 'running') void power.toggle(site);
-  };
+  const errors = projects.map((site) => power.errorOf({ id: site.id })).filter(Boolean).join(' · ');
+  const onStop = createResourceStop({ projects, power });
   return <div ref={containerRef}><Shell onClose={onClose} fullscreenEnabled={false} className="resources-dialog"
     dialogAriaLabelledBy="desktop-resources-title" tabs={[{ id: 'resources', label: 'Resources', title: 'Resources', panel: <>
       <p className="resources-total">Total: {metricsText({ metrics: snapshot?.status === 'available' ? snapshot.total : undefined })}</p>

@@ -9,7 +9,7 @@ import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/ports.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
 import { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
@@ -33,6 +33,7 @@ import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 
 const WORKSPACE = "workspace-1";
 const SERVER = "higgs";
+const REAUTH_ERROR = { constructor: ExternalMcpReauthRequiredError, name: "ExternalMcpReauthRequiredError", message: '"Higgs" is disconnected: its authorization expired or was revoked. Ask the operator to reconnect it in Settings → External MCP. Do not retry this tool.' };
 const REDIRECT_URI = "https://tovu.example.com/api/mcp-servers/oauth/callback/higgs";
 
 const PROVIDER: OAuthProviderDescriptor = {
@@ -257,7 +258,7 @@ test("the admin read model never carries a token, a refresh token, or a client s
   });
   await connect(service);
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
 
   assert.ok(view);
   const serialized = JSON.stringify(view);
@@ -424,7 +425,7 @@ test("markNeedsReauth clears the token but PRESERVES the client secret sharing i
   await connect(service);
   clock.advance(60 * 60 * 1000);
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "needs_reauth");
@@ -446,9 +447,9 @@ test("needs_reauth is DURABLE — a second call does not re-probe the provider",
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
 
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const callsAfterFirst = http.callCount();
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   assert.equal(http.callCount(), callsAfterFirst, "a durable state must not be re-tested on every tool call");
 });
@@ -483,7 +484,7 @@ test("boot-time federation injects the access token into the operator's chosen e
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: service.tokenResolver }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.equal(configs.length, 1);
@@ -504,20 +505,20 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: service.tokenResolver }, workspaceId: WORKSPACE });
 
   assert.deepEqual(configs, []);
   assert.deepEqual(failures, [
-    { serverId: SERVER, reason: "its authorization expired or was revoked — reconnect it in Settings → External MCP" },
+    { serverId: SERVER, reason: "its authorization expired or was revoked — reconnect it in Settings → External MCP", category: "reauth_required" },
   ]);
 });
 
 test("an OAuth row read by a process with no token resolver is reported rather than launched credential-free", async () => {
   const { repo, sealer } = await makeHarness();
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
 
   assert.deepEqual(configs, []);
   assert.equal(failures.length, 1);
@@ -569,7 +570,7 @@ test("reportAuthFailure is idempotent against a connection already needs_reauth 
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const rowAfterFirstMark = await readRow(repo);
   assert.equal(rowAfterFirstMark.oauthStatus, "needs_reauth");
 
@@ -633,11 +634,11 @@ test("disconnect stops the read model claiming a stored token — even though th
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE))[0]?.oauth.hasStoredToken, true);
+  assert.equal((await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE }))[0]?.oauth.hasStoredToken, true);
 
   await service.disconnect({ serverId: SERVER });
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.ok(view, "the row survives a disconnect — only the authorization is dropped");
   assert.equal(view.oauth.status, "disconnected");
   assert.equal(view.oauth.hasStoredToken, false, "the API must not report a stored token for a disconnected connection");
@@ -831,7 +832,7 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
 });
 
 test("the settings deep link escapes its server id", () => {
-  assert.equal(externalMcpSettingsDeepLink("a b&c"), "/settings/external-mcp?server=a%20b%26c");
+  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/settings/external-mcp?server=a%20b%26c");
 });
 
 // ---------------------------------------------------------------------------
@@ -873,7 +874,7 @@ test("the connection gate refuses a needs_reauth connection with the terminal, m
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
@@ -902,7 +903,7 @@ test("the gate still refuses a needs_reauth ROSTER connection with the unchanged
   });
   await connect(service);
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, isPluginEnabled: async () => true, repo });
   const call = await rosterCallTarget(repo, SERVER, "generate_image");
 
@@ -933,7 +934,7 @@ test("the connection gate reads the ROW, so the daemon sees a state the web serv
 
   // The "web server" discovers the dead grant.
   clock.advance(60 * 60 * 1000);
-  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
   // The "daemon"'s gate, built before that happened, now refuses.
   await assert.rejects(() => daemonGate(SERVER, call), (error: unknown) => error instanceof ExternalMcpReauthRequiredError);
@@ -1097,7 +1098,7 @@ function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error):
   return {
     listByWorkspaceId: (workspaceId) => inner.listByWorkspaceId(workspaceId),
     findByServerId: (input) => inner.findByServerId(input),
-    upsert: () => Promise.reject(error),
+    upsert: () => Promise.reject(error), insert: () => Promise.reject(error), updateIfVersion: () => Promise.reject(error), updateOAuthRuntime: () => Promise.reject(error),
     deleteByServerId: (input) => inner.deleteByServerId(input),
     updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),

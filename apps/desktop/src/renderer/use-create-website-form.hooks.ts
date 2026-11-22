@@ -8,7 +8,7 @@ import { SITE_NAME_ERROR, siteNameError } from '../contracts/site-name.js';
 import { humanSiteError } from './site-shell-policy.js';
 import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
 
-function refValue(ref: RefObject<HTMLInputElement | null>): string {
+function refValue({ ref }: { ref: RefObject<HTMLInputElement | null> }, _options = {}): string {
   return ref.current?.value ?? '';
 }
 
@@ -81,7 +81,7 @@ export function buildCreateProjectInput(input: {
  *
  * @complexity O(n) in name length.
  */
-export function siteSlug(name: string): string {
+export function siteSlug({ name }: { name: string }, _options: Record<string, never> = {}): string {
   return name
     .trim()
     .toLowerCase()
@@ -120,7 +120,7 @@ export interface CreateWebsiteFormState {
  * React holds no copy of a credential anywhere in state or a re-render.
  */
 export function useCreateWebsiteForm(
-  onCreate: (input: CreateSiteInput) => Promise<void>,
+  { onCreate }: { onCreate: (input: CreateSiteInput) => Promise<void> }, _options: Record<string, never> = {},
 ): CreateWebsiteFormState {
   const [name, setName] = useState('');
   const [database, setDatabase] = useState<DatabaseProviderKind>('sqlite');
@@ -136,7 +136,7 @@ export function useCreateWebsiteForm(
   const [formError, setFormError] = useState<string | null>(null);
   const supabaseKeyRef = useRef<HTMLInputElement>(null);
   const customCredentialRef = useRef<HTMLInputElement>(null);
-  const slug = siteSlug(name);
+  const slug = siteSlug({ name });
   const supabaseReady = supabaseUrl.trim().length > 0 && hasSupabaseKey;
   const customReady = customProvider.trim().length > 0 && customConnection.trim().length > 0;
   const nameError = name.length > 0 ? siteNameError({ name }) : null;
@@ -153,8 +153,8 @@ export function useCreateWebsiteForm(
       customProviderLabel: customProvider,
       supabaseUrl,
       customConnection,
-      supabaseKey: refValue(supabaseKeyRef),
-      customCredential: refValue(customCredentialRef),
+      supabaseKey: refValue({ ref: supabaseKeyRef }),
+      customCredential: refValue({ ref: customCredentialRef }),
     });
     // Cleared immediately, before the async call, so the DOM never holds the
     // secret longer than it takes to read it — even if the submit fails.

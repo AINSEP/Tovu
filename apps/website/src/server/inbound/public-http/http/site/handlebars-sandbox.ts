@@ -70,5 +70,5 @@ export function renderHandlebarsInSandbox(
   input: HandlebarsWorkerInput,
   options: HandlebarsSandboxOptions = {}
 ): Promise<string> {
-  return renderInWorkerSandbox("handlebars-worker", "Handlebars", input, options);
+  return renderInWorkerSandbox({ workerBasename: "handlebars-worker", errorLabel: "Handlebars", input }, options);
 }

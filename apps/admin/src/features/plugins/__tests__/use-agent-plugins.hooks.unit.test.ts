@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
 
@@ -39,7 +41,7 @@ const OTHER_PLUGIN: AdminAgentPlugin = {
 
 describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listAgentPlugins");
+    const listSpy = vi.spyOn(integrationsApi, "listAgentPlugins");
     const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE] });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
 
@@ -72,13 +74,13 @@ describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => 
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
     expect([...result.current.expandedIds]).toEqual([]);
-    act(() => result.current.onToggleExpanded("site-compliance"));
+    act(() => result.current.onToggleExpanded({ pluginId: "site-compliance" }));
     expect([...result.current.expandedIds]).toEqual(["site-compliance"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
+    act(() => result.current.onToggleExpanded({ pluginId: "tovu-deploy-example" }));
     expect(new Set(result.current.expandedIds)).toEqual(new Set(["site-compliance", "tovu-deploy-example"]));
-    act(() => result.current.onToggleExpanded("site-compliance"));
+    act(() => result.current.onToggleExpanded({ pluginId: "site-compliance" }));
     expect([...result.current.expandedIds]).toEqual(["tovu-deploy-example"]);
-    act(() => result.current.onToggleExpanded("tovu-deploy-example"));
+    act(() => result.current.onToggleExpanded({ pluginId: "tovu-deploy-example" }));
     expect([...result.current.expandedIds]).toEqual([]);
   });
 
@@ -142,7 +144,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(2));
     await act(async () => { await result.current.onToggleEnabled(result.current.agentPlugins![0]!); });
-    expect(toggle).toHaveBeenCalledExactlyOnceWith("site-compliance", { enabled: false });
+    expect(toggle).toHaveBeenCalledExactlyOnceWith({ pluginId: "site-compliance", input: { enabled: false } });
     expect(result.current.agentPlugins).toEqual([serverRow, OTHER_PLUGIN]);
     expect(result.current.toggleError).toBeNull();
     expect(result.current.togglingIds.size).toBe(0);
@@ -184,7 +186,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
   });
 
   it("a plugin this Tovu cannot run is refused in the operator's language, not the server's sentence", async () => {
-    const refusal = new ApiError("Plugin 'site-compliance' is not compatible with this host's Agent Plugin contract.", 409, "PLUGIN_HOST_INCOMPATIBLE");
+    const refusal = new ApiError({ message: "Plugin 'site-compliance' is not compatible with this host's Agent Plugin contract.", status: 409 }, { code: "PLUGIN_HOST_INCOMPATIBLE" });
     const port = createFakeAgentPluginsPort({ agentPlugins: [{ ...SITE_COMPLIANCE, enabled: false }], failToggleWith: refusal });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "es", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
@@ -198,7 +200,7 @@ describe("useAgentPlugins — onToggleEnabled", () => {
   });
 
   it("a plugin whose interrupted update awaits recovery says to restart Tovu", async () => {
-    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE], failToggleWith: new ApiError("Restart the host to recover the interrupted update.", 409, "PLUGIN_UPDATE_PENDING") });
+    const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE], failToggleWith: new ApiError({ message: "Restart the host to recover the interrupted update.", status: 409 }, { code: "PLUGIN_UPDATE_PENDING" }) });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.agentPlugins).toHaveLength(1));
     await act(async () => {

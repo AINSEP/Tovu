@@ -1,5 +1,5 @@
 import { ConfirmDialog, DataTable, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "../../lib/router";
 import { t } from "./email-i18n";
@@ -28,48 +28,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
     >
       <p className="jini-field-hint">{t({ locale, key: "HTML emails with {{fields}} filled in when they send. You or the assistant can edit them." })}</p>
       {controller.error ? <div className="notice error" role="alert">{t({ locale, key: controller.error })}</div> : null}
-      <Loaded view={controller.view} locale={locale}>
-        {({ templates }) => (
-          <DataTable
-            rows={templates}
-            rowKey={(template) => template.id}
-            empty={<p className="jini-field-hint">{t({ locale, key: "No templates yet." })}</p>}
-            columns={[
-              {
-                key: "name",
-                header: t({ locale, key: "Name" }),
-                cell: (template) => (
-                  <a href={adminHref(templateEditorPath(template.id))} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
-                    {template.name}
-                  </a>
-                ),
-              },
-              { key: "subject", header: t({ locale, key: "Subject" }), cell: (template) => <span className="email-break">{template.subject}</span> },
-              {
-                key: "fields",
-                header: t({ locale, key: "Fields" }),
-                cell: (template) => (template.fields.length === 0 ? "—" : <code className="email-break">{template.fields.map((field) => `{{${field.name}}}`).join(" ")}</code>),
-              },
-              { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => when(template.updatedAt, locale) },
-              {
-                key: "actions",
-                header: t({ locale, key: "More" }),
-                cell: (template) => (
-                  <RowMenu
-                    triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", template.name)}
-                    agentHandle={`email-template-${template.id}-menu`}
-                    items={[
-                      { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate(templateEditorPath(template.id)) },
-                      { key: "rename", label: t({ locale, key: "Rename" }), onSelect: () => controller.startRename(template) },
-                      { key: "trash", label: t({ locale, key: "Move to trash" }), destructive: true, onSelect: () => controller.setPendingTrash(template) },
-                    ]}
-                  />
-                ),
-              },
-            ]}
-          />
-        )}
-      </Loaded>
+      {renderEmailTemplatesTable({ controller, locale })}
       <ConfirmDialog
         open={renaming !== null}
         agentHandle="email-template-rename"
@@ -92,7 +51,7 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
         open={controller.pendingTrash !== null}
         agentHandle="email-template-trash"
         title={t({ locale, key: "Move to trash?" })}
-        body={<p>{t({ locale, key: "\"{name}\" moves to Trash. You can restore it from there." }).replace("{name}", controller.pendingTrash?.name ?? "")}</p>}
+        body={<p>{t({ locale, key: "\"{name}\" moves to Trash. You can restore it from there." }).replace("{name}", () => controller.pendingTrash?.name ?? "")}</p>}
         confirmLabel={t({ locale, key: "Move to trash" })}
         destructive
         pending={controller.trashing}
@@ -100,5 +59,55 @@ export function EmailTemplatesTab(props: { controller: EmailTemplatesController;
         onCancel={() => controller.setPendingTrash(null)}
       />
     </Section>
+  );
+}
+
+function renderEmailTemplatesTable(
+  { controller, locale }:
+    Pick<Parameters<typeof EmailTemplatesTab>[0], "controller" | "locale">
+) {
+  return (
+    <Loaded view={controller.view} locale={locale}>
+      {({ templates }) => (
+        <DataTable
+          rows={templates}
+          rowKey={(template) => template.id}
+          empty={<p className="jini-field-hint">{t({ locale, key: "No templates yet." })}</p>}
+          columns={[
+            {
+              key: "name",
+              header: t({ locale, key: "Name" }),
+              cell: (template) => (
+                <a href={adminHref({ routePath: templateEditorPath({ id: template.id }) })} {...agentHandle({ handle: `email-template-${template.id}-edit` }, { role: "link", label: `Open the ${template.name} template` })}>
+                  {template.name}
+                </a>
+              ),
+            },
+            { key: "subject", header: t({ locale, key: "Subject" }), cell: (template) => <span className="email-break">{template.subject}</span> },
+            {
+              key: "fields",
+              header: t({ locale, key: "Fields" }),
+              cell: (template) => (template.fields.length === 0 ? "—" : <code className="email-break">{template.fields.map((field) => `{{${field.name}}}`).join(" ")}</code>),
+            },
+            { key: "updated", header: t({ locale, key: "Updated" }), cell: (template) => when({ iso: template.updatedAt, locale }) },
+            {
+              key: "actions",
+              header: t({ locale, key: "More" }),
+              cell: (template) => (
+                <RowMenu
+                  triggerLabel={t({ locale, key: "Actions for \"{name}\"" }).replace("{name}", () => template.name)}
+                  agentHandle={`email-template-${template.id}-menu`}
+                  items={[
+                    { key: "edit", label: t({ locale, key: "Edit" }), onSelect: () => navigate({ routePath: templateEditorPath({ id: template.id }) }) },
+                    { key: "rename", label: t({ locale, key: "Rename" }), onSelect: () => controller.startRename(template) },
+                    { key: "trash", label: t({ locale, key: "Move to trash" }), destructive: true, onSelect: () => controller.setPendingTrash(template) },
+                  ]}
+                />
+              ),
+            },
+          ]}
+        />
+      )}
+    </Loaded>
   );
 }

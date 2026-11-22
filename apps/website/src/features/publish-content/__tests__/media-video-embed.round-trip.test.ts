@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import {
   CORE_PUBLIC_TRANSFORM_NAME,
   computeBlobStorageKey,
@@ -25,15 +26,15 @@ import {
   InMemoryBlobStore,
   InMemoryMediaContentTypeStore,
   InMemoryTransformDefinitionRepo,
-  InMemoryVersionedMediaRepo,
   type MediaRecord,
 } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
 import { includeReferencedEntities } from "../export-bundle.js";
-import { buildPublishContentCatalog, type PublishContentPorts } from "../type-registry.js";
+import { buildPublishContentCatalog } from "../type-registry.js";
+import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 import { applyReport, makeSite, packAll, plan, registerOnly, WORKSPACE_ID } from "./round-trip-harness.js";
 
 /** A minimal ISO-BMFF `ftyp` box with an `isom` major brand — what `sniffContentType` reads as
@@ -79,7 +80,7 @@ const POSTER = mediaRecord({ id: "poster-asset-1", slug: "promo-poster", alt: "P
 
 /** One site's media ports, with every blob in `blobs` stored and typed the way an upload leaves it. */
 async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], typed: boolean) {
-  const repo = new InMemoryVersionedMediaRepo(records);
+  const repo = new InMemoryVersionedMediaRepo({}, { initialRows: records });
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
   const blobStore = new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
@@ -97,7 +98,7 @@ async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], t
     });
     if (typed) await contentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: bytes === VIDEO_BYTES ? "video/mp4" : "image/jpeg" });
   }
-  const media: PublishContentPorts["media"] = { repo, assetBlobRepo, blobStore, contentTypeStore };
+  const media: TovuPublishPorts["media"] = { repo, assetBlobRepo, blobStore, contentTypeStore };
   return { repo, blobStore, contentTypeStore, ports: { media } };
 }
 
@@ -113,7 +114,7 @@ test("publishing only a video media item carries its poster along, and the recei
   const video = all.find((entity) => entity.id === VIDEO.id)!;
   const { handlerByType } = buildPublishContentCatalog(sourceDeps);
   const envelope = { artifactFormatVersion: 1, hashVersion: 1, entities: [video], blobManifest: [VIDEO_SHA] };
-  const widened = includeReferencedEntities(envelope as never, { ...envelope, entities: all } as never, handlerByType);
+  const widened = includeReferencedEntities({ envelope: envelope as never, source: { ...envelope, entities: all } as never, handlers: handlerByType });
   const sent = widened.envelope.entities;
   assert.deepEqual(sent.map((entity) => entity.id).sort(), [POSTER.id, VIDEO.id]);
 
@@ -136,7 +137,7 @@ test("publishing only a video media item carries its poster along, and the recei
     },
     input: { workspaceId: WORKSPACE_ID, html },
   });
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
 
   assert.doesNotMatch(rendered, /<img\b/);
   assert.equal(rendered.match(/<video\b[^>]*\bsrc="([^"]*)"/)?.[1], `/m/promo-01/original.mp4?v=${VIDEO_SHA.slice(0, 12)}`);

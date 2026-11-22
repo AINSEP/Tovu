@@ -1,9 +1,10 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { agentHandle } from "@jini-ai/agentic";
+
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { defaultAgentPluginSurfacesPort } from "./hooks/agent-plugin-surfaces-dependencies.hooks";
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./hooks/agent-plugin-surfaces-port.hooks";
 import { useAgentPluginSurfaces } from "./hooks/use-agent-plugin-surfaces.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The row's "Manage" button: shown only when an enabled plugin contributes its own admin screens
  * (for example Google Workspace's connection panel), and opening the package modal straight on the
@@ -12,6 +13,7 @@ import { useAgentPluginSurfaces } from "./hooks/use-agent-plugin-surfaces.hooks"
  */
 
 export interface AgentPluginManageButtonProps {
+  useAgentPluginSurfaces?: typeof useAgentPluginSurfaces;
   readonly pluginId: string;
   readonly displayName: string;
   readonly t: Translate;
@@ -22,8 +24,8 @@ export interface AgentPluginManageButtonProps {
   readonly port?: AgentPluginSurfacesPort;
 }
 
-export function AgentPluginManageButton({ pluginId, displayName, t, agentHandleBase, onManage, port = defaultAgentPluginSurfacesPort }: AgentPluginManageButtonProps) {
-  const surfaces = useAgentPluginSurfaces({ pluginId, port });
+export function AgentPluginManageButton({ pluginId, displayName, t, agentHandleBase, onManage, port = defaultAgentPluginSurfacesPort, useAgentPluginSurfaces: useAgentPluginSurfacesHook = useAgentPluginSurfaces }: AgentPluginManageButtonProps) {
+  const surfaces = useAgentPluginSurfacesHook({ pluginId, port });
   if (surfaces.length === 0) return null;
   return (
     <button

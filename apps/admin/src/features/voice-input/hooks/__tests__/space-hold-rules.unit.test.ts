@@ -67,18 +67,18 @@ describe("resolveSpaceHoldKeyDown", () => {
 
 describe("resolveSpaceHoldKeyUp", () => {
   it("releases a hold that had already opened the mic", () => {
-    expect(resolveSpaceHoldKeyUp(SPACE_KEY, "engaged")).toBe("release");
+    expect(resolveSpaceHoldKeyUp({ key: SPACE_KEY, phase: "engaged" })).toBe("release");
   });
 
   it("disarms a hold released before the threshold — a quick tap", () => {
-    expect(resolveSpaceHoldKeyUp(SPACE_KEY, "armed")).toBe("disarm");
+    expect(resolveSpaceHoldKeyUp({ key: SPACE_KEY, phase: "armed" })).toBe("disarm");
   });
 
   it("ignores a keyup with no gesture in flight", () => {
-    expect(resolveSpaceHoldKeyUp(SPACE_KEY, "released")).toBe("ignore");
+    expect(resolveSpaceHoldKeyUp({ key: SPACE_KEY, phase: "released" })).toBe("ignore");
   });
 
   it("ignores a keyup for any other key, even mid-hold", () => {
-    expect(resolveSpaceHoldKeyUp("a", "engaged")).toBe("ignore");
+    expect(resolveSpaceHoldKeyUp({ key: "a", phase: "engaged" })).toBe("ignore");
   });
 });

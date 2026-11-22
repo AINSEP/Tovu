@@ -6,16 +6,19 @@ import {
   createNodeGuardedHttpPorts,
   defaultPlatformMessages,
   EgressRefusedError,
-  type AddressClass,
+} from "@jini-ai/platform/http/guarded";
+import {
   type GuardedClock,
   type DnsResolver,
   type EgressPolicy,
-} from "@jini-ai/platform/http/guarded";
+} from "@jini-ai/core/contracts/runtime";
+import { type AddressClass } from "@jini-ai/core/net";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
-import { trackHttpClient, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackHttpClient } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
-export type { AddressClass } from "@jini-ai/platform/http/guarded";
+export type { AddressClass } from "@jini-ai/core/net";
 // GitHub rejects otherwise valid authenticated requests without a User-Agent with a bare 403.
 // Keep an honest product identifier here; a live package-version read adds filesystem/layout
 // coupling to every outbound request for a header that can be bumped with the package version.
@@ -43,7 +46,7 @@ function toTovuHttpClient({ client }: { client: JiniHttpClientPort }): HttpClien
 }
 
 /** Preserves the host DNS diagnostic contract; malformed addresses fail closed in Jini. */
-export function classifyAddress(ip: string): AddressClass {
+export function classifyAddress({ ip }: { ip: string }, _optional = {}): AddressClass {
   return classifyGuardedAddress({ ip });
 }
 
@@ -77,7 +80,7 @@ export function createHttpClient(
 
 /** Binds Tovu's egress policy and user agent to the native pinned transport.
  * @param options Optional observability port (see {@link HttpClientOptions}). */
-export function createDefaultHttpClient(policy: EgressPolicy, options: HttpClientOptions = {}): HttpClientPort {
+export function createDefaultHttpClient({ policy }: { policy: EgressPolicy }, options: HttpClientOptions = {}): HttpClientPort {
   const native = createNodeGuardedHttpPorts({});
   const client = createGuardedHttpClient({ ...native, policy, userAgent: DEFAULT_USER_AGENT });
   return toTovuHttpClient({ client: observed({ client }, options) });

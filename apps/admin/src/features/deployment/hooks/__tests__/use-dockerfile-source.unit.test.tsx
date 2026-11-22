@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useDockerfileSource } from "../use-dockerfile-source.hooks";
 import { createFakeDockerfileSourcePort, FAKE_DOCKERFILE_ETAG } from "../dockerfile-source-dependencies.hooks";
@@ -50,9 +50,9 @@ describe("useDockerfileSource — load", () => {
   it("loads an existing Dockerfile's contents from the fake port, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.snapshot).toEqual({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
@@ -64,8 +64,8 @@ describe("useDockerfileSource — load", () => {
   });
 
   it("loads the honest 'does not exist' shape without treating it as an error, and seeds an empty draft", async () => {
-    const port = createFakeDockerfileSourcePort({ exists: false, contents: null, etag: MISSING_ETAG });
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: false, contents: null, etag: MISSING_ETAG } });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.snapshot).toEqual({ exists: false, contents: null, etag: MISSING_ETAG });
@@ -74,8 +74,8 @@ describe("useDockerfileSource — load", () => {
   });
 
   it("surfaces a rejected port as a translated, formatted error message", async () => {
-    const port = createFakeDockerfileSourcePort(() => Promise.reject(new Error("disk error")));
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeDockerfileSourcePort({ snapshot: () => Promise.reject(new Error("disk error")) });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toContain("Could not load the Dockerfile");
@@ -85,8 +85,8 @@ describe("useDockerfileSource — load", () => {
 
 describe("useDockerfileSource — draft and dirty tracking", () => {
   it("setDraft updates the draft and flips isDirty once it differs from the loaded contents", async () => {
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
@@ -104,7 +104,7 @@ describe("useDockerfileSource — save", () => {
     const setDockerfileSource = vi.fn().mockResolvedValue({ exists: true, contents: "FROM node:22\nRUN echo hi\n", etag: '"after-save-etag"' });
     const port = { getDockerfileSource, setDockerfileSource };
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(getDockerfileSource).toHaveBeenCalledTimes(1);
 
@@ -117,7 +117,7 @@ describe("useDockerfileSource — save", () => {
 
     // The etag sent as `ifMatch` must be the one THIS hook actually loaded, proving `save()` reads
     // it off `snapshot`, not a hand-carried or default value.
-    expect(setDockerfileSource).toHaveBeenCalledWith("FROM node:22\nRUN echo hi\n", INITIAL_ETAG);
+    expect(setDockerfileSource).toHaveBeenCalledWith({ contents: "FROM node:22\nRUN echo hi\n", ifMatch: INITIAL_ETAG });
     expect(result.current.snapshot).toEqual({ exists: true, contents: "FROM node:22\nRUN echo hi\n", etag: '"after-save-etag"' });
     expect(result.current.draft).toBe("FROM node:22\nRUN echo hi\n");
     expect(result.current.isDirty).toBe(false);
@@ -129,8 +129,8 @@ describe("useDockerfileSource — save", () => {
   });
 
   it("creates the file from the 'does not exist' state — snapshot.exists flips true after a successful save", async () => {
-    const port = createFakeDockerfileSourcePort({ exists: false, contents: null, etag: MISSING_ETAG });
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: false, contents: null, etag: MISSING_ETAG } });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\n"));
@@ -146,10 +146,10 @@ describe("useDockerfileSource — save", () => {
   it("sets saving true while the write is in flight, then false once it settles", async () => {
     let resolveWrite!: (value: { exists: boolean; contents: string; etag: string }) => void;
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => new Promise((resolve) => (resolveWrite = resolve)) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     let savePromise!: Promise<void>;
@@ -170,10 +170,10 @@ describe("useDockerfileSource — save", () => {
   it("keeps an edit typed while the save was in flight — the response replaces only a draft that still matches what was sent", async () => {
     let resolveWrite!: (value: { exists: boolean; contents: string; etag: string }) => void;
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => new Promise((resolve) => (resolveWrite = resolve)) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nA\n"));
@@ -198,10 +198,10 @@ describe("useDockerfileSource — save", () => {
 
   it("still adopts the server's copy when nothing was typed during the save — e.g. a normalized trailing newline", async () => {
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
-      { setDockerfileSource: (contents) => Promise.resolve({ exists: true, contents: `${contents}\n`, etag: '"normalized"' }) },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
+      { setDockerfileSource: ({ contents }) => Promise.resolve({ exists: true, contents: `${contents}\n`, etag: '"normalized"' }) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nA"));
@@ -215,10 +215,10 @@ describe("useDockerfileSource — save", () => {
 
   it("defaults draft to '' rather than null when a successful write echoes back null contents", async () => {
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => Promise.resolve({ exists: false, contents: null, etag: '"after-delete-etag"' }) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("anything"));
@@ -233,7 +233,7 @@ describe("useDockerfileSource — save", () => {
     const setDockerfileSource = vi.fn();
     // A port whose GET never resolves within this test — `snapshot` stays `undefined` throughout.
     const port = { getDockerfileSource: () => new Promise<never>(() => {}), setDockerfileSource };
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await act(async () => {
       await result.current.save();
@@ -244,10 +244,10 @@ describe("useDockerfileSource — save", () => {
   it("REGRESSION (C4): a second save() call while the first is still in flight must not send a second PUT", async () => {
     const setDockerfileSource = vi.fn().mockResolvedValue({ exists: true, contents: "FROM node:22\nRUN echo hi\n", etag: '"after-save-etag"' });
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
@@ -288,10 +288,10 @@ describe("useDockerfileSource — save", () => {
       .mockResolvedValueOnce({ exists: true, contents: "FROM node:22\nRUN one\n", etag: '"etag-one"' })
       .mockResolvedValueOnce({ exists: true, contents: "FROM node:22\nRUN two\n", etag: '"etag-two"' });
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN one\n"));
@@ -305,15 +305,15 @@ describe("useDockerfileSource — save", () => {
       await result.current.save();
     });
     expect(setDockerfileSource).toHaveBeenCalledTimes(2);
-    expect(setDockerfileSource).toHaveBeenNthCalledWith(2, "FROM node:22\nRUN two\n", '"etag-one"');
+    expect(setDockerfileSource).toHaveBeenNthCalledWith(2, { contents: "FROM node:22\nRUN two\n", ifMatch: '"etag-one"' });
   });
 
   it("surfaces a rejected write as a translated, formatted SAVE error — distinct from the load error — and leaves the draft untouched so the operator's edit isn't discarded", async () => {
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => Promise.reject(new Error("disk full")) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
@@ -337,8 +337,8 @@ describe("useDockerfileSource — save", () => {
 
   it("flips saved true right after a successful save, then false after the reset window", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
@@ -360,16 +360,16 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
    *  hook's OWN discrimination logic (`err instanceof ApiError && err.status === 412`), not just that
    *  some rejection was thrown. */
   function conflictError(current: { exists: boolean; contents: string | null }): ApiError {
-    return new ApiError("the Dockerfile changed on the server", 412, "DOCKERFILE_CONFLICT", { current });
+    return new ApiError({ message: "the Dockerfile changed on the server", status: 412 }, { code: "DOCKERFILE_CONFLICT", body: { current } });
   }
 
   it("populates saveConflict (not saveError) on a 412, and leaves draft completely untouched", async () => {
     const concurrentContents = "FROM node:22\n# a concurrent human edit\n";
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => Promise.reject(conflictError({ exists: true, contents: concurrentContents })) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN my own edit\n"));
@@ -391,10 +391,10 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
 
   it("reports exists:false in saveConflict when the concurrent change was a deletion", async () => {
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       { setDockerfileSource: () => Promise.reject(conflictError({ exists: false, contents: null })) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     await act(async () => {
@@ -408,7 +408,7 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
     const concurrentContents = "FROM node:22\n# a concurrent human edit\n";
     let getCallCount = 0;
     const port = createFakeDockerfileSourcePort(
-      () => {
+      { snapshot: () => {
         getCallCount += 1;
         // First GET (the initial load) reports the ORIGINAL contents; every GET after that (i.e.
         // `reloadAfterConflict`'s own) reports what the concurrent writer actually saved — proving
@@ -419,10 +419,10 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
             ? { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG }
             : { exists: true, contents: concurrentContents, etag: '"after-reload-etag"' },
         );
-      },
+      } },
       { setDockerfileSource: () => Promise.reject(conflictError({ exists: true, contents: concurrentContents })) },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN my own edit\n"));
@@ -446,22 +446,22 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
   it("a save AFTER reloadAfterConflict sends the FRESH etag as ifMatch, not the stale one from before the conflict", async () => {
     const concurrentContents = "FROM node:22\n# a concurrent human edit\n";
     let getCallCount = 0;
-    const setDockerfileSource = vi.fn((_contents: string, ifMatch: string) => {
+    const setDockerfileSource = vi.fn(({ ifMatch }: { contents: string; ifMatch: string }) => {
       if (ifMatch === INITIAL_ETAG) return Promise.reject(conflictError({ exists: true, contents: concurrentContents }));
       return Promise.resolve({ exists: true, contents: "FROM node:22\nRUN reconciled\n", etag: '"final-etag"' });
     });
     const port = createFakeDockerfileSourcePort(
-      () => {
+      { snapshot: () => {
         getCallCount += 1;
         return Promise.resolve(
           getCallCount === 1
             ? { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG }
             : { exists: true, contents: concurrentContents, etag: '"after-reload-etag"' },
         );
-      },
+      } },
       { setDockerfileSource },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN reconciled\n"));
@@ -477,8 +477,8 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
       await result.current.save();
     });
 
-    expect(setDockerfileSource).toHaveBeenNthCalledWith(1, "FROM node:22\nRUN reconciled\n", INITIAL_ETAG);
-    expect(setDockerfileSource).toHaveBeenNthCalledWith(2, "FROM node:22\nRUN reconciled\n", '"after-reload-etag"');
+    expect(setDockerfileSource).toHaveBeenNthCalledWith(1, { contents: "FROM node:22\nRUN reconciled\n", ifMatch: INITIAL_ETAG });
+    expect(setDockerfileSource).toHaveBeenNthCalledWith(2, { contents: "FROM node:22\nRUN reconciled\n", ifMatch: '"after-reload-etag"' });
     expect(result.current.saveConflict).toBeNull();
     expect(result.current.snapshot).toEqual({ exists: true, contents: "FROM node:22\nRUN reconciled\n", etag: '"final-etag"' });
   });
@@ -486,7 +486,7 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
   it("a fresh save() attempt clears a stale saveConflict left over from a previous attempt", async () => {
     let firstAttempt = true;
     const port = createFakeDockerfileSourcePort(
-      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } },
       {
         setDockerfileSource: () => {
           if (firstAttempt) {
@@ -497,7 +497,7 @@ describe("useDockerfileSource — save conflict (412, Terra audit finding C5)", 
         },
       },
     );
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     await act(async () => {
@@ -519,9 +519,9 @@ describe("useDockerfileSource — copy", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.copied).toBe(false);
 
@@ -540,9 +540,9 @@ describe("useDockerfileSource — copy", () => {
   it("copies the unsaved DRAFT, not the last-saved snapshot, once the operator has edited it", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
@@ -556,9 +556,9 @@ describe("useDockerfileSource — copy", () => {
     const writeText = vi.fn();
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     // A port whose promise never resolves within this test — `snapshot` stays `undefined`.
-    const port = createFakeDockerfileSourcePort(() => new Promise(() => {}));
+    const port = createFakeDockerfileSourcePort({ snapshot: () => new Promise(() => {}) });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await act(async () => {
       await result.current.copy();
@@ -569,9 +569,9 @@ describe("useDockerfileSource — copy", () => {
   it("is a no-op for the 'does not exist' shape — draft seeds to an empty string, nothing to copy", async () => {
     const writeText = vi.fn();
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
-    const port = createFakeDockerfileSourcePort({ exists: false, contents: null, etag: MISSING_ETAG });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: false, contents: null, etag: MISSING_ETAG } });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     await act(async () => {
@@ -583,9 +583,9 @@ describe("useDockerfileSource — copy", () => {
   it("degrades silently when the clipboard write is denied — the source stays visible either way", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("permission denied"));
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
-    const port = createFakeDockerfileSourcePort({ exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG });
+    const port = createFakeDockerfileSourcePort({ snapshot: { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG } });
 
-    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDockerfileSource({ port, t: fakeT, locale: fakeLocale }), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
     await act(async () => {

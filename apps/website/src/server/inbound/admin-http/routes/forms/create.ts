@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -9,7 +10,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
 
 /** This route's four writable POST fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parseFormCreateBody(rawBody: unknown): {
+function parseFormCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   name: string;
   slug: string;
   fields: FieldDescriptor[];
@@ -32,12 +33,9 @@ function parseFormCreateBody(rawBody: unknown): {
  * `write-service.ts`'s `createFormDefinition`, which wraps `executeCommand` (authorizes
  * `admin.forms.manage` internally — mirrors `posts/create.ts`, no separate pre-check needed).
  */
-export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -57,7 +55,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
         input: {
           workspaceId: deps.workspaceId,
           actor: { id: principal.id, kind: "user" },
-          ...parseFormCreateBody(req.body),
+          ...parseFormCreateBody({ rawBody: req.body }),
           idempotencyKey,
         },
       });
@@ -68,7 +66,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
         res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
         return;
       }
-      if (mapFormsWriteError(err, res)) return;
+      if (mapFormsWriteError({ err, res })) return;
       sendAdminFailure({ res, error: err }, { operation: "routes/forms/create", code: "INTERNAL_ERROR" });
     }
   });

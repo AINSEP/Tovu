@@ -8,7 +8,7 @@ import { useWiredMediaEmbedNodeView, type MediaPreviewKind } from "./media-embed
 /**
  * @file `Media` — the generic media doc node (2026-09-11, owner-directed: "don't add a `video` node
  * beside `image`, add ONE node and dispatch on the asset's real content type" — see
- * `server/inbound/public-http/http/site/render.ts`'s `renderDocMedia` for the server-side half of
+ * `server/inbound/public-http/http/site/render/doc/nodes-media.ts`'s `renderDocMedia` for the server-side half of
  * this decision and its full reasoning, and `features/post/agent-tools.ts`'s `TIPTAP_DOC_SCHEMA` for
  * the schema published to the assistant).
  *
@@ -46,7 +46,7 @@ declare module "@tiptap/core" {
     mediaEmbed: {
       /** Inserts a ref-based media node — ONLY `assetId`/`transformName`/`alt` are written to
        *  `bodyJson`; no `src`, no content-type hint. See this file's header. */
-      insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }) => ReturnType;
+      insertMediaEmbed: (attrs: { assetId: string; transformName: string; alt?: string }, optional?: Record<string, never>) => ReturnType;
     };
   }
 }
@@ -59,8 +59,10 @@ declare module "@tiptap/core" {
  * not `image`'s REF-vs-LEGACY three-way. State, attr reads, handlers and copy all come from
  * `useWiredMediaEmbedNodeView` (`media-embed-extension.hooks.ts`).
  */
-export function MediaEmbedNodeView(props: NodeViewProps) {
-  const view = useWiredMediaEmbedNodeView(props);
+export function MediaEmbedNodeView({
+  useWiredMediaEmbedNodeViewHook = useWiredMediaEmbedNodeView, ...props }: (NodeViewProps) & {
+  useWiredMediaEmbedNodeViewHook?: typeof useWiredMediaEmbedNodeView; }) {
+  const view = useWiredMediaEmbedNodeViewHook(props);
 
   return (
     <NodeViewWrapper as="div" className="media-embed-node" data-drag-handle contentEditable={false}>
@@ -72,8 +74,8 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
           previewKind: view.previewKind,
         })
       ) : (
-        <span className="media-embed-node__broken-label" role="img" aria-label={view.t("Broken media reference")}>
-          ⚠ {view.t("Media unavailable")}
+        <span className="media-embed-node__broken-label" role="img" aria-label={view.t({ key: "Broken media reference" })}>
+          ⚠ {view.t({ key: "Media unavailable" })}
         </span>
       )}
       {/* Edit FIRST, before Replace (owner-directed action order) — a MODAL, not a right-click
@@ -82,13 +84,13 @@ export function MediaEmbedNodeView(props: NodeViewProps) {
           establishes rather than inventing a new one. */}
       <span className="media-embed-node__actions">
         <button type="button" onClick={view.openEdit}>
-          {view.t("Edit")}
+          {view.t({ key: "Edit" })}
         </button>
         <button type="button" onClick={view.openPicker}>
-          {view.t("Replace")}
+          {view.t({ key: "Replace" })}
         </button>
         <button type="button" onClick={view.remove}>
-          {view.t("Remove")}
+          {view.t({ key: "Remove" })}
         </button>
       </span>
       {view.editing ? <MediaEditDialog initial={view.editInitial} onSave={view.saveEdit} onCancel={view.closeEdit} /> : null}
@@ -158,7 +160,7 @@ export const Media = Node.create({
       // Through `insertBlockAtom`, not a bare `insertContent`: that left this node selected, so the
       // next Embed > Media replaced it. See `block-atom-insert.ts`.
       insertMediaEmbed:
-        (attrs) =>
+        (attrs, _options = {}) =>
         ({ chain, state }) =>
           insertBlockAtom({
             chain,

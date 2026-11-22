@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
@@ -11,6 +11,112 @@ import {
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import type { Response } from "express";
+
+type PageDeleteDeps = Parameters<ContentRouteRegistrar>[0]["deps"];
+
+/** Map a failed page delete onto its HTTP answer; anything unrecognised becomes the generic 500. */
+function sendPageDeleteFailure(input: { res: Response; err: unknown }): void {
+  const { res, err } = input;
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({
+      error: err.message,
+      code: "FORBIDDEN",
+      details: { permission: err.permission, reason: err.reason },
+    });
+    return;
+  }
+
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({
+      error: err.message,
+      code: "DUPLICATE_COMMAND",
+      changeSetId: err.changeSetId,
+    });
+    return;
+  }
+
+  if (err instanceof PostNotFoundError) {
+    res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
+    return;
+  }
+
+  // 2026-09-20: `deletePost` can now raise this when the row's version moved between its read
+  // and its write — the same optimistic-concurrency rejection `pages/update.ts` maps onto 409.
+  if (err instanceof PostConflictError) {
+    res.status(409).json({ error: err.message, code: "ENTRY_CONFLICT" });
+    return;
+  }
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/pages/delete", code: "INTERNAL_ERROR" });
+}
+
+/**
+ * See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row
+ * `deletePost` wrote, inside the same transaction as the restore.
+ */
+async function restoreDeletedPage(input: { deps: PageDeleteDeps; prior: PostRecord; principalId: string }) {
+  const { deps, prior, principalId } = input;
+  await restorePostForward({
+    deps: {
+      repo: deps.postRepo,
+      clock: deps.clock,
+      outbox: deps.outbox,
+      forgetRemoved: deps.forgetRemovedPost,
+    },
+    input: { prior, actorId: principalId },
+  });
+}
+
+/** Run the soft-delete change-set command for one page and return the trashed post record. */
+async function executePageDelete(input: {
+  deps: PageDeleteDeps;
+  pageId: string;
+  idempotencyKey: string | undefined;
+  principalId: string;
+}) {
+  const { deps, pageId, idempotencyKey, principalId } = input;
+  let priorPost: PostRecord;
+  const { result } = await executeCommand({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      changeSets: deps.changeSets,
+      outbox: deps.outbox,
+      authorize: deps.authorize,
+    },
+    command: {
+      workspaceId: deps.workspaceId,
+      actor: { id: principalId, kind: "user" },
+      summary: `Delete page ${pageId}`,
+      idempotencyKey,
+      permission: "content.write",
+    },
+    mutation: {
+      entityType: "post",
+      entityId: pageId,
+      operation: "delete",
+      captureInverse: async () => {
+        const existing = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });
+        if (existing?.kind !== "page") {
+          // Missing id and kind-mismatch both 404 identically (no existence leak, api.spec.md §7).
+          throw new PostNotFoundError(`page '${pageId}' was not found`);
+        }
+        priorPost = existing;
+        return { deletedAt: null };
+      },
+      execute: () =>
+        deletePost({
+          deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
+          input: { workspaceId: deps.workspaceId, id: pageId, actorId: principalId },
+        }),
+      captureEntityVersion: ({ result }) => result.post.version,
+      rollback: () => restoreDeletedPage({ deps, prior: priorPost, principalId }),
+    },
+  });
+  return result;
+}
 
 /**
  * DELETE page — the pages half of the delete pair, a separate file from `posts/delete.ts` for the
@@ -30,105 +136,22 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * `posts/update.ts`'s own legacy kind-blindness rather than inventing a stricter rule on one
  * surface than its update twin has.
  */
-export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pageId = String(req.params.pageId ?? "");
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
-    let priorPost: PostRecord;
-
     try {
       const principal = getAuthedPrincipal(res);
-      const { result } = await executeCommand({
-        deps: {
-          clock: deps.clock,
-          idGen: deps.idGen,
-          changeSets: deps.changeSets,
-          outbox: deps.outbox,
-          authorize: deps.authorize,
-        },
-        command: {
-          workspaceId: deps.workspaceId,
-          actor: { id: principal.id, kind: "user" },
-          summary: `Delete page ${pageId}`,
-          idempotencyKey,
-          permission: "content.write",
-        },
-        mutation: {
-          entityType: "post",
-          entityId: pageId,
-          operation: "delete",
-          captureInverse: async () => {
-            const existing = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });
-            if (existing?.kind !== "page") {
-              // Missing id and kind-mismatch both 404 identically (no existence leak, api.spec.md §7).
-              throw new PostNotFoundError(`page '${pageId}' was not found`);
-            }
-            priorPost = existing;
-            return { deletedAt: null };
-          },
-          execute: () =>
-            deletePost({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
-              input: { workspaceId: deps.workspaceId, id: pageId, actorId: principal.id },
-            }),
-          captureEntityVersion: ({ result }) => result.post.version,
-          rollback: async () => {
-            // See `posts/delete.ts`'s identical note: `forgetRemoved` drops the Trash index row
-            // `deletePost` wrote, inside the same transaction as the restore.
-            await restorePostForward({
-              deps: {
-                repo: deps.postRepo,
-                clock: deps.clock,
-                outbox: deps.outbox,
-                forgetRemoved: deps.forgetRemovedPost,
-              },
-              input: { prior: priorPost, actorId: principal.id },
-            });
-          },
-        },
-      });
+      const result = await executePageDelete({ deps, pageId, idempotencyKey, principalId: principal.id });
 
       await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof DuplicateCommandError) {
-        res.status(409).json({
-          error: err.message,
-          code: "DUPLICATE_COMMAND",
-          changeSetId: err.changeSetId,
-        });
-        return;
-      }
-
-      if (err instanceof PostNotFoundError) {
-        res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
-        return;
-      }
-
-      // 2026-09-20: `deletePost` can now raise this when the row's version moved between its read
-      // and its write — the same optimistic-concurrency rejection `pages/update.ts` maps onto 409.
-      if (err instanceof PostConflictError) {
-        res.status(409).json({ error: err.message, code: "ENTRY_CONFLICT" });
-        return;
-      }
-
-      sendAdminFailure({ res, error: err }, { operation: "routes/pages/delete", code: "INTERNAL_ERROR" });
+      sendPageDeleteFailure({ res, err });
     }
   });
 };

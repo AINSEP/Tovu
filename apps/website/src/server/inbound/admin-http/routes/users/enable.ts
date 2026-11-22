@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -7,6 +7,7 @@ import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 function sendUserEnableError({ res, err }: { res: Response; err: unknown }, _options = {}): void {
   if (err instanceof UserInTrashError) {
@@ -46,12 +47,9 @@ function sendUserEnableError({ res, err }: { res: Response; err: unknown }, _opt
  * must be `kind='user'` (EC-14). See `disable.ts`'s doc for why the paired-user lookup below is
  * defensive, not an expected runtime path.
  */
-export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/enable", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -64,7 +62,7 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => 
 
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition:
       // re-activating a trashed principal would leave an ACTIVE user still indexed for purge.
-      if (await deps.isInTrash(principalId)) {
+      if (await deps.isInTrash({ principalId })) {
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 

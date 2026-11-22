@@ -2,7 +2,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireNoInput, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 import type { ToolContributor } from "@jini-ai/core";
 

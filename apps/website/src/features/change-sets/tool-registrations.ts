@@ -3,7 +3,13 @@ import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission, type AuthorizeFn, type ChangeSetRecord, type OutboxPort } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import {
+  type AuthorizeFn,
+  type ChangeSetRecord,
+  type OutboxPort,
+  type ChangeSetRepoPort,
+} from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {
@@ -12,7 +18,6 @@ import {
   RevertConflictError,
   RevertNotPossibleError,
   revertChangeSet,
-  type ChangeSetRepoPort,
   type RevertRegistry,
 } from "#src/contracts/core/commands/index";
 
@@ -84,14 +89,12 @@ export const changeSetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
 ]);
 
 /**
- * Model-facing change-set view — the same six response fields
- * `server/inbound/admin-http/http/change-sets.ts`'s `toChangeSetHeaderResponse` publishes over
- * HTTP, reproduced here rather than imported so this domain's tool layer carries no dependency on
- * the admin HTTP response-serializer module (that module is inbound-HTTP-specific; this is not).
+ * Model-facing change-set view, shared with `admin-http/http/change-sets.ts#toChangeSetHeaderResponse`,
+ * which delegates here.
  * `inversePayload` is never exposed here either, for the identical reason that file's own header
  * gives — it may hold full content snapshots.
  */
-function toChangeSetToolView(changeSet: ChangeSetRecord) {
+export function toChangeSetView({ changeSet }: { changeSet: ChangeSetRecord }, _optional: Record<string, never> = {}) {
   return {
     id: changeSet.id,
     workspaceId: changeSet.workspaceId,
@@ -105,9 +108,7 @@ function toChangeSetToolView(changeSet: ChangeSetRecord) {
   };
 }
 
-export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
-    change_sets_list: async (ctx) => {
+    async function listChangeSets(routeDeps: ChangeSetToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_READ_PERMISSION }, { entityType: "change_set" });
 
@@ -123,10 +124,11 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
         return a.createdAt > b.createdAt ? -1 : 0;
       });
 
-      return { changeSets: newestFirst.slice(0, limit).map(toChangeSetToolView) };
-    },
+      return { changeSets: newestFirst.slice(0, limit).map((changeSet) => toChangeSetView({ changeSet })) };
+    }
 
-    change_sets_revert: async (ctx) => {
+
+    async function revertToolChangeSet(routeDeps: ChangeSetToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       const changeSetId = requireString({ input: input, key: "changeSetId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: CHANGE_SET_REVERT_PERMISSION }, { entityType: "change_set", entityId: changeSetId });
@@ -150,7 +152,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
             principalKind: "agent",
           },
         });
-        return { reverted: true, changeSet: toChangeSetToolView(reverted) };
+        return { reverted: true, changeSet: toChangeSetView({ changeSet: reverted }) };
       } catch (err) {
         if (err instanceof RevertConflictError) {
           return {
@@ -169,7 +171,14 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
         }
         throw err;
       }
-    },
+    }
+
+
+
+export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    change_sets_list: (ctx) => listChangeSets(routeDeps, ctx),
+    change_sets_revert: (ctx) => revertToolChangeSet(routeDeps, ctx),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

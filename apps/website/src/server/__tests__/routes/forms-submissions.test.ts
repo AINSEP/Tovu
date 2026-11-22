@@ -24,14 +24,14 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsListSubmissionsRoute(app, deps);
-  registerAdminFormsGetSubmissionRoute(app, deps);
-  registerAdminFormsDeleteSubmissionRoute(app, deps);
-  createTrashModule(deps).registerRoutes?.(app);
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsListSubmissionsRoute({ app, deps });
+  registerAdminFormsGetSubmissionRoute({ app, deps });
+  registerAdminFormsDeleteSubmissionRoute({ app, deps });
+  createTrashModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 

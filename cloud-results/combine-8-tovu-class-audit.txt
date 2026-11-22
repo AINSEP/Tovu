@@ -1,0 +1,38 @@
+# combine-8 class audit: Jini jy-cls renames (1559997e0, 388 class tokens renamed X -> jini-X) vs Tovu stylesheets/selectors
+
+## Tovu CSS/selector references to an OLD (pre-rename) class: 0
+Scan: every renamed token X as `.X` in apps/ packages/ content/ *.css|*.scss, and in querySelector/closest/toHaveClass strings. Tovu stylesheets already use the jini-* names (apps/admin/src/styles.css has 493 jini- occurrences).
+
+## Tovu .jini-* selectors that NO Jini or Tovu source emits (26) — reverse check, with the bare form Jini still emits
+Confirmed mismatches (Jini emits the bare class, Tovu styles the jini- one -> rule never matches):
+- apps/admin/src/integrations/jini-admin/jini-media.css:601 .jini-tab-bar-tag / :613 .jini-tab-bar-dot  <- Jini packages/ui/src/features/tab-strip/react/components/TabBar.tsx:108,116 emits tab-bar-dot / tab-bar-tag (not renamed)
+- apps/admin/src/integrations/jini-admin/jini-media.css:781 .jini-row-menu-popup-above  <- Jini packages/admin/src/react/components/RowMenu/RowMenu.tsx:106 template literal ' row-menu-popup-above' (skipped template token)
+- apps/admin/src/styles/seo.css:188 .jini-seo-page .jini-a11y-label-wrap  <- Jini packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx:72 emits a11y-label-wrap (unverified whether the SEO page renders its own jini- one)
+
+All 26 (token | bare form found in Jini):
+jini-a11y-label-wrap | Jini bare 'a11y-label-wrap': packages/admin/src/widgets/SOURCE-RATIONALE.md packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx 
+jini-attachment- | Jini bare 'attachment': packages/user-management/docs/decisions/DR-002-grant-authority-and-admin-safety.md packages/user-management/docs/spec/api.spec.md 
+jini-btn-explore | Jini bare 'btn-explore': none
+jini-btn-warning | Jini bare 'btn-warning': packages/admin/docs/spec/ui.spec.md packages/admin/src/forms/SOURCE-RATIONALE.md 
+jini-card-head | Jini bare 'card-head': none
+jini-card-head-actions | Jini bare 'card-head-actions': none
+jini-card-title | Jini bare 'card-title': packages/admin/src/source-control/SOURCE-RATIONALE.md packages/admin/src/seo/SOURCE-RATIONALE.md 
+jini-editor-header | Jini bare 'editor-header': packages/admin/src/forms/SOURCE-RATIONALE.md packages/admin/src/forms/react/pages/FormsList.tsx 
+jini-empty-state-hint | Jini bare 'empty-state-hint': none
+jini-media-edit-row | Jini bare 'media-edit-row': none
+jini-media-embed-node | Jini bare 'media-embed-node': none
+jini-media-image-node | Jini bare 'media-image-node': none
+jini-media-picker-body | Jini bare 'media-picker-body': packages/admin/src/seo/react/__tests__/harness/render.tsx 
+jini-media-picker-grid | Jini bare 'media-picker-grid': packages/admin/src/seo/react/__tests__/harness/render.tsx 
+jini-media-picker-item | Jini bare 'media-picker-item': packages/admin/src/seo/react/__tests__/harness/render.tsx 
+jini-media-picker-item-title | Jini bare 'media-picker-item-title': packages/admin/src/seo/react/__tests__/harness/render.tsx 
+jini-page-toolbar | Jini bare 'page-toolbar': none
+jini-row-menu-popup-above | Jini bare 'row-menu-popup-above': packages/admin/src/react/components/RowMenu/RowMenu.tsx packages/admin/src/react/components/RowMenu/__tests__/RowMenu.test.tsx 
+jini-section-title | Jini bare 'section-title': none
+jini-status-neutral | Jini bare 'status-neutral': none
+jini-status-ok | Jini bare 'status-ok': none
+jini-status-trashed | Jini bare 'status-trashed': none
+jini-status-unavailable | Jini bare 'status-unavailable': none
+jini-tab-bar-dot | Jini bare 'tab-bar-dot': packages/ui/src/styles/admin.css packages/ui/src/features/tab-strip/__tests__/admin/TabBar.unit.test.tsx 
+jini-tab-bar-tag | Jini bare 'tab-bar-tag': packages/ui/src/styles/admin.css packages/ui/src/features/tab-strip/react/components/TabBar.tsx 
+jini-toggle-row- | Jini bare 'toggle-row': packages/ui/src/react/components/ToggleRow.tsx 

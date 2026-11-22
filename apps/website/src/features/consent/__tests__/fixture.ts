@@ -10,8 +10,8 @@ import { onTeardown } from '#src/__tests__/fixtures/teardown';
 
 export function consentFixture({ t }: { t: TestContext }, _options = {}) {
   const db = openContentDb(':memory:');
-  onTeardown({ t, step: () => closeSqliteConnection(db) });
-  const store = createSiteConsentStore({ kernel: contentKernel(db), workspaceId: 'ws' });
+  onTeardown({ t, step: () => closeSqliteConnection({ source: db }) });
+  const store = createSiteConsentStore({ kernel: contentKernel({ store: db }), workspaceId: 'ws' });
   let allowed = true;
   let count = 0;
   const calls: string[] = [];

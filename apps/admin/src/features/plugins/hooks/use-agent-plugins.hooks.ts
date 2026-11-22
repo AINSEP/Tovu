@@ -2,15 +2,17 @@ import type { AgentPluginSurfaceSummary } from "./agent-plugin-surfaces-port.hoo
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import { ApiError, describeApiError, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import { AGENT_PLUGINS_RESOURCE } from "../rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Agent Plugins screen, so `AgentPlugins.tsx` is only markup — same split as
  * this directory's own `use-plugins.hooks.ts` (`Plugins.tsx`'s hook).
@@ -73,7 +75,7 @@ export interface AgentPluginsController {
   /** Plugin ids whose row detail panel (skills, MCP servers) is open. */
   expandedIds: ReadonlySet<string>;
   /** Opens or closes one row's detail panel. */
-  onToggleExpanded: (pluginId: string) => void;
+  onToggleExpanded: (required: { pluginId: string }, optional?: Record<string, never>) => void;
   /** The plugin currently open in the read-only package inspector, or `null` when it's closed. */
   inspectedPlugin: InspectedAgentPlugin | null;
   /** Opens the inspector for `plugin`. */
@@ -89,7 +91,7 @@ export interface AgentPluginsController {
 }
 
 /** Adds or removes one id, returning a new `Set` — so React sees an identity change. */
-function withId(ids: ReadonlySet<string>, pluginId: string, present: boolean): ReadonlySet<string> {
+function withId({ ids, pluginId, present }: { ids: ReadonlySet<string>; pluginId: string; present: boolean }, _optional = {}): ReadonlySet<string> {
   const next = new Set(ids);
   if (present) next.add(pluginId);
   else next.delete(pluginId);
@@ -142,17 +144,17 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
   const key = useMemo(() => ["agent-plugins", "list"] as const, []);
   const fetchList = useCallback(async () => {
     try { return (await port.listAgentPlugins()).agentPlugins; }
-    catch (error) { throw new Error(describeApiError(error, translatePlugins({ locale, key: "failed to load agent plugins" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translatePlugins({ locale, key: "failed to load agent plugins" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0, refetchOnWindowFocus: true });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
   const agentPlugins = query.data ?? null;
-  const setAgentPlugins = (update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[] | null) => {
+  const setAgentPlugins = ({ update }: { update: (current: AdminAgentPlugin[] | null) => AdminAgentPlugin[] | null }, _optional = {}) => {
     const next = update(loader.peek() ?? null);
     if (next) loader.replace({ value: next });
   };
   const invalidate = useInvalidate();
-  const toggle = useFetchMutation({ run: ({ input }: { input: AdminAgentPlugin }) => port.setAgentPluginEnabled(input.pluginId, { enabled: !input.enabled }) }, { invalidates: [["agent-plugins"]] });
+  const toggle = useFetchMutation({ run: ({ input }: { input: AdminAgentPlugin }) => port.setAgentPluginEnabled({ pluginId: input.pluginId, input: { enabled: !input.enabled } }) }, { invalidates: [["agent-plugins"]] });
   const error = query.error?.message ?? null;
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<ReadonlySet<string>>(new Set());
@@ -163,24 +165,24 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
 
   // A completed assistant install/uninstall must update both tabs without a remount. The shared
   // generation guard prevents a slow earlier read resurrecting the just-removed package.
-  useContentRefreshSubscription(AGENT_PLUGINS_RESOURCE, () => { void reload(); });
+  useContentRefreshSubscription({ resource: AGENT_PLUGINS_RESOURCE, onRefresh: () => { void reload(); } });
 
   async function onToggleEnabled(plugin: AdminAgentPlugin): Promise<void> {
     // A second activation of this row's own switch while its request is outstanding is a no-op —
     // the same client-side single-flight discipline `usePlugins` uses, applied per row.
     if (togglingIds.has(plugin.pluginId)) return;
-    setTogglingIds((ids) => withId(ids, plugin.pluginId, true));
+    setTogglingIds((ids) => withId({ ids, pluginId: plugin.pluginId, present: true }));
     setToggleError(null);
     try {
       const { agentPlugin } = await toggle.mutate({ input: plugin });
-      setAgentPlugins((current) => withToggledRow({ rows: current, plugin: agentPlugin }));
+      setAgentPlugins({ update: (current) => withToggledRow({ rows: current, plugin: agentPlugin }) });
     } catch (e) {
       // Lifecycle refusals by name (409), in the operator's language rather than the server's English.
       const known = e instanceof ApiError && e.code ? TOGGLE_REFUSAL_KEYS[e.code] : undefined;
       setToggleError(known ? translatePlugins({ locale, key: known })
-        : describeApiError(e, translatePlugins({ locale: locale, key: "failed to update agent plugin" })));
+        : describeApiError({ e, fallback: translatePlugins({ locale: locale, key: "failed to update agent plugin" }) }));
     } finally {
-      setTogglingIds((ids) => withId(ids, plugin.pluginId, false));
+      setTogglingIds((ids) => withId({ ids, pluginId: plugin.pluginId, present: false }));
     }
   }
 
@@ -193,10 +195,10 @@ export function useAgentPlugins({ port, locale, t }: AgentPluginsDependencies): 
     onInstalled: (plugin: AdminAgentPlugin) => {
       // The install response is newer than any pending list read. Keep its row until a later
       // refresh starts rather than letting an earlier snapshot hide the completed install.
-      setAgentPlugins((current) => withRow({ rows: current, plugin }));
+      setAgentPlugins({ update: (current) => withRow({ rows: current, plugin }) });
     },
     expandedIds,
-    onToggleExpanded: (pluginId: string) => setExpandedIds((ids) => withId(ids, pluginId, !ids.has(pluginId))),
+    onToggleExpanded: ({ pluginId }, _optional = {}) => setExpandedIds((ids) => withId({ ids, pluginId, present: !ids.has(pluginId) })),
     inspectedPlugin,
     inspectPlugin: setInspectedPlugin,
     closeInspector: () => setInspectedPlugin(null),

@@ -9,7 +9,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { confirmPluginInstallOnTerminal, runPluginInstallCommand } from "../../commands/plugin/install.js";
-import { runPluginIntegrityCommand } from "../../commands/plugin/integrity.js";
+import { runPluginIntegrityCommand } from "@jini-ai/plugins/host/node";
 import { createProgram } from "../../program.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { mapErrorToCliOutcome } from "../../errors.js";
@@ -22,7 +22,7 @@ test("plugin group declares install folder, site, yes, replace and integrity wri
   assert.ok(install);
   for (const flag of ["--site", "--yes", "--replace"]) assert.ok(install.options.some((o) => o.long === flag));
   assert.ok(group.commands.find((c) => c.name() === "integrity")?.options.some((o) => o.long === "--write"));
-  assert.match(mapErrorToCliOutcome(new PluginInstallError("PLUGIN_CONSENT_REQUIRED", "review required")).stderrLine!, /PLUGIN_CONSENT_REQUIRED/);
+  assert.match(mapErrorToCliOutcome({ err: new PluginInstallError("PLUGIN_CONSENT_REQUIRED", "review required") }).stderrLine!, /PLUGIN_CONSENT_REQUIRED/);
 });
 
 for (const kind of ["cancel", "yes", "changed"] as const) {

@@ -11,8 +11,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import type { UUID } from "@jini-ai/core/primitives";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { NewsletterConfirmTokenInvalidError } from "./errors.js";
 import type {
   MembersConsentCapability,
@@ -41,7 +40,7 @@ export interface ConfirmationDeps {
 /** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
 const NEWSLETTER_FALLBACK_SENDER = { email: "no-reply@newsletter.local", name: "Newsletter" } as const;
 
-const hashToken = (raw: string): string => createHash("sha256").update(raw).digest("hex");
+const hashToken = ({ raw }: { raw: string }, _options = {}): string => createHash("sha256").update(raw).digest("hex");
 
 /** Compose an absolute origin URL from a `VerifiedOrigin` — mirrors `redirects/phase-handler.ts`'s local `composeOriginUrl`. */
 function composeOriginUrl(origin: VerifiedOrigin): string {
@@ -49,6 +48,19 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
   const isDefaultPort = origin.port === undefined || matchesSchemePort;
   const authority = isDefaultPort ? origin.host : `${origin.host}:${origin.port}`;
   return `${origin.scheme}://${authority}${origin.basePath ?? ""}`;
+}
+
+async function supersedeConfirmationTokens({ deps, input, now }: {
+  deps: ConfirmationDeps; input: Parameters<typeof issueConfirmationToken>[0]["input"]; now: string;
+}): Promise<void> {
+  // "Newest wins": mark every prior unconsumed token superseded (consumed) before minting the new one.
+  const prior = await deps.tokenRepo.findUnconsumedBySubscription({
+    workspaceId: input.workspaceId,
+    subscriptionId: input.subscriptionId,
+  });
+  for (const token of prior) {
+    await deps.tokenRepo.save({ ...token, consumedAt: now });
+  }
 }
 
 /**
@@ -62,7 +74,7 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
 export async function issueConfirmationToken(required: {
   deps: ConfirmationDeps;
   input: { workspaceId: UUID; subscriptionId: UUID; recipientEmail: string };
-}): Promise<{ tokenId: UUID; expiresAt: string }> {
+}, _optional: Record<string, never> = {}): Promise<{ tokenId: UUID; expiresAt: string }> {
   const { deps, input } = required;
   const now = deps.clock.nowIso();
   // Resolved first: a missing sender refuses before any prior token is superseded, so the
@@ -70,17 +82,10 @@ export async function issueConfirmationToken(required: {
   const from = await mailSenderIdentityFor({ mailer: deps.mailer }, { senderIdentity: deps.senderIdentity })
     .resolve({ workspaceId: input.workspaceId, fallback: NEWSLETTER_FALLBACK_SENDER });
 
-  // "Newest wins": mark every prior unconsumed token superseded (consumed) before minting the new one.
-  const prior = await deps.tokenRepo.findUnconsumedBySubscription({
-    workspaceId: input.workspaceId,
-    subscriptionId: input.subscriptionId,
-  });
-  for (const token of prior) {
-    await deps.tokenRepo.save({ ...token, consumedAt: now });
-  }
+  await supersedeConfirmationTokens({ deps, input, now });
 
   const rawToken = randomBytes(32).toString("hex");
-  const tokenHash = hashToken(rawToken);
+  const tokenHash = hashToken({ raw: rawToken });
   const tokenId = deps.ids.newId();
   const expiresAt = new Date(Date.parse(now) + CONFIRMATION_TOKEN_TTL_MS).toISOString();
 
@@ -131,25 +136,25 @@ export async function issueConfirmationToken(required: {
 export async function consumeConfirmationToken(required: {
   deps: ConfirmationDeps;
   input: { workspaceId: UUID; rawToken: string };
-}): Promise<{ subscription: SubscriptionRow; changed: boolean; eventId: string }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow; changed: boolean; eventId: string }> {
   const { deps, input } = required;
-  const tokenHash = hashToken(input.rawToken);
+  const tokenHash = hashToken({ raw: input.rawToken });
   const token = await deps.tokenRepo.findByTokenHash({ workspaceId: input.workspaceId, tokenHash });
-  if (!token) throw new NewsletterConfirmTokenInvalidError("confirmation token was not found", "not_found");
+  if (!token) throw new NewsletterConfirmTokenInvalidError({ message: "confirmation token was not found", reason: "not_found" });
   // EC-02: a second click on an already-consumed token is invalid, not a repeat success (unlike the
   // unsubscribe EC-03 carve-out — deliberately different semantics, see `unsubscribe.ts`).
   if (token.consumedAt !== null) {
-    throw new NewsletterConfirmTokenInvalidError("confirmation token was already consumed", "already_consumed");
+    throw new NewsletterConfirmTokenInvalidError({ message: "confirmation token was already consumed", reason: "already_consumed" });
   }
 
   const now = deps.clock.nowIso();
   // Boundary rule: a token submitted at EXACTLY `expiresAt` is treated as expired (closed-below/open-above).
   if (Date.parse(now) >= Date.parse(token.expiresAt)) {
-    throw new NewsletterConfirmTokenInvalidError("confirmation token has expired", "expired");
+    throw new NewsletterConfirmTokenInvalidError({ message: "confirmation token has expired", reason: "expired" });
   }
 
   const subscription = await deps.subscriptionRepo.findById({ workspaceId: input.workspaceId, id: token.subscriptionId });
-  if (!subscription) throw new NewsletterConfirmTokenInvalidError("subscription was not found", "not_found");
+  if (!subscription) throw new NewsletterConfirmTokenInvalidError({ message: "subscription was not found", reason: "not_found" });
 
   if (!deps.consentCapability) {
     throw new Error(
@@ -172,7 +177,7 @@ export async function consumeConfirmationToken(required: {
   await deps.tokenRepo.save({ ...token, consumedAt: now });
 
   if (confirmResult.status !== "granted") {
-    throw new NewsletterConfirmTokenInvalidError(`consent was not granted (status: ${confirmResult.status})`, "expired");
+    throw new NewsletterConfirmTokenInvalidError({ message: `consent was not granted (status: ${confirmResult.status})`, reason: "expired" });
   }
 
   const updated: SubscriptionRow = {

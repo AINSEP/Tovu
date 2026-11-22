@@ -9,8 +9,11 @@ import { ToolInputError } from "@jini-ai/core";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { ToolContributor } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-tools.js";
 import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";
 // Browser/privacy rationale: Jini/packages/diagnostics/src/web-evidence/browser-port.ts; serialized DOM rationale: page-structure-script.ts beside it.
@@ -229,7 +232,7 @@ export { siteEvidenceDerivedRisk };
 
 /**
  * Contributes the site-evidence tool to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
 export function contributeSiteEvidenceTools({ httpClient }: { httpClient?: HttpClientPort } = {}, _optional = {}): ToolContributor<SiteEvidenceToolDeps, unknown> {
   return { domain: "site-evidence", build: deps => buildSiteEvidenceRegistrations(deps, httpClient ? { httpClient } : {}), risk: siteEvidenceDerivedRisk };

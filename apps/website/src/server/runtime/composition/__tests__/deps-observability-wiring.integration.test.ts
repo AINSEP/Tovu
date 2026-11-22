@@ -6,8 +6,14 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
-import { createSiteRouteDeps, type CreateSiteRouteDepsOverrides } from "#src/server/runtime/composition/deps";
+import { instrumentStorageKernel } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  isNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
+import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+import type { CreateSiteRouteDepsOverrides } from "#src/server/runtime/composition/site-deps/overrides";
 
 /**
  * @file The real composition root (`deps.ts`) decorates its storage kernels with the observability
@@ -33,9 +39,9 @@ async function siteDeps(t: TestContext, overrides: Partial<CreateSiteRouteDepsOv
       finally { fs.rmSync(dir, { recursive: true, force: true }); }
     }
   });
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
-    ...overrides, siteBinding, onStoreOpened: store => { close = () => store.close(); },
-  });
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
+    ...overrides, siteBinding, onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
+  } });
   ready = deps.pluginRuntimeReady;
   assert.equal(deps.siteBinding.dir, dir, "all boot writes stay inside the disposable site");
   assert.equal(fs.readFileSync(path.join(dir, ".form-files-protected-v1"), "utf8"), "complete\n");
@@ -76,7 +82,7 @@ test("a configured provider selection: content and chat kernels are decorated wi
   instrumentStorageKernel({ kernel, observability: probe.port });
   await kernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
   assert.equal(probe.queries(), 0, "the content kernel was already decorated by the composition root");
-  await deps.chatRunLedger.unlessSettled({ conversationId: "conv-otel", messageId: "msg-otel", runId: "run-otel" }, async () => undefined);
+  await deps.chatRunLedger.unlessSettled({ run: { conversationId: "conv-otel", messageId: "msg-otel", runId: "run-otel" }, write: async () => undefined });
   assert.ok(tables.has("posts"), `content kernel query tracked: ${[...tables].join(", ")}`);
   assert.ok(tables.has("ai_chat_messages"), `chat kernel query tracked: ${[...tables].join(", ")}`);
   assert.equal(disposed, 0);

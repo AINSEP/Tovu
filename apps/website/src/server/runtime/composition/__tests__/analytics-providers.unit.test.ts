@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { readSiteConsentPolicy } from "../../../inbound/public-http/middleware/site-consent.js";
 import test from "node:test";
+import express from "express";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
 import { createAnalyticsForwarderRegistry, type AnalyticsForwarderModule } from "@jini-ai/analytics";
 
@@ -72,7 +74,7 @@ test("analyticsProviderRouteDeps: retired proofs do not grant strict-region forw
   headers.cookie = 'jini_choices=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy.policyVersion, t: deps.clock.nowMs(), a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_current_0123456789' }));
   assert.deepEqual((await route.forwarders!({ request })).map(item => item.id), ["plausible"]);
   assert.deepEqual(created, [{ credential: null, kit: { httpClient } }]);
-  assert.equal(await route.hooks!.beforeIngest({ path: '/x' } as never), null);
+  assert.equal(await route.hooks!.beforeIngest({ hit: { path: '/x' } as never }), null);
   headers['sec-gpc'] = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
   delete headers['sec-gpc']; headers.dnt = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
   delete headers.dnt;
@@ -160,7 +162,14 @@ test('published policy forwarding: US no-choice may run, DNT/GPC and strict regi
     headers.cookie = cookie;
     assert.deepEqual(await route.forwarders!({ request }), []);
   }
+  const app = express();
+  app.post('/_analytics/e', async (request, response) => { response.json({ allowed: await route.vendorHooksAllowed!({ request }) }); });
+  const baseUrl = await startTestServer(app, t);
+  const policy = await readSiteConsentPolicy({ deps });
+  const choice = 'jini_choices=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy.policyVersion, t: deps.clock.nowMs(), a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_current_0123456789' }));
+  assert.deepEqual(await (await fetch(`${baseUrl}/_analytics/e`, { method: 'POST', headers: { cookie: choice } })).json(), { allowed: true });
   await publish({ ...f.config, enabled: false }, publishedId);
+  assert.deepEqual(await (await fetch(`${baseUrl}/_analytics/e`, { method: 'POST', headers: { cookie: choice } })).json(), { allowed: false });
   headers.cookie = 'jini_region=us';
   assert.deepEqual(await route.forwarders!({ request }), [], 'a boolean full-event forwarder cannot enforce anonymous restrictions');
 });

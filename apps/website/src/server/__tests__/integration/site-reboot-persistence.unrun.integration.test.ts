@@ -70,21 +70,21 @@ async function serve(siteDir: string): Promise<Running> {
       if (deps) await drainBootReadiness(deps).catch(() => undefined);
       await Promise.allSettled(appBootWork);
     } finally {
-      await closeSiteDirBoot(boot, composed);
+      await closeSiteDirBoot(boot, { composed });
     }
   };
   try {
-    deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+    deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,
-      onStoreOpened: (store) => (composed = store),
+      onStoreOpened: ({ store }, _optional = {}) => (composed = store),
       uploadsDir: path.join(siteDir, "uploads"),
       themesDir: path.join(siteDir, "themes"),
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     await drainBootReadiness(deps);
-    server = createServer(createApp(deps, { onBootWork: work => appBootWork.push(work) }));
+    server = createServer(createApp(deps, { onBootWork: ({ work }) => appBootWork.push(work) }));
     const baseUrl = await listen(server);
     return { baseUrl, cookie: await loginAsOwner(baseUrl), ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, stop };
   } catch (err) {
@@ -98,7 +98,7 @@ async function freshSite(t: TestContext, dialect: SiteDialect): Promise<{ siteDi
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), `unrun-reboot-${dialect}-`));
   const siteDir = path.join(parent, "site");
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  const socketDir = defaultPgliteSocketDir(dataDir);
+  const socketDir = defaultPgliteSocketDir({ dataDir });
   const savedSocketEnv = process.env[PG_SOCKET_ENV];
   if (dialect === "pglite") process.env[PG_SOCKET_ENV] = path.join(socketDir, PGLITE_SOCKET_FILE);
   t.after(() => {

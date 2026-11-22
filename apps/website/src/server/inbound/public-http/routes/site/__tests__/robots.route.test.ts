@@ -1,3 +1,5 @@
+import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -12,7 +14,11 @@ import { bootAuthenticated, startTestServer } from "#src/server/__tests__/helper
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerSeoRobotsRoute } from "../robots.js";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+  type VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file Coverage-gap fill for `registerSeoRobotsRoute` (`routes/site/robots.ts`). The happy path
@@ -101,7 +107,7 @@ function buildRobotsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoRobotsRoute(app, deps);
+  registerSeoRobotsRoute({ app, deps });
   return app;
 }
 
@@ -173,5 +179,28 @@ test("GET /robots.txt: a settings-read failure is caught and reported as a plain
   const res = await fetch(`${baseUrl}/robots.txt`);
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
-  assert.equal(await res.text(), "internal error");
+  assert.match(await res.text(), /couldn’t load the crawler rules.*Error ID:/);
+});
+
+test("unexpected crawler rules failure keeps plain text and one redacted matching incident", async t => {
+  const cause = new Error("crawler rules storage context password=PUBLIC_CANARY");
+  const reports: unknown[] = [];
+  const logs = t.mock.method(console, "error", () => {});
+  const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerSeoRobotsRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/robots.txt`);
+  const text = await res.text();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.match(text, /couldn’t load the crawler rules/);
+  const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
+  assert.ok(id);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(id));
+  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
 });

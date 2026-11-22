@@ -39,7 +39,7 @@ import type { ProvisioningFileIo } from "./provisioning.js";
  * second hidden global read.
  * @complexity O(1).
  */
-export function resolveCommittedConfigRoot(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveCommittedConfigRoot(env: NodeJS.ProcessEnv = process.env, _optional = {}): string {
   return env.TOVU_REPO_ROOT || process.cwd();
 }
 
@@ -54,7 +54,7 @@ export function resolveCommittedConfigRoot(env: NodeJS.ProcessEnv = process.env)
  * @complexity O(n) in the file size per call.
  */
 export const nodeProvisioningFileIo: ProvisioningFileIo = {
-  async read(path: string): Promise<string | null> {
+  async read({ path }: { path: string }, _optional = {}): Promise<string | null> {
     try {
       return await readFile(path, "utf8");
     } catch (error) {
@@ -73,7 +73,7 @@ export const nodeProvisioningFileIo: ProvisioningFileIo = {
    * `rename` within a directory is atomic on every filesystem Tovu deploys onto, which is why the
    * temporary file is placed beside the target rather than in a temp dir on another device.
    */
-  async write(path: string, contents: string): Promise<void> {
+  async write({ path, contents }: { path: string; contents: string }, _optional = {}): Promise<void> {
     const directory = dirname(path);
     await mkdir(directory, { recursive: true });
     const staging = `${path}.${process.pid}.tmp`;

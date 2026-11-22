@@ -1,8 +1,8 @@
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
-import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { TOOLS_FIRST_RULE, ASSISTANT_DISALLOWED_TOOLS } from "@tovu/contracts/assistant-native-fallbacks";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the
@@ -33,11 +33,10 @@ export const BASH_PROHIBITION_BLOCK =
   "to live here and has been deliberately removed. ";
 
 // Shared with the Electron host; the rationale travels with the policy declaration.
-export { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
-import { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
+export { ASSISTANT_DISALLOWED_TOOLS } from "@tovu/contracts/assistant-native-fallbacks";
 
 // One product-policy owner is shared with Electron; this re-export preserves the existing seam.
-export { resolveAssistantDisallowedTools } from "#src/contracts/core/assistant-native-fallbacks";
+export { resolveAssistantDisallowedTools } from "@tovu/contracts/assistant-native-fallbacks";
 
 /** Explain the same per-run grant enforced by the CLI, outside catalog discovery.
  * @param required - The native capabilities enforced for this launch, including host restrictions.
@@ -82,7 +81,7 @@ export const BATCH_GUIDANCE =
  *  an argument so both arms are verifiable: today's grant always disallows Bash, which would
  *  otherwise leave the narrow-purpose text untestable until the grant changes.
  *  @complexity O(n) in the disallow-list length. */
-export function buildBashGuidanceBlock(disallowedTools: readonly string[]): string {
+export function buildBashGuidanceBlock({ disallowedTools }: { disallowedTools: readonly string[] }, _optional: Record<string, never> = {}): string {
   return disallowedTools.includes("Bash")
   ? "Bash is unavailable because it is disabled for this assistant. " +
     "Read remains available for reading Tovu's own source to answer a code-level question, and for supplied attachment or CLI saved-result paths. " +
@@ -99,7 +98,7 @@ export function buildBashGuidanceBlock(disallowedTools: readonly string[]): stri
 }
 
 /** The default guidance for the actual host-CLI tool grant. */
-export const BASH_GUIDANCE_BLOCK = buildBashGuidanceBlock(ASSISTANT_DISALLOWED_TOOLS);
+export const BASH_GUIDANCE_BLOCK = buildBashGuidanceBlock({ disallowedTools: ASSISTANT_DISALLOWED_TOOLS });
 
 /**
  * Which of the `claude` CLI's own settings layers an assistant run loads — forwarded to
@@ -124,7 +123,7 @@ export const ASSISTANT_SETTING_SOURCES: readonly string[] = [];
  * with Write, which ASSISTANT_DISALLOWED_TOOLS correctly denies. Only the hooks block is omitted
  * when the hook file is absent; autoMemoryEnabled is false on every machine.
  */
-export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: string) => boolean): string {
+export function resolveAssistantRunSettings({ homeDir, fileExists }: { homeDir: string; fileExists: (path: string) => boolean }, _optional = {}): string {
   const command = `${homeDir}/.claude/hooks/no-system-search`;
   return JSON.stringify({
     autoMemoryEnabled: false,
@@ -153,7 +152,7 @@ export function resolveBashProhibitionEnabled(
  * mutually exclusive variants of the same slot in {@link buildBaseSystemOverlay}, not a base text
  * plus an addition.
  */
-export function buildBashProhibitionBlock(enabled: boolean): string {
+export function buildBashProhibitionBlock({ enabled }: { enabled: boolean }, _optional = {}): string {
   return enabled ? BASH_PROHIBITION_BLOCK : BASH_GUIDANCE_BLOCK;
 }
 
@@ -181,22 +180,11 @@ const ATTACHMENT_RESULT_POLL_GUIDANCE =
   "Never use Bash or shell sleep between polls. Use describe_tool for a provider's jobs_wait schema before calling it; " +
   "if that provider wait is absent or fails, use wait_for before polling status again. ";
 
-/**
- * The tool-catalog-protocol overlay every assistant run receives before any operator-configured
- * custom instructions are appended (`custom-instructions.ts`'s `readOverlay()` — see
- * `agent-daemon-server.ts`'s `assistantPromptAugmenter.systemOverlay()` for that composition).
- * Moved here unchanged from where it used to be inlined, parameterized only by
- * `bashProhibitionEnabled` and the verified per-run native grant, so its text is asserted without
- * booting the daemon process that used to be its only home.
- *
- * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
- */
-export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
+/** Tone, linking and publishing rules, then the tool-catalog search protocol (no shell/direct access). */
+function overlayCatalogProtocol(nativeToolAccess: boolean): string {
   return (
-    SITE_GUIDE_POINTER +
-    ASSISTANT_CONTENT_EDIT_GUIDANCE +
     "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
-    (optional.nativeToolAccess ? "Use the site's tools before native CLI fallbacks. Keep replies short and direct: " :
+    (nativeToolAccess ? "Use the site's tools before native CLI fallbacks. Keep replies short and direct: " :
       "not doing general development work on the Tovu codebase. Keep replies short and direct: ") +
     "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
     "tables only when they carry real structure. For created, updated or published content, link to the " +
@@ -227,16 +215,28 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
     "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
     "the admin login route) to perform an action a registered tool already exists for. " +
-    BATCH_GUIDANCE +
-    (optional.messageRelayEnabled ? "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation. " : "") +
+    BATCH_GUIDANCE
+  );
+}
+
+/** Message-relay polling, visual-check tool preferences and chrome-devtools page-id rules. */
+function overlayBrowsingAndScope(messageRelayEnabled = false): string {
+  return (
+    (messageRelayEnabled ? "When `check_messages` is available, call it between steps, after long operations, and before your final answer; process user messages bearing the exact nonce supplied in the MCP server instructions in sequence, deduplicate by message ID, and continue tools and background work unless the user explicitly requests cancellation. " : "") +
     "For visual site checks, prefer Tovu's web_screenshot_page; use web_fetch_page for public-page HTML/text or render:true with screenshot:true. " +
     "For this site's own pages, use web_screenshot_page with sitePath. If chrome-devtools is needed after searching Tovu's tools, " +
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
     "Never reuse a pageId from an earlier run or before a server/daemon restart. On 'No page found', list pages again or open a new page before navigating. " +
-    SEARCH_SCOPE_GUIDANCE + ATTACHMENT_RESULT_POLL_GUIDANCE +
-    (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
+    SEARCH_SCOPE_GUIDANCE + ATTACHMENT_RESULT_POLL_GUIDANCE
+  );
+}
+
+/** Native-tool/Bash policy, delete and credential guidance, and what to do when no tool fits. */
+function overlayFallbackPolicy(input: { nativeToolAccess: boolean; bashProhibitionEnabled: boolean }): string {
+  return (
+    (input.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock({ enabled: input.bashProhibitionEnabled })) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
-    (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :
+    (input.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :
     "What to do instead when you believe no tool fits: search_tools again with different phrasing and a " +
     "higher limit, and if it still does not exist, SAY SO. State plainly that the catalog has no tool " +
     "for this, and describe what the missing tool would need to do and what inputs it would take. That " +
@@ -244,15 +244,21 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "for or route around. Reporting the gap is the most valuable thing you can do in that situation, " +
     "because every shell workaround silently papers over a real hole in this site's tooling and " +
     "guarantees nobody ever fixes it. An honest 'there is no tool for this yet' always beats a shell " +
-    "command that appears to work. ") +
-    (optional.nativeToolAccess ? "For live admin rendering, prefer assistant_render_ui; use native skills and standalone artifacts when requested. " :
+    "command that appears to work. ")
+  );
+}
+
+/** Live-rendering preference, interactive asking, 401/403 diagnostics and external-MCP reauth. */
+function overlayRenderingAndAsking(nativeToolAccess: boolean): string {
+  return (
+    (nativeToolAccess ? "For live admin rendering, prefer assistant_render_ui; use native skills and standalone artifacts when requested. " :
       "When asked to show, draw, chart, or visualize something in the live admin UI, prefer the live rendering tool over a standalone artifact. ") +
     "Search_tools for the rendering tool (assistant_render_ui) and " +
     "search_components/describe_component for the exact chart/component id, the same way you " +
     "would look up any other tool here — and if you ever forget those two exact names, " +
     "search_tools/describe_tool/execute_delegated_tool can find and run them too, the same as any " +
     "other registered tool. " +
-    (optional.nativeToolAccess ? "Use native skills or standalone artifacts when the request needs them. " :
+    (nativeToolAccess ? "Use native skills or standalone artifacts when the request needs them. " :
       "Do not reach for a general-purpose charting/dataviz skill or write a static HTML file as a substitute. ") +
     "When you need a decision, a " +
     "confirmation, or a choice between options from the administrator — especially before any " +
@@ -281,5 +287,27 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "other registered tool. It blocks until they acknowledge it. Once they say they have " +
     "reconnected it, retry the ORIGINAL failed call exactly once and report its real outcome " +
     "truthfully — never a second ask-fix-retry cycle for the same failing call."
+  );
+}
+
+/**
+ * The tool-catalog-protocol overlay every assistant run receives before any operator-configured
+ * custom instructions are appended (`custom-instructions.ts`'s `readOverlay()` — see
+ * `agent-daemon-server.ts`'s `assistantPromptAugmenter.systemOverlay()` for that composition).
+ * Moved here unchanged from where it used to be inlined, parameterized only by
+ * `bashProhibitionEnabled` and the verified per-run native grant, so its text is asserted without
+ * booting the daemon process that used to be its only home.
+ *
+ * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
+ */
+export function buildBaseSystemOverlay({ bashProhibitionEnabled }: { bashProhibitionEnabled: boolean }, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
+  const nativeToolAccess = optional.nativeToolAccess === true;
+  return (
+    SITE_GUIDE_POINTER +
+    ASSISTANT_CONTENT_EDIT_GUIDANCE +
+    overlayCatalogProtocol(nativeToolAccess) +
+    overlayBrowsingAndScope(optional.messageRelayEnabled) +
+    overlayFallbackPolicy({ nativeToolAccess, bashProhibitionEnabled }) +
+    overlayRenderingAndAsking(nativeToolAccess)
   );
 }

@@ -1,3 +1,4 @@
+import fsp from "node:fs/promises";
 /** `tovu import-local` over the REAL backend, verifier and restore, with an isolated home: no server, no session. */
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
@@ -5,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
-import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
+import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { importFixture, OWNER_PASSWORD } from "../../../features/site-backup/__tests__/import.fixture.js";
 import { leaveSavedKeysOut } from "../../../features/site-backup/saved-keys.js";
 import type { SiteImportBackend } from "../../../features/site-backup/import-backend.js";
@@ -215,5 +216,20 @@ test("a tidy request clears what a killed import left, makes no site and prints 
   assert.deepEqual(stagedLeftovers(h.root), []);
   assert.deepEqual(printed, []);
   assert.equal(JSON.parse(fs.readFileSync(path.join(directory, `${importId}.json`), "utf8")).status, "failed");
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+});
+
+for (const code of ["ENOENT", "EACCES"]) test(`archive open ${code} keeps a private cause and fixed guidance`, async t => {
+  const h = await importFixture(t);
+  const cause = Object.assign(new Error("password=ARCHIVE_CANARY"), { code });
+  t.mock.method(fsp, "open", async () => { throw cause; });
+  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ file: path.join(h.root, "missing.tovu.zip") }), writeStdout: () => {} }), error => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.name, "ValidationError");
+    assert.equal(error.cause, cause);
+    assert.match(error.message, code === "ENOENT" ? /file is missing.*Choose/ : /file could not be read.*Choose/);
+    assert.doesNotMatch(error.message, /ARCHIVE_CANARY/);
+    return true;
+  });
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });

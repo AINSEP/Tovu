@@ -37,7 +37,7 @@ test('sleep IPC validates shell and choices, and failed saves preserve the previ
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const preferencePath = path.join(dir, 'preferences.json');
   const handlers = new Map<string, (event: { sender: string }, value?: unknown) => number>();
-  const off = registerIdleSiteSleepIpc({ preferencePath, allowed: (sender: string) => sender === 'shell', ipcMain: {
+  const off = registerIdleSiteSleepIpc({ preferencePath, allowed: ({ sender }: { sender: string }) => sender === 'shell', ipcMain: {
     handle: (channel, handler) => { handlers.set(channel, handler); },
     removeHandler: channel => { handlers.delete(channel); },
   } });
@@ -61,7 +61,7 @@ test('sleep IPC resolves the current profile lazily, after authorization and val
   const handlers = new Map<string, (event: { sender: string }, value?: unknown) => number>();
   const off = registerIdleSiteSleepIpc({
     preferencePath: () => { resolutions++; assert.ok(profile); return path.join(profile, 'preferences.json'); },
-    allowed: (sender: string) => sender === 'shell',
+    allowed: ({ sender }: { sender: string }) => sender === 'shell',
     ipcMain: { handle: (channel, handler) => { handlers.set(channel, handler); }, removeHandler: channel => { handlers.delete(channel); } },
   });
   t.after(off);
@@ -168,7 +168,7 @@ test('only the shell may read or save the loaded-sites preference and teardown r
   const off = registerSiteViewPreferenceIpc({ ipcMain: {
     handle: (channel, handler) => { handlers.set(channel, handler); },
     removeHandler: channel => { handlers.delete(channel); },
-  }, allowed: sender => sender === 'shell', read: () => 2,
+  }, allowed: ({ sender }) => sender === 'shell', read: () => 2,
   write: ({ maximumLiveSiteViews }) => { writes.push(maximumLiveSiteViews); return Math.min(maximumLiveSiteViews, 5); } });
   assert.equal(handlers.get(SITE_VIEW_PREFERENCE_CHANNELS.read)!({ sender: 'shell' }), 2);
   assert.throws(() => handlers.get(SITE_VIEW_PREFERENCE_CHANNELS.read)!({ sender: 'guest' }), /UNTRUSTED/);

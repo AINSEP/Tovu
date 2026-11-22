@@ -1,14 +1,15 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/web.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
 import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";
-import { fetchWebPage, MAX_MAX_CHARS, readWebFetchInput, type WebFetchPorts } from "./web-page.js";
+import { MAX_MAX_CHARS, readWebFetchInput } from "@jini-ai/platform/web";
+import { fetchWebPage, type WebFetchPorts } from "./web-page.js";
 
 /**
  * @file Maps the `web` catalog onto {@link fetchWebPage}. Every catalog entry is wired, so a future
@@ -43,7 +44,7 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
       // Search beyond the output window, within the existing reader ceiling; maxChars bounds snippets.
       const page = await fetchWebPage({ input: find === undefined ? input : { ...input, maxChars: MAX_MAX_CHARS }, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
       const { content, ...pageFacts } = page;
-      const shaped = find === undefined ? undefined : shapePageBody(content, { find, maxBytes: input.maxChars });
+      const shaped = find === undefined ? undefined : shapePageBody({ body: content, options: { find, maxBytes: input.maxChars } });
       const result = shaped ? { ...pageFacts, ...shaped, truncated: page.truncated || shaped.truncated } : page;
       if (!result.screenshot) return result;
       const { screenshot, ...facts } = result;

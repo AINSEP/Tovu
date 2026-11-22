@@ -6,7 +6,10 @@ import type { RouteDeps } from '#src/server/routes/types';
 import type { DiscoveredTheme, StaticMenuItem } from '#src/features/theme/index';
 import { NAV_DOC_TYPE, type NavMenuEntry } from '#src/features/navigation/index';
 import type { PublicPostRecord } from '#src/features/post/index';
-import { resolveSiteAssistantWidgetForRequest, resolveStaticMenusForRender, resolveMediaAssetMetadataForRender, type TemplateRenderDeps, type RenderContextResolutionDeps } from '../../pages.js';
+import { resolveMediaAssetMetadataForRender } from "../../pages/render-context/media-metadata.js";
+import { resolveStaticMenusForRender } from "../../pages/render-context/static-menus.js";
+import { resolveSiteAssistantWidgetForRequest } from "../../pages/render-context/widgets.js";
+import type { TemplateRenderDeps, RenderContextResolutionDeps } from "../../pages/render-context/deps.js";
 
 test('static export suppresses the assistant before consulting settings or credentials', async t => {
   const request: Request = Object.create(express.request, { headers: { value: { 'x-tovu-static-export': '1' } } });
@@ -29,7 +32,7 @@ test('docs pager crosses group boundaries and preserves both neighbours authored
     navLocationBindingRepo: { findByLocation: async () => null },
     menuRepo: { findBySlug: async () => null, findById: async ({ id }: { id: string }) => id === 'menu-header-nav' ? menu : null },
   });
-  const menus = await resolveStaticMenusForRender(deps, theme, '/middle', ['docs-prev-next']);
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: '/middle' }, { extraMenuIds: ['docs-prev-next'] });
   const neighbours = menus['docs-prev-next'] as readonly StaticMenuItem[];
   assert.ok(Array.isArray(neighbours));
   assert.deepEqual(neighbours.map(({ label, href, attrs, children, isCurrent, isActive }) => ({ label, href, cssClass: attrs?.cssClass, children, isCurrent, isActive })), [
@@ -52,7 +55,7 @@ test('media metadata batches only live distinct assets and retains a missing con
     { type: 'image', attrs: { assetId: 'first' } }, { type: 'media', attrs: { assetId: 'missing' } },
     { type: 'media', attrs: { assetId: 'trashed' } },
   ] } });
-  const result = await resolveMediaAssetMetadataForRender(deps, post);
+  const result = await resolveMediaAssetMetadataForRender({ deps, post });
   assert.deepEqual(reads, [{ workspaceId: 'ws', sha256s: ['first-sha', 'second-sha'] }]);
   assert.deepEqual([...result], [
     ['first', { width: 320, height: 200, cssClass: 'cover', htmlAttributes: null, slug: 'first-slug', sha256: 'first-sha', contentType: 'image/png' }],

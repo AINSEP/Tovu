@@ -9,6 +9,7 @@ import {
   midRunUserMessageSlotKey,
   type ExtEventRendererRegistry,
 } from "@jini-ai/chat/react";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
 import { AgentFailureCard } from "../AgentFailureCard";
 import { hasAgentFailureNotice } from "../AgentFailureCard.hooks";
@@ -16,7 +17,7 @@ import { AGENT_FAILURE_EVENT } from "../agent-failure";
 import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
-import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./AssistantDock.hooks";
+import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./assistant-mcp-ui";
 
 /**
  * Wires the MCP-UI dialog's confirmed click back to Tovu's own redemption endpoint (ADR-053
@@ -25,7 +26,7 @@ import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./AssistantDo
  * `onToolCall: createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
  * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
  * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
- * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
+ * admin-session-authenticated proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`), which forwards it to the
  * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
  * actually holds the `content_post_delete` handler and its held-open surface exchange. `path` is
  * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts
@@ -62,9 +63,11 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
  * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
  * hoisting to a plain module-scope constant is exact, not an approximation.
  */
-const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);
+const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });
 /** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
-const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
+const postA2uiAction = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/admin/v1/a2ui/actions" });
+/** Tovu is the host, so the dock owns the system clock handed to every A2UI card. */
+const dockClock = createSystemClock();
 
 /**
  * Registers the dock's cards on `registry` and returns one disposer for all of them. Each disposer
@@ -109,7 +112,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
       // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
       // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
       // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
-      onOpenLink: openMcpUiLink,
+      onOpenLink: (url) => openMcpUiLink({ url }),
       // A same-document `data:` URL, not a route on this admin app's own origin — see
       // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
       // same-origin route would hand any third-party MCP server's HTML this admin origin's full
@@ -144,7 +147,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
      * straight through to `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for
      * the full routing decision and `lib/playground-render-target-bus.ts` for the seam it reads.
      */
-    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, onAgentAction: postA2uiAction }) }),
+    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, clock: dockClock, onAgentAction: postA2uiAction }) }),
     // The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.

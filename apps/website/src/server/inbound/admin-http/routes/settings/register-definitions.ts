@@ -1,3 +1,4 @@
+import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   NON_REGISTER_DEFINITION_OPS,
@@ -16,7 +17,7 @@ import {
   registerDefinitions,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { toWriteServiceDeps, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { toWriteServiceDeps, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
   { matches: (e) => e instanceof SecretNotSupportedError, status: 400, code: "SECRET_NOT_SUPPORTED" },
@@ -30,13 +31,13 @@ const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
 /** Coerces a possibly-absent field to a string, matching this route's `?? ""`/`?? "register"`
  *  fallback shape everywhere it reads a field off an untrusted batch item.
  *  @complexity O(1). */
-function readString(value: unknown, fallback = ""): string {
+function readString({ value }: { value: unknown }, { fallback = "" }: { fallback?: string } = {}): string {
   return String(value ?? fallback);
 }
 
 /** Body's `definitions` array, or `null` if it's missing or not an array.
  *  @complexity O(1). */
-function parseDefinitionItems(body: unknown): unknown[] | null {
+function parseDefinitionItems({ body }: { body: unknown }, _options: Record<string, never> = {}): unknown[] | null {
   const definitions = (body as { definitions?: unknown } | null)?.definitions;
   return Array.isArray(definitions) ? definitions : null;
 }
@@ -56,15 +57,13 @@ type DefinitionItemOutcome =
  * @complexity O(1) plus, for non-register ops, one write-service call.
  */
 async function applyDefinitionItem(
-  raw: unknown,
-  opCtx: DefinitionOpContext,
-  toRegister: DefinitionInput[]
+  { raw, opCtx, toRegister }: { raw: unknown; opCtx: DefinitionOpContext; toRegister: DefinitionInput[] }, _options: Record<string, never> = {}
 ): Promise<DefinitionItemOutcome> {
   const item = raw as Record<string, unknown>;
   const ownerKind = item.ownerKind as SettingOwnerKind;
-  const namespace = readString(item.namespace);
-  const key = readString(item.key);
-  const op = readString(item.op, "register");
+  const namespace = readString({ value: item.namespace });
+  const key = readString({ value: item.key });
+  const op = readString({ value: item.op }, { fallback: "register" });
   // Platform defs (core/theme) are workspace_id=null; site-owned defs carry this workspace's
   // id (REQ-02 namespace fence, `settings.ts`'s `NAMESPACE_FENCE`).
   const workspaceId = ownerKind === "site" ? opCtx.authWorkspaceId : null;
@@ -131,13 +130,13 @@ async function applyDefinitionItem(
  * reasonable bridge between the two shapes, disclosed here rather than
  * silently guessing.
  */
-export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "post", path: "/api/admin/v1/workspaces/:workspaceId/settings/definitions",
     errorMappings: REGISTER_DEFINITIONS_ERROR_MAPPINGS,
     handle: async ({ request: req, principal, authorize }) => {
       await authorize({ permission: "settings.definitions.manage", entityType: "setting-definition" });
 
-      const items = parseDefinitionItems(req.body);
+      const items = parseDefinitionItems({ body: req.body });
       if (!items) {
         rejectSettingsRequest({ status: 400, error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
       }
@@ -148,7 +147,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
       const toRegister: DefinitionInput[] = [];
 
       for (const raw of items) {
-        const outcome = await applyDefinitionItem(raw, opCtx, toRegister);
+        const outcome = await applyDefinitionItem({ raw, opCtx, toRegister });
         if ("unknownOp" in outcome) {
           rejectSettingsRequest({ status: 400, error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
         }

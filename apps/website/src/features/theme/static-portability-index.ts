@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
-import { resolveThemeLayout } from "./theme-layout.js";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Milestone 5 — a generated root `index.html` for a `static`-tier theme, so the folder is a
@@ -16,7 +16,7 @@ import { resolveThemeLayout } from "./theme-layout.js";
  * that stands on its own — root-relative asset paths (the file sits at the theme's OWN root, one
  * level up from where a v2 theme's `render/pages/index.html` normally resolves `../css/`/`../scripts/`
  * from, or a v1 theme's `pages/index.html` resolves `../css/`/`../js/` from — see {@link
- * import("./theme-layout.js").resolveThemeLayout}, this module's own apiVersion-aware source of truth
+ * import("@jini-ai/cms/themes/layout").resolveThemeLayout}, this module's own apiVersion-aware source of truth
  * for both shapes, 2026-08-19 architecture audit finding 5), design tokens inlined as real CSS (a
  * theme's own required stylesheet deliberately defines none of its own — see that file's own header on
  * every migrated theme), and no dependency on a live Tovu instance to look right.
@@ -60,7 +60,7 @@ export const STATIC_PORTABILITY_INDEX_FILENAME = "index.html";
 
 /** `nav.html` -> `nav`; the key {@link DiscoveredTheme.partials} stores root partials under
  * (mirrors `static-render.ts`'s own private `partialIdFromSource`, not itself exported). */
-function partialIdFromSource(source: string): string {
+function partialIdFromSource({ source }: { source: string }, _optional = {}): string {
   return source.endsWith(".html") ? source.slice(0, -".html".length) : source;
 }
 
@@ -82,8 +82,8 @@ function partialIdFromSource(source: string): string {
  *
  * @complexity O(n) over `html`'s length — two regex passes.
  */
-function rewriteRootRelativeAssetPaths(html: string, apiVersion: 2 | undefined): string {
-  const { cssDir, stylesheetFilename, scriptsDir } = resolveThemeLayout(apiVersion);
+function rewriteRootRelativeAssetPaths({ html, apiVersion }: { html: string; apiVersion: 2 | undefined }, _optional = {}): string {
+  const { cssDir, stylesheetFilename, scriptsDir } = resolveThemeLayout({}, { apiVersion });
   const cssRewritten = html.replace(
     /href=(["'])\.\.\/css\/[^"']*\1/g,
     (_match, quote: string) => `href=${quote}${cssDir}/${stylesheetFilename}${quote}`
@@ -109,9 +109,9 @@ function tokensToRootCss(theme: DiscoveredTheme): string {
 /** Stamps `defaultMode` onto `<html>` as `data-theme`, the selector {@link tokensToRootCss}'s light
  * block keys off — mirrors `static-render.ts`'s `injectColorMode`. No-ops when the manifest declares
  * no `defaultMode`, or when the raw page already carries its own `data-theme`. */
-function injectDefaultColorMode(html: string, defaultMode: string | undefined): string {
+function injectDefaultColorMode({ html, defaultMode }: { html: string; defaultMode: string | undefined }, _optional = {}): string {
   if (defaultMode === undefined) return html;
-  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, `<html$1 data-theme="${defaultMode}">`);
+  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${defaultMode}">`);
 }
 
 /** Inlines {@link tokensToRootCss}'s `<style>` block immediately before the (already root-relative)
@@ -123,10 +123,10 @@ function injectDefaultColorMode(html: string, defaultMode: string | undefined): 
  * 2026-08-19 architecture audit finding 5: the link pattern used to hardcode v2's `css/theme.css`
  * unconditionally, so this silently no-op'd for a v1 theme even after {@link rewriteRootRelativeAssetPaths}
  * correctly rewrote its link to `css/styles.css` — the theme would render with every design-token CSS
- * variable undefined. Now built from `resolveThemeLayout(theme.manifest.apiVersion)`'s own
+ * variable undefined. Now built from `resolveThemeLayout({}, { apiVersion: theme.manifest.apiVersion })`'s own
  * `stylesheetPath`, the same source of truth the asset-path rewrite just used. */
-function injectTokenStyleBlock(html: string, theme: DiscoveredTheme): string {
-  const { stylesheetPath } = resolveThemeLayout(theme.manifest.apiVersion);
+function injectTokenStyleBlock({ html, theme }: { html: string; theme: DiscoveredTheme }, _optional = {}): string {
+  const { stylesheetPath } = resolveThemeLayout({}, { apiVersion: theme.manifest.apiVersion });
   /** Escapes a string for literal use inside a `RegExp` — `resolveThemeLayout`'s two possible
    *  `stylesheetPath` values (`css/theme.css`, `css/styles.css`) both contain a `.`, which is
    *  otherwise a "match any character" wildcard rather than a literal dot. */
@@ -143,13 +143,13 @@ function injectTokenStyleBlock(html: string, theme: DiscoveredTheme): string {
  *
  * @complexity O(n) over `html`'s length for the marker scan, plus one map lookup per marker.
  */
-function spliceRootPartials(html: string, theme: DiscoveredTheme): string {
+function spliceRootPartials({ html, theme }: { html: string; theme: DiscoveredTheme }, _optional = {}): string {
   const slots = theme.manifest.slots ?? DEFAULT_THEME_SLOTS;
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
-    return theme.partials[partialIdFromSource(descriptor.source)];
+    return theme.partials[partialIdFromSource({ source: descriptor.source })];
   } });
 }
 
@@ -174,7 +174,7 @@ function spliceRootPartials(html: string, theme: DiscoveredTheme): string {
  *
  * @complexity O(n) over `html`'s length for the marker scan.
  */
-function placeholderRemainingMarkers(html: string): string {
+function placeholderRemainingMarkers({ html }: { html: string }, _optional = {}): string {
   return substituteMarkers({ html: html, resolve: (marker: EmbedMarker) => withInnerContentFinal({ marker: marker, inner: LIVE_CONTENT_PLACEHOLDER }) });
 }
 
@@ -191,11 +191,11 @@ export function buildStaticPortabilityIndex(theme: DiscoveredTheme): string | un
   const source = theme.pages.index;
   if (source === undefined) return undefined;
 
-  let html = rewriteRootRelativeAssetPaths(source, theme.manifest.apiVersion);
-  html = injectDefaultColorMode(html, theme.manifest.defaultMode);
-  html = injectTokenStyleBlock(html, theme);
-  html = spliceRootPartials(html, theme);
-  html = placeholderRemainingMarkers(html);
+  let html = rewriteRootRelativeAssetPaths({ html: source, apiVersion: theme.manifest.apiVersion });
+  html = injectDefaultColorMode({ html, defaultMode: theme.manifest.defaultMode });
+  html = injectTokenStyleBlock({ html, theme });
+  html = spliceRootPartials({ html, theme });
+  html = placeholderRemainingMarkers({ html });
   return html;
 }
 

@@ -12,7 +12,7 @@ import { buildChallengeMessage } from "#src/features/publish-trust/challenge";
 import { PUBLISH_TRUST_GRANT_VERSION } from "#src/features/publish-trust/grant";
 import { derivePublishSigningKey } from "#src/features/publish-trust/keys";
 import { PUBLISH_TRUST_ENV_VAR } from "#src/features/publish-trust/provisioning";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
@@ -131,7 +131,7 @@ async function tokenFor(socketPath: string): Promise<string> {
       sourceInstallationId: SOURCE_INSTALL,
       generation: 1,
       capabilities: [...CAPABILITIES],
-      signatureB64u: key.sign(message),
+      signatureB64u: key.sign({ message }),
     }),
   });
   assert.equal(sessionRes.status, 200, sessionRes.body);
@@ -161,7 +161,7 @@ test("a database disconnect refuses the next real publish request even with its 
   try {
     const key = await sourceKey();
     process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
-    deps = await createSiteRouteDeps(join(dir, "content.db"), { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") });
+    deps = await createSiteRouteDeps({}, { dbPath: join(dir, "content.db"), overrides: { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") } });
     deps.siteAssistantSecretKeyring = testKeyring(SOURCE_ROOT);
     assert.ok(deps.publishTrustRevocations instanceof SqlPublishTrustRevocationStore);
 
@@ -203,7 +203,7 @@ test("the SQLite deny store fails loudly at boot when its migration table is una
   try {
     db.$client.exec("DROP TABLE publish_trust_revocations");
     await assert.rejects(
-      publishTrustRevocationStoreFor(contentKernel(db)),
+      publishTrustRevocationStoreFor({ kernel: contentKernel({ store: db }) }),
       /publish trust revocation store is unavailable at boot/i
     );
   } finally {
@@ -216,13 +216,13 @@ test("a disconnect row survives reopening the fresh site content database", asyn
   const { dir, db } = await freshContentDb();
   let reopened: ContentDb | undefined;
   try {
-    const store = await publishTrustRevocationStoreFor(contentKernel(db));
+    const store = await publishTrustRevocationStoreFor({ kernel: contentKernel({ store: db }) });
     const written = await store.revoke({ sourceInstallationId: SOURCE_INSTALL, nowIso: NOW, note: "lost device" });
     assert.equal(written.ok, true, written.ok ? "" : written.reason);
     db.$client.close();
 
     reopened = openContentDb(join(dir, "content.db"));
-    const reread = await (await publishTrustRevocationStoreFor(contentKernel(reopened))).list();
+    const reread = await (await publishTrustRevocationStoreFor({ kernel: contentKernel({ store: reopened }) })).list();
     assert.deepEqual(reread, {
       ok: true,
       revocations: [{ sourceInstallationId: SOURCE_INSTALL, revokedAt: NOW, note: "lost device" }],

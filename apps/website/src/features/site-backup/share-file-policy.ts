@@ -6,7 +6,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
 /** Names an installed package ships as content (MCP declarations, credential schemes), never runtime secrets. */
-const PACKAGE_MANIFEST_NAMES = ["mcp.json", "tovu-credential-schemes.json"];
+const PACKAGE_MANIFEST_NAMES = ["mcp.json", "jini-credential-schemes.json"];
 
 /** Archive digest -> (package-relative path -> SHA-256 of the bytes) for every package THIS build
  *  ships (`package-file-inventory.ts`). The only proof a package-shaped path is the installer's. */
@@ -93,7 +93,7 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   // The publish owner mixes secret names with path-shape checks. Mask only credential
   // names here, retaining separators, dot segments and length for structural checks.
   const structural = p.split("/").map(part => secretSharePath({ path: part }) ? "x".repeat(part.length) : part).join("/");
-  const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath(structural);
+  const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath({ relPath: structural });
   if (reason || hasUnportableSpelling({ path: p })) {
     const shownPath = archiveRefusalName({ name: p });
     // A callback treats archive '$&'/'$`' spellings as text, never replacement tokens.
@@ -117,7 +117,7 @@ export function requireShareSecretFree(required: { path: string; bytes: Uint8Arr
   return true;
 }
 
-function unsafeSharePath(message: string): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
+function unsafeSharePath({ message }: { message: string }, _optional: Record<string, never> = {}): never { throw new SiteShareRefusal({ code: "UNSAFE_PATH", message }); }
 
 /** Upper/lower expansion also catches sharp-s/SS and final-sigma aliases, including ancestors. */
 export function sharePathAlias(required: { path: string }, _options: Record<string, never> = {}): string { return required.path.normalize("NFKC").toUpperCase().toLowerCase().normalize("NFC"); }
@@ -133,13 +133,13 @@ export function claimSharePath(required: { path: string; directory: boolean; ali
     const spelling = parts.slice(0, index).join("/");
     const alias = sharePathAlias({ path: spelling });
     const prior = required.aliases.get(alias);
-    if (prior !== undefined && prior !== spelling) unsafeSharePath("ZIP contains unsafe case or Unicode aliases.");
+    if (prior !== undefined && prior !== spelling) unsafeSharePath({ message: "ZIP contains unsafe case or Unicode aliases." });
     required.aliases.set(alias, spelling);
-    if (index < parts.length && required.files.has(alias)) unsafeSharePath("ZIP file/directory collision.");
+    if (index < parts.length && required.files.has(alias)) unsafeSharePath({ message: "ZIP file/directory collision." });
   }
   const key = sharePathAlias(required);
   if (!required.directory) {
-    if (required.files.has(key) || [...required.aliases.keys()].some(alias => alias.startsWith(key + "/"))) unsafeSharePath("Duplicate file or file/directory collision.");
+    if (required.files.has(key) || [...required.aliases.keys()].some(alias => alias.startsWith(key + "/"))) unsafeSharePath({ message: "Duplicate file or file/directory collision." });
     required.files.add(key);
   }
 }

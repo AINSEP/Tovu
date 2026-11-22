@@ -13,7 +13,7 @@ export function successfulRunFixture(
     { ...envelope, eventId: `${runId}:1`, opaqueCursor: "1", kind: "agent", payload: { type: "text_delta", delta: reply } },
     { ...envelope, eventId: `${runId}:2`, opaqueCursor: "2", kind: "end", payload: { status: "succeeded", code: 0 } },
   ];
-  const events = frames.flatMap((frame) => translateRunFrame(frame.kind, JSON.stringify(frame)).events);
+  const events = frames.flatMap((frame) => translateRunFrame({ kind: frame.kind, raw: JSON.stringify(frame) }).events);
   return {
     stream: `retry: 3600000\n\n${frames.map((frame) => `id: ${frame.opaqueCursor}\nevent: ${frame.kind}\ndata: ${JSON.stringify(frame)}\n\n`).join("")}`,
     message: { id: `${runId}-answer`, role: "assistant", content: reply, events, runId, runStatus: "succeeded", startedAt: 0, endedAt: 1, lastRunEventId: "2" },

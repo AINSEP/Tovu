@@ -21,8 +21,8 @@ async function fixture(t: test.TestContext) {
   const deps = {
     workspaceId: 'workspace-local', authorize: async () => ({ allowed: true, reason: 'matched' }),
     clock: { nowMs: () => Date.parse('2026-10-03T12:00:00.000Z') }, idGen: { newId: () => `id-${++sequence}` },
-    mediaRepo: new SqliteMediaRepo(db), assetBlobRepo: new SqliteAssetBlobRepo(db),
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db), mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
+    mediaRepo: new SqliteMediaRepo({ store: db }), assetBlobRepo: new SqliteAssetBlobRepo({ store: db }),
+    assetRenditionRepo: new SqliteAssetRenditionRepo({ store: db }), mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }),
     blobStore: new InMemoryBlobStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     imageTransformer: new InMemoryImageTransformer(),
   } as unknown as MediaRouteDeps;
@@ -138,7 +138,7 @@ test('replace reports the stored size of a sanitized SVG, and null when that siz
   assert.ok(blob);
   assert.equal(result.json.media.byteSize, (await deps.blobStore.get({ storageKey: blob.storageKey })).byteLength);
   assert.notEqual(result.json.media.byteSize, Buffer.byteLength(svg));
-  t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
+  t.mock.method(deps.assetBlobRepo, 'list', async () => []);
   const unknown = await invoke({ deps, id: media.id, input: { ...input, dataBase64: Buffer.from(svg.replace('10', '20')).toString('base64') } });
   assert.equal(unknown.status, 200);
   assert.equal(unknown.json.media.byteSize, null);
@@ -189,7 +189,7 @@ test('an old metadata draft cannot undo an already committed file replacement', 
 });
 
 test('a preview started before replacement cannot reinsert an obsolete rendition', async t => {
-  const { guardMediaRenditionRepo } = await import('#src/features/media/guard-rendition-repo');
+  const { guardMediaRenditionRepo } = await import("@jini-ai/cms/media");
   const { deps, media, before } = await fixture(t);
   const guarded = guardMediaRenditionRepo({ mediaRepo: deps.mediaRepo, renditionRepo: deps.assetRenditionRepo, media });
   const preview = before.find(row => row.transformName === 'public')!;

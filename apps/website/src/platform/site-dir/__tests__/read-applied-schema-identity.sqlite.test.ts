@@ -3,7 +3,7 @@ import test from "node:test";
 import { sql } from "kysely";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { readAppliedSchemaIdentity } from "../read-applied-schema-identity.js";
 
@@ -22,7 +22,7 @@ test("SQLite at head reports the last tovu_migrations step, like Postgres", asyn
 test("PGlite at head reports the last tovu_migrations step (the reference B1 must match)", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await migrateContentDatabase(kernel as StorageKernel<unknown>);
+    await migrateContentDatabase({ kernel: kernel as KyselyKernel<unknown> });
     assert.deepEqual(await readAppliedSchemaIdentity(kernel), expectedHead);
   } finally { await kernel.close(); }
 });

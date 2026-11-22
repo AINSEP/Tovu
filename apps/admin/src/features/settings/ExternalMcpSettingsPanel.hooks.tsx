@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWiredSourceConfigAddForm, type SourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { grantWriteFieldValue, type SavedConnectionIntent } from "./external-mcp-admissions-rules";
 import { t as tExternalMcp } from "./external-mcp-i18n";
@@ -14,6 +13,7 @@ import {
   resolveExternalMcpEffectiveTransport,
 } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `ExternalMcpSettingsPanel.tsx`'s own derived-value logic, split out per the
  * `<Name>.tsx`/`<Name>.hooks.tsx` pattern `TabBar.tsx`/`TabBar.hooks.tsx` establishes (admin
@@ -27,8 +27,8 @@ import {
  *  it feeds that memoizing it was not judged worth the added indirection. That is a decision about
  *  memoization, separate from why this now lives outside the component body at all (the
  *  `.tsx` bodies carry no derived logic). */
-export function resolveExternalMcpCardHandles(sources: readonly SourceConfigItem[]): string[] {
-  return buildExternalMcpCardHandles(sources.map((source) => source.id));
+export function resolveExternalMcpCardHandles({ sources }: { sources: readonly SourceConfigItem[] }, _optional: Record<string, never> = {}): string[] {
+  return buildExternalMcpCardHandles({ sourceIds: sources.map((source) => source.id) });
 }
 
 /** Each card's saved intent, keyed by server id — the "saved" half of the saved-vs-live comparison
@@ -79,13 +79,16 @@ export function useExternalMcpDriftCopy(): Translate {
  * @returns The patch, or `null` when the id names no configured card (nothing to write).
  */
 export function buildAllowWritePatch(
-  sources: readonly SourceConfigItem[],
-  connectionId: string,
-  remoteName: string,
+  { sources, connectionId, remoteName }: {
+    sources: readonly SourceConfigItem[];
+    connectionId: string;
+    remoteName: string;
+  },
+  _options = {},
 ): { fields: Record<string, string> } | null {
   const source = sources.find((candidate) => candidate.id === connectionId);
   if (!source) return null;
-  return { fields: { writeAllowedToolNames: grantWriteFieldValue(source.fields["writeAllowedToolNames"], remoteName) } };
+  return { fields: { writeAllowedToolNames: grantWriteFieldValue({ currentWriteAllowedToolNames: source.fields["writeAllowedToolNames"], remoteName }) } };
 }
 
 /** Everything `ExternalMcpSettingsPanel` renders its "Add server" button and form from. */
@@ -129,7 +132,7 @@ export function useExternalMcpAddForm(input: {
   const [formOpen, setFormOpen] = useState(false);
   const [transportGuess, setTransportGuess] = useState<string>("stdio");
   const [authModeGuess, setAuthModeGuess] = useState<string>("static_env");
-  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, t);
+  const fieldSpecs = buildExternalMcpFieldSpecs({ transport: transportGuess, authMode: authModeGuess }, { t });
 
   const addForm = useWiredSourceConfigAddForm<SourceConfigItem>({
     dependencies,

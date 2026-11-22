@@ -1,9 +1,10 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+import { Icon } from "@jini-ai/ui";
+
 import type { CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { credentialFileCount } from "./hooks/use-share-credential-gate.hooks";
-import { SiteFlagIcon } from "./sites-visuals";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The credential warning copy and file list shared by the Export and Import tabs (owner,
  * 2026-11-03: credential-looking content is kept and the user is told where). Paths and kind
@@ -12,7 +13,7 @@ import { SiteFlagIcon } from "./sites-visuals";
 
 /** "This export/import may contain credentials in N files." Literal keys so every locale carries them. */
 export function credentialSummary({ subject, warnings, t }: { subject: "export" | "import"; warnings: readonly CredentialWarning[]; t: Translate }, _options = {}): string {
-  const count = credentialFileCount(warnings);
+  const count = credentialFileCount({ warnings });
   if (subject === "import") {
     return count === 1 ? t("This import may contain credentials in 1 file.") : interpolate({ template: t("This import may contain credentials in {count} files."), vars: { count } });
   }
@@ -59,7 +60,7 @@ export function TransferNoticeTip({ notices, t }: { notices: readonly string[]; 
     <span className="site-transfer-notice-tip">
       {/* The triangle alone read as an unexplained mark; the word is decoration for the eye (the button already carries the name). */}
       <span className="site-transfer-notice-word" aria-hidden="true">{t("Warning")}</span>
-      <InfoTip icon={<SiteFlagIcon size={16} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
+      <InfoTip icon={<Icon name="flag-triangle" size={16} strokeWidth={1.5} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
     </span>
   );
 }

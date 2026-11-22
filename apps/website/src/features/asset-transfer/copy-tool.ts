@@ -44,19 +44,19 @@ const catalog: AgentToolDefinition = {
 export const filesCopyAgentToolCatalog: AgentToolDefinition[] = [catalog];
 export const filesCopyDerivedRisk: DerivedRiskByToolId = new Map([["files_copy", "mutates-durable-state"]]);
 const byId = indexCatalogById({ catalog: filesCopyAgentToolCatalog });
-const callerError = (error: unknown) => {
+const callerError = ({ error }: { error: unknown }, _optional = {}) => {
   if (error instanceof FsFilePathError || error instanceof FsWriteInputError || error instanceof MediaValidationError) return true;
-  return isThemeShapeRejection(error) || isImportShapeRejection({ error });
+  return isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
 };
 
 /** URL sources reuse fetchImage and its safe egress port, with the existing theme font sniffer. */
 async function readUrl({ deps, source, media }: { deps: AssetToolDeps; source: Record<string, unknown>; media: boolean }): Promise<AssetFile> {
   if (source.glob !== undefined) throw new ToolInputError({ message: "URL sources do not accept glob" });
   const url = requireString({ input: source, key: "url" });
-  const fetched = await withCallerSafeEgressRefusal(deps.mediaImportEgressRefusalLog ?? console.warn, () => fetchImage(
+  const fetched = await withCallerSafeEgressRefusal({ log: deps.mediaImportEgressRefusalLog ?? console.warn, work: () => fetchImage(
     { deps: { httpClient: deps.mediaImportHttpClient, plainHttpTestOrigins: deps.outboundTestOrigins }, url },
     media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
-  ), { toolId: "files_copy" });
+  ) }, { toolId: "files_copy" });
   return { bytes: Buffer.from(fetched.bytes), path: source.path === undefined ? basename(fetched.url.pathname) : requireString({ input: source, key: "path" }), sourceUrl: fetched.url.href };
 }
 
@@ -151,7 +151,7 @@ function appendFiles({ files, group, prefix }: { files: AssetFile[]; group: Asse
  * @returns One registration. @complexity O(1). @example buildFilesCopyRegistrations(deps, surfaces); */
 export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handler = approvalToolHandler<PreparedAssets>({ surfaces,
-    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError(error), fn: () => prepare({ deps, ctx }) }),
+    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError({ error }), fn: () => prepare({ deps, ctx }) }),
     describe: ({ prepared }) => describeWriteBatch(prepared.batch ?? { folder: "", writes: [] }, { toolId: "files_copy" }),
     run: async ({ ctx, prepared }) => {
       if (!prepared.files.length) return { applied: false, written: [], skipped: prepared.skipped };

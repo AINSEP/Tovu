@@ -17,48 +17,48 @@ export function registerSiteThemePreviewIpc(
       removeHandler: (channel: string) => void;
     };
     subscriptions: Pick<ReturnType<typeof createSiteThemePreviewSubscriptions>, 'watch'>;
-    allowed: (sender: PreviewSender) => boolean;
+    allowed: (required: { sender: PreviewSender }) => boolean;
   }, _optional = {},
 ): () => void {
   type Owner = { claims: Map<string, () => void>; destroy: () => void };
   const owners = new Map<PreviewSender, Owner>();
   // Every caller already holds the sender's live owner, and each path removes it (and its destroy
   // hook) before anything else, so an owner is released at most once.
-  const release = (sender: PreviewSender, owner: Owner) => {
+  const release = ({ sender, owner }: { sender: PreviewSender; owner: Owner }, _optional = {}) => {
     owners.delete(sender);
     sender.removeListener('destroyed', owner.destroy);
     for (const off of owner.claims.values()) off();
   };
-  const inputId = (input: unknown) => {
+  const inputId = ({ input }: { input: unknown }, _optional = {}) => {
     if (!input || typeof input !== 'object' || !('subscriptionId' in input)) return undefined;
     const { subscriptionId } = input;
     return typeof subscriptionId === 'string' && /^[\w-]{1,100}$/.test(subscriptionId) ? subscriptionId : undefined;
   };
   ipcMain.handle(channels.watch, ({ sender }, input) => {
-    const id = inputId(input);
-    if (!allowed(sender) || sender.isDestroyed() || !id) return;
+    const id = inputId({ input });
+    if (!allowed({ sender }) || sender.isDestroyed() || !id) return;
     const siteDir = watchSiteDirectory({ input });
     if (siteDir === undefined) return;
     let owner = owners.get(sender);
     if (!owner) {
-      const created: Owner = { claims: new Map(), destroy: () => release(sender, created) };
+      const created: Owner = { claims: new Map(), destroy: () => release({ sender, owner: created }) };
       owner = created;
       owners.set(sender, owner); sender.once('destroyed', owner.destroy);
     }
     if (owner.claims.has(id)) return;
-    owner.claims.set(id, subscriptions.watch({ siteDir, listener: (frame) => {
+    owner.claims.set(id, subscriptions.watch({ siteDir, listener: ({ frame }, _optional = {}) => {
       if (!sender.isDestroyed()) sender.send(channels.event, frame);
     } }));
   });
   ipcMain.handle(channels.unwatch, ({ sender }, input) => {
-    const id = inputId(input);
+    const id = inputId({ input });
     if (!id) return;
     const owner = owners.get(sender);
     owner?.claims.get(id)?.(); owner?.claims.delete(id);
-    if (owner?.claims.size === 0) release(sender, owner);
+    if (owner?.claims.size === 0) release({ sender, owner });
   });
   return () => {
-    for (const [sender, owner] of owners) release(sender, owner);
+    for (const [sender, owner] of owners) release({ sender, owner });
     ipcMain.removeHandler(channels.watch); ipcMain.removeHandler(channels.unwatch);
   };
 }

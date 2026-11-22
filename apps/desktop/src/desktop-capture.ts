@@ -4,6 +4,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 import { createElectronRenderService, type ElectronBrowserWindowFactory, type ElectronWebContentsLike, type ElectronUrlCapturePoolPort } from '@jini-ai/desktop-host/electron';
 import { RenderServiceError } from '@jini-ai/desktop-host';
+import { startRenderBridge } from '@jini-ai/desktop-host/render-bridge';
 
 /** Native bindings only; Jini owns rendering, bounds, request policy and destruction.
  * @complexity O(1), apart from Electron's page work.
@@ -30,7 +31,27 @@ export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (o
       // No preload, Electron APIs, popups, saved credentials or the operator's cookie jar.
       page.on('will-attach-webview', event => event.preventDefault());
       return {
-        webContents: {
+        webContents: createCaptureWebContentsAdapter(captureSession, page),
+        loadURL: ({ url }) => window.loadURL(url),
+        show: () => window.show(), hide: () => window.hide(), focus: () => window.focus(),
+        close: () => window.close(), isDestroyed: () => window.isDestroyed(),
+        destroy: () => {
+          window.destroy();
+          removeDownloadListener();
+        },
+        on: ({ listener }) => { window.on('closed', listener); },
+      };
+    } catch (error) {
+      // The render lifetime cannot dispose a window until this factory returns it.
+      removeDownloadListener();
+      window.destroy();
+      throw error;
+    }
+  };
+}
+
+function createCaptureWebContentsAdapter(captureSession: BrowserWindow["webContents"]["session"], page: BrowserWindow["webContents"]): ElectronWebContentsLike {
+  return {
           session: {
             clearStorageData: () => captureSession.clearStorageData(),
             clearCache: () => captureSession.clearCache(),
@@ -51,23 +72,7 @@ export function desktopCaptureWindowFactory({ createWindow }: { createWindow: (o
           getURL: () => page.getURL(), getTitle: () => page.getTitle(),
           executeJavaScript: expression => page.executeJavaScript(expression),
           debugger: { attach: version => page.debugger.attach(version), sendCommand: (method, params) => page.debugger.sendCommand(method, params) },
-        },
-        loadURL: ({ url }) => window.loadURL(url),
-        show: () => window.show(), hide: () => window.hide(), focus: () => window.focus(),
-        close: () => window.close(), isDestroyed: () => window.isDestroyed(),
-        destroy: () => {
-          window.destroy();
-          removeDownloadListener();
-        },
-        on: ({ listener }) => { window.on('closed', listener); },
-      };
-    } catch (error) {
-      // The render lifetime cannot dispose a window until this factory returns it.
-      removeDownloadListener();
-      window.destroy();
-      throw error;
-    }
-  };
+        };
 }
 
 /** One capability per spawned site; authenticated children may capture only loopback pages.
@@ -79,7 +84,6 @@ export async function startDesktopCaptureBridge({ createWindow, capturePool }: {
   createWindow: (options: BrowserWindowConstructorOptions) => BrowserWindow;
   capturePool: ElectronUrlCapturePoolPort;
 }, _options = {}) {
-  const { startRenderBridge } = await import('@jini-ai/desktop-host/render-bridge');
   const service = createElectronRenderService({ createBrowserWindow: desktopCaptureWindowFactory({ createWindow }), capturePool });
   return startRenderBridge({ capture: { async captureUrl(request, options) {
     const url = new URL(request.url);

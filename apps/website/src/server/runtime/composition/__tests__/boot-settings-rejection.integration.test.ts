@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { SqlSettingsRepo } from "#src/features/settings/repo";
+import { SqlSettingsRepo } from "@jini-ai/db/settings";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
 /**
@@ -33,10 +33,10 @@ test("a settings registration failing while provider boot is still pending is ne
   let close: (() => Promise<void>) | undefined;
   const siteDir = path.join(dir, "site");
   for (const folder of ["themes", "uploads"]) fs.mkdirSync(path.join(siteDir, folder), { recursive: true });
-  const pending = createSiteRouteDeps(path.join(dir, "content.db"), {
+  const pending = createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     themesDir: path.join(siteDir, "themes"), uploadsDir: path.join(siteDir, "uploads"),
     siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: store => { close = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     bootProviderPlugins: async (...args) => {
       // Several macrotask turns with the settings chain already rejected: Node reports an unobserved
       // rejection at the end of the turn it happened in.
@@ -45,7 +45,7 @@ test("a settings registration failing while provider boot is still pending is ne
       const { bootProviderPlugins } = await import("#src/server/runtime/composition/provider-plugins");
       return bootProviderPlugins(...args);
     },
-  });
+  } });
   t.after(() => close?.());
   await new Promise(resolve => setTimeout(resolve, 200));
   assert.deepEqual(unhandled.map(String), [], "the rejected settings tail is observed while composition is paused");

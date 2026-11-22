@@ -1,10 +1,10 @@
-import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
+import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import {
   InteractiveHtmlEditor,
   type CanvasEmbedPlaceholderDescriptor,
@@ -18,7 +18,7 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -29,7 +29,7 @@ import {
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
 import type { ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
-import type { ThemeTier } from "../../lib/api";
+import type { ThemeTier } from "../themes/api/themes-api.types";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
@@ -46,6 +46,7 @@ import {
   type PageSaveConflict,
 } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
  *
@@ -190,7 +191,7 @@ function PageEditorHeader({
           />
         </label>
         <a
-          href={siteUrl(livePath)}
+          href={siteUrl({ path: livePath })}
           target="_blank"
           rel="noreferrer"
           {...agentHandle({ handle: "page-view-live" }, { role: "link", label: "Open this page on the public site in a new tab" })}
@@ -218,7 +219,7 @@ function PageEditorHeader({
  * remains as the reason not to merge them).
  */
 /** "Save", marked with a bullet while there are unsaved changes. */
-function saveLabel(dirty: boolean, t: Translate): string {
+function saveLabel({ dirty, t }: { dirty: boolean; t: Translate }, _optional = {}): string {
   return dirty ? `${t("Save")} •` : t("Save");
 }
 
@@ -294,7 +295,7 @@ function PageEditorActions({
           disabled={saving}
           {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
         >
-          {saving ? t("Saving…") : saveLabel(dirty, t)}
+          {saving ? t("Saving…") : saveLabel({ dirty: dirty, t: t })}
         </button>
         <button
           type="button"
@@ -321,7 +322,7 @@ function PageEditorActions({
  * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
  * unless `usePageEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
  * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
- * a different tab/operator's work. `standingDraftRecoveryMessage` (`lib/standing-draft-recovery-message.ts`)
+ * a different tab/operator's work. `standingDraftRecoveryMessage` (`@jini-ai/ui/panel-kit`)
  * owns the actual wording decision so this component stays markup only.
  */
 function PageAutosaveRecoveryBanner({
@@ -399,7 +400,7 @@ function PageVersionConflictBanner({
         label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
       })}
     >
-      <p>{pageVersionConflictMessage(t, saveConflict)}</p>
+      <p>{pageVersionConflictMessage({ t, ...saveConflict })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -456,7 +457,7 @@ function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftS
           "unsaved changes are still here in the editor",
       })}
     >
-      <p>{pageAutosaveStaleBasisMessage(t, staleBasis)}</p>
+      <p>{pageAutosaveStaleBasisMessage({ t, ...staleBasis })}</p>
     </div>
   );
 }
@@ -628,7 +629,7 @@ function PageEditorToolbarEnd({
   onViewTemplateClick: () => void;
   t: Translate;
 }) {
-  const pickerValue = pagePickerValue(templateChoice, availableTemplates);
+  const pickerValue = pagePickerValue({ templateChoice, availableTemplates });
   return (
     <div className="page-editor-toolbar-end">
       {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
@@ -647,7 +648,7 @@ function PageEditorToolbarEnd({
               // `pickerValueToChoice`, not the raw `e.target.value` — translates the synthetic
               // `THEME_DEFAULT_SENTINEL` option back to `null`; every other value (a real filename, or
               // the bare `""`) already IS the `templateChoice` to store, see that function's own doc.
-              onChange={(e) => setTemplateChoice(pickerValueToChoice(e.target.value))}
+              onChange={(e) => setTemplateChoice(pickerValueToChoice({ value: e.target.value }))}
               {...agentHandle({ handle: "page-template-choice" }, {
                 role: "field",
                 label:
@@ -795,7 +796,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     onInteractiveSourceError,
     interactiveEditorRef,
     setHtmlFromCanvas,
-  } = usePageEditorHook(routeSlug);
+  } = usePageEditorHook({ routeSlug });
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
   const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PageEditorView) });
@@ -811,7 +812,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         setTitle={setTitle}
         slug={slug}
         setSlug={setSlug}
-        livePath={pagePublicPath(page.slug)}
+        livePath={pagePublicPath({ slug: page.slug })}
         t={t}
       />
 
@@ -1061,7 +1062,7 @@ function PageEditorPane({
   /** See `PageEditorController.setHtmlFromCanvas`. The `interactive` surface's `onChange`. */
   setHtmlFromCanvas: (value: string) => void;
 }) {
-  const surface = pageEditorSurface(view, canvasStyling);
+  const surface = pageEditorSurface({ view, canvasStyling });
   // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): logs which surface this pane renders,
   // keyed on `surface.kind` alone — not the whole `surface` object, which carries a fresh `styling`
   // reference every render — so this fires once per actual surface change, not once per render (this
@@ -1160,7 +1161,7 @@ function PageEditorPane({
  *    POSTs the working-copy `html` into `templatePreviewUrl` (`usePageEditor`'s pre-built URL,
  *    `port.templatePreviewUrl`/`lib/api.ts`'s own `templatePreviewUrl` — the admin-only render
  *    through the SAME pipeline as branch 1: `renderViaTemplate`,
- *    `routes/admin/posts/template-preview.ts`, looked up by id instead of by public slug), landing
+ *    `apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts`, looked up by id instead of by public slug), landing
  *    the response inside a same-named `<iframe>`. `POST`, not the plain `GET` `<iframe src>` this
  *    branch used before 2026-09-09, because a `GET` can only carry `templateChoice` on the query
  *    string — it cannot hand the endpoint this page's own PENDING, possibly-unsaved `html`, which is

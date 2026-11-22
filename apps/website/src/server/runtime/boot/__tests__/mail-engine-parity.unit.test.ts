@@ -7,13 +7,12 @@ import type { MailProviderCallContext, MailProviderModule } from "@jini-ai/platf
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import type { MailTestModeSetting } from "#src/features/settings/mail-provider";
+import type { MailTestModeSetting } from "#src/contracts/core/settings-vocabulary";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
-import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
-import { readMailDomain } from "@jini-ai/platform/mail";
+import { readMailDomain, credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";
 
 /** Post-sign-in parity freeze: plan mail-engine-to-jini + binding OPUS review, shard 1.

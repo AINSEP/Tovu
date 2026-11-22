@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, describeApiError, type AdminDockerfileSource } from "@/lib/api";
+import type { AdminDockerfileSource } from "@/features/deployment/api/deployment-api.types";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "../deployment-i18n";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Dockerfile tab does — load, edit, save, and the copy-to-clipboard
  * interaction — so `DockerfileTab.tsx` is only markup.
@@ -135,20 +137,14 @@ function readSaveConflictPayload(err: ApiError): { exists: boolean; contents: st
   };
 }
 
-export function useDockerfileSource(
-  port: DockerfileSourcePort,
-  t: Translate,
-  locale: string
-): DockerfileSourceController {
+/** Loads the file once and seeds the editable draft from it; later refetches never clobber an unsaved edit. */
+function useDockerfileDraft({ port, locale }: { port: DockerfileSourcePort; locale: string }) {
   const query = useFetchQuery({
     key: ["deployment", "dockerfile"],
     fetch: () => port.getDockerfileSource(),
   });
   const [snapshot, setSnapshot] = useState<AdminDockerfileSource | undefined>(undefined);
   const [draft, setDraft] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [saveConflict, setSaveConflict] = useState<{ exists: boolean; contents: string | null } | null>(null);
 
   // Seeds `snapshot`/`draft` from the query's first successful load, exactly once — a LATER
   // background refetch of the same `["deployment", "dockerfile"]` key (the 10s `staleTime` window,
@@ -164,18 +160,43 @@ export function useDockerfileSource(
   }, [query.status, query.data]);
 
   const error = query.error
-    ? dockerfileLoadErrorMessage(locale, describeApiError(query.error, "unknown error"))
+    ? dockerfileLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) })
     : null;
+
+  return { snapshot, setSnapshot, draft, setDraft, error };
+}
+
+/** The "Copied!" confirmation window and the clipboard write of the current draft. */
+function useDockerfileCopy({ draft }: { draft: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    if (!draft) return;
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) — see this file's header.
+    }
+  }
+
+  return { copied, copy };
+}
+
+type DockerfileDraft = ReturnType<typeof useDockerfileDraft>;
+
+/** Saving with an `If-Match` etag: duplicate-submit guard, 412 conflict capture and the transient "Saved" flag. */
+function useDockerfileSave({ port, locale, source }: { port: DockerfileSourcePort; locale: string; source: DockerfileDraft }) {
+  const { snapshot, setSnapshot, draft, setDraft } = source;
+  const [saved, setSaved] = useState(false);
+  const [saveConflict, setSaveConflict] = useState<{ exists: boolean; contents: string | null } | null>(null);
 
   // No `invalidates` — see this file's header for why a redundant re-`GET` of this hook's own read
   // key would be strictly worse than the response already in hand.
   const saveMutation = useFetchMutation({
-    run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input.contents, input.ifMatch),
+    run: ({ input }: { input: { contents: string; ifMatch: string } }) => port.setDockerfileSource(input),
   });
-
-  // No `translate`: this hook reads only `isDirty`, never the guard's translated leave-confirm, so
-  // the identity translator it used to pass was never called (and equals the guard's own default).
-  const { isDirty } = useDirtyGuard({ current: draft, original: snapshot ? (snapshot.contents ?? "") : null }, { host: window });
 
   // Synchronous duplicate-submit guard for `save()` — a ref, not the `saving` (state) value below,
   // because a true double-click/double-Enter can fire two `save()` calls in the same synchronous
@@ -188,17 +209,6 @@ export function useDockerfileSource(
   // operator never actually made twice on purpose — a self-inflicted version of the exact race this
   // whole change exists to close.
   const savingRef = useRef(false);
-
-  async function copy() {
-    if (!draft) return;
-    try {
-      await navigator.clipboard.writeText(draft);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context) — see this file's header.
-    }
-  }
 
   async function save() {
     // No etag to compare `ifMatch` against before the initial load has resolved — unreachable via
@@ -243,7 +253,7 @@ export function useDockerfileSource(
   }
 
   const saveError = saveMutation.error
-    ? dockerfileSaveErrorMessage(locale, describeApiError(saveMutation.error, "unknown error"))
+    ? dockerfileSaveErrorMessage({ locale, error: describeApiError({ e: saveMutation.error, fallback: "unknown error" }) })
     : null;
 
   async function reloadAfterConflict() {
@@ -260,20 +270,31 @@ export function useDockerfileSource(
     }
   }
 
+  return { saving: saveMutation.status === "pending", saveError, saveConflict, reloadAfterConflict, saved, save };
+}
+
+export function useDockerfileSource(
+  { port, t, locale }: { port: DockerfileSourcePort; t: Translate; locale: string },
+  _options = {},
+): DockerfileSourceController {
+  const source = useDockerfileDraft({ port, locale });
+  const { snapshot, draft, setDraft, error } = source;
+  // No `translate`: this hook reads only `isDirty`, never the guard's translated leave-confirm, so
+  // the identity translator it used to pass was never called (and equals the guard's own default).
+  const { isDirty } = useDirtyGuard({ current: draft, original: snapshot ? (snapshot.contents ?? "") : null }, { host: window });
+
+  const { copied, copy } = useDockerfileCopy({ draft });
+  const save = useDockerfileSave({ port, locale, source });
+
   return {
     snapshot,
     draft,
     setDraft,
     isDirty,
     error,
-    saving: saveMutation.status === "pending",
-    saveError,
-    saveConflict,
-    reloadAfterConflict,
-    saved,
+    ...save,
     copied,
     copy,
-    save,
     t,
   };
 }
@@ -286,5 +307,5 @@ export function useDockerfileSource(
 export function useWiredDockerfileSource(): DockerfileSourceController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useDockerfileSource(defaultDockerfileSourcePort, t, locale);
+  return useDockerfileSource({ port: defaultDockerfileSourcePort, t, locale });
 }

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useSitesConfig } from "../hooks/use-sites-config.hooks";
-import type { SitesUserConfig, SitesUserConfigPatch } from "@/lib/api";
+import type { SitesUserConfig, SitesUserConfigPatch } from "@/features/sites/api/sites-api.types";
 const config: SitesUserConfig = { sitesHome: "/old", siteRoots: ["/extra"], databases: "inSite", configPath: "/data/config.json", appData: "/data",
   overrides: { sitesHome: false, siteRoots: false }, warning: { provider: "OneDrive", message: "Exact warning", localHome: "/user/Tovu" } };
 const wrapper = ({ children }: { children: ReactNode }) => <FetchQueryProvider>{children}</FetchQueryProvider>;
@@ -14,7 +14,7 @@ it("loads shared settings, saves all fields and dispatches both warning remedies
   const { result } = renderHook(() => useSitesConfig({}, { port }), { wrapper });
   await act(async () => {});
   expect(result.current.config?.warning?.message).toBe("Exact warning");
-  act(() => { result.current.setHome("~/new"); result.current.setRoots("~/extra\n~/nested\n"); result.current.setDatabases("appData"); });
+  act(() => { result.current.setHome("~/new"); result.current.setRoots({ text: "~/extra\n~/nested\n" }); result.current.setDatabases("appData"); });
   await act(async () => { await result.current.save(); });
   expect(calls[0]).toEqual({ sitesHome: "~/new", siteRoots: ["~/extra", "~/nested"], databases: "appData" });
   await act(async () => { await result.current.useAppData(); });
@@ -41,9 +41,9 @@ it("edits extra folders as rows and drops blank rows on save", async () => {
   expect(result.current.rootList).toEqual(["/extra"]);
   act(() => result.current.addRoot());
   expect(result.current.rootList).toEqual(["/extra", ""]); expect(result.current.addedIndex).toBe(1);
-  act(() => result.current.setRootAt(1, " ~/more "));
+  act(() => result.current.setRootAt({ index: 1, value: " ~/more " }));
   act(() => result.current.addRoot());
-  act(() => result.current.removeRoot(0));
+  act(() => result.current.removeRoot({ index: 0 }));
   expect(result.current.rootList).toEqual([" ~/more ", ""]); expect(result.current.addedIndex).toBeNull();
   expect(result.current.roots).toBe(" ~/more \n");
   await act(async () => { await result.current.save(); });
@@ -57,7 +57,7 @@ it.each([new Error("Config cannot be read"), "Config cannot be read"])("reports 
   const { result } = renderHook(() => useSitesConfig({}, { port }), { wrapper });
   await waitFor(() => expect(result.current.error).toBe("Config cannot be read"));
   expect(result.current.config).toBeNull();
-  act(() => { result.current.setHome("/recovered"); result.current.setRoots(" /extra/recovered \n "); });
+  act(() => { result.current.setHome("/recovered"); result.current.setRoots({ text: " /extra/recovered \n " }); });
   await act(async () => { await result.current.save(); });
   expect(calls).toEqual([{ databases: "inSite", sitesHome: "/recovered", siteRoots: ["/extra/recovered"] }]);
   expect(result.current.config?.sitesHome).toBe("/recovered");

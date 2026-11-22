@@ -47,7 +47,7 @@ function readRegisteredEntries({ workspace }: { workspace: SitesWorkspace }, _op
     try {
       const dir = fs.realpathSync(entry.path);
       if (!fs.statSync(dir).isDirectory() || dir.split(path.sep).includes("site-trash")) continue;
-      const meta = readSiteMetaJson(dir);
+      const meta = readSiteMetaJson({ siteDir: dir });
       if (typeof meta?.siteId === "string" && meta.siteId) entries.push({ siteId: meta.siteId, name: entry.name, dir, registeredId: entry.id });
     } catch { /* Missing/unreadable folders are unavailable choices, never repaired here. */ }
   }

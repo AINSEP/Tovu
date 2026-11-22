@@ -1,13 +1,13 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 
 import { useAgentPluginDisableConfirm } from "./hooks/use-agent-plugin-disable-confirm.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Confirmation gate in front of the SAME underlying operation from two different controls.
  * There is no admin uninstall route — the only two agent-plugins routes are `GET .../agent-plugins`
  * (list) and `PATCH .../agent-plugins/:pluginId` (set-enabled); `uninstallAgentPlugin()`
- * (`features/agent-plugins/uninstall.ts`) is reachable only from an assistant tool and refuses every
+ * (`Jini packages/agent-plugins/src/lifecycle/uninstall.ts`) is reachable only from an assistant tool and refuses every
  * bundled package outright — see `AgentPluginRow`'s own header for why its trash icon is honestly
  * disabled for that reason. So "remove this plugin", mechanically, is what turning it off already
  * does: `resolveAgentPluginRefs()` refuses to pin a disabled plugin into a run, which is the only
@@ -75,46 +75,22 @@ export function AgentPluginDisableConfirmDialog({
   const confirmWord = variant === "remove" ? "Turn off" : "Disable";
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{copy.title}</h2>
-        <p>{copy.body}</p>
-        {copy.dependents ? <p>{copy.dependents}</p> : null}
-        <span className="editor-actions">
-          {/* Cancel is the default-focused control, matching `ExternalMcpRemoveConfirmDialog`'s own
-              "the interrupting action is never the default" precedent. */}
-          <button
-            type="button"
-            className="btn-secondary"
-            autoFocus
-            onClick={onCancel}
-            {...agentHandle({ handle: `${agentHandleBase}-${variant}-cancel` }, {
-              role: "button",
-              label: `Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`,
-            })}
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={onConfirm}
-            {...agentHandle({ handle: `${agentHandleBase}-${variant}-confirm` }, {
-              role: "button",
-              label: variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`,
-            })}
-          >
-            {t(confirmWord)}
-          </button>
-        </span>
-      </div>
-    </div>
+    /* Cancel is the default-focused control, matching `ExternalMcpRemoveConfirmDialog`'s own
+       "the interrupting action is never the default" precedent. */
+    <ConfirmActionDialog
+      dialogRef={dialogRef}
+      titleId={titleId}
+      title={copy.title}
+      body={copy.body}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      extra={copy.dependents}
+      cancelText={t("Cancel")}
+      confirmText={t(confirmWord)}
+      cancelHandle={`${agentHandleBase}-${variant}-cancel`}
+      cancelAgentLabel={`Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`}
+      confirmHandle={`${agentHandleBase}-${variant}-confirm`}
+      confirmAgentLabel={variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`}
+    />
   );
 }

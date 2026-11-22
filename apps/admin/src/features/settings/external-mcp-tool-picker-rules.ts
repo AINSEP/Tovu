@@ -1,8 +1,9 @@
-import { ApiError, describeApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The write-tool picker's own decisions, with no React in it — the `rules.ts` convention this
  * feature already follows (`features/settings/rules.ts`, `external-mcp-admissions-rules.ts`).
@@ -42,7 +43,7 @@ import { parseSavedToolNames } from "./external-mcp-admissions-rules";
  */
 
 /**
- * The exact prefix `mcp-federation/trust.ts`'s `describeFederatedTool` (R6) stamps onto every
+ * The exact prefix `Jini packages/mcp/src/federation/trust.ts`'s `describeFederatedTool` (R6) stamps onto every
  * federated tool's description before it ever reaches the model — provenance the MODEL needs, since
  * it cannot otherwise tell a remote's self-description from Tovu's own instructions. `row.description`
  * carries that same wrapped string (`describeRemoteToolSurface` reuses `describeFederatedTool`
@@ -70,7 +71,7 @@ const EXTERNAL_TOOL_WRAPPER_PREFIX = /^\[EXTERNAL TOOL — provided by '.*?\. Th
  *
  * @complexity O(n) in the description length (one regex match).
  */
-export function displayToolDescription(description: string): string {
+export function displayToolDescription({ description }: { description: string }, _options = {}): string {
   return description.replace(EXTERNAL_TOOL_WRAPPER_PREFIX, "");
 }
 
@@ -98,13 +99,13 @@ const PROBE_UNSUPPORTED_TRANSPORT_CODE = "PROBE_UNSUPPORTED_TRANSPORT";
  *
  * @complexity O(1).
  */
-export function describeProbeUnreachable(error: unknown, t: Translate): string {
+export function describeProbeUnreachable({ error, t }: { error: unknown; t: Translate }, _options = {}): string {
   if (error instanceof ApiError && error.code === PROBE_UNSUPPORTED_TRANSPORT_CODE) {
     return t(
       "This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead.",
     );
   }
-  return describeApiError(error, t("Could not reach this server. You can still type tool names by hand."));
+  return describeApiError({ e: error, fallback: t("Could not reach this server. You can still type tool names by hand.") });
 }
 
 /** Where a row came from — an advertised tool the probe returned, or a name only the saved lists
@@ -146,7 +147,7 @@ export interface ToolPickerRow {
  *
  * @complexity O(1).
  */
-export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry): boolean {
+export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry, _optional: Record<string, never> = {}): boolean {
   return !tool.writeDeclared && !tool.destructiveDeclared && !tool.hintsAbsent;
 }
 
@@ -154,7 +155,7 @@ export function isRecommendedByDefault(tool: AdminRemoteToolSurfaceEntry): boole
  *  INV-003 / D-1. Locked rows still RENDER their saved value; they just cannot be changed here.
  *
  *  @complexity O(1). */
-export function isToolRowLocked(row: ToolPickerRow): boolean {
+export function isToolRowLocked(row: ToolPickerRow, _optional: Record<string, never> = {}): boolean {
   return row.destructiveDeclared;
 }
 
@@ -162,10 +163,13 @@ export function isToolRowLocked(row: ToolPickerRow): boolean {
  *  so that function stays a flat map with no branching of its own, per this app's 9/9 complexity
  *  ceiling. `applyDefaults` is the caller's already-made decision, not re-derived per tool. */
 function advertisedRow(
-  tool: AdminRemoteToolSurfaceEntry,
-  allowed: ReadonlySet<string>,
-  write: ReadonlySet<string>,
-  applyDefaults: boolean,
+  { tool, allowed, write, applyDefaults }: {
+    tool: AdminRemoteToolSurfaceEntry;
+    allowed: ReadonlySet<string>;
+    write: ReadonlySet<string>;
+    applyDefaults: boolean;
+  },
+  _options = {},
 ): ToolPickerRow {
   return {
     remoteName: tool.remoteName,
@@ -183,7 +187,7 @@ function advertisedRow(
  *  because the remote said nothing at all — not because it declared the tool safe. The component
  *  labels these with the dictionary's existing "This server does not offer a tool by that name."
  *  rather than with any of the annotation badges. */
-function absentRow(remoteName: string, write: ReadonlySet<string>): ToolPickerRow {
+function absentRow({ remoteName, write }: { remoteName: string; write: ReadonlySet<string> }, _options = {}): ToolPickerRow {
   return {
     remoteName,
     description: "",
@@ -209,24 +213,27 @@ function absentRow(remoteName: string, write: ReadonlySet<string>): ToolPickerRo
  * owner's "existing servers do not change" rule, expressed as a condition that cannot be got wrong
  * by mistaking a configured server for a fresh one.
  *
- * @param tools - The probe's advertised surface (C-007). Empty when the probe has not run or failed.
- * @param allowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
- * @param writeAllowedToolNames - The roster card's own `writeAllowedToolNames` field, verbatim.
+ * @param input.tools - The probe's advertised surface (C-007). Empty when the probe has not run or failed.
+ * @param input.allowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
+ * @param input.writeAllowedToolNames - The roster card's own `writeAllowedToolNames` field, verbatim.
  * @complexity O(t + s) in advertised tools and saved names.
  */
 export function seedToolPickerRows(
-  tools: readonly AdminRemoteToolSurfaceEntry[],
-  allowedToolNames: string | undefined,
-  writeAllowedToolNames: string | undefined,
+  { tools, allowedToolNames, writeAllowedToolNames }: {
+    tools: readonly AdminRemoteToolSurfaceEntry[];
+    allowedToolNames: string | undefined;
+    writeAllowedToolNames: string | undefined;
+  },
+  _options = {},
 ): ToolPickerRow[] {
-  const savedAllowed = parseSavedToolNames(allowedToolNames);
+  const savedAllowed = parseSavedToolNames({ value: allowedToolNames });
   const allowed = new Set(savedAllowed);
-  const write = new Set(parseSavedToolNames(writeAllowedToolNames));
+  const write = new Set(parseSavedToolNames({ value: writeAllowedToolNames }));
   const applyDefaults = savedAllowed.length === 0;
 
-  const advertised = tools.map((tool) => advertisedRow(tool, allowed, write, applyDefaults));
+  const advertised = tools.map((tool) => advertisedRow({ tool, allowed, write, applyDefaults }));
   const advertisedNames = new Set(tools.map((tool) => tool.remoteName));
-  const absent = savedAllowed.filter((name) => !advertisedNames.has(name)).map((name) => absentRow(name, write));
+  const absent = savedAllowed.filter((name) => !advertisedNames.has(name)).map((name) => absentRow({ remoteName: name, write }));
   return [...advertised, ...absent];
 }
 
@@ -236,10 +243,13 @@ export function seedToolPickerRows(
  *  `destructiveHint` is exactly the state the lock exists to stop the picker creating (this module's
  *  header), and leaving it in the draft would let the next Save persist it. */
 function refreshedRow(
-  row: ToolPickerRow,
-  tool: AdminRemoteToolSurfaceEntry,
-  allowed: ReadonlySet<string>,
-  write: ReadonlySet<string>,
+  { row, tool, allowed, write }: {
+    row: ToolPickerRow;
+    tool: AdminRemoteToolSurfaceEntry;
+    allowed: ReadonlySet<string>;
+    write: ReadonlySet<string>;
+  },
+  _options = {},
 ): ToolPickerRow {
   const newlyLocked = tool.destructiveDeclared && !row.destructiveDeclared;
   return {
@@ -263,24 +273,27 @@ function refreshedRow(
  * refresh newly locks falls back to its saved value (see {@link refreshedRow}). Rows the probe does
  * not advertise (`absent`) are left as they are.
  *
- * @param rows - The current draft.
- * @param tools - The re-probe's advertised surface.
- * @param allowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
- * @param writeAllowedToolNames - The roster card's own `writeAllowedToolNames` field, verbatim.
+ * @param input.rows - The current draft.
+ * @param input.tools - The re-probe's advertised surface.
+ * @param input.allowedToolNames - The roster card's own `allowedToolNames` field, verbatim.
+ * @param input.writeAllowedToolNames - The roster card's own `writeAllowedToolNames` field, verbatim.
  * @complexity O(n + t) in row count and advertised tools.
  */
 export function refreshToolRowDeclarations(
-  rows: readonly ToolPickerRow[],
-  tools: readonly AdminRemoteToolSurfaceEntry[],
-  allowedToolNames: string | undefined,
-  writeAllowedToolNames: string | undefined,
+  { rows, tools, allowedToolNames, writeAllowedToolNames }: {
+    rows: readonly ToolPickerRow[];
+    tools: readonly AdminRemoteToolSurfaceEntry[];
+    allowedToolNames: string | undefined;
+    writeAllowedToolNames: string | undefined;
+  },
+  _options = {},
 ): ToolPickerRow[] {
   const byName = new Map(tools.map((tool) => [tool.remoteName, tool]));
-  const allowed = new Set(parseSavedToolNames(allowedToolNames));
-  const write = new Set(parseSavedToolNames(writeAllowedToolNames));
+  const allowed = new Set(parseSavedToolNames({ value: allowedToolNames }));
+  const write = new Set(parseSavedToolNames({ value: writeAllowedToolNames }));
   return rows.map((row) => {
     const tool = row.kind === "advertised" ? byName.get(row.remoteName) : undefined;
-    return tool ? refreshedRow(row, tool, allowed, write) : row;
+    return tool ? refreshedRow({ row, tool, allowed, write }) : row;
   });
 }
 
@@ -297,7 +310,14 @@ export function refreshToolRowDeclarations(
  *
  * @complexity O(n) in row count.
  */
-export function setToolRowEnabled(rows: readonly ToolPickerRow[], remoteName: string, enabled: boolean): ToolPickerRow[] {
+export function setToolRowEnabled(
+  { rows, remoteName, enabled }: {
+    rows: readonly ToolPickerRow[];
+    remoteName: string;
+    enabled: boolean;
+  },
+  _options = {},
+): ToolPickerRow[] {
   return rows.map((row) => {
     if (row.remoteName !== remoteName || isToolRowLocked(row)) return row;
     return { ...row, enabled, mayWrite: enabled && row.mayWrite };
@@ -314,7 +334,14 @@ export function setToolRowEnabled(rows: readonly ToolPickerRow[], remoteName: st
  *
  * @complexity O(n) in row count.
  */
-export function setToolRowMayWrite(rows: readonly ToolPickerRow[], remoteName: string, mayWrite: boolean): ToolPickerRow[] {
+export function setToolRowMayWrite(
+  { rows, remoteName, mayWrite }: {
+    rows: readonly ToolPickerRow[];
+    remoteName: string;
+    mayWrite: boolean;
+  },
+  _options = {},
+): ToolPickerRow[] {
   return rows.map((row) => {
     if (row.remoteName !== remoteName || isToolRowLocked(row)) return row;
     return { ...row, mayWrite, enabled: mayWrite || row.enabled };
@@ -325,7 +352,7 @@ export function setToolRowMayWrite(rows: readonly ToolPickerRow[], remoteName: s
  *  count the owner asked to be visible without scrolling a 101-tool list.
  *
  *  @complexity O(n) in row count. */
-export function countEnabledToolRows(rows: readonly ToolPickerRow[]): number {
+export function countEnabledToolRows({ rows }: { rows: readonly ToolPickerRow[] }, _optional: Record<string, never> = {}): number {
   return rows.filter((row) => row.enabled).length;
 }
 
@@ -341,7 +368,7 @@ export function countEnabledToolRows(rows: readonly ToolPickerRow[]): number {
  *
  * @complexity O(n) in row count.
  */
-export function toolPickerFieldValues(rows: readonly ToolPickerRow[]): {
+export function toolPickerFieldValues({ rows }: { rows: readonly ToolPickerRow[] }, _optional: Record<string, never> = {}): {
   allowedToolNames: string;
   writeAllowedToolNames: string;
 } {
@@ -368,15 +395,18 @@ export function toolPickerFieldValues(rows: readonly ToolPickerRow[]): {
  *
  *  @complexity O(n) in row count. */
 export function isToolPickerDirty(
-  rows: readonly ToolPickerRow[],
-  allowedToolNames: string | undefined,
-  writeAllowedToolNames: string | undefined,
+  { rows, allowedToolNames, writeAllowedToolNames }: {
+    rows: readonly ToolPickerRow[];
+    allowedToolNames: string | undefined;
+    writeAllowedToolNames: string | undefined;
+  },
+  _options = {},
 ): boolean {
-  const next = toolPickerFieldValues(rows);
-  const savedAllowed = new Set(parseSavedToolNames(allowedToolNames));
-  const savedWrite = new Set(parseSavedToolNames(writeAllowedToolNames).filter((name) => savedAllowed.has(name)));
-  return !sameNames(parseSavedToolNames(next.allowedToolNames), savedAllowed)
-    || !sameNames(parseSavedToolNames(next.writeAllowedToolNames), savedWrite);
+  const next = toolPickerFieldValues({ rows });
+  const savedAllowed = new Set(parseSavedToolNames({ value: allowedToolNames }));
+  const savedWrite = new Set(parseSavedToolNames({ value: writeAllowedToolNames }).filter((name) => savedAllowed.has(name)));
+  return !sameNames(parseSavedToolNames({ value: next.allowedToolNames }), savedAllowed)
+    || !sameNames(parseSavedToolNames({ value: next.writeAllowedToolNames }), savedWrite);
 }
 
 function sameNames(names: readonly string[], saved: ReadonlySet<string>): boolean {

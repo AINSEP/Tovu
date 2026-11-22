@@ -238,7 +238,7 @@ test("2026-10-05: a dev site whose .site-meta.json holds only the site-key field
   const keyDir = path.join(tempHome, ".tovu", "site-keys");
   fs.mkdirSync(keyDir, { recursive: true, mode: 0o700 });
   fs.writeFileSync(path.join(keyDir, `${siteKeyId}.hex`), keyHex, { mode: 0o600 });
-  const fingerprint = fingerprintSiteKeyHex(keyHex);
+  const fingerprint = fingerprintSiteKeyHex({ hex: keyHex });
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteKeyId, siteKeyFingerprint: fingerprint }, null, 2));
 
   const port = await getFreePort();

@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { ApiError } from "./admin-http/request";
 
 /**
  * @file The one classifier for "this save lost a compare-and-set", shared by every editor whose
@@ -25,6 +25,44 @@ export const VERSION_CONFLICT_MESSAGE =
  *
  * @complexity Time/space: O(1).
  */
-export function isVersionConflict(error: unknown): error is ApiError {
+export function isVersionConflict(required: { error: unknown }, _optional: Record<string, never> = {}): required is { error: ApiError } {
+  const { error } = required;
   return error instanceof ApiError && error.status === 409 && error.code === VERSION_CONFLICT_CODE;
+}
+
+/** A rejected save whose basis version had already been superseded. */
+export interface SaveConflict {
+  /** The version the editor believed it was editing. `null` only if the server omitted it. */
+  expectedVersion: number | null;
+  /** The version actually stored now — what the other operator's save produced. `null` only if the
+   *  server omitted it. */
+  currentVersion: number | null;
+  /** The `statusOverride` (called `nextStatus` by the page editor) the rejected save was attempting, carried so an explicit retry re-runs the
+   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
+  attemptedStatus: "draft" | "published" | undefined;
+}
+
+/**
+ * Classifies a caught save error: the version conflict, or `null` for everything else (including the
+ * slug-uniqueness 409, which is the same status from the same error class and must NOT take this
+ * branch — that is the trap this function exists to close).
+ *
+ * Reads both versions out of the response `details` rather than parsing the message prose, and
+ * tolerates their absence (`null`) rather than throwing: an older server that returns the code
+ * without the detail bag must still produce a conflict the editor reacts to, since misreading a
+ * conflict as an ordinary error is what loses an operator's work.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function readVersionConflict(
+  required: { error: unknown; attemptedStatus: "draft" | "published" | undefined },
+  _optional: Record<string, never> = {},
+): SaveConflict | null {
+  if (!isVersionConflict(required)) return null;
+  const details = (required.error.body?.details ?? {}) as Record<string, unknown>;
+  return {
+    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
+    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
+    attemptedStatus: required.attemptedStatus,
+  };
 }

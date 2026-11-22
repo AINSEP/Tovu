@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 
 import { chatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
-import { closeSqliteConnection, openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { closeSqliteConnection, openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
@@ -51,7 +52,7 @@ const PGLITE_CLIENT_WAIT_MS = 60_000;
 
 /** A storage kind this build cannot open yet. */
 export class StorageNotAvailableError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "StorageNotAvailableError";
   }
@@ -67,8 +68,8 @@ export class StorageNotAvailableError extends Error {
  */
 export async function openSiteStore(required: OpenSiteStoreRequired, optional: OpenSiteStoreOptional = {}): Promise<SiteStore> {
   const { storage } = required;
-  if (storage.kind === "pglite") return openPgliteSiteStore(storage, required, optional);
-  if (storage.kind === "postgres") return openPostgresSiteStore(storage, required, optional);
+  if (storage.kind === "pglite") return openPgliteSiteStore({ storage, required }, optional);
+  if (storage.kind === "postgres") return openPostgresSiteStore({ storage, required }, optional);
   const ownsDb = optional.db === undefined;
   const sqliteOptions = optional.sqliteOpen ? { open: optional.sqliteOpen } : {};
   const db = optional.db ?? (await openSiteContentDb({ dbPath: required.dbPath }, sqliteOptions));
@@ -76,17 +77,17 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   try {
     chatDb = await openSiteChatDb({ filePath: required.chatDbPath }, sqliteOptions);
   } catch (err) {
-    if (ownsDb) closeSqliteConnection(db);
+    if (ownsDb) closeSqliteConnection({ source: db });
     throw err;
   }
   return {
     storage,
-    content: contentKernel(db),
-    chat: chatKernel(chatDb),
+    content: contentKernel({ store: db }),
+    chat: chatKernel({ store: chatDb }),
     sqliteDb: db,
     close: async () => {
-      closeSqliteConnection(chatDb);
-      if (ownsDb) closeSqliteConnection(db);
+      closeSqliteConnection({ source: chatDb });
+      if (ownsDb) closeSqliteConnection({ source: db });
     },
   };
 }
@@ -96,12 +97,11 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
  * (`ai_chat`) → watermark row + first-run demo seed. Closes the pool when any step fails.
  */
 async function openPostgresSiteStore(
-  storage: Extract<SiteStorage, { kind: "postgres" }>,
-  required: OpenSiteStoreRequired,
+  { storage, required }: { storage: Extract<SiteStorage, { kind: "postgres" }>; required: OpenSiteStoreRequired },
   optional: OpenSiteStoreOptional
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a postgres site");
-  const connectionString = await resolvePostgresConnectionString(storage, { siteDir: dirname(required.dbPath) }, optional);
+  const connectionString = await resolvePostgresConnectionString({ storage, siteDir: dirname(required.dbPath) }, optional);
   const base = openPostgresKernel<unknown>({ connectionString });
   return preparePgStore({ storage, base, close: () => base.close(), seed: optional.seed });
 }
@@ -113,8 +113,7 @@ async function openPostgresSiteStore(
  * to do). The owner stops serving when the store closes or any step fails.
  */
 async function openPgliteSiteStore(
-  storage: Extract<SiteStorage, { kind: "pglite" }>,
-  required: OpenSiteStoreRequired,
+  { storage, required }: { storage: Extract<SiteStorage, { kind: "pglite" }>; required: OpenSiteStoreRequired },
   optional: OpenSiteStoreOptional
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a pglite site");
@@ -123,8 +122,8 @@ async function openPgliteSiteStore(
   // dir: it unlinks whatever sits at its socket path, which is only safe when that path is its own.
   const fromEnv = (optional.env ?? process.env)[PG_SOCKET_ENV]?.trim();
   let owner: PgliteOwner | undefined;
-  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir: defaultPgliteSocketDir(dataDir) });
-  const socketPath = owner?.socketPath ?? (fromEnv || join(defaultPgliteSocketDir(dataDir), PGLITE_SOCKET_FILE));
+  if (required.role === "owner") owner = await startPgliteOwner({ dataDir }, { socketDir: defaultPgliteSocketDir({ dataDir }) });
+  const socketPath = owner?.socketPath ?? (fromEnv || join(defaultPgliteSocketDir({ dataDir }), PGLITE_SOCKET_FILE));
   const stopOwner = async () => {
     await owner?.close();
   };
@@ -159,9 +158,7 @@ async function waitForPgliteSocket(
   const deadline = Date.now() + (optional.waitMs ?? PGLITE_CLIENT_WAIT_MS);
   while (!existsSync(socketPath)) {
     if (Date.now() >= deadline) {
-      throw new StorageNotAvailableError(
-        `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry`
-      );
+      throw new StorageNotAvailableError({ message: `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry` });
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
@@ -174,7 +171,7 @@ async function waitForPgliteSocket(
  */
 async function preparePgStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
-  base: StorageKernel<unknown>;
+  base: KyselyKernel<unknown>;
   close: () => Promise<void>;
   seed?: ContentDbSeedData;
 }): Promise<SiteStore> {
@@ -183,14 +180,14 @@ async function preparePgStore(required: {
   // The same connection(s), typed per history: the content tables here, the chat tables via `pgChatKernel`.
   const content = base as ContentKernel;
   try {
-    const report = await migrateContentDatabase(base);
+    const report = await migrateContentDatabase({ kernel: base });
     for (const note of report.notes) console.log(`[migrations] ${note}`);
-    await migrateChatDatabase(base);
-    await prepareContentStore(content, { seed });
+    await migrateChatDatabase({ kernel: base });
+    await prepareContentStore({ kernel: content }, { seed });
     await runBootDataRepairs({ kernel: content });
   } catch (err) {
     await close();
     throw err;
   }
-  return { storage, content, chat: pgChatKernel(base), close };
+  return { storage, content, chat: pgChatKernel({ kernel: base }), close };
 }

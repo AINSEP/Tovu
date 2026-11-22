@@ -1,4 +1,9 @@
-import { VaultError, type VaultBatchOp, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultBatchOp,
+  type VaultRecord,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-contracts.js";
 
@@ -67,10 +72,10 @@ function rowIdentity({ record, existing }: { record: MediaProviderCredentialReco
 /** Safe hints describe one envelope: they survive only while every envelope field is unchanged. */
 function preservedHints({ hint, sealed }: { hint?: VaultPutRecord; sealed: VaultPutRecord["sealed"] }, _options = {}) {
   const stored = hint?.sealed;
-  if (stored == null || sealed === null) return { last4: null, tokenLength: null };
+  if (hint === undefined || stored == null || sealed === null) return { last4: null, tokenLength: null };
   const unchanged = stored.keyId === sealed.keyId &&
     stored.ciphertext === sealed.ciphertext && stored.nonce === sealed.nonce && stored.alg === sealed.alg;
-  return unchanged ? { last4: hint!.last4, tokenLength: hint!.tokenLength } : { last4: null, tokenLength: null };
+  return unchanged ? { last4: hint.last4, tokenLength: hint.tokenLength } : { last4: null, tokenLength: null };
 }
 
 /** CAS bookkeeping a replacement inherits from the stored row, or a first row's defaults. */
@@ -83,7 +88,7 @@ function carriedFromExisting({ record, existing }: { record: MediaProviderCreden
 export class MediaProviderCredentialVaultRepo implements MediaProviderCredentialRepoPort {
   readonly vault: VaultRepoPort;
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
-  async listByWorkspaceId(workspaceId: string): Promise<MediaProviderCredentialRecord[]> {
+  async listByWorkspaceId({ workspaceId }: { workspaceId: string }): Promise<MediaProviderCredentialRecord[]> {
     return (await this.vault.list(mediaVaultScope({ workspaceId }))).map(row => mediaVaultRecord({ row }));
   }
   private row({ record, existing }: { record: MediaProviderCredentialRecord; existing?: VaultRecord }, _options = {}): VaultRecord {
@@ -107,8 +112,8 @@ export class MediaProviderCredentialVaultRepo implements MediaProviderCredential
   async replaceWorkspace(input: { workspaceId: string; plan: MediaProviderCredentialReplacePlanner }): Promise<readonly MediaProviderCredentialRecord[]> {
     if (!this.vault.applyBatch) throw new VaultError({ code: "invalid-record" });
     const current = await this.vault.list(mediaVaultScope(input));
-    const byProvider = new Map(current.map(row => [row.provider!, row]));
-    const plan = input.plan(current.map(row => mediaVaultRecord({ row })));
+    const byProvider = new Map(current.map(row => [ownedProviderId({ row }), row]));
+    const plan = input.plan({ existing: current.map(row => mediaVaultRecord({ row })) });
     const ops: VaultBatchOp[] = plan.upserts.map(record => {
       if (record.workspaceId !== input.workspaceId) throw new VaultError({ code: "context" });
       const existing = byProvider.get(record.providerId);

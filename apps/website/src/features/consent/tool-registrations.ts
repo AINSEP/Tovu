@@ -51,7 +51,7 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
         return { config: parseConsentConfig({ value: input.config }), previous: state.draft?.config ?? state.effective, expectedDraftId: consentRevisionToken({ input, key: 'expectedDraftId' }) };
       },
       describe: ({ prepared }) => ({ toolId: 'consent_update_settings', errorCode: 'CONSENT', title: 'Save this cookie consent draft?', details: [{ label: 'Configuration', value: prepared.config, previous: prepared.previous }], confirmLabel: 'Save draft' }),
-      run: ({ ctx, prepared }) => service().saveDraft({ principalId: ctx.principal.id, config: prepared.config, expectedDraftId: prepared.expectedDraftId }),
+      run: ({ ctx, prepared }) => service().saveDraft({ principalId: ctx.principal.id, config: prepared.config, expectedDraftId: prepared.expectedDraftId, signal: ctx.signal }),
     }, { flag: 'saved' }),
     consent_publish_settings: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
@@ -62,7 +62,7 @@ export function buildConsentRegistrations(deps: ConsentToolDeps, surfaces: Assis
         return { draftId, expectedPublishedId: consentRevisionToken({ input, key: 'expectedPublishedId' }), config: parseConsentConfig({ value: state.draft.config }), previous: state.effective };
       },
       describe: ({ prepared }) => ({ toolId: 'consent_publish_settings', errorCode: 'CONSENT', title: 'Publish this cookie consent policy?', details: [{ label: 'Revision', value: prepared.draftId }, { label: 'Configuration', value: prepared.config, previous: prepared.previous }], warning: prepared.config.enabled ? 'Visitors will be asked again for this policy revision.' : 'The banner and declared-script consent will be disabled. Optional scripts may run without a visitor choice.', confirmLabel: 'Publish policy' }),
-      run: ({ ctx, prepared }) => service().publish({ principalId: ctx.principal.id, draftId: prepared.draftId, expectedPublishedId: prepared.expectedPublishedId }),
+      run: ({ ctx, prepared }) => service().publish({ principalId: ctx.principal.id, draftId: prepared.draftId, expectedPublishedId: prepared.expectedPublishedId, signal: ctx.signal }),
     }, { flag: 'published' }),
   } });
 }

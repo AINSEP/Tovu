@@ -10,11 +10,14 @@
  * from healthy ingestion (`receiving`), because a webhook nobody has called looks the same as a
  * broken one until the first event arrives.
  */
-import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type {
+  OriginRegistryPort,
+  VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
-import { listCustomCredentials } from "../custom-credentials/store.js";
-import { mailWebhookSecretLabels } from "../mail/feedback-sources.js";
-import type { MailSuppressionAdminRepo } from "../mail/suppression-admin.repo.js";
+import { listCustomCredentials } from "../custom-credentials/index.js";
+import { mailWebhookSecretLabels } from "../mail/index.js";
+import type { MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import type { MailProviderConfiguration, MailProviderControl } from "../../platform/mail/index.js";
 
 export interface MailFeedbackSetupDeps {
@@ -78,7 +81,7 @@ function stateOf(setup: Pick<MailFeedbackProviderSetup, "supported" | "signingSe
   return setup.lastVerifiedEvent ? "receiving" : "no_events_yet";
 }
 
-async function providerSetup(deps: MailFeedbackSetupDeps, provider: MailProviderConfiguration, context: { origin: string | null; saved: Map<string, string> }): Promise<MailFeedbackProviderSetup> {
+async function providerSetup({ deps, provider, context }: { deps: MailFeedbackSetupDeps; provider: MailProviderConfiguration; context: { origin: string | null; saved: Map<string, string> } }, _optional = {}): Promise<MailFeedbackProviderSetup> {
   const supported = provider.capabilities.feedback;
   const webhookPath = `/hooks/mail/${encodeURIComponent(provider.id)}`;
   const [current, previous] = mailWebhookSecretLabels({ providerLabel: provider.label });
@@ -101,5 +104,5 @@ export async function readMailFeedbackSetup(deps: MailFeedbackSetupDeps, _option
   const records = deps.customCredentialSetRepo ? await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId }) : [];
   const saved = new Map(records.map((record) => [record.label, record.updatedAt] as const));
   const origin = await siteOrigin(deps);
-  return { available: true, providers: await Promise.all(active.map((provider) => providerSetup(deps, provider, { origin, saved }))) };
+  return { available: true, providers: await Promise.all(active.map((provider) => providerSetup({ deps, provider, context: { origin, saved } }))) };
 }

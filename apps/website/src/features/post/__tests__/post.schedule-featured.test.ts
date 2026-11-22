@@ -4,19 +4,11 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { comparePostsByDisplayDate, currentIso, isLiveAt, isScheduledAt, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
-import {
-  createPost,
-  findPublishedPostById,
-  findPublishedPostBySlug,
-  getPublishedPostBySlug,
-  listPublishedPostPreviews,
-  listPublishedPosts,
-  normalizePublishAt,
-  PostNotFoundError,
-  PostValidationError,
-  updatePost,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { findPublishedPostById, findPublishedPostBySlug, getPublishedPostBySlug, listPublishedPostPreviews, listPublishedPosts } from "../post-read.js";
+import { normalizePublishAt } from "../post-write-fields.js";
+import { PostNotFoundError, PostValidationError, type PostRepoPort } from "../post.js";
+import { updatePost } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postRepoFor } from "../repo.js";
 
@@ -95,20 +87,20 @@ function runContract(name: string, withRepo: () => Promise<{ repo: PostRepoPort;
   });
 }
 
-runContract("memory", async () => ({ repo: new InMemoryPostRepo(), teardown: () => {} }));
+runContract("memory", async () => ({ repo: new InMemoryPostRepo({}), teardown: () => {} }));
 
 describeEachDialect<PostRepoPort>("post schedule/featured", { tables: ["posts", "post_revisions"], make: postRepoFor }, (makeRepo) => {
   runContract("sql", async () => ({ repo: makeRepo(), teardown: () => {} }));
 });
 
 test("publishAt must carry a timezone offset; a bad value writes nothing", async () => {
-  assert.throws(() => normalizePublishAt("2026-10-12T09:00"), PostValidationError);
-  assert.throws(() => normalizePublishAt("next monday"), PostValidationError);
-  assert.throws(() => normalizePublishAt(1760284800000), PostValidationError);
-  assert.equal(normalizePublishAt(undefined), undefined);
-  assert.equal(normalizePublishAt(null), null);
-  assert.equal(normalizePublishAt(""), null);
-  const repo = new InMemoryPostRepo();
+  assert.throws(() => normalizePublishAt({ value: "2026-10-12T09:00" }), PostValidationError);
+  assert.throws(() => normalizePublishAt({ value: "next monday" }), PostValidationError);
+  assert.throws(() => normalizePublishAt({ value: 1760284800000 }), PostValidationError);
+  assert.equal(normalizePublishAt({ value: undefined }), undefined);
+  assert.equal(normalizePublishAt({ value: null }), null);
+  assert.equal(normalizePublishAt({ value: "" }), null);
+  const repo = new InMemoryPostRepo({});
   await assert.rejects(
     createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "p1", title: "x", publishAt: "tomorrow 9am" } }),
     /publishAt must be an ISO 8601 date-time with a timezone offset/
@@ -117,20 +109,20 @@ test("publishAt must carry a timezone offset; a bad value writes nothing", async
 });
 
 test("isScheduledAt/isLiveAt: a draft is never scheduled; trash is never live", () => {
-  assert.equal(isScheduledAt({ status: "draft", publishAt: AFTER }, BEFORE), false);
-  assert.equal(isScheduledAt({ status: "published", publishAt: AFTER }, BEFORE), true);
-  assert.equal(isLiveAt({ status: "published", publishAt: null }, BEFORE), true);
-  assert.equal(isLiveAt({ status: "published", deletedAt: BEFORE }, AFTER), false);
+  assert.equal(isScheduledAt({ record: { status: "draft", publishAt: AFTER }, nowIso: BEFORE }), false);
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: AFTER }, nowIso: BEFORE }), true);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: null }, nowIso: BEFORE }), true);
+  assert.equal(isLiveAt({ record: { status: "published", deletedAt: BEFORE }, nowIso: AFTER }), false);
 });
 
 test("published rows without a schedule are live, including at the go-live instant", () => {
   for (const publishAt of [undefined, null, BEFORE, GO_LIVE]) {
     const record = { status: "published", publishAt };
-    assert.equal(isScheduledAt(record, GO_LIVE), false);
-    assert.equal(isLiveAt(record, GO_LIVE), true);
+    assert.equal(isScheduledAt({ record, nowIso: GO_LIVE }), false);
+    assert.equal(isLiveAt({ record, nowIso: GO_LIVE }), true);
   }
-  assert.equal(isLiveAt({ status: "draft", publishAt: BEFORE }, GO_LIVE), false);
-  assert.equal(isLiveAt({ status: "published", publishAt: AFTER }, GO_LIVE), false);
+  assert.equal(isLiveAt({ record: { status: "draft", publishAt: BEFORE }, nowIso: GO_LIVE }), false);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: AFTER }, nowIso: GO_LIVE }), false);
 });
 
 test("display dates prefer the go-live time and otherwise use the last update", () => {

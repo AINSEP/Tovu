@@ -1,10 +1,12 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {
@@ -15,9 +17,10 @@ import {
 } from "#src/features/presentation/index";
 
 import { writableThemeIds, ThemeStylingRequiredError } from "./active-theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import type { DiscoveredTheme } from "./theme.js";
-import { syncThemeRoster } from "./theme-roster-sync.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
+import { themeRosterPorts } from "./theme-roster-ports.js";
 import { verifyActiveThemeResolves } from "./verify-active-theme.js";
 
 /**
@@ -123,7 +126,7 @@ export async function applyActiveTheme(
   _optional: Record<string, never> = {}
 ): Promise<{ previousThemeId: string; activeThemeId: string }> {
   const { routeDeps, themeId } = required;
-  if (routeDeps.themesDir) syncThemeRoster({ themes: routeDeps.themes, themesDir: routeDeps.themesDir });
+  if (routeDeps.themesDir) syncThemeRoster({ ...themeRosterPorts, themes: routeDeps.themes, themesDir: routeDeps.themesDir });
   const previousThemeId = await resolveActiveThemeId(routeDeps);
 
   let activeThemeId: string;
@@ -142,11 +145,11 @@ export async function applyActiveTheme(
     throw activationInputError({ error: err, routeDeps });
   }
   if (routeDeps.themesDir) {
-    requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+    requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
     await verifyActiveThemeResolves({ deps: { ...routeDeps, themesDir: routeDeps.themesDir }, activeThemeId, previousThemeId });
   }
   if (previousThemeId !== activeThemeId) {
-    try { routeDeps.tracker?.capture({ name: "theme_changed", userId: required.actorId ?? `system:${routeDeps.workspaceId}` }, { properties: { themeId: activeThemeId, source: "assistant" } }); }
+    try { void routeDeps.tracker?.capture({ name: "theme_changed", userId: required.actorId ?? `system:${routeDeps.workspaceId}` }, { properties: { themeId: activeThemeId, source: "assistant" } }); }
     catch { /* Capture follows verification and cannot fail the active-theme operation. */ }
   }
   return { previousThemeId, activeThemeId };

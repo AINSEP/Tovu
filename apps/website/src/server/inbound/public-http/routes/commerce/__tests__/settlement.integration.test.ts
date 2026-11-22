@@ -18,13 +18,15 @@ import { createInboxWorker, createKernelProviderRegistry, createMemoryGrantStore
 import { migrateCommercePayments, sqlPaymentsLedger } from "@jini-ai/commerce/payments/ledger/sql";
 import { registerPaymentsWebhookRoute } from "@jini-ai/commerce/http";
 import { createPluginContributionCapture, createPluginContributionRegistry, createPluginProviderHost,
-  type PluginManifest, type PluginSdk } from "@jini-ai/plugins/host";
+  type PluginManifest } from "@jini-ai/plugins/host";
+import { type PluginSdk } from "@jini-ai/core/contracts/plugin-sdk";
 import { InMemoryMemberRepo, InMemoryMemberSessionRepo } from "#src/features/members/repo.memory";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { openPostgresKernel } from "#src/platform/db/kernel/drivers/postgres";
 import { migrateCommerceDatabase } from "#src/platform/db/migrations/index";
 import { registerCommerceRoutes } from "../purchase.js";
+import { runMigrations } from "@jini-ai/db/migrate";
 
 const scope = { workspaceId: "shop", siteId: "site", providerId: "stripe", providerAccountId: "acct_fixture", mode: "test" as const };
 const total = { minorUnits: 2400, currency: "JPY" };
@@ -113,7 +115,7 @@ async function fixture(t: test.TestContext, dialect: Dialect) {
   const orderPayments = commerceOrderPaymentRepoFor({ kernel }), priceRefs = commercePriceProviderRefRepoFor({ kernel });
   const settle = { orders, orderPayments, payments, alerts: noopAlertPort, clock };
   const commerce = createCommerceServer({ scope, publicOrigin: "https://shop.example.test", isActive: () => true,
-    ensureSchema: async () => { await migrateCommerceDatabase({ kernel }); await migrateCommercePayments({ kernel }); },
+    ensureSchema: async () => { await migrateCommerceDatabase({ kernel }); await migrateCommercePayments({ kernel, runMigrations }); },
     checkoutDeps: { products, prices, orders, clock, idGen: { newId } },
     payOrderDeps: { orders, prices, priceRefs, orderPayments, payments, settle }, warn: message => assert.fail(message) });
   assert.equal((await commerce.activate()).ready, true);

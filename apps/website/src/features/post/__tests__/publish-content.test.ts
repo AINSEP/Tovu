@@ -22,10 +22,13 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/comm
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPost, isTrashed, PostConflictError, PostNotFoundError, ROOT_SLUG, type ForgetRemovedPostFn, type PostRecord } from "../post.js";
+import { createPost } from "../post-create.js";
+import { isTrashed } from "../../../contracts/core/soft-delete.js";
+import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "../post.js";
+import type { ForgetRemovedPostFn } from "../post-trash.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { contentHash } from "#src/features/publish-content/content-hash";
 import type { RetireTarget } from "#src/features/publish-content/type-registry";
 import { contributePagePublish, contributePostPublish, toPublishableState } from "../publish-content.js";
@@ -59,7 +62,7 @@ function makePost(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function makeDeps(rows: PostRecord[]) {
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
@@ -98,7 +101,7 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
     entityType,
     id: post.id,
     schemaVersion: 1,
-    contentHash: contentHash(entityType, toPublishableState(post)),
+    contentHash: contentHash({ entityType, state: toPublishableState(post) }),
     hashVersion: 1,
     requiredBlobs: [],
     state: toPublishableState(post),
@@ -132,7 +135,7 @@ test("both built handlers declare the resource's own content.write permission", 
 // pack() — kind-filtered, canonicalized, hashed
 // ---------------------------------------------------------------------------
 
-test("post.pack() yields only kind:'post' rows, each hashed with contentHash('post', ...)", async () => {
+test("post.pack() yields only kind:'post' rows, each hashed with contentHash({ entityType: 'post', state: ... })", async () => {
   const post = makePost({ id: "post-1", kind: "post", title: "A Post" });
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page", title: "A Page" });
   const handler = contributePostPublish().build(makeDeps([post, page]));
@@ -163,7 +166,7 @@ test("post.pack() yields only kind:'post' rows, each hashed with contentHash('po
     "the packed wire shape changed — every field here is one publish is expected to carry, and a " +
       "field that leaves this list must also leave the content hash (see POST_FIELD_DISPOSITIONS)"
   );
-  assert.equal(packed[0].contentHash, contentHash("post", packed[0].state));
+  assert.equal(packed[0].contentHash, contentHash({ entityType: "post", state: packed[0].state }));
   assert.deepEqual(packed[0].requiredBlobs, []);
 });
 
@@ -203,7 +206,7 @@ test("inspect() returns {version, hash} for an existing row of the matching kind
   const packed = [];
   for await (const entity of handler.pack()) packed.push(entity);
 
-  const result = await handler.inspect("post-1");
+  const result = await handler.inspect({ id: "post-1" });
   assert.deepEqual(
     result,
     { version: 3, hash: packed[0].contentHash },
@@ -214,13 +217,13 @@ test("inspect() returns {version, hash} for an existing row of the matching kind
 
 test("inspect() returns null for a row that does not exist", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
-  assert.equal(await handler.inspect("missing"), null);
+  assert.equal(await handler.inspect({ id: "missing" }), null);
 });
 
 test("inspect() returns null for a row that exists but is the WRONG kind — a page's id must not resolve through the post handler", async () => {
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page" });
   const handler = contributePostPublish().build(makeDeps([page]));
-  assert.equal(await handler.inspect("page-1"), null);
+  assert.equal(await handler.inspect({ id: "page-1" }), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -229,7 +232,7 @@ test("inspect() returns null for a row that exists but is the WRONG kind — a p
 
 test("precheck() allows an entity whose slug is free", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
-  const result = await handler.precheck({
+  const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "new-post",
     schemaVersion: 1,
@@ -237,14 +240,14 @@ test("precheck() allows an entity whose slug is free", async () => {
     hashVersion: 1,
     requiredBlobs: [],
     state: { kind: "post", slug: "free-slug" },
-  });
+  } });
   assert.equal(result, null);
 });
 
 test("precheck() allows an entity claiming ITS OWN current slug (updating in place is not a collision)", async () => {
   const existing = makePost({ id: "post-1", slug: "hello" });
   const handler = contributePostPublish().build(makeDeps([existing]));
-  const result = await handler.precheck({
+  const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
     schemaVersion: 1,
@@ -252,14 +255,14 @@ test("precheck() allows an entity claiming ITS OWN current slug (updating in pla
     hashVersion: 1,
     requiredBlobs: [],
     state: { kind: "post", slug: "hello" },
-  });
+  } });
   assert.equal(result, null);
 });
 
 test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never auto-renames (plan §5 risk #4)", async () => {
   const existing = makePost({ id: "post-1", slug: "taken" });
   const handler = contributePostPublish().build(makeDeps([existing]));
-  const result = await handler.precheck({
+  const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-2",
     schemaVersion: 1,
@@ -267,14 +270,14 @@ test("precheck() blocks an entity whose slug is held by a DIFFERENT id — never
     hashVersion: 1,
     requiredBlobs: [],
     state: { kind: "post", slug: "taken" },
-  });
+  } });
   assert.ok(typeof result === "string");
   assert.match(result, /already held by a different post \('post-1'\)/);
 });
 
 test("precheck() blocks an entity with no usable slug rather than throwing", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
-  const result = await handler.precheck({
+  const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
     schemaVersion: 1,
@@ -282,7 +285,7 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
     hashVersion: 1,
     requiredBlobs: [],
     state: { kind: "post" },
-  });
+  } });
   assert.ok(typeof result === "string");
   assert.match(result, /no usable slug/);
 });
@@ -290,7 +293,7 @@ test("precheck() blocks an entity with no usable slug rather than throwing", asy
 test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 owner decision) lets publishing replace it instead of refusing", async () => {
   const existing = makePost({ id: "post-1", slug: "hello", bodyFormat: "html", bodyHtml: "<p>live</p>" });
   const handler = contributePostPublish().build(makeDeps([existing]));
-  const result = await handler.precheck({
+  const result = await handler.precheck({ entity: {
     entityType: "post",
     id: "post-1",
     schemaVersion: 1,
@@ -298,7 +301,7 @@ test("precheck() no longer blocks a body-format difference — D2 (2026-09-24 ow
     hashVersion: 1,
     requiredBlobs: [],
     state: { kind: "post", slug: "hello", bodyFormat: "doc" },
-  });
+  } });
   assert.equal(result, null);
 });
 
@@ -453,12 +456,12 @@ test(`apply() restores an existing destination forward when change-set recording
   const failure = new Error("change-set store is down");
   deps.changeSets.insert = async () => { throw failure; };
   const handler = contributePostPublish().build(deps);
-  const originalHash = (await handler.inspect(prior.id))!.hash;
+  const originalHash = (await handler.inspect({ id: prior.id }))!.hash;
   const source = makePost({ ...prior, author: "Failed credit", showAuthor: !byline.showAuthor, title: "Failed import", status: "draft", bodyJson: { type: "doc", content: [{ type: "paragraph" }] } });
   await assert.rejects(() => handler.apply({ entity: packedFrom("post", source), expectedVersion: prior.version, principalId: "operator-1", idempotencyKey: "apply-4" }), error => error === failure);
   const restored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: prior.id });
   assert.deepEqual(restored, { ...prior, updatedAt: new Date(deps.clock.nowMs()).toISOString(), version: 3 });
-  assert.equal((await handler.inspect(prior.id))!.hash, originalHash, "compensation preserves the transport hash too");
+  assert.equal((await handler.inspect({ id: prior.id }))!.hash, originalHash, "compensation preserves the transport hash too");
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WORKSPACE_ID, postId: prior.id });
   assert.deepEqual(revisions.map(row => [row.seq, row.op]), [[1, "create"], [2, "update"], [3, "restore"]]);
   assert.deepEqual(revisions[2]?.stateJson, restored);
@@ -494,7 +497,7 @@ test("planRetire() returns the live holder with the exact hash inspect() gives",
   const deps = makeDeps([holder]);
   const handler = contributePostPublish().build(deps);
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "post",
     id: "post-2",
     schemaVersion: 1,
@@ -502,9 +505,9 @@ test("planRetire() returns the live holder with the exact hash inspect() gives",
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: "about" },
-  });
+  } });
 
-  const inspected = await handler.inspect("post-1");
+  const inspected = await handler.inspect({ id: "post-1" });
   assert.ok(target, "a slug held by a different id must return a retire target");
   assert.equal(target?.entityType, "post");
   assert.equal(target?.entityId, "post-1");
@@ -517,7 +520,7 @@ test("planRetire() returns null when the incoming id already exists at the desti
   const existingHere = makePost({ id: "post-2", slug: "post-2-slug" });
   const handler = contributePostPublish().build(makeDeps([holder, existingHere]));
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "post",
     id: "post-2",
     schemaVersion: 1,
@@ -525,7 +528,7 @@ test("planRetire() returns null when the incoming id already exists at the desti
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: "about" },
-  });
+  } });
 
   assert.equal(target, null);
 });
@@ -534,7 +537,7 @@ test("planRetire() returns null for the home page slug — there is no other add
   const home = makePost({ id: "home", slug: ROOT_SLUG, kind: "page" });
   const handler = contributePostPublish().build(makeDeps([home]));
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "page",
     id: "post-2",
     schemaVersion: 1,
@@ -542,7 +545,7 @@ test("planRetire() returns null for the home page slug — there is no other add
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: ROOT_SLUG },
-  });
+  } });
 
   assert.equal(target, null);
 });
@@ -556,7 +559,7 @@ test("retire() records a change set whose revert un-trashes the row", async () =
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: (await handler.inspect("post-1"))!.hash,
+    hash: (await handler.inspect({ id: "post-1" }))!.hash,
   };
 
   const { changeSetId } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-1" });
@@ -586,7 +589,7 @@ test("T32: reverting a retirement from history restores the holder's original fr
   const handler = contributePostPublish().build(deps);
   const target: RetireTarget = {
     entityType: "post", entityId: holder.id, entityLabel: holder.title,
-    hash: (await handler.inspect(holder.id))!.hash,
+    hash: (await handler.inspect({ id: holder.id }))!.hash,
   };
   const { changeSetId } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "T32" });
   assert.equal((await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: holder.id }))?.slug, "about-replaced-20260918");
@@ -626,7 +629,7 @@ test("retire of an already-trashed holder: revert leaves it in the Trash", async
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: (await handler.inspect("post-1"))!.hash,
+    hash: (await handler.inspect({ id: "post-1" }))!.hash,
   };
 
   const { changeSetId } = await handler.retire!({
@@ -668,7 +671,7 @@ test("retire()'s undo() restores the holder live, at its original slug — the a
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: (await handler.inspect("post-1"))!.hash,
+    hash: (await handler.inspect({ id: "post-1" }))!.hash,
   };
 
   const { undo } = await handler.retire!({ target, principalId: "operator-1", idempotencyKey: "retire-2" });
@@ -687,7 +690,7 @@ test("retire() refuses a target whose live content no longer matches the planned
     entityType: "post",
     entityId: "post-1",
     entityLabel: "About",
-    hash: (await handler.inspect("post-1"))!.hash,
+    hash: (await handler.inspect({ id: "post-1" }))!.hash,
   };
   await deps.postRepo.save({ ...holder, title: "Edited on live after the check", version: 4 });
 
@@ -727,7 +730,7 @@ test("retire() throws when removePost is not wired — never silently no-ops", a
 test("precheck() blocks a page entity whose packed kind is 'post'", async () => {
   const handler = contributePagePublish().build(makeDeps([]));
   const smuggled = makePost({ id: "smuggled", slug: "smuggled", kind: "post" });
-  const reason = await handler.precheck(packedFrom("page", smuggled));
+  const reason = await handler.precheck({ entity: packedFrom("page", smuggled) });
   assert.equal(reason, "page entity 'smuggled' is packed as a 'post' — a page publish writes only pages");
 });
 
@@ -767,32 +770,32 @@ function packedState(state: Record<string, unknown>, id = "post-2") {
 test("references() adds the featured image once, and adds nothing for a missing or empty featuredMediaId", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
   const bodyWithMedia = { type: "doc", content: [{ type: "image", attrs: { assetId: "asset-1" } }] };
-  const base = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }));
-  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" })), base);
-  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "hero" })), [...base, { entityType: "media", key: "hero" }]);
+  const base = handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }) });
+  assert.deepEqual(handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" }) }), base);
+  assert.deepEqual(handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "hero" }) }), [...base, { entityType: "media", key: "hero" }]);
   assert.ok(base.some((ref) => ref.entityType === "media" && ref.key === "asset-1"), "the body's own image is a reference");
-  const withSameFeatured = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "asset-1" }));
+  const withSameFeatured = handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "asset-1" }) });
   assert.deepEqual(withSameFeatured, base, "a featured image the body already references is not listed twice");
 });
 
 test("precheck() blocks publishing over a destination row that is in the Trash, even when that row is the other kind", async () => {
   const handler = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", deletedAt: "2026-09-10T00:00:00.000Z" })]));
   const expected = "post 'post-2' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content";
-  assert.equal(await handler.precheck(packedState({ kind: "post", slug: "fresh-slug" })), expected);
+  assert.equal(await handler.precheck({ entity: packedState({ kind: "post", slug: "fresh-slug" }) }), expected);
   // A trashed PAGE with this id is invisible to the post handler's kind-filtered lookup, so the
   // unfiltered slug/trash read in its own validation is what refuses it.
   const otherKind = contributePostPublish().build(makeDeps([makePost({ id: "post-2", slug: "gone", kind: "page", deletedAt: "2026-09-10T00:00:00.000Z" })]));
-  assert.equal(await otherKind.precheck(packedState({ kind: "post", slug: "fresh-slug" })), expected);
+  assert.equal(await otherKind.precheck({ entity: packedState({ kind: "post", slug: "fresh-slug" }) }), expected);
 });
 
 test("planRetire() returns null for a free slug, a slug the entity itself holds, a missing slug, and a handler with no post repo", async () => {
   const own = makePost({ id: "post-2", slug: "mine" });
   const handler = contributePostPublish().build(makeDeps([own]));
-  assert.equal(await handler.planRetire!(packedState({ slug: "free" })), null);
-  assert.equal(await handler.planRetire!(packedState({ slug: "mine" })), null);
-  assert.equal(await handler.planRetire!(packedState({})), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({ slug: "free" }) }), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({ slug: "mine" }) }), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({}) }), null);
   const noRepo = contributePostPublish().build({ ...makeDeps([own]), ports: {} });
-  assert.equal(await noRepo.planRetire!(packedState({ slug: "mine" }, "post-3")), null);
+  assert.equal(await noRepo.planRetire!({ entity: packedState({ slug: "mine" }, "post-3") }), null);
 });
 
 test("retire() of a target that no longer exists refuses with not-found and records nothing", async () => {

@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
@@ -17,7 +17,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { InMemoryMediaRepo } from "../../media/index.js";
 import type { FeaturedImageResolution } from "../featured-image.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostToolDeps } from "../tool-registrations.js";
+import type { PostToolDeps } from "../post-tool-deps.js";
 
 const WS = "workspace-1";
 
@@ -26,7 +26,7 @@ mock.module("../featured-image.js", { namedExports: { resolveFeaturedImageRef } 
 const { buildPostRegistrations } = await import("../tool-registrations.js");
 
 test("content_post_create: a not-image refusal with no recorded content type says 'not an image' and writes nothing", async () => {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps: PostToolDeps = {
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "fixture grant" }),

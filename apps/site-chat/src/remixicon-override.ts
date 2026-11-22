@@ -31,7 +31,7 @@
  * This version instead ships both `apps/site-chat/public/remixicon.css` AND
  * `apps/site-chat/public/remixicon.woff2` as plain static files. Vite's `publicDir` copies them to
  * `dist/` UNCHANGED (no hashing, no processing, no JS-bundle involvement at all), and
- * `src/server/middleware/site-chat-static.ts`'s `express.static(distDir)` mount (the same mechanism
+ * `apps/website/src/server/inbound/public-http/middleware/site-chat-static.ts`'s `express.static(distDir)` mount (the same mechanism
  * that already serves `site-assistant.js`/`.css`) serves them at `/site-chat/remixicon.css` and
  * `/site-chat/remixicon.woff2` with zero server-side changes. Because both files sit in `dist/`
  * together, `remixicon.css`'s own `@font-face { src: url("./remixicon.woff2") }` resolves correctly
@@ -53,16 +53,14 @@
  * `RemixIcon`'s own injection runs from a `useEffect` on first mount, so this only has to win a race
  * against React's commit phase, not against anything earlier. Runs before every render call site,
  * not just the first `RemixIcon` render, since nothing here depends on React at all.
+ * Since 2026-11 the marker check and the <link> come from Jini's `installRemixIconStylesheet`, which also retries the font in real browsers.
  */
-const REMIXICON_STYLESHEET_MARKER = "data-jini-remixicon";
+import { installRemixIconStylesheet } from "@jini-ai/ui";
+
+/** This bundle's separately served copy (see the header); Jini's installer does the rest. */
 const REMIXICON_CSS_URL = "/site-chat/remixicon.css";
 
-export function installRemixIconOverride(): void {
-  if (typeof document === "undefined") return;
-  if (document.querySelector(`[${REMIXICON_STYLESHEET_MARKER}]`)) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.setAttribute(REMIXICON_STYLESHEET_MARKER, "");
-  link.href = REMIXICON_CSS_URL;
-  document.head.appendChild(link);
+/** @returns `true` if this call inserted the stylesheet, `false` if a marked one was already there. */
+export function installRemixIconOverride(): boolean {
+  return installRemixIconStylesheet({ href: REMIXICON_CSS_URL });
 }

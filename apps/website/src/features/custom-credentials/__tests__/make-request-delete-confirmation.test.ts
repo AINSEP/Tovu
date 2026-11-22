@@ -4,20 +4,21 @@ import test from "node:test";
 
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -88,6 +89,8 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
 
   const deps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     customCredentialSetRepo: repo,

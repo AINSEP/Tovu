@@ -51,7 +51,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaUpdateRoute(app, deps);
+  registerAdminMediaUpdateRoute({ app, deps });
   return app;
 }
 

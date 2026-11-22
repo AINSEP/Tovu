@@ -2,13 +2,15 @@ import { StaticExportPicker } from "./StaticExportPicker";
 import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Export tab from 2026-10-25): the primary action makes a
@@ -93,14 +95,14 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rowDetail={(share, index) => exportCredentialDetail({ share, index, controller, t })}
       columns={[
         { key: "type", header: t("Type"), cell: (share) => share.file.endsWith(".tovu.zip") ? t("Tovu backup") : t("Static site") },
-        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
-        { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes(share.bytes) },
+        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
+        { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes({ bytes: share.bytes }) },
         { key: "link", header: t("Link"), cell: (share) => <ShareLinkCell share={share} t={t} /> },
         {
           key: "status",
           header: t("Status"),
           cell: (share) => {
-            const view = shareStatusView(share.status, t);
+            const view = shareStatusView({ status: share.status, t });
             return <span className="site-transfer-status"><span className={view.className}>{view.label}</span></span>;
           },
         },
@@ -164,7 +166,7 @@ function ExportAcknowledge({ share, gate, index, controller, t }: { share: SiteS
 
 function ShareLinkCell({ share, t }: { share: SiteShare; t: Translate }) {
   if (!share.url) return <span className="muted-cell">{t("Zip only")}</span>;
-  return <span className="site-transfer-link" title={share.url}>{shortLink(share.url)}</span>;
+  return <span className="site-transfer-link" title={share.url}>{shortLink({ link: share.url })}</span>;
 }
 
 /** Human-only reveal: keep the native control private even when its export row is published. */
@@ -216,7 +218,7 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
       ) : (
         <a
           className="btn-secondary"
-          href={controller.downloadHref(share)}
+          href={controller.downloadHref({ share: share })}
           download={share.file}
           // The server is asked first, so a refusal shows its reason instead of being saved as the "zip".
           onClick={event => { event.preventDefault(); void controller.download(share); }}

@@ -60,7 +60,7 @@ test("dist/preload/preload.mjs is not older than its own source (the 2026-09-18 
   const builtAt = mtimeMsOrZero(path.join(desktopDir, "dist", "preload", "preload.mjs"));
   const sourceAt = mtimeMsOrZero(path.join(desktopDir, "src", "preload", "preload.mts"));
 
-  const failure = shellStalenessFailure(builtAt, sourceAt, PRELOAD_SHELL);
+  const failure = shellStalenessFailure({ builtAt, sourceAt, shell: PRELOAD_SHELL });
 
   assert.equal(failure, null, failure ?? undefined);
 });
@@ -69,7 +69,7 @@ test("the staleness predicate itself refuses the exact incident shape (build old
   const staleBuildTime = Date.parse("2026-09-16T08:47:00Z");
   const editedSourceTime = Date.parse("2026-09-18T11:30:00Z");
 
-  const failure = shellStalenessFailure(staleBuildTime, editedSourceTime, PRELOAD_SHELL);
+  const failure = shellStalenessFailure({ builtAt: staleBuildTime, sourceAt: editedSourceTime, shell: PRELOAD_SHELL });
 
   assert.ok(failure, "a preload built before the source that added onFindToggle must be refused");
   assert.match(failure, /STALE/);

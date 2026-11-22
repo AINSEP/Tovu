@@ -53,9 +53,9 @@ async function buildAdminOnlyApp() {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   const supabase = parsed.config.servers.supabase;
   assert.ok(supabase && supabase.type !== "stdio");
   return { app, deps, pluginUrl: supabase.url };
@@ -94,7 +94,7 @@ test("with no agent running, an admin pastes a Supabase access token in Settings
   const row = (JSON.parse(listText) as { servers: { serverId: string; authMode: string; enabled: boolean }[] }).servers.find((s) => s.serverId === "supabase");
   assert.deepEqual({ authMode: row?.authMode, enabled: row?.enabled }, { authMode: "static_env", enabled: true });
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
   const target = configs.find((c) => c.serverId === "supabase")?.target;
   assert.ok(target && target.kind === "streamable_http");
   assert.equal(target.url, pluginUrl);

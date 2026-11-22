@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { renderMarkdownToSafeHtml } from "@jini-ai/ui/renderers";
-import { describeApiError, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { readFileAsBase64 } from "../../media/rules";
@@ -88,7 +89,7 @@ export interface LibraryController {
   preview: LibraryPreviewState | null;
   openPreview: (item: AdminMedia) => void;
   closePreview: () => void;
-  downloadUrl: (item: AdminMedia) => string;
+  downloadUrl: (required: { item: AdminMedia }, optional?: Record<string, never>) => string;
   t: (key: string) => string;
   locale: string;
 }
@@ -103,7 +104,7 @@ const NO_USERS: ReadonlyMap<string, string> = new Map();
 
 let uploadKeySeq = 0;
 
-function fileProblemMessage(problem: ReturnType<typeof libraryFileProblem>, t: (key: string) => string): string | null {
+function fileProblemMessage({ problem, t }: { problem: ReturnType<typeof libraryFileProblem>; t: (key: string) => string }, _optional = {}): string | null {
   switch (problem) {
     case "type":
       return t("This file type isn't supported.");
@@ -118,7 +119,7 @@ function fileProblemMessage(problem: ReturnType<typeof libraryFileProblem>, t: (
   }
 }
 
-function useLibraryUploads(port: LibraryPort, t: (key: string) => string) {
+function useLibraryUploads({ port, t }: { port: LibraryPort; t: (key: string) => string }, _optional = {}) {
   const invalidate = useInvalidate();
   const [uploads, setUploads] = useState<LibraryUploadRow[]>([]);
   const queue = useRef<{ key: string; file: File }[]>([]);
@@ -135,12 +136,12 @@ function useLibraryUploads(port: LibraryPort, t: (key: string) => string) {
       for (let next = queue.current.shift(); next; next = queue.current.shift()) {
         patch(next.key, { status: "uploading" });
         try {
-          const dataBase64 = await readFileAsBase64(next.file);
+          const dataBase64 = await readFileAsBase64({ file: next.file });
           await port.uploadDocument({ filename: next.file.name, dataBase64 });
           patch(next.key, { status: "done", error: null });
           invalidate({ key: LIBRARY_KEYS.documents });
         } catch (failure) {
-          patch(next.key, { status: "failed", error: describeApiError(failure, t("Upload failed.")) });
+          patch(next.key, { status: "failed", error: describeApiError({ e: failure, fallback: t("Upload failed.") }) });
         }
       }
     } finally {
@@ -152,7 +153,7 @@ function useLibraryUploads(port: LibraryPort, t: (key: string) => string) {
     const rows: LibraryUploadRow[] = files.map((file) => {
       uploadKeySeq += 1;
       const key = `upload-${uploadKeySeq}`;
-      const error = fileProblemMessage(libraryFileProblem(file), t);
+      const error = fileProblemMessage({ problem: libraryFileProblem(file), t: t });
       if (!error) queue.current.push({ key, file });
       return { key, name: file.name, size: file.size, status: error ? "failed" : "waiting", error };
     });
@@ -167,7 +168,7 @@ function useLibraryUploads(port: LibraryPort, t: (key: string) => string) {
   return { uploads, addFiles, clearUploads, uploadedCount: uploads.filter((row) => row.status === "done").length };
 }
 
-function useLibraryPreview(port: LibraryPort, t: (key: string) => string) {
+function useLibraryPreview({ port, t }: { port: LibraryPort; t: (key: string) => string }, _optional = {}) {
   const [preview, setPreview] = useState<LibraryPreviewState | null>(null);
   const request = useRef(0);
 
@@ -192,9 +193,9 @@ function useLibraryPreview(port: LibraryPort, t: (key: string) => string) {
     const settle = (next: Partial<LibraryPreviewState>) => {
       if (request.current === ticket) setPreview({ ...base, loading: false, ...next });
     };
-    const fail = (failure: unknown) => settle({ error: describeApiError(failure, t("Preview failed.")) });
+    const fail = (failure: unknown) => settle({ error: describeApiError({ e: failure, fallback: t("Preview failed.") }) });
     if (kind === "pdf") {
-      port.fetchDocumentBlob(item.id)
+      port.fetchDocumentBlob({ id: item.id })
         .then((blob) => {
           if (request.current !== ticket) return;
           settle({ pdfUrl: URL.createObjectURL(new Blob([blob], { type: "application/pdf" })) });
@@ -212,7 +213,8 @@ function useLibraryPreview(port: LibraryPort, t: (key: string) => string) {
   return { preview, openPreview, closePreview };
 }
 
-export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryController {
+/** The document list, the caller's permissions and the principal-id → username map, kept fresh by content refreshes. */
+function useLibraryData({ port }: { port: LibraryDependencies["port"] }) {
   const list = useFetchQuery({ key: LIBRARY_KEYS.documents, fetch: () => port.listDocuments() });
   const me = useFetchQuery({ key: LIBRARY_KEYS.permissions, fetch: () => port.me() });
   const users = useFetchQuery({
@@ -221,7 +223,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
   });
   const invalidate = useInvalidate();
   const invalidateList = useCallback(() => invalidate({ key: LIBRARY_KEYS.documents }), [invalidate]);
-  useContentRefreshSubscription("media", invalidateList);
+  useContentRefreshSubscription({ resource: "media", onRefresh: invalidateList });
 
   const granted = me.data?.effectivePermissions;
   const permissions: LibraryPermissions = {
@@ -234,21 +236,47 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
     () => (users.data ? new Map(users.data.users.map((user) => [user.principalId, user.username])) : NO_USERS),
     [users.data],
   );
+  return { list, permissions, userNames };
+}
 
-  const { uploads, addFiles, clearUploads, uploadedCount } = useLibraryUploads(port, t);
-  const { preview, openPreview, closePreview } = useLibraryPreview(port, t);
+type LibraryPreview = ReturnType<typeof useLibraryPreview>;
 
+/** Moves one document to Trash, closing its preview and reporting through the row's shared feedback state. */
+function useLibraryTrash({ port, t, preview, closePreview, feedback }: { port: LibraryDependencies["port"]; t: LibraryDependencies["t"]; preview: LibraryPreview["preview"]; closePreview: LibraryPreview["closePreview"]; feedback: { setRowError: (value: string | null) => void; setNotice: (value: string | null) => void } }) {
+  const { setRowError, setNotice } = feedback;
+  const [trashingId, setTrashingId] = useState<string | null>(null);
+  const trashMutation = useFetchMutation({
+    run: ({ input: id }: { input: string }) => port.trashDocument({ id }),
+  }, { invalidates: [LIBRARY_KEYS.documents] });
+
+  async function trash(item: AdminMedia) {
+    if (trashingId) return;
+    setRowError(null);
+    setNotice(null);
+    setTrashingId(item.id);
+    try {
+      await trashMutation.mutate({ input: item.id });
+      if (preview?.item.id === item.id) closePreview();
+      setNotice(t("Moved to Trash."));
+    } catch (failure) {
+      setRowError(describeApiError({ e: failure, fallback: t("Move to Trash failed.") }));
+    } finally {
+      setTrashingId(null);
+    }
+  }
+
+  return { trash, trashingId };
+}
+
+/** Inline rename and move-to-Trash, which share one row error and one notice. */
+function useLibraryRowActions({ port, t, preview, closePreview }: { port: LibraryDependencies["port"]; t: LibraryDependencies["t"]; preview: LibraryPreview["preview"]; closePreview: LibraryPreview["closePreview"] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [trashingId, setTrashingId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const renameMutation = useFetchMutation({
-    run: ({ input }: { input: { id: string; title: string } }) => port.renameDocument({ id: input.id }, { title: input.title }),
-  }, { invalidates: [LIBRARY_KEYS.documents] });
-  const trashMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.trashDocument(id),
+    run: ({ input }: { input: { id: string; title: string } }) => port.renameDocument({ target: { id: input.id }, input: { title: input.title } }),
   }, { invalidates: [LIBRARY_KEYS.documents] });
 
   const start = useCallback((item: AdminMedia) => {
@@ -261,61 +289,51 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
 
   async function save() {
     if (!editingId || renameMutation.status === "pending") return;
-    const stem = validDocumentStem(draft);
+    const stem = validDocumentStem({ draft: draft });
     if (!stem) return;
     setRowError(null);
     try {
       await renameMutation.mutate({ input: { id: editingId, title: stem } });
       setEditingId(null);
     } catch (failure) {
-      setRowError(describeApiError(failure, t("Rename failed.")));
+      setRowError(describeApiError({ e: failure, fallback: t("Rename failed.") }));
     }
   }
 
-  async function trash(item: AdminMedia) {
-    if (trashingId) return;
-    setRowError(null);
-    setNotice(null);
-    setTrashingId(item.id);
-    try {
-      await trashMutation.mutate({ input: item.id });
-      if (preview?.item.id === item.id) closePreview();
-      setNotice(t("Moved to Trash."));
-    } catch (failure) {
-      setRowError(describeApiError(failure, t("Move to Trash failed.")));
-    } finally {
-      setTrashingId(null);
-    }
-  }
+  const rename = {
+    editingId,
+    draft,
+    setDraft,
+    start,
+    cancel,
+    save,
+    saving: renameMutation.status === "pending",
+    invalid: validDocumentStem({ draft: draft }) === null,
+  };
+  const { trash, trashingId } = useLibraryTrash({ port, t, preview, closePreview, feedback: { setRowError, setNotice } });
+  return { rename, trash, trashingId, rowError, notice, dismissNotice: () => setNotice(null) };
+}
+
+export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryController {
+  const { list, permissions, userNames } = useLibraryData({ port });
+  const { uploads, addFiles, clearUploads, uploadedCount } = useLibraryUploads({ port: port, t: t });
+  const { preview, openPreview, closePreview } = useLibraryPreview({ port: port, t: t });
+  const rowActions = useLibraryRowActions({ port, t, preview, closePreview });
 
   return {
-    documents: list.data ? sortDocuments(list.data.media) : undefined,
-    listError: list.error ? describeApiError(list.error, t("Couldn't load documents.")) : null,
+    documents: list.data ? sortDocuments({ items: list.data.media }) : undefined,
+    listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load documents.") }) : null,
     permissions,
     userNames,
     uploads,
     uploadedCount,
     addFiles,
     clearUploads,
-    rename: {
-      editingId,
-      draft,
-      setDraft,
-      start,
-      cancel,
-      save,
-      saving: renameMutation.status === "pending",
-      invalid: validDocumentStem(draft) === null,
-    },
-    trash,
-    trashingId,
-    rowError,
-    notice,
-    dismissNotice: () => setNotice(null),
+    ...rowActions,
     preview,
     openPreview,
     closePreview,
-    downloadUrl: (item) => port.documentDownloadUrl(item.id),
+    downloadUrl: ({ item }, _optional = {}) => port.documentDownloadUrl({ id: item.id }),
     t,
     locale,
   };

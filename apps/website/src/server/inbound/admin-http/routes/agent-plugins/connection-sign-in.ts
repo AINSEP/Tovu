@@ -10,10 +10,10 @@ import { renderOAuthCallbackPage } from "#src/server/inbound/public-http/routes/
 /** One cache consume and redirect; no provider call. Wrong workspace, actor, expiry and replay refuse.
  * @complexity O(1) time and space per request.
  */
-export function registerApiConnectionSignInRoute(app: Express, deps: { readonly workspaceId: string; readonly host: ApiConnectionHost }): void {
+export function registerApiConnectionSignInRoute({ app, deps }: { app: Express; deps: { readonly workspaceId: string; readonly host: ApiConnectionHost } }, _optional: Record<string, never> = {}): void {
   app.get(API_CONNECTION_SIGN_IN_PATH, (req, res) => {
     res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
-    if (!rejectUnlessSessionCredential(res, { message: "Sign-in links need a signed-in admin session.", permission: "admin.assistant.use" })) return;
+    if (!rejectUnlessSessionCredential({ res, message: "Sign-in links need a signed-in admin session.", permission: "admin.assistant.use" })) return;
     const handoff = String(req.params.workspaceId) === deps.workspaceId
       ? deps.host.signInHandoffs.take({ handoffId: String(req.params.handoffId), actorId: getAuthedPrincipal(res).id }) : null;
     if (!handoff) {

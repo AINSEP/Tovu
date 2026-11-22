@@ -1,6 +1,6 @@
-import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/lib/api";
+import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 /**
  * @file Pure derivations for the Integrations "Always allow" tab (`AlwaysAllowPanel.tsx`).
@@ -45,18 +45,18 @@ export function groupAlwaysAllow(
   // `buildAgentListHandles` returns exactly one handle per id, positionally aligned, so both
   // index reads below always hit.
   return sorted.map((group, index) => {
-    const handle = handles[index]!;
+    const handle = handles[index];
     const revokeHandles = buildAgentListHandles({ prefix: `${handle}-revoke`, ids: group.tools.map((tool) => tool.toolName) });
     return {
       ...group,
       handle,
-      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex]! })),
+      tools: group.tools.map((tool, toolIndex) => ({ ...tool, revokeHandle: revokeHandles[toolIndex] })),
     };
   });
 }
 
 /** The date a tool was set to "Always allow", in the viewer's locale; the raw value if unparseable. */
-export function formatGrantedAt(grantedAt: string, locale: string): string {
+export function formatGrantedAt({ grantedAt, locale }: { grantedAt: string; locale: string }, _options: Record<string, never> = {}): string {
   const date = new Date(grantedAt);
   return Number.isNaN(date.getTime()) ? grantedAt : date.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }

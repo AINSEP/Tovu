@@ -1,9 +1,9 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
 import { AllSitesTab } from "../AllSitesTab";
 import { staticListPrefs } from "./site-list-prefs.fixture";
@@ -30,7 +30,7 @@ function Harness({ port }: { port: SitesPort }) {
 
 function setup(listing: AdminSitesSnapshot = snapshot) {
   const requests: Parameters<SitesPort["createSite"]>[0][] = [];
-  const port = createFakeSitesPort(listing, { createSite: async (input) => {
+  const port = createFakeSitesPort({ snapshot: listing }, { createSite: async (input) => {
     requests.push(input);
     return { site: { name: input.name, dir: `/repo/sites/${input.name}`, siteId: "fake-site-id" } };
   } });

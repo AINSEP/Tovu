@@ -10,7 +10,7 @@
  * sentinel round-trips, which are the only genuinely subtle part.
  *
  * The server counterpart registering these definitions is
- * `src/features/settings/ui-tab-definitions.ts`; the sentinel choices are
+ * `Jini packages/core/src/settings/ui-tab-definitions.ts`; the sentinel choices are
  * explained there and mirrored (not re-derived) here.
  */
 
@@ -21,7 +21,8 @@ import {
   type PrivacyConsentState,
   type SettingsThemeChoice,
 } from "@jini-ai/ui";
-import type { SettingScope } from "./api";
+import type { SettingScope } from "@jini-ai/core/settings";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import {
   loadNamespaceValues,
   readBoolean,
@@ -55,8 +56,8 @@ const INSTRUCTIONS_KEY = "custom";
 export const DEFAULT_INSTRUCTIONS = "";
 
 export async function loadInstructions(): Promise<string> {
-  const values = await loadNamespaceValues(INSTRUCTIONS_NAMESPACE);
-  return readString(values, INSTRUCTIONS_KEY, DEFAULT_INSTRUCTIONS);
+  const values = await loadNamespaceValues({ namespace: INSTRUCTIONS_NAMESPACE });
+  return readString({ values, key: INSTRUCTIONS_KEY, fallback: DEFAULT_INSTRUCTIONS });
 }
 
 /**
@@ -65,11 +66,11 @@ export async function loadInstructions(): Promise<string> {
  * to the empty string the ledger actually stores. Without this the definition
  * would receive `undefined` as its value and the write would fail validation.
  */
-export async function saveInstructions(next: string | undefined, previous: string): Promise<readonly string[]> {
+export async function saveInstructions({ next, previous }: { next: string | undefined; previous: string }, _options = {}): Promise<readonly string[]> {
   const value = next ?? DEFAULT_INSTRUCTIONS;
-  return saveChangedEntries(INSTRUCTIONS_NAMESPACE, WORKSPACE_SCOPE, [
+  return saveChangedEntries({ namespace: INSTRUCTIONS_NAMESPACE, scope: WORKSPACE_SCOPE, candidates: [
     { key: INSTRUCTIONS_KEY, valueJson: value, changed: value !== previous },
-  ]);
+  ] });
 }
 
 // --- Notifications --------------------------------------------------------
@@ -91,12 +92,12 @@ const NOTIFICATION_KEYS = {
 export const DEFAULT_NOTIFICATIONS: NotificationsPreferences = DEFAULT_NOTIFICATIONS_PREFERENCES;
 
 export async function loadNotifications(): Promise<NotificationsPreferences> {
-  const values = await loadNamespaceValues(NOTIFICATIONS_NAMESPACE);
+  const values = await loadNamespaceValues({ namespace: NOTIFICATIONS_NAMESPACE });
   return {
-    soundEnabled: readBoolean(values, NOTIFICATION_KEYS.soundEnabled, DEFAULT_NOTIFICATIONS.soundEnabled),
-    successSoundId: readString(values, NOTIFICATION_KEYS.successSoundId, DEFAULT_NOTIFICATIONS.successSoundId),
-    failureSoundId: readString(values, NOTIFICATION_KEYS.failureSoundId, DEFAULT_NOTIFICATIONS.failureSoundId),
-    desktopEnabled: readBoolean(values, NOTIFICATION_KEYS.desktopEnabled, DEFAULT_NOTIFICATIONS.desktopEnabled),
+    soundEnabled: readBoolean({ values, key: NOTIFICATION_KEYS.soundEnabled, fallback: DEFAULT_NOTIFICATIONS.soundEnabled }),
+    successSoundId: readString({ values, key: NOTIFICATION_KEYS.successSoundId, fallback: DEFAULT_NOTIFICATIONS.successSoundId }),
+    failureSoundId: readString({ values, key: NOTIFICATION_KEYS.failureSoundId, fallback: DEFAULT_NOTIFICATIONS.failureSoundId }),
+    desktopEnabled: readBoolean({ values, key: NOTIFICATION_KEYS.desktopEnabled, fallback: DEFAULT_NOTIFICATIONS.desktopEnabled }),
   };
 }
 
@@ -126,7 +127,7 @@ export async function saveNotifications(
       changed: next.desktopEnabled !== previous.desktopEnabled,
     },
   ];
-  return saveChangedEntries(NOTIFICATIONS_NAMESPACE, USER_SCOPE, candidates);
+  return saveChangedEntries({ namespace: NOTIFICATIONS_NAMESPACE, scope: USER_SCOPE, candidates });
 }
 
 // --- Privacy --------------------------------------------------------------
@@ -151,13 +152,13 @@ export const DEFAULT_PRIVACY: PrivacyConsentState = {
 };
 
 export async function loadPrivacy(): Promise<PrivacyConsentState> {
-  const values = await loadNamespaceValues(PRIVACY_NAMESPACE);
-  const decisionAt = readNumber(values, PRIVACY_KEYS.decisionAt, NO_DECISION_SENTINEL);
-  const installationId = readString(values, PRIVACY_KEYS.installationId, NO_INSTALLATION_ID_SENTINEL);
+  const values = await loadNamespaceValues({ namespace: PRIVACY_NAMESPACE });
+  const decisionAt = readNumber({ values, key: PRIVACY_KEYS.decisionAt, fallback: NO_DECISION_SENTINEL });
+  const installationId = readString({ values, key: PRIVACY_KEYS.installationId, fallback: NO_INSTALLATION_ID_SENTINEL });
   return {
     telemetry: {
-      metrics: readBoolean(values, PRIVACY_KEYS.metrics, false),
-      content: readBoolean(values, PRIVACY_KEYS.content, false),
+      metrics: readBoolean({ values, key: PRIVACY_KEYS.metrics, fallback: false }),
+      content: readBoolean({ values, key: PRIVACY_KEYS.content, fallback: false }),
     },
     // Both sentinels collapse back to the `null` the tab uses to mean "absent".
     // `decisionAt` gates the first-run consent prompt, so getting this wrong in
@@ -219,14 +220,14 @@ export function withAdminThemeAccent({ appearance, themeId, accentColor }: { app
 }
 
 export async function loadAppearance(): Promise<AppearanceConfig> {
-  const values = await loadNamespaceValues(APPEARANCE_NAMESPACE);
-  const theme = readString(values, APPEARANCE_KEYS.theme, DEFAULT_APPEARANCE.theme);
+  const values = await loadNamespaceValues({ namespace: APPEARANCE_NAMESPACE });
+  const theme = readString({ values, key: APPEARANCE_KEYS.theme, fallback: DEFAULT_APPEARANCE.theme });
   const accentColors = readAppearanceAccents({ stored: values.get(APPEARANCE_KEYS.adminThemeAccents) }, {});
   return {
     // An unrecognised stored theme falls back rather than reaching the tab as
     // a value its radio group cannot select.
     theme: theme === "system" || theme === "light" || theme === "dark" ? theme : DEFAULT_APPEARANCE.theme,
-    accentColor: readString(values, APPEARANCE_KEYS.accentColor, DEFAULT_APPEARANCE.accentColor),
+    accentColor: readString({ values, key: APPEARANCE_KEYS.accentColor, fallback: DEFAULT_APPEARANCE.accentColor }),
     ...(accentColors ? { accentColors } : {}),
   };
 }
@@ -238,7 +239,7 @@ export async function saveAppearance(
   previous: AppearanceConfig,
 ): Promise<readonly string[]> {
   const accentColors = next.accentColors ?? previous.accentColors ?? {};
-  return saveChangedEntries(APPEARANCE_NAMESPACE, USER_SCOPE, [
+  return saveChangedEntries({ namespace: APPEARANCE_NAMESPACE, scope: USER_SCOPE, candidates: [
     { key: APPEARANCE_KEYS.theme, valueJson: next.theme, changed: next.theme !== previous.theme },
     {
       key: APPEARANCE_KEYS.accentColor,
@@ -250,7 +251,7 @@ export async function saveAppearance(
       valueJson: accentColors,
       changed: JSON.stringify(accentColors) !== JSON.stringify(previous.accentColors ?? {}),
     },
-  ]);
+  ] });
 }
 
 // --- Language -------------------------------------------------------------
@@ -263,14 +264,14 @@ export const DEFAULT_LOCALE = "en";
 export { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 
 export async function loadLanguage(): Promise<string> {
-  const values = await loadNamespaceValues(LANGUAGE_NAMESPACE);
-  return readString(values, LANGUAGE_KEY, DEFAULT_LOCALE);
+  const values = await loadNamespaceValues({ namespace: LANGUAGE_NAMESPACE });
+  return readString({ values, key: LANGUAGE_KEY, fallback: DEFAULT_LOCALE });
 }
 
-export async function saveLanguage(next: string, previous: string): Promise<readonly string[]> {
-  return saveChangedEntries(LANGUAGE_NAMESPACE, USER_SCOPE, [
+export async function saveLanguage({ next, previous }: { next: string; previous: string }, _options = {}): Promise<readonly string[]> {
+  return saveChangedEntries({ namespace: LANGUAGE_NAMESPACE, scope: USER_SCOPE, candidates: [
     { key: LANGUAGE_KEY, valueJson: next, changed: next !== previous },
-  ]);
+  ] });
 }
 
 /** Map optional privacy preferences to the existing ledger sentinels. O(1); no effects. */
@@ -305,16 +306,18 @@ export async function savePrivacy(
   // A withdrawal stops live browser collection even when the durable save fails.
   // Keep only a denial marker for reloads; it can never manufacture a grant.
   if (!nextMetrics && previousMetrics && typeof window !== 'undefined') {
-    try { window.localStorage.setItem('jini:metrics-withdrawal', '1'); } catch { /* Live teardown still applies. */ }
+    /* Live teardown still applies. */
+    orFallbackSync({ work: () => { window.localStorage.setItem('jini:metrics-withdrawal', '1'); }, fallback: undefined, step: 'Save metrics withdrawal marker' });
     window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: false }));
   }
   // Metrics is the first durable write. Signal it before later preference writes can fail.
-  const metrics = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key === PRIVACY_KEYS.metrics));
+  const metrics = await saveChangedEntries({ namespace: PRIVACY_NAMESPACE, scope: WORKSPACE_SCOPE, candidates: candidates.filter(candidate => candidate.key === PRIVACY_KEYS.metrics) });
   if (metrics.includes(PRIVACY_KEYS.metrics) && typeof window !== 'undefined') {
-    try { window.localStorage.removeItem('jini:metrics-withdrawal'); } catch { /* The marker only denies. */ }
+    /* The marker only denies. */
+    orFallbackSync({ work: () => { window.localStorage.removeItem('jini:metrics-withdrawal'); }, fallback: undefined, step: 'Clear metrics withdrawal marker' });
     window.dispatchEvent(new CustomEvent('jini:metrics-consent-changed', { detail: nextMetrics }));
   }
-  const remaining = await saveChangedEntries(PRIVACY_NAMESPACE, WORKSPACE_SCOPE, candidates.filter(candidate => candidate.key !== PRIVACY_KEYS.metrics));
+  const remaining = await saveChangedEntries({ namespace: PRIVACY_NAMESPACE, scope: WORKSPACE_SCOPE, candidates: candidates.filter(candidate => candidate.key !== PRIVACY_KEYS.metrics) });
   return [...metrics, ...remaining];
 }
 
@@ -336,16 +339,16 @@ export interface InterfaceConfig {
 export const DEFAULT_INTERFACE: InterfaceConfig = { hideChatFabWhileOpen: true, wrapTabs: false, adminTheme: "classic" };
 
 export async function loadInterface(): Promise<InterfaceConfig> {
-  const values = await loadNamespaceValues(INTERFACE_NAMESPACE);
+  const values = await loadNamespaceValues({ namespace: INTERFACE_NAMESPACE });
   return {
-    hideChatFabWhileOpen: readBoolean(values, INTERFACE_KEYS.hideChatFabWhileOpen, DEFAULT_INTERFACE.hideChatFabWhileOpen),
-    wrapTabs: readBoolean(values, INTERFACE_KEYS.wrapTabs, DEFAULT_INTERFACE.wrapTabs),
-    adminTheme: readString(values, INTERFACE_KEYS.adminTheme, DEFAULT_INTERFACE.adminTheme),
+    hideChatFabWhileOpen: readBoolean({ values, key: INTERFACE_KEYS.hideChatFabWhileOpen, fallback: DEFAULT_INTERFACE.hideChatFabWhileOpen }),
+    wrapTabs: readBoolean({ values, key: INTERFACE_KEYS.wrapTabs, fallback: DEFAULT_INTERFACE.wrapTabs }),
+    adminTheme: readString({ values, key: INTERFACE_KEYS.adminTheme, fallback: DEFAULT_INTERFACE.adminTheme }),
   };
 }
 
 export async function saveInterface(next: InterfaceConfig, previous: InterfaceConfig): Promise<readonly string[]> {
-  return saveChangedEntries(INTERFACE_NAMESPACE, USER_SCOPE, [
+  return saveChangedEntries({ namespace: INTERFACE_NAMESPACE, scope: USER_SCOPE, candidates: [
     {
       key: INTERFACE_KEYS.hideChatFabWhileOpen,
       valueJson: next.hideChatFabWhileOpen,
@@ -361,5 +364,5 @@ export async function saveInterface(next: InterfaceConfig, previous: InterfaceCo
       valueJson: next.adminTheme,
       changed: next.adminTheme !== previous.adminTheme,
     },
-  ]);
+  ] });
 }

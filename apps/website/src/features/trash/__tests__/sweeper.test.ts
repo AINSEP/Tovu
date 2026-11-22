@@ -10,7 +10,8 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
 import { createTrashSweep, startTrashSweeper, type TrashSweepOnce, type TrashSweepReport } from "@jini-ai/cms/trash";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter } from "@jini-ai/cms/trash";
 
@@ -191,10 +192,10 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
     .run(REAL_WS, REAL_AT);
 
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
-  const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb });
+  const trashDb = contentKernel({ store: db });
+  const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, kernel: trashDb, tables: TRASH_TABLES });
   const adapters = new Map<string, TrashAdapter>([["menu", menuAdapter]]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   await repo.insert({ row: {
     id: "trash-overdue-1",
     workspaceId: REAL_WS,
@@ -213,7 +214,7 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
   const sweep = createTrashSweep({
     repo,
     adapters,
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   });
   const report = await sweep({ now: REAL_DUE, leaseOwner: "sweeper-1", leaseUntil: "2026-10-01T00:05:00.000Z", limit: 10 });
@@ -242,7 +243,7 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
     client.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES (?, ?, ?, ?, 'published', '{}', '{}', ?, 1)")
       .run(id, REAL_WS, id, id, REAL_AT);
   }
-  const adapter = createTableTrashAdapter({ entry: buildTrashRegistry().get("menu")!, db: contentKernel(db) });
+  const adapter = createTableTrashAdapter({ entry: buildTrashRegistry().get("menu")!, kernel: contentKernel({ store: db }), tables: TRASH_TABLES });
   const failure = new Error("purge failed after deletion");
   const calls: string[] = [];
   const adapters = new Map<string, TrashAdapter>([["menu", {
@@ -254,8 +255,8 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
       return result;
     },
   }]]);
-  const repo = new SqliteTrashRepo(client);
-  const transaction = createContentDbTransactionRunner(client);
+  const repo = new SqliteTrashRepo({ store: client });
+  const transaction = createContentDbTransactionRunner({ store: client });
   let seq = 0;
   const trash = createTrashService({
     repo,

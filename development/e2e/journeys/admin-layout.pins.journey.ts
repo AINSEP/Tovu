@@ -31,48 +31,9 @@ async function keepOpenDockFabVisible({ page }: { page: Page }, _options = {}): 
 }
 
 // Migrated from admin-fab-drag-onto-dock.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-fab-drag-onto-dock", () => {
-/**
- * @file Regression check for a same-day-introduced bug: dragging the desktop chat FAB onto the
- * open assistant dock used to rest normally DURING the drag, then snap back out onto the page the
- * moment it was released. Reported by the operator as "I can't drag it onto the chat pane —
- * whenever I do, it just resets outside of the chat pane onto the regular page."
- *
- * Root cause, confirmed by reading (`apps/admin/src/hooks/use-fab-position.hooks.ts`): the
- * `26b70a9` commit wired `avoidRightPx` (the measured desktop dock width) into `useFabPosition` to
- * fix a real, previously-Playwright-caught bug — the FAB's DEFAULT resting spot sat on top of the
- * dock's own composer send button (`admin-fab-position.spec.ts`, "Bug 5"). But the fix gated
- * purely on `dockOpen`, with no distinction between an untouched default position and a position
- * the operator had just deliberately dragged there — so on `pointerup`, the resting-style
- * recompute unconditionally pushed ANY drop inside the dock's width back out to
- * `avoidRightPx + FAB_EDGE_MARGIN`, regardless of how far from the composer button the drop
- * actually landed.
- *
- * Fixed by adding `pinnedByUser` to the persisted position: `true` only for an actual
- * drag-and-drop, gating the dock-avoidance clamp on `!pinnedByUser` so a deliberate drop is
- * respected while the untouched default spot (and any pre-existing/migrated-legacy position,
- * conservatively) still avoids the composer button. See that field's own doc on
- * `StoredFabPosition` for the full reasoning.
- *
- * Complements `admin-fab-position.spec.ts` rather than replacing it: that spec pins "the default
- * spot must avoid the composer button"; this one pins "an explicit drop elsewhere in the dock must
- * NOT be vetoed" — the two are opposite-direction regressions of the same clamp and both need
- * their own coverage, or a fix for one can silently reintroduce the other.
- *
- * Since the owner's 2026-10-06 preference change, a visible FAB keeps its default spot inside the
- * dock and the footer reserves space for Send. Select that preference explicitly: the contract
- * remains a deliberate drop that sticks, even though starting outside the dock is now historical.
- *
- * No `waitForLoadState("networkidle")` anywhere in this file — confirmed live (project memory) that
- * it never resolves against this admin app. Every wait below is an explicit element/state or
- * rendered-geometry wait. The original ResizeObserver-driven dock-width measurement had no single
- * settle event and used a short bounded timeout; the visible-FAB path no longer depends on it.
- */
+{
 
-const STORAGE_KEY = "tovu-admin-fab-position";
-
-test.describe("admin chat FAB can be dropped onto the open dock and stays there", () => {
-  test("a drop well clear of the composer send button rests inside the dock, not pushed back onto the page", async ({ page }) => {
+async function dragFabIntoOpenDock({ page, STORAGE_KEY }: { page: Page; STORAGE_KEY: string }) {
     await loginAsAdmin(page);
     await keepOpenDockFabVisible({ page });
 
@@ -125,6 +86,10 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
     await page.mouse.move((fabCenterX + targetX) / 2, (fabCenterY + targetY) / 2, { steps: 10 });
     await page.mouse.move(targetX, targetY, { steps: 10 });
     await page.mouse.up();
+  return { page, STORAGE_KEY, dock, fab, dockBoxBefore, targetX, targetY };
+}
+
+async function expectPinnedFabAfterReopen({ page, STORAGE_KEY, dock, fab, dockBoxBefore, targetX, targetY }: Awaited<ReturnType<typeof dragFabIntoOpenDock>>) {
 
     // The FAB's own resting-position recompute happens synchronously in React state, but give one
     // frame for the DOM to reflect it rather than reading `boundingBox()` in the same tick as `up()`.
@@ -174,6 +139,10 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
     expect(fabBoxReopened, "FAB bounding box must be measurable after reopening the dock").not.toBeNull();
     if (!fabBoxReopened) throw new Error("unreachable — asserted above");
     const fabCenterXReopened = fabBoxReopened.x + fabBoxReopened.width / 2;
+  return { page, dock, dockBoxBefore, expectAtDrop, fabCenterXReopened };
+}
+
+async function expectPinnedFabAfterReload({ page, dock, dockBoxBefore, expectAtDrop, fabCenterXReopened }: Awaited<ReturnType<typeof expectPinnedFabAfterReopen>>) {
     expect(
       fabCenterXReopened,
       "the pinned position must still be inside the dock after a close/reopen cycle"
@@ -183,9 +152,67 @@ test.describe("admin chat FAB can be dropped onto the open dock and stays there"
     if (await dock.getAttribute("hidden") !== null) await page.locator("button.chat-fab").click();
     await expect(dock).not.toHaveAttribute("hidden", "");
     await expectAtDrop();
-  });
+}
+
+function registerFabDropPin({ STORAGE_KEY }: { STORAGE_KEY: string }) {
+
+  test("a drop well clear of the composer send button rests inside the dock, not pushed back onto the page", async ({ page }) => {
+  const dragFabIntoOpenDockState = await dragFabIntoOpenDock({ page, STORAGE_KEY });
+  const expectPinnedFabAfterReopenState = await expectPinnedFabAfterReopen(dragFabIntoOpenDockState);
+  await expectPinnedFabAfterReload(expectPinnedFabAfterReopenState);
 });
+}
+
+function registerFabDropSuite({ STORAGE_KEY }: { STORAGE_KEY: string }) {
+
+
+test.describe("admin chat FAB can be dropped onto the open dock and stays there", () => {
+registerFabDropPin({ STORAGE_KEY });
 });
+}
+
+test.describe("Bug pin: admin-fab-drag-onto-dock", () => {
+/**
+ * @file Regression check for a same-day-introduced bug: dragging the desktop chat FAB onto the
+ * open assistant dock used to rest normally DURING the drag, then snap back out onto the page the
+ * moment it was released. Reported by the operator as "I can't drag it onto the chat pane —
+ * whenever I do, it just resets outside of the chat pane onto the regular page."
+ *
+ * Root cause, confirmed by reading (`apps/admin/src/hooks/use-fab-position.hooks.ts`): the
+ * `26b70a9` commit wired `avoidRightPx` (the measured desktop dock width) into `useFabPosition` to
+ * fix a real, previously-Playwright-caught bug — the FAB's DEFAULT resting spot sat on top of the
+ * dock's own composer send button (`admin-fab-position.spec.ts`, "Bug 5"). But the fix gated
+ * purely on `dockOpen`, with no distinction between an untouched default position and a position
+ * the operator had just deliberately dragged there — so on `pointerup`, the resting-style
+ * recompute unconditionally pushed ANY drop inside the dock's width back out to
+ * `avoidRightPx + FAB_EDGE_MARGIN`, regardless of how far from the composer button the drop
+ * actually landed.
+ *
+ * Fixed by adding `pinnedByUser` to the persisted position: `true` only for an actual
+ * drag-and-drop, gating the dock-avoidance clamp on `!pinnedByUser` so a deliberate drop is
+ * respected while the untouched default spot (and any pre-existing/migrated-legacy position,
+ * conservatively) still avoids the composer button. See that field's own doc on
+ * `StoredFabPosition` for the full reasoning.
+ *
+ * Complements `admin-fab-position.spec.ts` rather than replacing it: that spec pins "the default
+ * spot must avoid the composer button"; this one pins "an explicit drop elsewhere in the dock must
+ * NOT be vetoed" — the two are opposite-direction regressions of the same clamp and both need
+ * their own coverage, or a fix for one can silently reintroduce the other.
+ *
+ * Since the owner's 2026-10-06 preference change, a visible FAB keeps its default spot inside the
+ * dock and the footer reserves space for Send. Select that preference explicitly: the contract
+ * remains a deliberate drop that sticks, even though starting outside the dock is now historical.
+ *
+ * No `waitForLoadState("networkidle")` anywhere in this file — confirmed live (project memory) that
+ * it never resolves against this admin app. Every wait below is an explicit element/state or
+ * rendered-geometry wait. The original ResizeObserver-driven dock-width measurement had no single
+ * settle event and used a short bounded timeout; the visible-FAB path no longer depends on it.
+ */
+
+const STORAGE_KEY = "tovu-admin-fab-position";
+registerFabDropSuite({ STORAGE_KEY });
+});
+}
 
 // Migrated from admin-fab-position.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: admin-fab-position", () => {
@@ -296,42 +323,17 @@ test.describe("admin chat FAB does not intercept the composer's send button (Bug
 });
 
 // Migrated from admin-selection-colors.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-selection-colors", () => {
-  // Preserve the retired config budget for hooks as well as the test body.
-  base.describe.configure({ timeout: 120_000 });
-/**
- * Selected and active accents in the admin resolve to the brand `--primary` in the REAL cascade:
- * the admin's stylesheets plus the @jini-ai/ui stylesheets the Settings route injects at runtime.
- *
- * Why computed styles: the 2026-10-06 regression ("black outline rather than the orange outline it
- * used to have") came from an upstream token remap. Jini's 2026-10-03 extraction moved every
- * `--jini-accent*` token onto `--jini-primary`, which falls back to #363636 unless the host sets
- * `--jini-theme-*-primary`. No admin CSS line changed, so a stylesheet-text test
- * (`apps/admin/src/__tests__/unit/selection-ring-css.unit.test.ts`) could not have caught it.
- * Here every colour is read from the browser and compared with `--primary` resolved on the same
- * element at runtime, never with a hard-coded value.
- * Since 055e1949e an operator-CHOSEN Dialog appearance accent repaints fills through the host's
- * `--jini-theme-*-primary` inputs; the ledger's unchosen default (Jini's neutral blue) must not, so
- * on this fresh site every fill and outline is the brand `--primary` (owner, 2026-10-08: selected
- * tabs, chips and nav were near-black on tovu.dev, and the default accent would have made the
- * fills blue). The sidebar nav and the AI Assistant page are measured too: they are the surfaces
- * in that report.
- *
- * Probes: the selected CLI card and the active provider chip depend on which CLIs this machine
- * has and on the stored execution mode. When the real element is not on screen, the test renders
- * a same-class probe inside the Settings panel. A probe goes through the same cascade (Jini's
- * injected rules, the admin's overrides, the inherited tokens), which is exactly what regressed.
- */
-const test = base.extend<{ settingsPage: Page }>({
-  settingsPage: async ({ page, baseURL, journeySite: site }, use) => {
-    if (!site || baseURL !== site.adminURL) {
-      throw new Error("admin-selection-colors needs the journeys isolated site (journeySite fixture)");
-    }
-    await use(page);
-  },
-});
+{
+
 
 interface Swatch { label: string; actual: string; primary: string }
+function configureSelectionPins() {
+
+  // Preserve the retired config budget for hooks as well as the test body.
+  base.describe.configure({ timeout: 120_000 });
+}
+
+
 
 /**
  * Reads `property` from the element matched by `selector` (or a probe of `probeClass` inside
@@ -375,20 +377,19 @@ async function swatch(
   }, { label, selector, property, pseudo, token, probeClass, probeParent, probeTag });
 }
 
+
 function expectPrimary(result: Swatch): void {
   expect(result.primary, `${result.label}: reference primary did not resolve`).toMatch(/^oklch\(|^rgb/);
   expect(result.actual, result.label).toBe(result.primary);
 }
 
+
 async function openSettings(page: Page, tab: string): Promise<void> {
   await page.goto(`/admin/settings?tab=${tab}`);
   await expect(page.locator(".settings-ui-section .jini-tabbed-dialog-nav-item.active")).toBeVisible();
 }
+function registerSettingsSelectionPins({ test, viewport, SETTINGS }: { test: ReturnType<typeof base.extend<{ settingsPage: Page }>>; viewport: { width: number; height: number }; SETTINGS: string }) {
 
-const SETTINGS = ".settings-ui-section";
-
-for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
-  test.describe(`at ${viewport.width}px`, () => {
     test.use({ viewport });
 
     test("Settings: active tab text and underline, selected CLI card border, provider chip fill", async ({ settingsPage: page }) => {
@@ -431,6 +432,10 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
       expectPrimary(await swatch(page, { label: "admin tab bar underline", selector: active, property: "border-bottom-color" }));
       expectPrimary(await swatch(page, { label: "admin tab bar text", selector: active, property: "color" }));
     });
+}
+
+function registerAssistantSelectionPin({ test, SETTINGS, viewport }: { test: ReturnType<typeof base.extend<{ settingsPage: Page }>>; SETTINGS: string; viewport: { width: number; height: number } }) {
+
 
     test("AI Assistant page: active tab underline and text, provider chip fill, sidebar nav rail and icon", async ({ settingsPage: page }) => {
       await page.goto("/admin/ai-assistant?tab=admin");
@@ -453,11 +458,224 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
       const icon = await swatch(page, { label: "sidebar active icon", selector: `${nav} svg`, property: "color", token: "--selected-text-on-tint" });
       expect(icon.actual, icon.label).toBe(icon.primary);
     });
-  });
 }
+
+function registerSelectionViewports({ test, SETTINGS }: { test: ReturnType<typeof base.extend<{ settingsPage: Page }>>; SETTINGS: string }) {
+
+
+for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  test.describe(`at ${viewport.width}px`, () => {
+registerSettingsSelectionPins({ test, viewport, SETTINGS });
+registerAssistantSelectionPin({ test, SETTINGS, viewport });
+});
+}
+}
+
+test.describe("Bug pin: admin-selection-colors", () => {
+configureSelectionPins();
+/**
+ * Selected and active accents in the admin resolve to the brand `--primary` in the REAL cascade:
+ * the admin's stylesheets plus the @jini-ai/ui stylesheets the Settings route injects at runtime.
+ *
+ * Why computed styles: the 2026-10-06 regression ("black outline rather than the orange outline it
+ * used to have") came from an upstream token remap. Jini's 2026-10-03 extraction moved every
+ * `--jini-accent*` token onto `--jini-primary`, which falls back to #363636 unless the host sets
+ * `--jini-theme-*-primary`. No admin CSS line changed, so a stylesheet-text test
+ * (`apps/admin/src/__tests__/unit/selection-ring-css.unit.test.ts`) could not have caught it.
+ * Here every colour is read from the browser and compared with `--primary` resolved on the same
+ * element at runtime, never with a hard-coded value.
+ * Since 055e1949e an operator-CHOSEN Dialog appearance accent repaints fills through the host's
+ * `--jini-theme-*-primary` inputs; the ledger's unchosen default (Jini's neutral blue) must not, so
+ * on this fresh site every fill and outline is the brand `--primary` (owner, 2026-10-08: selected
+ * tabs, chips and nav were near-black on tovu.dev, and the default accent would have made the
+ * fills blue). The sidebar nav and the AI Assistant page are measured too: they are the surfaces
+ * in that report.
+ *
+ * Probes: the selected CLI card and the active provider chip depend on which CLIs this machine
+ * has and on the stored execution mode. When the real element is not on screen, the test renders
+ * a same-class probe inside the Settings panel. A probe goes through the same cascade (Jini's
+ * injected rules, the admin's overrides, the inherited tokens), which is exactly what regressed.
+ */
+const test = base.extend<{ settingsPage: Page }>({
+  settingsPage: async ({ page, baseURL, journeySite: site }, use) => {
+    if (!site || baseURL !== site.adminURL) {
+      throw new Error("admin-selection-colors needs the journeys isolated site (journeySite fixture)");
+    }
+    await use(page);
+  },
 });
 
+const SETTINGS = ".settings-ui-section";
+registerSelectionViewports({ test, SETTINGS });
+});
+}
+
 // Migrated from admin-shell-no-document-scroll.spec.ts; original pin intent and why comments follow.
+{
+
+
+
+/** The shell's own contract, asserted directly: `.admin-layout` is `height: 100vh; overflow:
+ *  hidden`, so the document has nothing to scroll. Reads the max scroll the browser will actually
+ *  honour rather than comparing `scrollHeight` to `clientHeight` — an element can report a taller
+ *  scrollHeight than it lets you reach, and what the owner saw was real reachable blank space, so
+ *  the assertion should measure the thing they experienced. */
+async function maxDocumentScrollY(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const before = window.scrollY;
+    window.scrollTo(0, 1_000_000);
+    const max = window.scrollY;
+    window.scrollTo(0, before);
+    return max;
+  });
+}
+
+
+/**
+ * Appends a `.visually-hidden` span at the bottom of the content scroller, inside a wrapper that is
+ * `position: static` — reproducing `.tab-bar-item`'s geometry exactly.
+ *
+ * Appended to `.admin-content` itself rather than nested inside a card: `.card` and several of its
+ * children are `position: relative`, which would give the span a containing block INSIDE the scroll
+ * box and mask the very bug under test. `.admin-content` is static, so the span's containing block
+ * resolves to the initial containing block — the condition that makes it escape the scroller.
+ *
+ * Returns the probe's static-position offset so the caller can assert the setup actually put it
+ * below the fold; a probe that lands inside the first viewport proves nothing either way.
+ */
+async function injectVisuallyHiddenProbe(page: Page, probeId: string): Promise<number> {
+  return page.evaluate((id) => {
+    const content = document.querySelector(".admin-content");
+    if (!content) throw new Error(".admin-content not found — the admin shell did not render");
+    // Keep the regression reachable even on a screen whose real content fits the viewport.
+    const spacer = document.createElement("div");
+    spacer.style.height = `${window.innerHeight + 64}px`;
+    spacer.style.flexShrink = "0";
+    content.appendChild(spacer);
+    const host = document.createElement("div");
+    host.id = id;
+    const span = document.createElement("span");
+    span.className = "visually-hidden";
+    span.textContent = ", Connected";
+    host.appendChild(span);
+    content.appendChild(host);
+    return Math.round(host.getBoundingClientRect().top + window.scrollY);
+  }, probeId);
+}
+function registerHiddenSpanScrollPin({ PROBE_ID }: { PROBE_ID: string }) {
+
+  test("a screen-reader-only span low in the content flow does not stretch the document", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/deployment?tab=static-site");
+    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+
+    // Precondition: the page is genuinely taller than the viewport, so the probe's static position
+    // lands below the fold and the assertion below has something real to catch.
+    const viewportHeight = page.viewportSize()?.height ?? 0;
+    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
+    expect(probeTop).toBeGreaterThan(viewportHeight);
+
+    // The whole point: that span sits ~1900px down the content flow, and the document must still
+    // refuse to scroll. Pre-fix this is the 341px of white space the owner reported.
+    expect(await maxDocumentScrollY(page)).toBe(0);
+  });
+
+  test("no .visually-hidden element resolves to a position below the viewport", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/deployment?tab=static-site");
+    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
+    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
+
+    // The mechanism itself, asserted directly rather than only through its symptom: a
+    // screen-reader-only box that resolves its offsets against the document can push the page
+    // taller no matter which screen it appears on. Pinned to its containing block's origin, its
+    // document-space bottom can never exceed the viewport.
+    const worst = await page.evaluate(() => {
+      const vh = document.documentElement.clientHeight;
+      let max = 0;
+      for (const el of document.querySelectorAll(".visually-hidden")) {
+        const r = el.getBoundingClientRect();
+        max = Math.max(max, r.bottom + window.scrollY);
+      }
+      return { max, vh };
+    });
+    expect(worst.max).toBeLessThanOrEqual(worst.vh);
+  });
+}
+
+function registerRealScrollerPins() {
+
+
+  test("the fix does not disable either real scroller", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/deployment?tab=static-site");
+    await expect(page.locator(".admin-content .card").first()).toBeVisible();
+
+    // Guards the obvious wrong fix. "Stop the document scrolling" is trivially satisfiable by
+    // clamping the shell until nothing scrolls at all — which would make the sidebar's lower nav
+    // items and the bottom of every long page permanently unreachable. Both internal scrollers must
+    // still overflow their own boxes.
+    const scrollers = await page.evaluate(() => {
+      const content = document.querySelector(".admin-content");
+      const nav = document.querySelector(".cms-nav");
+      return {
+        contentOverflows: !!content && content.scrollHeight > content.clientHeight + 1,
+        navOverflows: !!nav && nav.scrollHeight > nav.clientHeight + 1,
+      };
+    });
+    expect(scrollers.contentOverflows).toBe(true);
+    expect(scrollers.navOverflows).toBe(true);
+    for (const selector of [".admin-content", ".cms-nav"]) {
+      const scroller = page.locator(selector);
+      await scroller.evaluate((el) => {
+        el.scrollTop = 0;
+        const target = document.createElement("div");
+        target.dataset.scrollReachProbe = "true";
+        target.textContent = "Below-fold scroll target";
+        target.style.flexShrink = "0";
+        el.appendChild(target);
+      });
+      const target = scroller.locator('[data-scroll-reach-probe="true"]');
+      await expect(target).not.toBeInViewport();
+      await scroller.hover();
+      // Wheel again until the probe shows: a single wheel stopped short of it about 1 run in 6
+      // (likely the deployment cards still growing after the first one rendered).
+      await expect(async () => {
+        await page.mouse.wheel(0, 100_000);
+        await expect(target).toBeInViewport({ timeout: 2_000 });
+      }).toPass();
+      expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+      expect(await maxDocumentScrollY(page)).toBe(0);
+    }
+  });
+}
+
+function registerThemesScrollPin({ PROBE_ID }: { PROBE_ID: string }) {
+
+
+  test("Themes: the shared TabBar screen holds the same contract", async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto("/admin/themes");
+    await expect(page.locator(".admin-content").first()).toBeVisible();
+    await expect(page.locator(".tab-bar").first()).toBeVisible();
+
+    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
+    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
+    expect(await maxDocumentScrollY(page)).toBe(0);
+  });
+}
+
+function registerDocumentScrollSuite({ PROBE_ID }: { PROBE_ID: string }) {
+
+
+test.describe("the admin shell never scrolls the document itself", () => {
+registerHiddenSpanScrollPin({ PROBE_ID });
+registerRealScrollerPins();
+registerThemesScrollPin({ PROBE_ID });
+});
+}
+
 test.describe("Bug pin: admin-shell-no-document-scroll", () => {
 /**
  * @file Regression test for the admin shell's phantom vertical document scroll, found live (owner
@@ -510,183 +728,23 @@ test.describe("Bug pin: admin-shell-no-document-scroll", () => {
  */
 
 const PROBE_ID = "vh-document-scroll-probe";
-
-/** The shell's own contract, asserted directly: `.admin-layout` is `height: 100vh; overflow:
- *  hidden`, so the document has nothing to scroll. Reads the max scroll the browser will actually
- *  honour rather than comparing `scrollHeight` to `clientHeight` — an element can report a taller
- *  scrollHeight than it lets you reach, and what the owner saw was real reachable blank space, so
- *  the assertion should measure the thing they experienced. */
-async function maxDocumentScrollY(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const before = window.scrollY;
-    window.scrollTo(0, 1_000_000);
-    const max = window.scrollY;
-    window.scrollTo(0, before);
-    return max;
-  });
-}
-
-/**
- * Appends a `.visually-hidden` span at the bottom of the content scroller, inside a wrapper that is
- * `position: static` — reproducing `.tab-bar-item`'s geometry exactly.
- *
- * Appended to `.admin-content` itself rather than nested inside a card: `.card` and several of its
- * children are `position: relative`, which would give the span a containing block INSIDE the scroll
- * box and mask the very bug under test. `.admin-content` is static, so the span's containing block
- * resolves to the initial containing block — the condition that makes it escape the scroller.
- *
- * Returns the probe's static-position offset so the caller can assert the setup actually put it
- * below the fold; a probe that lands inside the first viewport proves nothing either way.
- */
-async function injectVisuallyHiddenProbe(page: Page, probeId: string): Promise<number> {
-  return page.evaluate((id) => {
-    const content = document.querySelector(".admin-content");
-    if (!content) throw new Error(".admin-content not found — the admin shell did not render");
-    // Keep the regression reachable even on a screen whose real content fits the viewport.
-    const spacer = document.createElement("div");
-    spacer.style.height = `${window.innerHeight + 64}px`;
-    spacer.style.flexShrink = "0";
-    content.appendChild(spacer);
-    const host = document.createElement("div");
-    host.id = id;
-    const span = document.createElement("span");
-    span.className = "visually-hidden";
-    span.textContent = ", Connected";
-    host.appendChild(span);
-    content.appendChild(host);
-    return Math.round(host.getBoundingClientRect().top + window.scrollY);
-  }, probeId);
-}
-
-test.describe("the admin shell never scrolls the document itself", () => {
-  test("a screen-reader-only span low in the content flow does not stretch the document", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
-
-    // Precondition: the page is genuinely taller than the viewport, so the probe's static position
-    // lands below the fold and the assertion below has something real to catch.
-    const viewportHeight = page.viewportSize()?.height ?? 0;
-    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
-    expect(probeTop).toBeGreaterThan(viewportHeight);
-
-    // The whole point: that span sits ~1900px down the content flow, and the document must still
-    // refuse to scroll. Pre-fix this is the 341px of white space the owner reported.
-    expect(await maxDocumentScrollY(page)).toBe(0);
-  });
-
-  test("no .visually-hidden element resolves to a position below the viewport", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
-    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
-    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
-
-    // The mechanism itself, asserted directly rather than only through its symptom: a
-    // screen-reader-only box that resolves its offsets against the document can push the page
-    // taller no matter which screen it appears on. Pinned to its containing block's origin, its
-    // document-space bottom can never exceed the viewport.
-    const worst = await page.evaluate(() => {
-      const vh = document.documentElement.clientHeight;
-      let max = 0;
-      for (const el of document.querySelectorAll(".visually-hidden")) {
-        const r = el.getBoundingClientRect();
-        max = Math.max(max, r.bottom + window.scrollY);
-      }
-      return { max, vh };
-    });
-    expect(worst.max).toBeLessThanOrEqual(worst.vh);
-  });
-
-  test("the fix does not disable either real scroller", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/admin/deployment?tab=static-site");
-    await expect(page.locator(".admin-content .card").first()).toBeVisible();
-
-    // Guards the obvious wrong fix. "Stop the document scrolling" is trivially satisfiable by
-    // clamping the shell until nothing scrolls at all — which would make the sidebar's lower nav
-    // items and the bottom of every long page permanently unreachable. Both internal scrollers must
-    // still overflow their own boxes.
-    const scrollers = await page.evaluate(() => {
-      const content = document.querySelector(".admin-content");
-      const nav = document.querySelector(".cms-nav");
-      return {
-        contentOverflows: !!content && content.scrollHeight > content.clientHeight + 1,
-        navOverflows: !!nav && nav.scrollHeight > nav.clientHeight + 1,
-      };
-    });
-    expect(scrollers.contentOverflows).toBe(true);
-    expect(scrollers.navOverflows).toBe(true);
-    for (const selector of [".admin-content", ".cms-nav"]) {
-      const scroller = page.locator(selector);
-      await scroller.evaluate((el) => {
-        el.scrollTop = 0;
-        const target = document.createElement("div");
-        target.dataset.scrollReachProbe = "true";
-        target.textContent = "Below-fold scroll target";
-        target.style.flexShrink = "0";
-        el.appendChild(target);
-      });
-      const target = scroller.locator('[data-scroll-reach-probe="true"]');
-      await expect(target).not.toBeInViewport();
-      await scroller.hover();
-      // Wheel again until the probe shows: a single wheel stopped short of it about 1 run in 6
-      // (likely the deployment cards still growing after the first one rendered).
-      await expect(async () => {
-        await page.mouse.wheel(0, 100_000);
-        await expect(target).toBeInViewport({ timeout: 2_000 });
-      }).toPass();
-      expect(await scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
-      expect(await maxDocumentScrollY(page)).toBe(0);
-    }
-  });
-
-  test("Themes: the shared TabBar screen holds the same contract", async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto("/admin/themes");
-    await expect(page.locator(".admin-content").first()).toBeVisible();
-    await expect(page.locator(".tab-bar").first()).toBeVisible();
-
-    const probeTop = await injectVisuallyHiddenProbe(page, PROBE_ID);
-    expect(probeTop).toBeGreaterThan(page.viewportSize()!.height);
-    expect(await maxDocumentScrollY(page)).toBe(0);
-  });
+registerDocumentScrollSuite({ PROBE_ID });
 });
-});
+}
 
 // Migrated from admin-visual-parity.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-visual-parity", () => {
-/**
- * @file Visual-parity audit — Settings/Posts (reference idiom, per the owner) vs Workspace/Taxonomy
- * (reported "look worse"), with Media/Menus as controls. Written for the 2026-08-05 web-design pass
- * after the owner rejected an earlier code-only review ("Workspace matches the house idiom, no
- * defect found") on the grounds that they're looking at rendered pixels, not source.
- *
- * This is a capture-and-save tool, not a pass/fail regression: every "test" below just navigates to
- * one admin section and writes a full-page screenshot to gitignored `development/test-results/`,
- * so the images can be diffed by eye and rerun after a fix for a real before/after. Run against `playwright.visual-
- * parity.config.ts`'s hermetic `TOVU_DB=memory` boot — never the real `infra/content.db`.
- *
- * Categories & Tags renders empty in a fresh memory boot (`seed.ts` seeds posts/media/menus but no
- * taxonomies), which would hide the owner's actual complaint (a page with real dummy categories/tags
- * on it). The first test creates two demo taxonomies through the real "New taxonomy"/"Add term" UI
- * (not a raw API bypass) — one flat, one hierarchical with a parent/child pair — so the capture shows
- * the same shape of screen the owner is looking at.
- *
- * `SNAPSHOT_DIR` defaults to `development/test-results/visual-parity-taxonomy-workspace/before`.
- * `VISUAL_PARITY_DIR` still overrides it so the same spec produces `before/` and `after/` sets
- * across a fix without editing this file twice.
- */
+{
 
-const SNAPSHOT_DIR =
-  process.env.VISUAL_PARITY_DIR ?? path.resolve(import.meta.dirname, "../../test-results/visual-parity-taxonomy-workspace/before");
+function createParityCapture({ SNAPSHOT_DIR }: { SNAPSHOT_DIR: ReturnType<typeof path.resolve> }) {
 
 async function shoot(page: import("@playwright/test").Page, name: string) {
   mkdirSync(SNAPSHOT_DIR, { recursive: true });
   await page.screenshot({ path: `${SNAPSHOT_DIR}/${name}.png`, fullPage: true });
 }
+  return shoot;
+}
 
-async function seedParityTaxonomies(page: Page): Promise<void> {
+async function seedFlatParityTaxonomy({ page }: { page: Page }) {
   await loginAsAdmin(page);
   await page.goto("/admin/taxonomy");
   await expect(page.getByRole("heading", { name: "Categories & Tags", exact: true })).toBeVisible({ timeout: 10_000 });
@@ -731,6 +789,10 @@ async function seedParityTaxonomies(page: Page): Promise<void> {
   expect(response.status()).toBe(200);
   const { items } = await response.json();
   const topic = items.find((item: { taxonomy: { name: string } }) => item.taxonomy.name === "Topic");
+  return { topicGroup, topic };
+}
+
+async function seedHierarchicalParityTaxonomy({ topicGroup, topic }: Awaited<ReturnType<typeof seedFlatParityTaxonomy>>) {
   expect(topic).toBeDefined();
   const parent = topic.terms.find((term: { name: string }) => term.name === "Engineering");
   const child = topic.terms.find((term: { name: string }) => term.name === "Backend");
@@ -745,8 +807,14 @@ async function seedParityTaxonomies(page: Page): Promise<void> {
   expect(childBox!.y).toBeGreaterThanOrEqual(parentBox!.y + parentBox!.height);
 }
 
-// Each pin starts with reset data and arranges its own screen; a failed seed must not skip captures.
-test.describe("admin visual parity capture", () => {
+
+
+async function seedParityTaxonomies(page: Page): Promise<void> {
+  const seedFlatParityTaxonomyState = await seedFlatParityTaxonomy({ page });
+  await seedHierarchicalParityTaxonomy(seedFlatParityTaxonomyState);
+}
+function registerParityTaxonomyPins({ shoot }: { shoot: ReturnType<typeof createParityCapture> }) {
+
   test("seeds two demo taxonomies (flat + hierarchical) through the real UI", async ({ page }) => {
     await seedParityTaxonomies(page);
   });
@@ -797,6 +865,10 @@ test.describe("admin visual parity capture", () => {
     await page.locator(".page-title", { hasText: "Media" }).waitFor({ state: "visible" });
     await shoot(page, "05-media");
   });
+}
+
+function registerParityMenuPin({ shoot }: { shoot: ReturnType<typeof createParityCapture> }) {
+
 
   test("captures Menus (control)", async ({ page }) => {
     await loginAsAdmin(page);
@@ -804,11 +876,52 @@ test.describe("admin visual parity capture", () => {
     await page.locator(".page-title", { hasText: "Menus" }).waitFor({ state: "visible" });
     await shoot(page, "06-menus");
   });
+}
+
+function registerVisualParitySuite({ shoot }: { shoot: ReturnType<typeof createParityCapture> }) {
+
+
+// Each pin starts with reset data and arranges its own screen; a failed seed must not skip captures.
+test.describe("admin visual parity capture", () => {
+registerParityTaxonomyPins({ shoot });
+registerParityMenuPin({ shoot });
 });
+}
+
+test.describe("Bug pin: admin-visual-parity", () => {
+/**
+ * @file Visual-parity audit — Settings/Posts (reference idiom, per the owner) vs Workspace/Taxonomy
+ * (reported "look worse"), with Media/Menus as controls. Written for the 2026-08-05 web-design pass
+ * after the owner rejected an earlier code-only review ("Workspace matches the house idiom, no
+ * defect found") on the grounds that they're looking at rendered pixels, not source.
+ *
+ * This is a capture-and-save tool, not a pass/fail regression: every "test" below just navigates to
+ * one admin section and writes a full-page screenshot to gitignored `development/test-results/`,
+ * so the images can be diffed by eye and rerun after a fix for a real before/after. Run against `playwright.visual-
+ * parity.config.ts`'s hermetic `TOVU_DB=memory` boot — never the real `infra/content.db`.
+ *
+ * Categories & Tags renders empty in a fresh memory boot (`seed.ts` seeds posts/media/menus but no
+ * taxonomies), which would hide the owner's actual complaint (a page with real dummy categories/tags
+ * on it). The first test creates two demo taxonomies through the real "New taxonomy"/"Add term" UI
+ * (not a raw API bypass) — one flat, one hierarchical with a parent/child pair — so the capture shows
+ * the same shape of screen the owner is looking at.
+ *
+ * `SNAPSHOT_DIR` defaults to `development/test-results/visual-parity-taxonomy-workspace/before`.
+ * `VISUAL_PARITY_DIR` still overrides it so the same spec produces `before/` and `after/` sets
+ * across a fix without editing this file twice.
+ */
+
+const SNAPSHOT_DIR =
+  process.env.VISUAL_PARITY_DIR ?? path.resolve(import.meta.dirname, "../../test-results/visual-parity-taxonomy-workspace/before");
+const shoot = createParityCapture({ SNAPSHOT_DIR });
+registerVisualParitySuite({ shoot });
 });
+}
 
 // Migrated from assistant-dock-preview-layout.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: assistant-dock-preview-layout", () => {
+{
+
+
 /** Checks the rendered containing block and hit testing with the production styles. */
 async function expectReachable(locator: Locator) {
   await expect(locator).toBeVisible();
@@ -818,6 +931,7 @@ async function expectReachable(locator: Locator) {
     return hit !== null && element.contains(hit);
   })).toBe(true);
 }
+
 
 async function expectPreviewControlAnchored(surface: Locator) {
   const control = surface.locator(".post-preview-fab");
@@ -833,6 +947,7 @@ async function expectPreviewControlAnchored(surface: Locator) {
   })).toBe(true);
 }
 
+
 /** Collapsed, the control sits on the action row right after the settings gear (724fc22dd). */
 async function expectPreviewControlBesideGear(page: Page) {
   const control = page.locator(".page > .post-preview-surface > .post-preview-fab");
@@ -846,8 +961,7 @@ async function expectPreviewControlBesideGear(page: Page) {
       && Math.abs((box.top + box.bottom) / 2 - (gear.top + gear.bottom) / 2) <= 1;
   })).toBe(true);
 }
-
-test("expanded post preview leaves the chat FAB and open assistant dock accessible", async ({ page }) => {
+async function openExpandedPostPreview({ page }: { page: Page }) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await loginAsAdmin(page);
   await keepOpenDockFabVisible({ page });
@@ -885,6 +999,10 @@ test("expanded post preview leaves the chat FAB and open assistant dock accessib
       && shellHeight >= surfaceHeight - noticeHeight - 2 && frameHeight >= shellHeight - 2
       && iframeHeight >= frameHeight - 2;
   })).toBe(true);
+  return { page, fab, dock, expanded };
+}
+
+async function expectPreviewDockAccessible({ page, fab, dock, expanded }: Awaited<ReturnType<typeof openExpandedPostPreview>>) {
   await expectReachable(fab);
   await fab.click();
   await expectReachable(dock);
@@ -904,37 +1022,27 @@ test("expanded post preview leaves the chat FAB and open assistant dock accessib
       && previewBox.y + previewBox.height <= mainBox.y + mainBox.height + tolerance
       && previewBox.x + previewBox.width <= dockBox.x + tolerance;
   }).toBe(true);
+}
+
+function registerPreviewDockPin() {
+
+
+test("expanded post preview leaves the chat FAB and open assistant dock accessible", async ({ page }) => {
+  const openExpandedPostPreviewState = await openExpandedPostPreview({ page });
+  await expectPreviewDockAccessible(openExpandedPostPreviewState);
 });
+}
+
+test.describe("Bug pin: assistant-dock-preview-layout", () => {
+registerPreviewDockPin();
 });
+}
 
 // Migrated from mobile-sheet-scroll.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: mobile-sheet-scroll", () => {
-/**
- * @file Regression test for the mobile chat sheet blocking scroll to the bottom of the page
- * (owner repro, 2026-08-26): *"the bottom sheet AI agent wasn't allowing me to scroll... there's
- * CSS at the bottom that adjusts for when it's mobile size and when the agent chat appears."*
- *
- * The page underneath was never scroll-locked — `.admin-content` keeps its own `overflow-y: auto`.
- * The real bug: nothing was reserved below the last element, so it could never be scrolled clear
- * of the sheet (`.admin-chat-dock`, `styles.css`'s `max-width: 640px` block), which sits
- * `position: fixed` over the bottom 58vh (peek) or 92vh (expanded) of the viewport.
- *
- * The first fix reserved that space with `padding-bottom` on `.admin-content`. That broke at a
- * short viewport in the expanded state: padding can never shrink a box below its own value
- * (border-box's floor), so `padding-bottom: 92vh` plus the existing padding-top forced
- * `.admin-content` taller than its flex-allotted height, pushing its true bottom edge below the
- * viewport and leaving the last row still ~14px under the sheet even at max scroll. The fix is an
- * `::after` spacer instead — ordinary scrollable content, which `overflow-y: auto` clips like
- * anything else, so the box never grows past its flex-determined size. `375x667` + expanded is the
- * viewport/state pair that exposed this; it is asserted explicitly below, not just the roomier
- * `414x896` the owner's own repro used.
- *
- * jsdom has no layout engine (no real flexbox/box-model math), so none of this is unit-testable —
- * confirmed live via `content.style.paddingBottom = ...` experiments that only a real browser
- * could run.
- */
+{
 
-const scrollFixtureIds = new WeakMap<Page, string[]>();
+function registerScrollFixtureCleanup({ scrollFixtureIds }: { scrollFixtureIds: WeakMap<Page, string[]> }) {
+
 test.afterEach(async ({ page }) => {
   for (const id of scrollFixtureIds.get(page) ?? []) {
     const response = await page.request.delete(`/api/admin/v1/workspaces/workspace-local/posts/${id}`, {
@@ -943,6 +1051,9 @@ test.afterEach(async ({ page }) => {
     expect(response.ok()).toBe(true);
   }
 });
+}
+
+function createScrollFixtureCheck({ scrollFixtureIds }: { scrollFixtureIds: WeakMap<Page, string[]> }) {
 
 /** Require a naturally overflowing list before opening the sheet, independent of its spacer. */
 async function expectScrollablePostsList(page: Page): Promise<void> {
@@ -965,11 +1076,16 @@ async function expectScrollablePostsList(page: Page): Promise<void> {
   const overflows = await page.locator(".admin-content").evaluate((element) => element.scrollHeight > element.clientHeight);
   expect(overflows, "the posts list must overflow before the sheet adds any spacer").toBe(true);
 }
+  return expectScrollablePostsList;
+}
+
+
 
 async function openSheet(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Open assistant" }).click();
   await expect(page.locator(".admin-chat-dock")).not.toHaveAttribute("hidden", "");
 }
+
 
 async function expandSheet(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Expand assistant panel" }).click();
@@ -980,6 +1096,7 @@ async function expandSheet(page: Page): Promise<void> {
     element.getAnimations().some((animation) => animation.playState === "running")
   ), { timeout: 5_000 }).toBe(false);
 }
+
 
 /** Scrolls `.admin-content` to its max and reports whether the last table row's bottom edge
  *  cleared the sheet's top edge — the owner's own bar: "you could just scroll more up the page." */
@@ -1017,8 +1134,8 @@ async function lastRowClearsSheet(page: Page): Promise<{ cleared: boolean; gap: 
     return { cleared: gap >= -1, gap }; // 1px tolerance for subpixel rounding
   });
 }
+function registerSheetClearancePins({ expectScrollablePostsList }: { expectScrollablePostsList: ReturnType<typeof createScrollFixtureCheck> }) {
 
-test.describe("mobile chat sheet reserves scroll room instead of blocking it", () => {
   test("414x896, peek state: the last row on a long page clears the sheet", async ({ page }) => {
     await loginAsAdmin(page);
     await page.setViewportSize({ width: 414, height: 896 });
@@ -1064,6 +1181,10 @@ test.describe("mobile chat sheet reserves scroll room instead of blocking it", (
     const result = await lastRowClearsSheet(page);
     expect(result.cleared, `last row should clear the sheet, gap was ${result.gap}px`).toBe(true);
   });
+}
+
+function registerClosedSheetScrollPin({ expectScrollablePostsList }: { expectScrollablePostsList: ReturnType<typeof createScrollFixtureCheck> }) {
+
 
   test("closing the sheet leaves no reserved dead space to scroll into", async ({ page }) => {
     await loginAsAdmin(page);
@@ -1087,62 +1208,60 @@ test.describe("mobile chat sheet reserves scroll room instead of blocking it", (
     });
     expect(closedMaxScroll).toBe(naturalMaxScroll);
   });
-});
-});
+}
 
-// Migrated from multi-tab-resource-soak.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: multi-tab-resource-soak", () => {
-  // Preserve the retired config budget for hooks as well as the test body.
-  test.describe.configure({ timeout: 100_000 });
+function registerSheetScrollSuite({ expectScrollablePostsList }: { expectScrollablePostsList: ReturnType<typeof createScrollFixtureCheck> }) {
+
+
+test.describe("mobile chat sheet reserves scroll room instead of blocking it", () => {
+registerSheetClearancePins({ expectScrollablePostsList });
+registerClosedSheetScrollPin({ expectScrollablePostsList });
+});
+}
+
+test.describe("Bug pin: mobile-sheet-scroll", () => {
 /**
- * @file Standing, generalized regression cover for the browser-connection-pool-exhaustion bug shape
- * found and fixed 2026-08-17 (three instances that day: `settings-events.ts`'s permanent
- * `EventSource`, `useChatPaneRuntimeInventory`'s non-single-flight poll, and `reattachRun`'s dropped
- * cancellation signal — see `ADS-memory/reports/2026-08-17-resource-leak-sweep.md`).
+ * @file Regression test for the mobile chat sheet blocking scroll to the bottom of the page
+ * (owner repro, 2026-08-26): *"the bottom sheet AI agent wasn't allowing me to scroll... there's
+ * CSS at the bottom that adjusts for when it's mobile size and when the agent chat appears."*
  *
- * `themes-presentation-request-timeout.spec.ts` proved the underlying fix (`lib/api.ts`'s
- * `fetchOrThrowUnreachable` racing every request against `AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)`)
- * against exactly one screen, Themes. This suite generalizes that same mechanism — open N long-lived
- * connections against the shared origin, then confirm the app still produces a definitive outcome
- * rather than hanging forever — across MULTIPLE screens, so the check is not pinned to Themes'
- * specific fix and instead proves the shared seam every `api.*` call goes through. `Posts.tsx` and
- * `FormsList.tsx` were picked because they use the exact same
- * `error ? <div className="notice error">{error}</div> : null` idiom Themes, Database, and Comments
- * all share — confirmed via `grep -rn 'notice error' apps/admin/src` before writing this.
+ * The page underneath was never scroll-locked — `.admin-content` keeps its own `overflow-y: auto`.
+ * The real bug: nothing was reserved below the last element, so it could never be scrolled clear
+ * of the sheet (`.admin-chat-dock`, `styles.css`'s `max-width: 640px` block), which sits
+ * `position: fixed` over the bottom 58vh (peek) or 92vh (expanded) of the viewport.
  *
- * ## Why simulated connections, not real extra tabs
+ * The first fix reserved that space with `padding-bottom` on `.admin-content`. That broke at a
+ * short viewport in the expanded state: padding can never shrink a box below its own value
+ * (border-box's floor), so `padding-bottom: 92vh` plus the existing padding-top forced
+ * `.admin-content` taller than its flex-allotted height, pushing its true bottom edge below the
+ * viewport and leaving the last row still ~14px under the sheet even at max scroll. The fix is an
+ * `::after` spacer instead — ordinary scrollable content, which `overflow-y: auto` clips like
+ * anything else, so the box never grows past its flex-determined size. `375x667` + expanded is the
+ * viewport/state pair that exposed this; it is asserted explicitly below, not just the roomier
+ * `414x896` the owner's own repro used.
  *
- * Real tabs works too (the brief's original wording), but N real tabs each loading the full admin
- * SPA is slow and adds noise unrelated to the mechanism itself (bundle parse time, React mount time,
- * per-tab login race) — the same reasoning `themes-presentation-request-timeout.spec.ts` already
- * documents. The actual mechanism under test is just "N long-lived connections already held against
- * this origin," reproduced directly and deterministically by opening `EXTRA_HELD_CONNECTIONS` extra
- * raw `EventSource` connections to `/settings/events` from inside the one already-logged-in tab.
- *
- * ## Not wired into a blocking CI gate
- *
- * This is a real-wall-clock suite (~80s per screen) that waits out a genuine 60s timeout rather than
- * mocking it, on purpose — mirroring `themes-presentation-request-timeout.spec.ts`'s own reasoning
- * for why a real wait is the point, not a shortcut being avoided. Per the original sweep proposal,
- * this is meant to run periodically, not as a per-commit blocker. No existing CI config in this repo
- * auto-collects new `development/e2e/*.spec.ts` files into a blocking run (each suite gets its own
- * narrowly-`testMatch`-scoped `playwright.*.config.ts`, run explicitly) — left as an explicit open
- * decision for the owner rather than assumed.
+ * jsdom has no layout engine (no real flexbox/box-model math), so none of this is unit-testable —
+ * confirmed live via `content.style.paddingBottom = ...` experiments that only a real browser
+ * could run.
  */
 
-const WORKSPACE_ID = "workspace-local";
-const SETTINGS_EVENTS_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/events`;
-/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.tsx`), enough to
- *  push the origin's total held connections past Chrome's 6-per-origin HTTP/1.1 cap regardless of
- *  exact browser accounting — same value and reasoning as
- *  `themes-presentation-request-timeout.spec.ts`. */
-const EXTRA_HELD_CONNECTIONS = 6;
+const scrollFixtureIds = new WeakMap<Page, string[]>();
+registerScrollFixtureCleanup({ scrollFixtureIds });
+const expectScrollablePostsList = createScrollFixtureCheck({ scrollFixtureIds });
+registerSheetScrollSuite({ expectScrollablePostsList });
+});
+}
 
-/** Screens exercised by this soak check. Deliberately more than one, and deliberately NOT Themes —
- *  the point of generalizing is to prove the shared `lib/api.ts` seam, not re-prove Themes' own
- *  already-covered regression. Add more screens here to widen coverage; each must render a fetch
- *  error through the shared `.notice.error` idiom. */
-const SCREENS: ReadonlyArray<{ navLabel: string }> = [{ navLabel: "Posts" }, { navLabel: "Forms" }];
+// Migrated from multi-tab-resource-soak.spec.ts; original pin intent and why comments follow.
+{
+
+function configureResourceSoakPins() {
+
+  // Preserve the retired config budget for hooks as well as the test body.
+  test.describe.configure({ timeout: 100_000 });
+}
+
+function createConnectionPoolProbe({ SETTINGS_EVENTS_URL }: { SETTINGS_EVENTS_URL: string }) {
 
 /** Opens `count` extra `EventSource` connections against the settings change-feed endpoint from
  *  inside `page`, simulating `count` additional long-lived tabs/pollers holding a connection open
@@ -1187,8 +1306,11 @@ async function holdExtraConnections(
     await network.detach();
   }
 }
+  return holdExtraConnections;
+}
 
-test.describe("admin app survives an exhausted per-origin connection pool, across multiple screens", () => {
+function registerConnectionPoolPins({ SCREENS, holdExtraConnections, EXTRA_HELD_CONNECTIONS, WORKSPACE_ID }: { SCREENS: ReadonlyArray<{ navLabel: string }>; holdExtraConnections: ReturnType<typeof createConnectionPoolProbe>; EXTRA_HELD_CONNECTIONS: number; WORKSPACE_ID: string }) {
+
   test.afterEach(async ({ page }) => {
     if (page.isClosed()) return;
     // Close both OPEN and queued CONNECTING streams even when setup or the timeout assertion fails.
@@ -1216,14 +1338,76 @@ test.describe("admin app survives an exhausted per-origin connection pool, acros
       await expect(page.getByText(`Loading ${screen.navLabel.toLowerCase()}…`, { exact: true })).toHaveCount(0);
     });
   }
+}
+
+function registerConnectionPoolSuite({ SCREENS, holdExtraConnections, EXTRA_HELD_CONNECTIONS, WORKSPACE_ID }: { SCREENS: ReadonlyArray<{ navLabel: string }>; holdExtraConnections: ReturnType<typeof createConnectionPoolProbe>; EXTRA_HELD_CONNECTIONS: number; WORKSPACE_ID: string }) {
+
+
+test.describe("admin app survives an exhausted per-origin connection pool, across multiple screens", () => {
+registerConnectionPoolPins({ SCREENS, holdExtraConnections, EXTRA_HELD_CONNECTIONS, WORKSPACE_ID });
 });
+}
+
+test.describe("Bug pin: multi-tab-resource-soak", () => {
+configureResourceSoakPins();
+/**
+ * @file Standing, generalized regression cover for the browser-connection-pool-exhaustion bug shape
+ * found and fixed 2026-08-17 (three instances that day: `settings-events.ts`'s permanent
+ * `EventSource`, `useChatPaneRuntimeInventory`'s non-single-flight poll, and `reattachRun`'s dropped
+ * cancellation signal — see `ADS-memory/reports/2026-08-17-resource-leak-sweep.md`).
+ *
+ * `themes-presentation-request-timeout.spec.ts` proved the underlying fix (`lib/api.ts`'s
+ * `fetchOrThrowUnreachable` racing every request against `AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)`)
+ * against exactly one screen, Themes. This suite generalizes that same mechanism — open N long-lived
+ * connections against the shared origin, then confirm the app still produces a definitive outcome
+ * rather than hanging forever — across MULTIPLE screens, so the check is not pinned to Themes'
+ * specific fix and instead proves the shared seam every `api.*` call goes through. `Posts.tsx` and
+ * `FormsList.tsx` were picked because they use the exact same
+ * `error ? <div className="notice error">{error}</div> : null` idiom Themes, Database, and Comments
+ * all share — confirmed via `grep -rn 'notice error' apps/admin/src` before writing this.
+ *
+ * ## Why simulated connections, not real extra tabs
+ *
+ * Real tabs works too (the brief's original wording), but N real tabs each loading the full admin
+ * SPA is slow and adds noise unrelated to the mechanism itself (bundle parse time, React mount time,
+ * per-tab login race) — the same reasoning `themes-presentation-request-timeout.spec.ts` already
+ * documents. The actual mechanism under test is just "N long-lived connections already held against
+ * this origin," reproduced directly and deterministically by opening `EXTRA_HELD_CONNECTIONS` extra
+ * raw `EventSource` connections to `/settings/events` from inside the one already-logged-in tab.
+ *
+ * ## Not wired into a blocking CI gate
+ *
+ * This is a real-wall-clock suite (~80s per screen) that waits out a genuine 60s timeout rather than
+ * mocking it, on purpose — mirroring `themes-presentation-request-timeout.spec.ts`'s own reasoning
+ * for why a real wait is the point, not a shortcut being avoided. Per the original sweep proposal,
+ * this is meant to run periodically, not as a per-commit blocker. No existing CI config in this repo
+ * auto-collects new `development/e2e/*.spec.ts` files into a blocking run (each suite gets its own
+ * narrowly-`testMatch`-scoped `playwright.*.config.ts`, run explicitly) — left as an explicit open
+ * decision for the owner rather than assumed.
+ */
+
+const WORKSPACE_ID = "workspace-local";
+const SETTINGS_EVENTS_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/events`;
+/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.ts`), enough to
+ *  push the origin's total held connections past Chrome's 6-per-origin HTTP/1.1 cap regardless of
+ *  exact browser accounting — same value and reasoning as
+ *  `themes-presentation-request-timeout.spec.ts`. */
+const EXTRA_HELD_CONNECTIONS = 6;
+
+/** Screens exercised by this soak check. Deliberately more than one, and deliberately NOT Themes —
+ *  the point of generalizing is to prove the shared `lib/api.ts` seam, not re-prove Themes' own
+ *  already-covered regression. Add more screens here to widen coverage; each must render a fetch
+ *  error through the shared `.notice.error` idiom. */
+const SCREENS: ReadonlyArray<{ navLabel: string }> = [{ navLabel: "Posts" }, { navLabel: "Forms" }];
+const holdExtraConnections = createConnectionPoolProbe({ SETTINGS_EVENTS_URL });
+registerConnectionPoolSuite({ SCREENS, holdExtraConnections, EXTRA_HELD_CONNECTIONS, WORKSPACE_ID });
 });
+}
 
 // Migrated from placeholder-tabs-card-parity.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: placeholder-tabs-card-parity", () => {
-/** Absolute default so the screenshot destination doesn't depend on whatever directory Playwright happens
- *  to be invoked from — a relative path here resolves against `process.cwd()`, not `testDir`. */
-const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR ?? path.resolve(import.meta.dirname, "../../test-results/placeholder-tabs-card-parity");
+{
+
+function preparePlaceholderSections() {
 
 /**
  * @file Pins the fix for the "Payments/Deployment/Authentication don't match Settings" bug
@@ -1257,6 +1441,10 @@ const SECTIONS = [
   // Authentication owns an external header, and Payments is no longer a core panel.
   { path: "/admin/settings", kicker: "Settings", title: "AI agent", isReference: true },
 ] as const;
+  return { SECTIONS };
+}
+
+
 
 /** Navigates to an admin section and waits for the settings-dialog shell to be the thing on
  *  screen, not just present in the DOM mid-transition. */
@@ -1264,11 +1452,8 @@ async function gotoSection(page: Page, sectionPath: string): Promise<void> {
   await page.goto(sectionPath, { waitUntil: "domcontentloaded" });
   await page.locator(".jini-tabbed-dialog").waitFor({ state: "visible", timeout: 10_000 });
 }
+function registerPlaceholderScreens({ SECTIONS, SCREENSHOT_DIR }: { SECTIONS: ReturnType<typeof preparePlaceholderSections>["SECTIONS"]; SCREENSHOT_DIR: ReturnType<typeof path.resolve> }) {
 
-// Login happens once in `playwright.placeholder-tabs.config.ts`'s `globalSetup`, and every test
-// here inherits the resulting session via that config's `use.storageState` — see that setup
-// file's own header for why the login cannot live in a `beforeAll` in this file instead.
-test.describe("placeholder tabs match Settings' card chrome", () => {
   for (const section of SECTIONS) {
     test(`${section.path}: current header sits above the tab strip in the flat settings shell`, async ({ page }) => {
       await gotoSection(page, section.path);
@@ -1332,6 +1517,10 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
       });
     });
   }
+}
+
+function registerDeploymentHeaderPin() {
+
 
   test("Deployment's current header precedes its real tabs, and each tab opens its panel", async ({ page }) => {
     await page.goto("/admin/deployment", { waitUntil: "domcontentloaded" });
@@ -1366,6 +1555,10 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
     await expect(page.locator(".jini-tabbed-dialog")).toHaveCount(0);
     await expect(page.locator("nav").first().getByRole("link", { name: "Payments", exact: true })).toHaveCount(0);
   });
+}
+
+function registerAuthenticationHeaderPin() {
+
 
   test("Authentication's external header precedes its tabs in page flow", async ({ page }) => {
     // Authentication.tsx records the owner's "take Authentication out of the UI card" request.
@@ -1418,11 +1611,35 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
       await expect(page.getByTestId(`settings-dialog-nav-${tab}`)).toHaveCount(0);
     }
   });
+}
+
+function registerPlaceholderChromeSuite({ SECTIONS, SCREENSHOT_DIR }: { SECTIONS: ReturnType<typeof preparePlaceholderSections>["SECTIONS"]; SCREENSHOT_DIR: ReturnType<typeof path.resolve> }) {
+
+
+// Login happens once in `playwright.placeholder-tabs.config.ts`'s `globalSetup`, and every test
+// here inherits the resulting session via that config's `use.storageState` — see that setup
+// file's own header for why the login cannot live in a `beforeAll` in this file instead.
+test.describe("placeholder tabs match Settings' card chrome", () => {
+registerPlaceholderScreens({ SECTIONS, SCREENSHOT_DIR });
+registerDeploymentHeaderPin();
+registerAuthenticationHeaderPin();
 });
+}
+
+test.describe("Bug pin: placeholder-tabs-card-parity", () => {
+/** Absolute default so the screenshot destination doesn't depend on whatever directory Playwright happens
+ *  to be invoked from — a relative path here resolves against `process.cwd()`, not `testDir`. */
+const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR ?? path.resolve(import.meta.dirname, "../../test-results/placeholder-tabs-card-parity");
+const { SECTIONS } = preparePlaceholderSections();
+registerPlaceholderChromeSuite({ SECTIONS, SCREENSHOT_DIR });
 });
+}
 
 // Migrated from test-audit-browser.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: test-audit-browser", () => {
+{
+
+function registerPackageSourcePin() {
+
 // Only the HTTP data boundary is faked; production components, CSS and native
 // keyboard navigation run in Chromium. Run with playwright.test-audit-browser.config.ts.
 test("package files wrap long lines and keep each gutter aligned with its source line", async ({ page }) => {
@@ -1445,12 +1662,12 @@ test("package files wrap long lines and keep each gutter aligned with its source
     await expect(pane.getByRole("heading", { name: file, exact: true })).toBeVisible();
     // Constrain the real pane to guarantee the fixture wraps even on wide displays.
     await pane.evaluate((element) => { (element as HTMLElement).style.width = "240px"; });
-    const viewer = pane.locator(".code-viewer--wrap");
+    const viewer = pane.locator(".jini-code-viewer--wrap");
     await expect(viewer).toBeVisible();
-    await expect(viewer.locator(".line-number")).toHaveText(["1", "2", "3"]);
+    await expect(viewer.locator(".jini-code-viewer__line-number")).toHaveText(["1", "2", "3"]);
     const layout = await viewer.evaluate((element) => {
-      const lines = [...element.querySelectorAll<HTMLElement>(".line-content")];
-      const numbers = [...element.querySelectorAll<HTMLElement>(".line-number")];
+      const lines = [...element.querySelectorAll<HTMLElement>(".jini-code-viewer__line-content")];
+      const numbers = [...element.querySelectorAll<HTMLElement>(".jini-code-viewer__line-number")];
       return { overflow: element.scrollWidth - element.clientWidth,
         heights: lines.map((line) => line.getBoundingClientRect().height),
         offsets: lines.map((line, index) => line.getBoundingClientRect().top - numbers[index]!.getBoundingClientRect().top),
@@ -1462,6 +1679,10 @@ test("package files wrap long lines and keep each gutter aligned with its source
     for (const offset of layout.offsets) expect(Math.abs(offset)).toBeLessThanOrEqual(1);
   }
 });
+}
+
+function registerMcpDialogKeyboardPin() {
+
 
 test("MCP Remove and Tools dialogs contain native Tab navigation and Escape deletes nothing", async ({ page }) => {
   let deletions = 0;
@@ -1504,4 +1725,10 @@ test("MCP Remove and Tools dialogs contain native Tab navigation and Escape dele
     expect(deletions).toBe(0);
   }
 });
+}
+
+test.describe("Bug pin: test-audit-browser", () => {
+registerPackageSourcePin();
+registerMcpDialogKeyboardPin();
 });
+}

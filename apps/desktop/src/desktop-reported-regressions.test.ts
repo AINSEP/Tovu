@@ -6,10 +6,11 @@ import path from 'node:path';
 import test from 'node:test';
 
 // Test the changed Jini source without a build or a change to the published package map.
-import { handleList, handleStart } from './project-ipc.ts';
+import { handleList } from './project-ipc.catalog.ts';
+import { handleStart } from './project-ipc.server.ts';
 import { writeTrackedSites } from './tracked-sites.ts';
 import { createSitesWorkspace } from './shared-sites.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { buildServeEnv } from './tovu-server.ts';
 import { armDesktopOwnerSignIn } from './desktop-auth.ts';
 import { resolveLocalOwnerSignIn } from '../../website/src/server/runtime/boot/local-owner-signin.ts';
@@ -25,8 +26,8 @@ test('Websites grid merges a themes-only stale tovu-dev card with its valid trac
   fs.writeFileSync(path.join(moved, '.site-meta.json'), JSON.stringify({ siteId: 'moved-site', schemaVersion: 58 }));
   const projectsPath = path.join(root, 'projects.json');
   const workspace = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, appDataDir: path.join(root, 'profile') });
-  writeTrackedSites(projectsPath, [{ siteDir: stale, relocationId: 'moved-site', displayName: 'tovu-dev', createdAt: '2026-10-09' },
-    { siteDir: moved, createdAt: '2026-10-09' }]);
+  writeTrackedSites({ projectsPath, rows: [{ siteDir: stale, relocationId: 'moved-site', displayName: 'tovu-dev', createdAt: '2026-10-09' },
+    { siteDir: moved, createdAt: '2026-10-09' }] });
   const cards = handleList({ projectsPath, sharedSites: workspace, openSites: new Map(), repoRoot: root,
     readSiteName: () => 'tovu-dev', readPreviewVersion: () => null });
   assert.deepEqual(cards.map(card => [card.id, card.folderMissing]), [[moved, false]]);
@@ -38,12 +39,12 @@ test('a themes-only stale card without relocation proof cannot Start', async (t)
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const stale = path.join(root, 'tovu-dev'), projectsPath = path.join(root, 'projects.json');
   fs.mkdirSync(path.join(stale, 'themes'), { recursive: true });
-  writeTrackedSites(projectsPath, [{ siteDir: stale, createdAt: '2026-10-09' }]);
+  writeTrackedSites({ projectsPath, rows: [{ siteDir: stale, createdAt: '2026-10-09' }] });
   const deps = { projectsPath, repoRoot: root, openSites: new Map(), readSiteName: () => 'tovu-dev',
-    readPreviewVersion: () => null, serializer: createKeyedSerializer(), ctx: {},
+    readPreviewVersion: () => null, serializer: createKeyedSerializer({}), ctx: {},
     openSiteServer: async () => assert.fail('an invalid folder must never spawn a site') };
   assert.equal(handleList(deps)[0]!.folderMissing, true);
-  await assert.rejects(handleStart(stale, deps), /Folder moved or not a site/);
+  await assert.rejects(handleStart({ id: stale, deps }), /Folder moved or not a site/);
 });
 
 test('desktop launch without NODE_ENV retains owner re-entry capability after logout', () => {

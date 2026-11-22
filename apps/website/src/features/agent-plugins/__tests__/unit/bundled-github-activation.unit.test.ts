@@ -48,7 +48,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
 
 test("existing site: the seeder's own earlier DISABLED github record is switched on at boot, so commit and backup still work", async () => {
   await withAgentPluginsDir(async (layout) => {
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
     // What every workspace seeded before this change carries: the seeder's untouched disabled record.
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: "github" });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, false);
@@ -57,12 +57,12 @@ test("existing site: the seeder's own earlier DISABLED github record is switched
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, true);
 
     // The exact resolution source_control_execute_commit makes.
-    const commit = await buildSourceControlProvider({ load: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, providerId: "github" });
+    const commit = await buildSourceControlProvider({ load: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, providerId: "github" });
     assert.equal(commit.ok, true, commit.ok ? "" : commit.message);
     assert.equal(commit.ok && typeof commit.provider.commitSite, "function");
 
     // The exact resolution site_backup_* makes.
-    const backup = await buildSourceControlProviders({ load: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, httpClient: { send: async () => { throw new Error("no network in this test"); } } });
+    const backup = await buildSourceControlProviders({ load: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, httpClient: { send: async () => { throw new Error("no network in this test"); } } });
     assert.deepEqual(backup.refusals, []);
     assert.deepEqual(backup.providers.map((provider) => provider.apiOrigin), ["https://api.github.com"]);
     assert.equal(typeof backup.providers[0]?.uploadBackupBlob, "function");
@@ -72,20 +72,20 @@ test("existing site: the seeder's own earlier DISABLED github record is switched
 test("fresh site: github seeds ENABLED with no user action", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root })).plugins.github?.enabled, true);
+    assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root })).plugins.github?.enabled, true);
   });
 });
 
 test("an operator who switched github off stays off across boots, and a commit is refused with how to switch it back on", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.github?.enabled, false);
 
-    const commit = await buildSourceControlProvider({ load: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, providerId: "github" });
+    const commit = await buildSourceControlProvider({ load: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, providerId: "github" });
     assert.equal(commit.ok, false);
     assert.equal(
       commit.ok ? "" : commit.message,
@@ -93,7 +93,7 @@ test("an operator who switched github off stays off across boots, and a commit i
     );
 
     // What site_backup_* refuses with (NO_PROVIDER) when no host is left at all.
-    const backup = await buildSourceControlProviders({ load: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, httpClient: { send: async () => { throw new Error("no network in this test"); } } });
+    const backup = await buildSourceControlProviders({ load: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: CONTENT_ROOT }).loadPluginContributions }), workspaceId: WORKSPACE_ID, httpClient: { send: async () => { throw new Error("no network in this test"); } } });
     assert.deepEqual(backup.providers, []);
     assert.equal(
       backup.noProviderMessage,

@@ -21,11 +21,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
-import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
-import type { StagedBundleRecord } from "../bundle-staging.js";
+import { InMemoryPublishContentBundleRepo } from "@jini-ai/cms/publish/transfer";
+import type { StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import {
   buildPublishContentImportHooks,
   PublishContentBundleNotFoundError,
@@ -33,7 +33,7 @@ import {
   type PublishContentDbOpsPort,
   type PublishContentRestorePointSavePort,
 } from "../gated-hooks.js";
-import type { PublishContentReport } from "../planner.js";
+import type { PublishContentReport } from "../plan-rows.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import {
   registerPublishContentContributor,
@@ -52,13 +52,13 @@ const ENTITY_TYPE = "thing";
 const ENTITY_ID = "thing-1";
 
 /** The hash the bundle carries (what the peer wants written). */
-const INCOMING_HASH = contentHash(ENTITY_TYPE, { title: "incoming" });
+const INCOMING_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "incoming" } });
 /** The hash both sides agreed on at the last sync. */
-const BASELINE_HASH = contentHash(ENTITY_TYPE, { title: "baseline" });
+const BASELINE_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "baseline" } });
 /** The destination's hash at plan/confirm time — differs from the baseline, so the row is a
  *  `conflict`: the destination has been edited since the last sync and must not be overwritten
  *  without an explicit force. */
-const DRIFTED_HASH = contentHash(ENTITY_TYPE, { title: "drifted" });
+const DRIFTED_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "drifted" } });
 
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();
@@ -79,13 +79,13 @@ function registerFakeHandler(destination: Map<string, DestinationRow>): void {
     permission: "content.write",
     dependsOn: [],
     pack: async function* () {},
-    inspect: async (id) => destination.get(id) ?? null,
+    inspect: async ({ id }) => destination.get(id) ?? null,
     precheck: async () => null,
     apply: async () => {
       throw new Error("this fixture's apply() must never run — applyReport is spied, not executed");
     },
   };
-  registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+  registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
 }
 
 function packedEntity(): PackedEntity {
@@ -120,10 +120,10 @@ test("publish-content applies the report the gateway verified, not one re-derive
   registerFakeHandler(destination);
 
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  await bundleRepo.save(stagedBundle());
+  await bundleRepo.save({ record: stagedBundle() });
 
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: PEER_ID,
     entityType: ENTITY_TYPE,
@@ -132,7 +132,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: "2026-09-19T00:00:00.000Z",
     runId: "run-0",
-  });
+  } });
 
   let nextId = 0;
   const idGen = { newId: () => `id-${++nextId}` };
@@ -170,7 +170,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     actorId: ACTOR_ID,
     clock,
     idGen,
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo() } } },
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } } },
     bundleRepo,
     baselineRepo,
     blobStore: { exists: async () => true },
@@ -225,7 +225,7 @@ function minimalHooks(bundleRepo: InMemoryPublishContentBundleRepo, extraDeps: R
   const clock = { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") };
   const hooks = buildPublishContentImportHooks({
     workspaceId: WORKSPACE_ID, bundleId: BUNDLE_ID, actorId: ACTOR_ID, clock, idGen,
-    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo() } }, ...extraDeps } as never,
+    publishContentDeps: { workspaceId: WORKSPACE_ID, clock, idGen, ports: { post: { repo: new InMemoryPostRepo({}) } }, ...extraDeps } as never,
     bundleRepo, baselineRepo: new InMemoryPublishContentBaselineRepo(), blobStore: { exists: async () => true },
     dbOps: { captureRestorePoint: async () => ({ artifactRef: "artifact-min", watermarkAtCapture: 1 }) },
     restorePointsRepo: { save: async () => {} },
@@ -242,9 +242,9 @@ for (const changed of ["version", "source"] as const) {
       pack: async function* () {}, inspect: async () => ({ version, hash: DRIFTED_HASH }),
       precheck: async () => ({ reason: "Tick Overwrite on live to replace this file.", sourceReplacement: { version, sourceSha256 } }),
       apply: async () => { throw new Error("stale confirmation must never apply"); } };
-    registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+    registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
     const bundleRepo = new InMemoryPublishContentBundleRepo();
-    await bundleRepo.save(stagedBundle());
+    await bundleRepo.save({ record: stagedBundle() });
     const seen: Array<Record<string, unknown>> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, {}, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
@@ -269,7 +269,7 @@ test("execute threads this request's backstop and authorize into the apply port,
     resetPublishContentContributorsForTests();
     registerFakeHandler(new Map([[ENTITY_ID, { version: 1, hash: BASELINE_HASH }]]));
     const bundleRepo = new InMemoryPublishContentBundleRepo();
-    await bundleRepo.save(stagedBundle());
+    await bundleRepo.save({ record: stagedBundle() });
     const seen: Array<Record<string, unknown>> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, extra, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });

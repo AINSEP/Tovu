@@ -187,7 +187,7 @@ function makeRig(opts: {
   launchGateOverrides?: Parameters<typeof makeLaunchGateDeps>[0];
 } = {}): Rig {
   const campaignRepo = new InMemoryNewsletterCampaignRepo({ campaigns: opts.campaigns ?? [] });
-  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo(opts.subscriptions ?? []);
+  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo({}, { initialRows: opts.subscriptions ?? [] });
   const audienceSnapshotRepo = new InMemoryNewsletterAudienceSnapshotRepo();
   const sendRepo = new InMemoryNewsletterSendRepo();
   const outbox = new ObservedOutbox();
@@ -316,7 +316,7 @@ async function deferralRig(mailer: ReturnType<typeof makeMailer>) {
 test("handleSendBatchClaimed: normalized provider throttling is deferred with the provider's delay, not failed", async () => {
   const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "Too many requests", retryAfterMs: 1000 })));
   const slept: number[] = [];
-  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async ({ ms }) => { slept.push(ms); } }, job: makeJob() });
   assert.deepEqual(slept.slice(0, 2), [1000, 1000], "the provider's Retry-After is the wait");
   const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
   assert.equal(row?.status, "pending", "a throttled recipient is not a failed one");
@@ -334,7 +334,7 @@ test("handleSendBatchClaimed: a hintless rate limit waits the default second inl
   let calls = 0;
   const rig = await deferralRig(makeMailer(() => (++calls === 1 ? { ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "busy" } : { ok: true, providerMessageId: "pm-1", acceptedAt: clock.nowIso() })));
   const slept: number[] = [];
-  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async ({ ms }) => { slept.push(ms); } }, job: makeJob() });
   assert.deepEqual(slept, [1000]);
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "delivered");
   assert.equal([...rig.outbox.rows.values()].length, 0);
@@ -373,7 +373,7 @@ async function runResendBatch(optional: { inlineSleep: boolean }) {
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" })], mailer });
   const movingClock = { nowMs: () => nowMs, nowIso: () => new Date(nowMs).toISOString() };
   const slept: number[] = [];
-  const deps: SendPipelineDeps = { ...rig.deps, clock: movingClock, ...(optional.inlineSleep ? { sleep: async (ms: number) => { slept.push(ms); nowMs += ms; } } : {}) };
+  const deps: SendPipelineDeps = { ...rig.deps, clock: movingClock, ...(optional.inlineSleep ? { sleep: async ({ ms }: { ms: number }) => { slept.push(ms); nowMs += ms; } } : {}) };
   const sendIds: string[] = [];
   for (let i = 1; i <= 20; i++) {
     await rig.subscriptionRepo.save({ id: `subscription-${i}`, workspaceId: WS, listId: "list-1", subscriberId: `sub-${i}`, status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });
@@ -683,10 +683,10 @@ test("dispatchRow: each row supplies its own provider idempotency key and source
 
 test("dispatchRow: beforeSend transformations reach the mailer", async () => {
   const hooks = createHookRegistry();
-  hooks.registerBeforeSendHook((ctx, message) => {
+  hooks.registerBeforeSendHook({ hook: (ctx, message) => {
     assert.deepEqual(ctx, { workspaceId: WS, campaignId: "camp-1", sendId: "send-1", subscriberId: "sub-1" });
     return { ...message, subject: "Transformed subject", text: `${message.text} footer`, html: "<p>unsubscribe marker</p>" };
-  });
+  } });
   const mailer = makeMailer();
   const rig = makeRig({ mailer, hooks });
   await dispatchRow({ deps: rig.deps, row: makeSendRow(), campaignId: "camp-1", listId: "list-1", status: "subscribed", message: dispatchMessage });
@@ -705,7 +705,7 @@ test("dispatchRow: mailer failure -- outcome 'failed', error passed through", as
 
 test("dispatchRow: recipient.filter hook suppresses -- outcome 'suppressed', mailer never invoked", async () => {
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook(() => false);
+  hooks.registerRecipientFilterHook({ hook: () => false });
   const mailer = makeMailer();
   const rig = makeRig({ mailer, hooks });
   const row = makeSendRow({ status: "pending" });
@@ -807,10 +807,10 @@ interface RaceRepos {
 async function makeSqliteRaceRepos(): Promise<RaceRepos> {
   const db = openContentDb(":memory:");
   await installNewsletterDataModule({
-    db: contentKernel((db as unknown as { $client: import("better-sqlite3").Database }).$client),
+    db: contentKernel({ store: (db as unknown as { $client: import("better-sqlite3").Database }).$client }),
     dbPath: ":memory:",
   });
-  return { campaignRepo: new SqliteNewsletterCampaignRepo(db), sendRepo: new SqliteNewsletterSendRepo(db) };
+  return { campaignRepo: new SqliteNewsletterCampaignRepo({ store: db }), sendRepo: new SqliteNewsletterSendRepo({ store: db }) };
 }
 
 const raceFlavors: Array<[string, () => RaceRepos | Promise<RaceRepos>]> = [
@@ -1073,14 +1073,19 @@ function makeJob(overrides: Partial<SendBatchJob> = {}): SendBatchJob {
   return { workspaceId: WS, campaignId: "camp-1", audienceSnapshotId: "snap-1", sendIds: ["send-1"], ...overrides };
 }
 
-test("resume preserves its transition and reports a failed requeue without claiming delivery", async () => {
+test("resume preserves its transition and reports a failed requeue without claiming delivery", async (t) => {
+  const log = t.mock.method(console, "error", () => undefined);
   const rig = makeRig({ campaigns: [makeCampaign({ status: "paused", audienceSnapshotId: "snap-1" })] });
   await rig.sendRepo.save(makeSendRow());
-  rig.deps.outbox.enqueue = async () => { throw new Error("private provider failure"); };
+  rig.deps.outbox.enqueue = async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); };
   const result = await resumeCampaign({ deps: rig.deps, input: { workspaceId: WS, campaignId: "camp-1" } });
   assert.deepEqual(result, { campaign: makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" }), requeueFailed: true });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
   assert.equal((await rig.campaignRepo.findById({ workspaceId: WS, id: "camp-1" }))?.status, "sending");
+  assert.equal(log.mock.calls[0]?.arguments[0], "[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /Error/);
+  assert.match(String(log.mock.calls[0]?.arguments[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(log.mock.calls.map(call => call.arguments)), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("resume requeues every pending row of the frozen snapshot across ledger pages of 1000, each exactly once", async () => {
@@ -1205,10 +1210,10 @@ test("handleSendBatchClaimed: happy path -- dispatches, records the result, and 
 test("handleSendBatchClaimed: no matching subscription row -- status passed to hooks defaults to 'unsubscribed'", async () => {
   let observedStatus: string | null = null;
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook((ctx) => {
+  hooks.registerRecipientFilterHook({ hook: (ctx) => {
     observedStatus = ctx.status;
     return true;
-  });
+  } });
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending" })], hooks }); // no subscription rows seeded
   await rig.sendRepo.save(makeSendRow({ status: "pending" }));
   await handleSendBatchClaimed({ deps: rig.deps, job: makeJob() });
@@ -1265,7 +1270,7 @@ test("handleSendBatchClaimed: one row's mailer failure never aborts sibling rows
  */
 test("handleSendBatchClaimed: BUG REGRESSION -- a suppressed row must still reach a terminal status so the campaign can drain", async () => {
   const hooks = createHookRegistry();
-  hooks.registerRecipientFilterHook((ctx) => ctx.subscriberId !== "sub-suppressed");
+  hooks.registerRecipientFilterHook({ hook: (ctx) => ctx.subscriberId !== "sub-suppressed" });
   const rig = makeRig({
     campaigns: [makeCampaign({ status: "sending" })],
     subscriptions: [
@@ -1432,7 +1437,7 @@ test("handleSendBatchClaimed: a row whose lease expired is claimed, sent, and re
 
 // 2026-09-16 review: a run that leases a row and then throws keeps that lease. The outbox seals the
 // batch event on its MAX_OUTBOX_ATTEMPTS-th failure, and the retry before that last attempt can come
-// as soon as computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s later. If the lease is
+// as soon as computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 }) = 240s later. If the lease is
 // still live then, the last attempt fails "leased by another run", the event is sealed "failed", and
 // the row stays "pending" forever with the campaign stuck in "sending". A 5-minute lease did exactly that.
 test("handleSendBatchClaimed: a row leased by a run that threw is claimable again by the batch event's earliest last retry", async (t) => {
@@ -1456,7 +1461,7 @@ test("handleSendBatchClaimed: a row leased by a run that threw is claimable agai
   await assert.rejects(handleSendBatchClaimed({ deps, job: makeJob() }), { message: "database is locked" });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
 
-  nowIso = new Date(Date.parse(clock.nowIso()) + computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, { random: () => 0 })).toISOString();
+  nowIso = new Date(Date.parse(clock.nowIso()) + computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 })).toISOString();
   await handleSendBatchClaimed({ deps, job: makeJob() });
 
   assert.deepEqual(mailer.sentTo, ["a@test.com"]);
@@ -1468,7 +1473,7 @@ test("NEWSLETTER_SEND_ROW_LEASE_MS outlasts one dispatch but expires before the 
   assert.equal(NEWSLETTER_SEND_ROW_LEASE_MS, 2 * 60_000);
   // The shortest gap before the last attempt is the single step after attempt MAX_OUTBOX_ATTEMPTS - 1,
   // not the sum of every step: a lease can be taken on any attempt, including the second-to-last.
-  const lastRetryStep = computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, { random: () => 0 });
+  const lastRetryStep = computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 });
   assert.equal(lastRetryStep, 240_000);
   assert.ok(NEWSLETTER_SEND_ROW_LEASE_MS < lastRetryStep, "the lease must expire before the batch event's last attempt");
 });

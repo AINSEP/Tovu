@@ -1,3 +1,5 @@
+import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -11,7 +13,10 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { registerLlmsTxtRoute } from "../llms.js";
 
 /**
@@ -33,7 +38,7 @@ function buildLlmsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerLlmsTxtRoute(app, deps);
+  registerLlmsTxtRoute({ app, deps });
   return app;
 }
 
@@ -75,7 +80,7 @@ class NoOriginRegistry implements OriginRegistryPort {
 }
 
 test("GET /llms.txt: a published, publicly-visible page appears, linked with an absolute URL and its real derived description", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost()] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -86,11 +91,11 @@ test("GET /llms.txt: a published, publicly-visible page appears, linked with an 
 });
 
 test("GET /llms.txt: titles sort independently of insertion order and empty bodies have no fabricated description", async (t) => {
-  const postRepo = new InMemoryPostRepo([
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [
     pagePost({ id: "z", slug: "zebra", title: "Zebra Guide" }),
     pagePost({ id: "a", slug: "alpha", title: "Alpha Guide", bodyJson: { type: "doc", content: [] } }),
     pagePost({ id: "m", slug: "middle", title: "Middle Guide" }),
-  ]);
+  ] });
   const baseUrl = await startTestServer(buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() }), t);
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 200);
@@ -102,7 +107,7 @@ test("GET /llms.txt: titles sort independently of insertion order and empty bodi
 });
 
 test("GET /llms.txt: a draft page does not appear", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ status: "draft" })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -113,7 +118,7 @@ test("GET /llms.txt: a draft page does not appear", async (t) => {
 });
 
 test("GET /llms.txt: an effective-noindex page does not appear", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ seoExtJson: JSON.stringify({ noindex: true }) })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ seoExtJson: JSON.stringify({ noindex: true }) })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -124,7 +129,7 @@ test("GET /llms.txt: an effective-noindex page does not appear", async (t) => {
 });
 
 test("GET /llms.txt: a members-gated published page does not appear to an anonymous reader (ADR-030 §4)", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ memberAccessJson: JSON.stringify({ visibility: "members" }) })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ memberAccessJson: JSON.stringify({ visibility: "members" }) })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -139,7 +144,7 @@ test("GET /llms.txt: a members-gated published page does not appear to an anonym
 });
 
 test("GET /llms.txt: a trashed page that still carries status: 'published' does not appear (softDelete never clears status, ADR-030-adjacent 2026-09-04 fix)", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost({ deletedAt: "2026-09-04T00:00:00.000Z" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost({ deletedAt: "2026-09-04T00:00:00.000Z" })] });
   const app = buildLlmsOnlyApp({ postRepo });
   const baseUrl = await startTestServer(app, t);
 
@@ -154,7 +159,7 @@ test("GET /llms.txt: a trashed page that still carries status: 'published' does 
 });
 
 test("GET /llms.txt: with NO verified origin registered, the page URL still uses the serving origin", async (t) => {
-  const postRepo = new InMemoryPostRepo([pagePost()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [pagePost()] });
   const app = buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() });
   const baseUrl = await startTestServer(app, t);
 
@@ -169,7 +174,7 @@ test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 
   // Mutate the real repo instance's own `list`, rather than spreading it into a plain object --
   // `InMemoryPostRepo`'s methods live on its prototype, so a spread would silently drop
   // `findById`/`findBySlug`/etc. too.
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };
@@ -179,7 +184,7 @@ test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
-  assert.equal(await res.text(), "internal error");
+  assert.match(await res.text(), /couldn’t load the site index.*Error ID:/);
 });
 
 
@@ -187,12 +192,12 @@ for (const description of ["Field notes from the garden.", undefined]) {
   test(`GET /llms.txt uses the site's title and ${description ? 'configured summary' : 'no fabricated summary'}`, async t => {
     const base = createRouteDeps();
     await Promise.all([base.siteTitleReady, base.seoReady]);
-    const deps: SeoRouteDeps = { ...base, postRepo: new InMemoryPostRepo([]), siteDisplayName: { read: () => "Garden Journal" } };
+    const deps: SeoRouteDeps = { ...base, postRepo: new InMemoryPostRepo({}, { initialRows: [] }), siteDisplayName: { read: () => "Garden Journal" } };
     deps.seoDeps = createSeoDeps({ deps }, {});
     const settings = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
     deps.seoDeps.settings.getSeoSettings = async () => ({ ...settings, defaultDescription: description });
     const app = express();
-    registerLlmsTxtRoute(app, deps);
+    registerLlmsTxtRoute({ app, deps });
     const url = await startTestServer(app, t);
     const response = await fetch(`${url}/llms.txt`);
     assert.equal(response.status, 200);
@@ -202,3 +207,26 @@ for (const description of ["Field notes from the garden.", undefined]) {
     assert.doesNotMatch(body, /# Tovu|content platform you own|nothing that phones home/);
   });
 }
+
+test("unexpected site index failure keeps plain text and one redacted matching incident", async t => {
+  const cause = new Error("site index storage context password=PUBLIC_CANARY");
+  const reports: unknown[] = [];
+  const logs = t.mock.method(console, "error", () => {});
+  const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerLlmsTxtRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/llms.txt`);
+  const text = await res.text();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.match(text, /couldn’t load the site index/);
+  const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
+  assert.ok(id);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(id));
+  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
+});

@@ -13,7 +13,7 @@ export interface DesktopCopy {
   lastWindowQuit: { quitOne: string; quitMany: string; keepsOne: string; keepsMany: string; quit: string; keepInBackground: string; cancel: string };
   tabClose: { stopToo: string; keepRunning: string };
 }
-const COPY: Record<string, readonly [string, string, string, string, string]> = {
+const COPY: Record<string, readonly [string, string, string, string, string]> & { en: readonly [string, string, string, string, string] } = {
   en: ['Settings', 'Automatically update Tovu', 'Could not save update preference', 'Restart', 'Restarting…'],
   es: ['Ajustes', 'Actualizar Tovu automáticamente', 'No se pudo guardar la preferencia de actualización', 'Reiniciar', 'Reiniciando…'],
   de: ['Einstellungen', 'Tovu automatisch aktualisieren', 'Update-Einstellung konnte nicht gespeichert werden', 'Neu starten', 'Neustart…'],
@@ -38,7 +38,7 @@ const COPY: Record<string, readonly [string, string, string, string, string]> = 
   bn: ['সেটিংস', 'Tovu স্বয়ংক্রিয়ভাবে আপডেট করুন', 'আপডেটের পছন্দ সংরক্ষণ করা যায়নি', 'পুনরায় চালু করুন', 'পুনরায় চালু হচ্ছে…'],
 };
 
-const SITE_ERROR_COPY: Record<string, readonly [string, string, string, string, string, string]> = {
+const SITE_ERROR_COPY: Record<string, readonly [string, string, string, string, string, string]> & { en: readonly [string, string, string, string, string, string] } = {
   en: ['This folder is not a Tovu website. Choose the folder containing your website.', 'No Tovu website was found in this folder. Choose an existing website or use Create website.', 'This Tovu website is incomplete. Choose a complete website folder.', 'Cannot read this website folder. Check that it is available and that Tovu has permission to read it.', 'Could not add this website. Check the folder and try again.', 'Could not start this website. Try again or check its logs.'],
   es: ['Esta carpeta no es un sitio web de Tovu. Elige la carpeta que contiene tu sitio web.', 'No se encontró un sitio web de Tovu en esta carpeta. Elige un sitio existente o usa Crear sitio web.', 'Este sitio web de Tovu está incompleto. Elige la carpeta de un sitio web completo.', 'No se puede leer la carpeta del sitio web. Comprueba que esté disponible y que Tovu tenga permiso para leerla.', 'No se pudo añadir este sitio web. Comprueba la carpeta e inténtalo de nuevo.', 'No se pudo iniciar este sitio web. Inténtalo de nuevo o revisa sus registros.'],
   de: ['Dieser Ordner ist keine Tovu-Website. Wähle den Ordner mit deiner Website.', 'In diesem Ordner wurde keine Tovu-Website gefunden. Wähle eine bestehende Website oder verwende Website erstellen.', 'Diese Tovu-Website ist unvollständig. Wähle einen vollständigen Website-Ordner.', 'Der Website-Ordner kann nicht gelesen werden. Prüfe, ob er verfügbar ist und Tovu Leserechte hat.', 'Diese Website konnte nicht hinzugefügt werden. Prüfe den Ordner und versuche es erneut.', 'Diese Website konnte nicht gestartet werden. Versuche es erneut oder prüfe die Protokolle.'],
@@ -64,7 +64,7 @@ const SITE_ERROR_COPY: Record<string, readonly [string, string, string, string, 
 };
 
 /** [title, devBody, otherBody, confirm, confirming] — owner 2026-10-13 wrote the English dev body. */
-const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string, string]> = {
+const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string, string]> & { en: readonly [string, string, string, string, string] } = {
   en: ['Stop {name}?', 'This stops `npm run dev`, including the admin dev server.', 'This stops the server running this site in {app}.', 'Stop', 'Stopping…'],
   es: ['¿Detener {name}?', 'Esto detiene `npm run dev`, incluido el servidor de desarrollo del panel de administración.', 'Esto detiene el servidor que ejecuta este sitio en {app}.', 'Detener', 'Deteniendo…'],
   de: ['{name} stoppen?', 'Dadurch wird `npm run dev` beendet, einschließlich des Admin-Entwicklungsservers.', 'Dadurch wird der Server beendet, der diese Website in {app} ausführt.', 'Stoppen', 'Wird gestoppt…'],
@@ -90,7 +90,7 @@ const STOP_CONFIRM_COPY: Record<string, readonly [string, string, string, string
 };
 
 /** [stopToo, keepRunning, keepInBackground]: the tab close ask and the last-window box's third answer. */
-const KEEP_RUNNING_COPY: Record<string, readonly [string, string, string]> = {
+const KEEP_RUNNING_COPY: Record<string, readonly [string, string, string]> & { en: readonly [string, string, string] } = {
   en: ['Stop {name} too?', 'Keep running', 'Keep running in background'],
   es: ['¿Detener también {name}?', 'Seguir en ejecución', 'Seguir en segundo plano'],
   de: ['{name} auch stoppen?', 'Weiterlaufen lassen', 'Im Hintergrund weiterlaufen lassen'],
@@ -118,7 +118,7 @@ const KEEP_RUNNING_COPY: Record<string, readonly [string, string, string]> = {
 /** [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] — owner 2026-11-05 wrote the English question.
  *  `quitMany`/`keepsMany` fill any count above 1, so languages whose noun form changes with the
  *  number (ar, pl, ru, uk) put the count in brackets instead of beside the noun. */
-const LAST_WINDOW_QUIT_COPY: Record<string, readonly [string, string, string, string, string, string]> = {
+const LAST_WINDOW_QUIT_COPY: Record<string, readonly [string, string, string, string, string, string]> & { en: readonly [string, string, string, string, string, string] } = {
   en: ['Quit Tovu and stop 1 running site?', 'Quit Tovu and stop {count} running sites?', '1 site this app didn’t start keeps running.', '{count} sites this app didn’t start keep running.', 'Quit', 'Cancel'],
   es: ['¿Salir de Tovu y detener 1 sitio en ejecución?', '¿Salir de Tovu y detener {count} sitios en ejecución?', '1 sitio que esta app no inició sigue en ejecución.', '{count} sitios que esta app no inició siguen en ejecución.', 'Salir', 'Cancelar'],
   de: ['Tovu beenden und 1 laufende Website stoppen?', 'Tovu beenden und {count} laufende Websites stoppen?', '1 Website, die diese App nicht gestartet hat, läuft weiter.', '{count} Websites, die diese App nicht gestartet hat, laufen weiter.', 'Beenden', 'Abbrechen'],
@@ -168,12 +168,12 @@ function desktopLocaleKey({ locale }: { locale: string }): string {
 
 export function desktopCopy({ locale }: { locale: string }, _optionalArgs = {}): DesktopCopy {
   const key = desktopLocaleKey({ locale });
-  const row = COPY[key] ?? COPY.en!;
+  const row = COPY[key] ?? COPY.en;
   const [settings, automaticUpdates, saveUpdateError, restart, restarting] = row;
-  const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en!;
-  const [title, devBody, otherBody, confirm, confirming] = STOP_CONFIRM_COPY[key] ?? STOP_CONFIRM_COPY.en!;
-  const [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] = LAST_WINDOW_QUIT_COPY[key] ?? LAST_WINDOW_QUIT_COPY.en!;
-  const [stopToo, keepRunning, keepInBackground] = KEEP_RUNNING_COPY[key] ?? KEEP_RUNNING_COPY.en!;
+  const [invalid, empty, incomplete, unreadable, add, start] = SITE_ERROR_COPY[key] ?? SITE_ERROR_COPY.en;
+  const [title, devBody, otherBody, confirm, confirming] = STOP_CONFIRM_COPY[key] ?? STOP_CONFIRM_COPY.en;
+  const [quitOne, quitMany, keepsOne, keepsMany, quit, cancel] = LAST_WINDOW_QUIT_COPY[key] ?? LAST_WINDOW_QUIT_COPY.en;
+  const [stopToo, keepRunning, keepInBackground] = KEEP_RUNNING_COPY[key] ?? KEEP_RUNNING_COPY.en;
   return { settings, automaticUpdates, saveUpdateError, restart, restarting, siteErrors: { invalid, empty, incomplete, unreadable, add, start },
     stopConfirm: { title, devBody, otherBody, confirm, confirming },
     lastWindowQuit: { quitOne, quitMany, keepsOne, keepsMany, quit, keepInBackground, cancel },

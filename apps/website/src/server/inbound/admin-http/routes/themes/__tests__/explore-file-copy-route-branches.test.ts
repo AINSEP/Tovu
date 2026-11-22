@@ -52,7 +52,7 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFileCopyRoute(app, deps);
+  registerAdminThemeFileCopyRoute({ app, deps });
   return app;
 }
 

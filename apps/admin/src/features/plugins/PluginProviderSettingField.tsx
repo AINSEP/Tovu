@@ -1,10 +1,10 @@
-import { agentHandle } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
-import { useState } from "react";
+import { CUSTOM, usePluginProviderChoice } from "./PluginProviderSettingField.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import type { AdminPluginProviderSettingField } from "@/lib/api";
+import type { AdminPluginProviderSettingField } from "@/features/plugins/api/plugins-api.types";
 
+import { interpolate } from '@jini-ai/core/text';
 /**
  * @file One declared provider setting on `PluginProviderSettingsDialog` (2026-10-25 redesign): label
  * above a full-width control, the manifest's hint below in muted text. The control is whatever the
@@ -24,21 +24,12 @@ export interface ProviderSettingFieldProps {
   readonly t: (key: string) => string;
 }
 
-/** The `Custom…` option's value; never a real setting value (those are URLs or plain text). */
-const CUSTOM = "\u0000custom";
-
 /** A select of the declared options; "Custom…" (when allowed) reveals a text input for any other value. */
-function ChoiceControl({ field, id, value, onChange, t, controlAttrs }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown> }) {
-  const options = field.options ?? [];
-  const listed = options.some((option) => option.value === value);
-  const [custom, setCustom] = useState(Boolean(field.allowCustom) && value !== "" && !listed);
-  const choose = (next: string) => {
-    setCustom(next === CUSTOM);
-    onChange(next === CUSTOM ? "" : next);
-  };
+function ChoiceControl({ field, id, value, onChange, t, controlAttrs, usePluginProviderChoice: usePluginProviderChoiceHook = usePluginProviderChoice }: Omit<ProviderSettingFieldProps, "handle" | "pluginName"> & { controlAttrs: Record<string, unknown>; usePluginProviderChoice?: typeof usePluginProviderChoice; }) {
+  const { options, listed, custom, choose } = usePluginProviderChoiceHook({ field, value, onChange });
   return (
     <>
-      <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose(event.target.value)} {...controlAttrs}>
+      <select id={id} value={custom ? CUSTOM : value} onChange={(event) => choose({ next: event.target.value })} {...controlAttrs}>
         {!custom && !listed ? <option value="">—</option> : null}
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         {field.allowCustom ? <option value={CUSTOM}>{t("Custom…")}</option> : null}

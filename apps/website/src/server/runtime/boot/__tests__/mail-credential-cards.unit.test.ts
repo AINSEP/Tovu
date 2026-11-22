@@ -5,11 +5,11 @@ import path from "node:path";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/credential-save";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -22,6 +22,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards, loadMailProviderCatalog, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
 import { describeMailProviders } from "../mail-provider-configuration.js";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 /**
  * @file Plugin-declared mail key cards: a v2 mail descriptor's `credentialCard` becomes a
@@ -31,7 +33,7 @@ import { describeMailProviders } from "../mail-provider-configuration.js";
 
 const WORKSPACE_ID = "ws-mail-card";
 const PRINCIPAL_ID = "owner";
-const RESEND_LABEL = "Tovu Mail — Resend API";
+const RESEND_LABEL = "Mail — Resend API";
 
 const fixtureCard = { title: "Connect Resend", intro: "Connect Resend so this site can send its email (sign-in links, confirmations, form notifications).", helpUrl: "https://resend.com/api-keys", helpLabel: "Get a key at resend.com/api-keys", keyHint: "Create a key with Sending access", baseUrl: "https://api.resend.com" };
 const bundledCards = () => loadMailCredentialCards({ loadMailAdapters: async () => ({ refusals: [], list: () => [{
@@ -97,6 +99,8 @@ function harness(cards: readonly PluginCredentialCard[]) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     loadPluginCredentialCards: async () => cards,
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }),
@@ -131,11 +135,11 @@ async function submitKey({ h, token, fields = {}, input = { kind: "plugin-provid
 test("a combined descriptor feeds both plugin cards and provider setup's secure credential_save prefill", async () => {
   const label = "Merged sending key";
   const baseUrl = "https://api.merged.test";
-  const parsed = parseMailAdaptersFile(JSON.stringify({ schemaVersion: 2, adapters: [{
+  const parsed = parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 2, adapters: [{
     id: "merged", label: "Merged", module: "mail.mjs", credentialLabel: label, credentialKeys: ["token"], feedback: false,
     credentialCard: { title: "Connect merged mail", baseUrl },
     setup: { fields: [{ key: "baseUrl", label: "Endpoint", type: "url", defaultValue: baseUrl }] },
-  }] }));
+  }] }) });
   assert.ok(parsed.ok);
   const descriptor = parsed.descriptors[0]!;
   const registry: MailAdapterRegistry = { refusals: [], list: () => [{ pluginId: "merged-plugin", descriptor,

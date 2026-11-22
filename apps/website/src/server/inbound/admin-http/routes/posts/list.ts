@@ -1,27 +1,25 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { listAdminPosts } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Gated by `content.read` (2026-07-16 authz sweep: previously had zero permission check
  * beyond session auth — `content.read` was defined in the catalog but never enforced anywhere). */
-export const registerAdminPostListRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/posts", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

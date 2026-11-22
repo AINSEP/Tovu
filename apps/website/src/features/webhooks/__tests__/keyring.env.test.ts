@@ -11,6 +11,7 @@ import {
   fingerprintSiteKeyHex,
   generateFileSiteKey,
   inspectSiteKeyMaterial,
+  isNoSiteKeyError,
   revealSiteKeyMaterial,
   SiteKeyFileAlreadyExistsError,
   UnusableSiteKeyError,
@@ -18,6 +19,18 @@ import {
 import type { SiteKeySource } from "../site-key-sources.js";
 
 const ENV_VAR = "TOVU_TEST_SITE_KEY";
+
+test("recognizes both no-site-key errors without treating other failures as missing keys", () => {
+  assert.equal(isNoSiteKeyError({ error: new Error("no site key") }), true);
+  assert.equal(isNoSiteKeyError({ error: new Error("no site key: none of the configured sources resolved (env)") }), true);
+  assert.equal(isNoSiteKeyError({ error: new Error("site key is corrupted") }), false);
+  assert.equal(isNoSiteKeyError({ error: "no site key" }), false);
+});
+
+test("the webhook public surface exports the no-site-key classifier", async () => {
+  const webhooks = await import("../index.js");
+  assert.equal(webhooks.isNoSiteKeyError({ error: new Error("no site key") }), true);
+});
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "tovu-keyring-test-"));
@@ -137,7 +150,7 @@ test("HKDF determinism: same input yields same output; different inputs diverge"
 test("HKDF known answers preserve signing and secret-sealer key compatibility", async () => {
   // Independently calculated RFC 5869 SHA-256 outputs for root bytes 0xaa repeated 32 times,
   // salt HKDF_EXTRACTION_SALT, and the two deployed info-string layouts.
-  const keyring = new FixedSiteKeyKeyring("aa".repeat(32));
+  const keyring = new FixedSiteKeyKeyring({ hex: "aa".repeat(32) });
   const signing = await keyring.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 });
   assert.equal(Buffer.from(signing).toString("hex"), "8f60aeee05219cf2d5d3f6126a4118c165d5be0d584e0701777ee1abf17ab88d");
   const input = { workspaceId: "ws-1", purpose: "secret-sealer", info: "v1" };
@@ -258,7 +271,7 @@ test("generateFileSiteKey writes a fresh 32-byte key and returns its hex/fingerp
 
 test("fingerprintSiteKeyHex preserves the SHA-256 stamp of decoded site key bytes", () => {
   // SHA-256(32 bytes of 0xaa) starts with e0e77a507412; pin the persisted site-meta contract.
-  assert.equal(fingerprintSiteKeyHex("aa".repeat(32)), "e0e77a507412");
+  assert.equal(fingerprintSiteKeyHex({ hex: "aa".repeat(32) }), "e0e77a507412");
 });
 
 test("generateFileSiteKey throws SiteKeyFileAlreadyExistsError, and never overwrites, when a file is already there", async () => {
@@ -689,7 +702,7 @@ test("sources: a key file replaced while the process runs takes effect on the ne
     writeFileSync(keyFile, "44".repeat(32), { mode: 0o600 });
     const after = await keyring.derive(input);
 
-    assert.deepEqual(after, await new FixedSiteKeyKeyring("44".repeat(32)).derive(input), "the running keyring must use the replaced key");
+    assert.deepEqual(after, await new FixedSiteKeyKeyring({ hex: "44".repeat(32) }).derive(input), "the running keyring must use the replaced key");
     assert.notDeepEqual(after, before);
   });
 });
@@ -715,7 +728,7 @@ test("inspectSiteKeyMaterial: sources — the first source with material wins an
 
     assert.equal(status.active, true);
     assert.equal(status.source, "file");
-    assert.equal(status.fingerprint, fingerprintSiteKeyHex(hex));
+    assert.equal(status.fingerprint, fingerprintSiteKeyHex({ hex }));
   });
 });
 
@@ -761,7 +774,7 @@ test("inspectSiteKeyMaterial: sources — a blank env var falls through to the n
       const status = inspectSiteKeyMaterial({ sources }, { env: () => ({ TOVU_SITE_KEY: process.env[envVarName] }) });
       assert.equal(status.active, true);
       assert.equal(status.source, "file");
-      assert.equal(status.fingerprint, fingerprintSiteKeyHex(hex));
+      assert.equal(status.fingerprint, fingerprintSiteKeyHex({ hex }));
     } finally {
       delete process.env[envVarName];
     }
@@ -792,7 +805,7 @@ test("revealSiteKeyMaterial: sources — includes the raw hex when a source reso
 
     assert.equal(reveal.active, true);
     assert.equal(reveal.hex, hex);
-    assert.equal(reveal.fingerprint, fingerprintSiteKeyHex(hex));
+    assert.equal(reveal.fingerprint, fingerprintSiteKeyHex({ hex }));
   });
 });
 

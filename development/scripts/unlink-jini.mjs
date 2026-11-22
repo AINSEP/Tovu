@@ -1,7 +1,7 @@
 /**
  * `npm run unlink:jini` — reverse `link-jini.mjs`. Removes every symlink `link-jini.mjs` can have
  * made — the direct `@jini-ai/*` dependencies AND the transitive ones — from each consumer's
- * `node_modules/@jini-ai` (root, `apps/admin`, `apps/site-chat`), then runs `npm install` in each
+ * `node_modules/@jini-ai` (the root and every app under `apps/` that depends on `@jini-ai/*`), then runs `npm install` in each
  * so the registry-published version pinned in that consumer's `package.json`/lockfile is
  * reinstalled in its place.
  *
@@ -39,7 +39,7 @@ function run(cmd, args, cwd) {
 }
 
 let removed = 0;
-for (const consumer of jiniConsumers()) {
+for (const consumer of jiniConsumers({ root: repoRoot })) {
   const where = path.relative(repoRoot, consumer.dir) || ".";
   console.log(`\n${where}:`);
   for (const name of consumer.names) {

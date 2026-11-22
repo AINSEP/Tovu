@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@/__tests__/render-with-jini-kits';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
 import { buildSeoSettingsPatch as buildPatch } from '@jini-ai/admin/seo';
 import { resolveSeoTabs as resolveTabs, sitemapStateLabel as stateLabel } from '@jini-ai/admin/seo/react';

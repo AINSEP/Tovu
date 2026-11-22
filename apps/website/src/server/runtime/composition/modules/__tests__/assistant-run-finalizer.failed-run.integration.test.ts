@@ -1,18 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+import { createAgentRuntimeBindings, createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { chatKernel } from "#src/platform/db/chat-kernel";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-store";
-import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "#src/assistant/durable-runs/recover";
-import { createAssistantRunFinalizer } from "../assistant-run-finalizer.js";
+import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "@jini-ai/chat/server/durable-runs";
+import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
+import { createDaemonRuntimePorts } from "../../../../inbound/assistant/daemon-runtime-ports.js";
 
 test("an actual executor failure remains failed through Tovu recovery, chat.db and UI history", { timeout: 10_000 }, async () => {
-  const db = openChatDb(":memory:");
-  const kernel = chatKernel(db);
+  const db = openChatDb({ filePath: ":memory:" });
+  const kernel = chatKernel({ store: db });
   const ledger = createChatRunLedger({ store: kernel });
-  const history = createChatHistoryStore(kernel, { scopeId: "workspace", ownerKind: "user", ownerId: "alice" });
+  const history = createChatHistoryStore({ kernel: kernel, scope: { scopeId: "workspace", ownerKind: "user", ownerId: "alice" } });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   try {
     await history.create({ id: "chat" });
@@ -27,7 +30,9 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
     // This is the last allowed attempt: exercise the real recovery finalization without retries.
     await kernel.run(db => db.updateTable("assistant_run_attempts").set({ recovery_count: RECOVERY_LIMIT })
       .where("message_id", "=", "answer").execute());
-    const executor = createAgentExecutor({ lifecycle }, { getAgentDef: () => null });
+    // The real registry has no such id, so the executor refuses the run itself.
+    const agentRuntime = createAgentRuntimeBindings({ runtime: createNativeAgentRuntime({ env: {} }) }) satisfies AgentRuntimePort;
+    const executor = createAgentExecutor({ lifecycle, hostEnv: {}, runtime: createDaemonRuntimePorts({ hostEnv: {} }), agentRuntime });
     await assert.rejects(executor.run({ runId: run.id, agentId: "missing-fixture-cli", prompt: "Answer me", cwd: process.cwd() }),
       { code: "AGENT_NOT_FOUND" });
     assert.equal((await lifecycle.waitForTerminal({ runId: run.id })).state, "failed");

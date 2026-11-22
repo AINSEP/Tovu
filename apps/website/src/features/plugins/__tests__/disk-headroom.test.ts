@@ -7,9 +7,9 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { syncBuiltinESMExports } from "node:module";
 import Database from "better-sqlite3";
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 
-import { checkDiskHeadroom } from "../disk-headroom.js";
+import { checkDiskHeadroom } from "@jini-ai/db/data-modules";
 
 function measuredFreeSpace(t: TestContext, freeBytes: number): void {
   const measurement = t.mock.method(fs, "statfsSync", () => ({ bsize: 1, bavail: freeBytes }));
@@ -22,7 +22,7 @@ function measuredFreeSpace(t: TestContext, freeBytes: number): void {
 test("a nonexistent db file requires zero headroom (0 bytes) and passes on any real volume", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
   const dbPath = path.join(dir, "content.db"); // never created
-  const result = checkDiskHeadroom(dbPath);
+  const result = checkDiskHeadroom({ dbPath });
   assert.equal(result.requiredBytes, 0);
   assert.equal(result.ok, true);
   fs.rmSync(dir, { recursive: true, force: true });
@@ -35,7 +35,7 @@ test("required bytes scale with the actual db + WAL file sizes (1.5x multiplier)
   fs.writeFileSync(dbPath, Buffer.alloc(1000));
   fs.writeFileSync(`${dbPath}-wal`, Buffer.alloc(200));
 
-  const result = checkDiskHeadroom(dbPath);
+  const result = checkDiskHeadroom({ dbPath });
   assert.equal(result.requiredBytes, Math.ceil(1.5 * 1200));
   assert.equal(result.freeBytes, 1800);
   assert.equal(result.ok, true, "headroom exactly at the required threshold is sufficient");
@@ -43,13 +43,13 @@ test("required bytes scale with the actual db + WAL file sizes (1.5x multiplier)
 });
 
 /**
- * BUG FIX regression coverage (2026-07-28): before this fix, `checkDiskHeadroom(":memory:")`
+ * BUG FIX regression coverage (2026-07-28): before this fix, `checkDiskHeadroom({ dbPath: ":memory:" })`
  * derived its answer from `path.dirname(":memory:")`, i.e. the process's current working
  * directory — a low-disk cwd could fail-close a dataModule declare against an in-memory db that
  * will never touch disk at all. The guard makes this a deterministic no-op instead.
  */
 test("an in-memory dbPath is a no-op: ok, zero required bytes, no real measurement attempted", () => {
-  const result = checkDiskHeadroom(":memory:");
+  const result = checkDiskHeadroom({ dbPath: ":memory:" });
   assert.equal(result.ok, true);
   assert.equal(result.requiredBytes, 0);
   assert.equal(result.freeBytes, null);
@@ -60,7 +60,7 @@ test("insufficient free space fails closed (ok: false) rather than throwing", (t
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
   const dbPath = path.join(dir, "content.db");
   fs.writeFileSync(dbPath, Buffer.alloc(1000));
-  const result = checkDiskHeadroom(dbPath);
+  const result = checkDiskHeadroom({ dbPath });
   assert.equal(typeof result.freeBytes, "number");
   assert.ok((result.freeBytes ?? 0) > 0);
   assert.equal(result.measurementFailed, undefined);
@@ -82,7 +82,7 @@ test("dataModule refuses insufficient headroom before snapshot or plugin DDL", a
     const prepare = db.prepare.bind(db);
     t.mock.method(db, "prepare", (sql: string) => { statements.push(sql); return prepare(sql); });
     const result = await declareDataModule({
-      db: contentKernel(db), dbPath,
+      db: contentKernel({ store: db }), dbPath,
       decl: {
         pluginId: "headroom", pluginTier: "tier-2",
         provenance: { sourceUrl: "test://headroom", publisher: "test" },
@@ -107,7 +107,7 @@ test("dataModule refuses insufficient headroom before snapshot or plugin DDL", a
 test("an unavailable volume reports measurement failure without inventing insufficient headroom", (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  assert.deepEqual(checkDiskHeadroom(path.join(dir, "missing-volume", "content.db")), {
+  assert.deepEqual(checkDiskHeadroom({ dbPath: path.join(dir, "missing-volume", "content.db") }), {
     ok: true, requiredBytes: 0, freeBytes: null, measurementFailed: true,
   });
 });
@@ -118,5 +118,5 @@ test("a WAL without a main database still contributes its bytes to the rounded h
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const dbPath = path.join(dir, "content.db");
   fs.writeFileSync(`${dbPath}-wal`, Buffer.alloc(3));
-  assert.deepEqual(checkDiskHeadroom(dbPath), { ok: true, requiredBytes: 5, freeBytes: 5 });
+  assert.deepEqual(checkDiskHeadroom({ dbPath }), { ok: true, requiredBytes: 5, freeBytes: 5 });
 });

@@ -1,11 +1,11 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useEffect, useId, useRef, useState } from "react";
-import { describeApiError, type AdminWidgetType } from "../../lib/api";
+import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";
 import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { t as sharedComponentsT } from "../shared-components-i18n";
@@ -14,6 +14,7 @@ import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file `WidgetPickerDialog`'s and `WidgetAddControl`'s state — the existing-instances fetch, the
  * dialog's own form/selection/deferred-autofocus state, and the two-step type-choice flow —
@@ -55,25 +56,24 @@ import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPic
  * Fetches the widget type's existing instances for the "use existing" section, once per
  * `widgetType`.
  *
- * @param widgetType - The widget type to list instances for.
- * @param port - Injected {@link WidgetPickerPort} — see this file's own header for why it's an
+ * @param required.widgetType - The widget type to list instances for.
+ * @param optional.port - Injected {@link WidgetPickerPort} — see this file's own header for why it's an
  *   optional, defaulted parameter rather than a separate `useWiredX()` export.
- * @param locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
+ * @param optional.locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
  *   Defaults to `DEFAULT_LOCALE` ("en"), which renders the same English fallback as before this
  *   parameter existed (the dictionary carries no "en" block — see that file's own header).
  * @returns `instances` (`null` while the fetch is in flight, otherwise the loaded list) and
  *   `error` (a describable failure message, or `null`).
  * @example
- * const { instances, error } = useExistingInstances("text");
+ * const { instances, error } = useExistingInstances({ widgetType: "text" });
  */
 export function useExistingInstances(
-  widgetType: AdminWidgetType,
-  port: WidgetPickerPort = defaultWidgetPickerPort,
-  locale: string = DEFAULT_LOCALE
+  { widgetType }: { widgetType: AdminWidgetType },
+  { port = defaultWidgetPickerPort, locale = DEFAULT_LOCALE }: { port?: WidgetPickerPort; locale?: string } = {},
 ) {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listWidgets({ widgetType })).widgets; }
-    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load existing widgets" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: sharedComponentsT({ locale, key: "failed to load existing widgets" }) })); }
   }, [port, widgetType, locale]);
   // Widget type keys isolate the picker instances; a slow prior-type response cannot populate
   // the current picker. Port/locale dependencies refresh the fetch callback without resetting
@@ -106,10 +106,10 @@ export function useWidgetPickerDialog(
   const port = deps.port ?? defaultWidgetPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
   const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
-  const { instances, error: loadError } = useExistingInstances(props.widgetType, port, locale);
+  const { instances, error: loadError } = useExistingInstances({ widgetType: props.widgetType }, { port, locale });
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig(props.widgetType));
+  const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig({ widgetType: props.widgetType }));
   const [error, setError] = useState<string | null>(null);
   // `useId()`, not string literals — this component is conditionally mounted per caller
   // (`WidgetAddControl`'s `{pickerType ? <WidgetPickerDialog .../> : null}`), and only one
@@ -137,10 +137,10 @@ export function useWidgetPickerDialog(
   // remounted, so nothing re-evaluates the decision. This effect defers the decision until
   // `instances` has actually resolved, matching what `ui.spec.md` §5 (quoted in this file's own
   // header) asks for: no pre-selected default when existing instances are real options.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: defers focus decision until `instances` resolves — see comment above; hasExisting intentionally excluded.
+  // Derive the focus decision from the resolved instances, so it cannot run before they load.
   useEffect(() => {
     if (instances === null) return;
-    if (!hasExisting) newTitleInputRef.current?.focus();
+    if (instances.length === 0) newTitleInputRef.current?.focus();
   }, [instances]);
 
   function submitUseExisting(e: React.FormEvent) {
@@ -236,7 +236,7 @@ export function useWidgetAddControl(
   // `setPickerType` (`WidgetPickerDialog.tsx`'s "Widget…"/Cancel, `EmbedInsertControl.tsx`'s
   // Form/Menu shortcuts and their own Cancel), so clearing `error` here — rather than hunting down
   // every call site individually — covers all of them, including any future one.
-  function setPickerType(next: AdminWidgetType | null) {
+  function setPickerType({ next }: { next: AdminWidgetType | null }, _options: Record<string, never> = {}) {
     setError(null);
     setPickerTypeRaw(next);
   }
@@ -247,7 +247,7 @@ export function useWidgetAddControl(
   // the created widget is listed there. `error` renders beside the dialog, not inside it
   // (`WidgetAddControl`), so it stays visible after the close. Never rejects: the dialog's submit
   // handlers discard these promises.
-  async function handleCreateNew(title: string, config: Record<string, unknown>) {
+  async function handleCreateNew({ title, config }: { title: string; config: Record<string, unknown> }, _options: Record<string, never> = {}) {
     // A parent dialog stays mounted after a placement error; its type remains selectable
     // even though the inline control's close-on-create path has cleared pickerType.
     const widgetType = pickerType ?? (props.initialWidgetType ? selectedType : null);
@@ -257,14 +257,14 @@ export function useWidgetAddControl(
       const { widget } = await port.createWidget({ widgetType, title, config });
       widgetId = widget.id;
     } catch (e) {
-      setError(describeApiError(e, t("failed to create widget")));
+      setError(describeApiError({ e, fallback: t("failed to create widget") }));
       return;
     }
-    setPickerType(null);
+    setPickerType({ next: null });
     try {
       await props.onResolved(widgetId);
     } catch (e) {
-      const detail = describeApiError(e, t("failed to place widget"));
+      const detail = describeApiError({ e, fallback: t("failed to place widget") });
       setError(
         interpolate({ template: t('Widget "{title}" was created but not placed ({detail}). Choose it under Use existing to try again.'), vars: { title, detail } }
         )
@@ -272,12 +272,12 @@ export function useWidgetAddControl(
     }
   }
 
-  async function handleUseExisting(widgetInstanceId: string) {
-    setPickerType(null);
+  async function handleUseExisting({ widgetInstanceId }: { widgetInstanceId: string }, _options: Record<string, never> = {}) {
+    setPickerType({ next: null });
     try {
       await props.onResolved(widgetInstanceId);
     } catch (e) {
-      setError(describeApiError(e, t("failed to place widget")));
+      setError(describeApiError({ e, fallback: t("failed to place widget") }));
     }
   }
 

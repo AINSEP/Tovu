@@ -1,11 +1,13 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { describeApiError } from "@/lib/admin-http/request";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 type MemoryStatus = { pluginId: string; message: string } | null;
 
 function memoryStatusMessage({ pluginId, status, error, listing, t }: {
@@ -35,6 +37,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
   const generation = useRef(0);
   const hydrated = useRef<string | null>(null);
   const saving = useRef(false);
+  const loadErrorMessage = t("Could not load memory.");
   useEffect(() => {
     generation.current++;
     setStatus(null);
@@ -49,13 +52,17 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
       const first = listing.notes.find(file => file.relativePath === "project.md") ?? listing.notes[0];
       hydrated.current = pluginId;
       setDraft({ pluginId, entryPath: first?.relativePath ?? "project.md", text: first?.text ?? "" });
-    }).catch(() => {}); // The reactive query exposes this read's error.
+    }, () => { /* The reactive query exposes this read's error. */ })
+      .catch((error: unknown) => {
+        console.error("[agent-plugin-memory] Could not apply the loaded notes", describeErrorForLog({ err: error }));
+        if (!cancelled) setStatus({ pluginId, message: loadErrorMessage });
+      });
     return () => { cancelled = true; };
-  }, [pluginId, loader]);
+  }, [pluginId, loader, loadErrorMessage]);
   const listing = query.data ?? null;
   const current = draft.pluginId === pluginId ? draft : { pluginId, entryPath: "project.md", text: "" };
-  const setText = (text: string) => setDraft({ ...current, text });
-  const setPath = (entryPath: string) => setDraft({ pluginId, entryPath, text: listing?.notes.find(file => file.relativePath === entryPath)?.text ?? "" });
+  const setText = ({ text }: { text: string }, _optional = {}) => setDraft({ ...current, text });
+  const setPath = ({ entryPath }: { entryPath: string }, _optional = {}) => setDraft({ pluginId, entryPath, text: listing?.notes.find(file => file.relativePath === entryPath)?.text ?? "" });
   const save = async () => {
     if (saving.current || !listing || hydrated.current !== pluginId) return;
     saving.current = true;
@@ -65,7 +72,7 @@ export function useAgentPluginMemory(required: { pluginId: string; port: AgentPl
       const response = await write.mutate({ input: { pluginId, entryPath: current.entryPath, text: current.text } });
       if (generation.current !== requestGeneration) return;
       loader.replace({ value: response }); setStatus({ pluginId, message: t("Note saved.") });
-    } catch { if (generation.current === requestGeneration) setStatus({ pluginId, message: t("Could not save note.") }); }
+    } catch (error) { if (generation.current === requestGeneration) setStatus({ pluginId, message: describeApiError({ e: error, fallback: t("Could not save note.") }) }); }
     finally { saving.current = false; setSavingId(null); }
   };
   return { t, listing, entryPath: current.entryPath, text: current.text, setPath, setText, save,

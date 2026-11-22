@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targets.fixture";
 import { AccessTokensTab } from "../AccessTokensTab";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";
@@ -11,7 +11,7 @@ import { useAccessTokens } from "../hooks/use-access-tokens.hooks";
 import type { AccessTokensController } from "../hooks/use-access-tokens.hooks";
 import type { OtherCredentialsController } from "../hooks/use-other-credentials.hooks";
 import { useCopyKeys } from "../hooks/use-copy-keys.hooks";
-import { accessTokenProviderInfo, accessTokenProviders } from "../rules";
+import { accessTokenProviderInfo, accessTokenProviders } from "../access-token-providers";
 
 /**
  * @file Regression coverage for the owner-reported bug: this page's search box was filling itself
@@ -97,7 +97,7 @@ describe("AccessTokensTab search box", () => {
       id: "cf-works-for", providerId: "cloudflare-pages", label: "Production", configured: true,
       isDefault: true, accountLabel: null, createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
     };
-    const update = vi.fn<AccessTokensPort["publish"]["update"]>(async (_id, input) => {
+    const update = vi.fn<AccessTokensPort["publish"]["update"]>(async ({ input }) => {
       saved = { ...saved, worksFor: input.worksFor ?? saved.worksFor };
       return saved;
     });
@@ -105,16 +105,16 @@ describe("AccessTokensTab search box", () => {
       publishTargets: { list: async () => [CLOUDFLARE_PAGES_TARGET] },
       publish: { list: async () => ({ credentials: [saved], executionMode: "self-hosted-cli" }), update },
     });
-    render(<AccessTokensTab useAccessTokensHook={() => useAccessTokens(port, key => key, "en")} useOtherCredentialsHook={() => makeOtherCredentials()} />);
+    render(<AccessTokensTab useAccessTokensHook={() => useAccessTokens({ port, t: key => key, locale: "en" })} useOtherCredentialsHook={() => makeOtherCredentials()} />);
     await user.click(await screen.findByText("Replace token", { exact: true }));
     await user.click(screen.getByRole("button", { name: "plugin-off", pressed: true }));
     await user.click(screen.getByRole("button", { name: "Save — Production" }));
-    await waitFor(() => expect(update).toHaveBeenCalledWith("cf-works-for", { worksFor: [] }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ id: "cf-works-for", input: { worksFor: [] } }));
     expect(screen.getByLabelText("API token", { exact: true })).toHaveValue("");
     expect(screen.getByLabelText("Account ID", { exact: true })).toHaveValue("");
     await user.click(screen.getByRole("button", { name: "Cloudflare Pages", pressed: false }));
     await user.click(screen.getByRole("button", { name: "Save — Production" }));
-    await waitFor(() => expect(update).toHaveBeenLastCalledWith("cf-works-for", { worksFor: ["cloudflare-pages"] }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith({ id: "cf-works-for", input: { worksFor: ["cloudflare-pages"] } }));
   });
 
   it("renders the autocomplete=off attribute guard on the search field", () => {
@@ -130,7 +130,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     { descriptor: { ...CLOUDFLARE_PAGES_TARGET, credential: { tokenField: "token", fields: [] } }, label: "Access token" },
     { descriptor: CLOUDFLARE_PAGES_TARGET, label: "API token" },
   ])("labels the secret input exactly '$label'", ({ descriptor, label }) => {
-    const info = accessTokenProviderInfo(accessTokenProviders([descriptor], []), { kind: "publish", providerId: "cloudflare-pages" });
+    const info = accessTokenProviderInfo({ providers: accessTokenProviders({ publishTargets: [descriptor] }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
     render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens({
         groups: [{
@@ -161,7 +161,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
       createdAt: "2026-08-01T00:00:00.000Z",
       updatedAt: "2026-08-01T00:00:00.000Z",
     };
-    const update = vi.fn<AccessTokensPort["publish"]["update"]>(async (id, input) => {
+    const update = vi.fn<AccessTokensPort["publish"]["update"]>(async ({ id, input }) => {
       if (id !== "cf-1" || input.connection?.providerId !== "cloudflare-pages"
         || input.connection.token !== "cf-replacement" || input.connection.accountId !== "acct-replacement") {
         throw new Error("Unexpected Cloudflare replacement request");
@@ -173,7 +173,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
       publish: { list: async () => ({ credentials: [saved], executionMode: "self-hosted-cli" }), update },
     });
     render(<AccessTokensTab
-      useAccessTokensHook={() => useAccessTokens(port, (key: string) => key, "en")}
+      useAccessTokensHook={() => useAccessTokens({ port, t: (key: string) => key, locale: "en" })}
       useOtherCredentialsHook={() => makeOtherCredentials()}
     />);
 
@@ -185,9 +185,9 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     expect(accountId).toHaveValue("acct-replacement");
     await user.click(screen.getByRole("button", { name: "Save — Production" }));
 
-    expect(update).toHaveBeenCalledExactlyOnceWith("cf-1", {
+    expect(update).toHaveBeenCalledExactlyOnceWith({ id: "cf-1", input: {
       connection: { providerId: "cloudflare-pages", token: "cf-replacement", accountId: "acct-replacement" },
-    });
+    } });
     await waitFor(() => expect(screen.getByLabelText("API token", { exact: true })).toHaveValue(""));
     expect(screen.getByLabelText("Account ID", { exact: true })).toBe(accountId);
     expect(accountId).toHaveValue("");

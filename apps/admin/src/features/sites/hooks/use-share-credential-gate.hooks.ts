@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { describeApiError } from "@/lib/api";
+
+import { describeApiError } from "@/lib/admin-http/request";
 import type { CredentialWarning, ShareDownloadRefusal, SiteShare, SiteTransferPort } from "./site-transfer-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Export credential warnings (owner, 2026-11-03: "just a warning for the user, and then
  * click that I understand there may be some content that has credentials. It shouldn't be left
@@ -10,7 +11,7 @@ import type { CredentialWarning, ShareDownloadRefusal, SiteShare, SiteTransferPo
  * "I understand" checkbox, which records consent on the server before enabling them.
  */
 
-/** What an export row shows in place of its download; `message` is a 409's own reason. */
+/** What an export row shows in place of its download; `message` is a 403's own reason. */
 export interface CredentialGate {
   warnings: readonly CredentialWarning[];
   message: string | null;
@@ -23,7 +24,7 @@ function credentialGateWarnings({ refusal, share }: { refusal: ShareDownloadRefu
   return refusal?.credentialWarnings.length ? refusal.credentialWarnings : share.credentialWarnings ?? [];
 }
 
-function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
+function withoutKey<T>({ record, key }: { record: Readonly<Record<string, T>>; key: string }, _optional = {}): Record<string, T> {
   const next = { ...record };
   delete next[key];
   return next;
@@ -31,11 +32,11 @@ function withoutKey<T>(record: Readonly<Record<string, T>>, key: string): Record
 
 /**
  * Local consent and refusal state per share id. A local "acknowledged" mark enables the row at once
- * instead of waiting for the list refresh; a 409 overrides any row state, since the server decides.
+ * instead of waiting for the list refresh; a 403 overrides any row state, since the server decides.
  * @complexity O(1) per action; two requests per download check at most, one per acknowledgement.
  */
 export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
-  port: SiteTransferPort; t: Translate; refresh: () => void; onDownloadError: (message: string) => void;
+  port: SiteTransferPort; t: Translate; refresh: () => void; onDownloadError: (required: { message: string }, optional?: Record<string, never>) => void;
 }, _options = {}) {
   const [acknowledged, setAcknowledged] = useState<ReadonlySet<string>>(() => new Set());
   const [refusals, setRefusals] = useState<Readonly<Record<string, ShareDownloadRefusal>>>({});
@@ -65,7 +66,7 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
     const refusal = await port.shareDownloadRefusal({ share });
     if (!alive.current) return;
     if (!refusal) { port.downloadShare({ share }); return; }
-    if (refusal.status !== 409) { onDownloadError(refusal.message ?? t("Download failed.")); return; }
+    if (refusal.status !== 403) { onDownloadError({ message: refusal.message ?? t("Download failed.") }); return; }
     pendingDownload.current = share.shareId;
     setAcknowledged(previous => { const next = new Set(previous); next.delete(share.shareId); return next; });
     setRefusals(previous => ({ ...previous, [share.shareId]: refusal }));
@@ -85,13 +86,13 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
       await port.acknowledgeShare({ shareId: share.shareId });
       if (!alive.current) return;
       setAcknowledged(previous => new Set(previous).add(share.shareId));
-      setRefusals(previous => withoutKey(previous, share.shareId));
+      setRefusals(previous => withoutKey({ record: previous, key: share.shareId }));
       if (pendingDownload.current === share.shareId) {
         pendingDownload.current = null;
         await download(share);
       }
     } catch (error) {
-      if (alive.current) setFailure({ shareId: share.shareId, message: describeApiError(error, t("Couldn't save your answer. Try again.")) });
+      if (alive.current) setFailure({ shareId: share.shareId, message: describeApiError({ e: error, fallback: t("Couldn't save your answer. Try again.") }) });
     } finally {
       if (alive.current) setAcknowledgingId(null);
       refresh();
@@ -102,6 +103,6 @@ export function useShareCredentialGate({ port, t, refresh, onDownloadError }: {
 }
 
 /** Distinct files (or database columns): one file may carry several kinds. O(n). */
-export function credentialFileCount(warnings: readonly CredentialWarning[]): number {
+export function credentialFileCount({ warnings }: { warnings: readonly CredentialWarning[] }, _optional: Record<string, never> = {}): number {
   return new Set(warnings.map(warning => warning.path)).size;
 }

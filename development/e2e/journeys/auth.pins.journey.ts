@@ -15,47 +15,9 @@ import { logoutAsAdmin } from "../support/bug-pin-auth.js";
 test.use({ viewport: { width: 1280, height: 720 } });
 
 // Migrated from admin-locale-after-login.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-locale-after-login", () => {
-/**
- * @file Regression cover for "I changed the admin language and nothing happened" — reported
- * 2026-08-09 after asking the admin assistant to "change the language to portuguese", traced to a
- * read-side race that had nothing to do with the assistant.
- *
- * ## The bug
- *
- * `App.tsx` calls `useAdminLocale()` unconditionally, but only returns `<Login>` further down, so
- * the hook mounts while the login screen is still showing. Its one-shot fetch of
- * `core.language.locale` therefore resolves against a `401` (no session yet), and the hook
- * swallows a failed fetch to `DEFAULT_LOCALE` by design — a screen mounted without a stubbed
- * settings endpoint should degrade to English, not break. The effect's dependency list is empty,
- * and nothing in it changes at login, so it never retried: the sidebar stayed English for the rest
- * of the session no matter what the ledger said.
- *
- * That made a stored preference look like it had been ignored, which is what the assistant report
- * actually was. The assistant's own write was never the problem — `settings_set_ui_preference`
- * lands on the same `core.language.locale` row this test writes, so §1 covers that path's
- * UI-reflection half without needing a live LLM in the loop.
- *
- * ## Why a fresh browser context is load-bearing in §1
- *
- * The race only exists on the interactive-login path. A reload that already carries a
- * `tovu_session` cookie authenticates the mount-time fetch, so it returns the stored locale and
- * the bug is invisible — which is exactly why this survived manual testing. §1 must therefore
- * arrive with no cookie and go through the real form.
- *
- * §2 covers the other half (a write that lands mid-session, from another process — the shape an
- * agent-daemon write actually has) so a future fix to §1 cannot be made by breaking the change
- * feed that §2 depends on.
- */
+{
 
-const WORKSPACE_ID = "workspace-local";
-const SETTINGS_VALUE_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`;
-
-/** `Overview`'s pt-BR nav translation (`apps/admin/src/lib/admin-nav-i18n.ts`). Asserting a
- *  rendered STRING rather than the fetched setting is the point: the ledger already held the right
- *  value while the UI showed English. */
-const PT_BR_OVERVIEW = "Visão geral";
-const EN_OVERVIEW = "Overview";
+function createLocaleSetter({ SETTINGS_VALUE_URL }: { SETTINGS_VALUE_URL: string }) {
 
 /** Writes `core.language.locale` through the same authorized route the admin UI itself uses.
  *  `credentials: "same-origin"` picks up the real session cookie — not a backdoor. */
@@ -74,14 +36,21 @@ async function setLocale(page: Page, locale: string): Promise<void> {
   );
   expect(status, `expected the settings write for '${locale}' to be accepted`).toBe(200);
 }
+  return setLocale;
+}
+
+function createLocalizedNavLocator({ PT_BR_OVERVIEW, EN_OVERVIEW }: { PT_BR_OVERVIEW: string; EN_OVERVIEW: string }) {
 
 /** The sidebar's first nav item, which is `Overview` in English and {@link PT_BR_OVERVIEW} in
  *  pt-BR. Scoped to `nav` so a page heading with the same text cannot satisfy it by accident. */
 function overviewNavItem(page: Page) {
   return page.locator("nav").first().getByText(new RegExp(`^(${PT_BR_OVERVIEW}|${EN_OVERVIEW})$`));
 }
+  return overviewNavItem;
+}
 
-test.describe("admin locale survives an interactive login", () => {
+function registerLocalePersistencePin({ setLocale, overviewNavItem, PT_BR_OVERVIEW, EN_OVERVIEW }: { setLocale: ReturnType<typeof createLocaleSetter>; overviewNavItem: ReturnType<typeof createLocalizedNavLocator>; PT_BR_OVERVIEW: string; EN_OVERVIEW: string }) {
+
   test.afterEach(async ({ page }) => {
     await setLocale(page, "en");
   });
@@ -124,8 +93,62 @@ test.describe("admin locale survives an interactive login", () => {
 
     } finally { await viewerContext.close(); }
   });
+}
+
+function registerLocaleSuite({ setLocale, overviewNavItem, PT_BR_OVERVIEW, EN_OVERVIEW }: { setLocale: ReturnType<typeof createLocaleSetter>; overviewNavItem: ReturnType<typeof createLocalizedNavLocator>; PT_BR_OVERVIEW: string; EN_OVERVIEW: string }) {
+
+
+test.describe("admin locale survives an interactive login", () => {
+registerLocalePersistencePin({ setLocale, overviewNavItem, PT_BR_OVERVIEW, EN_OVERVIEW });
 });
+}
+
+test.describe("Bug pin: admin-locale-after-login", () => {
+/**
+ * @file Regression cover for "I changed the admin language and nothing happened" — reported
+ * 2026-08-09 after asking the admin assistant to "change the language to portuguese", traced to a
+ * read-side race that had nothing to do with the assistant.
+ *
+ * ## The bug
+ *
+ * `App.tsx` calls `useAdminLocale()` unconditionally, but only returns `<Login>` further down, so
+ * the hook mounts while the login screen is still showing. Its one-shot fetch of
+ * `core.language.locale` therefore resolves against a `401` (no session yet), and the hook
+ * swallows a failed fetch to `DEFAULT_LOCALE` by design — a screen mounted without a stubbed
+ * settings endpoint should degrade to English, not break. The effect's dependency list is empty,
+ * and nothing in it changes at login, so it never retried: the sidebar stayed English for the rest
+ * of the session no matter what the ledger said.
+ *
+ * That made a stored preference look like it had been ignored, which is what the assistant report
+ * actually was. The assistant's own write was never the problem — `settings_set_ui_preference`
+ * lands on the same `core.language.locale` row this test writes, so §1 covers that path's
+ * UI-reflection half without needing a live LLM in the loop.
+ *
+ * ## Why a fresh browser context is load-bearing in §1
+ *
+ * The race only exists on the interactive-login path. A reload that already carries a
+ * `tovu_session` cookie authenticates the mount-time fetch, so it returns the stored locale and
+ * the bug is invisible — which is exactly why this survived manual testing. §1 must therefore
+ * arrive with no cookie and go through the real form.
+ *
+ * §2 covers the other half (a write that lands mid-session, from another process — the shape an
+ * agent-daemon write actually has) so a future fix to §1 cannot be made by breaking the change
+ * feed that §2 depends on.
+ */
+
+const WORKSPACE_ID = "workspace-local";
+const SETTINGS_VALUE_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/value`;
+
+/** `Overview`'s pt-BR nav translation (`apps/admin/src/lib/admin-nav-i18n.ts`). Asserting a
+ *  rendered STRING rather than the fetched setting is the point: the ledger already held the right
+ *  value while the UI showed English. */
+const PT_BR_OVERVIEW = "Visão geral";
+const EN_OVERVIEW = "Overview";
+const setLocale = createLocaleSetter({ SETTINGS_VALUE_URL });
+const overviewNavItem = createLocalizedNavLocator({ PT_BR_OVERVIEW, EN_OVERVIEW });
+registerLocaleSuite({ setLocale, overviewNavItem, PT_BR_OVERVIEW, EN_OVERVIEW });
 });
+}
 
 // Migrated from admin-logout-cancel.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: admin-logout-cancel", () => {
@@ -318,25 +341,11 @@ test.describe("admin login when the API is unreachable (symptom reproduction)", 
 });
 
 // Migrated from login.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: login", () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-/**
- * @file MANDATE 1 ("does login even work?") — answered here, against a real browser hitting a real
- * `TOVU_DB=memory` boot through `playwright.destructive.config.ts`. See `auth-fixtures.ts`'s file
- * header for the write-up of what this proves about `dev-auth.ts` not being dev-only, and this
- * config's own header for a one-time, NOT reliably reproducible React crash found and investigated
- * while answering this mandate (9/9 later attempts passed clean — recorded, not worked around).
- *
- * Every test in this file fails loudly on any uncaught page error (see `beforeEach`/`afterEach`
- * below), specifically so that if that crash recurs it shows up as a clear assertion failure naming
- * the error, instead of the `.admin-layout` wait silently timing out with no explanation.
- *
- * These are ordinary specs (not ADR-055-gated) — login is orthogonal to the destructive-path bug
- * this dispatch's second mandate reproduces.
- */
+{
 
-test.describe("admin login (Mandate 1)", () => {
   let pageErrors: string[];
+function registerLoginCredentialPins() {
+
 
   test.beforeEach(({ page }) => {
     pageErrors = [];
@@ -387,6 +396,10 @@ test.describe("admin login (Mandate 1)", () => {
     // `App.tsx` re-runs `api.me()` on mount; the cookie set by login must still authenticate it.
     await expect(page.locator(".admin-layout")).toBeVisible({ timeout: 10_000 });
   });
+}
+
+function registerLogoutAndSessionPins() {
+
 
   test("logout returns to the login screen and the session cookie stops authenticating", async ({ page }) => {
     await loginAsAdmin(page);
@@ -413,5 +426,33 @@ test.describe("admin login (Mandate 1)", () => {
     const body = await res.json();
     expect(body.code).toBe("UNAUTHENTICATED");
   });
+}
+
+function registerLoginSuite() {
+
+  test.use({ storageState: { cookies: [], origins: [] } });
+/**
+ * @file MANDATE 1 ("does login even work?") — answered here, against a real browser hitting a real
+ * `TOVU_DB=memory` boot through `playwright.destructive.config.ts`. See `auth-fixtures.ts`'s file
+ * header for the write-up of what this proves about `dev-auth.ts` not being dev-only, and this
+ * config's own header for a one-time, NOT reliably reproducible React crash found and investigated
+ * while answering this mandate (9/9 later attempts passed clean — recorded, not worked around).
+ *
+ * Every test in this file fails loudly on any uncaught page error (see `beforeEach`/`afterEach`
+ * below), specifically so that if that crash recurs it shows up as a clear assertion failure naming
+ * the error, instead of the `.admin-layout` wait silently timing out with no explanation.
+ *
+ * These are ordinary specs (not ADR-055-gated) — login is orthogonal to the destructive-path bug
+ * this dispatch's second mandate reproduces.
+ */
+
+test.describe("admin login (Mandate 1)", () => {
+registerLoginCredentialPins();
+registerLogoutAndSessionPins();
 });
+}
+
+test.describe("Bug pin: login", () => {
+registerLoginSuite();
 });
+}

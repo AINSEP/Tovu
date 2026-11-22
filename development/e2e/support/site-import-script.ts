@@ -332,77 +332,113 @@ function tidy(node: TiptapNode): TiptapNode | undefined {
  */
 export function htmlToTiptap({ html }: { html: string }, rewrites: ContentRewrites): TiptapNode {
   const doc: TiptapNode = { type: "doc", content: [] };
-  const stack: Array<{ tag: string; node: TiptapNode }> = [{ tag: "#doc", node: doc }];
-  const marks: Array<{ tag: string; mark: { type: string; attrs?: Record<string, unknown> } }> = [];
-  let skipping: { tag: string; depth: number } | undefined;
-  const top = () => stack[stack.length - 1]!;
-  const popImplicit = () => { while (top().tag === "#implicit") stack.pop(); };
-  for (const match of html.matchAll(TOKEN)) {
-    const [whole, closing, rawTag, rawAttrs, text] = match;
-    if (whole.startsWith("<!--")) continue;
-    const tag = rawTag?.toLowerCase();
-    if (skipping) {
-      if (tag === skipping.tag && !VOID_TAGS.has(tag)) skipping.depth += closing ? -1 : 1;
-      if (skipping.depth === 0) skipping = undefined;
-      continue;
-    }
-    if (text !== undefined) {
-      const value = decodeEntities(text).replace(/\s+/g, " ");
-      if (!TEXTBLOCKS.has(top().node.type)) {
-        if (!value.trim() || ["bulletList", "orderedList"].includes(top().node.type)) continue;
-        const paragraph: TiptapNode = { type: "paragraph", content: [] };
-        top().node.content!.push(paragraph);
-        stack.push({ tag: "#implicit", node: paragraph });
-      }
-      top().node.content!.push({ type: "text", text: value, ...(marks.length ? { marks: marks.map((entry) => entry.mark) } : {}) });
-      continue;
-    }
-    const attrs = parseAttrs(rawAttrs ?? "");
-    if (!closing && (tag === "h1" || isHidden(attrs))) {
-      if (!VOID_TAGS.has(tag!)) skipping = { tag: tag!, depth: 1 };
-      continue;
-    }
-    if (closing) {
-      const markIndex = marks.map((entry) => entry.tag).lastIndexOf(tag!);
-      if (markIndex >= 0) { marks.splice(markIndex, 1); continue; }
-      const blockIndex = stack.map((entry) => entry.tag).lastIndexOf(tag!);
-      if (blockIndex > 0) stack.length = blockIndex;
-      continue;
-    }
-    if (tag === "a") {
-      // An anchor without href adds no mark; its closing tag then matches nothing and is ignored.
-      const resolved = attrs.href === undefined ? undefined : rewrites.hrefFor(attrs.href) ?? attrs.href;
-      if (resolved) marks.push({ tag, mark: { type: "link", attrs: { href: resolved } } });
-      continue;
-    }
-    if (MARKS[tag!]) { marks.push({ tag: tag!, mark: { type: MARKS[tag!]! } }); continue; }
-    if (tag === "br") {
-      if (TEXTBLOCKS.has(top().node.type)) top().node.content!.push({ type: "hardBreak" });
-      continue;
-    }
-    if (tag === "img") {
-      const media = attrs.src ? rewrites.imageFor(attrs.src) : undefined;
-      if (!media) continue;
-      while (TEXTBLOCKS.has(top().node.type)) stack.pop();
-      top().node.content!.push({ type: "media", attrs: { assetId: media.id, transformName: "public", ...(attrs.alt ? { alt: attrs.alt } : {}) } });
-      continue;
-    }
-    const block = openBlock(tag!);
-    if (!block) continue;
-    popImplicit();
-    if (block.type === "listItem" && !["bulletList", "orderedList"].includes(top().node.type)) continue;
-    if (TEXTBLOCKS.has(top().node.type)) stack.pop();
-    top().node.content!.push(block);
-    stack.push({ tag: tag!, node: block });
-    if (block.type === "listItem") {
-      // A list item takes block content only: its bare text goes into an implicit paragraph.
-      const paragraph: TiptapNode = { type: "paragraph", content: [] };
-      block.content!.push(paragraph);
-      stack.push({ tag: "#implicit", node: paragraph });
-    }
-  }
+  const context = createTiptapConversion(doc);
+  for (const match of html.matchAll(TOKEN)) consumeTiptapToken(match, context, rewrites);
   return tidy(doc) ?? { type: "doc", content: [] };
 }
+
+function createTiptapConversion(doc: TiptapNode) {
+  const stack: Array<{ tag: string; node: TiptapNode }> = [{ tag: "#doc", node: doc }];
+  const marks: Array<{ tag: string; mark: { type: string; attrs?: Record<string, unknown> } }> = [];
+  const cursor = { skipping: undefined as { tag: string; depth: number } | undefined };
+  const top = () => stack[stack.length - 1]!;
+  const popImplicit = () => { while (top().tag === "#implicit") stack.pop(); };
+  return { stack, marks, cursor, top, popImplicit };
+}
+
+function consumeTiptapToken(match: RegExpExecArray, context: ReturnType<typeof createTiptapConversion>, rewrites: ContentRewrites): void {
+  const [whole, closing, rawTag, rawAttrs, text] = match;
+  if (whole.startsWith("<!--")) return;
+  const tag = rawTag?.toLowerCase();
+  if (consumeSkippedTiptapTag({ tag, closing }, context)) return;
+  if (text !== undefined) {
+    appendTiptapText(text, context);
+    return;
+  }
+  consumeTiptapMarkup({ tag, closing, rawAttrs }, context, rewrites);
+}
+
+function consumeSkippedTiptapTag({ tag, closing }: { tag: string; closing: string }, context: ReturnType<typeof createTiptapConversion>): boolean {
+  const skipping = context.cursor.skipping;
+  if (!skipping) return false;
+  if (tag === skipping.tag && !VOID_TAGS.has(tag)) skipping.depth += closing ? -1 : 1;
+  if (skipping.depth === 0) context.cursor.skipping = undefined;
+  return true;
+}
+
+function appendTiptapText(text: string, { top, stack, marks }: ReturnType<typeof createTiptapConversion>): void {
+  const value = decodeEntities(text).replace(/\s+/g, " ");
+  if (!TEXTBLOCKS.has(top().node.type)) {
+    if (!value.trim() || ["bulletList", "orderedList"].includes(top().node.type)) return;
+    const paragraph: TiptapNode = { type: "paragraph", content: [] };
+    top().node.content!.push(paragraph);
+    stack.push({ tag: "#implicit", node: paragraph });
+  }
+  top().node.content!.push({ type: "text", text: value, ...(marks.length ? { marks: marks.map((entry) => entry.mark) } : {}) });
+}
+
+function consumeTiptapMarkup({ tag, closing, rawAttrs }: { tag: string; closing: string; rawAttrs: string }, context: ReturnType<typeof createTiptapConversion>, rewrites: ContentRewrites): void {
+  const attrs = parseAttrs(rawAttrs ?? "");
+  if (!closing && (tag === "h1" || isHidden(attrs))) {
+    if (!VOID_TAGS.has(tag!)) context.cursor.skipping = { tag: tag!, depth: 1 };
+    return;
+  }
+  if (closing) {
+    closeTiptapTag(tag!, context);
+    return;
+  }
+  if (appendInlineTiptapNode({ tag, attrs }, context, rewrites)) return;
+  appendTiptapBlock(tag!, context);
+}
+
+function closeTiptapTag(tag: string, { marks, stack }: ReturnType<typeof createTiptapConversion>): void {
+  const markIndex = marks.map((entry) => entry.tag).lastIndexOf(tag);
+  if (markIndex >= 0) { marks.splice(markIndex, 1); return; }
+  const blockIndex = stack.map((entry) => entry.tag).lastIndexOf(tag);
+  if (blockIndex > 0) stack.length = blockIndex;
+}
+
+function appendInlineTiptapNode({ tag, attrs }: { tag: string | undefined; attrs: Attrs }, context: ReturnType<typeof createTiptapConversion>, rewrites: ContentRewrites): boolean {
+  const { marks, top } = context;
+  if (tag === "a") {
+    // An anchor without href adds no mark; its closing tag then matches nothing and is ignored.
+    const resolved = attrs.href === undefined ? undefined : rewrites.hrefFor(attrs.href) ?? attrs.href;
+    if (resolved) marks.push({ tag, mark: { type: "link", attrs: { href: resolved } } });
+    return true;
+  }
+  if (MARKS[tag!]) { marks.push({ tag: tag!, mark: { type: MARKS[tag!]! } }); return true; }
+  if (tag === "br") {
+    if (TEXTBLOCKS.has(top().node.type)) top().node.content!.push({ type: "hardBreak" });
+    return true;
+  }
+  if (tag !== "img") return false;
+  appendTiptapImage(attrs, context, rewrites);
+  return true;
+}
+
+function appendTiptapImage(attrs: Attrs, { top, stack }: ReturnType<typeof createTiptapConversion>, rewrites: ContentRewrites): void {
+  const media = attrs.src ? rewrites.imageFor(attrs.src) : undefined;
+  if (!media) return;
+  while (TEXTBLOCKS.has(top().node.type)) stack.pop();
+  top().node.content!.push({ type: "media", attrs: { assetId: media.id, transformName: "public", ...(attrs.alt ? { alt: attrs.alt } : {}) } });
+}
+
+function appendTiptapBlock(tag: string, { top, stack, popImplicit }: ReturnType<typeof createTiptapConversion>): void {
+  const block = openBlock(tag);
+  if (!block) return;
+  popImplicit();
+  if (block.type === "listItem" && !["bulletList", "orderedList"].includes(top().node.type)) return;
+  if (TEXTBLOCKS.has(top().node.type)) stack.pop();
+  top().node.content!.push(block);
+  stack.push({ tag, node: block });
+  if (block.type === "listItem") {
+    // A list item takes block content only: its bare text goes into an implicit paragraph.
+    const paragraph: TiptapNode = { type: "paragraph", content: [] };
+    block.content!.push(paragraph);
+    stack.push({ tag: "#implicit", node: paragraph });
+  }
+}
+
 
 const LAYOUT_TAGS = new Set(["h1", "h2", "h3", "h4", "p", "ul", "ol", "li", "a", "img", "strong", "em", "div", "blockquote", "br"]);
 const LAYOUT_CLASSES: Readonly<Record<string, string>> = { cards: "si-cards", card: "si-card", button: "si-button", hero: "si-hero" };
@@ -559,41 +595,14 @@ export function buildPlan(
   const existingBySlug = new Map(existing.map((row) => [row.slug, row]));
   const usedSlugs = new Set<string>();
   const changesToExisting: string[] = [];
-  const entries: PlannedEntry[] = pages.map(({ facts, classification }) => {
-    let slug = targetSlug({ url: facts.url });
-    let match = existingBySlug.get(slug);
-    if (slug === "/" && match) { slug = "home"; match = existingBySlug.get(slug); }
-    if (match && match.kind !== classification.kind) { slug = `${slug}-imported`; match = existingBySlug.get(slug); }
-    if (usedSlugs.has(slug)) { slug = `${slugify(segmentsOf(facts.url).at(-2) ?? "imported")}-${slug}`; match = existingBySlug.get(slug); }
-    usedSlugs.add(slug);
-    if (match) changesToExisting.push(`${classification.kind} ${entryPath(slug)} (update)`);
-    return {
-      sourceUrl: facts.url, sourcePath: new URL(facts.url).pathname, kind: classification.kind, slug, title: facts.title, rule: classification.rule,
-      action: match ? "update" : "create",
-      ...(match ? { existingId: match.id, ...(match.version !== undefined ? { existingVersion: match.version } : {}) } : {}),
-      facts,
-    };
-  });
+  const entries: PlannedEntry[] = buildPlannedEntries({ pages, existingBySlug, usedSlugs, changesToExisting });
   const byKey = new Map(entries.map((entry) => [urlKey({ url: entry.sourceUrl }), entry]));
   const skippedKeys = new Set(skipped.map((row) => urlKey({ url: new URL(row.path, origin).href })));
   const posts = entries.filter((entry) => entry.kind === "post");
   const unique = (values: string[]) => [...new Map(values.map((value) => [value.toLowerCase(), value])).values()];
   // Unique by URL; an og:image that also appears in a page body takes that body image's alt text.
-  const altBySrc = new Map<string, string>();
-  for (const entry of entries) {
-    for (const image of entry.facts.images) if (!altBySrc.get(image.src)) altBySrc.set(image.src, image.alt);
-    if (entry.facts.ogImage && !altBySrc.has(entry.facts.ogImage)) altBySrc.set(entry.facts.ogImage, "");
-  }
-  const images = [...altBySrc].map(([src, alt]) => ({ src, alt }));
-  const items: MenuPlanItem[] = [];
-  const leftOut: string[] = [];
-  for (const link of home?.navLinks ?? []) {
-    const internal = new URL(link.href).host === new URL(origin).host;
-    const entry = internal ? byKey.get(urlKey({ url: link.href })) : undefined;
-    if (entry) items.push({ id: `${entry.slug === "/" ? "home" : entry.slug}-${items.length}`, label: link.label, target: { kind: "entry", slug: entry.slug, entryType: entry.kind } });
-    else if (internal || skippedKeys.has(urlKey({ url: link.href }))) leftOut.push(`${link.label} (${new URL(link.href).pathname})`);
-    else items.push({ id: slugify(link.label) || `link-${items.length + 1}`, label: link.label, target: { kind: "url", href: link.href } });
-  }
+  const images = collectImportedImages(entries);
+  const { items, leftOut }: { items: MenuPlanItem[]; leftOut: string[]; } = buildImportedNavigation({ home, origin, byKey, skippedKeys });
   const redirects = entries
     .filter((entry) => entry.sourcePath !== "/" && entry.sourcePath.replace(/\/+$/, "") !== entryPath(entry.slug))
     .map((entry) => ({ from: entry.sourcePath, to: entryPath(entry.slug) }));
@@ -609,6 +618,49 @@ export function buildPlan(
     changesToExisting,
   };
 }
+
+function collectImportedImages(entries: PlannedEntry[]) {
+  const altBySrc = new Map<string, string>();
+  for (const entry of entries) {
+    for (const image of entry.facts.images) if (!altBySrc.get(image.src)) altBySrc.set(image.src, image.alt);
+    if (entry.facts.ogImage && !altBySrc.has(entry.facts.ogImage)) altBySrc.set(entry.facts.ogImage, "");
+  }
+  const images = [...altBySrc].map(([src, alt]) => ({ src, alt }));
+  return images;
+}
+
+
+function buildPlannedEntries({ pages, existingBySlug, usedSlugs, changesToExisting }: { pages: { facts: PageFacts; classification: Classification & { kind: EntryKind; }; }[]; existingBySlug: Map<string, ExistingEntry>; usedSlugs: Set<string>; changesToExisting: string[] }): PlannedEntry[] {
+  return pages.map(({ facts, classification }) => {
+    let slug = targetSlug({ url: facts.url });
+    let match = existingBySlug.get(slug);
+    if (slug === "/" && match) { slug = "home"; match = existingBySlug.get(slug); }
+    if (match && match.kind !== classification.kind) { slug = `${slug}-imported`; match = existingBySlug.get(slug); }
+    if (usedSlugs.has(slug)) { slug = `${slugify(segmentsOf(facts.url).at(-2) ?? "imported")}-${slug}`; match = existingBySlug.get(slug); }
+    usedSlugs.add(slug);
+    if (match) changesToExisting.push(`${classification.kind} ${entryPath(slug)} (update)`);
+    return {
+      sourceUrl: facts.url, sourcePath: new URL(facts.url).pathname, kind: classification.kind, slug, title: facts.title, rule: classification.rule,
+      action: match ? "update" : "create",
+      ...(match ? { existingId: match.id, ...(match.version !== undefined ? { existingVersion: match.version } : {}) } : {}),
+      facts,
+    };
+  });
+}
+
+function buildImportedNavigation({ home, origin, byKey, skippedKeys }: { home: PageFacts | undefined; origin: string; byKey: Map<string, PlannedEntry>; skippedKeys: Set<string> }) {
+  const items: MenuPlanItem[] = [];
+  const leftOut: string[] = [];
+  for (const link of home?.navLinks ?? []) {
+    const internal = new URL(link.href).host === new URL(origin).host;
+    const entry = internal ? byKey.get(urlKey({ url: link.href })) : undefined;
+    if (entry) items.push({ id: `${entry.slug === "/" ? "home" : entry.slug}-${items.length}`, label: link.label, target: { kind: "entry", slug: entry.slug, entryType: entry.kind } });
+    else if (internal || skippedKeys.has(urlKey({ url: link.href }))) leftOut.push(`${link.label} (${new URL(link.href).pathname})`);
+    else items.push({ id: slugify(link.label) || `link-${items.length + 1}`, label: link.label, target: { kind: "url", href: link.href } });
+  }
+  return { items, leftOut };
+}
+
 
 /** The plan as the skill's Step 3 shape, ending with the one question. */
 export function planText({ plan }: { plan: ImportPlan }): string {
@@ -744,11 +796,230 @@ export function createSiteImportDriver(
   };
   const keyed = new Map<string, string>();
   const batches = new Map<string, StepCall[]>();
-  let referenceImport = false;
-  let counter = 0;
-  let phase: Phase = "discovery";
+  const progress = {
+    referenceImport: false,
+    counter: 0,
+    phase: "discovery" as Phase,
+  };
 
-  function absorb(request: CapturedModelRequest): void {
+  const absorb = createImportResultAbsorber(state, batches);
+
+  /** The parsed payload of the call recorded under `key`, or `undefined` if it failed or never ran. */
+  const payloadOf = createImportPayloadReader(keyed, state);
+
+  const need = createImportRequirementRecorder(state);
+
+  /** Runs steps until one produces tool calls (that turn ends with them) or text (the phase ends). */
+  const turnFor = createScriptedImportTurn({ absorb, progress, batches, keyed, state, queue });
+
+  const fetchPage = (url: string, format: "raw" | "html", key: string): StepCall => ({ toolId: "web_fetch_page", input: { url, format }, key });
+  const fetched = (key: string) => findOne(payloadOf(key), (o) => isString(o.finalUrl) && typeof o.content === "string") as { finalUrl: string; status?: number; content: string } | undefined;
+
+  // ---- discovery -----------------------------------------------------------------------------
+  const discoveryState = {
+    robots: { sitemaps: [] as string[], disallow: [] as string[] },
+  };
+  const sitemapQueue: string[] = [];
+  const urlEntries: Array<{ url: string; hint?: EntryKind | "skip" }> = [];
+  const candidates: Array<{ url: string; classification: Classification }> = [];
+  const skipped: ImportPlan["skipped"] = [];
+  const sourceStyles = {
+    palette: {} as Record<string, string>,
+  };
+
+  const readSitemaps = createSitemapReader({ fetched, state, origin, sitemapQueue, urlEntries });
+
+  const discovery: Step[] = buildDiscoverySteps({ fetchPage, origin, state, keyed, fetched, discoveryState, readSitemaps, sitemapQueue, urlEntries, skipped, candidates, sourceStyles, payloadOf, need, progress, menuLocation });
+
+  // ---- import ------------------------------------------------------------------------------
+  const rewritesFor = createContentRewrites(state, origin);
+
+  const importSteps: Step[] = buildImportSteps({ state, payloadOf, need, rewritesFor, keyed, progress, fetched, origin });
+
+  // ---- activation --------------------------------------------------------------------------
+  const activationSteps: Step[] = buildActivationSteps(state);
+
+  return {
+    state,
+    queueReferenceImport: createReferenceImportEnqueuer({ progress, discovery, importSteps, origin, state, queue, turnFor }),
+    queueDiscovery: () => { progress.phase = "discovery"; queue.enqueue(turnFor([...discovery])); },
+    queueImport: () => { progress.phase = "import"; queue.enqueue(turnFor([...importSteps])); },
+    queueActivation: () => { progress.phase = "activation"; queue.enqueue(turnFor([...activationSteps])); },
+  };
+}
+
+function createImportRequirementRecorder(state: SiteImportState) {
+  return function need<T>(value: T | undefined, what: string): T | undefined {
+    if (value === undefined) state.errors.push(`missing: ${what}`);
+    return value;
+  };
+}
+
+function createReferenceImportEnqueuer({ progress, discovery, importSteps, origin, state, queue, turnFor }: { progress: { referenceImport: boolean; counter: number; phase: Phase; }; discovery: Step[]; importSteps: Step[]; origin: string; state: SiteImportState; queue: TurnQueue; turnFor: ReturnType<typeof createScriptedImportTurn> }) {
+  return () => {
+      progress.referenceImport = true;
+      progress.phase = "import";
+      const steps = [...discovery, ...importSteps];
+      // Read the named behavior owner's instructions before rebuilding the theme. Using the
+      // documented fs_read_file fallback keeps this deterministic when plugin tools are gated.
+      steps.unshift({ name: "tovu-theme-owner", run: () => ({ calls: [{ toolId: "fs_read_file", input: {
+        root: "repo", path: "content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md",
+      }, key: "theme-owner" }] }) });
+      steps.splice(steps.length - 1, 0, { name: "compare-reference", run: () => ({ calls: (["desktop", "mobile"] as const).flatMap((viewport) => [
+        { toolId: "web_screenshot_page", input: { url: `${origin}/`, viewport }, key: `source-capture:${viewport}`, nonFatal: true },
+        { toolId: "web_screenshot_page", input: { sitePath: "/", themeId: state.themeCopyId, viewport }, key: `copy-capture:${viewport}`, nonFatal: true },
+      ]) }) });
+      queue.enqueue(turnFor(steps));
+    };
+}
+
+function createImportPayloadReader(keyed: Map<string, string>, state: SiteImportState) {
+  return function payloadOf(key: string): unknown {
+    const id = keyed.get(key);
+    const result = id ? state.results.get(id) : undefined;
+    return result && !result.isError ? result.payload : undefined;
+  };
+}
+
+function buildActivationSteps(state: SiteImportState): Step[] {
+  return [
+    { name: "activate", run: () => (state.themeCopyId
+      ? { calls: [{ toolId: "theme_set_active", input: { themeId: state.themeCopyId }, key: "activate" }] }
+      : { text: "There is no imported theme copy to switch to." }) },
+    { name: "screenshot", run: () => ({ calls: (["desktop", "mobile"] as const).map((viewport) => ({
+      toolId: "web_screenshot_page", input: { sitePath: "/", viewport }, key: `screenshot:${viewport}`, nonFatal: true,
+    })) }) },
+    { name: "done", run: () => {
+      const unavailable = state.notes.some((note) => /web_screenshot_page failed/.test(note));
+      state.activationText = [
+        `Done: "${state.plan?.theme.copyName}" (${state.themeCopyId}) is now the live theme; ${state.activeThemeId} is unchanged and can be switched back at any time.`,
+        unavailable ? "Screenshots are not available on this server, so the visual check used the fetched pages only." : "Captured the new homepage at desktop and mobile widths for comparison.",
+      ].join("\n");
+      return { text: state.activationText };
+    } },
+  ];
+}
+
+function buildImportSteps({ state, payloadOf, need, rewritesFor, keyed, progress, fetched, origin }: { state: SiteImportState; payloadOf: ReturnType<typeof createImportPayloadReader>; need: ReturnType<typeof createImportRequirementRecorder>; rewritesFor: ReturnType<typeof createContentRewrites>; keyed: Map<string, string>; progress: { referenceImport: boolean; counter: number; phase: Phase; }; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; origin: string }): Step[] {
+  return [
+    { name: "taxonomies-and-media", run: createTaxonomiesAndMediaStep(state, payloadOf) },
+    { name: "terms-and-entries", run: createTermsAndEntriesStep({ state, payloadOf, need, rewritesFor }) },
+    { name: "layout-terms-seo-menu-redirects-theme", run: createLayoutTermsSeoMenuRedirectsThemeStep({ state, keyed, payloadOf, need, rewritesFor, progress, fetched, origin }) },
+    { name: "menu-location-and-theme-read", run: createMenuLocationAndThemeReadStep(payloadOf, state, need) },
+    { name: "reference-fonts", run: () => {
+      if (!progress.referenceImport || !state.themeCopyId) return {};
+      const css = [...keyed.keys()].filter((key) => key.startsWith("css:")).map((key) => fetched(key)?.content ?? "").join("\n");
+      return { calls: [...css.matchAll(/url\(['"]?([^'"()]+\.woff2)['"]?\)/g)].map((match) => ({
+        toolId: "theme_import_file_from_url", input: { themeId: state.themeCopyId, url: new URL(match[1]!, origin).href,
+          path: `assets/fonts/${new URL(match[1]!, origin).pathname.split("/").pop()}` },
+      })) };
+    } },
+    { name: "theme-write", run: createThemeWriteStep({ state, payloadOf, need, progress, fetched, origin, rewritesFor, keyed }) },
+    { name: "verify", run: createVerifyStep(keyed, payloadOf, state) },
+    { name: "report", run: createReportStep(state, payloadOf, progress) },
+  ];
+}
+
+function buildDiscoverySteps({ fetchPage, origin, state, keyed, fetched, discoveryState, readSitemaps, sitemapQueue, urlEntries, skipped, candidates, sourceStyles, payloadOf, need, progress, menuLocation }: { fetchPage: (url: string, format: "raw" | "html", key: string) => StepCall; origin: string; state: SiteImportState; keyed: Map<string, string>; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; discoveryState: { robots: { sitemaps: string[]; disallow: string[]; }; }; readSitemaps: ReturnType<typeof createSitemapReader>; sitemapQueue: string[]; urlEntries: Array<{ url: string; hint?: EntryKind | "skip" }>; skipped: ImportPlan["skipped"]; candidates: Array<{ url: string; classification: Classification }>; sourceStyles: { palette: Record<string, string>; }; payloadOf: ReturnType<typeof createImportPayloadReader>; need: ReturnType<typeof createImportRequirementRecorder>; progress: { referenceImport: boolean; counter: number; phase: Phase; }; menuLocation: string }): Step[] {
+  return [
+    { name: "robots", run: () => ({ calls: [
+      { toolId: "search_agent_plugin_local", input: { query: "import an existing website into this site" }, key: "plugin-search" },
+      fetchPage(`${origin}/robots.txt`, "raw", "robots"),
+    ] }) },
+    { name: "sitemaps", run: () => {
+      state.pluginSearchFound = (state.results.get(keyed.get("plugin-search") ?? "")?.raw ?? "").includes("site-import");
+      const page = fetched("robots");
+      discoveryState.robots = page && page.status === 200 ? parseRobots({ text: page.content }) : discoveryState.robots;
+      const sitemaps = discoveryState.robots.sitemaps.length ? discoveryState.robots.sitemaps : [`${origin}/sitemap.xml`];
+      return { calls: sitemaps.map((url) => fetchPage(url, "raw", `sitemap:${url}`)) };
+    } },
+    { name: "child-sitemaps", run: () => {
+      readSitemaps([...keyed.keys()].filter((key) => key.startsWith("sitemap:")));
+      const children = sitemapQueue.splice(0);
+      return { calls: children.map((url) => fetchPage(url, "raw", `child:${url}`)) };
+    } },
+    { name: "pages", run: createPagesStep({ readSitemaps, keyed, sitemapQueue, urlEntries, discoveryState, skipped, candidates, fetchPage }) },
+    { name: "stylesheets", run: () => {
+      const home = candidates.find((candidate) => candidate.classification.rule === "page-home");
+      const page = home ? fetched(`page:${home.url}`) : undefined;
+      const sheets = page ? readPageFacts({ url: home!.url, html: page.content }).stylesheets : [];
+      return { calls: sheets.map((url) => fetchPage(url, "raw", `css:${url}`)) };
+    } },
+    { name: "plan", run: createPlanStep({ keyed, fetched, sourceStyles, candidates, skipped, payloadOf, need, state, origin, progress, menuLocation }) },
+  ];
+}
+
+function createContentRewrites(state: SiteImportState, origin: string) {
+  return (pageUrl: string): ContentRewrites => {
+    const plan = state.plan!;
+    const byKey = new Map(plan.entries.map((entry) => [urlKey({ url: entry.sourceUrl }), entry]));
+    return {
+      imageFor: (src) => state.mediaBySrc.get(absolute(src, pageUrl) ?? src),
+      hrefFor: (href) => {
+        const resolved = absolute(href, pageUrl);
+        if (!resolved || !/^https?:/.test(resolved)) return undefined;
+        if (new URL(resolved).host !== new URL(origin).host) return undefined;
+        const entry = byKey.get(urlKey({ url: resolved }));
+        return entry ? entryPath(entry.slug) : resolved;
+      },
+    };
+  };
+}
+
+function createSitemapReader({ fetched, state, origin, sitemapQueue, urlEntries }: { fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; state: SiteImportState; origin: string; sitemapQueue: string[]; urlEntries: Array<{ url: string; hint?: EntryKind | "skip" }> }) {
+  return function readSitemaps(keys: string[]): void {
+    for (const key of keys) {
+      const page = fetched(key);
+      const sitemapUrl = key.slice(key.indexOf(":") + 1);
+      if (!page || page.status !== 200) { state.notes.push(`sitemap ${sitemapUrl} could not be read`); continue; }
+      const parsed = parseSitemap({ xml: page.content });
+      for (const entry of parsed.entries) {
+        if (new URL(entry.loc).host !== new URL(origin).host) continue;
+        if (parsed.kind === "index") sitemapQueue.push(entry.loc);
+        else urlEntries.push({ url: entry.loc, hint: sitemapHint({ sitemapUrl }) });
+      }
+    }
+  };
+}
+
+function createScriptedImportTurn({ absorb, progress, batches, keyed, state, queue }: { absorb: ReturnType<typeof createImportResultAbsorber>; progress: { referenceImport: boolean; counter: number; phase: Phase; }; batches: Map<string, StepCall[]>; keyed: Map<string, string>; state: SiteImportState; queue: TurnQueue }) {
+  return function turnFor(steps: Step[]): ScriptedTurn {
+    return (request: CapturedModelRequest): FakeTurn => {
+      absorb(request);
+      while (steps.length) {
+        const step = steps.shift()!;
+        const output = step.run();
+        const calls = output.calls ?? [];
+        if (calls.length === 0 && output.text === undefined) continue;
+        // The current skill requires one items call per batch, not many tool_use blocks in a turn.
+        // Keep each logical result's key so subsequent steps still consume the owning tool's IDs.
+        const grouped: StepCall[][] = [];
+        const batchable = new Set(["web_fetch_page", "media_import_from_url", "content_post_create", "content_post_update", "pages_write_html", "theme_read_file", "theme_write_file", "theme_import_file_from_url"]);
+        for (const call of calls) {
+          const group = progress.referenceImport && batchable.has(call.toolId)
+            ? grouped.find((group) => group[0]!.toolId === call.toolId && group.length < 10) : undefined;
+          if (group) group.push(call); else grouped.push([call]);
+        }
+        const toolCalls: FakeToolCall[] = grouped.map((group) => {
+          const call = group[0]!;
+          const toolUseId = `toolu_si_${++progress.counter}`;
+          const batched = group.length > 1;
+          if (batched) batches.set(toolUseId, group);
+          group.forEach((child, index) => { if (child.key) keyed.set(child.key, batched ? `${toolUseId}:${index}` : toolUseId); });
+          const input = batched ? { items: group.map((child) => child.input) } : call.input;
+          state.calls.push({ phase: progress.phase, step: step.name, toolUseId, toolId: call.toolId, input, nonFatal: call.nonFatal === true });
+          return { id: toolUseId, name: "execute_delegated_tool", input: { toolId: call.toolId, input } };
+        });
+        if (toolCalls.length && steps.length) queue.enqueue(turnFor(steps));
+        return { ...(output.text !== undefined ? { text: output.text } : {}), ...(toolCalls.length ? { toolCalls } : {}) };
+      }
+      return { text: "Nothing left to do." };
+    };
+  };
+}
+
+function createImportResultAbsorber(state: SiteImportState, batches: Map<string, StepCall[]>) {
+  return function absorb(request: CapturedModelRequest): void {
     for (const result of toolResultsIn("anthropic", request)) {
       if (state.results.has(result.toolUseId)) continue;
       const call = state.calls.find((candidate) => candidate.toolUseId === result.toolUseId);
@@ -767,209 +1038,137 @@ export function createSiteImportDriver(
         }
       }
     }
-  }
-
-  /** The parsed payload of the call recorded under `key`, or `undefined` if it failed or never ran. */
-  function payloadOf(key: string): unknown {
-    const id = keyed.get(key);
-    const result = id ? state.results.get(id) : undefined;
-    return result && !result.isError ? result.payload : undefined;
-  }
-
-  function need<T>(value: T | undefined, what: string): T | undefined {
-    if (value === undefined) state.errors.push(`missing: ${what}`);
-    return value;
-  }
-
-  /** Runs steps until one produces tool calls (that turn ends with them) or text (the phase ends). */
-  function turnFor(steps: Step[]): ScriptedTurn {
-    return (request: CapturedModelRequest): FakeTurn => {
-      absorb(request);
-      while (steps.length) {
-        const step = steps.shift()!;
-        const output = step.run();
-        const calls = output.calls ?? [];
-        if (calls.length === 0 && output.text === undefined) continue;
-        // The current skill requires one items call per batch, not many tool_use blocks in a turn.
-        // Keep each logical result's key so subsequent steps still consume the owning tool's IDs.
-        const grouped: StepCall[][] = [];
-        const batchable = new Set(["web_fetch_page", "media_import_from_url", "content_post_create", "content_post_update", "pages_write_html", "theme_read_file", "theme_write_file", "theme_import_file_from_url"]);
-        for (const call of calls) {
-          const group = referenceImport && batchable.has(call.toolId)
-            ? grouped.find((group) => group[0]!.toolId === call.toolId && group.length < 10) : undefined;
-          if (group) group.push(call); else grouped.push([call]);
-        }
-        const toolCalls: FakeToolCall[] = grouped.map((group) => {
-          const call = group[0]!;
-          const toolUseId = `toolu_si_${++counter}`;
-          const batched = group.length > 1;
-          if (batched) batches.set(toolUseId, group);
-          group.forEach((child, index) => { if (child.key) keyed.set(child.key, batched ? `${toolUseId}:${index}` : toolUseId); });
-          const input = batched ? { items: group.map((child) => child.input) } : call.input;
-          state.calls.push({ phase, step: step.name, toolUseId, toolId: call.toolId, input, nonFatal: call.nonFatal === true });
-          return { id: toolUseId, name: "execute_delegated_tool", input: { toolId: call.toolId, input } };
-        });
-        if (toolCalls.length && steps.length) queue.enqueue(turnFor(steps));
-        return { ...(output.text !== undefined ? { text: output.text } : {}), ...(toolCalls.length ? { toolCalls } : {}) };
-      }
-      return { text: "Nothing left to do." };
-    };
-  }
-
-  const fetchPage = (url: string, format: "raw" | "html", key: string): StepCall => ({ toolId: "web_fetch_page", input: { url, format }, key });
-  const fetched = (key: string) => findOne(payloadOf(key), (o) => isString(o.finalUrl) && typeof o.content === "string") as { finalUrl: string; status?: number; content: string } | undefined;
-
-  // ---- discovery -----------------------------------------------------------------------------
-  let robots = { sitemaps: [] as string[], disallow: [] as string[] };
-  const sitemapQueue: string[] = [];
-  const urlEntries: Array<{ url: string; hint?: EntryKind | "skip" }> = [];
-  const candidates: Array<{ url: string; classification: Classification }> = [];
-  const skipped: ImportPlan["skipped"] = [];
-  let palette: Record<string, string> = {};
-
-  function readSitemaps(keys: string[]): void {
-    for (const key of keys) {
-      const page = fetched(key);
-      const sitemapUrl = key.slice(key.indexOf(":") + 1);
-      if (!page || page.status !== 200) { state.notes.push(`sitemap ${sitemapUrl} could not be read`); continue; }
-      const parsed = parseSitemap({ xml: page.content });
-      for (const entry of parsed.entries) {
-        if (new URL(entry.loc).host !== new URL(origin).host) continue;
-        if (parsed.kind === "index") sitemapQueue.push(entry.loc);
-        else urlEntries.push({ url: entry.loc, hint: sitemapHint({ sitemapUrl }) });
-      }
-    }
-  }
-
-  const discovery: Step[] = [
-    { name: "robots", run: () => ({ calls: [
-      { toolId: "search_agent_plugin_local", input: { query: "import an existing website into this site" }, key: "plugin-search" },
-      fetchPage(`${origin}/robots.txt`, "raw", "robots"),
-    ] }) },
-    { name: "sitemaps", run: () => {
-      state.pluginSearchFound = (state.results.get(keyed.get("plugin-search") ?? "")?.raw ?? "").includes("site-import");
-      const page = fetched("robots");
-      robots = page && page.status === 200 ? parseRobots({ text: page.content }) : robots;
-      const sitemaps = robots.sitemaps.length ? robots.sitemaps : [`${origin}/sitemap.xml`];
-      return { calls: sitemaps.map((url) => fetchPage(url, "raw", `sitemap:${url}`)) };
-    } },
-    { name: "child-sitemaps", run: () => {
-      readSitemaps([...keyed.keys()].filter((key) => key.startsWith("sitemap:")));
-      const children = sitemapQueue.splice(0);
-      return { calls: children.map((url) => fetchPage(url, "raw", `child:${url}`)) };
-    } },
-    { name: "pages", run: () => {
-      // One level of child sitemaps is normal; a nested index is not followed (reference § 2).
-      readSitemaps([...keyed.keys()].filter((candidate) => candidate.startsWith("child:")));
-      sitemapQueue.length = 0;
-      const seen = new Set<string>();
-      for (const entry of urlEntries) {
-        const url = normalizeUrl({ url: entry.url });
-        if (!url) continue;
-        const key = urlKey({ url });
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const classification = classifyUrl({ url, disallow: robots.disallow }, entry.hint ? { hint: entry.hint } : {});
-        if (classification.kind === "skip") skipped.push({ path: new URL(url).pathname, rule: classification.rule, reason: classification.reason });
-        else candidates.push({ url, classification });
-      }
-      return { calls: [
-        ...candidates.map((candidate) => fetchPage(candidate.url, "html", `page:${candidate.url}`)),
-        { toolId: "content_read.content_post", input: { kind: "page", fields: ["id", "kind", "slug", "title", "version"], limit: 200 }, key: "existing-pages" },
-        { toolId: "content_read.content_post", input: { kind: "post", fields: ["id", "kind", "slug", "title", "version"], limit: 200 }, key: "existing-posts" },
-        { toolId: "content_read.taxonomy", input: {}, key: "taxonomies" },
-        { toolId: "content_read.menu", input: {}, key: "menus" },
-        { toolId: "site_get_profile", input: { sections: ["theme"] }, key: "profile" },
-      ] };
-    } },
-    { name: "stylesheets", run: () => {
-      const home = candidates.find((candidate) => candidate.classification.rule === "page-home");
-      const page = home ? fetched(`page:${home.url}`) : undefined;
-      const sheets = page ? readPageFacts({ url: home!.url, html: page.content }).stylesheets : [];
-      return { calls: sheets.map((url) => fetchPage(url, "raw", `css:${url}`)) };
-    } },
-    { name: "plan", run: () => {
-      for (const key of [...keyed.keys()].filter((candidate) => candidate.startsWith("css:"))) {
-        const sheet = fetched(key);
-        if (sheet) palette = { ...readPalette({ css: sheet.content }), ...palette };
-      }
-      const pages: Array<{ facts: PageFacts; classification: Classification & { kind: EntryKind } }> = [];
-      for (const candidate of candidates) {
-        const page = fetched(`page:${candidate.url}`);
-        if (!page) { skipped.push({ path: new URL(candidate.url).pathname, rule: "skip-error", reason: "fetch failed" }); continue; }
-        const classification = refineWithMarkup({ classification: candidate.classification, url: candidate.url, status: page.status ?? 200, finalUrl: page.finalUrl, html: page.content });
-        if (classification.kind === "skip") { skipped.push({ path: new URL(candidate.url).pathname, rule: classification.rule, reason: classification.reason }); continue; }
-        pages.push({ facts: readPageFacts({ url: candidate.url, html: page.content }), classification: classification as Classification & { kind: EntryKind } });
-      }
-      const existing = (["page", "post"] as const).flatMap((kind) => findAll(payloadOf(`existing-${kind}s`), (o) => isString(o.id) && typeof o.slug === "string")
-        .map((row): ExistingEntry => ({ id: row.id as string, kind, slug: row.slug as string, ...(typeof row.version === "number" ? { version: row.version } : {}) })));
-      const profile = findOne(payloadOf("profile"), (o) => "activeThemeId" in o);
-      const activeThemeId = need((isString(profile?.activeThemeId) ? profile!.activeThemeId : (findOne(profile?.active, (o) => isString(o.id))?.id as string | undefined)), "the active theme id (site_get_profile)");
-      state.activeThemeId = activeThemeId;
-      state.plan = buildPlan({ origin, pages, skipped, existing: referenceImport ? existing.filter((row) => row.slug !== "/") : existing, palette, activeThemeId: activeThemeId ?? "" }, { menuLocation });
-      state.planText = planText({ plan: state.plan });
-      if (referenceImport) {
-        // Historical assumption:
-        // A fresh fixture site normally has no CMS homepage. Refuse to silently import to /home
-        // when it does: the live variant must exercise the skill's move-existing-home behavior.
-        // The ordinary seed now owns /. Exercise content-mapping §1's move in the scripted
-        // variant too, completing it before the create batch can claim that slug.
-        const home = existing.find((row) => row.slug === "/");
-        if (home) {
-          const used = new Set([...existing.map((row) => row.slug), ...state.plan.entries.map((entry) => entry.slug)]);
-          let slug = "previous-home";
-          for (let suffix = 2; used.has(slug); suffix++) slug = `previous-home-${suffix}`;
-          state.plan.changesToExisting.push(`Moved the existing homepage from / to /${slug}`);
-          return { calls: [{ toolId: "content_post_update", input: { id: home.id, kind: home.kind, slug,
-            ...(home.version !== undefined ? { expectedVersion: home.version } : {}) }, key: "move-existing-home" }] };
-        }
-      }
-      return referenceImport ? {} : { text: state.planText };
-    } },
-  ];
-
-  // ---- import ------------------------------------------------------------------------------
-  const rewritesFor = (pageUrl: string): ContentRewrites => {
-    const plan = state.plan!;
-    const byKey = new Map(plan.entries.map((entry) => [urlKey({ url: entry.sourceUrl }), entry]));
-    return {
-      imageFor: (src) => state.mediaBySrc.get(absolute(src, pageUrl) ?? src),
-      hrefFor: (href) => {
-        const resolved = absolute(href, pageUrl);
-        if (!resolved || !/^https?:/.test(resolved)) return undefined;
-        if (new URL(resolved).host !== new URL(origin).host) return undefined;
-        const entry = byKey.get(urlKey({ url: resolved }));
-        return entry ? entryPath(entry.slug) : resolved;
-      },
-    };
   };
+}
 
-  const importSteps: Step[] = [
-    { name: "taxonomies-and-media", run: () => {
-      const plan = state.plan;
-      if (!plan) { state.errors.push("import started without a plan"); return { text: "There is no approved plan to import." }; }
-      const items = findAll(payloadOf("taxonomies"), (o) => typeof o.taxonomy === "object" && o.taxonomy !== null);
-      const taxonomy = (hierarchical: boolean, pattern: RegExp) => items.map((item) => item.taxonomy as JsonObject)
-        .find((row) => row.hierarchical === hierarchical && pattern.test(String(row.name ?? row.key ?? row.slug ?? "")));
-      const category = taxonomy(true, /^categor/i);
-      const tag = taxonomy(false, /^tag/i);
-      if (isString(category?.id)) state.taxonomyIds.category = category!.id as string;
-      if (isString(tag?.id)) state.taxonomyIds.tag = tag!.id as string;
-      for (const item of items) {
-        for (const term of (Array.isArray(item.terms) ? item.terms : []) as JsonObject[]) {
-          const taxonomyId = (item.taxonomy as JsonObject).id;
-          if (isString(term.id) && isString(term.name)) state.termIds.set(`${taxonomyId}:${term.name.toLowerCase()}`, term.id);
-        }
+function createReportStep(state: SiteImportState, payloadOf: (key: string) => unknown, progress: { referenceImport: boolean; counter: number; phase: Phase; }): Step["run"] {
+  return () => {
+      const plan = state.plan!;
+      const listed = new Set(["verify-pages", "verify-posts"].flatMap((key) => findAll(payloadOf(key), (o) => isString(o.id)).map((row) => row.id as string)));
+      const missing = [...state.entryIds.entries()].filter(([, id]) => !listed.has(id)).map(([slug]) => entryPath(slug));
+      if (missing.length) state.errors.push(`not listed after import: ${missing.join(", ")}`);
+      const count = (kind: EntryKind, action: PlannedEntry["action"]) => plan.entries.filter((entry) => entry.kind === kind && entry.action === action && state.entryIds.has(entry.slug)).length;
+      state.reportText = [
+        `Imported from ${plan.origin}`,
+        `- Pages: ${count("page", "create")} created, ${count("page", "update")} updated (drafts)`,
+        `- Posts: ${count("post", "create")} created, ${count("post", "update")} updated (drafts, original dates kept)`,
+        `- Categories/tags: ${plan.categories.length + plan.tags.length}; images: ${state.mediaBySrc.size}; menu: ${plan.menu.title} at ${plan.menu.location}; redirects: ${plan.redirects.length}`,
+        `- Theme: a copy "${plan.theme.copyName}" (${state.themeCopyId ?? "not created"}) of ${plan.theme.sourceThemeId}, files changed: ${[...state.themeWrites.keys()].join(", ") || "none"}. The live theme is unchanged.`,
+        ...plan.skipped.map((row) => `- Skipped: ${row.path} — ${row.reason}`),
+        ...plan.hiddenInstructions.map((row) => `- Ignored hidden instructions on ${row.path}; nothing was deleted.`),
+        ...plan.changesToExisting.map((change) => `- ${change}`),
+        ...state.errors.map((error) => `- Failed: ${error}`),
+        "- Left for you: the favicon (binary files cannot be written into a theme).",
+        "",
+        ...(progress.referenceImport ? ["The reference rebuild is ready as an inactive copy; content is saved as drafts."] : [`Switch the live site to "${plan.theme.copyName}" now?`]),
+      ].join("\n");
+      return { text: state.reportText };
+    };
+}
+
+function createVerifyStep(keyed: Map<string, string>, payloadOf: (key: string) => unknown, state: SiteImportState): Step["run"] {
+  return () => {
+      for (const [key] of keyed) {
+        if (!key.startsWith("theme-write:")) continue;
+        const status = findOne(payloadOf(key), (o) => o.status === "valid" || o.status === "invalid")?.status;
+        if (status === "invalid") state.errors.push(`${key.slice("theme-write:".length)} left the theme copy invalid`);
       }
+      const failed = findAll(payloadOf("redirects"), (o) => Array.isArray(o.failed)).flatMap((o) => o.failed as unknown[]);
+      if (failed.length) state.errors.push(`redirects_import failed rules: ${JSON.stringify(failed).slice(0, 400)}`);
       return { calls: [
-        ...(!state.taxonomyIds.category && plan.categories.length ? [{ toolId: "taxonomy_create_taxonomy", input: { name: "Categories", hierarchical: true }, key: "new-taxonomy:category" }] : []),
-        ...(!state.taxonomyIds.tag && plan.tags.length ? [{ toolId: "taxonomy_create_taxonomy", input: { name: "Tags", hierarchical: false }, key: "new-taxonomy:tag" }] : []),
-        ...plan.images.map((image) => ({ toolId: "media_import_from_url", input: {
-          url: image.src, filename: slugify(image.alt) || slugify(new URL(image.src).pathname.split("/").pop() ?? "image") || "image", ...(image.alt ? { alt: image.alt } : {}),
-        }, key: `media:${image.src}` })),
+        { toolId: "content_read.content_post", input: { kind: "page", fields: ["id", "slug", "status"], limit: 200 }, key: "verify-pages" },
+        { toolId: "content_read.content_post", input: { kind: "post", fields: ["id", "slug", "status", "publishAt"], limit: 200 }, key: "verify-posts" },
+        { toolId: "content_read.redirect", input: { source: "manual" }, key: "verify-redirects" },
       ] };
-    } },
-    { name: "terms-and-entries", run: () => {
+    };
+}
+
+function createThemeWriteStep({ state, payloadOf, need, progress, fetched, origin, rewritesFor, keyed }: { state: SiteImportState; payloadOf: (key: string) => unknown; need: <T>(value: T | undefined, what: string) => T | undefined; progress: { referenceImport: boolean; counter: number; phase: Phase; }; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; origin: string; rewritesFor: (pageUrl: string) => ContentRewrites; keyed: Map<string, string> }): Step["run"] {
+  return () => {
+      const copyId = state.themeCopyId;
+      if (!copyId) return {};
+      const plan = state.plan!;
+      const read = (file: string) => {
+        const row = findOne(payloadOf(`theme-read:${file}`), (o) => typeof o.content === "string");
+        try { return row ? JSON.parse(row.content as string) as JsonObject : undefined; } catch { return undefined; }
+      };
+      const light = need(read("tokens.light.json"), "the copy's tokens.light.json");
+      const dark = need(read("tokens.json"), "the copy's tokens.json");
+      const manifest = need(read("theme.json"), "the copy's theme.json");
+      const writes: Array<[string, JsonObject]> = [];
+      if (light) writes.push(["tokens.light.json", { ...light, ...plan.theme.tokens }]);
+      if (dark && plan.theme.tokens["--accent"]) writes.push(["tokens.json", { ...dark, "--accent": plan.theme.tokens["--accent"] }]);
+      if (manifest) {
+        const modes = Array.isArray(manifest.modes) ? manifest.modes as string[] : [];
+        writes.push(["theme.json", { ...manifest, ...(modes.includes("light") ? { defaultMode: "light" } : {}), ...(plan.theme.fonts.length ? { fonts: plan.theme.fonts } : {}) }]);
+      }
+      const calls: StepCall[] = writes.map(([file, json]) => {
+        const content = `${JSON.stringify(json, null, 2)}\n`;
+        state.themeWrites.set(file, content);
+        return { toolId: "theme_write_file", input: { themeId: copyId, path: file, content }, key: `theme-write:${file}` };
+      });
+      appendReferenceThemeWrites({ progress, fetched, origin, plan, rewritesFor, keyed, state, calls, copyId });
+      return { calls };
+    };
+}
+
+function createMenuLocationAndThemeReadStep(payloadOf: (key: string) => unknown, state: SiteImportState, need: <T>(value: T | undefined, what: string) => T | undefined): Step["run"] {
+  return () => {
+      const menu = findOne(payloadOf("menu"), (o) => isString(o.id) && isString(o.slug));
+      state.menuId = need(menu?.id as string | undefined, "the new menu's id");
+      const copy = findOne(payloadOf("theme-copy"), (o) => isString(o.themeId) && "sourceThemeId" in o);
+      state.themeCopyId = need(copy?.themeId as string | undefined, "the duplicated theme's id");
+      if (copy && copy.themeId === state.plan!.theme.sourceThemeId) state.errors.push("theme_duplicate returned the source theme's id");
+      return { calls: [
+        ...(state.menuId ? [{ toolId: "menus_assign_location", input: { menuId: state.menuId, locationKey: state.plan!.menu.location }, key: "menu-location" }] : []),
+        ...(state.themeCopyId ? ["tokens.light.json", "tokens.json", "theme.json"].map((file) => ({ toolId: "theme_read_file", input: { themeId: state.themeCopyId!, path: file }, key: `theme-read:${file}` })) : []),
+      ] };
+    };
+}
+
+function createLayoutTermsSeoMenuRedirectsThemeStep({ state, keyed, payloadOf, need, rewritesFor, progress, fetched, origin }: { state: SiteImportState; keyed: Map<string, string>; payloadOf: (key: string) => unknown; need: <T>(value: T | undefined, what: string) => T | undefined; rewritesFor: (pageUrl: string) => ContentRewrites; progress: { referenceImport: boolean; counter: number; phase: Phase; }; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; origin: string }): Step["run"] {
+  return () => {
+      const plan = state.plan!;
+      for (const [key] of keyed) {
+        if (!key.startsWith("term:")) continue;
+        const term = findOne(payloadOf(key), (o) => isString(o.id) && isString(o.name));
+        if (term) state.termIds.set(key.slice("term:".length), term.id as string);
+      }
+      for (const entry of plan.entries) {
+        const row = findOne(payloadOf(`entry:${entry.slug}`), (o) => isString(o.id) && (o.kind === "post" || o.kind === "page" || typeof o.slug === "string"));
+        const id = (row?.id as string | undefined) ?? entry.existingId;
+        if (need(id, `id of ${entry.kind} ${entryPath(entry.slug)}`)) state.entryIds.set(entry.slug, id!);
+      }
+      const calls: StepCall[] = [];
+      appendEntryLayoutAndMetadataCalls({ plan, state, calls, rewritesFor });
+      const items = plan.menu.items.flatMap<NavItemNode>((item) => {
+        if (item.target.kind === "url") return [{ id: item.id, label: item.label, target: { kind: "url", href: item.target.href } }];
+        const entryId = state.entryIds.get(item.target.slug);
+        return entryId ? [{ id: item.id, label: item.label, target: { kind: "entryRef", entryId, entryType: item.target.entryType } }] : [];
+      });
+      calls.push({ toolId: "menus_create_menu", input: { title: plan.menu.title, slug: plan.menu.slug, items }, key: "menu" });
+      if (progress.referenceImport) {
+        const footer = innerOf(fetched(`page:${origin}/`)?.content ?? "", "footer") ?? "";
+        const links = readPageFacts({ url: `${origin}/`, html: `<header><nav>${footer}</nav></header>` }).navLinks;
+        calls.push({ toolId: "menus_create_menu", key: "footer-menu", input: {
+          title: `${plan.siteName} footer`, slug: `${plan.menu.slug}-footer`,
+          items: links.map((link, index) => ({ id: `footer-${index}`, label: link.label, target: {
+            kind: "url", href: rewritesFor(`${origin}/`).hrefFor(link.href) ?? link.href,
+          } })),
+        } });
+      }
+      if (plan.redirects.length) {
+        calls.push({ toolId: "redirects_import", input: { rules: plan.redirects.map((rule) => ({ matchType: "exact", fromPattern: rule.from, toTarget: rule.to, statusCode: 301 })) }, key: "redirects" });
+      }
+      if (need(plan.theme.sourceThemeId || undefined, "a source theme to duplicate")) {
+        calls.push({ toolId: "theme_duplicate", input: { sourceThemeId: plan.theme.sourceThemeId, newName: plan.theme.copyName }, key: "theme-copy" });
+      }
+      return { calls };
+    };
+}
+
+function createTermsAndEntriesStep({ state, payloadOf, need, rewritesFor }: { state: SiteImportState; payloadOf: (key: string) => unknown; need: <T>(value: T | undefined, what: string) => T | undefined; rewritesFor: (pageUrl: string) => ContentRewrites }): Step["run"] {
+  return () => {
       const plan = state.plan!;
       for (const which of ["category", "tag"] as const) {
         const created = findOne(payloadOf(`new-taxonomy:${which}`), (o) => isString(o.id) && typeof o.hierarchical === "boolean");
@@ -1002,209 +1201,154 @@ export function createSiteImportDriver(
           : { toolId: "content_post_create", input: { ...fields, slug: entry.slug, status: "draft" }, key: `entry:${entry.slug}` };
       });
       return { calls: [...termCalls, ...entryCalls] };
-    } },
-    { name: "layout-terms-seo-menu-redirects-theme", run: () => {
-      const plan = state.plan!;
-      for (const [key] of keyed) {
-        if (!key.startsWith("term:")) continue;
-        const term = findOne(payloadOf(key), (o) => isString(o.id) && isString(o.name));
-        if (term) state.termIds.set(key.slice("term:".length), term.id as string);
-      }
-      for (const entry of plan.entries) {
-        const row = findOne(payloadOf(`entry:${entry.slug}`), (o) => isString(o.id) && (o.kind === "post" || o.kind === "page" || typeof o.slug === "string"));
-        const id = (row?.id as string | undefined) ?? entry.existingId;
-        if (need(id, `id of ${entry.kind} ${entryPath(entry.slug)}`)) state.entryIds.set(entry.slug, id!);
-      }
-      const calls: StepCall[] = [];
-      for (const entry of plan.entries) {
-        const id = state.entryIds.get(entry.slug);
-        if (!id) continue;
-        if (entry.kind === "page" && entry.facts.layout) {
-          calls.push({ toolId: "pages_write_html", input: { id, html: layoutHtml({ html: entry.facts.mainHtml, palette: plan.theme.tokens }, rewritesFor(entry.sourceUrl)) }, key: `html:${entry.slug}` });
-        }
-        if (entry.kind === "post") {
-          const termIds = [
-            ...entry.facts.sections.map((name) => state.termIds.get(`${state.taxonomyIds.category}:${name.toLowerCase()}`)),
-            ...entry.facts.tags.map((name) => state.termIds.get(`${state.taxonomyIds.tag}:${name.toLowerCase()}`)),
-          ];
-          if (termIds.some((termId) => termId === undefined)) state.errors.push(`missing term ids for ${entry.slug}`);
-          calls.push({ toolId: "taxonomy_assign_terms", input: { contentType: "post", contentId: id, termIds: termIds.filter(isString) }, key: `assign:${entry.slug}` });
-        }
-        const lead = entry.facts.ogImage ?? entry.facts.images[0]?.src;
-        const leadId = lead ? state.mediaBySrc.get(lead)?.id : undefined;
-        if (entry.facts.description || leadId) {
-          calls.push({ toolId: "seo_set_entry_overrides", input: { entryId: id, ...(entry.facts.description ? { description: entry.facts.description } : {}), ...(leadId ? { ogImage: `${leadId}:public` } : {}) }, key: `seo:${entry.slug}` });
-        }
-      }
-      const items = plan.menu.items.flatMap<NavItemNode>((item) => {
-        if (item.target.kind === "url") return [{ id: item.id, label: item.label, target: { kind: "url", href: item.target.href } }];
-        const entryId = state.entryIds.get(item.target.slug);
-        return entryId ? [{ id: item.id, label: item.label, target: { kind: "entryRef", entryId, entryType: item.target.entryType } }] : [];
-      });
-      calls.push({ toolId: "menus_create_menu", input: { title: plan.menu.title, slug: plan.menu.slug, items }, key: "menu" });
-      if (referenceImport) {
-        const footer = innerOf(fetched(`page:${origin}/`)?.content ?? "", "footer") ?? "";
-        const links = readPageFacts({ url: `${origin}/`, html: `<header><nav>${footer}</nav></header>` }).navLinks;
-        calls.push({ toolId: "menus_create_menu", key: "footer-menu", input: {
-          title: `${plan.siteName} footer`, slug: `${plan.menu.slug}-footer`,
-          items: links.map((link, index) => ({ id: `footer-${index}`, label: link.label, target: {
-            kind: "url", href: rewritesFor(`${origin}/`).hrefFor(link.href) ?? link.href,
-          } })),
-        } });
-      }
-      if (plan.redirects.length) {
-        calls.push({ toolId: "redirects_import", input: { rules: plan.redirects.map((rule) => ({ matchType: "exact", fromPattern: rule.from, toTarget: rule.to, statusCode: 301 })) }, key: "redirects" });
-      }
-      if (need(plan.theme.sourceThemeId || undefined, "a source theme to duplicate")) {
-        calls.push({ toolId: "theme_duplicate", input: { sourceThemeId: plan.theme.sourceThemeId, newName: plan.theme.copyName }, key: "theme-copy" });
-      }
-      return { calls };
-    } },
-    { name: "menu-location-and-theme-read", run: () => {
-      const menu = findOne(payloadOf("menu"), (o) => isString(o.id) && isString(o.slug));
-      state.menuId = need(menu?.id as string | undefined, "the new menu's id");
-      const copy = findOne(payloadOf("theme-copy"), (o) => isString(o.themeId) && "sourceThemeId" in o);
-      state.themeCopyId = need(copy?.themeId as string | undefined, "the duplicated theme's id");
-      if (copy && copy.themeId === state.plan!.theme.sourceThemeId) state.errors.push("theme_duplicate returned the source theme's id");
-      return { calls: [
-        ...(state.menuId ? [{ toolId: "menus_assign_location", input: { menuId: state.menuId, locationKey: state.plan!.menu.location }, key: "menu-location" }] : []),
-        ...(state.themeCopyId ? ["tokens.light.json", "tokens.json", "theme.json"].map((file) => ({ toolId: "theme_read_file", input: { themeId: state.themeCopyId!, path: file }, key: `theme-read:${file}` })) : []),
-      ] };
-    } },
-    { name: "reference-fonts", run: () => {
-      if (!referenceImport || !state.themeCopyId) return {};
-      const css = [...keyed.keys()].filter((key) => key.startsWith("css:")).map((key) => fetched(key)?.content ?? "").join("\n");
-      return { calls: [...css.matchAll(/url\(['"]?([^'"()]+\.woff2)['"]?\)/g)].map((match) => ({
-        toolId: "theme_import_file_from_url", input: { themeId: state.themeCopyId, url: new URL(match[1]!, origin).href,
-          path: `assets/fonts/${new URL(match[1]!, origin).pathname.split("/").pop()}` },
-      })) };
-    } },
-    { name: "theme-write", run: () => {
-      const copyId = state.themeCopyId;
-      if (!copyId) return {};
-      const plan = state.plan!;
-      const read = (file: string) => {
-        const row = findOne(payloadOf(`theme-read:${file}`), (o) => typeof o.content === "string");
-        try { return row ? JSON.parse(row.content as string) as JsonObject : undefined; } catch { return undefined; }
-      };
-      const light = need(read("tokens.light.json"), "the copy's tokens.light.json");
-      const dark = need(read("tokens.json"), "the copy's tokens.json");
-      const manifest = need(read("theme.json"), "the copy's theme.json");
-      const writes: Array<[string, JsonObject]> = [];
-      if (light) writes.push(["tokens.light.json", { ...light, ...plan.theme.tokens }]);
-      if (dark && plan.theme.tokens["--accent"]) writes.push(["tokens.json", { ...dark, "--accent": plan.theme.tokens["--accent"] }]);
-      if (manifest) {
-        const modes = Array.isArray(manifest.modes) ? manifest.modes as string[] : [];
-        writes.push(["theme.json", { ...manifest, ...(modes.includes("light") ? { defaultMode: "light" } : {}), ...(plan.theme.fonts.length ? { fonts: plan.theme.fonts } : {}) }]);
-      }
-      const calls: StepCall[] = writes.map(([file, json]) => {
-        const content = `${JSON.stringify(json, null, 2)}\n`;
-        state.themeWrites.set(file, content);
-        return { toolId: "theme_write_file", input: { themeId: copyId, path: file, content }, key: `theme-write:${file}` };
-      });
-      if (referenceImport) {
-        const source = fetched(`page:${origin}/`)?.content ?? "";
-        // Explore renders theme-authored fallbacks without CMS data, while the live render
-        // replaces these same markers with the editable menus and current page body.
-        const marker = (slug: string, fallback: string) => `<div data-embed-config='${JSON.stringify({ type: "menu", id: slug, variant: "tree" })}'>${fallback}</div>`;
-        const navFallback = plan.menu.items.map((item) => `<a href="${escapeAttr(item.target.kind === "url" ? item.target.href : entryPath(item.target.slug))}">${escapeAttr(item.label)}</a>`).join("");
-        const header = (innerOf(source, "header") ?? "")
-          .replace(/<a\b[^>]*class=["']button["'][^>]*>[\s\S]*?<\/a>/gi, "")
-          .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/i, `<nav aria-label="Main">${marker(plan.menu.slug, navFallback)}</nav>`);
-        const footer = (innerOf(source, "footer") ?? "").replace(/<p>\s*<a\b[\s\S]*?<\/p>/i,
-          (links) => marker(`${plan.menu.slug}-footer`, cleanLayoutInner(links, rewritesFor(`${origin}/`))));
-        // Reuse the CMS layout converter, removing only its editor handles from theme markup.
-        const bodyFallback = layoutHtml({ html: plan.entries.find((entry) => entry.slug === "/")?.facts.mainHtml ?? "", palette: plan.theme.tokens }, rewritesFor(`${origin}/`))
-          .replace(/ data-agent-(?:element|role)="[^"]*"/g, "");
-        const css = [...keyed.keys()].filter((key) => key.startsWith("css:")).map((key) => fetched(key)?.content ?? "").join("\n")
-          .replace(/url\(['"]?\/fonts\/([^'"()]+)['"]?\)/g, 'url("../assets/fonts/$1")');
-        for (const [file, content] of [
-          ["render/partials/nav.html", `<header>${header}</header>`],
-          ["render/partials/footer.html", `<footer>${footer}</footer>`],
-          ["css/theme.css", css],
-          ["render/pages/index.html", `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttr(plan.siteName)}</title><link rel="stylesheet" href="../css/theme.css" /></head><body><div data-embed-config='{"type":"partial","id":"nav"}'></div><main><div data-embed-config='{"type":"content","header":false}'>${bodyFallback}</div></main><div data-embed-config='{"type":"partial","id":"footer"}'></div></body></html>`],
-        ]) {
-          state.themeWrites.set(file!, content!);
-          calls.push({ toolId: "theme_write_file", input: { themeId: copyId, path: file!, content: content! }, key: `theme-write:${file}` });
-        }
-      }
-      return { calls };
-    } },
-    { name: "verify", run: () => {
-      for (const [key] of keyed) {
-        if (!key.startsWith("theme-write:")) continue;
-        const status = findOne(payloadOf(key), (o) => o.status === "valid" || o.status === "invalid")?.status;
-        if (status === "invalid") state.errors.push(`${key.slice("theme-write:".length)} left the theme copy invalid`);
-      }
-      const failed = findAll(payloadOf("redirects"), (o) => Array.isArray(o.failed)).flatMap((o) => o.failed as unknown[]);
-      if (failed.length) state.errors.push(`redirects_import failed rules: ${JSON.stringify(failed).slice(0, 400)}`);
-      return { calls: [
-        { toolId: "content_read.content_post", input: { kind: "page", fields: ["id", "slug", "status"], limit: 200 }, key: "verify-pages" },
-        { toolId: "content_read.content_post", input: { kind: "post", fields: ["id", "slug", "status", "publishAt"], limit: 200 }, key: "verify-posts" },
-        { toolId: "content_read.redirect", input: { source: "manual" }, key: "verify-redirects" },
-      ] };
-    } },
-    { name: "report", run: () => {
-      const plan = state.plan!;
-      const listed = new Set(["verify-pages", "verify-posts"].flatMap((key) => findAll(payloadOf(key), (o) => isString(o.id)).map((row) => row.id as string)));
-      const missing = [...state.entryIds.entries()].filter(([, id]) => !listed.has(id)).map(([slug]) => entryPath(slug));
-      if (missing.length) state.errors.push(`not listed after import: ${missing.join(", ")}`);
-      const count = (kind: EntryKind, action: PlannedEntry["action"]) => plan.entries.filter((entry) => entry.kind === kind && entry.action === action && state.entryIds.has(entry.slug)).length;
-      state.reportText = [
-        `Imported from ${plan.origin}`,
-        `- Pages: ${count("page", "create")} created, ${count("page", "update")} updated (drafts)`,
-        `- Posts: ${count("post", "create")} created, ${count("post", "update")} updated (drafts, original dates kept)`,
-        `- Categories/tags: ${plan.categories.length + plan.tags.length}; images: ${state.mediaBySrc.size}; menu: ${plan.menu.title} at ${plan.menu.location}; redirects: ${plan.redirects.length}`,
-        `- Theme: a copy "${plan.theme.copyName}" (${state.themeCopyId ?? "not created"}) of ${plan.theme.sourceThemeId}, files changed: ${[...state.themeWrites.keys()].join(", ") || "none"}. The live theme is unchanged.`,
-        ...plan.skipped.map((row) => `- Skipped: ${row.path} — ${row.reason}`),
-        ...plan.hiddenInstructions.map((row) => `- Ignored hidden instructions on ${row.path}; nothing was deleted.`),
-        ...plan.changesToExisting.map((change) => `- ${change}`),
-        ...state.errors.map((error) => `- Failed: ${error}`),
-        "- Left for you: the favicon (binary files cannot be written into a theme).",
-        "",
-        ...(referenceImport ? ["The reference rebuild is ready as an inactive copy; content is saved as drafts."] : [`Switch the live site to "${plan.theme.copyName}" now?`]),
-      ].join("\n");
-      return { text: state.reportText };
-    } },
-  ];
-
-  // ---- activation --------------------------------------------------------------------------
-  const activationSteps: Step[] = [
-    { name: "activate", run: () => (state.themeCopyId
-      ? { calls: [{ toolId: "theme_set_active", input: { themeId: state.themeCopyId }, key: "activate" }] }
-      : { text: "There is no imported theme copy to switch to." }) },
-    { name: "screenshot", run: () => ({ calls: (["desktop", "mobile"] as const).map((viewport) => ({
-      toolId: "web_screenshot_page", input: { sitePath: "/", viewport }, key: `screenshot:${viewport}`, nonFatal: true,
-    })) }) },
-    { name: "done", run: () => {
-      const unavailable = state.notes.some((note) => /web_screenshot_page failed/.test(note));
-      state.activationText = [
-        `Done: "${state.plan?.theme.copyName}" (${state.themeCopyId}) is now the live theme; ${state.activeThemeId} is unchanged and can be switched back at any time.`,
-        unavailable ? "Screenshots are not available on this server, so the visual check used the fetched pages only." : "Captured the new homepage at desktop and mobile widths for comparison.",
-      ].join("\n");
-      return { text: state.activationText };
-    } },
-  ];
-
-  return {
-    state,
-    queueReferenceImport: () => {
-      referenceImport = true;
-      phase = "import";
-      const steps = [...discovery, ...importSteps];
-      // Read the named behavior owner's instructions before rebuilding the theme. Using the
-      // documented fs_read_file fallback keeps this deterministic when plugin tools are gated.
-      steps.unshift({ name: "tovu-theme-owner", run: () => ({ calls: [{ toolId: "fs_read_file", input: {
-        root: "repo", path: "content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md",
-      }, key: "theme-owner" }] }) });
-      steps.splice(steps.length - 1, 0, { name: "compare-reference", run: () => ({ calls: (["desktop", "mobile"] as const).flatMap((viewport) => [
-        { toolId: "web_screenshot_page", input: { url: `${origin}/`, viewport }, key: `source-capture:${viewport}`, nonFatal: true },
-        { toolId: "web_screenshot_page", input: { sitePath: "/", themeId: state.themeCopyId, viewport }, key: `copy-capture:${viewport}`, nonFatal: true },
-      ]) }) });
-      queue.enqueue(turnFor(steps));
-    },
-    queueDiscovery: () => { phase = "discovery"; queue.enqueue(turnFor([...discovery])); },
-    queueImport: () => { phase = "import"; queue.enqueue(turnFor([...importSteps])); },
-    queueActivation: () => { phase = "activation"; queue.enqueue(turnFor([...activationSteps])); },
-  };
+    };
 }
+
+function createTaxonomiesAndMediaStep(state: SiteImportState, payloadOf: (key: string) => unknown): Step["run"] {
+  return () => {
+      const plan = state.plan;
+      if (!plan) { state.errors.push("import started without a plan"); return { text: "There is no approved plan to import." }; }
+      const items = findAll(payloadOf("taxonomies"), (o) => typeof o.taxonomy === "object" && o.taxonomy !== null);
+      const taxonomy = (hierarchical: boolean, pattern: RegExp) => items.map((item) => item.taxonomy as JsonObject)
+        .find((row) => row.hierarchical === hierarchical && pattern.test(String(row.name ?? row.key ?? row.slug ?? "")));
+      const category = taxonomy(true, /^categor/i);
+      const tag = taxonomy(false, /^tag/i);
+      if (isString(category?.id)) state.taxonomyIds.category = category!.id as string;
+      if (isString(tag?.id)) state.taxonomyIds.tag = tag!.id as string;
+      for (const item of items) {
+        for (const term of (Array.isArray(item.terms) ? item.terms : []) as JsonObject[]) {
+          const taxonomyId = (item.taxonomy as JsonObject).id;
+          if (isString(term.id) && isString(term.name)) state.termIds.set(`${taxonomyId}:${term.name.toLowerCase()}`, term.id);
+        }
+      }
+      return { calls: [
+        ...(!state.taxonomyIds.category && plan.categories.length ? [{ toolId: "taxonomy_create_taxonomy", input: { name: "Categories", hierarchical: true }, key: "new-taxonomy:category" }] : []),
+        ...(!state.taxonomyIds.tag && plan.tags.length ? [{ toolId: "taxonomy_create_taxonomy", input: { name: "Tags", hierarchical: false }, key: "new-taxonomy:tag" }] : []),
+        ...plan.images.map((image) => ({ toolId: "media_import_from_url", input: {
+          url: image.src, filename: slugify(image.alt) || slugify(new URL(image.src).pathname.split("/").pop() ?? "image") || "image", ...(image.alt ? { alt: image.alt } : {}),
+        }, key: `media:${image.src}` })),
+      ] };
+    };
+}
+
+function createPlanStep({ keyed, fetched, sourceStyles, candidates, skipped, payloadOf, need, state, origin, progress, menuLocation }: { keyed: Map<string, string>; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; sourceStyles: { palette: Record<string, string>; }; candidates: { url: string; classification: Classification; }[]; skipped: { path: string; rule: ClassificationRuleId; reason: string; }[]; payloadOf: (key: string) => unknown; need: <T>(value: T | undefined, what: string) => T | undefined; state: SiteImportState; origin: string; progress: { referenceImport: boolean; counter: number; phase: Phase; }; menuLocation: string }): Step["run"] {
+  return () => {
+      for (const key of [...keyed.keys()].filter((candidate) => candidate.startsWith("css:"))) {
+        const sheet = fetched(key);
+        if (sheet) sourceStyles.palette = { ...readPalette({ css: sheet.content }), ...sourceStyles.palette };
+      }
+      const pages: Array<{ facts: PageFacts; classification: Classification & { kind: EntryKind } }> = [];
+      for (const candidate of candidates) {
+        const page = fetched(`page:${candidate.url}`);
+        if (!page) { skipped.push({ path: new URL(candidate.url).pathname, rule: "skip-error", reason: "fetch failed" }); continue; }
+        const classification = refineWithMarkup({ classification: candidate.classification, url: candidate.url, status: page.status ?? 200, finalUrl: page.finalUrl, html: page.content });
+        if (classification.kind === "skip") { skipped.push({ path: new URL(candidate.url).pathname, rule: classification.rule, reason: classification.reason }); continue; }
+        pages.push({ facts: readPageFacts({ url: candidate.url, html: page.content }), classification: classification as Classification & { kind: EntryKind } });
+      }
+      const existing = (["page", "post"] as const).flatMap((kind) => findAll(payloadOf(`existing-${kind}s`), (o) => isString(o.id) && typeof o.slug === "string")
+        .map((row): ExistingEntry => ({ id: row.id as string, kind, slug: row.slug as string, ...(typeof row.version === "number" ? { version: row.version } : {}) })));
+      const profile = findOne(payloadOf("profile"), (o) => "activeThemeId" in o);
+      const activeThemeId = need((isString(profile?.activeThemeId) ? profile!.activeThemeId : (findOne(profile?.active, (o) => isString(o.id))?.id as string | undefined)), "the active theme id (site_get_profile)");
+      state.activeThemeId = activeThemeId;
+      state.plan = buildPlan({ origin, pages, skipped, existing: progress.referenceImport ? existing.filter((row) => row.slug !== "/") : existing, palette: sourceStyles.palette, activeThemeId: activeThemeId ?? "" }, { menuLocation });
+      state.planText = planText({ plan: state.plan });
+      if (progress.referenceImport) {
+        // Historical assumption:
+        // A fresh fixture site normally has no CMS homepage. Refuse to silently import to /home
+        // when it does: the live variant must exercise the skill's move-existing-home behavior.
+        // The ordinary seed now owns /. Exercise content-mapping §1's move in the scripted
+        // variant too, completing it before the create batch can claim that slug.
+        const home = existing.find((row) => row.slug === "/");
+        if (home) {
+          const used = new Set([...existing.map((row) => row.slug), ...state.plan.entries.map((entry) => entry.slug)]);
+          let slug = "previous-home";
+          for (let suffix = 2; used.has(slug); suffix++) slug = `previous-home-${suffix}`;
+          state.plan.changesToExisting.push(`Moved the existing homepage from / to /${slug}`);
+          return { calls: [{ toolId: "content_post_update", input: { id: home.id, kind: home.kind, slug,
+            ...(home.version !== undefined ? { expectedVersion: home.version } : {}) }, key: "move-existing-home" }] };
+        }
+      }
+      return progress.referenceImport ? {} : { text: state.planText };
+    };
+}
+
+function createPagesStep({ readSitemaps, keyed, sitemapQueue, urlEntries, discoveryState, skipped, candidates, fetchPage }: { readSitemaps: (keys: string[]) => void; keyed: Map<string, string>; sitemapQueue: string[]; urlEntries: { url: string; hint?: EntryKind | "skip"; }[]; discoveryState: { robots: { sitemaps: string[]; disallow: string[]; }; }; skipped: { path: string; rule: ClassificationRuleId; reason: string; }[]; candidates: { url: string; classification: Classification; }[]; fetchPage: (url: string, format: "raw" | "html", key: string) => StepCall }): Step["run"] {
+  return () => {
+      // One level of child sitemaps is normal; a nested index is not followed (reference § 2).
+      readSitemaps([...keyed.keys()].filter((candidate) => candidate.startsWith("child:")));
+      sitemapQueue.length = 0;
+      const seen = new Set<string>();
+      for (const entry of urlEntries) {
+        const url = normalizeUrl({ url: entry.url });
+        if (!url) continue;
+        const key = urlKey({ url });
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const classification = classifyUrl({ url, disallow: discoveryState.robots.disallow }, entry.hint ? { hint: entry.hint } : {});
+        if (classification.kind === "skip") skipped.push({ path: new URL(url).pathname, rule: classification.rule, reason: classification.reason });
+        else candidates.push({ url, classification });
+      }
+      return { calls: [
+        ...candidates.map((candidate) => fetchPage(candidate.url, "html", `page:${candidate.url}`)),
+        { toolId: "content_read.content_post", input: { kind: "page", fields: ["id", "kind", "slug", "title", "version"], limit: 200 }, key: "existing-pages" },
+        { toolId: "content_read.content_post", input: { kind: "post", fields: ["id", "kind", "slug", "title", "version"], limit: 200 }, key: "existing-posts" },
+        { toolId: "content_read.taxonomy", input: {}, key: "taxonomies" },
+        { toolId: "content_read.menu", input: {}, key: "menus" },
+        { toolId: "site_get_profile", input: { sections: ["theme"] }, key: "profile" },
+      ] };
+    };
+}
+
+function appendReferenceThemeWrites({ progress, fetched, origin, plan, rewritesFor, keyed, state, calls, copyId }: { progress: { referenceImport: boolean; counter: number; phase: Phase; }; fetched: (key: string) => { finalUrl: string; status?: number; content: string; } | undefined; origin: string; plan: ImportPlan; rewritesFor: (pageUrl: string) => ContentRewrites; keyed: Map<string, string>; state: SiteImportState; calls: StepCall[]; copyId: string | undefined }) {
+  if (progress.referenceImport) {
+    const source = fetched(`page:${origin}/`)?.content ?? "";
+    // Explore renders theme-authored fallbacks without CMS data, while the live render
+    // replaces these same markers with the editable menus and current page body.
+    const marker = (slug: string, fallback: string) => `<div data-embed-config='${JSON.stringify({ type: "menu", id: slug, variant: "tree" })}'>${fallback}</div>`;
+    const navFallback = plan.menu.items.map((item) => `<a href="${escapeAttr(item.target.kind === "url" ? item.target.href : entryPath(item.target.slug))}">${escapeAttr(item.label)}</a>`).join("");
+    const header = (innerOf(source, "header") ?? "")
+      .replace(/<a\b[^>]*class=["']button["'][^>]*>[\s\S]*?<\/a>/gi, "")
+      .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/i, `<nav aria-label="Main">${marker(plan.menu.slug, navFallback)}</nav>`);
+    const footer = (innerOf(source, "footer") ?? "").replace(/<p>\s*<a\b[\s\S]*?<\/p>/i,
+      (links) => marker(`${plan.menu.slug}-footer`, cleanLayoutInner(links, rewritesFor(`${origin}/`))));
+    // Reuse the CMS layout converter, removing only its editor handles from theme markup.
+    const bodyFallback = layoutHtml({ html: plan.entries.find((entry) => entry.slug === "/")?.facts.mainHtml ?? "", palette: plan.theme.tokens }, rewritesFor(`${origin}/`))
+      .replace(/ data-agent-(?:element|role)="[^"]*"/g, "");
+    const css = [...keyed.keys()].filter((key) => key.startsWith("css:")).map((key) => fetched(key)?.content ?? "").join("\n")
+      .replace(/url\(['"]?\/fonts\/([^'"()]+)['"]?\)/g, 'url("../assets/fonts/$1")');
+    for (const [file, content] of [
+      ["render/partials/nav.html", `<header>${header}</header>`],
+      ["render/partials/footer.html", `<footer>${footer}</footer>`],
+      ["css/theme.css", css],
+      ["render/pages/index.html", `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeAttr(plan.siteName)}</title><link rel="stylesheet" href="../css/theme.css" /></head><body><div data-embed-config='{"type":"partial","id":"nav"}'></div><main><div data-embed-config='{"type":"content","header":false}'>${bodyFallback}</div></main><div data-embed-config='{"type":"partial","id":"footer"}'></div></body></html>`],
+    ]) {
+      state.themeWrites.set(file!, content!);
+      calls.push({ toolId: "theme_write_file", input: { themeId: copyId, path: file!, content: content! }, key: `theme-write:${file}` });
+    }
+  }
+}
+
+
+function appendEntryLayoutAndMetadataCalls({ plan, state, calls, rewritesFor }: { plan: ImportPlan; state: SiteImportState; calls: StepCall[]; rewritesFor: (pageUrl: string) => ContentRewrites }) {
+  for (const entry of plan.entries) {
+    const id = state.entryIds.get(entry.slug);
+    if (!id) continue;
+    if (entry.kind === "page" && entry.facts.layout) {
+      calls.push({ toolId: "pages_write_html", input: { id, html: layoutHtml({ html: entry.facts.mainHtml, palette: plan.theme.tokens }, rewritesFor(entry.sourceUrl)) }, key: `html:${entry.slug}` });
+    }
+    if (entry.kind === "post") {
+      const termIds = [
+        ...entry.facts.sections.map((name) => state.termIds.get(`${state.taxonomyIds.category}:${name.toLowerCase()}`)),
+        ...entry.facts.tags.map((name) => state.termIds.get(`${state.taxonomyIds.tag}:${name.toLowerCase()}`)),
+      ];
+      if (termIds.some((termId) => termId === undefined)) state.errors.push(`missing term ids for ${entry.slug}`);
+      calls.push({ toolId: "taxonomy_assign_terms", input: { contentType: "post", contentId: id, termIds: termIds.filter(isString) }, key: `assign:${entry.slug}` });
+    }
+    const lead = entry.facts.ogImage ?? entry.facts.images[0]?.src;
+    const leadId = lead ? state.mediaBySrc.get(lead)?.id : undefined;
+    if (entry.facts.description || leadId) {
+      calls.push({ toolId: "seo_set_entry_overrides", input: { entryId: id, ...(entry.facts.description ? { description: entry.facts.description } : {}), ...(leadId ? { ogImage: `${leadId}:public` } : {}) }, key: `seo:${entry.slug}` });
+    }
+  }
+}
+

@@ -33,7 +33,7 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -256,7 +256,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function mediaImportRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   const toolIds = new Set(mediaImportAgentToolCatalog.map((tool) => tool.name));
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => toolIds.has(r.descriptor.id)).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => toolIds.has(r.descriptor.id)).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -309,7 +309,7 @@ test("media_import_from_url publishes its catalog entry's inputSchema and descri
 });
 
 test("the catalog's declared side effect and this wiring layer's own risk classification agree", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_import_from_url", catalogEntry("media_import_from_url"), contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "media_import_from_url", catalogEntry: catalogEntry("media_import_from_url") }, { contributions: contributions }));
   assert.equal(catalogEntry("media_import_from_url").sideEffects, "mutates-durable-state");
 });
 
@@ -477,9 +477,9 @@ test("transport failures retain their error identity instead of becoming caller 
 
 test("shared egress narrowing identifies the consuming tool in diagnostics", async () => {
   const logs: string[] = [];
-  await assert.rejects(withCallerSafeEgressRefusal(line => logs.push(line), async () => {
+  await assert.rejects(withCallerSafeEgressRefusal({ log: line => logs.push(line), work: async () => {
     throw new EgressRefusedError({ message: "private address blocked" }, { callerSafeMessage: "host refused" });
-  }, { toolId: "theme_import_file_from_url" }), {
+  } }, { toolId: "theme_import_file_from_url" }), {
     message: "host refused", callerSafeMessage: "host refused",
   });
   assert.deepEqual(logs, ["[media-import] theme_import_file_from_url egress refused: private address blocked"]);

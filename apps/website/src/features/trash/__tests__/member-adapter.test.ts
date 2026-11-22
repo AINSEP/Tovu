@@ -16,20 +16,18 @@ import { InMemoryMemberRepo } from "#src/features/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MembersWriteServiceDeps } from "#src/features/members/ports";
 import { membersWriteService } from "#src/features/members/write-service";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "../adapters/member.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
-import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../agent-tools.js";
+import { trashToolEntityTypes } from "../tool-kinds.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { TRASH_RETENTION_DAYS } from "../ports.js";
 
 const WS = "member-trash-workspace";
@@ -40,16 +38,16 @@ function harness() {
   const db = openContentDb(":memory:");
   const client = db.$client;
   client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const registry = buildTrashRegistry();
   const adapter = createMemberTrashAdapter({
-    adapter: createTableTrashAdapter({ entry: registry.get("member")!, db: kernel }), db: kernel,
+    adapter: createTableTrashAdapter({ entry: registry.get("member")!, kernel, tables: TRASH_TABLES }), db: kernel,
   });
   const adapters = new Map([["member", adapter]]);
   let seq = 0;
-  const trash = createTrashService({ repo: new SqliteTrashRepo(client), adapters,
+  const trash = createTrashService({ repo: new SqliteTrashRepo({ store: client }), adapters,
     idGen: { newId: () => `member-trash-${++seq}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   }, { retentionDays: TRASH_RETENTION_DAYS });
   const granted = new Set(["member.manage", "content.read"]);
@@ -83,7 +81,7 @@ for (const status of ["active", "pending", "disabled"]) {
     assert.deepEqual(await h.move(), { ok: true, version: 2 });
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.credentialsRevokedAt, AT);
     assert.equal(await h.members.findById({ workspaceId: WS, id: "member-1" }), null);
-    assert.deepEqual((await h.members.list({ workspaceId: WS })).map(m => m.id), ["member-2"]);
+    assert.deepEqual((await h.members.list({ workspaceId: WS })).items.map(m => m.id), ["member-2"]);
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.status, "trash", "email stays reserved");
     await assert.rejects(h.members.save(stale), { message: "member changed or is in Trash; re-read it before updating" });
     const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
@@ -153,24 +151,22 @@ test("gapb member: Trash revokes credentials and purge works without a core-comm
 
 test("gapb member: generic tool schemas include member without a per-resource delete tool", t => {
   const h = harness(); t.after(() => h.client.close());
-  const [tool] = deriveTrashItemRegistrations({ registrations: [], surfaces: {
-    surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
-  }, routeDeps: {
+  const [tool] = deriveTrashItemRegistrations({ registrations: [], routeDeps: {
     registry: h.registry, db: h.kernel, trash: h.trash, authorize: async () => ({ allowed: true, reason: "test" }),
-    workspaceId: WS, clock: { nowIso: () => AT }, isTrashableEntityType: type => type === "member",
+    workspaceId: WS, clock: { nowIso: () => AT }, isTrashableEntityType: ({ entityType: type }) => type === "member",
     postRepo: { findById: async () => null }, commentRepo: { findById: async () => null }, commentsReady: Promise.resolve(),
   } });
   const schema = tool!.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };
   assert.ok(schema.properties.entityType.enum.includes("member"));
   assert.equal(h.registry.get("member")!.permission, "member.manage");
-  assert.equal(buildTrashAgentToolCatalog(trashToolEntityTypes(h.registry)).some(t => t.name === "members_delete"), false);
+  assert.equal(buildTrashAgentToolCatalog({ kinds: trashToolEntityTypes(h.registry) }).some(t => t.name === "members_delete"), false);
 });
 
 test("gapb member: memory reader retains email reservation but prevents list/get/update resurrection", async () => {
   const member = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
-  const repo = new InMemoryMemberRepo([member]);
+  const repo = new InMemoryMemberRepo({}, { initialRows: [member] });
   assert.equal(await repo.findById({ workspaceId: WS, id: member.id }), null);
-  assert.deepEqual(await repo.list({ workspaceId: WS }), []);
+  assert.deepEqual(await repo.list({ workspaceId: WS }), { items: [], nextCursor: null });
   assert.equal((await repo.findByEmail({ workspaceId: WS, email: member.email }))!.status, "trash");
   await assert.rejects(repo.save({ ...member, status: "active" }));
 });
@@ -180,7 +176,7 @@ test("gapb member: sign-in request for a trashed email returns an unstored handl
   const blocked = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
   const fail = async () => { assert.fail("a trashed account must not mint a credential or send mail"); };
   const deps = {
-    clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo([blocked]),
+    clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo({}, { initialRows: [blocked] }),
     magicLinks: { save: fail }, mailer: { send: fail, capabilities: () => ({ driver: "smtp" }) },
     // All addresses receive a handle and pay the hashing cost; blocked ones never persist it.
     ids: { newId: () => "unstored-challenge" },
@@ -199,7 +195,7 @@ test("gapb member: a late link minted before restore cannot sign the restored ac
   const restored = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "active" as const, credentialsRevokedAt: LATER, createdAt: AT, updatedAt: LATER, version: 3 };
   let consumed = false;
   const deps = {
-    clock: createFakeClock({ startIso: LATER }), members: new InMemoryMemberRepo([restored]),
+    clock: createFakeClock({ startIso: LATER }), members: new InMemoryMemberRepo({}, { initialRows: [restored] }),
     magicLinks: { findByTokenHash: async () => ({ id: "late-link", workspaceId: WS, memberId: restored.id,
       tokenHash: "fake-hash", purpose: "signin", createdAt: AT, expiresAt: "2027-01-01T00:00:00.000Z" }), consume: async () => { consumed = true; } },
     sessions: { save: async () => { assert.fail("must not mint a session"); } },
@@ -266,7 +262,7 @@ test("member restore cutoff failure rolls back status, marker and Trash index", 
 test("member adapter: a refused or no-op marker flip returns verbatim and never touches credentials", async () => {
   const { client, kernel, registry, seed } = harness();
   seed("member-scripted");
-  const inner = createTableTrashAdapter({ entry: registry.get("member")!, db: kernel });
+  const inner = createTableTrashAdapter({ entry: registry.get("member")!, kernel, tables: TRASH_TABLES });
   const outcomes = [
     { ok: false as const, reason: "version-changed" as const },
     { ok: false as const, reason: "blocked" as const, code: "member-blocker", count: 2 },
@@ -305,9 +301,9 @@ for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${en
   const invoke = async (memberId: string, workspaceId = WS) => {
     if (entrypoint === "tool") {
       const registration = buildMembersRegistrations(deps as never).find(r => r.descriptor.id === "members_delete")!;
-      return registration.handler({ principal: { id: "operator" }, input: { memberId } } as ToolExecutionContext);
+      return registration.handler({ principal: { id: "operator" }, input: { memberId }, signal: new AbortController().signal } as ToolExecutionContext);
     }
-    const app = express(); registerAdminMemberDeleteRoute(app, deps as never);
+    const app = express(); registerAdminMemberDeleteRoute({ app, deps: deps as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId, memberId } }, res);
     return { status: capture.statusCode, body: capture.jsonBody };
@@ -359,8 +355,8 @@ test("member DELETE maps stale writes and unavailable runtime, and keeps store f
   ];
   for (const entry of cases) {
     const app = express();
-    registerAdminMemberDeleteRoute(app, { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
-      removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never);
+    registerAdminMemberDeleteRoute({ app, deps: { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+      removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId: WS, memberId: "member-1" } }, res);
     assert.equal(capture.statusCode, entry.status);

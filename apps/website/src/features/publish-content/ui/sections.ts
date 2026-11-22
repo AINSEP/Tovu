@@ -29,60 +29,24 @@ export interface PublishSection {
 }
 
 export const PUBLISH_SECTIONS = [
-  section("pages", "Publish pages", "Sends your pages to the live site.", { page: "Page" }, { page: "Pages" }),
-  section("posts", "Publish posts", "Sends your posts to the live site.", { post: "Post" }, { post: "Posts" }),
-  section("media", "Publish media", "Sends your media to the live site.", { media: "Media" }, { media: "Media" }),
-  section("menus", "Publish menus", "Sends your menus to the live site.", { menu: "Menu" }, { menu: "Menus" }),
-  section(
-    "redirects",
-    "Publish redirects",
-    "Sends your redirects to the live site.",
-    { redirect: "Redirect" },
-    { redirect: "Redirects" },
-  ),
-  section(
-    "themes",
-    "Publish themes",
-    "Sends your themes to the live site.",
-    // The active theme goes with the themes: a theme published without it sits unused on the live site.
-    { "theme-files": "Theme", "active-theme": "Active theme" },
-    { "theme-files": "Themes", "active-theme": "Active theme" },
-  ),
-  section("forms", "Publish forms", "Sends your forms to the live site.", { form: "Form" }, { form: "Forms" }),
-  section(
-    "collections",
-    "Publish collections",
-    "Sends your collections and their entries to the live site.",
-    { "content-type": "Collection", "collection-entry": "Entry" },
-    { "content-type": "Collections", "collection-entry": "Entries" },
-  ),
-  section(
-    "categories",
-    "Publish categories & tags",
-    "Sends your categories and tags to the live site.",
-    { taxonomy: "Taxonomy", term: "Term" },
-    { taxonomy: "Taxonomies", term: "Terms" },
-  ),
-  section(
-    "widgets",
-    "Publish widgets",
-    "Sends your widgets and widget regions to the live site.",
-    { widget: "Widget", "widget-area": "Widget region" },
-    { widget: "Widgets", "widget-area": "Widget regions" },
-  ),
-  section(
-    "settings",
-    "Publish site settings",
-    "Sends your site title and SEO defaults to the live site.",
-    { "site-setting": "Site setting" },
-    { "site-setting": "Site settings" },
-  ),
+  section({ id: "pages", labelKey: "Publish pages", descriptionKey: "Sends your pages to the live site.", typeLabelKeys: { page: "Page" }, typePluralLabelKeys: { page: "Pages" } }),
+  section({ id: "posts", labelKey: "Publish posts", descriptionKey: "Sends your posts to the live site.", typeLabelKeys: { post: "Post" }, typePluralLabelKeys: { post: "Posts" } }),
+  section({ id: "media", labelKey: "Publish media", descriptionKey: "Sends your media to the live site.", typeLabelKeys: { media: "Media" }, typePluralLabelKeys: { media: "Media" } }),
+  section({ id: "menus", labelKey: "Publish menus", descriptionKey: "Sends your menus to the live site.", typeLabelKeys: { menu: "Menu" }, typePluralLabelKeys: { menu: "Menus" } }),
+  section({ id: "redirects", labelKey: "Publish redirects", descriptionKey: "Sends your redirects to the live site.", typeLabelKeys: { redirect: "Redirect" }, typePluralLabelKeys: { redirect: "Redirects" } }),
+  // The active theme goes with the themes: a theme published without it sits unused on the live site.
+  section({ id: "themes", labelKey: "Publish themes", descriptionKey: "Sends your themes to the live site.", typeLabelKeys: { "theme-files": "Theme", "active-theme": "Active theme" }, typePluralLabelKeys: { "theme-files": "Themes", "active-theme": "Active theme" } }),
+  section({ id: "forms", labelKey: "Publish forms", descriptionKey: "Sends your forms to the live site.", typeLabelKeys: { form: "Form" }, typePluralLabelKeys: { form: "Forms" } }),
+  section({ id: "collections", labelKey: "Publish collections", descriptionKey: "Sends your collections and their entries to the live site.", typeLabelKeys: { "content-type": "Collection", "collection-entry": "Entry" }, typePluralLabelKeys: { "content-type": "Collections", "collection-entry": "Entries" } }),
+  section({ id: "categories", labelKey: "Publish categories & tags", descriptionKey: "Sends your categories and tags to the live site.", typeLabelKeys: { taxonomy: "Taxonomy", term: "Term" }, typePluralLabelKeys: { taxonomy: "Taxonomies", term: "Terms" } }),
+  section({ id: "widgets", labelKey: "Publish widgets", descriptionKey: "Sends your widgets and widget regions to the live site.", typeLabelKeys: { widget: "Widget", "widget-area": "Widget region" }, typePluralLabelKeys: { widget: "Widgets", "widget-area": "Widget regions" } }),
+  section({ id: "settings", labelKey: "Publish site settings", descriptionKey: "Sends your site title and SEO defaults to the live site.", typeLabelKeys: { "site-setting": "Site setting" }, typePluralLabelKeys: { "site-setting": "Site settings" } }),
 ] as const satisfies readonly PublishSection[];
 
 export type PublishSectionId = (typeof PUBLISH_SECTIONS)[number]["section"];
 
 /** @complexity O(sections). */
-export function publishSectionById(id: string): PublishSection | undefined {
+export function publishSectionById({ id }: { id: string }, _optional = {}): PublishSection | undefined {
   return PUBLISH_SECTIONS.find((candidate) => candidate.section === id);
 }
 
@@ -92,7 +56,7 @@ export function publishSectionById(id: string): PublishSection | undefined {
  *
  * @complexity O(sections × types).
  */
-export function publishSectionForEntityTypes(entityTypes: readonly string[]): PublishSection | undefined {
+export function publishSectionForEntityTypes({ entityTypes }: { entityTypes: readonly string[] }, _optional: Record<string, never> = {}): PublishSection | undefined {
   const wanted = new Set(entityTypes);
   return PUBLISH_SECTIONS.find(
     (candidate) =>
@@ -102,7 +66,7 @@ export function publishSectionForEntityTypes(entityTypes: readonly string[]): Pu
 
 /** The friendly type name for the dialog's type column, or the raw `entityType` for a type no
  *  section names yet (degraded, never blank). @complexity O(sections). */
-export function publishEntityTypeLabel(entityType: string): string {
+export function publishEntityTypeLabel({ entityType }: { entityType: string }, _optional = {}): string {
   for (const candidate of PUBLISH_SECTIONS) {
     const label: string | undefined = (candidate.typeLabelKeys as Readonly<Record<string, string>>)[entityType];
     if (label !== undefined) return label;
@@ -112,7 +76,7 @@ export function publishEntityTypeLabel(entityType: string): string {
 
 /** The plural friendly name for a counted line, or the raw `entityType` for a type no section names
  *  yet (degraded, never blank). @complexity O(sections). */
-export function publishEntityTypePluralLabel(entityType: string): string {
+export function publishEntityTypePluralLabel({ entityType }: { entityType: string }, _optional = {}): string {
   for (const candidate of PUBLISH_SECTIONS) {
     const label: string | undefined = (candidate.typePluralLabelKeys as Readonly<Record<string, string>>)[entityType];
     if (label !== undefined) return label;
@@ -120,13 +84,7 @@ export function publishEntityTypePluralLabel(entityType: string): string {
   return entityType;
 }
 
-function section<const S extends string, const T extends Record<string, string>>(
-  id: S,
-  labelKey: string,
-  descriptionKey: string,
-  typeLabelKeys: T,
-  typePluralLabelKeys: { readonly [K in keyof T]: string },
-): {
+function section<const S extends string, const T extends Record<string, string>>({ id, labelKey, descriptionKey, typeLabelKeys, typePluralLabelKeys }: { id: S; labelKey: string; descriptionKey: string; typeLabelKeys: T; typePluralLabelKeys: { readonly [K in keyof T]: string } }, _optional = {}): {
   section: S;
   entityTypes: readonly (keyof T & string)[];
   labelKey: string;

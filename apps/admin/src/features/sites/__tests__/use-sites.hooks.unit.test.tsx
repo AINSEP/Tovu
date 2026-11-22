@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteActivation, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { SITES_RESOURCE } from "../rules";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -25,10 +26,10 @@ const fakeT = (key: string): string => key;
 describe("Sites port contracts", () => {
   it("unconfigured fake writes reject explicitly and leave the snapshot intact", async () => {
     const snapshot = snapshotFixture();
-    const port = createFakeSitesPort(snapshot);
+    const port = createFakeSitesPort({ snapshot: snapshot });
     await expect(port.manageLocalSite!({ name: "alpha", action: "switch" })).rejects.toThrow("manageLocalSite was not expected");
     await expect(port.createSite({ name: "gamma" })).rejects.toThrow("createSite was not expected");
-    await expect(port.activateSite("beta")).rejects.toThrow("activateSite was not expected");
+    await expect(port.activateSite({ name: "beta" })).rejects.toThrow("activateSite was not expected");
     await expect(port.listSites()).resolves.toEqual(snapshot);
     await expect(port.listTokenSignInPlugins()).resolves.toEqual({ plugins: [] });
   });
@@ -38,7 +39,7 @@ describe("Sites port contracts", () => {
     { name: "listSites", run: () => defaultSitesPort.listSites(), path: "", method: "GET", body: undefined, response: snapshotFixture() },
     { name: "createSite", run: () => defaultSitesPort.createSite({ name: "gamma", adminPassword: "fixture-password" }), path: "", method: "POST", body: { name: "gamma", adminPassword: "fixture-password" }, response: { site: { name: "gamma", dir: "/sites/gamma", siteId: "gamma-id" } } },
     { name: "listTokenSignInPlugins", run: () => defaultSitesPort.listTokenSignInPlugins(), path: "/token-sign-in-plugins", method: "GET", body: undefined, response: { plugins: [{ pluginId: "example", displayName: "Example", helpUrl: "https://example.com/token" }] } },
-    { name: "activateSite", run: () => defaultSitesPort.activateSite("beta"), path: "/beta/activate", method: "POST", body: undefined, response: { ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart the server." } },
+    { name: "activateSite", run: () => defaultSitesPort.activateSite({ name: "beta" }), path: "/beta/activate", method: "POST", body: undefined, response: { ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart the server." } },
     { name: "manageLocalSite", run: () => defaultSitesPort.manageLocalSite!({ name: "alpha", action: "trash", confirmed: true, checked: true }), path: "/alpha/trash", method: "POST", body: { confirmed: true, checked: true }, response: { trashed: true } },
   ])("the live $name binding preserves the API request and response contract", async ({ run, path, method, body, response }) => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
@@ -72,7 +73,7 @@ describe("useSites — list", () => {
   it("loads through the injected port, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
-    const port = createFakeSitesPort(snapshotFixture());
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
 
@@ -84,7 +85,7 @@ describe("useSites — list", () => {
   });
 
   it("reports a first-load failure without inventing an empty site list", async () => {
-    const port = createFakeSitesPort(() => Promise.reject(new Error("server down")));
+    const port = createFakeSitesPort({ snapshot: () => Promise.reject(new Error("server down")) });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
 
@@ -104,7 +105,7 @@ describe("useSites — create", () => {
       snapshot.sites.push(gamma);
       return { site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } };
     });
-    const port = createFakeSitesPort(() => Promise.resolve({ ...snapshot, sites: [...snapshot.sites] }), { createSite });
+    const port = createFakeSitesPort({ snapshot: () => Promise.resolve({ ...snapshot, sites: [...snapshot.sites] }) }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -125,7 +126,7 @@ describe("useSites — create", () => {
 
   it("refuses to submit an invalid name — the port is never called", async () => {
     const createSite = vi.fn();
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -140,15 +141,15 @@ describe("useSites — create", () => {
   });
 
   it("says nothing about an untouched empty field", async () => {
-    const port = createFakeSitesPort(snapshotFixture());
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() });
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.createNameError).toBeNull();
   });
 
   it("surfaces the occupied-folder conflict in this feature's own words", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("dir not empty", 409, "SITE_ALREADY_EXISTS"));
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "dir not empty", status: 409 }, { code: "SITE_ALREADY_EXISTS" }));
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -162,8 +163,8 @@ describe("useSites — create", () => {
   });
 
   it("falls back to the server's own message for a code it has no copy for", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("internal error", 500, "INTERNAL_ERROR"));
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "internal error", status: 500 }, { code: "INTERNAL_ERROR" }));
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -184,7 +185,7 @@ describe("useSites — create", () => {
           resolveCreate = resolve;
         }),
     );
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -212,7 +213,7 @@ describe("useSites — create", () => {
 describe("useSites — createdName staleness", () => {
   it("clears the success banner's name as soon as the operator types a new one, not just at the next submit", async () => {
     const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } });
-    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -237,12 +238,12 @@ describe("useSites — activate does NOT switch anything", () => {
     // that exact sequence — an optimistic hook would fail here.
     let listCall = 0;
     const port = createFakeSitesPort(
-      () => {
+      { snapshot: () => {
         listCall += 1;
         return Promise.resolve(listCall === 1 ? snapshotFixture() : snapshotFixture({ persistedSiteName: "beta" }));
-      },
+      } },
       {
-        activateSite: (name: string) =>
+        activateSite: ({ name }: { name: string }) =>
           Promise.resolve({ ok: true, activeSiteName: name, restartRequired: true, restartInstructions: "Restart `npm run dev`." }),
       },
     );
@@ -265,12 +266,28 @@ describe("useSites — activate does NOT switch anything", () => {
     expect(result.current.activatingName).toBeNull();
   });
 
+  it("reports a post-activation navigation failure without exposing its message", async () => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const port = {
+      ...createFakeSitesPort({ snapshot: snapshotFixture() }, {
+        activateSite: async ({ name }: { name: string }) => ({ ok: true, activeSiteName: name, restartRequired: false, restartInstructions: "", url: "/" }),
+      }),
+      openSite: () => { throw new Error("private-token"); },
+    };
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+    await act(async () => { result.current.activate("beta"); });
+    await waitFor(() => expect(logError).toHaveBeenCalledWith("[sites] Could not finish handling site activation", "Error"));
+    expect(result.current.activatingName).toBeNull();
+    logError.mockRestore();
+  });
+
   it("reports a pending choice TOVU_SITE_DIR would defeat as ignored, not as queued", async () => {
     const port = createFakeSitesPort(
-      snapshotFixture({
+      { snapshot: snapshotFixture({
         persistedSiteName: "beta",
         currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
-      }),
+      }) },
     );
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
@@ -279,8 +296,8 @@ describe("useSites — activate does NOT switch anything", () => {
   });
 
   it("surfaces the capability refusal rather than pretending the choice was saved", async () => {
-    const port = createFakeSitesPort(snapshotFixture({ switchingEnabled: false }), {
-      activateSite: () => Promise.reject(new ApiError("disabled", 403, "SITE_SWITCHING_DISABLED")),
+    const port = createFakeSitesPort({ snapshot: snapshotFixture({ switchingEnabled: false }) }, {
+      activateSite: () => Promise.reject(new ApiError({ message: "disabled", status: 403 }, { code: "SITE_SWITCHING_DISABLED" })),
     });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
@@ -299,7 +316,7 @@ describe("useSites — activate does NOT switch anything", () => {
 describe("useSites — activate race safety", () => {
   it("the LAST-clicked activate wins even when an earlier click's response arrives after it", async () => {
     const deferred: Record<string, { promise: Promise<AdminSiteActivation>; resolve: (value: AdminSiteActivation) => void }> = {};
-    const activateSite = vi.fn((name: string) => {
+    const activateSite = vi.fn(({ name }: { name: string }) => {
       let resolve!: (value: AdminSiteActivation) => void;
       const promise = new Promise<AdminSiteActivation>((r) => {
         resolve = r;
@@ -307,7 +324,7 @@ describe("useSites — activate race safety", () => {
       deferred[name] = { promise, resolve };
       return promise;
     });
-    const port = createFakeSitesPort(snapshotFixture(), { activateSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { activateSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -319,7 +336,7 @@ describe("useSites — activate race safety", () => {
     // Activations reach the server one at a time (see `activateChainRef`), so only alpha is in
     // flight — beta waits for it. `mutate` invokes the mutation function on a microtask.
     await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(1));
-    expect(activateSite).toHaveBeenLastCalledWith("alpha");
+    expect(activateSite).toHaveBeenLastCalledWith({ name: "alpha" });
 
     // alpha settles while beta is still queued: alpha is stale (beta was clicked after it), so its
     // result must not be shown and must not clear beta's busy state.
@@ -328,7 +345,7 @@ describe("useSites — activate race safety", () => {
       await deferred.alpha.promise;
     });
     await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(2));
-    expect(activateSite).toHaveBeenLastCalledWith("beta");
+    expect(activateSite).toHaveBeenLastCalledWith({ name: "beta" });
     expect(result.current.activation).toBeNull();
     expect(result.current.activatingName).toBe("beta");
 
@@ -345,11 +362,11 @@ describe("useSites — activate race safety", () => {
 
 describe("useSites — write error precedence", () => {
   it("does not let a stale Create failure mask a later, successful Activate", async () => {
-    const createSite = vi.fn().mockRejectedValue(new ApiError("dir not empty", 409, "SITE_ALREADY_EXISTS"));
+    const createSite = vi.fn().mockRejectedValue(new ApiError({ message: "dir not empty", status: 409 }, { code: "SITE_ALREADY_EXISTS" }));
     const activateSite = vi
       .fn()
       .mockResolvedValue({ ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart beta." });
-    const port = createFakeSitesPort(snapshotFixture(), { createSite, activateSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { createSite, activateSite });
 
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
@@ -384,7 +401,7 @@ describe("useSites — two activations back to back persist the one the screen r
     let maxInFlight = 0;
     let inFlight = 0;
     const activateSite = vi.fn(
-      (name: string) =>
+      ({ name }: { name: string }) =>
         new Promise<AdminSiteActivation>((resolve) => {
           inFlight += 1;
           maxInFlight = Math.max(maxInFlight, inFlight);
@@ -395,7 +412,7 @@ describe("useSites — two activations back to back persist the one the screen r
           });
         }),
     );
-    const port = createFakeSitesPort(snapshotFixture(), { activateSite });
+    const port = createFakeSitesPort({ snapshot: snapshotFixture() }, { activateSite });
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
 
@@ -417,7 +434,7 @@ describe("useSites — two activations back to back persist the one the screen r
     expect(result.current.activation?.activeSiteName).toBe("beta");
     expect(persisted).toBe("beta");
     expect(maxInFlight).toBe(1);
-    expect(activateSite.mock.calls.map(([name]) => name)).toEqual(["alpha", "beta"]);
+    expect(activateSite.mock.calls.map(([{ name }]) => name)).toEqual(["alpha", "beta"]);
   });
 });
 
@@ -427,7 +444,7 @@ describe("useSites — content refresh bus", () => {
 
   it("adopts a server-side site change after a sites refresh", async () => {
     let snapshot = snapshotFixture();
-    const port = createFakeSitesPort(async () => snapshot);
+    const port = createFakeSitesPort({ snapshot: async () => snapshot });
     const { result, unmount } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.sites.map((site) => site.name)).toEqual(["alpha", "beta"]));
     snapshot = snapshotFixture({ sites: [{ ...snapshot.sites[0]!, name: "gamma", displayName: "Gamma" }] });

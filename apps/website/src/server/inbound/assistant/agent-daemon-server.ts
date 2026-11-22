@@ -2,17 +2,19 @@
 import express from "express";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
+import { nodeAtomicWriter } from "@jini-ai/node-adapters/fs";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
+import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installServerLogCapture } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
-import { AGENT_DAEMON_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
-import { initializeStartupSecrets, startupSecretEnvironment } from '../../runtime/boot/startup-secrets.js';
+import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();
@@ -24,7 +26,7 @@ const sharedHost = Boolean(process.send) && process.env.TOVU_AGENT_DAEMON_STANDA
 let listenerUrl = "";
 // A standalone manual daemon has no discovery path; the supervisor supplies the scoped path.
 const daemonRegistryPath = process.env.TOVU_AGENT_DAEMON_REGISTRY_PATH;
-const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath }) : undefined;
+const daemonRegistry = daemonRegistryPath ? createSupervisorRegistry({ registryPath: daemonRegistryPath, writer: nodeAtomicWriter }) : undefined;
 let registryPublication: Promise<void> = Promise.resolve();
 let daemonExiting = false;
 let stopIdleMonitor = () => {};
@@ -34,14 +36,15 @@ let stopDaemonServing: () => Promise<void> = async () => {};
  * so even a failed publication can already be visible. Ownership guarding prevents an old daemon
  * from erasing a replacement daemon's record during a fast restart. The durability and race
  * rationale lives in @jini-ai/sidecar's daemon-registry and json-file implementations. */
-async function exitDaemon(exitCode: number): Promise<void> {
+async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): Promise<void> {
   if (daemonExiting) return;
   daemonExiting = true;
   stopIdleMonitor();
-  await closeWithinBound(async () => {
+  await closeWithinBound({ close: async () => {
     await stopDaemonServing();
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
     await Promise.allSettled([...scopes.values()].map(scope => scope.then(value => value.dispose({}, {}))));
+    // Startup reports a failed publication; removal must still run because its record may exist.
     await registryPublication.catch(() => undefined);
     try {
       await daemonRegistry?.removeIfCurrent({ pid: process.pid });
@@ -52,19 +55,19 @@ async function exitDaemon(exitCode: number): Promise<void> {
     // The retained client owns content/chat; process.exit alone leaves WALs. The site server
     // alone owns its ops journal and providers. Drain this daemon before closing its client.
 
-  }, { label: "the agent daemon store" });
+  }, label: "the agent daemon store" });
   process.exit(exitCode);
 }
 
 // Keep the conventional signal exit codes while giving the owned discovery record cleanup.
 // Jini's tree-stop signals the group, then each PID. Keep listeners installed so a second
 // SIGTERM cannot take Node's default immediate-exit path while the first is closing databases.
-process.on("SIGTERM", () => { void exitDaemon(143); });
-process.on("SIGINT", () => { void exitDaemon(130); });
+process.on("SIGTERM", () => { void exitDaemon({ exitCode: 143 }); });
+process.on("SIGINT", () => { void exitDaemon({ exitCode: 130 }); });
 
 // Windows has no graceful signal: Jini's sidecar closes its stdin pipe to run the same disposal.
 if (process.env.JINI_STOP_ON_STDIN_EOF === "1") {
-  process.stdin.once("end", () => { void exitDaemon(0); });
+  process.stdin.once("end", () => { void exitDaemon({ exitCode: 0 }); });
   // A paused stream never reports EOF.
   process.stdin.resume();
 }
@@ -141,7 +144,7 @@ function startParentWatchdog(): void {
       console.error(
         `[agent-daemon] parent process ${parentPid} is gone and reap() never reached this process — self-terminating`,
       );
-      void exitDaemon(1);
+      void exitDaemon({ exitCode: 1 });
     }
   }, POLL_INTERVAL_MS);
 }
@@ -185,8 +188,10 @@ installUnhandledRejectionGuard();
 installServerLogCapture({ source: "daemon", release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
 
 const app = express();
-const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.values()].some(isBusy => isBusy()), exit: code => { void exitDaemon(code); } }, { env: process.env });
+const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.values()].some(isBusy => isBusy()), exit: ({ code }, _optional = {}) => { void exitDaemon({ exitCode: code }); } }, { env: process.env });
 stopIdleMonitor = () => idlePark.stop({}, {});
+// One browser integration per daemon process: every site scope it hosts shares this lease.
+const browserLease = createExclusiveRunLease({});
 // Express removes the mount prefix before the existing scope middleware runs. A forged prefix
 // therefore meets that scope's OWN bearer/run-credential gate before parsing or route effects.
 // The path segment is the desktop's per-site scope key, never the (shared) workspace id.
@@ -197,33 +202,31 @@ app.use("/s/:scopeKey", (req, res, next) => {
 });
 
 const control = createScopeControl({ tables: { scopes, scopeEnvironments, scopedExchanges },
-  createScope: input => createSiteScope(input, { idlePark }), hold: () => idlePark.hold({}, {}),
+  createScope: input => createSiteScope(input, { idlePark, browserLease }), hold: () => idlePark.hold({}, {}),
   listenerUrl: () => listenerUrl, pid: process.pid, isExiting: () => daemonExiting }, {});
+
+function standaloneListenerPort(): number {
+  const raw = process.env.JINI_AGENT_DAEMON_PORT;
+  if (raw === undefined) return 4319;
+  if (raw === "0") return 0;
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("JINI_AGENT_DAEMON_PORT must be 0 or an integer from 1 to 65535");
+  }
+  return port;
+}
 
 async function start(): Promise<void> {
   await initializeStartupSecrets({}, {});
   // Shared hosts bind first so no runtime snapshots port 0 into its bridge injection.
-  const port = sharedHost ? 0 : Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
+  const port = sharedHost ? 0 : standaloneListenerPort();
   const server = app.listen(port, "127.0.0.1");
   stopDaemonServing = () => stopServingWithinGrace({ server, workers: [] });
   await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("daemon has no listening address");
   listenerUrl = `http://127.0.0.1:${address.port}`;
-  if (!sharedHost) {
-    // Standalone uses exactly the same factory and middleware at its historical root routes.
-    const env = startupSecretEnvironment({ env: process.env });
-    const siteId = env.TOVU_WORKSPACE;
-    const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
-    if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
-    // A standalone process has one configured site; validate its directory before starting it.
-    const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
-    const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: listenerUrl,
-      TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
-    scopes.set(scopeKey, scope);
-    const ready = await scope;
-    scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);
-  }
+  if (!sharedHost) await mountStandaloneScope({ url: listenerUrl });
   if (daemonExiting) return;
   registryPublication = daemonRegistry?.write({ record: {
     url: listenerUrl, host: "127.0.0.1", port: address.port, pid: process.pid, startedAt: new Date().toISOString(),
@@ -232,13 +235,29 @@ async function start(): Promise<void> {
   idlePark.start({}, {});
   if (!isDaemonLifecycleLogQuiet()) console.log(`[agent-daemon] listening on ${listenerUrl}`);
 }
+
+/** Mount this process's one configured site at the root routes once the listener has a URL. */
+async function mountStandaloneScope({ url }: { url: string }, _optional = {}): Promise<void> {
+  // Standalone uses exactly the same factory and middleware at its historical root routes.
+  const env = startupSecretEnvironment({ env: process.env });
+  const siteId = env.TOVU_WORKSPACE;
+  const token = env[TOOL_EXEC_TOKEN_ENV_VAR];
+  if (!siteId || !token) throw new Error("standalone daemon requires its site binding");
+  // A standalone process has one configured site; validate its directory before starting it.
+  const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
+  const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: url,
+    TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark, browserLease });
+  scopes.set(scopeKey, scope);
+  const ready = await scope;
+  scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);
+}
 const startup = start();
 if (process.send) {
   const channel = sharedHost ? createNodeIpcChannel({ peer: process }, { handle: async payload => { await startup; return control(payload); } }) : undefined;
-  process.once("disconnect", () => { channel?.dispose({}); void exitDaemon(0); });
+  process.once("disconnect", () => { channel?.dispose({}); void exitDaemon({ exitCode: 0 }); });
 }
 void startup.catch(error => {
   // Never forward a bootstrap/control payload (which contains per-site secrets) into diagnostics.
   console.error("[agent-daemon] failed to start", redactSecretShapes({ text: error instanceof Error ? error.message : "startup failed" }).text);
-  void exitDaemon((error as NodeJS.ErrnoException).code === "EADDRINUSE" ? AGENT_DAEMON_EXIT_CODE.PORT_IN_USE : 1);
+  void exitDaemon({ exitCode: (error as NodeJS.ErrnoException).code === "EADDRINUSE" ? AGENT_DAEMON_EXIT_CODE.PORT_IN_USE : 1 });
 });

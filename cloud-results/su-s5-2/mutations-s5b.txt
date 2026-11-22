@@ -1,0 +1,10 @@
+RED ok: remove the per-token lock -> tryRedeem takes the per-token lock inside the transaction, before the read and the write
+RED ok: write is no longer conditioned on the read status -> the redeeming write is conditioned on the status it read: a token expired in between is not redeemed
+RED ok: skipped update reported as redeemed (drop the affected-rows check) -> a skipped status update is reported as not redeemed, never as redeemed
+RED ok: skip isRedeemable -> unknown, past-TTL and already-expired tokens are refused with today's record (null for unknown)
+RED ok: null the planHash column -> save then findByToken round-trips the plan, scope, confirmer and expiry the service checks
+RED ok: null the scopeId column -> save then findByToken round-trips the plan, scope, confirmer and expiry the service checks
+RED ok: null the confirmer column -> save then findByToken round-trips the plan, scope, confirmer and expiry the service checks
+RED ok: null the expiresAt column -> save then findByToken round-trips the plan, scope, confirmer and expiry the service checks
+RED ok: isRedeemable dropped: a redeemed token redeems again -> concurrent tryRedeem calls: exactly one redeems and the stored status is redeemed
+rows 9 bad 0

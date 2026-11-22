@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import { pluginsApi } from "@/features/plugins/api/plugins-api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
@@ -20,7 +21,7 @@ afterEach(() => {
 
 describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listPlugins");
+    const listSpy = vi.spyOn(pluginsApi, "listPlugins");
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] }],
     });
@@ -32,7 +33,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("routes onToggleEnabled through the injected port and never touches the real api client", async () => {
-    const setEnabledSpy = vi.spyOn(api, "setPluginEnabled");
+    const setEnabledSpy = vi.spyOn(pluginsApi, "setPluginEnabled");
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
     });
@@ -179,10 +180,10 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     let resolveUninstall!: () => void;
     const uninstallCalls: string[] = [];
     const realUninstall = port.uninstallPlugin.bind(port);
-    port.uninstallPlugin = (id: string) => {
+    port.uninstallPlugin = ({ id }) => {
       uninstallCalls.push(id);
       return new Promise((resolve) => {
-        resolveUninstall = () => resolve(realUninstall(id));
+        resolveUninstall = () => resolve(realUninstall({ id }));
       });
     };
 
@@ -224,10 +225,10 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     });
     let resolveUninstall!: () => void;
     const realUninstall = port.uninstallPlugin.bind(port);
-    port.uninstallPlugin = (id: string) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall(id))));
+    port.uninstallPlugin = ({ id }) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall({ id }))));
     let resolveToggle!: () => void;
     const realSetEnabled = port.setPluginEnabled.bind(port);
-    port.setPluginEnabled = (id, patch) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled(id, patch))));
+    port.setPluginEnabled = ({ id, patch }) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled({ id, patch }))));
 
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
@@ -271,10 +272,10 @@ describe("usePlugins — onRemovePlugin (PLUGIN_UNINSTALL)", () => {
     });
     let resolveToggle!: () => void;
     const realSetEnabled = port.setPluginEnabled.bind(port);
-    port.setPluginEnabled = (id, patch) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled(id, patch))));
+    port.setPluginEnabled = ({ id, patch }) => new Promise((resolve) => (resolveToggle = () => resolve(realSetEnabled({ id, patch }))));
     let resolveUninstall!: () => void;
     const realUninstall = port.uninstallPlugin.bind(port);
-    port.uninstallPlugin = (id: string) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall(id))));
+    port.uninstallPlugin = ({ id }) => new Promise((resolve) => (resolveUninstall = () => resolve(realUninstall({ id }))));
 
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(2));
@@ -484,9 +485,9 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
     const port = createFakePluginsPort({ plugins: [PLUGIN] });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));
-    act(() => result.current.onToggleExpanded("p1"));
+    act(() => result.current.onToggleExpanded({ id: "p1" }));
     expect(result.current.expandedIds.has("p1")).toBe(true);
-    act(() => result.current.onToggleExpanded("p1"));
+    act(() => result.current.onToggleExpanded({ id: "p1" }));
     expect(result.current.expandedIds.has("p1")).toBe(false);
   });
 
@@ -495,10 +496,10 @@ describe("usePlugins — expanders, single-flight toggles and failed refreshes",
     let release!: () => void;
     const setEnabled = port.setPluginEnabled;
     const calls: string[] = [];
-    port.setPluginEnabled = async (id, patch) => {
+    port.setPluginEnabled = async ({ id, patch }) => {
       calls.push(id);
       await new Promise<void>((resolve) => { release = resolve; });
-      return setEnabled(id, patch);
+      return setEnabled({ id, patch });
     };
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));

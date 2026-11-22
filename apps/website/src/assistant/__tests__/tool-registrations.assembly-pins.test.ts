@@ -41,9 +41,9 @@ for (const phase of ["domain", "derived"] as const) {
         registration({ id: "trash_purge_item" })];
       if (phase === "domain") catalog.contributors.register({ contribution: { domain: "pins", risk: new Map(), build: () => tools } });
       else catalog.derivedContributors.register({ contribution: { domain: "pins", risk: new Map(), derive: () => tools } });
-      const result = buildAssistantToolRegistrations(deps({}), undefined, {
+      const result = buildAssistantToolRegistrations(deps({}), { surfaces: undefined, options: {
         contributions: catalog, permanentDeletePolicy: policy, includeContentReadCollapse: false,
-      }).filter(tool => tools.some(original => original.descriptor.id === tool.descriptor.id));
+      } }).filter(tool => tools.some(original => original.descriptor.id === tool.descriptor.id));
       assert.deepEqual(result.map(tool => tool.descriptor.id), policy?.enabled && policy.allowedToolIds.includes("trash_purge_item")
         ? ["pin_allowed", "trash_purge_item"] : ["pin_allowed"]);
     });
@@ -57,7 +57,7 @@ for (const phase of ["domain", "derived"] as const) {
     catalog.contributors.register({ contribution: { domain: "first", risk: new Map(), build: () => [tool] } });
     if (phase === "domain") catalog.contributors.register({ contribution: { domain: "second", risk: new Map(), build: () => [tool] } });
     else catalog.derivedContributors.register({ contribution: { domain: "second", risk: new Map(), derive: () => [tool] } });
-    assert.throws(() => buildAssistantToolRegistrations(deps({}), undefined, { contributions: catalog }), {
+    assert.throws(() => buildAssistantToolRegistrations(deps({}), { surfaces: undefined, options: { contributions: catalog } }), {
       message: `tool-registrations.ts: 'pin_shared' is registered by both the first ${phase === "domain" ? "and second domains" : "domain and second's post-processing pass"} — one tool id must resolve to exactly one handler`,
     });
   });
@@ -75,7 +75,7 @@ test("derived passes see the same domain-only snapshot and preserve registration
       return [registration({ id })];
     } } });
   }
-  const result = buildAssistantToolRegistrations(deps({}), undefined, { contributions: catalog, includeContentReadCollapse: false });
+  const result = buildAssistantToolRegistrations(deps({}), { surfaces: undefined, options: { contributions: catalog, includeContentReadCollapse: false } });
   assert.equal(snapshots.length, 2);
   assert.equal(snapshots[0], snapshots[1]);
   assert.deepEqual(snapshots[0]!.slice(-2), [first, second]);
@@ -106,7 +106,7 @@ for (const scenario of [
     catalog.contributors.register({ contribution: { domain: "capture", risk: new Map(), build: (enriched, surfaces) => {
       built = enriched; builtSurfaces = surfaces; return [];
     } } });
-    buildAssistantToolRegistrations(source, undefined, { contributions: catalog });
+    buildAssistantToolRegistrations(source, { surfaces: undefined, options: { contributions: catalog } });
     assert.ok(built);
     assert.notEqual(built, source);
     assert.equal(built.isSiteSwitcherEnabled, scenario.expectedSwitcher);
@@ -124,7 +124,7 @@ for (const scenario of [
 }
 
 test("assembly without contributed registries retains the static assistant tools", () => {
-  const result = buildAssistantToolRegistrations(deps({}), undefined, { includeContentReadCollapse: false });
+  const result = buildAssistantToolRegistrations(deps({}), { surfaces: undefined, options: { includeContentReadCollapse: false } });
   assert.ok(result.some(tool => tool.descriptor.id === "assistant_demo_choices"));
   assert.ok(result.some(tool => tool.descriptor.id === "tool_gaps_list"));
 });

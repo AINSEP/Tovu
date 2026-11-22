@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../features/media/api/media-api.types";
 import {
   appendMediaSlugs,
   hasModeContent,
@@ -42,31 +42,31 @@ describe("HTML attribute rows", () => {
       { name: "data-both", value: `it's "x"` },
       { name: "hidden", value: "" },
     ];
-    const text = rowsToHtmlAttributes(rows);
+    const text = rowsToHtmlAttributes({ rows });
     expect(text).toBe(`data-kui="carousel target:'img'" aria-label='Say "hi"' data-both="it's &quot;x&quot;" hidden`);
-    expect(htmlAttributesToRows(text)).toEqual(rows);
+    expect(htmlAttributesToRows({ text })).toEqual(rows);
   });
 
   it("parses the contract's stored string and every quoting style", () => {
-    expect(htmlAttributesToRows('data-kui="scroll-snap-x" aria-label="Selected media"')).toEqual([
+    expect(htmlAttributesToRows({ text: 'data-kui="scroll-snap-x" aria-label="Selected media"' })).toEqual([
       { name: "data-kui", value: "scroll-snap-x" },
       { name: "aria-label", value: "Selected media" },
     ]);
-    expect(htmlAttributesToRows("id='hero' class=wide")).toEqual([{ name: "id", value: "hero" }, { name: "class", value: "wide" }]);
-    expect(htmlAttributesToRows(undefined)).toEqual([]);
-    expect(htmlAttributesToRows("   ")).toEqual([]);
+    expect(htmlAttributesToRows({ text: "id='hero' class=wide" })).toEqual([{ name: "id", value: "hero" }, { name: "class", value: "wide" }]);
+    expect(htmlAttributesToRows({ text: undefined })).toEqual([]);
+    expect(htmlAttributesToRows({ text: "   " })).toEqual([]);
   });
 
   it("keeps an unparseable fragment as a row instead of losing what was typed", () => {
-    expect(htmlAttributesToRows('data-a="1" " data-b=2')).toEqual([
+    expect(htmlAttributesToRows({ text: 'data-a="1" " data-b=2' })).toEqual([
       { name: "data-a", value: "1" }, { name: '"', value: "" }, { name: "data-b", value: "2" },
     ]);
-    expect(htmlAttributesToRows('data-a="1" "')).toEqual([{ name: "data-a", value: "1" }, { name: '"', value: "" }]);
+    expect(htmlAttributesToRows({ text: 'data-a="1" "' })).toEqual([{ name: "data-a", value: "1" }, { name: '"', value: "" }]);
   });
 
   it("skips nameless rows when serializing (a half-typed row saves nothing)", () => {
-    expect(rowsToHtmlAttributes([{ name: "  ", value: "x" }, { name: " data-x ", value: "1" }])).toBe('data-x="1"');
-    expect(rowsToHtmlAttributes([])).toBe("");
+    expect(rowsToHtmlAttributes({ rows: [{ name: "  ", value: "x" }, { name: " data-x ", value: "1" }] })).toBe('data-x="1"');
+    expect(rowsToHtmlAttributes({ rows: [] })).toBe("");
   });
 
   it("flags rows the renderer will drop, reusing the media attribute allowlist", () => {
@@ -79,8 +79,8 @@ describe("HTML attribute rows", () => {
 describe("slug add / validate", () => {
   const library = [asset("1", "sl-1"), asset("2", "sl-2")];
   it("rejects an empty slug through the standalone validator", () => {
-    expect(isValidMediaSlug("")).toBe(false);
-    expect(isValidMediaSlug("a".repeat(200))).toBe(true);
+    expect(isValidMediaSlug({ slug: "" })).toBe(false);
+    expect(isValidMediaSlug({ slug: "a".repeat(200) })).toBe(true);
   });
   it("names each problem, and accepts a known new slug", () => {
     expect(mediaSlugProblem({ slug: "  ", items: [], library })).toBe("empty");
@@ -160,7 +160,7 @@ describe("reading and writing config", () => {
   });
 
   it("gives Gallery no Single layout (its saved schema has none)", () => {
-    expect(mediaLayoutsFor("gallery")).toEqual(["grid", "carousel", "masonry"]);
+    expect(mediaLayoutsFor({ widgetType: "gallery" })).toEqual(["grid", "carousel", "masonry"]);
     expect(readMediaContent({ config: { layout: "single" }, widgetType: "gallery" }).media.layout).toBe("grid");
     expect(readMediaContent({ config: { layout: "bogus" }, widgetType: "media" }).media.layout).toBe("single");
   });
@@ -249,13 +249,13 @@ describe("tab switching without a config change", () => {
 
 describe("slugCanShowEnd", () => {
   it("allows RTL end-first display only when no character would be reordered", () => {
-    expect(slugCanShowEnd("peach-and-lily-body-scrub")).toBe(true);
-    expect(slugCanShowEnd("photo-2")).toBe(true);
-    expect(slugCanShowEnd("a")).toBe(true);
-    expect(slugCanShowEnd("2024-gala")).toBe(false);
-    expect(slugCanShowEnd("photo-")).toBe(false);
-    expect(slugCanShowEnd("_photo")).toBe(false);
-    expect(slugCanShowEnd("")).toBe(false);
+    expect(slugCanShowEnd({ slug: "peach-and-lily-body-scrub" })).toBe(true);
+    expect(slugCanShowEnd({ slug: "photo-2" })).toBe(true);
+    expect(slugCanShowEnd({ slug: "a" })).toBe(true);
+    expect(slugCanShowEnd({ slug: "2024-gala" })).toBe(false);
+    expect(slugCanShowEnd({ slug: "photo-" })).toBe(false);
+    expect(slugCanShowEnd({ slug: "_photo" })).toBe(false);
+    expect(slugCanShowEnd({ slug: "" })).toBe(false);
   });
 });
 
@@ -275,8 +275,8 @@ describe("raw HTML helpers", () => {
   });
 
   it("counts lines and classifies media kinds", () => {
-    expect(lineCount("")).toBe(1);
-    expect(lineCount("a\nb\n")).toBe(3);
-    expect(["image/webp", "video/mp4", "audio/flac", "application/pdf", null].map(mediaKindOf)).toEqual(["image", "video", "audio", "unknown", "unknown"]);
+    expect(lineCount({ text: "" })).toBe(1);
+    expect(lineCount({ text: "a\nb\n" })).toBe(3);
+    expect(["image/webp", "video/mp4", "audio/flac", "application/pdf", null].map((contentType) => mediaKindOf({ contentType }))).toEqual(["image", "video", "audio", "unknown", "unknown"]);
   });
 });

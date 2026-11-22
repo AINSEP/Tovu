@@ -16,7 +16,7 @@ export interface LoadedSitesSetting {
   value: number;
   /** Set after a failed save, cleared by the next one. */
   error: string | null;
-  save: (next: number) => void;
+  save: (input: { next: number }) => void;
 }
 
 export const LOADED_SITES_SAVE_ERROR = 'Loaded sites could not be saved.';
@@ -44,16 +44,16 @@ export function useLoadedSites(
   const { value, setValue } = useSiteViewPreference({ getBridge });
   const [error, setError] = useState<string | null>(null);
   const write = getBridge()?.setMaximumLiveSiteViews;
-  const save = (next: number) => {
+  const save = ({ next }: { next: number }, _options: Record<string, never> = {}) => {
     if (!write || next === value) return;
     const previous = value;
-    setValue(next);
+    setValue({ next });
     setError(null);
-    void write(next).then(
-      (saved) => setValue(shownValue({ value: saved, current: next })),
+    void write({ maximum: next }).then(
+      (saved) => setValue({ next: shownValue({ value: saved, current: next }) }),
       (failure: unknown) => {
         console.error(`[tovu-desktop] save loaded sites: ${failure instanceof Error ? failure.message : String(failure)}`);
-        setValue(previous);
+        setValue({ next: previous });
         setError(LOADED_SITES_SAVE_ERROR);
       },
     );

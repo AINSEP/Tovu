@@ -15,7 +15,7 @@ import {
 const DEPLOY_PATHS = [
   "mcp.json",
   "plugin.json",
-  "tovu-deploy-targets.json",
+  "jini-deploy-targets.json",
   "deploy-configs/example-host.mjs",
   "deploy-configs/railway.mjs",
   "targets/vercel.mjs",
@@ -34,10 +34,10 @@ function outline(nodes: readonly PackageFileTreeNode[], indent = ""): string[] {
 
 describe("buildPackageFileTree", () => {
   it("groups paths into folders, files first then folders, each alphabetical", () => {
-    expect(outline(buildPackageFileTree(DEPLOY_PATHS))).toEqual([
+    expect(outline(buildPackageFileTree({ paths: DEPLOY_PATHS }))).toEqual([
+      "jini-deploy-targets.json",
       "mcp.json",
       "plugin.json",
-      "tovu-deploy-targets.json",
       "deploy-configs/",
       "  example-host.mjs",
       "  railway.mjs",
@@ -54,7 +54,7 @@ describe("buildPackageFileTree", () => {
   });
 
   it("gives folders their full path and files their path exactly as listed", () => {
-    const [configs] = buildPackageFileTree(["deploy-configs/example-host.mjs"]);
+    const [configs] = buildPackageFileTree({ paths: ["deploy-configs/example-host.mjs"] });
     expect(configs).toEqual({
       kind: "folder",
       name: "deploy-configs",
@@ -64,54 +64,54 @@ describe("buildPackageFileTree", () => {
   });
 
   it("sorts case-insensitively and numerically, like VS Code", () => {
-    expect(outline(buildPackageFileTree(["b.md", "A.md", "file10.md", "file2.md"]))).toEqual(["A.md", "b.md", "file2.md", "file10.md"]);
+    expect(outline(buildPackageFileTree({ paths: ["b.md", "A.md", "file10.md", "file2.md"] }))).toEqual(["A.md", "b.md", "file2.md", "file10.md"]);
   });
 
   it("ignores stray slashes when grouping, and drops empty and duplicate paths", () => {
-    const tree = buildPackageFileTree(["/a//b.md", "a/b.md", "", "/", "c/"]);
+    const tree = buildPackageFileTree({ paths: ["/a//b.md", "a/b.md", "", "/", "c/"] });
     expect(outline(tree)).toEqual(["c", "a/", "  b.md"]);
     const a = tree[1];
     expect(a?.kind === "folder" && a.children[0]?.path).toBe("/a//b.md");
   });
 
   it("returns an empty tree for no paths", () => {
-    expect(buildPackageFileTree([])).toEqual([]);
+    expect(buildPackageFileTree({ paths: [] })).toEqual([]);
   });
 });
 
 describe("ancestorFolderPaths", () => {
   it("lists every containing folder, outermost first", () => {
-    expect(ancestorFolderPaths("skills/deploy/references/x.md")).toEqual(["skills", "skills/deploy", "skills/deploy/references"]);
+    expect(ancestorFolderPaths({ filePath: "skills/deploy/references/x.md" })).toEqual(["skills", "skills/deploy", "skills/deploy/references"]);
   });
 
   it("is empty for a root file", () => {
-    expect(ancestorFolderPaths("plugin.json")).toEqual([]);
+    expect(ancestorFolderPaths({ filePath: "plugin.json" })).toEqual([]);
   });
 });
 
 describe("firstPackageFilePath", () => {
   it("picks the top file row: a root file over anything nested", () => {
-    expect(firstPackageFilePath(buildPackageFileTree(["skills/a.md", "tovu.plugin.json", "index.mjs"]))).toBe("index.mjs");
+    expect(firstPackageFilePath({ nodes: buildPackageFileTree({ paths: ["skills/a.md", "tovu.plugin.json", "index.mjs"] }) })).toBe("index.mjs");
   });
 
   it("descends into the first folder when the root holds only folders", () => {
-    expect(firstPackageFilePath(buildPackageFileTree(["z/b.md", "a/x/c.md", "a/d.md"]))).toBe("a/d.md");
+    expect(firstPackageFilePath({ nodes: buildPackageFileTree({ paths: ["z/b.md", "a/x/c.md", "a/d.md"] }) })).toBe("a/d.md");
   });
 
   it("is null for an empty tree", () => {
-    expect(firstPackageFilePath([])).toBeNull();
+    expect(firstPackageFilePath({ nodes: [] })).toBeNull();
   });
 });
 
 describe("visiblePackageFileRows", () => {
-  const tree = buildPackageFileTree(DEPLOY_PATHS);
+  const tree = buildPackageFileTree({ paths: DEPLOY_PATHS });
 
   it("shows only root entries while every folder is collapsed", () => {
-    const rows = visiblePackageFileRows(tree, () => false);
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: () => false });
     expect(rows.map((row) => row.node.path)).toEqual([
+      "jini-deploy-targets.json",
       "mcp.json",
       "plugin.json",
-      "tovu-deploy-targets.json",
       "deploy-configs",
       "skills",
       "targets",
@@ -122,7 +122,7 @@ describe("visiblePackageFileRows", () => {
 
   it("walks into expanded folders with depth, parent and position within the folder", () => {
     const open = new Set(["skills", "skills/deploy"]);
-    const rows = visiblePackageFileRows(tree, (path) => open.has(path));
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: ({ path }) => open.has(path) });
     const skillRows = rows.slice(4, 8).map(({ node, depth, parentPath, setSize, posInSet }) => [node.path, depth, parentPath, setSize, posInSet]);
     expect(skillRows).toEqual([
       ["skills", 0, null, 6, 5],
@@ -134,27 +134,27 @@ describe("visiblePackageFileRows", () => {
 
   it("hides a collapsed folder's descendants even when a nested folder is open", () => {
     const open = new Set(["skills/deploy"]);
-    const rows = visiblePackageFileRows(tree, (path) => open.has(path));
+    const rows = visiblePackageFileRows({ nodes: tree, isExpanded: ({ path }) => open.has(path) });
     expect(rows.some((row) => row.node.path.startsWith("skills/"))).toBe(false);
   });
 });
 
 describe("packageFileTreeKeyAction", () => {
-  const tree = buildPackageFileTree(DEPLOY_PATHS);
+  const tree = buildPackageFileTree({ paths: DEPLOY_PATHS });
   const open = new Set(["skills", "skills/deploy"]);
-  const isExpanded = (path: string) => open.has(path);
-  const rows = visiblePackageFileRows(tree, isExpanded);
-  const act = (current: string, key: string) => packageFileTreeKeyAction(rows, current, key, isExpanded);
+  const isExpanded = ({ path }: { path: string }) => open.has(path);
+  const rows = visiblePackageFileRows({ nodes: tree, isExpanded });
+  const act = (current: string, key: string) => packageFileTreeKeyAction({ rows, currentPath: current, key, isExpanded });
 
   it("moves down and up, stopping at the ends", () => {
     expect(act("deploy-configs", "ArrowDown")).toEqual({ focus: "skills" });
     expect(act("skills", "ArrowUp")).toEqual({ focus: "deploy-configs" });
-    expect(act("mcp.json", "ArrowUp")).toEqual({ focus: "mcp.json" });
+    expect(act("jini-deploy-targets.json", "ArrowUp")).toEqual({ focus: "jini-deploy-targets.json" });
     expect(act("targets", "ArrowDown")).toEqual({ focus: "targets" });
   });
 
   it("jumps with Home and End", () => {
-    expect(act("skills", "Home")).toEqual({ focus: "mcp.json" });
+    expect(act("skills", "Home")).toEqual({ focus: "jini-deploy-targets.json" });
     expect(act("skills", "End")).toEqual({ focus: "targets" });
   });
 
@@ -182,11 +182,11 @@ describe("packageFileTreeKeyAction", () => {
 
   it("ignores other keys and an empty tree", () => {
     expect(act("mcp.json", "a")).toEqual({});
-    expect(packageFileTreeKeyAction([], "x", "ArrowDown", () => false)).toEqual({});
+    expect(packageFileTreeKeyAction({ rows: [], currentPath: "x", key: "ArrowDown", isExpanded: () => false })).toEqual({});
   });
 
   it("treats an unknown current path as the first row", () => {
-    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "plugin.json" });
+    expect(act("gone.md", "ArrowDown")).toEqual({ focus: "mcp.json" });
   });
 });
 
@@ -203,6 +203,6 @@ describe("packageFileIconKind", () => {
     ["LICENSE", "file"],
     ["archive.xyz", "file"],
   ] as const)("%s -> %s", (name, kind) => {
-    expect(packageFileIconKind(name)).toBe(kind);
+    expect(packageFileIconKind({ fileName: name })).toBe(kind);
   });
 });

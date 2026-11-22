@@ -1,8 +1,8 @@
-import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
+import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
 import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import type { PostRepoPort } from "#src/features/post/post";
-import { createContentTargetPorts } from "#src/features/taxonomy/collection-term-policy";
-import type { EntryPublishPorts, PublishContentPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
+import { createContentTargetPorts } from "#src/features/taxonomy/content-targets";
+import type { EntryPublishPorts, TovuPublishPorts, TaxonomyPublishPorts, WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 /**
  * @file The one place the factory-built types (`repo-handler.ts`) get their ports from.
@@ -33,10 +33,10 @@ export interface ContentPublishSources {
   readonly entryRepo: EntryPublishPorts["entries"] & WidgetPublishPorts["entries"];
   readonly entryRefsRepo: WidgetPublishPorts["entryRefs"];
   readonly widgetBindingRepo: WidgetPublishPorts["bindings"];
-  readonly settingsRepo: PublishContentPorts["site-setting"]["settings"];
-  readonly principalRepo: PublishContentPorts["site-setting"]["principals"];
-  readonly presentationRepo: PublishContentPorts["active-theme"]["presentation"];
-  readonly themes: PublishContentPorts["active-theme"]["themes"];
+  readonly settingsRepo: TovuPublishPorts["site-setting"]["settings"];
+  readonly principalRepo: TovuPublishPorts["site-setting"]["principals"];
+  readonly presentationRepo: TovuPublishPorts["active-theme"]["presentation"];
+  readonly themes: TovuPublishPorts["active-theme"]["themes"];
 }
 
 /** The ports keys this builder owns. */
@@ -52,7 +52,7 @@ export type ContentPublishPortKey =
   | "active-theme";
 
 /** @complexity O(1) — a field projection, no I/O. */
-export function buildContentPublishPorts(sources: ContentPublishSources): Pick<PublishContentPorts, ContentPublishPortKey> {
+export function buildContentPublishPorts(sources: ContentPublishSources): Pick<TovuPublishPorts, ContentPublishPortKey> {
   const taxonomy: TaxonomyPublishPorts = {
     taxonomies: sources.taxonomyRepo,
     terms: sources.termRepo,

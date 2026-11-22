@@ -1,4 +1,4 @@
-import type { AdminUser } from "@/lib/api";
+import type { AdminUser } from "@/features/auth/api/auth-api.types";
 
 /**
  * @file What `use-login.hooks.ts` needs from the outside world, as an interface rather than a
@@ -11,6 +11,6 @@ import type { AdminUser } from "@/lib/api";
  * `features/auth` imports `lib/api`.
  */
 export interface LoginPort {
-  login(credentials: { username: string; password: string }): Promise<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>;
-  completeMfa?(input: { pendingToken: string; code: string }): Promise<{ user: AdminUser }>;
+  login(credentials: { username: string; password: string }, optional?: Record<string, never>): Promise<{ user: AdminUser } | { mfaRequired: true; pendingToken: string }>;
+  completeMfa?(input: { pendingToken: string; code: string }, optional?: Record<string, never>): Promise<{ user: AdminUser }>;
 }

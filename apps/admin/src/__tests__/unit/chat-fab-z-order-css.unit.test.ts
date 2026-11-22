@@ -22,6 +22,7 @@ const ABOVE_FAB = new Map<string, string>([
   [".info-tip-bubble", "portaled hint bubble used inside modals; pointer-events: none"],
   [".skip-link", "keyboard-focus skip link, off screen until focused, top-left"],
   [".server-restarting-banner", "server-down status pill, top-centre"],
+  [".admin-failure-notice", "floating failure card, top-right; a failure must never be hidden behind the dock or the FAB"],
 ]);
 
 function cssFiles(dir: string): string[] {

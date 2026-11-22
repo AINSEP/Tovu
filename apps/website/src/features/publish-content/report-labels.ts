@@ -1,4 +1,4 @@
-import { entityKey, packedEntityLabel } from "./planner.js";
+import { entityKey, packedEntityLabel } from "./plan-rows.js";
 import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
 
 /**
@@ -47,20 +47,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * @complexity O(e + r) time in the bundle's entity count and the report's row count (one map build,
  * one pass); O(e + r) space for the map and the copied rows.
  */
-export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly PackedEntity[]): PeerPlanEnvelope {
+export function labelPeerPlanRows({ plan, entities }: { plan: PeerPlanEnvelope; entities: readonly PackedEntity[] }, _optional = {}): PeerPlanEnvelope {
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
 
   const labelByKey = new Map<string, string | null>();
   const ownNamed = new Set<string>();
   for (const entity of entities) {
-    labelByKey.set(entityKey(entity.entityType, entity.id), packedEntityLabel(entity));
-    if (entity.displayLabel !== undefined) ownNamed.add(entityKey(entity.entityType, entity.id));
+    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel({ entity }));
+    if (entity.displayLabel !== undefined) ownNamed.add(entityKey({ entityType: entity.entityType, entityId: entity.id }));
   }
 
   const rows = details.rows.map((row) => {
     if (!isRecord(row)) return row;
-    const key = entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""));
+    const key = entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") });
     if (typeof row.entityLabel === "string" && row.entityLabel.length > 0 && !ownNamed.has(key)) return row;
     const local = labelByKey.get(key);
     return local === undefined || local === null ? row : { ...row, entityLabel: local };
@@ -87,7 +87,7 @@ export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly Pac
  *
  * @complexity O(s) in the skipped-unit count; O(r + s) space for the copied `rows` array.
  */
-export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: readonly SkippedPackEntity[]): PeerPlanEnvelope {
+export function appendSkippedRowsToPeerPlan({ plan, skipped }: { plan: PeerPlanEnvelope; skipped: readonly SkippedPackEntity[] }, _optional = {}): PeerPlanEnvelope {
   if (skipped.length === 0) return plan;
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows) || details.refused === true) return plan;
@@ -120,17 +120,17 @@ const UPDATING_OUTCOMES: ReadonlySet<string> = new Set(["applied", "forced"]);
  *
  * @complexity O(e + r) time and space.
  */
-export function tagTrashingRows(plan: PeerPlanEnvelope, entities: readonly PackedEntity[]): PeerPlanEnvelope {
+export function tagTrashingRows({ plan, entities }: { plan: PeerPlanEnvelope; entities: readonly PackedEntity[] }, _optional = {}): PeerPlanEnvelope {
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
   const trashed = new Set(
-    entities.filter((entity) => entity.state.status === "trashed").map((entity) => entityKey(entity.entityType, entity.id))
+    entities.filter((entity) => entity.state.status === "trashed").map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id }))
   );
   if (trashed.size === 0) return plan;
 
   const rows = details.rows.map((row) => {
     if (!isRecord(row) || !UPDATING_OUTCOMES.has(String(row.outcome))) return row;
-    return trashed.has(entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""))) ? { ...row, trashes: true } : row;
+    return trashed.has(entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") })) ? { ...row, trashes: true } : row;
   });
   return { ...plan, details: { ...details, rows } };
 }
@@ -159,8 +159,11 @@ const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied", "f
  * @complexity O(r) in the report's row count; O(r) space for the copied `rows` array.
  */
 export function keepChangingIncludedEntities(
-  plan: PeerPlanEnvelope,
-  includedFor: ReadonlyMap<string, readonly string[]>
+  { plan, includedFor }: {
+    plan: PeerPlanEnvelope;
+    includedFor: ReadonlyMap<string, readonly string[]>;
+  },
+  _optional = {}
 ): PeerPlanEnvelope {
   if (includedFor.size === 0) return plan;
   const details = plan.details;
@@ -177,7 +180,7 @@ function includedReportRow(
   _options: Record<string, never> = {}
 ): unknown[] {
   if (!isRecord(row)) return [row];
-  const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+  const referrers = includedFor.get(entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") }));
   const outcome = String(row.outcome);
   if (referrers === undefined) return [row];
   if (CHANGING_OUTCOMES.has(outcome)) return [{ ...row, includedFor: referrers }];

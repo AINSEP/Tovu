@@ -7,7 +7,7 @@ import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import { owner, workspaceId } from "../fixtures/plugin-exports.js";
 
@@ -30,8 +30,8 @@ function runtimeFor(change: Partial<AgentPluginExport> = {}, options: { consentO
 
 async function render(runtime: ReturnType<typeof runtimeFor>, mode: "live" | "static" = "live") {
   const port = runtime.forRender({ mode });
-  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo() }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html: marker } });
-  return { html: renderHtmlPageBody(marker, resolved), head: port.headHtml({}), hosts: port.declaredHosts({}) };
+  const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html: marker } });
+  return { html: renderHtmlPageBody({ html: marker, resolved }), head: port.headHtml({}), hosts: port.declaredHosts({}) };
 }
 
 test("a consent-gated export holds its scripts and frame for the consent client", async () => {

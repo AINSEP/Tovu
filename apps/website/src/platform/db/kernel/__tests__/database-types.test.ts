@@ -4,9 +4,8 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { renderDatabaseTypes } from "@jini-ai/db/kernel";
+import { renderDatabaseTypes, listColumns, listTables } from "@jini-ai/db/kernel";
 
-import { listColumns, listTables } from "../dialect.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
@@ -71,7 +70,7 @@ const pg = openPgliteKernel({ prepare: ensurePgContentSchema });
 after(() => pg.close());
 
 test("content-database.generated.ts matches the reference database", async () => {
-  const rendered = await renderDatabaseTypes(pg, {
+  const rendered = await renderDatabaseTypes({ kernel: pg,
     interfaceName: "ContentDatabase",
     source: "a fresh PGlite database with the content schema (`__tests__/pg-content-schema.ts`)",
     regenerate: REGENERATE,
@@ -92,10 +91,10 @@ test("a migrated SQLite content.db has every generated table and column, with co
     generated.set(block[1]!, columns);
   }
   // Built the way a site's boot builds it: the migration runner (R1h), not the sync Drizzle opener.
-  const db = openSqliteContentConnection(":memory:");
-  await migrateSqliteContentFile(db, ":memory:");
-  const sqlite = sqliteKernel(db);
-  const tables = await listTables(sqlite);
+  const db = openSqliteContentConnection({ filePath: ":memory:" });
+  await migrateSqliteContentFile({ db, filePath: ":memory:" });
+  const sqlite = sqliteKernel({ source: db });
+  const tables = await listTables({ kernel: sqlite });
   const problems: string[] = [];
   const pascal = (name: string) => name.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   const seen = new Set<string>();
@@ -106,7 +105,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
       continue;
     }
     seen.add(pascal(table));
-    const actual = new Map((await listColumns(sqlite, table)).map((column) => [column.name, column.type]));
+    const actual = new Map((await listColumns({ kernel: sqlite, table })).map((column) => [column.name, column.type]));
     for (const [column, tsType] of expected) {
       const declared = actual.get(column);
       if (declared === undefined) problems.push(`${table}.${column}: missing on SQLite`);

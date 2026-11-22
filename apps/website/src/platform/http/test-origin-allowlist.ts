@@ -21,12 +21,13 @@
  *
  * Architectural role: `platform/http` Tier-2 library, composition-root-facing, like `client.ts`.
  */
-import { createNodeGuardedHttpPorts, EgressRefusedError, type DnsResolver, type EgressPolicy } from "@jini-ai/platform/http/guarded";
+import { createNodeGuardedHttpPorts, EgressRefusedError } from "@jini-ai/platform/http/guarded";
+import { type DnsResolver, type EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import { classifyAddress, createDefaultHttpClient, createHttpClient, type HttpClientOptions } from "./client.js";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
 /** Same shape as `createDefaultHttpClient`, so a composition root can take either. */
-export type EgressHttpClientFactory = (policy: EgressPolicy, options?: HttpClientOptions) => HttpClientPort;
+export type EgressHttpClientFactory = (required: { policy: EgressPolicy }, options?: HttpClientOptions) => HttpClientPort;
 
 const LOOPBACK_LITERALS = new Set(["127.0.0.1", "[::1]"]);
 const REFUSED_HOP_MESSAGE = "egress to the requested host was refused by this site's outbound network policy";
@@ -66,7 +67,7 @@ function refuseUnlistedHop(
       if (!allowed.has(url.origin)) {
         const host = url.hostname.replace(/^\[|\]$/g, "");
         const schemeRefused = !policy.allowedSchemes.includes(url.protocol.slice(0, -1));
-        const addressRefused = policy.denyPrivateAddresses && !policy.devHostAllowlist.includes(host) && classifyAddress(peer.ip) !== "public";
+        const addressRefused = policy.denyPrivateAddresses && !policy.devHostAllowlist.includes(host) && classifyAddress({ ip: peer.ip }) !== "public";
         if (schemeRefused || addressRefused) {
           throw new EgressRefusedError({ message: `egress to '${url.origin}' rejected: not an allowed test origin` }, { callerSafeMessage: REFUSED_HOP_MESSAGE });
         }
@@ -91,7 +92,7 @@ export function createTestOriginHttpClientFactory(
   if (allowedOrigins.length === 0) return createDefaultHttpClient;
   const allowed = parseTestOrigins({ origins: allowedOrigins });
   const origins = [...allowed].map((origin) => new URL(origin));
-  return (policy, options = {}) => {
+  return ({ policy }, options = {}) => {
     const native = createNodeGuardedHttpPorts({});
     const widened: EgressPolicy = {
       ...policy,

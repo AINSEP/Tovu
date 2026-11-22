@@ -46,13 +46,13 @@ function setup(t: TestContext, { form = {}, plugins = [], supabaseDatabaseAvaila
     tokensEnabled = optionalArgs?.enabled;
     return {
       plugins,
-      inputRef: (pluginId) => {
+      inputRef: ({ pluginId }) => {
         // One callback per service, stable across renders like the real hook's, recording the element it gets.
         const callback = refCallbacks.get(pluginId) ?? ((element: HTMLInputElement | null) => { tokenFields.set(pluginId, element); });
         refCallbacks.set(pluginId, callback);
         return callback;
       },
-      withTokens: (inner) => { assert.equal(inner, onCreate, 'withTokens must wrap the caller onCreate'); return wrappedCreate; },
+      withTokens: ({ onCreate: inner }) => { assert.equal(inner, onCreate, 'withTokens must wrap the caller onCreate'); return wrappedCreate; },
     };
   };
   const state: CreateWebsiteFormState = {
@@ -68,7 +68,7 @@ function setup(t: TestContext, { form = {}, plugins = [], supabaseDatabaseAvaila
     handleSubmit: recorder(calls, 'handleSubmit') as never,
     ...form,
   };
-  const useForm = ((received: unknown) => { formReceived = received; return state; }) as typeof useCreateWebsiteForm;
+  const useForm: typeof useCreateWebsiteForm = ({ onCreate: received }) => { formReceived = received; return state; };
   const onBack = recorder(calls, 'onBack') as () => void;
   const view = mount({ t, element: createElement(CreateWebsiteOnboarding, {
     onBack, onCreate, useForm, usePluginTokens, supabaseDatabaseAvailable,
@@ -80,10 +80,10 @@ function setup(t: TestContext, { form = {}, plugins = [], supabaseDatabaseAvaila
 const field = (view: Mounted, placeholder: string) => view.container.querySelector<HTMLInputElement>(`input[placeholder="${placeholder}"]`);
 const radio = (view: Mounted, value: string) => view.container.querySelector<HTMLInputElement>(`input[type="radio"][value="${value}"]`)!;
 const submit = (view: Mounted) => view.container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-const headings = (view: Mounted) => view.all('h3').map((heading) => heading.textContent);
+const headings = (view: Mounted) => view.all({ selector: 'h3' }).map((heading) => heading.textContent);
 const nameHint = (view: Mounted) => view.container.querySelector('.create-field__hint')?.textContent;
 const isInfoTip = (element: Element) => element.classList.contains('info-tip');
-const actionButtons = (view: Mounted) => view.all('button').filter((button) => !isInfoTip(button));
+const actionButtons = (view: Mounted) => view.all({ selector: 'button' }).filter((button) => !isInfoTip(button));
 const NAME = 'e.g. Corner Bakery';
 const SUPABASE_URL = 'https://your-project.supabase.co';
 const CUSTOM_PROVIDER = 'e.g. Neon, PlanetScale, Turso';
@@ -93,19 +93,19 @@ const supabasePlugin = { pluginId: 'supabase', displayName: 'Supabase', helpUrl:
 
 test('CreateWebsiteOnboarding: starts on the SQLite default with no slug, a disabled submit and no vendor fields', (t) => {
   const { view } = setup(t);
-  const radios = view.all('input[type="radio"]') as HTMLInputElement[];
+  const radios = view.all({ selector: 'input[type="radio"]' }) as HTMLInputElement[];
   assert.deepEqual(radios.map((r) => [r.value, r.checked, r.disabled]), [
     ['sqlite', true, false], ['supabase', false, true], ['custom', false, true],
   ]);
   assert.equal(nameHint(view), 'Checking website destination…');
-  assert.deepEqual(view.all('dd'), [], 'the hidden instance summary renders no values');
+  assert.deepEqual(view.all({ selector: 'dd' }), [], 'the hidden instance summary renders no values');
   assert.equal(submit(view).disabled, true);
   assert.equal(submit(view).textContent, 'Create local instance');
   assert.equal(view.container.querySelector('[role="alert"]'), null);
   assert.equal(headings(view).includes('Connect services'), false);
   assert.equal(field(view, SUPABASE_URL), null);
   assert.equal(field(view, CUSTOM_PROVIDER), null);
-  const selected = view.all('label.database-option.is-selected');
+  const selected = view.all({ selector: 'label.database-option.is-selected' });
   assert.equal(selected.length, 1);
   assert.equal(selected[0]!.querySelector('input')?.value, 'sqlite');
 });
@@ -117,7 +117,7 @@ test('CreateWebsiteOnboarding: shows the planned sites-home destination and enab
   assert.equal(name.maxLength, 200);
   assert.deepEqual(calls.planName?.at(-1), ['Corner Bakery'], 'the destination is planned for the typed name');
   assert.equal(nameHint(view), 'Creates ~/Documents/Tovu/sites/corner-bakery-2');
-  assert.deepEqual(view.all('dd'), [], 'the workspace preview lives only under the name field');
+  assert.deepEqual(view.all({ selector: 'dd' }), [], 'the workspace preview lives only under the name field');
   assert.equal(submit(view).disabled, false);
 });
 
@@ -129,10 +129,10 @@ test('CreateWebsiteOnboarding: keeps submit disabled and relabelled while a crea
 
 test('CreateWebsiteOnboarding: renders a footer only for the exact submission error', (t) => {
   const { view } = setup(t, { form: { formError: 'Port 4100 is already in use.' } });
-  const alerts = view.all('[role="alert"]');
+  const alerts = view.all({ selector: '[role="alert"]' });
   assert.equal(alerts.length, 1);
   assert.equal(alerts[0]!.textContent, 'Port 4100 is already in use.');
-  const footers = view.all('footer');
+  const footers = view.all({ selector: 'footer' });
   assert.equal(footers.length, 1);
   assert.equal(footers[0]!.textContent, 'Port 4100 is already in use.');
   assert.equal(alerts[0]!.closest('footer'), footers[0]);
@@ -143,9 +143,9 @@ test('CreateWebsiteOnboarding: every form control reaches its own setter, submit
   // Supabase made selectable, so a click on a radio that is not already checked can change the choice.
   const { view, calls, wrappedCreate, formReceived } = setup(t, { supabaseDatabaseAvailable: true });
   assert.equal(formReceived(), wrappedCreate, 'the form submits through the token wrapper');
-  await view.type(field(view, NAME)!, 'Bakery');
-  await view.click(radio(view, 'supabase'));
-  for (const button of view.all('button[type="button"]').filter((button) => !isInfoTip(button))) await view.click(button);
+  await view.type({ input: field(view, NAME)!, value: 'Bakery' });
+  await view.click({ el: radio(view, 'supabase') });
+  for (const button of view.all({ selector: 'button[type="button"]' }).filter((button) => !isInfoTip(button))) await view.click({ el: button });
   await act(async () => { view.container.querySelector('form')!.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true })); });
   assert.deepEqual(calls.setName, [['Bakery']]);
   assert.deepEqual(calls.setDatabase, [['supabase']]);
@@ -157,13 +157,13 @@ test('CreateWebsiteOnboarding: the Supabase branch (reachable only through state
   const { view, calls, state } = setup(t, { form: { database: 'supabase' as DatabaseProviderKind, supabaseUrl: 'https://p.supabase.co' } });
   const url = field(view, SUPABASE_URL)!;
   assert.equal(url.value, 'https://p.supabase.co');
-  await view.type(url, 'https://q.supabase.co');
+  await view.type({ input: url, value: 'https://q.supabase.co' });
   const key = field(view, 'Paste your API key')!;
   assert.equal(state.supabaseKeyRef.current, key, 'the form reads the key through its own ref');
   assert.equal(key.type, 'password');
-  await view.type(key, 'secret');
+  await view.type({ input: key, value: 'secret' });
   assert.equal(key.value, 'secret', 'the key input stays uncontrolled: the typed key lives only in the field');
-  await view.type(key, '');
+  await view.type({ input: key, value: '' });
   assert.deepEqual(calls.setSupabaseUrl, [['https://q.supabase.co']]);
   assert.deepEqual(calls.setHasSupabaseKey, [[true], [false]], 'only whether a key was typed reaches state');
   assert.equal(field(view, CUSTOM_PROVIDER), null);
@@ -177,10 +177,10 @@ test('CreateWebsiteOnboarding: the Custom branch wires provider, connection and 
   assert.equal(provider.value, 'Neon');
   assert.equal(connection.value, 'postgres://h');
   assert.equal(state.customCredentialRef.current, credential);
-  await view.type(provider, 'Turso');
-  await view.type(connection, 'libsql://x');
-  await view.type(credential, 'tok');
-  await view.type(credential, '');
+  await view.type({ input: provider, value: 'Turso' });
+  await view.type({ input: connection, value: 'libsql://x' });
+  await view.type({ input: credential, value: 'tok' });
+  await view.type({ input: credential, value: '' });
   assert.deepEqual(calls.setCustomProvider, [['Turso']]);
   assert.deepEqual(calls.setCustomConnection, [['libsql://x']]);
   assert.deepEqual(calls.setHasCustomCredential, [[true], [false]]);
@@ -196,7 +196,7 @@ test('CreateWebsiteOnboarding: offers one optional, uncontrolled token field per
   assert.equal(tokensEnabled(), true);
   assert.equal(radio(view, 'supabase').disabled, false);
   assert.ok(headings(view).includes('Connect services'));
-  const fields = view.all(`input[placeholder="${TOKEN}"]`) as HTMLInputElement[];
+  const fields = view.all({ selector: `input[placeholder="${TOKEN}"]` }) as HTMLInputElement[];
   assert.equal(fields.length, 2);
   assert.equal(tokenFields.get('github'), fields[0], 'the GitHub field reaches the token hook through its ref');
   assert.equal(tokenFields.get('my-crm'), fields[1]);
@@ -205,7 +205,7 @@ test('CreateWebsiteOnboarding: offers one optional, uncontrolled token field per
     assert.equal(input.getAttribute('autocomplete'), 'new-password');
     assert.equal(input.value, '');
   }
-  const links = view.all('a').map((link) => [link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]);
+  const links = view.all({ selector: 'a' }).map((link) => [link.getAttribute('href'), link.getAttribute('target'), link.getAttribute('rel')]);
   assert.deepEqual(links, [
     ['https://github.com/settings/tokens', '_blank', 'noopener noreferrer'],
     ['https://crm.example/tokens', '_blank', 'noopener noreferrer'],
@@ -258,21 +258,21 @@ test('CreateWebsiteOnboarding: the owner-hidden Instance copy section and its de
   const { view } = setup(t);
   assert.equal(headings(view).includes('Instance copy'), false);
   assert.doesNotMatch(view.text(), /Tovu will create a separate workspace from the selected release\./);
-  assert.deepEqual(view.all('dl'), []);
+  assert.deepEqual(view.all({ selector: 'dl' }), []);
   assert.doesNotMatch(view.text(), /Runner will create/);
 });
 
 test('CreateWebsiteOnboarding: no footer or readiness text renders without an error, and both action buttons remain', (t) => {
   for (const formError of [null, '']) {
     const { view } = setup(t, { form: { formError } });
-    assert.deepEqual(view.all('footer'), []);
+    assert.deepEqual(view.all({ selector: 'footer' }), []);
     assert.doesNotMatch(view.text(), READINESS);
     assert.deepEqual(actionButtons(view).map((button) => button.textContent), ['← All websites', 'Cancel', 'Create local instance']);
   }
 });
 
 test('CreateWebsiteOnboarding: the credential hints name Tovu, never Runner', (t) => {
-  const hints = (database: DatabaseProviderKind) => setup(t, { form: { database } }).view.all('span.create-field__hint')
+  const hints = (database: DatabaseProviderKind) => setup(t, { form: { database } }).view.all({ selector: 'span.create-field__hint' })
     .map((hint) => hint.textContent ?? '')
     .filter((line) => /vault/.test(line));
   assert.deepEqual(hints('supabase'), ['Credentials must be saved in the Tovu vault before provisioning; this prototype does not retain the key.']);
@@ -298,10 +298,10 @@ test('CreateWebsiteOnboarding: section explanations are ⓘ tooltips beside thei
     'Name the isolated workspace for this Tovu instance.',
     'SQLite is the zero-configuration default. Bring a hosted vendor when you need one.',
   ];
-  const tips = view.all('button.info-tip');
+  const tips = view.all({ selector: 'button.info-tip' });
   assert.deepEqual(tips.map((tip) => [tip.getAttribute('type'), tip.getAttribute('aria-label'), tip.getAttribute('data-tooltip')]), explanations.map((line) => ['button', line, line]));
   assert.ok(tips.every((tip) => tip.classList.contains('jini-tooltip')), 'the TooltipLayer shows the text');
-  const paragraphs = view.all('p').map((paragraph) => paragraph.textContent);
+  const paragraphs = view.all({ selector: 'p' }).map((paragraph) => paragraph.textContent);
   for (const line of explanations) assert.equal(paragraphs.includes(line), false, line);
 });
 
@@ -309,5 +309,5 @@ test('CreateWebsiteOnboarding: with services available but none offered by Tovu,
   const { view, tokensEnabled } = setup(t, { plugins: [], supabaseDatabaseAvailable: true });
   assert.equal(tokensEnabled(), true, 'the token hook is still asked, so a later offer can appear');
   assert.equal(headings(view).includes('Connect services'), false);
-  assert.deepEqual(view.all('input[type="password"]'), []);
+  assert.deepEqual(view.all({ selector: 'input[type="password"]' }), []);
 });

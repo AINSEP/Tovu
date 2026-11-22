@@ -1,4 +1,4 @@
-import { hasForbiddenRawUrlCharacter } from "@jini-ai/http-kit/verified-origin";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -47,11 +47,11 @@ export interface PeerBaseUrlAccepted {
 }
 
 /**
- * Lower-cases and strips a single trailing dot, matching `features/origin/origin.ts`'s own host
+ * Lower-cases and strips a single trailing dot, matching `Jini packages/http-kit/src/verified-origin/origin.ts`'s own host
  * normalization so "same host" can never mean two different things across this codebase.
  * @complexity O(n) in the host length.
  */
-function normalizeHost(hostname: string): string {
+function normalizeHost({ hostname }: { hostname: string }, _optional = {}): string {
   const lowered = hostname.toLowerCase();
   return lowered.endsWith(".") ? lowered.slice(0, -1) : lowered;
 }
@@ -63,11 +63,11 @@ function normalizeHost(hostname: string): string {
  * @returns The operator-facing refusal reason, or `null` when `url` names a usable peer base URL.
  * @complexity O(n) in the host length.
  */
-function refusalReason(url: URL): string | null {
+function refusalReason({ url }: { url: URL }, _optional = {}): string | null {
   if (url.protocol !== "https:") return "its scheme must be https";
   if (url.username !== "" || url.password !== "") return "it carries a userinfo component";
   if (url.search !== "" || url.hash !== "") return "it carries a query string or fragment";
-  if (normalizeHost(url.hostname) === "") return "its host is empty";
+  if (normalizeHost({ hostname: url.hostname }) === "") return "its host is empty";
   return null;
 }
 
@@ -84,7 +84,7 @@ function refusalReason(url: URL): string | null {
  * @complexity O(n) in the length of `raw` (parser-bound).
  * @example normalizePeerBaseUrl("https://Tovu.example.com/"); // => { baseUrl: "https://tovu.example.com" }
  */
-export function normalizePeerBaseUrl(raw: string): PeerBaseUrlAccepted | PeerBaseUrlRefusal {
+export function normalizePeerBaseUrl({ raw }: { raw: string }, _optional = {}): PeerBaseUrlAccepted | PeerBaseUrlRefusal {
   const trimmed = raw.trim();
   if (trimmed === "") return { error: "baseUrl is required" };
   if (hasForbiddenRawUrlCharacter({ raw: trimmed })) {
@@ -98,10 +98,10 @@ export function normalizePeerBaseUrl(raw: string): PeerBaseUrlAccepted | PeerBas
     return { error: "baseUrl is not a parseable URL" };
   }
 
-  const reason = refusalReason(url);
+  const reason = refusalReason({ url });
   if (reason) return { error: `baseUrl was refused because ${reason}` };
 
-  const host = normalizeHost(url.hostname);
+  const host = normalizeHost({ hostname: url.hostname });
   const authority = url.port === "" ? host : `${host}:${url.port}`;
   let end = url.pathname.length;
   while (end > 0 && url.pathname[end - 1] === "/") end -= 1;
@@ -115,7 +115,7 @@ export function normalizePeerBaseUrl(raw: string): PeerBaseUrlAccepted | PeerBas
  * @param path - An absolute route path beginning with `/` (e.g. `/api/admin/v1/...`).
  * @complexity O(1).
  */
-export function peerUrl(baseUrl: string, path: string): string {
+export function peerUrl({ baseUrl, path }: { baseUrl: string; path: string }, _optional = {}): string {
   return `${baseUrl}${path}`;
 }
 
@@ -130,7 +130,7 @@ export function peerUrl(baseUrl: string, path: string): string {
  * and exists only so a diagnosis path can never itself throw).
  * @complexity O(n) in the length of `baseUrl`.
  */
-export function peerHostname(baseUrl: string): string {
+export function peerHostname({ baseUrl }: { baseUrl: string }, _optional = {}): string {
   try {
     const hostname = new URL(baseUrl).hostname;
     return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;

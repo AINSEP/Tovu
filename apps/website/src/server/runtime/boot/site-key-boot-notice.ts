@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/index";
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/index";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
 /**
  * @file The LOCAL-mode counterpart to `runProductionReadinessGateOrExit()`: a server booted with
@@ -24,7 +25,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * was reading.
  *
  * The desktop shell now detects this in its own process and shows a banner
- * (`apps/desktop/src/site-key-boot-guard.ts`). This function is the same detection for the OTHER
+ * (the desktop site-key boot guard). This function is the same detection for the OTHER
  * launcher — `npm run dev`, and a packaged `tovu serve` — where there is no shell to put a banner
  * in. It is a log line, and a log line is admittedly the weaker surface; its job is to be at BOOT,
  * beside everything else a developer reads while a server starts, rather than hours later beside a
@@ -84,15 +85,15 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   let status: SiteKeyStatus;
   try {
     status = deps.inspect ? deps.inspect() : inspectLocalSiteKey({ mode, env, siteDir: deps.siteDir });
-  } catch {
+  } catch (error) {
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
-    safely(log, ["[site-key] could not determine whether this server has usable site key material."]);
+    safely({ log, lines: [`[site-key] could not determine whether this server has usable site key material. Cause: ${describeErrorForLog({ err: error })}`] });
     return;
   }
   if (status.active) return;
 
-  safely(log, siteKeyBootNoticeLines(status));
+  safely({ log, lines: siteKeyBootNoticeLines(status) });
 }
 
 /** The same ordered sources the composition root's keyrings read — including this site's own
@@ -104,7 +105,7 @@ function inspectLocalSiteKey(input: { mode: "production" | "local"; env: NodeJS.
 }
 
 /** Writes the notice, tolerating a sink that throws — a dead stderr must not take the boot down. */
-function safely(log: (line: string) => void, lines: readonly string[]): void {
+function safely({ log, lines }: { log: (line: string) => void; lines: readonly string[] }, _optional = {}): void {
   try {
     for (const line of lines) log(line);
   } catch {

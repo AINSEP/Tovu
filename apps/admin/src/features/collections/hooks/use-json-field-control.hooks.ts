@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
 
 /** Renders `value` as the textarea's initial buffer. `undefined` (no stored value yet) prints as
  *  `"null"` — the same way a `json`-kind field with nothing stored round-trips through the server. */
-function stringifyFieldValue(value: unknown): string {
+function stringifyFieldValue({ value }: { value: unknown }, _optional = {}): string {
   return JSON.stringify(value === undefined ? null : value, null, 2);
 }
 
@@ -33,7 +33,7 @@ export interface JsonFieldControlState {
   parseError: boolean;
   /** The textarea's `onChange` handler: always updates the buffer, and forwards the parsed value
    *  to `onChange` only when the buffer parses. */
-  handleTextChange: (nextText: string) => void;
+  handleTextChange: (required: { nextText: string }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -50,7 +50,7 @@ export function useJsonFieldControl(props: {
   setFieldValidity: (fieldName: string, valid: boolean) => void;
 }): JsonFieldControlState {
   const { fieldName, setFieldValidity } = props;
-  const [text, setText] = useState(() => stringifyFieldValue(props.value));
+  const [text, setText] = useState(() => stringifyFieldValue({ value: props.value }));
   const [parseError, setParseError] = useState(false);
 
   // A field that unmounts (e.g. the content type's schema changed under an open editor, dropping
@@ -59,17 +59,19 @@ export function useJsonFieldControl(props: {
   // Save on a field that no longer even renders.
   useEffect(() => () => setFieldValidity(fieldName, true), [fieldName, setFieldValidity]);
 
-  function handleTextChange(nextText: string) {
+  function handleTextChange({ nextText }: { nextText: string }, _optional = {}) {
     setText(nextText);
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(nextText);
-      setParseError(false);
-      setFieldValidity(fieldName, true);
-      props.onChange(parsed);
+      parsed = JSON.parse(nextText);
     } catch {
       setParseError(true);
       setFieldValidity(fieldName, false);
+      return;
     }
+    setParseError(false);
+    setFieldValidity(fieldName, true);
+    props.onChange(parsed);
   }
 
   return { text, parseError, handleTextChange };

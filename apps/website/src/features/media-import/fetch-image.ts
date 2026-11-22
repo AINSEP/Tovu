@@ -127,15 +127,15 @@ export interface FetchImageDeps {
  * `https:` twin of the URL and turn that twin back into the real `http:` origin at the send and in
  * the returned source URL, so every other package check (status, bytes, sniffing) still runs.
  */
-function plainHttpTwin(url: string, origins: readonly string[] | undefined): { packageUrl: string; toReal: (value: string) => string } {
-  const identity = { packageUrl: url, toReal: (value: string) => value };
+function plainHttpTwin({ url, origins }: { url: string; origins: readonly string[] | undefined }, _optional = {}): { packageUrl: string; toReal: (required: { value: string }, optional?: Record<string, never>) => string } {
+  const identity = { packageUrl: url, toReal: ({ value }: { value: string }) => value };
   if (!origins?.length || !URL.canParse(url)) return identity;
   const parsed = new URL(url);
   if (parsed.protocol !== "http:" || !origins.includes(parsed.origin)) return identity;
   const twinOrigin = `https://${parsed.host}`;
   return {
     packageUrl: `${twinOrigin}${url.slice(parsed.origin.length)}`,
-    toReal: (value) => (value.startsWith(`${twinOrigin}/`) || value === twinOrigin ? `${parsed.origin}${value.slice(twinOrigin.length)}` : value),
+    toReal: ({ value }) => (value.startsWith(`${twinOrigin}/`) || value === twinOrigin ? `${parsed.origin}${value.slice(twinOrigin.length)}` : value),
   };
 }
 
@@ -152,9 +152,9 @@ function plainHttpTwin(url: string, origins: readonly string[] | undefined): { p
  */
 export function fetchImage(
   { deps, url }: { deps: FetchImageDeps; url: string },
-  { policy = MEDIA_IMPORT_POLICY, accept = "image/*, video/*" }: { policy?: ImageImportPolicy; accept?: string } = {},
+  { policy = MEDIA_IMPORT_POLICY, accept = "image/*, video/*", signal }: { policy?: ImageImportPolicy; accept?: string; signal?: AbortSignal | undefined } = {},
 ): Promise<FetchedImage> {
-  const twin = plainHttpTwin(url, deps.plainHttpTestOrigins);
+  const twin = plainHttpTwin({ url, origins: deps.plainHttpTestOrigins });
   const fetched = fetchPackageImage({
     ...policy,
     url: twin.packageUrl,
@@ -166,7 +166,8 @@ export function fetchImage(
         const { maxResponseBytes: _packageResponseCap, ...hostRequest } = request;
         return deps.httpClient.send({
           ...hostRequest,
-          url: twin.toReal(hostRequest.url),
+          ...(signal ? { signal } : {}),
+          url: twin.toReal({ value: hostRequest.url }),
           headers: { ...request.headers, Accept: accept },
         });
       },
@@ -174,7 +175,7 @@ export function fetchImage(
     outboundGuard: { send: ({ httpClient, request }) => httpClient.send({ request }) },
   }, { timeoutMs: MEDIA_IMPORT_TIMEOUT_MS });
   if (twin.packageUrl === url) return fetched;
-  return fetched.then((image) => ({ ...image, url: new URL(twin.toReal(image.url.href)) }));
+  return fetched.then((image) => ({ ...image, url: new URL(twin.toReal({ value: image.url.href })) }));
 }
 
 /** Applies the same Tovu byte/type policy to guarded local reads. No I/O occurs here.

@@ -7,6 +7,7 @@
  * `toMembersWriteServiceDeps` assembles the bundle shared by four admin routes.
  */
 import type { MembersWriteServiceDeps } from "#src/features/members/index";
+import { buildMembersWriteServiceDeps } from "#src/features/members/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "#src/server/routes/types";
 
@@ -32,18 +33,5 @@ export interface MembersRouteDeps extends RouteDeps, MembersDeps {
  * @overallScore 100
  */
 export function toMembersWriteServiceDeps(deps: MembersRouteDeps): MembersWriteServiceDeps {
-  return {
-    clock: deps.clock,
-    ids: deps.idGen,
-    members: deps.memberRepo,
-    tiers: deps.memberTierRepo,
-    subscriptions: deps.memberSubscriptionRepo,
-    sessions: deps.memberSessionRepo,
-    magicLinks: deps.magicLinkRepo,
-    mailer: deps.mailer,
-    mailStatus: deps.mailStatus,
-    origin: deps.originRegistry,
-    principals: deps.principalRepo,
-    senderIdentity: deps.mailSenderIdentity,
-  };
+  return buildMembersWriteServiceDeps({ deps });
 }

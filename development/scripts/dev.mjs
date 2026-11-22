@@ -38,11 +38,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
-import { omitEnvironmentKeys, waitForHttpOk } from "@jini-ai/platform";
+import { waitForHttpOk } from "@jini-ai/platform";
+import { collectProcessTreePids, omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import { probeLoopbackHttp } from "@jini-ai/platform/net";
 import { createNodeAtomicFilesystem, createNodeDirectoryWorkspace, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
 import { createCommandInvocation } from "@jini-ai/platform/command";
-import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
+import { listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 
 import { devSitesHome, prepareDevSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";
@@ -86,14 +87,14 @@ const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 const DAEMON_PORT = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 
 // Same repo-root cert pair both dev servers gate their own TLS on
-// (`apps/website/src/server/runtime/boot/dev-tls.ts`, `apps/admin/vite.config.ts`). Computed once
+// (`apps/website/src/platform/dev-host/dev-tls.ts`, `apps/admin/vite.config.ts`). Computed once
 // here so every printed URL and every child env var below agrees with what those two gates will
 // independently decide for themselves.
 const CERT_PATH = path.join(REPO_ROOT, ".certs", "localhost.pem");
 const KEY_PATH = path.join(REPO_ROOT, ".certs", "localhost-key.pem");
 
 /**
- * Parses `TOVU_DISABLE_DEV_TLS` the same way `apps/website/src/server/runtime/boot/dev-tls.ts`'s
+ * Parses `TOVU_DISABLE_DEV_TLS` the same way `apps/website/src/platform/dev-host/dev-tls.ts`'s
  * (unexported) `isDevTlsExplicitlyDisabled` and `apps/admin/vite.config.ts`'s
  * `isDevTlsExplicitlyDisabled` do: trim + lowercase, `"1"`/`"true"` only — NOT a bare truthy check on
  * the raw string, which treated ANY non-empty value, including the literal `"false"` or `"0"`, as
@@ -407,53 +408,92 @@ export function siteEnvForRestart({ shellSite, envFileText }) {
  * }} deps
  */
 export function createApiRestarter(deps, _options = {}) {
-  let child = null;
-  let inFlight = null;
-  let decision = null;
-  let currentEnv = {};
+  const state = {
+    child: null,
+    inFlight: null,
+    decision: null,
+    currentEnv: {},
+  };
   /** Persistence failure must not prevent restoring the live API. Never log env/error payloads. */
   function restoreChoice() {
-    try { deps.restoreSite({ env: currentEnv }); }
+    try { deps.restoreSite({ env: state.currentEnv }); }
     catch { deps.log("tovu dev: could not restore TOVU_SITE in .env; keeping the previous site for this session."); }
   }
   /** Drain the entire watcher tree and its ports before either target or rollback boot. */
   async function stopCurrent() {
-    if (child) {
-      deps.markPlanned(child);
-      await deps.stopChild(child);
+    if (state.child) {
+      deps.markPlanned(state.child);
+      await deps.stopChild(state.child);
     }
     if (await deps.waitForPortsFree() === false) throw new Error("API ports are still busy");
   }
   /** A requested boot is provisional until the API listens; a watch wrapper alone is not ready. */
-  async function boot(env) {
-    if (deps.isShuttingDown()) return false;
-    child = deps.startApi(env);
-    deps.markPlanned(child);
-    if (!await deps.waitForReady({ child }) || deps.isShuttingDown()) return false;
-    deps.markRunning(child);
-    currentEnv = { ...env };
-    return true;
-  }
+  const boot = createBoot(deps, state);
   /** Bounded recovery: restore selection, stop the refused watcher, then boot the last site once. */
-  async function recover() {
+  const recover = createRecover({ restoreChoice, deps, stopCurrent, boot, state });
+  const run = createRun({ deps, state, restoreChoice, stopCurrent, boot, recover });
+  return {
+    start(env) {
+      state.currentEnv = { ...env };
+      state.child = deps.startApi(env);
+      return state.child;
+    },
+    current: () => state.child,
+    /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
+    restart(reason, { onDecision = async () => {} } = {}) {
+      if (state.inFlight) {
+        const current = state.inFlight;
+        return state.decision.then(onDecision).then(() => current);
+      }
+      let acknowledge;
+      state.decision = new Promise(resolve => { acknowledge = resolve; });
+      state.inFlight = run({ reason }, { onDecision: async value => {
+        await onDecision(value);
+        acknowledge(value);
+      } }).finally(() => {
+        acknowledge({ accepted: false, reason: "The dev supervisor could not acknowledge the restart." });
+        state.inFlight = null;
+      });
+      return state.inFlight;
+    },
+  };
+}
+
+function createBoot(deps, state) {
+  return async function boot(env) {
+    if (deps.isShuttingDown()) return false;
+    state.child = deps.startApi(env);
+    deps.markPlanned(state.child);
+    if (!await deps.waitForReady({ child: state.child }) || deps.isShuttingDown()) return false;
+    deps.markRunning(state.child);
+    state.currentEnv = { ...env };
+    return true;
+  };
+}
+
+function createRecover({ restoreChoice, deps, stopCurrent, boot, state }) {
+  return async function recover() {
     restoreChoice();
     if (deps.isShuttingDown()) return false;
     deps.log("tovu dev: site switch did not boot; restoring the previous site.");
     try {
       await stopCurrent();
-      if (await boot(currentEnv)) return false;
+      if (await boot(state.currentEnv)) return false;
     } catch { /* Report recovery failure without disclosing environment or child error payloads. */ }
     if (!deps.isShuttingDown()) {
       deps.log("tovu dev: the previous site could not restart; inspect the API startup output.");
       deps.shutdown(1);
     }
     return false;
-  }
-  async function run({ reason }, { onDecision }) {
+  };
+}
+
+function createRun({ deps, state, restoreChoice, stopCurrent, boot, recover }) {
+  return async function run({ reason }, { onDecision }) {
     let nextEnv;
     try {
       nextEnv = deps.envForRestart();
-      const refusal = await deps.checkTarget({ env: nextEnv, currentEnv, child });
+      const refusal = await deps.checkTarget({ env: nextEnv, currentEnv: state.currentEnv, child: state.child });
       if (refusal) {
         deps.log(refusal); restoreChoice();
         await onDecision({ accepted: false, reason: refusal });
@@ -480,31 +520,6 @@ export function createApiRestarter(deps, _options = {}) {
       deps.log("tovu dev: requested API boot failed.");
     }
     return recover();
-  }
-  return {
-    start(env) {
-      currentEnv = { ...env };
-      child = deps.startApi(env);
-      return child;
-    },
-    current: () => child,
-    /** @returns {Promise<boolean>} whether the requested site booted; false includes rollback. */
-    restart(reason, { onDecision = async () => {} } = {}) {
-      if (inFlight) {
-        const current = inFlight;
-        return decision.then(onDecision).then(() => current);
-      }
-      let acknowledge;
-      decision = new Promise(resolve => { acknowledge = resolve; });
-      inFlight = run({ reason }, { onDecision: async value => {
-        await onDecision(value);
-        acknowledge(value);
-      } }).finally(() => {
-        acknowledge({ accepted: false, reason: "The dev supervisor could not acknowledge the restart." });
-        inFlight = null;
-      });
-      return inFlight;
-    },
   };
 }
 
@@ -843,7 +858,7 @@ async function prepareApiLaunch({ selectedSite, scheme, lite, extraCaCerts }) {
     apiEnv.TOVU_ADMIN_DIST = await prepareLiteAdmin({ repoRoot: REPO_ROOT, env: process.env });
     apiEnv.TOVU_ADMIN_DEV_PROXY_URL = "";
   }
-  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath });
+  const runtime = selectNodeRuntime({ searchFrom: [REPO_ROOT, path.join(REPO_ROOT, "apps/desktop")], nodePath: process.execPath, env: process.env });
   if (runtime.fallback) console.log("tovu dev: Electron unavailable; using stock Node for the API.");
   Object.assign(apiEnv, runtime.env);
   apiEnv.TOVU_DEV_WARM_SITES = "1";
@@ -899,7 +914,44 @@ async function main() {
   }
   apiEnv[DEV_RESTART_REQUEST_FILE_ENV] = restartRequestFile;
   apiEnv.TOVU_DEV_SITE_PINNED = SHELL_TOVU_SITE === undefined ? "0" : "1";
-  const apiRestarter = createApiRestarter({
+  const apiRestarter = buildApiRestarter({ runtime, selectedSite, scheme, certificate, apiEnv });
+  apiRestarter.start(apiEnv);
+  watchRestartRequests(restartRequestFile, (request) => {
+    void handleDevRestartRequest({ request, requestFile: restartRequestFile, restarter: apiRestarter })
+      .catch(() => console.warn("tovu dev: could not acknowledge the restart request; inspect the supervisor output."));
+  });
+
+  /**
+   * Vite starts only once the API is accepting connections.
+   *
+   * Both used to start together, which meant Vite was serving ~9 seconds before anything could answer
+   * the requests it proxies. A browser tab already open on :5173 would reconnect the moment Vite came
+   * up and immediately fire `/api/agents`, `/api/admin/v1/.../settings/events` and the frontend-session
+   * SSE stream — each answered with a multi-line `AggregateError [ECONNREFUSED]` stack. Pages of
+   * alarming output for a stack that was simply still booting, and indistinguishable at a glance from
+   * the real "the API died" failure this script exists to make obvious.
+   *
+   * Ordering them removes the window rather than muting the symptom. The cost is that :5173 is not
+   * live for the first few seconds — which is honest, because until the API is up the admin cannot do
+   * anything anyway.
+   *
+   * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
+   * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
+   * seconds before the daemon binds :4319. That one is handled where it belongs, in
+   * `server/runtime/composition/modules/assistant.ts`'s proxy — see its retry note.
+   */
+  await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate, lite });
+
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(sig, () => {
+      console.log("\ntovu dev: stopping…");
+      shutdown(0);
+    });
+  }
+}
+
+function buildApiRestarter({ runtime, selectedSite, scheme, certificate, apiEnv }) {
+  return createApiRestarter({
     startApi: (env) => start("api server", runtime.command, [createRequire(import.meta.url).resolve("tsx/cli"),
       ...apiWatchArgs({ sitesHome: process.env.TOVU_SITES_HOME ?? path.dirname(selectedSite.dir) }).slice(1)], env),
     stopChild: (child) => stopChildGroup({ child }),
@@ -927,39 +979,6 @@ async function main() {
     isShuttingDown: () => shuttingDown,
     log: (message) => console.log(message),
   });
-  apiRestarter.start(apiEnv);
-  watchRestartRequests(restartRequestFile, (request) => {
-    void handleDevRestartRequest({ request, requestFile: restartRequestFile, restarter: apiRestarter })
-      .catch(() => console.warn("tovu dev: could not acknowledge the restart request; inspect the supervisor output."));
-  });
-
-  /**
-   * Vite starts only once the API is accepting connections.
-   *
-   * Both used to start together, which meant Vite was serving ~9 seconds before anything could answer
-   * the requests it proxies. A browser tab already open on :5173 would reconnect the moment Vite came
-   * up and immediately fire `/api/agents`, `/api/admin/v1/.../settings/events` and the frontend-session
-   * SSE stream — each answered with a multi-line `AggregateError [ECONNREFUSED]` stack. Pages of
-   * alarming output for a stack that was simply still booting, and indistinguishable at a glance from
-   * the real "the API died" failure this script exists to make obvious.
-   *
-   * Ordering them removes the window rather than muting the symptom. The cost is that :5173 is not
-   * live for the first few seconds — which is honest, because until the API is up the admin cannot do
-   * anything anyway.
-   *
-   * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
-   * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
-   * seconds before the daemon binds :4319. That one is handled where it belongs, in
-   * `server/modules/assistant.ts`'s proxy — see its retry note.
-   */
-  await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate, lite });
-
-  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.on(sig, () => {
-      console.log("\ntovu dev: stopping…");
-      shutdown(0);
-    });
-  }
 }
 
 // Only run the real boot sequence when this file is executed directly (`node dev.mjs` / `npm run

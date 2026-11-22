@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act } from "@testing-library/react";
+import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -43,28 +44,28 @@ afterEach(() => {
 
 describe("surfaceIdOf", () => {
   it("reads the surfaceId out of each of the four event shapes A2uiSurfaceCard itself tracks", () => {
-    expect(surfaceIdOf({ createSurface: { surfaceId: "s1" } })).toBe("s1");
-    expect(surfaceIdOf({ updateComponents: { surfaceId: "s2" } })).toBe("s2");
-    expect(surfaceIdOf({ updateDataModel: { surfaceId: "s3" } })).toBe("s3");
-    expect(surfaceIdOf({ deleteSurface: { surfaceId: "s4" } })).toBe("s4");
+    expect(surfaceIdOf({ message: { createSurface: { surfaceId: "s1" } } })).toBe("s1");
+    expect(surfaceIdOf({ message: { updateComponents: { surfaceId: "s2" } } })).toBe("s2");
+    expect(surfaceIdOf({ message: { updateDataModel: { surfaceId: "s3" } } })).toBe("s3");
+    expect(surfaceIdOf({ message: { deleteSurface: { surfaceId: "s4" } } })).toBe("s4");
   });
 
   it("returns undefined for events with none of the four keys, or a non-string/missing surfaceId", () => {
-    expect(surfaceIdOf({ someOtherKey: { surfaceId: "s1" } })).toBeUndefined();
-    expect(surfaceIdOf({ createSurface: {} })).toBeUndefined();
-    expect(surfaceIdOf({ createSurface: { surfaceId: 42 } })).toBeUndefined();
-    expect(surfaceIdOf({ createSurface: null })).toBeUndefined();
+    expect(surfaceIdOf({ message: { someOtherKey: { surfaceId: "s1" } } })).toBeUndefined();
+    expect(surfaceIdOf({ message: { createSurface: {} } })).toBeUndefined();
+    expect(surfaceIdOf({ message: { createSurface: { surfaceId: 42 } } })).toBeUndefined();
+    expect(surfaceIdOf({ message: { createSurface: null } })).toBeUndefined();
   });
 
   it("returns undefined for non-object or null input, rather than throwing", () => {
-    expect(surfaceIdOf(null)).toBeUndefined();
-    expect(surfaceIdOf(undefined)).toBeUndefined();
-    expect(surfaceIdOf("a string event")).toBeUndefined();
-    expect(surfaceIdOf(42)).toBeUndefined();
+    expect(surfaceIdOf({ message: null })).toBeUndefined();
+    expect(surfaceIdOf({ message: undefined })).toBeUndefined();
+    expect(surfaceIdOf({ message: "a string event" })).toBeUndefined();
+    expect(surfaceIdOf({ message: 42 })).toBeUndefined();
   });
 
   it("skips a truthy non-object body and reads the next recognized surface", () => {
-    expect(surfaceIdOf({ createSurface: "invalid body", updateComponents: { surfaceId: "updated" } })).toBe("updated");
+    expect(surfaceIdOf({ message: { createSurface: "invalid body", updateComponents: { surfaceId: "updated" } } })).toBe("updated");
   });
 });
 
@@ -94,7 +95,7 @@ describe("latestSurfaceIdIn", () => {
 });
 
 describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
-  const baseProps = { name: "a2ui", events: [], runStreaming: false, runSucceeded: true, runId: "run-1" };
+  const baseProps = { clock: { nowMs: () => Date.now() }, name: "a2ui", events: [], runStreaming: false, runSucceeded: true, runId: "run-1" };
 
   it("relays a non-error message straight through to the host's onAgentAction without touching hasError", () => {
     const onAgentAction = vi.fn();
@@ -138,7 +139,7 @@ describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
 // surfaceId), and dismissing is per drawn surface. A single sticky boolean hid every later surface
 // of the same turn once the first was dismissed — the same mistake `hasError` was already fixed for.
 describe("useRoutedA2uiSurfaceCard dismiss", () => {
-  const base = { name: "a2ui", runStreaming: false, runSucceeded: true, runId: "run-1" };
+  const base = { clock: { nowMs: () => Date.now() }, name: "a2ui", runStreaming: false, runSucceeded: true, runId: "run-1" };
   const first = [{ createSurface: { surfaceId: "s1" } }];
 
   it("dismissing one surface does not hide a NEW surface the same turn opens afterwards", () => {
@@ -146,7 +147,7 @@ describe("useRoutedA2uiSurfaceCard dismiss", () => {
       initialProps: { ...base, events: first as unknown[] },
     });
 
-    act(() => result.current.setDismissed(true));
+    act(() => result.current.setDismissed({ value: true }));
     expect(result.current.dismissed).toBe(true);
 
     rerender({ ...base, events: [...first, { createSurface: { surfaceId: "s2" } }] });
@@ -158,7 +159,7 @@ describe("useRoutedA2uiSurfaceCard dismiss", () => {
       initialProps: { ...base, events: first as unknown[] },
     });
 
-    act(() => result.current.setDismissed(true));
+    act(() => result.current.setDismissed({ value: true }));
     rerender({ ...base, events: [...first, { updateComponents: { surfaceId: "s1" } }] });
 
     expect(result.current.dismissed).toBe(true);
@@ -166,10 +167,10 @@ describe("useRoutedA2uiSurfaceCard dismiss", () => {
 
   it("clears a dismissal so the current surface can be shown again", () => {
     const { result } = renderHook(() => useRoutedA2uiSurfaceCard({ ...base, events: first }));
-    act(() => result.current.setDismissed(true));
+    act(() => result.current.setDismissed({ value: true }));
     expect(result.current.dismissed).toBe(true);
 
-    act(() => result.current.setDismissed(false));
+    act(() => result.current.setDismissed({ value: false }));
 
     expect(result.current.dismissed).toBe(false);
   });

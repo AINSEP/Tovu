@@ -32,80 +32,20 @@ test.describe("Bug pin: theme-explore-file-switch", () => {
 
 // STALE PIN UPDATED: 85e29beac renamed basic to tovu-theme; Explore routes require the exact id.
 const READ_DELAY_MS = 400;
+const registerHeldFileSwitchTest = createThemeFileSwitchHeldFileSwitchTest({ READ_DELAY_MS });
+const verifyThemeFileNavigation = createThemeFileSwitchVerifyThemeFileNavigation({ READ_DELAY_MS });
+const openRenameStylesheet = createThemeFileSwitchOpenRenameStylesheet({ READ_DELAY_MS });
+const registerNavigationAndRenameTests = createThemeFileSwitchNavigationAndRenameTests({ verifyThemeFileNavigation, openRenameStylesheet });
 
 test.describe("theme Explore — switching files in the HTML view never blanks the editor (2026-09-14 regression)", () => {
-  test("the editor shows real, editable text on every frame of a file switch", async ({ page }) => {
-    let heldRead: { path: string; reached: boolean; wait: Promise<void> } | undefined;
-    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
-      const pending = heldRead;
-      if (route.request().method() === "GET" && pending?.path === new URL(route.request().url()).searchParams.get("path")) {
-        pending.reached = true;
-        await pending.wait;
-      }
-      await route.continue();
-    });
-    await loginAsAdmin(page);
-    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
-    const rows = page.locator(".theme-explore-file-row button[title]");
-    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const editor = page.locator(".page-html-source");
-    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
-      timeout: 10_000,
-    });
+  registerHeldFileSwitchTest();
+  registerNavigationAndRenameTests();
+});
+});
 
-    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
-    const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
-    expect(pages).toHaveLength(3);
+function createThemeFileSwitchNavigationAndRenameTests({ verifyThemeFileNavigation, openRenameStylesheet }: { verifyThemeFileNavigation: ReturnType<typeof createThemeFileSwitchVerifyThemeFileNavigation>; openRenameStylesheet: ReturnType<typeof createThemeFileSwitchOpenRenameStylesheet> }) {
 
-    const contents = new Map<string, string>();
-    for (const path of pages) {
-      const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/file?path=${encodeURIComponent(path)}` });
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.path).toBe(path);
-      expect(body.content.length).toBeGreaterThan(0);
-      contents.set(path, body.content);
-    }
-    expect(new Set(contents.values()).size).toBe(3);
-
-    await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
-      store.__switchSamples = [];
-      const sample = () => {
-        const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
-        requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    });
-
-    for (const target of [pages[1]!, pages[2]!, pages[0]!]) {
-      const before = await editor.inputValue();
-      const row = page.locator(`.theme-explore-file-row button[title="${target}"]`);
-      let release!: () => void;
-      heldRead = { path: target, reached: false, wait: new Promise<void>((resolve) => { release = resolve; }) };
-      try {
-        await row.click();
-        await expect.poll(() => heldRead?.reached).toBe(true);
-        // Assert the highlight and held buffer before the response can arrive.
-        await expect(row).toHaveAttribute("aria-current", "true");
-        await expect(editor).toHaveValue(before);
-        await page.waitForTimeout(READ_DELAY_MS); // keep the sampled paint window open
-      } finally {
-        heldRead = undefined;
-        release();
-      }
-      await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
-      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
-    }
-
-    const samples = await page.evaluate(
-      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
-    );
-    expect(samples.length).toBeGreaterThan(20);
-    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
-  });
+return function registerNavigationAndRenameTests() {
 
   /**
    * T91: the click-hold fix above only covered a click. A `?file=`/`?page=` change on the ALREADY
@@ -115,66 +55,7 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
    * click.
    */
   test("E1: a ?file= navigation on the open screen, and Back, show real editable text on every frame", async ({ page }) => {
-    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
-      if (route.request().method() === "GET") await new Promise((resolve) => setTimeout(resolve, READ_DELAY_MS));
-      await route.continue();
-    });
-    await loginAsAdmin(page);
-    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
-    const rows = page.locator(".theme-explore-file-row button[title]");
-    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const editor = page.locator(".page-html-source");
-    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
-      timeout: 10_000,
-    });
-
-    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
-    const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
-    expect(pages).toHaveLength(3);
-
-    const contents = new Map<string, string>();
-    for (const path of pages) {
-      const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/file?path=${encodeURIComponent(path)}` });
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.path).toBe(path);
-      expect(body.content.length).toBeGreaterThan(0);
-      contents.set(path, body.content);
-    }
-    expect(new Set(contents.values()).size).toBe(3);
-
-    await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
-      store.__switchSamples = [];
-      const sample = () => {
-        const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
-        requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    });
-
-    for (const target of [pages[1]!, pages[2]!]) {
-      const before = await editor.inputValue();
-      await page.evaluate((href) => {
-        history.pushState(null, "", href);
-        window.dispatchEvent(new PopStateEvent("popstate"));
-      }, `/admin/themes/explore?theme=tovu-theme&file=${encodeURIComponent(target)}`);
-      await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
-      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
-    }
-
-    const beforeBack = await editor.inputValue();
-    await page.goBack();
-    await expect(editor).not.toHaveValue(beforeBack, { timeout: 10_000 });
-    await expect(editor).toHaveValue(contents.get(pages[1]!)!, { timeout: 10_000 });
-
-    const samples = await page.evaluate(
-      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
-    );
-    expect(samples.length).toBeGreaterThan(20);
-    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
+    await verifyThemeFileNavigation({ page });
   });
 
   /**
@@ -184,27 +65,7 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
    * marker with the rename instead of re-reading. Fully intercepted — nothing is renamed on disk.
    */
   test("E2: renaming the open file shows real editable text on every frame, with no re-read", async ({ page }) => {
-    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
-      if (route.request().method() === "GET") await new Promise((resolve) => setTimeout(resolve, READ_DELAY_MS));
-      await route.continue();
-    });
-    await loginAsAdmin(page);
-    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
-    const rows = page.locator(".theme-explore-file-row button[title]");
-    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const editor = page.locator(".page-html-source");
-    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
-      timeout: 10_000,
-    });
-
-    // The file picker shows one group at a time (2026-10-11), so open Styles to reach a stylesheet.
-    await page.getByRole("tab", { name: /^Styles/ }).click();
-    await expect(page.getByRole("tab", { name: /^Styles/ })).toHaveAttribute("aria-selected", "true");
-    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
-    const css = titles.find((title) => title.endsWith(".css"));
-    expect(css).toBeTruthy();
-    const cssPath = css!;
+    const { editor, cssPath } = await openRenameStylesheet(page);
 
     let renamedFrom: string | null = null;
     let renamedTo: string | null = null;
@@ -238,6 +99,17 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     page.on("request", (request) => {
       if (request.url().includes("/file?path=")) fileReads.push(request.url());
     });
+    const { before } = await renameStylesheetWithFrameSampling(page, editor, cssPath);
+
+    const samples = await page.evaluate(
+      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
+    );
+    await verifyRenamedStylesheetBuffer(page, { samples, editor, before, fileReads, renamedTo });
+  });
+}
+}
+
+async function renameStylesheetWithFrameSampling(page: Page, editor: ReturnType<Page["locator"]>, cssPath: string) {
 
     const openedFromValue = await editor.inputValue();
     await page.locator(`.theme-explore-file-row button[title="${cssPath}"]`).click();
@@ -247,16 +119,7 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
     await expect(editor).not.toHaveValue(openedFromValue, { timeout: 10_000 });
 
     const before = await editor.inputValue();
-    await page.evaluate(() => {
-      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
-      store.__switchSamples = [];
-      const sample = () => {
-        const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
-        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
-        requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    });
+    await startSwitchFrameSampling(page);
 
     await page.locator(`.theme-explore-file-row button[title="${cssPath}"]`).dblclick();
     await page.locator(".theme-explore-rename-input").fill("t91-renamed.css");
@@ -267,18 +130,188 @@ test.describe("theme Explore — switching files in the HTML view never blanks t
       "true",
       { timeout: 10_000 }
     );
+    return { before };
+  }
+
+function createThemeFileSwitchHeldFileSwitchTest({ READ_DELAY_MS }: { READ_DELAY_MS: number }) {
+
+return function registerHeldFileSwitchTest() {
+  test("the editor shows real, editable text on every frame of a file switch", async ({ page }) => {
+    let heldRead: { path: string; reached: boolean; wait: Promise<void> } | undefined;
+    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
+      const pending = heldRead;
+      if (route.request().method() === "GET" && pending?.path === new URL(route.request().url()).searchParams.get("path")) {
+        pending.reached = true;
+        await pending.wait;
+      }
+      await route.continue();
+    });
+    await loginAsAdmin(page);
+    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
+    const rows = page.locator(".theme-explore-file-row button[title]");
+    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const editor = page.locator(".page-html-source");
+    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
+      timeout: 10_000,
+    });
+    const { pages, contents } = await readSwitchPageContents(page, rows);
+    await startSwitchFrameSampling(page);
+
+    for (const target of [pages[1]!, pages[2]!, pages[0]!]) {
+      const before = await editor.inputValue();
+      const row = page.locator(`.theme-explore-file-row button[title="${target}"]`);
+      let release!: () => void;
+      heldRead = { path: target, reached: false, wait: new Promise<void>((resolve) => { release = resolve; }) };
+      try {
+        await row.click();
+        await expect.poll(() => heldRead?.reached).toBe(true);
+        // Assert the highlight and held buffer before the response can arrive.
+        await expect(row).toHaveAttribute("aria-current", "true");
+        await expect(editor).toHaveValue(before);
+        await page.waitForTimeout(READ_DELAY_MS); // keep the sampled paint window open
+      } finally {
+        heldRead = undefined;
+        release();
+      }
+      await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
+      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
+    }
 
     const samples = await page.evaluate(
       () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
     );
+    expect(samples.length).toBeGreaterThan(20);
+    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
+  });
+}
+}
+
+function createThemeFileSwitchVerifyThemeFileNavigation({ READ_DELAY_MS }: { READ_DELAY_MS: number }) {
+
+return async function verifyThemeFileNavigation({ page }: { page: Parameters<Parameters<typeof test>[2]>[0]["page"] }) {
+    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
+      if (route.request().method() === "GET") await new Promise((resolve) => setTimeout(resolve, READ_DELAY_MS));
+      await route.continue();
+    });
+    await loginAsAdmin(page);
+    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
+    const rows = page.locator(".theme-explore-file-row button[title]");
+    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const editor = page.locator(".page-html-source");
+    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
+      timeout: 10_000,
+    });
+
+    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
+    const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
+    expect(pages).toHaveLength(3);
+
+    const contents = new Map<string, string>();
+    for (const path of pages) {
+      const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/file?path=${encodeURIComponent(path)}` });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.path).toBe(path);
+      expect(body.content.length).toBeGreaterThan(0);
+      contents.set(path, body.content);
+    }
+    expect(new Set(contents.values()).size).toBe(3);
+
+    await startSwitchFrameSampling(page);
+
+    for (const target of [pages[1]!, pages[2]!]) {
+      const before = await editor.inputValue();
+      await page.evaluate((href) => {
+        history.pushState(null, "", href);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }, `/admin/themes/explore?theme=tovu-theme&file=${encodeURIComponent(target)}`);
+      await expect(editor).not.toHaveValue(before, { timeout: 10_000 });
+      await expect(editor).toHaveValue(contents.get(target)!, { timeout: 10_000 });
+    }
+
+    const beforeBack = await editor.inputValue();
+    await page.goBack();
+    await expect(editor).not.toHaveValue(beforeBack, { timeout: 10_000 });
+    await expect(editor).toHaveValue(contents.get(pages[1]!)!, { timeout: 10_000 });
+
+    const samples = await page.evaluate(
+      () => (window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> }).__switchSamples
+    );
+    expect(samples.length).toBeGreaterThan(20);
+    expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
+  }
+}
+
+async function startSwitchFrameSampling(page: Page) {
+
+    await page.evaluate(() => {
+      const store = window as unknown as { __switchSamples: Array<{ present: boolean; len: number; readOnly: boolean }> };
+      store.__switchSamples = [];
+      const sample = () => {
+        const textarea = document.querySelector<HTMLTextAreaElement>(".page-html-source");
+        store.__switchSamples.push({ present: textarea !== null, len: textarea?.value.length ?? 0, readOnly: textarea?.readOnly ?? true });
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+  }
+
+async function readSwitchPageContents(page: Page, rows: ReturnType<Page["locator"]>) {
+
+    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
+    const pages = titles.filter((title) => title.endsWith(".html")).slice(0, 3);
+    expect(pages).toHaveLength(3);
+
+    const contents = new Map<string, string>();
+    for (const path of pages) {
+      const response = await pinSessionRequest({ page, url: `/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/file?path=${encodeURIComponent(path)}` });
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.path).toBe(path);
+      expect(body.content.length).toBeGreaterThan(0);
+      contents.set(path, body.content);
+    }
+    expect(new Set(contents.values()).size).toBe(3);
+    return { pages, contents };
+  }
+
+async function verifyRenamedStylesheetBuffer(page: Page, { samples, editor, before, fileReads, renamedTo }: { samples: Array<{ present: boolean; len: number; readOnly: boolean }>; editor: ReturnType<Page["locator"]>; before: string; fileReads: string[]; renamedTo: string | null }) {
     expect(samples.filter((s) => !s.present || s.len === 0 || s.readOnly)).toEqual([]);
     expect(await editor.inputValue()).toBe(before);
     expect(fileReads.some((url) => new URL(url).searchParams.get("path") === renamedTo)).toBe(false);
 
     await page.unrouteAll();
-  });
-});
-});
+  }
+
+function createThemeFileSwitchOpenRenameStylesheet({ READ_DELAY_MS }: { READ_DELAY_MS: number }) {
+
+return async function openRenameStylesheet(page: Page) {
+    await page.route(/\/themes\/[^/]+\/file\?path=/, async (route) => {
+      if (route.request().method() === "GET") await new Promise((resolve) => setTimeout(resolve, READ_DELAY_MS));
+      await route.continue();
+    });
+    await loginAsAdmin(page);
+    await page.goto("/admin/themes/explore?theme=tovu-theme", { waitUntil: "domcontentloaded" });
+    const rows = page.locator(".theme-explore-file-row button[title]");
+    await rows.first().waitFor({ state: "visible", timeout: 15_000 });
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const editor = page.locator(".page-html-source");
+    await expect(page.getByRole("textbox", { name: "Theme file source", exact: true })).not.toHaveValue("", {
+      timeout: 10_000,
+    });
+
+    // The file picker shows one group at a time (2026-10-11), so open Styles to reach a stylesheet.
+    await page.getByRole("tab", { name: /^Styles/ }).click();
+    await expect(page.getByRole("tab", { name: /^Styles/ })).toHaveAttribute("aria-selected", "true");
+    const titles = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("title") ?? ""));
+    const css = titles.find((title) => title.endsWith(".css"));
+    expect(css).toBeTruthy();
+    const cssPath = css!;
+    return { editor, cssPath };
+  }
+}
 
 // Migrated from theme-explore-narrow-sidebar.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: theme-explore-narrow-sidebar", () => {
@@ -406,65 +439,7 @@ test.describe("Bug pin: theme-liquid-preview", () => {
  * render instead of that notice.
  */
 test.describe("theme Explore — .liquid template preview", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
-  test("clicking entry.liquid shows its source instead of downloading it", async ({ page }) => {
-    // `storefront` (templated tier) is discovered at boot like any other theme on disk — no
-    // marketplace download needed — so Explore is reachable directly by URL, the same
-    // `?theme=` query-string shape `Themes.tsx`'s own "Explore" button navigates to.
-    // v2's first page is entry.liquid. Start on home so the tested click makes a real selection.
-    const homeSource = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return url.pathname.endsWith("/themes/storefront/file") && url.searchParams.get("path") === "render/pages/home.liquid";
-    });
-    await page.goto("/admin/themes/explore?theme=storefront&file=render%2Fpages%2Fhome.liquid");
-    expect((await homeSource).ok()).toBe(true);
-    await page.locator(".theme-explore").waitFor({ state: "visible", timeout: 15_000 });
-
-    const fileRow = page.getByRole("button", { name: "entry.liquid", exact: true });
-    await fileRow.waitFor({ state: "visible", timeout: 10_000 });
-
-    // Set up the listener BEFORE the click that used to trigger it — a real browser download
-    // (Chromium fires this even when the navigation that caused it happened inside an <iframe>,
-    // which is exactly the pre-fix `ThemeExplorePreview` shape).
-    // assertion target: the listener covers selection and the later source assertions.
-    const downloads: string[] = [];
-    page.on("download", (download) => downloads.push(download.suggestedFilename()));
-    const sourceResponse = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return url.pathname.endsWith("/themes/storefront/file") && url.searchParams.get("path")?.endsWith("/entry.liquid") === true;
-    });
-
-    // Explore opens on the "Preview" tab by default — this is the exact click the owner made
-    // ("clicking a .liquid file downloads it"), no tab-switching involved.
-    await fileRow.click();
-
-    const response = await sourceResponse;
-    expect(response.ok()).toBe(true);
-    const selectedSource = await response.json();
-    expect(selectedSource.path).toMatch(/\/entry\.liquid$/);
-
-    // Switch to the HTML tab to confirm the fix's actual deliverable: readable source, not just
-    // "no crash". `.page-html-source` only renders once `readable` is true (binary files render a
-    // "no editable source" notice instead — see `ThemeExploreHtmlPane`).
-    await page.getByRole("tab", { name: "HTML" }).click();
-    const sourceArea = page.locator(".page-html-source");
-    await expect(sourceArea).toBeVisible({ timeout: 5_000 });
-
-    // Real Liquid source, not an empty/placeholder textarea — `render_block` is a real tag this
-    // theme's own `entry.liquid` uses (see `content/themes/templated/storefront/templates/entry.liquid`).
-    await expect(sourceArea).toHaveValue(/render_block/);
-    await expect(sourceArea).toHaveValue(selectedSource.content);
-    await expect(sourceArea).toHaveValue(/Storefront — entry/);
-    expect(downloads).toEqual([]);
-
-    // Read-only, matching the server's write gate (`isThemeFileWritable` — `.liquid` is not in
-    // `TEXT_READABLE_EXTENSIONS`, so PUT still refuses it): this fix adds preview, not editing.
-    await expect(sourceArea).toHaveAttribute("readonly", "");
-
-  });
+  registerLiquidSourceTest();
 
   test("the Preview tab renders entry.liquid through the real theme pipeline, styled", async ({ page }) => {
     await page.goto("/admin/themes/explore?theme=fashion-modern");
@@ -528,142 +503,131 @@ test.describe("theme Explore — .liquid template preview", () => {
 });
 });
 
+function registerLiquidSourceTest() {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
+  test("clicking entry.liquid shows its source instead of downloading it", async ({ page }) => {
+    // `storefront` (templated tier) is discovered at boot like any other theme on disk — no
+    // marketplace download needed — so Explore is reachable directly by URL, the same
+    // `?theme=` query-string shape `Themes.tsx`'s own "Explore" button navigates to.
+    // v2's first page is entry.liquid. Start on home so the tested click makes a real selection.
+    const homeSource = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/themes/storefront/file") && url.searchParams.get("path") === "render/pages/home.liquid";
+    });
+    await page.goto("/admin/themes/explore?theme=storefront&file=render%2Fpages%2Fhome.liquid");
+    expect((await homeSource).ok()).toBe(true);
+    await page.locator(".theme-explore").waitFor({ state: "visible", timeout: 15_000 });
+
+    const fileRow = page.getByRole("button", { name: "entry.liquid", exact: true });
+    await fileRow.waitFor({ state: "visible", timeout: 10_000 });
+
+    // Set up the listener BEFORE the click that used to trigger it — a real browser download
+    // (Chromium fires this even when the navigation that caused it happened inside an <iframe>,
+    // which is exactly the pre-fix `ThemeExplorePreview` shape).
+    // assertion target: the listener covers selection and the later source assertions.
+    const downloads: string[] = [];
+    page.on("download", (download) => downloads.push(download.suggestedFilename()));
+    const sourceResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/themes/storefront/file") && url.searchParams.get("path")?.endsWith("/entry.liquid") === true;
+    });
+
+    // Explore opens on the "Preview" tab by default — this is the exact click the owner made
+    // ("clicking a .liquid file downloads it"), no tab-switching involved.
+    await fileRow.click();
+
+    const response = await sourceResponse;
+    expect(response.ok()).toBe(true);
+    const selectedSource = await response.json();
+    expect(selectedSource.path).toMatch(/\/entry\.liquid$/);
+
+    // Switch to the HTML tab to confirm the fix's actual deliverable: readable source, not just
+    // "no crash". `.page-html-source` only renders once `readable` is true (binary files render a
+    // "no editable source" notice instead — see `ThemeExploreHtmlPane`).
+    await page.getByRole("tab", { name: "HTML" }).click();
+    const sourceArea = page.locator(".page-html-source");
+    await expect(sourceArea).toBeVisible({ timeout: 5_000 });
+
+    // Real Liquid source, not an empty/placeholder textarea — `render_block` is a real tag this
+    // theme's own `entry.liquid` uses (see `content/themes/templated/storefront/templates/entry.liquid`).
+    await expect(sourceArea).toHaveValue(/render_block/);
+    await expect(sourceArea).toHaveValue(selectedSource.content);
+    await expect(sourceArea).toHaveValue(/Storefront — entry/);
+    expect(downloads).toEqual([]);
+
+    // Read-only, matching the server's write gate (`isThemeFileWritable` — `.liquid` is not in
+    // `TEXT_READABLE_EXTENSIONS`, so PUT still refuses it): this fix adds preview, not editing.
+    await expect(sourceArea).toHaveAttribute("readonly", "");
+
+  });
+}
+
 // Migrated from theme-visual.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: theme-visual", () => {
-/**
- * @file Visual regression testing (VRT) — todos.md AW-2.
- *
- * Renders the live `tovu-official` theme (via the `webServer` in `playwright.config.ts`, a fresh
- * `TOVU_DB=memory` boot per run) at the viewports/routes that matter and diffs against the
- * checked-in baselines under `e2e/theme-visual.spec.ts-snapshots/`.
- *
- * This suite exists to eventually guard two known, currently-unfixed bugs (see todos.md AW-1 and
- * AW-4) — but it does NOT baseline either bug's broken state:
- *   - AW-1 (mobile nav drawer clipping): the mobile screenshot below only covers the drawer
- *     CLOSED state. The open-drawer state is where the clipping bug lives; baselining it now
- *     would freeze the bug into the "approved" snapshot. Add an open-drawer screenshot once AW-1
- *     is fixed.
- *   - AW-4 (wide-screen entry/content-page layout): out of scope for this suite's first cut
- *     (todos.md's AW-2 plan only calls for a home + post-page baseline). The home-wide screenshot
- *     here covers the home page's full-bleed band rhythm at 2560px, which is already correct —
- *     it does not cover `/about`-style entry pages, where the AW-4 bug actually lives.
- */
-
-// Anti-flake: reuses the theme's own baked-in
-// `@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }`
-// (see src/server/http/site/render.ts BASE_STYLE) instead of injecting ad hoc CSS.
-async function prepareForScreenshot(page: Page): Promise<void> {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-}
-
-// The shipped theme vendors both font families. Require the actual faces, including load success,
-// so a missing local asset cannot silently produce fallback-font screenshots.
-async function waitForFonts(page: Page): Promise<void> {
-  const fonts = await page.evaluate(async () => {
-    const families = ["Geist", "Geist Mono"];
-    return Promise.all(families.map(async (family) => {
-      const faces = await document.fonts.load(`400 16px "${family}"`);
-      return { family, count: faces.length, loaded: faces.every((face) => face.status === "loaded") };
-    }));
-  });
-  for (const font of fonts) {
-    expect(font.count, font.family).toBeGreaterThan(0);
-    expect(font.loaded, font.family).toBe(true);
-  }
-}
-
-async function expectKeyNavigation(page: Page, mobile = false): Promise<void> {
-  const header = page.locator(".site-header");
-  await expect(header).toBeVisible();
-  for (const name of ["Pricing", "Docs", "Blog", "About"]) {
-    // 948706418 hides desktop navigation while the modal drawer is closed on mobile.
-    // Count its links structurally; AW-1 below opens the drawer and checks reachability.
-    const link = header.locator(".main-nav").getByRole("link", { name, exact: true, includeHidden: mobile });
-    await expect(link).toHaveCount(1);
-    if (!mobile) {
-      await expect(link).toBeVisible();
-      const box = await link.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-    }
-  }
-  // STALE PIN UPDATED: 415da8fc4 deliberately renamed the header CTA.
-  // The current theme calls both CTAs "Download"; keep this scoped to the header action.
-  await expect(header.locator(".nav-actions").getByRole("link", { name: "Download", exact: true })).toBeVisible();
-}
-
-test.describe("theme visual regression (AW-2)", () => {
-  test("download installation command copy writes the displayed command to the clipboard", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.goto("/");
-    // Theme marketing pages are off by default; publish this fixture through the owner API.
-    const published = await pinSessionRequest({ page,
-      url: "/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/page/publish",
-      method: "POST", data: { page: "download", published: true },
-    });
-    expect(published.status).toBe(200);
-    expect(await published.json()).toMatchObject({ page: "download", published: true });
-    await page.goto("/download");
-    const command = "curl -fsSL basic.sh/install | sh";
-    await expect(page.locator(".install-cmd code")).toHaveText(command);
-    await page.evaluate(() => navigator.clipboard.writeText("previous clipboard value"));
-    await page.locator(".install-cmd button").click();
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(command);
-  });
-  test("home — desktop 1280", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await prepareForScreenshot(page);
-    await page.goto("/");
-    await waitForFonts(page);
-    await expectKeyNavigation(page);
-    await expect(page).toHaveScreenshot("home-desktop.png", { fullPage: true });
-  });
-
-  test("home — wide 2560 (guards the full-bleed band rhythm)", async ({ page }) => {
-    await page.setViewportSize({ width: 2560, height: 1000 });
-    await prepareForScreenshot(page);
-    await page.goto("/");
-    await waitForFonts(page);
-    await expectKeyNavigation(page);
-    await expect(page).toHaveScreenshot("home-wide.png", { fullPage: true });
-  });
-
-  test("home — mobile 390, drawer CLOSED (AW-1 bug lives in the open state — not baselined here)", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await prepareForScreenshot(page);
-    await page.goto("/");
-    await waitForFonts(page);
-    await expectKeyNavigation(page, true);
-    // Deliberately do NOT click `label.nav-burger` here. Baseline the open-drawer state only
-    // after AW-1's clipping fix lands.
-    //
-    // Separate, newly-observed quirk (NOT AW-1, not fixed here — test infra only): the *closed*
-    // drawer is `position: fixed; transform: translateX(110%)`, which still contributes to
-    // `document.documentElement.scrollWidth` at mobile widths (confirmed: scrollWidth 742 vs
-    // clientWidth 390 on this page). An unclipped `fullPage` screenshot would capture that
-    // off-canvas bleed and bake it into the "closed drawer" baseline, which is not the intended
-    // state. Clip to the true viewport width so the baseline reflects what a mobile visitor
-    // actually sees.
-    const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-    await expect(page).toHaveScreenshot("home-mobile-390.png", {
-      fullPage: true,
-      clip: { x: 0, y: 0, width: 390, height: scrollHeight },
-    });
-  });
-
-  test("post page — /welcome", async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await prepareForScreenshot(page);
-    await page.goto("/welcome");
-    await waitForFonts(page);
-    await expectKeyNavigation(page);
-    await expect(page.locator("article.post-detail")).toBeVisible();
-    await expect(page).toHaveScreenshot("post-welcome.png", { fullPage: true });
-  });
+registerThemeScreenshotSuite();
+registerDrawerAndGutterTests();
+registerReplacedElementSizingTests();
 });
+
+function registerReplacedElementSizingTests() {
+
+/** Exercise the shipped stylesheet with oversized replaced elements. The image fixture has
+ * real 4:1 intrinsic dimensions and is decoded before measuring its responsive geometry. */
+test("the shipped stylesheet clamps oversized video and iframe elements inside their container", async ({ page }) => {
+  await page.goto("/welcome");
+  const measurements = await page.evaluate(() => {
+    const container = document.createElement("div");
+    container.style.width = "200px";
+    document.body.append(container);
+    const boxes = ["video", "iframe"].map((tag) => {
+      const element = document.createElement(tag);
+      element.setAttribute("width", "800");
+      element.setAttribute("height", "200");
+      container.append(element);
+      return { tag, width: element.getBoundingClientRect().width, available: container.clientWidth };
+    });
+    container.remove();
+    return boxes;
+  });
+  expect(measurements).toHaveLength(2);
+  for (const box of measurements) {
+    expect(box.width, box.tag).toBeGreaterThan(0);
+    expect(box.width, box.tag).toBeLessThanOrEqual(box.available);
+  }
+});
+
+test("img keeps aspect ratio when HTML width/height attributes exceed the viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 500, height: 400 });
+  await page.goto("/welcome");
+
+  const rect = await page.evaluate(async () => {
+    const img = document.createElement("img");
+    img.src = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><rect width="800" height="200" fill="red"/></svg>');
+    // 4:1 attribute aspect ratio, wider than the 500px viewport — `max-width: 100%` must clamp
+    // the rendered width, and `height: auto` must scale the height to match, not leave it pinned.
+    img.width = 800;
+    img.height = 200;
+    document.body.appendChild(img);
+    await img.decode();
+    const box = img.getBoundingClientRect();
+    document.body.removeChild(img);
+    return { width: box.width, height: box.height, availableWidth: document.body.clientWidth };
+  });
+
+  expect(rect.width).toBeGreaterThan(0);
+  expect(rect.width).toBeLessThanOrEqual(Math.min(rect.availableWidth, 500));
+  expect(rect.width).toBeLessThan(800);
+  expect(rect.width / rect.height).toBeCloseTo(4, 3);
+  expect(rect.height).toBeCloseTo(rect.width / 4, 3);
+});
+}
+
+function registerDrawerAndGutterTests() {
 
 /**
  * todos.md AW-1 — mobile nav drawer clipping.
@@ -682,56 +646,7 @@ test.describe("theme visual regression (AW-2)", () => {
 // 948706418 replaced the header dropdown with a native modal drawer; 415da8fc4 renamed
 // its CTA. Keep AW-1's reachability/clipping contract against the current menu structure.
 test.describe("AW-1 — mobile nav drawer (tovu-theme)", () => {
-  test("modal drawer opens inside the viewport, keeps links and CTA reachable, and closes", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await prepareForScreenshot(page);
-    await page.goto("/");
-    await waitForFonts(page);
-
-    const toggle = page.locator(".nav-toggle");
-    const drawer = page.locator("dialog.mnav");
-    await expect(toggle).toBeVisible();
-    await toggle.click();
-    await expect(drawer).toBeVisible();
-    expect(await drawer.evaluate((element) => element.matches(":modal"))).toBe(true);
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    const drawerBox = await drawer.boundingBox();
-    expect(drawerBox).not.toBeNull();
-    expect(drawerBox!.x).toBeGreaterThanOrEqual(-1);
-    expect(drawerBox!.y).toBeGreaterThanOrEqual(-1);
-    expect(drawerBox!.x + drawerBox!.width).toBeLessThanOrEqual(391);
-    expect(drawerBox!.y + drawerBox!.height).toBeLessThanOrEqual(845);
-
-    const nav = drawer.locator(".mnav-body");
-    const links = nav.locator("a:visible");
-    expect(await links.count()).toBeGreaterThan(0);
-    for (const link of await links.all()) {
-      // A long/nested menu may scroll inside the drawer; every visible link must be reachable.
-      await link.scrollIntoViewIfNeeded();
-      const box = await link.boundingBox();
-      const navBox = await nav.boundingBox();
-      expect(box).not.toBeNull();
-      expect(navBox).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(navBox!.x - 1);
-      expect(box!.y).toBeGreaterThanOrEqual(navBox!.y - 1);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(navBox!.x + navBox!.width + 1);
-      expect(box!.y + box!.height).toBeLessThanOrEqual(navBox!.y + navBox!.height + 1);
-    }
-    const cta = drawer.locator(".mnav-foot").getByRole("link", { name: "Download", exact: true });
-    await expect(cta).toBeVisible();
-    await expect(cta).toBeInViewport();
-    await expect(page).toHaveScreenshot("home-mobile-390-drawer-open.png", {
-      clip: { x: 0, y: 0, width: 390, height: 844 },
-    });
-    // The header toggle is inert while showModal() is open; close through its real control.
-    await drawer.getByRole("button", { name: "Close menu", exact: true }).click();
-    await expect(drawer).toBeHidden();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await toggle.click();
-    await page.keyboard.press("Escape");
-    await expect(drawer).toBeHidden();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  });
+  registerMobileDrawerTest();
 });
 
 /**
@@ -809,59 +724,204 @@ test.describe("AW-4 — wide-screen content-page layout (basic theme)", () => {
     expect(padding.right).toBeLessThanOrEqual(28);
   });
 });
+}
 
-/** Exercise the shipped stylesheet with oversized replaced elements. The image fixture has
- * real 4:1 intrinsic dimensions and is decoded before measuring its responsive geometry. */
-test("the shipped stylesheet clamps oversized video and iframe elements inside their container", async ({ page }) => {
-  await page.goto("/welcome");
-  const measurements = await page.evaluate(() => {
-    const container = document.createElement("div");
-    container.style.width = "200px";
-    document.body.append(container);
-    const boxes = ["video", "iframe"].map((tag) => {
-      const element = document.createElement(tag);
-      element.setAttribute("width", "800");
-      element.setAttribute("height", "200");
-      container.append(element);
-      return { tag, width: element.getBoundingClientRect().width, available: container.clientWidth };
+function registerMobileDrawerTest() {
+  test("modal drawer opens inside the viewport, keeps links and CTA reachable, and closes", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareForScreenshot(page);
+    await page.goto("/");
+    await waitForFonts(page);
+
+    const toggle = page.locator(".nav-toggle");
+    const drawer = page.locator("dialog.mnav");
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(drawer).toBeVisible();
+    expect(await drawer.evaluate((element) => element.matches(":modal"))).toBe(true);
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const drawerBox = await drawer.boundingBox();
+    expect(drawerBox).not.toBeNull();
+    expect(drawerBox!.x).toBeGreaterThanOrEqual(-1);
+    expect(drawerBox!.y).toBeGreaterThanOrEqual(-1);
+    expect(drawerBox!.x + drawerBox!.width).toBeLessThanOrEqual(391);
+    expect(drawerBox!.y + drawerBox!.height).toBeLessThanOrEqual(845);
+
+    const nav = drawer.locator(".mnav-body");
+    const links = nav.locator("a:visible");
+    expect(await links.count()).toBeGreaterThan(0);
+    for (const link of await links.all()) {
+      // A long/nested menu may scroll inside the drawer; every visible link must be reachable.
+      await link.scrollIntoViewIfNeeded();
+      const box = await link.boundingBox();
+      const navBox = await nav.boundingBox();
+      expect(box).not.toBeNull();
+      expect(navBox).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(navBox!.x - 1);
+      expect(box!.y).toBeGreaterThanOrEqual(navBox!.y - 1);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(navBox!.x + navBox!.width + 1);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(navBox!.y + navBox!.height + 1);
+    }
+    const cta = drawer.locator(".mnav-foot").getByRole("link", { name: "Download", exact: true });
+    await expect(cta).toBeVisible();
+    await expect(cta).toBeInViewport();
+    await expect(page).toHaveScreenshot("home-mobile-390-drawer-open.png", {
+      clip: { x: 0, y: 0, width: 390, height: 844 },
     });
-    container.remove();
-    return boxes;
+    // The header toggle is inert while showModal() is open; close through its real control.
+    await drawer.getByRole("button", { name: "Close menu", exact: true }).click();
+    await expect(drawer).toBeHidden();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.click();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
   });
-  expect(measurements).toHaveLength(2);
-  for (const box of measurements) {
-    expect(box.width, box.tag).toBeGreaterThan(0);
-    expect(box.width, box.tag).toBeLessThanOrEqual(box.available);
+}
+
+function registerThemeScreenshotSuite() {
+
+test.describe("theme visual regression (AW-2)", () => {
+  registerClipboardAndHomeScreenshots();
+
+  test("post page — /welcome", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await prepareForScreenshot(page);
+    await page.goto("/welcome");
+    await waitForFonts(page);
+    await expectKeyNavigation(page);
+    await expect(page.locator("article.post-detail")).toBeVisible();
+    await expect(page).toHaveScreenshot("post-welcome.png", { fullPage: true });
+  });
+});
+}
+
+
+
+function registerClipboardAndHomeScreenshots() {
+  test("download installation command copy writes the displayed command to the clipboard", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+    // Theme marketing pages are off by default; publish this fixture through the owner API.
+    const published = await pinSessionRequest({ page,
+      url: "/api/admin/v1/workspaces/workspace-local/themes/tovu-theme/page/publish",
+      method: "POST", data: { page: "download", published: true },
+    });
+    expect(published.status).toBe(200);
+    expect(await published.json()).toMatchObject({ page: "download", published: true });
+    await page.goto("/download");
+    const command = "curl -fsSL basic.sh/install | sh";
+    await expect(page.locator(".install-cmd code")).toHaveText(command);
+    await page.evaluate(() => navigator.clipboard.writeText("previous clipboard value"));
+    await page.locator(".install-cmd button").click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(command);
+  });
+  test("home — desktop 1280", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await prepareForScreenshot(page);
+    await page.goto("/");
+    await waitForFonts(page);
+    await expectKeyNavigation(page);
+    await expect(page).toHaveScreenshot("home-desktop.png", { fullPage: true });
+  });
+
+  test("home — wide 2560 (guards the full-bleed band rhythm)", async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1000 });
+    await prepareForScreenshot(page);
+    await page.goto("/");
+    await waitForFonts(page);
+    await expectKeyNavigation(page);
+    await expect(page).toHaveScreenshot("home-wide.png", { fullPage: true });
+  });
+
+  test("home — mobile 390, drawer CLOSED (AW-1 bug lives in the open state — not baselined here)", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await prepareForScreenshot(page);
+    await page.goto("/");
+    await waitForFonts(page);
+    await expectKeyNavigation(page, true);
+    // Deliberately do NOT click `label.nav-burger` here. Baseline the open-drawer state only
+    // after AW-1's clipping fix lands.
+    //
+    // Separate, newly-observed quirk (NOT AW-1, not fixed here — test infra only): the *closed*
+    // drawer is `position: fixed; transform: translateX(110%)`, which still contributes to
+    // `document.documentElement.scrollWidth` at mobile widths (confirmed: scrollWidth 742 vs
+    // clientWidth 390 on this page). An unclipped `fullPage` screenshot would capture that
+    // off-canvas bleed and bake it into the "closed drawer" baseline, which is not the intended
+    // state. Clip to the true viewport width so the baseline reflects what a mobile visitor
+    // actually sees.
+    const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    await expect(page).toHaveScreenshot("home-mobile-390.png", {
+      fullPage: true,
+      clip: { x: 0, y: 0, width: 390, height: scrollHeight },
+    });
+  });
+}
+
+async function expectKeyNavigation(page: Page, mobile = false): Promise<void> {
+  const header = page.locator(".site-header");
+  await expect(header).toBeVisible();
+  for (const name of ["Pricing", "Docs", "Blog", "About"]) {
+    // 948706418 hides desktop navigation while the modal drawer is closed on mobile.
+    // Count its links structurally; AW-1 below opens the drawer and checks reachability.
+    const link = header.locator(".main-nav").getByRole("link", { name, exact: true, includeHidden: mobile });
+    await expect(link).toHaveCount(1);
+    if (!mobile) {
+      await expect(link).toBeVisible();
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    }
   }
-});
+  // STALE PIN UPDATED: 415da8fc4 deliberately renamed the header CTA.
+  // The current theme calls both CTAs "Download"; keep this scoped to the header action.
+  await expect(header.locator(".nav-actions").getByRole("link", { name: "Download", exact: true })).toBeVisible();
+}
 
-test("img keeps aspect ratio when HTML width/height attributes exceed the viewport", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 500, height: 400 });
-  await page.goto("/welcome");
-
-  const rect = await page.evaluate(async () => {
-    const img = document.createElement("img");
-    img.src = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200"><rect width="800" height="200" fill="red"/></svg>');
-    // 4:1 attribute aspect ratio, wider than the 500px viewport — `max-width: 100%` must clamp
-    // the rendered width, and `height: auto` must scale the height to match, not leave it pinned.
-    img.width = 800;
-    img.height = 200;
-    document.body.appendChild(img);
-    await img.decode();
-    const box = img.getBoundingClientRect();
-    document.body.removeChild(img);
-    return { width: box.width, height: box.height, availableWidth: document.body.clientWidth };
+// The shipped theme vendors both font families. Require the actual faces, including load success,
+// so a missing local asset cannot silently produce fallback-font screenshots.
+async function waitForFonts(page: Page): Promise<void> {
+  const fonts = await page.evaluate(async () => {
+    const families = ["Geist", "Geist Mono"];
+    return Promise.all(families.map(async (family) => {
+      const faces = await document.fonts.load(`400 16px "${family}"`);
+      return { family, count: faces.length, loaded: faces.every((face) => face.status === "loaded") };
+    }));
   });
+  for (const font of fonts) {
+    expect(font.count, font.family).toBeGreaterThan(0);
+    expect(font.loaded, font.family).toBe(true);
+  }
+}
 
-  expect(rect.width).toBeGreaterThan(0);
-  expect(rect.width).toBeLessThanOrEqual(Math.min(rect.availableWidth, 500));
-  expect(rect.width).toBeLessThan(800);
-  expect(rect.width / rect.height).toBeCloseTo(4, 3);
-  expect(rect.height).toBeCloseTo(rect.width / 4, 3);
-});
-});
+/**
+ * @file Visual regression testing (VRT) — todos.md AW-2.
+ *
+ * Renders the live `tovu-official` theme (via the `webServer` in `playwright.config.ts`, a fresh
+ * `TOVU_DB=memory` boot per run) at the viewports/routes that matter and diffs against the
+ * checked-in baselines under `e2e/theme-visual.spec.ts-snapshots/`.
+ *
+ * This suite exists to eventually guard two known, currently-unfixed bugs (see todos.md AW-1 and
+ * AW-4) — but it does NOT baseline either bug's broken state:
+ *   - AW-1 (mobile nav drawer clipping): the mobile screenshot below only covers the drawer
+ *     CLOSED state. The open-drawer state is where the clipping bug lives; baselining it now
+ *     would freeze the bug into the "approved" snapshot. Add an open-drawer screenshot once AW-1
+ *     is fixed.
+ *   - AW-4 (wide-screen entry/content-page layout): out of scope for this suite's first cut
+ *     (todos.md's AW-2 plan only calls for a home + post-page baseline). The home-wide screenshot
+ *     here covers the home page's full-bleed band rhythm at 2560px, which is already correct —
+ *     it does not cover `/about`-style entry pages, where the AW-4 bug actually lives.
+ */
+
+// Anti-flake: reuses the theme's own baked-in
+// `@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }`
+// (see src/server/http/site/render.ts BASE_STYLE) instead of injecting ad hoc CSS.
+async function prepareForScreenshot(page: Page): Promise<void> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+}
 
 // Migrated from themes-presentation-request-timeout.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: themes-presentation-request-timeout", () => {
@@ -878,7 +938,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
  * (all confirmed synchronous-under-`better-sqlite3`, single shared connection, no lock/pool to
  * exhaust — see the investigation note this fix's handoff links). It is a browser-level resource
  * exhaustion: `apps/admin/src/lib/settings-events.ts`'s `subscribeToSettingsChanges`, mounted once
- * per open admin tab by `App.hooks.tsx`, opens an `EventSource` to `.../settings/events` that is
+ * per open admin tab by `App.hooks.ts`, opens an `EventSource` to `.../settings/events` that is
  * "deliberately not closed" (that file's own comment) for the tab's entire lifetime. Vite's dev
  * server (and this repo's production server) speak plain HTTP/1.1, and Chrome caps concurrent
  * connections to one origin at 6. Enough long-lived tabs/streams against the same origin — verified
@@ -895,7 +955,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
  * "N long-lived connections already held against this origin" — reproduced directly and
  * deterministically by opening six extra raw `EventSource` connections to the very same
  * `/settings/events` endpoint from inside the one already-logged-in tab (which already holds a
- * seventh, the tab's own real one from `App.hooks.tsx`), then triggering the real Themes navigation
+ * seventh, the tab's own real one from `App.hooks.ts`), then triggering the real Themes navigation
  * and observing what the real app does. This is the same origin, the same endpoint, the same
  * "never closes" connection shape as the real bug — not a mock of the mechanism, a smaller-footprint
  * instance of it.
@@ -928,7 +988,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const SETTINGS_EVENTS_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/events`;
-/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.tsx`), enough to
+/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.ts`), enough to
  *  push the origin's total held connections past Chrome's 6-per-origin HTTP/1.1 cap regardless of
  *  exact browser accounting. */
 const EXTRA_HELD_CONNECTIONS = 6;

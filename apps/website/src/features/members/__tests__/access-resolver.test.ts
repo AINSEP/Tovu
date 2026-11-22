@@ -26,10 +26,10 @@ function authenticatedContext(activeTierIds: string[], isPaid: boolean): MemberC
 }
 
 test("resolvePostMemberAccess: ungated values are public, valid JSON round-trips, and malformed JSON fails closed", () => {
-  for (const raw of [null, undefined, ""]) assert.deepEqual(resolvePostMemberAccess(raw), { visibility: "public" });
-  assert.deepEqual(resolvePostMemberAccess('{"visibility":"tiers","tierIds":["gold"]}'), { visibility: "tiers", tierIds: ["gold"] });
+  for (const raw of [null, undefined, ""]) assert.deepEqual(resolvePostMemberAccess({ raw }), { visibility: "public" });
+  assert.deepEqual(resolvePostMemberAccess({ raw: '{"visibility":"tiers","tierIds":["gold"]}' }), { visibility: "tiers", tierIds: ["gold"] });
   const resolver = new DefaultMemberAccessResolver({ sessions: new InMemoryMemberSessionRepo(), subscriptions: new InMemoryMemberSubscriptionRepo(), tiers: new InMemoryMemberTierRepo() });
-  assert.deepEqual(resolver.decide({ access: resolvePostMemberAccess("{not json"), context: authenticatedContext(["gold"], true) }),
+  assert.deepEqual(resolver.decide({ access: resolvePostMemberAccess({ raw: "{not json" }), context: authenticatedContext(["gold"], true) }),
     { allowed: false, visibility: "malformed_member_access_json", reason: "unknown_visibility", teaser: false });
 });
 
@@ -234,7 +234,7 @@ test("resolveContext returns the anonymous context for an unknown token", async 
 });
 
 test("resolveContext returns the anonymous context for a revoked or expired session", async () => {
-  const sessions = new InMemoryMemberSessionRepo([
+  const sessions = new InMemoryMemberSessionRepo({}, { initialRows: [
     {
       id: "session-revoked",
       workspaceId: WORKSPACE_ID,
@@ -260,7 +260,7 @@ test("resolveContext returns the anonymous context for a revoked or expired sess
       createdAt: "2026-01-01T00:00:00.000Z",
       expiresAt: NOW,
     },
-  ]);
+  ] });
   const resolver = new DefaultMemberAccessResolver({
     sessions,
     subscriptions: new InMemoryMemberSubscriptionRepo(),
@@ -285,7 +285,7 @@ test("resolveContext returns the anonymous context for a revoked or expired sess
 });
 
 test("resolveContext returns an authenticated context with activeTierIds + isPaid for a valid session", async () => {
-  const sessions = new InMemoryMemberSessionRepo([
+  const sessions = new InMemoryMemberSessionRepo({}, { initialRows: [
     {
       id: "session-valid",
       workspaceId: WORKSPACE_ID,
@@ -294,8 +294,8 @@ test("resolveContext returns an authenticated context with activeTierIds + isPai
       createdAt: "2026-01-01T00:00:00.000Z",
       expiresAt: "2027-01-01T00:00:00.000Z",
     },
-  ]);
-  const tiers = new InMemoryMemberTierRepo([
+  ] });
+  const tiers = new InMemoryMemberTierRepo({}, { initialRows: [
     {
       id: "tier-gold",
       workspaceId: WORKSPACE_ID,
@@ -308,8 +308,8 @@ test("resolveContext returns an authenticated context with activeTierIds + isPai
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     },
-  ]);
-  const subscriptions = new InMemoryMemberSubscriptionRepo([
+  ] });
+  const subscriptions = new InMemoryMemberSubscriptionRepo({}, { initialRows: [
     {
       id: "sub-1",
       workspaceId: WORKSPACE_ID,
@@ -322,7 +322,7 @@ test("resolveContext returns an authenticated context with activeTierIds + isPai
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     },
-  ]);
+  ] });
   const resolver = new DefaultMemberAccessResolver({ sessions, subscriptions, tiers });
 
   const context = await resolver.resolveContext({
@@ -338,7 +338,7 @@ test("resolveContext returns an authenticated context with activeTierIds + isPai
 });
 
 test("resolveContext: a valid session with an active subscription to a NON-paid tier reports isPaid:false", async () => {
-  const sessions = new InMemoryMemberSessionRepo([
+  const sessions = new InMemoryMemberSessionRepo({}, { initialRows: [
     {
       id: "session-free",
       workspaceId: WORKSPACE_ID,
@@ -347,8 +347,8 @@ test("resolveContext: a valid session with an active subscription to a NON-paid 
       createdAt: "2026-01-01T00:00:00.000Z",
       expiresAt: "2027-01-01T00:00:00.000Z",
     },
-  ]);
-  const tiers = new InMemoryMemberTierRepo([
+  ] });
+  const tiers = new InMemoryMemberTierRepo({}, { initialRows: [
     {
       id: "tier-free",
       workspaceId: WORKSPACE_ID,
@@ -361,8 +361,8 @@ test("resolveContext: a valid session with an active subscription to a NON-paid 
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     },
-  ]);
-  const subscriptions = new InMemoryMemberSubscriptionRepo([
+  ] });
+  const subscriptions = new InMemoryMemberSubscriptionRepo({}, { initialRows: [
     {
       id: "sub-free",
       workspaceId: WORKSPACE_ID,
@@ -375,7 +375,7 @@ test("resolveContext: a valid session with an active subscription to a NON-paid 
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     },
-  ]);
+  ] });
   const resolver = new DefaultMemberAccessResolver({ sessions, subscriptions, tiers });
 
   const context = await resolver.resolveContext({
@@ -390,18 +390,18 @@ test("resolveContext: a valid session with an active subscription to a NON-paid 
 
 for (const activeTierIds of [[], ["tier-free", "tier-paid"]]) {
   test(`resolveContext: valid session with ${activeTierIds.length ? "free first and paid second" : "no subscriptions"}`, async () => {
-    const sessions = new InMemoryMemberSessionRepo([{
+    const sessions = new InMemoryMemberSessionRepo({}, { initialRows: [{
       id: "session-multiple", workspaceId: WORKSPACE_ID, memberId: "member-1",
       tokenHash: hashToken("multiple-token"), createdAt: NOW, expiresAt: "2027-01-01T00:00:00.000Z",
-    }]);
-    const tiers = new InMemoryMemberTierRepo((["free", "paid"] as const).map((type) => ({
+    }] });
+    const tiers = new InMemoryMemberTierRepo({}, { initialRows: (["free", "paid"] as const).map((type) => ({
       id: `tier-${type}`, workspaceId: WORKSPACE_ID, name: type, slug: type, type,
       status: "active" as const, visibleInPortal: true, createdAt: NOW, updatedAt: NOW, version: 1,
-    })));
-    const subscriptions = new InMemoryMemberSubscriptionRepo(activeTierIds.map((tierId, index) => ({
+    })) });
+    const subscriptions = new InMemoryMemberSubscriptionRepo({}, { initialRows: activeTierIds.map((tierId, index) => ({
       id: `sub-${index}`, workspaceId: WORKSPACE_ID, memberId: "member-1", tierId,
       status: "active" as const, source: "signup" as const, startedAt: NOW, createdAt: NOW, updatedAt: NOW, version: 1,
-    })));
+    })) });
     const resolver = new DefaultMemberAccessResolver({ sessions, subscriptions, tiers });
     const context = await resolver.resolveContext({ workspaceId: WORKSPACE_ID, sessionToken: "multiple-token", nowIso: NOW });
     assert.deepEqual(context, authenticatedContext(activeTierIds, activeTierIds.length > 0));

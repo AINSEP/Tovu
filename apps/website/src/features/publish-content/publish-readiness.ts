@@ -16,7 +16,7 @@
  * an installation id, a generation, a peer, or a bundle. Not because those are secret — most are in
  * committed config — but because naming them is the vocabulary lesson the whole zero-setup design
  * exists to avoid (`features/publish-trust/connect.ts`'s header; the owner rejected the key ceremony
- * five times). `__tests__/publish-readiness.test.ts` asserts it over every reachable sentence rather
+ * five times). `apps/website/src/features/publish-content/__tests__/publish-agent-tools.test.ts` asserts it over every reachable sentence rather
  * than trusting review, mirroring `publish-trust/__tests__/provisioning.test.ts`'s identical guard.
  *
  * ## "Never connected" is an empty state, not a fault
@@ -73,7 +73,7 @@ export interface PublishReadiness {
  *
  * @complexity O(n) in the URL's length.
  */
-export function siteLabelFor(baseUrl: string): string {
+export function siteLabelFor({ baseUrl }: { baseUrl: string }, _optional = {}): string {
   try {
     return new URL(baseUrl).host;
   } catch {
@@ -102,7 +102,7 @@ function nameList(labels: readonly string[]): string {
  * `nextStep` are `null` exactly when there is nothing to say.
  * @complexity O(n) in `otherSiteLabels`.
  */
-export function describePublishReadiness(input: PublishReadinessInput): PublishReadiness {
+export function describePublishReadiness(input: PublishReadinessInput, _optional = {}): PublishReadiness {
   if (input.publishableTypeCount === 0) {
     return {
       ready: false,
@@ -134,7 +134,7 @@ export function describePublishReadiness(input: PublishReadinessInput): PublishR
   }
 
   if (input.candidateUrl !== null) {
-    const label = siteLabelFor(input.candidateUrl);
+    const label = siteLabelFor({ baseUrl: input.candidateUrl });
     return {
       ready: false,
       verdict: "not-connected",

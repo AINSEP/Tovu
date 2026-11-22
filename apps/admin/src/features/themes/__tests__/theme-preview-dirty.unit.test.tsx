@@ -1,13 +1,13 @@
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 import { PageEditor } from "../../pages/PageEditor";
 import { usePageEditor } from "../../pages/hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../../pages/hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../../pages/hooks/theme-canvas-dependencies.hooks";
 import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "../theme-preview-refresh";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 // Only jsdom's unimplemented DOM submit is observed; services are injected fakes, no module mocks.
 afterEach(() => {
@@ -34,7 +34,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
     port,
     themeCanvasPort: createFakeThemeCanvasPort(),
     navigate: () => {},
-    t: (_locale: string, key: string) => key,
+    t: ({ key }: { locale: string; key: string }) => key,
     locale: "en",
   };
   const submissions: HTMLFormElement[] = [];
@@ -43,7 +43,7 @@ it("theme refresh remounts and resubmits the dirty page preview without replacin
   });
   render(
     <FetchQueryProvider>
-      <PageEditor slug="contact" usePageEditorHook={(slug) => usePageEditor(slug, deps)} />
+      <PageEditor slug="contact" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />
     </FetchQueryProvider>,
   );
   await waitFor(() => expect(screen.getByTitle("Page preview")).toBeTruthy());

@@ -32,7 +32,7 @@
 // A — Site Assistant (public/visitor-facing runtime)
 //
 // The anonymous-visitor chat's server-side surface (ADR-054, SPEC-046). Consumed almost entirely by
-// `server/modules/site-assistant.ts`'s SSE route composition.
+// `apps/website/src/server/runtime/composition/modules/site-assistant.ts`'s SSE route composition.
 // ---------------------------------------------------------------------------------------------
 export { createSiteCapabilityRegistry } from "./site/capability-registry.js";
 export type {
@@ -85,7 +85,7 @@ export type {
   SiteAssistantCredentialView,
   ResolvedSiteAssistantCredential,
 } from "./site-credential-store.js";
-// ADR-006 rule-of-two in-memory adapter — `server/app.ts`'s hermetic composition root.
+// ADR-006 rule-of-two in-memory adapter — `apps/website/src/server/runtime/composition/app.ts`'s hermetic composition root.
 export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.memory.js";
 
 // `db/sqlite/site-credential-repo.sqlite.ts` picks up `SiteAssistantCredentialRepoPort`/
@@ -97,7 +97,7 @@ export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.mem
 // C — BYOK In-Process Execution (admin)
 //
 // The admin dock's provider-direct "API · BYOK" run path (ADR-049), a second execution mode
-// alongside the Local CLI daemon proxy in section D. Consumed by `server/modules/assistant-byok.ts`
+// alongside the Local CLI daemon proxy in section D. Consumed by `apps/website/src/server/runtime/composition/modules/assistant-byok.ts`
 // (the composition point) plus the execution-credential CRUD routes.
 // ---------------------------------------------------------------------------------------------
 export {
@@ -124,7 +124,6 @@ export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js"
 // caller today — kept internal. `createStoredExecutionCredentialPort` is the one
 // `assistant-byok.ts` actually constructs.
 export { createStoredExecutionCredentialPort } from "./byok-credential.js";
-export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential.js";
 
 export { runByokProviderTurn } from "./byok-provider-turn.js";
 export {
@@ -149,13 +148,12 @@ export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.j
 // ---------------------------------------------------------------------------------------------
 // D — Admin Daemon Proxy / Process Composition
 //
-// Consumed by `server/modules/assistant.ts` (the Local CLI daemon-proxy composition — most of these
+// Consumed by `apps/website/src/server/runtime/composition/modules/assistant.ts` (the Local CLI daemon-proxy composition — most of these
 // files have exactly one external importer, this module) plus `src/index.ts` (the process entry
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
 export { A2UI_ACTIONS_PATH, a2uiNotPendingBody, deliverA2uiAction, readA2uiAction } from "./a2ui-actions-route.js";
 export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken, ensureToolExecToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "./daemon-access.js";
-export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // Process-spawning daemon lifecycle belongs to server/runtime/lifecycle/daemon-supervisor.ts;
 // re-exporting it here would create an assistant -> server dependency. The pure respawn policy
 // remains public so the supervisor and its tests share crash-loop/backoff decisions.
@@ -170,14 +168,10 @@ export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-call
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
 // cross-module port. The rest of `mcp-ui.ts` (`buildUIToolResult`, etc.) stays
 // un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
-export { MCP_UI_MIME_TYPE } from "./mcp-ui.js";
-export type { UIResource } from "./mcp-ui.js";
 export { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 
 // Cross-domain consumers import the Jini exchange owner directly. Keep only the symbol pair
 // the server's assistant module needs here, so the curated barrel does not widen its consumers.
-export { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-export type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)
@@ -203,15 +197,13 @@ export {
 
 
 
-export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "@jini-ai/mcp/federation";
-export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 // The admin probe is the other external consumer of the hosted MCP
 // transport besides `mcp-federation/bootstrap.ts` itself — the admin probe route needs to open the
 // exact same kind of short-lived session bootstrap.ts's `defaultConnect` opens for a `streamable_http`
 // launch spec, so it can list a remote's tools on demand instead of waiting for the next daemon boot.
 // `adapter.stdio.ts` stays unexported and unreached from here: D-7 restricts the probe to hosted
 // connections only, so nothing outside `assistant/` needs the stdio transport's spawn path.
-export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
+export { connectMcpHttpSession } from "./mcp-federation/adapter.http.js";
 
 // Roster-change fan-out: the seam that lets `put.ts`/`oauth-callback.ts`/
 // `features/external-mcp/tool-registrations.ts` announce a saved or newly connected row without
@@ -248,7 +240,7 @@ export type { DuplicateResourceHandlerContributor } from "./tool-registrations.j
 //
 // `persistence/store-factory.ts` picks the concrete `ChatStoreFactory` (SQLite vs. in-memory) —
 // Category 3, an ADR-006 composition root selecting an adapter, not a leak. Consumed by
-// `server/app.ts` and `server/deps.ts`.
+// `apps/website/src/server/runtime/composition/app.ts` and `apps/website/src/server/runtime/composition/deps.ts`.
 // ---------------------------------------------------------------------------------------------
 export { createChatStoreFactory, createInMemoryChatHistory } from "./persistence/store-factory.js";
 export { createChatRunLedger, type ChatRunLedger, type RunSettlement } from "./persistence/run-ledger.js";
@@ -256,7 +248,7 @@ export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
 
 // `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
 // selects the adapter" shape as the chat-history pair immediately above, for the same two
-// consumers (`server/app.ts` and `server/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
+// consumers (`apps/website/src/server/runtime/composition/app.ts` and `apps/website/src/server/runtime/composition/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
 // the per-conversation agent-CLI session id lookup that backs `AgentExecutorRunInput.resumeSessionId`/
 // `.newSessionId` (`RunEndPayload.sessionRef`'s round trip, `@jini-ai/protocol`'s doc on that field).
 // `AgentSessionStore` (the type) stays un-re-exported here, same "routes/types.ts deep-imports it

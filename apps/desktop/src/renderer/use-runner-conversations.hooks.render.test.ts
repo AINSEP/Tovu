@@ -29,9 +29,9 @@ function conversationStore(initial: WorkspaceConversationSummary[] = []) {
   const state = { list: [...initial], saved: [] as string[], created: 0, deleted: [] as string[], renamed: [] as string[] };
   const bridge = {
     listConversations: async () => [...state.list],
-    loadConversationMessages: async (id: string) => [message(`${id}-m1`)],
+    loadConversationMessages: async ({ conversationId: id }: { conversationId: string }, _options = {}) => [message(`${id}-m1`)],
     createConversation: async () => { state.created++; const made = convo(`c${state.created}`); state.list.unshift(made); return made; },
-    deleteConversation: async (id: string) => { state.deleted.push(id); state.list = state.list.filter((c) => c.id !== id); },
+    deleteConversation: async ({ id }: { id: string }, _options = {}) => { state.deleted.push(id); state.list = state.list.filter((c) => c.id !== id); },
     renameConversation: async ({ id, title }: { id: string; title: string }) => { state.renamed.push(`${id}=${title}`); },
     // Like the real store: a deleted conversation's row is gone, so a message written to it cannot persist.
     saveConversationMessage: async ({ conversationId, message: saved }: { conversationId: string; message: ChatMessage }) => {
@@ -73,7 +73,7 @@ test('useRunnerConversations: select loads a transcript, a slower earlier select
   const errors = quietErrors(t);
   const hook = renderConversations(t, {
     ...bridge,
-    loadConversationMessages: (id: string) => (id === 'a' ? slow.promise : id === 'bad' ? Promise.reject(new Error('gone')) : bridge.loadConversationMessages(id)),
+    loadConversationMessages: ({ conversationId: id }: { conversationId: string }, _options = {}) => (id === 'a' ? slow.promise : id === 'bad' ? Promise.reject(new Error('gone')) : bridge.loadConversationMessages({ conversationId: id })),
   });
   await settle();
   act(() => hook.current().select('a'));
@@ -271,7 +271,7 @@ test('useRunnerConversations: a message landing between deleting the open thread
   const { bridge, state } = conversationStore([convo('a'), convo('b')]);
   const nextLoad = deferred<ChatMessage[]>();
   const errors = quietErrors(t);
-  const hook = renderConversations(t, { ...bridge, loadConversationMessages: (id: string) => (id === 'b' ? nextLoad.promise : bridge.loadConversationMessages(id)) });
+  const hook = renderConversations(t, { ...bridge, loadConversationMessages: ({ conversationId: id }: { conversationId: string }, _options = {}) => (id === 'b' ? nextLoad.promise : bridge.loadConversationMessages({ conversationId: id })) });
   await settle();
   act(() => hook.current().select('a'));
   await settle();
@@ -331,7 +331,7 @@ test('useRunnerConversations: looks the bridge up once, not on every render', as
 
 test('useConversationDeleteConfirmation: a prompt resolves from the answer, and a newer prompt cancels an older one', async (t) => {
   const hook = renderHook(t, () => useConversationDeleteConfirmation());
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(hook.current().pendingTitle, null, 'answering with nothing pending is a no-op');
   let first!: Promise<boolean>;
   act(() => { first = hook.current().confirmDelete({ id: 'a', title: null } as never); });
@@ -340,7 +340,7 @@ test('useConversationDeleteConfirmation: a prompt resolves from the answer, and 
   act(() => { second = hook.current().confirmDelete({ id: 'b', title: 'Deploy notes' } as never); });
   assert.equal(await first, false);
   assert.equal(hook.current().pendingTitle, 'Deploy notes');
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(await second, true);
   assert.equal(hook.current().pendingTitle, null);
 });
@@ -349,8 +349,8 @@ test('useConversationDeleteConfirmation: declining resolves false, and a second 
   const hook = renderHook(t, () => useConversationDeleteConfirmation());
   let asked!: Promise<boolean>;
   act(() => { asked = hook.current().confirmDelete({ id: 'a', title: 'Keep me' } as never); });
-  act(() => hook.current().resolvePending(false));
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: false }));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(await asked, false);
   assert.equal(hook.current().pendingTitle, null);
 });

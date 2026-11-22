@@ -6,11 +6,10 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import { listIndexes, listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, openSqliteFileKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, listIndexes, listTables } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 
@@ -22,7 +21,7 @@ const archiveName = (table: string) => `_archive_0011_${table}`;
 const steps = () => CONTENT_MIGRATIONS.filter(step => [ARCHIVE_ID, DROP_ID].includes(step.id));
 
 /** Small historical table set with cross-table FKs, an external parent, indexes and opaque bytes. */
-async function seed(kernel: StorageKernel<unknown>): Promise<void> {
+async function seed(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.execute(sql`CREATE TABLE retained_content (id text PRIMARY KEY)`);
   await kernel.execute(sql`INSERT INTO retained_content VALUES ('content')`);
   await kernel.execute(sql`CREATE TABLE commerce_products (id text PRIMARY KEY, content_id text REFERENCES retained_content(id), payload text)`);
@@ -43,8 +42,8 @@ async function seed(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Assert preserved content and actual FK enforcement, rather than just renamed table presence. */
-async function assertRetained(kernel: StorageKernel<unknown>): Promise<void> {
-  const tables = await listTables(kernel);
+async function assertRetained(kernel: KyselyKernel<unknown>): Promise<void> {
+  const tables = await listTables({ kernel });
   for (const table of TABLES) {
     assert.ok(tables.includes(archiveName(table)), `keep even empty sibling ${table}`);
     assert.equal(tables.includes(table), false);
@@ -53,7 +52,7 @@ async function assertRetained(kernel: StorageKernel<unknown>): Promise<void> {
     [{ id: "product", content_id: "content", payload: ' { "old": [3, 2, 1] } ' }]);
   assert.deepEqual(await kernel.query(sql`SELECT * FROM _archive_0011_commerce_order_items`),
     [{ id: "item", order_id: "order", price_id: "price" }]);
-  assert.ok((await listIndexes(kernel, "_archive_0011_commerce_products")).has("retained_commerce_payload"));
+  assert.ok((await listIndexes({ kernel, table: "_archive_0011_commerce_products" })).has("retained_commerce_payload"));
   await assert.rejects(kernel.execute(sql`DELETE FROM _archive_0011_commerce_prices WHERE id = 'price'`));
   await assert.rejects(kernel.execute(sql`DELETE FROM retained_content WHERE id = 'content'`));
   for (const table of ["p_store__products", "p_lipay__payments"]) {
@@ -69,14 +68,14 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     try {
       await seed(kernel);
       assert.deepEqual(steps().map(step => step.id), [ARCHIVE_ID, DROP_ID]);
-      const report = await runMigrations(kernel, steps());
+      const report = await runMigrations({ kernel, steps: steps() });
       assert.deepEqual(report.applied, [ARCHIVE_ID, DROP_ID]);
       assert.equal(report.notes.length, 1);
       assert.match(report.notes[0]!, /WARNING.*archiv/i);
       assert.match(report.notes[0]!, /preserved/i);
       assert.match(report.notes[0]!, /_archive_0011_commerce_products/);
       await assertRetained(kernel);
-      assert.deepEqual((await runMigrations(kernel, steps())).applied, []);
+      assert.deepEqual((await runMigrations({ kernel, steps: steps() })).applied, []);
       await kernel.transaction(() => steps()[0]!.up(kernel, { note: () => assert.fail("repeat must be silent") }));
       await assertRetained(kernel);
     } finally { await kernel.close(); }
@@ -87,11 +86,11 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       const kernel = open();
       try {
         if (state === "empty") for (const table of TABLES) await kernel.execute(sql`CREATE TABLE ${sql.table(table)} (id text PRIMARY KEY)`);
-        if (state === "already-upgraded") await runMigrations(kernel, steps().filter(step => step.id === DROP_ID));
-        const report = await runMigrations(kernel, steps());
+        if (state === "already-upgraded") await runMigrations({ kernel, steps: steps().filter(step => step.id === DROP_ID) });
+        const report = await runMigrations({ kernel, steps: steps() });
         assert.ok(report.applied.includes(ARCHIVE_ID), "pending IDs before an applied 0011 must run");
         assert.deepEqual(report.notes, []);
-        assert.deepEqual((await listTables(kernel)).filter(table => /commerce/.test(table)), []);
+        assert.deepEqual((await listTables({ kernel })).filter(table => /commerce/.test(table)), []);
       } finally { await kernel.close(); }
     }
   });
@@ -101,8 +100,8 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     try {
       for (const table of ["commerce_prices", "commerce_products"]) await kernel.execute(sql`CREATE TABLE ${sql.table(table)} (id text PRIMARY KEY)`);
       await kernel.execute(sql`INSERT INTO commerce_products VALUES ('only-row')`);
-      await runMigrations(kernel, steps());
-      assert.deepEqual((await listTables(kernel)).filter(table => table.startsWith("_archive_")).sort(),
+      await runMigrations({ kernel, steps: steps() });
+      assert.deepEqual((await listTables({ kernel })).filter(table => table.startsWith("_archive_")).sort(),
         ["_archive_0011_commerce_prices", "_archive_0011_commerce_products"]);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM _archive_0011_commerce_products`), [{ id: "only-row" }]);
     } finally { await kernel.close(); }
@@ -114,15 +113,15 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await seed(kernel);
       await kernel.execute(sql`CREATE TABLE _archive_0011_commerce_products (id text PRIMARY KEY)`);
       await kernel.execute(sql`INSERT INTO _archive_0011_commerce_products VALUES ('older-archive')`);
-      const before = await readSchemaShape(kernel);
+      const before = await readSchemaShape({ kernel });
       const execute = kernel.execute.bind(kernel);
       kernel.execute = async statement => {
         const text = await kernel.run(db => statement.compile(db).sql);
         assert.doesNotMatch(text, /^ALTER TABLE/i, "preflight every archive name before renaming");
         await execute(statement);
       };
-      await assert.rejects(runMigrations(kernel, steps()), /_archive_0011_commerce_products.*backup/i);
-      assert.deepEqual(await readSchemaShape(kernel), before);
+      await assert.rejects(runMigrations({ kernel, steps: steps() }), /_archive_0011_commerce_products.*backup/i);
+      assert.deepEqual(await readSchemaShape({ kernel }), before);
       assert.deepEqual(await kernel.query(sql`SELECT * FROM _archive_0011_commerce_products`), [{ id: "older-archive" }]);
       assert.deepEqual(await kernel.query(sql`SELECT id FROM commerce_products`), [{ id: "product" }]);
     } finally { await kernel.close(); }
@@ -132,7 +131,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
     const kernel = open();
     try {
       await seed(kernel);
-      const before = await readSchemaShape(kernel);
+      const before = await readSchemaShape({ kernel });
       const execute = kernel.execute.bind(kernel);
       let renames = 0;
       kernel.execute = async statement => {
@@ -140,12 +139,12 @@ for (const dialect of ["sqlite", "pglite"] as const) {
         if (/^ALTER TABLE/i.test(text) && ++renames === 3) throw new Error("injected rename failure");
         await execute(statement);
       };
-      await assert.rejects(runMigrations(kernel, steps()), /injected rename failure/);
+      await assert.rejects(runMigrations({ kernel, steps: steps() }), /injected rename failure/);
       assert.equal(renames, 3);
-      assert.deepEqual(await readSchemaShape(kernel), before);
+      assert.deepEqual(await readSchemaShape({ kernel }), before);
       assert.deepEqual(await kernel.query(sql`SELECT id FROM commerce_products`), [{ id: "product" }]);
       kernel.execute = execute;
-      await runMigrations(kernel, steps());
+      await runMigrations({ kernel, steps: steps() });
       await assertRetained(kernel);
     } finally { await kernel.close(); }
   });
@@ -154,21 +153,21 @@ for (const dialect of ["sqlite", "pglite"] as const) {
 test("SQLite: concurrent openers archive once; pre-change and post-change backups restore all rows", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "commerce-archive-"));
   const file = path.join(dir, "content.db");
-  const first = openSqliteFileKernel<unknown>(file);
-  const second = openSqliteFileKernel<unknown>(file);
+  const first = openSqliteFileKernel<unknown>({ filePath: file });
+  const second = openSqliteFileKernel<unknown>({ filePath: file });
   try {
     await seed(first);
     const before = path.join(dir, "before.db");
     await first.backupTo(before);
-    const reports = await Promise.all([runMigrations(first, steps()), runMigrations(second, steps())]);
+    const reports = await Promise.all([runMigrations({ kernel: first, steps: steps() }), runMigrations({ kernel: second, steps: steps() })]);
     assert.deepEqual(reports.flatMap(report => report.applied).sort(), [ARCHIVE_ID, DROP_ID]);
     assert.equal(reports.flatMap(report => report.notes).length, 1);
     const after = path.join(dir, "after.db");
     await first.backupTo(after);
     for (const backup of [before, after]) {
-      const restored = openSqliteFileKernel<unknown>(backup);
+      const restored = openSqliteFileKernel<unknown>({ filePath: backup });
       try {
-        await runMigrations(restored, steps());
+        await runMigrations({ kernel: restored, steps: steps() });
         await assertRetained(restored);
       } finally { await restored.close(); }
     }

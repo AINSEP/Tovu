@@ -7,7 +7,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import { FolderZipError } from "@jini-ai/agent-plugins/folder-zip";
 import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallSourcePort } from "../../contracts/headless/index.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
@@ -111,14 +111,18 @@ function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; 
 /** The candidate's bytes from a folder, a local zip or a chat attachment, size-capped before reading. */
 async function readToolArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _optional = {}) {
   const request = deps.pluginInstallSource.readRequest({ input: ctx.input });
-  const archive = request.kind === "folder"
-    ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
-    : await deps.pluginInstallSource.readArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+  let archive;
+  if (request.kind === "folder") {
+    if (request.path === undefined) throw new ToolInputError({ message: "Agent Plugin folder source has no path" });
+    archive = await zipLocalFolder({ path: request.path, maxBytes: maxAgentPluginInstallArchiveBytes() });
+  } else {
+    archive = await deps.pluginInstallSource.readArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+  }
   return { request, archive, expectedSha256: createHash("sha256").update(archive).digest("hex") };
 }
 
 /** Every named lifecycle refusal is a result the model can act on; anything else stays redacted. */
-function toToolInputError(error: unknown): unknown {
+function toToolInputError({ error }: { error: unknown }, _optional: Record<string, never> = {}): unknown {
   if (error instanceof FolderZipError) return new ToolInputError({ message: error.message });
   const named = error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError || error instanceof AgentPluginInstallError || error instanceof AgentPluginUploadError;
   return named ? new ToolInputError({ message: `${error.code}: ${error.message}` }) : error;
@@ -146,7 +150,7 @@ async function updateArchivePlugin(
       note: result.alreadyInstalled ? "These exact bytes are already installed; nothing changed."
         : "Updated. Memory is kept. Running chats keep the guidance they already loaded; MCP calls in progress may fail." };
   } catch (error) {
-    throw toToolInputError(error);
+    throw toToolInputError({ error });
   }
 }
 
@@ -170,11 +174,11 @@ async function installArchivePlugin(
     // Identical bytes are a no-op, including activation. Do not falsely report OFF for a
     // package the operator already enabled; malformed activation remains explicitly unknown.
     const verdict = result.alreadyInstalled
-      ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root, pluginId: result.plugin.pluginId })).verdict
+      ? (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root, pluginId: result.plugin.pluginId })).verdict
       : "inactive";
     return uploadedInstallResult({ result, verdict, warning: preview.warning });
   } catch (error) {
-    throw toToolInputError(error);
+    throw toToolInputError({ error });
   }
 }
 
@@ -203,8 +207,8 @@ async function installBundledPlugin(
   const sourceRoot = deps.bundledAgentPluginsSourceRoot;
   const bundledIds = (await listBundledAgentPluginServers({ bundledSourceRoot: sourceRoot })).map(plugin => plugin.pluginId).sort();
   if (!bundledIds.includes(id)) throw new ToolInputError({ message: `Unknown bundled plugin id '${id}'. Bundled ids: ${bundledIds.join(", ")}.` });
-  const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const existing = (await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === id);
+  const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const existing = (await listInstalledPlugins({ workspaceRoot })).some(plugin => plugin.pluginId === id);
   if (existing && !await agentPluginActivations.isAgentPluginRecordedAsBundled({ workspaceRoot, pluginId: id })) {
     throw new ToolInputError({ message: `Plugin id '${id}' is already installed from another source; bundled plugins cannot replace it.` });
   }

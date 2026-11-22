@@ -22,12 +22,12 @@ export interface ApplyAgentPluginToolRenamesDeps {
   readonly notifyRosterChanged: () => Promise<void>;
 }
 
-export function renameToolNames(names: readonly string[], renames: Readonly<Record<string, string>>): string[] | null {
+export function renameToolNames({ names, renames }: { names: readonly string[]; renames: Readonly<Record<string, string>> }, _optional: Record<string, never> = {}): string[] | null {
   return renameWithPorts({ names, renames });
 }
 
 /** Same entry; the layout getter is read only if the default listing runs (as before). */
-export function applyAgentPluginToolRenames(deps: ApplyAgentPluginToolRenamesDeps, log: TokenImportLog): Promise<void> {
+export function applyAgentPluginToolRenames({ deps, log }: { deps: ApplyAgentPluginToolRenamesDeps; log: TokenImportLog }, _optional: Record<string, never> = {}): Promise<void> {
   return applyWithPorts({ log, deps: {
     workspaceId: deps.workspaceId, externalMcpServerRepo: deps.externalMcpServerRepo, clock: deps.clock, actor: TOOL_RENAMES_ACTOR,
     notifyRosterChanged: () => deps.notifyRosterChanged(),

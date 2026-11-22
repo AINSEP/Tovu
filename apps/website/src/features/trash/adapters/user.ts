@@ -1,7 +1,7 @@
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "#src/features/identity/user-purge-types";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { outboxEventValues } from "@jini-ai/db/events";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { lazyKernel, type MarkerStore } from "./marker-sql.js";
@@ -11,7 +11,7 @@ import { lazyKernel, type MarkerStore } from "./marker-sql.js";
  * `TRASHABLE` registry entry, because `hide` writes two tables (`principals` AND `sessions`) and
  * `purge` must go through `UserPurgePort.purgeUser` (`SqlUserPurge`, `identity/user-purge.ts`) for
  * its own eight-table delete, not through a single-table `compareAndDelete`. Mirrors
- * `adapters/directory.ts`'s "bespoke adapter" precedent.
+ * `@jini-ai/cms/trash/adapters/directory`'s "bespoke adapter" precedent.
  *
  * `entityVersion` is always `null`: `principals` has no version column, so `hide`/`unhide`/`purge`
  * never receive a meaningful `expectedVersion` to compare against (the trash core still passes one
@@ -48,7 +48,7 @@ interface PrincipalRow {
 }
 
 /** @complexity O(1), one indexed read. */
-async function readPrincipal(kernel: ContentKernel, workspaceId: string, principalId: string): Promise<PrincipalRow | null> {
+async function readPrincipal({ kernel, workspaceId, principalId }: { kernel: ContentKernel; workspaceId: string; principalId: string }, _optional = {}): Promise<PrincipalRow | null> {
   const row = await kernel.run((db) =>
     db
       .selectFrom("principals")
@@ -64,7 +64,7 @@ async function readPrincipal(kernel: ContentKernel, workspaceId: string, princip
  *  `api_key` principal, decision 5's "Tovu-Runner" case) — the audit event still needs a name to
  *  report even when there is no login username to give it.
  *  @complexity O(1), one indexed read. */
-async function readDisplayUsername(kernel: ContentKernel, workspaceId: string, principalId: string, fallback: string): Promise<string> {
+async function readDisplayUsername({ kernel, workspaceId, principalId, fallback }: { kernel: ContentKernel; workspaceId: string; principalId: string; fallback: string }, _optional = {}): Promise<string> {
   const row = await kernel.run((db) =>
     db
       .selectFrom("identity_users")
@@ -81,28 +81,11 @@ async function appendEvent({ kernel, event, eventValues }: { kernel: ContentKern
   await kernel.run((db) => db.insertInto("outbox_events").values(eventValues(event)).execute());
 }
 
-/**
- * Builds the user `TrashAdapter`.
- *
- * @complexity O(1) to build; each method is O(1) plus `purge`'s delegated
- *             `UserPurgePort.purgeUser` cost (itself O(1), see that file).
- */
-export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
-  const { purge, idGen, clock } = deps;
-  const kernel = lazyKernel(deps.db);
+type PrincipalLock = <T>(required: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, optional?: Record<string, never>) => Promise<T>;
+type UserTrashContext = Pick<UserTrashAdapterDeps, "purge" | "idGen" | "clock"> & { deps: UserTrashAdapterDeps; underPrincipalLock: PrincipalLock };
 
-  /** Runs `body` in one transaction holding the principal's row lock. */
-  const underPrincipalLock = <T>(workspaceId: string, principalId: string, body: (k: ContentKernel) => Promise<T>): Promise<T> => {
-    const k = kernel();
-    return k.transaction(async () => {
-      await k.lockKey(`trash:${USER_ENTITY_TYPE}:${workspaceId}:${principalId}`);
-      return body(k);
-    });
-  };
-
+function userTrashHide({ deps, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "hide"> {
   return {
-    entityType: USER_ENTITY_TYPE,
-
     /**
      * Disables the principal, revokes every session and records `identity.user.trashed`.
      *
@@ -113,8 +96,8 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      */
     async hide(required, optional = {}): Promise<TrashMarkerResult> {
       const { workspaceId, entityId } = required;
-      return underPrincipalLock(workspaceId, entityId, async (k) => {
-        const before = await readPrincipal(k, workspaceId, entityId);
+      return underPrincipalLock({ workspaceId, principalId: entityId, body: async (k) => {
+        const before = await readPrincipal({ kernel: k, workspaceId, principalId: entityId });
         if (!before) return { ok: false, reason: "not-found" };
         await deps.assertAccountAction?.({ workspaceId, principalId: entityId, action: "trash" },
           { callerPrincipalId: optional.actor?.principalId });
@@ -133,7 +116,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
           db.deleteFrom("sessions").where("workspace_id", "=", workspaceId).where("principal_id", "=", entityId).executeTakeFirst()
         );
 
-        const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
+        const username = await readDisplayUsername({ kernel: k, workspaceId, principalId: entityId, fallback: before.displayName });
         await appendEvent({ kernel: k, eventValues: deps.eventValues, event: {
           id: idGen.next(),
           name: "identity.user.trashed",
@@ -145,9 +128,14 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         } });
 
         return { ok: true, version: null, priorMarker: before.status };
-      });
+      } });
     },
 
+  };
+}
+
+function userTrashUnhide({ deps, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "unhide"> {
+  return {
     /**
      * Restores the principal to `priorMarker` (decision 4: `priorMarker ?? "disabled"`) and records
      * `identity.user.restored`. Sessions are never re-created — a restore never revives an old
@@ -155,8 +143,8 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      */
     async unhide(required, optional = {}): Promise<TrashMarkerResult> {
       const { workspaceId, entityId } = required;
-      return underPrincipalLock(workspaceId, entityId, async (k) => {
-        const before = await readPrincipal(k, workspaceId, entityId);
+      return underPrincipalLock({ workspaceId, principalId: entityId, body: async (k) => {
+        const before = await readPrincipal({ kernel: k, workspaceId, principalId: entityId });
         if (!before) return { ok: false, reason: "not-found" };
 
         const restoredStatus = optional.priorMarker ?? "disabled";
@@ -171,7 +159,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         );
         if (Number(restored.numUpdatedRows) === 0) return { ok: false, reason: "version-changed" };
 
-        const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
+        const username = await readDisplayUsername({ kernel: k, workspaceId, principalId: entityId, fallback: before.displayName });
         await appendEvent({ kernel: k, eventValues: deps.eventValues, event: {
           id: idGen.next(),
           name: "identity.user.restored",
@@ -183,9 +171,14 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         } });
 
         return { ok: true, version: null };
-      });
+      } });
     },
 
+  };
+}
+
+function userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "purge"> {
+  return {
     /**
      * Hard-deletes the principal's identity rows via {@link UserPurgePort.purgeUser} (decision 4) —
      * never a live principal (an `active` status means it was never trashed, or was re-enabled out
@@ -196,21 +189,21 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
      */
     async purge(required, optional = {}): Promise<TrashPurgeOutcome> {
       const { workspaceId, entityId } = required;
-      return underPrincipalLock(workspaceId, entityId, async (k) => {
-        const before = await readPrincipal(k, workspaceId, entityId);
+      return underPrincipalLock({ workspaceId, principalId: entityId, body: async (k) => {
+        const before = await readPrincipal({ kernel: k, workspaceId, principalId: entityId });
         if (!before) return "already-gone";
         await deps.assertAccountAction?.({ workspaceId, principalId: entityId, action: "purge" },
           { callerPrincipalId: optional.actor?.principalId });
         if (before.status === "active") return "version-changed";
 
-        const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
+        const username = await readDisplayUsername({ kernel: k, workspaceId, principalId: entityId, fallback: before.displayName });
         const reason: UserPurgeReason = optional.actor ? "manual" : "retention";
 
         await purge.purgeUser({
           workspaceId,
           principalId: entityId,
           reason,
-          buildEvent: (removed: PurgeCounts, builtReason): DomainEvent => ({
+          buildEvent: ({ removed }: { removed: PurgeCounts }, { reason: builtReason } = {}): DomainEvent => ({
             id: idGen.next(),
             name: "identity.user.deleted",
             occurredAt: clock.nowIso(),
@@ -222,7 +215,35 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         });
 
         return "purged";
-      });
+      } });
     },
+  };
+}
+
+/**
+ * Builds the user `TrashAdapter`.
+ *
+ * @complexity O(1) to build; each method is O(1) plus `purge`'s delegated
+ *             `UserPurgePort.purgeUser` cost (itself O(1), see that file).
+ */
+export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
+  const { purge, idGen, clock } = deps;
+  const kernel = lazyKernel(deps.db);
+
+  /** Runs `body` in one transaction holding the principal's row lock. */
+  const underPrincipalLock = <T>({ workspaceId, principalId, body }: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, _optional = {}): Promise<T> => {
+    const k = kernel();
+    return k.transaction(async () => {
+      await k.lockKey(`trash:${USER_ENTITY_TYPE}:${workspaceId}:${principalId}`);
+      return body(k);
+    });
+  };
+
+  return {
+    entityType: USER_ENTITY_TYPE,
+
+    ...userTrashHide({ deps, purge, idGen, clock, underPrincipalLock }),
+    ...userTrashUnhide({ deps, purge, idGen, clock, underPrincipalLock }),
+    ...userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }),
   };
 }

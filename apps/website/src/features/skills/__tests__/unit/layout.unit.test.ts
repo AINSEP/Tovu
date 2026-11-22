@@ -47,14 +47,14 @@ test("a relative TOVU_SKILLS_DIR is rejected", () => {
 
 test("forWorkspace roots the skills directory entirely under ws/<workspaceId>", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
-  const ws = layout.forWorkspace(WORKSPACE_ID);
+  const ws = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
   assert.equal(ws.root, path.join(layout.root, "ws", WORKSPACE_ID));
 });
 
 test("two workspaces resolve to entirely disjoint trees", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
-  const a = layout.forWorkspace(WORKSPACE_ID);
-  const b = layout.forWorkspace(OTHER_WORKSPACE_ID);
+  const a = layout.forWorkspace({ workspaceId: WORKSPACE_ID });
+  const b = layout.forWorkspace({ workspaceId: OTHER_WORKSPACE_ID });
 
   assert.notEqual(a.root, b.root);
   assert.equal(path.relative(b.root, a.root).startsWith(".."), true);
@@ -62,14 +62,14 @@ test("two workspaces resolve to entirely disjoint trees", () => {
 
 test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
-  const ws = layout.forWorkspace("workspace-local");
+  const ws = layout.forWorkspace({ workspaceId: "workspace-local" });
   assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-dev/skills/ws/workspace-local"));
 });
 
 test("forWorkspace normalizes an uppercase id to a lowercase path segment", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   assert.equal(
-    layout.forWorkspace("WORKSPACE-LOCAL").root,
+    layout.forWorkspace({ workspaceId: "WORKSPACE-LOCAL" }).root,
     path.resolve("/srv/tovu-site/sites/tovu-dev/skills/ws/workspace-local"),
   );
 });
@@ -78,7 +78,7 @@ test("forWorkspace rejects every shape that could escape or split the path segme
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   for (const bad of ["../escape", "..", ".", "", "a/b", "a\\b", "a b", "-leading", "trailing-", "a--b", "a_b", "a".repeat(65)]) {
     assert.throws(
-      () => layout.forWorkspace(bad),
+      () => layout.forWorkspace({ workspaceId: bad }),
       { message: `forWorkspace: '${bad}' is not a valid workspace id` },
       `expected '${bad}' to be rejected`,
     );

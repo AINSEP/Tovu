@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../../platform/db/sqlite/content-db.js";
@@ -50,7 +50,7 @@ test("frozen fixture: the retained SQL repo and store open all three credentials
   const { db, kernel } = await frozenDbFile(path.join(SCRATCH, "read.db"));
   const h = wire({ kernel, clockIso: VALID_AT });
 
-  const views = await listExternalMcpServerViews({ repo: h.repo, sealer: h.sealer }, FROZEN_WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo: h.repo, sealer: h.sealer }, workspaceId: FROZEN_WORKSPACE });
   assert.deepEqual(views.map((view) => [view.serverId, view.authMode]).sort(),
     [[FROZEN_SERVERS.env, "none"], [FROZEN_SERVERS.oauth, "oauth"], [FROZEN_SERVERS.static, "static_env"]]);
   const opensPerRow = Object.values(FROZEN_SERVERS).map((serverId) => h.openedAad.filter((aad) => aad.includes(serverId)).length);
@@ -98,9 +98,9 @@ test("frozen fixture: leased refresh, static re-save and env update survive a re
   assert.equal(await h.service.tokenResolver.resolveAccessToken({ serverId: FROZEN_SERVERS.oauth }), REFRESHED.accessToken);
   assert.equal(h.server.requests.length, 1);
   assert.deepEqual(h.server.requests[0]?.form.grant_type, "refresh_token");
-  assert.deepEqual(nonZero(h.io.repo), { findByServerId: 4, releaseOAuthRefreshLease: 1, tryClaimOAuthRefreshLease: 1, upsert: 1 });
+  assert.deepEqual(nonZero(h.io.repo), { findByServerId: 4, releaseOAuthRefreshLease: 1, tryClaimOAuthRefreshLease: 1, updateOAuthRuntime: 1 });
   assert.deepEqual(nonZero(h.io.sealer), { open: 4, seal: 1 });
-  assert.deepEqual(nonZero(h.io.kernel), { lockKey: 3, query: 4, run: 13, transaction: 3 });
+  assert.deepEqual(nonZero(h.io.kernel), { lockKey: 3, query: 4, run: 12, transaction: 3 });
   assert.deepEqual(nonZero(h.io.keyring), { activeKey: 1 });
   // A second call within the new lifetime is served from the row: no lease, no request, no seal.
   resetCounts(h.io.repo, h.io.sealer, h.io.kernel, h.io.keyring);
@@ -142,8 +142,9 @@ test("frozen fixture: leased refresh, static re-save and env update survive a re
   const serversBefore = before.external_mcp_servers as Row[];
   const serversAfter = after.external_mcp_servers as Row[];
   const expectedChanges: Record<string, string[]> = {
-    [FROZEN_SERVERS.env]: ["env_secret_id", "updated_at"],
-    [FROZEN_SERVERS.static]: ["label", "updated_at"],
+    // A form save is an edit and advances `version`; the token refresh on the oauth row is a runtime write and does not.
+    [FROZEN_SERVERS.env]: ["env_secret_id", "updated_at", "version"],
+    [FROZEN_SERVERS.static]: ["label", "updated_at", "version"],
     [FROZEN_SERVERS.oauth]: ["oauth_expires_at", "oauth_secret_id", "updated_at"],
   };
   for (const serverId of Object.values(FROZEN_SERVERS)) {
@@ -179,7 +180,7 @@ test("frozen fixture: tampered context or owner is refused before any crypto, an
     resetCounts(h.io.sealer, h.io.keyring);
     await assert.rejects(h.repo.findByServerId({ workspaceId: FROZEN_WORKSPACE, serverId: FROZEN_SERVERS.env }),
       (error: unknown) => error instanceof VaultError && error.code === "context", `${column} tamper is a context refusal`);
-    await assert.rejects(listExternalMcpServerViews({ repo: h.repo, sealer: h.sealer }, FROZEN_WORKSPACE),
+    await assert.rejects(listExternalMcpServerViews({ deps: { repo: h.repo, sealer: h.sealer }, workspaceId: FROZEN_WORKSPACE }),
       (error: unknown) => error instanceof VaultError && error.code === "context");
     assert.deepEqual(nonZero(h.io.sealer), {}, `${column} tamper is refused before crypto`);
     assert.deepEqual(nonZero(h.io.keyring), {});
@@ -242,7 +243,7 @@ test("frozen fixture: provider errors carrying token/secret/URL/path never reach
     const thrown = await h.service.tokenResolver.resolveAccessToken({ serverId: FROZEN_SERVERS.oauth }).then(() => null, (error: unknown) => error);
     assert.ok(thrown instanceof Error, `${name}: the refresh fails`);
     assert.equal(thrown instanceof ExternalMcpReauthRequiredError, name === "invalidGrant");
-    const { failures } = await readEnabledExternalMcpConfigs({ repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, FROZEN_WORKSPACE);
+    const { failures } = await readEnabledExternalMcpConfigs({ deps: { repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, workspaceId: FROZEN_WORKSPACE });
     assert.deepEqual(failures.map((failure) => failure.serverId), [FROZEN_SERVERS.oauth]);
     const record = await requireRecord(h.repo, FROZEN_SERVERS.oauth);
     const gate = createExternalMcpConnectionGate({ workspaceId: FROZEN_WORKSPACE, repo: h.repo, isPluginEnabled: async () => true });

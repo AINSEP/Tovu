@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // The shared DEFAULT translator (`lib/api.ts`), not `../rules`'s screen-level override — that
 // override's `FORBIDDEN` copy names "the AI assistant's settings" specifically, which would be a
 // wrong claim here: this hook's `system.write` denial is about restarting the daemon process, not
 // about a settings write. `rules.ts`'s own doc invites exactly this per-screen judgment call.
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { defaultAssistantDaemonRestartPort } from "./assistant-daemon-restart-dependencies.hooks";
 import type { AssistantDaemonRestartPort } from "./assistant-daemon-restart-port.hooks";
 
@@ -81,15 +81,15 @@ export function useAssistantDaemonRestart({
       const readyz = await port.getReadyz();
       setKnownFailed(readyz.assistantDaemonKnownFailed === true);
     } catch (e) {
-      setStatusError(describeApiError(e, "failed to check the assistant daemon's status"));
+      setStatusError(describeApiError({ e, fallback: "failed to check the assistant daemon's status" }));
     } finally {
       setCheckingStatus(false);
     }
   }
 
+  const initialCheckStatus = useRef(checkStatus);
   useEffect(() => {
-    void checkStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void initialCheckStatus.current();
   }, []);
 
   async function restart() {
@@ -99,7 +99,7 @@ export function useAssistantDaemonRestart({
       const result = await port.restart();
       setRestartResult(result);
     } catch (e) {
-      setRestartError(describeApiError(e, "failed to restart the assistant"));
+      setRestartError(describeApiError({ e, fallback: "failed to restart the assistant" }));
     } finally {
       setRestarting(false);
     }

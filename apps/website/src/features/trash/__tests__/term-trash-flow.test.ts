@@ -2,7 +2,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
 import {
@@ -15,15 +15,16 @@ import {
   createTaxonomyPurgeFollowUp,
   createTermPurgeFollowUp,
   type TaxonomyEventOutboxPort,
-} from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+} from "@jini-ai/cms/taxonomy";
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { updatePost, type PostRecord } from "#src/features/post/index";
 
 
-import { withFollowUps } from "@jini-ai/cms/trash";
+import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
@@ -34,7 +35,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  * (`moveToTrash`) — plan §2 T6, owner decision 5. Real SQLite, real taxonomy repos, the real
  * `updatePost` save path: nothing here is a double of the thing under test. Modeled directly on
  * `form-trash-flow.test.ts` — does not depend on the composition lock (`deps.ts`/`app.ts`) at all;
- * this harness wires the same purge follow-ups (`taxonomy-trash-follow-ups.ts`) `deps.ts` wires,
+ * this harness wires the same purge follow-ups (`Jini packages/cms/src/taxonomy/taxonomy-trash-follow-ups.ts`) `deps.ts` wires,
  * built here so the test proves the WIRING end to end, not just the hooks' own already-certified
  * pure-fake unit tests (`taxonomy-trash-follow-ups.test.ts`).
  */
@@ -66,14 +67,14 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
 
   const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: WS });
   const termRepo = new SqliteTermRepo({ db, workspaceId: WS });
   const entryTermRepo = new SqliteEntryTermRepo({ db, workspaceId: WS });
   const revisions = new SqliteTaxonomyRevisionRepo({ db, workspaceId: WS });
   const outbox = recordingOutbox();
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const clock = { nowMs: () => Date.parse(AT), nowIso: () => AT };
 
   // Same wiring `deps.ts` performs for `term`/`taxonomy` (T6 item 5): the generic table adapter is
@@ -81,7 +82,7 @@ function harness(): Harness {
   // the outbox event `deleteTerm`/`deleteTaxonomy` used to write alongside their own hard delete.
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => {
-      const base = createTableTrashAdapter({ entry, db: trashDb });
+      const base = createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES });
       if (entry.entityType === "term") {
         return [
           entry.entityType,
@@ -119,7 +120,7 @@ function harness(): Harness {
     repo: trashRepo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 
@@ -130,7 +131,7 @@ function harness(): Harness {
     taxonomies: taxonomyRepo,
     terms: termRepo,
     entryTerms: entryTermRepo,
-    posts: new SqlitePostRepo(db),
+    posts: new SqlitePostRepo({ store: db }),
     outbox,
   };
 }
@@ -200,7 +201,7 @@ async function trashItem(h: Harness, entityType: TrashEntityType, entityId: stri
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: createFakeClock({ startIso: AT }),
     }
@@ -331,7 +332,7 @@ test("purging a trashed term writes exactly one taxonomy_revisions row and one t
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-5"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests("tax-5"), [
+  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-5" }), [
     { taxonomyId: "tax-5", op: "delete", previousState: { termId: "t1", name: "Red" }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);
@@ -358,7 +359,7 @@ test("purging a trashed taxonomy writes exactly one taxonomy_revisions row and o
   });
   assert.equal(purged.purged, 1);
   assert.equal(taxonomyRevisionCount(h, "tax-6"), 1);
-  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests("tax-6"), [
+  assert.deepEqual(await new SqliteTaxonomyRevisionRepo({ db: h.db, workspaceId: WS }).listForTests({ taxonomyId: "tax-6" }), [
     { taxonomyId: "tax-6", op: "delete", previousState: { deletedTermIds: ["c1"] }, actorId: ACTOR.principalId, recordedAt: AT },
   ]);
   assert.equal(h.outbox.events.length, 1);

@@ -25,7 +25,7 @@ function fixture() {
     readSnapshot: async () => { snapshotReads++; onRead(snapshotReads); if (failRead) throw new Error("db unavailable"); return { policy, revision }; },
     confirmation: { ...f.confirmations, emit: directive => { f.directives.push(directive); onPrompt(directive); } },
     budgets: { charge: async () => true }, clock: f.clock, ids: { newId: () => "attempt" }, workspaceId: "w", runId: "run", ip: "ip",
-    sink, signal: f.abort.signal, reportError: error => { errors.push(error); } };
+    sink, signal: f.abort.signal, reportError: ({ error }) => { errors.push(error); } };
   const capabilities = [{ name: "list_categories", visitorOfferable: true as const, ...VISITOR_TOOL_PRESENTATION.list_categories,
     execute: async ({ input }: { input: unknown }) => { calls++; return { result: input }; } }];
   const executor = createVisitorExecutor({ capabilities }, { ports });

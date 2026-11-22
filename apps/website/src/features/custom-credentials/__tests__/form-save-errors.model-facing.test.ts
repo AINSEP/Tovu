@@ -32,7 +32,7 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 const CREATE_TOOL_ID = "credential_save";
 const SET_TOKEN_TOOL_ID = "credential_save";
@@ -40,8 +40,11 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential } from "../store.js";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { CustomCredentialSetRepoPort } from "../types.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-cred-form-save-errors";
@@ -104,6 +107,8 @@ async function buildHarness(options: HarnessOptions = {}) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: options.repo ? options.repo(repo) : repo,
@@ -147,7 +152,7 @@ let toolUseCounter = 0;
  * human, and returns the wire result plus everything the run emitted (the outcome resource included).
  */
 async function submitForm(harness: Harness, toolId: string, input: unknown, params: Record<string, unknown>) {
-  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
+  const pending = delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle: harness.lifecycle, toolExecutor: harness.toolExecutor, resolvePrincipal: () => ({ id: PRINCIPAL_ID }) } as never });
   for (let tick = 0; tick < 200 && harness.openedExchangeIds.length === 0; tick++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
@@ -186,7 +191,7 @@ test("set_token: a seal failure that quotes the submitted token never reaches th
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
   assert.equal(harness.logLines.length, 1, harness.logLines.join("\n"));
-  assert.match(harness.logLines[0]!, /credential_save: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
+  assert.match(harness.logLines[0]!, /credential_save: save failed .*error=Error$/); // fixed class label, not the subclass name (describeErrorForLog, d68cdd24)
 });
 
 test("set_token: the SHIPPED keyring's missing-site key text (env var name, absolute key-file path) never reaches the model or the human", async () => {

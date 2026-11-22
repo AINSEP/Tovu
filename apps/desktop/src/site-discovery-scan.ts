@@ -1,7 +1,9 @@
 /** The read-only scan the discovery worker runs, as a plain function so its result contract is testable
  *  without a thread. Persistence/deletion authority stays with tracked-sites. */
 import { createSitesWorkspace } from './shared-sites.ts';
-import { readDesktopState, classifySiteDirSafely } from './site-dir-store.ts';
+import { readRecentDirectories } from '@jini-ai/platform/fs';
+import { desktopJsonFile } from './durable-json-file.ts';
+import { RECENT_SITE_DIRS_FIELD, classifySiteDirSafely } from './site-dir-store.ts';
 import { discoverSiteDirs } from './tracked-sites.ts';
 import type { DesktopDiscoveryInput } from './site-discovery.ts';
 
@@ -14,7 +16,7 @@ function discoverForInput(input: DesktopDiscoveryInput): string[] {
   // Read settings in this worker too: canonicalizing removable roots can itself block.
   return discoverSiteDirs({
     scanRoots: input.scanRoots ?? workspace.roots({}),
-    knownDirs: [...readDesktopState(input.statePath).recentSiteDirs, ...workspace.registry({}).list({}).map((row) => row.path)],
+    knownDirs: [...readRecentDirectories({ file: desktopJsonFile({ filePath: input.statePath }), field: RECENT_SITE_DIRS_FIELD }), ...workspace.registry({}).list({}).map((row) => row.path)],
     classifySiteDir: classifySiteDirSafely,
   }, { homeDir: workspace.homeDir, sitesHome: workspace.home({}) });
 }

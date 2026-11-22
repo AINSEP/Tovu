@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "@/lib/router";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const TAB_IDS = ["installed", "downloaded", "add", "marketplace"] as const;
 
 /** URL changes (including browser navigation) and shell clicks use the same guarded tab set. */
@@ -14,7 +15,7 @@ export function useAgentPluginTab({ tabId }: { tabId?: string | null }, _optiona
     onActiveTabIdChange: (next: string) => {
       const guarded = resolveActiveTabId({ tabId: next, validIds: TAB_IDS, defaultId: "installed" });
       setActiveTabId(guarded);
-      navigate(`/addons/agent-plugins?tab=${guarded}`, { replace: true });
+      navigate({ routePath: `/addons/agent-plugins?tab=${guarded}` }, { replace: true });
     },
   };
 }

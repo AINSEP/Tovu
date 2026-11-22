@@ -1,0 +1,74 @@
+##### npm run check:size
+
+> tovu@0.1.0 check:size
+> node --import tsx development/scripts/check-size-drift.ts
+
+check:size — ok: 203 violations (162 functions, 41 files); 193 debt entries, 10 accepted exceptions.
+
+##### npm run check:complexity
+
+> tovu@0.1.0 check:complexity
+> node --import tsx development/scripts/check-src-complexity-drift.ts
+
+check:complexity — ok: 43 entries (23 cyclomatic, 20 cognitive).
+
+##### npm run check:architecture
+
+> tovu@0.1.0 check:architecture
+> tsx development/scripts/check-architecture.ts
+
+check:architecture — 2245 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              436
+  propagation cost (all-import)                        12.44%
+  propagation cost (runtime-only)                      3.18%
+  back-edges into composition root                     0
+    └ back-edges, runtime-only (informational)         0
+  module cycles (mutual pairs, runtime-only)           4
+  largest strongly-connected component (runtime-only)  5
+  module API surface (files exposed)                   853
+    └ deep-import edges (informational)                2866
+  bidirectional hub count                              16.17% (363/2245)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+
+  module cycles — 1 new pair(s) introduced:
+    + features/site-backup <-> features/source-control
+
+  module cycles — 2 pair(s) removed since baseline:
+    - assistant <-> features/agent-plugins
+    - features/agent-plugins <-> features/api-connections
+
+  largest strongly-connected component shrank: 22 → 5
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.18
+
+  module API surface (files exposed) regressed: 821 → 853
+
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 363
+
+  propagation cost (all-import) improved: 15.52 → 12.44
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.18  (+0.12 pts, +3.92%)
+  regressed: module API surface (files exposed)  821 → 853  (+32, +3.9%)
+  regressed: bidirectional hub count             335 → 363  (+28, +8.36%)
+  regressed: module cycles / SCC (runtime-only)  +1 cycle pair(s), -2 cycle pair(s), largest SCC 22 → 5
+  improved:  propagation cost (all-import)       15.52 → 12.44  (-3.08 pts, -19.85%)
+========================================================================
+
+check:architecture — FAILED: 3 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+
+##### npm run check:errors
+
+> tovu@0.1.0 check:errors
+> node development/scripts/check-error-gate.mjs
+
+9 entries improved or are gone: run with --update to lower the debt list.
+Error gate passed: 817 findings in 483 file/rule entries.
+
+##### npm run typecheck: green (tsc -p tsconfig.json + tsc -p development/tsconfig.e2e.json, exit 0)
+##### npm run typecheck:tests: green (exit 0)

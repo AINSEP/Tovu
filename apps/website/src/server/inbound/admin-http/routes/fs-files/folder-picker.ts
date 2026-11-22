@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -7,6 +7,7 @@ import { isLocalAdminRequest } from "#src/server/inbound/admin-http/local-admin-
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "#src/features/fs-files/custom-root-permission";
 import type { NativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
 import type { RouteDeps } from "#src/server/routes/types";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
  * @file Admin chat composer's folder button: `GET`/`POST` on
@@ -16,7 +17,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * computer, it can ask the OS instead.
  *
  * The dialog appears on the server's screen, so this exists only when that screen is the caller's:
- * - `localHost` (`isLocalTovuHost`, the same host decision `local-credential-copy.ts` uses): a
+ * - `localHost` (`isLocalTovuHost`, the same host decision local credential copying uses): a
  *   local launch, never a deployed/hosted runtime. Otherwise 404, as if the route did not exist.
  * - the picker has a chooser on this OS. Otherwise 404 too.
  * - `isLocalAdminRequest`: loopback sockets, no forwarding headers, a loopback Host, same Origin.
@@ -43,16 +44,16 @@ async function admitted({ req, res, deps }: { req: Request; res: Response; deps:
   }
   if (!isLocalAdminRequest({ req })) { res.status(403).json({ reasonCode: "local-host-only" }); return false; }
   const permission = FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION;
-  if (!rejectUnlessSessionCredential(res, { message: "Sign in to the admin to choose a folder.", permission })) return false;
-  return authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId });
+  if (!rejectUnlessSessionCredential({ res, message: "Sign in to the admin to choose a folder.", permission })) return false;
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId } });
 }
 
 export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Express; deps: AdminFsFilesFolderPickerDeps }, _optional = {}): void {
   let picking = false;
-  app.get(BASE_PATH, async (req, res) => {
+  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await admitted({ req, res, deps })) res.json({ available: true });
-  });
-  app.post(BASE_PATH, async (req, res) => {
+  } }));
+  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (!await admitted({ req, res, deps })) return;
     if (picking) { res.status(409).json({ reasonCode: "busy" }); return; }
     picking = true;
@@ -64,5 +65,5 @@ export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Exp
     } finally {
       picking = false;
     }
-  });
+  } }));
 }

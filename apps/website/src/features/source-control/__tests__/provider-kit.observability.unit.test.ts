@@ -38,7 +38,7 @@ function capturingRegistry(): { registry: SourceControlProviderRegistry; kit: ()
     pluginId: "github",
     module: { create: ({ kit }: { kit: SourceControlProviderKit }) => { captured = kit; return {} as SourceControlProviderOperations; } },
   };
-  const registry = { list: () => [loaded], get: (id: string) => (id === "github" ? loaded : undefined), refusals: [] } as unknown as SourceControlProviderRegistry;
+  const registry = { list: () => [loaded], get: ({ providerId: id }: { providerId: string }) => (id === "github" ? loaded : undefined), refusals: [] } as unknown as SourceControlProviderRegistry;
   return { registry, kit: () => captured! };
 }
 

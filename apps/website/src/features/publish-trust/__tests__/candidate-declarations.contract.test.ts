@@ -15,7 +15,7 @@ function sources(t: TestContext, manifests: Record<string, unknown>): string {
     writeFileSync(path.join(dir, "plugin.json"), "{}");
     // This file must never be imported by data discovery.
     writeFileSync(path.join(dir, "generator.mjs"), 'throw new Error("no preboot execution");');
-    const file = path.join(dir, "tovu-deploy-configs.json");
+    const file = path.join(dir, "jini-deploy-configs.json");
     if (manifest === null) mkdirSync(file);
     else writeFileSync(file, typeof manifest === "string" ? manifest : JSON.stringify({ schemaVersion: 1, generators: manifest }));
   }
@@ -31,8 +31,8 @@ test("candidate declarations preserve order across packages, with the core app.j
   assert.deepEqual(candidatePaths, ["example-first.toml", "example-second.yaml", "app.json", "example-late.yml"]);
   assert.equal(readBundledDeployWorkflowFile({ sourceRoot }), "example-deploy.yml");
   const reads: string[] = [];
-  assert.equal(await findCandidateDestination({ resolvePath: file => `/repo/${file}`, io: {
-    read: async file => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
+  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, io: {
+    read: async ({ path: file }) => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
     write: async () => { throw new Error("read only"); },
   } }, { candidatePaths }), "https://destination.example");
   assert.deepEqual(reads, ["/repo/example-first.toml", "/repo/example-second.yaml"]);
@@ -41,7 +41,7 @@ test("candidate declarations preserve order across packages, with the core app.j
 test("escaping candidates are refused before resolution or IO, including injected paths", async t => {
   const invalid = ["../outside", "/outside", "C:/outside", "a/../outside", "a\\outside", "./outside", "a//b", "", "a".repeat(513), 7];
   for (const value of invalid) {
-    const parsed = parseDeployConfigsFile(JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, candidatePaths: [{ path: value, order: 1 }] }] }));
+    const parsed = parseDeployConfigsFile({ raw: JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, candidatePaths: [{ path: value, order: 1 }] }] }) });
     assert.equal(parsed.ok, false, String(value));
   }
   const sourceRoot = sources(t, { "example-bad": [{ ...entry, candidatePaths: [{ path: "../outside", order: 1 }] }] });
@@ -61,13 +61,13 @@ test("absent hints stay optional; workflow conflicts never choose a package by o
   assert.equal(readBundledDeployConfigDescriptors({ sourceRoot }).length, 3);
   assert.equal(readBundledDeployWorkflowFile({ sourceRoot }), undefined);
   for (const hints of [{ candidatePaths: {} }, { candidatePaths: [null] }, { candidatePaths: [{ path: "ok", order: "1" }] }, { workflowFile: "../bad.yml" }, { workflowFile: 7 }]) {
-    assert.equal(parseDeployConfigsFile(JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, ...hints }] })).ok, false);
+    assert.equal(parseDeployConfigsFile({ raw: JSON.stringify({ schemaVersion: 1, generators: [{ ...entry, ...hints }] }) }).ok, false);
   }
 });
 
 test("a declared candidate must have a finite order", () => {
   const raw = '{"schemaVersion":1,"generators":[{"id":"example-host","label":"Example","module":"g.mjs","candidatePaths":[{"path":"example.toml","order":1e999}]}]}';
-  assert.equal(parseDeployConfigsFile(raw).ok, false);
+  assert.equal(parseDeployConfigsFile({ raw }).ok, false);
 });
 
 test("a missing bundled root yields no hints instead of failing the composition root", () => {
@@ -79,10 +79,10 @@ test("a missing bundled root yields no hints instead of failing the composition 
 
 test('candidate discovery reads only supplied paths, with no implicit bundled manifest scan', async () => {
   const reads: string[] = [];
-  const io = { read: async (file: string) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
-  await findCandidateDestination({ io, resolvePath: file => file });
+  const io = { read: async ({ path: file }: { path: string }) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file });
   assert.deepEqual(reads, ['app.json']);
   reads.length = 0;
-  await findCandidateDestination({ io, resolvePath: file => file }, { candidatePaths: [] });
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file }, { candidatePaths: [] });
   assert.deepEqual(reads, []);
 });

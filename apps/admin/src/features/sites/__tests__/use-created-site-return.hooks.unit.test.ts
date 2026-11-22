@@ -9,7 +9,7 @@ describe("return to site list on create transitions", () => {
     // Mutation: stop recording null in lastSeen; the second atlas create would be swallowed.
     const returned = vi.fn();
     const initialProps: { name: string | null } = { name: null };
-    const { rerender } = renderHook(({ name }) => useReturnToSiteListOnCreate(name, returned), { initialProps });
+    const { rerender } = renderHook(({ name }) => useReturnToSiteListOnCreate({ createdName: name, returnToList: returned }), { initialProps });
     expect(returned).not.toHaveBeenCalled();
     rerender({ name: "atlas" });
     expect(returned.mock.calls).toEqual([[]]);
@@ -27,7 +27,7 @@ describe("return to site list on create transitions", () => {
     // Mutation: replacing the transition guard with createdName !== null causes spurious returns.
     const first = vi.fn();
     const second = vi.fn();
-    const { rerender } = renderHook(({ name, returned }) => useReturnToSiteListOnCreate(name, returned), { initialProps: { name: "atlas", returned: first } });
+    const { rerender } = renderHook(({ name, returned }) => useReturnToSiteListOnCreate({ createdName: name, returnToList: returned }), { initialProps: { name: "atlas", returned: first } });
     expect(first).not.toHaveBeenCalled();
     rerender({ name: "atlas", returned: second });
     expect(second).not.toHaveBeenCalled();

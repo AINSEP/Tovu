@@ -25,14 +25,14 @@ function fakeController(overrides: Partial<ReturnType<typeof useWiredMediaEditDi
     setHtmlAttributes: vi.fn(),
     htmlAttributesError: null,
     save: vi.fn(),
-    t: (key) => key,
+    t: ({ key }) => key,
     ...overrides,
   };
 }
 
 describe("MediaEditDialog — copy", () => {
   it("renders every label through the controller's own t, so the dialog needs no second useAdminLocale call", () => {
-    const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ t: (key) => `[es] ${key}` });
+    const useDialog: typeof useWiredMediaEditDialog = () => fakeController({ t: ({ key }) => `[es] ${key}` });
     render(<MediaEditDialog initial={{ alt: null, cssClass: null, htmlAttributes: null }} onSave={vi.fn()} onCancel={vi.fn()} useDialog={useDialog} />);
 
     expect(screen.getByRole("heading", { name: "[es] Edit this instance" })).toBeInTheDocument();

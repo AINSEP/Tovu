@@ -31,7 +31,7 @@ test("a plugin newly enabled in the durable repo is attached, and its id is adde
   };
   const attachedIds = new Set<string>();
 
-  await reconcilePluginActivationsOnce(deps, attachedIds);
+  await reconcilePluginActivationsOnce({ deps, attachedIds });
 
   assert.deepEqual(enabledCalls, ["word-count"]);
   assert.ok(attachedIds.has("word-count"));
@@ -50,7 +50,7 @@ test("an already-attached plugin is NOT re-attached on a later pass — no redun
   };
   const attachedIds = new Set(["word-count"]);
 
-  await reconcilePluginActivationsOnce(deps, attachedIds);
+  await reconcilePluginActivationsOnce({ deps, attachedIds });
 
   assert.equal(enabledCallCount, 0, "word-count was already in attachedIds — this pass must not call onPluginEnabled again");
 });
@@ -68,7 +68,7 @@ test("a plugin disabled elsewhere (no longer in the durable enabled set) is deta
   };
   const attachedIds = new Set(["word-count"]);
 
-  await reconcilePluginActivationsOnce(deps, attachedIds);
+  await reconcilePluginActivationsOnce({ deps, attachedIds });
 
   assert.deepEqual(disabledCalls, ["word-count"]);
   assert.ok(!attachedIds.has("word-count"));
@@ -82,7 +82,7 @@ test("a workspace this daemon does not serve is ignored, even if enabled there",
     onPluginEnabled: async () => assert.fail("must not attach a plugin enabled for a different workspace"),
     onPluginDisabled: () => assert.fail("must not touch attachedIds over a different workspace's row"),
   };
-  await reconcilePluginActivationsOnce(deps, new Set());
+  await reconcilePluginActivationsOnce({ deps, attachedIds: new Set() });
 });
 
 test("one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest", async () => {
@@ -99,7 +99,7 @@ test("one plugin's attach failure is logged and skipped, never blocking reconcil
   };
   const attachedIds = new Set<string>();
 
-  await reconcilePluginActivationsOnce(deps, attachedIds);
+  await reconcilePluginActivationsOnce({ deps, attachedIds });
 
   assert.deepEqual(enabledCalls, ["word-count"], "the working plugin must still attach despite the broken one throwing");
   assert.ok(!attachedIds.has("broken-plugin"), "a failed attach must not be recorded as attached");
@@ -130,7 +130,7 @@ test("a plugin that keeps failing the same way is logged once, and retried with 
   const attachedIds = new Set<string>();
   const failures = new Map();
 
-  for (let pass = 0; pass < 20; pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  for (let pass = 0; pass < 20; pass += 1) await reconcilePluginActivationsOnce({ deps, attachedIds, failures });
 
   assert.equal(warnings.length, 1, warnings.join("\n"));
   assert.match(warnings[0]!, /failed to attach 'broken-plugin'.*INTEGRITY_FAILED/);
@@ -154,11 +154,11 @@ test("a NEW failure for the same plugin is logged again, and a recovery is logge
   const attachedIds = new Set<string>();
   const failures = new Map();
 
-  await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  await reconcilePluginActivationsOnce({ deps, attachedIds, failures });
   error = "second problem";
-  for (let pass = 0; pass < 200 && warnings.length < 2; pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  for (let pass = 0; pass < 200 && warnings.length < 2; pass += 1) await reconcilePluginActivationsOnce({ deps, attachedIds, failures });
   error = undefined;
-  for (let pass = 0; pass < 200 && !attachedIds.has("flaky"); pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  for (let pass = 0; pass < 200 && !attachedIds.has("flaky"); pass += 1) await reconcilePluginActivationsOnce({ deps, attachedIds, failures });
 
   assert.equal(warnings.length, 2, warnings.join("\n"));
   assert.match(warnings[1]!, /second problem/);

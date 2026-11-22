@@ -1,4 +1,4 @@
-import type { AdminAnalyticsHit } from "@/lib/api";
+import type { AdminAnalyticsHit } from "@/features/analytics/api/analytics-api.types";
 
 /**
  * @file What `useAnalytics` needs from the outside world, as an interface rather than a direct
@@ -10,5 +10,5 @@ import type { AdminAnalyticsHit } from "@/lib/api";
  * client, and nothing else under `features/analytics/hooks` imports `lib/api`.
  */
 export interface AnalyticsPort {
-  listRecentAnalyticsHits(options?: { limit?: number }): Promise<{ hits: AdminAnalyticsHit[] }>;
+  listRecentAnalyticsHits(required?: Record<string, never>, optional?: { limit?: number }): Promise<{ hits: AdminAnalyticsHit[] }>;
 }

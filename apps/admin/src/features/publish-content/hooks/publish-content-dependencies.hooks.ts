@@ -7,7 +7,8 @@ import type {
   PublishScope,
 } from "@tovu/publish-content-ui";
 
-import { api, type AdminPublishDestinationView } from "@/lib/api";
+import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
+import { publishContentApi } from "@/features/publish-content/api/publish-content-api";
 
 import type { PublishContentPort } from "./publish-content-port.hooks";
 
@@ -20,12 +21,12 @@ import type { PublishContentPort } from "./publish-content-port.hooks";
  *  explicitly rather than pointing at it directly, matching `dashboard-dependencies.hooks.ts`'s own
  *  reasoning — a route's own parameter shape stays `lib/api.ts`'s to own. */
 export const defaultPublishContentPort: PublishContentPort = {
-  listPeers: () => api.listPublishContentPeers(),
-  getDestination: () => api.getPublishDestination(),
-  connectDestination: (input) => api.connectPublishDestination(input),
-  planPublish: (input) => api.planPublishContent(input),
-  confirmPublish: (input) => api.confirmPublishContent(input),
-  executePublish: (input) => api.executePublishContent(input),
+  listPeers: () => publishContentApi.listPublishContentPeers(),
+  getDestination: () => publishContentApi.getPublishDestination(),
+  connectDestination: (_input, options = {}) => publishContentApi.connectPublishDestination(options),
+  planPublish: (input, _options = {}) => publishContentApi.planPublishContent(input),
+  confirmPublish: (input, _options = {}) => publishContentApi.confirmPublishContent(input),
+  executePublish: (input, _options = {}) => publishContentApi.executePublishContent(input),
 };
 
 /** Seed state for {@link createFakePublishContentPort}. Every stage can be made to fail
@@ -176,7 +177,7 @@ export function createFakePublishContentPort(
       if (options.destinationError) throw options.destinationError;
       return options.destination ?? DEFAULT_DESTINATION;
     },
-    async connectDestination(input = {}): Promise<AdminPublishDestinationView> {
+    async connectDestination(_required, input = {}): Promise<AdminPublishDestinationView> {
       calls.connectDestination.push(input);
       if (options.connectError) throw options.connectError;
       if (options.connectResult) return options.connectResult;

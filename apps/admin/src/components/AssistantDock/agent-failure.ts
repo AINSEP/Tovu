@@ -1,8 +1,9 @@
 /** Compatibility copy of the proposed @jini-ai/chat/core failure API; see the Jini patch. */
 import type { AgentEvent, ChatMessage, ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/core";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
+
 import { redactCredentialShapes, redactSecretAssignments, stripControlCharacters, stripCsiSequences, stripOscSequences } from "./agent-failure-scanners";
 
+import { isAbortError } from '@jini-ai/core/text';
 export interface AgentFailureHint {
   readonly category: "auth" | "unsupported-client";
   /** Case-insensitive literal alternatives, scoped to this agent's own output. */
@@ -29,9 +30,9 @@ export const GENERIC_AGENT_FAILURE = "The assistant could not continue this answ
 
 /** Strip CSI, OSC (including terminal hyperlinks) and remaining control characters first. */
 export function redactAgentFailure({ text }: { text: string }, _optional = {}): string {
-  const visible = stripControlCharacters(stripCsiSequences(stripOscSequences(text)));
-  const bearerRedacted = redactCredentialShapes(visible).replace(/\b(Bearer\s+)[^\s"'<>]+/gi, "$1[REDACTED]");
-  return redactSecretAssignments(bearerRedacted)
+  const visible = stripControlCharacters({ text: stripCsiSequences({ text: stripOscSequences({ text }) }) });
+  const bearerRedacted = redactCredentialShapes({ text: visible }).replace(/\b(Bearer\s+)[^\s"'<>]+/gi, "$1[REDACTED]");
+  return redactSecretAssignments({ text: bearerRedacted })
     .replace(/(Authorization\s*:\s*(?:Basic|Token)\s+)[^\s"'<>]+/gi, "$1[REDACTED]")
     .replace(/([?&](?:key|api[_-]?key|token|access_token|refresh_token|code)=)[^\s"'&#]+/gi, "$1[REDACTED]")
     .replace(/(https?:\/\/)[^\s/@:]+:[^\s/@]+@/gi, "$1[REDACTED]@");
@@ -49,17 +50,17 @@ const ERROR_PHRASES: readonly RegExp[] = [
 ];
 
 /** Whether the line names an error in any of `ERROR_PHRASES`' words, each as whole words. */
-function isErrorLine(line: string): boolean {
+function isErrorLine({ line }: { line: string }, _options: Record<string, never> = {}): boolean {
   return ERROR_PHRASES.some((phrase) => phrase.test(line));
 }
 const GENERIC = /^(?:Run failed — the agent process exited without answering|This turn failed\.?$|The assistant could not (?:continue|finish) this answer\. Saved work is above\.?$|Stopped\.?$)/i;
 
-function agentIdField(agentId: string | undefined): { agentId?: string } {
+function agentIdField({ agentId }: { agentId: string | undefined }, _options: Record<string, never> = {}): { agentId?: string } {
   return agentId ? { agentId } : {};
 }
 
 /** A malformed external error payload contributes nothing rather than throwing. */
-function extErrorMessage(data: unknown): string[] {
+function extErrorMessage({ data }: { data: unknown }, _options: Record<string, never> = {}): string[] {
   if (!data || typeof data !== "object") return [];
   const message = "message" in data ? data.message : undefined;
   return typeof message === "string" ? [message] : [];
@@ -68,8 +69,8 @@ function extErrorMessage(data: unknown): string[] {
 /** Raw stderr, structured `error` ext events and error-like statuses are failure text; everything else is not. */
 function eventFailureSources(event: AgentEvent): string[] {
   if (event.kind === "raw") return [event.line];
-  if (event.kind === "ext") return event.name === "error" ? extErrorMessage(event.data) : [];
-  if (event.kind === "status" && !GENERIC.test(event.label) && (event.code === "agent_error" || isErrorLine(event.label))) {
+  if (event.kind === "ext") return event.name === "error" ? extErrorMessage({ data: event.data }) : [];
+  if (event.kind === "status" && !GENERIC.test(event.label) && (event.code === "agent_error" || isErrorLine({ line: event.label }))) {
     return [[event.label, event.detail].filter(Boolean).join(" ")];
   }
   return [];
@@ -86,9 +87,9 @@ export function extractAgentFailure(
   const sources = (events ?? []).flatMap(eventFailureSources);
   const details = redactAgentFailure({ text: sources.join("\n") }, {}).trim();
   const lines = details.split(/\r?\n/).map(line => line.trim()).filter(line => !NOISE.test(line)).filter(isMeaningfulLine);
-  const errors = lines.filter(line => isErrorLine(line));
+  const errors = lines.filter(line => isErrorLine({ line }));
   const reason = (errors[errors.length - 1] ?? lines[lines.length - 1])?.slice(0, 600);
-  return reason ? { reason, details, ...agentIdField(agentId) } : null;
+  return reason ? { reason, details, ...agentIdField({ agentId }) } : null;
 }
 
 export function matchAgentFailureHint(
@@ -117,9 +118,9 @@ function projectEvents(
 ): AgentEvent[] {
   const kept = events.filter(event => (event.kind !== "ext" || event.name !== AGENT_FAILURE_EVENT) &&
     !(failed && event.kind === "status" && event.label === GENERIC_AGENT_FAILURE));
-  const failure = failed ? extractAgentFailure({ events: kept, ...agentIdField(agentId) }, {}) : null;
+  const failure = failed ? extractAgentFailure({ events: kept, ...agentIdField({ agentId }) }, {}) : null;
   const fallback: AgentEvent[] = failed && !failure
-    ? [failureEvent({ reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause.", ...agentIdField(agentId) })] : [];
+    ? [failureEvent({ reason: GENERIC_AGENT_FAILURE, details: "The assistant stopped without reporting a cause.", ...agentIdField({ agentId }) })] : [];
   return [...kept.map(safeEvent), ...(failure ? [failureEvent(failure)] : fallback)];
 }
 
@@ -140,13 +141,13 @@ function stoppedStart({ error, input }: { error: unknown; input: StartRunInput }
 /** No daemon run exists for a refused start; Jini treats an empty id as "nothing to stop or follow". */
 const NO_RUN_ID = "";
 
-function redactedError(error: unknown): Error {
+function redactedError({ error }: { error: unknown }, _options: Record<string, never> = {}): Error {
   return new Error(redactAgentFailure({ text: error instanceof Error ? error.message : String(error) }, {}));
 }
 
 /** Wrap the existing transport; preserve optional checkpoint support and every lifecycle effect. */
 export function withAgentFailureSurface({ transport }: { transport: ChatTransport }, _optional = {}): ChatTransport {
-  function wrap(handlers: RunHandlers, agentId?: string): RunHandlers {
+  function wrap({ handlers }: { handlers: RunHandlers }, { agentId }: { agentId?: string } = {}): RunHandlers {
     let events: AgentEvent[] = [];
     let failed = false;
     let errorEvent: Extract<AgentEvent, { kind: "status" }> | undefined;
@@ -158,13 +159,13 @@ export function withAgentFailureSurface({ transport }: { transport: ChatTranspor
         events = message.events ?? [];
         failed = message.runStatus === "failed";
         agentId = message.agentId ?? agentId;
-        onCheckpoint(projectAgentFailureMessage({ message: { ...message, ...agentIdField(agentId) } }, {}));
+        onCheckpoint(projectAgentFailureMessage({ message: { ...message, ...agentIdField({ agentId }) } }, {}));
       } } : {}),
       onError(error) {
         failed = true;
         errorEvent = { kind: "status", code: "agent_error", label: error.message };
         events.push(errorEvent);
-        const failure = extractAgentFailure({ events, ...agentIdField(agentId) }, {});
+        const failure = extractAgentFailure({ events, ...agentIdField({ agentId }) }, {});
         if (failure) handlers.onEvent(failureEvent(failure));
         handlers.onError(new Error(redactAgentFailure({ text: error.message }, {})));
       },
@@ -182,10 +183,10 @@ export function withAgentFailureSurface({ transport }: { transport: ChatTranspor
   return {
     ...transport,
     async startRun(input, handlers) {
-      const sink = wrap(handlers, input.agentId);
+      const sink = wrap({ handlers }, { agentId: input.agentId });
       try { return await transport.startRun(input, sink); }
       catch (error) {
-        const safe = redactedError(error);
+        const safe = redactedError({ error });
         sink.onError(safe);
         if (stoppedStart({ error, input }, {})) throw safe;
         // A refused start (e.g. `POST /api/runs` → 500) resolves instead of rejecting: Jini removes a
@@ -195,10 +196,10 @@ export function withAgentFailureSurface({ transport }: { transport: ChatTranspor
       }
     },
     async reattachRun(runId, handlers, options) {
-      const sink = wrap(handlers);
+      const sink = wrap({ handlers });
       try { await transport.reattachRun(runId, sink, options); }
       catch (error) {
-        const safe = redactedError(error);
+        const safe = redactedError({ error });
         sink.onError(safe);
         throw safe;
       }

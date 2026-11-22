@@ -1,0 +1,10 @@
+check:test-safety — FAIL: message-less assertions added (give each assert.ok/assert a message):
+  - apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts: 5 -> 6
+  - apps/website/src/cli/commands/__tests__/stdin-input.unit.test.ts: 1 -> 2
+  - apps/website/src/features/agent-plugins/__tests__/unit/bundled-kuinetic-package.unit.test.ts: 0 -> 1
+  - apps/website/src/features/agent-plugins/__tests__/unit/bundled-ui-ux-design-package.unit.test.ts: 2 -> 4
+  - apps/website/src/server/inbound/admin-http/routes/integrations/__tests__/integration/create-delete-pause.integration.test.ts: 5 -> 6
+  - apps/website/src/server/inbound/public-http/http/site/__tests__/form-render.unit.test.ts: 1 -> 3
+  - apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-metadata.unit.test.ts: 1 -> 5
+  - apps/website/src/server/runtime/composition/__tests__/serving-app-trash-sweep.test.ts: 0 -> 1
+  - apps/website/src/server/runtime/composition/site-deps/__tests__/outbound-connections.characterization.unit.test.ts: 1 -> 2

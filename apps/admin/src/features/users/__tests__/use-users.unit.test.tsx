@@ -1,9 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { createFakeUsersPort, defaultUsersPort, toJiniUsersPort } from "../hooks/users-dependencies.hooks";
+import { userManagementKit } from "@/integrations/jini-kits";
+import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
+import { defaultUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
 
 /**
@@ -37,7 +40,7 @@ import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+  return <FetchQueryProvider><UserManagementKitProvider kit={userManagementKit}>{children}</UserManagementKitProvider></FetchQueryProvider>;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -495,7 +498,7 @@ describe("openResetPassword / confirmResetPassword", () => {
   });
 
   it("refuses to change a reset target or its draft while a status toggle is pending", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     let release!: (value: { user: AdminIdentityUser }) => void;
     const enable = vi.spyOn(port, "enableUser").mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
@@ -599,7 +602,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
    *  the calls `UsersPort` itself would have made. */
 
   it("loads users, roles, and policies through the injected port, without touching fetch", async () => {
-    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A], roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -610,7 +613,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onCreate writes through the injected port and the list reflects the new user", async () => {
-    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A], roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -628,7 +631,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onToggleStatus disables an active user through the injected port", async () => {
-    const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -641,7 +644,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("passes the selected principal and draft values to injected mutation ports", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     const assign = vi.spyOn(port, "assignRole");
     const attach = vi.spyOn(port, "attachPolicy");
     const update = vi.spyOn(port, "updateUser");
@@ -668,7 +671,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   });
 
   it("onAssignRole sets grantError from the injected port's configured failure", async () => {
-    const port = createFakeUsersPort({
+    const port = createFakeUsersPort({}, {
       users: [USER_A],
       roles: [ROLE],
       policies: [POLICY],
@@ -689,13 +692,13 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // Delete-user plan v2 (2026-09-24), Slice 4.
   describe("requestDelete / confirmDelete — ConfirmDialog gate", () => {
     it("canManageUserTrash resolves from the injected port's me()", async () => {
-      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY], canManageUserTrash: true });
+      const port = createFakeUsersPort({}, { users: [USER_A], roles: [ROLE], policies: [POLICY], canManageUserTrash: true });
       const { result } = renderHook(() => useUsers({ port }), { wrapper });
       await waitFor(() => expect(result.current.canManageUserTrash).toBe(true));
     });
 
     it("confirmDelete calls the fake deleteUser once and closes the dialog", async () => {
-      const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
+      const port = createFakeUsersPort({}, { meId: "another-admin", users: [USER_A], roles: [ROLE], policies: [POLICY] });
       const spy = vi.spyOn(port, "deleteUser");
       const { result } = renderHook(() => useUsers({ port }), { wrapper });
       await waitFor(() => expect(result.current.users).not.toBeNull());
@@ -708,13 +711,13 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(USER_A.principalId);
+      expect(spy).toHaveBeenCalledWith({ principalId: USER_A.principalId });
       expect(result.current.confirmingDelete).toBeNull();
       await waitFor(() => expect(result.current.users).toEqual([]));
     });
 
     it("on failure, sets toggleError and still closes the dialog", async () => {
-      const port = createFakeUsersPort({ meId: "another-admin",
+      const port = createFakeUsersPort({}, { meId: "another-admin",
         users: [USER_A],
         roles: [ROLE],
         policies: [POLICY],
@@ -733,7 +736,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     it("confirmDelete is a no-op with nothing pending", async () => {
-      const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+      const port = createFakeUsersPort({}, { users: [USER_A], roles: [ROLE], policies: [POLICY] });
       const spy = vi.spyOn(port, "deleteUser");
       const { result } = renderHook(() => useUsers({ port }), { wrapper });
       await waitFor(() => expect(result.current.users).not.toBeNull());
@@ -751,7 +754,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // `runGrantMutation`'s own doc comment.
   it("onAssignRole: a stale success settling after the operator switched panels and picked a NEW role must not clear it", async () => {
     let resolveA!: (v: { assignment: unknown }) => void;
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
@@ -783,7 +786,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // See `confirmDisable`'s own doc comment.
   it("confirmDisable: a stale settlement after the operator opened a DIFFERENT user's confirm dialog must not silently close it", async () => {
     let resolveA!: (v: { user: AdminIdentityUser }) => void;
-    const port = createFakeUsersPort({ meId: "another-admin", users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { meId: "another-admin", users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.disableUser = vi.fn(() => new Promise<{ user: AdminIdentityUser }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
@@ -813,7 +816,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   // earlier in the same function. A stale FAILURE for A must not paint onto B's now-open panel.
   it("onAssignRole: a stale failure settling after the operator switched panels must not show on the new panel", async () => {
     let rejectA!: (e: unknown) => void;
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((_resolve, reject) => { rejectA = reject; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
@@ -845,7 +848,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
   it("onAssignRole: a stale grant's finally must not clear the saving flag of a newer grant still in flight on another panel", async () => {
     let rejectA!: (e: unknown) => void;
     let resolveB!: (v: { assignment: unknown }) => void;
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.assignRole = vi
       .fn()
       .mockImplementationOnce(() => new Promise<{ assignment: unknown }>((_resolve, reject) => { rejectA = reject; }))
@@ -888,7 +891,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
   it("toggleExpanded: switching panels mid-grant clears the saving flag, and the stale grant's settle leaves it cleared", async () => {
     let resolveA!: (v: { assignment: unknown }) => void;
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     port.assignRole = vi.fn(() => new Promise<{ assignment: unknown }>((resolve) => { resolveA = resolve; }));
 
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
@@ -918,7 +921,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
 describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice 3)", () => {
   it("auto-opens the reset dialog on the caller's OWN row (from me()), not another row", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
     const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -926,7 +929,7 @@ describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice
   });
 
   it("does not auto-open the dialog when the flag is false (or omitted)", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
     const { result } = renderHook(() => useUsers({ port }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
 
@@ -936,7 +939,7 @@ describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice
   });
 
   it("navigates to /users once the deep-link-opened dialog closes", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
     const navigate = vi.fn();
     const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true, navigate }), { wrapper });
     await waitFor(() => expect(result.current.resetPasswordFor).toEqual(USER_B));
@@ -947,7 +950,7 @@ describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice
   });
 
   it("does NOT navigate when a normal (non-deep-link) reset dialog is opened and closed", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
     const navigate = vi.fn();
     const { result } = renderHook(() => useUsers({ port, navigate }), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
@@ -960,7 +963,7 @@ describe("openOwnPasswordReset deep link (password-banner plan, 2026-09-24 Slice
   });
 
   it("on a successful self-reset, sets the 'sign in again' notice instead of the per-username notice", async () => {
-    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
+    const port = createFakeUsersPort({}, { users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY], meId: USER_B.principalId });
     const { result } = renderHook(() => useUsers({ port, openOwnPasswordReset: true }), { wrapper });
     await waitFor(() => expect(result.current.resetPasswordFor).toEqual(USER_B));
 
@@ -987,9 +990,9 @@ describe("users dependency port contracts", () => {
       if (responses.length === 0) throw new Error("Unexpected extra auth read");
       return jsonResponse(responses.shift());
     });
-    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "legacy-admin" }, canManageUserTrash: false, effectivePermissions: [] });
-    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "new-admin" }, canManageUserTrash: true, effectivePermissions: ["users:manage"] });
-    await expect(defaultUsersPort.me()).resolves.toEqual({ user: { id: "limited-admin" }, canManageUserTrash: false, effectivePermissions: [] });
+    await expect(defaultUsersPort.me({})).resolves.toEqual({ user: { id: "legacy-admin" }, canManageUserTrash: false, effectivePermissions: [] });
+    await expect(defaultUsersPort.me({})).resolves.toEqual({ user: { id: "new-admin" }, canManageUserTrash: true, effectivePermissions: ["users:manage"] });
+    await expect(defaultUsersPort.me({})).resolves.toEqual({ user: { id: "limited-admin" }, canManageUserTrash: false, effectivePermissions: [] });
   });
 
   it("the live password-reset adapter sends the principal and new password", async () => {
@@ -1011,28 +1014,28 @@ describe("users dependency port contracts", () => {
       requests.push({ url: String(url), init });
       return new Response(null, { status: 204 });
     });
-    await defaultUsersPort.deleteUser("u 2");
+    await defaultUsersPort.deleteUser({ principalId: "u 2" });
     expect(requests).toHaveLength(1);
     expect(requests[0].url).toBe("/api/admin/v1/workspaces/workspace-local/users/u%202");
     expect(requests[0].init?.method).toBe("DELETE");
   });
 
   it("an empty fake uses its fallback caller id and creates users with or without email", async () => {
-    const port = createFakeUsersPort();
-    await expect(port.me()).resolves.toEqual({ user: { id: "fake-user-1" }, canManageUserTrash: true });
-    await expect(port.listRoles()).resolves.toEqual({ roles: [] });
-    await expect(port.listPolicies()).resolves.toEqual({ policies: [] });
+    const port = createFakeUsersPort({});
+    await expect(port.me({})).resolves.toEqual({ user: { id: "fake-user-1" }, canManageUserTrash: true });
+    await expect(port.listRoles({})).resolves.toEqual({ roles: [] });
+    await expect(port.listPolicies({})).resolves.toEqual({ policies: [] });
     await port.createUser({ username: "first", password: "password" });
     await port.createUser({ username: "second", password: "password" }, { email: "second@example.test" });
-    expect((await port.listUsers()).users.map(({ principalId, username, email }) => ({ principalId, username, email }))).toEqual([
+    expect((await port.listUsers({})).users.map(({ principalId, username, email }) => ({ principalId, username, email }))).toEqual([
       { principalId: "fake-user-1", username: "first", email: undefined },
       { principalId: "fake-user-2", username: "second", email: "second@example.test" },
     ]);
   });
 
   it("Jini's object-shaped status and delete adapters change the backing user list", async () => {
-    const fake = createFakeUsersPort({ users: [USER_A, USER_B], canManageUserTrash: false });
-    const port = toJiniUsersPort({ port: fake });
+    const fake = createFakeUsersPort({}, { users: [USER_A, USER_B], canManageUserTrash: false });
+    const port = fake;
     await expect(port.me({})).resolves.toEqual({ user: { id: "u1" }, canManageUserTrash: false });
     await port.disableUser({ principalId: "u2" });
     expect((await port.listUsers({})).users).toEqual([USER_A, { ...USER_B, status: "disabled" }]);
@@ -1043,9 +1046,9 @@ describe("users dependency port contracts", () => {
   });
 
   it("the fake rejects a missing user without changing the store", async () => {
-    const port = createFakeUsersPort({ users: [USER_A] });
+    const port = createFakeUsersPort({}, { users: [USER_A] });
     await expect(port.updateUser({ principalId: "missing" })).rejects.toThrow("fake user not found: missing");
-    expect((await port.listUsers()).users).toEqual([USER_A]);
+    expect((await port.listUsers({})).users).toEqual([USER_A]);
   });
 
   it.each([
@@ -1053,15 +1056,15 @@ describe("users dependency port contracts", () => {
     ["resetPasswordError", "reset"], ["attachPolicyError", "attach"],
     ["updateUserError", "update"], ["createUserError", "create"],
   ] as const)("the fake preserves users when %s rejects %s", async (option, operation) => {
-    const port = createFakeUsersPort({ users: [USER_A], [option]: new Error(`${operation} unavailable`) });
+    const port = createFakeUsersPort({}, { users: [USER_A], [option]: new Error(`${operation} unavailable`) });
     const attempts = {
-      disable: () => port.disableUser("u1"), enable: () => port.enableUser("u1"),
+      disable: () => port.disableUser({ principalId: "u1" }), enable: () => port.enableUser({ principalId: "u1" }),
       reset: () => port.resetUserPassword({ principalId: "u1", password: "new-password" }),
       attach: () => port.attachPolicy({ principalId: "u1", policyId: "p1" }),
       update: () => port.updateUser({ principalId: "u1" }, { email: "changed@example.test" }),
       create: () => port.createUser({ username: "new", password: "password" }),
     };
     await expect(attempts[operation]()).rejects.toThrow(`${operation} unavailable`);
-    expect((await port.listUsers()).users).toEqual([USER_A]);
+    expect((await port.listUsers({})).users).toEqual([USER_A]);
   });
 });

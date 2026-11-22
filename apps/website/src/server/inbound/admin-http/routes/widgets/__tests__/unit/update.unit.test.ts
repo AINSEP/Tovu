@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo, type EntryRecord } from "#src/features/entries/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { buildWidgetInstanceFieldsJson, ensureWidgetContentTypesRegistered, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
@@ -68,7 +68,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
   });
   savedEntry = undefined;
 
-  registerAdminWidgetUpdateRoute(mockApp as any, deps);
+  registerAdminWidgetUpdateRoute({ app: mockApp as any, deps });
   assert.ok(routeHandler, "route handler was registered");
 
   function createMockRes() {

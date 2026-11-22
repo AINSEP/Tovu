@@ -4,14 +4,14 @@ import { createCredentialCopyRegistrations } from "@jini-ai/integrations/credent
 export { createCredentialCopyRegistrations };
 export type { CredentialCopyRequired } from "@jini-ai/integrations/credentialed-http/tools";
 import { type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
-import type { AuthorizeFn } from '@jini-ai/cms/core';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { InstanceAuthorizeFn } from '@jini-ai/core/gated-mutations';
 
 import { type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 
 import type { ProjectKeysPort } from '../project-keys/service.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
-import type { CredentialCopyToolHost } from './credential-tool-host.js';
+import type { CredentialCopyToolHost } from '@jini-ai/integrations/credentialed-http/tools';
 import { tovuCredentialCardIdentity } from './tovu-credential-card-identity.js';
 
 export const CREDENTIAL_COPY_TOOL_ID = 'credential_copy_from_project';

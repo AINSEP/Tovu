@@ -1,3 +1,4 @@
+import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import {
   DefinitionNotFoundError,
@@ -10,7 +11,8 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -28,7 +30,7 @@ const SET_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
  *  which is why this checks `"valueJson" in body` rather than `body.valueJson !== undefined`).
  *  `null` means the body failed that check.
  *  @complexity O(1). */
-function parseSetRequestFields(rawBody: unknown): {
+function parseSetRequestFields({ rawBody }: { rawBody: unknown }, _optional = {}): {
   namespace: string;
   key: string;
   scope: SettingScope;
@@ -70,11 +72,11 @@ function parseSetRequestFields(rawBody: unknown): {
  * `principalId` that isn't an active principal in the request's workspace)
  * maps to 404, NOT 500 — this was Red-Team RT-001's flagged gap.
  */
-export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "put", path: "/api/admin/v1/workspaces/:workspaceId/settings/value",
     errorMappings: SET_ERROR_MAPPINGS,
     handle: async ({ request: req, principal, authorize }) => {
-      const parsed = parseSetRequestFields(req.body);
+      const parsed = parseSetRequestFields({ rawBody: req.body });
       if (!parsed) {
         rejectSettingsRequest({ status: 400,
           error: "namespace, key, scope (global|workspace|user), and valueJson are required",
@@ -83,7 +85,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       }
       const { namespace, key, scope, valueJson, bodyWorkspaceId, principalId } = parsed;
       // The write target is the ambient workspace, never the body's. See
-      // `resolveTargetWorkspaceId`'s doc in `shared.ts` for why a body-named
+      // `resolveTargetWorkspaceId` (`@jini-ai/core/settings`) for why a body-named
       // workspace is REJECTED rather than honored: accepting it authorized
       // against this workspace while writing another tenant's row.
       //
@@ -97,7 +99,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       // other settings route already does (`get-effective.ts`,
       // `list-definitions.ts`), because the `:workspaceId` path param is
       // 404-checked against `deps.workspaceId` above (ADR-007).
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 /** Titles a rail link with its visible label, remembering the original title to restore. */
-function showLabelAsTitle(link: Element, original: Map<Element, string | null>): void {
+function showLabelAsTitle({ link, original }: { link: Element; original: Map<Element, string | null> }, _options = {}): void {
   const text = link.querySelector("span")?.textContent;
   if (!text) return;
   if (!original.has(link)) original.set(link, link.getAttribute("title"));
@@ -21,7 +21,7 @@ export function useCmsSidebarLabelTooltips(
       for (const link of nav.querySelectorAll("a.cms-item")) {
         // Sites owns a measured name-only tooltip; Jini still supplies its full rail tooltip.
         if (link.getAttribute("href")?.endsWith("/sites")) link.removeAttribute("title");
-        else showLabelAsTitle(link, original);
+        else showLabelAsTitle({ link, original });
       }
     };
     update();

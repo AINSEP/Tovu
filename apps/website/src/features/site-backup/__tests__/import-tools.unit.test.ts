@@ -3,9 +3,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseSiteImportInput, type SiteImportBackend } from "../import-backend.js";
 import { buildSiteBackupRegistrations, type SiteBackupToolDeps } from "../tool-registrations.js";
+import { SiteShareRefusal } from "../share-policy.js";
 
 test("B source boundary rejects paths, both/neither sources, credentials and password fields", () => {
-  for (const input of [{}, { path: "/tmp/source.zip" }, { url: "https://example.com/site.zip", uploadId: "a" }, { url: "file:///etc/passwd" }, { url: "http://example.com" }, { url: "https://user:pass@example.com" }, { url: "https://example.com", adminPassword: "secret" }]) assert.throws(() => parseSiteImportInput({ input }));
+  for (const [input, message] of [
+    [{}, "Provide exactly one source: url or uploadId; optional displayName and requestId only."],
+    [{ path: "/tmp/source.zip" }, "Provide exactly one source: url or uploadId; optional displayName and requestId only."],
+    [{ url: "https://example.com/site.zip", uploadId: "a" }, "Provide exactly one source: url or uploadId; optional displayName and requestId only."],
+    [{ url: "file:///etc/passwd" }, "Import URLs require HTTPS without credentials or fragments."],
+    [{ url: "http://example.com" }, "Import URLs require HTTPS without credentials or fragments."],
+    [{ url: "https://user:pass@example.com" }, "Import URLs require HTTPS without credentials or fragments."],
+    [{ url: "https://example.com", adminPassword: "secret" }, "Provide exactly one source: url or uploadId; optional displayName and requestId only."],
+  ] as const) assert.throws(() => parseSiteImportInput({ input }), { constructor: SiteShareRefusal, name: "SiteShareRefusal", code: "INVALID_INPUT", message });
   assert.deepEqual(parseSiteImportInput({ input: { url: "https://example.com/site.tovu.zip", requestId: "retry" } }), { source: { url: "https://example.com/site.tovu.zip" }, requestId: "retry" });
 });
 

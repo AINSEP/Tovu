@@ -8,7 +8,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
 import { registerAdminSettingsClearRoute } from "../clear.js";
 import { registerAdminSettingsGetEffectiveRoute } from "../get-effective.js";
@@ -31,11 +31,11 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminSettingsGetEffectiveRoute(app, deps);
-  registerAdminSettingsRegisterDefinitionsRoute(app, deps);
-  registerAdminSettingsClearRoute(app, deps);
+  registerAdminSettingsGetEffectiveRoute({ app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  registerAdminSettingsClearRoute({ app, deps });
   return { app, deps };
 }
 
@@ -55,7 +55,20 @@ test("GET settings/effective without a namespace query param is a 400 VALIDATION
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/effective`, { headers: { cookie } });
   assert.equal(res.status, 400);
-  assert.deepEqual(await res.json(), { error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
+  assert.deepEqual(await res.json(), {
+    error: "Say which group of settings to read: add ?namespace=<group> to the address, for example ?namespace=core.language.",
+    code: "VALIDATION_ERROR",
+  });
+});
+
+test("GET settings/effective with an empty namespace is the same plain-words 400 VALIDATION_ERROR", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/effective?namespace=`, { headers: { cookie } });
+  assert.equal(res.status, 400);
+  const body = await res.json() as { error: string; code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.error, /^Say which group of settings to read/);
 });
 
 test("POST settings/definitions with a non-array 'definitions' is a 400 VALIDATION_ERROR", async (t) => {

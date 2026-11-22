@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { resolveMediaProviderCredential } from "../../features/media/provider-credential-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -43,9 +43,9 @@ function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Expres
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createMediaModule(deps).registerRoutes?.(app);
+  createMediaModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -72,7 +72,7 @@ test("bare and wrong-grant sessions cannot read or replace provider credentials"
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   assert.equal((await put(baseUrl, PROVIDERS_PATH, cookie, { openai: { apiKey: "sk-original-4242" } })).status, 200);
-  const before = structuredClone(await deps.mediaProviderCredentialRepo.listByWorkspaceId(deps.workspaceId));
+  const before = structuredClone(await deps.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: deps.workspaceId }));
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
   const me = await get(baseUrl, "/api/admin/v1/auth/me", bareCookie);
   assert.equal(me.status, 200);
@@ -101,7 +101,7 @@ test("bare and wrong-grant sessions cannot read or replace provider credentials"
       const denied = await write.json() as { code: string; details: { permission: string } };
       assert.equal(denied.code, "FORBIDDEN");
       assert.equal(denied.details.permission, "admin.integrations.manage");
-      assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId(deps.workspaceId), before, "denied writes must neither replace nor wipe the credentials");
+      assert.deepEqual(await deps.mediaProviderCredentialRepo.listByWorkspaceId({ workspaceId: deps.workspaceId }), before, "denied writes must neither replace nor wipe the credentials");
     }
   }
   assert.equal((await resolveMediaProviderCredential(

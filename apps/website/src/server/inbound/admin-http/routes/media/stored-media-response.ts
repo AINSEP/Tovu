@@ -17,7 +17,7 @@ import type { MediaRouteDeps } from "./deps.js";
 export async function toStoredMediaResponse(
   { deps, media, contentType, byteLength }: { deps: MediaRouteDeps; media: MediaRecord; contentType: string; byteLength: number },
 ): Promise<{ media: AdminMediaResponse }> {
-  const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
+  const publicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null;
   const byteSize = contentType === "image/svg+xml"
     ? (await resolveMediaByteSizes({ deps, media: [media] })).get(media.source.sha256) ?? null
     : byteLength;

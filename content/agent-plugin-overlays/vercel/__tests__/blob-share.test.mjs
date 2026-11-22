@@ -10,10 +10,10 @@ import path from "node:path";
 import test from "node:test";
 
 import { createObjectStoreRegistry } from "@jini-ai/core/object-store";
+import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
 
 import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 import { selectArtifactStoreProvider } from "../../../../apps/website/src/features/object-storage/artifact-provider.ts";
-import { parseObjectStoresFile } from "../../../../apps/website/src/features/object-storage/registry.ts";
 import { resolveShareDelivery } from "../../../../apps/website/src/features/site-backup/share-hosting.ts";
 import { SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";
 import { createSiteShare, revokeSiteShare, SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
@@ -118,7 +118,7 @@ test("no token in errors or logs; a missing or malformed Blob token refuses befo
 });
 
 test("the manifest registers provider `vercel`; it is chosen and delivered when it is the only artifact store", async () => {
-  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8") });
+  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "jini-object-stores.json"), "utf8") });
   assert.equal(manifest.ok, true);
   assert.deepEqual(manifest.descriptors.map(({ id, module }) => ({ id, module })), [{ id: "vercel", module: "object-stores/vercel-blob.mjs" }]);
   assert.equal(provider.create({ settings: {}, host: {} }).status, "rejected", "Blob holds share links only, never site media");

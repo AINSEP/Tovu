@@ -9,18 +9,10 @@ import { authorize, InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPr
 import { authenticateApiKey } from "../api-key-service.js";
 import { InMemoryApiKeyRepo } from "../repo.memory.js";
 import type { ApiKeyRepoPort } from "../api-key-types.js";
-import {
-  SqlApiKeyRepo,
-  SqlPolicyPermissionRepo,
-  SqlPolicyRepo,
-  SqlPrincipalPolicyRepo,
-  SqlPrincipalRepo,
-  SqlPrincipalRoleRepo,
-  SqlRolePolicyRepo,
-  SqlRoleRepo,
-  SqlSessionRepo,
-  SqlUserRepo,
-} from "../repo.js";
+import { SqlPrincipalRepo, SqlUserRepo } from "../repo.js";
+import { SqlPrincipalPolicyRepo, SqlPrincipalRoleRepo, SqlRolePolicyRepo } from "../repo.assignments.js";
+import { SqlApiKeyRepo, SqlSessionRepo } from "../repo.authentication.js";
+import { SqlPolicyPermissionRepo, SqlPolicyRepo, SqlRoleRepo } from "../repo.authorization.js";
 import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
 
 /**
@@ -94,7 +86,7 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 }
 
 function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPort) {
-  test(`[${adapterName}] SessionRepoPort: client metadata survives save and is cleared by a later save without it`, async () => {
+  test(`[${adapterName}] SessionRepoPort: client metadata survives save and is cleared by a later save without it; a revocation is never cleared`, async () => {
     const repo = makeRepo();
     const row = { id: "s-client", workspaceId: WS, principalId: "p-1", tokenHash: "client-hash", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2026-02-01T00:00:00.000Z", ip: "192.0.2.8", userAgent: "Coverage browser", revokedAt: "2026-01-05T00:00:00.000Z" };
     await repo.save(row);
@@ -102,7 +94,8 @@ function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPor
     assert.deepEqual(await repo.listByPrincipalId({ workspaceId: WS, principalId: row.principalId }), [row]);
     const cleared = { ...row, ip: undefined, userAgent: undefined, revokedAt: undefined };
     await repo.save(cleared);
-    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), cleared);
+    // Revocation is one-way: the later save drops the client metadata but cannot restore the revoked session.
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), { ...cleared, revokedAt: row.revokedAt });
   });
 
   test(`[${adapterName}] SessionRepoPort: save + findById/findByTokenHash round-trip, revoke sets revokedAt`, async () => {
@@ -454,7 +447,7 @@ function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort)
     await repo.save(row);
     const deps = { repos, tokens: new NodeSessionTokens({}), apiKeys: repo, clock: { nowIso: () => "2026-01-05T00:00:00.000Z", nowMs: () => Date.parse("2026-01-05T00:00:00.000Z") }, idGen: { newId: () => "unused" },
       hasher: { hash: async ({ password }: { password: string }) => password, verify: async ({ hash, password }: { hash: string; password: string }) => hash === password },
-      secretHasher: { hash: async () => row.keyHash, verify: async (hash: string, secret: string) => hash === row.keyHash && secret === "test-secret" } };
+      secretHasher: { hash: async () => row.keyHash, verify: async ({ storedHash, secret }: { storedHash: string; secret: string }) => storedHash === row.keyHash && secret === "test-secret" } };
     const input = { workspaceId: WS, rawKey: `${row.prefix}.test-secret` };
     assert.equal(await authenticateApiKey({ deps, input }), null);
     assert.equal((await repo.findById({ workspaceId: WS, id: row.id }))?.lastUsedAt, undefined);

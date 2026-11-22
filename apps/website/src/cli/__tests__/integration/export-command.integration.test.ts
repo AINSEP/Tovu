@@ -69,18 +69,18 @@ async function enableSiteConsent({ dir }: { dir: string }): Promise<void> {
   const boot = await bootSiteDir({ dir });
   let composed: SiteStore | undefined;
   try {
-    const deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir }).contentDbPath, {
+    const deps = await createSiteRouteDeps({}, { dbPath: resolveSiteDatabasePaths({ dir }).contentDbPath, overrides: {
       db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
       siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { composed = store; },
-    });
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
+    } });
     await drainBootReadiness(deps);
     await deps.siteConsentReady;
     await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
       value: true, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
-  } finally { await closeSiteDirBoot(boot, composed); }
+  } finally { await closeSiteDirBoot(boot, { composed }); }
 }
 
 test("tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless", t => {

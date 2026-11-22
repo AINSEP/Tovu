@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
@@ -6,6 +6,7 @@ import { createMemoryFormsApi } from '@jini-ai/admin/forms/adapters/memory';
 import { FormsList, FormEditor } from '../../../features/forms';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
 import { formsEvents } from '../forms-ports';
+import { formsCatalog } from '../forms-catalog-ports';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 
 const scopes: ReturnType<typeof createHostAdminScope>[] = [];
@@ -20,7 +21,7 @@ function fixture({ useLocale = () => 'en', permissions = ['*'] }: { useLocale?: 
   const api = createMemoryFormsApi({}, { forms: [form], submissions: [{ id: 's1', formDefinitionId: 'f1', data: { email: 'visitor@example.com' }, sourceIp: '127.0.0.1', submittedAt: '2026-10-07T00:00:00Z' }] });
   const list = vi.spyOn(api, 'listFormDefinitions');
   const navigate = vi.fn();
-  const runtime = createHostAdminScope({ permissions }, { formsPorts: { formsApi: api, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } }, useFormsLocaleHook: useLocale });
+  const runtime = createHostAdminScope({ permissions }, { formsPorts: { formsApi: api, formsCatalog, formsTrash: api.trash, formsEvents, formsNavigation: { navigate } }, useFormsLocaleHook: useLocale });
   scopes.push(runtime);
   const node = (child: React.ReactNode) => <FetchQueryProvider><AdminModulesContext.Provider value={runtime}>{child}</AdminModulesContext.Provider></FetchQueryProvider>;
   return { api, list, runtime, node, navigate };

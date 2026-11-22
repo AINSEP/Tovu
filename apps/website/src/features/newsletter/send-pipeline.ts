@@ -7,11 +7,12 @@
  * `dispatchRow` never constructs, stores, or imports a concrete `MailerPort` adapter (INV-08) — it
  * only ever receives one as a call-time dependency. `claimBatch` delegates to the EXISTING generic
  * `processOutbox` primitive unmodified (W-003) — Newsletter does not fork the claim loop; the actual
- * per-row fan-out happens in `handleSendBatchClaimed`, the bus-subscriber handler `server/app.ts`
+ * per-row fan-out happens in `handleSendBatchClaimed`, the bus-subscriber handler `apps/website/src/server/runtime/composition/app.ts`
  * wires onto `newsletter.send.batch.claimed` (T040), mirroring the existing
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
-import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";
 import type { MailerPort } from "../../platform/mail/index.js";
@@ -44,7 +45,7 @@ export const SEND_BATCH_CLAIMED_EVENT = "newsletter.send.batch.claimed";
  * + `recordResult` (the hosted mail adapter caps a call at 10s). A run that throws after leasing a row keeps the lease, so
  * the lease must also expire before the batch event's LAST attempt, whichever attempt took it. The tightest case is a
  * lease taken on attempt `MAX_OUTBOX_ATTEMPTS - 1`: the last attempt can follow after only
- * computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s. A lease still live then fails that attempt, the
+ * computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 }) = 240s. A lease still live then fails that attempt, the
  * outbox seals the event "failed", and the row stays "pending" forever. Hence 2 minutes, not the first draft's 5
  * (review fix, 2026-09-16). `send-pipeline.test.ts` pins both bounds.
  */
@@ -68,7 +69,7 @@ export interface SendPipelineDeps {
   ids: { newId(): string };
   /** Waits out a short provider quota hint inside the batch (see {@link NEWSLETTER_INLINE_DEFER_MAX_MS}). Absent, every
    *  quota wait reschedules the rest of the batch as a fresh outbox event instead. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (required: { ms: number }, optional?: Record<string, never>) => Promise<void>;
 }
 
 /**
@@ -88,21 +89,21 @@ const DEFAULT_DEFER_MS = 1_000;
 export async function authorizeSend(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord; launchGateSnapshot: Awaited<ReturnType<typeof evaluateLaunchGate>> }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord; launchGateSnapshot: Awaited<ReturnType<typeof evaluateLaunchGate>> }> {
   const { deps, input } = required;
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
 
     // evaluateLaunchGate (T018) called EXACTLY ONCE, inside this transaction (INV-05).
     const launchGateSnapshot = await evaluateLaunchGate({ deps: deps.launchGateDeps, workspaceId: input.workspaceId, isTestSend: false });
     if (!launchGateSnapshot.met) {
-      throw new NewsletterLaunchGateBlockedError("the Launch Readiness Gate is not satisfied", launchGateSnapshot.unmetPreconditions);
+      throw new NewsletterLaunchGateBlockedError({ message: "the Launch Readiness Gate is not satisfied", unmetPreconditions: launchGateSnapshot.unmetPreconditions });
     }
 
     const decision = transitionCampaignStatus({ from: campaign.status, to: "sending", actorTier: "pipeline" });
     if (!decision.allowed) {
-      throw new NewsletterCampaignNotEditableError(decision.reason, campaign.status, "send");
+      throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: campaign.status, attemptedAction: "send" });
     }
 
     const now = deps.clock.nowIso();
@@ -113,31 +114,12 @@ export async function authorizeSend(required: {
     await deps.campaignRepo.appendRevision({ campaignId: updated.id, workspaceId: updated.workspaceId, seq, state: updated, actorId: "system:send-pipeline", recordedAt: now });
 
     return { campaign: updated, launchGateSnapshot };
-  });
+  } });
 }
 
-/**
- * REQ-16 — materialize `subscribed` subscriptions into 1 snapshot + N send rows. Idempotent by
- * presence-check (INV-06/orchestrator.spec §6): a retry for a campaign that already has
- * `audienceSnapshotId` set is a no-op returning the existing snapshot, never a second snapshot.
- * Unresolvable subscribers are silently excluded (AC-22, EC-07) — never an error.
- */
-export async function freezeAudience(required: {
-  deps: SendPipelineDeps;
-  input: { workspaceId: string; campaignId: string; listId: string };
-}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
-  const { deps, input } = required;
-  const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
-  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
-
-  if (campaign.audienceSnapshotId) {
-    const existing = await deps.audienceSnapshotRepo.findById({ workspaceId: input.workspaceId, id: campaign.audienceSnapshotId });
-    if (existing) {
-      const rows = await deps.sendRepo.listByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId, limit: 100000 });
-      return { snapshot: existing, sendIds: rows.map((r) => r.id) };
-    }
-  }
-
+async function materializeAudience({ deps, input }: {
+  deps: SendPipelineDeps; input: Parameters<typeof freezeAudience>[0]["input"];
+}) {
   const subscribed = await deps.subscriptionRepo.listSubscribed({ workspaceId: input.workspaceId, listId: input.listId });
   const contacts = await deps.subscriberDirectory.getContacts({
     workspaceId: input.workspaceId,
@@ -177,19 +159,45 @@ export async function freezeAudience(required: {
       updatedAt: now,
     });
   }
+  return { now, snapshotId, snapshot, sendRows };
+}
+
+/**
+ * REQ-16 — materialize `subscribed` subscriptions into 1 snapshot + N send rows. Idempotent by
+ * presence-check (INV-06/orchestrator.spec §6): a retry for a campaign that already has
+ * `audienceSnapshotId` set is a no-op returning the existing snapshot, never a second snapshot.
+ * Unresolvable subscribers are silently excluded (AC-22, EC-07) — never an error.
+ */
+export async function freezeAudience(required: {
+  deps: SendPipelineDeps;
+  input: { workspaceId: string; campaignId: string; listId: string };
+}, _optional: Record<string, never> = {}): Promise<{ snapshot: AudienceSnapshotRow; sendIds: readonly string[] }> {
+  const { deps, input } = required;
+  const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
+  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
+
+  if (campaign.audienceSnapshotId) {
+    const existing = await deps.audienceSnapshotRepo.findById({ workspaceId: input.workspaceId, id: campaign.audienceSnapshotId });
+    if (existing) {
+      const rows = await deps.sendRepo.listByCampaign({ workspaceId: input.workspaceId, campaignId: input.campaignId, limit: 100000 });
+      return { snapshot: existing, sendIds: rows.map((r) => r.id) };
+    }
+  }
+
+  const { now, snapshotId, snapshot, sendRows } = await materializeAudience({ deps, input });
   const finalSnapshot: AudienceSnapshotRow = { ...snapshot, recipientCount: sendRows.length };
   await deps.audienceSnapshotRepo.save(finalSnapshot);
   if (sendRows.length > 0) await deps.sendRepo.saveBatch(sendRows);
 
   // Contact lookup can overlap a human pause. Attach the snapshot to the current row without
   // restoring an earlier status; paused batches remain pending until an approved resume.
-  const updatedCampaign = await deps.campaignRepo.transaction(async () => {
+  const updatedCampaign = await deps.campaignRepo.transaction({ fn: async () => {
     const current = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!current) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
     const updated: CampaignRecord = { ...current, audienceSnapshotId: snapshotId, updatedAt: now };
     await deps.campaignRepo.saveCampaignRow(updated);
     return updated;
-  });
+  } });
 
   const sendIds = sendRows.map((row) => row.id);
   await enqueueSendBatches({ deps, campaign: updatedCampaign, audienceSnapshotId: snapshotId, sendIds });
@@ -232,7 +240,7 @@ export async function dispatchRow(required: {
   message: { subject: string; text?: string; html?: string; fromName: string; fromEmail: string; replyTo: string };
   /** The subscription's consent revision, bound into the unsubscribe token (INV-04). */
   consentRevisionId?: string | null;
-}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null; retryAfterMs?: number }> {
+}, _optional: Record<string, never> = {}): Promise<{ outcome: "sent" | "suppressed" | "failed" | "deferred"; providerMessageId: string | null; error: string | null; retryAfterMs?: number }> {
   const { deps, row } = required;
 
   // REQ-10: crash-recovery / redelivery idempotency (INV-10, EC-04) — a row already terminal is
@@ -313,7 +321,7 @@ async function unsubscribeHeaders(required: {
 export async function recordResult(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; sendId: string; campaignId: string; outcome: "sent" | "suppressed" | "failed"; providerMessageId: string | null; error: string | null };
-}): Promise<{ sendRow: SendRow }> {
+}, _optional: Record<string, never> = {}): Promise<{ sendRow: SendRow }> {
   const { deps, input } = required;
   const now = deps.clock.nowIso();
   const status = input.outcome === "sent" ? "delivered" : "failed";
@@ -340,7 +348,7 @@ export async function recordResult(required: {
 export async function completeIfDrained(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord | null }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord | null }> {
   const { deps, input } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) return { campaign: null };
@@ -363,8 +371,8 @@ export async function completeIfDrained(required: {
 export async function pauseCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord }> {
-  return transitionAndSave(required.deps, required.input, "paused");
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord }> {
+  return transitionAndSave({ deps: required.deps, input: required.input, to: "paused" });
 }
 
 /**
@@ -376,16 +384,16 @@ export async function pauseCampaign(required: {
 export async function resumeCampaign(required: {
   deps: SendPipelineDeps;
   input: { workspaceId: string; campaignId: string };
-}): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
-  const result = await transitionAndSave(required.deps, required.input, "sending");
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord; requeueFailed?: true }> {
+  const result = await transitionAndSave({ deps: required.deps, input: required.input, to: "sending" });
   // A paused batch may already have been acknowledged. Requeue its remaining ledger rows;
   // the existing per-row leases and idempotency keys make overlapping/redelivered jobs safe.
   if (!result.campaign.audienceSnapshotId) return result;
   try {
     await requeuePendingSends({ deps: required.deps, campaign: result.campaign, audienceSnapshotId: result.campaign.audienceSnapshotId });
-  } catch {
+  } catch (error) {
     // Do not expose repository/provider diagnostics or turn an already-committed resume into a refusal.
-    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying");
+    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying", describeErrorForLog({ err: error }));
     return { ...result, requeueFailed: true };
   }
   return result;
@@ -406,20 +414,19 @@ async function requeuePendingSends(required: { deps: SendPipelineDeps; campaign:
 }
 
 async function transitionAndSave(
-  deps: SendPipelineDeps,
-  input: { workspaceId: string; campaignId: string },
-  to: "paused" | "sending"
+  { deps, input, to }: { deps: SendPipelineDeps; input: { workspaceId: string; campaignId: string }; to: "paused" | "sending" },
+  _options = {},
 ): Promise<{ campaign: CampaignRecord }> {
-  return deps.campaignRepo.transaction(async () => {
+  return deps.campaignRepo.transaction({ fn: async () => {
     const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
     if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
     const decision = transitionCampaignStatus({ from: campaign.status, to, actorTier: "send" });
-    if (!decision.allowed) throw new NewsletterCampaignNotEditableError(decision.reason, campaign.status, to);
+    if (!decision.allowed) throw new NewsletterCampaignNotEditableError({ message: decision.reason, currentStatus: campaign.status, attemptedAction: to });
     const now = deps.clock.nowIso();
     const updated: CampaignRecord = { ...campaign, status: to, updatedAt: now };
     await deps.campaignRepo.saveCampaignRow(updated);
     return { campaign: updated };
-  });
+  } });
 }
 
 /** SEND_TEST_CAMPAIGN — hits only the 1-10 given addresses, no snapshot/send-ledger rows created (AC-26). */
@@ -429,14 +436,14 @@ export async function sendTestCampaign(required: {
 }): Promise<{ results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] }> {
   const { deps, input } = required;
   if (input.testAddresses.length < TEST_SEND_MIN || input.testAddresses.length > TEST_SEND_MAX) {
-    throw new NewsletterValidationError(`test-send address count must be between ${TEST_SEND_MIN} and ${TEST_SEND_MAX}`, "testAddresses", "length");
+    throw new NewsletterValidationError({ message: `test-send address count must be between ${TEST_SEND_MIN} and ${TEST_SEND_MAX}`, field: "testAddresses", reason: "length" });
   }
   const campaign = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.campaignId });
   if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${input.campaignId} was not found`);
 
   const launchGateSnapshot = await evaluateLaunchGate({ deps: deps.launchGateDeps, workspaceId: input.workspaceId, isTestSend: true });
   if (!launchGateSnapshot.met) {
-    throw new NewsletterLaunchGateBlockedError("the Launch Readiness Gate is not satisfied for a test send", launchGateSnapshot.unmetPreconditions);
+    throw new NewsletterLaunchGateBlockedError({ message: "the Launch Readiness Gate is not satisfied for a test send", unmetPreconditions: launchGateSnapshot.unmetPreconditions });
   }
 
   const results: { email: string; outcome: "sent" | "failed"; error: string | null; errorCode?: string }[] = [];
@@ -542,7 +549,7 @@ async function dispatchWithinBudget(required: { deps: SendPipelineDeps; job: Sen
     const fits = wait <= NEWSLETTER_INLINE_DEFER_MAX_MS && budget.waitedMs + wait <= NEWSLETTER_INLINE_DEFER_BUDGET_MS;
     if (!deps.sleep || !fits) return { kind: "deferred", retryAfterMs: wait, leaseUntilIso: required.row.nextAttemptAt ?? deps.clock.nowIso() };
     budget.waitedMs += wait;
-    await deps.sleep(wait);
+    await deps.sleep({ ms: wait });
     if (!(await stillSending(required))) return { kind: "stopped" };
   }
 }
@@ -574,7 +581,7 @@ async function continueLater(required: { deps: SendPipelineDeps; job: SendBatchJ
 }
 
 /**
- * The bus-subscriber handler `server/app.ts` wires onto `newsletter.send.batch.claimed` (T040).
+ * The bus-subscriber handler `apps/website/src/server/runtime/composition/app.ts` wires onto `newsletter.send.batch.claimed` (T040).
  * Per-row fixed order: `recipient.filter` -> `beforeSend` -> `send()` -> `recordResult`; one row's
  * failure never aborts sibling rows in the same batch.
  *
@@ -585,7 +592,7 @@ async function continueLater(required: { deps: SendPipelineDeps; job: SendBatchJ
  * run that died mid-batch (holding a lease) release its rows once the lease expires, instead of
  * stranding them.
  */
-export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }): Promise<void> {
+export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }, _optional: Record<string, never> = {}): Promise<void> {
   const { deps, job } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
   if (!campaign) return;

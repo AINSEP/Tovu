@@ -1,8 +1,8 @@
 /** Desktop adapter for the existing owner-store bridge; no vault, paths or attachment policy here. */
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { OwnerStoreBridge, OwnerStoreEntry } from '../contracts/owner-store.js';
 import { ownerStoreBridge } from './runner-api.js';
-import { useSharedKeys } from './SharedKeys.hooks.js';
+import { createKeyFormSubmit, createProviderKeyFormSubmit, createImportFormSubmit, useSharedKeys } from './SharedKeys.hooks.js';
 import { ToolIcon } from './tool-icons.js';
 
 type StoreState = ReturnType<typeof useSharedKeys>;
@@ -10,7 +10,7 @@ type StoreState = ReturnType<typeof useSharedKeys>;
 /** Sites-home entry point. Closing unmounts all password inputs; native dialog restores focus.
  * @example <SharedKeysLauncher />
  */
-export function SharedKeysLauncher(_input = {}, _options = {}) {
+export function SharedKeysLauncher() {
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
@@ -26,13 +26,16 @@ export function SharedKeysLauncher(_input = {}, _options = {}) {
  * @complexity O(e) metadata rows; no secret values are loaded from storage.
  * @example <SharedKeys onClose={close} bridge={bridge} />
  */
-export function SharedKeys({ onClose, bridge = ownerStoreBridge({}) }: {
+export function SharedKeys({ onClose, bridge = ownerStoreBridge({}),
+  useSharedKeysHook = useSharedKeys }: {
   onClose: () => void; bridge?: OwnerStoreBridge;
-}, _options = {}) {
+  useSharedKeysHook?: typeof useSharedKeys;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const state = useSharedKeys({ bridge });
+  const state = useSharedKeysHook({ bridge });
   useEffect(() => {
-    const node = dialog.current!;
+    const node = dialog.current;
+    if (!node) throw new Error('shared keys dialog is missing when opened');
     node.showModal();
     return () => node.close();
   }, []);
@@ -97,21 +100,7 @@ function SavedOAuthConnection({ entry, bridge, state }: { entry: OwnerStoreEntry
  * @complexity O(input bytes); one put, followed by the state hook's metadata refresh.
  */
 function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: StoreState; entry?: OwnerStoreEntry }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    const provider = String(fields.get('provider')).trim();
-    const replacement = entry ? { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
-      expectedRevision: entry.revision, meta: {}, payload: { token: String(fields.get('token')) } } : {
-      kind: 'vendor' as const, label: String(fields.get('label')).trim(), provider,
-      expectedRevision: null, meta: { credentialType: 'vendor', worksFor: [provider] },
-      payload: { vendorId: provider, token: String(fields.get('token')) },
-    };
-    const input = { store: 'project' as const, entry: replacement };
-    form.reset();
-    void state.run({ action: () => bridge.put(input, {}) });
-  };
+  const submit = createKeyFormSubmit({ bridge, state, entry });
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>{entry ? 'Replace saved key' : 'Save a key'}</h3>
     <p>For credentials with one API key or token.</p>
@@ -133,20 +122,7 @@ function KeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: St
 
 /** Provider settings stay intact; only the secret fields entered here are replaced. */
 function ProviderKeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; state: StoreState; entry: OwnerStoreEntry }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const input = form.elements.namedItem('secrets') as HTMLInputElement;
-    let secrets: Record<string, string>;
-    try {
-      secrets = JSON.parse(input.value);
-      if (!secrets || Array.isArray(secrets) || typeof secrets !== 'object' || !Object.values(secrets).every(value => typeof value === 'string')) throw new Error();
-    } catch { input.setCustomValidity('Enter a JSON object with secret field names and their new text values.'); input.reportValidity(); return; }
-    input.setCustomValidity('');
-    form.reset();
-    void state.run({ action: () => bridge.put({ store: 'project', entry: { id: entry.id, kind: entry.kind, label: entry.label, provider: entry.provider,
-      expectedRevision: entry.revision, meta: {}, payload: { secrets } } }, {}) });
-  };
+  const submit = createProviderKeyFormSubmit({ bridge, state, entry });
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>Replace provider secrets</h3>
     <p>Enter a JSON object using the secret field names from the provider settings. Saved endpoints and other settings are preserved.</p>
@@ -161,13 +137,7 @@ function ProviderKeyForm({ bridge, state, entry }: { bridge: OwnerStoreBridge; s
  * goes only to the fixed preload action. Nothing is written before that confirmation.
  */
 function ImportForm({ bridge, state }: { bridge: OwnerStoreBridge; state: StoreState }) {
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const passphrase = String(new FormData(form).get('passphrase'));
-    form.reset();
-    void state.run({ action: () => bridge.import({ source: 'backup', passphrase }, {}) });
-  };
+  const submit = createImportFormSubmit({ bridge, state });
   return <form className="shared-keys__form" onSubmit={submit}>
     <h3>Import older shared keys</h3>
     <p>You see what imports before anything changes. Sites keep their own copies.</p>

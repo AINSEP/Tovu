@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import sharp from "sharp";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 import type { PostRecord } from "#src/features/post/index";
 import { uploadMedia, SharpImageTransformer } from "#src/features/media/index";

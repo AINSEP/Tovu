@@ -7,7 +7,7 @@
  * (`routes/publish-content/blob-put.ts` and `routes/media/upload.ts`) wrapped that call in a
  * try/catch that can never fire, which let corrupted payloads through as if they were valid.
  *
- * Adopts the same rule as Jini's module-private `http-kit/src/connectors.ts` `isWellFormedBase64`:
+ * Adopts the same rule as Jini's module-private `Jini packages/daemon/src/http/connectors.ts` `isWellFormedBase64`:
  * non-empty, a length that is a multiple of 4, and every character drawn from the standard
  * (non-URL) alphabet plus up to two trailing `=` pad characters. A round-trip canonical check
  * (decode, re-encode, compare) was considered and rejected: it costs an extra ~67 MB string at the
@@ -23,11 +23,11 @@ const STRICT_BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
  * well-formed standard base64 (wrong alphabet, base64url `-`/`_`, unpadded/truncated length, or
  * an empty string).
  *
- * @param value - The candidate base64 string, exactly as received from a request body.
+ * @param required.value - The candidate base64 string, exactly as received from a request body.
  * @returns The decoded bytes, or `null` if `value` is not well-formed standard base64.
  * @complexity O(n) in `value`'s length — one regex pass plus one `Buffer.from` decode.
  */
-export function decodeStrictBase64(value: string): Uint8Array | null {
+export function decodeStrictBase64({ value }: { value: string }, _optional = {}): Uint8Array | null {
   if (!value || value.length % 4 !== 0 || !STRICT_BASE64_PATTERN.test(value)) return null;
   return new Uint8Array(Buffer.from(value, "base64"));
 }

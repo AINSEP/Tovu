@@ -1,5 +1,6 @@
 /** Tovu's public-export catalog over the lifecycle's bundled digest and containment gates. */
 import { readFile } from "node:fs/promises";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { parseAgentPluginManifest, type AgentPluginExport, type AgentPluginExportMetadata } from "@jini-ai/agent-plugins/manifest";
 import type { TrustedPluginPackage, TovuAgentPluginLifecycle } from "../lifecycle.js";
 
@@ -26,16 +27,18 @@ export function pluginExportFileUrl(required: { pluginId: string; component: str
  * @complexity O(m) manifest bytes, one contained read.
  */
 async function readPackage(required: { lifecycle: TovuAgentPluginLifecycle; plugin: TrustedPluginPackage; enabled: boolean }, _options = {}): Promise<PluginExportPackage | undefined> {
-  try {
-    const raw = await required.lifecycle.readTrustedPluginFile(required.plugin, "plugin.json");
-    const result = parseAgentPluginManifest({ value: JSON.parse(raw) });
-    if (!result.ok || !result.manifest.id) return undefined;
-    const displayName = result.manifest.displayName;
-    return { ...result.manifest, ...(typeof displayName === "string" ? { displayName } : {}),
-      plugin: required.plugin, id: result.manifest.id, enabled: required.enabled, exports: result.manifest.exports ?? {} };
-  } catch {
-    return undefined;
-  }
+  return orFallback({
+    work: async () => {
+      const raw = await required.lifecycle.readTrustedPluginFile({ plugin: required.plugin, filename: "plugin.json" });
+      const result = parseAgentPluginManifest({ value: JSON.parse(raw) });
+      if (!result.ok || !result.manifest.id) return undefined;
+      const displayName = result.manifest.displayName;
+      return { ...result.manifest, ...(typeof displayName === "string" ? { displayName } : {}),
+        plugin: required.plugin, id: result.manifest.id, enabled: required.enabled, exports: result.manifest.exports ?? {} };
+    },
+    fallback: undefined,
+    step: "read plugin export manifest",
+  });
 }
 
 /** Discover disabled declarations through the same digest gate so editors can explain fallback.
@@ -59,12 +62,12 @@ export function createPluginExportSource(required: { lifecycle: TovuAgentPluginL
       }
       return packages;
     },
-    readFile: ({ plugin, filename }, _options = {}) => lifecycle.readTrustedPluginFile(plugin, filename),
+    readFile: ({ plugin, filename }, _options = {}) => lifecycle.readTrustedPluginFile({ plugin, filename }),
     readAsset: async ({ plugin, filename }, _options = {}) => {
-      if (!filename.endsWith(".png")) return lifecycle.readTrustedPluginFile(plugin, filename);
+      if (!filename.endsWith(".png")) return lifecycle.readTrustedPluginFile({ plugin, filename });
       // Jini's trusted text reader is UTF-8 only. Preserve PNG bytes using its same path owner;
       // do not duplicate containment or join a request path to a package directory here.
-      return readFile(await lifecycle.assertContainedOnDisk(plugin.packageRoot, filename));
+      return readFile(await lifecycle.assertContainedOnDisk({ packageRoot: plugin.packageRoot, entryPath: filename }));
     },
   };
 }

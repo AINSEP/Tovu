@@ -2,11 +2,12 @@ import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-gran
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
-import { ConsoleMailerAdapter } from "../../members/index.js";
-import { SmtpMailerAdapter, type MailerPort } from "../../../platform/mail/index.js";
+import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
+import { SmtpMailerAdapter } from "@jini-ai/platform/mail/smtp";
+import type { MailerPort } from "../../../platform/mail/index.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import type { ToolExecutionOptions } from "@jini-ai/core";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { buildMailStatusRegistrations, contributeMailStatusTools, mailStatusDerivedRisk, type MailStatusToolDeps } from "../tool-registrations.js";
@@ -28,28 +29,28 @@ function tool(mailer: MailerPort, allow = true) {
 }
 
 test("console driver reports false and the exact recovery note", async () => {
-  assert.deepEqual(await tool(new ConsoleMailerAdapter()).handler(ctx), { mailDeliveryAvailable: false, driver: "console", note: NOTE });
+  assert.deepEqual(await tool(toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) })).handler(ctx), { mailDeliveryAvailable: false, driver: "console", note: NOTE });
 });
 
 test("a real SMTP adapter reports available without sending a message", async () => {
-  const mailer = new SmtpMailerAdapter({ sendMail: async () => assert.fail("status must not send") });
+  const mailer = toPositionalMailer({ mailer: new SmtpMailerAdapter({ transport: { sendMail: async () => assert.fail("status must not send") }, clock: { nowMs: () => 0 } }) });
   assert.deepEqual(await tool(mailer).handler(ctx), { mailDeliveryAvailable: true, driver: "smtp", note: "Email sending is configured." });
 });
 
 test("status permission denial precedes reading capabilities", async () => {
-  const mailer = new ConsoleMailerAdapter();
+  const mailer = toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) });
   mailer.capabilities = () => assert.fail("denied capabilities read");
   await assert.rejects(() => tool(mailer, false).handler(ctx), { name: "ToolInputError", message: "MAIL_STATUS_FORBIDDEN: principal 'owner' is not authorized for 'admin.forms.manage' (fixture grant)" });
 });
 
 test("mail status descriptor is readOnly with derived none risk", () => {
-  assert.equal(isReadOnlyTool({ descriptor: tool(new ConsoleMailerAdapter()).descriptor }), true);
+  assert.equal(isReadOnlyTool({ descriptor: tool(toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) })).descriptor }), true);
   assert.equal(mailStatusDerivedRisk.get("system_get_mail_status"), "none");
 });
 
 test("with a status source the tool adds state, lanes, warnings and providers", async () => {
   const report = { state: "ready" as const, lanes: [], warnings: ["sender_unverified" as const], providers: [], refusals: ["plugin 'x' was not loaded"], checkedAt: "2026-10-22T00:00:00.000Z" };
-  const registration = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailStatus: async () => report }, { surfaceExchanges: exchanges().store })[0]!;
+  const registration = buildMailStatusRegistrations({ workspaceId: "ws", mailer: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) }), authorize: async () => ({ allowed: true, reason: "grant" }), mailStatus: async () => report }, { surfaceExchanges: exchanges().store })[0]!;
   assert.deepEqual(await registration.handler(ctx), { mailDeliveryAvailable: false, driver: "console", note: NOTE, ...report });
 });
 

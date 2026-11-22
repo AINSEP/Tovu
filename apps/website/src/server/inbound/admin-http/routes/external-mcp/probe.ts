@@ -1,16 +1,16 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
-import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/server/runtime/services/external-mcp-probe";
-export type { ExternalMcpProbeSessionFactory } from "#src/server/runtime/services/external-mcp-probe";
+import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/features/external-mcp/external-mcp-probe";
 import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
  * @file `POST .../mcp-servers/:serverId/probe` (C-007) — connects to ONE configured server, once,
  * lists its tools, describes the surface, and closes. Registers nothing into any `ToolRegistry`, so
- * R5 (`mcp-federation/trust.ts`'s "frozen at connect") is untouched by this route — see the
+ * R5 (`Jini packages/mcp/src/federation/trust.ts`'s "frozen at connect") is untouched by this route — see the
  * write-tools implementation outline §3.1/C-4 for the full argument that a probe run in the admin
  * web server cannot un-freeze anything the daemon holds.
  *
@@ -33,7 +33,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * ## INV-006 — no secret in the response
  *
  * The response body is built ONLY from `describeRemoteToolSurface`'s output — a pure function over
- * the remote's `tools/list` reply and the two operator name lists (`mcp-federation/trust.ts`). It
+ * the remote's `tools/list` reply and the two operator name lists (`Jini packages/mcp/src/federation/trust.ts`). It
  * never touches the resolved launch spec's headers/env, so there is no code path by which a bearer
  * token, a client secret, or an env value could reach this route's response. Any other error this
  * route can raise is either fixed, Tovu-authored copy, or a stored failure REASON string that
@@ -72,17 +72,17 @@ async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Res
  *
  * @complexity O(t) in the remote's advertised tool count, plus one round trip.
  */
-export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalMcpProbeRouteDeps, limiter: RateLimiter): void {
-  app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", async (req, res) => {
+export function registerAdminExternalMcpProbeRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+  app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", asyncRoute({ handler: async (req, res) => {
     if (!(await withinProbeRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? "");
 
-      const outcome = await probeExternalMcpServer(deps, serverId);
+      const outcome = await probeExternalMcpServer({ deps, serverId });
       res.status(outcome.ok ? 200 : outcome.status).json(outcome.body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" });
     }
-  });
+  } }));
 }

@@ -44,8 +44,8 @@
  * order as the file-kind items in `.items` (per spec).
  */
 function pairFileItemsWithFiles(
-  items: readonly DataTransferItem[],
-  files: readonly File[],
+  { items, files }: { items: readonly DataTransferItem[]; files: readonly File[] },
+  _options = {},
 ): Array<{ item: DataTransferItem; file: File }> {
   const pairs: Array<{ item: DataTransferItem; file: File }> = [];
   let fileIndex = 0;
@@ -67,10 +67,7 @@ function pairFileItemsWithFiles(
  * folder not really being one. `getPathForFile` returning `''` is the same failure mode this
  * module's file header describes for a synthesized `File`: no path to recover, so no path to return.
  */
-function folderPathForItem(
-  item: DataTransferItem,
-  file: File,
-  getPathForFile: (file: File) => string,
+function folderPathForItem({ item, file, getPathForFile }: { item: DataTransferItem; file: File; getPathForFile: (file: File) => string }, _options = {}
 ): string | undefined {
   const entry = (item as DataTransferItem & { webkitGetAsEntry?: () => FileSystemEntry | null })
     .webkitGetAsEntry?.();
@@ -84,15 +81,13 @@ function folderPathForItem(
  *
  * @complexity Time: O(n) in the number of dragged items; space: O(n).
  */
-export function folderPathsFromDataTransfer(
-  dataTransfer: DataTransfer,
-  getPathForFile: (file: File) => string,
+export function folderPathsFromDataTransfer({ dataTransfer, getPathForFile }: { dataTransfer: DataTransfer; getPathForFile: (file: File) => string }, _options = {}
 ): string[] {
   const items = Array.from(dataTransfer.items ?? []);
   const files = Array.from(dataTransfer.files ?? []);
   const paths: string[] = [];
-  for (const { item, file } of pairFileItemsWithFiles(items, files)) {
-    const path = folderPathForItem(item, file, getPathForFile);
+  for (const { item, file } of pairFileItemsWithFiles({ items, files })) {
+    const path = folderPathForItem({ item, file, getPathForFile });
     if (path !== undefined) paths.push(path);
   }
   return paths;

@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
 import { Integrations } from "../Integrations";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { useIntegrations, type IntegrationsController } from "../hooks/use-integrations.hooks";
@@ -140,7 +140,7 @@ function renderWithPort(
   overrides: Partial<IntegrationsController> = {},
 ) {
   function useHook(): IntegrationsController {
-    return { ...useIntegrations(port, (key) => key, "en"), ...overrides };
+    return { ...useIntegrations({ port: port, t: ({ key }) => key, locale: "en" }), ...overrides };
   }
   return renderScreen(<Integrations useIntegrationsHook={useHook} />);
 }

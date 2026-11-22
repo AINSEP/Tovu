@@ -74,9 +74,8 @@ interface DuplicateMediaInput {
  * fixed-window scan.
  */
 async function resolveCopyContentType(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps,
-  sha256: string,
-  bytes: Uint8Array
+  { routeDeps, sha256, bytes }: { routeDeps: MediaToolDeps & MediaPublicUrlDeps; sha256: string; bytes: Uint8Array },
+  _optional: Record<string, never> = {}
 ): Promise<string> {
   const recorded = await routeDeps.mediaContentTypeStore?.getMany({ workspaceId: routeDeps.workspaceId, sha256s: [sha256] });
   return recorded?.get(sha256) ?? sniffContentType({ bytes });
@@ -93,9 +92,8 @@ async function resolveCopyContentType(
  * accepted O(n) scan rather than a new port method), then `deriveDuplicateName`'s own bounded search.
  */
 async function resolveDuplicateTitle(
-  routeDeps: MediaToolDeps,
-  source: MediaRecord,
-  overrideTitle: string | undefined
+  { routeDeps, source, overrideTitle }: { routeDeps: MediaToolDeps; source: MediaRecord; overrideTitle: string | undefined },
+  _optional: Record<string, never> = {}
 ): Promise<string> {
   if (overrideTitle !== undefined) return overrideTitle;
   const existingTitles = new Set(
@@ -103,7 +101,7 @@ async function resolveDuplicateTitle(
   );
   return deriveDuplicateName(
     { sourceName: source.title },
-    { isTaken: async (candidate) => existingTitles.has(candidate) }
+    { isTaken: async ({ candidate }, _optional = {}) => existingTitles.has(candidate) }
   );
 }
 
@@ -125,10 +123,8 @@ async function resolveDuplicateTitle(
  * @complexity O(1) — one repo read plus one write.
  */
 async function applyCopiedMetadata(
-  routeDeps: MediaToolDeps,
-  created: MediaRecord,
-  source: MediaRecord,
-  resolved: { title: string; slug?: string }
+  { routeDeps, created, source, resolved }: { routeDeps: MediaToolDeps; created: MediaRecord; source: MediaRecord; resolved: { title: string; slug?: string } },
+  _optional: Record<string, never> = {}
 ): Promise<MediaRecord> {
   const { media } = await updateMediaMetadata({
     deps: { clock: routeDeps.clock, mediaRepo: routeDeps.mediaRepo },
@@ -146,68 +142,9 @@ async function applyCopiedMetadata(
   return media;
 }
 
-/**
- * Duplicates one media asset — see this file's header for the bytes decision and what the operator
- * gets.
- *
- * Accepts a slug as well as an id, because `findMediaByIdOrSlug` is media's own established
- * identity model (`MediaRecord.slug`'s doc: an ADDITIONAL human-typeable key alongside `id`) and
- * refusing a slug here would make this tool the one place that ignores it.
- *
- * A TRASHED source is refused. `uploadMedia` always creates an `active` row, so copying a trashed
- * asset would produce a live entry for content the operator had already deleted — the same "a copy
- * is never more exposed than its source" rule that makes a duplicated published page default to
- * draft and a duplicated disabled form stay disabled.
- *
- * @param routeDeps - Media's own tool deps bag plus this host's optional content-type store.
- * @param input - `content_duplicate`'s per-resource handler input.
- * @returns `{ media }` — the copy's own row.
- * @throws {ToolInputError} For an unsupported `status` override, a missing source, a trashed source,
- * or bytes that are no longer retrievable.
- * @throws {MediaConflictError | MediaValidationError} A taken or invalid `slug` override; the copy is
- * rolled back first.
- * @complexity O(1) repo/store calls plus one full read of the source's bytes.
- */
-export async function duplicateMediaAsset(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps,
-  input: DuplicateMediaInput
-): Promise<Record<string, unknown>> {
-  // Rejected rather than ignored, mirroring the `"form"` resource: `content_duplicate`'s `status`
-  // override is spelled in post/page's vocabulary (draft/published), which a media asset has no
-  // equivalent of — its statuses are active/trashed, and a copy is never created trashed.
-  if (input.overrides.status !== undefined) {
-    throw new ToolInputError({ message: "content_duplicate: resource 'media' does not support the 'status' override — a media asset is " +
-        "active/trashed, not draft/published, and a copy is always created active. Overrides honored " +
-        "for 'media': title and slug. Use media_trash_asset afterwards to trash the copy." });
-  }
-
-  const source = await findMediaByIdOrSlug({
-    deps: { mediaRepo: routeDeps.mediaRepo },
-    input: { workspaceId: routeDeps.workspaceId, idOrSlug: input.id },
-  });
-  if (!source) throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' was not found` });
-  if (source.kind === "document") throw new ToolInputError({ message: "Library document duplication is unavailable" });
-  if (source.status === "trashed") {
-    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' is in the trash and was not copied — a copy would be ` +
-        "a live entry for content you already deleted. Restore it first if you meant to copy it." });
-  }
-
-  // Resolved BEFORE anything is written: an asset whose bytes are genuinely gone must fail loudly
-  // with nothing created, never leave a half-formed library entry behind (the same no-orphan-row
-  // discipline `duplicatePostOrPage` applies to a bespoke-HTML page with no store wired).
-  const blob = await routeDeps.assetBlobRepo.findByHash({ workspaceId: routeDeps.workspaceId, sha256: source.source.sha256 });
-  if (!blob) {
-    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' has no stored blob for hash ${source.source.sha256} — ` +
-        "nothing was copied. Its bytes are missing, so a copy would reference content that does not exist." });
-  }
-  const bytes = await routeDeps.blobStore.get({ storageKey: blob.storageKey });
-  const contentType = await resolveCopyContentType(routeDeps, source.source.sha256, bytes);
-
-  // Resolved before uploadMedia so BOTH the interim filename seed below and applyCopiedMetadata's
-  // real write use the SAME final title — see resolveDuplicateTitle's own doc for why recomputing it
-  // twice is a drift risk this avoids.
-  const title = await resolveDuplicateTitle(routeDeps, source, input.overrides.title);
-
+async function uploadDuplicateMedia({ routeDeps, source, bytes, contentType, input }: {
+  routeDeps: MediaToolDeps & MediaPublicUrlDeps; source: MediaRecord; bytes: Uint8Array; contentType: string; input: DuplicateMediaInput;
+}): Promise<MediaRecord> {
   // Dedups by (workspaceId, sha256) inside the sha256 lock: the copy REFERENCES the source's bytes
   // rather than duplicating them, and a tombstoned blob is resurrected rather than left to be
   // collected out from under the new row. See this file's header.
@@ -239,6 +176,73 @@ export async function duplicateMediaAsset(
     },
   }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
 
+  return created;
+}
+
+/**
+ * Duplicates one media asset — see this file's header for the bytes decision and what the operator
+ * gets.
+ *
+ * Accepts a slug as well as an id, because `findMediaByIdOrSlug` is media's own established
+ * identity model (`MediaRecord.slug`'s doc: an ADDITIONAL human-typeable key alongside `id`) and
+ * refusing a slug here would make this tool the one place that ignores it.
+ *
+ * A TRASHED source is refused. `uploadMedia` always creates an `active` row, so copying a trashed
+ * asset would produce a live entry for content the operator had already deleted — the same "a copy
+ * is never more exposed than its source" rule that makes a duplicated published page default to
+ * draft and a duplicated disabled form stay disabled.
+ *
+ * @param routeDeps - Media's own tool deps bag plus this host's optional content-type store.
+ * @param input - `content_duplicate`'s per-resource handler input.
+ * @returns `{ media }` — the copy's own row.
+ * @throws {ToolInputError} For an unsupported `status` override, a missing source, a trashed source,
+ * or bytes that are no longer retrievable.
+ * @throws {MediaConflictError | MediaValidationError} A taken or invalid `slug` override; the copy is
+ * rolled back first.
+ * @complexity O(1) repo/store calls plus one full read of the source's bytes.
+ */
+export async function duplicateMediaAsset(
+  { routeDeps, ...input }: { routeDeps: MediaToolDeps & MediaPublicUrlDeps } & DuplicateMediaInput,
+  _optional: Record<string, never> = {},
+): Promise<Record<string, unknown>> {
+  // Rejected rather than ignored, mirroring the `"form"` resource: `content_duplicate`'s `status`
+  // override is spelled in post/page's vocabulary (draft/published), which a media asset has no
+  // equivalent of — its statuses are active/trashed, and a copy is never created trashed.
+  if (input.overrides.status !== undefined) {
+    throw new ToolInputError({ message: "content_duplicate: resource 'media' does not support the 'status' override — a media asset is " +
+        "active/trashed, not draft/published, and a copy is always created active. Overrides honored " +
+        "for 'media': title and slug. Use media_trash_asset afterwards to trash the copy." });
+  }
+
+  const source = await findMediaByIdOrSlug({
+    deps: { mediaRepo: routeDeps.mediaRepo },
+    input: { workspaceId: routeDeps.workspaceId, idOrSlug: input.id },
+  });
+  if (!source) throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' was not found` });
+  if (source.kind === "document") throw new ToolInputError({ message: "Library document duplication is unavailable" });
+  if (source.status === "trashed") {
+    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' is in the trash and was not copied — a copy would be ` +
+        "a live entry for content you already deleted. Restore it first if you meant to copy it." });
+  }
+
+  // Resolved BEFORE anything is written: an asset whose bytes are genuinely gone must fail loudly
+  // with nothing created, never leave a half-formed library entry behind (the same no-orphan-row
+  // discipline `duplicatePostOrPage` applies to a bespoke-HTML page with no store wired).
+  const blob = await routeDeps.assetBlobRepo.findByHash({ workspaceId: routeDeps.workspaceId, sha256: source.source.sha256 });
+  if (!blob) {
+    throw new ToolInputError({ message: `content_duplicate: media asset '${input.id}' has no stored blob for hash ${source.source.sha256} — ` +
+        "nothing was copied. Its bytes are missing, so a copy would reference content that does not exist." });
+  }
+  const bytes = await routeDeps.blobStore.get({ storageKey: blob.storageKey });
+  const contentType = await resolveCopyContentType({ routeDeps, sha256: source.source.sha256, bytes });
+
+  // Resolved before uploadMedia so BOTH the interim filename seed below and applyCopiedMetadata's
+  // real write use the SAME final title — see resolveDuplicateTitle's own doc for why recomputing it
+  // twice is a drift risk this avoids.
+  const title = await resolveDuplicateTitle({ routeDeps, source, overrideTitle: input.overrides.title });
+
+  const created = await uploadDuplicateMedia({ routeDeps, source, bytes, contentType, input });
+
   // Keyed by sha256, not by asset id, so for a source whose type was already recorded this is a
   // no-op rewrite of the same value. It is called anyway, and deliberately: an asset predating the
   // content-type store has NO recorded type, and without this the copy would inherit that gap and
@@ -246,7 +250,7 @@ export async function duplicateMediaAsset(
   // same store and method the HTTP upload route and `media_upload_asset` already write through.
   try {
     await routeDeps.mediaContentTypeStore?.set({ workspaceId: routeDeps.workspaceId, sha256: created.source.sha256, contentType });
-    const media = await applyCopiedMetadata(routeDeps, created, source, { title, slug: input.overrides.slug });
+    const media = await applyCopiedMetadata({ routeDeps, created, source, resolved: { title, slug: input.overrides.slug } });
     return { media };
   } catch (error) {
     // uploadMedia already committed the copy: a refused override (a taken or invalid slug) must not
@@ -272,9 +276,9 @@ export function contributeMediaDuplicateHandlers(): DuplicateResourceHandlerCont
   return [
     {
       resource: "media",
-      build: (routeDeps) => ({
+      build: (routeDeps, _optional = {}) => ({
         permission: "media.upload",
-        duplicate: (input) => duplicateMediaAsset(routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, input),
+        duplicate: (input, _optional = {}) => duplicateMediaAsset({ routeDeps: routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, ...input }),
       }),
     },
   ];

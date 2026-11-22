@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "#src/features/workspace/index";
@@ -6,10 +6,11 @@ import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/wo
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's two writable PATCH fields — `undefined` means "leave unchanged" — read off an
  *  untyped body in one place. @complexity O(1). */
-function parseWorkspaceUpdateBody(rawBody: unknown): { name: string | undefined; slug: string | undefined } {
+function parseWorkspaceUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { name: string | undefined; slug: string | undefined } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     name: body.name !== undefined ? String(body.name) : undefined,
@@ -18,7 +19,7 @@ function parseWorkspaceUpdateBody(rawBody: unknown): { name: string | undefined;
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendWorkspaceUpdateError(res: Response, err: unknown): void {
+function sendWorkspaceUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof WorkspaceValidationError) {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
     return;
@@ -39,21 +40,18 @@ function sendWorkspaceUpdateError(res: Response, err: unknown): void {
  * equal the caller's own workspace (INV-04, checked before authorization, same as `get.ts`). Gated
  * by `workspace.manage`.
  */
-export const registerAdminWorkspaceUpdateRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceUpdateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "workspace.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
@@ -61,13 +59,13 @@ export const registerAdminWorkspaceUpdateRoute: WorkspaceRouteRegistrar = (app, 
         deps: { repo: deps.workspaceRepo },
         input: {
           id: deps.workspaceId,
-          ...parseWorkspaceUpdateBody(req.body),
+          ...parseWorkspaceUpdateBody({ rawBody: req.body }),
         },
       });
 
       res.json({ workspace: toAdminWorkspaceResponse(workspace) });
     } catch (err) {
-      sendWorkspaceUpdateError(res, err);
+      sendWorkspaceUpdateError({ res, err });
     }
   });
 };

@@ -16,7 +16,7 @@ import { PageEditor } from "../PageEditor";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 // Same stub `PageEditor.interactive-flush.unit.test.tsx` uses: the taxonomy box fetches on its own.
 vi.mock("../../taxonomy/TermPicker", () => ({
@@ -54,8 +54,8 @@ afterEach(() => {
 
 function renderDraftEditor() {
   const port = createFakePageEditorPort({ page: DRAFT_PAGE, activeThemeTemplates: ["pages-default.html"] });
-  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
-  return render(<PageEditor slug="html-form-demo" usePageEditorHook={(slug: string) => usePageEditor(slug, deps)} />);
+  const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+  return render(<PageEditor slug="html-form-demo" usePageEditorHook={({ routeSlug }) => usePageEditor({ routeSlug, deps })} />);
 }
 
 /** The hidden form currently in the document, and whether the iframe it targets has been filled. */

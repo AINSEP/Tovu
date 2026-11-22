@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { planOriginBoot, resolveConfiguredOrigin } from "../configured-origin.js";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file Unit suite for `resolveConfiguredOrigin` — the env-declared public-origin resolver
@@ -36,11 +36,18 @@ function resolve(value: string | undefined) {
   return { origin, warnings };
 }
 
+/**
+ * The refusal warning Jini now emits: fixed words, and the refused value is never echoed — it may be
+ * refused precisely because it carries a userinfo or query credential (core verified-origin/configured-origin.ts).
+ */
 function refusalMessage(reason: string, value: string): string {
-  return (
+  const message = (
     `TOVU_PUBLIC_URL is set but was refused as this deployment's public origin (${reason}); ` +
-    `no origin was registered from it. Value: ${value}`
+    "no origin was registered from it. Set TOVU_PUBLIC_URL to this site's public https address, " +
+    "with no user name, password, query string or fragment."
   );
+  assert.ok(!message.includes(value), "the refused value must not be part of the expected text");
+  return message;
 }
 
 test("resolveConfiguredOrigin: a valid public https URL yields a workspace-setting VerifiedOrigin", () => {

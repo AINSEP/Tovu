@@ -2,7 +2,10 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 
 /** @file `tracker.trace`: one named operation around async work, with fake ports only. */

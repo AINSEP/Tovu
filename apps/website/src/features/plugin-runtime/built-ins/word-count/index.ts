@@ -52,33 +52,33 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
  * value (TipTap-shaped document tree: `{ type, text?, content?: [...] }`), join with single
  * spaces, trim, split on `/\s+/`, count non-empty tokens. Pure — no I/O.
  *
- * @param bodyJson - The entry's TipTap-shaped document (`ContentEntryDraft.bodyJson`).
+ * @param required.bodyJson - The entry's TipTap-shaped document (`ContentEntryDraft.bodyJson`).
  * @returns The non-empty whitespace-delimited token count of every text node's concatenated value.
  * @complexity O(n) over the document's total node count.
  */
-export function countWords(bodyJson: unknown): number {
+export function countWords({ bodyJson }: { bodyJson: unknown }, _optional = {}): number {
   const texts: string[] = [];
 
   // Depth-first walk. Every node's own `text` is collected before its `content` children are
   // visited, so the collected order is document order. Non-object nodes, nodes without `text`,
   // and nodes without `content` are all simply skipped — never an error (RT-005: an image node
   // contributes nothing rather than throwing).
-  const visit = (node: unknown): void => {
+  const visit = ({ node }: { node: unknown }, _optional = {}): void => {
     if (typeof node !== "object" || node === null) return;
 
     if (Array.isArray(node)) {
-      for (const child of node) visit(child);
+      for (const child of node) visit({ node: child });
       return;
     }
 
     const { text, content } = node as { text?: unknown; content?: unknown };
     if (typeof text === "string") texts.push(text);
     if (Array.isArray(content)) {
-      for (const child of content) visit(child);
+      for (const child of content) visit({ node: child });
     }
   };
 
-  visit(bodyJson);
+  visit({ node: bodyJson });
 
   // RT-005's literal wording: join EVERY collected text-node value with single spaces (not only
   // the ones separated by a block boundary), trim, split on `/\s+/`, count non-empty tokens.
@@ -92,7 +92,7 @@ export function countWords(bodyJson: unknown): number {
  * happened to be statically imported by the server bundle. */
 export const WORD_COUNT_PLUGIN = definePlugin({
   setup(sdk) {
-    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async (entry) => ({ count: countWords(entry.bodyJson) }));
+    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async (entry) => ({ count: countWords({ bodyJson: entry.bodyJson }) }));
   },
 });
 

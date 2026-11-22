@@ -1,12 +1,14 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
-import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminContentType, ContentTypeFieldDef } from "./api/collections-api.types";
+import { ApiError, describeApiError } from "../../lib/admin-http/request";
+
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { isVersionConflict } from "../../lib/version-conflict";
 import { t as translate } from "./collections-i18n";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `collections` feature (top-level Collections screen only — see
  * `CollectionEntries.tsx`/`CollectionEntryEditor.tsx` for the entry-level screens' own extraction)
@@ -22,25 +24,25 @@ import { t as translate } from "./collections-i18n";
  * refactor. Keeping it here, imported by both hook files, is what preserves the single instance —
  * ES modules are singletons, so both hooks see the same counter.
  *
- * `KEYS` (fetch-query migration, 2026-08-12): `entries(key)` is a real child of `list` — a content
+ * `KEYS` (fetch-query migration, 2026-08-12): `entries({ contentTypeKey: key })` is a real child of `list` — a content
  * type's fields/lifecycle changing SHOULD refresh its entries list, matching
  * `@jini-ai/ui/fetch-query`'s `QueryKey` prefix-invalidation contract.
  *
- * `entry(key, id)` is deliberately a SIBLING of `entries(key)`, not a child of it — both nest under
+ * `entry({ contentTypeKey: key, entryId: id })` is deliberately a SIBLING of `entries({ contentTypeKey: key })`, not a child of it — both nest under
  * `list` (so a content-type field/lifecycle change still refreshes an open editor's own read, which
  * IS wanted), but `entry` does NOT share `entries`' own prefix. It first shared it, on the reasoning
  * that saving one entry should refresh that type's list; it does, `save()`/`toggleLifecycle()` in
- * `use-collection-entry-editor.hooks.ts` still `invalidates: [KEYS.entries(key)]` for exactly that.
- * The bug that reasoning missed: nesting the other way ALSO means invalidating `entries(key)`
- * refetches the editor's OWN currently-open `entry(key, id)` read — so every save silently fired 3
+ * `use-collection-entry-editor.hooks.ts` still `invalidates: [KEYS.entries({ contentTypeKey: key })]` for exactly that.
+ * The bug that reasoning missed: nesting the other way ALSO means invalidating `entries({ contentTypeKey: key })`
+ * refetches the editor's OWN currently-open `entry({ contentTypeKey: key, entryId: id })` read — so every save silently fired 3
  * extra background requests (content-types/entries/taxonomies) immediately after the save's own
  * request, which several `use-collection-entry-editor.unit.test.tsx` assertions on "the last fetch
  * call" caught as a real, observable regression, not just a test-harness inconvenience.
  */
 export const KEYS = {
   list: ["content-types"] as QueryKey,
-  entries: (contentTypeKey: string): QueryKey => ["content-types", contentTypeKey, "entries"],
-  entry: (contentTypeKey: string, entryId: string | null): QueryKey => [
+  entries: ({ contentTypeKey }: { contentTypeKey: string }, _optional = {}): QueryKey => ["content-types", contentTypeKey, "entries"],
+  entry: ({ contentTypeKey, entryId }: { contentTypeKey: string; entryId: string | null }, _optional = {}): QueryKey => [
     "content-types",
     contentTypeKey,
     "entry",
@@ -60,7 +62,7 @@ export const ADMIN_SYSTEM_CONTENT_TYPES = ["widget", "widget_area", "menu"];
 /**
  * @complexity Time/space: O(1) — one `Array.includes` over a fixed 3-item list.
  */
-export function isUserCollection(key: string): boolean {
+export function isUserCollection({ key }: { key: string }, _optional = {}): boolean {
   return !ADMIN_SYSTEM_CONTENT_TYPES.includes(key);
 }
 
@@ -77,7 +79,7 @@ export function isUserCollection(key: string): boolean {
  *
  * @complexity Time/space: O(1) — one template string.
  */
-export function collectionEmbedSnippet(key: string): string {
+export function collectionEmbedSnippet({ key }: { key: string }, _optional = {}): string {
   return embedMarkerSnippet({ type: "collection", key: "id", value: key });
 }
 
@@ -105,12 +107,12 @@ export function visibleEntryEditorError(params: {
   /** Translated `VERSION_CONFLICT_MESSAGE` (`lib/version-conflict.ts`). */
   versionConflictMessage: string;
 }): string | null {
-  const describe = (error: Error, fallback: string) =>
-    isVersionConflict(error) ? params.versionConflictMessage : describeApiError(error, fallback);
-  if (params.updateError) return describe(params.updateError, params.saveFallback);
-  if (params.createError) return describe(params.createError, params.saveFallback);
+  const describe = ({ error, fallback }: { error: Error; fallback: string }, _optional = {}) =>
+    isVersionConflict({ error }) ? params.versionConflictMessage : describeApiError({ e: error, fallback });
+  if (params.updateError) return describe({ error: params.updateError, fallback: params.saveFallback });
+  if (params.createError) return describe({ error: params.createError, fallback: params.saveFallback });
   if (params.lifecycleError && params.lifecycleFallback) {
-    return describe(params.lifecycleError, params.lifecycleFallback);
+    return describe({ error: params.lifecycleError, fallback: params.lifecycleFallback });
   }
   return null;
 }
@@ -120,14 +122,14 @@ const RESERVED_KEYS = new Set(["post", "page"]);
 
 type LocaleOrTranslate = string | Translate;
 
-function localize(localeOrTranslate: LocaleOrTranslate, key: string): string {
+function localize({ localeOrTranslate, key }: { localeOrTranslate: LocaleOrTranslate; key: string }, _optional = {}): string {
   return typeof localeOrTranslate === "function" ? localeOrTranslate(key) : translate({ locale: localeOrTranslate, key: key });
 }
 
 /**
  * @complexity Time/space: O(1) — one regex test, one `Set` lookup.
  */
-export function validateKey(key: string, locale = "en"): string | null {
+export function validateKey({ key }: { key: string }, { locale = "en" }: { locale?: string } = {}): string | null {
   if (!KEY_GRAMMAR.test(key)) {
     return translate({ locale: locale, key: "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars)." });
   }
@@ -140,9 +142,9 @@ export function validateKey(key: string, locale = "en"): string | null {
 /**
  * @complexity Time/space: O(1) — one regex test.
  */
-export function validateFieldName(name: string, localeOrTranslate: LocaleOrTranslate = "en"): string | null {
+export function validateFieldName({ name }: { name: string }, { localeOrTranslate = "en" }: { localeOrTranslate?: LocaleOrTranslate } = {}): string | null {
   if (!KEY_GRAMMAR.test(name)) {
-    return localize(localeOrTranslate, "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.");
+    return localize({ localeOrTranslate, key: "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores." });
   }
   return null;
 }
@@ -166,7 +168,7 @@ export function emptyField(): DraftField {
 
 /** Seeds `EditFieldsDialog`'s draft list from a saved content type's fields, assigning each a
  *  fresh local row id off the same shared counter {@link emptyField} uses. */
-export function draftFieldsFromContentType(fields: ContentTypeFieldDef[]): DraftField[] {
+export function draftFieldsFromContentType({ fields }: { fields: ContentTypeFieldDef[] }, _optional = {}): DraftField[] {
   return fields.map((f) => {
     const _rowId = nextRowId;
     nextRowId += 1;
@@ -175,23 +177,23 @@ export function draftFieldsFromContentType(fields: ContentTypeFieldDef[]): Draft
 }
 
 /** @complexity Time/space: O(n) in `fields.length`. */
-export function updateDraftField(fields: DraftField[], rowId: number, patch: Partial<DraftField>): DraftField[] {
+export function updateDraftField({ fields, rowId, patch }: { fields: DraftField[]; rowId: number; patch: Partial<DraftField> }, _optional = {}): DraftField[] {
   return fields.map((f) => (f._rowId === rowId ? { ...f, ...patch } : f));
 }
 
 /** @complexity Time/space: O(n) in `fields.length`. */
-export function removeDraftField(fields: DraftField[], rowId: number): DraftField[] {
+export function removeDraftField({ fields, rowId }: { fields: DraftField[]; rowId: number }, _optional = {}): DraftField[] {
   return fields.filter((f) => f._rowId !== rowId);
 }
 
 /** @complexity Time/space: O(n) in `fields.length`. */
-export function addDraftField(fields: DraftField[]): DraftField[] {
+export function addDraftField({ fields }: { fields: DraftField[] }, _optional = {}): DraftField[] {
   return [...fields, emptyField()];
 }
 
 /** Drops the local-only `_rowId` before a draft list is sent as an `api.*` payload.
  *  @complexity Time/space: O(n) in `fields.length`. */
-export function stripDraftFieldRowIds(fields: DraftField[]): ContentTypeFieldDef[] {
+export function stripDraftFieldRowIds({ fields }: { fields: DraftField[] }, _optional = {}): ContentTypeFieldDef[] {
   return fields.map(({ _rowId: _unused, ...f }) => f);
 }
 
@@ -201,9 +203,9 @@ export function stripDraftFieldRowIds(fields: DraftField[]): ContentTypeFieldDef
  *
  * @complexity Time/space: O(n) in `fields.length`, short-circuiting on the first failure.
  */
-export function firstDraftFieldError(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
+export function firstDraftFieldError({ fields }: { fields: DraftField[] }, { localeOrTranslate = "en" }: { localeOrTranslate?: LocaleOrTranslate } = {}): string | null {
   for (const f of fields) {
-    const fieldError = validateFieldName(f.name.trim(), localeOrTranslate);
+    const fieldError = validateFieldName({ name: f.name.trim() }, { localeOrTranslate });
     if (fieldError) return `Field "${f.name || "(unnamed)"}": ${fieldError}`;
   }
   return null;
@@ -217,13 +219,13 @@ export function firstDraftFieldError(fields: DraftField[], localeOrTranslate: Lo
  * @complexity Time/space: O(n) in `fields.length`.
  */
 export function validateNewContentTypeDraft(
-  draft: { key: string; label: string; fields: DraftField[] },
-  locale = "en",
+  { draft }: { draft: { key: string; label: string; fields: DraftField[] } },
+  { locale = "en" }: { locale?: string } = {},
 ): string | null {
-  const keyError = validateKey(draft.key.trim(), locale);
+  const keyError = validateKey({ key: draft.key.trim() }, { locale });
   if (keyError) return keyError;
   if (!draft.label.trim()) return translate({ locale: locale, key: "Label is required." });
-  return firstDraftFieldError(draft.fields, locale);
+  return firstDraftFieldError({ fields: draft.fields }, { localeOrTranslate: locale });
 }
 
 /**
@@ -232,9 +234,9 @@ export function validateNewContentTypeDraft(
  *
  * @complexity Time/space: O(n) in `fields.length`.
  */
-export function validateEditFieldsDraft(fields: DraftField[], localeOrTranslate: LocaleOrTranslate = "en"): string | null {
-  if (fields.length === 0) return localize(localeOrTranslate, "At least one field is required.");
-  return firstDraftFieldError(fields, localeOrTranslate);
+export function validateEditFieldsDraft({ fields }: { fields: DraftField[] }, { localeOrTranslate = "en" }: { localeOrTranslate?: LocaleOrTranslate } = {}): string | null {
+  if (fields.length === 0) return localize({ localeOrTranslate, key: "At least one field is required." });
+  return firstDraftFieldError({ fields }, { localeOrTranslate });
 }
 
 // ---------------------------------------------------------------------------
@@ -253,9 +255,9 @@ export const STALE_VERSION_MESSAGE = "This content type changed since you loaded
  *
  * @complexity Time/space: O(1) — one `instanceof` check.
  */
-export function describeEditFieldsError(e: unknown, localeOrTranslate: LocaleOrTranslate = "en"): string {
+export function describeEditFieldsError({ e }: { e: unknown }, { localeOrTranslate = "en" }: { localeOrTranslate?: LocaleOrTranslate } = {}): string {
   if (e instanceof ApiError && e.status === 409) return STALE_VERSION_MESSAGE;
-  return describeApiError(e, localize(localeOrTranslate, "Failed to update fields"));
+  return describeApiError({ e, fallback: localize({ localeOrTranslate, key: "Failed to update fields" }) });
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +277,7 @@ export const LIFECYCLE_COPY: Record<LifecycleConfirmOp, { title: string; body: s
   },
 };
 
-export function lifecycleCopy(op: LifecycleConfirmOp, locale = "en"): { title: string; body: string } {
+export function lifecycleCopy({ op }: { op: LifecycleConfirmOp }, { locale = "en" }: { locale?: string } = {}): { title: string; body: string } {
   const copy = LIFECYCLE_COPY[op];
   return { ...copy, title: translate({ locale: locale, key: copy.title }) };
 }
@@ -299,9 +301,9 @@ export function autoFocusCancelForLifecycleOp(op: LifecycleConfirmOp): boolean {
  *  stays free of state, mirroring `posts/rules.ts`'s `PostRowMenuHandlers`. */
 export interface ContentTypeRowMenuHandlers {
   onEditFields: (contentType: AdminContentType) => void;
-  onDeprecate: (contentType: AdminContentType) => void;
-  onReactivate: (contentType: AdminContentType) => void;
-  onTombstone: (contentType: AdminContentType) => void;
+  onDeprecate: (required: { contentType: AdminContentType }, optional?: Record<string, never>) => void;
+  onReactivate: (required: { contentType: AdminContentType }, optional?: Record<string, never>) => void;
+  onTombstone: (required: { contentType: AdminContentType }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -319,26 +321,25 @@ export interface ContentTypeRowMenuHandlers {
  * @complexity Time/space: O(1) — at most three entries, no iteration.
  */
 export function contentTypeMenuItems(
-  contentType: AdminContentType,
-  handlers: ContentTypeRowMenuHandlers,
-  locale: string,
+  { contentType, handlers, locale }: { contentType: AdminContentType; handlers: ContentTypeRowMenuHandlers; locale: string },
+  _optional = {},
 ): RowMenuItem[] {
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [
-    { key: "edit-fields", label: t("Edit fields"), onSelect: () => handlers.onEditFields(contentType) },
+    { key: "edit-fields", label: t({ key: "Edit fields" }), onSelect: () => handlers.onEditFields(contentType) },
   ];
   if (contentType.status === "active") {
-    items.push({ key: "deprecate", label: t("Deprecate"), onSelect: () => handlers.onDeprecate(contentType) });
+    items.push({ key: "deprecate", label: t({ key: "Deprecate" }), onSelect: () => handlers.onDeprecate({ contentType }) });
   }
   if (contentType.status === "deprecated") {
-    items.push({ key: "reactivate", label: t("Reactivate"), onSelect: () => handlers.onReactivate(contentType) });
+    items.push({ key: "reactivate", label: t({ key: "Reactivate" }), onSelect: () => handlers.onReactivate({ contentType }) });
   }
   if (contentType.status !== "tombstone") {
     items.push({
       key: "tombstone",
-      label: t("Delete"),
+      label: t({ key: "Delete" }),
       destructive: true,
-      onSelect: () => handlers.onTombstone(contentType),
+      onSelect: () => handlers.onTombstone({ contentType }),
     });
   }
   return items;

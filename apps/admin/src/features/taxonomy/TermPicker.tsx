@@ -1,8 +1,7 @@
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useId } from "react";
-import type { AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
 import { useWiredTermPicker, type TermPickerController } from "./hooks/use-term-picker.hooks";
 import { useTermListReveal } from "./hooks/use-term-list-reveal.hooks";
 
@@ -24,7 +23,8 @@ function termCreationDisabled({ loading, picker, id }: { loading: boolean; picke
  *
  * Mount it only for content that exists (a saved post/page/entry has an id to tag).
  */
-export function TermPicker(props: {
+export function TermPicker({
+  useTermPickerHook = useWiredTermPicker, ...props }: {
   /** `post`, `page`, or a collection's content-type key. */
   contentType: string;
   contentId: string;
@@ -32,7 +32,7 @@ export function TermPicker(props: {
    *  for `useCustomSelect`. Defaulted to the real hook, so production callers pass nothing. */
   useTermPickerHook?: typeof useWiredTermPicker;
 }) {
-  const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
+
   const picker = useTermPickerHook({
     contentType: props.contentType,
     contentId: props.contentId,
@@ -47,7 +47,7 @@ export function TermPicker(props: {
   // term's handle must not change with what else is on screen.
   const termIds = taxonomies.flatMap(({ terms }) => terms.map((term) => term.id));
   const termHandles = buildAgentListHandles({ prefix: "term-picker-term", ids: termIds });
-  const termHandleById = new Map(termIds.map((termId, index) => [termId, termHandles[index]!]));
+  const termHandleById = new Map(termIds.map((termId, index) => [termId, termHandles[index]]));
   const taxonomyIds = taxonomies.map(({ taxonomy }) => taxonomy.id);
   const addInputHandles = buildAgentListHandles({ prefix: "term-picker-new-term", ids: taxonomyIds });
   const addTriggerHandles = buildAgentListHandles({ prefix: "term-picker-open-new-term", ids: taxonomyIds });
@@ -81,9 +81,13 @@ export function TermPicker(props: {
                     terms={terms}
                     picker={picker}
                     handles={{
-                      term: (termId) => termHandleById.get(termId)!,
-                      more: moreHandles[groupIndex]!,
-                      search: searchHandles[groupIndex]!,
+                      term: (termId) => {
+                        const handle = termHandleById.get(termId);
+                        if (handle === undefined) throw new Error(`taxonomy term ${termId} has no picker handle`);
+                        return handle;
+                      },
+                      more: moreHandles[groupIndex],
+                      search: searchHandles[groupIndex],
                     }}
                   />
                 ) : null}
@@ -92,7 +96,7 @@ export function TermPicker(props: {
                     type="button"
                     className="btn-ghost term-picker-add-trigger"
                     onClick={() => picker.setAddOpen(id, true)}
-                    {...agentHandle({ handle: addTriggerHandles[groupIndex]! }, {
+                    {...agentHandle({ handle: addTriggerHandles[groupIndex] }, {
                       role: "button",
                       label: `Open the box for adding a new "${taxonomy.name}" term to this ${subject}`,
                     })}
@@ -117,7 +121,7 @@ export function TermPicker(props: {
                       disabled={loading}
                       onValueChange={(value) => picker.setNewTermName(id, value)}
                       onKeyDown={(e) => picker.onNewTermKeyDown(id, e)}
-                      agentHandle={addInputHandles[groupIndex]!}
+                      agentHandle={addInputHandles[groupIndex]}
                       agentLabel={`A "${taxonomy.name}" term name to tag this ${subject} with — an existing one is ticked, a new one is created then ticked; press Enter`}
                     />
                     <button
@@ -125,7 +129,7 @@ export function TermPicker(props: {
                       className="btn-secondary"
                       onClick={() => void picker.addTerm(id)}
                       disabled={termCreationDisabled({ loading, picker, id })}
-                      {...agentHandle({ handle: addButtonHandles[groupIndex]! }, {
+                      {...agentHandle({ handle: addButtonHandles[groupIndex] }, {
                         role: "button",
                         label: `Tick the typed "${taxonomy.name}" term, creating it if it does not exist yet`,
                       })}
@@ -174,15 +178,15 @@ export function TermPicker(props: {
  * up to 100 and "Show less" folds them back; past 100 a search box finds any term (owner,
  * 2026-10-22: "looking at all this up front is a lot"). What shows is `rules.ts`'s `termListView`.
  */
-function TermChecklist(props: {
+function TermChecklist({ useTermListRevealHook = useTermListReveal, ...props }: {
   taxonomy: AdminTaxonomyWithTerms["taxonomy"];
   terms: AdminTaxonomyWithTerms["terms"];
   picker: TermPickerController;
-  handles: { term: (termId: string) => string; more: string; search: string };
+  handles: { term: (termId: string) => string; more: string; search: string }; useTermListRevealHook?: typeof useTermListReveal;
 }) {
   const { taxonomy, terms, picker, handles } = props;
   const { selected, toggle, loading, subject, t } = picker;
-  const reveal = useTermListReveal({ terms, selected, loading });
+  const reveal = useTermListRevealHook({ terms, selected, loading });
   const listId = useId();
   return (
     <>

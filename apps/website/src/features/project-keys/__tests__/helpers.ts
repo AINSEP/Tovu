@@ -1,5 +1,5 @@
 import type { KeyAttachments } from "../attachments.js";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord } from "@jini-ai/core/contracts/vault";
 
 export function fakeAttachments(_required = {}, _optional = {}): KeyAttachments {
   const rows = new Map<string, { siteId: string; siteName: string; keyId: string }>();

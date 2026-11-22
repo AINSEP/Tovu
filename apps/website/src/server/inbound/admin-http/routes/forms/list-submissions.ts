@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Request } from "express";
 
 import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -39,36 +41,21 @@ function parseSubmissionsQuery(query: Request["query"]): ParsedSubmissionsQuery 
 }
 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
-export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const formId = String(req.params.formId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.forms.submissions.read",
-        workspaceId: deps.workspaceId,
-        entityType: "form_submission",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.forms.submissions.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.forms.submissions.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.forms.submissions.read", workspaceId: deps.workspaceId, entityType: "form_submission" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // Slug first, id second — the Submissions tab URL is /admin/forms/:slug, and
       // `FormEditor.tsx` passes that same route param straight through as `formId` here (see
       // `resolve-definition.ts`), same as the sibling GET-by-id route already does.
-      const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+      const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;

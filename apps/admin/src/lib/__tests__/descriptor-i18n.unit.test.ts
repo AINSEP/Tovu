@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishTargetDescriptor, AdminSourceControlProviderDescriptor } from "../api";
+import type { AdminPublishTargetDescriptor } from "../../features/deployment/api/deployment-api.types";
+import type { AdminSourceControlProviderDescriptor } from "../../features/source-control/api/source-control-api.types";
 import { descriptorText, localizePublishTargets, localizeSourceControlProviders } from "../descriptor-i18n";
 
 /**
@@ -12,15 +13,15 @@ const I18N = { es: { Owner: "Propietario" }, pt: { Owner: "Dono" }, "pt-BR": { O
 
 describe("descriptorText", () => {
   it("uses the exact locale's translation", () => {
-    expect(descriptorText(I18N, "es", "Owner")).toBe("Propietario");
-    expect(descriptorText(I18N, "pt-BR", "Owner")).toBe("Proprietário");
+    expect(descriptorText({ i18n: I18N, locale: "es", english: "Owner" })).toBe("Propietario");
+    expect(descriptorText({ i18n: I18N, locale: "pt-BR", english: "Owner" })).toBe("Proprietário");
   });
 
   it("falls back to the base language, then to the English", () => {
-    expect(descriptorText(I18N, "pt-PT", "Owner")).toBe("Dono");
-    expect(descriptorText(I18N, "de", "Owner")).toBe("Owner");
-    expect(descriptorText(I18N, "es", "Branch")).toBe("Branch");
-    expect(descriptorText(undefined, "es", "Owner")).toBe("Owner");
+    expect(descriptorText({ i18n: I18N, locale: "pt-PT", english: "Owner" })).toBe("Dono");
+    expect(descriptorText({ i18n: I18N, locale: "de", english: "Owner" })).toBe("Owner");
+    expect(descriptorText({ i18n: I18N, locale: "es", english: "Branch" })).toBe("Branch");
+    expect(descriptorText({ i18n: undefined, locale: "es", english: "Owner" })).toBe("Owner");
   });
 });
 
@@ -52,7 +53,7 @@ describe("localizePublishTargets", () => {
   };
 
   it("translates every person-facing string and leaves ids, names and URLs alone", () => {
-    const [localized] = localizePublishTargets([target], "es")!;
+    const [localized] = localizePublishTargets({ targets: [target], locale: "es" })!;
     expect(localized).toEqual({
       ...target,
       configFields: [{ name: "owner", label: "Propietario", required: true, help: "agent hint", userHelp: "pista" }],
@@ -75,7 +76,7 @@ describe("localizePublishTargets", () => {
       configFields: [{ name: "bucket", label: "Bucket", required: true }],
       i18n: { es: { "Static host": "Alojamiento estático", Bucket: "Depósito" } },
     };
-    expect(localizePublishTargets([bare], "es")).toStrictEqual([
+    expect(localizePublishTargets({ targets: [bare], locale: "es" })).toStrictEqual([
       { ...bare, label: "Alojamiento estático", configFields: [{ name: "bucket", label: "Depósito", required: true }] },
     ]);
     const sparse: AdminPublishTargetDescriptor = {
@@ -83,14 +84,14 @@ describe("localizePublishTargets", () => {
       projectName: { label: "Bucket" },
       credential: { tokenField: "token", fields: [{ name: "token", label: "Access token", required: true, secret: true }] },
     };
-    const [localized] = localizePublishTargets([sparse], "es")!;
+    const [localized] = localizePublishTargets({ targets: [sparse], locale: "es" })!;
     expect(localized!.projectName).toStrictEqual({ label: "Depósito" });
     expect(localized!.credential).toStrictEqual({ tokenField: "token", fields: [{ name: "token", label: "Access token", required: true, secret: true }] });
   });
 
   it("returns the descriptors unchanged in English, and undefined while not loaded", () => {
-    expect(localizePublishTargets([target], "en")).toEqual([target]);
-    expect(localizePublishTargets(undefined, "es")).toBeUndefined();
+    expect(localizePublishTargets({ targets: [target], locale: "en" })).toEqual([target]);
+    expect(localizePublishTargets({ targets: undefined, locale: "es" })).toBeUndefined();
   });
 });
 
@@ -102,7 +103,7 @@ describe("localizeSourceControlProviders", () => {
       credential: { help: "Needs a fine-grained token.", tokenField: "token", fields: [{ name: "token", label: "Access token", required: true, secret: true }] },
       i18n: { de: { "Needs a fine-grained token.": "Benötigt ein Token.", "Access token": "Zugriffstoken" } },
     };
-    expect(localizeSourceControlProviders([provider], "de")).toEqual([
+    expect(localizeSourceControlProviders({ providers: [provider], locale: "de" })).toEqual([
       {
         ...provider,
         credential: { help: "Benötigt ein Token.", tokenField: "token", fields: [{ name: "token", label: "Zugriffstoken", required: true, secret: true }] },
@@ -112,6 +113,6 @@ describe("localizeSourceControlProviders", () => {
 
   it("leaves a host with no credential spec without one", () => {
     const provider: AdminSourceControlProviderDescriptor = { id: "local-git", label: "Local Git", i18n: { de: { "Local Git": "Lokales Git" } } };
-    expect(localizeSourceControlProviders([provider], "de")).toStrictEqual([{ ...provider, label: "Lokales Git" }]);
+    expect(localizeSourceControlProviders({ providers: [provider], locale: "de" })).toStrictEqual([{ ...provider, label: "Lokales Git" }]);
   });
 });

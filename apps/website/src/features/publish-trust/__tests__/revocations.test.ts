@@ -131,34 +131,34 @@ test("an unreadable revocation list refuses everybody", () => {
 });
 
 test("a corrupt revocation document reads as unreadable, not as empty", () => {
-  const read = parseRevocationDocument("{ not json");
+  const read = parseRevocationDocument({ text: "{ not json" });
 
   assert.equal(read.ok, false, "an empty read here would silently reconnect every disconnected computer");
 });
 
 test("a revocation list that is not an array is refused", () => {
-  assert.equal(parseRevocationDocument('{"sourceInstallationId":"laptop"}').ok, false);
+  assert.equal(parseRevocationDocument({ text: '{"sourceInstallationId":"laptop"}' }).ok, false);
 });
 
 test("a revocation document accepts 16384 bytes and refuses anything larger", () => {
   const atLimit = JSON.stringify([REVOKED_LAPTOP]).padEnd(16_384, " ");
-  assert.deepEqual(parseRevocationDocument(atLimit), { ok: true, revocations: [REVOKED_LAPTOP] });
-  assert.deepEqual(parseRevocationDocument(`${atLimit} `), {
+  assert.deepEqual(parseRevocationDocument({ text: atLimit }), { ok: true, revocations: [REVOKED_LAPTOP] });
+  assert.deepEqual(parseRevocationDocument({ text: `${atLimit} ` }), {
     ok: false, reason: "revocation list exceeds 16384 bytes",
   });
 });
 
 test("a stored revocation list refuses more than 64 records", () => {
   const full = Array.from({ length: MAX_REVOCATIONS }, (_, i) => ({ ...REVOKED_LAPTOP, sourceInstallationId: `m${i}` }));
-  assert.deepEqual(parseRevocationDocument(JSON.stringify(full)), { ok: true, revocations: full });
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([...full, REVOKED_LAPTOP])), {
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify(full) }), { ok: true, revocations: full });
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([...full, REVOKED_LAPTOP]) }), {
     ok: false, reason: "revocation list holds more than 64 records",
   });
 });
 
 test("a revocation entry must be an object", () => {
   for (const entry of [null, 7]) {
-    assert.deepEqual(parseRevocationDocument(JSON.stringify([entry])), {
+    assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([entry]) }), {
       ok: false, reason: "each revocation must be an object",
     });
   }
@@ -166,19 +166,19 @@ test("a revocation entry must be an object", () => {
 
 // F4.4: all other fields remain valid so another validation guard cannot mask an omission.
 test("a revocation needs a non-empty source installation id", () => {
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, sourceInstallationId: "" }])), {
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...REVOKED_LAPTOP, sourceInstallationId: "" }]) }), {
     ok: false, reason: "each revocation needs a 'sourceInstallationId'",
   });
 });
 
 test("a revocation needs a parseable revocation date", () => {
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, revokedAt: "not-a-date" }])), {
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...REVOKED_LAPTOP, revokedAt: "not-a-date" }]) }), {
     ok: false, reason: "each revocation needs an ISO-8601 'revokedAt'",
   });
 });
 
 test("a revocation note must be a non-empty string when present", () => {
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, note: 42 }])), {
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...REVOKED_LAPTOP, note: 42 }]) }), {
     ok: false, reason: "a revocation 'note' must be a non-empty string when present",
   });
 });
@@ -288,7 +288,7 @@ test("a stored disconnect survives a reread, notes and all", async () => {
   assert.deepEqual(read.ok ? read.revocations : null, [
     { sourceInstallationId: "laptop", revokedAt: NOW, note: "left it on a train" },
   ]);
-  assert.equal(isRevoked(read.ok ? read.revocations : [], "laptop"), true);
+  assert.equal(isRevoked({ revocations: read.ok ? read.revocations : [], sourceInstallationId: "laptop" }), true);
 });
 
 test("the in-memory store revokes, restores, preserves idempotency and refuses overflow", async () => {
@@ -316,7 +316,7 @@ test("the in-memory store revokes, restores, preserves idempotency and refuses o
 });
 
 test("whitespace-only revocation documents represent no disconnected computers", () => {
-  assert.deepEqual(parseRevocationDocument(" \n\t "), { ok: true, revocations: [] });
+  assert.deepEqual(parseRevocationDocument({ text: " \n\t " }), { ok: true, revocations: [] });
 });
 
 for (const [field, values, reason] of [
@@ -326,14 +326,14 @@ for (const [field, values, reason] of [
 ] as const) {
   for (const value of values) {
     test(`revocation ${field} refuses ${typeof value === "number" ? "a number" : value.length === 0 ? "an empty string" : "more than 512 characters"}`, () => {
-      assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, [field]: value }])), { ok: false, reason });
+      assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...REVOKED_LAPTOP, [field]: value }]) }), { ok: false, reason });
     });
   }
 }
 
 for (const note of [undefined, null]) {
   test(`a ${note === undefined ? "missing" : "null"} revocation note is normalized to null`, () => {
-    assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, note }])), {
+    assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([{ ...REVOKED_LAPTOP, note }]) }), {
       ok: true, revocations: [{ sourceInstallationId: "laptop", revokedAt: NOW, note: null }],
     });
   });
@@ -341,5 +341,5 @@ for (const note of [undefined, null]) {
 
 test("revocation fields accept exactly 512 characters", () => {
   const entry = { sourceInstallationId: "s".repeat(512), revokedAt: NOW, note: "n".repeat(512) };
-  assert.deepEqual(parseRevocationDocument(JSON.stringify([entry])), { ok: true, revocations: [entry] });
+  assert.deepEqual(parseRevocationDocument({ text: JSON.stringify([entry]) }), { ok: true, revocations: [entry] });
 });

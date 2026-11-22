@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, WORKSPACE_ID } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
 import { useContentAnalysis, useWiredContentAnalysis, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";
@@ -60,7 +61,7 @@ describe("showing the card", () => {
   });
 
   it("stays hidden when the content-analyzer plugin is not installed", async () => {
-    const port = createFakeContentAnalysisPort({ statusError: new ApiError("plugin was not found", 404, "PLUGIN_NOT_FOUND") });
+    const port = createFakeContentAnalysisPort({ statusError: new ApiError({ message: "plugin was not found", status: 404 }, { code: "PLUGIN_NOT_FOUND" }) });
     const { result } = mount(port);
     await waitFor(() => expect(port.statusCalls).toBe(1));
     await act(async () => {});
@@ -68,7 +69,7 @@ describe("showing the card", () => {
   });
 
   it("shows the card with the reason when the status read is refused or fails, instead of looking switched off", async () => {
-    const port = createFakeContentAnalysisPort({ statusError: new ApiError("You do not have permission to do that.", 403, "FORBIDDEN") });
+    const port = createFakeContentAnalysisPort({ statusError: new ApiError({ message: "You do not have permission to do that.", status: 403 }, { code: "FORBIDDEN" }) });
     const { result } = mount(port);
     await waitFor(() => expect(result.current.hidden).toBe(false));
     expect(result.current.error).toBe("You do not have permission to do that.");
@@ -128,7 +129,7 @@ describe("Analyze now", () => {
   it("reports a refused preview with its own copy, then clears it on the next successful run", async () => {
     const port = createFakeContentAnalysisPort({
       previewFields: { report: VALID_REPORT_JSON },
-      previewError: new ApiError("hook threw", 422, "PLUGIN_HOOK_FAILED"),
+      previewError: new ApiError({ message: "hook threw", status: 422 }, { code: "PLUGIN_HOOK_FAILED" }),
     });
     const { result } = mount(port);
     await waitFor(() => expect(result.current.hidden).toBe(false));
@@ -137,7 +138,7 @@ describe("Analyze now", () => {
     expect(result.current.analyzing).toBe(false);
     expect(result.current.view.lead).toBe("From the last save.");
 
-    port.setPreviewError(null);
+    port.setPreviewError({ error: null });
     await act(() => result.current.analyze());
     await waitFor(() => expect(result.current.error).toBeNull());
     expect(result.current.view.lead).toBe("From your current draft, including unsaved changes.");

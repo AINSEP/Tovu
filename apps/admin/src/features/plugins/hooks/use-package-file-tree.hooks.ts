@@ -31,7 +31,7 @@ export interface PackageFileTreeController {
   readonly rows: readonly PackageFileTreeRow[];
   /** The one row with `tabIndex=0` (roving tabindex); `null` only while there are no rows. */
   readonly activePath: string | null;
-  readonly isExpanded: (folderPath: string) => boolean;
+  readonly isExpanded: (required: { folderPath: string }, optional?: Record<string, never>) => boolean;
   readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
   /** A folder row toggles; a file row opens. */
   readonly onRowClick: (row: PackageFileTreeRow) => void;
@@ -41,9 +41,9 @@ export interface PackageFileTreeController {
 
 /** What one key action can do to the tree; {@link applyPackageFileTreeKeyAction}'s effects port. */
 export interface PackageFileTreeKeyEffects {
-  readonly setExpanded: (path: string, expanded: boolean) => void;
+  readonly setExpanded: (required: { path: string; expanded: boolean }, optional?: Record<string, never>) => void;
   readonly openFile: (relativePath: string) => void;
-  readonly focus: (path: string) => void;
+  readonly focus: (required: { path: string }, optional?: Record<string, never>) => void;
 }
 
 /**
@@ -54,11 +54,11 @@ export interface PackageFileTreeKeyEffects {
  * @returns Whether the key was the tree's (so the caller suppresses the browser's default).
  * @complexity O(1).
  */
-export function applyPackageFileTreeKeyAction(action: ReturnType<typeof packageFileTreeKeyAction>, effects: PackageFileTreeKeyEffects): boolean {
+export function applyPackageFileTreeKeyAction({ action, effects }: { action: ReturnType<typeof packageFileTreeKeyAction>; effects: PackageFileTreeKeyEffects }, _optional: Record<string, never> = {}): boolean {
   if (!action.focus && !action.setExpanded && !action.open) return false;
-  if (action.setExpanded) effects.setExpanded(action.setExpanded.path, action.setExpanded.expanded);
+  if (action.setExpanded) effects.setExpanded({ path: action.setExpanded.path, expanded: action.setExpanded.expanded });
   if (action.open) effects.openFile(action.open);
-  if (action.focus) effects.focus(action.focus);
+  if (action.focus) effects.focus({ path: action.focus });
   return true;
 }
 
@@ -68,18 +68,18 @@ export function applyPackageFileTreeKeyAction(action: ReturnType<typeof packageF
  */
 export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageFileTreeDependencies): PackageFileTreeController {
   const pathsKey = paths.join("\n");
-  const tree = useMemo(() => buildPackageFileTree(paths), [pathsKey]);
+  const tree = useMemo(() => buildPackageFileTree({ paths }), [pathsKey]);
   const [toggled, setToggled] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
   const treeRef = useRef<HTMLDivElement | null>(null);
   const moveDomFocus = useRef(false);
 
-  const selectedAncestors = new Set(selectedPath ? ancestorFolderPaths(selectedPath) : []);
-  const isExpanded = (folderPath: string) => toggled.get(folderPath) ?? selectedAncestors.has(folderPath);
-  const rows = visiblePackageFileRows(tree, isExpanded);
-  const visible = (path: string | null) => path !== null && rows.some((row) => row.node.path === path);
-  const fallbackPath = visible(selectedPath) ? selectedPath : (rows[0]?.node.path ?? null);
-  const activePath = visible(focusedPath) ? focusedPath : fallbackPath;
+  const selectedAncestors = new Set(selectedPath ? ancestorFolderPaths({ filePath: selectedPath }) : []);
+  const isExpanded = ({ folderPath }: { folderPath: string }, _optional = {}) => toggled.get(folderPath) ?? selectedAncestors.has(folderPath);
+  const rows = visiblePackageFileRows({ nodes: tree, isExpanded: ({ path }) => isExpanded({ folderPath: path }) });
+  const visible = ({ path }: { path: string | null }, _optional = {}) => path !== null && rows.some((row) => row.node.path === path);
+  const fallbackPath = visible({ path: selectedPath }) ? selectedPath : (rows[0]?.node.path ?? null);
+  const activePath = visible({ path: focusedPath }) ? focusedPath : fallbackPath;
 
   // Only after a key press: DOM focus follows the roving tabindex. Never on mount or on a
   // selection that came from outside, so opening the dialog doesn't pull focus into the tree.
@@ -92,26 +92,26 @@ export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageF
     target?.focus();
   });
 
-  const setExpanded = (path: string, expanded: boolean) =>
+  const setExpanded = ({ path, expanded }: { path: string; expanded: boolean }, _optional = {}) =>
     setToggled((previous) => new Map(previous).set(path, expanded));
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (activePath === null) return;
-    const action = packageFileTreeKeyAction(rows, activePath, event.key, isExpanded);
-    const handled = applyPackageFileTreeKeyAction(action, {
+    const action = packageFileTreeKeyAction({ rows, currentPath: activePath, key: event.key, isExpanded: ({ path }) => isExpanded({ folderPath: path }) });
+    const handled = applyPackageFileTreeKeyAction({ action, effects: {
       setExpanded,
       openFile: onOpenFile,
-      focus: (path) => {
+      focus: ({ path }, _optional = {}) => {
         setFocusedPath(path);
         moveDomFocus.current = true;
       },
-    });
+    } });
     if (handled) event.preventDefault();
   };
 
   const onRowClick = (row: PackageFileTreeRow) => {
     setFocusedPath(row.node.path);
-    if (row.node.kind === "folder") setExpanded(row.node.path, !isExpanded(row.node.path));
+    if (row.node.kind === "folder") setExpanded({ path: row.node.path, expanded: !isExpanded({ folderPath: row.node.path }) });
     else onOpenFile(row.node.path);
   };
 

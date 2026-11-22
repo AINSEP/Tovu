@@ -1,18 +1,20 @@
 import type { FrontendSessionOwner } from '@jini-ai/daemon';
+import type { FrontendHookInput } from '@jini-ai/daemon/http';
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
 import type { Express, Request, Response } from "express";
 import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL, allowsVisitorRequestOrigin } from "#src/assistant/visitor-services";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
+import { requestHookInput } from "#src/server/inbound/shared/request-facts";
 
 export const SITE_ASSISTANT_CONFIRM_PATH = "/api/site-assistant/confirm";
 interface ConfirmRoutePorts {
   readonly confirmations: VisitorConfirmations;
-  readonly resolveOwner?: (args: { req: Request }) => Promise<FrontendSessionOwner | null>;
+  readonly resolveOwner?: (required: FrontendHookInput) => Promise<FrontendSessionOwner | null>;
   readonly enabled: () => Promise<boolean>;
   readonly allowsOrigin: (required: { origin: string }) => Promise<boolean>;
   readonly limiter: RateLimiter;
-  readonly reportError: (error: unknown) => void;
+  readonly reportError: (required: { error: unknown }, optional?: Record<string, never>) => void;
 }
 
 /** Closed, bounded reply shape: only a visitor click's nonce and literal boolean are accepted. */
@@ -34,7 +36,7 @@ async function handle({ req, res, ports }: { req: Request; res: Response; ports:
   if (!budget.allowed) { res.status(429).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   if (!await ports.enabled()) { res.status(404).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   const body = confirmationBody({ value: req.body });
-  const sameOrigin = await allowsVisitorRequestOrigin({ req, method: req.method, allowsOrigin: ports.allowsOrigin });
+  const sameOrigin = await allowsVisitorRequestOrigin({ ...requestHookInput({ req }), allowsOrigin: ports.allowsOrigin });
   if (!body || !req.is("application/json") || !sameOrigin) { res.status(400).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   const accepted = await confirmForRequest({ req, ports, body });
   res.status(accepted ? 200 : 400).json(accepted ? { accepted: true } : { error: VISITOR_TOOL_REFUSAL });
@@ -44,13 +46,13 @@ async function handle({ req, res, ports }: { req: Request; res: Response; ports:
 export function registerSiteAssistantConfirm({ app, ports }: { app: Express; ports: ConfirmRoutePorts }, _options = {}): void {
   app.post(SITE_ASSISTANT_CONFIRM_PATH, (req, res) => {
     void handle({ req, res, ports }).catch(error => {
-      ports.reportError(error);
+      ports.reportError({ error });
       res.status(400).json({ error: VISITOR_TOOL_REFUSAL });
     });
   });
 }
 
 async function confirmForRequest({ req, ports, body }: { req: Request; ports: ConfirmRoutePorts; body: { challengeId: string; allow: boolean } }): Promise<boolean> {
-  const owner = await ports.resolveOwner?.({ req });
+  const owner = await ports.resolveOwner?.(requestHookInput({ req }));
   return ports.confirmations.confirm({ ...body, ...(owner ? { owner } : {}) });
 }

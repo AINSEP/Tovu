@@ -81,7 +81,7 @@ function buildApp(route: RouteCase, depsOverrides: Partial<NewsletterRouteDeps> 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  route.register(app, deps);
+  route.register({ app, deps });
   return app;
 }
 
@@ -161,7 +161,7 @@ function buildAppWithoutBodyParser(register: RouteRegistrar) {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  register(app, deps);
+  register({ app, deps });
   return app;
 }
 

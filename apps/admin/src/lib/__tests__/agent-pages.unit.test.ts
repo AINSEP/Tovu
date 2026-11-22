@@ -100,8 +100,8 @@ describe("buildAdminAgentPages", () => {
     await pages[pageId]!.navigate({});
 
     expect(navigateSpy).toHaveBeenCalledTimes(1);
-    expect(navigateSpy).toHaveBeenCalledWith(routePath);
-    expect(router.currentRoutePath()).toBe(routePath);
+    expect(navigateSpy).toHaveBeenCalledWith({ routePath: routePath });
+    expect(router.currentRoutePath({})).toBe(routePath);
   });
 
   it("each page's navigate function is independent — invoking one does not navigate any other page's route", async () => {
@@ -115,16 +115,16 @@ describe("buildAdminAgentPages", () => {
 
     await pages[firstPageId]!.navigate({});
 
-    expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
-    expect(navigateSpy).toHaveBeenCalledExactlyOnceWith(firstRoutePath);
-    expect(router.currentRoutePath()).toBe(firstRoutePath);
+    expect(navigateSpy).not.toHaveBeenCalledWith({ routePath: secondRoutePath });
+    expect(navigateSpy).toHaveBeenCalledExactlyOnceWith({ routePath: firstRoutePath });
+    expect(router.currentRoutePath({})).toBe(firstRoutePath);
   });
 
   it("publishes a content refresh when the agent navigates to the route already displayed", async () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue(ADMIN_AGENT_PAGE_PATHS["posts"]!);
     const seen = vi.fn();
-    subscribeToContentRefresh(seen);
+    subscribeToContentRefresh({ listener: seen });
 
     await buildAdminAgentPages()["posts"]!.navigate({});
 
@@ -138,7 +138,7 @@ describe("buildAdminAgentPages", () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue("/some-other-route");
     const seen = vi.fn();
-    subscribeToContentRefresh(seen);
+    subscribeToContentRefresh({ listener: seen });
 
     await buildAdminAgentPages()["posts"]!.navigate({});
 

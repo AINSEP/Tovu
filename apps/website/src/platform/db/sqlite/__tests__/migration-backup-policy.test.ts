@@ -22,7 +22,7 @@ test("migration backup keeps newest five exact names and foreign files survive",
   fs.mkdirSync(ops);
   for (let i = 1; i <= 7; i++) fs.writeFileSync(path.join(ops, `pre-migrations-2000-01-0${i}T00-00-00-000Z.db`), "COPY");
   for (const name of ["pre-migrations-personal.db", "pre-migrations-2000-01-01T00-00-00-000Z.db.notes", "other.db"]) fs.writeFileSync(path.join(ops, name), "FOREIGN");
-  await migrateSqliteContentFile(db, file);
+  await migrateSqliteContentFile({ db, filePath: file });
   const names = fs.readdirSync(ops);
   assert.equal(names.filter(n => /^pre-migrations-\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z\.db$/.test(n)).length, 5);
   assert.ok(names.includes("pre-migrations-2000-01-04T00-00-00-000Z.db"));
@@ -34,7 +34,7 @@ test("boot warns and applies pending migrations without a backup when disk is lo
   const actual = await fsp.statfs(dir);
   t.mock.method(fsp, "statfs", async () => ({ ...actual, bavail: 0 }));
   const warnings = t.mock.method(console, "warn", () => {});
-  const report = await migrateSqliteContentFile(db, file);
+  const report = await migrateSqliteContentFile({ db, filePath: file });
   assert.ok(report.applied.includes("0037_media_source_metadata"));
   assert.ok(warnings.mock.calls.some(c => String(c.arguments[0]).includes("disk is almost full")));
   assert.deepEqual(fs.readdirSync(path.join(dir, "ops")).filter(n => n.startsWith("pre-migrations-")), []);
@@ -47,7 +47,7 @@ test("SQLite running out of space mid-copy warns, removes the partial copy, and 
     throw Object.assign(new Error("database or disk is full"), { code: "SQLITE_FULL" });
   });
   const warnings = t.mock.method(console, "warn", () => {});
-  const report = await migrateSqliteContentFile(db, file);
+  const report = await migrateSqliteContentFile({ db, filePath: file });
   assert.ok(report.applied.includes("0037_media_source_metadata"));
   assert.ok(warnings.mock.calls.some(c => String(c.arguments[0]).includes("database or disk is full")));
   assert.deepEqual(fs.readdirSync(path.join(dir, "ops")).filter(n => n.startsWith("pre-migrations-")), []);
@@ -59,6 +59,21 @@ test("a successful backup is pruned even if the following migration fails", asyn
   const ops = path.join(dir, "ops");
   fs.mkdirSync(ops);
   for (let i = 1; i <= 7; i++) fs.writeFileSync(path.join(ops, `pre-migrations-2000-01-0${i}T00-00-00-000Z.db`), "COPY");
-  await assert.rejects(migrateSqliteContentFile(db, file), /duplicate column/);
+  await assert.rejects(migrateSqliteContentFile({ db, filePath: file }), /duplicate column/);
   assert.equal(fs.readdirSync(ops).filter(n => n.endsWith(".db")).length, 5);
+});
+
+test("backup pruning failure logs redacted cause and does not refuse completed migrations", async t => {
+  const { file, db } = fixture(t);
+  const readdir = fs.readdirSync;
+  t.mock.method(fs, "readdirSync", (...args: unknown[]) => {
+    if (args[0] === path.join(path.dirname(file), "ops")) throw new Error("retention context password=PRUNE_CANARY");
+    return Reflect.apply(readdir, fs, args);
+  });
+  const warnings = t.mock.method(console, "warn", () => {});
+  const report = await migrateSqliteContentFile({ db, filePath: file });
+  assert.ok(report.applied.includes("0037_media_source_metadata"));
+  const text = warnings.mock.calls.map(call => call.arguments.join(" ")).join(" ");
+  assert.match(text, /Could not prune older pre-migration backups.*retention context/);
+  assert.doesNotMatch(text, /PRUNE_CANARY/);
 });

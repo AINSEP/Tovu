@@ -27,7 +27,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 
 function openDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-col-"));
@@ -47,14 +47,14 @@ test("dataModule: a missing nullable column on an already-existing table is adde
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const }] },
   ] };
-  const first = await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  const first = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
   assert.equal(first.ok, true, JSON.stringify(first.error));
 
   const v2 = { ...v1, tables: [{ ...v1.tables[0]!, columns: [...v1.tables[0]!.columns,
     { name: "sku", type: "TEXT" as const }, { name: "quantity", type: "INTEGER" as const },
     { name: "weight", type: "REAL" as const }, { name: "payload", type: "BLOB" as const },
   ] }] };
-  const second = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const second = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(second.ok, true, JSON.stringify(second.error));
   assert.deepEqual(second.created, [], "no table was newly created");
@@ -76,10 +76,10 @@ test("dataModule: fails closed on a missing NOT NULL column — SQLite can't ADD
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const, notNull: true }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_ADD_NOT_NULL_WITHOUT_DEFAULT");
@@ -96,10 +96,10 @@ test("dataModule: fails closed on a missing PRIMARY KEY column — ALTER TABLE c
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "legacy_id", type: "INTEGER" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "legacy_id", type: "INTEGER" as const, primaryKey: true }, { name: "id", type: "TEXT" as const, primaryKey: true }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_ADD_PRIMARY_KEY");
@@ -116,10 +116,10 @@ test("dataModule: fails closed when an existing column's declared type no longer
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "price", type: "INTEGER" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "price", type: "TEXT" as const }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_TYPE_MISMATCH");
@@ -135,11 +135,11 @@ test("dataModule: a live column absent from the current declaration is left alon
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "legacy_flag", type: "INTEGER" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   // v2's manifest no longer mentions legacy_flag at all.
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.created, []);
@@ -156,11 +156,11 @@ test("dataModule: an undeclared live column is left alone even while a different
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "legacy_flag", type: "INTEGER" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   // v2 drops legacy_flag from the manifest AND adds a new declared column "sku".
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.altered, ["p_coltest__widgets"]);
@@ -179,7 +179,7 @@ test("dataModule: a single call can both create a brand-new table and alter an a
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = {
     pluginId: "coltest",
@@ -190,7 +190,7 @@ test("dataModule: a single call can both create a brand-new table and alter an a
       { name: "orders", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
     ],
   };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.created, ["p_coltest__orders"]);
@@ -207,14 +207,14 @@ test("dataModule: ADVERSARIAL — one safe and one unsafe missing column on the 
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [
     { name: "id", type: "TEXT" as const, primaryKey: true },
     { name: "sku", type: "TEXT" as const }, // safe: nullable
     { name: "must_have", type: "TEXT" as const, notNull: true }, // unsafe: NOT NULL, no default field
   ] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_ADD_NOT_NULL_WITHOUT_DEFAULT");
@@ -234,7 +234,7 @@ test("dataModule: ADVERSARIAL — a CREATE failure elsewhere in the same call ro
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = {
     pluginId: "coltest",
@@ -247,7 +247,7 @@ test("dataModule: ADVERSARIAL — a CREATE failure elsewhere in the same call ro
       { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
     ],
   };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -268,10 +268,10 @@ test("dataModule: an ALTER TABLE ADD COLUMN is recorded in the site-wide migrati
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   const row = db
     .prepare(`SELECT plugin_id, table_name, ddl FROM _plugin_migrations WHERE ddl LIKE 'ALTER TABLE%'`)
@@ -290,10 +290,10 @@ test("dataModule: fails closed when an existing column's declared NOT NULL is ti
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const, notNull: true }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_NOT_NULL_MISMATCH");
@@ -310,10 +310,10 @@ test("dataModule: fails closed when an existing column's declared NOT NULL is lo
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const, notNull: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_NOT_NULL_MISMATCH");
@@ -329,10 +329,10 @@ test("dataModule: fails closed when an existing column's declared PRIMARY KEY is
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const, primaryKey: true }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
@@ -348,10 +348,10 @@ test("dataModule: fails closed when an existing column's declared PRIMARY KEY is
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath, decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v1 });
 
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const }, { name: "sku", type: "TEXT" as const }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl: v2 });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
@@ -380,7 +380,7 @@ test("dataModule: ADVERSARIAL — a live composite primary key does not produce 
       { name: "role", type: "TEXT" as const },
     ] },
   ] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   assert.deepEqual(result.created, []);
@@ -407,7 +407,7 @@ test("dataModule: against a live composite primary key, a genuinely undeclared k
       { name: "role", type: "TEXT" as const },
     ] },
   ] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath, decl });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath, decl });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
@@ -422,11 +422,11 @@ test("dataModule: against an in-memory db, adding a column to an already-existin
   const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
     { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
   ] };
-  await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: v1 });
+  await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: v1 });
 
   const before = new Set(fs.readdirSync(process.cwd()));
   const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }] };
-  const result = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: v2 });
+  const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: v2 });
   const after = fs.readdirSync(process.cwd());
 
   assert.equal(result.ok, true, JSON.stringify(result.error));

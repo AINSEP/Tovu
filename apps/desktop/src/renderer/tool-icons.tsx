@@ -5,10 +5,11 @@
  * `React` global only after imports, which `icons.tsx`'s module-level glyph tables cannot wait for.
  */
 import type { JSX } from 'react';
+import { IconFrame } from './icon-frame.js';
 
 export type ToolIconKind = 'rescan' | 'keys' | 'import' | 'sliders' | 'memory' | 'power' | 'restart';
 
-function toolPath(kind: ToolIconKind): JSX.Element {
+function toolPath({ kind }: { kind: ToolIconKind }, _options = {}): JSX.Element {
   return {
     // Two arrows chasing round a circle: "look again". The single circular arrow is already Updates
     // (nav) and Reload (tab toolbar), so Rescan must not borrow it.
@@ -72,17 +73,8 @@ function toolPath(kind: ToolIconKind): JSX.Element {
 
 export function ToolIcon({ kind }: { kind: ToolIconKind }) {
   return (
-    <svg
-      className="icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {toolPath(kind)}
-    </svg>
+    <IconFrame>
+      {toolPath({ kind })}
+    </IconFrame>
   );
 }

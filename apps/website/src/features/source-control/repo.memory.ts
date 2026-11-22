@@ -1,4 +1,5 @@
-import { InMemoryVaultRepo, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { TovuCredentialSetVaultAdapter } from "../vendor-credentials/vault-adapter.js";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort } from "./types.js";
 import type { CredentialProjectHalf } from "../vendor-credentials/project-scope.js";

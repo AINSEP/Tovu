@@ -34,13 +34,13 @@ test("label: derived from the plugin and connection ids", () => {
 
 test("a saved client this site cannot open is refused with a next step and without its secret", async () => {
   const repo = new InMemoryCustomCredentialSetRepo();
-  const savedKeyring = new InMemoryKeyring("v1");
+  const savedKeyring = new InMemoryKeyring({}, { keyId: "v1" });
   await createCustomCredential({ repo, sealer: new AesGcmSecretSealer(savedKeyring), keyring: savedKeyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => "00000000-0000-4000-8000-0000000000c3" } }, {
     workspaceId: "ws-1", label: byoClientLabel({ pluginId: "acme-office", connectionId: "account" }), category: "general",
     baseUrl: "https://auth.acme.test/token", connection: { token: secret, username: "byo-client-id" },
   });
   // Another site key: the sealed row exists but cannot be opened here.
-  const otherKeyring = new InMemoryKeyring("v1");
+  const otherKeyring = new InMemoryKeyring({}, { keyId: "v1" });
   const resolved = await resolveByoClient({ credentials: { repo, sealer: new AesGcmSecretSealer(otherKeyring), keyring: otherKeyring }, workspaceId: "ws-1", connection: await fixtureConnection() });
   assert.ok(resolved instanceof ApiConnectionError);
   assert.equal(resolved.code, "descriptor-invalid");

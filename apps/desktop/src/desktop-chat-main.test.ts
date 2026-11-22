@@ -18,11 +18,11 @@ import { SITE_ORIGIN, trackSite } from "./tracked-sites.ts";
 import { WORKSPACE_CHAT_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 
 test("a renderer-reported folder resolves only to a tracked site, normalized, with its display name", () => {
-  const ports = { readTracked: () => [{ siteDir: "/sites/alpha" }], readSiteName: (dir: string) => `name of ${dir}` };
-  assert.deepEqual(resolveTrackedAddressee("/sites/alpha", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
-  assert.deepEqual(resolveTrackedAddressee("/sites/beta/../alpha/", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
-  assert.equal(resolveTrackedAddressee("/sites/untracked", ports), null, "an arbitrary folder never becomes the turn's site");
-  assert.deepEqual(resolveTrackedAddressee("sites/alpha", ports), { siteDir: "/sites/alpha", name: "name of /sites/alpha" },
+  const ports = { readTracked: () => [{ siteDir: "/sites/alpha" }], readSiteName: ({ siteDir: dir }: { siteDir: string }) => `name of ${dir}` };
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/alpha", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/beta/../alpha/", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
+  assert.equal(resolveTrackedAddressee({ siteDir: "/sites/untracked", ports }), null, "an arbitrary folder never becomes the turn's site");
+  assert.deepEqual(resolveTrackedAddressee({ siteDir: "sites/alpha", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" },
     "a relative report is anchored at the filesystem root, never at this process's cwd");
 });
 
@@ -55,8 +55,8 @@ function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolea
     agentRuntime, userDataDir: dir, projectsPath,
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
     revealPath: async () => {}, pickDirectory: async () => null,
-    broadcast: (channel, payload) => broadcasts.push([channel, payload]),
-    readSiteName: (siteDir) => `Site ${path.basename(siteDir)}`,
+    broadcast: ({ channel, payload }) => broadcasts.push([channel, payload]),
+    readSiteName: ({ siteDir }) => `Site ${path.basename(siteDir)}`,
     ...(extra.readFullCliAccess ? { readFullCliAccess: extra.readFullCliAccess } : {}),
   }, factory === undefined ? {} : { createDesktopAgentRuntime: factory });
   return { dir, projectsPath, handlers, broadcasts, turns, runtime, captured: () => captured! };
@@ -96,7 +96,7 @@ test("the built tools navigate the shell by broadcast and reach the unbuilt site
 test("a start's reported site becomes the turn's addressee only when this app tracks it", async (t) => {
   const s = setup(t);
   const tracked = path.join(s.dir, "tracked-site");
-  trackSite(s.projectsPath, tracked, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: s.projectsPath, siteDir: tracked }, { origin: SITE_ORIGIN.adopted });
   const start = s.handlers.get(WORKSPACE_CHAT_IPC.start)!;
   const event = { sender: { send: () => {}, isDestroyed: () => false } };
   await start(event, { prompt: "hi", agentId: "codex", subscriptionId: "s1", activeSiteDir: tracked });

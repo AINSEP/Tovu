@@ -1,8 +1,10 @@
 /** Tovu policy over Jini's bounded OS sampler and process-tree owner. Monitor only. */
-import { collectProcessTreePids, type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import { sampleProcessPrivateMemory, type ProcessUsage, type ProcessPrivateMemory } from '@jini-ai/platform/process';
+import { orFallback } from '@jini-ai/core/errors/idioms';
+import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import type { ElectronProcessMemory } from '@jini-ai/desktop-host/electron';
 import type { ResourcesRequest, ResourceMetrics, ResourceProcess, ResourcesSnapshot } from './contracts/resources.ts';
-import { groupMemoryMetric, readDesktopMemory, sampleTopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
+import { groupMemoryMetric, readDesktopMemory, type MemoryUsage, type PrivateMemorySampler } from './desktop-memory-sampler.ts';
 
 type ResourceGroup = ResourcesSnapshot['app'];
 
@@ -53,8 +55,10 @@ function processRows({ usages, rootPid, rootRole, readings }: {
   return usages.map((row) => {
     let role: ResourceProcess['role'] = row.pid === daemonPid ? 'daemon' : 'process';
     if (row.pid === rootPid) role = rootRole;
+    const reading = readings.get(row.pid);
+    if (!reading) throw new Error(`resource sample has no CPU reading for process ${row.pid}`);
     return { pid: row.pid, ppid: row.ppid, name: row.name, rssBytes: row.rssBytes, rawRssBytes: row.rawRssBytes, memoryMetric: row.memoryMetric, role,
-      cpuPercent: readings.get(row.pid)!.cpuPercent, cpuWarning: readings.get(row.pid)!.cpuWarning };
+      cpuPercent: reading.cpuPercent, cpuWarning: reading.cpuWarning };
   });
 }
 
@@ -74,7 +78,7 @@ function ownedUsages({ usages, desktopPid, platform }: {
   const rows = withoutUsageProbe({ usages, desktopPid, platform });
   if (!rows.some(row => row.pid === desktopPid)) return [];
   const tree = rows.map(row => ({ pid: row.pid, ppid: row.ppid, command: '' }));
-  const owned = new Set(collectProcessTreePids(tree, [desktopPid]));
+  const owned = new Set(collectProcessTreePids({ processes: tree, rootPids: [desktopPid] }));
   return rows.filter(row => owned.has(row.pid));
 }
 
@@ -88,8 +92,7 @@ function metrics({ processes, available, warningBytes }: {
   return {
     rssBytes, memoryMetric,
     // Every pid must be measured: a new pid has no previous sample, so a partial sum would understate CPU.
-    cpuPercent: processes.every((row) => row.cpuPercent !== null)
-      ? processes.reduce((sum, row) => sum + row.cpuPercent!, 0) : null,
+    cpuPercent: processes.reduce<number | null>((sum, row) => sum === null || row.cpuPercent === null ? null : sum + row.cpuPercent, 0),
     memoryWarning: rssBytes >= warningBytes,
     cpuWarning: processes.some((row) => row.cpuWarning),
   };
@@ -110,7 +113,7 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
   const readings = new Map(rows.map((usage) => [usage.pid, cpuReading({ usage, previous, at })]));
   const claimed = new Set<number>();
   const groups = sites.map((site): ResourceGroup => {
-    const pids = new Set(collectProcessTreePids(tree, [site.pid]));
+    const pids = new Set(collectProcessTreePids({ processes: tree, rootPids: [site.pid] }));
     const members = rows.filter((row) => pids.has(row.pid) && !claimed.has(row.pid));
     for (const row of members) claimed.add(row.pid);
     const processes = processRows({ usages: members, rootPid: site.pid, rootRole: 'site-server', readings });
@@ -125,7 +128,11 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
       app: { siteId: null, processes: appProcesses, ...metrics({ processes: appProcesses, available, warningBytes: Infinity }) },
       sites: groups,
     },
-    history: { at, processes: new Map(rows.map((row) => [row.pid, { cpuSeconds: row.cpuSeconds, high: readings.get(row.pid)!.high }])) },
+    history: { at, processes: new Map(rows.map((row) => {
+      const reading = readings.get(row.pid);
+      if (!reading) throw new Error(`resource history has no CPU reading for process ${row.pid}`);
+      return [row.pid, { cpuSeconds: row.cpuSeconds, high: reading.high }];
+    })) },
   };
 }
 
@@ -136,7 +143,7 @@ function resourcePollIntervals({ platform, panelOpen }: { platform: NodeJS.Platf
 }
 
 /** Stable across renderer ordering; only site identity and process replacement invalidate attribution. */
-function sitesKeyOf(sites: readonly OpenResourceSite[]): string {
+function sitesKeyOf({ sites }: { sites: readonly OpenResourceSite[] }, _optional = {}): string {
   return sites.map(site => `${site.id}:${site.pid}`).sort().join('|');
 }
 
@@ -149,6 +156,27 @@ function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAt
   return !cached || sitesKey !== sampledSitesKey || now - lastAttempt >= retryIntervalMs;
 }
 
+function createDesktopPanelMemorySampler({ ports }: { ports: DesktopResourcesPorts }, _options = {}) {
+  const samplePrivateMemory: PrivateMemorySampler | undefined = ports.samplePrivateMemory ?? (ports.platform === 'darwin'
+    ? input => orFallback({ work: () => sampleProcessPrivateMemory({ pids: input.pids, platform: 'darwin' }), fallback: { metric: 'physical-footprint', readings: [...new Set(input.pids)].map(pid => ({ pid, bytes: null })) }, step: 'sample macOS footprint' }) : undefined);
+  let lastMemoryAttempt = -Infinity;
+  let memory: ProcessPrivateMemory = { metric: 'unavailable', readings: [] };
+
+  /** The Tovu panel refreshes CPU faster than footprint. New PIDs retain labelled RSS until the
+   * next minute; disappeared PIDs are evicted, including between native reads. O(p+r) space/time. */
+  async function panelMemory({ pids }: { pids: readonly number[] }): Promise<ProcessPrivateMemory> {
+    if (!samplePrivateMemory) throw new Error('desktop resource panel has no private memory sampler');
+    const live = new Set(pids);
+    memory = { ...memory, readings: memory.readings.filter(row => live.has(row.pid)) };
+    if (ports.now() - lastMemoryAttempt < 60_000) return memory;
+    lastMemoryAttempt = ports.now();
+    memory = { metric: 'unavailable', readings: [] };
+    memory = await samplePrivateMemory({ pids });
+    return memory;
+  }
+  return samplePrivateMemory ? panelMemory : undefined;
+}
+
 /**
  * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
  * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
@@ -158,26 +186,11 @@ function shouldSample({ cached, inFlight, sitesKey, sampledSitesKey, now, lastAt
  * @example const monitor = createDesktopResources(ports); await monitor.get({ panelOpen: true });
  * @complexity Per sample O((s+1) * (n + tree(n))) time/O(n+s) space (see groupSample);
  * cached reads compare owned site handles in O(s log s) time/O(s) space.
- * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 1 MiB output cap);
+ * macOS adds at most one top read per 60 s (512 owned PIDs, 5 s timeout, 8 MiB output cap);
  * ps still supplies ownership/CPU/RSS because top's PID/MEM table cannot replace that inventory.
  */
 export function createDesktopResources(ports: DesktopResourcesPorts, _options = {}) {
-  const samplePrivateMemory: PrivateMemorySampler | undefined = ports.samplePrivateMemory ?? (ports.platform === 'darwin'
-    ? input => sampleTopMemory(input) : undefined);
-  let lastMemoryAttempt = -Infinity;
-  let memory: ProcessPrivateMemory = { metric: 'unavailable', readings: [] };
-
-  /** The Tovu panel refreshes CPU faster than footprint. New PIDs retain labelled RSS until the
-   * next minute; disappeared PIDs are evicted, including between native reads. O(p+r) space/time. */
-  async function panelMemory({ pids }: { pids: readonly number[] }): Promise<ProcessPrivateMemory> {
-    const live = new Set(pids);
-    memory = { ...memory, readings: memory.readings.filter(row => live.has(row.pid)) };
-    if (ports.now() - lastMemoryAttempt < 60_000) return memory;
-    lastMemoryAttempt = ports.now();
-    memory = { metric: 'unavailable', readings: [] };
-    memory = await samplePrivateMemory!({ pids });
-    return memory;
-  }
+  const panelMemory = createDesktopPanelMemorySampler({ ports });
 
   let previous: PreviousSample = { at: 0, processes: new Map() };
   let cached: ResourcesSnapshot | undefined;
@@ -187,12 +200,11 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
 
   /** Inventory failures use Jini's unavailable outcome; memory-source failures retain labelled RSS. */
   async function sample({ pollIntervalMs, sites }: { pollIntervalMs: number; sites: readonly OpenResourceSite[] }, _sampleOptions = {}): Promise<ResourcesSnapshot> {
-    let usages: readonly MemoryUsage[];
-    try {
+    const usages = await orFallback<readonly MemoryUsage[]>({ work: async () => {
       const sampled = await ports.listUsage();
-      usages = await readDesktopMemory({ usages: ownedUsages({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
-        platform: ports.platform, electronMetrics: ports.listElectronMetrics?.() ?? [], samplePrivateMemory: samplePrivateMemory ? panelMemory : undefined });
-    } catch { usages = []; }
+      return readDesktopMemory({ usages: ownedUsages({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
+        platform: ports.platform, electronMetrics: ports.listElectronMetrics?.() ?? [], samplePrivateMemory: panelMemory });
+    }, fallback: [], step: 'Read desktop process inventory' });
     const result = groupSample({ usages, sites, desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });
     previous = result.history;
@@ -206,7 +218,7 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
       const sites = ports.openSites();
-      const sitesKey = sitesKeyOf(sites);
+      const sitesKey = sitesKeyOf({ sites });
       // A launch-time failure must not strand the badge on a minute-long cached failure.
       const retryIntervalMs = cached?.status === 'unavailable' ? panelIntervalMs : pollIntervalMs;
       // Start/stop/restart changes the attribution, so the old total-only cache cannot serve cards.
@@ -215,7 +227,8 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
         sampledSitesKey = sitesKey;
         inFlight = sample({ pollIntervalMs, sites }).finally(() => { inFlight = undefined; });
       }
-      const snapshot = inFlight ? await inFlight : cached!;
+      const snapshot = inFlight ? await inFlight : cached;
+      if (!snapshot) throw new Error('desktop resource monitor has no sample or cached snapshot');
       return { ...snapshot, pollIntervalMs: snapshot.status === 'unavailable' || sitesKey !== sampledSitesKey ? panelIntervalMs : pollIntervalMs };
     },
   };

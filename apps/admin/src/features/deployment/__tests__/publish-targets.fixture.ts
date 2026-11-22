@@ -1,8 +1,8 @@
-import type { AdminPublishTargetDescriptor } from "@/lib/api";
+import type { AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file The deploy registry's targets as `GET .../system/publish-targets` returns them — a copy of
- * the shape each hosting plugin's `content/agent-plugins/<id>/tovu-deploy-targets.json` produces, for the admin's unit
+ * the shape each hosting plugin's `content/agent-plugins/<id>/jini-deploy-targets.json` produces, for the admin's unit
  * tests. The admin itself names no host: every label, field and help string below reaches the UI
  * only through this response.
  */

@@ -21,7 +21,7 @@ const DEPS = { ports: {} } as unknown as PublishContentDeps;
 function referencesOf(contributor: PublishContentContributor, entityType: string, state: Record<string, unknown>) {
   const packed: PackedEntity = { entityType, id: "x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state };
   const handler = contributor.build(DEPS);
-  return (handler.references?.(packed) ?? []).map((ref) => `${ref.entityType}:${ref.key}`).sort();
+  return (handler.references?.({ entity: packed }) ?? []).map((ref) => `${ref.entityType}:${ref.key}`).sort();
 }
 
 test("a page or post carries its images, its embedded widgets (node or html marker, by id or slug) and its terms", () => {

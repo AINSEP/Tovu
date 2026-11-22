@@ -1,6 +1,6 @@
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
 import { createFrontendSessionBridge } from "@jini-ai/chat/react";
-import { directPageAction } from "../../../../../website/src/assistant/assistant-tool-approval-policy";
+import { directPageAction } from "@tovu/headless";
 import type { RunAgentInput } from "@ag-ui/core";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
@@ -9,13 +9,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { act } from "@testing-library/react";
 import { executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
-import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { buildAdminAgentPages } from "@/lib/agent-pages";
-import { api } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import { AgentPlugins } from "../AgentPlugins";
 import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file `AgentPlugins` driven entirely through the `useAgentPluginsHook` DI seam — no `fetch` stub,
@@ -318,7 +318,7 @@ describe("AgentPlugins", () => {
 
     await userEvent.click(within(row("Tovu Deploy Example")).getByRole("button", { name: "Tovu Deploy Example" }));
 
-    expect(onToggleExpanded).toHaveBeenCalledWith("tovu-deploy-example");
+    expect(onToggleExpanded).toHaveBeenCalledWith({ pluginId: "tovu-deploy-example" });
   });
 
   it("shows a loading note while agentPlugins has not yet loaded, and no rows", () => {
@@ -676,21 +676,21 @@ describe("assistant admin navigation regression", () => {
     function useController() {
       const [expandedIds, setExpandedIds] = useState(new Set<string>());
       return fakeController({ agentPlugins: [plugin], expandedIds,
-        onToggleExpanded: (id: string) => setExpandedIds(new Set([id])),
+        onToggleExpanded: ({ pluginId }) => setExpandedIds(new Set([pluginId])),
       });
     }
     const view = render(<AgentPlugins tabId="installed" useAgentPluginsHook={useController} />);
     const detailsControl = view.container.querySelector('.agent-plugin-row-summary')!;
     const scroll = vi.fn();
     detailsControl.scrollIntoView = scroll;
-    vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
+    vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
     const driver = createDomPageDriver({ root: view.container, pages: buildAdminAgentPages() });
     const source = Object.assign(new EventTarget(), { close() {} });
     const responses: Record<string, unknown>[] = [];
     const invocations: { capabilityId: string; input: unknown }[] = [];
     const bridge = createFrontendSessionBridge({ baseUrl: "", openStream: () => source as unknown as EventSource,
       request: async ({ init }) => { responses.push(JSON.parse(init.body as string)); return new Response(JSON.stringify({ settled: true })); },
-    }, { pageDriver: driver, onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }) });
+    }, { page: createDriverPagePort({ driver }), onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }) });
     const emit = (frame: unknown) => source.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(frame) }));
     emit({ type: "attached", sessionId: "owner-tab", bindToken: "owner-tab-current" });
     try {

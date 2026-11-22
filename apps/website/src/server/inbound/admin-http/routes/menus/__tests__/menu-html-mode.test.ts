@@ -24,8 +24,8 @@ async function setup(t: test.TestContext, denied: readonly string[] = []) {
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminMenuUpdateTreeRoute(app, deps as any);
-  registerAdminMenuCreateRoute(app, deps as any);
+  registerAdminMenuUpdateTreeRoute({ app, deps: deps as any });
+  registerAdminMenuCreateRoute({ app, deps: deps as any });
   const baseUrl = await startTestServer(app, t);
   const send = (method: "PUT" | "POST", path: string, body: object) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus${path}`, {
     method, headers: { "content-type": "application/json" }, body: JSON.stringify(body),

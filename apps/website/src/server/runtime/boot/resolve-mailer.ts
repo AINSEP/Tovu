@@ -1,20 +1,17 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
   createResolvedMailer as createJiniResolvedMailer,
   type MailCredentialFact,
   type MailDeliveryLane,
   type MailProviderCallContext,
-  type MailProviderCheck,
   type MailProviderModule,
   type MailProviderSetting,
+  type ResolvedMailer as JiniResolvedMailer,
 } from "@jini-ai/platform/mail";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { MailProviderConfigurationReport, MailStatusReport } from "#src/platform/mail/index";
-import type { SenderDomainVerificationPort } from "#src/platform/mail/index";
-import { toJiniMailer, toTovuMailer } from "#src/platform/mail/index";
+import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
   createProviderMailer,
@@ -92,7 +89,7 @@ export type { MailStatusReport } from "#src/platform/mail/index";
 /** Where `core.mail.provider` lives; `read()` returns null while it was never stored. */
 export interface MailProviderSettingPort {
   read(): Promise<MailProviderSetting | null>;
-  write(value: MailProviderSetting): Promise<void>;
+  write({ value }: { value: MailProviderSetting }, optional?: Record<string, never>): Promise<void>;
 }
 
 export interface ResolveMailerDeps extends MailProviderCatalogDeps {
@@ -114,31 +111,10 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
 }
 
 
-export interface ResolvedMailer {
-  /** Safe to use immediately; each send awaits its lane's resolution. */
+/** The domain requirements port reads DNS needs for the active transactional provider. */
+export interface ResolvedMailer extends Omit<JiniResolvedMailer, "mailer"> {
+  /** Tovu's purpose-scoped MailerPort (`toTovuMailer`), not Jini's. */
   mailer: MailerPort;
-  /** Resolves once the initial setting + transactional resolution settle (a test seam). */
-  ready: Promise<void>;
-  /** Refreshes unresolved configuration and awaits the current driver without sending. */
-  settle: () => Promise<void>;
-  /** Status for the admin route, the banner and `system_get_mail_status`; cached briefly, `refresh` rebuilds. */
-  status: (optional?: { refresh?: boolean }) => Promise<MailStatusReport>;
-  /** The safe per-provider configuration DTO (`mail-provider-configuration.ts`). Never a secret. */
-  describeProviders: () => Promise<MailProviderConfigurationReport>;
-  /** Drops cached provider mailers and the cached status; the next send and read resolve fresh. */
-  invalidate: () => void;
-  laneReady: (required: { lane: MailDeliveryLane }) => Promise<boolean>;
-  senderDomainVerification: SenderDomainVerificationPort;
-  /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
-  checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
-  /**
-   * The DNS records the active transactional provider needs before it sends as the configured
-   * sender's domain — the port the DNS tools read (requirements reach DNS only through ports).
-   * `null` when no transactional provider is selected, it cannot verify domains, no sender is
-   * configured, its key is missing, or `workspaceId` is not this mailer's workspace.
-   * @throws Error when the provider answered with a failure (caller-safe message).
-   */
-  domainRequirements: (required: { workspaceId: string }) => Promise<DomainRequirement | null>;
 }
 
 export type { MailProviderCheck } from "@jini-ai/platform/mail";
@@ -152,6 +128,12 @@ function unconfiguredMessage({ lane }: { lane: MailDeliveryLane }): string {
   );
 }
 
+function mailCredentialLabels({ label }: { label: string | undefined }): string[] {
+  if (label === undefined) return [];
+  if (!/^Mail — .+ API$/.test(label)) return [label];
+  return [label, `Jini ${label}`, `Tovu ${label}`];
+}
+
 /** Project vault metadata into Jini's fingerprint facts without decrypting or copying the row.
  * Fingerprint BEFORE reading the key: Jini owns metadata → key → metadata ordering and retries.
  * An unreadable store leaves key lookup to report why; cached mailers survive metadata faults.
@@ -162,8 +144,20 @@ async function readCredentialFact(
 ): Promise<MailCredentialFact | undefined> {
   const { deps, label } = required;
   const rows = await deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const record = rows.find(row => row.label === label);
+  const record = mailCredentialLabels({ label }).map(candidate => rows.find(row => row.label === candidate)).find(row => row !== undefined);
   return record ? { id: record.id, label: record.label, updatedAt: record.updatedAt, vaultRevision: record.vaultRecord?.revision } : undefined;
+}
+
+function describeMailProvidersWithLegacyLabels(required: Parameters<typeof describeMailProviders>[0]) {
+  const { catalog } = required;
+  const records = [...required.records];
+  for (const { id } of catalog.registry.list()) {
+    const [label, ...legacyLabels] = mailCredentialLabels({ label: catalog.credentialLabelFor({ id }) });
+    if (label === undefined || records.some(row => row.label === label)) continue;
+    const record = legacyLabels.map(candidate => records.find(row => row.label === candidate)).find(row => row !== undefined);
+    if (record) records.push({ id: record.id, label, updatedAt: record.updatedAt, username: record.username });
+  }
+  return describeMailProviders({ ...required, records });
 }
 
 /**
@@ -179,17 +173,17 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const resolved = createJiniResolvedMailer({
     workspaceId: deps.workspaceId,
     mode: deps.mode,
-    providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write(setting) },
+    providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write({ value: setting }) },
     credentials: {
       readFact: ({ label }) => readCredentialFact({ deps, label }),
-      resolve: ({ catalog, id }) => resolveMailCredential({ deps, catalog, id }),
+      resolve: ({ catalog, id }) => resolveMailCredential({ deps, labels: mailCredentialLabels({ label: catalog.credentialLabelFor({ id }) }), id }),
     },
     // The configuration projection still needs Tovu's row (e.g. SMTP username presence).
     listCredentialFacts: () => deps.customCredentialRepo.listByWorkspace({ workspaceId: deps.workspaceId }),
     loadCatalog: () => loadMailProviderCatalog(deps),
     httpClient,
     createProviderMailer: ({ provider, credential }) => toJiniMailer({ mailer: createProviderMailer({ deps, provider, credential }) }),
-    describeProviders: describeMailProviders,
+    describeProviders: describeMailProvidersWithLegacyLabels,
     unconfiguredMessage,
     missingCredentialReason: ({ label }) => `has no saved credential "${label}" under Access Tokens (category "${MAIL_CREDENTIAL_CATEGORY}")`,
     credentialFailureReason,

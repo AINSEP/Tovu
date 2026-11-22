@@ -1,11 +1,12 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
+import type { AdminMenu, AdminMenuItem, AdminMenuMode } from "@/features/menus/api/menus-api.types";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
+import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
-import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
 import { t as translate } from "../menus-i18n";
@@ -14,6 +15,7 @@ import type { MenusPort } from "./menus-port.hooks";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
 import { toSlug } from "../../../../../website/src/platform/html/slug";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
  *
@@ -71,48 +73,47 @@ function newItem({ source }: { source: NonNullable<MenuEditorDependencies["itemI
 // ---------------------------------------------------------------------------
 
 function mapAtPath(
-  items: AdminMenuItem[],
-  path: number[],
-  fn: (item: AdminMenuItem) => AdminMenuItem
+  { items, path, fn }: { items: AdminMenuItem[]; path: number[]; fn: (item: AdminMenuItem) => AdminMenuItem },
+  _optional = {},
 ): AdminMenuItem[] {
   if (path.length === 0) return items;
   const [index, ...rest] = path;
   return items.map((item, i) => {
     if (i !== index) return item;
     if (rest.length === 0) return fn(item);
-    return { ...item, children: mapAtPath(item.children ?? [], rest, fn) };
+    return { ...item, children: mapAtPath({ items: item.children ?? [], path: rest, fn: fn }) };
   });
 }
 
-function removeAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
+function removeAtPath({ items, path }: { items: AdminMenuItem[]; path: number[] }, _optional = {}): AdminMenuItem[] {
   if (path.length === 0) return items;
   const [index, ...rest] = path;
   if (rest.length === 0) return items.filter((_, i) => i !== index);
   return items.map((item, i) =>
-    i === index ? { ...item, children: removeAtPath(item.children ?? [], rest) } : item
+    i === index ? { ...item, children: removeAtPath({ items: item.children ?? [], path: rest }) } : item
   );
 }
 
-function addChildAtPath(items: AdminMenuItem[], path: number[], createItem: () => AdminMenuItem): AdminMenuItem[] {
+function addChildAtPath({ items, path, createItem }: { items: AdminMenuItem[]; path: number[]; createItem: () => AdminMenuItem }, _optional = {}): AdminMenuItem[] {
   if (path.length === 0) return [...items, createItem()];
   const [index, ...rest] = path;
   return items.map((item, i) => {
     if (i !== index) return item;
     if (rest.length === 0) return { ...item, children: [...(item.children ?? []), createItem()] };
-    return { ...item, children: addChildAtPath(item.children ?? [], rest, createItem) };
+    return { ...item, children: addChildAtPath({ items: item.children ?? [], path: rest, createItem: createItem }) };
   });
 }
 
-function getChildrenAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
+function getChildrenAtPath({ items, path }: { items: AdminMenuItem[]; path: number[] }, _optional = {}): AdminMenuItem[] {
   if (path.length === 0) return items;
   const [index, ...rest] = path;
-  return getChildrenAtPath(items[index]?.children ?? [], rest);
+  return getChildrenAtPath({ items: items[index]?.children ?? [], path: rest });
 }
 
-function moveAtPath(items: AdminMenuItem[], path: number[], direction: -1 | 1): AdminMenuItem[] {
+function moveAtPath({ items, path, direction }: { items: AdminMenuItem[]; path: number[]; direction: -1 | 1 }, _optional = {}): AdminMenuItem[] {
   const parentPath = path.slice(0, -1);
   const index = path[path.length - 1];
-  const siblings = getChildrenAtPath(items, parentPath);
+  const siblings = getChildrenAtPath({ items: items, path: parentPath });
   const target = index + direction;
   if (target < 0 || target >= siblings.length) return items;
   const reordered = [...siblings];
@@ -122,7 +123,7 @@ function moveAtPath(items: AdminMenuItem[], path: number[], direction: -1 | 1): 
   // `item.children ?? []` fallback, which could never run: reaching here means `siblings` had
   // `target` in range, so every ancestor on `parentPath` already has a children array.)
   if (parentPath.length === 0) return reordered;
-  return mapAtPath(items, parentPath, (parent) => ({ ...parent, children: reordered }));
+  return mapAtPath({ items: items, path: parentPath, fn: (parent) => ({ ...parent, children: reordered }) });
 }
 
 /** What `useDirtyGuard` compares — everything an operator can actually edit on this screen. */
@@ -141,9 +142,9 @@ export interface MenuEditorController {
   isNew: boolean;
   menu: AdminMenu | null;
   title: string;
-  setTitle: (title: string) => void;
+  setTitle: (required: { next: string }, optional?: Record<string, never>) => void;
   slug: string;
-  setSlug: (slug: string) => void;
+  setSlug: (required: { next: string }, optional?: Record<string, never>) => void;
   items: AdminMenuItem[];
   /** The active tab: `"items"` ("Options", the tree editor) or `"html"` (raw menu markup). Save
    *  saves this mode; a menu stored in HTML mode opens on the HTML tab. */
@@ -157,10 +158,10 @@ export interface MenuEditorController {
   error: string | null;
   loading: boolean;
   confirmLeave: () => boolean;
-  changeAt: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
-  removeAt: (path: number[]) => void;
-  addChildAt: (path: number[]) => void;
-  moveAt: (path: number[], direction: -1 | 1) => void;
+  changeAt: (required: { path: number[]; fn: (item: AdminMenuItem) => AdminMenuItem }, optional?: Record<string, never>) => void;
+  removeAt: (required: { path: number[] }, optional?: Record<string, never>) => void;
+  addChildAt: (required: { path: number[] }, optional?: Record<string, never>) => void;
+  moveAt: (required: { path: number[]; direction: -1 | 1 }, optional?: Record<string, never>) => void;
   addRootItem: () => void;
   save: () => Promise<void>;
   /**
@@ -184,16 +185,17 @@ function menuSaveError({ error, t }: { error: unknown; t: Translate }, _optional
   // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
   // server's "menu '<id>' was modified concurrently…" text. Other errors (a slug already taken
   // is also a 409, without the code) keep the server message.
-  if (isVersionConflict(error)) return t(VERSION_CONFLICT_MESSAGE);
+  if (isVersionConflict({ error })) return t(VERSION_CONFLICT_MESSAGE);
   return error instanceof Error ? error.message : "save failed";
 }
 
-export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard,
+export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipboard,
   itemIdSource = { crypto: globalThis.crypto, nowMs: Date.now, random: Math.random },
-}: MenuEditorDependencies): MenuEditorController {
+} }: { menuId: string | null; dependencies: MenuEditorDependencies }, _optional = {}): MenuEditorController {
   const isNew = menuId === null;
   const fetchMenu = useCallback(async () => {
-    try { return await port.getMenu(menuId!); }
+    if (menuId === null) throw new Error("menu editor has no menu id to load");
+    try { return await port.getMenu({ id: menuId }); }
     catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load menu")); }
   }, [menuId, port, t]);
   const menuKey = useMemo(() => ["menus", "detail", menuId ?? "new"] as const, [menuId]);
@@ -210,7 +212,10 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [mode, setMode] = useState<AdminMenuMode>("items");
   const [html, setHtml] = useState("");
   const needsPages = hasPageLinks({ items });
-  const pageQueryFetch = useQueryFetchCallback(async () => (await port.listPages!({})).pages, [port]);
+  const pageQueryFetch = useQueryFetchCallback(async () => {
+    if (!port.listPages) throw new Error("menu editor page lookup is unavailable");
+    return (await port.listPages({})).pages;
+  }, [port]);
   const pageQuery = useFetchQuery({ key: ["menus", "page-options"], fetch: pageQueryFetch }, { enabled: needsPages && !!port.listPages, staleTime: 0 });
   const pageChoices = needsPages ? pageQuery.data : undefined;
   const [message, setMessage] = useState<string | null>(null);
@@ -232,9 +237,12 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
   // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
   // it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the loader captures the port; an already hydrated route retains its draft.
+  // The loader captures the port; an already hydrated route retains its draft.
+  const loadNavigation = useRef(navigate);
+  loadNavigation.current = navigate;
   useEffect(() => {
     if (hydratedRoute.current === menuId) return undefined;
+    const navigate = loadNavigation.current;
     let cancelled = false;
     setCopyFeedback(null);
     slugEdited.current = false;
@@ -266,7 +274,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
         setOriginal({ title: menu.title, slug: menu.slug, items: menu.items, mode: menu.mode ?? "items", html: menu.html ?? "" });
         // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
-        const redirectPath = slugRedirectPath("/menus", menuId as string, menu);
+        const redirectPath = slugRedirectPath({ base: "/menus", requestedId: menuId as string, item: menu });
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => {
@@ -307,28 +315,28 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   const [saving, setSaving] = useState(false);
 
   /** New-menu titles derive through the same browser-safe slug owner as pages/forms; persisted URLs stay stable. */
-  function changeTitle(next: string): void {
+  function changeTitle({ next }: { next: string }, _optional = {}): void {
     setTitle(next);
-    if (isNew && !slugEdited.current) setSlug(toSlug(next));
+    if (isNew && !slugEdited.current) setSlug(toSlug({ text: next }));
   }
 
   /** Any explicit slug edit ends automatic derivation for this menu, including an intentionally empty value. */
-  function changeSlug(next: string): void {
+  function changeSlug({ next }: { next: string }, _optional = {}): void {
     slugEdited.current = true;
     setSlug(next);
   }
 
-  function changeAt(path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) {
-    setItems((prev) => mapAtPath(prev, path, fn));
+  function changeAt({ path, fn }: { path: number[]; fn: (item: AdminMenuItem) => AdminMenuItem }, _optional = {}) {
+    setItems((prev) => mapAtPath({ items: prev, path: path, fn: fn }));
   }
-  function removeAt(path: number[]) {
-    setItems((prev) => removeAtPath(prev, path));
+  function removeAt({ path }: { path: number[] }, _optional = {}) {
+    setItems((prev) => removeAtPath({ items: prev, path: path }));
   }
-  function addChildAt(path: number[]) {
-    setItems((prev) => addChildAtPath(prev, path, () => newItem({ source: itemIdSource })));
+  function addChildAt({ path }: { path: number[] }, _optional = {}) {
+    setItems((prev) => addChildAtPath({ items: prev, path: path, createItem: () => newItem({ source: itemIdSource }) }));
   }
-  function moveAt(path: number[], direction: -1 | 1) {
-    setItems((prev) => moveAtPath(prev, path, direction));
+  function moveAt({ path, direction }: { path: number[]; direction: -1 | 1 }, _optional = {}) {
+    setItems((prev) => moveAtPath({ items: prev, path: path, direction: direction }));
   }
   function addRootItem() {
     setItems((prev) => [...prev, newItem({ source: itemIdSource })]);
@@ -343,11 +351,20 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   async function copyHtmlEmbed() {
     if (!menu) return;
     const copyingForMenuId = menuId;
+    const failureGeneration = adminFailureChannel.getGeneration();
     try {
       await (clipboard ?? navigator.clipboard).writeText(menuHtmlEmbed({ slug: menu.slug }));
       if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Copied!"));
-    } catch {
-      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Could not copy embed"));
+    } catch (error) {
+      if (activeMenuIdRef.current !== copyingForMenuId) return;
+      setCopyFeedback(t("Could not copy embed"));
+      if (isClipboardRefusal({ error })) return;
+      publishLocalAdminFailure({
+        message: "The menu embed code could not be copied.",
+        action: "Try Copy HTML embed again. If it keeps failing, copy details and report this problem.",
+        step: "Copy menu embed code",
+        cause: error,
+      }, { generation: failureGeneration });
     }
   }
 
@@ -365,15 +382,16 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       const saveItems = pageItemsForSave({ items, pages: pageChoices });
       const authoring = menuAuthoringForSave({ mode, html, storedMode: menu?.mode });
       if (isNew) {
-        const { menu: created } = await write.mutate({ input: () => port.createMenu({ title, slug }, { items: saveItems, ...authoring }) }) as Awaited<ReturnType<typeof port.createMenu>>;
+        const { menu: created } = await write.mutate({ input: () => port.createMenu({ input: { title, slug }, options: { items: saveItems, ...authoring } }) }) as Awaited<ReturnType<typeof port.createMenu>>;
         navigate(`/menus/${created.slug}`);
         return;
       }
       if (!menu) return;
-      const { menu: saved } = await write.mutate({ input: () => port.updateMenuTree(
-        { id: menu.id, expectedVersion: menu.version, items: saveItems },
-        { title, slug, ...authoring }
-      ) }) as Awaited<ReturnType<typeof port.updateMenuTree>>;
+      const savingMenu = menu;
+      const { menu: saved } = await write.mutate({ input: () => port.updateMenuTree({
+        target: { id: savingMenu.id, expectedVersion: savingMenu.version, items: saveItems },
+        options: { title, slug, ...authoring },
+      }) }) as Awaited<ReturnType<typeof port.updateMenuTree>>;
       if (activeMenuIdRef.current !== savingForMenuId) return;
       setMenu(saved);
       setItems(saved.items);
@@ -434,8 +452,9 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
  * `MenuEditor.tsx` composes this and a test composes {@link useMenuEditor} with
  * `createFakeMenusPort`.
  */
-export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
+export function useWiredMenuEditor({ menuId }: { menuId: string | null }, _optional = {}): MenuEditorController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate, t });
+  const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, options), []);
+  return useMenuEditor({ menuId, dependencies: { port: defaultMenusPort, navigate, t } });
 }

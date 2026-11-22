@@ -1,4 +1,5 @@
-import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage, credentialDraftError } from "@/lib/credential-copy";
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@tovu/contracts/credential-copy";
+import { credentialDraftError } from "@/lib/credential-copy";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -21,13 +22,10 @@ type SourceUpdateInput = Parameters<
   NonNullable<SourceConfigDependencies<SourceConfigItem>["port"]["updateSource"]>
 >[1];
 
-import {
-  api,
-  describeApiError,
-  type AdminExternalMcpOAuthInput,
-  type AdminExternalMcpServer,
-  type AdminExternalMcpServerInput,
-} from "@/lib/api";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { describeApiError } from "@/lib/admin-http/request";
+import { VERSION_CONFLICT_MESSAGE, isVersionConflict } from "@/lib/version-conflict";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as tExternalMcp } from "../external-mcp-i18n";
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "../rules";
@@ -72,13 +70,41 @@ function joinArgs(args: readonly string[]): string {
   return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" ");
 }
 
-function toItem(server: AdminExternalMcpServer, locale: string = "en"): SourceConfigItem {
+/** The OAuth half of an item's form fields. Everything but the client secret round-trips the stored view. */
+function oauthItemFields({ server }: { server: AdminExternalMcpServer }, _options: Record<string, never> = {}): Record<string, string> {
+  return {
+    // The rest of the OAuth block is NOT secret (a client id travels in the authorization URL by
+    // design, same as the store's own doc comment on this), so it round-trips the real stored
+    // value — only `oauthClientSecret` stays blank, matching `env`.
+    oauthProviderId: server.oauth.providerId ?? "",
+    oauthGrant: server.oauth.grant ?? "",
+    oauthClientId: server.oauth.clientId ?? "",
+    oauthClientSecret: "",
+    oauthScopes: server.oauth.scopes.join(" "),
+    oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
+    // Read-only: drives the row's Connect button. `toWriteBody` never sends it.
+    oauthStatus: server.oauth.status,
+    // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
+    // `providerId` is enough to identify a registered one, and a connection with its own
+    // endpoints has no other read model for them today. Left blank rather than guessed; an
+    // operator editing a custom-endpoint connection re-enters them, the same disclosed gap
+    // `env`/`oauthClientSecret` already accept for secret-shaped fields (this one isn't secret,
+    // it just isn't surfaced yet — a future `oauthEndpoints` field on the view would close it).
+    oauthAuthorizationEndpoint: "",
+    oauthTokenEndpoint: "",
+    oauthDeviceAuthorizationEndpoint: "",
+  };
+}
+
+function toItem({ server }: { server: AdminExternalMcpServer }, { locale = "en" }: { locale?: string } = {}): SourceConfigItem {
   return {
     id: server.serverId,
     label: server.label,
     enabled: server.enabled,
     fields: {
       builtIn: server.builtIn ? "true" : "false",
+      // The basis for the next save (`expectedVersion`); never rendered, like `builtIn`.
+      version: String(server.version),
       id: server.serverId,
       transport: server.transport,
       command: server.command,
@@ -94,47 +120,28 @@ function toItem(server: AdminExternalMcpServer, locale: string = "en"): SourceCo
       // Never populated — see this file's header. The names are surfaced in `statusMessage` instead,
       // so an operator can still see which variables are set.
       env: "",
-      // The rest of the OAuth block is NOT secret (a client id travels in the authorization URL by
-      // design, same as the store's own doc comment on this), so it round-trips the real stored
-      // value — only `oauthClientSecret` stays blank, matching `env`.
-      oauthProviderId: server.oauth.providerId ?? "",
-      oauthGrant: server.oauth.grant ?? "",
-      oauthClientId: server.oauth.clientId ?? "",
-      oauthClientSecret: "",
-      oauthScopes: server.oauth.scopes.join(" "),
-      oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
-      // Read-only: drives the row's Connect button. `toWriteBody` never sends it.
-      oauthStatus: server.oauth.status,
-      // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
-      // `providerId` is enough to identify a registered one, and a connection with its own
-      // endpoints has no other read model for them today. Left blank rather than guessed; an
-      // operator editing a custom-endpoint connection re-enters them, the same disclosed gap
-      // `env`/`oauthClientSecret` already accept for secret-shaped fields (this one isn't secret,
-      // it just isn't surfaced yet — a future `oauthEndpoints` field on the view would close it).
-      oauthAuthorizationEndpoint: "",
-      oauthTokenEndpoint: "",
-      oauthDeviceAuthorizationEndpoint: "",
+      ...oauthItemFields({ server }),
       // Write-only, exactly like `oauthClientSecret`: the store seals it and no read model returns it,
       // so it always arrives blank and {@link toAccessTokenWriteBody} treats blank as "keep".
       accessToken: "",
       // A NAME, not a secret — round-trips the real stored value like `oauthTokenEnvName` does.
       accessTokenEnvName: server.accessTokenEnvName ?? "",
     },
-    ...includeIfDefined("statusMessage", describeStoredCredentials({ server }, { locale })),
+    ...includeIfDefined({ key: "statusMessage", value: describeStoredCredentials({ server }, { locale }) }),
   };
 }
 
 /** The card's "what is stored" line: env variable NAMES and whether an access token is held — never
  *  a value. `undefined` when neither is stored, so the card shows no status line at all.
  *  @complexity O(n) in the env variable count. */
-function accessTokenHintSuffix(server: AdminExternalMcpServer, locale: string): string {
+function accessTokenHintSuffix({ server, locale }: { server: AdminExternalMcpServer; locale: string }, _options = {}): string {
   return server.accessTokenHint ? ` (${formatCredentialHint({ hint: server.accessTokenHint, locale })})` : "";
 }
 
 export function describeStoredCredentials({ server }: { server: AdminExternalMcpServer }, { locale = "en" }: { locale?: string } = {}): string | undefined {
   const parts = [
     ...(server.envNames.length > 0 ? [formatCredentialHints({ hints: server.envTokenHints, locale }) || `Credentials set: ${server.envNames.join(", ")}`] : []),
-    ...(server.hasAccessToken ? [credentialText({ id: 'set', locale }) + accessTokenHintSuffix(server, locale)] : []),
+    ...(server.hasAccessToken ? [credentialText({ id: 'set', locale }) + accessTokenHintSuffix({ server, locale })] : []),
   ];
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
@@ -147,8 +154,8 @@ export function describeStoredCredentials({ server }: { server: AdminExternalMcp
 export function toAccessTokenWriteBody(fields: Record<string, string>, _optional = {}): Pick<AdminExternalMcpServerInput, "accessToken" | "accessTokenEnvName"> {
   if (resolveExternalMcpEffectiveAuthMode(fields) !== "static_env") return {};
   return {
-    ...(fieldOrEmpty(fields, "accessToken") === "" ? {} : { accessToken: fieldOrEmpty(fields, "accessToken") }),
-    ...omitIfBlank("accessTokenEnvName", fieldOrEmpty(fields, "accessTokenEnvName")),
+    ...(fieldOrEmpty({ fields, key: "accessToken" }) === "" ? {} : { accessToken: fieldOrEmpty({ fields, key: "accessToken" }) }),
+    ...omitIfBlank({ key: "accessTokenEnvName", value: fieldOrEmpty({ fields, key: "accessTokenEnvName" }) }),
   };
 }
 
@@ -157,7 +164,7 @@ export function toAccessTokenWriteBody(fields: Record<string, string>, _optional
  *  {@link toOAuthWriteBody}/{@link toWriteBody} each default many fields this way. Naming it moves
  *  the count out of both functions' own scope without changing what either produces — every field
  *  still falls back to the same `""` for the same absent value it did before. */
-function fieldOrEmpty(fields: Record<string, string>, key: string): string {
+function fieldOrEmpty({ fields, key }: { fields: Record<string, string>; key: string }, _options = {}): string {
   return fields[key] ?? "";
 }
 
@@ -166,14 +173,14 @@ function fieldOrEmpty(fields: Record<string, string>, key: string): string {
  *  tri-state field like `env` — see {@link toOAuthWriteBody}'s own doc — so the omit-when-blank
  *  convention must stay byte-for-byte the same; this only moves each call site's ternary branch
  *  out of the caller's own complexity count. */
-function omitIfBlank<K extends string>(key: K, value: string): { [P in K]?: string } {
+function omitIfBlank<K extends string>({ key, value }: { key: K; value: string }, _options = {}): { [P in K]?: string } {
   return (value.trim() === "" ? {} : { [key]: value }) as { [P in K]?: string };
 }
 
 /** `value === undefined ? {} : { [key]: value }` as a named helper — same rationale as
  *  {@link omitIfBlank}, for the two fields (`label`, `oauth`) whose tri-state is "was this
  *  argument passed at all", not "is this string blank". */
-function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } {
+function includeIfDefined<K extends string, V>({ key, value }: { key: K; value: V | undefined }, _options = {}): { [P in K]?: V } {
   return (value === undefined ? {} : { [key]: value }) as { [P in K]?: V };
 }
 
@@ -191,16 +198,27 @@ function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { 
 function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuthInput | undefined {
   if (resolveExternalMcpEffectiveAuthMode(fields) !== "oauth") return undefined;
   return {
-    ...omitIfBlank("providerId", fieldOrEmpty(fields, "oauthProviderId")),
-    grant: fieldOrEmpty(fields, "oauthGrant"),
-    clientId: fieldOrEmpty(fields, "oauthClientId"),
-    scopes: fieldOrEmpty(fields, "oauthScopes"),
-    tokenEnvName: fieldOrEmpty(fields, "oauthTokenEnvName"),
-    ...omitIfBlank("authorizationEndpoint", fieldOrEmpty(fields, "oauthAuthorizationEndpoint")),
-    ...omitIfBlank("tokenEndpoint", fieldOrEmpty(fields, "oauthTokenEndpoint")),
-    ...omitIfBlank("deviceAuthorizationEndpoint", fieldOrEmpty(fields, "oauthDeviceAuthorizationEndpoint")),
-    ...omitIfBlank("clientSecret", fieldOrEmpty(fields, "oauthClientSecret")),
+    ...omitIfBlank({ key: "providerId", value: fieldOrEmpty({ fields, key: "oauthProviderId" }) }),
+    grant: fieldOrEmpty({ fields, key: "oauthGrant" }),
+    clientId: fieldOrEmpty({ fields, key: "oauthClientId" }),
+    scopes: fieldOrEmpty({ fields, key: "oauthScopes" }),
+    tokenEnvName: fieldOrEmpty({ fields, key: "oauthTokenEnvName" }),
+    ...omitIfBlank({ key: "authorizationEndpoint", value: fieldOrEmpty({ fields, key: "oauthAuthorizationEndpoint" }) }),
+    ...omitIfBlank({ key: "tokenEndpoint", value: fieldOrEmpty({ fields, key: "oauthTokenEndpoint" }) }),
+    ...omitIfBlank({ key: "deviceAuthorizationEndpoint", value: fieldOrEmpty({ fields, key: "oauthDeviceAuthorizationEndpoint" }) }),
+    ...omitIfBlank({ key: "clientSecret", value: fieldOrEmpty({ fields, key: "oauthClientSecret" }) }),
   };
+}
+
+/** `{ expectedVersion }` from the item this tab last loaded or saved, so a save from an old screen is refused. @complexity O(1). */
+function expectedVersionOf({ item }: { item: SourceConfigItem | undefined }, _options = {}): { expectedVersion?: number } {
+  const version = Number(item?.fields.version);
+  return Number.isSafeInteger(version) ? { expectedVersion: version } : {};
+}
+
+/** The plain-words reason a save failed: the stale-version copy for a lost compare-and-set, else the server's own. @complexity O(1). */
+function describeSaveFailure({ err, t }: { err: unknown; t: (key: string) => string }, _options = {}): string {
+  return isVersionConflict({ error: err }) ? t(VERSION_CONFLICT_MESSAGE) : describeApiError({ e: err, fallback: t('That server could not be saved.') });
 }
 
 /**
@@ -213,25 +231,25 @@ function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuth
  * @complexity O(1).
  * @overallScore 100
  */
-function toWriteBody(fields: Record<string, string>, enabled: boolean, label?: string): AdminExternalMcpServerInput {
+function toWriteBody({ fields, enabled }: { fields: Record<string, string>; enabled: boolean }, { label }: { label?: string } = {}): AdminExternalMcpServerInput {
   const oauth = toOAuthWriteBody(fields);
   return {
-    ...includeIfDefined("label", label),
+    ...includeIfDefined({ key: "label", value: label }),
     transport: fields.transport || "stdio",
     enabled,
-    command: fieldOrEmpty(fields, "command"),
-    url: fieldOrEmpty(fields, "url"),
-    args: fieldOrEmpty(fields, "args"),
-    allowedToolNames: fieldOrEmpty(fields, "allowedToolNames"),
+    command: fieldOrEmpty({ fields, key: "command" }),
+    url: fieldOrEmpty({ fields, key: "url" }),
+    args: fieldOrEmpty({ fields, key: "args" }),
+    allowedToolNames: fieldOrEmpty({ fields, key: "allowedToolNames" }),
     // Resent in full on every save, same as `allowedToolNames` just above — NOT tri-state like
     // `env` below, because the store always returns this list in the clear and the tab can always
     // resend it. The server's own C-006 check rejects a name here absent from `allowedToolNames`.
-    writeAllowedToolNames: fieldOrEmpty(fields, "writeAllowedToolNames"),
+    writeAllowedToolNames: fieldOrEmpty({ fields, key: "writeAllowedToolNames" }),
     authMode: resolveExternalMcpEffectiveAuthMode(fields),
     // Blank means "untouched", never "clear" — see this file's header.
-    ...omitIfBlank("env", fieldOrEmpty(fields, "env")),
+    ...omitIfBlank({ key: "env", value: fieldOrEmpty({ fields, key: "env" }) }),
     ...toAccessTokenWriteBody(fields),
-    ...includeIfDefined("oauth", oauth),
+    ...includeIfDefined({ key: "oauth", value: oauth }),
   };
 }
 
@@ -253,17 +271,17 @@ export interface ExternalMcpController {
 async function checkSavedServer({ item, server, locale, port }: { item: SourceConfigItem; server: AdminExternalMcpServer; locale: string; port: ExternalMcpPort }): Promise<SourceConfigItem> {
   let message = credentialText({ id: 'saved', locale });
   if (server.transport !== 'stdio' && server.enabled) {
-    try { await port.probeExternalMcpServer(server.serverId); message = credentialText({ id: 'connected', locale }); }
-    catch (err) { message = translateCredentialMessage({ message: describeApiError(err, credentialText({ id: 'unreachable', locale })), locale }); }
+    try { await port.probeExternalMcpServer({ serverId: server.serverId }); message = credentialText({ id: 'connected', locale }); }
+    catch (err) { message = translateCredentialMessage({ message: describeApiError({ e: err, fallback: credentialText({ id: 'unreachable', locale }) }), locale }); }
   }
   return { ...item, statusMessage: [item.statusMessage, message].filter(Boolean).join(' · ') };
 }
 
 /** Existing API contracts remain the owner; injection lets tests use fakes without module mocks. */
-export type ExternalMcpPort = Pick<typeof api, "listExternalMcpServers" | "saveExternalMcpServer" | "deleteExternalMcpServer" | "probeExternalMcpServer">;
+export type ExternalMcpPort = Pick<typeof integrationsApi, "listExternalMcpServers" | "saveExternalMcpServer" | "deleteExternalMcpServer" | "probeExternalMcpServer">;
 
 export function useExternalMcp(
-  { port = api, useAdminLocaleHook = useAdminLocale }: { port?: ExternalMcpPort; useAdminLocaleHook?: () => string } = {},
+  { port = integrationsApi, useAdminLocaleHook = useAdminLocale }: { port?: ExternalMcpPort; useAdminLocaleHook?: () => string } = {},
   _optional: Record<string, never> = {},
 ): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);
@@ -288,7 +306,7 @@ export function useExternalMcp(
       port: {
         async fetchSources() {
           const { servers } = await port.listExternalMcpServers();
-          const items = servers.map(server => toItem(server, locale));
+          const items = servers.map(server => toItem({ server }, { locale }));
           lastKnown.current = new Map(items.map((item) => [item.id, item]));
           return items;
         },
@@ -303,29 +321,29 @@ export function useExternalMcp(
           }
           // An untouched transport saves as STDIO; require a header token only for hosted rows.
           if (resolveExternalMcpEffectiveAuthMode(input.fields) === 'static_env' && resolveExternalMcpEffectiveTransport(input.fields) !== 'stdio') {
-            const tokenIssue = credentialDraftError({ value: fieldOrEmpty(input.fields, 'accessToken') }, { locale, required: true });
+            const tokenIssue = credentialDraftError({ value: fieldOrEmpty({ fields: input.fields, key: 'accessToken' }) }, { locale, required: true });
             if (tokenIssue) return { ok: false, message: tokenIssue };
           }
-          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
+          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, { t });
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
-            const { server } = await port.saveExternalMcpServer(
+            const { server } = await port.saveExternalMcpServer({
               serverId,
-              toWriteBody(input.fields, true, input.fields.label)
-            );
+              body: toWriteBody({ fields: input.fields, enabled: true }, { label: input.fields.label }),
+            });
             setRestartRequired(true);
-            const item = toItem(server, locale);
+            const item = toItem({ server }, { locale });
             const checked = await checkSavedServer({ item, server, locale, port });
             lastKnown.current.set(item.id, checked);
             return { ok: true, source: checked };
           } catch (e) {
-            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, t("That server could not be saved.")), locale }) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError({ e, fallback: t("That server could not be saved.") }), locale }) };
           }
         },
 
         async removeSource(id: string) {
           try {
-            await port.deleteExternalMcpServer(id);
+            await port.deleteExternalMcpServer({ serverId: id });
             setRestartRequired(true);
             lastKnown.current.delete(id);
             return true;
@@ -355,18 +373,18 @@ export function useExternalMcp(
         async updateSource(id: string, patch: SourceUpdateInput) {
           return writes.run({ task: async () => {
             const previous = lastKnown.current.get(id);
-            const merged = mergeSourceUpdate(previous, patch);
+            const merged = mergeSourceUpdate({ previous, patch });
             try {
-              const { server } = await port.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
+              const { server } = await port.saveExternalMcpServer({ serverId: id, body: { ...toWriteBody({ fields: merged.fields, enabled: merged.enabled }, { label: merged.label }), ...expectedVersionOf({ item: previous }) } });
               setRestartRequired(true);
-              const item = toItem(server, locale);
+              const item = toItem({ server }, { locale });
               const changedToken = (merged.fields.accessToken ?? '') !== '';
               const checked = changedToken ? await checkSavedServer({ item, server, locale, port }) : item;
               lastKnown.current.set(item.id, checked);
               return checked;
             } catch (err) {
               if (!previous) return null;
-              return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError(err, t('That server could not be saved.')), locale }) };
+              return { ...previous, statusMessage: translateCredentialMessage({ message: describeSaveFailure({ err, t }), locale }) };
             }
           } }, { key: id });
         },
@@ -400,14 +418,14 @@ export function useExternalMcp(
           }
           const startedAt = Date.now();
           try {
-            const { tools } = await port.probeExternalMcpServer(id);
+            const { tools } = await port.probeExternalMcpServer({ serverId: id });
             return {
               ok: true,
               message: `${tools.length} tool${tools.length === 1 ? "" : "s"} advertised.`,
               latencyMs: Date.now() - startedAt,
             };
           } catch (e) {
-            return { ok: false, message: translateCredentialMessage({ message: describeApiError(e, credentialText({ id: "unreachable", locale })), locale }) };
+            return { ok: false, message: translateCredentialMessage({ message: describeApiError({ e, fallback: credentialText({ id: "unreachable", locale }) }), locale }) };
           }
         },
       },

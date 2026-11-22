@@ -71,9 +71,9 @@ function buildTestApp(overrides: Partial<PluginsRouteDeps> = {}): { app: express
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerPluginSetEnabledRoute(app, pluginDeps);
+  registerPluginSetEnabledRoute({ app, deps: pluginDeps });
   return { app, pluginDeps };
 }
 

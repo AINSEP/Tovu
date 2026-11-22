@@ -11,7 +11,11 @@ import type {
 } from "#src/platform/mail/index";
 import { createMailSenderIdentityResolver, SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+  type VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
@@ -19,15 +23,9 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "../repo.memory.js";
-import {
-  compSubscription,
-  completeSignIn,
-  createMember,
-  disableMember,
-  requestSignInLink,
-  setSubscriptionStatus,
-  updateProfile,
-} from "../write-service.js";
+import { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "../member-admin-writes.js";
+import { completeSignIn, createMember } from "../member-sign-in.js";
+import { requestSignInLink } from "../member-challenge-request.js";
 import {
   MemberAuthError,
   MemberSignInUnavailableError,
@@ -394,9 +392,12 @@ for (const scenario of ["unverified", "missing"] as const) {
   test(`T013: ${scenario} origin refuses before lookup, token storage or sending`, async () => {
     const { deps, sent } = makeDeps({ origin: scenario === "missing" ? undefined : makeOriginRegistry() });
     deps.members.findByEmail = async () => assert.fail("origin setup must be checked before address facts");
-    deps.magicLinks.save = async () => assert.fail("no unusable link may be stored");
+    let saves = 0;
+    deps.magicLinks.save = async () => { saves++; };
     await assert.rejects(requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "secret@example.com" } }),
-      { name: "Error", message: "Member sign-in is unavailable: the site address is not set up." });
+      (error: unknown) => error instanceof MemberSignInUnavailableError
+        && error.message === "Member sign-in is unavailable: the site address is not set up.");
+    assert.equal(saves, 0);
     assert.equal(sent.length, 0);
   });
 }
@@ -872,7 +873,7 @@ test("createMember refuses as a conflict when a disabled row with the same email
     },
   );
   assert.equal(lookups, 2);
-  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).map(m => m.id), ["member-raced"]);
+  assert.deepEqual((await members.list({ workspaceId: WORKSPACE_ID })).items.map(m => m.id), ["member-raced"]);
   assert.deepEqual(await principals.list({ workspaceId: WORKSPACE_ID }), []);
 });
 
@@ -999,12 +1000,12 @@ for (const status of ["disabled", "trash"] as const) {
 /** Shard C challenge tests use a deterministic hasher to observe attempt reservations directly. */
 function challengeDeps() {
   const h = makeDeps();
-  let verified = 0;
+  const verifiedHashes: string[] = [];
   h.deps.passwordHasher = {
     hash: async ({ password }) => `test:${hashToken(password)}`,
-    verify: async ({ hash, password }) => { verified++; return hash === `test:${hashToken(password)}`; },
+    verify: async ({ hash, password }) => { verifiedHashes.push(hash); return hash === `test:${hashToken(password)}`; },
   };
-  return { ...h, verifications: () => verified };
+  return { ...h, verifications: () => verifiedHashes.length, verifiedHashes: () => [...verifiedHashes] };
 }
 
 function extractCode(text: string): string {
@@ -1026,6 +1027,7 @@ for (const first of ["link", "code"] as const) {
     await assert.rejects(completeSignIn({ deps, input: linkInput }), { message: "sign-in credential is invalid" });
     await assert.rejects(completeSignIn({ deps, input: codeInput }), { message: "sign-in credential is invalid" });
     const record = await deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
+    assert.equal(record?.consumedAt, result.session.createdAt);
     assert.ok(record?.codeHash);
     assert.notEqual(record.codeHash, code);
     assert.equal(JSON.stringify(record).includes(token), false);
@@ -1047,6 +1049,11 @@ test("shard C: parallel wrong codes spend at most five attempts", async () => {
   assert.equal(record?.failedAttempts, 5);
   await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, challengeId, code } }), MemberAuthError);
   await assert.rejects(completeSignIn({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, token: extractRawToken(h.sent[0].message.text!) } }), MemberAuthError);
+  // The refused code still costs one verify against the dummy hash (the same timing parity a
+  // disabled address gets, member-challenge.ts); the stored code hash is never checked again.
+  const afterExhaustion = h.verifiedHashes().slice(5);
+  assert.equal(afterExhaustion.length, 1, "only the refused code's dummy verify; the token path verifies nothing");
+  assert.ok(!afterExhaustion.includes(record!.codeHash!), "exhausted credentials never reach verification again");
   assert.equal(await h.deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "attempts@example.test" }), null);
 });
 
@@ -1099,7 +1106,7 @@ for (const purpose of ["password_reset", "email_change", "signup"] as const) {
   });
 }
 
-for (const redirectPath of ["https://evil.test/", "//evil.test/", "/\\evil.test/", "/\n/evil.test/", "relative", "javascript:alert(1)", "/%2F%2Fevil.test/", "/%5cevil.test/"]) {
+for (const redirectPath of ["https://evil.test/", "//evil.test/", "/\\evil.test/", "/\n/evil.test/", "relative", "javascript:alert(1)", "/%2F%2Fevil.test/", "/%5cevil.test/", "/%2fevil.test/", "/\r/evil.test/", "/\u0000evil.test/", "/\u007fevil.test/"]) {
   test(`shard C: unsafe redirect ${JSON.stringify(redirectPath)} is omitted`, async () => {
     const h = challengeDeps();
     await requestSignInLink({ deps: h.deps, input: { workspaceId: WORKSPACE_ID, email: "redirect@example.test", redirectPath } });
@@ -1130,4 +1137,14 @@ test("shard C: storage consume rejects exact expiry independently of the service
   const record = await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId });
   await assert.rejects(h.deps.magicLinks.consume({ workspaceId: WORKSPACE_ID, id: challengeId, consumedAt: record!.expiresAt }));
   assert.equal((await h.deps.magicLinks.findById({ workspaceId: WORKSPACE_ID, id: challengeId }))?.consumedAt, undefined);
+});
+
+
+test("a missing challenge ID pays exactly one decoy verification without reserving or consuming", async () => {
+  const h = challengeDeps();
+  h.deps.magicLinks.reserveCodeAttempt = async () => assert.fail("a missing ID cannot spend attempts");
+  h.deps.magicLinks.consume = async () => assert.fail("a missing ID cannot be consumed");
+  await assert.rejects(completeSignIn({ deps: h.deps,
+    input: { workspaceId: WORKSPACE_ID, challengeId: "missing", code: "123456" } }), MemberAuthError);
+  assert.equal(h.verifications(), 1);
 });

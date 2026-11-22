@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac, hkdfSync } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import {
   buildChallengeMessage,
   CHALLENGE_TTL_MS,
@@ -79,13 +79,15 @@ async function sourceKey(siteKeyHex = SOURCE_ROOT, generation = 1) {
 
 async function grantFor(publicKeyB64u: string, generation = 1) {
   const parsed = parsePublishTrustGrant({
-    version: PUBLISH_TRUST_GRANT_VERSION,
-    sourceInstallationId: SOURCE_INSTALL,
-    publicKeys: [{ publicKeyB64u, generation }],
-    workspaceId: WORKSPACE,
-    entityTypes: ["post", "media"],
-    capabilities: [...CAPABILITIES],
-    notAfter: "2099-01-01T00:00:00.000Z",
+    raw: {
+      version: PUBLISH_TRUST_GRANT_VERSION,
+      sourceInstallationId: SOURCE_INSTALL,
+      publicKeys: [{ publicKeyB64u, generation }],
+      workspaceId: WORKSPACE,
+      entityTypes: ["post", "media"],
+      capabilities: [...CAPABILITIES],
+      notAfter: "2099-01-01T00:00:00.000Z",
+    },
   });
   assert.ok(parsed.ok);
   return parsed.grant;
@@ -113,7 +115,7 @@ async function handshake(options: { clock: ReturnType<typeof movableClock>; sign
     sourceInstallationId: SOURCE_INSTALL,
     generation: key.generation,
     capabilities: [...CAPABILITIES],
-    signatureB64u: key.sign(message),
+    signatureB64u: key.sign({ message: message }),
   };
   return { store, grant, challenge, response, clock };
 }
@@ -123,24 +125,30 @@ test("the happy path: a source that never received a secret authenticates end to
   const { store, grant, response } = await handshake({ clock });
 
   const verified = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.ok(verified.ok, verified.ok ? "" : verified.reason);
 
   const { token } = await mintPublishSession(
-    { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
     {
-      sourceInstallationId: verified.verified.sourceInstallationId,
-      targetInstallationId: TARGET_INSTALL,
-      capabilities: verified.verified.capabilities,
-      generation: verified.verified.generation,
+      deps: { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
+      input: {
+        sourceInstallationId: verified.verified.sourceInstallationId,
+        targetInstallationId: TARGET_INSTALL,
+        capabilities: verified.verified.capabilities,
+        generation: verified.verified.generation,
+      }
     }
   );
 
   const session = await verifyPublishSession(
-    { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
-    { token, expectedAudience: TARGET_INSTALL }
+    {
+      deps: { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
+      input: { token, expectedAudience: TARGET_INSTALL }
+    }
   );
   assert.ok(session.ok, session.ok ? "" : session.reason);
   assert.equal(session.payload.sourceInstallationId, SOURCE_INSTALL);
@@ -153,10 +161,13 @@ test("the happy path: a source that never received a secret authenticates end to
 test("a valid signature under an expired grant is refused", async () => {
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
-  const result = await verifyChallengeResponse({ store, clock }, {
-    grant: { ...grant, notAfter: "2020-01-01T00:00:00.000Z" },
-    targetInstallationId: TARGET_INSTALL, response,
-  });
+  const result = await verifyChallengeResponse({
+                                                 deps: { store, clock },
+                                                 input: {
+      grant: { ...grant, notAfter: "2020-01-01T00:00:00.000Z" },
+      targetInstallationId: TARGET_INSTALL, response,
+    }
+                                               });
   assert.deepEqual(result, { ok: false, reason: "the publishing grant has expired or been revoked" });
 });
 
@@ -165,10 +176,13 @@ test("missing, empty and non-string challenge nonces are refused without throwin
   const { store, grant, response } = await handshake({ clock });
   for (const nonce of [undefined, null, "", 42]) {
     assert.deepEqual(
-      await verifyChallengeResponse({ store, clock }, {
-        grant, targetInstallationId: TARGET_INSTALL,
-        response: { ...response, nonce: nonce as unknown as string },
-      }),
+      await verifyChallengeResponse({
+                                      deps: { store, clock },
+                                      input: {
+          grant, targetInstallationId: TARGET_INSTALL,
+          response: { ...response, nonce: nonce as unknown as string },
+        }
+                                    }),
       { ok: false, reason: "no nonce supplied" }
     );
   }
@@ -180,9 +194,9 @@ test("a valid signature claiming another source installation is refused", async 
   const key = await sourceKey();
   const claimed = { ...response, sourceInstallationId: "another-source-install" };
   // Sign the claimed identity so signature verification cannot mask a missing grant binding.
-  claimed.signatureB64u = key.sign(buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }));
+  claimed.signatureB64u = key.sign({ message: buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
-    await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: claimed }),
+    await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: claimed } }),
     { ok: false, reason: "the response names an installation this grant is not for" }
   );
 });
@@ -193,9 +207,9 @@ test("a validly signed challenge requesting no capabilities is refused", async (
   const key = await sourceKey();
   const empty = { ...response, capabilities: [] };
   // An empty list is signed correctly and passes the per-capability loop vacuously.
-  empty.signatureB64u = key.sign(buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }));
+  empty.signatureB64u = key.sign({ message: buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
-    await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: empty }),
+    await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response: empty } }),
     { ok: false, reason: "no capabilities requested" }
   );
 });
@@ -208,9 +222,12 @@ test("changing a signed read request to apply invalidates the signature", async 
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
-  const result = await verifyChallengeResponse({ store, clock }, { grant,
-    targetInstallationId: TARGET_INSTALL, response: { ...response, capabilities: ["publish_content.apply"] } });
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
+  const result = await verifyChallengeResponse({
+                                                 deps: { store, clock },
+                                                 input: { grant,
+      targetInstallationId: TARGET_INSTALL, response: { ...response, capabilities: ["publish_content.apply"] } }
+                                               });
   assert.deepEqual(result, { ok: false, reason: "signature verification failed" });
 });
 
@@ -222,13 +239,13 @@ test("a read-only handshake mints a read-only session", async () => {
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
-  const verified = await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response });
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
+  const verified = await verifyChallengeResponse({ deps: { store, clock }, input: { grant, targetInstallationId: TARGET_INSTALL, response } });
   assert.ok(verified.ok);
   assert.deepEqual(verified.verified.capabilities, ["publish_content.read"]);
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
-  const { token } = await mintPublishSession(deps, verified.verified);
-  const session = await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL });
+  const { token } = await mintPublishSession({ deps, input: verified.verified });
+  const session = await verifyPublishSession({ deps, input: { token, expectedAudience: TARGET_INSTALL } });
   assert.ok(session.ok);
   assert.deepEqual(session.payload.capabilities, verified.verified.capabilities);
   assert.equal(session.payload.capabilities.includes("publish_content.apply"), false);
@@ -239,11 +256,13 @@ test("PROOF 1 — an UNSIGNED request is refused", async () => {
   for (const missing of ["", undefined, null]) {
     const { store, grant, response } = await handshake({ clock });
     const result = await verifyChallengeResponse(
-      { store, clock },
       {
-        grant,
-        targetInstallationId: TARGET_INSTALL,
-        response: { ...response, signatureB64u: missing as unknown as string },
+        deps: { store, clock },
+        input: {
+          grant,
+          targetInstallationId: TARGET_INSTALL,
+          response: { ...response, signatureB64u: missing as unknown as string },
+        }
       }
     );
     assert.equal(result.ok, false);
@@ -257,8 +276,10 @@ test("PROOF 2 — a signature from the WRONG KEY is refused", async () => {
   const { store, grant, response } = await handshake({ clock, signWith: attackerKey });
 
   const result = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.equal(result.ok, false);
   assert.match(result.ok ? "" : result.reason, /signature verification failed/);
@@ -269,14 +290,18 @@ test("PROOF 3 — a REPLAYED nonce is refused", async () => {
   const { store, grant, response } = await handshake({ clock });
 
   const first = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.ok(first.ok, "the first use must succeed, or this test proves nothing");
 
   const replay = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.equal(replay.ok, false);
   assert.match(replay.ok ? "" : replay.reason, /already used/);
@@ -287,14 +312,18 @@ test("a nonce is burned even by a FAILED attempt — a rejection cannot keep it 
   const { store, grant, response } = await handshake({ clock });
 
   const bad = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response: { ...response, signatureB64u: "AAAA" } }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response: { ...response, signatureB64u: "AAAA" } }
+    }
   );
   assert.equal(bad.ok, false);
 
   const retryWithGoodSignature = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.equal(retryWithGoodSignature.ok, false);
   assert.match(retryWithGoodSignature.ok ? "" : retryWithGoodSignature.reason, /already used/);
@@ -306,8 +335,10 @@ test("an EXPIRED nonce is refused", async () => {
 
   clock.advance(CHALLENGE_TTL_MS);
   const result = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId: TARGET_INSTALL, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId: TARGET_INSTALL, response }
+    }
   );
   assert.equal(result.ok, false);
   assert.match(result.ok ? "" : result.reason, /expired/);
@@ -322,25 +353,28 @@ test("issuing a later challenge sweeps unanswered expired nonces and preserves l
   const live = await issuePublishChallenge(deps);
   clock.advance(1);
   const latest = await issuePublishChallenge(deps);
-  assert.equal(await store.takeOnce(old.nonce), null);
-  assert.deepEqual(await store.takeOnce(live.nonce), live);
-  assert.deepEqual(await store.takeOnce(latest.nonce), latest);
+  assert.equal(await store.takeOnce({ nonce: old.nonce }), null);
+  assert.deepEqual(await store.takeOnce({ nonce: live.nonce }), live);
+  assert.deepEqual(await store.takeOnce({ nonce: latest.nonce }), latest);
 });
 
 test("PROOF 4 — an EXPIRED session is refused", async () => {
   const clock = movableClock();
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: TARGET_INSTALL,
-    capabilities: CAPABILITIES,
-    generation: 1,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: CAPABILITIES,
+      generation: 1,
+    }
+                                             });
 
-  assert.ok((await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL })).ok);
+  assert.ok((await verifyPublishSession({ deps, input: { token, expectedAudience: TARGET_INSTALL } })).ok);
 
   clock.advance(SESSION_TTL_MS);
-  const expired = await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL });
+  const expired = await verifyPublishSession({ deps, input: { token, expectedAudience: TARGET_INSTALL } });
   assert.equal(expired.ok, false);
   assert.match(expired.ok ? "" : expired.reason, /expired/);
 });
@@ -348,14 +382,17 @@ test("PROOF 4 — an EXPIRED session is refused", async () => {
 test("PROOF 5 — a token presented to a DIFFERENT DESTINATION is refused", async () => {
   const clock = movableClock();
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: TARGET_INSTALL,
-    capabilities: CAPABILITIES,
-    generation: 1,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: CAPABILITIES,
+      generation: 1,
+    }
+                                             });
 
-  const elsewhere = await verifyPublishSession(deps, { token, expectedAudience: "staging-install" });
+  const elsewhere = await verifyPublishSession({ deps, input: { token, expectedAudience: "staging-install" } });
   assert.equal(elsewhere.ok, false);
   assert.match(elsewhere.ok ? "" : elsewhere.reason, /another destination/);
 });
@@ -363,23 +400,26 @@ test("PROOF 5 — a token presented to a DIFFERENT DESTINATION is refused", asyn
 test("PROOF 6 — a valid publish token still cannot reach an ordinary content.write route", async () => {
   const clock = movableClock();
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: TARGET_INSTALL,
-    capabilities: CAPABILITIES,
-    generation: 1,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: CAPABILITIES,
+      generation: 1,
+    }
+                                             });
 
-  const session = await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL });
+  const session = await verifyPublishSession({ deps, input: { token, expectedAudience: TARGET_INSTALL } });
   assert.ok(session.ok, "the token itself must be valid, or this test proves nothing");
 
   // The token is genuine and unexpired. It still cannot reach these, because the reachable set is
   // owned by `grant.ts` and is not carried in the token — nothing the holder presents can widen it.
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/posts`), false);
-  assert.equal(isPublishTrustRoute("PUT", `/api/admin/v1/workspaces/${WORKSPACE}/posts/p-1`), false);
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/api-keys`), false);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/posts` }), false);
+  assert.equal(isPublishTrustRoute({ method: "PUT", path: `/api/admin/v1/workspaces/${WORKSPACE}/posts/p-1` }), false);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/api-keys` }), false);
   // And what it CAN reach is exactly the publishing surface.
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`), true);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles` }), true);
 });
 
 test("a nonce issued by another destination is refused", async () => {
@@ -388,11 +428,13 @@ test("a nonce issued by another destination is refused", async () => {
   const key = await sourceKey();
   const targetInstallationId = "someone-elses-install";
   // The signature is valid for the receiving destination; only the nonce's issuance binding differs.
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId }));
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId }) });
 
   const result = await verifyChallengeResponse(
-    { store, clock },
-    { grant, targetInstallationId, response }
+    {
+      deps: { store, clock },
+      input: { grant, targetInstallationId, response }
+    }
   );
   assert.deepEqual(result, { ok: false, reason: "nonce was issued for another destination" });
 });
@@ -414,17 +456,19 @@ test("a capability the grant does not hold is refused, not narrowed", async () =
   });
 
   const result = await verifyChallengeResponse(
-    { store, clock },
     {
-      grant,
-      targetInstallationId: TARGET_INSTALL,
-      response: {
-        nonce: challenge.nonce,
-        sourceInstallationId: SOURCE_INSTALL,
-        generation: 1,
-        capabilities,
-        signatureB64u: key.sign(message),
-      },
+      deps: { store, clock },
+      input: {
+        grant,
+        targetInstallationId: TARGET_INSTALL,
+        response: {
+          nonce: challenge.nonce,
+          sourceInstallationId: SOURCE_INSTALL,
+          generation: 1,
+          capabilities,
+          signatureB64u: key.sign({ message: message }),
+        },
+      }
     }
   );
   assert.equal(result.ok, false);
@@ -439,17 +483,19 @@ test("a response claiming a generation the grant does not accept is refused", as
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
 
   const result = await verifyChallengeResponse(
-    { store, clock },
     {
-      grant,
-      targetInstallationId: TARGET_INSTALL,
-      response: {
-        nonce: challenge.nonce,
-        sourceInstallationId: SOURCE_INSTALL,
-        generation: 1,
-        capabilities: [...CAPABILITIES],
-        signatureB64u: oldKey.sign("anything"),
-      },
+      deps: { store, clock },
+      input: {
+        grant,
+        targetInstallationId: TARGET_INSTALL,
+        response: {
+          nonce: challenge.nonce,
+          sourceInstallationId: SOURCE_INSTALL,
+          generation: 1,
+          capabilities: [...CAPABILITIES],
+          signatureB64u: oldKey.sign({ message: "anything" }),
+        },
+      }
     }
   );
   assert.equal(result.ok, false);
@@ -459,19 +505,22 @@ test("a response claiming a generation the grant does not accept is refused", as
 test("a tampered session payload is refused — the MAC covers every field", async () => {
   const clock = movableClock();
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: TARGET_INSTALL,
-    capabilities: ["publish_content.read"],
-    generation: 1,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: ["publish_content.read"],
+      generation: 1,
+    }
+                                             });
 
   const [encoded, mac] = token.split(".");
   const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
   payload.capabilities = ["publish_content.read", "publish_content.apply"];
   const forged = `${Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")}.${mac}`;
 
-  const result = await verifyPublishSession(deps, { token: forged, expectedAudience: TARGET_INSTALL });
+  const result = await verifyPublishSession({ deps, input: { token: forged, expectedAudience: TARGET_INSTALL } });
   assert.equal(result.ok, false);
   assert.match(result.ok ? "" : result.reason, /signature is invalid/);
 });
@@ -479,18 +528,22 @@ test("a tampered session payload is refused — the MAC covers every field", asy
 test("a token minted under a different Site key is refused", async () => {
   const clock = movableClock();
   const { token } = await mintPublishSession(
-    { keyring: testKeyring(ATTACKER_ROOT), workspaceId: WORKSPACE, clock },
     {
-      sourceInstallationId: SOURCE_INSTALL,
-      targetInstallationId: TARGET_INSTALL,
-      capabilities: CAPABILITIES,
-      generation: 1,
+      deps: { keyring: testKeyring(ATTACKER_ROOT), workspaceId: WORKSPACE, clock },
+      input: {
+        sourceInstallationId: SOURCE_INSTALL,
+        targetInstallationId: TARGET_INSTALL,
+        capabilities: CAPABILITIES,
+        generation: 1,
+      }
     }
   );
 
   const result = await verifyPublishSession(
-    { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
-    { token, expectedAudience: TARGET_INSTALL }
+    {
+      deps: { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock },
+      input: { token, expectedAudience: TARGET_INSTALL }
+    }
   );
   assert.equal(result.ok, false);
 });
@@ -500,7 +553,7 @@ test("malformed session tokens are refused without throwing", async () => {
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock };
 
   for (const bad of ["", ".", "a.", ".b", "no-dot", "a.b.c", "!!!.!!!"]) {
-    const result = await verifyPublishSession(deps, { token: bad, expectedAudience: TARGET_INSTALL });
+    const result = await verifyPublishSession({ deps, input: { token: bad, expectedAudience: TARGET_INSTALL } });
     assert.equal(result.ok, false, `'${bad}' must be refused`);
   }
 });
@@ -509,7 +562,7 @@ test("missing and non-string session tokens are refused without throwing", async
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
   for (const token of [undefined, null, 42, {}, ""]) {
     assert.deepEqual(
-      await verifyPublishSession(deps, { token: token as string, expectedAudience: TARGET_INSTALL }),
+      await verifyPublishSession({ deps, input: { token: token as string, expectedAudience: TARGET_INSTALL } }),
       { ok: false, reason: "no session token supplied" }
     );
   }
@@ -533,17 +586,23 @@ async function signedSessionText(text: string): Promise<string> {
 
 test("a correctly authenticated non-JSON session body is refused after MAC verification", async () => {
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
-  assert.deepEqual(await verifyPublishSession(deps, {
-    token: await signedSessionText("{unfinished"), expectedAudience: TARGET_INSTALL,
-  }), { ok: false, reason: "session token payload is not JSON" });
+  assert.deepEqual(await verifyPublishSession({
+                                                deps,
+                                                input: {
+      token: await signedSessionText("{unfinished"), expectedAudience: TARGET_INSTALL,
+    }
+                                              }), { ok: false, reason: "session token payload is not JSON" });
 });
 
 for (const payload of ["plain text", 42, true]) {
   test(`an authenticated primitive session payload ${JSON.stringify(payload)} is refused`, async () => {
     const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
-    assert.deepEqual(await verifyPublishSession(deps, {
-      token: await signedSessionPayload(payload), expectedAudience: TARGET_INSTALL,
-    }), { ok: false, reason: "session token payload is not an object" });
+    assert.deepEqual(await verifyPublishSession({
+                                                  deps,
+                                                  input: {
+        token: await signedSessionPayload(payload), expectedAudience: TARGET_INSTALL,
+      }
+                                                }), { ok: false, reason: "session token payload is not an object" });
   });
 }
 
@@ -551,20 +610,26 @@ test("an absent challenge response is refused without consuming the issued nonce
   const clock = movableClock();
   const { store, grant, response, challenge } = await handshake({ clock });
   for (const missing of [undefined, null]) {
-    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
-      grant, targetInstallationId: TARGET_INSTALL, response: missing as unknown as typeof response,
-    }), { ok: false, reason: "no nonce supplied" });
+    assert.deepEqual(await verifyChallengeResponse({
+                                                     deps: { store, clock },
+                                                     input: {
+        grant, targetInstallationId: TARGET_INSTALL, response: missing as unknown as typeof response,
+      }
+                                                   }), { ok: false, reason: "no nonce supplied" });
   }
-  assert.deepEqual(await store.takeOnce(response.nonce), challenge);
+  assert.deepEqual(await store.takeOnce({ nonce: response.nonce }), challenge);
 });
 
 test("an unusable verification clock refuses and consumes an otherwise valid challenge", async () => {
   const clock = movableClock();
   const { store, grant, response } = await handshake({ clock });
-  assert.deepEqual(await verifyChallengeResponse({ store, clock: { nowIso: () => "invalid" } }, {
-    grant, targetInstallationId: TARGET_INSTALL, response,
-  }), { ok: false, reason: "nonce has expired" });
-  assert.equal(await store.takeOnce(response.nonce), null);
+  assert.deepEqual(await verifyChallengeResponse({
+                                                   deps: { store, clock: { nowIso: () => "invalid" } },
+                                                   input: {
+      grant, targetInstallationId: TARGET_INSTALL, response,
+    }
+                                                 }), { ok: false, reason: "nonce has expired" });
+  assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
 });
 
 for (const expiresAtIso of ["corrupt", undefined]) {
@@ -572,24 +637,27 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     const clock = movableClock();
     const { store, grant, response, challenge } = await handshake({ clock });
     // Simulate a corrupt adapter record while retaining a valid signature and grant.
-    await store.put({ ...challenge, expiresAtIso: expiresAtIso as unknown as string });
-    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
-      grant, targetInstallationId: TARGET_INSTALL, response,
-    }), { ok: false, reason: "nonce has expired" });
-    assert.equal(await store.takeOnce(response.nonce), null);
+    await store.put({ record: { ...challenge, expiresAtIso: expiresAtIso as unknown as string } });
+    assert.deepEqual(await verifyChallengeResponse({
+                                                     deps: { store, clock },
+                                                     input: {
+        grant, targetInstallationId: TARGET_INSTALL, response,
+      }
+                                                   }), { ok: false, reason: "nonce has expired" });
+    assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
   });
 
   test(`the in-memory challenge sweep removes expiry ${JSON.stringify(expiresAtIso)} and retains live records`, async () => {
     const clock = movableClock();
     const store = new InMemoryPublishChallengeStore(clock);
     const live = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
-    await store.put({ ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string });
-    await store.put({ ...live, nonce: "due", expiresAtIso: clock.nowIso() });
-    await store.put({ ...live, nonce: "trigger" });
-    assert.equal(await store.takeOnce("corrupt"), null);
-    assert.equal(await store.takeOnce("due"), null);
-    assert.deepEqual(await store.takeOnce(live.nonce), live);
-    assert.deepEqual(await store.takeOnce("trigger"), { ...live, nonce: "trigger" });
+    await store.put({ record: { ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string } });
+    await store.put({ record: { ...live, nonce: "due", expiresAtIso: clock.nowIso() } });
+    await store.put({ record: { ...live, nonce: "trigger" } });
+    assert.equal(await store.takeOnce({ nonce: "corrupt" }), null);
+    assert.equal(await store.takeOnce({ nonce: "due" }), null);
+    assert.deepEqual(await store.takeOnce({ nonce: live.nonce }), live);
+    assert.deepEqual(await store.takeOnce({ nonce: "trigger" }), { ...live, nonce: "trigger" });
   });
 }
 
@@ -597,18 +665,21 @@ for (const capabilities of [undefined, null, "publish_content.read", {}]) {
   test(`non-array challenge capabilities ${JSON.stringify(capabilities)} refuse and burn the nonce`, async () => {
     const clock = movableClock();
     const { store, grant, response } = await handshake({ clock });
-    assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
-      grant, targetInstallationId: TARGET_INSTALL,
-      response: { ...response, capabilities: capabilities as unknown as string[] },
-    }), { ok: false, reason: "no capabilities requested" });
-    assert.equal(await store.takeOnce(response.nonce), null);
+    assert.deepEqual(await verifyChallengeResponse({
+                                                     deps: { store, clock },
+                                                     input: {
+        grant, targetInstallationId: TARGET_INSTALL,
+        response: { ...response, capabilities: capabilities as unknown as string[] },
+      }
+                                                   }), { ok: false, reason: "no capabilities requested" });
+    assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
   });
 }
 
 test("a signed null session payload is refused without throwing", async () => {
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
   assert.deepEqual(
-    await verifyPublishSession(deps, { token: await signedSessionPayload(null), expectedAudience: TARGET_INSTALL }),
+    await verifyPublishSession({ deps, input: { token: await signedSessionPayload(null), expectedAudience: TARGET_INSTALL } }),
     { ok: false, reason: "session token payload is not an object" }
   );
 });
@@ -619,34 +690,40 @@ for (const scenario of [
 ]) {
   test(scenario.name, async () => {
     const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
-    const { payload } = await mintPublishSession(deps, {
-      sourceInstallationId: SOURCE_INSTALL,
-      targetInstallationId: TARGET_INSTALL,
-      capabilities: CAPABILITIES,
-      generation: 1,
-    });
+    const { payload } = await mintPublishSession({
+                                                   deps,
+                                                   input: {
+        sourceInstallationId: SOURCE_INSTALL,
+        targetInstallationId: TARGET_INSTALL,
+        capabilities: CAPABILITIES,
+        generation: 1,
+      }
+                                                 });
     const token = await signedSessionPayload({ ...payload, ...scenario.patch });
-    assert.deepEqual(await verifyPublishSession(deps, { token, expectedAudience: TARGET_INSTALL }), { ok: false, reason: scenario.reason });
+    assert.deepEqual(await verifyPublishSession({ deps, input: { token, expectedAudience: TARGET_INSTALL } }), { ok: false, reason: scenario.reason });
   });
 }
 
 test("sessions with an unusable expiry or verification clock are refused", async () => {
   const deps = { keyring: testKeyring(DEST_ROOT), workspaceId: WORKSPACE, clock: movableClock() };
-  const { token, payload } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: TARGET_INSTALL,
-    capabilities: CAPABILITIES,
-    generation: 1,
-  });
+  const { token, payload } = await mintPublishSession({
+                                                        deps,
+                                                        input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: TARGET_INSTALL,
+      capabilities: CAPABILITIES,
+      generation: 1,
+    }
+                                                      });
   for (const expiresAtIso of [undefined, 123, "not-a-date"]) {
     const malformed = await signedSessionPayload({ ...payload, expiresAtIso });
     assert.deepEqual(
-      await verifyPublishSession(deps, { token: malformed, expectedAudience: TARGET_INSTALL }),
+      await verifyPublishSession({ deps, input: { token: malformed, expectedAudience: TARGET_INSTALL } }),
       { ok: false, reason: "session token has no usable expiry" }
     );
   }
   assert.deepEqual(
-    await verifyPublishSession({ ...deps, clock: { nowIso: () => "not-a-date" } }, { token, expectedAudience: TARGET_INSTALL }),
+    await verifyPublishSession({ deps: { ...deps, clock: { nowIso: () => "not-a-date" } }, input: { token, expectedAudience: TARGET_INSTALL } }),
     { ok: false, reason: "session token has no usable expiry" }
   );
 });

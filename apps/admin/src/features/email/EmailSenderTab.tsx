@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "./email-i18n";
 import type { MailDnsRecordStatus, MailDnsStatus } from "./email-api";
@@ -87,11 +87,11 @@ function Records(props: { dns: NonNullable<MailDnsStatus["dns"]>; locale: string
             <dl className="email-dns-values">
               <div className="email-dns-value">
                 <dt className="jini-field-label">{t({ locale, key: "Host" })}</dt>
-                <dd><code>{record.host}</code><CopyButton text={record.host} label={t({ locale, key: "{type} host" }).replace("{type}", record.type)} locale={locale} handle={`email-dns-${index}-copy-host`} /></dd>
+                <dd><code>{record.host}</code><CopyButton text={record.host} label={t({ locale, key: "{type} host" }).replace("{type}", () => record.type)} locale={locale} handle={`email-dns-${index}-copy-host`} /></dd>
               </div>
               <div className="email-dns-value">
                 <dt className="jini-field-label">{t({ locale, key: "Value" })}</dt>
-                <dd><code>{record.expected}</code><CopyButton text={record.expected} label={t({ locale, key: "{type} value" }).replace("{type}", record.type)} locale={locale} handle={`email-dns-${index}-copy-value`} /></dd>
+                <dd><code>{record.expected}</code><CopyButton text={record.expected} label={t({ locale, key: "{type} value" }).replace("{type}", () => record.type)} locale={locale} handle={`email-dns-${index}-copy-value`} /></dd>
               </div>
               {record.status === "Mismatch" && record.observed.length > 0 ? (
                 <div className="email-dns-value">
@@ -133,7 +133,7 @@ function DnsBody(props: { status: MailDnsStatus; locale: string }) {
         <>
           <Records dns={dns} locale={locale} />
           {dns.reason ? <p className="jini-field-hint">{dns.reason}</p> : null}
-          <p className="jini-field-hint">{t({ locale, key: "Checked {when}" }).replace("{when}", when(dns.checkedAt, locale))}</p>
+          <p className="jini-field-hint">{t({ locale, key: "Checked {when}" }).replace("{when}", () => when({ iso: dns.checkedAt, locale }))}</p>
         </>
       ) : (
         <p className="jini-field-hint">{[t({ locale, key: STATE_LINE[status.state] || "No DNS check yet." }), LINE_SAYS_IT_ALL.has(status.state) ? undefined : status.message].filter(Boolean).join(" ")}</p>

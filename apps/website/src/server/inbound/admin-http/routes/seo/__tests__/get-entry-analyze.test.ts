@@ -9,7 +9,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { setSeoSettings } from "#src/features/seo/settings";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -59,7 +59,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoGetEntryAnalyzeRoute(app, deps);
+  registerAdminSeoGetEntryAnalyzeRoute({ app, deps });
   return app;
 }
 
@@ -104,11 +104,11 @@ test("get-entry-analyze: unknown entry 404s (SEO_ENTRY_NOT_FOUND)", async (t) =>
 test("get-entry-analyze: valid entry returns analysis score and issues (200)", async (t) => {
   const base = createRouteDeps();
   await base.siteTitleReady; // Finish all boot-time settings writes before seeding this fixture.
-  const postRepo = new InMemoryPostRepo([{
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [{
     id: ENTRY_ID, workspaceId: WORKSPACE_ID, title: "Canary entry", slug: "seo-canary",
     kind: "post", status: "published", bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null,
     updatedAt: "2026-09-30T00:00:00.000Z", version: 1, seoExtJson: null,
-  }]);
+  }] });
   await setSeoSettings({ settingsRepo: base.settingsRepo, clock: base.clock, ids: base.idGen,
     authorize: async () => ({ allowed: true, reason: "matched" }), principals: base.principalRepo, media: base.seoDeps.media },
     { workspaceId: WORKSPACE_ID, callerPrincipalId: "principal-owner", patch: { titleTemplate: "%s | Canary", defaultDescription: "" } });

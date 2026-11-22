@@ -25,7 +25,7 @@ import {
 } from "../../media/index.js";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -37,7 +37,7 @@ import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegist
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -80,11 +80,10 @@ const FAKE_PNG_BYTES = Buffer.from(
 function fakeGenerateMedia(
   recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }>
 ): (
-  request: MediaGenerationRequest,
-  credentials: ProviderCredentials,
-  options: { providerId: string; allowStubFallback: boolean }
+  required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } },
+  optional?: Record<string, never>
 ) => Promise<MediaGenerationResult> {
-  return async (request, credentials, options) => {
+  return async ({ request, credentials, options }) => {
     recorded.push({ request, credentials, options });
     return { bytes: FAKE_PNG_BYTES, providerNote: "fake/test", providerId: options.providerId, usedStubFallback: false, warnings: [] };
   };
@@ -108,7 +107,7 @@ function fakeRouteDeps(
      *  the selected model's provider has no adapter registered at all). Omitted/`undefined` uses the
      *  fake, as before. */
     generateMedia?:
-      | ((request: MediaGenerationRequest, credentials: ProviderCredentials, options: { providerId: string; allowStubFallback: boolean }) => Promise<MediaGenerationResult>)
+      | ((required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }, optional?: Record<string, never>) => Promise<MediaGenerationResult>)
       | null;
     /** Defaults to `{}` (no env vars at all) — deliberately NOT the real `process.env` — so no test
      *  here can pass or fail depending on what happens to be set on the machine running it. Tests
@@ -188,7 +187,7 @@ test("generated assets stamp the acting principal independently of the model and
   const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
-  assert.deepEqual(stored.source.provenance, { kind: 'generated' });
+  assert.deepEqual(stored.source.provenance, { kind: 'generated', model: "gpt-image-2", provider: "openai" });
   assert.equal(stored.credit, "Editorial credit");
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
@@ -213,7 +212,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaGenerationRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -248,7 +247,7 @@ test("requiresConfirmation is unset — no ceremony beyond the ordinary permissi
 });
 
 test("the real catalog and this wiring layer's own risk classification agree", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_generate_asset", catalogEntry("media_generate_asset"), contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "media_generate_asset", catalogEntry: catalogEntry("media_generate_asset") }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------
@@ -362,6 +361,59 @@ test("an unsupported model id is rejected with the schema attached for retry, an
 });
 
 // ---------------------------------------------------------------------------
+// 3a. Which model and vendor made the image (owner request 2026-11-13)
+// ---------------------------------------------------------------------------
+
+type ModelReport = { media: { id: string; placeholder: boolean }; model: string; provider: string };
+
+async function storedProvenance(fixture: ReturnType<typeof fakeRouteDeps>, id: string): Promise<unknown> {
+  const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id });
+  assert.ok(stored, "the generated asset must be stored");
+  return stored.source.provenance;
+}
+
+test("the result and the stored asset name the default-resolved model and its vendor", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a red bicycle" })) as ModelReport;
+  assert.equal(out.model, "gpt-image-2");
+  assert.equal(out.provider, "openai");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gpt-image-2", provider: "openai" });
+});
+
+test("the result and the stored asset name an explicitly chosen model and its vendor", async () => {
+  const fixture = fakeRouteDeps({ env: { GEMINI_API_KEY: "env-gemini-key" } });
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" })) as ModelReport;
+  assert.equal(out.model, "gemini-3.1-flash-image-preview");
+  assert.equal(out.provider, "nanobanana");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gemini-3.1-flash-image-preview", provider: "nanobanana" });
+});
+
+test("the vendor reported is the one the engine actually used, not only the catalog's guess", async () => {
+  const fixture = fakeRouteDeps({ generateMedia: async () => ({ bytes: FAKE_PNG_BYTES, providerNote: "override", providerId: "custom-image", usedStubFallback: false, warnings: [] }) });
+  await seedOpenAiCredential(fixture);
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo", model: "gpt-image-2" })) as ModelReport;
+  assert.equal(out.provider, "custom-image");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated", model: "gpt-image-2", provider: "custom-image" });
+});
+
+test("a placeholder says so: the result names what was asked for, and the library never credits the model with the stand-in", async () => {
+  const fixture = fakeRouteDeps({ generateMedia: async ({ options }) => ({ bytes: FAKE_PNG_BYTES, providerNote: "stub", providerId: options.providerId, usedStubFallback: true, warnings: [] }) });
+  const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "Placeholder", model: "gpt-image-2", allowStubFallback: true })) as ModelReport;
+  assert.equal(out.media.placeholder, true);
+  assert.equal(out.model, "gpt-image-2");
+  assert.equal(out.provider, "openai");
+  assert.deepEqual(await storedProvenance(fixture, out.media.id), { kind: "generated" });
+});
+
+test("the tool description tells the assistant to name the model and vendor it used", () => {
+  const { description } = catalogEntry("media_generate_asset");
+  assert.match(description, /`model`/);
+  assert.match(description, /`provider`/);
+  assert.match(description, /tell the user which model and vendor/i);
+});
+
+// ---------------------------------------------------------------------------
 // 3b. Multi-provider model resolution + credential precedence (2026-09-02 follow-up)
 // ---------------------------------------------------------------------------
 
@@ -385,6 +437,18 @@ test("no model specified, no OpenAI credential anywhere, but a different vendor'
   assert.equal(generateCalls[0]!.options.providerId, "nanobanana", "default must resolve to the one provider with an actual credential, not stay hardcoded to openai");
   assert.equal(generateCalls[0]!.request.model, "gemini-3.1-flash-image-preview");
   assert.equal(generateCalls[0]!.credentials.apiKey, "env-gemini-key");
+});
+
+test("an omitted model uses the image model saved with the provider credential", async () => {
+  const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
+  await saveMediaProviderCredentials(
+    { repo: fixture.mediaProviderCredentialRepo, sealer: fixture.siteAssistantSecretSealer, keyring: fixture.keyring, clock: createFakeClock({ startIso: NOW }) },
+    { workspaceId: WORKSPACE_ID, providers: { openai: { apiKey: "sk-real-test-key-7777", model: "dall-e-3" } } }
+  );
+
+  await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "a logo" }));
+
+  assert.equal(fixture.generateCalls[0]!.request.model, "dall-e-3", "an omitted model selects the saved credential's advertised image model");
 });
 
 test("a saved credential wins over the env fallback even when both are present", async () => {
@@ -477,7 +541,7 @@ test("a real vendor's model with no registered adapter is rejected the same as a
 // the returned `media.placeholder` field, independent of which vendor produced it.
 test("usedStubFallback:true from generateMedia is surfaced as media.placeholder:true on the tool's return", async () => {
   const fixture = fakeRouteDeps({
-    generateMedia: async (_request, _credentials, options) => ({
+    generateMedia: async ({ options }) => ({
       bytes: FAKE_PNG_BYTES,
       providerNote: "stub/test",
       providerId: options.providerId,
@@ -591,7 +655,7 @@ test("a saved key without a base URL reaches the generator without inventing one
 
 test("an explicit stub opt-in lets the generator decide what to do without credentials", async () => {
   const calls: ProviderCredentials[] = [];
-  const fixture = fakeRouteDeps({ generateMedia: async (_request, credentials, options) => {
+  const fixture = fakeRouteDeps({ generateMedia: async ({ credentials, options }) => {
     calls.push(credentials);
     assert.equal(options.allowStubFallback, true);
     return { bytes: FAKE_PNG_BYTES, providerNote: "test placeholder", providerId: options.providerId, usedStubFallback: true, warnings: [] };

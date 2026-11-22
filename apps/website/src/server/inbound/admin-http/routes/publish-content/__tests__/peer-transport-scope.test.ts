@@ -100,8 +100,8 @@ function registerFixtureContributors(requiredBlob: string | null = null): void {
     }),
   };
 
-  registerPublishContentContributor(pageContributor);
-  registerPublishContentContributor(themeContributor);
+  registerPublishContentContributor({ contributor: pageContributor });
+  registerPublishContentContributor({ contributor: themeContributor });
 }
 
 function buildApp(httpClient: HttpClientPort): { app: express.Express } {
@@ -133,8 +133,8 @@ function buildApp(httpClient: HttpClientPort): { app: express.Express } {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerRoutes(app, deps);
-  registerPublishContentPeerTransportRoutes(app, deps);
+  registerPublishContentPeerRoutes({ app, deps });
+  registerPublishContentPeerTransportRoutes({ app, deps });
   return { app };
 }
 
@@ -394,20 +394,24 @@ function registerPagesWithMedia(): void {
     }),
   });
   registerPublishContentContributor(
-    fixture("media", [], [
-      withState("media", "m-new", { slug: "new-shot" }),
-      withState("media", "m-same", { slug: "same-shot" }),
-      withState("media", "m-unused", { slug: "unused-shot" }),
-    ])
+    {
+      contributor: fixture("media", [], [
+        withState("media", "m-new", { slug: "new-shot" }),
+        withState("media", "m-same", { slug: "same-shot" }),
+        withState("media", "m-unused", { slug: "unused-shot" }),
+      ])
+    }
   );
   registerPublishContentContributor(
-    fixture("page", ["media"], [
-      withState("page", "p1", {
-        bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "m-new" } }] },
-        bodyHtml: null,
-      }),
-      withState("page", "p2", { bodyJson: null, bodyHtml: `<img src="/m/same-shot/original">` }),
-    ], (e) => collectBodyReferences(e.state))
+    {
+      contributor: fixture("page", ["media"], [
+        withState("page", "p1", {
+          bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "m-new" } }] },
+          bodyHtml: null,
+        }),
+        withState("page", "p2", { bodyJson: null, bodyHtml: `<img src="/m/same-shot/original">` }),
+      ], ({ entity }) => collectBodyReferences({ state: entity.state }))
+    }
   );
 }
 

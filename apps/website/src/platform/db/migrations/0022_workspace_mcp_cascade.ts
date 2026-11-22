@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file ADR-066: order SQLite's workspace cascade without weakening vault protection.
@@ -21,11 +21,11 @@ export const WORKSPACE_MCP_CASCADE_SQLITE = `CREATE TRIGGER workspaces_mcp_delet
 /** Install the ordering trigger through the instrumented kernel; Postgres already has parity.
  * The runner owns transaction/rollback. DDL errors propagate. @complexity O(1) migration DDL.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect === "sqlite") await kernel.execute(sql.raw(WORKSPACE_MCP_CASCADE_SQLITE));
 }
 
 /** Return the immutable workspace cascade step. @example workspaceMcpCascade({ checksum }) */
-export function workspaceMcpCascade(required: { checksum: string }, _options = {}): MigrationStep {
+export function workspaceMcpCascade(required: { checksum: string }, _options = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: WORKSPACE_MCP_CASCADE_ID, checksum: required.checksum, up };
 }

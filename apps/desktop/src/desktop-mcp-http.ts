@@ -1,5 +1,8 @@
+import { formatErrorForLog } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 /** Electron-main adapter: Jini owns HTTP/SDK hosting, the desktop table owns tool behavior. */
-import type { McpHttpToolServerHandle } from '@jini-ai/mcp';
+import { createMcpHttpToolServerRuntime, startMcpHttpToolServer, type McpHttpToolServerHandle } from '@jini-ai/mcp';
+import { startCapabilityDelivery } from '@jini-ai/mcp/federation/hosted';
 import { randomBytes } from 'node:crypto';
 import { assertLoopbackAdminUrl } from './desktop-auth.ts';
 import { createSitesMcpToolHost, type ToolContext } from './sites-mcp-tools.ts';
@@ -13,8 +16,7 @@ import { DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTOP_MCP_HANDOFF_ENV, SI
 export async function startDesktopMcpHttp({ context }: { context: ToolContext },
   { warn }: { warn?: (message: string) => void } = {},
 ): Promise<McpHttpToolServerHandle & { env: Record<string, string> }> {
-  // Load inside the best-effort start: an unavailable package adapter degrades tools, not site boot.
-  const { startMcpHttpToolServer } = await import('@jini-ai/mcp');
+  // Keep listener startup best-effort: an unavailable tools host degrades tools, not site boot.
   const table = createSitesMcpToolHost({ context });
   const host = await startMcpHttpToolServer({ name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '' }, { warn });
   return { ...host, env: { [DESKTOP_MCP_URL_ENV]: host.url, [DESKTOP_MCP_TOKEN_ENV]: host.token },
@@ -27,21 +29,21 @@ export async function startDesktopMcpHttp({ context }: { context: ToolContext },
  * @example const runtime = createDesktopMcpHttpRuntime({ context, warn });
  * @complexity O(1) state; per-call work belongs to the table/HTTP host.
  */
-export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolContext; warn: (message: string) => void },
+export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolContext; warn: (required: { message: string }) => void },
   { start, fetch: fetchImpl = globalThis.fetch }: { start?: typeof startDesktopMcpHttp; fetch?: typeof fetch } = {},
 ): { environment(required: Record<string, never>, optional?: Record<string, never>): Promise<Record<string, string>>;
-  connectSite(required: { adminUrl: string; onExit: (listener: () => void) => void }, optional?: Record<string, never>): void;
+  connectSite(required: { adminUrl: string; onExit: (required: { listener: () => void }) => void }, optional?: Record<string, never>): void;
   close(required: Record<string, never>, optional?: Record<string, never>): Promise<void> } {
   const table = createSitesMcpToolHost({ context });
   const handoffToken = randomBytes(32).toString('hex');
   const disconnects = new Set<() => void>();
   let stopped = false;
-  // The package is loaded behind a best-effort boundary so missing runtime exports cannot refuse
-  // site boot during the preparation/release handoff. Jini owns listener retries once available.
-  const runtime = import('@jini-ai/mcp').then(({ createMcpHttpToolServerRuntime }) => createMcpHttpToolServerRuntime({
+  // The factory runs behind a best-effort boundary so startup errors do not refuse site boot
+  // during the preparation/release handoff. Jini owns listener retries once available.
+  const runtime = Promise.resolve().then(() => createMcpHttpToolServerRuntime({
     name: SITES_MCP_SERVER_ID, version: '1', tools: table.tools, resolveBaseUrl: () => '',
-  }, { warn, ...(start ? { start: () => start({ context }, { warn }) } : {}) })).catch(() => {
-    warn('tovu-desktop: desktop tools host unavailable for this application release.');
+  }, { warn: (message) => warn({ message }), ...(start ? { start: () => start({ context }, { warn: (message) => warn({ message }) }) } : {}) })).catch(error => {
+    warn({ message: `tovu-desktop: desktop tools host unavailable for this application release. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` });
     return undefined;
   });
   return {
@@ -54,25 +56,21 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
     },
     connectSite({ adminUrl, onExit }, _optional = {}) {
       if (stopped) return;
-      const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl(adminUrl));
-      const abort = new AbortController();
-      let unsubscribe: (() => void) | undefined;
-      const disconnect = () => { abort.abort(); unsubscribe?.(); disconnects.delete(disconnect); };
+      // Endpoint policy stays here: a loopback admin URL and this one fixed path, checked before any
+      // delivery exists. Jini only POSTs to the endpoint it is handed and never follows a redirect.
+      const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl({ adminUrl }));
+      let delivery: ReturnType<typeof startCapabilityDelivery> | undefined;
+      let exited = false;
+      const disconnect = () => { exited = true; delivery?.disconnect({}); disconnects.delete(disconnect); };
       disconnects.add(disconnect);
-      onExit(disconnect);
-      void runtime.then(host => {
-        if (abort.signal.aborted) return;
-        // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
-        // spawning main has the handoff token. Attaching windows never call connectSite.
-        unsubscribe = host?.subscribe({ listener: async capability => {
-          const response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error',
-            headers: { authorization: `Bearer ${handoffToken}`, 'content-type': 'application/json' },
-            body: JSON.stringify(capability), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
-          });
-          await response.body?.cancel();
-          if (!response.ok) throw new Error('Desktop capability handoff unavailable');
-        } });
-      }).catch(() => { warn('tovu-desktop: desktop capability recovery unavailable for this application release.'); });
+      onExit({ listener: disconnect });
+      if (exited) return;
+      // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
+      // spawning main has the handoff token. Attaching windows never call connectSite.
+      delivery = startCapabilityDelivery({ endpoint, handoffToken, host: runtime, fetch: fetchImpl,
+        // A fixed string: the cause may name a path or port, and nothing here may carry a token.
+        onUnavailable: () => { warn({ message: 'tovu-desktop: desktop capability recovery unavailable for this application release.' }); },
+      });
     },
     async close(required, optional = {}) {
       stopped = true;

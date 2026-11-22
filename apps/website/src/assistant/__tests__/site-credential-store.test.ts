@@ -2,9 +2,9 @@ import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SecretOpenError } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import {
   SiteAssistantCredentialValidationError,
@@ -14,7 +14,8 @@ import {
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
 } from "../site-credential-store.js";
-import { buildVaultAad, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "../assistant-vault.js";
 
 /**
@@ -184,7 +185,7 @@ test("omitting apiKey leaves the previously-stored key untouched — only provid
 
   // The runtime path still resolves the ORIGINAL key — proves the sealed blob itself was untouched,
   // not just that `masked` happens to match.
-  const resolved = await resolveSiteAssistantApiKey({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE });
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE } });
   assert.equal(resolved?.apiKey, "first-key-0000");
 });
 
@@ -193,7 +194,7 @@ test("a rotation (second apiKey) fully replaces the first — the old key no lon
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "old-key-1111" });
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "new-key-2222" });
 
-  const resolved = await resolveSiteAssistantApiKey({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE });
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE } });
   assert.equal(resolved?.apiKey, "new-key-2222");
 });
 
@@ -244,7 +245,7 @@ test("delete clears only the key — provider/baseUrl/model survive", async () =
     model: "gemini-flash-latest",
   });
 
-  const view = await deleteSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
+  const view = await deleteSiteAssistantCredential({ deps, workspaceId: WORKSPACE });
 
   assert.equal(view.isSet, false);
   assert.equal(view.masked, null);
@@ -255,7 +256,7 @@ test("delete clears only the key — provider/baseUrl/model survive", async () =
 
 test("deleting an already-unset key is a harmless no-op, not an error", async () => {
   const { deps } = makeDeps();
-  const view = await deleteSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
+  const view = await deleteSiteAssistantCredential({ deps, workspaceId: WORKSPACE });
   assert.equal(view.isSet, false);
 });
 
@@ -268,9 +269,9 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the repo read i
   const brokenRepo = new InMemorySiteAssistantCredentialRepo();
   brokenRepo.vault.findOne = async () => { throw new Error("connection reset"); };
   let warned: unknown;
-  const resolved = await resolveSiteAssistantApiKey({ repo: brokenRepo, sealer }, { workspaceId: WORKSPACE }, (err) => {
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: brokenRepo, sealer }, input: { workspaceId: WORKSPACE } }, { onDecryptFailure: ({ error: err }) => {
     warned = err;
-  });
+  } });
 
   assert.equal(resolved, null);
   assert.ok(warned instanceof Error && warned.message === "connection reset");
@@ -278,7 +279,7 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the repo read i
 
 test("resolveSiteAssistantApiKey returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
-  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo, sealer }, input: { workspaceId: WORKSPACE } });
   assert.equal(resolved, null);
 });
 
@@ -292,7 +293,7 @@ test("resolveSiteAssistantApiKey refuses a decrypted payload with a non-string a
   });
   await repo.vault.put({ record: { ...record, sealed, revision: record.revision + 1 }, expectedRevision: record.revision });
 
-  assert.equal(await resolveSiteAssistantApiKey(deps, { workspaceId: WORKSPACE }), null);
+  assert.equal(await resolveSiteAssistantApiKey({ deps: deps, input: { workspaceId: WORKSPACE } }), null);
 });
 
 test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row cannot be opened", async () => {
@@ -302,14 +303,14 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row 
   // A sealer over a DIFFERENT site key than the one that sealed the row — simulates a rotated or
   // reset site key. `open()` must reject (wrong key -> auth tag mismatch), and the resolver
   // must swallow that into `null`, never propagate it to the caller.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   let warned = 0;
   const resolved = await resolveSiteAssistantApiKey(
-    { repo, sealer: otherSealer },
-    { workspaceId: WORKSPACE },
-    () => {
+    { deps: { repo, sealer: otherSealer },
+    input: { workspaceId: WORKSPACE } },
+    { onDecryptFailure: () => {
       warned += 1;
-    }
+    } }
   );
 
   assert.equal(resolved, null);
@@ -320,8 +321,8 @@ test("resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op �
   const { deps, repo } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "some-key" });
 
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
-  const resolved = await resolveSiteAssistantApiKey({ repo, sealer: otherSealer }, { workspaceId: WORKSPACE });
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
 });
@@ -336,7 +337,7 @@ test("resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model t
     model: "gemini-flash-latest",
   });
 
-  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo, sealer }, input: { workspaceId: WORKSPACE } });
   assert.deepEqual(resolved, {
     apiKey: "resolvable-key",
     provider: "google",
@@ -358,7 +359,7 @@ test("a freshly saved key is sealed with AAD bound to workspaceId and the row is
   assert.equal(row?.aadVersion, 2);
 
   // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
-  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
+  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }), SecretOpenError);
   const opened = await sealer.open({ sealed: row!.sealed! }, { aad: buildVaultAad((await repo.vault.findOne!(assistantVaultContext({ kind: "site-assistant", workspaceId: WORKSPACE })))!) });
   assert.deepEqual(JSON.parse(opened), { apiKey: "aad-bound-key-1234" });
 });
@@ -379,7 +380,7 @@ test("AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fail
   // this even though the AES key is shared app-wide.
   await repo.upsert({ ...rowOne!, sealed: rowTwo!.sealed, masked: rowTwo!.masked });
 
-  const resolved = await resolveSiteAssistantApiKey(deps, { workspaceId: WORKSPACE });
+  const resolved = await resolveSiteAssistantApiKey({ deps: deps, input: { workspaceId: WORKSPACE } });
   assert.equal(resolved, null, "resolveSiteAssistantApiKey never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
 });
 
@@ -424,7 +425,7 @@ test("provider-only edits preserve vault identity, envelope and hints without de
   assert.equal(after?.last4, before?.last4);
   assert.equal(after?.revision, before!.revision + 1);
   assert.equal(view.masked, "••••1234");
-  assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "provider-move-key-1234", provider: "openai", baseUrl: null, model: "second-model" });
+  assert.deepEqual(await resolveSiteAssistantApiKey({ deps: deps, input: scope }), { apiKey: "provider-move-key-1234", provider: "openai", baseUrl: null, model: "second-model" });
 });
 
 test("public readiness performs one singleton read and at most one open for each outcome", async t => {
@@ -441,7 +442,7 @@ test("public readiness performs one singleton read and at most one open for each
   assert.equal(opens.mock.callCount(), 1);
   assert.equal(byId.mock.callCount(), 0);
   assert.equal(lists.mock.callCount(), 0);
-  await deleteSiteAssistantCredential(deps, scope);
+  await deleteSiteAssistantCredential({ deps, ...scope });
   reads.mock.resetCalls(); opens.mock.resetCalls();
   assert.equal((await resolvePublicAssistantAvailability({ ...deps, ...scope })).ready, false);
   assert.equal(reads.mock.callCount(), 1);
@@ -462,10 +463,10 @@ test("gated rotation publishes the key and settings together and leaves old read
   const pending = setSiteAssistantCredential({ ...deps, sealer }, { ...scope, apiKey: "new-key-654321", provider: "openai", model: "new-model" });
   try {
     await sealing;
-    assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "old-key-123456", provider: "google", baseUrl: null, model: "old-model" });
+    assert.deepEqual(await resolveSiteAssistantApiKey({ deps: deps, input: scope }), { apiKey: "old-key-123456", provider: "google", baseUrl: null, model: "old-model" });
     assert.equal((await getSiteAssistantCredential(deps, scope)).model, "old-model");
   } finally { release(); await pending; }
-  assert.deepEqual(await resolveSiteAssistantApiKey(deps, scope), { apiKey: "new-key-654321", provider: "openai", baseUrl: null, model: "new-model" });
+  assert.deepEqual(await resolveSiteAssistantApiKey({ deps: deps, input: scope }), { apiKey: "new-key-654321", provider: "openai", baseUrl: null, model: "new-model" });
 });
 
 test("a read gated at open keeps its old metadata when a concurrent rotation commits", async () => {
@@ -479,14 +480,14 @@ test("a read gated at open keeps its old metadata when a concurrent rotation com
   const sealer: SecretSealerPort = { seal: deps.sealer.seal.bind(deps.sealer), open: async (input, options) => {
     started(); await held; return deps.sealer.open(input, options);
   } };
-  const pending = resolveSiteAssistantApiKey({ ...deps, sealer }, scope);
+  const pending = resolveSiteAssistantApiKey({ deps: { ...deps, sealer }, input: scope });
   try {
     await opening;
     await setSiteAssistantCredential(deps, { ...scope, apiKey: "new-snapshot-key", model: "new-model" });
   } finally { release(); }
   assert.equal((await pending)?.apiKey, "old-snapshot-key");
   assert.equal((await pending)?.model, "old-model");
-  assert.equal((await resolveSiteAssistantApiKey(deps, scope))?.model, "new-model");
+  assert.equal((await resolveSiteAssistantApiKey({ deps: deps, input: scope }))?.model, "new-model");
 });
 
 test("concurrent first saves with different providers contend on one singleton identity", async () => {
@@ -554,7 +555,7 @@ test("public readiness reports a decrypt failure to the callback and stays key-f
   const failure = new Error("sealer offline");
   const failures: unknown[] = [];
   const sealer = { seal: deps.sealer.seal.bind(deps.sealer), open: async () => { throw failure; } };
-  const result = await resolvePublicAssistantAvailability({ ...deps, sealer, workspaceId: WORKSPACE }, { onCredentialFailure: error => failures.push(error) });
+  const result = await resolvePublicAssistantAvailability({ ...deps, sealer, workspaceId: WORKSPACE }, { onCredentialFailure: ({ error }) => failures.push(error) });
   assert.equal(result.ready === false && result.code, "NOT_CONFIGURED");
   assert.deepEqual(failures, [failure]);
 });

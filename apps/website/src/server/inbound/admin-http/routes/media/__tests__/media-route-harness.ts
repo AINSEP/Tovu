@@ -17,7 +17,7 @@ export function forbiddenBody(permission: string, reason = 'no_grant') {
 
 /** Mounts `register` plus the upload route on the shared admin fixture. */
 export function mediaApp(register: Register, overrides: Partial<Deps> = {}): { app: Express; deps: Deps } {
-  return fixture((app, deps) => { registerAdminMediaUploadRoute(app, deps); register(app, deps); }, overrides);
+  return fixture(({ app, deps }) => { registerAdminMediaUploadRoute({ app, deps }); register({ app, deps }); }, overrides);
 }
 
 /** Uploads the 1x1 PNG through the real upload route and returns the stored media id. */

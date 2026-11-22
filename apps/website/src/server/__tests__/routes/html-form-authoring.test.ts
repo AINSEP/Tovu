@@ -35,12 +35,13 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner", kind: "user" }; next(); });
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsAuthoringRoute(app, deps);
-  registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsAuthoringRoute({ app, deps });
+  registerFormsSubmitRoute({ app, deps: { workspaceId: "ws", submitForm: {
+    crypto: globalThis.crypto,
     definitionRepo: formDefinitionRepo, submissionRepo: formSubmissionRepo,
     ...deps, rateLimiter: { check: () => ({ allowed: true as const }) },
-  } });
+  } } });
   const server = createServer(app).listen(0);
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
   await once(server, "listening");
@@ -104,7 +105,8 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
       await handler({ params: { workspaceId: "ws", formId: form.id }, body, get: () => undefined }, res);
       assert.equal(capture.statusCode, 200);
       assert.deepEqual((capture.jsonBody as { data: { id: string } }).data.id, form.id);
-      assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), before);
+      // Why: every editable save bumps `version` (lost-update pattern, migration 0042) even when it changes no content.
+      assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), { ...before!, version: before!.version + 1 });
     });
   }
 
@@ -141,7 +143,7 @@ test("authoring PUT requires admin.forms.manage before any lookup, for existing 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "reader", kind: "user" }; next(); });
-  registerAdminFormsAuthoringRoute(app, deps as unknown as Parameters<typeof registerAdminFormsAuthoringRoute>[1]);
+  registerAdminFormsAuthoringRoute({ app, deps: deps as unknown as Parameters<typeof registerAdminFormsAuthoringRoute>[0]["deps"] });
   const server = createServer(app).listen(0);
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
   await once(server, "listening");
@@ -161,6 +163,6 @@ test("forms-admin composition registers the dedicated authoring endpoint", () =>
   // A registration assertion catches the easy-to-miss production wiring gap independently of HTTP fixtures.
   const paths: string[] = [];
   const app = { get: () => {}, post: () => {}, delete: () => {}, put: (path: string) => { paths.push(path); } };
-  createFormsAdminModule({} as Parameters<typeof createFormsAdminModule>[0]).registerRoutes!(app as unknown as express.Express);
+  createFormsAdminModule({} as Parameters<typeof createFormsAdminModule>[0]).registerRoutes!({ app: app as unknown as express.Express });
   assert.ok(paths.includes("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring"));
 });

@@ -69,7 +69,7 @@ export function violationKey(violation: ComplexityViolation): string {
 /** Counts violations by key, so the diff is a MULTISET diff — two identical messages in one file
  *  are two violations, and fixing one of them must register.
  *  @complexity O(n). */
-function countByKey(violations: readonly ComplexityViolation[]): Map<string, number> {
+function countByKey({ violations }: { violations: readonly ComplexityViolation[] }, _options = {}): Map<string, number> {
   const counts = new Map<string, number>();
   for (const v of violations) {
     const key = violationKey(v);
@@ -86,11 +86,11 @@ function countByKey(violations: readonly ComplexityViolation[]): Map<string, num
  * @complexity O(n) in violations.
  */
 export function diffAgainstBaseline(
-  baseline: readonly ComplexityViolation[],
-  current: readonly ComplexityViolation[]
+  { baseline, current }: { baseline: readonly ComplexityViolation[]; current: readonly ComplexityViolation[] },
+  _options = {}
 ): BaselineDiff {
-  const baseCounts = countByKey(baseline);
-  const currentCounts = countByKey(current);
+  const baseCounts = countByKey({ violations: baseline });
+  const currentCounts = countByKey({ violations: current });
   const byKey = new Map([...baseline, ...current].map((v): [string, ComplexityViolation] => [violationKey(v), v]));
 
   const added: ComplexityViolation[] = [];
@@ -106,16 +106,15 @@ export function diffAgainstBaseline(
 /**
  * Turn one ESLint JSON run into a verdict.
  *
- * @param results ESLint's `-f json` output, already parsed.
- * @param baseline the grandfathered violations.
- * @param minFilesLinted the smallest plausible scan size; below this the run is not trusted.
+ * @param input.results ESLint's `-f json` output, already parsed.
+ * @param input.baseline the grandfathered violations.
+ * @param input.minFilesLinted the smallest plausible scan size; below this the run is not trusted.
  * @returns `{ current, added, removed, filesLinted, failures }`.
  * @complexity O(n) in results.
  */
 export function evaluateRun(
-  results: readonly EslintFileResult[],
-  baseline: readonly ComplexityViolation[],
-  minFilesLinted: number
+  { results, baseline, minFilesLinted }: { results: readonly EslintFileResult[]; baseline: readonly ComplexityViolation[]; minFilesLinted: number },
+  _options = {},
 ): ComplexityRunVerdict {
   const current: ComplexityViolation[] = [];
   for (const result of results) {
@@ -126,7 +125,7 @@ export function evaluateRun(
     }
   }
 
-  const { added, removed } = diffAgainstBaseline(baseline, current);
+  const { added, removed } = diffAgainstBaseline({ baseline, current });
   const failures: string[] = [];
 
   // A clean result and an empty scan look identical from the outside. This is the difference.
@@ -154,7 +153,7 @@ export function evaluateRun(
  * @returns `null` when usable, else the reason it is not.
  * @complexity O(1).
  */
-export function rejectUnusableEslintRun(status: number | null, stdout: string | null | undefined): string | null {
+export function rejectUnusableEslintRun({ status, stdout }: { status: number | null; stdout: string | null | undefined }, _options = {}): string | null {
   if (status !== 0 && status !== 1) {
     return `eslint exited ${status} — that is a CRASH, not a finding. Exit 0 and 1 are the only usable outcomes.`;
   }

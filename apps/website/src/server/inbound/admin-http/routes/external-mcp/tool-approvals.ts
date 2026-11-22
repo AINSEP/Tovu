@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -6,7 +6,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * @file The Integrations "Always allow" list (owner call 2026-09-28): which remote tools the site
  * owner told the approval card to stop asking about, per external MCP server, and a revoke for each.
  *
- * Reads and deletes `external_mcp_tool_approvals` rows (`assistant/external-mcp-tool-approvals.ts`).
+ * Reads and deletes `external_mcp_tool_approvals` rows (`Jini packages/mcp/src/federation/tool-approvals.ts`).
  * Revoking is reversible — the tool's next call just shows the card again — so there is no confirm
  * step anywhere on this path. Granting stays on the card: a grant is pinned to a fingerprint of the
  * tool exactly as the running daemon admitted it, which only the card's own call path has.
@@ -16,10 +16,10 @@ import { guardExternalMcpRequest } from "./guard.js";
  * A composition with no store (`externalMcpToolApprovalRepo` unset) can have saved nothing, so its
  * list is empty and every revoke is a 404 — the truthful answer, not an error.
  */
-export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers/tool-approvals", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const rows = (await deps.externalMcpToolApprovalRepo?.listByWorkspaceId(deps.workspaceId)) ?? [];
       const approvals = rows
         .map(({ serverId, toolName, grantedByPrincipalId, grantedAt }) => ({ serverId, toolName, grantedByPrincipalId, grantedAt }))
@@ -32,7 +32,7 @@ export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegist
 
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/tool-approvals/:toolName", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const removed =
         (await deps.externalMcpToolApprovalRepo?.delete({
           workspaceId: deps.workspaceId,

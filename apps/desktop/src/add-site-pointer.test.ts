@@ -74,7 +74,7 @@ function captureThrow(fn: () => void): AddSitePointerError {
  */
 function assertRefused(siteDir: string, code: string): void {
   const userData = tempDir();
-  const projectsPath = sitesFilePath(userData);
+  const projectsPath = sitesFilePath({ userDataDir: userData });
   const before = snapshot(siteDir);
 
   const err = captureThrow(() => addSitePointer({ siteDir, projectsPath }));
@@ -85,7 +85,7 @@ function assertRefused(siteDir: string, code: string): void {
 
   // No row, and no registry FILE at all — a refusal must not even create the store.
   assert.equal(fs.existsSync(projectsPath), false, "a refusal wrote a registry file");
-  assert.deepEqual(readTrackedSites(projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath }), []);
   // Nor the MRU, which is what `adoptSiteDir` writes and this function deliberately does not.
   assert.equal(fs.existsSync(path.join(userData, STATE_FILE_NAME)), false, "a refusal wrote the MRU");
 
@@ -109,21 +109,21 @@ test("the fixtures really are the folder states these tests claim to exercise", 
   fs.mkdirSync(occupied);
   fs.writeFileSync(path.join(occupied, "taxes.pdf"), "x");
 
-  assert.equal(classifySiteDir(siteFixture()), "site");
-  assert.equal(classifySiteDir(empty), "empty");
-  assert.equal(classifySiteDir(path.join(tempDir(), "absent")), "empty");
-  assert.equal(classifySiteDir(incomplete), "incomplete");
-  assert.equal(classifySiteDir(occupied), "occupied");
+  assert.equal(classifySiteDir({ dir: siteFixture() }), "site");
+  assert.equal(classifySiteDir({ dir: empty }), "empty");
+  assert.equal(classifySiteDir({ dir: path.join(tempDir(), "absent") }), "empty");
+  assert.equal(classifySiteDir({ dir: incomplete }), "incomplete");
+  assert.equal(classifySiteDir({ dir: occupied }), "occupied");
 });
 
 test("addSitePointer tracks a real site as `adopted`, so a later delete can never erase it", () => {
   const siteDir = siteFixture();
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   const result = addSitePointer({ siteDir, projectsPath });
 
   assert.deepEqual(result, { siteDir, alreadyTracked: false, alreadyDismissed: false });
-  const rows = readTrackedSites(projectsPath);
+  const rows = readTrackedSites({ projectsPath });
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.siteDir, siteDir);
   // The single most consequential assertion in this file. `project-delete-guard.ts` reads `origin`
@@ -142,7 +142,7 @@ test("addSitePointer never writes into the site folder it points at", () => {
   fs.writeFileSync(path.join(siteDir, "uploads", "asset.bin"), Buffer.from([0, 255, 10]));
   const before = snapshot(siteDir);
 
-  addSitePointer({ siteDir, projectsPath: sitesFilePath(tempDir()) });
+  addSitePointer({ siteDir, projectsPath: sitesFilePath({ userDataDir: tempDir() }) });
 
   assert.deepEqual(snapshot(siteDir), before);
 });
@@ -198,7 +198,7 @@ test("addSitePointer REFUSES a path that is a file rather than a directory", () 
 });
 
 test("addSitePointer refuses an unmapped classification rather than admitting it", () => {
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   const err = captureThrow(() =>
     addSitePointer({ siteDir: "/somewhere", projectsPath, classifySiteDir: () => "a-verdict-nobody-mapped" }),
@@ -208,28 +208,28 @@ test("addSitePointer refuses an unmapped classification rather than admitting it
   // The fail-closed direction: a fifth classification added to `site-dir-store.ts` later must be
   // REFUSED by this function until someone maps it, never silently tracked.
   assert.equal(err.code, "SITE_DIR_UNUSABLE");
-  assert.deepEqual(readTrackedSites(projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath }), []);
 });
 
 test("addSitePointer is idempotent and reports the second call as already tracked", () => {
   const siteDir = siteFixture();
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   addSitePointer({ siteDir, projectsPath });
-  const first = readTrackedSites(projectsPath);
+  const first = readTrackedSites({ projectsPath });
   const result = addSitePointer({ siteDir, projectsPath });
 
   assert.equal(result.alreadyTracked, true);
   // Unchanged, not merely deduped: `createdAt` must not be bumped either, so a retry cannot reorder
   // the operator's Projects grid.
-  assert.deepEqual(readTrackedSites(projectsPath), first);
+  assert.deepEqual(readTrackedSites({ projectsPath }), first);
 });
 
 test("addSitePointer restores a project the operator had removed, and says so", () => {
   const siteDir = siteFixture();
-  const projectsPath = sitesFilePath(tempDir());
-  trackSite(projectsPath, siteDir, SITE_ORIGIN.adopted);
-  untrackSite(projectsPath, siteDir);
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
+  trackSite({ projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  untrackSite({ projectsPath, siteDir });
 
   const result = addSitePointer({ siteDir, projectsPath });
 
@@ -239,36 +239,36 @@ test("addSitePointer restores a project the operator had removed, and says so", 
   assert.equal(result.alreadyDismissed, true);
   assert.equal(result.alreadyTracked, false);
   assert.deepEqual(
-    readTrackedSites(projectsPath).map((row) => row.siteDir),
+    readTrackedSites({ projectsPath }).map((row) => row.siteDir),
     [siteDir],
   );
 });
 
 test("addSitePointer resolves a relative path against cwd and records the absolute form", () => {
   const siteDir = siteFixture("relative-site");
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   const result = addSitePointer({ siteDir: "relative-site", cwd: path.dirname(siteDir), projectsPath });
 
   assert.equal(result.siteDir, siteDir);
-  assert.equal(readTrackedSites(projectsPath)[0]!.siteDir, siteDir);
+  assert.equal(readTrackedSites({ projectsPath })[0]!.siteDir, siteDir);
 });
 
 test("addSitePointer normalizes a trailing slash so one site cannot become two rows", () => {
   const siteDir = siteFixture();
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   addSitePointer({ siteDir, projectsPath });
   addSitePointer({ siteDir: `${siteDir}${path.sep}`, projectsPath });
 
-  assert.equal(readTrackedSites(projectsPath).length, 1);
+  assert.equal(readTrackedSites({ projectsPath }).length, 1);
 });
 
 test("addSitePointer does not touch the recently-opened list", () => {
   const siteDir = siteFixture();
   const userData = tempDir();
 
-  addSitePointer({ siteDir, projectsPath: sitesFilePath(userData) });
+  addSitePointer({ siteDir, projectsPath: sitesFilePath({ userDataDir: userData }) });
 
   // Deliberate, and pinned so it cannot be "fixed" into `adoptSiteDir`'s behaviour: the MRU is what
   // `resolveSiteDir` step 2 consults to decide which site own-server mode opens at LAUNCH. Adding a
@@ -277,5 +277,5 @@ test("addSitePointer does not touch the recently-opened list", () => {
 });
 
 test("normalizeSiteDirPath leaves an absolute path absolute and ignores cwd", () => {
-  assert.equal(normalizeSiteDirPath("/sites/a", "/elsewhere"), path.resolve("/sites/a"));
+  assert.equal(normalizeSiteDirPath({ rawSiteDir: "/sites/a", cwd: "/elsewhere" }), path.resolve("/sites/a"));
 });

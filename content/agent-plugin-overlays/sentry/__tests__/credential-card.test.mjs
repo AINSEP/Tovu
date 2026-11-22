@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { packAgentPluginDirectory } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
@@ -37,7 +37,7 @@ test('sentry: the skill opens that card, checks provider_status first, and never
 });
 
 test('sentry: packs as a bundled plugin with no MCP servers and no code', async () => {
-  const packed = await packAgentPluginDirectory(root);
+  const packed = await packAgentPluginDirectory({ sourceDir: root });
   assert.ok(packed.files.includes('skills/sentry/SKILL.md'));
   assert.ok(packed.files.every(file => !/\.(m?js|ts)$/.test(file) || file.startsWith('__tests__/')), 'guidance only');
   assert.deepEqual(JSON.parse(readFileSync(path.join(root, 'mcp.json'), 'utf8')).mcpServers, {});

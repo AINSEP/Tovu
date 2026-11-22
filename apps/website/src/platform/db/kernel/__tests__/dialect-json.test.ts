@@ -5,10 +5,10 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { type RawBuilder, sql } from "kysely";
 
-import { jsonScalarEquals, jsonSortKey } from "../dialect.js";
+import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file `jsonScalarEquals` and `jsonSortKey` on EVERY embedded dialect by the same assertions:
@@ -22,14 +22,14 @@ interface ProbeDb {
 
 interface Case {
   name: string;
-  kernel: StorageKernel<ProbeDb>;
+  kernel: KyselyKernel<ProbeDb>;
   create: RawBuilder<unknown>;
 }
 
 const cases: Case[] = [
   {
     name: "sqlite",
-    kernel: sqliteKernel<ProbeDb>(drizzle(new Database(":memory:"))),
+    kernel: sqliteKernel<ProbeDb>({ source: drizzle(new Database(":memory:")) }),
     create: sql`CREATE TABLE json_probe (id text PRIMARY KEY NOT NULL, doc text NOT NULL)`,
   },
   {
@@ -65,13 +65,13 @@ for (const each of cases) {
 
     const matching = async (field: string, value: string | number | boolean): Promise<string[]> => {
       const rows = await kernel.run((db) =>
-        db.selectFrom("json_probe").select("id").where(jsonScalarEquals(kernel.dialect, sql.ref("doc"), PATH(field), value)).orderBy("id").execute()
+        db.selectFrom("json_probe").select("id").where(jsonScalarEquals({ dialect: kernel.dialect, column: sql.ref("doc"), path: PATH(field), value })).orderBy("id").execute()
       );
       return rows.map((row) => row.id);
     };
 
     const sorted = async (field: string, dir: "asc" | "desc"): Promise<string[]> => {
-      const key = jsonSortKey(kernel.dialect, sql.ref("doc"), PATH(field));
+      const key = jsonSortKey({ dialect: kernel.dialect, column: sql.ref("doc"), path: PATH(field) });
       const rows = await kernel.run((db) =>
         db
           .selectFrom("json_probe")
@@ -115,8 +115,8 @@ for (const each of cases) {
     });
 
     test("both helpers refuse a path key that is not a plain identifier", () => {
-      assert.throws(() => jsonScalarEquals(kernel.dialect, sql.ref("doc"), ["a'b"], 1), /not a plain identifier/);
-      assert.throws(() => jsonSortKey(kernel.dialect, sql.ref("doc"), ["a b"]), /not a plain identifier/);
+      assert.throws(() => jsonScalarEquals({ dialect: kernel.dialect, column: sql.ref("doc"), path: ["a'b"], value: 1 }), /not a plain identifier/);
+      assert.throws(() => jsonSortKey({ dialect: kernel.dialect, column: sql.ref("doc"), path: ["a b"] }), /not a plain identifier/);
     });
   });
 }

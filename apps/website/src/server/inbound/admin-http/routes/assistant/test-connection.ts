@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -22,7 +24,7 @@ interface TestConnectionRequestBody {
 
 /** True if either required connection-target field is blank.
  *  @complexity O(1). */
-function isMissingConnectionTarget(baseUrl: string, model: string): boolean {
+function isMissingConnectionTarget({ baseUrl, model }: { baseUrl: string; model: string }, _optional = {}): boolean {
   return !baseUrl.trim() || !model.trim();
 }
 
@@ -38,13 +40,7 @@ function renderMessage(result: ConnectionTestResponse): string {
  *
  * @complexity O(1).
  */
-async function fetchTestConnectionResponse(
-  protocol: SupportedExecutionProtocol,
-  credential: Extract<ProbeCredentialResolution, { ok: true }>,
-  model: string,
-  apiVersion: string | undefined,
-  deps: AssistantExecutionRouteDeps
-) {
+async function fetchTestConnectionResponse({ protocol, credential, model, apiVersion, deps }: { protocol: SupportedExecutionProtocol; credential: Extract<ProbeCredentialResolution, { ok: true }>; model: string; apiVersion: string | undefined; deps: AssistantExecutionRouteDeps }, _optional = {}) {
   // The runtime validates only the initial base URL. A provider redirect must not send
   // this probe (and its credentials) to a destination that never passed that guard.
   // The current runtime types put requestInit in optional argument two and require its dispatcher
@@ -87,42 +83,27 @@ async function fetchTestConnectionResponse(
  * that constraint exists (ADR-028 §6) and where the key lives instead
  * (the browser's own localStorage).
  */
-export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-execution",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-execution" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = (req.body ?? {}) as TestConnectionRequestBody;
-      const protocol = readOptionalString(body.protocol, "");
-      const baseUrl = readOptionalString(body.baseUrl, "");
-      const model = readOptionalString(body.model, "");
-      const apiVersion = readOptionalString(body.apiVersion, undefined);
+      const protocol = readOptionalString({ value: body.protocol, fallback: "" });
+      const baseUrl = readOptionalString({ value: body.baseUrl, fallback: "" });
+      const model = readOptionalString({ value: body.model, fallback: "" });
+      const apiVersion = readOptionalString({ value: body.apiVersion, fallback: undefined });
 
-      const protocolError = validateSupportedProtocol(protocol);
+      const protocolError = validateSupportedProtocol({ protocol });
       if (protocolError) {
         res.status(400).json(protocolError);
         return;
       }
-      if (isMissingConnectionTarget(baseUrl, model)) {
+      if (isMissingConnectionTarget({ baseUrl, model })) {
         res.status(400).json({ error: "baseUrl and model are required", code: "VALIDATION_ERROR" });
         return;
       }
@@ -134,7 +115,7 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       // what scopes the admin branch to the caller's own row. See `stored-credential-probe.ts`.
       const credential = await resolveProbeCredential(deps, {
         requestedBaseUrl: baseUrl,
-        typedKey: readOptionalString(body.apiKey, ""),
+        typedKey: readOptionalString({ value: body.apiKey, fallback: "" }),
         useStoredCredential: body.useStoredCredential === true,
         useAdminStoredCredential: body.useAdminStoredCredential === true,
         principalId: principal.id,
@@ -144,7 +125,7 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
         return;
       }
 
-      res.json(await fetchTestConnectionResponse(protocol as SupportedExecutionProtocol, credential, model, apiVersion, deps));
+      res.json(await fetchTestConnectionResponse({ protocol: protocol as SupportedExecutionProtocol, credential, model, apiVersion, deps }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/test-connection", code: "INTERNAL_ERROR" });
     }

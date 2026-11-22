@@ -15,7 +15,7 @@ after(closeHost);
 // The overlay shows for both the Admin and Site views, so it must not call the site "the admin".
 test('SiteWorkspace: switching to the Site view brings back one loading overlay, and it names the site', async (t) => {
   installBridge({ t, bridge: { onSiteHistory: () => () => {}, openSiteExternal: async () => {} } });
-  const bakery = site('corner-bakery', { displayName: 'Corner Bakery', status: 'running', port: 4321 });
+  const bakery = site({ id: 'corner-bakery' }, { fields: { displayName: 'Corner Bakery', status: 'running', port: 4321 } });
   const view = mount({ t, element: createElement(SiteWorkspaces, {
     openSites: [bakery], inSites: true, visibleWorkspaceId: bakery.id, expanded: false, adminPages: {},
     onToggleExpanded: () => {}, registerGuest: () => {}, registerZoomGuest: () => {}, onSiteUpdated: () => {},
@@ -23,9 +23,9 @@ test('SiteWorkspace: switching to the Site view brings back one loading overlay,
   await settle();
   await act(async () => { view.container.querySelector('webview')!.dispatchEvent(new dom.window.Event('did-finish-load')); });
   assert.equal(view.container.querySelector('.workspace__overlay'), null, 'the admin answered, so nothing covers it');
-  await view.click(view.byText('Site'));
+  await view.click({ el: view.byText({ text: 'Site' }) });
   assert.equal(view.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4321/');
-  const overlays = view.all('.workspace__overlay');
+  const overlays = view.all({ selector: '.workspace__overlay' });
   assert.equal(overlays.length, 1);
   assert.equal(overlays[0]!.className, 'workspace__overlay workspace__overlay--loading');
   assert.equal(overlays[0]!.getAttribute('role'), 'status');

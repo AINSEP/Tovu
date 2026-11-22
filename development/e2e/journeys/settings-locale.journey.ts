@@ -164,6 +164,39 @@ test.describe("phone width (390 px)", () => {
 });
 
 test.describe("keyboard only", () => {
+  registerKeyboardNavigationTests();
+
+  test("a confirm dialog traps focus and Escape closes it without acting", { tag: ["@unrun"] }, async ({ page }) => {
+    await page.goto("/admin/posts");
+    await page.getByRole("button", { name: "New Post" }).click();
+    await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
+    const editorUrl = page.url();
+    await page.getByRole("button", { name: "Delete" }).focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press("Tab");
+      // ConfirmDialog is a native modal `<dialog>` (implicit role, no role attribute) since the JS
+      // focus traps were removed (14964d10c), so match the element as well as the attribute.
+      expect(await page.evaluate(() => !!document.activeElement?.closest("dialog, [role=dialog]")), "focus stays inside the dialog").toBe(true);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    expect(page.url()).toBe(editorUrl);
+  });
+
+  test("the post status select has an accessible name", { tag: ["@unrun"] }, async ({ page }) => {
+    // INTENDED (likely bug today: only a data-agent label, no aria name).
+    await page.goto("/admin/posts");
+    await page.getByRole("button", { name: "New Post" }).click();
+    const status = page.locator('[data-agent-element="post-status"]');
+    await expect(status).toBeVisible();
+    await expect(status).toHaveAccessibleName(/status/i);
+  });
+});
+
+function registerKeyboardNavigationTests() {
   test("first Tab reaches Skip to content, which moves focus into the main region", { tag: ["@unrun"] }, async ({ page }) => {
     await page.goto("/admin/posts");
     // `goto` resolves on `load`, while the admin still shows its "Loading Tovu…" boot screen (the
@@ -200,33 +233,4 @@ test.describe("keyboard only", () => {
     await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
     await expect(page.getByRole("textbox", { name: "Post title" })).toBeVisible();
   });
-
-  test("a confirm dialog traps focus and Escape closes it without acting", { tag: ["@unrun"] }, async ({ page }) => {
-    await page.goto("/admin/posts");
-    await page.getByRole("button", { name: "New Post" }).click();
-    await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
-    const editorUrl = page.url();
-    await page.getByRole("button", { name: "Delete" }).focus();
-    await page.keyboard.press("Enter");
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    for (let i = 0; i < 6; i++) {
-      await page.keyboard.press("Tab");
-      // ConfirmDialog is a native modal `<dialog>` (implicit role, no role attribute) since the JS
-      // focus traps were removed (14964d10c), so match the element as well as the attribute.
-      expect(await page.evaluate(() => !!document.activeElement?.closest("dialog, [role=dialog]")), "focus stays inside the dialog").toBe(true);
-    }
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    expect(page.url()).toBe(editorUrl);
-  });
-
-  test("the post status select has an accessible name", { tag: ["@unrun"] }, async ({ page }) => {
-    // INTENDED (likely bug today: only a data-agent label, no aria name).
-    await page.goto("/admin/posts");
-    await page.getByRole("button", { name: "New Post" }).click();
-    const status = page.locator('[data-agent-element="post-status"]');
-    await expect(status).toBeVisible();
-    await expect(status).toHaveAccessibleName(/status/i);
-  });
-});
+}

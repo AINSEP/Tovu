@@ -1,4 +1,6 @@
-import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -7,20 +9,20 @@ import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media"
 import { readRecordedContentType } from "./content-type.js";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteRegistrar } from "./deps.js";
-import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "./parse.js";
+import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleField } from "@jini-ai/cms/media";
 
 /**
  * `undefined` (omitted) survives as `undefined`, `null` (explicit clear) survives as `null` rather
  * than coercing through `convert`, and anything else is passed through `convert` — matching
  * `updateMediaMetadata`'s width/height/cssClass undefined/null/value contract (see that input
- * type's doc). Deliberately distinct from `parse.js`'s string-field parsers: `width`/`height`/
+ * type's doc). Deliberately distinct from `@jini-ai/cms/media`'s string-field parsers: `width`/`height`/
  * `cssClass` accept `null` all the way through to the service layer, which has its own clear
- * semantics for them, whereas `alt`/`caption`/`credit`/`title` are mapped or rejected in `parse.js`
+ * semantics for them, whereas `alt`/`caption`/`credit`/`title` are mapped or rejected in `@jini-ai/cms/media`'s field parsers
  * before they ever reach `updateMediaMetadata` (see that module's doc for why).
  *
  * @complexity O(1).
  */
-function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) => T): T | null | undefined {
+function parseOptionalNullableField<T>({ raw, convert }: { raw: unknown; convert: (value: unknown) => T }, _optional = {}): T | null | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) return null;
   return convert(raw);
@@ -39,21 +41,21 @@ function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) =
  *
  * @complexity O(1) — reads nine fixed properties.
  */
-function parseMediaMetadataPatch(rawBody: unknown) {
+function parseMediaMetadataPatch({ rawBody }: { rawBody: unknown }, _optional = {}) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
-    title: parseOptionalTitleField(body.title),
-    slug: parseOptionalSlugField(body.slug),
-    alt: parseOptionalStringField(body.alt, "alt"),
-    caption: parseOptionalStringField(body.caption, "caption"),
-    credit: parseOptionalStringField(body.credit, "credit"),
-    width: parseOptionalNullableField(body.width, Number),
-    height: parseOptionalNullableField(body.height, Number),
-    cssClass: parseOptionalNullableField(body.cssClass, String),
+    title: parseOptionalTitleField({ raw: body.title }),
+    slug: parseOptionalSlugField({ raw: body.slug }),
+    alt: parseOptionalStringField({ raw: body.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: body.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: body.credit, field: "credit" }),
+    width: parseOptionalNullableField({ raw: body.width, convert: Number }),
+    height: parseOptionalNullableField({ raw: body.height, convert: Number }),
+    cssClass: parseOptionalNullableField({ raw: body.cssClass, convert: String }),
     // Format/allowlist validation happens entirely in `updateMediaMetadata`
     // (`@jini-ai/cms/media`'s `resolveHtmlAttributesForUpdate`) — this parser's only job is the same
     // undefined-vs-provided/wrong-JSON-type boundary every other field parser in this file owns.
-    htmlAttributes: parseOptionalNullableField(body.htmlAttributes, String),
+    htmlAttributes: parseOptionalNullableField({ raw: body.htmlAttributes, convert: String }),
   };
 }
 
@@ -74,8 +76,8 @@ interface MediaUpdateErrorResponse {
  *
  * @complexity O(1) — four `instanceof` checks.
  */
-function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
-  const live = entityNotLiveResponse(err);
+function mapMediaUpdateError({ err }: { err: unknown }, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
+  const live = entityNotLiveResponse({ err });
   if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
   if (err instanceof MediaValidationError) return { status: 400, body: { error: err.message } };
@@ -92,47 +94,31 @@ function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): Med
  * write-once and this route's input shape has no field for it, matching
  * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "media.update",
-        workspaceId: deps.workspaceId,
-        entityType: "media",
-        entityId: String(req.params.mediaId ?? ""),
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.update' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "media.update", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "media.update", workspaceId: deps.workspaceId, entityType: "media", entityId: String(req.params.mediaId ?? "") };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { media } = await updateMediaMetadata({
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: {
           workspaceId: deps.workspaceId,
           id: String(req.params.mediaId ?? ""),
-          ...parseMediaMetadataPatch(req.body),
+          ...parseMediaMetadataPatch({ rawBody: req.body }),
         },
       });
       const [contentType, publicUrl, byteSizes] = await Promise.all([
-        readRecordedContentType(deps, media.source.sha256),
-        resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+        readRecordedContentType({ deps, sha256: media.source.sha256 }),
+        resolveMediaPublicUrls({ deps, assets: [media] }).then((urls) => urls.get(media.id) ?? null),
         resolveMediaByteSizes({ deps, media: [media] }),
       ]);
       res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });
     } catch (err) {
-      const { status, body } = mapMediaUpdateError(err, { tracker: res.locals?.adminFailureTracker });
+      const { status, body } = mapMediaUpdateError({ err }, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

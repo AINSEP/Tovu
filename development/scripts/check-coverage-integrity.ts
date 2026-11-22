@@ -85,8 +85,8 @@
  * additionally satisfies the SEVERE full-subset condition below. Neither is evidence of a genuine
  * Route A dual-instantiation: it is the STRUCTURALLY GUARANTEED shape of compiling any pure re-export
  * file, present or absent regardless of whether Route A is ever fixed. This is categorically
- * different from a real logic-bearing file (`apps/website/src/contracts/core/commands/revert.ts`,
- * `.../platform/export/route-manifest.ts`) that happens to ALSO show wrapper names -- there, the
+ * different from a real logic-bearing file (`apps/website/src/platform/export/route-manifest.ts`)
+ * that happens to ALSO show wrapper names -- there, the
  * wrapper presence genuinely does mean a second image merged over real function/line data, exactly
  * what this script exists to catch, and this exclusion does not touch that case at all: detection is
  * by the file's SOURCE shape (`isPureReExportBarrelSource`, read from disk by `main`, threaded through
@@ -162,202 +162,23 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  applyBaseline,
+  checkCoverageIntegrity,
+  DEFAULT_BASELINE_COMMENT,
+  parseArgs,
+  parseBaseline,
+  serializeBaseline,
+  type BlockVerdict,
+  type GatedVerdict,
+} from "@jini-ai/devops/checks/coverage";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DEFAULT_LCOV_PATH = path.join(REPO_ROOT, "development/coverage/lcov.info");
 
-/** esbuild's CJS-wrapper helper names, injected into every tsx CJS-hook-loaded module. Their
- *  presence in a first-party block's `FN:`/`FNDA:` records is the whole CONTAMINATED signal -- see
- *  this file's header for why no baseline function count is needed. */
-const WRAPPER_HELPER_NAMES = new Set(["__toCommonJS", "__copyProps", "__toESM", "__export"]);
-
-/** Below this many `DA:` records, a block has too few independent data points for a full-subset
- *  match against the wrapper's own FNDA hit-counts (the SEVERE escalation, below) to mean anything --
- *  a handful of lines coincidentally sharing one of the wrapper's own hit-count values is
- *  unremarkable in a tiny file (e.g. a 5-line re-export hit uniformly 32 times, which happens to
- *  equal `__toCommonJS`'s own count that run, is not evidence of anything). This floor gates ONLY the
- *  SEVERE escalation -- CONTAMINATED itself has no size floor, since wrapper-name presence needs no
- *  statistical support to be meaningful. 30 is comfortably below the real severe block measured
- *  2026-08-21 (357 DA records) and comfortably above a trivial single-purpose file.
- */
-const MIN_DA_RECORDS_FOR_SEVERE_HEURISTIC = 30;
-
-export interface LcovBlock {
-  /** Raw `SF:` path text, not yet normalized to repo-relative. */
-  readonly file: string;
-  readonly fnda: ReadonlyArray<{ readonly name: string; readonly hits: number }>;
-  /** `DA:` hit counts only, in record order. Line numbers are deliberately not kept -- see header. */
-  readonly da: ReadonlyArray<number>;
-  /** Declared `FNF:`/`FNH:` summary fields, when present. Aggregate counts, unlike `DA:` line
-   *  numbers, are not subject to the comment-stripping line-number bug -- safe to read and report
-   *  directly. `undefined` when the block omits them (lcov omits summary fields it has nothing to
-   *  report, and hand-built test fixtures may omit them too). */
-  readonly fnf?: number;
-  readonly fnh?: number;
-}
-
-export type BlockStatus = "contaminated" | "ok" | "skip";
-
-export interface BlockVerdict {
-  readonly file: string;
-  readonly status: BlockStatus;
-  /** Only meaningful when `status === "contaminated"`. True when the wrapper image ALSO won the
-   *  `DA:` line-hit merge -- see `classifyBlock`'s doc comment for the exact rule. A block can be
-   *  contaminated without being severe (function table corrupted, line table happens to read clean);
-   *  it can never be severe without being contaminated (the severity check has nothing to compare
-   *  against unless wrapper FNDA records exist in the first place). */
-  readonly severe: boolean;
-  readonly reason: string;
-}
-
-export interface IntegrityReport {
-  /** Every CONTAMINATED block, severe or not -- filter on `.severe` for the SEVERE subset. */
-  readonly contaminated: readonly BlockVerdict[];
-  /** First-party blocks actually run through the heuristics (i.e. not skipped as non-first-party). */
-  readonly evaluated: number;
-  readonly skipped: number;
-}
-
-/** A `BlockVerdict` with the `--baseline` ratchet applied. `baselined` is purely a membership fact
- *  (was this path in the ledger); `fails` is the actual gating decision, which is NOT the same thing
- *  for a `severe` block -- see `applyBaseline`. */
-export interface GatedVerdict extends BlockVerdict {
-  readonly baselined: boolean;
-  readonly fails: boolean;
-}
-
-/** Applies the `--baseline` ratchet: a `severe` verdict always fails, regardless of baseline
- *  membership (see this file's header on why SEVERE is never baseline-suppressible). A non-severe
- *  CONTAMINATED verdict fails only when its path is NOT in `baselineSet`. Pure -- no I/O, easily
- *  tested against a plain `Set`.
- *  @complexity O(c) in the number of contaminated verdicts; each `Set.has` lookup is O(1) amortized.
- */
-export function applyBaseline(
-  contaminated: readonly BlockVerdict[],
-  baselineSet: ReadonlySet<string>
-): readonly GatedVerdict[] {
-  return contaminated.map((v) => {
-    const baselined = baselineSet.has(v.file);
-    return { ...v, baselined, fails: v.severe || !baselined };
-  });
-}
-
 interface BaselineFile {
   readonly _comment?: readonly string[];
   readonly knownContaminated?: readonly string[];
-}
-
-/** Parses a baseline JSON file's text into the set of known-contaminated paths it lists. An absent or
- *  malformed `knownContaminated` array reads as empty rather than throwing -- callers that need to
- *  distinguish "no baseline file yet" from "empty baseline" check `existsSync` themselves before
- *  calling this (see `main`).
- */
-export function parseBaseline(baselineJson: string): ReadonlySet<string> {
-  const parsed = JSON.parse(baselineJson) as BaselineFile;
-  return new Set(parsed.knownContaminated ?? []);
-}
-
-/** Default `_comment` block for a freshly-created baseline file -- explains what the ledger is, how
- *  to regenerate it responsibly, and the SEVERE carve-out, so nobody has to re-derive any of that from
- *  this script's own header. `--update-baseline` preserves an existing file's `_comment` across
- *  regeneration (see `main`) rather than overwriting it with this default every time, mirroring
- *  `check-test-baseline.ts`'s `--capture` mode -- a human may have added file-specific notes worth
- *  keeping.
- */
-export const DEFAULT_BASELINE_COMMENT: readonly string[] = [
-  "coverage-integrity baseline: known, currently-open dual-instantiation CONTAMINATED findings.",
-  "See development/scripts/check-coverage-integrity.ts's header for the mechanism and for why this",
-  "file exists (Route A, src/server/deps.ts:1048, is a known, accepted, open issue -- some",
-  "contamination is permanent for now, and a gate that always fails on it gets ignored, not fixed).",
-  "Path-based, not count-based: block totals vary hugely by run scope, so a numeric threshold would",
-  "be meaningless here.",
-  "Regenerate with --update-baseline ONLY to record a deliberate, reviewed acceptance of new debt --",
-  "never just to silence a failure you have not looked at. Review every diff to this file like a real",
-  "debt ledger, because that is what it is.",
-  "SEVERE findings are NEVER suppressed by this file, regardless of whether their path is listed",
-  "below -- only the CONTAMINATED (function-table-only) tier can be baselined away.",
-];
-
-/** Serializes a baseline file's contents: deduped, alphabetically sorted paths (stable diffs -- a
- *  ledger that reorders itself on every regeneration is unreviewable) plus a `_comment` block. Pure
- *  string-in/string-out; `main`'s `--update-baseline` handler does the actual file I/O and existing-
- *  comment preservation around this.
- */
-export function serializeBaseline(paths: readonly string[], comment: readonly string[] = DEFAULT_BASELINE_COMMENT): string {
-  const knownContaminated = [...new Set(paths)].sort((a, b) => a.localeCompare(b));
-  return `${JSON.stringify({ _comment: comment, knownContaminated }, null, 2)}\n`;
-}
-
-export interface ParsedArgs {
-  readonly lcovArg?: string;
-  readonly baselinePath?: string;
-  readonly updateBaseline: boolean;
-}
-
-/** Hand-rolled rather than a dependency: this script takes exactly one optional positional
- *  (`lcovArg`), one optional value-bearing flag (`--baseline <path>`), and one optional boolean flag
- *  (`--update-baseline`) -- small enough that a parsing library would cost more than it saves. The
- *  first non-flag argument wins as `lcovArg`; a second one is silently ignored rather than erroring,
- *  matching this repo's other check-*.ts scripts' permissive argv handling (e.g.
- *  `check-test-baseline.ts`'s `args.filter((a) => !a.startsWith("--"))`).
- *  @complexity O(n) in argv length.
- */
-export function parseArgs(argv: readonly string[]): ParsedArgs {
-  let lcovArg: string | undefined;
-  let baselinePath: string | undefined;
-  let updateBaseline = false;
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === "--update-baseline") {
-      updateBaseline = true;
-    } else if (arg === "--baseline") {
-      baselinePath = argv[i + 1];
-      i++; // consume the flag's value too
-    } else if (!arg.startsWith("--") && lcovArg === undefined) {
-      lcovArg = arg;
-    }
-  }
-  return { lcovArg, baselinePath, updateBaseline };
-}
-
-/** Splits raw lcov text into per-`SF:` blocks. A record with no `SF:` line (malformed input, or text
- *  before the first block) is ignored rather than throwing -- this mirrors `route-coverage-lib.ts`'s
- *  `loadLcov`, which treats absence of an `SF:` line as "not a real record" rather than an error.
- *  @complexity O(n) in the input length; one regex pass per record for FNDA/DA/FNF/FNH extraction.
- */
-export function parseLcovBlocks(lcovText: string): LcovBlock[] {
-  const records = lcovText.split(/^end_of_record$/m);
-  const blocks: LcovBlock[] = [];
-  for (const record of records) {
-    const sfMatch = record.match(/^SF:(.+)$/m);
-    if (!sfMatch) continue;
-    const fnda = [...record.matchAll(/^FNDA:(\d+),(.+)$/gm)].map((m) => ({
-      hits: Number(m[1]),
-      name: m[2],
-    }));
-    const da = [...record.matchAll(/^DA:\d+,(\d+)$/gm)].map((m) => Number(m[1]));
-    const fnfMatch = record.match(/^FNF:(\d+)$/m);
-    const fnhMatch = record.match(/^FNH:(\d+)$/m);
-    blocks.push({
-      file: sfMatch[1].trim(),
-      fnda,
-      da,
-      fnf: fnfMatch ? Number(fnfMatch[1]) : undefined,
-      fnh: fnhMatch ? Number(fnhMatch[1]) : undefined,
-    });
-  }
-  return blocks;
-}
-
-/** Normalizes an `SF:` path to a repo-relative, forward-slash path, mirroring
- *  `route-coverage-lib.ts`'s `toRepoRelative`: only rewrites when the path is absolute and inside
- *  this repo, otherwise returns it unchanged (lcov paths in this repo's own output are already
- *  repo-relative in practice, but this keeps the function correct for an absolute-path input too).
- */
-export function toRepoRelative(sfPath: string): string {
-  const trimmed = sfPath.trim();
-  const rel = trimmed.startsWith(REPO_ROOT) ? path.relative(REPO_ROOT, trimmed) : trimmed;
-  return rel.split(path.sep).join("/");
 }
 
 /** True for first-party source: `src/**`, `packages/*​/src/**`, `apps/*​/src/**`. Everything else
@@ -371,175 +192,9 @@ export function isFirstPartySourcePath(relPath: string): boolean {
   return false;
 }
 
-/** Matches one `export { ... } from "...";` / `export type { ... } from "...";` /
- *  `export * from "...";` / `export * as ns from "...";` statement, semicolon optional (this repo's
- *  own style always adds one, but ASI makes it valid without). `[^{}]*` (a negated character class,
- *  not `.`) matches across newlines with no `s` flag needed -- load-bearing, since a real barrel's
- *  named-export list routinely wraps onto its own lines (see `platform/export/index.ts`'s
- *  `site-exporter.js` re-export). No nested `{`/`}` can legitimately appear inside an export
- *  specifier list, so the non-greedy-by-construction character class cannot mismatch across two
- *  separate statements. */
-const EXPORT_FROM_STATEMENT =
-  /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+["']\s*;?/g;
-
-/** True when `sourceText` is a PURE re-export barrel -- every statement in it (after stripping block
- *  and line comments, including the file's own JSDoc header) is `export ... from "...";` and nothing
- *  else. See this file's header ("Pure re-export barrels are also skipped") for why this is detected
- *  from the SOURCE, not from the lcov block's own FNDA/DA shape: the two real files this was verified
- *  against (`apps/website/src/platform/export/index.ts`,
- *  `apps/website/src/features/content-types/index.ts`) are both 100% `export ... from` statements
- *  with a doc-comment header and nothing else. A file with even one real declaration alongside its
- *  re-exports (a partial barrel) is correctly NOT flagged -- it has real content that could
- *  genuinely benefit from (or be corrupted in) function/branch coverage, so it keeps the normal
- *  wrapper-name classification below untouched.
- *  @complexity O(n) in source length: one bounded strip pass for each comment kind, one global-regex
- *  pass to find export statements, one more to strip them and check what remains.
- */
-export function isPureReExportBarrelSource(sourceText: string): boolean {
-  const withoutComments = sourceText.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-  const matches = [...withoutComments.matchAll(EXPORT_FROM_STATEMENT)];
-  if (matches.length === 0) return false;
-  const remaining = withoutComments.replace(EXPORT_FROM_STATEMENT, "").trim();
-  return remaining.length === 0;
-}
-
-/**
- * Classifies one `SF:` block as `contaminated` (wrapper helper records found -- function coverage
- * for this block is untrustworthy, and it may additionally be `severe`), `ok` (no wrapper records --
- * this heuristic has no reason to distrust the block), or `skip` (out of scope).
- *
- * CONTAMINATED requires only that at least one `FNDA:` record names a wrapper helper -- see the
- * header for why presence alone, with no baseline function count, is a complete and rot-proof signal.
- *
- * SEVERE is an additional, stronger condition checked only when CONTAMINATED already holds: the
- * block's distinct `DA:` hit-count values are explained ENTIRELY by the wrapper helpers' own FNDA
- * hit-counts for that same block (plus 0, since dead/unreached code under either image legitimately
- * reads 0). That is the direct fingerprint of "the wrapper image, not the real module, produced every
- * line's hit count" -- i.e. the wrapper won the `DA:` merge too, not just the `FN:` merge. Gated by
- * `MIN_DA_RECORDS_FOR_SEVERE_HEURISTIC` for the reason documented on that constant. A simpler
- * candidate for this same escalation -- "few distinct DA values across many lines," with no
- * comparison to the wrapper's own counts -- was tried and rejected: measured against the same 6 real
- * runs, it flagged 53-54 first-party files as severe in EVERY run, clean or not (e.g.
- * `src/platform/db/schema.sqlite.ts`, 2589 lines, only 3 distinct hit-count values -- it is just declarative schema
- * code with almost no branching, nothing to do with the wrapper mechanism). Anchoring the comparison
- * to the wrapper's OWN hit-counts, not a bare threshold, is what makes SEVERE precise: validated
- * against all 172 first-party blocks across the same 6 runs, it fires on exactly the one confirmed-
- * corrupt block and zero others.
- *
- * @complexity O(f + d) per block, where f = FNDA record count and d = distinct DA value count.
- * @param sourceText the block's own file source, when available (`main` reads it from disk;
- *   omitted entirely in most of this file's own tests, which exercise the wrapper-name logic in
- *   isolation and don't need it). When given and `isPureReExportBarrelSource` holds, this block is
- *   `skip`, not `contaminated`/`ok` -- see this file's header ("Pure re-export barrels are also
- *   skipped") for why. Omitting it (or passing a non-barrel source) leaves behavior identical to
- *   before this parameter existed.
- */
-export function classifyBlock(block: LcovBlock, sourceText?: string): BlockVerdict {
-  const file = toRepoRelative(block.file);
-
-  if (!isFirstPartySourcePath(file)) {
-    return {
-      file,
-      status: "skip",
-      severe: false,
-      reason: "not a first-party src/**, packages/*/src/**, or apps/*/src/** path",
-    };
-  }
-
-  if (sourceText !== undefined && isPureReExportBarrelSource(sourceText)) {
-    return {
-      file,
-      status: "skip",
-      severe: false,
-      reason:
-        "pure re-export barrel (source is entirely `export ... from \"...\";` statements) -- its only " +
-        "instrumented \"functions\" are esbuild's own CJS-interop wrapper helpers plus one lazy getter " +
-        "per re-exported name, not a second merged coverage image; wrapper-name presence here is " +
-        "structurally guaranteed for any barrel, with or without Route A, so it carries no " +
-        "contamination signal -- see this file's header",
-    };
-  }
-
-  const wrapperNamesFound = new Set<string>();
-  const wrapperValues = new Set<number>();
-  for (const { name, hits } of block.fnda) {
-    if (WRAPPER_HELPER_NAMES.has(name)) {
-      wrapperNamesFound.add(name);
-      wrapperValues.add(hits);
-    }
-  }
-
-  if (wrapperNamesFound.size === 0) {
-    return {
-      file,
-      status: "ok",
-      severe: false,
-      reason: "no esbuild CJS-wrapper FNDA records in this block",
-    };
-  }
-
-  const fnSummary = block.fnf !== undefined && block.fnh !== undefined ? ` FNF:${block.fnf} FNH:${block.fnh}` : "";
-  const contaminatedReason =
-    `${wrapperNamesFound.size} esbuild CJS-wrapper helper record(s) [${[...wrapperNamesFound].sort().join(", ")}] ` +
-    `present in this block's FNDA records -- two coverage images (real ESM + CJS wrapper) were merged ` +
-    `here.${fnSummary} function coverage for this run is untrustworthy`;
-
-  return classifyWrapperFingerprint({ block, file, wrapperValues, contaminatedReason });
-}
-
-
-function classifyWrapperFingerprint(
-  { block, file, wrapperValues, contaminatedReason }: {
-    block: LcovBlock; file: string; wrapperValues: Set<number>; contaminatedReason: string;
-  },
-  _options = {},
-): BlockVerdict {
-  // SEVERE escalation: does the wrapper image's own hit-count fingerprint also explain every DA line
-  // value, i.e. did it ALSO win the line-hit merge? See doc comment above for the full rule and why
-  // MIN_DA_RECORDS_FOR_SEVERE_HEURISTIC gates it.
-  if (block.da.length >= MIN_DA_RECORDS_FOR_SEVERE_HEURISTIC) {
-    const comparisonSet = new Set(wrapperValues);
-    comparisonSet.add(0); // dead/unreached code under either image legitimately reads 0
-
-    const distinctDa = [...new Set(block.da)].sort((a, b) => a - b);
-    const extra = distinctDa.filter((v) => !comparisonSet.has(v));
-    const overlapHasRealSignal = distinctDa.some((v) => v !== 0 && comparisonSet.has(v));
-
-    if (extra.length === 0 && overlapHasRealSignal) {
-      const wrapperValuesSorted = [...wrapperValues].sort((a, b) => a - b);
-      return {
-        file,
-        status: "contaminated",
-        severe: true,
-        reason:
-          `${contaminatedReason}. SEVERE: additionally, every one of this block's ${distinctDa.length} ` +
-          `distinct DA hit-count value(s) [${distinctDa.join(", ")}] matches a wrapper helper's own FNDA ` +
-          `hit-count [${wrapperValuesSorted.join(", ")}] (or 0) -- the wrapper image also won the line-hit ` +
-          `merge, so line coverage for this run is untrustworthy too, regardless of what LH:/LF: report`,
-      };
-    }
-  }
-
-  return { file, status: "contaminated", severe: false, reason: `${contaminatedReason}.` };
-}
-
-/** @param readSource optional; when given, called once per block with its repo-relative path to
- *    fetch source text for the pure-re-export-barrel check (see `classifyBlock`). `main` passes a
- *    real disk reader; omitted in most tests, which don't need the barrel exclusion and get
- *    byte-for-byte the same behavior as before this parameter existed. Returning `undefined` for a
- *    path (file not found, or no reader given) falls back to normal wrapper-name classification --
- *    the safe default, since it can never cause a real contaminated file to be silently skipped. */
-export function checkCoverageIntegrity(
-  lcovText: string,
-  readSource?: (repoRelativeFile: string) => string | undefined
-): IntegrityReport {
-  const verdicts = parseLcovBlocks(lcovText).map((block) => {
-    const file = toRepoRelative(block.file);
-    return classifyBlock(block, readSource?.(file));
-  });
-  const contaminated = verdicts.filter((v) => v.status === "contaminated");
-  const skipped = verdicts.filter((v) => v.status === "skip").length;
-  return { contaminated, evaluated: verdicts.length - skipped, skipped };
+/** Host classifier handed to the shared detector: this repo's first-party roots (see above). */
+function isFirstParty({ file }: { file: string }): boolean {
+  return isFirstPartySourcePath(file);
 }
 
 function resolveRepoPath(arg: string): string {
@@ -569,7 +224,7 @@ function handleUpdateBaseline(resolvedBaselinePath: string, contaminated: readon
     ? (JSON.parse(readFileSync(resolvedBaselinePath, "utf8")) as BaselineFile)._comment
     : undefined;
   const knownPaths = [...new Set(contaminated.map((v) => v.file))];
-  writeFileSync(resolvedBaselinePath, serializeBaseline(knownPaths, existingComment ?? DEFAULT_BASELINE_COMMENT), "utf8");
+  writeFileSync(resolvedBaselinePath, serializeBaseline({ paths: knownPaths }, { comment: existingComment ?? DEFAULT_BASELINE_COMMENT }), "utf8");
   console.log(
     `check:coverage-integrity — CAPTURED ${knownPaths.length} known-contaminated path(s) into ` +
       `${path.relative(REPO_ROOT, resolvedBaselinePath)}`
@@ -596,7 +251,7 @@ function loadBaselineSet(baselinePath: string | undefined): ReadonlySet<string> 
     );
     return new Set();
   }
-  return parseBaseline(readFileSync(resolvedBaselinePath, "utf8"));
+  return parseBaseline({ baselineJson: readFileSync(resolvedBaselinePath, "utf8") });
 }
 
 /** Prints the full gated report (summary line, then SEVERE/NEW/KNOWN sections) and returns whether
@@ -647,7 +302,7 @@ function reportGatedFindings(gated: readonly GatedVerdict[], evaluated: number, 
 }
 
 function main(): void {
-  const { lcovArg, baselinePath, updateBaseline } = parseArgs(process.argv.slice(2));
+  const { lcovArg, baselinePath, updateBaseline } = parseArgs({ argv: process.argv.slice(2) });
   const lcovPath = lcovArg ? resolveRepoPath(lcovArg) : DEFAULT_LCOV_PATH;
 
   if (!existsSync(lcovPath)) {
@@ -658,7 +313,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const { contaminated, evaluated, skipped } = checkCoverageIntegrity(readFileSync(lcovPath, "utf8"), readSourceFromDisk);
+  const { contaminated, evaluated, skipped } = checkCoverageIntegrity({ lcovText: readFileSync(lcovPath, "utf8"), repoRoot: REPO_ROOT, isFirstParty }, { readSource: ({ file }) => readSourceFromDisk(file) });
 
   if (updateBaseline) {
     if (!baselinePath) {
@@ -677,7 +332,7 @@ function main(): void {
     return;
   }
 
-  const gated = applyBaseline(contaminated, loadBaselineSet(baselinePath));
+  const gated = applyBaseline({ contaminated, baselineSet: loadBaselineSet(baselinePath) });
   if (reportGatedFindings(gated, evaluated, baselinePath)) {
     process.exit(1);
   }

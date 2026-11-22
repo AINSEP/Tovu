@@ -1,5 +1,4 @@
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,13 +12,13 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 
 test("public dynamic menu widgets resolve renamed pages and omit unpublished page leaves", async () => {
   const page = { ...seededPosts[0]!, id: "about", workspaceId: "ws", kind: "page" as const, slug: "our-story", status: "published" as const, deletedAt: null };
-  const posts = new InMemoryPostRepo([page]);
+  const posts = new InMemoryPostRepo({}, { initialRows: [page] });
   const menuRepo = new InMemoryMenuRepo({});
   await menuRepo.save({ id: "footer", workspaceId: "ws", slug: "footer-nav", title: "Footer", status: "published", locations: [], updatedAt: "2026-10-04", version: 1,
     doc: { type: "menu", version: 1, items: [{ id: "about", label: "About", target: { kind: "entryRef", entryId: "about" } }] },
   });
   // Only the menu resolver executes; other domain ports are explicit unused dependencies.
-  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
+  const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: new InMemoryNavLocationBindingRepo({}) }),
     resolveMenuTargetHref: createMenuPageTargetResolver({ postRepo: posts }),
     entryList: {} as CoreResolverDeps["entryList"], formDefinitionRepo: {} as CoreResolverDeps["formDefinitionRepo"], contentTypes: {} as CoreResolverDeps["contentTypes"],

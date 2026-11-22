@@ -1,10 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useLogin } from "../hooks/use-login.hooks";
-import { createFakeLoginPort } from "../hooks/login-dependencies.hooks";
+import { useLogin, useWiredLogin } from "../hooks/use-login.hooks";
+import { createFakeLoginPort } from "@jini-ai/user-management/react/testing";
+import { defaultLoginPort } from "../hooks/login-dependencies.hooks";
 import type { LoginPort } from "../hooks/login-port.hooks";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file `useLogin` — the Login screen's submit lifecycle, extracted verbatim from `Login.tsx`.
@@ -16,6 +17,13 @@ import { ApiError } from "@/lib/api";
  * `api-request-unreachable.unit.test.ts`); this file only needs to prove `useLogin` reacts
  * correctly to whatever the port resolves or rejects with, not re-derive how `request()` produces
  * that value.
+ *
+ * The Jini in-memory {@link LoginPort} fake — "every port gets a fake" (see
+ * `media-dependencies.hooks.ts`) — ignores the submitted credentials by design: this hook has no
+ * server to check them against, so a fake describing "this login attempt succeeds/fails" is more
+ * useful than one that re-implements credential matching.
+ * Its fallback user is distinct from any real workspace user id so an assertion cannot pass
+ * against a coincidentally matching real fixture.
  */
 
 function fakeSubmitEvent(): React.FormEvent {
@@ -24,7 +32,7 @@ function fakeSubmitEvent(): React.FormEvent {
 
 describe("useLogin — initial state", () => {
   it("defaults username to 'admin' and password to empty, matching the login screen's own dev hint", () => {
-    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort() }));
+    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort({}) }));
     expect(result.current.username).toBe("admin");
     expect(result.current.password).toBe("");
     expect(result.current.error).toBeNull();
@@ -32,7 +40,7 @@ describe("useLogin — initial state", () => {
   });
 
   it("setUsername/setPassword update their own field independently", () => {
-    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort() }));
+    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort({}) }));
     act(() => result.current.setUsername("alice"));
     act(() => result.current.setPassword("hunter2"));
     expect(result.current.username).toBe("alice");
@@ -42,7 +50,7 @@ describe("useLogin — initial state", () => {
 
 describe("useLogin — submit", () => {
   it("prevents the form's default submission", async () => {
-    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort() }));
+    const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port: createFakeLoginPort({}) }));
     const event = fakeSubmitEvent();
     await act(async () => result.current.submit(event));
     expect(event.preventDefault).toHaveBeenCalledOnce();
@@ -84,16 +92,25 @@ describe("useLogin — submit", () => {
     expect(result.current.busy).toBe(false);
   });
 
-  it("surfaces the port's rejection message verbatim and does not call onLogin", async () => {
-    const port = createFakeLoginPort({ loginError: new Error("invalid credentials") });
+  it("keeps wired credential rejection available for retry without calling onLogin", async () => {
+    const port = createFakeLoginPort({}, { loginError: new Error("invalid credentials") });
+    const login = vi.spyOn(defaultLoginPort, "login").mockImplementation(port.login);
     const onLogin = vi.fn();
-    const { result } = renderHook(() => useLogin({ onLogin }, { port }));
+    try {
+      const { result } = renderHook(() => useWiredLogin({ onLogin }));
 
-    await act(async () => result.current.submit(fakeSubmitEvent()));
+      await act(async () => result.current.submit(fakeSubmitEvent()));
 
-    expect(result.current.error).toBe("invalid credentials");
-    expect(result.current.busy).toBe(false);
-    expect(onLogin).not.toHaveBeenCalled();
+      expect(result.current.error).toBe("invalid credentials");
+      expect(result.current.busy).toBe(false);
+      expect(onLogin).not.toHaveBeenCalled();
+      await act(async () => result.current.submit(fakeSubmitEvent()));
+      expect(login).toHaveBeenCalledTimes(2);
+      expect(result.current.busy).toBe(false);
+      expect(onLogin).not.toHaveBeenCalled();
+    } finally {
+      login.mockRestore();
+    }
   });
 
   it("explains how to retry when the rejection is not an Error", async () => {
@@ -132,7 +149,7 @@ describe("useLogin — submit", () => {
 });
 
 it("copies the server incident ID without copying a password or private backend facts", async () => {
-  const port: LoginPort = { login: async () => { throw new ApiError("private identity table; LOGIN_PASSWORD_CANARY", 500, "INTERNAL_ERROR", { errorId: "auth-incident-123" }); } };
+  const port: LoginPort = { login: async () => { throw new ApiError({ message: "private identity table; LOGIN_PASSWORD_CANARY", status: 500 }, { code: "INTERNAL_ERROR", body: { errorId: "auth-incident-123" } }); } };
   const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
   act(() => result.current.setPassword("LOGIN_PASSWORD_CANARY"));
   await act(async () => result.current.submit(fakeSubmitEvent()));
@@ -143,7 +160,7 @@ it("copies the server incident ID without copying a password or private backend 
 });
 
 it.each([401, 429])("keeps the existing %s refusal message without replacing it with a server incident", async status => {
-  const port: LoginPort = { login: async () => { throw new ApiError("existing safe refusal", status); } };
+  const port: LoginPort = { login: async () => { throw new ApiError({ message: "existing safe refusal", status }); } };
   const { result } = renderHook(() => useLogin({ onLogin: vi.fn() }, { port }));
   await act(async () => result.current.submit(fakeSubmitEvent()));
   expect(result.current.error).toBe("existing safe refusal");

@@ -222,7 +222,7 @@ test("session callers keep working: GET, reveal, and generate all still succeed 
   assert.equal(revealedBody.hex?.length, 64, "32 raw bytes, hex-encoded — the ONE place this route family discloses the value");
   assert.equal(revealedBody.fingerprint, generatedBody.fingerprint, "reveal's fingerprint matches the key generate just wrote");
   assert.equal(revealedBody.hex, readFileSync(generatedBody.keyFilePath, "utf8").trim());
-  assert.equal(fingerprintSiteKeyHex(revealedBody.hex!), revealedBody.fingerprint);
+  assert.equal(fingerprintSiteKeyHex({ hex: revealedBody.hex! }), revealedBody.fingerprint);
 });
 
 test("generate's response never carries the raw key — only status/reveal-relevant metadata (sol finding 3-2)", async (t) => {
@@ -501,7 +501,7 @@ test("generate with this site's matching key already in place → 200 'already-a
   mkdirSync(path.dirname(keyPath), { recursive: true });
   writeFileSync(keyPath, hex, { mode: 0o600 });
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-  const meta = JSON.stringify({ siteId: "active-site", siteKeyFingerprint: fingerprintSiteKeyHex(hex) });
+  const meta = JSON.stringify({ siteId: "active-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex }) });
   writeFileSync(metaPath, meta);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -510,7 +510,7 @@ test("generate with this site's matching key already in place → 200 'already-a
   assert.equal(res.status, 200);
   const body = (await res.json()) as { outcome: string; fingerprint: string; keyFilePath: string };
   assert.equal(body.outcome, "already-active");
-  assert.equal(body.fingerprint, fingerprintSiteKeyHex(hex));
+  assert.equal(body.fingerprint, fingerprintSiteKeyHex({ hex }));
   assert.equal(body.keyFilePath, keyPath);
   assert.equal(readFileSync(keyPath, "utf8"), hex, "the working key is never replaced");
   assert.equal(readFileSync(metaPath, "utf8"), meta, "the stamp is never touched");
@@ -524,7 +524,7 @@ test("generate with the per-site key gone but the stamped key still in the legac
   const hex = randomBytes(32).toString("hex");
   writeLegacySharedKey(hex);
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-  writeFileSync(metaPath, JSON.stringify({ siteId: "recover-site", siteKeyFingerprint: fingerprintSiteKeyHex(hex) }));
+  writeFileSync(metaPath, JSON.stringify({ siteId: "recover-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex }) }));
   seedKeyDependentRow(deps.siteBinding.dir);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -533,10 +533,10 @@ test("generate with the per-site key gone but the stamped key still in the legac
   assert.equal(res.status, 200);
   const body = (await res.json()) as { outcome: string; fingerprint: string };
   assert.equal(body.outcome, "recovered");
-  assert.equal(body.fingerprint, fingerprintSiteKeyHex(hex));
+  assert.equal(body.fingerprint, fingerprintSiteKeyHex({ hex }));
   assert.equal(readFileSync(perSiteKeyPath("recover-site"), "utf8"), hex, "the per-site file now holds the SAME key the data was sealed with");
   const metaAfter = JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>;
-  assert.equal(metaAfter.siteKeyFingerprint, fingerprintSiteKeyHex(hex), "the stamp is unchanged");
+  assert.equal(metaAfter.siteKeyFingerprint, fingerprintSiteKeyHex({ hex }), "the stamp is unchanged");
 });
 
 test("generate with a WRONG per-site key and the stamped key in the legacy shared file → 200 'recovered', the wrong file kept as a backup", async (t) => {
@@ -550,7 +550,7 @@ test("generate with a WRONG per-site key and the stamped key in the legacy share
   const keyPath = perSiteKeyPath("wrong-file-site");
   mkdirSync(path.dirname(keyPath), { recursive: true });
   writeFileSync(keyPath, wrongHex, { mode: 0o600 });
-  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "wrong-file-site", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) }));
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "wrong-file-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: rightHex }) }));
   seedKeyDependentRow(deps.siteBinding.dir);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -559,7 +559,7 @@ test("generate with a WRONG per-site key and the stamped key in the legacy share
   assert.equal(res.status, 200);
   const body = (await res.json()) as { outcome: string; fingerprint: string };
   assert.equal(body.outcome, "recovered");
-  assert.equal(body.fingerprint, fingerprintSiteKeyHex(rightHex));
+  assert.equal(body.fingerprint, fingerprintSiteKeyHex({ hex: rightHex }));
   assert.equal(readFileSync(keyPath, "utf8"), rightHex);
   const backups = readdirSync(path.dirname(keyPath)).filter((name) => name.startsWith("wrong-file-site.hex.wrong-"));
   assert.equal(backups.length, 1);
@@ -573,7 +573,7 @@ test("generate with a working legacy key whose fingerprint differs from the stam
   assertSiteDirIsolated(deps);
   const legacyHex = randomBytes(32).toString("hex");
   writeLegacySharedKey(legacyHex);
-  const stamp = fingerprintSiteKeyHex(randomBytes(32).toString("hex"));
+  const stamp = fingerprintSiteKeyHex({ hex: randomBytes(32).toString("hex") });
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
   writeFileSync(metaPath, JSON.stringify({ siteId: "mismatch-site", siteKeyFingerprint: stamp }));
   seedKeyDependentRow(deps.siteBinding.dir);
@@ -597,7 +597,7 @@ test("generate with no key anywhere and sealed data present → 409 KEY_DEPENDEN
   isolateSiteDir(t);
   const deps = createRouteDeps();
   assertSiteDirIsolated(deps);
-  const stamp = fingerprintSiteKeyHex(randomBytes(32).toString("hex"));
+  const stamp = fingerprintSiteKeyHex({ hex: randomBytes(32).toString("hex") });
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
   writeFileSync(metaPath, JSON.stringify({ siteId: "locked-site", siteKeyFingerprint: stamp }));
   seedKeyDependentRow(deps.siteBinding.dir);
@@ -631,7 +631,7 @@ test("generate with no key anywhere and no sealed data → 201 'created', this s
   const body = (await res.json()) as { outcome: string; fingerprint: string; keyFilePath: string };
   assert.equal(body.outcome, "created");
   assert.equal(body.keyFilePath, perSiteKeyPath("fresh-site"));
-  assert.equal(fingerprintSiteKeyHex(readFileSync(body.keyFilePath, "utf8")), body.fingerprint);
+  assert.equal(fingerprintSiteKeyHex({ hex: readFileSync(body.keyFilePath, "utf8") }), body.fingerprint);
   assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
 });
 
@@ -716,7 +716,7 @@ test("production generate creates a durable key without fabricating missing site
   const body = await response.json() as { outcome: string; fingerprint: string; keyFilePath: string };
   assert.equal(body.outcome, "created");
   assert.equal(body.keyFilePath, path.join(deps.siteBinding.dir, "sites", ".tovu", "site-key.hex"));
-  assert.equal(fingerprintSiteKeyHex(readFileSync(body.keyFilePath, "utf8")), body.fingerprint);
+  assert.equal(fingerprintSiteKeyHex({ hex: readFileSync(body.keyFilePath, "utf8") }), body.fingerprint);
   assert.equal(existsSync(metaPath), false, "a key write must not fabricate a site commit marker");
 });
 
@@ -741,7 +741,7 @@ test("production generate creates and stamps the durable key, preserves it, and 
   assert.equal(body.runtimeMode, "production");
   assert.equal(body.keyFilePath, path.join(volumeRoot, "sites", ".tovu", "site-key.hex"));
   const keyBytes = readFileSync(body.keyFilePath, "utf8");
-  assert.equal(fingerprintSiteKeyHex(keyBytes), body.fingerprint);
+  assert.equal(fingerprintSiteKeyHex({ hex: keyBytes }), body.fingerprint);
   const stamp = readFileSync(metaPath, "utf8");
   const meta = JSON.parse(stamp) as { siteKeyFingerprint: string; provenance: string };
   assert.equal(meta.siteKeyFingerprint, body.fingerprint);
@@ -783,7 +783,7 @@ function createCredentialTable(siteDir: string): void {
 
 async function sealCredentialRow(siteDir: string, id: string, hex: string): Promise<void> {
   createCredentialTable(siteDir);
-  const keyring = new FixedSiteKeyKeyring(hex);
+  const keyring = new FixedSiteKeyKeyring({ hex });
   const sealed = await new AesGcmSecretSealer(keyring).seal({
     plaintext: JSON.stringify({ token: `secret-${id}` }),
     key: await keyring.activeKey(),
@@ -805,7 +805,7 @@ async function openCredentialRow(siteDir: string, id: string, hex: string): Prom
   db.close();
   if (row === undefined) return undefined;
   try {
-    return JSON.parse(await new AesGcmSecretSealer(new FixedSiteKeyKeyring(hex)).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })).token as string;
+    return JSON.parse(await new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex })).open({ sealed: { keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg } }, { aad: buildVaultAad({ workspaceId: WORKSPACE, id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })).token as string;
   } catch {
     return undefined;
   }
@@ -851,7 +851,7 @@ test("import: a valid token that opens none of this site's credentials → 409 S
   assertSiteDirIsolated(deps);
   const originalHex = randomBytes(32).toString("hex");
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-  writeFileSync(metaPath, JSON.stringify({ siteId: "wrong-paste-site", siteKeyFingerprint: fingerprintSiteKeyHex(originalHex) }));
+  writeFileSync(metaPath, JSON.stringify({ siteId: "wrong-paste-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: originalHex }) }));
   await sealCredentialRow(deps.siteBinding.dir, "cred-1", originalHex);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const pasted = randomBytes(32).toString("hex");
@@ -864,7 +864,7 @@ test("import: a valid token that opens none of this site's credentials → 409 S
   assert.equal(body.detail, "That site key does not open this site's saved credentials. Nothing was changed.");
   assert.equal(JSON.stringify(body).includes(pasted), false);
   assert.equal(existsSync(perSiteKeyPath("wrong-paste-site")), false, "a token that opens nothing is never written");
-  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, fingerprintSiteKeyHex(originalHex));
+  assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, fingerprintSiteKeyHex({ hex: originalHex }));
 });
 
 test("import: the original token unlocks a mismatched site and credentials saved under the wrong key are moved over, not stranded", async (t) => {
@@ -876,7 +876,7 @@ test("import: the original token unlocks a mismatched site and credentials saved
   const wrongHex = randomBytes(32).toString("hex");
   const keyPath = writePerSiteKey("unlock-site", wrongHex);
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-  writeFileSync(metaPath, JSON.stringify({ siteId: "unlock-site", siteKeyFingerprint: fingerprintSiteKeyHex(originalHex) }));
+  writeFileSync(metaPath, JSON.stringify({ siteId: "unlock-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: originalHex }) }));
   await sealCredentialRow(deps.siteBinding.dir, "cred-original", originalHex);
   await sealCredentialRow(deps.siteBinding.dir, "cred-saved-since", wrongHex);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -889,7 +889,7 @@ test("import: the original token unlocks a mismatched site and credentials saved
   assert.equal(text.includes(originalHex), false, "the token is never echoed");
   const body = JSON.parse(text) as { outcome: string; fingerprint: string; keyFilePath: string; resealed: number; restorePointId: string };
   assert.equal(body.outcome, "unlocked");
-  assert.equal(body.fingerprint, fingerprintSiteKeyHex(originalHex));
+  assert.equal(body.fingerprint, fingerprintSiteKeyHex({ hex: originalHex }));
   assert.equal(body.keyFilePath, keyPath);
   assert.equal(body.resealed, 1);
   assert.equal(typeof body.restorePointId, "string");
@@ -911,8 +911,8 @@ test("import: a database connection sealed under the wrong key meanwhile is move
   const originalHex = randomBytes(32).toString("hex");
   const wrongHex = randomBytes(32).toString("hex");
   writePerSiteKey("pg-unlock-site", wrongHex);
-  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "pg-unlock-site", siteKeyFingerprint: fingerprintSiteKeyHex(originalHex) }));
-  const wrongKeyring = new FixedSiteKeyKeyring(wrongHex);
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "pg-unlock-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: originalHex }) }));
+  const wrongKeyring = new FixedSiteKeyKeyring({ hex: wrongHex });
   await writeSealedConnectionString({ siteDir: deps.siteBinding.dir, connectionString: "postgres://site" }, { sealer: new AesGcmSecretSealer(wrongKeyring), keyring: wrongKeyring });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -922,7 +922,7 @@ test("import: a database connection sealed under the wrong key meanwhile is move
   const body = (await res.json()) as { outcome: string; resealed: number };
   assert.equal(body.outcome, "unlocked");
   assert.equal(body.resealed, 1);
-  const opened = await readSealedConnectionString({ siteDir: deps.siteBinding.dir }, { sealer: new AesGcmSecretSealer(new FixedSiteKeyKeyring(originalHex)) });
+  const opened = await readSealedConnectionString({ siteDir: deps.siteBinding.dir }, { sealer: new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: originalHex })) });
   assert.equal(opened, "postgres://site");
 });
 
@@ -931,7 +931,7 @@ test("start fresh: without the typed confirmation → 400 CONFIRMATION_REQUIRED,
   isolateSiteDir(t);
   const deps = createRouteDeps();
   assertSiteDirIsolated(deps);
-  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "unconfirmed-site", siteKeyFingerprint: fingerprintSiteKeyHex(randomBytes(32).toString("hex")) }));
+  writeFileSync(path.join(deps.siteBinding.dir, ".site-meta.json"), JSON.stringify({ siteId: "unconfirmed-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: randomBytes(32).toString("hex") }) }));
   await sealCredentialRow(deps.siteBinding.dir, "cred-1", randomBytes(32).toString("hex"));
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -954,7 +954,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   assertSiteDirIsolated(deps);
   const lostHex = randomBytes(32).toString("hex");
   const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-  writeFileSync(metaPath, JSON.stringify({ siteId: "fresh-start-site", siteKeyFingerprint: fingerprintSiteKeyHex(lostHex) }));
+  writeFileSync(metaPath, JSON.stringify({ siteId: "fresh-start-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: lostHex }) }));
   await sealCredentialRow(deps.siteBinding.dir, "cred-locked", lostHex);
   const backupPath = path.join(deps.siteBinding.dir, "before-start-fresh.db");
   deps.dbOps.captureRestorePoint = async () => {
@@ -971,7 +971,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   await deps.webhookSubscriptionRepo.insert({
     id: "wh-1" as never, workspaceId: WORKSPACE as never, ownerPrincipalId: "principal-1" as never, label: "Order sync", targetUrl: "https://hooks.example.test/orders",
     topics: [], secretVersion: 1 as never, previousSecretVersion: null, status: "active" as never, createdByPrincipalId: "principal-1" as never, createdByPluginId: null,
-    createdAt: now as never, updatedAt: now as never, disabledAt: null,
+    createdAt: now as never, updatedAt: now as never, disabledAt: null, version: 1,
   });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 
@@ -998,8 +998,8 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   assert.equal("hex" in body, false, "the new key is never in the body; Reveal shows it");
   assert.equal(body.keyFilePath, perSiteKeyPath("fresh-start-site"));
   const installed = readFileSync(body.keyFilePath, "utf8");
-  assert.equal(fingerprintSiteKeyHex(installed), body.fingerprint);
-  assert.notEqual(body.fingerprint, fingerprintSiteKeyHex(lostHex));
+  assert.equal(fingerprintSiteKeyHex({ hex: installed }), body.fingerprint);
+  assert.notEqual(body.fingerprint, fingerprintSiteKeyHex({ hex: lostHex }));
   assert.equal((JSON.parse(readFileSync(metaPath, "utf8")) as Record<string, unknown>).siteKeyFingerprint, body.fingerprint);
   const db = new Database(path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME));
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM secrets_vault").get() as { n: number }).n, 0, "the credential nothing could open is gone");
@@ -1026,7 +1026,7 @@ for (const failure of ["unavailable", "capture-failed"] as const) {
     const deps = createRouteDeps();
     assertSiteDirIsolated(deps);
     const metaPath = path.join(deps.siteBinding.dir, ".site-meta.json");
-    const metadata = JSON.stringify({ siteId: "no-backup-site", siteKeyFingerprint: fingerprintSiteKeyHex(randomBytes(32).toString("hex")) });
+    const metadata = JSON.stringify({ siteId: "no-backup-site", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: randomBytes(32).toString("hex") }) });
     writeFileSync(metaPath, metadata);
     await sealCredentialRow(deps.siteBinding.dir, "locked-without-backup", randomBytes(32).toString("hex"));
     const dbPath = path.join(deps.siteBinding.dir, CONTENT_DB_FILENAME);

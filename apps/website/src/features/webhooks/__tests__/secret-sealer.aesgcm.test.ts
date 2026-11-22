@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import test from "node:test";
 
 import { FixedSiteKeyKeyring } from "../keyring.env.js";
-import { AesGcmSecretSealer, SECRET_OPEN_FAILED } from "../secret-sealer.aesgcm.js";
+import { AesGcmSecretSealer, SECRET_OPEN_FAILED, SecretOpenError } from "../secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../keyring.memory.js";
 
 /**
@@ -118,7 +118,7 @@ test("a value sealed with aad A throws when opened with NO aad", async () => {
   const sealer = new AesGcmSecretSealer(keyring);
   const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad: "ws-1:github-pages:cred-42" });
 
-  await assert.rejects(() => sealer.open({ sealed }));
+  await assert.rejects(() => sealer.open({ sealed }), SecretOpenError);
 });
 
 test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails both directions)", async () => {
@@ -130,7 +130,7 @@ test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails
 });
 
 test("open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key", async () => {
-  const generations = { v7: new InMemoryKeyring("v7"), v8: new InMemoryKeyring("v8") };
+  const generations = { v7: new InMemoryKeyring({}, { keyId: "v7" }), v8: new InMemoryKeyring({}, { keyId: "v8" }) };
   let activeKeyId: keyof typeof generations = "v7";
   const keyring = {
     activeKey: async () => ({ keyId: activeKeyId }),
@@ -174,8 +174,8 @@ test("ciphertext shorter than a complete authentication tag is rejected", async 
 test("every failure to open the sealed value itself carries SECRET_OPEN_FAILED (wrong key, tampered, damaged, unknown alg); its message is kept", async () => {
   // Two real, different project keys, built at runtime: the runtime's own wording (OpenSSL in Node,
   // BoringSSL in Electron) never decides how a wrong key is classified, the code does.
-  const sealedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
-  const openedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
+  const sealedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: randomBytes(32).toString("hex") }));
+  const openedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: randomBytes(32).toString("hex") }));
   const keyring = new InMemoryKeyring();
   const sealed = await sealedBy.seal({ plaintext: "fixture-value", key: await keyring.activeKey() });
   const wrongKey = await openedBy.open({ sealed }).catch((caught: unknown) => caught);

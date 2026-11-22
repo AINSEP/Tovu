@@ -23,7 +23,7 @@ async function harness() {
     repos: createTransactionalInMemoryIdentityRepos({ repos: { principals: new InMemoryPrincipalRepo({}), users: new InMemoryUserRepo({}), sessions: new InMemorySessionRepo({}), roles: new InMemoryRoleRepo({}), policies: new InMemoryPolicyRepo({}), policyPermissions: new InMemoryPolicyPermissionRepo({}), principalPolicies: new InMemoryPrincipalPolicyRepo({}), principalRoles: new InMemoryPrincipalRoleRepo({}), rolePolicies: new InMemoryRolePolicyRepo({}) } }),
     apiKeys: new InMemoryApiKeyRepo(), clock, idGen: { newId: () => `b08-${++id}` },
     hasher: { hash: async ({ password }) => `password:${password}`, verify: async ({ hash, password }) => hash === `password:${password}` },
-    secretHasher: { hash: async (secret) => `digest:${secret}`, verify: async (hash, secret) => { verified.push([hash, secret]); return hash === `digest:${secret}`; } },
+    secretHasher: { hash: async ({ secret }) => `digest:${secret}`, verify: async ({ storedHash, secret }) => { verified.push([storedHash, secret]); return storedHash === `digest:${secret}`; } },
   };
   await deps.repos.principals.save({ id: "issuer", workspaceId: WS, kind: "user", displayName: "Owner", status: "active", createdAt: NOW });
   await deps.repos.policies.save({ id: "issuer-policy", workspaceId: WS, name: "issuer", isBuiltin: false, isFrozen: false });
@@ -129,12 +129,12 @@ test("authentication racing revocation cannot make the key usable again", async 
   const issued = await issueApiKey({ deps: h.deps, input: h.input });
   const verify = h.deps.secretHasher.verify;
   let revokeDuringVerification = true;
-  h.deps.secretHasher.verify = async (hash, secret) => {
+  h.deps.secretHasher.verify = async ({ storedHash, secret }) => {
     if (revokeDuringVerification) {
       revokeDuringVerification = false;
       await revokeApiKey({ deps: h.deps, input: { workspaceId: WS, callerPrincipalId: "issuer", keyId: issued.apiKey.id } });
     }
-    return verify(hash, secret);
+    return verify({ storedHash, secret });
   };
   await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: issued.rawKey } });
   const stored = await h.deps.apiKeys.findById({ workspaceId: WS, id: issued.apiKey.id });
@@ -185,7 +185,7 @@ for (const variant of ["revoked", "expiry-boundary", "disabled", "wrong-kind", "
 test("an unknown well-formed key verifies a decoy; malformed input never reaches the hasher", async () => {
   const h = await harness();
   const hashed: string[] = [];
-  h.deps.secretHasher.hash = async (secret) => { hashed.push(secret); return "opaque-decoy-digest"; };
+  h.deps.secretHasher.hash = async ({ secret }) => { hashed.push(secret); return "opaque-decoy-digest"; };
   assert.equal(await authenticateApiKey({ deps: h.deps, input: { workspaceId: WS, rawKey: "malformed" } }), null);
   assert.deepEqual(h.verified, []);
   assert.deepEqual(hashed, []);

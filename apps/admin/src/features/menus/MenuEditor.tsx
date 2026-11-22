@@ -1,13 +1,14 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "./api/menus-api.types";
+
 import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";
 import { MenuPageLinkFields } from "./MenuPageLinkFields";
 import type { MenuPageChoice } from "./page-link-rules";
 import { useMenuTargetEditor } from "./MenuPageLinkFields.hooks";
+import { type Translate } from '@jini-ai/core/text';
 export { targetForKind } from "./page-link-rules";
 
 /**
@@ -33,7 +34,7 @@ export { targetForKind } from "./page-link-rules";
  * `cssClass`/`icon`/`description` — this screen was simply the one gap in an otherwise-working
  * pipeline. `rel`/`openInNewTab` were not consumed by ANY render path before this change; both the
  * static-tier tree-variant renderer (`features/theme/static-render.ts`) and the widget-IR menu
- * renderer (`server/inbound/public-http/http/site/render.ts`) now honor all five fields.
+ * renderer (`renderWidgetMenu`) now honor all five fields.
  */
 
 /**
@@ -45,12 +46,12 @@ export { targetForKind } from "./page-link-rules";
  * changing what either function produces — every call site still falls back to `""` for exactly the
  * same absent values it did before.
  */
-function orEmpty(value: string | undefined): string {
+function orEmpty({ value }: { value: string | undefined }, _optional = {}): string {
   return value ?? "";
 }
 
 /** Boolean counterpart to {@link orEmpty}, same rationale — see {@link attrsOrDefaults}. */
-function orFalse(value = false): boolean {
+function orFalse(_required: Record<string, never>, { value = false }: { value?: boolean } = {}): boolean {
   return value;
 }
 
@@ -61,15 +62,22 @@ function orFalse(value = false): boolean {
  * the defaulting removes that count from the component's own scope without changing what any
  * field renders; every caller still sees the same fallback for the same absent value.
  */
-function attrsOrDefaults(attrs: AdminMenuItemAttrs | undefined): Required<AdminMenuItemAttrs> {
+function attrsOrDefaults({ attrs }: { attrs: AdminMenuItemAttrs | undefined }, _optional = {}): Required<AdminMenuItemAttrs> {
   const a = attrs ?? {};
   return {
-    cssClass: orEmpty(a.cssClass),
-    icon: orEmpty(a.icon),
-    description: orEmpty(a.description),
-    rel: orEmpty(a.rel),
-    openInNewTab: orFalse(a.openInNewTab),
+    cssClass: orEmpty({ value: a.cssClass }),
+    icon: orEmpty({ value: a.icon }),
+    description: orEmpty({ value: a.description }),
+    rel: orEmpty({ value: a.rel }),
+    openInNewTab: orFalse({}, { value: a.openInNewTab }),
   };
+}
+
+interface MenuItemFieldProps {
+  item: AdminMenuItem;
+  path: number[];
+  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
+  t: Translate;
 }
 
 /**
@@ -86,19 +94,14 @@ export function MenuItemTargetFields({
   path,
   onChange,
   t,
-}: {
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
-  t: Translate;
-}) {
+}: MenuItemFieldProps) {
   switch (item.target.kind) {
     case "url":
       return (
         <label className="a11y-label-wrap">
           <span className="visually-hidden">URL</span>
           <input
-            value={orEmpty(item.target.href)}
+            value={orEmpty({ value: item.target.href })}
             placeholder="https://…"
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))}
           />
@@ -109,7 +112,7 @@ export function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Route name")}</span>
           <input
-            value={orEmpty(item.target.route)}
+            value={orEmpty({ value: item.target.route })}
             placeholder={t("route name")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))}
           />
@@ -120,7 +123,7 @@ export function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Entry ID")}</span>
           <input
-            value={orEmpty(item.target.entryId)}
+            value={orEmpty({ value: item.target.entryId })}
             placeholder={t("entry id")}
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))}
           />
@@ -132,7 +135,7 @@ export function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Term ID")}</span>
             <input
-              value={orEmpty(item.target.termId)}
+              value={orEmpty({ value: item.target.termId })}
               placeholder={t("term id")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))}
             />
@@ -140,7 +143,7 @@ export function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Taxonomy")}</span>
             <input
-              value={orEmpty(item.target.taxonomy)}
+              value={orEmpty({ value: item.target.taxonomy })}
               placeholder={t("taxonomy")}
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))}
             />
@@ -167,13 +170,8 @@ export function MenuItemAttrsFields({
   path,
   onChange,
   t,
-}: {
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
-  t: Translate;
-}) {
-  const attrs = attrsOrDefaults(item.attrs);
+}: MenuItemFieldProps) {
+  const attrs = attrsOrDefaults({ attrs: item.attrs });
 
   return (
     <details className="menu-item-advanced">
@@ -224,19 +222,17 @@ export function MenuItemAttrsFields({
   );
 }
 
-function ItemRow(props: {
+function ItemRow(props: MenuItemFieldProps & {
   pages?: readonly MenuPageChoice[];
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
   onRemove: (path: number[]) => void;
   onAddChild: (path: number[]) => void;
   onMove: (path: number[], direction: -1 | 1) => void;
-  t: Translate;
+  hooks?: { useMenuItemRemove: typeof useMenuItemRemove; useMenuTargetEditor: typeof useMenuTargetEditor };
 }) {
+  const { hooks = { useMenuItemRemove, useMenuTargetEditor } } = props;
   const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
-  const { handleRemoveClick } = useMenuItemRemove(item, path, onRemove);
-  const targetController = useMenuTargetEditor({ item, path, onChange, pages });
+  const { handleRemoveClick } = hooks.useMenuItemRemove({ item: item, path: path, onRemove: onRemove });
+  const targetController = hooks.useMenuTargetEditor({ item, path, onChange, pages });
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
@@ -328,8 +324,8 @@ const MODE_TABS: ReadonlyArray<{ id: AdminMenuMode; label: string }> = [{ id: "i
  * The authoring-mode tablist — PageEditor's `.page-editor-toolbar` > `.segmented role=tablist` row,
  * with the shared arrow/Home/End keys and roving tab stop from `useTabBarKeyboard`.
  */
-function MenuModeTabs({ mode, onChange, t }: { mode: AdminMenuMode; onChange: (mode: AdminMenuMode) => void; t: Translate }) {
-  const { onKeyDown } = useTabBarKeyboard({ tabs: MODE_TABS, activeId: mode, onChange: (id) => onChange(id as AdminMenuMode) });
+function MenuModeTabs({ mode, onChange, t, useTabBarKeyboard: useTabBarKeyboardHook = useTabBarKeyboard }: { mode: AdminMenuMode; onChange: (mode: AdminMenuMode) => void; t: Translate; useTabBarKeyboard?: typeof useTabBarKeyboard; }) {
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: MODE_TABS, activeId: mode, onChange: (id) => onChange(id as AdminMenuMode) });
   return (
     <div className="page-editor-toolbar">
       <div className="segmented" role="tablist" aria-label={t("Menu editor mode")} onKeyDown={onKeyDown}>
@@ -427,7 +423,7 @@ function MenuEditorHeader({ editor }: {
 }
 
 export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: MenuEditorProps) {
-  const editor = useMenuEditorHook(menuId);
+  const editor = useMenuEditorHook({ menuId });
   const {
     pageChoices,
     isNew,
@@ -471,7 +467,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           <input
             className="editor-title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setTitle({ next: e.target.value })}
             placeholder={t("Menu title")}
           />
         </label>
@@ -479,7 +475,7 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
           /{" "}
           <label className="a11y-label-wrap">
             <span className="visually-hidden">{t("Menu slug")}</span>
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
+            <input value={slug} onChange={(e) => setSlug({ next: e.target.value })} placeholder="menu-slug" />
           </label>
           {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed
               2026-08-11 alongside PostEditor's, and this one had the stronger case for going: a menu's
@@ -510,10 +506,10 @@ export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: M
               key={item.id}
               item={item}
               path={[i]}
-              onChange={changeAt}
-              onRemove={removeAt}
-              onAddChild={addChildAt}
-              onMove={moveAt}
+              onChange={(path, fn) => changeAt({ path, fn })}
+              onRemove={(path) => removeAt({ path })}
+              onAddChild={(path) => addChildAt({ path })}
+              onMove={(path, direction) => moveAt({ path, direction })}
               t={t}
               pages={pageChoices}
             />

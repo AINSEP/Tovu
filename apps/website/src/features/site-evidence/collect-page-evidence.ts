@@ -9,7 +9,7 @@ import {
 } from "@jini-ai/diagnostics/web-evidence";
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** Required Tovu origin and browser ports, plus the requested site-relative paths. */
@@ -21,14 +21,14 @@ export interface CollectPageEvidenceDeps {
 }
 
 /** Redacts one evidence string with Tovu's secret-only policy; never logs the raw value. */
-function redactText(text: string): string {
+function redactText({ text }: { text: string }, _optional = {}): string {
   return redactSecretShapes({ text }).text;
 }
 
 /** Keeps absence distinct from an observed empty string in accessibility metadata. */
-function redactNullableText(text: string | null): string | null {
+function redactNullableText({ text }: { text: string | null }, _optional = {}): string | null {
   if (text === null) return null;
-  return redactText(text);
+  return redactText({ text });
 }
 
 /**
@@ -44,55 +44,55 @@ function redactObservation({ observation }: { observation: PageObservation }): P
   return {
     document: {
       ...observation.document,
-      finalUrl: redactText(observation.document.finalUrl),
-      title: redactText(observation.document.title),
-      lang: redactNullableText(observation.document.lang),
-      textExcerpt: redactText(observation.document.textExcerpt),
+      finalUrl: redactText({ text: observation.document.finalUrl }),
+      title: redactText({ text: observation.document.title }),
+      lang: redactNullableText({ text: observation.document.lang }),
+      textExcerpt: redactText({ text: observation.document.textExcerpt }),
       headers: observation.document.headers.map(({ name, value }) => ({
-        name: redactText(name),
+        name: redactText({ text: name }),
         value: /^(?:(?:proxy-)?authorization|(?:set-)?cookie|x-api-key|api-key|x-goog-api-key|x-auth-token)$/i.test(name)
-          ? "[REDACTED:auth_header]" : redactText(value),
+          ? "[REDACTED:auth_header]" : redactText({ text: value }),
       })),
     },
     cookies: observation.cookies.map(cookie => ({
       ...cookie,
-      name: redactText(cookie.name), domain: redactText(cookie.domain), path: redactText(cookie.path),
-      sameSite: redactText(cookie.sameSite), expiresAt: redactNullableText(cookie.expiresAt),
+      name: redactText({ text: cookie.name }), domain: redactText({ text: cookie.domain }), path: redactText({ text: cookie.path }),
+      sameSite: redactText({ text: cookie.sameSite }), expiresAt: redactNullableText({ text: cookie.expiresAt }),
     })),
     requests: observation.requests.map(request => ({
       ...request,
-      method: redactText(request.method), host: redactText(request.host), pathname: redactText(request.pathname),
-      resourceType: redactText(request.resourceType),
-      ...(request.blockedReason === undefined ? {} : { blockedReason: redactText(request.blockedReason) }),
+      method: redactText({ text: request.method }), host: redactText({ text: request.host }), pathname: redactText({ text: request.pathname }),
+      resourceType: redactText({ text: request.resourceType }),
+      ...(request.blockedReason === undefined ? {} : { blockedReason: redactText({ text: request.blockedReason }) }),
     })),
     ...(accessibility === undefined ? {} : { accessibility: {
       landmarks: accessibility.landmarks.map(node => ({
-        ...node, role: redactText(node.role), selector: redactText(node.selector), accessibleName: redactNullableText(node.accessibleName),
+        ...node, role: redactText({ text: node.role }), selector: redactText({ text: node.selector }), accessibleName: redactNullableText({ text: node.accessibleName }),
       })),
-      headings: accessibility.headings.map(node => ({ ...node, selector: redactText(node.selector), text: redactText(node.text) })),
+      headings: accessibility.headings.map(node => ({ ...node, selector: redactText({ text: node.selector }), text: redactText({ text: node.text }) })),
       images: accessibility.images.map(node => ({
-        ...node, selector: redactText(node.selector), src: redactText(node.src), alt: redactNullableText(node.alt),
+        ...node, selector: redactText({ text: node.selector }), src: redactText({ text: node.src }), alt: redactNullableText({ text: node.alt }),
       })),
       formControls: accessibility.formControls.map(node => ({
-        ...node, selector: redactText(node.selector), tag: redactText(node.tag), type: redactNullableText(node.type),
-        name: redactNullableText(node.name), accessibleName: redactNullableText(node.accessibleName), labelSource: redactText(node.labelSource),
+        ...node, selector: redactText({ text: node.selector }), tag: redactText({ text: node.tag }), type: redactNullableText({ text: node.type }),
+        name: redactNullableText({ text: node.name }), accessibleName: redactNullableText({ text: node.accessibleName }), labelSource: redactText({ text: node.labelSource }),
       })),
       contrastSamples: accessibility.contrastSamples.map(node => ({
-        ...node, selector: redactText(node.selector), foreground: redactText(node.foreground), background: redactText(node.background),
+        ...node, selector: redactText({ text: node.selector }), foreground: redactText({ text: node.foreground }), background: redactText({ text: node.background }),
       })),
-      truncated: accessibility.truncated.map(redactText),
+      truncated: accessibility.truncated.map((text) => redactText({ text })),
     } }),
     ...(observation.performance === undefined ? {} : { performance: {
-      ...observation.performance, suspects: observation.performance.suspects.map(redactText),
+      ...observation.performance, suspects: observation.performance.suspects.map((text) => redactText({ text })),
     } }),
-    notes: observation.notes.map(redactText),
+    notes: observation.notes.map((text) => redactText({ text })),
   };
 }
 
 /** The collector invokes this policy before returning observations and browser failure messages. */
 const TOVU_OBSERVATION_POLICY: ObservationPolicy = {
   redactObservation,
-  redactMessage: ({ message }) => redactText(message),
+  redactMessage: ({ message }) => redactText({ text: message }),
 };
 
 /**

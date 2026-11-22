@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { themesApi } from "../../features/themes/api/themes-api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file First direct coverage pass for `api.ts`'s theme endpoints (0% before this
@@ -54,7 +55,7 @@ const BASE = "/api/admin/v1/workspaces/workspace-local";
 test("saveThemeOriginal sends an empty POST to the encoded theme's original endpoint", async () => {
   const saved = { themeId: "my/theme", saved: true };
   const { calls, body } = stubFetchCapturing(okJson(saved));
-  await expect(api.saveThemeOriginal("my/theme")).resolves.toEqual(saved);
+  await expect(themesApi.saveThemeOriginal({ themeId: "my/theme" })).resolves.toEqual(saved);
   expect(calls[0].url).toBe(`${BASE}/themes/my%2Ftheme/original`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({});
@@ -62,7 +63,7 @@ test("saveThemeOriginal sends an empty POST to the encoded theme's original endp
 
 test.each([undefined, "", "custom-id"])("duplicateTheme preserves an explicit id and omits an unspecified one (%s)", async (newId) => {
   const { calls, body } = stubFetchCapturing();
-  await api.duplicateTheme("my/theme", "Copy", newId);
+  await themesApi.duplicateTheme({ themeId: "my/theme", newName: "Copy" }, { newId });
   expect(calls[0].url).toBe(`${BASE}/themes/my%2Ftheme/duplicate`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual(newId === undefined ? { newName: "Copy" } : { newName: "Copy", newId });
@@ -81,14 +82,14 @@ test("getThemeDetail GETs one theme's explore surface by id", async () => {
     hasOriginal: true,
   };
   const { calls } = stubFetchCapturing(okJson(detail));
-  await expect(api.getThemeDetail("basic")).resolves.toEqual(detail);
+  await expect(themesApi.getThemeDetail({ themeId: "basic" })).resolves.toEqual(detail);
   expect(calls[0].url).toBe(`${BASE}/themes/basic`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("getThemeDetail throws ApiError for an unknown theme id", async () => {
   stubFetchCapturing(errJson(404, "theme not found", "NOT_FOUND"));
-  const error = await api.getThemeDetail("nope").catch((e: unknown) => e);
+  const error = await themesApi.getThemeDetail({ themeId: "nope" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("NOT_FOUND");
   expect((error as ApiError).message).toBe("theme not found");
@@ -98,7 +99,7 @@ test("getThemeDetail throws ApiError for an unknown theme id", async () => {
 
 test("resetThemeFile POSTs the path in the body to the theme's /file/reset route", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ path: "pages/about.html", bytes: 42, content: "<html></html>" }));
-  const result = await api.resetThemeFile("basic", "pages/about.html");
+  const result = await themesApi.resetThemeFile({ themeId: "basic", path: "pages/about.html" });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/file/reset`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ path: "pages/about.html" });
@@ -107,7 +108,7 @@ test("resetThemeFile POSTs the path in the body to the theme's /file/reset route
 
 test("resetThemeFile throws ApiError with code READ_ONLY_FILE for a read-only group", async () => {
   stubFetchCapturing(errJson(400, "this file cannot be reset", "READ_ONLY_FILE"));
-  const error = await api.resetThemeFile("basic", "scripts/main.js").catch((e: unknown) => e);
+  const error = await themesApi.resetThemeFile({ themeId: "basic", path: "scripts/main.js" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("READ_ONLY_FILE");
 });
@@ -116,7 +117,7 @@ test("resetThemeFile throws ApiError with code READ_ONLY_FILE for a read-only gr
 
 test("getThemeFile GETs raw file content via a ?path= query param", async () => {
   const { calls } = stubFetchCapturing(okJson({ path: "pages/about.html", content: "<html></html>" }));
-  await expect(api.getThemeFile("basic", "pages/about.html")).resolves.toEqual({
+  await expect(themesApi.getThemeFile({ themeId: "basic", path: "pages/about.html" })).resolves.toEqual({
     path: "pages/about.html",
     content: "<html></html>",
   });
@@ -126,7 +127,7 @@ test("getThemeFile GETs raw file content via a ?path= query param", async () => 
 
 test("getThemeFile encodes both themeId and path independently", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getThemeFile("my theme", "pages/a b.html");
+  await themesApi.getThemeFile({ themeId: "my theme", path: "pages/a b.html" });
   expect(calls[0].url).toBe(
     `${BASE}/themes/${encodeURIComponent("my theme")}/file?path=${encodeURIComponent("pages/a b.html")}`
   );
@@ -136,7 +137,7 @@ test("getThemeFile encodes both themeId and path independently", async () => {
 
 test("putThemeFile PUTs path+content to the theme's /file route", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ path: "pages/about.html", bytes: 10 }));
-  const result = await api.putThemeFile("basic", "pages/about.html", "<p>hi</p>");
+  const result = await themesApi.putThemeFile({ themeId: "basic", path: "pages/about.html", content: "<p>hi</p>" });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/file`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ path: "pages/about.html", content: "<p>hi</p>" });
@@ -145,7 +146,7 @@ test("putThemeFile PUTs path+content to the theme's /file route", async () => {
 
 test("putThemeFile throws ApiError with code READ_ONLY_FILE when the route refuses the save", async () => {
   stubFetchCapturing(errJson(400, "read-only file", "READ_ONLY_FILE"));
-  const error = await api.putThemeFile("basic", "scripts/main.js", "x").catch((e: unknown) => e);
+  const error = await themesApi.putThemeFile({ themeId: "basic", path: "scripts/main.js", content: "x" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("READ_ONLY_FILE");
 });
@@ -156,7 +157,7 @@ test("copyThemeFile POSTs the source path to the theme's /file/copy route", asyn
   const { calls, body } = stubFetchCapturing(
     okJson({ path: "pages/about-1.html", group: "page", readable: true, editable: true, resettable: false, copiedFrom: "pages/about.html" })
   );
-  const result = await api.copyThemeFile("basic", "pages/about.html");
+  const result = await themesApi.copyThemeFile({ themeId: "basic", path: "pages/about.html" });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/file/copy`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ path: "pages/about.html" });
@@ -169,7 +170,7 @@ test("renameThemeFile POSTs path+name to the theme's /file/rename route", async 
   const { calls, body } = stubFetchCapturing(
     okJson({ path: "pages/contact.html", group: "page", readable: true, editable: true, resettable: false, renamedFrom: "pages/about.html" })
   );
-  const result = await api.renameThemeFile("basic", "pages/about.html", "contact.html");
+  const result = await themesApi.renameThemeFile({ themeId: "basic", path: "pages/about.html", name: "contact.html" });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/file/rename`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ path: "pages/about.html", name: "contact.html" });
@@ -178,14 +179,14 @@ test("renameThemeFile POSTs path+name to the theme's /file/rename route", async 
 
 test("renameThemeFile throws ApiError with code REQUIRED_FILE_LOCKED for a locked required file", async () => {
   stubFetchCapturing(errJson(400, "this file cannot be renamed", "REQUIRED_FILE_LOCKED"));
-  const error = await api.renameThemeFile("basic", "theme.json", "x.json").catch((e: unknown) => e);
+  const error = await themesApi.renameThemeFile({ themeId: "basic", path: "theme.json", name: "x.json" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("REQUIRED_FILE_LOCKED");
 });
 
 test("renameThemeFile throws ApiError with code NAME_TAKEN when the destination name collides", async () => {
   stubFetchCapturing(errJson(409, "that name is already taken", "NAME_TAKEN"));
-  const error = await api.renameThemeFile("basic", "pages/about.html", "index.html").catch((e: unknown) => e);
+  const error = await themesApi.renameThemeFile({ themeId: "basic", path: "pages/about.html", name: "index.html" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("NAME_TAKEN");
 });
@@ -194,7 +195,7 @@ test("renameThemeFile throws ApiError with code NAME_TAKEN when the destination 
 
 test("deleteThemeFile POSTs the path to the theme's /file/delete route", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ path: "pages/about.html", deleted: true }));
-  const result = await api.deleteThemeFile("basic", "pages/about.html");
+  const result = await themesApi.deleteThemeFile({ themeId: "basic", path: "pages/about.html" });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/file/delete`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ path: "pages/about.html" });
@@ -203,7 +204,7 @@ test("deleteThemeFile POSTs the path to the theme's /file/delete route", async (
 
 test("deleteThemeFile throws ApiError with code REQUIRED_FILE_LOCKED for a theme's required file", async () => {
   stubFetchCapturing(errJson(400, "cannot delete a required file", "REQUIRED_FILE_LOCKED"));
-  const error = await api.deleteThemeFile("basic", "pages/index.html").catch((e: unknown) => e);
+  const error = await themesApi.deleteThemeFile({ themeId: "basic", path: "pages/index.html" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("REQUIRED_FILE_LOCKED");
 });
@@ -212,7 +213,7 @@ test("deleteThemeFile throws ApiError with code REQUIRED_FILE_LOCKED for a theme
 
 test("setThemePagePublished POSTs page+published to the theme's /page/publish route", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ page: "about", published: true, publishedPages: ["about"] }));
-  const result = await api.setThemePagePublished("basic", "about", true);
+  const result = await themesApi.setThemePagePublished({ themeId: "basic", page: "about", published: true });
   expect(calls[0].url).toBe(`${BASE}/themes/basic/page/publish`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ page: "about", published: true });
@@ -221,14 +222,14 @@ test("setThemePagePublished POSTs page+published to the theme's /page/publish ro
 
 test("setThemePagePublished throws ApiError with code NOT_STATIC_TIER for a non-static theme", async () => {
   stubFetchCapturing(errJson(400, "only static-tier themes support page publishing", "NOT_STATIC_TIER"));
-  const error = await api.setThemePagePublished("declarative-theme", "about", true).catch((e: unknown) => e);
+  const error = await themesApi.setThemePagePublished({ themeId: "declarative-theme", page: "about", published: true }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("NOT_STATIC_TIER");
 });
 
 test("setThemePagePublished throws ApiError with code PAGE_NOT_PUBLISHABLE for index/404/template-shell pages", async () => {
   stubFetchCapturing(errJson(400, "this page cannot be published/unpublished", "PAGE_NOT_PUBLISHABLE"));
-  const error = await api.setThemePagePublished("basic", "index", false).catch((e: unknown) => e);
+  const error = await themesApi.setThemePagePublished({ themeId: "basic", page: "index", published: false }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("PAGE_NOT_PUBLISHABLE");
 });
@@ -239,7 +240,7 @@ test("rescanThemes POSTs to /themes/rescan with no body and resolves the discove
   const { calls } = stubFetchCapturing(
     okJson({ added: ["new-theme"], removed: [], total: 4, availableThemeIds: ["basic", "new-theme"], duplicateIds: [] })
   );
-  const result = await api.rescanThemes();
+  const result = await themesApi.rescanThemes();
   expect(calls[0].url).toBe(`${BASE}/themes/rescan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();

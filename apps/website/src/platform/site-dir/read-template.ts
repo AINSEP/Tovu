@@ -33,7 +33,7 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
  * Stock data copied into the compiled root by the build; see `product-root.ts` for
  * ancestor resolution across source and compiled trees.
  */
-const TEMPLATES_ROOT = path.join(resolveProductRoot(), "content", "templates");
+const TEMPLATES_ROOT = path.join(resolveProductRoot({}), "content", "templates");
 
 export interface ReadTemplateRequired {
   templateId: string;
@@ -73,7 +73,7 @@ export function readTemplate(required: ReadTemplateRequired, optional: ReadTempl
     template = JSON.parse(fs.readFileSync(path.join(templateDir, "template.json"), "utf8")) as TemplateJson;
     seedContent = JSON.parse(fs.readFileSync(path.join(templateDir, "seed-content.json"), "utf8")) as TemplateSeedContent;
   } catch (err) {
-    throw new InternalError(`readTemplate: template "${templateId}" is missing or corrupt: ${(err as Error).message}`);
+    throw new InternalError({ message: `readTemplate: template "${templateId}" is missing or corrupt: ${(err as Error).message}` });
   }
 
   const seed: ContentDbSeedData = {

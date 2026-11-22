@@ -20,7 +20,7 @@ export interface AnonymousPublishedPostDeps {
   readonly listPublishedPosts: ListPublishedPosts;
   /** Both operations belong to members. No visibility policy is reimplemented by assistant tools. */
   readonly memberAccess: {
-    readonly resolvePostMemberAccess: (raw: string | null | undefined) => MemberContentAccess;
+    readonly resolvePostMemberAccess: (required: { raw: string | null | undefined }, optional?: Record<string, never>) => MemberContentAccess;
     readonly decide: MemberAccessResolver["decide"];
   };
 }
@@ -47,7 +47,7 @@ export async function readAnonymousPublishedPosts(
     if (raw != null && typeof raw !== "string") return false;
     try {
       return deps.memberAccess.decide({
-        access: deps.memberAccess.resolvePostMemberAccess(raw),
+        access: deps.memberAccess.resolvePostMemberAccess({ raw }),
         context: ANONYMOUS_CONTEXT,
       }).allowed === true;
     } catch {

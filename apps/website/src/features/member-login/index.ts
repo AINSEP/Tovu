@@ -3,8 +3,9 @@ export { loadBundledLoginProviders, loadLoginProviders, parseLoginProviders, LOG
 export { hasLoginCredentials, resolveLoginCredentials } from "./credentials.js";
 export { beginOidcLogin, completeOidcLogin, memberLoginCallbackUrl, sealLoginEmailContinuation, openLoginEmailContinuation } from "./oidc-login.js";
 export type { OidcLoginDeps, LoginContext, CompletedOidcLogin } from "./oidc-login.js";
-export { decideMemberLogin } from "./link-policy.js";
 export { resolveFederatedIdentity, requestLoginEmailProof } from "./link-service.js";
 export type { MemberLoginLinkDeps, MemberLoginLinkInput, MemberLoginLinkResult } from "./link-service.js";
 export { MemberLoginError } from "./types.js";
 export type { LoginProvider, LoginProviderPreset, VerifiedLoginIdentity, MemberLoginOutcomeCode } from "./types.js";
+
+export { createReadyLoginProviderList } from "./ready-providers.js";

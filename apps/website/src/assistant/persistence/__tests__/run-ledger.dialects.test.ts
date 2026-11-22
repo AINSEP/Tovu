@@ -157,31 +157,31 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     const { kernel, ledger } = make();
     await seed(kernel, [{ id: "a1", content: "", position: 0 }]);
 
-    assert.deepEqual(await ledger.unlessSettled(RUN, async () => "wrote"), { written: true, value: "wrote" });
+    assert.deepEqual(await ledger.unlessSettled({ run: RUN, write: async () => "wrote" }), { written: true, value: "wrote" });
     // An unknown row counts as unsettled (the browser's first save of a turn).
-    assert.deepEqual(await ledger.unlessSettled({ ...RUN, messageId: "new" }, async () => 1), { written: true, value: 1 });
+    assert.deepEqual(await ledger.unlessSettled({ run: { ...RUN, messageId: "new" }, write: async () => 1 }), { written: true, value: 1 });
 
     await ledger.settle(settlement("Final"));
     let called = false;
     assert.deepEqual(
-      await ledger.unlessSettled(RUN, async () => {
+      await ledger.unlessSettled({ run: RUN, write: async () => {
         called = true;
-      }),
+      } }),
       { written: false }
     );
     assert.equal(called, false);
     // A retry: the same message under a new run id is a new turn.
-    assert.deepEqual(await ledger.unlessSettled({ ...RUN, runId: "run-2" }, async () => "retry"), { written: true, value: "retry" });
+    assert.deepEqual(await ledger.unlessSettled({ run: { ...RUN, runId: "run-2" }, write: async () => "retry" }), { written: true, value: "retry" });
   });
 
   test("a write that throws inside unlessSettled rolls back everything it wrote", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [{ id: "a1", content: "stub", position: 0 }]);
     await assert.rejects(
-      ledger.unlessSettled(RUN, async () => {
+      ledger.unlessSettled({ run: RUN, write: async () => {
         await kernel.run((db) => db.updateTable("ai_chat_messages").set({ content: "half" }).where("id", "=", "a1").execute());
         throw new Error("boom");
-      }),
+      } }),
       /boom/
     );
     assert.equal((await row(kernel, "a1")).content, "stub");
@@ -299,7 +299,7 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
   test("a browser restart notice cannot terminalize a live daemon row or erase its checkpoint", async () => {
     const { kernel, ledger } = make();
     await seed(kernel, [{ id: "a1", content: "Latest", events: [{ kind: "text", text: "Latest" }], position: 0 }]);
-    const store = createTenantScopedChatStore(kernel, { kind: "user", workspaceId: "ws", userId: "u" }, ledger);
+    const store = createTenantScopedChatStore({ db: kernel, principal: { kind: "user", workspaceId: "ws", userId: "u" } }, { ledger: ledger });
     const saved = await store.appendMessage({ conversationId: "c1", message: {
       id: "a1", role: "assistant", runId: "run-1", runStatus: "failed", content: "Stale", events: [{ ...RESTART_NOTICE, kind: "status" as const }], endedAt: T0 + 1,
     } });
@@ -325,17 +325,38 @@ describeEachChatDialect("ChatRunLedger", (kernel) => ({ kernel, ledger: createCh
     const { kernel, ledger } = make();
     await seed(kernel, [{ id: "a1", content: "", position: 0 }]);
     // The browser's late save: a terminal "run forgotten" with no events, written only while unsettled.
-    const browserSave = ledger.unlessSettled(RUN, async () => {
+    const browserSave = ledger.unlessSettled({ run: RUN, write: async () => {
       await kernel.run((db) =>
         db.updateTable("ai_chat_messages").set({ content: "", events_json: "[]", run_status: "failed" }).where("id", "=", "a1").execute()
       );
       return "browser";
-    });
+    } });
     const finalizer = ledger.settle(settlement("The answer"));
     const [browser, settled] = await Promise.all([browserSave, finalizer]);
     // Whichever took the run's lock first wins; the other must be a no-op.
     assert.equal(browser.written !== settled, true, "exactly one of the two writes may land");
     const final = await row(kernel, "a1");
     assert.equal(final.content, settled ? "The answer" : "");
+  });
+});
+
+describeEachChatDialect("Run ledger attribution failure", kernel => ({ kernel }), make => {
+  test("a committed settlement retains its result after redacted attribution failure", async t => {
+    const { kernel } = make();
+    const runtime = await import("@jini-ai/chat/store/runtime");
+    const reports: { error: Error; context: unknown }[] = [];
+    t.mock.module("@jini-ai/chat/store/runtime", { namedExports: { ...runtime, createChatRunLedger: () => ({
+      settle: async () => true,
+      durable: { find: async () => { throw new Error("attribution context password=ATTRIBUTION_CANARY"); } },
+    }) } });
+    const modulePath = "../run-ledger.js?attribution-failure";
+    const { createChatRunLedger: create } = await import(modulePath);
+    const tracker = { error: ({ error }: { error: Error }, context: unknown) => reports.push({ error, context }) };
+    const ledger = create({ store: kernel }, { tracker });
+    assert.equal(await ledger.settle(settlement("Done")), true);
+    assert.equal(reports.length, 1);
+    assert.match(reports[0]!.error.message, /attribution context/);
+    assert.doesNotMatch(reports[0]!.error.message, /ATTRIBUTION_CANARY/);
+    assert.deepEqual(reports[0]!.context, { context: { operation: "assistant.run.product-event" } });
   });
 });

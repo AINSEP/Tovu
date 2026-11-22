@@ -1,14 +1,15 @@
-import { forwardRef, useRef } from "react";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { forwardRef, useRef, type RefObject } from "react";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { OtherCredentialStoreInfo } from "./rules";
+
+import type { OtherCredentialStoreInfo } from "./other-credential-stores";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 
@@ -37,7 +38,7 @@ const REMOVE_FROM_TOVU = "Remove from Tovu";
  * mirrors `ProviderGroup` (one heading, one row) with exactly zero or one row inside, never more.
  */
 
-function entryHandleLabel(name: string, purposeLabel: string, configured: boolean): string {
+function entryHandleLabel({ name, purposeLabel, configured }: { name: string; purposeLabel: string; configured: boolean }, _optional: Record<string, never> = {}): string {
   return configured ? `${name} — ${purposeLabel}, configured` : `${name} — ${purposeLabel}, not configured`;
 }
 
@@ -53,7 +54,7 @@ export function OtherCredentialEntry({ store, row, controller }: { store: OtherC
       className="access-tokens-provider-group"
       {...agentHandle({ handle: `security-other-credentials-${store.id}-${agentHandleSegment({ value: row?.itemId ?? "none" })}` }, {
         role: "region",
-        label: entryHandleLabel(name, store.purposeLabel, row !== undefined),
+        label: entryHandleLabel({ name, purposeLabel: store.purposeLabel, configured: row !== undefined }),
       })}
     >
       <h3 className="access-tokens-provider-heading">
@@ -109,6 +110,32 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
   );
 }
 
+function OtherCredentialRemoveButton({ row, translate, dialogRef }: { row: OtherCredentialRowState; translate: Translate; dialogRef: RefObject<HTMLDialogElement | null> }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={() => dialogRef.current?.showModal()}
+        // `aria-label`: a store can hold more than one configured item (this file's own
+        // `handleSuffix` doc comment above names `media-provider` as an example), and every row
+        // renders unconditionally — no accordion, no menu — so two configured items under the
+        // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
+        // `row.name` is this row's own display name, already visible in its heading.
+        aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
+        {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
+      >
+        {translate(REMOVE_FROM_TOVU)}
+      </button>
+      {row.error ? (
+        <p className="save-error" role="alert">
+          {row.error}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** Configured, but this store does not support inline Replace (`external-mcp`
  *  — see `rules.ts`'s `OtherCredentialStoreInfo.supportsReplace` doc for why) — just the value fact,
  *  Remove, and the deep link, no disclosure to expand. Remove asks first, through the same
@@ -126,31 +153,13 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         <span className="access-tokens-row-fact">{row.valueFact}</span>
         {row.updatedAt ? (
           <span className="access-tokens-row-summary-meta">
-            {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
+            {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
           </span>
         ) : null}
       </div>
       <div className="access-tokens-row-actions">
         <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
-        <button
-          type="button"
-          className="btn-danger"
-          onClick={() => dialogRef.current?.showModal()}
-          // `aria-label`: a store can hold more than one configured item (this file's own
-          // `handleSuffix` doc comment above names `media-provider` as an example), and every row
-          // renders unconditionally — no accordion, no menu — so two configured items under the
-          // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
-          // `row.name` is this row's own display name, already visible in its heading.
-          aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
-          {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
-        >
-          {translate(REMOVE_FROM_TOVU)}
-        </button>
-        {row.error ? (
-          <p className="save-error" role="alert">
-            {row.error}
-          </p>
-        ) : null}
+        <OtherCredentialRemoveButton row={row} translate={translate} dialogRef={dialogRef} />
       </div>
       <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
     </div>
@@ -181,7 +190,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
               {translate("Access token")}
               {row.updatedAt ? (
                 <span className="access-tokens-row-summary-meta access-tokens-field-label-meta">
-                  {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
+                  {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
                 </span>
               ) : null}
             </label>
@@ -200,22 +209,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
         </div>
         <div className="access-tokens-row-actions access-tokens-row-actions-top">
           <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={() => dialogRef.current?.showModal()}
-            // Same multi-item-per-store ambiguity as `OtherCredentialStaticRow`'s identical button
-            // above.
-            aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
-            {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
-          >
-            {translate(REMOVE_FROM_TOVU)}
-          </button>
-          {row.error ? (
-            <p className="save-error" role="alert">
-              {row.error}
-            </p>
-          ) : null}
+          <OtherCredentialRemoveButton row={row} translate={translate} dialogRef={dialogRef} />
         </div>
       </div>
       <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
@@ -235,10 +229,14 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
  * Confirm button carries no `agentHandle`, same destructive-action boundary Tier 1's own confirm
  * dialog draws.
  */
-const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate }>(
-  function OtherCredentialRemoveDialog({ row, controller, t: translate }, ref) {
-    const locale = useAdminLocale();
-    const { close, confirm } = useOtherCredentialRemoveDialog(ref, row, controller);
+const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate;
+  useAdminLocaleHook?: typeof useAdminLocale;
+  useOtherCredentialRemoveDialogHook?: typeof useOtherCredentialRemoveDialog; }>(
+  function OtherCredentialRemoveDialog({ row, controller, t: translate,
+  useAdminLocaleHook = useAdminLocale,
+  useOtherCredentialRemoveDialogHook = useOtherCredentialRemoveDialog }, ref) {
+    const locale = useAdminLocaleHook();
+    const { close, confirm } = useOtherCredentialRemoveDialogHook({ ref, row, controller });
     // `aria-labelledby`, not left implicit — same fix, same reasoning, as Tier 1's own
     // `RemoveConfirmDialog` (`AccessTokensTab.tsx`): a native `<dialog>` gets no accessible name
     // for free from an `<h2>` inside it, and this doc comment's own header already promises this
@@ -248,10 +246,10 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     const titleId = `security-other-credentials-remove-title-${rowHandleBase({ row })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
-        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
+        <h2 id={titleId}>{removeDialogTitle({ locale, name: row.name })}</h2>
         {/* Per-store body — `otherCredentialRemoveDialogBody`'s own doc: the shared "does NOT
             revoke" sentence is kept for the replaceable stores; External MCP gets its own. */}
-        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody(locale, row.store)}</p>
+        <p className="confirm-dialog-body">{otherCredentialRemoveDialogBody({ locale, store: row.store })}</p>
         <div className="confirm-dialog-actions">
           <button
             type="button"

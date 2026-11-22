@@ -7,7 +7,7 @@ import { checkRedirectFieldsWouldWrite, createRedirect, updateRedirect } from "@
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 import type { RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
-import { REDIRECT_TABLES } from "./repo.sqlite.js";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 
 /**
  * @file `redirect`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -50,13 +50,16 @@ const MATCH_TYPE_PREFIX: Readonly<Record<RedirectMatchType, string>> = {
 
 /** `PackedEntity.id` for a redirect — see this file's header.
  *  @complexity O(1). */
-export function redirectNaturalKey(matchType: RedirectMatchType, fromPattern: string): string {
+export function redirectNaturalKey(
+  { matchType, fromPattern }: { matchType: RedirectMatchType; fromPattern: string },
+  _optional = {}
+): string {
   return `${matchType}:${fromPattern}`;
 }
 
 /** Reverses {@link redirectNaturalKey}; `null` for a key with no `:` (a hand-crafted or corrupted id).
  *  @complexity O(n) in the key's length. */
-function parseRedirectNaturalKey(key: string): { matchType: RedirectMatchType; fromPattern: string } | null {
+function parseRedirectNaturalKey({ key }: { key: string }, _optional = {}): { matchType: RedirectMatchType; fromPattern: string } | null {
   const sep = key.indexOf(":");
   if (sep < 0) return null;
   return { matchType: key.slice(0, sep) as RedirectMatchType, fromPattern: key.slice(sep + 1) };
@@ -74,8 +77,11 @@ function withTitle(row: RedirectRecord): RedirectRow {
 
 /** The row (active OR disabled) holding this natural key, or `null`.
  *  @complexity O(n) in this workspace's row count for `matchType`. */
-async function findByNaturalKey(repo: RedirectRepoPort, workspaceId: string, id: string): Promise<RedirectRow | null> {
-  const key = parseRedirectNaturalKey(id);
+async function findByNaturalKey(
+  { repo, workspaceId, id }: { repo: RedirectRepoPort; workspaceId: string; id: string },
+  _optional = {}
+): Promise<RedirectRow | null> {
+  const key = parseRedirectNaturalKey({ key: id });
   if (!key) return null;
   const rows = await repo.list({ workspaceId, matchType: key.matchType });
   const row = rows.find((r) => r.fromPattern === key.fromPattern);
@@ -83,7 +89,7 @@ async function findByNaturalKey(repo: RedirectRepoPort, workspaceId: string, id:
 }
 
 /** The fields `createRedirect`/`updateRedirect` take, read off packed state. */
-function redirectFields(workspaceId: string, state: Record<string, unknown>) {
+function redirectFields({ workspaceId, state }: { workspaceId: string; state: Record<string, unknown> }, _optional = {}) {
   return {
     workspaceId,
     matchType: state.matchType as RedirectMatchType,
@@ -101,11 +107,11 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     entityType: "redirect",
     coversTables: [REDIRECT_TABLES.redirects],
     permission: "admin.redirects.manage",
-    ports: (deps) => deps.ports.redirect,
-    list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(withTitle),
-    find: (p, workspaceId, id) => findByNaturalKey(p.repo, workspaceId, id),
-    idOf: (row) => redirectNaturalKey(row.matchType, row.fromPattern),
-    include: (row) => row.status === "active",
+    ports: ({ deps }, _optional = {}) => deps.ports.redirect,
+    list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(withTitle),
+    find: ({ ports: p, workspaceId, id }) => findByNaturalKey({ repo: p.repo, workspaceId, id }),
+    idOf: ({ row }, _optional = {}) => redirectNaturalKey({ matchType: row.matchType, fromPattern: row.fromPattern }),
+    include: ({ row }, _optional = {}) => row.status === "active",
     // `transferred` = what `CreateRedirectInput`/`UpdateRedirectInput` accept, plus `status` (always
     // "active" on a packed row). `provenance` fields cannot round-trip: `createdAt` comes from the
     // destination clock, `source` is always "import" on write, and the `auto_slug_change` capture fields
@@ -133,12 +139,12 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     },
     // The same ruleset `createRedirect`/`updateRedirect` run, so preview and apply cannot drift.
     validate: async ({ ports, workspaceId, entity, existing }) =>
-      parseRedirectNaturalKey(entity.id)
-        ? checkRedirectFieldsWouldWrite({ deps: ports, fields: redirectFields(workspaceId, entity.state) }, { excludeId: existing?.id })
-        : malformedKey("redirect", entity.id, "matchType:fromPattern"),
+      parseRedirectNaturalKey({ key: entity.id })
+        ? checkRedirectFieldsWouldWrite({ deps: ports, fields: redirectFields({ workspaceId, state: entity.state }) }, { excludeId: existing?.id })
+        : malformedKey({ entityType: "redirect", id: entity.id, expectedShape: "matchType:fromPattern" }),
     write: async ({ ports, workspaceId, id, state, existing, principalId }) => {
-      if (!parseRedirectNaturalKey(id)) throw new Error(`publish-content: redirect.apply() received a malformed natural key '${id}'`);
-      const fields = { ...redirectFields(workspaceId, state), actorId: principalId };
+      if (!parseRedirectNaturalKey({ key: id })) throw new Error(`publish-content: redirect.apply() received a malformed natural key '${id}'`);
+      const fields = { ...redirectFields({ workspaceId, state }), actorId: principalId };
       const { record } = existing
         ? await updateRedirect({
             deps: ports,

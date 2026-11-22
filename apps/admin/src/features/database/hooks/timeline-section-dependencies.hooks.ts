@@ -1,4 +1,5 @@
-import { api, type AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /**
@@ -8,14 +9,14 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultTimelineSectionPort: TimelineSectionPort = {
-  getDatabaseTimeline: (options) => api.getDatabaseTimeline(options),
+  getDatabaseTimeline: (_required, { options } = {}) => databaseApi.getDatabaseTimeline(options),
 };
 
 /** Seed state for {@link createFakeTimelineSectionPort}. */
 export interface FakeTimelineSectionPortOptions {
   items?: AdminLedgerRow[];
   nextCursor?: string | null;
-  /** When set, `getDatabaseTimeline()` rejects with this instead of resolving — for load-failure
+  /** When set, `getDatabaseTimeline({})` rejects with this instead of resolving — for load-failure
    *  tests. */
   getDatabaseTimelineError?: Error;
 }
@@ -24,7 +25,7 @@ export interface FakeTimelineSectionPortOptions {
  * An in-memory {@link TimelineSectionPort} for tests — "every port gets a fake" (see
  * `assistant-chats-dependencies.hooks.ts`). Always returns the same seeded page regardless of the
  * requested filters/cursor — this hook's own filter/cursor bookkeeping lives in the CALLER, not the
- * port (same precedent `comment-queue-dependencies.hooks.ts`'s own doc comment states for its
+ * port (same precedent `createFakeCommentQueuePort` uses for its
  * `listCommentsQueue`), so a test asserts the hook passed through the right options via the fake's
  * own call log instead of simulating server-side filtering.
  */
@@ -36,7 +37,7 @@ export function createFakeTimelineSectionPort(options: FakeTimelineSectionPortOp
 
   return {
     calls,
-    async getDatabaseTimeline(reqOptions = {}) {
+    async getDatabaseTimeline(_required, { options: reqOptions = {} } = {}) {
       calls.push(reqOptions);
       if (options.getDatabaseTimelineError) throw options.getDatabaseTimelineError;
       return { items: options.items ?? [], nextCursor: options.nextCursor ?? null };

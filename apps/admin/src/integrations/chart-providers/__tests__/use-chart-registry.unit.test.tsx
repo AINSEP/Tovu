@@ -2,7 +2,7 @@
 import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
-import type { ChartProvider } from "@jini-ai/ui/charts";
+import type { ChartProvider } from "@jini-ai/core/contracts/charts";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "@/lib/settings-refresh-bus";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
@@ -18,7 +18,7 @@ it("loads the admitted module only when its chart is rendered and tears its rend
       { id: "plugin.test", kinds: ["bar"], javascript: "/admitted/chart.js" },
     ],
   } });
-  const provider: ChartProvider = {
+  const provider: ChartProvider<HTMLElement> = {
     mount({ element, spec }) {
       element.textContent = `Rendered ${spec.kind}: ${spec.data[0]!.value}`;
       return {

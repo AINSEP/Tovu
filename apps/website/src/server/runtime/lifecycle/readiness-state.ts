@@ -41,13 +41,13 @@ const ASSISTANT_DAEMON_MODULE_NAME = "assistant-daemon";
  * failure must be visible in the snapshot, but must never flip the rest of the app's `ok` to
  * `false` — most of Tovu, and BYOK mode specifically, does not depend on this process at all.
  *
- * `server/modules/assistant.ts` checks {@link isAssistantDaemonKnownFailed} before ever attempting
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts` checks {@link isAssistantDaemonKnownFailed} before ever attempting
  * to proxy a request to the daemon's port. The point of latching a KNOWN failure, rather than just
  * logging one, is that "something answered on the daemon's port" stops being treated as proof of
  * health once we know OUR OWN spawn died — a leaked port can otherwise still be squatted by an
  * orphaned daemon from a previous run, which would go on answering requests as if it were healthy.
  */
-export function recordAssistantDaemonFailure(reasonCode: string): void {
+export function recordAssistantDaemonFailure({ reasonCode }: { reasonCode: string }, _optional = {}): void {
   const failedModule: BootModuleResult = {
     name: ASSISTANT_DAEMON_MODULE_NAME,
     owner: "assistant",
@@ -80,7 +80,7 @@ export function isAssistantDaemonKnownFailed(): boolean {
  * attempts) and those are different operational situations for whoever is reading the failure — "it
  * never started" points at boot configuration, "it gave up after N crashes" points at something the
  * process itself is doing once running. `isAssistantDaemonKnownFailed()` alone cannot distinguish
- * them; this is the seam a caller needing to (e.g. `server/modules/assistant.ts`'s 503 body) reads
+ * them; this is the seam a caller needing to (e.g. `apps/website/src/server/runtime/composition/modules/assistant.ts`'s 503 body) reads
  * through, rather than reaching into `snapshot.modules` and re-deriving the synthetic module name
  * `recordAssistantDaemonFailure` stores this under.
  */

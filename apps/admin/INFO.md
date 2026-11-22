@@ -102,6 +102,13 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) { … }
 
 Calling `useWiredX()` inline in the component body works, but closes that seam — prefer the prop.
 
+**This applies to every custom hook, with no exemptions.** `useT()`, `useAdminLocale()` and UI-chrome hooks
+(`useTabBarKeyboard`, `useDevicePreviewDevice`, `usePostSettingsDialog`, …) are **no longer exempt** — a
+component receives them as a prop defaulted to the real hook:
+`function X({ useFooHook = useFoo }) { const foo = useFooHook(); }`. Only React built-ins (`useState`,
+`useEffect`, `useRef`, `useMemo`, `useCallback`, `useContext`, …) may be called directly. `npm run check:hooks`
+ratchets this per `Component::hook` against `development/hook-injection-debt.json`; new direct calls fail CI.
+
 ### `t` as a prop is not an un-migrated component
 
 When auditing for leftover UI state, a component that takes `t: Translate` as a **prop** instead of
@@ -146,7 +153,7 @@ consumer there reaches into a `.hooks.tsx` from outside its own folder.
 real hook.** This is the load-bearing rule — the folder split alone buys tidiness; this buys
 testability. **Not folder-scoped** — it governs a root-level component too, not just one under
 `src/components/<Name>/`. Settled 2026-08-12 when `src/App.tsx` (the root component; `main.tsx`
-imports it as `"./App"`, and it has no `<Name>/` folder of its own) got the same `App.hooks.tsx`
+imports it as `"./App"`, and it has no `<Name>/` folder of its own) got the same `App.hooks.ts`
 split and all five of its extracted hooks seamed (`useAdminSession`, `useSidebarDrawer`,
 `useInternalLinkInterceptor`, `useChatDockLayout`, `useAgentPageBridge`) despite living outside
 this section's own path. Rules 1/2/4 below are genuinely folder-shaped (no barrel to omit, no

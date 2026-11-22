@@ -3,12 +3,13 @@ import test from 'node:test';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
 import { createChatRunLedger } from '#src/assistant/persistence/run-ledger';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
-import { createAssistantRunFinalizer, type RunDaemonClient } from '../runtime/composition/modules/assistant-run-finalizer.js';
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 
 test('a recovery launch rejection survives storage reload and the daemon replay', async () => {
-  const db = openChatDb(':memory:');
+  const db = openChatDb({ filePath: ':memory:' });
   const ledger = createChatRunLedger({ store: db });
-  const history = createChatStoreFactory(db)({ kind: 'user', workspaceId: 'ws', userId: 'admin' });
+  const history = createChatStoreFactory({ store: db })({ kind: 'user', workspaceId: 'ws', userId: 'admin' });
   const now = 1_790_000_000_000;
   await history.create({ id: 'chat' });
   const accepted = (await ledger.durable!.accept({ principalId: 'admin', workspaceId: 'ws',

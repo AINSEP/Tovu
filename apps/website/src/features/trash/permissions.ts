@@ -25,8 +25,7 @@ import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
-import type { TrashEntityType, TrashItem } from "@jini-ai/cms/trash";
-import type { TrashRegistry } from "./registry.js";
+import type { TrashEntityType, TrashItem, TrashRegistry } from "@jini-ai/cms/trash";
 
 /** The entry gate on the Trash surface itself. Every row is then filtered again, per kind. */
 export const TRASH_READ_PERMISSION = "content.read";
@@ -66,7 +65,7 @@ export const TRASH_PERMISSION_BY_ENTITY_TYPE: ReadonlyMap<TrashEntityType, strin
  *
  * @complexity O(1).
  */
-export function trashPermissionFor(entityType: TrashEntityType, deps: { registry: TrashRegistry }): string | null {
+export function trashPermissionFor({ entityType, deps }: { entityType: TrashEntityType; deps: { registry: TrashRegistry } }, _optional: Record<string, never> = {}): string | null {
   return TRASH_PERMISSION_BY_ENTITY_TYPE.get(entityType) ?? deps.registry.get(entityType)?.permission ?? null;
 }
 
@@ -91,7 +90,7 @@ export async function mayActOnEntityType(
   deps: { authorize: TrashAuthorizeFn; workspaceId: string; registry: TrashRegistry },
   required: { principalId: string; entityType: TrashEntityType; entityId?: string }
 ): Promise<{ permission: string | null; allowed: boolean; reason: string }> {
-  const permission = trashPermissionFor(required.entityType, deps);
+  const permission = trashPermissionFor({ entityType: required.entityType, deps });
   if (!permission) {
     return { permission: null, allowed: false, reason: `'${required.entityType}' is not a kind the Trash owns` };
   }
@@ -141,7 +140,7 @@ export async function filterVisibleTrashItems(
  *
  * @complexity O(1).
  */
-export function trashDaysRemaining(now: string, until: string): number {
+export function trashDaysRemaining({ now, until }: { now: string; until: string }, _optional = {}): number {
   const ms = new Date(until).getTime() - new Date(now).getTime();
   return ms <= 0 ? 0 : Math.ceil(ms / (24 * 60 * 60 * 1000));
 }

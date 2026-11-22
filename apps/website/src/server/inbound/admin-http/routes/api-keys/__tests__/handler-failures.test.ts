@@ -30,7 +30,7 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
     rolePolicyRepo: repos.rolePolicies, principalRoleRepo: repos.principalRoles, principalPolicyRepo: repos.principalPolicies,
     transactions: repos.transactions, tokens: new NodeSessionTokens({}),
     passwordHasher: { hash: async ({ password }) => password, verify: async ({ hash, password }) => hash === password },
-    apiKeySecretHasher: { hash: async (secret) => secret, verify: async (hash, secret) => hash === secret },
+    apiKeySecretHasher: { hash: async ({ secret }) => secret, verify: async ({ storedHash, secret }) => storedHash === secret },
     apiKeyRepo: new InMemoryApiKeyRepo(),
   };
   await deps.principalRepo.save({ id: "operator-9", workspaceId: "ws-7", kind: "user", displayName: "Operator", status: "active", createdAt: NOW });
@@ -43,7 +43,7 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
 
 async function invoke(register: ApiKeysRouteRegistrar, deps: ApiKeysRouteDeps, path: string, body: unknown, params: unknown = {}, credentialKind = "session") {
   const app = express();
-  register(app, deps);
+  register({ app, deps });
   const handler = extractRouteHandler(app, "post", path);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-9" };

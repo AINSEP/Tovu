@@ -2,7 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminExternalMcpToolApproval } from "@/lib/api";
+import type { AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 import { AlwaysAllowPanel } from "../AlwaysAllowPanel";
@@ -31,7 +32,7 @@ const SERVERS = [
 ];
 
 function renderPanel(port: AlwaysAllowPort) {
-  const hook = () => useAlwaysAllow(port, fakeT, "en");
+  const hook = () => useAlwaysAllow({ port: port, t: fakeT, locale: "en" });
   return render(
     <FetchQueryProvider>
       <AlwaysAllowPanel useAlwaysAllowHook={hook} />
@@ -69,8 +70,8 @@ describe("groupAlwaysAllow", () => {
 
 describe("formatGrantedAt", () => {
   it("formats a date in the given locale and passes an unparseable value through", () => {
-    expect(formatGrantedAt("2026-09-28T10:00:00.000Z", "en")).toBe("Sep 28, 2026");
-    expect(formatGrantedAt("not a date", "en")).toBe("not a date");
+    expect(formatGrantedAt({ grantedAt: "2026-09-28T10:00:00.000Z", locale: "en" })).toBe("Sep 28, 2026");
+    expect(formatGrantedAt({ grantedAt: "not a date", locale: "en" })).toBe("not a date");
   });
 });
 
@@ -98,7 +99,7 @@ describe("AlwaysAllowPanel", () => {
 
     await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [saved] });
     await expect(defaultAlwaysAllowPort.listExternalMcpServers()).resolves.toEqual({ servers: [{ serverId: "server/one", label: "One" }] });
-    await expect(defaultAlwaysAllowPort.revokeExternalMcpToolApproval("server/one", "read file?")).resolves.toEqual({ removed: true });
+    await expect(defaultAlwaysAllowPort.revokeExternalMcpToolApproval({ serverId: "server/one", toolName: "read file?" })).resolves.toEqual({ removed: true });
     await expect(defaultAlwaysAllowPort.listExternalMcpToolApprovals()).resolves.toEqual({ approvals: [] });
   });
 
@@ -128,7 +129,7 @@ describe("AlwaysAllowPanel", () => {
     const section = (await screen.findByRole("heading", { name: "GitHub" })).closest("section") as HTMLElement;
     await userEvent.click(within(section).getByRole("button", { name: "Revoke" }));
 
-    expect(revokeSpy).toHaveBeenCalledWith("github", "get_file");
+    expect(revokeSpy).toHaveBeenCalledWith({ serverId: "github", toolName: "get_file" });
     await waitFor(() => expect(screen.queryByRole("heading", { name: "GitHub" })).not.toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "Linear" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -138,10 +139,10 @@ describe("AlwaysAllowPanel", () => {
   it("treats a 404 revoke (already gone) as done, not as an error", async () => {
     const port = createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS });
     const removeApproval = port.revokeExternalMcpToolApproval;
-    port.revokeExternalMcpToolApproval = async (serverId, toolName) => {
+    port.revokeExternalMcpToolApproval = async ({ serverId, toolName }) => {
       // A 404 means another window already removed it; the next list must agree.
-      await removeApproval(serverId, toolName);
-      throw new ApiError("no Always allow is saved for that tool", 404, "NOT_FOUND");
+      await removeApproval({ serverId, toolName });
+      throw new ApiError({ message: "no Always allow is saved for that tool", status: 404 }, { code: "NOT_FOUND" });
     };
     renderPanel(port);
 
@@ -151,7 +152,7 @@ describe("AlwaysAllowPanel", () => {
   });
 
   it("keeps the row and says so when a revoke fails", async () => {
-    renderPanel(createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS, revokeError: new ApiError("boom", 500) }));
+    renderPanel(createFakeAlwaysAllowPort({ approvals: [approval("github", "get_file")], servers: SERVERS, revokeError: new ApiError({ message: "boom", status: 500 }) }));
 
     await userEvent.click(await screen.findByRole("button", { name: "Revoke" }));
     expect(await screen.findByText("Couldn't revoke. Try again.")).toBeInTheDocument();
@@ -162,7 +163,7 @@ describe("AlwaysAllowPanel", () => {
   it("shows a load error instead of an empty list when the list cannot be read", async () => {
     const port = createFakeAlwaysAllowPort();
     port.listExternalMcpToolApprovals = async () => {
-      throw new ApiError("down", 500);
+      throw new ApiError({ message: "down", status: 500 });
     };
     renderPanel(port);
 

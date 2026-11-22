@@ -5,7 +5,7 @@ import path from "node:path";
 import test, { after } from "node:test";
 
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
-import { parsePluginCredentialCards } from "../../credential-cards.js";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { bundledContributionSources } from "../../bundled-contribution-sources.js";
 import { parseMailAdaptersFile } from "../../mail-adapter-registry.js";
 import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
@@ -14,7 +14,7 @@ import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 const bundle = await composedBundledSourceRoot();
 after(() => bundle.dispose());
 const sourceRoot = bundle.root;
-const filename = "tovu-mail-adapters.json";
+const filename = "jini-mail-adapters.json";
 const sources = bundledContributionSources({ sourceRoot, filename });
 
 test("bundled mail credential card check discovers contribution packages", () => {
@@ -23,7 +23,7 @@ test("bundled mail credential card check discovers contribution packages", () =>
 
 for (const { pluginId, packageRoot } of sources) {
   test(`${pluginId}: every labelled mail adapter supplies its own usable credential card`, () => {
-    const parsed = parseMailAdaptersFile(readFileSync(path.join(packageRoot, filename), "utf8"));
+    const parsed = parseMailAdaptersFile({ raw: readFileSync(path.join(packageRoot, filename), "utf8") });
     assert.ok(parsed.ok, `${pluginId}/${filename} must parse`);
     assert.ok(parsed.descriptors.length > 0, `${pluginId} must declare its mail adapters`);
     for (const descriptor of parsed.descriptors) {
@@ -53,7 +53,7 @@ for (const { pluginId, packageRoot } of packages) {
       if (card.helpUrl) assert.ok(card.helpLabel?.trim(), `${pluginId}: missing help label`);
       if (card.saveKind === 'oauth') assert.ok(card.permissions?.trim(), `${pluginId}: missing sign-in permissions`);
     }
-    for (const [filename, key, saveKind] of [['tovu-deploy-targets.json', 'targets', 'publish-host'], ['tovu-source-control.json', 'providers', 'source-control']] as const) {
+    for (const [filename, key, saveKind] of [['jini-deploy-targets.json', 'targets', 'publish-host'], ['jini-source-control.json', 'providers', 'source-control']] as const) {
       const file = path.join(packageRoot, filename);
       if (!existsSync(file)) continue;
       for (const descriptor of JSON.parse(readFileSync(file, 'utf8'))[key]) {
@@ -66,7 +66,7 @@ for (const { pluginId, packageRoot } of packages) {
         assert.ok(descriptor.credential.fields.length > 0, `${pluginId}/${descriptor.id}: domain form needs credential fields`);
       }
     }
-    if (existsSync(path.join(packageRoot, 'tovu-search-providers.json'))) {
+    if (existsSync(path.join(packageRoot, 'jini-search-providers.json'))) {
       const providers = await loadSearchProviderContributionsFromSource({ pluginId, packageRoot });
       assert.deepEqual(providers.refusals, []);
       // Published Jini shape: each item carries its definition ({ id, provider }), not module/descriptor.
@@ -74,7 +74,7 @@ for (const { pluginId, packageRoot } of packages) {
         assert.ok(parsed.descriptors.some(card => card.providerId === definition.id && card.saveKind === 'api'), `${pluginId}: keyed search provider needs a card`);
       }
     }
-    for (const filename of ['tovu-deploy-ops.json', 'tovu-credential-schemes.json']) {
+    for (const filename of ['jini-deploy-ops.json', 'jini-credential-schemes.json']) {
       if (existsSync(path.join(packageRoot, filename))) assert.ok(parsed.descriptors.some(card => card.saveKind === 'api'), `${pluginId}: operations and token schemes need a card`);
     }
     const mcp = path.join(packageRoot, 'mcp.json');

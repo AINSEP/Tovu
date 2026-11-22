@@ -3,7 +3,8 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "#src/features/publish-content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentReference, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentReference } from "#src/features/publish-content/type-registry";
+import type { WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError, type EntryRecord } from "../entries/index.js";
 import { getEntryLockState, collectWidgetConfigStrings, validateWidgetConfig } from "@jini-ai/cms/widgets";
@@ -34,9 +35,12 @@ import { importWidgetInstance } from "@jini-ai/cms/widgets";
  */
 
 /** The widgets write-service deps for one apply. */
-function serviceDeps(ctx: RepoWriteContext<unknown, WidgetPublishPorts>, entityType: string) {
+function serviceDeps(
+  { ctx, entityType }: { ctx: RepoWriteContext<unknown, WidgetPublishPorts>; entityType: string },
+  _optional = {}
+) {
   const { deps, ports } = ctx;
-  const gateway = gatewayDeps(deps, entityType);
+  const gateway = gatewayDeps({ deps, entityType });
   return {
     host: buildWidgetHostPorts({}, {}),
     entryLocks: getEntryLockState({ owner: ports.entries }),
@@ -77,9 +81,16 @@ const WIDGET_CONFIG_REFERENCES: Readonly<Record<string, string>> = { [FORM_REF]:
  *  write). A reference `swap` cannot resolve stays as it is, so a dangling one stays dangling on
  *  both sides and still hashes alike. */
 async function swapFormRef(
-  widgetType: WidgetTypeKey,
-  config: Record<string, unknown>,
-  swap: (ref: string) => Promise<string | undefined>
+  {
+    widgetType,
+    config,
+    swap,
+  }: {
+    widgetType: WidgetTypeKey;
+    config: Record<string, unknown>;
+    swap: (ref: string) => Promise<string | undefined>;
+  },
+  _optional = {}
 ): Promise<Record<string, unknown>> {
   const ref = config[FORM_REF];
   if (widgetType !== "contact-form" || typeof ref !== "string") return config;
@@ -89,17 +100,23 @@ async function swapFormRef(
 /** The media a widget's free-text config fields link to by `/m/` or `/media/` URL (a text widget's
  *  body, a social link's `url`), found through its type's `configSchema`. No v1 type stores a media
  *  id, so URLs are the only way a widget's settings name an image or file. */
-function widgetMediaReferences(widgetType: string, config: Record<string, unknown>): PublishContentReference[] {
+function widgetMediaReferences(
+  { widgetType, config }: { widgetType: string; config: Record<string, unknown> },
+  _optional = {}
+): PublishContentReference[] {
   const registration = findWidgetTypeRegistration({ raw: widgetType });
   if (!registration) return [];
-  const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys(text)]));
+  const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys({ text })]));
   for (const key of collectMediaConfigKeys({ config })) keys.add(key);
   return [...keys].map((key) => ({ entityType: "media", key }));
 }
 
 /** The row as it packs: its form reference as the form's slug. */
-async function portableRow(p: WidgetPublishPorts, workspaceId: string, row: WidgetRow): Promise<WidgetRow> {
-  const config = await swapFormRef(row.widgetType, row.config, async (id) => (await p.forms.findById({ workspaceId, id }))?.slug);
+async function portableRow(
+  { p, workspaceId, row }: { p: WidgetPublishPorts; workspaceId: string; row: WidgetRow },
+  _optional = {}
+): Promise<WidgetRow> {
+  const config = await swapFormRef({ widgetType: row.widgetType, config: row.config, swap: async (id) => (await p.forms.findById({ workspaceId, id }))?.slug });
   return config === row.config ? row : { ...row, config };
 }
 
@@ -111,15 +128,15 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     // `importWidgetInstance` asks `widgets.create` for a widget new to the destination.
     alsoAuthorizes: ["widgets.create"],
     dependsOn: ["form"],
-    ports: (deps) => deps.ports.widget,
-    list: async (p, workspaceId) =>
-      Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
-    find: async (p, workspaceId, id) => {
+    ports: ({ deps }, _optional = {}) => deps.ports.widget,
+    list: async ({ ports: p, workspaceId }) =>
+      Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow({ p, workspaceId, row: toWidgetRow(entry) }))),
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
-      return row && row.type === WIDGET_CONTENT_TYPE ? portableRow(p, workspaceId, toWidgetRow(row)) : null;
+      return row && row.type === WIDGET_CONTENT_TYPE ? portableRow({ p, workspaceId, row: toWidgetRow(row) }) : null;
     },
     // A legacy `trash`/`purged` payload is trashed too (the Trash adopts those rows over time).
-    isTrashed: (row) => row.deletedAt !== null || row.status !== "active",
+    isTrashed: ({ row }) => row.deletedAt !== null || row.status !== "active",
     fields: {
       slug: "transferred",
       title: "transferred",
@@ -132,46 +149,15 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     },
     address: {
       field: "slug",
-      holder: async (p, workspaceId, slug) => {
+      holder: async ({ ports: p, workspaceId, value: slug }) => {
         // Trash included: a trashed widget keeps its slug.
         const row = await p.entries.findAnyBySlug({ workspaceId, type: WIDGET_CONTENT_TYPE, slug });
         return row ? toWidgetRow(row) : null;
       },
     },
-    references: (entity) => {
-      const config = (entity.state.config ?? {}) as Record<string, unknown>;
-      const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
-        const key = config[field];
-        return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
-      });
-      return [...refs, ...widgetMediaReferences(String(entity.state.widgetType), config)];
-    },
-    validate: async ({ entity }) => {
-      const widgetType = entity.state.widgetType as WidgetTypeKey;
-      const registration = findWidgetTypeRegistration({ raw: widgetType });
-      if (!registration) return `widget '${entity.id}': widget type '${widgetType}' is not installed on the destination`;
-      const check = validateWidgetConfig({ schema: registration.configSchema, config: entity.state.config as Record<string, unknown> });
-      return check.valid ? null : `widget '${entity.id}': its settings do not fit the destination's '${widgetType}' widget`;
-    },
-    write: async (ctx) => {
-      const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
-      const widgetType = state.widgetType as WidgetTypeKey;
-      const config = await swapFormRef(widgetType, state.config as Record<string, unknown>, async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id);
-      const { instance } = await importWidgetInstance({
-        deps: serviceDeps(ctx, "widget"),
-        input: {
-          workspaceId,
-          actor: { principalId },
-          id,
-          slug: state.slug as string,
-          title: state.title as string,
-          widgetType,
-          config,
-          expectedVersion,
-        },
-      });
-      return { version: instance.version };
-    },
+    references: collectWidgetPublishReferences,
+    validate: validateWidgetPublish,
+    write: writePublishedWidget,
     errors: {
       conflict: [VersionConflictError, WidgetVersionConflictError],
       blocked: [WidgetForbiddenError, WidgetTypeUnregisteredError, WidgetConfigValidationError, EntrySlugConflictError, EntryFieldValidationError, ContentTypeNotActiveError],
@@ -187,7 +173,7 @@ interface WidgetAreaRow {
 }
 
 /** One row per region; a region on two area entries resolves last-wins, as the binding rebuild does. */
-async function listAreas(p: WidgetPublishPorts, workspaceId: string): Promise<WidgetAreaRow[]> {
+async function listAreas({ ports: p, workspaceId }: { ports: WidgetPublishPorts; workspaceId: string }, _optional: Record<string, never> = {}): Promise<WidgetAreaRow[]> {
   const byRegion = new Map<string, WidgetAreaRow>();
   for (const entry of await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_AREA_CONTENT_TYPE })) {
     const { regionKey, doc } = parseWidgetAreaPayload({ fieldsJson: entry.fieldsJson });
@@ -202,10 +188,10 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     coversTables: ["entries", "entry_refs", WIDGET_REGION_BINDINGS_TABLE],
     permission: "widgets.place",
     dependsOn: ["widget"],
-    ports: (deps) => deps.ports["widget-area"],
-    list: listAreas,
-    find: async (p, workspaceId, regionKey) => (await listAreas(p, workspaceId)).find((row) => row.regionKey === regionKey) ?? null,
-    idOf: (row) => row.regionKey,
+    ports: ({ deps }, _optional = {}) => deps.ports["widget-area"],
+    list: ({ ports, workspaceId }) => listAreas({ ports, workspaceId }),
+    find: async ({ ports: p, workspaceId, id: regionKey }) => (await listAreas({ ports: p, workspaceId })).find((row) => row.regionKey === regionKey) ?? null,
+    idOf: ({ row }, _optional = {}) => row.regionKey,
     fields: {
       regionKey: "transferred",
       placements: "transferred",
@@ -214,10 +200,10 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
       areaEntryId: "local",
       version: "local",
     },
-    references: (entity) => collectPlacementReferences(entity.state),
+    references: ({ entity }) => collectPlacementReferences({ state: entity.state }),
     write: async (ctx) => {
       const { state, existing, expectedVersion, principalId, workspaceId } = ctx;
-      const deps = serviceDeps(ctx, "widget-area");
+      const deps = serviceDeps({ ctx, entityType: "widget-area" });
       const regionKey = state.regionKey as WidgetRegionKey;
       const placements = state.placements as WidgetPlacementNode[];
       // Before `bindWidgetArea`: a create that then failed this check would leave an empty area bound.
@@ -237,3 +223,40 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
       blocked: [WidgetForbiddenError, WidgetInstanceNotFoundError, WidgetAreaNotFoundError, EntrySlugConflictError],
     },
   });
+
+function collectWidgetPublishReferences({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["references"]>> {
+      const config = (entity.state.config ?? {}) as Record<string, unknown>;
+      const refs = Object.entries(WIDGET_CONFIG_REFERENCES).flatMap(([field, entityType]) => {
+        const key = config[field];
+        return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
+      });
+      return [...refs, ...widgetMediaReferences({ widgetType: String(entity.state.widgetType), config })];
+    }
+
+async function validateWidgetPublish({ entity }: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["validate"]>> {
+      const widgetType = entity.state.widgetType as WidgetTypeKey;
+      const registration = findWidgetTypeRegistration({ raw: widgetType });
+      if (!registration) return `widget '${entity.id}': widget type '${widgetType}' is not installed on the destination`;
+      const check = validateWidgetConfig({ schema: registration.configSchema, config: entity.state.config as Record<string, unknown> });
+      return check.valid ? null : `widget '${entity.id}': its settings do not fit the destination's '${widgetType}' widget`;
+    }
+
+async function writePublishedWidget(ctx: Parameters<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>>[0]): ReturnType<NonNullable<Parameters<typeof createRepoPublishHandler<WidgetRow, WidgetPublishPorts>>[0]["write"]>> {
+      const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
+      const widgetType = state.widgetType as WidgetTypeKey;
+      const config = await swapFormRef({ widgetType, config: state.config as Record<string, unknown>, swap: async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id });
+      const { instance } = await importWidgetInstance({
+        deps: serviceDeps({ ctx, entityType: "widget" }),
+        input: {
+          workspaceId,
+          actor: { principalId },
+          id,
+          slug: state.slug as string,
+          title: state.title as string,
+          widgetType,
+          config,
+          expectedVersion,
+        },
+      });
+      return { version: instance.version };
+    }

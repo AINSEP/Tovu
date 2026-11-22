@@ -1,8 +1,9 @@
-import { type AdminLedgerRow } from "../../lib/api";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import { navigateDatabaseTab } from "./Database.hooks";
+import { Icon } from "@jini-ai/ui";
+import type { AdminLedgerRow } from "./api/database-api.types";
+
 import { DataTable } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { ServerLabel } from "@/components/status-labels";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
@@ -10,12 +11,13 @@ import { useWiredMigrateForwardSection, type MigrateForwardSectionController } f
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { MigrateForwardIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
+import { formatTimestamp, resolveActiveTabId } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
  * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`@jini-ai/ui/tab-strip`)
@@ -73,7 +75,7 @@ type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
  *  shared `../../lib/resolve-active-tab-id` guard — same "don't trust a raw query value" reason
  *  `Deployment.tsx`/`Security.tsx`/`SourceControl.tsx`/`Themes.tsx` and `SettingsUi.tsx`'s own
  *  `requestedTabId` all apply (a stale link or a typo must not blank the panel). */
-function resolveDatabaseTabId(tabId: string | null | undefined): DatabaseTabId {
+function resolveDatabaseTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): DatabaseTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: DATABASE_TAB_IDS, defaultId: "timeline" });
 }
 
@@ -173,14 +175,14 @@ function TimelineFilterForm(props: {
 
 /** Builds the Timeline `DataTable`'s column descriptors. A plain function rather than a closure
  *  declared inside `TimelineBody`'s body — it closes over nothing but module-scope values, so it
- *  takes no parameters at all beyond `locale`. */
+ *  takes `locale` and the row-handle resolver explicitly. */
 /** Timeline rows page in over "Load more", so handles are derived fresh each render from
  *  whichever rows are currently on screen — same per-row-id derivation every other list on this
  *  workstream uses (`buildAgentListHandles`), keyed by a lookup rather than row position because
  *  `DataTable`'s `cell` callback only receives the row, not its index. */
 function timelineColumns(
-  locale: string,
-  handleForRestorePointCell: (rowId: string) => string,
+  { locale, handleForRestorePointCell }: { locale: string; handleForRestorePointCell: (rowId: string) => string },
+  _options = {},
 ): Array<{
   key: string;
   header: string;
@@ -206,7 +208,7 @@ function timelineColumns(
             // button is on screen at once (not a per-row menu item) — see `rules.ts`'s
             // `viewInRecoveryAccessibleName` doc comment for why that is ambiguous to anything
             // resolving elements by accessible name rather than table position.
-            aria-label={viewInRecoveryAccessibleName(locale, row)}
+            aria-label={viewInRecoveryAccessibleName({ locale, row })}
             {...agentHandle({ handle: handleForRestorePointCell(row.id) }, {
               role: "button",
               label: "Open this ledger entry's restore point in Recovery",
@@ -218,7 +220,7 @@ function timelineColumns(
           "—"
         ),
     },
-    { key: "time", header: t({ locale: locale, key: "Time" }), cell: (row) => formatTimestamp({ iso: row.createdAt }, { timeZone: "local" }) },
+    { key: "time", header: t({ locale: locale, key: "Time" }), cell: (row) => formatTimestamp({ iso: row.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
   ];
 }
 
@@ -238,14 +240,18 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
   }
   const restorePointHandles = buildAgentListHandles({ prefix: "database-timeline-restore-point", ids: props.rows.map((row) => row.id) }
   );
-  const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]!]));
+  const restorePointHandleById = new Map(props.rows.map((row, index) => [row.id, restorePointHandles[index]]));
 
   return (
     <>
       <DataTable
         rows={props.rows}
         rowKey={(row) => row.id}
-        columns={timelineColumns(locale, (rowId) => restorePointHandleById.get(rowId)!)}
+        columns={timelineColumns({ locale, handleForRestorePointCell: (rowId) => {
+          const handle = restorePointHandleById.get(rowId);
+          if (handle === undefined) throw new Error(`database restore point ${rowId} has no row handle`);
+          return handle;
+        } })}
       />
       {props.nextCursor ? (
         <button
@@ -335,7 +341,7 @@ function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: 
 function PlannedStep(props: { locale: string; plan: { planId: string }; busy: boolean; onConfirm: () => void }) {
   return (
     <div className="notice">
-      <p>{planReadyMessage(props.locale, props.plan.planId)}</p>
+      <p>{planReadyMessage({ locale: props.locale, planId: props.plan.planId })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -495,18 +501,14 @@ export interface DatabaseProps {
 
 export function Database(props: DatabaseProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveDatabaseTabId(props.tabId);
+  const activeTabId = resolveDatabaseTabId({ tabId: props.tabId });
 
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
-  // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.
+  // carries — this was one of two rows still bare after the Media pass.
   const tabs: TabBarTab[] = [
-    { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <TimelineIcon /> },
-    { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <MigrateForwardIcon /> },
+    { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <Icon name="timeline" size={16} strokeWidth={1.5} /> },
+    { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <Icon name="migrate-forward" size={16} strokeWidth={1.5} /> },
   ];
-
-  function handleTabChange(nextTabId: string) {
-    navigate(`/database?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -524,7 +526,7 @@ export function Database(props: DatabaseProps) {
         ariaLabel={t({ locale: locale, key: "Database" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateDatabaseTab({ nextTabId })}
         containerHandle="database-tab-bar"
       />
       {databaseTabPanel(activeTabId)}

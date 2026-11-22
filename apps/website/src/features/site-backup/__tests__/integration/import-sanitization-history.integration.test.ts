@@ -35,7 +35,7 @@ test("import credential warnings persist after real creation and backend reload 
   assert.equal(JSON.stringify(record).includes("historyCredentialValue"), false);
   const site = path.join(h.workspace.home({}), ready.newSiteName!);
   const imported = openContentDb({ filePath: resolveSiteDatabasePaths({ dir: site }, { workspace: h.workspace }).contentDbPath });
-  t.after(() => closeSqliteConnection(imported));
+  t.after(() => closeSqliteConnection({ source: imported }));
   assert.deepEqual(imported.$client.prepare("SELECT body_json FROM posts WHERE id='post-0'").get(), { body_json: body });
   await h.assertOwnerLogin({ dir: site, rejectedPassword: "source-password" });
 });
@@ -51,6 +51,6 @@ test("real import preserves an explicitly disabled active theme", { timeout: 120
   assert.equal(ready.status, "ready");
   const dir = path.join(h.workspace.home({}), ready.newSiteName!);
   const imported = openContentDb({ filePath: resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath });
-  t.after(() => closeSqliteConnection(imported));
+  t.after(() => closeSqliteConnection({ source: imported }));
   assert.deepEqual(imported.$client.prepare("SELECT DISTINCT active_theme_id FROM presentation_settings").all(), [{ active_theme_id: "none" }]);
 });

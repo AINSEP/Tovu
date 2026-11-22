@@ -20,7 +20,7 @@ function setup(failSetup = false, rejectTranscription = false) {
   const getUserMedia = vi.fn(async () => stream);
   vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
   vi.stubGlobal("AudioContext", class { constructor() { return context; } });
-  const transcribe = vi.fn(async (samples: Float32Array | number[], sampleRate: number) => {
+  const transcribe = vi.fn(async ({ samples, sampleRate }: { samples: Float32Array | number[]; sampleRate: number }, _options = {}) => {
     for (const track of tracks) expect(track.stop).toHaveBeenCalledTimes(1);
     expect(context.close).toHaveBeenCalledTimes(1);
     if (rejectTranscription) throw new Error("transcription failed");
@@ -56,7 +56,7 @@ describe("real microphone capture with Web Audio boundary fakes", () => {
     const transcribe = vi.fn(async () => ({ text: "No speech", elapsedMs: 0 }));
     const capture = createMicPushToTalkCapture({ isAvailable: async () => ({ available: true }), transcribe });
     await expect(capture.stopAndTranscribe()).resolves.toBe("No speech");
-    expect(transcribe).toHaveBeenCalledExactlyOnceWith(new Float32Array(), 16000);
+    expect(transcribe).toHaveBeenCalledExactlyOnceWith({ samples: new Float32Array(), sampleRate: 16000 });
   });
 
   it.each([false, true])("copies chunks in order and releases all resources before transcribe (reject=%s)", async (reject) => {
@@ -73,7 +73,7 @@ describe("real microphone capture with Web Audio boundary fakes", () => {
     if (reject) await expect(f.capture.stopAndTranscribe()).rejects.toThrow("transcription failed");
     else await expect(f.capture.stopAndTranscribe()).resolves.toBe("hello");
     expect(f.processor.disconnect).toHaveBeenCalledTimes(1);
-    expect(f.transcribe).toHaveBeenCalledExactlyOnceWith(new Float32Array([1, 2, 3]), 48000);
+    expect(f.transcribe).toHaveBeenCalledExactlyOnceWith({ samples: new Float32Array([1, 2, 3]), sampleRate: 48000 });
   });
 
   it("releases the granted stream and context when audio setup fails during start", async () => {

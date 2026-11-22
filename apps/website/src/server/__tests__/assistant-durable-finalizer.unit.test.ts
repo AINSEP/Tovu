@@ -3,14 +3,15 @@ import { test } from "node:test";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatStoreFactory } from "#src/assistant/persistence/store-factory";
-import { createAssistantRunFinalizer, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { INCIDENT_PARTIAL } from "#src/assistant/durable-runs/__tests__/incident.fixture";
-import { EXHAUSTED_NOTICE } from "#src/assistant/durable-runs/recover";
+import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";
 
 test("serving recovery absorbs a daemon lost during restart and finalizes one continued incident message without a browser", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const ledger = createChatRunLedger({ store: db });
-  const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
+  const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });
   const time = 1_790_000_000_000;
   await history.create({ id: "chat" });
   const accepted = (await ledger.durable!.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: time,
@@ -49,10 +50,10 @@ test("serving recovery absorbs a daemon lost during restart and finalizes one co
 // separately over the real durable store: browser hook callbacks cannot prove a SQL commit.
 for (const status of ["failed", "succeeded", "canceled"] as const) {
   test(`the server alone persists a durable ${status} answer with saved work and terminal diagnostics`, async () => {
-    const db = openChatDb(":memory:");
+    const db = openChatDb({ filePath: ":memory:" });
     try {
       const ledger = createChatRunLedger({ store: db });
-      const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
+      const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });
       const time = 1_790_000_000_000;
       await history.create({ id: "chat" });
       const accepted = (await ledger.durable!.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat",

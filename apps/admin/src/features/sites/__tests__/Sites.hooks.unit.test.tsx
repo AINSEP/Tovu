@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import {
   resolveDatabaseOptionClassName,
   resolveSiteCardTitle,
@@ -38,17 +38,17 @@ function entry(name: string): AdminSiteListEntry {
 
 describe("resolveSitesTabId", () => {
   it("returns each known tab id unchanged", () => {
-    for (const id of SITES_TAB_IDS) expect(resolveSitesTabId(id)).toBe(id);
+    for (const id of SITES_TAB_IDS) expect(resolveSitesTabId({ tabId: id })).toBe(id);
   });
 
   it("falls back to the list, not the form, for absent/unknown values", () => {
-    expect(resolveSitesTabId(null)).toBe("all");
-    expect(resolveSitesTabId(undefined)).toBe("all");
-    expect(resolveSitesTabId("")).toBe("all");
+    expect(resolveSitesTabId({ tabId: null })).toBe("all");
+    expect(resolveSitesTabId({ tabId: undefined })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "" })).toBe("all");
     // A stale bookmark from an earlier layout, and a plausible near-miss for the real id.
-    expect(resolveSitesTabId("create")).toBe("all");
-    expect(resolveSitesTabId("New")).toBe("all");
-    expect(resolveSitesTabId("Export")).toBe("all");
+    expect(resolveSitesTabId({ tabId: "create" })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "New" })).toBe("all");
+    expect(resolveSitesTabId({ tabId: "Export" })).toBe("all");
   });
 });
 
@@ -74,18 +74,18 @@ describe("resolveSitesTabs", () => {
 
 describe("resolveSitesEmpty", () => {
   it("is true only for an empty list", () => {
-    expect(resolveSitesEmpty([])).toBe(true);
-    expect(resolveSitesEmpty([entry("alpha")])).toBe(false);
+    expect(resolveSitesEmpty({ sites: [] })).toBe(true);
+    expect(resolveSitesEmpty({ sites: [entry("alpha")] })).toBe(false);
   });
 });
 
 describe("resolveSiteDatabaseOptions", () => {
   it("offers all three of Runner's backends, in Runner's order", () => {
-    expect(resolveSiteDatabaseOptions(fakeT).map((option) => option.id)).toEqual(["sqlite", "supabase", "custom"]);
+    expect(resolveSiteDatabaseOptions({ t: fakeT }).map((option) => option.id)).toEqual(["sqlite", "supabase", "custom"]);
   });
 
   it("marks exactly one available, and it is the one initSite can actually produce", () => {
-    const options = resolveSiteDatabaseOptions(fakeT);
+    const options = resolveSiteDatabaseOptions({ t: fakeT });
     // Asserting on WHICH is available, not merely that one is: a regression flipping the flags
     // would still leave "exactly one available" true while offering a backend that does not exist.
     expect(options.filter((option) => option.available).map((option) => option.id)).toEqual(["sqlite"]);
@@ -223,11 +223,11 @@ describe("resolveSiteSubtitle", () => {
 
 describe("resolveSiteRegistrationBadge", () => {
   it("is null for a normal row, so no badge is rendered", () => {
-    expect(resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", true))).toBeNull();
+    expect(resolveSiteRegistrationBadge({ site: entry("alpha"), snapshot: snapshotFor("alpha", true) })).toBeNull();
   });
 
   it("names the two missing files and what refuses without them, not just 'invalid'", () => {
-    const badge = resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", false));
+    const badge = resolveSiteRegistrationBadge({ site: entry("alpha"), snapshot: snapshotFor("alpha", false) });
     expect(badge?.labelKey).toBe("Not initialized");
     // Asserting the tooltip's actual content, not merely that one exists: a badge saying only
     // "Not initialized" reads as a defect rather than a specific, fixable state.

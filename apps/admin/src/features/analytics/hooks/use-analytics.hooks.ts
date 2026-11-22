@@ -1,7 +1,7 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import type { AdminAnalyticsHit } from "@/lib/api";
+import type { AdminAnalyticsHit } from "@/features/analytics/api/analytics-api.types";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../analytics-i18n";
 import { defaultAnalyticsPort } from "./analytics-dependencies.hooks";
@@ -20,9 +20,9 @@ import type { AnalyticsPort } from "./analytics-port.hooks";
  * actually mounts.
  *
  * `t` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that hook,
- * not its own `useAdminLocale()`/dictionary import): injected as this hook's second parameter,
- * pre-bound to `(key: string) => string` — same shape `features/posts/hooks/use-post-editor.hooks
- * .ts` established for this exact rule. `useAdminLocale()` and `analytics-i18n`'s `t` are called/
+ * not its own `useAdminLocale()`/dictionary import): injected with the port and pre-bound to the
+ * locale, accepting a `{ key }` object — the same injection pattern `features/posts/hooks/use-post-editor.hooks
+ * .ts` established for this rule. `useAdminLocale()` and `analytics-i18n`'s `t` are called/
  * read only inside {@link useWiredAnalytics}, exactly where `Analytics.tsx` used to call them
  * directly before this change. `useAnalytics` itself never calls `t` internally (no translated
  * error strings originate here) — it exists solely to hand the bound translator through to the
@@ -35,16 +35,16 @@ export interface AnalyticsController {
   error: string | null;
   /** Bound translator — `key` already resolved against the caller's locale, so `Analytics.tsx`
    *  never imports `useAdminLocale`/`analytics-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
 }
 
 /**
  * @complexity Time/space: O(1) — one fetch on mount, no iteration of its own.
  */
-export function useAnalytics(port: AnalyticsPort, t: (key: string) => string): AnalyticsController {
+export function useAnalytics({ port, t }: { port: AnalyticsPort; t: (required: { key: string }, optional?: Record<string, never>) => string }, _optional = {}): AnalyticsController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return (await port.listRecentAnalyticsHits()).hits; }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load recent hits"); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("failed to load recent hits", { cause: error }); }
   }, [port]);
   const query = useFetchQuery({ key: ["analytics", "recent-hits"], fetch: queryFetch }, { staleTime: 0 });
   const hits = query.data ?? null;
@@ -64,6 +64,6 @@ export function useAnalytics(port: AnalyticsPort, t: (key: string) => string): A
  */
 export function useWiredAnalytics(): AnalyticsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useAnalytics(defaultAnalyticsPort, t);
+  const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale: locale, key: key });
+  return useAnalytics({ port: defaultAnalyticsPort, t });
 }

@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
-import { ApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useExternalMcpToolPicker, useWiredExternalMcpToolPicker, type ExternalMcpToolPickerPort } from "../hooks/use-external-mcp-tool-picker.hooks";
 
@@ -37,13 +38,13 @@ describe("MCP picker transport and draft lifecycle", () => {
   it("waits for activation, reports the held first load, then seeds saved permissions", async () => {
     // F2.3/F6.2: replacing enabled: active with enabled: true must fail before activation.
     const pending = deferred<{ tools: AdminRemoteToolSurfaceEntry[] }>();
-    const probe = vi.fn((id: string) => { if (id !== "atlas") throw new Error(`wrong id ${id}`); return pending.promise; });
+    const probe = vi.fn(({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(`wrong id ${id}`); return pending.promise; });
     const { result, rerender } = mount({ probe }, { ...initial, active: false });
     expect(probe).not.toHaveBeenCalled();
     expect(result.current.loading).toBe(false);
     expect(result.current.refreshing).toBe(false);
     rerender(initial);
-    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith("atlas"));
+    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith({ serverId: "atlas" }));
     expect(result.current.loading).toBe(true);
     expect(result.current.refreshing).toBe(true);
     await act(async () => { pending.resolve({ tools }); await pending.promise; });
@@ -57,7 +58,7 @@ describe("MCP picker transport and draft lifecycle", () => {
 
   it("edits one tool, clears its write grant on disable, and resets to saved values", async () => {
     // F2.5/F4.5: dropping setRows from reset or wiring setMayWrite to setEnabled fails.
-    const { result } = mount({ probe: async (id) => { if (id !== "atlas") throw new Error(id); return { tools }; } });
+    const { result } = mount({ probe: async ({ serverId: id }, _options = {}) => { if (id !== "atlas") throw new Error(id); return { tools }; } });
     await waitFor(() => expect(result.current.advertisedCount).toBe(3));
     act(() => result.current.setEnabled("write", false));
     expect(result.current.fieldValues()).toEqual({ allowedToolNames: "read", writeAllowedToolNames: "" });
@@ -78,7 +79,7 @@ describe("MCP picker transport and draft lifecycle", () => {
     // F7.1/F6.2: keying the seed effect on tools identity instead of signature clobbers this draft.
     const refresh = deferred<{ tools: AdminRemoteToolSurfaceEntry[] }>();
     let requests = 0;
-    const probe = vi.fn((id: string) => { if (id !== "atlas") throw new Error(id); return ++requests === 1 ? Promise.resolve({ tools }) : refresh.promise; });
+    const probe = vi.fn(({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); return ++requests === 1 ? Promise.resolve({ tools }) : refresh.promise; });
     const { result, rerender } = mount({ probe });
     await waitFor(() => expect(result.current.advertisedCount).toBe(3));
     act(() => result.current.setEnabled("write", false));
@@ -94,12 +95,12 @@ describe("MCP picker transport and draft lifecycle", () => {
     await waitFor(() => expect(result.current.refreshing).toBe(false));
     expect(result.current.dirty).toBe(true);
     expect(result.current.fieldValues()).toEqual({ allowedToolNames: "read", writeAllowedToolNames: "" });
-    expect(probe.mock.calls).toEqual([["atlas"], ["atlas"]]);
+    expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }], [{ serverId: "atlas" }]]);
   });
 
   it("re-seeds when saved grants change and preserves absent saved tool names", async () => {
     // F6.2: omitting saved field values from the signature leaves stale grants after roster refresh.
-    const { result, rerender } = mount({ probe: async (id) => { if (id !== "atlas") throw new Error(id); return { tools }; } });
+    const { result, rerender } = mount({ probe: async ({ serverId: id }, _options = {}) => { if (id !== "atlas") throw new Error(id); return { tools }; } });
     await waitFor(() => expect(result.current.advertisedCount).toBe(3));
     act(() => result.current.setEnabled("read", false));
     rerender({ ...initial, allowedToolNames: "write, legacy", writeAllowedToolNames: "legacy" });
@@ -115,7 +116,7 @@ describe("MCP picker transport and draft lifecycle", () => {
     // refresh, non-default draft, literal grant output; source remains unchanged.
     const refresh = deferred<{ tools: AdminRemoteToolSurfaceEntry[] }>();
     let requests = 0;
-    const probe = vi.fn((id: string) => {
+    const probe = vi.fn(({ serverId: id }: { serverId: string }, _options = {}) => {
       if (id !== "atlas") throw new Error(`wrong id ${id}`);
       return ++requests === 1 ? Promise.resolve({ tools }) : refresh.promise;
     });
@@ -137,14 +138,14 @@ describe("MCP picker transport and draft lifecycle", () => {
     act(() => result.current.setEnabled("write", true));
     act(() => result.current.setMayWrite("write", true));
     expect(result.current.fieldValues()).toEqual({ allowedToolNames: "read", writeAllowedToolNames: "read" });
-    expect(probe.mock.calls).toEqual([["atlas"], ["atlas"]]);
+    expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }], [{ serverId: "atlas" }]]);
   });
 
   it("surfaces an unreachable probe, then clears the error after an explicit successful retry", async () => {
     // F6.2: leaving unreachable set after retry or never calling refetch fails.
     const retry = deferred<{ tools: AdminRemoteToolSurfaceEntry[] }>();
     let requests = 0;
-    const probe = vi.fn((id: string) => { if (id !== "atlas") throw new Error(id); return ++requests === 1 ? Promise.reject(new Error("wire failed")) : retry.promise; });
+    const probe = vi.fn(({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); return ++requests === 1 ? Promise.reject(new Error("wire failed")) : retry.promise; });
     const { result } = mount({ probe }, { ...initial, allowedToolNames: "", writeAllowedToolNames: "" });
     await waitFor(() => expect(result.current.unreachable).toBe("wire failed"));
     expect(result.current.rows).toEqual([]);
@@ -161,7 +162,7 @@ describe("MCP picker transport and draft lifecycle", () => {
   it("routes unsupported local-command errors through the supplied translator", async () => {
     // F2.4: failing to forward t leaves English workaround copy in a translated dialog.
     const translate = (key: string) => `translated:${key}`;
-    const port = { probe: async (id: string) => { if (id !== "atlas") throw new Error(id); throw new ApiError("server prose", 400, "PROBE_UNSUPPORTED_TRANSPORT"); } };
+    const port = { probe: async ({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); throw new ApiError({ message: "server prose", status: 400 }, { code: "PROBE_UNSUPPORTED_TRANSPORT" }); } };
     const { result } = renderHook(() => useExternalMcpToolPicker({ ...initial, port, t: translate }), { wrapper });
     await waitFor(() => expect(result.current.unreachable).toBe("translated:This server runs as a local command and can't be probed yet — type its tool names into 'Allowed tools' on the server's own card instead."));
   });
@@ -169,7 +170,7 @@ describe("MCP picker transport and draft lifecycle", () => {
   it("re-seeds a dirty draft when the advertised names actually change", async () => {
     // F6.2: never updating signature on advertised names would leave newly offered tools invisible.
     let requests = 0;
-    const probe = vi.fn(async (id: string) => {
+    const probe = vi.fn(async ({ serverId: id }: { serverId: string }, _options = {}) => {
       if (id !== "atlas") throw new Error(id);
       return { tools: ++requests === 1 ? tools : [...tools, tool("added")] };
     });
@@ -188,17 +189,17 @@ describe("MCP picker transport and draft lifecycle", () => {
     // F7.1/F7.7: changing staleTime to the default 10 seconds must fail at 299999ms.
     let now = 1_800_000_000_000;
     vi.spyOn(Date, "now").mockImplementation(() => now);
-    const probe = vi.fn(async (id: string) => { if (id !== "atlas") throw new Error(id); return { tools }; });
+    const probe = vi.fn(async ({ serverId: id }: { serverId: string }, _options = {}) => { if (id !== "atlas") throw new Error(id); return { tools }; });
     const { result, rerender } = mount({ probe });
     await waitFor(() => expect(result.current.advertisedCount).toBe(3));
     now += 299_999;
     rerender({ ...initial, active: false });
     rerender(initial);
-    expect(probe.mock.calls).toEqual([["atlas"]]);
+    expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }]]);
     now += 2;
     rerender({ ...initial, active: false });
     rerender(initial);
-    await waitFor(() => expect(probe.mock.calls).toEqual([["atlas"], ["atlas"]]));
+    await waitFor(() => expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }], [{ serverId: "atlas" }]]));
     await waitFor(() => expect(result.current.refreshing).toBe(false));
     expect(result.current.fieldValues()).toEqual({ allowedToolNames: "read, write", writeAllowedToolNames: "write" });
   });
@@ -206,14 +207,14 @@ describe("MCP picker transport and draft lifecycle", () => {
   it("does not let a late old-server probe replace the newly selected server's permissions", async () => {
     // F7.1: deleting serverId from the query key accepts Atlas's late result into Boreal's picker.
     const old = deferred<{ tools: AdminRemoteToolSurfaceEntry[] }>();
-    const probe = vi.fn((id: string) => {
+    const probe = vi.fn(({ serverId: id }: { serverId: string }, _options = {}) => {
       if (id === "atlas") return old.promise;
       if (id === "boreal") return Promise.resolve({ tools: [tool("boreal.read")] });
       throw new Error(`unexpected server ${id}`);
     });
     const { result, rerender } = mount({ probe });
     expect(result.current.loading).toBe(true);
-    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith("atlas"));
+    await waitFor(() => expect(probe).toHaveBeenCalledExactlyOnceWith({ serverId: "atlas" }));
     rerender({ ...initial, serverId: "boreal", allowedToolNames: "boreal.read", writeAllowedToolNames: "" });
     await waitFor(() => expect(result.current.fieldValues()).toEqual({ allowedToolNames: "boreal.read", writeAllowedToolNames: "" }));
     await waitFor(() => expect(result.current.advertisedCount).toBe(1));
@@ -221,7 +222,7 @@ describe("MCP picker transport and draft lifecycle", () => {
     expect(result.current.rows.map((row) => row.remoteName)).toEqual(["boreal.read"]);
     expect(result.current.advertisedCount).toBe(1);
     expect(result.current.unreachable).toBeNull();
-    expect(probe.mock.calls).toEqual([["atlas"], ["boreal"]]);
+    expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }], [{ serverId: "boreal" }]]);
   });
 
   it("uses the wired API port with the selected server ID", async () => {

@@ -1,11 +1,11 @@
 import type { Request } from "express";
 
-import { resolvePublicOrigin } from "../oauth/public-origin.js";
+import { resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
 /**
  * @file The public mount point and absolute URL for the external-MCP OAuth callback.
  *
- * Mirrors `routes/admin/connectors/callback-url.ts` exactly, including WHY it exists as its own
+ * Mirrors the connector callback URL builder exactly, including WHY it exists as its own
  * module: the connect route and the callback route must never drift apart, and a mismatch would
  * send the authorization server to a URL nothing serves — a failure that looks like a provider
  * problem and is not.
@@ -30,6 +30,6 @@ export const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback
  *
  * @complexity O(1).
  */
-export function externalMcpOAuthCallbackUrl(req: Request, serverId: string): string {
+export function externalMcpOAuthCallbackUrl({ req, serverId }: { req: Request; serverId: string }, _optional = {}): string {
   return `${resolvePublicOrigin(req)}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(serverId)}`;
 }

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginInstallPort } from "../hooks/agent-plugin-install-port.hooks";
 
@@ -23,9 +24,9 @@ const zip = () => new File(["zip"], "notes.zip");
 describe("useAgentPluginInstall refusal copy", () => {
   it.each([
     ["a non-API failure", new Error("offline"), "Could not install the plugin. Try again."],
-    ["a 403 without a known code", new ApiError("nope", 403), "You don't have permission to install plugins."],
-    ["a 400 with an unknown code", new ApiError("bad", 400, "SOMETHING_NEW"), "This .zip contains files or links that plugins may not include."],
-    ["an unknown status", new ApiError("boom", 502), "Could not install the plugin. Try again."],
+    ["a 403 without a known code", new ApiError({ message: "nope", status: 403 }), "You don't have permission to install plugins."],
+    ["a 400 with an unknown code", new ApiError({ message: "bad", status: 400 }, { code: "SOMETHING_NEW" }), "This .zip contains files or links that plugins may not include."],
+    ["an unknown status", new ApiError({ message: "boom", status: 502 }), "Could not install the plugin. Try again."],
   ])("maps %s", async (_name, failure, expected) => {
     const { result } = setup(failingPort(failure));
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));

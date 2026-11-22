@@ -5,7 +5,7 @@ import { sql } from "kysely";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { postSearch } from "../0001_post_search.js";
-import type { MigrationContext } from "../step.js";
+import type { MigrationContext } from "@jini-ai/core/contracts/storage";
 
 /** These steps take no backup and report nothing, so the runner's context is inert here. */
 const migrationContext: MigrationContext = { note: () => {} };

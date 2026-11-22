@@ -1,4 +1,5 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 3 Forms tools, the union of what
@@ -20,8 +21,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
@@ -109,12 +109,13 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = formsAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 function formsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("forms_") || r.descriptor.id === "content_read.form_definition")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -227,7 +228,7 @@ test("the immutable slug is not accepted as an update input — the schema forbi
   const schema = catalogEntry("forms_update_definition").inputSchema as { properties: Record<string, unknown> };
   assert.equal("slug" in schema.properties, false, "forms_update_definition must not advertise a slug input");
 
-  const out = (await wired("forms_update_definition", deps).handler(executionContext({ formId: id, name: "Renamed", slug: "hijacked" }))) as {
+  const out = (await wired("forms_update_definition", deps).handler(executionContext({ formId: id, name: "Renamed", slug: "hijacked", expectedVersion: 1 }))) as {
     definition: { slug: string; name: string };
   };
   assert.equal(out.definition.slug, "contact", "slug must be unchanged even when supplied");
@@ -239,7 +240,7 @@ test("an empty update patch is refused rather than reported as a successful no-o
   const { id } = await seedDefinition(deps);
 
   await assert.rejects(
-    () => wired("forms_update_definition", deps).handler(executionContext({ formId: id })),
+    () => wired("forms_update_definition", deps).handler(executionContext({ formId: id, expectedVersion: 1 })),
     /at least one of 'name', 'fields', or 'notify' is required/,
   );
 });
@@ -274,7 +275,7 @@ test("a tool result is an explicit model-facing view: workspaceId and timestamps
     executionContext({ name: "Contact", slug: "contact", fields: VALID_FIELDS }),
   )) as { definition: Record<string, unknown> };
 
-  assert.deepEqual(Object.keys(created.definition).sort(), ["fields", "id", "name", "notify", "slug", "status"]);
+  assert.deepEqual(Object.keys(created.definition).sort(), ["fields", "id", "name", "notify", "slug", "status", "version"]);
   assert.equal("workspaceId" in created.definition, false, "the agent is already scoped to one workspace it cannot change");
   assert.equal("createdAt" in created.definition, false);
   assert.equal(created.definition.status, "active");
@@ -307,13 +308,13 @@ test("the real Forms catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.form_definition" || id === "content_read.collection_content_type") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Forms catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("forms_create_definition", { ...catalogEntry("forms_create_definition"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "forms_create_definition", catalogEntry: { ...catalogEntry("forms_create_definition"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -343,7 +344,7 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
   "content_read.form_definition": () => ({}),
   forms_list_providers: () => ({}),
   forms_create_definition: () => ({ name: "Contact", slug: "contact-2", fields: VALID_FIELDS }),
-  forms_update_definition: (id) => ({ formId: id, name: "Renamed" }),
+  forms_update_definition: (id) => ({ formId: id, name: "Renamed", expectedVersion: 1 }),
   forms_set_definition_status: (id) => ({ formId: id, status: "disabled" }),
 };
 

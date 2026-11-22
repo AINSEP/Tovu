@@ -14,11 +14,9 @@ import type { DiscoveredTheme } from "../../features/theme/theme.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 
-import {
-  contributeThemesTools,
-  performThemeFileRename,
-  type ThemeToolDeps,
-} from "../../features/theme/tool-registrations.js";
+import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+import { performThemeFileRename } from "../../features/theme/theme-file-identity-tools.js";
+import { type ThemeToolDeps } from "../../features/theme/asset-operations.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -298,12 +296,7 @@ test("performThemeFileRename: a destPath that resolves generated-readonly throws
 
   assert.throws(
     () =>
-      performThemeFileRename(
-        routeDeps,
-        theme,
-        { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
-        new Set(["src/config.json"])
-      ),
+      performThemeFileRename({ routeDeps, theme, paths: { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" }, existingPaths: new Set(["src/config.json"]) }),
     /'generated-output\.json' is read-only: this file is generated output of a built theme/
   );
 });

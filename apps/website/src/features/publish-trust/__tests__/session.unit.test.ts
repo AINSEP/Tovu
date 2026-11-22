@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { mintPublishSession, SESSION_TTL_MS, verifyPublishSession } from "../session.js";
 
 /**
@@ -64,37 +64,43 @@ function payload(overrides: Record<string, unknown> = {}): Record<string, unknow
 }
 
 async function reasonFor(token: string, nowIso = NOW, expectedAudience = AUDIENCE): Promise<string | null> {
-  const result = await verifyPublishSession(depsAt(nowIso).deps, { token, expectedAudience });
+  const result = await verifyPublishSession({ deps: depsAt(nowIso).deps, input: { token, expectedAudience } });
   return result.ok ? null : result.reason;
 }
 
 test("mint derives the session key under its own purpose and info", async () => {
   const { deps, derives } = depsAt();
-  await mintPublishSession(deps, { sourceInstallationId: "s", targetInstallationId: AUDIENCE, capabilities: [], generation: 3 });
+  await mintPublishSession({ deps, input: { sourceInstallationId: "s", targetInstallationId: AUDIENCE, capabilities: [], generation: 3 } });
   assert.deepEqual(derives, [{ workspaceId: WORKSPACE, purpose: "publish-trust-session-key", info: "session-hmac" }]);
 });
 
 test("mint returns a payload expiring one TTL after the clock and a token MAC'd over it", async () => {
   const { deps } = depsAt();
-  const minted = await mintPublishSession(deps, {
-    sourceInstallationId: "src-install",
-    targetInstallationId: AUDIENCE,
-    capabilities: ["publish_content.read"],
-    generation: 1,
-  });
+  const minted = await mintPublishSession({
+                                            deps,
+                                            input: {
+      sourceInstallationId: "src-install",
+      targetInstallationId: AUDIENCE,
+      capabilities: ["publish_content.read"],
+      generation: 1,
+    }
+                                          });
   assert.deepEqual(minted.payload, payload({ expiresAtIso: new Date(Date.parse(NOW) + SESSION_TTL_MS).toISOString() }));
   assert.equal(minted.token, signedToken(encode(JSON.stringify(minted.payload))));
 });
 
 test("a minted token verifies and yields its payload", async () => {
   const { deps } = depsAt();
-  const minted = await mintPublishSession(deps, {
-    sourceInstallationId: "src-install",
-    targetInstallationId: AUDIENCE,
-    capabilities: ["publish_content.read"],
-    generation: 1,
-  });
-  assert.deepEqual(await verifyPublishSession(deps, { token: minted.token, expectedAudience: AUDIENCE }), {
+  const minted = await mintPublishSession({
+                                            deps,
+                                            input: {
+      sourceInstallationId: "src-install",
+      targetInstallationId: AUDIENCE,
+      capabilities: ["publish_content.read"],
+      generation: 1,
+    }
+                                          });
+  assert.deepEqual(await verifyPublishSession({ deps, input: { token: minted.token, expectedAudience: AUDIENCE } }), {
     ok: true,
     payload: minted.payload,
   });
@@ -104,7 +110,7 @@ test("a non-string token from the wire is refused as not supplied", async () => 
   // JSON.parse stands in for an untyped request body: the token field really can be anything.
   const wire: { token: string; expectedAudience: string } = JSON.parse('{"token":42,"expectedAudience":"dest-install"}');
   const { deps } = depsAt();
-  assert.deepEqual(await verifyPublishSession(deps, wire), { ok: false, reason: "no session token supplied" });
+  assert.deepEqual(await verifyPublishSession({ deps, input: wire }), { ok: false, reason: "no session token supplied" });
 });
 
 test("an empty token is refused as not supplied", async () => {
@@ -119,14 +125,14 @@ for (const token of ["abc", "a.b.c", ".mac", "payload."]) {
 
 test("format refusals happen before any key derivation", async () => {
   const { deps, derives } = depsAt();
-  await verifyPublishSession(deps, { token: "a.b.c", expectedAudience: AUDIENCE });
-  await verifyPublishSession(deps, { token: "", expectedAudience: AUDIENCE });
+  await verifyPublishSession({ deps, input: { token: "a.b.c", expectedAudience: AUDIENCE } });
+  await verifyPublishSession({ deps, input: { token: "", expectedAudience: AUDIENCE } });
   assert.equal(derives.length, 0);
 });
 
 test("a well-formed token derives the session key exactly once", async () => {
   const { deps, derives } = depsAt();
-  await verifyPublishSession(deps, { token: "a.b", expectedAudience: AUDIENCE });
+  await verifyPublishSession({ deps, input: { token: "a.b", expectedAudience: AUDIENCE } });
   assert.deepEqual(derives, [{ workspaceId: WORKSPACE, purpose: "publish-trust-session-key", info: "session-hmac" }]);
 });
 

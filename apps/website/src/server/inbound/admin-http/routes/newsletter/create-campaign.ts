@@ -3,6 +3,7 @@ import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toD
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's five required string fields, in the one order used for validation. */
 const REQUIRED_CAMPAIGN_STRING_FIELDS = ["subject", "fromName", "fromEmail", "replyTo", "listId"] as const;
@@ -10,7 +11,7 @@ const REQUIRED_CAMPAIGN_STRING_FIELDS = ["subject", "fromName", "fromEmail", "re
 /** This route's campaign fields, validated and read off an untyped body in one place, or `null` if
  *  a required field is missing or the wrong shape.
  *  @complexity O(1) — iterates a fixed 5-entry field list. */
-function parseCreateCampaignBody(rawBody: unknown): {
+function parseCreateCampaignBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   subject: string;
   bodyJson: Record<string, unknown>;
   preheader: string | null;
@@ -48,16 +49,13 @@ function parseCreateCampaignBody(rawBody: unknown): {
  * the document in its existing same-transaction revision state_json; detail reads project the
  * latest document alongside the live envelope; list reads keep only the envelope. No new column or alternate content owner is needed.
  */
-export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseCreateCampaignBody(req.body);
+    const parsedBody = parseCreateCampaignBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({
         error: "subject, fromName, fromEmail, replyTo, listId (strings) and bodyJson (object) are required",
@@ -67,13 +65,7 @@ export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, 
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.compose",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -85,9 +77,9 @@ export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, 
           fields: parsedBody,
         },
       });
-      res.status(201).json(toDataResponse(campaign));
+      res.status(201).json(toDataResponse({ data: campaign }));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

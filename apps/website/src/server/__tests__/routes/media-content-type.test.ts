@@ -38,12 +38,12 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaUploadRoute(app, deps);
-  registerAdminMediaListRoute(app, deps);
-  registerAdminMediaUpdateRoute(app, deps);
+  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ app, deps });
   return { app, deps };
 }
 

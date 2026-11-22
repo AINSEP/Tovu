@@ -60,34 +60,34 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     workspace.registry({}).merge({ entries: [{ id: name, path: dir, name, createdBy: 'peer-test', lastOpened: null }] });
     const paths = resolveSiteDatabasePaths({ dir }, { workspace, placement, reserveIdentity: false });
     fs.mkdirSync(path.dirname(paths.contentDbPath), { recursive: true });
-    const db = openContentDb(paths.contentDbPath), kernel = contentKernel(db);
+    const db = openContentDb(paths.contentDbPath), kernel = contentKernel({ store: db });
     close.push(() => { db.$client.close(); });
     const workspaceId = `${name}-workspace`, at = '2026-10-16T00:00:00.000Z';
     db.$client.prepare('INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,?)').run(workspaceId, name, name, at);
     let sequence = 0;
     const clock = { nowMs: () => Date.parse(at), nowIso: () => at }, idGen = { newId: () => `${name}-id-${++sequence}` };
-    const identity = createSqliteIdentityRouteDeps({ db: contentKernel(db), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+    const identity = createSqliteIdentityRouteDeps({ db: contentKernel({ store: db }), workspaceId, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
       permissionGrants: createAppPermissionGrants({}), clock, idGen });
     await identity.identityReady;
     await installCommentsDataModule({ db: kernel, dbPath: paths.contentDbPath });
     await installNewsletterDataModule({ db: kernel, dbPath: paths.contentDbPath });
     const ownerId = await identity.ownerPrincipalId;
-    const postRepo = new SqlitePostRepo(kernel), mediaRepo = new SqliteMediaRepo(kernel), formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
+    const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
-    await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat(`<main>${name} page</main>`);
+    await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat({ seedHtml: `<main>${name} page</main>` });
     const bytes = await sharp({ create: { width: 2, height: 1, channels: 3, background: name === 'A' ? 'red' : 'blue' } }).png().toBuffer();
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     const blobStore = new LocalFsBlobStore({ rootDir: path.join(dir, 'uploads') });
     const { storageKey } = await blobStore.put({ workspaceId, sha256, bytes });
-    await new SqliteAssetBlobRepo(kernel).save({ id: 'blob', workspaceId, sha256, storageKey, status: 'active', createdAt: at, createdByPrincipal: ownerId });
-    await new SqliteMediaContentTypeStore(kernel).set({ workspaceId, sha256, contentType: 'image/png' });
+    await new SqliteAssetBlobRepo({ store: kernel }).save({ id: 'blob', workspaceId, sha256, storageKey, status: 'active', createdAt: at, createdByPrincipal: ownerId });
+    await new SqliteMediaContentTypeStore({ store: kernel }).set({ workspaceId, sha256, contentType: 'image/png' });
     await mediaRepo.save({ id: 'media', workspaceId, title: `${name} media`, slug: 'media', alt: '', caption: '', credit: '',
       source: { sha256 }, status: 'active', version: 1, createdAt: at, updatedAt: at,
       width: null, height: null, cssClass: null, htmlAttributes: null, createdBy: ownerId });
     await formDefinitionRepo.create({ id: 'form', workspaceId, name: `${name} form`, slug: 'form', fields: [],
       notify: { enabled: false, recipients: [] }, status: 'active', createdAt: at, updatedAt: at, version: 1 });
-    const chat = openChatDb(paths.chatDbPath), chatHistory = createChatStoreFactory(chat);
+    const chat = openChatDb({ filePath: paths.chatDbPath }), chatHistory = createChatStoreFactory({ store: chat });
     const staffId = `${name}-staff`;
     for (const [id, userId, scope] of [['owner-chat', ownerId, workspaceId], ['staff-chat', staffId, workspaceId], ['foreign-chat', ownerId, 'foreign']]) {
       const store = chatHistory({ kind: 'user', workspaceId: scope!, userId: userId! });
@@ -97,7 +97,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     close.push(() => { chat.close(); });
     const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
     fs.mkdirSync(path.dirname(journalPath), { recursive: true });
-    const journal = openDatabaseJournalDb(journalPath);
+    const journal = openDatabaseJournalDb({ filePath: journalPath });
     await journal.ready;
     close.push(() => journal.close());
     return { name, dir, paths, journalPath, db, kernel, identity, ownerId, staffId, workspaceId, postRepo, mediaRepo, formDefinitionRepo, chatHistory, clock, idGen };
@@ -110,9 +110,9 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   installFirstPartyToolContributors({ contributions });
   const contentHandles: ReturnType<typeof openSqliteFileKernel<any>>[] = [], chatHandles: ReturnType<typeof openNativeSqlite>[] = [];
   const options = { workspace, localHost: true,
-    openContent: (<DB>(file: string, optional: { readOnly?: boolean } = {}) => {
+    openContent: (<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}) => {
       assert.equal(optional.readOnly, true);
-      const handle = openSqliteFileKernel<DB>(file, optional);
+      const handle = openSqliteFileKernel<DB>({ filePath }, optional);
       contentHandles.push(handle); return handle;
     }) as typeof openSqliteFileKernel,
     openChat: ((file, optional) => {
@@ -125,7 +125,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   const base = createRouteDeps();
   await base.identityReady;
   const audits: Array<Record<string, unknown>> = [];
-  const activeAudit = new SqliteToolAttemptAuditSink(a.kernel);
+  const activeAudit = new SqliteToolAttemptAuditSink({ store: a.kernel });
   const toolAttemptAuditSink: ToolAttemptAuditSink = { append: async (required, optional) => {
     audits.push({ ...required, ...optional });
     await activeAudit.append(required, optional);
@@ -141,7 +141,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     formDefinitionRepo: a.formDefinitionRepo, chatHistory: a.chatHistory, peerSiteReads: peer,
     toolAttemptAuditSink,
   } });
-  const build = (collapsed = false) => buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: collapsed });
+  const build = (collapsed = false) => buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions, includeContentReadCollapse: collapsed } });
   /** Invoke actual assembled handlers with A's identity; peer scoping must replace it with B's owner. */
   const call = (id: string, input: unknown, principalId = a.ownerId) => {
     const registration = build().find(tool => tool.descriptor.id === id);

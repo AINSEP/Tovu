@@ -1,12 +1,12 @@
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import { Icon } from "@jini-ai/ui";
 import { RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
-import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController } from "@jini-ai/ui/site-card";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController, type SiteListPrefsController } from "@jini-ai/ui/site-card";
+
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
+
 import {
   buildSiteCardMenuItems,
   resolveSiteCardMeta,
@@ -21,9 +21,9 @@ import {
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
-import { SiteFlagIcon, StarIcon } from "./sites-visuals";
 import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The "All sites" tab — the card grid of every site folder listed under `sites/`, and the
  * empty state for when there are none.
@@ -95,7 +95,7 @@ import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
 /** The card's "this folder is not really a site" badge, or nothing. */
 function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
-  const registration = resolveSiteRegistrationBadge(site, snapshot);
+  const registration = resolveSiteRegistrationBadge({ site, snapshot });
   if (registration === null) return null;
   return (
     // A glyph beside the words (2026-09-06 status-strip pass, `styles.css`'s "Sites — the
@@ -104,7 +104,7 @@ function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapsho
     // footnote about the folder rather than a second status; `aria-hidden` inside the
     // component, since the text beside it already says the same thing.
     <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
-      <SiteFlagIcon />
+      <Icon name="flag-triangle" size={14} strokeWidth={1.5} />
       {t(registration.labelKey)}
     </span>
   );
@@ -121,8 +121,8 @@ const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "st
 
 /** The default star, or nothing. */
 function SiteCardDefaultStar({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
-  if (!resolveSiteIsDefault(site, snapshot)) return null;
-  return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><StarIcon /></span>;
+  if (!resolveSiteIsDefault({ site, snapshot })) return null;
+  return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><Icon name="star-filled" size={14} strokeWidth={1.5} /></span>;
 }
 
 /** The second line under the name, or nothing. */
@@ -147,6 +147,7 @@ function SiteCard({
   localSites,
   list,
   t,
+  useSiteCardPreviewHook = useSiteCardPreview,
 }: {
   site: AdminSiteListEntry;
   snapshot: AdminSitesSnapshot;
@@ -157,9 +158,10 @@ function SiteCard({
   localSites?: LocalSitesController;
   list: Pick<SiteListController<unknown>, "isPinned" | "togglePin" | "isHidden" | "toggleHidden">;
   t: Translate;
+  useSiteCardPreviewHook?: typeof useSiteCardPreview;
 }) {
   const pill = resolveSiteStatusPill({ site, snapshot, t });
-  const preview = useSiteCardPreview({ site, snapshot });
+  const preview = useSiteCardPreviewHook({ site, snapshot });
   const view = resolveSiteCardView({
     site, snapshot, switchingEnabled, activatingName, busyName: localSites?.busyName ?? null, managed: localSites !== undefined,
   });
@@ -271,6 +273,7 @@ export interface AllSitesTabProps {
   /** This person's sort, pins and hidden sites. */
   listPrefs: SiteListPrefsController;
   t: Translate;
+  useSiteListViewHook?: typeof useSiteListView;
 }
 
 /** The grid itself. A plain function returning JSX rather than a ternary written in
@@ -278,7 +281,7 @@ export interface AllSitesTabProps {
  *  branch on top of the `.map()`, the same split `Deployment.tsx`'s `deploymentTabPanel` makes for
  *  the identical gate. */
 function sitesGridOrEmpty(props: AllSitesTabProps) {
-  if (resolveSitesEmpty(props.sites)) return <SitesEmptyState t={props.t} />;
+  if (resolveSitesEmpty({ sites: props.sites })) return <SitesEmptyState t={props.t} />;
   if (!props.listPrefs.ready) return null;
   return <SitesGrid {...props} />;
 }
@@ -294,12 +297,12 @@ function SiteListPrefsNotice({ listPrefs, t }: { listPrefs: SiteListPrefsControl
   return null;
 }
 
-function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t }: AllSitesTabProps) {
-  const list = useSiteListView({ items: resolveSiteListItems(sites), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
+function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t, useSiteListViewHook = useSiteListView }: AllSitesTabProps) {
+  const list = useSiteListViewHook({ items: resolveSiteListItems({ sites }), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
-  const rowHandles = resolveSitesRowHandles(sites);
-  const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]!]));
+  const rowHandles = resolveSitesRowHandles({ sites });
+  const handleOf = new Map(sites.map((site, index) => [site.name, rowHandles[index]]));
   return (
     // One wrapper so the page's section gap stays above the toolbar, not between it and its cards.
     <div>
@@ -319,20 +322,22 @@ function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActiva
       />
       {list.visible.length === 0 ? <p className="sites-empty-lead">{t("Every site is hidden. Open Hidden to bring one back.")}</p> : null}
       <div className="sites-grid" role="group" aria-label={t("Sites")}>
-        {list.visible.map(({ site }) => (
-          <SiteCard
+        {list.visible.map(({ site }) => {
+          const handle = handleOf.get(site.name);
+          if (handle === undefined) throw new Error(`site ${site.name} has no card handle`);
+          return <SiteCard
             key={site.name}
             site={site}
             snapshot={snapshot}
-            handle={handleOf.get(site.name)!}
+            handle={handle}
             switchingEnabled={switchingEnabled}
             activatingName={activatingName}
             onActivate={onActivate}
             localSites={localSites}
             list={list}
             t={t}
-          />
-        ))}
+          />;
+        })}
       </div>
     </div>
   );

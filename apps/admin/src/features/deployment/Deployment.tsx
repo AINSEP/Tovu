@@ -1,7 +1,8 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { navigateDeploymentTab } from "./Deployment.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./deployment-i18n";
 import { OverviewTab } from "./OverviewTab";
@@ -10,6 +11,7 @@ import { DockerfileTab } from "./DockerfileTab";
 import { HistoryTab } from "./HistoryTab";
 import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Deployment panel (`/admin/deployment`) — four tabs: Overview, Static Site,
  * Dockerfile, History. Replaces the earlier `PlaceholderTabs` stub (Home/GitHub/AWS), which was
@@ -21,7 +23,7 @@ import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deploym
  * `TabBar` (`@jini-ai/ui/tab-strip`), not `@jini-ai/ui`'s `SettingsDialogShell` — this is a
  * full-page screen, not a dialog-shaped surface. `SettingsDialogShell` bundles its own vertical
  * sidebar plus a kicker/title/subtitle header, which is the right shape for Settings' 13 tabs but
- * would fight this screen's own `.page-header` the same way `PlaceholderTabs.tsx`'s doc comment
+ * would fight this screen's own `.page-header` the same way `PlaceholderTabs`'s doc comment
  * describes a past `--page-flow` mismatch. `TabBar` is the horizontal, headerless primitive
  * `Pages.tsx`/`ThemeExplore.tsx`-adjacent screens already use for exactly this "one page, several
  * flat tabs" shape.
@@ -44,7 +46,7 @@ type DeploymentTabId = (typeof DEPLOYMENT_TAB_IDS)[number];
  *  `Database.tsx`/`Themes.tsx` all use — same reason `SettingsUi.tsx`'s `requestedTabId` and
  *  `WidgetInstanceEditor`'s `?type=` both apply their own guard (a stale link or a typo must not
  *  blank the panel). */
-function resolveDeploymentTabId(tabId: string | null | undefined): DeploymentTabId {
+function resolveDeploymentTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): DeploymentTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: DEPLOYMENT_TAB_IDS, defaultId: "overview" });
 }
 
@@ -61,16 +63,18 @@ function deploymentTabPanel(activeTabId: DeploymentTabId) {
 }
 
 export interface DeploymentProps {
+  hooks?: { useAdminLocale: typeof useAdminLocale };
   /** The `?tab=` query value from `panels.tsx`'s `deployment` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See {@link resolveDeploymentTabId}. */
   tabId?: string | null;
 }
 
 export function Deployment(props: DeploymentProps) {
+  const { hooks = { useAdminLocale } } = props;
   // No hook file of its own — this shell owns no fetch/state (each tab owns its own), matching
   // `Database.tsx`'s own carve-out for a top-level screen with nothing to inject.
-  const locale = useAdminLocale();
-  const activeTabId = resolveDeploymentTabId(props.tabId);
+  const locale = hooks.useAdminLocale();
+  const activeTabId = resolveDeploymentTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [
     {
@@ -103,10 +107,6 @@ export function Deployment(props: DeploymentProps) {
     },
   ];
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/deployment?tab=${nextTabId}`, { replace: true });
-  }
-
   return (
     <div className="page">
       <div
@@ -128,7 +128,7 @@ export function Deployment(props: DeploymentProps) {
         ariaLabel={t({ locale: locale, key: "Deployment" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateDeploymentTab({ nextTabId })}
         containerHandle="deployment-tab-bar"
       />
       {deploymentTabPanel(activeTabId)}

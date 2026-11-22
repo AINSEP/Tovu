@@ -1,4 +1,4 @@
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../lib/api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
 
 /**
  * @file What `useAdminExecutionCredential` needs from the outside world, as an interface rather than
@@ -31,5 +31,5 @@ import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "..
  */
 export interface AdminExecutionCredentialPort {
   loadAdminExecutionCredential(): Promise<AdminExecutionCredential>;
-  saveAdminExecutionCredential(patch: AdminExecutionCredentialPatch): Promise<AdminExecutionCredential>;
+  saveAdminExecutionCredential(required: { patch: AdminExecutionCredentialPatch }): Promise<AdminExecutionCredential>;
 }

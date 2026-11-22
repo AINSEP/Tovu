@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminTerm } from "@/lib/api";
+import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
 import { useMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 

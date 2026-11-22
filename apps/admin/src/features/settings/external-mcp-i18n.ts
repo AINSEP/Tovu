@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Operator-facing copy for the external-MCP write-tool picker (badges, failure states, and
  * the restart-drift prompt) — `ADS-memory/reports/pipeline/external-mcp-write-tools/
@@ -9,7 +10,7 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * why this file only ever gains new entries. Consumed by the (not-yet-built) `ExternalMcpToolPicker`
  * and `ExternalMcpSettingsPanel` — see the outline's File Map, Phase 4.
  *
- * Two entries are parameterized (`interpolate()` + `{token}`, per `lib/template-i18n.ts`) rather
+ * Two entries are parameterized (`interpolate()` + `{token}`, per `Jini packages/ui/src/features/i18n/template-i18n.ts`) rather
  * than flat: the empty-allowlist count and the live/saved drift line, both of which carry a runtime
  * number or name list that can't be baked into a dictionary key.
  *
@@ -25,8 +26,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * matching this file's neighbor `settings-capabilities-i18n.ts` keeping `backend` un-translated —
  * there is no established localized term for either in this codebase's existing dictionaries.
  */
-
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const EXTERNAL_MCP_DICT: Record<string, Record<string, string>> = {
   es: {

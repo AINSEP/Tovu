@@ -8,7 +8,7 @@ import { sqlitePostSearch } from "./search-index.sqlite.js";
 
 /**
  * @file The rule-of-two partner to `search-index.sqlite.ts`: the `PostSearchPort` the hermetic
- * composition root (`server/app.ts`'s `createRouteDeps`, which pairs it with `InMemoryPostRepo`)
+ * composition root (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps`, which pairs it with `InMemoryPostRepo`)
  * wires, so `content_post_search` behaves identically whether a caller booted the SQLite server or
  * the in-memory one.
  *
@@ -59,7 +59,7 @@ export class InMemoryPostSearchIndex implements PostSearchPort {
    * @overallScore 100
    */
   async search(required: PostSearchQuery): Promise<PostSearchHit[]> {
-    this.kernel ??= contentKernel(openContentDb(":memory:"));
+    this.kernel ??= contentKernel({ store: openContentDb(":memory:") });
     const kernel = this.kernel;
     const posts = await this.repo.list({ workspaceId: required.workspaceId });
     // One transaction for mirror + query: a concurrent search for another workspace cannot swap the
@@ -86,6 +86,6 @@ async function mirrorPosts(kernel: ContentKernel, posts: readonly PostRecord[]):
   await kernel.run((db) => db.deleteFrom("posts").execute());
   for (const post of posts) {
     await kernel.run((db) => db.insertInto("posts").values(toRow(post)).execute());
-    await sqlitePostSearch.upsert(kernel, toPostSearchDocument(post));
+    await sqlitePostSearch.upsert({ kernel, document: toPostSearchDocument(post) });
   }
 }

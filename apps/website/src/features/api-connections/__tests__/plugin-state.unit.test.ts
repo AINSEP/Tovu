@@ -9,7 +9,8 @@ import { test } from "node:test";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import { InMemoryVaultRepo, VaultError, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { AdminSurfaceStateValue } from "@jini-ai/agent-plugins/admin-surfaces";
 
 import { createAgentPluginStateStore, PLUGIN_STATE_UNAVAILABLE_MESSAGE } from "../plugin-state.js";

@@ -1,6 +1,6 @@
 import { resolveDefinitionRaw, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "#src/contracts/headless/index";
-import { ASSISTANT_SUBAGENTS_NAMESPACE } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
 
 type BodyItem = Record<string, unknown>;
 
@@ -11,7 +11,7 @@ type ProtectedScope = { repo: SettingsRepoPort; workspaceId: string; namespaces:
  * itself. A null or non-object body changes nothing checkable.
  * @complexity O(1).
  */
-function bodyItems(body: unknown): { items: unknown[]; definitionBatch: boolean } {
+function bodyItems({ body }: { body: unknown }, _options: Record<string, never> = {}): { items: unknown[]; definitionBatch: boolean } {
   if (!body || typeof body !== "object") return { items: [], definitionBatch: false };
   const definitions = (body as BodyItem).definitions;
   return Array.isArray(definitions) ? { items: definitions, definitionBatch: true } : { items: [body], definitionBatch: false };
@@ -31,7 +31,7 @@ function namesProtectedNamespace(item: BodyItem, namespaces: readonly string[]):
  * expanded (it cannot address a definition), so it resolves nothing.
  * @complexity O(d) over the registered definitions for a reset, otherwise O(1).
  */
-async function keysToResolve(item: BodyItem & { namespace: string }, scope: ProtectedScope, definitionBatch: boolean): Promise<string[]> {
+async function keysToResolve({ item, scope, definitionBatch }: { item: BodyItem & { namespace: string }; scope: ProtectedScope; definitionBatch: boolean }, _options: Record<string, never> = {}): Promise<string[]> {
   if (typeof item.key === "string") return [item.key];
   if (definitionBatch) return [];
   return [
@@ -44,7 +44,7 @@ async function keysToResolve(item: BodyItem & { namespace: string }, scope: Prot
  * resolved.
  * @complexity O(k) bounded alias resolutions.
  */
-async function anyKeyResolvesProtected(namespace: string, keys: readonly string[], scope: ProtectedScope): Promise<boolean> {
+async function anyKeyResolvesProtected({ namespace, keys, scope }: { namespace: string; keys: readonly string[]; scope: ProtectedScope }, _options: Record<string, never> = {}): Promise<boolean> {
   for (const key of keys) {
     const def = await resolveDefinitionRaw({ repo: scope.repo }, { namespace, key, workspaceId: scope.workspaceId });
     if (def && scope.namespaces.includes(def.namespace)) return true;
@@ -56,13 +56,13 @@ async function anyKeyResolvesProtected(namespace: string, keys: readonly string[
  * Non-object items and items without a string namespace touch nothing.
  * @complexity As `keysToResolve` plus `anyKeyResolvesProtected`.
  */
-async function itemTouchesProtected(raw: unknown, scope: ProtectedScope, definitionBatch: boolean): Promise<boolean> {
+async function itemTouchesProtected({ raw, scope, definitionBatch }: { raw: unknown; scope: ProtectedScope; definitionBatch: boolean }, _options: Record<string, never> = {}): Promise<boolean> {
   if (!raw || typeof raw !== "object") return false;
   const item = raw as BodyItem;
   if (namesProtectedNamespace(item, scope.namespaces)) return true;
   if (typeof item.namespace !== "string") return false;
   const namespaced = item as BodyItem & { namespace: string };
-  return anyKeyResolvesProtected(namespaced.namespace, await keysToResolve(namespaced, scope, definitionBatch), scope);
+  return anyKeyResolvesProtected({ namespace: namespaced.namespace, keys: await keysToResolve({ item: namespaced, scope, definitionBatch }), scope });
 }
 
 /** Generic settings mutations cannot bypass the dedicated owner/acknowledgment endpoint.
@@ -80,9 +80,9 @@ export async function touchesAssistantSubagents(required: {
     repo: required.repo, workspaceId: required.workspaceId,
     namespaces: required.namespaces ?? [ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_PERMANENT_DELETES_NAMESPACE],
   };
-  const { items, definitionBatch } = bodyItems(required.body);
+  const { items, definitionBatch } = bodyItems({ body: required.body });
   for (const raw of items) {
-    if (await itemTouchesProtected(raw, scope, definitionBatch)) return true;
+    if (await itemTouchesProtected({ raw, scope, definitionBatch })) return true;
   }
   return false;
 }

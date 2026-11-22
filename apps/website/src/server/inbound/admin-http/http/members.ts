@@ -1,7 +1,7 @@
 import type { MemberRecord, MemberStatus } from "#src/features/members/index";
 
 /**
- * @file Admin-facing member response DTO (mirrors `admin/posts.ts`'s pattern).
+ * @file Admin-facing member response DTO (mirrors `apps/website/src/server/inbound/admin-http/http/posts.ts`'s pattern).
  *
  * Purpose:
  * Maps the internal `MemberRecord` to what the admin API/UI may see.

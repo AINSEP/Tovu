@@ -6,16 +6,18 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -76,6 +78,8 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,

@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import {
@@ -76,8 +76,8 @@ function buildApp(options: {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerRoutes(app, deps);
-  registerPublishContentPeerTransportRoutes(app, deps);
+  registerPublishContentPeerRoutes({ app, deps });
+  registerPublishContentPeerTransportRoutes({ app, deps });
   return { app, repo };
 }
 
@@ -110,7 +110,7 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
   const sha = sha256Of(Buffer.from(content));
 
   const fileBlobIndex = createFileBlobIndex();
-  fileBlobIndex.set(sha, { absPath: filePath, size: content.length });
+  fileBlobIndex.set({ sha256: sha, entry: { absPath: filePath, size: content.length } });
 
   const canaryEntity: PackedEntity = {
     entityType: "file-index-canary",
@@ -139,7 +139,7 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
       },
     }),
   };
-  registerPublishContentContributor(canaryContributor);
+  registerPublishContentContributor({ contributor: canaryContributor });
 
   let uploadedBody: { dataBase64?: string } | undefined;
   const calls: Array<{ method: string; url: string }> = [];
@@ -230,24 +230,26 @@ test("push/plan appends a locally refused unit to the peer's plan as a non-selec
   };
   const reason = "Can't publish: contains a video file (clip.mp4)";
   registerPublishContentContributor({
-    entityType: "file-index-canary",
-    dependsOn: [],
-    build: () => ({
+                                      contributor: {
       entityType: "file-index-canary",
-      schemaVersion: 1,
-      permission: "publish_content.read",
       dependsOn: [],
-      async *pack() {
-        yield canaryEntity;
-      },
-      listSkipped: async () => [{ entityType: "file-index-canary", id: "static/showcase", label: "static/showcase", reason }],
-      inspect: async () => null,
-      precheck: async () => null,
-      apply: async () => {
-        throw new Error("not exercised by this test");
-      },
-    }),
-  });
+      build: () => ({
+        entityType: "file-index-canary",
+        schemaVersion: 1,
+        permission: "publish_content.read",
+        dependsOn: [],
+        async *pack() {
+          yield canaryEntity;
+        },
+        listSkipped: async () => [{ entityType: "file-index-canary", id: "static/showcase", label: "static/showcase", reason }],
+        inspect: async () => null,
+        precheck: async () => null,
+        apply: async () => {
+          throw new Error("not exercised by this test");
+        },
+      }),
+    }
+                                    });
 
   const peerRow = { entityType: "file-index-canary", entityId: "canary-1", outcome: "applied", writes: true };
   const httpClient: HttpClientPort = {

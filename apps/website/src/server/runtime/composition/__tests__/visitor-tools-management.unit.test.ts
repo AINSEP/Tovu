@@ -35,7 +35,7 @@ test("the existing assistant-settings module mounts both visitor routes over the
   const app = express();
   const module = createAssistantSettingsModule({ ...createRouteDeps(), workspaceId: ws, visitorToolsManagement: service });
   assert.ok(module.registerRoutes);
-  module.registerRoutes(app);
+  module.registerRoutes({ app });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "get", ADMIN_VISITOR_TOOLS_PATH)({ params: { workspaceId: ws } } as unknown as Request, res);
@@ -59,7 +59,7 @@ test("overlapping memory-composed HTTP writers return one success and one 409 re
   const before = await f.repo.maxRevisionSeq();
   const app = express();
   const module = createAssistantSettingsModule({ ...createRouteDeps(), workspaceId: ws, visitorToolsManagement: { ...service, prepare: async () => prepared } });
-  module.registerRoutes!(app);
+  module.registerRoutes!({ app });
   const request = async () => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };

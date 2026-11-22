@@ -39,10 +39,10 @@ test("vault AAD separates MCP secret kinds and server/workspace identity", () =>
 
 test("external-mcp OAuth blob: opens under its OWN (workspace, server) identity", async () => {
   const identity = { workspaceId: WORKSPACE, serverId: SERVER_A };
-  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, identity, {
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload({ deps, identity, payload: {
     clientSecret: "cs-server-a",
     tokens: { accessToken: "at-server-a", refreshToken: "rt-server-a", tokenType: "Bearer", scopes: [], expiresAt: null },
-  });
+  } });
   assert.notEqual(sealedOAuth, null);
   // The seal hands back the version with the ciphertext, so the row can never fall out of step.
   assert.equal(oauthAadVersion, 1);
@@ -55,9 +55,11 @@ test("external-mcp OAuth blob: opens under its OWN (workspace, server) identity"
 
 test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (the vulnerability)", async () => {
   const { sealedOAuth: sealed } = await sealExternalMcpOAuthPayload(
-    deps,
-    { workspaceId: WORKSPACE, serverId: SERVER_A },
-    { clientSecret: "cs-server-a", tokens: { accessToken: "at-server-a", refreshToken: null, tokenType: "Bearer", scopes: [], expiresAt: null } },
+    {
+      deps,
+      identity: { workspaceId: WORKSPACE, serverId: SERVER_A },
+      payload: { clientSecret: "cs-server-a", tokens: { accessToken: "at-server-a", refreshToken: null, tokenType: "Bearer", scopes: [], expiresAt: null } },
+    },
   );
 
   // Server A's ciphertext, presented as if it were row B's. Before the fix this returned
@@ -81,9 +83,11 @@ test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (t
 
 test("external-mcp OAuth blob: CROSS-WORKSPACE transplant is rejected", async () => {
   const { sealedOAuth: sealed } = await sealExternalMcpOAuthPayload(
-    deps,
-    { workspaceId: WORKSPACE, serverId: SERVER_A },
-    { clientSecret: "cs-server-a" },
+    {
+      deps,
+      identity: { workspaceId: WORKSPACE, serverId: SERVER_A },
+      payload: { clientSecret: "cs-server-a" },
+    },
   );
 
   await assert.rejects(() =>
@@ -117,7 +121,7 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   await assert.rejects(repo.upsert({ ...row, serverId: SERVER_B }));
   // A corrupt persisted roster still degrades one connection rather than aborting federation.
   repo.listByWorkspaceId = async () => [row, { ...row, serverId: SERVER_B }];
-  const result = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const result = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(result.configs.map(c => c.serverId), [SERVER_A]);
   const target = result.configs[0]!.target;
   assert.equal(target.kind, 'stdio');

@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FOLDER_EMPTY } from "../folder-zip";
+import { FOLDER_EMPTY } from "@jini-ai/agent-plugins/folder-zip";
 import { FOLDER_TOO_MANY, useFolderUpload, type PickedFolderInput } from "../use-folder-upload.hooks";
 
 function picked(path: string, content = "x"): File {
@@ -41,7 +41,7 @@ describe("useFolderUpload", () => {
     await act(async () => { await result.current.onChange(change([]).event); });
     await act(async () => { await result.current.onChange(change([picked("p/a", "12345")]).event); });
     await act(async () => { await result.current.onChange(change(Array.from({ length: 4097 }, (_, i) => picked(`p/${i}`, ""))).event); });
-    expect(onError.mock.calls.map((call) => call[0])).toEqual([FOLDER_EMPTY, "too big", FOLDER_TOO_MANY]);
+    expect(onError.mock.calls.map((call) => call[0])).toEqual([{ key: FOLDER_EMPTY }, { key: "too big" }, { key: FOLDER_TOO_MANY }]);
   });
 
   it("ignores a pick while the page is uploading", async () => {
@@ -61,7 +61,7 @@ describe("useFolderUpload", () => {
       await first;
     });
     expect(onZipped).not.toHaveBeenCalled();
-    expect(onError.mock.calls).toEqual([["Could not read that folder. Try again."]]);
+    expect(onError.mock.calls).toEqual([[{ key: "Could not read that folder. Try again." }]]);
   });
 
   it("opens the hidden folder picker", () => {
@@ -88,7 +88,7 @@ describe("useFolderUpload", () => {
       await result.current.onChange({ target });
     });
     expect(target.value).toBe("");
-    expect(onError.mock.calls).toEqual([[FOLDER_EMPTY]]);
+    expect(onError.mock.calls).toEqual([[{ key: FOLDER_EMPTY }]]);
     expect(onZipped).not.toHaveBeenCalled();
     expect(result.current.zipping).toBe(false);
   });
@@ -103,7 +103,7 @@ describe("useFolderUpload", () => {
         if (failHandoff) throw new Error("preview unavailable");
         received.push(file.name);
       },
-      onError: key => errors.push(key),
+      onError: ({ key }) => errors.push(key),
     }));
     await act(async () => { await result.current.onChange(change([picked("p/a")]).event); });
     expect(errors).toEqual(["Could not read that folder. Try again."]);

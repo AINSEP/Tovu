@@ -1,9 +1,10 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { listAdminPages } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET admin pages — same shape as `posts/list.ts`, filtered to `kind: "page"`
@@ -12,21 +13,18 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *
  * Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note).
  */
-export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

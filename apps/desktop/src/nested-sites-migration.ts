@@ -1,6 +1,8 @@
 /** Reverse the shipped 0.1.14 nesting at startup through the existing stopped-site CLI owner. */
 import fs from "node:fs";
 import path from "node:path";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { moveSiteHome } from "./move-site-home.ts";
 import type { CliMode } from "./tovu-server.ts";
 
@@ -37,9 +39,9 @@ async function migrateNestedSite(
 
 function removeDisposableNestedCache({ root }: { root: string }): void {
   // 0.1.14 cached sibling thumbnails in sites/.tovu; they regenerate, so only they never keep the old folder alive.
-  const cache = path.join(root, ".tovu"), disposable = (names: string[], allowed: string[]) => names.every((name) => allowed.includes(name));
+  const cache = path.join(root, ".tovu"), disposable = ({ names, allowed }: { names: string[]; allowed: string[] }, _options = {}) => names.every((name) => allowed.includes(name));
   try {
-    if (disposable(fs.readdirSync(root), [".tovu", ".DS_Store"]) && (!fs.existsSync(cache) || disposable(fs.readdirSync(cache), ["site-previews", "theme-previews"]))) {
+    if (disposable({ names: fs.readdirSync(root), allowed: [".tovu", ".DS_Store"] }) && (!fs.existsSync(cache) || disposable({ names: fs.readdirSync(cache), allowed: ["site-previews", "theme-previews"] }))) {
       fs.rmSync(cache, { recursive: true, force: true }); fs.rmSync(path.join(root, ".DS_Store"), { force: true });
     }
   } catch { /* The rmdir below keeps the container whenever anything remains. */ }
@@ -51,6 +53,10 @@ function removeNestedSitesContainer({ root }: { root: string }, { report, remove
   catch (error) {
     if (!["ENOTEMPTY", "EEXIST", "ENOENT"].includes((error as NodeJS.ErrnoException).code ?? "")) report("Tovu kept the former sites folder because it could not be removed safely.");
   }
+}
+
+function isNestedSiteCandidate(entry: fs.Dirent): boolean {
+  return entry.isDirectory() && !entry.name.startsWith(".");
 }
 
 /** Move eligible siblings independently; refused sites stay at their recorded paths and are retried.
@@ -70,13 +76,13 @@ export async function migrateNestedSitesHome(
     if (!root) return;
     const home = workspace.home({});
     for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      if (!isNestedSiteCandidate(entry)) continue;
       const dir = path.join(root, entry.name), to = path.join(home, entry.name);
       await migrateNestedSite({ workspace, home, dir, to, repoRoot, cliMode, projectsPath }, { move, report });
     }
     removeDisposableNestedCache({ root });
     removeNestedSitesContainer({ root }, { report, removeDir });
-  } catch {
-    report("Tovu could not inspect the former sites folder; existing website paths remain available.");
+  } catch (error) {
+    report(`Tovu could not inspect the former sites folder; existing website paths remain available. Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
   }
 }

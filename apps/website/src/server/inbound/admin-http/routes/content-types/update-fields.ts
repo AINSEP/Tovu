@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -7,30 +8,18 @@ import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { updateContentTypeFields } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-import { contentTypeWriteErrorStatus } from "./write-error-status.js";
+import { contentTypeWriteErrorStatus } from "@jini-ai/cms/content-types";
 
 /**
  * @file design-spec.md §1.9 — `PUT /api/admin/v1/content-types/:key/fields` (full-replace of a
  * content type's field schema, REQ-26/ADR-043 §4). Gated by `admin.collections.manage`.
  */
-export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeUpdateFieldsRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.put("/api/admin/v1/content-types/:key/fields", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "content-type",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.manage", workspaceId: deps.workspaceId, entityType: "content-type" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       if (typeof body.expectedVersion !== "number") {

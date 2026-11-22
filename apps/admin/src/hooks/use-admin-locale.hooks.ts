@@ -59,7 +59,7 @@ export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): 
   const query = useFetchQuery({ key: ["settings", "core.language", queryScope], fetch: queryFetch }, { enabled: !checking, staleTime: Infinity });
   const invalidate = useInvalidate();
   // Every consumer observes the same cache; refreshes cannot overwrite a newer replacement.
-  useEffect(() => initialPort.subscribeToSettingsRefresh(() => invalidate({ key: ["settings", "core.language"] })), [initialPort, invalidate]);
+  useEffect(() => initialPort.subscribeToSettingsRefresh({ listener: () => invalidate({ key: ["settings", "core.language"] }) }), [initialPort, invalidate]);
   // A failed read retains earlier data, or the English default before the first success.
   return query.data ?? DEFAULT_LOCALE;
 }

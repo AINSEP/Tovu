@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import type { SurfaceEmission } from "@jini-ai/core";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 

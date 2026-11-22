@@ -1,7 +1,7 @@
 /** wcmp: real query/mutation hook, injected settings port, no module mocks. */
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
-import type { PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import type { AiAssistantPort } from "../hooks/ai-assistant-port.hooks";
 import { useAiAssistant } from "../hooks/use-ai-assistant.hooks";
 
@@ -30,7 +30,7 @@ describe("visitor widget setting", () => {
     await act(async () => { await result.current.setWidget({ widget: "vanilla" }); });
     await waitFor(() => expect(result.current.settings).toEqual({ publicEnabled: false, widget: "vanilla" }));
     expect(f.writes).toEqual([{ widget: "vanilla" }]);
-    await act(async () => { await result.current.setPublicEnabled(true); });
+    await act(async () => { await result.current.setPublicEnabled({ publicEnabled: true }); });
     await waitFor(() => expect(result.current.settings).toEqual({ publicEnabled: true, widget: "vanilla" }));
   });
 

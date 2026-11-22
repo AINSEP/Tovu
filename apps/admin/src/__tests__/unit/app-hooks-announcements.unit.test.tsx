@@ -72,7 +72,7 @@ it("usePublishCriteriaDeepLink opens nothing without a ?publish= param", () => {
 
 it("useAdminAssistantAvailability turns off only when the server says so", async () => {
   vi.stubGlobal("fetch", async () => json({ adminAssistantEnabled: false }));
-  const { result } = renderHook(() => useAdminAssistantAvailability({ id: "u1", username: "admin" }));
+  const { result } = renderHook(() => useAdminAssistantAvailability({ user: { id: "u1", username: "admin" } }));
   expect(result.current).toBe(true);
   await waitFor(() => expect(result.current).toBe(false));
 });
@@ -83,7 +83,7 @@ it("useAdminAssistantAvailability stays on when the field is absent", async () =
     seen.push(String(url));
     return json({});
   });
-  const { result } = renderHook(() => useAdminAssistantAvailability({ id: "u1", username: "admin" }));
+  const { result } = renderHook(() => useAdminAssistantAvailability({ user: { id: "u1", username: "admin" } }));
   await waitFor(() => expect(seen).toHaveLength(1));
   await act(async () => {});
   expect(result.current).toBe(true);
@@ -95,7 +95,7 @@ it("useAdminAssistantAvailability fails open when the settings read fails", asyn
     rejected = true;
     throw new TypeError("network down");
   });
-  const { result } = renderHook(() => useAdminAssistantAvailability({ id: "u1", username: "admin" }));
+  const { result } = renderHook(() => useAdminAssistantAvailability({ user: { id: "u1", username: "admin" } }));
   await waitFor(() => expect(rejected).toBe(true));
   await act(async () => {});
   expect(result.current).toBe(true);

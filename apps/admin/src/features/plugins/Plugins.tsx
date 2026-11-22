@@ -1,10 +1,10 @@
 import type { ComponentType } from "react";
 
-import type { AdminPlugin } from "@/lib/api";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
@@ -17,6 +17,7 @@ import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIco
 import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
  * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling
@@ -80,7 +81,7 @@ type PluginsTabId = (typeof PLUGINS_TAB_IDS)[number];
 /** Falls back to the Installed tab for an absent or unrecognized `?tab=` value, and for `add` when
  *  this server refuses local installs (that tab is disabled). Delegates to the shared
  *  `../../lib/resolve-active-tab-id` guard every other URL-deep-linked tabbed admin screen uses. */
-function resolvePluginsTabId(tabId: string | null | undefined, canInstall: boolean): PluginsTabId {
+function resolvePluginsTabId({ tabId, canInstall }: { tabId: string | null | undefined; canInstall: boolean }, _options = {}): PluginsTabId {
   const validIds = canInstall ? PLUGINS_TAB_IDS : PLUGINS_TAB_IDS.filter((id) => id !== "add");
   return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: "installed" });
 }
@@ -98,7 +99,7 @@ function InstalledPluginRows({
   plugins: AdminPlugin[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
-  onToggleExpanded: (id: string) => void;
+  onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   rowHandleById: Map<string, string>;
   focusPluginId?: string | null;
 }) {
@@ -106,15 +107,17 @@ function InstalledPluginRows({
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
-        const control = pluginToggleControl(plugin, rowSavingId, locale);
+        const control = pluginToggleControl({ plugin, rowSavingId, locale });
+        const handle = rowHandleById.get(plugin.id);
+        if (handle === undefined) throw new Error(`plugin ${plugin.id} has no row handle`);
         return (
           <PluginRow
             key={plugin.id}
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
-            onToggleExpanded={() => onToggleExpanded(plugin.id)}
-            agentHandleBase={rowHandleById.get(plugin.id)!}
+            onToggleExpanded={() => onToggleExpanded({ id: plugin.id })}
+            agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             focused={plugin.id === focusPluginId}
@@ -123,7 +126,7 @@ function InstalledPluginRows({
                 type="button"
                 disabled={control.disabled}
                 onClick={() => onToggleEnabled(plugin)}
-                aria-label={pluginToggleAriaLabel(plugin, locale)}
+                aria-label={pluginToggleAriaLabel({ plugin, locale })}
               >
                 {control.label}
               </button>
@@ -156,7 +159,7 @@ function DownloadedPluginRows({
   plugins: AdminPlugin[];
   controller: PluginsController;
   expandedIds: ReadonlySet<string>;
-  onToggleExpanded: (id: string) => void;
+  onToggleExpanded: (required: { id: string }, optional?: Record<string, never>) => void;
   rowHandleById: Map<string, string>;
   onRequestRemove: (plugin: AdminPlugin) => void;
 }) {
@@ -164,12 +167,14 @@ function DownloadedPluginRows({
   return (
     <ul className="plugin-rows">
       {plugins.map((plugin) => {
+        const handle = rowHandleById.get(plugin.id);
+        if (handle === undefined) throw new Error(`plugin ${plugin.id} has no row handle`);
         const removeBlocker = pluginRemoveBlocker(plugin);
         const busy = rowSavingId === plugin.id;
         const action = (
           <>
             {plugin.enabled ? null : (
-              <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel(plugin, locale)}>
+              <button type="button" disabled={busy} onClick={() => onToggleEnabled(plugin)} aria-label={pluginToggleAriaLabel({ plugin, locale })}>
                 {t("Enable")}
               </button>
             )}
@@ -178,7 +183,7 @@ function DownloadedPluginRows({
               className="plugin-icon-btn"
               disabled={removeBlocker !== null || busy}
               onClick={() => onRequestRemove(plugin)}
-              aria-label={pluginRemoveAriaLabel(plugin, locale)}
+              aria-label={pluginRemoveAriaLabel({ plugin, locale })}
               aria-describedby={removeBlocker ? PLUGINS_REMOVE_NOTE_IDS[removeBlocker] : undefined}
             >
               <PluginTrashIcon />
@@ -191,8 +196,8 @@ function DownloadedPluginRows({
             plugin={plugin}
             t={t}
             expanded={expandedIds.has(plugin.id)}
-            onToggleExpanded={() => onToggleExpanded(plugin.id)}
-            agentHandleBase={rowHandleById.get(plugin.id)!}
+            onToggleExpanded={() => onToggleExpanded({ id: plugin.id })}
+            agentHandleBase={handle}
             onInspect={() => controller.onInspectPlugin(plugin.id)}
             {...(plugin.providerSettings ? { onSettings: () => controller.onOpenSettings(plugin.id) } : {})}
             action={action}
@@ -318,7 +323,7 @@ const PLUGINS_TAB_PANELS: Record<PluginsTabId, ComponentType<PluginsTabPanelProp
 
 /** `TabBar`'s `onChange`: the active tab lives in the URL (`?tab=`), so switching is a navigation. */
 function navigateToPluginsTab(nextTabId: string) {
-  navigate(`/addons/plugins?tab=${nextTabId}`, { replace: true });
+  navigate({ routePath: `/addons/plugins?tab=${nextTabId}` }, { replace: true });
 }
 
 export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
@@ -331,30 +336,77 @@ export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins
   // see `LoadedPlugins`'s own error notice below, and `use-plugins.hooks.ts`'s `reload()` header.
   if (error && !plugins) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
-  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId(tabId, controller.canInstallFolder === true)} focusPluginId={focusPluginId} />;
+  return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId({ tabId, canInstall: controller.canInstallFolder === true })} focusPluginId={focusPluginId} />;
 }
 
-/** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
- *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
-function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
-  const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
-
+/**
+ * Per-row agent handles, computed once from the FULL unfiltered list, plus the handles of the plugin
+ * whose settings or remove dialog is open (a dialog for a plugin with no row is a bug, so it throws).
+ */
+function deriveRowHandles(
+  { plugins, settingsPlugin, pendingRemovePlugin }: { plugins: AdminPlugin[]; settingsPlugin: AdminPlugin | null; pendingRemovePlugin: AdminPlugin | null },
+  _options: Record<string, never> = {},
+) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
   // plugin's handle is identical whichever tab currently lists it (mirrors `AgentPluginRow`'s own
   // reasoning for deriving from the id alone, not list position).
   const rowHandles = buildAgentListHandles({ prefix: "plugins-row", ids: plugins.map((plugin) => plugin.id) }
   );
-  const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]!]));
+  const rowHandleById = new Map(plugins.map((plugin, index) => [plugin.id, rowHandles[index]]));
+  const settingsHandle = settingsPlugin ? rowHandleById.get(settingsPlugin.id) : undefined;
+  if (settingsPlugin && settingsHandle === undefined) throw new Error(`plugin ${settingsPlugin.id} has no settings handle`);
+  const removeHandle = pendingRemovePlugin ? rowHandleById.get(pendingRemovePlugin.id) : undefined;
+  if (pendingRemovePlugin && removeHandle === undefined) throw new Error(`plugin ${pendingRemovePlugin.id} has no remove handle`);
+  return { rowHandleById, settingsHandle, removeHandle };
+}
+
+/** The four tabs, in order; "Add a plugin" is disabled (and tagged soon) where folder install is unavailable. */
+function buildPluginTabs({ t, locale, canInstall }: { t: PluginsController["t"]; locale: PluginsController["locale"]; canInstall: boolean }, _options: Record<string, never> = {}): TabBarTab[] {
+  return [
+    { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
+    { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
+    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag({ locale }, { enabled: canInstall ? undefined : true }), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
+    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag({ locale }), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
+  ];
+}
+
+/** The package-files viewer, provider settings dialog and its toast, and the Remove confirm dialog. */
+function PluginsOverlays({ controller, settingsHandle, removeHandle }: { controller: PluginsController; settingsHandle: string | undefined; removeHandle: string | undefined }) {
+  const { t, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
+  return (
+    <>
+      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
+
+      {settingsPlugin && settingsHandle !== undefined ? (
+        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
+      ) : null}
+      {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
+      {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
+
+      {pendingRemovePlugin && removeHandle !== undefined ? (
+        <PluginRemoveConfirmDialog
+          name={pendingRemovePlugin.name}
+          agentHandleBase={removeHandle}
+          onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
+          onCancel={controller.onCancelRemove}
+          t={t}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
+ *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
+function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
+  const { error, rowError, t, locale, pendingRemovePlugin, settingsPlugin } = controller;
+
+  const { rowHandleById, settingsHandle, removeHandle } = deriveRowHandles({ plugins, settingsPlugin, pendingRemovePlugin });
   const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
   const canInstall = controller.canInstallFolder === true;
 
-  const tabs: TabBarTab[] = [
-    { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
-    { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
-    { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag(locale, canInstall ? undefined : true), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
-    { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag(locale), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
-  ];
+  const tabs = buildPluginTabs({ t, locale, canInstall });
 
   return (
     <div className="page plugins-page">
@@ -385,23 +437,7 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
 
       <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} focusPluginId={focusPluginId} />
 
-      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
-
-      {settingsPlugin ? (
-        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={rowHandleById.get(settingsPlugin.id)!} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
-      ) : null}
-      {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
-      {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
-
-      {pendingRemovePlugin ? (
-        <PluginRemoveConfirmDialog
-          name={pendingRemovePlugin.name}
-          agentHandleBase={rowHandleById.get(pendingRemovePlugin.id)!}
-          onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
-          onCancel={controller.onCancelRemove}
-          t={t}
-        />
-      ) : null}
+      <PluginsOverlays controller={controller} settingsHandle={settingsHandle} removeHandle={removeHandle} />
     </div>
   );
 }

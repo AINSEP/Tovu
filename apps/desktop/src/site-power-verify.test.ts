@@ -27,7 +27,7 @@ function card(layout: Partial<CardState["layout"]> = {}, rest: Partial<CardState
 }
 
 test("the owner's layout satisfies all three claims, each naming its pixels", () => {
-  const claims = layoutClaims(card());
+  const claims = layoutClaims({ state: card() });
   assert.deepEqual(Object.values(claims).map((claim) => claim.ok), [true, true, true]);
   assert.equal(allLayoutClaimsHold(claims), true);
   assert.equal(claims.onNameRow.why, "⋮ middle 20.0 vs name middle 20.0; ⋮ left 200.0 vs name right 100.0");
@@ -36,7 +36,7 @@ test("the owner's layout satisfies all three claims, each naming its pixels", ()
 });
 
 test("each claim fails on its own geometry, within its own tolerance", () => {
-  const off = (layout: Partial<CardState["layout"]>) => layoutClaims(card(layout));
+  const off = (layout: Partial<CardState["layout"]>) => layoutClaims({ state: card(layout) });
   assert.equal(off({ menu: box(200, 16, 220, 32) }).onNameRow.ok, true, "4px centre drift is rounding");
   assert.equal(off({ menu: box(200, 17, 220, 33) }).onNameRow.ok, false, "5px is another row");
   assert.equal(off({ menu: box(90, 12, 110, 28) }).onNameRow.ok, false, "⋮ overlapping the name");
@@ -51,29 +51,29 @@ test("each claim fails on its own geometry, within its own tolerance", () => {
 });
 
 test("a status with no power button makes no power-placement claim", () => {
-  assert.deepEqual(layoutClaims(card({ power: null })).powerUnderText, { ok: true, why: "no power button for this status" });
+  assert.deepEqual(layoutClaims({ state: card({ power: null }) }).powerUnderText, { ok: true, why: "no power button for this status" });
 });
 
 test("no card, or a card missing any anchoring box, fails every claim with the reason", () => {
-  assert.equal(layoutClaims(null), NO_LAYOUT);
+  assert.equal(layoutClaims({ state: null }), NO_LAYOUT);
   for (const missing of ["name", "menu", "details", "status"] as const) {
-    assert.equal(layoutClaims(card({ [missing]: null })), NO_LAYOUT, missing);
+    assert.equal(layoutClaims({ state: card({ [missing]: null }) }), NO_LAYOUT, missing);
   }
   assert.equal(allLayoutClaimsHold(NO_LAYOUT), false);
   assert.match(MISSING_BOX.why, /missing a name, a ⋮, a database line or a status/);
 });
 
 test("flat lifts the power button's fields and reports an absent card as all-undefined", () => {
-  const view = flat(card({}, { status: "Running", port: "4100" }));
+  const view = flat({ state: card({}, { status: "Running", port: "4100" }) });
   assert.equal(view.label, "Start");
   assert.equal(view.disabled, false);
   assert.equal(view.hasPower, true);
   assert.equal(view.status, "Running");
   assert.equal(view.port, "4100");
   assert.ok(!("power" in view));
-  const unpowered = flat(card({}, { power: null }));
+  const unpowered = flat({ state: card({}, { power: null }) });
   assert.deepEqual([unpowered.label, unpowered.disabled, unpowered.hasPower], [undefined, undefined, false]);
-  assert.deepEqual(flat(null), {});
+  assert.deepEqual(flat({ state: null }), {});
 });
 
 test("seeding refuses a missing or non-site directory, writing nothing", (t) => {
@@ -82,7 +82,7 @@ test("seeding refuses a missing or non-site directory, writing nothing", (t) => 
   for (const siteDir of [undefined, "", path.join(tmp, "not-a-site")]) {
     const lines: string[] = [];
     const name = seedSitePowerProfile({ siteDir, shotDir: path.join(tmp, "shots"), userDataDir: path.join(tmp, "profile") },
-      { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: (line) => lines.push(line), now: () => new Date(0) });
+      { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: ({ line }, _options = {}) => lines.push(line), now: () => new Date(0) });
     assert.equal(name, null);
     assert.deepEqual(lines, ["FAIL:: SITE_POWER_SITE_DIR must name a real Tovu site directory (one with config.json)"]);
   }
@@ -97,7 +97,7 @@ test("seeding a real site creates the shot and profile dirs and adopts exactly t
   writeFileSync(path.join(siteDir, "config.json"), JSON.stringify({ name: "Scratch Bakery" }));
   const lines: string[] = [];
   const name = seedSitePowerProfile({ siteDir, shotDir: path.join(tmp, "shots", "run"), userDataDir: path.join(tmp, "profile") },
-    { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: (line) => lines.push(line), now: () => new Date("2026-10-21T12:00:00Z") });
+    { fs: { existsSync, readFileSync, mkdirSync, writeFileSync }, log: ({ line }, _options = {}) => lines.push(line), now: () => new Date("2026-10-21T12:00:00Z") });
   assert.equal(name, "Scratch Bakery");
   assert.deepEqual(lines, []);
   assert.ok(existsSync(path.join(tmp, "shots", "run")));

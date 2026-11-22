@@ -1,4 +1,5 @@
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/features/webhooks/index";
+import { toWebhookDeliveryView } from "@jini-ai/integrations/webhooks/tools";
 
 /**
  * @file Admin HTTP response DTOs for the `integrations` webhook subsystem (ADR-036).
@@ -39,6 +40,7 @@ export interface AdminWebhookSubscriptionResponse {
   createdAt: string;
   updatedAt: string;
   disabledAt: string | null;
+  version: number;
   /** Most recent delivery attempt for this subscription, or `null` if none has fired yet. */
   lastDelivery: AdminWebhookDeliverySummary | null;
 }
@@ -82,6 +84,7 @@ export function toAdminSubscriptionResponse(required: {
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
     disabledAt: subscription.disabledAt,
+    version: subscription.version,
     lastDelivery: lastDelivery ? toAdminDeliverySummary(lastDelivery) : null,
   };
 }
@@ -111,19 +114,5 @@ export function toAdminDeliverySummary(delivery: WebhookDeliveryRecord): AdminWe
  * @overallScore 100
  */
 export function toAdminDeliveryResponse(delivery: WebhookDeliveryRecord): AdminWebhookDeliveryResponse {
-  return {
-    id: delivery.id,
-    subscriptionId: delivery.subscriptionId,
-    eventId: delivery.eventId,
-    topic: delivery.topic,
-    status: delivery.status,
-    attempts: delivery.attempts,
-    nextAttemptAt: delivery.nextAttemptAt,
-    lastResponseStatus: delivery.lastResponseStatus,
-    lastError: delivery.lastError,
-    signedWithVersion: delivery.signedWithVersion,
-    createdAt: delivery.createdAt,
-    deliveredAt: delivery.deliveredAt,
-    deadAt: delivery.deadAt,
-  };
+  return toWebhookDeliveryView({ delivery });
 }

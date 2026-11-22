@@ -3,7 +3,7 @@
  * than a direct `fetch` call. Follows the `useX(dependencies)` / `useWiredX()` pair documented in
  * `development/docs/architecture/wired-hooks-convention.md`.
  *
- * Like `features/posts`' `post-template-port.hooks.ts` — and unlike most ports in this app — the real
+ * Like `apps/admin/src/components/TemplateSource/template-source-port.hooks.ts` — and unlike most ports in this app — the real
  * implementation wraps the browser's global `fetch`, not `lib/api`'s `api` client: a theme's token
  * files are served as static assets under `/theme-assets/{themeId}/tokens.json`
  * (`theme-static-assets.ts`'s `express.static` mount, proxied through Vite in dev by
@@ -21,14 +21,14 @@ export interface ThemeCanvasPort {
    *  `use-theme-canvas-styling.hooks.ts`). Rejects on a non-OK HTTP response, a network failure, or
    *  unparseable JSON — the caller is what decides whether that is fatal (the theme's own
    *  `tokens.json`) or ignorable (the optional `tokens.light.json`). */
-  fetchThemeTokens(url: string): Promise<ThemeTokens>;
+  fetchThemeTokens(required: { url: string }): Promise<ThemeTokens>;
   /** Fetches the raw HTML text at `url` (built by `templateMarkupUrl` in
    *  `use-theme-canvas-styling.hooks.ts`) — a theme template's own source, marker still present and
    *  unresolved. Rejects on a non-OK HTTP response or a network failure; the caller
    *  (`use-theme-canvas-styling.hooks.ts`) treats any rejection as "no wrapper for this canvas",
    *  never as fatal — a template a canvas can't derive a wrapper from is the pre-existing, fully
    *  working "no wrapper" behavior, not a load failure. */
-  fetchTemplateMarkup(url: string): Promise<string>;
+  fetchTemplateMarkup(required: { url: string }): Promise<string>;
   /**
    * Best-effort request for `url` (built by `themeStylesheetUrl`) that exists ONLY to populate the
    * browser's HTTP cache before `@jini-ai/ui`'s `InteractiveHtmlEditor` links the same URL into its
@@ -39,5 +39,5 @@ export interface ThemeCanvasPort {
    * the caller (`use-theme-canvas-styling.hooks.ts`) also guards the call, belt-and-braces, in case a
    * future port implementation forgets to.
    */
-  warmStylesheet(url: string): Promise<void>;
+  warmStylesheet(required: { url: string }): Promise<void>;
 }

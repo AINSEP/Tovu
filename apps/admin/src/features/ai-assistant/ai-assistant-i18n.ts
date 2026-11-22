@@ -26,10 +26,11 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * press a control the screen no longer has is the same class of defect as a confirmation for a write
  * that never happened.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { withLayoutStrings } from "./ai-assistant-layout-i18n";
 import { withVisitorToolsStrings } from "./visitor-tools-i18n";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
     // Owner-only permanent-delete grant and checklist.

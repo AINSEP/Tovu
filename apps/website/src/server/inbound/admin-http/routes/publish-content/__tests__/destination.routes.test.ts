@@ -106,7 +106,7 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
     next();
   });
   const candidate = options.candidate === undefined ? null : options.candidate;
-  registerPublishContentDestinationRoutes(app, deps, { provisioning, findCandidate: async () => candidate });
+  registerPublishContentDestinationRoutes({ app, deps, own: { provisioning, findCandidate: async () => candidate } });
 
   const url = await startTestServer(app, t);
   return { url, app, repo, httpCalls, provisioningCalls, authorizeCalls };
@@ -118,10 +118,10 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
 function withContributors(t: test.TestContext, entityTypes: readonly string[]): void {
   const previous = [...listPublishContentContributors()];
   resetPublishContentContributorsForTests();
-  for (const entityType of entityTypes) registerPublishContentContributor({ entityType } as unknown as PublishContentContributor);
+  for (const entityType of entityTypes) registerPublishContentContributor({ contributor: { entityType } as unknown as PublishContentContributor });
   t.after(() => {
     resetPublishContentContributorsForTests();
-    for (const contributor of previous) registerPublishContentContributor(contributor);
+    for (const contributor of previous) registerPublishContentContributor({ contributor });
   });
 }
 
@@ -132,8 +132,10 @@ async function post(url: string, body: unknown): Promise<{ status: number; body:
 
 async function seedConnected(repo: InMemoryPublishContentPeerRepo, baseUrl: string): Promise<void> {
   await saveConnectedDestination(
-    { repo, clock: CLOCK, idGen: { newId: () => "seeded-peer" } },
-    { workspaceId: WORKSPACE_ID, label: new URL(baseUrl).host, baseUrl, remoteWorkspaceId: "remote-workspace" }
+    {
+      deps: { repo, clock: CLOCK, idGen: { newId: () => "seeded-peer" } },
+      input: { workspaceId: WORKSPACE_ID, label: new URL(baseUrl).host, baseUrl, remoteWorkspaceId: "remote-workspace" }
+    }
   );
 }
 

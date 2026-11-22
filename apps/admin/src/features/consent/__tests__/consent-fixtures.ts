@@ -1,5 +1,5 @@
-import type { ConsentSettingsView } from '@jini-ai/admin/consent/react';
-import { ApiError } from '@/lib/api';
+import type { ConsentSettingsView } from '@jini-ai/cookie-consent/react';
+import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentDraftSaved, ConsentRevisionsPort, ConsentSettingsSnapshot } from '../settings.hooks';
 
 /** Shared fakes for the consent feature's tests: a full valid config and an in-memory port. */
@@ -25,7 +25,7 @@ export function saved(id: string, blockingProblems: ConsentDraftSaved['blockingP
   return { revision: revision(id), blockingProblems };
 }
 
-export const conflict = () => new ApiError('Cookie consent changed.', 409, 'CONSENT_REVISION_CONFLICT');
+export const conflict = () => new ApiError({ message: 'Cookie consent changed.', status: 409 }, { code: 'CONSENT_REVISION_CONFLICT' });
 
 /** Unlisted calls reject, so a test that reaches one it did not describe fails loudly. */
 export function fakeConsentPort(overrides: Partial<ConsentRevisionsPort> = {}): ConsentRevisionsPort {

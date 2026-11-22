@@ -4,16 +4,17 @@
  * Purpose:
  * `src/server/routes/types.ts` is being extended by several parallel agents right now (each wiring
  * a different admin section) — this file follows the exact precedent
- * `src/server/routes/admin/members/deps.ts` established: define `NewsletterRouteDeps` here
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts` established: define `NewsletterRouteDeps` here
  * (`RouteDeps` intersected with what Newsletter's routes/domain layer need) rather than editing the
  * shared file directly. Each route in this directory narrows its `RouteDeps` argument via a cast
- * (safe: `NewsletterRouteDeps` is a strict extension, never a widening). `server/deps.ts`/
- * `server/app.ts`'s composition roots widen their OWN return-type annotation to
+ * (safe: `NewsletterRouteDeps` is a strict extension, never a widening). `apps/website/src/server/runtime/composition/deps.ts`/
+ * `apps/website/src/server/runtime/composition/app.ts`'s composition roots widen their OWN return-type annotation to
  * `NewsletterRouteDeps` (not `RouteDeps`) so the extra fields type-check without an unsafe cast at
  * the construction site — once `RouteDeps` is amended upstream to declare these fields directly,
  * that widened annotation becomes provably redundant and can be deleted with no behavior change.
  */
 import { setTimeout as delay } from "node:timers/promises";
+import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "#src/features/newsletter/deps-builders";
 import type {
   MembersConsentCapability,
   NewsletterCampaignRepoPort,
@@ -31,7 +32,7 @@ import type { ListsDeps } from "#src/features/newsletter/lists";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "#src/server/routes/types";
 
 export interface NewsletterRouteDeps extends RouteDeps {
@@ -57,7 +58,7 @@ export interface NewsletterRouteDeps extends RouteDeps {
    *    (`members/subscriber-directory.ts`'s `MembersSubscriberDirectory`), NOT a local stand-in.
    *  - `newsletterKeyring`: the real `KeyringPort` (`webhooks/ports.ts`) `unsubscribe.ts` needs
    *    for `derive()` — reuses the SAME process-lifetime keyring instance `webhookSigner` is built
-   *    from in `server/app.ts`/`server/deps.ts` (one site key, purpose-namespaced, per that port's
+   *    from in `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts` (one site key, purpose-namespaced, per that port's
    *    own contract), not a second independent instance.
    *  - `newsletterHooks`: one process-lifetime `HookRegistry` (`hooks.ts`'s `createHookRegistry()`)
    *    shared by every `SendPipelineDeps` composition (route-triggered and the `newsletter.send.
@@ -86,28 +87,12 @@ export function toListsDeps(deps: NewsletterRouteDeps): ListsDeps {
 
 /** Assemble `confirmation.ts`'s deps bundle. */
 export function toConfirmationDeps(deps: NewsletterRouteDeps): ConfirmationDeps {
-  return {
-    tokenRepo: deps.newsletterConfirmationTokenRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    mailer: deps.mailer,
-    consentCapability: deps.membersConsentCapability,
-    originRegistry: deps.originRegistry,
-    clock: deps.clock,
-    ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
-  };
+  return buildConfirmationDeps({ deps });
 }
 
 /** Assemble `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription` triggers `issueConfirmationToken`). */
 export function toSubscriptionsDeps(deps: NewsletterRouteDeps): SubscriptionsDeps {
-  return {
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    listRepo: deps.newsletterListRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    confirmationDeps: toConfirmationDeps(deps),
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
+  return buildSubscriptionsDeps({ deps });
 }
 
 /** Assemble `subscriptions.ts`'s `unsubscribeSubscription` deps bundle (REMOVE_SUBSCRIPTION). */
@@ -141,27 +126,5 @@ export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
  * exists for both drivers.
  */
 export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps {
-  return {
-    campaignRepo: deps.newsletterCampaignRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
-    sendRepo: deps.newsletterSendRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    hooks: deps.newsletterHooks,
-    mailer: deps.mailer,
-    launchGateDeps: {
-      isSendingEnabled: async () => false,
-      consentCapability: deps.membersConsentCapability,
-      originRegistry: deps.originRegistry,
-      mailer: deps.mailer,
-    },
-    // Campaign mail is bulk: each recipient gets signed RFC 8058 one-click unsubscribe headers.
-    unsubscribe: toUnsubscribeDeps(deps),
-    outbox: deps.outbox,
-    bus: deps.bus,
-    clock: deps.clock,
-    ids: deps.idGen,
-    // Short provider quota hints are waited out inside the batch (send-pipeline.ts, quota waits).
-    sleep: (ms) => delay(ms),
-  };
+  return buildSendPipelineDeps({ deps, isSendingEnabled: async () => false }, { unsubscribe: toUnsubscribeDeps(deps), sleep: ({ ms }) => delay(ms) });
 }

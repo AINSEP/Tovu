@@ -1,8 +1,10 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR, type ThemeTier } from "./theme.js";
-import { isGeneratedThemePath } from "./theme-files.js";
+import { discoverAllBuiltInThemes } from "./theme-discovery.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
+import { type ThemeTier } from "./render-contract.js";
+import { isGeneratedThemePath } from "./theme-file-policy.js";
 
 /**
  * @file Generate `__original-themes__` from the shipped themes it is meant to mirror, instead of
@@ -99,10 +101,10 @@ export function writeGeneratedThemeOriginal(
     recursive: true,
     filter: (source: string) => {
       const relativePath = relative(liveDir, source);
-      // The root of the copy itself relativizes to "" — always copy it; `isGeneratedThemePath("")`
+      // The root of the copy itself relativizes to "" — always copy it; `isGeneratedThemePath({ relativePath: "" })`
       // would answer "not generated" anyway (it matches neither a root file nor a generated dir), but
       // being explicit here means this filter never depends on that being true.
-      return relativePath === "" || !isGeneratedThemePath(relativePath);
+      return relativePath === "" || !isGeneratedThemePath({ relativePath });
     },
   });
 
@@ -158,14 +160,14 @@ export function syncThemeOriginals(
  * "diff against nothing" rather than throwing.
  * @complexity O(f) in `dir`'s entry count — one `readdir` per directory, no file reads.
  */
-export function relativeFilePaths(dir: string): string[] {
+export function relativeFilePaths({ dir }: { dir: string }, _optional = {}): string[] {
   if (!existsSync(dir)) return [];
-  const walk = (current: string, prefix: string): string[] =>
+  const walk = ({ current, prefix }: { current: string; prefix: string }, _optional = {}): string[] =>
     readdirSync(current, { withFileTypes: true }).flatMap((entry) => {
       const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-      return entry.isDirectory() ? walk(join(current, entry.name), relativePath) : [relativePath];
+      return entry.isDirectory() ? walk({ current: join(current, entry.name), prefix: relativePath }) : [relativePath];
     });
-  return walk(dir, "").sort();
+  return walk({ current: dir, prefix: "" }).sort();
 }
 
 /**
@@ -181,12 +183,9 @@ export function relativeFilePaths(dir: string): string[] {
  * different bytes) — all empty iff the two folders are identical.
  * @complexity O(f) directory-listing calls plus O(bytes shared by both sides) file reads.
  */
-export function diffThemeFolders(
-  aDir: string,
-  bDir: string
-): { added: string[]; removed: string[]; changed: string[] } {
-  const aPaths = relativeFilePaths(aDir);
-  const bPaths = relativeFilePaths(bDir);
+export function diffThemeFolders({ aDir, bDir }: { aDir: string; bDir: string }, _optional = {}): { added: string[]; removed: string[]; changed: string[] } {
+  const aPaths = relativeFilePaths({ dir: aDir });
+  const bPaths = relativeFilePaths({ dir: bDir });
   const aSet = new Set(aPaths);
   const bSet = new Set(bPaths);
 

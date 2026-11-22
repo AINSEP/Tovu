@@ -1,5 +1,8 @@
-import type { AdminPagePluginEmbed, AdminPost, ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
+import type { PagesPort } from "./pages-port.hooks";
 
 /**
  * @file What `usePageEditor` needs from the outside world, as an interface rather than a direct
@@ -27,8 +30,8 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * not two hand-copied signatures that could quietly drift). See `use-standing-draft-autosave.hooks.ts`'s
  * own header for why the hook itself stays ignorant of both features either way.
  */
-export interface PageEditorPort extends StandingDraftAutosavePort {
-  getPage(routeSlug: string): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
+export interface PageEditorPort extends StandingDraftAutosavePort, Pick<PagesPort, "updatePost" | "deletePage"> {
+  getPage(required: { routeSlug: string }): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
     /** `PresentationSettings.activeThemeId` — feeds the Interactive tab's canvas stylesheet and
@@ -36,7 +39,7 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
     activeThemeId: string;
     /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1), looked up on
      *  `availableThemes` by `activeThemeId`. `undefined` also covers "the active theme is absent
-     *  from `availableThemes`", which `resolveThemeLayout` treats as v1 — the same conflation
+     *  from `availableThemes`", which `@jini-ai/cms/themes/layout`'s `resolveThemeLayout` treats as v1 — the same conflation
      *  `usePostEditor`'s own `activeThemeApiVersion` documents. */
     activeThemeApiVersion: 2 | undefined;
     /** The active theme's capability tier, looked up on `availableThemes` the same way as
@@ -45,22 +48,7 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
      *  `activeThemeTier` documents. Gates whether `TemplateSourceModal` attempts a fetch at all. */
     activeThemeTier: ThemeTier | null;
   }>;
-  updatePageHtml(id: string, html: string): Promise<{ post: AdminPost }>;
-  /**
-   * `expectedVersion` (2026-09-07) is the optimistic-concurrency basis, NOT a field of the page:
-   * the `AdminPost.version` this editor loaded, which the server compares and rejects with
-   * `409 VERSION_CONFLICT` when a newer save has superseded it. Same optional, purely additive
-   * extension `PostEditorPort` already declares — one shared kind-blind route (`PUT /posts/:id`)
-   * serves both editors. Omitting it is exactly the last-write-wins behavior this method has always
-   * had; `usePageEditor` always sends it once the row has loaded.
-   */
-  updatePost(
-    target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
-      expectedVersion?: number;
-    }
-  ): Promise<{ post: AdminPost }>;
-  deletePage(id: string): Promise<{ post: AdminPost }>;
+  updatePageHtml(required: { id: string; html: string; expectedVersion: number }): Promise<{ post: AdminPost }>;
   /**
    * Synchronous URL builder for the admin-only template-preview iframe — NOT a network call itself;
    * the browser navigates to the returned URL when the iframe's `src` is set. Belongs on the port
@@ -71,5 +59,5 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
    * value ("no template"); a real filename requests that template — see `lib/api.ts`'s own
    * `templatePreviewUrl` for the exact query-string contract this mirrors.
    */
-  templatePreviewUrl(id: string, templateChoice: string | null): string;
+  templatePreviewUrl(required: { id: string; templateChoice: string | null }): string;
 }

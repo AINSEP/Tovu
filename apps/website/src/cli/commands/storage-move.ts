@@ -18,13 +18,13 @@ export interface RunStorageMoveCommandInput {
   env?: NodeJS.ProcessEnv;
   /** Without `--storage-env`: where the connection string comes from (default: prompt, else stdin). */
   readConnectionString?: () => Promise<string>;
-  write?: (line: string) => void;
+  write?: (required: { line: string }, optional?: Record<string, never>) => void;
   /** Injected for tests; defaults to the real PGlite → Postgres mover. */
   moveStorage?: typeof moveSiteStorage;
 }
 
 /** Default line writer: one stdout line per call. */
-function writeLine(line: string): void {
+function writeLine({ line }: { line: string }, _optional = {}): void {
   process.stdout.write(`${line}\n`);
 }
 
@@ -35,12 +35,12 @@ async function resolveMoveConnection(input: RunStorageMoveCommandInput): Promise
   const { env = process.env, readConnectionString = readConnectionStringFromUser } = input;
   if (input.storageEnv === undefined) {
     const connectionString = (await readConnectionString()).trim();
-    if (connectionString === "") throw new ValidationError("storage move: no connection string was given");
+    if (connectionString === "") throw new ValidationError({ message: "storage move: no connection string was given" });
     return { connectionString, secretRef: "site" };
   }
-  if (!/^[A-Za-z_]\w*$/.test(input.storageEnv)) throw new ValidationError("storage move: --storage-env must be an environment variable name");
+  if (!/^[A-Za-z_]\w*$/.test(input.storageEnv)) throw new ValidationError({ message: "storage move: --storage-env must be an environment variable name" });
   const value = env[input.storageEnv]?.trim();
-  if (!value) throw new ValidationError(`storage move: the environment variable ${input.storageEnv} is not set`);
+  if (!value) throw new ValidationError({ message: `storage move: the environment variable ${input.storageEnv} is not set` });
   return { connectionString: value, secretRef: { env: input.storageEnv } };
 }
 
@@ -49,14 +49,14 @@ async function resolveMoveConnection(input: RunStorageMoveCommandInput): Promise
  *   whatever `moveSiteStorage` refuses (not a PGlite site, site running, target not empty).
  */
 export async function runStorageMoveCommand(input: RunStorageMoveCommandInput): Promise<MoveSiteStorageResult> {
-  if (input.to !== "postgres") throw new ValidationError("storage move: --to must be postgres (the only target a PGlite site moves to)");
-  const siteDir = resolveInstallDirTarget(input.dir);
+  if (input.to !== "postgres") throw new ValidationError({ message: "storage move: --to must be postgres (the only target a PGlite site moves to)" });
+  const siteDir = resolveInstallDirTarget({ dirArg: input.dir });
   // Default ports are wired here, at the command's composition edge; tests inject their own.
   const { write = writeLine, moveStorage = moveSiteStorage } = input;
   const { connectionString, secretRef } = await resolveMoveConnection(input);
   const result = await moveStorage({ siteDir, connectionString, secretRef });
   const rows = result.tables.reduce((sum, t) => sum + t.rows, 0);
-  write(`moved site at ${siteDir} to postgres: ${result.tables.length} tables, ${rows} rows`);
-  write(`the PGlite data dir is kept at ${result.keptPgliteDir}; remove it yourself once the site checks out`);
+  write({ line: `moved site at ${siteDir} to postgres: ${result.tables.length} tables, ${rows} rows` });
+  write({ line: `the PGlite data dir is kept at ${result.keptPgliteDir}; remove it yourself once the site checks out` });
   return result;
 }

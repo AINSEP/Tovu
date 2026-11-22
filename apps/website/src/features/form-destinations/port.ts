@@ -14,7 +14,7 @@ import type { FormDestinationCredential, FormDestinationForm, FormDestinationReg
 export interface FormDestinationPortDeps {
   readonly listForms: (required: { readonly workspaceId: string }) => Promise<readonly FormDestinationForm[]>;
   readonly credentials: CustomCredentialWriteDeps;
-  readonly loadRegistry: (workspaceId: string) => Promise<FormDestinationRegistry>;
+  readonly loadRegistry: (required: { readonly workspaceId: string }) => Promise<FormDestinationRegistry>;
   /** The site's `core.forms` `receiver` value; undefined = unset (auto). */
   readonly readSetting: (required: { readonly workspaceId: string }) => Promise<string | undefined>;
 }
@@ -48,7 +48,7 @@ export function createFormDestinationPort(required: FormDestinationPortDeps, opt
 
 /** @complexity One registry load plus one setting read. */
 async function selectFor({ deps, input }: { deps: FormDestinationPortDeps; input: PortInput }, _optional = {}): Promise<FormReceiverSelection> {
-  const [registry, setting] = await Promise.all([deps.loadRegistry(input.workspaceId), deps.readSetting({ workspaceId: input.workspaceId })]);
+  const [registry, setting] = await Promise.all([deps.loadRegistry({ workspaceId: input.workspaceId }), deps.readSetting({ workspaceId: input.workspaceId })]);
   return selectFormReceiver({ registry, setting, hostingTargetId: input.hostingTargetId });
 }
 
@@ -98,7 +98,8 @@ async function prepareExternal(
   const { deps, input, forms, destination, secret } = required;
   try {
     const credential = await destinationCredential({ deps, workspaceId: input.workspaceId, destination });
-    const prepared = await destination.module.prepare!({ kit: input.kit, forms, secret, site: { projectName: input.projectName }, ...(credential ? { credential } : {}) });
+    if (!destination.module.prepare) throw new Error("destination has no receiver preparation method");
+    const prepared = await destination.module.prepare({ kit: input.kit, forms, secret, site: { projectName: input.projectName }, ...(credential ? { credential } : {}) });
     return assertSubmitUrl({ submitUrl: prepared.submitUrl });
   } catch (error) {
     throw new Error(`form destination '${destination.descriptor.id}' could not prepare its receiver: ${(error instanceof Error ? error.message : String(error)).replaceAll(secret, "[redacted]")}`);

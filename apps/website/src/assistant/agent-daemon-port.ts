@@ -8,7 +8,7 @@
  *
  * Deliberately NOT shared with `daemon-supervisor.ts` (the sibling file in `server/agent-daemon/`)
  * even though both are agent-daemon-process concerns: `daemon-supervisor.ts` has real external fan-in
- * (`src/index.ts`, `server/modules/assistant.ts`, `server/routes/admin/system/assistant-daemon.ts`)
+ * (`src/index.ts`, `apps/website/src/server/runtime/composition/modules/assistant.ts`, `apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts`)
  * while `agent-daemon-server.ts` has none (it is only ever spawned as a subprocess). Routing both
  * through one shared port measurably regressed propagation cost — `daemon-supervisor.ts`'s 3 external
  * callers all transitively inherited `agent-daemon-server.ts`'s entire 17-file reachable set, even
@@ -20,7 +20,6 @@
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
 export { createCustomInstructionsCache } from "./custom-instructions.js";
 export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-access.js";
-export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
 // Federation hot-reload: re-admits connections an operator authorized AFTER this
@@ -40,10 +39,10 @@ export { createLiveToolCatalogQuery } from "./tool-catalog-live-query.js";
 // Pure, no transport: turns the SAME boot admission snapshot `attachFederatedMcpTools` returns into
 // the prompt text that tells the model which external tools were withheld and why. Exported through
 // this port for the same reason the line above is — the daemon process reaches this subtree only
-// here. See `mcp-federation/refusal-notice.ts`.
+// here. See `Jini packages/mcp/src/federation/refusal-notice.ts`.
 export { buildFederatedRefusalPrefix } from "@jini-ai/mcp/federation";
 // The CALL-TIME counterpart to `buildFederatedRefusalPrefix` above — see that file's header and
-// `federated-refusal-diagnosis.ts`'s own for why the boot-time prefix and this decorator
+// `Jini packages/daemon/src/tool-recovery/federated-refusal.ts`'s own for why the boot-time prefix and this decorator
 // deliberately disagree about `not-in-operator-allowlist`.
 export { withFederatedRefusalDiagnosis } from "./server-federation-diagnosis.js";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";

@@ -13,7 +13,7 @@ const cases = [
 
 for (const { name, html, text } of cases) {
   test(`T4-07: visible traversal preserves ${name}`, () => {
-    assert.deepEqual(shapePageBody(html, { textOnly: true }), {
+    assert.deepEqual(shapePageBody({ body: html, options: { textOnly: true } }), {
       body: text, bodyBytes: Buffer.byteLength(text), truncated: false,
     });
   });
@@ -21,7 +21,7 @@ for (const { name, html, text } of cases) {
 
 test("T4-07: iterative traversal handles deeply nested blocks without recursion", () => {
   const html = '<div>'.repeat(5000) + '<span>A</span><br><span>B</span>' + '</div>'.repeat(5000);
-  assert.deepEqual(shapePageBody(html, { textOnly: true }), {
+  assert.deepEqual(shapePageBody({ body: html, options: { textOnly: true } }), {
     body: "A B", bodyBytes: 3, truncated: false,
   });
 });

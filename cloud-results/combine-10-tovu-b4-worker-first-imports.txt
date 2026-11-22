@@ -1,0 +1,32 @@
+=== handlebars-worker.ts
+@jini-ai/cms/dist/core/commands/command.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/core/entity-liveness.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/core/form-collection.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/core/keyset-cursor.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/core/tools/args.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/forms/duplicate-form.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-handlers.definitions.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-handlers.submissions.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-registrations.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/taxonomy/tool-handlers.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/taxonomy/tool-registrations.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/widgets/config-validation.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/document-embed-refs.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/entry-payload.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/html-widget-embeds.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+=== liquid-worker.ts
+@jini-ai/cms/dist/core/commands/command.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/core/entity-liveness.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/core/form-collection.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/core/keyset-cursor.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/core/tools/args.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/forms/duplicate-form.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-handlers.definitions.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-handlers.submissions.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/forms/tool-registrations.js |    S/render/contact-form-widget.ts:4  ->  @jini-ai/cms/forms
+@jini-ai/cms/dist/taxonomy/tool-handlers.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/taxonomy/tool-registrations.js |    S/render/content-html.ts:11  ->  @jini-ai/cms/taxonomy
+@jini-ai/cms/dist/widgets/config-validation.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/document-embed-refs.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/entry-payload.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html
+@jini-ai/cms/dist/widgets/html-widget-embeds.js |    S/render/widgets/media.ts:13  ->  @jini-ai/cms/widgets/html

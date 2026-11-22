@@ -8,24 +8,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  findBarReducer,
-  formatMatchCount,
-  initialFindBarState,
-  resolveFindTarget,
-  restoreFindInputFocus,
-  runFind,
-  shouldCloseOnGuestChange,
-  shouldKeepReclaimingFindFocus,
-  shouldReclaimFindFocus,
-  stopFind,
-  subscribeToFindResults,
-  FIND_FOCUS_RECLAIM_MS,
-  type FindBarState,
-  type FindableGuest,
-  type FindBridge,
-  type AnchorSelection,
-} from './use-find-in-page.hooks.js';
+import { findBarReducer, formatMatchCount, initialFindBarState, shouldCloseOnGuestChange, type FindBarState } from './find-bar-state.js';
+import { resolveFindTarget, runFind, stopFind, subscribeToFindResults, type FindableGuest, type FindBridge, type AnchorSelection } from './find-target.js';
+import { restoreFindInputFocus, shouldKeepReclaimingFindFocus, shouldReclaimFindFocus, FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
 
 /** A `<webview>` stand-in that records every imperative call. */
@@ -115,29 +100,29 @@ test('resolveFindTarget is top with no active tab, and none with no bridge eithe
 });
 
 test('shouldCloseOnGuestChange: true only when the bar is open AND the visible surface actually changed', () => {
-  assert.equal(shouldCloseOnGuestChange('a', 'a', true), false, 'same tab, no-op');
-  assert.equal(shouldCloseOnGuestChange('a', 'b', true), true, 'switched tabs while open');
-  assert.equal(shouldCloseOnGuestChange(null, 'a', true), true, 'Projects screen -> a tab, while open');
-  assert.equal(shouldCloseOnGuestChange('a', null, true), true, 'a tab -> Projects screen, while open');
-  assert.equal(shouldCloseOnGuestChange('a', 'b', false), false, 'switched while already closed: nothing to close');
+  assert.equal(shouldCloseOnGuestChange({ previousGuestId: 'a', activeGuestId: 'a', open: true }), false, 'same tab, no-op');
+  assert.equal(shouldCloseOnGuestChange({ previousGuestId: 'a', activeGuestId: 'b', open: true }), true, 'switched tabs while open');
+  assert.equal(shouldCloseOnGuestChange({ previousGuestId: null, activeGuestId: 'a', open: true }), true, 'Projects screen -> a tab, while open');
+  assert.equal(shouldCloseOnGuestChange({ previousGuestId: 'a', activeGuestId: null, open: true }), true, 'a tab -> Projects screen, while open');
+  assert.equal(shouldCloseOnGuestChange({ previousGuestId: 'a', activeGuestId: 'b', open: false }), false, 'switched while already closed: nothing to close');
 });
 
 test('runFind on a guest target calls the guest directly, never the bridge', () => {
   const guest = fakeGuest();
   const bridge = fakeBridge();
-  runFind({ kind: 'guest', element: guest }, bridge, 'hello', { forward: true, findNext: true });
+  runFind({ target: { kind: 'guest', element: guest }, bridge, text: 'hello', options: { forward: true, findNext: true } });
   assert.deepEqual(guest.calls, [['findInPage', 'hello', { forward: true, findNext: true }]]);
   assert.deepEqual(bridge.calls, []);
 });
 
 test('runFind on a guest not yet attached to the DOM is swallowed, not thrown', () => {
   const guest = fakeGuest({ notAttached: true });
-  assert.doesNotThrow(() => runFind({ kind: 'guest', element: guest }, fakeBridge(), 'x', { forward: true, findNext: true }));
+  assert.doesNotThrow(() => runFind({ target: { kind: 'guest', element: guest }, bridge: fakeBridge(), text: 'x', options: { forward: true, findNext: true } }));
 });
 
 test('runFind on the top target calls the bridge with the query merged into the options', () => {
   const bridge = fakeBridge();
-  runFind({ kind: 'top' }, bridge, 'hello', { forward: false, findNext: false });
+  runFind({ target: { kind: 'top' }, bridge, text: 'hello', options: { forward: false, findNext: false } });
   assert.deepEqual(bridge.calls, [['findInPage', { text: 'hello', forward: false, findNext: false }]]);
 });
 
@@ -167,14 +152,14 @@ function orderedTopFind(): { bridge: FindBridge; selection: AnchorSelection; ord
 
 test('runFind on the top target clears the document selection BEFORE searching', () => {
   const { bridge, selection, order } = orderedTopFind();
-  runFind({ kind: 'top' }, bridge, 'hello', { forward: true, findNext: false }, selection);
+  runFind({ target: { kind: 'top' }, bridge, text: 'hello', options: { forward: true, findNext: false } }, { selection });
   assert.deepEqual(order, ['removeAllRanges', 'findInPage'], 'a selection still present when Chromium reads it re-anchors the search on the find bar itself');
 });
 
 test('runFind on a guest target ALSO clears the host selection first', () => {
   const { selection, order } = orderedTopFind();
   const guest = fakeGuest();
-  runFind({ kind: 'guest', element: guest }, undefined, 'hello', { forward: true, findNext: false }, selection);
+  runFind({ target: { kind: 'guest', element: guest }, bridge: undefined, text: 'hello', options: { forward: true, findNext: false } }, { selection });
   // Not belt-and-braces: Chromium serves a guest's find from the WINDOW's find manager once that
   // manager exists, and a rerouted search anchors on THIS frame's selection — the find bar's own
   // caret. See this file's header for the measurement.
@@ -184,7 +169,7 @@ test('runFind on a guest target ALSO clears the host selection first', () => {
 
 test('runFind on the top target with no bridge does not clear the selection either', () => {
   const { selection, order } = orderedTopFind();
-  runFind({ kind: 'top' }, undefined, 'hello', { forward: true, findNext: false }, selection);
+  runFind({ target: { kind: 'top' }, bridge: undefined, text: 'hello', options: { forward: true, findNext: false } }, { selection });
   assert.deepEqual(order, [], 'no search to anchor, so nothing to clear');
 });
 
@@ -203,11 +188,11 @@ test('restoreFindInputFocus blurs THEN focuses the input on every call, and tole
   // and never tells the browser to route keys back to this frame — measured live with real OS
   // keystrokes: typing "the" left "t" in the bar and the rest went into the guest. blur() first
   // makes the focus() a genuine focus change the browser hears about.
-  restoreFindInputFocus(input);
+  restoreFindInputFocus({ input });
   assert.deepEqual(calls, ['blur', 'focus']);
-  restoreFindInputFocus(input);
+  restoreFindInputFocus({ input });
   assert.deepEqual(calls, ['blur', 'focus', 'blur', 'focus'], 'every reported result restores focus, not just the first');
-  assert.doesNotThrow(() => restoreFindInputFocus(null), 'the bar can be closed by the time a result lands');
+  assert.doesNotThrow(() => restoreFindInputFocus({ input: null }), 'the bar can be closed by the time a result lands');
 });
 
 test('restoreFindInputFocus raises `restoring` for exactly its own blur, so the blur listener cannot loop on it', () => {
@@ -217,7 +202,7 @@ test('restoreFindInputFocus raises `restoring` for exactly its own blur, so the 
     blur: () => seen.push(`blur restoring=${restoring.current}`),
     focus: () => seen.push(`focus restoring=${restoring.current}`),
   };
-  restoreFindInputFocus(input, restoring);
+  restoreFindInputFocus({ input }, { restoring });
   assert.deepEqual(seen, ['blur restoring=true', 'focus restoring=false']);
   assert.equal(restoring.current, false, 'lowered again afterwards');
 
@@ -227,40 +212,40 @@ test('restoreFindInputFocus raises `restoring` for exactly its own blur, so the 
     },
     focus: () => {},
   };
-  assert.throws(() => restoreFindInputFocus(throwing, restoring), /boom/);
+  assert.throws(() => restoreFindInputFocus({ input: throwing }, { restoring }), /boom/);
   assert.equal(restoring.current, false, 'lowered even when blur throws, or every later real theft would be ignored');
 });
 
 test('runFind/stopFind on none, or on top with no bridge, are no-ops', () => {
   const bridge = fakeBridge();
   const { selection, order } = orderedTopFind();
-  assert.doesNotThrow(() => runFind({ kind: 'none' }, bridge, 'x', { forward: true, findNext: true }, selection));
+  assert.doesNotThrow(() => runFind({ target: { kind: 'none' }, bridge, text: 'x', options: { forward: true, findNext: true } }, { selection }));
   assert.deepEqual(order, [], 'none must not change the selection');
-  assert.doesNotThrow(() => runFind({ kind: 'top' }, undefined, 'x', { forward: true, findNext: true }));
-  assert.doesNotThrow(() => stopFind({ kind: 'none' }, bridge));
+  assert.doesNotThrow(() => runFind({ target: { kind: 'top' }, bridge: undefined, text: 'x', options: { forward: true, findNext: true } }));
+  assert.doesNotThrow(() => stopFind({ target: { kind: 'none' }, bridge }));
   assert.deepEqual(bridge.calls, [], 'none must neither search nor stop through the supplied bridge');
-  assert.doesNotThrow(() => stopFind({ kind: 'top' }, undefined));
+  assert.doesNotThrow(() => stopFind({ target: { kind: 'top' }, bridge: undefined }));
 });
 
 test('stopFind clears the guest with clearSelection, or stops the bridge search', () => {
   const guest = fakeGuest();
-  stopFind({ kind: 'guest', element: guest }, fakeBridge());
+  stopFind({ target: { kind: 'guest', element: guest }, bridge: fakeBridge() });
   assert.deepEqual(guest.calls, [['stopFindInPage', 'clearSelection']]);
 
   const bridge = fakeBridge();
-  stopFind({ kind: 'top' }, bridge);
+  stopFind({ target: { kind: 'top' }, bridge });
   assert.deepEqual(bridge.calls, [['stopFindInPage']]);
 });
 
 test('stopFind on a guest not yet attached is swallowed, not thrown', () => {
   const guest = fakeGuest({ notAttached: true });
-  assert.doesNotThrow(() => stopFind({ kind: 'guest', element: guest }, fakeBridge()));
+  assert.doesNotThrow(() => stopFind({ target: { kind: 'guest', element: guest }, bridge: fakeBridge() }));
 });
 
 test('formatMatchCount: blank until a result exists, "No results" for zero matches, "N of M" otherwise', () => {
-  assert.equal(formatMatchCount(null), '');
-  assert.equal(formatMatchCount({ activeMatchOrdinal: 0, matches: 0 }), 'No results');
-  assert.equal(formatMatchCount({ activeMatchOrdinal: 3, matches: 17 }), '3 of 17');
+  assert.equal(formatMatchCount({ result: null }), '');
+  assert.equal(formatMatchCount({ result: { activeMatchOrdinal: 0, matches: 0 } }), 'No results');
+  assert.equal(formatMatchCount({ result: { activeMatchOrdinal: 3, matches: 17 } }), '3 of 17');
 });
 
 /** A guest whose `found-in-page` listeners a test can fire, and a bridge whose relayed window
@@ -280,7 +265,7 @@ function twoSourceFakes() {
     onFindToggle: () => () => {},
     findInPage: async () => {},
     stopFindInPage: async () => {},
-    onFindResult: (listener) => {
+    onFindResult: ({ listener }, _options = {}) => {
       windowListeners.add(listener);
       return () => void windowListeners.delete(listener);
     },
@@ -299,12 +284,12 @@ test('subscribeToFindResults: a GUEST target reports on both sources, and a resu
   const fakes = twoSourceFakes();
   const results: FindInPageResult[] = [];
   let reportedCount = 0;
-  const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, fakes.bridge, {
-    onResult: (result) => results.push(result),
+  const unsubscribe = subscribeToFindResults({ target: { kind: 'guest', element: fakes.guest }, bridge: fakes.bridge, handlers: {
+    onResult: ({ result }) => results.push(result),
     onReported: () => {
       reportedCount += 1;
     },
-  });
+  } });
   assert.equal(fakes.guestCount(), 1, "the guest's own event");
   assert.equal(fakes.windowCount(), 1, "the window's relayed event — the source that reports once its find manager exists");
 
@@ -329,12 +314,12 @@ test('subscribeToFindResults: a TOP target listens to the window alone', () => {
   const fakes = twoSourceFakes();
   const results: FindInPageResult[] = [];
   let reportedCount = 0;
-  const unsubscribe = subscribeToFindResults({ kind: 'top' }, fakes.bridge, {
-    onResult: (result) => results.push(result),
+  const unsubscribe = subscribeToFindResults({ target: { kind: 'top' }, bridge: fakes.bridge, handlers: {
+    onResult: ({ result }) => results.push(result),
     onReported: () => {
       reportedCount += 1;
     },
-  });
+  } });
   assert.equal(fakes.guestCount(), 0, 'no guest element to listen to');
   fakes.emitWindow({ activeMatchOrdinal: 3, matches: 12 });
   assert.deepEqual(results, [{ activeMatchOrdinal: 3, matches: 12 }]);
@@ -346,18 +331,18 @@ test('subscribeToFindResults: a TOP target listens to the window alone', () => {
 test('subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, restores focus on its own event, and unsubscribing is safe', () => {
   const fakes = twoSourceFakes();
   let reportedCount = 0;
-  const unsubscribe = subscribeToFindResults({ kind: 'guest', element: fakes.guest }, undefined, {
+  const unsubscribe = subscribeToFindResults({ target: { kind: 'guest', element: fakes.guest }, bridge: undefined, handlers: {
     onResult: () => {},
     onReported: () => {
       reportedCount += 1;
     },
-  });
+  } });
   assert.equal(fakes.guestCount(), 1);
   fakes.emitGuest({ activeMatchOrdinal: 1, matches: 1 });
   assert.equal(reportedCount, 1, 'no bridge to relay a window result, but the guest still took focus and still needs it restored');
   assert.doesNotThrow(unsubscribe);
   assert.equal(fakes.guestCount(), 0);
-  assert.doesNotThrow(() => subscribeToFindResults({ kind: 'none' }, undefined, { onResult: () => {}, onReported: () => {} })());
+  assert.doesNotThrow(() => subscribeToFindResults({ target: { kind: 'none' }, bridge: undefined, handlers: { onResult: () => {}, onReported: () => {} } })());
 });
 
 test('shouldReclaimFindFocus: only while open and within FIND_FOCUS_RECLAIM_MS of the last issued find', () => {

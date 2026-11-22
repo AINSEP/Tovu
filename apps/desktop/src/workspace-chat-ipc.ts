@@ -88,9 +88,9 @@ interface WorkspaceChatIpcDeps {
   runtime: Promise<Pick<DesktopAgentRuntime, "lifecycle" | "startTurn">>;
   conversations: ConversationStore;
   /** Resolves a renderer-reported site dir to a TRACKED site, or `null`. Never trusts the path itself. */
-  resolveAddressee: (siteDir: string) => TurnAddressee | null;
+  resolveAddressee: (input: { siteDir: string }, options?: Record<string, never>) => TurnAddressee | null;
   listAgents: (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]>;
-  pickDirectory: (currentDirectory?: string) => Promise<string | null>;
+  pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
 }
 
 /**
@@ -98,9 +98,9 @@ interface WorkspaceChatIpcDeps {
  * renderer cannot point the agent's site tools at an arbitrary folder. Pure over its port.
  * @complexity O(1) plus the resolver.
  */
-function addresseeForStart(input: DesktopChatStartInput, resolve: WorkspaceChatIpcDeps["resolveAddressee"]): TurnAddressee | null {
+function addresseeForStart({ input, resolve }: { input: DesktopChatStartInput; resolve: WorkspaceChatIpcDeps["resolveAddressee"] }, _options = {}): TurnAddressee | null {
   const siteDir = input.activeSiteDir;
-  return typeof siteDir === "string" && siteDir !== "" ? resolve(siteDir) : null;
+  return typeof siteDir === "string" && siteDir !== "" ? resolve({ siteDir }) : null;
 }
 
 /**
@@ -113,15 +113,64 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   const subscriptions = new Map<string, () => void>();
   const lifecycleOf = async () => (await deps.runtime).lifecycle;
 
-  const detach = (subscriptionId: string) => {
+  const detach = ({ subscriptionId }: { subscriptionId: string }, _options = {}) => {
     subscriptions.get(subscriptionId)?.();
     subscriptions.delete(subscriptionId);
   };
 
   /** Attaches one subscription; resolves with its outcome. Every event is pushed tagged. */
-  async function subscribe(sender: EventSink, subscriptionId: string, runId: string, afterCursor: string | null): Promise<void> {
+  const subscribe = createWorkspaceRunSubscriber(detach, lifecycleOf, subscriptions);
+
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
+    const { runId } = await (await deps.runtime).startTurn(
+      { prompt: input.prompt, agentId: input.agentId },
+      {
+        ...(input.conversationId === undefined ? {} : { chatId: input.conversationId }),
+        ...(input.model === undefined ? {} : { model: input.model }),
+        ...(input.reasoning === undefined ? {} : { reasoning: input.reasoning }),
+        ...(input.attachmentPaths === undefined ? {} : { attachmentPaths: input.attachmentPaths }),
+        addressee: addresseeForStart({ input, resolve: deps.resolveAddressee }),
+      },
+    );
+    await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId, afterCursor: null });
+    return { runId };
+  });
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
+    await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId: input.runId, afterCursor: input.afterCursor ?? null });
+  });
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach({ subscriptionId }));
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
+    await (await lifecycleOf()).cancel({ runId, reason: "Stopped by the operator." });
+  });
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (_event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
+    const run = await (await lifecycleOf()).get({ runId });
+    return run === undefined ? null : { runId: run.id, state: run.state };
+  });
+
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.list, () => deps.listAgents({ rescan: false }));
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.rescan, () => deps.listAgents({ rescan: true }));
+  // The daemon is in-process: if this handler answers, it is online.
+  deps.ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, () => true);
+
+  deps.ipcMain.handle(CONVERSATION_IPC.list, () => deps.conversations.list());
+  deps.ipcMain.handle(CONVERSATION_IPC.create, () => deps.conversations.create());
+  deps.ipcMain.handle(CONVERSATION_IPC.rename, (_event, input: RenameConversationInput) => deps.conversations.rename(input));
+  deps.ipcMain.handle(CONVERSATION_IPC.delete, (_event, { id }: { id: string }) => deps.conversations.remove({ id }));
+  deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
+  deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
+
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory }));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
+
+  return { activeSubscriptions: () => subscriptions.size };
+}
+
+function createWorkspaceRunSubscriber(detach: ({ subscriptionId }: { subscriptionId: string; }, _options?: {}) => void, lifecycleOf: () => Promise<Awaited<WorkspaceChatIpcDeps["runtime"]>["lifecycle"]>, subscriptions: Map<string, () => void>) {
+  return async function subscribe({ sender, subscriptionId, runId, afterCursor }: { sender: EventSink; subscriptionId: string; runId: string; afterCursor: string | null }, _options = {}): Promise<void> {
     const push = (message: WorkspaceChatEventMessage) => {
-      if (sender.isDestroyed()) { detach(subscriptionId); return; }
+      if (sender.isDestroyed()) { detach({ subscriptionId }); return; }
       sender.send(WORKSPACE_CHAT_IPC.event, message);
     };
     let ended = false;
@@ -131,7 +180,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
         ended = true;
         push({ subscriptionId, kind: "closed", reason: "terminal" });
         // Deferred: `stream()` may deliver a replayed `end` before it has returned its unsubscribe.
-        queueMicrotask(() => detach(subscriptionId));
+        queueMicrotask(() => detach({ subscriptionId }));
       }
     };
     try {
@@ -153,56 +202,11 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
     } catch {
       push({ subscriptionId, kind: "closed", reason: "unknown-run" });
     }
-  }
-
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.start, async (event, input: DesktopChatStartInput) => {
-    const { runId } = await (await deps.runtime).startTurn(
-      { prompt: input.prompt, agentId: input.agentId },
-      {
-        ...(input.conversationId === undefined ? {} : { chatId: input.conversationId }),
-        ...(input.model === undefined ? {} : { model: input.model }),
-        ...(input.reasoning === undefined ? {} : { reasoning: input.reasoning }),
-        ...(input.attachmentPaths === undefined ? {} : { attachmentPaths: input.attachmentPaths }),
-        addressee: addresseeForStart(input, deps.resolveAddressee),
-      },
-    );
-    await subscribe(event.sender, input.subscriptionId, runId, null);
-    return { runId };
-  });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
-    await subscribe(event.sender, input.subscriptionId, input.runId, input.afterCursor ?? null);
-  });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach(subscriptionId));
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
-    await (await lifecycleOf()).cancel({ runId, reason: "Stopped by the operator." });
-  });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.status, async (_event, { runId }: { runId: string }): Promise<WorkspaceChatRunSnapshot | null> => {
-    const run = await (await lifecycleOf()).get({ runId });
-    return run === undefined ? null : { runId: run.id, state: run.state };
-  });
-
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.list, () => deps.listAgents({ rescan: false }));
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.rescan, () => deps.listAgents({ rescan: true }));
-  // The daemon is in-process: if this handler answers, it is online.
-  deps.ipcMain.handle(AGENT_INVENTORY_IPC.daemonOnline, () => true);
-
-  deps.ipcMain.handle(CONVERSATION_IPC.list, () => deps.conversations.list());
-  deps.ipcMain.handle(CONVERSATION_IPC.create, () => deps.conversations.create());
-  deps.ipcMain.handle(CONVERSATION_IPC.rename, (_event, input: RenameConversationInput) => deps.conversations.rename(input));
-  deps.ipcMain.handle(CONVERSATION_IPC.delete, (_event, { id }: { id: string }) => deps.conversations.remove({ id }));
-  deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
-  deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
-
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory(currentDirectory));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory(directory));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory(directory) ? path.resolve(directory) : null));
-
-  return { activeSubscriptions: () => subscriptions.size };
+  };
 }
 
 /** `true` only for an existing directory. @complexity O(1) syscall. */
-function isDirectory(directory: unknown): boolean {
+function isDirectory({ directory }: { directory: unknown }, _options = {}): boolean {
   if (typeof directory !== "string" || directory === "") return false;
   try {
     return fs.statSync(directory).isDirectory();

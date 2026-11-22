@@ -8,11 +8,14 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
 import { deliverSurfaceCallback } from '@jini-ai/daemon/http';
+import type { SseSchedulerPort } from '@jini-ai/core/contracts/server';
+import { answerSurface } from './surface-answer.js';
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
+import { asyncRoute } from "#src/platform/express/async-route";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
@@ -70,12 +73,12 @@ import {
  * tool invocation makes, which is what makes THAT shape "reuse the handler" rather than "reimplement
  * its logic." Shape 1 never calls the handler a second time at all — see below.
  *
- * Covered by the daemon's existing global bearer gate (`daemon-auth.ts`'s
+ * Covered by the daemon's existing global bearer gate (`apps/website/src/assistant/daemon-access.ts`'s
  * `requireAgentDaemonToken`, mounted ahead of every route in `agent-daemon-server.ts`) — this
- * module adds no exemption, so only Tovu's own proxy (`server/modules/assistant.ts`) can reach it.
+ * module adds no exemption, so only Tovu's own proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`) can reach it.
  * The admin-session check that actually authenticates the human happens one hop earlier, in that
  * proxy; this route trusts the bearer gate plus {@link RUN_PRINCIPAL_HEADER} the same way every
- * other daemon route already does (`run-ownership.ts`).
+ * other daemon route already does (`apps/website/src/assistant/daemon-access.ts`).
  *
  * Deliberately NOT run-scoped. Unlike `/api/delegated-tool-calls`, this call carries no `runId` —
  * `@jini-ai/chat`'s `create-mcp-ui-tool-caller.ts` module doc explains why: the run that raised the
@@ -87,7 +90,7 @@ import {
  */
 
 /** Mounted at the same path Tovu's proxy exposes to the browser, so `forwardToAgentDaemon`'s
- * verbatim `req.originalUrl` passthrough (`server/modules/assistant.ts`) reaches this route with no
+ * verbatim `req.originalUrl` passthrough (`apps/website/src/server/runtime/composition/modules/assistant.ts`) reaches this route with no
  * separate path-rewrite to keep in sync. */
 export const MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
 
@@ -98,6 +101,8 @@ export interface McpUiToolCallsRouteDeps {
    * every exchange unreachable — deliveries would 409 while the agent waits out its deadline.
    */
   surfaceExchanges: SurfaceExchangeStore;
+  /** Keepalive timers for a restored card's stream. */
+  scheduler: SseSchedulerPort;
 }
 
 function readPrincipalId(req: Request): string | undefined {
@@ -117,7 +122,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * `policy.authorize: () => "allow"` (ADR-021 §2 — the domain's OWN inline `authorize()`/
  * `requireToolPermission` call is the real gate, and it throws rather than returning a denial
  * `ToolExecutor` would see), and `requiresConfirmation` is never set on a catalog entry (see
- * `tool-registration-kit.ts`'s explanation of the missing confirmation delegate). So `'denied'`/`'confirmation-denied'` are handled for
+ * `Jini packages/core/src/registration-kit.ts`'s explanation of the missing confirmation delegate). So `'denied'`/`'confirmation-denied'` are handled for
  * completeness and to keep this switch exhaustive against `ToolExecutionStatus`, not because a live
  * path reaches them today. `'cancelled'` is similarly unreachable from this call site specifically —
  * nothing here holds the `executionId` an external `toolExecutor.cancel()` would need. `'failed'`
@@ -132,7 +137,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * @complexity O(1).
  * @overallScore 100
  */
-function respondToExecutionResult(res: Response, toolName: string, principalId: string, result: ToolExecutionResult): void {
+function respondToExecutionResult({ res, toolName, principalId, result }: { res: Response; toolName: string; principalId: string; result: ToolExecutionResult }, _optional = {}): void {
   switch (result.status) {
     case "completed":
       res.status(200).json(result.output ?? {});
@@ -189,25 +194,30 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
     return null;
   }
   // The security-critical check this whole route exists to enforce — see `mcp-ui-tool-calls.ts`.
-  // Checked again here even though Tovu's proxy (`server/modules/assistant.ts`) already checks it,
+  // Checked again here even though Tovu's proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`) already checks it,
   // because this route — not the proxy — is the one call site that can actually reach
   // `toolExecutor.execute`. A proxy-only check would be a suggestion, not a boundary.
   const params = isPlainObject(body.params) ? body.params : {};
+  const exchangeId = callbackExchangeId({ bodyExchangeId: body.exchangeId, params });
+  // `isMcpUiToolCallPermitted` also admits a federated id, but ONLY as an answer to an open card
+  // (G3) — so the answer shape is decided before the check, and Shape 2 can never run one.
+  const typedAnswer = isTypedSurfaceAnswer(params);
+  if (!isMcpUiToolCallPermitted({ toolName: toolName, answersAnExchange: exchangeId !== undefined || typedAnswer }, { typedAnswer })) {
+    res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    return null;
+  }
+  return { toolName, params, exchangeId };
+}
+
+/** The open exchange this callback answers, if it names one (Shape 1). */
+function callbackExchangeId({ bodyExchangeId, params }: { bodyExchangeId: unknown; params: Record<string, unknown> }, _options = {}): string | undefined {
   // Read from a top-level `exchangeId` first, falling back to the callback param. The param is
   // MCP-UI's carrier specifically — an mcp-ui surface can only answer by issuing a tool call, so
   // its correlation has to ride inside that call's params. A channel that can name the exchange
   // directly uses the top-level field and never touches the tool-call shape at all, which is what
   // keeps this route from being MCP-only.
-  const rawExchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
-  const exchangeId = typeof rawExchangeId === "string" && rawExchangeId.length > 0 ? rawExchangeId : undefined;
-  // `isMcpUiToolCallPermitted` also admits a federated id, but ONLY as an answer to an open card
-  // (G3) — so the answer shape is decided before the check, and Shape 2 can never run one.
-  const typedAnswer = isTypedSurfaceAnswer(params);
-  if (!isMcpUiToolCallPermitted(toolName, exchangeId !== undefined || typedAnswer, { typedAnswer })) {
-    res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
-    return null;
-  }
-  return { toolName, params, exchangeId };
+  const rawExchangeId = typeof bodyExchangeId === "string" ? bodyExchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
+  return typeof rawExchangeId === "string" && rawExchangeId.length > 0 ? rawExchangeId : undefined;
 }
 
 /**
@@ -216,18 +226,15 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
  * the shop ceiling.
  */
 async function deliverMcpUiExchange(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
-  input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
-  req?: Request,
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges" | "scheduler">; input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string } }, { req }: { req?: Request } = {},
 ): Promise<void> {
-  await deliverSurfaceCallback({
-    res, store: deps.surfaceExchanges, ...input,
-    admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted(toolId, answersAnExchange, { typedAnswer }),
+  await answerSurface({ res, produce: ({ signal }) => deliverSurfaceCallback({
+    store: deps.surfaceExchanges, ...input, scheduler: deps.scheduler, signal,
+    admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: answersAnExchange }, { typedAnswer }),
   }, {
     restoreOnly: (req?.body as { restore?: unknown } | undefined)?.restore === true,
     restoreOnMiss: req !== undefined,
-  });
+  }) });
 }
 
 /**
@@ -262,9 +269,7 @@ export function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
  * answer the first one. A refusal is the honest outcome: there is nothing outstanding to answer.
  */
 function deliverTypedSurfaceAnswer(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
-  input: { params: Record<string, unknown>; toolId: string; principalId: string },
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges" | "scheduler">; input: { params: Record<string, unknown>; toolId: string; principalId: string } }, _optional = {},
 ): void {
   const exchangeId = deps.surfaceExchanges.findTypedAnswerTarget({
     principalId: input.principalId,
@@ -281,7 +286,7 @@ function deliverTypedSurfaceAnswer(
     });
     return;
   }
-  void deliverMcpUiExchange(res, deps, { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId });
+  void deliverMcpUiExchange({ res: res, deps: deps, input: { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId } });
 }
 
 /**
@@ -291,9 +296,7 @@ function deliverTypedSurfaceAnswer(
  * the shop ceiling.
  */
 async function executeMcpUiToolCall(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "toolExecutor">,
-  input: { toolName: string; params: Record<string, unknown>; principalId: string },
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "toolExecutor">; input: { toolName: string; params: Record<string, unknown>; principalId: string } }, _optional = {},
 ): Promise<void> {
   const principal: Principal = { id: input.principalId };
   const run = { id: `mcp-ui-redemption:${randomUUID()}` };
@@ -312,11 +315,11 @@ async function executeMcpUiToolCall(
     return;
   }
 
-  respondToExecutionResult(res, input.toolName, input.principalId, result);
+  respondToExecutionResult({ res: res, toolName: input.toolName, principalId: input.principalId, result: result });
 }
 
-export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRouteDeps): void {
-  app.post(MCP_UI_TOOL_CALLS_PATH, async (req: Request, res: Response) => {
+export function registerMcpUiToolCallsRoute({ app, deps }: { app: Express; deps: McpUiToolCallsRouteDeps }, _optional: Record<string, never> = {}): void {
+  app.post(MCP_UI_TOOL_CALLS_PATH, asyncRoute({ handler: async (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
     if (!principalId) {
       res.status(401).json({ error: `${RUN_PRINCIPAL_HEADER} is required`, code: "UNAUTHENTICATED" });
@@ -328,7 +331,7 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
 
     // ---- Shape 1: an open exchange is waiting for this message. ----
     if (parsed.exchangeId !== undefined) {
-      await deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId }, req);
+      await deliverMcpUiExchange({ res: res, deps: deps, input: { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId } }, { req: req });
       return;
     }
 
@@ -336,11 +339,11 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
     // exchange. Checked before Shape 2 because Shape 2 would EXECUTE the tool afresh — putting a
     // second, unasked-for dialog on screen in reply to an answer to the first. ----
     if (isTypedSurfaceAnswer(parsed.params)) {
-      deliverTypedSurfaceAnswer(res, deps, { params: parsed.params, toolId: parsed.toolName, principalId });
+      deliverTypedSurfaceAnswer({ res: res, deps: deps, input: { params: parsed.params, toolId: parsed.toolName, principalId } });
       return;
     }
 
     // ---- Shape 2: legacy two-call redemption (ADR-053). ----
-    await executeMcpUiToolCall(res, deps, { toolName: parsed.toolName, params: parsed.params, principalId });
-  });
+    await executeMcpUiToolCall({ res: res, deps: deps, input: { toolName: parsed.toolName, params: parsed.params, principalId } });
+  } }));
 }

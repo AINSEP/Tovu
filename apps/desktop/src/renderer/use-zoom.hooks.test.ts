@@ -63,7 +63,7 @@ function fakeBridge(startLevel = 0): ZoomBridge & { calls: unknown[][]; readCoun
     readCount: () => reads,
     onZoomCommand: () => () => {},
     getZoomLevel: () => { reads += 1; return level; },
-    setZoomLevel: (next: number) => {
+    setZoomLevel: ({ level: next }: { level: number }, _options = {}) => {
       calls.push(['setZoomLevel', next]);
       level = next;
     },
@@ -104,33 +104,33 @@ test("resolveZoomTarget: 'none' outside a real desktop window", () => {
 });
 
 test('nextZoomLevel: in/out step by 0.5, reset returns to 0 outright', () => {
-  assert.equal(nextZoomLevel(0, 'in'), 0.5);
-  assert.equal(nextZoomLevel(1.5, 'out'), 1);
-  assert.equal(nextZoomLevel(-3, 'reset'), 0);
-  assert.equal(nextZoomLevel(2, 'reset'), 0);
+  assert.equal(nextZoomLevel({ current: 0, direction: 'in' }), 0.5);
+  assert.equal(nextZoomLevel({ current: 1.5, direction: 'out' }), 1);
+  assert.equal(nextZoomLevel({ current: -3, direction: 'reset' }), 0);
+  assert.equal(nextZoomLevel({ current: 2, direction: 'reset' }), 0);
 });
 
 test('readStoredZoom: 0 for an unset, corrupt, or throwing store', () => {
-  assert.equal(readStoredZoom(fakeStorage(), 'proj-1'), 0, 'unset');
+  assert.equal(readStoredZoom({ storage: fakeStorage(), projectId: 'proj-1' }), 0, 'unset');
   const corrupt = fakeStorage();
   corrupt.getItem = () => 'not-a-number';
-  assert.equal(readStoredZoom(corrupt, 'proj-1'), 0, 'corrupt');
+  assert.equal(readStoredZoom({ storage: corrupt, projectId: 'proj-1' }), 0, 'corrupt');
   const throwing: ZoomStorage = {
     getItem: () => {
       throw new Error('blocked');
     },
     setItem: () => {},
   };
-  assert.equal(readStoredZoom(throwing, 'proj-1'), 0, 'throwing');
+  assert.equal(readStoredZoom({ storage: throwing, projectId: 'proj-1' }), 0, 'throwing');
 });
 
 test('writeStoredZoom then readStoredZoom round-trips, keyed per project', () => {
   const storage = fakeStorage();
-  writeStoredZoom(storage, 'proj-1', 1.5);
-  writeStoredZoom(storage, 'proj-2', -1);
-  assert.equal(readStoredZoom(storage, 'proj-1'), 1.5);
-  assert.equal(readStoredZoom(storage, 'proj-2'), -1);
-  assert.equal(readStoredZoom(storage, 'proj-3'), 0, 'a third project was never written');
+  writeStoredZoom({ storage, projectId: 'proj-1', level: 1.5 });
+  writeStoredZoom({ storage, projectId: 'proj-2', level: -1 });
+  assert.equal(readStoredZoom({ storage, projectId: 'proj-1' }), 1.5);
+  assert.equal(readStoredZoom({ storage, projectId: 'proj-2' }), -1);
+  assert.equal(readStoredZoom({ storage, projectId: 'proj-3' }), 0, 'a third project was never written');
 });
 
 test('writeStoredZoom swallows a throwing store rather than breaking the caller', () => {
@@ -140,31 +140,31 @@ test('writeStoredZoom swallows a throwing store rather than breaking the caller'
       throw new Error('quota exceeded');
     },
   };
-  assert.doesNotThrow(() => writeStoredZoom(throwing, 'proj-1', 1));
+  assert.doesNotThrow(() => writeStoredZoom({ storage: throwing, projectId: 'proj-1', level: 1 }));
 });
 
 test('applyZoomCommand: a guest target zooms the guest and persists the new level', () => {
   const guest = fakeGuest(0);
   const storage = fakeStorage();
-  applyZoomCommand({ kind: 'guest', element: guest, projectId: 'proj-1' }, undefined, 'in', storage);
+  applyZoomCommand({ target: { kind: 'guest', element: guest, projectId: 'proj-1' }, bridge: undefined, direction: 'in', storage });
   assert.deepEqual(guest.calls, [['setZoomLevel', 0.5]]);
-  assert.equal(readStoredZoom(storage, 'proj-1'), 0.5);
+  assert.equal(readStoredZoom({ storage, projectId: 'proj-1' }), 0.5);
 });
 
 test('applyZoomCommand: a top target zooms the bridge and never touches storage', () => {
   const bridge = fakeBridge(1);
   const storage = fakeStorage();
-  applyZoomCommand({ kind: 'top' }, bridge, 'out', storage);
+  applyZoomCommand({ target: { kind: 'top' }, bridge, direction: 'out', storage });
   assert.deepEqual(bridge.calls, [['setZoomLevel', 0.5]]);
   assert.deepEqual(storage.accesses, [], 'top-page zoom performs no storage operations under any key');
-  assert.equal(readStoredZoom(storage, '__any__'), 0, 'the top target has no project id to key a persisted entry by');
+  assert.equal(readStoredZoom({ storage, projectId: '__any__' }), 0, 'the top target has no project id to key a persisted entry by');
 });
 
 test('applyZoomCommand: a top target with no bridge, or a none target, is an inert no-op', () => {
   const storage = fakeStorage();
   const bridge = fakeBridge();
-  assert.doesNotThrow(() => applyZoomCommand({ kind: 'top' }, undefined, 'in', storage));
-  assert.doesNotThrow(() => applyZoomCommand({ kind: 'none' }, bridge, 'in', storage));
+  assert.doesNotThrow(() => applyZoomCommand({ target: { kind: 'top' }, bridge: undefined, direction: 'in', storage }));
+  assert.doesNotThrow(() => applyZoomCommand({ target: { kind: 'none' }, bridge, direction: 'in', storage }));
   assert.deepEqual(bridge.calls, []);
   assert.equal(bridge.readCount(), 0);
   assert.deepEqual(storage.accesses, []);
@@ -172,28 +172,28 @@ test('applyZoomCommand: a top target with no bridge, or a none target, is an ine
 
 test('applyStoredZoom: an attached guest takes the stored level at once, with no listener left behind', () => {
   const storage = fakeStorage();
-  writeStoredZoom(storage, 'proj-1', 1.5);
+  writeStoredZoom({ storage, projectId: 'proj-1', level: 1.5 });
   const guest = fakeGuest(0);
-  applyStoredZoom(guest, 'proj-1', storage);
+  applyStoredZoom({ element: guest, projectId: 'proj-1', storage });
   assert.deepEqual(guest.calls, [['setZoomLevel', 1.5]]);
   assert.equal(guest.listenerCount(), 0, 'nothing to wait for — it already applied');
 });
 
 test('applyStoredZoom: a guest that is not attached yet does not throw', () => {
   const storage = fakeStorage();
-  writeStoredZoom(storage, 'proj-1', 1.5);
+  writeStoredZoom({ storage, projectId: 'proj-1', level: 1.5 });
   const guest = fakeGuest(0, false);
   // The regression this guards: this call runs inside a React ref callback, so a throw here
   // unmounts the whole sites-home tree and the window goes blank white.
-  assert.doesNotThrow(() => applyStoredZoom(guest, 'proj-1', storage));
+  assert.doesNotThrow(() => applyStoredZoom({ element: guest, projectId: 'proj-1', storage }));
   assert.deepEqual(guest.calls, [], 'nothing could be applied to a guest that is not attached');
 });
 
 test('applyStoredZoom: the stored level still lands once the guest reaches dom-ready', () => {
   const storage = fakeStorage();
-  writeStoredZoom(storage, 'proj-1', -1);
+  writeStoredZoom({ storage, projectId: 'proj-1', level: -1 });
   const guest = fakeGuest(0, false);
-  applyStoredZoom(guest, 'proj-1', storage);
+  applyStoredZoom({ element: guest, projectId: 'proj-1', storage });
   assert.equal(guest.listenerCount(), 1, 'a not-yet-attached guest is waited on');
   guest.emitDomReady();
   assert.deepEqual(guest.calls, [['setZoomLevel', -1]], 'the remembered zoom is not lost, only deferred');
@@ -203,7 +203,7 @@ test('applyStoredZoom: the stored level still lands once the guest reaches dom-r
 test('applyZoomCommand: a guest that is not attached yet is an inert no-op, not a throw', () => {
   const storage = fakeStorage();
   const guest = fakeGuest(0, false);
-  assert.doesNotThrow(() => applyZoomCommand({ kind: 'guest', element: guest, projectId: 'proj-1' }, undefined, 'in', storage));
+  assert.doesNotThrow(() => applyZoomCommand({ target: { kind: 'guest', element: guest, projectId: 'proj-1' }, bridge: undefined, direction: 'in', storage }));
   assert.deepEqual(guest.calls, []);
-  assert.equal(readStoredZoom(storage, 'proj-1'), 0, 'a level the guest never took must not be remembered');
+  assert.equal(readStoredZoom({ storage, projectId: 'proj-1' }), 0, 'a level the guest never took must not be remembered');
 });

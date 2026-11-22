@@ -4,8 +4,8 @@ import test from "node:test";
 
 import type { JsonValue } from "@jini-ai/core/primitives";
 
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import { entityKey } from "#src/features/publish-content/planner";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { friendlyPublishReason } from "#src/features/publish-content/ui/report-rows";
 import { buildPublishContentCatalog, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";
@@ -124,7 +124,7 @@ async function sites() {
   return { source, destination, sourceDeps: makeSite(source.ports, "src"), destinationDeps: makeSite(destination.ports, "dst") };
 }
 
-const ids = (entities: readonly PackedEntity[]) => entities.map((e) => entityKey(e.entityType, e.id));
+const ids = (entities: readonly PackedEntity[]) => entities.map((e) => entityKey({ entityType: e.entityType, entityId: e.id }));
 
 test("only allowlisted, non-secret workspace values pack; secrets, user values, crawl controls and other namespaces never do", async () => {
   const { source, sourceDeps } = await sites();
@@ -152,7 +152,7 @@ test("only allowlisted, non-secret workspace values pack; secrets, user values, 
   assert.deepEqual(packed.find((e) => e.id === "core.site:title")!.state, { label: "Site title", value: "Tovu" });
 
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("site-setting")!;
-  assert.deepEqual(handler.references!(packed.find((e) => e.id === "site.seo:default_og_image")!), [{ entityType: "media", key: MEDIA_ID }]);
+  assert.deepEqual(handler.references!({ entity: packed.find((e) => e.id === "site.seo:default_og_image")! }), [{ entityType: "media", key: MEDIA_ID }]);
 });
 
 test("a share image URL on this computer does not pack, and a hand-made one is refused", async () => {
@@ -165,7 +165,7 @@ test("a share image URL on this computer does not pack, and a hand-made one is r
   const report = await plan([crafted], destinationDeps);
   assert.equal(report.rows[0]!.outcome, "blocked");
   assert.equal(report.rows[0]!.reason, "site-setting 'site.seo:default_og_image' points at this computer");
-  assert.equal(friendlyPublishReason(report.rows[0]!.reason!), "This image link only works on this computer. Pick an image from Media instead.");
+  assert.equal(friendlyPublishReason({ reason: report.rows[0]!.reason! }), "This image link only works on this computer. Pick an image from Media instead.");
 });
 
 test("the destination refuses a bundle naming a setting outside the allowlist, and never writes it", async () => {
@@ -176,7 +176,7 @@ test("the destination refuses a bundle naming a setting outside the allowlist, a
   const report = await plan([crafted], destinationDeps);
   assert.equal(report.rows[0]!.outcome, "blocked");
   assert.equal(report.rows[0]!.reason, "site-setting 'core.execution:byok.baseUrl' is not one this site publishes");
-  assert.equal(friendlyPublishReason(report.rows[0]!.reason!), "Only the site title and SEO basics can be published.");
+  assert.equal(friendlyPublishReason({ reason: report.rows[0]!.reason! }), "Only the site title and SEO basics can be published.");
 
   const handler = buildPublishContentCatalog(destinationDeps).handlerByType.get("site-setting")!;
   await assert.rejects(
@@ -269,14 +269,14 @@ test("active theme: a missing theme folder is refused; once it is there the swit
   // Packed under its current name, with the folder a scoped publish carries.
   assert.deepEqual(entities[0]!.state, { label: "tovu-theme", themeId: "tovu-theme", tree: "static/basic" });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
-  assert.deepEqual(handler.references!(entities[0]!), [{ entityType: "theme-files", key: "static/basic" }]);
+  assert.deepEqual(handler.references!({ entity: entities[0]! }), [{ entityType: "theme-files", key: "static/basic" }]);
 
   const forced = await plan(entities, destinationDeps, ["active-theme:site"]);
   assert.equal(forced.rows[0]!.outcome, "forced");
   await assert.rejects(applyReport(forced, entities, destinationDeps), (err: unknown) => {
     assert.ok(err instanceof PublishContentApplyRowError && err.rowOutcome === "blocked");
     assert.equal(err.message, "active theme 'tovu-theme' is not installed at this destination");
-    assert.equal(friendlyPublishReason(err.message), "This theme isn't on the live site yet. Publish the theme too.");
+    assert.equal(friendlyPublishReason({ reason: err.message }), "This theme isn't on the live site yet. Publish the theme too.");
     return true;
   });
   assert.equal((await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))!.activeThemeId, "paper");
@@ -329,7 +329,7 @@ test("active theme: a blank theme.json name is no display name, and an invalid t
   const [invalid] = await packAll(sourceDeps);
   assert.deepEqual(invalid!.state, { label: "paper", themeId: "paper", tree: null });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
-  assert.deepEqual(handler.references!(invalid!), [], "no installed folder, so no theme-files dependency");
+  assert.deepEqual(handler.references!({ entity: invalid! }), [], "no installed folder, so no theme-files dependency");
 });
 
 test("active theme: only the 'site' row exists, and an unparsable updatedAt inspects as version 0", async () => {
@@ -338,8 +338,8 @@ test("active theme: only the 'site' row exists, and an unparsable updatedAt insp
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: "not-a-timestamp" });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
 
-  assert.equal(await handler.inspect!("some-other-row"), null);
-  const inspected = await handler.inspect!("site");
+  assert.equal(await handler.inspect!({ id: "some-other-row" }), null);
+  const inspected = await handler.inspect!({ id: "site" });
   assert.equal(inspected?.version, 0);
   assert.equal(typeof inspected?.hash, "string");
 });
@@ -381,12 +381,12 @@ test("active theme: a denied theme.set cannot switch an installed theme", async 
 
 test("share-image local detection rejects malformed absolute URLs and every supported local host", () => {
   for (const value of [null, undefined, 42, {}, "", MEDIA_ID, `${MEDIA_ID}:public`, "/uploads/image.png", "https://cdn.example.com/image.png"]) {
-    assert.equal(pointsAtThisComputer(value), false, JSON.stringify(value));
+    assert.equal(pointsAtThisComputer({ value }), false, JSON.stringify(value));
   }
   for (const value of ["https://[broken", " http://localhost/image.png ", "https://sub.localhost/image.png", "http://box.local/image.png", "http://127.0.0.2/x", "http://0.0.0.0/x", "http://[::1]/x", "http://10.1.2.3/x", "http://192.168.0.2/x", "http://172.16.0.2/x", "http://172.31.0.2/x"]) {
-    assert.equal(pointsAtThisComputer(value), true, value);
+    assert.equal(pointsAtThisComputer({ value }), true, value);
   }
-  assert.equal(pointsAtThisComputer("http://172.32.0.2/x"), false);
+  assert.equal(pointsAtThisComputer({ value: "http://172.32.0.2/x" }), false);
 });
 
 // F6 fix wave (L7 Stryker: LOCAL_HOST anchor survivors). Public hosts that merely CONTAIN a local
@@ -395,10 +395,10 @@ test("share-image local detection is anchored: look-alike public hosts are not l
   for (const value of ["http://evil-localhost.com/x", "http://localhostx.com/x", "http://127.0.0.1.evil.com/x", "http://box.local.evil.com/x",
     "http://110.1.2.3/x", "http://10.1.2.3.nip.io/x", "http://1192.168.0.2.example/x", "http://192.168.0.2.example/x", "http://172.15.0.2/x",
     "http://0.0.0.1/x", "http://[::2]/x", "http://12.0.0.1/x", "see http://localhost/x", "localhost/x"]) {
-    assert.equal(pointsAtThisComputer(value), false, value);
+    assert.equal(pointsAtThisComputer({ value }), false, value);
   }
   for (const value of ["HTTP://LOCALHOST/x", "https://a.b.localhost/x", "ftp://printer.local/x", "http://[::]/x", "http://10.0.0.1/x"]) {
-    assert.equal(pointsAtThisComputer(value), true, value);
+    assert.equal(pointsAtThisComputer({ value }), true, value);
   }
 });
 
@@ -409,9 +409,9 @@ test("share-image references carry only UUID media identities, and other setting
   const [title] = await packAll(sourceDeps);
   assert.ok(title);
   const handler = contributeSiteSettingPublish().build(sourceDeps);
-  assert.deepEqual(handler.references!(title), []);
+  assert.deepEqual(handler.references!({ entity: title }), []);
   for (const value of [null, 7, "", "slug:public", "https://cdn.example.com/image.png"]) {
-    assert.deepEqual(handler.references!({ ...title, id: "site.seo:default_og_image", state: { value } }), [], String(value));
+    assert.deepEqual(handler.references!({ entity: { ...title, id: "site.seo:default_og_image", state: { value } } }), [], String(value));
   }
 });
 
@@ -441,8 +441,8 @@ for (const change of [{ secret: true }, { scopes: 4 }, { status: "deprecated" as
     assert.ok(def);
     await destination.settings.saveDefinition({ ...def, ...change });
     const handler = contributeSiteSettingPublish().build(destinationDeps);
-    assert.equal(await handler.inspect(entity.id), null);
-    assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+    assert.equal(await handler.inspect({ id: entity.id }), null);
+    assert.equal(await handler.precheck({ entity }), "site-setting 'core.site:title' is not one this site publishes");
     await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "ineligible" }), {
       message: "site-setting 'core.site:title' is not one this site publishes",
     });
@@ -459,8 +459,8 @@ test("an allowlisted setting with no destination definition is refused", async (
   const [entity] = await packAll(sourceDeps);
   assert.ok(entity);
   const handler = contributeSiteSettingPublish().build(makeSite(empty.ports));
-  assert.equal(await handler.inspect(entity.id), null);
-  assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+  assert.equal(await handler.inspect({ id: entity.id }), null);
+  assert.equal(await handler.precheck({ entity }), "site-setting 'core.site:title' is not one this site publishes");
 });
 
 test("an omitted incoming setting value is written as null through the revision ledger", async (t) => {

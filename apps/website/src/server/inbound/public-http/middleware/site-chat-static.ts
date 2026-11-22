@@ -12,7 +12,7 @@ import type { Express } from "express";
  * different shapes: an SPA with client-side routing vs. one self-mounting script). `vite build`
  * there emits `dist/site-assistant.js` (+ `.css`) in library/IIFE mode — a single file meant to be
  * loaded with a plain `<script defer src="/site-chat/site-assistant.js">`, not navigated to as a
- * page. `src/server/http/site/render.ts` injects that tag on every themed page.
+ * page. `apps/website/src/server/inbound/public-http/http/site/render-site.ts` injects that tag on every themed page.
  *
  * No SPA fallback (unlike `admin-static.ts`'s `index.html` catch-all): there is no client-side
  * routing here to fall back for, and `express.static` 404ing a request for an unbuilt asset is the
@@ -23,8 +23,8 @@ import type { Express } from "express";
  * `admin-static.ts`'s identical convention for the same reason — redirects instead of serving
  * `distDir`, so iterating on the widget never shows a stale build.
  */
-export function registerSiteChatStatic(app: Express, required: { distDir: string }): void {
-  const { distDir } = required;
+export function registerSiteChatStatic(required: { app: Express; distDir: string }, _optional: Record<string, never> = {}): void {
+  const { app, distDir } = required;
 
   const devProxyUrl = process.env.TOVU_SITE_CHAT_DEV_PROXY_URL;
   if (devProxyUrl) {

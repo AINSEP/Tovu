@@ -9,23 +9,23 @@ import { isOpenFileLoaded, keepsOpenFileSelected } from "../hooks/theme-explore-
 
 describe("isOpenFileLoaded", () => {
   it("is true when the loaded marker names the open theme and path", () => {
-    expect(isOpenFileLoaded({ themeId: "basic", path: "a.css" }, "basic", "a.css")).toBe(true);
+    expect(isOpenFileLoaded({ loaded: { themeId: "basic", path: "a.css" }, themeId: "basic", selected: "a.css" })).toBe(true);
   });
 
   it("is false when nothing has been loaded", () => {
-    expect(isOpenFileLoaded(null, "basic", "a.css")).toBe(false);
+    expect(isOpenFileLoaded({ loaded: null, themeId: "basic", selected: "a.css" })).toBe(false);
   });
 
   it("is false when the marker is for another theme at the same path", () => {
-    expect(isOpenFileLoaded({ themeId: "other", path: "a.css" }, "basic", "a.css")).toBe(false);
+    expect(isOpenFileLoaded({ loaded: { themeId: "other", path: "a.css" }, themeId: "basic", selected: "a.css" })).toBe(false);
   });
 
   it("is false when the marker is for another path", () => {
-    expect(isOpenFileLoaded({ themeId: "basic", path: "b.css" }, "basic", "a.css")).toBe(false);
+    expect(isOpenFileLoaded({ loaded: { themeId: "basic", path: "b.css" }, themeId: "basic", selected: "a.css" })).toBe(false);
   });
 
   it("is false for a null selection", () => {
-    expect(isOpenFileLoaded({ themeId: "basic", path: "a.css" }, "basic", null)).toBe(false);
+    expect(isOpenFileLoaded({ loaded: { themeId: "basic", path: "a.css" }, themeId: "basic", selected: null })).toBe(false);
   });
 });
 

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { assertToolIsWirable } from "@jini-ai/core";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
@@ -23,7 +23,7 @@ import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,
-} from "../../features/recovery/repo.memory.js";
+} from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import {
@@ -34,7 +34,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
@@ -190,7 +190,7 @@ const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set([...getDatabaseAgentToolC
 const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set([...recoveryAgentToolCatalog.map((tool) => tool.name), ...RECOVERY_READ_CARD_IDS]);
 
 function allRegistrations(deps: RegistryDepsWithoutLimiter): ToolRegistration[] {
-  return buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  return buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
 }
 
 function databaseRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
@@ -310,7 +310,7 @@ test("database_execute_migrate_forward is registered and classified mutates-dura
   assert.equal(databaseRegistrations(deps).has("database_execute_migrate_forward"), true);
   // The handler-less check stands for "a plain handler": still refused at build time.
   assert.throws(
-    () => assertRiskMetadataIsWirable("database_execute_migrate_forward", databaseCatalogEntry("database_execute_migrate_forward"), contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "database_execute_migrate_forward", catalogEntry: databaseCatalogEntry("database_execute_migrate_forward") }, { contributions: contributions }),
     { message: HUMAN_CONFIRMER_REFUSAL("database_execute_migrate_forward") },
   );
 });
@@ -319,7 +319,7 @@ test("backup_execute_restore is registered and classified mutates-durable-state,
   const { deps } = fakeRouteDeps();
   assert.equal(recoveryRegistrations(deps).has("backup_execute_restore"), true);
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_execute_restore", recoveryCatalogEntry("backup_execute_restore"), contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "backup_execute_restore", catalogEntry: recoveryCatalogEntry("backup_execute_restore") }, { contributions: contributions }),
     { message: HUMAN_CONFIRMER_REFUSAL("backup_execute_restore") },
   );
 });
@@ -416,13 +416,13 @@ test("the independent risk classification agrees with the catalog for every wire
     if (id.startsWith("content_read.")) continue;
     // Their actor-class rule needs the handler too — checked in section 1 above.
     if (EXECUTE_TOOL_INPUTS[id]) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_create_restore_point", { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "backup_create_restore_point", catalogEntry: { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -694,11 +694,12 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
  * answer seam. `answer(principalId, decision)` posts a click the way `mcp-ui-tool-calls-route.ts` does.
  */
 async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
+  const controller = new AbortController();
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
-  const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
+  const pending = tool.handler({ ...executionContext(input), signal: controller.signal }, { emitSurface: async (s) => void emitted.push(s) });
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(emitted.length, 1, "exactly one confirm dialog is shown");
   const html = (emitted[0] as { payload: { resource: UIResource } }).payload.resource.resource.text;
@@ -706,7 +707,7 @@ async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, in
   assert.ok(match, "the dialog carries its exchange id");
   const answer = (principalId: string, decision: "confirm" | "cancel"): DeliverResult =>
     surfaceExchanges.deliver({ exchangeId: match[1]!, principalId, params: { decision } }, { toolId });
-  return { pending, html, answer };
+  return { pending, html, answer, controller };
 }
 
 const CANCELLED = { cancelled: true, note: "The user cancelled. Nothing was changed." };
@@ -768,6 +769,100 @@ async function executeEffects(fixture: ReturnType<typeof fakeRouteDeps>): Promis
   };
 }
 
+test("Stopped migration during confirm authorization saves no token", async () => {
+  const fixture = fakeRouteDeps();
+  const before = await executeEffects(fixture);
+  const call = await startExecute(fixture.deps, "database_execute_migrate_forward", {});
+  const gateway = fixture.deps.gatedMutations.gatewayDeps;
+  const authorizeInstance = gateway.authorizeInstance;
+  assert.ok(authorizeInstance, "the fixture has real instance authorization");
+  gateway.authorizeInstance = async params => {
+    const decision = await authorizeInstance(params);
+    if (decision.allowed) call.controller.abort();
+    return decision;
+  };
+  let saves = 0;
+  const save = gateway.tokens.save.bind(gateway.tokens);
+  gateway.tokens.save = async record => { saves++; return save(record); };
+  assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped migration must reject");
+  assert.equal(saves, 0, "stopping during authorization must not save approval");
+  assert.deepEqual(await executeEffects(fixture), before, "stopping leaves migration effects unchanged");
+});
+
+test("Stopped migration after token save leaves approval unused", async () => {
+  const fixture = fakeRouteDeps();
+  const before = await executeEffects(fixture);
+  const call = await startExecute(fixture.deps, "database_execute_migrate_forward", {});
+  const tokens = fixture.deps.gatedMutations.gatewayDeps.tokens;
+  const saved: Parameters<typeof tokens.save>[0][] = [];
+  const save = tokens.save.bind(tokens);
+  tokens.save = async record => { saved.push(record); return save(record); };
+  const findByToken = tokens.findByToken.bind(tokens);
+  tokens.findByToken = async input => {
+    const record = await findByToken(input);
+    call.controller.abort();
+    return record;
+  };
+  assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped migration must reject");
+  assert.equal(saved.length, 1, "confirmation saves one approval before stopping");
+  assert.equal((await findByToken({ token: saved[0]!.confirmationToken }))?.status, "minted", "stopping leaves the saved approval unused");
+  assert.deepEqual(await executeEffects(fixture), before, "stopping leaves migration effects unchanged");
+});
+
+test("Stopped restore during confirm authorization saves no token", async () => {
+  const fixture = fakeRouteDeps();
+  const restorePointId = await seedRestorePoint(fixture.repos);
+  const artifacts: string[] = [];
+  fixture.repos.dbOps.restoreFromArtifact = async ({ artifactRef }) => {
+    artifacts.push(artifactRef);
+    return { restartRequired: false };
+  };
+  const call = await startExecute(fixture.deps, "backup_execute_restore", { restorePointId });
+  const gateway = fixture.deps.gatedMutations.gatewayDeps;
+  const authorizeInstance = gateway.authorizeInstance;
+  assert.ok(authorizeInstance, "the fixture has real instance authorization");
+  gateway.authorizeInstance = async params => {
+    const decision = await authorizeInstance(params);
+    if (decision.allowed) call.controller.abort();
+    return decision;
+  };
+  let saves = 0;
+  const save = gateway.tokens.save.bind(gateway.tokens);
+  gateway.tokens.save = async record => { saves++; return save(record); };
+  assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped restore must not succeed");
+  assert.equal(saves, 0, "stopping during authorization must not save approval");
+  assert.deepEqual(artifacts, [], "stopping must not apply an artifact");
+});
+
+test("Stopped restore after token save leaves approval unused", async () => {
+  const fixture = fakeRouteDeps();
+  const restorePointId = await seedRestorePoint(fixture.repos);
+  const artifacts: string[] = [];
+  fixture.repos.dbOps.restoreFromArtifact = async ({ artifactRef }) => {
+    artifacts.push(artifactRef);
+    return { restartRequired: false };
+  };
+  const call = await startExecute(fixture.deps, "backup_execute_restore", { restorePointId });
+  const tokens = fixture.deps.gatedMutations.gatewayDeps.tokens;
+  const saved: Parameters<typeof tokens.save>[0][] = [];
+  const save = tokens.save.bind(tokens);
+  tokens.save = async record => { saved.push(record); return save(record); };
+  const findByToken = tokens.findByToken.bind(tokens);
+  tokens.findByToken = async input => {
+    const record = await findByToken(input);
+    call.controller.abort();
+    return record;
+  };
+  assert.deepEqual(call.answer(PRINCIPAL_ID, "confirm"), { ok: true }, "the real card accepts confirmation");
+  await assert.rejects(call.pending, "the stopped restore must not succeed");
+  assert.equal(saved.length, 1, "confirmation saves one approval before stopping");
+  assert.equal((await findByToken({ token: saved[0]!.confirmationToken }))?.status, "minted", "stopping leaves the saved approval unused");
+  assert.deepEqual(artifacts, [], "stopping must not apply an artifact");
+});
+
 for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
   test(`${toolId}: the human confirms in the dialog, then it runs`, async () => {
     const fixture = fakeRouteDeps();
@@ -803,7 +898,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps();
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     for (const key of ["confirm", "confirmationToken"]) {
@@ -839,7 +934,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps({ allow: false });
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     await assert.rejects(

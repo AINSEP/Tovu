@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import express from "express";
-import type { Express, NextFunction, Response } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 
 import { resolvePathWithin } from "#src/contracts/core/path-containment";
 
@@ -14,7 +14,7 @@ type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional:
 
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
- * (`css/`/`js/`, for `server/http/site/render.ts`'s static-tier branch, which rewrites a page's
+ * (`css/`/`js/`, for `apps/website/src/server/inbound/public-http/http/site/render-site.ts`'s static-tier branch, which rewrites a page's
  * `../css/`/`../js/` references to this prefix), EXTENDED 2026-08-12 to also cover `templated`-tier
  * theme folders (`content/themes/templated/`) so a Liquid theme's own images/screenshots — previously
  * unreachable at any URL, the reason `storefront` ships zero images and `fashion-modern`'s hero photo
@@ -67,17 +67,18 @@ type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional:
  * for a non-active theme's CSS is normal traffic rather than something to defend against.
  */
 export function registerThemeStaticAssets(
-  app: Express,
-  required: { themeRoots: readonly string[]; themes?: readonly DiscoveredTheme[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+  required: { app: Express; themeRoots: readonly string[] },
+  optional: { themes?: readonly DiscoveredTheme[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision } = {},
 ): void {
-  const serveStatic = required.serveStatic ?? express.static;
+  const { app } = required;
+  const serveStatic = optional.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
   app.use(["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"], themeAssetSecurityHeaders, (req, res, next) => {
     const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId }, {});
     const requestedRevision = req.params.revision;
     const preview = typeof requestedRevision === "string";
-    const serveFrom = (index: number): void => {
+    const serveFrom = ({ index }: { index: number }, _optional = {}): void => {
       const themeDir = themeDirs[index];
       if (themeDir === undefined) {
         next();
@@ -85,22 +86,33 @@ export function registerThemeStaticAssets(
       }
       if (preview) res.set("Cache-Control", "no-store");
       const nextDir = (): void => {
-        if (sendInheritedTemplate({ themes: required.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
-        serveFrom(index + 1);
+        if (sendInheritedTemplate({ themes: optional.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
+        serveFrom({ index: index + 1 });
       };
-      const revision = preview
-        ? trustedPreviewRevision(
-          { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
-          { isAuthenticatedPreviewRevision: required.isAuthenticatedPreviewRevision },
-        )
-        : undefined;
-      if (revision !== undefined && (req.method === "GET" || req.method === "HEAD") && sendPreviewCss({ res, themeDir, url: req.url, revision, next, nextDir })) return;
+      if (sendAuthenticatedPreviewCss({ req, res, themeDir, requestedRevision, next, nextDir }, { isAuthenticatedPreviewRevision: optional.isAuthenticatedPreviewRevision })) return;
 
       // Explicit dotfiles policy makes send check every segment; its legacy default allows hidden directories.
       serveStatic(themeDir, { dotfiles: "deny", ...(preview ? { cacheControl: false, etag: false, lastModified: false } : {}) })(req, res, (err?: unknown) => (err ? next(err) : nextDir()));
     };
-    serveFrom(0);
+    serveFrom({ index: 0 });
   });
+}
+
+/**
+ * Answers a GET/HEAD for rewritable CSS under a `/theme-preview-assets/:revision/` URL when that
+ * revision is trusted; `false` for non-preview requests and everything the caller must serve statically.
+ */
+function sendAuthenticatedPreviewCss(
+  required: { req: Request; res: Response; themeDir: string; requestedRevision: unknown; next: NextFunction; nextDir: () => void },
+  optional: { isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+): boolean {
+  const { req, res, themeDir, requestedRevision, next, nextDir } = required;
+  if (typeof requestedRevision !== "string") return false;
+  const revision = trustedPreviewRevision(
+    { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
+    { isAuthenticatedPreviewRevision: optional.isAuthenticatedPreviewRevision },
+  );
+  return revision !== undefined && (req.method === "GET" || req.method === "HEAD") && sendPreviewCss({ res, themeDir, url: req.url, revision, next, nextDir });
 }
 
 /** Serve only sources the loader actually inherited, after physical files have had precedence.
@@ -158,7 +170,7 @@ function sendPreviewCss(required: { res: Response; themeDir: string; url: string
   try { relativePath = decodeURIComponent(required.url.replace(/\?[\s\S]*/, "")).replace(/^\/+/, ""); }
   catch { required.next(); return true; }
   const cssPath = resolvePathWithin({ root: required.themeDir, segment: relativePath }, {});
-  if (!cssPath || !isRewritableCssPath(relativePath)) return false;
+  if (!cssPath || !isRewritableCssPath({ relativePath })) return false;
   try {
     const css = readFileSync(cssPath, "utf8");
     required.res.type("css").send(previewCss({ css, revision: required.revision }));
@@ -167,7 +179,7 @@ function sendPreviewCss(required: { res: Response; themeDir: string; url: string
 }
 
 /** A `.css` file (any case) with no dot-prefixed segment anywhere in its theme-relative path. */
-function isRewritableCssPath(relativePath: string): boolean {
+function isRewritableCssPath({ relativePath }: { relativePath: string }, _optional = {}): boolean {
   return relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."));
 }
 
@@ -175,5 +187,5 @@ function isRewritableCssPath(relativePath: string): boolean {
 function previewCss(required: { css: string; revision: string }): string {
   // Match root-relative references, preserving external hosts and existing query/fragment tails.
   return required.css.replace(/((?:url\(\s*["']?|@import\s+["']))\/theme-assets\//gi,
-    `$1/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
+    (_match, prefix: string) => `${prefix}/theme-preview-assets/${encodeURIComponent(required.revision)}/`);
 }

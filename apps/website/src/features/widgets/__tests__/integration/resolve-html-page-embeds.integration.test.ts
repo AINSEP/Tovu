@@ -20,7 +20,7 @@ import { registerCoreResolver, createContactFormResolver } from "@jini-ai/cms/wi
 // out `__tests__/` for exactly this shape of cross-layer integration test). Used below to prove a
 // `media` node's resolved `contentType` actually reaches a `<video>` tag, not just that the resolved
 // JSON prop looks right.
-import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render";
+import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "@jini-ai/cms/widgets";
 
 /**
@@ -172,7 +172,7 @@ test('resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -195,7 +195,7 @@ test('resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id 
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -218,7 +218,7 @@ test('resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form d
   await seedContactFormWidget(entryRepo, "cf-widget-disabled", "form-disabled");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition({ id: "form-disabled", slug: "disabled-form", status: "disabled" }));
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -236,7 +236,7 @@ test("resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -404,7 +404,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the 
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -423,7 +423,7 @@ test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -702,7 +702,7 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },
@@ -838,7 +838,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 
 test('resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -865,7 +865,7 @@ test('resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-forma
 
 test('resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -877,7 +877,7 @@ test('resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker 
 
 test('resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -889,7 +889,7 @@ test('resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker
 
 test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-1", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -901,9 +901,9 @@ test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT r
 
 test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [
     postRecord({ id: "trashed-1", status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }),
-  ]);
+  ] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -915,7 +915,7 @@ test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED
 
 test('resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass\'s target, not this one\'s', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ id: "html-1", bodyFormat: "html", bodyHtml: "<p>hi</p>", kind: "page" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "html-1", bodyFormat: "html", bodyHtml: "<p>hi</p>", kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -938,7 +938,7 @@ test('resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" e
 
 test('GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-2", status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-2", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -953,7 +953,7 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
   // checking `postRepo` truthiness instead of the row's own status), both the published and the
   // draft case would resolve identically. This pins the published case succeeding as the control.
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ id: "published-1" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "published-1" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -979,7 +979,7 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
 
 test('resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the same published row an id-addressed embed would, keyed by the slug', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ kind: "page" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -994,7 +994,7 @@ test('resolveHtmlPageEmbeds: a "content" embed addressed by SLUG resolves the sa
 
 test('resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same way "content" does', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1008,7 +1008,7 @@ test('resolveHtmlPageEmbeds: a "post" embed addressed by SLUG resolves the same 
 
 test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a DRAFT row never resolves', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", slug: "draft-slug", status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ id: "draft-1", slug: "draft-slug", status: "draft" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1020,9 +1020,9 @@ test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed
 
 test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed by a slug naming a TRASHED row never resolves', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [
     postRecord({ id: "trashed-1", slug: "trashed-slug", status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }),
-  ]);
+  ] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1034,10 +1034,10 @@ test('GUARD 2 (slug twin): resolveHtmlPageEmbeds — a "content" embed addressed
 
 test('resolveHtmlPageEmbeds: a "content" embed with both id and slug uses id and never consults slug — same precedent as the media/widget resolvers', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [
     postRecord({ id: "entity-1", slug: "entity-one-slug", title: "Entity One" }),
     postRecord({ id: "entity-2", slug: "entity-two-slug", title: "Entity Two" }),
-  ]);
+  ] });
 
   // Only entity-1's own id key is populated; if this fell back to slug for a marker carrying both, it
   // would surface entity-2's data instead of entity-1's.
@@ -1103,7 +1103,7 @@ function postRecordWithImage(overrides: Partial<PostRecord> = {}): PostRecord {
 test("collectMediaRefAssetIds resolves media at depth 10000 without truncating or overflowing", async () => {
   let deep: unknown = { type: "media", attrs: { assetId: "asset-1", transformName: CORE_PUBLIC_TRANSFORM_NAME } };
   for (let i = 0; i < 10000; i++) deep = { type: "blockquote", content: [deep] };
-  const postRepo = new InMemoryPostRepo([postRecordWithImage({ bodyJson: { type: "doc", content: [deep] } as PostRecord["bodyJson"] })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithImage({ bodyJson: { type: "doc", content: [deep] } as PostRecord["bodyJson"] })] });
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "deep-asset" })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
   const resolved = await resolveHtmlPageEmbeds({
@@ -1121,7 +1121,7 @@ test("collectMediaRefAssetIds resolves media at depth 10000 without truncating o
 
 test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithImage()] });
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "hero" })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })] });
 
@@ -1143,7 +1143,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-base
 
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson\'s ref-based images (both "post-content" IR builders shared the same gap, not just "content")', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithImage()] });
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
@@ -1159,7 +1159,7 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME medi
 
 test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithImage()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) }, // no mediaRepo/transformRepo
@@ -1254,7 +1254,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
 
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions for a "media" node in its own bodyJson (both "post-content" IR builders share the one collector, so both share the fix)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithMediaNode()] });
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
 
@@ -1289,7 +1289,7 @@ test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME medi
 
 test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType for a "media" node\'s asset, so a VIDEO asset renders a real <video> through render.ts\'s renderWidgetIr — the exact path a live post rendered through a static-tier theme\'s own template takes for its OWN body, not only a page that embeds the post', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithMediaNode()] });
   const sha256 = "c".repeat(64);
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
@@ -1320,7 +1320,7 @@ test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves contentType
 
 test('resolveHtmlPageEmbeds: CONTROL for the test above — the same "content" DB branch still renders a real <img>, not <video>, for an image/* asset through the identical path (proves the fix does not make everything look like a video)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecordWithMediaNode()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithMediaNode()] });
   const sha256 = "d".repeat(64);
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ workspaceId: WORKSPACE_ID_POST, source: { sha256 } })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })] });
@@ -1410,7 +1410,7 @@ const EXPECTED_INLINE_WIDGET_BODY =
 test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch resolves the post body\'s inline widgetEmbed nodes, so renderWidgetIr renders the real widget (trashed/missing widgets still degrade to the placeholder) — the path every post rendered through a static-tier theme template takes', async () => {
   const entryRepo = new InMemoryEntryRepo();
   await seedInlineWidgets(entryRepo);
-  const postRepo = new InMemoryPostRepo([postRecordWithWidgetEmbeds()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithWidgetEmbeds()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1443,7 +1443,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
 test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves inline widgetEmbed nodes in its bodyJson too (all three "post-content" IR builders share one context helper)', async () => {
   const entryRepo = new InMemoryEntryRepo();
   await seedInlineWidgets(entryRepo);
-  const postRepo = new InMemoryPostRepo([postRecordWithWidgetEmbeds()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecordWithWidgetEmbeds()] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1460,7 +1460,7 @@ test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid c
   await seedTextWidget(entryRepo, "opaque-widget", "slug body", "valid-widget");
   const mediaRepo = new InMemoryMediaRepo({}, { initialRows: [mediaRecord({ id: "opaque-media", slug: "valid-media" })] });
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
-  const postRepo = new InMemoryPostRepo([postRecord({ workspaceId: WORKSPACE_ID, slug: "valid-content" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ workspaceId: WORKSPACE_ID, slug: "valid-content" })] });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
     input: { workspaceId: WORKSPACE_ID, html:
@@ -1482,7 +1482,7 @@ test('resolveHtmlPageEmbeds: a missing explicit id never falls back to a valid c
 
 test('resolveHtmlPageEmbeds: a "content" embed\'s DB branch dates a live post by its publishAt, not updatedAt', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ publishAt: "2026-08-01T12:00:00.000Z", updatedAt: "2026-08-11T12:00:00.000Z" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ publishAt: "2026-08-01T12:00:00.000Z", updatedAt: "2026-08-11T12:00:00.000Z" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },
@@ -1516,7 +1516,7 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
 
 test('resolveHtmlPageEmbeds: a post with no publishAt keeps dating by updatedAt (unchanged)', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord({ updatedAt: "2026-08-11T12:00:00.000Z" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord({ updatedAt: "2026-08-11T12:00:00.000Z" })] });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, postRepo: createPublicPostReader({ repo: postRepo }) },

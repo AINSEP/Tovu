@@ -13,7 +13,7 @@ import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -54,7 +54,7 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   const deps = createRouteDeps();
   await deps.identityReady;
   const surface = createByokToolSurface(deps as never, { contributions });
-  const tools = buildAssistantToolRegistrations(deps as never, undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map(registration => registration.descriptor);
+  const tools = buildAssistantToolRegistrations(deps as never, { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map(registration => registration.descriptor);
   assert.ok(tools.length > 100, `expected ~130 tools, got ${tools.length}`);
 
   const ids = new Set(tools.map((tool) => tool.id));
@@ -75,8 +75,8 @@ test("TEMP: full wired-tool catalog sanitizes cleanly for Gemini across all 5 cl
   ];
   const contributors = contributions.contributors.list({});
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
-  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, surfaces, { ...( { includeContentReadCollapse: false }), contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((registration) => registration.descriptor.id));
-  assert.deepEqual(visibleIds.sort(), buildAssistantToolRegistrations(deps as never, surfaces, { contributions }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
+  const rawIds = new Set(buildAssistantToolRegistrations(deps as never, { surfaces: surfaces, options: { ...( { includeContentReadCollapse: false }), contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map((registration) => registration.descriptor.id));
+  assert.deepEqual(visibleIds.sort(), buildAssistantToolRegistrations(deps as never, { surfaces: surfaces, options: { contributions } }).map((registration) => registration.descriptor.id).sort(), "the BYOK surface must retain the complete assembled catalog after content-read collapse");
   for (const domain of requiredDomains) {
     const contributor = contributors.find((entry) => entry.domain === domain);
     assert.ok(contributor, `missing contributor ${domain}`);

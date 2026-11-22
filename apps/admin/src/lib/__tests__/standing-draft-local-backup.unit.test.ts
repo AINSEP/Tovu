@@ -18,21 +18,21 @@ afterEach(() => { localStorage.clear(); });
 const draft = { bodyFormat: "doc" as const, bodyJson: { type: "doc" }, title: "Hello", slug: "hello", baseVersion: 3 };
 
 it("parks an unattributed draft under the legacy key and reads it back stamped with the local principal", () => {
-  writeStandingDraftLocalBackup("entry-1", draft, "2026-10-21T00:00:00.000Z");
+  writeStandingDraftLocalBackup({ entryId: "entry-1", draft, savedAt: "2026-10-21T00:00:00.000Z" });
   expect(Object.keys(localStorage)).toEqual(["tovu.admin.standing-draft-backup.entry-1"]);
-  expect(readStandingDraftLocalBackup("entry-1")).toEqual({ ...draft, savedAt: "2026-10-21T00:00:00.000Z", savedByPrincipalId: LOCAL_BACKUP_PRINCIPAL_ID });
-  clearStandingDraftLocalBackup("entry-1");
-  expect(readStandingDraftLocalBackup("entry-1")).toBeNull();
+  expect(readStandingDraftLocalBackup({ entryId: "entry-1" })).toEqual({ ...draft, savedAt: "2026-10-21T00:00:00.000Z", savedByPrincipalId: LOCAL_BACKUP_PRINCIPAL_ID });
+  clearStandingDraftLocalBackup({ entryId: "entry-1" });
+  expect(readStandingDraftLocalBackup({ entryId: "entry-1" })).toBeNull();
   expect(localStorage.length).toBe(0);
 });
 
 it("keys a principal's draft by principal and entry, separately from another principal's", () => {
-  writeStandingDraftLocalBackup("entry 1", draft, "2026-10-21T00:00:00.000Z", { principalId: "user/a" });
+  writeStandingDraftLocalBackup({ entryId: "entry 1", draft, savedAt: "2026-10-21T00:00:00.000Z" }, { principalId: "user/a" });
   expect(Object.keys(localStorage)).toEqual(["tovu.admin.standing-draft-backup.user%2Fa.entry%201"]);
-  expect(readStandingDraftLocalBackup("entry 1", { principalId: "user/a" })).toMatchObject({ title: "Hello", savedByPrincipalId: "user/a" });
-  expect(readStandingDraftLocalBackup("entry 1", { principalId: "user/b" })).toBeNull();
-  clearStandingDraftLocalBackup("entry 1", { principalId: "user/b" });
+  expect(readStandingDraftLocalBackup({ entryId: "entry 1" }, { principalId: "user/a" })).toMatchObject({ title: "Hello", savedByPrincipalId: "user/a" });
+  expect(readStandingDraftLocalBackup({ entryId: "entry 1" }, { principalId: "user/b" })).toBeNull();
+  clearStandingDraftLocalBackup({ entryId: "entry 1" }, { principalId: "user/b" });
   expect(localStorage.length).toBe(1);
-  clearStandingDraftLocalBackup("entry 1", { principalId: "user/a" });
+  clearStandingDraftLocalBackup({ entryId: "entry 1" }, { principalId: "user/a" });
   expect(localStorage.length).toBe(0);
 });

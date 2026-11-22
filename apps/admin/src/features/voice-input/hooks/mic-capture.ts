@@ -31,7 +31,7 @@ const CAPTURE_CHANNEL_COUNT = 1;
  * complete recording, not a stream of chunks.
  * @complexity Time/space: O(n) in total sample count.
  */
-function concatFloat32Chunks(chunks: Float32Array[]): Float32Array {
+function concatFloat32Chunks({ chunks }: { chunks: Float32Array[] }, _options = {}): Float32Array {
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const combined = new Float32Array(totalLength);
   let offset = 0;
@@ -87,14 +87,14 @@ export function createMicPushToTalkCapture(voicePort: VoiceInputPort): PushToTal
     processor?.disconnect();
     stream?.getTracks().forEach((track) => track.stop());
     const sampleRate = audioContext?.sampleRate ?? 16000;
-    const recordedSamples = concatFloat32Chunks(chunks);
+    const recordedSamples = concatFloat32Chunks({ chunks });
     await audioContext?.close();
     stream = null;
     audioContext = null;
     processor = null;
     chunks = [];
 
-    const result = await voicePort.transcribe(recordedSamples, sampleRate);
+    const result = await voicePort.transcribe({ samples: recordedSamples, sampleRate });
     return result.text;
   }
 

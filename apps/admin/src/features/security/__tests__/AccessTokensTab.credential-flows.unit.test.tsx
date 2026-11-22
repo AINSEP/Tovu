@@ -1,18 +1,15 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isValidElementHandle } from "@jini-ai/agentic";
+import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { AccessTokensTab } from "../AccessTokensTab";
-import {
-  accessTokenExistingRowReadyToSave,
-  accessTokenProviderInfo,
-  accessTokenRowProviderInfo,
-  accessTokenRowReadyToSave,
-  otherCredentialStoreInfo,
-} from "../rules";
+import { accessTokenExistingRowReadyToSave, accessTokenRowReadyToSave } from "../access-token-forms";
+import { accessTokenProviderInfo, accessTokenRowProviderInfo } from "../access-token-providers";
+import { otherCredentialStoreInfo } from "../other-credential-stores";
 import { ACCESS_TOKEN_TEST_PROVIDERS } from "./access-token-providers.fixture";
-import type { AccessTokenKind, AccessTokenRow } from "../rules";
+import type { AccessTokenKind } from "../rules";
+import type { AccessTokenRow } from "../access-token-rows";
 import type {
   AccessTokenAddFormState,
   AccessTokenExistingRowState,
@@ -147,13 +144,13 @@ function groupFor(
 ): AccessTokenProviderGroupState {
   const info =
     kind === "custom" && rows[0]
-      ? accessTokenRowProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, rows[0].row)
-      : accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind, providerId });
+      ? accessTokenRowProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, row: rows[0].row })
+      : accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind, providerId } });
   const ref = { kind: info.kind, providerId: info.providerId };
   return {
     info,
-    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ ref, ...state }, state.row, info) })),
-    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ ref, ...addFormState }, info) },
+    rows: rows.map((state) => ({ ...state, readyToSave: accessTokenExistingRowReadyToSave({ fields: { ref, ...state }, row: state.row, info }) })),
+    addForm: { ...addFormState, readyToSave: accessTokenRowReadyToSave({ fields: { ref, ...addFormState }, info }) },
   };
 }
 
@@ -170,9 +167,9 @@ it.each(["publish", "custom"] as const)("renders and clears raw saved Works for 
   const field = screen.getByRole("group", { name: "Works for" });
   expect(within(field).getByRole("button", { name: "plugin-off", pressed: true })).toBeInTheDocument();
   fireEvent.click(within(field).getByRole("button", { name: "GitHub" }));
-  expect(setExistingField).toHaveBeenLastCalledWith(saved.id, { worksFor: ["plugin-off", "github"] });
+  expect(setExistingField).toHaveBeenLastCalledWith({ rowId: saved.id, patch: { worksFor: ["plugin-off", "github"] } });
   fireEvent.click(within(field).getByRole("button", { name: "plugin-off" }));
-  expect(setExistingField).toHaveBeenLastCalledWith(saved.id, { worksFor: [] });
+  expect(setExistingField).toHaveBeenLastCalledWith({ rowId: saved.id, patch: { worksFor: [] } });
 });
 
 it("selects Works for in a publish add form", () => {
@@ -208,7 +205,7 @@ it("renders migrated vault ids in every row control and passes the unchanged id 
   const name = container.querySelector<HTMLInputElement>(`#security-existing-${safeId}-name`)!;
   expect(name.getAttribute("data-agent-element")).toBe(`security-existing-${safeId}-name`);
   fireEvent.change(name, { target: { value: "Renamed" } });
-  expect(setExistingField).toHaveBeenCalledWith(id, { name: "Renamed" });
+  expect(setExistingField).toHaveBeenCalledWith({ rowId: id, patch: { name: "Renamed" } });
   fireEvent.click(container.querySelector(`[data-agent-element="security-access-tokens-default-${safeId}"]`)!);
   expect(makeDefault).toHaveBeenCalledWith(saved);
   fireEvent.click(container.querySelector(`[data-agent-element="security-access-tokens-save-${safeId}"]`)!);
@@ -495,10 +492,10 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     renderTab({ groups: [groupFor("publish", "netlify", [rowState({ row: row({ id: "row-1" }) })])], setExistingField });
 
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Prod 2" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { name: "Prod 2" });
+    expect(setExistingField).toHaveBeenCalledWith({ rowId: "row-1", patch: { name: "Prod 2" } });
 
     fireEvent.change(screen.getByLabelText("Personal access token"), { target: { value: "ghp_new" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { token: "ghp_new" });
+    expect(setExistingField).toHaveBeenCalledWith({ rowId: "row-1", patch: { token: "ghp_new" } });
   });
 
   it("typing into Account ID calls setExistingField for this row (Cloudflare Pages' own required field)", () => {
@@ -506,7 +503,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
     renderTab({ groups: [groupFor("publish", "cloudflare-pages", [rowState({ row: row({ id: "row-1", providerId: "cloudflare-pages" }) })])], setExistingField });
 
     fireEvent.change(screen.getByLabelText("Account ID"), { target: { value: "acct-9" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { values: { accountId: "acct-9" } });
+    expect(setExistingField).toHaveBeenCalledWith({ rowId: "row-1", patch: { values: { accountId: "acct-9" } } });
   });
 
   it("typing into Username calls setExistingField for this row (a field Bitbucket's descriptor declares)", () => {
@@ -518,7 +515,7 @@ describe("AccessTokensTab — ExistingTokenFields: Save/Remove and error renderi
 
     const group = container.querySelector('[data-agent-element="security-access-tokens-group-source-control-bitbucket"]') as HTMLElement;
     fireEvent.change(within(group).getByLabelText("Username"), { target: { value: "bb-user" } });
-    expect(setExistingField).toHaveBeenCalledWith("row-1", { values: { username: "bb-user" } });
+    expect(setExistingField).toHaveBeenCalledWith({ rowId: "row-1", patch: { values: { username: "bb-user" } } });
   });
 
   it("clicking Remove from Tovu opens the confirm dialog", () => {
@@ -936,7 +933,7 @@ describe("AccessTokensTab remaining field and row states", () => {
     const group = groupFor("custom", saved.providerId, [rowState({ row: saved, name: "Internal API", username: "bot" })], addForm({ visible: true, username: "new-bot" }));
     renderTab({ groups: [group], setExistingField, setAddField });
     fireEvent.change(screen.getByDisplayValue("bot"), { target: { value: "deploy-bot" } });
-    expect(setExistingField).toHaveBeenCalledWith("custom-row", { username: "deploy-bot" });
+    expect(setExistingField).toHaveBeenCalledWith({ rowId: "custom-row", patch: { username: "deploy-bot" } });
     fireEvent.change(screen.getByDisplayValue("new-bot"), { target: { value: "other-bot" } });
     expect(setAddField).toHaveBeenCalledWith({ kind: "custom", providerId: "custom-1" }, { username: "other-bot" });
   });
@@ -959,7 +956,7 @@ describe("AccessTokensTab remaining field and row states", () => {
   });
 
   it("lists a saved Tier 2 credential alongside the providers", () => {
-    const store = otherCredentialStoreInfo("site-assistant");
+    const store = otherCredentialStoreInfo({ id: "site-assistant" });
     renderTab({}, {
       groups: [{ store, rows: [{ key: "site-assistant:site-assistant", store, itemId: "site-assistant", name: store.label, valueFact: "••••abcd", updatedAt: null, token: "", saving: false, error: null }] }],
     });

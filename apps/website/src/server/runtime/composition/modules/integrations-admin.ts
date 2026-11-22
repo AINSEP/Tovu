@@ -24,12 +24,12 @@ import type { ServerModuleHandle } from "./types.js";
 export function createIntegrationsAdminModule(deps: IntegrationsRouteDeps): ServerModuleHandle {
   return {
     name: "integrations-admin",
-    registerRoutes: (app) => {
-      registerAdminIntegrationsListRoute(app, deps);
-      registerAdminIntegrationsCreateRoute(app, deps);
-      registerAdminIntegrationsPauseRoute(app, deps);
-      registerAdminIntegrationsDeleteRoute(app, deps);
-      registerAdminIntegrationsDeliveriesRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminIntegrationsListRoute({ app, deps });
+      registerAdminIntegrationsCreateRoute({ app, deps });
+      registerAdminIntegrationsPauseRoute({ app, deps });
+      registerAdminIntegrationsDeleteRoute({ app, deps });
+      registerAdminIntegrationsDeliveriesRoute({ app, deps });
     },
   };
 }

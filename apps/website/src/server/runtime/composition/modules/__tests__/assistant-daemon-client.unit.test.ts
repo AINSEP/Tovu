@@ -129,6 +129,8 @@ test("parked frontend stream returns 503 without demand", () => {
 });
 
 test("a refused parked mutation waits for replacement and is dispatched once", async t => {
+  // why: the daemon origin is explicit config or a port ensure() allocated; `fetch` is mocked, so an explicit dummy origin suffices.
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", [TOKEN_ENV]: "tok-123" });
   let ready = 0; let parking = 0; let dispatches = 0; let sends = 0;
   t.mock.method(globalThis, "fetch", async () => {
     if (++sends === 1) return Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } });
@@ -143,6 +145,8 @@ test("a refused parked mutation waits for replacement and is dispatched once", a
 });
 
 test("a passive frontend stream cannot wake a daemon racing park", async t => {
+  // why: the daemon origin is explicit config or a port ensure() allocated; `fetch` is mocked, so an explicit dummy origin suffices.
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", [TOKEN_ENV]: "tok-123" });
   let wakes = 0;
   t.mock.method(globalThis, "fetch", async () => Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } }));
   const response = await demandFetch(fakeReq({ method: "GET", originalUrl: "/api/frontend-sessions/stream" }), fakeRes().res, {
@@ -302,6 +306,22 @@ test("forwardToAgentDaemon passes its observability port through to the call it 
   await forwardToAgentDaemon(fakeReq({ originalUrl: "/api/runs", method: "GET" }), fakeRes().res, undefined, { observability: port });
 
   assert.equal((await finishedSpans(exporter, 1))[0].name, "GET 127.0.0.1");
+});
+
+test("cancelDaemonRunBestEffort ignores an unknown run but reports an unexpected HTTP failure", async (t) => {
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:4319" });
+  let status = 404;
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status }));
+  const errors = t.mock.method(console, "error", () => {});
+  const request = fakeReq({ originalUrl: "/x", method: "GET" });
+  const { res } = fakeRes();
+  cancelDaemonRunBestEffort(request, res, "run-1");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(errors.mock.callCount(), 0);
+  status = 500;
+  cancelDaemonRunBestEffort(request, res, "run-1");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[assistant] Could not cancel the daemon run: HTTP 500"]]);
 });
 
 test("cancelDaemonRunBestEffort traces its fire-and-forget POST without the run id", async (t) => {

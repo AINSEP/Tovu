@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { type CapturedHttpRequest, ScriptedMcpHttpExchange, type ScriptedHttpReply } from "../mcp-federation/adapter.memory.js";
-import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../mcp-federation/adapter.http.js";
+import { connectMcpHttpSession } from "../mcp-federation/adapter.http.js";
+import { createFetchMcpHttpExchange } from "@jini-ai/mcp/federation";
 import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
 import type { McpHttpLaunchSpec } from "@jini-ai/mcp/federation";
 

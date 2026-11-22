@@ -11,9 +11,11 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { postAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -36,7 +38,7 @@ const BODY_B = { type: "doc", content: [{ type: "paragraph", content: [{ type: "
 
 function fakeRouteDeps() {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const deps = {
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
@@ -231,7 +233,7 @@ for (const removal of ["delete", "trash"] as const) {
     repo = harness.postRepo;
     const result = await delegatedToolExecuteRoute.handle({
       input: { runId: harness.run.id, toolUseId: `tu-${removal}`, toolId: "content_post_update", input: updateInput({ title: "Should not land", expectedVersion: 1 }) },
-      deps: harness.routeDeps as never,
+      deps: { ...harness.routeDeps, reportInternalError: reportRouteInternalError } as never,
     });
     assert.equal(result.ok, false, JSON.stringify(result));
     if (result.ok) return;
@@ -249,13 +251,13 @@ test("a version conflict reaches the model as an actionable BAD_REQUEST, NOT a r
 
   const first = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Operator A's document", bodyJson: BODY_A, expectedVersion: 1 }) },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
   assert.equal(first.ok, true, JSON.stringify(first));
 
   const stale = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-2", toolId: "content_post_update", input: updateInput({ title: "Operator B's document", bodyJson: BODY_B, expectedVersion: 1 }) },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.equal(stale.ok, false, JSON.stringify(stale));
@@ -276,14 +278,14 @@ test("a numeric-string expectedVersion is normalized without bypassing the concu
   const { postRepo, routeDeps, run } = await delegatedHarness();
   const first = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Normalized save", expectedVersion: "1" }) },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
   assert.equal(first.ok, true, JSON.stringify(first));
   assert.match(JSON.stringify(first), /expectedVersion: string→integer/);
   assert.equal((await storedPost(postRepo)).version, 2);
   const stale = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-2", toolId: "content_post_update", input: updateInput({ title: "Must not overwrite", expectedVersion: "1" }) },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
   assert.equal(stale.ok, false, JSON.stringify(stale));
   if (stale.ok) return;
@@ -298,7 +300,7 @@ test("a malformed expectedVersion reaches the model as a DIFFERENT, shape-flavou
   const res = await delegatedToolExecuteRoute.handle({
     // Numeric strings normalize at the execution gate (13138e356); use an invalid version.
     input: { runId: run.id, toolUseId: "tu-1", toolId: "content_post_update", input: updateInput({ title: "Should Not Land", expectedVersion: "not-a-version" }) },
-    deps: routeDeps as never,
+    deps: { ...routeDeps, reportInternalError: reportRouteInternalError } as never,
   });
 
   assert.equal(res.ok, false, JSON.stringify(res));

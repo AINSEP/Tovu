@@ -5,7 +5,8 @@ import type { ToolRegistration } from "@jini-ai/core";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
-import { buildWebhooksRegistrations, contributeWebhooksTools, webhooksDerivedRisk, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { webhooksDerivedRisk } from "@jini-ai/integrations/webhooks/tools";
+import { buildWebhooksRegistrations, contributeWebhooksTools, type IntegrationsToolDeps } from "../tool-registrations.js";
 
 /**
  * @file The non-delete webhooks tool handlers, called through their registrations against the
@@ -111,12 +112,12 @@ test("update: topics must be an array of strings; a valid update reports the lat
   const subscription = await created(call, ["post.published"]);
   for (const topics of [undefined, "post.published", ["post.published", 3]]) {
     await assert.rejects(
-      call("webhooks_update_subscription", { subscriptionId: subscription.id, label: "Renamed", targetUrl: "https://example.test/hooks", topics }),
+      call("webhooks_update_subscription", { subscriptionId: subscription.id, expectedVersion: 1, label: "Renamed", targetUrl: "https://example.test/hooks", topics }),
       /topics must be an array of strings/,
     );
   }
   deliveries.recordedRows = [delivery("d-1", "2026-09-01T00:00:00.000Z", subscription.id)];
-  const updated = await call("webhooks_update_subscription", { subscriptionId: subscription.id, label: "Renamed", targetUrl: "https://example.test/hooks", topics: ["post.published"] });
+  const updated = await call("webhooks_update_subscription", { subscriptionId: subscription.id, expectedVersion: 1, label: "Renamed", targetUrl: "https://example.test/hooks", topics: ["post.published"] });
   assert.equal(updated.subscription.label, "Renamed");
   assert.equal(updated.subscription.lastDelivery?.id, "d-1");
   assert.equal(deliveries.limits.at(-1), 1);

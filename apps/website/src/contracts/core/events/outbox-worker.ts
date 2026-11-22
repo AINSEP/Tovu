@@ -1,5 +1,5 @@
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { computeOutboxBackoffMs as jiniBackoff, processOutbox as processJiniOutbox } from "@jini-ai/infra/events/outbox";
 import { outboxWorkerArgs } from "./jini-outbox-adapter.js";
 import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
@@ -11,9 +11,9 @@ import { outboxRetryPolicyForEvent } from "./outbox-retry-policies.js";
  * Converts persisted outbox records into delivered bus events.
  *
  * How it relates to the project:
- * - Reads and updates outbox state through `OutboxPort` (`src/contracts/core/ports.ts`).
+ * - Reads and updates outbox state through `OutboxPort` (`Jini packages/cms/src/core/ports.ts`).
  * - Publishes delivered events through `EventBusPort`.
- * - Called by `src/server/app.ts` after a successful command write.
+ * - Called by `apps/website/src/server/runtime/composition/app.ts` after a successful command write.
  *
  * Architectural role:
  * This is the hybrid reliability bridge:
@@ -69,10 +69,10 @@ export { DEFAULT_OUTBOX_DELIVERY_TIMEOUT_MS } from "@jini-ai/infra/events/outbox
  * `random` is injectable (defaults to `Math.random`) purely for deterministic tests.
  *
  * @throws RangeError for invalid attempts or randomness, as enforced by the Jini owner.
- * @example computeOutboxBackoffMs(1, { random: () => 0 }); // 15000
+ * @example computeOutboxBackoffMs({ attempts: 1 }, { random: () => 0 }); // 15000
  * @complexity O(1).
  */
-export function computeOutboxBackoffMs(attempts: number, optional: { random?: () => number } = {}): number {
+export function computeOutboxBackoffMs({ attempts }: { attempts: number }, optional: { random?: () => number } = {}): number {
   return jiniBackoff({ attempts, random: optional.random ?? Math.random });
 }
 

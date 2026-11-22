@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { FixedRootKeyKeyring as FixedSiteKeyKeyring } from "@jini-ai/platform/secrets"; // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
 import { HKDF_EXTRACTION_SALT } from "./keyring.env.js";
-import type { KeyringPort } from "./ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /** Ephemeral host keyring with the same Tovu salt and Jini derivation as persisted keys.
  *
@@ -10,7 +10,7 @@ import type { KeyringPort } from "./ports.js";
  * @file An in-memory `KeyringPort` test/dev double (ADR-PIPE-015 Phase 1 T017).
  *
  * Purpose:
- * Backs the hermetic `RouteDeps` composition (`server/app.ts`'s `createRouteDeps()`, used by
+ * Backs the hermetic `RouteDeps` composition (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`, used by
  * every route test) with the REAL `createKeyringBackedSigner`/HKDF derivation code path, without
  * touching the filesystem or an env var the way `EnvOrFileKeyring` does. A random site key is
  * generated once per instance and held only in memory.
@@ -21,7 +21,7 @@ import type { KeyringPort } from "./ports.js";
 export class InMemoryKeyring implements KeyringPort {
   private readonly keyring: FixedSiteKeyKeyring;
 
-  constructor(keyId = "v1") {
+  constructor(_required: Record<string, never> = {}, { keyId = "v1" }: { keyId?: string } = {}) {
     this.keyring = new FixedSiteKeyKeyring({
       hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT, // site-key-frozen: never change (every sealed row depends on these bytes)
     }, { keyId });

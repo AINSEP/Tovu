@@ -20,10 +20,10 @@ const call = (siteDir: string) => JSON.stringify({ jsonrpc: '2.0', id: 1, method
 async function fixture(t: test.TestContext, revealPath: (target: string) => Promise<void>) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-http-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const projectsPath = sitesFilePath(dir);
+  const projectsPath = sitesFilePath({ userDataDir: dir });
   // Use the registry owner, so authorization exercises the actual tool handler.
-  trackSite(projectsPath, '/sites/example');
-  const server = await startDesktopMcpHttp({ context: { projectsPath, revealPath } });
+  trackSite({ projectsPath, siteDir: '/sites/example' });
+  const server = await startDesktopMcpHttp({ context: { projectsPath, revealPath: ({ target }) => revealPath(target) } });
   t.after(() => server.close({}));
   const emptySiteDir = path.join(dir, 'empty');
   fs.mkdirSync(emptySiteDir);
@@ -111,8 +111,8 @@ test('desktop tools work without keyring or stored row', async (t) => {
 test('queued desktop mutations cannot overtake an unfinished mutation', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-mcp-queue-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const projectsPath = sitesFilePath(dir);
-  trackSite(projectsPath, '/sites/example');
+  const projectsPath = sitesFilePath({ userDataDir: dir });
+  trackSite({ projectsPath, siteDir: '/sites/example' });
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   t.after(() => release());

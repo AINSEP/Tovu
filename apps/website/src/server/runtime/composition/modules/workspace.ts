@@ -18,12 +18,12 @@ import type { ServerModuleHandle } from "./types.js";
 export function createWorkspaceModule(deps: WorkspaceRouteDeps): ServerModuleHandle {
   return {
     name: "workspace",
-    registerRoutes: (app) => {
-      registerAdminWorkspaceListRoute(app, deps);
-      registerAdminWorkspaceCreateRoute(app, deps);
-      registerAdminWorkspaceGetRoute(app, deps);
-      registerAdminWorkspaceUpdateRoute(app, deps);
-      registerAdminWorkspaceDeleteRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminWorkspaceListRoute({ app, deps });
+      registerAdminWorkspaceCreateRoute({ app, deps });
+      registerAdminWorkspaceGetRoute({ app, deps });
+      registerAdminWorkspaceUpdateRoute({ app, deps });
+      registerAdminWorkspaceDeleteRoute({ app, deps });
     },
   };
 }

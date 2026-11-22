@@ -1,8 +1,9 @@
 import { useId } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import "../../styles/media-content-editor.css";
 import { MediaContentEditor } from "./MediaContentEditor";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file "Content for this spot" — the per-placement override choice inside a `widgetEmbed` node's
  * Style dialog (`widget-embed-extension.tsx`). "Custom for this post" reuses the same

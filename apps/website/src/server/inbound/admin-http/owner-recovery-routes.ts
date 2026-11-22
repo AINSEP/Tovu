@@ -11,7 +11,7 @@ import { resolveClientIp, type RateLimiter } from '#src/contracts/core/rate-limi
 type Admission = {
   app: Express;
   deps: RouteDeps;
-  authenticate: (req: Request) => Promise<{ id: string } | null>;
+  authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ id: string } | null>;
   limiter: RateLimiter;
   desktopOwnerReset: boolean;
   acceptsDesktopCapability?: (input: { capability: string | undefined }) => boolean;
@@ -64,7 +64,7 @@ function acceptsDesktopReset({ req, admission }: { req: Request; admission: Admi
  */
 async function admitOwner({ req, action, admission, ownerId }: { req: Request; action: Action; admission: Admission; ownerId: string }): Promise<void> {
   if (action === 'recover' || (action === 'reset' && acceptsDesktopReset({ req, admission }))) return;
-  const caller = await admission.authenticate(req);
+  const caller = await admission.authenticate({ req });
   if (!caller || caller.id !== ownerId || (action === 'reset' && !acceptsDesktopReset({ req, admission }))) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to use this recovery action. On desktop, reopen the site to restore your owner session.' });
   }
@@ -88,9 +88,9 @@ async function handleRecovery({ req, res, action, admission }: { req: Request; r
     }
     const deps = await recoveryDeps(admission);
     await admitOwner({ req, action, admission, ownerId: deps.seededOwnerPrincipalId });
-    const field = (key: 'password' | 'code') => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
+    const field = ({ key }: { key: 'password' | 'code' }, _optional = {}) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
     const input = { workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
-      password: field('password'), code: field('code') };
+      password: field({ key: 'password' }), code: field({ key: 'code' }) };
     if (action === 'issue') {
       res.json(await issueRecoveryCodes({ deps, input }, {}));
       return;
@@ -111,7 +111,7 @@ export function registerOwnerRecoveryRoutes(admission: Admission, _options: Reco
   admission.app.get('/api/admin/v1/auth/owner-recovery', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      const caller = await admission.authenticate(req);
+      const caller = await admission.authenticate({ req });
       const isOwner = !!caller && caller.id === await admission.deps.ownerPrincipalId;
       res.json({ isOwner, available: isOwner && !!admission.deps.recoveryCodes, desktopOwnerReset: isOwner && admission.desktopOwnerReset });
     } catch (error) { recoveryFailure({ res, error, action: 'issue' }); }

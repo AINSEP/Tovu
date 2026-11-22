@@ -5,9 +5,11 @@ import { sql } from "kysely";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "../../index.js";
-import type { EntryRecord, EntryRepoPort, EntryRevisionInput } from "../../index.js";
-import { SqlEntryRepo } from "../../repo.js";
-import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
+import type { EntryRecord, EntryRevisionInput  } from "../../index.js";
+import type { EntryRepoPort } from "@jini-ai/cms/entries";
+import { SqliteEntryRepo } from "../../repo.sqlite.js";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 
 /**
  * @file Entry writes are compare-and-set (wm S3): `EntryRepoPort.save(row, { expectedVersion })`
@@ -148,7 +150,7 @@ function runCompareAndSetSuite(adapterName: string, make: () => Adapter): void {
 }
 
 runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const revisions: EntryRevisionInput[] = [];
   const append = repo.appendRevision.bind(repo);
   repo.appendRevision = async (revision) => {
@@ -157,7 +159,7 @@ runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
   };
   return { repo, trash: (row) => repo.saveAny({ ...row, deletedAt: NOW }), revisionCount: async () => revisions.length };
 });
-for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: new SqlEntryRepo(kernel) }) })) {
+for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: new SqliteEntryRepo({ store: kernel }) }) })) {
   runCompareAndSetSuite(`SqlEntryRepo ${each.name}`, () => {
     const { kernel, repo } = each.make();
     return {

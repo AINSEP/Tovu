@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ApiError } from '@/lib/api';
+import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
+import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@/lib/router';
+import { adminKit } from '@/integrations/jini-kits';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';
 import { CookieConsent } from '../CookieConsent';
 import type { ConsentRevisionsPort } from '../settings.hooks';
@@ -35,6 +36,17 @@ describe('CookieConsent: tabs', () => {
     expect(screen.queryByRole('region', { name: 'Banner preview' }) !== null).toBe(preview);
   });
 
+  it('uses the host light palette for all three native color inputs when tokens are unset', async () => {
+    renderPage(fakeConsentPort(), 'look');
+    await screen.findByRole('group', { name: 'Look & position' });
+    const light = adminKit.theme.defaultAdminTheme.light;
+    for (const [label, color] of [['Background', light.bg], ['Text', light.text], ['Border', light.border]] as const) {
+      const input = screen.getByLabelText(label);
+      expect(input).toHaveAttribute('type', 'color');
+      expect(input).toHaveValue(color);
+    }
+  });
+
   it('opens Overview for an absent or unknown tab', async () => {
     renderPage(fakeConsentPort(), 'records');
     expect(await screen.findByRole('heading', { name: 'Before you turn it on' })).toBeInTheDocument();
@@ -44,7 +56,7 @@ describe('CookieConsent: tabs', () => {
   it('switches tabs through the URL', async () => {
     renderPage(fakeConsentPort(), null);
     fireEvent.click(await screen.findByRole('tab', { name: 'Rules' }));
-    expect(navigate).toHaveBeenCalledWith('/consent?tab=rules', { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: '/consent?tab=rules' }, { replace: true });
   });
 });
 
@@ -56,7 +68,7 @@ describe('CookieConsent: load', () => {
   });
 
   it('shows a load failure', async () => {
-    renderPage(fakeConsentPort({ get: () => Promise.reject(new ApiError('', 503)) }));
+    renderPage(fakeConsentPort({ get: () => Promise.reject(new ApiError({ message: '', status: 503 })) }));
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load cookie consent.");
   });
 });
@@ -90,7 +102,7 @@ describe('CookieConsent: publish', () => {
   });
 
   it('shows a publish error', async () => {
-    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError('Storage is read-only.', 503)) }));
+    renderPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError({ message: 'Storage is read-only.', status: 503 })) }));
     await waitFor(() => expect(publishButton()).toBeEnabled());
     fireEvent.click(publishButton());
     expect(await screen.findByRole('alert')).toHaveTextContent('Storage is read-only.');
@@ -110,14 +122,14 @@ describe('CookieConsent: notices', () => {
   });
 
   it('shows a save error and keeps the edit', async () => {
-    renderPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError('Disk full.', 500)) }));
+    renderPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError({ message: 'Disk full.', status: 500 })) }));
     fireEvent.change(await screen.findByLabelText('Banner title'), { target: { value: 'Mine' } });
     expect(await screen.findByRole('alert')).toHaveTextContent('Disk full.');
     expect(screen.getByLabelText('Banner title')).toHaveValue('Mine');
   });
 
   it('shows a preview failure beside the frame', async () => {
-    renderPage(fakeConsentPort({ preview: () => Promise.reject(new ApiError('', 500)) }), 'look');
+    renderPage(fakeConsentPort({ preview: () => Promise.reject(new ApiError({ message: '', status: 500 })) }), 'look');
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't render the preview.");
   });
 });

@@ -1,17 +1,17 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
-import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
+import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
-import { describeErrorForLog, forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
   SURFACE_DISMISSED_PARAM,
   type AssistantSurfaceDeps,
@@ -49,7 +49,7 @@ export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   readonly dbOps: DbOpsPort;
   /** The site's folder name, written into the copy's marker. */
   readonly siteBinding?: { readonly name: string; readonly dir?: string };
-  readonly db?: Parameters<typeof contentKernel>[0];
+  readonly db?: Parameters<typeof contentKernel>[0]["store"];
   /** Disposable test capture seam; runtime resolves the exact sibling of its content DB. */
   readonly databaseTransferChatSnapshot?: () => Promise<Buffer>;
   /** Test-only; defaults to the process-wide store. */
@@ -57,7 +57,7 @@ export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   /** The sealed, persistent store (`server/runtime/composition/deps.ts`); absent -> the in-memory fallback. */
   readonly databaseTransferDestinationStore?: DatabaseDestinationStorePort;
   /** Test-only; defaults to the `psql` adapter. */
-  readonly databaseTransferTarget?: (connectionString: string) => PostgresTargetPort;
+  readonly databaseTransferTarget?: (required: { connectionString: string }) => PostgresTargetPort;
   /** Test-only; defaults to `console.warn`. Never receives a connection string or row data. */
   readonly databaseTransferFailureLog?: (line: string) => void;
 }
@@ -68,14 +68,14 @@ export type DatabaseTransferAdapters = Pick<Parameters<typeof createDatabaseTran
 
 /** Input errors name the rule, never the connection string. */
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("DATABASE_TRANSFER"),
+  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER" }),
   { error: InvalidConnectionStringError, code: "DATABASE_TRANSFER_INVALID_CONNECTION_STRING" },
   { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" },
 ];
 
 
 /** @complexity O(1) at registration; consumer adapters supply all schema/security/UI policy. */
-export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDeps & { databaseTransferAdapters: DatabaseTransferAdapters }, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildDatabaseTransferRegistrations({ deps, ...surfaces }: { deps: DatabaseTransferToolDeps & { databaseTransferAdapters: DatabaseTransferAdapters } } & AssistantSurfaceDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
   const destinations = deps.databaseTransferDestinationStore ?? DEFAULT_DESTINATION_STORE;
   const localeByExchange = new Map<string, Promise<string>>();
   const reportDestination = createDestinationExchangeReporter({ store: destinations, workspaceId: deps.workspaceId }, {
@@ -93,14 +93,14 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     target: connectionString => {
       try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
       catch (err) { if (err instanceof CredentialInputError) { throw new InvalidConnectionStringError(err.message); } throw err; }
-      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)(connectionString);
+      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)({ connectionString });
     },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
     openSource: deps.databaseTransferAdapters.openSource,
     catalog: deps.databaseTransferAdapters.catalog,
     partialExclusions: (name, source) => name === "content" ? countPartialExclusions(source) : [],
     captureChatSnapshot: () => deps.databaseTransferAdapters.captureChatSnapshot(deps),
-    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)), describeError: describeErrorForLog,
+    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)),
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
     surfaces: {
@@ -111,7 +111,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
       },
       askThenReport: reportDestination,
       confirmApproval: ({ ctx, plan }, options) => requireHumanConfirm({ ctx, surfaces, spec: describeTransferApproval({ plan }) }, options),
-      destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm(exchangeId) } }),
+      destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm({ exchangeId }) } }),
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,
     },
@@ -121,5 +121,5 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
 }
 /** Called once by server/runtime/composition/tool-catalog-manifest.ts. */
 export function contributeDatabaseTransferTools(required: { adapters: DatabaseTransferAdapters }, _optional = {}): ToolContributor<DatabaseTransferToolDeps, AssistantSurfaceDeps> {
-  return { domain: DOMAIN, build: (deps, surfaces) => buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: required.adapters }, surfaces), risk: databaseTransferDerivedRisk };
+  return { domain: DOMAIN, build: (deps, surfaces) => buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: required.adapters }, ...surfaces }), risk: databaseTransferDerivedRisk };
 }

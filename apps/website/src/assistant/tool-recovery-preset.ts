@@ -3,11 +3,13 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolRegistry } from "@jini-ai/core";
 import { redactUserText } from "@jini-ai/chat/core";
-import { buildFormSurface, type SurfaceField, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { mintToolErrorId as mintCoreErrorId } from "@jini-ai/core/errors/error-id";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
-  createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
+  createAssistantToolExecutor as createDaemonToolExecutor,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure } from "@jini-ai/daemon/tool-recovery";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
   DelegatedInternalErrorContext } from "@jini-ai/daemon/tool-recovery";
@@ -28,7 +30,7 @@ import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
  */
 export const TOOL_FAILURE_RECOVERY_TOOL_ID = "assistant_tool_failure_recovery";
 
-function recoverySurfaceUri(exchangeId: string): UIResourceUri {
+function recoverySurfaceUri({ exchangeId }: { exchangeId: string }, _options = {}): UIResourceUri {
   return `ui://tovu/tool-failure-recovery/${exchangeId}` as UIResourceUri;
 }
 
@@ -46,7 +48,7 @@ function buildRecoveryFormResource(input: { exchangeId: string; hint: string; re
   const fields: SurfaceField[] = askFor ? [{ kind: "string", name: askFor.key, label: askFor.prompt, required: true }] : [];
 
   return buildFormSurface({
-    uri: recoverySurfaceUri(exchangeId),
+    uri: recoverySurfaceUri({ exchangeId: exchangeId }),
     title: "A tool call failed — try the suggested fix?",
     description: hint,
     details: [{ label: "Suggested fix", value: remedyToolId }],
@@ -67,7 +69,7 @@ function buildRecoveryFormResource(input: { exchangeId: string; hint: string; re
 
 export interface RedactedToolFailuresDeps { readonly mintErrorId?: () => string; readonly onFailure?: (record: ToolFailureRecord) => void }
 export function mintToolErrorId(required: Record<string, never>, optional = {}): string {
-  return mintDaemonErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
+  return mintCoreErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
 }
 /** Default reporter receives only already-redacted messages from the shared owner. */
 function failurePorts(options: RedactedToolFailuresDeps): DaemonFailureDeps {
@@ -79,7 +81,7 @@ const recoveryPorts = {
   recoveryToolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
   containsSecret: ({ text }: { text: string }) => redactUserText({ text }).secretRedacted,
   assertCredentialFreeField, readOnlyMessages: tovuReadOnlyToolMessages,
-  formatReadOnlyRemedyRefusal: ({ refusal }: { refusal: string }) => readOnlyRemedyRefusalMessage(refusal),
+  formatReadOnlyRemedyRefusal: ({ refusal }: { refusal: string }) => readOnlyRemedyRefusalMessage({ refusal: refusal }),
   buildRecoveryForm: buildRecoveryFormResource,
 };
 export function withToolFailureRecovery(required: { inner: ToolExecutor; surfaceExchanges: SurfaceExchangeStore; registry: Pick<ToolRegistry, "list"> }, optional = {}): ToolExecutor {
@@ -99,6 +101,8 @@ export interface AssistantToolExecutorDeps {
   readonly registry: ToolRegistry; readonly surfaceExchanges: SurfaceExchangeStore;
   readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
   readonly toolFailures?: RedactedToolFailuresDeps;
+  readonly observability?: Parameters<typeof createDaemonToolExecutor>[0]["observability"];
+  readonly observabilityEnabled?: Parameters<typeof createDaemonToolExecutor>[0]["observabilityEnabled"];
 }
 export function createAssistantToolExecutor(required: AssistantToolExecutorDeps, optional = {}): ToolExecutor {
   const { toolAttemptAudit, toolFailures, ...deps } = required;

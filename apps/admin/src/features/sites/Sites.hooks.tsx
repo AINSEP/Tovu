@@ -1,16 +1,15 @@
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
+import { Icon } from "@jini-ai/ui";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
-import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
+import { type Translate, resolveActiveTabId, interpolate } from '@jini-ai/core/text';
 /**
  * @file `Sites.tsx`'s own derived-value logic, split out per the `<Name>.tsx`/`<Name>.hooks.tsx`
  * pattern `TabBar.tsx`/`TabBar.hooks.tsx` establishes (admin TSX-logic-sweep, 2026-09-05) — this
@@ -19,7 +18,7 @@ import type { CreateSitePluginTokenField, CreateSitePluginTokensController } fro
  * inline where it needs the value (same idiom `TabBar.tsx`'s `{...tabHandleProps(tab)}` uses), so a
  * caller never composes its own boolean/array logic on top of what these return.
  *
- * `Sites.rules.ts` already holds this feature's screen-independent domain logic (`siteRowState`,
+ * `apps/admin/src/features/sites/rules.ts` already holds this feature's screen-independent domain logic (`siteRowState`,
  * `activationOutlook`, …) — testable without React and reused by more than this one screen's markup.
  * What lives here instead is logic that is specific to how `Sites.tsx` itself is laid out (which
  * props a given button's `disabled` depends on, which prefix a row's agent handles use, and which
@@ -67,7 +66,7 @@ export function resolveCreateInputDisabled(args: { creating: boolean; switchingE
 /** `Sites`'s own per-row agent handles. Folder names are unique under `sites/` (they ARE the
  *  directory entries), so they disambiguate one row's controls from another's — see `Sites.tsx`'s
  *  own history for this reasoning. */
-export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): string[] {
+export function resolveSitesRowHandles({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): string[] {
   return buildAgentListHandles({ prefix: "sites-row", ids: sites.map((site) => site.name) }
   );
 }
@@ -76,17 +75,16 @@ export function resolveSitesRowHandles(sites: readonly AdminSiteListEntry[]): st
  *  `SiteCard` consumes one function's result rather than composing
  *  `siteRowStateToneClass`/`siteRowStateLabelKey` on top of its own `siteRowState` call. */
 export function resolveSiteStateDisplay(
-  site: AdminSiteListEntry,
-  snapshot: AdminSitesSnapshot,
+  { site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {},
 ): { toneClass: string; labelKey: string } {
-  const state = siteRowState(site, snapshot);
+  const state = siteRowState({ site, snapshot });
   const local = snapshot.localSites?.find((entry) => entry.name === site.name);
   if (state !== "serving" && local && local.status !== "stopped") {
     const states = { starting: { toneClass: "status-warning", labelKey: "Starting…" },
       running: { toneClass: "status-ok", labelKey: "Running" }, crashed: { toneClass: "status-error", labelKey: "Crashed" } };
     return states[local.status];
   }
-  return { toneClass: siteRowStateToneClass(state), labelKey: siteRowStateLabelKey(state) };
+  return { toneClass: siteRowStateToneClass({ state }), labelKey: siteRowStateLabelKey({ state }) };
 }
 
 /**
@@ -100,7 +98,7 @@ export function resolveSiteStateDisplay(
  *
  * @complexity Time/space: O(1).
  */
-export function resolveSiteCardTitle(site: AdminSiteListEntry): string {
+export function resolveSiteCardTitle(site: AdminSiteListEntry, _optional: Record<string, never> = {}): string {
   return site.dir;
 }
 
@@ -133,10 +131,9 @@ export function resolveSiteSubtitle(site: Pick<AdminSiteListEntry, "name" | "dis
  * @complexity Time/space: O(1).
  */
 export function resolveSiteRegistrationBadge(
-  site: AdminSiteListEntry,
-  snapshot: AdminSitesSnapshot,
+  { site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {},
 ): { labelKey: string; titleKey: string } | null {
-  if (siteRegistration(site, snapshot) === "registered") return null;
+  if (siteRegistration({ site, snapshot }) === "registered") return null;
   return {
     labelKey: "Not initialized",
     titleKey: "No config.json or .site-meta.json in this folder — tovu serve would refuse it.",
@@ -163,7 +160,7 @@ export type SitesTabId = (typeof SITES_TAB_IDS)[number];
 /** Falls back to the list for an absent or unrecognized `?tab=` value, through the same shared
  *  guard `Deployment.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or a typo must open the
  *  list, never a blank panel. */
-export function resolveSitesTabId(tabId: string | null | undefined): SitesTabId {
+export function resolveSitesTabId({ tabId }: { tabId: string | null | undefined }, _options = {}): SitesTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: SITES_TAB_IDS, defaultId: "all" });
 }
 
@@ -184,7 +181,8 @@ export function resolveSitesTabs(
     {
       id: "all",
       label: t("All sites"),
-      icon: <AllSitesIcon />,
+      // All sites uses a folder because each card represents a directory under `sites/`.
+      icon: <Icon name="folder-outline" size={16} strokeWidth={1.5} />,
       count: listedCount,
       handle: "sites-tab-all",
       handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
@@ -192,7 +190,8 @@ export function resolveSitesTabs(
     {
       id: "new",
       label: t("New site"),
-      icon: <NewSiteIcon />,
+      // New site — the same folder with a plus in it: a directory that does not exist yet.
+      icon: <Icon name="folder-plus" size={16} strokeWidth={1.5} />,
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",
     },
@@ -205,7 +204,7 @@ export function resolveSitesTabs(
 
 /** Whether the site list renders its empty state instead of the grid. Its own function rather than
  *  a `sites.length === 0` written in the JSX, per this file's header. */
-export function resolveSitesEmpty(sites: readonly AdminSiteListEntry[]): boolean {
+export function resolveSitesEmpty({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): boolean {
   return sites.length === 0;
 }
 
@@ -234,7 +233,7 @@ export interface SiteDatabaseOption {
  *
  * @complexity Time/space: O(1) — a fixed three-element array.
  */
-export function resolveSiteDatabaseOptions(t: Translate): SiteDatabaseOption[] {
+export function resolveSiteDatabaseOptions({ t }: { t: Translate }, _optional: Record<string, never> = {}): SiteDatabaseOption[] {
   return [
     { id: "sqlite", title: t("SQLite"), hint: t("Default · created inside this site's own folder"), available: true },
     { id: "supabase", title: t("Supabase"), hint: t("Hosted · not for site content yet."), available: false },
@@ -284,7 +283,7 @@ export interface SiteDatabaseDisclosure extends SiteDatabaseOption {
  */
 export function useCreateSiteDatabase(
   { t, pluginTokens }: { t: Translate; pluginTokens: CreateSitePluginTokensController },
-  { options = resolveSiteDatabaseOptions(t) }: { options?: readonly SiteDatabaseOption[] } = {},
+  { options = resolveSiteDatabaseOptions({ t }) }: { options?: readonly SiteDatabaseOption[] } = {},
 ): { options: SiteDatabaseDisclosure[] } {
   const [database, setDatabase] = useState<SiteDatabaseOption["id"]>("sqlite");
   const { setToken, clear } = pluginTokens;
@@ -463,7 +462,7 @@ function canMakeDefault(
   { site, snapshot, serving, switchingEnabled, activatingName }:
     { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; serving: boolean; switchingEnabled: boolean; activatingName: string | null },
 ): boolean {
-  return switchingEnabled && activatingName === null && !serving && !resolveSiteIsDefault(site, snapshot);
+  return switchingEnabled && activatingName === null && !serving && !resolveSiteIsDefault({ site, snapshot });
 }
 
 /** The overflow menu, in menu order — the destructive one always last; a live process is never
@@ -490,8 +489,8 @@ export function resolveSiteStatusPill(
   { site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate },
   _optional = {},
 ): { toneClass: string; label: string } {
-  if (snapshot.localManagementEnabled !== true || siteRowState(site, snapshot) === "serving") {
-    const { toneClass, labelKey } = resolveSiteStateDisplay(site, snapshot);
+  if (snapshot.localManagementEnabled !== true || siteRowState({ site, snapshot }) === "serving") {
+    const { toneClass, labelKey } = resolveSiteStateDisplay({ site, snapshot });
     return { toneClass, label: t(labelKey) };
   }
   const local = siteLocalState({ site, snapshot });
@@ -509,7 +508,7 @@ export function resolveSiteStatusPill(
 /** Whether this card is the site that opens by default — shown as a star beside the name
  *  (2026-10-09, owner: lose the "Default" line, keep the fact). The site the next launch boots: the
  *  saved choice, or the serving site when nothing is saved. @complexity O(1). */
-export function resolveSiteIsDefault(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): boolean {
+export function resolveSiteIsDefault({ site, snapshot }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot }, _optional: Record<string, never> = {}): boolean {
   return site.name === (snapshot.persistedSiteName ?? snapshot.currentSite.name);
 }
 
@@ -564,6 +563,6 @@ export function buildSiteCardMenuItems(
 
 /** The Sites page's cards in the shape the shared list view sorts: the folder name is the id, and
  *  `site` carries the rest through. @complexity O(n). */
-export function resolveSiteListItems(sites: readonly AdminSiteListEntry[]): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
+export function resolveSiteListItems({ sites }: { sites: readonly AdminSiteListEntry[] }, _optional: Record<string, never> = {}): { id: string; name: string; createdAt: string; site: AdminSiteListEntry }[] {
   return sites.map((site) => ({ id: site.name, name: site.name, createdAt: site.createdAt, site }));
 }

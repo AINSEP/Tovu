@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
-import { api } from "@/lib/api";
+import { authApi } from "@/features/auth/api/auth-api";
 import { AdminFetchQueryAdapterContext } from "@/lib/fetch-query/adapter-context";
 
 export interface QueriesIdentityPort {
@@ -36,5 +36,5 @@ export function useQueriesTab(
 /** Bind Tovu's provider capability and existing auth client at the host boundary. */
 export function useWiredQueriesTab(): QueriesTabController {
   const adapter = useContext(AdminFetchQueryAdapterContext);
-  return useQueriesTab({ adapter, port: api }, { development: import.meta.env.DEV });
+  return useQueriesTab({ adapter, port: authApi }, { development: import.meta.env.DEV });
 }

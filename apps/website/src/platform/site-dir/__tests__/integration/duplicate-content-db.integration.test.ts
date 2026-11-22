@@ -44,7 +44,7 @@ async function buildSourceWithChatHistory(parent: string): Promise<string> {
   // content.db while they are empty (migration step `0002_drop_empty_legacy_chat_tables`). Open the
   // file through `openChatDb`, which creates them when absent (the same DDL as legacy migrations
   // 0023/0051), to model a PRE-split install whose content.db still holds real rows.
-  const raw = openChatDb(dbPath);
+  const raw = openChatDb({ filePath: dbPath });
   try {
     const now = Date.now();
     raw
@@ -169,9 +169,9 @@ test("the copy passes integrity_check and keeps the migrator's bookkeeping table
     } finally {
       copy.close();
     }
-    const reopened = openSqliteContentConnection(targetDbPath);
+    const reopened = openSqliteContentConnection({ filePath: targetDbPath });
     try {
-      const report = await migrateSqliteContentFile(reopened, targetDbPath);
+      const report = await migrateSqliteContentFile({ db: reopened, filePath: targetDbPath });
       assert.deepEqual(report.applied, [], "production reopen must not replay migrations");
       assert.deepEqual(reopened.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY id").all(), expectedHistory);
     } finally {
@@ -203,7 +203,7 @@ test("no stray -wal/-shm sidecar is left next to the finished copy", async () =>
  * read-only on 2026-09-06), so this fixture is the shape a real installed plugin actually leaves
  * behind rather than an invented approximation:
  *
- * - `_plugin_migrations` / `_plugin_identity` — `features/plugins/data-module.ts`'s `ensureJournal`
+ * - `_plugin_migrations` / `_plugin_identity` — `@jini-ai/db/data-modules`'s `ensureJournal`
  *   and `features/plugins/plugin-identity.ts`. Installed on every site that has ever installed a
  *   plugin; the owner's own site holds 12 and 3 rows respectively.
  * - `p_store__products` / `p_comments__comments` — one plugin's own business data, named

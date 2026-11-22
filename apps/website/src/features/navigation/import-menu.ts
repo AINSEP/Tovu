@@ -1,15 +1,14 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import {
   MenuConflictError,
   MenuNotFoundError,
   validateAndCloneTree,
-  type MenuRepoPort,
-  type NavLocationBindingRepoPort,
   type NavMenuEntry,
 } from "./index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 
 /**
  * @file S3 of `ADS-memory/.local-artifacts/publish-types-plan-2026-09-24.md` — the host-local
@@ -73,11 +72,14 @@ const NAV_LOCATION_UNASSIGNED_EVENT = "navigation.location.unassigned";
  *  own local `buildEvent` already establishes for a host-local integration against this library.
  *  @complexity O(1). */
 function buildEvent(
-  deps: ImportMenuEntityDeps,
-  name: string,
-  workspaceId: UUID,
-  aggregateId: UUID,
-  payload: Record<string, unknown>
+  { deps, name, workspaceId, aggregateId, payload }: {
+    deps: ImportMenuEntityDeps;
+    name: string;
+    workspaceId: UUID;
+    aggregateId: UUID;
+    payload: Record<string, unknown>;
+  },
+  _optional = {}
 ): DomainEvent {
   return {
     id: deps.idGen.newId(),
@@ -98,12 +100,15 @@ function buildEvent(
  * @complexity O(1) repo calls.
  */
 async function rebindLocation(
-  deps: ImportMenuEntityDeps,
-  workspaceId: UUID,
-  menu: NavMenuEntry,
-  locationKey: string,
-  now: string,
-  events: DomainEvent[],
+  { deps, workspaceId, menu, locationKey, now, events }: {
+    deps: ImportMenuEntityDeps;
+    workspaceId: UUID;
+    menu: NavMenuEntry;
+    locationKey: string;
+    now: string;
+    events: DomainEvent[];
+  },
+  _optional = {}
 ): Promise<NavMenuEntry | null> {
   const existingBinding = await deps.bindingRepo.findByLocation({ workspaceId, locationKey });
   let displacedMenu: NavMenuEntry | null = null;
@@ -119,17 +124,17 @@ async function rebindLocation(
       };
       await deps.repo.save(displacedMenu, { expectedVersion: displaced.version });
       events.push(
-        buildEvent(deps, NAV_LOCATION_UNASSIGNED_EVENT, workspaceId, displacedMenu.id, {
+        buildEvent({ deps, name: NAV_LOCATION_UNASSIGNED_EVENT, workspaceId, aggregateId: displacedMenu.id, payload: {
           locationKey,
           menuId: displacedMenu.id,
-        })
+        } })
       );
     }
   }
 
   await deps.bindingRepo.upsert({ workspaceId, locationKey, menuId: menu.id, boundAt: now });
   events.push(
-    buildEvent(deps, NAV_LOCATION_ASSIGNED_EVENT, workspaceId, menu.id, { locationKey, menuId: menu.id })
+    buildEvent({ deps, name: NAV_LOCATION_ASSIGNED_EVENT, workspaceId, aggregateId: menu.id, payload: { locationKey, menuId: menu.id } })
   );
 
   return displacedMenu;
@@ -176,7 +181,7 @@ async function rebindClaimedLocations({ deps, workspaceId, menu, now, events }: 
 }): Promise<NavMenuEntry[]> {
   const displacedMenus: NavMenuEntry[] = [];
   for (const locationKey of menu.locations) {
-    const displaced = await rebindLocation(deps, workspaceId, menu, locationKey, now, events);
+    const displaced = await rebindLocation({ deps, workspaceId, menu, locationKey, now, events });
     if (displaced) displacedMenus.push(displaced);
   }
   return displacedMenus;
@@ -247,10 +252,10 @@ export async function importMenuEntity(required: {
     const events: DomainEvent[] = [];
     await deps.repo.save(menu, { expectedVersion: input.expectedVersion ?? null });
     events.push(
-      buildEvent(deps, existing ? NAV_MENU_UPDATED_EVENT : NAV_MENU_CREATED_EVENT, workspaceId, menu.id, {
+      buildEvent({ deps, name: existing ? NAV_MENU_UPDATED_EVENT : NAV_MENU_CREATED_EVENT, workspaceId, aggregateId: menu.id, payload: {
         menuId: menu.id,
         slug: menu.slug,
-      })
+      } })
     );
     const displacedMenus = await rebindClaimedLocations({ deps, workspaceId, menu, now, events });
     await unbindDroppedLocations({ deps, workspaceId, menu, existing });

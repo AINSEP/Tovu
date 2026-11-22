@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import {
   loadedPostForm,
   loadedPostHandles,
@@ -110,7 +111,7 @@ describe("loadedPostForm", () => {
 
     expect(loadedPostForm({ post: stored, activeThemeTemplates: [] })).toMatchObject({
       overridesThemePage: true,
-      publishAt: localDateTimeInputToIso(isoToLocalDateTimeInput("2026-11-01T10:15:42.000Z")),
+      publishAt: localDateTimeInputToIso({ value: isoToLocalDateTimeInput({ iso: "2026-11-01T10:15:42.000Z" }) }),
       featuredMediaId: "m1",
       author: "Ada",
       showAuthor: true,

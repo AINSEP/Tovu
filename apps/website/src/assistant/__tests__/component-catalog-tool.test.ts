@@ -13,7 +13,7 @@ import { buildComponentCatalogRegistrations, DESCRIBE_COMPONENT_TOOL_ID, SEARCH_
  */
 
 function handlerFor(toolId: string): ToolRegistration["handler"] {
-  const registration = buildComponentCatalogRegistrations(undefined, undefined).find((r) => r.descriptor.id === toolId);
+  const registration = buildComponentCatalogRegistrations({ _routeDeps: undefined, _surfaces: undefined }).find((r) => r.descriptor.id === toolId);
   assert.ok(registration, `${toolId} must be wired`);
   return registration.handler;
 }

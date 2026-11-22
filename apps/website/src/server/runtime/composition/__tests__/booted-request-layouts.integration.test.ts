@@ -74,7 +74,7 @@ test("plugin discovery, MCP, activation and memory stay on A after env selects B
   assert.ok((await resolveAgentPluginMcpServers(input)).bound);
   const gate = createAgentPluginToolGate(input);
   assert.equal(await gate.isCallable({ pluginId: "bound-plugin", archiveDigest: plugin.archiveDigest }), true);
-  const memory = pluginMemory({ ...input, contain: containAgentPluginStatePath }, { layout: binding.agentPluginLayout });
+  const memory = pluginMemory({ ...input, contain: containAgentPluginStatePath , layout: binding.agentPluginLayout });
   await memory.writeNote({ entryPath: "project.txt", text: "Site A only" });
   assert.equal((await memory.list({ kind: "notes" }))[0]?.text, "Site A only");
   await setAgentPluginEnabled({ ...input, enabled: false, actor: "owner" });
@@ -102,10 +102,10 @@ test("skill install, list, bundled paths, toggle and removal use the booted A la
 test("filesystem custom root stays scoped to A and reflects live folder changes", () => withSites(async binding => {
   const input = { siteDir: binding.siteA, workspaceId };
   const folder = path.join(binding.siteA, "selected"); await mkdir(folder);
-  setCustomFsRoot(workspaceId, folder, { siteDir: binding.siteA });
+  setCustomFsRoot({ workspaceId, path: folder, optional: { siteDir: binding.siteA } });
   assert.equal(resolveFsRoots(input).site, binding.siteA);
   assert.equal(resolveFsRoots(input).custom, await realpath(folder));
-  setCustomFsRoot(workspaceId, null, { siteDir: binding.siteA });
+  setCustomFsRoot({ workspaceId, path: null, optional: { siteDir: binding.siteA } });
   assert.equal(resolveFsRoots(input).custom, undefined);
   await assert.rejects(readFile(path.join(binding.siteB, ".fs-custom-root.json")), { code: "ENOENT" });
 }));
@@ -113,7 +113,7 @@ test("filesystem custom root stays scoped to A and reflects live folder changes"
 test("admin memory and file handlers consume A's binding when env points at B", () => withSites(async binding => {
   await seedPlugin(binding.agentPluginLayout);
   const input = { ...binding, workspaceId };
-  await pluginMemory({ contain: containAgentPluginStatePath, ...input, pluginId: "bound-plugin" }, { layout: binding.agentPluginLayout }).writeNote({ entryPath: "project.txt", text: "HTTP site A" });
+  await pluginMemory({ contain: containAgentPluginStatePath, ...input, pluginId: "bound-plugin" , layout: binding.agentPluginLayout }).writeNote({ entryPath: "project.txt", text: "HTTP site A" });
   await installSkill({ ...input, files: [{ path: "SKILL.md", contentBase64: Buffer.from(markdown).toString("base64") }] });
   const handlers = new Map<string, Function>();
   const app = express();
@@ -125,7 +125,7 @@ test("admin memory and file handlers consume A's binding when env points at B", 
     return app;
   }) as typeof app.get;
   const deps = { ...input, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as RouteDeps;
-  registerAgentPluginMemoryRoutes(app, deps); registerAgentPluginFilesRoute(app, deps); registerSkillFilesRoute(app, deps);
+  registerAgentPluginMemoryRoutes({ app, deps }); registerAgentPluginFilesRoute({ app, deps }); registerSkillFilesRoute({ app, deps });
   for (const [url, handler] of handlers) {
     const res = { locals: { principal: { id: "owner" } }, code: 200, body: undefined as any, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
     await handler({ params: { workspaceId, pluginId: "bound-plugin", toolId: "skill_bound_skill" }, query: {} }, res);

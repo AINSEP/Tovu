@@ -18,10 +18,10 @@ it.each([
   ["unlisted-locale", "17 created, 3 failed.", "Created", "Item 9 (DUPLICATE)", 'Actions for redirect rule from "/old/<script>"'],
 ])("keeps counts, item codes and redirect identities in %s", (locale, summary, created, failed, actions) => {
   // Reject: swap created/failed interpolation or discard fromPattern.
-  expect(importResultSummary(locale, 17, 3)).toBe(summary);
-  expect(createdLabel(locale)).toBe(created);
-  expect(failedItemLabel(locale, 9, "DUPLICATE")).toBe(failed);
-  expect(actionsForRedirectLabel(locale, "/old/<script>")).toBe(actions);
+  expect(importResultSummary({ locale: locale, created: 17, failed: 3 })).toBe(summary);
+  expect(createdLabel({ locale: locale })).toBe(created);
+  expect(failedItemLabel({ locale: locale, index: 9, code: "DUPLICATE" })).toBe(failed);
+  expect(actionsForRedirectLabel({ locale: locale, fromPattern: "/old/<script>" })).toBe(actions);
 });
 
 it.each([
@@ -30,9 +30,9 @@ it.each([
 ])("renders the one-line import hint with its fields tip, and treats the redirect pattern as text for %s", (locale, hint, fields, deletion) => {
   // Reject: inline the rule shape back into the hint, or render the pattern as HTML.
   const { container } = render(<>
-    <label htmlFor="json">{importRulesLabel(locale, <code>SHAPE</code>)}</label>
+    <label htmlFor="json">{importRulesLabel({ locale: locale }, { _shapeCode: <code>SHAPE</code> })}</label>
     <textarea id="json" />
-    {deleteRedirectBody(locale, "/old/<script>")}
+    {deleteRedirectBody({ locale: locale, fromPattern: "/old/<script>" })}
   </>);
   const label = container.querySelector("label")!;
   expect(label.firstChild?.textContent).toBe(hint);
@@ -43,4 +43,12 @@ it.each([
   expect(document.activeElement).not.toBe(container.querySelector("textarea"));
   expect(container.querySelector("p")?.textContent).toBe(deletion);
   expect(container.querySelector("script")).toBeNull();
+});
+
+it("translates Jini's wildcard-capacity notice and keeps the English source as the fallback", () => {
+  // Reject: drop the overlay (the notice falls back to English in every locale).
+  const notice = "Only the first 500 active wildcard redirects are used. Turn off or merge some.";
+  expect(t({ locale: "es", key: notice })).toBe("Solo se usan las primeras 500 redirecciones comodín activas. Desactiva o combina algunas.");
+  expect(t({ locale: "zh-TW", key: notice })).toBe("僅使用前 500 條啟用的萬用字元重新導向。請停用或合併部分重新導向。");
+  expect(t({ locale: "unlisted-locale", key: notice })).toBe(notice);
 });

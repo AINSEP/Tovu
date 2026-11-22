@@ -53,46 +53,46 @@ before(() => {
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
 test("parse: absent is none; blanks are dropped; values are trimmed", () => {
-  assert.deepEqual(parseNewSiteAgentPluginTokens(undefined), { ok: true, tokens: {} });
-  assert.deepEqual(parseNewSiteAgentPluginTokens(null), { ok: true, tokens: {} });
-  assert.deepEqual(parseNewSiteAgentPluginTokens({ supabase: "  sbp_x  ", other: "   " }), { ok: true, tokens: { supabase: "sbp_x" } });
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: undefined }), { ok: true, tokens: {} });
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: null }), { ok: true, tokens: {} });
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: { supabase: "  sbp_x  ", other: "   " } }), { ok: true, tokens: { supabase: "sbp_x" } });
 });
 
 test("parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused", () => {
   const refused = { ok: false, error: NEW_SITE_AGENT_PLUGIN_TOKENS_SHAPE_ERROR };
-  assert.deepEqual(parseNewSiteAgentPluginTokens("sbp_x"), refused);
-  assert.deepEqual(parseNewSiteAgentPluginTokens(["sbp_x"]), refused);
-  assert.deepEqual(parseNewSiteAgentPluginTokens({ "Not An Id": "x" }), refused);
-  assert.deepEqual(parseNewSiteAgentPluginTokens({ supabase: 5 }), refused);
-  assert.deepEqual(parseNewSiteAgentPluginTokens({ supabase: "x".repeat(4097) }), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: "sbp_x" }), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: ["sbp_x"] }), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: { "Not An Id": "x" } }), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: { supabase: 5 } }), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: { supabase: "x".repeat(4097) } }), refused);
   const nine = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`p${i}`, "x"]));
-  assert.deepEqual(parseNewSiteAgentPluginTokens(nine), refused);
+  assert.deepEqual(parseNewSiteAgentPluginTokens({ raw: nine }), refused);
 });
 
 test("refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not", () => {
-  assert.deepEqual(describeNewSiteAgentPluginTokenRefusal("supabase", "invalid"), {
+  assert.deepEqual(describeNewSiteAgentPluginTokenRefusal({ pluginId: "supabase", outcome: "invalid" }), {
     code: "AGENT_PLUGIN_TOKEN_INVALID",
     error: "That Supabase access token didn't work. Check it, or leave it empty and connect Supabase later from chat. No site was created.",
   });
-  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "unsupported")?.code, "AGENT_PLUGIN_TOKEN_UNSUPPORTED");
-  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "ok"), null);
-  assert.equal(describeNewSiteAgentPluginTokenRefusal("supabase", "unavailable"), null);
+  assert.equal(describeNewSiteAgentPluginTokenRefusal({ pluginId: "supabase", outcome: "unsupported" })?.code, "AGENT_PLUGIN_TOKEN_UNSUPPORTED");
+  assert.equal(describeNewSiteAgentPluginTokenRefusal({ pluginId: "supabase", outcome: "ok" }), null);
+  assert.equal(describeNewSiteAgentPluginTokenRefusal({ pluginId: "supabase", outcome: "unavailable" }), null);
 });
 
 test("firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token", async () => {
   const checked: { pluginId: string; token: string }[] = [];
-  const refusal = await firstNewSiteAgentPluginTokenRefusal(async ({ pluginId, token }) => {
+  const refusal = await firstNewSiteAgentPluginTokenRefusal({ check: async ({ pluginId, token }) => {
     checked.push({ pluginId, token });
     return pluginId === "b" ? "invalid" : "ok";
-  }, { a: "tok-a", b: "tok-b", c: "tok-c" });
+  }, tokens: { a: "tok-a", b: "tok-b", c: "tok-c" } });
   assert.equal(refusal?.pluginId, "b");
   assert.deepEqual(checked, [{ pluginId: "a", token: "tok-a" }, { pluginId: "b", token: "tok-b" }], "checking stops at the first refusal");
   assert.ok(!JSON.stringify(refusal).includes("tok-b"));
-  assert.equal(await firstNewSiteAgentPluginTokenRefusal(async () => "ok", { a: "x" }), null);
+  assert.equal(await firstNewSiteAgentPluginTokenRefusal({ check: async () => "ok", tokens: { a: "x" } }), null);
 });
 
 test('a permission refusal stops onboarding without calling the token invalid', async () => {
-  const refusal = await firstNewSiteAgentPluginTokenRefusal(async () => 'refused', { supabase: 'permission-limited-token' });
+  const refusal = await firstNewSiteAgentPluginTokenRefusal({ check: async () => 'refused', tokens: { supabase: 'permission-limited-token' } });
   assert.equal(refusal?.code, 'AGENT_PLUGIN_TOKEN_REFUSED');
   assert.match(refusal!.error, /refused for this purpose/);
   assert.doesNotMatch(refusal!.error, /invalid|permission-limited-token/i);
@@ -107,7 +107,7 @@ test("bundled plugins: read by manifest name; retired and manifest-less dirs are
 });
 
 test("the token sign-in list over bundled plugins offers only plugins that declare tokenAuth", async () => {
-  const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers({ bundledSourceRoot: root }));
+  const plugins = await listTokenSignInPlugins({ workspaceId: "new-site", listPlugins: () => listBundledAgentPluginServers({ bundledSourceRoot: root }) });
   assert.deepEqual(plugins, [{ pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" }]);
 });
 
@@ -118,7 +118,7 @@ test("a missing supplied bundled root never falls back to the shipped plugins", 
 });
 
 test("the new-site sign-in list reads the given bundled root", async () => {
-  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: root }), await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers({ bundledSourceRoot: root })));
+  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: root }), await listTokenSignInPlugins({ workspaceId: "new-site", listPlugins: () => listBundledAgentPluginServers({ bundledSourceRoot: root }) }));
 });
 
 test("a bundled dir whose manifest name is not a valid plugin id is skipped", async (t) => {

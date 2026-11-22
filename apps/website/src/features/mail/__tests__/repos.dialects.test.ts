@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import type { MailerFeedbackEvent, OutboundEmail } from "@jini-ai/platform/mail";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {
   createMailCaptureRepo, createMailFeedbackInboxRepo, createMailSendLedgerRepo, createMailSuppressionRepo, MAX_CAPTURE_LIST,
 } from "../index.js";
@@ -27,14 +27,14 @@ function message(subject: string, workspaceId = "wa"): OutboundEmail {
   return { workspaceId, to: { email: "a@x.test" }, from: { email: "site@x.test" }, subject, text: "hi", headers: { "X-T": "1" } };
 }
 
-async function seedWorkspaces(kernel: StorageKernel<unknown>) {
+async function seedWorkspaces(kernel: KyselyKernel<unknown>) {
   await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('wa', 'A', 'wa', ${T0}), ('wb', 'B', 'wb', ${T0})`);
 }
 
 describeEachDialect("mail repos", {
   tables: ["mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture", "workspaces"],
   make: (kernel) => {
-    const db = kernel as StorageKernel<unknown>;
+    const db = kernel as KyselyKernel<unknown>;
     let ids = 0;
     return {
       db, seeded: seedWorkspaces(db),
@@ -138,7 +138,7 @@ describeEachDialect("mail repos", {
 
 test("default clocks and ids are used when none are injected", async () => {
   const { freshSqliteContentKernel } = await import("#src/platform/db/kernel/__tests__/dialect-matrix");
-  const db = freshSqliteContentKernel() as StorageKernel<unknown>;
+  const db = freshSqliteContentKernel() as KyselyKernel<unknown>;
   try {
     await seedWorkspaces(db);
     await createMailSendLedgerRepo({ db }).reserve(RESERVE);

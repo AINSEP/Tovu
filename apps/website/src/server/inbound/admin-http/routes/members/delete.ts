@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { trashMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -9,17 +10,15 @@ import type { MembersRouteDeps } from "./deps.js";
  * transaction; only the existing Trash flows may restore or permanently delete it.
  * @complexity One permission check, one member read and the bound Trash operation.
  */
-export const registerAdminMemberDeleteRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
   app.delete("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" }); return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const memberId = String(req.params.memberId ?? "");
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "member.manage",
-        workspaceId: deps.workspaceId, entityType: "member", entityId: memberId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "member.manage",
+        workspaceId: deps.workspaceId, entityType: "member", entityId: memberId } })) return;
       res.json(await trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: principal.id } },
         { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }));
     } catch (error) {

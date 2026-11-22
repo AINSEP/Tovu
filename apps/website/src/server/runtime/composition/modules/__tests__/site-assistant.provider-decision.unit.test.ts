@@ -12,7 +12,7 @@ function harness() {
   const res = { status(code: number) { sent.status = code; return res; }, json(body: unknown) { sent.body = body; return res; } };
   const reportError = (entry: { code: string; diagnostic: unknown }) => { reported.push(entry); return { message: `public:${entry.code}` }; };
   return { sent, reported, decide: (env: NodeJS.ProcessEnv, choice: Partial<SiteAssistantCredentialChoice>) =>
-    resolveProviderFromCredential(res as never, env, { provider: "google", baseUrl: null, model: null, apiKey: null, keyStored: false, ...choice }, reportError as never) };
+    resolveProviderFromCredential({ res: res as never, env, choice: { provider: "google", baseUrl: null, model: null, apiKey: null, keyStored: false, ...choice }, reportError: reportError as never }) };
 }
 
 const UNOPENABLE = " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_SITE_KEY is the same one it was saved under, then re-save the key.";

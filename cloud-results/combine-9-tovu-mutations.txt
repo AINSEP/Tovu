@@ -1,0 +1,87 @@
+=== mut-bnd2-DG2-01-leaf
+ℹ tests 1 ℹ pass 0 ℹ fail 1 
+✖ failing tests:
+✖ declared theme leaves retain private-file and upward value-import boundaries (1503.947698ms)
+  AssertionError [ERR_ASSERTION]: the declared leaf must be public while private files and upward value imports remain errors
+=== mut-contract-3F-400
+ℹ tests 9 ℹ pass 8 ℹ fail 1 
+✖ failing tests:
+✖ the AG-UI route refuses authenticated requests whose messages are not an array (249.347205ms)
+  AssertionError [ERR_ASSERTION]: the authenticated AG-UI route rejects a malformed messages field
+=== mut-dgc-V1-allowall
+ℹ tests 20 ℹ pass 18 ℹ fail 1 
+✖ failing tests:
+✖ plugin search authorizes the caller before returning installed catalog data through the executor (63.21443ms)
+  AssertionError [ERR_ASSERTION]: a denied caller cannot execute plugin search
+=== mut-dgc-V2-allrows
+ℹ tests 31 ℹ pass 23 ℹ fail 8 
+✖ failing tests:
+✖ assistant_admin_screen_link: the executor denies the handler after one workspace permission decision (15.3971ms)
+  AssertionError [ERR_ASSERTION]: the workspace decision controls delegated admin execution
+✖ assistant_admin_screen_link: the executor admits the handler after one workspace permission decision (3.55897ms)
+  AssertionError [ERR_ASSERTION]: the executor requests exactly one assistant permission decision for its workspace and principal
+✖ search_components: the executor denies the handler after one workspace permission decision (2.54823ms)
+=== mut-dgc-V2-row1
+ℹ tests 31 ℹ pass 29 ℹ fail 2 
+✖ failing tests:
+✖ assistant_admin_screen_link: the executor denies the handler after one workspace permission decision (15.131307ms)
+  AssertionError [ERR_ASSERTION]: the workspace decision controls delegated admin execution
+✖ assistant_admin_screen_link: the executor admits the handler after one workspace permission decision (3.815149ms)
+  AssertionError [ERR_ASSERTION]: the executor requests exactly one assistant permission decision for its workspace and principal
+=== mut-dgc-V4-capped
+ℹ tests 9 ℹ pass 8 ℹ fail 1 
+✖ failing tests:
+✖ an approved saved key remains usable after fifty earlier keys are inserted on its source site (964.646629ms)
+  Error [ToolInputError]: This saved key is no longer on site-a. Open Use a saved key again.
+=== mut-dgc2-V3-forward
+ℹ tests 28 ℹ pass 27 ℹ fail 1 
+✖ failing tests:
+✖ a cancelled URL import forwards its signal and preserves the destination and revisions (8.303765ms)
+  AssertionError [ERR_ASSERTION]: the guarded download receives the execution signal
+=== mut-dgc2-V3-prewrite
+ℹ tests 28 ℹ pass 27 ℹ fail 1 
+✖ failing tests:
+✖ a cancelled URL import forwards its signal and preserves the destination and revisions (7.232124ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection: cancellation rejects with the original abort reason
+=== mut-durable-8A-registry-variant
+ℹ tests 6 ℹ pass 4 ℹ fail 1 
+✖ failing tests:
+✖ registered persisted names match their production declarations (11.395641ms)
+  AssertionError [ERR_ASSERTION]: each persisted name must match its production declaration at its stable key
+=== mut-engaps-T3-port
+ℹ tests 10 ℹ pass 9 ℹ fail 1 
+✖ failing tests:
+✖ ensure() rejects blank, zero, fractional and out-of-range proxy ports without disclosing their values (2.547528ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection: an unusable proxy port must name the setting and range without echoing its value
+=== mut-engaps-T3-url
+ℹ tests 10 ℹ pass 9 ℹ fail 1 
+✖ failing tests:
+✖ ensure() rejects unusable explicit daemon URLs without disclosing their values (2.663261ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection: an unusable explicit URL must name the setting without echoing its value
+=== mut-engaps-T4-bare
+ℹ tests 3 ℹ pass 2 ℹ fail 1 
+✖ failing tests:
+✖ the standalone daemon rejects an invalid listener port without echoing it (2921.403477ms)
+  AssertionError [ERR_ASSERTION]: the startup error must name the listener port setting
+=== mut-engaps-T6-double
+ℹ tests 32 ℹ pass 31 ℹ fail 1 
+✖ failing tests:
+✖ publishStaticSite: github-pages gets the module's /<repo> base path, core adds no .nojekyll, and real exported files map to deploy-relative DeployFile[] (2029.550092ms)
+  AssertionError [ERR_ASSERTION]: a successful publish must export the site exactly once
+=== mut-sharezip-full
+ℹ tests 14 ℹ pass 13 ℹ fail 1 
+✖ failing tests:
+✖ a static export with captured credential content refuses before registration (8.428082ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection: a static export with captured credential content must be refused
+=== mut-sharezip-static
+ℹ tests 14 ℹ pass 13 ℹ fail 1 
+✖ failing tests:
+✖ a full share with prepared credential warnings refuses before delivery or registration (7.207549ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection: a full share with prepared credential warnings must be refused
+=== mut-w1-TVES1
+
+=== mut-w3-perfobs-omit
+ℹ tests 86 ℹ pass 85 ℹ fail 1 
+✖ failing tests:
+✖ a registered BYOK call settles one tool.call and the live gate suppresses the next observation (34.279225ms)
+  AssertionError [ERR_ASSERTION]: one registered BYOK call starts exactly one tool.call

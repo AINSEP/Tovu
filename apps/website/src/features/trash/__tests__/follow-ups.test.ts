@@ -7,10 +7,10 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 
 
-import { withFollowUps, type TrashFollowUpHooks } from "@jini-ai/cms/trash";
+import { withFollowUps, type TrashFollowUpHooks, type TrashEntry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
-import type { TrashEntry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
@@ -69,17 +69,17 @@ function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): H
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const trashDb = contentKernel(db);
-  const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
+  const trashDb = contentKernel({ store: db });
+  const baseAdapter = createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
   const trash = createTrashService({
     repo,
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
 

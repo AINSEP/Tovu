@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';
 import { NOT_CONNECTED_MESSAGE } from '../approval.js';
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, type AgentPluginStateReaderFor } from '../host-capabilities.js';
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, type AgentPluginStateReaderFor } from '@jini-ai/agent-plugins/connect/executable';
 import { bootFixture, fakeConnections, fakeHttp, startConfirmingCall, PLUGIN, WORKSPACE } from './fixtures.js';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import type { AgentPluginToolCapabilities, AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
@@ -196,8 +196,8 @@ test('a principal without admin.assistant.use is refused before the tool runs', 
 });
 
 test('the MCP-UI callback accepts a plugin tool id only as an answer to a parked exchange', () => {
-  assert.equal(isMcpUiToolCallPermitted(WRITE, true), true);
-  assert.equal(isMcpUiToolCallPermitted(WRITE, false), false);
-  assert.equal(isMcpUiToolCallPermitted('p_acme_office', true), false);
-  assert.equal(isMcpUiToolCallPermitted('p_Acme__x', true), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: WRITE, answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: WRITE, answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_acme_office', answersAnExchange: true }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_Acme__x', answersAnExchange: true }), false);
 });

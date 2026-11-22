@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -15,7 +15,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 
-function statusFor(err: unknown): { status: number; code: string; message: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } | null {
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TaxonomyRecordNotFoundError) return { status: 404, code: "TAXONOMY_NOT_FOUND", message: err.message };
   if (
@@ -26,14 +26,14 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   ) {
     return { status: 400, code: "VALIDATION_ERROR", message: err.message };
   }
-  return { status: 500, code: "INTERNAL_ERROR", message: "internal error" };
+  return null;
 }
 
 /**
  * @file design-spec.md §2.3/§2.8 — `POST /api/admin/v1/taxonomy/:taxonomyId/terms` (creates a
  * term, AC-03/AC-13/EC-04). Gated by `admin.taxonomy.manage`.
  */
-export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyCreateTermRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/:taxonomyId/terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -66,9 +66,9 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: Taxonom
 
       res.status(201).json({ term });
     } catch (err) {
-      const { status, code, message } = statusFor(err);
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: message, code });
+      const failure = statusFor({ err });
+      if (!failure) { sendAdminFailure({ res, error: err }); return; }
+      res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parseSourceControlProvidersFile, loadSourceControlProviderRegistryFromSource } from '../../../../apps/website/src/features/source-control/provider-registry.ts';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { createSourceControlCredential, resolveDefaultForSourceControl } from '../../../../apps/website/src/features/source-control/store.ts';
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
 import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';
@@ -14,10 +14,10 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'github' });
 
 const packageRoot = PLUGIN_ROOT;
-const raw = readFileSync(path.join(PLUGIN_ROOT, 'tovu-source-control.json'), 'utf8');
+const raw = readFileSync(path.join(PLUGIN_ROOT, 'jini-source-control.json'), 'utf8');
 
 test('GitHub owns its token form and reuses its existing source-control credential card', () => {
-  const parsed = parseSourceControlProvidersFile(raw);
+  const parsed = parseSourceControlProvidersFile({ raw });
   assert.equal(parsed.ok, true);
   const descriptor = parsed.descriptors.find(provider => provider.id === 'github');
   assert.deepEqual(descriptor.credential.fields, [{ name: 'token', label: 'Access token', required: true, secret: true }]);
@@ -37,7 +37,7 @@ test('GitHub owns its token form and reuses its existing source-control credenti
 });
 
 test('GitHub declares its own reserved and executable workflow paths', () => {
-  const parsed = parseSourceControlProvidersFile(raw);
+  const parsed = parseSourceControlProvidersFile({ raw });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.find(provider => provider.id === 'github').reservedPaths, ['.github']);
   assert.deepEqual(parsed.descriptors.find(provider => provider.id === 'github').workflowPaths, ['.github/workflows']);

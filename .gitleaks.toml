@@ -25,6 +25,7 @@ regexTarget = "line"
 regexes = [
   '''Buffer\.from\('\{"API token": "abc123def456ghi789"\}'\)''',
   '''apiKey: "xai-existing-1234"''',
+  ''''\{"i18n":\{"es":\{"API\ token":\ "Token\ de\ API",\ "token":\ "Zq7xK2mP9vR4tL8wN3bY6cH1"\}\}\}'''',
 ]
 
 # Historical report prose (no credentials): exact files only, never the reports directory.

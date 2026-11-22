@@ -2,17 +2,23 @@ import { type ContentKernel, contentKernel } from "../../platform/db/content-ker
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 
 import {
-  SqlApiKeyRepo,
-  SqlPolicyPermissionRepo,
-  SqlPolicyRepo,
-  SqlPrincipalPolicyRepo,
   SqlPrincipalRepo,
-  SqlPrincipalRoleRepo,
-  SqlRolePolicyRepo,
-  SqlRoleRepo,
-  SqlSessionRepo,
   SqlUserRepo,
 } from "./repo.js";
+import {
+  SqlApiKeyRepo,
+  SqlSessionRepo,
+} from "./repo.authentication.js";
+import {
+  SqlPolicyPermissionRepo,
+  SqlPolicyRepo,
+  SqlRoleRepo,
+} from "./repo.authorization.js";
+import {
+  SqlPrincipalPolicyRepo,
+  SqlPrincipalRoleRepo,
+  SqlRolePolicyRepo,
+} from "./repo.assignments.js";
 
 /**
  * @file The identity repo adapters on a site's SQLite `content.db`: each class is its `Sql*` repo
@@ -25,60 +31,60 @@ type Store = ContentKernel | ContentDb;
 
 export class SqlitePrincipalRepo extends SqlPrincipalRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteUserRepo extends SqlUserRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteSessionRepo extends SqlSessionRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteRoleRepo extends SqlRoleRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqlitePolicyRepo extends SqlPolicyRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqlitePolicyPermissionRepo extends SqlPolicyPermissionRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteRolePolicyRepo extends SqlRolePolicyRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqlitePrincipalRoleRepo extends SqlPrincipalRoleRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqlitePrincipalPolicyRepo extends SqlPrincipalPolicyRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteApiKeyRepo extends SqlApiKeyRepo {
   constructor(store: Store) {
-    super(contentKernel(store));
+    super(contentKernel({ store }));
   }
 }

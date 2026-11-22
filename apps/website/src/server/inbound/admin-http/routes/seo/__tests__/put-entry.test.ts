@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import type { MediaRecord } from "#src/features/media/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
@@ -63,7 +63,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoPutEntryRoute(app, deps);
+  registerAdminSeoPutEntryRoute({ app, deps });
   return app;
 }
 
@@ -122,7 +122,7 @@ test("put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing it
     seoExtJson: JSON.stringify({ title: "Before trash" }), version: 4,
   });
   const before = structuredClone(post);
-  const postRepo = new InMemoryPostRepo([post]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   const { status, json } = await put(t, buildApp({ postRepo }), { title: "Refused title" });
 
   assert.equal(status, 409);
@@ -163,7 +163,7 @@ for (const source of ["library", "external"] as const) {
         ? { type: "media", attrs: { assetId: "body" } }
         : { type: "image", attrs: { src: external } }] },
     });
-    const postRepo = new InMemoryPostRepo([post]);
+    const postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
     const before = structuredClone(post);
     const asset: MediaRecord = {
       id: "body", workspaceId: WORKSPACE_ID, title: "Body", slug: "body", alt: "", caption: "", credit: "",

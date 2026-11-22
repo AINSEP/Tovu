@@ -6,7 +6,7 @@ import test from "node:test";
 
 /**
  * @file Closes the one statSync call `theme-files.test.ts`'s own circular-symlink coverage cannot
- * reach: `writeFileAtomically`'s own `statOrThemePathError(target, relativePathForError)` call
+ * reach: `writeFileAtomically`'s own `statOrThemePathError({ target, relativePath: relativePathForError })` call
  * (`theme-files.ts`, near the top of that function).
  *
  * `writeThemeFile` — like `writeFileAtomically`'s other caller, `resetThemeFileToOriginal` — runs
@@ -59,7 +59,8 @@ test("writeFileAtomically's own existing-target stat converts a circular-symlink
   }) as typeof realFs.statSync;
 
   try {
-    const { writeThemeFile, ThemePathError } = await import("../theme-files.js");
+    const { writeThemeFile } = await import("../theme-file-writing.js");
+    const { ThemePathError } = await import("../theme-files.js");
     assert.throws(
       () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }, { stat }),
       ThemePathError

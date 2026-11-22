@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { emailSummary, useEmail, type EmailPort } from "../hooks/use-email.hooks";
 
 /**
@@ -30,14 +31,14 @@ describe("useEmail", () => {
   });
 
   it("reports a 403 as forbidden", async () => {
-    const fake = port(vi.fn(async () => { throw new ApiError("forbidden", 403, "FORBIDDEN"); }));
+    const fake = port(vi.fn(async () => { throw new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN" }); }));
     const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));
     await waitFor(() => expect(result.current.view).toEqual({ kind: "forbidden" }));
   });
 
   it("reports any other failure as error, and retry reads again", async () => {
     const getMailStatus = vi.fn<EmailPort["getMailStatus"]>()
-      .mockRejectedValueOnce(new ApiError("internal error", 500))
+      .mockRejectedValueOnce(new ApiError({ message: "internal error", status: 500 }))
       .mockResolvedValueOnce(READY);
     const fake = port(getMailStatus);
     const { result } = renderHook(() => useEmail({ port: fake, locale: "en" }));

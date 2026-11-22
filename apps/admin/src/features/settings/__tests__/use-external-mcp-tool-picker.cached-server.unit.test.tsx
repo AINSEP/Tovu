@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
-import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useExternalMcpToolPicker } from "../hooks/use-external-mcp-tool-picker.hooks";
 
@@ -29,7 +29,7 @@ it.each([
   let resolveRefresh!: (value: { tools: AdminRemoteToolSurfaceEntry[] }) => void;
   const refresh = new Promise<{ tools: AdminRemoteToolSurfaceEntry[] }>((resolve) => { resolveRefresh = resolve; });
   let requests = 0;
-  const probe = vi.fn((serverId: string) => {
+  const probe = vi.fn(({ serverId }: { serverId: string }, _options = {}) => {
     if (serverId !== "atlas") throw new Error(`unexpected server ${serverId}`);
     return ++requests === 1 ? Promise.resolve({ tools: [tool] }) : refresh;
   });
@@ -44,7 +44,7 @@ it.each([
   expect(result.current.dirty).toBe(true);
   try {
     act(() => result.current.refresh());
-    await waitFor(() => expect(probe.mock.calls).toEqual([["atlas"], ["atlas"]]));
+    await waitFor(() => expect(probe.mock.calls).toEqual([[{ serverId: "atlas" }], [{ serverId: "atlas" }]]));
     expect(result.current.refreshing).toBe(true);
     expect(result.current.loading).toBe(false);
     expect(result.current.rows).toEqual([{

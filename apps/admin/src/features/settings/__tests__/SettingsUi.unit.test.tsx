@@ -26,7 +26,7 @@ import {
   useAdminExecutionCredential,
   type AdminExecutionCredentialController,
 } from "@/hooks/use-admin-execution-credential.hooks";
-import type { AdminExecutionCredential } from "@/lib/api";
+import type { AdminExecutionCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import {
   GOOGLE,

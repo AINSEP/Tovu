@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Response } from "express";
 
 import type { CommentWriteService, CommentStatus, ModerationAction } from "@jini-ai/cms/comments";
@@ -21,7 +23,7 @@ interface ActionSpec {
   path: string;
   permission: string;
   action: ModerationAction;
-  toStatus: CommentStatus | null; // null = purge, which has no toStatus
+  toStatus: CommentStatus; // purge is registered separately and has no toStatus
 }
 
 /**
@@ -37,7 +39,7 @@ const ACTIONS: readonly ActionSpec[] = [
   { path: "restore", permission: "comments.moderate", action: "restore", toStatus: "approved" },
 ];
 
-function parseExpectedVersion(raw: unknown): number | null {
+function parseExpectedVersion({ raw }: { raw: unknown }, _optional = {}): number | null {
   let n: number;
   if (typeof raw === "number") n = raw;
   else if (typeof raw === "string") n = Number(raw);
@@ -47,9 +49,9 @@ function parseExpectedVersion(raw: unknown): number | null {
 
 /** This route's `{expectedVersion, note}` body, read once — `null` means `expectedVersion` failed
  *  validation. @complexity O(1). */
-function parseModerationBody(rawBody: unknown): { expectedVersion: number; note: string | null } | null {
+function parseModerationBody({ rawBody }: { rawBody: unknown }, _optional = {}): { expectedVersion: number; note: string | null } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  const expectedVersion = parseExpectedVersion(body.expectedVersion);
+  const expectedVersion = parseExpectedVersion({ raw: body.expectedVersion });
   if (expectedVersion === null) return null;
   return { expectedVersion, note: typeof body.note === "string" ? body.note : null };
 }
@@ -65,78 +67,14 @@ function respondToModerationResult(res: Response, result: Awaited<ReturnType<Com
   res.status(204).end();
 }
 
-export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCommentsModerateDeps): void {
-  for (const spec of ACTIONS) {
-    app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
-
-      try {
-        const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: spec.permission,
-          workspaceId: deps.workspaceId,
-          entityType: "comment",
-          entityId: req.params.commentId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for '${spec.permission}' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: spec.permission, reason: authResult.reason },
-          });
-          return;
-        }
-
-        const parsedBody = parseModerationBody(req.body);
-        if (!parsedBody) {
-          res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
-          return;
-        }
-
-        const result = await deps.commentWriteService.applyModeration({
-          workspaceId: deps.workspaceId,
-          id: req.params.commentId,
-          expectedVersion: parsedBody.expectedVersion,
-          action: spec.action,
-          toStatus: spec.toStatus!,
-          actorPrincipalId: principal.id,
-          note: parsedBody.note,
-        });
-
-        respondToModerationResult(res, result);
-      } catch (err) {
-        sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
-      }
-    });
-  }
-
+function registerAdminCommentsPurgeRoute({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }) {
   app.post("/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "comments.delete.force",
-        workspaceId: deps.workspaceId,
-        entityType: "comment",
-        entityId: req.params.commentId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'comments.delete.force' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "comments.delete.force", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "comments.delete.force", workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body as Record<string, unknown>;
       const result = await deps.commentWriteService.purge({
@@ -155,4 +93,39 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
       sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
     }
   });
+}
+
+export function registerAdminCommentsModerateRoutes({ app, deps }: { app: Express; deps: AdminCommentsModerateDeps }, _optional: Record<string, never> = {}): void {
+  for (const spec of ACTIONS) {
+    app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+
+      try {
+        const principal = getAuthedPrincipal(res);
+        const params = { principalId: principal.id, permission: spec.permission, workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
+
+        const parsedBody = parseModerationBody({ rawBody: req.body });
+        if (!parsedBody) {
+          res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
+          return;
+        }
+
+        const result = await deps.commentWriteService.applyModeration({
+          workspaceId: deps.workspaceId,
+          id: req.params.commentId,
+          expectedVersion: parsedBody.expectedVersion,
+          action: spec.action,
+          toStatus: spec.toStatus,
+          actorPrincipalId: principal.id,
+          note: parsedBody.note,
+        });
+
+        respondToModerationResult(res, result);
+      } catch (err) {
+        sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
+      }
+    });
+  }
+  registerAdminCommentsPurgeRoute({ app, deps });
 }

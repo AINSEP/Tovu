@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
-import type { ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductEvent } from "@jini-ai/core/contracts/observability";
 import { withToolUseEvents } from "../tool-use-events.js";
 
 const attempt = { attemptId: "attempt-1", executionId: "exec-1", workspaceId: "ws", runId: "run-1", toolId: "posts_create", principalId: "owner-1", phase: "completed" as const, at: "2026-10-26T00:00:00Z" };

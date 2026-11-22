@@ -10,7 +10,7 @@ import {
   type PostRecord,
   type PostReverterDeps,
 } from "#src/features/post/index";
-import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
+import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
@@ -81,7 +81,7 @@ const deleteItem: ChangeSetItemRecord = {
 
 test("the registry routes ('post','delete') and ('post','update') to two distinct reverters", async () => {
   const { outbox } = recordingOutbox();
-  const postRepo = new InMemoryPostRepo([seed({ deletedAt: "2026-07-29T00:00:00.000Z" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed({ deletedAt: "2026-07-29T00:00:00.000Z" })] });
   const deps: PostReverterDeps = { postRepo, clock, outbox, ...recordingForget() };
   const registry = createPostRevertRegistry(deps);
   const deleteReverter = registry.resolve("post", "delete");
@@ -97,7 +97,7 @@ test("the registry routes ('post','delete') and ('post','update') to two distinc
 });
 
 test("applyInverse clears the trash marker, restoring the row losslessly", async () => {
-  const postRepo = new InMemoryPostRepo([seed()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
 
@@ -122,7 +122,7 @@ test("applyInverse clears the trash marker, restoring the row losslessly", async
 });
 
 test("restoring a PUBLISHED row re-emits entry.published — symmetric to the delete's entry.unpublished", async () => {
-  const postRepo = new InMemoryPostRepo([seed({ status: "published" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed({ status: "published" })] });
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
@@ -141,7 +141,7 @@ test("restoring a PUBLISHED row re-emits entry.published — symmetric to the de
 });
 
 test("restoring a DRAFT row emits nothing — it never re-entered the public site", async () => {
-  const postRepo = new InMemoryPostRepo([seed({ status: "draft" })]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed({ status: "draft" })] });
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
@@ -153,7 +153,7 @@ test("restoring a DRAFT row emits nothing — it never re-entered the public sit
 });
 
 test("currentVersion reads the trashed row's version — the revert guard must see through the trash", async () => {
-  const postRepo = new InMemoryPostRepo([seed()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [seed()] });
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox, remove: removeVia(postRepo) }, input: { workspaceId: WS, id: "post-1" } });
 
@@ -164,7 +164,7 @@ test("currentVersion reads the trashed row's version — the revert guard must s
 });
 
 test("applyInverse on a row that no longer exists throws rather than silently succeeding", async () => {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const { outbox } = recordingOutbox();
   const { forgetRemoved, calls: forgotten } = recordingForget();
   const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox, forgetRemoved });

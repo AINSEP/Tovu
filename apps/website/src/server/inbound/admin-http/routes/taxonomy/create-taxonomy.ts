@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -10,7 +10,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
  * @file design-spec.md §2.3/§2.8 — `POST /api/admin/v1/taxonomy` (creates a taxonomy, AC-01/
  * AC-26). Gated by `admin.taxonomy.manage`.
  */
-export function registerAdminTaxonomyCreateRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyCreateRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

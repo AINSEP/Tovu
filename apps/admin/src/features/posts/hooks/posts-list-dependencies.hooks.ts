@@ -1,4 +1,6 @@
-import { ApiError, api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
@@ -9,9 +11,9 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
-  listPosts: () => api.listPosts(),
-  updatePost: (target, patch) => api.updatePost(target, patch),
-  deletePost: (id) => api.deletePost(id),
+  listPosts: () => postsApi.listPosts(),
+  updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
 };
 
 /** Seed state for {@link createFakePostsListPort}. */
@@ -37,25 +39,25 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
    *  list action) had just saved it, without the caller under test knowing — the only way to reach a
    *  genuine stale-basis conflict rather than seeding a canned rejection. Mirrors
    *  `post-editor-dependencies.hooks.ts`'s identical `simulateConcurrentSave`. */
-  simulateConcurrentSave(id: string, title?: string): void;
+  simulateConcurrentSave(required: { id: string }, optional?: { title?: string }): void;
 } {
   const posts = [...(options.posts ?? [])];
 
   return {
     posts,
-    simulateConcurrentSave(id, title = "Saved by someone else") {
+    simulateConcurrentSave({ id }, { title = "Saved by someone else" } = {}) {
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
-      posts[index] = { ...posts[index]!, title, version: posts[index]!.version + 1 };
+      posts[index] = { ...posts[index], title, version: posts[index].version + 1 };
     },
     async listPosts() {
       return { posts: posts.map((post) => ({ post })) };
     },
-    async updatePost({ id }, patch) {
+    async updatePost({ target: { id }, patch }, _optional = {}) {
       if (options.updateError) throw options.updateError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
-      const current = posts[index]!;
+      const current = posts[index];
       // The real route's optimistic-concurrency guard, modeled rather than stubbed — see
       // `post-editor-dependencies.hooks.ts`'s identical comment on its own `updatePost` for why this
       // is modeled (a caller reaches a conflict by genuinely being stale) rather than a canned
@@ -63,22 +65,22 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
       const { expectedVersion, ...fields } = patch;
       if (expectedVersion !== undefined && expectedVersion !== current.version) {
         throw new ApiError(
-          `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
-          409,
-          POST_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: current.version } }
+          { message: `post '${current.id}' was modified by another save (expected version ${expectedVersion}, current version ${current.version})`,
+          status: 409 },
+          { code: POST_VERSION_CONFLICT_CODE,
+          body: { details: { expectedVersion, currentVersion: current.version } } }
         );
       }
       const updated = { ...current, ...fields, version: current.version + 1 };
       posts[index] = updated;
       return { post: updated };
     },
-    async deletePost(id) {
+    async deletePost({ id }, _optional = {}) {
       if (options.deleteError) throw options.deleteError;
       const index = posts.findIndex((p) => p.id === id);
       if (index < 0) throw new Error(`fake post not found: ${id}`);
       const [removed] = posts.splice(index, 1);
-      return { post: removed! };
+      return { post: removed };
     },
   };
 }

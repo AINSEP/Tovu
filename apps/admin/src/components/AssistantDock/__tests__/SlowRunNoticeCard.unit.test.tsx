@@ -48,19 +48,19 @@ describe("resolveSlowRunDetail", () => {
 
 describe("isSlowRunNoticeVisible", () => {
   it("is visible while the run is still streaming and has not (yet) succeeded", () => {
-    expect(isSlowRunNoticeVisible(true, false)).toBe(true);
+    expect(isSlowRunNoticeVisible({ runStreaming: true, runSucceeded: false })).toBe(true);
   });
 
   it("hides once the run has finished successfully — 'still working' is no longer true", () => {
-    expect(isSlowRunNoticeVisible(false, true)).toBe(false);
+    expect(isSlowRunNoticeVisible({ runStreaming: false, runSucceeded: true })).toBe(false);
   });
 
   it("hides once the run has ended without succeeding (failed or aborted), not only on success", () => {
-    expect(isSlowRunNoticeVisible(false, false)).toBe(false);
+    expect(isSlowRunNoticeVisible({ runStreaming: false, runSucceeded: false })).toBe(false);
   });
 
   it("hides even mid-stream if runSucceeded is (incorrectly) reported true — never trusts one flag alone", () => {
-    expect(isSlowRunNoticeVisible(true, true)).toBe(false);
+    expect(isSlowRunNoticeVisible({ runStreaming: true, runSucceeded: true })).toBe(false);
   });
 });
 

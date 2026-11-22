@@ -27,7 +27,7 @@ test("installed Render deploys and observes the returned ID through the guarded 
   try {
     const layout = resolveAgentPluginLayout(); const workspaceId = "workspace-local";
     await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: await processComposedBundledSourceRoot() });
-    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(workspaceId).root, pluginId: "render", enabled: true, actor: "test:operator" }, { origin: "bundled" });
+    await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId: "render", enabled: true, actor: "test:operator" }, { origin: "bundled" });
     const loadContributions = createTovuAgentPluginLifecycle({ layout }).loadPluginContributions;
     const loadDeployOps = input => loadDeployOpsRegistry(input, { loadContributions });
     const registry = await loadDeployOps({ workspaceId });
@@ -43,7 +43,7 @@ test("installed Render deploys and observes the returned ID through the guarded 
     } } };
     const input = { platform: "render", target: TARGET, credentialLabel: "Render API" };
     const accepted = await runDeploy({ deps, input }); assert.equal(accepted.runId, RUN);
-    const status = await runDeployOps(deps, { ...input, runId: accepted.runId }, "status");
+    const status = await runDeployOps({ deps, input: { ...input, runId: accepted.runId }, operation: "status" });
     assert.equal(status.state, "healthy"); assert.equal(JSON.stringify({ accepted, status }).includes("simulated-private-token"), false); fake.done();
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;

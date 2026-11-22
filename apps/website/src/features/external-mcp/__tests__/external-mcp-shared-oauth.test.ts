@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
+import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { createApiConnectionVault } from '../../api-connections/vault-stores.js';
@@ -243,9 +244,9 @@ test('production config mapping keeps two shared MCP suppliers distinct at the s
     oauth: { providerId: provider.providerId, grant: 'authorization_code', clientId: 'second-client', clientSecret: 'second-secret', scopes: 'read' },
   });
   await signIn(a, 'server-b');
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo: a.repo, sealer: a.sealer, oauth: a.service.tokenResolver }, 'workspace-local');
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo: a.repo, sealer: a.sealer, oauth: a.service.tokenResolver }, workspaceId: 'workspace-local' });
   assert.deepEqual(failures, []);
-  const connections = toResolvedFederatedConnections(configs);
+  const connections = toResolvedFederatedConnections({ configs });
   const first = connections.find(connection => connection.config.connectionId === 'server')!;
   const second = connections.find(connection => connection.config.connectionId === 'server-b')!;
   assert.equal(await first.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-1');
@@ -254,6 +255,6 @@ test('production config mapping keeps two shared MCP suppliers distinct at the s
   assert.equal(await first.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-3');
   assert.equal(await second.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-4');
   await a.service.disconnect({ serverId: 'server' });
-  await assert.rejects(async () => first.bearerToken!({ url: 'https://resource.example/mcp' }));
+  await assert.rejects(async () => first.bearerToken!({ url: 'https://resource.example/mcp' }), { constructor: ApiConnectionError, name: 'ApiConnectionError', code: 'access-denied', message: 'Permission to use the selected shared connection was removed. Choose it again in the connection settings to request access.' });
   assert.equal(await second.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-4');
 });

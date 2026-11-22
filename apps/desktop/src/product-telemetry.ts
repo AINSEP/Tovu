@@ -1,9 +1,11 @@
 /** Electron policy over the shared product tracker, consent and native crash-upload ports. */
 import path from 'node:path';
+import { formatErrorForLog } from '@jini-ai/core';
 import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
 import { bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import type { ProductTelemetry, ProductConsent } from '@tovu/contracts/product-telemetry';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 export interface DesktopProductLaunch { configPath: string; preferencePath: string; release: string }
 export interface DesktopProductTelemetry {
   tracker: Tracker; launch: DesktopProductLaunch | undefined;
@@ -23,7 +25,7 @@ function startNativeReporting({ active, product, readConsent, crashReporter, obs
   try {
     crashReporter.start({ ...product.crashUpload, uploadToServer: true, compress: true });
     return true;
-  } catch { warn('[product-telemetry] native crash reporting is unavailable'); return false; }
+  } catch (error) { warn(`[product-telemetry] native crash reporting is unavailable Cause: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); return false; }
 }
 
 /** Development has no implicit product config; an explicit path enables boot, not export permission.

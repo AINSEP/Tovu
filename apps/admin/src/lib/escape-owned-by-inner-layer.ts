@@ -1,3 +1,5 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
+
 /**
  * @file Whether an Escape keypress belongs to an open inner layer (modal, menu, popup) rather than
  * to the container behind it.
@@ -53,9 +55,7 @@ export function isEscapeOwnedByInnerLayer(input: {
 }): boolean {
   if (input.key !== "Escape") return false;
   if (input.defaultPrevented) return true;
-  try {
+  return orFallbackSync({ work: () => {
     return input.root.querySelector(OPEN_LAYER_SELECTOR_MODERN) !== null;
-  } catch {
-    return input.root.querySelector(OPEN_LAYER_SELECTOR) !== null;
-  }
+  }, fallback: undefined, step: "Check modern Escape ownership" }) ?? (input.root.querySelector(OPEN_LAYER_SELECTOR) !== null);
 }

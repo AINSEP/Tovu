@@ -24,8 +24,8 @@ function harness(required: { suffix: "/items" | "/restore" }, options: Partial<T
   };
   // Assign only supplied fields; spreading the defaults would evaluate the unused userRepo getter.
   Object.defineProperties(deps, Object.getOwnPropertyDescriptors(options));
-  registerAdminTrashMoveToTrashRoute(app, deps);
-  registerAdminTrashRestoreRoute(app, deps);
+  registerAdminTrashMoveToTrashRoute({ app, deps });
+  registerAdminTrashRestoreRoute({ app, deps });
   return async (input: { body?: unknown; workspaceId?: unknown; principal?: boolean }, _options: object = {}) => {
     const { res, capture } = createCapturingResponse();
     if (input.principal !== false) res.locals.principal = { id: "p-7" };

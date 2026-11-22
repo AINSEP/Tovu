@@ -116,7 +116,7 @@
  * Orders — the financial-truth header row for one checkout. `providerEventAt` is the ordering
  * cursor: the provider's own event timestamp for the last webhook event actually applied to this
  * row, compared — never blindly overwritten — on every subsequent delivery by
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
+ * `Jini packages/commerce/src/catalog/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
  * denormalized from `commerceOrderItems` (computed once at checkout, not DB-enforced — SQLite
  * CHECK cannot aggregate across rows): the column-vs-document rule makes it a column anyway
  * because it is reported/sorted on, the same reasoning this file already applies denormalizing
@@ -146,7 +146,7 @@
  * provider's `eventId` is already globally unique per provider, and narrowing the constraint by
  * workspace would let the same event double-process if a provider ever misrouted it across
  * workspaces. That constraint stops replay; it does NOT stop out-of-order delivery by itself —
- * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
+ * `Jini packages/commerce/src/catalog/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
  * against `commerceOrders` is the ordering half.
  */
 
@@ -156,9 +156,9 @@
 
 import { sql } from "kysely";
 
-import { tableExists } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import { tableExists } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 export const DROP_EMPTY_CORE_COMMERCE_TABLES_ID = "0011_drop_empty_core_commerce_tables";
 
@@ -177,10 +177,10 @@ export const CORE_COMMERCE_TABLES_IN_DROP_ORDER = [
  * @complexity Six existence queries, at most one PG lock, six COUNT scans and six DROP statements;
  * counting costs O(total target rows), with O(1) space for the fixed six-table inventory.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   const existing: string[] = [];
   for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) {
-    if (await tableExists(kernel, table)) existing.push(table);
+    if (await tableExists({ kernel, table })) existing.push(table);
   }
   if (kernel.dialect === "postgres" && existing.length > 0) {
     // Advisory migration locks do not exclude ordinary writers between COUNT and DROP.
@@ -213,4 +213,4 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 export const dropEmptyCoreCommerceTables = (
   required: { checksum: string },
   _optional: Record<string, never> = {}
-): MigrationStep => ({ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID, checksum: required.checksum, up });
+): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID, checksum: required.checksum, up });

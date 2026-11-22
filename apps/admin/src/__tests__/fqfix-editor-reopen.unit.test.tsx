@@ -2,7 +2,9 @@ import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from './fetch-query-provider.test-helper';
 import type { ReactNode } from 'react';
-import type { AdminMenu, AdminPost, AdminWorkspace } from '@/lib/api';
+import type { AdminPost } from '@/features/posts/api/posts-api.types';
+import type { AdminMenu } from '@/features/menus/api/menus-api.types';
+import type { AdminWorkspace } from '@/features/workspace/api/workspace-api.types';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';
 import { createFakePageEditorPort } from '@/features/pages/hooks/page-editor-dependencies.hooks';
 import { createFakeThemeCanvasPort } from '@/features/pages/hooks/theme-canvas-dependencies.hooks';
@@ -31,13 +33,13 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const page: AdminPost = { id: 'p1', workspaceId: 'ws1', kind: 'page', slug: 'landing', title: 'Cached page',
       status: 'draft', bodyFormat: 'html', bodyHtml: '<p>Cached</p>', bodyJson: {}, version: 1, updatedAt: '2026-10-01T00:00:00Z' };
     const port = createFakePageEditorPort({ page });
-    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: (_locale: string, key: string) => key, locale: 'en' };
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: () => {}, t: ({ key }: { locale: string; key: string }) => key, locale: 'en' };
     let current!: ReturnType<typeof usePageEditor>;
-    function Probe() { current = usePageEditor('landing', deps); return null; }
+    function Probe() { current = usePageEditor({ routeSlug: 'landing', deps }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.title).toBe('Cached page'));
     view.rerender(<Scope />);
-    port.simulateExternalWrite({ title: 'Fresh page', bodyHtml: '<p>Fresh</p>' });
+    port.simulateExternalWrite({ patch: { title: 'Fresh page', bodyHtml: '<p>Fresh</p>' } });
     const fresh = deferred<{ post: AdminPost }>();
     port.getPage = () => fresh.promise;
     view.rerender(<Scope><Probe /></Scope>);
@@ -58,7 +60,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     const port = createFakeMenusPort({ menus: [menu] });
     const deps = { port, navigate: () => {}, t };
     let current!: ReturnType<typeof useMenuEditor>;
-    function Probe() { current = useMenuEditor('main', deps); return null; }
+    function Probe() { current = useMenuEditor({ menuId: 'main', dependencies: deps }); return null; }
     const view = render(<Scope><Probe /></Scope>);
     await waitFor(() => expect(current.title).toBe('Cached menu'));
     view.rerender(<Scope />);
@@ -71,7 +73,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     await waitFor(() => expect(current.title).toBe('Fresh menu'));
     expect(current.menu?.version).toBe(4);
     let savedBasis: number | undefined;
-    port.updateMenuTree = async input => { savedBasis = input.expectedVersion; return { menu: { ...menu, version: 5 } }; };
+    port.updateMenuTree = async ({ target }) => { savedBasis = target.expectedVersion; return { menu: { ...menu, version: 5 } }; };
     await act(async () => { await current.save(); });
     expect(savedBasis).toBe(4);
   });
@@ -112,7 +114,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     expect(current.text).toBe('');
     await act(async () => { state = listing('Fresh note'); fresh.resolve(state); });
     await waitFor(() => expect(current.text).toBe('Fresh note'));
-    act(() => current.setText('Fresh note plus my edit'));
+    act(() => current.setText({ text: 'Fresh note plus my edit' }));
     await act(async () => { await current.save(); });
     expect(saved).toEqual(['Fresh note plus my edit']);
   });

@@ -4,8 +4,10 @@ import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { renderBanner } from '@jini-ai/cookie-consent/render';
 import { consentDeclarationReadiness } from '#src/features/consent/readiness';
-import { pageShell } from '../../http/site/render.js';
-import { serializeHeadElements } from '../../http/site/page-head.js';
+import { pageShell } from '../../http/site/render/document-shell.js';
+import { useSiteChatBuild } from '../../http/site/__tests__/site-chat.fixture.js';
+import { siteAssistantMarkup } from '../../http/site/render/site-assistant-mount.js';
+import { serializeHeadElements } from '@jini-ai/cms/presentation/page-head';
 
 function documentWithAssets(head: string): string {
   const assets = renderBanner({ mode: 'jini', client: { contract: 1, policy: 'metadata', regionMode: 'opt-in' }, copy: {} });
@@ -39,7 +41,7 @@ for (const [name, source, selector] of metadata) {
 }
 
 test('the actual Tovu head serializer preserves canonical metadata beside consent assets', () => {
-  const head = serializeHeadElements([{ kind: 'link', rel: 'canonical', href: 'https://site.example/docs', priority: 120 }]);
+  const head = serializeHeadElements({ elements: [{ kind: 'link', rel: 'canonical', href: 'https://site.example/docs', priority: 120 }] });
   assert.equal(head.includes('data-consent-category'), false);
   const dom = new JSDOM(documentWithAssets(head));
   try { assert.equal(dom.window.document.head.querySelector('link[rel="canonical"]')?.getAttribute('href'), 'https://site.example/docs'); }
@@ -54,4 +56,17 @@ test('unmanaged tracker scripts are diagnostics, never an implied resource conve
   const result = consentDeclarationReadiness({ html, scripts: [], runtimeSlot: true });
   assert.equal(result.warnings.filter(warning => warning.code === 'UNMANAGED_CONTENT').length, 2);
   assert.equal('gatedHtml' in result, false);
+});
+
+test('metadata precedes assistant assets, which precede host consent assets in both slots', t => {
+  useSiteChatBuild({ test: t, ready: true });
+  const leading = siteAssistantMarkup({ enabled: true });
+  assert.ok(leading.head && leading.body, "the assistant contributes assets to both document slots");
+  const head = '<link rel="canonical" href="/ordered">';
+  const assets = { head: '<!-- consent head -->', body: '<!-- consent body -->' };
+  const html = pageShell({ title: 'Order', theme: null, body: '<p>Body</p>', extraHead: head,
+    siteAssistantEnabled: true, documentAssets: assets });
+  assert.ok(html.includes(leading.head + '\n' + assets.head + '\n</head>'), "the head places assistant assets before consent assets");
+  assert.ok(html.includes(leading.body + '\n' + assets.body + '\n</body>'), "the body places assistant assets before consent assets");
+  assert.ok(html.indexOf(head) < html.indexOf(leading.head), "the page metadata precedes the assistant head assets");
 });

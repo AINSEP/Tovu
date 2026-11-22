@@ -38,7 +38,7 @@ function capture() {
   return {
     out,
     err,
-    io: { out: (t: string) => out.push(t), err: (t: string) => err.push(t) },
+    io: { out: ({ text }: { text: string }) => out.push(text), err: ({ text }: { text: string }) => err.push(text) },
     stdout: () => out.join(""),
     stderr: () => err.join("")
   };
@@ -49,15 +49,15 @@ test("add-site adds a real site and reports the path it recorded", () => {
   const siteDir = siteFixture();
   const io = capture();
 
-  const code = runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], io.io);
+  const code = runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: io.io });
 
   assert.equal(code, EXIT_OK);
   assert.match(io.stdout(), /Added: /);
   assert.ok(io.stdout().includes(siteDir));
   // Stated in the output because the promise is load-bearing and people do not read source.
   assert.match(io.stdout(), /not moved, copied, or changed/);
-  assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map(({ siteDir, origin }) => ({ siteDir, origin })),
+  assert.equal(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) })[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).map(({ siteDir, origin }) => ({ siteDir, origin })),
     [{ siteDir: path.resolve(siteDir), origin: SITE_ORIGIN.adopted }]);
 });
 
@@ -65,7 +65,7 @@ test("add-site ALWAYS announces which app-data directory it used", () => {
   const userDataDir = tempDir();
   const io = capture();
 
-  runTovuDesktopCli(["add-site", siteFixture(), "--user-data-dir", userDataDir], io.io);
+  runTovuDesktopCli({ argv: ["add-site", siteFixture(), "--user-data-dir", userDataDir], io: io.io });
 
   // The mitigation for this CLI's one structural risk: `resolveDesktopUserDataDir` mirrors
   // Electron's convention instead of asking it, so a drift would show up as a row written where the
@@ -78,7 +78,7 @@ test('the real CLI entry propagates success, refusal, and usage exit codes', () 
   const entry = fileURLToPath(new URL('../bin/tovu-desktop.ts', import.meta.url));
   const userDataDir = tempDir();
   for (const args of [ ['--help'], ['add-site', tempDir(), '--user-data-dir', userDataDir], ['add-site'] ]) {
-    const expected = runTovuDesktopCli(args, capture().io);
+    const expected = runTovuDesktopCli({ argv: args, io: capture().io });
     // Plain node, as the entry's `#!/usr/bin/env node` runs it. A tsx child also wrote its
     // esbuild-transformed image into the coverage run under the source paths, at the wrong lines.
     // Allow slow cold starts under full-suite CPU load; this asserts exit codes, not startup speed.
@@ -100,7 +100,7 @@ test("with no --user-data-dir the real CLI uses the env override and says plainl
   assert.equal(child.status, EXIT_OK, child.stderr);
   assert.ok(child.stdout.includes(`Using app data: ${userDataDir}\n`));
   assert.match(child.stdout, /this directory does not exist yet — it will be created/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map((row) => row.siteDir), [path.resolve(siteDir)]);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).map((row) => row.siteDir), [path.resolve(siteDir)]);
 });
 
 test("a filesystem failure while recording is thrown as itself, never dressed up as a refusal", () => {
@@ -108,7 +108,7 @@ test("a filesystem failure while recording is thrown as itself, never dressed up
   fs.writeFileSync(notADirectory, "x");
   const io = capture();
 
-  assert.throws(() => runTovuDesktopCli(["add-site", siteFixture(), "--user-data-dir", notADirectory], io.io),
+  assert.throws(() => runTovuDesktopCli({ argv: ["add-site", siteFixture(), "--user-data-dir", notADirectory], io: io.io }),
     (error: NodeJS.ErrnoException) => /^(ENOTDIR|EEXIST)$/.test(error.code ?? ""));
   assert.equal(io.stderr(), "");
 });
@@ -119,13 +119,13 @@ test("add-site EXITS NON-ZERO and writes nothing when the folder is not a site",
   fs.mkdirSync(empty);
   const io = capture();
 
-  const code = runTovuDesktopCli(["add-site", empty, "--user-data-dir", userDataDir], io.io);
+  const code = runTovuDesktopCli({ argv: ["add-site", empty, "--user-data-dir", userDataDir], io: io.io });
 
   // A script piping this must be able to tell. Asserted as the specific refusal code, not merely
   // `!== 0`, so a usage bug cannot masquerade as a refusal.
   assert.equal(code, EXIT_REFUSED);
   assert.match(io.stderr(), /no Tovu site here to add/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
   // And nothing was initialized in the operator's folder.
   assert.deepEqual(fs.readdirSync(empty), []);
 });
@@ -140,21 +140,21 @@ test("add-site refuses an incomplete and an occupied folder with their own reaso
   fs.writeFileSync(path.join(occupied, "a.txt"), "x");
 
   const first = capture();
-  assert.equal(runTovuDesktopCli(["add-site", incomplete, "--user-data-dir", userDataDir], first.io), EXIT_REFUSED);
+  assert.equal(runTovuDesktopCli({ argv: ["add-site", incomplete, "--user-data-dir", userDataDir], io: first.io }), EXIT_REFUSED);
   assert.match(first.stderr(), /half-initialized or damaged/);
 
   const second = capture();
-  assert.equal(runTovuDesktopCli(["add-site", occupied, "--user-data-dir", userDataDir], second.io), EXIT_REFUSED);
+  assert.equal(runTovuDesktopCli({ argv: ["add-site", occupied, "--user-data-dir", userDataDir], io: second.io }), EXIT_REFUSED);
   assert.match(second.stderr(), /folder of unrelated files/);
   assert.match(second.stderr(), /subfolder/);
 
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
 });
 
 test("add-site with no path is a USAGE error, distinct from a refusal", () => {
   const io = capture();
 
-  const code = runTovuDesktopCli(["add-site"], io.io);
+  const code = runTovuDesktopCli({ argv: ["add-site"], io: io.io });
 
   assert.equal(code, EXIT_USAGE);
   assert.match(io.stderr(), /needs the path to a site folder/);
@@ -167,60 +167,60 @@ test("add-site REFUSES several paths rather than silently adding only the first"
 
   // What an unquoted path containing spaces looks like by the time it reaches argv. Adding the
   // first word would point the app at a folder the operator never named.
-  const code = runTovuDesktopCli(["add-site", "/Users/la/My", "Site", "Folder", "--user-data-dir", userDataDir], io.io);
+  const code = runTovuDesktopCli({ argv: ["add-site", "/Users/la/My", "Site", "Folder", "--user-data-dir", userDataDir], io: io.io });
 
   assert.equal(code, EXIT_USAGE);
   assert.match(io.stderr(), /takes one path, but got 3/);
   assert.match(io.stderr(), /quote it/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
 });
 
 test("add-site is idempotent and says so on the second run", () => {
   const userDataDir = tempDir();
   const siteDir = siteFixture();
-  runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], capture().io);
+  runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: capture().io });
   const io = capture();
 
-  const code = runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], io.io);
+  const code = runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: io.io });
 
   assert.equal(code, EXIT_OK);
   assert.match(io.stdout(), /Already in your websites/);
-  assert.equal(readTrackedSites(sitesFilePath(userDataDir)).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).length, 1);
 });
 
 test("add-site tells the operator when it is restoring a website they removed", () => {
   const userDataDir = tempDir();
   const siteDir = siteFixture();
-  runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], capture().io);
+  runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: capture().io });
   // The operator removing it in the app writes a tombstone; naming the folder again clears it.
-  untrackSite(sitesFilePath(userDataDir), siteDir);
+  untrackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir });
   const io = capture();
 
-  runTovuDesktopCli(["add-site", siteDir, "--user-data-dir", userDataDir], io.io);
+  runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: io.io });
 
   assert.match(io.stdout(), /You had removed this website before/);
 });
 
 test("--help exits zero, a bare invocation exits with a usage code", () => {
   const help = capture();
-  assert.equal(runTovuDesktopCli(["--help"], help.io), EXIT_OK);
+  assert.equal(runTovuDesktopCli({ argv: ["--help"], io: help.io }), EXIT_OK);
   assert.match(help.stdout(), /tovu-desktop add-site/);
 
   // Different codes on purpose: `--help` is what the operator asked for, an empty argv is a mistake.
-  assert.equal(runTovuDesktopCli([], capture().io), EXIT_USAGE);
+  assert.equal(runTovuDesktopCli({ argv: [], io: capture().io }), EXIT_USAGE);
 });
 
 test("an unknown command names itself and shows usage", () => {
   const io = capture();
 
-  const code = runTovuDesktopCli(["remove-site", "/x"], io.io);
+  const code = runTovuDesktopCli({ argv: ["remove-site", "/x"], io: io.io });
 
   assert.equal(code, EXIT_USAGE);
   assert.match(io.stderr(), /Unknown command 'remove-site'/);
 });
 
 test("parseArgv lifts --user-data-dir out from anywhere in argv", () => {
-  assert.deepEqual(parseArgv(["add-site", "/a", "--user-data-dir", "/d"]), { positional: ["add-site", "/a"], userDataDir: "/d" });
-  assert.deepEqual(parseArgv(["--user-data-dir", "/d", "add-site", "/a"]), { positional: ["add-site", "/a"], userDataDir: "/d" });
-  assert.deepEqual(parseArgv(["add-site", "/a"]), { positional: ["add-site", "/a"], userDataDir: undefined });
+  assert.deepEqual(parseArgv({ argv: ["add-site", "/a", "--user-data-dir", "/d"] }), { positional: ["add-site", "/a"], userDataDir: "/d" });
+  assert.deepEqual(parseArgv({ argv: ["--user-data-dir", "/d", "add-site", "/a"] }), { positional: ["add-site", "/a"], userDataDir: "/d" });
+  assert.deepEqual(parseArgv({ argv: ["add-site", "/a"] }), { positional: ["add-site", "/a"], userDataDir: undefined });
 });

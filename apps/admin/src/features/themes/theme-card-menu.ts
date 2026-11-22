@@ -1,9 +1,10 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import type { PresentationSettings } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+
 import { isActiveTheme } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The theme card's ⋮ menu (owner 2026-10-10): which items it lists and when Delete is refused.
  * Pure — `Themes.tsx` renders the list with the admin's shared `RowMenu`, and a new card action is
@@ -21,12 +22,12 @@ export type ThemeDeleteBlock = "active" | "built-in" | null;
  * @complexity O(1).
  */
 export function themeDeleteBlock(required: { settings: PresentationSettings; themeId: string; builtIn: boolean }): ThemeDeleteBlock {
-  if (isActiveTheme(required.settings, required.themeId)) return "active";
+  if (isActiveTheme({ settings: required.settings, themeId: required.themeId })) return "active";
   return required.builtIn ? "built-in" : null;
 }
 
 /** The sentence shown when a refused Delete is picked — an i18n key. @complexity O(1). */
-export function themeDeleteBlockReasonKey(block: Exclude<ThemeDeleteBlock, null>): string {
+export function themeDeleteBlockReasonKey({ block }: { block: Exclude<ThemeDeleteBlock, null> }, _optional: Record<string, never> = {}): string {
   return block === "active" ? "Turn this theme off or activate another one first" : "Built-in themes can't be deleted";
 }
 
@@ -57,7 +58,7 @@ export function buildThemeCardMenuItems(
     duplicatingTheme: string | null;
     t: Translate;
   },
-  optional: { duplicate?: (themeId: string) => Promise<void>; onRequestDelete?: (request: ThemeDeleteRequest) => void } = {}
+  optional: { duplicate?: (required: { themeId: string }) => Promise<void>; onRequestDelete?: (request: ThemeDeleteRequest) => void } = {}
 ): RowMenuItem[] {
   const { themeId, name, block, duplicatingTheme, t } = required;
   const { duplicate, onRequestDelete } = optional;
@@ -67,7 +68,7 @@ export function buildThemeCardMenuItems(
       key: "copy",
       label: duplicatingTheme === null ? t("Copy theme") : t("Duplicating…"),
       onSelect: () => {
-        if (duplicatingTheme === null) void duplicate(themeId);
+        if (duplicatingTheme === null) void duplicate({ themeId });
       },
     });
   }

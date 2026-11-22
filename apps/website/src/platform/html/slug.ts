@@ -23,6 +23,6 @@ const ASCII_NON_ALNUM = /[\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f]+/g;
 
 /** Lower-case, hyphen-separated, ASCII-only slug of `text`; `""` when nothing survives.
  *  @complexity O(text length). */
-export function toSlug(text: string): string {
+export function toSlug({ text }: { text: string }, _optional = {}): string {
   return slugify(text.replace(ASCII_NON_ALNUM, " "), { decamelize: false });
 }

@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file Newsletter composition, list and subscription catalog.
  * Delivery tools live in delivery/tool-registrations.ts. Mass sends, scheduling and resume require
@@ -16,20 +17,13 @@ const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
 export type AgentToolSideEffect = "none" | typeof MUTATES_DURABLE_STATE | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 const CAMPAIGN_ID_SCHEMA = {
   type: "string",
@@ -75,6 +69,8 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       required: [],
       properties: {
+        limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Maximum campaigns to scan per page." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." },
         status: {
           type: "string",
           enum: ["draft", "scheduled", "sending", "sent", "paused", "canceled", "failed"],
@@ -116,12 +112,14 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
       type: "object",
       additionalProperties: false,
       required: ["listId"],
-      properties: { listId: LIST_ID_SCHEMA },
+      properties: { listId: LIST_ID_SCHEMA,
+        limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Maximum subscriptions per page." },
+        cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." } },
     },
   },
   {
     name: "newsletter_list_send_log",
-    description: "Lists the per-recipient delivery log for one campaign (id, recipient email, delivery status, attempts). Read-only; PII-adjacent (recipient email addresses).",
+    description: "Lists the per-recipient delivery log for one campaign (id, recipient email, delivery status, attempts). Read-only; PII-adjacent (recipient email addresses). Returns at most 100 rows; truncated: true means more rows exist.",
     sideEffects: "none",
     authorization: { permission: "admin.newsletter.subscriber.read" },
     inputSchema: {

@@ -1,5 +1,5 @@
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
-import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import type { SqliteSyncOpener } from "@jini-ai/core/contracts/storage";
 import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
@@ -30,7 +30,7 @@ import { migrateChatDatabase } from "../migrations/index.js";
 /** Opens (or creates) `chat.db` with the pragmas `content-db.ts` sets — no schema, no write. */
 export interface ChatDbOpenOptions { readonly open?: SqliteSyncOpener<NativeSqliteDatabase> }
 
-function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatDbOpenOptions = {}): NativeSqliteDatabase {
+function openChatConnection({ filePath }: { filePath: string }, { open = openNativeSqlite }: ChatDbOpenOptions = {}): NativeSqliteDatabase {
   const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   // Required for `ai_chat_messages`' and `assistant_agent_sessions`' `ON DELETE CASCADE` to fire.
@@ -46,11 +46,10 @@ function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatD
  * `createChatStoreFactory`/`createSqliteAgentSessionStore` take (none of the chat tables has a
  * `sqliteTable` declaration, by design: `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`).
  */
-export async function openSiteChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
-  const filePath = typeof required === "string" ? required : required.filePath;
-  const sqlite = openChatConnection(filePath, options);
+export async function openSiteChatDb({ filePath }: { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
+  const sqlite = openChatConnection({ filePath }, options);
   try {
-    await migrateChatDatabase(sqliteKernel<unknown>(sqlite));
+    await migrateChatDatabase({ kernel: sqliteKernel<unknown>({ source: sqlite }) });
   } catch (err) {
     sqlite.close();
     throw err;
@@ -65,9 +64,8 @@ export async function openSiteChatDb(required: string | { filePath: string }, op
  *
  * @complexity O(1) — one connection open plus a fixed number of DDL statements.
  */
-export function openChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): NativeSqliteDatabase {
-  const filePath = typeof required === "string" ? required : required.filePath;
-  const sqlite = openChatConnection(filePath, options);
+export function openChatDb({ filePath }: { filePath: string }, options: ChatDbOpenOptions = {}): NativeSqliteDatabase {
+  const sqlite = openChatConnection({ filePath }, options);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);
   sqlite.exec(activeRunIndexStatement({ dialect: "sqlite" }, {}));

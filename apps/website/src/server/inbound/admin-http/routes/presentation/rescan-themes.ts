@@ -1,7 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { duplicateThemeIds, rescanThemes, validThemeIds } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * POST — re-run theme discovery against the themes directory.
@@ -21,29 +23,14 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * rescan that never ran, and "I pressed it and nothing happened" is the whole failure this route is
  * meant to end.
  */
-export const registerAdminThemeRescanRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/rescan", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.set",
-        workspaceId: deps.workspaceId,
-        entityType: "presentation",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.set", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const changed = rescanThemes({ themes: deps.themes, dir: deps.themesDir });
 
@@ -51,11 +38,11 @@ export const registerAdminThemeRescanRoute: ContentRouteRegistrar = (app, deps) 
         added: changed.added,
         removed: changed.removed,
         total: changed.total,
-        availableThemeIds: validThemeIds(deps.themes),
+        availableThemeIds: validThemeIds({ themes: deps.themes }),
         // Two themes can claim the same id (ids are unique per folder, not globally), in which case
         // the site silently renders whichever sorts first. Reported here rather than swallowed,
         // because a rescan is exactly when a colliding theme most likely just arrived.
-        duplicateIds: duplicateThemeIds(deps.themes),
+        duplicateIds: duplicateThemeIds({ themes: deps.themes }),
       });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/presentation/rescan-themes", code: "INTERNAL_ERROR" });

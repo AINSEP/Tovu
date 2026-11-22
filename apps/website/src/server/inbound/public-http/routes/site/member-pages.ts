@@ -6,7 +6,7 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
-import { serveVirtualPage } from "./pages.js";
+import { serveVirtualPage } from "./pages/handlers/virtual-page.js";
 
 const CODE_REQUEST_VIEW = "code-request";
 
@@ -33,7 +33,7 @@ function field(input: { id: string; label: string; name: string; type: string; a
   tip?: string }): string {
   const tipId = `${input.id}-tip`;
   const label = `<label for="${input.id}">${input.label}</label>`;
-  const head = input.tip ? `<span class="member-label-row">${label}${tipButton(tipId)}</span>${tipText(tipId, input.tip)}` : label;
+  const head = input.tip ? `<span class="member-label-row">${label}${tipButton({ id: tipId })}</span>${tipText({ id: tipId, text: input.tip })}` : label;
   const control = `<input id="${input.id}" name="${input.name}" type="${input.type}" ` +
     `autocomplete="${input.autocomplete}"${input.type === "password" ? ' spellcheck="false"' : ""}${input.extra ?? ""}>`;
   const body = input.type === "password" ? `<span class="member-password">${control}${passwordToggle(input)}</span>` : control;
@@ -51,35 +51,35 @@ function passwordToggle({ id, label }: { id: string; label: string }, _optional 
     '<path class="member-password-slash" d="M2 2l20 20" hidden/></svg></button>';
 }
 
-function tipButton(id: string): string {
+function tipButton({ id }: { id: string }, _optional = {}): string {
   return `<button type="button" class="member-tip" aria-label="More about this" aria-expanded="false" aria-controls="${id}">i</button>`;
 }
 
-function tipText(id: string, text: string): string {
+function tipText({ id, text }: { id: string; text: string }, _optional = {}): string {
   return `<span class="member-tip-text" id="${id}" hidden>${text}</span>`;
 }
 
 const messages = '<p class="member-note" data-member-error role="alert" hidden></p><p class="member-note" data-member-ok role="status" hidden></p>';
 
-function form(name: string, inner: string, submit: string, after = ""): string {
+function form({ name, inner, submit }: { name: string; inner: string; submit: string }, { after = "" }: { after?: string } = {}): string {
   return `<form data-member-form="${name}">${inner}${messages}<div class="member-actions">` +
     `<button type="submit" class="btn btn-solid member-submit">${submit}</button>${after}</div></form>`;
 }
 
-function view(name: string, inner: string): string {
+function view({ name, inner }: { name: string; inner: string }, _optional = {}): string {
   return `<section data-member-view="${name}" hidden>${inner}</section>`;
 }
 
-function links(...items: string[]): string {
+function links({ items }: { items: string[] }, _optional = {}): string {
   return `<p class="member-auth-links">${items.join("")}</p>`;
 }
 
-function showButton(target: string, label: string): string {
+function showButton({ target, label }: { target: string; label: string }, _optional = {}): string {
   return `<button type="button" class="member-link" data-member-show="${target}">${label}</button>`;
 }
 
 /** A status line a view opens on; `tabindex` lets the script move focus to it so it is read out. */
-function note(html: string): string {
+function note({ html }: { html: string }, _optional = {}): string {
   return `<p class="member-note" tabindex="-1" data-member-focus>${html}</p>`;
 }
 
@@ -91,70 +91,65 @@ const PROVIDERS = '<div class="member-providers" data-member-providers hidden><d
 const OIDC_ERROR = '<p class="member-note member-oidc-error" data-member-oidc-error role="alert" tabindex="-1" hidden></p>';
 
 /** Page templates print the body only (an authored Page brings its own heading), so the h1 is here. */
-function page(kind: string, title: string, views: string[], top = ""): { title: string; body: string } {
+function page({ kind, title, views }: { kind: string; title: string; views: string[] }, { top = "" }: { top?: string } = {}): { title: string; body: string } {
   return { title, body: `<div class="member-auth" data-member-page="${kind}"><h1>${title}</h1><noscript><p>Turn on JavaScript to use this page.</p></noscript>` +
     `${top}${views.join("")}</div>` };
 }
 
-const EMAIL = (id: string) => field({ id, label: "Email", name: "email", type: "email", autocomplete: "email", extra: " required" });
+const EMAIL = ({ id }: { id: string }, _optional = {}) => field({ id, label: "Email", name: "email", type: "email", autocomplete: "email", extra: " required" });
 const signOutButton = '<button type="button" class="btn btn-ghost" data-member-sign-out>Sign out</button>';
 
-const SIGN_IN = page("signin", "Sign in", [
-  view("password", form("password",
-    EMAIL("member-signin-email") +
-      field({ id: "member-signin-password", label: "Password", name: "password", type: "password", autocomplete: "current-password", extra: " required" }),
-    "Sign in") +
-    links('<a href="/forgot-password">Forgot password?</a>', showButton(CODE_REQUEST_VIEW, "Email me a code instead"))),
-  view(CODE_REQUEST_VIEW, form(CODE_REQUEST_VIEW, EMAIL("member-code-email"), "Email me a code",
-    tipButton("member-code-tip") + tipText("member-code-tip", "We email you a 6-digit code. New here? Signing in with a code creates your account.")) +
-    links(showButton("password", "Use my password instead"))),
-  view("code", note('We sent a code to <strong data-member-email></strong>.') +
-    form("code", field({ id: "member-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
-      extra: ' inputmode="numeric" maxlength="7" required' }), "Sign in") +
-    links(showButton(CODE_REQUEST_VIEW, "Send a new code"))),
-  view("magic", form("magic", note("Finish signing in from your email link."), "Continue") +
-    links(showButton(CODE_REQUEST_VIEW, "Send a new code"))),
-  view("signed-in", note('You\'re signed in as <strong data-member-email></strong>.') +
-    links('<a href="/account">Your account</a>', '<button type="button" class="member-link" data-member-sign-out>Sign out</button>')),
+const SIGN_IN = page({ kind: "signin", title: "Sign in", views: [
+  view({ name: "password", inner: form({ name: "password", inner: EMAIL({ id: "member-signin-email" }) +
+      field({ id: "member-signin-password", label: "Password", name: "password", type: "password", autocomplete: "current-password", extra: " required" }), submit: "Sign in" }) +
+    links({ items: ['<a href="/forgot-password">Forgot password?</a>', showButton({ target: CODE_REQUEST_VIEW, label: "Email me a code instead" })] }) }),
+  view({ name: CODE_REQUEST_VIEW, inner: form({ name: CODE_REQUEST_VIEW, inner: EMAIL({ id: "member-code-email" }), submit: "Email me a code" }, { after: tipButton({ id: "member-code-tip" }) + tipText({ id: "member-code-tip", text: "We email you a 6-digit code. New here? Signing in with a code creates your account." }) }) +
+    links({ items: [showButton({ target: "password", label: "Use my password instead" })] }) }),
+  view({ name: "code", inner: note({ html: 'We sent a code to <strong data-member-email></strong>.' }) +
+    form({ name: "code", inner: field({ id: "member-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
+      extra: ' inputmode="numeric" maxlength="7" required' }), submit: "Sign in" }) +
+    links({ items: [showButton({ target: CODE_REQUEST_VIEW, label: "Send a new code" })] }) }),
+  view({ name: "magic", inner: form({ name: "magic", inner: note({ html: "Finish signing in from your email link." }), submit: "Continue" }) +
+    links({ items: [showButton({ target: CODE_REQUEST_VIEW, label: "Send a new code" })] }) }),
+  view({ name: "signed-in", inner: note({ html: 'You\'re signed in as <strong data-member-email></strong>.' }) +
+    links({ items: ['<a href="/account">Your account</a>', '<button type="button" class="member-link" data-member-sign-out>Sign out</button>'] }) }),
   // A provider account whose address isn't the provider's own (not Gmail/Workspace): one emailed
   // code proves the inbox the first time. The sealed continuation arrives in the fragment.
-  view("oidc-code", note("We emailed you a 6-digit code to confirm the address is yours. You only need to do this once.") +
-    form("oidc-code", field({ id: "member-oidc-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
-      extra: ' inputmode="numeric" maxlength="7" required' }), "Finish signing in") +
-    links(showButton("password", "Start over"))),
-], OIDC_ERROR + PROVIDERS);
+  view({ name: "oidc-code", inner: note({ html: "We emailed you a 6-digit code to confirm the address is yours. You only need to do this once." }) +
+    form({ name: "oidc-code", inner: field({ id: "member-oidc-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
+      extra: ' inputmode="numeric" maxlength="7" required' }), submit: "Finish signing in" }) +
+    links({ items: [showButton({ target: "password", label: "Start over" })] }) }),
+] }, { top: OIDC_ERROR + PROVIDERS });
 
-const FORGOT = page("forgot", "Reset your password", [
-  view("forgot", form("forgot", EMAIL("member-forgot-email"), "Email me a reset link") + links('<a href="/signin">Back to sign in</a>')),
-  view("sent", note("Check your email. If an account uses that address, a reset link is on its way. It works for 15 minutes.") +
-    links('<a href="/signin">Back to sign in</a>')),
-]);
+const FORGOT = page({ kind: "forgot", title: "Reset your password", views: [
+  view({ name: "forgot", inner: form({ name: "forgot", inner: EMAIL({ id: "member-forgot-email" }), submit: "Email me a reset link" }) + links({ items: ['<a href="/signin">Back to sign in</a>'] }) }),
+  view({ name: "sent", inner: note({ html: "Check your email. If an account uses that address, a reset link is on its way. It works for 15 minutes." }) +
+    links({ items: ['<a href="/signin">Back to sign in</a>'] }) }),
+] });
 
-const RESET = page("reset", "Choose a new password", [
-  view("reset", form("reset", field({ id: "member-reset-password", label: "New password", name: "password", type: "password",
-    autocomplete: "new-password", extra: " required" }), "Save new password") + links('<a href="/forgot-password">Ask for a new link</a>')),
-  view("missing", note("This reset link is incomplete. Ask for a new one.") + links('<a href="/forgot-password">Ask for a new link</a>')),
-  view("done", note("Password changed. Sign in with your new password.") + links('<a href="/signin">Sign in</a>')),
-]);
+const RESET = page({ kind: "reset", title: "Choose a new password", views: [
+  view({ name: "reset", inner: form({ name: "reset", inner: field({ id: "member-reset-password", label: "New password", name: "password", type: "password",
+    autocomplete: "new-password", extra: " required" }), submit: "Save new password" }) + links({ items: ['<a href="/forgot-password">Ask for a new link</a>'] }) }),
+  view({ name: "missing", inner: note({ html: "This reset link is incomplete. Ask for a new one." }) + links({ items: ['<a href="/forgot-password">Ask for a new link</a>'] }) }),
+  view({ name: "done", inner: note({ html: "Password changed. Sign in with your new password." }) + links({ items: ['<a href="/signin">Sign in</a>'] }) }),
+] });
 
 const REAUTH = '<p class="member-note" data-member-reauth hidden><a href="/signin#view=code&amp;redirect=%2Faccount">Sign in with a code</a></p>';
 
 /** Connected login providers: "<Label> connected · Unlink" or "Connect <Label>" rows, script-filled. */
 const IDENTITIES = '<div class="member-identities" data-member-identities hidden><div class="member-label-row member-heading-row">' +
-  `<h2>Connected accounts</h2>${tipButton("member-identities-tip")}</div>` +
-  tipText("member-identities-tip", "Connecting or unlinking an account signs you out on your other devices.") +
+  `<h2>Connected accounts</h2>${tipButton({ id: "member-identities-tip" })}</div>` +
+  tipText({ id: "member-identities-tip", text: "Connecting or unlinking an account signs you out on your other devices." }) +
   `<ul class="member-identity-list" data-member-identity-list></ul>${messages}${REAUTH}</div>`;
 
-const ACCOUNT = page("account", "Your account", [
-  view("signed-out", note("You're signed out.") + links('<a href="/signin">Sign in</a>')),
-  view("account", note('Signed in as <strong data-member-email></strong>.') + "<h2>Password</h2>" +
-    form("set",
-      field({ id: "member-current-password", label: "Current password", name: "currentPassword", type: "password",
+const ACCOUNT = page({ kind: "account", title: "Your account", views: [
+  view({ name: "signed-out", inner: note({ html: "You're signed out." }) + links({ items: ['<a href="/signin">Sign in</a>'] }) }),
+  view({ name: "account", inner: note({ html: 'Signed in as <strong data-member-email></strong>.' }) + "<h2>Password</h2>" +
+    form({ name: "set", inner: field({ id: "member-current-password", label: "Current password", name: "currentPassword", type: "password",
         autocomplete: "current-password", tip: "Leave this empty if you've only signed in with emailed codes." }) +
-        field({ id: "member-new-password", label: "New password", name: "password", type: "password", autocomplete: "new-password", extra: " required" }),
-      "Save password") +
-    REAUTH + IDENTITIES + `<div class="member-actions member-signout">${signOutButton}</div>`),
-]);
+        field({ id: "member-new-password", label: "New password", name: "password", type: "password", autocomplete: "new-password", extra: " required" }), submit: "Save password" }) +
+    REAUTH + IDENTITIES + `<div class="member-actions member-signout">${signOutButton}</div>` }),
+] });
 
 /** Path → the page's title (the theme prints it as the heading) and body. */
 export const MEMBER_PAGES: Readonly<Record<string, { id: string; title: string; body: string }>> = {

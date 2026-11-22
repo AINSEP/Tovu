@@ -1,10 +1,11 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { Icon } from "@jini-ai/ui";
 /**
  * @file This page's own small icon set — three inline SVGs, no icon dependency. Same rationale
  * `deployment/deployment-visuals.tsx`'s header gives for its own set: this app ships no icon
  * component library to `features/`, and importing icons cross-feature (from `deployment/`, which
  * this page deliberately avoids depending on — see `SourceControl.tsx`'s header) would tie this
- * page's rendering to a sibling feature another agent owns.
+ * page's rendering to a sibling feature another agent owns. The shared stroke attributes come from `components/line-icon.ts`.
  *
  * No brand marks anywhere in this file, on purpose. This app draws zero brand logos anywhere —
  * every proper noun on screen (`STATIC_HOSTS` in `deployment/rules.ts`, this page's own provider
@@ -17,18 +18,8 @@ import { Icon } from "@jini-ai/ui";
  * reader, not information.
  */
 
-/** Shared attributes for a decorative line icon — same 24px grid, 1.5 stroke, round joins as
- *  `deployment-visuals.tsx`'s `LINE_ICON`, so this page's marks read as the same family as the rest
- *  of this admin even though the two files share no code. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 /** The card header's own icon — two nodes joined by a line, the generic shape of "a connection,"
  *  not any one host's mark. Distinct from `deployment-visuals.tsx`'s `StaticSiteIcon`/`FullSiteIcon`

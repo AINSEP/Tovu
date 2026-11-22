@@ -22,7 +22,7 @@ export function applyAdminBrowserAnalytics({ app, deps }: { app: Express; deps: 
     captureHtmlResponse({ response: res, transform: async ({ body }) => {
       if (res.statusCode >= 400 || res.getHeader('Content-Encoding')) return body;
       let allowed = false;
-      try { allowed = (await getEffective({ repo: deps.settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true; }
+      try { allowed = (await getEffective({ deps: { repo: deps.settingsRepo }, ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true; }
       catch { /* A failed consent read never enables browser telemetry. */ }
       const html = injectBrowserAnalytics({ html: body.toString('utf8'), surface: 'admin', delivery: 'live',
         contributions: deps.browserAnalytics?.({ surface: 'admin' }) ?? [], consent: { hasChoice: allowed, analytics: allowed } });

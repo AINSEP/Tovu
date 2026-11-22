@@ -44,7 +44,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
   { onAlreadyTracked, onAdded, getBridge = runnerInventoryBridge }: {
     onAlreadyTracked?: (id: string) => void;
     /** Every added site, new or already tracked: the Import page opens its tab. */
-    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
+    onAdded?: (required: { added: SiteRecord & { alreadyTracked?: boolean } }, options?: {}) => void;
     /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
     getBridge?: () => Pick<RunnerInventoryBridge, 'addSite' | 'addDroppedSite'> | undefined;
   } = {},
@@ -56,7 +56,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
   addNotice: { siteId: string; message: string } | null;
   addSite: () => Promise<void>;
   /** The same add, for a folder dropped on the Import page. */
-  addDroppedFolder: (folder: string) => Promise<void>;
+  addDroppedFolder: (required: { folder: string }, options?: {}) => Promise<void>;
   clearAddError: () => void;
 } {
   const [adding, setAdding] = useState(false);
@@ -66,7 +66,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
 
   const clearAddError = useCallback(() => { setAddError(null); setAddDetails(null); setAddNotice(null); }, []);
 
-  const add = useCallback(async (folder?: string) => {
+  const add = useCallback(async ({ folder }: { folder?: string }, _options = {}) => {
     setAddNotice(null);
     const bridge = getBridge();
     if (bridge === undefined) {
@@ -79,9 +79,9 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     try {
       const added = folder === undefined ? await bridge.addSite() : await bridge.addDroppedSite?.({ folder });
       if (!added) return;
-      showAddedSite(added, { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked });
+      showAddedSite({ added, setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked });
     } catch (error) {
-      const message = describeAddFailure(error);
+      const message = describeAddFailure({ error });
       setAddError(message);
       setAddDetails(message === null ? null : copyableDetails({ error }));
     } finally {
@@ -89,7 +89,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
     }
   }, [setProjects, onAlreadyTracked, onAdded, getBridge]);
 
-  const addSite = useCallback(() => add(), [add]);
+  const addSite = useCallback(() => add({}), [add]);
   return { adding, addError, addDetails, addNotice, addSite, addDroppedFolder: add, clearAddError };
 }
 
@@ -100,17 +100,18 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
  * @complexity O(n) in the current project count, via {@link mergeAddedSite}.
  */
 function showAddedSite(
-  added: SiteRecord & { alreadyTracked?: boolean },
-  { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked }: {
+  { added, setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked }: {
+    added: SiteRecord & { alreadyTracked?: boolean };
     setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
     setAddError: (message: string | null) => void;
     setAddNotice: (notice: { siteId: string; message: string } | null) => void;
-    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
+    onAdded?: (required: { added: SiteRecord & { alreadyTracked?: boolean } }, options?: {}) => void;
     onAlreadyTracked?: (id: string) => void;
   },
+  _options = {},
 ): void {
-  setProjects((current) => mergeAddedSite(current, added));
-  onAdded?.(added);
+  setProjects((current) => mergeAddedSite({ current, added }));
+  onAdded?.({ added });
   const message = addedSiteMessage({ added });
   setAddError(message);
   setAddNotice(message ? { siteId: added.id, message } : null);
@@ -129,8 +130,8 @@ function showAddedSite(
  * @complexity O(n) in the current project count.
  */
 function mergeAddedSite(
-  current: readonly SiteRecord[],
-  added: SiteRecord
+  { current, added }: { current: readonly SiteRecord[]; added: SiteRecord },
+  _options = {},
 ): readonly SiteRecord[] {
   return [added, ...current.filter((project) => project.id !== added.id)];
 }
@@ -145,7 +146,7 @@ function mergeAddedSite(
  *
  * @complexity O(n) in the message length.
  */
-function describeAddFailure(error: unknown, optional: { locale?: string } = {}): string | null {
+function describeAddFailure({ error }: { error: unknown }, optional: { locale?: string } = {}): string | null {
   const raw = error instanceof Error ? error.message : String(error);
   const message = humanSiteError({ error: raw, fallback: "Couldn't add that website." });
   // Their own choice, not a failure to report back at them.

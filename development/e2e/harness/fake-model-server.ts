@@ -150,7 +150,32 @@ export async function startFakeModelServer(protocol: FakeModelProtocol, options:
   const all: CapturedModelRequest[] = [];
   const generation: CapturedModelRequest[] = [];
 
-  const server = http.createServer((req, res) => {
+  const server = buildServer({ all, protocol, generation, queue });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = (server.address() as AddressInfo).port;
+
+  return {
+    protocol,
+    baseUrl: `http://127.0.0.1:${port}`,
+    enqueue: (...turns) => {
+      queue.push(...turns);
+    },
+    remainingTurns: () => queue.length,
+    generationRequests: () => generation,
+    allRequests: () => all,
+    // `closeAllConnections()` BEFORE `close()` is load-bearing (see the Gemini deputy's note): the
+    // server-side `fetch` (undici) keeps keep-alive sockets open, so `close()` alone never resolves.
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      }),
+  };
+}
+
+function buildServer({ all, protocol, generation, queue }: { all: CapturedModelRequest[]; protocol: FakeModelProtocol; generation: CapturedModelRequest[]; queue: ScriptedTurn[] }) {
+  return http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
@@ -182,27 +207,6 @@ export async function startFakeModelServer(protocol: FakeModelProtocol, options:
       res.end(protocol === "anthropic" ? anthropicTurnSse(turn, `msg_fake_${generation.length}`) : googleTurnSse(turn));
     });
   });
-
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
-
-  return {
-    protocol,
-    baseUrl: `http://127.0.0.1:${port}`,
-    enqueue: (...turns) => {
-      queue.push(...turns);
-    },
-    remainingTurns: () => queue.length,
-    generationRequests: () => generation,
-    allRequests: () => all,
-    // `closeAllConnections()` BEFORE `close()` is load-bearing (see the Gemini deputy's note): the
-    // server-side `fetch` (undici) keeps keep-alive sockets open, so `close()` alone never resolves.
-    close: () =>
-      new Promise<void>((resolve) => {
-        server.closeAllConnections();
-        server.close(() => resolve());
-      }),
-  };
 }
 
 /** A tool result as the server sent it back to the fake model, protocol-neutral. */

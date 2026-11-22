@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { describeApiError, type AdminLedgerRow } from "@/lib/api";
-import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useState } from "react";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
+import { useCursorPages } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { navigate } from "@/lib/router";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -35,7 +36,7 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
  * `applyFilters` committing the draft into `appliedFilters` does, by changing the query's key (see
  * `rules.ts`'s `KEYS` doc). This also removes the mount-time `useEffect` entirely — `useFetchQuery`
  * fetches on mount by construction, and `appliedFilters` already starts blank. "Load more" pages
- * are NOT folded into that query, for the identical reason `Jini forms/react/hooks/use-form-
+ * are NOT folded into that query, for the identical reason `Jini packages/admin/src/forms/react/hooks/use-form-
  * submissions.hooks.ts`/`@jini-ai/admin/comments/react`'s queue hook keep their own cursor-appended
  * pages local: `@jini-ai/ui/fetch-query`'s `QueryKey` doc binds one hook to one FIXED key.
  * `filtersRef` guards that local accumulation against the same class of race the base query gets
@@ -50,6 +51,9 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
  * `use-comment-queue.hooks.ts`'s inline-closure convention — `port` is never placed in a dependency
  * array (this file has no `useCallback` and neither `useEffect` below depends on it), so a fresh
  * fake-port object per render can never retrigger either effect.
+ *
+ * The first-page query, the cursor-appended pages and the stale-append guard described above now live in
+ * `useCursorPages` (`@jini-ai/ui/fetch-query`); this hook binds the port, `KEYS.timeline` and the error wording.
  */
 
 /** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
@@ -72,7 +76,7 @@ export function navigateToRecoveryWithDeepLink(row: AdminLedgerRow) {
     issuedAt: new Date().toISOString(),
   };
   sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify(envelope));
-  navigate("/recovery");
+  navigate({ routePath: "/recovery" });
 }
 
 export interface TimelineSectionController {
@@ -122,13 +126,15 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t({ locale: locale, key: key });
 
-  function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {
-    return port.getDatabaseTimeline({
-      kind: filters.kind || undefined,
-      outcome: filters.outcome || undefined,
-      fromDate: filters.fromDate || undefined,
-      toDate: filters.toDate || undefined,
-      cursor,
+  function fetchTimelinePage({ filters }: { filters: TimelineFilters }, { cursor }: { cursor?: string | undefined } = {}) {
+    return port.getDatabaseTimeline({}, {
+      options: {
+        kind: filters.kind || undefined,
+        outcome: filters.outcome || undefined,
+        fromDate: filters.fromDate || undefined,
+        toDate: filters.toDate || undefined,
+        cursor,
+      },
     });
   }
 
@@ -136,71 +142,26 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
   const [outcome, setOutcome] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  // The COMMITTED filters the first page is keyed on — deliberately separate from the draft
-  // `kind`/`outcome`/`fromDate`/`toDate` above (bound to the filter form's own inputs) so typing
-  // does not itself trigger a reload. See this file's own header.
-  const [appliedFilters, setAppliedFilters] = useState<TimelineFilters>(BLANK_FILTERS);
-
-  const firstPage = useFetchQuery({
-    key: KEYS.timeline(appliedFilters),
-    fetch: () => fetchTimelinePage(appliedFilters),
+  // The COMMITTED filters the first page is keyed on live in `useCursorPages`, deliberately separate
+  // from the draft `kind`/`outcome`/`fromDate`/`toDate` above (bound to the filter form's own inputs)
+  // so typing does not itself trigger a reload. See this file's own header.
+  const pages = useCursorPages<TimelineFilters, AdminLedgerRow>({
+    key: ({ filters }) => KEYS.timeline(filters),
+    fetchPage: fetchTimelinePage,
+    initialFilters: BLANK_FILTERS,
   });
-
-  const [morePages, setMorePages] = useState<AdminLedgerRow[]>([]);
-  const [moreCursor, setMoreCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const loadingMoreRef = useRef(false);
-  const [moreError, setMoreError] = useState<string | null>(null);
-
-  // Guards `loadMore` against the same class of race `useFetchQuery` closes for page 1: an append
-  // in flight when `applyFilters` commits new filters must not land under the old filters once it
-  // resolves. Also resets the accumulated pages that belonged to the PREVIOUS filter set.
-  const filtersRef = useRef(appliedFilters);
-  useEffect(() => {
-    filtersRef.current = appliedFilters;
-    loadingMoreRef.current = false;
-    setLoadingMore(false);
-    setMorePages([]);
-    setMoreError(null);
-  }, [appliedFilters]);
-
-  useEffect(() => {
-    setMoreCursor(firstPage.data?.nextCursor ?? null);
-  }, [firstPage.data]);
 
   function applyFilters(e: React.FormEvent) {
     e.preventDefault();
-    setAppliedFilters({ kind, outcome, fromDate, toDate });
+    pages.applyFilters({ kind, outcome, fromDate, toDate });
   }
 
-  async function loadMore() {
-    if (!moreCursor || loadingMoreRef.current) return;
-    loadingMoreRef.current = true;
-    const filtersAtCall = appliedFilters;
-    setLoadingMore(true);
-    setMoreError(null);
-    try {
-      const r = await fetchTimelinePage(filtersAtCall, moreCursor);
-      if (filtersAtCall !== filtersRef.current) return; // stale — filters changed while this was in flight
-      setMorePages((prev) => [...prev, ...r.items]);
-      setMoreCursor(r.nextCursor);
-    } catch (e) {
-      if (filtersAtCall !== filtersRef.current) return;
-      setMoreError(describeApiError(e, t({ locale: locale, key: "failed to load the Database Timeline" })));
-    } finally {
-      if (filtersAtCall === filtersRef.current) {
-        loadingMoreRef.current = false;
-        setLoadingMore(false);
-      }
-    }
-  }
-
-  const rows = firstPage.data ? [...firstPage.data.items, ...morePages] : null;
-  const error = moreError ?? (firstPage.error ? describeApiError(firstPage.error, t({ locale: locale, key: "failed to load the Database Timeline" })) : null);
+  const rows = pages.rows;
+  const error = pages.failure === null ? null : describeApiError({ e: pages.failure.error, fallback: t({ locale: locale, key: "failed to load the Database Timeline" }) });
 
   return {
     rows,
-    nextCursor: moreCursor,
+    nextCursor: pages.nextCursor,
     error,
     kind,
     setKind,
@@ -210,9 +171,9 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
     setFromDate,
     toDate,
     setToDate,
-    loadingMore,
+    loadingMore: pages.loadingMore,
     applyFilters,
-    loadMore,
+    loadMore: pages.loadMore,
     t: boundT,
     locale,
   };

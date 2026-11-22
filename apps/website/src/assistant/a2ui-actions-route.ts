@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 
-import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/agentic/a2ui";
+import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/protocol/a2ui";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -57,13 +57,13 @@ import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStor
  * there, sharing the SAME store instance `buildAssistantToolRegistrations` was given — a different
  * instance would leave every A2UI exchange unreachable, 409-ing until the agent's call times out.
  *
- * Reached only through Tovu's own admin-session-authenticated proxy (`src/server/modules/
- * assistant.ts`), which attaches the daemon bearer token like every other forwarded route — so this
- * module adds no exemption to the daemon's global bearer gate (`daemon-auth.ts`) and trusts
- * {@link RUN_PRINCIPAL_HEADER} the same way `mcp-ui-tool-calls-route.ts` and `run-ownership.ts` do.
+ * Reached only through Tovu's own admin-session-authenticated proxy (`apps/website/src/server/runtime/composition/modules/assistant.ts`),
+ * which attaches the daemon bearer token like every other forwarded route — so this
+ * module adds no exemption to the daemon's global bearer gate (`apps/website/src/assistant/daemon-access.ts`) and trusts
+ * {@link RUN_PRINCIPAL_HEADER} the same way `mcp-ui-tool-calls-route.ts` and `apps/website/src/assistant/daemon-access.ts` do.
  */
 
-/** Mounted at the same path Tovu's proxy exposes to the browser — see `server/modules/assistant.ts`. */
+/** Mounted at the same path Tovu's proxy exposes to the browser — see `apps/website/src/server/runtime/composition/modules/assistant.ts`. */
 export const A2UI_ACTIONS_PATH = "/api/admin/v1/a2ui/actions";
 
 export interface A2uiActionsRouteDeps {
@@ -112,7 +112,7 @@ export type ReadA2uiActionResult =
  *
  * @complexity O(size of the message) for the schema parse.
  */
-export function readA2uiAction(rawBody: unknown): ReadA2uiActionResult {
+export function readA2uiAction({ rawBody }: { rawBody: unknown }, _options = {}): ReadA2uiActionResult {
   const body = (rawBody ?? {}) as { exchangeId?: unknown; message?: unknown };
   const exchangeId = body.exchangeId;
   if (typeof exchangeId !== "string" || exchangeId.length === 0) {
@@ -145,8 +145,8 @@ export function readA2uiAction(rawBody: unknown): ReadA2uiActionResult {
  * @complexity O(1).
  */
 export function deliverA2uiAction(
-  store: SurfaceExchangeStore,
-  action: { exchangeId: string; principalId: string; message: RendererToAgentMessage },
+  { store, ...action }: { store: SurfaceExchangeStore } & { exchangeId: string; principalId: string; message: RendererToAgentMessage },
+  _optional: Record<string, never> = {},
 ): DeliverResult {
   return store.deliver({ exchangeId: action.exchangeId, principalId: action.principalId, params: { message: action.message } }, { channel: "a2ui" });
 }
@@ -157,7 +157,7 @@ export function deliverA2uiAction(
  * such exchange" and "already closed" both mean "this surface is no longer the one waiting on you",
  * which the human cannot act on differently.
  */
-export function a2uiNotPendingBody(reason: SurfaceDeliveryRejectionReason) {
+export function a2uiNotPendingBody({ reason }: { reason: SurfaceDeliveryRejectionReason }, _optional: Record<string, never> = {}) {
   return { error: "that surface is no longer waiting for an answer", code: "SURFACE_NOT_PENDING", reason } as const;
 }
 
@@ -168,7 +168,7 @@ export function a2uiNotPendingBody(reason: SurfaceDeliveryRejectionReason) {
  * own, which is O(1) (a `Map` lookup).
  * @overallScore 100
  */
-export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDeps): void {
+export function registerA2uiActionsRoute({ app, deps }: { app: Express; deps: A2uiActionsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
     if (!principalId) {
@@ -176,15 +176,15 @@ export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDep
       return;
     }
 
-    const action = readA2uiAction(req.body);
+    const action = readA2uiAction({ rawBody: req.body });
     if (!action.ok) {
       res.status(400).json(action.error);
       return;
     }
 
-    const delivered = deliverA2uiAction(deps.surfaceExchanges, { exchangeId: action.exchangeId, principalId, message: action.message });
+    const delivered = deliverA2uiAction({ store: deps.surfaceExchanges, exchangeId: action.exchangeId, principalId, message: action.message });
     if (!delivered.ok) {
-      res.status(409).json(a2uiNotPendingBody(delivered.reason));
+      res.status(409).json(a2uiNotPendingBody({ reason: delivered.reason }));
       return;
     }
 

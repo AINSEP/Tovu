@@ -2,8 +2,13 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
-import { createNoopObservabilityPort, type ObservabilityPort } from '#src/platform/observability/index';
-import { withProductAnalyticsGuards, type ProductAnalyticsPort, type ProductEvent } from '@jini-ai/analytics/product';
+import { withProductAnalyticsGuards } from '@jini-ai/analytics/product';
+import {
+  type ProductAnalyticsPort,
+  type ProductEvent,
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from '@jini-ai/core/contracts/observability';
 type ErrorReport = Parameters<ObservabilityPort['reportError']>[0];
 import type { RateLimiter } from '#src/contracts/core/rate-limit/rate-limit';
 import {
@@ -32,9 +37,9 @@ async function post(body: unknown, options: {
   let handler!: (req: Request, res: Response) => Promise<void>;
   let path = '';
   const ports = { ...fakePorts(), ...options.deps };
-  registerAdminBrowserTelemetryRoute({ post: (p: string, cb: typeof handler) => { path = p; handler = cb; } } as unknown as Express, {
+  registerAdminBrowserTelemetryRoute({ app: { post: (p: string, cb: typeof handler) => { path = p; handler = cb; } } as unknown as Express, deps: {
     clock: { nowMs: () => 0, nowIso: () => new Date(0).toISOString() }, tracker: createTracker({ observability: ports.observability, productAnalytics: ports.productAnalytics }, { warn: options.warn }),
-  }, options.limiter ?? allowAll);
+  } }, { limiter: options.limiter ?? allowAll });
   let status = 200, json: unknown;
   const headers: Record<string, string> = {};
   const res = {
@@ -48,36 +53,36 @@ async function post(body: unknown, options: {
 }
 
 test('route templates drop queries/fragments and turn record ids into :id', () => {
-  assert.equal(toRouteTemplate('/admin/posts/123?tab=seo#x'), '/admin/posts/:id');
-  assert.equal(toRouteTemplate('/admin/pages/3f1c2a9e-1b2c-4d5e-8f90-1234567890ab/edit'), '/admin/pages/:id/edit');
-  assert.equal(toRouteTemplate('/admin/media/a1b2c3d4e5f60718'), '/admin/media/:id');
-  assert.equal(toRouteTemplate('/admin/posts/:postId'), '/admin/posts/:postId');
-  assert.equal(toRouteTemplate('/admin/settings'), '/admin/settings');
-  assert.equal(toRouteTemplate('/admin'), '/admin');
-  assert.equal(toRouteTemplate('https://evil.example/admin'), null);
-  assert.equal(toRouteTemplate('/api/admin/v1'), null);
-  assert.equal(toRouteTemplate('/admin/<script>'), null);
+  assert.equal(toRouteTemplate({ raw: '/admin/posts/123?tab=seo#x' }), '/admin/posts/:id');
+  assert.equal(toRouteTemplate({ raw: '/admin/pages/3f1c2a9e-1b2c-4d5e-8f90-1234567890ab/edit' }), '/admin/pages/:id/edit');
+  assert.equal(toRouteTemplate({ raw: '/admin/media/a1b2c3d4e5f60718' }), '/admin/media/:id');
+  assert.equal(toRouteTemplate({ raw: '/admin/posts/:postId' }), '/admin/posts/:postId');
+  assert.equal(toRouteTemplate({ raw: '/admin/settings' }), '/admin/settings');
+  assert.equal(toRouteTemplate({ raw: '/admin' }), '/admin');
+  assert.equal(toRouteTemplate({ raw: 'https://evil.example/admin' }), null);
+  assert.equal(toRouteTemplate({ raw: '/api/admin/v1' }), null);
+  assert.equal(toRouteTemplate({ raw: '/admin/<script>' }), null);
 });
 
 test('free text loses URL queries and passes core secret/PII redaction', () => {
-  const out = scrubTelemetryText('fetch https://x.test/a.js?token=abc123#frag failed for jane@example.com');
+  const out = scrubTelemetryText({ text: 'fetch https://x.test/a.js?token=abc123#frag failed for jane@example.com' });
   assert.ok(out.includes('https://x.test/a.js'));
   assert.ok(!out.includes('token=abc123') && !out.includes('#frag'));
   assert.ok(!out.includes('jane@example.com'));
 });
 
 test('validation refuses unknown fields, wrong types, missing fields and non-admin routes', () => {
-  assert.deepEqual(parseBrowserTelemetry({ type: 'pageview', route: '/admin', title: 'Secret post' }), { ok: false, status: 400, error: "unknown field 'title'" });
-  assert.deepEqual(parseBrowserTelemetry({ type: 'error', message: 'x', route: '/admin' }), { ok: false, status: 400, error: "missing field 'stack'" });
-  assert.deepEqual(parseBrowserTelemetry({ type: 'error', message: 1, stack: '', route: '/admin' }), { ok: false, status: 400, error: "'message' must be a string" });
-  assert.deepEqual(parseBrowserTelemetry({ type: 'click', route: '/admin' }), { ok: false, status: 400, error: "type must be 'error' or 'pageview'" });
-  assert.deepEqual(parseBrowserTelemetry({ type: 'pageview', route: '/wp-login' }), { ok: false, status: 400, error: 'route must be an admin path' });
-  for (const body of [null, [], 'pageview']) assert.equal(parseBrowserTelemetry(body).ok, false);
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'pageview', route: '/admin', title: 'Secret post' } }), { ok: false, status: 400, error: "unknown field 'title'" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'error', message: 'x', route: '/admin' } }), { ok: false, status: 400, error: "missing field 'stack'" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'error', message: 1, stack: '', route: '/admin' } }), { ok: false, status: 400, error: "'message' must be a string" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'click', route: '/admin' } }), { ok: false, status: 400, error: "type must be 'error' or 'pageview'" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'pageview', route: '/wp-login' } }), { ok: false, status: 400, error: 'route must be an admin path' });
+  for (const body of [null, [], 'pageview']) assert.equal(parseBrowserTelemetry({ body }).ok, false);
 });
 
 test('oversize fields and oversize bodies are refused with 413', async () => {
-  assert.deepEqual(parseBrowserTelemetry({ type: 'error', message: 'm'.repeat(1_001), stack: '', route: '/admin' }), { ok: false, status: 413, error: "'message' is too long" });
-  assert.deepEqual(parseBrowserTelemetry({ type: 'pageview', route: `/admin/${'a'.repeat(200)}` }), { ok: false, status: 413, error: "'route' is too long" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'error', message: 'm'.repeat(1_001), stack: '', route: '/admin' } }), { ok: false, status: 413, error: "'message' is too long" });
+  assert.deepEqual(parseBrowserTelemetry({ body: { type: 'pageview', route: `/admin/${'a'.repeat(200)}` } }), { ok: false, status: 413, error: "'route' is too long" });
   const big = await post({ type: 'pageview', route: '/admin' }, { contentLength: MAX_TELEMETRY_BODY_BYTES + 1 });
   assert.equal(big.status, 413); assert.equal(big.events.length, 0);
 });

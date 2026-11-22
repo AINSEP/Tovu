@@ -28,18 +28,22 @@ function validSite([name, value]: [string, unknown]): boolean {
 function validIntent(value: unknown): value is LocalSiteIntent {
   if (!value || typeof value !== "object") return false;
   const { session, sites, ports } = value as Partial<LocalSiteIntent>;
-  if (typeof session !== "string" || !sites || typeof sites !== "object" || Array.isArray(sites)) return false;
-  if (!Object.entries(sites).every(validSite)) return false;
+  if (typeof session !== "string" || !validSiteRecord({ record: sites })) return false;
   if (ports === undefined) return true;
-  if (!ports || typeof ports !== 'object' || Array.isArray(ports)) return false;
-  return Object.entries(ports).every(validSite)
+  return validSiteRecord({ record: ports })
     && new Set(Object.values(ports).map(site => site.port)).size === Object.keys(ports).length;
+}
+
+/** A plain (non-array) object whose every entry is a valid site. @complexity O(s). */
+function validSiteRecord({ record }: { record: unknown }, _optional = {}): boolean {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return false;
+  return Object.entries(record).every(validSite);
 }
 
 /** Missing or corrupt intent means no requested starts; filesystem access failures propagate.
  * @complexity O(s) time/space for s persisted sites.
  */
-function readIntent(file: string): LocalSiteIntent | undefined {
+function readIntent({ file }: { file: string }, _optional = {}): LocalSiteIntent | undefined {
   try {
     const value: unknown = JSON.parse(readFileSync(file, "utf8"));
     return validIntent(value) ? value : undefined;
@@ -58,7 +62,7 @@ export function createLocalSiteIntentStore({ servingSiteDir }: { servingSiteDir:
   const file = join(dir, "local-sites-intent.json");
   const fs = createNodeAtomicFilesystem({});
   return {
-    read: () => readIntent(file),
+    read: () => readIntent({ file }),
     write({ intent }) {
       mkdirSync(dir, { recursive: true });
       writeJsonFileAtomic({ filePath: file, data: intent, fs }, { mode: 0o600 });

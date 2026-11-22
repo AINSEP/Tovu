@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createMenu, MenuConflictError, MenuValidationError } from "#src/features/navigation/index";
 import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
 import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
@@ -8,7 +9,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 /** This route's three body fields, read off an untyped body in one place, or `null` if a present
  *  `items` isn't an array.
  *  @complexity O(1). */
-function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; items: NavItemNode[] | undefined; authoring: MenuHtmlAuthoring } | null {
+function parseMenuCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { title: string; slug: string; items: NavItemNode[] | undefined; authoring: MenuHtmlAuthoring } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (body.items !== undefined && !Array.isArray(body.items)) {
     return null;
@@ -34,14 +35,11 @@ function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; i
  * are a direct feature call, not routed through the SPEC-001 command gateway (see `update-tree.ts`'s
  * doc for why).
  */
-export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseMenuCreateBody(req.body);
+    const parsedBody = parseMenuCreateBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;
@@ -52,14 +50,14 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.menus.create",
         workspaceId: deps.workspaceId,
         entityType: "menu",
-      });
+      } });
       if (!authorized) return;
-      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring }))) return;
+      if (!(await authorizeMenuHtmlOrRespond({ res, deps, principalId: principal.id, authoring: parsedBody.authoring }))) return;
 
       const { menu } = await createMenu({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },

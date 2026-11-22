@@ -50,12 +50,12 @@ function openSeededDb() {
 }
 
 test("getLast returns null when no row exists", async () => {
-  const store = new SqlitePublishHistoryStore(openSeededDb());
+  const store = new SqlitePublishHistoryStore({ store: openSeededDb() });
   assert.equal(await store.getLast({ workspaceId: WORKSPACE, target: "github-pages" }), null);
 });
 
 test("recordSuccess then getLast round-trips every field exactly, including the per-target-optional ones", async () => {
-  const store = new SqlitePublishHistoryStore(openSeededDb());
+  const store = new SqlitePublishHistoryStore({ store: openSeededDb() });
   const recorded = entry();
   await store.recordSuccess({ workspaceId: WORKSPACE, entry: recorded });
   const found = await store.getLast({ workspaceId: WORKSPACE, target: "github-pages" });
@@ -63,7 +63,7 @@ test("recordSuccess then getLast round-trips every field exactly, including the 
 });
 
 test("a target with none of the github-pages-only fields round-trips with them genuinely ABSENT keys, not present-but-undefined ones", async () => {
-  const store = new SqlitePublishHistoryStore(openSeededDb());
+  const store = new SqlitePublishHistoryStore({ store: openSeededDb() });
   await store.recordSuccess({
     workspaceId: WORKSPACE,
     entry: entry({
@@ -96,7 +96,7 @@ test("a target with none of the github-pages-only fields round-trips with them g
 });
 
 test("APPEND-ONLY: a second recordSuccess for the same (workspace, target) does not overwrite the first — both rows persist, getLast returns the newer one", async () => {
-  const store = new SqlitePublishHistoryStore(openSeededDb());
+  const store = new SqlitePublishHistoryStore({ store: openSeededDb() });
   await store.recordSuccess({ workspaceId: WORKSPACE, entry: entry({ url: "https://old.example.test", publishedAt: "2026-08-15T00:00:00.000Z" }) });
   await store.recordSuccess({ workspaceId: WORKSPACE, entry: entry({ url: "https://new.example.test", publishedAt: "2026-08-16T00:00:00.000Z" }) });
 
@@ -109,7 +109,7 @@ test("APPEND-ONLY: a second recordSuccess for the same (workspace, target) does 
 });
 
 test("list: newest first, workspace-isolated, optionally target-scoped, and limit-bounded", async () => {
-  const store = new SqlitePublishHistoryStore(openSeededDb());
+  const store = new SqlitePublishHistoryStore({ store: openSeededDb() });
   await store.recordSuccess({ workspaceId: WORKSPACE, entry: entry({ target: "github-pages", url: "u1", publishedAt: "2026-08-14T00:00:00.000Z" }) });
   await store.recordSuccess({
     workspaceId: WORKSPACE,

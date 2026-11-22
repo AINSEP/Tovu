@@ -1,13 +1,11 @@
 import "../../styles/theme-pages-tab.css";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useState, type ReactNode } from "react";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { navigate } from "../../lib/router";
 import { siteUrl } from "../../lib/site-url";
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";
 import { ThemePageDetailsModal } from "./ThemePageDetailsModal";
@@ -20,6 +18,7 @@ import {
   type ThemePagePublishState,
 } from "./lib/theme-page-publish-state";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The "Theme Pages" tab body — split out of `Pages.tsx` (2026-08-30, deep-link/publish-toggle
  * pass), then reworked three more times on owner review (2026-08-31, all three) once "match My
@@ -215,7 +214,7 @@ function ThemePagePublishCell({
   handle: string;
   t: Translate;
 }): ReactNode {
-  const state = themePagePublishState(row, t);
+  const state = themePagePublishState({ row, t });
 
   return (
     <div className="theme-page-publish-cell">
@@ -250,7 +249,7 @@ function ThemePagePublishCell({
  * @complexity O(1) — one derived state, three mutually exclusive branches, no iteration.
  */
 function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle: string; t: Translate }): ReactNode {
-  const link = themePagePublicLinkState(row, t);
+  const link = themePagePublicLinkState({ row, t });
   if (link.kind === "none") {
     return <span className="theme-page-no-url">{t("No direct URL")}</span>;
   }
@@ -262,7 +261,7 @@ function ThemePagePublicUrlCell({ row, handle, t }: { row: ThemePageRow; handle:
   }
   return (
     <a
-      href={siteUrl(link.path)}
+      href={siteUrl({ path: link.path })}
       target="_blank"
       rel="noreferrer"
       {...agentHandle({ handle: `${handle}-view-live` }, { role: "link", label: "Open this theme page on the live public site" })}
@@ -349,7 +348,7 @@ export function ThemePagesTab({
             // a second tab.
             cell: (row, index) => (
               <a
-                href={themeStudioHref(themeId, row.pageId)}
+                href={themeStudioHref({ themeId, pageId: row.pageId })}
                 {...agentHandle({ handle: `${rowHandles[index]}-edit` }, { role: "link", label: "Open this theme page in Theme Studio" })}
               >
                 {row.pageId}
@@ -379,13 +378,13 @@ export function ThemePagesTab({
             header: t("More"),
             cell: (row, index) => (
               <RowMenu
-                triggerLabel={t('Actions for "{title}"').replace("{title}", row.pageId)}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", () => row.pageId)}
                 agentHandle={`${rowHandles[index]}-menu`}
-                items={themePageRowMenuItems(
+                items={themePageRowMenuItems({
                   row,
-                  { onOpenDetails: setDetailPageId, onEdit: (pageId) => navigate(themeStudioRoutePath(themeId, pageId)) },
-                  t
-                )}
+                  handlers: { onOpenDetails: setDetailPageId, onEdit: ({ pageId }, _options = {}) => navigate({ routePath: themeStudioRoutePath({ themeId, pageId }) }) },
+                  t,
+                })}
               />
             ),
           },

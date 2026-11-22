@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { Express } from "express";
 import { clearedBrowserBindingCookie, readBrowserBinding, EXTERNAL_MCP_BROWSER_BINDING } from '#src/features/api-connections/browser-binding';
 
@@ -9,6 +10,9 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from "./oauth-callback-url.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file The PUBLIC external-MCP OAuth callback — a route that is not behind `requireAdminSession`
@@ -29,7 +33,7 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * ## Everything on this request is untrusted
  *
  * `state`, `code` and `error` arrive from a third party. They are narrowed to strings here and
- * validated (length, authentication, expiry and binding) in `oauth/authorization-code.ts` before any of
+ * validated (length, authentication, expiry and binding) in `Jini packages/oauth/src/authorization-code.ts` before any of
  * them reaches a token endpoint. Nothing from the request reaches the response body — see
  * `routes/oauth/callback-page.ts`.
  *
@@ -49,7 +53,7 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from ".
  * `completeAuthorizationCallback` durably persists a completed sign-in, `notifyExternalMcpRosterChanged`
  * tells every registered federation runtime (the agent daemon, over HTTP; BYOK, in-process) to admit it
  * without a restart — see `external-mcp-roster-change.ts`'s own doc for the fan-out and
- * `mcp-federation/reload.ts` for why this is safe to call for ANY completed OAuth connection, not only
+ * `Jini packages/mcp/src/federation/reload.ts` for why this is safe to call for ANY completed OAuth connection, not only
  * a first-time one (an already-admitted connectionId is a no-op, never a re-admission).
  *
  * Why THIS route is the right trigger, rather than `external-mcp-oauth.ts`'s
@@ -109,7 +113,7 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
  *
  * @complexity O(1).
  */
-function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
+function classifyCallbackFailure({ error }: { error: unknown }, _optional = {}): OAuthCallbackFailureReason {
   if (error instanceof ExternalMcpValidationError) return "server_unknown";
   if (error instanceof OAuthError) {
     if (error.code === "OAUTH_INVALID_STATE") return "state_expired";
@@ -124,8 +128,8 @@ function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
  *
  * @complexity O(1) per request, plus one bounded token exchange.
  */
-export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: ExternalMcpOAuthCallbackRouteDeps): void {
-  app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, async (req, res) => {
+export function registerExternalMcpOAuthCallbackRoute({ app, deps }: { app: Express; deps: ExternalMcpOAuthCallbackRouteDeps }, _optional: Record<string, never> = {}): void {
+  app.get(`${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`, asyncRoute({ handler: async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     // In front of everything: the route is anonymous and each hit
     // can cost an outbound token exchange.
@@ -150,7 +154,7 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
 
     try {
       const serverId = String(req.params.serverId ?? "");
-      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), params, browserBinding });
+      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }), params, browserBinding });
       // The seal-and-persist is already awaited inside `completeAuthorizationCallback`, so by the
       // time this responds the token is durable — the operator's next action is to close the window,
       // and reporting success over a write still in flight would report a connection that is one
@@ -165,11 +169,10 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
       await notifyExternalMcpRosterChanged();
       res.status(200).type("html").send(renderOAuthCallbackPage({ ok: true, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(`external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}`);
+      consoleLogger.error({ message: `external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}` });
       res.status(400).type("html").send(
-        renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure(error), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
+        renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure({ error }), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
       );
     }
-  });
+  } }));
 }

@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Taxonomy.tsx` — the Categories & Tags screen, its new-term/
  * new-taxonomy forms, the merge wizard, the term detail panel, and the two delete dialogs. Same
@@ -9,7 +10,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * sentence doesn't always match English). `t()` falls back to `COMMON_I18N` via
  * `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const TAXONOMY_DICT: Record<string, Record<string, string>> = {
   es: {

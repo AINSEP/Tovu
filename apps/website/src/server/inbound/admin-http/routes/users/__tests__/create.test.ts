@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserCreateRoute(app, deps);
+  registerAdminUserCreateRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -113,10 +113,10 @@ test("CREATE_USER route: direct invoke fallback for nullish body (`parseUserCrea
 
 test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   const { app, deps } = await buildApp();
-  registerAdminUserListRoute(app, deps);
-  registerAdminUserUpdateRoute(app, deps);
-  registerAdminUserEnableRoute(app, deps);
-  registerAdminUserDisableRoute(app, deps);
+  registerAdminUserListRoute({ app, deps });
+  registerAdminUserUpdateRoute({ app, deps });
+  registerAdminUserEnableRoute({ app, deps });
+  registerAdminUserDisableRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {
@@ -297,7 +297,7 @@ test("CREATE_USER route: 500 internal error when an unexpected error is thrown",
 test("CREATE_USER route: 409 USERNAME_IN_TRASH when the conflicting existing user is in the Trash — OWNER DECISION 2026-09-24", async (t) => {
   const trashedIds = new Set<string>();
   const queriedIds: string[] = [];
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async (principalId) => {
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => {
     queriedIds.push(principalId);
     return trashedIds.has(principalId);
   } });

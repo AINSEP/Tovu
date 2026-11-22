@@ -1,7 +1,7 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
-import { trashTaxonomy } from "#src/features/taxonomy/index";
+import { trashTaxonomy } from "@jini-ai/cms/taxonomy";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
@@ -9,30 +9,30 @@ import type { TaxonomyRouteDeps } from "./deps.js";
 /**
  * @file `DELETE /api/admin/v1/taxonomy/:id` moves a taxonomy to the Trash (T6, trash parallel
  * plan §2, owner decision 5) — this REPLACES the prior hard-delete call into `@jini-ai/cms/taxonomy`'s
- * `deleteTaxonomy` (see `features/taxonomy/trash-term.ts`'s file header). A taxonomy declares no
+ * `deleteTaxonomy` (see `Jini packages/cms/src/taxonomy/trash-term.ts`'s file header). A taxonomy declares no
  * blocker (`RemoveTaxonomyFn` is narrowed, unlike `RemoveTermFn`) — its member terms read as
  * trashed the instant the taxonomy does (`hiddenWithParent`), no separate cascade write. Gated by
  * `admin.taxonomy.manage`, same as every other taxonomy route, via the shared `authorizeOrRespond`
  * guard — same precedent as `delete-term.ts`/`routes/menus/delete.ts`.
  */
-export function registerAdminTaxonomyDeleteRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyDeleteRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.delete("/api/admin/v1/taxonomy/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
       const taxonomyId = String(req.params.id);
 
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.taxonomy.manage",
         workspaceId: deps.workspaceId,
         entityType: "taxonomy",
         entityId: taxonomyId,
-      });
+      } });
       if (!authorized) return;
 
       const outcome = await trashTaxonomy(
-        { workspaceId: deps.workspaceId, taxonomyId, actor: { principalId: principal.id, pluginId: null } },
-        { taxonomyRepo: deps.taxonomyRepo, remove: deps.removeTaxonomy, clock: deps.clock }
+        { workspaceId: deps.workspaceId, taxonomyId, actor: { principalId: principal.id, pluginId: null },
+          taxonomyRepo: deps.taxonomyRepo, remove: deps.removeTaxonomy, clock: deps.clock }
       );
 
       if (!outcome.ok && outcome.reason === "not-found") {

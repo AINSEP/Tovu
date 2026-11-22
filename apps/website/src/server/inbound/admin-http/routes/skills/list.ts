@@ -1,17 +1,18 @@
 import { ToolInputError } from "@jini-ai/core";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createHash } from "node:crypto";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { listManagedSkills } from "#src/features/skills/install-service";
 import type { SkillsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file C-001 `GET /api/admin/v1/workspaces/:workspaceId/skills` — implementation-outline.md
  * (skills-composer-typeahead), §Q1/§Contract Map.
  *
  * A plain read, same path grammar/workspace guard/authorize-then-project shape as
- * `routes/admin/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
+ * `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`'s `PLUGINS_LIST`. Reads `<site>/skills/` fresh on every request via
  * `loadInstalledSkillToolSources` — the SAME function the agent daemon calls once at boot
  * (`agent-daemon-server.ts:887`) to register `skill_*` tools, while the agent registries refresh before discovery and execution. Permission is
  * `admin.assistant.use` (D-3): the same permission the skill tools themselves declare
@@ -20,21 +21,18 @@ import type { SkillsRouteRegistrar } from "./deps.js";
  * Unexpected discovery failures are logged with a public error ID. Raw filesystem or provider
  * exceptions must never be returned verbatim.
  */
-export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
+export const registerSkillsListRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.assistant.use",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

@@ -33,6 +33,48 @@ async function inventory(api: AssistantJourneyApi): Promise<Record<Resource, Row
     media: media.media, theme: themes.availableThemeIds.map((id) => ({ id })), chat: chats.conversations };
 }
 
+async function restoreReleaseMenusAndTrashContent({ api, before, presentation, created }: { api: AssistantJourneyApi; before: Record<Resource, Row[]>; presentation: { settings: { activeThemeId: string } }; created: (type: Resource) => Row[]; }) {
+  await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: presentation.settings.activeThemeId } });
+  // Move menus back before deleting imported menus; never leave a slot pointing at Trash.
+  for (const menu of before.menu) for (const locationKey of menu.locations ?? []) {
+    await journeyJson({ api, url: `${WS_API}/menus/${menu.id}/locations`, method: "POST", data: { locationKey } });
+  }
+  // Posts, pages and redirects are bespoke Trash kinds: the generic /trash/items rejects them
+  // (TRASH_UNKNOWN_TYPE), so each goes through its own soft-delete route, which records the Trash row.
+  for (const row of created("page")) await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "DELETE" });
+  for (const row of created("post")) await journeyJson({ api, url: `${WS_API}/posts/${row.id}`, method: "DELETE" });
+  for (const row of created("redirect")) await journeyJson({ api, url: `${WS_API}/redirects/${row.id}`, method: "DELETE" });
+  for (const type of ["menu", "term", "taxonomy", "theme"] as const) {
+    for (const row of created(type)) await journeyJson({ api, url: `${WS_API}/trash/items`, method: "POST", data: { type, id: row.id } });
+  }
+}
+
+async function restoreReleasePageSlugs({ api, before, after }: { api: AssistantJourneyApi; before: Record<Resource, Row[]>; after: Record<Resource, Row[]>; }) {
+  // The import moves the seeded homepage to preserve it. Once the imported root is hidden,
+  // return that page to its original address through the version-checked admin lifecycle.
+  for (const row of before.page) {
+    if (after.page.find((current) => current.id === row.id)?.slug === row.slug) continue;
+    const { post } = await journeyJson<{ post: { title: string; bodyJson: unknown; status: string; version: number } }>({ api, url: `${WS_API}/pages/${row.id}` });
+    await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "PUT", data: {
+      title: post.title, slug: row.slug, bodyJson: post.bodyJson, status: post.status, expectedVersion: post.version,
+    } });
+  }
+}
+
+async function removeCreatedReleaseThemeFiles({ api, created, journeySite }: { api: AssistantJourneyApi; created: (type: Resource) => Row[]; journeySite: IsolatedJourneySite; }) {
+  for (const row of created("theme")) {
+    expect((await api({ url: `${WS_API}/themes/${row.id}` })).status).toBe(404);
+    await expectMissing({ file: path.join(journeySite.siteDir, "themes", row.id) });
+    await expectMissing({ file: path.join(journeySite.siteDir, "themes", "static", row.id) });
+    await expectMissing({ file: path.join(journeySite.siteDir, "themes", "__original-themes__", "static", row.id) });
+    for (const extension of ["jpg", "json"]) {
+      const capture = path.join(journeySite.runtimeDir, "sites", ".tovu", "theme-previews", "journey-site", `${row.id}.${extension}`);
+      await rm(capture, { force: true });
+      await expectMissing({ file: capture });
+    }
+  }
+}
+
 /** Delete through the owning admin lifecycle, including hidden Trash rows and theme originals.
  * The pin fixture separately stops its daemon tree and proves the entire site directory is gone. */
 export const test = base.extend<{ releaseCleanup: void }>({
@@ -55,28 +97,8 @@ export const test = base.extend<{ releaseCleanup: void }>({
       }
       const after = await inventory(api);
       const created = (type: Resource) => after[type].filter((row) => !before[type].some((prior) => prior.id === row.id));
-      await journeyJson({ api, url: `${WS_API}/presentation`, method: "PATCH", data: { activeThemeId: presentation.settings.activeThemeId } });
-      // Move menus back before deleting imported menus; never leave a slot pointing at Trash.
-      for (const menu of before.menu) for (const locationKey of menu.locations ?? []) {
-        await journeyJson({ api, url: `${WS_API}/menus/${menu.id}/locations`, method: "POST", data: { locationKey } });
-      }
-      // Posts, pages and redirects are bespoke Trash kinds: the generic /trash/items rejects them
-      // (TRASH_UNKNOWN_TYPE), so each goes through its own soft-delete route, which records the Trash row.
-      for (const row of created("page")) await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "DELETE" });
-      for (const row of created("post")) await journeyJson({ api, url: `${WS_API}/posts/${row.id}`, method: "DELETE" });
-      for (const row of created("redirect")) await journeyJson({ api, url: `${WS_API}/redirects/${row.id}`, method: "DELETE" });
-      for (const type of ["menu", "term", "taxonomy", "theme"] as const) {
-        for (const row of created(type)) await journeyJson({ api, url: `${WS_API}/trash/items`, method: "POST", data: { type, id: row.id } });
-      }
-      // The import moves the seeded homepage to preserve it. Once the imported root is hidden,
-      // return that page to its original address through the version-checked admin lifecycle.
-      for (const row of before.page) {
-        if (after.page.find((current) => current.id === row.id)?.slug === row.slug) continue;
-        const { post } = await journeyJson<{ post: { title: string; bodyJson: unknown; status: string; version: number } }>({ api, url: `${WS_API}/pages/${row.id}` });
-        await journeyJson({ api, url: `${WS_API}/pages/${row.id}`, method: "PUT", data: {
-          title: post.title, slug: row.slug, bodyJson: post.bodyJson, status: post.status, expectedVersion: post.version,
-        } });
-      }
+      await restoreReleaseMenusAndTrashContent({ api, before, presentation, created });
+      await restoreReleasePageSlugs({ api, before, after });
       // Restoring a published slug can itself create a redirect. Include those rows in this purge.
       // Only active rows: the list also returns redirects already tombstoned (status "disabled") above.
       const redirects = await journeyJson<{ data: Row[] }>({ api, url: `${WS_API}/redirects?status=active` });
@@ -105,17 +127,7 @@ export const test = base.extend<{ releaseCleanup: void }>({
       for (const row of before.page) expect(cleaned.page.find((current) => current.id === row.id)?.slug, "pre-existing page address is restored").toBe(row.slug);
       const cleanTrash = await journeyJson<{ items: Row[] }>({ api, url: `${WS_API}/trash?limit=1000` });
       expect(cleanTrash.items.filter((row) => !priorTrash.has(row.id)), "no created entities remain in Trash").toEqual([]);
-      for (const row of created("theme")) {
-        expect((await api({ url: `${WS_API}/themes/${row.id}` })).status).toBe(404);
-        await expectMissing({ file: path.join(journeySite.siteDir, "themes", row.id) });
-        await expectMissing({ file: path.join(journeySite.siteDir, "themes", "static", row.id) });
-        await expectMissing({ file: path.join(journeySite.siteDir, "themes", "__original-themes__", "static", row.id) });
-        for (const extension of ["jpg", "json"]) {
-          const capture = path.join(journeySite.runtimeDir, "sites", ".tovu", "theme-previews", "journey-site", `${row.id}.${extension}`);
-          await rm(capture, { force: true });
-          await expectMissing({ file: capture });
-        }
-      }
+      await removeCreatedReleaseThemeFiles({ api, created, journeySite });
     }
   }, { auto: true, timeout: 120_000 }],
 });

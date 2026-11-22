@@ -68,7 +68,7 @@ function buildApp(depsOverrides: Partial<AdminCommentsModerationQueueDeps> = {})
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsModerationQueueRoute(app, deps);
+  registerAdminCommentsModerationQueueRoute({ app, deps });
   return { app, commentRepo };
 }
 

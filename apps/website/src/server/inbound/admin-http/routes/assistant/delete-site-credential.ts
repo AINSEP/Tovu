@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ADMIN_ASSISTANT_PERMISSION, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
@@ -10,34 +12,19 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * key is stored," not "a key must currently exist." No sealer/keyring involved (clearing needs no
  * decrypt), so this cannot fail on a misconfigured site key either.
  */
-export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: ADMIN_ASSISTANT_PERMISSION,
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-settings",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${ADMIN_ASSISTANT_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: ADMIN_ASSISTANT_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-settings" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const view = await deleteSiteAssistantCredential(
-        { repo: deps.siteAssistantCredentialRepo, clock: deps.clock },
-        { workspaceId: deps.workspaceId }
-      );
+      const view = await deleteSiteAssistantCredential({
+        deps: { repo: deps.siteAssistantCredentialRepo, clock: deps.clock },
+        workspaceId: deps.workspaceId
+      });
       res.json({ data: view });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/assistant/delete-site-credential", code: "INTERNAL_ERROR" });

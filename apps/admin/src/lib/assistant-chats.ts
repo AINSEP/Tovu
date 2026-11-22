@@ -1,6 +1,6 @@
 import { createConditionalHistoryRead } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./api";
+import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./admin-http/request";
 
 /**
  * @file The admin's client for `/api/assistant/chats` — the browser half of durable transcripts.
@@ -21,7 +21,7 @@ import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOpti
 const CHAT_REQUEST_OPTIONS: AuthenticatedAdminRequestOptions = {
   basePath: "/api/assistant/chats",
   requireJson: true,
-  errorFactory: ({ response, error }) => new HttpError(response.status, response.statusText, { code: error.code, body: error.body }),
+  errorFactory: ({ response, error }) => new HttpError({ status: response.status, statusText: response.statusText }, { code: error.code, body: error.body }),
 };
 
 export type { AssistantConversation } from "@jini-ai/chat/transports/http";
@@ -36,8 +36,8 @@ import type { AssistantConversation } from "@jini-ai/chat/transports/http";
  * the string, which is the kind of thing that keeps working until someone changes the wording.
  */
 export class HttpError extends ApiError {
-  constructor(status: number, statusText: string, { code, body }: { code?: string; body?: Record<string, unknown> } = {}) {
-    super(`${status} ${statusText}`, status, code, body);
+  constructor({ status, statusText }: { status: number; statusText: string }, { code, body }: { code?: string; body?: Record<string, unknown> } = {}) {
+    super({ message: `${status} ${statusText}`, status }, { code, body });
     this.name = "HttpError";
   }
 }
@@ -62,20 +62,20 @@ export async function listConversations(): Promise<AssistantConversation[]> {
 }
 
 /** `firstMessage` seeds the local title heuristic; omit it for an untitled empty chat. */
-export async function createConversation(firstMessage?: string): Promise<AssistantConversation> {
+export async function createConversation(_required: Record<string, never>, { firstMessage }: { firstMessage?: string } = {}): Promise<AssistantConversation> {
   const { conversation } = await authenticatedAdminRequest<{ conversation: AssistantConversation }>(
     { path: "", method: "POST", body: firstMessage === undefined ? {} : { firstMessage } }, CHAT_REQUEST_OPTIONS,
   );
   return conversation;
 }
 
-export async function renameConversation(id: string, title: string): Promise<void> {
+export async function renameConversation({ id, title }: { id: string; title: string }, _optional: Record<string, never> = {}): Promise<void> {
   await authenticatedAdminRequest(
     { path: `/${encodeURIComponent(id)}`, method: "PATCH", body: { title } }, CHAT_REQUEST_OPTIONS,
   );
 }
 
-export async function deleteConversation(id: string): Promise<void> {
+export async function deleteConversation({ id }: { id: string }, _optional: Record<string, never> = {}): Promise<void> {
   await authenticatedAdminRequest(
     { path: `/${encodeURIComponent(id)}`, method: "DELETE" }, { ...CHAT_REQUEST_OPTIONS, requireJson: false },
   );
@@ -88,16 +88,16 @@ const readHistory = createConditionalHistoryRead({ read: async ({ conversationId
   const query = version ? '?ifVersion=' + encodeURIComponent(version) : '';
   const result = await authenticatedAdminRequest<{ messages?: ChatMessage[]; unchanged?: boolean }>(
     { path: `/${encodeURIComponent(conversationId)}/messages${query}`, method: 'GET' },
-    { ...CHAT_REQUEST_OPTIONS, onOk: response => { nextVersion = response.headers.get('ETag') ?? undefined; } },
+    { ...CHAT_REQUEST_OPTIONS, onOk: ({ response }, _optional = {}) => { nextVersion = response.headers.get('ETag') ?? undefined; } },
   );
   return { ...result, version: nextVersion };
 } });
 
-export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
+export async function loadMessages({ conversationId }: { conversationId: string }, _optional: Record<string, never> = {}): Promise<ChatMessage[]> {
   return readHistory({ conversationId });
 }
 
-export async function saveMessage(conversationId: string, message: ChatMessage): Promise<void> {
+export async function saveMessage({ conversationId, message }: { conversationId: string; message: ChatMessage }, _optional: Record<string, never> = {}): Promise<void> {
   await authenticatedAdminRequest(
     { path: `/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(message.id)}`, method: "PUT", body: message },
     CHAT_REQUEST_OPTIONS,

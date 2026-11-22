@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
@@ -22,32 +23,29 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  *
  * Activation is deliberately not consulted: reading a switched-off plugin's files executes nothing.
  */
-export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
-      const workspaceLayout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+      const workspaceLayout = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
       // An upgraded bundled plugin's superseded package is dropped first, so this browses the
       // version the running build ships rather than whichever digest the walk reached first.
       const plugin = preferBundledAgentPluginDigests(
-        await listInstalledPlugins(workspaceLayout.root),
-        await readBundledAgentPluginDigests(workspaceLayout.root),
+        await listInstalledPlugins({ workspaceRoot: workspaceLayout.root }),
+        await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root }),
       ).find((candidate) => candidate.pluginId === pluginId);
       if (!plugin) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" });

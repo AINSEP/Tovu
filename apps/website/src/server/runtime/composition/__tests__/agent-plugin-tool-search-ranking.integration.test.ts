@@ -164,7 +164,7 @@ async function buildRealNativeOnlySurface() {
   await routeDeps.identityReady;
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -179,8 +179,8 @@ async function buildRealSurfaceWithPluginTool() {
   await installRealUiUxDesignPlugin(routeDeps.workspaceId);
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
-  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy });
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
+  await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy } });
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -258,7 +258,7 @@ test("owner 2026-10-09: search_tools finds author keywords and provides absent f
       archiveReader: reader([fileEntry("plugin.json", JSON.stringify(value)), fileEntry("skills/directory-bridge/SKILL.md", "---\nname: directory-bridge\ndescription: Reference instructions\n---\nFollow these instructions.\n")]),
     });
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId, agentPluginLayout: layout });
+    await registerInstalledAgentPluginTools({ registry, ctx: { withExtensionApprovalPolicy, workspaceId, agentPluginLayout: layout } });
     const catalog = buildToolCatalogQuery(registry);
     for (const query of ["pidkeyword", "source-control"]) {
       assert.deepEqual(catalog.search({ query }, { limit: 10 }).map(hit => hit.id), ["agent_plugin_directory_bridge"]);

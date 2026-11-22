@@ -9,7 +9,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import express from "express";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { PluginInstallPreview } from "@jini-ai/plugins/host/node";
 
@@ -147,11 +147,12 @@ test("form_submitted on a consented public submission: committed ids under a req
     formSubmissionRepo: submissionRepo, mailer: { capabilities: () => ({ driver: "memory", supportsIdempotencyKey: false,
       supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }), send: async () => { throw new Error("notifications disabled"); }, sendBatch: async () => { throw new Error("notifications disabled"); } },
   }).start?.();
-  registerFormsSubmitRoute(app, { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
+  registerFormsSubmitRoute({ app, deps: { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
     visitorAnalyticsProof: async () => consentProof, visitorAnalyticsDeliveryAllowed, submitForm: {
+    crypto: globalThis.crypto,
     definitionRepo, submissionRepo, outbox: new InMemoryOutbox(), bus, clock,
     idGen: { newId: () => `id-${++counter}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
-  } });
+  } } });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/forms/contact/submit`, { method: "POST", headers: { "content-type": "application/json", cookie: `session=${secret}` }, body: JSON.stringify({ name: secret }) });
   assert.equal(response.status, 201);
@@ -170,9 +171,9 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   app.use(express.json());
-  registerPluginInstallRoutes(app, { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
+  registerPluginInstallRoutes({ app, deps: { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
     pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" }, hostSignals: resolveHostSignals({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }) }),
-    pluginInstaller: { preview: async () => plugin, install: async () => plugin } });
+    pluginInstaller: { preview: async () => plugin, install: async () => plugin } } });
   const baseUrl = await startTestServer(app, t);
   const post = (suffix: string, body: unknown) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws/plugins/install${suffix}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify(body) });
   assert.equal((await post("/preview", { source: { kind: "folder", path: `/srv/${secret}` } })).status, 200);

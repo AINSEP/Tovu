@@ -1,11 +1,11 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { navigate } from "@/lib/router";
 import { LockIcon } from "./agent-plugins-visuals";
 import { linkedLockTip } from "./hooks/use-linked-lock-tip.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The state area of an agent plugin that follows a provider plugin's switch (posthog, sentry,
  * opentelemetry; owner 2026-10-25). It replaced an honest-disabled switch that read as a white
@@ -17,7 +17,7 @@ import { linkedLockTip } from "./hooks/use-linked-lock-tip.hooks";
 export const LINKED_PLUGIN_TIP = "This is both an agent plugin and a regular plugin. It can only be turned on in the Plugins page.";
 
 /** The Plugins page, Installed tab (it lists every installed plugin, on or off), at that plugin's row. */
-export function linkedPluginHref(providerPlugin: string): string {
+export function linkedPluginHref({ providerPlugin }: { providerPlugin: string }, _options = {}): string {
   return `/addons/plugins?tab=installed&plugin=${encodeURIComponent(providerPlugin)}`;
 }
 
@@ -28,7 +28,7 @@ export function AgentPluginLinkedLock({ plugin, providerPlugin, t, agentHandleBa
       <span className="agent-plugin-state">{plugin.enabled ? t("Enabled") : t("Disabled")}</span>
       <span className="agent-plugin-linked-lock">
         <InfoTip label={t(LINKED_PLUGIN_TIP)} icon={<LockIcon />} agentHandle={`${agentHandleBase}-linked`}
-          useTip={linkedLockTip({ onFollow: () => navigate(linkedPluginHref(providerPlugin)) })} />
+          useTip={linkedLockTip({ onFollow: () => navigate({ routePath: linkedPluginHref({ providerPlugin }) }) })} />
       </span>
     </>
   );

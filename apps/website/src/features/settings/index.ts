@@ -2,7 +2,7 @@
  * @file Public surface (barrel) for `settings` — re-exported from `@jini-ai/core/settings`.
  *
  * Jini owns definitions, values and the revision ledger. SQLite adapters bind the site's schema;
- * `migration.ts` handles this host's legacy `presentation_settings` data. Those stay host-owned,
+ * `legacy settings migration` handles this host's legacy `presentation_settings` data. Those stay host-owned,
  * as do the title write policy and active-principal lookup below.
  * This barrel omits SQLite so consumers cannot accidentally depend on the host's persistence choice.
  */
@@ -61,7 +61,6 @@ export {
   type DefinitionInput,
   validateDefinitionInput,
   validateValueAgainstSchema,
-  registerCoercer,
   invalidateDefinitionNamespaceCache,
   invalidateWorkspaceSettingsCache,
   resolveDefinitionRaw,
@@ -154,9 +153,9 @@ export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDelivery
 export { ensureMailSenderSettings, readMailSenderSetting, MAIL_SENDER_NAMESPACE, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY } from "./mail-sender.js";
 export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";
 
-export type { MailTestModeSetting } from "./mail-provider.js";
+
 export { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "./site-title.js";
 export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
 export { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 
-export { resolveOperatorLocale } from "./operator-locale.js";
+

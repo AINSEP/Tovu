@@ -5,7 +5,8 @@ and optional `file` for references. Trusted OFF-plugin guidance is read-only set
 tool access. After enablement, `agent_plugin_software_engineering` also reads guidance.
 Discover current site, theme, page and other permitted tools with
 `search_tools` and `describe_tool` before editing. Use site/theme/page tools for site changes;
-reuse existing content, forms and widgets before proposing custom code.
+reuse existing content and forms, and reuse widgets for shared pieces (a contact form, a shared
+call to action), before proposing custom code; a page's own layout lives in its HTML.
 
 Never use Bash, curl, npx or package installers from chat. Checkout commands apply only in an
 authorized coding environment. If a checker or tool is unavailable, report UNVERIFIED with the

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { chatPackageKind, partitionChatPackages } from "../hooks/chat-package-kind";
-import { zipFolderFiles } from "../../InstallTabCard/folder-zip";
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 async function archive(paths: string[]) {
   const files = paths.map(path => {

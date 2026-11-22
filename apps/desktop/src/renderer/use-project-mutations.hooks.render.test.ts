@@ -22,7 +22,7 @@ function mutationsHarness(t: TestContext, bridge: Pick<RunnerInventoryBridge, 'c
   const getBridge = () => bridge;
   const hook = renderHook(t, () => useProjectsWith([site('a'), site('b')], (setProjects, projects) => useProjectMutations({
     setProjects, projects,
-    closeProjectTab: (id) => calls.push(`close:${id}`),
+    closeProjectTab: ({ id }) => calls.push(`close:${id}`),
     stopCreating: () => calls.push('stop'),
     startCreating: () => calls.push('start'),
   }, { getBridge })));
@@ -44,7 +44,7 @@ test('T18: a poll started before creation cannot erase the new site and its toke
   const getBridge = () => bridge;
   let tick!: () => void;
   let stopped = 0;
-  const startInterval = (callback: () => void) => { tick = callback; return () => { stopped++; }; };
+  const startInterval = ({ tick: callback }: { tick: () => void }) => { tick = callback; return () => { stopped++; }; };
   const hook = renderHook(t, () => {
     const polling = useSitesPolling({}, { getBridge, startInterval });
     const mutations = useProjectMutations({
@@ -91,7 +91,7 @@ test('useProjectMutations: a cancelled picker keeps the form, and a missing brid
 
   const missing = mutationsHarness(t, undefined);
   await assert.rejects(missing.hook.current().handleCreate(INPUT), /Runner desktop connection required to create a website\./);
-  await assert.rejects(missing.hook.current().handleDelete('a'), /Runner desktop connection required to delete a website\./);
+  await assert.rejects(missing.hook.current().handleDelete({ id: 'a' }), /Runner desktop connection required to delete a website\./);
   assert.deepEqual(missing.calls, []);
   assert.equal(missing.hook.current().projects.length, 2);
 });
@@ -103,15 +103,15 @@ test('useProjectMutations: a rejected create or delete propagates and leaves the
   });
   const key = hook.current().createFormKey;
   await assert.rejects(hook.current().handleCreate(INPUT), /folder exists/);
-  await assert.rejects(hook.current().handleDelete('a'), /folder is locked/);
+  await assert.rejects(hook.current().handleDelete({ id: 'a' }), /folder is locked/);
   assert.deepEqual({ calls, key: hook.current().createFormKey, ids: hook.current().projects.map((p) => p.id), notice: hook.current().lastCreated },
     { calls: [], key, ids: ['a', 'b'], notice: null });
 });
 
 test('useProjectMutations: delete drops the row and its tab; open clears the notice first; cancel resets the form', async (t) => {
   const deleted: string[] = [];
-  const { hook, calls } = mutationsHarness(t, { createSite: async () => CREATED, deleteSite: async (id) => { deleted.push(id); } });
-  await act(() => hook.current().handleDelete('a'));
+  const { hook, calls } = mutationsHarness(t, { createSite: async () => CREATED, deleteSite: async ({ id }, _options = {}) => { deleted.push(id); } });
+  await act(() => hook.current().handleDelete({ id: 'a' }));
   assert.deepEqual(deleted, ['a']);
   assert.deepEqual(hook.current().projects.map((p) => p.id), ['b']);
   assert.deepEqual(calls.splice(0), ['close:a']);
@@ -133,7 +133,7 @@ test('useProjectMutations: the ready notice is withdrawn once the site it names 
   const { hook } = mutationsHarness(t, { createSite: async () => CREATED, deleteSite: async () => {} });
   await act(() => hook.current().handleCreate(INPUT));
   assert.equal(hook.current().lastCreated, CREATED, 'still true: the new site is stopped and on the grid');
-  await act(() => hook.current().handleDelete('new'));
+  await act(() => hook.current().handleDelete({ id: 'new' }));
   assert.equal(hook.current().lastCreated, null, 'the site it names is gone, so the notice goes too');
 });
 
@@ -143,7 +143,7 @@ test('useProjectMutations: a caller that passes no project list never has the no
     setProjects, closeProjectTab: () => {}, stopCreating: () => {}, startCreating: () => {},
   }, { getBridge })));
   await act(() => hook.current().handleCreate(INPUT));
-  await act(() => hook.current().handleDelete('new'));
+  await act(() => hook.current().handleDelete({ id: 'new' }));
   assert.equal(hook.current().lastCreated, CREATED, 'without `projects` there is nothing to check the notice against');
 });
 

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { Server } from "node:http";
 import test from "node:test";
-import { OriginNotVerifiedError, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "../live-url.js";
@@ -27,9 +30,9 @@ test("L131: option validation preserves boundaries, omitted keys and first failu
 
 test("L131: visible traversal keeps inline order, block gaps and decoded text while omitting inert nodes", () => {
   const html = '<!--hidden--><title>Title</title><main>A<span>B</span><br>C<div>D &amp; é</div><script>bad</script><style>bad</style><noscript>bad</noscript><template><p>bad</p></template><img alt="bad"><!--hidden-->E</main>';
-  assert.deepEqual(shapePageBody(html, { textOnly: true }), { body: "Title AB C D & é E", bodyBytes: 19, truncated: false });
-  assert.deepEqual(shapePageBody("<div>".repeat(5000) + "ok" + "</div>".repeat(5000), { textOnly: true }), { body: "ok", bodyBytes: 2, truncated: false });
-  assert.deepEqual(shapePageBody("<!--only--><script>bad</script>", { textOnly: true }), { body: "", bodyBytes: 0, truncated: false });
+  assert.deepEqual(shapePageBody({ body: html, options: { textOnly: true } }), { body: "Title AB C D & é E", bodyBytes: 19, truncated: false });
+  assert.deepEqual(shapePageBody({ body: "<div>".repeat(5000) + "ok" + "</div>".repeat(5000), options: { textOnly: true } }), { body: "ok", bodyBytes: 2, truncated: false });
+  assert.deepEqual(shapePageBody({ body: "<!--only--><script>bad</script>", options: { textOnly: true } }), { body: "", bodyBytes: 0, truncated: false });
 });
 
 function peer(required: { baseUrl: string; updatedAt: string; keyed: boolean }): PublishContentPeerRecord {
@@ -130,7 +133,7 @@ test("L131: published rendering keeps manual redirects, cookie redaction and leg
       assert.equal(url, "http://127.0.0.1:53142/page?q=1"); assert.equal(init?.redirect, "manual"); assert.ok(init?.signal);
       return new Response("é", { status: 302, headers: { "set-cookie": "sid=value; Secure", location: "/next" } });
     });
-    const result = await fetchPublishedPage(f.deps, { path: "/page?q=1" }, options);
+    const result = await fetchPublishedPage({ deps: f.deps, input: { path: "/page?q=1" } }, options);
     assert.equal(result.status, 302); assert.equal(result.ok, false);
     assert.equal(result.headers["set-cookie"], undefined); assert.equal(result.headers.location, "/next");
     assert.deepEqual(result.cookies, [{ name: "sid", attributes: ["Secure"] }]);
@@ -146,11 +149,11 @@ test("L131: published transport maps only timeout/abort errors and always closes
   for (const name of ["TimeoutError", "AbortError", "OtherError"]) {
     const failure = new Error("failed"); failure.name = name;
     const f = publishedFixture(async () => { throw failure; });
-    await assert.rejects(fetchPublishedPage(f.deps, { path: "/" }, { timeoutMs: 12 }), name === "OtherError" ? error => error === failure : { name: "PublishedPageTimeoutError", message: "rendering '/' exceeded 12ms" });
+    await assert.rejects(fetchPublishedPage({ deps: f.deps, input: { path: "/" } }, { timeoutMs: 12 }), name === "OtherError" ? error => error === failure : { name: "PublishedPageTimeoutError", message: "rendering '/' exceeded 12ms" });
     assert.equal(f.closed(), 1);
   }
   const f = publishedFixture(async () => { throw "transport failure"; });
-  await assert.rejects(fetchPublishedPage(f.deps, { path: "/" }), error => error === "transport failure");
+  await assert.rejects(fetchPublishedPage({ deps: f.deps, input: { path: "/" } }), error => error === "transport failure");
   assert.equal(f.closed(), 1);
 });
 
@@ -158,6 +161,6 @@ test("L131: published transport maps only timeout/abort errors and always closes
 test("L131: published body timeout escapes transport error mapping (reported, not fixed)", async () => {
   const failure = new Error("body timed out"); failure.name = "TimeoutError";
   const f = publishedFixture(async () => new Response(new ReadableStream<Uint8Array>({ start(controller) { controller.error(failure); } })));
-  await assert.rejects(fetchPublishedPage(f.deps, { path: "/" }), error => error === failure);
+  await assert.rejects(fetchPublishedPage({ deps: f.deps, input: { path: "/" } }), error => error === failure);
   assert.equal(f.closed(), 1);
 });

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +6,7 @@ import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "../hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
-import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import {
   STATIC_SITE_CAPABILITIES,
   publishTargetById,
@@ -61,7 +61,7 @@ function publishControllerFixture(overrides: Partial<StaticPublishController> = 
   const target = overrides.target ?? "github-pages";
   const configValues = overrides.configValues ?? {};
   const projectName = overrides.projectName ?? "";
-  const selectedTarget = publishTargetById(targets, target);
+  const selectedTarget = publishTargetById({ targets, id: target });
   return {
     targets,
     targetsError: null,
@@ -70,9 +70,9 @@ function publishControllerFixture(overrides: Partial<StaticPublishController> = 
     setTarget: vi.fn(),
     configValues,
     setConfigField: vi.fn(),
-    canPreview: staticPublishFormReadyForPreview(selectedTarget, configValues),
-    canPublish: staticPublishFormReadyToPublish(selectedTarget, configValues, projectName),
-    projectNameCopy: staticPublishProjectNameCopy(selectedTarget),
+    canPreview: staticPublishFormReadyForPreview({ target: selectedTarget, values: configValues }),
+    canPublish: staticPublishFormReadyToPublish({ target: selectedTarget, values: configValues, projectName }),
+    projectNameCopy: staticPublishProjectNameCopy({ target: selectedTarget }),
     projectName,
     setProjectName: vi.fn(),
     preview: undefined,
@@ -107,7 +107,7 @@ const GH_CREDENTIAL: AdminPublishCredentialSummary = {
  *  `use-publish-credentials.hooks.ts`'s own `PublishCredentialRowState` shape exactly, since the
  *  fixture below builds one row per credential-taking fixture target from a list of these. */
 function credentialRowFixture(providerId: AdminPublishCredentialProviderId, overrides: Partial<PublishCredentialRowState> = {}): PublishCredentialRowState {
-  const target = publishTargetById(PUBLISH_TARGETS, providerId);
+  const target = publishTargetById({ targets: PUBLISH_TARGETS, id: providerId });
   if (target?.credential === undefined) throw new Error(`no credential-taking fixture target '${providerId}'`);
   return {
     providerId,
@@ -612,6 +612,9 @@ describe("StaticSiteTab — preview and publish gating", () => {
     const link = screen.getByRole("link", { name: "https://demo.vercel.app" });
     expect(link).toHaveAttribute("href", "https://demo.vercel.app");
     expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(link).toHaveAttribute("translate", "no");
+    expect(link).toHaveAttribute("data-agent-element", "deployment-static-site-publish-result-url");
   });
 
   it("shows a completed but failed publish's message as an alert, not a live link", () => {
@@ -649,11 +652,13 @@ describe("StaticSiteTab — preview and publish gating", () => {
           startedAtIso: "t0",
           finishedAtIso: "t1",
           target: "vercel",
+          error: "fallback route failure",
           result: { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "VERCEL_TOKEN is not set" },
         },
       },
     });
     expect(screen.getByRole("alert")).toHaveTextContent("VERCEL_TOKEN is not set");
+    expect(screen.queryByText("fallback route failure")).not.toBeInTheDocument();
   });
 
   it("an errored run with no result at all (a true route-level exception) falls back to run.error", () => {
@@ -691,11 +696,11 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({ publishController: { target: "github-pages", setConfigField } });
 
     await user.type(screen.getByLabelText("Owner"), "o");
-    expect(setConfigField).toHaveBeenCalledWith("owner", "o");
+    expect(setConfigField).toHaveBeenCalledWith({ name: "owner", value: "o" });
     await user.type(screen.getByLabelText("Repository"), "r");
-    expect(setConfigField).toHaveBeenCalledWith("repo", "r");
+    expect(setConfigField).toHaveBeenCalledWith({ name: "repo", value: "r" });
     await user.type(screen.getByLabelText("Branch (optional)"), "b");
-    expect(setConfigField).toHaveBeenCalledWith("branch", "b");
+    expect(setConfigField).toHaveBeenCalledWith({ name: "branch", value: "b" });
   });
 
   it("typing into the Vercel team field calls setConfigField('teamId', value)", async () => {
@@ -704,7 +709,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({ publishController: { target: "vercel", setConfigField } });
 
     await user.type(screen.getByLabelText("Team ID (optional)"), "t");
-    expect(setConfigField).toHaveBeenCalledWith("teamId", "t");
+    expect(setConfigField).toHaveBeenCalledWith({ name: "teamId", value: "t" });
   });
 
   it("a host that declares no projectName (S3-compatible storage) shows no project-name field at all", () => {
@@ -763,7 +768,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({
       publishController: {
         target: "vercel",
-        run: { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" },
+        run: { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel", result: { ok: true, targetId: "vercel", url: "https://demo.vercel.app", status: "READY" } },
       },
     });
     // The "Publishing…" status pill/button belong to PublishTriggerAction itself, not
@@ -773,6 +778,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     // renders its own unrelated "Create a token" link.
     expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("a terminal run with neither a result nor an error renders nothing from PublishRunResult", () => {
@@ -784,6 +790,7 @@ describe("StaticSiteTab — preview and publish gating", () => {
     });
     expect(screen.queryByRole("link", { name: /^https:\/\// })).not.toBeInTheDocument();
     expect(screen.queryByText(/^Published:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("names the destination section distinctly from the credential section above it, with an explanation of the difference", () => {
@@ -986,7 +993,7 @@ describe("StaticSiteTab — credential section: rows", () => {
     const setField = vi.fn();
     renderTab({ publishController: { target: "vercel" }, credentialsController: { setField } });
     await user.type(screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-vercel" }), "x");
-    expect(setField).toHaveBeenCalledWith("vercel", "token", "x");
+    expect(setField).toHaveBeenCalledWith({ providerId: "vercel", fieldName: "token", value: "x" });
   });
 
   it("github-pages (the default target) shows no Account ID field — only cloudflare-pages has that second connection field", () => {
@@ -1002,7 +1009,7 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(accountField).toHaveValue("");
     expect(accountField).not.toHaveAttribute("placeholder");
     await user.type(accountField, "a");
-    expect(setField).toHaveBeenCalledWith("cloudflare-pages", "accountId", "a");
+    expect(setField).toHaveBeenCalledWith({ providerId: "cloudflare-pages", fieldName: "accountId", value: "a" });
   });
 
   // REWRITTEN 2026-08-16: `.closest("li")` scoped to the old markup's per-row `<li>` wrapper, which
@@ -1074,7 +1081,7 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
       const { unmount } = renderTab({ publishController: { target: providerId } });
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${providerId}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${providerId}"]`)).toBeInTheDocument();
-      const target = publishTargetById(PUBLISH_TARGETS, providerId)!;
+      const target = publishTargetById({ targets: PUBLISH_TARGETS, id: providerId })!;
       const tokenField = target.credential!.fields.find((field) => field.name === target.credential!.tokenField)!;
       const token = screen.getByLabelText(tokenField.label, { selector: `#deployment-static-site-credentials-token-${providerId}` });
       const reveal = screen.getByRole("button", { name: `Show ${tokenField.label}` });
@@ -1275,7 +1282,7 @@ describe("StaticSiteTab — the 'which saved token publishes' picker (owner's or
     });
     const picker = screen.getByLabelText(/which saved token publishes/i);
     await user.selectOptions(picker, within(picker).getByRole("option", { name: /^backup —/ }));
-    expect(selectCredential).toHaveBeenCalledWith("github-pages", "cred-2");
+    expect(selectCredential).toHaveBeenCalledWith({ providerId: "github-pages", credentialId: "cred-2" });
   });
 });
 
@@ -1302,7 +1309,7 @@ describe("StaticSiteTab — Publish waits for a credential switch to land (terra
         <StaticSiteTab
           useStaticExportHook={() => exportControllerFixture()}
           useStaticPublishHook={() => publishControllerFixture({ configValues: { owner: "octo", repo: "demo-repo" }, projectName: "deploy", publish })}
-          usePublishCredentialsHook={() => usePublishCredentials(port, fakeT, "en", PUBLISH_TARGETS)}
+          usePublishCredentialsHook={() => usePublishCredentials({ port, t: fakeT, locale: "en", targets: PUBLISH_TARGETS })}
         />
       </FetchQueryProvider>,
     );

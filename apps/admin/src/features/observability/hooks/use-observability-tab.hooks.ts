@@ -9,20 +9,20 @@ import { navigate } from "@/lib/router";
 export function useObservabilityTab({ tabs, tabId }: {
   tabs: readonly SettingsDialogTab[]; tabId?: string | null;
 }, _options = {}) {
-  const requestedTabId = resolveInitialActiveTabId(tabs, tabId);
+  const requestedTabId = resolveInitialActiveTabId({ tabs }, { initialTabId: tabId });
   const controller = useTabbedDialog({ tabs, initialActiveTabId: requestedTabId ?? undefined });
   const selectRef = useRef(controller.setActiveTabId);
   selectRef.current = controller.setActiveTabId;
   useEffect(() => {
     if (requestedTabId !== null) selectRef.current(requestedTabId);
   }, [requestedTabId]);
-  const activeTabId = resolveInitialActiveTabId(tabs, controller.activeTabId);
+  const activeTabId = resolveInitialActiveTabId({ tabs }, { initialTabId: controller.activeTabId });
   return {
     activeTabId: activeTabId ?? undefined,
-    subtitle: findActiveTab(tabs, activeTabId)?.subtitle,
-    onTabChange: (nextTabId: string) => {
+    subtitle: findActiveTab({ tabs, activeTabId })?.subtitle,
+    onTabChange: ({ nextTabId }: { nextTabId: string }, _optional = {}) => {
       controller.setActiveTabId(nextTabId);
-      navigate(`/observability?tab=${encodeURIComponent(nextTabId)}`, { replace: true });
+      navigate({ routePath: `/observability?tab=${encodeURIComponent(nextTabId)}` }, { replace: true });
     },
   };
 }

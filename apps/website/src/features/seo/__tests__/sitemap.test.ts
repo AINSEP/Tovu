@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import { OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import { resolveConfiguredOrigin } from "../../origin/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
@@ -39,7 +39,7 @@ function post(overrides: Partial<PostRecord>): PostRecord {
 
 
 async function makeDeps(posts: PostRecord[]) {
-  const postRepo = new InMemoryPostRepo(posts);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: posts });
   const settingsRepo = new InMemorySettingsRepo();
   const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
   await ensureSeoSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE, systemPrincipalId: "system-seo" });
@@ -79,7 +79,7 @@ async function sitemapFromRegisteredOrigin(configuredUrl: string | undefined) {
 
   const deps = {
     ...(await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })])),
-    originRegistry: new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) }),
+    originRegistry: new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: db }) }),
   };
   const seoDeps = createSeoDeps({ deps: { ...deps.media, ...deps } }, {});
   return createSitemapService({ deps: seoDeps }, {}).buildSitemap({ workspaceId: WORKSPACE }, {});

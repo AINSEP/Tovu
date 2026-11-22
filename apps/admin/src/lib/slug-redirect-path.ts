@@ -31,7 +31,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *
  * @complexity Time/space: O(1).
  */
-export function slugRedirectPath(base: string, requestedId: string, item: { id: string; slug: string }): string | null {
+export function slugRedirectPath({ base, requestedId, item }: { base: string; requestedId: string; item: { id: string; slug: string } }, _options = {}): string | null {
   if (requestedId === item.slug) return null;
   if (requestedId !== item.id || !UUID_RE.test(requestedId)) return null;
   return `${base}/${item.slug}`;

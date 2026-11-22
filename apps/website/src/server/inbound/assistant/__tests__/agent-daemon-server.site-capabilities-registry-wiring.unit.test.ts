@@ -4,14 +4,14 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createAssistantByokModule } from "#src/server/runtime/composition/modules/assistant-byok";
 import { ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
-import { daemonSource, daemonInitializer } from "./helpers/daemon-source.js";
+import { statementsFor, daemonSource, daemonManifest, daemonInitializer } from "./helpers/daemon-source.js";
 
 type Capabilities = { sections: { tools: { status: string; data: { total: number; domains: { tools: { id: string }[] }[] } } } };
 
 /** The server's single live registry now owns capability reporting and per-call delete policy. */
 test("site capabilities read the server registry while the daemon carries only its descriptor view", () => {
-  assert.equal(daemonInitializer("visibleRegistry").getText(daemonSource), "siteTools.registry");
-  const code = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
+  assert.equal(daemonInitializer("visibleRegistry", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry")).getText(daemonInitializer("visibleRegistry", statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry")).getSourceFile()), "siteTools.registry");
+  const code = [...daemonManifest.values()].flatMap(bodies => bodies.get("<file>") ?? []).map(statement => statement.getText(statement.getSourceFile())).join("\n");
   assert.equal(code.includes("buildAssistantToolRegistrations"), false);
 });
 
@@ -19,7 +19,7 @@ test("the server's actual catalog reader exposes a late tool and applies the dae
   const deps = createRouteDeps();
   await deps.identityReady;
   const owner = { id: await deps.ownerPrincipalId };
-  const { toolSurface } = createAssistantByokModule(deps);
+  const { toolSurface } = createAssistantByokModule({ routeDeps: deps });
   await toolSurface.ready;
   toolSurface.registry.register({ descriptor: { id: "audit_distinctive_late_tool", description: "Distinctive late registration" },
     policy: { authorize: () => "allow" }, handler: async () => ({}) });

@@ -32,7 +32,7 @@ import { TextSelection } from "@tiptap/pm/state";
  * ("put the slug input right next to the title... like we did the pages") — typing there pushes into
  * this node via `setPostTitleText` below, so both surfaces always agree on one value.
  *
- * Server-side rendering: `renderDocNode`'s `"title"` case (`src/server/http/site/render.ts`) always
+ * Server-side rendering: `renderDocNode`'s `"title"` case (`apps/website/src/server/inbound/public-http/http/site/render/doc/doc-nodes.ts`) always
  * renders empty in a generic doc walk; `renderWidgetPostContent` is the one render path that reads
  * this node directly (via its own `extractTitleNode`), because it is the only one that needs this
  * node's alignment. See that file's own comments for the rest of this feature's server-side half, and
@@ -48,7 +48,7 @@ declare module "@tiptap/core" {
        *  canvas so both editing surfaces stay in sync. A no-op (`false`) when the doc's first child
        *  isn't a `title` node, which cannot happen once `withTitleNode` has synthesized one, but is
        *  checked rather than assumed since this command runs on every keystroke of that input. */
-      setPostTitleText: (text: string) => ReturnType;
+      setPostTitleText: (required: { text: string }, optional?: Record<string, never>) => ReturnType;
     };
   }
 }
@@ -100,7 +100,7 @@ export const PostTitle = Node.create({
   addCommands() {
     return {
       setPostTitleText:
-        (text: string) =>
+        ({ text }: { text: string }, _options = {}) =>
         ({ tr, dispatch, state }) => {
           const node = state.doc.firstChild;
           if (!node || node.type.name !== this.name) return false;

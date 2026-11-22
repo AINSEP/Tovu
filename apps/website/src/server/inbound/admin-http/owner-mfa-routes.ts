@@ -1,4 +1,4 @@
-import { sendAdminFailure } from './routes/system/site-share-errors.js';
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { IdentityValidationError, OwnerRequiredError } from '@jini-ai/user-management';
 import { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFactor } from '@jini-ai/user-management/server';
@@ -9,13 +9,13 @@ import { resolveSiteConsentOrigin } from '../public-http/middleware/site-consent
 import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
 
 type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
-  authenticate: (req: Request) => Promise<{ principal: { id: string }; kind: string } | null> };
+  authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null> };
 type Action = 'enroll' | 'confirm' | 'remove';
 
 /** Only known domain refusals reach the browser; storage exceptions never disclose secrets.
  * @complexity O(1), one response, no request input logged.
  */
-function failure(res: Response, error: unknown): void {
+function failure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
   if (!expected) {
     sendAdminFailure({ res, error }, { operation: 'owner-authenticator', code: 'MFA_UNAVAILABLE',
@@ -38,7 +38,7 @@ async function admit({ req, res, admission }: { req: Request; res: Response; adm
     res.status(403).json({ error: 'Open this site’s security settings and submit the authenticator action there.', code: 'MFA_ORIGIN_REFUSED' });
     return null;
   }
-  const caller = await admission.authenticate(req);
+  const caller = await admission.authenticate({ req });
   const ownerId = await admission.deps.ownerPrincipalId;
   if (caller?.kind !== 'session' || caller.principal.id !== ownerId) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to change this authenticator.' });
@@ -58,7 +58,7 @@ function acceptsRequest(req: Request): boolean {
 }
 
 /** Read only scalar text from the JSON boundary; malformed values are refused by Jini. */
-function bodyText(req: Request, key: string): string {
+function bodyText({ req, key }: { req: Request; key: string }, _optional = {}): string {
   return typeof req.body?.[key] === 'string' ? req.body[key] : '';
 }
 
@@ -72,17 +72,17 @@ async function handle({ req, res, action, admission }: { req: Request; res: Resp
     if (!ownerId) return;
     const deps = await ownerMfaDepsFrom(admission);
     const input = { workspaceId: admission.deps.workspaceId, principalId: ownerId,
-      password: bodyText(req, 'password'), code: bodyText(req, 'code') };
+      password: bodyText({ req, key: 'password' }), code: bodyText({ req, key: 'code' }) };
     if (action === 'enroll') {
       const user = await admission.deps.userRepo.findByPrincipalId(input);
       res.json(await beginOwnerEnrollment({ deps, input: { ...input, label: user?.username ?? 'Owner', issuer: 'Tovu' } }, {}));
       return;
     }
     if (action === 'confirm') await confirmOwnerEnrollment({ deps, input: { ...input,
-      pendingToken: bodyText(req, 'pendingToken') } }, {});
+      pendingToken: bodyText({ req, key: 'pendingToken' }) } }, {});
     else await removeOwnerFactor({ deps, input }, {});
     res.status(204).send();
-  } catch (error) { failure(res, error); }
+  } catch (error) { failure({ res, error }); }
 }
 
 /** Routes precede the admin session gate; each management action admits its own owner session.
@@ -96,11 +96,11 @@ export function registerOwnerMfaRoutes(admission: Admission, _options: Record<st
   admission.app.get('/api/admin/v1/auth/mfa', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      const caller = await admission.authenticate(req);
+      const caller = await admission.authenticate({ req });
       const isOwner = caller?.kind === 'session' && caller.principal.id === await admission.deps.ownerPrincipalId;
       const factor = isOwner ? await admission.deps.mfaStore?.factor({ workspaceId: admission.deps.workspaceId,
         principalId: caller.principal.id }) : null;
       res.json({ isOwner, available: isOwner && !!admission.deps.mfaStore, enrolled: !!factor });
-    } catch (error) { failure(res, error); }
+    } catch (error) { failure({ res, error }); }
   });
 }

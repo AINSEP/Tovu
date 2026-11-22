@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import path from "node:path";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
@@ -7,7 +7,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SkillsRouteRegistrar } from "./deps.js";
 
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
-export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
+export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -16,9 +16,9 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
     const { toolId } = req.params;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, {
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId,
-      })) return;
+      } })) return;
 
       const sources = await loadInstalledSkillToolSources({ ...deps, workspaceId: deps.workspaceId, includeDisabled: true });
       const skill = sources.find(source => source.id === toolId);
@@ -26,7 +26,7 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
         res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" });
         return;
       }
-      const containerDir = deps.skillLayout.forWorkspace(deps.workspaceId).root;
+      const containerDir = deps.skillLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
       // The directory comes from discovery, never request text. The shared reader enforces
       // realpath containment, no symlink following, and the same count/byte caps as Plugins.
       const { files, truncated } = await readPluginPackageFiles({

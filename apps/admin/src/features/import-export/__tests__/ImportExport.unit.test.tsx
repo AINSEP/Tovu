@@ -44,12 +44,14 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
     await waitFor(() => expect(screen.queryByText("Loading imports…")).toBeNull());
   });
 
-  it("links Import to Sites → New site only where the Sites section exists", () => {
+  it("offers a live website (which makes a new site) only where the Sites section can make one", () => {
     const view = renderPanel("import");
-    expect(screen.queryByRole("link", { name: "New site" })).toBeNull();
+    expect(screen.queryByLabelText("Website address")).toBeNull();
+    expect(screen.getByText("This host can't make new sites, so it can't import a live website here.")).toBeTruthy();
     view.unmount();
     renderPanel("import", { sitesAvailable: true });
-    expect(screen.getByRole("link", { name: "New site" }).getAttribute("href")).toBe("/admin/sites?tab=new");
+    expect(screen.getByLabelText("Website address")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "New site" })).toBeNull();
   });
 
   it("keeps the Static Site card and Git backup on Other", async () => {
@@ -62,12 +64,12 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
   });
 
   it("falls back to Export for an unknown or absent ?tab=", () => {
-    expect(resolveImportExportTabId("other")).toBe("other");
-    expect(resolveImportExportTabId("import")).toBe("import");
-    expect(resolveImportExportTabId("Import")).toBe("export");
-    expect(resolveImportExportTabId("static")).toBe("export");
-    expect(resolveImportExportTabId(null)).toBe("export");
-    expect(resolveImportExportTabId(undefined)).toBe("export");
+    expect(resolveImportExportTabId({ tabId: "other" })).toBe("other");
+    expect(resolveImportExportTabId({ tabId: "import" })).toBe("import");
+    expect(resolveImportExportTabId({ tabId: "Import" })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: "static" })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: null })).toBe("export");
+    expect(resolveImportExportTabId({ tabId: undefined })).toBe("export");
     renderPanel("nope");
     expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
   });
@@ -107,7 +109,7 @@ describe("useSitesSectionAvailable", () => {
     await waitFor(() => expect(result.current).toBe(true));
   });
 
-  it("drops the New site link when a refresh fails, as the router drops the Sites route", async () => {
+  it("turns off making sites when a refresh fails, as the router drops the Sites route", async () => {
     vi.stubGlobal(
       "fetch",
       vi

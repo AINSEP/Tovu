@@ -1,4 +1,4 @@
-import type { AdminContentType, ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file What `use-new-content-type-dialog.hooks.ts` needs from the outside world, as an interface
@@ -10,5 +10,5 @@ export interface NewContentTypeDialogPort {
     key: string;
     label: string;
     fields: ContentTypeFieldDef[];
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

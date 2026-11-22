@@ -9,7 +9,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions,
   type PluginContributionDefinition } from "../agent-plugins/lifecycle.js";
 import type { LoginProvider, LoginProviderPreset } from "./types.js";
 
-export const LOGIN_PROVIDERS_FILENAME = "tovu-login-providers.json";
+export const LOGIN_PROVIDERS_FILENAME = "jini-login-providers.json";
 
 /** Parse a bounded v1 preset file. Failure exposes a fixed code, never raw plugin JSON.
  * The parser lives in `@jini-ai/user-management/server`; this keeps the host's name and signature.

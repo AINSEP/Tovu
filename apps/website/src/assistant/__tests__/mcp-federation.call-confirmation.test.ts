@@ -21,8 +21,9 @@ import { admitRemoteTools } from "@jini-ai/mcp/federation";
 import { isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 // This wrapper preserves Tovu's positional call contract for Jini trust policy.
@@ -396,12 +397,12 @@ test("G3 card: a composition root that wires no confirmer refuses every confirm-
 // ---------------------------------------------------------------------------
 
 test("G3 route rule: a federated id is permitted only as an answer to an open card", () => {
-  assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", true), true);
-  assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", false), false);
-  assert.equal(isMcpUiToolCallPermitted("identity_user_delete_everything", true), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "mcp__supabase__execute_sql", answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "mcp__supabase__execute_sql", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "identity_user_delete_everything", answersAnExchange: true }), false);
   // Native policy callbacks also require a parked exchange; ordinary edits use the executor.
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", false), false);
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_set_value", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_set_value", answersAnExchange: true }), true);
 });
 
 function refusingExecutor(): { executor: ToolExecutor; executed: string[] } {
@@ -424,7 +425,7 @@ test("G3 route: a federated tool call with no exchange is refused 403 and never 
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -446,7 +447,7 @@ test("G3 route: Confirm on an open federated card is delivered (202) and the hel
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: h.store });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: h.store } });
   const baseUrl = await startTestServer(app, t);
 
   const { pending, cards } = call(h, "execute_sql", { query: "drop table g3" });

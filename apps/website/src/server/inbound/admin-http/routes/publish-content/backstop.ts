@@ -1,29 +1,30 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { BackstopRefusal } from "#src/features/publish-content/backstop-policy";
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { BACKSTOP_FORBIDDEN, mayUseBackstop, validateBackstopRequest, readBackstopMetadata, runAuditedBackstop } from "#src/features/publish-content/backstop-service";
-import type { BackstopAuditPort, BackstopAuditRecord, BackstopInverse } from "#src/features/publish-content/backstop-audit";
-import type { BackstopPorts, BackstopSelection, RawFilePort } from "#src/features/publish-content/backstop-ports";
+import type { BackstopAuditPort, BackstopAuditRecord, BackstopInverse } from "@jini-ai/cms/publish/transfer";
+import type { BackstopPorts, BackstopSelection, RawFilePort } from "@jini-ai/cms/publish/transfer";
 import { contributeRawRowPublish, undoRawRow } from "#src/features/publish-content/raw-row-contributor";
 import { contributeRawFilePublish, undoRawFile } from "#src/features/publish-content/raw-file-contributor";
 import type { PackedEntity, PublishContentDeps, SkippedPackEntity } from "#src/features/publish-content/type-registry";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
-import { entityKey } from "#src/features/publish-content/planner";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { entityKey } from "#src/features/publish-content/plan-rows";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import { computeBlobStorageKey } from "#src/features/media/index";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { pushBundleToPeer, confirmPeerImport, executePeerImport, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { bodyRecord, rejectForeignWorkspace, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { bodyRecord, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { respondWithError } from "./peer-transport.js";
 
 /** Whether `actorId` may send by hand: the `publish.backstop` permission AND the owner or a
  *  built-in admin/owner role. @complexity O(r) role reads. */
-async function mayActorUseBackstop(deps: PublishContentRouteDeps, actorId: string): Promise<boolean> {
+async function mayActorUseBackstop({ deps, actorId }: { deps: PublishContentRouteDeps; actorId: string }, _options: Record<string, never> = {}): Promise<boolean> {
   const allowed = await deps.authorize({ principalId: actorId, permission: "publish.backstop", workspaceId: deps.workspaceId });
   return allowed.allowed && mayUseBackstop({ actorId, ownerId: await deps.ownerPrincipalId, roles: { list: async () => {
     const links = await deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: actorId });
@@ -35,15 +36,15 @@ async function mayActorUseBackstop(deps: PublishContentRouteDeps, actorId: strin
 /** Session-only: neither an API key nor an assistant can perform the manual confirmation.
  *  @returns the actor id, or `null` once the 403 has been sent. */
 async function backstopActorId(res: Response, deps: PublishContentRouteDeps): Promise<string | null> {
-  if (!rejectUnlessSessionCredential(res, { message: BACKSTOP_FORBIDDEN, permission: "publish.backstop" })) return null;
+  if (!rejectUnlessSessionCredential({ res, message: BACKSTOP_FORBIDDEN, permission: "publish.backstop" })) return null;
   const id = getAuthedPrincipal(res).id;
-  if (await mayActorUseBackstop(deps, id)) return id;
+  if (await mayActorUseBackstop({ deps, actorId: id })) return id;
   res.status(403).json({ error: BACKSTOP_FORBIDDEN, code: "FORBIDDEN" });
   return null;
 }
 
 /** The audit port when its storage is installed, else `null`. @complexity O(1) plus one probe. */
-async function readyAudit(audit: BackstopAuditPort | undefined): Promise<BackstopAuditPort | null> {
+async function readyAudit({ audit }: { audit: BackstopAuditPort | undefined }, _options: Record<string, never> = {}): Promise<BackstopAuditPort | null> {
   return audit && (await audit.ready()) ? audit : null;
 }
 
@@ -87,7 +88,7 @@ interface BackstopRun {
 }
 
 /** The per-call transport bag for this run's peer, with its backstop-scoped credential. */
-async function openBackstopPeer(deps: PublishContentRouteDeps, peerId: string): Promise<PeerCallDeps> {
+async function openBackstopPeer({ deps, peerId }: { deps: PublishContentRouteDeps; peerId: string }, _options: Record<string, never> = {}): Promise<PeerCallDeps> {
   return { httpClient: deps.publishContentPeerHttpClient,
     publishHistory: { store: deps.publishHistoryStore, workspaceId: deps.workspaceId, clock: deps.clock }, credential: await resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, httpClient: deps.publishContentPeerHttpClient,
@@ -103,18 +104,21 @@ function isSendablePlan(log: BackstopAuditRecord | null, run: BackstopRun): log 
 }
 
 /** `send`: confirms and executes the plan a previous `plan` call recorded. */
-async function sendCheckedPlan(res: Response, run: BackstopRun, logId: unknown): Promise<void> {
+async function sendCheckedPlan({ res, run, logId }: { res: Response; run: BackstopRun; logId: unknown }, _options: Record<string, never> = {}): Promise<void> {
   const { deps, audit } = run;
   const log = typeof logId === "string" ? await audit.get({ workspaceId: deps.workspaceId, id: logId }) : null;
   if (!isSendablePlan(log, run)) {
     res.status(409).json({ error: "Check what would change again before sending." }); return;
   }
   const result = await runAuditedBackstop({ audit, record: log, work: async () => {
-    const peer = await openBackstopPeer(deps, run.target.peerId);
+    const peer = await openBackstopPeer({ deps, peerId: run.target.peerId });
     const plan = log.details.plan as Record<string, unknown>;
-    const confirmation = await confirmPeerImport(peer, { planId: String(plan.planId), planHash: String(plan.planHash) });
-    return executePeerImport(peer, { bundleId: String(log.details.bundleId), confirmationToken: confirmation.confirmationToken,
-      overwriteEntityKeys: log.details.overwriteEntityKeys as string[] | undefined });
+    const confirmation = await confirmPeerImport({ deps: peer, required: { planId: String(plan.planId), planHash: String(plan.planHash) } });
+    return executePeerImport({
+                               deps: peer,
+                               required: { bundleId: String(log.details.bundleId), confirmationToken: confirmation.confirmationToken,
+        overwriteEntityKeys: log.details.overwriteEntityKeys as string[] | undefined }
+                             });
   } });
   res.json({ ...result, logId: log.id, destination: run.target.destination.baseUrl });
 }
@@ -126,7 +130,8 @@ async function packSelection(run: BackstopRun): Promise<{ entities: PackedEntity
   for (const contributor of [contributeRawRowPublish(), contributeRawFilePublish()]) {
     const handler = contributor.build({ ...run.projection, backstop: run.backstop });
     for await (const entity of handler.pack()) entities.push(entity);
-    skipped.push(...await handler.listSkipped!());
+    if (!handler.listSkipped) throw new Error("backstop contributor has no skipped-items listing");
+    skipped.push(...await handler.listSkipped());
   }
   return { entities, skipped };
 }
@@ -134,19 +139,20 @@ async function packSelection(run: BackstopRun): Promise<{ entities: PackedEntity
 /** `overwriteEntityKeys` may only name items this plan selected. @complexity O(k) in the keys. */
 function overwriteKeysAreSelected(overwriteEntityKeys: unknown, entities: readonly PackedEntity[]): overwriteEntityKeys is string[] | undefined {
   if (overwriteEntityKeys === undefined) return true;
-  const keys = new Set(entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const keys = new Set(entities.map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id })));
   return Array.isArray(overwriteEntityKeys) && overwriteEntityKeys.every((key) => typeof key === "string" && keys.has(key));
 }
 
 /** `plan`: packs the selection, pushes it to the peer as a staged bundle, and records the
  *  peer's plan as this actor's `planned` source log for `send` to redeem. */
-async function planSelection(res: Response, run: BackstopRun, overwriteEntityKeys: unknown): Promise<void> {
+async function planSelection({ res, run, overwriteEntityKeys }: { res: Response; run: BackstopRun; overwriteEntityKeys: unknown }, _options: Record<string, never> = {}): Promise<void> {
   const { deps, actorId, target, audit } = run;
   const { entities, skipped } = await packSelection(run);
   if (entities.length === 0) { res.json({ entities: [], skipped, logId: null }); return; }
   const metadata = { mode: "backstop" as const, reason: target.request.reason, sourceActor: actorId, destinationHost: target.host, gapLabels: [] };
   const carrying = entities.map((entity) => ({ ...entity, backstop: metadata }));
-  const verifiedMetadata = readBackstopMetadata({ entities: carrying })!;
+  const verifiedMetadata = readBackstopMetadata({ entities: carrying });
+  if (!verifiedMetadata) throw new Error("backstop plan has no verified metadata");
   const auditedEntities = entities.map((entity) => ({ ...entity, backstop: verifiedMetadata }));
   if (!overwriteKeysAreSelected(overwriteEntityKeys, entities)) {
     res.status(400).json({ error: "Only selected items can be overwritten.", code: "VALIDATION_ERROR" }); return;
@@ -156,13 +162,16 @@ async function planSelection(res: Response, run: BackstopRun, overwriteEntityKey
     destination: target.destination.baseUrl, reason: target.request.reason, at: nowIso({ clock: deps.clock }), gapLabels: verifiedMetadata.gapLabels,
     items: entities.map((e) => ({ entityType: e.entityType, id: e.id, afterHash: e.contentHash })), result: "pending", runId: null, details: {}, inverses: [] };
   const result = await runAuditedBackstop({ audit, record, successResult: "planned", work: async () => {
-    const peer = await openBackstopPeer(deps, target.peerId);
-    const pushed = await pushBundleToPeer({ ...peer, blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-      computeStorageKey: (sha256) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }) }, {
-      bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION,
-        sourceLabel: deps.workspaceId, entities: auditedEntities, blobManifest: [...new Set(entities.flatMap((e) => e.requiredBlobs))], skipped },
-      ...overwrite,
-    });
+    const peer = await openBackstopPeer({ deps, peerId: target.peerId });
+    const pushed = await pushBundleToPeer({
+                                            deps: { ...peer, blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
+        computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }) },
+                                            required: {
+        bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION,
+          sourceLabel: deps.workspaceId, entities: auditedEntities, blobManifest: [...new Set(entities.flatMap((e) => e.requiredBlobs))], skipped },
+        ...overwrite,
+      }
+                                          });
     if (pushed.notSupportedByLive.length > 0) throw new BackstopRefusal({ message: "Live can't accept send by hand yet; update live and enable its backstop grant." });
     return { ...pushed, peerId: target.peerId, entities, skipped, ...overwrite };
   } });
@@ -170,19 +179,20 @@ async function planSelection(res: Response, run: BackstopRun, overwriteEntityKey
 }
 
 /** `POST .../backstop`: the source side of send by hand (`plan`, then `send`). */
-async function handleBackstopRequest(req: Request, res: Response, deps: PublishContentRouteDeps): Promise<void> {
+async function handleBackstopRequest({ req, res, deps }: { req: Request; res: Response; deps: PublishContentRouteDeps }, _options: Record<string, never> = {}): Promise<void> {
   const actorId = await backstopActorId(res, deps); if (!actorId) return;
-  const body = bodyRecord(req.body);
+  const body = bodyRecord({ body: req.body });
   const target = await readBackstopTarget(body, deps);
-  if ("status" in target) { sendRefusal(res, target); return; }
+  if ("status" in target) { sendRefusal({ res, refusal: target }); return; }
   const projection = toPublishContentDeps(deps);
-  const backstop = { ...projection.backstop!, selection: target.request.selection };
-  const audit = await readyAudit(backstop.audit);
+  if (!projection.backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
+  const backstop = { ...projection.backstop, selection: target.request.selection };
+  const audit = await readyAudit({ audit: backstop.audit });
   if (!audit) { res.status(503).json({ error: "Send by hand needs its audit storage installed before it can send anything.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
   const run: BackstopRun = { deps, actorId, target, audit, projection, backstop };
-  if (body.action === "send") { await sendCheckedPlan(res, run, body.logId); return; }
+  if (body.action === "send") { await sendCheckedPlan({ res, run, logId: body.logId }); return; }
   if (body.action !== "plan") { res.status(400).json({ error: "Choose Check what would change or Send to live." }); return; }
-  await planSelection(res, run, body.overwriteEntityKeys);
+  await planSelection({ res, run, overwriteEntityKeys: body.overwriteEntityKeys });
 }
 
 /** Undoes one recorded inverse. A restored file's prior bytes are captured first and queued on
@@ -198,49 +208,69 @@ async function undoInverse(
   return reason;
 }
 
-/** `POST .../runs/:runId/undo-backstop`: the destination side's one-click undo. */
-async function handleUndoRequest(req: Request, res: Response, deps: PublishContentRouteDeps): Promise<void> {
-  if (!(await backstopActorId(res, deps))) return;
-  const projection = toPublishContentDeps(deps);
-  // `files` is always present here: `PublishContentRouteDeps` requires `siteBinding`, which is
-  // what `buildPublishBackstopPorts` builds the file port from.
-  const { audit, rows, files } = projection.backstop!;
-  if (!audit || !rows || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
-  const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
-  if (!log || log.direction !== "destination" || !hasUndo(log)) { res.status(404).json({ error: "This send has no undo available." }); return; }
+type ProjectedBackstop = NonNullable<PublishContentDeps["backstop"]>;
+type ReadyBackstop = { [Port in "audit" | "rows" | "files"]-?: NonNullable<ProjectedBackstop[Port]> };
+type UndoableLog = NonNullable<Awaited<ReturnType<ReadyBackstop["audit"]["get"]>>>;
+
+/** The audit, row and file ports an undo needs, or null while the audit storage is not installed. */
+async function readyUndoBackstop({ backstop }: { backstop: ProjectedBackstop | undefined }, _options: Record<string, never> = {}): Promise<ReadyBackstop | null> {
+  const { audit, rows, files } = backstop ?? {};
+  if (!audit || !rows || !files || !(await audit.ready())) return null;
+  return { audit, rows, files };
+}
+
+/** Undoes every inverse newest-first in one row transaction, then restores the files it already
+ * touched if anything throws. Returns the reasons for the inverses that were skipped. */
+async function undoAllInverses(
+  { log, projection, backstop }: { log: UndoableLog; projection: PublishContentDeps; backstop: ReadyBackstop }, _options: Record<string, never> = {},
+): Promise<string[]> {
   const skipped: string[] = [];
   const fileRollbacks: Array<() => Promise<void>> = [];
   try {
-    await rows.transaction({ work: async () => {
+    await backstop.rows.transaction({ work: async () => {
       for (const inverse of [...log.inverses].reverse()) {
-        const reason = await undoInverse({ inverse, projection, files: files!, fileRollbacks });
+        const reason = await undoInverse({ inverse, projection, files: backstop.files, fileRollbacks });
         if (reason) skipped.push(reason);
       }
-      await audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });
+      await backstop.audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });
     } });
   } catch (error) {
     for (const rollback of fileRollbacks.reverse()) { await rollback(); }
     throw error;
   }
+  return skipped;
+}
+
+/** `POST .../runs/:runId/undo-backstop`: the destination side's one-click undo. */
+async function handleUndoRequest({ req, res, deps }: { req: Request; res: Response; deps: PublishContentRouteDeps }, _options: Record<string, never> = {}): Promise<void> {
+  if (!(await backstopActorId(res, deps))) return;
+  const projection = toPublishContentDeps(deps);
+  // `files` is always present here: `PublishContentRouteDeps` requires `siteBinding`, which is
+  // what `buildPublishBackstopPorts` builds the file port from.
+  const backstop = await readyUndoBackstop({ backstop: projection.backstop });
+  if (!backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
+  const log = await backstop.audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
+  if (!log || log.direction !== "destination" || !hasUndo(log)) { res.status(404).json({ error: "This send has no undo available." }); return; }
+  const skipped = await undoAllInverses({ log, projection, backstop });
   res.json({ runId: log.runId, undone: log.inverses.length - skipped.length, skipped });
 }
 
 /** Session-only: neither an API key nor an assistant can perform the manual confirmation. */
-export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content";
   app.get(`${base}/backstop/status`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if (!(await backstopActorId(res, deps))) return;
-      const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
+      const audit = await readyAudit({ audit: toPublishContentDeps(deps).backstop?.audit });
       res.json({ allowed: true, installed: audit !== null });
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "Manual publishing availability could not be read." }); }
   });
   app.get(`${base}/runs/:runId/backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if (!(await backstopActorId(res, deps))) return;
-      const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
+      const audit = await readyAudit({ audit: toPublishContentDeps(deps).backstop?.audit });
       if (!audit) { res.status(503).json({ error: "Send by hand needs its audit storage installed.", code: "BACKSTOP_NOT_INSTALLED" }); return; }
       const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
       if (!log || log.direction !== "destination") { res.status(404).json({ error: "This send was not found on this site." }); return; }
@@ -248,33 +278,33 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "This send could not be read." }); }
   });
   app.post(`${base}/backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      await handleBackstopRequest(req, res, deps);
+      await handleBackstopRequest({ req, res, deps });
     } catch (error) {
       if (error instanceof BackstopRefusal) { res.status(409).json({ error: error.message }); return; }
-      respondWithError(res, error, { message: "This send could not complete." });
+      respondWithError({ res, err: error }, { message: "This send could not complete." });
     }
   });
 
   app.get(`${base}/backstop/gaps`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const allowed = await deps.authorize({ principalId: principal.id, permission: "publish_content.read", workspaceId: deps.workspaceId });
       if (!allowed.allowed) { res.status(403).json({ error: "Publishing history is not available to this account." }); return; }
-      const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
+      const audit = await readyAudit({ audit: toPublishContentDeps(deps).backstop?.audit });
       res.json({ gaps: audit ? await audit.gaps({ workspaceId: deps.workspaceId }) : [] });
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "Publishing history could not be read." }); }
   });
 
   app.post(`${base}/runs/:runId/undo-backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      await handleUndoRequest(req, res, deps);
+      await handleUndoRequest({ req, res, deps });
     } catch (error) {
       if (error instanceof BackstopRefusal) { res.status(409).json({ error: error.message }); return; }
-      respondWithError(res, error, { message: "This send could not be undone." });
+      respondWithError({ res, err: error }, { message: "This send could not be undone." });
     }
   });
 };

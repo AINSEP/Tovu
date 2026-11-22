@@ -4,26 +4,28 @@ import {
   readString as stringValue, readBoolean as booleanValue, readNumber as numberValue,
   type AdminSettingsPort, type LedgerCandidate,
 } from "@jini-ai/admin/core";
-import { api, ApiError, type SettingScope } from "./api";
+import { settingsApi } from "../features/settings/api/settings-api";
+import { ApiError } from "./admin-http/request";
+import type { SettingScope } from "@jini-ai/core/settings";
 export type { LedgerEntry, LedgerCandidate } from "@jini-ai/admin/core";
 const ledgerPort: Pick<AdminSettingsPort, "getSettingsEffective" | "setSetting"> = {
-  getSettingsEffective: async (input) => (await api.getSettingsEffective(input)).data,
-  setSetting: ({ namespace, key, scope, value }) => api.setSetting({ namespace, key, scope, valueJson: value }),
+  getSettingsEffective: async (input) => (await settingsApi.getSettingsEffective(input)).data,
+  setSetting: ({ namespace, key, scope, value }) => settingsApi.setSetting({ namespace, key, scope, valueJson: value }),
 };
 /** Preserve the API error boundary: only an unregistered namespace reads as empty, never transport failures. */
-export function loadNamespaceValues(namespace: string): Promise<Map<string, unknown>> {
+export function loadNamespaceValues({ namespace }: { namespace: string }, _options = {}): Promise<Map<string, unknown>> {
   return loadValues({ namespace, port: ledgerPort }, { isUnregisteredNamespace: ({ error }) => error instanceof ApiError && error.status === 404 });
 }
 /** Sequential diff writes retain the server's single settings transaction boundary. */
-export function saveChangedEntries(namespace: string, scope: SettingScope, candidates: readonly LedgerCandidate[]): Promise<readonly string[]> {
+export function saveChangedEntries({ namespace, scope, candidates }: { namespace: string; scope: SettingScope; candidates: readonly LedgerCandidate[] }, _options = {}): Promise<readonly string[]> {
   return saveEntries({ namespace, scope, candidates, port: ledgerPort }, {});
 }
-export function readString(values: Map<string, unknown>, key: string, fallback: string): string {
+export function readString({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: string }, _options = {}): string {
   return stringValue({ values, key, fallback }, {});
 }
-export function readBoolean(values: Map<string, unknown>, key: string, fallback: boolean): boolean {
+export function readBoolean({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: boolean }, _options = {}): boolean {
   return booleanValue({ values, key, fallback }, {});
 }
-export function readNumber(values: Map<string, unknown>, key: string, fallback: number): number {
+export function readNumber({ values, key, fallback }: { values: Map<string, unknown>; key: string; fallback: number }, _options = {}): number {
   return numberValue({ values, key, fallback }, {});
 }

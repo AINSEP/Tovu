@@ -5,14 +5,13 @@ import test from "node:test";
 import { ToolInputError, ToolPermissionDeniedError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashUserPort, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
+import type { TrashUserPort } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 
 
@@ -26,7 +25,7 @@ import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 const CALLER = "principal-caller";
 
 /** Route deps with no delegates and no registry, so `user` is the only kind that can be reachable. */
-function routeDeps(trashable: (entityType: TrashEntityType) => boolean = () => true): TrashItemToolDeps {
+function routeDeps(trashable: (required: { entityType: TrashEntityType }) => boolean = () => true): TrashItemToolDeps {
   return {
     authorize: async () => ({ allowed: false, reason: "insufficient_permission" }),
     workspaceId: "ws-trash-user",
@@ -37,7 +36,7 @@ function routeDeps(trashable: (entityType: TrashEntityType) => boolean = () => t
 
 function derive(deps: TrashItemToolDeps, trashUser?: TrashUserPort): ToolRegistration[] {
   return deriveTrashItemRegistrations(
-    { registrations: [], routeDeps: deps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } },
+    { registrations: [], routeDeps: deps },
     trashUser ? { trashUser } : {}
   );
 }
@@ -96,7 +95,7 @@ test("without a trashUser port, 'user' is not accepted and nothing is registered
 test("with no live user Trash adapter, 'user' is refused with an exact error and the port is never called", async () => {
   let called = false;
   const [trashItem] = derive(
-    routeDeps((entityType) => entityType !== "user"),
+    routeDeps(({ entityType }) => entityType !== "user"),
     async () => {
       called = true;
       return { noop: false };
@@ -123,7 +122,7 @@ test("delegate indexing skips absent tools, preserves delegate precedence and fo
   const events: unknown[] = [];
   const delegates = new Map<string, TrashItemDelegate>([
     ["form", { entityType: "form", toolId: "l128-delete", permission: "l128.delete",
-      toDelegateInput: async (_deps, id) => ({ resolved: id }) }],
+      toDelegateInput: async ({ entityId: id }) => ({ resolved: id }) }],
     ["missing", { entityType: "missing", toolId: "not-registered", permission: "missing.delete",
       toDelegateInput: async () => { throw new Error("unregistered delegate must not resolve"); } }],
   ]);
@@ -133,7 +132,6 @@ test("delegate indexing skips absent tools, preserves delegate precedence and fo
     registrations: [{ ...template, descriptor: { ...template.descriptor, id: "l128-delete" },
       handler: async (ctx, options) => { events.push(ctx.input, options); return { delegated: true }; } }],
     routeDeps: deps,
-    surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
   }, { delegates });
   assert.deepEqual(enumOf(registration), ["form", ...[...deps.registry.keys()].filter((kind) => kind !== "form")]);
   const ctx: ToolExecutionContext = { executionId: "l128", principal: { id: CALLER }, run: { id: "run-1" },
@@ -155,15 +153,15 @@ for (const state of ["live", "missing", "denied"] as const) {
       (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, version)
       VALUES ('f1', ?, 'Contact', 'contact', '{}', '{}', 'active', ?, ?, 1)`).run(workspaceId, at, at);
     const registry = new Map([["form", buildTrashRegistry().get("form")!]]);
-    const kernel = contentKernel(db);
-    const adapter = createTableTrashAdapter({ db: kernel, entry: registry.get("form")! });
+    const kernel = contentKernel({ store: db });
+    const adapter = createTableTrashAdapter({ kernel: kernel, entry: registry.get("form")!, tables: TRASH_TABLES });
     const trash = createTrashService({ repo: new InMemoryTrashRepo({}), adapters: new Map([["form", adapter]]),
       idGen: { newId: () => "l128-trash" }, entityPolicy: ({ entityType }) => registry.has(entityType),
       transaction: ({ work }) => kernel.transaction(work) });
     const deps: TrashItemToolDeps = { workspaceId, registry, trash,
       postRepo: { findById: async () => { throw new Error("generic kinds must not read posts"); } },
       commentRepo: { findById: async () => { throw new Error("generic kinds must not read comments"); } },
-      commentsReady: Promise.resolve(), isTrashableEntityType: (kind) => registry.has(kind), clock: { nowIso: () => at },
+      commentsReady: Promise.resolve(), isTrashableEntityType: ({ entityType: kind }) => registry.has(kind), clock: { nowIso: () => at },
       authorize: async () => state === "denied" ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" },
       db: state === "denied" ? new Proxy(kernel, { get() { throw new Error("denied calls must not read"); } }) : kernel };
     const [registration] = derive(deps);

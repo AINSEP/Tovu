@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 /**
  * @file `DELETE_USER`'s purge port (delete-user plan, 2026-09-24, decision 2/7).
@@ -61,7 +61,7 @@ export interface UserPurgePort {
   purgeUser(required: {
     workspaceId: UUID;
     principalId: UUID;
-    buildEvent: (removed: PurgeCounts, reason?: UserPurgeReason) => DomainEvent;
+    buildEvent: (required: { removed: PurgeCounts }, optional?: { reason?: UserPurgeReason }) => DomainEvent;
     reason?: UserPurgeReason;
   }): Promise<PurgeCounts>;
 }

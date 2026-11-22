@@ -8,18 +8,23 @@ import type { Socket } from "node:net";
 import { PassThrough } from "node:stream";
 import express from "express";
 
-import { createToolRegistry } from "@jini-ai/core";
+import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
+import { buildToolIndex, handleToolCall, type McpToolDef } from "@jini-ai/mcp";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/daemon/http";
+import { delegatedToolExecuteRoute, delegatedToolRoutes } from "@jini-ai/daemon/http";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
+import { buildThemesRegistrations } from "../../features/theme/tool-registrations.js";
+import { type ThemeToolDeps } from "../../features/theme/asset-operations.js";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /**
  * @file Regression test for the bug report: `theme_list_files` called with a malformed/wrong
  * parameter name (e.g. `theme_id` instead of `themeId`) returned an HTTP 500 through
  * `/api/delegated-tool-calls` — the real transport a spawned agent CLI uses to call this site's
- * tools (`registerDelegatedToolRoutes` in `src/server/agent-daemon/agent-daemon-server.ts`) — instead
+ * tools (`delegatedToolRoutes` in `src/server/agent-daemon/agent-daemon-server.ts`) — instead
  * of a 400. Root cause and fix both live upstream in `@jini-ai/core`/`@jini-ai/daemon`/
  * `@jini-ai/http-kit` (a shared `ToolInputError` marker threading a `ToolExecutionResult.errorKind`
  * through to the wire status), so this test drives the REAL chain end to end — real theme
@@ -52,11 +57,13 @@ async function buildDelegatedToolDeps() {
 
   const registry = createToolRegistry({});
   for (const registration of buildThemesRegistrations(routeDeps)) registry.register(registration);
+  // The lister `themeId` points at is registered by the content-read tool, not by the theme domain: a read-only stand-in of it.
+  registry.register({ descriptor: { id: "content_read.theme", readOnly: true }, policy: { authorize: () => "allow" }, handler: async () => ({ themes: [] }) });
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
-  return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) };
+  return { run, lifecycle, toolExecutor, registry, resolvePrincipal: () => ({ id: "principal-1" }) };
 }
 
 test("theme_list_files normalizes theme_id to themeId end to end and reports the repair", async () => {
@@ -64,7 +71,7 @@ test("theme_list_files normalizes theme_id to themeId end to end and reports the
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { theme_id: "plain" } },
-    deps: { lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   // A separator alias is unambiguous, so the forgiving gate repairs it before domain validation.
@@ -85,7 +92,7 @@ test("theme_list_files called with themeId missing entirely is also a 400 BAD_RE
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
-    deps: { lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.deepEqual(result, {
@@ -99,7 +106,7 @@ test("a well-formed theme_list_files call still succeeds end to end (the fix doe
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "plain" } },
-    deps: { lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.equal(result.ok, true);
@@ -118,7 +125,7 @@ test("an unknown themeId (a shape rejection decorated with the tool's schema) is
 
   const result = await delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: { themeId: "nope" } },
-    deps: { lifecycle, toolExecutor, resolvePrincipal },
+    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal },
   });
 
   assert.equal(result.ok, false);
@@ -133,7 +140,9 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
     const { run, ...deps } = await buildDelegatedToolDeps();
     const app = express();
     app.use(express.json());
-    registerDelegatedToolRoutes({ app, deps: deps, adapter: { resolvedPortRef: { current: 7456 }, env: {}, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } });
+    const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+    // 100 KB: the byte size of the default `express.json()` parser above; the list derives its body limit from it.
+    mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
 
     // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
     // stream: no listening socket, and no stub of the adapter's status or JSON writers.
@@ -179,4 +188,36 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
       socket.destroy();
     }
   }
+});
+
+/** The gateway's text for a missing `themeId` when the route holds the registry: the handler's own words, then where valid ids come from. */
+const MISSING_THEME_ID = "'themeId' (non-empty string) is required";
+const LIST_VALID_THEMES = " List valid values for `themeId` with content_read.theme.";
+
+test("theme_list_files without themeId, through the gateway that holds the registry, says which tool lists themes", async () => {
+  const { run, lifecycle, toolExecutor, registry, resolvePrincipal } = await buildDelegatedToolDeps();
+
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
+    deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry },
+  });
+
+  assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: `${MISSING_THEME_ID}${LIST_VALID_THEMES}` } });
+});
+
+/** The registry's own descriptors, published as the typed MCP tools a run would see. */
+function typedTools({ registry }: { registry: ToolRegistry }): McpToolDef[] {
+  return registry.list({})
+    .filter(({ id }) => id === "theme_list_files" || id === "content_read.theme")
+    .map((d) => ({ name: d.id, description: d.description ?? d.id, inputSchema: d.inputSchema as McpToolDef["inputSchema"], handler: () => "ran" }));
+}
+
+test("theme_list_files without themeId, as a typed MCP tool, says which tool lists themes between the instruction and the contract", async () => {
+  const { registry } = await buildDelegatedToolDeps();
+  const tools = typedTools({ registry });
+  const schema = tools.find(({ name }) => name === "theme_list_files")?.inputSchema;
+
+  const result = await handleToolCall({ name: "theme_list_files", tools: buildToolIndex({ tools }), ctx: { baseUrl: "http://daemon", fetchImpl: fetch, diagnosticToolIds: registry.list({}).map(({ id }) => id) } }, { rawArgs: {} });
+
+  assert.deepEqual(result.content, [{ type: "text", text: `invalid arguments for theme_list_files: supply required argument \`themeId\`; list valid values with content_read.theme; Input schema: ${JSON.stringify(schema)}` }]);
 });

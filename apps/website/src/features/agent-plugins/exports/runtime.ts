@@ -9,7 +9,7 @@ import { MEMBER_OIDC_PATH } from "#src/contracts/headless/index";
 import { checkPluginExportConfig, selectPluginExport, PluginEmbedValidationError, type PluginEmbedDiagnostic, type SelectedPluginExport } from "./diagnostics.js";
 import type { AgentPluginExport } from "@jini-ai/agent-plugins/manifest";
 import { pluginExportFileUrl, type PluginExportPackage, type PluginExportSource } from "./source.js";
-import type { DeclaredPageHosts } from "../../../contracts/core/public-page-security-headers.js";
+import type { DeclaredPageHosts } from "@jini-ai/core/contracts/server/security-headers";
 
 export interface PluginExportRenderSession extends PluginExportsPort {
   headHtml(required: Record<string, never>, options?: Record<string, never>): string;
@@ -61,11 +61,11 @@ async function publicHost(required: { selected: SelectedPluginExport; deps: Runt
  */
 function collectHead(required: { selected: SelectedPluginExport; mode: "live" | "static"; head: Map<string, string> }, _options = {}): void {
   const { owner, component, definition } = required.selected;
-  const urlFor = (filename: string) => escapeHtml({ text: pluginExportFileUrl({ pluginId: owner.plugin.pluginId, component, filename }) });
-  if (definition.styles) required.head.set(`${owner.id}:${definition.styles}`, `<link rel="stylesheet" href="${urlFor(definition.styles)}">`);
+  const urlFor = ({ filename }: { filename: string }, _optional: Record<string, never> = {}) => escapeHtml({ text: pluginExportFileUrl({ pluginId: owner.plugin.pluginId, component, filename }) });
+  if (definition.styles) required.head.set(`${owner.id}:${definition.styles}`, `<link rel="stylesheet" href="${urlFor({ filename: definition.styles })}">`);
   if (required.mode !== "static") return;
   for (const filename of Object.values(definition.assets ?? {})) {
-    const url = urlFor(filename);
+    const url = urlFor({ filename });
     required.head.set(url, `<link rel="preload" as="image" href="${url}">`);
   }
 }
@@ -104,6 +104,16 @@ async function resolveExport(required: {
   const consentOff = required.deps.embedConsentOff?.() === true;
   collectScripts({ selected, mode: required.mode, head: required.head, consentOff });
   addHosts({ sets: required.hosts, definition: selected.definition });
+  return exportTemplate({ selected, config: required.config, deps: required.deps, host, consentOff });
+}
+
+/** The CMS-side template for one resolved occurrence: its contract fields, template file and props.
+ * @complexity O(1) plus one contained template read.
+ */
+async function exportTemplate(required: {
+  selected: SelectedPluginExport; config: Readonly<Record<string, unknown>>; deps: RuntimeDeps; host: Readonly<Record<string, unknown>>; consentOff: boolean;
+}, _options = {}): Promise<PluginExportTemplate> {
+  const { selected, consentOff, host } = required;
   return { plugin: selected.owner.id, component: selected.component, version: selected.definition.version,
     minVersion: selected.definition.minVersion, consent: selected.definition.consent, consentOff,
     frameHosts: selected.definition.externalHosts?.frame ?? [], scriptData: (selected.definition.scripts?.length ?? 0) > 0,

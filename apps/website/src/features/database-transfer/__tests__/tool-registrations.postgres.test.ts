@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
@@ -17,7 +17,7 @@ import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
 import { buildDatabaseTransferRegistrations, type DatabaseTransferToolDeps } from "../tool-registrations.js";
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -84,7 +84,7 @@ function harness(t: test.TestContext) {
     databaseTransferDestinationStore: new InMemoryDatabaseDestinationStore(),
     databaseTransferFailureLog: (line) => logs.push(line),
   };
-  const registrations = buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges });
+  const registrations = buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, surfaceExchanges });
   const tools = new Map(registrations.map((r) => [r.descriptor.id, r]));
   return {
     dbOps,

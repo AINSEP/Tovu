@@ -1,4 +1,9 @@
-import { api, WORKSPACE_ID, authenticatedAdminRequest, authenticatedAdminUrl } from "@/lib/api";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { usersApi } from "@/features/users/api/users-api";
+import { authApi } from "@/features/auth/api/auth-api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { authenticatedAdminUrl } from "@/lib/admin-http/urls";
 
 /**
  * @file The Export Site / Import Site tabs' port onto the committed share and import routes
@@ -67,19 +72,19 @@ export interface SiteTransferPort {
   revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   listShares(): Promise<{ shares: SiteShare[] }>;
-  createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
+  createShare(input: { jobId?: string }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
   /** Records "I understand this export may contain credentials"; answers the updated row. */
   acknowledgeShare(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShare>;
-  /** `null` when the zip may be downloaded, else the server's refusal (409 = acknowledge first). */
+  /** `null` when the zip may be downloaded, else the server's refusal (403 = acknowledge first). */
   shareDownloadRefusal(required: { share: SiteShare }, optional?: Record<string, never>): Promise<ShareDownloadRefusal | null>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
-  shareDownloadHref(share: SiteShare): string;
+  shareDownloadHref(required: { share: SiteShare }, optional?: Record<string, never>): string;
   listImports(): Promise<{ imports: SiteImport[] }>;
   uploadImportZip(input: { file: Blob }): Promise<{ uploadId: string }>;
-  startImport(input: { url: string } | { uploadId: string }): Promise<SiteImport>;
+  startImport(input: { url: string } | { uploadId: string }, optional?: Record<string, never>): Promise<SiteImport>;
   /** Both passwords use the session-only form endpoint, never URLs or tool inputs. */
   completeImportOwner(input: { importId: string; adminPassword: string; savedKeysPassword?: string }): Promise<SiteImport>;
 }
@@ -91,12 +96,15 @@ const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
  *  cannot run (offline, an old server) answers `null`: the download proceeds as it always did.
  * @complexity O(1) requests; two only when refused. */
 async function readDownloadRefusal({ href }: { href: string }, _options?: Record<string, never>): Promise<ShareDownloadRefusal | null> {
-  const head = await fetch(href, { method: "HEAD", credentials: "same-origin" }).catch(() => null);
+  // A failed optional HEAD probe leaves the browser to attempt the ordinary download.
+  const head = await orFallback({ work: () => fetch(href, { method: "HEAD", credentials: "same-origin" }), fallback: null, step: "Probe share download" });
   if (!head || head.ok) return null;
-  const response = await fetch(href, { method: "GET", credentials: "same-origin" }).catch(() => null);
+  // If the optional refusal details cannot be read, retain the HEAD status below.
+  const response = await orFallback({ work: () => fetch(href, { method: "GET", credentials: "same-origin" }), fallback: null, step: "Read share download refusal" });
   // Acknowledged in between: the GET is the zip itself; let the browser's own download fetch it.
   if (response?.ok) return null;
-  const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };
+  // Old servers may return a non-JSON refusal; its HTTP status is still useful.
+  const body = (await orFallback({ work: () => response?.json(), fallback: null, step: "Decode share download refusal" }) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };
   return {
     status: response?.status ?? head.status,
     ...downloadRefusalDetails(body),
@@ -122,19 +130,19 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   savedKeysAccess: async (_required, _optional = {}) => {
     // The roster's isOwner includes wildcard policy owners. Only the bootstrap owner has
     // canRename=false (users/list.ts); match that identity, never its display name or grants.
-    const [session, users] = await Promise.all([api.me(), api.listUsers()]);
+    const [session, users] = await Promise.all([authApi.me(), usersApi.listUsers()]);
     const current = users.users.find(user => user.principalId === session.user.id);
     return { isOwner: current?.isOwner === true && current.canRename === false };
   },
   revealSharePassword: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/password`, body: {} }),
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
-  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
+  createShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
   staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
   createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {
     // The same authenticated attachment route the export list's Download zip link uses.
     const anchor = document.createElement("a");
-    anchor.href = defaultSiteTransferPort.shareDownloadHref(share);
+    anchor.href = defaultSiteTransferPort.shareDownloadHref({ share });
     anchor.download = share.file;
     document.body.appendChild(anchor);
     anchor.click();
@@ -142,14 +150,14 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   },
   revokeShare: ({ shareId }) => authenticatedAdminRequest({ method: "DELETE", path: `${SHARES}/${encodeURIComponent(shareId)}` }),
   acknowledgeShare: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/acknowledge`, body: {} }),
-  shareDownloadRefusal: ({ share }, _optional = {}) => readDownloadRefusal({ href: defaultSiteTransferPort.shareDownloadHref(share) }),
-  shareDownloadHref: (share) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
+  shareDownloadRefusal: ({ share }, _optional = {}) => readDownloadRefusal({ href: defaultSiteTransferPort.shareDownloadHref({ share }) }),
+  shareDownloadHref: ({ share }, _options = {}) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
   listImports: () => authenticatedAdminRequest({ method: "GET", path: IMPORTS }),
   // The upload route admits only `application/zip`; Windows reports `.zip` files as
   // `application/x-zip-compressed` and some browsers send no type, so the bytes are re-typed here.
   uploadImportZip: ({ file }) =>
     authenticatedAdminRequest({ method: "POST", path: `${IMPORTS}/uploads`, body: new Blob([file], { type: "application/zip" }) }),
-  startImport: (source) => authenticatedAdminRequest({ method: "POST", path: IMPORTS, body: source }),
+  startImport: (source, _options = {}) => authenticatedAdminRequest({ method: "POST", path: IMPORTS, body: source }),
   completeImportOwner: ({ importId, adminPassword, savedKeysPassword }) =>
     authenticatedAdminRequest({
       method: "POST",
@@ -161,23 +169,23 @@ export const defaultSiteTransferPort: SiteTransferPort = {
 /** An in-memory {@link SiteTransferPort} for tests. Unlisted operations reject, so a test that
  *  reaches one it did not describe fails loudly. */
 export function createFakeSiteTransferPort(overrides: Partial<SiteTransferPort> = {}): SiteTransferPort {
-  const unexpected = (name: string) => () => Promise.reject(new Error(`${name} was not expected`));
+  const unexpected = ({ name }: { name: string }, _options = {}) => () => Promise.reject(new Error(`${name} was not expected`));
   return {
     savedKeysAccess: async () => ({ isOwner: false }),
-    revealSharePassword: unexpected("revealSharePassword"),
+    revealSharePassword: unexpected({ name: "revealSharePassword" }),
     listShares: () => Promise.resolve({ shares: [] }),
-    createShare: unexpected("createShare"),
+    createShare: unexpected({ name: "createShare" }),
     staticExportOptions: async () => ({ activeThemeId: "", themes: [] }),
-    createStaticShare: unexpected("createStaticShare"),
+    createStaticShare: unexpected({ name: "createStaticShare" }),
     downloadShare: () => { throw new Error("downloadShare was not expected"); },
-    revokeShare: unexpected("revokeShare"),
-    acknowledgeShare: unexpected("acknowledgeShare"),
+    revokeShare: unexpected({ name: "revokeShare" }),
+    acknowledgeShare: unexpected({ name: "acknowledgeShare" }),
     shareDownloadRefusal: async () => null,
-    shareDownloadHref: (share) => `/download/${share.shareId}`,
+    shareDownloadHref: ({ share }, _options = {}) => `/download/${share.shareId}`,
     listImports: () => Promise.resolve({ imports: [] }),
-    uploadImportZip: unexpected("uploadImportZip"),
-    startImport: unexpected("startImport"),
-    completeImportOwner: unexpected("completeImportOwner"),
+    uploadImportZip: unexpected({ name: "uploadImportZip" }),
+    startImport: unexpected({ name: "startImport" }),
+    completeImportOwner: unexpected({ name: "completeImportOwner" }),
     ...overrides,
   };
 }

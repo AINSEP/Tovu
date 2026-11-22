@@ -12,30 +12,36 @@ const NOT_A_SKILL = Symbol("not-a-skill");
 async function collect(entries: readonly DropEntry[]) {
   const files: File[] = [], paths: string[] = [];
   let total = 0, visited = 0, sawSkill = false;
-  const limit = (message: string) => sawSkill ? new Error(message) : NOT_A_SKILL;
+  const limit = ({ message }: { message: string }, _optional = {}) => sawSkill ? new Error(message) : NOT_A_SKILL;
   async function collectFile({ entry }: { entry: DropEntry }, _options = {}): Promise<void> {
     if (entry.name === "SKILL.md") sawSkill = true;
-    const file = await new Promise<File>((resolve, reject) => entry.file!(resolve, reject));
+    const readFile = entry.file;
+    if (!readFile) throw new Error(`skill file ${entry.name} cannot be read`);
+    const file = await new Promise<File>((resolve, reject) => readFile.call(entry, resolve, reject));
     total += file.size;
-    if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit("Choose up to 256 files, 8 MiB total.");
+    if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit({ message: "Choose up to 256 files, 8 MiB total." });
     files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
   }
-  async function walk(entry: DropEntry, depth: number): Promise<void> {
+  function countVisit({ depth }: { depth: number }, _optional = {}): void {
     visited += 1;
-    if (visited > 512 || depth > 16) throw limit("Skill folder has too many entries or is too deep.");
+    if (visited > 512 || depth > 16) throw limit({ message: "Skill folder has too many entries or is too deep." });
+  }
+  async function walk({ entry, depth }: { entry: DropEntry; depth: number }, _optional = {}): Promise<void> {
+    countVisit({ depth });
     if (entry.isFile) {
       await collectFile({ entry });
       return;
     }
     if (!entry.isDirectory) return;
-    const reader = entry.createReader!();
+    if (!entry.createReader) throw new Error(`skill folder ${entry.name} cannot be read`);
+    const reader = entry.createReader();
     for (;;) {
       const batch = await new Promise<DropEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
       if (!batch.length) break;
-      for (const child of batch) await walk(child, depth + 1);
+      for (const child of batch) await walk({ entry: child, depth: depth + 1 });
     }
   }
-  for (const entry of entries) await walk(entry, 0);
+  for (const entry of entries) await walk({ entry: entry, depth: 0 });
   return { files, paths };
 }
 

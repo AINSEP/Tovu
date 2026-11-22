@@ -57,24 +57,24 @@ describe("agentPluginGlyphKind", () => {
 
 describe("humanizeAgentPluginId", () => {
   it("title-cases word segments", () => {
-    expect(humanizeAgentPluginId("site-compliance")).toBe("Site Compliance");
+    expect(humanizeAgentPluginId({ pluginId: "site-compliance" })).toBe("Site Compliance");
   });
 
   it("uppercases acronym segments instead of title-casing them", () => {
     // Rendered as "Ui Ux Design" before this, on the one screen whose job is recognizing a package
     // at a glance.
-    expect(humanizeAgentPluginId("ui-ux-design")).toBe("UI UX Design");
-    expect(humanizeAgentPluginId("mcp-bridge")).toBe("MCP Bridge");
-    expect(humanizeAgentPluginId("seo-api-tools")).toBe("SEO API Tools");
+    expect(humanizeAgentPluginId({ pluginId: "ui-ux-design" })).toBe("UI UX Design");
+    expect(humanizeAgentPluginId({ pluginId: "mcp-bridge" })).toBe("MCP Bridge");
+    expect(humanizeAgentPluginId({ pluginId: "seo-api-tools" })).toBe("SEO API Tools");
   });
 
   it("does not uppercase a word that merely starts with an acronym's letters", () => {
-    expect(humanizeAgentPluginId("uid-generator")).toBe("Uid Generator");
-    expect(humanizeAgentPluginId("apiary-sync")).toBe("Apiary Sync");
+    expect(humanizeAgentPluginId({ pluginId: "uid-generator" })).toBe("Uid Generator");
+    expect(humanizeAgentPluginId({ pluginId: "apiary-sync" })).toBe("Apiary Sync");
   });
 
   it("names no plugin by hand: every id takes the generic transform", () => {
-    expect(humanizeAgentPluginId("tovu-deploy-example")).toBe("Tovu Deploy Example");
+    expect(humanizeAgentPluginId({ pluginId: "tovu-deploy-example" })).toBe("Tovu Deploy Example");
   });
 });
 
@@ -92,16 +92,16 @@ describe("agentPluginDisplayName", () => {
 
 describe("agentPluginToggleAriaLabel", () => {
   it("names the target action and the plugin, so two rows' switches are distinguishable", () => {
-    expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "en")).toBe("Disable Site Compliance");
-    expect(agentPluginToggleAriaLabel({ pluginId: "tovu-deploy-example", enabled: false }, "en")).toBe("Enable Tovu Deploy Example");
+    expect(agentPluginToggleAriaLabel({ plugin: { pluginId: "site-compliance", enabled: true }, locale: "en" })).toBe("Disable Site Compliance");
+    expect(agentPluginToggleAriaLabel({ plugin: { pluginId: "tovu-deploy-example", enabled: false }, locale: "en" })).toBe("Enable Tovu Deploy Example");
   });
 
   it("uses the locale's own verb", () => {
-    expect(agentPluginToggleAriaLabel({ pluginId: "site-compliance", enabled: true }, "es")).toBe("Desactivar Site Compliance");
+    expect(agentPluginToggleAriaLabel({ plugin: { pluginId: "site-compliance", enabled: true }, locale: "es" })).toBe("Desactivar Site Compliance");
   });
 
   it("names the plugin by its display name when it has one", () => {
-    expect(agentPluginToggleAriaLabel({ pluginId: "deploy", enabled: false, displayName: "Deploy Online" }, "en")).toBe("Enable Deploy Online");
+    expect(agentPluginToggleAriaLabel({ plugin: { pluginId: "deploy", enabled: false, displayName: "Deploy Online" }, locale: "en" })).toBe("Enable Deploy Online");
   });
 });
 

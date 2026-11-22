@@ -33,9 +33,10 @@ export type ExternalEntryRefreshDecision = "ignore" | "apply" | "notify";
  * @complexity O(1).
  */
 export function isNewerRevision(
-  loaded: ExternalEntryRevision | null,
-  fresh: ExternalEntryRevision
-): loaded is ExternalEntryRevision {
+  required: { loaded: ExternalEntryRevision | null; fresh: ExternalEntryRevision },
+  _optional: Record<string, never> = {},
+): required is { loaded: ExternalEntryRevision; fresh: ExternalEntryRevision } {
+  const { loaded, fresh } = required;
   return loaded !== null && fresh.id === loaded.id && fresh.version > loaded.version;
 }
 
@@ -58,8 +59,8 @@ export function decideExternalEntryRefresh(input: {
   saving: boolean;
   dismissedForBasisVersion: number | null;
 }): ExternalEntryRefreshDecision {
-  const { loaded, fresh, dirty, saving, dismissedForBasisVersion } = input;
-  if (!isNewerRevision(loaded, fresh) || saving) return "ignore";
+  if (!isNewerRevision(input) || input.saving) return "ignore";
+  const { loaded, dirty, dismissedForBasisVersion } = input;
   if (!dirty) return "apply";
   if (dismissedForBasisVersion === loaded.version) return "ignore";
   return "notify";

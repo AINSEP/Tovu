@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 /**
- * @file `App.hooks.tsx`'s `registerAdminWebMcpTool` — publish-criteria plan §4 S5 ("WebMCP on"),
+ * @file `App.hooks.ts`'s `registerAdminWebMcpTool` — publish-criteria plan §4 S5 ("WebMCP on"),
  * the owner's 09-22 decision that WebMCP stays on now that P0 (plan §3 item 2) has removed the
  * Publish button's agent handle.
  *
@@ -47,7 +47,7 @@ describe("registerAdminWebMcpTool", () => {
   it("a disabled browser-agent setting refuses new registrations", () => {
     act(() => setBrowserAgentEnabled({ enabled: false }));
     const registerTool = vi.fn();
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal, { registerTool });
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: new AbortController().signal }, { modelContext: { registerTool } });
     expect(registerTool).not.toHaveBeenCalled();
   });
 
@@ -74,7 +74,7 @@ describe("registerAdminWebMcpTool", () => {
       if (mode === "synchronous") throw failure;
       return Promise.reject(failure);
     };
-    expect(() => registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal, { registerTool })).not.toThrow();
+    expect(() => registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: new AbortController().signal }, { modelContext: { registerTool } })).not.toThrow();
     await Promise.resolve();
     expect(warn).toHaveBeenCalledExactlyOnceWith("[admin] WebMCP publish registration failed", failure);
   });
@@ -84,7 +84,7 @@ describe("registerAdminWebMcpTool", () => {
     let rejectRegistration!: (error: Error) => void;
     const registration = new Promise<void>((_, reject) => { rejectRegistration = reject; });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool: () => registration });
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: controller.signal }, { modelContext: { registerTool: () => registration } });
     controller.abort();
     rejectRegistration(new Error("closed host"));
     await Promise.resolve();
@@ -94,10 +94,10 @@ describe("registerAdminWebMcpTool", () => {
   it("a host that aborts while throwing does not log a stale warning", () => {
     const controller = new AbortController();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool: () => {
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: controller.signal }, { modelContext: { registerTool: () => {
       controller.abort();
       throw new Error("closed host");
-    } });
+    } } });
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -105,7 +105,7 @@ describe("registerAdminWebMcpTool", () => {
     const controller = new AbortController();
     controller.abort();
     const registerTool = vi.fn();
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, controller.signal, { registerTool });
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: controller.signal }, { modelContext: { registerTool } });
     expect(registerTool).not.toHaveBeenCalled();
   });
 
@@ -113,7 +113,7 @@ describe("registerAdminWebMcpTool", () => {
     const registerTool = vi.fn();
     const executor = vi.fn();
     const controller = new AbortController();
-    registerAdminWebMcpTool({ "admin.": executor }, controller.signal, { registerTool });
+    registerAdminWebMcpTool({ executors: { "admin.": executor }, signal: controller.signal }, { modelContext: { registerTool } });
     controller.abort();
     await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow("WebMCP admin access is disabled or closed");
     expect(executor).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("registerAdminWebMcpTool", () => {
     const executors = { "admin.": vi.fn() };
     const controller = new AbortController();
 
-    registerAdminWebMcpTool(executors, controller.signal, { registerTool });
+    registerAdminWebMcpTool({ executors, signal: controller.signal }, { modelContext: { registerTool } });
 
     expect(registerTool).toHaveBeenCalledTimes(1);
     const [registration] = registerTool.mock.calls[0]!;
@@ -138,7 +138,7 @@ describe("registerAdminWebMcpTool", () => {
     const executors = { "admin.": adminExecutor };
     const controller = new AbortController();
 
-    registerAdminWebMcpTool(executors, controller.signal, { registerTool });
+    registerAdminWebMcpTool({ executors, signal: controller.signal }, { modelContext: { registerTool } });
     const [registration] = registerTool.mock.calls[0]!;
     const result = await registration.execute({ types: ["page"] });
 
@@ -151,7 +151,7 @@ describe("registerAdminWebMcpTool", () => {
     const executors = { "admin.": vi.fn() };
     const controller = new AbortController();
 
-    registerAdminWebMcpTool(executors, controller.signal, { registerTool });
+    registerAdminWebMcpTool({ executors, signal: controller.signal }, { modelContext: { registerTool } });
 
     const [, registerOptions] = registerTool.mock.calls[0]!;
     expect(registerOptions.signal).toBe(controller.signal);
@@ -167,7 +167,7 @@ describe("registerAdminWebMcpTool", () => {
     const executors = { "admin.": vi.fn() };
     const controller = new AbortController();
 
-    expect(() => registerAdminWebMcpTool(executors, controller.signal, undefined)).not.toThrow();
+    expect(() => registerAdminWebMcpTool({ executors, signal: controller.signal }, { modelContext: undefined })).not.toThrow();
   });
 
   it("resolves document.modelContext before navigator.modelContext on the default path", () => {
@@ -176,7 +176,7 @@ describe("registerAdminWebMcpTool", () => {
     Object.defineProperty(document, "modelContext", { configurable: true, value: documentHost });
     Object.defineProperty(navigator, "modelContext", { configurable: true, value: navigatorHost });
 
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal);
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: new AbortController().signal });
 
     expect(documentHost.registerTool).toHaveBeenCalledTimes(1);
     expect(navigatorHost.registerTool).not.toHaveBeenCalled();
@@ -187,7 +187,7 @@ describe("registerAdminWebMcpTool", () => {
     Object.defineProperty(document, "modelContext", { configurable: true, value: undefined });
     Object.defineProperty(navigator, "modelContext", { configurable: true, value: navigatorHost });
 
-    registerAdminWebMcpTool({ "admin.": vi.fn() }, new AbortController().signal);
+    registerAdminWebMcpTool({ executors: { "admin.": vi.fn() }, signal: new AbortController().signal });
 
     expect(navigatorHost.registerTool).toHaveBeenCalledTimes(1);
     expect(navigatorHost.registerTool.mock.calls[0][0].name).toBe(PUBLISH_CONTENT_CAPABILITY.id);
@@ -230,7 +230,7 @@ describe("registerAdminWebMcpTool", () => {
   it("stale publish callbacks cannot bypass an opt-out", async () => {
     const registerTool = vi.fn();
     const executor = vi.fn();
-    registerAdminWebMcpTool({ "admin.": executor }, new AbortController().signal, { registerTool });
+    registerAdminWebMcpTool({ executors: { "admin.": executor }, signal: new AbortController().signal }, { modelContext: { registerTool } });
     act(() => setBrowserAgentEnabled({ enabled: false }));
     await expect(registerTool.mock.calls[0][0].execute({})).rejects.toThrow(/disabled/);
     expect(executor).not.toHaveBeenCalled();
@@ -298,7 +298,7 @@ it.each(['disabled', 'navigation'])("aborts a protected WebMCP request on %s whi
   expect(requestSignal!.aborted).toBe(false);
   act(() => {
     if (state === 'disabled') setBrowserAgentEnabled({ enabled: false });
-    else navigate('/webmcp-abort-navigation');
+    else navigate({ routePath: '/webmcp-abort-navigation' });
   });
   await rejected;
   expect(requestSignal!.aborted).toBe(true);

@@ -22,7 +22,7 @@ test("cold concurrent source renders compile both theme workers once and start p
     import { resolveProductRoot } from ${JSON.stringify(new URL("../../../../../../platform/site-dir/product-root.ts", import.meta.url).href)};
     delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
     assert.equal(resolveDefaultTimeoutMs(), 5000);
-    const productRoot = resolveProductRoot();
+    const productRoot = resolveProductRoot({});
     const entries = [];
     const threads = new Set();
     const exits = [];
@@ -47,9 +47,9 @@ test("cold concurrent source renders compile both theme workers once and start p
       widgetRegions: {}, widgetInlineResolved: new Map(), mediaTransformVersions: new Map(),
       mediaAssetMetadata: new Map(), assignedTerms: [],
     };
-    const render = ([worker, label]) => renderInWorkerSandbox(worker, label, {
+    const render = ([worker, label]) => renderInWorkerSandbox({ workerBasename: worker, errorLabel: label, input: {
       source: "<h1>{{site.title}}</h1>", ctx,
-    }, { workerFactory });
+    } }, { workerFactory });
     const engines = [["handlebars-worker", "Handlebars"], ["liquid-worker", "Liquid"]];
     for (let round = 0; round < 4; round++) {
       const html = await Promise.all(engines.map(render));

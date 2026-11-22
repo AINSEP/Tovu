@@ -11,7 +11,7 @@ import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
  */
 
 /** The admin route of one template's editor. */
-export function templateEditorPath(id: string): string {
+export function templateEditorPath({ id }: { id: string }, _options = {}): string {
   return `/email/templates/${encodeURIComponent(id)}`;
 }
 
@@ -40,7 +40,8 @@ export function useEmailTemplates(
   optional: { open?: (path: string) => void; newName?: string } = {},
 ): EmailTemplatesController {
   const { api } = required;
-  const open = optional.open ?? navigate;
+  const openDefault = useCallback((routePath: string) => navigate({ routePath }), []);
+  const open = optional.open ?? openDefault;
   const newName = optional.newName ?? "Untitled email";
   const { view, reload, setData } = useLoad({ load: useCallback(() => api.listTemplates(), [api]) });
   const [error, setError] = useState<string | null>(null);
@@ -54,9 +55,9 @@ export function useEmailTemplates(
     setError(null);
     try {
       const created = await api.createTemplate({ name: newName });
-      open(templateEditorPath(created.id));
+      open(templateEditorPath({ id: created.id }));
     } catch (failure) {
-      setError(errorMessage(failure));
+      setError(errorMessage({ error: failure }));
     } finally {
       setCreating(false);
     }
@@ -81,7 +82,7 @@ export function useEmailTemplates(
       if (view.kind === "loaded") setData({ templates: view.data.templates.map((row) => (row.id === updated.id ? { ...row, name: updated.name, version: updated.version, updatedAt: updated.updatedAt } : row)) });
       setRenaming(null);
     } catch (failure) {
-      setError(errorMessage(failure));
+      setError(errorMessage({ error: failure }));
       setRenaming(null);
       reload();
     }
@@ -95,7 +96,7 @@ export function useEmailTemplates(
       await api.trashTemplate({ id: pendingTrash.id });
       if (view.kind === "loaded") setData({ templates: view.data.templates.filter((row) => row.id !== pendingTrash.id) });
     } catch (failure) {
-      setError(errorMessage(failure));
+      setError(errorMessage({ error: failure }));
     } finally {
       setTrashing(false);
       setPendingTrash(null);

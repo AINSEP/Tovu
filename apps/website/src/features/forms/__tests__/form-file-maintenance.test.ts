@@ -3,8 +3,8 @@ import test from 'node:test';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/platform/db/repos/media-repo';
-import { SqlEntryRefsRepo } from '#src/platform/db/repos/entry-refs-repo';
-import { SqlOutboxAdapter } from '#src/platform/db/repos/outbox-repo';
+import { SqliteEntryRefsRepo } from '#src/platform/db/sqlite/entry-refs-repo.sqlite';
+import { outboxOn } from '#src/platform/db/__tests__/events-adapters';
 import { SqlitePostRepo } from '#src/features/post/repo.sqlite';
 import { InMemoryBlobStore } from '@jini-ai/cms/media';
 import { scheduleFormAttachmentCleanup } from '@jini-ai/cms/forms';
@@ -12,11 +12,11 @@ import { runFormFileMaintenance } from '../form-file-maintenance.js';
 
 const at = '2026-11-04T00:00:00.000Z';
 async function fixture(dbPath = ':memory:') {
-  const db = openContentDb(dbPath); const kernel = contentKernel(db);
+  const db = openContentDb(dbPath); const kernel = contentKernel({ store: db });
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
-  const outbox = new SqlOutboxAdapter(kernel), clock = { nowMs: () => Date.parse(at) };
-  const media = { mediaRepo, blobRepo, renditionRepo, blobStore: new InMemoryBlobStore(), clock, entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo(kernel) };
+  const outbox = outboxOn({ kernel }), clock = { nowMs: () => Date.parse(at) };
+  const media = { mediaRepo, blobRepo, renditionRepo, blobStore: new InMemoryBlobStore(), clock, entryRefsRepo: new SqliteEntryRefsRepo({ store: kernel }), postRepo: new SqlitePostRepo({ store: kernel }) };
   await mediaRepo.save({ id: 'm', workspaceId: 'w', slug: 'photo', originalFilename: 's-photo.png', title: '', alt: '', caption: '', credit: '', source: { sha256: 'hash' }, status: 'active', createdAt: at, updatedAt: at, version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const prove = () => scheduleFormAttachmentCleanup({ outbox, workspaceId: 'w', mediaId: 'm', sha256: 'hash', now: clock.nowMs(), graceMs: 1000 });
   return { db, kernel, media, outbox, clock, prove, workspaceId: 'w' };
@@ -135,7 +135,7 @@ test('command parses explicit apply/cursor and previews an existing SQLite file 
   const { join } = await import('node:path'); const { tmpdir } = await import('node:os');
   assert.equal(parseFormsMaintenanceArgs({ argv: ['--help'] }).help, true);
   assert.throws(() => parseFormsMaintenanceArgs({ argv: [] }), /--database/);
-  assert.throws(() => parseFormsMaintenanceArgs({ argv: ['--other'] }));
+  assert.throws(() => parseFormsMaintenanceArgs({ argv: ['--other'] }), { name: 'TypeError', code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION', message: "Unknown option '--other'" });
   assert.deepEqual(parseFormsMaintenanceArgs({ argv: ['--database','content.db','--workspace','w','--after','m','--apply'] }), { database: 'content.db', workspace: 'w', after: 'm', apply: true, help: false });
   const dir = await mkdtemp(join(tmpdir(), 'forms-maintenance-')); const database = join(dir, 'content.db');
   const f = await fixture(database); await f.prove();

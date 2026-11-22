@@ -1,4 +1,12 @@
-import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
+import { sitesApi } from "@/features/sites/api/sites-api";
+import { mediaApi } from "@/features/media/api/media-api";
+import { themesApi } from "@/features/themes/api/themes-api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
+import { authApi } from "@/features/auth/api/auth-api";
+import { pagesApi } from "@/features/pages/api/pages-api";
+import { commentsApi } from "@/features/comments/api/comments-api";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**
@@ -11,18 +19,18 @@ import type { DashboardPort } from "./dashboard-port.hooks";
  *  reasoning — a route's own parameter shape (`listCommentsQueue`'s `options`) stays `lib/api.ts`'s
  *  to own. */
 export const defaultDashboardPort: DashboardPort = {
-  listPosts: () => api.listPosts(),
-  listPages: () => api.listPages(),
-  listMedia: () => api.listMedia(),
-  listCommentsQueue: (options) => api.listCommentsQueue(options),
-  getPresentation: () => api.getPresentation(),
+  listPosts: () => postsApi.listPosts(),
+  listPages: () => pagesApi.listPages(),
+  listMedia: () => mediaApi.listMedia(),
+  listCommentsQueue: (options, _optional = {}) => commentsApi.listCommentsQueue(options),
+  getPresentation: () => themesApi.getPresentation(),
   getPasswordStatus: async ({ principalId } = {}) => {
     // App already authenticated this principal. Standalone dashboard consumers still resolve it.
-    const [status, id] = await Promise.all([api.getPasswordStatus(), principalId ?? api.me().then(me => me.user.id)]);
+    const [status, id] = await Promise.all([authApi.getPasswordStatus(), principalId ?? authApi.me().then(me => me.user.id)]);
     return { usesDefaultPassword: status.usesDefaultPassword, principalId: id };
   },
   getSiteKeyState: async () => {
-    const status = await api.getSiteKeyStatus();
+    const status = await sitesApi.getSiteKeyStatus();
     return { state: status.state };
   },
 };

@@ -2,6 +2,7 @@ import { importSubscriptions } from "#src/features/newsletter/subscriptions";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `IMPORT_SUBSCRIPTIONS` (api.spec.md §1/§4/§5) — `POST .../newsletter/lists/:listId/
@@ -9,14 +10,11 @@ import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";
  * routes through the identical `saveSubscription` path (REQ-31) — one invalid `subscriberId` never
  * blocks the valid rows in the same batch.
  */
-export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/import", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (
@@ -28,13 +26,7 @@ export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = (
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.subscriber.manage",
-        "newsletter_subscription",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -48,7 +40,7 @@ export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = (
       });
       res.status(207).json({ created, failed });
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

@@ -1,12 +1,13 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from 'express';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { ToolGapsToolDeps } from '#src/assistant/host-ports';
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Owner-only Observability filter over the existing tool audit store. No mutation endpoint. */
-export function registerAdminToolGapsRoute(app: Express, deps: ToolGapsToolDeps): void {
+export function registerAdminToolGapsRoute({ app, deps }: { app: Express; deps: ToolGapsToolDeps }, _optional: Record<string, never> = {}): void {
   app.get('/api/admin/v1/workspaces/:workspaceId/system/tool-gaps', async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: 'workspace was not found' }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       if (principal.id !== await deps.ownerPrincipalId) { res.status(403).json({ error: 'Only the owner can read tool gaps.', code: 'FORBIDDEN' }); return; }

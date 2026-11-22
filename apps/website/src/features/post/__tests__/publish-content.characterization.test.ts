@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import type { PackedEntity, PublishContentHandler } from "#src/features/publish-content/type-registry";
 
@@ -111,11 +111,11 @@ test("inspect(): the destination's hash equals the pinned pack hash; the other k
   const { deps } = await site();
   const post = contributePostPublish().build(deps);
   const page = contributePagePublish().build(deps);
-  assert.deepEqual(await post.inspect("p-untagged"), { version: 3, hash: PINNED["p-untagged"] });
-  assert.deepEqual(await post.inspect("p-tagged"), { version: 3, hash: PINNED["p-tagged"] });
-  assert.deepEqual(await page.inspect("pg-about"), { version: 3, hash: PINNED["pg-about"] });
-  assert.equal(await page.inspect("p-untagged"), null);
-  assert.equal(await post.inspect("nope"), null);
+  assert.deepEqual(await post.inspect({ id: "p-untagged" }), { version: 3, hash: PINNED["p-untagged"] });
+  assert.deepEqual(await post.inspect({ id: "p-tagged" }), { version: 3, hash: PINNED["p-tagged"] });
+  assert.deepEqual(await page.inspect({ id: "pg-about" }), { version: 3, hash: PINNED["pg-about"] });
+  assert.equal(await page.inspect({ id: "p-untagged" }), null);
+  assert.equal(await post.inspect({ id: "nope" }), null);
 });
 
 test("a published byline round trips and an absent source byline clears the destination", async () => {
@@ -132,7 +132,7 @@ test("a published byline round trips and an absent source byline clears the dest
   assert.ok(created);
   assert.equal(created.author, "Ada");
   assert.equal(created.showAuthor, true);
-  assert.equal((await to.inspect("p-byline"))?.hash, byline.contentHash);
+  assert.equal((await to.inspect({ id: "p-byline" }))?.hash, byline.contentHash);
 
   await source.s.posts.save(row({ id: "p-byline", slug: "byline", author: null, showAuthor: false, version: 4 }));
   const cleared = (await packOf(from)).find(e => e.id === "p-byline")!;
@@ -143,7 +143,7 @@ test("a published byline round trips and an absent source byline clears the dest
   const updated = await destination.s.posts.findById({ workspaceId: WORKSPACE_ID, id: "p-byline" });
   assert.equal(updated?.author, null);
   assert.equal(updated?.showAuthor, false);
-  assert.equal((await to.inspect("p-byline"))?.hash, cleared.contentHash);
+  assert.equal((await to.inspect({ id: "p-byline" }))?.hash, cleared.contentHash);
 });
 
 test("precheck(): exact reason strings", async () => {
@@ -152,23 +152,23 @@ test("precheck(): exact reason strings", async () => {
   const page = contributePagePublish().build(deps);
   const state = (slug: unknown) => ({ title: "X", slug, kind: "post", status: "published", bodyFormat: "doc" });
 
-  const unwiredRefusal = await contributePostPublish().build(makeSite({})).precheck(entity("post", "x", state("x")));
+  const unwiredRefusal = await contributePostPublish().build(makeSite({})).precheck({ entity: entity("post", "x", state("x")) });
   assert.ok(typeof unwiredRefusal === "string");
   assert.match(
     unwiredRefusal,
     /^post entity 'x' cannot be prechecked — no post (repo|port) wired for this deps bag$/
   );
-  assert.equal(await post.precheck(entity("post", "p-new", state("fresh"))), null);
-  assert.equal(await post.precheck(entity("post", "p-tagged", state("tagged"))), null);
-  assert.equal(await post.precheck(entity("post", "p-new", state(""))), "post entity 'p-new' has no usable slug to check for a collision");
-  assert.equal(await post.precheck(entity("post", "p-new", state(7))), "post entity 'p-new' has no usable slug to check for a collision");
-  assert.equal(await post.precheck(entity("post", "p-new", state("tagged"))), "slug 'tagged' is already held by a different post ('p-tagged')");
+  assert.equal(await post.precheck({ entity: entity("post", "p-new", state("fresh")) }), null);
+  assert.equal(await post.precheck({ entity: entity("post", "p-tagged", state("tagged")) }), null);
+  assert.equal(await post.precheck({ entity: entity("post", "p-new", state("")) }), "post entity 'p-new' has no usable slug to check for a collision");
+  assert.equal(await post.precheck({ entity: entity("post", "p-new", state(7)) }), "post entity 'p-new' has no usable slug to check for a collision");
+  assert.equal(await post.precheck({ entity: entity("post", "p-new", state("tagged")) }), "slug 'tagged' is already held by a different post ('p-tagged')");
   assert.equal(
-    await post.precheck(entity("post", "p-trashed", state("old"))),
+    await post.precheck({ entity: entity("post", "p-trashed", state("old")) }),
     "post 'p-trashed' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content"
   );
   assert.equal(
-    await page.precheck(entity("page", "p-untagged", { ...state("untagged"), kind: "page" })),
+    await page.precheck({ entity: entity("page", "p-untagged", { ...state("untagged"), kind: "page" }) }),
     "'p-untagged' is a 'post' at this destination but a 'page' at the source — kind is fixed at creation and cannot be changed by publishing"
   );
 });

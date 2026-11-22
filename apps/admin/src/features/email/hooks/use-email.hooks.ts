@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api, ApiError, type AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
+import { mailStatusApi } from "@/features/email/api/mail-status-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**
@@ -25,7 +27,7 @@ export interface EmailPort {
   getMailStatus(): Promise<AdminMailStatus>;
 }
 
-export const defaultEmailPort: EmailPort = { getMailStatus: () => api.getMailStatus() };
+export const defaultEmailPort: EmailPort = { getMailStatus: () => mailStatusApi.getMailStatus() };
 
 export interface EmailController {
   view: EmailStatusView;

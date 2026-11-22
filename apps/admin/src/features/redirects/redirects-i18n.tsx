@@ -1,10 +1,10 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
+import { createDictionaryTranslator, interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Redirects screen (`/admin/redirects`) — the create form, the
  * bulk-import affordance, table headers, and the delete-confirm dialog.
@@ -693,7 +693,33 @@ const MATCH_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
   "zh-TW": { exact: "精確", prefix: "前綴", wildcard: "萬用字元" },
 };
 
-const REDIRECTS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(REDIRECTS_TRANSLATIONS, MATCH_TYPE_TRANSLATIONS);
+// Jini merge-10 (jx-redirects2 R2): the admin notice shown once a site reaches @jini-ai/cms's
+// DYNAMIC_SET_LIMIT active wildcard redirects.
+const WILDCARD_CAP_NOTICE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  es: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Solo se usan las primeras 500 redirecciones comodín activas. Desactiva o combina algunas." },
+  id: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Hanya 500 pengalihan karakter pengganti aktif pertama yang digunakan. Nonaktifkan atau gabungkan beberapa." },
+  de: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Nur die ersten 500 aktiven Platzhalter-Weiterleitungen werden verwendet. Deaktivieren oder kombinieren Sie einige." },
+  "zh-CN": { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "仅使用前 500 条启用的通配符重定向。请停用或合并部分重定向。" },
+  "zh-TW": { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "僅使用前 500 條啟用的萬用字元重新導向。請停用或合併部分重新導向。" },
+  "pt-BR": { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Apenas os primeiros 500 redirecionamentos curinga ativos são usados. Desative ou combine alguns." },
+  ru: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Используются только первые 500 активных перенаправлений с подстановочным знаком. Отключите или объедините некоторые." },
+  fa: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "فقط 500 تغییر مسیر عام فعال اول استفاده می‌شوند. برخی را غیرفعال یا ادغام کنید." },
+  ar: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "تُستخدم أول 500 عملية إعادة توجيه نشطة بحرف بدل فقط. عطّل بعضها أو ادمجها." },
+  ja: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "使用されるのは有効なワイルドカードリダイレクトの最初の 500 件のみです。一部を無効にするか統合してください。" },
+  ko: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "활성 와일드카드 리디렉션은 처음 500개만 사용됩니다. 일부를 끄거나 병합하세요." },
+  pl: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Używanych jest tylko pierwszych 500 aktywnych przekierowań z symbolem wieloznacznym. Wyłącz lub scal niektóre." },
+  hu: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Csak az első 500 aktív helyettesítő karakteres átirányítás érvényes. Kapcsoljon ki vagy vonjon össze néhányat." },
+  fr: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Seules les 500 premières redirections génériques actives sont utilisées. Désactivez-en ou fusionnez-en certaines." },
+  uk: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Використовуються лише перші 500 активних переспрямувань із символом узагальнення. Вимкніть або об'єднайте деякі." },
+  tr: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Yalnızca ilk 500 etkin joker karakterli yönlendirme kullanılır. Bazılarını kapatın veya birleştirin." },
+  th: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "ใช้เฉพาะการเปลี่ยนเส้นทางแบบไวลด์การ์ดที่เปิดใช้งาน 500 รายการแรกเท่านั้น ปิดหรือรวมบางรายการ" },
+  it: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "Vengono usati solo i primi 500 reindirizzamenti con carattere jolly attivi. Disattivane o uniscine alcuni." },
+  hi: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "केवल पहले 500 सक्रिय वाइल्डकार्ड रीडायरेक्ट उपयोग किए जाते हैं। कुछ को बंद करें या मर्ज करें।" },
+  ur: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "صرف پہلے 500 فعال وائلڈ کارڈ ری ڈائریکٹس استعمال ہوتے ہیں۔ کچھ کو بند کریں یا ضم کریں۔" },
+  bn: { "Only the first 500 active wildcard redirects are used. Turn off or merge some.": "শুধু প্রথম 500টি সক্রিয় ওয়াইল্ডকার্ড রিডাইরেক্ট ব্যবহার করা হয়। কিছু বন্ধ করুন বা একত্র করুন।" },
+};
+
+const REDIRECTS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: REDIRECTS_TRANSLATIONS }, { overlays: [MATCH_TYPE_TRANSLATIONS, WILDCARD_CAP_NOTICE_TRANSLATIONS] });
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */
@@ -729,7 +755,7 @@ const IMPORT_RULES_LABEL_COPY: Record<string, { hint: string; fields: string; op
 
 /** The bulk-import label: a one-line hint plus an ⓘ naming the rule fields. The package's
  *  `shapeCode` element is no longer rendered — the field names are the same literal keys here. */
-export function importRulesLabel(locale: string, _shapeCode?: ReactNode): ReactNode {
+export function importRulesLabel({ locale }: { locale: string }, { _shapeCode }: { _shapeCode?: ReactNode } = {}): ReactNode {
   const c = localeEntry({ table: IMPORT_RULES_LABEL_COPY, locale });
   return (
     <>
@@ -772,7 +798,7 @@ const IMPORT_RESULT_SUMMARY_TEMPLATE: Record<string, string> = {
 };
 
 /** The import result summary — "{created} created, {failed} failed." */
-export function importResultSummary(locale: string, created: number, failed: number): string {
+export function importResultSummary({ locale, created, failed }: { locale: string; created: number; failed: number }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: IMPORT_RESULT_SUMMARY_TEMPLATE, locale }), vars: {
     created,
     failed,
@@ -806,7 +832,7 @@ const CREATED_LABEL: Record<string, string> = {
 
 /** One created-item line: "Created {fromPattern} → {toTarget}" — "Created" is a status word, not
  *  full-sentence copy, so translated as a short label preceding the arrow. */
-export function createdLabel(locale: string): string {
+export function createdLabel({ locale }: { locale: string }, _options: Record<string, never> = {}): string {
   return localeEntry({ table: CREATED_LABEL, locale });
 }
 
@@ -836,7 +862,7 @@ const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
 };
 
 /** One failed-item line: "Item {index} ({code})". */
-export function failedItemLabel(locale: string, index: number, code: string): string {
+export function failedItemLabel({ locale, index, code }: { locale: string; index: number; code: string }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: FAILED_ITEM_LABEL_TEMPLATE, locale }), vars: { index, code } });
 }
 
@@ -866,7 +892,7 @@ const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: st
 };
 
 /** The delete-confirm body embeds the rule's own `fromPattern` mid-sentence. */
-export function deleteRedirectBody(locale: string, fromPattern: string): ReactNode {
+export function deleteRedirectBody({ locale, fromPattern }: { locale: string; fromPattern: string }, _options: Record<string, never> = {}): ReactNode {
   const f = localeEntry({ table: DELETE_REDIRECT_BODY_FRAGMENTS, locale });
   return (
     <p>
@@ -903,6 +929,6 @@ const ACTIONS_FOR_REDIRECT_TEMPLATE: Record<string, string> = {
 };
 
 /** The row-menu trigger's accessible name embeds the rule's own `fromPattern`. */
-export function actionsForRedirectLabel(locale: string, fromPattern: string): string {
+export function actionsForRedirectLabel({ locale, fromPattern }: { locale: string; fromPattern: string }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: ACTIONS_FOR_REDIRECT_TEMPLATE, locale }), vars: { fromPattern } });
 }

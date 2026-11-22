@@ -1,5 +1,5 @@
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 import type { EntityReverter, RevertRegistry } from "../../contracts/core/commands/index.js";
 
@@ -9,7 +9,7 @@ import type { MenuRepoPort, NavItemNode } from "@jini-ai/cms/navigation";
 /**
  * @file Menu-domain entity reverters — R4 of
  * `ADS-memory/.local-artifacts/plan-publish-repoint-menus-2026-09-24.md` §2.4/§3. The concrete
- * `menu/update` inverse applier `core/commands/revert.ts`'s generic `RevertRegistry` dispatches to,
+ * `menu/update` inverse applier Jini `cms/core/commands/revert.ts`'s generic `RevertRegistry` dispatches to,
  * so a repoint change set (R3's `repointReferences`, `./publish-content.ts`) is undoable from History
  * like any other publish write. Mirrors `features/post/reverters.ts`'s shape exactly: adapter code,
  * not core, needing real domain knowledge (`MenuRepoPort`, `updateMenuTree`) `core/commands` must
@@ -39,7 +39,7 @@ export interface MenuReverterDeps {
  * command-gateway write path of their own yet either), so there is no BR-08-shaped reason to bypass
  * the domain function the way post's reverters must.
  *
- * `revertChangeSet` (`contracts/core/commands/revert.ts`) already re-reads {@link currentVersion} and
+ * `revertChangeSet` (`@jini-ai/cms/core/commands`) already re-reads {@link currentVersion} and
  * refuses with the standard `RevertConflictError` before this ever runs when the menu has moved on
  * since the change set was applied — this function does not duplicate that guard. `updateMenuTree`'s
  * own OCC check (against the version read immediately below) is therefore a second, redundant-by-
@@ -86,7 +86,7 @@ export function createMenuReverters(deps: MenuReverterDeps): { update: EntityRev
  * registry, since `revertChangeSet` is handed exactly one registry per run and dispatches every
  * change-set item (post, menu, …) through it.
  */
-export function registerMenuReverters(registry: RevertRegistry, deps: MenuReverterDeps): RevertRegistry {
+export function registerMenuReverters({ registry, deps }: { registry: RevertRegistry; deps: MenuReverterDeps }, _optional: Record<string, never> = {}): RevertRegistry {
   const reverters = createMenuReverters(deps);
   registry.register("menu", "update", reverters.update);
   return registry;

@@ -40,12 +40,12 @@ function userDataOverride(env: StartupEnv): string | undefined {
 export function applyUserDataDir({ env, defaultUserDataDir, resolvePath, setUserDataDir, getUserDataDir }: {
   env: Record<string, string | undefined>;
   defaultUserDataDir: string;
-  resolvePath: (dir: string) => string;
-  setUserDataDir: (dir: string) => void;
+  resolvePath: (required: { dir: string }) => string;
+  setUserDataDir: (required: { dir: string }) => void;
   getUserDataDir: () => string;
 }, _optional = {}): { overridden: boolean } {
   const override = userDataOverride(env);
-  setUserDataDir(override ? resolvePath(override) : defaultUserDataDir);
+  setUserDataDir({ dir: override ? resolvePath({ dir: override }) : defaultUserDataDir });
   // Share the resolved profile with CLI children too; a relative override otherwise changes meaning
   // when a child runs from another cwd. Normal launches retain the shared Web/CLI app-data owner.
   if (override) env.TOVU_DESKTOP_USER_DATA_DIR = getUserDataDir();
@@ -74,14 +74,14 @@ export function prepareNodeToolchainEnv({ userDataDir, electronPath, npmRoot, wr
   npmRoot: string;
   writeNodeToolchain: (input: { userDataDir: string; electronPath: string; npmRoot: string }) => { toolchainDir: string } | null;
   buildNodeToolchainEnv: (input: { toolchainDir: string; npmRoot: string }) => Record<string, string>;
-  warn: (message: string) => void;
+  warn: (required: { message: string }) => void;
 }, _optional = {}): Record<string, string> | undefined {
   try {
     const toolchain = writeNodeToolchain({ userDataDir, electronPath, npmRoot });
     if (toolchain) return buildNodeToolchainEnv({ toolchainDir: toolchain.toolchainDir, npmRoot });
-    warn("tovu desktop: running from a disk image — the bundled node toolchain is off for this launch; move Tovu to Applications to use it.");
+    warn({ message: "tovu desktop: running from a disk image — the bundled node toolchain is off for this launch; move Tovu to Applications to use it." });
   } catch (error) {
-    warn(`tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(error as Error).message}`);
+    warn({ message: `tovu desktop: could not write the bundled node toolchain — stdio MCP servers naming npx/npm/node will fall back to a system install: ${(error as Error).message}` });
   }
   return undefined;
 }
@@ -138,15 +138,15 @@ export function settleDevFallbackRows<ClassifySiteDir>({ projectsPath, devFallba
   devFallbackDir: string | null;
   /** `site-dir-store.ts`'s `classifySiteDirSafely`, passed through to the seeders untouched. */
   classifySiteDir: ClassifySiteDir;
-  migrateLegacyDismissals: (projectsPath: string, devFallbackDir: string) => unknown;
-  seedDevFallbackSite: (projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDir) => unknown;
-  retireDevFallbackSite: (projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDir) => unknown;
+  migrateLegacyDismissals: (required: { projectsPath: string; devFallbackDir: string }) => unknown;
+  seedDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
+  retireDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
 }, _optional = {}): boolean {
   if (!devFallbackDir) return false;
-  migrateLegacyDismissals(projectsPath, devFallbackDir);
-  seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir);
+  migrateLegacyDismissals({ projectsPath, devFallbackDir });
+  seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   // And its inverse: once the dev site moved into the single home, the seeded checkout row is a dead card.
-  retireDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir);
+  retireDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   return true;
 }
 
@@ -194,17 +194,17 @@ export const LEGACY_OWNER_STORE_FILES = ["owner.db", "owner.db-wal", "owner.db-s
  */
 export function settleLegacyOwnerStoreOnStart({ userDataDir, settle, removeFile, showNotice, warn }: {
   userDataDir: string;
-  settle: (required: { removeFiles: () => void; notify: () => void; log: (message: string) => void }) => Promise<unknown>;
-  removeFile: (filePath: string) => void;
+  settle: (required: { removeFiles: () => void; notify: () => void; log: (required: { message: string }) => void }) => Promise<unknown>;
+  removeFile: (required: { filePath: string }) => void;
   showNotice: (required: { type: "info"; message: string; detail: string }) => void;
-  warn: (message: string) => void;
+  warn: (required: { message: string }) => void;
 }, _optional = {}): Promise<unknown> {
   return settle({
     removeFiles: () => {
-      for (const file of LEGACY_OWNER_STORE_FILES) removeFile(path.join(userDataDir, file));
+      for (const file of LEGACY_OWNER_STORE_FILES) removeFile({ filePath: path.join(userDataDir, file) });
     },
     notify: () => showNotice({ type: "info", message: "Shared keys from an older version can be imported",
       detail: "Open Shared keys and choose Import from this computer. You see what imports before anything changes." }),
-    log: (message) => warn(message),
+    log: ({ message }) => warn({ message }),
   });
 }

@@ -10,7 +10,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
 
 test("source worker setup preserves stdin stat failures other than EBADF", () => {
@@ -33,7 +33,7 @@ test("source worker setup preserves stdin stat failures other than EBADF", () =>
     };
     syncBuiltinESMExports();
     await assert.rejects(
-      renderInWorkerSandbox("handlebars-worker", "Handlebars", { source: "", ctx: {} }),
+      renderInWorkerSandbox({ workerBasename: "handlebars-worker", errorLabel: "Handlebars", input: { source: "", ctx: {} } }),
       error => error === failure,
     );
   `;
@@ -68,10 +68,10 @@ test("compiled JavaScript runs both real template workers and reports missing-en
       // root explicitly; workers must receive it rather than infer it from their emitted path.
       const options = { timeoutMs: 15000, productRoot: ${JSON.stringify(repoRoot)} };
       for (const [worker, label] of [["handlebars-worker", "Handlebars"], ["liquid-worker", "Liquid"]]) {
-        assert.equal(await renderInWorkerSandbox(worker, label, { source: "<h1>{{site.title}}</h1>", ctx }, options), "<h1>Compiled fixture</h1>");
-        await assert.rejects(renderInWorkerSandbox("__tests__/fixtures/exit-worker", label, { source: "", ctx }, options), { message: label + " render worker exited with code 7" });
+        assert.equal(await renderInWorkerSandbox({ workerBasename: worker, errorLabel: label, input: { source: "<h1>{{site.title}}</h1>", ctx } }, options), "<h1>Compiled fixture</h1>");
+        await assert.rejects(renderInWorkerSandbox({ workerBasename: "__tests__/fixtures/exit-worker", errorLabel: label, input: { source: "", ctx } }, options), { message: label + " render worker exited with code 7" });
       }
-      await assert.rejects(renderInWorkerSandbox("missing-worker", "Handlebars", { source: "", ctx }, options), (error) => {
+      await assert.rejects(renderInWorkerSandbox({ workerBasename: "missing-worker", errorLabel: "Handlebars", input: { source: "", ctx } }, options), (error) => {
         assert.equal(error.code, "MODULE_NOT_FOUND");
         assert.ok(error.message.includes("missing-worker.js"));
         return true;
@@ -115,7 +115,7 @@ test("a worker that exits without posting a message or throwing rejects with the
   const input = { source: "irrelevant — the fixture exits before reading workerData", ctx: {} as unknown as SiteRenderContext };
 
   await assert.rejects(
-    renderInWorkerSandbox("__tests__/fixtures/exit-worker", "Liquid", input, { timeoutMs: 3000 }),
+    renderInWorkerSandbox({ workerBasename: "__tests__/fixtures/exit-worker", errorLabel: "Liquid", input }, { timeoutMs: 3000 }),
     (err: Error) => {
       assert.equal(err.message, "Liquid render worker exited with code 7");
       return true;
@@ -123,7 +123,7 @@ test("a worker that exits without posting a message or throwing rejects with the
   );
 
   await assert.rejects(
-    renderInWorkerSandbox("__tests__/fixtures/exit-worker", "Handlebars", input, { timeoutMs: 3000 }),
+    renderInWorkerSandbox({ workerBasename: "__tests__/fixtures/exit-worker", errorLabel: "Handlebars", input }, { timeoutMs: 3000 }),
     (err: Error) => {
       assert.equal(err.message, "Handlebars render worker exited with code 7");
       return true;
@@ -173,7 +173,7 @@ test("a sandbox worker does not write its own V8 coverage profile into the direc
     const profiles = readdirSync(probeDir);
     assert.ok(profiles.some((name) => /^coverage-.*\.json$/.test(name)), "the inherited-coverage control must produce a V8 profile");
     for (const name of profiles) rmSync(path.join(probeDir, name));
-    await assert.rejects(renderInWorkerSandbox("__tests__/fixtures/exit-worker", "Liquid", input, { timeoutMs: 3000 }));
+    await assert.rejects(renderInWorkerSandbox({ workerBasename: "__tests__/fixtures/exit-worker", errorLabel: "Liquid", input }, { timeoutMs: 3000 }));
     assert.deepEqual(
       readdirSync(probeDir),
       [],

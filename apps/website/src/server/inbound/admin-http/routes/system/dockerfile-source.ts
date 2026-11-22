@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import {
@@ -8,6 +8,8 @@ import {
 } from "#src/features/deployments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 export type { DockerfileSourceSnapshot };
 // Re-exported for callers/tests that import the read function from this route file's previous
@@ -57,7 +59,7 @@ export type AdminDockerfileSourceDeps = Pick<RouteDeps, "workspaceId" | "authori
  *  no path field to validate because {@link writeDockerfileSourceWithIfMatch} accepts none, and the
  *  write's other required input, `If-Match`, is a HEADER (checked separately below, before this
  *  parser ever runs) rather than a body field. */
-function parseWriteRequestBody(body: unknown): { ok: true; contents: string } | { ok: false; error: string } {
+function parseWriteRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; contents: string } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "request body must be a JSON object" };
   }
@@ -75,29 +77,19 @@ function toResponseBody(snapshot: DockerfileSourceSnapshot): { exists: boolean; 
   return { exists: snapshot.exists, contents: snapshot.contents };
 }
 
-export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDockerfileSourceDeps): void {
+export function registerAdminDockerfileSourceRoute({ app, deps }: { app: Express; deps: AdminDockerfileSourceDeps }, _optional: Record<string, never> = {}): void {
+  registerDockerfileGet(app, deps);
+  registerDockerfilePut(app, deps);
+}
+
+function registerDockerfileGet(app: Express, deps: AdminDockerfileSourceDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "dockerfile-source",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "dockerfile-source" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const snapshot = readDockerfileSource();
       res.setHeader("ETag", snapshot.etag);
@@ -106,29 +98,16 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       sendAdminFailure({ res, error: err }, { operation: "routes/system/dockerfile-source", code: "INTERNAL_ERROR" });
     }
   });
+}
 
+function registerDockerfilePut(app: Express, deps: AdminDockerfileSourceDeps): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "dockerfile-source",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.write", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "dockerfile-source" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // Precondition check BEFORE body parsing — an `If-Match` header is a precondition on the
       // REQUEST, distinct from whether the BODY it guards happens to be well-formed. Checking it
@@ -143,13 +122,13 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
         return;
       }
 
-      const parsedBody = parseWriteRequestBody(req.body);
+      const parsedBody = parseWriteRequestBody({ body: req.body });
       if (!parsedBody.ok) {
         res.status(400).json({ error: parsedBody.error });
         return;
       }
 
-      const result = writeDockerfileSourceWithIfMatch(parsedBody.contents, ifMatch);
+      const result = writeDockerfileSourceWithIfMatch({ contents: parsedBody.contents, ifMatch });
       if (!result.ok) {
         res.setHeader("ETag", result.current.etag);
         res.status(412).json({

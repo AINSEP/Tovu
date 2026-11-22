@@ -66,7 +66,7 @@ export const shellZoomStorage: ZoomStorage = {
 const ZOOM_STEP = 0.5;
 
 /** `localStorage` key for one project's remembered zoom level. */
-function zoomStorageKey(projectId: string): string {
+function zoomStorageKey({ projectId }: { projectId: string }, _options: Record<string, never> = {}): string {
   return `tovu:zoom:${projectId}`;
 }
 
@@ -97,7 +97,7 @@ export function resolveZoomTarget(input: {
 /** One command's new zoom level. `'reset'` returns to 0 (100%) outright; `'in'`/`'out'` step by
  *  {@link ZOOM_STEP} from `current`. Chromium itself clamps the result to its own zoom range, so
  *  this does not — a cap here could only ever be looser or stricter than the real one underneath. */
-export function nextZoomLevel(current: number, direction: ZoomDirection): number {
+export function nextZoomLevel({ current, direction }: { current: number; direction: ZoomDirection }, _options: Record<string, never> = {}): number {
   if (direction === 'reset') return 0;
   return direction === 'in' ? current + ZOOM_STEP : current - ZOOM_STEP;
 }
@@ -106,9 +106,9 @@ export function nextZoomLevel(current: number, direction: ZoomDirection): number
  *  unreadable entry — never throws, since a lost preference is a cosmetic regression and a thrown
  *  read must not be.
  *  @complexity O(1). */
-export function readStoredZoom(storage: ZoomStorage, projectId: string): number {
+export function readStoredZoom({ storage, projectId }: { storage: ZoomStorage; projectId: string }, _options: Record<string, never> = {}): number {
   try {
-    const raw = storage.getItem(zoomStorageKey(projectId));
+    const raw = storage.getItem(zoomStorageKey({ projectId }));
     const parsed = raw === null ? NaN : Number(raw);
     return Number.isFinite(parsed) ? parsed : 0;
   } catch {
@@ -119,9 +119,9 @@ export function readStoredZoom(storage: ZoomStorage, projectId: string): number 
 /** Persists one project's zoom level. Best-effort: a full or disabled store must not break zooming
  *  for the rest of the session, only the memory of it.
  *  @complexity O(1). */
-export function writeStoredZoom(storage: ZoomStorage, projectId: string, level: number): void {
+export function writeStoredZoom({ storage, projectId, level }: { storage: ZoomStorage; projectId: string; level: number }, _options: Record<string, never> = {}): void {
   try {
-    storage.setItem(zoomStorageKey(projectId), String(level));
+    storage.setItem(zoomStorageKey({ projectId }), String(level));
   } catch {
     // Storage full, disabled, or a private window with no persistence — zoom still applies this
     // session; there is nothing more useful to do with the failure.
@@ -132,7 +132,7 @@ export function writeStoredZoom(storage: ZoomStorage, projectId: string, level: 
  *  Electron's `<webview>` throws from EVERY method until the guest is attached to the DOM and has
  *  emitted `dom-ready` — the same tolerance `use-find-in-page.hooks.ts` and
  *  `use-site-workspace.hooks.ts` already wrap their own guest calls in. */
-function setGuestZoom(element: ZoomableGuest, level: number): boolean {
+function setGuestZoom({ element, level }: { element: ZoomableGuest; level: number }, _options: Record<string, never> = {}): boolean {
   try {
     element.setZoomLevel(level);
     return true;
@@ -164,12 +164,12 @@ function readGuestZoom(element: ZoomableGuest): number | null {
  *
  * @complexity O(1). At most one listener per registration, removed the first time it fires.
  */
-export function applyStoredZoom(element: ZoomableGuest, projectId: string, storage: ZoomStorage): void {
-  const level = readStoredZoom(storage, projectId);
-  if (setGuestZoom(element, level)) return;
+export function applyStoredZoom({ element, projectId, storage }: { element: ZoomableGuest; projectId: string; storage: ZoomStorage }, _options: Record<string, never> = {}): void {
+  const level = readStoredZoom({ storage, projectId });
+  if (setGuestZoom({ element, level })) return;
   const onReady = () => {
     element.removeEventListener('dom-ready', onReady);
-    setGuestZoom(element, level);
+    setGuestZoom({ element, level });
   };
   element.addEventListener('dom-ready', onReady);
 }
@@ -179,19 +179,19 @@ export function applyStoredZoom(element: ZoomableGuest, projectId: string, stora
  *
  * @complexity O(1).
  */
-export function applyZoomCommand(target: ZoomTarget, bridge: ZoomBridge | undefined, direction: ZoomDirection, storage: ZoomStorage): void {
+export function applyZoomCommand({ target, bridge, direction, storage }: { target: ZoomTarget; bridge: ZoomBridge | undefined; direction: ZoomDirection; storage: ZoomStorage }, _options: Record<string, never> = {}): void {
   if (target.kind === 'guest') {
     // A command that arrives before the guest is attached does nothing — see {@link setGuestZoom}.
     // Nothing is persisted in that case either: a remembered level the guest never took would be
     // re-applied on its next registration and silently shift the site under the owner.
     const current = readGuestZoom(target.element);
     if (current === null) return;
-    const level = nextZoomLevel(current, direction);
-    if (setGuestZoom(target.element, level)) writeStoredZoom(storage, target.projectId, level);
+    const level = nextZoomLevel({ current, direction });
+    if (setGuestZoom({ element: target.element, level })) writeStoredZoom({ storage, projectId: target.projectId, level });
     return;
   }
   if (target.kind === 'top' && bridge) {
-    bridge.setZoomLevel(nextZoomLevel(bridge.getZoomLevel(), direction));
+    bridge.setZoomLevel({ level: nextZoomLevel({ current: bridge.getZoomLevel(), direction }) });
   }
 }
 
@@ -209,14 +209,13 @@ export interface UseZoom {
  * to whichever surface is on screen, plus re-applying a project's remembered zoom whenever its guest
  * (re)mounts.
  *
- * @param activeGuestId the visible project tab's id, or `null` when the Projects screen itself is on
+ * @param input.activeGuestId the visible project tab's id, or `null` when the Projects screen itself is on
  *   screen (`App`'s `showSiteTab ? visibleWorkspaceId : null` — identical argument to
  *   `useFindInPage`'s).
  * @complexity O(1) per command, beyond `applyZoomCommand`'s own cost.
  */
 export function useZoom(
-  activeGuestId: string | null,
-  { bridge = runnerInventoryBridge(), storage = shellZoomStorage }: {
+  { activeGuestId }: { activeGuestId: string | null }, { bridge = runnerInventoryBridge(), storage = shellZoomStorage }: {
     /** The bridge port; defaults to the preload's `window.tovuRunner`. */
     bridge?: RunnerInventoryBridge;
     /** Where per-site zoom levels persist; defaults to {@link shellZoomStorage}, the shell's own
@@ -233,7 +232,7 @@ export function useZoom(
     (projectId: string, element: ZoomableGuest | null) => {
       if (element) {
         guests.set(projectId, element);
-        applyStoredZoom(element, projectId, storage);
+        applyStoredZoom({ element, projectId, storage });
       } else {
         guests.delete(projectId);
       }
@@ -246,10 +245,10 @@ export function useZoom(
   // still honored.
   useEffect(() => {
     if (!bridge) return undefined;
-    return bridge.onZoomCommand((direction) => {
+    return bridge.onZoomCommand({ listener: (direction) => {
       const target = resolveZoomTarget({ activeGuestId, guests, bridge });
-      applyZoomCommand(target, bridge, direction, storage);
-    });
+      applyZoomCommand({ target, bridge, direction, storage });
+    } });
     // `guests` is a ref (stable identity, never itself a trigger); `activeGuestId` is what actually
     // changes which entry a fired command should resolve to.
   }, [bridge, activeGuestId, guests, storage]);

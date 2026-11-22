@@ -9,7 +9,7 @@ import type { TrashKindMover } from "#src/features/trash/index";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import type { SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
-import { findTheme } from "./theme.js";
+import { findTheme } from "./theme-discovery.js";
 
 /**
  * @file `theme_trash` (owner-approved 2026-10-08) — moves a WHOLE theme to the Trash. Before it the
@@ -73,7 +73,10 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: trashThemeAgentToolCatalog });
 export const trashThemeDerivedRisk: DerivedRiskByToolId = new Map([["theme_trash", "deletes-durable-state"]]);
 
 /** One non-ok removal outcome, worded for the model. @complexity O(1). */
-function removalRefusal(themeId: string, outcome: { reason: string; code?: string }): ToolInputError {
+function removalRefusal(
+  { themeId, outcome }: { themeId: string; outcome: { reason: string; code?: string } },
+  _optional = {}
+): ToolInputError {
   if (outcome.reason === "blocked" && outcome.code === "ALREADY_IN_TRASH") {
     return new ToolInputError({ message: `theme_trash: a theme with id '${themeId}' is already in the Trash. Restore or permanently delete that one first (trash_list_items). Nothing was changed.` });
   }
@@ -162,7 +165,7 @@ function buildTrashThemeHandlers(routeDeps: TrashThemeToolDeps): Record<string, 
             `Switch the site to another theme first (theme_set_active), then trash '${themeId}'. Nothing was changed.`,
         });
       }
-      throw removalRefusal(themeId, outcome);
+      throw removalRefusal({ themeId, outcome });
     },
   };
 }

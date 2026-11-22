@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useEmailActivity } from "../hooks/use-email-activity.hooks";
 import { ACTIVITY, BLOCK, createEmailFake, PLAN } from "./email.test-helpers";
 
@@ -26,7 +26,7 @@ describe("useEmailActivity", () => {
   it("retains existing rows and cursor on a failed later page", async () => {
     const api = createEmailFake();
     api.listActivity.mockResolvedValueOnce({ access: "masked", items: [ACTIVITY], nextCursor: "page-2", empty: null })
-      .mockRejectedValueOnce(new ApiError("Try later", 503));
+      .mockRejectedValueOnce(new ApiError({ message: "Try later", status: 503 }));
     const { result } = renderHook(() => useEmailActivity({ api }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.activity.view.kind).toBe("loaded"));
     await act(() => result.current.activity.loadMore());
@@ -78,7 +78,7 @@ describe("useEmailActivity", () => {
     act(() => result.current.startRemoval(BLOCK));
     act(() => result.current.setRemovalReason("Address fixed"));
     if (step === "confirm") await act(() => result.current.continueRemoval());
-    api.removeSuppression.mockRejectedValueOnce(new ApiError("Forbidden", 403));
+    api.removeSuppression.mockRejectedValueOnce(new ApiError({ message: "Forbidden", status: 403 }));
     await act(() => result.current.continueRemoval());
     expect(result.current.removal).toMatchObject({ kind: step === "plan" ? "reason" : "confirm", pending: false, error: "Only the site owner can remove a block." });
     expect(result.current.removedNotice).toBeNull();

@@ -95,14 +95,14 @@ export function mintApiKey(): MintedApiKey {
 /**
  * Split a presented raw key back into its two halves.
  *
- * @param rawKey - the untrusted credential exactly as presented by a caller.
+ * @param required.rawKey - the untrusted credential exactly as presented by a caller.
  * @returns `{ prefix, secret }`, or `null` when `rawKey` is not shaped like a key this runtime
  *   mints — which the caller must treat as "no such credential", never as an error worth reporting
  *   in detail (a parse-failure message that distinguishes shapes is an oracle).
  * @complexity O(1) — one `indexOf` and one anchored regex over a bounded prefix.
  * @overallScore 100
  */
-export function parseApiKey(rawKey: string): { prefix: string; secret: string } | null {
+export function parseApiKey({ rawKey }: { rawKey: string }, _options = {}): { prefix: string; secret: string } | null {
   const separatorAt = rawKey.indexOf(KEY_SEPARATOR);
   if (separatorAt <= 0) return null;
 
@@ -113,7 +113,7 @@ export function parseApiKey(rawKey: string): { prefix: string; secret: string } 
   return { prefix, secret };
 }
 
-function deriveKey(secret: string, salt: Buffer, params: { N: number; r: number; p: number }): Promise<Buffer> {
+function deriveKey({ secret, salt, params }: { secret: string; salt: Buffer; params: { N: number; r: number; p: number } }, _options = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scrypt(secret, salt, SCRYPT_KEYLEN, { ...params, maxmem: SCRYPT_MAXMEM }, (err, derived) => {
       if (err) reject(err);
@@ -130,7 +130,7 @@ interface ParsedDigest {
 
 /** True iff `N`/`r`/`p` are all integers — the shape scrypt's own parameters must have before
  *  they are safe to bounds-check at all. */
-function isIntegerTriple(N: number, r: number, p: number): boolean {
+function isIntegerTriple({ N, r, p }: { N: number; r: number; p: number }, _options = {}): boolean {
   return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p);
 }
 
@@ -140,29 +140,35 @@ function isIntegerTriple(N: number, r: number, p: number): boolean {
  *  must not become a denial-of-service knob) — `128 * N * r` is scrypt's own footprint. Its CPU work
  *  grows linearly with `p` (`128 * N * r * p` bytes mixed), so the same ceiling bounds `p` too. This
  *  file writes `p=1`, so no digest it wrote is refused. */
-function isWithinScryptBounds(N: number, r: number, p: number): boolean {
+function isWithinScryptBounds({ N, r, p }: { N: number; r: number; p: number }, _options = {}): boolean {
   if (N <= 1 || r <= 0 || p <= 0) return false;
   return 128 * N * r * p <= SCRYPT_MAXMEM;
 }
 
 /** Parses and validates the three numeric scrypt cost parameters embedded in a stored hash.
  *  Returns `null` for anything non-integer, non-positive, or exceeding the memory ceiling. */
-function parseStoredHashParams(rawN: string, rawR: string, rawP: string): ParsedDigest["params"] | null {
+function parseStoredHashParams({ rawN, rawR, rawP }: { rawN: string; rawR: string; rawP: string }, _options = {}): ParsedDigest["params"] | null {
   const N = Number(rawN);
   const r = Number(rawR);
   const p = Number(rawP);
-  if (!isIntegerTriple(N, r, p)) return null;
-  if (!isWithinScryptBounds(N, r, p)) return null;
+  if (!isIntegerTriple({ N, r, p })) return null;
+  if (!isWithinScryptBounds({ N, r, p })) return null;
   return { N, r, p };
 }
 
 /** Split a stored `scrypt$...` string. Returns `null` for anything this file did not write. */
-function parseStoredHash(storedHash: string): ParsedDigest | null {
+function parseStoredHash({ storedHash }: { storedHash: string }, _options = {}): ParsedDigest | null {
   const [scheme, rawN, rawR, rawP, rawSalt, rawDigest, ...extra] = storedHash.split("$");
   if (scheme !== "scrypt" || rawN === undefined || rawR === undefined || rawP === undefined) return null;
   if (rawSalt === undefined || rawDigest === undefined || extra.length > 0) return null;
 
-  const params = parseStoredHashParams(rawN, rawR, rawP);
+  return parseStoredHashBody({ rawN, rawR, rawP, rawSalt, rawDigest });
+}
+
+function parseStoredHashBody({ rawN, rawR, rawP, rawSalt, rawDigest }: {
+  rawN: string; rawR: string; rawP: string; rawSalt: string; rawDigest: string;
+}): ParsedDigest | null {
+  const params = parseStoredHashParams({ rawN, rawR, rawP });
   if (!params) return null;
 
   const bytes = decodeStoredHashBytes({ rawSalt, rawDigest });
@@ -187,19 +193,19 @@ function decodeStoredHashBytes({ rawSalt, rawDigest }: { rawSalt: string; rawDig
  * @overallScore 100
  */
 export class ScryptApiKeySecretHasher implements ApiKeySecretHasherPort {
-  async hash(secret: string): Promise<string> {
+  async hash({ secret }: { secret: string }, _options = {}): Promise<string> {
     const salt = randomBytes(SALT_BYTES);
-    const derived = await deriveKey(secret, salt, SCRYPT_PARAMS);
+    const derived = await deriveKey({ secret, salt, params: SCRYPT_PARAMS });
     const { N, r, p } = SCRYPT_PARAMS;
     return `scrypt$${N}$${r}$${p}$${salt.toString("base64url")}$${derived.toString("base64url")}`;
   }
 
-  async verify(storedHash: string, secret: string): Promise<boolean> {
-    const parsed = parseStoredHash(storedHash);
+  async verify({ storedHash, secret }: { storedHash: string; secret: string }, _options = {}): Promise<boolean> {
+    const parsed = parseStoredHash({ storedHash });
     if (!parsed) return false;
 
     try {
-      const derived = await deriveKey(secret, parsed.salt, parsed.params);
+      const derived = await deriveKey({ secret, salt: parsed.salt, params: parsed.params });
       // Length mismatch is a property of the STORED row, not of the presented secret, so this
       // early return leaks nothing about the credential — and `timingSafeEqual` throws on
       // unequal lengths, so the guard is required, not merely defensive.
@@ -231,7 +237,7 @@ export function decoyKeyHash(hasher: ApiKeySecretHasherPort): Promise<string> {
   const existing = decoyByHasher.get(hasher);
   if (existing) return existing;
 
-  const created = hasher.hash(randomBytes(SECRET_BYTES).toString("base64url"));
+  const created = hasher.hash({ secret: randomBytes(SECRET_BYTES).toString("base64url") });
   decoyByHasher.set(hasher, created);
   return created;
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { ApiError, describeApiError } from "../api";
+import { ApiError, describeApiError } from "../admin-http/request";
 
 /**
  * @file `describeApiError` — the shared base translation every screen's own per-`code` override
@@ -11,24 +11,24 @@ import { ApiError, describeApiError } from "../api";
  */
 
 test("an ApiError's own message wins over the fallback", () => {
-  const error = new ApiError("that slug is taken", 409, "RESOURCE_CONFLICT");
-  expect(describeApiError(error, "fallback text")).toBe("that slug is taken");
+  const error = new ApiError({ message: "that slug is taken", status: 409 }, { code: "RESOURCE_CONFLICT" });
+  expect(describeApiError({ e: error, fallback: "fallback text" })).toBe("that slug is taken");
 });
 
 test("an ApiError with an empty message falls back", () => {
-  const error = new ApiError("", 500);
-  expect(describeApiError(error, "fallback text")).toBe("fallback text");
+  const error = new ApiError({ message: "", status: 500 });
+  expect(describeApiError({ e: error, fallback: "fallback text" })).toBe("fallback text");
 });
 
 test("a plain Error's message is used as-is", () => {
-  expect(describeApiError(new Error("network down"), "fallback text")).toBe("network down");
+  expect(describeApiError({ e: new Error("network down"), fallback: "fallback text" })).toBe("network down");
 });
 
 test("a plain Error without an explanation uses the call site's recovery message", () => {
-  expect(describeApiError(new Error(""), "The page could not be saved. Keep your edits and check the saved page.")).toBe("The page could not be saved. Keep your edits and check the saved page.");
+  expect(describeApiError({ e: new Error(""), fallback: "The page could not be saved. Keep your edits and check the saved page." })).toBe("The page could not be saved. Keep your edits and check the saved page.");
 });
 
 test("a non-Error thrown value uses the fallback", () => {
-  expect(describeApiError("just a string", "fallback text")).toBe("fallback text");
-  expect(describeApiError(undefined, "fallback text")).toBe("fallback text");
+  expect(describeApiError({ e: "just a string", fallback: "fallback text" })).toBe("fallback text");
+  expect(describeApiError({ e: undefined, fallback: "fallback text" })).toBe("fallback text");
 });

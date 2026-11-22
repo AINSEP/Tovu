@@ -13,7 +13,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 
@@ -43,19 +43,15 @@ const surfaces = () => ({ surfaceExchanges: createSurfaceExchangeStore({ schedul
 /** Runs the real registrar with the executable-tool ports given; the other families find nothing installed. */
 async function register(extra: { agentPluginTools?: AgentPluginExecutableToolHost; surfaces?: ReturnType<typeof surfaces>; executablePluginToolRegistry?: ToolRegistry }) {
   const installed: ToolRegistration[] = [];
-  await registerInstalledExtensionTools(
-    { register: (registration: ToolRegistration) => void installed.push(registration) },
-    testSiteLayoutContext({
-      ...layout.deps, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo([]),
+  await registerInstalledExtensionTools({ registry: { register: (registration: ToolRegistration) => void installed.push(registration) }, deps: testSiteLayoutContext({
+      ...layout.deps, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }), discoverPlugins: async () => [], ...extra,
-    }),
-    "[executable-tools-test]",
-  );
+    }), log: "[executable-tools-test]" });
   return installed;
 }
 
 const loadAcme: AgentPluginExecutableToolHost["loadContributions"] = async (_input, _options) => ({ items: acmeTools([]), refusals: [] });
-const workspaceRoot = () => layout.deps.agentPluginLayout.forWorkspace(WORKSPACE).root;
+const workspaceRoot = () => layout.deps.agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE }).root;
 
 test("executable plugin tools land on the process registry and are gated by the live activation record per call", async () => {
   const registry = createToolRegistry({});
@@ -117,15 +113,11 @@ test("every family that fails is logged once with the registrar's prefix, a non-
   const installed: ToolRegistration[] = [];
   // Every layout read fails: both the agent-plugin and the skill family lose their install roots.
   const brokenLayout = new Proxy({}, { get: () => { throw new Error("layout unreadable"); } });
-  await registerInstalledExtensionTools(
-    { register: (registration: ToolRegistration) => void installed.push(registration) },
-    testSiteLayoutContext({
-      ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo([]),
+  await registerInstalledExtensionTools({ registry: { register: (registration: ToolRegistration) => void installed.push(registration) }, deps: testSiteLayoutContext({
+      ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }),
       discoverPlugins: async () => { throw "discovery offline"; },
-    }),
-    "[families-test]",
-  );
+    }), log: "[families-test]" });
   const lines = warn.mock.calls.map((call) => call.arguments[0]);
   assert.ok(lines.includes("[families-test] agent-plugin tools could not be registered, continuing without them — layout unreadable"), String(lines));
   assert.ok(lines.includes("[families-test] skill tools could not be registered, continuing without them — layout unreadable"), String(lines));
@@ -134,9 +126,9 @@ test("every family that fails is logged once with the registrar's prefix, a non-
 });
 
 test("AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not", () => {
-  assert.equal(isMcpUiToolCallAllowed(CREDENTIAL_SAVE_TOOL_ID), true);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_access_token"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
-  assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: CREDENTIAL_SAVE_TOOL_ID }), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_set_access_token" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_set_project_scope" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_get_database" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "mcp__supabase__execute_sql" }), false);
 });

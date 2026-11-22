@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { isNonArrayRecord } from "@jini-ai/core";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { load, FAILSAFE_SCHEMA } from "js-yaml";
 import type { AgentPluginDeliveryMode } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
@@ -56,16 +57,16 @@ export interface HostPluginGuidance {
  * @complexity O(depth) — the product-root walk-up.
  */
 export function agentPluginOverlaysDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
-  return (optional.env ?? process.env).TOVU_AGENT_PLUGIN_OVERLAYS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugin-overlays");
+  return (optional.env ?? process.env).TOVU_AGENT_PLUGIN_OVERLAYS_DIR ?? path.join(resolveProductRoot({}), "content", "agent-plugin-overlays");
 }
 
 /** True when a plugin tool `file` value names an overlay file rather than a plugin file. */
-export function isHostPluginFileRequest(file: unknown): file is string {
-  return typeof file === "string" && file.startsWith(HOST_PLUGIN_FILE_PREFIX);
+export function isHostPluginFileRequest(required: { file: unknown }, _optional: Record<string, never> = {}): required is { file: string } {
+  return typeof required.file === "string" && required.file.startsWith(HOST_PLUGIN_FILE_PREFIX);
 }
 
 /** `undefined` for absent files only; a directory or other non-file is a broken overlay and throws. */
-async function readBoundedFile(filePath: string): Promise<{ text: string } | { tooLarge: true } | undefined> {
+async function readBoundedFile({ filePath }: { filePath: string }, _optional: Record<string, never> = {}): Promise<{ text: string } | { tooLarge: true } | undefined> {
   let size: number;
   try {
     const info = await stat(filePath);
@@ -80,7 +81,7 @@ async function readBoundedFile(filePath: string): Promise<{ text: string } | { t
 }
 
 /** Sorted `host/<name>.md` names; a missing `host/` folder lists none. O(entries log entries). */
-async function listHostFiles(pluginDir: string): Promise<string[]> {
+async function listHostFiles({ pluginDir }: { pluginDir: string }, _optional: Record<string, never> = {}): Promise<string[]> {
   try {
     const entries = await readdir(path.join(pluginDir, "host"), { withFileTypes: true });
     return entries.filter(entry => entry.isFile()).map(entry => `${HOST_PLUGIN_FILE_PREFIX}${entry.name}`)
@@ -100,9 +101,9 @@ async function listHostFiles(pluginDir: string): Promise<string[]> {
 export async function readHostPluginGuidance(required: { pluginId: string }, optional: HostPluginOverlayOptional = {}): Promise<HostPluginGuidance> {
   if (!PLUGIN_ID_PATTERN.test(required.pluginId)) return { files: [] };
   const pluginDir = path.join(optional.overlaysDir ?? agentPluginOverlaysDir(), required.pluginId);
-  const guidance = await readBoundedFile(path.join(pluginDir, GUIDANCE_FILE));
+  const guidance = await readBoundedFile({ filePath: path.join(pluginDir, GUIDANCE_FILE) });
   if (guidance && "tooLarge" in guidance) throw new Error(`Agent Plugin overlay ${required.pluginId}/${GUIDANCE_FILE} is over ${MAX_HOST_PLUGIN_FILE_BYTES} bytes`);
-  const files = await listHostFiles(pluginDir);
+  const files = await listHostFiles({ pluginDir });
   return guidance ? { guidance: guidance.text, files } : { files };
 }
 
@@ -113,8 +114,8 @@ export async function readHostPluginGuidance(required: { pluginId: string }, opt
  */
 export async function readHostPluginFile(required: { pluginId: string; file: string }, optional: HostPluginOverlayOptional = {}): Promise<{ text: string } | { note: string }> {
   const pluginDir = path.join(optional.overlaysDir ?? agentPluginOverlaysDir(), required.pluginId);
-  const valid = PLUGIN_ID_PATTERN.test(required.pluginId) ? await listHostFiles(pluginDir) : [];
-  const read = valid.includes(required.file) ? await readBoundedFile(path.join(pluginDir, required.file)) : undefined;
+  const valid = PLUGIN_ID_PATTERN.test(required.pluginId) ? await listHostFiles({ pluginDir }) : [];
+  const read = valid.includes(required.file) ? await readBoundedFile({ filePath: path.join(pluginDir, required.file) }) : undefined;
   if (read && "text" in read) return { text: read.text };
   const label = HOST_FILE_PATTERN.test(required.file) ? ` '${required.file}'` : "";
   const reason = read ? `is over ${MAX_HOST_PLUGIN_FILE_BYTES} bytes` : "is not available";
@@ -136,8 +137,11 @@ function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: n
   let end = index + 1;
   while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
   if (end === lines.length) return false;
-  try { return isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }); }
-  catch { return false; }
+  return orFallbackSync({
+    work: () => isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }),
+    fallback: false,
+    step: "classify plugin guidance frontmatter",
+  });
 }
 
 function nextFrontmatterState(required: { state: FrontmatterState; line: string; lines: readonly string[]; index: number }): FrontmatterState {
@@ -153,15 +157,18 @@ function nextFrontmatterState(required: { state: FrontmatterState; line: string;
  * text, examples and every other tool stay byte-identical; source files are never changed.
  * @complexity O(lines).
  */
-export function removeChatRefusedToolPermissions(text: string): string {
+export function removeChatRefusedToolPermissions({ text }: { text: string }, _optional: Record<string, never> = {}): string {
   const lines = text.split("\n");
   let state: FrontmatterState = "body";
   let fence: string | undefined;
   return lines.filter((line, index) => {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
     if (state === "body" && marker) {
-      if (fence === undefined) fence = marker[1]!;
-      else if (marker[1]![0] === fence[0] && marker[1]!.length >= fence.length && marker[2]!.trim() === "") fence = undefined;
+      // Both capture groups are required by the pattern, so a match always carries them.
+      const markerFence = marker[1]!;
+      const markerSuffix = marker[2]!;
+      if (fence === undefined) fence = markerFence;
+      else if (markerFence[0] === fence[0] && markerFence.length >= fence.length && markerSuffix.trim() === "") fence = undefined;
       return true;
     }
     if (fence !== undefined) return true;
@@ -206,7 +213,7 @@ export async function deliverHostPluginGuidance(
   const parts = read && "text" in read ? [lead, read.text] : [lead, host.guidance, body];
   const guidance = parts.filter(Boolean).join("\n\n");
   const note = [result.note, read && "note" in read ? read.note : undefined].filter(Boolean).join(" ");
-  return { guidance: removeChatRefusedToolPermissions(guidance), files, ...(note ? { note } : {}) };
+  return { guidance: removeChatRefusedToolPermissions({ text: guidance }), files, ...(note ? { note } : {}) };
 }
 
 /** A run-reference request, as `lifecycle.ts`'s `resolveHostPluginRefs` receives it. */
@@ -224,13 +231,14 @@ export interface HostPluginRefOptions {
  * @complexity O(1).
  */
 export function splitHostPluginRefRequest(
-  required: { options: HostPluginRefOptions; defaultDeliveryMode: AgentPluginDeliveryMode },
+  required: { options: HostPluginRefOptions; defaultDeliveryMode: AgentPluginDeliveryMode }, _optional: Record<string, never> = {},
 ): { ownerOptions: HostPluginRefOptions; overlay: { includeGuidance: boolean; file?: string } } {
   const { options } = required;
   const pointerOnly = (options.deliveryMode ?? required.defaultDeliveryMode) === "pointer" && options.skill === undefined && options.file === undefined;
   const { file, ...ownerOptions } = options;
-  if (!isHostPluginFileRequest(file)) return { ownerOptions: options, overlay: { includeGuidance: !pointerOnly } };
-  return { ownerOptions, overlay: { includeGuidance: !pointerOnly, file } };
+  const request = { file };
+  if (!isHostPluginFileRequest(request)) return { ownerOptions: options, overlay: { includeGuidance: !pointerOnly } };
+  return { ownerOptions, overlay: { includeGuidance: !pointerOnly, file: request.file } };
 }
 
 /**

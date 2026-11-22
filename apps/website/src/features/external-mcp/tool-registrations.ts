@@ -3,8 +3,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/external-mcp.js
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
-import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '@tovu/contracts/credential-copy';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -145,7 +145,7 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  * would make `resolveExternalMcpOAuthRedirectUri` silently fall back to the derived origin —
  * localhost in dev — handing the provider a callback the operator never configured. The operator
  * override must win whenever it is present, so its invalidity cannot be indistinguishable from its
- * absence. `server/inbound/public-http/routes/oauth/public-origin.ts`'s `resolvePublicOrigin` fails
+ * absence. `platform/express/public-origin.ts`'s `resolvePublicOrigin` fails
  * the same way for the same reason.
  *
  * @throws {ToolInputError} `TOVU_PUBLIC_URL` is set but is not a valid `http(s)` URL — named so the
@@ -185,7 +185,7 @@ function resolveConfiguredPublicOrigin(): string | undefined {
  * masked by the derived origin.
  * @complexity O(1).
  */
-function resolveExternalMcpOAuthRedirectUri(serverId: string, derivedPublicOrigin: string | undefined): string | undefined {
+function resolveExternalMcpOAuthRedirectUri({ serverId, derivedPublicOrigin }: { serverId: string; derivedPublicOrigin: string | undefined }, _optional = {}): string | undefined {
   const origin = resolveConfiguredPublicOrigin() ?? (derivedPublicOrigin || undefined);
   if (!origin) return undefined;
   return `${origin}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(serverId)}`;
@@ -194,7 +194,7 @@ function resolveExternalMcpOAuthRedirectUri(serverId: string, derivedPublicOrigi
 /** Reads `input[key]` as a string, or `undefined` for anything else — the same tri-state reading
  *  rule every other optional field in this domain's save path already follows (see `save-form.ts`'s
  *  header). @complexity O(1). */
-function optionalStringField(input: Record<string, unknown>, key: string): string | undefined {
+function optionalStringField({ input, key }: { input: Record<string, unknown>; key: string }, _optional = {}): string | undefined {
   return typeof input[key] === "string" ? (input[key] as string) : undefined;
 }
 
@@ -207,8 +207,8 @@ function optionalStringField(input: Record<string, unknown>, key: string): strin
  *  `external-mcp-store.ts`) for callers that DO round-trip the current value — that contract is
  *  unchanged; only this form's blank-means-absent mapping is fixed here.
  *  @complexity O(1). */
-function optionalSecretField(input: Record<string, unknown>, key: string): string | undefined {
-  const value = optionalStringField(input, key);
+function optionalSecretField({ input, key }: { input: Record<string, unknown>; key: string }, _optional = {}): string | undefined {
+  const value = optionalStringField({ input, key });
   return value === undefined || value === "" ? undefined : value;
 }
 
@@ -248,7 +248,7 @@ function buildModelSaveInput(input: Record<string, unknown>): ExternalMcpSaveInp
   if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new ToolInputError({ message: "'enabled' must be true or false. Nothing was saved." });
   let save: ExternalMcpSaveInput = { id, transport, ...(input.enabled === undefined ? {} : { enabled: input.enabled as boolean }) };
   for (const key of SAVE_MODEL_OPTIONAL_FIELDS) {
-    const value = optionalStringField(input, key);
+    const value = optionalStringField({ input, key });
     if (value !== undefined) { assertCredentialFreeField({ value, field: key }); save = { ...save, [key]: value }; }
   }
   return save;
@@ -279,7 +279,7 @@ function buildOAuthSaveInputFromFormParams(params: Record<string, unknown>): Sav
     // `oauthClientSecret` is the one OAuth field this form never prefills back with the stored value
     // (`save-form.ts:212`'s hint: "Leave blank to keep the stored secret") — every other OAuth field
     // IS prefilled from the existing row, so a blank one there is a genuine, intentional clear.
-    const value = formKey === "oauthClientSecret" ? optionalSecretField(params, formKey) : optionalStringField(params, formKey);
+    const value = formKey === "oauthClientSecret" ? optionalSecretField({ input: params, key: formKey }) : optionalStringField({ input: params, key: formKey });
     if (value !== undefined) oauth = { ...oauth, [oauthKey]: value };
   }
   return Object.keys(oauth).length === 0 ? undefined : oauth;
@@ -304,19 +304,13 @@ function buildOAuthSaveInputFromFormParams(params: Record<string, unknown>): Sav
  * @complexity O(1) — a fixed field list.
  */
 function buildSaveExternalMcpServerInputFromFormParams(
-  params: Record<string, unknown>,
-  workspaceId: UUID,
-  principalId: string,
+  { params, workspaceId, principalId }: { params: Record<string, unknown>; workspaceId: UUID; principalId: string }, _optional = {},
 ): SaveExternalMcpServerInput {
   const optionalFields = Object.fromEntries(
     ["label", "url", "authMode", "accessTokenEnvName"]
-      .map(key => [key, optionalStringField(params, key)])
+      .map(key => [key, optionalStringField({ input: params, key })])
       .filter(([, value]) => value !== undefined),
   );
-  const env = optionalSecretField(params, "env");
-  const accessToken = optionalSecretField(params, "accessToken");
-  const oauth = buildOAuthSaveInputFromFormParams(params);
-
   const serverIdRaw = params.id;
   const transportRaw = params.transport;
   if (typeof serverIdRaw !== "string" || typeof transportRaw !== "string") {
@@ -331,14 +325,26 @@ function buildSaveExternalMcpServerInputFromFormParams(
     transport: transportRaw,
     ...optionalFields,
     enabled: params.enabled as boolean,
-    command: optionalStringField(params, "command") ?? "",
-    args: optionalStringField(params, "args") ?? "",
-    allowedToolNames: optionalStringField(params, "allowedToolNames") ?? "",
-    writeAllowedToolNames: optionalStringField(params, "writeAllowedToolNames") ?? "",
+    command: optionalStringField({ input: params, key: "command" }) ?? "",
+    args: optionalStringField({ input: params, key: "args" }) ?? "",
+    allowedToolNames: optionalStringField({ input: params, key: "allowedToolNames" }) ?? "",
+    writeAllowedToolNames: optionalStringField({ input: params, key: "writeAllowedToolNames" }) ?? "",
+    ...readOptionalSecretInputs({ params }),
+    principalId,
+  };
+}
+
+/** The save form's optional secret-bearing fields; each is omitted, never defaulted, when absent. */
+function readOptionalSecretInputs(
+  { params }: { params: Record<string, unknown> }, _optional = {},
+): Pick<SaveExternalMcpServerInput, "env" | "accessToken" | "oauth"> {
+  const env = optionalSecretField({ input: params, key: "env" });
+  const accessToken = optionalSecretField({ input: params, key: "accessToken" });
+  const oauth = buildOAuthSaveInputFromFormParams(params);
+  return {
     ...(env !== undefined ? { env } : {}),
     ...(accessToken !== undefined ? { accessToken } : {}),
     ...(oauth !== undefined ? { oauth } : {}),
-    principalId,
   };
 }
 
@@ -368,7 +374,7 @@ async function saveSubmittedExternalMcpConfiguration(
   }
   const params = { ...values, id: save.id, transport: save.transport, authMode: save.authMode, enabled: save.enabled ?? true,
     allowedToolNames: save.allowedToolNames ?? "", writeAllowedToolNames: save.writeAllowedToolNames ?? "" };
-  const saveInput = buildSaveExternalMcpServerInputFromFormParams(params, routeDeps.workspaceId, principalId);
+  const saveInput = buildSaveExternalMcpServerInputFromFormParams({ params, workspaceId: routeDeps.workspaceId, principalId });
   await requireMcpSaveApprover({ routeDeps, surfaces, principalId, id: save.id });
   const current = await currentMcpSaveRecord({ routeDeps, id: save.id, expected });
   requireKnownMcpSave({ routeDeps, record: current, input: saveInput });
@@ -492,7 +498,7 @@ async function requireMcpSaveApprover({ routeDeps, surfaces, principalId, id }: 
 function requireKnownMcpSave({ routeDeps, record, input }: {
   routeDeps: ExternalMcpToolDeps; record: ExternalMcpServerRecord | null; input: SaveExternalMcpServerInput;
 }): void {
-  const access = { enabled: input.enabled, allowedToolNames: parseAllowedToolNames(input.allowedToolNames), writeAllowedToolNames: parseWriteAllowedToolNames(input.writeAllowedToolNames) };
+  const access = { enabled: input.enabled, allowedToolNames: parseAllowedToolNames({ raw: input.allowedToolNames }), writeAllowedToolNames: parseWriteAllowedToolNames({ raw: input.writeAllowedToolNames }) };
   if (!record) {
     if (access.allowedToolNames.length + access.writeAllowedToolNames.length > 0) throw new ExternalMcpValidationError('This new connection has no verified tool listing. Save the connection with no allowed tools, then choose its allowed tools in Settings → External MCP after it connects. Nothing was saved.', 'allowedToolNames');
     return;
@@ -523,7 +529,7 @@ function mcpSaveTarget({ record, input }: { record: ExternalMcpServerRecord; inp
   return { ...record, transport: input.transport,
     url: input.transport === 'streamable_http' ? input.url?.trim() ?? null : null,
     command: input.transport === 'stdio' ? input.command.trim() : null,
-    args: JSON.stringify(parseArgs(input.args)), authMode: input.authMode ?? record.authMode };
+    args: JSON.stringify(parseArgs({ raw: input.args })), authMode: input.authMode ?? record.authMode };
 }
 
 /** Fixed access proposal through the same human-only exchange as other privilege changes.
@@ -538,15 +544,15 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
       await authorizeMcpAccess({ routeDeps, principalId: ctx.principal.id, id });
       const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: id });
       if (!record) throw new ToolInputError({ message: `The '${id}' connection no longer exists. Request its connection setup before changing access. Nothing was changed.` });
-      const transport = optionalStringField(input, 'transport');
+      const transport = optionalStringField({ input, key: 'transport' });
       if (transport !== undefined && transport !== record.transport) throw new ToolInputError({ message: `The '${id}' connection uses a different transport. Request its current configuration before changing access. Nothing was changed.` });
       if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new ToolInputError({ message: "'enabled' must be true or false. Nothing was changed." });
       const previous = { enabled: record.enabled, ...readExternalMcpToolGrants(record, { strict: true }) };
-      const allowed = optionalStringField(input, 'allowedToolNames');
-      const write = optionalStringField(input, 'writeAllowedToolNames');
+      const allowed = optionalStringField({ input, key: 'allowedToolNames' });
+      const write = optionalStringField({ input, key: 'writeAllowedToolNames' });
       const access = { enabled: input.enabled as boolean | undefined ?? record.enabled,
-        allowedToolNames: allowed === undefined ? previous.allowedToolNames : parseAllowedToolNames(allowed),
-        writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames(write) };
+        allowedToolNames: allowed === undefined ? previous.allowedToolNames : parseAllowedToolNames({ raw: allowed }),
+        writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames({ raw: write }) };
       const allowedSet = new Set(access.allowedToolNames);
       if (access.writeAllowedToolNames.some(name => !allowedSet.has(name))) throw new ToolInputError({ message: 'Every tool allowed to write must also appear in allowedToolNames. Nothing was changed.' });
       requireKnownMcpAccess({ routeDeps, record, previous, access });
@@ -571,6 +577,13 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
   }, { flag: 'saved' });
 }
 
+async function prepareExternalMcpSaveInput({ routeDeps, surfaces, ctx }: { routeDeps: ExternalMcpToolDeps; surfaces: ChatDeleteSurfaceDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const input = requireInputRecord({ input: ctx.input });
+  const modelInput = buildModelSaveInput(input);
+  await requireMcpSaveApprover({ routeDeps, surfaces, principalId: ctx.principal.id, id: modelInput.id });
+  return modelInput;
+}
+
 /** Bind the domain form/save ports to Jini's one lifecycle owner.
  * @complexity O(s + f) during preparation in server views and fixed form fields, plus store/probe I/O.
  */
@@ -587,16 +600,14 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
     }, Record<string, unknown>, Record<string, unknown>>({
       toolId: EXTERNAL_MCP_SAVE_TOOL_ID,
       prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        const modelInput = buildModelSaveInput(input);
-        await requireMcpSaveApprover({ routeDeps, surfaces, principalId: ctx.principal.id, id: modelInput.id });
+        const modelInput = await prepareExternalMcpSaveInput({ routeDeps, surfaces, ctx });
         const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
         errorLocale = locale;
         const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: modelInput.id });
-        const views = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
+        const views = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
         const existing = views.find(view => view.serverId === modelInput.id);
-        const save = mergeExternalMcpSavePrefill(modelInput, existing);
-        requireKnownMcpSave({ routeDeps, record, input: buildSaveExternalMcpServerInputFromFormParams({ ...save, enabled: save.enabled ?? true }, routeDeps.workspaceId, ctx.principal.id) });
+        const save = mergeExternalMcpSavePrefill({ input: modelInput, existing });
+        requireKnownMcpSave({ routeDeps, record, input: buildSaveExternalMcpServerInputFromFormParams({ params: { ...save, enabled: save.enabled ?? true }, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id }) });
         return { save, expected: record ? externalMcpAccessSnapshot({ record }) : null, isUpdate: existing !== undefined, locale, principalId: ctx.principal.id };
       },
       form: ({ prep }) => buildExternalMcpSaveForm({ save: prep.save, isUpdate: prep.isUpdate }),
@@ -633,8 +644,8 @@ async function resolveExternalMcpConfigurationCheck(
   { routeDeps, id }: { routeDeps: ExternalMcpToolDeps; id: string }, _optional = {},
 ): Promise<{ ok: boolean; reason?: string }> {
   const { configs, failures } = await readEnabledExternalMcpConfigs(
-    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
-    routeDeps.workspaceId,
+    { deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
+    workspaceId: routeDeps.workspaceId },
   );
   if (configs.some((config) => config.serverId === id)) return { ok: true };
   const failure = failures.find((candidate) => candidate.serverId === id);
@@ -663,16 +674,47 @@ export const externalMcpDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
   ["external_mcp_oauth_poll_device", "mutates-durable-state"],
 ]);
 
+async function connectExternalMcpOAuth({ routeDeps, ctx }: { routeDeps: ExternalMcpToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const input = requireInputRecord({ input: ctx.input });
+  const id = requireString({ input, key: "id" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
+    entityId: id });
+
+  if (!routeDeps.externalMcpOAuth) {
+    throw new Error(
+      `external_mcp_oauth_connect: this execution context has no OAuth service wired, so an authorization ` +
+        `cannot be started here. Ask the operator to connect '${id}' from Settings → External MCP instead.`,
+    );
+  }
+
+  const redirectUri = resolveExternalMcpOAuthRedirectUri({ serverId: id, derivedPublicOrigin: routeDeps.derivedPublicOrigin });
+  try {
+    return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, actorId: ctx.principal.id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
+  } catch (error) {
+    // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
+    // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,
+    // or (since 2026-09-09) an authorization_code grant with no configured public origin. As a
+    // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
+    // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
+    // messages beyond the server id the caller already sent.
+    if (error instanceof ExternalMcpValidationError) throw new ToolInputError({ message: error.message });
+    throw error;
+  }
+}
+
+async function listExternalMcpConnections({ routeDeps, ctx }: { routeDeps: ExternalMcpToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  requireNoInput({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
+
+  const servers = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
+  return { servers };
+}
+
 export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, surfaces: ChatDeleteSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    external_mcp_list: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
-
-      const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
-      return { servers };
-    },
+    external_mcp_list: async (ctx) => listExternalMcpConnections({ routeDeps, ctx }),
 
     /**
      * See this file's header ("`external_mcp_save`: one call, held open"). Fails closed rather than
@@ -706,34 +748,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
     },
 
     /** See this file's header ("`external_mcp_oauth_connect` has no live HTTP request"). */
-    external_mcp_oauth_connect: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const id = requireString({ input, key: "id" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE,
-        entityId: id });
-
-      if (!routeDeps.externalMcpOAuth) {
-        throw new Error(
-          `external_mcp_oauth_connect: this execution context has no OAuth service wired, so an authorization ` +
-            `cannot be started here. Ask the operator to connect '${id}' from Settings → External MCP instead.`,
-        );
-      }
-
-      const redirectUri = resolveExternalMcpOAuthRedirectUri(id, routeDeps.derivedPublicOrigin);
-      try {
-        return await routeDeps.externalMcpOAuth.beginConnect({ serverId: id, actorId: ctx.principal.id, ...(redirectUri === undefined ? {} : { redirectUri }), delivery: 'hosted' });
-      } catch (error) {
-        // `ExternalMcpValidationError` is exactly "the caller named something this connection cannot
-        // do, and a different input or one config change fixes it" — an unknown id, a non-OAuth row,
-        // or (since 2026-09-09) an authorization_code grant with no configured public origin. As a
-        // bare `Error` those all reach the model redacted, which is how a clearly-worded refusal
-        // naming TOVU_PUBLIC_URL became, in practice, a silent one. Nothing internal is in these
-        // messages beyond the server id the caller already sent.
-        if (error instanceof ExternalMcpValidationError) throw new ToolInputError({ message: error.message });
-        throw error;
-      }
-    },
+    external_mcp_oauth_connect: async (ctx) => connectExternalMcpOAuth({ routeDeps, ctx }),
 
     external_mcp_oauth_poll_device: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -773,6 +788,6 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not
  * by importing this module. See this file's header for what was unreachable before this existed.
  */
-export function contributeExternalMcpTools({ probe, knownToolNames }: { probe?: (deps: ExternalMcpToolDeps, serverId: string) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>; knownToolNames?: ExternalMcpToolDeps["externalMcpKnownToolNames"] } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, ChatDeleteSurfaceDeps> {
-  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(knownToolNames ? { externalMcpKnownToolNames: knownToolNames } : {}), ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe(deps, serverId) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
+export function contributeExternalMcpTools({ probe, knownToolNames }: { probe?: ({ deps, serverId }: { deps: ExternalMcpToolDeps; serverId: string }, optional?: Record<string, never>) => Promise<{ ok: boolean; body: Readonly<Record<string, unknown>> }>; knownToolNames?: ExternalMcpToolDeps["externalMcpKnownToolNames"] } = {}, _optional = {}): ToolContributor<ExternalMcpToolDeps, ChatDeleteSurfaceDeps> {
+  return { domain: "external-mcp", build: (deps, surfaces) => buildExternalMcpRegistrations({ ...deps, ...(knownToolNames ? { externalMcpKnownToolNames: knownToolNames } : {}), ...(probe ? { externalMcpProbe: ({ serverId }: { serverId: string }) => probe({ deps, serverId }) } : {}) }, surfaces), risk: externalMcpDerivedRisk };
 }

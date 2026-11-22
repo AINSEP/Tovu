@@ -1,6 +1,6 @@
-import { captureMediaUploaded } from "../media/analytics.js";
+import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "../media/chat-preview.js";
-import type { ImageCodecPort } from "@jini-ai/cms/media";
+import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
@@ -15,13 +15,14 @@ import {
   type MediaProviderRegistry,
   type ProviderCredentials,
 } from "@jini-ai/integrations/media-providers";
-import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import {
+  getMediaProviderCredentials,
   resolveMediaProviderCredential,
   sniffContentType,
   TOVU_MAX_UPLOAD_BYTES,
@@ -30,12 +31,14 @@ import {
   type AssetRenditionRepoPort,
   type BlobStorePort,
   type MediaProviderCredentialRepoPort,
+  type MediaRecord,
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
-import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
+import type { MediaContentTypeStorePort } from "../media/index.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
-import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFrom } from "./agent-tools.js";
+import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
+import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for
@@ -113,9 +116,12 @@ export interface MediaGenerationToolDeps {
    * gate (`MediaDispatchEngineOptions.allowStubFallback`) — never enabled unless the caller asked.
    */
   generateMedia?: (
-    request: MediaGenerationRequest,
-    credentials: ProviderCredentials,
-    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
+    required: {
+      request: MediaGenerationRequest;
+      credentials: ProviderCredentials;
+      options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
+    },
+    optional?: Record<string, never>
   ) => Promise<MediaGenerationResult>;
   /**
    * The credential-env lookup table {@link resolveCredentialForProvider}'s env fallback reads from.
@@ -146,9 +152,12 @@ const DEFAULT_MODEL = "gpt-image-2";
  *  guarded HTTP client serves both generation and asset downloads.
  *  @complexity O(1) setup, plus generation I/O. */
 async function defaultGenerateMedia(
-  request: MediaGenerationRequest,
-  credentials: ProviderCredentials,
-  options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
+  { request, credentials, options }: {
+    request: MediaGenerationRequest;
+    credentials: ProviderCredentials;
+    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
+  },
+  _optional = {}
 ): Promise<MediaGenerationResult> {
   const { registry } = options;
   const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient }, {
@@ -175,7 +184,7 @@ async function defaultGenerateMedia(
  * @complexity O(1) beyond {@link resolveMediaProviderCredential}'s own cost (one workspace-scoped
  *   credential-row read, plus a decrypt only when a key is present).
  */
-async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, providerId: string): Promise<ProviderCredentials | null> {
+async function resolveCredentialForProvider({ routeDeps, providerId }: { routeDeps: MediaGenerationToolDeps; providerId: string }, _optional = {}): Promise<ProviderCredentials | null> {
   const saved = await resolveMediaProviderCredential(
     { repo: routeDeps.mediaProviderCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
     { workspaceId: routeDeps.workspaceId, providerId }
@@ -198,6 +207,7 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
  * {@link DEFAULT_MODEL} only when NO provider anywhere has a resolvable credential; the caller then
  * gets the same "no credential configured" rejection as always, just for whichever provider was
  * actually tried rather than a provider hardcoded independent of what this workspace has configured.
+ * A saved credential's own image model (Admin -> Media providers) wins first, in catalog order.
  *
  * Each DISTINCT provider is checked at most once ({@link checkedProviders}) rather than once per
  * model — `IMAGE_MODEL_IDS` spans ~20 distinct providers, so re-checking a provider that already
@@ -206,14 +216,22 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
  * @complexity O(P) credential lookups, P = the number of distinct providers among
  *   `IMAGE_MODEL_IDS` — a fixed, catalog-bounded count, never caller-controlled.
  */
-async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
+async function resolveDefaultImageModel({ routeDeps, imageModelIds }: { routeDeps: MediaGenerationToolDeps; imageModelIds: readonly string[] }, _optional = {}): Promise<string> {
+  const saved = await getMediaProviderCredentials({ repo: routeDeps.mediaProviderCredentialRepo }, { workspaceId: routeDeps.workspaceId });
+  const savedModel = imageModelIds.find((id) => {
+    const entry = saved[routeDeps.mediaProviderRegistry.findModel({ id })?.provider ?? ""];
+    return entry?.apiKeyConfigured === true && entry.model === id;
+  });
+  if (savedModel) return savedModel;
   const checkedProviders = new Set<string>();
   for (const modelId of imageModelIds) {
     // Non-null: every id in imageModelIds is derived from this same registry (agent-tools.ts).
-    const providerId = routeDeps.mediaProviderRegistry.findModel({ id: modelId })!.provider;
+    const model = routeDeps.mediaProviderRegistry.findModel({ id: modelId });
+    if (model == null) throw new Error(`Media generation registry has no model ${modelId}`);
+    const providerId = model.provider;
     if (checkedProviders.has(providerId)) continue;
     checkedProviders.add(providerId);
-    const credential = await resolveCredentialForProvider(routeDeps, providerId);
+    const credential = await resolveCredentialForProvider({ routeDeps, providerId });
     if (credential) return modelId;
   }
   return DEFAULT_MODEL;
@@ -244,7 +262,7 @@ export const mediaGenerationDerivedRisk: DerivedRiskByToolId = new Map<string, A
  *
  * @complexity O(n) in `prompt.length`, once.
  */
-function buildGeneratedFilename(prompt: string): string {
+function buildGeneratedFilename({ prompt }: { prompt: string }, _optional = {}): string {
   const slug = prompt
     .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim()
@@ -271,8 +289,8 @@ export class MediaGenerationValidationError extends Error {}
  *   catalog-bounded set — a simple membership check, not worth a Set for a list this size); see
  *   {@link resolveDefaultImageModel}'s own complexity note for the omitted-`model` branch.
  */
-async function requireImageModel(raw: string | undefined, routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
-  if (raw === undefined) return resolveDefaultImageModel(routeDeps, imageModelIds);
+async function requireImageModel({ raw, routeDeps, imageModelIds }: { raw: string | undefined; routeDeps: MediaGenerationToolDeps; imageModelIds: readonly string[] }, _optional = {}): Promise<string> {
+  if (raw === undefined) return resolveDefaultImageModel({ routeDeps, imageModelIds });
   if (!imageModelIds.includes(raw)) {
     throw new MediaGenerationValidationError(
       `'model' must be a registered image model — got '${raw}'. See this tool's own schema for the full list of ${imageModelIds.length} supported ids across every configured vendor.`
@@ -290,7 +308,7 @@ async function requireImageModel(raw: string | undefined, routeDeps: MediaGenera
  *
  * @complexity O(1).
  */
-function buildNoCredentialError(providerId: string, registry: MediaProviderRegistry): Error {
+function buildNoCredentialError({ providerId, registry }: { providerId: string; registry: MediaProviderRegistry }, _optional = {}): Error {
   const label = registry.findProvider({ id: providerId })?.label ?? providerId;
   const envCandidates = PROVIDER_CREDENTIAL_ENV_VARS[providerId] ?? [];
   const envNote = envCandidates.length > 0 ? ` (also checked ${envCandidates.join(", ")} in this process's environment — none were set)` : "";
@@ -302,11 +320,73 @@ function buildNoCredentialError(providerId: string, registry: MediaProviderRegis
   );
 }
 
+/**
+ * What the media library records about where generated bytes came from. A real generation names the
+ * model and the vendor the engine ACTUALLY used (`MediaGenerationResult.providerId`, which can differ
+ * from the catalog's vendor when the engine routes through an override). A placeholder records
+ * neither: no model drew those bytes, so the library must never credit one with them.
+ *
+ * @complexity O(1).
+ */
+function generatedProvenance(required: { model: string; generated: MediaGenerationResult }, _options = {}): MediaProvenance {
+  const { model, generated } = required;
+  if (generated.usedStubFallback) return { kind: "generated" };
+  return { kind: "generated", model, provider: generated.providerId };
+}
+
+/**
+ * Uploads generated bytes through the SAME `uploadMedia` service human uploads use, then records the
+ * sniffed content type and the upload analytics event.
+ *
+ * @returns The stored record and the sniffed content type of the actual bytes.
+ * @complexity O(n) in the generated byte length (hash + sniff), plus the repo writes.
+ */
+async function storeGeneratedImage(
+  required: { routeDeps: MediaGenerationToolDeps; ctx: ToolExecutionContext; input: Record<string, unknown>; prompt: string; generated: MediaGenerationResult; provenance: MediaProvenance },
+  _options = {}
+): Promise<{ media: MediaRecord; sniffed: string }> {
+  const { routeDeps, ctx, input, prompt, generated, provenance } = required;
+  // A best-effort initial guess, corrected immediately below by a real sniff of the actual
+  // bytes — most registered vendors return PNG (`dispatch/stub.ts`'s placeholder included),
+  // but this is no longer an OpenAI-specific fact now that `model` can select any vendor.
+  const contentType = "image/png";
+  ctx.signal.throwIfAborted();
+  const { media } = await uploadMedia({
+    deps: {
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      mediaRepo: routeDeps.mediaRepo,
+      blobRepo: routeDeps.assetBlobRepo,
+      renditionRepo: routeDeps.assetRenditionRepo,
+      blobStore: routeDeps.blobStore,
+    },
+    input: {
+      workspaceId: routeDeps.workspaceId,
+      bytes: generated.bytes,
+      filename: buildGeneratedFilename({ prompt }),
+      contentType,
+      alt: optionalString({ input: input, key: "alt" }),
+      caption: optionalString({ input: input, key: "caption" }),
+      credit: optionalString({ input: input, key: "credit" }),
+      createdByPrincipal: ctx.principal.id,
+      provenance,
+    },
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+
+  // Same "record what the bytes actually are" write `apps/website/src/server/inbound/admin-http/routes/media/upload.ts` performs
+  // after every human upload — see that route's own doc for why this is sniffed rather than
+  // trusted from the (here, fixed) `contentType` string.
+  const sniffed = sniffContentType({ bytes: generated.bytes });
+  await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
+  captureMediaUploaded({ tracker: routeDeps.tracker, actorId: ctx.principal.id, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
+  return { media, sniffed };
+}
+
 /** What `media_generate_asset` returns — the SAME shape `media_upload_asset`/`media_list_assets`
  *  return (id/title/alt/caption/credit/sha256/status/version/publicUrl), so the model can chain
  *  straight into `media_update_metadata`/`media_trash_asset` off the returned `id` with no separate
  *  lookup, and use `publicUrl` to embed the image immediately. Declared locally rather than imported:
- *  `@jini-ai/cms/media/tool-registrations.ts`'s own equivalent view type is not part of that
+ *  `Jini packages/cms/src/media/tool-registrations.ts`'s own equivalent view type is not part of that
  *  package's public surface (an internal projection, not a contract this domain depends on). */
 interface GeneratedMediaView {
   id: string;
@@ -329,6 +409,25 @@ interface GeneratedMediaView {
   placeholder: boolean;
 }
 
+/** Projects the stored record into {@link GeneratedMediaView}. @complexity O(1). */
+function toGeneratedMediaView(required: { media: MediaRecord; publicUrl: string | null; placeholder: boolean }, _options = {}): GeneratedMediaView {
+  const { media, publicUrl, placeholder } = required;
+  return {
+    id: media.id,
+    createdBy: media.createdBy ?? null,
+    slug: media.slug,
+    title: media.title,
+    alt: media.alt,
+    caption: media.caption,
+    credit: media.credit,
+    sha256: media.source.sha256,
+    status: media.status,
+    version: media.version,
+    publicUrl,
+    placeholder,
+  };
+}
+
 export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationToolDeps): ToolRegistration[] {
   const registry = routeDeps.mediaProviderRegistry;
   // Construction may run over metadata-only deps (catalog/approval checks build every domain with a
@@ -344,70 +443,32 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
       return withSchemaOnRejection(
         { toolId: "media_generate_asset", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof MediaGenerationValidationError, fn: async () => {
-          const model = await requireImageModel(optionalString({ input: input, key: "model" }), routeDeps, imageModelIds);
+          const model = await requireImageModel({ raw: optionalString({ input: input, key: "model" }), routeDeps, imageModelIds });
           const allowStubFallback = optionalBoolean({ input, key: "allowStubFallback" }) ?? false;
           // Guaranteed non-null: `model` was just validated against `imageModelIds`, itself
           // derived from this same registry (`agent-tools.ts`'s own doc for both).
-          const providerId = registry.findModel({ id: model })!.provider;
+          const registeredModel = registry.findModel({ id: model });
+          if (registeredModel == null) throw new Error(`Media generation registry has no model ${model}`);
+          const providerId = registeredModel.provider;
 
-          const credential = await resolveCredentialForProvider(routeDeps, providerId);
+          const credential = await resolveCredentialForProvider({ routeDeps, providerId });
           if (!credential && !allowStubFallback) {
-            return { generated: false, message: buildNoCredentialError(providerId, registry).message,
+            return { generated: false, message: buildNoCredentialError({ providerId, registry }).message,
               credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
-          const generated = await generate({ surface: "image", model, prompt }, credential ?? {}, { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry });
+          const generated = await generate({ request: { surface: "image", model, prompt }, credentials: credential ?? {}, options: { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry } });
 
-          // A best-effort initial guess, corrected immediately below by a real sniff of the actual
-          // bytes — most registered vendors return PNG (`dispatch/stub.ts`'s placeholder included),
-          // but this is no longer an OpenAI-specific fact now that `model` can select any vendor.
-          const contentType = "image/png";
-          const { media } = await uploadMedia({
-            deps: {
-              clock: routeDeps.clock,
-              idGen: routeDeps.idGen,
-              mediaRepo: routeDeps.mediaRepo,
-              blobRepo: routeDeps.assetBlobRepo,
-              renditionRepo: routeDeps.assetRenditionRepo,
-              blobStore: routeDeps.blobStore,
-            },
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              bytes: generated.bytes,
-              filename: buildGeneratedFilename(prompt),
-              contentType,
-              alt: optionalString({ input: input, key: "alt" }),
-              caption: optionalString({ input: input, key: "caption" }),
-              credit: optionalString({ input: input, key: "credit" }),
-              createdByPrincipal: ctx.principal.id,
-              provenance: { kind: 'generated' },
-            },
-          }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+          const { media, sniffed } = await storeGeneratedImage({ routeDeps, ctx, input, prompt, generated, provenance: generatedProvenance({ model, generated }) });
 
-          // Same "record what the bytes actually are" write `routes/admin/media/upload.ts` performs
-          // after every human upload — see that route's own doc for why this is sniffed rather than
-          // trusted from the (here, fixed) `contentType` string.
-          const sniffed = sniffContentType({ bytes: generated.bytes });
-          await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
-          captureMediaUploaded({ tracker: routeDeps.tracker, actorId: ctx.principal.id, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
-
-          const urls = await resolveMediaPublicUrls(routeDeps, [media]);
-          const result: { media: GeneratedMediaView } = {
-            media: {
-              id: media.id,
-              createdBy: media.createdBy ?? null,
-              slug: media.slug,
-              title: media.title,
-              alt: media.alt,
-              caption: media.caption,
-              credit: media.credit,
-              sha256: media.source.sha256,
-              status: media.status,
-              version: media.version,
-              publicUrl: urls.get(media.id) ?? null,
-              placeholder: generated.usedStubFallback,
-            },
+          const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [media] });
+          // `model`/`provider` let the assistant tell the user which generator it used; `provider` is
+          // the vendor the engine actually ran, reported even for a placeholder (`media.placeholder`).
+          const result: { media: GeneratedMediaView; model: string; provider: string } = {
+            model,
+            provider: generated.providerId,
+            media: toGeneratedMediaView({ media, publicUrl: urls.get(media.id) ?? null, placeholder: generated.usedStubFallback }),
           };
           return withChatPreview({ routeDeps, bytes: generated.bytes, contentType: sniffed, result });
         }

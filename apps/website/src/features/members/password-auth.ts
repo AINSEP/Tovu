@@ -4,9 +4,8 @@ import { validatePasswordPolicy } from "@jini-ai/user-management/server";
 import type { MemberSignInResult, MembersWriteServiceDeps } from "./ports.js";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord, type MemberSessionRecord } from "./types.js";
 import { resolveMemberSession } from "./access-resolver.js";
-import {
-  consumeMemberChallenge, dummyPasswordHash, issueMemberSession, memberPasswordHasher, requestMemberChallenge,
-} from "./write-service.js";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "./member-credentials.js";
+import { consumeMemberChallenge } from "./member-challenge.js";
 
 /** Pending and disabled members cannot obtain a password session, even with a matching hash. */
 function requireActiveMember({ member }: { member: MemberRecord | null }, _options = {}): MemberRecord {
@@ -47,19 +46,6 @@ export async function signInWithPassword(required: {
     throw new MemberAuthError("INVALID_CREDENTIALS");
   }
   return result;
-}
-
-/**
- * Request a link-only reset for an existing eligible member; never reveal per-address outcomes.
- * Reuses the sign-in mail setup checks and interactive lane. No member is created.
- * @throws MemberSignInUnavailableError for site-wide mail/origin setup errors.
- * @complexity O(1) adapter calls.
- */
-export async function requestPasswordReset(required: {
-  deps: MembersWriteServiceDeps; input: { workspaceId: string; email: string };
-}, _options = {}): Promise<{ accepted: true }> {
-  await requestMemberChallenge({ ...required, purpose: "password_reset" });
-  return { accepted: true };
 }
 
 /** Disabled/trashed members and links issued before a credential cutoff get the generic 401. O(1). */

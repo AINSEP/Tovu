@@ -6,9 +6,9 @@ import { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } from '@jini-ai/cms/w
 import { InMemoryEntryRepo } from '#src/features/entries/index';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
-import { renderDocNode, renderWidgetIr, renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render';
-import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
-import { widgetsAgentToolCatalog } from '#src/features/widgets/agent-tools';
+import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
+import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
+import { extractEntryRefs, widgetsAgentToolCatalog } from '@jini-ai/cms/widgets';
 
 const workspaceId = 'gallery-widget-workspace', now = '2026-10-09T00:00:00.000Z';
 const config = { images: [{ mediaId: 'one', alt: 'Author alt', caption: 'Caption' }], layout: 'carousel', columns: 3, aspectRatio: '16/9' };
@@ -24,8 +24,8 @@ test('Gallery in a TipTap post uses the HTML gallery renderer and preserves data
   const ir = widgets.inlineResolved.get('p'); assert.ok(ir); assert.equal(ir.componentId, 'gallery');
   const html = `<div data-embed-config='${JSON.stringify({ type: 'gallery', ...config })}'></div>`;
   const embeds = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } });
-  assert.equal(renderWidgetIr(ir), renderHtmlPageBody(html, embeds));
-  const rendered = renderDocNode(node, widgets.inlineResolved);
+  assert.equal(renderWidgetIr(ir), renderHtmlPageBody({ html, resolved: embeds }));
+  const rendered = renderDocNode({ node }, { inlineResolved: widgets.inlineResolved });
   assert.ok(rendered.includes('data-kui="carousel target photos"')); assert.ok(rendered.includes('/m/photo-one/public.v1/image.jpg?v=aaaaaaaaaaaa'));
   assert.ok(!rendered.includes('onclick')); assert.ok(!rendered.includes('javascript:'));
 });

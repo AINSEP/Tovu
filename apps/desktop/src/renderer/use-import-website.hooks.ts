@@ -56,7 +56,7 @@ export function useImportWebsite(
     createSite: (input: { displayName: string }) => Promise<SiteRecord | undefined>;
     openSite: (input: { site: SiteRecord; adminPage: SiteAdminPage }) => void;
     /** A .tovu.zip or share link became this site. */
-    onArchiveImported: (site: ImportedSiteRecord) => void;
+    onArchiveImported: (required: { site: ImportedSiteRecord }, options?: {}) => void;
     onFailureWhileClosed: (toast: { message: string; note?: string }) => void;
   },
   { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'importSiteArchive' | 'cancelSiteImport'> } = {},
@@ -107,7 +107,7 @@ export function useImportWebsite(
       const imported = await bridge.importSiteArchive(source);
       if (imported === null) return;
       setAddressState('');
-      onArchiveImported(imported);
+      onArchiveImported({ site: imported });
     } catch (error) {
       reportRunFailure(importFailure({ error, fallback: ARCHIVE_FAILED }));
     } finally {
@@ -156,24 +156,17 @@ export function importPageError(
   return addError === null ? null : { message: addError, details: addDetails ?? '' };
 }
 
-/**
- * "Copy details": writes the text to the clipboard and reports it for two seconds. A clipboard that
- * refuses (no permission, no bridge) leaves the button as it was rather than claiming success.
- * @complexity O(1).
- */
-export function useCopyDetails(
-  _required: Record<string, never> = {},
-  { getClipboard = () => (typeof navigator === 'undefined' ? undefined : navigator.clipboard) }: {
-    getClipboard?: () => Pick<Clipboard, 'writeText'> | undefined;
-  } = {},
-): { copied: boolean; copy: (details: string) => Promise<void> } {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(async (details: string) => {
-    try {
-      await getClipboard()?.writeText(details);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* Nothing to report: the details stay on screen to select by hand. */ }
-  }, [getClipboard]);
-  return { copied, copy };
+// The Import page's sources. All end the same way: the new site's tab opens and the Import tab closes.
+export function createOpenImported({ openProjectTab, stopImporting }: {
+  openProjectTab: import('./use-project-tabs.hooks.js').ProjectTabsState['openProjectTab']; stopImporting: () => void;
+}, _options = {}) {
+  return ({ id }: { id: string }, { adminPage }: { adminPage?: import('./import-site-entry.js').SiteAdminPage } = {}) => { openProjectTab({ id }, { adminPage }); stopImporting(); };
+}
+
+// The Import button, and the web admin's "Open Import in Tovu" (owner, 2026-11-10), which may
+// also bring the address it had typed.
+export function createOpenImportPage({ clearAddError, liveImport, startImporting }: {
+  clearAddError: () => void; liveImport: Pick<ReturnType<typeof useImportWebsite>, "clearFailure">; startImporting: () => void;
+}, _options = {}) {
+  return () => { clearAddError(); liveImport.clearFailure(); startImporting(); };
 }

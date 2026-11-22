@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMenu } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";

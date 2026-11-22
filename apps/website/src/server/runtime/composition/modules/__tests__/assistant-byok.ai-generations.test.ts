@@ -2,7 +2,8 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { createAiGenerationSink, withProductAnalyticsGuards, type ProductAiGeneration } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, withProductAnalyticsGuards } from "@jini-ai/analytics/product";
+import { type ProductAiGeneration } from "@jini-ai/core/contracts/observability";
 import { createRouteDeps } from "../../app.js";
 import { createByokToolSurface } from "#src/assistant/index";
 import { registerAuthRoutes } from "#src/server/inbound/admin-http/dev-auth";
@@ -17,8 +18,8 @@ for (const { includeAiContent, consent } of [{ includeAiContent: false, consent:
     const deps = { ...createRouteDeps(), aiTraceSink: createAiGenerationSink({ analytics, userId: "site:fixture" })! };
     const app = express();
     app.use(express.json());
-    registerAuthRoutes(app, deps);
-    createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+    registerAuthRoutes({ app, deps });
+    createAssistantByokModule({ routeDeps: deps }, { toolSurface: createByokToolSurface(deps, { installExtensions: false }) }).registerRoutes?.({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const providerUrl = await startStubProviderServer(t, () => ({ status: 200, body: [
       'event: message_start\ndata: {"type":"message_start","message":{"id":"reply","role":"assistant","content":[],"model":"fixture-model","usage":{"input_tokens":3,"output_tokens":0}}}',

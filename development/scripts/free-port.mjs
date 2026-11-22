@@ -8,26 +8,7 @@
  * Split into a real bind check plus a pure range scan with the check injected, so the scan is
  * testable with a fake and no real port has to be busy on the test machine.
  */
-import net from "node:net";
-
-/**
- * Whether nothing is listening on `port` on `host`, by binding it and letting go.
- *
- * Only `EADDRINUSE` counts as taken. Any other bind error (e.g. `EADDRNOTAVAIL` for `::1` on a box
- * with IPv6 off) means this address family cannot be used at all, which says nothing about the port.
- *
- * @param {number} port
- * @param {string} host
- * @returns {Promise<boolean>}
- * @complexity O(1); one bind/close round trip.
- */
-function isPortFreeOn(port, host) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once("error", (error) => resolve(error.code !== "EADDRINUSE"));
-    server.listen({ port, host, exclusive: true }, () => server.close(() => resolve(true)));
-  });
-}
+import { isPortFree as isSharedPortFree, pickFreePort as pickSharedFreePort } from "@jini-ai/devops/local-dev";
 
 /**
  * Whether `port` is free on BOTH loopback addresses.
@@ -44,26 +25,19 @@ function isPortFreeOn(port, host) {
  * @returns {Promise<boolean>}
  * @complexity O(1); two bind/close round trips.
  */
-export async function isPortFree(port) {
-  return (await isPortFreeOn(port, "127.0.0.1")) && (await isPortFreeOn(port, "::1"));
+export function isPortFree(port) {
+  return isSharedPortFree({ port });
 }
 
 /**
- * The first port in `[start, start + span)` that `isPortFree` reports free, or `null` when none is.
- *
- * Scans upward from a fixed base rather than asking the OS for `:0`, so the desktop's Vite lands on a
- * predictable port (the base, in the common one-instance case) that is easy to spot in `lsof` and
- * logs, while a second instance still gets the next one.
+ * The launchers' seam: tests replace this module file (see desktop-portable.unit.test.ts), so it keeps
+ * the positional `deps.isPortFree(port)` shape its callers and fakes use.
  *
  * @param {{start: number, span: number}} range
  * @param {{isPortFree?: (port: number) => Promise<boolean>}} [deps]
  * @returns {Promise<number | null>}
- * @complexity O(span) checks in the worst case.
  */
-export async function pickFreePort({ start, span }, deps = {}) {
+export function pickFreePort(range, deps = {}) {
   const check = deps.isPortFree ?? isPortFree;
-  for (let port = start; port < start + span; port += 1) {
-    if (await check(port)) return port;
-  }
-  return null;
+  return pickSharedFreePort(range, { isPortFree: ({ port }) => check(port) });
 }

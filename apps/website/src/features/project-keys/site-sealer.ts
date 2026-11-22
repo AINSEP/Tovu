@@ -1,5 +1,5 @@
 import { ToolInputError } from '@jini-ai/core';
-import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/integrations/webhooks';
 
 /** Credential services need an active handle for human saves, never owner key derivation.
  * @returns A handle-only keyring; every derivation fails without reaching the owner keyring.
@@ -24,10 +24,10 @@ function selectedIdentity({ aad }: { aad: string | undefined }): { workspaceId: 
 function isOwnerKeyIdentity(value: unknown): value is [string, string, string, string, null, null] {
   if (!Array.isArray(value) || value.length !== 6) return false;
   if (value[0] !== 'project' || typeof value[1] !== 'string') return false;
-  return ownerKeyScope(value);
+  return ownerKeyScope({ value });
 }
 
-function ownerKeyScope(value: unknown[]): boolean {
+function ownerKeyScope({ value }: { value: unknown[] }, _optional = {}): boolean {
   return typeof value[2] === 'string' && ['vendor', 'custom', 'source-control'].includes(value[2])
     && value[3] === 'tovu' && value[4] === null && value[5] === null;
 }

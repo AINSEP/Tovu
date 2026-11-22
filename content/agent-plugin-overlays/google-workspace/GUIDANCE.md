@@ -28,7 +28,7 @@ the two differ, this guidance is the more specific one.
 ## Host details for skills/google-workspace/references/connection.md
 
 To go back to the host's own client, delete that saved credential and reconnect. On a hosted site the file
-picker uses the site's Picker settings (`TOVU_GOOGLE_PICKER_BROWSER_KEY`, `TOVU_GOOGLE_PICKER_APP_ID`):
+picker uses the site's Picker settings (`JINI_GOOGLE_PICKER_BROWSER_KEY`, `JINI_GOOGLE_PICKER_APP_ID`):
 with your own client the operator sets them to that project's browser key and project number, or the
 picker cannot open the chosen files.
 

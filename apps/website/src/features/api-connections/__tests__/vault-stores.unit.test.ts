@@ -12,10 +12,12 @@ import { test } from "node:test";
 
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import { InMemoryVaultRepo, VaultError, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo, type SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { ApiConnectionAttempt, ApiConnectionRecord } from "@jini-ai/integrations/api-connections";
 
-import { API_CONNECTION_VAULT_KIND, apiConnectionVaultScope, createApiConnectionVault, createApiConnectionVaultRecordStore } from "../vault-stores.js";
+import { API_CONNECTION_VAULT_KIND, apiConnectionVaultScope } from "#src/platform/secrets/vault-api-connection-meta";
+import { createApiConnectionVault, createApiConnectionVaultRecordStore } from "../vault-stores.js";
 
 const WORKSPACE = "ws-1";
 

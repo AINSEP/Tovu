@@ -32,18 +32,18 @@ test("findSiteKeyDependentData: Postgres (env) site — a clean database is no d
 
   const created = psql({ database: DATABASE, sql: "CREATE TABLE publish_credential_sets (id serial PRIMARY KEY, sealed_ciphertext text);" });
   assert.ok(created.ok, created.stderr);
-  assert.equal(await findSiteKeyDependentData(dir, { env }), false);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env }), false);
 
   const inserted = psql({ database: DATABASE, sql: "INSERT INTO publish_credential_sets (sealed_ciphertext) VALUES (NULL);" });
   assert.ok(inserted.ok, inserted.stderr);
-  assert.equal(await findSiteKeyDependentData(dir, { env }), false, "ordinary rows with no ciphertext are clean");
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env }), false, "ordinary rows with no ciphertext are clean");
   const updated = psql({ database: DATABASE, sql: "UPDATE publish_credential_sets SET sealed_ciphertext = 'cipher-bytes';" });
   assert.ok(updated.ok, updated.stderr);
-  assert.equal(await findSiteKeyDependentData(dir, { env }), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env }), true);
 });
 
 test("findSiteKeyDependentData: Postgres (env) site whose database cannot be reached fails closed", async (t) => {
   const dir = postgresSite(t);
   const env = { [ENV_NAME]: "postgresql://nobody@/tovu_no_such_database_for_key_scan?host=/tmp" };
-  assert.equal(await findSiteKeyDependentData(dir, { env }), true);
+  assert.equal(await findSiteKeyDependentData({ siteDir: dir }, { env }), true);
 });

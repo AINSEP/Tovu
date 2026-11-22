@@ -32,6 +32,6 @@ import { navigate } from "../../../lib/router";
  */
 export function useWorkspaceRedirect(): void {
   useEffect(() => {
-    navigate("/settings?tab=workspace", { replace: true });
+    navigate({ routePath: "/settings?tab=workspace" }, { replace: true });
   }, []);
 }

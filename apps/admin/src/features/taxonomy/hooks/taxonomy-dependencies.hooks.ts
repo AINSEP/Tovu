@@ -1,4 +1,7 @@
-import { api, ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
+import { trashApi } from "@/features/trash/api/trash-api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
 /**
@@ -14,10 +17,10 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultTaxonomyPort: TaxonomyPort = {
-  listTaxonomies: () => api.listTaxonomies(),
-  trashTerm: ({ id }) => api.trash({ type: "term", id }),
-  trashTaxonomy: ({ id }) => api.trash({ type: "taxonomy", id }),
-  renameTerm: (target) => api.renameTerm(target),
+  listTaxonomies: () => taxonomyApi.listTaxonomies(),
+  trashTerm: ({ id }) => trashApi.trash({ type: "term", id }),
+  trashTaxonomy: ({ id }) => trashApi.trash({ type: "taxonomy", id }),
+  renameTerm: (target) => taxonomyApi.renameTerm(target),
 };
 
 /** Seed state for {@link createFakeTaxonomyPort}. */
@@ -34,7 +37,7 @@ export interface FakeTaxonomyPortOptions {
  *  narrows on `e instanceof ApiError`, so a plain `Error` with the same fields would silently fall
  *  through to the hard-error branch instead of the blocked one; the fake must throw the real class. */
 function blockedError(count: number): ApiError {
-  return new ApiError("TERM_HAS_CHILDREN", 409, "TERM_HAS_CHILDREN", { code: "TERM_HAS_CHILDREN", count });
+  return new ApiError({ message: "TERM_HAS_CHILDREN", status: 409 }, { code: "TERM_HAS_CHILDREN", body: { code: "TERM_HAS_CHILDREN", count } });
 }
 
 /**

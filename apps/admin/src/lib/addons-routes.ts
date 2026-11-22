@@ -27,7 +27,7 @@ export interface AddonsRouteResolution {
  * @complexity O(n) time and space in URL length; the Add-ons table has five fixed entries.
  */
 export function resolveAddonsRoute({ routePath }: { readonly routePath: string }): AddonsRouteResolution {
-  const pathname = routePath.split("?", 1)[0]!;
+  const pathname = routePath.split("?", 1)[0];
   const parts = pathname.split("/").filter(Boolean);
   const route = { parts, query: routePath.slice(pathname.length) };
 
@@ -67,12 +67,12 @@ function legacyRedirectPath({ parts, query }: SplitRoute): string | undefined {
   if (parts.length === 2 && section === "integrations") return `${ADDONS_PANEL_PATHS.providers}/${parts[1]}${query}`;
   // `hasOwn` keeps prototype names such as `/constructor` from resolving to a destination.
   if (parts.length !== 1 || !Object.hasOwn(ADDONS_PANEL_PATHS, section)) return undefined;
-  if (section === "integrations") return `${ADDONS_PANEL_PATHS.providers}${withDefaultWebhooksTab(query)}`;
+  if (section === "integrations") return `${ADDONS_PANEL_PATHS.providers}${withDefaultWebhooksTab({ query })}`;
   return `${ADDONS_PANEL_PATHS[section]}${query}`;
 }
 
 /** Bare legacy Integrations links keep their former Webhooks default; explicit tabs survive. */
-function withDefaultWebhooksTab(query: string): string {
+function withDefaultWebhooksTab({ query }: { query: string }, _options = {}): string {
   if (new URLSearchParams(query).has("tab")) return query;
   return `${query}${query ? "&" : "?"}tab=webhooks`;
 }

@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -13,12 +14,12 @@ import { createFakeAnalyticsPort } from "../hooks/analytics-dependencies.hooks";
  * The pre-existing suite below exercises `useWiredAnalytics()` — `api.listRecentAnalyticsHits`
  * goes through `lib/api.ts`'s `request()`, which calls the global `fetch` — stubbed here the same
  * way `Comments.unit.test.tsx`/`Media.unit.test.tsx` stub it, rather than mocking the `api` module.
- * The `injected port` describe block below is new: it renders the pure `useAnalytics(port, t)`
+ * The `injected port` describe block below is new: it renders the pure `useAnalytics({ port, t })`
  * against `createFakeAnalyticsPort` directly, no `fetch` stub at all — see `analytics-port.hooks.ts`
  * for why the injection exists.
  *
  * `t` (2026-08-11, standing i18n rule — see `use-analytics.hooks.ts`'s own file header): every
- * `useAnalytics(port, ...)` call below passes `fakeT`, the identity function, matching
+ * `useAnalytics({ port, ... })` call below passes `fakeT`, the identity function, matching
  * `wired-hooks-convention.md`'s own `t: (k) => k` example — except the dedicated "injected t is
  * genuinely returned" group, which uses a distinctive fake to prove the value is not built
  * internally.
@@ -29,7 +30,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 /** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
-const fakeT = (key: string): string => key;
+const fakeT = ({ key }: { key: string }, _optional = {}): string => key;
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
@@ -113,7 +114,7 @@ describe("useAnalytics — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeAnalyticsPort({ hits: [HIT] });
-    const { result } = renderHook(() => useAnalytics(port, fakeT));
+    const { result } = renderHook(() => useAnalytics({ port, t: fakeT }));
 
     await waitFor(() => expect(result.current.hits).toEqual([HIT]));
     expect(result.current.error).toBeNull();
@@ -128,7 +129,7 @@ describe("useAnalytics — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeAnalyticsPort();
     port.listRecentAnalyticsHits = () => Promise.reject(new Error("hits table locked"));
-    const { result } = renderHook(() => useAnalytics(port, fakeT));
+    const { result } = renderHook(() => useAnalytics({ port, t: fakeT }));
 
     await waitFor(() => expect(result.current.error).toBe("hits table locked"));
     expect(result.current.hits).toBeNull();
@@ -139,7 +140,7 @@ describe("useAnalytics — injected port", () => {
 describe("useAnalytics — injected t is genuinely returned, not built internally", () => {
   /**
    * Standing i18n rule (2026-08-11, `Analytics.tsx` no longer imports `useAdminLocale`/
-   * `analytics-i18n` itself): `t` must come from the hook's own second parameter, not something
+   * `analytics-i18n` itself): `t` must come from the hook's injected arguments, not something
    * this hook quietly rebuilds from a dictionary it reaches for on its own. A DISTINCTIVE fake (not
    * the identity `fakeT` every other test in this file uses) proves the returned `t` is literally
    * the same function reference passed in — an identity `t` would pass this same assertion even if
@@ -148,12 +149,12 @@ describe("useAnalytics — injected t is genuinely returned, not built internall
    */
   it("result.current.t is exactly the injected function, not a hook-internal one", async () => {
     const port = createFakeAnalyticsPort({ hits: [HIT] });
-    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+    const distinctiveT = ({ key }: { key: string }, _optional = {}): string => `TRANSLATED[${key}]`;
 
-    const { result } = renderHook(() => useAnalytics(port, distinctiveT));
+    const { result } = renderHook(() => useAnalytics({ port, t: distinctiveT }));
 
     await waitFor(() => expect(result.current.hits).toEqual([HIT]));
-    expect(result.current.t("Analytics")).toBe("TRANSLATED[Analytics]");
+    expect(result.current.t({ key: "Analytics" })).toBe("TRANSLATED[Analytics]");
     expect(result.current.t).toBe(distinctiveT);
   });
 });
@@ -163,7 +164,7 @@ describe("analytics query ownership", () => {
     let complete!: (value: { hits: typeof HIT[] }) => void;
     const read = vi.fn(() => new Promise<{ hits: typeof HIT[] }>(resolve => { complete = resolve; }));
     const port = { ...createFakeAnalyticsPort(), listRecentAnalyticsHits: read };
-    const { result } = renderHook(() => ({ first: useAnalytics(port, fakeT), second: useAnalytics(port, fakeT) }));
+    const { result } = renderHook(() => ({ first: useAnalytics({ port, t: fakeT }), second: useAnalytics({ port, t: fakeT }) }));
     await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
     await act(async () => { complete({ hits: [HIT] }); });
     await waitFor(() => {
@@ -189,6 +190,18 @@ describe("useWiredAnalytics — locale binding", () => {
       return jsonResponse({ hits: [] });
     }));
     const { result } = renderHook(() => useWiredAnalytics());
-    await waitFor(() => expect(result.current.t("Analytics")).toBe("Analítica"));
+    await waitFor(() => expect(result.current.t({ key: "Analytics" })).toBe("Analítica"));
   });
+});
+
+it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps adapter rejection ownership: %s", async cause => {
+  const port = createFakeAnalyticsPort();
+  vi.spyOn(port, "listRecentAnalyticsHits").mockRejectedValue(cause);
+  const { result } = renderHook(() => {
+    useAnalytics({ port, t: fakeT });
+    return useFetchQuery({ key: ["analytics", "recent-hits"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
+  });
+  await waitFor(() => expect(result.current.error).toBeTruthy());
+  if (cause instanceof Error) expect(result.current.error).toBe(cause);
+  else expect(result.current.error).toMatchObject({ message: "failed to load recent hits", cause });
 });

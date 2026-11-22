@@ -3,7 +3,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import type { MailerPort, MailerSendResult } from "../../../platform/mail/index.js";
 import { buildMailStatusRegistrations, type MailStatusToolDeps } from "../tool-registrations.js";
 import {
@@ -199,7 +199,7 @@ test("unknown outcomes stay unknown and cannot suggest automatic retry", async (
 
 test("approval is refused after mode, provider, sender or redirect target changes, before taking a token", async () => {
   for (const change of ["mode", "provider", "sender", "recipient"] as const) {
-    let mode: import("../../settings/mail-provider.js").MailTestModeSetting = { mode: "redirect", to: "qa@example.com" };
+    let mode: import("#src/contracts/core/settings-vocabulary").MailTestModeSetting = { mode: "redirect", to: "qa@example.com" };
     let provider = "smtp", from = "site@example.com", takes = 0; const mailer = mailerWith(ok());
     const deps = depsWith({ mailer, mailTestMode: async () => mode, mailTestProvider: async () => provider,
       mailSenderIdentity: { resolve: async () => ({ email: from }) }, mailTestSendLimiter: { tryTake: () => { takes++; return { ok: true }; } } });

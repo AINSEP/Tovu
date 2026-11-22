@@ -14,8 +14,9 @@ import test, { type TestContext } from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import { discoverAllBuiltInThemes } from "../theme.js";
-import { buildThemesRegistrations, contributeThemesTools, themesDerivedRisk, type ThemeToolDeps } from "../tool-registrations.js";
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
+import { buildThemesRegistrations, contributeThemesTools, themesDerivedRisk } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 
 const SENTINEL = '<link rel="stylesheet" href="../css/styles.css" />';
 

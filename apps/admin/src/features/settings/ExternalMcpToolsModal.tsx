@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useT } from "@jini-ai/ui";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
@@ -50,6 +50,9 @@ export interface ExternalMcpToolsModalProps {
   writeAllowedToolNames: string | undefined;
   saving: boolean;
   onSave: (fields: { allowedToolNames: string; writeAllowedToolNames: string }) => void;
+  useExternalMcpToolsModalEscapeHook?: typeof useExternalMcpToolsModalEscape;
+  useTHook?: typeof useT;
+  useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
 }
 
 export function ExternalMcpToolsModal({
@@ -61,11 +64,11 @@ export function ExternalMcpToolsModal({
   allowedToolNames,
   writeAllowedToolNames,
   saving,
-  onSave,
+  onSave, useExternalMcpToolsModalEscapeHook = useExternalMcpToolsModalEscape, useTHook = useT, useExternalMcpDriftCopyHook = useExternalMcpDriftCopy,
 }: ExternalMcpToolsModalProps) {
-  const { dialogRef, closeRef } = useExternalMcpToolsModalEscape(onClose);
-  const t = useT();
-  const tDrift = useExternalMcpDriftCopy();
+  const { dialogRef, closeRef } = useExternalMcpToolsModalEscapeHook({ onClose });
+  const t = useTHook();
+  const tDrift = useExternalMcpDriftCopyHook();
   const titleId = `${cardHandle}-tools-modal-title`;
 
   return (

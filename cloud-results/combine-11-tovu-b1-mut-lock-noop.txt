@@ -1,0 +1,29 @@
+✖ a second real-Postgres chat section waits until the first releases the shared database (325.53879ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1182.814738
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts:1:198
+✖ a second real-Postgres chat section waits until the first releases the shared database (325.53879ms)
+  AssertionError [ERR_ASSERTION]: a second section must not start while the first still holds the shared database
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts:21:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+1|0|1 apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.real-postgres-lock.test.ts

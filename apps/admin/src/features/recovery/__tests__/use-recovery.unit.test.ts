@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/lib/api";
+import type { AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/features/recovery/api/recovery-api.types";
 import { navigate } from "@/lib/router";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
@@ -265,7 +265,7 @@ describe("deep-link re-resolution (sessionStorage envelope)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ found: true, restorePoint: { restorePointId: "rp1", capturedAt: "2026-08-01T00:00:00.000Z" } }));
     renderHook(() => useWiredRecovery());
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/recovery?tab=restore", { replace: true }));
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery?tab=restore" }, { replace: true }));
   });
 
   it("leaves selected=null when the server resolves found:true but no local point matches the id", async () => {
@@ -351,7 +351,7 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
 
   it("creates a manual restore point when request options are omitted", async () => {
     const port = createFakeRecoveryPort();
-    expect(await port.createRestorePoint()).toEqual({ restorePoint: { id: "fake-rp-1", costClass: "cheap", kind: "full" } });
+    expect(await port.createRestorePoint({})).toEqual({ restorePoint: { id: "fake-rp-1", costClass: "cheap", kind: "full" } });
     expect(await port.listRecoveryRestorePoints()).toEqual({ items: [{
       id: "fake-rp-1", costClass: "cheap", kind: "full", trigger: "manual",
       watermarkAtCapture: 0, createdAt: "1970-01-01T00:00:00.000Z",

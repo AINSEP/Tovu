@@ -1,10 +1,11 @@
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { spawn } from "node:child_process";
 import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { redactLocalText } from "../server-logs/redact-local-text.js";
-import { createRedactedOutputSink } from "../server-logs/console-tee.js";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { isProcessAlive } from "@jini-ai/platform/process";
 
@@ -91,19 +92,19 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
     const child = spawnBuild(process.execPath, [path.join(repoRoot, "apps/admin/node_modules/vite/bin/vite.js"),
       "build", "--outDir", output], { cwd: path.join(repoRoot, "apps/admin"), env, stdio: ["ignore", "pipe", "pipe"] });
     child.stdout?.pipe(createRedactedOutputSink({ sink: stdout,
-      redact: text => redactLocalText({ text }) }));
+      redact: redactLocalText }));
     child.stderr?.pipe(createRedactedOutputSink({ sink: stderr,
-      redact: text => redactLocalText({ text }) }));
-    const stop = (reason: string) => () => {
+      redact: redactLocalText }));
+    const stop = ({ reason }: { reason: string }, _optional = {}) => () => {
       cleanup();
       reject(new Error(`Journey admin build did not finish: ${reason}`));
       child.kill("SIGKILL");
     };
-    const idle = stop("no output for 120000 ms");
+    const idle = stop({ reason: "no output for 120000 ms" });
     let timer = setTimeout(idle, 120_000);
     // Loaded machines can take minutes while Vite still progresses. Bound silence, not total work —
     // except a generous backstop shared with readiness, while lock waiters follow the builder.
-    const backstop = setTimeout(stop(`still running after ${ADMIN_BUILD_BACKSTOP_MS} ms`), ADMIN_BUILD_BACKSTOP_MS);
+    const backstop = setTimeout(stop({ reason: `still running after ${ADMIN_BUILD_BACKSTOP_MS} ms` }), ADMIN_BUILD_BACKSTOP_MS);
     const progress = () => { clearTimeout(timer); timer = setTimeout(idle, 120_000); };
     const cleanup = () => {
       clearTimeout(timer);
@@ -137,7 +138,7 @@ export async function journeyAdminBundle(
   await mkdir(root, { recursive: true });
   // The builder bounds inactivity; a contender must not impose a shorter total-work deadline.
   return lock({ lockPath: path.join(root, "build.lock"), run: async () => {
-    if (await readFile(path.join(root, "ready"), "utf8").catch(() => "")) return output;
+    if (await orFallback({ work: () => readFile(path.join(root, "ready"), "utf8"), fallback: "", step: "Read local admin ready marker" })) return output;
     const env: NodeJS.ProcessEnv = { ...launchEnv, NODE_ENV: "production" };
     // A shared bundle must resolve public links against its serving origin, not the API port of
     // whichever site won the build lock. The static admin proxy forwards these public routes.

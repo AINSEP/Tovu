@@ -26,6 +26,8 @@ export const workspaces = sqliteTable("workspaces", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   createdAt: text("created_at").notNull(),
+  /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+  version: integer("version").notNull().default(1),
 });
 
 export const posts = sqliteTable(
@@ -384,7 +386,7 @@ export const settingValuesWorkspace = sqliteTable(
 /**
  * `workspace_id`/`principal_id` deliberately carry NO SQL foreign key to a
  * `principals` table: `identity` has no SQLite adapter yet (principals are
- * in-memory only, see `src/identity/repo.memory.ts`) — there is no SQL table
+ * in-memory only, see `apps/website/src/features/identity/repo.memory.ts`) — there is no SQL table
  * to reference. REQ-13's target-principal existence/workspace-match check is
  * therefore enforced at the application layer in `write-service.ts` via
  * `identity.PrincipalRepoPort.findById`, not a DB constraint. `workspace_id`
@@ -416,7 +418,7 @@ export const settingValuesUser = sqliteTable(
  * Mirrors the `posts` table shape: id/workspaceId/slug/title/status +
  * JSON-text columns for the tree (`docJson`) and location assignments
  * (`locationsJson`), + updatedAt/version for OCC. `SqliteMenuRepo`
- * (`src/navigation/repo.sqlite.ts`) is the adapter that reads/writes this
+ * (`apps/website/src/features/navigation/repo.sqlite.ts`) is the adapter that reads/writes this
  * table; the in-memory adapter (`InMemoryMenuRepo`, `repo.memory.ts`) is the
  * other rule-of-two half, unchanged by this table's existence.
  */
@@ -519,7 +521,7 @@ export const formDefinitions = sqliteTable(
     /**
      * Owner ruling 2026-09-21 ("forms should be deleted like all the other stuff") supersedes the
      * original INV-08 "never deleted" carve-out — see `ADS-memory/reports/2026-09-20-trash-delete-
-     * architecture.md` and `features/trash/adapters/form.ts`. The posts model, not a `status` value:
+     * architecture.md` and `apps/website/src/features/trash/registry.ts`. The posts model, not a `status` value:
      * `status` (`active`/`disabled`) has meaning to the user and must survive a restore unchanged.
      * Nullable and additive — every pre-existing row backfills to live (`NULL`).
      */
@@ -543,7 +545,7 @@ export const formDefinitions = sqliteTable(
  * Owner ruling 2026-09-21 superseded the original INV-08 ("a form definition is never permanently
  * deleted"): a definition is now removed permanently only by a Trash purge (a human on the Trash
  * screen, or the 60-day sweeper), which removes its submissions with it in the same transaction —
- * see `features/trash/adapters/form.ts`. This table's own REQ-14 carve-out (a single submission can
+ * see `apps/website/src/features/trash/registry.ts`. This table's own REQ-14 carve-out (a single submission can
  * still be hard-deleted on its own, outside the Trash) is unchanged.
  */
 export const formSubmissions = sqliteTable(
@@ -713,7 +715,7 @@ export const redirectHits = sqliteTable("redirect_hits", {
  * Members (ADR-030, ADR-PIPE-013 Decision §5 — rule-of-two SQLite adapter for
  * all 6 `members` repo ports). 7 tables mirror `SqlitePostRepo`'s/
  * `src/features/settings/repo.sqlite.ts`'s exact shape: typed columns +
- * JSON-text bags for nested/optional fields. NOT wired into `server/app.ts`'s
+ * JSON-text bags for nested/optional fields. NOT wired into `server/runtime/composition/app.ts`'s
  * boot path this pass (ADR-PIPE-013 Decision §5 — the in-memory adapters
  * remain the only ones actually receiving traffic; no feature in this repo
  * has flipped that switch yet, matching `SqlitePostRepo`'s own precedent).
@@ -917,7 +919,7 @@ export const memberRevisions = sqliteTable(
  * Newsletter (SPEC-011, ADR-PIPE-011 Decision §2). The campaign editorial row is a BESPOKE Drizzle
  * table pair (not the ADR-023 `dataModule` path) — the 5 relational `p_newsletter__*` tables (lists/
  * subscriptions/audience_snapshots/sends/confirmation_tokens) are `declareDataModule()`-owned instead
- * (see `src/newsletter/data-module-manifest.ts`), NOT declared here. `countersJson`/`stateJson` are
+ * (see `apps/website/src/features/newsletter/data-module-manifest.ts`), NOT declared here. `countersJson`/`stateJson` are
  * JSON-serialized text columns, mirroring `settingRevisions`/`redirectRevisions`'s convention.
  */
 export const newsletterCampaigns = sqliteTable(
@@ -976,6 +978,8 @@ export const webhookSubscriptions = sqliteTable(
     createdByPluginId: text("created_by_plugin_id"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
     disabledAt: text("disabled_at"),
   },
   (table) => [index("idx_webhook_subscriptions_workspace").on(table.workspaceId)]
@@ -1044,6 +1048,8 @@ export const identityUsers = sqliteTable(
     email: text("email"),
     passwordHash: text("password_hash").notNull(),
     lastLoginAt: text("last_login_at"),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_identity_users_workspace_username").on(table.workspaceId, table.username)]
 );
@@ -1103,6 +1109,8 @@ export const roles = sqliteTable(
     workspaceId: text("workspace_id").notNull(),
     name: text("name").notNull(),
     isBuiltin: integer("is_builtin").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_roles_workspace_name").on(table.workspaceId, table.name)]
 );
@@ -1116,6 +1124,8 @@ export const policies = sqliteTable(
     description: text("description"),
     isBuiltin: integer("is_builtin").notNull(),
     isFrozen: integer("is_frozen").notNull(),
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("idx_policies_workspace_name").on(table.workspaceId, table.name)]
 );
@@ -1259,7 +1269,7 @@ export const contentTypeRevisions = sqliteTable(
      * Audit provenance: the actor CLASS behind `actor_id` — `'user'` (a human admin HTTP request),
      * `'agent'` (a write made through the assistant's tool surface), `'api_key'`, or `'system'`.
      * `actor_id` alone cannot answer "human or assistant?": the assistant runs under the very same
-     * human principal id, stamped into the run's `contextRef` by `server/modules/assistant.ts`.
+     * human principal id, stamped into the run's `contextRef` by `apps/website/src/server/runtime/composition/modules/assistant.ts`.
      * Nullable and un-backfilled on purpose — rows written before this column existed honestly
      * read as "not recorded" rather than being assigned a fabricated default (Migration Safety).
      */
@@ -1320,7 +1330,7 @@ export const entryRevisions = sqliteTable(
 // per that package's own write-service.ts header) never thread a workspaceId
 // through their method signatures — the adapter classes are constructed
 // workspace-scoped instead (same "scoped at construction" precedent
-// `db/sqlite/storage-journal-repo.ts` already established for `siteId`).
+// the storage journal repository already established for `siteId`).
 // ---------------------------------------------------------------------------
 
 export const taxonomies = sqliteTable(
@@ -1476,7 +1486,7 @@ export const gatedMutationTokens = sqliteTable("gated_mutation_tokens", {
  * Origin settings (ADR-040, ADR-046 Phase 1). One row per workspace: the verified canonical
  * origin plus its two allowlists (redirect targets, egress targets), each stored as a JSON text
  * array (small, bounded exact-match host lists — not worth a child table). `OriginSettingRepoPort`
- * (`origin/ports.ts`) is READ-ONLY by design; the two writers are standalone boot-time functions in
+ * (`Jini packages/http-kit/src/verified-origin/ports.ts`) is READ-ONLY by design; the two writers are standalone boot-time functions in
  * `db/sqlite/origin-repo.sqlite.ts` (2026-09-18):
  * `seedDevCapabilityOrigin` (idempotent find-or-create `http://localhost:3000` dev default) and
  * `registerConfiguredOrigin` (the operator-declared public origin from `TOVU_PUBLIC_URL`, which
@@ -1580,7 +1590,7 @@ export const media = sqliteTable(
  * DB constraint. `media_id` is indexed, not unique, because one asset can retire several slugs
  * over its lifetime. Permanent delete (`purgeMedia`/`remove`) deletes that asset's rows here too,
  * which is what frees the name back up. Lives in the host, not `@jini-ai/cms` — same reasoning as
- * this table family's other Tovu-only additions (see `versioned-media-repo.ts`'s file header).
+ * this table family's other Tovu-only additions (see `VersionedMediaRepoPort`).
  */
 export const mediaSlugHistory = sqliteTable(
   "media_slug_history",
@@ -1615,7 +1625,7 @@ export const assetBlobs = sqliteTable(
      * The blob's real media type, as `sniffContentType(bytes)` (`@jini-ai/cms/media`'s
      * `content-type-sniffer.ts`) reports it — NEVER the client's upload-time `contentType` string.
      * `uploadMedia` validates that string against an advisory allowlist and then discards it, and
-     * `routes/admin/media/original.ts` already refuses to trust it when setting a response's
+     * `apps/website/src/server/inbound/admin-http/routes/media/original.ts` already refuses to trust it when setting a response's
      * `Content-Type`; storing the declared string here would let the admin's "Images"/"Videos"
      * filter disagree with the bytes the browser is actually served.
      *
@@ -1627,7 +1637,7 @@ export const assetBlobs = sqliteTable(
      * unrecognized blob records the sniffer's own `application/octet-stream`, which is a real
      * answer. The column is a CACHE of a pure function of bytes we already store, so a `null`
      * (a row written before this column existed) is always recoverable by re-sniffing rather than
-     * lost data — `routes/admin/media/list.ts` backfills them on read.
+     * lost data — `apps/website/src/server/inbound/admin-http/routes/media/list.ts` backfills them on read.
      *
      * WRITE PATH WARNING: `db/sqlite/media-repo.sqlite.ts`'s `SqliteAssetBlobRepo.save()` builds an
      * explicit `values` object and `.set()`s all of it on update. This column is deliberately
@@ -1916,7 +1926,7 @@ export const secretsVault = sqliteTable("secrets_vault", {
  * `mediaProviderCredentials`' composite-PK shape rather than a single row per workspace.
  *
  * `server_id` becomes part of every federated tool id the model sees (`mcp__<server_id>__<tool>`),
- * which is why `mcp-federation/trust.ts` restricts it to `[a-z0-9-]` — a `_` would blur that
+ * which is why `Jini packages/mcp/src/federation/trust.ts` restricts it to `[a-z0-9-]` — a `_` would blur that
  * namespace separator. The trust tier re-validates on read rather than trusting the column.
  *
  * `allowed_tool_names` is a SECURITY column, not a convenience. Federation is default-deny
@@ -1931,7 +1941,7 @@ export const secretsVault = sqliteTable("secrets_vault", {
  * in BOTH this list AND `allowed_tool_names`. Deliberately a second list rather than a flag on the
  * first — "available to the model" and "allowed to write" are independent operator decisions, and a
  * single list conflating them cannot express "readable but not writable" for the same tool. See
- * `mcp-federation/ports.ts`'s `FederatedMcpConnectionConfig.writeAllowedToolNames` for the full
+ * `Jini packages/mcp/src/federation/ports.ts`'s `FederatedMcpConnectionConfig.writeAllowedToolNames` for the full
  * argument. `write_grants_updated_by_principal_id` and `write_grants_updated_at` attribute the last
  * change to that list — WHO authorized which writes, and WHEN — written only when the list's
  * contents actually change, so a rename or an enable-toggle leaves them untouched. Both are nullable:
@@ -1970,7 +1980,7 @@ export const externalMcpServers = sqliteTable(
      * is written exactly once, at INSERT, for a plugin-provisioned row's entire lifetime.
      */
     provisionedByPluginId: text("provisioned_by_plugin_id"),
-    /** `'stdio'` or `'streamable_http'` — see `assistant/external-mcp-store.ts`'s
+    /** `'stdio'` or `'streamable_http'` — see `apps/website/src/features/external-mcp/contracts.ts`'s
      *  `SUPPORTED_EXTERNAL_MCP_TRANSPORTS`. Both are federatable. ORTHOGONAL to `auth_mode`: a
      *  stdio server can use OAuth, and an HTTP one can use a static token. */
     transport: text("transport").notNull(),
@@ -2032,6 +2042,9 @@ export const externalMcpServers = sqliteTable(
     oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+
+    /** Optimistic-concurrency version: bumped by every editable save; writes compare it (refactor pattern lost-update, 2026-11-13). */
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     primaryKey({ columns: [table.workspaceId, table.serverId] }),
@@ -2050,7 +2063,7 @@ export const externalMcpServers = sqliteTable(
  *
  * `fingerprint` pins the approval to the tool as it was when approved: the connection, where and how
  * it is reached (`externalMcpAdmissionRevision`), the remote tool name and its declared hints
- * (`assistant/external-mcp-tool-approvals.ts`). A tool whose server, name or hints changed no longer
+ * (`Jini packages/mcp/src/federation/tool-approvals.ts`). A tool whose server, name or hints changed no longer
  * matches, so it asks again. Destructive tools are never stored here: the card never offers
  * "Always allow" for them and the confirmer refuses to save one.
  *
@@ -2081,7 +2094,7 @@ export const externalMcpToolApprovals = sqliteTable(
 
 /**
  * One in-progress RFC 8628 device authorization per connection — the durable form of
- * `assistant/external-mcp-oauth.ts`'s `DeviceAuthorizationStore` port, for the identical
+ * `apps/website/src/features/external-mcp/external-mcp-oauth.ts`'s `DeviceAuthorizationStore` port, for the identical
  * cross-process reason the agent daemon and callback/poll routes may run in separate processes.
  *
  * Composite-PK by `(workspace_id, server_id)`, matching `external_mcp_servers`'s own shape: because `server_id` is an OPERATOR-CHOSEN string unique only within a workspace, so a bare

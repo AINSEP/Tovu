@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../../kernel/port.js";
-import type { MigrationStep } from "../step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Project step `0001_project_credential_kinds` (owner 2026-10-25: every key saves to the project
@@ -59,9 +59,9 @@ export const PROJECT_CREDENTIAL_KINDS_STATEMENTS: readonly string[] = [
   `CREATE UNIQUE INDEX secrets_vault_label ON secrets_vault(workspace_id, kind, label) WHERE kind IN ('custom', 'publish-peer')`,
 ];
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect !== "sqlite") return;
   for (const statement of PROJECT_CREDENTIAL_KINDS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const projectCredentialKinds = (checksum: string): MigrationStep => ({ id: PROJECT_CREDENTIAL_KINDS_ID, checksum, up });
+export const projectCredentialKinds = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_CREDENTIAL_KINDS_ID, checksum, up });

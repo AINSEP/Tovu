@@ -13,7 +13,7 @@ export const serverLogsAgentToolCatalog = [{
       level: { type: "string", enum: [...SERVER_LOG_LEVELS] },
       sinceIso: { type: "string", format: "date-time" },
       contains: { type: "string", maxLength: MAX_CONTAINS_LENGTH },
-      limit: { type: "integer", minimum: 1, maximum: MAX_SERVER_LOG_LIMIT },
+      limit: { type: "integer", minimum: 1, maximum: MAX_SERVER_LOG_LIMIT, clamp: true },
     },
   },
 }];

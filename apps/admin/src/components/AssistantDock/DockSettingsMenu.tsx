@@ -59,7 +59,7 @@ export function DockSettingsMenu({ label, sections, notice, useMenu = useTaxonom
         onKeyDown={menu.onMenuKeyDown}
       >
         {sections.map((section, sectionIndex) => <MenuSection key={section.key} section={section} separated={sectionIndex > 0}
-          firstIndex={firstIndexes[sectionIndex]!} helpId={helpId} menu={menu} />)}
+          firstIndex={firstIndexes[sectionIndex]} helpId={helpId} menu={menu} />)}
         {notice ? <p className="dock-settings-menu-notice" role="status">{notice}</p> : null}
       </div>,
       document.body,

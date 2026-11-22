@@ -20,7 +20,7 @@ test("wrapping the real settings/seo/newsletter promises in BootModules reports 
   const dir = mkdtempSync(join(tmpdir(), "tovu-boot-lifecycle-real-deps-"));
   const dbPath = join(dir, "content.db");
   try {
-    const deps = await createSiteRouteDeps(dbPath);
+    const deps = await createSiteRouteDeps({}, { dbPath });
     const noop = async (): Promise<void> => {};
     const modules: BootModule[] = [
       { name: "settings", owner: "features/settings", criticality: "critical", prepare: () => deps.settingsReady, start: noop, stop: noop },
@@ -28,7 +28,7 @@ test("wrapping the real settings/seo/newsletter promises in BootModules reports 
       { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     ];
 
-    const result = await runBootLifecycle(modules);
+    const result = await runBootLifecycle({ modules });
 
     assert.equal(result.ok, true);
     assert.deepEqual(

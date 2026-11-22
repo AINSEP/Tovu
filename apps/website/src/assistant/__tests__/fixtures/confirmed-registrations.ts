@@ -3,10 +3,11 @@ import type { ToolExecutionOptions, ToolRegistration } from '@jini-ai/core';
 import { buildAssistantToolRegistrations } from '../../tool-registrations.js';
 import { toolApprovalPolicyFor } from '../../assistant-tool-approval-policy.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import { buildThemesRegistrations, type ThemeToolDeps } from '../../../features/theme/tool-registrations.js';
+import { buildThemesRegistrations } from "../../../features/theme/tool-registrations.js";
+import { type ThemeToolDeps } from "../../../features/theme/asset-operations.js";
 import { buildImportThemeFileRegistrations, type ImportThemeFileToolDeps } from '../../../features/theme/import-theme-file-tool.js';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../../contracts/core/tool-metadata/theme.js';
 
@@ -22,13 +23,13 @@ const fixtureSurfaces = (): AssistantSurfaceDeps => ({ surfaceExchanges: createS
 export function buildConfirmedAssistantToolRegistrations(
   { routeDeps, surfaces, options }: {
     routeDeps: Parameters<typeof buildAssistantToolRegistrations>[0];
-    surfaces?: Parameters<typeof buildAssistantToolRegistrations>[1];
-    options?: Parameters<typeof buildAssistantToolRegistrations>[2];
+    surfaces?: AssistantSurfaceDeps;
+    options?: NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["options"];
   },
   { confirmPlanTools = [] }: { confirmPlanTools?: readonly string[] } = {},
 ): ReturnType<typeof buildAssistantToolRegistrations> {
   const boundSurfaces = surfaces ?? fixtureSurfaces();
-  return confirmFixtureRegistrations({ registrations: buildAssistantToolRegistrations(routeDeps, boundSurfaces, options), surfaces: boundSurfaces }, { confirmPlanTools });
+  return confirmFixtureRegistrations({ registrations: buildAssistantToolRegistrations(routeDeps, { surfaces: boundSurfaces, options: options }), surfaces: boundSurfaces }, { confirmPlanTools });
 }
 
 /** Other domain tests explicitly approve file changes; gate tests keep using production builders. */

@@ -1,5 +1,5 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import test from "node:test";
@@ -8,7 +8,6 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createTrashService, type TrashPort } from "@jini-ai/cms/trash";
 import { assignRole, createUser } from "@jini-ai/user-management/server";
 
-import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { DEFAULT_OWNER_CREDENTIALS, createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
 import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
@@ -16,18 +15,15 @@ import {
   bindRemoveEntity,
   createContentDbTransactionRunner,
   createUserTrashAdapter,
-  deriveTrashItemRegistrations,
   SqliteTrashRepo,
   USER_ENTITY_TYPE,
   type TrashAdapter,
-  type TrashItemToolDeps,
 } from "#src/features/trash/index";
+import { deriveTrashItemRegistrations, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "#src/server/inbound/admin-http/routes/users/deps";
 import { bindTrashUserForTool } from "../trash-user-tool-port.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
@@ -53,18 +49,18 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
   const nextId = counter("id");
-  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db), workspaceId: WORKSPACE_ID, clock, idGen: { newId: nextId } });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel({ store: db }), workspaceId: WORKSPACE_ID, clock, idGen: { newId: nextId } });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
 
-  const trashRepo = new SqliteTrashRepo(db.$client);
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
   const nextTrashId = counter("trash-id");
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: nextTrashId }, clock });
   const trash: TrashPort = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
     idGen: { newId: nextTrashId },
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
   });
 
@@ -88,7 +84,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     ownerPrincipalId: wiring.ownerPrincipalId,
     outbox: new InMemoryOutbox(),
     removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
-    isInTrash: async (principalId: string) =>
+    isInTrash: async ({ principalId }) =>
       (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null,
     ...overrides,
   };
@@ -96,8 +92,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
   const [trashItem] = deriveTrashItemRegistrations(
     {
       registrations: [],
-      routeDeps: { workspaceId: WORKSPACE_ID, isTrashableEntityType: (entityType: string) => entityType === USER_ENTITY_TYPE } as unknown as TrashItemToolDeps,
-      surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+      routeDeps: { workspaceId: WORKSPACE_ID, isTrashableEntityType: ({ entityType }: { entityType: string }) => entityType === USER_ENTITY_TYPE } as unknown as TrashItemToolDeps,
     },
     { trashUser: bindTrashUserForTool(deps) }
   );
@@ -127,11 +122,11 @@ test("trash_item user: the owner trashes a user (disabled + in Trash), and the T
 
   assert.deepEqual(result, { entityType: "user", entityId: jane.id, via: "trashUser", outcome: { trashed: true, cancelled: false, alreadyInTrash: false } });
   assert.equal(await status(jane.id), "disabled");
-  assert.equal(await deps.isInTrash(jane.id), true);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), true);
 
   assert.equal(await trash.restore({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: jane.id, at: NOW }, { actor: { principalId: ownerId } }), "restored");
   assert.equal(await status(jane.id), "active");
-  assert.equal(await deps.isInTrash(jane.id), false);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), false);
 });
 
 test("trash_item user: a second trash of the same user is an idempotent no-op", async () => {
@@ -165,7 +160,7 @@ test("trash_item user: a caller who is neither the owner nor an admin is refused
     message: `trash_item: principal '${intruder.id}' is not authorized to trash, restore or permanently delete users. Nothing was changed.`,
   });
   assert.equal(await status(jane.id), "active");
-  assert.equal(await deps.isInTrash(jane.id), false);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), false);
 });
 
 test("trash_item user: an unknown id is refused as not found", async () => {

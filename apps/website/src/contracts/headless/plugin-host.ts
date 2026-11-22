@@ -4,7 +4,7 @@ import type { InstalledAgentPlugin, SetAgentPluginEnabledInput as AgentPluginEna
 import type { AccessApprovalResource, ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
-import type { AuthorizeFn } from '../core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { UninstallAgentPluginRequired as JiniUninstallRequired, UninstallAgentPluginOptional, UninstallAgentPluginResult } from '@jini-ai/agent-plugins/lifecycle';
 
 export type { PluginLookupPort, PluginProvider } from '@jini-ai/core/plugin-directory';
@@ -28,14 +28,14 @@ export interface AgentPluginWorkspaceLayout {
    * @throws {Error} If `pluginId` does not match the Agent Plugins name grammar — used as a raw
    * path segment, so an unvalidated caller must not be able to smuggle a traversal segment through.
    */
-  pluginDataDir(pluginId: string): string;
+  pluginDataDir(required: { pluginId: string }, optional?: Record<string, never>): string;
 }
 
 export interface AgentPluginLayout {
   /** `<site>/agent-plugins` (or `TOVU_AGENT_PLUGINS_DIR`) — the whole tree this feature owns. Not,
    * by itself, a usable install/data location for any workspace — see `forWorkspace`. */
   readonly root: string;
-  /** `<root>/ws` — the folder holding one `forWorkspace(id).root` per workspace. Exposed so a reader
+  /** `<root>/ws` — the folder holding one `forWorkspace({ workspaceId }).root` per workspace. Exposed so a reader
    * that must visit every workspace (the site backup) enumerates the same folder installs write to. */
   readonly workspacesDir: string;
   /**
@@ -45,7 +45,7 @@ export interface AgentPluginLayout {
    *
    * @throws {Error} If `workspaceId` is not a bounded, safe path segment.
    */
-  forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout;
+  forWorkspace(required: { workspaceId: string }, optional?: Record<string, never>): AgentPluginWorkspaceLayout;
 }
 
 /** The route-deps slice this reads. `settingsRepo` is always present on the composed assistant

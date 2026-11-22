@@ -1,6 +1,6 @@
-import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `appearance` feature — everything that computes a value rather than
  * rendering one. See `features/posts/rules.ts`'s file header for the standing convention this
@@ -13,7 +13,7 @@ import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
  *
  * @complexity Time/space: O(1).
  */
-export function isActiveTheme(settings: PresentationSettings, themeId: string): boolean {
+export function isActiveTheme({ settings, themeId }: { settings: PresentationSettings; themeId: string }, _options = {}): boolean {
   return settings.activeThemeId === themeId;
 }
 
@@ -52,7 +52,7 @@ export function isThemeDisabled(settings: PresentationSettings): boolean {
  * @complexity Time/space: O(n) in `themes.length` (a `.includes` scan) — negligible next to the
  * catalogue sizes this screen already renders in full.
  */
-export function isStrandedActiveTheme(settings: PresentationSettings, themes: readonly string[]): boolean {
+export function isStrandedActiveTheme({ settings, themes }: { settings: PresentationSettings; themes: readonly string[] }, _optional: Record<string, never> = {}): boolean {
   if (isThemeDisabled(settings)) return false;
   return settings.activeThemeId !== "" && !themes.includes(settings.activeThemeId);
 }
@@ -75,7 +75,7 @@ export const THEMES_RESOURCE = "themes";
  *
  * @complexity Time/space: O(1).
  */
-export function themeTier(themeId: string, themeTiers: Record<string, ThemeTier>): ThemeTier {
+export function themeTier({ themeId, themeTiers }: { themeId: string; themeTiers: Record<string, ThemeTier> }, _options = {}): ThemeTier {
   return themeTiers[themeId] ?? "declarative";
 }
 
@@ -126,8 +126,8 @@ export function isSoonThemeTabGroup(group: ThemeTabGroup): boolean {
  *
  * @complexity Time/space: O(1).
  */
-export function themeTabGroup(themeId: string, themeTiers: Record<string, ThemeTier>): ThemeTabGroup {
-  return TIER_TAB_GROUP[themeTier(themeId, themeTiers)];
+export function themeTabGroup({ themeId, themeTiers }: { themeId: string; themeTiers: Record<string, ThemeTier> }, _options = {}): ThemeTabGroup {
+  return TIER_TAB_GROUP[themeTier({ themeId, themeTiers })];
 }
 
 /**
@@ -138,14 +138,13 @@ export function themeTabGroup(themeId: string, themeTiers: Record<string, ThemeT
  * @complexity Time/space: O(n) in `themes.length`.
  */
 export function groupThemesByTabGroup(
-  themes: readonly string[],
-  themeTiers: Record<string, ThemeTier>,
+  { themes, themeTiers }: { themes: readonly string[]; themeTiers: Record<string, ThemeTier> }, _optional: Record<string, never> = {},
 ): Record<ThemeTabGroup, string[]> {
   const groups = Object.fromEntries(THEME_TAB_GROUPS.map((group) => [group, [] as string[]])) as Record<
     ThemeTabGroup,
     string[]
   >;
-  for (const id of themes) groups[themeTabGroup(id, themeTiers)].push(id);
+  for (const id of themes) groups[themeTabGroup({ themeId: id, themeTiers })].push(id);
   return groups;
 }
 
@@ -164,8 +163,8 @@ export function defaultThemeTabGroup(
   settings: PresentationSettings,
   themeTiers: Record<string, ThemeTier>,
 ): ThemeTabGroup {
-  if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0]!;
-  return themeTabGroup(settings.activeThemeId, themeTiers);
+  if (isThemeDisabled(settings)) return THEME_TAB_GROUPS[0];
+  return themeTabGroup({ themeId: settings.activeThemeId, themeTiers });
 }
 
 /**
@@ -174,8 +173,8 @@ export function defaultThemeTabGroup(
  *
  * @complexity Time/space: O(n) in `themes.length`.
  */
-export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string }>): Record<string, string> {
-  return Object.fromEntries(themes.filter((theme) => theme.name).map((theme) => [theme.id, theme.name!]));
+export function themeNamesById({ themes }: { themes: ReadonlyArray<{ id: string; name?: string }> }, _options = {}): Record<string, string> {
+  return Object.fromEntries(themes.filter((theme): theme is typeof theme & { name: string } => Boolean(theme.name)).map((theme) => [theme.id, theme.name]));
 }
 
 /**
@@ -184,7 +183,7 @@ export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string
  *
  * @complexity Time/space: O(1).
  */
-export function themeDisplayName(themeId: string, themeNames: Record<string, string>): string {
+export function themeDisplayName({ themeId, themeNames }: { themeId: string; themeNames: Record<string, string> }, _options = {}): string {
   return themeNames[themeId] || themeId;
 }
 
@@ -207,15 +206,14 @@ export function themeCopyName(required: { name: string; t: Translate }): string 
  * @complexity Time: O(n log n) in `themeIds.length`. Space: O(n).
  */
 export function sortThemesForDisplay(
-  themeIds: readonly string[],
-  activeThemeId: string,
-  themeNames: Record<string, string>,
+  { themeIds, activeThemeId, themeNames }: { themeIds: readonly string[]; activeThemeId: string; themeNames: Record<string, string> },
+  _options = {},
 ): string[] {
-  const byName = (a: string, b: string) =>
-    themeDisplayName(a, themeNames).localeCompare(themeDisplayName(b, themeNames), undefined, {
+  const byName = ({ a, b }: { a: string; b: string }, _options = {}) =>
+    themeDisplayName({ themeId: a, themeNames }).localeCompare(themeDisplayName({ themeId: b, themeNames }), undefined, {
       sensitivity: "base",
     }) || a.localeCompare(b);
-  return [...themeIds].sort((a, b) => Number(b === activeThemeId) - Number(a === activeThemeId) || byName(a, b));
+  return [...themeIds].sort((a, b) => Number(b === activeThemeId) - Number(a === activeThemeId) || byName({ a, b }));
 }
 
 /** What one theme card's Activate switch shows and does — see {@link themeCardSwitch}. */
@@ -237,7 +235,7 @@ export interface ThemeCardSwitch {
 /**
  * A theme card's Activate switch (owner 2026-10-08: the text buttons became icons, Activate a
  * switch). An OFF switch activates its theme. The active theme's switch is ON, and turning it off is
- * exactly the toolbar's "Turn the theme off" — `activate(NO_THEME_ID)`, the sentinel, never `""`
+ * exactly the toolbar's "Turn the theme off" — `activate({ themeId: NO_THEME_ID })`, the sentinel, never `""`
  * (the server reads `""` as "no settings row yet" and falls back to a default theme). `busyTheme`
  * holds whichever id is in flight, so comparing it to this card's own `target` marks the right card
  * busy in both directions.
@@ -249,7 +247,7 @@ export function themeCardSwitch(input: {
   themeId: string;
   busyTheme: string | null;
 }): ThemeCardSwitch {
-  const checked = isActiveTheme(input.settings, input.themeId);
+  const checked = isActiveTheme({ settings: input.settings, themeId: input.themeId });
   const target = checked ? NO_THEME_ID : input.themeId;
   return {
     checked,

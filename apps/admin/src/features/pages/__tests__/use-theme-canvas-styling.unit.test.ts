@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
+import { createFakeThemeCanvasPort, ThemeServerResponseError } from "../hooks/theme-canvas-dependencies.hooks";
 import {
   resolveCanvasTemplateChoice,
   templateMarkupUrl,
@@ -22,76 +22,98 @@ import {
 const DARK = { "--bg": "oklch(9% 0.004 250)", "--fg": "oklch(96% 0.003 250)" };
 const LIGHT = { "--bg": "#f6f9f8", "--fg": "#09140f" };
 
+it("treats only a typed light-token 404 as an expected missing variant", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    for (const error of [new ThemeServerResponseError({ status: 404 }), new Error("the theme server responded with 404")]) {
+      const port = {
+        ...createFakeThemeCanvasPort(),
+        fetchThemeTokens: async ({ url }: { url: string }) => {
+          if (url.endsWith("tokens.light.json")) throw error;
+          return DARK;
+        },
+      };
+      const hook = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
+      await waitFor(() => expect(hook.result.current.status).toBe("ready"));
+      hook.unmount();
+    }
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith("[theme-canvas] Could not load light theme tokens", "Error");
+  } finally {
+    log.mockRestore();
+  }
+});
+
 describe("themeStylesheetUrl", () => {
   it("points at the v2 stylesheet for an apiVersion: 2 theme", () => {
-    expect(themeStylesheetUrl("basic", 2)).toBe("/theme-assets/basic/css/theme.css");
+    expect(themeStylesheetUrl({ themeId: "basic", apiVersion: 2 })).toBe("/theme-assets/basic/css/theme.css");
   });
 
   it("points at the v1 stylesheet when the theme's apiVersion is unknown", () => {
-    expect(themeStylesheetUrl("basic", undefined)).toBe("/theme-assets/basic/css/styles.css");
+    expect(themeStylesheetUrl({ themeId: "basic", apiVersion: undefined })).toBe("/theme-assets/basic/css/styles.css");
   });
 
   it("encodes the theme id, but not the path separators inside the layout's own path", () => {
-    expect(themeStylesheetUrl("my theme", 2)).toBe("/theme-assets/my%20theme/css/theme.css");
+    expect(themeStylesheetUrl({ themeId: "my theme", apiVersion: 2 })).toBe("/theme-assets/my%20theme/css/theme.css");
   });
 });
 
 describe("themeTokensUrl / themeLightTokensUrl", () => {
   it("builds the two token-file URLs the static-asset mount serves", () => {
-    expect(themeTokensUrl("basic")).toBe("/theme-assets/basic/tokens.json");
-    expect(themeLightTokensUrl("basic")).toBe("/theme-assets/basic/tokens.light.json");
+    expect(themeTokensUrl({ themeId: "basic" })).toBe("/theme-assets/basic/tokens.json");
+    expect(themeLightTokensUrl({ themeId: "basic" })).toBe("/theme-assets/basic/tokens.light.json");
   });
 });
 
 describe("templateMarkupUrl", () => {
   it("points at the v2 render/pages folder for an apiVersion: 2 theme", () => {
-    expect(templateMarkupUrl("basic", 2, "blog-post.html")).toBe("/theme-assets/basic/render/pages/blog-post.html");
+    expect(templateMarkupUrl({ themeId: "basic", apiVersion: 2, templateChoice: "blog-post.html" })).toBe("/theme-assets/basic/render/pages/blog-post.html");
   });
 
   it("points at the v1 pages folder when apiVersion is unknown", () => {
-    expect(templateMarkupUrl("basic", undefined, "blog-post.html")).toBe("/theme-assets/basic/pages/blog-post.html");
+    expect(templateMarkupUrl({ themeId: "basic", apiVersion: undefined, templateChoice: "blog-post.html" })).toBe("/theme-assets/basic/pages/blog-post.html");
   });
 
   it("encodes the template filename, unlike pagesDir's own real / separator", () => {
-    expect(templateMarkupUrl("basic", 2, "my template.html")).toBe("/theme-assets/basic/render/pages/my%20template.html");
+    expect(templateMarkupUrl({ themeId: "basic", apiVersion: 2, templateChoice: "my template.html" })).toBe("/theme-assets/basic/render/pages/my%20template.html");
   });
 });
 
 describe("tokensToCanvasCss", () => {
   it("puts default-mode tokens on :root and light-mode tokens behind [data-theme=\"light\"]", () => {
-    expect(tokensToCanvasCss(DARK, LIGHT)).toBe(
+    expect(tokensToCanvasCss({ tokens: DARK, lightTokens: LIGHT })).toBe(
       ':root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}:root[data-theme="light"]{--bg:#f6f9f8;--fg:#09140f;}',
     );
   });
 
   it("emits only the :root block for a theme that ships no light variant", () => {
-    expect(tokensToCanvasCss(DARK, undefined)).toBe(":root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}");
+    expect(tokensToCanvasCss({ tokens: DARK, lightTokens: undefined })).toBe(":root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}");
   });
 
   it("returns nothing at all when the theme has no usable tokens", () => {
-    expect(tokensToCanvasCss({}, LIGHT)).toBe("");
+    expect(tokensToCanvasCss({ tokens: {}, lightTokens: LIGHT })).toBe("");
   });
 
   // GrapesJS injects this CSS by concatenating it into a `<style>…</style>` string and parsing that
   // as HTML, so a token value carrying `</style>` would escape into markup — and themes are
   // downloadable from a marketplace, so token files are not fully trusted input.
   it("drops a token whose value could break out of the <style> element", () => {
-    const css = tokensToCanvasCss({ ...DARK, "--evil": "red</style><script>alert(1)</script>" }, undefined);
+    const css = tokensToCanvasCss({ tokens: { ...DARK, "--evil": "red</style><script>alert(1)</script>" }, lightTokens: undefined });
     expect(css).not.toContain("<script>");
     expect(css).not.toContain("</style>");
     expect(css).toContain("--bg:oklch(9% 0.004 250);");
   });
 
   it("drops a token whose value could close the rule and start a new one", () => {
-    expect(tokensToCanvasCss({ ...DARK, "--evil": "red}body{display:none" }, undefined)).not.toContain("display:none");
+    expect(tokensToCanvasCss({ tokens: { ...DARK, "--evil": "red}body{display:none" }, lightTokens: undefined })).not.toContain("display:none");
   });
 
   it("drops a key that is not a plain custom property name", () => {
-    expect(tokensToCanvasCss({ ...DARK, "body { color": "red" }, undefined)).not.toContain("body {");
+    expect(tokensToCanvasCss({ tokens: { ...DARK, "body { color": "red" }, lightTokens: undefined })).not.toContain("body {");
   });
 
   it("drops non-string values from a third-party token document while preserving valid tokens", () => {
-    expect(tokensToCanvasCss(JSON.parse('{"--invalid":42,"--color":"blue"}'), undefined))
+    expect(tokensToCanvasCss({ tokens: JSON.parse('{"--invalid":42,"--color":"blue"}'), lightTokens: undefined }))
       .toBe(":root{--color:blue;}");
   });
 });
@@ -102,7 +124,7 @@ describe("useThemeCanvasStyling", () => {
       "/theme-assets/basic/tokens.json": { "--unsafe": "red;display:none" },
       "/theme-assets/basic/tokens.light.json": LIGHT,
     } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
     await waitFor(() => expect(result.current).toEqual({ status: "ready", styling: {} }));
   });
 
@@ -111,11 +133,11 @@ describe("useThemeCanvasStyling", () => {
     let rejectOld!: (reason: Error) => void;
     const oldTokens = new Promise<typeof DARK>((resolve, reject) => { resolveOld = resolve; rejectOld = reject; });
     const base = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const port = { ...base, fetchThemeTokens: (url: string) => {
+    const port = { ...base, fetchThemeTokens: ({ url }: { url: string }) => {
       if (url === "/theme-assets/old/tokens.json") return oldTokens;
-      return base.fetchThemeTokens(url);
+      return base.fetchThemeTokens({ url });
     } };
-    const { result, rerender } = renderHook(({ theme }) => useThemeCanvasStyling(theme, 2, port), {
+    const { result, rerender } = renderHook(({ theme }) => useThemeCanvasStyling({ themeId: theme, apiVersion: 2, port }), {
       initialProps: { theme: "old" },
     });
     rerender({ theme: "basic" });
@@ -134,7 +156,7 @@ describe("useThemeCanvasStyling", () => {
 
   it("stays pending until the active theme id is known", () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling(null, 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: null, apiVersion: 2, port }));
     expect(result.current).toEqual({ status: "pending" });
   });
 
@@ -145,26 +167,26 @@ describe("useThemeCanvasStyling", () => {
         "/theme-assets/basic/tokens.light.json": LIGHT,
       },
     });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({
       status: "ready",
       styling: {
         stylesheets: ["/theme-assets/basic/css/theme.css"],
-        css: tokensToCanvasCss(DARK, LIGHT),
+        css: tokensToCanvasCss({ tokens: DARK, lightTokens: LIGHT }),
       },
     });
   });
 
   it("still resolves for a theme that ships no light token file", async () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({
       status: "ready",
-      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
+      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss({ tokens: DARK, lightTokens: undefined }) },
     });
   });
 
@@ -174,7 +196,7 @@ describe("useThemeCanvasStyling", () => {
   // tab did before canvas styling existed.
   it("falls back to no canvas styling at all when the required token file cannot be read", async () => {
     const port = createFakeThemeCanvasPort();
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({ status: "ready", styling: {} });
@@ -185,7 +207,7 @@ describe("useThemeCanvasStyling", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
       await waitFor(() => expect(result.current.status).toBe("ready"));
       expect(fetchMock).not.toHaveBeenCalled();
@@ -203,16 +225,16 @@ describe("useThemeCanvasStyling", () => {
     const tokens = new Promise<typeof DARK>((resolve) => { release = resolve; });
     vi.spyOn(port, "fetchThemeTokens").mockReturnValue(tokens);
     const warmSpy = vi.spyOn(port, "warmStylesheet");
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     try {
       expect(result.current.status).toBe("pending");
-      expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
+      expect(warmSpy).toHaveBeenCalledWith({ url: "/theme-assets/basic/css/theme.css" });
     } finally {
       await act(async () => { release(DARK); });
     }
     await waitFor(() => expect(result.current.status).toBe("ready"));
-    expect(warmSpy).toHaveBeenCalledWith("/theme-assets/basic/css/theme.css");
+    expect(warmSpy).toHaveBeenCalledWith({ url: "/theme-assets/basic/css/theme.css" });
   });
 
   it("still resolves ready styling when the stylesheet warm-up request rejects — it is fire-and-forget, never fatal", async () => {
@@ -222,12 +244,12 @@ describe("useThemeCanvasStyling", () => {
         throw new Error("warm-up network failure");
       },
     };
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({
       status: "ready",
-      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
+      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss({ tokens: DARK, lightTokens: undefined }) },
     });
   });
 });
@@ -239,7 +261,7 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
       let rejectTokens!: (reason: Error) => void;
       const pending = new Promise<never>((_resolve, reject) => { rejectTokens = reject; });
       const port = { ...createFakeThemeCanvasPort(), fetchThemeTokens: () => pending };
-      const { result, unmount } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      const { result, unmount } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
       await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
       expect(result.current).toEqual({ status: "ready", styling: {} });
       const timedOut = result.current;
@@ -261,7 +283,7 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
         // Never resolves or rejects — simulates the API hanging behind the dev proxy.
         fetchThemeTokens: () => new Promise<never>(() => {}),
       };
-      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
       expect(result.current).toEqual({ status: "pending" });
 
       // Just under the bound: still pending, so the timeout isn't firing early.
@@ -288,7 +310,7 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
         ...createFakeThemeCanvasPort(),
         fetchThemeTokens: () => pending,
       };
-      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+      const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(8000);
@@ -307,7 +329,7 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
 
   it('resolves immediately to ready with no styling when themeId is "" — a loaded presentation with no theme configured, not "still loading"', () => {
     const port = createFakeThemeCanvasPort();
-    const { result } = renderHook(() => useThemeCanvasStyling("", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "", apiVersion: 2, port }));
     expect(result.current).toEqual({ status: "ready", styling: {} });
   });
 });
@@ -315,7 +337,7 @@ describe("useThemeCanvasStyling — bounded pending state (Bug B, Slice B2)", ()
 describe('useThemeCanvasStyling — bare-page short-circuit (templateChoice === "", owner ruling 2026-09-23, S6)', () => {
   it('resolves immediately to ready with no styling for a bare Page ("" templateChoice) on a REAL, loaded theme', () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "" }));
     expect(result.current).toEqual({ status: "ready", styling: {} });
   });
 
@@ -324,7 +346,7 @@ describe('useThemeCanvasStyling — bare-page short-circuit (templateChoice === 
     const tokensSpy = vi.spyOn(port, "fetchThemeTokens");
     const markupSpy = vi.spyOn(port, "fetchTemplateMarkup");
     const warmSpy = vi.spyOn(port, "warmStylesheet");
-    renderHook(() => useThemeCanvasStyling("basic", 2, port, ""));
+    renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "" }));
     expect(tokensSpy).not.toHaveBeenCalled();
     expect(markupSpy).not.toHaveBeenCalled();
     expect(warmSpy).not.toHaveBeenCalled();
@@ -332,7 +354,7 @@ describe('useThemeCanvasStyling — bare-page short-circuit (templateChoice === 
 
   it("still resolves to no styling if templateChoice changes to bare AFTER a real theme was already ready", async () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result, rerender } = renderHook(({ templateChoice }: { templateChoice: string | null }) => useThemeCanvasStyling("basic", 2, port, templateChoice), {
+    const { result, rerender } = renderHook(({ templateChoice }: { templateChoice: string | null }) => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice }), {
       initialProps: { templateChoice: "blog-post.html" },
     });
     await waitFor(() => expect(result.current.status).toBe("ready"));
@@ -353,7 +375,7 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
   it("falls back to the theme's page-shell template for an untemplated html Page (null templateChoice)", () => {
     // New-name-first, 2026-09-03 posts-*/pages-* rename — `page-shell.html` is still tried second,
     // see the "retries the legacy candidate" describe block below.
-    expect(resolveCanvasTemplateChoice(null, "html")).toBe("pages-default.html");
+    expect(resolveCanvasTemplateChoice({ templateChoice: null, bodyFormat: "html" })).toBe("pages-default.html");
   });
 
   // Bare-page ruling (2026-09-23, S6): `""` and `null` used to be interchangeable here (both fell back
@@ -361,11 +383,11 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
   // NOT resolve to the shell fallback any more; it passes straight through so
   // `useThemeCanvasStyling`'s own bare short-circuit (below) can read it and skip fetching entirely.
   it('does NOT fall back to the page-shell template for a bare html Page ("" templateChoice) — passes "" straight through', () => {
-    expect(resolveCanvasTemplateChoice("", "html")).toBe("");
+    expect(resolveCanvasTemplateChoice({ templateChoice: "", bodyFormat: "html" })).toBe("");
   });
 
   it("leaves an explicit templateChoice alone even on an html Page", () => {
-    expect(resolveCanvasTemplateChoice("blog-post.html", "html")).toBe("blog-post.html");
+    expect(resolveCanvasTemplateChoice({ templateChoice: "blog-post.html", bodyFormat: "html" })).toBe("blog-post.html");
   });
 
   // Negative case: a doc-format Page's "never chosen" state must NOT fall back — that shape has its
@@ -373,15 +395,15 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
   // terms-of-service/blog-post-title regression `isEligibleForTemplateBranch`'s doc records is exactly
   // what this asymmetry exists to prevent.
   it("does not fall back for a doc-format Page — null templateChoice stays null", () => {
-    expect(resolveCanvasTemplateChoice(null, "doc")).toBeNull();
+    expect(resolveCanvasTemplateChoice({ templateChoice: null, bodyFormat: "doc" })).toBeNull();
   });
 
   it('does not fall back for a doc-format Page — "" templateChoice stays ""', () => {
-    expect(resolveCanvasTemplateChoice("", "doc")).toBe("");
+    expect(resolveCanvasTemplateChoice({ templateChoice: "", bodyFormat: "doc" })).toBe("");
   });
 
   it("leaves an explicit templateChoice alone on a doc-format Page too", () => {
-    expect(resolveCanvasTemplateChoice("blog-post.html", "doc")).toBe("blog-post.html");
+    expect(resolveCanvasTemplateChoice({ templateChoice: "blog-post.html", bodyFormat: "doc" })).toBe("blog-post.html");
   });
 });
 
@@ -399,14 +421,14 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
       templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
     });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "page-shell.html"));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "page-shell.html" }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({
       status: "ready",
       styling: {
         stylesheets: ["/theme-assets/basic/css/theme.css"],
-        css: tokensToCanvasCss(DARK, undefined),
+        css: tokensToCanvasCss({ tokens: DARK, lightTokens: undefined }),
         contentWrapper: [
           { tagName: "main", attributes: {} },
           { tagName: "article", attributes: { class: "post-detail wrap", "data-reveal": "" } },
@@ -418,7 +440,7 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
 
   it("has no content wrapper when templateChoice is null — the default, pre-existing call shape", async () => {
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
@@ -433,12 +455,12 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
   it("falls back to no content wrapper when the template markup fetch fails, without failing the whole canvas", async () => {
     // No entry seeded for the template URL — createFakeThemeCanvasPort rejects, same as a real 404.
     const port = createFakeThemeCanvasPort({ tokensByUrl: { "/theme-assets/basic/tokens.json": DARK } });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "missing.html"));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "missing.html" }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({
       status: "ready",
-      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss(DARK, undefined) },
+      styling: { stylesheets: ["/theme-assets/basic/css/theme.css"], css: tokensToCanvasCss({ tokens: DARK, lightTokens: undefined }) },
     });
   });
 
@@ -447,7 +469,7 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
       templatesByUrl: { "/theme-assets/basic/render/pages/no-marker.html": "<body><p>static</p></body>" },
     });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "no-marker.html"));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "no-marker.html" }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
@@ -461,7 +483,7 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
         tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
         templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
       });
-      const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "page-shell.html"));
+      const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "page-shell.html" }));
 
       await waitFor(() => expect(result.current.status).toBe("ready"));
       expect(fetchMock).not.toHaveBeenCalled();
@@ -491,7 +513,7 @@ describe("useThemeCanvasStyling — legacy page-shell candidate fallback (2026-0
       // No entry for `render/pages/pages-default.html` — only the legacy filename is seeded.
       templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
     });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "pages-default.html"));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "pages-default.html" }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toEqual(EXPECTED_WRAPPER);
@@ -505,7 +527,7 @@ describe("useThemeCanvasStyling — legacy page-shell candidate fallback (2026-0
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
       templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
     });
-    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "blog-post.html"));
+    const { result } = renderHook(() => useThemeCanvasStyling({ themeId: "basic", apiVersion: 2, port }, { templateChoice: "blog-post.html" }));
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();

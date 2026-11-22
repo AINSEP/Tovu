@@ -30,16 +30,16 @@ import type { ServerModuleHandle } from "./types.js";
 export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandle {
   return {
     name: "taxonomy",
-    registerRoutes: (app) => {
-      registerAdminTaxonomyListRoute(app, deps);
-      registerAdminTaxonomyCreateRoute(app, deps);
-      registerAdminTaxonomyCreateTermRoute(app, deps);
-      registerAdminTaxonomyRenameTermRoute(app, deps);
-      registerAdminTaxonomyAssignTermsRoute(app, deps);
-      registerAdminTaxonomyUnassignTermsRoute(app, deps);
-      registerAdminTaxonomyAssignedTermsRoute(app, deps);
-      registerAdminTaxonomyDeleteRoute(app, deps);
-      registerAdminTaxonomyDeleteTermRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminTaxonomyListRoute({ app, deps });
+      registerAdminTaxonomyCreateRoute({ app, deps });
+      registerAdminTaxonomyCreateTermRoute({ app, deps });
+      registerAdminTaxonomyRenameTermRoute({ app, deps });
+      registerAdminTaxonomyAssignTermsRoute({ app, deps });
+      registerAdminTaxonomyUnassignTermsRoute({ app, deps });
+      registerAdminTaxonomyAssignedTermsRoute({ app, deps });
+      registerAdminTaxonomyDeleteRoute({ app, deps });
+      registerAdminTaxonomyDeleteTermRoute({ app, deps });
     },
   };
 }

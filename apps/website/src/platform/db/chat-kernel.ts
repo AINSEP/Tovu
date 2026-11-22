@@ -1,10 +1,10 @@
-import type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
+import type { ChatDatabase as JiniChatDatabase } from "@jini-ai/chat/store/runtime";
 export type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
 
 // Dedicated db entries keep migrations driver-free; sqliteKernel memoizes the same host client
 // used by the packaged history adapter, sessions and Tovu's run ledger.
 import { type SqliteConnectionSource, sqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import { scopeToSchema, type StorageKernel } from "@jini-ai/db/kernel";
+import { scopeToSchema, type KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The chat database (`chat.db`, see `sqlite/chat-db.ts`) as a storage kernel:
@@ -36,39 +36,20 @@ export type AssistantConversationToolApprovalsTable = {
   granted_at: string;
 };
 
-export type ChatDatabase = {
-  ai_chats: AiChatsTable;
-  ai_chat_messages: AiChatMessagesTable;
-  assistant_agent_sessions: AssistantAgentSessionsTable;
+export type ChatDatabase = JiniChatDatabase & {
   assistant_conversation_tool_approvals: AssistantConversationToolApprovalsTable;
-  assistant_run_attempts: {
-    message_id: string;
-    engine: string;
-    accepted_json: string;
-    recovery_count: number;
-    recovery_deadline: number | null;
-    recovery_elapsed_ms: number;
-    attempt_started_at: number;
-    last_progress_at: number;
-    cancel_reason: string | null;
-    session_id: string | null;
-    session_confirmed: number;
-    child_pid: number | null;
-    child_started_at: string | null;
-    attempt_base_json: string;
-  };
 };
 
-export type ChatKernel = StorageKernel<ChatDatabase>;
+export type ChatKernel = KyselyKernel<ChatDatabase>;
 
 /**
  * The kernel itself, or the one kernel of an open SQLite `chat.db` handle (the call sites that
  * still pass the raw handle). Told apart by `lockKey`, which only a kernel has.
  */
-export function chatKernel(store: ChatKernel | SqliteConnectionSource): ChatKernel {
+export function chatKernel({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}): ChatKernel {
   return typeof (store as Partial<ChatKernel>).lockKey === "function"
     ? (store as ChatKernel)
-    : sqliteKernel<ChatDatabase>(store as SqliteConnectionSource);
+    : sqliteKernel<ChatDatabase>({ source: store as SqliteConnectionSource });
 }
 
 /** The Postgres schema of the AI chat tables and their ledger (ADR-067): never `public`, never `chat`. */
@@ -79,6 +60,6 @@ export const AI_CHAT_SCHEMA = "ai_chat";
  * statement addressed to {@link AI_CHAT_SCHEMA} (`@jini-ai/db/kernel`). The tables come from
  * `migrateChatDatabase`.
  */
-export function pgChatKernel(kernel: StorageKernel<unknown>): ChatKernel {
-  return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);
+export function pgChatKernel({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): ChatKernel {
+  return scopeToSchema({ kernel: kernel as ChatKernel, schema: AI_CHAT_SCHEMA });
 }

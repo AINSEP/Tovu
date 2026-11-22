@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file What `use-posts.hooks.ts` (the LIST hook — `posts-list-*`, distinct from `use-post-editor
@@ -18,10 +18,13 @@ export interface PostsListPort {
    * guards against.
    */
   updatePost(
-    target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
-      expectedVersion?: number;
-    }
+    required: {
+      target: { id: string };
+      patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
+        expectedVersion?: number;
+      };
+    },
+    optional?: Record<string, never>
   ): Promise<{ post: AdminPost }>;
-  deletePost(id: string): Promise<{ post: AdminPost }>;
+  deletePost(required: { id: string }, optional?: Record<string, never>): Promise<{ post: AdminPost }>;
 }

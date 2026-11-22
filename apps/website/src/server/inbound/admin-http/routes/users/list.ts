@@ -1,15 +1,16 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { userAccountProtection } from "#src/features/identity/delete-user-service";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the
  * admin UI. No dedicated `listUsers` business-logic function exists in
- * `src/identity` (that library exports grant-writing mutations, not
+ * `Jini packages/user-management/src/server/index.ts` (that library exports grant-writing mutations, not
  * read-side wrappers) — this route calls the repo ports directly, mirroring
- * `routes/admin/members/list.ts`'s reasoning.
+ * `apps/website/src/server/inbound/admin-http/routes/members/list.ts`'s reasoning.
  *
  * Non-human principals (`system`, `agent`, `api_key` — including the
  * disabled legacy `user-local` seed row) are filtered out: this screen is
@@ -20,12 +21,9 @@ import { userAccountProtection } from "#src/features/identity/delete-user-servic
  * authz sweep: this route previously had zero permission check beyond session auth, letting any
  * authenticated admin session read the full user roster regardless of role.
  */
-export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -54,7 +52,7 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
               // screen must not list them as an ordinary disabled user, since restoring them here
               // means EnablePrincipal, not the Trash's own restore. An intentionally-disabled user
               // (never trashed) has no `trashed_items` row and stays listed.
-              trashed: principal.status === "disabled" && (await deps.isInTrash(principal.id)),
+              trashed: principal.status === "disabled" && (await deps.isInTrash({ principalId: principal.id })),
             }))
         )
       )
@@ -69,7 +67,17 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
       // needed this pass; a future pagination pass would mirror `MemberRepoPort.list`'s
       // afterId/limit shape if this workspace's operator count ever grows unexpectedly large.
       const users = await Promise.all(
-        humanPrincipals.map(async (principal) => {
+        humanPrincipals.map((principal) => adminUserResponse(deps, principal, seededOwnerPrincipalId))
+      );
+
+      res.json({ users: users.filter((user): user is NonNullable<typeof user> => user !== null) });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/users/list", code: "INTERNAL_ERROR" });
+    }
+  });
+};
+
+async function adminUserResponse(deps: Parameters<UsersRouteRegistrar>[0]["deps"], principal: Awaited<ReturnType<Parameters<UsersRouteRegistrar>[0]["deps"]["principalRepo"]["list"]>>[number], seededOwnerPrincipalId: Awaited<Parameters<UsersRouteRegistrar>[0]["deps"]["ownerPrincipalId"]>) {
           const userRow = await deps.userRepo.findByPrincipalId({
             workspaceId: deps.workspaceId,
             principalId: principal.id,
@@ -92,12 +100,4 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
             roleIds: roleLinks.map((link) => link.roleId),
             policyIds: policyLinks.map((link) => link.policyId),
           }) };
-        })
-      );
-
-      res.json({ users: users.filter((user): user is NonNullable<typeof user> => user !== null) });
-    } catch (error) {
-      sendAdminFailure({ res, error }, { operation: "routes/users/list", code: "INTERNAL_ERROR" });
-    }
-  });
-};
+        }

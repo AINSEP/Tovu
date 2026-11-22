@@ -41,8 +41,8 @@ function buildApp(overrides: Partial<CommentsModerationRouteDeps> = {}): {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsGetSettingsRoute(app, deps);
-  registerAdminCommentsPutSettingsRoute(app, deps);
+  registerAdminCommentsGetSettingsRoute({ app, deps });
+  registerAdminCommentsPutSettingsRoute({ app, deps });
   return { app, authorizeCalls };
 }
 
@@ -130,8 +130,8 @@ test("comments settings: a host that mounts PUT without any JSON parser still ge
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminCommentsGetSettingsRoute(app, deps);
-  registerAdminCommentsPutSettingsRoute(app, deps);
+  registerAdminCommentsGetSettingsRoute({ app, deps });
+  registerAdminCommentsPutSettingsRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const stored = (await (await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`)).json()) as { data: unknown };

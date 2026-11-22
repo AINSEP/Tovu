@@ -64,7 +64,7 @@ describe("InfoTip agentHandle", () => {
   });
 
   it("throws for a caller handle outside the lowercase-hyphen alphabet — never silently sanitized", () => {
-    expect(() => render(<InfoTip label="Explain this" agentHandle="Bad Handle!" />)).toThrow();
+    expect(() => render(<InfoTip label="Explain this" agentHandle="Bad Handle!" />)).toThrow(new Error('invalid element handle "Bad Handle!": handles are lowercase words joined by single hyphens, and are never CSS selectors'));
   });
 });
 

@@ -1,8 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Source Control page (`/admin/source-control`). Same shape as
  * `deployment/deployment-i18n.tsx`: a flat `DICT[locale][englishKey] = translation` map, `t =
@@ -568,7 +567,7 @@ const ACCESS_TOKEN_LINK_TRANSLATIONS: Record<string, Record<string, string>> = {
   bn: { "Need to save more than one token, rename one, or manage every saved credential in one place?": "একাধিক টোকেন সংরক্ষণ, কোনোটি পুনঃনামকরণ বা সব সংরক্ষিত পরিচয়পত্র এক জায়গায় পরিচালনা করতে চান?", "Create access token": "অ্যাক্সেস টোকেন তৈরি করুন" },
 };
 
-const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(SOURCE_CONTROL_TRANSLATIONS, ACCESS_TOKEN_LINK_TRANSLATIONS);
+const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: SOURCE_CONTROL_TRANSLATIONS }, { overlays: [ACCESS_TOKEN_LINK_TRANSLATIONS] });
 
 export const t = createDictionaryTranslator({ featureDictionary: SOURCE_CONTROL_DICT }, { commonDictionary: COMMON_I18N });
 
@@ -581,21 +580,21 @@ const SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not load source control connections ({error}).",
 };
 
-export function sourceControlCredentialsLoadErrorMessage(locale: string, error: string): string {
+export function sourceControlCredentialsLoadErrorMessage({ locale, error }: { locale: string; error: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }
 
 /**
  * One row's save-error banner. Also carries a rejected VALIDATION failure's `detail` text, routed
- * here by `classifySourceControlCredentialSubmitError` (`rules.ts`) instead of the generic
+ * here by `classifyCredentialSubmitError` (`lib/credential-submit-error.ts`) instead of the generic
  * `describeApiError` fallback — same shape `publishCredentialSaveErrorMessage` uses.
  */
 const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Could not save this connection ({error}).",
 };
 
-export function sourceControlCredentialSaveErrorMessage(locale: string, error: string): string {
+export function sourceControlCredentialSaveErrorMessage({ locale, error }: { locale: string; error: string }, _optional = {}): string {
   return interpolate({ template: localeEntry({ table: SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE, locale }), vars: { error } }
   );
 }

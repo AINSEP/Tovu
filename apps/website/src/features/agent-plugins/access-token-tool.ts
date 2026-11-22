@@ -6,11 +6,11 @@
 import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "./service-ports.js";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { assertCredentialToken, CredentialInputError, type CredentialMessageId } from '../../contracts/core/credential-token.js';
+import { credentialText, translateCredentialMessage } from '@tovu/contracts/credential-copy';
+import { assertCredentialToken, CredentialInputError, type CredentialMessageId } from '@jini-ai/platform/secrets/credential-token';
 import type { ToolExecutionOptions, ToolExecutionContext } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { AgentPluginMcpRecord } from "./service-ports.js";
+import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import { agentPluginCardHost, tovuAgentPluginCardIdentity } from "./card-host-bindings.js";
 import { tovuAccessTokenFormMessages } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, type AgentPluginConnectToolDeps } from "./connect-tool.js";
@@ -57,7 +57,7 @@ export const tovuAccessTokenMessages: AgentPluginAccessTokenMessages = {
   // Ids are the validator's own `CredentialInputError.rule` or the fixed 'storage'/'blank' ids.
   credentialText: ({ id, locale }) => credentialText({ id: id as CredentialMessageId, locale }),
   translateCredentialMessage: ({ message, locale }) => translateCredentialMessage({ message, locale }),
-  savedTokenSwitch: ({ outcome, target }) => describeSavedTokenSwitch(outcome, target),
+  savedTokenSwitch: ({ outcome, target }) => describeSavedTokenSwitch({ outcome, ...target }),
 };
 
 /** R1: Tovu's credential token rule; the same `CredentialInputError` object is thrown and classified. */
@@ -83,12 +83,12 @@ const tovuTokenFederation = { classifyTrust: classifyAgentPluginMcpServerTrust, 
  * `routeDeps.mcp` is read on first use (after the permission check), its projections bound once. */
 export function tovuTargetDeps<D extends AgentPluginTokenTargetDeps>(routeDeps: D, _optional: Record<string, never> = {}) {
   let mcp: ReturnType<typeof withAgentPluginMcpPorts<D["mcp"]>> | undefined;
-  const deps = withOverrides(routeDeps, {
+  const deps = withOverrides({ target: routeDeps, overrides: {
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
       : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
     federation: tovuTokenFederation,
     messages: tovuAccessTokenMessages,
-  });
+  } });
   return Object.defineProperty(deps, "mcp", { get: () => (mcp ??= withAgentPluginMcpPorts(routeDeps.mcp)), enumerable: true, configurable: true }) as Omit<typeof deps, "mcp"> & { readonly mcp: NonNullable<typeof mcp> };
 }
 
@@ -123,10 +123,10 @@ export function saveAgentPluginToken(
   { routeDeps, surfaces, ctx }: { routeDeps: AgentPluginAccessTokenToolDeps; surfaces: AssistantSurfaceDeps; ctx: ToolExecutionContext },
   optional: ToolExecutionOptions = {},
 ): Promise<SetAccessTokenResult> {
-  const deps = withOverrides(tovuTargetDeps(routeDeps), {
+  const deps = withOverrides({ target: tovuTargetDeps(routeDeps), overrides: {
     tokenValidator: tovuTokenValidator,
     switchOnSavedToken: ({ target }: { target: TokenAuthTarget }) => switchOnSavedTokenConnection(routeDeps, target),
     host: tovuAgentPluginAccessTokenHost,
-  });
+  } });
   return saveTokenWithPorts({ routeDeps: deps, surfaces, ctx }, optional);
 }

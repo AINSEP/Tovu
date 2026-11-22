@@ -96,7 +96,7 @@ Five ADR-020 tiers (`src/features/theme/theme.ts:35`): `declarative` · `templat
   through to `renderBlock`.
 - `templated` → `renderLiquidInSandbox()` — **worker**
 - `handlebars` → `renderHandlebarsInSandbox()` — **worker**
-- else (`declarative`, `code`) → `renderBlock(tree, ctx)`, synchronous, **no worker**
+- else (`declarative`, `code`) → `renderBlock({ node: tree, ctx })`, synchronous, **no worker**
 
 **The sandbox exists for isolation, not because Liquid needs a runtime.** A fresh Worker per render,
 no pooling, 5s wall-clock timeout, V8 heap caps (`liquid-sandbox.ts:60-63,83-90`). A `Promise.race`

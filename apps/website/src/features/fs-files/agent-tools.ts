@@ -123,7 +123,7 @@ const LIST_FILES_SCHEMA = {
     },
     depth: { type: "integer", minimum: 1, maximum: 12, description: "Levels to list, default 1 (immediate files and directories). Overrides recursive. Directories at the depth boundary end in '/'." },
     recursive: { type: "boolean", description: "Explicit recursive listing, up to depth 12. Results are still paged; default false." },
-    limit: { type: "integer", minimum: 1, maximum: 100, description: "Maximum entries per page, default 100. The 8KB output budget may return fewer entries." },
+    limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Maximum entries per page, default 100. The 8KB output budget may return fewer entries." },
     cursor: { type: "string", pattern: "^(0|[1-9][0-9]*)$", description: "Use the previous nextCursor with the same root/path/depth/recursive. Restart if the directory changes." },
   },
 } as const;

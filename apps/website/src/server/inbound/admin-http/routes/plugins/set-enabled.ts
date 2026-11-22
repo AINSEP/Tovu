@@ -1,6 +1,6 @@
 import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
 import { lowerPluginToolAccess } from '#src/features/plugin-runtime/lower-tool-access';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
@@ -8,12 +8,13 @@ import { pluginCapabilitySet, PluginIncompatibleError, PluginInvalidError, Plugi
 import { PluginLoadError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { PluginInstallError } from "@jini-ai/plugins/host/node";
-import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** OFF commits before the existing serving runtime stops affected answers. */
-async function stopPluginAnswers(deps: PluginsRouteDeps, pluginId: string, enabled: boolean): Promise<void> {
+async function stopPluginAnswers({ deps, pluginId, enabled }: { deps: PluginsRouteDeps; pluginId: string; enabled: boolean }, _optional = {}): Promise<void> {
   if (!enabled) await lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {});
 }
 
@@ -46,7 +47,7 @@ async function rollbackPluginActivation(
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendSetPluginEnabledError(res: Response, err: unknown): void {
+function sendSetPluginEnabledError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ToolAccessLoweringError) {
     res.status(503).json({ error: err.message, code: err.code });
     return;
@@ -88,7 +89,7 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  * @file `PLUGIN_SET_ENABLED` — `PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
  * (SPEC-005 REQ-07/REQ-10, api.spec.md §1/§4/§5/§6; C-016).
  *
- * Mirrors `admin/posts/update.ts`'s `executeCommand`-wrapped shape (ADR API/Event Contract
+ * Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `executeCommand`-wrapped shape (ADR API/Event Contract
  * Summary): `captureInverse` snapshots the prior `PluginActivationRecord` (or `null` — a plugin
  * enabled for the first time has no prior row), `execute` calls `setPluginEnabled()`. Route-level
  * guards run BEFORE the gateway (errors.spec.md §4): unknown id ⇒ 404 `PLUGIN_NOT_FOUND`; invalid/
@@ -104,12 +105,9 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  * effect so hook attachment stays consistent with the restored row. Verified against
  * `__tests__/integration/plugins-http.integration.test.ts`.
  */
-export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
     // Validated, not coerced (api.spec.md: malformed body is 400): `Boolean("false")` is `true`, so
@@ -121,16 +119,14 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
       return;
     }
 
-    // Full pre-transition activation row, captured in captureInverse and reused verbatim by
-    // rollback — mirrors `admin/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
-    // Contract Summary: this route is thin, `executeCommand`-wrapped, same as that one).
-    let priorActivation: PluginActivationRecord | null = null;
+
 
     try {
       const principal = getAuthedPrincipal(res);
       const discovery = await deps.discoverPlugins();
       const site = discovery.find((r) => r.id === pluginId && r.source === "site");
 
+      const activation = createPluginActivationMutation(deps, { pluginId, enabled, discovery, site });
       const { result, changeSetId } = await executeCommand({
         deps: {
           clock: deps.clock,
@@ -147,10 +143,35 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
           // No `idempotencyKey`: an enable/disable is a target-state write, so the gateway can never
           // raise `DuplicateCommandError` for this route and there is no `DUPLICATE_COMMAND` arm to map.
         },
-        mutation: {
+        mutation: activation.mutation,
+      });
+
+      await stopPluginAnswers({ deps, pluginId, enabled: result.activation.enabled });
+
+      // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
+      // snapshot, so reaching this line means the record is in it.
+      const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
+      // The gateway has committed; retries that keep the same state do not count.
+      if ((activation.priorActivation()?.enabled ?? false) !== result.activation.enabled) void deps.tracker.capture({ name: "plugin_toggled", userId: principal.id }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
+      res.json({
+        plugin: toAdminPluginResponse({ discovery: record, activation: result.activation }),
+        changeSetId,
+      });
+    } catch (err) {
+      sendSetPluginEnabledError({ res, err });
+    }
+  });
+};
+
+function createPluginActivationMutation(deps: PluginsRouteDeps, { pluginId, enabled, discovery, site }: { pluginId: string; enabled: boolean; discovery: Awaited<ReturnType<PluginsRouteDeps["discoverPlugins"]>>; site: PluginDiscoveryRecord | undefined }) {
+    // Full pre-transition activation row, captured in captureInverse and reused verbatim by
+    // rollback — mirrors `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s `priorPost` shape exactly (ADR API/Event
+    // Contract Summary: this route is thin, `executeCommand`-wrapped, same as that one).
+  let priorActivation: PluginActivationRecord | null = null;
+  return { priorActivation: () => priorActivation, mutation: {
           entityType: "plugin-activation",
           entityId: pluginId,
-          operation: "update",
+          operation: "update" as const,
           captureInverse: async () => {
             priorActivation = await deps.pluginActivationRepo.getActivation({
               workspaceId: deps.workspaceId,
@@ -178,22 +199,5 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
             });
           },
           rollback: () => rollbackPluginActivation(deps, { workspaceId: deps.workspaceId, pluginId, priorActivation }),
-        },
-      });
-
-      await stopPluginAnswers(deps, pluginId, result.activation.enabled);
-
-      // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
-      // snapshot, so reaching this line means the record is in it.
-      const record = discovery.find((r) => r.id === pluginId) as PluginDiscoveryRecord;
-      // The gateway has committed; retries that keep the same state do not count.
-      if (((priorActivation as PluginActivationRecord | null)?.enabled ?? false) !== result.activation.enabled) deps.tracker.capture({ name: "plugin_toggled", userId: principal.id }, { properties: { pluginId: record.id, pluginKind: "cms", enabled: result.activation.enabled, source: "admin" } });
-      res.json({
-        plugin: toAdminPluginResponse(record, result.activation),
-        changeSetId,
-      });
-    } catch (err) {
-      sendSetPluginEnabledError(res, err);
-    }
-  });
-};
+        } };
+}

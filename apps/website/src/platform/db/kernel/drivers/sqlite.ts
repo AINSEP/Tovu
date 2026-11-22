@@ -11,7 +11,7 @@ import {
   type SqliteKernel,
 } from "@jini-ai/db/kernel/sqlite";
 import type { SnapshotClient } from "@jini-ai/db/transfer";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 export type NativeSqliteDatabase = Database.Database;
 
@@ -21,11 +21,11 @@ export type { SqliteKernel } from "@jini-ai/db/kernel/sqlite";
 export type SqliteConnectionSource = Database.Database | { readonly $client: Database.Database };
 
 /** Same shared functions, retaining Tovu's native connection input contract. */
-export const sqliteKernel: <DB>(source: SqliteConnectionSource) => SqliteKernel<DB> = jiniSqliteKernel;
-export const closeSqliteConnection: (source: SqliteConnectionSource) => void = jiniCloseSqliteConnection;
+export const sqliteKernel: <DB>(required: { source: SqliteConnectionSource }) => SqliteKernel<DB> = jiniSqliteKernel;
+export const closeSqliteConnection: (required: { source: SqliteConnectionSource }) => void = jiniCloseSqliteConnection;
 
 /** Open with Tovu's driver; Jini owns the kernel, cache and file turn locks. */
-export function openSqliteFileKernel<DB>(filePath: string, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
+export function openSqliteFileKernel<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {
   return jiniOpenSqliteFileKernel<DB>({ filePath, open: (p, o) => new Database(p, o) }, optional);
 }
 
@@ -35,13 +35,13 @@ export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
 }
 
 /** Jini returns the original handle; this boundary retains its native Tovu type. */
-export function sqliteClientOf(source: SqliteConnectionSource): Database.Database {
-  return jiniSqliteClientOf(source) as Database.Database;
+export function sqliteClientOf({ source }: { source: SqliteConnectionSource }, _optional: Record<string, never> = {}): Database.Database {
+  return jiniSqliteClientOf({ source }) as Database.Database;
 }
 
 /** Kernels opened here carry Tovu's native handle in Jini's shared reverse cache. */
-export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Database | undefined {
-  return jiniSqliteConnectionOf(kernel) as Database.Database | undefined;
+export function sqliteConnectionOf<DB>({ kernel }: { kernel: KyselyKernel<DB> }, _optional: Record<string, never> = {}): Database.Database | undefined {
+  return jiniSqliteConnectionOf({ kernel }) as Database.Database | undefined;
 }
 
 /** Host-owned native opener reused by content/chat bootstraps; Jini owns the opener contract. */

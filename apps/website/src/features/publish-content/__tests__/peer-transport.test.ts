@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import type { PublishContentExportEnvelope } from "../export-bundle.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import {
   confirmPeerImport,
   describePeerEgressRefusal,
@@ -13,6 +13,7 @@ import {
   pullBundleFromPeer,
   pushBundleToPeer,
   PublishContentPeerTransportError,
+  type PublishHistoryRecorder,
 } from "../peer-transport.js";
 import type { ResolvedPeerCredential } from "../peers.js";
 import type { PackedEntity } from "../type-registry.js";
@@ -108,7 +109,7 @@ function pushDeps(httpClient: HttpClientPort, blobs: Record<string, Uint8Array> 
       exists: async ({ storageKey }: { storageKey: string }) => storageKey in blobs,
       get: async ({ storageKey }: { storageKey: string }) => blobs[storageKey],
     },
-    computeStorageKey: (sha256: string) => `key/${sha256}`,
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `key/${sha256}`,
   };
 }
 
@@ -134,16 +135,13 @@ test("a private-address peer without a devHostAllowlist entry fails with a messa
 
 test("the same diagnosis is produced for a push, not only a pull", async () => {
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(new RefusingHttpClient()), { bundle: bundle({ blobManifest: ["a".repeat(64)] }) }),
+    () => pushBundleToPeer({ deps: pushDeps(new RefusingHttpClient()), required: { bundle: bundle({ blobManifest: ["a".repeat(64)] }) } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && /devHostAllowlist/.test(err.message)
   );
 });
 
 test("describePeerEgressRefusal names the bracket-stripped IPv6 host exactly as an allowlist entry is written", () => {
-  const described = describePeerEgressRefusal(
-    new EgressRefusedError({ message: "full" }, { callerSafeMessage: "refused" }),
-    "https://[fd00::1]:3000"
-  );
+  const described = describePeerEgressRefusal({ err: new EgressRefusedError({ message: "full" }, { callerSafeMessage: "refused" }), baseUrl: "https://[fd00::1]:3000" });
   assert.match(described.message, /add 'fd00::1'/);
   assert.equal(described.message.includes("["), false);
 });
@@ -155,7 +153,7 @@ test("the api key is sent as a bearer header and appears in NO result and NO err
     { match: /\/import\/plan$/, json: { domain: "publish_content.import", planId: "p1", planHash: "h1", details: { rows: [] } } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ blobManifest: ["a".repeat(64)] }) });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ blobManifest: ["a".repeat(64)] }) } });
 
   // The key IS on the wire — that is the point of the credential. It must be there and nowhere else.
   assert.equal(http.calls[0].headers.authorization, `Bearer ${API_KEY}`);
@@ -164,7 +162,7 @@ test("the api key is sent as a bearer header and appears in NO result and NO err
   // A peer can echo the request's key in its body, so rejection diagnostics omit that body.
   const rejecting = new FakeHttpClient([{ match: /\/bundles$/, status: 403, bodyText: '{"error":"not authorized"}' }]);
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(rejecting), { bundle: bundle() }),
+    () => pushBundleToPeer({ deps: pushDeps(rejecting), required: { bundle: bundle() } }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerTransportError);
       assert.equal(err.code, "PEER_REJECTED");
@@ -186,9 +184,12 @@ test("push uploads only the blobs the peer is missing, BEFORE staging and planni
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http, { [`key/${sha}`]: new Uint8Array([1, 2, 3]) }), {
-    bundle: bundle({ blobManifest: [sha] }),
-  });
+  const result = await pushBundleToPeer({
+                                          deps: pushDeps(http, { [`key/${sha}`]: new Uint8Array([1, 2, 3]) }),
+                                          required: {
+      bundle: bundle({ blobManifest: [sha] }),
+    }
+                                        });
 
   assert.deepEqual(result.blobsUploaded, [sha]);
   assert.deepEqual(result.blobsUnavailable, []);
@@ -215,7 +216,7 @@ test("a blob the peer lacks and this instance no longer holds is reported, never
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ blobManifest: [sha] }) });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ blobManifest: [sha] }) } });
   assert.deepEqual(result.blobsUnavailable, [sha]);
   assert.deepEqual(result.blobsUploaded, []);
 });
@@ -225,7 +226,7 @@ test("push skips the probe entirely when the bundle needs no blobs", async () =>
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle() } });
   assert.equal(http.calls.some((call) => call.url.includes("/blobs/")), false);
 });
 
@@ -238,7 +239,7 @@ test("push skips the capabilities probe entirely when the bundle has no entities
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle() } });
   assert.equal(http.calls.some((call) => call.url.includes("/capabilities")), false);
   assert.deepEqual(result.notSupportedByLive, []);
 });
@@ -253,16 +254,19 @@ test("push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http), {
-    bundle: bundle({
-      entities: [
-        packedEntity({ entityType: "post", id: "p1" }),
-        packedEntity({ entityType: "media", id: "m1", requiredBlobs: [shaMedia] }),
-        packedEntity({ entityType: "redirect", id: "r1", requiredBlobs: [shaRedirect] }),
-      ],
-      blobManifest: [shaMedia, shaRedirect],
-    }),
-  });
+  const result = await pushBundleToPeer({
+                                          deps: pushDeps(http),
+                                          required: {
+      bundle: bundle({
+        entities: [
+          packedEntity({ entityType: "post", id: "p1" }),
+          packedEntity({ entityType: "media", id: "m1", requiredBlobs: [shaMedia] }),
+          packedEntity({ entityType: "redirect", id: "r1", requiredBlobs: [shaRedirect] }),
+        ],
+        blobManifest: [shaMedia, shaRedirect],
+      }),
+    }
+                                        });
 
   // A 404 means legacy `{post,page,media}` — the redirect is left behind, never an error.
   assert.deepEqual(result.notSupportedByLive, [{ entityType: "redirect", count: 1 }]);
@@ -300,13 +304,16 @@ test("L061 a peer cannot request a blob removed by capability trimming", async (
       get: async () => { return assert.fail("must not read local bytes"); },
     },
   };
-  await assert.rejects(pushBundleToPeer(deps, { bundle: bundle({
-    entities: [
-      packedEntity({ entityType: "media", requiredBlobs: [keptSha] }),
-      packedEntity({ entityType: "redirect", requiredBlobs: [excludedSha] }),
-    ],
-    blobManifest: [keptSha, excludedSha],
-  }) }), (error: unknown) => {
+  await assert.rejects(pushBundleToPeer({
+                                          deps,
+                                          required: { bundle: bundle({
+      entities: [
+        packedEntity({ entityType: "media", requiredBlobs: [keptSha] }),
+        packedEntity({ entityType: "redirect", requiredBlobs: [excludedSha] }),
+      ],
+      blobManifest: [keptSha, excludedSha],
+    }) }
+                                        }), (error: unknown) => {
     assert.ok(error instanceof PublishContentPeerTransportError);
     assert.equal(error.code, "PEER_RESPONSE_INVALID");
     return true;
@@ -322,9 +329,12 @@ test("an OLD build answers a publishing credential's capabilities probe with 401
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http), {
-    bundle: bundle({ entities: [packedEntity({ entityType: "post", id: "p1" }), packedEntity({ entityType: "menu", id: "menu-header-nav" })] }),
-  });
+  const result = await pushBundleToPeer({
+                                          deps: pushDeps(http),
+                                          required: {
+      bundle: bundle({ entities: [packedEntity({ entityType: "post", id: "p1" }), packedEntity({ entityType: "menu", id: "menu-header-nav" })] }),
+    }
+                                        });
 
   assert.deepEqual(result.notSupportedByLive, [{ entityType: "menu", count: 1 }]);
   assert.equal(result.bundleId, "remote-bundle-1");
@@ -336,7 +346,7 @@ test("a 401 probe never masks a genuinely refused credential: the next leg's own
     { match: /\/bundles$/, status: 401, json: { error: "unauthenticated" } },
   ]);
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    () => pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_REJECTED" && err.peerStatus === 401
   );
 });
@@ -348,15 +358,18 @@ test("a peer that names its own accepted types trims to exactly those, counting 
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
 
-  const result = await pushBundleToPeer(pushDeps(http), {
-    bundle: bundle({
-      entities: [
-        packedEntity({ entityType: "post", id: "p1" }),
-        packedEntity({ entityType: "media", id: "m1" }),
-        packedEntity({ entityType: "media", id: "m2" }),
-      ],
-    }),
-  });
+  const result = await pushBundleToPeer({
+                                          deps: pushDeps(http),
+                                          required: {
+      bundle: bundle({
+        entities: [
+          packedEntity({ entityType: "post", id: "p1" }),
+          packedEntity({ entityType: "media", id: "m1" }),
+          packedEntity({ entityType: "media", id: "m2" }),
+        ],
+      }),
+    }
+                                        });
 
   assert.deepEqual(result.notSupportedByLive, [{ entityType: "media", count: 2 }]);
   assert.equal(http.calls.some((call) => call.url.includes("/blobs/")), false, "nothing here has a requiredBlob");
@@ -365,7 +378,7 @@ test("a peer that names its own accepted types trims to exactly those, counting 
 test("a capabilities response with no entityTypes array is a response-shape failure, not a silent 'accepts nothing'", async () => {
   const http = new FakeHttpClient([{ match: /\/capabilities$/, json: { ok: true } }]);
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    () => pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
   );
 });
@@ -373,7 +386,7 @@ test("a capabilities response with no entityTypes array is a response-shape fail
 test("a non-404 capabilities failure aborts the push rather than silently falling back to the legacy set", async () => {
   const http = new FakeHttpClient([{ match: /\/capabilities$/, status: 500, bodyText: "boom" }]);
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) }),
+    () => pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } }),
     (err: unknown) =>
       err instanceof PublishContentPeerTransportError && err.code === "PEER_REJECTED" && err.peerStatus === 500
   );
@@ -382,7 +395,7 @@ test("a non-404 capabilities failure aborts the push rather than silently fallin
 test("a peer that stages without returning a bundleId is a response-shape failure, not a silent undefined", async () => {
   const http = new FakeHttpClient([{ match: /\/bundles$/, status: 201, json: { expiresAt: "later" } }]);
   await assert.rejects(
-    () => pushBundleToPeer(pushDeps(http), { bundle: bundle() }),
+    () => pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle() } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
   );
 });
@@ -406,18 +419,18 @@ test("confirm and execute relay to the peer's own gated ceremony", async () => {
     { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] } },
   ]);
 
-  const confirmed = await confirmPeerImport({ httpClient: http, credential: CREDENTIAL }, { planId: "p1", planHash: "h1" });
+  const confirmed = await confirmPeerImport({ deps: { httpClient: http, credential: CREDENTIAL }, required: { planId: "p1", planHash: "h1" } });
   assert.deepEqual(confirmed, { confirmationToken: "tok-1" });
   assert.deepEqual(JSON.parse(Buffer.from(http.calls[0].body ?? "{}").toString("utf8")), { planId: "p1", planHash: "h1" });
 
-  const executed = await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
+  const executed = await executePeerImport({ deps: { httpClient: http, credential: CREDENTIAL }, required: { bundleId: "b1", confirmationToken: "tok-1" } });
   assert.deepEqual(executed, { restorePointId: "rp-1", runId: "run-1", changeSetIds: ["cs-1"] });
 });
 
 test("a peer that confirms without returning a token is a response-shape failure", async () => {
   const http = new FakeHttpClient([{ match: /\/import\/confirm$/, json: {} }]);
   await assert.rejects(
-    () => confirmPeerImport({ httpClient: http, credential: CREDENTIAL }, { planId: "p1", planHash: "h1" }),
+    () => confirmPeerImport({ deps: { httpClient: http, credential: CREDENTIAL }, required: { planId: "p1", planHash: "h1" } }),
     (err: unknown) => err instanceof PublishContentPeerTransportError && err.code === "PEER_RESPONSE_INVALID"
   );
 });
@@ -498,7 +511,7 @@ test("every peer route is built under the PEER's workspace id, never this instan
     { match: /\/bundles$/, status: 201, json: { bundleId: "b" } },
     { match: /\/import\/plan$/, json: { planId: "p", planHash: "h" } },
   ]);
-  await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle() } });
   for (const call of http.calls) {
     assert.match(call.url, /\/workspaces\/remote-ws-9\//);
   }
@@ -514,7 +527,7 @@ test("a capabilities probe with no 'features' array gives liveCanOverwrite:false
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } });
   assert.equal(result.liveCanOverwrite, false);
 });
 
@@ -524,7 +537,7 @@ test("a capabilities probe naming 'overwrite-live' in 'features' gives liveCanOv
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } });
   assert.equal(result.liveCanOverwrite, true);
 });
 
@@ -534,7 +547,7 @@ test("an old peer (404/401 legacy probe) always gives liveCanOverwrite:false", a
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }) });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }) } });
   assert.equal(result.liveCanOverwrite, false);
 });
 
@@ -543,7 +556,7 @@ test("liveCanOverwrite is false, not undefined, when the probe is skipped for an
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle() });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle() } });
   assert.equal(result.liveCanOverwrite, false);
 });
 
@@ -553,7 +566,7 @@ test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  await pushBundleToPeer(pushDeps(http), { bundle: bundle(), overwriteEntityKeys: ["post:p1"] });
+  await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle(), overwriteEntityKeys: ["post:p1"] } });
   const planCall = http.calls.find((call) => call.url.includes("/import/plan"));
   assert.deepEqual(JSON.parse(Buffer.from(planCall?.body ?? "{}").toString("utf8")), { bundleId: "remote-bundle-1", overwriteEntityKeys: ["post:p1"] });
 
@@ -561,7 +574,7 @@ test("pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-2" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  await pushBundleToPeer(pushDeps(http2), { bundle: bundle() });
+  await pushBundleToPeer({ deps: pushDeps(http2), required: { bundle: bundle() } });
   const planCall2 = http2.calls.find((call) => call.url.includes("/import/plan"));
   const parsed = JSON.parse(Buffer.from(planCall2?.body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal("overwriteEntityKeys" in parsed, false, "an unspecified overwriteEntityKeys must not appear as an empty array or null");
@@ -572,7 +585,7 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
     { match: /\/capabilities$/, json: { entityTypes: ["post"], features: ["overwrite-live"] } },
     { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } },
   ]);
-  await executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] });
+  await executePeerImport({ deps: { httpClient: http, credential: CREDENTIAL }, required: { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] } });
   const executeCall = http.calls.find((call) => call.url.includes("/import/execute"));
   assert.deepEqual(JSON.parse(Buffer.from(executeCall?.body ?? "{}").toString("utf8")), {
     bundleId: "b1",
@@ -581,7 +594,7 @@ test("executePeerImport sends overwriteEntityKeys when given, and omits the fiel
   });
 
   const http2 = new FakeHttpClient([{ match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } }]);
-  await executePeerImport({ httpClient: http2, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1" });
+  await executePeerImport({ deps: { httpClient: http2, credential: CREDENTIAL }, required: { bundleId: "b1", confirmationToken: "tok-1" } });
   const parsed = JSON.parse(Buffer.from(http2.calls[0].body ?? "{}").toString("utf8")) as Record<string, unknown>;
   assert.equal("overwriteEntityKeys" in parsed, false);
 });
@@ -610,11 +623,13 @@ test("a 403 credential_kind_not_permitted from live becomes a plain sentence, fo
   const executeHttp = new FakeHttpClient([capabilities, { match: /\/import\/execute$/, ...refusal }]);
 
   for (const call of [
-    () => pushBundleToPeer(pushDeps(planHttp), { bundle: bundle(), overwriteEntityKeys: ["post:p1"] }),
+    () => pushBundleToPeer({ deps: pushDeps(planHttp), required: { bundle: bundle(), overwriteEntityKeys: ["post:p1"] } }),
     () =>
       executePeerImport(
-        { httpClient: executeHttp, credential: CREDENTIAL },
-        { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] }
+        {
+          deps: { httpClient: executeHttp, credential: CREDENTIAL },
+          required: { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] }
+        }
       ),
   ]) {
     await assert.rejects(call, (err: unknown) => {
@@ -640,7 +655,7 @@ test("pushBundleToPeer refuses overwriteEntityKeys when the peer does not advert
       { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
     ]);
     await assert.rejects(
-      pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: ["post:p1"] }),
+      pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: ["post:p1"] } }),
       { name: "PublishContentPeerTransportError", code: "PEER_CANNOT_OVERWRITE", message: OLD_LIVE_OVERWRITE_REFUSAL }
     );
     assert.deepEqual(
@@ -657,7 +672,7 @@ test("pushBundleToPeer with an empty overwriteEntityKeys list is not a request t
     { match: /\/bundles$/, status: 201, json: { bundleId: "remote-bundle-1" } },
     { match: /\/import\/plan$/, json: { planId: "p1", planHash: "h1" } },
   ]);
-  const result = await pushBundleToPeer(pushDeps(http), { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: [] });
+  const result = await pushBundleToPeer({ deps: pushDeps(http), required: { bundle: bundle({ entities: [packedEntity()] }), overwriteEntityKeys: [] } });
   assert.equal(result.liveCanOverwrite, false);
 });
 
@@ -667,7 +682,7 @@ test("executePeerImport refuses overwriteEntityKeys when the peer does not adver
     { match: /\/import\/execute$/, json: { restorePointId: "rp-1", runId: "run-1", changeSetIds: [] } },
   ]);
   await assert.rejects(
-    executePeerImport({ httpClient: http, credential: CREDENTIAL }, { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] }),
+    executePeerImport({ deps: { httpClient: http, credential: CREDENTIAL }, required: { bundleId: "b1", confirmationToken: "tok-1", overwriteEntityKeys: ["post:p1"] } }),
     { name: "PublishContentPeerTransportError", code: "PEER_CANNOT_OVERWRITE", message: OLD_LIVE_OVERWRITE_REFUSAL }
   );
   assert.equal(http.calls.some((call) => call.url.includes("/import/execute")), false);
@@ -680,9 +695,12 @@ test("outbound successful and partial peer applies append saved-peer history and
   for (const report of [{ refused: false, rows: [] }, { refused: false, rows: [{ outcome: "conflict" }] }]) {
     const result = { runId: "remote-run", report };
     const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
-    assert.deepEqual(await executePeerImport({ httpClient: http, credential: CREDENTIAL,
-      publishHistory: { store: historyStore, workspaceId: "source-ws", clock: { nowMs: () => Date.parse(at) } },
-    }, { bundleId: "b1", confirmationToken: "token" }), result);
+    assert.deepEqual(await executePeerImport({
+                                               deps: { httpClient: http, credential: CREDENTIAL,
+        publishHistory: { store: historyStore, workspaceId: "source-ws", clock: { nowMs: () => Date.parse(at) } },
+      },
+                                               required: { bundleId: "b1", confirmationToken: "token" }
+                                             }), result);
   }
   const rows = await historyStore.list({ workspaceId: "source-ws" });
   assert.equal(rows.length, 2);
@@ -698,30 +716,67 @@ test("outbound successful and partial peer applies append saved-peer history and
   assert.equal(JSON.stringify(rows).includes(API_KEY), false);
 });
 
+test("a completed peer apply records one tovu-peer history row with the caller's trigger, defaulting to admin_ui", async () => {
+  const at = "2026-10-18T10:00:00.000Z";
+  const result = { runId: "remote-run", report: { refused: false, rows: [] } };
+  for (const [triggeredBy, expected] of [[undefined, "admin_ui"], ["agent_tool", "agent_tool"]] as const) {
+    const store = new InMemoryPublishHistoryStore();
+    const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
+    await executePeerImport({
+      deps: { httpClient: http, credential: CREDENTIAL,
+        publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => Date.parse(at) }, ...(triggeredBy ? { triggeredBy } : {}) } },
+      required: { bundleId: "b1", confirmationToken: "token" },
+    });
+    assert.deepEqual(await store.list({ workspaceId: "source-ws" }), [{
+      kind: "tovu-peer", target: CREDENTIAL.id, projectName: "", url: CREDENTIAL.baseUrl,
+      configFields: { label: CREDENTIAL.label }, reachable: true, status: "applied", publishedAt: at, triggeredBy: expected,
+    }]);
+  }
+});
+
+test("type pin: a history store without recordSuccess cannot be a PeerCallDeps recorder", () => {
+  const recorder: PublishHistoryRecorder = new InMemoryPublishHistoryStore();
+  // @ts-expect-error a store that cannot record is not a recorder
+  const missing: PublishHistoryRecorder = {};
+  assert.ok(recorder && missing);
+});
+
 test("a throwing history store preserves the successful remote apply and logs no error payload", async (t) => {
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const store = new InMemoryPublishHistoryStore();
-  store.recordSuccess = async () => { throw new Error(`database parameters: ${API_KEY}`); };
+  store.recordSuccess = async () => { throw Object.assign(new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); };
   const result = { runId: "remote-run", report: { refused: false, rows: [] } };
   const http = new FakeHttpClient([{ match: /\/import\/execute$/, json: result }]);
-  assert.deepEqual(await executePeerImport({ httpClient: http, credential: CREDENTIAL,
-    publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
-  }, { bundleId: "b1", confirmationToken: "token" }), result);
+  assert.deepEqual(await executePeerImport({
+                                             deps: { httpClient: http, credential: CREDENTIAL,
+      publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+    },
+                                             required: { bundleId: "b1", confirmationToken: "token" }
+                                           }), result);
   assert.equal(http.calls.length, 1);
-  assert.deepEqual(warnings, [["[publish-content] destination history write failed after remote apply"]]);
+  assert.equal(warnings[0]?.[0], "[publish-content] destination history write failed after remote apply");
+  assert.match(String(warnings[0]?.[1]), /Error/);
+  assert.match(String(warnings[0]?.[1]), /EIO/);
+  assert.doesNotMatch(JSON.stringify(warnings), /boom|SECRETSECRETSECRETSECRET/);
 });
 
 test("outbound failures, refusals and malformed success bodies never establish destinations", async () => {
   const store = new InMemoryPublishHistoryStore();
   for (const json of [{ ok: false, runId: "failed" }, { runId: "refused", report: { refused: true } }, {}]) {
-    await executePeerImport({ httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, json }]), credential: CREDENTIAL,
-      publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
-    }, { bundleId: "b1", confirmationToken: "token" });
+    await executePeerImport({
+                              deps: { httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, json }]), credential: CREDENTIAL,
+        publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+      },
+                              required: { bundleId: "b1", confirmationToken: "token" }
+                            });
   }
-  await assert.rejects(executePeerImport({ httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, status: 500, json: {} }]), credential: CREDENTIAL,
-    publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
-  }, { bundleId: "b1", confirmationToken: "token" }));
+  await assert.rejects(executePeerImport({
+                                           deps: { httpClient: new FakeHttpClient([{ match: /\/import\/execute$/, status: 500, json: {} }]), credential: CREDENTIAL,
+      publishHistory: { store, workspaceId: "source-ws", clock: { nowMs: () => 0 } },
+    },
+                                           required: { bundleId: "b1", confirmationToken: "token" }
+                                         }));
   assert.deepEqual(await store.list({ workspaceId: "source-ws" }), []);
 });
 
@@ -734,7 +789,7 @@ test("pull labels an envelope with no sourceLabel after the saved peer", async (
 });
 
 test("a transport error raised inside the http client passes through unchanged, not re-wrapped as unreachable", async () => {
-  const original = new PublishContentPeerTransportError("the peer refused the upload size", "PEER_RESPONSE_INVALID");
+  const original = new PublishContentPeerTransportError({ message: "the peer refused the upload size", code: "PEER_RESPONSE_INVALID" });
   const http: HttpClientPort = { send: async () => { throw original; } };
   await assert.rejects(pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL }), (err: unknown) => err === original);
 });

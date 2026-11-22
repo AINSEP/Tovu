@@ -1,7 +1,7 @@
 /** Packaged MCP release checks. Command construction and reply validation are independently testable. */
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { resolveSmokeTargets } from "./smoke-native.ts";
 
@@ -18,15 +18,17 @@ export function resolveBridgeSmokeTargets(
 ): ReturnType<typeof resolveSmokeTargets> {
   const appAt = argv.indexOf("--app");
   const platformAt = argv.indexOf("--platform-dir");
-  if (appAt !== -1 && argv[appAt + 1]) {
-    const app = path.resolve(desktopRoot, argv[appAt + 1]!);
+  const appArg = appAt === -1 ? undefined : argv[appAt + 1];
+  const platformArg = platformAt === -1 ? undefined : argv[platformAt + 1];
+  if (appArg) {
+    const app = path.resolve(desktopRoot, appArg);
     return {
       executablePath: path.join(app, "Contents", "MacOS", "Tovu"),
       nodeModulesDir: path.join(app, "Contents", "Resources", "tovu", "node_modules"),
     };
-  } else if (platformAt !== -1 && argv[platformAt + 1]) {
-    const platformDir = path.resolve(desktopRoot, argv[platformAt + 1]!);
-    return resolveSmokeTargets(platformDir, readDirectory(platformDir));
+  } else if (platformArg) {
+    const platformDir = path.resolve(desktopRoot, platformArg);
+    return resolveSmokeTargets({ platformDir, entryNames: readDirectory(platformDir) });
   } else {
     throw new Error("smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required");
   }
@@ -73,9 +75,9 @@ export function buildJiniEntryScript(
   const fromTovu = createRequire(join(tovu, "package.json"));
   const { resolveMcpJsonInjection } = await import(pathToFileURL(join(tovu, "dist/src/assistant/mcp-injection.js")).href);
   const { buildMcpJsonServerEntry } = await import(pathToFileURL(fromTovu.resolve("@jini-ai/daemon")).href);
-  const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke", {
+  const injection = resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke" }, { runtime: {
     execPath: ${JSON.stringify(executablePath)}, electronVersion: "smoke", env: {},
-  });
+  } });
   const desktopScript = join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js");
   const entries = [injection, { ...injection, args: [desktopScript] }].map(options =>
     buildMcpJsonServerEntry({ runId: "release-smoke", options }, { credential: "smoke" }));
@@ -88,7 +90,7 @@ export function buildJiniEntryScript(
       const response = await fetch(host.url, { method: "POST", headers: { Authorization: "Bearer " + host.token,
         "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(5000) });
-      if (!response.ok) throw new Error("desktop HTTP request failed");
+      if (!response.ok) throw new Error("Desktop tools smoke call returned HTTP " + response.status + ".");
       const reply = await response.json();
       if (reply.error || reply.result?.isError) throw new Error("desktop HTTP protocol failed");
       return reply.result;
@@ -177,6 +179,69 @@ export function assertBridgeReplies(
   }
 }
 
+/** How one stdout line moved the handshake: `true` once the bridge's tool roster has been checked. */
+type HandshakeSteps = { start: () => void; acceptLine: (required: { line: string }) => boolean };
+
+/**
+ * The two requests of the MCP handshake (initialize, then tools/list) as a line-fed state machine,
+ * so the stream plumbing in {@link smokeBridge} holds no protocol logic.
+ *
+ * @param required.send Writes one JSON-RPC message to the bridge.
+ * @returns `start` sends initialize; `acceptLine` takes one stdout line and answers whether the
+ *   handshake is complete. It throws for a malformed or failed reply, or a wrong server or roster.
+ * @complexity O(line length) per line.
+ */
+function createHandshakeSteps({ entry, send }: { entry: BridgeCommand; send: (message: object) => void }, _options = {}): HandshakeSteps {
+  let id = 1;
+  let initialize: Record<string, unknown> | undefined;
+  return {
+    start: () => send({ jsonrpc: "2.0", id, method: "initialize", params: {
+      protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "release-smoke", version: "0" },
+    } }),
+    acceptLine: ({ line }) => {
+      const reply = parseBridgeReply({ line, id });
+      if (!reply) return false;
+      if (id === 1) {
+        initialize = reply;
+        id = 2;
+        send({ jsonrpc: "2.0", method: "notifications/initialized" });
+        send({ jsonrpc: "2.0", id, method: "tools/list", params: {} });
+        return false;
+      }
+      if (!initialize) throw new Error('MCP bridge tools reply arrived without an initialize reply');
+      assertBridgeReplies({ initialize, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
+      return true;
+    },
+  };
+}
+
+/** Keeps the bridge's stderr for a failure message, up to 64 KiB; past that it says so instead.
+ * @returns a reader for what was kept.
+ * @complexity O(bytes kept). */
+function retainStderr({ stream }: { stream: NodeJS.ReadableStream }, _options = {}): () => string {
+  let stderr = "";
+  let overflow = false;
+  stream.setEncoding("utf8");
+  stream.on("data", (chunk: string) => {
+    if (overflow) return;
+    overflow = stderr.length + chunk.length > 65_536;
+    stderr = overflow ? "[oversized stderr omitted]" : stderr + chunk;
+  });
+  return () => stderr;
+}
+
+/** The error a failed smoke throws: which entry, what went wrong, and the bridge's own stderr,
+ * with local paths and secrets redacted.
+ * @complexity O(message length). */
+function bridgeSmokeFailure({ entry, error, stderr }: { entry: BridgeCommand; error: unknown; stderr: string }, _options = {}): Error {
+  const errorText = error instanceof Error ? error.message : String(error);
+  const diagnostics = stderr ? `\n${stderr}` : "";
+  const detail = `${entry.label}: ${errorText}${diagnostics}`;
+  // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
+  return new Error(sanitizeUntrustedText({ text: redactLocalText({ text: detail }) },
+    { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));
+}
+
 /**
  * Temporary local handshake until @jini-ai/daemon publishes probeMcpBridge. A 30 s watchdog covers
  * the entire exchange; stdout is bounded and stderr is retained only for failure diagnostics.
@@ -190,20 +255,11 @@ export async function smokeBridge(
     env: buildBridgeEnv({ hostEnv, entryEnv: entry.env }), stdio: ["pipe", "pipe", "pipe"], ...(cwd ? { cwd } : {}),
   });
   const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
-  let stderr = "";
-  let stderrOverflow = false;
+  const readStderr = retainStderr({ stream: child.stderr });
   let timer: ReturnType<typeof setTimeout> | undefined;
-  child.stderr.setEncoding("utf8");
-  child.stderr.on("data", (chunk: string) => {
-    if (stderrOverflow) return;
-    stderrOverflow = stderr.length + chunk.length > 65_536;
-    stderr = stderrOverflow ? "[oversized stderr omitted]" : stderr + chunk;
-  });
   const handshake = new Promise<void>((resolve, reject) => {
     let buffer = "";
-    let id = 1;
-    let initialize: Record<string, unknown> | undefined;
-    const send = (message: object) => child.stdin.write(`${JSON.stringify(message)}\n`);
+    const steps = createHandshakeSteps({ entry, send: (message) => child.stdin.write(`${JSON.stringify(message)}\n`) });
     timer = setTimeout(() => reject(new Error(`MCP watchdog exceeded ${watchdogMs} ms`)), watchdogMs);
     child.once("error", reject);
     child.stdin.on("error", reject);
@@ -215,39 +271,18 @@ export async function smokeBridge(
         reject(new Error("MCP stdout exceeded smoke buffer limit"));
         return;
       }
-      let newline: number;
-      while ((newline = buffer.indexOf("\n")) !== -1) {
-        const line = buffer.slice(0, newline);
-        buffer = buffer.slice(newline + 1);
-        try {
-          const reply = parseBridgeReply({ line, id });
-          if (!reply) continue;
-          if (id === 1) {
-            initialize = reply;
-            id = 2;
-            send({ jsonrpc: "2.0", method: "notifications/initialized" });
-            send({ jsonrpc: "2.0", id, method: "tools/list", params: {} });
-          } else {
-            assertBridgeReplies({ initialize: initialize!, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
-            resolve();
-            return;
-          }
-        } catch (error) { reject(error); return; }
-      }
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? ""; // the piece after the last newline is an unfinished line
+      try {
+        if (lines.some((line) => steps.acceptLine({ line }))) resolve();
+      } catch (error) { reject(error); }
     });
-    send({ jsonrpc: "2.0", id, method: "initialize", params: {
-      protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "release-smoke", version: "0" },
-    } });
+    steps.start();
   });
   try {
     await handshake;
   } catch (error) {
-    const errorText = error instanceof Error ? error.message : String(error);
-    const diagnostics = stderr ? `\n${stderr}` : "";
-    const detail = `${entry.label}: ${errorText}${diagnostics}`;
-    // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
-    throw new Error(sanitizeUntrustedText({ text: redactLocalText({ text: detail }) },
-      { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));
+    throw bridgeSmokeFailure({ entry, error, stderr: readStderr() });
   } finally {
     clearTimeout(timer);
     child.kill("SIGKILL");

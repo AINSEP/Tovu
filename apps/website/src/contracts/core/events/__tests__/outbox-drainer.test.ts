@@ -2,10 +2,13 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { InMemoryEventBus, InMemoryOutbox, startOutboxDrainer } from "../index.js";
-import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 /**
  * @file `startOutboxDrainer`: the background loop that is the single owner of outbox delivery in a

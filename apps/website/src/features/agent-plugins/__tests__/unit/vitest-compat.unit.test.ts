@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { AssertionError } from "node:assert";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -13,20 +14,20 @@ import { expect, vi } from "../fixtures/vitest-compat.js";
  */
 
 test("the vitest compat matchers fail wrong assertions and pass right ones", async () => {
-  assert.throws(() => expect(1).toBe(2));
+  assert.throws(() => expect(1).toBe(2), { constructor: AssertionError, name: "AssertionError", message: "expected 1 to be 2" });
   assert.throws(() => expect({ a: 1 }).toEqual({ a: 1, b: 2 }));
   assert.throws(() => expect({ a: 1, b: 2 }).toEqual({ a: 1 }));
   expect({ a: 1, b: 2 }).toMatchObject({ a: 1 });
-  assert.throws(() => expect({ a: 1 }).toMatchObject({ a: 2 }));
-  assert.throws(() => expect("abc").toMatch(/z/));
-  assert.throws(() => expect(vi.fn()).toHaveBeenCalled());
-  assert.throws(() => expect("x").not.toBe("x"));
+  assert.throws(() => expect({ a: 1 }).toMatchObject({ a: 2 }), { constructor: AssertionError, name: "AssertionError", message: 'expected {"a":1} to match {"a":2}' });
+  assert.throws(() => expect("abc").toMatch(/z/), { constructor: AssertionError, name: "AssertionError", message: 'expected "abc" to match /z/' });
+  assert.throws(() => expect(vi.fn()).toHaveBeenCalled(), { constructor: AssertionError, name: "AssertionError", message: "expected the mock to have been called" });
+  assert.throws(() => expect("x").not.toBe("x"), { constructor: AssertionError, name: "AssertionError", message: 'NOT: expected "x" to be "x"' });
   await assert.rejects(expect(Promise.resolve(1)).rejects.toThrow("x"));
   await assert.rejects(expect(Promise.reject(new Error("abc"))).rejects.toThrow("zzz"));
   await expect(Promise.reject(new Error("abc"))).rejects.toThrow("ab");
   assert.throws(() => (expect("s") as unknown as Record<string, () => void>).toFoo!(), /unsupported matcher 'toFoo'/);
   expect({ m: "hello world" }).toMatchObject({ m: expect.stringContaining("world") });
-  assert.throws(() => expect({ m: "hello" }).toMatchObject({ m: expect.stringContaining("world") }));
+  assert.throws(() => expect({ m: "hello" }).toMatchObject({ m: expect.stringContaining("world") }), { constructor: AssertionError, name: "AssertionError", message: 'expected {"m":"hello"} to match {"m":{"description":"StringContaining \\"world\\""}}' });
 });
 
 test("compat mocks retain exact arguments, resolve configured values and clear calls", async () => {
@@ -35,7 +36,7 @@ test("compat mocks retain exact arguments, resolve configured values and clear c
   assert.equal(await fn("second"), "resolved");
   assert.deepEqual(fn.mock.calls, [["first", { id: 2 }], ["second"]]);
   expect(fn).toHaveBeenCalledTimes(2);
-  assert.throws(() => expect(fn).toHaveBeenCalledTimes(1));
+  assert.throws(() => expect(fn).toHaveBeenCalledTimes(1), { constructor: AssertionError, name: "AssertionError", message: "expected 2 calls to be 1" });
   fn.mockClear();
   assert.deepEqual(fn.mock.calls, []);
   assert.equal(await fn("third"), "resolved");
@@ -109,19 +110,19 @@ for (const brokenCleanup of [false, true]) test(`caught forbidden fetch still fa
 });
 
 test("compat value and error matchers accept the right value and reject the wrong one", () => {
-  const cases: Array<[unknown, string, unknown[], unknown]> = [
-    [new TypeError("bad"), "toBeInstanceOf", [TypeError], new Error("bad")],
-    [undefined, "toBeUndefined", [], null],
-    [null, "toBeNull", [], undefined],
-    ["present", "toBeDefined", [], undefined],
-    [["a", "b"], "toHaveLength", [2], ["a"]],
-    [["a", "b"], "toContain", ["b"], ["a"]],
-    [3, "toBeGreaterThan", [2], 2],
-    [{ key: "value" }, "toHaveProperty", ["key", "value"], { key: "wrong" }],
-    [() => { throw new TypeError("bad"); }, "toThrow", [TypeError], () => { throw new Error("bad"); }],
+  const cases: Array<[unknown, string, unknown[], unknown, string]> = [
+    [new TypeError("bad"), "toBeInstanceOf", [TypeError], new Error("bad"), "expected {} to be an instance of TypeError"],
+    [undefined, "toBeUndefined", [], null, "expected null to be undefined"],
+    [null, "toBeNull", [], undefined, "expected undefined to be null"],
+    ["present", "toBeDefined", [], undefined, "expected a defined value"],
+    [["a", "b"], "toHaveLength", [2], ["a"], "expected length 1 to be 2"],
+    [["a", "b"], "toContain", ["b"], ["a"], 'expected ["a"] to contain "b"'],
+    [3, "toBeGreaterThan", [2], 2, "expected 2 to be greater than 2"],
+    [{ key: "value" }, "toHaveProperty", ["key", "value"], { key: "wrong" }, 'expected {"key":"wrong"} to have property key'],
+    [() => { throw new TypeError("bad"); }, "toThrow", [TypeError], () => { throw new Error("bad"); }, `expected thrown "bad" to match ${String(TypeError)}`],
   ];
-  for (const [right, matcher, args, wrong] of cases) {
+  for (const [right, matcher, args, wrong, message] of cases) {
     expect(right)[matcher]!(...args);
-    assert.throws(() => expect(wrong)[matcher]!(...args));
+    assert.throws(() => expect(wrong)[matcher]!(...args), { constructor: AssertionError, name: "AssertionError", message });
   }
 });

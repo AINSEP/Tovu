@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { assignLocation, MenuConflictError, updateMenuTree, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { importMenuEntity } from "../import-menu.js";
-import { SqlMenuRepo, SqlNavLocationBindingRepo } from "../repo.js";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";
 import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
 
@@ -228,12 +228,12 @@ function runAtomicitySuite(adapterName: string, make: () => { repo: MenuRepoPort
 }
 
 runCompareAndSetSuite("TrashAwareInMemoryMenuRepo", () => new TrashAwareInMemoryMenuRepo());
-for (const each of eachDialect({ tables: ["menus"], make: (kernel) => new SqlMenuRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["menus"], make: (kernel) => new SqliteMenuRepo({ store: kernel }) })) {
   runCompareAndSetSuite(`SqlMenuRepo ${each.name}`, each.make);
 }
 for (const each of eachDialect({
   tables: ["menus", "nav_location_bindings"],
-  make: (kernel) => ({ repo: new SqlMenuRepo(kernel), bindingRepo: new SqlNavLocationBindingRepo(kernel) }),
+  make: (kernel) => ({ repo: new SqliteMenuRepo({ store: kernel }), bindingRepo: new SqliteNavLocationBindingRepo({ store: kernel }) }),
 })) {
   runAtomicitySuite(`SqlMenuRepo ${each.name}`, each.make);
 }

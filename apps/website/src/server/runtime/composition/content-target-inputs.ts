@@ -11,7 +11,7 @@ import { mediaViewImageAgentToolCatalog } from "#src/features/media/view-image-t
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
 import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
 import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/agent-tools";
-import { getSeoAgentToolCatalog } from "#src/features/seo/agent-tools";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
 /** Bind the one assistant adapter to existing CMS owners and their declared permissions.
  * Peers pass their own dependencies through this same binding, never the active site's repos.
@@ -22,7 +22,7 @@ export function bindContentTargetInputs(
 ) {
   const permissions = new Map([...postAgentToolCatalog, ...postPreviewAgentToolCatalog, ...pagesAgentToolCatalog,
     ...mediaAgentToolCatalog, ...mediaViewImageAgentToolCatalog, ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
-    .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor(tool.name), tool.authorization.permission] as const]));
+    .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor({ toolId: tool.name }), tool.authorization.permission] as const]));
   return applyContentTargetInputs({ registrations, deps: {
     workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize, mediaRepo: routeDeps.mediaRepo, beforeLookup,
     permissionFor: ({ toolId }) => {

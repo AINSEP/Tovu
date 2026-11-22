@@ -1,27 +1,29 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Response } from "express";
-import { defineJsonRoute, mountJsonRoute, ok, type HttpMethod, type JsonRouteAuthorize, type RouteInputContext } from "@jini-ai/http-kit";
+import { defineJsonRoute, mountJsonRoute } from "@jini-ai/http-kit";
+import {
+  ok,
+  type HttpMethod,
+  type JsonRouteAuthorize,
+  type RouteInputContext,
+} from "@jini-ai/core/contracts/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";
-import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
 
 import {
-  createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set, type SettingScope, type SettingsWriteServiceDeps,
+  createSettingsPrincipalLookup, refuseCommentsProviderClear, refuseCommentsProviderReset, set, type SettingsWriteServiceDeps,
 } from "#src/features/settings/index";
 import {
   createCmsSettingsService,
-  resolveTargetWorkspaceId as resolveCmsTargetWorkspaceId,
   resolveUserLayerReadTarget as resolveCmsUserLayerReadTarget,
-  respondToSettingsError as respondToCmsSettingsError,
   type SettingsPermissions,
   type SettingsService,
-  type TargetWorkspaceResolution,
   type UserLayerReadTarget,
-  type SettingsErrorMapping,
-} from "@jini-ai/core/settings/express";
+} from "@jini-ai/core/settings";
+import { respondToSettingsError as respondToCmsSettingsError, type SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 
-export type { TargetWorkspaceResolution, UserLayerReadTarget, SettingsErrorMapping } from "@jini-ai/core/settings/express";
 import type { SettingsRouteDeps } from "./deps.js";
 
 /**
@@ -50,42 +52,6 @@ export function toWriteServiceDeps(deps: SettingsRouteDeps): SettingsWriteServic
 }
 
 /**
- * Decides which workspace a settings WRITE may target, from the request body.
- *
- * This exists because a body-supplied `workspaceId` was a cross-tenant write. All three mutation
- * routes authorize against the ambient `deps.workspaceId` (the `:workspaceId` path param, already
- * 404-checked against it at the top of each handler) while passing the BODY's `workspaceId` through
- * to `write-service` as the write target. Nothing required the two to match, so a principal holding
- * `settings.workspace.write` here could post `{"scope":"workspace","workspaceId":"<other>"}` and
- * have both authorize() calls pass against this workspace while `saveWorkspaceValue` wrote the
- * other tenant's row. `reset` was worse: one request wiped a whole namespace in another tenant.
- *
- * The rule is that there is nothing to decide — the target IS the ambient workspace. A body that
- * names a different one is rejected with 400 rather than ignored, so a mis-integrated caller fails
- * loudly instead of silently writing somewhere else than it asked for. A body that names THIS
- * workspace is accepted as redundant-but-consistent, since existing callers send it.
- *
- * `scope: "global"` returns `undefined`: there is no workspace concept in the platform partition,
- * and seeding one would be wrong for the reason `authWorkspaceId`'s own doc comment already gives.
- *
- * Lives here rather than in any one route so the three cannot drift apart again — copy-paste drift
- * between these files is what produced the gap. `write-service` re-asserts the same invariant as a
- * backstop for non-HTTP callers.
- *
- * @param deps - narrowed route deps; supplies the ambient authorized workspace.
- * @param required.bodyWorkspaceId - the request body's `workspaceId`, unvalidated.
- * @param required.scope - the write's target scope.
- * @returns the workspace id to write (`undefined` = global partition), or a 400 message.
- * @complexity O(1).
- */
-export function resolveTargetWorkspaceId(
-  deps: Pick<SettingsRouteDeps, "workspaceId">,
-  required: { bodyWorkspaceId: unknown; scope: SettingScope }
-): TargetWorkspaceResolution {
-  return resolveCmsTargetWorkspaceId({ workspaceId: deps.workspaceId, input: required });
-}
-
-/**
  * Permission that gates reading *another* principal's user-layer value. Mirrors
  * `write-service.ts`'s existing `settings.user.self.write` vs `settings.user.write` split for
  * writes (`permissionFor`, lines ~80-83): touching your own user layer and touching someone
@@ -93,7 +59,7 @@ export function resolveTargetWorkspaceId(
  *
  * Read is NOT implied by write here: this checks `settings.user.read` and nothing else, so the
  * permission model no longer conflates the two. Existing write-holders are not locked out —
- * `identity/permissions.ts` registers a one-time additive `settings.user.write -> settings.user.read`
+ * `Jini packages/user-management/src/core/builtin-permissions.ts` registers a one-time additive `settings.user.write -> settings.user.read`
  * grant fan-out for that, which is where the compatibility concern belongs (grant data), not here
  * (the authorization check).
  */
@@ -139,7 +105,7 @@ export async function resolveUserLayerReadTarget(
  * these routes throw is a bare `class XError extends Error {}` with no fields beyond `message`, so
  * narrowing buys nothing here.
  */
-export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
+export function respondToSettingsError({ res, err, mappings }: { res: Response; err: unknown; mappings: readonly SettingsErrorMapping[] }, _optional = {}): void {
   if (!mappings.some(mapping => mapping.matches(err))) {
     sendAdminFailure({ res, error: err }, { operation: "routes/settings", message: "The settings request could not finish." });
     return;
@@ -162,7 +128,7 @@ const SETTINGS_PERMISSIONS: SettingsPermissions = {
 };
 
 /** Bind the CMS service to host ports and SPEC-050 REQ-08 title bounds.
- * Generic implementation and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Generic implementation and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * Route authentication/error envelopes remain host policy. The title wrapper shares these exact
  * deps so a rejected title never reaches the ledger, while other settings keep CMS behavior.
  * @complexity O(1) construction, plus each delegated CMS operation's repository work.
@@ -173,7 +139,7 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   // Mail provider readiness is cached (mail-status-cache.ts); any core.mail write must drop it so a
   // cleared provider stops accepting sign-ins at once. A reset can commit earlier clears before a
   // later failure, so invalidation runs on settlement either way.
-  const afterWrite = async <T>(input: { namespace: string }, write: () => Promise<T>): Promise<T> => {
+  const afterWrite = async <T>({ input, write }: { input: { namespace: string }; write: () => Promise<T> }, _optional = {}): Promise<T> => {
     try { return await write(); } finally {
       if (input.namespace === "core.mail") required.deps.mailProviderControl?.invalidate?.();
     }
@@ -181,9 +147,9 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   // Clear and reset keep the CMS service's own authorization; the comments provider is refused first
   // because restoring its default re-enables comments behind `comments_set_provider`'s card.
   return { ...service,
-    set: input => afterWrite(input, () => (required.deps.set ?? set)({ deps, input })),
-    clear: input => afterWrite(input, async () => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); }),
-    reset: input => afterWrite(input, async () => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); }),
+    set: input => afterWrite({ input, write: () => (required.deps.set ?? set)({ deps, input }) }),
+    clear: input => afterWrite({ input, write: async () => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); } }),
+    reset: input => afterWrite({ input, write: async () => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); } }),
   };
 }
 
@@ -236,7 +202,9 @@ export function mountSettingsJsonRoute<Output>(required: {
       if (method !== "get" && await touchesAssistantSubagents({ body: input.body, repo: deps.settingsRepo, workspaceId: deps.workspaceId })) {
         rejectSettingsRequest({ status: 403, code: "FORBIDDEN", error: ASSISTANT_SUBAGENTS_WRITE_REASON + " " + ASSISTANT_PERMANENT_DELETES_WRITE_REASON });
       }
-      return ok({ value: await handle({ request: input, principal: context!, authorize: authorize! }) });
+      if (!context) throw new Error("settings route has no authenticated principal");
+      if (!authorize) throw new Error("settings route has no authorizer");
+      return ok({ value: await handle({ request: input, principal: context, authorize }) });
     },
   }, { ports: {
     workspace: ({ raw, deps }) => {
@@ -246,7 +214,8 @@ export function mountSettingsJsonRoute<Output>(required: {
     },
     authenticate: async ({ res, deps }) => { await deps.settingsReady; return getAuthedPrincipal(res); },
     authorize: async ({ context, deps, permission, entityType }) => {
-      const principal = context!;
+      const principal = context;
+      if (!principal) throw new Error("settings authorization has no authenticated principal");
       const result = await deps.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType });
       if (!result.allowed) rejectSettingsRequest({
         status: 403, error: `principal '${principal.id}' is not authorized for '${permission}' (${result.reason})`,
@@ -255,7 +224,7 @@ export function mountSettingsJsonRoute<Output>(required: {
     },
     onError: ({ res, error }) => {
       if (error instanceof SettingsRequestError) { res.status(error.response.status).json(error.response.body); return; }
-      respondToSettingsError(res, error, errorMappings);
+      respondToSettingsError({ res, err: error, mappings: errorMappings });
     },
   } });
   mountJsonRoute({ app, spec, deps });

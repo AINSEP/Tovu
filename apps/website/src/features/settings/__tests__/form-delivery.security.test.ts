@@ -128,7 +128,7 @@ test("the validating write refuses a secret-carrying list before the ledger is t
     (error: unknown) => error instanceof ValueValidationFailedError && /"config\.apiKey" is named like a secret/.test(error.message),
   );
   assert.equal(counter.authorizeCalls, 0, "refused before the settings write ran");
-  const stored = await getEffective({ repo: settingsRepo }, { namespace: "core.forms", key: "deliveryBindings", scopeContext: { workspaceId: WS } });
+  const stored = await getEffective({ deps: { repo: settingsRepo }, namespace: "core.forms", key: "deliveryBindings", scopeContext: { workspaceId: WS } });
   assert.deepEqual(stored?.value, [], "the ledger still holds the default");
   assert.deepEqual(await readFormDeliveryBindings({ settingsRepo, workspaceId: WS }), []);
 });

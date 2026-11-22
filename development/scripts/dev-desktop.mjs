@@ -220,7 +220,7 @@ export function startRendererWatch(filePath, { now = Date.now, startWatch = () =
  * Trim + lowercase, `"1"`/`"true"` only — never a bare truthy check on the raw string. That exact
  * inversion (a literal `"false"` reading as "enabled") was a confirmed 2026-09-05 audit finding
  * against `TOVU_DISABLE_DEV_TLS`; `dev.mjs`'s `isDevTlsExplicitlyDisabled`,
- * `apps/admin/dev-tls-disable-flag.ts` and `apps/website/src/server/runtime/boot/dev-tls.ts` each
+ * `apps/admin/dev-tls-disable-flag.ts` and `apps/website/src/platform/dev-host/dev-tls.ts` each
  * carry their own copy of the same parse for their own runtime boundary.
  *
  * @param {unknown} raw

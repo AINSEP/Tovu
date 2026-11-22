@@ -9,8 +9,10 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, contributePostDuplicateHandlers, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -33,7 +35,7 @@ const NOW = "2026-09-07T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
 function fakeRouteDeps() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();

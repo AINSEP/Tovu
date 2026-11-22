@@ -21,7 +21,7 @@ test("every Members agent tool keeps its exact permission, side effect and stric
     withoutDescriptions({ name, sideEffects, authorization, inputSchema, actorClassRule })), [
     { name: "members_create", ...write, inputSchema: { type: "object", additionalProperties: false, required: ["email"], properties: { email: { type: "string", minLength: 1 }, name: { type: "string", minLength: 1 } } }, actorClassRule: undefined },
     { name: "members_update_profile", ...write, inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"], properties: { memberId: MEMBER_ID, name: { type: "string", minLength: 1 } } }, actorClassRule: undefined },
-    { name: "members_list", ...read, inputSchema: { type: "object", additionalProperties: false, required: [], properties: { afterId: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100 } } }, actorClassRule: undefined },
+    { name: "members_list", ...read, inputSchema: { type: "object", additionalProperties: false, required: [], properties: { cursor: { type: "string" }, afterId: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100, clamp: true } } }, actorClassRule: undefined },
     { name: "members_get_by_id", ...read, inputSchema: ID_ONLY, actorClassRule: undefined },
     { name: "members_delete", ...write, inputSchema: ID_ONLY, actorClassRule: undefined },
     { name: "members_disable", ...write, inputSchema: ID_ONLY, actorClassRule: undefined },

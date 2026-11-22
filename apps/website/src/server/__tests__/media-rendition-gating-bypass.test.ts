@@ -157,7 +157,7 @@ test("media gate: a VIDEO whose only referrer is a members-only html Page's medi
     assert.equal(anon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await anon.json(), { error: "video rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(`${baseUrl}/m/${media.id}/original`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
@@ -194,7 +194,7 @@ test("media gate: a VIDEO referenced by a members-only html Page's media marker 
     assert.equal(anon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await anon.json(), { error: "video rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(`${baseUrl}/m/${media.id}/original`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
@@ -226,7 +226,7 @@ test("media gate: an IMAGE whose only referrer is a members-only html Page's med
     assert.equal(anon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await anon.json(), { error: "rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
     assert.equal(member.status, 200, "an entitled signed-in member must still get the rendition");
     assert.equal(member.headers.get("cache-control"), "private, no-store");
@@ -305,7 +305,7 @@ test("media gate: a MEDIA-node ref (not image) in a members-only post's doc body
     assert.equal(bypassAnon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await bypassAnon.json(), { error: "rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const controlMember = await fetch(controlUrl, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
     assert.equal(controlMember.status, 200, "control: an entitled member still reads the image-node embed");
     const bypassMember = await fetch(bypassUrl, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
@@ -329,7 +329,7 @@ test("media gate: a MEDIA-node ref to a VIDEO in a members-only post's doc body 
     assert.equal(anon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await anon.json(), { error: "video rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
     assert.equal(member.status, 200, "an entitled member must still get the video");
     assert.equal(member.headers.get("content-type"), "video/mp4");
@@ -381,7 +381,7 @@ test("media gate: an entitled member still reads the media of a gated post that 
       )
     );
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/tm.webp`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
@@ -482,7 +482,7 @@ test("media gate: a live GATED entry whose body format this scan cannot read den
     assert.equal(anon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await anon.json(), { error: "rendition not found" });
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
     assert.equal(member.status, 200, "it gates, it does not blanket-deny");
     assert.equal(member.headers.get("cache-control"), "private, no-store");
@@ -643,7 +643,7 @@ test("media gate: a members-only entry embedding a RETIRED slug still gates the 
     assert.equal(byId.status, 404, "the retired slug the entry still references must keep gating the id URL after rename");
     assert.equal(byId.headers.get("cache-control"), "private, no-store");
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
@@ -671,7 +671,7 @@ test("media gate: an asset a members-only entry embeds BY SLUG is gated when req
     const byId = await fetch(`${baseUrl}/m/${media.id}/original`);
     assert.equal(byId.status, 404, "the id is the spelling the renderer emits into <video src> — it must be gated too");
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(`${baseUrl}/m/${media.id}/original`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });
@@ -700,7 +700,7 @@ for (const visibility of ["paid", "tiers"] as const) {
             status: "active", visibleInPortal: true, createdAt: now, updatedAt: now, version: 1 });
         }
         const session = activeMemberSession(deps.workspaceId);
-        deps.memberSessionRepo = new InMemoryMemberSessionRepo([session]);
+        deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [session] });
         for (const scenario of ["unsubscribed", "period-ended", "expired-status", "wrong-tier", "entitled"] as const) {
           deps.memberSubscriptionRepo = new InMemoryMemberSubscriptionRepo();
           if (scenario !== "unsubscribed") {
@@ -742,7 +742,7 @@ for (const shape of ['inline-media', 'raw-html', 'placement', 'saved-widget'] as
       const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
       assert.equal(anonymous.status, 404);
       assert.equal(anonymous.headers.get('cache-control'), 'private, no-store');
-      deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+      deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
       const member = await fetch(`${baseUrl}/m/${media.slug}/original`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
       assert.equal(member.status, 200);
       assert.deepEqual(new Uint8Array(await member.arrayBuffer()), mp4Bytes(`gated-${shape}`));
@@ -759,7 +759,7 @@ test("mediawidget audio uses the existing gated, sniffed, range-capable original
     const anonymous = await fetch(`${baseUrl}/m/${media.slug}/original`);
     assert.equal(anonymous.status, 404);
     assert.equal(anonymous.headers.get("cache-control"), "private, no-store");
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const member = await fetch(`${baseUrl}/m/${media.slug}/original`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}`, range: "bytes=0-11" } });
     assert.equal(member.status, 206);
     assert.equal(member.headers.get("content-type"), "audio/wav");

@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
-import { injectPostAuthor, postAuthorForContentHeader, renderStaticPage } from "../static-render.js";
+import { injectPostAuthor, postAuthorForContentHeader } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 
 const marker = `<p class="post-author" data-embed-config='{"type":"post-author"}'>fallback</p>`;

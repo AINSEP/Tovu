@@ -1,5 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { readServerAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -10,10 +10,10 @@ import { guardExternalMcpRequest } from "./guard.js";
  * The legacy failure code remains until the admin client's unavailable-state contract migrates.
  * @complexity O(1) dispatch plus the server reader's bounded federation wait.
  */
-export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers/admissions", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
 
       const result = await (deps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {}));
       if (!result.ok) {

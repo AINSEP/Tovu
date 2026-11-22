@@ -24,25 +24,25 @@ function deadPid(): number {
 
 test("readJsonFile tells missing, parsed and damaged apart, and hands the damaged bytes back", () => {
   const filePath = tempFile();
-  assert.deepEqual(readJsonFile(filePath), { state: "missing" });
+  assert.deepEqual(readJsonFile({ filePath }), { state: "missing" });
 
-  writeJsonFileAtomic(filePath, { a: 1 });
-  assert.deepEqual(readJsonFile(filePath), { state: "ok", value: { a: 1 } });
+  writeJsonFileAtomic({ filePath, value: { a: 1 } });
+  assert.deepEqual(readJsonFile({ filePath }), { state: "ok", value: { a: 1 } });
 
   fs.writeFileSync(filePath, '{ "a": ');
-  assert.deepEqual(readJsonFile(filePath), { state: "unreadable", text: '{ "a": ' });
+  assert.deepEqual(readJsonFile({ filePath }), { state: "unreadable", text: '{ "a": ' });
 
   // An I/O failure is unreadable too, with no bytes to hand back.
-  assert.deepEqual(readJsonFile(path.dirname(filePath)), { state: "unreadable" });
+  assert.deepEqual(readJsonFile({ filePath: path.dirname(filePath) }), { state: "unreadable" });
 });
 
 test("writeJsonFileAtomic leaves the file whole and its own temp file gone", () => {
   const filePath = tempFile();
-  writeJsonFileAtomic(filePath, { sites: ["/a"] });
+  writeJsonFileAtomic({ filePath, value: { sites: ["/a"] } });
 
   assert.equal(fs.readFileSync(filePath, "utf8"), JSON.stringify({ sites: ["/a"] }, null, 2));
-  assert.equal(fs.existsSync(tempPathFor(filePath)), false);
-  assert.equal(tempPathFor(filePath, 4242), `${filePath}.4242.tmp`);
+  assert.equal(fs.existsSync(tempPathFor({ filePath })), false);
+  assert.equal(tempPathFor({ filePath }, { pid: 4242 }), `${filePath}.4242.tmp`);
 });
 
 test("quarantineUnreadableFile keeps the bytes and reports the path it moved them to", (t) => {
@@ -50,7 +50,7 @@ test("quarantineUnreadableFile keeps the bytes and reports the path it moved the
   fs.writeFileSync(filePath, "torn");
   const errors = t.mock.method(console, "error", () => {});
 
-  assert.equal(quarantineUnreadableFile(filePath, { label: "test store", consequence: "nothing else to say." }), true);
+  assert.equal(quarantineUnreadableFile({ filePath, notice: { label: "test store", consequence: "nothing else to say." } }), true);
 
   const aside = fs.readdirSync(path.dirname(filePath));
   assert.equal(aside.length, 1);
@@ -63,7 +63,7 @@ test("quarantineUnreadableFile keeps the bytes and reports the path it moved the
 
 test("quarantineUnreadableFile treats an already-gone file as clear to write", () => {
   const filePath = tempFile();
-  assert.equal(quarantineUnreadableFile(filePath, { label: "test store", consequence: "n/a" }), true);
+  assert.equal(quarantineUnreadableFile({ filePath, notice: { label: "test store", consequence: "n/a" } }), true);
 });
 
 test("withFileLock runs the change under a lock and releases it, even when the change throws", () => {
@@ -71,17 +71,17 @@ test("withFileLock runs the change under a lock and releases it, even when the c
   const lockPath = `${filePath}.lock`;
 
   assert.equal(
-    withFileLock(filePath, () => {
+    withFileLock({ filePath, critical: () => {
       assert.equal(fs.existsSync(lockPath), true, "the lock is held for the duration of the change");
       return "done";
-    }),
+    } }),
     "done",
   );
   assert.equal(fs.existsSync(lockPath), false);
 
-  assert.throws(() => withFileLock(filePath, () => {
+  assert.throws(() => withFileLock({ filePath, critical: () => {
     throw new Error("the change failed");
-  }), /the change failed/);
+  } }), /the change failed/);
   assert.equal(fs.existsSync(lockPath), false, "a failed change still releases the lock");
 });
 
@@ -91,7 +91,7 @@ test("a lock held by a live process is waited for, then refused out loud — nev
   fs.mkdirSync(path.dirname(lockPath), { recursive: true });
   fs.writeFileSync(lockPath, `${process.pid}:someoneelse`);
 
-  assert.throws(() => withFileLock(filePath, () => "never", { waitMs: 50 }), {
+  assert.throws(() => withFileLock({ filePath, critical: () => "never" }, { waitMs: 50 }), {
     message: `tovu desktop: ${lockPath} is still held by another Tovu process after 50ms, so this change was not saved. Nothing was written over. Try again, or quit the other Tovu window.`,
   });
   assert.equal(fs.readFileSync(lockPath, "utf8"), `${process.pid}:someoneelse`, "the live holder's lock is left exactly as it was");
@@ -100,7 +100,7 @@ test("a lock held by a live process is waited for, then refused out loud — nev
 test("a lock whose owner is gone, or an aged lock whose owner cannot be identified, is taken over; an aged live owner keeps it", () => {
   const abandoned = tempFile();
   fs.writeFileSync(`${abandoned}.lock`, `${deadPid()}:crashed`);
-  assert.equal(withFileLock(abandoned, () => "taken", { waitMs: 50 }), "taken");
+  assert.equal(withFileLock({ filePath: abandoned, critical: () => "taken" }, { waitMs: 50 }), "taken");
   assert.equal(fs.existsSync(`${abandoned}.lock`), false);
 
   const longAgo = new Date(Date.now() - 60_000);
@@ -109,14 +109,14 @@ test("a lock whose owner is gone, or an aged lock whose owner cannot be identifi
   const stalePath = `${stale}.lock`;
   fs.writeFileSync(stalePath, "0:wedged");
   fs.utimesSync(stalePath, longAgo, longAgo);
-  assert.equal(withFileLock(stale, () => "taken", { waitMs: 50 }), "taken");
+  assert.equal(withFileLock({ filePath: stale, critical: () => "taken" }, { waitMs: 50 }), "taken");
 
   // Jini platform 1148c3bf: a proven-live owner is never evicted by age; a slow write still owns it.
   const slow = tempFile();
   const slowPath = `${slow}.lock`;
   fs.writeFileSync(slowPath, `${process.pid}:wedged`);
   fs.utimesSync(slowPath, longAgo, longAgo);
-  assert.throws(() => withFileLock(slow, () => "taken", { waitMs: 50 }), { name: "FileLockTimeoutError" });
+  assert.throws(() => withFileLock({ filePath: slow, critical: () => "taken" }, { waitMs: 50 }), { name: "FileLockTimeoutError" });
   assert.equal(fs.readFileSync(slowPath, "utf8"), `${process.pid}:wedged`, "the live holder's aged lock is left exactly as it was");
 });
 
@@ -124,10 +124,10 @@ test("releasing does not delete a lock that now belongs to someone else", () => 
   const filePath = tempFile();
   const lockPath = `${filePath}.lock`;
 
-  withFileLock(filePath, () => {
+  withFileLock({ filePath, critical: () => {
     // What a process that broke this lock as abandoned would leave behind.
     fs.writeFileSync(lockPath, "9999:theirs");
-  });
+  } });
 
   assert.equal(fs.readFileSync(lockPath, "utf8"), "9999:theirs");
 });
@@ -135,11 +135,11 @@ test("releasing does not delete a lock that now belongs to someone else", () => 
 test("salvageJsonPrefix recovers every element that ended before the damage, and nothing it cannot parse", () => {
   const whole = JSON.stringify({ rows: [{ dir: "/a" }, { dir: "/b" }], after: ["kept"] }, null, 2);
 
-  assert.deepEqual(salvageJsonPrefix(whole.slice(0, whole.indexOf('"/b"') + 4)), { rows: [{ dir: "/a" }, { dir: "/b" }] });
-  assert.deepEqual(salvageJsonPrefix(whole.slice(0, whole.indexOf('"/b"') + 2)), { rows: [{ dir: "/a" }] });
-  assert.deepEqual(salvageJsonPrefix(whole), JSON.parse(whole));
-  assert.equal(salvageJsonPrefix("not json at all"), undefined);
-  assert.equal(salvageJsonPrefix(""), undefined);
+  assert.deepEqual(salvageJsonPrefix({ text: whole.slice(0, whole.indexOf('"/b"') + 4) }), { rows: [{ dir: "/a" }, { dir: "/b" }] });
+  assert.deepEqual(salvageJsonPrefix({ text: whole.slice(0, whole.indexOf('"/b"') + 2) }), { rows: [{ dir: "/a" }] });
+  assert.deepEqual(salvageJsonPrefix({ text: whole }), JSON.parse(whole));
+  assert.equal(salvageJsonPrefix({ text: "not json at all" }), undefined);
+  assert.equal(salvageJsonPrefix({ text: "" }), undefined);
 });
 
 test("salvageJsonPrefix is not fooled by brackets or escaped quotes inside strings", () => {
@@ -147,5 +147,5 @@ test("salvageJsonPrefix is not fooled by brackets or escaped quotes inside strin
   // Both rows come back: the second one's only field ended before the damage, so closing it there is
   // a faithful recovery, not a guess. The first proves the scan reads `}`, `]` and `{` inside a
   // string, and an escaped quote, as text rather than as structure.
-  assert.deepEqual(salvageJsonPrefix(damaged), { rows: [{ dir: '/a}]{"x"' }, { dir: "/b" }] });
+  assert.deepEqual(salvageJsonPrefix({ text: damaged }), { rows: [{ dir: '/a}]{"x"' }, { dir: "/b" }] });
 });

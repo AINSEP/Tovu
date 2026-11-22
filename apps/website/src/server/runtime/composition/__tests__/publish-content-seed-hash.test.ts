@@ -42,10 +42,10 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
   try {
     const page = seededPosts.find((post) => post.id === "post-themes");
     assert.ok(page, "the source seed contains post-themes");
-    await prepareContentStore(contentKernel(seedDb), { seed: {
+    await prepareContentStore({ kernel: contentKernel({ store: seedDb }) }, { seed: {
       workspace: seededWorkspace, posts: [{ ...page, kind: "page" }], presentation: seededPresentation,
     } });
-    await new SqliteMenuRepo(seedDb).save({
+    await new SqliteMenuRepo({ store: seedDb }).save({
       id: "menu-header-nav", workspaceId: WORKSPACE, slug: "header-nav", title: "Header Nav",
       status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [],
       updatedAt: clock.nowIso(), version: 1,
@@ -57,12 +57,12 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
   const livePath = join(dir, "content.db");
   copyFileSync(seedPath, livePath);
   const db = liveDb = openContentDb(livePath);
-  const menuRepo = new SqliteMenuRepo(db);
+  const menuRepo = new SqliteMenuRepo({ store: db });
   const liveDeps: PublishContentDeps = {
     workspaceId: WORKSPACE,
     clock,
     idGen,
-    ports: { post: { repo: new SqlitePostRepo(db) }, menu: { repo: menuRepo, bindingRepo: undefined as never } },
+    ports: { post: { repo: new SqlitePostRepo({ store: db }) }, menu: { repo: menuRepo, bindingRepo: undefined as never } },
   };
   return { db, liveDeps, menuRepo, seedPath, handlers: buildPublishContentCatalog(liveDeps).handlerByType };
 }
@@ -83,11 +83,11 @@ test("seed lookup: an untouched live header-nav and page hash exactly as the see
   const { handlers, seedPath } = await hydrateLive(t);
   const getSeedHash = seedLookup(seedPath);
 
-  const liveMenu = await handlers.get("menu")!.inspect("menu-header-nav");
+  const liveMenu = await handlers.get("menu")!.inspect({ id: "menu-header-nav" });
   assert.ok(liveMenu, "precondition: the seed ships menu-header-nav");
   assert.equal(await getSeedHash({ entityType: "menu", entityId: "menu-header-nav" }), liveMenu.hash);
 
-  const livePage = await handlers.get("page")!.inspect("post-themes");
+  const livePage = await handlers.get("page")!.inspect({ id: "post-themes" });
   assert.ok(livePage, "precondition: the seed ships page post-themes");
   assert.equal(await getSeedHash({ entityType: "page", entityId: "post-themes" }), livePage.hash);
 });
@@ -101,7 +101,7 @@ test("seed lookup: a live row edited since seed no longer matches, and an id the
   const menu = await menuRepo.findById({ workspaceId: WORKSPACE, id: "menu-header-nav" });
   assert.ok(menu);
   await menuRepo.save({ ...menu, title: `${menu.title} (edited on live)`, version: menu.version + 1 });
-  const edited = await handlers.get("menu")!.inspect("menu-header-nav");
+  const edited = await handlers.get("menu")!.inspect({ id: "menu-header-nav" });
 
   assert.notEqual(await getSeedHash({ entityType: "menu", entityId: "menu-header-nav" }), edited!.hash);
   assert.equal(await getSeedHash({ entityType: "menu", entityId: "menu-not-in-seed" }), null);

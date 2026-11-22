@@ -3,10 +3,14 @@ import test from "node:test";
 
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createOtelObservabilityPort } from "../fixtures/otel-sdk.js";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
-import type { ObservabilityPort, RequestTrackingInput, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+import type {
+  ObservabilityPort,
+  RequestTrackingInput,
+  RequestTrackingOutcome,
+} from "@jini-ai/core/contracts/observability";
 
 /**
  * @file Table-driven proof that every adapter satisfies `ObservabilityPort`'s CONTRACT (not just

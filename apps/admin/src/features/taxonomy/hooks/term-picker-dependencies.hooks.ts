@@ -1,4 +1,6 @@
-import { api, type AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 import { createFakeNewTermFormPort, defaultNewTermFormPort, type AdminTermCreateCall } from "./new-term-form-dependencies.hooks";
 
@@ -9,11 +11,11 @@ import { createFakeNewTermFormPort, defaultNewTermFormPort, type AdminTermCreate
 
 /** The live implementation, as a module-level singleton. */
 export const defaultTermPickerPort: TermPickerPort = {
-  listTaxonomies: () => api.listTaxonomies(),
-  assignedTerms: (input) => api.assignedTerms(input),
-  assignTerms: (input) => api.assignTerms(input),
-  unassignTerms: (input) => api.unassignTerms(input),
-  me: () => api.me(),
+  listTaxonomies: () => taxonomyApi.listTaxonomies(),
+  assignedTerms: (input) => taxonomyApi.assignedTerms(input),
+  assignTerms: (input) => taxonomyApi.assignTerms(input),
+  unassignTerms: (input) => taxonomyApi.unassignTerms(input),
+  me: () => authApi.me(),
   createTerm: defaultNewTermFormPort.createTerm,
 };
 

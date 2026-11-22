@@ -1,5 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import type { Express } from "express";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import type { Express, RequestHandler, Response } from "express";
 
 import { normalizePeerBaseUrl } from "#src/features/publish-content/peer-url";
 import {
@@ -71,7 +71,7 @@ export interface PublishDestinationDeps {
 
 /** The site host, as a label a person recognises. The address is the identity; this is the name.
  *  @complexity O(n) in the URL length. */
-function siteLabelFor(baseUrl: string): string {
+function siteLabelFor({ baseUrl }: { baseUrl: string }, _options: Record<string, never> = {}): string {
   try {
     return new URL(baseUrl).host;
   } catch {
@@ -91,7 +91,7 @@ function siteLabelFor(baseUrl: string): string {
  */
 async function connectedSite(deps: PublishContentRouteDeps): Promise<PublishContentPeerSummary | null> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const match = selectConnectedDestination(rows);
+  const match = selectConnectedDestination({ rows });
   return match
     ? {
         id: match.id,
@@ -107,7 +107,7 @@ async function connectedSite(deps: PublishContentRouteDeps): Promise<PublishCont
 /** Maps this file's own failures to a status and an owner-facing sentence. Every message passed
  *  through is already written for a person — see `handshake-client.ts`'s header.
  *  @complexity O(1). */
-function respondWithError(res: { status(code: number): { json(body: unknown): void } }, err: unknown): void {
+function respondWithError({ res, err }: { res: { status(code: number): { json(body: unknown): void } }; err: unknown }, _options: Record<string, never> = {}): void {
   if (err instanceof PublishTrustHandshakeError) {
     res.status(502).json({ error: err.message, code: "PUBLISH_TRUST_HANDSHAKE_FAILED" });
     return;
@@ -126,31 +126,41 @@ function respondWithError(res: { status(code: number): { json(body: unknown): vo
  * @complexity O(1) per request beyond each handler's own cost.
  */
 export function registerPublishContentDestinationRoutes(
-  app: Express,
-  deps: PublishContentRouteDeps,
-  own: PublishDestinationDeps
+  { app, deps, own }: { app: Express; deps: PublishContentRouteDeps; own: PublishDestinationDeps }, _options: Record<string, never> = {}
 ): void {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/destination";
 
   /** Mount-path 404 plus the `publish_content.apply` gate — connecting authorises future writes to
    *  a live site, so it is gated as a write, not as a read. */
-  const guard = async (
+  const guard = createDestinationGuard(deps);
+
+  app.get(base, createDestinationReadHandler({ deps, own, guard }));
+
+  app.post(`${base}/connect`, createDestinationConnectHandler({ deps, own, guard }));
+
+  app.post(`${base}/disconnect`, createDestinationDisconnectHandler({ deps, own, guard }));
+}
+
+function createDestinationGuard(deps: PublishContentRouteDeps) {
+  return async (
     req: { params: Record<string, string | undefined> },
-    res: Parameters<Parameters<typeof app.post>[1]>[1]
+    res: Response
   ): Promise<boolean> => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return false;
     }
     const principal = getAuthedPrincipal(res);
-    return authorizeOrRespond(res, deps.authorize, {
+    return authorizeOrRespond({ res, authorize: deps.authorize, params: {
       principalId: principal.id,
       permission: "publish_content.apply",
       workspaceId: deps.workspaceId,
-    });
+    } });
   };
+}
 
-  app.get(base, async (req, res) => {
+function createDestinationReadHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
       const site = await connectedSite(deps);
@@ -174,17 +184,19 @@ export function registerPublishContentDestinationRoutes(
         // The empty state is a plain sentence, never an error code — a fresh install that has never
         // deployed is the ordinary first run, not a fault.
         message: candidateUrl
-          ? `Publish to ${siteLabelFor(candidateUrl)}?`
+          ? `Publish to ${siteLabelFor({ baseUrl: candidateUrl })}?`
           : "No live site is set up yet. Deploy this site once, then come back here.",
         nextStep: null,
       };
       res.json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
-  });
+  };
+}
 
-  app.post(`${base}/connect`, async (req, res) => {
+function createDestinationConnectHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
 
@@ -199,7 +211,7 @@ export function registerPublishContentDestinationRoutes(
         });
         return;
       }
-      const normalized = normalizePeerBaseUrl(String(raw));
+      const normalized = normalizePeerBaseUrl({ raw: String(raw) });
       if ("error" in normalized) {
         res.status(400).json({ error: "That does not look like a website address.", code: "VALIDATION_ERROR" });
         return;
@@ -214,23 +226,7 @@ export function registerPublishContentDestinationRoutes(
         return;
       }
 
-      const trustDeps = {
-        httpClient: deps.publishContentPeerHttpClient,
-        keyring: deps.siteAssistantSecretKeyring,
-        provisioning: own.provisioning,
-        clock: deps.clock,
-        workspaceId: deps.workspaceId,
-      };
-      const { site, grant } = await connectAndRecordDestination(
-        {
-          repo: deps.publishContentPeerRepo,
-          clock: deps.clock,
-          idGen: deps.idGen,
-          connectGrant: (input) => connectDestination(trustDeps, input),
-          reverseGrant: () => disconnectDestination(trustDeps),
-        },
-        { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
-      );
+      const { site, grant } = await connectPublishDestination({ deps, own, baseUrl: normalized.baseUrl, entityTypes });
 
       const view: PublishDestinationView = {
         connected: true,
@@ -241,27 +237,25 @@ export function registerPublishContentDestinationRoutes(
       };
       res.status(201).json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
-  });
+  };
+}
 
-  app.post(`${base}/disconnect`, async (req, res) => {
+function createDestinationDisconnectHandler({ deps, own, guard }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; guard: ReturnType<typeof createDestinationGuard> }): RequestHandler {
+  return async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
-      const removed = await disconnectAndForgetDestination(
-        {
+      const removed = await disconnectAndForgetDestination({
+        deps: {
           repo: deps.publishContentPeerRepo,
           clock: deps.clock,
           idGen: deps.idGen,
           reverseGrant: () =>
-            disconnectDestination({
-              keyring: deps.siteAssistantSecretKeyring,
-              provisioning: own.provisioning,
-              workspaceId: deps.workspaceId,
-            }),
+            disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: own.provisioning, workspaceId: deps.workspaceId } }),
         },
-        { workspaceId: deps.workspaceId }
-      );
+        input: { workspaceId: deps.workspaceId },
+      });
       const site = removed.site;
 
       const view: PublishDestinationView = {
@@ -277,7 +271,27 @@ export function registerPublishContentDestinationRoutes(
       };
       res.json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
-  });
+  };
+}
+
+function connectPublishDestination({ deps, own, baseUrl, entityTypes }: { deps: PublishContentRouteDeps; own: PublishDestinationDeps; baseUrl: string; entityTypes: string[] }) {
+      const trustDeps = {
+        httpClient: deps.publishContentPeerHttpClient,
+        keyring: deps.siteAssistantSecretKeyring,
+        provisioning: own.provisioning,
+        clock: deps.clock,
+        workspaceId: deps.workspaceId,
+      };
+      return connectAndRecordDestination({
+        deps: {
+          repo: deps.publishContentPeerRepo,
+          clock: deps.clock,
+          idGen: deps.idGen,
+          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
+        },
+        input: { workspaceId: deps.workspaceId, baseUrl, entityTypes },
+      });
 }

@@ -10,7 +10,7 @@ import type { ExternalMcpToolDeps } from "./deps.js";
 
 /** Composition injects the same services the External MCP admin routes call. Secrets stay in those services. */
 export interface ExternalMcpOperations {
-  probe(deps: ExternalMcpToolDeps, serverId: string): Promise<
+  probe({ deps, serverId }: { deps: ExternalMcpToolDeps; serverId: string }, optional?: Record<string, never>): Promise<
     { readonly ok: true; readonly body: { readonly tools: readonly unknown[]; readonly probedAt: string } }
     | { readonly ok: false; readonly status: number; readonly body: Readonly<Record<string, unknown>> }
   >;
@@ -23,14 +23,14 @@ export interface ExternalMcpOperations {
 export const externalMcpOperationsToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "external_mcp_probe_connection",
-    description: "Tests a saved, enabled hosted external MCP connection by connecting once, listing advertised tools and closing, just like the admin External MCP page's probe. Call to check live reachability and see which remote tools would be allowed or refused. Returns { tools, probedAt }; does not invoke remote tools or change the assistant's live roster. May refresh and persist an OAuth grant. Refuses unknown, disabled or local-command servers, expired authorization, unreachable endpoints and excessive attempts. Use external_mcp_test_connection for a configuration-only check without a remote connection; use external_mcp_get_admissions for the actual live roster.",
+    description: "Tests a saved, enabled hosted external MCP connection (needs the full gateway: it can store data) by connecting once, listing advertised tools and closing, just like the admin External MCP page's probe. Call to check live reachability and see which remote tools would be allowed or refused. Returns { tools, probedAt }; does not invoke remote tools or change the assistant's live roster. May refresh and persist an OAuth grant. Refuses unknown, disabled or local-command servers, expired authorization, unreachable endpoints and excessive attempts. Use external_mcp_test_connection for a configuration-only check without a remote connection; use external_mcp_get_admissions for the actual live roster.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: EXTERNAL_MCP_MANAGE_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string", minLength: 1, maxLength: 64, description: "A saved hosted server id from content_read.external_mcp." } } },
   },
   {
     name: "external_mcp_get_admissions",
-    description: "Reads the server's current external MCP tool admissions: the tools actually admitted, refused, missing from allowlists, and configuration failures. Call when saved tool selections differ from what the assistant can use. Returns { connections, configFailures? }, preserving the live server report. Starts server federation if needed and may refresh saved OAuth grants; does not change tool grants or server settings. An unavailable report produces an actionable error, never an empty roster. Use content_read.external_mcp for saved server configuration and status, external_mcp_probe_connection to test a hosted endpoint, or external_mcp_save to open the human setup form.",
+    description: "Shows the server's current external MCP tool admissions (needs the full gateway: it can store data): the tools actually admitted, refused, missing from allowlists, and configuration failures. Call when saved tool selections differ from what the assistant can use. Returns { connections, configFailures? }, preserving the live server report. Starts server federation if needed and may refresh saved OAuth grants; does not change tool grants or server settings. An unavailable report produces an actionable error, never an empty roster. Use content_read.external_mcp for saved server configuration and status, external_mcp_probe_connection to test a hosted endpoint, or external_mcp_save to open the human setup form.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: EXTERNAL_MCP_MANAGE_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
@@ -45,14 +45,14 @@ export const externalMcpOperationsDerivedRisk: DerivedRiskByToolId = new Map<str
 ]);
 
 /** Rejects secret-bearing or unsupported arguments before any I/O, including direct delegated calls.
- * @param input - Model arguments; omitted arguments mean an empty object.
- * @param toolId - Tool name used in the recovery message.
- * @param allowedKeys - The complete non-secret field allowlist.
+ * @param required.input - Model arguments; omitted arguments mean an empty object.
+ * @param required.toolId - Tool name used in the recovery message.
+ * @param required.allowedKeys - The complete non-secret field allowlist.
  * @returns The validated argument record.
  * @throws {ToolInputError} For non-object input or fields outside the allowlist.
  * @complexity O(k) time and space for input keys (allowlists contain at most one key).
  */
-function readOperationInput(input: unknown, toolId: string, allowedKeys: readonly string[]): Record<string, unknown> {
+function readOperationInput({ input, toolId, allowedKeys }: { input: unknown; toolId: string; allowedKeys: readonly string[] }, _optional = {}): Record<string, unknown> {
   const record = requireInputRecord({ input: input ?? {} });
   if (Object.keys(record).some(key => !allowedKeys.includes(key))) throw new ToolInputError({ message: `${toolId}: unsupported input fields. Never pass credentials through tool arguments.` });
   return record;
@@ -65,7 +65,7 @@ function readOperationInput(input: unknown, toolId: string, allowedKeys: readonl
  * @throws {ToolInputError} Handlers refuse invalid arguments, rate limits or unavailable services.
  * @complexity O(1) wiring; services bound their own I/O and collection costs.
  */
-export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDeps, operations: ExternalMcpOperations): ToolRegistration[] {
+export function buildExternalMcpOperationsRegistrations({ deps, operations }: { deps: ExternalMcpToolDeps; operations: ExternalMcpOperations }, _optional: Record<string, never> = {}): ToolRegistration[] {
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "external-mcp-operations",
@@ -74,19 +74,19 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
     derivedRisk: externalMcpOperationsDerivedRisk,
     handlers: {
       external_mcp_probe_connection: async ctx => {
-        const input = readOperationInput(ctx.input, "external_mcp_probe_connection", ["id"]);
+        const input = readOperationInput({ input: ctx.input, toolId: "external_mcp_probe_connection", allowedKeys: ["id"] });
         if (typeof input.id !== "string" || !input.id.trim() || input.id.length > 64) throw new ToolInputError({ message: "external_mcp_probe_connection: pass a non-empty saved server id. Use content_read.external_mcp to find it." });
         const id = input.id.trim();
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
         workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration", entityId: id });
         const budget = await limiter.check({ key: deps.workspaceId });
         if (!budget.allowed) throw new ToolInputError({ message: `external_mcp_probe_connection: too many probe attempts. Try again in ${budget.retryAfterSeconds} seconds.` });
-        const result = await operations.probe(deps, id);
+        const result = await operations.probe({ deps, serverId: id });
         if (!result.ok) throw new ToolInputError({ message: `external_mcp_probe_connection: ${result.body.error}. Review the server in Settings → External MCP; use external_mcp_test_connection for a configuration-only check.` });
         return result.body;
       },
       external_mcp_get_admissions: async ctx => {
-        readOperationInput(ctx.input, "external_mcp_get_admissions", []);
+        readOperationInput({ input: ctx.input, toolId: "external_mcp_get_admissions", allowedKeys: [] });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
         workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration" });
         const result = await operations.admissions();
@@ -104,5 +104,5 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
  * @complexity O(1) time and space.
  */
 export function contributeExternalMcpOperationsTools(operations: ExternalMcpOperations): ToolContributor<ExternalMcpToolDeps, unknown> {
-  return { domain: "external-mcp-operations", build: deps => buildExternalMcpOperationsRegistrations(deps, operations), risk: externalMcpOperationsDerivedRisk };
+  return { domain: "external-mcp-operations", build: deps => buildExternalMcpOperationsRegistrations({ deps, operations }), risk: externalMcpOperationsDerivedRisk };
 }

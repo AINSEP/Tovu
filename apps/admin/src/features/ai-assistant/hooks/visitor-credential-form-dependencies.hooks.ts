@@ -1,4 +1,5 @@
-import { api, type SiteAssistantCredential } from "@/lib/api";
+import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
 /**
@@ -9,8 +10,8 @@ import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.h
 /** The live implementation, as a module-level singleton — matches `ai-assistant-dependencies
  *  .hooks.ts`'s `defaultAiAssistantPort`. */
 export const defaultVisitorCredentialFormPort: VisitorCredentialFormPort = {
-  getAssistantSiteCredential: () => api.getAssistantSiteCredential(),
-  setAssistantSiteCredential: (patch) => api.setAssistantSiteCredential(patch),
+  getAssistantSiteCredential: () => aiAssistantApi.getAssistantSiteCredential(),
+  setAssistantSiteCredential: (patch, _optional: Record<string, never> = {}) => aiAssistantApi.setAssistantSiteCredential(patch),
 };
 
 /** Seed state for {@link createFakeVisitorCredentialFormPort}. */

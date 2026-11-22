@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCachedLoader, useFetchQuery } from "@jini-ai/ui/fetch-query";
-import { ApiError, describeApiError } from "@/lib/api";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 import { subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 import {
@@ -88,13 +88,13 @@ export function useVisitorTools(required: { port: VisitorToolsPort; t: (key: str
       if (error instanceof ApiError && error.code === VISITOR_TOOLS_CONFLICT_CODE) {
         setNotice({ kind: "conflict", message: t("Changed somewhere else. Showing the latest — try again.") });
         refetch();
-      } else setNotice({ kind: "error", message: describeApiError(error, t("Could not save.")) });
+      } else setNotice({ kind: "error", message: describeApiError({ e: error, fallback: t("Could not save.") }) });
       return false;
     } finally { locked.current = false; setBusyToolId(null); }
   }
 
   return {
-    view, loading: !view && !query.error, loadError: query.error ? describeApiError(query.error, t("Could not load visitor tools.")) : null,
+    view, loading: !view && !query.error, loadError: query.error ? describeApiError({ e: query.error, fallback: t("Could not load visitor tools.") }) : null,
     invalid: view?.policyState === "invalid", busyToolId, notice, configure, retry: refetch,
     /** The only write an unreadable policy accepts: every tool Off, no limits, no approval card. */
     repair: () => configure({ toolId: "site", mode: "off" }),
@@ -113,7 +113,7 @@ export function useVisitorToolLimitsDraft(required: { tool: VisitorToolView; con
   const dirty = !parsed.error && Object.keys(parsed.patch).length > 0;
   return {
     draft: shown, invalid: parsed.error, dirty,
-    edit: (key: keyof LimitsDraft, value: string) => setDraft({ ...shown, [key]: value }),
+    edit: ({ key, value }: { key: keyof LimitsDraft; value: string }, _options: Record<string, never> = {}) => setDraft({ ...shown, [key]: value }),
     reset: () => setDraft(null),
     save: async () => {
       if (parsed.error || !dirty) return;

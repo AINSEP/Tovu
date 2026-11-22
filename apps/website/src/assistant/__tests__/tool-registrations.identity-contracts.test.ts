@@ -11,7 +11,7 @@ import test from "node:test";
 const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
 import { type IdentityRepos } from "@jini-ai/user-management";
@@ -24,7 +24,7 @@ import {
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
@@ -127,7 +127,7 @@ const COLLAPSED_IDENTITY_CONTENT_READ_IDS: ReadonlySet<string> = new Set([
 
 function identityRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, includeContentReadCollapse, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: { surfaceExchanges: SURFACE_EXCHANGES }, options: { contributions, includeContentReadCollapse, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } })
       .filter((registration) => IDENTITY_TOOL_IDS.has(registration.descriptor.id) || COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(registration.descriptor.id))
       .map((registration) => [registration.descriptor.id, registration]),
   );
@@ -418,28 +418,28 @@ test("the identity catalog and the wiring layer's independent classification agr
   // cross-check them against here — see COLLAPSED_IDENTITY_CONTENT_READ_IDS's own comment.
   for (const id of identityRegistrations(deps).keys()) {
     if (COLLAPSED_IDENTITY_CONTENT_READ_IDS.has(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("an identity catalog entry cannot downgrade its own risk — declaring 'none' for a mutating handler fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_role_assign", { ...catalogEntry("identity_role_assign"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "identity_role_assign", catalogEntry: { ...catalogEntry("identity_role_assign"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("the two read tools are classified 'none', and claiming otherwise also fails — the cross-check is symmetric", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("identity_user_list", catalogEntry("identity_user_list"), contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "identity_user_list", catalogEntry: catalogEntry("identity_user_list") }, { contributions: contributions }));
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_user_list", { ...catalogEntry("identity_user_list"), sideEffects: "mutates-durable-state" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "identity_user_list", catalogEntry: { ...catalogEntry("identity_user_list"), sideEffects: "mutates-durable-state" } }, { contributions: contributions }),
     /declares sideEffects 'mutates-durable-state' but this layer derives 'none'/,
   );
 });
 
 test("an identity tool that carried a confirmation-requiring actor-class rule could not be wired with a plain handler", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("identity_user_disable", { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "identity_user_disable", catalogEntry: { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" } }, { contributions: contributions }),
     {
       message:
         "tool-registrations: 'identity_user_disable' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
@@ -633,7 +633,7 @@ test("a duplicate username is refused, so a model cannot quietly create a second
 
 test("chat delete policy defaults off; checked identity deletes retain a plan confirmation", async () => {
   const { deps } = await buildHarness();
-  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
   for (const id of ["identity_role_delete", "identity_policy_delete"]) {
     assert.equal(off.some(tool => tool.descriptor.id === id), false);
     const on = identityRegistrations(deps).get(id)!;

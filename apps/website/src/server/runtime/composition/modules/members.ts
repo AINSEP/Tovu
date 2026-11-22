@@ -1,4 +1,4 @@
-import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
+import { createReadyLoginProviderList } from "#src/features/member-login/index";
 import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
 import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
 import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
@@ -85,7 +85,7 @@ function registerOidcRoutes({ app, deps, members }: { app: Express; deps?: Membe
  * adds DELETE-to-Trash alongside Disable.
  *
  * Genuinely needs TWO deps objects, not one: `MembersRouteDeps`/`MemberPublicRouteDeps` already
- * existed pre-slice as a deliberate split (`routes/admin/members/deps.ts`/`routes/members/deps.ts`)
+ * existed pre-slice as a deliberate split (`apps/website/src/server/inbound/admin-http/routes/members/deps.ts`/`routes/members/deps.ts`)
  * — the public sign-in family must never carry an `authorize`/session field (ADR-PIPE-013
  * Enforcement: "no route in either family may read the other's cookie"), while the admin family
  * needs the full session-gated surface. This module does not force them into one shape; see those
@@ -104,20 +104,20 @@ export function createMembersModule(deps: {
   const oidc = options.oidc ?? createMemberOidcRouteDeps(deps);
   return {
     name: "members",
-    registerRoutes: (app) => {
-      registerAdminMemberListRoute(app, deps.admin);
-      registerAdminMemberGetRoute(app, deps.admin);
-      registerAdminMemberDisableRoute(app, deps.admin);
-      registerAdminMemberDeleteRoute(app, deps.admin);
-      registerAdminMemberRequestMagicLinkRoute(app, deps.admin);
-      registerPublicMemberSignInRequestRoute(app, deps.public);
-      registerPublicMemberCompleteSignInRoute(app, deps.public);
-      registerPublicMemberPasswordSignInRoute(app, deps.public);
-      registerPublicMemberForgotPasswordRoute(app, deps.public);
-      registerPublicMemberResetPasswordRoute(app, deps.public);
-      registerPublicMemberSetPasswordRoute(app, deps.public);
-      registerPublicMemberMeRoute(app, deps.public, { login: oidc });
-      registerPublicMemberSignOutRoute(app, deps.public);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminMemberListRoute({ app, deps: deps.admin });
+      registerAdminMemberGetRoute({ app, deps: deps.admin });
+      registerAdminMemberDisableRoute({ app, deps: deps.admin });
+      registerAdminMemberDeleteRoute({ app, deps: deps.admin });
+      registerAdminMemberRequestMagicLinkRoute({ app, deps: deps.admin });
+      registerPublicMemberSignInRequestRoute({ app, deps: deps.public });
+      registerPublicMemberCompleteSignInRoute({ app, deps: deps.public });
+      registerPublicMemberPasswordSignInRoute({ app, deps: deps.public });
+      registerPublicMemberForgotPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberResetPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberSetPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberMeRoute({ app, deps: deps.public }, { login: oidc });
+      registerPublicMemberSignOutRoute({ app, deps: deps.public });
       registerOidcRoutes({ app, deps: oidc, members: deps.public });
     },
   };

@@ -1,4 +1,4 @@
-import { authenticatedAdminRequest } from "./api";
+import { authenticatedAdminRequest } from "./admin-http/request";
 import { ADMIN_BASE } from "./router";
 
 /**

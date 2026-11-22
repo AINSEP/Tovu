@@ -25,7 +25,7 @@ function fixture(t: TestContext) {
   db.exec(`CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT, direction TEXT,
     actor_id TEXT, destination TEXT, reason TEXT, at TEXT, items_json TEXT, gap_labels_json TEXT,
     result TEXT, run_id TEXT, details_json TEXT, inverses_json TEXT)`);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const reports: unknown[] = [], logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const app = express();
@@ -33,10 +33,10 @@ function fixture(t: TestContext) {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
     res.locals.adminFailureTracker = { error: (input: unknown) => { reports.push(input); } }; next();
   });
-  registerPublishBackstopRoutes(app, portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "owner" }), contentKernel: kernel, siteBinding: { dir }, fileBlobIndex: new Map(),
     publishContentPeerRepo: { findById: async () => ({ baseUrl: "https://live.example" }) },
-  }));
+  }) });
   const plan = (files: string[]) => dispatchJsonRequest(app, "POST", `${BASE}/backstop`, { action: "plan", peerId: "peer", reason: "Emergency file repair", files });
   const undo = () => dispatchJsonRequest(app, "POST", `${BASE}/runs/run/undo-backstop`);
   const seedUndo = () => createBackstopAuditSqlitePort({ kernel }).save({ record: { id: "run", runId: "run", workspaceId: "ws", direction: "destination", actorId: "owner", destination: "live.example",
@@ -67,7 +67,7 @@ for (const operation of ["read", "columns"] as const) {
     assert.equal(response.status, 500);
     const body = response.body as { code: string; errorId: string; error: string };
     assert.equal(body.code, "INTERNAL_ERROR");
-    assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
     assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);
     assert.ok(JSON.stringify(f.logs).includes(body.errorId));
@@ -125,7 +125,7 @@ for (const operation of ["plan", "undo"] as const) {
     assert.equal(response.status, 500);
     const body = response.body as { code: string; errorId: string; error: string };
     assert.equal(body.code, "INTERNAL_ERROR");
-    assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+    assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
     assert.ok(body.error.includes(body.errorId));
     assert.equal(JSON.stringify(response).includes(KEY), false);
     assert.equal(f.logs.length, 1); assert.equal(f.reports.length, 1);

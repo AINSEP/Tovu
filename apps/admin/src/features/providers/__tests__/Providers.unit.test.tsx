@@ -1,11 +1,11 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
-import { Providers } from "../Providers";
+import { Providers, defaultProvidersHooks } from "../Providers";
 import { useRouteLocation } from "@/lib/router";
 import { defaultIntegrationsPort } from "../../integrations/hooks/integrations-dependencies.hooks";
 import { defaultAlwaysAllowPort } from "../hooks/always-allow-dependencies.hooks";
@@ -181,5 +181,24 @@ describe("Providers — External MCP restart note: translated through this page'
     await screen.findByText("Third-party tools for your coding agent.");
     expect(screen.queryByText("Changes apply when Tovu restarts")).not.toBeInTheDocument();
     expect(screen.queryByText("Saved — restart Tovu to connect")).not.toBeInTheDocument();
+  });
+});
+
+describe("Providers — injected hooks", () => {
+  it("renders the theme boundary and locale handed in through the hooks prop", () => {
+    const useFakeLocale = vi.fn(() => "en" as const);
+    const useFakeBoundary = (() => ({ "data-fake-boundary": "yes" })) as unknown as typeof defaultProvidersHooks.useAdminThemeBoundary;
+    const { container } = render(
+      <FetchQueryProvider>
+        <Providers
+          tabId="always-allow"
+          useProvidersHook={() => fixtureProviders()}
+          hooks={{ useAdminLocale: useFakeLocale, useAdminThemeBoundary: useFakeBoundary }}
+        />
+      </FetchQueryProvider>,
+    );
+    expect(container.querySelector(".providers-page")).toHaveAttribute("data-fake-boundary", "yes");
+    expect(screen.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
+    expect(useFakeLocale).toHaveBeenCalled();
   });
 });

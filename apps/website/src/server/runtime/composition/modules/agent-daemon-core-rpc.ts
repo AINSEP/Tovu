@@ -1,6 +1,6 @@
 /** Retained daemon state at its site owner. Auth precedes the bounded parser, as with tool RPC. */
 import { json, type RequestHandler } from "express";
-import { requireToolExecutionCaller, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
 import { DaemonCoreError, daemonCoreRequest, type DaemonCoreRequest, type DaemonAttemptHead } from "#src/assistant/daemon-core-protocol";
 import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { getAgentDef } from "@jini-ai/agent-runtime";
@@ -17,7 +17,7 @@ type CoreDeps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "siteBindin
  * @complexity O(1) setup; each RPC performs at most one owner operation, bounded to 16 MiB (matching the existing tool RPC).
  * @example registerAgentDaemonCoreRoutes({ router, deps: routeDeps });
  */
-export function registerAgentDaemonCoreRoutes({ router, deps }: { router: ToolExecutionRouteTarget; deps: CoreDeps }, _options = {}): void {
+export function registerAgentDaemonCoreRoutes({ router, deps }: { router: InternalRouteTarget; deps: CoreDeps }, _options = {}): void {
   const env: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   const handler: RequestHandler = (req, res, next) => {
     const parsed = daemonCoreRequest.safeParse(req.body);
@@ -26,7 +26,7 @@ export function registerAgentDaemonCoreRoutes({ router, deps }: { router: ToolEx
       res.status(200).set("cache-control", "no-store").json({ value: value ?? null, traceCapture: deps.aiTraceSink?.capture ?? "metadata" });
     }).catch(next);
   };
-  router.post("/internal/agent-daemon-core", requireToolExecutionCaller({}, { env, tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }), json({ limit: "16mb" }), handler);
+  router.post("/internal/agent-daemon-core", requireToolExecutionCallerExpress({ env }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }), json({ limit: "16mb" }), handler);
 }
 
 /** Indexed owner operations. Never accept a workspace override or create an accepted attempt.
@@ -52,7 +52,7 @@ async function retainedRunOperation({ deps, request, run, store }: {
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
   store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
-  if (request.operation === "cliConsentSnapshot" || request.operation === "cliConsentAllow") return cliConsent({ deps, request, run });
+  if (request.operation === "cliConsentSnapshot" || request.operation === "cliConsentAllow") return cliConsent({ deps, request, run, store });
   if (request.operation === "sessionForAttempt") {
     return sessionForAttempt({ deps, run });
   }
@@ -61,13 +61,14 @@ async function retainedRunOperation({ deps, request, run, store }: {
 }
 
 /** Resolve the actor from the accepted attempt. Wire callers cannot select a principal or site. */
-async function cliConsent({ deps, request, run }: {
+async function cliConsent({ deps, request, run, store }: {
   deps: CoreDeps;
   request: Extract<DaemonCoreRequest, { operation: "cliConsentSnapshot" | "cliConsentAllow" }>;
   run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>>;
+  store: NonNullable<CoreDeps["chatRunLedger"]["durable"]>;
 }): Promise<unknown> {
-  if (!isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
-  const principalId = run!.principalId!;
+  if (!run || !run.principalId || !isLiveConsentRun({ deps, run })) throw new DaemonCoreError({ reason: "tool consent requires this site's live accepted answer" });
+  const principalId = run.principalId;
   const person = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
   if (person?.kind !== 'user' || person.status !== 'active') throw new DaemonCoreError({ reason: "tool consent requires an active person" });
   if (!getAgentDef({ id: request.input.agentId })) throw new DaemonCoreError({ reason: "tool consent names an unknown agent" });
@@ -75,8 +76,8 @@ async function cliConsent({ deps, request, run }: {
   if (request.operation === "cliConsentSnapshot") return readAssistantToolConsentSnapshot(input);
   return allowAssistantRunTools({ ...input, keys: request.input.keys, expectedRevisionSeq: request.input.expectedRevisionSeq,
     isLive: async () => {
-      const fresh = await deps.chatRunLedger.durable!.find({ runId: request.input.runId }, {});
-      return isLiveConsentRun({ deps, run: fresh }) && fresh!.principalId === principalId;
+      const fresh = await store.find({ runId: request.input.runId }, {});
+      return !!fresh && isLiveConsentRun({ deps, run: fresh }) && fresh.principalId === principalId;
     },
   });
 }
@@ -148,5 +149,5 @@ async function bootstrapSnapshot({ deps }: { deps: CoreDeps }): Promise<unknown>
 async function readSetting({ deps, input }: { deps: CoreDeps; input: Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] }): Promise<unknown> {
   if (input.scopeContext.workspaceId !== deps.workspaceId) throw new DaemonCoreError({ reason: "foreign settings workspace" });
   await Promise.all([deps.settingsUiTabsReady, deps.siteTitleReady]);
-  return deps.getEffective({ repo: deps.settingsRepo }, input);
+  return deps.getEffective({ deps: { repo: deps.settingsRepo }, ...input });
 }

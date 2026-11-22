@@ -1,10 +1,12 @@
 /** Private Tovu retained-state client. No retry or acceptance mirror: a lost mutation response
  * remains uncertain in the server's real ledger. Provider plugins also have that single owner. */
-import { z } from "zod";
+import { z } from "zod/v3";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 import { createTracker, redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/agent-runtime/ai-trace";
+import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/core/contracts/ai-trace";
 import type { getEffective } from "@jini-ai/core/settings";
 import { DaemonCoreError, daemonCoreSnapshot, type DaemonCoreRequest, type DaemonDurableRunStore, type DaemonCoreSnapshot, daemonToolConsentSnapshot, type DaemonToolConsentSnapshot, type DaemonCliConsentTarget, type DaemonCliConsentAllow } from "#src/assistant/daemon-core-protocol";
 
@@ -30,15 +32,38 @@ export interface DaemonCoreClient {
  * @example const site = createDaemonCoreClient({ baseUrl, token });
  */
 export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; token: string }, options: { fetch?: typeof fetch } = {}): DaemonCoreClient {
+
   const endpoint = new URL("/internal/agent-daemon-core", baseUrl);
   if (!["http:", "https:"].includes(endpoint.protocol) || !["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname) || !token) {
     throw new DaemonCoreError({ reason: "the daemon needs its site's authenticated loopback listener" });
   }
+  const transport = createDaemonCoreTransport(endpoint, token, options);
+  const { call } = transport;
+  const durable = createDaemonDurableStore(call);
+  const telemetry = createDaemonTelemetry(transport.transmit);
+  const { send, flush } = telemetry;
+  const tracker = createDaemonTracker(send);
+  const readEffective = createDaemonSettingsReader(call);
+  return { bootstrap: async () => daemonCoreSnapshot.parse(await call({ operation: "bootstrap", input: {} })), durable,
+    getEffective: readEffective, tracker, flush, close: async () => { telemetry.stop(); await flush(); },
+    readToolConsentSnapshot: async (input: DaemonCliConsentTarget, _options = {}) => daemonToolConsentSnapshot.parse(await call({ operation: "cliConsentSnapshot", input })),
+    allowRunTools: async (input: DaemonCliConsentAllow, _options = {}) => z.boolean().parse(await call({ operation: "cliConsentAllow", input: { ...input, keys: [...input.keys] } })),
+    getSessionForAttempt: async (input: { runId: string }, _options = {}) => z.string().nullable().parse(await call({ operation: "sessionForAttempt", input })),
+    trace: ({ capture }: { capture: AiContentCapture }, _options = {}): AiTraceSink => {
+      transport.setCapture(capture);
+      return { get capture() { return transport.capture; },
+        record: (event: AiTraceEvent) => send({ operation: "telemetryTrace", input: event }), flush };
+    },
+  };
+}
+
+function createDaemonCoreTransport(endpoint: URL, token: string, options: { fetch?: typeof fetch }) {
   let traceCapture: AiContentCapture = "metadata";
+
   /** One owner call, never retrying an uncertain write. The envelope distinguishes null from refusal. */
-  async function call(request: DaemonCoreRequest): Promise<unknown> { return transmit(JSON.stringify(request)); }
+  async function call(request: DaemonCoreRequest): Promise<unknown> { return transmit({ body: JSON.stringify(request) }); }
   /** Send an already serialized host envelope without retaining a second object graph. */
-  async function transmit(body: string, signal?: AbortSignal): Promise<unknown> {
+  async function transmit({ body }: { body: string }, { signal }: { signal?: AbortSignal } = {}): Promise<unknown> {
     if (Buffer.byteLength(body) > 16 * 1024 * 1024) throw new DaemonCoreError({ reason: "retained-state request exceeds 16 MiB" });
     const { response, text } = await fetchTextWithTimeout({ url: endpoint, timeoutMs: 5_000, init: {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body, redirect: "error", cache: "no-store", ...(signal ? { signal } : {}),
@@ -50,7 +75,11 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     if (envelope.traceCapture !== undefined) traceCapture = envelope.traceCapture;
     return envelope.value;
   }
-  const durable: DaemonDurableRunStore = {
+  return { call, transmit, get capture() { return traceCapture; }, setCapture(capture: AiContentCapture) { traceCapture = capture; } };
+}
+
+function createDaemonDurableStore(call: ReturnType<typeof createDaemonCoreTransport>["call"]): DaemonDurableRunStore {
+  return {
     find: async input => {
       const value = await call({ operation: "find", input });
       if (value === null) return null;
@@ -65,6 +94,10 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     guardTool: async input => z.enum(["allowed", "unknown", "stale"]).parse(await call({ operation: "guardTool", input })),
     completeTool: async input => { await call({ operation: "completeTool", input }); },
   };
+}
+
+function createDaemonTelemetry(transmit: ReturnType<typeof createDaemonCoreTransport>["transmit"]) {
+
   let tail: Promise<void> = Promise.resolve();
   let queued = 0;
   let queuedBytes = 0;
@@ -77,15 +110,30 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     if (stopped) return;
     let body: string;
     try { body = JSON.stringify(request); }
-    catch { console.warn("[agent-daemon] telemetry serialization failed"); return; }
+    catch (error) { console.warn("[agent-daemon] telemetry serialization failed", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); return; }
     const bytes = Buffer.byteLength(body);
     if (queued >= 128 || bytes > 2 * 1024 * 1024 || queuedBytes + bytes > 4 * 1024 * 1024) { console.warn("[agent-daemon] telemetry queue is full"); return; }
     queued++; queuedBytes += bytes;
-    tail = tail.then(() => transmit(body, telemetryAbort.signal)).then(() => {}, () => {
+    tail = tail.then(() => transmit({ body }, { signal: telemetryAbort.signal })).then(() => {}, () => {
       console.warn("[agent-daemon] telemetry delivery failed");
     }).finally(() => { queued--; queuedBytes -= bytes; });
   }
-  const tracker: Tracker = { ...createTracker({}),
+  /** Drain this client's accepted events and the trace sink; never dispose server provider leases. */
+  async function flush(): Promise<void> {
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<void>(resolve => { deadline = setTimeout(() => {
+      stopped = true; telemetryAbort.abort();
+      console.warn("[agent-daemon] telemetry drain exceeded one second"); resolve();
+    }, 1_000); });
+    const drain = tail.then(() => transmit({ body: JSON.stringify({ operation: "telemetryFlush", input: {} }) }, { signal: telemetryAbort.signal })).then(() => {});
+    try { await Promise.race([drain, expired]); }
+    finally { clearTimeout(deadline); }
+  }
+  return { send, flush, stop() { stopped = true; } };
+}
+
+function createDaemonTracker(send: ReturnType<typeof createDaemonTelemetry>["send"]): Tracker {
+  return { ...createTracker({}),
     capture: (input: { name: string; userId: string }, optional: { properties?: Readonly<Record<string, string | number | boolean>> } = {}) => {
       send({ operation: "telemetryCapture", input: { ...input, ...optional } });
     },
@@ -96,32 +144,14 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
         attributes: { ...optional.context?.attributes, process: "daemon" } } });
     },
   };
-  /** Drain this client's accepted events and the trace sink; never dispose server provider leases. */
-  async function flush(): Promise<void> {
-    let deadline: ReturnType<typeof setTimeout> | undefined;
-    const expired = new Promise<void>(resolve => { deadline = setTimeout(() => {
-      stopped = true; telemetryAbort.abort();
-      console.warn("[agent-daemon] telemetry drain exceeded one second"); resolve();
-    }, 1_000); });
-    const drain = tail.then(() => transmit(JSON.stringify({ operation: "telemetryFlush", input: {} }), telemetryAbort.signal)).then(() => {});
-    try { await Promise.race([drain, expired]); }
-    finally { clearTimeout(deadline); }
-  }
-  const readEffective: typeof getEffective = async (_deps, input) => {
+}
+
+function createDaemonSettingsReader(call: ReturnType<typeof createDaemonCoreTransport>["call"]): typeof getEffective {
+  // The repo stays on this side of the RPC; only the setting coordinate crosses it.
+  return async ({ deps: _deps, ...input }) => {
     const value = await call({ operation: "getEffective", input: input as Extract<DaemonCoreRequest, { operation: "getEffective" }>["input"] });
     if (value === null) return null;
     z.object({ value: z.unknown(), sourceLayer: z.string() }).parse(value);
     return value as Awaited<ReturnType<typeof getEffective>>;
-  };
-  return { bootstrap: async () => daemonCoreSnapshot.parse(await call({ operation: "bootstrap", input: {} })), durable,
-    getEffective: readEffective, tracker, flush, close: async () => { stopped = true; await flush(); },
-    readToolConsentSnapshot: async (input: DaemonCliConsentTarget, _options = {}) => daemonToolConsentSnapshot.parse(await call({ operation: "cliConsentSnapshot", input })),
-    allowRunTools: async (input: DaemonCliConsentAllow, _options = {}) => z.boolean().parse(await call({ operation: "cliConsentAllow", input: { ...input, keys: [...input.keys] } })),
-    getSessionForAttempt: async (input: { runId: string }, _options = {}) => z.string().nullable().parse(await call({ operation: "sessionForAttempt", input })),
-    trace: ({ capture }: { capture: AiContentCapture }, _options = {}): AiTraceSink => {
-      traceCapture = capture;
-      return { get capture() { return traceCapture; },
-        record: (event: AiTraceEvent) => send({ operation: "telemetryTrace", input: event }), flush };
-    },
   };
 }

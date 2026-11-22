@@ -1,3 +1,4 @@
+import { openLightboxDialog, closeLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
 /**
@@ -6,29 +7,13 @@ import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
  * focus trapping and Escape-as-close courtesy of the browser's own top layer, focus returned to
  * whichever `RowMenu` "Details" trigger opened this once it closes). Owned locally rather than
  * imported from that file — same reasoning that file's own header gives for not reusing
- * `ImagePreviewModal.hooks.tsx`: a future chat-pane-specific tweak to that hook should never
+ * `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`: a future chat-pane-specific tweak to that hook should never
  * silently change this unrelated admin-table modal's behavior too, and vice versa.
  *
  * Only one instance of this modal is ever mounted at a time — `ThemePagesTab.tsx` keeps a single
  * `detailPageId` state and renders exactly one `<ThemePageDetailsModal>`, never one per row — so
  * there is no risk of the double-mount shape a per-row modal would have needed to avoid.
  */
-function openDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.showModal === "function") {
-    if (!dialog.open) dialog.showModal();
-    return;
-  }
-  dialog.setAttribute("open", "");
-}
-
-function closeDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.close === "function") {
-    if (dialog.open) dialog.close();
-    return;
-  }
-  dialog.removeAttribute("open");
-}
-
 export interface ThemePageDetailsModalController {
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   /** Fires on the dialog's native `cancel` event (Escape). Prevented and routed through `onClose`
@@ -45,21 +30,21 @@ export interface ThemePageDetailsModalController {
  * (Escape, backdrop click) — the close button itself stays a plain `onClick={onClose}` in the
  * component, since it needs no state of its own.
  *
- * @param open - Whether the dialog should be showing.
- * @param onClose - Called on any dismiss path (close button, backdrop click, Escape).
+ * @param required.open - Whether the dialog should be showing.
+ * @param required.onClose - Called on any dismiss path (close button, backdrop click, Escape).
  * @returns `dialogRef` to attach to the `<dialog>` element, plus its `cancel`/backdrop-click
  *   handlers.
  * @complexity Time/space: O(1) per open/close transition — one `showModal`/`close` call, no other
  *   state.
  */
-export function useThemePageDetailsModal(open: boolean, onClose: () => void): ThemePageDetailsModalController {
+export function useThemePageDetailsModal({ open, onClose }: { open: boolean; onClose: () => void }, _options = {}): ThemePageDetailsModalController {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open) openDialog(dialog);
-    else closeDialog(dialog);
+    if (open) openLightboxDialog(dialog);
+    else closeLightboxDialog(dialog);
   }, [open]);
 
   function handleNativeCancel(e: SyntheticEvent<HTMLDialogElement>) {

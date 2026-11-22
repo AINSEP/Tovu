@@ -24,12 +24,12 @@ import type { ServerModuleHandle } from "./types.js";
  * backing Settings → External MCP.
  *
  * This module configures external MCP servers that Tovu's agent daemon connects to and whose tools
- * the assistant may then call; `mcp-federation/trust.ts` is the separate trust tier for them.
+ * the assistant may then call; `Jini packages/mcp/src/federation/trust.ts` is the separate trust tier for them.
  *
  * Eleven routes now, not three. Ten are behind `requireAdminSession` under `/api/admin`, and ONE is
  * PUBLIC — the OAuth callback, mounted outside that prefix because a `SameSite=Strict` cookie
  * cannot survive the cross-site redirect that reaches it. That is the same shape
- * `modules/connectors.ts` already has, and the same argument; see
+ * the connectors module already has, and the same argument; see
  * `routes/external-mcp/oauth-callback.ts`.
  *
  * The OAuth routes are registered only when a service is wired. A deployment that never configures
@@ -41,36 +41,36 @@ import type { ServerModuleHandle } from "./types.js";
  * the daemon, not a vendor. Gating either behind `oauthDeps` would take away a `none`/`static_env`
  * server's probe on a deployment that has never configured ANY OAuth connection, for no reason.
  */
-export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps): ServerModuleHandle {
+export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle {
   const oauthDeps = "externalMcpOAuth" in deps && deps.externalMcpOAuth !== undefined ? (deps as ExternalMcpOAuthRouteDeps) : null;
   // Separate instances per family (not one shared limiter) so a device-poll burst does not eat the
-  // callback's budget — the same reasoning `modules/connectors.ts` records for its four.
+  // callback's budget — the same reasoning the connectors module records for its four.
   const oauthLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_PER_IP, clock: deps.clock });
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   const probeLimiter = createExternalMcpProbeLimiter(deps);
 
   return {
     name: "external-mcp",
-    registerRoutes: (app) => {
-      // No ordering hazard of the kind `modules/connectors.ts` documents: the collection route, the
+    registerRoutes: ({ app }, _options = {}) => {
+      // No ordering hazard of the kind the connectors module documents: the collection route, the
       // `:serverId` routes, and the two new fixed-suffix routes (`/admissions`, `/:serverId/probe`)
       // all differ by HTTP method or by segment count, so no literal path can be swallowed as an id.
-      registerAdminExternalMcpListRoute(app, deps);
-      registerAdminExternalMcpPutRoute(app, deps);
-      registerAdminExternalMcpDeleteRoute(app, deps);
-      registerAdminExternalMcpAdmissionsRoute(app, deps);
-      registerAdminExternalMcpProbeRoute(app, deps, probeLimiter);
+      registerAdminExternalMcpListRoute({ app, deps });
+      registerAdminExternalMcpPutRoute({ app, deps });
+      registerAdminExternalMcpDeleteRoute({ app, deps });
+      registerAdminExternalMcpAdmissionsRoute({ app, deps });
+      registerAdminExternalMcpProbeRoute({ app, deps, limiter: probeLimiter });
       // `GET /tool-approvals` is registered before nothing it could be mistaken for: there is no
       // `GET /:serverId`, and the revoke path has four segments past `mcp-servers`.
-      registerAdminExternalMcpToolApprovalsRoutes(app, deps);
+      registerAdminExternalMcpToolApprovalsRoutes({ app, deps });
 
       if (!oauthDeps) return;
-      registerAdminExternalMcpOAuthConnectRoute(app, oauthDeps, oauthLimiter);
-      registerAdminExternalMcpOAuthDevicePollRoute(app, oauthDeps, oauthLimiter);
-      registerAdminExternalMcpOAuthDisconnectRoute(app, oauthDeps);
+      registerAdminExternalMcpOAuthConnectRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
+      registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
+      registerAdminExternalMcpOAuthDisconnectRoute({ app, deps: oauthDeps });
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.
-      registerExternalMcpOAuthCallbackRoute(app, { oauth: oauthDeps.externalMcpOAuth, callbackLimiter });
+      registerExternalMcpOAuthCallbackRoute({ app, deps: { oauth: oauthDeps.externalMcpOAuth, callbackLimiter } });
     },
   };
 }

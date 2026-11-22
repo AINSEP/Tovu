@@ -9,7 +9,7 @@ import { type IdentityRepos } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import {
   createSurfaceExchangeStore,
   SURFACE_DISMISSED_PARAM,
@@ -19,7 +19,7 @@ import {
 
 import { buildGatedIdentityRegistrations, withoutPassword, contributeIdentityTools, type TovuIdentityToolDeps } from "../tool-registrations.js";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -363,7 +363,7 @@ for (const changed of [false, true]) {
 }
 
 test("withoutPassword preserves other schema rules and handles an omitted required list", () => {
-  assert.deepEqual(withoutPassword({ type: "object", additionalProperties: false, properties: { username: { type: "string" }, password: { type: "string" } } }), {
+  assert.deepEqual(withoutPassword({ schema: { type: "object", additionalProperties: false, properties: { username: { type: "string" }, password: { type: "string" } } } }), {
     type: "object", additionalProperties: false, required: [], properties: { username: { type: "string" } },
   });
 });

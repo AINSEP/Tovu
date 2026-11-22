@@ -1,8 +1,8 @@
-import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "../../lib/api";
+import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } from "./api/recovery-api.types";
 import { t } from "./recovery-i18n";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry, formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
  * rendering one. Follows the convention `features/posts/rules.ts` establishes: no React, no
@@ -55,7 +55,7 @@ const UNTAUGHT_CATEGORY_TEMPLATE: Record<string, string> = {
  * Translated via `recovery-i18n.ts`'s `t()`, same two-step fallback as every other translated
  * string in this app: the untaught-category fallback template is translated as a whole (word order
  * differs between "<category> writes" and Spanish "escrituras de <category>"), not word-by-word. */
-export function categoryLabel(category: string, locale: string): string {
+export function categoryLabel({ category, locale }: { category: string; locale: string }, _options: Record<string, never> = {}): string {
   const known = CATEGORY_LABELS[category];
   if (known) return t({ locale: locale, key: known });
   return interpolate({ template: localeEntry({ table: UNTAUGHT_CATEGORY_TEMPLATE, locale }), vars: { category } });
@@ -74,7 +74,7 @@ const COST_CLASS_LABELS: Record<string, string> = {
   unavailable: "Restore unavailable",
 };
 
-export function costClassLabel(costClass: string, locale: string): string {
+export function costClassLabel({ costClass, locale }: { costClass: string; locale: string }, _options: Record<string, never> = {}): string {
   const known = COST_CLASS_LABELS[costClass];
   return known ? t({ locale: locale, key: known }) : costClass;
 }
@@ -132,7 +132,7 @@ export type DeepLinkEnvelopeParseResult = { ok: true; envelope: DatabaseContextE
  *
  * @complexity Time/space: O(1) beyond `JSON.parse`'s own cost in input length.
  */
-export function parseDeepLinkEnvelope(raw: string): DeepLinkEnvelopeParseResult {
+export function parseDeepLinkEnvelope({ raw }: { raw: string }, _options: Record<string, never> = {}): DeepLinkEnvelopeParseResult {
   try {
     return { ok: true, envelope: JSON.parse(raw) as DatabaseContextEnvelope };
   } catch {
@@ -158,6 +158,6 @@ export function parseDeepLinkEnvelope(raw: string): DeepLinkEnvelopeParseResult 
  *
  * @complexity O(1).
  */
-export function restoreButtonAccessibleName(locale: string, point: Pick<AdminRestorePoint, "createdAt">): string {
-  return `${t({ locale: locale, key: "Restore…" })} ${formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}`;
+export function restoreButtonAccessibleName({ locale, point }: { locale: string; point: Pick<AdminRestorePoint, "createdAt"> }, _options: Record<string, never> = {}): string {
+  return `${t({ locale: locale, key: "Restore…" })} ${formatTimestamp({ iso: point.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}`;
 }

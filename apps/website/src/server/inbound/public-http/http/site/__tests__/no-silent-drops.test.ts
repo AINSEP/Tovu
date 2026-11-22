@@ -12,10 +12,10 @@ import { parse, parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { renderMediaRawHtml, sanitizePageHtml } from "#src/features/widgets/media-html";
+import { renderMediaRawHtml, sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
-import { renderSite } from "../render.js";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
+import { renderSite } from "../render-site.js";
 
 type Node = DefaultTreeAdapterMap["parentNode"];
 type Element = DefaultTreeAdapterMap["element"];
@@ -128,13 +128,13 @@ test("page-body render paths keep every element and attribute (page <script> inc
       post: buildPostRecord({ workspaceId: "ws-drops", kind: "page", bodyFormat: "html", bodyHtml }) })],
     ["renderViaTemplate saved", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml });
-      deps.postRepo = new InMemoryPostRepo([post]);
-      return renderViaTemplate(deps, theme, post, undefined);
+      deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
+      return renderViaTemplate({ deps, theme, post, staticMenus: undefined });
     }],
     ["renderViaTemplate pending", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml: "" });
-      deps.postRepo = new InMemoryPostRepo([post]);
-      return renderViaTemplate(deps, theme, post, undefined, undefined, bodyHtml);
+      deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
+      return renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyHtml: bodyHtml });
     }],
   ];
   const failures: string[] = [];

@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
+import { readJiniCoreVersion } from "./jini-core-version";
 import { defineConfig } from "vitest/config";
 import { parseCLI } from "vitest/node";
 
@@ -48,6 +49,7 @@ const adminDevPort = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 export default defineConfig({
   define: {
     __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+    __JINI_CORE_VERSION__: JSON.stringify(readJiniCoreVersion({ adminDir: __dirname })),
     __TOVU_ADMIN_DEV_PORT__: JSON.stringify(String(adminDevPort)),
   },
   plugins: [react()],
@@ -83,8 +85,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
-      // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
-      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
+      // Like production, layout consumers resolve the public @jini-ai/cms/themes/layout entry.
       // Same again for the Publish Content dialog's shared report semantics. This is a THIRD place
       // the alias has to be declared (tsconfig `paths`, `vite.config.ts`, here) — the three configs
       // are independent, and a missing entry fails in a different way in each: a type error, a

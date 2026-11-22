@@ -82,8 +82,7 @@ export interface ThemeExploreSelectionResolution {
  * @complexity O(n) in `files.length` — up to three independent scans, no nesting.
  */
 export function resolveThemeExploreSelectionValue(
-  files: readonly ThemeExploreSelectableFile[],
-  value: string
+  { files, value }: { files: readonly ThemeExploreSelectableFile[]; value: string }, _optional = {}
 ): string | null {
   const exact = files.find((f) => f.path === value);
   if (exact) return exact.path;
@@ -108,12 +107,12 @@ export function resolveThemeExploreSelectionValue(
  * @complexity O(n) in `files.length`.
  */
 export function resolveRequestedThemeExploreSelection(
-  files: readonly ThemeExploreSelectableFile[],
-  { fileId, pageId }: ThemeExploreSelectionRequest
+  { files }: { files: readonly ThemeExploreSelectableFile[] },
+  { fileId, pageId }: ThemeExploreSelectionRequest = {}
 ): ThemeExploreSelectionResolution {
   for (const value of [fileId, pageId]) {
     if (!value) continue;
-    const resolved = resolveThemeExploreSelectionValue(files, value);
+    const resolved = resolveThemeExploreSelectionValue({ files: files, value: value });
     if (resolved) return { path: resolved, missed: null };
   }
   return { path: null, missed: fileId || pageId || null };
@@ -141,7 +140,7 @@ export function resolveRequestedThemeExploreSelection(
  *
  * @complexity O(1).
  */
-export function writeThemeExploreSelectionToUrl(file: ThemeExploreSelectableFile): void {
+export function writeThemeExploreSelectionToUrl(file: ThemeExploreSelectableFile, _optional: Record<string, never> = {}): void {
   const url = new URL(window.location.href);
   if (file.kind === "page") {
     url.searchParams.set("page", file.label);

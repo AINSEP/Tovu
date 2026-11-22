@@ -81,7 +81,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): { app: expr
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterScheduleCampaignRoute(app, deps);
+  registerAdminNewsletterScheduleCampaignRoute({ app, deps });
   return { app, deps };
 }
 

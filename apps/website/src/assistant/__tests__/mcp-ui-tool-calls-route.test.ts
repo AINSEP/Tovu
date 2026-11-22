@@ -10,8 +10,9 @@ import { startTestServer } from "../../server/__tests__/helpers/http-test-server
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -57,7 +58,7 @@ function createFakeToolExecutor(
 function buildApp(toolExecutor: ToolExecutor, surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   return app;
 }
 

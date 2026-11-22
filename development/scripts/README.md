@@ -1,5 +1,17 @@
 # Development scripts
 
+## Persisted names
+
+Register durable names by stable key in `persisted-names.json` at their production
+declaration or serialized reader. A rename or removal requires an exact old-to-new
+record in `changes` (`null` for removal), backed by either a newly registered
+[ADR-066 content migration](../../apps/website/src/platform/db/migrations/index.ts)
+through the [existing migration runner](../../apps/website/src/platform/db/migrations/runner.ts)
+or an explicitly approved cutover. A cutover records its approval, owner, affected
+storage and users, and recovery. Keep old-data and retry evidence with the migration
+or cutover. The November 20 rename repairs and their migrations belong to
+`r62t-breaks`; this registry does not grant prospective approval for those repairs.
+
 ## Quality reports and property tests
 
 `npm run quality:knip` reports unused files, exports, and dependencies with

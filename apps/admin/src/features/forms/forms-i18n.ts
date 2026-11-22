@@ -8,10 +8,11 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * classes / HTML attribute allowlist copy) — mixed prose-and-`<code>` content, lower priority than
  * this pass's field labels/buttons/headers, left English for a follow-up pass.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { FORMS_FIELD_SETTINGS_I18N } from "./forms-field-settings-i18n";
 import { FORMS_LEAVE_GUARD_I18N } from "./forms-leave-guard-i18n";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 export const FORMS_DICT: Record<string, Record<string, string>> = {
   es: {
     "Unknown field": "Campo desconocido",
@@ -625,7 +626,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     off: "オフ",
     "Move to trash?": "ゴミ箱に移動しますか？",
     "Move to trash": "ゴミ箱に移動",
-    Move: "",
+    Move: "次の項目",
     "to trash? It will disappear from the site and from this list.": "をゴミ箱に移動しますか？サイトとこの一覧から削除されます。",
     "Field attributes —": "フィールド属性 —",
     "CSS classes": "CSS クラス",
@@ -687,8 +688,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     off: "꺼짐",
     "Move to trash?": "휴지통으로 이동할까요?",
     "Move to trash": "휴지통으로 이동",
-    Move: "",
-    "to trash? It will disappear from the site and from this list.": "휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
+    Move: "선택한",
+    "to trash? It will disappear from the site and from this list.": "항목을 휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
     "Field attributes —": "필드 속성 —",
     "CSS classes": "CSS 클래스",
     "HTML attributes": "HTML 속성",
@@ -1004,8 +1005,8 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     off: "kapalı",
     "Move to trash?": "Çöp kutusuna taşınsın mı?",
     "Move to trash": "Çöp kutusuna taşı",
-    Move: "",
-    "to trash? It will disappear from the site and from this list.": "çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
+    Move: "Seçilen",
+    "to trash? It will disappear from the site and from this list.": "öğesi çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
     "Field attributes —": "Alan öznitelikleri —",
     "CSS classes": "CSS sınıfları",
     "HTML attributes": "HTML öznitelikleri",
@@ -1199,7 +1200,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     Enable: "सक्षम करें",
     "Move to trash?": "ट्रैश में भेजें?",
     "Move to trash": "ट्रैश में भेजें",
-    Move: "",
+    Move: "क्या",
     "to trash? It will disappear from the site and from this list.": "को ट्रैश में भेजें? यह साइट और इस सूची से हट जाएगा।",
     "Field attributes —": "फ़ील्ड विशेषताएं —",
     "CSS classes": "CSS क्लास",
@@ -1272,7 +1273,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     Enable: "فعال کریں",
     "Move to trash?": "ردی کی ٹوکری میں بھیجیں؟",
     "Move to trash": "ردی کی ٹوکری میں بھیجیں",
-    Move: "",
+    Move: "کیا",
     "to trash? It will disappear from the site and from this list.": "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور اس فہرست سے غائب ہو جائے گا۔",
     "Field attributes —": "فیلڈ خصوصیات —",
     "CSS classes": "CSS کلاسز",
@@ -1345,7 +1346,7 @@ export const FORMS_DICT: Record<string, Record<string, string>> = {
     Enable: "সক্ষম করুন",
     "Move to trash?": "ট্র্যাশে সরাবেন?",
     "Move to trash": "ট্র্যাশে সরান",
-    Move: "",
+    Move: "আপনি কি",
     "to trash? It will disappear from the site and from this list.": "কে ট্র্যাশে সরাবেন? এটি সাইট এবং এই তালিকা থেকে অদৃশ্য হয়ে যাবে।",
     "Field attributes —": "ফিল্ড বৈশিষ্ট্য —",
     "CSS classes": "CSS ক্লাস",

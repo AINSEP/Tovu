@@ -56,7 +56,7 @@ async function invoke(
   method: "get" | "put" | "delete", suffix: string, body: unknown = {},
 ) {
   const app = express();
-  register(app, deps);
+  register({ app, deps });
   const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "admin-9" };
@@ -132,7 +132,8 @@ test("settings GET redacts an effective-setting read failure", async (t) => {
     step: "assistant task operation", includeAction: false,
   });
   assert.equal(fault.mock.callCount(), 1);
-  assert.deepEqual(fault.mock.calls[0].arguments[1], {
+  const { deps: _settingsDeps, ...coordinate } = fault.mock.calls[0].arguments[0] ?? { deps: undefined };
+  assert.deepEqual(coordinate, {
     namespace: "site.assistant", key: "public_enabled", scopeContext: { workspaceId: "ws-7" },
   });
 });
@@ -159,7 +160,7 @@ for (const { method, register, expectedBody } of [
     let release!: () => void;
     deps.assistantSettingsReady = new Promise<void>((resolve) => { release = resolve; });
     const reads: unknown[] = [];
-    deps.getEffective = async (_deps, input) => { reads.push(input); return resolved(true); };
+    deps.getEffective = async ({ deps: _deps, ...input }) => { reads.push(input); return resolved(true); };
     let settled = false;
     const pending = invoke(register, deps, method, "settings").then((capture) => { settled = true; return capture; });
     try {
@@ -277,7 +278,7 @@ test("settings PUT with a null body is an empty patch that returns the current v
   const deps = depsForHandler();
   const writes: unknown[] = [];
   deps.set = async (request) => { writes.push(request.input); return fail(); };
-  deps.getEffective = async (_deps, input) => resolved(input.key === "public_enabled");
+  deps.getEffective = async (input) => resolved(input.key === "public_enabled");
   const result = await invoke(registerAdminAssistantPutSettingsRoute, deps, "put", "settings", null);
   assert.equal(result.statusCode, 200);
   assert.deepEqual((result.jsonBody as { data: { publicEnabled: boolean } }).data.publicEnabled, true);
@@ -318,7 +319,7 @@ for (const { label, register, method, suffix } of [
     const authorizations: unknown[] = [];
     deps.authorize = async (params) => { authorizations.push(params); return { allowed: true, reason: "test_grant" }; };
     const app = express();
-    register(app, deps);
+    register({ app, deps });
     const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "admin-9" };

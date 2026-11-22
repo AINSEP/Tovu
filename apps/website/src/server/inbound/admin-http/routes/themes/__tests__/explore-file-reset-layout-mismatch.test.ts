@@ -7,7 +7,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute, registerAdminThemeFileResetRoute } from "../explore.js";
@@ -97,7 +98,7 @@ async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ 
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
     packageThemesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());
@@ -105,8 +106,8 @@ async function startApp(t: test.TestContext, packageCatalog = false): Promise<{ 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   return { baseUrl: await startTestServer(app, t), themesDir };
 }
 

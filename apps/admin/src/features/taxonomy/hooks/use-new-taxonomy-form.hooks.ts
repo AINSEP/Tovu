@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
@@ -72,7 +72,7 @@ export function useNewTaxonomyForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create taxonomy" })) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create taxonomy" }) }) : null);
 
   return { name, setName, hierarchical, setHierarchical, error, saving, submit };
 }

@@ -8,14 +8,14 @@ import Database from "better-sqlite3";
 
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
-import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops";
+import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops-adapter";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import { openPreparedContentDb } from "../../../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 
 /** `n` watermark stamps, each its own statement (how the taxonomy write-service stamps). */
 async function stampWatermark(db: ContentDb, n: number): Promise<void> {
-  const stamp = kernelStampWatermark(contentKernel(db));
+  const stamp = kernelStampWatermark({ kernel: contentKernel({ store: db }) });
   for (let i = 0; i < n; i += 1) await stamp();
 }
 
@@ -60,7 +60,7 @@ function seedContent(db: ContentDb): void {
  *   constructor(deps: { db: ContentDb; filePath: string });
  * }
  *
- * // src/platform/db/postgres/db-ops.ts (pure evaluation logic only — no live pg client here yet)
+ * // src/platform/db/postgres/db-ops-adapter.ts (pure evaluation logic only — no live pg client here yet)
  * export interface PostgresRestoreToolingConfig {
  *   pgDumpBinaryPath: string | null;
  *   credentialsPresent: boolean;

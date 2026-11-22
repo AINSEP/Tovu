@@ -20,35 +20,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runnerInventoryBridge, type RunnerInventoryBridge } from './runner-api.js';
-import { LIVE_SITE_VIEWS } from '../contracts/site-view-preference.js';
 import { useSiteViewPreference } from './use-site-view-preference.hooks.js';
-export { liveViewLimit } from './use-site-view-preference.hooks.js';
+import { liveViewOrder, releaseCandidates, releaseExcessViews, RELEASE_PROBE_TIMEOUT_MS, type ParkedView, type LiveGuest } from '@jini-ai/ui/core';
 
-export const DEFAULT_LIVE_VIEW_LIMIT = LIVE_SITE_VIEWS.fallback;
-/** How long a hidden guest gets to answer the probe before it is kept as it is. */
-export const RELEASE_PROBE_TIMEOUT_MS = 2000;
 /** The admin's own scroll container (`.admin-content`, apps/admin `styles.css`): its window never
  *  scrolls, so `window.scrollY` alone would restore every admin page to the top. */
-const INNER_SCROLLER = '.admin-content';
-
-/** What a released guest leaves behind for its next mount: where it was, and how far scrolled. */
-export interface ParkedView {
-  readonly url: string;
-  readonly x: number;
-  readonly y: number;
-  readonly innerY: number;
-}
-
-export type LiveGuest = Pick<HTMLWebViewElement, 'executeJavaScript'>;
-export type ScrollGuest = Pick<HTMLWebViewElement, 'executeJavaScript' | 'addEventListener' | 'removeEventListener'>;
-
-export interface ReleaseAnswer {
-  readonly release: boolean;
-  /** `null` when there was nothing worth restoring (no guest, or an error page). */
-  readonly parked: ParkedView | null;
-}
-
-const KEEP: ReleaseAnswer = { release: false, parked: null };
+export const INNER_SCROLLER = '.admin-content';
 
 /**
  * Runs in the GUEST, as a string: never built from a function's `toString()`, because a bundler's
@@ -73,130 +50,6 @@ export const RELEASE_PROBE = `(() => {
     return { release: !kept, url: window.location.href, x: window.scrollX, y: window.scrollY, innerY: inner ? inner.scrollTop : 0 };
   } catch { return { release: false }; }
 })()`;
-
-/**
- * The live tabs, most recently focused first: the focused tab leads, closed tabs drop out.
- * @complexity O(n²) over open tabs, which number in the tens.
- */
-export function liveViewOrder({ order, focusedId, openIds }: {
-  order: readonly string[];
-  focusedId: string | null;
-  openIds: readonly string[];
-}, _options = {}): string[] {
-  const open = new Set(openIds);
-  const next = focusedId !== null && open.has(focusedId) ? [focusedId] : [];
-  for (const id of order) if (open.has(id) && !next.includes(id)) next.push(id);
-  return next;
-}
-
-/** Hidden live tabs to offer for release, least recently focused first, and how many must go. */
-export function releaseCandidates({ order, focusedId, limit }: {
-  order: readonly string[];
-  focusedId: string | null;
-  limit: number;
-}, _options = {}): { candidates: string[]; excess: number } {
-  const excess = order.length - limit;
-  if (excess <= 0) return { candidates: [], excess: 0 };
-  return { candidates: order.filter((id) => id !== focusedId).reverse(), excess };
-}
-
-function finite({ value }: { value: unknown }, _options = {}): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function webUrl({ value }: { value: unknown }, _options = {}): string | null {
-  if (typeof value !== 'string') return null;
-  try {
-    const { protocol } = new URL(value);
-    return protocol === 'http:' || protocol === 'https:' ? value : null;
-  } catch { return null; }
-}
-
-/** Reads the guest's answer. Anything but an explicit `release: true` keeps the guest. */
-export function parseReleaseProbe({ value }: { value: unknown }, _options = {}): ReleaseAnswer {
-  if (typeof value !== 'object' || value === null) return KEEP;
-  const answer = value as Record<string, unknown>;
-  if (answer.release !== true) return KEEP;
-  const url = webUrl({ value: answer.url });
-  const parked = url === null ? null : { url, x: finite({ value: answer.x }), y: finite({ value: answer.y }), innerY: finite({ value: answer.innerY }) };
-  return { release: true, parked };
-}
-
-/**
- * Asks one hidden guest whether it may go. A tab with no guest (its site stopped or failed) has
- * nothing to lose and is released at once.
- */
-export async function probeRelease(
-  { guest }: { guest: LiveGuest | null },
-  { timeoutMs = RELEASE_PROBE_TIMEOUT_MS }: { timeoutMs?: number } = {},
-): Promise<ReleaseAnswer> {
-  if (guest === null) return { release: true, parked: null };
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<unknown>((resolve) => { timer = setTimeout(() => resolve(null), timeoutMs); });
-  try {
-    // Electron throws synchronously from a guest that is not attached yet; the `catch` keeps it.
-    return parseReleaseProbe({ value: await Promise.race([guest.executeJavaScript(RELEASE_PROBE), timeout]) });
-  } catch {
-    return KEEP;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** Probes candidates in order until `excess` of them agreed; a veto just moves on to the next. */
-export async function releaseExcessViews({ candidates, excess, guestOf }: {
-  candidates: readonly string[];
-  excess: number;
-  guestOf: (id: string) => LiveGuest | null;
-}, { timeoutMs }: { timeoutMs?: number } = {}): Promise<{ id: string; parked: ParkedView | null }[]> {
-  const released: { id: string; parked: ParkedView | null }[] = [];
-  for (const id of candidates) {
-    if (released.length >= excess) break;
-    const answer = await probeRelease({ guest: guestOf(id) }, { timeoutMs });
-    if (answer.release) released.push({ id, parked: answer.parked });
-  }
-  return released;
-}
-
-/** The guest script that puts a restored page's scroll back. Numbers only, so nothing is injected.
- *  It retries for ~3 s because the admin renders its list after its own data arrives. */
-export function scrollScript({ parked }: { parked: ParkedView }, _options = {}): string {
-  const x = finite({ value: parked.x });
-  const y = finite({ value: parked.y });
-  const innerY = finite({ value: parked.innerY });
-  return `(() => {
-  let tries = 0;
-  const step = () => {
-    const inner = document.querySelector(${JSON.stringify(INNER_SCROLLER)});
-    window.scrollTo(${x}, ${y});
-    if (inner) inner.scrollTop = ${innerY};
-    const done = window.scrollY >= ${y} - 1 && (${innerY} === 0 || (inner !== null && inner.scrollTop >= ${innerY} - 1));
-    if (!done && ++tries < 30) setTimeout(step, 100);
-  };
-  step();
-})()`;
-}
-
-/**
- * Once a restored guest's first load finishes, puts its scroll back. Once per guest: a later reload
- * is the operator's own and starts wherever the page does.
- * @returns the teardown, or `undefined` when there is nothing to restore.
- */
-export function restoreParkedScroll({ guest, parked }: {
-  guest: ScrollGuest | null;
-  parked: ParkedView | undefined;
-}, _options = {}): (() => void) | undefined {
-  if (guest === null || parked === undefined) return undefined;
-  const target: ScrollGuest = guest;
-  const script = scrollScript({ parked });
-  const onLoad = () => {
-    detach();
-    try { void target.executeJavaScript(script).catch(() => undefined); } catch { /* Guest gone. */ }
-  };
-  const detach = () => { try { target.removeEventListener('did-finish-load', onLoad); } catch { /* Guest already gone. */ } };
-  try { target.addEventListener('did-finish-load', onLoad); } catch { return undefined; }
-  return detach;
-}
 
 interface LiveViewsState {
   /** Live tabs, most recently focused first. */
@@ -229,7 +82,7 @@ function applyReleases({ state, released }: { state: LiveViewsState; released: r
 
 export interface LiveViews {
   /** Whether this tab may mount its guest: the focused tab always may. */
-  isLive: (id: string) => boolean;
+  isLive: (input: { id: string }) => boolean;
   /** Each released tab's last route and scroll, for its next mount. */
   parked: Readonly<Record<string, ParkedView>>;
   /** The guest each tab mounted, so a probe can reach it. Stable across renders. */
@@ -266,11 +119,11 @@ export function useLiveViews({ openIds, focusedId }: { openIds: readonly string[
     let active = true;
     const { candidates, excess } = releaseCandidates({ order: JSON.parse(orderKey) as string[], focusedId, limit });
     if (excess === 0) return undefined;
-    void releaseExcessViews({ candidates, excess, guestOf: (id) => guests.current.get(id) ?? null }, { timeoutMs }).then((released) => {
+    void releaseExcessViews({ candidates, excess, script: RELEASE_PROBE, guestOf: ({ id }) => guests.current.get(id) ?? null }, { timeoutMs }).then((released) => {
       if (active) setState((current) => applyReleases({ state: current, released }));
     });
     return () => { active = false; };
   }, [orderKey, focusedId, limit, timeoutMs]);
 
-  return { isLive: (id) => order.includes(id), parked: state.parked, registerGuest };
+  return { isLive: ({ id }) => order.includes(id), parked: state.parked, registerGuest };
 }

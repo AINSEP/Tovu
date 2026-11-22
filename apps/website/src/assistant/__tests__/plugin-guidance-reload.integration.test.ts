@@ -17,17 +17,17 @@ test(`enabling a plugin mid-session makes its guidance discoverable through relo
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
   const { workspaceId, agentPluginLayout } = fixture;
-  const activation = { workspaceRoot: agentPluginLayout.forWorkspace(workspaceId).root, pluginId: 'ui-ux-design', actor: 'owner' };
+  const activation = { workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root, pluginId: 'ui-ux-design', actor: 'owner' };
   await agentPluginActivations.setAgentPluginActivation({ ...activation, enabled: false });
   const registry = createToolRegistry({});
   let catalog = buildToolCatalogQuery(registry);
-  const extensions = attachAssistantToolExtensions(registry, {
-    ...site.deps, workspaceId, agentPluginLayout, postRepo: new InMemoryPostRepo(), pluginActivationRepo: new InMemoryPluginActivationRepo(),
+  const extensions = attachAssistantToolExtensions({ registry: registry, deps: {
+    ...site.deps, workspaceId, agentPluginLayout, postRepo: new InMemoryPostRepo({}), pluginActivationRepo: new InMemoryPluginActivationRepo(),
     authorize: async () => ({ allowed: true, reason: 'matched' }), discoverPlugins: async () => [],
     registerInstalled: registerInstalledExtensionTools,
     federation: { deps: { workspaceId, authorize: async () => ({ allowed: true, reason: 'matched' }) },
       resolveConnections: async () => [], onAdmitted: () => { catalog = buildToolCatalogQuery(registry); } },
-  }, '[guidance-test]');
+  }, log: '[guidance-test]' });
   await extensions.installed;
   if (startFederation) await extensions.federation.start();
   assert.equal(registry.has({ toolId: 'agent_plugin_ui_ux_design' }), false);

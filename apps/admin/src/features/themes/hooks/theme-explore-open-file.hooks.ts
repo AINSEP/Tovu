@@ -12,9 +12,7 @@
  * @complexity O(1).
  */
 export function isOpenFileLoaded(
-  loaded: { themeId: string; path: string } | null,
-  themeId: string,
-  selected: string | null
+  { loaded, themeId, selected }: { loaded: { themeId: string; path: string } | null; themeId: string; selected: string | null }, _optional = {}
 ): boolean {
   return loaded !== null && loaded.themeId === themeId && loaded.path === selected;
 }
@@ -36,6 +34,6 @@ export function keepsOpenFileSelected({
   themeId: string;
 }): boolean {
   const selectedStillExists = serverFiles.some((file) => file.path === open.selected);
-  const hasUnsavedText = isOpenFileLoaded(open.loadedFile, themeId, open.selected) && open.source !== open.savedSource;
+  const hasUnsavedText = isOpenFileLoaded({ loaded: open.loadedFile, themeId: themeId, selected: open.selected }) && open.source !== open.savedSource;
   return selectedStillExists || hasUnsavedText;
 }

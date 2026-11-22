@@ -1,9 +1,10 @@
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 import { decodeApiError } from "@jini-ai/protocol";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { ApiError, describeApiError } from "@/lib/api";
 
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
+
+import { type Translate } from '@jini-ai/core/text';
 const EXPORT_FAILURE_FIELDS = ["message", "action", "step", "cause", "errorId", "appVersion", "jiniVersion", "time"];
 
 /** Export's wire adapter. Reformat the server's fields rather than trusting a supplied copy block.
@@ -13,7 +14,7 @@ const EXPORT_FAILURE_FIELDS = ["message", "action", "step", "cause", "errorId", 
 export function siteExportFailure({ error, t }: { error: unknown; t: Translate }, _options = {}): UserFacingError {
   const saved = exportFailureFields({ error });
   return formatUserFacingError({
-    message: saved.message ?? describeApiError(error, t("The site export could not finish.")),
+    message: saved.message ?? describeApiError({ e: error, fallback: t("The site export could not finish.") }),
     action: saved.action ?? t("Check export history before starting another export. Copy details and report this problem."),
     step: saved.step ?? "export request",
     cause: saved.cause ?? error,

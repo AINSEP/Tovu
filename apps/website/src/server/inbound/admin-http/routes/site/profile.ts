@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import {
@@ -10,6 +10,7 @@ import {
 } from "#src/features/site-inspection/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/site/profile` — the admin frontend's door to the
@@ -35,7 +36,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * privilege-escalation bypass this design exists to prevent.
  *
  * The route is still authenticated: `requireAdminSession` is mounted on `/api/admin`
- * (`server/modules/core.ts`), so `getAuthedPrincipal(res)` always resolves a real principal, and
+ * (`apps/website/src/server/runtime/composition/modules/core.ts`), so `getAuthedPrincipal(res)` always resolves a real principal, and
  * that principal is what every section is authorized as. A principal with no grants gets a
  * well-formed 200 in which every section is `forbidden` — which discloses nothing it could not
  * learn by calling the five underlying admin routes and being refused by each.
@@ -85,7 +86,7 @@ class SiteProfileQueryError extends Error {
  * @throws {SiteProfileQueryError} If any part of `raw` is not a string.
  * @complexity O(S) in the requested-section count.
  */
-function splitRequestedSectionNames(raw: unknown): string[] {
+function splitRequestedSectionNames({ raw }: { raw: unknown }, _optional = {}): string[] {
   const parts = Array.isArray(raw) ? raw : [raw];
   const names: string[] = [];
   for (const part of parts) {
@@ -131,9 +132,9 @@ function assertKnownSectionNames(names: string[]): asserts names is SiteProfileS
  * @complexity O(S) in the requested-section count.
  * @example parseSections("pages,theme"); // => ["pages", "theme"]
  */
-export function parseSections(raw: unknown): SiteProfileSectionName[] | undefined {
+export function parseSections({ raw }: { raw: unknown }, _optional = {}): SiteProfileSectionName[] | undefined {
   if (raw === undefined) return undefined;
-  const names = splitRequestedSectionNames(raw);
+  const names = splitRequestedSectionNames({ raw });
   if (names.length === 0) return undefined;
   assertKnownSectionNames(names);
   return names;
@@ -152,7 +153,7 @@ export function parseSections(raw: unknown): SiteProfileSectionName[] | undefine
  * @complexity O(1).
  * @example parsePageLimit("25"); // => 25
  */
-export function parsePageLimit(raw: unknown): number | undefined {
+export function parsePageLimit({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string") throw new SiteProfileQueryError("pageLimit must be a single integer value");
   const parsed = Number(raw);
@@ -162,12 +163,9 @@ export function parsePageLimit(raw: unknown): number | undefined {
   return parsed;
 }
 
-export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfileDeps): void {
+export function registerAdminSiteProfileRoute({ app, deps }: { app: Express; deps: AdminSiteProfileDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/site/profile", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -175,8 +173,8 @@ export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfi
       let sections: SiteProfileSectionName[] | undefined;
       let pageLimit: number | undefined;
       try {
-        sections = parseSections(req.query.sections);
-        pageLimit = parsePageLimit(req.query.pageLimit);
+        sections = parseSections({ raw: req.query.sections });
+        pageLimit = parsePageLimit({ raw: req.query.pageLimit });
       } catch (err) {
         if (err instanceof SiteProfileQueryError) {
           res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
@@ -187,7 +185,7 @@ export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfi
 
       // No blanket authorize() — see this file's header. Every section is authorized inside
       // `buildSiteProfile` against its own domain's permission, as THIS principal.
-      const profile = await buildSiteProfile(toSiteProfileDeps(deps), { principalId: principal.id }, { sections, pageLimit });
+      const profile = await buildSiteProfile({ deps: toSiteProfileDeps(deps), input: { principalId: principal.id } }, { sections, pageLimit });
       res.status(200).json(profile);
     } catch (err) {
       sendAdminFailure({ res, error: err }, { operation: "routes/site/profile", code: "INTERNAL_ERROR" });

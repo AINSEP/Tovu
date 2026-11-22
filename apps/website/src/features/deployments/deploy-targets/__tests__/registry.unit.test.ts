@@ -12,7 +12,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { composedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
 import { ACTIVATIONS_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 import { recordBundledAgentPluginDigests } from "../../../agent-plugins/lifecycle.js";
@@ -88,7 +87,7 @@ async function withWorkspace<T>(fn: (workspaceRoot: string) => Promise<T>): Prom
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -276,7 +275,7 @@ test("an altered installation is refused even when the original bundled digest i
   await withWorkspace(async (workspaceRoot) => {
     const original = await installPackage("fixture-deploy", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-deploy", original);
-    await forceRemove(path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "fixture-deploy" }), original));
+    await forceRemove(path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).pluginPackagesDir({ pluginId: "fixture-deploy" }), original));
     const changed = await installPackage("fixture-deploy", { ...FIXTURE_FILES, "targets/fixture.mjs": FIXTURE_MODULE + "\n// modified installation\n" });
     assert.notEqual(changed, original);
     const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
@@ -347,14 +346,13 @@ test("the bundled source registry drops a target id two plugin dirs both declare
   });
 });
 
-test("the product's own bundled plugins load every host with no refusal (no target left in two plugins)", async (t) => {
+test("the product's own bundled plugins load every host with no refusal (no target left in two plugins)", async () => {
   // The hosts ship from @jini-ai/agent-plugins/<id> (D-W2/D-W3): load the bundle the build composes.
-  const bundle = await composedBundledSourceRoot();
-  t.after(() => bundle.dispose());
-  const registry = await loadBundledDeployTargetRegistry({ sourceRoot: bundle.root });
+  const registry = await loadBundledDeployTargetRegistry({ sourceRoot: bundledAgentPluginsDir() });
 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map((target) => target.descriptor.id).sort(), ["cloudflare-pages", "cloudflare-workers", "github-pages", "netlify", "s3-compatible", "vercel"]);
+  assert.equal(registry.get("cloudflare-workers")?.pluginId, "cloudflare", "the shipped Cloudflare plugin contributes the Workers target");
   // R1: the vault's legacy publish-row migration reads this credential spec by target id; a host that
   // moved to its own plugin must still answer from its own source dir.
   assert.equal(registry.get("vercel")?.pluginId, "vercel");

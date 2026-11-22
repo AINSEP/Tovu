@@ -15,7 +15,11 @@ import test from "node:test";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";

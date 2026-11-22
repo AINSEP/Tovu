@@ -1,6 +1,8 @@
 import { isDeepStrictEqual } from 'node:util';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
-import { migrateProviderSettings, type PluginProviderDeclaration } from "@jini-ai/plugins/host";
+import { migrateProviderSettings } from "@jini-ai/plugins/host";
+import { type PluginProviderDeclaration } from "@jini-ai/core/contracts/plugin-sdk";
 import { providerKeyId } from "#src/features/project-keys/service";
 import type { ProviderConfigSource, ProviderKeyUsage, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/plugins/host";
 export type { ProviderConfigSource, ProviderKeyUsage, ProviderPluginConfig, ProviderSettingsView, ProviderWriteResult } from "@jini-ai/plugins/host";
@@ -56,7 +58,7 @@ const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.f
 
 const CONFIG_KEY = "provider.config";
 
-const stringRecord = (value: unknown): Record<string, string> | null => {
+const stringRecord = ({ value }: { value: unknown }, _optional = {}): Record<string, string> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 };
@@ -69,7 +71,7 @@ const stringRecord = (value: unknown): Record<string, string> | null => {
  * (SQLITE_BUSY, a dropped connection) or any other vault code is the store failing and is false.
  * @complexity O(1).
  */
-function isOpenFailure(error: unknown): boolean {
+function isOpenFailure({ error }: { error: unknown }, _optional = {}): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as { code?: unknown }).code;
   // By name + code, not `instanceof`: Jini's VaultError can load as more than one module copy.
@@ -99,13 +101,13 @@ export function createVaultProviderConfigSource(
    * over a valid key.
    */
   async function unreadableOr({ pluginId, error }: { pluginId: string; error: unknown }): Promise<never> {
-    const listed = isOpenFailure(error) && await exists({ pluginId }).catch(() => false);
+    const listed = isOpenFailure({ error }) && await exists({ pluginId }).catch(() => false);
     throw listed ? new ProviderConfigUnreadableError({ pluginId, cause: error }) : error;
   }
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
     const row = (await store({ pluginId }).get({ key: CONFIG_KEY }).catch((error: unknown) => unreadableOr({ pluginId, error }))) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
-    return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
+    return { settings: stringRecord({ value: row.settings }) ?? {}, secrets: stringRecord({ value: row.secrets }) ?? {} };
   }
   return {
     scope: required.scope,
@@ -160,8 +162,8 @@ export function withAttachedProject(
       if (!await attached(input)) return null;
       const value = await read(input);
       return await attached(input) ? value : null;
-    } catch {
-      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.');
+    } catch (error) {
+      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
       return null;
     }
   }

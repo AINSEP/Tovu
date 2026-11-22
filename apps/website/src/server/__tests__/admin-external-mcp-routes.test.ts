@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -47,9 +47,9 @@ function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Expres
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -146,8 +146,8 @@ test("a saved server reaches the daemon's read path with its env decrypted", asy
   // The same call `agent-daemon-server.ts` makes at boot — proving the route and the daemon agree
   // about the stored shape, rather than each being tested against its own idea of it.
   const { configs } = await readEnabledExternalMcpConfigs(
-    { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer },
-    deps.workspaceId,
+    { deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer },
+    workspaceId: deps.workspaceId },
   );
   assert.equal(configs.length, 1);
   const target = configs[0]?.target;
@@ -491,11 +491,11 @@ test("saving and toggling notify a roster consumer with the updated running conf
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const snapshots: ReturnType<typeof readEnabledExternalMcpConfigs>[] = [];
-  onExternalMcpRosterChanged("route-test-observer", () => {
-    const snapshot = readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  onExternalMcpRosterChanged({ key: "route-test-observer", listener: () => {
+    const snapshot = readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
     snapshots.push(snapshot);
     return snapshot;
-  });
+  } });
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
   assert.equal((await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) })).status, 200);
   assert.equal(snapshots.length, 1, "a successful save must notify the runtime");

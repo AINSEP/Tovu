@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { saveThemeAsOriginal } from "../save-theme-original.js";
-import { loadTheme, THEME_CATALOG_DIR } from "../theme.js";
+import { loadTheme } from "../theme.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Explore's "Save as original": the current files become the stored original, at the

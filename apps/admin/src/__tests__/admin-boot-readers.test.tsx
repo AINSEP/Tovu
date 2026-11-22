@@ -1,11 +1,11 @@
-import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { AdminBootScopeContext } from "../lib/admin-boot-scope";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { createFakeAdminLocalePort } from "../hooks/admin-locale-dependencies.hooks";
-import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/AssistantDock.hooks";
+import { useMessagesChangeHandler } from "../components/AssistantDock/hooks/messages-change.hooks";
 import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 import { subscribeToContentRefresh } from "../lib/content-refresh-bus";
 
@@ -40,7 +40,7 @@ it("defers boot settings, retains completed reads across remounts, and isolates 
   expect(screen.queryByText("fr")).not.toBeInTheDocument();
   await screen.findByText("de");
   expect(readB).toHaveBeenCalledTimes(1);
-  act(() => ownerB.publishLocaleChange("es"));
+  act(() => ownerB.publishLocaleChange({ next: "es" }));
   await screen.findByText("es");
   expect(readB).toHaveBeenCalledTimes(2);
 });
@@ -49,7 +49,7 @@ it("ignores restored history and conversation switches, but announces live runs 
   const settings = vi.fn();
   const content = vi.fn();
   const stopSettings = subscribeToSettingsRefresh(settings);
-  const stopContent = subscribeToContentRefresh(content);
+  const stopContent = subscribeToContentRefresh({ listener: content });
   const history: ChatMessage[] = [{ id: "old", role: "assistant", content: "Saved reply", runStatus: "succeeded", events: [
     { kind: "tool_result", toolUseId: "saved-tool", content: "ok", isError: false },
   ] }];
@@ -59,7 +59,7 @@ it("ignores restored history and conversation switches, but announces live runs 
       paneKey, initialMessages, onMessagesChange,
     } }), { initialProps: { paneKey: "saved", initialMessages: history } });
     act(() => result.current(history));
-    expect(onMessagesChange).toHaveBeenCalledWith(history);
+    expect(onMessagesChange).toHaveBeenCalledWith({ messages: history });
     expect(settings).not.toHaveBeenCalled();
     expect(content).not.toHaveBeenCalled();
     const next: ChatMessage[] = [...history, { id: "new", role: "assistant", content: "New reply", runStatus: "succeeded" }];

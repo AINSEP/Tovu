@@ -4,20 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import {
-  copyThemeFile,
-  isGeneratedThemePath,
-  isRecognizedThemeRoot,
-  isSourceDirGeneratedConflict,
-  listThemeFiles,
-  MAX_THEME_FILE_BYTES,
-  nextAvailableFileName,
-  readThemeFile,
-  renameThemeFile,
-  resolveThemeFilePath,
-  ThemePathError,
-  writeThemeFile,
-} from "../theme-files.js";
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import * as files from "@jini-ai/cms/themes/files/moves";
+import { themeFileMovePorts } from "../theme-file-write-ports.js";
+import { isGeneratedThemePath, isSourceDirGeneratedConflict } from "../theme-file-policy.js";
+import { isRecognizedThemeRoot, MAX_THEME_FILE_BYTES, readThemeFile, resolveThemeFilePath, ThemePathError } from "../theme-files.js";
+import { listThemeFiles } from "../theme-file-listing.js";
+import { writeThemeFile } from "../theme-file-writing.js";
 
 test("a theme with more media files than the listing cap still lists its pages", () => {
   const themesRoot = fs.mkdtempSync(path.join(os.tmpdir(), "theme-list-cap-"));
@@ -34,7 +27,6 @@ test("a theme with more media files than the listing cap still lists its pages",
 });
 
 test("theme file APIs expose reversible moves without the unused hard-delete capability", async () => {
-  const files = await import("../theme-files.js");
   const feature = await import("../index.js");
   assert.equal("deleteThemeFile" in files, false);
   assert.equal("deleteThemeFile" in feature, false);
@@ -63,7 +55,7 @@ test("rename moves the original bytes and inode, creates parents, and refuses co
   const source = path.join(themeDir, "source.bin");
   fs.writeFileSync(source, bytes);
   const inode = fs.statSync(source).ino;
-  const required = { themeDir, themesRoot: root, sourcePath: "source.bin", destPath: "nested/moved.bin" };
+  const required = { themeDir, themesRoot: root, sourcePath: "source.bin", destPath: "nested/moved.bin", ports: themeFileMovePorts };
   const destination = path.join(fs.realpathSync(themeDir), "nested", "moved.bin");
   assert.equal(renameThemeFile(required), destination);
   assert.equal(fs.existsSync(source), false);
@@ -383,23 +375,23 @@ test("an oversized write is refused", () => {
  * `preview` segment or a path nested under it.
  */
 test("the generated directory itself is matched", () => {
-  assert.equal(isGeneratedThemePath("preview"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview" }), true);
 });
 
 test("a file nested inside the generated directory is matched", () => {
-  assert.equal(isGeneratedThemePath("preview/dark/js/main.js"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview/dark/js/main.js" }), true);
 });
 
 test("a sibling directory merely PREFIXED with the generated dir's name is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("preview-notes/todo.md"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview-notes/todo.md" }), false);
 });
 
 test("a backslash-separated (Windows-shaped) relative path is normalized before matching", () => {
-  assert.equal(isGeneratedThemePath("preview\\dark\\index.html"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview\\dark\\index.html" }), true);
 });
 
 test("an ordinary theme file is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("pages/about.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "pages/about.html" }), false);
 });
 
 /**
@@ -409,15 +401,15 @@ test("an ordinary theme file is NOT matched", () => {
  * since it is a NEW branch in `isGeneratedThemePath`, not a data-only addition to the existing one.
  */
 test("the generated root file itself is matched", () => {
-  assert.equal(isGeneratedThemePath("index.html"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "index.html" }), true);
 });
 
 test("a similarly-named sibling file is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("index-notes.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "index-notes.html" }), false);
 });
 
 test("the authored source page the generated root file is derived from is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("render/pages/index.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "render/pages/index.html" }), false);
 });
 
 /**
@@ -427,27 +419,27 @@ test("the authored source page the generated root file is derived from is NOT ma
  * ever reached. See its own doc for why the three shapes below are the ones that matter.
  */
 test("sourceDir naming a generated directory exactly is a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview" }), true);
 });
 
 test("sourceDir nested inside a generated directory is a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview/src"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview/src" }), true);
 });
 
 test("sourceDir naming the theme root ('.') is a conflict — it would contain every generated directory", () => {
-  assert.equal(isSourceDirGeneratedConflict("."), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "." }), true);
 });
 
 test("sourceDir merely PREFIXED with a generated dir's name is NOT a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview-notes"), false);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview-notes" }), false);
 });
 
 test("an ordinary sourceDir unrelated to any generated directory is NOT a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("src"), false);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "src" }), false);
 });
 
 test("a backslash-separated (Windows-shaped) sourceDir is normalized before matching", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview\\src"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview\\src" }), true);
 });
 
 /**
@@ -478,7 +470,7 @@ test("a backslash-separated (Windows-shaped) sourceDir is normalized before matc
  */
 test("copyThemeFile refuses to silently overwrite an existing destination", () => {
   const { root, themeDir } = makeThemesRoot();
-  const first = copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" });
+  const first = copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" });
   assert.equal(fs.readFileSync(first, "utf8"), "{}");
 
   // A second copy onto the SAME destination, now that the source has since changed — if this
@@ -486,7 +478,7 @@ test("copyThemeFile refuses to silently overwrite an existing destination", () =
   // staying exactly what the first, legitimate copy wrote.
   fs.writeFileSync(path.join(themeDir, "theme.json"), "poisoned", "utf8");
   assert.throws(
-    () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" }),
+    () => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" }),
     /already exists/
   );
 
@@ -532,7 +524,7 @@ test("copyThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR sym
 
   try {
     assert.throws(
-      () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "a", destPath: "a-copy" }),
+      () => copyThemeFile({ ports: themeFileMovePorts, themeDir, themesRoot: root, sourcePath: "a", destPath: "a-copy" }),
       ThemePathError
     );
   } finally {

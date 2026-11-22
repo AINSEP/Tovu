@@ -1,6 +1,5 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
@@ -121,7 +120,7 @@ function IntegrationDeleteDialog(props: {
       open={props.pendingDelete !== null}
       agentHandle="integrations-delete-webhook"
       title={t({ locale: locale, key: "Delete webhook?" })}
-      body={props.pendingDelete ? deleteWebhookBody(locale, props.pendingDelete.label) : null}
+      body={props.pendingDelete ? deleteWebhookBody({ locale: locale, label: props.pendingDelete.label }) : null}
       confirmLabel={t({ locale: locale, key: "Delete" })}
       destructive
       pending={props.deleting}
@@ -133,30 +132,12 @@ function IntegrationDeleteDialog(props: {
 
 export function Integrations({ useIntegrationsHook = useWiredIntegrations }: IntegrationsProps = {}) {
   const {
-    subscriptions,
-    error,
-    formOpen,
-    setFormOpen,
-    label,
-    setLabel,
-    targetUrl,
-    setTargetUrl,
-    topics,
-    setTopics,
-    saving,
-    formError,
-    pendingDelete,
-    setPendingDelete,
-    deleting,
-    onCreate,
-    onTogglePause,
-    onDelete,
-    t,
-    locale,
+    subscriptions, error, formOpen, setFormOpen, label, setLabel, targetUrl, setTargetUrl, topics, setTopics, saving, formError, pendingDelete, setPendingDelete,
+    deleting, onCreate, onTogglePause, onDelete, t, locale,
   } = useIntegrationsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!subscriptions) return <div className="notice">{t("Loading integrations…")}</div>;
+  if (!subscriptions) return <div className="notice">{t({ key: "Loading integrations…" })}</div>;
 
   // Subscription ids are stable and unique, so they disambiguate one row's menu from another's —
   // same reasoning as every other list on this workstream.
@@ -188,21 +169,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           the create form and the empty-state card both stop at 42rem, so the three read as three
           unrelated objects rather than one column). Same measure, same reason `IntegrationCreateForm`
           and the empty-state `card` below already use it. */}
-      <div className="integrations-tab-intro form-measure">
-        <p className="page-description">
-          {t("Send webhook notifications to external services when content on this site changes.")}
-        </p>
-        {formOpen ? null : (
-          <div className="page-actions">
-            <button
-              onClick={() => setFormOpen(true)}
-              {...agentHandle({ handle: "integrations-toggle-create-form" }, { role: "button", label: "Open the add-webhook form" })}
-            >
-              {t("Add webhook")}
-            </button>
-          </div>
-        )}
-      </div>
+      {renderIntegrationsIntro({ t, formOpen, setFormOpen })}
 
       {formOpen ? (
         <IntegrationCreateForm
@@ -220,89 +187,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
         />
       ) : null}
 
-      <DataTable
-        rows={subscriptions}
-        rowKey={(subscription) => subscription.id}
-        empty={
-          // `form-measure` (2026-09-13, owner: this text read off-center and clipped): the card had
-          // no width of its own, so on a wide viewport it stretched edge to edge and centered its
-          // two sentences around the middle of that whole span instead of around a column a reader
-          // could actually see at once. Same cap the create form right above it already uses, so
-          // the empty state now reads as that form's own column, just without any webhooks in it.
-          //
-          // Reopened same day (owner: "sure as hell doesn't look fixed"): `page-description` on the
-          // second line was carrying the raw UA `<p>` margin (1em, unscoped — that class only gets
-          // rules under `.page-header`, so a bare use here got nothing) on top of `.empty-state`'s
-          // own flex gap, which is what put visible daylight between the two lines. `empty-state-
-          // title`/`empty-state-hint` below zero that out and give the two lines the hierarchy every
-          // other `.empty-state` on this admin gets for free by only ever having ONE line.
-          <div className="card form-measure">
-            <div className="empty-state">
-              <p className="empty-state-title">{t("No webhooks yet.")}</p>
-              <p className="empty-state-hint">{t("Add one above to start sending event notifications.")}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          {
-            key: "label",
-            header: t("Label"),
-            cell: (subscription, index) => (
-              <a
-                href={`/admin/addons/integrations/${subscription.id}`}
-                {...agentHandle({ handle: `${rowMenuHandles[index]}-label` }, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
-              >
-                {subscription.label}
-              </a>
-            ),
-          },
-          { key: "target-url", header: t("Target URL"), cell: (subscription) => subscription.targetUrl },
-          {
-            key: "status",
-            header: t("Status"),
-            cell: (subscription) => (
-              <span className={`status status-sub-${subscription.status}`}><ServerLabel value={subscription.status} /></span>
-            ),
-          },
-          {
-            key: "last-delivery",
-            header: t("Last delivery"),
-            cell: (subscription) =>
-              subscription.lastDelivery ? (
-                <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
-                  <ServerLabel value={subscription.lastDelivery.status} />
-                </span>
-              ) : (
-                <span className="muted-cell">{t("never")}</span>
-              ),
-          },
-          {
-            key: "actions",
-            headerLabel: t("Actions"),
-            cell: (subscription, index) =>
-              subscription.status === "disabled" ? (
-                // `disabled` on both old inline buttons for a `status === "disabled"` row — a
-                // built-in-row-style "nothing to do here" case, `RowMenu` has no equivalent
-                // per-item `disabled`, so the whole trigger is withheld instead, matching
-                // `Roles.tsx`'s built-in-row `—` idiom rather than an unusably empty dropdown.
-                <span className="muted-cell">—</span>
-              ) : (
-                <RowMenu
-                  triggerLabel={actionsForWebhookLabel(locale, subscription.label)}
-                  agentHandle={`${rowMenuHandles[index]}-menu`}
-                  items={integrationRowMenuItems(
-                    subscription,
-                    {
-                      onTogglePause,
-                      onDelete: setPendingDelete,
-                    },
-                    locale,
-                  )}
-                />
-              ),
-          },
-        ]}
-      />
+      {renderIntegrationsTable({ subscriptions, t, rowMenuHandles, locale, onTogglePause, setPendingDelete })}
       <IntegrationDeleteDialog
         locale={locale}
         pendingDelete={pendingDelete}
@@ -310,6 +195,146 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
         onConfirm={onDelete}
         onCancel={() => setPendingDelete(null)}
       />
+    </div>
+  );
+}
+
+function renderIntegrationsTable(
+  { subscriptions, t, rowMenuHandles, locale, onTogglePause, setPendingDelete }:
+    Pick<ReturnType<NonNullable<IntegrationsProps["useIntegrationsHook"]>>, "t" | "locale" | "onTogglePause" | "setPendingDelete"> &
+    { subscriptions: NonNullable<ReturnType<NonNullable<IntegrationsProps["useIntegrationsHook"]>>["subscriptions"]>; rowMenuHandles: ReturnType<typeof buildAgentListHandles> }
+) {
+  return (
+    <DataTable
+      rows={subscriptions}
+      rowKey={(subscription) => subscription.id}
+      empty={renderIntegrationsEmpty({ t })}
+      columns={[
+        {
+          key: "label",
+          header: t({ key: "Label" }),
+          cell: (subscription, index) => renderIntegrationLink({ subscription, rowMenuHandles, index }),
+        },
+        { key: "target-url", header: t({ key: "Target URL" }), cell: (subscription) => subscription.targetUrl },
+        {
+          key: "status",
+          header: t({ key: "Status" }),
+          cell: (subscription) => (
+            <span className={`status status-sub-${subscription.status}`}><ServerLabel value={subscription.status} /></span>
+          ),
+        },
+        {
+          key: "last-delivery",
+          header: t({ key: "Last delivery" }),
+          cell: (subscription) =>
+            subscription.lastDelivery ? (
+              <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
+                <ServerLabel value={subscription.lastDelivery.status} />
+              </span>
+            ) : (
+              <span className="muted-cell">{t({ key: "never" })}</span>
+            ),
+        },
+        {
+          key: "actions",
+          headerLabel: t({ key: "Actions" }),
+          cell: (subscription, index) =>
+            renderIntegrationActions({ subscription, locale, rowMenuHandles, index, onTogglePause, setPendingDelete }),
+        },
+      ]}
+    />
+  );
+}
+
+function renderIntegrationsEmpty(
+  { t }:
+    Pick<Parameters<typeof renderIntegrationsTable>[0], "t">
+) {
+  return (
+    // `form-measure` (2026-09-13, owner: this text read off-center and clipped): the card had
+    // no width of its own, so on a wide viewport it stretched edge to edge and centered its
+    // two sentences around the middle of that whole span instead of around a column a reader
+    // could actually see at once. Same cap the create form right above it already uses, so
+    // the empty state now reads as that form's own column, just without any webhooks in it.
+    //
+    // Reopened same day (owner: "sure as hell doesn't look fixed"): `page-description` on the
+    // second line was carrying the raw UA `<p>` margin (1em, unscoped — that class only gets
+    // rules under `.page-header`, so a bare use here got nothing) on top of `.empty-state`'s
+    // own flex gap, which is what put visible daylight between the two lines. `empty-state-
+    // title`/`empty-state-hint` below zero that out and give the two lines the hierarchy every
+    // other `.empty-state` on this admin gets for free by only ever having ONE line.
+    <div className="card form-measure">
+      <div className="empty-state">
+        <p className="empty-state-title">{t({ key: "No webhooks yet." })}</p>
+        <p className="empty-state-hint">{t({ key: "Add one above to start sending event notifications." })}</p>
+      </div>
+    </div>
+  );
+}
+
+function renderIntegrationLink(
+  { subscription, rowMenuHandles, index }:
+    Pick<Parameters<typeof renderIntegrationsTable>[0], "rowMenuHandles"> &
+    { subscription: NonNullable<ReturnType<typeof useWiredIntegrations>["subscriptions"]>[number]; index: number }
+) {
+  return (
+    <a
+      href={`/admin/addons/integrations/${subscription.id}`}
+      {...agentHandle({ handle: `${rowMenuHandles[index]}-label` }, { role: "link", label: `Open the "${subscription.label}" webhook's deliveries` })}
+    >
+      {subscription.label}
+    </a>
+  );
+}
+
+function renderIntegrationActions(
+  { subscription, locale, rowMenuHandles, index, onTogglePause, setPendingDelete }:
+    Pick<ReturnType<NonNullable<IntegrationsProps["useIntegrationsHook"]>>, "locale" | "onTogglePause" | "setPendingDelete"> &
+    { subscription: NonNullable<ReturnType<typeof useWiredIntegrations>["subscriptions"]>[number]; rowMenuHandles: ReturnType<typeof buildAgentListHandles>; index: number }
+) {
+  return (
+    subscription.status === "disabled" ? (
+      // `disabled` on both old inline buttons for a `status === "disabled"` row — a
+      // built-in-row-style "nothing to do here" case, `RowMenu` has no equivalent
+      // per-item `disabled`, so the whole trigger is withheld instead, matching
+      // `Roles.tsx`'s built-in-row `—` idiom rather than an unusably empty dropdown.
+      <span className="muted-cell">—</span>
+    ) : (
+      <RowMenu
+        triggerLabel={actionsForWebhookLabel({ locale: locale, label: subscription.label })}
+        agentHandle={`${rowMenuHandles[index]}-menu`}
+        items={integrationRowMenuItems(
+          { subscription: subscription,
+          handlers: {
+            onTogglePause,
+            onDelete: setPendingDelete,
+          },
+          locale: locale },
+        )}
+      />
+    )
+  );
+}
+
+function renderIntegrationsIntro(
+  { t, formOpen, setFormOpen }:
+    Pick<ReturnType<NonNullable<IntegrationsProps["useIntegrationsHook"]>>, "t" | "formOpen" | "setFormOpen">
+) {
+  return (
+    <div className="integrations-tab-intro form-measure">
+      <p className="page-description">
+        {t({ key: "Send webhook notifications to external services when content on this site changes." })}
+      </p>
+      {formOpen ? null : (
+        <div className="page-actions">
+          <button
+            onClick={() => setFormOpen(true)}
+            {...agentHandle({ handle: "integrations-toggle-create-form" }, { role: "button", label: "Open the add-webhook form" })}
+          >
+            {t({ key: "Add webhook" })}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

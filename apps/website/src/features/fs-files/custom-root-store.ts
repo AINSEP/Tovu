@@ -67,7 +67,7 @@ import { dirname, isAbsolute, join } from "node:path";
 /** Raised when a caller tries to set a path that cannot be an fs-files root — a shape rejection, not
  *  an internal error, so the admin-http route can echo it straight back to the composer UI. */
 export class CustomFsRootError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "CustomFsRootError";
   }
@@ -108,7 +108,7 @@ function persistenceFilePath(optional: CustomFsRootStoreOptional): string {
  * @complexity O(1) — one small file read plus a `JSON.parse` bounded by that same file's size, never
  *   by caller-controlled input.
  */
-function readPersistedPaths(filePath: string): Record<string, string> {
+function readPersistedPaths({ filePath }: { filePath: string }, _optional = {}): Record<string, string> {
   let raw: string;
   try {
     raw = readFileSync(filePath, "utf8");
@@ -122,9 +122,10 @@ function readPersistedPaths(filePath: string): Record<string, string> {
       return parsed as Record<string, string>;
     }
   } catch {
-    // Malformed JSON — fall through to the empty-store return below rather than throwing. This file
+    // Malformed JSON — return an empty store rather than throwing. This file
     // holds nothing that cannot be re-derived (the operator can just re-set the folder), so refusing
     // every read until a human manually repairs the file would be a worse failure mode.
+    return {};
   }
   return {};
 }
@@ -143,7 +144,7 @@ function readPersistedPaths(filePath: string): Record<string, string> {
  *   persist.
  * @complexity O(1) — one small JSON payload, two fs syscalls (write + rename).
  */
-function writePersistedPaths(filePath: string, store: Record<string, string>): void {
+function writePersistedPaths({ filePath, store }: { filePath: string; store: Record<string, string> }, _optional = {}): void {
   const tempPath = join(dirname(filePath), `.${PERSISTENCE_FILE_NAME}.${process.pid}.${randomUUID()}.tmp`);
   writeFileSync(tempPath, JSON.stringify(store, null, 2), "utf8");
   renameSync(tempPath, filePath);
@@ -152,7 +153,7 @@ function writePersistedPaths(filePath: string, store: Record<string, string>): v
 /** Resolves a persisted path (or its absence) to today's on-disk reality. A path that no longer
  *  exists, or that now names something other than a directory, is reported as `vanished` rather than
  *  silently treated as `path`-usable or conflated with "never set". */
-function resolveState(persistedPath: string | undefined): CustomFsRootState {
+function resolveState({ persistedPath }: { persistedPath: string | undefined }, _optional = {}): CustomFsRootState {
   if (persistedPath === undefined) return { path: undefined, vanished: false };
   if (existsSync(persistedPath) && statSync(persistedPath).isDirectory()) {
     return { path: persistedPath, vanished: false };
@@ -169,9 +170,9 @@ function resolveState(persistedPath: string | undefined): CustomFsRootState {
  * @complexity O(1) — one file read plus one `stat` of the persisted path, never proportional to that
  *   directory's own contents.
  */
-export function getCustomFsRootStatus(workspaceId: string, optional: CustomFsRootStoreOptional): CustomFsRootState {
-  const store = readPersistedPaths(persistenceFilePath(optional));
-  return resolveState(store[workspaceId]);
+export function getCustomFsRootStatus({ workspaceId, optional }: { workspaceId: string; optional: CustomFsRootStoreOptional }, _optional = {}): CustomFsRootState {
+  const store = readPersistedPaths({ filePath: persistenceFilePath(optional) });
+  return resolveState({ persistedPath: store[workspaceId] });
 }
 
 /**
@@ -182,8 +183,8 @@ export function getCustomFsRootStatus(workspaceId: string, optional: CustomFsRoo
  *
  * @complexity O(1). See {@link getCustomFsRootStatus}.
  */
-export function getCustomFsRoot(workspaceId: string, optional: CustomFsRootStoreOptional): string | undefined {
-  return getCustomFsRootStatus(workspaceId, optional).path;
+export function getCustomFsRoot({ workspaceId, optional }: { workspaceId: string; optional: CustomFsRootStoreOptional }, _optional = {}): string | undefined {
+  return getCustomFsRootStatus({ workspaceId, optional }).path;
 }
 
 /**
@@ -196,28 +197,28 @@ export function getCustomFsRoot(workspaceId: string, optional: CustomFsRootStore
  * its canonical form, matching the form {@link resolveFsFilePath} in `fs-files.ts` compares every
  * subsequent request against.
  *
- * @param workspaceId - Which workspace's custom root to change. Two workspaces never share a value —
+ * @param required.workspaceId - Which workspace's custom root to change. Two workspaces never share a value —
  *   each is its own key in the persisted map.
- * @param path - An absolute directory path, or `null` to clear the current custom root.
+ * @param required.path - An absolute directory path, or `null` to clear the current custom root.
  * @throws {CustomFsRootError} If `path` is not absolute, does not exist, or is not a directory.
  * @throws whatever the underlying `fs` call throws while persisting (e.g. `EACCES` on the site
  *   directory) — surfaced, never swallowed.
  * @complexity O(1) — one `stat`/`realpath` call plus one small JSON read+write, never proportional to
  *   the directory's own contents.
  */
-export function setCustomFsRoot(workspaceId: string, path: string | null, optional: CustomFsRootStoreOptional): void {
+export function setCustomFsRoot({ workspaceId, path, optional }: { workspaceId: string; path: string | null; optional: CustomFsRootStoreOptional }, _optional = {}): void {
   const filePath = persistenceFilePath(optional);
-  const store = readPersistedPaths(filePath);
+  const store = readPersistedPaths({ filePath });
 
   if (path === null) {
     delete store[workspaceId];
-    writePersistedPaths(filePath, store);
+    writePersistedPaths({ filePath, store });
     return;
   }
   assertExistingAbsoluteDirectory({ path }, {});
 
   store[workspaceId] = realpathSync(path);
-  writePersistedPaths(filePath, store);
+  writePersistedPaths({ filePath, store });
 }
 
 /**
@@ -228,7 +229,7 @@ export function setCustomFsRoot(workspaceId: string, path: string | null, option
  */
 export function resetCustomFsRootForTests(optional: Required<CustomFsRootStoreOptional>): void {
   try {
-    writePersistedPaths(persistenceFilePath(optional), {});
+    writePersistedPaths({ filePath: persistenceFilePath(optional), store: {} });
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
   }
@@ -237,12 +238,12 @@ export function resetCustomFsRootForTests(optional: Required<CustomFsRootStoreOp
 /** Validate a directory reference without canonicalizing the user's path or changing the custom root. */
 export function assertExistingAbsoluteDirectory({ path }: { path: string }, _options = {}): void {
   if (!isAbsolute(path)) {
-    throw new CustomFsRootError(`'${path}' is not an absolute path`);
+    throw new CustomFsRootError({ message: `'${path}' is not an absolute path` });
   }
   if (!existsSync(path)) {
-    throw new CustomFsRootError(`'${path}' does not exist`);
+    throw new CustomFsRootError({ message: `'${path}' does not exist` });
   }
   if (!statSync(path).isDirectory()) {
-    throw new CustomFsRootError(`'${path}' is not a directory`);
+    throw new CustomFsRootError({ message: `'${path}' is not a directory` });
   }
 }

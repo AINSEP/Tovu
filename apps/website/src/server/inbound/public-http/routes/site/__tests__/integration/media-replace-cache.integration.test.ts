@@ -15,8 +15,8 @@ async function fixture(t: test.TestContext) {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   const deps = createRouteDeps();
-  Object.assign(deps, { mediaRepo: new SqliteMediaRepo(db), assetBlobRepo: new SqliteAssetBlobRepo(db),
-    assetRenditionRepo: new SqliteAssetRenditionRepo(db), mediaContentTypeStore: new SqliteMediaContentTypeStore(db) });
+  Object.assign(deps, { mediaRepo: new SqliteMediaRepo({ store: db }), assetBlobRepo: new SqliteAssetBlobRepo({ store: db }),
+    assetRenditionRepo: new SqliteAssetRenditionRepo({ store: db }), mediaContentTypeStore: new SqliteMediaContentTypeStore({ store: db }) });
   const bytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>');
   const { media } = await uploadMedia({ deps: { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo },
     input: { workspaceId: deps.workspaceId, bytes, filename: "cover.svg", contentType: "image/svg+xml", createdByPrincipal: "owner" } });
@@ -42,7 +42,7 @@ test("authored media URLs revalidate on reuse and return replaced bytes under th
     assert.match(etag, /^"[^"\r\n]+"$/);
     return { authoredUrl, etag, body: await before.text() };
   }));
-  const originalUrl = `${baseUrl}${(await resolveMediaPublicUrls(deps, [media])).get(media.id)}`;
+  const originalUrl = `${baseUrl}${(await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id)}`;
   const originalBefore = await fetch(originalUrl);
   assert.equal(originalBefore.status, 200);
   assert.equal(originalBefore.headers.get("cache-control"), "private, no-store");
@@ -81,13 +81,13 @@ test("replacing bytes keeps a bare id revalidating, changes its strong ETag and 
   const oldEtag = before.headers.get("etag")!;
   assert.match(oldEtag, /^"[^"\r\n]+"$/);
   const oldBody = await before.text();
-  const oldPublicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id);
+  const oldPublicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id);
   assert.equal(oldPublicUrl, `/m/${media.slug}/original.svg?v=${media.source.sha256.slice(0, 12)}`);
   const replacement = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><circle r="4"/></svg>');
   const saved = await replaceMediaFile({ deps, media, bytes: replacement, contentType: "image/svg+xml", principalId: "owner" });
   assert.ok(saved);
   assert.notEqual(saved.source.sha256, media.source.sha256);
-  const newPublicUrl = (await resolveMediaPublicUrls(deps, [saved])).get(saved.id);
+  const newPublicUrl = (await resolveMediaPublicUrls({ deps, assets: [saved] })).get(saved.id);
   assert.equal(newPublicUrl, `/m/${saved.slug}/original.svg?v=${saved.source.sha256.slice(0, 12)}`);
   assert.notEqual(newPublicUrl, oldPublicUrl);
   const after = await fetch(url, { cache: "no-cache", headers: { "If-None-Match": oldEtag } });
@@ -139,9 +139,9 @@ test("a current version and matching validator never bypass a members-only gate"
   assert.equal(denied.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(await denied.json(), { error: "rendition not found" });
   const token = "media-cache-member";
-  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{ id: "cache-session", workspaceId: deps.workspaceId,
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [{ id: "cache-session", workspaceId: deps.workspaceId,
     memberId: "member", tokenHash: createHash("sha256").update(token).digest("hex"), createdAt: media.createdAt,
-    expiresAt: "2099-01-01T00:00:00.000Z" }]);
+    expiresAt: "2099-01-01T00:00:00.000Z" }] });
   const allowed = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`, { headers: { cookie: `tovu_member_session=${token}` } });
   assert.equal(allowed.status, 200);
   assert.equal(allowed.headers.get("cache-control"), "private, no-store");

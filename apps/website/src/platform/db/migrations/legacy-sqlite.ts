@@ -5,13 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import { sql } from "kysely";
 
-import { listTables } from "../kernel/dialect.js";
 import { openMemorySqliteKernel } from "../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../kernel/port.js";
-import { readSchemaShape, type SchemaShape } from "../kernel/schema-shape.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, type SchemaShape, listTables } from "@jini-ai/db/kernel";
 import { CHAT_TABLE_NAMES } from "../sqlite/chat-orphan-check.js";
 import { LEDGER_TABLE } from "./runner.js";
-import { LegacyHistoryError } from "./step.js";
 
 /**
  * @file The FROZEN drizzle chain (`platform/db/drizzle/`, 0000–0077) as the SQLite half of
@@ -76,6 +74,14 @@ export interface LegacyReconciliation {
   pending: LegacyEntry[];
 }
 
+/** Tovu's frozen Drizzle history cannot be matched; legacy adoption remains host-owned. */
+export class LegacyHistoryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LegacyHistoryError";
+  }
+}
+
 /**
  * Matches the database's drizzle history to the frozen chain by hash. Duplicate rows for one hash
  * (seen on real sites) count once.
@@ -83,8 +89,8 @@ export interface LegacyReconciliation {
  * @throws LegacyHistoryError for tables without any drizzle history, a recorded hash that is not in
  *   the chain (an edited or foreign migration), or an entry missing BEFORE the last applied one.
  */
-export async function reconcileLegacyHistory(kernel: StorageKernel<unknown>, chain: readonly LegacyEntry[]): Promise<LegacyReconciliation> {
-  const tables = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
+export async function reconcileLegacyHistory({ kernel, chain }: { kernel: KyselyKernel<unknown>; chain: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<LegacyReconciliation> {
+  const tables = (await listTables({ kernel })).filter((name) => name !== LEDGER_TABLE);
   if (!tables.includes(DRIZZLE_TABLE)) {
     if (tables.length > 0) {
       throw new LegacyHistoryError(`the database has tables (${tables.slice(0, 5).join(", ")}…) but no drizzle migration history; it is not a Tovu content database this runtime can adopt`);
@@ -108,7 +114,7 @@ export async function reconcileLegacyHistory(kernel: StorageKernel<unknown>, cha
 }
 
 /** Applies `entries` with drizzle's statement semantics, recording each in `__drizzle_migrations`. */
-export async function applyLegacyEntries(kernel: StorageKernel<unknown>, entries: readonly LegacyEntry[]): Promise<void> {
+export async function applyLegacyEntries({ kernel, entries }: { kernel: KyselyKernel<unknown>; entries: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<void> {
   // Drizzle's own ledger DDL, verbatim (its `SERIAL` id is not a rowid alias on SQLite; ids stay null).
   await kernel.execute(sql`CREATE TABLE IF NOT EXISTS ${sql.table(DRIZZLE_TABLE)} (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)`);
   for (const entry of entries) {
@@ -122,11 +128,11 @@ const DROPPABLE = new Set(CHAT_TABLE_NAMES);
 const BOOKKEEPING = [DRIZZLE_TABLE, LEDGER_TABLE];
 
 /** The chain's head schema, built fresh in memory. */
-export async function frozenHeadShape(chain: readonly LegacyEntry[]): Promise<SchemaShape> {
+export async function frozenHeadShape({ chain }: { chain: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<SchemaShape> {
   const scratch = openMemorySqliteKernel<unknown>();
   try {
-    await scratch.transaction(async () => applyLegacyEntries(scratch, chain));
-    return await readSchemaShape(scratch, { exclude: BOOKKEEPING });
+    await scratch.transaction(async () => applyLegacyEntries({ kernel: scratch, entries: chain }));
+    return await readSchemaShape({ kernel: scratch }, { exclude: BOOKKEEPING });
   } finally {
     await scratch.close();
   }
@@ -159,7 +165,7 @@ function compareTableParts({ name, want, have }: {
 }
 
 /** `actual` against `expected`, table by table, in both directions for shared tables. */
-export function compareShapes(expected: SchemaShape, actual: SchemaShape, optional: { optionalTables?: ReadonlySet<string> } = {}): ShapeDifference {
+export function compareShapes({ expected, actual }: { expected: SchemaShape; actual: SchemaShape }, optional: { optionalTables?: ReadonlySet<string> } = {}): ShapeDifference {
   const problems: string[] = [];
   for (const [name, want] of Object.entries(expected.tables)) {
     const have = actual.tables[name];
@@ -179,15 +185,15 @@ export function compareShapes(expected: SchemaShape, actual: SchemaShape, option
  * The SQLite `up` of `0000_legacy_baseline`: reconcile, apply the missing tail, verify against the
  * chain's head built fresh. Runs inside the runner's transaction (a failure rolls the tail back).
  */
-export async function adoptLegacySqlite(kernel: StorageKernel<unknown>, note: (message: string) => void): Promise<void> {
+export async function adoptLegacySqlite(kernel: KyselyKernel<unknown>, note: (message: string) => void): Promise<void> {
   const chain = readFrozenChain();
-  const state = await reconcileLegacyHistory(kernel, chain);
-  await applyLegacyEntries(kernel, state.pending);
+  const state = await reconcileLegacyHistory({ kernel, chain });
+  await applyLegacyEntries({ kernel, entries: state.pending });
   const [firstPending] = state.pending;
   if (!state.fresh && firstPending !== undefined) {
     note(`applied legacy migrations ${firstPending.tag} … ${state.pending.at(-1)?.tag} (${state.pending.length})`);
   }
-  const difference = compareShapes(await frozenHeadShape(chain), await readSchemaShape(kernel, { exclude: BOOKKEEPING }), {
+  const difference = compareShapes({ expected: await frozenHeadShape({ chain }), actual: await readSchemaShape({ kernel }, { exclude: BOOKKEEPING }) }, {
     optionalTables: DROPPABLE,
   });
   if (difference.problems.length > 0) {

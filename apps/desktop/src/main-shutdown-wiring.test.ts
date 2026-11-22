@@ -20,9 +20,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import os from "node:os";
+import { stripTypeScriptTypes } from "node:module";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
-import { handleStop } from "./project-ipc.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { handleStop } from "./project-ipc.server.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 import { sitesFilePath, trackSite } from "./tracked-sites.ts";
 import { sourceFunction } from "./renderer/source-test-harness.ts";
 
@@ -35,10 +36,10 @@ test('the entry defines lifecycle cleanup that clears maintenance, retries and r
   const cleared: unknown[] = [];
   let disposals = 0;
   const recoveringSiteWindows = new Map([['/site', {}]]);
-  const stop = sourceFunction(source, 'stopSiteLifecycle', {
+  const stop = sourceFunction({ source, name: 'stopSiteLifecycle' }, { bindings: {
     clearInterval: (value: unknown) => { cleared.push(value); }, siteMaintenanceTimer: timer,
     siteLifecycle: { dispose: () => { disposals++; } }, recoveringSiteWindows,
-  });
+  } });
   stop();
   stop();
   assert.deepEqual(cleared, [timer, undefined]);
@@ -64,6 +65,12 @@ function beforeQuitHandler() {
   return source.slice(start, end);
 }
 
+/** The same handler as JavaScript the VM can run. The entry is TypeScript, so a type annotation
+ *  inside the handler is ordinary code there and a syntax error here unless it is stripped first. */
+function runnableBeforeQuitHandler(): string {
+  return stripTypeScriptTypes(`${beforeQuitHandler()}\n});`);
+}
+
 test("before-quit waits on in-flight teardowns, not only on openSites", async () => {
   // The defect: the `closed` handler empties `openSites` synchronously and only then begins
   // stopping the child, so closing the last window made this read "nothing to drain" while a
@@ -87,7 +94,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   let finalQuits = 0;
   let lifecycleStops = 0;
   let quitNotifications = 0;
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -137,17 +144,17 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   assert.match(source.slice(depsStart, source.indexOf("\n}\n", depsStart)), /\n\s*pendingTeardowns,/,
     "card Stop must receive the same tracker before-quit drains");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-card-stop-quit-"));
-  const projectsPath = sitesFilePath(root);
-  trackSite(projectsPath, root);
+  const projectsPath = sitesFilePath({ userDataDir: root });
+  trackSite({ projectsPath, siteDir: root });
   const stop = deferred();
   const pendingTeardowns = createShutdownTracker({});
   const openSites = new Map([[root, { server: { port: 4321, pid: 123, stop: () => stop.promise } }]]);
   let closedRows = 0;
-  const stopping = handleStop(root, {
-    projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer(),
+  const stopping = handleStop({ id: root, deps: {
+    projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer({}),
     openSites, pendingTeardowns, readSiteName: () => "alpha", readPreviewVersion: () => null,
     recordSiteClosed: () => { closedRows++; },
-  });
+  } });
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   let prevented = 0;
@@ -155,7 +162,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let quitNotifications = 0;
   let imports = 0;
   const shutdownOrder: string[] = [];
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -228,4 +235,48 @@ test("the drain arms the force-exit deadline itself, so a held quit cannot outli
   assert.notEqual(draining, -1, "expected before-quit to enter the draining phase");
   assert.match(handler.slice(draining), /const drainDeadline = setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\);\s*drainDeadline\.unref\(\);/);
   assert.match(source, /deadlineMs: QUIT_DEADLINE_MS,/, "a signal and a Cmd+Q must get the same bound");
+});
+
+test("a failed agent-service shutdown still waits for every tracked teardown before quitting", async () => {
+  // REGRESSION: a rejected `desktopAgentService.shutdown` skipped `pendingTeardowns.drain()`, so the
+  // app quit without waiting for logouts and site stops.
+  const teardown = deferred();
+  const pendingTeardowns = createShutdownTracker({});
+  pendingTeardowns.track({ promise: teardown.promise });
+  let onQuit!: (event: { preventDefault: () => void }) => void;
+  let finalQuits = 0;
+  const logged: string[] = [];
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
+    console: { error: (line: string) => { logged.push(line); } },
+    lastWindowQuit: { onQuitStarted: () => {} },
+    stopSiteLifecycle: () => {},
+    app: {
+      on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
+      quit: () => { finalQuits++; },
+      exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
+    },
+    productState: { disposers: [], product: { dispose: async () => {} } },
+    siteThemePreviews: { dispose: () => {} },
+    desktopAgentRuntime: { dispose: async () => {} },
+    desktopMcpHttp: { close: async () => {} },
+    stopRunningImports: async () => {},
+    desktopAgentService: { shutdown: async () => { throw new Error("agent service stuck"); } },
+    siteDiscovery: { abortAll: () => {} },
+    quitPhase: "idle", openSites: new Map(), pendingTeardowns,
+    decideBeforeQuit, finalQuitHeldForUpdate: () => false,
+    setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
+  });
+  onQuit({ preventDefault: () => {} });
+  try {
+    await flush();
+    assert.equal(finalQuits, 0, "the drain must still wait for the tracked teardown");
+  } finally {
+    teardown.resolve();
+    await pendingTeardowns.drain();
+    await flush();
+  }
+  assert.equal(finalQuits, 1);
+  assert.equal(logged.length, 1);
+  assert.match((logged[0] ?? ""), /agent service shutdown failed/);
+  assert.match((logged[0] ?? ""), /agent service stuck/);
 });

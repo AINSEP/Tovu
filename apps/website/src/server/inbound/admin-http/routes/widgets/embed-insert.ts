@@ -3,17 +3,15 @@ import { insertWidgetEmbed } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * POST insert a `widgetEmbed` node into a host entry's body (SPEC-043 REQ-44/45, ADR-047 Debate
  * Fold-In Amendment 6) — the server-side, no-live-editor-required mutation path. `widgets.place`-gated.
  */
-export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.baseVersion !== "number" || typeof body.widgetEntryId !== "string") {
@@ -35,7 +33,7 @@ export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = (app, deps) =
       });
       res.status(201).json({ entry, placementId });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

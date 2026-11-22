@@ -4,10 +4,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import test, { after } from 'node:test';
 import type { SurfaceEmission, ToolExecutionContext, ToolHandler } from '@jini-ai/core';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore, SURFACE_DISMISSED_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import type { UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { UIResource } from '@jini-ai/protocol/mcp-ui';
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from '../../__tests__/fixtures/site-layout-context.js';
 import { credentialSaveFixtureRegistrations } from '../../__tests__/support/credential-save.js';
 import type { PluginCredentialCard } from '../../contracts/core/plugin-credential-card.js';
@@ -27,6 +27,8 @@ import { saveExternalMcpServer } from '../../features/external-mcp/external-mcp-
 import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
 import type { HttpRequest } from '../../platform/http/index.js';
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 const GOLDEN = new URL('./fixtures/moved-tools.credential-cards.golden.json', import.meta.url);
 const SECRET = 'gcard_secret_never_echoed_1234';
@@ -75,14 +77,14 @@ async function setup(path: Path) {
   const loadCards = async () => { cardLoads++; return [selectedCard]; };
   const authorize = async () => ({ allowed: true, reason: 'matched' });
   const http = { send: async (request: HttpRequest) => { requests.push({ method: request.method, url: request.url }); return { status: 200, headers: {}, bodyText: '[]' }; } };
-  const fetchFn: typeof fetch = async input => { requests.push({ method: 'GET', url: String(input) }); return new Response('{"login":"gcard-owner"}', { status: 200 }); };
-  const common = { workspaceId: WORKSPACE, clock, idGen, authorize, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: sealer, loadPluginCredentialCards: loadCards, fetchFn };
+  const probeClient = { send: async (request: HttpRequest) => { requests.push({ method: request.method, url: request.url }); return { status: 200, headers: {}, bodyText: '{"login":"gcard-owner"}' }; } };
+  const common = { workspaceId: WORKSPACE, clock, idGen, authorize, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: sealer, loadPluginCredentialCards: loadCards, customCredentialsHttpClient: probeClient };
   let handler: ToolHandler, input: Record<string, unknown>, values: Record<string, unknown> = { token: SECRET };
   if (path === 'rotation' || path === 'pluginProvider' || path === 'plainCreate') {
     const repo = new InMemoryCustomCredentialSetRepo();
     if (path === 'rotation') await createCustomCredential({ repo, sealer, keyring, clock, idGen }, { workspaceId: WORKSPACE, label: card.label, category: 'ops', baseUrl: card.baseUrl, connection: { token: 'previous_gcard_key_5678' } });
     const deps: CustomCredentialsToolDeps = { ...common, customCredentialSetRepo: repo, customCredentialsHttpClient: http,
-      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }) };
+      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }), sourceControlWrite: unusedSourceControlWrite(), publishCompatibility: bindPublishCompatibility({ source: {} }) };
     const handlers = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } });
     handler = path === 'rotation' ? handlers.rotate : path === 'pluginProvider' ? handlers.pluginProvider : handlers.create;
     input = path === 'rotation' ? { kind: 'api', target: card.label } : path === 'pluginProvider' ? { kind: 'plugin-provider', target: 'acme' } : { kind: 'api', label: 'Generic API', baseUrl: card.baseUrl, category: 'ops' };
@@ -96,7 +98,9 @@ async function setup(path: Path) {
     input = { kind: 'publish-host', target: 'acme-host' };
   } else if (path === 'sourceControl') {
     const deps = { ...common, sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: githubFromSource, sourceControlExportRootDir: '/unused',
-      staticSiteContext: async () => assert.fail('credential save must not export'), exportSiteBound: async () => assert.fail('credential save must not export') } satisfies Parameters<typeof buildSourceControlCredentialHandler>[0]['deps'];
+      staticSiteContext: async () => assert.fail('credential save must not export'),
+      staticSitePackager: { get entryFile(): string { return assert.fail('credential save must not package a site'); }, packageSite: () => assert.fail('credential save must not package a site') },
+      exportSiteBound: async () => assert.fail('credential save must not export') } satisfies Parameters<typeof buildSourceControlCredentialHandler>[0]['deps'];
     handler = buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges } });
     input = { kind: 'source-control', target: 'github', label: 'Backup connection' };
     values = { token: SECRET, label: 'Backup connection' };

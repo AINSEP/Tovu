@@ -1,0 +1,5 @@
+caller	line (unsplit api.ts)	callee	caller client	callee client	file	note
+mediaContentType	3422	mediaOriginalUrl	mediaApi	mediaApi	apps/admin/src/features/media/api/media-api.ts	api.mediaOriginalUrl becomes mediaApi.mediaOriginalUrl (late property lookup kept)
+(comment only)	2860	me	-	-	-	design R1.3 lists api.me here; it is prose inside a doc comment, not code
+(comment only)	3352	pollExternalMcpOAuthDevice	-	-	-	doc comment, not code
+(comment only)	3571	spec	-	-	-	doc comment (api.spec.md), not code

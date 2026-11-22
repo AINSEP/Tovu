@@ -1,4 +1,4 @@
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { PackageFilesModal } from "./PackageFilesModal";
 import { useWiredPluginPackageFiles } from "./hooks/use-plugin-package-files.hooks";
 
@@ -17,7 +17,7 @@ export interface PluginPackageFilesModalProps {
 }
 
 export function PluginPackageFilesModal({ plugin, onClose, useFiles = useWiredPluginPackageFiles }: PluginPackageFilesModalProps) {
-  const { files, selectedFile, selectFile, status, listNotice, t } = useFiles(plugin.id);
+  const { files, selectedFile, selectFile, status, listNotice, t } = useFiles({ pluginId: plugin.id });
 
   return (
     <PackageFilesModal

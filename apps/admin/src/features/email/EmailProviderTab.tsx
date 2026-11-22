@@ -1,9 +1,10 @@
+import { createEmailProviderLabel, createEmailProviderSelect } from "./EmailProviderTab.hooks";
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
-import type { AdminMailStatus } from "../../lib/api";
+import type { AdminMailStatus } from "./api/mail-status-api.types";
 import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "./email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "./email-api";
@@ -33,7 +34,7 @@ function Lanes(props: { status: AdminMailStatus | null; providers: readonly Mail
   const { status, locale } = props;
   const lanes = status?.lanes ?? [];
   if (lanes.length === 0) return null;
-  const label = (id: string | null) => (id === null ? t({ locale, key: "None" }) : props.providers.find((p) => p.id === id)?.label ?? id);
+  const label = createEmailProviderLabel({ locale, providers: props.providers });
   return (
     <dl className="email-facts">
       {lanes.map((lane) => {
@@ -111,7 +112,7 @@ function ProviderKeyForm({ provider, controller, locale }: CardProps) {
   const updatedAt = provider.credential.saved ? provider.credential.updatedAt : undefined;
   return (
     <form className="email-provider-form" onSubmit={(event) => { event.preventDefault(); void controller.saveKey(provider); }}>
-      {updatedAt ? <span className="jini-field-hint">{t({ locale, key: "Key updated {when}" }).replace("{when}", when(updatedAt, locale))}</span> : null}
+      {updatedAt ? <span className="jini-field-hint">{t({ locale, key: "Key updated {when}" }).replace("{when}", () => when({ iso: updatedAt, locale }))}</span> : null}
       {fields.map((field) => <KeyField key={field.key} provider={provider} field={field} controller={controller} locale={locale} />)}
       <div className="email-row">
         <button type="submit" className="btn-secondary" disabled={controller.busyId === provider.id}
@@ -162,7 +163,10 @@ function ProviderCard(props: CardProps) {
  * The card to show: `selectedId` when installed, else the provider sending all mail, else one
  * sending some, else the first. Pure.
  */
-export function shownProviderId(providers: readonly MailProviderConfiguration[], selectedId: string | null | undefined): string | undefined {
+export function shownProviderId(
+  { providers, selectedId }: { providers: readonly MailProviderConfiguration[]; selectedId: string | null | undefined },
+  _options = {},
+): string | undefined {
   const pick = providers.find((p) => p.id === selectedId) ?? providers.find(isFullyActive) ?? providers.find((p) => p.lanes.length > 0) ?? providers[0];
   return pick?.id;
 }
@@ -174,7 +178,7 @@ export function shownProviderId(providers: readonly MailProviderConfiguration[],
 /** `label` minus one trailing `(…)` group (no nested parentheses) and the whitespace around it;
  *  `label` unchanged when it does not end in one. Same result as
  *  `label.replace(/\s*\([^()]*\)\s*$/, "")`, in one linear pass. */
-function withoutTrailingParenthetical(label: string): string {
+function withoutTrailingParenthetical({ label }: { label: string }, _options = {}): string {
   const body = label.trimEnd();
   if (!body.endsWith(")")) return label;
   const open = body.lastIndexOf("(");
@@ -182,8 +186,8 @@ function withoutTrailingParenthetical(label: string): string {
   return body.slice(0, open).trimEnd();
 }
 
-export function segmentLabel(label: string): string {
-  return withoutTrailingParenthetical(label) || label;
+export function segmentLabel({ label }: { label: string }, _options = {}): string {
+  return withoutTrailingParenthetical({ label }) || label;
 }
 
 export const ADD_PROVIDER_PART = "_add-provider";
@@ -191,7 +195,7 @@ export const CAPABILITIES_PART = "_capabilities";
 
 function AddProvider(props: { controller: EmailProviderController; locale: string; onSelect?: (id: string) => void }) {
   const { controller, locale } = props;
-  const select = (id: string | undefined) => { if (id) props.onSelect?.(id); };
+  const select = createEmailProviderSelect({ props });
   return (
     <>
       {controller.addError ? <div className="email-row" role="alert">
@@ -218,8 +222,8 @@ function AddProvider(props: { controller: EmailProviderController; locale: strin
 
 function ProviderCards(props: { providers: readonly MailProviderConfiguration[]; controller: EmailProviderController; status: AdminMailStatus | null; locale: string; selectedId?: string | null; onSelect?: (id: string) => void }) {
   const { providers, controller, locale } = props;
-  const shownId = props.selectedId === ADD_PROVIDER_PART || props.selectedId === CAPABILITIES_PART ? props.selectedId : shownProviderId(providers, props.selectedId) ?? ADD_PROVIDER_PART;
-  const items = [...providers.map((p) => ({ key: p.id, label: segmentLabel(p.label) })),
+  const shownId = props.selectedId === ADD_PROVIDER_PART || props.selectedId === CAPABILITIES_PART ? props.selectedId : shownProviderId({ providers, selectedId: props.selectedId }) ?? ADD_PROVIDER_PART;
+  const items = [...providers.map((p) => ({ key: p.id, label: segmentLabel({ label: p.label }) })),
     { key: ADD_PROVIDER_PART, label: t({ locale, key: "+ Add provider" }) }, { key: CAPABILITIES_PART, label: t({ locale, key: "Capabilities" }) }];
   return (
     <>
@@ -258,7 +262,7 @@ export function EmailProviderTab(props: { controller: EmailProviderController; s
         open={pending !== null}
         agentHandle="email-provider-switch"
         title={t({ locale, key: "Switch email provider?" })}
-        body={<p>{t({ locale, key: "All email — sign-in links, confirmations, notifications and newsletters — will send with {provider}." }).replace("{provider}", pending?.label ?? "")}</p>}
+        body={<p>{t({ locale, key: "All email — sign-in links, confirmations, notifications and newsletters — will send with {provider}." }).replace("{provider}", () => pending?.label ?? "")}</p>}
         confirmLabel={t({ locale, key: "Switch" })}
         pending={pending !== null && controller.busyId === pending.id}
         onConfirm={() => void controller.confirmSwitch()}

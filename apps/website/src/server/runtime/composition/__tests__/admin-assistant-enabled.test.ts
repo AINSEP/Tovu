@@ -29,17 +29,17 @@ test("a typo or any other value leaves it ENABLED — a mistyped var must never 
 });
 
 test("daemon still starts when the assistant is ON, regardless of external MCP", () => {
-  assert.equal(shouldStartAgentDaemon(false, {}), true);
-  assert.equal(shouldStartAgentDaemon(true, {}), true);
+  assert.equal(shouldStartAgentDaemon({ externalMcpConfigured: false }, { env: {} }), true);
+  assert.equal(shouldStartAgentDaemon({ externalMcpConfigured: true }, { env: {} }), true);
 });
 
 test("daemon is skipped only when the assistant is OFF *and* no external MCP is configured", () => {
-  assert.equal(shouldStartAgentDaemon(false, { TOVU_ADMIN_ASSISTANT: "off" }), false);
+  assert.equal(shouldStartAgentDaemon({ externalMcpConfigured: false }, { env: { TOVU_ADMIN_ASSISTANT: "off" } }), false);
 });
 
 test("assistant OFF but external MCP configured still starts the daemon — the daemon owns federation, not just chat", () => {
   assert.equal(
-    shouldStartAgentDaemon(true, { TOVU_ADMIN_ASSISTANT: "off" }),
+    shouldStartAgentDaemon({ externalMcpConfigured: true }, { env: { TOVU_ADMIN_ASSISTANT: "off" } }),
     true,
     "gating the spawn on chat alone would break the External MCP settings tab",
   );

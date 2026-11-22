@@ -2,7 +2,9 @@ import Handlebars from "handlebars";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { lintHandlebarsTemplate } from "#src/features/theme/handlebars-allowlist";
-import { buildTemplateRenderData, renderBlockSeam, type SiteRenderContext } from "./render.js";
+import type { SiteRenderContext } from "./render-context.js";
+import { renderBlockSeam } from "./render/blocks.js";
+import { buildTemplateRenderData } from "./render/template-render-data.js";
 import type { HandlebarsWorkerInput, HandlebarsWorkerResult } from "./handlebars-sandbox.js";
 
 /**
@@ -142,7 +144,7 @@ function isHandlebarsWorkerInput(value: unknown): value is HandlebarsWorkerInput
  */
 export function runHandlebarsRender(
   { workerData }: { workerData: unknown },
-  { lint = lintHandlebarsTemplate }: { lint?: (source: string) => string[] } = {},
+  { lint = (source: string) => lintHandlebarsTemplate({ source }) }: { lint?: (source: string) => string[] } = {},
 ): HandlebarsWorkerResult {
   if (!isHandlebarsWorkerInput(workerData)) {
     return { ok: false, error: "handlebars-worker received malformed workerData" };
@@ -168,7 +170,7 @@ export function runHandlebarsRender(
   // serves exactly one render and then exits.
   const siteCtx: SiteRenderContext = ctx;
   env.registerHelper("render_block", function renderBlockHelper(options: { hash: Record<string, unknown> }) {
-    return new env.SafeString(renderBlockSeam(siteCtx, options.hash as JsonObject));
+    return new env.SafeString(renderBlockSeam({ ctx: siteCtx, props: options.hash as JsonObject }));
   });
 
   try {

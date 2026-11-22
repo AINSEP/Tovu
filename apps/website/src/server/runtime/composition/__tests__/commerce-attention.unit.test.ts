@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createContributionRegistry, type ToolContributor, type DerivedToolContributor } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';

@@ -1,3 +1,5 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -6,10 +8,10 @@ import path from "node:path";
 import test from "node:test";
 import Ajv from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
-
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { discoverAllBuiltInThemes, requestThemePreviewRefresh, type DiscoveredTheme } from "../../theme/index.js";
+import { discoverAllBuiltInThemes, type DiscoveredTheme } from "../../theme/index.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
 import { PageConcurrentEditError, PageNotFoundError, type PagesHtmlDocumentStorePort } from "../html-document-store.sqlite.js";
 
@@ -30,7 +32,7 @@ function harness(
   themeDeps: Pick<PagesToolDeps, "themes" | "themesDir" | "resolveActiveThemeId"> = {},
   storeFactory?: PagesToolDeps["pagesHtmlStore"],
 ) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const registrations = buildPagesRegistrations({
     ...themeDeps,
     workspaceId: WS,
@@ -48,7 +50,7 @@ function harness(
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
-    return entry.handler({ ...ctx, input } as never);
+    return entry.handler({ ...ctx, input: await pageToolInputWithBasis({ toolId: name, input, repo, workspaceId: WS }) } as never);
   }
 
   return { repo, byName, call };
@@ -129,17 +131,17 @@ test("all four Pages tools are registered with the input schemas the model needs
     const schema = entry.descriptor.inputSchema as { type: string; required: string[]; properties: Record<string, { type: string; minimum?: number }> };
     assert.ok(schema, `${name} must publish an input schema`);
     // why: N3 (42773ffa) made regionId the canonical region field; handle/region are executor-side aliases only.
-    const required = name === "pages_read_html" ? [] : name === "pages_write_html" ? ["id", "html"] : name === "pages_write_region" ? ["id", "regionId", "html"] : ["id", "regionId"];
+    const required = name === "pages_read_html" ? [] : name === "pages_write_html" ? ["id", "html", "expectedVersion"] : name === "pages_write_region" ? ["id", "regionId", "html", "expectedVersion"] : ["id", "regionId", "expectedVersion"];
     assert.equal(schema.type, "object");
     assert.deepEqual(schema.required ?? [], required);
-    for (const field of required) assert.equal(schema.properties[field].type, "string", `${name}.${field}`);
+    for (const field of required) assert.equal(schema.properties[field].type, field === "expectedVersion" ? "integer" : "string", `${name}.${field}`);
     const validate = new Ajv().compile(schema);
-    const valid: Record<string, string> = name === "pages_read_html" ? { id: "hero" } : Object.fromEntries(required.map((field) => [field, field === "html" ? "<p>Hi</p>" : "hero"]));
+    const valid: Record<string, string | number> = name === "pages_read_html" ? { id: "hero" } : Object.fromEntries(required.map((field) => [field, field === "expectedVersion" ? 1 : field === "html" ? "<p>Hi</p>" : "hero"]));
     assert.equal(validate(valid), true, `${name}: ${JSON.stringify(validate.errors)}`);
     for (const field of required) {
       const missing = { ...valid }; delete missing[field];
       assert.equal(validate(missing), false, `${name} requires ${field}`);
-      assert.equal(validate({ ...valid, [field]: 42 }), false, `${name}.${field} must be a string`);
+      assert.equal(validate({ ...valid, [field]: field === "expectedVersion" ? "1" : 42 }), false, `${name}.${field} must match its declared type`);
     }
     if (name !== "pages_read_html") {
       assert.equal(schema.properties.expectedVersion.type, "integer");
@@ -202,6 +204,18 @@ test("pages_write_html refuses markup whose top-level sections carry no editable
   await assert.rejects(
     () => call("pages_write_html", { id: "page-1", html: "<h1>Untagged</h1>" }),
     /data-agent-element/
+  );
+});
+
+test("pages_write_html suggests a handle derived from an untagged section's heading", async () => {
+  // Jini's `untaggedTopLevelSections` calls its `slugify` slot with a plain string; the suggestion
+  // proves Tovu's slug function is adapted to that shape rather than passed by reference.
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1", "Landing");
+
+  await assert.rejects(
+    () => call("pages_write_html", { id: "page-1", html: "<div><h2>Our Team</h2></div>" }),
+    /suggested handle: "our-team"/
   );
 });
 
@@ -320,6 +334,14 @@ test("pages_write_html with the CORRECT expectedVersion on a doc page converts a
   const saved = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(saved?.bodyFormat, "html");
   assert.equal(saved?.bodyHtml, html);
+});
+
+test("a page that does not exist says how to find the right id: the listing tool by name, then the id", async () => {
+  const { call } = harness();
+  const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
+  const expected = "PAGES_NOT_FOUND: page 'no-such-page' was not found. List pages with content_post_list, then pass its id.";
+  await assert.rejects(() => call("pages_read_html", { id: "no-such-page" }), { name: "ToolInputError", message: expected });
+  await assert.rejects(() => call("pages_write_html", { id: "no-such-page", html }), { name: "ToolInputError", message: expected });
 });
 
 test("a page id that does not exist reaches the model as PAGES_NOT_FOUND input, not a redacted internal error", async () => {
@@ -451,7 +473,7 @@ test("page reads refresh theme vocabulary after an external theme edit", async (
   const readTheme = async () => (await call("pages_read_html", { id: "disk-themed" }) as { theme: { id: string; tokens: Record<string, string> } }).theme;
   assert.equal((await readTheme()).tokens["--ink"], "#111");
   fs.writeFileSync(path.join(themeDir, "tokens.json"), JSON.stringify({ "--ink": "#abc" }));
-  requestThemePreviewRefresh({ themesDir }, { revision: "page-theme-updated" });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }, { revision: "page-theme-updated" });
   const refreshed = await readTheme();
   assert.equal(refreshed.id, "ink");
   assert.equal(refreshed.tokens["--ink"], "#abc");
@@ -488,7 +510,7 @@ for (const [tool, input] of WRITES) {
         read: async () => FAULT_PAGE,
         capturedVersion: () => 1,
         ensureHtmlFormat: async () => { assert.fail("the page already has HTML"); },
-        write: async html => { pending.push(html); throw failure; },
+        write: async ({ html }) => { pending.push(html); throw failure; },
       };
       const { call } = harness({}, () => store);
       await assert.rejects(call(tool, input), error => {
@@ -526,7 +548,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
   await seedPage(repo, "legacy", "Legacy");
   // Legacy markup enters through the store: the tools correctly refuse to author untagged HTML.
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "legacy" }, { repo, clock });
-  await store.ensureHtmlFormat("<p>Keep this legacy copy.</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>Keep this legacy copy.</p>" });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
 
   // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
@@ -545,7 +567,7 @@ test("an unclosed region is refused with repair guidance and its stored HTML sur
   const { repo, call } = harness();
   await seedPage(repo, "unclosed", "Unclosed");
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "unclosed" }, { repo, clock });
-  await store.ensureHtmlFormat('<section data-agent-element="hero"><p>Keep the unclosed section.</p>');
+  await store.ensureHtmlFormat({ seedHtml: '<section data-agent-element="hero"><p>Keep the unclosed section.</p>' });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
 
   // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
@@ -630,7 +652,7 @@ for (const state of ["missing", "post", "trashed"] as const) {
     }
     const before = structuredClone(await repo.findById({ workspaceId: WS, id: "fallback" }));
     await assert.rejects(call("pages_read_html", { id: "fallback" }), {
-      name: "ToolInputError", message: "PAGES_NOT_FOUND: original read failure",
+      name: "ToolInputError", message: "PAGES_NOT_FOUND: original read failure. List pages with content_post_list, then pass its id.",
     });
     assert.deepEqual(await repo.findById({ workspaceId: WS, id: "fallback" }), before);
   });

@@ -28,11 +28,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { registerSiteIpcHandlers } from "./project-ipc.ts";
-import type { ProjectIpcDeps } from "./project-ipc.ts";
+import type { ProjectIpcDeps } from "./project-ipc.types.ts";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { SITE_ORIGIN, sitesFilePath, readTrackedSites } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
-import { readRegistry, isLiveServeRow, registryDirPath } from "./site-process-registry.ts";
+import { readRegistry, isLiveServeRow, registryDirPath } from "./site-child-registry.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,7 +79,7 @@ function registerRealHandlers(pickedPath: string | null) {
   const handlers = new Map<string, Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]>();
   const shown: Array<Parameters<ProjectIpcDeps["dialog"]["showOpenDialog"]>[0]> = [];
   const userDataDir = tempDir();
-  const projectsPath = sitesFilePath(userDataDir);
+  const projectsPath = sitesFilePath({ userDataDir });
 
   registerSiteIpcHandlers({
     ipcMain: { handle: (channel: string, handler: Parameters<ProjectIpcDeps["ipcMain"]["handle"]>[1]) => handlers.set(channel, handler) },
@@ -91,13 +91,13 @@ function registerRealHandlers(pickedPath: string | null) {
     },
     shell: { openExternal: async () => {} },
     openSites: new Map(),
-    serializer: { run: (_key: string, fn: () => unknown) => fn() },
+    serializer: { run: ({ fn }: { key: string; fn: () => unknown }) => fn() },
     projectsPath,
-    registryPath: registryDirPath(userDataDir),
+    registryPath: registryDirPath({ userDataDir }),
     repoRoot: "/repo",
     statePath: path.join(userDataDir, "desktop-state.json"),
     cliMode: "source",
-    readSiteName: (siteDir: string) => path.basename(siteDir),
+    readSiteName: ({ siteDir }: { siteDir: string }) => path.basename(siteDir),
     readPreviewVersion: () => null,
     adoptSiteDir: async () => assert.fail("adoptSiteDir must not be reached — it inits empty folders"),
     classifySiteDir: classifySiteDirSafely,
@@ -142,7 +142,7 @@ test("CLICKING the button adds a pointer for an existing site folder", async () 
   assert.equal(record.installDir, siteDir);
   assert.equal(record.displayName, "my-real-website");
   // 2. A POINTER is on disk — read back through the same reader the Projects screen uses.
-  const rows = readTrackedSites(projectsPath);
+  const rows = readTrackedSites({ projectsPath });
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.siteDir, siteDir); // just asserted rows.length === 1 above, so index 0 exists
   // 3. `adopted`, so a later delete can never erase someone else's website.
@@ -164,7 +164,7 @@ test("CLICKING the button REFUSES an empty folder and creates nothing in it", as
   await assert.rejects(() => handlers.get(channelTheButtonInvokes())!({}), /Create website/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
   // No site was initialized — the exact difference from "Create website", which WOULD init here.
   assert.deepEqual(fs.readdirSync(empty), []);
-  assert.deepEqual(readTrackedSites(projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath }), []);
 });
 
 test("CLICKING the button REFUSES a folder of unrelated files and an incomplete site", async () => {
@@ -180,8 +180,8 @@ test("CLICKING the button REFUSES a folder of unrelated files and an incomplete 
   const second = registerRealHandlers(incomplete);
   await assert.rejects(() => second.handlers.get(channelTheButtonInvokes())!({}), /half-initialized or damaged/); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
-  assert.deepEqual(readTrackedSites(first.projectsPath), []);
-  assert.deepEqual(readTrackedSites(second.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: first.projectsPath }), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: second.projectsPath }), []);
   assert.deepEqual(fs.readdirSync(occupied), ["taxes.pdf"]);
   assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
 });
@@ -201,5 +201,5 @@ test("a cancelled dialog returns null and writes nothing", async () => {
 
   assert.equal(await handlers.get(channelTheButtonInvokes())!({}), null); // registerSiteIpcHandlers always registers this exact channel — proven by the first test above
 
-  assert.deepEqual(readTrackedSites(projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath }), []);
 });

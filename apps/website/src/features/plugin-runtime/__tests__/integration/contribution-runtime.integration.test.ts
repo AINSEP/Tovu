@@ -36,11 +36,11 @@ async function harness(t: TestContext, options: { coreClaims?: readonly Extensio
   const registry = createToolRegistry({});
   const layouts = createTempSiteLayoutFixture({}); t.after(layouts.cleanup);
   const authorize = async () => ({ allowed: true, reason: 'matched' as const });
-  const extensions = attachAssistantToolExtensions(registry, { ...layouts.deps, workspaceId, authorize,
+  const extensions = attachAssistantToolExtensions({ registry: registry, deps: { ...layouts.deps, workspaceId, authorize,
     postRepo: {} as never, pluginActivationRepo: activationRepo, pluginContributions: runtime.pluginContributions,
     discoverPlugins: runtime.discoverPlugins, registerInstalled: registerInstalledExtensionTools,
     federation: { deps: { workspaceId, authorize }, resolveConnections: async () => [] },
-  }, '[plugfix]');
+  }, log: '[plugfix]' });
   await extensions.installed;
   const catalog = buildToolCatalogQuery(registry);
   const deps = { workspaceId, pluginActivationRepo: activationRepo, pluginContributions: runtime.pluginContributions };

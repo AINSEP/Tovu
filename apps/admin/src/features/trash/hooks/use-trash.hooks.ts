@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { describeApiError, type AdminTrashItem } from "@/lib/api";
+import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
@@ -100,7 +101,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
 
   // Stable identity so the subscription effect does not resubscribe every render.
   const invalidateList = useCallback(() => invalidate({ key: KEYS.listRoot }), [invalidate]);
-  useContentRefreshSubscription(TRASH_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: TRASH_RESOURCE, onRefresh: invalidateList });
 
   // `staleTime: 0` + `refetchOnWindowFocus: true` (2026-09-21, forms plan §C): deletes can
   // originate from ANY admin screen, the assistant, or a second desktop instance, so there is no
@@ -120,7 +121,10 @@ export function useTrash(deps: TrashDependencies): TrashController {
   // than calling a method that might not exist.
   const usersQuery = useFetchQuery({
     key: KEYS.actorUsernames(),
-    fetch: () => port.listUsers!(),
+    fetch: () => {
+      if (!port.listUsers) throw new Error("trash user lookup is unavailable");
+      return port.listUsers();
+    },
   }, {
     enabled: Boolean(port.listUsers),
   });
@@ -240,11 +244,11 @@ export function useTrash(deps: TrashDependencies): TrashController {
       const report = await port.restoreTrashItems({
         items: chosen.map((item) => ({ entityType: item.entityType, entityId: item.entityId })),
       });
-      setNotice(describeRestoreReport(locale, report));
+      setNotice(describeRestoreReport({ locale, report }));
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t({ locale: locale, key: "failed to restore" })));
+      setActionError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to restore" }) }));
     } finally {
       setBusy(false);
     }
@@ -257,12 +261,12 @@ export function useTrash(deps: TrashDependencies): TrashController {
     setActionError(null);
     try {
       const report = await port.purgeTrashItems({ ids: chosen.map((item) => item.id) });
-      setNotice(describePurgeReport(locale, report));
+      setNotice(describePurgeReport({ locale, report }));
       setSelected(new Set<string>());
       setPurgeConfirmOpen(false);
       reloadAfterAction();
     } catch (e) {
-      setActionError(describeApiError(e, t({ locale: locale, key: "failed to delete permanently" })));
+      setActionError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to delete permanently" }) }));
     } finally {
       setBusy(false);
     }
@@ -277,10 +281,10 @@ export function useTrash(deps: TrashDependencies): TrashController {
     notice,
     busy,
     selected,
-    toggle: (id) => setSelected((current) => toggleSelection(current, id)),
+    toggle: (id) => setSelected((current) => toggleSelection({ current, id })),
     toggleAll: () =>
-      setSelected((current) => selectionAfterSelectAll(items ?? [], allVisibleSelected(items ?? [], current))),
-    allSelected: allVisibleSelected(items ?? [], selected),
+      setSelected((current) => selectionAfterSelectAll({ items: items ?? [], allSelected: allVisibleSelected({ items: items ?? [], selected: current }) })),
+    allSelected: allVisibleSelected({ items: items ?? [], selected }),
     onRestoreSelected,
     purgeConfirmOpen,
     setPurgeConfirmOpen,

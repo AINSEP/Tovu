@@ -12,7 +12,7 @@ function makeApp(production = false) {
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   registerSiteChatComparisonRoutes({ app, deps }, { production });
   return { app, deps };
 }
@@ -90,7 +90,7 @@ test("wcmp: a failing permission check is passed to the error handler, never tre
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   registerSiteChatComparisonRoutes({ app, deps: { ...deps, authorize: async () => { throw new Error("policy store offline"); } } }, { production: false });
   const seen: string[] = [];
   app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => { seen.push(error.message); res.sendStatus(503); });

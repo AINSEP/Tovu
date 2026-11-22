@@ -39,7 +39,7 @@ async function boot(
   const app = express();
   app.use(parsePublicJsonBody);
   const routeDeps = { ...deps, siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => logs.push(entry) };
-  createSiteAssistantModule(routeDeps, {}).registerRoutes?.(app);
+  createSiteAssistantModule(routeDeps, { env: {} }).registerRoutes?.({ app });
   return { deps: routeDeps, logs, baseUrl: await startTestServer(app, t) };
 }
 
@@ -87,10 +87,10 @@ for (const categoryNames of [[], ["Travel", "News"]]) {
       await f.deps.termRepo.insert({ ...common, id: `category-${name}`, name, taxonomyId: "topics", parentId: null });
     }
     await f.deps.termRepo.insert({ ...common, id: "tag", name: "Tag only", taxonomyId: "labels", parentId: null });
-    f.deps.postRepo = new InMemoryPostRepo([
+    f.deps.postRepo = new InMemoryPostRepo({}, { initialRows: [
       buildPostRecord({ id: "post", workspaceId: f.deps.workspaceId, slug: "post", status: "published", kind: "post" }),
       buildPostRecord({ id: "page", workspaceId: f.deps.workspaceId, slug: "page", status: "published", kind: "page" }),
-    ]);
+    ] });
     const response = await post({ baseUrl: f.baseUrl, message: "What categories does this site have?" });
     assert.equal(response.status, 200);
     await response.text();
@@ -153,7 +153,7 @@ test("visitorsafe: preflight errors preserve 413/429 friendly text, codes, retry
   assert.match(lengthError.error, /message is too long/);
   assert.ok(f.logs.some(entry => entry.errorId === lengthError.errorId));
   // A failing configuration still spends only the existing IP request slot, never provider tokens.
-  await deleteSiteAssistantCredential({ repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, { workspaceId: f.deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, workspaceId: f.deps.workspaceId });
   for (let i = 0; i < 10; i++) {
     const unavailable = await post(f);
     assert.equal(unavailable.status, 503);
@@ -185,12 +185,12 @@ test("visitorsafe: real route tools never give a provider gated titles, body tex
       { functionCall: { name: "list_categories", args: {}, id: "categories" } },
     ] : [{ text: "Public content only" }] });
   } });
-  f.deps.postRepo = new InMemoryPostRepo([
+  f.deps.postRepo = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "secret-id", workspaceId: f.deps.workspaceId, slug: "secret", title: "Members Private Title",
       status: "published", kind: "page", memberAccessJson: '{"visibility":"members"}', bodyJson: { text: "Members Private Body" } }),
     buildPostRecord({ id: "public-id", workspaceId: f.deps.workspaceId, slug: "open", title: "Public Control",
       status: "published", kind: "post" }),
-  ]);
+  ] });
   const response = await post({ baseUrl: f.baseUrl, message: "take me to secret" });
   const wire = await response.text();
   assert.equal(response.status, 200);
@@ -276,9 +276,9 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
     input: { namespace: 'core.assistant-full-cli', key: 'enabled', scope: 'workspace',
       workspaceId: f.deps.workspaceId, value: true, callerPrincipalId: await f.deps.ownerPrincipalId } });
   const read = f.deps.getEffective;
-  f.deps.getEffective = ((required, input) => {
+  f.deps.getEffective = ((input, optional) => {
     assert.notEqual(input.namespace, 'core.assistant-full-cli', 'visitor must never read owner Full CLI access');
-    return read(required, input);
+    return read(input, optional);
   }) as typeof read;
   const response = await post(f);
   assert.equal(response.status, 200);

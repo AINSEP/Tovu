@@ -47,7 +47,7 @@ export function importSourceDigest(required: { source: SiteImportRecord["source"
   return createHash("sha256").update(url.href).digest("hex");
 }
 /** The import id behind an `<id>.json` history record name; undefined for every other file. */
-function recordIdOf(name: string): string | undefined {
+function recordIdOf({ name }: { name: string }, _optional: Record<string, never> = {}): string | undefined {
   const id = name.slice(0, -5);
   return name.endsWith(".json") && ID.test(id) ? id : undefined;
 }
@@ -62,16 +62,16 @@ export class SiteImportRegistry {
     fs.mkdirSync(this.directory, { recursive: true, mode: 0o700 });
     fs.chmodSync(this.directory, 0o700);
   }
-  private file(id: string, suffix: string) {
+  private file({ id, suffix }: { id: string; suffix: string }, _optional: Record<string, never> = {}) {
     if (!ID.test(id)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid import or upload id." });
     return path.join(this.directory, id + suffix);
   }
-  private store(id: string, suffix: string) {
-    return createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: this.file(id, suffix), notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } });
+  private store({ id, suffix }: { id: string; suffix: string }, _optional: Record<string, never> = {}) {
+    return createDurableJsonFile({ ...createNodeDurableJsonPorts({}), filePath: this.file({ id, suffix }), notices: { prefix: "Site imports", lockTimeout: () => "Import registry is busy." } });
   }
   /** Reads one history record; an unreadable file is refused (with the caller's wording) and left in place. */
   private readRecord(required: { importId: string; unreadable: string }): SiteImportRecord | undefined {
-    const read = this.store(required.importId, ".json").read({});
+    const read = this.store({ id: required.importId, suffix: ".json" }).read({});
     if (read.state === "unreadable") throw new SiteShareRefusal({ code: "REGISTRY_UNREADABLE", message: required.unreadable });
     return read.state === "ok" ? read.value as SiteImportRecord : undefined;
   }
@@ -83,20 +83,20 @@ export class SiteImportRegistry {
   put(required: { row: SiteImportRecord }, _options: Record<string, never> = {}): void {
     // History is kept for good; a finished import no longer needs the share link's path or query.
     const row = required.row.status === "ready" || required.row.status === "failed" ? { ...required.row, source: withoutQuery({ source: required.row.source }) } : required.row;
-    this.store(required.row.importId, ".json").write({ value: row });
-    fs.chmodSync(this.file(required.row.importId, ".json"), 0o600);
+    this.store({ id: required.row.importId, suffix: ".json" }).write({ value: row });
+    fs.chmodSync(this.file({ id: required.row.importId, suffix: ".json" }), 0o600);
   }
   list(required: { principalId?: string }, _options: Record<string, never> = {}): SiteImportRecord[] {
-    return fs.readdirSync(this.directory).map(recordIdOf).filter(id => id !== undefined).flatMap(importId => {
+    return fs.readdirSync(this.directory).map(name => recordIdOf({ name })).filter(id => id !== undefined).flatMap(importId => {
       const row = this.readRecord({ importId, unreadable: "Import history is unreadable; it was left untouched." });
       return row && (required.principalId === undefined || row.principalId === required.principalId) ? [row] : [];
     }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
-  uploadPath(required: { uploadId: string }, _options: Record<string, never> = {}): string { return this.file(required.uploadId, ".upload.zip"); }
-  stagePath(required: { importId: string }, _options: Record<string, never> = {}): string { return this.file(required.importId, ".stage"); }
-  saveUpload(required: { row: SiteImportUpload }, _options: Record<string, never> = {}): void { this.store(required.row.uploadId, UPLOAD_METADATA_SUFFIX).write({ value: required.row }); }
+  uploadPath(required: { uploadId: string }, _options: Record<string, never> = {}): string { return this.file({ id: required.uploadId, suffix: ".upload.zip" }); }
+  stagePath(required: { importId: string }, _options: Record<string, never> = {}): string { return this.file({ id: required.importId, suffix: ".stage" }); }
+  saveUpload(required: { row: SiteImportUpload }, _options: Record<string, never> = {}): void { this.store({ id: required.row.uploadId, suffix: UPLOAD_METADATA_SUFFIX }).write({ value: required.row }); }
   getUpload(required: { uploadId: string; principalId: string }, _options: Record<string, never> = {}): SiteImportUpload {
-    const read = this.store(required.uploadId, UPLOAD_METADATA_SUFFIX).read({});
+    const read = this.store({ id: required.uploadId, suffix: UPLOAD_METADATA_SUFFIX }).read({});
     const row = read.state === "ok" ? read.value as SiteImportUpload : undefined;
     if (!row || row.principalId !== required.principalId || row.createdAt + UPLOAD_TTL_MS < Date.now()) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Upload not found or expired. Upload the ZIP again." });
     return row;
@@ -108,17 +108,17 @@ export class SiteImportRegistry {
   /** Removes an upload (payload, then record) once it is past its one-hour claim window. */
   private expireUpload(required: { id: string }): void {
     if (!ID.test(required.id)) return;
-    const read = this.store(required.id, UPLOAD_METADATA_SUFFIX).read({});
+    const read = this.store({ id: required.id, suffix: UPLOAD_METADATA_SUFFIX }).read({});
     if (read.state !== "ok") return;
     const row = read.value as SiteImportUpload | null;
     // A null row can never be claimed (getUpload refuses it), so it expires like an old one.
     if (row !== null && row.createdAt + UPLOAD_TTL_MS >= Date.now()) return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
-    fs.rmSync(this.file(required.id, UPLOAD_METADATA_SUFFIX), { force: true });
+    fs.rmSync(this.file({ id: required.id, suffix: UPLOAD_METADATA_SUFFIX }), { force: true });
   }
   /** Fails an owner setup past its deadline and discards its stage; history keeps the named failure. */
   private expireOwnerSetup(required: { importId: string }): void {
-    const read = this.store(required.importId, ".json").read({});
+    const read = this.store({ id: required.importId, suffix: ".json" }).read({});
     if (read.state !== "ok") return;
     const row = read.value as SiteImportRecord | null;
     if (row === null) return;
@@ -131,13 +131,13 @@ export class SiteImportRegistry {
   }
   /** Removes a ZIP whose metadata is missing or unreadable: a crash between the two writes. */
   private removeOrphanUpload(required: { id: string }): void {
-    if (!ID.test(required.id) || this.store(required.id, UPLOAD_METADATA_SUFFIX).read({}).state === "ok") return;
+    if (!ID.test(required.id) || this.store({ id: required.id, suffix: UPLOAD_METADATA_SUFFIX }).read({}).state === "ok") return;
     fs.rmSync(this.uploadPath({ uploadId: required.id }), { force: true });
   }
   /** Removes a stage no in-progress record owns; an unreadable record keeps its stage untouched. */
   private removeOrphanStage(required: { importId: string }): void {
     if (!ID.test(required.importId)) return;
-    const read = this.store(required.importId, ".json").read({});
+    const read = this.store({ id: required.importId, suffix: ".json" }).read({});
     if (read.state === "unreadable") return;
     const status = read.state === "ok" ? (read.value as SiteImportRecord | null)?.status : undefined;
     if (status === undefined || !STAGED_STATUSES.has(status)) fs.rmSync(this.stagePath(required), { recursive: true, force: true });
@@ -149,7 +149,7 @@ export class SiteImportRegistry {
    */
   expire(_required: Record<string, never>, _options: Record<string, never> = {}): void {
     for (const filename of fs.readdirSync(this.directory)) {
-      const importId = recordIdOf(filename);
+      const importId = recordIdOf({ name: filename });
       if (filename.endsWith(UPLOAD_METADATA_SUFFIX)) this.expireUpload({ id: filename.slice(0, -12) });
       else if (filename.endsWith(".upload.zip")) this.removeOrphanUpload({ id: filename.slice(0, -11) });
       else if (filename.endsWith(".stage")) this.removeOrphanStage({ importId: filename.slice(0, -6) });

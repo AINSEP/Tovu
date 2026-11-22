@@ -1,3 +1,6 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { installOwnedJsonAgent, type McpLaunchSpec } from "@jini-ai/mcp";
 import os from "node:os";
@@ -21,7 +24,7 @@ import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
  * Why HTTP at all, inside one process: the bridge is a separate child the CLI spawns, and its only
  * way back is the daemon URL it is handed. The listener binds 127.0.0.1 on an ephemeral port, and a
  * credential is valid only while its run is live — the same two properties the site daemon's own
- * delegated route rests on (`run-scoped-credential.ts` there).
+ * delegated route rests on (`apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` there).
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -31,18 +34,22 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
-import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAgentRuntimeBindings, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
-import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import { delegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
+import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-import { assistantCliPermissions } from "../../website/src/assistant/assistant-subagents-policy.ts";
-import { type AssistantCliPermissions } from "../../website/src/contracts/headless/index.ts";
-import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
+import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "@tovu/contracts/assistant-native-fallbacks";
+import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
-import type { HostSignals } from "../../website/src/contracts/core/host-signals.ts";
+import type { HostSignals } from "@tovu/contracts/host-signals";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
 
 /** The one identity every desktop-agent tool call acts as: the local operator. */
@@ -76,7 +83,7 @@ interface DesktopAgentRuntime {
   readonly lifecycle: RunLifecycle;
   readonly daemonUrl: string;
   /** The site a live run was started against, or `null`. Exposed for the tools and for tests. */
-  addresseeOf(runId: string): TurnAddressee | null;
+  addresseeOf(input: { runId: string }, options?: Record<string, never>): TurnAddressee | null;
   /** Ids of every registered tool — the set the agent receives (desktop.* + site.* entry points). */
   toolIds(): readonly string[];
   startTurn(required: DesktopTurnInput, optional?: DesktopTurnOptions): Promise<{ runId: string }>;
@@ -89,14 +96,17 @@ interface DesktopAgentRuntimeRequired {
   /** The agent CLI's working directory; created if missing. Lives under the app's userData. */
   workDir: string;
   /** Builds the tool table; handed the runtime's own per-run addressee lookup. */
-  buildTools: (ports: { addresseeOf: (runId: string) => TurnAddressee | null }) => ToolRegistration[];
+  buildTools: (ports: { addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null }) => ToolRegistration[];
 }
+
+/** The only slice of the conversation store the tool-gap surface reads and writes. */
+type ToolGapStore = Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
 
 interface DesktopAgentRuntimeOptions {
   readLoginShellEnvironment?: typeof readLoginShellEnvironment;
   installOwnedJsonAgent?: typeof installOwnedJsonAgent;
   readFullCliAccess?: (required: { addressee: TurnAddressee | null }, optional?: {}) => Promise<boolean | AssistantCliPermissions>;
-  toolGapStore?: Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
+  toolGapStore?: ToolGapStore;
   /** Test seam: a fake executor so no real CLI is spawned. */
   createAgentExecutor?: (...args: Parameters<typeof createAgentExecutor>) => Pick<AgentExecutor, "run">;
   /** Test seam: the `jini-mcp` entry script. Defaults to the installed `@jini-ai/mcp`'s `bin/serve.js`. */
@@ -131,7 +141,7 @@ const DESKTOP_SYSTEM_OVERLAY = [
  * screen for THIS turn. Pure.
  * @complexity O(n) in the prompt length.
  */
-function turnPrompt(prompt: string, addressee: TurnAddressee | null): string {
+function turnPrompt({ prompt, addressee }: { prompt: string; addressee: TurnAddressee | null }, _options = {}): string {
   const scope = addressee === null
     ? "[Desktop context] No website is on screen. Only desktop.* tools apply this turn."
     : `[Desktop context] On screen: the website "${addressee.name}" (${addressee.siteDir}). site.list_tools / site.call_tool reach it this turn.`;
@@ -142,7 +152,7 @@ function turnPrompt(prompt: string, addressee: TurnAddressee | null): string {
  * The bearer token a `jini-mcp` child presents, from `Authorization: Bearer <token>`. Pure.
  * @complexity O(n) in the header length.
  */
-function bearerToken(header: string | undefined): string | undefined {
+function bearerToken({ header }: { header: string | undefined }, _options = {}): string | undefined {
   if (header === undefined) return undefined;
   const value = header.trim();
   if (!/^Bearer\s/i.test(value)) return undefined;
@@ -163,7 +173,7 @@ function authorizeBridgeRequest(
   request: { path: string; authorization: string | undefined; body: unknown },
   credentials: Pick<RunScopedCredentials, "resolveCaller">,
 ): AuthDecision {
-  const token = bearerToken(request.authorization);
+  const token = bearerToken({ header: request.authorization });
   if (token === undefined) return { allowed: false, status: 401, error: "missing bearer credential" };
   const caller = credentials.resolveCaller({ token });
   if (caller === undefined) return { allowed: false, status: 401, error: "credential is not valid for any live run" };
@@ -182,7 +192,7 @@ function authorizeBridgeRequest(
 function registryCatalog(registry: ToolRegistry): ToolCatalogQuery {
   const entries = (): readonly ToolDescriptor[] => registry.list({});
   return {
-    search: ({ query }, optional) => {
+    search: ({ query }, optional = {}) => {
       const terms = query.toLowerCase().split(/\s+/).filter((term) => term !== "");
       const scored = entries().map((descriptor) => {
         const haystack = `${descriptor.id} ${descriptor.description ?? ""}`.toLowerCase();
@@ -252,8 +262,18 @@ function desktopBridgeLaunch(optional: Pick<DesktopAgentRuntimeOptions, "mcpServ
 /** Personal registry setup stays in Jini's existing installer and requires the same MCP grant. */
 async function prepareDesktopConnector({ agentId, runtime, allowed }: { agentId: string; runtime: NativeAgentRuntime; allowed: boolean }, optional: DesktopAgentRuntimeOptions): Promise<void> {
   if (runtime.getAgentDef({ id: agentId })?.externalMcpInjection !== "env-passthrough") return;
-  await (optional.installOwnedJsonAgent ?? installOwnedJsonAgent)({ agentId, allowed, spec: desktopBridgeLaunch(optional),
+  await (optional.installOwnedJsonAgent ?? installOwnedJsonAgent)({ agentId, allowed, files: { fileLock: nodeFileLock, writer: nodeAtomicWriter }, spec: desktopBridgeLaunch(optional),
     ctx: { home: runtime.hostEnv.HOME ?? runtime.hostEnv.USERPROFILE ?? os.homedir(), platform: process.platform, serverName: "jini" } });
+}
+
+/**
+ * The Node implementations of the OS-facing ports the daemon's agent executor needs. The daemon has no
+ * default for any of them, so the desktop host states them once, from the env snapshot its runtime owns.
+ * @param required.hostEnv The runtime's env snapshot; only its `ComSpec` is read, for the Windows `.cmd` fallback.
+ * @returns The ports to pass as `runtime`. @complexity O(1).
+ */
+function desktopDaemonRuntimePorts({ hostEnv }: { hostEnv: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): AgentExecutorRuntimePorts {
+  return { spawn: nodeSpawnPort, processes: nodeProcessControl, fileLock: nodeFileLock, writer: nodeAtomicWriter, commandShell: nodeCommandShell({ env: hostEnv }) };
 }
 
 /**
@@ -271,13 +291,9 @@ function defaultAgentExecutor(
   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
   const runtime = ports.agentRuntime;
-  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle }, {
-    getAgentDef: runtime.getAgentDef,
-    resolveAgentLaunch: runtime.resolveAgentLaunch,
-    runtimeState: runtime.state,
-    hostEnv: runtime.hostEnv,
-    codexDisablePlugins: runtime.codexDisablePlugins,
-    piGracefulShutdownMs: runtime.piGracefulShutdownMs,
+  // One port bound to the app runtime desktop detection also uses; it owns the runtime state, the host env names and the Codex / Pi policies.
+  const agentRuntime = createAgentRuntimeBindings({ runtime }) satisfies AgentRuntimePort;
+  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }), agentRuntime }, {
     mcpJsonInjection: {
       toolApprovalOwner: "host",
       ...desktopBridgeLaunch(optional),
@@ -292,7 +308,7 @@ function defaultAgentExecutor(
     // Same reason as the site daemon: an isolated CLAUDE_CONFIG_DIR loses the operator's Keychain
     // login on macOS and every run fails "Not logged in". See `agent-daemon-server.ts`'s own note.
     claudeConfigDirIsolationEnabled: false,
-  } as Parameters<typeof createAgentExecutor>[1]);
+  });
 }
 
 /**
@@ -322,6 +338,138 @@ async function resolveDesktopTurnAccess(
   return { nativeCapabilities, nativeToolAccess, parityEnv };
 }
 
+type DesktopLog = NonNullable<DesktopAgentRuntimeOptions["log"]>;
+/** The facts every turn shares; built once per runtime. */
+interface TurnContext {
+  required: DesktopAgentRuntimeRequired;
+  optional: DesktopAgentRuntimeOptions;
+  log: DesktopLog;
+  lifecycle: RunLifecycle;
+  /** Live runs only — deleted on terminal, which is what expires their bridge credentials. */
+  liveRuns: Map<string, { addressee: TurnAddressee | null }>;
+  credentials: RunScopedCredentials;
+  gapStore: ToolGapStore;
+  gapCollectors: Set<ReturnType<typeof createToolGapCollector>>;
+  executor: Pick<AgentExecutor, "run">;
+  fullCliContext: AsyncLocalStorage<boolean>;
+}
+
+/** The app's tools plus the owner-only tool-gap list, in one registry. */
+async function createDesktopRegistry(
+  { required, addresseeOf, gapStore }: { required: DesktopAgentRuntimeRequired; addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null; gapStore: ToolGapStore },
+  _options = {},
+): Promise<ToolRegistry> {
+  const registry = (await loadDaemonToolRegistryFactory())({});
+  for (const registration of required.buildTools({ addresseeOf })) registry.register(registration);
+  registry.register({
+    descriptor: { id: 'tool_gaps_list', readOnly: true,
+      description: 'List recent owner tool gaps and native tool use (type tool_gap or native_tool_used): Bash, file edits, agents, workflows and external MCP, with time, site, chat id, provider, tool, redacted command/path summary and Tool gap line if present. Read-only.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
+    policy: { authorize: authorizeOperatorOnly },
+    handler: async () => ({ entries: gapStore.listToolGaps({}, {}) }),
+  });
+  return registry;
+}
+
+/** The loopback bridge: bearer-gated catalog and delegated-call routes over the registry. */
+async function startBridgeServer(
+  { credentials, registry, lifecycle, hostEnv }: { credentials: RunScopedCredentials; registry: ToolRegistry; lifecycle: RunLifecycle; hostEnv: DesktopAgentRuntimeRequired["agentRuntime"]["hostEnv"] },
+  _options = {},
+) {
+  const toolExecutor = createToolExecutor({ registry });
+  const app = express();
+  app.use(express.json({ limit: "4mb" }));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const decision = authorizeBridgeRequest({ path: req.path, authorization: req.header("authorization"), body: req.body }, credentials);
+    if (decision.allowed) { next(); return; }
+    res.status(decision.status).json({ error: decision.error });
+  });
+  const portRef = { current: 0 };
+  const adapter = { originPolicy: createLocalSameOriginPolicy({ port: () => portRef.current, env: hostEnv,
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  // 4 MiB: the byte size of the `express.json({ limit: "4mb" })` parser above; the lists derive their body limit from it.
+  const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 4 * 1024 * 1024 });
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry) }, host: routeHost }) });
+  mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR }, host: routeHost }) });
+  const { server, url: daemonUrl } = await listenOnLoopback(app);
+  portRef.current = (server.address() as AddressInfo).port;
+  return { server, daemonUrl };
+}
+
+/** Records one run's tool gaps through its stream; flushed (and forgotten) when the run is terminal. */
+async function collectToolGaps(
+  { ctx, runId, input, options, addressee }: { ctx: TurnContext; runId: string; input: DesktopTurnInput; options: DesktopTurnOptions; addressee: TurnAddressee | null },
+  _options = {},
+) {
+  const { lifecycle, gapStore, gapCollectors, log } = ctx;
+  const gaps = createToolGapCollector({
+    sink: { append: async (_event, detail = {}) => {
+      if (detail.detail) gapStore.appendToolGap({ entry: JSON.parse(detail.detail) as ToolGapEntry }, {});
+    } },
+    workspaceId: DESKTOP_CHAT_CONTEXT_REF, principalId: DESKTOP_OPERATOR.id,
+    site: addressee?.siteDir ?? 'desktop', chatId: options.chatId ?? runId,
+    runId, provider: input.agentId, redact: text => redactSecretShapes({ text }).text,
+  }, { onError: () => log.error('[tool-gaps] desktop audit write failed') });
+  gapCollectors.add(gaps);
+  void lifecycle.waitForTerminal({ runId }).then(() => gaps.flush()).finally(() => gapCollectors.delete(gaps));
+  await lifecycle.stream({ runId, onEvent: event => gaps.observe({ event }, {}) });
+}
+
+/** Closes out a run whose executor rejected before it could terminalize the run itself. */
+async function recoverFailedStart({ ctx, runId, error }: { ctx: TurnContext; runId: string; error: unknown }, _options = {}) {
+  const { lifecycle, log } = ctx;
+  // `AgentExecutor.run()` terminalizes the run itself on every failure it knows about; this only
+  // covers a rejection before that, so the run (and its credential) never stays live forever.
+  log.error(`[desktop-agent] run ${runId} failed to start`, formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
+  const status = await lifecycle.get({ runId });
+  if (status !== undefined && (status.state === "queued" || status.state === "starting" || status.state === "running")) {
+    await lifecycle.emit({ runId, input: { event: "error", data: { message: "The desktop assistant could not start this turn." } } }).catch((error: unknown) => log.error("[desktop-agent] Could not report the failed run", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)));
+    await lifecycle.finish({ runId, status: "failed", code: null, signal: null, resumable: false }).catch((error: unknown) => log.error("[desktop-agent] Could not finish the failed run", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)));
+  }
+}
+
+type TurnAccess = Awaited<ReturnType<typeof resolveDesktopTurnAccess>>;
+
+/** Hands the turn to the executor in the run's native-access context; a rejection recovers the run. */
+function executeTurn(
+  { ctx, runId, input, options, addressee, access, hostSignals }: { ctx: TurnContext; runId: string; input: DesktopTurnInput; options: DesktopTurnOptions; addressee: TurnAddressee | null; access: TurnAccess; hostSignals: HostSignals },
+  _options = {},
+) {
+  const { required, executor, fullCliContext } = ctx;
+  const { nativeCapabilities, nativeToolAccess, parityEnv } = access;
+  void fullCliContext.run(nativeToolAccess, () => executor.run(
+    { runId, agentId: input.agentId, prompt: turnPrompt({ prompt: input.prompt, addressee }), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
+    {
+      permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, { hostSignals }) ? 'restricted' : 'bypass',
+      nativeToolAccess,
+      nativeCapabilities,
+      cliParity: nativeToolAccess,
+      ...(parityEnv ? { env: parityEnv } : {}),
+      disallowedTools: resolveAssistantDisallowedTools({ nativeToolAccess }, {}),
+      ...(options.model === undefined ? {} : { model: options.model }),
+      ...(options.reasoning === undefined ? {} : { reasoning: options.reasoning }),
+      ...desktopAttachmentOptions(options),
+    },
+  )).catch((error: unknown) => recoverFailedStart({ ctx, runId, error }));
+}
+
+async function startDesktopTurn({ ctx, input }: { ctx: TurnContext; input: DesktopTurnInput }, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
+  const { required, optional, lifecycle, liveRuns, credentials } = ctx;
+  const addressee = options.addressee ?? null;
+  const hostSignals = resolveDesktopHostSignals({ env: required.agentRuntime.hostEnv });
+  const access = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv, hostSignals }, optional);
+  await prepareDesktopConnector({ agentId: input.agentId, runtime: required.agentRuntime, allowed: access.nativeCapabilities.userMcp }, optional);
+  const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
+  liveRuns.set(run.id, { addressee });
+  void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
+    liveRuns.delete(run.id);
+    credentials.revoke({ runId: run.id });
+  });
+  await collectToolGaps({ ctx, runId: run.id, input, options, addressee });
+  executeTurn({ ctx, runId: run.id, input, options, addressee, access, hostSignals });
+  return { runId: run.id };
+}
+
 /**
  * Builds and starts the desktop agent. Resolves once the loopback listener is bound.
  *
@@ -338,103 +486,28 @@ async function createDesktopAgentRuntime(
   fs.mkdirSync(required.workDir, { recursive: true });
 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
-  /** Live runs only — deleted on terminal, which is what expires their bridge credentials. */
-  const liveRuns = new Map<string, { addressee: TurnAddressee | null }>();
-  const addresseeOf = (runId: string) => liveRuns.get(runId)?.addressee ?? null;
+  const liveRuns: TurnContext["liveRuns"] = new Map();
+  const addresseeOf = ({ runId }: { runId: string }, _options = {}) => liveRuns.get(runId)?.addressee ?? null;
   const credentials = createRunScopedCredentials({
     principalOfLiveRun: ({ runId }) => (liveRuns.has(runId) ? DESKTOP_OPERATOR.id : undefined),
     crypto: createNodeCredentialCrypto({}),
   });
-
-  const registry = (await loadDaemonToolRegistryFactory())({});
-  for (const registration of required.buildTools({ addresseeOf })) registry.register(registration);
   const gapStore = optional.toolGapStore ?? createConversationStore({ filePath: path.join(required.workDir, '..', 'desktop-chat-conversations.json') });
-  const gapCollectors = new Set<ReturnType<typeof createToolGapCollector>>();
-  registry.register({
-    descriptor: { id: 'tool_gaps_list', readOnly: true,
-      description: 'List recent owner tool gaps and native tool use (type tool_gap or native_tool_used): Bash, file edits, agents, workflows and external MCP, with time, site, chat id, provider, tool, redacted command/path summary and Tool gap line if present. Read-only.',
-      inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
-    policy: { authorize: authorizeOperatorOnly },
-    handler: async () => ({ entries: gapStore.listToolGaps({}, {}) }),
-  });
-  const toolExecutor = createToolExecutor({ registry });
-
-  const app = express();
-  app.use(express.json({ limit: "4mb" }));
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const decision = authorizeBridgeRequest({ path: req.path, authorization: req.header("authorization"), body: req.body }, credentials);
-    if (decision.allowed) { next(); return; }
-    res.status(decision.status).json({ error: decision.error });
-  });
-  const adapter = { resolvedPortRef: { current: 0 }, env: required.agentRuntime.hostEnv, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
-  registerToolCatalogRoutes({ app, deps: { catalog: registryCatalog(registry) }, adapter });
-  registerDelegatedToolRoutes({
-    app,
-    deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR },
-    adapter,
-  });
-  const { server, url: daemonUrl } = await listenOnLoopback(app);
-  adapter.resolvedPortRef.current = (server.address() as AddressInfo).port;
+  const registry = await createDesktopRegistry({ required, addresseeOf, gapStore });
+  const { server, daemonUrl } = await startBridgeServer({ credentials, registry, lifecycle, hostEnv: required.agentRuntime.hostEnv });
 
   const fullCliContext = new AsyncLocalStorage<boolean>();
   const executor = defaultAgentExecutor({ lifecycle, daemonUrl, credentials, agentRuntime: required.agentRuntime, fullCliContext }, optional);
-
-  async function startTurn(input: DesktopTurnInput, options: DesktopTurnOptions = {}): Promise<{ runId: string }> {
-    const addressee = options.addressee ?? null;
-    const hostSignals = resolveDesktopHostSignals({ env: required.agentRuntime.hostEnv });
-    const { nativeCapabilities, nativeToolAccess, parityEnv } = await resolveDesktopTurnAccess({ addressee, hostEnv: required.agentRuntime.hostEnv, hostSignals }, optional);
-    await prepareDesktopConnector({ agentId: input.agentId, runtime: required.agentRuntime, allowed: nativeCapabilities.userMcp }, optional);
-    const { run } = await lifecycle.start({ contextRef: DESKTOP_CHAT_CONTEXT_REF }, { agentId: input.agentId });
-    liveRuns.set(run.id, { addressee });
-    void lifecycle.waitForTerminal({ runId: run.id }).finally(() => {
-      liveRuns.delete(run.id);
-      credentials.revoke({ runId: run.id });
-    });
-    const gaps = createToolGapCollector({
-      sink: { append: async (_event, detail = {}) => {
-        if (detail.detail) gapStore.appendToolGap({ entry: JSON.parse(detail.detail) as ToolGapEntry }, {});
-      } },
-      workspaceId: DESKTOP_CHAT_CONTEXT_REF, principalId: DESKTOP_OPERATOR.id,
-      site: addressee?.siteDir ?? 'desktop', chatId: options.chatId ?? run.id,
-      runId: run.id, provider: input.agentId, redact: text => redactSecretShapes({ text }).text,
-    }, { onError: () => log.error('[tool-gaps] desktop audit write failed') });
-    gapCollectors.add(gaps);
-    void lifecycle.waitForTerminal({ runId: run.id }).then(() => gaps.flush()).finally(() => gapCollectors.delete(gaps));
-    await lifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
-    void fullCliContext.run(nativeToolAccess, () => executor.run(
-      { runId: run.id, agentId: input.agentId, prompt: turnPrompt(input.prompt, addressee), cwd: nativeToolAccess ? addressee?.siteDir ?? required.workDir : required.workDir },
-      {
-        permissionMode: isHostedAssistantRuntime({ env: required.agentRuntime.hostEnv }, { hostSignals }) ? 'restricted' : 'bypass',
-        nativeToolAccess,
-        nativeCapabilities,
-        cliParity: nativeToolAccess,
-        ...(parityEnv ? { env: parityEnv } : {}),
-        disallowedTools: resolveAssistantDisallowedTools({ nativeToolAccess }, {}),
-        ...(options.model === undefined ? {} : { model: options.model }),
-        ...(options.reasoning === undefined ? {} : { reasoning: options.reasoning }),
-        ...desktopAttachmentOptions(options),
-      },
-    )).catch(async (error: unknown) => {
-      // `AgentExecutor.run()` terminalizes the run itself on every failure it knows about; this only
-      // covers a rejection before that, so the run (and its credential) never stays live forever.
-      log.error(`[desktop-agent] run ${run.id} failed to start`, error);
-      const status = await lifecycle.get({ runId: run.id });
-      if (status !== undefined && (status.state === "queued" || status.state === "starting" || status.state === "running")) {
-        await lifecycle.emit({ runId: run.id, input: { event: "error", data: { message: "The desktop assistant could not start this turn." } } }).catch(() => undefined);
-        await lifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false }).catch(() => undefined);
-      }
-    });
-    return { runId: run.id };
-  }
+  const ctx: TurnContext = { required, optional, log, lifecycle, liveRuns, credentials, gapStore, gapCollectors: new Set(), executor, fullCliContext };
 
   return {
     lifecycle,
     daemonUrl,
     addresseeOf,
     toolIds: () => registry.list({}).map((descriptor) => descriptor.id),
-    startTurn,
+    startTurn: (input: DesktopTurnInput, options: DesktopTurnOptions = {}) => startDesktopTurn({ ctx, input }, options),
     close: async () => {
-      await Promise.all([...gapCollectors].map(collector => collector.flush()));
+      await Promise.all([...ctx.gapCollectors].map(collector => collector.flush()));
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };

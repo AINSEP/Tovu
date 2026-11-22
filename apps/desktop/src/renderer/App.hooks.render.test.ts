@@ -37,16 +37,16 @@ test('with the default lookup and no preload (`window.tovuRunner` unset) every b
   const calls: string[] = [];
   const hook = renderHook(t, () => {
     const polling = useSitesPolling();
-    const rescan = useSiteRescan(polling.setProjects);
+    const rescan = useSiteRescan({ setProjects: polling.setProjects });
     const tabs = useProjectTabs();
-    const nav = useSectionNav(tabs.setActiveTab);
-    useRunnerNavigation(nav.setActiveId, tabs.setActiveTab);
+    const nav = useSectionNav({ setActiveTab: tabs.setActiveTab });
+    useRunnerNavigation({ setActiveId: nav.setActiveId, setActiveTab: tabs.setActiveTab });
     const mutations = useProjectMutations({
       setProjects: polling.setProjects, closeProjectTab: () => calls.push('close'),
       stopCreating: () => calls.push('stop'), startCreating: () => calls.push('start'),
     });
-    const start = useSiteStart(site('a'));
-    const load = useWebviewLoadFailure(0);
+    const start = useSiteStart({ project: site('a') });
+    const load = useWebviewLoadFailure({ resetKey: 0 });
     const transport = useWorkspaceChatTransport();
     const conversations = useRunnerConversations();
     return { polling, rescan, mutations, start, load, transport, conversations };

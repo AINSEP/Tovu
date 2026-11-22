@@ -1,7 +1,8 @@
 import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import { agentPluginActivations } from "./activation-effects.js";
-import { readProviderPluginLink } from "./identity.js";
+import { readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, readTrustedPluginFile } from "./lifecycle.js";
 
 /**
@@ -85,7 +86,7 @@ export function followProviderActivations(
 }
 
 /** The provider plugin `pluginId` is the face of, or undefined when it declares none. @complexity As `links`. */
-export async function linkedProviderOf({ ports, pluginId }: { ports: Pick<ProviderFacePorts, "links">; pluginId: string }): Promise<string | undefined> {
+export async function linkedProviderOf({ ports, pluginId }: { ports: Pick<ProviderFacePorts, "links">; pluginId: string }, _optional: Record<string, never> = {}): Promise<string | undefined> {
   return (await ports.links({})).get(pluginId);
 }
 
@@ -106,17 +107,19 @@ export function bindProviderFacePorts({ workspaceRoot }: { workspaceRoot: () => 
   return {
     links: async () => {
       const root = workspaceRoot();
-      const selected = preferBundledAgentPluginDigests(await catalog.list(root), await catalog.bundled(root));
+      const selected = preferBundledAgentPluginDigests(await catalog.list({ workspaceRoot: root }), await catalog.bundled({ workspaceRoot: root }));
       const counts = new Map<string, number>();
       for (const plugin of selected) counts.set(plugin.pluginId, (counts.get(plugin.pluginId) ?? 0) + 1);
       const links = new Map<string, string>();
       for (const plugin of selected) {
         // The lifecycle refuses ambiguous non-bundled revisions; none may decide a current switch.
         if (counts.get(plugin.pluginId) !== 1) throw new Error(`Agent Plugin '${plugin.pluginId}' matches ${counts.get(plugin.pluginId)} installed packages — refusing to guess which one to use`);
-        try {
-          const provider = readProviderPluginLink({ manifest: JSON.parse(await catalog.read(plugin, "plugin.json")) });
-          if (provider !== undefined) links.set(plugin.pluginId, provider);
-        } catch { /* An unreadable manifest links nothing. */ }
+        const provider = await orFallback({
+          work: async () => readProviderPluginLink({ manifest: JSON.parse(await catalog.read({ plugin, filename: "plugin.json" })) }),
+          fallback: undefined,
+          step: "read provider face link",
+        }); // An unreadable manifest links nothing.
+        if (provider !== undefined) links.set(plugin.pluginId, provider);
       }
       return links;
     },

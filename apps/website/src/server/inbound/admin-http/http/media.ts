@@ -2,8 +2,8 @@ import { documentDisplayFilename, documentContentType } from "@jini-ai/cms/media
 import type { MediaRecord } from "#src/features/media/index";
 
 /**
- * @file Admin-facing media response DTO (mirrors `admin/members.ts` /
- * `admin/menus.ts`'s pattern: serialize the internal record to a stable admin
+ * @file Admin-facing media response DTO (mirrors `apps/website/src/server/inbound/admin-http/http/members.ts` /
+ * `apps/website/src/server/inbound/admin-http/http/menus.ts`'s pattern: serialize the internal record to a stable admin
  * JSON envelope rather than passing it through unfiltered).
  *
  * `MediaRecord` has no session/secret-shaped fields to exclude (unlike

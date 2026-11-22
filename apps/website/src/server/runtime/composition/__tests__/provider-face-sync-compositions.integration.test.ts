@@ -49,7 +49,7 @@ async function seedLinkedFace({ root, workspaceId }: { root: string; workspaceId
   const layout = resolveAgentPluginLayout({ siteDir: root });
   const seeded = await seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
   assert.deepEqual(seeded.outcomes.filter((outcome) => outcome.status === "failed"), []);
-  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace(workspaceId).root });
+  return bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace({ workspaceId }).root });
 }
 
 const providerRow = ({ workspaceId, enabled }: { workspaceId: string; enabled: boolean }) =>
@@ -82,10 +82,10 @@ test("SQLite composition: the provider switch moves its linked face", async (t) 
   await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "uuid-face-sync" }));
   let close = async () => {};
   t.after(() => close());
-  const routeDeps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const routeDeps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (store) => { close = () => store.close(); },
-  });
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
+  } });
   await routeDeps.identityReady;
   const ports = await seedLinkedFace({ root, workspaceId: routeDeps.workspaceId });
   await assertFaceFollows({ repo: routeDeps.pluginActivationRepo, ports, workspaceId: routeDeps.workspaceId });

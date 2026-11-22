@@ -31,8 +31,7 @@ const CUSTOM_INSTRUCTIONS_KEY = "custom";
  * `typeof ... === "string"` below — no caller here needs the full settings-value union.
  */
 type GetEffective = (
-  deps: { repo: SettingsRepoPort },
-  input: { namespace: string; key: string; scopeContext: { workspaceId: UUID } },
+  required: { deps: { repo: SettingsRepoPort }; namespace: string; key: string; scopeContext: { workspaceId: UUID } },
 ) => Promise<{ value: unknown } | null>;
 
 export interface ResolveCustomInstructionsDeps {
@@ -49,7 +48,7 @@ export interface ResolveCustomInstructionsDeps {
   settingsReady?: Promise<void>;
   /** The real `features/settings`'s own `getEffective` — injected rather than statically imported;
    *  see the `GetEffective` type's own doc. Wired to the real implementation at the composition root
-   *  (`RouteDeps.getEffective`, populated once in both `server/app.ts`/`server/deps.ts`). */
+   *  (`RouteDeps.getEffective`, populated once in both `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`). */
   getEffective: GetEffective;
   /** The real `features/settings`'s own `INSTRUCTIONS_NAMESPACE` constant (`"core.instructions"`) —
    *  injected for uniformity with `getEffective` above rather than relocated to a new shared module;
@@ -81,14 +80,12 @@ export async function resolveCustomInstructions(
 ): Promise<string> {
   try {
     await (deps.settingsReady ?? Promise.resolve());
-    const resolved = await deps.getEffective(
-      { repo: deps.settingsRepo },
-      {
-        namespace: deps.instructionsNamespace,
-        key: CUSTOM_INSTRUCTIONS_KEY,
-        scopeContext: { workspaceId: input.workspaceId },
-      },
-    );
+    const resolved = await deps.getEffective({
+      deps: { repo: deps.settingsRepo },
+      namespace: deps.instructionsNamespace,
+      key: CUSTOM_INSTRUCTIONS_KEY,
+      scopeContext: { workspaceId: input.workspaceId },
+    });
     return typeof resolved?.value === "string" ? resolved.value : "";
   } catch (error) {
     console.error("[assistant] resolveCustomInstructions failed; treating as unset", error);
@@ -110,7 +107,7 @@ const CUSTOM_INSTRUCTIONS_OVERLAY_HEADER =
  * @complexity O(n) in the length of `customInstructions` — one trim, one length check.
  * @overallScore 100
  */
-export function formatCustomInstructionsOverlay(customInstructions: string): string | null {
+export function formatCustomInstructionsOverlay({ customInstructions }: { customInstructions: string }, _optional = {}): string | null {
   const trimmed = customInstructions.trim();
   return trimmed.length === 0 ? null : `${CUSTOM_INSTRUCTIONS_OVERLAY_HEADER}\n\n${trimmed}`;
 }
@@ -149,7 +146,7 @@ export function createCustomInstructionsCache(
       latest = await resolveCustomInstructions(deps, input);
     },
     readOverlay() {
-      return formatCustomInstructionsOverlay(latest);
+      return formatCustomInstructionsOverlay({ customInstructions: latest });
     },
   };
 }

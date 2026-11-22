@@ -37,7 +37,7 @@ function registration(handler: ToolRegistration["handler"]): ToolRegistration {
 test("a run whose bind token was unknown gets the reload message instead of the bare 'no frontend is bound'", async () => {
   const lost = createLostFrontendBindings();
   lost.noteBindError({ runId: "run-1", error: unknownTokenError });
-  const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw unboundError; }) });
 
   await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => {
     assert.equal(err.message, LOST_FRONTEND_BINDING_MESSAGE);
@@ -60,7 +60,7 @@ function isDisconnected(err: unknown, cause: Error): boolean {
 test("another run's 'no frontend is bound' becomes a recoverable frontend_disconnected error naming the server-side alternative", async () => {
   const lost = createLostFrontendBindings();
   lost.noteBindError({ runId: "run-1", error: unknownTokenError });
-  const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw unboundError; }) });
 
   await assert.rejects(wrapped.handler(ctx("run-2")), (err: Error) => {
     assert.match(err.message, /nothing was changed/);
@@ -72,7 +72,7 @@ test("another run's 'no frontend is bound' becomes a recoverable frontend_discon
 test("a tab that detaches mid-call is also frontend_disconnected, and says the outcome is unknown", async () => {
   const lost = createLostFrontendBindings();
   const detached = new Error('frontend session "s-1" detached before answering');
-  const wrapped = lost.wrap(registration(async () => { throw detached; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw detached; }) });
 
   await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => {
     assert.match(err.message, /outcome is unknown/);
@@ -83,7 +83,7 @@ test("a tab that detaches mid-call is also frontend_disconnected, and says the o
 test("a bind error that is not about the token is not recorded", async () => {
   const lost = createLostFrontendBindings();
   lost.noteBindError({ runId: "run-1", error: new SyntaxError("Unexpected token } in JSON") });
-  const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw unboundError; }) });
 
   await assert.rejects(wrapped.handler(ctx("run-1")), (err: Error) => err.message !== LOST_FRONTEND_BINDING_MESSAGE && isDisconnected(err, unboundError));
 });
@@ -92,8 +92,8 @@ test("other failures of a lost-binding run pass through unchanged, and success i
   const lost = createLostFrontendBindings();
   lost.noteBindError({ runId: "run-1", error: unknownTokenError });
   const other = new Error("capability timed out");
-  const failing = lost.wrap(registration(async () => { throw other; }));
-  const ok = lost.wrap(registration(async () => ({ done: true })));
+  const failing = lost.wrap({ registration: registration(async () => { throw other; }) });
+  const ok = lost.wrap({ registration: registration(async () => ({ done: true })) });
 
   await assert.rejects(failing.handler(ctx("run-1")), (err: Error) => err === other);
   assert.deepEqual(await ok.handler(ctx("run-1")), { done: true });
@@ -102,7 +102,7 @@ test("other failures of a lost-binding run pass through unchanged, and success i
 test("the record is bounded: the oldest run is forgotten first", async () => {
   const lost = createLostFrontendBindings({ maxRuns: 2 });
   for (const runId of ["run-a", "run-b", "run-c"]) lost.noteBindError({ runId, error: unknownTokenError });
-  const wrapped = lost.wrap(registration(async () => { throw unboundError; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw unboundError; }) });
 
   await assert.rejects(wrapped.handler(ctx("run-a")), (err: Error) => isDisconnected(err, unboundError));
   await assert.rejects(wrapped.handler(ctx("run-c")), (err: Error) => err.message === LOST_FRONTEND_BINDING_MESSAGE);
@@ -110,6 +110,6 @@ test("the record is bounded: the oldest run is forgotten first", async () => {
 
 test("a non-Error rejection passes through untouched", async () => {
   const lost = createLostFrontendBindings();
-  const wrapped = lost.wrap(registration(async () => { throw "plain string"; }));
+  const wrapped = lost.wrap({ registration: registration(async () => { throw "plain string"; }) });
   await assert.rejects(wrapped.handler(ctx("run-1")), (err: unknown) => err === "plain string");
 });

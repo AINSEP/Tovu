@@ -62,7 +62,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserEnableRoute(app, deps);
+  registerAdminUserEnableRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -213,7 +213,7 @@ test("ENABLE_PRINCIPAL route: 500 internal error when an unexpected error is thr
 
 test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
   let trashedTargetId = "";
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => id === trashedTargetId });
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => principalId === trashedTargetId });
   const baseUrl = await startTestServer(app, t);
   const targetId = await createDisabledTestUser(deps, ownerId, "enabletrashed");
   trashedTargetId = targetId;

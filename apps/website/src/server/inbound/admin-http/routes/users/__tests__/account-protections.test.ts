@@ -35,7 +35,7 @@ async function setup() {
   const deps: UsersRouteDeps = {
     ...wiring, workspaceId, clock, idGen, outbox: new InMemoryOutbox(),
     principalRepo: Object.assign(wiring.principalRepo, createSettingsPrincipalLookup({ repo: wiring.principalRepo })),
-    isInTrash: async id => trashed.has(id),
+    isInTrash: async ({ principalId }) => trashed.has(principalId),
     removeUser: async ({ id }) => { trashed.add(id); return { ok: true, version: null }; },
   };
   const service = identityServiceDepsFrom(deps);
@@ -56,7 +56,7 @@ async function setup() {
     return policyId;
   };
   const app = express();
-  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register(app, deps);
+  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register({ app, deps });
   const invoke = async (method: "post" | "delete" | "patch", suffix: string, callerId: string, principalId: string, body = {}) => {
     const { res, capture } = createCapturingResponse();
     res.send = () => res;

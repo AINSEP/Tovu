@@ -1,8 +1,8 @@
-import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
+import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/features/sites/api/sites-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { CreateSiteOnboarding, type CreateSiteOnboardingProps } from "../CreateSiteOnboarding";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
@@ -41,10 +41,10 @@ describe("rules", () => {
   });
 
   it("createdTokensNoteKey: saved and failed each have a line; none or absent has none", () => {
-    expect(createdTokensNoteKey("saved")).toBe("will connect when this site first starts.");
-    expect(createdTokensNoteKey("failed")).toBe("couldn't be saved. Open the site and ask the assistant to connect it.");
-    expect(createdTokensNoteKey("none")).toBeNull();
-    expect(createdTokensNoteKey(undefined)).toBeNull();
+    expect(createdTokensNoteKey({ status: "saved" })).toBe("will connect when this site first starts.");
+    expect(createdTokensNoteKey({ status: "failed" })).toBe("couldn't be saved. Open the site and ask the assistant to connect it.");
+    expect(createdTokensNoteKey({ status: "none" })).toBeNull();
+    expect(createdTokensNoteKey({ status: undefined })).toBeNull();
   });
 });
 
@@ -52,7 +52,7 @@ describe("useCreateSitePluginTokens", () => {
   it("uses plugin ids as display names while the plugin list is loading", async () => {
     let resolve!: (value: { plugins: AdminTokenSignInPlugin[] }) => void;
     const pending = new Promise<{ plugins: AdminTokenSignInPlugin[] }>((done) => { resolve = done; });
-    const port = createFakeSitesPort(snapshot, { listTokenSignInPlugins: () => pending });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { listTokenSignInPlugins: () => pending });
     const { result } = renderHook(() => useCreateSitePluginTokens(port), { wrapper });
 
     expect(result.current.fields).toEqual([]);
@@ -65,7 +65,7 @@ describe("useCreateSitePluginTokens", () => {
   });
 
   it("offers one empty field per plugin the server lists, and collects only what was typed", async () => {
-    const port = createFakeSitesPort(snapshot, { listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const { result } = renderHook(() => useCreateSitePluginTokens(port), { wrapper });
 
     await waitFor(() => expect(result.current.fields).toHaveLength(1));
@@ -84,7 +84,7 @@ describe("useCreateSitePluginTokens", () => {
 
   it("no plugins listed: no fields", async () => {
     const listTokenSignInPlugins = vi.fn().mockResolvedValue({ plugins: [] });
-    const port = createFakeSitesPort(snapshot, { listTokenSignInPlugins });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { listTokenSignInPlugins });
     const { result } = renderHook(() => useCreateSitePluginTokens(port), { wrapper });
     await waitFor(() => expect(listTokenSignInPlugins).toHaveBeenCalled());
     expect(result.current.fields).toEqual([]);
@@ -94,7 +94,7 @@ describe("useCreateSitePluginTokens", () => {
 describe("useSites create with tokens", () => {
   it("an empty field sends only the name", async () => {
     const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" }, agentPluginTokens: { status: "none", pluginIds: [] } });
-    const port = createFakeSitesPort(snapshot, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.pluginTokens.fields).toHaveLength(1));
 
@@ -109,7 +109,7 @@ describe("useSites create with tokens", () => {
 
   it("a typed token rides with the create, is cleared after it, and the created line names the service", async () => {
     const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" }, agentPluginTokens: { status: "saved", pluginIds: ["supabase"] } });
-    const port = createFakeSitesPort(snapshot, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.pluginTokens.fields).toHaveLength(1));
 
@@ -128,7 +128,7 @@ describe("useSites create with tokens", () => {
 
   it("a refused token keeps what was typed, so the person can fix it", async () => {
     const createSite = vi.fn().mockRejectedValue(new Error("That Supabase access token didn't work."));
-    const port = createFakeSitesPort(snapshot, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
     await waitFor(() => expect(result.current.pluginTokens.fields).toHaveLength(1));
 
@@ -151,7 +151,7 @@ function tokensController(overrides: Partial<CreateSitePluginTokensController> =
 // Production cannot provision hosted content databases. Exercise future selectable states through
 // the real selection hook with an injected capability list, rather than changing that boundary.
 const useSelectableDatabase: typeof useCreateSiteDatabase = (input) => useCreateSiteDatabase(input, {
-  options: resolveSiteDatabaseOptions(input.t).map((option) => ({ ...option, available: true })),
+  options: resolveSiteDatabaseOptions({ t: input.t }).map((option) => ({ ...option, available: true })),
 });
 
 function WiredOnboarding({ port }: { port: SitesPort }) {
@@ -278,7 +278,7 @@ describe("CreateSiteOnboarding inline database disclosures", () => {
   it.each(["SQLite", "Custom DB Provider"])("sends only the name after a typed Supabase token is hidden by selecting %s", async (nextRadio) => {
     const user = userEvent.setup();
     const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" }, agentPluginTokens: { status: "none", pluginIds: [] } });
-    const port = createFakeSitesPort(snapshot, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     render(<WiredOnboarding port={port} />, { wrapper });
     const radio = screen.getByRole("radio", { name: "Supabase" });
     await waitFor(() => expect(radio.getAttribute("aria-controls")).toBe("site-db-supabase-fields"));
@@ -296,7 +296,7 @@ describe("CreateSiteOnboarding inline database disclosures", () => {
   it("sends the selected inline token through the existing flow without echoing it into form copy", async () => {
     const user = userEvent.setup();
     const createSite = vi.fn().mockResolvedValue({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" }, agentPluginTokens: { status: "saved", pluginIds: ["supabase"] } });
-    const port = createFakeSitesPort(snapshot, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
+    const port = createFakeSitesPort({ snapshot: snapshot }, { createSite, listTokenSignInPlugins: () => Promise.resolve({ plugins: [SUPABASE] }) });
     const view = render(<WiredOnboarding port={port} />, { wrapper });
     const radio = screen.getByRole("radio", { name: "Supabase" });
     await waitFor(() => expect(radio.getAttribute("aria-controls")).toBe("site-db-supabase-fields"));

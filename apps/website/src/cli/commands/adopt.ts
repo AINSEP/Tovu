@@ -69,11 +69,11 @@ export interface RunAdoptCommandInput {
  * and not the other IS an invalid site dir, and it is the exact error `serve` already answers with
  * for the same directory.
  */
-function partiallyAdoptedError(target: string, markers: SiteMarkerClassification): SiteDirInvalidError {
+function partiallyAdoptedError({ target, markers }: { target: string; markers: SiteMarkerClassification }, _options = {}): SiteDirInvalidError {
   return new SiteDirInvalidError(
-    `adopt: refusing — ${target} is partially adopted: ${markers.present.join(" and ")} is present but ${markers.missing.join(" and ")} is missing. ` +
+    { message: `adopt: refusing — ${target} is partially adopted: ${markers.present.join(" and ")} is present but ${markers.missing.join(" and ")} is missing. ` +
       `Adopt never completes or overwrites a partial marker set — the present marker may carry a schema stamp this command cannot verify. ` +
-      `Restore the missing file from backup, or remove the present one and re-run 'tovu adopt'.`
+      `Restore the missing file from backup, or remove the present one and re-run 'tovu adopt'.` }
   );
 }
 
@@ -85,7 +85,7 @@ function partiallyAdoptedError(target: string, markers: SiteMarkerClassification
  *
  * @complexity O(n) in the target directory's entry count — one `readdirSync`.
  */
-function describeDatabaseCandidates(target: string): string {
+function describeDatabaseCandidates({ target }: { target: string }, _options = {}): string {
   const candidates = fs
     .readdirSync(target)
     .filter((name) => name.endsWith(".db") && name !== CONTENT_DB_FILE_NAME)
@@ -100,20 +100,20 @@ function describeDatabaseCandidates(target: string): string {
  * appending {@link describeDatabaseCandidates}'s list. The reason code is carried through unchanged
  * so `cli/errors.ts` still maps the exit code from the reason, never from the message text.
  */
-async function asAdoptRefusal<T>(target: string, run: () => Promise<T>): Promise<T> {
+async function asAdoptRefusal<T>({ target, run }: { target: string; run: () => Promise<T> }, _options = {}): Promise<T> {
   try {
     return await run();
   } catch (err) {
     if (!(err instanceof SiteRepairRefusedError)) throw err;
     const relabelled = err.message.replace(/^repairSite: /, "adopt: ");
-    const suffix = err.reason === "CONTENT_DB_MISSING" ? describeDatabaseCandidates(target) : "";
-    throw new SiteRepairRefusedError(`${relabelled}${suffix}`, err.reason);
+    const suffix = err.reason === "CONTENT_DB_MISSING" ? describeDatabaseCandidates({ target: target }) : "";
+    throw new SiteRepairRefusedError({ message: `${relabelled}${suffix}`, reason: err.reason });
   }
 }
 
 /** The two derived-stamp lines both the dry run and the real run print, so the preview an operator
  *  approves and the result they get are rendered by one formatter and cannot drift apart. */
-function markerLines(name: string, schemaVersion: number, schemaTag: string): string {
+function markerLines({ name, schemaVersion, schemaTag }: { name: string; schemaVersion: number; schemaTag: string }, _options = {}): string {
   return `  config.json      name='${name}'\n  .site-meta.json  schemaVersion=${schemaVersion} schemaTag=${schemaTag}\n`;
 }
 
@@ -126,7 +126,7 @@ function markerLines(name: string, schemaVersion: number, schemaTag: string): st
 function printDryRun(plan: SiteRepairPlan): void {
   process.stdout.write(`dry run — nothing was written\n`);
   process.stdout.write(`would adopt site '${plan.config.name}' at ${plan.dir}\n`);
-  process.stdout.write(markerLines(plan.config.name, plan.meta.schemaVersion, plan.meta.schemaTag));
+  process.stdout.write(markerLines({ name: plan.config.name, schemaVersion: plan.meta.schemaVersion, schemaTag: plan.meta.schemaTag }));
   process.stdout.write(`run again without --dry-run to write these two files\n`);
 }
 
@@ -137,18 +137,18 @@ function printDryRun(plan: SiteRepairPlan): void {
  *
  * @throws {SiteDirInvalidError} `config.json` is invalid, or the meta cannot be completed.
  */
-async function adoptKeyOnlyMeta(target: string, dryRun: boolean): Promise<void> {
+async function adoptKeyOnlyMeta({ target, dryRun }: { target: string; dryRun: boolean }, _options = {}): Promise<void> {
   const { name } = readSiteConfig({ dir: target });
   if (dryRun) {
     const meta = await planKeyOnlySiteMetaCompletion({ dir: target });
     process.stdout.write(`dry run — nothing was written\n`);
     process.stdout.write(`would complete the key-only .site-meta.json of site '${name}' at ${target} (config.json kept)\n`);
-    if (meta !== undefined) process.stdout.write(markerLines(name, meta.schemaVersion, meta.schemaTag));
+    if (meta !== undefined) process.stdout.write(markerLines({ name: name, schemaVersion: meta.schemaVersion, schemaTag: meta.schemaTag }));
     return;
   }
   const meta = await completeKeyOnlySiteMeta({ dir: target });
   process.stdout.write(`adopted site '${name}' at ${target} (completed its key-only .site-meta.json; config.json kept)\n`);
-  if (meta !== undefined) process.stdout.write(markerLines(name, meta.schemaVersion, meta.schemaTag));
+  if (meta !== undefined) process.stdout.write(markerLines({ name: name, schemaVersion: meta.schemaVersion, schemaTag: meta.schemaTag }));
   process.stdout.write(`next: tovu serve ${target}\n`);
 }
 
@@ -168,32 +168,32 @@ async function adoptKeyOnlyMeta(target: string, dryRun: boolean): Promise<void> 
  * @complexity O(1) beyond `repairSite`/`planRepairSite`'s own bounded cost.
  */
 export async function runAdoptCommand(input: RunAdoptCommandInput): Promise<void> {
-  const target = resolveInstallDirTarget(input.dir);
-  const markers = classifySiteMarkers(target);
+  const target = resolveInstallDirTarget({ dirArg: input.dir });
+  const markers = classifySiteMarkers({ target });
 
   if (markers.state === "complete") {
     process.stdout.write(`already adopted: ${target} already has ${markers.present.join(" and ")} — nothing to do\n`);
     return;
   }
   if (markers.state === "partial" && markers.keyOnlyMeta) {
-    await adoptKeyOnlyMeta(target, input.dryRun === true);
+    await adoptKeyOnlyMeta({ target: target, dryRun: input.dryRun === true });
     return;
   }
   if (markers.state === "partial") {
-    throw partiallyAdoptedError(target, markers);
+    throw partiallyAdoptedError({ target: target, markers: markers });
   }
 
   if (input.dryRun === true) {
-    printDryRun(await asAdoptRefusal(target, () => planRepairSite({ dir: target, name: input.name })));
+    printDryRun(await asAdoptRefusal({ target: target, run: () => planRepairSite({ dir: target, name: input.name }) }));
     return;
   }
 
-  const result = await asAdoptRefusal(target, () => repairSite({ dir: target, name: input.name }));
+  const result = await asAdoptRefusal({ target: target, run: () => repairSite({ dir: target, name: input.name }) });
   // Read the ACTUAL written config.json back rather than re-deriving the name here, so the printed
   // name can never drift from what was really written (same discipline `runInitCommand` uses).
   const { config } = readSiteDir({ dir: result.dir });
   process.stdout.write(`adopted site '${config.name}' at ${result.dir}\n`);
-  process.stdout.write(markerLines(config.name, result.schemaVersion, result.schemaTag));
+  process.stdout.write(markerLines({ name: config.name, schemaVersion: result.schemaVersion, schemaTag: result.schemaTag }));
   process.stdout.write(`  siteId=${result.siteId}\n`);
   process.stdout.write(`the database at ${resolveSiteDatabasePaths({ dir: result.dir }).contentDbPath} was not modified\n`);
   process.stdout.write(`next: tovu serve ${result.dir}\n`);

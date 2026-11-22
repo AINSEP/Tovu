@@ -128,17 +128,7 @@ async function main(): Promise<void> {
   // fully evaluated (see `admin-media-provider-routes.test.ts`'s "an empty map clears everything
   // over the wire").
   const mediaProviderOps = new Set(["get_media_providers", "replace_media_providers"]);
-  const captureSweep = async (_required: Record<string, never>, _options = {}): Promise<void> => {
-    for (const op of operations) {
-      if (mediaProviderOps.has(op.operationId)) continue;
-      if (op.method === "get") {
-        captured.push(await capture(op, server.baseUrl, ownerCookie, undefined));
-      } else if (isCollectionCreate(op)) {
-        captured.push(await capture(op, server.baseUrl, ownerCookie, "{}"));
-      }
-    }
-
-  };
+  const captureSweep = createCaptureSweep({ operations, mediaProviderOps, captured, server, ownerCookie });
   await captureSweep({});
 
   await server.close();
@@ -152,22 +142,13 @@ async function main(): Promise<void> {
     for (const match of scanForSecrets(c.body)) findings.push(classify(c, match));
   }
 
-  const reportCanaryLeaks = (_required: Record<string, never>, _options = {}): void => {
-    console.log("=".repeat(78));
-    console.log(`CANARY CHECK — injected via PUT ${providersUrl}, searched all ${captured.length} captured bodies`);
-    console.log("=".repeat(78));
-    if (canaryLeaks.length === 0) {
-      console.log("OK: the injected canary secret never appeared in any captured response body.");
-    } else {
-      console.log(`LEAK: the injected canary secret appeared in ${canaryLeaks.length} response(s):`);
-      for (const c of canaryLeaks) {
-        console.log(`  - ${c.op.file} :: ${c.op.operationId} (${c.op.method.toUpperCase()} ${c.requestedUrl}, status ${c.status})`);
-      }
-    }
-
-  };
+  const reportCanaryLeaks = createReportCanaryLeaks(providersUrl, captured, canaryLeaks);
   reportCanaryLeaks({});
 
+  reportSecretPatternSweep({ findings, captured, operations, mediaProviderOps, canaryLeaks });
+}
+
+function reportSecretPatternSweep({ findings, captured, operations, mediaProviderOps, canaryLeaks }: { findings: Finding[]; captured: CapturedResponse[]; operations: ReturnType<typeof loadOpenApiOperations>; mediaProviderOps: Set<string>; canaryLeaks: CapturedResponse[] }) {
   console.log(`\n${"=".repeat(78)}`);
   console.log(`GENERIC PATTERN SWEEP — ${findings.length} finding(s) across ${captured.length} captured bodies`);
   console.log("=".repeat(78));
@@ -194,6 +175,38 @@ async function main(): Promise<void> {
   } else {
     console.log("\ncheck:openapi-secret-leaks — OK: no canary leak and no credential-shaped pattern found in any captured response.");
   }
+}
+
+
+function createCaptureSweep({ operations, mediaProviderOps, captured, server, ownerCookie }: { operations: ReturnType<typeof loadOpenApiOperations>; mediaProviderOps: Set<string>; captured: CapturedResponse[]; server: Awaited<ReturnType<typeof startTovuServer>>; ownerCookie: Awaited<ReturnType<typeof loginOwner>> }) {
+  return async (_required: Record<string, never>, _options = {}): Promise<void> => {
+    for (const op of operations) {
+      if (mediaProviderOps.has(op.operationId)) continue;
+      if (op.method === "get") {
+        captured.push(await capture(op, server.baseUrl, ownerCookie, undefined));
+      } else if (isCollectionCreate(op)) {
+        captured.push(await capture(op, server.baseUrl, ownerCookie, "{}"));
+      }
+    }
+
+  };
+}
+
+function createReportCanaryLeaks(providersUrl: "/api/admin/v1/workspaces/workspace-local/media/providers", captured: CapturedResponse[], canaryLeaks: CapturedResponse[]) {
+  return (_required: Record<string, never>, _options = {}): void => {
+    console.log("=".repeat(78));
+    console.log(`CANARY CHECK — injected via PUT ${providersUrl}, searched all ${captured.length} captured bodies`);
+    console.log("=".repeat(78));
+    if (canaryLeaks.length === 0) {
+      console.log("OK: the injected canary secret never appeared in any captured response body.");
+    } else {
+      console.log(`LEAK: the injected canary secret appeared in ${canaryLeaks.length} response(s):`);
+      for (const c of canaryLeaks) {
+        console.log(`  - ${c.op.file} :: ${c.op.operationId} (${c.op.method.toUpperCase()} ${c.requestedUrl}, status ${c.status})`);
+      }
+    }
+
+  };
 }
 
 main().catch((err) => {

@@ -28,8 +28,9 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { BeforeSaveHookPort } from "../post.js";
-import { contributePostDuplicateHandlers } from "../tool-registrations.js";
+import type { BeforeSaveHookPort } from "../post-before-save.js";
+import { contributePostDuplicateHandlers } from "../post-tool-duplicate.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-duplicate-plugin-hook";
 const NOW = "2026-10-05T00:00:00.000Z";
@@ -50,7 +51,7 @@ function refusingHook(): BeforeSaveHookPort {
 /** Deps carrying one seeded source row of `kind`, so the only thing that can refuse is the hook. */
 async function makeDeps(hook: BeforeSaveHookPort, kind: "post" | "page") {
   let counter = 0;
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   await postRepo.save({
     id: "source-1", workspaceId: WORKSPACE_ID, title: "Landing", slug: "landing", bodyJson: EMPTY_DOC,
     bodyFormat: "doc", bodyHtml: null, status: "draft", kind, updatedAt: NOW, version: 1,
@@ -81,7 +82,7 @@ async function duplicate(deps: AssistantToolRegistryDeps, input: unknown) {
   const harness = { run, lifecycle, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: "p" }) };
   return delegatedToolExecuteRoute.handle({
     input: { runId: run.id, toolUseId: `tu-${++toolUseCounter}`, toolId: "content_duplicate", input },
-    deps: harness as never,
+    deps: { ...harness, reportInternalError: reportRouteInternalError } as never,
   });
 }
 

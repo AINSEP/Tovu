@@ -18,16 +18,15 @@ import {
   commitSiteToSourceControl,
   previewCommitExport,
   type CommitSiteInput,
-  toCommitFile,
-  validateCommitTarget,
   commitExportDir,
-  type CommitFile,
   type SourceControlCommitAdapter,
-  type SourceControlCommitResult,
 } from "../commit-site.js";
-import type { ExportReport } from "#src/features/site-export/index";
+import { toCommitFile } from "@jini-ai/devops/source-control";
+import { validateCommitTarget } from "../commit-target.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
+import { createStaticSitePackager } from '../../site-backup/static-site-packager.js';
 import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
-import type { RepositoryTargetValidator } from '../provider-module.js';
+import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult } from '../provider-module.js';
 
 const exampleValidator: RepositoryTargetValidator = ({ owner, repo }) => {
   if (!/^[A-Za-z0-9-]+$/.test(owner)) return `invalid Example Git owner '${owner}'`;
@@ -45,6 +44,8 @@ const exampleValidator: RepositoryTargetValidator = ({ owner, repo }) => {
  */
 
 const staticSiteContext = async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" });
+/** The real packager, so every file-list assertion below still runs through real packaging. */
+const packager = createStaticSitePackager();
 const exportDir = mkdtempSync(path.join(tmpdir(), "tovu-source-control-commit-test-"));
 test.after(() => rmSync(exportDir, { recursive: true, force: true }));
 
@@ -134,8 +135,8 @@ test("validateCommitTarget accepts a well-formed target", () => {
 });
 
 test("validateCommitTarget rejects an invalid owner, repo, branch, or commit message", () => {
-  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, exampleValidator), "invalid Example Git owner 'not valid!!'");
-  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, exampleValidator), "invalid Example Git repo '..'");
+  assert.equal(validateCommitTarget({ owner: "not valid!!", repo: "my-site", commitMessage: "x" }, { validateTarget: exampleValidator }), "invalid Example Git owner 'not valid!!'");
+  assert.equal(validateCommitTarget({ owner: "octo", repo: "..", commitMessage: "x" }, { validateTarget: exampleValidator }), "invalid Example Git repo '..'");
   assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch: "not a branch", commitMessage: "x" }), "invalid branch name 'not a branch'");
   for (const branch of ["topic@{1}", "topic\tname", "x".repeat(251)]) {
     assert.equal(validateCommitTarget({ owner: "octo", repo: "my-site", branch, commitMessage: "x" }), `invalid branch name '${branch.slice(0, 60)}'`);
@@ -159,11 +160,11 @@ test('T28: commit targets reject traversal and malformed Git branch names', () =
  * literal-equality check, never via the regex). Both remaining arms are proven here, distinctly.
  */
 test("validateCommitTarget rejects a repo with characters REPO_PATTERN itself refuses (not merely '.' or '..')", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: "not/a valid repo!", commitMessage: "x" }, { validateTarget: exampleValidator }) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget rejects a repo that is the single-character literal '.', distinctly from the '..' case", () => {
-  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, exampleValidator) ?? "", /invalid Example Git repo/);
+  assert.match(validateCommitTarget({ owner: "octo", repo: ".", commitMessage: "x" }, { validateTarget: exampleValidator }) ?? "", /invalid Example Git repo/);
 });
 
 test("validateCommitTarget without a host check applies only the generic one-path-segment rule, naming no host", () => {
@@ -181,8 +182,8 @@ test("validateCommitTarget: the host's own check runs first and its message is r
     calls.push(target);
     return target.owner === "bad" ? "invalid Example owner 'bad'" : null;
   };
-  assert.equal(validateCommitTarget({ owner: "bad", repo: "a/b", commitMessage: "" }, host), "invalid Example owner 'bad'");
-  assert.equal(validateCommitTarget({ owner: "ok", repo: "a/b", commitMessage: "x" }, host), "invalid repo 'a/b'", "the generic rule still applies after the host's check");
+  assert.equal(validateCommitTarget({ owner: "bad", repo: "a/b", commitMessage: "" }, { validateTarget: host }), "invalid Example owner 'bad'");
+  assert.equal(validateCommitTarget({ owner: "ok", repo: "a/b", commitMessage: "x" }, { validateTarget: host }), "invalid repo 'a/b'", "the generic rule still applies after the host's check");
   assert.deepEqual(calls, [{ owner: "bad", repo: "a/b" }, { owner: "ok", repo: "a/b" }]);
 });
 
@@ -217,7 +218,7 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
   deps.exportSiteBound = async () => { assert.fail("export started for invalid input"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: exampleValidator },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -231,7 +232,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
   deps.exportSiteBound = async () => { assert.fail("export before missing credential refusal"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -259,7 +260,7 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -301,7 +302,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
 
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -324,7 +325,7 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   deps.exportSiteBound = async () => { assert.fail("export must not start after a credential lookup fails"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -336,6 +337,23 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   assert.doesNotMatch(JSON.stringify(result), /fixture_adapter_detail/);
 });
 
+test("commitSiteToSourceControl: GitHub receives the predecessor manifest with the selected folder and branch", async () => {
+  const deps = testRouteDeps();
+  const gitAdapter: SourceControlCommitAdapter = {
+    commit: async input => {
+      assert.equal(input.previousManagedManifestPath, ".tovu/managed-files.json", "GitHub receives the Tovu predecessor ownership path");
+      assert.equal(input.folder, "nested/site", "the selected folder reaches GitHub unchanged");
+      assert.equal(input.branch, "release/site", "the selected branch reaches GitHub unchanged");
+      return { ok: true, branch: "release/site", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: input.files.length, filesDeleted: 0 };
+    },
+  };
+  const result = await commitSiteToSourceControl(
+    { providerId: "github", supportsFolder: true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, resolveSavedApiKey: async () => ({ token: "fixture_fake_token_never_real" }) }, gitAdapter },
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", folder: "nested/site", branch: "release/site", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, true, "the confirmed GitHub export reaches its typed adapter");
+});
+
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
   const deps = await withExampleGitCredential(testRouteDeps());
   const originalExport = deps.exportSiteBound;
@@ -344,7 +362,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, true);
@@ -370,6 +388,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   assert.equal(passedInput.repo, "demo");
   assert.equal(passedInput.branch, "main");
   assert.equal(passedInput.commitMessage, "content update");
+  assert.equal(Object.hasOwn(passedInput, "previousManagedManifestPath"), false, "Example Git receives no GitHub predecessor ownership option");
 });
 
 /**
@@ -383,7 +402,7 @@ test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_
   const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer } },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -407,7 +426,7 @@ test("commitSiteToSourceControl: a git adapter result WITH divergedPaths passes 
         captured
       ),
     },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -419,7 +438,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   const passedInput = captured.input as { branch?: string };
   assert.equal("branch" in passedInput, false, "commitSiteToSourceControl must not invent a branch — that decision belongs to the git adapter");
@@ -439,7 +458,7 @@ for (const { adapterCode, expected } of ADAPTER_FAILURE_CASES) {
     const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
     const result = await commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
     );
     assert.equal(result.ok, false);
     if (result.ok) throw new Error("unreachable");
@@ -482,7 +501,7 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
 
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, false);
@@ -508,7 +527,7 @@ test("commitSiteToSourceControl: exportSiteBound throwing (not merely returning 
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
-      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager,
       idGen: deps.idGen,
       exportSiteBound: async () => {
         throw new Error("export engine exploded before producing a report");
@@ -532,7 +551,7 @@ test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value stil
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
-      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager,
       idGen: deps.idGen,
       exportSiteBound: async () => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the `err
@@ -581,11 +600,11 @@ test("commitSiteToSourceControl: two concurrent commits both still succeed with 
   const [resultA, resultB] = await Promise.all([
     commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://example-git.com/octo/demo/commit/sha-a", filesChanged: 1, filesDeleted: 0 }, capturedA) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
     ),
     commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://example-git.com/octo/demo/commit/sha-b", filesChanged: 1, filesDeleted: 0 }, capturedB) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
     ),
   ]);
 
@@ -606,7 +625,7 @@ function controlledReport(outputDir: string, label = "canary"): ExportReport {
 }
 
 function controlledInput(deps: RouteDeps, exportSiteBound: CommitSiteInput["exportSiteBound"]): CommitSiteInput {
-  return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, staticSiteContext, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
+  return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
 }
 
 test('folder commits use the active-theme download layout, deterministic README and relative links', async () => {
@@ -760,10 +779,12 @@ test('commit and preview snapshot theme context before rendering and pin the ren
   }
 });
 
-test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async () => {
+test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, 'warn', (...args: unknown[]) => { logs.push(args); });
   const deps = await withExampleGitCredential(testRouteDeps());
   const adapters: SourceControlCommitAdapter[] = [
-    { commit: async () => { throw new Error('fixture_adapter_detail: fixture_fake_token_never_real'); } },
+    { commit: async () => { throw Object.assign(new Error('fixture_adapter_detail: fixture_fake_token_never_real boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'), { code: 'EIO' }); } },
     // Inherited Object.prototype names are not mapped codes either.
     ...['unexpected-plugin-code', 'constructor', 'toString', '__proto__', 'hasOwnProperty'].map((code): SourceControlCommitAdapter => (
       { commit: async () => ({ ok: false, code, message: 'Provider refused the commit.' } as unknown as SourceControlCommitResult) })),
@@ -784,6 +805,12 @@ test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR 
     assert.ok(outcome.value.message.trim().length > 0);
     assert.doesNotMatch(outcome.value.message, /fixture_adapter_detail|fixture_fake_token_never_real/);
   }
+  assert.equal(logs.length, 1);
+  const log = logs[0]?.join(' ') ?? '';
+  assert.match(log, /source control provider.*commit/i);
+  assert.match(log, /Error/);
+  assert.match(log, /EIO/);
+  assert.doesNotMatch(log, /boom|SECRETSECRETSECRETSECRET|fixture_fake_token_never_real/);
 });
 
 test("previewCommitExport: counts UTF-8 route bytes and binary assets, sorts and caps paths at 50", async () => {
@@ -859,7 +886,7 @@ test('preview passes its provider id to the same isolated exporter used by a com
   let captured: string | undefined;
   const result = await previewCommitExport({
     workspaceId: 'example-workspace', owner: 'acme', repo: 'site', commitMessage: 'preview',
-    sourceControlExportRootDir: exportDir, staticSiteContext, idGen: { newId: () => 'preview-run' },
+    sourceControlExportRootDir: exportDir, staticSiteContext, packager, idGen: { newId: () => 'preview-run' },
     exportSiteBound: async ({ outputDir }) => {
       captured = outputDir;
       return { outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };

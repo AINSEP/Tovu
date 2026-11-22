@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { providerInputOf } from "../provider-plugins.js";
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 

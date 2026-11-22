@@ -22,16 +22,16 @@ import { mergeAddedSite, useAddSite } from './use-add-site.hooks.js';
 import { useSiteToast } from './use-site-toast.hooks.js';
 import { SiteToast } from './SiteToast.js';
 import { useStartImported } from './use-start-imported.hooks.js';
-import { useImportWebsite } from './use-import-website.hooks.js';
+import { createOpenImported, createOpenImportPage, useImportWebsite } from './use-import-website.hooks.js';
+import { useImportHandoff } from './use-import-handoff.hooks.js';
 import { useFindInPage } from './use-find-in-page.hooks.js';
 import { useZoom } from './use-zoom.hooks.js';
 import { ResourcesMonitor } from './ResourcesPanel.js';
 import type { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import type { useSiteFolders } from './use-site-folders.hooks.js';
-import type { SiteAdminPage } from './import-site-entry.js';
 import { FindBar } from './app/FindBar.js';
 import { TopNav } from './app/TopNav.js';
-import { TabStrip } from './app/TabStrip.js';
+import { TabStrip, type ImportTab } from './app/TabStrip.js';
 import { MainArea } from './app/MainArea.js';
 import { CreateWebsiteHost } from './app/CreateWebsiteHost.js';
 import { ImportWebsite } from './ImportWebsite.js';
@@ -44,6 +44,14 @@ function appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, act
   if (!showSitesHome) return null;
   if (isImporting) return 'import_website';
   return isCreating ? 'create_website' : activeId;
+}
+
+/** The Import tab's strip props, or none while it is closed. Out here so the open check is not one more
+ *  branch in `App`, which sits at the complexity ceiling. */
+function importTabProps({ open, selected, onSelect, onClose }: {
+  open: boolean; selected: boolean; onSelect: () => void; onClose: () => void;
+}, _options = {}): ImportTab | undefined {
+  return open ? { selected, onSelect, onClose } : undefined;
 }
 
 /** The sites-settings hooks `App` threads down; see `App`'s own doc. Each one left out falls back to
@@ -82,46 +90,63 @@ export interface SitesSettingsHooks {
  * prop is a branch).
  */
 export function App({
-  useProjects = useSitesPolling,
-  useTabs = useProjectTabs,
-  useNav = useSectionNav,
-  useExpanded = useExpandedMode,
-  sitesSettings = {},
+  useProjects = useSitesPolling, useTabs = useProjectTabs, useNav = useSectionNav,
+  useThemeHook = useTheme,
+  useSiteRescanHook = useSiteRescan,
+  useApplySiteRecordHook = useApplySiteRecord,
+  sitesSettings = {}, ...props
 }: {
   useProjects?: typeof useSitesPolling;
   useTabs?: typeof useProjectTabs;
   useNav?: typeof useSectionNav;
   useExpanded?: typeof useExpandedMode;
   sitesSettings?: SitesSettingsHooks;
+  useThemeHook?: typeof useTheme;
+  useSiteRescanHook?: typeof useSiteRescan;
+  useApplySiteRecordHook?: typeof useApplySiteRecord;
+  useProjectMutationsHook?: typeof useProjectMutations;
+  useSiteToastHook?: typeof useSiteToast;
+  useStartImportedHook?: typeof useStartImported;
+  useAddSiteHook?: typeof useAddSite;
+  useImportWebsiteHook?: typeof useImportWebsite;
+  useImportHandoffHook?: typeof useImportHandoff;
+  useFindInPageHook?: typeof useFindInPage;
+  useZoomHook?: typeof useZoom;
+  useRunnerNavigationHook?: typeof useRunnerNavigation;
+  useTabCloseAskHook?: typeof useTabCloseAsk;
+  useProductScreenHook?: typeof useProductScreen;
 } = {}) {
-  const [theme, setTheme] = useTheme();
-  const { projects, setProjects, projectsLoading, loadError } = useProjects();
-  const { rescanning, rescanError, rescan } = useSiteRescan(setProjects);
+  const theme = useThemeHook();
+  const projectState = useProjects();
+  const rescanState = useSiteRescanHook({ setProjects: projectState.setProjects });
   // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
   // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
-  const applySiteRecord = useApplySiteRecord(setProjects);
+  const applySiteRecord = useApplySiteRecordHook({ setProjects: projectState.setProjects });
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
-  const { openTabs, activeTab, setActiveTab, openProjectTab, closeProjectTab, adminPages } = useTabs();
-  const {
-    activeId,
-    setActiveId,
-    appearanceOpen,
-    isCreating,
-    isImporting,
-    selectSection,
-    openAppearance,
-    closeAppearance,
-    startCreating,
-    stopCreating,
-    startImporting,
-    stopImporting,
-  } = useNav(setActiveTab);
-  const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
-    deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
-  const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
-    useProjectMutations({
+  const tabs = useTabs();
+  const nav = useNav({ setActiveTab: tabs.setActiveTab });
+  return <AppProjects {...props} state={{ theme, projectState, rescanState, applySiteRecord, tabs, nav, sitesSettings }} />;
+}
+
+function AppProjects({ state,
+  useProjectMutationsHook = useProjectMutations,
+  useSiteToastHook = useSiteToast,
+  useStartImportedHook = useStartImported,
+  useAddSiteHook = useAddSite,
+  useImportWebsiteHook = useImportWebsite,
+  useImportHandoffHook = useImportHandoff, ...props
+}: NonNullable<Parameters<typeof App>[0]> & { state: {
+  theme: ReturnType<typeof useTheme>; projectState: ReturnType<typeof useSitesPolling>;
+  rescanState: ReturnType<typeof useSiteRescan>; applySiteRecord: ReturnType<typeof useApplySiteRecord>;
+  tabs: ReturnType<typeof useProjectTabs>; nav: ReturnType<typeof useSectionNav>; sitesSettings: SitesSettingsHooks;
+} }) {
+  const { projects, setProjects } = state.projectState;
+  const { applySiteRecord } = state;
+  const { openProjectTab, closeProjectTab } = state.tabs;
+  const { startCreating, stopCreating, startImporting, stopImporting } = state.nav;
+  const mutations = useProjectMutationsHook({
       projects,
       setProjects,
       closeProjectTab,
@@ -129,64 +154,80 @@ export function App({
       stopCreating,
     });
 
-  const siteToast = useSiteToast({ lastCreated });
-  // The Import page's sources. All end the same way: the new site's tab opens and the page closes.
-  const openImported = (id: string, adminPage?: SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
-  const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
-  const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
-    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); startImported(added); },
+  const { lastCreated, handleCreate } = mutations;
+  const siteToast = useSiteToastHook({ lastCreated });
+  const openImported = createOpenImported({ openProjectTab, stopImporting });
+  const startImported = useStartImportedHook({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
+  const added = useAddSiteHook({ setProjects }, {
+    onAdded: ({ added }, _options = {}) => { siteToast.announceAdded(added); openImported({ id: added.id }); startImported(added); },
   });
-  const liveImport = useImportWebsite({
+  const liveImport = useImportWebsiteHook({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
-    openSite: ({ site, adminPage }) => { openImported(site.id, adminPage); startImported(site); },
-    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
+    openSite: ({ site, adminPage }) => { openImported({ id: site.id }, { adminPage }); startImported(site); },
+    onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite({ current, added: site })); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
+  const openImportPage = createOpenImportPage({ clearAddError: added.clearAddError, liveImport, startImporting });
+  useImportHandoffHook({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
 
-  const { expanded, toggleExpanded } = useExpanded(showSiteTab);
-  const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
+  return <AppNavigation {...props} state={state} imports={{ mutations, siteToast, added, liveImport, openImportPage }} />;
+}
+
+function AppNavigation({ state, imports, useExpanded = useExpandedMode,
+  useFindInPageHook = useFindInPage,
+  useZoomHook = useZoom,
+  useRunnerNavigationHook = useRunnerNavigation,
+  useTabCloseAskHook = useTabCloseAsk,
+  useProductScreenHook = useProductScreen
+}: Parameters<typeof AppProjects>[0] & { imports: {
+  mutations: ReturnType<typeof useProjectMutations>; siteToast: ReturnType<typeof useSiteToast>; added: ReturnType<typeof useAddSite>;
+  liveImport: ReturnType<typeof useImportWebsite>; openImportPage: ReturnType<typeof createOpenImportPage>;
+} }) {
+  const { projects } = state.projectState;
+  const { activeTab, setActiveTab, openTabs, closeProjectTab } = state.tabs;
+  const { activeId, setActiveId, appearanceOpen, isCreating, isImporting } = state.nav;
+  const { applySiteRecord } = state;
+  const { addNotice } = imports.added;
+  const view = deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
+  const { showSiteTab, showSitesHome, visibleWorkspaceId, inSites } = view;
+  const expansion = useExpanded({ showSiteTab });
+  const { expanded } = expansion;
+  const presentation = appPresentation({
     showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice,
   });
+  const { guestTarget } = presentation;
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
-  const find = useFindInPage(guestTarget);
+  const find = useFindInPageHook({ activeGuestId: guestTarget });
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
-  const zoom = useZoom(guestTarget);
+  const zoom = useZoomHook({ activeGuestId: guestTarget });
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
-  const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
-  useRunnerNavigation(setActiveId, setActiveTab);
-  const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
-  const runningCount = countRunningSites(projects);
-  const active = findSection(activeId);
-  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
+  const chrome = chromeVisibility({ expanded, inSites, appearanceOpen });
+  useRunnerNavigationHook({ setActiveId, setActiveTab });
+  const tabClose = useTabCloseAskHook({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
+  const runningCount = countRunningSites({ projects });
+  const active = findSection({ id: activeId });
+  useProductScreenHook({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
+  return <AppView state={state} imports={imports} navigation={{ view, expansion, presentation, find, zoom, chrome, tabClose, runningCount, active }} />;
+}
+
+function AppView({ state, imports, navigation }: Pick<Parameters<typeof AppNavigation>[0], 'state' | 'imports'> & { navigation: {
+  view: ReturnType<typeof deriveSitesHomeView>; expansion: ReturnType<typeof useExpandedMode>; presentation: ReturnType<typeof appPresentation>;
+  find: ReturnType<typeof useFindInPage>; zoom: ReturnType<typeof useZoom>; chrome: ReturnType<typeof chromeVisibility>;
+  tabClose: ReturnType<typeof useTabCloseAsk>; runningCount: number; active: ReturnType<typeof findSection>;
+} }) {
+  const { projects } = state.projectState;
+  const { applySiteRecord } = state;
+  const { siteToast } = imports;
+  const { find, tabClose } = navigation;
+  const { tabNotice } = navigation.presentation;
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
     <div className="app">
       <FindBar find={find} />
-      {showTopNav && (
-      <TopNav
-        activeId={activeId}
-        onSitesHome={onSitesHome}
-        runningCount={runningCount}
-        theme={theme}
-        onThemeChange={setTheme}
-        onOpenAppearance={openAppearance}
-        onSelectSection={selectSection}
-        useSiteSettings={sitesSettings.useSiteSettings}
-      />
-      )}
-
-      {showTabStrip && (
-        <TabStrip
-          projects={openSites}
-          activeTab={selectedTab}
-          onSelectSitesHome={() => setActiveTab(null)}
-          onSelectTab={setActiveTab}
-          onCloseTab={tabClose.requestClose}
-        />
-      )}
+      <AppChrome state={state} navigation={navigation} />
 
       <main className="main">
         <TabCloseAsk project={tabClose.asking} stopping={tabClose.stopping} error={tabClose.error}
@@ -194,71 +235,11 @@ export function App({
         {/* Re-adding a tracked site opens its tab; keep that confirmation visible there too.
             Folder failures belong to the websites view and must not carry into site tabs. */}
         {tabNotice !== undefined && <p className="projects-feedback" role="status">{tabNotice}</p>}
-        <MainArea
-          appearanceOpen={appearanceOpen}
-          onCloseAppearance={closeAppearance}
-          showSitesHome={showSitesHome}
-          activeId={activeId}
-          isCreating={isCreating}
-          isImporting={isImporting}
-          active={active}
-          lastCreated={lastCreated}
-          projectsLoading={projectsLoading}
-          loadError={loadError}
-          projects={projects}
-          onCreateWebsite={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'create_website' } }); openCreateWebsite(); }}
-          onOpenProject={(id) => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }); openProjectTab(id); }}
-          onDeleteProject={handleDelete}
-          onSiteUpdated={applySiteRecord}
-          onRescan={rescan}
-          rescanning={rescanning}
-          rescanError={rescanError}
-          onImport={() => { clearAddError(); liveImport.clearFailure(); startImporting(); }}
-          useFolders={sitesSettings.useFolders}
-        />
+        <AppMainArea state={state} imports={imports} navigation={navigation} />
 
-        <CreateWebsiteHost
-          key={createFormKey}
-          hidden={!showCreateForm}
-          onBack={cancelCreate}
-          onCreate={async (input) => { await handleCreate(input); }}
-        />
+        <AppImportPage state={state} imports={imports} navigation={navigation} />
 
-        <ImportWebsite
-          shown={showImportPage}
-          onBack={stopImporting}
-          adding={adding}
-          onChooseFolder={() => { liveImport.clearFailure(); return addSite(); }}
-          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder(folder); }}
-          onImportArchive={liveImport.importArchive}
-          onRefuse={liveImport.refuse}
-          address={liveImport.address}
-          onAddressChange={liveImport.setAddress}
-          importing={liveImport.importing}
-          archiveRun={liveImport.archiveRun}
-          onCancelImport={() => void liveImport.cancelArchive()}
-          onPageOpen={liveImport.pageOpened}
-          onImportAddress={liveImport.importLive}
-          failure={liveImport.failure}
-          addError={addError}
-          addDetails={addDetails}
-        />
-
-        <SiteWorkspaces
-          inSites={inSites}
-          openSites={openSites}
-          visibleWorkspaceId={visibleWorkspaceId}
-          expanded={expanded}
-          onToggleExpanded={toggleExpanded}
-          registerGuest={find.registerGuest}
-          registerZoomGuest={zoom.registerGuest}
-          // Same setter the grid's own Start/Stop uses (`onSiteUpdated` on `MainArea` above) — see
-          // `useSiteStart`'s own doc on why a tab's "Start site" needs it too: without it, main's
-          // resolved record sits unused and the tab waits on `useSitesPolling`'s 4s poll to agree
-          // the site is actually up.
-          onSiteUpdated={applySiteRecord}
-          adminPages={adminPages}
-        />
+        <AppSiteWorkspaces state={state} navigation={navigation} />
       </main>
 
       <SiteToast toast={siteToast.toast} onDismiss={siteToast.dismiss} />
@@ -283,5 +264,134 @@ export function App({
           in `app.css` are kept for it. */}
     </div>
     </ResourcesMonitor>
+  );
+}
+
+function AppChrome({ state, navigation }: Pick<Parameters<typeof AppView>[0], 'state' | 'navigation'>) {
+  const { theme: [theme, setTheme], sitesSettings } = state;
+  const { activeId, openAppearance, selectSection, hideImporting, importTabOpen, startImporting, stopImporting } = state.nav;
+  const { setActiveTab } = state.tabs;
+  const { showTopNav, showTabStrip } = navigation.chrome;
+  const { onSitesHome, selectedTab } = navigation.presentation;
+  const { openSites, showImportPage } = navigation.view;
+  const { runningCount, tabClose } = navigation;
+  return <>
+      {showTopNav && (
+      <TopNav
+        activeId={activeId}
+        onSitesHome={onSitesHome}
+        runningCount={runningCount}
+        theme={theme}
+        onThemeChange={setTheme}
+        onOpenAppearance={openAppearance}
+        onSelectSection={selectSection}
+        useSiteSettings={sitesSettings.useSiteSettings}
+      />
+      )}
+
+      {showTabStrip && (
+        <TabStrip
+          projects={openSites}
+          activeTab={selectedTab}
+          onSelectSitesHome={() => { setActiveTab(null); hideImporting(); }}
+          onSelectTab={(id) => { setActiveTab(id); hideImporting(); }}
+          onCloseTab={(id) => tabClose.requestClose({ id })}
+          importTab={importTabProps({ open: importTabOpen, selected: showImportPage, onSelect: startImporting, onClose: stopImporting })}
+        />
+      )}
+  </>;
+}
+
+function AppMainArea({ state, imports, navigation }: Parameters<typeof AppView>[0]) {
+  const { projects, projectsLoading, loadError } = state.projectState;
+  const { rescanning, rescanError, rescan } = state.rescanState;
+  const { applySiteRecord, sitesSettings } = state;
+  const { appearanceOpen, closeAppearance, activeId, isCreating, isImporting } = state.nav;
+  const { openProjectTab } = state.tabs;
+  const { openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey, lastCreated } = imports.mutations;
+  const { openImportPage } = imports;
+  const { active, view: { showSitesHome, showCreateForm } } = navigation;
+  return <>
+        <MainArea
+          appearanceOpen={appearanceOpen}
+          onCloseAppearance={closeAppearance}
+          showSitesHome={showSitesHome}
+          activeId={activeId}
+          isCreating={isCreating}
+          isImporting={isImporting}
+          active={active}
+          lastCreated={lastCreated}
+          projectsLoading={projectsLoading}
+          loadError={loadError}
+          projects={projects}
+          onCreateWebsite={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'create_website' } }); openCreateWebsite(); }}
+          onOpenProject={(id) => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }); openProjectTab({ id }); }}
+          onDeleteProject={(id) => handleDelete({ id })}
+          onSiteUpdated={applySiteRecord}
+          onRescan={rescan}
+          rescanning={rescanning}
+          rescanError={rescanError}
+          onImport={openImportPage}
+          useFolders={sitesSettings.useFolders}
+        />
+
+        <CreateWebsiteHost
+          key={createFormKey}
+          hidden={!showCreateForm}
+          onBack={cancelCreate}
+          onCreate={async (input) => { await handleCreate(input); }}
+        />
+  </>;
+}
+
+function AppImportPage({ state, imports, navigation }: Parameters<typeof AppView>[0]) {
+  const { stopImporting } = state.nav;
+  const { liveImport } = imports;
+  const { adding, addSite, addDroppedFolder, addError, addDetails } = imports.added;
+  const { showImportPage } = navigation.view;
+  return (
+        <ImportWebsite
+          shown={showImportPage}
+          onBack={stopImporting}
+          adding={adding}
+          onChooseFolder={() => { liveImport.clearFailure(); return addSite(); }}
+          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder({ folder }); }}
+          onImportArchive={liveImport.importArchive}
+          onRefuse={liveImport.refuse}
+          address={liveImport.address}
+          onAddressChange={liveImport.setAddress}
+          importing={liveImport.importing}
+          archiveRun={liveImport.archiveRun}
+          onCancelImport={() => void liveImport.cancelArchive()}
+          onPageOpen={liveImport.pageOpened}
+          onImportAddress={liveImport.importLive}
+          failure={liveImport.failure}
+          addError={addError}
+          addDetails={addDetails}
+        />
+  );
+}
+
+function AppSiteWorkspaces({ state, navigation }: Pick<Parameters<typeof AppView>[0], 'state' | 'navigation'>) {
+  const { applySiteRecord, tabs: { adminPages } } = state;
+  const { inSites, openSites, visibleWorkspaceId } = navigation.view;
+  const { expanded, toggleExpanded } = navigation.expansion;
+  const { find, zoom } = navigation;
+  return (
+        <SiteWorkspaces
+          inSites={inSites}
+          openSites={openSites}
+          visibleWorkspaceId={visibleWorkspaceId}
+          expanded={expanded}
+          onToggleExpanded={toggleExpanded}
+          registerGuest={find.registerGuest}
+          registerZoomGuest={zoom.registerGuest}
+          // Same setter the grid's own Start/Stop uses (`onSiteUpdated` on `MainArea` above) — see
+          // `useSiteStart`'s own doc on why a tab's "Start site" needs it too: without it, main's
+          // resolved record sits unused and the tab waits on `useSitesPolling`'s 4s poll to agree
+          // the site is actually up.
+          onSiteUpdated={applySiteRecord}
+          adminPages={adminPages}
+        />
   );
 }

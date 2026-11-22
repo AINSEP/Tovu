@@ -3,6 +3,7 @@ import { NewsletterSubscriptionNotFoundError } from "#src/features/newsletter/in
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `RESEND_CONFIRMATION` (api.spec.md §1/§5) — `POST .../newsletter/subscriptions/:id/
@@ -15,23 +16,14 @@ import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps.js";
  * caller-supplied email, so that 404 does not itself leak subscriber existence the way an
  * email-keyed public route's 404 would).
  */
-export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/subscriptions/:id/resend-confirmation", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.subscriber.manage",
-        "newsletter_subscription",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -51,7 +43,7 @@ export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = (a
       }
       res.status(200).json({ delivered: true });
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

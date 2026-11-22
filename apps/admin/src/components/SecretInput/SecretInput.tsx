@@ -1,9 +1,10 @@
 import { forwardRef } from "react";
 import { SecretInput as JiniSecretInput } from "@jini-ai/ui";
 import type { SecretInputProps as JiniSecretInputProps } from "@jini-ai/ui";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { t } from "../shared-components-i18n";
 
+import { interpolate } from '@jini-ai/core/text';
 /**
  * @file The admin's one masked-input primitive: Jini's `SecretInput` (a password/token/key `<input>`
  * with an eye toggle inside its right edge), named in the admin locale. Drop-in for
@@ -35,8 +36,8 @@ export type SecretInputProps = Omit<JiniSecretInputProps, "toggleLabels"> & {
  */
 export function secretToggleLabels(required: { label: string }, optional: { locale?: string } = {}): { show: string; hide: string } {
   const locale = optional.locale ?? (typeof document === "undefined" ? "en" : document.documentElement.lang || "en");
-  const name = (key: string) => interpolate({ template: t({ locale, key }), vars: { label: required.label } });
-  return { show: name("Show {label}"), hide: name("Hide {label}") };
+  const name = ({ key }: { key: string }, _options: Record<string, never> = {}) => interpolate({ template: t({ locale, key }), vars: { label: required.label } });
+  return { show: name({ key: "Show {label}" }), hide: name({ key: "Hide {label}" }) };
 }
 
 export const SecretInput = forwardRef<HTMLInputElement, SecretInputProps>(function SecretInput({ secret = true, locale, ...props }, ref) {

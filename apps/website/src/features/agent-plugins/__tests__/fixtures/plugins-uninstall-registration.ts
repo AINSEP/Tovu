@@ -33,7 +33,7 @@ export function buildPluginsUninstallRegistration(deps: AgentPluginUninstallTool
     authorize: deps.authorize,
     workspaceId: deps.workspaceId,
     agentPluginLayout: deps.agentPluginLayout,
-    providerFaces: providerFacesFor({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+    providerFaces: providerFacesFor({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
     ...(deps.uninstallAgentPlugin ? { uninstallAgentPlugin: deps.uninstallAgentPlugin } : {}),
     // The operator's admin language for dialog copy is resolved by the supplied preferences owner.
     preferences: deps.preferences,

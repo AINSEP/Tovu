@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { AdminPluginProviderSettings } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
+
 import { t as translate } from "../plugins-i18n";
 import { describeApiError } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `PluginProviderSettingsDialog`'s data (2026-10-26): one provider plugin's settings card —
  * its manifest-declared fields, the saved public values, and for each secret only whether one is
@@ -22,7 +23,7 @@ export interface PluginProviderSettingsController {
   card: AdminPluginProviderSettings | null;
   /** The form's current text per field name. */
   values: Readonly<Record<string, string>>;
-  setValue: (name: string, value: string) => void;
+  setValue: (required: { name: string; value: string }, optional?: Record<string, never>) => void;
   /** Resolves `true` once the server has the values (the dialog then closes with a notice), `false` on a refusal. */
   save: () => Promise<boolean>;
   useSavedKey: () => Promise<boolean>;
@@ -44,9 +45,9 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     let live = true;
-    port.getProviderSettings(pluginId).then(
+    port.getProviderSettings({ id: pluginId }).then(
       (loaded) => { if (live) { setCard(loaded); setValues(initialValues(loaded)); } },
-      (failure: unknown) => { if (live) setError(describeApiError(failure, t("failed to load plugin settings"))); },
+      (failure: unknown) => { if (live) setError(describeApiError({ e: failure, fallback: t("failed to load plugin settings") })); },
     );
     return () => { live = false; };
   }, [pluginId, port, t]);
@@ -54,7 +55,7 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
     setSaving(true);
     setError(null);
     try {
-      const next = await port.saveProviderSettings(pluginId, values);
+      const next = await port.saveProviderSettings({ id: pluginId, values });
       setCard(next);
       setValues(initialValues(next));
       if (next.appliesAt === "failed") {
@@ -63,7 +64,7 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
       }
       return true;
     } catch (failure) {
-      setError(describeApiError(failure, t("failed to save plugin settings")));
+      setError(describeApiError({ e: failure, fallback: t("failed to save plugin settings") }));
       return false;
     } finally {
       setSaving(false);
@@ -75,7 +76,7 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
     setError(null);
     try {
       const usage = await port.useProjectKey({ keyId: card.keyId, use: true });
-      const next = await port.getProviderSettings(pluginId);
+      const next = await port.getProviderSettings({ id: pluginId });
       const applied = { ...next, ...usage };
       setCard(applied);
       setValues(initialValues(next));
@@ -84,14 +85,14 @@ export function usePluginProviderSettings({ pluginId, port, t }: { pluginId: str
         return false;
       }
       return true;
-    } catch (failure) { setError(describeApiError(failure, t("failed to save plugin settings"))); return false; }
+    } catch (failure) { setError(describeApiError({ e: failure, fallback: t("failed to save plugin settings") })); return false; }
     finally { setSaving(false); }
   };
-  return { card, values, setValue: (name, value) => setValues((current) => ({ ...current, [name]: value })), save, useSavedKey, saving, error, t };
+  return { card, values, setValue: ({ name, value }, _optional = {}) => setValues((current) => ({ ...current, [name]: value })), save, useSavedKey, saving, error, t };
 }
 
 /** Binds the real `/api/.../plugins/:id/provider-settings` client and the admin locale's translator. */
-export function useWiredPluginProviderSettings(pluginId: string): PluginProviderSettingsController {
+export function useWiredPluginProviderSettings({ pluginId }: { pluginId: string }, _optional = {}): PluginProviderSettingsController {
   const locale = useAdminLocale();
   const [t] = useState(() => (key: string): string => translate({ locale, key }));
   return usePluginProviderSettings({ pluginId, port: defaultPluginsPort, t });

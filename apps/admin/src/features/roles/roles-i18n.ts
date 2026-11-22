@@ -1,13 +1,12 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
+import { createDictionaryTranslator, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Roles & Permissions screen (`Roles.tsx`) — this feature's own
  * dictionary, not the shared `lib/admin-nav-i18n.ts` one, so parallel translation passes over
  * other admin sections can't collide on the same file. Same two-step fallback every other `t()`
  * in this app uses: translated value, else the English source string itself.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { localeEntry } from "@jini-ai/ui/panel-kit";
 
 const ROLES_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
@@ -1281,7 +1280,7 @@ const ROLES_AUDIT_STRINGS: Record<string, Record<string, string>> = {
   bn: { Custom: "কাস্টম", Permission: "অনুমতি", Add: "যোগ করুন" },
 };
 
-const ROLES_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(ROLES_TRANSLATIONS, ROLES_AUDIT_STRINGS);
+const ROLES_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: ROLES_TRANSLATIONS }, { overlays: [ROLES_AUDIT_STRINGS] });
 
 export const t = createDictionaryTranslator({ featureDictionary: ROLES_DICT }, { commonDictionary: COMMON_I18N });
 
@@ -1393,9 +1392,9 @@ const ROLES_DESCRIPTION_PARTS: Record<string, { prefix: string; linkLabel: strin
   },
   th: {
     prefix:
-      "บทบาทและนโยบายให้สิทธิ์การเข้าถึงแก่ผู้ใช้ที่เป็นผู้ควบคุม คุณสามารถกำหนดบทบาทหรือนโยบายให้กับผู้ใช้รายใดรายหนึ่งได้จากหน้าจอ ",
+      "บทบาทและนโยบายให้สิทธิ์การเข้าถึงแก่ผู้ใช้ที่เป็นผู้ควบคุม คุณสามารถกำหนดบทบาทหรือนโยบายให้กับผู้ใช้รายใดรายหนึ่งได้จากหน้าจอ",
     linkLabel: "ผู้ใช้",
-    suffix: "",
+    suffix: "นี้",
   },
   it: {
     prefix:
@@ -1423,7 +1422,7 @@ const ROLES_DESCRIPTION_PARTS: Record<string, { prefix: string; linkLabel: strin
   },
 };
 
-export function rolesDescriptionParts(locale: string): { prefix: string; linkLabel: string; suffix: string } {
+export function rolesDescriptionParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; linkLabel: string; suffix: string } {
   return localeEntry({ table: ROLES_DESCRIPTION_PARTS, locale });
 }
 
@@ -1455,7 +1454,7 @@ const ROLE_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string }>
   bn: { prefix: 'ভূমিকা "', suffix: '" মুছবেন?' },
 };
 
-export function roleDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
+export function roleDeleteBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: ROLE_DELETE_BODY_PARTS, locale });
 }
 
@@ -1485,7 +1484,7 @@ const POLICY_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string 
   bn: { prefix: 'নীতি "', suffix: '" মুছবেন?' },
 };
 
-export function policyDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
+export function policyDeleteBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: POLICY_DELETE_BODY_PARTS, locale });
 }
 
@@ -1519,6 +1518,6 @@ const PERMISSION_REMOVE_BODY_PARTS: Record<string, { prefix: string; suffix: str
   bn: { prefix: 'এই নীতি থেকে "', suffix: '" অনুমতি সরাবেন? এই নীতি থাকা প্রত্যেকে এটি হারাবে।' },
 };
 
-export function permissionRemoveBodyParts(locale: string): { prefix: string; suffix: string } {
+export function permissionRemoveBodyParts({ locale }: { locale: string }, _optional: Record<string, never> = {}): { prefix: string; suffix: string } {
   return localeEntry({ table: PERMISSION_REMOVE_BODY_PARTS, locale });
 }

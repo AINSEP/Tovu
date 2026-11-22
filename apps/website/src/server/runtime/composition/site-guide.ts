@@ -6,10 +6,11 @@ import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/c
 import { ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { readInstalledAgentPluginIdentity } from "#src/features/agent-plugins/identity";
-import { resolveThemeLayout } from "#src/features/theme/theme-layout";
+import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
-import { readSiteGuideFacts, loadSiteGuideContributions, type CapabilityCard, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
+import { readSiteGuideFacts, loadSiteGuideContributions, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
 import { capabilityCard as content } from "#src/features/post/capability-card";
 import { capabilityCard as forms } from "#src/features/forms/capability-card";
 import { capabilityCard as widgets } from "#src/features/widgets/capability-card";
@@ -19,7 +20,7 @@ import { capabilityCard as seo } from "#src/features/seo/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
 import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";
-import { capabilityCard as jini } from "#src/features/site-guide/capability-card";
+import { capabilityCard as jini } from "#src/features/site-guide/index";
 
 export const TOVU_CAPABILITY_CARDS: readonly CapabilityCard[] = [content, forms, widgets, themes, members, seo, deploy, backup, plugins, jini];
 export interface TovuSiteGuideDeps extends SiteProfileSourceDeps {
@@ -55,13 +56,13 @@ export function siteGuideFactDeps(
     listWidgetTypes: () => Object.values(WIDGET_TYPE_REGISTRATIONS).map(item => item.typeKey),
     listFormFieldTypes: () => [...FIELD_TYPES],
     listMarkers: () => [...new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE])],
-    listLayouts: () => [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir],
+    listLayouts: () => [resolveThemeLayout({}).pagesDir, resolveThemeLayout({}, { apiVersion: 2 }).pagesDir],
     // No membership enable/disable toggle exists; a wired repository does not establish feature state.
     readMembersEnabled: async () => null,
     readAgentPlugins: async () => {
-      const layout = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
+      const layout = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
       const installed = lifecycle.preferBundledAgentPluginDigests(
-        await lifecycle.listInstalledPlugins(layout.root), await lifecycle.readBundledAgentPluginDigests(layout.root),
+        await lifecycle.listInstalledPlugins({ workspaceRoot: layout.root }), await lifecycle.readBundledAgentPluginDigests({ workspaceRoot: layout.root }),
       );
       if (installed.length > 256) throw new ToolInputError({ message: "site_guide: agent-plugin inventory exceeds the 256-record read limit." });
       return Promise.all(installed.map(async plugin => {

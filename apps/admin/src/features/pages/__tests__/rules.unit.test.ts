@@ -1,22 +1,14 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../../lib/admin-post-list-sort";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import {
-  DEFAULT_PAGE_SORT,
   pageVersionConflictMessage,
-  readPageVersionConflict,
   buildPageAutosaveDraft,
   buildPageSavePlan,
-  comparePagesByStatus,
-  comparePagesBySlug,
-  comparePagesByTitle,
-  comparePagesByUpdated,
-  isAutosaveDraftStale,
   pageAcceptsHtmlBody,
   pageAdminPath,
-  pageAutosaveBannerMessage,
   pageAutosaveStaleBasisMessage,
-  pageColumnSortLabel,
   pageDirtyGuardBaseline,
   pageEditableHtml,
   pageEditorSurface,
@@ -30,7 +22,6 @@ import {
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
   themePageRowMenuItems,
-  updatedPageColumnSortLabel,
 } from "../rules";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
@@ -65,18 +56,18 @@ function page(overrides: Partial<AdminPost> = {}): AdminPost {
 
 describe("pageRowMenuItems", () => {
   it("returns Edit, Unpublish, then Delete (in that order) for a published page", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
     expect(items.map((i) => i.key)).toEqual(["edit", "unpublish", "delete"]);
   });
 
   it("returns Edit, Publish, then Delete for a draft page — the middle item flips rather than being omitted", () => {
-    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
+    const items = pageRowMenuItems({ page: DRAFT_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
     expect(items.map((i) => i.key)).toEqual(["edit", "publish", "delete"]);
     expect(items.find((i) => i.key === "unpublish")).toBeUndefined();
   });
 
   it("marks Delete destructive, and Edit/Unpublish not", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "en");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "en" });
     expect(items.find((i) => i.key === "delete")).toMatchObject({ label: "Delete", destructive: true });
     expect(items.find((i) => i.key === "edit")).not.toHaveProperty("destructive", true);
     expect(items.find((i) => i.key === "unpublish")).not.toHaveProperty("destructive", true);
@@ -86,9 +77,9 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "edit")!.onSelect();
-    expect(onEdit).toHaveBeenCalledWith(PUBLISHED_PAGE);
+    expect(onEdit).toHaveBeenCalledWith({ page: PUBLISHED_PAGE });
     expect(onTogglePublish).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
   });
@@ -97,7 +88,7 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "unpublish")!.onSelect();
     expect(onTogglePublish).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
@@ -108,7 +99,7 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    const items = pageRowMenuItems({ page: DRAFT_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "publish")!.onSelect();
     expect(onTogglePublish).toHaveBeenCalledWith(DRAFT_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
@@ -119,7 +110,7 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onTogglePublish = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onTogglePublish, onDelete }, "en");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit, onTogglePublish, onDelete }, locale: "en" });
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onDelete).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
@@ -127,7 +118,7 @@ describe("pageRowMenuItems", () => {
   });
 
   it("translates labels to Spanish when locale is es", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, "es");
+    const items = pageRowMenuItems({ page: PUBLISHED_PAGE, handlers: { onEdit: vi.fn(), onTogglePublish: vi.fn(), onDelete: vi.fn() }, locale: "es" });
     expect(items.map((i) => i.label)).toEqual(["Editar", "Anular publicación", "Eliminar"]);
   });
 });
@@ -142,7 +133,7 @@ const THEME_ROW: ThemePageRow = {
 
 describe("themePageRowMenuItems", () => {
   it("returns exactly Details then Edit — no Disable/Delete, since a theme page has no PostRecord for either", () => {
-    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails: vi.fn(), onEdit: vi.fn() }, (key) => key);
+    const items = themePageRowMenuItems({ row: THEME_ROW, handlers: { onOpenDetails: vi.fn(), onEdit: vi.fn() }, t: (key) => key });
     expect(items.map((i) => i.key)).toEqual(["details", "edit"]);
     expect(items[0]).toMatchObject({ label: "Details" });
     expect(items[1]).toMatchObject({ label: "Edit" });
@@ -151,7 +142,7 @@ describe("themePageRowMenuItems", () => {
   it("wires Details' onSelect to onOpenDetails with the row's own pageId, and only onOpenDetails", () => {
     const onOpenDetails = vi.fn();
     const onEdit = vi.fn();
-    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails, onEdit }, (key) => key);
+    const items = themePageRowMenuItems({ row: THEME_ROW, handlers: { onOpenDetails, onEdit }, t: (key) => key });
     items.find((i) => i.key === "details")!.onSelect();
     expect(onOpenDetails).toHaveBeenCalledWith("about");
     expect(onEdit).not.toHaveBeenCalled();
@@ -170,17 +161,17 @@ describe("themePageRowMenuItems", () => {
   it("wires Edit's onSelect to onEdit with the row's own pageId, and only onEdit", () => {
     const onOpenDetails = vi.fn();
     const onEdit = vi.fn();
-    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails, onEdit }, (key) => key);
+    const items = themePageRowMenuItems({ row: THEME_ROW, handlers: { onOpenDetails, onEdit }, t: (key) => key });
     items.find((i) => i.key === "edit")!.onSelect();
-    expect(onEdit).toHaveBeenCalledWith("about");
+    expect(onEdit).toHaveBeenCalledWith({ pageId: "about" });
     expect(onOpenDetails).not.toHaveBeenCalled();
   });
 
   it("translates both labels through the given Translate function", () => {
-    const items = themePageRowMenuItems(
-      THEME_ROW,
-      { onOpenDetails: vi.fn(), onEdit: vi.fn() },
-      (key) => (key === "Details" ? "Detalles" : key === "Edit" ? "Editar" : key)
+    const items = themePageRowMenuItems({
+      row: THEME_ROW,
+      handlers: { onOpenDetails: vi.fn(), onEdit: vi.fn() },
+      t: (key) => (key === "Details" ? "Detalles" : key === "Edit" ? "Editar" : key) }
     );
     expect(items.map((i) => i.label)).toEqual(["Detalles", "Editar"]);
   });
@@ -199,17 +190,17 @@ describe("themePageRowMenuItems", () => {
  * here, independent of any table, is each column's own comparator direction and its accessible-name
  * phrasing — mirrors `posts/__tests__/rules.unit.test.ts`'s identical section.
  */
-describe("comparePagesByUpdated", () => {
+describe("compareAdminPostsByUpdated", () => {
   const oldest = page({ id: "pg-old", updatedAt: "2026-01-01T00:00:00.000Z" });
   const middle = page({ id: "pg-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
   const newest = page({ id: "pg-new", updatedAt: "2026-08-10T00:00:00.000Z" });
 
   it("ascending order (DataTable's 'asc') sorts least-recently-updated first", () => {
-    expect([middle, oldest, newest].sort(comparePagesByUpdated).map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
+    expect([middle, oldest, newest].sort(compareAdminPostsByUpdated).map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
   });
 
   it("negating it (DataTable's 'desc') sorts most-recently-updated first", () => {
-    expect([middle, oldest, newest].sort((a, b) => -comparePagesByUpdated(a, b)).map((p) => p.id)).toEqual([
+    expect([middle, oldest, newest].sort((a, b) => -compareAdminPostsByUpdated(a, b)).map((p) => p.id)).toEqual([
       "pg-new",
       "pg-mid",
       "pg-old",
@@ -217,38 +208,38 @@ describe("comparePagesByUpdated", () => {
   });
 });
 
-describe("updatedPageColumnSortLabel", () => {
+describe("updatedColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null", () => {
-    const label = updatedPageColumnSortLabel(identityT, null);
+    const label = updatedColumnSortLabel({ t: identityT, direction: null });
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedPageColumnSortLabel(identityT, "desc");
+    const label = updatedColumnSortLabel({ t: identityT, direction: "desc" });
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedPageColumnSortLabel(identityT, "asc");
+    const label = updatedColumnSortLabel({ t: identityT, direction: "asc" });
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedPageColumnSortLabel(identityT, null), updatedPageColumnSortLabel(identityT, "asc"), updatedPageColumnSortLabel(identityT, "desc")]).size).toBe(3);
+    expect(new Set([updatedColumnSortLabel({ t: identityT, direction: null }), updatedColumnSortLabel({ t: identityT, direction: "asc" }), updatedColumnSortLabel({ t: identityT, direction: "desc" })]).size).toBe(3);
   });
 });
 
-describe("comparePagesByTitle / comparePagesBySlug", () => {
+describe("compareAdminPostsByTitle / compareAdminPostsBySlug", () => {
   const a = page({ id: "pg-a", title: "Alpha", slug: "charlie" });
   const b = page({ id: "pg-b", title: "Bravo", slug: "bravo" });
   const c = page({ id: "pg-c", title: "Charlie", slug: "alpha" });
 
   for (const [name, fn, ascending, descending] of [
-    ["comparePagesByTitle", comparePagesByTitle, ["pg-a", "pg-b", "pg-c"], ["pg-c", "pg-b", "pg-a"]],
-    ["comparePagesBySlug", comparePagesBySlug, ["pg-c", "pg-b", "pg-a"], ["pg-a", "pg-b", "pg-c"]],
+    ["compareAdminPostsByTitle", compareAdminPostsByTitle, ["pg-a", "pg-b", "pg-c"], ["pg-c", "pg-b", "pg-a"]],
+    ["compareAdminPostsBySlug", compareAdminPostsBySlug, ["pg-c", "pg-b", "pg-a"], ["pg-a", "pg-b", "pg-c"]],
   ] as const) {
     describe(name, () => {
       it("sorts A-to-Z ascending", () => {
@@ -262,18 +253,18 @@ describe("comparePagesByTitle / comparePagesBySlug", () => {
   }
 });
 
-describe("comparePagesByStatus", () => {
+describe("compareAdminPostsByStatus", () => {
   // Exactly two pages with different statuses — see `posts/rules.ts`'s own test for why a third,
   // necessarily-tied row would test `Array#sort`'s stability rather than this comparator.
   const draft = page({ id: "pg-draft", status: "draft" });
   const published = page({ id: "pg-published", status: "published" });
 
   it("ascending sorts draft before published", () => {
-    expect([published, draft].sort(comparePagesByStatus).map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
+    expect([published, draft].sort(compareAdminPostsByStatus).map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
   });
 
   it("negating it sorts published before draft", () => {
-    expect([draft, published].sort((a, b) => -comparePagesByStatus(a, b)).map((p) => p.id)).toEqual([
+    expect([draft, published].sort((a, b) => -compareAdminPostsByStatus(a, b)).map((p) => p.id)).toEqual([
       "pg-published",
       "pg-draft",
     ]);
@@ -282,17 +273,17 @@ describe("comparePagesByStatus", () => {
 
 describe("pagePublicPath", () => {
   it("renders the root slug as '/' rather than doubling it into '//'", () => {
-    expect(pagePublicPath("/")).toBe("/");
+    expect(pagePublicPath({ slug: "/" })).toBe("/");
   });
 
   it("prefixes an ordinary slug with a single leading slash", () => {
-    expect(pagePublicPath("about")).toBe("/about");
+    expect(pagePublicPath({ slug: "about" })).toBe("/about");
   });
 
   it("does not special-case a slug that merely starts with a slash but isn't exactly '/'", () => {
     // Not a real slug shape today (post.ts's isValidSlugFormat rejects it), but the function's own
     // equality check (`slug === "/"`) is what matters here, not slug-format validation elsewhere.
-    expect(pagePublicPath("/about")).toBe("//about");
+    expect(pagePublicPath({ slug: "/about" })).toBe("//about");
   });
 });
 
@@ -327,33 +318,33 @@ describe("pageAdminPath", () => {
   });
 });
 
-describe("DEFAULT_PAGE_SORT", () => {
+describe("DEFAULT_ADMIN_POST_SORT", () => {
   it("is Updated, newest-first, consistent with Posts' own default", () => {
-    expect(DEFAULT_PAGE_SORT).toEqual({ column: "updated", direction: "desc" });
+    expect(DEFAULT_ADMIN_POST_SORT).toEqual({ column: "updated", direction: "desc" });
   });
 });
 
-describe("pageColumnSortLabel", () => {
+describe("columnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = pageColumnSortLabel(identityT, "Title", null);
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: null });
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = pageColumnSortLabel(identityT, "Title", "asc");
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = pageColumnSortLabel(identityT, "Title", "desc");
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([pageColumnSortLabel(identityT, "Title", null), pageColumnSortLabel(identityT, "Title", "asc"), pageColumnSortLabel(identityT, "Title", "desc")]).size).toBe(3);
+    expect(new Set([columnSortLabel({ t: identityT, columnName: "Title", direction: null }), columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
   });
 });
 
@@ -369,30 +360,30 @@ describe("pageAcceptsHtmlBody", () => {
   const REAL_DOC = { type: "doc", content: [{ type: "paragraph" }] };
 
   it("is true for an html-format page, authored or not", () => {
-    expect(pageAcceptsHtmlBody({ bodyFormat: "html", bodyJson: {} }, "<p>x</p>")).toBe(true);
-    expect(pageAcceptsHtmlBody({ bodyFormat: "html", bodyJson: {} }, "")).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "html", bodyJson: {} }, html: "<p>x</p>" })).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "html", bodyJson: {} }, html: "" })).toBe(true);
   });
 
   it("is true for a brand-new doc-format page once HTML is actually authored into it", () => {
-    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: EMPTY_DOC }, "<h1>hi</h1>")).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "doc", bodyJson: EMPTY_DOC }, html: "<h1>hi</h1>" })).toBe(true);
   });
 
   it("is false for a doc-format page with nothing authored — no premature conversion on a metadata save", () => {
-    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: EMPTY_DOC }, "")).toBe(false);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "doc", bodyJson: EMPTY_DOC }, html: "" })).toBe(false);
   });
 
   it("is false for a doc-format page carrying a real Tiptap document, even with HTML typed (the F01 guard)", () => {
-    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: REAL_DOC }, "<p>typed over it</p>")).toBe(false);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "doc", bodyJson: REAL_DOC }, html: "<p>typed over it</p>" })).toBe(false);
   });
 
   it("treats an absent or non-array content field as nothing to lose", () => {
-    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: {} }, "<p>x</p>")).toBe(true);
-    expect(pageAcceptsHtmlBody({ bodyFormat: "doc", bodyJson: { content: "not an array" } }, "<p>x</p>")).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "doc", bodyJson: {} }, html: "<p>x</p>" })).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyFormat: "doc", bodyJson: { content: "not an array" } }, html: "<p>x</p>" })).toBe(true);
   });
 
   it("treats an absent bodyFormat the same as doc — an older row that predates the column", () => {
-    expect(pageAcceptsHtmlBody({ bodyJson: REAL_DOC }, "<p>x</p>")).toBe(false);
-    expect(pageAcceptsHtmlBody({ bodyJson: EMPTY_DOC }, "<p>x</p>")).toBe(true);
+    expect(pageAcceptsHtmlBody({ page: { bodyJson: REAL_DOC }, html: "<p>x</p>" })).toBe(false);
+    expect(pageAcceptsHtmlBody({ page: { bodyJson: EMPTY_DOC }, html: "<p>x</p>" })).toBe(true);
   });
 });
 
@@ -400,10 +391,10 @@ describe("buildPageSavePlan", () => {
   const FORM = { title: "About", slug: "about", status: "draft" as const, templateChoice: null, html: "<p>body</p>" };
 
   it.each([undefined, "published"] as const)("includes the chosen template and slug in the full metadata payload (%s)", (nextStatus) => {
-    const plan = buildPageSavePlan(
-      { bodyFormat: "html", bodyJson: {}, version: 7 },
-      { ...FORM, slug: "new-slug", templateChoice: "blog-post.html" },
-      nextStatus
+    const plan = buildPageSavePlan({
+      page: { bodyFormat: "html", bodyJson: {}, version: 7 },
+      form: { ...FORM, slug: "new-slug", templateChoice: "blog-post.html" } },
+      { nextStatus }
     );
     expect(plan.updatePostPayload).toEqual({
       title: "About",
@@ -415,42 +406,42 @@ describe("buildPageSavePlan", () => {
   });
 
   it("omits bodyJson for an already-html row — the metadata writer no longer demands one", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
+    const plan = buildPageSavePlan({ page: { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 7 }, form: FORM });
     expect(plan.canSaveHtml).toBe(true);
     expect(plan.updatePostPayload).not.toHaveProperty("bodyJson");
   });
 
   it("round-trips bodyJson whenever the HTML route will not fire", () => {
     const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
-    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson, version: 7 }, FORM);
+    const plan = buildPageSavePlan({ page: { bodyFormat: "doc", bodyJson, version: 7 }, form: FORM });
     expect(plan.canSaveHtml).toBe(false);
     expect(plan.updatePostPayload.bodyJson).toEqual(bodyJson);
   });
 
   it("saves the HTML authored into a brand-new page — the 2026-09-06 fix", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "doc", bodyJson: { type: "doc", content: [] }, version: 7 }, FORM);
+    const plan = buildPageSavePlan({ page: { bodyFormat: "doc", bodyJson: { type: "doc", content: [] }, version: 7 }, form: FORM });
     expect(plan.canSaveHtml).toBe(true);
     expect(plan.updatePostPayload.bodyJson).toEqual({ type: "doc", content: [] });
   });
 
   it("prefers nextStatus over the form's own status, and writes it to both fields", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {}, version: 7 }, FORM, "published");
+    const plan = buildPageSavePlan({ page: { bodyFormat: "html", bodyJson: {}, version: 7 }, form: FORM }, { nextStatus: "published" });
     expect(plan.statusToWrite).toBe("published");
     expect(plan.updatePostPayload.status).toBe("published");
   });
 
   it("falls back to the form's status when no nextStatus is given", () => {
-    const plan = buildPageSavePlan({ bodyFormat: "html", bodyJson: {}, version: 7 }, { ...FORM, status: "published" });
+    const plan = buildPageSavePlan({ page: { bodyFormat: "html", bodyJson: {}, version: 7 }, form: { ...FORM, status: "published" } });
     expect(plan.statusToWrite).toBe("published");
   });
 });
 
 describe("buildPageAutosaveDraft", () => {
   it("an html-format page sends bodyHtml, never the inert bodyJson placeholder", () => {
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 3 },
-      { title: "About", slug: "about", html: "<main>hi</main>" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "html", bodyJson: { type: "doc", content: [] }, version: 3 },
+      form: { title: "About", slug: "about", html: "<main>hi</main>" }
+    });
     expect(draft).toEqual({
       bodyFormat: "html",
       bodyHtml: "<main>hi</main>",
@@ -462,10 +453,10 @@ describe("buildPageAutosaveDraft", () => {
 
   it("a doc-format page round-trips bodyJson unchanged — this editor has no way to edit it", () => {
     const bodyJson = { type: "doc", content: [{ type: "paragraph" }] };
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "doc", bodyJson, version: 1 },
-      { title: "About", slug: "about", html: "ignored for a doc-format page" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "doc", bodyJson, version: 1 },
+      form: { title: "About", slug: "about", html: "ignored for a doc-format page" }
+    });
     expect(draft).toEqual({
       bodyFormat: "doc",
       bodyJson,
@@ -476,10 +467,10 @@ describe("buildPageAutosaveDraft", () => {
   });
 
   it("baseVersion always comes from the page's own version, not a caller-supplied guess", () => {
-    const draft = buildPageAutosaveDraft(
-      { bodyFormat: "html", bodyJson: {}, version: 42 },
-      { title: "About", slug: "about", html: "<p/>" }
-    );
+    const draft = buildPageAutosaveDraft({
+      page: { bodyFormat: "html", bodyJson: {}, version: 42 },
+      form: { title: "About", slug: "about", html: "<p/>" }
+    });
     expect(draft.baseVersion).toBe(42);
   });
 });
@@ -495,49 +486,23 @@ describe("pageEditorSurface", () => {
   const PENDING = { status: "pending" } as const;
 
   it("shows the preview surface on the preview tab, whatever the canvas is doing", () => {
-    expect(pageEditorSurface("preview", PENDING)).toEqual({ kind: "preview" });
-    expect(pageEditorSurface("preview", READY)).toEqual({ kind: "preview" });
+    expect(pageEditorSurface({ view: "preview", canvasStyling: PENDING })).toEqual({ kind: "preview" });
+    expect(pageEditorSurface({ view: "preview", canvasStyling: READY })).toEqual({ kind: "preview" });
   });
 
   it("shows the raw HTML surface on the html tab, whatever the canvas is doing", () => {
-    expect(pageEditorSurface("html", PENDING)).toEqual({ kind: "html" });
-    expect(pageEditorSurface("html", READY)).toEqual({ kind: "html" });
+    expect(pageEditorSurface({ view: "html", canvasStyling: PENDING })).toEqual({ kind: "html" });
+    expect(pageEditorSurface({ view: "html", canvasStyling: READY })).toEqual({ kind: "html" });
   });
 
   it("holds the Interactive tab at the pending surface until the theme's styling settles", () => {
     // Not cosmetic: `InteractiveHtmlEditor` reads its canvas styling ONCE at mount, so mounting it
     // early produces a canvas that can never pick the theme up afterwards.
-    expect(pageEditorSurface("interactive", PENDING)).toEqual({ kind: "interactive-pending" });
+    expect(pageEditorSurface({ view: "interactive", canvasStyling: PENDING })).toEqual({ kind: "interactive-pending" });
   });
 
   it("carries the resolved styling through on the interactive surface, so the view needs no cast", () => {
-    expect(pageEditorSurface("interactive", READY)).toEqual({ kind: "interactive", styling: READY.styling });
-  });
-});
-
-describe("isAutosaveDraftStale", () => {
-  it("is false when the draft's baseVersion still matches the row's current version", () => {
-    expect(isAutosaveDraftStale(3, 3)).toBe(false);
-  });
-
-  it("is true once a real save has moved the row's version past the draft's basis", () => {
-    expect(isAutosaveDraftStale(3, 4)).toBe(true);
-  });
-});
-
-describe("pageAutosaveBannerMessage", () => {
-  const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
-
-  it("a fresh draft reads 'Unsaved changes from N minutes ago'", () => {
-    expect(pageAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, false)).toBe(
-      "Unsaved changes from 5 minutes ago"
-    );
-  });
-
-  it("a stale draft names the newer save explicitly instead of implying it is current", () => {
-    expect(pageAutosaveBannerMessage("2026-09-06T00:05:00.000Z", NOW, true)).toBe(
-      "Unsaved changes from before a newer save (captured 5 minutes ago)"
-    );
+    expect(pageEditorSurface({ view: "interactive", canvasStyling: READY })).toEqual({ kind: "interactive", styling: READY.styling });
   });
 });
 
@@ -556,7 +521,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
     "want to keep first.";
 
   it("names the basis the operator was working from, and states all four facts they cannot infer", () => {
-    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage({ t: identityT, baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -573,7 +538,7 @@ describe("pageAutosaveStaleBasisMessage", () => {
   });
 
   it("promises no recovery it cannot deliver — the browser-storage mirror is best-effort and unnamed", () => {
-    const message = pageAutosaveStaleBasisMessage(identityT, { baseVersion: 4, draft: {
+    const message = pageAutosaveStaleBasisMessage({ t: identityT, baseVersion: 4, draft: {
       bodyFormat: "html",
       bodyHtml: "<p>still being typed</p>",
       title: "Landing",
@@ -588,10 +553,10 @@ describe("pageAutosaveStaleBasisMessage", () => {
 /** H1's own message — see `use-page-editor.hooks.ts`'s `PageBodyWriteError`/`applySaveFailure` for
  *  when this fires: the metadata write landed but the body write then failed. */
 describe("pagePartialSaveMessage", () => {
-  const t = (locale: string, key: string) => `${locale}:${key}`;
+  const t = ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`;
 
   it("names what saved, what did not, and appends the underlying reason", () => {
-    const message = pagePartialSaveMessage(t, "en", new Error("boom"));
+    const message = pagePartialSaveMessage({ t, locale: "en", reason: new Error("boom") });
 
     expect(message).toBe(
       "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (boom)"
@@ -599,7 +564,7 @@ describe("pagePartialSaveMessage", () => {
   });
 
   it("falls back to the generic failure copy for a non-Error rejection", () => {
-    const message = pagePartialSaveMessage(t, "en", "not an Error");
+    const message = pagePartialSaveMessage({ t, locale: "en", reason: "not an Error" });
 
     expect(message).toBe(
       "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
@@ -607,33 +572,15 @@ describe("pagePartialSaveMessage", () => {
   });
 
   it("falls back to the generic failure copy for an Error with an empty message", () => {
-    expect(pagePartialSaveMessage(t, "en", new Error(""))).toBe(
+    expect(pagePartialSaveMessage({ t, locale: "en", reason: new Error("") })).toBe(
       "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
     );
   });
 });
 
-describe("readPageVersionConflict", () => {
-  it.each([undefined, {}, { details: null }, { details: { expectedVersion: "4", currentVersion: "5" } }])(
-    "leaves unknown conflict versions null for body %j", (body) => {
-      const error = new ApiError("stale save", 409, "VERSION_CONFLICT", body);
-      expect(readPageVersionConflict(error, "published")).toEqual({
-        expectedVersion: null, currentVersion: null, attemptedStatus: "published",
-      });
-    },
-  );
-
-  it("keeps the available version when only the current version is missing", () => {
-    const error = new ApiError("stale save", 409, "VERSION_CONFLICT", { details: { expectedVersion: 4 } });
-    expect(readPageVersionConflict(error, undefined)).toEqual({
-      expectedVersion: 4, currentVersion: null, attemptedStatus: undefined,
-    });
-  });
-});
-
 describe("pageVersionConflictMessage with unknown versions", () => {
   it("explains a newer save without inventing either missing version", () => {
-    expect(pageVersionConflictMessage(identityT, { expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
+    expect(pageVersionConflictMessage({ t: identityT, expectedVersion: null, currentVersion: null, attemptedStatus: "draft" }))
       .toBe("Someone else saved this while you were editing — you were working from the version you loaded, and a newer version is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version.");
   });
 });
@@ -647,21 +594,21 @@ const LOADED_PAGE = {
 
 describe("pagePreviewFormTarget", () => {
   it("is empty before the page loads", () => {
-    expect(pagePreviewFormTarget(null)).toBe("");
+    expect(pagePreviewFormTarget({ page: null })).toBe("");
   });
 
   it("names the loaded page's id", () => {
-    expect(pagePreviewFormTarget(LOADED_PAGE)).toBe("page-preview-pending-pg-1");
+    expect(pagePreviewFormTarget({ page: LOADED_PAGE })).toBe("page-preview-pending-pg-1");
   });
 });
 
 describe("pageDirtyGuardBaseline", () => {
   it("is null before the page loads", () => {
-    expect(pageDirtyGuardBaseline(null, "<p>saved</p>", "pages-default.html")).toBeNull();
+    expect(pageDirtyGuardBaseline({ page: null, savedHtml: "<p>saved</p>", savedTemplateChoice: "pages-default.html" })).toBeNull();
   });
 
   it("pairs the loaded row's title/slug/status with the SAVED html and template choice", () => {
-    expect(pageDirtyGuardBaseline(LOADED_PAGE, "<p>saved</p>", "pages-default.html")).toEqual({
+    expect(pageDirtyGuardBaseline({ page: LOADED_PAGE, savedHtml: "<p>saved</p>", savedTemplateChoice: "pages-default.html" })).toEqual({
       title: "Landing",
       slug: "landing",
       status: "published",
@@ -704,36 +651,36 @@ describe("pageRefreshMayHaveUnsavedEdits", () => {
 
 describe("pagePickerValue / pickerValueToChoice (bare-page ruling 2026-09-23, S6)", () => {
   it("shows the shipped shell filename for a null Page when the theme lists it", () => {
-    expect(pagePickerValue(null, ["pages-default.html", "blog-post.html"])).toBe("pages-default.html");
+    expect(pagePickerValue({ templateChoice: null, availableTemplates: ["pages-default.html", "blog-post.html"] })).toBe("pages-default.html");
   });
 
   it("falls back to the legacy page-shell.html name when the theme ships that instead", () => {
-    expect(pagePickerValue(null, ["page-shell.html", "blog-post.html"])).toBe("page-shell.html");
+    expect(pagePickerValue({ templateChoice: null, availableTemplates: ["page-shell.html", "blog-post.html"] })).toBe("page-shell.html");
   });
 
   it("prefers pages-default.html over page-shell.html when a theme ships both", () => {
-    expect(pagePickerValue(null, ["page-shell.html", "pages-default.html"])).toBe("pages-default.html");
+    expect(pagePickerValue({ templateChoice: null, availableTemplates: ["page-shell.html", "pages-default.html"] })).toBe("pages-default.html");
   });
 
   it("returns the sentinel for a null Page when the theme ships neither shell filename", () => {
-    expect(pagePickerValue(null, ["blog-post.html"])).toBe(THEME_DEFAULT_SENTINEL);
+    expect(pagePickerValue({ templateChoice: null, availableTemplates: ["blog-post.html"] })).toBe(THEME_DEFAULT_SENTINEL);
   });
 
   it("passes an explicit bare choice (\"\") straight through, never the sentinel", () => {
-    expect(pagePickerValue("", ["pages-default.html"])).toBe("");
+    expect(pagePickerValue({ templateChoice: "", availableTemplates: ["pages-default.html"] })).toBe("");
   });
 
   it("passes a real filename straight through", () => {
-    expect(pagePickerValue("blog-post.html", ["pages-default.html", "blog-post.html"])).toBe("blog-post.html");
+    expect(pagePickerValue({ templateChoice: "blog-post.html", availableTemplates: ["pages-default.html", "blog-post.html"] })).toBe("blog-post.html");
   });
 
   it("pickerValueToChoice maps the sentinel back to null", () => {
-    expect(pickerValueToChoice(THEME_DEFAULT_SENTINEL)).toBeNull();
+    expect(pickerValueToChoice({ value: THEME_DEFAULT_SENTINEL })).toBeNull();
   });
 
   it("pickerValueToChoice passes every other value through unchanged, including \"\"", () => {
-    expect(pickerValueToChoice("")).toBe("");
-    expect(pickerValueToChoice("pages-default.html")).toBe("pages-default.html");
+    expect(pickerValueToChoice({ value: "" })).toBe("");
+    expect(pickerValueToChoice({ value: "pages-default.html" })).toBe("pages-default.html");
   });
 });
 
@@ -742,9 +689,9 @@ describe("sort labels and conflict copy are translated, not English passthrough"
     const { t: pagesT } = await import("../pages-i18n");
     const { t: editorT } = await import("../page-editor-i18n");
     const deT = (key: string): string => pagesT({ locale: "de", key });
-    expect(pageColumnSortLabel(deT, deT("Title"), null)).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
-    expect(updatedPageColumnSortLabel(deT, "desc")).toMatch(/^Nach Aktualisierungsdatum sortiert/);
-    const message = pageVersionConflictMessage((key) => editorT("de", key), { expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
+    expect(columnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
+    expect(updatedColumnSortLabel({ t: deT, direction: "desc" })).toMatch(/^Nach Aktualisierungsdatum sortiert/);
+    const message = pageVersionConflictMessage({ t: (key) => editorT({ locale: "de", key }), expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
     expect(message).toContain("die von dir geladene Version");
     expect(message).toContain("Version 7");
     expect(message).not.toMatch(/Someone else|version you loaded/);

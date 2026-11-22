@@ -11,10 +11,8 @@ import {
   type SourceConfigDependencies,
   type SourceConfigItem,
 } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
@@ -31,6 +29,7 @@ import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissio
 import { useExternalMcpOAuthConnect } from "./hooks/use-external-mcp-oauth-connect.hooks";
 import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
  * that feature's `useSourceConfigList().test`/`.isPending`/`.testResults` key a "test before save"
@@ -187,21 +186,21 @@ function ExternalMcpAddFormSection(props: {
  *  presence-spread is not a conditional expression NESTED inside {@link ExternalMcpSourceRow}'s own
  *  JSX — `sonarjs/no-nested-conditional`'s complaint about the shape, not about anything the values
  *  do. */
-function ExternalMcpConnectionCard(props: {
+function ExternalMcpConnectionCard({ useExternalMcpDriftCopyHook = useExternalMcpDriftCopy, ...props }: {
   source: SourceConfigItem;
   cardHandle: string;
   fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
-  onRequestRemove: (sourceId: string) => void;
+  onRequestRemove: (sourceId: string) => void; useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
 }) {
   const { source, cardHandle, fieldSpecs, list, onRequestRemove } = props;
   const testResult = list.testResults[source.id];
-  const tBuiltIn = useExternalMcpDriftCopy();
+  const tBuiltIn = useExternalMcpDriftCopyHook();
   if (isBuiltInExternalMcpSource({ source })) {
     // Same head-row shape as `SourceConfigItemCard` (toggle, name, then a small badge and ⓘ), minus
     // Remove and the expandable fields: a built-in connection is the host's, not the operator's.
-    const label = sourceDisplayLabel(source, fieldSpecs);
-    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", label);
+    const label = sourceDisplayLabel({ source, fieldSpecs });
+    const enableLabel = tBuiltIn("Enable {name}").replace("{name}", () => label);
     return (
       <div className="source-config-item-card external-mcp-builtin-card" role="region" aria-label={label} {...agentHandle({ handle: cardHandle }, { role: "region", label })}>
         <div className="source-config-item-card-head">
@@ -213,7 +212,7 @@ function ExternalMcpConnectionCard(props: {
             <span className="external-mcp-builtin-badge">{tBuiltIn("Built-in")}</span>
             <InfoTip
               label={tBuiltIn("Lets this site's assistant list your other Tovu sites, add a site pointer, and reveal a site folder.")}
-              triggerLabel={tBuiltIn("About {name}").replace("{name}", label)}
+              triggerLabel={tBuiltIn("About {name}").replace("{name}", () => label)}
               agentHandle={`${cardHandle}-info`}
             />
           </span>
@@ -247,7 +246,7 @@ function ExternalMcpConnectionCard(props: {
  *  the row says what it is waiting on. */
 function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string; busy: boolean; tDrift: Translate; onConnect: () => void }) {
   const { cardHandle, rowLabel, busy, tDrift, onConnect } = props;
-  const label = tDrift("Sign in to {name}").replace("{name}", rowLabel);
+  const label = tDrift("Sign in to {name}").replace("{name}", () => rowLabel);
   return (
     <button
       type="button"
@@ -263,7 +262,7 @@ function ExternalMcpConnectButton(props: { cardHandle: string; rowLabel: string;
 }
 
 /** The verification page's host, for the device-code line; the raw string if it won't parse. */
-function displayHost(uri: string): string {
+function displayHost({ uri }: { uri: string }, _options = {}): string {
   try { return new URL(uri).host; } catch { return uri; }
 }
 
@@ -280,7 +279,7 @@ function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalM
       {state.phase === "device" ? (
         <span>
           {tDrift("Enter this code on the sign-in page:")} <code>{state.userCode}</code>{" "}
-          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost(state.verificationUri)}</a>
+          <a href={state.verificationUri} target="_blank" rel="noreferrer">{displayHost({ uri: state.verificationUri })}</a>
         </span>
       ) : (
         <span>{tDrift("Finish signing in in the new window.")}</span>
@@ -299,7 +298,7 @@ function ExternalMcpConnectStatus(props: { state: ReturnType<typeof useExternalM
  *  parameter (rather than dropped and re-added) because {@link ExternalMcpToolsModal} needs the same
  *  translator for its own "Tools" kicker and calls it itself; this row has no copy of its own left
  *  to translate. */
-function ExternalMcpSourceRow(props: {
+function ExternalMcpSourceRow({ useConnect = useExternalMcpOAuthConnect, ...props }: {
   source: SourceConfigItem;
   cardHandle: string;
   list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
@@ -310,12 +309,12 @@ function ExternalMcpSourceRow(props: {
   /** Test seam for the sign-in flow. */
   useConnect?: typeof useExternalMcpOAuthConnect;
 }) {
-  const { source, cardHandle, list, tDrift, onRequestRemove, useConnect = useExternalMcpOAuthConnect } = props;
+  const { source, cardHandle, list, tDrift, onRequestRemove } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
-  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, tDrift);
+  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, { t: tDrift });
   // The SAVED count, not the picker's own draft — see this file's header on why.
-  const enabledToolCount = parseSavedToolNames(source.fields["allowedToolNames"]).length;
-  const rowLabel = sourceDisplayLabel(source, fieldSpecs);
+  const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
+  const rowLabel = sourceDisplayLabel({ source, fieldSpecs });
   // Idle (no listeners, no timers) for every row until its Connect is pressed.
   const signIn = useConnect(
     { serverId: source.id, grant: source.fields["oauthGrant"] ?? "", onConnected: () => void list.reload() },
@@ -427,7 +426,7 @@ function ExternalMcpSourcesSection(props: {
         <ExternalMcpSourceRow
           key={source.id}
           source={source}
-          cardHandle={cardHandles[index]!}
+          cardHandle={cardHandles[index]}
           list={list}
           tDrift={tDrift}
           onRequestRemove={onRequestRemove}
@@ -455,13 +454,13 @@ function ExternalMcpRemoveConfirmSection(props: {
   if (confirmRemoveId === null) return null;
   const index = sources.findIndex((source) => source.id === confirmRemoveId);
   if (index === -1) return null;
-  const source = sources[index]!;
+  const source = sources[index];
 
   return (
     <ExternalMcpRemoveConfirmDialog
-      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, tDrift))}
+      name={sourceDisplayLabel({ source, fieldSpecs: buildExternalMcpFieldSpecs(source.fields, { t: tDrift }) })}
       isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
-      cardHandle={cardHandles[index]!}
+      cardHandle={cardHandles[index]}
       onConfirm={() => onConfirm(source.id)}
       onCancel={onCancel}
       t={tDrift}
@@ -483,60 +482,44 @@ export interface ExternalMcpSettingsPanelProps {
    *  place that explains what this specific tab configures; `Providers.tsx`'s own page-level
    *  description covers all four of its tabs, not this one alone. */
   showTitle?: boolean;
+  useTHook?: typeof useT;
+  useWiredSourceConfigListHook?: typeof useWiredSourceConfigList;
+  useExternalMcpAddFormHook?: typeof useExternalMcpAddForm;
+  useSavedAllowedToolNamesByIdHook?: typeof useSavedAllowedToolNamesById;
+  useExternalMcpDriftCopyHook?: typeof useExternalMcpDriftCopy;
 }
 
-export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions }: ExternalMcpSettingsPanelProps) {
-  const t = useT();
+export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTitle = true, useExternalMcpAdmissionsHook = useWiredExternalMcpAdmissions,
+  useTHook = useT,
+  useWiredSourceConfigListHook = useWiredSourceConfigList,
+  useExternalMcpAddFormHook = useExternalMcpAddForm,
+  useSavedAllowedToolNamesByIdHook = useSavedAllowedToolNamesById,
+  useExternalMcpDriftCopyHook = useExternalMcpDriftCopy }: ExternalMcpSettingsPanelProps) {
+  const t = useTHook();
   // The id of the source Remove was pressed for, until Confirm or Cancel resolves it — see this
   // file's own "Remove asks first" header note. `null` means no confirmation dialog is open.
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
-  const list = useWiredSourceConfigList<SourceConfigItem>({ dependencies });
+  const list = useWiredSourceConfigListHook<SourceConfigItem>({ dependencies });
   // The "Add server" form: open state, draft, and the lagged field-spec sync this file's header
   // describes — all owned by the hook.
-  const { formOpen, toggleForm, cancelForm, fieldSpecs: addFormFieldSpecs, addForm } = useExternalMcpAddForm({
+  const { formOpen, toggleForm, cancelForm, fieldSpecs: addFormFieldSpecs, addForm } = useExternalMcpAddFormHook({
     dependencies,
     list,
   });
 
   const banner = list.error;
-  const cardHandles = resolveExternalMcpCardHandles(list.sources);
+  const cardHandles = resolveExternalMcpCardHandles({ sources: list.sources });
 
   // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
-  // because `mcp-federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
+  // because `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect. Until this banner
   // existed the gap was visible only in the daemon's boot terminal.
-  const savedAllowedToolNamesById = useSavedAllowedToolNamesById(list.sources);
+  const savedAllowedToolNamesById = useSavedAllowedToolNamesByIdHook(list.sources);
   const admissions = useExternalMcpAdmissionsHook(savedAllowedToolNamesById);
-  const tDrift = useExternalMcpDriftCopy();
+  const tDrift = useExternalMcpDriftCopyHook();
 
   return (
     <section className="external-mcp-tab">
-      <div className="external-mcp-head">
-        <div>
-          {showTitle ? <h3>{t("External MCP servers")}</h3> : null}
-          {/* i18n sweep 2026-09-22: this string has no key anywhere in `@jini-ai/ui`'s own
-              `SETTINGS_DIALOG_DICTIONARIES` (what `t` above resolves against via the nearest
-              `I18nProvider` in `Providers.tsx`), so it rendered English in every locale. It is
-              this file's own copy, not the package's, so it now reads through `tDrift`
-              (`external-mcp-i18n.ts`'s `EXTERNAL_MCP_DICT`, which carries all 21 translations)
-              instead of the package's translator. */}
-          <p className="external-mcp-subtitle">{tDrift("Third-party tools for your coding agent.")}</p>
-        </div>
-        <button
-          type="button"
-          className="external-mcp-add-button"
-          onClick={toggleForm}
-          aria-expanded={formOpen}
-        >
-          <Icon name="plus" size={14} />
-          <span>{t("Add server")}</span>
-        </button>
-      </div>
-
-      {banner ? (
-        <div className="external-mcp-banner" role="alert">
-          {t(banner)}
-        </div>
-      ) : null}
+      <ExternalMcpSettingsHeader showTitle={showTitle} t={t} tDrift={tDrift} toggleForm={toggleForm} formOpen={formOpen} banner={banner} />
 
       <ExternalMcpAddFormSection
         t={t}
@@ -556,7 +539,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
         t={tDrift}
         onRequestRemove={setConfirmRemoveId}
         onAllowWrite={(connectionId, remoteName) => {
-          const patch = buildAllowWritePatch(list.sources, connectionId, remoteName);
+          const patch = buildAllowWritePatch({ sources: list.sources, connectionId, remoteName });
           if (patch) void list.update(connectionId, patch);
         }}
       />
@@ -589,4 +572,40 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
       ) : null}
     </section>
   );
+}
+
+function ExternalMcpSettingsHeader({ showTitle, t, tDrift, toggleForm, formOpen, banner }: {
+  showTitle: boolean; t: ReturnType<typeof useT>; tDrift: Translate;
+  toggleForm: ReturnType<typeof useExternalMcpAddForm>['toggleForm']; formOpen: boolean;
+  banner: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>['error'];
+}) {
+  return <>
+      <div className="external-mcp-head">
+        <div>
+          {showTitle ? <h3>{t("External MCP servers")}</h3> : null}
+          {/* i18n sweep 2026-09-22: this string has no key anywhere in `@jini-ai/ui`'s own
+              `SETTINGS_DIALOG_DICTIONARIES` (what `t` above resolves against via the nearest
+              `I18nProvider` in `Providers.tsx`), so it rendered English in every locale. It is
+              this file's own copy, not the package's, so it now reads through `tDrift`
+              (`external-mcp-i18n.ts`'s `EXTERNAL_MCP_DICT`, which carries all 21 translations)
+              instead of the package's translator. */}
+          <p className="external-mcp-subtitle">{tDrift("Third-party tools for your coding agent.")}</p>
+        </div>
+        <button
+          type="button"
+          className="external-mcp-add-button"
+          onClick={toggleForm}
+          aria-expanded={formOpen}
+        >
+          <Icon name="plus" size={14} />
+          <span>{t("Add server")}</span>
+        </button>
+      </div>
+
+      {banner ? (
+        <div className="external-mcp-banner" role="alert">
+          {t(banner)}
+        </div>
+      ) : null}
+  </>;
 }

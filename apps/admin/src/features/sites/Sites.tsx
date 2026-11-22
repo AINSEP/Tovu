@@ -1,9 +1,10 @@
 import { SiteTrashTab } from "./SiteTrashTab";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminSitesSnapshot } from "./api/sites-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
+
 import { navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { AllSitesTab } from "./AllSitesTab";
@@ -14,8 +15,10 @@ import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.ho
 import type { ActivationOutlook } from "./rules";
 import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
-import { useWiredSiteListPrefs, type SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
+import type { SiteListPrefsController } from "@jini-ai/ui/site-card";
+import { useWiredSiteListPrefs } from "./hooks/use-site-list-prefs.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Owner update 2026-10-08: independent full-site children, recoverable Trash and default selection.
  * Earlier design explanations below are retained history; manual restart instructions are no longer rendered.
  */
@@ -281,12 +284,12 @@ export interface SitesProps {
  *  default keeps `Sites`'s own ESLint cyclomatic-complexity count from counting a second branch for
  *  the empty-props case (same reasoning `OverviewTab.tsx`'s `resolveDeploymentOverviewHook`
  *  documents for its own props). */
-function resolveSitesHook(override: typeof useWiredSites | undefined): typeof useWiredSites {
+function resolveSitesHook({ override }: { override: typeof useWiredSites | undefined }, _options = {}): typeof useWiredSites {
   return override ?? useWiredSites;
 }
 
 /** Same split as {@link resolveSitesHook}, for the same reason. */
-function resolveListPrefsHook(override: typeof useWiredSiteListPrefs | undefined): typeof useWiredSiteListPrefs {
+function resolveListPrefsHook({ override }: { override: typeof useWiredSiteListPrefs | undefined }, _options = {}): typeof useWiredSiteListPrefs {
   return override ?? useWiredSiteListPrefs;
 }
 
@@ -294,7 +297,15 @@ function resolveListPrefsHook(override: typeof useWiredSiteListPrefs | undefined
  *  written directly in `Sites`'s JSX, which would be counted against that component's own
  *  complexity. Same split `Deployment.tsx`'s own `deploymentTabPanel` makes for the identical gate.
  *  @complexity O(1) — mutually exclusive branches, no iteration. */
-function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSites>, snapshot: AdminSitesSnapshot, listPrefs: SiteListPrefsController) {
+function sitesTabPanel(
+  { tab, controller, snapshot, listPrefs }: {
+    tab: SitesTabId;
+    controller: ReturnType<typeof useWiredSites>;
+    snapshot: AdminSitesSnapshot;
+    listPrefs: SiteListPrefsController;
+  },
+  _options = {},
+) {
   if (tab === "trash") return <SiteTrashTab snapshot={snapshot} controller={controller.localSites} t={controller.t} />;
   if (tab === "new") return <CreateSiteOnboarding controller={controller} onCancel={goToSiteList} />;
   // Export Site / Import Site (and the Publish button beside "Export this site", owner 2026-10-18)
@@ -321,7 +332,7 @@ function sitesTabPanel(tab: SitesTabId, controller: ReturnType<typeof useWiredSi
 /** The tab row, with "Sites settings" at its right end when this server manages a local sites
  *  folder (2026-10-09: it used to be a full-width primary bar inside the All sites tab). The
  *  settings component wraps the row so its sync warning can sit directly below it. */
-function sitesTabsRow(tabBar: ReactNode, snapshot: AdminSitesSnapshot, t: Translate) {
+function sitesTabsRow({ tabBar, snapshot, t }: { tabBar: ReactNode; snapshot: AdminSitesSnapshot; t: Translate }, _options = {}) {
   if (!snapshot.sitesHome) return tabBar;
   return <SitesHomeSetting home={snapshot.sitesHome} tabs={tabBar} t={t} />;
 }
@@ -332,12 +343,12 @@ function sitesTabsRow(tabBar: ReactNode, snapshot: AdminSitesSnapshot, t: Transl
  *  {@link goToSiteList} below has to keep a stable identity for
  *  {@link useReturnToSiteListOnCreate}'s effect. */
 function goToSitesTab(id: string) {
-  navigate(`/sites?tab=${id}`, { replace: true });
+  navigate({ routePath: `/sites?tab=${id}` }, { replace: true });
 }
 
 /** Back to the first tab: Cancel's destination, and where a successful create lands. */
 function goToSiteList() {
-  navigate("/sites?tab=all", { replace: true });
+  navigate({ routePath: "/sites?tab=all" }, { replace: true });
 }
 
 /** Lifecycle and list writes retain separate visible failure messages. */
@@ -348,21 +359,21 @@ function SitesWriteNotices({ writeError, localError }: { writeError: string | nu
   </>;
 }
 
-export function Sites(props: SitesProps = {}) {
-  const controller = resolveSitesHook(props.useSitesHook)();
+export function Sites({ useReturnToSiteListOnCreateHook = useReturnToSiteListOnCreate, ...props }: SitesProps & { useReturnToSiteListOnCreateHook?: typeof useReturnToSiteListOnCreate } = {}) {
+  const controller = resolveSitesHook({ override: props.useSitesHook })();
   const { snapshot, listStatus, listError, writeError, switchingEnabled, outlook, restartInstructions, createdName, sites, t } = controller;
-  const listPrefs = resolveListPrefsHook(props.useListPrefsHook)();
+  const listPrefs = resolveListPrefsHook({ override: props.useListPrefsHook })();
 
   // Before the early returns below, so this screen never changes its hook order between the
   // loading, error, and loaded renders.
-  useReturnToSiteListOnCreate(createdName, goToSiteList);
+  useReturnToSiteListOnCreateHook({ createdName: createdName, returnToList: goToSiteList });
 
   if (listStatus === "error" && !snapshot) {
-    return <div className="notice error">{describeApiError(listError, t("Could not load the site list."))}</div>;
+    return <div className="notice error">{describeApiError({ e: listError, fallback: t("Could not load the site list.") })}</div>;
   }
   if (!snapshot) return <div className="notice">{t("Loading sites…")}</div>;
 
-  const tab = resolveSitesTabId(props.tabId);
+  const tab = resolveSitesTabId({ tabId: props.tabId });
 
   return (
     <div className="page sites-page">
@@ -382,7 +393,7 @@ export function Sites(props: SitesProps = {}) {
       <SitesProcessNotices snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
       {sitesTabsRow(
-        <TabBar
+        { tabBar: <TabBar
           tabs={resolveSitesTabs({ t, listedCount: sites.length }, { localManagementEnabled: snapshot.localManagementEnabled, trashCount: snapshot.trash?.length })}
           activeId={tab}
           onChange={goToSitesTab}
@@ -390,10 +401,10 @@ export function Sites(props: SitesProps = {}) {
           containerHandle="sites-tabs"
         />,
         snapshot,
-        t,
+        t },
       )}
 
-      {sitesTabPanel(tab, controller, snapshot, listPrefs)}
+      {sitesTabPanel({ tab, controller, snapshot, listPrefs })}
       <LocalSiteConfirmDialog dialog={controller.siteConfirm} />
     </div>
   );

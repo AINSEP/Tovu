@@ -40,7 +40,7 @@ export interface ActiveThemeIdResolutionDeps {
  * error (a real repo/DB failure) still propagates unchanged — this narrows only the one documented
  * "no row yet" case.
  *
- * Exported so `export/route-manifest.ts` and `server/routes/site/pages.ts` resolve the SAME active
+ * Exported so `apps/website/src/features/site-export/route-manifest.ts` and `apps/website/src/server/inbound/public-http/routes/site/pages.ts` resolve the SAME active
  * theme id the real routes render with — one source of truth for "what theme is live" rather than a
  * second copy of this fallback.
  */

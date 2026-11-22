@@ -17,10 +17,10 @@ function ports(table: Record<number, [string | null, number | null, number | nul
   const calls = { resolve: 0 };
   return {
     killed, calls,
-    readCommand: (pid: number) => { if (pid === lease.pid) calls.resolve++; return table[pid]?.[0] ?? null; },
-    readParentPid: (pid: number) => table[pid]?.[1] ?? null,
-    readStartMs: (pid: number) => table[pid]?.[2] ?? null,
-    kill: (pid: number, signal: string) => { killed.push([pid, signal]); },
+    readCommand: ({ pid }: { pid: number }) => { if (pid === lease.pid) calls.resolve++; return table[pid]?.[0] ?? null; },
+    readParentPid: ({ pid }: { pid: number }) => table[pid]?.[1] ?? null,
+    readStartMs: ({ pid }: { pid: number }) => table[pid]?.[2] ?? null,
+    kill: ({ pid, signal }: { pid: number; signal: string }) => { killed.push([pid, signal]); },
     sleep: async () => {}, nowMs: () => 0,
     ...extra,
   };
@@ -107,9 +107,9 @@ test('the launcher cache keeps 64 tokens and evicts the oldest on the 65th', () 
 
 test('readProcessStartMs: ps lstart in the C locale for exactly this pid; win32, a failure or garbage is null', () => {
   const asked: string[][] = [];
-  assert.equal(readProcessStartMs(42, 'darwin', { runPs: (args) => { asked.push(args); return ' Sat Oct 24 12:00:00 2026\n'; } }), Date.parse('Sat Oct 24 12:00:00 2026'));
+  assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'darwin', runPs: ({ args }) => { asked.push(args); return ' Sat Oct 24 12:00:00 2026\n'; } }), Date.parse('Sat Oct 24 12:00:00 2026'));
   assert.deepEqual(asked, [['-o', 'lstart=', '-p', '42']]);
-  assert.equal(readProcessStartMs(42, 'win32', { runPs: () => assert.fail('must not run ps on win32') }), null);
-  assert.equal(readProcessStartMs(42, 'linux', { runPs: () => { throw new Error('no such process'); } }), null);
-  assert.equal(readProcessStartMs(42, 'linux', { runPs: () => 'garbage' }), null);
+  assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'win32', runPs: () => assert.fail('must not run ps on win32') }), null);
+  assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'linux', runPs: () => { throw new Error('no such process'); } }), null);
+  assert.equal(readProcessStartMs({ pid: 42 }, { platform: 'linux', runPs: () => 'garbage' }), null);
 });

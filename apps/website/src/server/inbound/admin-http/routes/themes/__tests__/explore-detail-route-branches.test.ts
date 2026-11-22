@@ -9,7 +9,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
@@ -37,7 +38,7 @@ function baseDeps(themesDir: string): ContentRouteDeps {
     // The detail route now does one `postRepo.list()` per request (slug-collision signal,
     // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
     // has no posts of its own to collide with any theme page.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
 }
 
@@ -48,7 +49,7 @@ function buildTestApp(deps: ContentRouteDeps): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
   return app;
 }
 
@@ -134,7 +135,7 @@ test("malformed theme.json: the route still 200s on a theme loadTheme marked inv
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir: root,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -166,7 +167,7 @@ test("an unrecognized theme root triggers the route's outer catch-all 500", asyn
     // The detail route now does one `postRepo.list()` per request (slug-collision signal,
     // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
     // has no posts of its own to collide with any theme page.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);

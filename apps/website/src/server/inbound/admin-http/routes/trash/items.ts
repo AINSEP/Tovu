@@ -1,8 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { moveToTrash, type MoveToTrashOutcome } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TrashRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * POST move one entity of any `TRASHABLE` kind into the Trash. Design of record:
@@ -16,16 +17,13 @@ import type { TrashRouteRegistrar } from "./deps.js";
  * gate onto the shared Trash SCREEN before their own per-row check) — `moveToTrash` checks the one
  * permission that matters, the kind's own, exactly as every bespoke delete path already does.
  */
-export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/items", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const body = readBody(req.body);
+      const body = readBody({ body: req.body });
       if (!body) {
         res.status(400).json({ error: "expected { type, id }", code: "INVALID_INPUT" });
         return;
@@ -100,7 +98,7 @@ function blockedMessage(outcome: { code: string; count: number }): string {
  *
  * @complexity O(1).
  */
-function readBody(body: unknown): { type: string; id: string } | null {
+function readBody({ body }: { body: unknown }, _optional = {}): { type: string; id: string } | null {
   if (typeof body !== "object" || body === null) return null;
   const { type, id } = body as { type?: unknown; id?: unknown };
   if (typeof type !== "string" || type.length === 0) return null;

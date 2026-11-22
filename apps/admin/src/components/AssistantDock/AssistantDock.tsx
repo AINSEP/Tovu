@@ -1,44 +1,14 @@
 import "@jini-ai/chat/react/styles/chat-settings.css";
-import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
-import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
-import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
-import { DockHeader } from "./DockHeader";
-import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
-import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
-import { dockSettingsMenuSections } from "./dock-header-rules";
-import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
 import { useChatAgentPluginsPreference } from "./chat-agent-plugin-preferences.adapter";
 import { useAssistantRuntimePreferencesPreference } from "./assistant-runtime-preferences.adapter";
-import { visibleAssistantRuntimePreferences, type AgentRuntimePreferenceSupport } from "./assistant-runtime-preferences";
-import { useDockAgentPermissions } from "@/features/ai-assistant/hooks/use-admin-subagents.hooks";
-import { useConversationRefreshSignal } from "./hooks/conversation-refresh.hooks";
-import { useDockRendererRegistry } from "./hooks/use-dock-renderer-registry.hooks";
-import { useTovuDockExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
-import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "./hooks/composer-skills.hooks";
-import { useAssistantEmptyState } from "./hooks/use-assistant-empty-state.hooks";
-import { useSelectedAgentAuthWarning } from "./hooks/use-selected-agent-auth-warning.hooks";
-import { useComposerSendStopGuard } from "./hooks/use-composer-send-stop-guard.hooks";
-import { useBrowserAgentSettings } from "../../features/webmcp/browser-agent-settings.hooks";
-import { useSkillInstall } from "../../features/skills/use-skill-install.hooks";
-import { SkillInstallConfirmation } from "../../features/skills/SkillInstallConfirmation";
 import {
   ChatPane,
-  ChatSettingsDialog,
-  useChatSettingsDialog,
-  JiniChatProvider,
-  createMidRunMessagePoster,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { createAdminTypedAnswerPoster } from "../../lib/typed-answer-poster";
-import { FailureSurfaceContext, useAgentFailureSurface } from "./AgentFailureCard.hooks";
-import { useComposerVoiceInput } from "../../features/voice-input/hooks/use-composer-voice-input.hooks";
-import { VOICE_INPUT_ENABLED } from "../../features/voice-input/voice-input-config";
-import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
@@ -46,65 +16,21 @@ import "../../styles/assistant.css";
 // screens import it too, but the dock is mounted on every admin route — relying on a screen the
 // operator may never open would leave the dropdown unstyled exactly when it is used most.
 import "@jini-ai/ui/settings-dialog.css";
-import {
-  // The bare hook names below are imported for their TYPE only (`typeof useX` on
-  // `AssistantDockProps`) — every actual call in this component goes through the matching
-  // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
-  useAssistantDockChrome,
-  resolveAssistantConversationTitle,
-  useAssistantTransport,
-  useAssistantTransportSeam,
-  useAttachmentUploader,
-  useAttachmentUploaderSeam,
-  useSkillAwareAttachmentUploader,
-  resolveSkillsAvailable,
-  useAttachmentValidator,
-  useAttachmentValidatorSeam,
-  useByokRuntime,
-  useByokRuntimeSeam,
-  useChatsSeam,
-  useComposerCapabilities,
-  useComposerCapabilitiesSeam,
-  useComposerDiscoverySelect,
-  useExecutionConfig,
-  useExecutionConfigSeam,
-  useLocalCliDaemonPrewarm,
-  useLocalCliSelection,
-  useLocalCliSelectionSeam,
-  useMessagesChangeHandler,
-  useRunContext,
-  useAgentsPlaceholderSeam,
-  useRuntimeAccess,
-  useRuntimeAccessSeam,
-  useSelectedAgentPlugins,
-  useSelectedPluginChips,
-  useFolderDropBridge,
-} from "./hooks/AssistantDock.hooks";
-import type { DragEvent } from "react";
-import { useAssistantPromptRequests } from "../../lib/assistant-prompt-bus";
+// The bare hook names below are imported for their TYPE only (`typeof useX` on
+// `AssistantDockProps`) — every actual call in this component goes through the matching
+// `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
+import { useAssistantDockChrome } from "./hooks/dock-chrome.hooks";
+import { useAttachmentUploader, useAttachmentValidator, useFolderDropBridge } from "./hooks/composer-files.hooks";
+import { useComposerCapabilities } from "./hooks/composer-discovery.hooks";
+import { useAssistantTransport } from "./hooks/assistant-transport.hooks";
+import { useRuntimeAccess } from "./hooks/runtime-access.hooks";
+import { useByokRuntime } from "./hooks/byok-runtime.hooks";
+import { useExecutionConfig } from "./hooks/execution-config.hooks";
+import { useLocalCliSelection } from "./hooks/local-cli-selection.hooks";
+import { type DragEvent } from "react";
+import { useAssistantDockState } from "./AssistantDock.state.hooks";
+import { DockChatPane } from "./DockChatPane";
 
-// `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
-// `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper). Per
-// `INFO.md`'s Components rule 2 ("a hook with an external consumer gets re-exported by name from the
-// component file") it stays reachable at this same import path, which is how
-// `__tests__/resolve-composer-discovery-outcome.unit.test.ts` reaches it. (Its one consumer outside
-// this folder, `features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`, was deleted
-// 2026-09-15 with the candidate Agent Plugin capability projection it tested.)
-export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./hooks/AssistantDock.hooks";
-
-/**
- * Typed answers to a pending `assistant_ask_choice` (jl A1a/A1b): `ChatPane` calls this instead of
- * queueing when the operator types while the agent holds a question card open. Module scope for the
- * same reason as the renderer hook's `mcpUiToolCaller` — one stable instance, same route.
- * See `typed-answer-poster.ts`.
- */
-const typedAnswerPoster = createAdminTypedAnswerPoster({ fetch });
-/**
- * A message sent while a run streams goes to the running agent (`POST /api/runs/:runId/messages`,
- * proxied to the daemon) instead of waiting behind the run; an agent that cannot take it mid-run
- * keeps working and the text waits for its next turn. Module scope, like the typed-answer poster.
- */
-const midRunMessagePoster = createMidRunMessagePoster({ baseUrl: "", fetch }, { onSecretRedacted: onAdminSecretRedacted });
 declare global {
   interface Window {
     /**
@@ -117,17 +43,6 @@ declare global {
   }
 }
 
-function selectedDockAgent({ mode, agents, agentId }: {
-  mode: string;
-  agents: readonly (AgentRuntimePreferenceSupport & { id: string })[] | undefined;
-  agentId: string;
-}, _options = {}) {
-  // Only a Local CLI run spawns the picked agent, so only then do its `supports*` flags apply. Each
-  // `/api/agents` entry carries them; `ChatPaneAgent` just does not declare them.
-  return mode === "local-cli" ? agents?.find((agent) => agent.id === agentId) : undefined;
-}
-
-
 /**
  * @file The global assistant dock (ADR-049) — every admin page gets the same chat pane on the
  * right, not a routed `/admin/assistant` page. Mounted once in `App.tsx`, outside the routed
@@ -138,7 +53,7 @@ function selectedDockAgent({ mode, agents, agentId }: {
  * the page genuinely resizes rather than reserving a gap."
  *
  * Hosts `@jini-ai/chat/react`'s `<ChatPane>` against Tovu's own `@jini-ai/core`+`@jini-ai/daemon`
- * kernel (`src/assistant/agent-daemon-server.ts`, proxied by `src/server/modules/assistant.ts`).
+ * kernel (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`, proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts`).
  * Tool execution is not a prop here — it happens server-side: the spawned coding-agent CLI gets
  * `.mcp.json`-injected access to Tovu's registered tools (`src/assistant/tool-registrations.ts`)
  * and calls them through the daemon's `/api/delegated-tool-calls` gate, which shows up in this
@@ -146,8 +61,8 @@ function selectedDockAgent({ mode, agents, agentId }: {
  *
  * `uploadAttachments` below wires the composer's existing (host-agnostic, `@jini-ai/chat/react`-
  * native) drag-and-drop and file-picker mechanism to this daemon's own `/api/attachments` route —
- * see that route's registration in `src/assistant/agent-daemon-server.ts` and its proxy pass-
- * through in `src/server/modules/assistant.ts` for the rest of the chain (`onStarted` claims the
+ * see that route's registration in `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts` and its proxy pass-
+ * through in `apps/website/src/server/runtime/composition/modules/assistant.ts` for the rest of the chain (`onStarted` claims the
  * upload and hands the daemon's `AgentExecutor.run()` real `imagePaths`). No `attachmentAccept` is
  * passed — see that prop's own doc, below, for why.
  *
@@ -170,6 +85,8 @@ function selectedDockAgent({ mode, agents, agentId }: {
  */
 
 export interface AssistantDockProps {
+  /** The dock's state hook seam (`useAssistantDockState`); a test passes a fake. */
+  useAssistantDockStateHook?: typeof useAssistantDockState;
   /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */
   ChatPane?: typeof ChatPane;
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
@@ -306,359 +223,7 @@ export interface AssistantDockProps {
  * 2026-10-20 moved them into `DockHeader`, `DockLeadingAccessory` and `assistant-dock-props.tsx`'s
  * pure builders, which own those branches (and their tests) now.
  */
-/**
- * Destructured rather than read as `props.x` throughout the body — every seam below is passed
- * straight to its matching `useXSeam` (or, for `agentBridge`, defaulted to `null` in place), so
- * there is nothing left to gain from keeping a `props` object around. Renamed to `...Override`
- * where the prop name would otherwise collide with the imported real hook it defaults to (same
- * "rename the local binding, not the prop" rule `INFO.md`'s Components section states) — `useChats`
- * needs no rename since only its `Seam` counterpart, not the bare hook, is imported here.
- */
-export function AssistantDock({
-  ChatPane: ChatPaneView = ChatPane,
-  agentBridge = null,
-  useChats,
-  principalId,
-  useAdminLocale,
-  useExecutionConfig: useExecutionConfigOverride,
-  useByokRuntime: useByokRuntimeOverride,
-  useLocalCliSelection: useLocalCliSelectionOverride,
-  useComposerCapabilities: useComposerCapabilitiesOverride,
-  useAssistantTransport: useAssistantTransportOverride,
-  useAttachmentUploader: useAttachmentUploaderOverride,
-  useAttachmentValidator: useAttachmentValidatorOverride,
-  useRuntimeAccess: useRuntimeAccessOverride,
-  onFolderDropCaptureReady,
-  useExecutionPolicy,
-  useChatDisplayPreferences: useChatDisplayPreferencesOverride,
-  useChatAgentPlugins = useChatAgentPluginsPreference,
-  useAssistantRuntimePreferences = useAssistantRuntimePreferencesPreference,
-}: AssistantDockProps) {
-  const renderers = useDockRendererRegistry();
-  const { mcpUiToolCaller } = renderers;
-  const { enabled: webMcpEnabled } = useBrowserAgentSettings({});
-  // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
-  // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
-  // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
-  // than three separate calls.
-  const { locale, t, chatI18n } = useAssistantDockChrome(useAdminLocale);
-  const conversationDelete = useConfirmRequest({});
-  // Gear menu: per-operator transcript display, applied to the pane at once.
-  const chatDisplay = useDockDisplayPreferences(useChatDisplayPreferencesOverride);
-  // Gear menu: per-person Agent plugins mode; Off hides the pane's "Using" chip at once.
-  const agentPlugins = useChatAgentPlugins();
-  // Gear menu: per-person runtime switches; the server reads them when it starts the next run.
-  const runtimePreferences = useAssistantRuntimePreferences();
-  const chatSettings = useChatSettingsDialog({});
-  const agentPermissions = useDockAgentPermissions({ t, openSettings: chatSettings.show });
-
-  const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
-  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
-  // The dock, not the layout, owns the pre-warm: only it knows the chat's execution mode.
-  const pageActivationError = useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded, agentBridge });
-  const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
-  const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
-    executionConfig,
-    setExecutionConfig,
-    configLoaded,
-  });
-
-  // Resolved BEFORE the transport, which now takes `chats.ensureConversationId`: turn 1's run must
-  // be able to adopt this pane's conversation before it is dispatched, because the lazy adoption
-  // driven by `onMessagesChange` starts too late for the run to carry the id. See
-  // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
-  const chats = useChatsSeam(useChats, { principalId });
-  const { transport, daemonStarting } = useAssistantTransportSeam({
-    agentBridge,
-    executionConfigRef,
-    readExecutionConfigForSend,
-    readLocalCliSelectionForSend,
-    ensureConversationId: chats.ensureConversationId,
-    // Defect 2 (2026-09-11): the same reasoning one line up, for the message rather than the
-    // conversation. `startRun` awaits this before dispatching, so the user's turn is durable before
-    // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
-    // `use-assistant-chats.hooks.ts`.
-    persistUserTurn: chats.persistUserTurn,
-  }, { useTransport: useAssistantTransportOverride });
-  const uploadOrdinaryAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
-  const skillInstall = useSkillInstall();
-  const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
-  const validateAttachments = useAttachmentValidatorSeam(useAttachmentValidatorOverride);
-  // D-21(b): the picker's inventory has no auth status, so the sign-in warning reads Settings'
-  // detection; its wrapped runtimeAccess re-probes auth on the picker's own Rescan.
-  const pickerRuntimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
-  const selectedAgentAuth = useSelectedAgentAuthWarning({ mode: executionConfig.mode, agentId: localCliSelection.agentId, locale, runtimeAccess: pickerRuntimeAccess });
-  const runtimeAccess = executionPolicy.runtimeAccess(selectedAgentAuth.runtimeAccess);
-  // The picker's instant list while `listAgents` is still in flight — see `useAgentsPlaceholder`.
-  const agentsPlaceholder = executionPolicy.agents(useAgentsPlaceholderSeam(useRuntimeAccessOverride));
-  const selectedAgent = selectedDockAgent({ mode: executionConfig.mode, agents: agentsPlaceholder, agentId: localCliSelection.agentId });
-  const runtime = { ...runtimePreferences, visible: visibleAssistantRuntimePreferences({ agent: selectedAgent }) };
-  /**
-   * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
-   * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
-   * `useComposerCapabilities`'s own doc (`AssistantDock.hooks.tsx`) for why it starts empty and how
-   * a failed projection degrades.
-   */
-  const { composerCapabilities } = useComposerCapabilitiesSeam(useComposerCapabilitiesOverride);
-  /**
-   * The composer's pinned-Agent-Plugin chips (2026-08-21) — see {@link useSelectedAgentPlugins}'s
-   * own doc for why this is host state rather than part of `@jini-ai/chat`'s own composer state,
-   * and `SelectedAgentPluginTray`'s doc for how it renders.
-   */
-  const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
-  const selectedSkills = useSelectedSkills();
-  const discoveryDraft = useComposerDiscoveryDraft(composerCapabilities.groups);
-  const captureComposerClick = useComposerSendStopGuard();
-  const handleComposerDiscoverySelect = useComposerDiscoverySelect({
-    composerCapabilities,
-    callAllowlistedTool: mcpUiToolCaller,
-    skillsAvailable: resolveSkillsAvailable({ executionMode: executionConfig.mode, agents: agentsPlaceholder, selectedAgentId: localCliSelection.agentId }),
-    addPluginRef,
-    addSkill: selectedSkills.addSkill,
-    readDraft: discoveryDraft.readDraft,
-  });
-  // See `useSelectedPluginChips`'s own doc for the projection and its label-fallback reasoning.
-  const selectedPluginChips = useSelectedPluginChips(selectedPluginRefIds, composerCapabilities);
-
-  /**
-   * Owns the `ChatPaneComposerHandle` a voice transcript is delivered through. No Jini change was
-   * needed: `composerHandle` and its append-don't-replace `insertText` already existed — see
-   * `use-composer-voice-input.hooks.ts`.
-   */
-  const voiceInput = useComposerVoiceInput();
-  // A screen's drafted request (e.g. Sites' "From a live website") lands in the composer here.
-  useAssistantPromptRequests(voiceInput.composerHandle);
-  const skillOnlySend = useSkillOnlySend({ prompt: selectedSkills.skillOnlyPrompt, composerHandle: voiceInput.composerHandle, discovery: discoveryDraft });
-  // SPEC-053: folder-drop-to-path + fs-files `custom` root wiring — reuses `voiceInput`'s own
-  // `composerHandle` (the same "insert text into the composer" seam a voice transcript already goes
-  // through) rather than owning a second ref to the same `ChatPaneComposerHandle`.
-  const folderDrop = useFolderDropBridge({ composerHandle: voiceInput.composerHandle }, onFolderDropCaptureReady, skillInstall.proposeFiles, skillInstall.fail);
-  // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
-  // dialog that fails to open hides the button and falls back to the paste hint.
-  const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
-
-  const handleMessagesChange = useMessagesChangeHandler({ chats });
-  const runContext = useRunContext({
-    agentBridge,
-    model: localCliSelection.model,
-    // The Execution tab owns the "Reasoning effort" control, so this comes from the persisted
-    // ledger rather than from the dock's own picker (which has no effort axis). Reading it here is
-    // what turns a stored level into real CLI argv — see `useRunContext`'s own doc.
-    reasoning: selectedLocalCliReasoning(executionConfig),
-    pluginRefIds: selectedPluginRefIds,
-    selectedSkills: selectedSkills.selectedSkills,
-    // Same id already passed to `<ChatPane conversationId={...}>` below — see `useRunContext`'s
-    // own doc for why the daemon needs it too (per-conversation agent-CLI session resume).
-    conversationId: chats.activeId,
-  });
-  // Shown on one ellipsized line, so the full name rides along as the hover tooltip.
-  const activeTitle = resolveAssistantConversationTitle({ chats, fallback: t("Tovu assistant") });
-  // One policy-gated selection handler for both the failure card and the picker.
-  const handleSelectionChange = executionPolicy.selectionChange(handleLocalCliSelectionChange);
-  const failureSurface = useAgentFailureSurface({ transport, runtimeAccess, initialMessages: chats.initialMessages,
-    onSelectionChange: handleSelectionChange, onExecutionModeChange: handleExecutionModeChange }, {});
-  const emptyState = useAssistantEmptyState({ paneKey: chats.paneKey, initialMessages: failureSurface.initialMessages, onMessagesChange: handleMessagesChange });
-  const refreshSignal = useConversationRefreshSignal({ conversationId: chats.activeId });
-
-  return (
-    <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
-      <FailureSurfaceContext.Provider value={failureSurface.actions}>
-      <SkillInstallConfirmation install={skillInstall} locale={locale} />
-      {pageActivationError && <div className="jini-chat-pane__notice" role="alert">{t(pageActivationError)}</div>}
-      {/* ChatPane takes `transport` directly as well as via the provider — the package's
-          components read their dependencies from props, not implicitly from context. */}
-      <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
-      <ChatPaneView
-        // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
-        // `initialMessages` only at mount, so re-keying is how a different conversation's history
-        // gets in — pushing new messages into a live pane would fight its own state.
-        key={chats.paneKey}
-        transport={failureSurface.transport}
-        sendingLabel={daemonStarting ? t("Starting assistant…") : undefined}
-        deliverTypedAnswer={typedAnswerPoster}
-        deliverMidRunMessage={midRunMessagePoster}
-        onSecretRedacted={onAdminSecretRedacted}
-        runtimeAccess={failureSurface.runtimeAccess}
-        // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
-        // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
-        // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`
-        // this literal used to hardcode, then follows saved changes after the ledger settles.
-        selection={localCliSelection}
-        onSelectionChange={handleSelectionChange}
-        initialMessages={failureSurface.initialMessages}
-        subscribeToSurfaces={subscribeToAdminPageSurfaces}
-        // `agents`, `conversationId`, `refreshSignal` and `composerHistoryScope` are passed only
-        // when they hold a value — see `optionalChatPaneProps`. Recent prompt recall
-        // (`composerHistoryScope`) is local to this signed-in admin, including in a new chat.
-        {...optionalChatPaneProps({ agents: agentsPlaceholder, conversationId: chats.activeId, refreshSignal, composerHistoryScope: principalId })}
-        // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
-        // hardcoded to `executionMode: 'local'` / `apiModeAvailable: false` (never passed at all),
-        // which made "API · BYOK" permanently disabled with a "not configured" label that was
-        // literally true: nothing wired it. `apiModeAvailable` is now a real fact — not a hardcoded
-        // default — and selecting the row genuinely changes where a message goes
-        // (`assistant-transport.ts`'s `startRun` branches on this same `executionConfig`).
-        //
-        // `hasUsableAdminKey`, not `executionConfig.byok.apiKey.trim().length > 0` alone (2026-08-05):
-        // the admin's own BYOK credential is encrypted server-side and write-only now
-        // (`execution-settings.ts`'s header), so `byok.apiKey` is empty on every fresh load even
-        // when a credential IS stored — gating on it alone would make this row permanently disabled
-        // for exactly the case the server-side store exists to support. `hasStoredAdminKey` is
-        // `null` until its own GET settles, which `hasUsableAdminKey` treats as "nothing confirmed
-        // stored yet" (same as `false`) — a brief false-negative on first paint, never a
-        // false-positive, and it corrects itself the moment the GET resolves.
-        {...executionChatPaneProps({ mode: executionConfig.mode, nativeToolPolicy: agentPermissions.nativeToolPolicy })}
-        apiModeAvailable={hasUsableAdminKey(executionConfig.byok.apiKey, { isSet: hasStoredAdminKey === true })}
-        onExecutionModeChange={handleExecutionModeChange}
-        // What the picker names as the runtime while BYOK is the active mode. Without it the
-        // popover described the DETECTED CLI in both modes — an agent list with one row marked
-        // "selected", a model reading "Default (CLI config)", and a Rescan PATH button — none of
-        // which has any bearing on an API turn, and all of which named the wrong provider. The
-        // model is the one `assistant-transport.ts` will actually send (`byok.model`), read from
-        // the same config object that decides the branch, so the two cannot disagree.
-        byokRuntime={byokRuntime}
-        onByokModelChange={handleByokModelChange}
-        /**
-         * Replaces `ChatPane`'s default header, which is not merely a styling preference.
-         *
-         * That default ships a "New thread" button wired to the pane's own `onReset`, which
-         * clears the local transcript and nothing else. With durable history that is actively
-         * wrong: the pane would empty while `activeId` still pointed at the previous
-         * conversation, so the next message would silently append to the chat the user thought
-         * they had just left. `chats.create` makes a real conversation row and switches to it.
-         *
-         * The switcher belongs here rather than in `leadingAccessory` for the same reason — that
-         * slot sits above the composer, so the dropdown opened over the input instead of below
-         * the title where a history control is looked for.
-         */
-        header={
-          <DockHeader chats={chats} activeTitle={activeTitle} mode={executionConfig.mode} agentId={localCliSelection.agentId}
-            locale={locale} t={t} chatI18n={chatI18n} conversationDelete={conversationDelete} chatDisplay={chatDisplay}
-            agentPlugins={agentPlugins} runtime={runtime} onMoreSettings={agentPermissions.onMoreSettings} empty={emptyState.empty} />
-        }
-        title={t("Tovu assistant")}
-        placeholder={t("Ask the assistant to do something…")}
-        onMessagesChange={emptyState.handleMessagesChange}
-        runContext={runContext}
-        // Wires the daemon-relayed `chat.*` capability channel to THIS live pane instance — see
-        // `useChatPaneAgentControl`'s own doc in `@jini-ai/chat/react` for the handler side. Without
-        // this, `chat.*` (`chat.get_state`, `chat.send_message`, …) is still claimed at attach time
-        // (`createFrontendSessionBridge`'s `claimedCapabilities` claims all of `CHAT_CAPABILITIES`
-        // unconditionally, unlike `page.*`, which is gated on `pageDriver`), so the daemon happily
-        // delivers a `chat.*` invocation here — but with no `subscribe`r, the browser's own dispatch
-        // (`frontend-session-bridge.ts`'s `chatListeners` loop) silently drops it, and the call parks
-        // until `ToolExecutor`'s 30s `descriptor.timeoutMs` reports it `timed-out` with no real error
-        // anywhere. `enabled: true` is safe even before the tab attaches — `bridgeAccess` is only
-        // `agentBridge?.bridgeAccess`, `undefined` until `useAgentPageBridge`'s effect runs, and
-        // `useChatPaneAgentControl` is a no-op when `bridgeAccess` is absent. `webmcp: true` wires
-        // this pane's own WebMCP tools on top of the always-on daemon-relayed channel above — the
-        // owner's 09-22 decision (publish-criteria plan §4 S5) that WebMCP stays on by default, now
-        // that plan §3 has closed the hole it would otherwise reopen: the Publish button carries no
-        // agent handle (`PublishContentDialog.tsx`), so neither this in-page WebMCP surface nor the
-        // daemon-relayed one above can press it — see plan §3 for the full gate. Nothing here makes
-        // the Publish button agent-proof by keeping WebMCP off; it already is, regardless.
-        // The owner's default now has a browser-local opt-out in Settings → Privacy.
-        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess, webmcp: webMcpEnabled }}
-        uploadAttachments={uploadAttachments}
-        // Restores a persisted draft's ATTACHMENTS, not just its text. `@jini-ai/chat` caches the
-        // references but hands back only the subset a host confirms is still served — the staged
-        // bytes sit under the daemon's `retentionMs` (one hour, not overridden here), and a chip for
-        // a pruned file looks intact and fails at send. Absent, the package restores text only.
-        validateAttachments={validateAttachments}
-        // Host-owned, data-only inventory, now an async projection (debate 2) instead of a static
-        // import. Jini renders/filter/selects it generically; these rows describe source-backed
-        // resources and do not claim that Agent Plugin installation or execution exists. The same
-        // catalog drives the grouped plus menu and `/` autocomplete.
-        composerSlots={{
-          discoveryGroups: discoveryDraft.groups,
-          onDiscoverySelect: handleComposerDiscoverySelect,
-          // Renders next to the composer's "+" trigger in the footer action row, not above the
-          // input — owner report: the mic previously rode `leadingAccessory` below (the pinned-
-          // context zone) and read as a stray circular badge half-overlapping the input's top
-          // edge. `footerLeadingAccessory` (`@jini-ai/chat` 2026-09-06) is a new footer-row slot
-          // added for exactly this: unlike `footerAccessories` (reserved for `AgentRuntimePicker`,
-          // pushed to the row's far end) or `plusMenuItems` (plain click-to-select buttons, no room
-          // for this button's press-and-hold/recording-indicator UI), it renders host content
-          // immediately after the attach/discovery button with no change to the button itself.
-          //
-          // Owner report, 2026-09-13: the button should not show at all in Workspace chat.
-          // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch, and flipping
-          // that one constant back to `true` restores the live mic exactly as it was. Owner,
-          // 2026-10-30: briefly a grayed, disabled mic ("coming soon") held the slot; later that
-          // day the owner said "just hide it", so while it is off no mic shows at all.
-          //
-          // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
-          // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker,
-            voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
-        }}
-        // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
-        // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
-        // `Composer`-slot assembly unconditionally sets `leadingAccessories: leadingAccessory`
-        // (this prop), discarding whatever `composerSlots.leadingAccessories` holds even when
-        // this prop is omitted (`ChatPane.tsx`'s `slots` object, `{ ...composerSlots,
-        // leadingAccessories: leadingAccessory, ... }`) — a `composerSlots.leadingAccessories`
-        // value never reaches `Composer` at all through this component. `footerAccessories` is
-        // correctly excluded from `ChatPaneProps.composerSlots`'s type for the same reason (it
-        // is reserved for `AgentRuntimePicker`); `leadingAccessories` is not excluded from that
-        // type, which is what made this reachable — an existing gap in Jini's own contract, not
-        // something introduced here. Using this top-level prop instead (unused by this component
-        // until now) avoids the gap entirely, with no change to Jini's package needed.
-        // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
-        //
-        // `DockLeadingAccessory`'s own doc carries the owner constraint on what renders here and
-        // why it is a fragment (no DOM node of its own).
-        leadingAccessory={
-          <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
-            folderWindowOpenElsewhere={folderWindowOpenElsewhere({ picking: folderPicker.picking })}
-            pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
-        }
-        // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written
-        // through it. Append-only by contract, so a transcript can never clobber a half-written
-        // message — see `use-composer-voice-input.hooks.ts`.
-        composerHandle={voiceInput.composerHandle}
-        // No `attachmentAccept` on purpose: the upload path is kind-agnostic end to end, so a
-        // type filter here has no security or correctness payoff, only friction. `attachments.ts`
-        // (`@jini-ai/http-kit`) sniffs `detectAttachmentKind` from the leading bytes and stores
-        // `'image' | 'file'` — it never rejects on MIME or extension. And an `accept` filter never
-        // applies to drag-and-drop in any browser, so a picker restriction here would only ever
-        // block the cooperative "+" button while the drop zone stayed wide open; it was previously
-        // `"image/*"` and that is exactly what happened — a `.md` drag-drop already worked while
-        // the same file was greyed out in the OS dialog. `extraAllowedDirs` gives the agent
-        // filesystem read access to every claimed attachment regardless of kind, so there's no
-        // pipeline-side restriction downstream to match either. `agent-daemon-server.ts` used to
-        // drop non-image attachments from `imagePaths` before handing them to the agent, which
-        // would have made a widened picker here pointless; that filter is gone (see
-        // `resolveAttachmentRunFields`' own comment and
-        // `__tests__/agent-daemon-server.attachment-kind-filter.unit.test.ts`), so every claimed
-        // attachment is now named to the agent regardless of kind. What remains is cosmetic: the
-        // `imagePaths` option name and Jini's `image-prompt-delivery.ts` prompt copy still say
-        // "image" for what may be any file — a recorded Jini-side follow-up, not a gap a picker
-        // filter could fix anyway.
-        // No working-directory control renders in the web admin: a browser directory picker can
-        // only ever yield a folder NAME (browsers withhold the real path from a picked
-        // `FileSystemDirectoryHandle`), never a path the daemon's real `cwd`
-        // (`agent-daemon-server.ts`'s `process.env.TOVU_AGENT_CWD ?? process.cwd()`) could use — so
-        // a picker here would only ever re-label the chat, not move the agent. The real feature
-        // belongs to Tovu-Runner (the Electron app), which has an actual filesystem.
-        workingDirectoryControlPlacement="none"
-        // Spread, not attributes: a chat build without these props ignores them (see `chatPaneDisplayProps`).
-        {...chatPaneDisplayProps({ preferences: chatDisplay.preferences })}
-        agentPluginsMode={agentPlugins.mode}
-        // Starter suggestions are parked. The prompts last offered were: "Summarise what content
-        // types this site defines.", "List the agent-callable tools and the permission each one
-        // needs." and "Which admin sections exist, and what does each one manage?"
-      />
-      <ConfirmDialog {...conversationDelete.dialog} />
-      <ChatSettingsDialog open={chatSettings.open} onClose={chatSettings.close} t={t}
-        displaySections={dockSettingsMenuSections({ t }, { display: chatDisplay, agentPlugins })} permissions={agentPermissions} />
-      </div>
-      </FailureSurfaceContext.Provider>
-    </JiniChatProvider>
-  );
-}
-
-/** Resolve the injectable preference owner with the same unconditional hook call as the dock. */
-function useDockDisplayPreferences(override: AssistantDockProps["useChatDisplayPreferences"]) {
-  const usePreferences = override ?? useChatDisplayPreferences;
-  return usePreferences();
+export function AssistantDock({ useAssistantDockStateHook = useAssistantDockState, ...props }: AssistantDockProps) {
+  const dock = useAssistantDockStateHook(props);
+  return <DockChatPane dock={dock} />;
 }

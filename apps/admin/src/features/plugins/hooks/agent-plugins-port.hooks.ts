@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/lib/api";
+import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What `use-agent-plugins.hooks.ts` needs from the outside world, as an interface rather than
@@ -13,8 +13,8 @@ import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/lib/api";
  */
 export interface AgentPluginsPort {
   listAgentPlugins(): Promise<{ agentPlugins: AdminAgentPlugin[] }>;
-  setAgentPluginEnabled(pluginId: string, input: { enabled: boolean }): Promise<{ agentPlugin: AdminAgentPlugin }>;
+  setAgentPluginEnabled(required: { pluginId: string; input: { enabled: boolean } }, optional?: Record<string, never>): Promise<{ agentPlugin: AdminAgentPlugin }>;
   /** `AGENT_PLUGIN_FILES` — the read-only package-files listing behind the row's eye button
    *  (`use-agent-plugin-details-modal.hooks.ts`). */
-  getAgentPluginFiles(pluginId: string): Promise<AdminAgentPluginFiles>;
+  getAgentPluginFiles(required: { pluginId: string }, optional?: Record<string, never>): Promise<AdminAgentPluginFiles>;
 }

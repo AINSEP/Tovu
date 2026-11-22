@@ -63,16 +63,16 @@ test("idsNeedingAccountLabelHeal — selects only null-labeled rows on a healabl
   ];
   const canYield = (providerId: string) => providerId === "github-pages";
 
-  assert.deepEqual(idsNeedingAccountLabelHeal(rows, canYield), ["1"]);
+  assert.deepEqual(idsNeedingAccountLabelHeal({ credentials: rows, canYieldAccountLabel: canYield }), ["1"]);
 });
 
 test("idsNeedingAccountLabelHeal — empty input, empty output (no false-positive candidates)", () => {
-  assert.deepEqual(idsNeedingAccountLabelHeal([], () => true), []);
+  assert.deepEqual(idsNeedingAccountLabelHeal({ credentials: [], canYieldAccountLabel: () => true }), []);
 });
 
 test("createAccountLabelHealScheduler — calls heal exactly once per new id", () => {
   const calls: string[] = [];
-  const scheduler = createAccountLabelHealScheduler({ heal: async (id) => void calls.push(id) });
+  const scheduler = createAccountLabelHealScheduler({ heal: async ({ id }) => void calls.push(id) });
 
   scheduler.triggerFor(["a", "b"]);
 
@@ -118,7 +118,7 @@ test("createAccountLabelHealScheduler — a rejected heal is reported via onHeal
     heal: async () => {
       throw new Error("provider unreachable");
     },
-    onHealError: (id, err) => {
+    onHealError: ({ id, err }) => {
       errors.push({ id, err });
     },
   });
@@ -145,8 +145,8 @@ test("createAccountLabelHealScheduler — defends against a heal that throws syn
     // to prove the scheduler does not simply trust callers to get that right.
     heal: (() => {
       throw new Error("sync boom");
-    }) as unknown as (id: string) => Promise<unknown>,
-    onHealError: (id, err) => {
+    }) as unknown as (required: { id: string }, optional?: Record<string, never>) => Promise<unknown>,
+    onHealError: ({ id, err }) => {
       errors.push({ id, err });
     },
   });
@@ -177,7 +177,7 @@ test("createAccountLabelHealScheduler — an error reporter that itself throws i
   const reports: Array<{ id: string; message: string }> = [];
   const scheduler = createAccountLabelHealScheduler({
     heal: () => { throw new Error("sync heal failure"); },
-    onHealError: (id, err) => {
+    onHealError: ({ id, err }) => {
       reports.push({ id, message: (err as Error).message });
       if (id !== "*") throw new Error("reporter failed");
     },

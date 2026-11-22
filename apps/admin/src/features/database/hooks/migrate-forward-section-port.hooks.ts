@@ -1,4 +1,5 @@
-import type { GatedConfirmResult, GatedPlanResult, MigrateForwardExecuteResult } from "@/lib/api";
+import type { GatedConfirmResult, GatedPlanResult } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { MigrateForwardExecuteResult } from "@/features/database/api/database-api.types";
 
 /**
  * @file What `use-migrate-forward-section.hooks.ts` needs from the outside world, as an interface
@@ -7,6 +8,6 @@ import type { GatedConfirmResult, GatedPlanResult, MigrateForwardExecuteResult }
  */
 export interface MigrateForwardSectionPort {
   planMigrateForward(): Promise<GatedPlanResult>;
-  confirmMigrateForward(input: { planId: string; planHash: string }): Promise<GatedConfirmResult>;
-  executeMigrateForward(confirmationToken: string): Promise<MigrateForwardExecuteResult>;
+  confirmMigrateForward(input: { planId: string; planHash: string }, optional?: {}): Promise<GatedConfirmResult>;
+  executeMigrateForward(required: { confirmationToken: string }, optional?: {}): Promise<MigrateForwardExecuteResult>;
 }

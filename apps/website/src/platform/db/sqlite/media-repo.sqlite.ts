@@ -16,31 +16,31 @@ import {
  */
 
 export class SqliteMediaRepo extends SqlMediaRepo {
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteAssetBlobRepo extends SqlAssetBlobRepo {
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteMediaContentTypeStore extends SqlMediaContentTypeStore {
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteAssetRenditionRepo extends SqlAssetRenditionRepo {
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }
 
 export class SqliteTransformDefinitionRepo extends SqlTransformDefinitionRepo {
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super(contentKernel({ store }));
   }
 }

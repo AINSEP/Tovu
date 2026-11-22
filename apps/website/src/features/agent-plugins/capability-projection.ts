@@ -4,6 +4,7 @@
  * See classifyAgentPluginMcpServerTrust for the local-execution and remote-tool admission boundary.
  */
 import { readFile } from "node:fs/promises";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 import type { AgentPluginMcpConfig, McpServerConfig } from "./mcp-metadata.js";
 import { parseAgentPluginMcpConfig } from "./mcp-metadata.js";
@@ -19,7 +20,7 @@ import { assertContainedOnDisk } from "./lifecycle.js";
  * - `streamable-http`/`sse` declare a URL Tovu calls over the network. There is no local execution,
  *   and (per the Agent Plugins grammar) the spec allows no embedded secret Tovu would need to protect —
  *   an `oauth`-mode connection mints its own token through Tovu's own RFC 8414/7591 flow, and a
- *   `none`-mode connection carries no credential at all. Either way, `mcp-federation/trust.ts`'s R2
+ *   `none`-mode connection carries no credential at all. Either way, `Jini packages/mcp/src/federation/trust.ts`'s R2
  *   default-deny allowlist still gates every individual remote TOOL independently at connect time —
  *   auto-admitting the SERVER here grants nothing beyond "this connection may be attempted."
  *
@@ -41,8 +42,8 @@ export function classifyAgentPluginMcpServerTrust(server: Pick<McpServerConfig, 
  * ever populates from paths it already walked inside an already-contained tree — defense in depth
  * for a caller that constructs one by hand).
  */
-export async function readInstalledSkillMarkdown(packageRoot: string, skillPath: string): Promise<string> {
-  const absolute = await assertContainedOnDisk(packageRoot, skillPath);
+export async function readInstalledSkillMarkdown({ packageRoot, skillPath }: { packageRoot: string; skillPath: string }, _optional: Record<string, never> = {}): Promise<string> {
+  const absolute = await assertContainedOnDisk({ packageRoot, entryPath: skillPath });
   return readFile(absolute, "utf8");
 }
 
@@ -66,14 +67,13 @@ export async function readInstalledSkillMarkdown(packageRoot: string, skillPath:
  * @complexity O(s) in the declared server count (`parseAgentPluginMcpConfig`'s own bound) plus one
  * file read.
  */
-async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginMcpConfig | null> {
-  let raw: string;
-  try {
-    const absolute = await assertContainedOnDisk(packageRoot, "mcp.json");
-    raw = await readFile(absolute, "utf8");
-  } catch {
-    return null;
-  }
+async function readInstalledMcpConfig({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<AgentPluginMcpConfig | null> {
+  const raw = await orFallback({
+    work: async () => readFile(await assertContainedOnDisk({ packageRoot, entryPath: "mcp.json" }), "utf8"),
+    fallback: null,
+    step: "read installed MCP declaration",
+  });
+  if (raw === null) return null;
 
   let parsedJson: unknown;
   try {
@@ -82,13 +82,12 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
     return null;
   }
 
-  let manifest: unknown;
-  try {
-    const absolute = await assertContainedOnDisk(packageRoot, "plugin.json");
-    manifest = JSON.parse(await readFile(absolute, "utf8"));
-  } catch {
-    // Missing/malformed extensions cannot supply read trust; transport discovery still works.
-  }
+  // Missing/malformed extensions cannot supply read trust; transport discovery still works.
+  const manifest: unknown = await orFallback({
+    work: async () => JSON.parse(await readFile(await assertContainedOnDisk({ packageRoot, entryPath: "plugin.json" }), "utf8")),
+    fallback: undefined,
+    step: "read installed MCP plugin manifest",
+  });
   const result = parseAgentPluginMcpConfig({ value: parsedJson }, { pluginManifest: manifest });
   if (!result.ok) return null;
   for (const warning of result.warnings ?? []) console.warn(`[agent-plugins] ${warning}`);
@@ -104,8 +103,8 @@ async function readInstalledMcpConfig(packageRoot: string): Promise<AgentPluginM
  *
  * @complexity See {@link readInstalledMcpConfig}.
  */
-export async function readInstalledMcpServerIds(packageRoot: string): Promise<readonly string[]> {
-  const config = await readInstalledMcpConfig(packageRoot);
+export async function readInstalledMcpServerIds({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<readonly string[]> {
+  const config = await readInstalledMcpConfig({ packageRoot });
   return config?.serverIds ?? [];
 }
 
@@ -123,7 +122,7 @@ export async function readInstalledMcpServerIds(packageRoot: string): Promise<re
  * takes with `[]`.
  * @complexity See {@link readInstalledMcpConfig}.
  */
-export async function readInstalledMcpServers(packageRoot: string): Promise<Readonly<Record<string, McpServerConfig>>> {
-  const config = await readInstalledMcpConfig(packageRoot);
+export async function readInstalledMcpServers({ packageRoot }: { packageRoot: string }, _optional: Record<string, never> = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
+  const config = await readInstalledMcpConfig({ packageRoot });
   return config?.servers ?? {};
 }

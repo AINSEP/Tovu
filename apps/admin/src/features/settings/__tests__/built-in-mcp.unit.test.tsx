@@ -2,7 +2,7 @@ import { render, renderHook, screen, waitFor, within } from "@testing-library/re
 import { expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminExternalMcpServer } from "../../../lib/api";
+import type { AdminExternalMcpServer } from "../../integrations/api/integrations-api.types";
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import { useOtherCredentials } from "../../security/hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../../security/hooks/other-credentials-dependencies.hooks";
@@ -21,10 +21,10 @@ it("a renamed built-in connection has a badge and Tools, and no Remove control",
 });
 
 it("Secrets excludes the source flag and still includes a user connection with the desktop name", async () => {
-  const base: AdminExternalMcpServer = { serverId: "host-tools", label: "Renamed host", transport: "stdio", authMode: "none", enabled: true, command: "host-launcher", url: null, args: [], allowedToolNames: [], writeAllowedToolNames: [], writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: [], oauth: { providerId: null, grant: null, clientId: null, scopes: [], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false } };
+  const base: AdminExternalMcpServer = { serverId: "host-tools", version: 1, label: "Renamed host", transport: "stdio", authMode: "none", enabled: true, command: "host-launcher", url: null, args: [], allowedToolNames: [], writeAllowedToolNames: [], writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: [], oauth: { providerId: null, grant: null, clientId: null, scopes: [], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false } };
   const port = createFakeOtherCredentialsPort({ listExternalMcpServers: async () => ({ servers: [{ ...base, builtIn: true }, { ...base, serverId: "user-server", label: "Tovu Desktop", builtIn: false }] }) });
   const t = (key: string) => key;
-  const { result } = renderHook(() => useOtherCredentials(port, t, "en", { query: "", category: "all" }), { wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider> });
+  const { result } = renderHook(() => useOtherCredentials({ port, t, locale: "en", filter: { query: "", category: "all" } }), { wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider> });
   await waitFor(() => expect(result.current.groups).toBeDefined());
   expect(result.current.groups!.find(group => group.store.id === "external-mcp")?.rows.map(row => row.itemId)).toEqual(["user-server"]);
 });

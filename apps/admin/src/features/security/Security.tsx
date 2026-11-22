@@ -1,13 +1,13 @@
+import { navigateSecurityTab } from "./Security.hooks";
 import { PasskeySettings } from '@jini-ai/user-management/react';
 import { ownerPasskeySettingsPort } from '../../lib/owner-passkey-api';
 import { TotpSettings } from "@jini-ai/user-management/react";
 import { ownerMfaPort } from "../../lib/owner-mfa-api";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
@@ -17,6 +17,7 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const ACCESS_TOKENS_TAB = "access-tokens";
 
 /**
@@ -90,7 +91,7 @@ const ACCESS_TOKENS_TAB = "access-tokens";
  * TAB itself rendered for every logged-in admin-panel user regardless of role, so an editor/viewer
  * saw a tab that would 403 on every action inside it. `useWiredSecurityPermissions` (`hooks/
  * use-security-permissions.hooks.ts`) reads the same permission client-side, UX-only
- * (`lib/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
+ * (`Jini packages/ui/src/features/panel-kit/helpers/permissions.ts`'s `hasPermission` — its own header states plainly this is not the security
  * boundary): the tab entry, the rendered `<SiteKeyTab />`, and a direct `?tab=site-key` link all
  * fall back to Access Tokens for a principal who does not hold it. `resolveSecurityTabId` treats a
  * still-loading permission read as "not permitted" (`hasPermission` naturally returns `false` for
@@ -111,7 +112,7 @@ const ACCESS_TOKENS_ONLY_TAB_IDS: readonly SecurityTabId[] = [ACCESS_TOKENS_TAB]
  *  followed by a principal who does not hold `admin.security.site-key.manage`: `validIds` narrows to
  *  {@link ACCESS_TOKENS_ONLY_TAB_IDS} for them, so `site-key` reads as just as "unrecognized" as a
  *  typo would, and they land on Access Tokens instead of an empty panel. */
-function resolveSecurityTabId(tabId: string | null | undefined, canManageSiteKey: boolean): SecurityTabId {
+function resolveSecurityTabId({ tabId, canManageSiteKey }: { tabId: string | null | undefined; canManageSiteKey: boolean }, _optional: Record<string, never> = {}): SecurityTabId {
   const validIds: readonly SecurityTabId[] = canManageSiteKey ? SECURITY_TAB_IDS : ACCESS_TOKENS_ONLY_TAB_IDS;
   return resolveActiveTabId({ tabId: tabId, validIds: validIds, defaultId: ACCESS_TOKENS_TAB });
 }
@@ -127,19 +128,17 @@ export interface SecurityProps {
   /** DI seam for tests — decides whether the site key tab is even offered. See this file's
    *  header ("The site key tab is affordance-hidden"). */
   useSecurityPermissionsHook?: typeof useWiredSecurityPermissions;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
-function resolveSecurityPermissionsHook(
-  override: typeof useWiredSecurityPermissions | undefined
-): typeof useWiredSecurityPermissions {
-  return override ?? useWiredSecurityPermissions;
-}
 
-export function Security(props: SecurityProps) {
-  const locale = useAdminLocale();
-  const useSecurityPermissionsHook = resolveSecurityPermissionsHook(props.useSecurityPermissionsHook);
+
+export function Security({ useAdminLocaleHook = useAdminLocale,
+  useSecurityPermissionsHook = useWiredSecurityPermissions, ...props }: SecurityProps) {
+  const locale = useAdminLocaleHook();
+
   const { canManageSiteKey } = useSecurityPermissionsHook();
-  const activeTabId = resolveSecurityTabId(props.tabId, canManageSiteKey);
+  const activeTabId = resolveSecurityTabId({ tabId: props.tabId, canManageSiteKey });
 
   const tabs: TabBarTab[] = [
     {
@@ -161,10 +160,6 @@ export function Security(props: SecurityProps) {
         ]
       : []),
   ];
-
-  function handleTabChange(nextTabId: string) {
-    navigate(`/access-tokens?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -191,7 +186,7 @@ export function Security(props: SecurityProps) {
         ariaLabel={t({ locale: locale, key: "Secrets" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateSecurityTab({ nextTabId })}
         containerHandle="security-tab-bar"
       />
       {activeTabId === ACCESS_TOKENS_TAB ? <AccessTokensTab useAccessTokensHook={props.useAccessTokensHook} /> : null}

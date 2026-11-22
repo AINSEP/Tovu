@@ -16,7 +16,7 @@ type TestCommerceDeps = ReturnType<typeof createRouteDeps> & { lipay?: CommerceP
 function createApp(deps: TestCommerceDeps): express.Express {
   const app = express();
   app.use("/api/admin/v1/workspaces", requireAdminSession(deps));
-  registerAdminCommerceStatusRoute(app, deps);
+  registerAdminCommerceStatusRoute({ app, deps });
   app.use(createBaseApp(deps));
   return app;
 }

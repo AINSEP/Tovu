@@ -1,14 +1,14 @@
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import { InMemoryVersionedMediaRepo, InMemoryMediaContentTypeStore } from '../index.js';
-import { InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from '@jini-ai/cms/media';
+import { InMemoryMediaContentTypeStore } from '../index.js';
+import { InMemoryVersionedMediaRepo, InMemoryBlobStore, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryTransformDefinitionRepo, InMemoryImageTransformer } from '@jini-ai/cms/media';
 import type { MediaRouteDeps } from '#src/server/inbound/admin-http/routes/media/deps';
 import type { ToolExecutionContext } from '@jini-ai/core';
 
 /** Isolated real memory adapters; authorization can be changed without rebuilding handlers. */
 export function libraryFixture() {
   let id = 0; let denied = false;
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const deps: MediaRouteDeps = {
     tracker: createNoopTracker({}),
     workspaceId: 'site-a', authorize: async () => ({ allowed: !denied, reason: denied ? 'denied' : 'matched' }),

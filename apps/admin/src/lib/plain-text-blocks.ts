@@ -16,7 +16,7 @@ const BULLET = /^[-*•]\s+/;
  *
  * @complexity O(n) in the text's length.
  */
-export function toPlainTextBlocks(text: string | null | undefined): PlainTextBlock[] {
+export function toPlainTextBlocks({ text }: { text: string | null | undefined }, _options = {}): PlainTextBlock[] {
   if (!text) return [];
   return text
     .replace(/\r\n?/g, "\n")

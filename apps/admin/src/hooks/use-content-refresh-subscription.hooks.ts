@@ -19,7 +19,7 @@ import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshSc
  * default a hurried copy drops — see `contentRefreshApplies`'s own doc for why treating `null` as
  * "matches nothing" would silently swallow the one notification every finished assistant run actually
  * sends, since `AssistantDock.hooks.tsx`'s publisher never narrows). Extracting the triangle into a
- * hook other hooks call turns "remember to copy this correctly" into "call this with two arguments."
+ * hook other hooks call turns "remember to copy this correctly" into "call this with the resource and callback."
  *
  * ## Why a hook, not just re-exporting the bus functions
  *
@@ -43,21 +43,21 @@ import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshSc
  * invalidating a cache nothing re-reads from after the seed. Accepting a plain callback lets every one
  * of the three keep its own reload mechanics; this hook only owns "when."
  *
- * @param resource - This screen's name on the bus (e.g. `POSTS_RESOURCE`) — colocated as a constant
+ * @param required.resource - This screen's name on the bus (e.g. `POSTS_RESOURCE`) — colocated as a constant
  *   in the feature's own `rules.ts`, matching `TAXONOMY_RESOURCE`'s precedent. Passed as a value, not
  *   read from a wider registry: see `content-refresh-bus.ts`'s own header on why a merged vocabulary
  *   across features is a worse trade than a few duplicated resource-name constants.
- * @param onRefresh - Re-reads this screen's own data through its own authorized path. Called with no
+ * @param required.onRefresh - Re-reads this screen's own data through its own authorized path. Called with no
  *   arguments and expected to ignore its return value — this hook does not await it, matching every
  *   existing call site's own fire-and-forget reload (`invalidate()`, or a `.then(setState)` promise
  *   chain neither `use-posts.hooks.ts` nor `use-pages.hooks.ts` awaits on remount either).
  * @complexity O(1) to subscribe/unsubscribe; the notification fan-out cost is
  *   `publishContentRefresh`'s, not this hook's.
  */
-export function useContentRefreshSubscription(resource: string, onRefresh: () => void): void {
+export function useContentRefreshSubscription({ resource, onRefresh }: { resource: string; onRefresh: () => void }, _options = {}): void {
   useEffect(() => {
-    return subscribeToContentRefresh((scope: ContentRefreshScope) => {
-      if (contentRefreshApplies(scope, resource)) onRefresh();
-    });
+    return subscribeToContentRefresh({ listener: (scope: ContentRefreshScope) => {
+      if (contentRefreshApplies({ scope, resource })) onRefresh();
+    } });
   }, [resource, onRefresh]);
 }

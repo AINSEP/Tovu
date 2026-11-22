@@ -1,4 +1,4 @@
-import type { AdminContentType, ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file What `use-edit-fields-dialog.hooks.ts` needs from the outside world, as an interface rather
@@ -14,5 +14,5 @@ export interface EditFieldsDialogPort {
     key: string;
     fields: ContentTypeFieldDef[];
     expectedVersion: number;
-  }): Promise<{ contentType: AdminContentType }>;
+  }, optional?: Record<string, never>): Promise<{ contentType: AdminContentType }>;
 }

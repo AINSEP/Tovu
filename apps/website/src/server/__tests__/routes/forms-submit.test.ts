@@ -11,15 +11,16 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
-import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
-import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-wire-policy.js";
 
 /**
  * @file Route-level tests for the public `POST /forms/:slug/submit` endpoint (SPEC-010 REQ-05/07,
@@ -71,10 +72,10 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const app = express();
   app.use(express.json());
   if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  const submitFormDeps = { definitionRepo, submissionRepo, outbox, bus, clock, idGen,
+  const submitFormDeps = { crypto: globalThis.crypto, definitionRepo, submissionRepo, outbox, bus, clock, idGen,
     rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   };
-  registerFormsSubmitRoute(app, {
+  registerFormsSubmitRoute({ app, deps: {
     workspaceId: WORKSPACE_ID,
     formSubmissionAttempts,
     tracker,
@@ -82,7 +83,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
     visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed,
     submitForm: submitFormDeps,
-  });
+  } });
 
   const server = createServer(app);
   server.listen(0);
@@ -177,7 +178,7 @@ test("live timing: native POST redirects with plain retry copy and restores elig
   assert.equal(response.headers.get("location"), "/contact-page?keep=1&form=contact&form_status=too-fast");
   const flash = parseFlashCookieHeader(response.headers.get("set-cookie")!);
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), { slug: "contact", values: { name: "Ada <safe>" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash.raw }), { slug: "contact", values: { name: "Ada <safe>" } });
   assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
 });
 
@@ -298,9 +299,10 @@ test("POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the
   assert.equal(limited.status, 429);
   assert.equal(limited.headers.get("retry-after"), "60");
   assert.equal((await limited.json()).code, "FORMS_RATE_LIMIT_EXCEEDED");
+  // Why: the route resolves the client IP normalized (no IPv4-mapped ::ffff: prefix), so the direct call must use the same key.
   // Reach the same domain limiter directly after network admission is exhausted. The bot
   // consumed no per-form allowance: the fifth human succeeds and only the sixth is refused.
-  const input = { workspaceId: WORKSPACE_ID, slug: "contact", sourceIp: "::ffff:127.0.0.1", body: { name: "Fifth visitor" } };
+  const input = { workspaceId: WORKSPACE_ID, slug: "contact", sourceIp: "127.0.0.1", body: { name: "Fifth visitor" } };
   assert.deepEqual(await submitForm({ deps: submitFormDeps, input }), { status: "accepted" });
   await assert.rejects(submitForm({ deps: submitFormDeps, input: { ...input, body: { name: "Sixth visitor" } } }), FormRateLimitExceededError);
   assert.equal((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items.length, 5);
@@ -606,7 +608,7 @@ test("POST /forms/:slug/submit: Accept: text/html + a validation failure sets a 
   assert.match(flash!.attrs, /\bHttpOnly\b/);
   assert.match(flash!.attrs, /\bSameSite=Lax\b/);
   assert.match(flash!.attrs, /\bMax-Age=120\b/);
-  assert.deepEqual(decodeFormFlashCookieValue(flash!.raw), { slug: "contact", values: { name: "Ada", email: "ada@example.com" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash!.raw }), { slug: "contact", values: { name: "Ada", email: "ada@example.com" } });
 });
 
 test("POST /forms/:slug/submit: a field of a type NOT in the repopulatable allowlist (e.g. a future 'password' type this codebase has not added yet) is never included in the flash cookie", async (t) => {
@@ -966,7 +968,9 @@ test("POST /forms/:slug/submit: a DB failure in the flash-cookie's own second fi
   assert.deepEqual(unhandled, [], "the repo rejection must be caught, not leak out as a process-wide unhandled rejection");
   assert.equal(logged.length, 1);
   assert.equal(logged[0]?.[0], "[site/forms-submit] failed to set validation flash cookie (slug=contact)");
-  assert.match(String(logged[0]?.[1]), /Error: simulated repo failure in findBySlug/);
+  // Why: Jini's describeErrorForLog names the error class only; the caught message (which can carry SQL or paths) is never logged.
+  assert.equal(String(logged[0]?.[1]), "Error");
+  assert.doesNotMatch(String(logged[0]?.[1]), /simulated repo failure/);
 });
 
 test("POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
@@ -1031,7 +1035,7 @@ test("validation flash cookies preserve upstream cookies and expire in 120 secon
   assert.ok(cookies[1].includes("Max-Age=120;"));
   const flash = parseFlashCookieHeader(cookies[1]);
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), {
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash.raw }), {
     slug: "contact", values: { email: "ada@example.com" },
   });
 });

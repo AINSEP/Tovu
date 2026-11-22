@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
-import type { LegacyOwnerEntry, LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
-import type { SecretsVaultService, VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import type { LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
+import type { SecretsVaultService, VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import type { ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 
 /** @file The one explicit legacy import: owner-store entries (from owner.db or a passphrase backup)
@@ -42,7 +43,7 @@ interface ProjectTarget { vault: SecretsVaultService; workspaceId: string; trans
  */
 export async function importLegacyKeys({ snapshot, target }: { snapshot: LegacyOwnerSnapshot; target: ProjectTarget },
   { apply = false }: { apply?: boolean } = {}): Promise<LegacyImportReport> {
-  const planned: { entry: LegacyOwnerEntry; item: LegacyImportItem }[] = [];
+  const planned: { entry: VaultArchiveEntry; item: LegacyImportItem }[] = [];
   for (const entry of snapshot.entries) planned.push({ entry, item: await planEntry({ entry, target }) });
   const fresh = planned.filter(({ item }) => item.status === "new");
   if (apply && fresh.length > 0) {
@@ -58,7 +59,7 @@ export async function importLegacyKeys({ snapshot, target }: { snapshot: LegacyO
 }
 
 /** One entry's outcome. Refusals are explicit and named; nothing is silently dropped. */
-async function planEntry({ entry, target }: { entry: LegacyOwnerEntry; target: ProjectTarget }): Promise<LegacyImportItem> {
+async function planEntry({ entry, target }: { entry: VaultArchiveEntry; target: ProjectTarget }): Promise<LegacyImportItem> {
   const item = { id: entry.id, label: entry.label, kind: entry.kind, provider: entry.provider };
   if (!PROJECT_KINDS.has(entry.kind)) return { ...item, status: "unsupported", reason: "kind" };
   // Project rows are host-owned (CHECK owner_key = 'tovu'); a plugin-owned legacy row cannot move.
@@ -70,7 +71,7 @@ async function planEntry({ entry, target }: { entry: LegacyOwnerEntry; target: P
 }
 
 /** Same identity, metadata and decrypted payload: importing again would change nothing. */
-async function sameKey({ entry, existing, target }: { entry: LegacyOwnerEntry; existing: VaultSummary; target: ProjectTarget }): Promise<boolean> {
+async function sameKey({ entry, existing, target }: { entry: VaultArchiveEntry; existing: VaultSummary; target: ProjectTarget }): Promise<boolean> {
   const identity = [existing.kind, existing.binding, existing.provider, existing.label];
   if (!isDeepStrictEqual(identity, [entry.kind, entry.binding, entry.provider, entry.label]) || !isDeepStrictEqual(existing.meta, entry.meta)) return false;
   const stored = await target.vault.get({ id: existing.id, kind: existing.kind, ownerKey: "tovu", binding: existing.binding,
@@ -82,7 +83,7 @@ async function sameKey({ entry, existing, target }: { entry: LegacyOwnerEntry; e
  * and provider group (every imported row is host-owned and principal-free). A dry run reports it
  * instead of letting the write's rollback fail every row.
  */
-function labelTaken({ entry, row }: { entry: LegacyOwnerEntry; row: VaultSummary }): boolean {
+function labelTaken({ entry, row }: { entry: VaultArchiveEntry; row: VaultSummary }): boolean {
   return row.kind === entry.kind && row.provider === entry.provider && row.label === entry.label;
 }
 

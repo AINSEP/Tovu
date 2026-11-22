@@ -13,7 +13,7 @@ import { readPickedFolders, withPickedFoldersBlock, readRunPageContext, type Run
  *  `prompt`/`principalId` both need (a malformed value means the run cannot proceed at all).
  *  Split out of {@link parseRunStartContextRef} purely to keep it under the shop complexity
  *  ceiling; behavior (including the exact error text) is unchanged. */
-function requireNonEmptyContextField(value: unknown, label: string): string {
+function requireNonEmptyContextField({ value, label }: { value: unknown; label: string }, _options = {}): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`contextRef did not decode to a non-empty '${label}'`);
   }
@@ -25,7 +25,7 @@ function requireNonEmptyContextField(value: unknown, label: string): string {
  *  need, so `onStarted` never has to special-case "the field was omitted" vs. "the field was an
  *  empty/malformed array". Split out of {@link parseRunStartContextRef} purely to keep it under
  *  the shop complexity ceiling; behavior is unchanged. */
-function readContextStringArray(value: unknown): readonly string[] {
+function readContextStringArray({ value }: { value: unknown }, _options = {}): readonly string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string" && id.length > 0) : [];
 }
 
@@ -33,15 +33,15 @@ function readContextStringArray(value: unknown): readonly string[] {
  *  — the shared "optional, degrade rather than fail" contract `model`/`reasoning`/
  *  `conversationId` all follow (see {@link parseRunStartContextRef}'s own doc). Split out purely
  *  to keep that function under the shop complexity ceiling; behavior is unchanged. */
-function readOptionalContextString(value: unknown): string | undefined {
+function readOptionalContextString({ value }: { value: unknown }, _options = {}): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function readRecoveryContext(
   { parsed }: { parsed: { assistantMessageId?: unknown; recoveryMode?: unknown; recoverySessionId?: unknown } }, _optional = {},
 ): { assistantMessageId?: string; recoveryMode?: "native" | "reconstruction"; recoverySessionId?: string } {
-  const assistantMessageId = readOptionalContextString(parsed.assistantMessageId);
-  const recoverySessionId = readOptionalContextString(parsed.recoverySessionId);
+  const assistantMessageId = readOptionalContextString({ value: parsed.assistantMessageId });
+  const recoverySessionId = readOptionalContextString({ value: parsed.recoverySessionId });
   return {
     ...(assistantMessageId ? { assistantMessageId } : {}),
     ...(parsed.recoveryMode === "native" || parsed.recoveryMode === "reconstruction" ? { recoveryMode: parsed.recoveryMode } : {}),
@@ -49,45 +49,33 @@ function readRecoveryContext(
   };
 }
 
-/**
- * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
- *
- * `prompt`/`principalId` are required (a malformed value means the run cannot proceed at all);
- * `attachmentIds`/`model`/`reasoning`/`pluginRefIds` are optional and silently degrade to
- * "none"/`undefined` on a malformed or absent value — an attachment, a model pick, a
- * reasoning-effort pick, or a pinned Agent Plugin is optional, unlike `prompt`/`principalId`.
- * Optional `coldStartContext` is a bounded complete prompt, redacted like the resume tail and
- * selected in its place when a resume-capable agent starts a new session.
- *
- * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
- * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
- *   attachment claim step, `AgentExecutor.run()`'s `model` and `reasoning`, the Agent Plugin
- *   resolution step, and the per-conversation agent-session lookup (`agent-session-resume.ts`)
- *   respectively — plus the optional `pageContext` (`run-page-context.ts`) the prompt block is
- *   rendered from.
- * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
- *   `principalId`.
- * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined, plus redaction cost
- *   across the supplied prompt/context text; validates at most 10 directory references.
- * @overallScore 100/100
- */
-export function parseRunStartContextRef(contextRef: string): {
-  prompt: string;
-  coldStartContext?: string;
-  principalId: string;
-  attachmentIds: readonly string[];
-  model?: string;
-  reasoning?: string;
-  pluginRefIds: readonly string[];
-  agentPluginState: ChatAgentPluginState;
-  userPrompt?: string;
-  conversationId?: string;
-  pageContext?: RunPageContext;
-  assistantMessageId?: string;
-  recoveryMode?: "native" | "reconstruction";
-  recoverySessionId?: string;
-} {
-  const parsed = JSON.parse(contextRef) as {
+/** The optional per-run settings of the envelope: each is omitted, never defaulted, when absent. */
+function readRunSettings(
+  { parsed }: { parsed: { model?: unknown; reasoning?: unknown; conversationId?: unknown; pageContext?: unknown } }, _optional = {},
+): { model?: string; reasoning?: string; conversationId?: string; pageContext?: RunPageContext } {
+  const model = readOptionalContextString({ value: parsed.model });
+  // The model field's twin, decoded with byte-identical rules: the Execution tab's
+  // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it into
+  // `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that encodes
+  // effort inside the model id (antigravity) never sends this — its level is already part of
+  // `model`.
+  const reasoning = readOptionalContextString({ value: parsed.reasoning });
+  // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
+  // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
+  // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
+  const conversationId = readOptionalContextString({ value: parsed.conversationId });
+  // The admin screen the message was sent from — same "silently degrade to none" convention; see
+  // `run-page-context.ts` for why it rides here rather than behind a tool.
+  const pageContext = readRunPageContext({ value: parsed.pageContext });
+  return {
+    ...(model === undefined ? {} : { model }),
+    ...(reasoning === undefined ? {} : { reasoning }),
+    ...(conversationId === undefined ? {} : { conversationId }),
+    ...(pageContext === undefined ? {} : { pageContext }),
+  };
+}
+function readRunContextEnvelope(contextRef: string) {
+  return JSON.parse(contextRef) as {
     prompt?: unknown;
     folders?: unknown;
     coldStartContext?: unknown;
@@ -105,7 +93,49 @@ export function parseRunStartContextRef(contextRef: string): {
     recoverySessionId?: unknown;
     secretRedacted?: unknown;
   };
-  const rawPrompt = requireNonEmptyContextField(parsed.prompt, "prompt");
+}
+
+
+/**
+ * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
+ *
+ * `prompt`/`principalId` are required (a malformed value means the run cannot proceed at all);
+ * `attachmentIds`/`model`/`reasoning`/`pluginRefIds` are optional and silently degrade to
+ * "none"/`undefined` on a malformed or absent value — an attachment, a model pick, a
+ * reasoning-effort pick, or a pinned Agent Plugin is optional, unlike `prompt`/`principalId`.
+ * Optional `coldStartContext` is a bounded complete prompt, redacted like the resume tail and
+ * selected in its place when a resume-capable agent starts a new session.
+ *
+ * @param required.contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
+ * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
+ *   attachment claim step, `AgentExecutor.run()`'s `model` and `reasoning`, the Agent Plugin
+ *   resolution step, and the per-conversation agent-session lookup (`Jini packages/daemon/src/session-coordination.ts`)
+ *   respectively — plus the optional `pageContext` (`run-page-context.ts`) the prompt block is
+ *   rendered from.
+ * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
+ *   `principalId`.
+ * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined, plus redaction cost
+ *   across the supplied prompt/context text; validates at most 10 directory references.
+ * @overallScore 100/100
+ */
+export function parseRunStartContextRef({ contextRef }: { contextRef: string }, _options = {}): {
+  prompt: string;
+  coldStartContext?: string;
+  principalId: string;
+  attachmentIds: readonly string[];
+  model?: string;
+  reasoning?: string;
+  pluginRefIds: readonly string[];
+  agentPluginState: ChatAgentPluginState;
+  userPrompt?: string;
+  conversationId?: string;
+  pageContext?: RunPageContext;
+  assistantMessageId?: string;
+  recoveryMode?: "native" | "reconstruction";
+  recoverySessionId?: string;
+} {
+  const parsed = readRunContextEnvelope(contextRef);
+  const rawPrompt = requireNonEmptyContextField({ value: parsed.prompt, label: "prompt" });
   const currentText = typeof parsed.userPrompt === "string" ? parsed.userPrompt : rawPrompt;
   const currentRedacted = parsed.secretRedacted === true || redactUserText({ text: currentText }, {}).secretRedacted;
   // Always sanitize complete context, but a new redaction in OLD history must not add a paste
@@ -114,24 +144,10 @@ export function parseRunStartContextRef(contextRef: string): {
   const folders = readPickedFolders({ value: parsed.folders }, {});
   // Folder references bypass user-text redaction only after directory validation.
   const prompt = withPickedFoldersBlock({ text: guardUserText({ text: rawPrompt }, guardOptions), folders });
-  const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
-  const coldStartContext = readOptionalContextString(parsed.coldStartContext);
-  const attachmentIds = readContextStringArray(parsed.attachmentIds);
-  const pluginRefIds = readContextStringArray(parsed.pluginRefIds);
-  const model = readOptionalContextString(parsed.model);
-  // The model field's twin, decoded with byte-identical rules: the Execution tab's
-  // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it into
-  // `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that encodes
-  // effort inside the model id (antigravity) never sends this — its level is already part of
-  // `model`.
-  const reasoning = readOptionalContextString(parsed.reasoning);
-  // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
-  // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
-  // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
-  const conversationId = readOptionalContextString(parsed.conversationId);
-  // The admin screen the message was sent from — same "silently degrade to none" convention; see
-  // `run-page-context.ts` for why it rides here rather than behind a tool.
-  const pageContext = readRunPageContext(parsed.pageContext);
+  const principalId = requireNonEmptyContextField({ value: parsed.principalId, label: "principalId" });
+  const coldStartContext = readOptionalContextString({ value: parsed.coldStartContext });
+  const attachmentIds = readContextStringArray({ value: parsed.attachmentIds });
+  const pluginRefIds = readContextStringArray({ value: parsed.pluginRefIds });
   return {
     prompt,
     ...(coldStartContext === undefined ? {} : { coldStartContext: withPickedFoldersBlock({ text: guardUserText({ text: coldStartContext.slice(-500_000) }, guardOptions), folders }) }),
@@ -140,10 +156,7 @@ export function parseRunStartContextRef(contextRef: string): {
     pluginRefIds,
     agentPluginState: readChatAgentPluginState({ value: parsed.agentPluginState }),
     ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, guardOptions) } : {}),
-    ...(model === undefined ? {} : { model }),
-    ...(reasoning === undefined ? {} : { reasoning }),
-    ...(conversationId === undefined ? {} : { conversationId }),
-    ...(pageContext === undefined ? {} : { pageContext }),
+    ...readRunSettings({ parsed }, {}),
     ...readRecoveryContext({ parsed }, {}),
   };
 }

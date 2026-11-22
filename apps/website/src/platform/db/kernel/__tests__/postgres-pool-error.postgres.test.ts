@@ -4,7 +4,7 @@ import { after, test } from "node:test";
 import { sql } from "kysely";
 
 import { openPostgresKernel } from "../drivers/postgres.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 
 /**
@@ -16,8 +16,8 @@ import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 
 const APP = "tovu_pool_error_probe";
 const url = `${freshPostgresDatabase("tovu_kernel_pg_pool_error_fixture")}&application_name=${APP}`;
-const probed: StorageKernel<unknown> = openPostgresKernel<unknown>({ connectionString: url });
-const killer: StorageKernel<unknown> = openPostgresKernel<unknown>({ connectionString: url.replace(APP, `${APP}_killer`) });
+const probed: KyselyKernel<unknown> = openPostgresKernel<unknown>({ connectionString: url });
+const killer: KyselyKernel<unknown> = openPostgresKernel<unknown>({ connectionString: url.replace(APP, `${APP}_killer`) });
 
 after(async () => {
   await probed.close();

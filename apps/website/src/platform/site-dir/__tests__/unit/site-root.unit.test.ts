@@ -10,7 +10,7 @@ const resolveSiteRoot = (optional: Parameters<typeof resolveSiteRootReal>[0] = {
 
 /**
  * @file Unit tests for `resolveSiteRoot` — the one place the `sites/<name>/` runtime-data root is
- * computed, shared by `server/deps.ts`'s `siteDir()` and the two feature layouts
+ * computed, shared by `server/runtime/composition/deps.ts`'s `siteDir()` and the two feature layouts
  * (`features/skills/layout.ts`, `features/agent-plugins/layout.ts`) that used to hardcode
  * `<cwd>/infra/` independently.
  *
@@ -45,7 +45,7 @@ test("a relative TOVU_SITE_DIR resolves against process.cwd(), not the injected 
   // `resolve()` on a relative path is always `process.cwd()`-anchored. Asserted rather than left
   // implicit because the injected `cwd` above deliberately does NOT participate here — a caller
   // passing a relative override gets the process's real working directory, matching every other
-  // `TOVU_*_DIR` resolver in `server/deps.ts`.
+  // `TOVU_*_DIR` resolver in `server/runtime/composition/deps.ts`.
   assert.equal(resolveSiteRoot({ cwd: "/srv/tovu", env: { TOVU_SITE_DIR: "relative-site" } }), path.resolve("relative-site"));
 });
 

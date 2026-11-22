@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useEmailSender } from "../hooks/use-email-sender.hooks";
 import { createEmailFake, DNS } from "./email.test-helpers";
 
@@ -46,8 +46,8 @@ describe("useEmailSender", () => {
 
   it("keeps edits after a failed save and retains DNS when a recheck fails", async () => {
     const api = createEmailFake();
-    api.saveSender.mockRejectedValue(new ApiError("Save refused", 403));
-    api.verifyDns.mockResolvedValueOnce({ ...DNS, dns: { ...DNS.dns!, overall: "Matches" } }).mockRejectedValueOnce(new ApiError("Try later", 503));
+    api.saveSender.mockRejectedValue(new ApiError({ message: "Save refused", status: 403 }));
+    api.verifyDns.mockResolvedValueOnce({ ...DNS, dns: { ...DNS.dns!, overall: "Matches" } }).mockRejectedValueOnce(new ApiError({ message: "Try later", status: 503 }));
     const { result } = renderHook(() => useEmailSender({ api }));
     await waitFor(() => expect(result.current.draft.name).toBe("Example"));
     act(() => result.current.setDraft({ name: "New" }));

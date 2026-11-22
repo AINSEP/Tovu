@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseAgentPluginMcpConfig } from '../../mcp-metadata.js';
 import { parseHostSignalDeclaration } from '../../host-signals.js';
-import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from '../../identity.js';
+import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { parseSupersedes } from '../../supersession.js';
 
 const schema = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json';

@@ -1,5 +1,8 @@
+import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/core/list-page";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -173,32 +176,25 @@ export class SqlMemberRepo implements MemberRepoPort {
   }
 
   /**
-   * Members ordered by id. `afterId` resumes strictly after that member; an id that is not a member
-   * of the workspace is ignored (first page), as before. Page size is capped at {@link MAX_PAGE}.
+   * Members ordered by id, one page at a time. Reads one row past the page so `nextCursor` says
+   * whether more exist: a bare capped array let the 101st member silently drop off the admin list
+   * and `members_list` (refactor pattern list-cursor). The cursor is a position, not a row that must
+   * still exist, so a member trashed between pages cannot restart the list at page one. Page size is
+   * capped at {@link MAX_PAGE}.
    *
-   * @complexity O(limit) rows read via the workspace index; two statements when `afterId` is given.
+   * @throws {ToolInputError} "invalid cursor" for a cursor this list did not issue.
+   * @complexity O(limit) rows read via the workspace index; one statement.
    */
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<MemberRecord[]> {
-    const limit = Math.min(required.limit ?? MAX_PAGE, MAX_PAGE);
-    const afterId = required.afterId;
-    const anchor = afterId
-      ? await this.kernel.run((db) =>
-          db
-            .selectFrom("members")
-            .select("id")
-            .where("workspace_id", "=", required.workspaceId)
-            .where("id", "=", afterId)
-            .limit(1)
-            .executeTakeFirst()
-        )
-      : undefined;
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<MemberRecord>> {
+    const limit = Math.min(optional.limit ?? MAX_PAGE, MAX_PAGE);
+    const after = optional.cursor ? decodeListCursor({ cursor: optional.cursor, shape: ['string'] }) : null;
     const rows = await this.kernel.run((db) => {
       let query = db.selectFrom("members").selectAll().where("workspace_id", "=", required.workspaceId)
         .where("status", "<>", "trash");
-      if (anchor) query = query.where("id", ">", anchor.id);
-      return query.orderBy("id").limit(limit).execute();
+      if (after) query = query.where("id", ">", String(after[0]));
+      return query.orderBy("id").limit(limit + 1).execute();
     });
-    return rows.map(toMemberRecord);
+    return pageFromOverfetch({ rows: rows.map(toMemberRecord), limit, positionOf: (member) => [member.id] });
   }
 
   async save(record: MemberRecord): Promise<void> {
@@ -263,8 +259,19 @@ export class SqlMemberTierRepo implements MemberTierRepoPort {
     return rows.map(toMemberTierRecord);
   }
 
-  async save(record: MemberTierRecord): Promise<void> {
+  /** See {@link MemberTierRepoPort.save}. @complexity O(1); one more read on a conflict. */
+  async save(record: MemberTierRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
     const row = toMemberTierRow(record);
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      // One conditional UPDATE, not read-then-write: two editors that read the same version cannot both land.
+      const result = await this.kernel.run((db) => db.updateTable("member_tiers").set(withoutId(row))
+        .where("workspace_id", "=", record.workspaceId).where("id", "=", record.id)
+        .where("version", "=", expectedVersion).executeTakeFirst());
+      await assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "membership tier", recordId: record.id, expectedVersion,
+        readCurrentVersion: async () => (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? null });
+      return;
+    }
     await this.kernel.run((db) =>
       db
         .insertInto("member_tiers")
@@ -391,7 +398,8 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
         throw new MemberAuthError("member changed before the session was saved; request a new sign-in link");
       }
       await this.kernel.run((db) => db.insertInto("member_sessions").values(row)
-        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        // Revocation is one-way: a save never restores a revoked session (see keepStoredRevocation).
+        .onConflict((oc) => oc.column("id").doUpdateSet({ ...withoutId(row), revoked_at: keepStoredRevocation({ table: "member_sessions" }) }))
         .execute());
     });
   }
@@ -422,11 +430,15 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
         .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
           eb("credentials_revoked_at", "<", required.revokedAt)]))
         .execute());
+      const exceptSessionId = options.exceptSessionId;
       await this.kernel.run(db => db.updateTable("member_sessions")
         .set({ revoked_at: required.revokedAt })
         .where("workspace_id", "=", required.workspaceId).where("member_id", "=", required.memberId)
         // Exclude in SQL: revoking then restoring the current row could resurrect a concurrent sign-out.
-        .$if(options.exceptSessionId !== undefined, query => query.where("id", "!=", options.exceptSessionId!))
+        .$if(exceptSessionId !== undefined, query => {
+          if (exceptSessionId === undefined) throw new Error("Member session exclusion has no session ID");
+          return query.where("id", "!=", exceptSessionId);
+        })
         .where("revoked_at", "is", null).execute());
     });
   }
@@ -588,7 +600,7 @@ export class SqlMemberConsentRepo implements MemberConsentRepoPort {
     return rows.map(toMemberConsentRevisionRecord);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional?: Record<string, never>): Promise<T> {
     return this.kernel.transaction(fn);
   }
 }

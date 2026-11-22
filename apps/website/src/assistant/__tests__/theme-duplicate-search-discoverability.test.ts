@@ -77,11 +77,11 @@ test("BYOK: search_tools finds theme_duplicate and describe_tool returns its reg
   const run = { id: "run-theme-duplicate" };
 
   for (const query of ["duplicate theme", "copy theme", "new theme from existing"]) {
-    const found = await surface.executeMetaTool(principal, run, { name: "search_tools", input: { query, limit: 3 } });
+    const found = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "search_tools", input: { query, limit: 3 } } });
     const { hits } = JSON.parse(textOf(found)) as { hits: ReadonlyArray<{ id: string }> };
     assert.ok(hits.some((hit) => hit.id === "theme_duplicate"), `'${query}': expected theme_duplicate; got ${hits.map((hit) => hit.id).join(", ")}`);
   }
-  const described = await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "theme_duplicate" } });
+  const described = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "theme_duplicate" } } });
   assert.notEqual(described.isError, true);
   assert.deepEqual(
     JSON.parse(textOf(described)).inputSchema,

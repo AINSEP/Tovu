@@ -3,7 +3,8 @@
 import { renderPluginWidgetFragments, type PluginContributionRegistry, type PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import { markersOfType, PARTIAL_MARKER_TYPE } from '@jini-ai/cms/widgets/markers';
 import { validateServerWidgetFragment } from '@jini-ai/cms/widgets/html';
-import { expandPartials } from "../../contracts/core/expand-partials.js";
+import { expandPartials } from "@jini-ai/cms/widgets/markers";
+import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
 export async function renderPluginWidgetPartials(required: {
   html: string; workspaceId: string; contributions: PluginContributionRegistry;
   activationRepo: PluginActivationRepoPort;
@@ -15,5 +16,5 @@ export async function renderPluginWidgetPartials(required: {
     validateHtml: validateServerWidgetFragment,
   });
   const slots = Object.fromEntries(Object.keys(partials).map(name => [name, { source: `${name}.html` }]));
-  return expandPartials(required.html, { partials: { ...partials }, manifest: { slots } });
+  return expandPartials({ defaultSlots: DEFAULT_THEME_SLOTS, html: required.html, theme: { partials: { ...partials }, manifest: { slots } } });
 }

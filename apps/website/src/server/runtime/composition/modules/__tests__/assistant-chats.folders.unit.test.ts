@@ -11,7 +11,7 @@ test("the message PUT rejects invalid folder references before calling storage",
     return app;
   } });
   createAssistantChatsModule({ workspaceId: 'ws', chatHistory: () => ({ appendMessage: async () => { written++; return null; } }) } as never,
-    { finalizer: {} as never }).registerRoutes!(app as never);
+    { finalizer: {} as never }).registerRoutes!({ app: app as never });
   let status = 0;
   let respond!: () => void;
   const responded = new Promise<void>(resolve => { respond = resolve; });
@@ -37,7 +37,7 @@ test("history GET streams stored JSON without loading parsed messages", async ()
       return (async function* () { yield* chunks; })();
     },
     messages: async () => { messagesRead = true; throw new Error('parsed history read'); },
-  }) } as never, { finalizer: {} as never }).registerRoutes!(app as never);
+  }) } as never, { finalizer: {} as never }).registerRoutes!({ app: app as never });
   const response = Object.assign(new PassThrough({ highWaterMark: 1 }), {
     locals: { principal: { id: 'owner' } },
     type(value: string) { assert.equal(value, 'json'); return this; },
@@ -60,7 +60,7 @@ test("conversation DELETE requests metadata without unused events", async () => 
   createAssistantChatsModule({ workspaceId: 'ws', chatHistory: () => ({
     messages: async (_required: unknown, optional: unknown) => { options = optional; return []; },
     delete: async () => {},
-  }) } as never, { finalizer: {} as never }).registerRoutes!(app as never);
+  }) } as never, { finalizer: {} as never }).registerRoutes!({ app: app as never });
   let finish!: () => void;
   const finished = new Promise<void>(resolve => { finish = resolve; });
   const response = { locals: { principal: { id: 'owner' } }, status(code: number) { assert.equal(code, 204); return this; }, end: finish };
@@ -80,7 +80,7 @@ test('unchanged history refresh never loads message rows or opens the history st
     messagesVersion: async () => 'v1',
     messagesJson: async () => assert.fail('unchanged history must not read JSON'),
     messages: async () => assert.fail('unchanged history must not read messages'),
-  }) } as never, { finalizer: {} as never }).registerRoutes!(app as never);
+  }) } as never, { finalizer: {} as never }).registerRoutes!({ app: app as never });
   let status = 200;
   const headers: Record<string, string> = {};
   await new Promise<void>((resolve, reject) => {
@@ -103,7 +103,7 @@ test('an aborted raw history stream does not reach the server error handler', as
   } });
   createAssistantChatsModule({ workspaceId: 'ws', chatHistory: () => ({
     messagesJson: async () => (async function* () { for (let i = 0; i < 100; i++) yield 'x'.repeat(1024); })(),
-  }) } as never, { finalizer: {} as never }).registerRoutes!(app as never);
+  }) } as never, { finalizer: {} as never }).registerRoutes!({ app: app as never });
   const response = Object.assign(new PassThrough({ highWaterMark: 1 }), {
     locals: { principal: { id: 'owner' } }, type() { return this; },
   });
@@ -125,7 +125,7 @@ test('the explicit history version returns only a tiny unchanged body', async ()
   } });
   createAssistantChatsModule({ workspaceId: 'ws', chatHistory: () => ({
     messagesVersion: async () => 'v1', messagesJson: async () => assert.fail('no history read'),
-  }) } as never, { finalizer: {} as never }).registerRoutes!(app as never);
+  }) } as never, { finalizer: {} as never }).registerRoutes!({ app: app as never });
   const body = await new Promise<unknown>((resolve, reject) => {
     const response = { locals: { principal: { id: 'owner' } }, setHeader() {}, json: resolve };
     route({ params: { id: 'c' }, query: { ifVersion: '"v1"' } } as never, response as never, reject);

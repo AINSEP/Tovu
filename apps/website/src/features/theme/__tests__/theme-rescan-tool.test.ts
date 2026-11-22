@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { buildThemesRegistrations, contributeThemesTools, type ThemeToolDeps } from "../tool-registrations.js";
+import { buildThemesRegistrations, contributeThemesTools } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 import { discoverAllBuiltInThemes } from "../index.js";
 
 /** t11: rescan refreshes the actual array page rendering resolves, after an out-of-band write. */

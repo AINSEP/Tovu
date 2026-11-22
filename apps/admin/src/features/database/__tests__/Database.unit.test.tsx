@@ -8,7 +8,7 @@ import type { TimelineSectionController } from "../hooks/use-timeline-section.ho
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
 import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
 import { navigate } from "@/lib/router";
-import type { AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for
@@ -190,7 +190,7 @@ describe("tab bar", () => {
     const user = userEvent.setup();
     renderDatabase();
     await user.click(screen.getByRole("tab", { name: "Migrate forward" }));
-    expect(navigate).toHaveBeenCalledWith("/database?tab=migrate-forward", { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/database?tab=migrate-forward" }, { replace: true });
   });
 
   it("keeps the drift banner visible above the tab bar regardless of which tab is active", () => {
@@ -267,7 +267,7 @@ describe("TimelineSection — loading/error/loaded", () => {
     const stashed = sessionStorage.getItem("recovery-deep-link-envelope");
     expect(stashed).not.toBeNull();
     expect(JSON.parse(stashed!)).toMatchObject({ restorePointId: "rp1", ledgerEventId: "row1" });
-    expect(navigate).toHaveBeenCalledWith("/recovery");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery" });
     sessionStorage.removeItem("recovery-deep-link-envelope");
   });
 });

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formsAgentToolCatalog } from "../agent-tools.js";
 
 test("forms_create_definition explains rich-text widget insertion and the HTML form marker alternative", () => {
   const tool = formsAgentToolCatalog.find(({ name }) => name === "forms_create_definition");
@@ -13,8 +12,9 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 function providerFixture({ allow = true }: { allow?: boolean } = {}) {
   const providers = createFormCollectionRegistry({});
@@ -40,7 +40,7 @@ async function providerHarness(deps: FormsToolDeps) {
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: 'provider-discovery' });
   let callId = 0;
-  return (toolId: string, input: unknown = {}) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: 'owner' }) } });
+  return (toolId: string, input: unknown = {}) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: 'owner' }) } });
 }
 
 test('assistant discovers a fourth provider and saves its public configuration without vendor schema edits', async () => {
@@ -55,7 +55,7 @@ test('assistant discovers a fourth provider and saves its public configuration w
   assert.equal(created.ok, true, JSON.stringify(created));
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;
   assert.deepEqual((definition as typeof definition & FormAuthoring).provider, selected);
-  const rejected = await call('forms_update_definition', { formId: definition.id, provider: { id: 'fourth_provider', config: { ...selected.config, apiKey: 'private' } } });
+  const rejected = await call('forms_update_definition', { formId: definition.id, expectedVersion: definition.version, provider: { id: 'fourth_provider', config: { ...selected.config, apiKey: 'private' } } });
   assert.ok(!rejected.ok, JSON.stringify(rejected));
   assert.match(rejected.error.message, /Form provider configuration contains a secret or a non-text value/);
   const unchanged = (await deps.formDefinitionRepo.list({ workspaceId: 'ws' }))[0]!;

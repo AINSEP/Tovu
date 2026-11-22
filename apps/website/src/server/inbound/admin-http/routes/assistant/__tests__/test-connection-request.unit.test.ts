@@ -12,13 +12,13 @@ import { registerAdminAssistantTestConnectionRoute } from "../test-connection.js
 
 test("test-connection returns a validation error for an absent or null request body", async () => {
   const app = express();
-  registerAdminAssistantTestConnectionRoute(app, {
+  registerAdminAssistantTestConnectionRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
     workspaceId: "workspace-test",
     authorize: async () => ({ allowed: true, reason: "granted" }),
-  });
+  } });
   const run = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection");
   // Invoke the handler directly: body parsers can normalize an absent body before it reaches us.
   for (const body of [undefined, null]) {
@@ -33,16 +33,16 @@ test("test-connection returns a validation error for an absent or null request b
   }
 });
 
-function buildConnectionRoute(overrides: Partial<Parameters<typeof registerAdminAssistantTestConnectionRoute>[1]> = {}) {
+function buildConnectionRoute(overrides: Partial<Parameters<typeof registerAdminAssistantTestConnectionRoute>[0]["deps"]> = {}) {
   const app = express();
-  registerAdminAssistantTestConnectionRoute(app, {
+  registerAdminAssistantTestConnectionRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
     workspaceId: "workspace-test",
     authorize: async () => ({ allowed: true, reason: "granted" }),
     ...overrides,
-  });
+  } });
   return extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection");
 }
 

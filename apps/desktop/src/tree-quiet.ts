@@ -15,8 +15,8 @@
  * corrupt build from two clean ones run the same day.
  *
  * This predicate can only see what changed DURING however long the caller chose to look, though —
- * it is a sample, not a proof of quiescence for the whole pack that follows. `scripts/verify-package.
- * mjs` (`src/asar-verify.ts`) is the real backstop: it compares the FINISHED archive's content
+ * it is a sample, not a proof of quiescence for the whole pack that follows. `apps/desktop/scripts/verify-package.
+ * ts` (`src/asar-verify.ts`) is the real backstop: it compares the FINISHED archive's content
  * against source, byte-for-byte, after the pack completes. A pass here does not make that check
  * optional.
  *
@@ -40,7 +40,7 @@ export interface TreeQuietSignals {
 }
 
 /** Why a live `vite build --watch` blocks packaging — the named, known culprit from the incident. */
-function viteWatchProblem(viteWatchRunning: boolean): string | null {
+function viteWatchProblem({ viteWatchRunning }: { viteWatchRunning: boolean }, _options = {}): string | null {
   if (!viteWatchRunning) return null;
   return (
     "a `vite build --watch` process is running against apps/desktop. It rewrites dist/renderer " +
@@ -53,7 +53,7 @@ function viteWatchProblem(viteWatchRunning: boolean): string | null {
 /** Why uncommitted edits under the packaged surface block packaging — the concrete shape "another
  *  agent or human is editing this" takes in a git-tracked repo, and unlike an mtime age, empty on a
  *  fresh CI checkout by construction (there is nothing to diff against). */
-function gitDirtyProblem(gitDirtyPaths: readonly string[]): string | null {
+function gitDirtyProblem({ gitDirtyPaths }: { gitDirtyPaths: readonly string[] }, _options = {}): string | null {
   if (gitDirtyPaths.length === 0) return null;
   return (
     `apps/desktop has uncommitted changes under the packaged surface: ${gitDirtyPaths.join(", ")}. ` +
@@ -64,7 +64,7 @@ function gitDirtyProblem(gitDirtyPaths: readonly string[]): string | null {
 
 /** Why files changing DURING the check blocks packaging — the live signal git cannot provide for
  *  build output that is gitignored (dist/renderer is never tracked, so git-dirty is blind to it). */
-function movingProblem(movingPaths: readonly string[]): string | null {
+function movingProblem({ movingPaths }: { movingPaths: readonly string[] }, _options = {}): string | null {
   if (movingPaths.length === 0) return null;
   return (
     `apps/desktop is still being written to: ${movingPaths.join(", ")} changed during this check. ` +
@@ -87,8 +87,8 @@ function movingProblem(movingPaths: readonly string[]): string | null {
  */
 export function treeQuietProblems(signals: TreeQuietSignals): string[] {
   return [
-    viteWatchProblem(signals.viteWatchRunning),
-    gitDirtyProblem(signals.gitDirtyPaths ?? []),
-    movingProblem(signals.movingPaths ?? []),
+    viteWatchProblem({ viteWatchRunning: signals.viteWatchRunning }),
+    gitDirtyProblem({ gitDirtyPaths: signals.gitDirtyPaths ?? [] }),
+    movingProblem({ movingPaths: signals.movingPaths ?? [] }),
   ].filter((problem) => problem !== null);
 }

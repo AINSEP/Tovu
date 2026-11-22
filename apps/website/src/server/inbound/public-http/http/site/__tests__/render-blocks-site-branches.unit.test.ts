@@ -5,16 +5,15 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
+import { renderSite, type RenderSiteRequired } from "../render-site.js";
+import type { SiteRenderContext } from "../render-context.js";
+import { renderBlockSeam } from "../render/blocks.js";
+import { renderWidgetIr } from "../render/content-html.js";
 import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
   pageShell,
-  renderBlockSeam,
-  renderSite,
-  renderWidgetIr,
-  type RenderSiteRequired,
-  type SiteRenderContext,
-} from "../render.js";
+} from "../render/document-shell.js";
+import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
+import { injectSiteAssistantIntoStaticPage } from "../render/site-assistant-mount.js";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 
 // ---------------------------------------------------------------------------
@@ -133,7 +132,7 @@ test("block tree: a region block with a non-string key renders no declared regio
 
 test("renderBlockSeam: a region prop renders that widget region", () => {
   const ctx = context({ widgetRegions: { footer: [{ componentId: "text", props: { body: "hello" } }] } });
-  assert.equal(renderBlockSeam(ctx, { region: "footer" }), '<div class="widget-region widget-region--footer"><div class="widget widget-text">hello</div></div>');
+  assert.equal(renderBlockSeam({ ctx, props: { region: "footer" } }), '<div class="widget-region widget-region--footer"><div class="widget widget-text">hello</div></div>');
 });
 
 // --- tier dispatch ------------------------------------------------------------------------------
@@ -179,21 +178,21 @@ test("pageShell: an extraHead without a <title> keeps the shell's title", () => 
 
 test("injectExtraHeadIntoStaticPage: a theme <title> with no closing tag is left in place", () => {
   const html = "<html><head><title>Theme</head><body></body></html>";
-  assert.equal(injectExtraHeadIntoStaticPage(html, "<title>SEO</title>"), "<html><head><title>Theme<title>SEO</title></head><body></body></html>");
+  assert.equal(injectExtraHeadIntoStaticPage({ html, extraHead: "<title>SEO</title>" }), "<html><head><title>Theme<title>SEO</title></head><body></body></html>");
 });
 
 test("injectSiteAssistantIntoStaticPage: a page without </head> or </body> is returned unchanged", (t) => {
   useSiteChatBuild({ test: t, ready: true });
-  assert.equal(injectSiteAssistantIntoStaticPage("<p>fragment</p>", "react"), "<p>fragment</p>");
+  assert.equal(injectSiteAssistantIntoStaticPage({ html: "<p>fragment</p>", enabled: "react" }), "<p>fragment</p>");
 });
 
 test("injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist", (t) => {
   useSiteChatBuild({ test: t, ready: false });
   const page = "<html><head></head><body></body></html>";
-  process.env.TOVU_SITE_CHAT_DIST = resolveAppDistDir("site-chat", new URL("..", import.meta.url).pathname);
-  const withExplicitDist = injectSiteAssistantIntoStaticPage(page, "vanilla");
+  process.env.TOVU_SITE_CHAT_DIST = resolveAppDistDir({ app: "site-chat" }, { fromDir: new URL("..", import.meta.url).pathname });
+  const withExplicitDist = injectSiteAssistantIntoStaticPage({ html: page, enabled: "vanilla" });
   delete process.env.TOVU_SITE_CHAT_DIST;
-  assert.equal(injectSiteAssistantIntoStaticPage(page, "vanilla"), withExplicitDist);
+  assert.equal(injectSiteAssistantIntoStaticPage({ html: page, enabled: "vanilla" }), withExplicitDist);
 });
 
 // --- gallery / media widgets --------------------------------------------------------------------

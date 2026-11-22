@@ -1,7 +1,7 @@
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import type { ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import type { ThemeTemplateFor } from "./template-applicability.js";
+import type { ThemeTemplateFor } from "@jini-ai/cms/themes/template-applicability";
 
 /**
  * ADR-020 capability tier. `declarative` = data-only (safe from anyone),
@@ -89,7 +89,7 @@ export interface ThemeManifest {
    * theme's on-disk shape uses v2 paths (`css/theme.css`, `scripts/`, `render/pages/`) — read by
    * `static-asset-contract.ts`'s `tokenStylesheetSentinel`/`rewriteAssetPaths`/
    * `findUnrewrittenAssetPaths` (via `static-render.ts` and `build-conformance.ts`), and by
-   * `resolveThemeLayout` (`theme-layout.ts`, 2026-08-19 architecture audit findings 1 & 2 — the one
+   * `resolveThemeLayout` (`@jini-ai/cms/themes/layout`, 2026-08-19 architecture audit findings 1 & 2 — the one
    * apiVersion-aware source of truth every other consumer routes through) to pick the matching
    * sentinel/folder names at request/install time. As of the 2026-08-18 Milestone 3 migration, all
    * seven built-in static themes (`content/themes/static/*`) declare `2` — this is the live, common case,
@@ -297,65 +297,4 @@ export function resolveHandlebarsTemplateId(
   _optional: Record<string, never> = {}
 ): string | null {
   return resolveRouteTemplateId(required.route, required.handlebarsTemplates);
-}
-
-/**
- * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against —
- * mirrors `server/inbound/public-http/http/site/render.ts`'s identically-named constant byte-for-byte.
- */
-const SAFE_HREF_RESOLUTION_BASE = new URL("https://tovu-safehref.invalid/");
-// Parsing only: preserve HTTP's default-port normalization for the existing origin
-// comparison. This reserved placeholder is never a network destination.
-SAFE_HREF_RESOLUTION_BASE.protocol = "http:";
-const SAFE_HREF_RESOLUTION_ORIGIN = SAFE_HREF_RESOLUTION_BASE.origin;
-
-/**
- * Sanitize a menu item's `href` before it reaches public HTML: allow only in-page (`#…`),
- * same-origin relative (`/…`), `http(s)://`, and `mailto:` targets. Everything else — notably
- * `javascript:`, `data:`, and any other scheme — collapses to `"#"` so a menu link can never smuggle
- * script into the page. A menu item's `href` is operator-authored (the admin menu editor, or an
- * agent tool acting on an operator's behalf) and reaches every visitor of the public site, including
- * an authenticated admin — the same "content is data, so a link is an untrusted string" posture
- * `render.ts`'s own `safeHref` doc already states for post-body links.
- *
- * **This is a deliberate DUPLICATE, not a shared import, of
- * `server/inbound/public-http/http/site/render.ts`'s `safeHref` (confirmed byte-identical logic,
- * including its `/…` branch's 2026-08-20 protocol-relative-URL fix — see that function's own doc for
- * the full attack-shape writeup this mirrors).** `render.ts` sits in `server/inbound/`, a layer
- * `features/theme` must never reach into (`check:boundaries`' no-deep-import rule; a feature pulling
- * from an inbound-transport module is backwards), and importing it would open a runtime import cycle
- * back into the file that pulls in widgets/Liquid/Handlebars. (`escapeHtml` had the same problem
- * until it moved to the import-free leaf `platform/html/escape.ts`.) If this logic changes, the `render.ts` copy
- * must change too — that file does not yet cross-reference this one; flagged for whoever next edits
- * either copy to add the reciprocal comment there.
- *
- * **KNOWN GAP, not fixed here (out of this pass's scope):** `render.ts`'s own `announcement`,
- * `siteNav`, and `siteFooterRich` widget renderers build `<a href>` from operator-authored widget
- * props via `escapeHtml(str(o.href, "#"))` alone, with NO `safeHref` call — the exact same class of
- * gap this function closes for static-tier menus, still live in that file's widget-IR path.
- *
- * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
- *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
- *
- * Takes `string`, not `string | null` — matching `escapeHtml`'s own signature (`platform/html/escape.ts`).
- * `render.ts`'s `safeHref` accepts `JsonValue | undefined` because ITS callers hand it raw,
- * attacker-shaped widget-prop JSON; both of THIS function's callers already narrow `StaticMenuItem`'s
- * `href: string | null` to a real string before calling (the same `available && href !== null` gate
- * `renderMenuLinks`'s `.filter()` and `renderMenuItem`'s `linkable` both already apply) — adding a
- * second, always-false null guard here would be untestable dead code, not defense in depth.
- */
-export function safeHref(value: string): string {
-  const href = value.trim();
-  if (href.startsWith("#")) return href;
-  if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
-  if (href.startsWith("/")) {
-    let resolved: URL;
-    try {
-      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
-    } catch {
-      return "#";
-    }
-    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
-  }
-  return "#";
 }

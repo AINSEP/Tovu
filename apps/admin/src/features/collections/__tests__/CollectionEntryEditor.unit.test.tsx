@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
@@ -124,7 +124,7 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       save: vi.fn(async () => {}),
       toggleLifecycle: vi.fn(async () => {}),
       setFieldValidity: vi.fn(),
-      t: (key) => key,
+      t: ({ key }, _optional = {}) => key,
     };
     render(
       <CollectionEntryEditor
@@ -161,7 +161,7 @@ describe("injected hook seam (useCollectionEntryEditorHook)", () => {
       save: vi.fn(async () => {}),
       toggleLifecycle: vi.fn(async () => {}),
       setFieldValidity: vi.fn(),
-      t: (key) => spanish[key] ?? key,
+      t: ({ key }, _optional = {}) => spanish[key] ?? key,
     };
     render(
       <CollectionEntryEditor contentTypeKey="articles" entryId={null} useCollectionEntryEditorHook={() => controller} />

@@ -1,7 +1,9 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
-import type { Express, Request, Response } from "express";
-import type { SearchQuery, SearchServiceResult } from "@jini-ai/search";
+import type { Express, Response } from "express";
+import type { SearchServiceResult } from "@jini-ai/search";
+import { parseSearchRequest, type SearchQueryIssue } from "@jini-ai/search/http-query";
 
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
@@ -29,83 +31,21 @@ export const SEARCH_QUERY_MAX_LENGTH = 256;
 export const SEARCH_ROUTE_MAX_LIMIT = 50;
 const MAX_CURSOR_LENGTH = 1024;
 const MAX_COLLECTIONS = 10;
-/** The collection grammar of `@jini-ai/search` document keys. */
-const COLLECTION = /^[a-z][a-z0-9_]{0,63}$/;
-const LIMIT = /^\d{1,3}$/;
-
 /** The narrow deps this route needs. Absent `siteSearch` = this composition has no search. */
 export interface SiteSearchRouteDeps extends VisitorAnalyticsDeps {
   readonly siteSearch?: SiteSearchRuntime;
   readonly clock?: { nowMs(): number };
 }
 
-type Parsed = { readonly query: Omit<SearchQuery, "audiences"> } | { readonly error: string };
-
-/** One query-string value as a string; a repeated parameter (an array) is malformed. */
-function single(value: unknown, name: string): string | undefined | { error: string } {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") return { error: `'${name}' must be given once` };
-  return value;
-}
-
-function readText(raw: unknown): string | { error: string } {
-  const value = single(raw, "q");
-  if (typeof value === "object") return value;
-  const text = (value ?? "").trim();
-  if (text.length === 0) return { error: "'q' is required" };
-  if (text.length > SEARCH_QUERY_MAX_LENGTH) return { error: `'q' must be at most ${SEARCH_QUERY_MAX_LENGTH} characters` };
-  return text;
-}
-
-/** `collection=post` or `collection=post,page`. */
-function readCollections(raw: unknown): readonly string[] | undefined | { error: string } {
-  const value = single(raw, "collection");
-  if (typeof value !== "string") return value;
-  const collections = value.split(",").map(part => part.trim());
-  if (collections.length > MAX_COLLECTIONS || !collections.every(part => COLLECTION.test(part))) {
-    return { error: `'collection' must be up to ${MAX_COLLECTIONS} comma-separated names like 'post'` };
+function searchQueryErrorMessage({ issue }: { issue: SearchQueryIssue }, _optional = {}): string {
+  switch (issue.code) {
+    case "not-single": return `'${issue.field}' must be given once`;
+    case "text-required": return "'q' is required";
+    case "text-too-long": return `'q' must be at most ${SEARCH_QUERY_MAX_LENGTH} characters`;
+    case "invalid-collections": return `'collection' must be up to ${MAX_COLLECTIONS} comma-separated names like 'post'`;
+    case "invalid-limit": return `'limit' must be an integer from 1 to ${SEARCH_ROUTE_MAX_LIMIT}`;
+    case "invalid-cursor": return "'cursor' must be the nextCursor of a previous page";
   }
-  return collections;
-}
-
-function readLimit(raw: unknown): number | undefined | { error: string } {
-  const value = single(raw, "limit");
-  if (typeof value !== "string") return value;
-  const limit = LIMIT.test(value) ? Number(value) : 0;
-  if (limit < 1 || limit > SEARCH_ROUTE_MAX_LIMIT) return { error: `'limit' must be an integer from 1 to ${SEARCH_ROUTE_MAX_LIMIT}` };
-  return limit;
-}
-
-function readCursor(raw: unknown): string | undefined | { error: string } {
-  const value = single(raw, "cursor");
-  if (typeof value !== "string") return value;
-  if (value.length === 0 || value.length > MAX_CURSOR_LENGTH) return { error: "'cursor' must be the nextCursor of a previous page" };
-  return value;
-}
-
-const isError = (value: unknown): value is { error: string } => typeof value === "object" && value !== null && "error" in value;
-
-/**
- * The request's query string as a service query, or the first reason it is malformed. Never reads
- * audiences or any other field from the request.
- * @complexity O(q + collections).
- */
-export function parseSearchRequest(required: { readonly query: Request["query"] }, _optional: Record<string, never> = {}): Parsed {
-  const { query } = required;
-  const text = readText(query.q);
-  const collections = readCollections(query.collection);
-  const limit = readLimit(query.limit);
-  const cursor = readCursor(query.cursor);
-  const failed = [text, collections, limit, cursor].find(isError);
-  if (failed) return { error: failed.error };
-  return {
-    query: {
-      text: text as string,
-      ...(collections === undefined ? {} : { collections: collections as readonly string[] }),
-      ...(limit === undefined ? {} : { limit: limit as number }),
-      ...(cursor === undefined ? {} : { cursor: cursor as string }),
-    },
-  };
 }
 
 /** The service result as the public JSON contract. */
@@ -131,9 +71,12 @@ function send(res: Response, result: SearchServiceResult): void {
 export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSearchRouteDeps): void {
   app.get("/api/search", async (req, res) => {
     res.set("Cache-Control", "private, no-store");
-    const parsed = parseSearchRequest({ query: req.query });
+    const parsed = parseSearchRequest({ query: req.query, limits: {
+      maxTextLength: SEARCH_QUERY_MAX_LENGTH, maxCollections: MAX_COLLECTIONS,
+      maxLimit: SEARCH_ROUTE_MAX_LIMIT, maxCursorLength: MAX_CURSOR_LENGTH,
+    } });
     if ("error" in parsed) {
-      res.status(400).json({ error: "invalid_request", message: parsed.error });
+      res.status(400).json({ error: "invalid_request", message: searchQueryErrorMessage({ issue: parsed.error }) });
       return;
     }
     const runtime = deps.siteSearch;
@@ -146,17 +89,18 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       const sessionToken = readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE });
       const audiences = await runtime.audiencesForSession(sessionToken === undefined ? {} : { sessionToken });
       const { siteId, workspaceId } = runtime;
-      const startedAt = deps.clock?.nowMs();
+      const clock = deps.clock;
+      const startedAt = clock?.nowMs();
       const result = await runtime.service.query({ siteId, workspaceId, query: parsed.query }, { audiences });
       if (result.status === "ok") void captureVisitorEvent({ deps, request: req, name: "site_search_performed", properties: {
         resultCountBucket: searchResultCountBucket({ count: result.page.hits.length }),
-        ...(startedAt === undefined ? {} : { durationBucket: searchDurationBucket({ elapsedMs: deps.clock!.nowMs() - startedAt }) }),
+        ...(startedAt === undefined || !clock ? {} : { durationBucket: searchDurationBucket({ elapsedMs: clock.nowMs() - startedAt }) }),
       } });
       send(res, result);
     } catch (error) {
       // Express 4 does not catch a rejected async handler; answer instead of hanging the caller.
-      console.error("[site-search] GET /api/search failed:", error);
-      res.status(500).json({ error: "internal error" });
+      const { errorId } = reportServerFailure({ error, operation: "public:search" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ error: "The site couldn’t load the search results. Reload this page and report this error ID if it keeps happening.", errorId });
     }
   });
 }

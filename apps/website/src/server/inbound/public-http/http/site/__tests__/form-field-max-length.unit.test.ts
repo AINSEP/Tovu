@@ -1,9 +1,12 @@
 /** Public forms show the length caps the submit route enforces (owner 2026-10-25, spam protection). */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { stampFormFieldMaxLengths } from "../form-render.js";
-import { formValidationMessages } from "../form-validation-message.js";
-import { injectFormSubmissionResultIntoHtml, renderWidgetIr } from "../render.js";
+import { stampFormFieldMaxLengths } from "@jini-ai/cms/forms/form-controls";
+import { fieldMaxChars } from "@jini-ai/cms/forms";
+import { formValidationMessages } from "../form-feedback-policy.js";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 const FIELDS: import("@jini-ai/core/primitives").JsonObject[] = [
   { id: "name", label: "Name", type: "text", required: true },
@@ -38,14 +41,14 @@ test("HTML-mode forms get the cap on authored controls but keep an author's own 
 });
 
 test("hidden inputs and undeclared controls are left alone", () => {
-  const fields = [{ id: "ref", label: "Ref", type: "hidden", required: false }] as Parameters<typeof stampFormFieldMaxLengths>[1];
+  const fields = [{ id: "ref", label: "Ref", type: "hidden", required: false }] as Parameters<typeof stampFormFieldMaxLengths>[0]["fields"];
   const html = '<input type="hidden" name="ref" value="x"><input name="other">';
-  assert.equal(stampFormFieldMaxLengths(html, fields), html);
+  assert.equal(stampFormFieldMaxLengths({ html, fields, fieldMaxChars }), html);
 });
 
 test("a too_long error names the field's limit; a control without maxlength keeps the plain copy", () => {
   const html = renderWidgetIr({ componentId: "contact-form", props: { slug: "contact", fields: FIELDS } });
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [{ field: "message", reason: "too_long" }] });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "message", reason: "too_long" }] }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-message-error)"/)?.[1];
   assert.ok(errorId);
   assert.ok(updated.includes(`id="${errorId}">Please keep Message to 2000 characters or fewer.</div>`));
@@ -53,4 +56,10 @@ test("a too_long error names the field's limit; a control without maxlength keep
   assert.deepEqual(formValidationMessages({ formHtml: plain, locale: "en", errors: [{ field: "topic", reason: "too_long" }] }), [{ field: "topic", message: "Please shorten Topic." }]);
   const fr = '<form lang="fr"><input name="nom" aria-label="Nom" maxlength="100"></form>';
   assert.deepEqual(formValidationMessages({ formHtml: fr, locale: "en", errors: [{ field: "nom", reason: "too_long" }] }), [{ field: "nom", message: "Veuillez raccourcir Nom à 100 caractères maximum." }]);
+});
+
+test("authored maxlength wins when it differs from the descriptor cap", () => {
+  const fields = [{ id: "name", label: "Name", type: "text", required: false, maxLength: 80 }] as Parameters<typeof stampFormFieldMaxLengths>[0]["fields"];
+  const html = '<input name="name" maxlength="7"><textarea name="name" maxlength="9"></textarea>';
+  assert.equal(stampFormFieldMaxLengths({ html, fields, fieldMaxChars }), html);
 });

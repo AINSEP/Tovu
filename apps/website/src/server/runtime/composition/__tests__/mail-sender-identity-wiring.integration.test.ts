@@ -25,13 +25,13 @@ test("deps.ts: the composed mailSenderIdentity reads the site's core.mail sender
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Mail Sender Wiring Site" });
   const boot = await bootSiteDir({ dir });
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Mail Sender Wiring Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   t.after(async () => {
     await deps.pluginRuntimeReady;
     await closeSiteDirBoot(boot);
@@ -42,7 +42,7 @@ test("deps.ts: the composed mailSenderIdentity reads the site's core.mail sender
   const workspaceId = deps.workspaceId;
 
   for (const key of [MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY]) {
-    const registered = await getEffective({ repo: deps.settingsRepo }, { namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId } });
+    const registered = await getEffective({ deps: { repo: deps.settingsRepo }, namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId } });
     assert.equal(registered?.value, "", `boot registers ${MAIL_SENDER_NAMESPACE}.${key} with an empty default`);
   }
 

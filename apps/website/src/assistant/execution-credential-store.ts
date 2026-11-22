@@ -1,9 +1,10 @@
 import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
-import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
-import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "./assistant-vault.js";
-import { credentialViewFields, credentialWriteFields } from './credential-store-fields.js';
+import type { VaultRecord } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret } from "../features/webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault, writeAssistantVault } from "./assistant-vault.js";
+import { credentialViewFields } from './credential-store-fields.js';
 
 /** The admin session principal owns this feature contract. Jini owns vault persistence and
  * JSON sealing. Omitted keys preserve envelopes; clearing retains settings. Legacy AAD is opened
@@ -97,7 +98,7 @@ export interface SetExecutionCredentialInput {
   maxTokens?: number;
 }
 
-function assertValidExecutionCredentialApiKey(apiKey: string | undefined): void {
+function assertValidExecutionCredentialApiKey({ apiKey }: { apiKey: string | undefined }, _optional = {}): void {
   if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new ExecutionCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
@@ -119,7 +120,7 @@ function assertValidExecutionCredentialStringFields(input: Pick<SetExecutionCred
 
 /** {@link setExecutionCredential}'s `providerId` check, split out purely to keep that function's
  *  validation under the shop complexity ceiling. */
-function assertValidExecutionCredentialProviderId(providerId: string | null | undefined): void {
+function assertValidExecutionCredentialProviderId({ providerId }: { providerId: string | null | undefined }, _optional = {}): void {
   if (providerId !== undefined && providerId !== null && typeof providerId !== "string") {
     throw new ExecutionCredentialValidationError("providerId must be a string or null");
   }
@@ -127,7 +128,7 @@ function assertValidExecutionCredentialProviderId(providerId: string | null | un
 
 /** {@link setExecutionCredential}'s `maxTokens` check, split out purely to keep that function's
  *  validation under the shop complexity ceiling. */
-function assertValidExecutionCredentialMaxTokens(maxTokens: number | undefined): void {
+function assertValidExecutionCredentialMaxTokens({ maxTokens }: { maxTokens: number | undefined }, _optional = {}): void {
   if (maxTokens !== undefined && !(typeof maxTokens === "number" && maxTokens > 0)) {
     throw new ExecutionCredentialValidationError("maxTokens must be a positive number");
   }
@@ -138,10 +139,10 @@ function assertValidExecutionCredentialMaxTokens(maxTokens: number | undefined):
  *  that function's complexity under the shop ceiling — behavior (including message text and
  *  ordering) is unchanged. */
 function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInput): void {
-  assertValidExecutionCredentialApiKey(input.apiKey);
+  assertValidExecutionCredentialApiKey({ apiKey: input.apiKey });
   assertValidExecutionCredentialStringFields(input);
-  assertValidExecutionCredentialProviderId(input.providerId);
-  assertValidExecutionCredentialMaxTokens(input.maxTokens);
+  assertValidExecutionCredentialProviderId({ providerId: input.providerId });
+  assertValidExecutionCredentialMaxTokens({ maxTokens: input.maxTokens });
 }
 
 /** Validate in the feature, then delegate sealing and CAS to Jini. A settings-only provider move
@@ -149,25 +150,19 @@ function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInp
  * @complexity Constant singleton/identity reads and one CAS write, O(payload size) sealing. */
 export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps, input: SetExecutionCredentialInput): Promise<AdminExecutionCredentialView> {
   assertValidSetExecutionCredentialInput(input);
-  const repo = assistantVaultRepo({ repo: deps.repo });
-  const context = assistantVaultContext({ ...input, kind: "personal-execution" });
-  const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
-    throw new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
-  } });
-  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
-    provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
-    meta: { ...existing?.meta, ...executionMetadata({ input, meta: existing?.meta ?? {} }) },
+  const { record, tokenHint } = await writeAssistantVault({
+    deps, context: assistantVaultContext({ ...input, kind: "personal-execution" }), apiKey: input.apiKey,
+    unconfigured: ({ detail }) => new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${detail}`),
+    settings: ({ existing }) => ({
+      provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
+      meta: { ...existing?.meta, ...executionMetadata({ input, meta: existing?.meta ?? {} }) },
+    }),
   });
-  const saved = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
-  let tokenHint: CredentialTokenHint | null;
-  if (input.apiKey !== undefined) tokenHint = credentialTokenHint({ token: input.apiKey });
-  else tokenHint = (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record: saved })).tokenHint;
-  return toView({ record: saved, tokenHint });
+  return toView({ record, tokenHint });
 }
 
 /** Clears the envelope through the compatibility port; settings and scope remain intact. */
-export async function deleteExecutionCredential(deps: ExecutionCredentialReadDeps & { clock: ClockPort }, input: { workspaceId: UUID; principalId: UUID }): Promise<AdminExecutionCredentialView> {
+export async function deleteExecutionCredential({ deps, ...input }: { deps: ExecutionCredentialReadDeps & { clock: ClockPort } } & { workspaceId: UUID; principalId: UUID }, _optional: Record<string, never> = {}): Promise<AdminExecutionCredentialView> {
   await deps.repo.clearKey({ ...input, updatedAt: readNowIso({ clock: deps.clock }) });
   return getExecutionCredential(deps, input);
 }
@@ -183,8 +178,7 @@ export interface ResolvedAdminExecutionCredential {
 
 /** Runtime fail-closed read: one indexed singleton lookup and at most one Jini open. Metadata and
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
-export async function resolveExecutionCredential(deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; principalId: UUID },
-  onDecryptFailure: (error: unknown) => void = () => {},
+export async function resolveExecutionCredential({ deps, input }: { deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID; principalId: UUID } }, { onDecryptFailure = () => {} }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {},
 ): Promise<ResolvedAdminExecutionCredential | null> {
   try {
     const context = assistantVaultContext({ ...input, kind: "personal-execution" });
@@ -194,5 +188,5 @@ export async function resolveExecutionCredential(deps: { repo: AdminExecutionCre
     return { apiKey: payload!.apiKey as string, protocol: summary.meta.protocol as string, providerId: summary.provider,
       baseUrl: summary.meta.baseUrl as string | null, model: summary.meta.model as string | null,
       maxTokens: summary.meta.maxTokens as number | null, };
-  } catch (error) { onDecryptFailure(error); return null; }
+  } catch (error) { onDecryptFailure({ error }); return null; }
 }

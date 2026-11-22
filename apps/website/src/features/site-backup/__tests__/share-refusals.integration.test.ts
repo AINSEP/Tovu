@@ -16,14 +16,14 @@ import { SiteShareRegistry, newShareIdentity } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, type ShareDelivery } from "../share-service.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/data-modules.js";
-import { declareDataModule } from "../../plugins/data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { importFixture, stamp } from "./import.fixture.js";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "../share-backend.js";
 import { resolveShareDelivery, createRuntimeShareDelivery } from "../share-hosting.js";
 import { buildShareZip } from "../share-zip.js";
 import { SHARE_LIMITS, checkShareLimits } from "../share-policy.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, validateSharePath } from "../share-file-policy.js";
 
 
@@ -115,7 +115,7 @@ for (const [pluginId, table, columns] of [
   const h = await importFixture(t);
   const decl = FIRST_PARTY_DATA_MODULES.find(module => module.pluginId === pluginId)!;
   assert.ok(decl.tables.every(entry => entry.portability === undefined), `${pluginId} gained a portability policy; update this pin`);
-  const result = await declareDataModule({ db: contentKernel(h.db), dbPath: ":memory:", decl });
+  const result = await declareDataModule({ db: contentKernel({ store: h.db }), dbPath: ":memory:", decl });
   assert.equal(result.ok, true, result.error?.message);
   await sanitizeShareDatabase({ snapshot: h.db.$client.serialize() });
   const name = `p_${pluginId}__${table}`;

@@ -51,7 +51,7 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credentialKind; next(); });
   const baseDeps = createRouteDeps();
   t.mock.method(baseDeps.restorePointsRepo, "save", save);
-  registerAdminSiteKeyRoutes(app, { ...baseDeps, ...ports }, writer);
+  registerAdminSiteKeyRoutes({ app, deps: { ...baseDeps, ...ports }, siteKey: writer });
   const base = await startTestServer(app, t);
   const post = async ({ verb, body = {} }: { verb: string; body?: unknown }, _options = {}) => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-key/${verb}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -107,7 +107,7 @@ for (const proof of ["none", "value", "storage", "stamp"] as const) {
   test(`import preserves ${proof} proof before writes`, async t => {
     const f = await fixture({ t }), hex = randomBytes(32).toString("hex");
     f.setCheck({ value: { sealed: 1, opens: proof === "value" ? 1 : 0, storageSecret: proof === "storage" ? "opens" : "absent" } });
-    f.meta({ fingerprint: proof === "stamp" ? fingerprintSiteKeyHex(hex) : undefined });
+    f.meta({ fingerprint: proof === "stamp" ? fingerprintSiteKeyHex({ hex }) : undefined });
     const result = await f.post({ verb: "import", body: { siteKey: hex } });
     assert.equal(result.status, proof === "none" ? 409 : 200); assert.equal(result.cache, "no-store");
     assert.deepEqual(f.events, proof === "none" ? ["check"] : ["check", "install"]);
@@ -190,7 +190,7 @@ test("import and start-fresh without a JSON body are refused as client errors, n
 
 test("generate answers a key file that appears mid-request with 409 ALREADY_EXISTS", async t => {
   const f = await fixture({ t });
-  f.setEnsureThrows(new SiteKeyFileAlreadyExistsError("/fixture/key"));
+  f.setEnsureThrows(new SiteKeyFileAlreadyExistsError({ keyFilePath: "/fixture/key" }));
   const result = await f.post({ verb: "generate" });
   assert.equal(result.status, 409);
   assert.equal(result.body.error, "ALREADY_EXISTS");

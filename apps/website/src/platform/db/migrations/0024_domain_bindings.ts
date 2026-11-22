@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0024: `domain_binding`, one row per (workspace, hostname) a site wants served
@@ -26,11 +26,11 @@ export const DOMAIN_BINDINGS_STATEMENTS = [
   "CREATE INDEX idx_domain_binding_next_check ON domain_binding (workspace_id, next_check_at)",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of DOMAIN_BINDINGS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example domainBindings({ checksum: pinnedChecksum }) */
-export function domainBindings(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function domainBindings(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: DOMAIN_BINDINGS_ID, checksum: required.checksum, up };
 }

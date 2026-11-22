@@ -27,6 +27,126 @@ export function describePinFailure(error: unknown): string {
   return [`${error.name}${typeof code === "string" ? ` ${code}` : ""}`, ...frames].join("\n");
 }
 
+async function resolvePinDaemonPid({ daemonWanted, siteDir, daemonPid }: { daemonWanted: boolean; siteDir: string; daemonPid: number | undefined; }) {
+  if (daemonWanted) {
+    // Registration is cold (startAssistantDaemon spawns only on demand, and an idle daemon
+    // parks), so no daemon may be live yet. Pause the one that is live now, if any; requests
+    // are drained and refused while resetting, so nothing here demands a new one.
+    const record = await readPreviousAssistantDaemon({ siteDir });
+    if (record) {
+      assert.ok(record.port === Number(process.env.JINI_AGENT_DAEMON_PORT), "The live pin daemon is not this site's owned daemon");
+      daemonPid = record.pid;
+    }
+  }
+  return daemonPid;
+}
+
+async function performPinOperation({ close, message, server, daemonWanted, siteDir, runtimeDir, open }: { close: () => Promise<void>; message: { id?: string; action?: "snapshot" | "reset" | "shutdown" }; server: ReturnType<typeof createServer>; daemonWanted: boolean; siteDir: string; runtimeDir: string; open: () => Promise<Awaited<ReturnType<typeof createSiteRouteDeps>>>; }) {
+  let daemonPid: number | undefined;
+  let paused = false;
+  let ok = false;
+  try {
+    await close();
+    if (message.action === "shutdown") {
+      shutdownAssistantDaemon();
+      server.close();
+      process.send?.({ id: message.id, ok: true });
+      return;
+    }
+    daemonPid = await resolvePinDaemonPid({ daemonWanted, siteDir, daemonPid });
+    await pinSiteState({ siteDir, snapshotDir: path.join(runtimeDir, "seed-snapshot"), action: message.action! as "snapshot" | "reset" }, {
+      pauseDaemon: () => {
+        if (daemonPid) { process.kill(daemonPid, "SIGSTOP"); paused = true; }
+      },
+    });
+    // A daemon that became live mid-copy was never paused; its writes may be in the copy.
+    if (daemonWanted && !daemonPid) {
+      assert.ok(!await readPreviousAssistantDaemon({ siteDir }), "A pin daemon became live during the unpaused copy");
+    }
+    await open();
+    ok = true;
+  } catch (error) {
+    // Errors can contain credential-bearing SQL or provider bodies; return a fixed message.
+    // The pin log gets only this harness's own fixed assertion text, or the error's name/code
+    // and stack frames (file:line, never the message), so a failed reset is diagnosable.
+    process.stderr.write(`[pin-api] ${message.action} failed: ${describePinFailure(error)}\n`);
+  } finally {
+    if (paused && daemonPid) {
+      try { process.kill(daemonPid, "SIGCONT"); } catch { ok = false; }
+    }
+  }
+  process.send?.({ id: message.id, ok });
+}
+
+async function bootPinComposition({ modules, deps }: { modules: BootModule[]; deps: Awaited<ReturnType<typeof createSiteRouteDeps>>; }) {
+  const boot = await runBootLifecycle({ modules });
+  setReadinessSnapshot(boot);
+  assert.ok(boot.ok, "Pin composition boot failed");
+  await awaitSiteBootReadiness({ deps });
+  // Composition has other fire-and-forget seeders too. Settle them before taking a baseline
+  // or closing their stores; a snapshot of half-seeded content is not an isolated baseline.
+  await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
+}
+
+async function drainPinRequests({ sockets, responses }: { sockets: Set<Socket>; responses: Set<ServerResponse>; }) {
+  // Context teardown has closed the test's pages; cut lingering SSE/keep-alive connections so
+  // their handlers cannot continue writing after the database restore.
+  for (const socket of sockets) socket.destroy();
+  const deadline = Date.now() + 5_000;
+  while (responses.size) {
+    assert.ok(Date.now() < deadline, "Pin requests did not drain before reset");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+async function stopPinServing({ serving }: { serving: ReturnType<typeof createServingApp> | undefined; }) {
+  if (serving) {
+    await serving.outboxDrainer.stop();
+    await serving.trashSweeper.stop({});
+    await Promise.all(serving.bootWork);
+    serving = undefined;
+  }
+  return serving;
+}
+
+async function listenPinServer({ server, port }: { server: ReturnType<typeof createServer>; port: number; }) {
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", resolve);
+  });
+}
+
+async function prepareResettablePinApi({}: Record<string, never>) {
+  assert.equal(process.env.TOVU_E2E_PIN_RESET, "1");
+  assert.ok(process.send, "Resettable pins require their fixture's private IPC channel");
+  assert.notEqual(process.platform, "win32", "Warm pin resets require POSIX daemon suspension");
+  ensureAgentDaemonToken({}, {});
+  registerPluginSdkResolver();
+  await ensureAgentDaemonPortResolved();
+}
+
+function servePinRequest({ resetting, serving, responses, req, res }: { resetting: boolean; serving: ReturnType<typeof createServingApp> | undefined; responses: Set<ServerResponse>; req: import("node:http").IncomingMessage; res: ServerResponse; }) {
+  if (resetting || !serving) { res.writeHead(503); res.end("Pin state is resetting"); return; }
+  responses.add(res);
+  const done = () => responses.delete(res);
+  res.once("finish", done); res.once("close", done);
+  serving.app(req, res);
+}
+
+async function startPinDaemon({ open, siteDir }: { open: () => Promise<Awaited<ReturnType<typeof createSiteRouteDeps>>>; siteDir: string; }) {
+  const deps = await open();
+  const daemonWanted = await agentDaemonWanted(deps);
+  if (daemonWanted) startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir }, { registerProcessSignalHandlers: false });
+  return daemonWanted;
+}
+
+function armPinShutdown({ shutdown }: { shutdown: () => void; }) {
+  process.once("disconnect", shutdown);
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+  process.once("exit", shutdownAssistantDaemon);
+}
+
 /** Harness-only composition: no reset route is registered in a product server. The parent must
  * supply a private IPC channel and this flag before any application code is imported. Cached
  * imports, listener and idle daemon survive; request-scoped caches/limiters/repos are recreated
@@ -36,12 +156,7 @@ export async function startResettablePinApi(
   { siteDir, runtimeDir, port }: { siteDir: string; runtimeDir: string; port: number },
   _optional = {},
 ): Promise<void> {
-  assert.equal(process.env.TOVU_E2E_PIN_RESET, "1");
-  assert.ok(process.send, "Resettable pins require their fixture's private IPC channel");
-  assert.notEqual(process.platform, "win32", "Warm pin resets require POSIX daemon suspension");
-  ensureAgentDaemonToken({}, {});
-  registerPluginSdkResolver();
-  await ensureAgentDaemonPortResolved();
+  await prepareResettablePinApi({});
   const dbPath = path.join(siteDir, "content.db");
   let store: SiteStore | undefined;
   let modules: BootModule[] = [];
@@ -50,27 +165,14 @@ export async function startResettablePinApi(
   const sockets = new Set<Socket>();
   const responses = new Set<ServerResponse>();
   const server = createServer((req, res) => {
-    if (resetting || !serving) { res.writeHead(503); res.end("Pin state is resetting"); return; }
-    responses.add(res);
-    const done = () => responses.delete(res);
-    res.once("finish", done); res.once("close", done);
-    serving.app(req, res);
+    servePinRequest({ resetting, serving, responses, req, res });
   });
   server.on("connection", (socket) => { sockets.add(socket); socket.once("close", () => sockets.delete(socket)); });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
+  await listenPinServer({ server, port });
   const open = async () => {
-    const deps = await createSiteRouteDeps(dbPath, { onStoreOpened: (opened) => { store = opened; } });
+    const deps = await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; } } });
     modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath });
-    const boot = await runBootLifecycle(modules);
-    setReadinessSnapshot(boot);
-    assert.ok(boot.ok, "Pin composition boot failed");
-    await awaitSiteBootReadiness({ deps });
-    // Composition has other fire-and-forget seeders too. Settle them before taking a baseline
-    // or closing their stores; a snapshot of half-seeded content is not an isolated baseline.
-    await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
+    await bootPinComposition({ modules, deps });
     serving = createServingApp(deps);
     await Promise.all(serving.bootWork);
     resetting = false;
@@ -78,75 +180,19 @@ export async function startResettablePinApi(
   };
   const close = async () => {
     resetting = true;
-    // Context teardown has closed the test's pages; cut lingering SSE/keep-alive connections so
-    // their handlers cannot continue writing after the database restore.
-    for (const socket of sockets) socket.destroy();
-    const deadline = Date.now() + 5_000;
-    while (responses.size) {
-      assert.ok(Date.now() < deadline, "Pin requests did not drain before reset");
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    if (serving) {
-      await serving.outboxDrainer.stop();
-      await serving.trashSweeper.stop({});
-      await Promise.all(serving.bootWork);
-      serving = undefined;
-    }
+    await drainPinRequests({ sockets, responses });
+    serving = await stopPinServing({ serving });
     for (const module of [...modules].reverse()) await module.stop();
     modules = [];
     await store?.close();
     store = undefined;
   };
-  const deps = await open();
-  const daemonWanted = await agentDaemonWanted(deps);
-  if (daemonWanted) startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir }, { registerProcessSignalHandlers: false });
+  const daemonWanted = await startPinDaemon({ open, siteDir });
   let operation = Promise.resolve();
   process.on("message", (message: { id?: string; action?: "snapshot" | "reset" | "shutdown" }) => {
     if (!message.id || !["snapshot", "reset", "shutdown"].includes(message.action ?? "")) return;
     operation = operation.then(async () => {
-      let daemonPid: number | undefined;
-      let paused = false;
-      let ok = false;
-      try {
-        await close();
-        if (message.action === "shutdown") {
-          shutdownAssistantDaemon();
-          server.close();
-          process.send?.({ id: message.id, ok: true });
-          return;
-        }
-        if (daemonWanted) {
-          // Registration is cold (startAssistantDaemon spawns only on demand, and an idle daemon
-          // parks), so no daemon may be live yet. Pause the one that is live now, if any; requests
-          // are drained and refused while resetting, so nothing here demands a new one.
-          const record = await readPreviousAssistantDaemon({ siteDir });
-          if (record) {
-            assert.ok(record.port === Number(process.env.JINI_AGENT_DAEMON_PORT), "The live pin daemon is not this site's owned daemon");
-            daemonPid = record.pid;
-          }
-        }
-        await pinSiteState({ siteDir, snapshotDir: path.join(runtimeDir, "seed-snapshot"), action: message.action! as "snapshot" | "reset" }, {
-          pauseDaemon: () => {
-            if (daemonPid) { process.kill(daemonPid, "SIGSTOP"); paused = true; }
-          },
-        });
-        // A daemon that became live mid-copy was never paused; its writes may be in the copy.
-        if (daemonWanted && !daemonPid) {
-          assert.ok(!await readPreviousAssistantDaemon({ siteDir }), "A pin daemon became live during the unpaused copy");
-        }
-        await open();
-        ok = true;
-      } catch (error) {
-        // Errors can contain credential-bearing SQL or provider bodies; return a fixed message.
-        // The pin log gets only this harness's own fixed assertion text, or the error's name/code
-        // and stack frames (file:line, never the message), so a failed reset is diagnosable.
-        process.stderr.write(`[pin-api] ${message.action} failed: ${describePinFailure(error)}\n`);
-      } finally {
-        if (paused && daemonPid) {
-          try { process.kill(daemonPid, "SIGCONT"); } catch { ok = false; }
-        }
-      }
-      process.send?.({ id: message.id, ok });
+      await performPinOperation({ close, message, server, daemonWanted, siteDir, runtimeDir, open });
     });
   });
   const shutdown = () => {
@@ -154,8 +200,5 @@ export async function startResettablePinApi(
     shutdownAssistantDaemon();
     void operation.then(close).finally(() => process.exit(0));
   };
-  process.once("disconnect", shutdown);
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
-  process.once("exit", shutdownAssistantDaemon);
+  armPinShutdown({ shutdown });
 }

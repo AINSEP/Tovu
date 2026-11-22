@@ -21,7 +21,7 @@ import { collectTransferTables, countPartialExclusions, DEFAULT_TRANSFER_SCHEMA,
 import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { createPsqlPostgresTarget } from "../postgres-target.js";
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 
 /**
  * @file P0's end-to-end proof against a REAL local Postgres (Homebrew 14, `/tmp` socket, role `la` —
@@ -42,14 +42,14 @@ async function buildMigratedBase(): Promise<Buffer> {
   const dir = mkdtempSync(path.join(tmpdir(), "tovu-transfer-"));
   try {
     const filePath = path.join(dir, "content.db");
-    const db = openSqliteContentConnection(filePath);
+    const db = openSqliteContentConnection({ filePath });
     try {
-      await migrateSqliteContentFile(db, filePath);
+      await migrateSqliteContentFile({ db, filePath });
       // Out of WAL, so the bytes open again as an in-memory database.
       db.$client.pragma("journal_mode = DELETE");
       return db.$client.serialize();
     } finally {
-      closeSqliteConnection(db);
+      closeSqliteConnection({ source: db });
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -84,7 +84,7 @@ function fixtureSnapshot(extra?: (c: Database.Database) => void): Buffer {
 }
 
 const SITE = "fixture";
-const TARGET = () => createPsqlPostgresTarget(CONNECTION);
+const TARGET = () => createPsqlPostgresTarget({ connectionString: CONNECTION });
 
 async function count(table: string, schema: string): Promise<number> {
   return Number(await sql(FIXTURE_DB, `SELECT count(*) FROM "${schema}"."${table}"`));

@@ -7,7 +7,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import {
   registerAdminThemeDetailRoute,
@@ -83,7 +84,7 @@ function buildTestApp(themesDir: string): express.Express {
     themesDir,
     // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
     // empty in-memory repo, matching this fixture's lack of any posts to collide with.
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
 
   const app = express();
@@ -94,10 +95,10 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileGetRoute(app, deps);
-  registerAdminThemeFilePutRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileGetRoute({ app, deps });
+  registerAdminThemeFilePutRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   return app;
 }
 

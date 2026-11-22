@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-wire-policy.js";
 import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";
@@ -41,9 +41,9 @@ function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDep
   const app = express();
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
-  createSeoModule(deps).registerRoutes?.(app);
-  registerProductRoutes(app, deps);
-  registerSiteRoutes(app, deps);
+  createSeoModule(deps).registerRoutes?.({ app });
+  registerProductRoutes({ app, deps });
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 
@@ -170,7 +170,7 @@ test("A: GET /products/:id (detail)", async (t) => {
   const deps: CommerceSiteAdapterDeps = createRouteDeps();
   deps.commerceCatalog = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], findProduct: async () => ({ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }) };
   const app = express();
-  registerProductRoutes(app, deps);
+  registerProductRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/products/p1`);

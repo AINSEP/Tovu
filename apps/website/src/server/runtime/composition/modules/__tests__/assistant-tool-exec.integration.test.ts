@@ -20,7 +20,7 @@ import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../../../../as
 import { installFirstPartyToolContributors } from "../../tool-catalog-manifest.js";
 import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read-only-tool-constraint.js";
 import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "../../../../../assistant/daemon-access.js";
-import { hasUnknownToolCall } from "#src/assistant/durable-runs/continuation";
+import { hasUnknownToolCall } from "@jini-ai/chat/server/durable-runs";
 import type { RouteDeps } from "../../../../routes/types.js";
 import { acceptToolRun, startResettingToolProxy } from "./assistant-tool-exec.fixture.js";
 
@@ -210,7 +210,7 @@ test("a committed write whose response is dropped is OUTCOME UNKNOWN, ran once, 
   const { deps, baseUrl, owner } = await boot(t);
   const proxyUrl = await startResettingToolProxy(t, new URL(baseUrl));
   const events: Array<Record<string, unknown>> = [];
-  const lifecycle = { emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); }, onCancelRequested: () => () => {} } as unknown as RunLifecycle;
+  const lifecycle = { emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); }, onCancelRequested: () => () => {}, waitForTerminal: () => new Promise<never>(() => {}) } as unknown as RunLifecycle;
   const bridge = createDelegatedToolBridge({ lifecycle, toolExecutor: remote(proxyUrl) });
   const input = { kind: "post", title: "RPC dropped response", slug: `rpc-dropped-${Date.now()}` };
   await assert.rejects(bridge.execute({ runId: "rpc-drop-run", toolUseId: "tu-1", toolId: "content_post_create", principal: owner, input }),

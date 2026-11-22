@@ -87,7 +87,7 @@ export function changedColumns(before: Row, after: Row): string[] {
 
 /** Opens all three frozen credentials through the store's own read paths and checks the plaintext. */
 export async function assertOpensAllThree(h: ReturnType<typeof wire>, expected: { envKey: string; accessToken: string; refreshToken: string }) {
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, FROZEN_WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, workspaceId: FROZEN_WORKSPACE });
   assert.deepEqual(failures, []);
   const byId = Object.fromEntries(configs.map((config) => [config.serverId, config.target]));
   assert.deepEqual(byId[FROZEN_SERVERS.env], { kind: "stdio", command: "npx", args: ["-y", "env-tool-mcp"],

@@ -20,7 +20,7 @@ test("buildDaemonSpawnArgs appends a --workspace token naming the daemon's own w
 
 test("isDaemonProcessForWorkspace confirms a live process's argv names the expected workspace", () => {
   const commandLine = "node /repo/dist/agent-daemon-server.js --workspace workspace-7";
-  assert.equal(isDaemonProcessForWorkspace(commandLine, "workspace-7"), true);
+  assert.equal(isDaemonProcessForWorkspace({ commandLine, workspaceId: "workspace-7" }), true);
 });
 
 test("isDaemonProcessForWorkspace refuses a different workspace's argv, even with a matching prefix", () => {
@@ -29,11 +29,11 @@ test("isDaemonProcessForWorkspace refuses a different workspace's argv, even wit
   // trailing boundary (the literal `--workspace ` prefix plus an exact value), not a loose `includes`
   // on the id alone, or a pid legitimately reused by a DIFFERENT, similarly-named workspace would be
   // misidentified as this one.
-  assert.equal(isDaemonProcessForWorkspace(commandLine, "workspace-7"), false);
+  assert.equal(isDaemonProcessForWorkspace({ commandLine, workspaceId: "workspace-7" }), false);
 });
 
 test("isDaemonProcessForWorkspace refuses argv with no --workspace token at all", () => {
-  assert.equal(isDaemonProcessForWorkspace("node /repo/dist/agent-daemon-server.js", "workspace-7"), false);
+  assert.equal(isDaemonProcessForWorkspace({ commandLine: "node /repo/dist/agent-daemon-server.js", workspaceId: "workspace-7" }), false);
 });
 
 test("restartAssistantDaemon() refuses with a named reason when no daemon was started this process boot", () => {

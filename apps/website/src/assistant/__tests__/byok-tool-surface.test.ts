@@ -23,11 +23,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import { createNoopObservabilityPort, type OperationTrackingInput, type OperationTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import type { ByokToolResultBlock } from "../byok-provider-turn.js";
@@ -130,7 +131,7 @@ test("BYOK search_tools tells providers to supply every required argument from e
 
 test("search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve", async () => {
   const s = surface();
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "workspace" }) });
 
   assert.notEqual(result.isError, true);
   const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
@@ -139,18 +140,18 @@ test("search_tools finds a real tool in the real catalog, and every hit it retur
   // The non-drift property `buildToolCatalogQuery` exists for: search is seeded from the same
   // registry the executor resolves against, so a discoverable id is always a describable one.
   for (const hit of hits) {
-    const described = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: hit.id }));
+    const described = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: hit.id }) });
     assert.notEqual(described.isError, true, `describe_tool could not resolve the id search_tools returned: ${hit.id}`);
   }
 });
 
 test("search_tools clamps an out-of-range limit instead of spending a turn refusing it", async () => {
   const s = surface();
-  const tooMany = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", limit: 999 }));
+  const tooMany = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "post", limit: 999 }) });
   const { hits } = JSON.parse(textOf(tooMany)) as { hits: readonly unknown[] };
   assert.ok(hits.length <= 25, `expected the limit clamped to 25, got ${hits.length} hits`);
 
-  const tooFew = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", limit: 0 }));
+  const tooFew = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "post", limit: 0 }) });
   const parsed = JSON.parse(textOf(tooFew)) as { hits: readonly unknown[] };
   assert.equal(parsed.hits.length, 1, "expected a 0 limit clamped up to 1, not treated as 'no results'");
 });
@@ -158,7 +159,7 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
 test("search_tools accepts the advertised max_results alias and actually applies it", async () => {
   const s = surface();
   for (const limits of [{ max_results: 1 }, { limit: 1, max_results: 1 }]) {
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", ...limits }));
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "post", ...limits }) });
     assert.notEqual(result.isError, true);
     assert.equal((JSON.parse(textOf(result)) as { hits: unknown[] }).hits.length, 1);
   }
@@ -168,7 +169,7 @@ test("search_tools accepts the advertised max_results alias and actually applies
 
 test("search_tools refuses conflicting aliases and unknown fields instead of silently discarding them", async () => {
   for (const input of [{ query: 'post', limit: 1, max_results: 2 }, { query: 'post', junk: 2 }]) {
-    const result = await surface().executeMetaTool(PRINCIPAL, RUN, call('search_tools', input));
+    const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('search_tools', input) });
     assert.equal(result.isError, true);
   }
 });
@@ -196,14 +197,14 @@ test("search_tools' limit description names no coverage percentage — a hardcod
 test("search_tools with a missing or empty query is a readable error, not an empty result set", async () => {
   const s = surface();
   for (const input of [{}, { query: "" }, { query: "   " }, { query: 42 }, null]) {
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", input));
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", input) });
     assert.equal(result.isError, true, `expected an error for input ${JSON.stringify(input)}`);
     assert.match(textOf(result), /'query' is required/);
   }
 });
 
 test("a query that matches nothing reports that it matched nothing, rather than looking like a broken tool", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "zzzzqqqwwwnothingmatchesthis" }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "zzzzqqqwwwnothingmatchesthis" }) });
   assert.notEqual(result.isError, true);
   const parsed = JSON.parse(textOf(result)) as { hits: readonly unknown[]; note?: string };
   assert.equal(parsed.hits.length, 0);
@@ -222,26 +223,26 @@ function wireSchema(schema: unknown): unknown {
 // manifest wires refuses it with no DNS lookup and no socket.
 test("BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address", async () => {
   const s = surface();
-  const found = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "fetch a web page" }));
+  const found = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "fetch a web page" }) });
   const { hits } = JSON.parse(textOf(found)) as { hits: ReadonlyArray<{ id: string }> };
   assert.ok(hits.some(hit => hit.id === "web_fetch_page"), `expected web_fetch_page; got ${hits.map(hit => hit.id).join(", ")}`);
-  const described = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "web_fetch_page" }));
+  const described = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "web_fetch_page" }) });
   assert.deepEqual(JSON.parse(textOf(described)).inputSchema, wireSchema(s.registry.list({}).find(tool => tool.id === "web_fetch_page")?.inputSchema));
-  const refused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "web_fetch_page", input: { url: "http://127.0.0.1/admin" } }));
+  const refused = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "web_fetch_page", input: { url: "http://127.0.0.1/admin" } }) });
   assert.equal(refused.isError, true);
   assert.match(textOf(refused), /web_fetch_page: egress to '127\.0\.0\.1' rejected: resolved address is loopback\. Only public internet pages can be fetched\./);
 });
 
 test("describe_tool returns a real tool's input schema, and refuses an unknown id with a next step", async () => {
   const s = surface();
-  const found = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
+  const found = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace" }) });
   assert.notEqual(found.isError, true);
   assert.match(textOf(found), /content_read\.workspace/);
   const registered = s.registry.list({}).find((tool) => tool.id === "content_read.workspace");
   assert.ok(registered?.inputSchema);
   assert.deepEqual(JSON.parse(textOf(found)).inputSchema, wireSchema(registered.inputSchema));
 
-  const missing = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
+  const missing = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace_but_invented" }) });
   assert.equal(missing.isError, true);
   assert.match(textOf(missing), /No tool with id/);
   assert.match(textOf(missing), /search_tools/, "an error the model can act on should name the tool that fixes it");
@@ -251,7 +252,7 @@ test("execute_delegated_tool with a HALLUCINATED tool id returns a recoverable e
   const s = surface();
   // `ToolExecutor.execute` throws `unknown tool "..."` here. Unhandled, that propagates out of
   // `executeTool`, out of the provider adapter's loop, and aborts the SSE stream mid-turn.
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }) });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /unknown tool/i);
   assert.match(textOf(result), /search_tools/);
@@ -260,7 +261,7 @@ test("execute_delegated_tool with a HALLUCINATED tool id returns a recoverable e
 test("execute_delegated_tool requires a toolId, and says so", async () => {
   const s = surface();
   for (const input of [{}, { toolId: "" }, { toolId: 7 }]) {
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", input));
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", input) });
     assert.equal(result.isError, true);
     assert.match(textOf(result), /'toolId' is required/);
   }
@@ -273,7 +274,7 @@ test("execute_delegated_tool accepts a JSON-ENCODED input string — the observe
     received = ctx.input;
     return { received: ctx.input };
   }));
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_encoded_input", input: '{"unused":true}' }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_encoded_input", input: '{"unused":true}' }) });
   assert.doesNotMatch(textOf(result), /must be a JSON object/, "a JSON-encoded object string must be parsed, not refused");
   assert.notEqual(result.isError, true);
   assert.deepEqual(received, { unused: true });
@@ -282,11 +283,11 @@ test("execute_delegated_tool accepts a JSON-ENCODED input string — the observe
 
 test("execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong", async () => {
   const s = surface();
-  const plain = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: "just some prose" }));
+  const plain = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: "just some prose" }) });
   assert.equal(plain.isError, true);
   assert.match(textOf(plain), /must be a JSON object/);
 
-  const array = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1, 2] }));
+  const array = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1, 2] }) });
   assert.equal(array.isError, true);
   assert.match(textOf(array), /an array/);
 });
@@ -301,7 +302,7 @@ test("execute_delegated_tool supplies an empty object for omitted, null and blan
   // Use an object schema: a schema-free probe would miss the normalizer's rejection of undefined.
   for (const input of [undefined, null, "", "   "]) {
     const args = { toolId: "probe_empty_input", ...(input === undefined ? {} : { input }) };
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", args));
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", args) });
     assert.notEqual(result.isError, true, textOf(result));
     assert.deepEqual(JSON.parse(textOf(result)), { noInput: true });
   }
@@ -309,7 +310,7 @@ test("execute_delegated_tool supplies an empty object for omitted, null and blan
 });
 
 test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: 42 }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: 42 }) });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /not number\./);
 });
@@ -327,7 +328,7 @@ test("execute_delegated_tool refuses a non-object, non-array, non-string input (
 test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
   const deniedDeps = { ...fakeRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
   const s = createByokToolSurface(deniedDeps, { ...( { installExtensions: false }), contributions });
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }) });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /not authorized/);
 });
@@ -336,7 +337,7 @@ test("execute_delegated_tool maps an already-aborted signal to a readable 'cance
   const controller = new AbortController();
   controller.abort();
   const s = surface();
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }), controller.signal);
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: {} }) }, { signal: controller.signal });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /was cancelled/);
 });
@@ -344,7 +345,7 @@ test("execute_delegated_tool maps an already-aborted signal to a readable 'cance
 test("a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed", async () => {
   // The most likely model mistake by far: it saw `content_read.workspace` in a search hit and called it
   // directly, because the meta-set is the only thing it was actually offered.
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("content_read.workspace", {}));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("content_read.workspace", {}) });
   assert.equal(result.isError, true);
   assert.match(textOf(result), /execute_delegated_tool with toolId: "content_read\.workspace"/);
 });
@@ -377,15 +378,15 @@ test("READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch
 
   const readOnlyPrincipal = constrainPrincipalToReadOnlyTools(PRINCIPAL);
   // First prove the same live registration is advertised to an unrestricted caller.
-  const ordinary = await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "fake_write_tool_readonly_probe" }));
+  const ordinary = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "fake_write_tool_readonly_probe" }) });
   assert.notEqual(ordinary.isError, true);
-  const hidden = await s.executeMetaTool(readOnlyPrincipal, RUN, call("describe_tool", { id: "fake_write_tool_readonly_probe" }));
+  const hidden = await s.executeMetaTool({ principal: readOnlyPrincipal, run: RUN, call: call("describe_tool", { id: "fake_write_tool_readonly_probe" }) });
   assert.equal(hidden.isError, true);
-  const searched = await s.executeMetaTool(readOnlyPrincipal, RUN, call("search_tools", { query: "Conformance visibility probe", limit: 30 }));
+  const searched = await s.executeMetaTool({ principal: readOnlyPrincipal, run: RUN, call: call("search_tools", { query: "Conformance visibility probe", limit: 30 }) });
   assert.notEqual(searched.isError, true);
   const { hits } = JSON.parse(textOf(searched)) as { hits: Array<{ id: string }> };
   assert.equal(hits.some(hit => hit.id === "fake_write_tool_readonly_probe"), false);
-  const result = await s.executeMetaTool(readOnlyPrincipal, RUN, call("execute_delegated_tool", { toolId: "fake_write_tool_readonly_probe", input: {} }));
+  const result = await s.executeMetaTool({ principal: readOnlyPrincipal, run: RUN, call: call("execute_delegated_tool", { toolId: "fake_write_tool_readonly_probe", input: {} }) });
 
   // `mapToolExecutionResult`'s `case "denied"` collapses every denial reason (ToolPolicy or this
   // gate) into one generic client-facing string rather than echoing `ToolExecutionResult.error` — a
@@ -408,7 +409,7 @@ test("READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal i
     },
   });
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "fake_write_tool_unconstrained_probe", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "fake_write_tool_unconstrained_probe", input: {} }) });
 
   assert.notEqual(result.isError, true, "an ordinary, unconstrained BYOK call must be completely untouched by the new gate");
   assert.equal(writeCalls, 1);
@@ -426,7 +427,7 @@ test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace", limit: 5 }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "workspace", limit: 5 }) });
   const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
 
   assert.equal(sink.events.length, 1);
@@ -447,8 +448,8 @@ test("a describe_tool call through executeMetaTool is recorded with the requeste
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
-  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace" }));
-  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "content_read.workspace_but_invented" }));
+  await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace" }) });
+  await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "content_read.workspace_but_invented" }) });
 
   assert.equal(sink.events.length, 2);
   assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { id: "content_read.workspace", found: true });
@@ -457,7 +458,7 @@ test("a describe_tool call through executeMetaTool is recorded with the requeste
 
 test("without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing", async () => {
   const s = surface(); // no toolAttemptAudit — the default this file's other tests already exercise
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "workspace" }) });
   assert.notEqual(result.isError, true, "omitting the audit option must not change ordinary behavior");
 });
 
@@ -478,7 +479,7 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }) });
   assert.equal(result.isError, true, "sanity: still the same recoverable-error behavior, unchanged by adding audit");
 
   assert.equal(sink.events.length, 2, "expected a 'requested' row before delegating and a final-phase row after");
@@ -491,13 +492,45 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
   assert.equal(final.phase, "unknown-tool", "ToolExecutor.execute throws 'unknown tool' for an id it does not know");
 });
 
+test("a registered BYOK call settles one tool.call and the live gate suppresses the next observation", async () => {
+  const started: OperationTrackingInput[] = [];
+  const settled: OperationTrackingOutcome[] = [];
+  let enabled = true;
+  const s = createByokToolSurface({
+    ...fakeRouteDeps(),
+    observability: {
+      ...createNoopObservabilityPort({}),
+      trackOperation: (input) => {
+        started.push(input);
+        return {
+          run: (work) => work(),
+          end: (outcome) => { settled.push(outcome); },
+        };
+      },
+    },
+    observabilityEnabled: () => enabled,
+  }, { installExtensions: false, contributions });
+  s.registry.register(fakeAllowedRegistration("probe_observed_success", async () => ({ saved: true })));
+  const observed = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_observed_success", input: {} }) });
+  assert.deepEqual(JSON.parse(textOf(observed)), { saved: true }, "observation preserves the registered tool's return");
+  assert.deepEqual(started, [{ name: "tool.call", attributes: {
+    "tool.id": "probe_observed_success", "agent.run.id": RUN.id, "user.id": PRINCIPAL.id,
+  } }], "one registered BYOK call starts exactly one tool.call");
+  assert.deepEqual(settled, [{ outcome: "completed", failed: false }], "the observed tool.call settles exactly once");
+  enabled = false;
+  const unobserved = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_observed_success", input: {} }) });
+  assert.deepEqual(JSON.parse(textOf(unobserved)), { saved: true }, "disabling observation preserves the next tool's return");
+  assert.equal(started.length, 1, "the live gate suppresses observation on the next call");
+  assert.equal(settled.length, 1, "the disabled call produces no additional settled observation");
+});
+
 test("ordinary successful and throwing delegated handlers record their complete audit trail", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" }, installExtensions: false }), contributions });
   s.registry.register(fakeAllowedRegistration("probe_audit_success", async () => ({ saved: true })));
   s.registry.register(fakeAllowedRegistration("probe_audit_failure", async () => { throw new Error("probe failure"); }));
-  const success = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }));
-  const failure = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "probe_audit_failure", input: {} }));
+  const success = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_audit_success", input: {} }) });
+  const failure = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "probe_audit_failure", input: {} }) });
   assert.notEqual(success.isError, true);
   assert.deepEqual(JSON.parse(textOf(success)), { saved: true });
   assert.equal(failure.isError, true);
@@ -580,11 +613,11 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
 
   const pending = s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_original", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_original", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -615,11 +648,11 @@ test("WIRING: a successful first call is never retried and raises no recovery su
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
   const result = await s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_success", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_success", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
 
   assert.deepEqual(JSON.parse(textOf(result)), { fixed: true });
@@ -646,11 +679,11 @@ test("WIRING: no second recovery cycle — a retry whose OWN result also carries
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
   const pending = s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_original_double", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_original_double", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -692,11 +725,11 @@ test("WIRING: declining the recovery surface returns the ORIGINAL failure untouc
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
   const pending = s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_decline", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_decline", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -720,7 +753,7 @@ test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result
   );
 
   // No emitSurface passed — the synthetic/headless caller shape this loop's own doc says must never guess.
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "fake_recoverable_headless", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "fake_recoverable_headless", input: {} }) });
 
   assert.deepEqual(JSON.parse(textOf(result)), { hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" });
   assert.equal(s.surfaceExchanges.size(), 0, "no exchange should be left open with no channel to answer through");
@@ -743,11 +776,11 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
   const pending = s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_retry_fails", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_retry_fails", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -792,11 +825,11 @@ test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry ar
   const emitted: unknown[] = [];
   const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
   const pending = s.executeMetaTool(
-    PRINCIPAL,
-    RUN,
-    call("execute_delegated_tool", { toolId: "fake_recoverable_audited", input: {} }),
-    undefined,
-    emitSurface,
+    { principal: PRINCIPAL,
+    run: RUN,
+    call: call("execute_delegated_tool", { toolId: "fake_recoverable_audited", input: {} }) },
+    { signal: undefined,
+    emitSurface: emitSurface },
   );
   await new Promise((resolve) => setImmediate(resolve));
 
@@ -874,7 +907,7 @@ test("BYOK federation: awaitFederation boots the real stored roster and resolves
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
   }), contributions });
 
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
 });
 
 test("BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool", async () => {
@@ -886,9 +919,9 @@ test("BYOK federation: after awaitFederation settles, search_tools finds the new
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( {
     federationConnect: async () => new InMemoryMcpSession({ tools: [{ name: "echo", description: "echo text", inputSchema: { type: "object" } }] }),
   }), contributions });
-  await s.awaitFederation(1000);
+  await s.awaitFederation({ timeoutMs: 1000 });
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "echo" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "echo" }) });
   const { hits } = JSON.parse(textOf(result)) as { hits: ReadonlyArray<{ id: string }> };
 
   assert.ok(
@@ -912,8 +945,8 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
     ] }, {
     onCall: () => remoteResult });
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { ...( { federationConnect: async () => session }), contributions });
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }));
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: { text: "hello" } }) });
   assert.notEqual(result.isError, true);
   assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }]);
   const parsed = JSON.parse(textOf(result));
@@ -922,7 +955,7 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   const payload = parsed.untrusted.match(/<untrusted-data-[^>]+>\n([\s\S]*?)\n<\/untrusted-data-/)?.[1];
   assert.ok(payload);
   assert.deepEqual(JSON.parse(payload), remoteResult);
-  const refused = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__unlisted", input: {} }));
+  const refused = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__unlisted", input: {} }) });
   assert.equal(refused.isError, true);
   assert.equal(session.calls.length, 1);
   // Owner commit 6eac86229 (2026-10-01, trust.ts R3 "confirm only protected actions"): an allowlisted
@@ -930,10 +963,10 @@ test("BYOK federation: settled admitted tools execute with remote names and argu
   // "may write" per call: writeAllowedToolNames IS a gate, so an ungranted write is refused before
   // the remote call and a granted one runs. Admission (the unlisted refusal above) and authorize()
   // still decide whether it may run at all.
-  const ungranted = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }));
+  const ungranted = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__write_ungranted", input: {} }) });
   assert.equal(ungranted.isError, true);
   assert.equal(session.calls.length, 1);
-  const write = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__write_granted", input: {} }));
+  const write = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__write_granted", input: {} }) });
   assert.notEqual(write.isError, true);
   assert.deepEqual(session.calls, [{ name: "echo", arguments: { text: "hello" } }, { name: "write_granted", arguments: {} }]);
 });
@@ -945,7 +978,7 @@ test("BYOK federation: installExtensions: false leaves federation undefined and 
   const s = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
 
   assert.equal(s.federation, undefined);
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
 });
 
 /**
@@ -973,10 +1006,10 @@ test("BYOK federation: execute_delegated_tool for a still-registering federated 
     federationConnect: async () => connectGate,
   }), contributions });
 
-  assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 10 }), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
   assert.equal(s.federation?.started, false);
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }) });
 
   assert.equal(result.isError, true);
   assert.equal(result.content, "External MCP server 'echo-server' is still connecting — try again in a moment.");
@@ -1006,9 +1039,9 @@ test("BYOK federation: execute_delegated_tool for a server that was never in the
     federationConnect: async () => connectGate,
   }), contributions });
 
-  assert.deepEqual(await s.awaitFederation(10), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 10 }), { settled: false }, "the boot pass must still be mid-connect for this test to exercise the right branch");
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__ghost-server__whatever", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__ghost-server__whatever", input: {} }) });
 
   assert.equal(result.isError, true);
   assert.doesNotMatch(textOf(result), /still connecting/i, "a server that was never in the roster must not be told to wait");
@@ -1030,11 +1063,11 @@ test("BYOK federation: execute_delegated_tool for a connection that failed to co
     },
   }), contributions });
 
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   assert.equal(s.federation?.started, true);
   assert.deepEqual(s.federation?.connectFailures(), [{ connectionId: "echo-server", reason: "connect ECONNREFUSED" }]);
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__echo-server__echo", input: {} }) });
 
   assert.equal(result.isError, true);
   assert.equal(result.content, "External MCP server 'echo-server' failed to connect: connect ECONNREFUSED");
@@ -1051,13 +1084,13 @@ test("the BYOK discovery registry hides disallowed permanent deletes from both h
 test('owner discovery exposes permanent deletes with the site grant off, including credential and role deletes', async () => {
   const s = createByokToolSurface({ ...fakeRouteDeps(), ownerPrincipalId: Promise.resolve(PRINCIPAL.id) }, { installExtensions: false, contributions });
   for (const id of ['trash_empty', 'trash_purge_item', 'media_purge_asset', 'identity_user_delete', 'identity_role_delete', 'custom_credential_delete', 'external_mcp_delete']) {
-    const described = await s.executeMetaTool(PRINCIPAL, RUN, call('describe_tool', { id }));
+    const described = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('describe_tool', { id }) });
     assert.notEqual(described.isError, true, id);
     assert.match(textOf(described), new RegExp(id));
     const definition = JSON.parse(textOf(described));
     if (id !== 'trash_empty') assert.ok(definition.inputSchema.properties.items, `${id} must advertise a single-card batch`);
   }
-  const search = await s.executeMetaTool(PRINCIPAL, RUN, call('search_tools', { query: 'permanently delete media image', limit: 10 }));
+  const search = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('search_tools', { query: 'permanently delete media image', limit: 10 }) });
   assert.match(textOf(search), /media_purge_asset/);
 });
 
@@ -1070,14 +1103,14 @@ test('an owner delete executes through the assembled BYOK guard only after the c
     ownerPrincipalId: Promise.resolve(PRINCIPAL.id), externalMcpServerRepo: repo,
   }, { installExtensions: false, contributions });
   let cards = 0;
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call('execute_delegated_tool', {
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call('execute_delegated_tool', {
     toolId: 'external_mcp_delete', input: { serverId: 'echo-server' },
-  }), undefined, async () => {
+  }) }, { signal: undefined, emitSurface: async () => {
     cards++;
     assert.ok(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }));
     const exchangeId = s.surfaceExchanges.findTypedAnswerTarget({ principalId: PRINCIPAL.id, toolId: 'external_mcp_delete' })!;
     assert.deepEqual(s.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL.id, params: { decision: 'confirm' } }, { toolId: 'external_mcp_delete' }), { ok: true });
-  });
+  } });
   assert.notEqual(result.isError, true, textOf(result));
   assert.equal(cards, 1);
   assert.equal(await repo.findByServerId({ workspaceId: FEDERATION_WORKSPACE, serverId: 'echo-server' }), null);
@@ -1101,7 +1134,7 @@ function registerOutputTool(s: ReturnType<typeof surface>, id: string, output: u
 async function runOutputTool(output: unknown): Promise<{ readonly content: string | readonly ByokToolResultBlock[]; readonly isError?: boolean }> {
   const s = surface();
   registerOutputTool(s, "branch_pin_output_probe", output);
-  return s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_output_probe" }));
+  return s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_output_probe" }) });
 }
 
 test("a tool's plain-string output reaches the model verbatim, not JSON-quoted", async () => {
@@ -1145,37 +1178,37 @@ test("an output whose content is not an array stays one JSON string", async () =
 test("execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix", async () => {
   const s = surface();
   registerOutputTool(s, "branch_pin_output_probe", {});
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_output_probe", input: "[1,2]" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_output_probe", input: "[1,2]" }) });
   assert.deepEqual(result, { content: "'input' parsed as JSON but is not an object — send a JSON object of the tool's input fields.", isError: true });
 });
 
 test("execute_delegated_tool refuses an array input by naming it an array", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1] }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "content_read.workspace", input: [1] }) });
   assert.deepEqual(result, { content: "'input' must be a JSON object of the tool's input fields, not an array.", isError: true });
 });
 
 test("execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: 5 }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: 5 }) });
   assert.deepEqual(result, { content: "'toolId' is required and must be a non-empty string.", isError: true });
 });
 
 test("describe_tool with a non-string id is refused, naming the argument", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: 5 }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: 5 }) });
   assert.deepEqual(result, { content: "'id' is required and must be a non-empty string.", isError: true });
 });
 
 test("describe_tool with a blank id is refused, naming the argument", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "   " }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("describe_tool", { id: "   " }) });
   assert.deepEqual(result, { content: "'id' is required and must be a non-empty string.", isError: true });
 });
 
 test("a meta-tool call whose input is not an object is read as no arguments at all", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", "query as a bare string"));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", "query as a bare string") });
   assert.deepEqual(result, { content: "'query' is required and must be a non-empty string.", isError: true });
 });
 
 test("search_tools falls back to the default limit for a non-numeric limit", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "content", limit: "many" }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "content", limit: "many" }) });
   assert.equal((JSON.parse(textOf(result)) as { hits: unknown[] }).hits.length, 10);
 });
 
@@ -1187,7 +1220,7 @@ test("a descriptor-confirmation tool parks until the turn's signal aborts, then 
   registerOutputTool(s, "branch_pin_confirm_probe", { ran: true }, { requiresConfirmation: true });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 50);
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_confirm_probe" }), controller.signal);
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_confirm_probe" }) }, { signal: controller.signal });
   clearTimeout(timer);
   assert.deepEqual(result, { content: 'tool "branch_pin_confirm_probe" was cancelled', isError: true });
 });
@@ -1202,18 +1235,18 @@ test("prepareGuidance is handed to the executor and consulted for a guidance-cap
   const consulted: string[] = [];
   const s = createByokToolSurface(fakeRouteDeps(), { installExtensions: false, contributions, prepareGuidance: async ({ tool }) => { consulted.push(tool.id); return ""; } });
   registerOutputTool(s, "branch_pin_guided_probe", { ok: true }, { metadata: { guidanceCapabilities: ["ui-design"] } });
-  await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "branch_pin_guided_probe" }));
+  await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "branch_pin_guided_probe" }) });
   assert.deepEqual(consulted, ["branch_pin_guided_probe"]);
 });
 
 test("with no federation, an mcp__ id the registry does not know is reported as an unknown tool", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "mcp__ghost__tool" }));
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "mcp__ghost__tool" }) });
   assert.equal(result.isError, true);
   assert.equal(textOf(result), 'ToolExecutor: unknown tool "mcp__ghost__tool". Use search_tools to find a valid tool id.');
 });
 
 test("an installed-skills refresh that reports a change makes a tool it registered searchable on the next call", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_refreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_refreshed_skill", description: "Zyxwv refreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1221,7 +1254,7 @@ test("an installed-skills refresh that reports a change makes a tool it register
       return true;
     } });
   } });
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Zyxwv refreshed skill probe" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "Zyxwv refreshed skill probe" }) });
   assert.equal((JSON.parse(textOf(result)) as { hits: Array<{ id: string }> }).hits[0]?.id, "branch_pin_refreshed_skill");
 });
 
@@ -1229,7 +1262,7 @@ test("an installed-skills refresh that reports a change makes a tool it register
 // refresh that registers a tool yet reports `false` still surfaces it — the explicit rebuild in
 // `executeMetaTool` is belt-and-braces, not the only path.
 test("an installed-skills refresh that reports no change still leaves a tool it registered searchable", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_unrefreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_unrefreshed_skill", description: "Qxjvb unrefreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1237,7 +1270,7 @@ test("an installed-skills refresh that reports no change still leaves a tool it 
       return false;
     } });
   } });
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Qxjvb unrefreshed skill probe" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "Qxjvb unrefreshed skill probe" }) });
   assert.equal((JSON.parse(textOf(result)) as { hits: Array<{ id: string }> }).hits[0]?.id, "branch_pin_unrefreshed_skill");
 });
 
@@ -1267,7 +1300,7 @@ test("BYOK federation: a stored OAuth row's access token is resolved through the
   const launched: ResolvedFederatedConnection[] = [];
   const s = createByokToolSurface({ ...federationRouteDeps(repo, sealer), externalMcpOAuth: fakeExternalMcpOAuth(resolved) }, { contributions,
     federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [{ name: "echo", inputSchema: { type: "object" } }] }); } });
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   assert.deepEqual(resolved, ["oauth-server"]);
   assert.equal(launched.length, 1);
   assert.match(JSON.stringify(launched[0]), /oauth-token-pin/);
@@ -1288,7 +1321,7 @@ test("BYOK federation: without a wired OAuth service a connected OAuth row is sk
   const launched: ResolvedFederatedConnection[] = [];
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
     federationConnect: async (connection) => { launched.push(connection); return new InMemoryMcpSession({ tools: [] }); } });
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   assert.deepEqual(launched, []);
 });
 
@@ -1299,21 +1332,21 @@ test("BYOK federation: a reload that admits a new server makes its tools searcha
   await saveEchoServerRow(repo, sealer, keyring);
   const s = createByokToolSurface(federationRouteDeps(repo, sealer), { contributions,
     federationConnect: async (connection) => new InMemoryMcpSession({ tools: [{ name: connection.config.connectionId === "echo-server" ? "echo" : "wobble", description: "Plexquorn wobble probe", inputSchema: { type: "object" } }] }) });
-  assert.deepEqual(await s.awaitFederation(1000), { settled: true });
+  assert.deepEqual(await s.awaitFederation({ timeoutMs: 1000 }), { settled: true });
   await saveExternalMcpServer({ repo, sealer, keyring, clock: createFakeClock({ startIso: "2026-09-24T00:00:00.000Z" }) }, {
     workspaceId: FEDERATION_WORKSPACE, serverId: "wobble-server", label: "Wobble", transport: "stdio", enabled: true,
     command: "npx", args: "-y wobble-mcp", allowedToolNames: "wobble", writeAllowedToolNames: "", principalId: "principal-federation-surface", env: "",
   });
   const reloaded = await s.federation?.reload();
   assert.deepEqual(reloaded?.newlyAdmittedConnectionIds, ["wobble-server"]);
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "Plexquorn wobble probe" }));
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("search_tools", { query: "Plexquorn wobble probe" }) });
   assert.match(textOf(result), /mcp__wobble-server__wobble/);
 });
 
 test("BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport", async () => {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const seen: unknown[] = [];
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async (_registry, deps) => { seen.push(deps.surfaces?.surfaceExchanges); } });
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async ({ deps }, _optional = {}) => { seen.push(deps.surfaces?.surfaceExchanges); } });
   await s.ready;
   assert.equal(seen.length, 1);
   assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");
@@ -1352,7 +1385,7 @@ test("T2 search → describe → typed execution publishes the concrete schema a
   const typed = await turn.executeTool(call(definition.callableName, { id: "one" }));
   const canonical = await turn.executeTool(call("t2.inspect_record", { id: "one" }));
   const legacy = await turn.executeTool(call("execute_delegated_tool", { toolId: "t2.inspect_record", input: '{"id":"one"}' }));
-  const oldIngress = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "t2.inspect_record", input: { id: "one" } }));
+  const oldIngress = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: call("execute_delegated_tool", { toolId: "t2.inspect_record", input: { id: "one" } }) });
   assert.deepEqual(typed, { content: JSON.stringify({ inspected: { id: "one" } }) });
   assert.deepEqual(canonical, typed);
   assert.deepEqual(legacy, typed);

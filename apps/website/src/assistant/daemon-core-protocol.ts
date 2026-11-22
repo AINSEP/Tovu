@@ -1,9 +1,9 @@
 /** Tovu's private retained-state RPC. The site owns acceptance and provider configuration;
  * this protocol exposes neither acceptance/recovery writes nor a provider settings secret. */
-import type { AiTraceEvent } from "@jini-ai/agent-runtime/ai-trace";
-import { z } from "zod";
-import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
-import type { DurableRunStore, DurableRunHead } from "./durable-runs/ports.js";
+import type { AiTraceEvent } from "@jini-ai/core/contracts/ai-trace";
+import { z } from "zod/v3";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/contracts/assistant-subagents-policy";
+import type { DurableRunStore, DurableRunHead } from "@jini-ai/chat/server/durable-runs";
 
 /** Only fields the daemon's start/liveness gates read; the daemon already owns its event log.
  * Read afresh at every gate. This is neither a cached acceptance nor a second attempt ledger. */

@@ -4,7 +4,7 @@ import type { ContentKernel } from "../db/content-kernel.js";
 import { openPgliteKernel } from "../db/kernel/drivers/pglite.js";
 import { acquireOwnerLock, PgliteOwnerLockedError, runningPgliteOwner } from "../db/kernel/drivers/pglite-owner.js";
 import { copyServedPgliteTo, StorageOpError, storageOps } from "../db/kernel/ops.js";
-import type { StorageKernel } from "../db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CHAT_LEDGER_TABLE } from "../db/migrations/index.js";
 import { resetLegacySiteTitlePin } from "../db/sqlite/reset-legacy-site-title-pin.js";
 import { InternalError, ValidationError } from "./errors.js";
@@ -26,7 +26,7 @@ import { InternalError, ValidationError } from "./errors.js";
  */
 
 /** The `ai_chat` tables emptied in a copy: all of them but the migration ledger. */
-async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
+async function purgeAiChat(kernel: KyselyKernel<unknown>): Promise<void> {
   const tables = await kernel.query<{ name: string }>(
     sql`SELECT table_name AS name FROM information_schema.tables
         WHERE table_schema = 'ai_chat' AND table_type = 'BASE TABLE' AND table_name <> ${CHAT_LEDGER_TABLE}
@@ -38,18 +38,18 @@ async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Copies the source data dir to `targetDataDir` through the right door (see this file's header). */
-async function copySource(sourceDataDir: string, targetDataDir: string): Promise<void> {
-  const owner = runningPgliteOwner(sourceDataDir);
+async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: string; targetDataDir: string }, _optional = {}): Promise<void> {
+  const owner = runningPgliteOwner({ dataDir: sourceDataDir });
   if (owner !== undefined) {
-    await copyServedPgliteTo(owner, targetDataDir);
+    await copyServedPgliteTo({ owner, targetPath: targetDataDir });
     return;
   }
   let release: () => void;
   try {
-    release = acquireOwnerLock(sourceDataDir);
+    release = acquireOwnerLock({ dataDir: sourceDataDir });
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry`);
+      throw new ValidationError({ message: `the site being duplicated is running (process ${err.pid ?? "unknown"}); stop it, or duplicate it from inside that site, then retry` });
     }
     throw err;
   }
@@ -58,7 +58,7 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
   try {
     const source = openPgliteKernel<unknown>({ dataDir: sourceDataDir });
     try {
-      await storageOps(source).copyTo(targetDataDir);
+      await storageOps({ kernel: source }).copyTo(targetDataDir);
     } finally {
       await source.close();
     }
@@ -75,21 +75,21 @@ async function copySource(sourceDataDir: string, targetDataDir: string): Promise
  * @throws {InternalError} the copy, the purge or the final verification failing (the driver's message kept).
  * @complexity One dump + restore of the whole data dir, one TRUNCATE, one VACUUM — bounded by the site's size.
  */
-export async function duplicatePgliteStore(required: { sourceDataDir: string; targetDataDir: string }): Promise<void> {
+export async function duplicatePgliteStore(required: { sourceDataDir: string; targetDataDir: string }, _optional: Record<string, never> = {}): Promise<void> {
   const { sourceDataDir, targetDataDir } = required;
   try {
-    await copySource(sourceDataDir, targetDataDir);
+    await copySource({ sourceDataDir, targetDataDir });
   } catch (err) {
     if (err instanceof ValidationError) throw err;
-    throw new InternalError(`duplicatePgliteStore: copying to ${targetDataDir} failed: ${(err as Error).message}`);
+    throw new InternalError({ message: `duplicatePgliteStore: copying to ${targetDataDir} failed: ${(err as Error).message}` });
   }
   const target = openPgliteKernel<unknown>({ dataDir: targetDataDir });
   try {
     await purgeAiChat(target);
     await resetLegacySiteTitlePin({ db: target as ContentKernel });
-    await storageOps(target).compactAndVerify();
+    await storageOps({ kernel: target }).compactAndVerify();
   } catch (err) {
-    if (err instanceof StorageOpError) throw new InternalError(`duplicatePgliteStore: ${err.message}`);
+    if (err instanceof StorageOpError) throw new InternalError({ message: `duplicatePgliteStore: ${err.message}` });
     throw err;
   } finally {
     await target.close();

@@ -18,7 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { PackagedGateIsolationError } from "./packaged-gate-isolation.ts";
+import { PackagedTreeIsolationError } from "@jini-ai/devops/packaging/electron";
 import { smokePackagedChatCli, withInterruptSignal } from "./smoke-packaged-chat-gate.ts";
 import type { ChatGateDeps, GateFs } from "./smoke-packaged-chat-gate.ts";
 import { PACKAGED_CHAT_PROMPT, PackagedChatSmokeError } from "./smoke-packaged-chat.ts";
@@ -179,7 +179,7 @@ function base() {
     randomUUID: () => { uuid += 1; return `uuid-${uuid}`; },
     processes: {
       listProcessSnapshots: async () => s.snapshots,
-      collectProcessTreePids: (_snapshots, roots) => roots.filter((pid): pid is number => typeof pid === "number"),
+      collectProcessTreePids: ({ rootPids: roots }) => roots.filter((pid): pid is number => typeof pid === "number"),
       stopProcesses: async (pids) => {
         stopped.push(pids.filter((pid): pid is number => typeof pid === "number"));
         return { alreadyStopped: false, forcedPids: [], matchedPids: [], remainingPids: s.remaining, stoppedPids: [] };
@@ -212,7 +212,7 @@ function base() {
       };
     },
     resolveSmokeTargets,
-    async withIsolatedSmokeTargets({ targets, run }) { await run(targets, isolated); },
+    async withIsolatedSmokeTargets({ targets, run }) { await run({ targets, directory: isolated }); },
     stdout: { write: (text: string) => out.push(text) },
     stderr: { write: (text: string) => err.push(text) },
   };
@@ -464,8 +464,20 @@ test("packaged-SQLite evidence failures: unreadable, invalid JSON, never settlin
   ];
   for (const [tweak, message] of cases) {
     const s = scenario(t, tweak);
+    let captured: unknown;
+    const isolate = s.deps.withIsolatedSmokeTargets;
+    s.deps.withIsolatedSmokeTargets = async (input) => {
+      try { return await isolate(input); } catch (error) { captured = error; throw error; }
+    };
     assert.equal(await smokePackagedChatCli(s.deps), 1);
     assert.deepEqual(s.err, [`smoke-packaged-chat: ${message}\n`]);
+    if (message === "Packaged SQLite returned invalid evidence JSON.") {
+      assert.ok(captured instanceof AggregateError);
+      const failure: unknown = captured.errors[0];
+      assert.ok(failure instanceof PackagedChatSmokeError);
+      assert.ok(failure.cause instanceof SyntaxError);
+      assert.match(failure.cause.stack ?? "", /smoke-packaged-chat-gate\.ts/);
+    }
   }
 });
 
@@ -481,7 +493,7 @@ test("every collected failure prints its own line; isolation errors print their 
   assert.deepEqual(s.err, ["smoke-packaged-chat: Packaged server emitted no boot token.\n", "smoke-packaged-chat: Could not make the temporary site writable.\n"]);
 
   const isolation = scenario(t);
-  isolation.deps.withIsolatedSmokeTargets = async () => { throw new PackagedGateIsolationError("node_modules above the gate copy"); };
+  isolation.deps.withIsolatedSmokeTargets = async () => { throw new PackagedTreeIsolationError("node_modules above the gate copy"); };
   assert.equal(await smokePackagedChatCli(isolation.deps), 1);
   assert.deepEqual(isolation.err, ["smoke-packaged-chat: node_modules above the gate copy\n"]);
 });
@@ -499,16 +511,16 @@ test("a non-macOS isolated run skips the Keychain link", async (t) => {
 test("withInterruptSignal aborts on SIGINT/SIGTERM and always detaches its handlers", async () => {
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     const events = new EventEmitter();
-    const seen = await withInterruptSignal({ events }, async (abort) => {
+    const seen = await withInterruptSignal({ events, run: async ({ signal: abort }) => {
       assert.equal(abort.aborted, false);
       events.emit(signal);
       return abort.aborted;
-    });
+    } });
     assert.equal(seen, true);
     assert.equal(events.listenerCount("SIGINT") + events.listenerCount("SIGTERM"), 0);
   }
   const events = new EventEmitter();
-  await assert.rejects(withInterruptSignal({ events }, async () => { throw new PackagedChatSmokeError("boom"); }), PackagedChatSmokeError);
+  await assert.rejects(withInterruptSignal({ events, run: async () => { throw new PackagedChatSmokeError("boom"); } }), PackagedChatSmokeError);
   assert.equal(events.listenerCount("SIGINT") + events.listenerCount("SIGTERM"), 0);
 });
 

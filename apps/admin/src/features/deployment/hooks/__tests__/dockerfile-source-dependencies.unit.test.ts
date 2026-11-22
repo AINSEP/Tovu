@@ -13,12 +13,9 @@ const { getDockerfileSource, setDockerfileSource } = vi.hoisted(() => ({
   setDockerfileSource: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, getDockerfileSource, setDockerfileSource },
-  };
+vi.mock("../../api/deployment-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/deployment-api")>();
+  return { ...actual, deploymentApi: { ...actual.deploymentApi, getDockerfileSource, setDockerfileSource } };
 });
 
 const { defaultDockerfileSourcePort } = await import("../dockerfile-source-dependencies.hooks");
@@ -35,8 +32,8 @@ describe("defaultDockerfileSourcePort", () => {
     const written = { exists: true, contents: "FROM node:22-slim\n", etag: '"def456"' };
     setDockerfileSource.mockResolvedValue(written);
     await expect(
-      defaultDockerfileSourcePort.setDockerfileSource("FROM node:22-slim\n", '"abc123"'),
+      defaultDockerfileSourcePort.setDockerfileSource({ contents: "FROM node:22-slim\n", ifMatch: '"abc123"' }),
     ).resolves.toEqual(written);
-    expect(setDockerfileSource).toHaveBeenCalledWith("FROM node:22-slim\n", '"abc123"');
+    expect(setDockerfileSource).toHaveBeenCalledWith({ contents: "FROM node:22-slim\n", ifMatch: '"abc123"' });
   });
 });

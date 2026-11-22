@@ -14,7 +14,7 @@ export function localCliScopeCopy(
 export function isDesktopAdmin(
   {}: Record<string, never>, { targetWindow }: { targetWindow?: Window } = {},
 ): boolean {
-  return getFolderDropPort(targetWindow) !== null || getVoiceInputPort(targetWindow) !== null;
+  return getFolderDropPort({ targetWindow }) !== null || getVoiceInputPort({ targetWindow }) !== null;
 }
 
 /** Unknown authentication is not a refusal. Warn only about a confirmed missing sign-in. */
@@ -39,21 +39,22 @@ export function normalizeAgentDescription(
 /** Share the component's scan with the warning instead of spawning another inventory sweep.
  * Rescan results replace previous auth status; rejected scans remain failures, never empty lists. */
 export function createAgentPresentationPort(
-  { port, onAgents }: { port: ExecutionPort; onAgents: (agents: readonly DetectedAgent[]) => void },
+  { port, onAgents }: { port: ExecutionPort; onAgents: (input: { agents: readonly DetectedAgent[] }, options?: Record<string, never>) => void },
   _optional = {},
 ): ExecutionPort {
   let latestScan = 0;
-  const project = async (request: () => Promise<readonly DetectedAgent[]>) => {
+  const project = async ({ request }: { request: () => Promise<readonly DetectedAgent[]> }, _options = {}) => {
     latestScan += 1;
     const scan = latestScan;
     const agents = (await request()).map((agent) => normalizeAgentDescription({ agent }));
     // A slow initial scan must not overwrite a newer rescan's authentication result.
-    if (scan === latestScan) onAgents(agents);
+    if (scan === latestScan) onAgents({ agents });
     return agents;
   };
+  const rescanLocalAgents = port.rescanLocalAgents;
   return {
     ...port,
-    detectLocalAgents: () => project(() => port.detectLocalAgents()),
-    ...(port.rescanLocalAgents ? { rescanLocalAgents: () => project(() => port.rescanLocalAgents!()) } : {}),
+    detectLocalAgents: () => project({ request: () => port.detectLocalAgents() }),
+    ...(rescanLocalAgents ? { rescanLocalAgents: () => project({ request: () => rescanLocalAgents.call(port) }) } : {}),
   };
 }

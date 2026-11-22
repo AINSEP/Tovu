@@ -38,13 +38,13 @@ export type BeforeSendHook = (ctx: BeforeSendHookContext, message: OutboundEmail
 export type HookChainResult = { keep: true; message: OutboundEmail } | { keep: false; reason: string };
 
 export interface HookRegistry {
-  registerRecipientFilterHook(hook: RecipientFilterHook): void;
-  registerBeforeSendHook(hook: BeforeSendHook): void;
+  registerRecipientFilterHook(required: { hook: RecipientFilterHook }, optional?: {}): void;
+  registerBeforeSendHook(required: { hook: BeforeSendHook }, optional?: {}): void;
   runHookChain(required: {
     recipientFilterContext: RecipientFilterContext;
     beforeSendContext: BeforeSendHookContext;
     message: OutboundEmail;
-  }): Promise<HookChainResult>;
+  }, optional?: {}): Promise<HookChainResult>;
 }
 
 /**
@@ -56,13 +56,13 @@ export function createHookRegistry(): HookRegistry {
   const beforeSendHooks: BeforeSendHook[] = [];
 
   return {
-    registerRecipientFilterHook(hook) {
+    registerRecipientFilterHook({ hook }, _options = {}) {
       recipientFilters.push(hook);
     },
-    registerBeforeSendHook(hook) {
+    registerBeforeSendHook({ hook }, _options = {}) {
       beforeSendHooks.push(hook);
     },
-    async runHookChain(required) {
+    async runHookChain(required, _options = {}) {
       // Step 1: recipient.filter — ALWAYS before beforeSend (behavior.spec §1.3).
       for (const filter of recipientFilters) {
         let keep: boolean;

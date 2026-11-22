@@ -10,20 +10,20 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { validateValueAgainstSchema, type SettingValueSchema } from "@jini-ai/core/settings";
 import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
+import { PUBLISHABLE_SETTINGS } from "#src/contracts/core/settings-vocabulary";
 import { backfillPostSearchIndex } from "#src/features/post/index";
 import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
-import { listColumns, listTables } from "../../../platform/db/kernel/dialect.js";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../../platform/db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
-import { declareDataModule, type DataModuleDecl, type TableDecl } from "#src/features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl, type TableDecl } from "@jini-ai/db/data-modules";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row>;
-type Kernel = StorageKernel<Tables>;
+type Kernel = KyselyKernel<Tables>;
 /** Free-space probe for the private staging directory (`node:fs/promises` `statfs` by default). */
 export type StagingSpacePort = (path: string) => Promise<{ bavail: number; bsize: number }>;
 
@@ -89,7 +89,7 @@ async function declarePortableTables(required: { target: Kernel; decl: DataModul
  * @example await refuseUnknownShareTables({ source, trusted: new Set(await listTables(target)) });
  */
 export async function refuseUnknownShareTables({ source, trusted }: { source: Kernel; trusted: ReadonlySet<string> }, _options = {}): Promise<void> {
-  for (const table of await listTables(source)) {
+  for (const table of await listTables({ kernel: source })) {
     if (trusted.has(table) || SHARE_LEGACY_PRIVATE_TABLES.has(table) || CHAT_TABLE_NAMES.includes(table) || table.startsWith("_vault_backup_")) continue;
     const rows = await source.query<{ found: number }>(sql`SELECT 1 AS found FROM ${sql.id(table)} LIMIT 1`);
     if (rows.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: `Cannot share unsupported nonempty table '${archiveRefusalName({ name: table })}'. Add an approved portable-data policy for this table first.` });
@@ -119,8 +119,8 @@ function requireTrustedColumns(required: { table: string; columns: string[]; sou
  * @throws SiteShareRefusal for missing required columns or unapproved core columns.
  */
 async function copyTable({ source, target, table, credentialWarnings }: { source: Kernel; target: Kernel; table: string; credentialWarnings: CredentialWarning[] }, { signal, portablePlugin, omittedMediaIds = [] }: { signal?: AbortSignal; portablePlugin?: boolean; omittedMediaIds?: readonly string[] } = {}): Promise<void> {
-  const columns = (await listColumns(target, table)).map(row => row.name);
-  const sourceColumns = (await listColumns(source, table)).map(row => row.name);
+  const columns = (await listColumns({ kernel: target, table })).map(row => row.name);
+  const sourceColumns = (await listColumns({ kernel: source, table })).map(row => row.name);
   const defaults = ADDITIVE_COLUMN_DEFAULTS.get(table) ?? {};
   requireTrustedColumns({ table, columns, sourceColumns, defaults }, { portablePlugin });
   const rows = await source.run(db => db.selectFrom(table).select(columns.filter(column => sourceColumns.includes(column))).execute());
@@ -158,7 +158,7 @@ interface MediaOwners {
 }
 
 /** Workspace-scoped identity key for an owner lookup. O(1). */
-function ownerKey(workspace: unknown, identity: unknown): string {
+function ownerKey({ workspace, identity }: { workspace: unknown; identity: unknown }, _optional: Record<string, never> = {}): string {
   return JSON.stringify([workspace, identity]);
 }
 
@@ -173,7 +173,7 @@ async function mediaRowProjection(required: { target: Kernel; table: string }, _
   if (required.table === "asset_blobs") return row => projectAssetBlob({ row, owners });
   const ownerColumn = required.table === "media_slug_history" ? "media_id" : "asset_id";
   return row => {
-    const owner = owners.byId.get(ownerKey(row.workspace_id, row[ownerColumn]));
+    const owner = owners.byId.get(ownerKey({ workspace: row.workspace_id, identity: row[ownerColumn] }));
     if (!owner) return null;
     return required.table === "asset_renditions" ? projectRendition({ row, owner, privateKeys: owners.privateKeys }) : row;
   };
@@ -190,10 +190,10 @@ function projectMediaRow(row: Row): Row | null {
 /** Indexes the retained media rows by id and by content hash, and derives document-only blob keys.
  * O(media rows) time and space. */
 function indexMediaOwners(required: { owners: Row[] }, _options: Record<string, never> = {}): MediaOwners {
-  const byId = new Map(required.owners.map(row => [ownerKey(row.workspace_id, row.id), row]));
+  const byId = new Map(required.owners.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.id }), row]));
   const byHash = new Map<string, { document: boolean; media: boolean }>();
   for (const row of required.owners) {
-    const hash = ownerKey(row.workspace_id, row.source_sha256);
+    const hash = ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 });
     const kinds = byHash.get(hash) ?? { document: false, media: false };
     if (row.kind === "document") kinds.document = true;
     else if (row.status === "active") kinds.media = true;
@@ -202,14 +202,14 @@ function indexMediaOwners(required: { owners: Row[] }, _options: Record<string, 
     }
     byHash.set(hash, kinds);
   }
-  const privateKeys = new Set(required.owners.filter(row => row.kind === "document" && !byHash.get(ownerKey(row.workspace_id, row.source_sha256))?.media)
+  const privateKeys = new Set(required.owners.filter(row => row.kind === "document" && !byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }))?.media)
     .map(row => computeBlobStorageKey({ workspaceId: String(row.workspace_id), sha256: String(row.source_sha256) })));
   return { byId, byHash, privateKeys };
 }
 
 /** A blob travels only with a retained owner of its bytes; document bytes stay marked share-owned. O(1). */
 function projectAssetBlob(required: { row: Row; owners: MediaOwners }, _options: Record<string, never> = {}): Row | null {
-  const kinds = required.owners.byHash.get(ownerKey(required.row.workspace_id, required.row.sha256));
+  const kinds = required.owners.byHash.get(ownerKey({ workspace: required.row.workspace_id, identity: required.row.sha256 }));
   if (!kinds) return null;
   return { ...required.row, ...(kinds.document || required.row.document_owned === 1 ? { document_owned: 1, created_by_principal: "share" } : {}) };
 }
@@ -235,11 +235,11 @@ function projectRendition(required: { row: Row; owner: Row; privateKeys: Readonl
  */
 async function documentReferences(required: { target: Kernel }, _options: Record<string, never> = {}): Promise<NonNullable<ShareDatabaseProjection["documents"]>> {
   const blobs = await required.target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   const documents = await required.target.run(db => db.selectFrom("media").selectAll().where("kind", "=", "document").execute());
   return documents.map(row => {
     const sha256 = String(row.source_sha256);
-    const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
+    const blob = byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }));
     const storageKey = computeBlobStorageKey({ workspaceId: String(row.workspace_id), sha256 });
     const invalidBlob = !/^[a-f0-9]{64}$/.test(sha256) || !blob || blob.storage_key !== storageKey || blob.status !== "active";
     if (invalidBlob || typeof row.original_filename !== "string") throw new SiteShareRefusal({ code: "INVALID_DOCUMENT", message: "Document source blob is missing or has an invalid key/hash." });
@@ -281,7 +281,7 @@ function portableDefinitionSchema(required: { definition: Row }, _options: Recor
   if (!(Number(definition.scopes) & 2) || !Object.hasOwn(PUBLISHABLE_SETTINGS, `${definition.namespace}:${definition.key}`)) return null;
   const schema = JSON.parse(String(definition.schema_json)) as SettingValueSchema;
   const defaultValue = JSON.parse(String(definition.default_json)) as JsonValue;
-  return validateValueAgainstSchema(schema, defaultValue) ? schema : null;
+  return validateValueAgainstSchema({ schema, value: defaultValue }) ? schema : null;
 }
 
 /** Copies the definition's current-version workspace values that may travel, stamped `share`.
@@ -302,7 +302,7 @@ async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; d
 function portableValue(required: { row: Row; schema: SettingValueSchema }, _options: Record<string, never> = {}): { value: JsonValue } | null {
   const { row } = required;
   const value = row.state === "cleared" ? null : JSON.parse(String(row.value_json)) as JsonValue;
-  if (row.state !== "cleared" && !validateValueAgainstSchema(required.schema, value)) return null;
+  if (row.state !== "cleared" && !validateValueAgainstSchema({ schema: required.schema, value })) return null;
   return { value };
 }
 
@@ -326,15 +326,15 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const space = await (optional.statfs ?? statfs)(staging);
     if (space.bavail * space.bsize < required.snapshot.length + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Insufficient private staging space for this database share." });
     await writeFile(filePath, required.snapshot, { flag: "wx", mode: 0o600 });
-    source = openSqliteFileKernel<Tables>(filePath, { readOnly: true });
+    source = openSqliteFileKernel<Tables>({ filePath }, { readOnly: true });
     fresh = openContentDb({ filePath: ":memory:" });
-    const target = sqliteKernel<Tables>(fresh);
+    const target = sqliteKernel<Tables>({ source: fresh });
     const from = source;
-    const present = new Set(await listTables(from));
+    const present = new Set(await listTables({ kernel: from }));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
-    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables(target), ...plugins.private]) });
+    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
-    await backfillPostSearchIndex({ kernel: contentKernel(fresh) });
+    await backfillPostSearchIndex({ kernel: contentKernel({ store: fresh }) });
     const documents = await documentReferences({ target });
     const media = [
       ...await target.run(db => db.selectFrom("asset_blobs").select(["storage_key as storageKey", "sha256"]).execute()) as { storageKey: string; sha256: string }[],
@@ -342,11 +342,11 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     ];
     // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
     // arbitrary unreferenced archive media must refuse rather than be pruned on import.
-    const bytes = sqliteClientOf(fresh).serialize();
+    const bytes = sqliteClientOf({ source: fresh }).serialize();
     return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
-    if (fresh) closeSqliteConnection(fresh);
+    if (fresh) closeSqliteConnection({ source: fresh });
     await rm(staging, { recursive: true, force: true });
   }
 }
@@ -370,15 +370,15 @@ async function archiveMediaSources({ target }: { target: Kernel }): Promise<Arch
   const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
   const renditions = await target.run(db => db.selectFrom("asset_renditions").selectAll().where("transform_name", "=", "public").execute());
   const transforms = await target.run(db => db.selectFrom("transform_registry").selectAll().where("name", "=", "public").orderBy("version", "asc").execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   const byKey = new Map(blobs.map(row => [String(row.storage_key), row]));
   const definitions = new Map(transforms.map(row => [String(row.workspace_id), row]));
-  const publics = new Map(renditions.map(row => [ownerKey(row.workspace_id, [row.asset_id, row.version]), row]));
+  const publics = new Map(renditions.map(row => [ownerKey({ workspace: row.workspace_id, identity: [row.asset_id, row.version] }), row]));
   return rows.map(row => {
-    const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
+    const blob = byHash.get(ownerKey({ workspace: row.workspace_id, identity: row.source_sha256 }));
     if (!blob) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Media '${archiveRefusalName({ name: String(row.id) })}' has no source blob.` });
     const definition = definitions.get(String(row.workspace_id));
-    const rendition = definition && publics.get(ownerKey(row.workspace_id, [row.id, definition.version]));
+    const rendition = definition && publics.get(ownerKey({ workspace: row.workspace_id, identity: [row.id, definition.version] }));
     return { id: String(row.id), workspaceId: String(row.workspace_id), slug: String(row.slug ?? row.id), kind: String(row.kind),
       originalFilename: row.original_filename === null ? null : String(row.original_filename), storageKey: String(blob.storage_key), sha256: String(blob.sha256), documentOwned: Boolean(blob.document_owned),
       ...(definition ? { public: { version: Number(definition.version), params: JSON.parse(String(definition.params_json)),
@@ -397,9 +397,11 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
   try {
     const file = path.join(staging, "content.db");
     await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
-    target = openSqliteFileKernel<Tables>(file);
+    target = openSqliteFileKernel<Tables>({ filePath: file });
     await rewriteMediaRows({ target, copies: required.copies }, optional);
-    const bytes = sqliteConnectionOf(target)!.serialize();
+    const connection = sqliteConnectionOf({ kernel: target });
+    if (!connection) throw new Error("Share database has no SQLite connection");
+    const bytes = connection.serialize();
     return bytes;
   } finally { await target?.close(); await rm(staging, { recursive: true, force: true }); }
 }
@@ -407,19 +409,19 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
 async function rewriteMediaRows(required: { target: Kernel; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal }): Promise<void> {
   const { target } = required;
   const media = await target.run(db => db.selectFrom("media").selectAll().execute());
-  const byId = new Map(media.map(row => [ownerKey(row.workspace_id, row.id), row]));
+  const byId = new Map(media.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.id }), row]));
   const blobs = await target.run(db => db.selectFrom("asset_blobs").selectAll().execute());
-  const byHash = new Map(blobs.map(row => [ownerKey(row.workspace_id, row.sha256), row]));
+  const byHash = new Map(blobs.map(row => [ownerKey({ workspace: row.workspace_id, identity: row.sha256 }), row]));
   if (byId.size !== required.copies.length) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Archive media does not cover the snapshot." });
   await target.transaction(async () => {
     await target.run(db => db.deleteFrom("asset_renditions").execute());
     await target.run(db => db.deleteFrom("asset_blobs").execute());
     for (const copy of required.copies) {
       optional.signal?.throwIfAborted();
-      const row = byId.get(ownerKey(copy.workspaceId, copy.id));
+      const row = byId.get(ownerKey({ workspace: copy.workspaceId, identity: copy.id }));
       if (!row) throw new SiteShareRefusal({ code: "INVALID_MEDIA", message: "Unknown archive media item." });
       await target.run(db => db.updateTable("media").set({ source_sha256: copy.sha256 }).where("id", "=", copy.id).where("workspace_id", "=", copy.workspaceId).execute());
-      await target.run(db => db.insertInto("asset_blobs").values(archiveBlobRow({ copy, media: row, existing: byHash.get(ownerKey(copy.workspaceId, copy.sha256)) }))
+      await target.run(db => db.insertInto("asset_blobs").values(archiveBlobRow({ copy, media: row, existing: byHash.get(ownerKey({ workspace: copy.workspaceId, identity: copy.sha256 })) }))
         .onConflict(oc => oc.columns(["workspace_id", "sha256"]).doUpdateSet({ document_owned: sql`max(document_owned, excluded.document_owned)` })).execute());
       for (const rendition of [{ name: "original", version: 1 }, ...(copy.publicVersion === undefined ? [] : [{ name: "public", version: copy.publicVersion }])]) {
         await target.run(db => db.insertInto("asset_renditions").values({ id: copy.id + ":" + rendition.name, workspace_id: copy.workspaceId, asset_id: copy.id, transform_name: rendition.name, version: rendition.version, storage_key: copy.storageKey, created_at: row.created_at }).execute());

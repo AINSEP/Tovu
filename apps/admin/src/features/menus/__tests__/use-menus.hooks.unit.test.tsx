@@ -1,8 +1,12 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
-import { api, ApiError, type AdminMenu } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { menusApi } from "@/features/menus/api/menus-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
 
@@ -37,7 +41,7 @@ afterEach(() => {
 
 describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMenus");
+    const listSpy = vi.spyOn(menusApi, "listMenus");
     const port = createFakeMenusPort({ menus: [MENU] });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
 
@@ -80,7 +84,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("requestTrash opens the confirm without calling the port; confirmTrash then calls trash exactly once and the row flips to trash once the list re-reads it", async () => {
-    const trashSpy = vi.spyOn(api, "trash");
+    const trashSpy = vi.spyOn(trashApi, "trash");
     const port = createFakeMenusPort({ menus: [MENU] });
     const portTrashSpy = vi.spyOn(port, "trash");
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
@@ -127,7 +131,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
       .mockResolvedValueOnce({ menus: [MENU] })
       .mockResolvedValueOnce({ menus: [] });
     port.trash = vi.fn(() => {
-      throw new ApiError("not found", 404, "NOT_FOUND");
+      throw new ApiError({ message: "not found", status: 404 }, { code: "NOT_FOUND" });
     });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
@@ -148,7 +152,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("a 409 TRASH_VERSION_CHANGED on confirmTrash shows the reload message", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.trash = vi.fn(() => {
-      throw new ApiError("stale", 409, "TRASH_VERSION_CHANGED");
+      throw new ApiError({ message: "stale", status: 409 }, { code: "TRASH_VERSION_CHANGED" });
     });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
@@ -186,7 +190,7 @@ describe("defaultMenusPort", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await defaultMenusPort.createMenu({ title: MENU.title, slug: MENU.slug }, { items })).toEqual({ menu: created });
+    expect(await defaultMenusPort.createMenu({ input: { title: MENU.title, slug: MENU.slug }, options: { items } })).toEqual({ menu: created });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toMatch(/\/workspaces\/[^/]+\/menus$/);
@@ -198,13 +202,13 @@ describe("defaultMenusPort", () => {
 describe("createFakeMenusPort contracts", () => {
   it("resolves a menu by slug", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    expect(await port.getMenu(MENU.slug)).toEqual({ menu: MENU });
+    expect(await port.getMenu({ id: MENU.slug })).toEqual({ menu: MENU });
   });
 
   it.each(["read", "update", "trash"])("rejects a missing %s target without changing the store", async (operation) => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    const pending = operation === "read" ? port.getMenu("missing")
-      : operation === "update" ? port.updateMenuTree({ id: "missing", expectedVersion: 1, items: [] }, {})
+    const pending = operation === "read" ? port.getMenu({ id: "missing" })
+      : operation === "update" ? port.updateMenuTree({ target: { id: "missing", expectedVersion: 1, items: [] }, options: {} })
         : port.trash({ id: "missing" });
     await expect(pending).rejects.toThrow("fake menu not found: missing");
     expect((await port.listMenus()).menus).toEqual([MENU]);
@@ -212,21 +216,21 @@ describe("createFakeMenusPort contracts", () => {
 
   it("defaults omitted items and preserves HTML authoring on an items-only update", async () => {
     const port = createFakeMenusPort({});
-    const { menu } = await port.createMenu({ title: "Footer", slug: "footer" }, { mode: "html", html: "<a>Footer</a>" });
+    const { menu } = await port.createMenu({ input: { title: "Footer", slug: "footer" }, options: { mode: "html", html: "<a>Footer</a>" } });
     expect(menu.items).toEqual([]);
     const items: AdminMenu["items"] = [{ id: "contact", label: "Contact", target: { kind: "url", href: "/contact" } }];
     const expected = { ...menu, items, version: 2 };
-    expect(await port.updateMenuTree({ id: menu.id, expectedVersion: 1, items }, {})).toEqual({ menu: expected });
-    expect(await port.getMenu(menu.id)).toEqual({ menu: expected });
+    expect(await port.updateMenuTree({ target: { id: menu.id, expectedVersion: 1, items }, options: {} })).toEqual({ menu: expected });
+    expect(await port.getMenu({ id: menu.id })).toEqual({ menu: expected });
   });
 
   it("applies explicit title and slug updates while accepting an empty HTML document", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const expected = { ...MENU, title: "Footer", slug: "footer", mode: "html", html: "", version: 2 };
-    expect(await port.updateMenuTree({ id: MENU.id, expectedVersion: 1, items: [] }, {
+    expect(await port.updateMenuTree({ target: { id: MENU.id, expectedVersion: 1, items: [] }, options: {
       title: "Footer", slug: "footer", mode: "html", html: "",
-    })).toEqual({ menu: expected });
-    expect(await port.getMenu("footer")).toEqual({ menu: expected });
+    } })).toEqual({ menu: expected });
+    expect(await port.getMenu({ id: "footer" })).toEqual({ menu: expected });
   });
 });
 
@@ -241,7 +245,7 @@ describe("useMenus error and confirmation edges", () => {
 
   it.each([
     { failure: "offline", message: "delete failed" },
-    { failure: new ApiError("permission denied", 403, "FORBIDDEN"), message: "permission denied" },
+    { failure: new ApiError({ message: "permission denied", status: 403 }, { code: "FORBIDDEN" }), message: "permission denied" },
   ])("shows $message for an unclassified trash rejection", async ({ failure, message }) => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.trash = async () => { throw failure; };
@@ -393,4 +397,16 @@ describe("useMenus — overlapping list reads keep the newest", () => {
     expect(result.current.menus?.map((m) => m.status)).toEqual(["trash", "trash"]);
     expect(result.current.listCache.peek()?.map((m) => m.status)).toEqual(["trash", "trash"]);
   });
+});
+
+it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps adapter rejection ownership: %s", async cause => {
+  const port = createFakeMenusPort();
+  vi.spyOn(port, "listMenus").mockRejectedValue(cause);
+  const { result } = renderHook(() => {
+    useMenus({ port, t: k => k });
+    return useFetchQuery({ key: ["menus", "list"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
+  });
+  await waitFor(() => expect(result.current.error).toBeTruthy());
+  if (cause instanceof Error) expect(result.current.error).toBe(cause);
+  else expect(result.current.error).toMatchObject({ message: "failed to load menus", cause });
 });

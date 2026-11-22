@@ -56,15 +56,15 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
   const backendCalls: Array<{ siteDir: string; ctx: Ctx; port?: number }> = [];
   const ports: SiteWindowPorts<FakeServer, FakeWindow, Ctx> = {
     openSites,
-    startSiteBackend: async ({ siteDir, ctx }, options) => {
+    startSiteBackend: async ({ siteDir, ctx }, options = {}) => {
       backendCalls.push({ siteDir, ctx, ...options });
       spawned++;
       log.push(`spawn ${siteDir}`);
       return { server: fakeServer(spawned), partition: `persist:${siteDir}` };
     },
-    sitePartition: (siteDir) => `persist:${siteDir}`,
+    sitePartition: ({ siteDir }, _options = {}) => `persist:${siteDir}`,
     createWindow: ({ url, title, partition }) => { log.push(`window ${url} ${title} ${partition}`); return fakeWindow(`w${log.length}`); },
-    readSiteName: (siteDir) => `Name of ${siteDir}`,
+    readSiteName: ({ siteDir }) => `Name of ${siteDir}`,
     recordSiteClosed: ({ registryPath, siteDir, pid }) => { log.push(`row-closed ${registryPath} ${siteDir} ${pid}`); },
     siteThemePreviews: {
       sync: ({ siteDir }) => { log.push(`theme-sync ${siteDir}`); },
@@ -75,7 +75,7 @@ function harness(overrides: Partial<SiteWindowPorts<FakeServer, FakeWindow, Ctx>
     trackTeardown: ({ promise }) => tracker.track({ promise }),
     platform: "win32",
     quitPhase: () => quitPhase,
-    logError: (message) => { log.push(`error ${message}`); },
+    logError: ({ message }) => { log.push(`error ${message}`); },
     ...overrides,
   };
   return { ports, log, openSites, tracker, backendCalls, setQuitPhase: (phase: QuitPhase) => { quitPhase = phase; } };
@@ -271,7 +271,8 @@ test("a failed logout never blocks the stop", async () => {
   await h.tracker.drain();
   assert.equal(h.openSites.size, 0);
   assert.ok(h.log.includes("row-closed /registry /a 1"));
-  assert.equal(h.log.some((step) => step.startsWith("error")), false);
+  // The log keeps the redacted message + stack, not just the class name.
+  assert.ok(h.log.some((line) => /^error \[tovu-desktop\] Could not end the site session: .*offline[\s\S]*site-window\.test\.ts/.test(line)));
 });
 
 test("a stop that cannot confirm exit is logged and keeps its recovery row", async () => {
@@ -280,7 +281,7 @@ test("a stop that cannot confirm exit is logged and keeps its recovery row", asy
   window.closed!(); // `!`: registered by openSiteWindow.
   await h.tracker.drain();
   assert.equal(h.log.some((step) => step.startsWith("row-closed")), false);
-  assert.ok(h.log.includes("error [tovu-desktop] site shutdown failed: exit not observed"));
+  assert.ok(h.log.some((line) => /^error \[tovu-desktop\] site shutdown failed: .*exit not observed[\s\S]*site-window\.test\.ts/.test(line)));
 });
 
 test("closing a stale window stops ITS server but never deletes the replacement entry", async () => {

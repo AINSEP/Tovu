@@ -1,10 +1,10 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
 import { localSiteSupervisorForHost, warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
-import { activateSiteWithWarmServer } from "#src/features/sites/warm-switch";
+import { activateSiteWithWarmServer } from "#src/features/sites/index";
 import { registerWarmSiteControl } from "../sites/warm-site-control.js";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
@@ -42,6 +42,7 @@ import { sealPendingAgentPluginTokensForNewSite as sealPendingAgentPluginTokensR
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Admin "Sites" screen backend (2026-09-04 sites-switcher decision,
@@ -178,7 +179,7 @@ function sendRefusal(res: Response, refusal: SiteAdminRefusal): void {
  *  or the refusal the route should send verbatim, so the create handler's own branching stays at
  *  "is this valid or not" rather than re-deriving the wire format inline.
  *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
-function parseCreateSiteName(body: unknown): { ok: true; name: string } | SiteAdminRefusal {
+function parseCreateSiteName({ body }: { body: unknown }, _optional = {}): { ok: true; name: string } | SiteAdminRefusal {
   const record = body as Record<string, unknown> | null | undefined;
   const name = typeof record?.name === "string" ? record.name : undefined;
   if (name === undefined) {
@@ -266,14 +267,22 @@ function listingManagement({ deps, localSiteSupervisor, switcherBase, devRestart
   switcherBase: string | null; devRestart: DevRestartPort | null; binding: AdminSitesDeps["siteBinding"];
   isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"];
 }, _options = {}) {
+  const manageable = canManageLocalSites({ isSiteSwitcherEnabled, localSiteSupervisor, switcherBase });
   return {
-    localManagementEnabled: isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null,
-    canSwitchNow: process.env.TOVU_DEV_WARM_SITES === "1" && isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null
+    localManagementEnabled: manageable,
+    canSwitchNow: process.env.TOVU_DEV_WARM_SITES === "1" && manageable
       || canSwitchListingSite({ isSiteSwitcherEnabled, devRestart, binding, switcherBase }),
     localSites,
-    trash: isSiteSwitcherEnabled() && switcherBase !== null && localSiteSupervisor
+    trash: manageable && switcherBase !== null
       ? (deps.listSiteTrash ?? listSiteTrash)({ base: switcherBase }) : [],
   };
+}
+
+/** Local sites are managed here only with the switcher on, a supervisor and a sites folder. @complexity O(1). */
+function canManageLocalSites({ isSiteSwitcherEnabled, localSiteSupervisor, switcherBase }: {
+  isSiteSwitcherEnabled: ListingContext["isSiteSwitcherEnabled"]; localSiteSupervisor: AdminSitesDeps["localSiteSupervisor"]; switcherBase: string | null;
+}, _options = {}): boolean {
+  return isSiteSwitcherEnabled() && localSiteSupervisor !== undefined && switcherBase !== null;
 }
 
 /** Forward raw create fields to their feature owner; validation and errors stay there.
@@ -302,15 +311,8 @@ function createSiteFromRequest({ body, deps, switcherBase, name, actorId }: {
   );
 }
 
-export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): void {
-  const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
-  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
-  if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
-  const listSites = deps.listSites ?? listSitesReal;
-  const isSiteSwitcherEnabled = deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal;
-  const readPersistedActiveSite = deps.readPersistedActiveSite ?? readPersistedActiveSiteReal;
-  const localSiteSupervisor = deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
-  const warmServer = warmSiteServerForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId });
+/** The dev supervisor's token-gated warm-start hook; absent without a warm server and its token. */
+function registerDevWarmSiteRoute({ app, warmServer }: { app: Express; warmServer: ReturnType<typeof warmSiteServerForHost> }, _options = {}): void {
   if (warmServer && process.env.TOVU_DEV_WARM_CONTROL_TOKEN) {
     app.post("/internal/dev-warm-site", async (req, res) => {
       if (req.headers["x-tovu-warm-control"] !== process.env.TOVU_DEV_WARM_CONTROL_TOKEN) { res.sendStatus(404); return; }
@@ -323,9 +325,45 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       }
     });
   }
-  // HTTP sends its JSON response before the timer fires; only chat needs a reply grace period.
-  const devRestart = deps.devRestart === undefined ? devRestartPortFromEnv({ delayMs: 0 }) : deps.devRestart;
-  const sitePreviews = deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined;
+}
+
+type SitesPorts = Omit<ListingContext, "req"> & { warmServer: ReturnType<typeof warmSiteServerForHost> };
+
+/** Principal + permission check every sites route shares; `authorized` false means the response is already written. */
+async function authorizeSitesRoute({ res, deps, permission }: { res: Response; deps: AdminSitesDeps; permission: string }): Promise<{ principal: ReturnType<typeof getAuthedPrincipal>; authorized: boolean }> {
+  const principal = getAuthedPrincipal(res);
+  const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
+    principalId: principal.id,
+    permission,
+    workspaceId: deps.workspaceId,
+    entityType: "site-registry",
+  } });
+  return { principal, authorized };
+}
+
+function sendSitesFailure({ res, err }: { res: Response; err: unknown }): void {
+  sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
+}
+
+/** Resolves every port the routes below share, falling back to the real implementation. */
+function resolveSitesPorts({ deps, sitesWorkspace }: { deps: AdminSitesDeps; sitesWorkspace: SitesWorkspace }): SitesPorts {
+  return {
+    deps,
+    listSites: deps.listSites ?? listSitesReal,
+    isSiteSwitcherEnabled: deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabledReal,
+    readPersistedActiveSite: deps.readPersistedActiveSite ?? readPersistedActiveSiteReal,
+    localSiteSupervisor: deps.localSiteSupervisor ?? localSiteSupervisorForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId }),
+    warmServer: warmSiteServerForHost({ binding: deps.siteBinding, workspaceId: deps.workspaceId }),
+    // HTTP sends its JSON response before the timer fires; only chat needs a reply grace period.
+    devRestart: deps.devRestart === undefined ? devRestartPortFromEnv({ delayMs: 0 }) : deps.devRestart,
+    sitePreviews: deps.sitePreviews === undefined ? sitePreviewServiceForHost({ binding: deps.siteBinding }) : deps.sitePreviews ?? undefined,
+    sitesWorkspace,
+  };
+}
+
+function registerSitesSupportRoutes({ app, ports }: { app: Express; ports: SitesPorts }): void {
+  const { deps, warmServer, sitePreviews, localSiteSupervisor, isSiteSwitcherEnabled, readPersistedActiveSite } = ports;
+  registerDevWarmSiteRoute({ app, warmServer });
   registerSitePreviewRoutes({ app, deps: { workspaceId: deps.workspaceId, authorize: deps.authorize, sitePreviews } });
   registerLocalSitesRoutes({ app, deps: { ...deps, localSiteSupervisor, isSiteSwitcherEnabled,
     afterTrash({ base, name }) {
@@ -335,127 +373,107 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       }
     },
   } });
+}
 
-  app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+async function handleListSites({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }): Promise<void> {
+  const { deps } = ports;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+
+  try {
+    const { authorized } = await authorizeSitesRoute({ res, deps, permission: "system.read" });
+    if (!authorized) return;
+
+    res.status(200).json(siteListing({ req, ...ports }));
+  } catch (err) {
+    sendSitesFailure({ res, err });
+  }
+}
+
+async function handleListTokenSignInPlugins({ deps, req, res }: { deps: AdminSitesDeps; req: Request; res: Response }): Promise<void> {
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+  try {
+    const { authorized } = await authorizeSitesRoute({ res, deps, permission: "system.read" });
+    if (!authorized) return;
+    const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(deps.workspaceId);
+    res.status(200).json({ plugins });
+  } catch (err) {
+    sendSitesFailure({ res, err });
+  }
+}
+
+async function handleCreateSite({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }): Promise<void> {
+  const { deps, isSiteSwitcherEnabled } = ports;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+  // The flag, then the binding — both checked before spending an authorize() call on an
+  // operation this boot cannot fulfill regardless of who is asking (see `resolveSiteSwitchBase`).
+  const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
+  if (!gate.ok) {
+    sendRefusal(res, gate);
+    return;
+  }
+
+  try {
+    const { principal, authorized } = await authorizeSitesRoute({ res, deps, permission: "system.write" });
+    if (!authorized) return;
+
+    const parsed = parseCreateSiteName({ body: req.body });
+    if (!parsed.ok) {
+      sendRefusal(res, parsed);
       return;
     }
 
-    try {
-      const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "site-registry",
-      });
-      if (!authorized) return;
-
-      res.status(200).json(siteListing({ req, deps, listSites, isSiteSwitcherEnabled,
-        readPersistedActiveSite, localSiteSupervisor, devRestart, sitePreviews, sitesWorkspace }));
-    } catch (err) {
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
-    }
-  });
-
-  app.get("/api/admin/v1/workspaces/:workspaceId/system/sites/token-sign-in-plugins", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+    const created = await createSiteFromRequest({ body: req.body, deps, switcherBase: gate.switcherBase, name: parsed.name, actorId: principal.id });
+    if (!created.ok) {
+      sendRefusal(res, created);
       return;
     }
-    try {
-      const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "site-registry",
-      });
-      if (!authorized) return;
-      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(deps.workspaceId);
-      res.status(200).json({ plugins });
-    } catch (err) {
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
-    }
-  });
+    res.status(201).json({ site: created.site, agentPluginTokens: created.agentPluginTokens });
+  } catch (err) {
+    sendSitesFailure({ res, err });
+  }
+}
 
-  app.post("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
+async function handleActivateSite({ ports, req, res }: { ports: SitesPorts; req: Request; res: Response }): Promise<void> {
+  const { deps, isSiteSwitcherEnabled, listSites, devRestart, sitesWorkspace, warmServer } = ports;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
+  // See the Create route's identical gate: the served tree's base, never `process.cwd()`.
+  const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
+  if (!gate.ok) {
+    sendRefusal(res, gate);
+    return;
+  }
+
+  try {
+    const { authorized } = await authorizeSitesRoute({ res, deps, permission: "system.write" });
+    if (!authorized) return;
+
+    // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
+    // new site; without it, Activate behaves exactly as before (persist + instructions).
+    const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
+    const activated = await activateSiteWithWarmServer(
+      { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
+      { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace, warmServer },
+    );
+    if (!activated.ok) {
+      sendRefusal(res, activated);
       return;
     }
-    // The flag, then the binding — both checked before spending an authorize() call on an
-    // operation this boot cannot fulfill regardless of who is asking (see `resolveSiteSwitchBase`).
-    const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
-    if (!gate.ok) {
-      sendRefusal(res, gate);
-      return;
-    }
+    res.status(200).json(activated);
+  } catch (err) {
+    sendSitesFailure({ res, err });
+  }
+}
 
-    try {
-      const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "site-registry",
-      });
-      if (!authorized) return;
+export function registerAdminSitesRoutes({ app, deps }: { app: Express; deps: AdminSitesDeps }, _optional: Record<string, never> = {}): void {
+  const sitesWorkspace = deps.sitesWorkspace ?? createSitesWorkspace({});
+  registerSitesHomeRoutes({ app, deps, workspace: sitesWorkspace });
+  if (registerWarmSiteControl({ app, binding: deps.siteBinding, workspaceId: deps.workspaceId })) return;
+  const ports = resolveSitesPorts({ deps, sitesWorkspace });
+  const base = "/api/admin/v1/workspaces/:workspaceId/system/sites";
+  registerSitesSupportRoutes({ app, ports });
 
-      const parsed = parseCreateSiteName(req.body);
-      if (!parsed.ok) {
-        sendRefusal(res, parsed);
-        return;
-      }
-
-      const created = await createSiteFromRequest({ body: req.body, deps, switcherBase: gate.switcherBase, name: parsed.name, actorId: principal.id });
-      if (!created.ok) {
-        sendRefusal(res, created);
-        return;
-      }
-      res.status(201).json({ site: created.site, agentPluginTokens: created.agentPluginTokens });
-    } catch (err) {
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
-    }
-  });
-
-  app.post("/api/admin/v1/workspaces/:workspaceId/system/sites/:name/activate", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
-    // See the Create route's identical gate: the served tree's base, never `process.cwd()`.
-    const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
-    if (!gate.ok) {
-      sendRefusal(res, gate);
-      return;
-    }
-
-    try {
-      const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "site-registry",
-      });
-      if (!authorized) return;
-
-      // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the
-      // new site; without it, Activate behaves exactly as before (persist + instructions).
-      const restartNow = (req.body as Record<string, unknown> | null | undefined)?.restartNow === true;
-      const activated = await activateSiteWithWarmServer(
-        { switcherBase: gate.switcherBase, name: String(req.params.name ?? ""), currentSiteName: deps.siteBinding.name, restartNow, dirOverridden: deps.siteBinding.dirOverridden },
-        { listSites, persistActiveSite: deps.persistActiveSite, devRestart, readSiteRunning: deps.readSiteRunning, workspace: sitesWorkspace, warmServer },
-      );
-      if (!activated.ok) {
-        sendRefusal(res, activated);
-        return;
-      }
-      res.status(200).json(activated);
-    } catch (err) {
-      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
-    }
-  });
+  app.get(base, (req, res) => handleListSites({ ports, req, res }));
+  app.get(`${base}/token-sign-in-plugins`, (req, res) => handleListTokenSignInPlugins({ deps, req, res }));
+  app.post(base, (req, res) => handleCreateSite({ ports, req, res }));
+  app.post(`${base}/:name/activate`, (req, res) => handleActivateSite({ ports, req, res }));
 }

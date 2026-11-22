@@ -26,7 +26,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createAdminSurfaceActionDispatcher, defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { WITHHELD_OUTPUT_MESSAGE } from "@jini-ai/agent-plugins/lifecycle/tools";
 

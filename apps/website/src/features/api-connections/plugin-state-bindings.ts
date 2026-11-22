@@ -1,6 +1,7 @@
-import { VaultError, type SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
+import { type SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
+import { VaultError } from '@jini-ai/core/contracts/vault';
 import type { AdminSurfacePluginStatePersistence } from '@jini-ai/agent-plugins/admin-surfaces';
-import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from './vault-stores.js';
+import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
 
 export const PLUGIN_STATE_UNAVAILABLE_MESSAGE = "These plugin settings are not available here. Reopen the plugin from this site's admin and retry.";
 

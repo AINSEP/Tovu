@@ -1,8 +1,9 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { adminHref } from "@/lib/router";
 import { consentProblemTab } from "./rules";
 import type { ConsentReadiness } from "./settings.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Overview: is the banner live, what blocks publishing, and which scripts are declared and which sampled content remains unmanaged. Readiness checks the draft as if it were on, so blockers show before Publish.
  */
@@ -43,7 +44,7 @@ function BlockersCard({ readiness, readinessError, t }: Pick<ConsentOverviewTabP
             return (
               <li key={`${problem.code ?? ""}:${problem.message}`}>
                 <span>{problem.message}</span>
-                {tab && <a className="consent-fix-link" href={adminHref(`/consent?tab=${tab}`)}>{t("Fix")}</a>}
+                {tab && <a className="consent-fix-link" href={adminHref({ routePath: `/consent?tab=${tab}` })}>{t("Fix")}</a>}
               </li>
             );
           })}

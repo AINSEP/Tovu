@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { describeApiError, type AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
@@ -86,7 +87,7 @@ export function useNewTermForm(
   }
 
   const saving = createMutation.status === "pending";
-  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t({ locale: locale, key: "Failed to create term" })) : null);
+  const error = validationError ?? (createMutation.error ? describeApiError({ e: createMutation.error, fallback: t({ locale: locale, key: "Failed to create term" }) }) : null);
 
   return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
 }

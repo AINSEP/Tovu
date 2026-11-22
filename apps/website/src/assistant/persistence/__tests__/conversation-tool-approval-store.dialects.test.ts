@@ -23,13 +23,13 @@ const AT = "2026-09-28T12:00:00.000Z";
 
 describeEachChatDialect(
   "conversation tool approval store",
-  (kernel) => ({ kernel, store: createSqliteConversationToolApprovalStore(kernel) }),
+  (kernel) => ({ kernel, store: createSqliteConversationToolApprovalStore({ store: kernel }) }),
   (make) => {
     test("has is false until granted, then true for the exact fingerprint only", async () => {
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
       assert.equal(await store.has(KEY), false);
-      await store.grant(KEY, AT);
+      await store.grant({ key: KEY, grantedAt: AT });
       assert.equal(await store.has(KEY), true);
       assert.equal(await store.has({ ...KEY, fingerprint: "fp-2" }), false);
     });
@@ -39,7 +39,7 @@ describeEachChatDialect(
       await seedChat(kernel, "c1"); await seedChat(kernel, "c2");
       const { conversationId: _, ...identity } = KEY;
       assert.equal(await store.hasIdentity!(identity), false);
-      await store.grant(KEY, AT);
+      await store.grant({ key: KEY, grantedAt: AT });
       assert.equal(await store.hasIdentity!(identity), true);
       for (const changed of [{ principalId: "other" }, { connectionId: "other-site" }, { toolName: "other-plugin" }, { fingerprint: "new-digest" }]) {
         assert.equal(await store.hasIdentity!({ ...identity, ...changed }), false);
@@ -52,7 +52,7 @@ describeEachChatDialect(
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
       await seedChat(kernel, "c2");
-      await store.grant(KEY, AT);
+      await store.grant({ key: KEY, grantedAt: AT });
       assert.equal(await store.has({ ...KEY, conversationId: "c2" }), false);
       assert.equal(await store.has({ ...KEY, principalId: "user:other" }), false);
       assert.equal(await store.has({ ...KEY, connectionId: "conn-2" }), false);
@@ -62,8 +62,8 @@ describeEachChatDialect(
     test("a regrant replaces the fingerprint and time in the one row", async () => {
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
-      await store.grant(KEY, AT);
-      await store.grant({ ...KEY, fingerprint: "fp-2" }, "2026-09-29T00:00:00.000Z");
+      await store.grant({ key: KEY, grantedAt: AT });
+      await store.grant({ key: { ...KEY, fingerprint: "fp-2" }, grantedAt: "2026-09-29T00:00:00.000Z" });
       assert.equal(await store.has(KEY), false);
       assert.equal(await store.has({ ...KEY, fingerprint: "fp-2" }), true);
       const rows = await kernel.run((db) => db.selectFrom("assistant_conversation_tool_approvals").selectAll().execute());
@@ -76,8 +76,8 @@ describeEachChatDialect(
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
       const second = { ...KEY, toolName: "read_email", fingerprint: "fp-read" };
-      await store.grant(KEY, AT);
-      await store.grant(second, AT);
+      await store.grant({ key: KEY, grantedAt: AT });
+      await store.grant({ key: second, grantedAt: AT });
       assert.equal(await store.has(KEY), true);
       assert.equal(await store.has(second), true);
       const rows = await kernel.run(db => db.selectFrom("assistant_conversation_tool_approvals").select(["tool_name", "fingerprint"]).execute());
@@ -89,9 +89,9 @@ describeEachChatDialect(
 
     test("grant throws for a conversation that does not exist; deleting a chat deletes its approvals", async () => {
       const { kernel, store } = make();
-      await assert.rejects(store.grant(KEY, AT), /FOREIGN KEY constraint failed|violates foreign key constraint/);
+      await assert.rejects(store.grant({ key: KEY, grantedAt: AT }), /FOREIGN KEY constraint failed|violates foreign key constraint/);
       await seedChat(kernel, "c1");
-      await store.grant(KEY, AT);
+      await store.grant({ key: KEY, grantedAt: AT });
       await kernel.run((db) => db.deleteFrom("ai_chats").where("id", "=", "c1").execute());
       assert.equal(await store.has(KEY), false);
     });
@@ -101,7 +101,7 @@ describeEachChatDialect(
       await seedChat(kernel, "c1");
       await assert.rejects(
         kernel.transaction(async () => {
-          await store.grant(KEY, AT);
+          await store.grant({ key: KEY, grantedAt: AT });
           throw new Error("boom");
         }),
         /boom/
@@ -112,7 +112,7 @@ describeEachChatDialect(
     test("concurrent grants of one key leave exactly one row", async () => {
       const { kernel, store } = make();
       await seedChat(kernel, "c1");
-      await Promise.all(Array.from({ length: 8 }, (_, i) => store.grant({ ...KEY, fingerprint: `fp-${i}` }, AT)));
+      await Promise.all(Array.from({ length: 8 }, (_, i) => store.grant({ key: { ...KEY, fingerprint: `fp-${i}` }, grantedAt: AT })));
       const rows = await kernel.run((db) => db.selectFrom("assistant_conversation_tool_approvals").select("fingerprint").execute());
       assert.equal(rows.length, 1);
       assert.match(rows[0]!.fingerprint, /^fp-[0-7]$/);

@@ -1,10 +1,11 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { isOperationInFlight } from "#src/contracts/core/operation-lock";
-import { resolveDegradedBanner } from "#src/features/recovery/ui/degraded-banners";
+import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file design-spec.md §4.2/§4.4/§4.8 — `GET /api/admin/v1/recovery/status` (the capability/status
@@ -30,24 +31,12 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  *    mechanism itself.
  *  - `watermarkBaselineAvailable`: `false`, matching `disclosure.ts` route's own honest stub.
  */
-export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminRecoveryStatusRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/recovery/status", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const capabilities = await deps.dbOps.getCapabilities();
       const siteStatus = await deps.siteStatusRepo.get(deps.workspaceId);

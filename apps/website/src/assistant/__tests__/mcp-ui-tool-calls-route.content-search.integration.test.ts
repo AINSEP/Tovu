@@ -16,8 +16,9 @@ import { startTestServer } from "../../server/__tests__/helpers/http-test-server
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -48,7 +49,7 @@ const EMPTY_DOC = { type: "doc", content: [] };
  *  real `InMemoryPostSearchIndex` (the same FTS5/BM25-shaped adapter `tool-registrations.post.test.ts`
  *  uses) so `content_post_search` is certified against real ranking, not a hand-fed result list. */
 function buildRealPostToolExecutor() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
@@ -93,7 +94,7 @@ test("real round trip: the browser-initiated /search allowlisted-tool-call actua
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -116,7 +117,7 @@ test("an unrelated query against the same real index returns no hits, proving th
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

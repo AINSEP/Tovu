@@ -7,7 +7,7 @@ import path from "node:path";
 import type { SurfaceEmission } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";
@@ -82,7 +82,7 @@ test("a credential removed while the card is open returns the credential-setup r
 test("a platform without a secrets adapter refuses before any card is shown", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-ops-no-secrets-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "plain", label: "Plain", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "plain", label: "Plain", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
     await writeFile(path.join(root, "ops.mjs"), "export default { status() {}, logs() {} };\n");
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "plain", packageRoot: root });
     const h = await harness({});

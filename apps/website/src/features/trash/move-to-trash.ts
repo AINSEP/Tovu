@@ -14,11 +14,10 @@
  * `RestoreOutcome`/`TrashPurgeOutcome` elsewhere in this feature, so the route (`routes/trash/
  * items.ts`) maps outcomes to status codes without a try/catch around a business decision.
  */
-import { readLiveSnapshot, type EntitySnapshotRow } from "./entry-sql.js";
-import type { TrashActor, TrashEntityType, TrashPort, TrashMarkerResult } from "@jini-ai/cms/trash";
+import type { TrashActor, TrashEntityType, TrashPort, TrashMarkerResult, TrashEntry, TrashRegistry } from "@jini-ai/cms/trash";
 import type { TrashAuthorizeFn } from "./permissions.js";
-import type { TrashEntry, TrashRegistry } from "./registry.js";
 import type { TrashDb } from "./db-port.js";
+import { readLiveSnapshot, type EntitySnapshotRow } from "@jini-ai/cms/trash/sql";
 
 /**
  * Outcome of one `moveToTrash` call. `version` is the entity's version AFTER the flip (`null` for a

@@ -41,7 +41,7 @@ function captureHarness(failure?: 'capture' | 'store' | 'store-null') {
       if (failure === 'store-null') return null;
       writes.push(input); return 123;
     },
-    warn: message => warnings.push(message),
+    warn: ({ message }) => warnings.push(message),
   };
   return { capture: createSitePreviewCapture({ ports }), writes, resizes, warnings,
     url: (value: string) => { url = value; }, stale: () => { current = false; },
@@ -162,7 +162,7 @@ test("the boot sweep hands every tracked site dir to the store's sweep", () => {
   const swept: unknown[] = [];
   sweepSitePreviewsOnBoot({
     projectsPath: "/ud/projects.json",
-    readTrackedSites: (p) => { assert.equal(p, "/ud/projects.json"); return [{ siteDir: "/a" }, { siteDir: "/b" }]; },
+    readTrackedSites: ({ projectsPath }) => { assert.equal(projectsPath, "/ud/projects.json"); return [{ siteDir: "/a" }, { siteDir: "/b" }]; },
     sweepOrphanedPreviews: (input) => swept.push(input),
     warn: () => assert.fail("no warning on success"),
   });
@@ -176,7 +176,7 @@ test("a failing read or sweep is reported, never thrown — hygiene must not fai
       projectsPath: "/p",
       readTrackedSites: () => { if (failing === "read") throw new Error("torn file"); return []; },
       sweepOrphanedPreviews: () => { throw new Error("readdir denied"); },
-      warn: (message) => warnings.push(message),
+      warn: ({ message }) => warnings.push(message),
     }));
     assert.equal(warnings.length, 1);
     assert.match(warnings[0]!, failing === "read" ? /torn file/ : /readdir denied/);

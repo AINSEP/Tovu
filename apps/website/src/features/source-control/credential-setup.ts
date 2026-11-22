@@ -2,9 +2,10 @@ import { applyPluginCredentialCard } from "../../contracts/core/plugin-credentia
 import { findPluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '../../contracts/core/credential-token.js';
-import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../settings/index.js';
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+import { CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
+import { credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { optionalString, requireInputRecord, requireString } from "@jini-ai/core";
@@ -14,7 +15,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardRun } from '
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { SourceControlCredentialDuplicateLabelError, createSourceControlCredential, type SourceControlCredentialWriteDeps } from './store.js';
 import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
-import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 
 /** Narrow save dependencies; independent of the registration module to avoid a type-import cycle.
  * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the
@@ -28,8 +29,8 @@ export interface SourceControlCredentialSetupDeps extends OperatorLocaleDeps {
   siteAssistantSecretKeyring: SourceControlCredentialWriteDeps['keyring'];
   clock: SourceControlCredentialWriteDeps['clock'];
   idGen: SourceControlCredentialWriteDeps['idGen'];
-  fetchFn?: SourceControlCredentialWriteDeps['fetchFn'];
-  observability?: SourceControlCredentialWriteDeps['observability'];
+  /** `RouteDeps.customCredentialsHttpClient`: the guarded client the save-time identity probe goes through. */
+  customCredentialsHttpClient?: SourceControlCredentialWriteDeps['httpClient'];
   loadSourceControlProviders: LoadSourceControlProviders;
 }
 
@@ -47,6 +48,106 @@ export const PROPOSE_CREDENTIAL_SAVE_FAILED = 'The person submitted the form but
 /** Repository rules a site backup enforces (`site_backup_plan`), shown on the form beside the provider's token help. */
 const BACKUP_REPOSITORY_RULES = 'For a site backup, the repository must be private and already have at least one commit (for example a README).';
 
+    
+function sourceControlCredentialForm(pluginCard: Awaited<ReturnType<typeof findPluginCredentialCard>>): Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['form'] {
+  return ({ prep }) => {
+      const descriptor = prep.descriptor;
+      if (!descriptor?.credential) throw new ToolInputError({ message: 'Source control credential form has no provider configuration.' });
+      const credential = descriptor.credential;
+      return applyPluginCredentialCard({ card: pluginCard, form: {
+        title: `Connect ${descriptor.label}`,
+        description: `${credential.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
+        submitLabel: 'Save credential',
+        fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: prep.label },
+          ...credential.fields.map((field): SecretCardField => {
+            const base = { kind: 'string' as const, name: field.name, label: field.label, required: field.required };
+            return field.secret || field.name === credential.tokenField
+              ? { ...base, secret: true, allowBlank: !field.required } : base;
+          })],
+      } });
+    };
+}
+
+
+    // Saves only provider-declared fields through the admin POST's existing store function.
+    // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
+    
+function sourceControlCredentialSaver(deps: SourceControlCredentialSetupDeps): Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['save'] {
+  return ({ values, prep, signal }) => {
+      if (!prep.descriptor) throw new ToolInputError({ message: 'Source control credential save has no provider configuration.' });
+      const connection = connectionFromForm({ descriptor: prep.descriptor, values });
+      const store = deps.sourceControlCredentialSetRepo;
+      // The async seal can outlive the run; the existing store must not insert after abandonment.
+      // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
+      const vault = store.vault;
+      const canonical = store.canonical;
+      const updateAccountLabel = store.updateAccountLabel?.bind(store);
+      const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
+        ...(canonical ? { canonical: { ...canonical, create: async (input) => {
+          signal.throwIfAborted();
+          if (!canonical.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
+          return canonical.create(input, { signal });
+        } } } : {}),
+        ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
+        insert: record => { signal.throwIfAborted(); return store.insert(record); },
+        update: record => store.update(record),
+        findById: input => store.findById(input),
+        findDefaultByProvider: input => store.findDefaultByProvider(input),
+        listByProvider: input => store.listByProvider(input),
+        listByWorkspace: input => store.listByWorkspace(input),
+        delete: input => store.delete(input),
+        ...(updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => updateAccountLabel(input) } : {}),
+        // The project half writes too (project-first saves): guarded alike.
+        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
+      };
+      // New project keys stay non-default while the shared save-result path attaches them to this site.
+      return createSourceControlCredential({ deps: {
+        repo, sealer: deps.siteAssistantSecretSealer,
+        keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
+        loadSourceControlProviders: deps.loadSourceControlProviders,
+        ...(deps.customCredentialsHttpClient ? { httpClient: deps.customCredentialsHttpClient } : {}),
+      }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(store.project ? { isDefault: false } : {}) } });
+    };
+}
+
+
+    
+const sourceControlCredentialResult: Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['result'] = ({ prep, run }): ProposalResult => {
+      const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
+      if (run.status !== 'saved') {
+        const message = declinedMessage({ prep, run });
+        return { ...declined, message };
+      }
+      const credential = run.saved;
+      const connection = credential.connection ?? 'saved';
+      return { saved: true, credentialId: credential.id, provider: prep.provider, label: credential.label, tokenHint: credential.tokenHint, connection,
+        message: savedMessage({ credential, locale: prep.locale }) };
+    };
+
+
+    // Renders a value-free save outcome on the form's URI, supplied by the engine.
+    
+const sourceControlCredentialOutcome: Parameters<typeof defineSecretCardTool<{
+    descriptor: SourceControlProviderDescriptor | undefined; provider: string; label: string; locale: string;
+  }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>>[0]['outcome'] = ({ prep, run }) => {
+      if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
+      const saved = run.status === 'saved';
+      let message = PROPOSE_CREDENTIAL_SAVE_FAILED;
+      switch (run.status) {
+        case 'saved': message = savedMessage({ credential: run.saved, locale: prep.locale }); break;
+        case 'blank': message = credentialText({ id: 'blank', locale: prep.locale }); break;
+        case 'failed': message = run.safeMessage; break;
+      }
+      return { title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure', message };
+    };
+
+
 /** Opens the registry-defined human form and parks this tool call until answered or aborted.
  * @param spec - Tool context, explicit store dependencies and the shared exchange store.
  * @example await proposeSourceControlCredential({ ctx, deps, surfaces });
@@ -58,8 +159,8 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   const { provider, label } = parseProposalInput({ input: ctx.input });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
   // An ended run must not load plugins; the engine classifies abandonment without opening a card.
-  const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders(deps.workspaceId);
-  const descriptor = registry?.get(provider)?.descriptor;
+  const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
+  const descriptor = registry?.get({ providerId: provider })?.descriptor;
   if (!ctx.signal.aborted && !descriptor?.credential) {
     throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
   }
@@ -70,74 +171,10 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   }, Awaited<ReturnType<typeof createSourceControlCredential>>, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ descriptor: ctx.signal.aborted ? undefined : descriptor, provider, label, locale }),
-    form: ({ prep }) => applyPluginCredentialCard({ card: pluginCard, form: {
-      title: `Connect ${prep.descriptor!.label}`,
-      description: `${prep.descriptor!.credential!.help ?? 'Type the secret here. The assistant never sees it.'} ${BACKUP_REPOSITORY_RULES}`,
-      submitLabel: 'Save credential',
-      fields: [{ kind: 'string', name: 'label', label: 'Label', required: true, value: prep.label },
-        ...prep.descriptor!.credential!.fields.map((field): SecretCardField => {
-          const base = { kind: 'string' as const, name: field.name, label: field.label, required: field.required };
-          return field.secret || field.name === prep.descriptor!.credential!.tokenField
-            ? { ...base, secret: true, allowBlank: !field.required } : base;
-        })],
-    } }),
-    // Saves only provider-declared fields through the admin POST's existing store function.
-    // Returns an explicit safe projection; errors may quote secrets and are never forwarded.
-    save: ({ values, prep, signal }) => {
-      const connection = connectionFromForm({ descriptor: prep.descriptor!, values });
-      const store = deps.sourceControlCredentialSetRepo;
-      // The async seal can outlive the run; the existing store must not insert after abandonment.
-      // Saves write through `vault`, so it must be forwarded (omitting it fails every save) with the same guard.
-      const vault = store.vault;
-      const repo: SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo'] = {
-        ...(store.canonical ? { canonical: { ...store.canonical, create: async (input) => {
-          signal.throwIfAborted();
-          if (!store.canonical!.create) throw new ToolInputError({ message: 'Open the provider API key card to save this key.' });
-          return store.canonical!.create(input, { signal });
-        } } } : {}),
-        ...(vault ? { vault: sourceControlSaveVault({ vault, signal }) } : {}),
-        insert: record => { signal.throwIfAborted(); return store.insert(record); },
-        update: record => store.update(record),
-        findById: input => store.findById(input),
-        findDefaultByProvider: input => store.findDefaultByProvider(input),
-        listByProvider: input => store.listByProvider(input),
-        listByWorkspace: input => store.listByWorkspace(input),
-        delete: input => store.delete(input),
-        ...(store.updateAccountLabel ? { updateAccountLabel: (input: Parameters<NonNullable<typeof store.updateAccountLabel>>[0]) => store.updateAccountLabel!(input) } : {}),
-        // The project half writes too (project-first saves): guarded alike.
-        ...(store.project ? { project: { ...store.project, repo: abortGuardedCredentialRepo({ store: store.project.repo, signal }), ...(store.project.createRepo ? { createRepo: abortGuardedCredentialRepo({ store: store.project.createRepo, signal }) } : {}) } } : {}),
-      };
-      // New project keys stay non-default while the shared save-result path attaches them to this site.
-      return createSourceControlCredential({ deps: {
-        repo, sealer: deps.siteAssistantSecretSealer,
-        keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
-        loadSourceControlProviders: deps.loadSourceControlProviders,
-        ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}), observability: deps.observability,
-      }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(store.project ? { isDefault: false } : {}) } });
-    },
-    result: ({ prep, run }): ProposalResult => {
-      const declined = { saved: false, credentialId: null, provider: prep.provider, label: prep.label, cancelled: run.status === 'cancelled' };
-      if (run.status !== 'saved') {
-        const message = declinedMessage({ prep, run });
-        return { ...declined, message };
-      }
-      const credential = run.saved;
-      const connection = credential.connection ?? 'saved';
-      return { saved: true, credentialId: credential.id, provider: prep.provider, label: credential.label, tokenHint: credential.tokenHint, connection,
-        message: savedMessage({ credential, locale: prep.locale }) };
-    },
-    // Renders a value-free save outcome on the form's URI, supplied by the engine.
-    outcome: ({ prep, run }) => {
-      if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
-      const saved = run.status === 'saved';
-      let message = PROPOSE_CREDENTIAL_SAVE_FAILED;
-      switch (run.status) {
-        case 'saved': message = savedMessage({ credential: run.saved, locale: prep.locale }); break;
-        case 'blank': message = credentialText({ id: 'blank', locale: prep.locale }); break;
-        case 'failed': message = run.safeMessage; break;
-      }
-      return { title: saved ? 'Credential saved' : 'Credential not saved', state: saved ? 'success' : 'failure', message };
-    },
+    form: sourceControlCredentialForm(pluginCard),
+    save: sourceControlCredentialSaver(deps),
+    result: sourceControlCredentialResult,
+    outcome: sourceControlCredentialOutcome,
   }, {
     uriHost: 'tovu',
     text: { noEmitter: 'source_control_propose_credential requires an interactive form channel. Nothing was saved.', saveFailure: PROPOSE_CREDENTIAL_SAVE_FAILED },
@@ -154,15 +191,18 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
 
 /** Preserve this adapter's vault ABI and its write guards, including optional batch writes. */
 function sourceControlSaveVault({ vault, signal }: { vault: NonNullable<SourceControlCredentialSetupDeps['sourceControlCredentialSetRepo']['vault']>; signal: AbortSignal }, _options = {}): typeof vault {
+  const findDefault = vault.findDefault?.bind(vault);
+  const findOne = vault.findOne?.bind(vault);
+  const applyBatch = vault.applyBatch?.bind(vault);
   return {
     find: (input, options) => vault.find(input, options),
     list: (input, options) => vault.list(input, options),
     put: (input, options) => { signal.throwIfAborted(); return vault.put(input, options); },
     patchMeta: (input, options) => vault.patchMeta(input, options),
     delete: (input, options) => vault.delete(input, options),
-    ...(vault.findDefault ? { findDefault: (input: Parameters<NonNullable<typeof vault.findDefault>>[0], options?: Parameters<NonNullable<typeof vault.findDefault>>[1]) => vault.findDefault!(input, options) } : {}),
-    ...(vault.findOne ? { findOne: (input: Parameters<NonNullable<typeof vault.findOne>>[0], options?: Parameters<NonNullable<typeof vault.findOne>>[1]) => vault.findOne!(input, options) } : {}),
-    ...(vault.applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return vault.applyBatch!(input, options); } } : {}),
+    ...(findDefault ? { findDefault } : {}),
+    ...(findOne ? { findOne } : {}),
+    ...(applyBatch ? { applyBatch: (input: Parameters<NonNullable<typeof vault.applyBatch>>[0], options?: Parameters<NonNullable<typeof vault.applyBatch>>[1]) => { signal.throwIfAborted(); return applyBatch(input, options); } } : {}),
   };
 }
 
@@ -172,8 +212,10 @@ function connectionFromForm({ descriptor, values }: {
   descriptor: SourceControlProviderDescriptor; values: Readonly<Record<string, unknown>>;
 }, _options = {}): Record<string, unknown> {
   const connection: Record<string, unknown> = { providerId: descriptor.id };
-  for (const field of descriptor.credential!.fields) {
-    const name = field.name === descriptor.credential!.tokenField ? 'token' : field.name;
+  const credential = descriptor.credential;
+  if (!credential) throw new ToolInputError({ message: 'Source control provider has no credential fields.' });
+  for (const field of credential.fields) {
+    const name = field.name === credential.tokenField ? 'token' : field.name;
     connection[name] = values[field.name];
   }
   return connection;

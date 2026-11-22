@@ -14,7 +14,7 @@ export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "remo
   ClockDeps &
   MediaDeps;
 
-export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
+export type MediaRouteRegistrar = (required: { app: Express; deps: MediaRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Widened (not narrowed) slice for the TWO public routes typed against it via
@@ -37,7 +37,7 @@ export type MediaRenditionRouteDeps = MediaRouteDeps &
   Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> &
   Partial<Pick<RouteDeps, "entryRepo">>;
 
-export type MediaRenditionRouteRegistrar = (app: Express, deps: MediaRenditionRouteDeps) => void;
+export type MediaRenditionRouteRegistrar = (required: { app: Express; deps: MediaRenditionRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Slice for the two media-PROVIDER-credential routes (`get-providers.ts`/`put-providers.ts`).
@@ -62,4 +62,4 @@ export type MediaProviderRouteDeps = Pick<
   | "siteAssistantSecretKeyring"
 >;
 
-export type MediaProviderRouteRegistrar = (app: Express, deps: MediaProviderRouteDeps) => void;
+export type MediaProviderRouteRegistrar = (required: { app: Express; deps: MediaProviderRouteDeps }, optional?: Record<string, never>) => void;

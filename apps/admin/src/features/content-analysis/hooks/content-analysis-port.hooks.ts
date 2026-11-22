@@ -23,5 +23,5 @@ export interface ContentAnalysisPort {
   previewStatus(target: { pluginId: string }): Promise<{ pluginId: string; enabled: boolean }>;
   /** `POST /plugins/:pluginId/preview` — rejects with an `ApiError` carrying `PLUGIN_NOT_FOUND`
    *  (404), `PLUGIN_NOT_ENABLED` (409) or `PLUGIN_HOOK_FAILED` (422). */
-  previewPlugin(target: { pluginId: string }, body: PluginPreviewRequest): Promise<PluginPreviewResponse>;
+  previewPlugin(required: { target: { pluginId: string }; body: PluginPreviewRequest }, optional?: Record<string, never>): Promise<PluginPreviewResponse>;
 }

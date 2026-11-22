@@ -10,7 +10,7 @@ import test from "node:test";
 import { createContributionRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { InMemoryRedirectRepo, type RedirectRecord } from "@jini-ai/cms/redirects";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { InMemoryNewsletterCampaignRepo } from "../../features/newsletter/repo.memory.js";
@@ -43,7 +43,7 @@ function context(input: unknown, principalId = PRINCIPAL): ToolExecutionContext 
 
 /** Actual repositories and contributors; only the authorization outcome is controlled. */
 async function harness() {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const newsletterCampaignRepo = new InMemoryNewsletterCampaignRepo();
   const redirects: RedirectRecord[] = [];
   for (const id of ["first", "second", "third", "foreign"]) {
@@ -85,8 +85,8 @@ async function harness() {
     contributions.contributors.register({ contribution });
   }
   const build = (workspaceId = WORKSPACE, batch = true) => buildAssistantToolRegistrations(
-    toAssistantRegistryDeps({ routeDeps: { ...deps, workspaceId } }), undefined,
-    { contributions, ...(batch ? {} : { batchableTools: [] }) },
+    toAssistantRegistryDeps({ routeDeps: { ...deps, workspaceId } }), { surfaces: undefined,
+    options: { contributions, ...(batch ? {} : { batchableTools: [] }) } },
   );
   const find = (registrations: readonly ToolRegistration[], id: string) => {
     const registration = registrations.find(tool => tool.descriptor.id === id);
@@ -310,7 +310,7 @@ test('collapsed batches retain the retired source policy and never turn a missin
     descriptor: { id: 'content_post_list', readOnly: true, inputSchema: { type: 'object', properties: {} } },
     policy: { authorize: () => 'allow' }, handler: async () => { listed++; return { posts: ['private list'] }; },
   };
-  const registrations = deriveContentReadRegistrations([withBatchInput({ registration: get, tool: { toolId: 'content_post_get' } }), list]);
+  const registrations = deriveContentReadRegistrations({ sourceRegistrations: [withBatchInput({ registration: get, tool: { toolId: 'content_post_get' } }), list] });
   assert.equal(registrations.some(registration => registration.descriptor.id === 'content_post_get'), false);
   const card = registrations.find(registration => registration.descriptor.id === 'content_read.content_post')!;
   const result = await invokeRegisteredTool(card, context({ items: [{ id: 'denied', enabled: 'true' }, {}, { id: 'allowed', enabled: 'false' }] })) as BatchResult;

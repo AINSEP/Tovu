@@ -58,17 +58,17 @@ before(async () => {
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Wiring Identity Site" });
   const boot = await bootSiteDir({ dir });
-  deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => { composed = store as unknown as ComposedStore; },
+    onStoreOpened: ({ store }, _optional = {}) => { composed = store as unknown as ComposedStore; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Wiring Identity Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   await drainBootReadiness(deps);
   closeAll = async () => {
-    try { await closeSiteDirBoot(boot, composed); }
+    try { await closeSiteDirBoot(boot, { composed }); }
     finally { await removeFrozenPackageTree({ root: parent }); }
   };
 });
@@ -209,7 +209,7 @@ const BASELINE_OWNER_FILES = new Set([
   "features/agent-plugins/set-enabled.ts",
   "features/site-backup/archive-extensions.ts",
   "features/site-backup/import-plugin-state.ts",
-  "server/runtime/composition/app.ts",
+  "server/runtime/composition/memory-deps/slices/agent-plugins.ts",
   "server/runtime/composition/deps.ts",
   "server/runtime/composition/plugin-credential-cards.ts",
   "server/runtime/composition/site-guide.ts",

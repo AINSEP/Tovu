@@ -1,9 +1,9 @@
 import { sql } from "kysely";
 
-import { tableExists } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
+import { tableExists } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "./0011_drop_empty_core_commerce_tables.js";
-import type { MigrationContext, MigrationStep } from "./step.js";
+import type { MigrationContext, MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /** @file ADR-066 compatibility step before immutable 0011; never imports historical payments. */
 export const ARCHIVE_LEGACY_COMMERCE_ID = "0011_archive_legacy_commerce";
@@ -14,10 +14,10 @@ export const CORE_COMMERCE_ARCHIVE_TABLES = CORE_COMMERCE_TABLES_IN_DROP_ORDER.m
 /** Discover only the fixed historical inventory, including empty siblings needed by its FKs.
  * @complexity Six bounded metadata queries; O(1) inventory space. Metadata errors propagate.
  */
-async function existingTables(kernel: StorageKernel<unknown>): Promise<string[]> {
+async function existingTables(kernel: KyselyKernel<unknown>): Promise<string[]> {
   const existing: string[] = [];
   for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) {
-    if (await tableExists(kernel, table)) existing.push(table);
+    if (await tableExists({ kernel, table })) existing.push(table);
   }
   return existing;
 }
@@ -25,7 +25,7 @@ async function existingTables(kernel: StorageKernel<unknown>): Promise<string[]>
 /** Probe for any historical row without counting or reading commerce payloads.
  * @complexity At most six LIMIT 1 probes returning one scalar each; O(1) space. Query errors propagate.
  */
-async function hasRows(kernel: StorageKernel<unknown>, tables: readonly string[]): Promise<boolean> {
+async function hasRows(kernel: KyselyKernel<unknown>, tables: readonly string[]): Promise<boolean> {
   for (const table of tables) {
     const rows = await kernel.query(sql`SELECT 1 AS present FROM ${sql.table(table)} LIMIT 1`);
     if (rows.length > 0) return true;
@@ -39,7 +39,7 @@ async function hasRows(kernel: StorageKernel<unknown>, tables: readonly string[]
  * @complexity Fixed six-table inventory: at most six source probes, six presence probes,
  * six archive probes, one PG lock and six renames. No commerce row payload is read.
  */
-async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   const existing = await existingTables(kernel);
   if (existing.length === 0) return;
   if (kernel.dialect === "postgres") {
@@ -49,7 +49,7 @@ async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Pr
   if (!await hasRows(kernel, existing)) return;
   for (const table of existing) {
     const archive = `${ARCHIVE_PREFIX}${table}`;
-    if (await tableExists(kernel, archive)) {
+    if (await tableExists({ kernel, table: archive })) {
       throw new Error(`${ARCHIVE_LEGACY_COMMERCE_ID}: archive ${archive} already exists; nothing renamed. Keep both table sets and take a database backup before resolving this archive-name collision.`);
     }
   }
@@ -67,4 +67,4 @@ async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Pr
 export const archiveLegacyCommerce = (
   required: { checksum: string },
   _optional: Record<string, never> = {},
-): MigrationStep => ({ id: ARCHIVE_LEGACY_COMMERCE_ID, checksum: required.checksum, up });
+): MigrationStep<KyselyKernel<unknown>> => ({ id: ARCHIVE_LEGACY_COMMERCE_ID, checksum: required.checksum, up });

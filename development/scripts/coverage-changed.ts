@@ -7,7 +7,8 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 import { TEST_PASSES } from "../../apps/desktop/src/coverage-floors.js";
-import { parseLcovBlocks, classifyBlock, isFirstPartySourcePath } from "./check-coverage-integrity.js";
+import { classifyBlock, parseLcovBlocks } from "@jini-ai/devops/checks/coverage";
+import { isFirstPartySourcePath } from "./check-coverage-integrity.js";
 import {
   changedSourceSet, parseJobReport, mergeLcov, evaluateFiles, classifyGap, hasInstrumentedHits,
   renderFixPrompt, renderMarkdown, summarizeFiles, resultExitCode, REUSE_NOTES, readNodeSummary,
@@ -161,14 +162,16 @@ function readableCommand(command: TestCommand): string {
   return `cd ${quote(command.cwd)} && ${[command.executable, ...command.args].map(quote).join(" ")}`;
 }
 
+const isFirstParty = ({ file }: { file: string }) => isFirstPartySourcePath(file);
+
 function integrityWarnings(text: string, cwd: string, repo: string, sources: ReadonlyMap<string, string>): Map<string, string[]> {
   const warnings = new Map<string, string[]>();
-  for (const block of parseLcovBlocks(text)) {
+  for (const block of parseLcovBlocks({ lcovText: text })) {
     const file = normalizeCoveragePath({ repo, cwd, file: block.file });
     if (!sources.has(file)) continue;
     // The existing detector excludes development/ and app roots/scripts outside src/. Apply its
     // unchanged heuristic there too through a synthetic first-party path, not a weaker detector.
-    const verdict = classifyBlock({ ...block, file: isFirstPartySourcePath(file) ? file : `apps/cov1/src/${file}` }, sources.get(file));
+    const verdict = classifyBlock({ block: { ...block, file: isFirstPartySourcePath(file) ? file : `apps/cov1/src/${file}` }, repoRoot: repo, isFirstParty }, { sourceText: sources.get(file) });
     if (verdict.status === "contaminated") warnings.set(file, [...(warnings.get(file) ?? []), `${verdict.severe ? "SEVERE " : ""}coverage integrity: ${verdict.reason}`]);
   }
   return warnings;
@@ -179,23 +182,51 @@ function imageScore(image: CoverageImage): number {
   return Math.min(row.line ?? 0, row.branch ?? 0, row.funcs ?? 0) * 1000 + (row.line ?? 0) + (row.branch ?? 0) + (row.funcs ?? 0);
 }
 
+type CoverageRun = { id: string; tests: readonly string[]; status: number | null; log: string; command: string; role: "aggregate" | "provenance"; runner: Runner; lcov: string; executedTests: number; durationMs?: number };
+type RunResultInput = { run: CoverageRun; command: TestCommand; result: ReturnType<CoveragePorts["run"]> };
+
 export function runCoverageChanged({ repo, input, out, ports }: { repo: string; input: string; out: string; ports: CoveragePorts }, { cap = 20, totalCap = 200 }: { cap?: number; totalCap?: number } = {}) {
-  ports.makeDirectory({ directory: out });
-  const directory = ports.freshDirectory({ prefix: path.join(out, "run-") });
-  const failures: string[] = [], toolErrors: string[] = [], excluded: { file: string; reason: string }[] = [];
-  const deleted = new Set<string>(), missing = new Set<string>(), ranFiles = new Set<string>(), warnings: string[] = [];
-  const sources = new Map<string, string>(), modules = new Map<string, ModuleScan>();
-  const selectedTestSources = new Map<string, string>();
-  const observedHashes = new Map<string, string>(), protectedSources = new Map<string, string>();
-  const hash = (text: string) => createHash("sha256").update(text).digest("hex");
-  const unloadedFunctions = new Map<string, string[]>();
-  const coverage = new Map<string, CoverageImage>(), invalid = new Map<string, string[]>(), runners = new Map<string, string>();
-  const loadedBy = new Map<string, string[]>(), selectedFor = new Map<string, string[]>(), triage = new Map<string, GapTriage>();
-  const probeImages = new Map<Runner, Map<string, CoverageImage>>(), completeAggregates = new Set<Runner>();
-  const runs: { id: string; tests: readonly string[]; status: number | null; log: string; command: string; role: "aggregate" | "provenance"; runner: Runner; lcov: string; executedTests: number; durationMs?: number }[] = [];
-  type RunResultInput = { run: (typeof runs)[number]; command: TestCommand; result: ReturnType<CoveragePorts["run"]> };
-  let gitInventory = new Set<string>();
-  let files: string[] = [], rowFiles: string[] = [], selectedTests: string[] = [], omittedTests: string[] = [], picks: TestPick[] = [], rules = "", kind = "unknown";
+  const directory = createCoverageRunDirectory(ports, out);
+  const { runs, toolErrors, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions, ranFiles, deleted, missing, failures, excluded, warnings, protectedSources, observedHashes, hash, modules, selectedTestSources, probeImages, completeAggregates }: { runs: CoverageRun[]; toolErrors: string[]; coverage: Map<string, CoverageImage>; sources: Map<string, string>; loadedBy: Map<string, string[]>; selectedFor: Map<string, string[]>; triage: Map<string, GapTriage>; runners: Map<string, string>; invalid: Map<string, string[]>; unloadedFunctions: Map<string, string[]>; ranFiles: Set<string>; deleted: Set<string>; missing: Set<string>; failures: string[]; excluded: { file: string; reason: string; }[]; warnings: string[]; protectedSources: Map<string, string>; observedHashes: Map<string, string>; hash: (text: string) => any; modules: Map<string, ModuleScan>; selectedTestSources: Map<string, string>; probeImages: Map<Runner, Map<string, CoverageImage>>; completeAggregates: Set<Runner>; } = createCoverageEvidenceCollections();
+  
+  const state = {
+    gitInventory: new Set<string>(),
+    files: [] as string[],
+    rowFiles: [] as string[],
+    selectedTests: [] as string[],
+    omittedTests: [] as string[],
+    picks: [] as TestPick[],
+    rules: "",
+    kind: "unknown",
+  };
+
+  const finalizeReport = createFinalizeReport({ runs, toolErrors, state, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions, ranFiles, deleted, missing, failures, markInvalidRows: (...args: Parameters<typeof markInvalidRows>) => markInvalidRows(...args), input, directory, cap, totalCap, excluded, warnings, ports, out });
+  const markInvalidRows = createMarkInvalidRows();
+
+  const prepareChangedSources = createPrepareChangedSources({ repo, input, ports, state, excluded, deleted, missing, protectChangedSources: (...args: Parameters<typeof protectChangedSources>) => protectChangedSources(...args) });
+  const protectChangedSources = createProtectChangedSources(ports, repo, protectedSources);
+  const scanInventory = createScanInventory({ state, ports, repo, scanInventoryFile: (...args: Parameters<typeof scanInventoryFile>) => scanInventoryFile(...args) });
+  const scanInventoryFile = createScanInventoryFile({ ports, repo, protectedSources, warnings, observedHashes, hash, modules, state, sources });
+  const excludeGeneratedSources = createExcludeGeneratedSources({ state, modules, excluded, sources, unloadedFunctions });
+  const selectTests = createSelectTests({ state, modules, cap, totalCap, repo, ports, toolErrors, warnings, selectedTestSources, triageSelectedFiles: (...args: Parameters<typeof triageSelectedFiles>) => triageSelectedFiles(...args) });
+  const triageSelectedFiles = createTriageSelectedFiles({ state, selectedFor, modules, triage });
+  const validateSelectedTests = createValidateSelectedTests({ state, toolErrors, ports, repo });
+  const printSelection = createPrintSelection({ ports, state, cap, totalCap });
+  const runGroups = createRunGroups({ toolErrors, state, runOne: (...args: Parameters<typeof runOne>) => runOne(...args), probeBudget: (...args: Parameters<typeof probeBudget>) => probeBudget(...args) });
+  const probeBudget = createProbeBudget(runs);
+  const retainIncompleteProbes = createRetainIncompleteProbes({ probeImages, completeAggregates, coverage, runners, ranFiles, invalid });
+  const checkSourceConsistency = createCheckSourceConsistency({ protectedSources, sources, selectedTestSources, ports, repo, toolErrors, observedHashes, hash, warnings });
+  const runOne = createRunOne({ ports, repo, directory, state, runs, readRunResult: (...args: Parameters<typeof readRunResult>) => readRunResult(...args), measureRun: (...args: Parameters<typeof measureRun>) => measureRun(...args) });
+  const measureRun = createMeasureRun({ state, ranFiles, ports, toolErrors, repo, sources, checkAggregateCompleteness: (...args: Parameters<typeof checkAggregateCompleteness>) => checkAggregateCompleteness(...args), recordMeasuredFile: (...args: Parameters<typeof recordMeasuredFile>) => recordMeasuredFile(...args) });
+
+  const checkAggregateCompleteness = createCheckAggregateCompleteness(probeImages, toolErrors, completeAggregates);
+  const readRunResult = createReadRunResult({ toolErrors, ports, readVitestResult: (...args: Parameters<typeof readVitestResult>) => readVitestResult(...args), readNodeResult: (...args: Parameters<typeof readNodeResult>) => readNodeResult(...args) });
+  const readVitestResult = createReadVitestResult(ports, toolErrors, failures);
+  const readNodeResult = createReadNodeResult(ports, toolErrors, failures);
+  const recordMeasuredFile = createRecordMeasuredFile({ invalid, recordProvenance: (...args: Parameters<typeof recordProvenance>) => recordProvenance(...args), recordProbeImage: (...args: Parameters<typeof recordProbeImage>) => recordProbeImage(...args), coverage, runners });
+  const recordProbeImage = createRecordProbeImage(probeImages);
+  const recordProvenance = createRecordProvenance(failures, loadedBy);
+
   try {
     const changed = prepareChangedSources();
     scanInventory({ changed });
@@ -209,208 +240,54 @@ export function runCoverageChanged({ repo, input, out, ports }: { repo: string; 
   } catch (error) { toolErrors.push(error instanceof Error ? error.message : String(error)); }
   return finalizeReport();
 
-  function finalizeReport() {
-    const noTestsReason = runs.some((run) => run.executedTests > 0) ? undefined : toolErrors.join("; ") || (selectedTests.length ? "selected runners reported no executed tests" : "no eligible tests selected");
-    const rows = evaluateFiles({ files: rowFiles, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions }, { ranFiles, deleted, missing });
-    const exitCode = resultExitCode({ rows, testFailures: failures, toolErrors });
-    const evidence = !noTestsReason && !failures.length && !toolErrors.length && rows.filter((row) => row.status !== "DELETED" && row.status !== "MISSING").every((row) => row.evidence);
-    markInvalidRows({ rows, evidence });
-    const report = { version: 2, input, kind, directory, cap, totalCap, evidence, noTestsReason, exitCode, files, selectedTests, omittedTests, picks, excluded, warnings, failures, toolErrors, runs, rows, overall: summarizeFiles({ rows }), reuse: REUSE_NOTES };
-    ports.writeText({ file: path.join(out, "report.json"), text: JSON.stringify(report, null, 2) + "\n" });
-    ports.writeText({ file: path.join(out, "report.md"), text: renderMarkdown({ rows, input, selectedTests, omittedTests, failures, toolErrors, runs, excluded, noTestsReason, picks, warnings }) });
-    ports.writeText({ file: path.join(out, "fix-prompt.md"), text: renderFixPrompt({ rows, rules, input, out, failures, toolErrors }) });
-    ports.print({ text: `coverage-changed: exit ${exitCode}; ${path.join(out, "report.md")}\n` });
-    return { exitCode, report };
-  }
-  function markInvalidRows({ rows, evidence }: { rows: ReturnType<typeof evaluateFiles>; evidence: boolean }, _optional: Optional = {}) {
-    if (!evidence) for (const row of rows) {
-      row.evidence = false;
-      if (row.status === "MEASURED") row.triage = { label: "needs-run", reasons: ["measurement is not trustworthy; resolve failures and remeasure before triage"] };
-    }
-  }
+}
 
-  function prepareChangedSources() {
-    const changed = collectChanged({ repo, input, ports }); kind = changed.kind;
-    const sourceSet = changedSourceSet({ paths: changed.paths });
-    excluded.push(...sourceSet.excluded);
-    rowFiles = sourceSet.files;
-    files = sourceSet.files.filter((file) => {
-      if (changed.deleted.includes(file)) { deleted.add(file); return false; }
-      if (ports.isFile({ file: path.join(repo, file) })) return true;
-      missing.add(file); return false;
-    });
-    protectChangedSources({ changed });
-    rules = ports.readText({ file: path.join(repo, COMMON) });
-    if (!rules.includes("## Hard rules")) throw new Error(`Missing owner rules block in ${COMMON}`);
-    if (!ports.isFile({ file: path.join(repo, GATE) })) throw new Error(`Missing test memory/load gate: ${GATE}`);
-    return changed;
-  }
-  function protectChangedSources({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
-    for (const file of changed.paths) {
-      if (!changed.deleted.includes(file) && ports.isFile({ file: path.join(repo, file) })) protectedSources.set(file, ports.readText({ file: path.join(repo, file) }));
-    }
-  }
-  function scanInventory({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
-    gitInventory = new Set([
-      ...ports.git({ args: ["ls-files", "-z", "--", "apps/", "development/"], cwd: repo }).split("\0"),
-      ...ports.git({ args: ["ls-files", "--others", "--exclude-standard", "-z", "--", "apps/", "development/"], cwd: repo }).split("\0"),
-    ].filter(Boolean));
-    const inventory = [...new Set([...gitInventory, ...files])].filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !/\/(?:node_modules|dist|build|coverage|generated|__generated__)\//.test(file) && ports.isFile({ file: path.join(repo, file) }));
-    for (const file of inventory) scanInventoryFile({ file, changed });
-  }
-  function scanInventoryFile({ file, changed }: { file: string; changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
-    let source: string;
-    try { source = ports.readText({ file: path.join(repo, file) }); }
-    catch (error) {
-      if (protectedSources.has(file) || changed.reportedTests.includes(file)) throw error;
-      warnings.push(`Informational: unselected inventory file unavailable during discovery: ${file}`); return;
-    }
-    observedHashes.set(file, hash(source));
-    modules.set(file, scanModule({ file, source }));
-    if (files.includes(file)) sources.set(file, source);
-  }
-  function excludeGeneratedSources() {
-    files = files.filter((file) => {
-      if (!modules.get(file)?.generated) return true;
-      excluded.push({ file, reason: "generated source header" }); sources.delete(file); rowFiles = rowFiles.filter((entry) => entry !== file); return false;
-    });
-    for (const file of files) unloadedFunctions.set(file, modules.get(file)?.declaredFunctions ?? []);
-  }
-  function selectTests({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
-    const selection = discoverTests({ changed: files, modules, reported: changed.reportedTests, inventory: gitInventory }, { cap, totalCap, aliases: readAliases(repo, ports) });
-    selectedTests = selection.tests; omittedTests = selection.omitted; picks = selection.picks; toolErrors.push(...selection.errors); warnings.push(...selection.warnings);
-    for (const test of selectedTests) selectedTestSources.set(test, ports.readText({ file: path.join(repo, test) }));
-    triageSelectedFiles({ selection });
-  }
-  function triageSelectedFiles({ selection }: { selection: ReturnType<typeof discoverTests> }, _optional: Optional = {}) {
-    for (const file of files) {
-      selectedFor.set(file, selection.byFile.get(file)?.filter((test) => selectedTests.includes(test)) ?? []);
-      const scan = modules.get(file);
-      const importing = selection.importingByFile.get(file)?.filter((test) => selectedTests.includes(test)) ?? [];
-      triage.set(file, classifyGap({ complexity: scan?.complexity, runtimeReasons: scan?.runtimeReasons, mockCounts: importing.map((test) => modules.get(test)!.mockCount) }));
-    }
-  }
-  function validateSelectedTests() {
-    for (const test of selectedTests) {
-      if (test.startsWith("development/e2e/")) toolErrors.push(`Browser test requires a separate scoped Playwright runner: ${test}`);
-      if (!test.startsWith("apps/") && !test.startsWith("development/")) toolErrors.push(`Test is outside supported Tovu roots: ${test}`);
-      if (!ports.isFile({ file: path.join(repo, test) })) toolErrors.push(`Selected test file is missing: ${test}`);
-    }
-  }
-  function printSelection() {
-    ports.print({ text: `Changed source files: ${files.length}. Selected exact test files: ${selectedTests.length} (per-file cap ${cap}, total cap ${totalCap}); omitted ${omittedTests.length}.\n${picks.map((pick) => `${pick.test} — ${pick.reason}${pick.changedFile ? ` for ${pick.changedFile}` : ""}`).join("\n")}\n` });
-    if (omittedTests.length) ports.print({ text: `OMITTED BY CAP:\n${omittedTests.join("\n")}\n` });
-    const groups = new Map<Runner, string[]>();
-    for (const test of selectedTests) { const runner = runnerFor(test); const group = groups.get(runner) ?? []; group.push(test); groups.set(runner, group); }
-    return groups;
-  }
-  function runGroups({ groups }: { groups: Map<Runner, string[]> }, _optional: Optional = {}) {
+function createCoverageRunDirectory(ports: CoveragePorts, out: string) {
+  ports.makeDirectory({ directory: out });
+  const directory = ports.freshDirectory({ prefix: path.join(out, "run-") });
+  return directory;
+}
 
-    if (toolErrors.length || !selectedTests.length) return;
-    for (const [runner, tests] of groups) {
-      if (tests.length > 1 && files.length) {
-        for (let index = 0; index < tests.length; index++) runOne({ runner, tests: [tests[index]!], id: `${runner}-probe-${String(index + 1).padStart(2, "0")}`, role: "provenance" });
-      }
-      const budget = probeBudget({ runner, tests });
-      runOne({ runner, tests, id: `${runner}-aggregate`, role: "aggregate" }, { timeoutSeconds: budget });
-    }
-  }
-  function probeBudget({ runner, tests }: { runner: Runner; tests: string[] }, _optional: Optional = {}) {
-    const probes = runs.filter((run) => run.runner === runner && run.role === "provenance");
-    const observedMs = probes.reduce((sum, run) => sum + (run.durationMs ?? 0), 0);
-    const budget = probes.length === tests.length && probes.every((run) => run.durationMs !== undefined)
-      ? Math.max(600, Math.ceil(observedMs * 2 / 1000) + 60) : undefined;
-    return budget;
-  }
-  function retainIncompleteProbes() {
-    // A killed aggregate must not turn surviving real hits into NOT LOADED zeroes.
-    // Keep ONE probe image as explicitly incomplete diagnostics, never union its branch IDs.
-    for (const [runner, images] of probeImages) {
-      if (completeAggregates.has(runner)) continue;
-      for (const [file, image] of images) {
-        if (coverage.has(file)) continue;
-        coverage.set(file, image); runners.set(file, `${runner} (partial singleton; aggregate incomplete)`); ranFiles.add(file);
-        invalid.set(file, [...(invalid.get(file) ?? []), "Partial singleton image only: aggregate incomplete; remeasure before using coverage gaps"]);
-      }
-    }
-  }
-  function checkSourceConsistency() {
-    // Coverage against code that changed during the shared-tree run is not current evidence.
-    const protectedFiles = new Map([...protectedSources, ...sources, ...selectedTestSources]);
-    for (const [file, original] of protectedFiles) {
-      if (!ports.isFile({ file: path.join(repo, file) }) || ports.readText({ file: path.join(repo, file) }) !== original) toolErrors.push(`Source/test changed during measurement: ${file}; rerun with a stable tree`);
-    }
-    for (const [file, original] of observedHashes) {
-      if (protectedFiles.has(file)) continue;
-      let changed = false;
-      try { changed = !ports.isFile({ file: path.join(repo, file) }) || hash(ports.readText({ file: path.join(repo, file) })) !== original; }
-      catch { changed = true; } // Another worker can remove the file between isFile and readText.
-      if (changed) warnings.push(`Informational: file outside changed set and selected tests changed during measurement: ${file}`);
-    }
-  }
-  function runOne({ runner, tests, id, role }: { runner: Runner; tests: string[]; id: string; role: "aggregate" | "provenance" }, { timeoutSeconds }: { timeoutSeconds?: number } = {}) {
-    for (const file of tests) if (!ports.isFile({ file: path.join(repo, file) })) throw new Error(`Test disappeared before launch: ${file}`);
-    const runDirectory = path.join(directory, id); ports.makeDirectory({ directory: runDirectory });
-    const command = buildTestCommand({ repo, runner, tests, changed: files, directory: runDirectory, id }, { timeoutSeconds });
-    if (command.configFile) ports.writeText({ file: command.configFile, text: command.configText! });
-    const printed = readableCommand(command); ports.print({ text: `[${id}] ${printed}\n` });
-    const result = ports.run({ command });
-    const run: (typeof runs)[number] = { id, tests, status: result.status, log: command.log, command: printed, role, runner, lcov: command.lcov, executedTests: 0 };
-    runs.push(run);
-    if (!readRunResult({ run, command, result })) return;
-    measureRun({ run, command, result });
-  }
-  function measureRun({ run, command, result }: RunResultInput, _optional: Optional = {}) {
-    const { runner, tests, id, role } = run;
-    if (role === "aggregate") for (const file of files) ranFiles.add(file);
-    if (!ports.isFile({ file: command.lcov })) {
-      if (result.status === 0) toolErrors.push(`${id}: successful tests produced no fresh LCOV; ${command.lcov}`);
-      return;
-    }
-    const text = ports.readText({ file: command.lcov });
-    const measured = mergeLcov({ text, normalizePath: (file) => normalizeCoveragePath({ repo, cwd: command.cwd, file }) });
-    const integrity = integrityWarnings(text, command.cwd, repo, sources);
-    if (role === "aggregate") checkAggregateCompleteness({ runner, measured, id, command });
-    for (const file of files) recordMeasuredFile({ file, measured, integrity, tests, result, id, runner, role });
-  }
 
-  function checkAggregateCompleteness({ runner, measured, id, command }: { runner: Runner; measured: Map<string, CoverageImage>; id: string; command: TestCommand }, _optional: Optional = {}) {
-    const lostHits = [...(probeImages.get(runner)?.keys() ?? [])].filter((file) => !measured.has(file));
-    if (lostHits.length) toolErrors.push(`${id}: aggregate LCOV omitted sources with singleton hits: ${lostHits.join(", ")}; ${command.lcov}`);
-    else completeAggregates.add(runner);
-  }
-  function readRunResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
-    const { id } = run;
-    if (result.error || result.signal || result.status === null) { toolErrors.push(`${id}: ${result.error ?? result.signal ?? "no process status"}`); return false; }
-    if (result.status === 124) {
-      const summary = readNodeSummary({ text: ports.readText({ file: command.log }) });
-      run.executedTests = command.resultFile ? 0 : summary.executedTests;
-      toolErrors.push(`${id}: gate timeout after ${command.args[command.args.indexOf("--timeout") + 1]}s; ${run.executedTests} completed test points before abort; TAP/coverage incomplete; ${command.log}`);
-      return false;
+function createCoverageEvidenceCollections() {
+  const failures: string[] = [], toolErrors: string[] = [], excluded: { file: string; reason: string; }[] = [];
+  const deleted = new Set<string>(), missing = new Set<string>(), ranFiles = new Set<string>(), warnings: string[] = [];
+  const sources = new Map<string, string>(), modules = new Map<string, ModuleScan>();
+  const selectedTestSources = new Map<string, string>();
+  const observedHashes = new Map<string, string>(), protectedSources = new Map<string, string>();
+  const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+  const unloadedFunctions = new Map<string, string[]>();
+  const coverage = new Map<string, CoverageImage>(), invalid = new Map<string, string[]>(), runners = new Map<string, string>();
+  const loadedBy = new Map<string, string[]>(), selectedFor = new Map<string, string[]>(), triage = new Map<string, GapTriage>();
+  const probeImages = new Map<Runner, Map<string, CoverageImage>>(), completeAggregates = new Set<Runner>();
+  const runs: CoverageRun[] = [];
+  return { runs, toolErrors, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions, ranFiles, deleted, missing, failures, excluded, warnings, protectedSources, observedHashes, hash, modules, selectedTestSources, probeImages, completeAggregates };
+}
+
+
+function createRecordProvenance(failures: string[], loadedBy: Map<string, string[]>) {
+  return function recordProvenance({ file, image, tests, result, id, integrity }: {
+    file: string; image: CoverageImage; tests: readonly string[]; result: ReturnType<CoveragePorts["run"]>; id: string; integrity: Map<string, string[]>;
+  }, _optional: Optional = {}) {
+    if (tests.length === 1 && hasInstrumentedHits({ image }) && result.status === 0 && !failures.some((failure) => failure.startsWith(`${id}:`)) && !image.warnings.length && !integrity.has(file)) {
+      loadedBy.set(file, [...new Set([...(loadedBy.get(file) ?? []), tests[0]!])]);
     }
-    return command.resultFile ? readVitestResult({ run, command, result }) : readNodeResult({ run, command, result });
-  }
-  function readVitestResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
-    const { id } = run;
-    const json = JSON.parse(ports.readText({ file: command.resultFile! }));
-    run.executedTests = Math.max(0, (json.numTotalTests ?? 0) - (json.numPendingTests ?? 0) - (json.numTodoTests ?? 0));
-    if (!(run.executedTests > 0) || typeof json.success !== "boolean") { toolErrors.push(`${id}: zero tests or incomplete Vitest result; ${command.resultFile}`); return false; }
-    if (result.status !== 0) failures.push(`${id}: test command exited ${result.status}; ${command.log}. Coverage not evidence.`);
-    if (!json.success && result.status === 0) failures.push(`${id}: Vitest reports failure despite gate exit 0; ${command.resultFile}. Coverage not evidence.`);
-    return true;
-  }
-  function readNodeResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
-    const { id } = run;
-    const summary = readNodeSummary({ text: ports.readText({ file: command.log }) });
-    run.executedTests = summary.executedTests;
-    run.durationMs = summary.durationMs;
-    if (!summary.complete || summary.tests === 0) { toolErrors.push(`${id}: runner reported no executed tests or incomplete TAP summary; ${command.log}`); return false; }
-    if (result.status !== 0) failures.push(`${id}: test command exited ${result.status}; TAP ${summary.fail} failed, ${summary.cancelled} cancelled${summary.failedTests.length ? `: ${summary.failedTests.join("; ")}` : ""}; ${command.log}. Coverage not evidence.`);
-    if (result.status === 0 && (summary.fail > 0 || summary.cancelled > 0)) failures.push(`${id}: TAP reports failure/cancellation despite gate exit 0; ${command.log}. Coverage not evidence.`);
-    if (run.executedTests === 0) { toolErrors.push(`${id}: no executed tests (only skipped/todo); ${command.log}`); return false; }
-    return true;
-  }
-  function recordMeasuredFile({ file, measured, integrity, tests, result, id, runner, role }: {
+  };
+}
+
+function createRecordProbeImage(probeImages: Map<Runner, Map<string, CoverageImage>>) {
+  return function recordProbeImage({ runner, file, image }: { runner: Runner; file: string; image: CoverageImage }, _optional: Optional = {}) {
+    if (hasInstrumentedHits({ image })) {
+      const images = probeImages.get(runner) ?? new Map<string, CoverageImage>();
+      const previous = images.get(file);
+      if (!previous || imageScore(image) > imageScore(previous)) images.set(file, image);
+      probeImages.set(runner, images);
+    }
+  };
+}
+
+function createRecordMeasuredFile({ invalid, recordProvenance, recordProbeImage, coverage, runners }: { invalid: Map<string, string[]>; recordProvenance: ReturnType<typeof createRecordProvenance>; recordProbeImage: ReturnType<typeof createRecordProbeImage>; coverage: Map<string, CoverageImage>; runners: Map<string, string> }) {
+  return function recordMeasuredFile({ file, measured, integrity, tests, result, id, runner, role }: {
     file: string; measured: Map<string, CoverageImage>; integrity: Map<string, string[]>; tests: readonly string[];
     result: ReturnType<CoveragePorts["run"]>; id: string; runner: Runner; role: "aggregate" | "provenance";
   }, _optional: Optional = {}) {
@@ -427,23 +304,269 @@ export function runCoverageChanged({ repo, input, out, ports }: { repo: string; 
     // Do not union branch positions from different tsx scopes or Node/Istanbul runners.
     // Retain a whole image and expose all raw aggregate artifacts as alternatives in JSON.
     if (!previous || imageScore(image) > imageScore(previous)) { coverage.set(file, image); runners.set(file, runner); }
-  }
-  function recordProbeImage({ runner, file, image }: { runner: Runner; file: string; image: CoverageImage }, _optional: Optional = {}) {
-    if (hasInstrumentedHits({ image })) {
-      const images = probeImages.get(runner) ?? new Map<string, CoverageImage>();
-      const previous = images.get(file);
-      if (!previous || imageScore(image) > imageScore(previous)) images.set(file, image);
-      probeImages.set(runner, images);
-    }
-  }
-  function recordProvenance({ file, image, tests, result, id, integrity }: {
-    file: string; image: CoverageImage; tests: readonly string[]; result: ReturnType<CoveragePorts["run"]>; id: string; integrity: Map<string, string[]>;
-  }, _optional: Optional = {}) {
-    if (tests.length === 1 && hasInstrumentedHits({ image }) && result.status === 0 && !failures.some((failure) => failure.startsWith(`${id}:`)) && !image.warnings.length && !integrity.has(file)) {
-      loadedBy.set(file, [...new Set([...(loadedBy.get(file) ?? []), tests[0]!])]);
-    }
-  }
+  };
+}
 
+function createReadNodeResult(ports: CoveragePorts, toolErrors: string[], failures: string[]) {
+  return function readNodeResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
+    const { id } = run;
+    const summary = readNodeSummary({ text: ports.readText({ file: command.log }) });
+    run.executedTests = summary.executedTests;
+    run.durationMs = summary.durationMs;
+    if (!summary.complete || summary.tests === 0) { toolErrors.push(`${id}: runner reported no executed tests or incomplete TAP summary; ${command.log}`); return false; }
+    if (result.status !== 0) failures.push(`${id}: test command exited ${result.status}; TAP ${summary.fail} failed, ${summary.cancelled} cancelled${summary.failedTests.length ? `: ${summary.failedTests.join("; ")}` : ""}; ${command.log}. Coverage not evidence.`);
+    if (result.status === 0 && (summary.fail > 0 || summary.cancelled > 0)) failures.push(`${id}: TAP reports failure/cancellation despite gate exit 0; ${command.log}. Coverage not evidence.`);
+    if (run.executedTests === 0) { toolErrors.push(`${id}: no executed tests (only skipped/todo); ${command.log}`); return false; }
+    return true;
+  };
+}
+
+function createReadVitestResult(ports: CoveragePorts, toolErrors: string[], failures: string[]) {
+  return function readVitestResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
+    const { id } = run;
+    const json = JSON.parse(ports.readText({ file: command.resultFile! }));
+    run.executedTests = Math.max(0, (json.numTotalTests ?? 0) - (json.numPendingTests ?? 0) - (json.numTodoTests ?? 0));
+    if (!(run.executedTests > 0) || typeof json.success !== "boolean") { toolErrors.push(`${id}: zero tests or incomplete Vitest result; ${command.resultFile}`); return false; }
+    if (result.status !== 0) failures.push(`${id}: test command exited ${result.status}; ${command.log}. Coverage not evidence.`);
+    if (!json.success && result.status === 0) failures.push(`${id}: Vitest reports failure despite gate exit 0; ${command.resultFile}. Coverage not evidence.`);
+    return true;
+  };
+}
+
+function createReadRunResult({ toolErrors, ports, readVitestResult, readNodeResult }: { toolErrors: string[]; ports: CoveragePorts; readVitestResult: ReturnType<typeof createReadVitestResult>; readNodeResult: ReturnType<typeof createReadNodeResult> }) {
+  return function readRunResult({ run, command, result }: RunResultInput, _optional: Optional = {}): boolean {
+    const { id } = run;
+    if (result.error || result.signal || result.status === null) { toolErrors.push(`${id}: ${result.error ?? result.signal ?? "no process status"}`); return false; }
+    if (result.status === 124) {
+      const summary = readNodeSummary({ text: ports.readText({ file: command.log }) });
+      run.executedTests = command.resultFile ? 0 : summary.executedTests;
+      toolErrors.push(`${id}: gate timeout after ${command.args[command.args.indexOf("--timeout") + 1]}s; ${run.executedTests} completed test points before abort; TAP/coverage incomplete; ${command.log}`);
+      return false;
+    }
+    return command.resultFile ? readVitestResult({ run, command, result }) : readNodeResult({ run, command, result });
+  };
+}
+
+function createCheckAggregateCompleteness(probeImages: Map<Runner, Map<string, CoverageImage>>, toolErrors: string[], completeAggregates: Set<Runner>) {
+  return function checkAggregateCompleteness({ runner, measured, id, command }: { runner: Runner; measured: Map<string, CoverageImage>; id: string; command: TestCommand }, _optional: Optional = {}) {
+    const lostHits = [...(probeImages.get(runner)?.keys() ?? [])].filter((file) => !measured.has(file));
+    if (lostHits.length) toolErrors.push(`${id}: aggregate LCOV omitted sources with singleton hits: ${lostHits.join(", ")}; ${command.lcov}`);
+    else completeAggregates.add(runner);
+  };
+}
+
+function createMeasureRun({ state, ranFiles, ports, toolErrors, repo, sources, checkAggregateCompleteness, recordMeasuredFile }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; ranFiles: Set<string>; ports: CoveragePorts; toolErrors: string[]; repo: string; sources: Map<string, string>; checkAggregateCompleteness: ReturnType<typeof createCheckAggregateCompleteness>; recordMeasuredFile: ReturnType<typeof createRecordMeasuredFile> }) {
+  return function measureRun({ run, command, result }: RunResultInput, _optional: Optional = {}) {
+    const { runner, tests, id, role } = run;
+    if (role === "aggregate") for (const file of state.files) ranFiles.add(file);
+    if (!ports.isFile({ file: command.lcov })) {
+      if (result.status === 0) toolErrors.push(`${id}: successful tests produced no fresh LCOV; ${command.lcov}`);
+      return;
+    }
+    const text = ports.readText({ file: command.lcov });
+    const measured = mergeLcov({ text, normalizePath: (file) => normalizeCoveragePath({ repo, cwd: command.cwd, file }) });
+    const integrity = integrityWarnings(text, command.cwd, repo, sources);
+    if (role === "aggregate") checkAggregateCompleteness({ runner, measured, id, command });
+    for (const file of state.files) recordMeasuredFile({ file, measured, integrity, tests, result, id, runner, role });
+  };
+}
+
+function createRunOne({ ports, repo, directory, state, runs, readRunResult, measureRun }: { ports: CoveragePorts; repo: string; directory: ReturnType<typeof createCoverageRunDirectory>; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; runs: CoverageRun[]; readRunResult: ReturnType<typeof createReadRunResult>; measureRun: ReturnType<typeof createMeasureRun> }) {
+  return function runOne({ runner, tests, id, role }: { runner: Runner; tests: string[]; id: string; role: "aggregate" | "provenance" }, { timeoutSeconds }: { timeoutSeconds?: number } = {}) {
+    for (const file of tests) if (!ports.isFile({ file: path.join(repo, file) })) throw new Error(`Test disappeared before launch: ${file}`);
+    const runDirectory = path.join(directory, id); ports.makeDirectory({ directory: runDirectory });
+    const command = buildTestCommand({ repo, runner, tests, changed: state.files, directory: runDirectory, id }, { timeoutSeconds });
+    if (command.configFile) ports.writeText({ file: command.configFile, text: command.configText! });
+    const printed = readableCommand(command); ports.print({ text: `[${id}] ${printed}\n` });
+    const result = ports.run({ command });
+    const run: (typeof runs)[number] = { id, tests, status: result.status, log: command.log, command: printed, role, runner, lcov: command.lcov, executedTests: 0 };
+    runs.push(run);
+    if (!readRunResult({ run, command, result })) return;
+    measureRun({ run, command, result });
+  };
+}
+
+function createCheckSourceConsistency({ protectedSources, sources, selectedTestSources, ports, repo, toolErrors, observedHashes, hash, warnings }: { protectedSources: Map<string, string>; sources: Map<string, string>; selectedTestSources: Map<string, string>; ports: CoveragePorts; repo: string; toolErrors: string[]; observedHashes: Map<string, string>; hash: (text: string) => string; warnings: string[] }) {
+  return function checkSourceConsistency() {
+    // Coverage against code that changed during the shared-tree run is not current evidence.
+    const protectedFiles = new Map([...protectedSources, ...sources, ...selectedTestSources]);
+    for (const [file, original] of protectedFiles) {
+      if (!ports.isFile({ file: path.join(repo, file) }) || ports.readText({ file: path.join(repo, file) }) !== original) toolErrors.push(`Source/test changed during measurement: ${file}; rerun with a stable tree`);
+    }
+    for (const [file, original] of observedHashes) {
+      if (protectedFiles.has(file)) continue;
+      let changed = false;
+      try { changed = !ports.isFile({ file: path.join(repo, file) }) || hash(ports.readText({ file: path.join(repo, file) })) !== original; }
+      catch { changed = true; } // Another worker can remove the file between isFile and readText.
+      if (changed) warnings.push(`Informational: file outside changed set and selected tests changed during measurement: ${file}`);
+    }
+  };
+}
+
+function createRetainIncompleteProbes({ probeImages, completeAggregates, coverage, runners, ranFiles, invalid }: { probeImages: Map<Runner, Map<string, CoverageImage>>; completeAggregates: Set<Runner>; coverage: Map<string, CoverageImage>; runners: Map<string, string>; ranFiles: Set<string>; invalid: Map<string, string[]> }) {
+  return function retainIncompleteProbes() {
+    // A killed aggregate must not turn surviving real hits into NOT LOADED zeroes.
+    // Keep ONE probe image as explicitly incomplete diagnostics, never union its branch IDs.
+    for (const [runner, images] of probeImages) {
+      if (completeAggregates.has(runner)) continue;
+      for (const [file, image] of images) {
+        if (coverage.has(file)) continue;
+        coverage.set(file, image); runners.set(file, `${runner} (partial singleton; aggregate incomplete)`); ranFiles.add(file);
+        invalid.set(file, [...(invalid.get(file) ?? []), "Partial singleton image only: aggregate incomplete; remeasure before using coverage gaps"]);
+      }
+    }
+  };
+}
+
+function createProbeBudget(runs: CoverageRun[]) {
+  return function probeBudget({ runner, tests }: { runner: Runner; tests: string[] }, _optional: Optional = {}) {
+    const probes = runs.filter((run) => run.runner === runner && run.role === "provenance");
+    const observedMs = probes.reduce((sum, run) => sum + (run.durationMs ?? 0), 0);
+    const budget = probes.length === tests.length && probes.every((run) => run.durationMs !== undefined)
+      ? Math.max(600, Math.ceil(observedMs * 2 / 1000) + 60) : undefined;
+    return budget;
+  };
+}
+
+function createRunGroups({ toolErrors, state, runOne, probeBudget }: { toolErrors: string[]; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; runOne: ReturnType<typeof createRunOne>; probeBudget: ReturnType<typeof createProbeBudget> }) {
+  return function runGroups({ groups }: { groups: Map<Runner, string[]> }, _optional: Optional = {}) {
+
+    if (toolErrors.length || !state.selectedTests.length) return;
+    for (const [runner, tests] of groups) {
+      if (tests.length > 1 && state.files.length) {
+        for (let index = 0; index < tests.length; index++) runOne({ runner, tests: [tests[index]!], id: `${runner}-probe-${String(index + 1).padStart(2, "0")}`, role: "provenance" });
+      }
+      const budget = probeBudget({ runner, tests });
+      runOne({ runner, tests, id: `${runner}-aggregate`, role: "aggregate" }, { timeoutSeconds: budget });
+    }
+  };
+}
+
+function createPrintSelection({ ports, state, cap, totalCap }: { ports: CoveragePorts; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; cap: number; totalCap: number }) {
+  return function printSelection() {
+    ports.print({ text: `Changed source files: ${state.files.length}. Selected exact test files: ${state.selectedTests.length} (per-file cap ${cap}, total cap ${totalCap}); omitted ${state.omittedTests.length}.\n${state.picks.map((pick) => `${pick.test} — ${pick.reason}${pick.changedFile ? ` for ${pick.changedFile}` : ""}`).join("\n")}\n` });
+    if (state.omittedTests.length) ports.print({ text: `OMITTED BY CAP:\n${state.omittedTests.join("\n")}\n` });
+    const groups = new Map<Runner, string[]>();
+    for (const test of state.selectedTests) { const runner = runnerFor(test); const group = groups.get(runner) ?? []; group.push(test); groups.set(runner, group); }
+    return groups;
+  };
+}
+
+function createValidateSelectedTests({ state, toolErrors, ports, repo }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; toolErrors: string[]; ports: CoveragePorts; repo: string }) {
+  return function validateSelectedTests() {
+    for (const test of state.selectedTests) {
+      if (test.startsWith("development/e2e/")) toolErrors.push(`Browser test requires a separate scoped Playwright runner: ${test}`);
+      if (!test.startsWith("apps/") && !test.startsWith("development/")) toolErrors.push(`Test is outside supported Tovu roots: ${test}`);
+      if (!ports.isFile({ file: path.join(repo, test) })) toolErrors.push(`Selected test file is missing: ${test}`);
+    }
+  };
+}
+
+function createTriageSelectedFiles({ state, selectedFor, modules, triage }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; selectedFor: Map<string, string[]>; modules: Map<string, ModuleScan>; triage: Map<string, GapTriage> }) {
+  return function triageSelectedFiles({ selection }: { selection: ReturnType<typeof discoverTests> }, _optional: Optional = {}) {
+    for (const file of state.files) {
+      selectedFor.set(file, selection.byFile.get(file)?.filter((test) => state.selectedTests.includes(test)) ?? []);
+      const scan = modules.get(file);
+      const importing = selection.importingByFile.get(file)?.filter((test) => state.selectedTests.includes(test)) ?? [];
+      triage.set(file, classifyGap({ complexity: scan?.complexity, runtimeReasons: scan?.runtimeReasons, mockCounts: importing.map((test) => modules.get(test)!.mockCount) }));
+    }
+  };
+}
+
+function createSelectTests({ state, modules, cap, totalCap, repo, ports, toolErrors, warnings, selectedTestSources, triageSelectedFiles }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; modules: Map<string, ModuleScan>; cap: number; totalCap: number; repo: string; ports: CoveragePorts; toolErrors: string[]; warnings: string[]; selectedTestSources: Map<string, string>; triageSelectedFiles: ReturnType<typeof createTriageSelectedFiles> }) {
+  return function selectTests({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
+    const selection = discoverTests({ changed: state.files, modules, reported: changed.reportedTests, inventory: state.gitInventory }, { cap, totalCap, aliases: readAliases(repo, ports) });
+    state.selectedTests = selection.tests; state.omittedTests = selection.omitted; state.picks = selection.picks; toolErrors.push(...selection.errors); warnings.push(...selection.warnings);
+    for (const test of state.selectedTests) selectedTestSources.set(test, ports.readText({ file: path.join(repo, test) }));
+    triageSelectedFiles({ selection });
+  };
+}
+
+function createExcludeGeneratedSources({ state, modules, excluded, sources, unloadedFunctions }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; modules: Map<string, ModuleScan>; excluded: { file: string; reason: string; }[]; sources: Map<string, string>; unloadedFunctions: Map<string, string[]> }) {
+  return function excludeGeneratedSources() {
+    state.files = state.files.filter((file) => {
+      if (!modules.get(file)?.generated) return true;
+      excluded.push({ file, reason: "generated source header" }); sources.delete(file); state.rowFiles = state.rowFiles.filter((entry) => entry !== file); return false;
+    });
+    for (const file of state.files) unloadedFunctions.set(file, modules.get(file)?.declaredFunctions ?? []);
+  };
+}
+
+function createScanInventoryFile({ ports, repo, protectedSources, warnings, observedHashes, hash, modules, state, sources }: { ports: CoveragePorts; repo: string; protectedSources: Map<string, string>; warnings: string[]; observedHashes: Map<string, string>; hash: (text: string) => string; modules: Map<string, ModuleScan>; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; sources: Map<string, string> }) {
+  return function scanInventoryFile({ file, changed }: { file: string; changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
+    let source: string;
+    try { source = ports.readText({ file: path.join(repo, file) }); }
+    catch (error) {
+      if (protectedSources.has(file) || changed.reportedTests.includes(file)) throw error;
+      warnings.push(`Informational: unselected inventory file unavailable during discovery: ${file}`); return;
+    }
+    observedHashes.set(file, hash(source));
+    modules.set(file, scanModule({ file, source }));
+    if (state.files.includes(file)) sources.set(file, source);
+  };
+}
+
+function createScanInventory({ state, ports, repo, scanInventoryFile }: { state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; ports: CoveragePorts; repo: string; scanInventoryFile: ReturnType<typeof createScanInventoryFile> }) {
+  return function scanInventory({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
+    state.gitInventory = new Set([
+      ...ports.git({ args: ["ls-files", "-z", "--", "apps/", "development/"], cwd: repo }).split("\0"),
+      ...ports.git({ args: ["ls-files", "--others", "--exclude-standard", "-z", "--", "apps/", "development/"], cwd: repo }).split("\0"),
+    ].filter(Boolean));
+    const inventory = [...new Set([...state.gitInventory, ...state.files])].filter((file) => /\.[cm]?[jt]sx?$/.test(file) && !/\/(?:node_modules|dist|build|coverage|generated|__generated__)\//.test(file) && ports.isFile({ file: path.join(repo, file) }));
+    for (const file of inventory) scanInventoryFile({ file, changed });
+  };
+}
+
+function createProtectChangedSources(ports: CoveragePorts, repo: string, protectedSources: Map<string, string>) {
+  return function protectChangedSources({ changed }: { changed: ReturnType<typeof collectChanged> }, _optional: Optional = {}) {
+    for (const file of changed.paths) {
+      if (!changed.deleted.includes(file) && ports.isFile({ file: path.join(repo, file) })) protectedSources.set(file, ports.readText({ file: path.join(repo, file) }));
+    }
+  };
+}
+
+function createPrepareChangedSources({ repo, input, ports, state, excluded, deleted, missing, protectChangedSources }: { repo: string; input: string; ports: CoveragePorts; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; excluded: { file: string; reason: string; }[]; deleted: Set<string>; missing: Set<string>; protectChangedSources: ReturnType<typeof createProtectChangedSources> }) {
+  return function prepareChangedSources() {
+    const changed = collectChanged({ repo, input, ports }); state.kind = changed.kind;
+    const sourceSet = changedSourceSet({ paths: changed.paths });
+    excluded.push(...sourceSet.excluded);
+    state.rowFiles = sourceSet.files;
+    state.files = sourceSet.files.filter((file) => {
+      if (changed.deleted.includes(file)) { deleted.add(file); return false; }
+      if (ports.isFile({ file: path.join(repo, file) })) return true;
+      missing.add(file); return false;
+    });
+    protectChangedSources({ changed });
+    state.rules = ports.readText({ file: path.join(repo, COMMON) });
+    if (!state.rules.includes("## Hard rules")) throw new Error(`Missing owner rules block in ${COMMON}`);
+    if (!ports.isFile({ file: path.join(repo, GATE) })) throw new Error(`Missing test memory/load gate: ${GATE}`);
+    return changed;
+  };
+}
+
+function createMarkInvalidRows() {
+  return function markInvalidRows({ rows, evidence }: { rows: ReturnType<typeof evaluateFiles>; evidence: boolean }, _optional: Optional = {}) {
+    if (!evidence) for (const row of rows) {
+      row.evidence = false;
+      if (row.status === "MEASURED") row.triage = { label: "needs-run", reasons: ["measurement is not trustworthy; resolve failures and remeasure before triage"] };
+    }
+  };
+}
+
+function createFinalizeReport({ runs, toolErrors, state, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions, ranFiles, deleted, missing, failures, markInvalidRows, input, directory, cap, totalCap, excluded, warnings, ports, out }: { runs: CoverageRun[]; toolErrors: string[]; state: { gitInventory: Set<string>; files: string[]; rowFiles: string[]; selectedTests: string[]; omittedTests: string[]; picks: TestPick[]; rules: string; kind: string; }; coverage: Map<string, CoverageImage>; sources: Map<string, string>; loadedBy: Map<string, string[]>; selectedFor: Map<string, string[]>; triage: Map<string, GapTriage>; runners: Map<string, string>; invalid: Map<string, string[]>; unloadedFunctions: Map<string, string[]>; ranFiles: Set<string>; deleted: Set<string>; missing: Set<string>; failures: string[]; markInvalidRows: ReturnType<typeof createMarkInvalidRows>; input: string; directory: ReturnType<typeof createCoverageRunDirectory>; cap: number; totalCap: number; excluded: { file: string; reason: string; }[]; warnings: string[]; ports: CoveragePorts; out: string }) {
+  return function finalizeReport() {
+    const noTestsReason = runs.some((run) => run.executedTests > 0) ? undefined : toolErrors.join("; ") || (state.selectedTests.length ? "selected runners reported no executed tests" : "no eligible tests selected");
+    const rows = evaluateFiles({ files: state.rowFiles, coverage, sources, loadedBy, selectedFor, triage, runners, invalid, unloadedFunctions }, { ranFiles, deleted, missing });
+    const exitCode = resultExitCode({ rows, testFailures: failures, toolErrors });
+    const evidence = !noTestsReason && !failures.length && !toolErrors.length && rows.filter((row) => row.status !== "DELETED" && row.status !== "MISSING").every((row) => row.evidence);
+    markInvalidRows({ rows, evidence });
+    const report = { version: 2, input, kind: state.kind, directory, cap, totalCap, evidence, noTestsReason, exitCode, files: state.files, selectedTests: state.selectedTests, omittedTests: state.omittedTests, picks: state.picks, excluded, warnings, failures, toolErrors, runs, rows, overall: summarizeFiles({ rows }), reuse: REUSE_NOTES };
+    ports.writeText({ file: path.join(out, "report.json"), text: JSON.stringify(report, null, 2) + "\n" });
+    ports.writeText({ file: path.join(out, "report.md"), text: renderMarkdown({ rows, input, selectedTests: state.selectedTests, omittedTests: state.omittedTests, failures, toolErrors, runs, excluded, noTestsReason, picks: state.picks, warnings }) });
+    ports.writeText({ file: path.join(out, "fix-prompt.md"), text: renderFixPrompt({ rows, rules: state.rules, input, out, failures, toolErrors }) });
+    ports.print({ text: `coverage-changed: exit ${exitCode}; ${path.join(out, "report.md")}\n` });
+    return { exitCode, report };
+  };
 }
 
 function filesystemPorts(): CoveragePorts {

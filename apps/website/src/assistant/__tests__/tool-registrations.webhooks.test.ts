@@ -1,7 +1,8 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { batchDescriptorFor } from "../batch-tool-inputs.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Webhooks catalog completeness: every entry is wired. Subscription update and
@@ -21,16 +22,16 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import type { UIResource } from "../index.js";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
+import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
 import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from "./fixtures/execute-registered-tool.js";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
@@ -86,7 +87,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function webhooksRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).filter((r) => r.descriptor.id.startsWith("webhooks_") || r.descriptor.id === "content_read.webhook_subscription").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -106,7 +107,7 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
  */
 async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<{ subscription: { status: string; disabledAt: string | null } }> {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges }, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
+  const deleteTool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: { surfaceExchanges }, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).find((r) => r.descriptor.id === "webhooks_delete_subscription");
   assert.ok(deleteTool, "expected 'webhooks_delete_subscription' to be wired");
   const emitted: unknown[] = [];
   const pending = invokeFixtureHandler(deleteTool, { ...executionContext({ subscriptionId }), emitSurface: async (s) => void emitted.push(s) });
@@ -121,7 +122,8 @@ async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, sub
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = getWebhooksAgentToolCatalog().find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 const ALL_WEBHOOKS_TOOL_IDS = [
@@ -145,7 +147,7 @@ test("exactly the 6 webhooks catalog entries are registered — nothing withheld
 
 test("subscription update is available while signing-secret rotation and reveal remain absent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("webhooks_update_subscription"), true);
   assert.equal(ids.some((id) => id.includes("rotate") || id.includes("reveal") || id.includes("keyring")), false);
 });
@@ -195,13 +197,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.webhook_subscription") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("webhooks_create_subscription", { ...catalogEntry("webhooks_create_subscription"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "webhooks_create_subscription", catalogEntry: { ...catalogEntry("webhooks_create_subscription"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -374,7 +376,7 @@ function invokeFixtureHandler(
 
 test("chat delete policy defaults off; checked webhook delete retains a human card", () => {
   const { deps } = fakeRouteDeps();
-  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
   assert.equal(off.some(tool => tool.descriptor.id === "webhooks_delete_subscription"), false);
   assert.ok(webhooksRegistrations(deps).has("webhooks_delete_subscription"));
 });
@@ -392,9 +394,9 @@ for (const transport of ['direct', 'delegated'] as const) {
       resolve: async () => { throw new Error('writes cannot resolve peer sites'); }, close: async () => {},
     } };
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: scopedDeps }), { surfaceExchanges }, {
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: scopedDeps }), { surfaces: { surfaceExchanges }, options: {
       contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
-    }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
+    } }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
     assert.ok(tool);
     let confirmations = 0;
     const registration: ToolRegistration = { ...tool, handler: (ctx, options) => tool.handler(ctx, { ...options,
@@ -435,9 +437,9 @@ test('webhook delete plan canonicalizes every item and retains one confirmation 
     ids.push(created.subscription.id);
   }
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges }, {
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: { surfaceExchanges }, options: {
     contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
-  }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
+  } }).find(tool => tool.descriptor.id === 'webhooks_delete_subscription');
   assert.ok(registration);
   let confirmations = 0;
   const result = await executeRegisteredTool({ registration, input: { items: ids.map(subscription_id => ({ subscription_id })) } }, {

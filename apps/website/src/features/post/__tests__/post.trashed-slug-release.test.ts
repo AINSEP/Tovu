@@ -3,22 +3,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { bindRemoveEntity, createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "#src/features/trash/adapters/post";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { removeEntityWithoutBlocker } from "#src/features/trash/remove-without-blocker";
-import {
-  createPost,
-  deletePost,
-  retirePostForReplacement,
-  updatePost,
-  PostConflictError,
-  ROOT_SLUG,
-  type PostRecord,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost } from "../post-trash.js";
+import { retirePostForReplacement } from "../post-retire.js";
+import { updatePost } from "../post-update.js";
+import { PostConflictError, ROOT_SLUG, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { removeVia } from "./remove-post-double.js";
@@ -48,7 +43,7 @@ function trashed(fields: Partial<PostRecord>): PostRecord {
 }
 
 const ADAPTERS: Array<{ name: string; make: (rows: PostRecord[]) => Promise<PostRepoPort> }> = [
-  { name: "InMemoryPostRepo", make: async (rows) => new InMemoryPostRepo(rows) },
+  { name: "InMemoryPostRepo", make: async (rows) => new InMemoryPostRepo({}, { initialRows: rows }) },
   {
     name: "SqlitePostRepo",
     make: async (rows) => {
@@ -56,7 +51,7 @@ const ADAPTERS: Array<{ name: string; make: (rows: PostRecord[]) => Promise<Post
       (db as unknown as { $client: Database.Database }).$client
         .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
         .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-      const repo = new SqlitePostRepo(db);
+      const repo = new SqlitePostRepo({ store: db });
       for (const row of rows) await repo.save(row);
       return repo;
     },
@@ -94,10 +89,10 @@ for (const adapter of ADAPTERS) {
 }
 
 test("the moved-aside slug suffixes past one an earlier release already used", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     trashed({ id: "first", slug: "about-trashed" }),
     trashed({ id: "second", slug: "about" }),
-  ]);
+  ] });
 
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "third", title: "About", slug: "about" } });
 
@@ -106,7 +101,7 @@ test("the moved-aside slug suffixes past one an earlier release already used", a
 });
 
 test("a DERIVED slug takes the base a trashed row held instead of suffixing past it", async () => {
-  const repo = new InMemoryPostRepo([trashed({ id: "old", slug: "hello-world" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [trashed({ id: "old", slug: "hello-world" })] });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
 
@@ -115,10 +110,10 @@ test("a DERIVED slug takes the base a trashed row held instead of suffixing past
 });
 
 test("a DERIVED slug still suffixes past a LIVE holder, and takes a trashed holder's slug further down the chain", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "live", workspaceId: WS, slug: "hello-world" }),
     trashed({ id: "old", slug: "hello-world-1" }),
-  ]);
+  ] });
 
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "Hello World" } });
 
@@ -131,7 +126,7 @@ test("a DERIVED slug still suffixes past a LIVE holder, and takes a trashed hold
 });
 
 test("a LIVE holder still conflicts, and nothing is renamed", async () => {
-  const repo = new InMemoryPostRepo([buildPostRecord({ id: "live", workspaceId: WS, slug: "about" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [buildPostRecord({ id: "live", workspaceId: WS, slug: "about" })] });
 
   await assert.rejects(
     () => createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } }),
@@ -141,10 +136,10 @@ test("a LIVE holder still conflicts, and nothing is renamed", async () => {
 });
 
 test("updatePost renaming onto a slug only a trashed row holds succeeds and moves that row aside", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "start", workspaceId: WS, slug: "start", kind: "page", version: 2 }),
     trashed({ id: "old-home", slug: ROOT_SLUG, kind: "page" }),
-  ]);
+  ] });
 
   const { post } = await updatePost({
     deps: { repo, clock, outbox: noopOutbox },
@@ -156,10 +151,10 @@ test("updatePost renaming onto a slug only a trashed row holds succeeds and move
 });
 
 test("updatePost onto a LIVE holder's slug still conflicts", async () => {
-  const repo = new InMemoryPostRepo([
+  const repo = new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "a", workspaceId: WS, slug: "a" }),
     buildPostRecord({ id: "b", workspaceId: WS, slug: "b" }),
-  ]);
+  ] });
 
   await assert.rejects(
     () =>
@@ -179,14 +174,14 @@ function openRealTrash() {
   client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
-  const repo = new SqlitePostRepo(db);
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))]]);
+  const repo = new SqlitePostRepo({ store: db });
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel({ store: client }))]]);
   let seq = 0;
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(client),
+    repo: new SqliteTrashRepo({ store: client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
     entityPolicy: ({ entityType }) => adapters.has(entityType),
   });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: POST_ENTITY_TYPE }) });
@@ -232,7 +227,7 @@ test("publish retiring a holder that is ALREADY in the Trash leaves it restorabl
 });
 
 test("the in-memory remove double still works with a moved-aside row (deletePost after release)", async () => {
-  const repo = new InMemoryPostRepo([trashed({ id: "old", slug: "about" })]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [trashed({ id: "old", slug: "about" })] });
   await createPost({ deps: { repo, clock }, input: { workspaceId: WS, id: "new", title: "About", slug: "about" } });
 
   const { post } = await deletePost({ deps: { repo, clock, outbox: noopOutbox, remove: removeVia(repo) }, input: { workspaceId: WS, id: "new" } });

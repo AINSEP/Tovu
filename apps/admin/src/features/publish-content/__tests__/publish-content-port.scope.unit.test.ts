@@ -73,7 +73,7 @@ test("the live publishing port carries destination and confirmation data through
     return new Response(JSON.stringify(response), { headers: { "content-type": "application/json" } });
   });
   await expect(defaultPublishContentPort.getDestination()).resolves.toEqual(destination);
-  await expect(defaultPublishContentPort.connectDestination({ siteUrl: "https://chosen.test" })).resolves.toEqual(destination);
+  await expect(defaultPublishContentPort.connectDestination({}, { siteUrl: "https://chosen.test" })).resolves.toEqual(destination);
   await expect(defaultPublishContentPort.confirmPublish({ peerId: "peer-prod", planId: "plan-7", planHash: "hash-7" })).resolves.toEqual(confirm);
   await expect(defaultPublishContentPort.executePublish({ peerId: "peer-prod", bundleId: "bundle-7", confirmationToken: "confirmed-token", overwriteEntityKeys: ["page:7"] })).resolves.toEqual(executed);
   expect(calls.map(({ method, body }) => ({ method, body }))).toEqual([
@@ -91,7 +91,7 @@ test("the fake's fresh-install defaults provide a complete publish lifecycle", a
   await expect(port.listPeers()).resolves.toEqual({ peers: [] });
   await expect(port.getDestination()).resolves.toEqual({ connected: false, site: null, candidateUrl: null,
     message: "No live site is set up yet. Deploy this site once, then come back here.", nextStep: null });
-  const connection = await port.connectDestination();
+  const connection = await port.connectDestination({});
   expect(connection.site).toEqual({ id: "peer-connected", label: "example.test", baseUrl: "https://example.test",
     remoteWorkspaceId: "workspace-local", masked: null, hasCredential: false });
   await expect(port.planPublish({ peerId: "peer-connected" })).resolves.toEqual({
@@ -107,8 +107,8 @@ test("the fake's fresh-install defaults provide a complete publish lifecycle", a
 test("the fake connects to an explicit URL before its configured candidate", async () => {
   const port = createFakePublishContentPort({ destination: { connected: false, site: null,
     candidateUrl: "https://candidate.test", message: "Connect", nextStep: null } });
-  expect((await port.connectDestination({})).site?.baseUrl).toBe("https://candidate.test");
-  expect((await port.connectDestination({ siteUrl: "https://chosen.test" })).site?.baseUrl).toBe("https://chosen.test");
+  expect((await port.connectDestination({}, {})).site?.baseUrl).toBe("https://candidate.test");
+  expect((await port.connectDestination({}, { siteUrl: "https://chosen.test" })).site?.baseUrl).toBe("https://chosen.test");
 });
 
 

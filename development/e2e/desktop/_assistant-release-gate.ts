@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { expect, type ElectronApplication } from '@playwright/test';
-import { collectProcessTreePids, listProcessSnapshots, waitForProcessExit } from '@jini-ai/platform';
+import { listProcessSnapshots, waitForProcessExit } from '@jini-ai/platform';
+import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import { closeDesktop, launchDesktop, makeSite, openSiteTab, removeScratchTree, scratchDir, siteContentDb, startSite,
   type DesktopLaunch } from './_fixtures.js';
 import { fiveSitesExecuting } from './_shared-daemon-evidence.js';
@@ -90,12 +91,19 @@ export async function acceptRuns({ app, count }: { app: ElectronApplication; cou
   return accepted;
 }
 
+type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
+
 /** Read one SSE subscription per run (90s / 256 KiB cap). Parsing stays in the packaged main
  * process: it cannot dynamic-import the checkout's harness helpers. No run/history polling.
  */
+
+
 export async function executionEvidence({ app }: { app: ElectronApplication }, _optional = {}): Promise<Evidence[]> {
-  return app.evaluate(async () => {
-    type Frame = { kind?: string; payload?: { type?: string; childPid?: number; sessionId?: string; message?: string; error?: { code?: string } } };
+  return app.evaluate(readExecutionEvidence);
+}
+
+async function readExecutionEvidence() {
+    
     // These small helpers must travel inside evaluate: the packaged main process has no harness imports.
     function parseFrame(frame: string): Frame | undefined {
       const data = frame.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
@@ -146,18 +154,18 @@ export async function executionEvidence({ app }: { app: ElectronApplication }, _
       } finally { clearTimeout(timer); abort.abort(); }
     }
     return Promise.all(((globalThis as ExecutionState).__assistantGateSites ?? []).map(readSite));
-  });
-}
+  }
+
 
 /** One OS process-table read proves the children belong to the desktop's sole daemon. */
 async function assertProcessOwnership({ launch, childPids }: { launch: DesktopLaunch; childPids: readonly number[] }, _optional = {}) {
   const mainPid = launch.app.process().pid;
   const snapshots = await listProcessSnapshots();
-  const owned = collectProcessTreePids(snapshots, [mainPid]);
+  const owned = collectProcessTreePids({ processes: snapshots, rootPids: [mainPid] });
   const daemons = snapshots.filter(row => owned.includes(row.pid) && /agent-daemon-server\.[jt]s/.test(row.command));
   expect(daemons, 'all sites must share one desktop-owned daemon').toHaveLength(1);
   expect(daemons[0]!.ppid).toBe(mainPid);
-  const daemonChildren = new Set(collectProcessTreePids(snapshots, [daemons[0]!.pid]));
+  const daemonChildren = new Set(collectProcessTreePids({ processes: snapshots, rootPids: [daemons[0]!.pid] }));
   expect(childPids.every(pid => daemonChildren.has(pid)), 'every CLI must belong to the shared daemon').toBe(true);
   return { owned, snapshots };
 }
@@ -201,7 +209,7 @@ export async function checkAssistantSites({ names }: { names: readonly string[] 
     }
   } finally {
     await launch.app.evaluate(() => { delete (globalThis as ExecutionState).__assistantGateSites; }).catch(() => {});
-    if (!owned.length) owned = collectProcessTreePids(await listProcessSnapshots(), [launch.app.process().pid]);
+    if (!owned.length) owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: [launch.app.process().pid] });
     await closeDesktop(launch);
     const exited = await Promise.all(owned.map(pid => waitForProcessExit(pid, 30_000)));
     expect(exited.every(Boolean), 'all owned processes must exit before fixture deletion').toBe(true);

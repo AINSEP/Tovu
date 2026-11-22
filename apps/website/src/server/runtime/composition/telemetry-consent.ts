@@ -36,7 +36,7 @@ export function createTelemetryConsent({ settingsRepo, workspaceId }: { settings
     };
   }
   return {
-    consent: async () => (await getEffective({ repo: settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId } }))?.value === true,
+    consent: async () => (await getEffective({ deps: { repo: settingsRepo }, ...TELEMETRY_CONSENT, scopeContext: { workspaceId } }))?.value === true,
     consentRevision: () => revision,
   };
 }

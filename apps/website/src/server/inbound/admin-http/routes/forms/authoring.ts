@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { parseExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { updateFormDefinition } from "#src/features/forms/index";
 import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
@@ -20,12 +22,9 @@ function authoringPatch({ body }: { body: Record<string, unknown> }, _options = 
 
 /** Separate authoring endpoint avoids changing the shared-tree CRUD route. Both permissions and
  * the audit boundary live in the write service, covering route and future tool callers alike. */
-export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const body = (req.body ?? {}) as Record<string, unknown>;
       const principal = getAuthedPrincipal(res);
@@ -33,14 +32,15 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
       // Same gate as `update.ts` (f07a92dcb): an empty/ignored body never reaches the write
       // service's gateway, and the write service's own pre-read must not disclose a form's
       // existence to a caller the matching GET denies.
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.forms.manage",
         workspaceId: deps.workspaceId,
         entityType: "form_definition",
         entityId: formId,
-      });
+      } });
       if (!authorized) return;
+      const expectedVersion = parseExpectedVersion({ value: body.expectedVersion });
       const { definition } = await updateFormDefinition({
         deps: { ...deps, repo: deps.formDefinitionRepo },
         input: {
@@ -50,10 +50,10 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
           idempotencyKey: req.get("Idempotency-Key") || undefined,
           patch: authoringPatch({ body }, {}),
         },
-      });
+      }, expectedVersion === undefined ? {} : { expectedVersion });
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (error) {
-      if (mapFormsWriteError(error, res)) return;
+      if (mapFormsWriteError({ err: error, res })) return;
       sendAdminFailure({ res, error }, { operation: "routes/forms/authoring", code: "INTERNAL_ERROR" });
     }
   });

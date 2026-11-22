@@ -29,26 +29,26 @@ import type { ServerModuleHandle } from "./types.js";
 export function createWidgetsModule(deps: RouteDeps): ServerModuleHandle {
   return {
     name: "widgets",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       // Route-ordering note: Express matches in registration order, and `/widgets/regions` would
       // otherwise be swallowed by `GET/PUT /widgets/:id`'s param route (`:id` matches the literal
       // string "regions") — every `/widgets/regions*` registrar (literal path) MUST be registered
       // BEFORE `get-by-id.ts`/`update.ts`'s `/widgets/:id` (param path). The AI tool routes
       // (`/widgets/tools/*`) have the same shape and MUST also precede them for the same reason.
-      registerAdminWidgetListRoute(app, deps);
-      registerAdminWidgetPreviewRoute(app, deps);
-      registerAdminWidgetRegionsListRoute(app, deps);
-      registerAdminWidgetRegionBindRoute(app, deps);
-      registerAdminWidgetRegionGetRoute(app, deps);
-      registerAdminWidgetRegionMutatePlacementsRoute(app, deps);
-      registerAdminWidgetAgentToolsRoutes(app, deps);
-      registerAdminWidgetGetRoute(app, deps);
-      registerAdminWidgetCreateRoute(app, deps);
-      registerAdminWidgetUpdateRoute(app, deps);
-      registerAdminWidgetTrashRoute(app, deps);
-      registerAdminWidgetEmbedInsertRoute(app, deps);
-      registerAdminWidgetEmbedRemoveRoute(app, deps);
-      registerAdminWidgetEmbedReorderRoute(app, deps);
+      registerAdminWidgetListRoute({ app, deps });
+      registerAdminWidgetPreviewRoute({ app, deps });
+      registerAdminWidgetRegionsListRoute({ app, deps });
+      registerAdminWidgetRegionBindRoute({ app, deps });
+      registerAdminWidgetRegionGetRoute({ app, deps });
+      registerAdminWidgetRegionMutatePlacementsRoute({ app, deps });
+      registerAdminWidgetAgentToolsRoutes({ app, deps });
+      registerAdminWidgetGetRoute({ app, deps });
+      registerAdminWidgetCreateRoute({ app, deps });
+      registerAdminWidgetUpdateRoute({ app, deps });
+      registerAdminWidgetTrashRoute({ app, deps });
+      registerAdminWidgetEmbedInsertRoute({ app, deps });
+      registerAdminWidgetEmbedRemoveRoute({ app, deps });
+      registerAdminWidgetEmbedReorderRoute({ app, deps });
     },
   };
 }

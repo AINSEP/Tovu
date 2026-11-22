@@ -45,9 +45,9 @@ function fakeStore() {
   const save = pendingCalls<SaveConversationMessageInput, void>();
   const bridge: RunnerConversationBridge = {
     listConversations: () => list.call(undefined),
-    loadConversationMessages: (id) => load.call(id),
+    loadConversationMessages: ({ conversationId: id }, _options = {}) => load.call(id),
     createConversation: () => create.call(undefined),
-    deleteConversation: (id) => del.call(id),
+    deleteConversation: ({ id }, _options = {}) => del.call(id),
     renameConversation: (input) => rename.call(input),
     saveConversationMessage: (input) => save.call(input),
   };
@@ -110,7 +110,7 @@ async function seedList(ctx: Setup, list: WorkspaceConversationSummary[]): Promi
 
 /** Selects `id` and lets its load resolve with `messages`. */
 async function openThread(ctx: Setup, id: string, messages: ChatMessage[] = []): Promise<void> {
-  ctx.controller.select(id);
+  ctx.controller.select({ id });
   latest(ctx.store.load).resolve(messages);
   await settle();
 }
@@ -124,7 +124,7 @@ test('a deleted conversation stays absent when an older list request finishes la
   await seedList(ctx, [convo('gone'), convo('kept')]);
   const stale = ctx.controller.refresh();
   const staleList = latest(ctx.store.list);
-  const removing = ctx.controller.remove('gone');
+  const removing = ctx.controller.remove({ id: 'gone' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([convo('gone'), convo('kept')]);
@@ -136,8 +136,8 @@ test('a deleted conversation stays absent when an older list request finishes la
 
 test('a deleted conversation cannot reopen when its pending transcript arrives', async () => {
   const ctx = setup();
-  ctx.controller.select('gone');
-  const removing = ctx.controller.remove('gone');
+  ctx.controller.select({ id: 'gone' });
+  const removing = ctx.controller.remove({ id: 'gone' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([]);
@@ -151,11 +151,11 @@ test('a deleted conversation cannot reopen when its pending transcript arrives',
 for (const navigation of ['select', 'create'] as const) {
   test(`lazy conversation creation preserves pending ${navigation} navigation and saves the outgoing turn`, async () => {
     const ctx = setup();
-    ctx.controller.onMessagesChange([user('outgoing')]);
+    ctx.controller.onMessagesChange({ messages: [user('outgoing')] });
     const adoption = latest(ctx.store.create);
     const navigating = navigation === 'create' ? ctx.controller.create() : undefined;
-    if (navigation === 'select') ctx.controller.select('chosen');
-    ctx.controller.onMessagesChange([user('outgoing'), user('late-outgoing')]);
+    if (navigation === 'select') ctx.controller.select({ id: 'chosen' });
+    ctx.controller.onMessagesChange({ messages: [user('outgoing'), user('late-outgoing')] });
     assert.equal(ctx.store.create.length, navigation === 'create' ? 2 : 1, 'outgoing deltas share the original adoption');
     adoption.resolve(convo('adopted'));
     await settle();
@@ -171,8 +171,8 @@ for (const navigation of ['select', 'create'] as const) {
 
 test('a first outgoing turn arriving during navigation is saved without replacing the pending choice', async () => {
   const ctx = setup();
-  ctx.controller.select('chosen');
-  ctx.controller.onMessagesChange([user('outgoing')]);
+  ctx.controller.select({ id: 'chosen' });
+  ctx.controller.onMessagesChange({ messages: [user('outgoing')] });
   latest(ctx.store.create).resolve(convo('outgoing-thread'));
   await settle();
   assert.equal(ctx.controller.getState().activeId, null);
@@ -186,9 +186,9 @@ for (const creation of ['adoption', 'explicit'] as const) {
   test(`a deleted thread stays deleted when its delayed ${creation} acknowledgement arrives`, async () => {
     const ctx = setup();
     const creating = creation === 'explicit' ? ctx.controller.create() : undefined;
-    if (creation === 'adoption') ctx.controller.onMessagesChange([user('outgoing')]);
+    if (creation === 'adoption') ctx.controller.onMessagesChange({ messages: [user('outgoing')] });
     await seedList(ctx, [convo('gone')]);
-    const removing = ctx.controller.remove('gone');
+    const removing = ctx.controller.remove({ id: 'gone' });
     latest(ctx.store.del).resolve();
     await settle();
     latest(ctx.store.list).resolve([]);
@@ -212,7 +212,7 @@ test('starts empty, keeps one state object until a change, then publishes a new 
   assert.equal(ctx.controller.getState(), initial, 'no change, same snapshot');
 
   let notified = 0;
-  const unsubscribe = ctx.controller.subscribe(() => notified++);
+  const unsubscribe = ctx.controller.subscribe({ listener: () => notified++ });
   await seedList(ctx, [convo('a')]);
   const next = ctx.controller.getState();
   assert.notEqual(next, initial);
@@ -253,8 +253,8 @@ test('refresh: failures go to console.error when no log port is given, looked up
 test('select publishes id, pane key and transcript together, once, only after the load resolves', async () => {
   const ctx = setup();
   let notified = 0;
-  ctx.controller.subscribe(() => notified++);
-  ctx.controller.select('a');
+  ctx.controller.subscribe({ listener: () => notified++ });
+  ctx.controller.select({ id: 'a' });
   assert.deepEqual(view(ctx.controller.getState()), { activeId: null, paneKey: 'new', initial: [] });
   latest(ctx.store.load).resolve([user('a1')]);
   await settle();
@@ -264,20 +264,20 @@ test('select publishes id, pane key and transcript together, once, only after th
 
 test('a slower select resolving after a newer select never lands, and the newer transcript counts as already saved', async () => {
   const ctx = setup();
-  ctx.controller.select('a');
-  ctx.controller.select('b');
+  ctx.controller.select({ id: 'a' });
+  ctx.controller.select({ id: 'b' });
   nth(ctx.store.load, 1).resolve([user('b1')]);
   await settle();
   nth(ctx.store.load, 0).resolve([user('a1')]);
   await settle();
   assert.deepEqual(view(ctx.controller.getState()), { activeId: 'b', paneKey: 'b', initial: ['b1'] });
-  ctx.controller.onMessagesChange([user('b1'), user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('b1'), user('u1')] });
   assert.deepEqual(saved(ctx.store), ['b/u1']);
 });
 
 test('a slower select resolving after a newer create never lands', async () => {
   const ctx = setup();
-  ctx.controller.select('a');
+  ctx.controller.select({ id: 'a' });
   const creating = ctx.controller.create();
   latest(ctx.store.create).resolve(convo('c1'));
   await creating;
@@ -289,7 +289,7 @@ test('a slower select resolving after a newer create never lands', async () => {
 test('a failed load logs and still switches, to an empty pane', async () => {
   const ctx = setup();
   await openThread(ctx, 'a', [user('a1')]);
-  ctx.controller.select('gone');
+  ctx.controller.select({ id: 'gone' });
   latest(ctx.store.load).reject(new Error('missing'));
   await settle();
   assert.deepEqual(view(ctx.controller.getState()), { activeId: 'gone', paneKey: 'gone', initial: [] });
@@ -306,7 +306,7 @@ test('create opens a new empty thread on top of the switcher, ready to receive w
   const state = ctx.controller.getState();
   assert.deepEqual(view(state), { activeId: 'c1', paneKey: 'c1', initial: [] });
   assert.deepEqual(state.conversations.map((c) => c.id), ['c1', 'a']);
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   assert.deepEqual(saved(ctx.store), ['c1/u1']);
 });
 
@@ -314,7 +314,7 @@ test('create is claimed before its request: a select made while it is in flight 
   for (const order of ['create first', 'select first'] as const) {
     const ctx = setup();
     const creating = ctx.controller.create();
-    ctx.controller.select('a');
+    ctx.controller.select({ id: 'a' });
     if (order === 'select first') {
       latest(ctx.store.load).resolve([user('a1')]);
       await settle();
@@ -347,7 +347,7 @@ test('removing a thread that is not open drops its row at once and leaves the op
   const ctx = setup();
   await seedList(ctx, [convo('a'), convo('b')]);
   await openThread(ctx, 'a');
-  const removing = ctx.controller.remove('b');
+  const removing = ctx.controller.remove({ id: 'b' });
   latest(ctx.store.del).resolve();
   await settle();
   assert.deepEqual(ctx.store.del.map((c) => c.args), ['b']);
@@ -362,7 +362,7 @@ test('removing the open thread selects the first survivor of the re-read list, n
   const ctx = setup();
   await seedList(ctx, [convo('a'), convo('z')]);
   await openThread(ctx, 'a');
-  const removing = ctx.controller.remove('a');
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([convo('a'), convo('z')]);
@@ -371,7 +371,7 @@ test('removing the open thread selects the first survivor of the re-read list, n
   latest(ctx.store.load).resolve([user('z1')]);
   await settle();
   assert.deepEqual(view(ctx.controller.getState()), { activeId: 'z', paneKey: 'z', initial: ['z1'] });
-  ctx.controller.onMessagesChange([user('z1'), user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('z1'), user('u1')] });
   assert.deepEqual(saved(ctx.store), ['z/u1'], 'reached through select, so the loaded transcript counts as saved');
 });
 
@@ -379,7 +379,7 @@ test('removing the open thread when the re-read fails falls back to the on-scree
   const ctx = setup();
   await seedList(ctx, [convo('a'), convo('b')]);
   await openThread(ctx, 'a');
-  const removing = ctx.controller.remove('a');
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).reject(new Error('db locked'));
@@ -392,8 +392,8 @@ test('removing the open thread when the re-read fails falls back to the on-scree
 test('removing the last thread lands on a fresh pane with a new key each time, and drops a switch already in flight', async () => {
   const ctx = setup();
   await openThread(ctx, 'a');
-  ctx.controller.select('x');
-  const removing = ctx.controller.remove('a');
+  ctx.controller.select({ id: 'x' });
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([]);
@@ -406,7 +406,7 @@ test('removing the last thread lands on a fresh pane with a new key each time, a
   const creating = ctx.controller.create();
   latest(ctx.store.create).resolve(convo('c1'));
   await creating;
-  const again = ctx.controller.remove('c1');
+  const again = ctx.controller.remove({ id: 'c1' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([]);
@@ -416,17 +416,17 @@ test('removing the last thread lands on a fresh pane with a new key each time, a
 
 test('removing a lazily adopted last thread resets adoption, so the fresh pane adopts a new thread', async () => {
   const ctx = setup();
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   latest(ctx.store.create).resolve(convo('c1'));
   await settle();
   assert.equal(ctx.controller.getState().activeId, 'c1');
-  const removing = ctx.controller.remove('c1');
+  const removing = ctx.controller.remove({ id: 'c1' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([]);
   await removing;
 
-  ctx.controller.onMessagesChange([user('u2')]);
+  ctx.controller.onMessagesChange({ messages: [user('u2')] });
   assert.equal(ctx.store.create.length, 2, 'a new creation, not the deleted thread\'s settled one');
   latest(ctx.store.create).resolve(convo('c2'));
   await settle();
@@ -439,11 +439,11 @@ test('a failed delete rejects and keeps the thread, open and listed', async () =
   await seedList(ctx, [convo('a')]);
   await openThread(ctx, 'a');
   const before = ctx.controller.getState();
-  const removing = ctx.controller.remove('a');
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).reject(new Error('read-only'));
   await assert.rejects(removing, /read-only/);
   assert.equal(ctx.controller.getState(), before);
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   assert.deepEqual(saved(ctx.store), ['a/u1'], 'still writable');
 });
 
@@ -453,7 +453,7 @@ test('rename shows the new title at once on that row only, then re-reads the lis
   const ctx = setup();
   await seedList(ctx, [convo('a', 'Alpha'), convo('b', 'Beta')]);
   const untouched = ctx.controller.getState().conversations[0];
-  const renaming = ctx.controller.rename('b', 'Bravo');
+  const renaming = ctx.controller.rename({ id: 'b', title: 'Bravo' });
   const optimistic = ctx.controller.getState().conversations;
   assert.deepEqual(optimistic.map((c) => [c.id, c.title]), [['a', 'Alpha'], ['b', 'Bravo']]);
   assert.equal(optimistic[0], untouched, 'other rows are not copied');
@@ -471,7 +471,7 @@ test('rename shows the new title at once on that row only, then re-reads the lis
 test('a failed rename logs and still re-reads, so the stored title comes back', async () => {
   const ctx = setup();
   await seedList(ctx, [convo('a', 'Old')]);
-  const renaming = ctx.controller.rename('a', 'Draft');
+  const renaming = ctx.controller.rename({ id: 'a', title: 'Draft' });
   assert.equal(nth(ctx.controller.getState().conversations, 0).title, 'Draft');
   latest(ctx.store.rename).reject(new Error('read-only'));
   await renaming;
@@ -483,37 +483,39 @@ test('a failed rename logs and still re-reads, so the stored title comes back', 
 
 // ── writing messages ────────────────────────────────────────────────────────────────────────────
 
-test('an open thread saves only settled, unsaved messages, and re-reads the list only when it wrote', async () => {
+test('an open thread saves pending user turns and settled, unsaved replies, and re-reads the list only when it wrote', async () => {
   const ctx = setup();
   await openThread(ctx, 'a', [user('a1')]);
   const lists = ctx.store.list.length;
-  ctx.controller.onMessagesChange([user('a1'), user('u1'), reply('r1', 'running'), reply('d1', 'succeeded')]);
+  const outgoing = { ...user('u1'), inputPending: true };
+  ctx.controller.onMessagesChange({ messages: [user('a1'), outgoing, reply('r1', 'running'), reply('d1', 'succeeded')] });
   assert.deepEqual(saved(ctx.store), ['a/u1', 'a/d1'], 'not the loaded transcript, not a streaming reply');
+  assert.deepEqual(nth(ctx.store.save, 0).args.message, outgoing);
   assert.equal(ctx.store.list.length, lists + 1);
-  ctx.controller.onMessagesChange([user('a1'), user('u1'), reply('d1', 'succeeded')]);
+  ctx.controller.onMessagesChange({ messages: [user('a1'), outgoing, reply('d1', 'succeeded')] });
   assert.equal(ctx.store.save.length, 2, 'nothing new, nothing written');
   assert.equal(ctx.store.list.length, lists + 1, 'and nothing re-read');
-  ctx.controller.onMessagesChange([user('u1'), reply('r1', 'succeeded')]);
+  ctx.controller.onMessagesChange({ messages: [outgoing, reply('r1', 'succeeded')] });
   assert.deepEqual(saved(ctx.store), ['a/u1', 'a/d1', 'a/r1'], 'the reply is saved once it settles');
 });
 
 test('a message is marked saved before its write resolves, so a delta mid-flight does not queue it twice', async () => {
   const ctx = setup();
   await openThread(ctx, 'a');
-  ctx.controller.onMessagesChange([user('u1')]);
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   assert.deepEqual(saved(ctx.store), ['a/u1']);
 });
 
 test('a failed save logs and is un-marked, so the next delta writes it again', async () => {
   const ctx = setup();
   await openThread(ctx, 'a');
-  ctx.controller.onMessagesChange([user('u1'), user('u2')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1'), user('u2')] });
   nth(ctx.store.save, 0).reject(new Error('disk full'));
   nth(ctx.store.save, 1).resolve();
   await settle();
   assert.equal(ctx.logged.length, 1);
-  ctx.controller.onMessagesChange([user('u1'), user('u2')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1'), user('u2')] });
   assert.deepEqual(saved(ctx.store), ['a/u1', 'a/u2', 'a/u1'], 'only the failed one is retried');
 });
 
@@ -521,16 +523,16 @@ test('a message settling between deleting the open thread and loading the next i
   const ctx = setup();
   await seedList(ctx, [convo('a'), convo('b')]);
   await openThread(ctx, 'a');
-  const removing = ctx.controller.remove('a');
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([convo('b')]);
   await removing;
-  ctx.controller.onMessagesChange([user('late')]);
+  ctx.controller.onMessagesChange({ messages: [user('late')] });
   assert.deepEqual(saved(ctx.store), [], 'the deleted thread is gone; nothing is sent to it');
   latest(ctx.store.load).resolve([]);
   await settle();
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   assert.deepEqual(saved(ctx.store), ['b/u1']);
 });
 
@@ -539,18 +541,20 @@ test('a message settling between deleting the open thread and loading the next i
 test('with nothing open, the mount echo and a still-streaming reply create nothing and publish nothing', () => {
   const ctx = setup();
   let notified = 0;
-  ctx.controller.subscribe(() => notified++);
-  ctx.controller.onMessagesChange([]);
-  ctx.controller.onMessagesChange([reply('r0', 'running')]);
+  ctx.controller.subscribe({ listener: () => notified++ });
+  ctx.controller.onMessagesChange({ messages: [] });
+  ctx.controller.onMessagesChange({ messages: [reply('r0', 'running')] });
   assert.equal(ctx.store.create.length, 0);
   assert.equal(notified, 0);
 });
 
-test('a first message with nothing open adopts ONE thread for every delta before it exists, without a remount', async () => {
+test('a pending first user message with nothing open adopts ONE thread for every delta before it exists, without a remount', async () => {
   const ctx = setup();
   await seedList(ctx, [convo('a')]);
-  ctx.controller.onMessagesChange([user('u1')]);
-  ctx.controller.onMessagesChange([user('u1'), user('u2')]);
+  const outgoing = { ...user('u1'), inputPending: true };
+  ctx.controller.onMessagesChange({ messages: [outgoing] });
+  assert.equal(ctx.store.create.length, 1, 'a pending user turn starts adoption immediately');
+  ctx.controller.onMessagesChange({ messages: [outgoing, user('u2')] });
   assert.equal(ctx.store.create.length, 1);
   latest(ctx.store.create).resolve(convo('c1'));
   await settle();
@@ -558,14 +562,15 @@ test('a first message with nothing open adopts ONE thread for every delta before
   assert.deepEqual(view(state), { activeId: 'c1', paneKey: 'new', initial: [] });
   assert.deepEqual(state.conversations.map((c) => c.id), ['c1', 'a']);
   assert.deepEqual(saved(ctx.store), ['c1/u1', 'c1/u2'], 'each message once');
-  ctx.controller.onMessagesChange([user('u1'), user('u2'), user('u3')]);
+  assert.deepEqual(nth(ctx.store.save, 0).args.message, outgoing);
+  ctx.controller.onMessagesChange({ messages: [outgoing, user('u2'), user('u3')] });
   assert.deepEqual(saved(ctx.store), ['c1/u1', 'c1/u2', 'c1/u3'], 'later deltas write straight to it');
 });
 
 test('an adoption overtaken by a select or create still saves its messages but does not take over', async () => {
   for (const overtake of ['select', 'create'] as const) {
     const ctx = setup();
-    ctx.controller.onMessagesChange([user('u1')]);
+    ctx.controller.onMessagesChange({ messages: [user('u1')] });
     if (overtake === 'select') {
       await openThread(ctx, 'a');
     } else {
@@ -584,12 +589,12 @@ test('an adoption overtaken by a select or create still saves its messages but d
 
 test('a failed adoption logs, saves nothing, and lets a later turn try again', async () => {
   const ctx = setup();
-  ctx.controller.onMessagesChange([user('u1')]);
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   latest(ctx.store.create).reject(new Error('db locked'));
   await settle();
   assert.deepEqual([ctx.controller.getState().activeId, saved(ctx.store), ctx.logged.length], [null, [], 1]);
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   assert.equal(ctx.store.create.length, 2);
   latest(ctx.store.create).resolve(convo('c2'));
   await settle();
@@ -599,18 +604,18 @@ test('a failed adoption logs, saves nothing, and lets a later turn try again', a
 
 test('an old adoption failing late does not clear a newer one still in flight', async () => {
   const ctx = setup();
-  ctx.controller.onMessagesChange([user('u1')]);
+  ctx.controller.onMessagesChange({ messages: [user('u1')] });
   await openThread(ctx, 'a');
-  const removing = ctx.controller.remove('a');
+  const removing = ctx.controller.remove({ id: 'a' });
   latest(ctx.store.del).resolve();
   await settle();
   latest(ctx.store.list).resolve([]);
   await removing;
-  ctx.controller.onMessagesChange([user('u2')]);
+  ctx.controller.onMessagesChange({ messages: [user('u2')] });
   assert.equal(ctx.store.create.length, 2);
   nth(ctx.store.create, 0).reject(new Error('db locked'));
   await settle();
-  ctx.controller.onMessagesChange([user('u2'), user('u3')]);
+  ctx.controller.onMessagesChange({ messages: [user('u2'), user('u3')] });
   assert.equal(ctx.store.create.length, 2, 'the newer adoption is still the one shared');
   nth(ctx.store.create, 1).resolve(convo('c2'));
   await settle();
@@ -625,12 +630,12 @@ test('without a bridge every action is a quiet no-op', async () => {
   const controller = createRunnerConversationController({ bridge: undefined }, { log: (...args) => logged.push(args) });
   const before = controller.getState();
   let notified = 0;
-  controller.subscribe(() => notified++);
-  controller.select('a');
+  controller.subscribe({ listener: () => notified++ });
+  controller.select({ id: 'a' });
   await controller.create();
-  await controller.remove('a');
-  await controller.rename('a', 'x');
-  controller.onMessagesChange([user('u1')]);
+  await controller.remove({ id: 'a' });
+  await controller.rename({ id: 'a', title: 'x' });
+  controller.onMessagesChange({ messages: [user('u1')] });
   assert.equal(await controller.refresh(), before.conversations);
   await settle();
   assert.equal(controller.getState(), before);

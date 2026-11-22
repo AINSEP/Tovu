@@ -1,3 +1,4 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -17,7 +18,7 @@ const clock = { nowMs: () => Date.parse("2026-10-08T00:00:00.000Z") };
 const WS = "ws-1";
 
 function harness() {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -29,7 +30,7 @@ function harness() {
   async function call(name: string, input: Record<string, unknown>) {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
-    return entry.handler({ ...ctx, input } as never) as Promise<Record<string, unknown>>;
+    return entry.handler({ ...ctx, input: await pageToolInputWithBasis({ toolId: name, input, repo, workspaceId: WS }) } as never) as Promise<Record<string, unknown>>;
   }
   return { repo, call };
 }

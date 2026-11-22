@@ -4,7 +4,7 @@ import test from "node:test";
 import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -16,7 +16,7 @@ function fixture(allow = true) {
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   } };
   const operations = {
-    probe: async (receivedDeps: unknown, id: string) => {
+    probe: async ({ deps: receivedDeps, serverId: id }: { deps: unknown; serverId: string }) => {
       assert.equal(receivedDeps, deps);
       calls.push(id);
       return { ok: true as const, body: { tools: [], probedAt: NOW } };
@@ -26,7 +26,7 @@ function fixture(allow = true) {
       return { ok: true as const, connections: [{ connectionId: "hosted", report: { admitted: [], refused: [] }, isPreset: false }], configFailures: [{ connectionId: "broken", reason: "disabled" }] };
     },
   };
-  const registrations = buildExternalMcpOperationsRegistrations(deps as never, operations);
+  const registrations = buildExternalMcpOperationsRegistrations({ deps: deps as never, operations });
   function call(id: string, input: unknown = {}) {
     return registrations.find(r => r.descriptor.id === id)!.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input, signal: new AbortController().signal } as never);
   }

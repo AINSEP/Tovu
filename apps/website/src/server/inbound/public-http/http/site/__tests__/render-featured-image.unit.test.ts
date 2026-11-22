@@ -6,7 +6,10 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 
 import { runHandlebarsRender } from "../handlebars-render.js";
 import { runLiquidRender } from "../liquid-render.js";
-import { buildTemplateRenderData, renderHtmlPageBody, renderSite, type MediaAssetRenderMeta, type SiteRenderContext } from "../render.js";
+import { renderSite } from "../render-site.js";
+import type { MediaAssetRenderMeta, SiteRenderContext } from "../render-context.js";
+import { buildTemplateRenderData } from "../render/template-render-data.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
 
 /**
  * @file A post's featured image as theme data (2026-10-05): `post.featuredImage` (and each
@@ -154,7 +157,7 @@ test("postpolish: generic and static/public-preview render projections agree, sc
   const resolved = new Map([["content" as const, new Map([[current.id, { componentId: "post-content", props: savedProps }]])]]);
   for (const fields of [{}, { ext: { "post-presentation": { hideCoverImageInBody: false } } }, { featuredMediaId: ASSET_ID }]) {
     const variant = { ...current, ...fields };
-    const staticHtml = renderHtmlPageBody(source, resolved, { postPresentation: variant });
+    const staticHtml = renderHtmlPageBody({ html: source, resolved }, { postPresentation: variant });
     const genericHtml = await renderSite({ theme: null, route: "post", siteTitle: "Site", posts: [], post: variant,
       mediaAssetMetadata: context().mediaAssetMetadata, mediaTransformVersions: context().mediaTransformVersions });
     const expected = fields.ext || fields.featuredMediaId ? 2 : 1;
@@ -166,8 +169,8 @@ test("postpolish: generic and static/public-preview render projections agree, sc
   const pending = structuredClone(bodyJson);
   pending.content[0].attrs!.alt = "Pending cover";
   const pendingResolved = new Map([["content" as const, new Map([[current.id, { componentId: "post-content", props: { ...savedProps, bodyJson: pending } }]])]]);
-  assert.doesNotMatch(renderHtmlPageBody(source, pendingResolved, { postPresentation: current }), /Pending cover/);
-  assert.equal((renderHtmlPageBody(source, resolved, { postPresentation: { ...current, id: "other" } }).match(/<img /g) ?? []).length, 2);
+  assert.doesNotMatch(renderHtmlPageBody({ html: source, resolved: pendingResolved }, { postPresentation: current }), /Pending cover/);
+  assert.equal((renderHtmlPageBody({ html: source, resolved }, { postPresentation: { ...current, id: "other" } }).match(/<img /g) ?? []).length, 2);
   assert.equal(bodyJson.content[0].attrs!.alt, "First");
   assert.equal(pending.content[0].attrs!.alt, "Pending cover");
 });

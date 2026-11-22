@@ -1,7 +1,8 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET policies/:policyId/permissions — the permission rows written onto one policy (OQ-10).
@@ -16,21 +17,18 @@ import type { UsersRouteRegistrar } from "./deps.js";
  * `deps.authorize` shape that file uses rather than the service-layer helper — this is a read, so
  * there is no identity transition to call.
  */
-export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "role.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

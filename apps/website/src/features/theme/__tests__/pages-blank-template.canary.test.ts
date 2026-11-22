@@ -4,8 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { applicableThemeTemplates } from "../template-applicability.js";
-import { injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
+import { injectPageTitle } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 import type { DiscoveredTheme } from "../index.js";
 
 /**
@@ -34,7 +36,7 @@ for (const id of ["tovu-starter", "tovu-theme"]) {
     const resolution = resolveTemplate({ theme, templateChoice: "pages-blank.html" });
     assert.equal(resolution.kind, "template");
     if (resolution.kind !== "template") return;
-    const html = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: injectPageTitle(resolution.html, "Nimbus — Sleep Headphones"), menus: {} }) ?? "";
+    const html = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: injectPageTitle({ html: resolution.html, title: "Nimbus — Sleep Headphones" }), menus: {} }) ?? "";
     assert.match(html, /<title>Nimbus — Sleep Headphones<\/title>/);
     assert.match(html, /data-embed-config='\{"type":"content"\}'/);
     assert.doesNotMatch(html, /class="site-header"|<footer/);

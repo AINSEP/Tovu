@@ -81,7 +81,7 @@ async function buildApp(register: RouteRegistrar = registerAdminNewsletterSendCa
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  register(app, deps);
+  register({ app, deps });
   return { app, deps };
 }
 

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { EmailTemplatePreview } from "../email-api";
 import { useEmailTemplateEditor } from "../hooks/use-email-template-editor.hooks";
 import { createEmailFake, PREVIEW, TEMPLATE } from "./email.test-helpers";
@@ -85,8 +85,8 @@ describe("useEmailTemplateEditor", () => {
 
   it.each(["save", "rename"])("keeps edits and shows copy-before-reload advice for a 409 on %s", async (operation) => {
     const api = createEmailFake();
-    api.saveTemplateHtml.mockRejectedValue(new ApiError("Concurrent edit", 409, "CONCURRENT_EDIT"));
-    api.renameTemplate.mockRejectedValue(new ApiError("Concurrent edit", 409, "CONCURRENT_EDIT"));
+    api.saveTemplateHtml.mockRejectedValue(new ApiError({ message: "Concurrent edit", status: 409 }, { code: "CONCURRENT_EDIT" }));
+    api.renameTemplate.mockRejectedValue(new ApiError({ message: "Concurrent edit", status: 409 }, { code: "CONCURRENT_EDIT" }));
     const { result } = renderHook(() => useEmailTemplateEditor({ api, id: TEMPLATE.id }, { debounceMs: 0 }));
     await waitFor(() => expect(result.current.html).toBe(TEMPLATE.html));
     act(() => { result.current.setHtml("<p>Keep me</p>"); result.current.setName("New title"); });

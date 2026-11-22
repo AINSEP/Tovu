@@ -22,7 +22,7 @@ import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
-import { toAdminPluginResponse } from "../../admin-response.js";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import { pluginAgentToolCatalog } from "../../agent-tools.js";
 import { CONTENT_ANALYZER_MANIFEST } from "../../built-ins/content-analyzer/index.js";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
@@ -162,15 +162,15 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
   const registry = createToolRegistry({});
   const repo = activations instanceof InMemoryPluginActivationRepo ? activations : new InMemoryPluginActivationRepo({ initialRows: activations });
   const authorizeCalls: unknown[] = [];
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools({ registry, deps: {
     withExtensionApprovalPolicy,
     authorize: async (request) => { authorizeCalls.push(request); return { allowed: true } as never; },
     workspaceId: CAP_WORKSPACE,
-    postRead: requiredPostReader({ repo: new InMemoryPostRepo([capPost({ ext: { "word-count": { count: 42, readingTimeMinutes: 0 }, "content-analyzer": { score: 10, report: "{\"v\":1}" } } }), capPost({ id: "post-empty" })]) }),
+    postRead: requiredPostReader({ repo: new InMemoryPostRepo({}, { initialRows: [capPost({ ext: { "word-count": { count: 42, readingTimeMinutes: 0 }, "content-analyzer": { score: 10, report: "{\"v\":1}" } } }), capPost({ id: "post-empty" })] }) }),
     discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord),
     pluginActivationRepo: repo,
     ...extra,
-  });
+  } });
   return { registry, repo, authorizeCalls };
 }
 
@@ -178,7 +178,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
 export async function observeCapabilityTools(): Promise<unknown> {
   const allEnabled = ALL_CAPABILITY_MANIFESTS.map((manifest) => capActivation(manifest.id));
   const sources = await loadEnabledPluginCapabilityToolSources({ workspaceId: CAP_WORKSPACE, discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) });
-  const registrations = buildPluginCapabilityToolRegistrations({ sources, deps: { authorize: async () => ({ allowed: true }) as never, workspaceId: CAP_WORKSPACE, postRead: requiredPostReader({ repo: new InMemoryPostRepo() }), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) }, withExtensionApprovalPolicy });
+  const registrations = buildPluginCapabilityToolRegistrations({ sources, deps: { authorize: async () => ({ allowed: true }) as never, workspaceId: CAP_WORKSPACE, postRead: requiredPostReader({ repo: new InMemoryPostRepo({}) }), pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: allEnabled }) }, withExtensionApprovalPolicy });
   const stored = await bootCapabilityRegistry(allEnabled);
   const fresh = await bootCapabilityRegistry(allEnabled, { previewPluginBeforeSave: async (pluginId, entry) => ({ score: 84, summary: `fresh:${pluginId}:${entry.slug}`, report: "{\"v\":1,\"score\":84}" }) });
   const freshFails = await bootCapabilityRegistry(allEnabled, { previewPluginBeforeSave: async () => { throw new Error("worker exploded"); } });
@@ -200,7 +200,7 @@ export async function observeCapabilityTools(): Promise<unknown> {
   };
   return {
     sources: plain(sources),
-    derivedRisk: [...pluginCapabilityToolDerivedRisk(sources)],
+    derivedRisk: [...pluginCapabilityToolDerivedRisk({ sources })],
     descriptors: registrations.map(descriptorOf),
     bootRegistered: [...stored.registry.list({})].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
     bootSubsets,
@@ -349,12 +349,12 @@ export function observeAdminDto(): unknown {
   const invalid = siteRecord({ status: "invalid", manifest: undefined, errors: [{ code: "MANIFEST_INVALID", file: "tovu.plugin.json", message: "bad" }] } as Partial<PluginDiscoveryRecord>);
   const conflict = { kind: "hook", key: "content.entry.beforeSave", heldBy: "other", heldByName: "Other", heldKey: "content.entry.beforeSave" } as const;
   return plain({
-    enabled: toAdminPluginResponse(siteRecord(), ENABLED_ROW),
-    neverActivated: toAdminPluginResponse(siteRecord(), null),
-    quarantined: toAdminPluginResponse(siteRecord(), quarantined),
-    invalid: toAdminPluginResponse(invalid, null),
-    withConflicts: toAdminPluginResponse(siteRecord(), ENABLED_ROW, { conflicts: [conflict] }),
-    withProviderSettings: toAdminPluginResponse(siteRecord({ manifest: { ...siteRecord().manifest, contributes: { providers: [{ contract: "example.provider", id: "p1", contractVersion: 1, settings: [{ name: "apiKey", label: "API key", kind: "secret" }] }] } } as never }), ENABLED_ROW),
-    builtInTierFallback: toAdminPluginResponse(siteRecord({ source: "built-in", tier: undefined } as Partial<PluginDiscoveryRecord>), ENABLED_ROW),
+    enabled: toAdminPluginResponse({ discovery: siteRecord(), activation: ENABLED_ROW }),
+    neverActivated: toAdminPluginResponse({ discovery: siteRecord(), activation: null }),
+    quarantined: toAdminPluginResponse({ discovery: siteRecord(), activation: quarantined }),
+    invalid: toAdminPluginResponse({ discovery: invalid, activation: null }),
+    withConflicts: toAdminPluginResponse({ discovery: siteRecord(), activation: ENABLED_ROW }, { conflicts: [conflict] }),
+    withProviderSettings: toAdminPluginResponse({ discovery: siteRecord({ manifest: { ...siteRecord().manifest, contributes: { providers: [{ contract: "example.provider", id: "p1", contractVersion: 1, settings: [{ name: "apiKey", label: "API key", kind: "secret" }] }] } } as never }), activation: ENABLED_ROW }),
+    builtInTierFallback: toAdminPluginResponse({ discovery: siteRecord({ source: "built-in", tier: undefined } as Partial<PluginDiscoveryRecord>), activation: ENABLED_ROW }),
   });
 }

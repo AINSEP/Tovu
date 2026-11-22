@@ -1,4 +1,4 @@
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteGrantedVault } from "../project-keys/attached-vault.js";
 import type { CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
 import { CredentialSetVaultRepo, credentialSetVaultRecord, credentialSetVaultScope } from "@jini-ai/integrations/credentialed-http/sets";
@@ -31,7 +31,8 @@ export class CustomCredentialVaultRepo extends CredentialSetVaultRepo<CustomCred
   /** @param optional.project The project store this site's rows fall back to (`types.ts`). */
   constructor({ vault }: { vault: VaultRepoPort }, optional: { project?: CustomCredentialProjectScope } = {}) {
     const reader = vault as SiteGrantedVault;
+    const findByLabel = reader.findByLabel?.bind(reader);
     super({ vault, policy }, { ...(optional.project ? { project: optional.project } : {}),
-      ...(reader.findByLabel ? { findRowByLabel: input => reader.findByLabel!(input) } : {}) });
+      ...(findByLabel ? { findRowByLabel: input => findByLabel(input) } : {}) });
   }
 }

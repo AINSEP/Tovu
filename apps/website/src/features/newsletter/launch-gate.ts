@@ -24,7 +24,7 @@
 import type { UUID } from "@jini-ai/core/primitives";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { MembersConsentCapability } from "./ports.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 
 export type LaunchGatePrecondition =
   | "sending_enabled_false"
@@ -56,7 +56,7 @@ export async function evaluateLaunchGate(required: {
   deps: LaunchGateDeps;
   workspaceId: UUID;
   isTestSend: boolean;
-}): Promise<LaunchGateResult> {
+}, _optional: Record<string, never> = {}): Promise<LaunchGateResult> {
   const { deps, workspaceId, isTestSend } = required;
   const unmet: LaunchGatePrecondition[] = [];
 

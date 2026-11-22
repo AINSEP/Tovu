@@ -1,5 +1,5 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildComponentCatalogQuery } from "./component-catalog-query.js";
 
@@ -13,7 +13,7 @@ import { buildComponentCatalogQuery } from "./component-catalog-query.js";
  * ## The gap this closes
  *
  * `component-catalog-query.ts`'s `buildComponentCatalogQuery()` already backs `@jini-ai/mcp`'s own
- * top-level `search_components`/`describe_component` tools (via `registerComponentCatalogRoutes` in
+ * top-level `search_components`/`describe_component` tools (via `componentCatalogRoutes` in
  * `agent-daemon-server.ts`) — real, callable MCP tools, but ONLY for the spawned-CLI path, which
  * gets the full native MCP tool list. The BYOK path (`byok-tool-surface.ts`) publishes exactly 3
  * meta-tools (`search_tools`/`describe_tool`/`execute_delegated_tool`) and reaches every other tool
@@ -53,14 +53,6 @@ export const DESCRIBE_COMPONENT_TOOL_ID = "describe_component";
 const SEARCH_LIMIT_MAX = 25;
 const SEARCH_LIMIT_DEFAULT = 10;
 
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
-
 /** Descriptions and schemas deliberately match `@jini-ai/mcp`'s `component-catalog-tools.ts` word
  *  for word: a model that has learned either surface's contract must not have to relearn a second
  *  dialect for the other, the same parity `byok-tool-surface.ts`'s own `META_TOOL_DESCRIPTORS` keeps
@@ -83,7 +75,7 @@ export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: 1,
-          maximum: SEARCH_LIMIT_MAX,
+          maximum: SEARCH_LIMIT_MAX, clamp: true,
           description: `Max hits to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}.`,
         },
       },
@@ -122,15 +114,14 @@ const CATALOG_BY_ID = new Map(componentCatalogAgentToolCatalog.map((entry) => [e
  *
  * `_routeDeps`/`_surfaces` are unused: the interactive-component catalog is static
  * (`@jini-ai/ui`'s `ALL_MANIFESTS`), so this domain needs neither a workspace-scoped dependency bag
- * nor a live surface channel — both parameters exist only to satisfy `ToolContributor.build`'s
- * shared signature (`tool-registrations.ts`), mirroring `render-ui-tool.ts`'s identical `_routeDeps`
- * placeholder.
+ * nor a live surface channel. `tool-registrations.ts` adapts the shared
+ * `ToolContributor.build` signature to this argument object.
  *
  * @complexity O(1) to build (a handful of static manifests); see {@link buildComponentCatalogQuery}
  * for its own per-call search/describe cost.
  * @overallScore 100
  */
-export function buildComponentCatalogRegistrations(_routeDeps: unknown, _surfaces: unknown): ToolRegistration[] {
+export function buildComponentCatalogRegistrations({ _routeDeps, _surfaces }: { _routeDeps: unknown; _surfaces: unknown }, _optional = {}): ToolRegistration[] {
   const componentCatalog = buildComponentCatalogQuery();
 
   const handlers: Record<string, ToolHandler> = {

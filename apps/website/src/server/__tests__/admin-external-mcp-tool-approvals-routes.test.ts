@@ -31,9 +31,9 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; repo: InMemory
   const deps: RouteDeps = { ...createRouteDeps(), externalMcpToolApprovalRepo: repo };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps, repo };
 }
 
@@ -130,9 +130,9 @@ test("a composition with no Always-allow store lists nothing and revokes nothing
   const deps: RouteDeps = { ...createRouteDeps(), externalMcpToolApprovalRepo: undefined };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const list = await req(baseUrl, `${BASE}/tool-approvals`, cookie);

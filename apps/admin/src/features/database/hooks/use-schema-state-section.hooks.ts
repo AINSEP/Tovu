@@ -1,4 +1,4 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS, resolveSchemaStateWarning, type SchemaStateWarning } from "../rules";
@@ -6,6 +6,7 @@ import { t } from "../database-i18n";
 import { defaultSchemaStateSectionPort } from "./schema-state-section-dependencies.hooks";
 import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Database screen's drift warning does, so `Database.tsx` stays markup only.
  * Same `useX(dependencies)` / `useWiredX()` shape as this feature's three older sections.

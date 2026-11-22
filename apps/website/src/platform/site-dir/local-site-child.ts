@@ -1,7 +1,10 @@
 /** Full-site boot, shared with journeys: same static admin bundle + ordinary index entrypoint.
  * The watchdog runs before bundle work too; a killed host cannot strand a Vite build process.
  */
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
+import type { ProcessControlPort } from "@jini-ai/core/contracts/runtime";
 import { realpathSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { pathToFileURL } from "node:url";
 import { journeyAdminBundle } from "./local-admin-bundle.js";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
@@ -22,7 +25,7 @@ export interface LocalSiteChildProcess {
 /** A repeating timer whose handle can be unref'd so the watchdog never keeps the process alive. */
 export interface WatchdogTimers {
   setInterval(run: () => void, ms: number): WatchdogHandle;
-  clearInterval(handle: WatchdogHandle): void;
+  clearInterval(required: { handle: WatchdogHandle }): void;
 }
 export interface WatchdogHandle { unref(): unknown }
 
@@ -33,13 +36,13 @@ export interface LocalSiteChildOptional {
   buildAdminBundle?: typeof journeyAdminBundle;
   /** Module specifier of the ordinary site entrypoint, resolved relative to this module. */
   siteEntry?: string;
-  importEntry?: (specifier: string) => Promise<unknown>;
+  importEntry?: (required: { specifier: string }) => Promise<unknown>;
   timers?: WatchdogTimers;
 }
 
 const SITE_ENTRY = "../../index.js";
 const WATCHDOG_MS = 1000;
-const NODE_TIMERS: WatchdogTimers = { setInterval, clearInterval: (handle) => clearInterval(handle as NodeJS.Timeout) };
+const NODE_TIMERS: WatchdogTimers = { setInterval, clearInterval: ({ handle }, _optional = {}) => clearInterval(handle as NodeJS.Timeout) };
 
 /** The owner pid the launcher passed, required before any other work.
  * @throws When the variable is absent, non-integer or below 1.
@@ -84,24 +87,25 @@ export function selfAsDaemonProcess({ proc }: { proc: LocalSiteChildProcess }, _
 
 /** Reaps this process's own tree through Jini's tree stop; a failed stop exits 1.
  * This adapter is used only to reap this process's own tree; it never launches another child.
- * @param optional.adapter - Native effect ports for the tree stop (tests pass fakes).
+ * @param optional.adapter - Native effect options for the tree stop (tests pass fakes).
+ * @param optional.processes - The process control port (default the Node binding; tests pass fakes).
  * @complexity O(p) process snapshots, as the adapter's tree stop.
  */
 export function createOwnTreeReaper(
   { proc }: { proc: LocalSiteChildProcess },
-  { adapter = {} }: { adapter?: NodeDaemonProcessOptions } = {},
+  { adapter = {}, processes = nodeProcessControl }: { adapter?: NodeDaemonProcessOptions; processes?: ProcessControlPort } = {},
 ): () => Promise<void> {
   const reaper = createNodeDaemonProcessAdapter({ command: proc.execPath, args: [], cwd: proc.cwd(), env: proc.env,
-    registry: NO_REGISTRY }, adapter);
+    registry: NO_REGISTRY, process: processes, commandShell: nodeCommandShell({ env: proc.env }) }, adapter);
   return () => reaper.terminateProcess({ child: selfAsDaemonProcess({ proc }) }).catch(() => proc.exit(1));
 }
 
-async function importModule(specifier: string): Promise<unknown> { return import(specifier); }
+async function importModule({ specifier }: { specifier: string }, _optional = {}): Promise<unknown> { return import(specifier); }
 
 /** Boots one local site as the owner's child: a watchdog reaps this tree once the owner is gone
  * (checked first, then every second), then the shared admin bundle is built when none was supplied,
  * then the ordinary site entrypoint is imported.
- * @throws When the owner pid is missing or invalid (before any timer or build starts).
+ * @throws When the owner pid is invalid, or a required admin build directory is missing.
  * @complexity O(1) besides the bundle build and the site boot.
  */
 export async function runLocalSiteChild(
@@ -117,17 +121,28 @@ export async function runLocalSiteChild(
   const watchdog = timers.setInterval(() => {
     if (!parentGone({ proc, ownerPid })) return;
     ownerLost = true;
-    timers.clearInterval(watchdog); void reap();
+    timers.clearInterval({ handle: watchdog }); void reap();
   }, WATCHDOG_MS);
   watchdog.unref();
-  if (parentGone({ proc, ownerPid })) { timers.clearInterval(watchdog); await reap(); return; }
+  if (parentGone({ proc, ownerPid })) { timers.clearInterval({ handle: watchdog }); await reap(); return; }
   if (!proc.env.TOVU_ADMIN_DIST) {
+    const { runtimeDir, repoRoot } = requireLocalAdminBuildPaths(proc, timers, watchdog);
     proc.env.TOVU_ADMIN_DIST = await buildAdminBundle({
-      runtimeDir: proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT!, repoRoot: proc.env.TOVU_REPO_ROOT!,
+      runtimeDir, repoRoot,
     }, { env: proc.env });
   }
   if (ownerLost) return;
-  await importEntry(siteEntry);
+  await importEntry({ specifier: siteEntry });
+}
+
+function requireLocalAdminBuildPaths(proc: LocalSiteChildProcess, timers: WatchdogTimers, watchdog: WatchdogHandle) {
+  const runtimeDir = proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT;
+  const repoRoot = proc.env.TOVU_REPO_ROOT;
+  if (runtimeDir === undefined || repoRoot === undefined) {
+    timers.clearInterval({ handle: watchdog });
+    throw new Error(runtimeDir === undefined ? "local site child has no admin build root" : "local site child has no repository root");
+  }
+  return { runtimeDir, repoRoot };
 }
 
 function localSiteReaper(
@@ -155,7 +170,7 @@ export function isEntrypoint({ moduleUrl, argv }: { moduleUrl: string; argv: rea
   { realpath = realpathSync }: EntrypointOptional = {}): boolean {
   const script = argv[1];
   if (!script) return false;
-  try { return pathToFileURL(realpath(script)).href === moduleUrl; } catch { return false; }
+  return orFallbackSync({ work: () => pathToFileURL(realpath(script)).href === moduleUrl, fallback: false, step: "Recognize local site entrypoint" });
 }
 
 if (isEntrypoint({ moduleUrl: import.meta.url, argv: process.argv })) await runLocalSiteChild({}).catch(failBoot);

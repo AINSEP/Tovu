@@ -17,24 +17,24 @@ import { DEFAULT_OWNER_PASSWORD } from "../wiring.js";
 
 test("a line containing the secret is reported with its 1-based line number", () => {
   const src = ["import x from 'y';", `const hint = "use ${DEFAULT_OWNER_PASSWORD}";`, "export {};"].join("\n");
-  assert.deepEqual(findSecretInText(src, DEFAULT_OWNER_PASSWORD), [2]);
+  assert.deepEqual(findSecretInText({ text: src, secret: DEFAULT_OWNER_PASSWORD }), [2]);
 });
 
 test("every occurrence is reported, not just the first", () => {
   const src = [`a = "${DEFAULT_OWNER_PASSWORD}"`, "b = 1", `c = "${DEFAULT_OWNER_PASSWORD}"`].join("\n");
-  assert.deepEqual(findSecretInText(src, DEFAULT_OWNER_PASSWORD), [1, 3]);
+  assert.deepEqual(findSecretInText({ text: src, secret: DEFAULT_OWNER_PASSWORD }), [1, 3]);
 });
 
 test("the secret embedded mid-string is still found — this is a containment check, not a token match", () => {
   // The original regression was `local dev default: admin / <password>` inside prose, not a bare
   // identifier, so a word-boundary matcher would have missed the exact bug this guards against.
   const src = `<p>local dev default: admin / ${DEFAULT_OWNER_PASSWORD}</p>`;
-  assert.deepEqual(findSecretInText(src, DEFAULT_OWNER_PASSWORD), [1]);
+  assert.deepEqual(findSecretInText({ text: src, secret: DEFAULT_OWNER_PASSWORD }), [1]);
 });
 
 test("unrelated content is not flagged", () => {
   const src = ["const a = 1;", "// nothing sensitive here", "export const b = 'placeholder';"].join("\n");
-  assert.deepEqual(findSecretInText(src, DEFAULT_OWNER_PASSWORD), []);
+  assert.deepEqual(findSecretInText({ text: src, secret: DEFAULT_OWNER_PASSWORD }), []);
 });
 
 test("the default password is non-empty — an empty value would make this whole guard vacuous", () => {

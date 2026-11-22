@@ -3,12 +3,13 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { getAgentDef, type PromptAugmenter } from "@jini-ai/agent-runtime";
-import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { type PromptAugmenter } from "@jini-ai/core/contracts/agents";
+import { statementsFor, captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -71,11 +72,11 @@ async function newRealLifecycleWithRun() {
 }
 
 test("assemblePromptWithPluginPrefix leaves the base prompt untouched when the prefix is empty (the common no-plugin-pinned case)", () => {
-  assert.equal(assemblePromptWithPluginPrefix("what should I write next?", ""), "what should I write next?");
+  assert.equal(assemblePromptWithPluginPrefix({ basePrompt: "what should I write next?", pluginPromptPrefix: "" }), "what should I write next?");
 });
 
 test("assemblePromptWithPluginPrefix prepends a non-empty prefix with exactly one blank-line separator", () => {
-  const result = assemblePromptWithPluginPrefix("what should I write next?", "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>...");
+  const result = assemblePromptWithPluginPrefix({ basePrompt: "what should I write next?", pluginPromptPrefix: "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>..." });
   assert.equal(result, "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>...\n\nwhat should I write next?");
 });
 
@@ -101,7 +102,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
   await isolatedPluginRoot(t);
   // Paths come from the product layout so the fixture installs where the resolver reads
   // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
-  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
+  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
   const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: PLUGIN_ID }), "a".repeat(64));
   const skillDir = path.join(packageDir, "skills", PLUGIN_ID);
   await mkdir(skillDir, { recursive: true });
@@ -132,7 +133,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
   // The exact two-line sequence `onStarted` runs after this call: prepend, then use the result as
   // the run's actual prompt.
   const basePrompt = "what should I write next for the coffee shop's About page?";
-  const finalPrompt = assemblePromptWithPluginPrefix(basePrompt, prefix);
+  const finalPrompt = assemblePromptWithPluginPrefix({ basePrompt, pluginPromptPrefix: prefix });
 
   assert.ok(finalPrompt.startsWith(prefix), "the resolved plugin prefix must lead the final prompt");
   assert.equal(finalPrompt, `${prefix}\n\n${basePrompt}`);
@@ -176,7 +177,7 @@ test("resolveAgentPluginPromptPrefix tells the user why the run could not start 
 test("resolveAgentPluginPromptPrefix resolves a run that pinned the retired 'deploy' to Fly's installed skill (Phase B7)", async (t) => {
   await isolatedPluginRoot(t);
   const { lifecycle, run } = await newRealLifecycleWithRun();
-  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
+  const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID });
   const packageDir = path.join(workspaceLayout.pluginPackagesDir({ pluginId: "fly" }), "b".repeat(64));
   await mkdir(path.join(packageDir, "skills", "fly"), { recursive: true });
   await writeFile(path.join(packageDir, "plugin.json"), JSON.stringify({
@@ -201,7 +202,7 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   const runtime = new AsyncLocalStorage();
   const prefix = 'BEGIN_PRIMARY\n' + 'complete guidance '.repeat(600) + '\nEND_PRIMARY';
   const custom = 'CUSTOM_INSTRUCTIONS_SENTINEL';
-  const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer('assistantPromptAugmenter'), {
+  const augmenter = evaluateDaemonExpression<PromptAugmenter>(daemonInitializer("assistantPromptAugmenter", statementsFor("agent-daemon-scope-runtime.ts", "createScopePromptAugmenter")), {
     getAgentDef, buildBaseSystemOverlay, buildAssistantSubagentsOverlay, buildAssistantRuntimeGuidance,
     buildAssistantFilesystemNotices, assistantCliPermissions, bashProhibitionEnabled: false,
     assistantCliCapabilitiesContext: capabilities,
@@ -225,7 +226,7 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   assert.equal((system + captured.prompt).split(prefix).length - 1, 1);
   assert.equal(system.split(custom).length - 1, 1);
   assert.match(buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true }).capabilities }), /plugins loaded after preflight/);
-  assert.equal(system.split(buildBaseSystemOverlay(false, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
+  assert.equal(system.split(buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
   assert.equal(system.includes(prefix), false);
   assert.equal(captured.prompt.includes(prefix), true);
 });

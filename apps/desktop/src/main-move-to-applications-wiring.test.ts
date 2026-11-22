@@ -43,7 +43,7 @@ test.skip("Electron's own move is called with the policy's conflict handler", ()
 test.skip("the skip check is fed this copy's real launch facts, including the other open copies", () => {
   const call = source.slice(source.indexOf("movePromptSkipReason({"));
   const own = call.slice(0, call.indexOf("});"));
-  for (const field of [/isPackaged: app\.isPackaged/, /isMas: process\.mas === true/, /selftest: SELFTEST/, /unattended: isUnattendedSiteLaunch\(\)/, /app\.isInApplicationsFolder\(\)/, /createInstancePresence\(\{ directory: presenceDirPath\(userDataDir\) \}\)\.readLive\(\)\.filter\(\(record\) => record\.pid !== process\.pid\)/]) {
+  for (const field of [/isPackaged: app\.isPackaged/, /isMas: process\.mas === true/, /selftest: SELFTEST/, /unattended: isUnattendedSiteLaunch\(\)/, /app\.isInApplicationsFolder\(\)/, /createInstancePresence\(\{ directory: presenceDirPath\(\{ userDataDir \}\) \}\)\.readLive\(\)\.filter\(\(record\) => record\.pid !== process\.pid\)/]) {
     assert.match(own, field);
   }
 });

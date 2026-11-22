@@ -9,7 +9,7 @@ import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteCo
 import { InMemoryContentLookup } from "#src/features/taxonomy/index";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "../../index.js";
 import { contributeCollectionEntryPublish } from "../../publish-content.js";
@@ -36,7 +36,7 @@ function entry(overrides: Partial<EntryRecord> & { id: string; slug: string }): 
 
 async function instance() {
   const db = openContentDb(":memory:");
-  const entries = new SqliteEntryRepo(db);
+  const entries = new SqliteEntryRepo({ store: db });
   const contentTypes = new InMemoryContentTypeRepo();
   await contentTypes.save({
     workspaceId: WORKSPACE_ID,
@@ -213,7 +213,7 @@ async function widgetSmuggle() {
 test("collection-entry: an entity of a widget type is refused at precheck", async () => {
   const { handler, entity } = await widgetSmuggle();
   assert.equal(
-    await handler.precheck(entity),
+    await handler.precheck({ entity }),
     "collection-entry 'w-evil' has type 'widget', which is a widget type and publishes on its own, not as a collection entry"
   );
 });
@@ -252,7 +252,7 @@ test("collection-entry: a missing owning type may arrive after precheck, and omi
   const state = { ...packed.state };
   delete state.publishedAt;
   const entity = { ...packed, state };
-  assert.equal(await handler.precheck(entity), null);
+  assert.equal(await handler.precheck({ entity }), null);
   assert.equal(await dst.entries.findById({ workspaceId: WORKSPACE_ID, id: entity.id }), null);
   await contentTypes.save({ workspaceId: WORKSPACE_ID, key: "recipe", label: "Recipes", fields: [{ name: "servings", kind: "integer", required: false, queryable: false }], status: "active", version: 1, tombstonedAt: null });
   await handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "late-owner-cake" });
@@ -270,7 +270,7 @@ test("collection-entry references include its owning collection and assigned ter
   const packed = (await packAll(source)).find(entity => entity.id === "e-soup");
   assert.ok(packed);
   assert.ok(handler.references);
-  assert.deepEqual(handler.references({ ...packed, state: { ...packed.state, termIds: ["t-vegan"] } }), [
+  assert.deepEqual(handler.references({ entity: { ...packed, state: { ...packed.state, termIds: ["t-vegan"] } } }), [
     { entityType: "content-type", key: "recipe" },
     { entityType: "term", key: "t-vegan" },
   ]);

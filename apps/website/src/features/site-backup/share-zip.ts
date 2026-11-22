@@ -3,10 +3,10 @@ import { runtimeToArchivePath, archiveSecretScanPath } from "./archive-paths.js"
 import { createHash } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { readPlannedFile, type PlannedDiskFile } from "./sources.js";
-import type { SiteSharePlanContent } from "./plan-store.js";
+import type { SiteSharePlanContent } from "./plan-content.js";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { requireShareSecretFree, claimSharePath, type PackageFileInventory } from "./share-file-policy.js";
-import type { SiteBackupPushProgress } from "./push-engine.js";
+import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import type { StaticSiteCopy } from "./static-copy.js";
 import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
@@ -41,7 +41,9 @@ function addEntry(required: { entry: ShareZipEntry; collected: CollectedShareEnt
   if (!structured && !optional.skipCredentialScan) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.path, plugins: collected.plugins }), bytes: entry.content }, { shownPath: entry.path, credentialWarnings: collected.credentialWarnings });
   // Node File accepts Buffer directly; the DOM type omits potentially shared-backed views.
   // This assertion preserves the bytes without allocating a second Uint8Array.
-  const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], entry.path.split("/").at(-1)!);
+  const name = entry.path.split("/").at(-1);
+  if (name === undefined) throw new Error("Share ZIP entry has no filename");
+  const picked = new File([entry.content as ConstructorParameters<typeof File>[0][number]], name);
   // Jini's picker encoder strips the selected folder's name. Supply that same picker contract
   // explicitly so archive paths keep their first scope segment (media/, themes/, plugins/).
   Object.defineProperty(picked, "webkitRelativePath", { value: `share/${entry.path}` });

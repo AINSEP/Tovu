@@ -8,11 +8,11 @@ import path from 'node:path';
 import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
 import { getAgentDef } from '@jini-ai/agent-runtime';
-import { assistantCliPermissions } from '../assistant-subagents-policy.js';
+import { assistantCliPermissions } from '@tovu/contracts/assistant-native-fallbacks';
 import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
@@ -34,7 +34,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   t.after(site.cleanup);
   const workspaceId = 'workspace-auto';
   const layout = site.deps.agentPluginLayout;
-  const workspace = layout.forWorkspace(workspaceId);
+  const workspace = layout.forWorkspace({ workspaceId });
   const pluginIds = Array.from({ length: count }, (_, i) => count === 1 ? pluginId : `synthetic-${String(i).padStart(2, '0')}`);
   for (const id of pluginIds) {
     const packageDir = path.join(workspace.pluginPackagesDir({ pluginId: id }), 'a'.repeat(64));
@@ -149,7 +149,7 @@ for (const action of ['use', 'skip'] as const) {
             context: { ...context, publish: f.context.publish, signal: new AbortController().signal, state: decoded.agentPluginState } });
         },
         settle: async value => { settlements.push(value); return true; },
-      }, { logger: { info() {} } });
+      }, { report: { info() {} } });
       assert.equal(await recovery.recover({ messageId: 'answer', trigger: 'boot' }, {}), checkpointed ? 'finalized' : 'continued');
       if (checkpointed) {
         assert.deepEqual(launches, []);
@@ -215,7 +215,7 @@ test("Don't ask again writes Auto only for the answering principal through the r
       input: { namespace: 'core.interface', key: 'chatAgentPlugins', scope: 'user', workspaceId: f.workspaceId, principalId: id, callerPrincipalId: id, authWorkspaceId: f.workspaceId, value: 'ask' } });
   }
   const read = async (principalId: string) => {
-    const setting = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
+    const setting = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId } });
     assert.ok(setting, 'the registered preference must resolve');
     return setting;
   };
@@ -360,7 +360,7 @@ test('inactive plugin returns setup guidance and the activation call while tools
   assert.equal((stillInactive.output as { status: string }).status, 'installed-but-inactive');
   assert.equal((stillInactive.output as { guidance: string }).guidance, output.guidance);
   assert.equal(f.published.length, 0, 'repeated off guidance must not publish active plugin usage');
-  const stillOff = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+  const stillOff = await resolveAgentPluginRefs({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
   assert.equal(stillOff.ok, false);
   if (!stillOff.ok) assert.match(stillOff.reason, /is not enabled/);
   await setAgentPluginEnabled({ agentPluginLayout: f.layout, workspaceId: f.workspaceId, pluginId: f.pluginId, enabled: true, actor: 'fixture' });
@@ -420,7 +420,7 @@ test('50 relevant ids are discoverable by paging the existing search tool and al
   assert.equal(f.published.length, 0);
   const registry = createToolRegistry({});
   registry.register(f.runs.loadRegistration);
-  for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout })) registry.register(registration);
+  for (const registration of buildAgentPluginSearchRegistrations({ workspaceId: f.workspaceId, agentPluginLayout: f.layout, authorize: async () => ({ allowed: true, reason: 'test' }) })) registry.register(registration);
   const executor = createToolExecutor({ registry });
   const discovered = new Set<string>();
   let offset: number | null = 0;
@@ -481,7 +481,7 @@ for (const denied of ['ask', 'off', 'untrusted', 'unavailable'] as const) {
     assert.doesNotMatch(JSON.stringify(write.output), /Use holographic layout discipline|agentPluginGuidance/);
     assert.ok(f.published.every(event => event.plugins.length === 0), 'denied guidance never appears as loaded');
     if (denied === 'untrusted') {
-      const resolved = await resolveAgentPluginRefs([f.pluginId], f.workspace, 'inject');
+      const resolved = await resolveAgentPluginRefs({ pluginRefIds: [f.pluginId], workspaceLayout: f.workspace }, { deliveryMode: 'inject' });
       assert.equal(resolved.ok, false, 'the shared lifecycle resolver must refuse active-but-untrusted guidance');
       if (!resolved.ok) assert.match(resolved.reason, /only plugins shipped with/);
     }
@@ -515,7 +515,7 @@ test('a failing guidance preparation is logged without detail and yields no guid
   const context = { ...f.context, emitSurface: async () => { throw new Error('surface closed: secret detail'); } };
   await assert.rejects(f.runs.start({ runId: 'broken', context }), { message: 'surface closed: secret detail' });
   assert.equal(await f.runs.prepareGuidance({ principal: f.context.principal, run: { id: 'broken' }, tool: { id: 'theme_reset_file', metadata: themeMetadata.theme_reset_file }, signal: f.context.signal }), '');
-  assert.deepEqual(warn.mock.calls.map(call => call.arguments), [['[agent-plugins] automatic tool guidance unavailable']]);
+  assert.deepEqual(warn.mock.calls.map(call => call.arguments).filter(args => args[0] === '[agent-plugins] automatic tool guidance unavailable'), [['[agent-plugins] automatic tool guidance unavailable', 'Error']]);
   f.runs.forget({ runId: 'broken' });
 });
 
@@ -584,7 +584,7 @@ for (const action of ['use', 'auto'] as const) test(`pending plugin ${action} ca
     await writeMode('off');
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: action, selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
   } } }), /changed/);
-  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  const mode = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
   assert.equal(mode?.value, 'off');
   assert.equal(cards, 1);
   assert.deepEqual(notices, ['\n\nYour Agent Plugins preference changed while this card was open. Nothing was changed by this answer. Start a new request using your current preference.\n\n']);
@@ -609,7 +609,7 @@ test('automatic plugin access rechecks the real active person after the answer',
     await f.principalRepo.save({ ...person, status: 'disabled' });
     assert.equal(f.surfaceExchanges.deliver({ exchangeId, principalId: 'alice', params: { __choiceAction: 'auto', selections: [f.pluginId] } }, { toolId: ASK_CHOICE_TOOL_ID }).ok, true);
   } } }), /active, signed-in person/);
-  const mode = await getEffective({ repo: f.settingsRepo }, { namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
+  const mode = await getEffective({ deps: { repo: f.settingsRepo }, namespace: 'core.interface', key: 'chatAgentPlugins', scopeContext: { workspaceId: f.workspaceId, principalId: 'alice' } });
   assert.equal(mode?.value, 'ask');
   assert.equal(cards, 1);
   assert.equal(f.published.length, 0);

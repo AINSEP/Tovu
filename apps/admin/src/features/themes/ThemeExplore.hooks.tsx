@@ -1,8 +1,9 @@
+import type { dispatchPublishToggle as dispatchThemePublishToggle, ThemeExplorePublishState } from "./hooks/use-theme-explore.hooks";
 import { useEffect, useRef, useState, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 
 /**
  * @file `ThemeExplore.tsx`'s fullscreen-preview `<dialog>` lifecycle, split out per the
- * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`App.tsx`/`App.hooks.tsx`). Mirrored the image
+ * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`App.tsx`/`apps/admin/src/App.hooks.ts`). Mirrored the image
  * preview's dialog hook exactly when written (that hook is now Jini's shared `useLightbox`, `@jini-ai/ui`
  * `Lightbox.hooks.ts`, since 2026-10-21) — same `showModal()`/`close()` with an `open`-attribute jsdom fallback, same Escape/backdrop
  * dismiss paths — `ThemeExplore.tsx`'s own comment already pointed to `ImagePreviewModal.tsx` as
@@ -22,7 +23,7 @@ import { useEffect, useRef, useState, type MouseEvent, type RefObject, type Synt
  *  method if not already in that state" checks; behavior-preserving for the jsdom fallback branch
  *  too, since `setAttribute`/`removeAttribute` were already idempotent no-ops when already correct.
  *  @complexity O(1) — four independent branches, no iteration, no nesting deeper than one level. */
-function syncFullscreenDialog(dialog: HTMLDialogElement | null, fullscreen: boolean): void {
+function syncFullscreenDialog({ dialog, fullscreen }: { dialog: HTMLDialogElement | null; fullscreen: boolean }, _optional = {}): void {
   if (!dialog) return;
   if (fullscreen === dialog.open) return;
   const supportsNativeDialog = typeof dialog.showModal === "function" && typeof dialog.close === "function";
@@ -68,7 +69,7 @@ export function useThemeExploreFullscreen(): ThemeExploreFullscreenController {
   // Same open/close lifecycle `ImagePreviewModal.tsx` established for a native `<dialog>` driven by
   // a boolean prop — see `syncFullscreenDialog`'s own doc comment for the mechanism.
   useEffect(() => {
-    syncFullscreenDialog(dialogRef.current, fullscreen);
+    syncFullscreenDialog({ dialog: dialogRef.current, fullscreen: fullscreen });
   }, [fullscreen]);
 
   function closeFullscreen() {
@@ -101,4 +102,18 @@ export function useThemeExploreFullscreen(): ThemeExploreFullscreenController {
     handleFullscreenCancel,
     handleFullscreenBackdropClick,
   };
+}
+
+export function createThemePublishClick({ state, setPagePublished, dispatchPublishToggle }: {
+  state: ThemeExplorePublishState; setPagePublished: (published: boolean) => Promise<void>;
+  dispatchPublishToggle: typeof dispatchThemePublishToggle;
+}, _options = {}) {
+  // Guarded on `state.kind` (inside `dispatchPublishToggle`) rather than relying solely on the DOM's
+  // own "disabled buttons don't fire click" behavior — so a locked switch can never dispatch a
+  // publish call no matter what wraps or simulates the click.
+  function handleClick() {
+    dispatchPublishToggle({ state, setPagePublished });
+  }
+
+  return handleClick;
 }

@@ -1,9 +1,10 @@
+import { requireExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { toolMetadata } from "../../contracts/core/tool-metadata/email-templates.js";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PAGES_EDIT_HTML_PERMISSION } from "../pages/index.js";
 import { emailTemplatesAgentToolCatalog } from "./agent-tools.js";
 import {
@@ -16,8 +17,8 @@ import {
   listEmailTemplates,
   previewEmailTemplate,
   requireText,
-  type EmailTemplateDeps,
-} from "./operations.js";
+} from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "./operations.js";
 
 export interface EmailTemplatesToolDeps extends EmailTemplateDeps {
   authorize: AuthorizeFn;
@@ -36,7 +37,7 @@ export const emailTemplatesDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   ["email_template_preview", "none"],
 ]);
 
-function permission(deps: EmailTemplatesToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
+function permission({ deps, ctx, name }: { deps: EmailTemplatesToolDeps; ctx: ToolExecutionContext; name: string }, _options = {}): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "email-template" });
 }
 
@@ -50,28 +51,29 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "email-templates", catalogModule: "features/email-templates/agent-tools.ts", catalog: indexCatalogById({ catalog: emailTemplatesAgentToolCatalog }), derivedRisk: emailTemplatesDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     email_template_list: async ctx => {
       requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
-      return listEmailTemplates({ deps, input: requireInputRecord({ input: ctx.input }) });
+      await permission({ deps, ctx, name: "content.read" });
+      return listEmailTemplates({ store: emailTemplateStore({ deps }), input: requireInputRecord({ input: ctx.input }) });
     },
     email_template_get: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
-      return getEmailTemplate({ deps, id: requireText({ value: input.id, key: "id", max: 200 }) });
+      await permission({ deps, ctx, name: "content.read" });
+      return getEmailTemplate({ store: emailTemplateStore({ deps }), id: requireText({ value: input.id, key: "id", max: 200 }) });
     },
     email_template_create: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, PAGES_EDIT_HTML_PERMISSION);
-      return createEmailTemplate({ deps, input, actorId: ctx.principal.id });
+      await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
+      ctx.signal.throwIfAborted();
+      return createEmailTemplate({ store: emailTemplateStore({ deps }), input, actorId: ctx.principal.id });
     },
     email_template_edit: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, PAGES_EDIT_HTML_PERMISSION);
-      return editEmailTemplate({ deps, input, actorId: ctx.principal.id });
+      await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
+      return editEmailTemplate({ store: emailTemplateStore({ deps }), input: { ...input, expectedVersion: requireExpectedVersion({ value: input.expectedVersion, readToolId: "email_template_get" }) }, actorId: ctx.principal.id });
     },
     email_template_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
-      return previewEmailTemplate({ deps, input });
+      await permission({ deps, ctx, name: "content.read" });
+      return previewEmailTemplate({ store: emailTemplateStore({ deps }), input });
     },
   }, rules: [
     forbiddenRule({ domainPrefix: "EMAIL_TEMPLATES", error: ForbiddenError }),

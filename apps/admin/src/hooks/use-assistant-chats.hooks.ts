@@ -19,11 +19,11 @@ export interface UseAssistantChats {
   paneKey: string;
   /** Messages to seed the pane with. Changes identity only on a real conversation switch. */
   initialMessages: ChatMessage[];
-  select: (id: string) => void;
+  select: (required: { id: string }) => void;
   create: () => Promise<void>;
-  remove: (id: string) => Promise<void>;
-  rename: (id: string, title: string) => Promise<void>;
-  onMessagesChange: (messages: ChatMessage[]) => void;
+  remove: (required: { id: string }) => Promise<void>;
+  rename: (required: { id: string; title: string }) => Promise<void>;
+  onMessagesChange: (required: { messages: ChatMessage[] }) => void;
   /**
    * This pane's conversation id, adopting one if none is active yet. Awaited by
    * `assistant-transport.ts`'s `startRun` so turn 1's run carries the identity its agent-CLI session
@@ -37,7 +37,7 @@ export interface UseAssistantChats {
    * message reaching no agent and no later prompt). Never rejects; a failed write releases the id
    * so the delta-driven `flush` can still pick it up.
    */
-  persistUserTurn: (conversationId: string, message: ChatMessage) => Promise<void>;
+  persistUserTurn: (required: { conversationId: string; message: ChatMessage }) => Promise<void>;
 }
 
 
@@ -49,34 +49,34 @@ const client = createAssistantChatsClient({ ports: {
 } }, {});
 
 /** Adapt the existing host port; Jini owns all conversation state and retry behavior.
- *  Exported so the object-shaped-to-positional mapping is verified directly. */
+ *  Exported so the argument mapping is verified directly. */
 export function sharedPort(port: AssistantChatsPort): SharedPort {
   return {
     listConversations: () => port.listConversations(),
-    createConversation: ({ firstMessage }) => firstMessage === undefined ? port.createConversation() : port.createConversation(firstMessage),
-    renameConversation: ({ id, title }) => port.renameConversation(id, title),
-    deleteConversation: ({ id }) => port.deleteConversation(id),
-    loadMessages: ({ conversationId }) => port.loadMessages(conversationId),
-    saveMessage: ({ conversationId, message }) => port.saveMessage(conversationId, message),
+    createConversation: ({ firstMessage }) => firstMessage === undefined ? port.createConversation({}) : port.createConversation({}, { firstMessage }),
+    renameConversation: ({ id, title }) => port.renameConversation({ id, title }),
+    deleteConversation: ({ id }) => port.deleteConversation({ id }),
+    loadMessages: ({ conversationId }) => port.loadMessages({ conversationId }),
+    saveMessage: ({ conversationId, message }) => port.saveMessage({ conversationId, message }),
   };
 }
 export function useAssistantChats(port: AssistantChatsPort, options: { lastConversation?: LastConversationStore } = {}): UseAssistantChats {
   const chats = client.useAssistantChats({ port: sharedPort(port) }, options);
-  // Keep existing component callbacks stable while Jini's boundary uses object-shaped calls.
+  // Keep the action callbacks stable while forwarding to Jini's object-shaped boundary.
   const actions = useMemo(() => ({
-    select: (id: string) => chats.select({ id }, {}),
+    select: ({ id }: { id: string }, _options = {}) => chats.select({ id }, {}),
     create: () => chats.create({}, {}),
-    remove: (id: string) => chats.remove({ id }, {}),
-    rename: (id: string, title: string) => chats.rename({ id, title }, {}),
-    onMessagesChange: (messages: ChatMessage[]) => chats.onMessagesChange({ messages }, {}),
+    remove: ({ id }: { id: string }, _options = {}) => chats.remove({ id }, {}),
+    rename: ({ id, title }: { id: string; title: string }, _options = {}) => chats.rename({ id, title }, {}),
+    onMessagesChange: ({ messages }: { messages: ChatMessage[] }, _options = {}) => chats.onMessagesChange({ messages }, {}),
     ensureConversationId: () => chats.ensureConversationId({}, {}),
-    persistUserTurn: (conversationId: string, message: ChatMessage) => chats.persistUserTurn({ conversationId, message }, {}),
+    persistUserTurn: ({ conversationId, message }: { conversationId: string; message: ChatMessage }, _options = {}) => chats.persistUserTurn({ conversationId, message }, {}),
   }), [chats.select, chats.create, chats.remove, chats.rename, chats.onMessagesChange, chats.ensureConversationId, chats.persistUserTurn]);
   return { ...chats, ...actions };
 }
 
 /**
- * Binds the real `/api/assistant/chats` client — see `assistant-chats-dependencies.ts`.
+ * Binds the real `/api/assistant/chats` client — see `apps/admin/src/hooks/assistant-chats-dependencies.hooks.ts`.
  *
  * The wired half of the `useX(dependencies)` / `useWiredX()` pair, so a component composes this and
  * a test composes {@link useAssistantChats} with a fake. Deliberately free of logic of its own —

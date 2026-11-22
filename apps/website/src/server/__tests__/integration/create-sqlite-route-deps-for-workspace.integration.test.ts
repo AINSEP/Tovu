@@ -13,7 +13,7 @@ import { openSiteContentDb } from "../../runtime/composition/open-site-content-d
 import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
-import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import type { SiteStore } from "../../runtime/composition/open-site-store.js";
@@ -56,7 +56,7 @@ async function settle(deps: BootReadiness): Promise<void> {
   await drainBootReadiness(deps);
 }
 
-test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps(dbPath) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
+test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps({}, { dbPath }) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
   const dbPath = mkTempDbPath();
   try {
     const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath });
@@ -131,19 +131,19 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
       assertContentDbFileName, defaultContentDbPath, isInMemoryDbPath, basename: path.basename, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
       resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
-      openSiteContentDb: async (file: string) => {
-        const opened = await openSiteContentDb(file);
+      openSiteContentDb: async ({ dbPath: file }: { dbPath: string }) => {
+        const opened = await openSiteContentDb({ dbPath: file });
         openedHandles.push(opened);
         return opened;
       },
       createSiteRouteDeps,
     });
-    deps = await composeWithPorts({ workspaceIdOverride: "ws-shared-handle" }, { dbPath, onStoreOpened: (opened) => { store = opened; } });
+    deps = await composeWithPorts({ workspaceIdOverride: "ws-shared-handle" }, { dbPath, onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; } });
     assert.equal(openedHandles.length, 1, "validation and composition must open only one connection");
     const [validationConnection] = openedHandles;
     assert.ok(validationConnection);
     assert.ok(deps.contentKernel);
-    assert.equal(sqliteConnectionOf(deps.contentKernel), validationConnection.$client, "the composed kernel must use the validation connection itself");
+    assert.equal(sqliteConnectionOf({ kernel: deps.contentKernel }), validationConnection.$client, "the composed kernel must use the validation connection itself");
     const found = await deps.workspaceRepo.findById({ id: "ws-shared-handle" });
     assert.ok(found, "the returned deps must read from the same on-disk db the override was validated against");
     assert.equal(found?.name, "Shared Handle");

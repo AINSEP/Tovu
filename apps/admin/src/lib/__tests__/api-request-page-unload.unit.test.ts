@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError, api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { API_UNREACHABLE_CODE, ApiError } from "../admin-http/request";
 
 /**
  * @file `request()`'s translation of a `fetch` rejection that happens BECAUSE the page is navigating
@@ -33,7 +34,7 @@ test("a fetch cut off by the page unloading rejects as a cancellation, not as an
   stubRejectedFetch();
   window.dispatchEvent(new Event("pagehide"));
 
-  const error = await api.me().catch((e: unknown) => e);
+  const error = await authApi.me().catch((e: unknown) => e);
 
   expect(error).not.toBeInstanceOf(ApiError);
   expect((error as { name?: string }).name).toBe("AbortError");
@@ -45,7 +46,7 @@ test("a page restored from the back/forward cache reports a rejected fetch as un
   window.dispatchEvent(new Event("pagehide"));
   window.dispatchEvent(new Event("pageshow"));
 
-  const error = (await api.me().catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.me().catch((e: unknown) => e)) as ApiError;
 
   expect(error).toBeInstanceOf(ApiError);
   expect(error.code).toBe(API_UNREACHABLE_CODE);

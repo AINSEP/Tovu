@@ -1,4 +1,4 @@
-import type { AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What `useIntegrations` needs from the outside world, as an interface rather than a direct
@@ -21,10 +21,10 @@ export interface IntegrationsPort {
     label: string;
     targetUrl: string;
     topics: string[];
-  }): Promise<{ subscription: AdminWebhookSubscription }>;
+  }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscription }>;
   pauseIntegrationSubscription(target: {
     id: string;
     paused: boolean;
   }): Promise<{ subscription: AdminWebhookSubscription }>;
-  deleteIntegrationSubscription(id: string): Promise<{ subscription: AdminWebhookSubscription }>;
+  deleteIntegrationSubscription(required: { id: string }, optional?: Record<string, never>): Promise<{ subscription: AdminWebhookSubscription }>;
 }

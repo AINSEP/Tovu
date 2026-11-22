@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminTaxonomy } from "@/lib/api";
+import type { AdminTaxonomy } from "@/features/taxonomy/api/taxonomy-api.types";
 import { Taxonomy } from "../Taxonomy";
 import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";

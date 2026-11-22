@@ -1,6 +1,9 @@
 import nodeFs, { type Dirent, existsSync } from "node:fs";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { join } from "node:path";
-import { isGeneratedThemePath, MAX_LISTED_FILES, MAX_WALK_DEPTH } from "./theme-files.js";
+import { isGeneratedThemePath } from "./theme-file-policy.js";
+import { MAX_LISTED_FILES } from "./theme-file-listing.js";
+import { MAX_WALK_DEPTH } from "./theme-files.js";
 
 /** D-22: advertise an existing thumbnail instead of making each browser probe jpg then png. */
 export function themePreviewImage(
@@ -35,11 +38,10 @@ export function themeContentVersion(
   { fs = nodeFs }: { fs?: ContentWalkFs } = {},
 ): number {
   const walk: ContentWalk = { fs, newest: 0, visited: 0 };
-  try {
+  // A folder missing or removed mid-walk: report what was seen; `0` keeps any capture current.
+  orFallbackSync({ work: () => {
     walkThemeContent({ walk, absolute: dir, relative: "", depth: 0 });
-  } catch {
-    // A folder missing or removed mid-walk: report what was seen; `0` keeps any capture current.
-  }
+  }, fallback: undefined, step: "Inspect theme preview content" });
   return walk.newest;
 }
 
@@ -84,7 +86,7 @@ function visitThemeContentEntry(required: {
 }): void {
   const { walk, absolute, relative, depth, entry } = required;
   const child = relative ? `${relative}/${entry.name}` : entry.name;
-  if (child === "screenshots" || isGeneratedThemePath(child)) return;
+  if (child === "screenshots" || isGeneratedThemePath({ relativePath: child })) return;
   if (entry.isDirectory()) {
     walkThemeContent({ walk, absolute: join(absolute, entry.name), relative: child, depth: depth + 1 });
     return;

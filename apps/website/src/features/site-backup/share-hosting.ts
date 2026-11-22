@@ -10,10 +10,10 @@ import { receiveSiteShareArtifact, type ShareDelivery } from "./share-service.js
 const ARTIFACT_KEY = new RegExp(`^_share/(${SHARE_TOKEN_PATTERN})/([a-z0-9][a-z0-9-]{0,79}\\.tovu\\.zip)$`);
 
 /** Validates a share artifact key and returns its token and file; refuses INVALID_INPUT otherwise. O(key). */
-function parseArtifactKey(key: string): { token: string; file: string } {
+function parseArtifactKey({ key }: { key: string }, _optional: Record<string, never> = {}): { token: string; file: string } {
   const match = ARTIFACT_KEY.exec(key);
   if (!match) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share artifact key." });
-  return { token: match[1]!, file: match[2]! };
+  return { token: match[1], file: match[2] };
 }
 
 /** A 200 anonymous attachment of exactly `bytes`, served uncached, unsniffed and unindexed. */
@@ -25,7 +25,7 @@ function isPublicAttachment(required: { response: HttpResponse; bytes?: number }
 
 /** Both Tovu delivery variants verify through the same anonymous attachment contract. */
 async function verifyServerShare(required: { http: HttpClientPort; key: string; url: string; expectedUrl: string; present: boolean; bytes?: number }, optional: { signal?: AbortSignal } = {}): Promise<boolean> {
-  parseArtifactKey(required.key);
+  parseArtifactKey({ key: required.key });
   if (required.url !== required.expectedUrl) return false;
   // Never send a destination credential to the anonymous download endpoint.
   const response = await required.http.send({ request: { method: "HEAD", url: required.url, headers: {}, idleTimeoutMs: 15_000, totalDeadlineMs: 20_000, maxResponseBytes: 1024, signal: optional.signal } }, { redirect: "error" });
@@ -40,14 +40,14 @@ export function createRuntimeShareDelivery(required: { registry: SiteShareRegist
   if (invalidOrigin || origin.pathname !== "/" || origin.search || origin.hash) throw new SiteShareRefusal({ code: "STORAGE_SETUP", message: "TOVU_SHARE_PUBLIC_ORIGIN must be a public HTTPS origin without a path or credentials." });
   const store: ArtifactStorePort = {
     async upload({ key, bytes }, _optional = {}) {
-      const { token, file } = parseArtifactKey(key);
+      const { token, file } = parseArtifactKey({ key });
       const existing = await required.registry.findToken({ token, file });
       if (existing && (existing.site !== required.site || existing.sha256 !== createHash("sha256").update(bytes).digest("hex"))) throw new SiteShareRefusal({ code: "ARTIFACT_CHANGED", message: "This token already names a different artifact." });
       if (!existing) await receiveSiteShareArtifact({ registry: required.registry, site: required.site, token, file, archive: Buffer.from(bytes) });
       return { url: `${origin.origin}/${key}` };
     },
     async delete({ key }, _optional = {}) {
-      parseArtifactKey(key);
+      parseArtifactKey({ key });
       const row = (await required.registry.list({ site: required.site })).find(row => key === `_share/${row.token}/${row.file}`);
       if (!row) return;
       await required.registry.disable({ shareId: row.shareId, site: row.site });
@@ -62,21 +62,21 @@ export function createRuntimeShareDelivery(required: { registry: SiteShareRegist
  * the deployed receiver needs no environment opt-in. The base URL pins revocation to that site. */
 export function createPeerShareDelivery(required: { peer: PeerCallDeps; http: HttpClientPort }, _optional: Record<string, never> = {}): ShareDelivery {
   const baseUrl = required.peer.credential.baseUrl;
-  const artifactPath = (key: string) => {
-    const { token, file } = parseArtifactKey(key);
+  const artifactPath = ({ key }: { key: string }, _optional: Record<string, never> = {}) => {
+    const { token, file } = parseArtifactKey({ key });
     return `/api/admin/v1/workspaces/${encodeURIComponent(required.peer.credential.remoteWorkspaceId)}/site-shares/artifacts/${token}/${file}`;
   };
   return { provider: "tovu-server", binding: baseUrl, store: {
     async upload({ key, bytes }, options = {}) {
-      await callPeer(required.peer, { method: "PUT", path: artifactPath(key), archive: bytes, signal: options.signal });
-      return { url: peerUrl(baseUrl, `/${key}`) };
+      await callPeer({ deps: required.peer, request: { method: "PUT", path: artifactPath({ key }), archive: bytes, signal: options.signal } });
+      return { url: peerUrl({ baseUrl, path: `/${key}` }) };
     },
     async delete({ key }, options = {}) {
       // DELETE is idempotent, including after a previous successful remote cleanup.
-      try { await callPeer(required.peer, { method: "DELETE", path: artifactPath(key), signal: options.signal }); }
+      try { await callPeer({ deps: required.peer, request: { method: "DELETE", path: artifactPath({ key }), signal: options.signal } }); }
       catch (error) { if ((error as { peerStatus?: number }).peerStatus !== 404) throw error; }
     },
-    verify: (input, options = {}) => verifyServerShare({ ...input, http: required.http, expectedUrl: peerUrl(baseUrl, `/${input.key}`) }, options),
+    verify: (input, options = {}) => verifyServerShare({ ...input, http: required.http, expectedUrl: peerUrl({ baseUrl, path: `/${input.key}` }) }, options),
   } };
 }
 

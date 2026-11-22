@@ -1,14 +1,16 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { navigateSourceControlTab } from "./SourceControl.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./source-control-i18n";
 import { ProvidersTab } from "./ProvidersTab";
 import { SourceControlIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Source Control page (`/admin/source-control`) — a CONNECTION page, not git integration.
  * See `ProvidersTab.tsx`'s own header for the scope boundary: save a personal access token per
@@ -54,7 +56,7 @@ type SourceControlTabId = (typeof SOURCE_CONTROL_TAB_IDS)[number];
  *  Kept as a real function rather than inlined even with one tab today: `Deployment.tsx` started
  *  at five tabs where this guard mattered immediately, and a second real tab landing here later
  *  should not have to reintroduce it. */
-function resolveSourceControlTabId(tabId: string | null | undefined): SourceControlTabId {
+function resolveSourceControlTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): SourceControlTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: SOURCE_CONTROL_TAB_IDS, defaultId: "providers" });
 }
 
@@ -67,11 +69,13 @@ export interface SourceControlProps {
    *  tab owns its own, same carve-out `Deployment.tsx`'s header documents), so this is the only prop
    *  besides {@link tabId}. */
   useSourceControlCredentialsHook?: typeof useWiredSourceControlCredentials;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
-export function SourceControl(props: SourceControlProps) {
-  const locale = useAdminLocale();
-  const activeTabId = resolveSourceControlTabId(props.tabId);
+export function SourceControl({
+  useAdminLocaleHook = useAdminLocale, ...props }: SourceControlProps) {
+  const locale = useAdminLocaleHook();
+  const activeTabId = resolveSourceControlTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [
     {
@@ -82,10 +86,6 @@ export function SourceControl(props: SourceControlProps) {
       handleLabel: "Switch to the Providers tab — connect a plugin-provided source control host so Tovu can read (and later push to) your repositories",
     },
   ];
-
-  function handleTabChange(nextTabId: string) {
-    navigate(`/source-control?tab=${nextTabId}`, { replace: true });
-  }
 
   return (
     <div className="page">
@@ -109,7 +109,7 @@ export function SourceControl(props: SourceControlProps) {
         ariaLabel={t({ locale: locale, key: "Source Control" })}
         tabs={tabs}
         activeId={activeTabId}
-        onChange={handleTabChange}
+        onChange={(nextTabId) => navigateSourceControlTab({ nextTabId })}
         containerHandle="source-control-tab-bar"
       />
       {/* `providers` is the only tab (SOURCE_CONTROL_TAB_IDS) and `activeTabId` always resolves to

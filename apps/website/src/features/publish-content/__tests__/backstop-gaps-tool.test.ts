@@ -10,7 +10,7 @@ test("the assistant may read gaps but has no backstop send, confirm or undo tool
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), publishTrustProvisioning: {},
     makePublishContentDeps: () => ({ backstop: { audit: { ready: async () => true, gaps: async () => { reads++; return gaps; } } } }),
   } as unknown as PublishContentToolDeps;
-  const tools = buildPublishContentRegistrations(deps, {} as never);
+  const tools = buildPublishContentRegistrations({ routeDeps: deps, surfaces: {} as never });
   const tool = tools.find((r) => r.descriptor.id === "publish_backstop_gaps");
   assert.ok(tool);
   assert.equal(publishContentDerivedRisk.get("publish_backstop_gaps"), "none");
@@ -26,7 +26,7 @@ test("gap reads enforce publish_content.read and return an empty list before sch
   const deps = { workspaceId: "ws", authorize: async ({ permission }: { permission: string }) => { permissions.push(permission); return { allowed: true, reason: "test" }; },
     publishTrustProvisioning: {}, makePublishContentDeps: () => ({ backstop: { audit: { ready: async () => false, gaps: async () => { throw new Error("must not read missing storage"); } } } }),
   } as unknown as PublishContentToolDeps;
-  const tool = buildPublishContentRegistrations(deps, {} as never).find((r) => r.descriptor.id === "publish_backstop_gaps")!;
+  const tool = buildPublishContentRegistrations({ routeDeps: deps, surfaces: {} as never }).find((r) => r.descriptor.id === "publish_backstop_gaps")!;
   assert.deepEqual(await tool.handler({ principal: { id: "assistant" }, input: {} } as ToolExecutionContext), { gaps: [] });
   assert.deepEqual(permissions, ["publish_content.read"]);
 });
@@ -34,7 +34,7 @@ test("gap reads enforce publish_content.read and return an empty list before sch
 test("gap reads accept an absent input, and answer no gaps when the host wires no backstop audit", async () => {
   const deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }), publishTrustProvisioning: {},
     makePublishContentDeps: () => ({}) } as unknown as PublishContentToolDeps;
-  const tool = buildPublishContentRegistrations(deps, {} as never).find((r) => r.descriptor.id === "publish_backstop_gaps")!;
+  const tool = buildPublishContentRegistrations({ routeDeps: deps, surfaces: {} as never }).find((r) => r.descriptor.id === "publish_backstop_gaps")!;
   assert.deepEqual(await tool.handler({ principal: { id: "assistant" }, input: undefined } as ToolExecutionContext), { gaps: [] });
   await assert.rejects(tool.handler({ principal: { id: "assistant" }, input: { extra: true } } as ToolExecutionContext), /extra/);
 });

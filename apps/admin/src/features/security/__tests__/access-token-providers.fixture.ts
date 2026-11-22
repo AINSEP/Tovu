@@ -1,5 +1,5 @@
-import type { AdminSourceControlProviderDescriptor } from "@/lib/api";
-import { accessTokenProviders } from "../rules";
+import type { AdminSourceControlProviderDescriptor } from "@/features/source-control/api/source-control-api.types";
+import { accessTokenProviders } from "../access-token-providers";
 import { PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 
 /**
@@ -43,4 +43,4 @@ export const SOURCE_CONTROL_TEST_DESCRIPTORS: readonly AdminSourceControlProvide
   },
 ];
 
-export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders(PUBLISH_TARGETS, SOURCE_CONTROL_TEST_DESCRIPTORS);
+export const ACCESS_TOKEN_TEST_PROVIDERS = accessTokenProviders({ publishTargets: PUBLISH_TARGETS }, { sourceControlProviders: SOURCE_CONTROL_TEST_DESCRIPTORS });

@@ -47,7 +47,7 @@ const HEADLINE_OPTIONS = 'StartSel="", StopSel="", MaxWords=20, MinWords=10';
  * Folds text the way FTS5's `unicode61` tokenizer sees it: diacritics removed, every run of
  * non-letter/non-digit characters a single space. Applied symmetrically to indexed text and queries.
  */
-export function foldForIndex(text: string): string {
+export function foldForIndex({ text }: { text: string }, _optional: Record<string, never> = {}): string {
   return text
     .normalize("NFKD")
     .replace(/\p{M}+/gu, "")
@@ -56,13 +56,13 @@ export function foldForIndex(text: string): string {
 }
 
 function searchVector(document: PostSearchDocument) {
-  const part = (text: string, weight: "A" | "B" | "D") =>
-    sql`setweight(to_tsvector(${sql.lit(SEARCH_CONFIG)}::regconfig, ${foldForIndex(text)}), ${sql.lit(weight)})`;
-  return sql`${part(document.title, "A")} || ${part(document.slug, "B")} || ${part(document.bodyText, "D")}`;
+  const part = ({ text, weight }: { text: string; weight: "A" | "B" | "D" }, _optional: Record<string, never> = {}) =>
+    sql`setweight(to_tsvector(${sql.lit(SEARCH_CONFIG)}::regconfig, ${foldForIndex({ text })}), ${sql.lit(weight)})`;
+  return sql`${part({ text: document.title, weight: "A" })} || ${part({ text: document.slug, weight: "B" })} || ${part({ text: document.bodyText, weight: "D" })}`;
 }
 
 export const pgPostSearch: PostSearchDialect = {
-  async upsert(kernel, document) {
+  async upsert({ kernel, document }, _optional = {}) {
     await kernel.execute(
       sql`INSERT INTO post_search_document (post_id, title, slug, body_text, search)
           VALUES (${document.postId}, ${document.title}, ${document.slug}, ${document.bodyText}, ${searchVector(document)})
@@ -71,7 +71,7 @@ export const pgPostSearch: PostSearchDialect = {
     );
   },
 
-  async remove(kernel, postId) {
+  async remove({ kernel, postId }, _optional = {}) {
     await kernel.execute(sql`DELETE FROM post_search_document WHERE post_id = ${postId}`);
   },
 
@@ -83,7 +83,7 @@ export const pgPostSearch: PostSearchDialect = {
     // Fold with the same function used on writes. Compatibility decomposition can introduce
     // separators (e.g. a fraction), so split again before inserting the sole operator, ` | `.
     // This works on Postgres and PGlite without loading unaccent or changing text collations.
-    const terms = query.terms.flatMap((term) => foldForIndex(term).split(" ")).filter(Boolean);
+    const terms = query.terms.flatMap((term) => foldForIndex({ text: term }).split(" ")).filter(Boolean);
     if (terms.length === 0) return [];
     const tsquery = sql`to_tsquery(${sql.lit(SEARCH_CONFIG)}::regconfig, ${terms.join(" | ")})`;
     const filters = [sql`d.search @@ q.query`, sql`p.workspace_id = ${query.workspaceId}`, sql`p.deleted_at IS NULL`, sql`p.kind IN ('post', 'page')`];

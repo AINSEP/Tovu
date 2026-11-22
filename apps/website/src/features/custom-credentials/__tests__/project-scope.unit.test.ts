@@ -1,3 +1,4 @@
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -177,4 +178,14 @@ test("the trusted owner replacement port rotates only a granted shared key", asy
   assert.equal((await resolveCustomCredentialByLabel(site, { workspaceId: SITE_A, label: "shared" }))?.connection.token, secret("second"));
   await attachments.detach({ siteId: SITE_A, keyId: saved.id });
   await assert.rejects(updateCustomCredential({ ...site, allowSharedKeyReplacement: true }, { workspaceId: SITE_A, id: saved.id, connection: { token: secret("denied") } }), /no custom credential/);
+});
+
+test("a projectKeyCreateVault conflict maps to CustomCredentialDuplicateLabelError", async () => {
+  const project = projectScope();
+  await save(siteDeps({ project }), SITE_A, "Taken", secret("first"));
+  const raw = project.repo.vault!;
+  const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
+  const b = siteDeps({ project: { ...project, repo: new CustomCredentialVaultRepo({ vault: view }),
+    createRepo: new CustomCredentialVaultRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) } });
+  await assert.rejects(save(b, SITE_B, "Taken", secret("second")), CustomCredentialDuplicateLabelError);
 });

@@ -1,4 +1,6 @@
-import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
+import type { PresentationSettings, ThemeTier } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { ThemesPort } from "./themes-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
 
@@ -9,12 +11,12 @@ import { asciiSlug } from "../../../lib/ascii-slug";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultThemesPort: ThemesPort = {
-  getPresentation: () => api.getPresentation(),
-  rescanThemes: () => api.rescanThemes(),
-  setActiveTheme: (activeThemeId) => api.setActiveTheme(activeThemeId),
-  duplicateTheme: (themeId, newName) => api.duplicateTheme(themeId, newName),
+  getPresentation: () => themesApi.getPresentation(),
+  rescanThemes: () => themesApi.rescanThemes(),
+  setActiveTheme: ({ activeThemeId }, _optional = {}) => themesApi.setActiveTheme({ activeThemeId }),
+  duplicateTheme: ({ themeId, newName }, _optional = {}) => themesApi.duplicateTheme({ themeId, newName }),
   trashTheme: async ({ themeId }) => {
-    await api.trash({ type: "theme", id: themeId });
+    await trashApi.trash({ type: "theme", id: themeId });
   },
 };
 
@@ -48,17 +50,17 @@ export function createFakeThemesPort(options: FakeThemesPortOptions = {}): Theme
       return { added: [], removed: [], total: availableThemeIds.length, availableThemeIds: [...availableThemeIds], duplicateIds: [] };
     },
 
-    async setActiveTheme(activeThemeId) {
+    async setActiveTheme({ activeThemeId }, _optional = {}) {
       settings = { ...settings, activeThemeId };
       return { settings, availableThemeIds: [...availableThemeIds] };
     },
 
     /** Adds the copy to the installed list under a name-derived id, the way the server would —
      *  minus the server's collision suffixing, which a test scripts with distinct names. */
-    async duplicateTheme(themeId, newName) {
+    async duplicateTheme({ themeId, newName }, _optional = {}) {
       const source = availableThemes.find((theme) => theme.id === themeId);
       if (!source) throw new Error(`theme '${themeId}' was not found`);
-      const id = asciiSlug(newName);
+      const id = asciiSlug({ text: newName });
       availableThemeIds.push(id);
       availableThemes.push({ id, name: newName, tier: source.tier });
       return { theme: { id, name: newName } };

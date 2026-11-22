@@ -9,7 +9,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { migrateSqliteContentFile, MIGRATION_BACKUP_PREFIX, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
-import { LegacyHistoryError } from "../../migrations/step.js";
+import { LegacyHistoryError } from "../../migrations/legacy-sqlite.js";
 import * as schema from "../../schema.sqlite.js";
 
 /**
@@ -103,7 +103,7 @@ test("openContentDbReadOnly: never advances a database sitting one migration beh
   const migrationsBefore = appliedMigrationCount(dbPath);
 
   // --- THE MANDATORY PROOF: opening read-only must not run the pending migration. ---
-  const readOnlyDb = openContentDbReadOnly(dbPath);
+  const readOnlyDb = openContentDbReadOnly({ filePath: dbPath });
   assert.equal(
     hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column),
     false,
@@ -111,7 +111,8 @@ test("openContentDbReadOnly: never advances a database sitting one migration beh
   );
   assert.equal(appliedMigrationCount(dbPath), migrationsBefore, "openContentDbReadOnly must never record a new migration as applied");
   // The read-only handle can still read existing tables/rows fine.
-  assert.doesNotThrow(() => readOnlyDb.select().from(schema.workspaces).all());
+  // Why: a legacy-drizzle-only fixture predates Kysely migration 0042, which added `workspaces.version` (commit 50253e2d); selecting the whole row would ask for that absent column.
+  assert.doesNotThrow(() => readOnlyDb.select({ id: schema.workspaces.id }).from(schema.workspaces).all());
   readOnlyDb.$client.close();
 
   // --- Control: plain openContentDb (still used by every `--apply` path, unchanged) DOES advance
@@ -129,7 +130,7 @@ test("openContentDbReadOnly: rejects a write at the driver level, not just by th
   const dbPath = path.join(scratch, "content.db");
   openContentDb(dbPath).$client.close(); // Fully migrated fixture, closed before reopening read-only.
 
-  const db = openContentDbReadOnly(dbPath);
+  const db = openContentDbReadOnly({ filePath: dbPath });
   assert.throws(() => {
     db.insert(schema.workspaces).values({ id: "w1", name: "w1", slug: "w1", createdAt: "2026-09-01T00:00:00.000Z" }).run();
   }, /readonly|read-only/i);
@@ -142,7 +143,7 @@ test("openContentDbReadOnly: throws rather than creating a new file when the pat
   const scratch = tmpDir("content-db-readonly-missing-");
   const missingPath = path.join(scratch, "does-not-exist.db");
 
-  assert.throws(() => openContentDbReadOnly(missingPath));
+  assert.throws(() => openContentDbReadOnly({ filePath: missingPath }), { constructor: Database.SqliteError, name: "SqliteError", code: "SQLITE_CANTOPEN", message: "unable to open database file" });
   assert.equal(fs.existsSync(missingPath), false, "a read-only open must never create the file it was asked to read");
 
   fs.rmSync(scratch, { recursive: true, force: true });
@@ -151,7 +152,7 @@ test("openContentDbReadOnly: throws rather than creating a new file when the pat
 test("a refused file migration preserves the database and keeps both the pre-change copy and earlier backups", async () => {
   const scratch = tmpDir("content-db-migration-failure-");
   const dbPath = buildOneMigrationBehindDb(scratch);
-  const db = openSqliteContentConnection(dbPath);
+  const db = openSqliteContentConnection({ filePath: dbPath });
   const ops = path.join(scratch, "ops");
   fs.mkdirSync(ops);
   const oldName = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;
@@ -161,7 +162,7 @@ test("a refused file migration preserves the database and keeps both the pre-cha
     const historyBefore = db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all();
     const schemaBefore = db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all();
     assert.equal(hasColumn(dbPath, NEWEST_MIGRATION_ADDS.table, NEWEST_MIGRATION_ADDS.column), false);
-    await assert.rejects(migrateSqliteContentFile(db, dbPath), LegacyHistoryError);
+    await assert.rejects(migrateSqliteContentFile({ db, filePath: dbPath }), LegacyHistoryError);
     assert.deepEqual(db.$client.prepare("SELECT * FROM __drizzle_migrations ORDER BY rowid").all(), historyBefore);
     assert.deepEqual(db.$client.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(), schemaBefore);
     const copies = fs.readdirSync(ops).filter(name => name.endsWith(".db") && name !== oldName);

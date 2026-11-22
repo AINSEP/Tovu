@@ -54,7 +54,7 @@ export function routeApp(
     if (options.publishTrust) res.locals.publishTrust = options.publishTrust;
     next();
   });
-  register(app, deps);
+  register({ app, deps });
   return app;
 }
 

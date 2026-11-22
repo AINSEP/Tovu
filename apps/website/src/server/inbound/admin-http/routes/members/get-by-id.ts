@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { MemberNotFoundError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -9,7 +11,7 @@ import type { MembersRouteDeps } from "./deps.js";
  * GET a single member by id.
  *
  * No dedicated `getAdminMemberById` business-logic function exists in
- * `src/members` (see `list.ts`'s file note) — this route calls
+ * `apps/website/src/features/members/index.ts` (see `list.ts`'s file note) — this route calls
  * `MemberRepoPort.findById` directly and throws the library's own
  * `MemberNotFoundError` on a miss, mirroring the not-found translation
  * `getAdminPostById` performs internally for posts.
@@ -20,35 +22,19 @@ import type { MembersRouteDeps } from "./deps.js";
  * exact call shape (workspace-id 404 check first, then authorize, with
  * `entityId: memberId`).
  */
-export const registerAdminMemberGetRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const memberId = String(req.params.memberId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
 
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "member.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "member",
-        entityId: memberId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'member.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "member.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "member.manage", workspaceId: deps.workspaceId, entityType: "member", entityId: memberId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const member = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: memberId });
       if (!member) {

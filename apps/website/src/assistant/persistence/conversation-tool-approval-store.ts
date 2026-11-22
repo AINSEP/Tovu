@@ -2,7 +2,7 @@
  * @file The `chat.db` half of G3 remembered approvals: "Allow for this chat", stored with the
  * conversation (`assistant_conversation_tool_approvals`, created by `platform/db/sqlite/chat-db.ts`)
  * so it survives a daemon/API restart and is deleted with the chat. See
- * `assistant/external-mcp-tool-approvals.ts` for the fingerprint and the "Always" half.
+ * `Jini packages/mcp/src/federation/tool-approvals.ts` for the fingerprint and the "Always" half.
  */
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
@@ -16,14 +16,14 @@ import type { ConversationToolApprovalStore } from "../external-mcp-tool-approva
  * `grant` throws when the conversation is not in `ai_chats` (the foreign key); the confirmer catches
  * that and lets only the one call it was asked about run.
  *
- * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
+ * @param required.store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
  * @complexity Exact chat lookups/writes use the primary key; identity lookups scan the existing
  * grant rows without adding a schema/index migration.
  */
 export function createSqliteConversationToolApprovalStore(
-  store: ChatKernel | SqliteConnectionSource
+  { store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}
 ): ConversationToolApprovalStore {
-  const kernel = chatKernel(store);
+  const kernel = chatKernel({ store });
   return {
     async has(key) {
       const row = await kernel.run((db) =>
@@ -47,7 +47,7 @@ export function createSqliteConversationToolApprovalStore(
         .where("fingerprint", "=", key.fingerprint).limit(1).executeTakeFirst());
       return row !== undefined;
     },
-    async grant(key, grantedAt) {
+    async grant({ key, grantedAt }) {
       await kernel.run((db) =>
         db
           .insertInto("assistant_conversation_tool_approvals")

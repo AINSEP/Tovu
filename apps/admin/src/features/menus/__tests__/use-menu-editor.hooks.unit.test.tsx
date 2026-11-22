@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMenu } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { menusApi } from "@/features/menus/api/menus-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";
@@ -31,9 +33,9 @@ afterEach(() => {
 
 describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("loads an existing menu from the injected port and never touches the real api client", async () => {
-    const getSpy = vi.spyOn(api, "getMenu");
+    const getSpy = vi.spyOn(menusApi, "getMenu");
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.title).toBe("Main menu");
@@ -46,10 +48,10 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const parent = { ...MENU.items[0]!, children: [child] };
     const other = { ...MENU.items[0]!, id: "other", children: [child] };
     const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.addChildAt([0]));
+    act(() => result.current.addChildAt({ path: [0] }));
     expect(result.current.items[0]?.children).toHaveLength(2);
     expect(result.current.items[0]?.children?.[0]).toEqual(child);
     expect(result.current.items[0]?.children?.[1]).toEqual({ id: expect.any(String), label: "", target: { kind: "url", href: "" } });
@@ -64,7 +66,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it.each([new Error("Load denied"), "unknown failure"])("surfaces a load rejection and clears loading (%s)", async (failure) => {
     const port = createFakeMenusPort();
     port.getMenu = vi.fn().mockRejectedValue(failure);
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe(failure instanceof Error ? failure.message : "failed to load menu");
     expect(result.current.menu).toBeNull();
@@ -75,9 +77,9 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.updateMenuTree = vi.fn().mockRejectedValue(new Error("Version conflict"));
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    act(() => result.current.setTitle("Renamed"));
+    act(() => result.current.setTitle({ next: "Renamed" }));
     await act(async () => { await result.current.save(); });
     expect(result.current.error).toBe("Version conflict");
     expect(result.current.message).toBeNull();
@@ -90,10 +92,10 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("shows the translated conflict copy, not the raw server message, when a save loses the compare-and-set", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.updateMenuTree = vi.fn().mockRejectedValue(
-      new ApiError("menu 'm1' was modified concurrently (expected version 1, found 2)", 409, "VERSION_CONFLICT")
+      new ApiError({ message: "menu 'm1' was modified concurrently (expected version 1, found 2)", status: 409 }, { code: "VERSION_CONFLICT" })
     );
     const t = (key: string) => (key === VERSION_CONFLICT_MESSAGE ? "TRANSLATED CONFLICT" : key);
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.save(); });
     expect(result.current.error).toBe("TRANSLATED CONFLICT");
@@ -102,8 +104,8 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
 
   it("keeps the server message for a code-less 409 (slug already taken)", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    port.updateMenuTree = vi.fn().mockRejectedValue(new ApiError("slug 'main' already exists", 409));
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: () => "TRANSLATED" }));
+    port.updateMenuTree = vi.fn().mockRejectedValue(new ApiError({ message: "slug 'main' already exists", status: 409 }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: () => "TRANSLATED" } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.save(); });
     expect(result.current.error).toBe("slug 'main' already exists");
@@ -112,7 +114,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("falls back to 'save failed' when the save rejects with a non-Error value", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.updateMenuTree = vi.fn().mockRejectedValue("boom");
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.save(); });
     expect(result.current.error).toBe("save failed");
@@ -122,21 +124,21 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const update = vi.spyOn(port, "updateMenuTree");
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => {
-      result.current.setTitle("Renamed");
-      result.current.setSlug("renamed-menu");
-      result.current.changeAt([0], (item) => ({ ...item, label: "Start" }));
+      result.current.setTitle({ next: "Renamed" });
+      result.current.setSlug({ next: "renamed-menu" });
+      result.current.changeAt({ path: [0], fn: (item) => ({ ...item, label: "Start" }) });
     });
     expect(result.current.confirmLeave()).toBe(false);
     confirm.mockClear();
     const items = result.current.items;
     await act(async () => { await result.current.save(); });
-    expect(update).toHaveBeenCalledExactlyOnceWith(
-      { id: "m1", expectedVersion: 1, items },
-      { title: "Renamed", slug: "renamed-menu" }
-    );
+    expect(update).toHaveBeenCalledExactlyOnceWith({
+      target: { id: "m1", expectedVersion: 1, items },
+      options: { title: "Renamed", slug: "renamed-menu" },
+    });
     expect(result.current.message).toBe("Saved · version 2");
     expect(result.current.error).toBeNull();
     expect(result.current.confirmLeave()).toBe(true);
@@ -144,21 +146,21 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
 
     // The next update must use the newly saved version too.
     await act(async () => { await result.current.save(); });
-    expect(update).toHaveBeenLastCalledWith(
-      { id: "m1", expectedVersion: 2, items },
-      { title: "Renamed", slug: "renamed-menu" }
-    );
+    expect(update).toHaveBeenLastCalledWith({
+      target: { id: "m1", expectedVersion: 2, items },
+      options: { title: "Renamed", slug: "renamed-menu" },
+    });
   });
 
   it("routes create through the injected port and calls the injected navigate, never the real router", async () => {
-    const createSpy = vi.spyOn(api, "createMenu");
+    const createSpy = vi.spyOn(menusApi, "createMenu");
     const port = createFakeMenusPort();
     const fakeNavigate = vi.fn();
-    const { result } = renderHook(() => useMenuEditor(null, { port, navigate: fakeNavigate, t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: fakeNavigate, t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.setTitle("New menu"));
-    act(() => result.current.setSlug("new-menu"));
+    act(() => result.current.setTitle({ next: "New menu" }));
+    act(() => result.current.setSlug({ next: "new-menu" }));
     await act(async () => {
       await result.current.save();
     });
@@ -182,7 +184,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("stays loading while the injected port's get call is still pending", () => {
     const port = createFakeMenusPort();
     port.getMenu = () => new Promise(() => {});
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     expect(result.current.loading).toBe(true);
     expect(result.current.menu).toBeNull();
   });
@@ -194,10 +196,10 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     let resolveB!: (value: { menu: AdminMenu }) => void;
     const pendingA = new Promise<{ menu: AdminMenu }>((resolve) => { resolveA = resolve; });
     const pendingB = new Promise<{ menu: AdminMenu }>((resolve) => { resolveB = resolve; });
-    port.getMenu = (id) => id === "m1" ? pendingA : pendingB;
+    port.getMenu = ({ id }) => id === "m1" ? pendingA : pendingB;
     const navigate = vi.fn();
     const { result, rerender } = renderHook(
-      ({ id }) => useMenuEditor(id, { port, navigate, t: (k) => k }),
+      ({ id }) => useMenuEditor({ menuId: id, dependencies: { port, navigate, t: (k) => k } }),
       { initialProps: { id: "m1" } }
     );
     rerender({ id: "m2" });
@@ -238,15 +240,15 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const pendingSaveA = new Promise<{ menu: AdminMenu }>((resolve) => {
       resolveSaveA = resolve;
     });
-    port.updateMenuTree = (target) => (target.id === "menu-a" ? pendingSaveA : Promise.reject(new Error("unexpected updateMenuTree call")));
+    port.updateMenuTree = ({ target }) => (target.id === "menu-a" ? pendingSaveA : Promise.reject(new Error("unexpected updateMenuTree call")));
 
     const { result, rerender } = renderHook(
-      (props: { menuId: string }) => useMenuEditor(props.menuId, { port, navigate: vi.fn(), t: (k) => k }),
+      (props: { menuId: string }) => useMenuEditor({ menuId: props.menuId, dependencies: { port, navigate: vi.fn(), t: (k) => k } }),
       { initialProps: { menuId: "menu-a" } }
     );
     await waitFor(() => expect(result.current.title).toBe("Menu A"));
 
-    // Click Save on menu A — updateMenuTree("menu-a") is now in flight.
+    // Click Save on menu A — its updateMenuTree call is now in flight.
     act(() => {
       void result.current.save();
     });
@@ -282,10 +284,10 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
         resolveSave = () => resolve({ menu: { ...MENU, version: MENU.version + 1, title: "Renamed" } });
       });
     };
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.setTitle("Renamed"));
+    act(() => result.current.setTitle({ next: "Renamed" }));
     expect(result.current.saving).toBe(false);
 
     act(() => {
@@ -313,7 +315,7 @@ describe("useMenuEditor — slug redirect on load", () => {
   it("replace-navigates to the slug URL when menuId is the menu's raw (UUID-shaped) id", async () => {
     const port = createFakeMenusPort({ menus: [{ ...MENU, id: MENU_UUID, slug: "hello-menu" }] });
     const navigate = vi.fn();
-    const { result } = renderHook(() => useMenuEditor(MENU_UUID, { port, navigate, t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: MENU_UUID, dependencies: { port, navigate, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(navigate).toHaveBeenCalledWith("/menus/hello-menu", { replace: true });
@@ -322,7 +324,7 @@ describe("useMenuEditor — slug redirect on load", () => {
   it("does not navigate when menuId already IS the menu's slug", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     const navigate = vi.fn();
-    const { result } = renderHook(() => useMenuEditor(MENU.slug, { port, navigate, t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: MENU.slug, dependencies: { port, navigate, t: (k) => k } }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(navigate).not.toHaveBeenCalled();
@@ -333,8 +335,8 @@ describe("useMenuEditor — slug redirect on load", () => {
 it('translates a menu load fallback while preserving a real server error message', async () => {
   const port = createFakeMenusPort();
   port.getMenu = async () => { throw 'unstructured failure'; };
-  const { result } = renderHook(() => useMenuEditor('m1', { port, navigate: () => {},
-    t: key => key === 'failed to load menu' ? 'Impossible de charger le menu' : key }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: 'm1', dependencies: { port, navigate: () => {},
+    t: key => key === 'failed to load menu' ? 'Impossible de charger le menu' : key } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
   expect(result.current.error).toBe('Impossible de charger le menu');
 });
@@ -345,31 +347,31 @@ it("edits and removes nested items without changing their siblings or the loaded
   const parent = { ...leaf, id: "parent", children: [leaf, sibling] };
   const other = { ...leaf, id: "other" };
   const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
-  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
 
-  act(() => result.current.changeAt([0, 0], (item) => ({ ...item, label: "Changed" })));
+  act(() => result.current.changeAt({ path: [0, 0], fn: (item) => ({ ...item, label: "Changed" }) }));
   expect(result.current.items[0]?.children).toEqual([{ ...leaf, label: "Changed" }, sibling]);
   expect(result.current.items[1]).toEqual(other);
   expect(parent.children).toEqual([leaf, sibling]);
-  act(() => result.current.removeAt([0, 0]));
+  act(() => result.current.removeAt({ path: [0, 0] }));
   expect(result.current.items).toEqual([{ ...parent, children: [sibling] }, other]);
-  act(() => result.current.removeAt([1]));
+  act(() => result.current.removeAt({ path: [1] }));
   expect(result.current.items).toEqual([{ ...parent, children: [sibling] }]);
 });
 
 it("empty edit and removal paths preserve the tree and absent child paths preserve existing items", async () => {
   const port = createFakeMenusPort({ menus: [MENU] });
-  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
   act(() => {
-    result.current.changeAt([], () => { throw new Error("empty path must not edit an item"); });
-    result.current.removeAt([]);
+    result.current.changeAt({ path: [], fn: () => { throw new Error("empty path must not edit an item"); } });
+    result.current.removeAt({ path: [] });
   });
   expect(result.current.items).toEqual(MENU.items);
-  act(() => result.current.changeAt([0, 0], () => { throw new Error("missing child must not be edited"); }));
+  act(() => result.current.changeAt({ path: [0, 0], fn: () => { throw new Error("missing child must not be edited"); } }));
   expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
-  act(() => result.current.removeAt([0, 0]));
+  act(() => result.current.removeAt({ path: [0, 0] }));
   expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
 });
 
@@ -379,27 +381,27 @@ it("adds nested children and reorders siblings while respecting the first and la
   const parent = { ...first, id: "parent", children: [first, second] };
   const other = { ...first, id: "other" };
   const port = createFakeMenusPort({ menus: [{ ...MENU, items: [parent, other] }] });
-  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
-  act(() => result.current.moveAt([0, 0], -1));
+  act(() => result.current.moveAt({ path: [0, 0], direction: -1 }));
   expect(result.current.items).toEqual([parent, other]);
-  act(() => result.current.moveAt([9, 0], 1));
+  act(() => result.current.moveAt({ path: [9, 0], direction: 1 }));
   expect(result.current.items).toEqual([parent, other]);
-  act(() => result.current.moveAt([1, 0], 1));
+  act(() => result.current.moveAt({ path: [1, 0], direction: 1 }));
   expect(result.current.items).toEqual([parent, other]);
-  act(() => result.current.moveAt([0, 1], 1));
+  act(() => result.current.moveAt({ path: [0, 1], direction: 1 }));
   expect(result.current.items).toEqual([parent, other]);
-  act(() => result.current.moveAt([0, 0], 1));
+  act(() => result.current.moveAt({ path: [0, 0], direction: 1 }));
   expect(result.current.items).toEqual([{ ...parent, children: [second, first] }, other]);
-  act(() => result.current.moveAt([1], -1));
+  act(() => result.current.moveAt({ path: [1], direction: -1 }));
   expect(result.current.items).toEqual([other, { ...parent, children: [second, first] }]);
-  act(() => result.current.addChildAt([0, 0]));
+  act(() => result.current.addChildAt({ path: [0, 0] }));
   expect(result.current.items[0]).toEqual({ ...other, children: [] });
-  act(() => result.current.addChildAt([1, 0]));
+  act(() => result.current.addChildAt({ path: [1, 0] }));
   expect(result.current.items[1]?.children?.[0]?.children).toEqual([
     { id: expect.any(String), label: "", target: { kind: "url", href: "" } },
   ]);
-  act(() => result.current.addChildAt([]));
+  act(() => result.current.addChildAt({ path: [] }));
   expect(result.current.items).toHaveLength(3);
   expect(result.current.items[2]).toEqual({ id: expect.any(String), label: "", target: { kind: "url", href: "" } });
   expect(parent.children).toEqual([first, second]);
@@ -411,9 +413,9 @@ it("a failed previous load cannot clear the next menu's loading state or set its
   const oldLoad = new Promise<{ menu: AdminMenu }>((_, reject) => { rejectOld = reject; });
   const currentLoad = new Promise<{ menu: AdminMenu }>((resolve) => { resolveCurrent = resolve; });
   const port = createFakeMenusPort();
-  port.getMenu = (id) => id === "old" ? oldLoad : currentLoad;
+  port.getMenu = ({ id }) => id === "old" ? oldLoad : currentLoad;
   const deps = { port, navigate: vi.fn(), t: (key: string) => key };
-  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "old" } });
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor({ menuId: id, dependencies: deps }), { initialProps: { id: "old" } });
   rerender({ id: "m1" });
   await act(async () => { rejectOld(new Error("old request failed")); await oldLoad.catch(() => {}); });
   expect(result.current.loading).toBe(true);
@@ -428,7 +430,7 @@ it("save while the initial menu is pending leaves the store untouched and releas
   let resolveLoad!: (value: { menu: AdminMenu }) => void;
   const port = createFakeMenusPort({ menus: [MENU] });
   port.getMenu = () => new Promise((resolve) => { resolveLoad = resolve; });
-  const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (key) => key }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (key) => key } }));
   await act(async () => { await result.current.save(); });
   expect(result.current.saving).toBe(false);
   expect(port.menus).toEqual([MENU]);
@@ -441,7 +443,7 @@ it("save while the initial menu is pending leaves the store untouched and releas
 it("copying an unsaved menu does not write an embed or show success feedback", async () => {
   const writes: string[] = [];
   const clipboard = { writeText: async (text: string) => { writes.push(text); } };
-  const { result } = renderHook(() => useMenuEditor(null, { port: createFakeMenusPort(), navigate: vi.fn(), t: (key) => key, clipboard }));
+  const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port: createFakeMenusPort(), navigate: vi.fn(), t: (key) => key, clipboard } }));
   await act(async () => { await result.current.copyHtmlEmbed(); });
   expect(writes).toEqual([]);
   expect(result.current.copyFeedback).toBeNull();
@@ -449,22 +451,22 @@ it("copying an unsaved menu does not write an embed or show success feedback", a
 
 it("new menu items use the injected browser UUID without reading fallback entropy", () => {
   const port = createFakeMenusPort();
-  const { result } = renderHook(() => useMenuEditor(null, { port, navigate: vi.fn(), t: (key) => key,
+  const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: vi.fn(), t: (key) => key,
     itemIdSource: { crypto: { randomUUID: () => "00000000-0000-4000-8000-000000000001" },
       nowMs: () => { throw new Error("UUID creation must not read the clock"); },
       random: () => { throw new Error("UUID creation must not read fallback randomness"); },
     },
-  }));
+  } }));
   act(() => result.current.addRootItem());
   expect(result.current.items).toEqual([{ id: "00000000-0000-4000-8000-000000000001", label: "", target: { kind: "url", href: "" } }]);
 });
 
 it.each([undefined, {}])("new menu items use the clock and entropy fallback when UUID support is missing (%j)", (crypto) => {
   const port = createFakeMenusPort();
-  const { result } = renderHook(() => useMenuEditor(null, { port, navigate: vi.fn(), t: (key) => key,
+  const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: vi.fn(), t: (key) => key,
     itemIdSource: { crypto, nowMs: () => 1000, random: () => 0.5 },
-  }));
-  act(() => result.current.addChildAt([]));
+  } }));
+  act(() => result.current.addChildAt({ path: [] }));
   expect(result.current.items).toEqual([{ id: "item-1000-i", label: "", target: { kind: "url", href: "" } }]);
 });
 
@@ -477,7 +479,7 @@ it.each(["success", "failure"] as const)("a late clipboard %s cannot set feedbac
   const writes: string[] = [];
   const clipboard = { writeText: (text: string) => { writes.push(text); return copying; } };
   const deps = { port, clipboard, navigate: vi.fn(), t: (key: string) => key };
-  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "m1" } });
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor({ menuId: id, dependencies: deps }), { initialProps: { id: "m1" } });
   await waitFor(() => expect(result.current.loading).toBe(false));
   let pending!: Promise<void>;
   act(() => { pending = result.current.copyHtmlEmbed(); });
@@ -499,7 +501,7 @@ it("a failed save for a previous menu cannot put an error on the current menu", 
   let rejectSave!: (error: Error) => void;
   port.updateMenuTree = () => new Promise((_, reject) => { rejectSave = reject; });
   const deps = { port, navigate: vi.fn(), t: (key: string) => key };
-  const { result, rerender } = renderHook(({ id }) => useMenuEditor(id, deps), { initialProps: { id: "m1" } });
+  const { result, rerender } = renderHook(({ id }) => useMenuEditor({ menuId: id, dependencies: deps }), { initialProps: { id: "m1" } });
   await waitFor(() => expect(result.current.loading).toBe(false));
   let saving!: Promise<void>;
   act(() => { saving = result.current.save(); });
@@ -514,8 +516,8 @@ it("a failed save for a previous menu cannot put an error on the current menu", 
 });
 
 it.each([
-  { failure: new ApiError("Raw conflict", 409, "VERSION_CONFLICT"), expected: `translated:${VERSION_CONFLICT_MESSAGE}` },
-  { failure: new ApiError("Slug already exists", 409), expected: "Slug already exists" },
+  { failure: new ApiError({ message: "Raw conflict", status: 409 }, { code: "VERSION_CONFLICT" }), expected: `translated:${VERSION_CONFLICT_MESSAGE}` },
+  { failure: new ApiError({ message: "Slug already exists", status: 409 }), expected: "Slug already exists" },
   { failure: new Error("Permission denied"), expected: "Permission denied" },
   { failure: new Error(""), expected: "" },
   { failure: "not an Error", expected: "save failed" },
@@ -523,9 +525,9 @@ it.each([
 ])("pins save error precedence and releases the saving guard: $expected", async ({ failure, expected }) => {
   const port = createFakeMenusPort({ menus: [MENU] });
   port.updateMenuTree = vi.fn().mockRejectedValue(failure);
-  const { result } = renderHook(() => useMenuEditor("m1", {
+  const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: {
     port, navigate: vi.fn(), t: (key) => `translated:${key}`,
-  }));
+  } }));
   await waitFor(() => expect(result.current.loading).toBe(false));
   await act(async () => { await result.current.save(); });
   expect(result.current.error).toBe(expected);
@@ -539,17 +541,17 @@ it.each([
 describe("useMenuEditor — remaining controller contracts", () => {
   it("removing a stale nested path under a leaf leaves that item's content intact", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.removeAt([0, 0]));
+    act(() => result.current.removeAt({ path: [0, 0] }));
     expect(result.current.items).toEqual([{ ...MENU.items[0], children: [] }]);
   });
 
   it("reports a non-Error load failure with the translated fallback", async () => {
     const port = createFakeMenusPort({ menus: [MENU] });
     port.getMenu = () => Promise.reject("offline");
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => `t:${k}` }));
+    const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => `t:${k}` } }));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("t:failed to load menu");
   });
@@ -559,7 +561,7 @@ describe("useMenuEditor — remaining controller contracts", () => {
     vi.stubGlobal("navigator", { ...window.navigator, clipboard: { writeText } });
     try {
       const port = createFakeMenusPort({ menus: [MENU] });
-      const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
+      const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
       await waitFor(() => expect(result.current.loading).toBe(false));
       await act(async () => { await result.current.copyHtmlEmbed(); });
       expect(writeText).toHaveBeenCalledTimes(1);

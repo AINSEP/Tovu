@@ -17,8 +17,8 @@ function userData(env: Record<string, string | undefined>) {
   const sets: string[] = [];
   const result = applyUserDataDir({
     env, defaultUserDataDir: "/Users/x/Library/Application Support/tovu-desktop",
-    resolvePath: (dir) => `/cwd/${dir}`,
-    setUserDataDir: (dir) => { sets.push(dir); current = dir; },
+    resolvePath: ({ dir }) => `/cwd/${dir}`,
+    setUserDataDir: ({ dir }) => { sets.push(dir); current = dir; },
     getUserDataDir: () => current,
   });
   return { result, sets, env };
@@ -49,7 +49,7 @@ function toolchain(write: () => { toolchainDir: string } | null) {
     userDataDir: "/ud", electronPath: "/Tovu.app/Tovu", npmRoot: "/npm",
     writeNodeToolchain: (input) => { writes.push(input); return write(); },
     buildNodeToolchainEnv: (input) => { builds.push(input); return { TOVU_NODE_TOOLCHAIN_DIR: input.toolchainDir, TOVU_BUNDLED_NPM_ROOT: input.npmRoot }; },
-    warn: (m) => warnings.push(m),
+    warn: ({ message }) => warnings.push(message),
   });
   return { env, warnings, builds, writes };
 }
@@ -102,9 +102,9 @@ test("dev-fallback rows: migrate dismissals, then seed, then retire — all with
   });
   assert.equal(ran, true);
   assert.deepEqual(calls, [
-    ["migrate", "/ud/projects.json", "/repo/sites/tovu-dev"],
-    ["seed", "/ud/projects.json", "/repo/sites/tovu-dev", classify],
-    ["retire", "/ud/projects.json", "/repo/sites/tovu-dev", classify],
+    ["migrate", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev" }],
+    ["seed", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
+    ["retire", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
   ]);
 });
 
@@ -156,13 +156,13 @@ function ownerStore() {
   const removed: string[] = [];
   const notices: unknown[] = [];
   const warnings: string[] = [];
-  let captured: { removeFiles: () => void; notify: () => void; log: (m: string) => void } | undefined;
+  let captured: { removeFiles: () => void; notify: () => void; log: (required: { message: string }) => void } | undefined;
   const result = settleLegacyOwnerStoreOnStart({
     userDataDir: "/ud",
     settle: async (input) => { captured = input; return "settled"; },
-    removeFile: (file) => removed.push(file),
+    removeFile: ({ filePath }) => removed.push(filePath),
     showNotice: (notice) => notices.push(notice),
-    warn: (m) => warnings.push(m),
+    warn: ({ message }) => warnings.push(message),
   });
   return { result, removed, notices, warnings, ports: () => captured! };
 }
@@ -181,6 +181,6 @@ test("a store holding keys gets the native import notice; check failures are log
   o.ports().notify();
   assert.deepEqual(o.notices, [{ type: "info", message: "Shared keys from an older version can be imported",
     detail: "Open Shared keys and choose Import from this computer. You see what imports before anything changes." }]);
-  o.ports().log("could not be checked");
+  o.ports().log({ message: "could not be checked" });
   assert.deepEqual(o.warnings, ["could not be checked"]);
 });

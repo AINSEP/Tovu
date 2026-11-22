@@ -12,9 +12,9 @@ test("backstop requires a separate capability AND an explicit raw entity type", 
     assert.equal(backstopGrantAllows({ grant: { capabilities: ["publish_content.backstop"], entityTypes: [] }, entityType }), false);
     assert.equal(backstopGrantAllows({ grant: { capabilities: ["publish_content.apply", "publish_content.backstop"], entityTypes: [entityType] }, entityType }), true);
   }
-  const parsed = parsePublishTrustGrant({ version: 1, sourceInstallationId: "src", workspaceId: "ws",
+  const parsed = parsePublishTrustGrant({ raw: { version: 1, sourceInstallationId: "src", workspaceId: "ws",
     publicKeys: [{ publicKeyB64u: "AAAA", generation: 1 }], entityTypes: ["raw-row"],
-    capabilities: ["publish_content.apply", "publish_content.backstop"], notAfter: "2099-01-01T00:00:00.000Z" });
+    capabilities: ["publish_content.apply", "publish_content.backstop"], notAfter: "2099-01-01T00:00:00.000Z" } });
   assert.equal(parsed.ok, true);
   assert.deepEqual(DEFAULT_PUBLISHING_CAPABILITIES, ["publish_content.read", "publish_content.apply"]);
 });
@@ -22,15 +22,18 @@ test("backstop requires a separate capability AND an explicit raw entity type", 
 test("connecting never grants backstop, even when callers include raw types", async () => {
   let written: unknown;
   await connectDestination({
-    workspaceId: "source-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
-    keyring: { derive: async () => new Uint8Array(32).fill(7) } as never,
-    httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify({
-      installationId: "dest", workspaceId: "dest-ws", origin: "https://dest.example",
-    }) }) },
-    provisioning: { connect: async ({ grant }: { grant: unknown }) => { written = grant; return {
-      ok: true, changed: true, target: { kind: "file", path: "deploy/publish-trust.json", nextStep: "Redeploy." },
-    }; } } as never,
-  }, { baseUrl: "https://dest.example", entityTypes: ["post", "raw-row", "raw-file"] });
+                             deps: {
+      workspaceId: "source-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") },
+      keyring: { derive: async () => new Uint8Array(32).fill(7) } as never,
+      httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: JSON.stringify({
+        installationId: "dest", workspaceId: "dest-ws", origin: "https://dest.example",
+      }) }) },
+      provisioning: { connect: async ({ grant }: { grant: unknown }) => { written = grant; return {
+        ok: true, changed: true, target: { kind: "file", path: "deploy/publish-trust.json", nextStep: "Redeploy." },
+      }; } } as never,
+    },
+                             input: { baseUrl: "https://dest.example", entityTypes: ["post", "raw-row", "raw-file"] }
+                           });
   assert.deepEqual((written as { entityTypes: string[] }).entityTypes, ["post"]);
   assert.deepEqual((written as { capabilities: string[] }).capabilities, ["publish_content.read", "publish_content.apply"]);
 });
@@ -38,8 +41,8 @@ test("connecting never grants backstop, even when callers include raw types", as
 function connectionFixture() {
   const files = new Map<string, string>();
   const io: ProvisioningFileIo = {
-    read: async (file) => files.get(file) ?? null,
-    write: async (file, contents) => { files.set(file, contents); },
+    read: async ({ path: file }) => files.get(file) ?? null,
+    write: async ({ path: file, contents }) => { files.set(file, contents); },
   };
   const configPath = "/fixture/deploy/publish-trust.json";
   const provisioning = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path: configPath });
@@ -65,15 +68,15 @@ test("candidate discovery skips an existing config without a public URL", async 
   const { io, files } = connectionFixture();
   files.set("/fixture/example-one.toml", 'app = "demo"');
   files.set("/fixture/example-two.yaml", "TOVU_PUBLIC_URL: https://destination.example\n");
-  assert.equal(await findCandidateDestination({ io, resolvePath: (file) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
+  assert.equal(await findCandidateDestination({ io, resolvePath: ({ relative: file }) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
 });
 
 test("reconnecting an unchanged grant says that nothing needs deploying", async () => {
   const { deps, input } = connectionFixture();
-  const first = await connectDestination(deps, input);
+  const first = await connectDestination({ deps, input });
   assert.equal(first.changed, true);
   assert.equal(first.nextStep, "Commit deploy/publish-trust.json and deploy. It holds public keys only — there is nothing secret in it.");
-  const again = await connectDestination(deps, input);
+  const again = await connectDestination({ deps, input });
   assert.deepEqual(again, {
     identity: { installationId: "dest", workspaceId: "dest-ws", origin: "https://dest.example" },
     baseUrl: "https://dest.example", changed: false,
@@ -91,7 +94,7 @@ for (const action of ["connect", "disconnect"] as const) {
     const { deps, files, configPath, input } = connectionFixture();
     files.set(configPath, "null");
     await assert.rejects(
-      () => action === "connect" ? connectDestination(deps, input) : disconnectDestination(deps),
+      () => action === "connect" ? connectDestination({ deps, input }) : disconnectDestination({ deps }),
       { name: "PublishTrustConnectError", message: "This site's publishing settings could not be saved: grant must be a JSON object" },
     );
     assert.equal(files.get(configPath), "null");
@@ -100,9 +103,9 @@ for (const action of ["connect", "disconnect"] as const) {
 
 test("disconnecting clears the stored grant and a second disconnect is unchanged", async () => {
   const { deps, input } = connectionFixture();
-  await connectDestination(deps, input);
-  const removed = await disconnectDestination(deps);
+  await connectDestination({ deps, input });
+  const removed = await disconnectDestination({ deps });
   assert.deepEqual(removed, { changed: true, target: deps.provisioning.target });
   assert.deepEqual(await deps.provisioning.readProvisioned(), { ok: true, grants: [] });
-  assert.deepEqual(await disconnectDestination(deps), { changed: false, target: deps.provisioning.target });
+  assert.deepEqual(await disconnectDestination({ deps }), { changed: false, target: deps.provisioning.target });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { emailApi, type EmailApi, type MailTestSendResult, type MailUseRow } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 import { uniqueId } from "../../../lib/unique-id";
@@ -53,7 +53,7 @@ export function useEmailOverview(required: { api: Pick<EmailApi, "readUses" | "s
     } catch (error) {
       // 429 still carries the truthful result (duplicate or rate limited): show it, not a bare error.
       const result = error instanceof ApiError ? (error.body?.result as MailTestSendResult | undefined) : undefined;
-      setTest(result ? { kind: "done", result } : { kind: "error", message: errorMessage(error) });
+      setTest(result ? { kind: "done", result } : { kind: "error", message: errorMessage({ error }) });
     }
   }, [api, to, makeId, reloadUses]);
 

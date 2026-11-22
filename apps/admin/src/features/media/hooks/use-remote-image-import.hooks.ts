@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { parseImportUrl } from "@jini-ai/cms/media/import";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { KEYS } from "../rules";
 import { defaultMediaImportPort, type MediaImportPort } from "./media-import-dependencies.hooks";
 
@@ -61,6 +61,6 @@ export function useRemoteImageImport(
     canSubmit: validUrl && mutation.status !== "pending",
     /** Typed but not importable: shown inline so the disabled button is explained. */
     urlInvalid: url.trim() !== "" && !validUrl,
-    error: mutation.error ? describeApiError(mutation.error, required.t("Could not import media.")) : null,
+    error: mutation.error ? describeApiError({ e: mutation.error, fallback: required.t("Could not import media.") }) : null,
   };
 }

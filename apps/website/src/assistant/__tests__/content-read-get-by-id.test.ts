@@ -63,7 +63,7 @@ function recordingList(result: unknown): { handler: ToolHandler; inputs: unknown
 }
 
 function card(registrations: readonly ToolRegistration[], id: string): ToolRegistration {
-  const found = deriveContentReadRegistrations(registrations).find((registration) => registration.descriptor.id === id);
+  const found = deriveContentReadRegistrations({ sourceRegistrations: registrations }).find((registration) => registration.descriptor.id === id);
   assert.ok(found, `expected '${id}' to be derived`);
   return found;
 }
@@ -327,7 +327,7 @@ test("the real composition: every list-lookup card publishes its id as an option
     derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
-  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
   for (const [cardId, idProperty] of Object.entries(LIST_LOOKUP_ID_PROPERTIES)) {
     const schema = byId.get(cardId)?.descriptor.inputSchema as { required?: string[]; properties?: Record<string, { type?: string }> } | undefined;
     assert.ok(schema, `expected '${cardId}' in the production catalog`);

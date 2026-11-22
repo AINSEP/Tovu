@@ -250,5 +250,9 @@ const ROWS: Record<string, readonly string[]> = {
 
 /** Fixed, feature-local dictionary assembly; no requests, user collections or per-render work. */
 export const SKILLS_PAGE_DICT: Record<string, Record<string, string>> = Object.fromEntries(
-  Object.entries(ROWS).map(([locale, values]) => [locale, Object.fromEntries(KEYS.map((key, index) => [key, values[index]!]))]),
+  Object.entries(ROWS).map(([locale, values]) => [locale, Object.fromEntries(KEYS.map((key, index) => {
+    const value = values[index];
+    if (value === undefined) throw new Error(`skills dictionary ${locale} is missing ${key}`);
+    return [key, value];
+  }))]),
 );

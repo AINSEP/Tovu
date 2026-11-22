@@ -30,7 +30,7 @@ import { startLoopbackAuthorizationReceiver, type OAuthHttpPorts } from "@jini-a
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
 import { createAdminSurfacePublicConfig, PUBLIC_CONFIG_REFUSED_MESSAGE } from "../../agent-plugins/admin-surfaces/public-config.js";
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "../../agent-plugins/executable-tools/host-capabilities.js";
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "@jini-ai/agent-plugins/connect/executable";
 import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfaces/capabilities.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";
@@ -102,7 +102,7 @@ function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () =
     publicOrigin: () => siteOrigin,
   }, startLoopback === undefined ? {} : { startLoopback });
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} } });
   siteServer.removeAllListeners("request");
   siteServer.on("request", app);
   browser = trackStartingBrowser({ host });
@@ -275,16 +275,20 @@ test("security: a surface handler's HTTP reaches only the https origins its plug
   assert.deepEqual(sent, ["https://api.acme.test/me"]);
 });
 
-test("public config: only TOVU_…_APP_ID/_CLIENT_ID/_BROWSER_KEY/_PUBLIC_KEY names without secret words are read; unset reads null", async () => {
+test("public config: public Tovu names and the two exact Jini Picker settings are read; unset reads null", async () => {
   const config = createAdminSurfacePublicConfig({ env: {
-    TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_SESSION_KEY: "k", TOVU_SITE_KEY: "k", TOVU_S3_ACCESS_KEY_ID: "k", DATABASE_URL: "postgres://u:p@h/db",
+    TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET: "s".repeat(24), TOVU_SESSION_KEY: "k", TOVU_SITE_KEY: "k", JINI_S3_ACCESS_KEY_ID: "k", DATABASE_URL: "postgres://u:p@h/db",
     TOVU_SESSION_SIGNING_APP_ID: "k", TOVU_ACME_CHOOSER_APP_ID: " app-1 ",
+    JINI_GOOGLE_PICKER_APP_ID: " picker-app ", JINI_GOOGLE_PICKER_BROWSER_KEY: " browser-key ", JINI_OTHER_APP_ID: "other-app",
   } });
-  for (const name of ["TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET", "TOVU_SESSION_KEY", "TOVU_SITE_KEY", "TOVU_S3_ACCESS_KEY_ID", "DATABASE_URL", "TOVU_SESSION_SIGNING_APP_ID", "lowercase_name"]) {
-    await assert.rejects(config.get({ name }), { message: PUBLIC_CONFIG_REFUSED_MESSAGE }, name);
+  for (const name of ["TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET", "TOVU_SESSION_KEY", "TOVU_SITE_KEY", "JINI_S3_ACCESS_KEY_ID", "JINI_OTHER_APP_ID", "DATABASE_URL", "TOVU_SESSION_SIGNING_APP_ID", "lowercase_name"]) {
+    await assert.rejects(config.get({ name }), { message: PUBLIC_CONFIG_REFUSED_MESSAGE }, `public config must refuse ${name}`);
   }
   assert.equal(await config.get({ name: "TOVU_ACME_CHOOSER_APP_ID" }), "app-1");
   assert.equal(await config.get({ name: "TOVU_ACME_UNSET_APP_ID" }), null);
+  assert.equal(await config.get({ name: "JINI_GOOGLE_PICKER_APP_ID" }), "picker-app", "the exact Picker app setting must return its trimmed value");
+  assert.equal(await config.get({ name: "JINI_GOOGLE_PICKER_BROWSER_KEY" }), "browser-key", "the exact Picker browser setting must return its trimmed value");
+  assert.equal(await createAdminSurfacePublicConfig({ env: {} }).get({ name: "JINI_GOOGLE_PICKER_APP_ID" }), null, "an absent allowed Picker setting must return null");
 });
 
 test("form delivery: the credential allows only the connection's declared https API origins; an http origin refuses the declaration", async () => {

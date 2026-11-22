@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
@@ -28,7 +29,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
 /** Public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
  * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
  */
-export function registerPublicMemberSignInRequestRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
     observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {
@@ -44,14 +45,14 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
       void captureVisitorEvent({ deps: deps, request: req, name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
       res.json({ accepted: true, challengeId: prepared.challengeId });
       // Do not await per-address I/O or reflect its outcome in this anti-enumeration response.
-      setImmediate(() => { void prepared.deliver().catch(reportMemberDeliveryFailure); });
+      setImmediate(() => { void prepared.deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); });
     } catch (error) { respondToSignInError({ error, res }); }
   });
 }
 
-/** Detached failures are observable without logging addresses, bearer tokens or provider details. */
-export function reportMemberDeliveryFailure(_error: unknown): void {
-  console.error("Member authentication delivery failed after acceptance");
+/** Detached failures remain observable through private, redacted diagnostics after acceptance. */
+export function reportMemberDeliveryFailure({ error }: { error: unknown }, _optional = {}): void {
+  reportServerFailure({ error, operation: "public:member-delivery" });
 }
 
 /** Setup errors are site-wide; validation is independent of account existence.
@@ -66,5 +67,6 @@ export function respondToSignInError({ error, res }: { error: unknown; res: Resp
     return;
   }
   if (error instanceof MemberValidationError) { res.status(400).json({ error: error.message }); return; }
-  res.status(500).json({ error: "internal error" });
+  const { errorId } = reportServerFailure({ error, operation: "public:member-sign-in" }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ error: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.", errorId });
 }

@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import fs from "node:fs";
 import path from "node:path";
 import { createDurableJsonFile, createNodeDurableJsonPorts, type createNodeDirectoryWorkspace, type DurableJsonNotices, type DurableJsonPorts } from "@jini-ai/platform/fs";
@@ -28,9 +29,9 @@ export function nestedSitesCompat(
 
 /** True when an immediate child is a site; an unlistable folder contributes nothing. */
 function holdsSites({ folder }: { folder: string }, { folders }: { folders: NestedSitesFolders }): boolean {
-  try {
+  return orFallbackSync({ work: () => {
     return folders.readdirSync(folder).some((name) => folders.existsSync(path.join(folder, name, ".site-meta.json")));
-  } catch { return false; }
+  }, fallback: false, step: "Check nested sites folder" });
 }
 
 function nestedRoot(
@@ -40,12 +41,12 @@ function nestedRoot(
   const config = workspace.config({});
   if (config.overrides.sitesHome || savedHomeOrUnknown({ configPath: config.configPath }, { ports })) return undefined;
   const root = path.join(workspace.home({}), "sites");
-  try {
+  return orFallbackSync({ work: () => {
     if (!folders.lstatSync(root).isDirectory()) return undefined;
     // A real website named "sites" is a website, never a compatibility container.
     if (folders.existsSync(path.join(root, ".site-meta.json"))) return undefined;
     return root;
-  } catch { return undefined; }
+  }, fallback: undefined, step: "Resolve nested sites folder" });
 }
 
 /** Notices for the sites settings store. This probe only reads (reads never lock), so the lock

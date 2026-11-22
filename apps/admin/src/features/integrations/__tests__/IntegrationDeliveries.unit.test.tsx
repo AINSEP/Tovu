@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { displayTimestamp } from "../rules";
 import { IntegrationDeliveries } from "../IntegrationDeliveries";
 import type { IntegrationDeliveriesController } from "../hooks/use-integration-deliveries.hooks";
-import type { AdminWebhookDelivery } from "@/lib/api";
+import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file `IntegrationDeliveries` — the webhook delivery-log screen, driven through the
@@ -29,7 +29,7 @@ const DELIVERY: AdminWebhookDelivery = {
 };
 
 function baseController(overrides: Partial<IntegrationDeliveriesController> = {}): IntegrationDeliveriesController {
-  return { deliveries: [DELIVERY], error: null, t: (key: string) => key, ...overrides };
+  return { deliveries: [DELIVERY], error: null, t: ({ key }) => key, ...overrides };
 }
 
 describe("loading and error states", () => {

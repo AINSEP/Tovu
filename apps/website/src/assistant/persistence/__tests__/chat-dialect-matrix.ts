@@ -1,11 +1,12 @@
-import { after, describe } from "node:test";
+import { after, before, describe } from "node:test";
 
 import { sql } from "kysely";
 import pg from "pg";
 import { openPostgresKernel } from "@jini-ai/db/kernel/postgres";
 import { openPgliteKernel } from "@jini-ai/db/kernel/pglite";
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import type { StorageDialect, StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { StorageDialect } from "@jini-ai/core/contracts/storage";
 import { PGlite } from "@electric-sql/pglite";
 
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
@@ -22,9 +23,9 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
  * sequence.
  */
 
-let sharedPg: StorageKernel<unknown> | undefined;
+let sharedPg: KyselyKernel<unknown> | undefined;
 let migrated: Promise<unknown> | undefined;
-let sharedRealPg: StorageKernel<unknown> | undefined;
+let sharedRealPg: KyselyKernel<unknown> | undefined;
 let realPgMigrated: Promise<unknown> | undefined;
 
 /** Explicit acceptance only: a real server, guarded by a disposable database-name prefix. */
@@ -35,33 +36,49 @@ function emptiedPostgresChatKernel(): ChatKernel {
   }
   if (sharedRealPg === undefined) {
     sharedRealPg = openPostgresKernel<unknown>({ pg, connectionString });
-    realPgMigrated = migrateChatDatabase(sharedRealPg);
+    realPgMigrated = migrateChatDatabase({ kernel: sharedRealPg });
   }
   const base = sharedRealPg;
   const pending = (realPgMigrated as Promise<unknown>).then(() =>
     base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
   );
   pending.catch(() => {});
-  return heldUntil(pgChatKernel(base), pending);
+  return heldUntil(pgChatKernel({ kernel: base }), pending);
+}
+
+/** Real-Postgres sections share one `TOVU_CHAT_TEST_POSTGRES_URL` database and TRUNCATE every chat
+ *  table per make, so two test processes on that database wiped each other's rows mid-test
+ *  (combine-10 A7). Each section holds this session-level advisory lock on its own connection, so
+ *  sections run one at a time across processes; PGlite and SQLite stay per-process and unlocked. */
+const REAL_POSTGRES_CHAT_LOCK = 7_402_311;
+
+export async function holdRealPostgresChatDatabase(
+  { connectionString }: { connectionString: string },
+  _optional = {}
+): Promise<{ release: () => Promise<void> }> {
+  const client = new pg.Client({ connectionString });
+  await client.connect();
+  await client.query("SELECT pg_advisory_lock($1)", [REAL_POSTGRES_CHAT_LOCK]);
+  return { release: () => client.query("SELECT pg_advisory_unlock($1)", [REAL_POSTGRES_CHAT_LOCK]).then(() => undefined).finally(() => client.end()) };
 }
 
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
-  return sqliteKernel<ChatDatabase>(openChatDb(":memory:"));
+  return sqliteKernel<ChatDatabase>({ source: openChatDb({ filePath: ":memory:" }) });
 }
 
 /** The file's shared PGlite chat kernel, with every chat table emptied before its first call. */
 export function emptiedPgChatKernel(): ChatKernel {
   if (sharedPg === undefined) {
     sharedPg = openPgliteKernel<unknown>({ PGlite });
-    migrated = migrateChatDatabase(sharedPg);
+    migrated = migrateChatDatabase({ kernel: sharedPg });
   }
   const base = sharedPg;
   const pending = (migrated as Promise<unknown>).then(() =>
     base.execute(sql`TRUNCATE ai_chat.ai_chats, ai_chat.ai_chat_messages, ai_chat.assistant_agent_sessions, ai_chat.assistant_conversation_tool_approvals CASCADE`)
   );
   pending.catch(() => {});
-  return heldUntil(pgChatKernel(base), pending);
+  return heldUntil(pgChatKernel({ kernel: base }), pending);
 }
 
 export function describeEachChatDialect<R>(
@@ -80,7 +97,13 @@ export function describeEachChatDialect<R>(
   });
   if (process.env.TOVU_CHAT_TEST_POSTGRES_URL !== undefined) {
     describe(`${title} [real postgres]`, () => {
+      let held: { release: () => Promise<void> } | undefined;
+      before(async () => {
+        held = await holdRealPostgresChatDatabase({ connectionString: process.env.TOVU_CHAT_TEST_POSTGRES_URL as string });
+      });
       after(async () => {
+        await held?.release();
+        held = undefined;
         await sharedRealPg?.close();
         sharedRealPg = undefined;
         realPgMigrated = undefined;

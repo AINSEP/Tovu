@@ -1,5 +1,6 @@
 import type { Response } from "express";
 
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 
@@ -14,7 +15,7 @@ import type { ExternalMcpRouteDeps } from "./deps.js";
  * read route and the write routes. One implementation is what keeps them from drifting.
  *
  * `admin.integrations.manage` rather than a new permission string, for the reason
- * `mcp-federation/trust.ts` already documents for federated CALLS: it is the existing
+ * `Jini packages/mcp/src/federation/trust.ts` already documents for federated CALLS: it is the existing
  * third-party-integration permission, it is site-owner-level rather than editor-level, and a
  * deployment that has already decided who may administer external integrations should not have to
  * decide again.
@@ -29,31 +30,15 @@ const PERMISSION = "admin.integrations.manage";
  * @complexity O(1) plus one `authorize()` call.
  * @overallScore 100
  */
-export async function guardExternalMcpRequest(
-  deps: ExternalMcpRouteDeps,
-  requestedWorkspaceId: unknown,
-  res: Response,
-): Promise<boolean> {
+export async function guardExternalMcpRequest({ deps, requestedWorkspaceId, res }: { deps: ExternalMcpRouteDeps; requestedWorkspaceId: unknown; res: Response }, _optional = {}): Promise<boolean> {
   if (String(requestedWorkspaceId ?? "") !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return false;
   }
 
   const principal = getAuthedPrincipal(res);
-  const authResult = await deps.authorize({
-    principalId: principal.id,
-    permission: PERMISSION,
-    workspaceId: deps.workspaceId,
-    entityType: "integration",
-  });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for '${PERMISSION}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission: PERMISSION, reason: authResult.reason },
-    });
-    return false;
-  }
+  const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: "integration" };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return false;
 
   return true;
 }

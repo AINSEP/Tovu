@@ -1,13 +1,13 @@
-import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
-import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
+import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
-import { InMemoryPublishContentBundleRepo, stageBundle, type StagedBundleRecord } from "#src/features/publish-content/bundle-staging";
+import { InMemoryPublishContentBundleRepo, stageBundle, type StagedBundleRecord } from "@jini-ai/cms/publish/transfer";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
@@ -73,19 +73,22 @@ async function rawRowPlanDeps(t: TestContext, bundleRepo: InMemoryPublishContent
   const db = new Database(":memory:"); t.after(() => db.close());
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','Old footer');");
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
-  const kernel = contentKernel(db);
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
+  const kernel = contentKernel({ store: db });
   const live = await createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel }).read({ table: "p_banner", pk: { id: "one" } });
   assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
-    contentHash: contentHash("raw-row", state), requiredBlobs: [], state,
+    contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [], state,
     backstop: { mode: "backstop", reason: "Emergency footer fix", sourceActor: "owner", destinationHost: "live.example", gapLabels: ["table:p_banner"] } };
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z"), nowIso: () => "2026-10-04T00:00:00.000Z" };
   let serial = 0;
   const idGen = { newId: () => `id-${++serial}` };
-  const staged = await stageBundle({ workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({
+                                     input: { workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] },
+                                     deps: { repo: bundleRepo, clock, idGen }
+                                   });
   const authorize = async () => ({ allowed: true, reason: "fixture" });
   const deps = routeDeps({ contentKernel: kernel, clock, idGen, authorize, publishContentBundleRepo: bundleRepo,
     publishContentBaselineRepo: new InMemoryPublishContentBaselineRepo(), gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize }) } });

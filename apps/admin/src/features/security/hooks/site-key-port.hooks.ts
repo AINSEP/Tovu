@@ -1,11 +1,4 @@
-import type {
-  AdminGeneratedSiteKey,
-  AdminImportedSiteKey,
-  AdminRevealedSiteKey,
-  AdminSiteKeyStartFreshPreview,
-  AdminSiteKeyStatus,
-  AdminStartedFreshSiteKey,
-} from "@/lib/api";
+import type { AdminGeneratedSiteKey, AdminImportedSiteKey, AdminRevealedSiteKey, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminStartedFreshSiteKey } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file What `useSiteKey` needs from the outside world, as an interface rather than a direct
@@ -21,8 +14,8 @@ export interface SiteKeyPort {
    *  outcomes and codes. */
   generate(): Promise<AdminGeneratedSiteKey>;
   /** See `lib/api.ts`'s `importSiteKey`. Throws an `ApiError` on a refusal. */
-  importSiteKey(siteKey: string): Promise<AdminImportedSiteKey>;
+  importSiteKey(required: { siteKey: string }, optional?: Record<string, never>): Promise<AdminImportedSiteKey>;
   previewStartFresh(): Promise<AdminSiteKeyStartFreshPreview>;
   /** See `lib/api.ts`'s `startFreshSiteKey`. Throws an `ApiError` on a refusal. */
-  startFresh(confirm: string): Promise<AdminStartedFreshSiteKey>;
+  startFresh(required: { confirm: string }, optional?: Record<string, never>): Promise<AdminStartedFreshSiteKey>;
 }

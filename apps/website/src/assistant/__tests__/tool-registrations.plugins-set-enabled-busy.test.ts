@@ -14,7 +14,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
 import type { PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -38,7 +38,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * handler, "Order is load-bearing".
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 const realFsp = await import("node:fs/promises");
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../features/agent-plugins/lifecycle.js");
 // Exercise the owner's real lock-error translation, not a raw error at its preflight boundary.
@@ -104,7 +105,7 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
       layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE_ID,
     });
-    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root);
   } finally {
     behavior = realFsp.open;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
@@ -164,7 +165,7 @@ function timeoutBehavior(pid: number): typeof behavior {
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 

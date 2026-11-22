@@ -1,7 +1,8 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 /**
  * @file Shared plumbing for talking to the standalone agent daemon
- * (`src/assistant/agent-daemon-server.ts`) over HTTP — extracted from `assistant.ts` (2026-08-18,
+ * (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`) over HTTP — extracted from `assistant.ts` (2026-08-18,
  * ADR-059) so `assistant-ag-ui.ts` can reach the SAME daemon process without either duplicating
  * this file's retry/known-failed/token-header logic or building a second one. `assistant.ts`
  * itself is the only other caller and its behavior is unchanged by this extraction — every
@@ -30,7 +31,11 @@ import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
-import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 /** Optional collaborators every daemon call accepts. `observability` records each loopback request
  *  as one outbound span (method, host/port and status — never the run id, path or token); omitted,
@@ -64,7 +69,7 @@ export function outboundHeaders(req: Request, res: Response): Record<string, str
 
   // Who the daemon is being asked to act for. The bearer token above says "this is Tovu's proxy";
   // this says "and it is speaking for this admin", which is what the daemon compares against the
-  // run's recorded owner (`src/assistant/run-ownership.ts`). Safe to assert here and nowhere else:
+  // run's recorded owner (`apps/website/src/assistant/daemon-access.ts`). Safe to assert here and nowhere else:
   // every caller of this function sits behind `requireAdminSession`, so the value is always a
   // server-verified session principal and never anything the browser chose.
   headers[RUN_PRINCIPAL_HEADER] = getAuthedPrincipal(res).id;
@@ -96,7 +101,7 @@ const DAEMON_CONNECT_RETRY_INTERVAL_MS = 250;
 
 /** The socket-level code (`ECONNREFUSED`, `ECONNRESET`, …) behind a failed `fetch` — `undefined` for a
  *  daemon that answered with an error, which is a real failure and must not be retried. */
-function connectionErrorCode(error: unknown): unknown {
+function connectionErrorCode({ error }: { error: unknown }, _optional = {}): unknown {
   return (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
 }
 
@@ -184,7 +189,7 @@ function shouldRetryConnection(attempt: { code: unknown; method: string; deadlin
 
 /** Writes the terminal 502 for a genuinely unreachable daemon. The full error is kept here — this
  *  one IS a fault worth a stack, unlike the boot-window retries above. */
-function respondDaemonUnreachable(res: Response, error: unknown): null {
+function respondDaemonUnreachable({ res, error }: { res: Response; error: unknown }, _optional = {}): null {
   console.error(`[assistant] agent daemon unreachable at ${getAgentDaemonUrl()}`, error);
   daemonUnreachableSince = null;
   res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
@@ -225,6 +230,13 @@ export async function fetchAgentDaemon(
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   const send = daemonFetch(options);
 
+  return fetchDaemonWithRetries({ req, res, options }, { method, deadline, send });
+}
+
+async function fetchDaemonWithRetries(
+  { req, res, options }: { req: Request; res: Response; options: NonNullable<Parameters<typeof fetchAgentDaemon>[2]> },
+  { method, deadline, send }: { method: string; deadline: number; send: typeof fetch },
+): Promise<globalThis.Response | null> {
   for (;;) {
     try {
       // Each attempt is its own span: a boot-window refusal shows up as the failed attempts it was.
@@ -232,14 +244,21 @@ export async function fetchAgentDaemon(
       markDaemonReachable();
       return upstream;
     } catch (error) {
-      const attempt = { code: connectionErrorCode(error), method, deadline };
-      if (isUnsafeReset(attempt)) return respondOutcomeUnknown({ res, error });
-      if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable(res, error);
+      const attempt = { code: connectionErrorCode({ error }), method, deadline };
+      if (respondToDaemonConnectionFailure({ res, error }, attempt)) return null;
       noteDaemonUnreachableWaiting();
       await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
       if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
     }
   }
+}
+
+function respondToDaemonConnectionFailure(
+  failure: { res: Response; error: unknown }, attempt: { code: unknown; method: string; deadline: number },
+): boolean {
+  if (isUnsafeReset(attempt)) { respondOutcomeUnknown(failure); return true; }
+  if (!shouldRetryConnection(attempt)) { respondDaemonUnreachable(failure); return true; }
+  return false;
 }
 
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
@@ -256,12 +275,10 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
  * failure (`respondIfDaemonKnownFailed`'s 503, or a genuinely-unreachable daemon's 502) — exactly
  * the kind of write this function's callers can no longer make.
  *
- * Every outcome the daemon's own `/api/runs/:runId/cancel` route can produce is safe to ignore here
- * (`@jini-ai/http-kit`'s `runCancelRoute`/`@jini-ai/daemon`'s `RunLifecycle.cancel` — confirmed
- * against the real packages): a run already finished is an explicitly documented no-op (still
- * `200`), an unknown run id is a well-formed `404`, and neither ever rejects the `fetch()` itself —
- * only a genuine network failure (daemon down, connection reset) does that, which `.catch()` below
- * swallows for the same "nothing left to report it to" reason.
+ * The normal outcomes of the daemon's `/api/runs/:runId/cancel` route need no further action
+ * (`@jini-ai/http-kit`'s `runCancelRoute`/`@jini-ai/daemon`'s `RunLifecycle.cancel`): a finished
+ * run is a no-op (still `200`), and an unknown run id is a well-formed `404`. Other HTTP failures
+ * and network failures are logged because this response has already closed and cannot report them.
  *
  * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
  */
@@ -269,13 +286,15 @@ export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRun
   daemonFetch(optional)(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
     method: "POST",
     headers: outboundHeaders(req, res),
-  }).catch(() => undefined);
+  }).then((response) => {
+    if (!response.ok && response.status !== 404) console.error(`[assistant] Could not cancel the daemon run: HTTP ${response.status}`);
+  }).catch((error: unknown) => console.error("[assistant] Could not cancel the daemon run", describeErrorForLog({ err: error })));
 }
 
 /** The socket-level code from a raw `node:http` request error (`error.code` directly) — the
  *  `node:http` equivalent of {@link connectionErrorCode}, which reads `error.cause.code` because
  *  `fetch`'s own errors wrap the underlying cause one level deeper. */
-function nodeConnectionErrorCode(error: unknown): unknown {
+function nodeConnectionErrorCode({ error }: { error: unknown }, _optional = {}): unknown {
   return (error as { code?: unknown } | undefined)?.code;
 }
 
@@ -285,8 +304,8 @@ function nodeConnectionErrorCode(error: unknown): unknown {
  *  `fetch()`'s rejected promise, reproduced by hand here since `http.request` reports failure via an
  *  `"error"` event instead. */
 function requestDaemonEventStream(
-  target: string,
-  headers: Record<string, string>,
+  { target, headers }: { target: string; headers: Record<string, string> },
+  _optional = {},
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | { error: unknown }> {
   return new Promise((resolve) => {
     const upstreamReq = http.request(target, { method: "GET", headers }, (upstreamRes) => {
@@ -303,7 +322,7 @@ function requestDaemonEventStream(
  *
  * Node's `fetch` (undici) applies a default ~300s IDLE-body timeout to every request, refreshed only
  * by actual bytes received; the daemon's own SSE channel sends none while a tool call is parked
- * waiting on a human (`tool-surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` alone is 5 minutes,
+ * waiting on a human (`Jini packages/daemon/src/surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` alone is 5 minutes,
  * right at that default, with no heartbeat/ping anywhere in the channel to reset it) — so a
  * genuinely-still-open wait was being torn down by `fetch` as if the connection had stalled, well
  * before the daemon ever produced the model's post-tool-call answer. `node:http`'s classic
@@ -329,15 +348,15 @@ export async function fetchAgentDaemonEventStream(
   for (;;) {
     // The span covers connect to response headers, not the (possibly hours-long) stream body.
     const tracker = observability.trackOutboundCall({ method: "GET", url: target });
-    const attempt = await requestDaemonEventStream(target, headers);
+    const attempt = await requestDaemonEventStream({ target, headers });
     tracker.end("error" in attempt ? { error: attempt.error } : { statusCode: attempt.statusCode });
     if (!("error" in attempt)) {
       markDaemonReachable();
       return attempt;
     }
     // Same retry rule as `fetchAgentDaemon`; this stream is always a GET, so a reset is retried too.
-    if (!shouldRetryConnection({ code: nodeConnectionErrorCode(attempt.error), method: "GET", deadline })) {
-      return respondDaemonUnreachable(res, attempt.error);
+    if (!shouldRetryConnection({ code: nodeConnectionErrorCode({ error: attempt.error }), method: "GET", deadline })) {
+      return respondDaemonUnreachable({ res, error: attempt.error });
     }
     noteDaemonUnreachableWaiting();
     await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
@@ -352,17 +371,21 @@ export async function awaitDaemonForResponse(
 ): Promise<boolean> {
   try { await ensureReady({}, {}); return true; }
   catch (error) {
-    // One line per refused request names why (cold-start timeout, disabled site, shutdown).
-    const explicit = ipcRefusalReason({ value: error });
-    const reason = explicit !== undefined
-      ? redactSecrets({ input: explicit }) : "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.";
-    const detail = explicit !== undefined ? undefined : maskLocalPaths({ text: redactSecrets({ input: error instanceof Error ? error.message : String(error) },
-      { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
-    console.error(`[assistant] the agent daemon is not ready: ${reason}${detail ? ` Details: ${detail}` : ''}`);
-    if (respondIfDaemonKnownFailed(res, { reason, detail })) return false;
-    res.status(503).json({ error: reason, code: "AGENT_DAEMON_UNAVAILABLE", ...(detail ? { detail } : {}) });
-    return false;
+    return respondDaemonNotReady(res, error);
   }
+}
+
+function respondDaemonNotReady(res: Response, error: unknown): false {
+  // One line per refused request names why (cold-start timeout, disabled site, shutdown).
+  const explicit = ipcRefusalReason({ value: error });
+  const reason = explicit !== undefined
+    ? redactSecrets({ input: explicit }) : "The assistant could not connect to its service. Retry your message; if it keeps failing, restart the site.";
+  const detail = explicit !== undefined ? undefined : maskLocalPaths({ text: redactSecrets({ input: error instanceof Error ? error.message : String(error) },
+    { exactSecrets: [assistantDaemonToken({}, {})].filter((value): value is string => Boolean(value)) }) }).slice(0, 2048);
+  console.error(`[assistant] the agent daemon is not ready: ${reason}${detail ? ` Details: ${detail}` : ''}`);
+  if (respondIfDaemonKnownFailed(res, { reason, detail })) return false;
+  res.status(503).json({ error: reason, code: "AGENT_DAEMON_UNAVAILABLE", ...(detail ? { detail } : {}) });
+  return false;
 }
 
 /** A cold page-load bridge is passive. Explicit activation rebinds it through W4-E2.

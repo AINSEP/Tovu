@@ -14,7 +14,7 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import { createMediaBlobStore, loadBundledObjectStoreRegistry, readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
-import { trackFetch } from "#src/platform/observability/index";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -23,7 +23,7 @@ import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__
 
 /**
  * @file Proves the S3 media path as production wires it, end to end, without Docker and without any
- * real cloud account: `TOVU_MEDIA_BLOB_STORE=s3` + `TOVU_S3_*` env → `createMediaBlobStore` → the
+ * real cloud account: `TOVU_MEDIA_BLOB_STORE=s3` + `JINI_S3_*` env → `createMediaBlobStore` → the
  * bundled s3-compatible Agent Plugin's `s3_compatible` object-store provider (`@jini-ai/agent-plugins/s3-compatible`),
  * loaded from the composed bundle (as the build ships it) through `loadBundledObjectStoreRegistry`, signing with the
  * deploy host kit's SigV4 client and traced by `trackFetch` — the same ports `deps.ts` hands it.
@@ -170,12 +170,12 @@ function buildEnvS3MediaStore(required) {
     uploadsDir: required.uploadsDir,
     env: {
       TOVU_MEDIA_BLOB_STORE: "s3",
-      TOVU_S3_BUCKET: BUCKET,
-      TOVU_S3_REGION: "us-east-1",
-      TOVU_S3_ACCESS_KEY_ID: ACCESS_KEY_ID,
-      TOVU_S3_SECRET_ACCESS_KEY: SECRET_ACCESS_KEY,
-      TOVU_S3_ENDPOINT: required.endpoint,
-      TOVU_S3_KEY_PREFIX: KEY_PREFIX,
+      JINI_S3_BUCKET: BUCKET,
+      JINI_S3_REGION: "us-east-1",
+      JINI_S3_ACCESS_KEY_ID: ACCESS_KEY_ID,
+      JINI_S3_SECRET_ACCESS_KEY: SECRET_ACCESS_KEY,
+      JINI_S3_ENDPOINT: required.endpoint,
+      JINI_S3_KEY_PREFIX: KEY_PREFIX,
     },
     ports: () => ({
       host: {
@@ -233,7 +233,7 @@ test("env-selected S3 media store end to end: uploadMedia() writes to S3-compati
     input: { workspaceId: deps.workspaceId, name: `thumb-${randomUUID()}`, params: { width: 100, height: 100, format: "webp" }, owner: "core" },
   });
 
-  // The bytes really landed in the fake bucket, under TOVU_S3_KEY_PREFIX + the unchanged storage key,
+  // The bytes really landed in the fake bucket, under JINI_S3_KEY_PREFIX + the unchanged storage key,
   // signed with the env credential — not in an in-process or on-disk fallback.
   const sourceKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256: createHash("sha256").update(sourcePng).digest("hex") });
   assert.ok(fakeS3.objectKeys().includes(`${KEY_PREFIX}${sourceKey}`), `expected the original under '${KEY_PREFIX}${sourceKey}', got ${JSON.stringify(fakeS3.objectKeys())}`);

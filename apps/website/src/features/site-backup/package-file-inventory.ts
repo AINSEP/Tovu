@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
@@ -24,10 +25,19 @@ import type { PackageFileInventory } from "./share-file-policy.js";
 export async function readBundledPackageFiles(_required: Record<string, never> = {}, optional: { sourceRoot?: string } = {}): Promise<PackageFileInventory> {
   const sourceRoot = bundledSourceRoot(optional);
   const inventory = new Map<string, ReadonlyMap<string, string>>();
-  const folders = await readdir(sourceRoot, { withFileTypes: true }).catch((): Dirent[] => []);
+  const folders = await readdir(sourceRoot, { withFileTypes: true }).catch((error: unknown): Dirent[] => {
+    // An absent bundled source root is a normal installation without bundled identities.
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn("[site-backup] Could not read bundled packages", describeErrorForLog({ err: error }));
+    return [];
+  });
   for (const folder of folders) {
     if (!folder.isDirectory()) continue;
-    const packed = await packAgentPluginDirectory(path.join(sourceRoot, folder.name)).catch(() => null);
+    // An invalid bundled folder has no trusted package identity and gets ordinary file rules.
+    const packed = await packAgentPluginDirectory({ sourceDir: path.join(sourceRoot, folder.name) }).catch((error: unknown) => {
+      // A folder removed during the scan simply cannot establish trusted package identity.
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.warn("[site-backup] Could not inspect a bundled package", describeErrorForLog({ err: error }));
+      return null;
+    });
     if (packed) inventory.set(packed.sha256, await packedFileHashes({ bytes: packed.bytes }));
   }
   return inventory;
@@ -50,7 +60,7 @@ function bundledSourceRoot(optional: { sourceRoot?: string }): string {
 /** The packed archive read back with the installer's own reader. O(archive bytes). */
 async function packedFileHashes(required: { bytes: Uint8Array }): Promise<ReadonlyMap<string, string>> {
   const files = new Map<string, string>();
-  for await (const entry of createBundledSourceArchiveReader().entries(required.bytes)) {
+  for await (const entry of createBundledSourceArchiveReader().entries({ archive: required.bytes })) {
     if (entry.kind !== "file") continue;
     const hash = createHash("sha256");
     for await (const chunk of entry.openReadStream()) hash.update(chunk);

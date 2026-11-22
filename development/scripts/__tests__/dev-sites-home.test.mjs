@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { devSitesHome } from "../dev-sites-home.mjs";
-import { jiniConsumers } from "../jini-links.mjs";
+import { jiniConsumers, repoRoot as tovuRepoRoot } from "../jini-links.mjs";
 import { announceRunningDevSite } from "../dev.mjs";
 
 // No app/server is imported or started. This exercises the actual dev selection adapter.
@@ -28,7 +28,7 @@ test("dev keeps the checkout default despite Documents sites, while explicit sel
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 test("Jini linking includes the Desktop consumer that needs the shared home exports", () => {
-  const desktop = jiniConsumers().find((consumer) => consumer.dir.endsWith(path.join("apps", "desktop")));
+  const desktop = jiniConsumers({ root: tovuRepoRoot }).find((consumer) => consumer.dir.endsWith(path.join("apps", "desktop")));
   assert.ok(desktop); assert.ok(desktop.names.includes("platform"));
 });
 

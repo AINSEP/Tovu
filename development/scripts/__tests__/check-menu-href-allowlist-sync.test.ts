@@ -2,110 +2,44 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
 
 import {
   ACCEPTED_HREFS,
   REJECTED_HREFS,
   buildSharedTable,
   compareCheckers,
-  extractBalancedBraces,
-  extractSafeHrefDeclaration,
-  loadHrefChecker,
+  findLocalHrefAllowlists,
+  jiniHrefCheckers,
   runMenuHrefAllowlistSync,
   type HrefChecker,
 } from "../check-menu-href-allowlist-sync.js";
 
 /**
- * @file Direct coverage for `check-menu-href-allowlist-sync.ts` (the cross-repo behavioral-equivalence
- * gate between Jini's `isAllowedHref` and Tovu's two `safeHref` render-time copies) plus a live
- * regression assertion against the real, current source of all three.
+ * @file Direct coverage for `check-menu-href-allowlist-sync.ts` (the gate on the single href standard,
+ * Jini's `isAllowedHref`/`toAllowedHref`, plus the scan that fails when a local `safeHref` comes back)
+ * and a live regression assertion against the real, current Jini build and this checkout's source.
  *
- * See that script's own file header for the full "what this catches and why" writeup. This test file
- * additionally proves the gate mechanism ITSELF can fail (`"synthetic mismatch"` test below) — a
- * permanent, always-runnable companion to the one-off three-way RED/GREEN/RED proof captured in the
- * fix's own handoff report (which mutated the real Jini source, rebuilt, and re-ran the real script;
- * not repeated here as a live mutation because that would require a Jini rebuild inside this repo's
- * own test run, which this test suite has no business triggering).
+ * See that script's own file header for the full "what this catches and why" writeup. This file
+ * additionally proves the gate mechanism ITSELF can fail: the synthetic-mismatch and local-copy tests
+ * below, and the CLI exit-code tests.
  */
 
-// ---------------------------------------------------------------------------
-// extractBalancedBraces
-// ---------------------------------------------------------------------------
-
-test("extractBalancedBraces: a flat block with no nesting", () => {
-  const source = "prefix { a; b; } suffix";
-  const result = extractBalancedBraces(source, source.indexOf("{"));
-  assert.equal(result, "{ a; b; }");
-});
-
-test("extractBalancedBraces: nested braces (if/try inside the outer block) do not truncate early", () => {
-  const source = 'function f() { if (x) { try { y(); } catch { z(); } } return 1; } // trailing';
-  const openIndex = source.indexOf("{");
-  const result = extractBalancedBraces(source, openIndex);
-  assert.equal(result, "{ if (x) { try { y(); } catch { z(); } } return 1; }");
-});
-
-test("extractBalancedBraces: throws when the index does not point at '{'", () => {
-  assert.throws(() => extractBalancedBraces("abc", 0), /is not '\{'/);
-});
-
-test("extractBalancedBraces: throws on unbalanced input rather than returning a truncated slice", () => {
-  assert.throws(() => extractBalancedBraces("{ a; { b; }", 0), /no matching closing brace/);
-});
-
-// ---------------------------------------------------------------------------
-// extractSafeHrefDeclaration
-// ---------------------------------------------------------------------------
-
-const FIXTURE_SOURCE = `
-import type { JsonValue } from "somewhere";
-
-const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
-const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
-
-function safeHref(value: string): string {
-  if (value.startsWith("#")) return value;
-  return "#";
+function withTempRoot<T>(body: (root: string) => T): T {
+  const root = mkdtempSync(path.join(tmpdir(), "href-gate-"));
+  try {
+    return body(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
-function unrelated() {}
-`;
-
-test("extractSafeHrefDeclaration: pulls the const pair and the whole function, and the result is importable JS/TS", () => {
-  const declaration = extractSafeHrefDeclaration(FIXTURE_SOURCE, "fixture.ts");
-  assert.match(declaration, /const SAFE_HREF_RESOLUTION_BASE/);
-  assert.match(declaration, /const SAFE_HREF_RESOLUTION_ORIGIN/);
-  assert.match(declaration, /function safeHref\(value: string\): string \{/);
-  assert.match(declaration, /export \{ safeHref \};/);
-  assert.doesNotMatch(declaration, /unrelated/, "must not pull in an unrelated sibling function");
-});
-
-test("extractSafeHrefDeclaration: throws (not a silent empty result) when the const pair is missing", () => {
-  const source = 'function safeHref(value: string): string { return "#"; }';
-  assert.throws(() => extractSafeHrefDeclaration(source, "no-consts.ts"), /could not find the SAFE_HREF_RESOLUTION_BASE\/ORIGIN/);
-});
-
-test("extractSafeHrefDeclaration: preserves a URL base and its protocol normalization", () => {
-  const setup = `const SAFE_HREF_RESOLUTION_BASE = new URL("https://tovu-safehref.invalid/");
-// Parsing only: preserve HTTP's default-port normalization.
-SAFE_HREF_RESOLUTION_BASE.protocol = "http:";
-const SAFE_HREF_RESOLUTION_ORIGIN = SAFE_HREF_RESOLUTION_BASE.origin;`;
-  const source = `${setup}\nexport function safeHref(value: string): string { return value; }`;
-  const declaration = extractSafeHrefDeclaration(source, "url-base.ts");
-  assert.ok(declaration.startsWith(setup), "the extracted checker must retain the actual URL setup");
-});
-
-test("extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely", () => {
-  const source = `
-const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
-const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
-function somethingElse() {}
-`;
-  assert.throws(() => extractSafeHrefDeclaration(source, "no-fn.ts"), /could not find 'function safeHref/);
-});
+function writeSource({ root, relative, text }: { root: string; relative: string; text: string }): void {
+  const file = path.join(root, relative);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, text);
+}
 
 // ---------------------------------------------------------------------------
 // compareCheckers
@@ -118,9 +52,8 @@ test("compareCheckers: no mismatches when every checker agrees with the expected
 });
 
 /**
- * Synthetic-mismatch proof: the permanent, always-runnable companion to the fix's own live RED-2
- * three-way proof (which mutated the real Jini source and reran the real CLI). Proves the comparator
- * itself flags a divergent implementation by name, without needing a real file mutation + rebuild.
+ * Synthetic-mismatch proof: the permanent, always-runnable proof that the comparator flags a divergent
+ * implementation by name, without needing a real mutation of Jini's source plus a rebuild.
  */
 test("compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is caught and named by the comparator", () => {
   const correct: HrefChecker = (href) => href.startsWith("/");
@@ -144,7 +77,8 @@ test("buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and eve
   for (const href of ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)",
     "\u0001javascript:alert(1)", "\u0000javascript:alert(1)", "java\tscript:alert(1)",
     "java\nscript:alert(1)", "java\rscript:alert(1)", "data:text/html,<script>alert(1)</script>",
-    "vbscript:msgbox(1)", "//evil.example", "/\\evil.example", "/\t/evil.example"]) {
+    "vbscript:msgbox(1)", "//evil.example", "/\\evil.example", "/\t/evil.example",
+    "//safehref.invalid/x", "//tovu-safehref.invalid/x", "//tovu-safehref.invalid:443/x", "//tovu-safehref.invalid:80/x"]) {
     assert.ok(REJECTED_HREFS.includes(href), `missing dangerous href class: ${JSON.stringify(href)}`);
   }
   assert.equal(table.length, REJECTED_HREFS.length + ACCEPTED_HREFS.length);
@@ -157,70 +91,95 @@ test("buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and eve
 });
 
 // ---------------------------------------------------------------------------
-// loadHrefChecker — exercises the real extraction + throwaway-file + dynamic-import path against the
-// real render.ts, not a fixture, since that IS the thing this gate depends on working correctly.
+// The real Jini entry points
 // ---------------------------------------------------------------------------
 
-test("loadHrefChecker: extracts a real, callable checker from render.ts that behaves correctly", async () => {
-  const renderTsPath = path.resolve(
-    import.meta.dirname,
-    "..",
-    "..",
-    "..",
-    "apps/website/src/server/inbound/public-http/http/site/render.ts"
-  );
-  const checker = await loadHrefChecker(renderTsPath);
-  assert.equal(checker("/quickstart"), true);
-  assert.equal(checker("javascript:alert(1)"), false);
-  for (const { href, expectedAccept } of buildSharedTable()) {
-    assert.equal(checker(href), expectedAccept, JSON.stringify(href));
+test("jiniHrefCheckers: both entry points of the standard are exercised, by name", () => {
+  const checkers = jiniHrefCheckers();
+  assert.deepEqual(Object.keys(checkers).sort(), ["jini:isAllowedHref", "jini:toAllowedHref"]);
+  for (const checker of Object.values(checkers)) {
+    assert.equal(checker("/quickstart"), true);
+    assert.equal(checker("javascript:alert(1)"), false);
+    assert.equal(checker("//tovu-safehref.invalid/x"), false);
   }
-  assert.equal(checker("vbscript:msgbox(1)"), false);
 });
 
 // ---------------------------------------------------------------------------
-// Live: the real gate, today, on this checkout — this is check:menu-href-allowlist-sync's own
-// assertion, run as a normal test rather than only as a standalone CLI script.
+// findLocalHrefAllowlists
 // ---------------------------------------------------------------------------
 
-test("live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row", async () => {
-  const mismatches = await runMenuHrefAllowlistSync();
-  assert.deepEqual(mismatches, [], `href allowlist copies have drifted: ${JSON.stringify(mismatches)}`);
-});
-
-for (const scenario of ["mismatch", "extraction"] as const) {
-  test(`CLI returns nonzero for ${scenario} and reports the reason`, () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "href-cli-"));
-    const preload = path.join(dir, "source-fixture.mjs");
-    try {
-      const fixture = scenario === "extraction" ? "function deletedSafeHref() {}" :
-        FIXTURE_SOURCE.replace('if (value.startsWith("#")) return value;', 'if (value.startsWith("javascript:")) return value;');
-      writeFileSync(preload, `
-        import fs from "node:fs";
-        import { syncBuiltinESMExports } from "node:module";
-        const read = fs.readFileSync;
-        fs.readFileSync = (file, ...args) => {
-          if (String(file).endsWith("/server/inbound/public-http/http/site/render.ts")) return ${JSON.stringify(fixture)};
-          return read(file, ...args);
-        };
-        syncBuiltinESMExports();
-      `);
-      const result = spawnSync(process.execPath, ["--import", "tsx", "--import", pathToFileURL(preload).href,
-        path.resolve(import.meta.dirname, "../check-menu-href-allowlist-sync.ts")], { encoding: "utf8", timeout: 20_000 });
-      assert.ifError(result.error);
-      assert.equal(result.status, 1, result.stderr);
-      assert.doesNotMatch(result.stdout, / — ok — /);
-      if (scenario === "extraction") {
-        assert.match(result.stderr, /could not run the comparison at all.*extraction failure/);
-        assert.match(result.stderr, /could not find the SAFE_HREF_RESOLUTION_BASE/);
-      } else {
-        assert.match(result.stderr, /produced disagreement/);
-        assert.ok(result.stderr.includes('"javascript:alert(1)" (expected accept=false)'));
-        assert.ok(result.stderr.includes('"render.ts:safeHref":true'));
-        assert.ok(result.stderr.includes('"jini:isAllowedHref":false'));
-      }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+test("findLocalHrefAllowlists: finds a function, const, let and var declaration of safeHref with its line", () => {
+  withTempRoot((root) => {
+    writeSource({ root, relative: "apps/website/src/a.ts", text: "const x = 1;\nexport function safeHref(v: string) { return v; }\n" });
+    writeSource({ root, relative: "apps/admin/src/b.tsx", text: "const safeHref = (v: string) => v;\n" });
+    writeSource({ root, relative: "packages/p/src/c.ts", text: "let safeHref: (v: string) => string;\n" });
+    writeSource({ root, relative: "packages/p/src/d.ts", text: "var safeHref = null;\n" });
+    const found = findLocalHrefAllowlists({ root }).map((copy) => `${copy.file}:${copy.line}`).sort();
+    assert.deepEqual(found, [
+      path.join("apps/admin/src/b.tsx") + ":1",
+      path.join("apps/website/src/a.ts") + ":2",
+      path.join("packages/p/src/c.ts") + ":1",
+      path.join("packages/p/src/d.ts") + ":1",
+    ]);
   });
+});
+
+test("findLocalHrefAllowlists: an import, a mention, a test file, node_modules and a missing tree are not copies", () => {
+  withTempRoot((root) => {
+    writeSource({ root, relative: "apps/website/src/import.ts", text: 'import { safeHref } from "@jini-ai/cookie-consent/render";\nsafeHref(x);\n// function safeHref is gone\n' });
+    writeSource({ root, relative: "apps/website/src/__tests__/t.ts", text: "function safeHref() {}\n" });
+    writeSource({ root, relative: "apps/website/src/x.test.ts", text: "function safeHref() {}\n" });
+    writeSource({ root, relative: "apps/website/node_modules/m/index.ts", text: "function safeHref() {}\n" });
+    writeSource({ root, relative: "apps/website/src/readme.md", text: "function safeHref() {}\n" });
+    assert.deepEqual(findLocalHrefAllowlists({ root }), []);
+  });
+  withTempRoot((root) => assert.deepEqual(findLocalHrefAllowlists({ root }), []));
+});
+
+// ---------------------------------------------------------------------------
+// Live: the real gate, today, on this checkout
+// ---------------------------------------------------------------------------
+
+test("live: the Jini standard passes every table row and this checkout declares no local safeHref", () => {
+  const { mismatches, localCopies } = runMenuHrefAllowlistSync();
+  assert.deepEqual(mismatches, [], `the Jini href standard disagrees with the table: ${JSON.stringify(mismatches)}`);
+  assert.deepEqual(localCopies, [], `a local safeHref came back: ${JSON.stringify(localCopies)}`);
+});
+
+// ---------------------------------------------------------------------------
+// CLI exit codes
+// ---------------------------------------------------------------------------
+
+const SCRIPT = path.resolve(import.meta.dirname, "../check-menu-href-allowlist-sync.ts");
+
+function runCli({ root }: { root: string }): ReturnType<typeof spawnSync<string>> {
+  return spawnSync(process.execPath, ["--import", "tsx", SCRIPT, "--root", root], { encoding: "utf8", timeout: 30_000 });
 }
+
+test("CLI exits 0 and says ok on a tree with no local copy", () => {
+  withTempRoot((root) => {
+    const result = runCli({ root });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, / — ok — jini:isAllowedHref and jini:toAllowedHref agree on all \d+ table rows and no local safeHref exists/);
+  });
+});
+
+test("CLI exits 1 and names the file when a local safeHref comes back", () => {
+  withTempRoot((root) => {
+    writeSource({ root, relative: "apps/website/src/platform/html/safe-url.ts", text: "export function safeHref() {}\n" });
+    const result = runCli({ root });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stdout);
+    assert.doesNotMatch(result.stdout, / — ok — /);
+    assert.match(result.stderr, /apps\/website\/src\/platform\/html\/safe-url\.ts:1 declares its own safeHref/);
+    assert.match(result.stderr, /a local safeHref is a second href standard/);
+  });
+});
+
+test("CLI refuses --root with no value instead of scanning the default tree", () => {
+  const result = spawnSync(process.execPath, ["--import", "tsx", SCRIPT, "--root"], { encoding: "utf8", timeout: 30_000 });
+  assert.ifError(result.error);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--root needs a directory/);
+});

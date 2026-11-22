@@ -42,7 +42,7 @@ export interface PlaygroundCanvasController {
  */
 export function usePlaygroundCanvas(): PlaygroundCanvasController {
   const registerCanvas = useCallback((node: HTMLDivElement | null) => {
-    setPlaygroundRenderTarget(node);
+    setPlaygroundRenderTarget({ node });
   }, []);
 
   return { registerCanvas };

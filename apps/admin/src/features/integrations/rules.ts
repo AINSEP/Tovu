@@ -1,10 +1,13 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import { describeApiError, type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+import type { AdminWebhookDelivery, AdminWebhookSubscription } from "./api/integrations-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
+
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./integrations-i18n";
 
+import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Pure logic for the `integrations` feature — everything that computes a value rather than
  * rendering one.
@@ -24,7 +27,7 @@ import { t } from "./integrations-i18n";
  */
 export const KEYS = {
   list: ["integrations", "list"] as QueryKey,
-  deliveries: (subscriptionId: string): QueryKey => ["integration-deliveries", subscriptionId],
+  deliveries: ({ subscriptionId }: { subscriptionId: string }, _optional = {}): QueryKey => ["integration-deliveries", subscriptionId],
 };
 
 /** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
@@ -42,7 +45,7 @@ export const WEBHOOKS_RESOURCE = "webhooks";
  * @complexity Time: O(n) in the length of `raw`; space: O(k) for the k resulting topics.
  * @overallScore 100
  */
-export function parseTopics(raw: string): string[] {
+export function parseTopics({ raw }: { raw: string }, _optional = {}): string[] {
   return raw
     .split(",")
     .map((topic) => topic.trim())
@@ -72,9 +75,8 @@ export interface IntegrationRowMenuHandlers {
  * @overallScore 100
  */
 export function integrationRowMenuItems(
-  subscription: AdminWebhookSubscription,
-  handlers: IntegrationRowMenuHandlers,
-  locale: string,
+  { subscription, handlers, locale }: { subscription: AdminWebhookSubscription; handlers: IntegrationRowMenuHandlers; locale: string },
+  _optional = {},
 ): RowMenuItem[] {
   return [
     {
@@ -98,7 +100,7 @@ export function integrationRowMenuItems(
  * @overallScore 100
  */
 export function displayTimestamp(delivery: AdminWebhookDelivery): string {
-  return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { timeZone: "local" });
+  return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE });
 }
 
 /**
@@ -121,8 +123,8 @@ export function visibleIntegrationsError(params: {
   hasSubscriptions: boolean;
   locale: string;
 }): string | null {
-  if (params.toggleError) return describeApiError(params.toggleError, t({ locale: params.locale, key: "failed to update subscription" }));
-  if (params.deleteError) return describeApiError(params.deleteError, t({ locale: params.locale, key: "failed to delete subscription" }));
+  if (params.toggleError) return describeApiError({ e: params.toggleError, fallback: t({ locale: params.locale, key: "failed to update subscription" }) });
+  if (params.deleteError) return describeApiError({ e: params.deleteError, fallback: t({ locale: params.locale, key: "failed to delete subscription" }) });
   if (params.hasSubscriptions) return null;
-  return params.listError ? describeApiError(params.listError, t({ locale: params.locale, key: "failed to load integrations" })) : null;
+  return params.listError ? describeApiError({ e: params.listError, fallback: t({ locale: params.locale, key: "failed to load integrations" }) }) : null;
 }

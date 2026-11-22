@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import {
   authorFieldsPatch,
   buildPostUpdatePatch,
@@ -64,15 +64,15 @@ const WORKING: PostSaveWorkingCopy = {
 
 describe("scheduleFieldsPatch", () => {
   it("sends neither key when both match the baseline", () => {
-    expect(scheduleFieldsPatch(ORIGINAL, { publishAt: ORIGINAL.publishAt, featuredMediaId: "m1" })).toEqual({});
+    expect(scheduleFieldsPatch({ original: ORIGINAL, current: { publishAt: ORIGINAL.publishAt, featuredMediaId: "m1" } })).toEqual({});
   });
 
   it("sends an explicit null to clear a stored value", () => {
-    expect(scheduleFieldsPatch(ORIGINAL, { publishAt: null, featuredMediaId: null })).toEqual({ publishAt: null, featuredMediaId: null });
+    expect(scheduleFieldsPatch({ original: ORIGINAL, current: { publishAt: null, featuredMediaId: null } })).toEqual({ publishAt: null, featuredMediaId: null });
   });
 
   it("treats a missing baseline as nothing stored", () => {
-    expect(scheduleFieldsPatch(null, { publishAt: null, featuredMediaId: "m2" })).toEqual({ featuredMediaId: "m2" });
+    expect(scheduleFieldsPatch({ original: null, current: { publishAt: null, featuredMediaId: "m2" } })).toEqual({ featuredMediaId: "m2" });
   });
 });
 
@@ -156,10 +156,10 @@ describe("withEverPublished", () => {
 
 describe("keepNewerEdit", () => {
   it("adopts the saved value while the field still holds what was sent", () => {
-    expect(keepNewerEdit("sent", "from-server")("sent")).toBe("from-server");
+    expect(keepNewerEdit({ sent: "sent", fromSaved: "from-server" })("sent")).toBe("from-server");
   });
 
   it("keeps a value the operator typed after the save was sent", () => {
-    expect(keepNewerEdit("sent", "from-server")("newer")).toBe("newer");
+    expect(keepNewerEdit({ sent: "sent", fromSaved: "from-server" })("newer")).toBe("newer");
   });
 });

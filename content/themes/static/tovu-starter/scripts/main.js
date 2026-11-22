@@ -81,7 +81,7 @@
   /** Reads `.main-nav` into `{ label, active, children }` nodes. Handles both the engine's tree
    *  variant (`ul.menu-list > li.menu-item > a|span.menu-item-label + ul`) and the authored flat
    *  fallback (bare `<a>` children), recursively — no depth is assumed. O(n) in menu items. */
-  function readMenu(container) {
+  function readMenu({ container }, _optional = {}) {
     var list = container.querySelector(':scope > ul');
     if (!list) {
       return Array.prototype.map.call(container.querySelectorAll(':scope > a'), function (a) {
@@ -93,14 +93,14 @@
       return {
         label: li.querySelector(':scope > a, :scope > .menu-item-label'),
         active: li.classList.contains('is-active') || li.classList.contains('is-current'),
-        children: sub ? readMenu(li) : [],
+        children: sub ? readMenu({ container: li }) : [],
       };
     });
   }
 
 
   // Clones are separate targets. The server publishes their identities from the source menu.
-  function publishMobile(source, target, submenu) {
+  function publishMobile({ source, target, submenu }, _optional = {}) {
     var attribute = submenu ? 'data-visitor-submenu-handle' : 'data-visitor-mobile-handle';
     var handle = source.getAttribute(attribute);
     target.removeAttribute('data-agent-element');
@@ -119,17 +119,17 @@
   var mnavUid = 0;
   var CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 
-  function buildMenuList(items) {
+  function buildMenuList({ items }, _optional = {}) {
     var ul = document.createElement('ul');
     ul.className = 'mnav-list';
-    items.forEach(function (item) { if (item.label) ul.appendChild(buildMenuItem(item)); });
+    items.forEach(function (item) { if (item.label) ul.appendChild(buildMenuItem({ item })); });
     return ul;
   }
 
   /** One drawer row. A linkable parent keeps its link and gets a separate disclosure button; an
    *  inert parent (`span.menu-item-label`) becomes the disclosure button itself. A group starts
    *  open when it holds the current page, so the reader lands where they are. */
-  function buildMenuItem(item) {
+  function buildMenuItem({ item }, _optional = {}) {
     var li = document.createElement('li');
     li.className = 'mnav-item';
     var row = document.createElement('div');
@@ -140,13 +140,13 @@
 
     if (!item.children.length) {
       var leaf = item.label.cloneNode(true);
-      publishMobile(item.label, leaf, false);
+      publishMobile({ source: item.label, target: leaf, submenu: false });
       leaf.className = isLink ? 'mnav-link' : 'mnav-link mnav-inert';
       row.appendChild(leaf);
       return li;
     }
 
-    var sub = buildMenuList(item.children);
+    var sub = buildMenuList({ items: item.children });
     sub.id = 'mnav-sub-' + (++mnavUid);
     var open = item.active || sub.querySelector('[aria-current="page"]') !== null;
     sub.hidden = !open;
@@ -154,12 +154,12 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mnav-disclose';
-    publishMobile(item.label, btn, true);
+    publishMobile({ source: item.label, target: btn, submenu: true });
     btn.setAttribute('aria-controls', sub.id);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (isLink) {
       var link = item.label.cloneNode(true);
-      publishMobile(item.label, link, false);
+      publishMobile({ source: item.label, target: link, submenu: false });
       link.className = 'mnav-link';
       row.appendChild(link);
       btn.setAttribute('aria-label', name + ' submenu');
@@ -182,7 +182,7 @@
   /** Does the desktop row (brand + top-level items + actions) fit on one line? Measures the
    *  top-level items' own boxes, not the row's scrollWidth, because the hidden dropdown panels are
    *  absolutely positioned and would inflate any overflow measurement. */
-  function desktopNavFits(header) {
+  function desktopNavFits({ header }, _optional = {}) {
     var row = header.querySelector('.nav-row');
     var brand = header.querySelector('.brand');
     var actions = header.querySelector('.nav-actions');
@@ -204,12 +204,12 @@
     var source = header && header.querySelector('.main-nav');
     if (!toggle || !dialog || !source || typeof dialog.showModal !== 'function') return;
     var root = document.documentElement;
-    dialog.querySelector('.mnav-body').appendChild(buildMenuList(readMenu(source)));
+    dialog.querySelector('.mnav-body').appendChild(buildMenuList({ items: readMenu({ container: source }) }));
 
     var narrow = window.matchMedia('(max-width: 900px)');
     function updateCompact() {
       header.classList.remove('nav-compact');
-      if (!narrow.matches && !desktopNavFits(header)) header.classList.add('nav-compact');
+      if (!narrow.matches && !desktopNavFits({ header })) header.classList.add('nav-compact');
       var compact = narrow.matches || header.classList.contains('nav-compact');
       if (!compact && dialog.open) dialog.close();
     }

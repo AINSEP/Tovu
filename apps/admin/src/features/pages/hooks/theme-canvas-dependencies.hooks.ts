@@ -6,21 +6,30 @@ import type { ThemeCanvasPort, ThemeTokens } from "./theme-canvas-port.hooks";
  * instead of `lib/api`'s `api` client.
  */
 
-/** The live implementation — same status-check shape `post-template-dependencies.hooks.ts` uses for
+export class ThemeServerResponseError extends Error {
+  readonly status: number;
+
+  constructor({ status }: { status: number }, _options = {}) {
+    super(`the theme server responded with ${status}`);
+    this.status = status;
+  }
+}
+
+/** The live implementation — same status-check shape `apps/admin/src/components/TemplateSource/template-source-dependencies.hooks.ts` uses for
  *  the sibling `/theme-assets/...` fetch, with `.json()`/`.text()` chosen per what each method
  *  actually returns (a theme template's own markup has no reason to be valid JSON). */
 export const defaultThemeCanvasPort: ThemeCanvasPort = {
-  async fetchThemeTokens(url: string): Promise<ThemeTokens> {
+  async fetchThemeTokens({ url }: { url: string }): Promise<ThemeTokens> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
+    if (!res.ok) throw new ThemeServerResponseError({ status: res.status });
     return (await res.json()) as ThemeTokens;
   },
-  async fetchTemplateMarkup(url: string): Promise<string> {
+  async fetchTemplateMarkup({ url }: { url: string }): Promise<string> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
+    if (!res.ok) throw new ThemeServerResponseError({ status: res.status });
     return res.text();
   },
-  async warmStylesheet(url: string): Promise<void> {
+  async warmStylesheet({ url }: { url: string }): Promise<void> {
     // Best-effort only — see `ThemeCanvasPort.warmStylesheet`'s own doc. Neither a non-OK response nor
     // a network failure is reported; the real `<link>` GrapesJS loads is what surfaces a genuinely
     // broken stylesheet URL, not this warm-up.
@@ -48,12 +57,12 @@ export interface FakeThemeCanvasPortOptions {
  */
 export function createFakeThemeCanvasPort(options: FakeThemeCanvasPortOptions = {}): ThemeCanvasPort {
   return {
-    async fetchThemeTokens(url: string) {
+    async fetchThemeTokens({ url }: { url: string }) {
       const tokens = options.tokensByUrl?.[url];
       if (!tokens) throw new Error(`fake theme canvas port: nothing seeded at ${url}`);
       return tokens;
     },
-    async fetchTemplateMarkup(url: string) {
+    async fetchTemplateMarkup({ url }: { url: string }) {
       const markup = options.templatesByUrl?.[url];
       if (markup === undefined) throw new Error(`fake theme canvas port: nothing seeded at ${url}`);
       return markup;

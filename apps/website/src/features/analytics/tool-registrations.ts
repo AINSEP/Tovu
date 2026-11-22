@@ -7,13 +7,13 @@ import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { AnalyticsSinkPort, NormalizedHit } from "./index.js";
 import { analyticsAgentToolCatalog } from "./agent-tools.js";
 
 export interface AnalyticsToolDeps { authorize: AuthorizeFn; workspaceId: string; analyticsSink: AnalyticsSinkPort }
 export const analyticsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> analyticsSink.list({limit}) only; summary is an in-memory reduction.
+  // -> analyticsSink.list({}, {limit}) only; summary is an in-memory reduction.
   ["analytics_list_recent_hits", "none"],
 ]);
 
@@ -23,7 +23,7 @@ function safeHit(hit: NormalizedHit) {
 }
 
 /** Counts keys including null (direct referrers); stable count/name order, bounded to ten. O(n log n). */
-function topTen(values: Array<string | null>) {
+function topTen({ values }: { values: Array<string | null> }, _optional = {}) {
   const counts = new Map<string | null, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts].sort(([a, ac], [b, bc]) => bc - ac || (a ?? "").localeCompare(b ?? "")).slice(0, 10);
@@ -51,15 +51,15 @@ export function buildAnalyticsRegistrations(deps: AnalyticsToolDeps): ToolRegist
       const input = requireInputRecord({ input: ctx.input });
       const requested = validateRecentHitsOptions({ input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "analytics.read" }, { entityType: "analytics-hit" });
-      const window = await deps.analyticsSink.list({ limit: Math.max(1, Math.min(500, requested)) });
+      const window = await deps.analyticsSink.list({}, { limit: Math.max(1, Math.min(500, requested)) });
       const hits = window.filter(hit => input.path === undefined || hit.path === input.path).map(safeHit);
       if (!input.summarize) return { hits };
       const byDeviceClass = new Map<string, number>();
       for (const hit of hits) byDeviceClass.set(hit.deviceClass, (byDeviceClass.get(hit.deviceClass) ?? 0) + 1);
       return { hits, summary: {
         hits: hits.length,
-        byPath: topTen(hits.map(hit => hit.path)).map(([path, hits]) => ({ path, hits })),
-        byReferrerHost: topTen(hits.map(hit => hit.referrerHost)).map(([referrerHost, hits]) => ({ referrerHost, hits })),
+        byPath: topTen({ values: hits.map(hit => hit.path) }).map(([path, hits]) => ({ path, hits })),
+        byReferrerHost: topTen({ values: hits.map(hit => hit.referrerHost) }).map(([referrerHost, hits]) => ({ referrerHost, hits })),
         byDeviceClass: Object.fromEntries(byDeviceClass),
       } };
     },

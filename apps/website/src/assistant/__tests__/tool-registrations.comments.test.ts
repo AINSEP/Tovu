@@ -21,7 +21,7 @@ import {
   InMemorySettingsRepo,
 } from "../../features/settings/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";
@@ -223,13 +223,13 @@ test("the real Comments catalog and tool-registrations' independent risk classif
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id.startsWith("content_read.")) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Comments catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("comments_approve_comment", { ...catalogEntry("comments_approve_comment"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: { ...catalogEntry("comments_approve_comment"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

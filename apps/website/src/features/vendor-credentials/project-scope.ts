@@ -1,4 +1,4 @@
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Shared scope policy for custom, publish and source-control credentials. Site-owned keys
@@ -52,8 +52,9 @@ export function credentialCreateTarget<D extends WithProject>(deps: D, input: { 
   if (input.scope !== undefined && input.scope !== "site" && input.scope !== "project") throw invalid('scope must be "site" or "project"');
   const owner = deps.repo.project;
   if (!owner || input.scope === "site") return { deps, workspaceId: input.workspaceId, scope: "site" };
-  const project = credentialScopes(deps, input.workspaceId)[1]!;
+  const project = credentialScopes(deps, input.workspaceId)[1];
+  if (project === undefined) throw new Error("Project credential store has no project scope");
   // Human save adapters use the separate owner mutation port; runtime reads retain the site view.
-  if (!owner.createRepo) return project!;
-  return { ...project!, deps: { ...project!.deps, repo: owner.createRepo } as D };
+  if (!owner.createRepo) return project;
+  return { ...project, deps: { ...project.deps, repo: owner.createRepo } as D };
 }

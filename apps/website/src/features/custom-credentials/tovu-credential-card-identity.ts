@@ -5,7 +5,7 @@
  * reported, so saved cards, answer routing and the goldens stay byte-identical. Bound once here and
  * passed in by the old entries of `tool-registrations.ts` and `credential-copy-tool.ts`.
  */
-import type { CredentialCardIdentity } from './credential-tool-host.js';
+import type { CredentialCardIdentity } from '@jini-ai/integrations/credentialed-http/tools';
 
 export const tovuCredentialCardIdentity: CredentialCardIdentity = {
   uriNamespace: "tovu",

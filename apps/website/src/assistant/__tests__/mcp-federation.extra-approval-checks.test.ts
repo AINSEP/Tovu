@@ -14,7 +14,7 @@ import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -291,7 +291,7 @@ for (const word of WRITE_SHAPED_INPUT_WORDS) {
     const stores = memoryStores();
     const fingerprint = fingerprintOf(tool);
     await stores.always.upsert({ workspaceId: WORKSPACE_ID, serverId: "acme", toolName: "run_thing", fingerprint, grantedByPrincipalId: PRINCIPAL_ID, grantedAt: "2026-09-28T00:00:00.000Z" });
-    await stores.chat.grant({ conversationId: "chat-a", principalId: PRINCIPAL_ID, connectionId: "acme", toolName: "run_thing", fingerprint }, "2026-09-28T00:00:00.000Z");
+    await stores.chat.grant({ key: { conversationId: "chat-a", principalId: PRINCIPAL_ID, connectionId: "acme", toolName: "run_thing", fingerprint }, grantedAt: "2026-09-28T00:00:00.000Z" });
     const h = harness(stores, [tool]);
 
     assert.equal(await cardFor(h, "run_thing", { [word]: "x" }), null);

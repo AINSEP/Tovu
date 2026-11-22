@@ -19,10 +19,10 @@ test("admin media list and single-record response report exact stored bytes and 
   const deps = { ...createRouteDeps(), blobStore: new LocalFsBlobStore({ rootDir }) };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminMediaListRoute(app, deps);
-  registerAdminMediaUpdateRoute(app, deps);
+  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5]);
   const { media } = await uploadMedia({

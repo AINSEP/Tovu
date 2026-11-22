@@ -7,7 +7,7 @@ import { mkdtemp, readdir, rm, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
-import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";
@@ -15,7 +15,7 @@ import { buildDatabaseTransferRegistrations, contributeDatabaseTransferTools, da
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 import { openMemorySqliteKernel } from "../../../platform/db/kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -52,7 +52,7 @@ function harness(options: { allow?: boolean; ttl?: number; version?: string; can
     },
     ...overrides,
   };
-  const tools = new Map(buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges: surfaces }).map((tool) => [tool.descriptor.id, tool]));
+  const tools = new Map(buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, surfaceExchanges: surfaces }).map((tool) => [tool.descriptor.id, tool]));
   const plan = plans.save({ principalId: "owner", workspaceId: "ws", content: { connectionString: "postgresql://owner@fixture/db", destination: description, replaces: "prior-copy", snapshot: Buffer.alloc(0), snapshotAt: "x", site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [] } });
   return { tools, plan, plans, surfaces, destinations, deps, expire: () => { now = 600001; }, captures: () => captures, targetCalls: () => targetCalls };
 }
@@ -233,7 +233,7 @@ for (const location of ["sibling", "override", "missing", "corrupt"] as const) {
     if (location === "corrupt") await writeFile(path, "this is not a SQLite database");
     const content = new Database(join(h.dir, "content.db"));
     t.after(() => content.close());
-    const tools = new Map(buildDatabaseTransferRegistrations({ ...h.deps, db: content, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
+    const tools = new Map(buildDatabaseTransferRegistrations({ deps: { ...h.deps, db: content, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
     // FU-B (Codex on F6): a test-owned temp root (os.tmpdir() reads TMPDIR per call), so concurrent
     // transfers elsewhere cannot fail this check, and a removed cleanup leaves nothing in the system temp.
     const tempRoot = await mkdtemp(join(tmpdir(), "tovu-transfer-faults-"));

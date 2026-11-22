@@ -1,8 +1,9 @@
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { SKILLS_PAGE_DICT } from "./skills-page-dictionary";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Skills page and skill-install confirmation, which
  * renders both on the Skills page and inside the translated chat dock. Before this existed its

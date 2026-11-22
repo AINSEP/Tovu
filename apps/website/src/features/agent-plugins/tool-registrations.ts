@@ -1,7 +1,7 @@
 /**
  * @file Agent Plugin tool wiring for this product. The skill tool, its per-call gate, plugin search,
  * plugin memory tools and the note tool live in `@jini-ai/agent-plugins/lifecycle/host-tools`, and
- * that file carries their design notes. This file keeps the old names and signatures, binds the
+ * that file carries their design notes. This file keeps the host names, binds the
  * host-tools ports to this product (`host-tool-ports.ts`), adds this product's guidance overlays
  * (`host-plugin-guidance.ts`), and wires the static connect domain.
  */
@@ -12,6 +12,7 @@ import {
   loadInstalledAgentPluginToolSources as loadHostAgentPluginToolSources, registerInstalledAgentPluginTools as registerHostAgentPluginTools,
   type AgentPluginToolGate, type AgentPluginToolSource, type IdentifiedAgentPluginSearchCandidate,
 } from "@jini-ai/agent-plugins/lifecycle/host-tools";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
@@ -32,6 +33,7 @@ import {
 import type { AgentPluginLayout } from "./layout.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { AGENT_PLUGIN_HOST_TOOL_MESSAGES, AGENT_PLUGIN_HOST_TOOL_PERMISSIONS, agentPluginHostToolPorts } from "./host-tool-ports.js";
+import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 export type { AgentPluginSkillDetail, AgentPluginToolSource, AgentPluginToolIdentity, AgentPluginToolGate, IdentifiedAgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 export { agentPluginSearchDerivedRisk } from "@jini-ai/agent-plugins/lifecycle/host-tools";
@@ -45,7 +47,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
 }
 
 /** Every plugin tool is a pure read of already-installed content. */
-export function agentPluginToolDerivedRisk(sources: readonly AgentPluginToolSource[]): DerivedRiskByToolId {
+export function agentPluginToolDerivedRisk({ sources }: { sources: readonly AgentPluginToolSource[] }, _optional: Record<string, never> = {}): DerivedRiskByToolId {
   return hostAgentPluginToolDerivedRisk({ sources });
 }
 
@@ -70,13 +72,12 @@ export function buildAgentPluginToolRegistrations(
  * overlays.
  */
 export async function registerInstalledAgentPluginTools(
-  registry: { register: (registration: ToolRegistration) => void },
-  ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  { registry, ctx }: { registry: { register: (registration: ToolRegistration) => void }; ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy } },
   optional: HostPluginOverlayOptional = {},
 ): Promise<void> {
   await registerHostAgentPluginTools({ registry, workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx),
     withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy }, { hostGuidance: {
-    isFileRequest: ({ file }) => isHostPluginFileRequest(file),
+    isFileRequest: ({ file }) => isHostPluginFileRequest({ file }),
     deliver: (required, notice) => deliverHostPluginGuidance(required, { ...optional, ...notice }),
   } });
 }
@@ -88,26 +89,42 @@ export interface AgentPluginSearchToolDeps {
   readonly agentPluginLayout: AgentPluginLayout;
 }
 
-/** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
-export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use }, { messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES });
+type AgentPluginSearchRegistrationDeps = AgentPluginSearchToolDeps & { authorize: Parameters<typeof adaptLegacyAuthorize>[0]["authorize"] };
 
-/** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
- *  admin installed-plugin listing. */
-export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
-  return loadHostAgentPluginSearchCandidates({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
+/** "Soon" plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Jini builds the search tool's
+ *  description and has no hook for this, so Tovu appends it to both the catalog and the registration. */
+export const SOON_PLUGIN_SEARCH_NOTE = "A result with maturity 'soon' isn't ready and can't be turned on: never offer to enable, connect or use it; you may say it's coming soon.";
+function withSoonNote<T extends { readonly description?: string }>(entry: T): T {
+  return { ...entry, description: `${entry.description ?? ""} ${SOON_PLUGIN_SEARCH_NOTE}`.trim() };
 }
 
-/** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call. */
-export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchToolDeps): ToolRegistration[] {
-  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps) });
+/** `search_agent_plugin_local`'s one-entry catalog, for the contracts test and the static seam. */
+export const agentPluginSearchAgentToolCatalog: AgentToolDefinition[] = agentPluginSearchToolCatalog({ permission: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS.use }, { messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES }).map(withSoonNote);
+
+/** Every installed plugin of one workspace, enabled or not, as a search candidate. Also read by the
+ *  admin installed-plugin listing, so an unflagged plugin on Tovu's host Soon list
+ *  (`HOST_SOON_AGENT_PLUGINS`) shows as Soon there; a manifest flag still wins. */
+export async function loadAgentPluginSearchCandidates(ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout }, _optional = {}): Promise<readonly IdentifiedAgentPluginSearchCandidate[]> {
+  const candidates = await loadHostAgentPluginSearchCandidates({ workspaceId: ctx.workspaceId, ports: agentPluginHostToolPorts(ctx) });
+  return candidates.map(candidate => candidate.maturity === undefined && HOST_SOON_AGENT_PLUGINS.has(candidate.pluginId) ? { ...candidate, maturity: "soon" as const } : candidate);
+}
+
+/** The `search_agent_plugin_local` registration; its handler reads the installed plugins per call.
+ *  KNOWN GAP: Jini's handler loads its own candidates, so its results don't mark the host-listed
+ *  Soon faces until Jini gets a host-maturity port (`development/open-bugs.md`). Enabling one is
+ *  still refused in plain words. */
+export function buildAgentPluginSearchRegistrations(routeDeps: AgentPluginSearchRegistrationDeps): ToolRegistration[] {
+  return buildHostAgentPluginSearchRegistrations({ workspaceId: routeDeps.workspaceId, ports: agentPluginHostToolPorts(routeDeps),
+    requirePermission: (input, entity) => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), ...input }, entity) })
+    .map(registration => ({ ...registration, descriptor: withSoonNote(registration.descriptor) }));
 }
 
 /**
  * Contributes `search_agent_plugin_local` to the assistant's STATIC tool catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, the ordinary seam every
  * other domain's `contribute<Domain>Tools()` uses.
  */
-export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchToolDeps, unknown> {
+export function contributeAgentPluginSearchTools(): ToolContributor<AgentPluginSearchRegistrationDeps, unknown> {
   return { domain: "agent-plugin-search", build: buildAgentPluginSearchRegistrations, risk: agentPluginSearchDerivedRisk };
 }
 
@@ -152,7 +169,7 @@ export const agentPluginConnectDomainCatalog = [...agentPluginConnectAgentToolCa
 const agentPluginConnectDomainRisk: DerivedRiskByToolId = new Map([...agentPluginConnectDerivedRisk, ...pluginNoteRisk]);
 
 /** Contributes plugin sign-in and notes to the assistant's static
- *  tool catalog — called once by `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
+ *  tool catalog — called once by `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
 export function contributeAgentPluginConnectTools(): ToolContributor<AgentPluginAccessTokenToolDeps & OperatorLocaleDeps, AssistantSurfaceDeps> {
   return { domain: "agent-plugin-connect", build: buildAgentPluginConnectRegistrations, risk: agentPluginConnectDomainRisk };
 }

@@ -23,8 +23,8 @@ async function fixture({ previous = false, requireAcknowledgment }: { previous?:
   let parses = 0;
   registerAssistantOwnerGrantRoutes({ app, deps, path: "/grant", namespace, key: "policy", writeReason: "owner only", validationError: "invalid grant",
     read: async () => ({ enabled: previous, allowedToolIds: [] as string[] }),
-    parse: body => { parses++; return { enabled: body.enabled as boolean, allowedToolIds: [] as string[] }; },
-    value: settings => settings,
+    parse: ({ body }) => { parses++; return { enabled: body.enabled as boolean, allowedToolIds: [] as string[] }; },
+    value: ({ settings }) => settings,
   }, { requireAcknowledgment });
   return { parses: () => parses, repo, async put({ body, actor = "owner" }: { body: unknown; actor?: string }, _options = {}) {
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: actor };

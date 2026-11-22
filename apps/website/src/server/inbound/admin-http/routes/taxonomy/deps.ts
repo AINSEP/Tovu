@@ -6,12 +6,12 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * The 5 plain taxonomy CRUD/list routes (list, create-taxonomy, create-term, rename-term,
  * assign-terms) only ever read `workspaceId`/`authorize`/`clock`/`idGen`/`outbox` plus the 4
- * taxonomy repo ports — this is a genuine narrowing (mirrors `routes/admin/media/deps.ts`'s
+ * taxonomy repo ports — this is a genuine narrowing (mirrors `apps/website/src/server/inbound/admin-http/routes/media/deps.ts`'s
  * identical rationale), not a `RouteDeps`-widening extension.
  *
  * `postRepo` (2026-07-16, ADR-041/043/044/045 re-audit, TM-adr041-043-044-045-audit-001, Finding
  * 1 fix, reconciled into this branch post-merge): `assignTerms` now runs `validation-chain.ts`'s
- * `validateContentJoin` via `createContentTargetPorts` (`features/taxonomy/collection-term-policy.ts`),
+ * `validateContentJoin` via `createContentTargetPorts` (`Jini packages/cms/src/taxonomy/collection-term-policy.ts`),
  * whose workspace-scoped content lookup reads posts/pages through this port. `entryRepo`/
  * `contentTypeRepo` (2026-09-26): the same lookup for collection entries, and the live-collection
  * term policy.

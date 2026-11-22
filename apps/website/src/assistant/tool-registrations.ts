@@ -6,7 +6,7 @@ import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
 import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
-import type { Deps as SitesListToolDeps } from "../features/sites/list-tool.js";
+import type { SitesListToolDeps } from "../features/sites/index.js";
 /**
  * @file ADR-049 Decision 4's assembly point: the single place that composes every domain's agent
  * tools into the list registered into the assistant's `ToolRegistry` (`kernel.ts`), so a run's tool
@@ -55,7 +55,7 @@ import type { SourceControlToolDeps } from "../features/source-control/tool-regi
 import type { SiteBackupToolDeps } from "../features/site-backup/tool-registrations.js";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations.js";
 import type { AgentPluginSearchToolDeps } from "../features/agent-plugins/tool-registrations.js";
-import type { PostToolDeps } from "../features/post/tool-registrations.js";
+import type { PostToolDeps } from "../features/post/post-tool-deps.js";
 import type { PublishContentToolDeps } from "../features/publish-content/tool-registrations.js";
 import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations.js";
@@ -70,18 +70,18 @@ import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platf
 // Same pattern for `SitesToolDeps.devRestart` (OD-S1): the `npm run dev` restart channel,
 // `null` outside `dev.mjs`. Read from the env here so `features/sites` never reads `process.env` itself.
 import { devRestartPortFromEnv } from "../platform/dev-supervisor/index.js";
-import { warmSiteServerForAgent } from "../server/runtime/lifecycle/warm-site-agent.js";
+import { warmSiteServerForAgent } from "../platform/dev-host/warm-site-agent.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
-import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
-import type { SetActiveThemeToolDeps } from "../features/theme/tool-registrations.js";
+import type { ThemeToolDeps } from "../features/theme/asset-operations.js";
+import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
-import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
+import type { WorkspaceToolDeps } from "../features/workspace/index.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps, MediaTrashToolDeps } from "../features/media/tool-registrations.js";
 import type { TrashToolDeps } from "../features/trash/tool-registrations.js";
-import type { TrashItemToolDeps } from "../features/trash/index.js";
+import type { TrashItemToolDeps } from "../features/trash/trash-item-tool.js";
 import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MediaImportToolDeps } from "../features/media-import/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
@@ -95,7 +95,8 @@ import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js"
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { PeerSiteReads as GenericPeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import { createSystemClock, createRandomUuidGenerator, nowIso } from "@jini-ai/core/primitives";
+import { nowIso } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 /** Compatibility names bind neutral contracts only where the full assistant is assembled. */
@@ -132,7 +133,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
     providerConfig?: ProviderConfigSource;
   } &
   AssistantHistoryHostDeps &
-  import("../features/post/tool-registrations.js").ContentStatsToolDeps &
+  import("../features/post/content-stats-tool.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
   PermanentDeleteHostDeps &
@@ -159,8 +160,8 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   TaxonomyToolDeps &
   ThemeToolDeps &
   SetActiveThemeToolDeps &
-  import("../features/theme/tool-registrations.js").PreviewSwitcherToolDeps &
-  import("../features/theme/tool-registrations.js").TrashThemeToolDeps &
+  import("../features/theme/preview-switcher-tools.js").PreviewSwitcherToolDeps &
+  import("../features/theme/trash-theme-tool.js").TrashThemeToolDeps &
   ChangeSetToolDeps &
   WorkspaceToolDeps &
   FormsToolDeps &
@@ -205,21 +206,21 @@ const DOMAIN_SLICES: readonly ToolContributor[] = [
   { domain: "tool-gaps", build: buildToolGapsRegistrations, risk: toolGapsDerivedRisk },
   // The four in-chat UI surfaces register unconditionally. Each module explains why its
   // transport demonstration belongs in a real chat pane.
-  { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },
+  { domain: "demo-choices", build: (routeDeps, surfaces) => buildDemoChoicesRegistrations({ _routeDeps: routeDeps, surfaces }), risk: demoChoicesDerivedRisk },
   // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
   // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
-  { domain: "demo-a2ui", build: buildDemoA2uiRegistrations, risk: demoA2uiDerivedRisk },
+  { domain: "demo-a2ui", build: (routeDeps, surfaces) => buildDemoA2uiRegistrations({ _routeDeps: routeDeps, surfaces }), risk: demoA2uiDerivedRisk },
   // Proves the typed-media transport (`tool_result.media`, a hand-rolled real PNG) end to end in a
   // real chat pane — the counterpart to `demo-choices`/`demo-a2ui` proving MCP-UI/A2UI's own
   // transports. See `demo-image-tool.ts`'s own header for why the image is generated in-process
   // rather than fetched from a real image-generation service.
-  { domain: "demo-image", build: buildDemoImageRegistrations, risk: demoImageDerivedRisk },
+  { domain: "demo-image", build: (routeDeps) => buildDemoImageRegistrations({}, { _routeDeps: routeDeps }), risk: demoImageDerivedRisk },
   // General-purpose: lets the model draw ANY component the catalog knows about (basic primitives
   // plus every shadcn/recharts registry component), not a scripted fixed shape.
-  { domain: "render-ui", build: buildRenderUiRegistrations, risk: renderUiDerivedRisk },
+  { domain: "render-ui", build: (routeDeps, surfaces) => buildRenderUiRegistrations({ _routeDeps: routeDeps, surfaces }), risk: renderUiDerivedRisk },
   // Also registers the component-catalog tools for BYOK delegated execution; MCP top-level
   // registration alone does not put them in this registry. See `component-catalog-tool.ts`.
-  { domain: "component-catalog", build: buildComponentCatalogRegistrations, risk: componentCatalogDerivedRisk },
+  { domain: "component-catalog", build: (routeDeps, surfaces) => buildComponentCatalogRegistrations({ _routeDeps: routeDeps, _surfaces: surfaces }), risk: componentCatalogDerivedRisk },
   // Production choices accept the model's title/options; demo-choices uses a fixed sample.
   // See `ask-choice-tool.ts` for the separate contracts.
   { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },
@@ -276,13 +277,13 @@ function derivedRiskByToolId(contributions?: AssistantToolContributions): Derive
  * safe, and that no tool demanding a human-confirmation transport can be wired while none exists.
  * Those are properties of the whole tool surface, so the test needs the whole-surface map.
  *
- * @param toolId - The tool id to check.
- * @param catalogEntry - Its `agent-tools.ts` entry, the declared side of the comparison.
+ * @param required.toolId - The tool id to check.
+ * @param required.catalogEntry - Its `agent-tools.ts` entry, the declared side of the comparison.
  * @throws {Error} If the tool is unclassified, misclassified, or needs missing confirmation support.
  * @complexity O(1).
  * @overallScore 100
  */
-export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: AgentToolDefinition, contributions?: AssistantToolContributions): void {
+export function assertRiskMetadataIsWirable({ toolId, catalogEntry }: { toolId: string; catalogEntry: AgentToolDefinition }, { contributions }: { contributions?: AssistantToolContributions } = {}): void {
   assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId(contributions) });
 }
 
@@ -310,7 +311,20 @@ type ToolAssemblyInput = {
   policy: AssistantPermanentDeletesPolicy;
 };
 
+const ADMIN_ASSISTANT_PERMISSION_TOOL_IDS = new Set(["assistant_admin_screen_link", "search_components", "describe_component", "assistant_demo_image"]);
+
 /** Assemble domain handlers in catalog order, refusing duplicate admitted ids. */
+/** The four admin-assistant tools authorize against `admin.assistant.use`; every other registration passes through unchanged. */
+function withAdminAssistantPermission({ registration, routeDeps }: { registration: ToolRegistration; routeDeps: AssistantToolRegistryDeps }, _optional = {}): ToolRegistration {
+  return ADMIN_ASSISTANT_PERMISSION_TOOL_IDS.has(registration.descriptor.id) ? {
+    ...registration,
+    policy: { ...registration.policy, authorize: async ({ principal }) => {
+      const decision = await routeDeps.authorize({ workspaceId: routeDeps.workspaceId, principalId: principal.id, permission: "admin.assistant.use" });
+      return decision.allowed ? "allow" : "deny";
+    } },
+  } : registration;
+}
+
 function collectDomainRegistrations({ routeDeps, surfaces, contributions, policy }: ToolAssemblyInput, _optional = {}) {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
@@ -329,7 +343,7 @@ function collectDomainRegistrations({ routeDeps, surfaces, contributions, policy
         );
       }
       ownerByToolId.set(registration.descriptor.id, slice.domain);
-      registrations.push(registration);
+      registrations.push(withAdminAssistantPermission({ registration, routeDeps }));
     }
   }
 
@@ -366,15 +380,15 @@ function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, opt
   options: { includeContentReadCollapse?: boolean; contributions?: AssistantToolContributions };
   beforeLookup: ChatDeleteSurfaceDeps["assertChatDeleteAllowed"];
 }, _optional = {}): ToolRegistration[] {
-  const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations(registrations);
-  for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor(toolId), owner);
+  const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations({ sourceRegistrations: registrations });
+  for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor({ toolId: toolId }), owner);
   return options.contributions?.contentTargetInputs?.({ registrations: readRegistrations, routeDeps, beforeLookup }) ?? readRegistrations;
 }
 
 /** Build only the peer-readable CMS catalog; excluded builders must never touch peer credentials. */
 function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }: {
   peerDeps: AssistantToolRegistryDeps; surfaces: AssistantSurfaceDeps;
-  options: NonNullable<Parameters<typeof buildAssistantToolRegistrations>[2]>;
+  options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["options"]>;
   peer: NonNullable<AssistantToolRegistryDeps["peerSiteReads"]>;
   peerReadable: (input: { registration: ToolRegistration }) => boolean;
 }, _optional = {}): ToolRegistration[] {
@@ -387,17 +401,77 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
     // Adapt once after deriving cards so a card cannot resolve the same target twice.
     contentTargetInputs: undefined,
   } : undefined;
-  const raw = buildAssistantToolRegistrations(peerDeps, surfaces, {
+  const raw = buildAssistantToolRegistrations(peerDeps, { surfaces: surfaces, options: {
     ...options, targetScope: "off", includeContentReadCollapse: false,
     batchableTools: [], contributions: peerContributions,
-  });
+  } });
   // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
   // names over the same domain handlers instead of making the first caller choose its ABI.
   const rawIds = new Set(raw.map(tool => tool.descriptor.id));
-  const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
+  const combined = [...raw, ...deriveContentReadRegistrations({ sourceRegistrations: raw }).filter(tool => !rawIds.has(tool.descriptor.id))];
   const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
   return adapted.filter(registration => peerReadable({ registration }));
 }
+
+  
+function approveAssistantRegistrations(guardedRegistrations: ToolRegistration[], routeDeps: AssistantToolRegistryDeps, guardedSurfaces: ChatDeleteSurfaceDeps): ToolRegistration[] {
+  return guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
+    localeFor: async ({ ctx }, _optional = {}) => {
+      if (!routeDeps.settingsRepo) return "en";
+      const setting = await getEffectiveSetting({ deps: { repo: routeDeps.settingsRepo }, namespace: LANGUAGE_NAMESPACE, key: "locale",
+        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id } });
+      return typeof setting?.value === "string" ? setting.value : "en";
+    },
+  }));
+}
+
+
+  
+function scopeAssistantRegistrations(inputRegistrations: ToolRegistration[], { options, peer, routeDeps, surfaces, peerReadable }: { options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>['options']>; peer: AssistantToolRegistryDeps['peerSiteReads']; routeDeps: AssistantToolRegistryDeps; surfaces: AssistantSurfaceDeps; peerReadable: (input: { registration: ToolRegistration }) => boolean }): ToolRegistration[] {
+  return options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
+    registrations: [registration],
+    isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
+    resolveTarget: async ({ target, toolId, principal }) => {
+      // Installation ownership is checked BEFORE registry discovery or opening another site's files.
+      if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
+      const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
+        buildRegistrations: ({ deps: peerDeps }, _optional = {}) => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
+      });
+      if (resolved === "current") return resolved;
+      return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
+        // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
+        // identify the selected registry name; no audit sink is constructed on the target.
+        await routeDeps.toolAttemptAuditSink.append({
+          attemptId: routeDeps.idGen.newId(), executionId: ctx.executionId, workspaceId: routeDeps.workspaceId,
+          runId: ctx.run.id, toolId, principalId: principal.id, phase: "requested", at: nowIso({ clock: routeDeps.clock }),
+        }, { detail: `cross-site read: ${resolved.site.name} (${resolved.site.siteId})` });
+        return resolved.handler(ctx, optional);
+      } };
+    },
+  }, {
+    param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
+    refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
+      ? `${registration.descriptor.id} can't read another site yet.`
+      : "Writes run only on the active site. Switch with sites_switch_site first.",
+    scoped: peerReadable,
+  })) : inputRegistrations;
+}
+
+
+  // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
+  // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
+  
+function batchAssistantRegistrations(scopedRegistrations: ToolRegistration[], options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>['options']>): ToolRegistration[] {
+  return applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
+    const toolId = registration.descriptor.id;
+    if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
+    // The domain's approval lifecycle prepares all selections and asks once. Do not put the
+    // ordinary per-item batch executor around it: that would create one confirmation per item.
+    const plan = withBatchInput({ registration, tool: { toolId } }, { mode: 'plan' });
+    return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
+  });
+}
+
 
 /**
  * Builds the complete agent-tool surface for one workspace's route-deps bag.
@@ -405,7 +479,7 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
  * @param routeDeps - The same dependency bag the admin HTTP routes are built from (structurally —
  * see {@link AssistantToolRegistryDeps}), so a tool call and the equivalent human click reach
  * identical domain code.
- * @param surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
+ * @param optional.surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
  * unshared store, which is right for the many tests that build the registration list only to inspect
  * descriptors and never execute a handler. A caller that also mounts
  * `registerMcpUiToolCallsRoute` must pass its own instance — see {@link AssistantSurfaceDeps}.
@@ -420,23 +494,28 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
  */
 export function buildAssistantToolRegistrations(
   routeDeps: AssistantToolRegistryDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-  /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`/`indexedDescriptionFor`'s
-   *  own `includeDoc2query`. `includeContentReadCollapse: false` returns every domain's raw
-   *  registrations BEFORE the `content_read` collapse below — the ONLY way to reconstruct the
-   *  pre-collapse tool set now that this function performs the real collapse unconditionally by
-   *  default, needed by `development/evals/tool-search-parent-tool-read.eval.ts`'s own earlier,
-   *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
-   *  against the now-real thing. Every real caller (the two production composition roots) leaves
-   *  this at its default. */
-  options: {
-    readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
-    /** Test seam: which tools take `items` (default: every tool not on `BATCH_OPT_OUT`); lets a test batch a tool whose approval class asks. */
-    readonly batchableTools?: readonly BatchableTool[];
-    /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
-    readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
-    /** Disable only when rebuilding handlers over the host's read-only peer dependencies. */
-    readonly targetScope?: "on" | "off";
+  {
+    surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+    options = {},
+  }: {
+    surfaces?: AssistantSurfaceDeps;
+    /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`/`indexedDescriptionFor`'s
+     *  own `includeDoc2query`. `includeContentReadCollapse: false` returns every domain's raw
+     *  registrations BEFORE the `content_read` collapse below — the ONLY way to reconstruct the
+     *  pre-collapse tool set now that this function performs the real collapse unconditionally by
+     *  default, needed by `development/evals/tool-search-parent-tool-read.eval.ts`'s own earlier,
+     *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
+     *  against the now-real thing. Every real caller (the two production composition roots) leaves
+     *  this at its default. */
+    options?: {
+      readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
+      /** Test seam: which tools take `items` (default: every tool not on `BATCH_OPT_OUT`); lets a test batch a tool whose approval class asks. */
+      readonly batchableTools?: readonly BatchableTool[];
+      /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
+      readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
+      /** Disable only when rebuilding handlers over the host's read-only peer dependencies. */
+      readonly targetScope?: "on" | "off";
+    };
   } = {},
 ): ToolRegistration[] {
   const enrichedRouteDeps = enrichToolRouteDeps({ routeDeps });
@@ -463,59 +542,15 @@ export function buildAssistantToolRegistrations(
       await assertChatDeleteAllowed({ toolId: registration.descriptor.id, principalId: ctx.principal.id });
       return registration.handler(ctx, optional);
     } } : registration);
-  const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
-    localeFor: async ctx => {
-      if (!routeDeps.settingsRepo) return "en";
-      const setting = await getEffectiveSetting({ repo: routeDeps.settingsRepo }, {
-        namespace: LANGUAGE_NAMESPACE, key: "locale",
-        scopeContext: { workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id },
-      });
-      return typeof setting?.value === "string" ? setting.value : "en";
-    },
-  }));
+  const approvedRegistrations = approveAssistantRegistrations(guardedRegistrations, routeDeps, guardedSurfaces);
   // Collapse before target adapters/scoping/batching: every card item selects get/list after its
   // own normalization, and a slug is resolved only after the selected site's permission gate.
   const inputRegistrations = prepareReadRegistrations({ registrations: approvedRegistrations, ownerByToolId, routeDeps: enrichedRouteDeps, options, beforeLookup: assertChatDeleteAllowed });
   const peer = routeDeps.peerSiteReads;
   const peerReadable = ({ registration }: { registration: ToolRegistration }) => !!peer && isReadOnlyTool({ descriptor: registration.descriptor })
     && peer.readDomains.has(ownerByToolId.get(registration.descriptor.id) ?? '') && !peer.excludedReadTools?.has(registration.descriptor.id);
-  const scopedRegistrations = options.targetScope !== "off" && peer ? inputRegistrations.flatMap(registration => applyTargetScope({
-    registrations: [registration],
-    isCurrentTarget: ({ target }) => peer.isCurrentSite({ siteName: target }),
-    resolveTarget: async ({ target, toolId, principal }) => {
-      // Installation ownership is checked BEFORE registry discovery or opening another site's files.
-      if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
-      const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
-        buildRegistrations: peerDeps => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
-      });
-      if (resolved === "current") return resolved;
-      return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
-        // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
-        // identify the selected registry name; no audit sink is constructed on the target.
-        await routeDeps.toolAttemptAuditSink.append({
-          attemptId: routeDeps.idGen.newId(), executionId: ctx.executionId, workspaceId: routeDeps.workspaceId,
-          runId: ctx.run.id, toolId, principalId: principal.id, phase: "requested", at: nowIso({ clock: routeDeps.clock }),
-        }, { detail: `cross-site read: ${resolved.site.name} (${resolved.site.siteId})` });
-        return resolved.handler(ctx, optional);
-      } };
-    },
-  }, {
-    param: "site", describeParam: "Optional. Another local site's name from sites_list; reads that site instead of this one.",
-    refuseMessage: isReadOnlyTool({ descriptor: registration.descriptor })
-      ? `${registration.descriptor.id} can't read another site yet.`
-      : "Writes run only on the active site. Switch with sites_switch_site first.",
-    scoped: peerReadable,
-  })) : inputRegistrations;
-  // `items` batches wrap the APPROVED handler, so each item is classified on its own input; see
-  // `batch-tool-inputs.ts` for why the reverse order would let a batch skip an item's approval.
-  const batchedRegistrations = applyBatchInputs({ registrations: scopedRegistrations }, { tools: options.batchableTools }).map(registration => {
-    const toolId = registration.descriptor.id;
-    if (!PERMANENT_DELETE_TOOLS.some(tool => tool.id === toolId) || toolId === "trash_empty" || toolId === "deployment_ops_unset_secret") return registration;
-    // The domain's approval lifecycle prepares all selections and asks once. Do not put the
-    // ordinary per-item batch executor around it: that would create one confirmation per item.
-    const plan = withBatchInput({ registration, tool: { toolId } }, { mode: 'plan' });
-    return { ...plan, descriptor: { ...plan.descriptor, description: `${registration.descriptor.description} Batch: pass items: [{...}, ...] (up to 25) to review all targets in ONE confirmation card. No per-item asks. All inputs are prepared before confirmation; a failure during execution stops subsequent items, and earlier effects are not rolled back. Returns {batch:true,total,results}.` } };
-  });
+  const scopedRegistrations = scopeAssistantRegistrations(inputRegistrations, { options, peer, routeDeps, surfaces, peerReadable });
+  const batchedRegistrations = batchAssistantRegistrations(scopedRegistrations, options);
   if (options.includeContentReadCollapse === false) return batchedRegistrations;
   const finalRegistrations = batchedRegistrations;
   // A new collapsed card is a new registered tool too: never exempt it from the guard.

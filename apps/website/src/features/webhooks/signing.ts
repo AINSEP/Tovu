@@ -38,6 +38,6 @@ export function verifySignature(input: VerifySignatureInput): boolean {
 }
 
 /** Fixed-map host signer supplies protocol policy; production uses a keyring-backed signer. */
-export function createFixedSecretSigner(secrets: ReadonlyMap<string, Buffer>): WebhookSigner {
+export function createFixedSecretSigner({ secrets }: { secrets: ReadonlyMap<string, Buffer> }, _optional: Record<string, never> = {}): WebhookSigner {
   return createWebhookFixedSigner({ secrets, vocabulary: SIGNATURE_VOCABULARY });
 }

@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state";
@@ -94,24 +95,18 @@ const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  /**
-   * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
-   * tool lacking one). Optional to match the shared structural type; every entry in THIS catalog
-   * carries one, because every entry in this catalog is wired.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
+ * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+ * tool lacking one). Optional to match the shared structural type; every entry in THIS catalog
+ * carries one, because every entry in this catalog is wired.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /**
  * The permission gating reads in this domain. Reused rather than invented: `theme.set` is what
  * already gates the presentation/theme surface a human operator reaches
- * (`patch-active-theme.ts`, `admin/themes/list.ts`), so anyone who can already see and switch the
+ * (`patch-active-theme.ts`, `apps/website/src/server/inbound/admin-http/routes/themes/list.ts`), so anyone who can already see and switch the
  * workspace's themes can read their files.
  */
 export const THEME_READ_PERMISSION = "theme.set";
@@ -134,6 +129,8 @@ const THEME_ID_PROPERTY = {
   type: "string",
   minLength: 1,
   description: "A theme's id, exactly as returned by content_read.theme (it is also the theme's folder name).",
+  // content_read.theme lists every theme with its id (the old theme_list id is retired), so a call without it is told where to look.
+  obtainFrom: "content_read.theme",
 } as const;
 
 const RELATIVE_PATH_PROPERTY = {
@@ -337,15 +334,7 @@ const RESTORE_TRASHED_FILE_SCHEMA = {
     },
   },
 } as const;
-
-/**
- * The Themes domain's fixed agent-tool catalog — see this file's header for the withheld operations
- * and why.
- *
- * @complexity O(1) — a fixed, statically-defined list.
- * @overallScore 100
- */
-export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
+function themeDiscoveryCatalog(): AgentToolDefinition[] {
   return [
     {
       name: "theme_list_page_publications",
@@ -383,7 +372,12 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: "none",
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: LIST_FILES_SCHEMA,
-    },
+    }
+  ];
+}
+
+function themeFileEditingCatalog(): AgentToolDefinition[] {
+  return [
     {
       name: "theme_read_file",
       description:
@@ -421,7 +415,12 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESET_FILE_SCHEMA,
-    },
+    }
+  ];
+}
+
+function themeFileManagementCatalog(): AgentToolDefinition[] {
+  return [
     {
       name: "theme_rename_file",
       description:
@@ -453,6 +452,22 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESTORE_TRASHED_FILE_SCHEMA,
-    },
+    }
+  ];
+}
+
+
+/**
+ * The Themes domain's fixed agent-tool catalog — see this file's header for the withheld operations
+ * and why.
+ *
+ * @complexity O(1) — a fixed, statically-defined list.
+ * @overallScore 100
+ */
+export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
+  return [
+    ...themeDiscoveryCatalog(),
+    ...themeFileEditingCatalog(),
+    ...themeFileManagementCatalog(),
   ];
 }

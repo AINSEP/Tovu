@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
-import { describeApiError, type AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
@@ -22,18 +23,18 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  * `Integrations.tsx` actually mounts.
  *
  * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from
- * that hook, not its own `useAdminLocale()`/dictionary import): injected as this hook's second and
- * third parameters. Unlike `use-analytics.hooks.ts`'s `t`-only case, `locale` is ALSO threaded
+ * that hook, not its own `useAdminLocale()`/dictionary import): injected as required arguments.
+ * Unlike `use-analytics.hooks.ts`'s `t`-only case, `locale` is ALSO threaded
  * through here — `Integrations.tsx` passes raw `locale` (not just `t`) into `integrationRowMenuItems`
  * (`rules.ts`) and `actionsForWebhookLabel`/`deleteWebhookBody` (`integrations-i18n.tsx`), all three
- * of which take `(locale, ...)` directly rather than a bound translator, so the component still
+ * of which take `locale` directly rather than a bound translator, so the component still
  * needs the raw value — see `wired-hooks-convention.md`'s own "locale only where genuinely needed"
  * phrasing. `useIntegrations` itself never calls `t`/reads `locale` internally — both exist solely
  * to hand through to the component, same as the port.
  *
  * `@jini-ai/ui/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
  * })`; `create`/`togglePause`/`delete` are three independent `useFetchMutation`s that each
- * `invalidates: [KEYS.list]` — same three-independent-writes shape `redirects/hooks/use-
+ * `invalidates: [KEYS.list]` — same three-independent-writes shape `Jini packages/admin/src/redirects/react/hooks/use-
  * redirects.hooks.ts` (the pilot) established. `formError` (the create form's own inline error) is
  * a direct read of `createMutation.error` — it needs no `clearOtherWriteErrors` treatment since it
  * has no sibling on that channel and a mutation's own `.error` clears itself the next time `mutate`
@@ -73,49 +74,61 @@ export interface IntegrationsController {
   onDelete: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `Integrations.tsx`
    *  never imports `useAdminLocale`/`integrations-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: (required: { key: string }, optional?: Record<string, never>) => string;
   /** Raw resolved locale — needed alongside `t` because `rules.ts`/`integrations-i18n.tsx` expose
    *  a few helpers that take `(locale, ...)` directly rather than a bound translator. See this
    *  file's header. */
   locale: string;
 }
 
-export function useIntegrations(port: IntegrationsPort, t: (key: string) => string, locale: string): IntegrationsController {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listIntegrationSubscriptions() });
-
-  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
-  // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
-  // note.
-  const invalidate = useInvalidate();
-  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(WEBHOOKS_RESOURCE, invalidateList);
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [targetUrl, setTargetUrl] = useState("");
-  const [topics, setTopics] = useState("");
-  // The subscription a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog
-  // is closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment
-  // on why); this is what drives its `open` prop.
-  const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscription | null>(null);
-
-  const createMutation = useFetchMutation({
-    run: ({ input }: { input: { label: string; targetUrl: string; topics: string[] } }) => port.createIntegrationSubscription(input),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const toggleMutation = useFetchMutation({
-    run: ({ input: subscription }: { input: AdminWebhookSubscription }) =>
-      port.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" }),
-  }, {
-    invalidates: [KEYS.list],
-  });
-  const deleteMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.deleteIntegrationSubscription(id),
-  }, {
-    invalidates: [KEYS.list],
+export function useIntegrations({ port, t, locale }: { port: IntegrationsPort; t: (required: { key: string }, optional?: Record<string, never>) => string; locale: string }, _optional = {}): IntegrationsController {
+  const {
+    list, formOpen, setFormOpen, label, setLabel, targetUrl, setTargetUrl, topics, setTopics, pendingDelete, setPendingDelete, createMutation, toggleMutation,
+    deleteMutation,
+  } = useIntegrationsState({ port });
+  const { onCreate, onTogglePause, onDelete } = createIntegrationActions({
+    toggleMutation, deleteMutation, createMutation, label, targetUrl, topics, setLabel, setTargetUrl, setTopics, setFormOpen, pendingDelete, setPendingDelete,
   });
 
+  const subscriptions = list.data?.subscriptions ?? null;
+  const formError = createMutation.error ? describeApiError({ e: createMutation.error, fallback: "failed to create subscription" }) : null;
+  const error = visibleIntegrationsError({
+    toggleError: toggleMutation.error,
+    deleteError: deleteMutation.error,
+    listError: list.error,
+    hasSubscriptions: subscriptions !== null,
+    locale,
+  });
+
+  return {
+    subscriptions,
+    error,
+    formOpen,
+    setFormOpen,
+    label,
+    setLabel,
+    targetUrl,
+    setTargetUrl,
+    topics,
+    setTopics,
+    saving: createMutation.status === "pending",
+    formError,
+    pendingDelete,
+    setPendingDelete,
+    deleting: deleteMutation.status === "pending",
+    onCreate,
+    onTogglePause,
+    onDelete,
+    t,
+    locale,
+  };
+}
+
+function createIntegrationActions(
+  { toggleMutation, deleteMutation, createMutation, label, targetUrl, topics, setLabel, setTargetUrl, setTopics, setFormOpen, pendingDelete, setPendingDelete }:
+    Pick<ReturnType<typeof useIntegrationsState>, "toggleMutation" | "deleteMutation" | "createMutation" | "label" | "targetUrl" | "topics" | "setLabel"
+    | "setTargetUrl" | "setTopics" | "setFormOpen" | "pendingDelete" | "setPendingDelete">
+) {
   // Only toggle/delete share the page-level `error` banner below — see this file's own header for
   // why `createMutation`'s failure has no sibling to clear here (it drives `formError` alone).
   function clearOtherPageErrors(active: { reset: () => void }) {
@@ -125,7 +138,7 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await createMutation.mutate({ input: { label, targetUrl, topics: parseTopics(topics) } });
+      await createMutation.mutate({ input: { label, targetUrl, topics: parseTopics({ raw: topics }) } });
       setLabel("");
       setTargetUrl("");
       setTopics("");
@@ -160,38 +173,50 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
       setPendingDelete(null);
     }
   }
+  return { onCreate, onTogglePause, onDelete };
+}
 
-  const subscriptions = list.data?.subscriptions ?? null;
-  const formError = createMutation.error ? describeApiError(createMutation.error, "failed to create subscription") : null;
-  const error = visibleIntegrationsError({
-    toggleError: toggleMutation.error,
-    deleteError: deleteMutation.error,
-    listError: list.error,
-    hasSubscriptions: subscriptions !== null,
-    locale,
+function useIntegrationsState(
+  { port }:
+    Pick<Parameters<typeof useIntegrations>[0], "port">
+) {
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listIntegrationSubscriptions() });
+
+  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
+  // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
+  // note.
+  const invalidate = useInvalidate();
+  const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
+  useContentRefreshSubscription({ resource: WEBHOOKS_RESOURCE, onRefresh: invalidateList });
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
+  const [topics, setTopics] = useState("");
+  // The subscription a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog
+  // is closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment
+  // on why); this is what drives its `open` prop.
+  const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscription | null>(null);
+
+  const createMutation = useFetchMutation({
+    run: ({ input }: { input: { label: string; targetUrl: string; topics: string[] } }) => port.createIntegrationSubscription(input),
+  }, {
+    invalidates: [KEYS.list],
   });
-
+  const toggleMutation = useFetchMutation({
+    run: ({ input: subscription }: { input: AdminWebhookSubscription }) =>
+      port.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" }),
+  }, {
+    invalidates: [KEYS.list],
+  });
+  const deleteMutation = useFetchMutation({
+    run: ({ input: id }: { input: string }) => port.deleteIntegrationSubscription({ id }),
+  }, {
+    invalidates: [KEYS.list],
+  });
   return {
-    subscriptions,
-    error,
-    formOpen,
-    setFormOpen,
-    label,
-    setLabel,
-    targetUrl,
-    setTargetUrl,
-    topics,
-    setTopics,
-    saving: createMutation.status === "pending",
-    formError,
-    pendingDelete,
-    setPendingDelete,
-    deleting: deleteMutation.status === "pending",
-    onCreate,
-    onTogglePause,
-    onDelete,
-    t,
-    locale,
+    list, formOpen, setFormOpen, label, setLabel, targetUrl, setTargetUrl, topics, setTopics, pendingDelete, setPendingDelete, createMutation, toggleMutation,
+    deleteMutation,
   };
 }
 
@@ -206,6 +231,6 @@ export function useIntegrations(port: IntegrationsPort, t: (key: string) => stri
  */
 export function useWiredIntegrations(): IntegrationsController {
   const locale = useAdminLocale();
-  const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useIntegrations(defaultIntegrationsPort, t, locale);
+  const t = ({ key }: { key: string }, _optional = {}): string => defaultT({ locale, key });
+  return useIntegrations({ port: defaultIntegrationsPort, t: t, locale: locale });
 }

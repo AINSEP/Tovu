@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /**
  * Tovu daemon wiring over @jini-ai/sidecar/supervisor and its /node process adapter.
  * Tovu owns environment,
@@ -16,9 +17,10 @@
  * that might expose secrets. Registry ownership and production tree cleanup belong to the
  * Node adapter; this host supplies the site-scoped registry path and launch identity.
  */
+import { nodeCommandShell, nodeProcessControl } from "@jini-ai/node-adapters/process";
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { currentAgentDaemonToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
-import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../boot/startup-secrets.js';
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '@tovu/contracts/startup-secret-keys';
 import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,
@@ -28,17 +30,19 @@ import {
   type NodeIpcPeer,
   splitNodeStartupSecrets,
 } from "@jini-ai/sidecar/supervisor/node";
-import { daemonConnection, siteIdleStopReply, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
+import { daemonConnection, siteIdleStopReply, daemonControlRequest } from "@tovu/contracts/daemon-connection";
+import { delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
-import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
-import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv, refreshAgentDaemonPort } from "./agent-daemon-port.js";
 import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./assistant-daemon-registry.js";
-import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
 /**
@@ -83,7 +87,7 @@ export interface DaemonSupervisorDeps {
   /** win32-only tree-kill for the injected Node-child seam instead of the POSIX process-group signal
    *  (`process.kill(-pid, "SIGTERM")`), which Windows has no equivalent for. Defaults to
    *  {@link taskkillTree} (`taskkill /pid <pid> /T /F`); never called on POSIX. */
-  killTree?: (pid: number) => void;
+  killTree?: (required: { pid: number }, optional?: Record<string, never>) => void;
   /** When `true`, the ROUTINE lifecycle lines — the first spawn and a deliberate (shutdown/restart)
    *  exit — are not printed; an unexpected exit and every respawn still are, since those are what an
    *  operator correlates a dead chat against. Defaults to {@link isDaemonLifecycleLogQuiet} (`TOVU_DAEMON_LIFECYCLE_LOG=off`),
@@ -143,14 +147,14 @@ export interface DaemonSupervisor {
  * @param pid the child's own pid (never negated — there is no process-group id to negate on win32).
  * @complexity One OS command; the OS walks the process tree.
  */
-function taskkillTree(pid: number): void {
+function taskkillTree({ pid }: { pid: number }, _optional = {}): void {
   const executable = path.win32.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe");
   execFileSync(executable, ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
 }
 
 /** Same reasoning `index.ts` used for EADDRINUSE specifically: naming the real cause here is what
  *  turns an unexplained "exited unexpectedly (code 1)" into something an operator can act on. */
-function computeExitReasonCode(code: number | null, signal: NodeJS.Signals | null, daemonPort: string): string {
+function computeExitReasonCode({ code, signal, daemonPort }: { code: number | null; signal: NodeJS.Signals | null; daemonPort: string }, _optional = {}): string {
   if (code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE) {
     return `agent daemon could not bind 127.0.0.1:${daemonPort} — address already in use`;
   }
@@ -158,7 +162,7 @@ function computeExitReasonCode(code: number | null, signal: NodeJS.Signals | nul
 }
 
 /** Tovu's final readiness wording distinguishes repeated bind failures from general crash loops. */
-function buildGiveUpReasonCode(decision: Extract<RespawnDecision, { action: "give-up" }>, lastReasonCode: string, daemonPort: string): string {
+function buildGiveUpReasonCode({ decision, lastReasonCode, daemonPort }: { decision: Extract<RespawnDecision, { action: "give-up" }>; lastReasonCode: string; daemonPort: string }, _optional = {}): string {
   if (decision.kind === "port-conflict") {
     return (
       `gave up after ${decision.attempts} attempts trying to bind 127.0.0.1:${daemonPort} — likely a zombie ` +
@@ -185,7 +189,7 @@ function adaptDaemonProcess({ child }: { child: SpawnedDaemonProcess }): Sidecar
 }
 
 /** Bind the package's spawn-failure wording to Tovu's existing readiness message. */
-function formatFailureReason(reason: string): string {
+function formatFailureReason({ reason }: { reason: string }, _optional = {}): string {
   const prefix = "failed to start daemon: ";
   if (reason.startsWith(prefix)) {
     return `failed to start the agent daemon — the assistant will be unavailable: ${reason.slice(prefix.length)}`;
@@ -216,35 +220,18 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
     scheduler: options.scheduler ?? createNodeSupervisorScheduler({}),
     classifyExit: ({ code, signal }) => ({
       isPortConflict: code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE,
-      reason: computeExitReasonCode(code, signal, daemonPort),
+      reason: computeExitReasonCode({ code, signal, daemonPort }),
     }),
     failureReporter: {
       clear: clearAssistantDaemonFailure,
-      record: ({ reason }) => recordAssistantDaemonFailure(formatFailureReason(reason)),
+      record: ({ reason }) => recordAssistantDaemonFailure({ reasonCode: formatFailureReason({ reason }) }),
     },
-    logger: {
-      emit(event) {
-        if (event.type === "failure") {
-          console.error(`[daemon-supervisor] ${formatFailureReason(event.reason)}`);
-          return;
-        }
-        const at = new Date(event.at).toISOString();
-        if (event.type === "spawn") {
-          log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
-          return;
-        }
-        if (event.code === AGENT_DAEMON_EXIT_CODE.IDLE_PARK) {
-          log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} parked after idle`);
-          return;
-        }
-        log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
-      },
-    },
+    logger: daemonSupervisorLogger(log),
   }, {
     parkedExitCodes: [AGENT_DAEMON_EXIT_CODE.IDLE_PARK],
     onDemandCooldownMs: options.onDemandCooldownMs ?? 30_000,
     quietRoutineLifecycle: options.quietRoutineLifecycle ?? isDaemonLifecycleLogQuiet(),
-    formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode(decision, lastReason, daemonPort),
+    formatGiveUp: ({ decision, lastReason }) => buildGiveUpReasonCode({ decision, lastReasonCode: lastReason, daemonPort }),
   });
   return {
     ...supervisor,
@@ -274,7 +261,7 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     terminateProcess({ child }) {
       if (child.pid === undefined) return;
       try {
-        if (platform === "win32") killTree(child.pid);
+        if (platform === "win32") killTree({ pid: child.pid });
         else process.kill(-child.pid, "SIGTERM");
       } catch {
         try { child.kill({}, { signal: "SIGTERM" }); } catch { /* already gone */ }
@@ -391,7 +378,7 @@ export function buildDaemonSpawnArgs(input: { daemonPath: string; workspaceId: s
  *
  * @complexity O(1) — one indexOf plus one boundary check.
  */
-export function isDaemonProcessForWorkspace(commandLine: string, workspaceId: string): boolean {
+export function isDaemonProcessForWorkspace({ commandLine, workspaceId }: { commandLine: string; workspaceId: string }, _optional = {}): boolean {
   const token = `--workspace ${workspaceId}`;
   const start = commandLine.indexOf(token);
   if (start === -1) return false;
@@ -428,6 +415,7 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
     delete launch.secrets.JINI_DESKTOP_RENDER_TOKEN;
     return createNodeDaemonProcessAdapter({
       command: process.execPath,
+      process: nodeProcessControl, commandShell: nodeCommandShell({ env: process.env }),
       // Preload awaits pruning before tsx starts; keep the supervisor's synchronous child contract.
       // `--import tsx` instead of `tsx/cli`: the CLI relaunches a second node, one more process per site.
       // Every --import is a file URL; a bare `C:\` path is read as a URL scheme on Windows.
@@ -448,9 +436,9 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
       registry,
     }, { ...optional, startupSecrets: launch.secrets,
       stdout: createRedactedOutputSink({ sink: optional.stdout ?? process.stdout,
-        redact: text => redactLocalText({ text }) }),
+        redact: redactLocalText }),
       stderr: createRedactedOutputSink({ sink: optional.stderr ?? process.stderr,
-        redact: text => redactLocalText({ text }) }),
+        redact: redactLocalText }),
       platform: process.platform,
     });
   }
@@ -468,7 +456,7 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
 // Module-singleton wrapper: the only place in this file that touches real process.on.
 // Boot registers without spawning; restart and demand callers share the readiness-gated lifecycle.
 let singleton: DaemonSupervisor | undefined;
-let delegated: { ready(): Promise<void>; isReady(): boolean; parking(pid: number): void; stop(): Promise<void> } | undefined;
+let delegated: { ready(): Promise<void>; isReady(): boolean; parking(required: { pid: number }, optional?: Record<string, never>): void; stop(): Promise<void> } | undefined;
 let idleStopHook: (() => Promise<{ idle: boolean }>) | undefined;
 
 /** Serving composition alone registers idle authority. No hook (exports/local-only boots) is busy.
@@ -564,12 +552,7 @@ function registerDelegatedDaemon({ input, parent }: {
     return {};
   } });
   let pending: Promise<void> | undefined;
-  const config: { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } = { siteId: input.workspaceId, token: currentToolExecToken(), env: {
-    ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
-    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
-    TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
-    ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
-  } };
+  const config: { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } = delegatedDaemonConfig(input);
   // The private credential is a separate IPC field, never inherited by a later CLI child.
   delete config.env[TOOL_EXEC_TOKEN_ENV_VAR];
   delegated = {
@@ -593,9 +576,9 @@ function registerDelegatedDaemon({ input, parent }: {
       })().finally(() => { pending = undefined; });
     },
     isReady: () => ready && parent.connected === true,
-    parking(pid) {
+    parking({ pid }, _optional = {}) {
       ready = false;
-      void channel.request({ payload: { operation: "parking", pid } }, {}).catch(() => {});
+      void channel.request({ payload: { operation: "parking", pid } }, {}).catch((error: unknown) => console.error("[daemon-supervisor] Could not report daemon parking", describeErrorForLog({ err: error })));
     },
     async stop() {
       ready = false;
@@ -628,7 +611,7 @@ export function startAssistantDaemon(
     return;
   }
 
-  const parent = options.parentIpc ?? (process.send && process.env[DESKTOP_AGENT_SERVICE_ENV] === '1' ? process : false);
+  const parent = delegationParent({ parentIpc: options.parentIpc });
   if (parent) {
     registerDelegatedDaemon({ input, parent }, options);
     return;
@@ -657,18 +640,7 @@ export function startAssistantDaemon(
     const record = await (options.readDiscovery ?? (() => readPreviousAssistantDaemon({ siteDir: input.siteDir }, {})))();
     return record !== null && record.pid === pid;
   } };
-  let supervisor: DaemonSupervisor;
-  if (options.spawnDaemonProcess !== undefined) {
-    const spawnDaemonProcess = options.spawnDaemonProcess;
-    supervisor = createDaemonSupervisor({
-      spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
-      daemonPort: daemonPortOverride,
-      readiness,
-      scheduler: options.scheduler,
-    });
-  } else {
-    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort: daemonPortOverride, readiness, scheduler: options.scheduler });
-  }
+  const supervisor = spawningSupervisor({ spawnEnv, daemonPort: daemonPortOverride, readiness }, options);
   singleton = supervisor;
   // Registration is cold. Demand callers await seeders and discovery through ensureReady.
 
@@ -683,6 +655,28 @@ export function startAssistantDaemon(
       process.exit(0);
     });
   }
+}
+
+/** The desktop agent service's inherited IPC parent when this process delegates; false keeps local supervision. */
+function delegationParent({ parentIpc }: { parentIpc?: NodeIpcPeer | false }, _optional = {}): NodeIpcPeer | false {
+  return parentIpc ?? (process.send && process.env[DESKTOP_AGENT_SERVICE_ENV] === '1' ? process : false);
+}
+
+/** The local supervisor over the test spawn seam when given, else over the real process ports. */
+function spawningSupervisor(
+  { spawnEnv, daemonPort, readiness }: { spawnEnv: DaemonSpawnEnvInput; daemonPort: string | undefined; readiness: DaemonSupervisorRequired["readiness"] },
+  options: Pick<StartAssistantDaemonOptions, "spawnDaemonProcess" | "nativeSpawn" | "scheduler"> = {},
+): DaemonSupervisor {
+  if (options.spawnDaemonProcess !== undefined) {
+    const spawnDaemonProcess = options.spawnDaemonProcess;
+    return createDaemonSupervisor({
+      spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
+      daemonPort,
+      readiness,
+      scheduler: options.scheduler,
+    });
+  }
+  return bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort, readiness, scheduler: options.scheduler });
 }
 
 /**
@@ -716,7 +710,7 @@ export function restartAssistantDaemon(): RestartAssistantDaemonResult {
   }
   if (shutdownRequested) return { ok: false, reason: "shutting down" };
   const supervisor = singleton;
-  void prepareStart?.().then(async () => { supervisor.restart(); await supervisor.ensureReady({}, {}); }).catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+  void prepareStart?.().then(async () => { supervisor.restart(); await supervisor.ensureReady({}, {}); }).catch((error: unknown) => recordAssistantDaemonFailure({ reasonCode: String(error) }));
   return { ok: true };
 }
 
@@ -724,7 +718,7 @@ export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
 
 /**
  * The on-demand/lazy-start seam — see this file's own header for the full rationale. Intended
- * caller: `server/modules/assistant.ts`'s daemon-proxy code, at the point it discovers the daemon
+ * caller: `apps/website/src/server/runtime/composition/modules/assistant.ts`'s daemon-proxy code, at the point it discovers the daemon
  * is unreachable, so a request that needs the assistant can trigger recovery itself instead of the
  * assistant staying down until an operator notices and either restarts Tovu or presses the manual
  * restart action. Single-flight and cooldown-guarded — safe to call on every such request, not
@@ -732,7 +726,7 @@ export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
  */
 export function ensureAssistantDaemonStarted(): EnsureAssistantDaemonStartedResult {
   if (delegated && !shutdownRequested) {
-    void delegated.ready().catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+    void delegated.ready().catch((error: unknown) => recordAssistantDaemonFailure({ reasonCode: String(error) }));
     return { ok: true };
   }
   if (singleton === undefined) {
@@ -740,7 +734,7 @@ export function ensureAssistantDaemonStarted(): EnsureAssistantDaemonStartedResu
   }
   if (shutdownRequested) return { ok: false, reason: "shutting down" };
   const supervisor = singleton;
-  void prepareStart?.().then(() => supervisor.ensureReady({}, {})).catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+  void prepareStart?.().then(() => supervisor.ensureReady({}, {})).catch((error: unknown) => recordAssistantDaemonFailure({ reasonCode: String(error) }));
   return { ok: true };
 }
 
@@ -771,6 +765,36 @@ export function isAssistantDaemonReady(): boolean {
  * concurrent demand shares its one replacement instead of colliding with the retiring listener.
  * @complexity O(1). No signal or process kill; graceful teardown is already running in the child. */
 export function noteAssistantDaemonParking(required: { pid: number }, _optional = {}): void {
-  delegated?.parking(required.pid);
+  delegated?.parking({ pid: required.pid });
   singleton?.markParking(required, {});
+}
+
+function daemonSupervisorLogger(log: (line: string) => void): NonNullable<Parameters<typeof createSidecarSupervisor>[0]["logger"]> {
+  return {
+      emit(event) {
+        if (event.type === "failure") {
+          console.error(`[daemon-supervisor] ${formatFailureReason({ reason: event.reason })}`);
+          return;
+        }
+        const at = new Date(event.at).toISOString();
+        if (event.type === "spawn") {
+          log(`[daemon-supervisor] ${at} spawned agent daemon pid=${event.pid ?? "unknown"}`);
+          return;
+        }
+        if (event.code === AGENT_DAEMON_EXIT_CODE.IDLE_PARK) {
+          log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} parked after idle`);
+          return;
+        }
+        log(`[daemon-supervisor] ${at} agent daemon pid=${event.pid ?? "unknown"} exited (code=${String(event.code)}, signal=${String(event.signal)}, deliberate=${event.deliberate}) — any run in flight died with it`);
+      },
+    };
+}
+
+function delegatedDaemonConfig(input: Parameters<typeof registerDelegatedDaemon>[0]["input"]): { siteId: string; token: string | undefined; env: NodeJS.ProcessEnv } {
+  return { siteId: input.workspaceId, token: currentToolExecToken(), env: {
+    ...process.env, TOVU_SITE_DIR: input.siteDir, TOVU_WORKSPACE: input.workspaceId,
+    TOVU_SITE_CALLBACK_ORIGIN: input.siteCallbackOrigin ?? input.siteApiOrigin,
+    TOVU_SITE_LISTENER_ORIGIN: input.siteApiOrigin, TOVU_SITE_PROCESS_CWD: process.cwd(),
+    ...(input.pgSocketPath ? { TOVU_PG_SOCKET: input.pgSocketPath } : {}),
+  } };
 }

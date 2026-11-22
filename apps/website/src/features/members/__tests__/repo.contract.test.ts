@@ -80,10 +80,13 @@ function runMemberRepoContractSuite(adapterName: string, makeRepo: () => MemberR
     await repo.save({ id: "m-2", workspaceId: "ws-list", email: "x2@example.com", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
     await repo.save({ id: "m-3", workspaceId: "ws-list", email: "x3@example.com", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
 
-    const firstPage = await repo.list({ workspaceId: "ws-list", limit: 2 });
-    assert.deepEqual(firstPage.map((m) => m.id), ["m-1", "m-2"]);
-    const secondPage = await repo.list({ workspaceId: "ws-list", afterId: "m-2", limit: 2 });
-    assert.deepEqual(secondPage.map((m) => m.id), ["m-3"]);
+    // list-cursor contract: a { items, nextCursor } page, continued by the cursor the previous page returned.
+    const firstPage = await repo.list({ workspaceId: "ws-list" }, { limit: 2 });
+    assert.deepEqual(firstPage.items.map((m) => m.id), ["m-1", "m-2"]);
+    assert.notEqual(firstPage.nextCursor, null);
+    const secondPage = await repo.list({ workspaceId: "ws-list" }, { cursor: firstPage.nextCursor, limit: 2 });
+    assert.deepEqual(secondPage.items.map((m) => m.id), ["m-3"]);
+    assert.equal(secondPage.nextCursor, null);
   });
 
   test(`[${adapterName}] MemberRepoPort: save upserts by id (version bump visible on re-read)`, async () => {
@@ -384,7 +387,7 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
 
   test(`[${adapterName}] MemberConsentRepoPort: transaction runs the callback and returns its result`, async () => {
     const repo = makeRepo();
-    const result = await repo.transaction(async () => {
+    const result = await repo.transaction({ fn: async () => {
       await repo.save({
         id: "c-tx",
         workspaceId: "ws-1",
@@ -397,7 +400,7 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
         version: 1,
       });
       return "done";
-    });
+    } });
     assert.equal(result, "done");
     assert.notEqual(await repo.findByMemberAndPurpose({ workspaceId: "ws-1", memberId: "m-tx", purpose: "tx-purpose" }), null);
   });
@@ -443,19 +446,19 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
 }
 
 runMemberRepoContractSuite("InMemoryMemberRepo", () => new InMemoryMemberRepo());
-runMemberRepoContractSuite("SqliteMemberRepo", () => new SqliteMemberRepo(openContentDb(":memory:")));
+runMemberRepoContractSuite("SqliteMemberRepo", () => new SqliteMemberRepo({ store: openContentDb(":memory:") }));
 
 runMemberTierRepoContractSuite("InMemoryMemberTierRepo", () => new InMemoryMemberTierRepo());
-runMemberTierRepoContractSuite("SqliteMemberTierRepo", () => new SqliteMemberTierRepo(openContentDb(":memory:")));
+runMemberTierRepoContractSuite("SqliteMemberTierRepo", () => new SqliteMemberTierRepo({ store: openContentDb(":memory:") }));
 
 runMemberSubscriptionRepoContractSuite("InMemoryMemberSubscriptionRepo", () => new InMemoryMemberSubscriptionRepo());
-runMemberSubscriptionRepoContractSuite("SqliteMemberSubscriptionRepo", () => new SqliteMemberSubscriptionRepo(openContentDb(":memory:")));
+runMemberSubscriptionRepoContractSuite("SqliteMemberSubscriptionRepo", () => new SqliteMemberSubscriptionRepo({ store: openContentDb(":memory:") }));
 
 runMemberSessionRepoContractSuite("InMemoryMemberSessionRepo", () => new InMemoryMemberSessionRepo());
-runMemberSessionRepoContractSuite("SqliteMemberSessionRepo", () => new SqliteMemberSessionRepo(openContentDb(":memory:")));
+runMemberSessionRepoContractSuite("SqliteMemberSessionRepo", () => new SqliteMemberSessionRepo({ store: openContentDb(":memory:") }));
 
 runMagicLinkTokenRepoContractSuite("InMemoryMagicLinkTokenRepo", () => new InMemoryMagicLinkTokenRepo());
-runMagicLinkTokenRepoContractSuite("SqliteMagicLinkTokenRepo", () => new SqliteMagicLinkTokenRepo(openContentDb(":memory:")));
+runMagicLinkTokenRepoContractSuite("SqliteMagicLinkTokenRepo", () => new SqliteMagicLinkTokenRepo({ store: openContentDb(":memory:") }));
 
 runMemberConsentRepoContractSuite("InMemoryMemberConsentRepo", () => new InMemoryMemberConsentRepo());
-runMemberConsentRepoContractSuite("SqliteMemberConsentRepo", () => new SqliteMemberConsentRepo(openContentDb(":memory:")));
+runMemberConsentRepoContractSuite("SqliteMemberConsentRepo", () => new SqliteMemberConsentRepo({ store: openContentDb(":memory:") }));

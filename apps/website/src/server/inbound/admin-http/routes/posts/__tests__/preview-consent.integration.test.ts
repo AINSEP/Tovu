@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 import { JSDOM } from "jsdom";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { NO_THEME_ID } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
 import { consentFixture } from "#src/features/consent/__tests__/fixture";
 import { dispatchHttpRequest, dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
@@ -35,15 +35,15 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   await deps.userRepo.save({ principalId: "preview-owner", workspaceId: "w", username: "preview-owner", passwordHash: await deps.passwordHasher.hash({ password: "preview-test" }) });
   const app = express();
   // Preserve the real auth mount and consent placement; only transport is replaced.
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   deps.cookieConsent = { regionResolvers: async () => [], scriptDeclarations: async () => ({
     scripts: [{ src: '/scripts/optional-preview-fixture.js', consent: ['functional'] }], problems: [],
   }) };
   applySiteCookieConsent({ app, deps, consent: deps.cookieConsent });
   await deps.cookieConsent.refresh?.();
-  registerAdminPostTemplatePreviewRoute(app, deps);
-  registerSiteRoutes(app, deps);
+  registerAdminPostTemplatePreviewRoute({ app, deps });
+  registerSiteRoutes({ app, deps });
   const previewPath = `/api/admin/v1/workspaces/w/posts/${post.id}/template-preview?templateChoice=`;
 
   const context = await dispatchJsonRequest(app, "GET", "/_consent/context");

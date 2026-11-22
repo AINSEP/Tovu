@@ -72,13 +72,13 @@ const HTML_PAGE = {
 it("U1: injected page readiness reaches the captured protected-card describer", async () => {
   const base = createFakePageEditorPort({ page: HTML_PAGE });
   const port = { ...base, getPage: async () => ({ post: HTML_PAGE, pluginEmbeds: [
-    { plugin: "tovu/google-login", component: "sign-in-button", availability: "PLUGIN_DISABLED" },
+    { plugin: "jini/google-login", component: "sign-in-button", availability: "PLUGIN_DISABLED" },
   ] }) };
-  const { result } = renderHook(() => usePageEditor("landing", { port, themeCanvasPort: createFakeThemeCanvasPort(),
-    navigate: () => {}, t: (_locale: string, key: string) => key, locale: "en" }));
+  const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: { port, themeCanvasPort: createFakeThemeCanvasPort(),
+    navigate: () => {}, t: ({ key }: { locale: string; key: string }) => key, locale: "en" } }));
   await waitFor(() => expect(result.current.page?.id).toBe("pg-html"));
   const marker = document.createElement("div");
-  marker.setAttribute("data-embed-config", JSON.stringify({ type: "plugin", plugin: "tovu/google-login", component: "sign-in-button" }));
+  marker.setAttribute("data-embed-config", JSON.stringify({ type: "plugin", plugin: "jini/google-login", component: "sign-in-button" }));
   expect(result.current.embedPlaceholderDescriber(marker)?.identityLabel).toBe("sign-in-button — plugin off: visitors see your fallback");
 });
 
@@ -125,7 +125,7 @@ async function mountLoaded(routeSlug: string, page: unknown) {
   // `{autosave: null}` shape (not the shape-tolerant merged `body` above) so a test that doesn't
   // care about autosave still gets a clean, valid response instead of `undefined`.
   fetchMock.mockResolvedValueOnce(jsonResponse({ autosave: null }));
-  const view = renderHook(() => useWiredPageEditor(routeSlug));
+  const view = renderHook(() => useWiredPageEditor({ routeSlug }));
   await waitFor(() => expect(view.result.current.page).not.toBeNull());
   return view;
 }
@@ -358,13 +358,13 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     const port = createFakePageEditorPort({ page });
     const targets: string[] = [];
     const updatePost = port.updatePost;
-    port.updatePost = async (target, patch) => {
+    port.updatePost = async ({ target, patch }) => {
       targets.push(target.id);
-      return updatePost(target, patch);
+      return updatePost({ target, patch });
     };
     const navigate = vi.fn();
-    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: (_locale: string, key: string) => key, locale: "en" };
-    const { result } = renderHook(() => usePageEditor(page.slug, deps));
+    const deps = { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor({ routeSlug: page.slug, deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setSlug("renamed-page"));
     await act(async () => { await result.current.save(); });
@@ -381,8 +381,8 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
   it("a server failure shows a short plain line, not the raw server string the failure notice already carries", async () => {
     const port = createFakePageEditorPort({ page: DOC_PAGE });
-    const deps = { port: { ...port, updatePost: async () => { throw Object.assign(new Error("boom"), { status: 500 }); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (_locale: string, key: string) => key, locale: "en" };
-    const { result } = renderHook(() => usePageEditor(DOC_PAGE.slug, deps));
+    const deps = { port: { ...port, updatePost: async () => { throw Object.assign(new Error("boom"), { status: 500 }); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor({ routeSlug: DOC_PAGE.slug, deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setSlug("other"));
     await act(async () => { await result.current.save(); });
@@ -392,8 +392,8 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   it("keeps the old browser route when a slug rename is rejected", async () => {
     const port = createFakePageEditorPort({ page: DOC_PAGE });
     const navigate = vi.fn();
-    const deps = { port: { ...port, updatePost: async () => { throw new Error("slug 'taken' already exists"); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: (_locale: string, key: string) => key, locale: "en" };
-    const { result } = renderHook(() => usePageEditor(DOC_PAGE.slug, deps));
+    const deps = { port: { ...port, updatePost: async () => { throw new Error("slug 'taken' already exists"); } }, themeCanvasPort: createFakeThemeCanvasPort(), navigate, t: ({ key }: { locale: string; key: string }) => key, locale: "en" };
+    const { result } = renderHook(() => usePageEditor({ routeSlug: DOC_PAGE.slug, deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setSlug("taken"));
     await act(async () => { await result.current.save(); });
@@ -408,7 +408,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       activeThemeTemplates: overrides.activeThemeTemplates,
     });
     const navigate = vi.fn();
-    const t = (locale: string, key: string) => `${locale}:${key}`;
+    const t = ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`;
     // Seeded empty, so every token fetch rejects and `canvasStyling` settles on "no styling" —
     // the point of this block is that NOTHING here touches `fetch`, and an unseeded fake port is
     // still a port.
@@ -418,7 +418,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
   it("loads the seeded page with zero fetch calls", async () => {
     const deps = fakeDeps({ page: { ...HTML_PAGE, templateChoice: "blog-post.html" }, activeThemeTemplates: ["blog-post.html"] });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
 
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.title).toBe(HTML_PAGE.title);
@@ -430,7 +430,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
   it("save() writes through the injected port, not lib/api", async () => {
     const deps = fakeDeps({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => {
@@ -456,15 +456,15 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   it("says 'No changes found' when the save comes back with the same version, 'Saved' when it bumps", async () => {
     const deps = fakeDeps({ page: HTML_PAGE });
     const { updatePost, updatePageHtml } = deps.port;
-    deps.port.updatePost = async (_target, patch) => {
+    deps.port.updatePost = async ({ patch }) => {
       deps.port.updatePostCalls.push(patch);
       return { post: deps.port.current };
     };
-    deps.port.updatePageHtml = async (_id, html) => {
+    deps.port.updatePageHtml = async ({ html }) => {
       deps.port.updatePageHtmlCalls.push(html);
       return { post: deps.port.current };
     };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const version = deps.port.current.version;
 
@@ -483,7 +483,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   // writing; Cancel writes nothing; "Save anyway" closes it and writes once. With changes it saves.
   it("onSave with nothing changed opens the warning; Cancel writes nothing; Save anyway writes once", async () => {
     const deps = fakeDeps({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.dirty).toBe(false);
 
@@ -510,7 +510,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
   it("remove() calls port.deletePage then the injected navigate", async () => {
     const deps = fakeDeps({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     await act(async () => {
@@ -527,7 +527,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     deps.port.updatePageHtml = async () => {
       throw new Error("boom");
     };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => {
@@ -556,7 +556,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     it("replace-navigates to the slug URL when routeSlug is the page's raw (UUID-shaped) id", async () => {
       const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "landing" };
       const deps = fakeDeps({ page });
-      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: PAGE_UUID, deps }));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
       expect(deps.navigate).toHaveBeenCalledWith("/pages/landing", { replace: true });
@@ -564,7 +564,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     it("does not navigate when routeSlug already IS the page's slug", async () => {
       const deps = fakeDeps({ page: HTML_PAGE });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
       expect(deps.navigate).not.toHaveBeenCalled();
@@ -574,12 +574,12 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
       const deps = fakeDeps({ page });
       const getPage = vi.spyOn(deps.port, "getPage");
-      const { result } = renderHook(() => usePageEditor("home", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "home", deps }));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
       expect(result.current.page).toMatchObject({ id: PAGE_UUID, slug: "/" });
-      expect(getPage).toHaveBeenCalledWith("/");
-      expect(getPage).not.toHaveBeenCalledWith("home");
+      expect(getPage).toHaveBeenCalledWith({ routeSlug: "/" });
+      expect(getPage).not.toHaveBeenCalledWith({ routeSlug: "home" });
       expect(deps.navigate).not.toHaveBeenCalled();
     });
 
@@ -587,7 +587,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     it("replace-navigates a root page id bookmark to '/pages/home'", async () => {
       const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "/" };
       const deps = fakeDeps({ page });
-      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: PAGE_UUID, deps }));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
       expect(deps.navigate).toHaveBeenCalledWith("/pages/home", { replace: true });
@@ -597,10 +597,10 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       const page = { ...HTML_PAGE, id: PAGE_UUID, slug: "home" };
       const deps = fakeDeps({ page });
       const getPage = vi.spyOn(deps.port, "getPage");
-      const { result } = renderHook(() => usePageEditor(PAGE_UUID, deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: PAGE_UUID, deps }));
 
       await waitFor(() => expect(result.current.page).not.toBeNull());
-      expect(getPage).toHaveBeenCalledWith(PAGE_UUID);
+      expect(getPage).toHaveBeenCalledWith({ routeSlug: PAGE_UUID });
       expect(deps.navigate).not.toHaveBeenCalled();
     });
   });
@@ -610,7 +610,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   it("before the page loads, previewFormTarget and templatePreviewUrl are both empty", () => {
     const deps = fakeDeps({ page: HTML_PAGE });
     deps.port.getPage = () => new Promise(() => {});
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
 
     expect(result.current.page).toBeNull();
     expect(result.current.previewFormTarget).toBe("");
@@ -619,7 +619,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
   it("once the page loads, previewFormTarget names that page's id", async () => {
     const deps = fakeDeps({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     expect(result.current.previewFormTarget).toBe("page-preview-pending-pg-html");
@@ -628,7 +628,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
   it("before the page loads, confirmLeave never prompts, even with an edited working copy (no baseline yet)", () => {
     const deps = fakeDeps({ page: HTML_PAGE });
     deps.port.getPage = () => new Promise(() => {});
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     act(() => result.current.setTitle("typed before load"));
 
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
@@ -680,9 +680,9 @@ describe("injected port — usePageEditor with no fetch stub", () => {
      *  fake port's own implementation so `updatePageHtmlCalls`/`current` still update normally. */
     function recordWriteOrder(port: ReturnType<typeof createFakePageEditorPort>, order: string[]): void {
       const original = port.updatePageHtml.bind(port);
-      port.updatePageHtml = async (id: string, html: string) => {
+      port.updatePageHtml = async ({ id, html, expectedVersion }) => {
         order.push("write");
-        return original(id, html);
+        return original({ id, html, expectedVersion });
       };
     }
 
@@ -690,7 +690,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       const order: string[] = [];
       const deps = fakeDeps({ page: HTML_PAGE });
       recordWriteOrder(deps.port, order);
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       installImmediateFlush(result, order, "<p>typed</p>");
@@ -707,7 +707,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       const order: string[] = [];
       const deps = fakeDeps({ page: HTML_PAGE });
       recordWriteOrder(deps.port, order);
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       installImmediateFlush(result, order, "<p>typed</p>");
@@ -723,7 +723,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     it("setView flushes before switching, and applies the flushed HTML once it resolves", async () => {
       const deps = fakeDeps({ page: HTML_PAGE });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       // No ref installed yet (null) — the flush resolves undefined immediately, and the switch still
@@ -739,12 +739,12 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       act(() => deferred.resolve("<p>typed</p>"));
       await waitFor(() => expect(result.current.view).toBe("html"));
       expect(result.current.html).toBe("<p>typed</p>");
-      expect(result.current.draftHtml).toBe(prettifyHtml("<p>typed</p>"));
+      expect(result.current.draftHtml).toBe(prettifyHtml({ html: "<p>typed</p>" }));
     });
 
     it("setTemplateChoice flushes before changing, and applies the flushed HTML once it resolves", async () => {
       const deps = fakeDeps({ page: HTML_PAGE, activeThemeTemplates: ["x.html"] });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       const deferred = installDeferredFlush(result);
@@ -760,7 +760,7 @@ describe("injected port — usePageEditor with no fetch stub", () => {
       const order: string[] = [];
       const deps = fakeDeps({ page: HTML_PAGE });
       recordWriteOrder(deps.port, order);
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       act(() => result.current.setHtml("<p>already typed</p>"));
@@ -799,7 +799,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       autosave: overrides.autosave,
     });
     const navigate = vi.fn();
-    const t = (locale: string, key: string) => `${locale}:${key}`;
+    const t = ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`;
     const themeCanvasPort = createFakeThemeCanvasPort();
     return { port, themeCanvasPort, navigate, t, locale: "en" };
   }
@@ -815,7 +815,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       savedByPrincipalId: "user-local",
     };
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
@@ -836,7 +836,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       savedByPrincipalId: "user-local",
     };
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
     act(() => result.current.restoreRecoveredDraft());
@@ -863,14 +863,14 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       savedByPrincipalId: "user-local",
     };
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
     act(() => result.current.setView("html"));
     const revisionBefore = result.current.contentRevision;
 
     act(() => result.current.restoreRecoveredDraft());
 
-    expect(result.current.draftHtml).toBe(prettifyHtml("<p>recovered</p>"));
+    expect(result.current.draftHtml).toBe(prettifyHtml({ html: "<p>recovered</p>" }));
     expect(result.current.contentRevision).toBe(revisionBefore + 1);
   });
 
@@ -885,7 +885,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       savedByPrincipalId: "user-local",
     };
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
 
     await act(async () => result.current.discardRecoveredDraft());
@@ -896,11 +896,28 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     expect(result.current.title).toBe(HTML_PAGE.title);
   });
 
+  it("a failed discardRecoveredDraft keeps the banner and says so in plain words", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const seeded = {
+      bodyFormat: "html" as const, bodyHtml: "<p>recovered</p>", title: "Recovered title", slug: "landing",
+      baseVersion: HTML_PAGE.version, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    deps.port.discardAutosave = vi.fn(async () => { throw new Error("offline"); });
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    await act(async () => result.current.discardRecoveredDraft());
+
+    expect(result.current.recoverableDraft).not.toBeNull();
+    expect(result.current.error).toContain("Could not discard the recovered draft");
+  });
+
   it("editing schedules a debounced autosave PUT matching buildPageAutosaveDraft's own shape", async () => {
     vi.useFakeTimers();
     try {
       const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
@@ -923,7 +940,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
 
   it("a successful save clears the standing draft, even when nothing was ever recovered", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setTitle("Saved for real"));
@@ -955,23 +972,23 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
       get discardAutosaveCalled() {
         return base.discardAutosaveCalled;
       },
-      async putAutosave(id, draft) {
+      async putAutosave({ id, draft }) {
         ops.push("put:start");
         await new Promise<void>((resolve) => {
           releasePut = resolve;
         });
         ops.push("put:end");
-        return base.putAutosave(id, draft);
+        return base.putAutosave({ id, draft });
       },
-      async discardAutosave(id) {
+      async discardAutosave({ id }) {
         ops.push("discard");
-        return base.discardAutosave(id);
+        return base.discardAutosave({ id });
       },
     };
 
     vi.useFakeTimers();
     try {
-      const { result } = renderHook(() => usePageEditor("landing", { ...deps, port }));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: { ...deps, port } }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
@@ -1009,7 +1026,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     vi.useFakeTimers();
     try {
       const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-      const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+      const { result, unmount } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
@@ -1047,13 +1064,13 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     vi.useFakeTimers();
     try {
       const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
       expect(result.current.autosaveStaleBasis).toBeNull();
 
       // Another operator saves. This editor is not told, and still believes it is on HTML_PAGE.version.
-      deps.port.simulateConcurrentSave();
+      deps.port.simulateConcurrentSave({});
 
       act(() => result.current.setHtml("<p>typed while the other tab was saving</p>"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
@@ -1085,11 +1102,11 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     vi.useFakeTimers();
     try {
       const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
-      deps.port.simulateConcurrentSave();
+      deps.port.simulateConcurrentSave({});
       act(() => result.current.setHtml("<p>typed while the other tab was saving</p>"));
       await act(async () => vi.advanceTimersByTimeAsync(3001));
       expect(result.current.autosaveStaleBasis).not.toBeNull();
@@ -1119,7 +1136,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
   // so it left without asking and the edit was lost. It now flushes the editor first.
   it("the back link flushes an open Interactive edit, then asks before leaving and stays if the operator cancels", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.dirty).toBe(false);
     result.current.interactiveEditorRef.current = { flush: vi.fn(async () => "<p>typed in an open RTE session</p>") };
@@ -1140,7 +1157,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
 
   it("the back link navigates to the list after flushing when the Interactive editor has nothing unsaved", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     result.current.interactiveEditorRef.current = { flush: vi.fn(async () => undefined) };
     const confirmSpy = vi.spyOn(window, "confirm");
@@ -1158,7 +1175,7 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
 
   it("confirmLeave is true when nothing is dirty, and defers to window.confirm once the operator has edited something", async () => {
     const deps = fakeDepsWithAutosave({ page: HTML_PAGE });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     expect(result.current.confirmLeave()).toBe(true);
@@ -1193,23 +1210,23 @@ describe("save() stale-settlement guard (2026-09-05 sweep)", () => {
     });
     const realUpdatePost = port.updatePost.bind(port);
     let callCount = 0;
-    port.updatePost = (async (target, patch) => {
+    port.updatePost = (async ({ target, patch }) => {
       callCount += 1;
       // The FIRST call (plain "Save", captured before Publish is clicked) is held open — it must not
       // settle until after the second call ("Publish") already has, so its own eventual response is
       // demonstrably stale by the time it arrives.
       if (callCount === 1) return slowSave;
-      return realUpdatePost(target, patch);
+      return realUpdatePost({ target, patch });
     }) as typeof port.updatePost;
 
     const deps = {
       port,
       themeCanvasPort: createFakeThemeCanvasPort(),
       navigate: vi.fn(),
-      t: (_locale: string, key: string) => key,
+      t: ({ key }: { locale: string; key: string }) => key,
       locale: "en",
     };
-    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "privacy-policy", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.status).toBe("draft");
 
@@ -1272,9 +1289,9 @@ describe("canvasStyling (Interactive-tab page-shell fallback, 2026-09-02)", () =
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
       templatesByUrl: { "/theme-assets/basic/pages/page-shell.html": PAGE_SHELL_MARKUP },
     });
-    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
 
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.templateChoice).toBeNull(); // confirms this is the "never chosen" state, not a seeded choice
 
@@ -1290,9 +1307,9 @@ describe("canvasStyling (Interactive-tab page-shell fallback, 2026-09-02)", () =
     const themeCanvasPort = createFakeThemeCanvasPort({
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
     });
-    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
 
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     await waitFor(() => expect(result.current.canvasStyling.status).toBe("ready"));
@@ -1307,9 +1324,9 @@ describe("canvasStyling (Interactive-tab page-shell fallback, 2026-09-02)", () =
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
       templatesByUrl: { "/theme-assets/basic/pages/page-shell.html": PAGE_SHELL_MARKUP },
     });
-    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
 
-    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "privacy-policy", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     await waitFor(() => expect(result.current.canvasStyling.status).toBe("ready"));
@@ -1332,9 +1349,9 @@ describe("canvasStyling (Interactive-tab page-shell fallback, 2026-09-02)", () =
         "/theme-assets/basic/pages/blog-post.html": BLOG_POST_MARKUP,
       },
     });
-    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
 
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => {
       result.current.setTemplateChoice("blog-post.html");
@@ -1404,19 +1421,19 @@ describe("frameRef / paneWidth (preview-scale regression — frame mounts after 
     });
     const port = createFakePageEditorPort({ page: HTML_PAGE });
     const realGetPage = port.getPage;
-    port.getPage = async (routeSlug: string) => {
+    port.getPage = async ({ routeSlug }) => {
       await pageLoaded;
-      return realGetPage(routeSlug);
+      return realGetPage({ routeSlug });
     };
     const deps = {
       port,
       themeCanvasPort: createFakeThemeCanvasPort(),
       navigate: vi.fn(),
-      t: (locale: string, key: string) => `${locale}:${key}`,
+      t: ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`,
       locale: "en",
     };
 
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
 
     // First render: `page` hasn't loaded, so nothing has rendered a frame node for React to attach —
     // `paneWidth` is still the pre-measurement default, and no observer exists yet.
@@ -1473,13 +1490,13 @@ describe("per-tab scroll memory (HTML textarea and Preview iframe each remember 
       port: createFakePageEditorPort({ page: HTML_PAGE }),
       themeCanvasPort: createFakeThemeCanvasPort(),
       navigate: vi.fn(),
-      t: (locale: string, key: string) => `${locale}:${key}`,
+      t: ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`,
       locale: "en",
     };
   }
 
   it("restores the HTML textarea's scrollTop on the next mount, using the last position saved before it unmounted", async () => {
-    const { result } = renderHook(() => usePageEditor("landing", deps()));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: deps() }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     // First mount (the operator opens the HTML tab): nothing saved yet, so this behaves exactly like
@@ -1509,7 +1526,7 @@ describe("per-tab scroll memory (HTML textarea and Preview iframe each remember 
   });
 
   it("keeps the Preview tab's position independent of the HTML tab's — switching one never moves the other", async () => {
-    const { result } = renderHook(() => usePageEditor("landing", deps()));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: deps() }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     const textareaA = document.createElement("textarea");
@@ -1539,7 +1556,7 @@ describe("per-tab scroll memory (HTML textarea and Preview iframe each remember 
 
   describe("Preview iframe (same-origin — the template-preview branch)", () => {
     it("restores the saved scrollY on load and keeps tracking it via a scroll listener on the iframe's window", async () => {
-      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: deps() }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       const firstWindow = { scrollY: 0, scrollTo: vi.fn(), addEventListener: vi.fn() };
@@ -1572,7 +1589,7 @@ describe("per-tab scroll memory (HTML textarea and Preview iframe each remember 
 
   describe("Preview iframe (cross-origin — the live-site branch)", () => {
     it("does not throw when the browser blocks reading/driving scroll on a foreign window", async () => {
-      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: deps() }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       // Models the real restriction: `contentWindow` itself is always reachable cross-origin, but
@@ -1603,7 +1620,7 @@ describe("per-tab scroll memory (HTML textarea and Preview iframe each remember 
     });
 
     it("does not throw when contentWindow itself is null (e.g. a detached/about:blank frame)", async () => {
-      const { result } = renderHook(() => usePageEditor("landing", deps()));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: deps() }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
 
       const nullWindowIframe = { contentWindow: null } as unknown as HTMLIFrameElement;
@@ -1652,12 +1669,12 @@ describe("HTML authoring into a newly created (doc-format, empty-document) Page"
     const port = createFakePageEditorPort({
       page: page as Parameters<typeof createFakePageEditorPort>[0]["page"],
     });
-    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
   }
 
   async function mount(page: unknown) {
     const deps = depsFor(page);
-    const view = renderHook(() => usePageEditor("untitled", deps));
+    const view = renderHook(() => usePageEditor({ routeSlug: "untitled", deps }));
     await waitFor(() => expect(view.result.current.page).not.toBeNull());
     return { deps, result: view.result };
   }
@@ -1716,7 +1733,7 @@ describe("HTML authoring into a newly created (doc-format, empty-document) Page"
     vi.useFakeTimers();
     try {
       const deps = depsFor(NEW_PAGE);
-      const { result } = renderHook(() => usePageEditor("untitled", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "untitled", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
@@ -1792,12 +1809,12 @@ describe("HTML authoring into a newly created (doc-format, empty-document) Page"
 describe("save() guards against a concurrent save", () => {
   function conflictDeps(page: unknown) {
     const port = createFakePageEditorPort({ page: page as Parameters<typeof createFakePageEditorPort>[0]["page"] });
-    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
   }
 
   it("sends the loaded version as the basis of the metadata write", async () => {
     const deps = conflictDeps(HTML_PAGE);
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setTitle("Renamed"));
@@ -1812,12 +1829,12 @@ describe("save() guards against a concurrent save", () => {
 
   it("refuses the whole save — body included — once another operator has saved", async () => {
     const deps = conflictDeps(HTML_PAGE);
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
     // Another operator's save lands while this editor sits on the version it loaded.
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
 
     await act(async () => {
       await result.current.save();
@@ -1836,11 +1853,11 @@ describe("save() guards against a concurrent save", () => {
 
   it("saveOverwritingConflict() replays the original intent against the fresh version", async () => {
     const deps = conflictDeps(HTML_PAGE);
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
     await act(async () => {
       await result.current.save("published");
     });
@@ -1858,11 +1875,11 @@ describe("save() guards against a concurrent save", () => {
 
   it("saveOverwritingConflict() flushes the Interactive editor first and writes the flushed HTML", async () => {
     const deps = conflictDeps(HTML_PAGE);
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
     await act(async () => {
       await result.current.save();
     });
@@ -1881,11 +1898,11 @@ describe("save() guards against a concurrent save", () => {
 
   it("dismissSaveConflict() hides the banner without writing anything", async () => {
     const deps = conflictDeps(HTML_PAGE);
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
     await act(async () => {
       await result.current.save();
     });
@@ -1908,7 +1925,7 @@ describe("save() guards against a concurrent save", () => {
 describe("save() when the body write fails after the metadata write landed", () => {
   function conflictDeps(page: unknown) {
     const port = createFakePageEditorPort({ page: page as Parameters<typeof createFakePageEditorPort>[0]["page"] });
-    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+    return { port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(), t: ({ locale: l, key: k }: { locale: string; key: string }) => `${l}:${k}`, locale: "en" };
   }
 
   it("advances the version basis and keeps the body dirty", async () => {
@@ -1916,7 +1933,7 @@ describe("save() when the body write fails after the metadata write landed", () 
     deps.port.updatePageHtml = async () => {
       throw new Error("boom");
     };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => {
@@ -1945,7 +1962,7 @@ describe("save() when the body write fails after the metadata write landed", () 
     deps.port.updatePageHtml = async () => {
       throw new Error("boom");
     };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => {
@@ -1982,7 +1999,7 @@ describe("save() when the body write fails after the metadata write landed", () 
     deps.port.updatePost = async () => {
       throw new Error("boom");
     };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => {
@@ -2028,7 +2045,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
       }),
       themeCanvasPort: createFakeThemeCanvasPort(),
       navigate: vi.fn(),
-      t: (locale: string, key: string) => `${locale}:${key}`,
+      t: ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`,
       locale: "en",
     };
   }
@@ -2052,7 +2069,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
 
   it("submits an untouched DRAFT's pending html on returning to Preview — the widened branch that replaced the raw fallback", async () => {
     const deps = draftDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     vi.useFakeTimers();
     const form = attachFakeForm(result.current.previewFormRef);
@@ -2069,7 +2086,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
 
   it("re-submits when only the TEMPLATE changes, against the newly chosen template's URL", async () => {
     const deps = draftDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     vi.useFakeTimers();
     const form = attachFakeForm(result.current.previewFormRef);
@@ -2098,7 +2115,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
 
   it("cancels the pending submit when the operator leaves Preview before it fires", async () => {
     const deps = draftDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     vi.useFakeTimers();
     const form = attachFakeForm(result.current.previewFormRef);
@@ -2114,7 +2131,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
   // editor state, so the new, empty iframe was never submitted into and the draft preview went blank.
   it("re-submits into a NEWLY attached form when nothing else changed — a remounted iframe starts empty", async () => {
     const deps = draftDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     vi.useFakeTimers();
@@ -2133,7 +2150,7 @@ describe("usePageEditor — pending-html preview debounce (2026-09-09)", () => {
 
   it("leaves a CLEAN PUBLISHED page alone — that branch shows the real live site, not a POSTed preview", async () => {
     const deps = { ...draftDeps(), port: createFakePageEditorPort({ page: HTML_PAGE as Parameters<typeof createFakePageEditorPort>[0]["page"] }) };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     vi.useFakeTimers();
     const form = attachFakeForm(result.current.previewFormRef);
@@ -2163,19 +2180,19 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
       port,
       themeCanvasPort,
       navigate: vi.fn(),
-      t: (locale: string, key: string) => `${locale}:${key}`,
+      t: ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`,
       locale: "en",
     };
   }
 
   it("clean editor: an assistant write replaces the working copy and preview baseline without a reload", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const startingVersion = result.current.page!.version;
 
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", title: "Landing v2", templateChoice: "blog-post.html" });
+      deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>", title: "Landing v2", templateChoice: "blog-post.html" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
 
@@ -2189,7 +2206,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("clean editor: contentRevision moves on an applied refresh and NOT on the editor's own save", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const startingRevision = result.current.contentRevision;
 
@@ -2199,7 +2216,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     expect(result.current.contentRevision).toBe(startingRevision);
 
     act(() => {
-      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
     await waitFor(() => expect(result.current.contentRevision).toBe(startingRevision + 1));
@@ -2207,12 +2224,12 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("clean editor on the HTML tab: draftHtml shows the new body", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setView("html"));
 
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
 
@@ -2221,7 +2238,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("a refresh that finds no newer version changes nothing", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const startingRevision = result.current.contentRevision;
 
@@ -2238,7 +2255,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("a notification naming only other resources costs no fetch", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const callsAfterLoad = deps.port.getPageCalls;
 
@@ -2248,7 +2265,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     });
     expect(deps.port.getPageCalls).toBe(callsAfterLoad);
 
-    deps.port.simulateExternalWrite({ title: "Landing v2" });
+    deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
     act(() => publishContentRefresh([PAGES_RESOURCE]));
     await waitFor(() => expect(result.current.title).toBe("Landing v2"));
   });
@@ -2259,14 +2276,14 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
   // canvas, the refresh applied silently, and the `key={contentRevision}` remount destroyed it.
   it("clean-looking editor on the Interactive tab: a refresh asks instead of remounting the canvas", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setView("interactive"));
     expect(result.current.dirty).toBe(false);
     const startingRevision = result.current.contentRevision;
 
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+      deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
 
@@ -2285,7 +2302,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("typing that lands while the re-read is in flight is kept: dirty is judged when the fetch settles", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     let settle!: (value: { post: typeof deps.port.current }) => void;
@@ -2309,14 +2326,14 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("dirty editor: a refresh never touches the working copy and raises pendingExternalVersion", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
     expect(result.current.dirty).toBe(true);
 
     act(() => {
-      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
 
@@ -2327,12 +2344,12 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("loadExternalChange replaces the working copy, discards the standing draft, and clears the notice", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
-      deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>", templateChoice: "blog-post.html" });
+      deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>", templateChoice: "blog-post.html" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
@@ -2350,12 +2367,12 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("dismissExternalChange keeps edits, stays quiet on the next agent write, and an explicit Save still hits the version conflict", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
-      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
@@ -2369,7 +2386,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     // worked because `waitFor`'s own internal awaits happened to let the fetch settle.
     const callsBeforeSecondWrite = deps.port.getPageCalls;
     await act(async () => {
-      deps.port.simulateExternalWrite({ title: "Landing v3" });
+      deps.port.simulateExternalWrite({ patch: { title: "Landing v3" } });
       publishContentRefresh([PAGES_RESOURCE]);
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
@@ -2387,12 +2404,12 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
   it("Save anyway after a notice hides the notice", async () => {
     const deps = refreshDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
 
     act(() => result.current.setHtml("<p>mine</p>"));
     act(() => {
-      deps.port.simulateExternalWrite({ title: "Landing v2" });
+      deps.port.simulateExternalWrite({ patch: { title: "Landing v2" } });
       publishContentRefresh([PAGES_RESOURCE]);
     });
     await waitFor(() => expect(result.current.pendingExternalVersion).not.toBeNull());
@@ -2414,7 +2431,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
     try {
       localStorage.clear();
       const deps = refreshDeps();
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await act(async () => vi.advanceTimersByTimeAsync(0));
       expect(result.current.page).not.toBeNull();
 
@@ -2424,7 +2441,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
       expect(result.current.dirty).toBe(false);
 
       await act(async () => {
-        deps.port.simulateExternalWrite({ bodyHtml: "<p>new hero</p>" });
+        deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>new hero</p>" } });
         publishContentRefresh([PAGES_RESOURCE]);
         await vi.advanceTimersByTimeAsync(0);
       });
@@ -2434,7 +2451,7 @@ describe("usePageEditor — content refresh bus (assistant writes while the edit
 
       expect(deps.port.putAutosaveCalls).toEqual([]);
       expect(result.current.autosaveStaleBasis).toBeNull();
-      expect(readStandingDraftLocalBackup(HTML_PAGE.id)).toBeNull();
+      expect(readStandingDraftLocalBackup({ entryId: HTML_PAGE.id })).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -2448,10 +2465,10 @@ describe("templateFor — saved page template remains selectable", () => {
       page: { ...HTML_PAGE, templateChoice: "post.html" },
       activeThemeTemplates: templates,
     });
-    const { result } = renderHook(() => usePageEditor("landing", {
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps: {
       port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(),
-      t: (_locale: string, key: string) => key, locale: "en",
-    }));
+      t: ({ key }: { locale: string; key: string }) => key, locale: "en",
+    } }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     expect(result.current.availableTemplates).toEqual([...templates, "post.html"]);
     expect(result.current.templateChoice).toBe("post.html");
@@ -2464,14 +2481,14 @@ describe("page editor recovery and failure outcomes", () => {
   function editorDeps(options: Parameters<typeof createFakePageEditorPort>[0] = { page: HTML_PAGE }) {
     return {
       port: createFakePageEditorPort(options), themeCanvasPort: createFakeThemeCanvasPort(),
-      navigate: vi.fn(), t: (locale: string, key: string) => `${locale}:${key}`, locale: "en",
+      navigate: vi.fn(), t: ({ locale, key }: { locale: string; key: string }) => `${locale}:${key}`, locale: "en",
     };
   }
 
   it.each([new Error("page unavailable"), "transport failed"])("reports an initial load failure without hydrating a page: %s", async failure => {
     const deps = editorDeps();
     deps.port.getPage = async () => { throw failure; };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.error).toBe(failure instanceof Error ? failure.message : "en:failed to load page"));
     expect(result.current.page).toBeNull();
     expect(result.current.title).toBe("");
@@ -2480,7 +2497,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("keeps pending edits when the locale changes after hydration", async () => {
     const deps = editorDeps();
-    const { result, rerender } = renderHook(({ locale }) => usePageEditor("landing", { ...deps, locale }), {
+    const { result, rerender } = renderHook(({ locale }) => usePageEditor({ routeSlug: "landing", deps: { ...deps, locale } }), {
       initialProps: { locale: "en" },
     });
     await waitFor(() => expect(result.current.page).not.toBeNull());
@@ -2495,7 +2512,7 @@ describe("page editor recovery and failure outcomes", () => {
   it("reports a redirect failure with translated load text when navigation throws a non-Error", async () => {
     const deps = editorDeps({ page: { ...HTML_PAGE, slug: "/" } });
     deps.navigate.mockImplementation(() => { throw "navigation unavailable"; });
-    const { result } = renderHook(() => usePageEditor(HTML_PAGE.id, deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: HTML_PAGE.id, deps }));
     await waitFor(() => expect(result.current.error).toBe("en:failed to load page"));
     expect(result.current.page?.id).toBe(HTML_PAGE.id);
     expect(deps.navigate).toHaveBeenCalledWith("/pages/home", { replace: true });
@@ -2507,11 +2524,11 @@ describe("page editor recovery and failure outcomes", () => {
     let reject!: (error: Error) => void;
     const pending = new Promise<{ post: typeof HTML_PAGE }>((yes, no) => { resolve = yes; reject = no; });
     let oldReadStarted = false;
-    deps.port.getPage = async route => {
+    deps.port.getPage = async ({ routeSlug: route }) => {
       if (route === "old-page") { oldReadStarted = true; return pending; }
       return { post: HTML_PAGE };
     };
-    const { result, rerender } = renderHook(({ route }) => usePageEditor(route, deps), {
+    const { result, rerender } = renderHook(({ route }) => usePageEditor({ routeSlug: route, deps }), {
       initialProps: { route: "old-page" },
     });
     await waitFor(() => expect(oldReadStarted).toBe(true));
@@ -2530,7 +2547,7 @@ describe("page editor recovery and failure outcomes", () => {
   it("save, overwrite, remove and restore are inert before the initial page arrives", async () => {
     const deps = editorDeps();
     deps.port.getPage = () => new Promise(() => {});
-    const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+    const { result, unmount } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await act(async () => {
       await result.current.save();
       await result.current.saveOverwritingConflict();
@@ -2549,7 +2566,7 @@ describe("page editor recovery and failure outcomes", () => {
   it("shows translated fallback text plus the real details for a non-Error save refusal and retains the working copy", async () => {
     const deps = editorDeps();
     deps.port.updatePost = async () => { throw "offline"; };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setHtml("<p>unsaved</p>"));
     await act(async () => { await result.current.save(); });
@@ -2564,7 +2581,7 @@ describe("page editor recovery and failure outcomes", () => {
   it("shows an object refusal's contents, and adds nothing when none was thrown", async () => {
     const deps = editorDeps();
     deps.port.updatePost = async () => { throw { code: "E_QUOTA", reason: "disk full" }; };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setHtml("<p>unsaved</p>"));
     await act(async () => { await result.current.save(); });
@@ -2577,7 +2594,7 @@ describe("page editor recovery and failure outcomes", () => {
   it.each([new Error("delete refused"), "offline"])("a delete failure closes confirmation and leaves the page and route intact: %s", async failure => {
     const deps = editorDeps();
     deps.port.deletePage = async () => { throw failure; };
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setConfirmingDelete(true));
     await act(async () => { await result.current.remove(); });
@@ -2590,10 +2607,10 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("a failed conflict re-read keeps the rejected draft and conflict for retry", async () => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setHtml("<p>my work</p>"));
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
     await act(async () => { await result.current.save("published"); });
     const conflict = result.current.saveConflict;
     expect(conflict).not.toBeNull();
@@ -2608,10 +2625,10 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("overwrite without a conflict uses the fresh basis without changing the draft status", async () => {
     const deps = editorDeps({ page: { ...DOC_PAGE, status: "draft" } });
-    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "privacy-policy", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setTitle("Local draft"));
-    deps.port.simulateConcurrentSave();
+    deps.port.simulateConcurrentSave({});
     await act(async () => { await result.current.saveOverwritingConflict(); });
     expect(result.current.error).toBeNull();
     expect(deps.port.current.title).toBe("Local draft");
@@ -2621,7 +2638,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("an external Load latest failure preserves local work and reports the recovery action", async () => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setTitle("Keep this draft"));
     deps.port.getPage = async () => { throw new Error("read unavailable"); };
@@ -2640,13 +2657,13 @@ describe("page editor recovery and failure outcomes", () => {
     const newGate = new Promise<void>(yes => { releaseNew = yes; });
     const update = deps.port.updatePost;
     let calls = 0;
-    deps.port.updatePost = async (target, patch) => {
+    deps.port.updatePost = async ({ target, patch }) => {
       calls += 1;
       if (calls === 1) return oldWrite;
       await newGate;
-      return update(target, patch);
+      return update({ target, patch });
     };
-    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "privacy-policy", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setTitle("Latest local title"));
     let oldSave!: Promise<void>;
@@ -2667,7 +2684,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it.each(["slug", "status"] as const)("a %s-only edit is dirty and saving establishes a new clean baseline", async field => {
     const deps = editorDeps({ page: DOC_PAGE });
-    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "privacy-policy", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => {
       if (field === "slug") result.current.setSlug("renamed-policy");
@@ -2689,7 +2706,7 @@ describe("page editor recovery and failure outcomes", () => {
       ...body, title: "Recovered metadata", slug: "recovered", baseVersion: HTML_PAGE.version,
       savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local",
     } });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
     act(() => result.current.restoreRecoveredDraft());
     expect(result.current.title).toBe("Recovered metadata");
@@ -2702,7 +2719,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("preview expansion preserves the selected device, ignores other keys, and collapses on Escape or tab exit", async () => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setDevice("mobile"));
     act(() => result.current.togglePreviewExpanded());
@@ -2721,7 +2738,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("opens and closes template source with the selected template intact", async () => {
     const deps = editorDeps({ page: { ...HTML_PAGE, templateChoice: "page.html" } });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.onViewTemplateClick());
     expect(result.current.showTemplateModal).toBe(true);
@@ -2732,7 +2749,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("a dirty Save button persists through the same port as direct Save", async () => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     act(() => result.current.setHtml("<p>changed</p>"));
     act(() => result.current.onSave());
@@ -2744,7 +2761,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it.each(["<p>hello</p>", "<p>unreported edit</p>"])("a clean Save button flushes %s before deciding whether to warn", async html => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     result.current.interactiveEditorRef.current = { flush: async () => html };
     await act(async () => { result.current.onSave(); });
@@ -2762,7 +2779,7 @@ describe("page editor recovery and failure outcomes", () => {
     "a source integrity failure during %s keeps the intact HTML and prevents unsafe actions", async action => {
       const { EditorSourceError } = await import("@jini-ai/ui/html-editor");
       const deps = editorDeps();
-      const { result } = renderHook(() => usePageEditor("landing", deps));
+      const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
       await waitFor(() => expect(result.current.page).not.toBeNull());
       act(() => result.current.setView("interactive"));
       result.current.interactiveEditorRef.current = { flush: async () => { throw new EditorSourceError(); } };
@@ -2789,7 +2806,7 @@ describe("page editor recovery and failure outcomes", () => {
 
   it("the ordinary back link prevents navigation only when the dirty guard is cancelled", async () => {
     const deps = editorDeps();
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     const preventDefault = vi.fn();
     await act(async () => { await result.current.onBackLinkClick({ preventDefault }); });
@@ -2807,7 +2824,7 @@ describe("page editor recovery and failure outcomes", () => {
   it("Edit HTML preserves verbatim source when jumping from an Interactive block", async () => {
     const source = '<section data-kui id="block"><p>hello</p></section>';
     const deps = editorDeps({ page: { ...HTML_PAGE, bodyHtml: source } });
-    const { result } = renderHook(() => usePageEditor("landing", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     await waitFor(() => expect(result.current.page).not.toBeNull());
     await act(async () => { await result.current.onRequestEditHtml({ occurrenceIndex: 0, tagName: "section", id: "block" }, {}); });
     expect(result.current.view).toBe("html");
@@ -2820,11 +2837,11 @@ describe("page editor recovery and failure outcomes", () => {
     vi.stubEnv("DEV", false);
     resetContentRefreshBus();
     const deps = editorDeps();
-    const { result, unmount } = renderHook(() => usePageEditor("landing", deps));
+    const { result, unmount } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
     try {
       await waitFor(() => expect(result.current.page).not.toBeNull());
       await act(async () => {
-        deps.port.simulateExternalWrite({ bodyHtml: "<p>from assistant</p>" });
+        deps.port.simulateExternalWrite({ patch: { bodyHtml: "<p>from assistant</p>" } });
         publishContentRefresh([PAGES_RESOURCE]);
       });
       await waitFor(() => expect(result.current.html).toBe("<p>from assistant</p>"));

@@ -23,12 +23,12 @@ export function useSiteViewPreference({ getBridge }: {
       saved => { if (active && !ordering.changed) setValue(liveViewLimit({ value: saved })); },
       () => undefined,
     );
-    const off = bridge?.onMaximumLiveSiteViewsChanged?.(saved => {
+    const off = bridge?.onMaximumLiveSiteViewsChanged?.({ listener: saved => {
       if (!active) return;
       ordering.changed = true;
       setValue(liveViewLimit({ value: saved }));
-    });
+    } });
     return () => { active = false; off?.(); };
   }, [getBridge, ordering]);
-  return { value, setValue: (next: number) => { ordering.changed = true; setValue(next); } };
+  return { value, setValue: ({ next }: { next: number }) => { ordering.changed = true; setValue(next); } };
 }

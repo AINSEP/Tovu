@@ -5,8 +5,11 @@ import path from "node:path";
 import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
-import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
+import { injectCurrentEntityContentId } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
+import { scanMenuEmbedIds } from "../static-render-menus.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { loadTheme } from "../theme.js";
 import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
@@ -391,14 +394,14 @@ for (const themeId of STATIC_THEME_IDS) {
       if (resolution.kind !== "template") return;
 
       const entityId = "22222222-2222-4222-8222-222222222222";
-      const withRealId = injectCurrentEntityContentId(resolution.html, entityId);
+      const withRealId = injectCurrentEntityContentId({ html: resolution.html, entityId });
       const entityProps = {
         title: "Sweep Sentinel Post",
         updatedAt: "2026-08-10T00:00:00.000Z",
         bodyJson: { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Sweep Sentinel Body" }] }] },
       };
       const resolved = new Map([["content", new Map([[entityId, { componentId: "post-content", props: entityProps }]])]]);
-      const bodyResolved = renderHtmlPageBody(withRealId, resolved as never);
+      const bodyResolved = renderHtmlPageBody({ html: withRealId, resolved: resolved as never });
       const full = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: bodyResolved, menus }) ?? "";
 
       assert.ok(!full.includes("widget-placeholder"), `${themeId}/${choice}: no marker may render as an empty widget placeholder`);

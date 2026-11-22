@@ -8,7 +8,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
 import { sendMemberAuthError, setMemberSessionCookie } from "./complete-sign-in.js";
 
 /** Verify unchanged password bytes behind separate strict IP and normalized-email counters. O(1) I/O. */
-export function registerPublicMemberPasswordSignInRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberPasswordSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/password/sign-in", async (req, res) => {
     observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "password" });
     try {

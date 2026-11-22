@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toAdminPluginResponse } from "../../plugins.js";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 /**
  * @file C-017 `toAdminPluginResponse()` — SPEC-005 REQ-10/REQ-11, api.spec.md §5.
  *
- * TDD-certified against the stub in `../../plugins.ts`; currently RED — `toAdminPluginResponse`
+ * TDD-certified against the stub in `@jini-ai/plugins/host`; currently RED — `toAdminPluginResponse`
  * throws "not implemented". These assertions describe the contract the Programmer stage must
  * satisfy.
  */
@@ -25,42 +25,51 @@ function discovery(overrides: Partial<PluginDiscoveryRecord> = {}): PluginDiscov
 }
 
 test("REQ-10: a plugin never enabled (activation null) maps to enabled:false, not an error", () => {
-  const response = toAdminPluginResponse(discovery(), null);
+  const response = toAdminPluginResponse({ discovery: discovery(), activation: null });
   assert.equal(response.enabled, false);
   assert.equal(response.quarantine, null);
 });
 
 test("REQ-10: a plugin with an activation row projects its enabled flag verbatim", () => {
-  const response = toAdminPluginResponse(discovery(), {
-    pluginId: "word-count",
-    workspaceId: "ws-1",
-    version: "1.0.0",
-    enabled: true,
-    updatedAt: "2026-07-28T00:00:00.000Z",
+  const response = toAdminPluginResponse({
+    discovery: discovery(),
+    activation: {
+      pluginId: "word-count",
+      workspaceId: "ws-1",
+      version: "1.0.0",
+      enabled: true,
+      updatedAt: "2026-07-28T00:00:00.000Z",
+    },
   });
   assert.equal(response.enabled, true);
   assert.equal(response.quarantine, null);
 });
 
 test("REQ-10: an ordinary disabled activation stays disabled without a quarantine badge", () => {
-  const response = toAdminPluginResponse(discovery(), {
-    pluginId: "word-count", workspaceId: "ws-1", version: "1.0.0",
-    enabled: false, updatedAt: "2026-07-28T00:00:00.000Z",
+  const response = toAdminPluginResponse({
+    discovery: discovery(),
+    activation: {
+      pluginId: "word-count", workspaceId: "ws-1", version: "1.0.0",
+      enabled: false, updatedAt: "2026-07-28T00:00:00.000Z",
+    },
   });
   assert.equal(response.enabled, false);
   assert.equal(response.quarantine, null);
 });
 
 test("automatic quarantine is inspectable through the existing plugin response", () => {
-  const response = toAdminPluginResponse(discovery(), {
-    pluginId: "word-count",
-    workspaceId: "ws-1",
-    version: "1.0.0",
-    enabled: false,
-    updatedAt: "2026-08-12T12:00:00.000Z",
-    quarantinedAt: "2026-08-12T12:00:00.000Z",
-    quarantineReason: "plugin 'word-count' filter failed",
-    quarantineFailureCount: 3,
+  const response = toAdminPluginResponse({
+    discovery: discovery(),
+    activation: {
+      pluginId: "word-count",
+      workspaceId: "ws-1",
+      version: "1.0.0",
+      enabled: false,
+      updatedAt: "2026-08-12T12:00:00.000Z",
+      quarantinedAt: "2026-08-12T12:00:00.000Z",
+      quarantineReason: "plugin 'word-count' filter failed",
+      quarantineFailureCount: 3,
+    },
   });
 
   assert.equal(response.enabled, false);
@@ -80,7 +89,7 @@ test("REQ-10: id/name/version/source/status/errors pass through unchanged from t
     status: "invalid",
     errors: [{ code: "HOOK_UNKNOWN", file: "tovu.plugin.json", message: "unknown hook" }],
   });
-  const response = toAdminPluginResponse(record, null);
+  const response = toAdminPluginResponse({ discovery: record, activation: null });
 
   assert.equal(response.id, "invalid-site-plugin");
   assert.equal(response.name, "Invalid Site Plugin");
@@ -91,7 +100,7 @@ test("REQ-10: id/name/version/source/status/errors pass through unchanged from t
 });
 
 test("REQ-10: a valid plugin's errors array is empty, never null/undefined", () => {
-  const response = toAdminPluginResponse(discovery({ status: "valid", errors: [] }), null);
+  const response = toAdminPluginResponse({ discovery: discovery({ status: "valid", errors: [] }), activation: null });
   assert.deepEqual(response.errors, []);
 });
 
@@ -104,14 +113,14 @@ test("REQ-10: a valid plugin's errors array is empty, never null/undefined", () 
 // above has no `tier` key at all, and no prior assertion here reads `response.tier`). These two
 // tests are the dedicated wire-level coverage for the new field.
 test("REQ-10 (1.1.2): tier passes through unchanged from the discovery record — mirrors id/name/version/source/status", () => {
-  const response = toAdminPluginResponse(discovery({ tier: "tier-1" }), null);
+  const response = toAdminPluginResponse({ discovery: discovery({ tier: "tier-1" }), activation: null });
   assert.equal(response.tier, "tier-1");
 });
 
 test("REQ-10 (1.1.2)/AC-26: distinct records project their OWN tier value, never a value hardcoded to tier-3", () => {
-  const tierOne = toAdminPluginResponse(discovery({ id: "tier-one-plugin", tier: "tier-1" }), null);
-  const tierTwo = toAdminPluginResponse(discovery({ id: "tier-two-plugin", tier: "tier-2" }), null);
-  const tierThree = toAdminPluginResponse(discovery({ id: "tier-three-plugin", tier: "tier-3" }), null);
+  const tierOne = toAdminPluginResponse({ discovery: discovery({ id: "tier-one-plugin", tier: "tier-1" }), activation: null });
+  const tierTwo = toAdminPluginResponse({ discovery: discovery({ id: "tier-two-plugin", tier: "tier-2" }), activation: null });
+  const tierThree = toAdminPluginResponse({ discovery: discovery({ id: "tier-three-plugin", tier: "tier-3" }), activation: null });
 
   assert.equal(tierOne.tier, "tier-1");
   assert.equal(tierTwo.tier, "tier-2");

@@ -1,5 +1,5 @@
 import { siteKeyStatusBadgeLabel } from "./hooks/site-key-status.rules";
-import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/agentic";
+import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { siteKeyGenerateErrorMessage } from "./security-i18n";
@@ -8,8 +8,8 @@ import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site
 import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";
 import { isSiteKeyLocked, siteKeyLockedNote, useWiredSiteKeyRecovery, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 import { SiteKeyRecoveryCard } from "./SiteKeyRecoveryCard";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Secrets page's Site key tab — view/reveal/generate the file half of
  * `TOVU_SITE_KEY`'s resolution (`features/webhooks/keyring.env.ts`, server-side).
@@ -53,15 +53,15 @@ export interface SiteKeyTabProps {
   useSiteKeyRecoveryHook?: typeof useWiredSiteKeyRecovery;
 }
 
-function resolveSiteKeyHook(override: typeof useWiredSiteKey | undefined): typeof useWiredSiteKey {
-  return override ?? useWiredSiteKey;
-}
 
-export function SiteKeyTab(props: SiteKeyTabProps) {
-  const useSiteKeyHook = resolveSiteKeyHook(props.useSiteKeyHook);
-  const useRecoveryHook = props.useSiteKeyRecoveryHook ?? useWiredSiteKeyRecovery;
+
+export function SiteKeyTab({
+  useSiteKeyHook = useWiredSiteKey,
+  useSiteKeyRecoveryHook: useRecoveryHook = useWiredSiteKeyRecovery, ...props }: SiteKeyTabProps) {
+
+
   const controller = useSiteKeyHook();
-  const recovery = useRecoveryHook(controller.refresh);
+  const recovery = useRecoveryHook({ onRecovered: controller.refresh });
   return (
     <div
       className="site-key-tab"
@@ -92,7 +92,7 @@ function SiteKeyBody({ controller, recovery }: { controller: SiteKeyController; 
   return (
     <>
       <SiteKeyScopeNotice runtimeMode={controller.status.runtimeMode} t={translate} />
-      {isSiteKeyLocked(controller.status, controller.generateError) || recovery.resultMessage ? <SiteKeyRecoveryCard recovery={recovery} /> : null}
+      {isSiteKeyLocked({ status: controller.status, generateError: controller.generateError }) || recovery.resultMessage ? <SiteKeyRecoveryCard recovery={recovery} /> : null}
       <SiteKeyStatusCard controller={controller} status={controller.status} />
     </>
   );
@@ -132,7 +132,7 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
     <section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active site key's source, fingerprint, and reveal control" })}>
       <h3 className="site-key-status-heading">{translate("Site key")}</h3>
       <p className="site-key-status-badge-row">
-        <span className={`status ${siteKeyStatusBadgeClass(status.active, status.invalid)}`}>{siteKeyStatusBadgeLabel({ status, t: translate })}</span>
+        <span className={`status ${siteKeyStatusBadgeClass({ active: status.active }, { invalid: status.invalid })}`}>{siteKeyStatusBadgeLabel({ status, t: translate })}</span>
         {status.fingerprint ? (
           <span className="site-key-fingerprint-group" title={translate("A short ID for this key. It changes if the key changes.")}>
             <span className="site-key-fingerprint-label">{translate("Fingerprint")}</span>
@@ -140,7 +140,7 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
           </span>
         ) : null}
       </p>
-      <p className="site-key-status-note">{siteKeyLockedNote(status, controller.generateError, translate) ?? siteKeyStatusNote(status, translate)}</p>
+      <p className="site-key-status-note">{siteKeyLockedNote({ status, generateError: controller.generateError, t: translate }) ?? siteKeyStatusNote(status, translate)}</p>
       <SiteKeyRevealAction controller={controller} />
       {/* Site-key plan (2026-09-24) §A.6: Generate is hidden by default, not deleted — the
           server route, `useSiteKey`'s `generate()`, and this tab's own `SiteKeyGenerateAction`
@@ -151,11 +151,10 @@ function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyControll
   );
 }
 
-function siteKeyStatusBadgeClass(active: boolean, invalid = false): string {
+function siteKeyStatusBadgeClass({ active }: { active: boolean }, { invalid = false }: { invalid?: boolean } = {}): string {
   if (invalid) return "status-warning";
   return active ? "status-ok" : "status-neutral";
 }
-
 
 /** The source-specific explanatory line under the badge — one sentence per case, no `{path}`
  *  template needed (the path is rendered as its own `<code>`, not interpolated into translated
@@ -224,8 +223,10 @@ function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) 
 /** The revealed value itself, plus Copy/Hide — the ONLY place in this tab that ever renders a key
  *  VALUE rather than a fingerprint. The value is `data-agent-private`, so no published ancestor's
  *  text carries it to the agent, and neither it nor Copy has a handle. @complexity O(1). */
-function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHide: () => void; t: Translate }) {
-  const { copied, copy } = useRevealedKeyCopy(hex);
+function SiteKeyRevealedValue({ hex, onHide, t: translate,
+  useRevealedKeyCopyHook = useRevealedKeyCopy }: { hex: string; onHide: () => void; t: Translate;
+  useRevealedKeyCopyHook?: typeof useRevealedKeyCopy; }) {
+  const { copied, copy } = useRevealedKeyCopyHook({ hex });
   return (
     <div className="site-key-revealed-value" {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>
       <code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}>{hex}</code>
@@ -269,16 +270,18 @@ export function SiteKeyGenerateAction({ controller }: { controller: SiteKeyContr
   );
 }
 
-function siteKeyGenerateFailureText(failure: SiteKeyGenerateFailure, translate: Translate, locale: string): string {
+function siteKeyGenerateFailureText({ failure, translate, locale }: { failure: SiteKeyGenerateFailure; translate: Translate; locale: string }, _optional: Record<string, never> = {}): string {
   if (failure.kind === "already-exists") {
     return translate("A key file already exists. This tab only creates a new key — it never overwrites one.");
   }
-  return failure.kind === "generic" ? siteKeyGenerateErrorMessage(locale, failure.detail) : failure.detail;
+  return failure.kind === "generic" ? siteKeyGenerateErrorMessage({ locale, error: failure.detail }) : failure.detail;
 }
 
-function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyGenerateFailure; t: Translate }) {
-  const locale = useAdminLocale();
-  const text = siteKeyGenerateFailureText(failure, translate, locale);
+function SiteKeyGenerateErrorNote({ failure, t: translate,
+  useAdminLocaleHook = useAdminLocale }: { failure: SiteKeyGenerateFailure; t: Translate;
+  useAdminLocaleHook?: typeof useAdminLocale; }) {
+  const locale = useAdminLocaleHook();
+  const text = siteKeyGenerateFailureText({ failure, translate, locale });
   return (
     <p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a site key file failed" })}>
       {text}

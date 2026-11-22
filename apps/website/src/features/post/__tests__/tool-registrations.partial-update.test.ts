@@ -7,13 +7,14 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createPost } from "../post.js";
+import { createPost } from "../post-create.js";
 import type { PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import type { DiscoveredTheme } from "../../theme/index.js";
@@ -33,7 +34,7 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
-function fakeRouteDeps(postRepo: InMemoryPostRepo = new InMemoryPostRepo()) {
+function fakeRouteDeps(postRepo: InMemoryPostRepo = new InMemoryPostRepo({})) {
   let counter = 0;
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -254,7 +255,7 @@ function staleReadPostRepo(inner: InMemoryPostRepo, frozenVersion: number): Post
 }
 
 test("content_post_update: a partial patch with no expectedVersion is still CAS-checked — VERSION_CONFLICT, not a silent clobber", async () => {
-  const inner = new InMemoryPostRepo();
+  const inner = new InMemoryPostRepo({});
   // The row a concurrent human save already landed on — real, current version 2.
   await inner.save({
     id: "p1",
@@ -300,9 +301,9 @@ async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo, html
     { workspaceId: WORKSPACE_ID, postId: "page-1" },
     { repo: postRepo, clock: deps.clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("content_post_update: a title-only patch on a bespoke-HTML page SUCCEEDS — the omitted bodyJson never reaches the S3 guard as a change", async () => {
@@ -349,7 +350,7 @@ test("content_post_update: an empty title or slug on a partial patch is rejected
  * ---------------------------------------------------------------------------------------------- */
 
 test("content_post_update: a FULL four-field call with no expectedVersion is NOT auto-guarded — same last-write-wins save as before S7", async () => {
-  const inner = new InMemoryPostRepo();
+  const inner = new InMemoryPostRepo({});
   await inner.save({
     id: "p1",
     workspaceId: WORKSPACE_ID,

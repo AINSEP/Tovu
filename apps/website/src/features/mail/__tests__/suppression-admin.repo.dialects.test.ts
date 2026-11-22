@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { createMailSuppressionRepo } from "../suppression.repo.js";
 import { createMailSuppressionAdminRepo } from "../suppression-admin.repo.js";
 
@@ -17,7 +17,7 @@ const T = (s: number) => new Date(Date.parse("2026-10-22T12:00:00.000Z") + s * 1
 describeEachDialect("mail suppression admin repo", {
   tables: ["mail_suppression", "mail_suppression_removals", "mail_feedback_inbox", "workspaces"],
   make: (kernel) => {
-    const db = kernel as StorageKernel<unknown>;
+    const db = kernel as KyselyKernel<unknown>;
     let ids = 0;
     return {
       db,
@@ -84,7 +84,7 @@ describeEachDialect("mail suppression admin repo", {
       const { db, admin } = await ready();
       const key = { workspaceId: "wa", address: "ann@example.com", scope: "all" as const };
       const reviewed = await admin.find(key); let intercepted = false;
-      const wrapped = Object.create(db) as StorageKernel<unknown>;
+      const wrapped = Object.create(db) as KyselyKernel<unknown>;
       wrapped.query = async statement => {
         const node = statement.toOperationNode();
         if (failAt === "delete" && JSON.stringify(node).includes("DELETE FROM mail_suppression")) { intercepted = true; throw new Error("delete failed"); }
@@ -135,7 +135,7 @@ describeEachDialect("mail suppression admin repo", {
 
 test("the default clock and id generator stamp a removal", async () => {
   const { eachDialect } = await import("#src/platform/db/kernel/__tests__/dialect-matrix");
-  const [sqlite] = eachDialect({ tables: ["mail_suppression", "mail_suppression_removals", "workspaces"], make: (kernel) => kernel as StorageKernel<unknown> });
+  const [sqlite] = eachDialect({ tables: ["mail_suppression", "mail_suppression_removals", "workspaces"], make: (kernel) => kernel as KyselyKernel<unknown> });
   const db = sqlite!.make();
   try {
     await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('wa', 'A', 'wa', ${T(0)})`);

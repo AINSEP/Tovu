@@ -59,7 +59,7 @@ async function buildApp(): Promise<{ app: express.Express; deps: NewsletterRoute
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterCreateCampaignRoute(app, deps);
+  registerAdminNewsletterCreateCampaignRoute({ app, deps });
   return { app, deps, authorizeCalls, listId };
 }
 
@@ -90,7 +90,7 @@ test("create-campaign: each required string field, missing or non-string, is a 4
   }
 
   assert.equal(authorizeCalls.length, 0);
-  assert.deepEqual(await deps.newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID }), []);
+  assert.deepEqual((await deps.newsletterCampaignRepo.list({ workspaceId: WORKSPACE_ID })).items, []);
 });
 
 test("create-campaign: bodyJson must be a non-null object — missing, null and a string are all 400", async (t) => {

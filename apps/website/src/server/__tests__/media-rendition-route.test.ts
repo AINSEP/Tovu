@@ -370,7 +370,7 @@ test("media rendition route: an anonymous caller is 404'd for a rendition whose 
     const anonBody = (await anonRes.json()) as { error: string };
     assert.equal(anonBody.error, "rendition not found", "must be indistinguishable from an unknown assetId");
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const memberRes = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });

@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { act, fireEvent, render as renderWithoutProvider, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ReactElement } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
-import { api } from "../../lib/api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 // Load the real lazy route before timing the preview-containment interaction.
 import "../../features/posts";
 
@@ -18,7 +19,7 @@ import "../../features/posts";
  * way to learn the flag was off, so it kept mounting `AssistantDock`/`ChatFab` regardless: a
  * permanently broken chat surface reporting "No usable CLI is selected" instead of nothing.
  *
- * `App.hooks.tsx`'s `useAdminAssistantAvailability` reads a sibling `adminAssistantEnabled` field
+ * `App.hooks.ts`'s `useAdminAssistantAvailability` reads a sibling `adminAssistantEnabled` field
  * `GET .../assistant/settings` now returns (`server/routes/admin/assistant/get-settings.ts`), and
  * `App.tsx` conditionally mounts the dock/FAB on it. These two tests prove the wiring: shown by
  * default (field `true`, or a stub response omitting it entirely — the admin's own fail-open
@@ -78,7 +79,7 @@ it.each([
   ["field absent", { data: { publicEnabled: false } }],
 ])("mounts the assistant dock and chat FAB by default (%s)", async (_label, settingsBody) => {
   vi.stubGlobal("fetch", stubFetch(settingsBody));
-  const settingsRead = vi.spyOn(api, "getAssistantSettings");
+  const settingsRead = vi.spyOn(aiAssistantApi, "getAssistantSettings");
   const { container } = render(<App />);
 
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   pluginRowFacts,
   buildPluginRemoveConfirmCopy,
@@ -49,29 +50,29 @@ describe("pluginSubline", () => {
 
 describe("pluginToggleControl — AC-21 direct invocation (unreachable via Installed-tab-only rendering)", () => {
   it("an invalid, disabled plugin offers no enable-capable control (visible: false)", () => {
-    const control = pluginToggleControl(makePlugin({ status: "invalid", enabled: false }), null, "en");
+    const control = pluginToggleControl({ plugin: makePlugin({ status: "invalid", enabled: false }), rowSavingId: null, locale: "en" });
     expect(control).toEqual({ visible: false, disabled: false, label: "" });
   });
 
   it("an enabled plugin always stays visible regardless of status — the only case Installed can ever render", () => {
-    const control = pluginToggleControl(makePlugin({ status: "invalid", enabled: true }), null, "en");
+    const control = pluginToggleControl({ plugin: makePlugin({ status: "invalid", enabled: true }), rowSavingId: null, locale: "en" });
     expect(control.visible).toBe(true);
     expect(control.label).toBe("Disable");
   });
 
   it("a valid, disabled plugin is visible with an Enable label", () => {
-    const control = pluginToggleControl(makePlugin({ status: "valid", enabled: false }), null, "en");
+    const control = pluginToggleControl({ plugin: makePlugin({ status: "valid", enabled: false }), rowSavingId: null, locale: "en" });
     expect(control).toEqual({ visible: true, disabled: false, label: "Enable" });
   });
 });
 
 describe("pluginRemoveAriaLabel", () => {
   it("names the plugin for a site plugin", () => {
-    expect(pluginRemoveAriaLabel(makePlugin({ source: "site", name: "Valid Site Plugin" }), "en")).toBe("Remove Valid Site Plugin");
+    expect(pluginRemoveAriaLabel({ plugin: makePlugin({ source: "site", name: "Valid Site Plugin" }), locale: "en" })).toBe("Remove Valid Site Plugin");
   });
 
   it("says unavailable for a built-in plugin", () => {
-    expect(pluginRemoveAriaLabel(makePlugin({ source: "built-in", name: "Word Count" }), "en")).toBe("Remove Word Count — unavailable");
+    expect(pluginRemoveAriaLabel({ plugin: makePlugin({ source: "built-in", name: "Word Count" }), locale: "en" })).toBe("Remove Word Count — unavailable");
   });
 });
 
@@ -86,65 +87,65 @@ describe("buildPluginRemoveConfirmCopy", () => {
 
 describe("describeApiError — PLUGIN_UNINSTALL's four codes", () => {
   it("maps PLUGIN_NOT_UNINSTALLABLE to a built-in-specific message", () => {
-    expect(describeApiError(new ApiError("x", 422, "PLUGIN_NOT_UNINSTALLABLE"), "fallback")).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_NOT_UNINSTALLABLE" }), fallback: "fallback" })).toBe(
       "This plugin ships with Tovu and cannot be removed.",
     );
   });
 
   it("maps PLUGIN_ENABLED to the disable-first guidance", () => {
-    expect(describeApiError(new ApiError("x", 409, "PLUGIN_ENABLED"), "fallback")).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 409 }, { code: "PLUGIN_ENABLED" }), fallback: "fallback" })).toBe(
       "This plugin is enabled and must be disabled everywhere before it can be removed.",
     );
   });
 
   it("maps PLUGIN_IN_TRASH to restore-or-delete guidance", () => {
-    expect(describeApiError(new ApiError("x", 409, "PLUGIN_IN_TRASH"), "fallback")).toBe(
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 409 }, { code: "PLUGIN_IN_TRASH" }), fallback: "fallback" })).toBe(
       "This plugin is already in the Trash. Restore or delete it there first.",
     );
   });
 
   it("maps PLUGIN_ID_INVALID", () => {
-    expect(describeApiError(new ApiError("x", 400, "PLUGIN_ID_INVALID"), "fallback")).toBe("This plugin's id is invalid.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 400 }, { code: "PLUGIN_ID_INVALID" }), fallback: "fallback" })).toBe("This plugin's id is invalid.");
   });
 
   it("still maps PLUGIN_NOT_FOUND — shared verbatim with PLUGIN_SET_ENABLED's own error envelope", () => {
-    expect(describeApiError(new ApiError("x", 404, "PLUGIN_NOT_FOUND"), "fallback")).toBe("No plugin with that id is installed.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 404 }, { code: "PLUGIN_NOT_FOUND" }), fallback: "fallback" })).toBe("No plugin with that id is installed.");
   });
 
   it("falls back to the shared default for a non-Error, non-ApiError rejection", () => {
-    expect(describeApiError("not an Error instance", "fallback text")).toBe("fallback text");
+    expect(describeApiError({ e: "not an Error instance", fallback: "fallback text" })).toBe("fallback text");
   });
 
   it("surfaces a plain Error's own message unchanged (the shared default's behavior, not overridden here)", () => {
-    expect(describeApiError(new Error("network down"), "fallback text")).toBe("network down");
+    expect(describeApiError({ e: new Error("network down"), fallback: "fallback text" })).toBe("network down");
   });
 });
 
 describe("describeApiError — characterization of every remaining branch", () => {
   it("maps PLUGIN_SET_ENABLED's PLUGIN_INVALID and PLUGIN_INCOMPATIBLE", () => {
-    expect(describeApiError(new ApiError("x", 422, "PLUGIN_INVALID"), "fallback")).toBe("This plugin failed validation and cannot be enabled.");
-    expect(describeApiError(new ApiError("x", 422, "PLUGIN_INCOMPATIBLE"), "fallback")).toBe("This plugin requires a different SDK version.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_INVALID" }), fallback: "fallback" })).toBe("This plugin failed validation and cannot be enabled.");
+    expect(describeApiError({ e: new ApiError({ message: "x", status: 422 }, { code: "PLUGIN_INCOMPATIBLE" }), fallback: "fallback" })).toBe("This plugin requires a different SDK version.");
   });
 
   it("an ApiError with an unmapped code, or no code, surfaces the server's own message", () => {
-    expect(describeApiError(new ApiError("server says no", 500, "INTERNAL"), "fallback")).toBe("server says no");
-    expect(describeApiError(new ApiError("server says no", 500), "fallback")).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "INTERNAL" }), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }), fallback: "fallback" })).toBe("server says no");
   });
 
   it("an ApiError with an unmapped code and an empty message uses the fallback", () => {
-    expect(describeApiError(new ApiError("", 500, "INTERNAL"), "fallback")).toBe("fallback");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 500 }, { code: "INTERNAL" }), fallback: "fallback" })).toBe("fallback");
   });
 
   it("a code that names an Object.prototype member is not treated as a mapped code", () => {
-    expect(describeApiError(new ApiError("server says no", 500, "toString"), "fallback")).toBe("server says no");
-    expect(describeApiError(new ApiError("server says no", 500, "constructor"), "fallback")).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "toString" }), fallback: "fallback" })).toBe("server says no");
+    expect(describeApiError({ e: new ApiError({ message: "server says no", status: 500 }, { code: "constructor" }), fallback: "fallback" })).toBe("server says no");
   });
 });
 
 describe("pluginRowFacts (PL-2, 2026-10-06): the detail panel's always-present facts", () => {
   const identity = (key: string) => key;
   it("spells out a site tier-2 plugin that is off and incompatible", () => {
-    const facts = pluginRowFacts(makePlugin({ id: "x", source: "site", tier: "tier-2", status: "incompatible", enabled: false }), identity);
+    const facts = pluginRowFacts({ plugin: makePlugin({ id: "x", source: "site", tier: "tier-2", status: "incompatible", enabled: false }), translate: identity });
     expect(facts).toEqual([
       { label: "ID", value: "x" },
       { label: "Source", value: "Installed on this site" },
@@ -155,7 +156,7 @@ describe("pluginRowFacts (PL-2, 2026-10-06): the detail panel's always-present f
   });
 
   it("uses the no-code sentence for tier-1 and points an invalid plugin at its errors", () => {
-    const facts = pluginRowFacts(makePlugin({ tier: "tier-1", status: "invalid" }), identity);
+    const facts = pluginRowFacts({ plugin: makePlugin({ tier: "tier-1", status: "invalid" }), translate: identity });
     expect(facts[2]?.value).toBe("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.");
     expect(facts[3]?.value).toBe("Invalid — see the errors below");
   });

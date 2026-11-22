@@ -156,7 +156,7 @@ describe("createInstalledSkillsComposerCapabilitySource", () => {
     // The `resolve` output is what makes this row non-inert (Q2): it must name the real,
     // callable tool id, not just the skill's display name.
     expect(capability?.resolve).toBeTypeOf("function");
-    const binding = capability?.resolve?.(undefined);
+    const binding = capability?.resolve?.({ argument: undefined });
     expect(binding).toEqual({ kind: "installed-skill", toolId: "skill_incident_response" });
 
     // The route this source actually calls, same-origin, workspace-scoped.

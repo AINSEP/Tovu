@@ -53,13 +53,13 @@ test("upgrade: a site holding the previous github digest loads the changed adapt
       const source = await readFile(modulePath, "utf8");
       await writeFile(modulePath, source.replace("export default { status, logs, deploy };", "export default { status, logs, deploy, nextBuild: true };"));
       const lifecycle = createTovuAgentPluginLifecycle({ layout });
-      const packed = await lifecycle.packAgentPluginDirectory(path.join(sourceRoot, "github"));
+      const packed = await lifecycle.packAgentPluginDirectory({ sourceDir: path.join(sourceRoot, "github") });
       const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: WORKSPACE_ID, archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
       const beforeReseed = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
       assert.deepEqual(beforeReseed.list(), []);
       assert.deepEqual(beforeReseed.refusals, [`deploy ops from 'github' were not loaded: only plugins shipped with Tovu may add deploy ops (installed digest ${installed.archiveDigest.slice(0, 12)} is not the one this build shipped)`]);
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
-      assert.equal((await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: "github" }))).length, 1, "successful publication prunes the superseded digest");
+      assert.equal((await readdir(layout.forWorkspace({ workspaceId: WORKSPACE_ID }).pluginPackagesDir({ pluginId: "github" }))).length, 1, "successful publication prunes the superseded digest");
       const registry = await loadDeployOpsRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       const loaded = registry.get("github-actions").module;

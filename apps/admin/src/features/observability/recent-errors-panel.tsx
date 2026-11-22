@@ -1,11 +1,11 @@
-import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "./recent-errors.css";
 import { CheckIcon, ChevronIcon, CopyIcon } from "./observability-visuals";
 import { useRecentErrorItem } from "./hooks/use-recent-error-item.hooks";
-import type { RecentServerErrorRow, RecentServerErrorsController, useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
+import { useWiredRecentServerErrors, type RecentServerErrorRow, type RecentServerErrorsController } from "./hooks/use-recent-server-errors.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * Recent errors tab (gap A-04, slice L2): the newest server error lines, the same data the
  * `system_read_server_logs` chat tool returns. Markup only — state lives in
@@ -17,7 +17,7 @@ import type { RecentServerErrorRow, RecentServerErrorsController, useWiredRecent
  * repeated) that opens to the full message with shortened paths; Copy puts a paste-ready block on
  * the clipboard.
  */
-export function RecentErrorsPanel({ useRecentServerErrorsHook }: { useRecentServerErrorsHook: typeof useWiredRecentServerErrors }) {
+export function RecentErrorsPanel({ useRecentServerErrorsHook = useWiredRecentServerErrors }: { useRecentServerErrorsHook?: typeof useWiredRecentServerErrors }) {
   const controller = useRecentServerErrorsHook();
   const { rows, logs, loading, error, refresh, clipboard, t } = controller;
 
@@ -69,8 +69,8 @@ function RecentErrorsCaptureStatus({ logs, empty, t }: { logs: RecentServerError
  * One distinct error: a toggle button (the whole summary line) that opens the full message, and a
  * Copy button beside it — siblings, never nested, so each stays its own tab stop.
  */
-function RecentErrorItem({ row, clipboard, t }: { row: RecentServerErrorRow; clipboard: RecentServerErrorsController["clipboard"]; t: Translate }) {
-  const { expanded, toggle, detailId, copied, copy } = useRecentErrorItem({ copyText: row.copyText, clipboard });
+function RecentErrorItem({ row, clipboard, t, useRecentErrorItemHook = useRecentErrorItem }: { row: RecentServerErrorRow; clipboard: RecentServerErrorsController["clipboard"]; t: Translate; useRecentErrorItemHook?: typeof useRecentErrorItem; }) {
+  const { expanded, toggle, detailId, copied, copy } = useRecentErrorItemHook({ copyText: row.copyText, clipboard });
 
   return (
     <li className="observability-error" data-expanded={expanded}>

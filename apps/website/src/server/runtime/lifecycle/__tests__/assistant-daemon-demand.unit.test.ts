@@ -140,7 +140,7 @@ test("a verified-ready daemon clears a stale latch, so /api/agents does not stay
   });
   await ensureAssistantDaemonReady({}, {});
   // What restartAssistantDaemon latches when its readiness wait outlives the 30s deadline.
-  recordAssistantDaemonFailure("Error: daemon readiness timed out");
+  recordAssistantDaemonFailure({ reasonCode: "Error: daemon readiness timed out" });
   try {
     await ensureAssistantDaemonReady({}, {});
     assert.equal(isAssistantDaemonKnownFailed(), false);

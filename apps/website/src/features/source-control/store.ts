@@ -1,10 +1,11 @@
-import { ProjectKeyCreateConflictError } from '../project-keys/create-vault.js';
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialConnection } from '../../contracts/core/credential-token.js';
+import { ProjectKeyCreateConflictError } from '#src/contracts/core/credential-store';
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { isUniqueViolation } from "@jini-ai/db/kernel";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
@@ -15,7 +16,8 @@ import type {
   SourceControlCredentialSummary,
   SourceControlProviderId,
 } from "./types.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { HttpClientPort } from "../../platform/http/index.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /** Source-control validation and inline identity probes remain feature policy. Jini owns
  * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens.
@@ -46,7 +48,22 @@ function vaultSummary({ summary }: { summary: VaultSummary }, _options = {}): So
     accountLabel: summary.meta.accountLabel as string | null, createdAt: summary.createdAt, updatedAt: summary.updatedAt };
 }
 function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCredentialWriteDeps>, _options = {}) {
-  return credentialVault({ ...deps, sealer: deps.sealer!, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+  return credentialVault({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
+}
+
+/** Error names (and the transport's own wording) that mean the probe ran out of time, not that the host refused it. */
+const TIMEOUT_ERROR_NAMES: ReadonlySet<string> = new Set(['AbortError', 'TimeoutError', 'FetchTimeoutError']);
+
+/** What one probe response says about the saved connection: rejected, reachable, or not usable. */
+function connectionForStatus({ status }: { status: number }, _optional = {}): CredentialConnection {
+  if (status === 401 || status === 403) return 'auth';
+  return status >= 200 && status < 300 ? 'connected' : 'unreachable';
+}
+
+/** What a probe that never got an answer says about the saved connection. */
+function connectionForFailure({ err }: { err: unknown }, _optional = {}): CredentialConnection {
+  const timedOut = err instanceof Error && (TIMEOUT_ERROR_NAMES.has(err.name) || /timed out/i.test(err.message));
+  return timedOut ? 'timeout' : 'unreachable';
 }
 
 /**
@@ -57,33 +74,32 @@ function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCred
  *
  * The host-specific read lives in the plugin that provides the host (`provider-module.ts`'s
  * `readAccountLabel`; each provider owns its account identity read). A host no enabled
- * plugin provides yields `null` with no request made.
+ * plugin provides yields `null` with no request made. The request carries the saved token, so it goes
+ * out only through the guarded {@link SourceControlCredentialWriteDeps.httpClient}, never the global
+ * `fetch`; without one the provider is built over the kit's refusing stand-in (its request fails as a
+ * transport error) and the save still succeeds.
  *
  * @complexity One registry load plus at most one bounded HTTP request.
  */
-async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspaceId: UUID, providerId: SourceControlProviderId, token: string): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
+async function probeAccountLabel({ deps, workspaceId, providerId, token }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID; providerId: SourceControlProviderId; token: string }, _optional = {}): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
   let connection: CredentialConnection = 'saved';
-  const fetchFn: typeof fetch = async (input, init) => {
-    try {
-      const response = await (deps.fetchFn ?? fetch)(input, init);
-      if (response.status === 401 || response.status === 403) connection = 'auth';
-      else connection = response.ok ? 'connected' : 'unreachable';
-      return response;
-    } catch (err) {
-      connection = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError') ? 'timeout' : 'unreachable';
-      throw err;
-    }
+  const { httpClient, loadSourceControlProviders } = deps;
+  // Write-only callers may omit account discovery; production supplies its boot-bound loader and client.
+  if (!loadSourceControlProviders) return { accountLabel: null, connection };
+  const observed: HttpClientPort | undefined = httpClient && {
+    send: async (request, options) => {
+      try {
+        const response = await httpClient.send(request, options);
+        connection = connectionForStatus({ status: response.status });
+        return response;
+      } catch (err) {
+        connection = connectionForFailure({ err });
+        throw err;
+      }
+    },
   };
   try {
-    // Write-only callers may omit account discovery; production supplies its boot-bound loader.
-    if (!deps.loadSourceControlProviders) return { accountLabel: null, connection };
-    const built = await buildSourceControlProvider({
-      load: deps.loadSourceControlProviders,
-      fetchFn,
-      observability: deps.observability,
-      workspaceId,
-      providerId,
-    });
+    const built = await buildSourceControlProvider({ load: loadSourceControlProviders, ...(observed ? { httpClient: observed } : {}), workspaceId, providerId });
     const accountLabel = built.ok ? await built.provider.readAccountLabel(token) : null;
     return { accountLabel, connection };
   } catch {
@@ -165,10 +181,10 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
-  /** Injected by tests; defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
-  fetchFn?: typeof fetch;
-  /** `RouteDeps.observability`: the identity probe is one outbound span. */
-  observability?: ObservabilityPort;
+  /** The guarded client (egress policy, redirects per call) for the save-time identity probe, which
+   *  carries the saved token. Absent: the provider's request fails as a transport error (no global `fetch`).
+   *  Its outbound span is recorded where the client is built. */
+  httpClient?: HttpClientPort;
   /** Loaded provider declarations govern admission and optional account-label discovery. */
   loadSourceControlProviders?: LoadSourceControlProviders;
 }
@@ -176,7 +192,7 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every
  *  rejection is a {@link SourceControlCredentialValidationError} the route layer can map to its own
  *  `400`. */
-function validateLabel(raw: unknown): string {
+function validateLabel({ raw }: { raw: unknown }, _optional = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new SourceControlCredentialValidationError("label must be a non-empty string");
   }
@@ -187,7 +203,7 @@ function validateLabel(raw: unknown): string {
   return raw;
 }
 
-function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
+function requireNonEmptyString({ raw, field, providerId }: { raw: unknown; field: string; providerId: string }, _optional = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new SourceControlCredentialValidationError(`'${field}' (non-empty string) is required for provider '${providerId}'`);
   }
@@ -196,7 +212,7 @@ function requireNonEmptyString(raw: unknown, field: string, providerId: string):
 
 /** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested"; any
  *  other non-boolean value is rejected rather than coerced. */
-function optionalBoolean(raw: unknown, field: string): boolean | undefined {
+function optionalBoolean({ raw, field }: { raw: unknown; field: string }, _optional = {}): boolean | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "boolean") {
     throw new SourceControlCredentialValidationError(`'${field}' must be a boolean when provided`);
@@ -238,7 +254,7 @@ async function normalizeConnectionPatch({ raw, existing, registry }: {
   value.providerId ??= existing;
   if (value.token !== undefined || Object.keys(value).every(key => key === 'providerId' || key === 'token')) return value;
   const loaded = await registry();
-  const descriptor = typeof value.providerId === 'string' ? loaded.get(value.providerId)?.descriptor : undefined;
+  const descriptor = typeof value.providerId === 'string' ? loaded.get({ providerId: value.providerId })?.descriptor : undefined;
   return canonicalConnection({ value, descriptor });
 }
 
@@ -252,7 +268,7 @@ async function assertBlankPatchChangesNoField({ patch, registry }: {
   const named = Object.keys(patch ?? {}).filter(key => key !== 'providerId' && key !== 'token');
   if (named.length === 0) return;
   const providerId = typeof patch?.providerId === 'string' ? patch.providerId : '';
-  const tokenField = (await registry()).get(providerId)?.descriptor.credential?.tokenField;
+  const tokenField = (await registry()).get({ providerId })?.descriptor.credential?.tokenField;
   const changed = named.filter(key => key !== tokenField);
   if (changed.length > 0) throw new SourceControlCredentialValidationError(`changing ${changed.join(', ')} requires a new token`);
 }
@@ -266,14 +282,15 @@ async function preservedProvider({ raw, existing, registry }: {
   const providerId = (raw as Record<string, unknown>).providerId;
   if (providerId === undefined || providerId === existing) return existing;
   const descriptor = requireProvider({ providerId, registry: await registry() });
-  const paired = descriptor.credential?.fields.find(field => field.required && field.name !== descriptor.credential!.tokenField);
+  const credential = descriptor.credential;
+  const paired = credential?.fields.find(field => field.required && field.name !== credential.tokenField);
   if (paired) throw new SourceControlCredentialValidationError(`moving to ${descriptor.id} requires a new token and ${paired.name}`);
   return descriptor.id;
 }
 
 /** Only loaded providers admit new connections; stored ids are never checked against this list. */
 function requireProvider({ providerId, registry }: { providerId: unknown; registry: SourceControlProviderRegistry }, _options = {}): SourceControlProviderDescriptor {
-  const loaded = typeof providerId === 'string' ? registry.get(providerId) : undefined;
+  const loaded = typeof providerId === 'string' ? registry.get({ providerId }) : undefined;
   if (!loaded) throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${registry.list().map(provider => provider.descriptor.id).join(', ')}`);
   return loaded.descriptor;
 }
@@ -281,7 +298,7 @@ function requireProvider({ providerId, registry }: { providerId: unknown; regist
 /** Write-only callers without a provider port cannot introduce a new credential/provider. */
 async function credentialRegistry({ deps, workspaceId }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID }, _options = {}): Promise<SourceControlProviderRegistry> {
   if (!deps.loadSourceControlProviders) return { list: () => [], get: () => undefined, refusals: [] };
-  return deps.loadSourceControlProviders(workspaceId);
+  return deps.loadSourceControlProviders({ workspaceId });
 }
 
 function normalizeStoredToken({ value }: { value: unknown }): string {
@@ -322,7 +339,7 @@ function validateDeclaredField({ value, field, providerId }: {
   value: unknown; field: import('./credential-form.js').SourceControlCredentialField; providerId: string;
 }, _options = {}): string | undefined {
   if (value === undefined && !field.required) return undefined;
-  const text = requireNonEmptyString(value, field.name, providerId);
+  const text = requireNonEmptyString({ raw: value, field: field.name, providerId });
   if (field.secret) return normalizeStoredToken({ value: text });
   assertPlainField({ value: text, field: field.name });
   return text;
@@ -331,8 +348,8 @@ function validateDeclaredField({ value, field, providerId }: {
 /** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
  *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
  *  SQLSTATE 23505). */
-export function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
+export function isUniqueLabelViolation({ err }: { err: unknown }, _optional = {}): boolean {
+  return isUniqueViolation({ err });
 }
 
 export interface CreateSourceControlCredentialInput {
@@ -375,14 +392,14 @@ export async function createSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: CreateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
-  const label = validateLabel(input.label);
+  const label = validateLabel({ raw: input.label });
   const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   const canonical = deps.repo.canonical;
   if (canonical?.supports({ providerId: connection.providerId })) {
     if (!canonical.create) throw new SourceControlCredentialValidationError("Open the provider's API key card to save this shared key.");
     return canonical.create({ workspaceId: input.workspaceId, connection });
   }
-  const isDefault = optionalBoolean(input.isDefault, "isDefault");
+  const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
@@ -398,7 +415,7 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
   try { return await vault(deps).put(input); }
   catch (error) {
     if (error instanceof ProjectKeyCreateConflictError) throw new SourceControlCredentialDuplicateLabelError(error.message);
-    const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
+    const duplicate = isUniqueLabelViolation({ err: error }) || error instanceof VaultError && error.code === "conflict" &&
       (await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: input.provider as SourceControlProviderId }))
         .some(row => row.id !== input.id && row.label === input.label);
     if (duplicate) throw new SourceControlCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${input.provider}' credential labeled '${input.label}' already exists in this workspace`);
@@ -408,11 +425,13 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
 
 /** `deps` writes the store holding `summary`'s row; `workspaceId` is the site's (its provider registry). */
 async function probeSavedConnection({ deps, summary, connection, workspaceId }: { deps: SourceControlCredentialWriteDeps; summary: VaultSummary; connection: SourceControlConnectionInput; workspaceId: UUID }, _options = {}): Promise<SourceControlCredentialSummary> {
-  const probe = await probeAccountLabel(deps, workspaceId, connection.providerId, connection.token);
+  const probe = await probeAccountLabel({ deps, workspaceId, providerId: connection.providerId, token: connection.token });
   try { if (probe.accountLabel !== null) assertPlainAccountLabel({ value: probe.accountLabel }); } catch { probe.accountLabel = null; }
   if (probe.accountLabel !== null) {
     // This is the saved revision, not a new read's revision: an old probe must not heal a rotation.
-    try { await deps.repo.vault!.patchMeta({ workspaceId: summary.workspaceId, id: summary.id,
+    try {
+      if (!deps.repo.vault) throw new Error("Source control credential has no vault");
+      await deps.repo.vault.patchMeta({ workspaceId: summary.workspaceId, id: summary.id,
       expectedRevision: summary.revision, patch: { accountLabel: assertPlainAccountLabel({ value: probe.accountLabel }) }, updatedAt: summary.updatedAt }); }
     catch { /* A metadata failure does not undo the saved token. */ }
   }
@@ -435,6 +454,20 @@ export interface UpdateSourceControlCredentialInput {
   isDefault?: unknown;
 }
 
+async function loadSourceControlCredentialUpdate({ deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput }) {
+  // Changed where it lives: this site's own row, else the project's attached row.
+  const located = await locateById(deps, input);
+  if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  const { scoped, record: existing } = located;
+  const label = input.label !== undefined ? validateLabel({ raw: input.label }) : existing.label;
+  const requestedDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
+  if (!scoped.deps.repo.vault) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
+  const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
+  if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
+  return { scoped, existing, label, requestedDefault, row, where };
+}
+
 /** Omitted/blank tokens keep the envelope; explicit rotations reset and re-probe the label.
  * @param required Explicit store ports and update input. @returns A summary with no secret fields.
  * @throws {SourceControlCredentialValidationError} Invalid or unavailable destination/fields.
@@ -443,15 +476,7 @@ export async function updateSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: UpdateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
-  // Changed where it lives: this site's own row, else the project's attached row.
-  const located = await locateById(deps, input);
-  if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
-  const { scoped, record: existing } = located;
-  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
-  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
-  const row = await scoped.deps.repo.vault!.find({ workspaceId: scoped.workspaceId, id: input.id });
-  if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
-  const where = credentialScope({ workspaceId: scoped.workspaceId, kind: "source-control" });
+  const { scoped, existing, label, requestedDefault, row, where } = await loadSourceControlCredentialUpdate({ deps, input });
   const patch = await normalizeConnectionPatch({ raw: input.connection, existing: existing.providerId, registry: () => credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   if (patch !== undefined && !isEmptyTokenPatch({ value: patch })) {
     const connection = validateConnection({ raw: patch, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
@@ -500,7 +525,11 @@ async function selectSourceControlCredential({ repo, workspaceId, providerId, cl
   const all = await repo.listByProvider({ workspaceId, providerId });
   const rows = all.filter(row => !claimed.has(row.label));
   for (const row of all) claimed.add(row.label);
-  return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
+  const selected = rows.find(row => row.isDefault);
+  if (selected || rows.length !== 1) return selected ?? null;
+  const only = rows[0];
+  if (only === undefined) throw new Error("Source control credential inventory has no sole row");
+  return only;
 }
 
 /** The selected credential's metadata for a host, never decrypted: this site's, else the project's. */

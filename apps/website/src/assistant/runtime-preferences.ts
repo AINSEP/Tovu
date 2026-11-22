@@ -1,5 +1,6 @@
 /** Per-person assistant runtime preferences (`core.interface`), read fresh for every run launch. */
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "../features/settings/admin-interface.js";
 
 export interface AssistantRuntimePreferenceDeps {
@@ -22,7 +23,7 @@ export interface AssistantRuntimePreferences {
 /** The registered definition defaults; also what a failed or absent read falls back to. */
 export const DEFAULT_ASSISTANT_RUNTIME_PREFERENCES: Readonly<AssistantRuntimePreferences> = Object.freeze({
   preferSubagents: true,
-  useClaudeInChrome: true,
+  useClaudeInChrome: false,
   replyLength: "normal",
 });
 
@@ -33,15 +34,11 @@ async function readPreference(
   { deps, principalId, key }: { deps: AssistantRuntimePreferenceDeps; principalId: string; key: string },
   _options = {},
 ): Promise<unknown> {
-  try {
+  return orFallback({ work: async () => {
     await deps.settingsReady;
-    const effective = await deps.getEffective({ repo: deps.settingsRepo }, {
-      namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext: { workspaceId: deps.workspaceId, principalId },
-    });
+    const effective = await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: ADMIN_INTERFACE_NAMESPACE, key, scopeContext: { workspaceId: deps.workspaceId, principalId } });
     return effective?.value;
-  } catch {
-    return undefined;
-  }
+  }, fallback: undefined, step: "Read assistant preference" });
 }
 
 /** The launching person's runtime preferences, read fresh so an edit applies to the next run.
@@ -50,8 +47,8 @@ export async function readAssistantRuntimePreferences(
   { deps, principalId }: { deps: AssistantRuntimePreferenceDeps; principalId: string },
   _options = {},
 ): Promise<AssistantRuntimePreferences> {
-  // A wrong-typed or unreadable value falls back to the registered default; Claude in Chrome stays
-  // owner-only and probe-gated either way (resolveAssistantRuntimeLaunch), so a default `true` here grants nothing alone.
+  // A wrong-typed or unreadable value falls back to the registered default (Claude in Chrome is off
+  // by default, OD-4); it stays owner-only and probe-gated either way (resolveAssistantRuntimeLaunch).
   const defaults = DEFAULT_ASSISTANT_RUNTIME_PREFERENCES;
   const preferSubagents = await readPreference({ deps, principalId, key: PREFER_SUBAGENTS_KEY });
   const useClaudeInChrome = await readPreference({ deps, principalId, key: USE_CLAUDE_IN_CHROME_KEY });

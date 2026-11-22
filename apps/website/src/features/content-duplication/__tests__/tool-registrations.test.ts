@@ -7,7 +7,7 @@ import type { ContentDuplicationToolDeps } from "../tool-registrations.js";
 import type { DuplicateResourceHandlerContributor } from "../../../assistant/duplicate-resource-registry.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -79,7 +79,7 @@ function fakeResource(resource: string, permission: string): FakeResource {
       resource,
       build: () => ({
         permission,
-        duplicate: async (input) => {
+        duplicate: async (input, _optional = {}) => {
           calls.push({ principalId: input.principalId, id: input.id, overrides: { ...input.overrides } });
           return { copiedResource: resource, copiedFrom: input.id };
         },

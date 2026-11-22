@@ -17,7 +17,7 @@ import { pluginMemory } from "../../memory.js";
 import { pluginNoteHandler } from "../../write-note-tool.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -73,21 +73,21 @@ const NOTE = { pluginId: "example", entryPath: "brand.md", text: "Use the teal l
 test("ordinary note save runs directly, preserves bytes and opens no exchange", async t => {
   const h = await setup(t);
   assert.deepEqual(await h.handler(ctxFor(NOTE), { emitSurface: async () => assert.fail("ordinary notes never ask") }), { saved: true, relativePath: "brand.md", bytes: Buffer.byteLength(NOTE.text) });
-  assert.equal(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
+  assert.equal(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" , layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
   assert.equal(h.surfaceExchanges.size(), 0);
 });
 
 test("the handler uses the instance layout supplied at construction", async t => {
   const h = await setup(t, { instanceLayout: true });
   assert.equal((await h.handler(ctxFor(NOTE)) as { saved: boolean }).saved, true);
-  assert.equal(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
+  assert.equal(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" , layout: h.layout }).read({ kind: "notes", entryPath: "brand.md" }), NOTE.text);
 });
 
 test("an aborted note saves nothing", async t => {
   const h = await setup(t);
   const controller = new AbortController(); controller.abort();
   assert.deepEqual(await h.handler(ctxFor(NOTE, controller.signal)), { saved: false, reason: "abandoned" });
-  assert.deepEqual(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" }, { layout: h.layout }).list({ kind: "notes" }), []);
+  assert.deepEqual(await pluginMemory({ contain: containAgentPluginStatePath, workspaceId: WORKSPACE, pluginId: "example" , layout: h.layout }).list({ kind: "notes" }), []);
 });
 
 test("input refusals happen before any dialog", async t => {

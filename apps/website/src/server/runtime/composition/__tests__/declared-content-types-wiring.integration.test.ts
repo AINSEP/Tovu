@@ -27,13 +27,13 @@ test("deps.ts: turning on the tier-1 sample creates its content types in content
   process.env.TOVU_PLUGINS_DIR = path.join(parent, "plugins");
   await initSite({ dir, name: "AW-7 Wiring Site" });
   const boot = await bootSiteDir({ dir });
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "AW-7 Wiring Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   t.after(async () => {
     await deps.pluginRuntimeReady;
     await closeSiteDirBoot(boot);

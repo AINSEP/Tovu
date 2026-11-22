@@ -3,15 +3,15 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaRepo, SqlAssetBlobRepo } from "#src/platform/db/repos/media-repo";
-import { listColumns } from "#src/platform/db/kernel/dialect";
-import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
+import { listColumns } from "@jini-ai/db/kernel";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, uploadMedia, updateMediaMetadata, type MediaRecord } from "../index.js";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import { duplicateMediaAsset } from "../duplicate-asset.js";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { InMemoryVersionedMediaRepo, uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -30,7 +30,7 @@ function row(optional: Partial<MediaRecord> = {}): MediaRecord {
 test("canonical upload attributes separate assets sharing bytes to their own actors", async () => {
   let id = 0;
   const deps = { clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `created-by-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `created-by-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore() };
   for (const principal of ["owner", "user", "assistant-agent", "plugin-key"]) {
@@ -48,16 +48,16 @@ test("canonical upload attributes separate assets sharing bytes to their own act
 test("media copies attribute the new library entry to the copier while retaining one shared blob", async () => {
   let id = 0;
   const deps = { clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `copy-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `copy-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore() };
   const { media: original } = await uploadMedia({ deps, input: { workspaceId: "creator-ws",
     bytes: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
     filename: "source.png", contentType: "image/png", createdByPrincipal: "source-owner" } });
-  const result = await duplicateMediaAsset({ ...deps, workspaceId: "creator-ws",
+  const result = await duplicateMediaAsset({ routeDeps: { ...deps, workspaceId: "creator-ws",
     assetBlobRepo: deps.blobRepo, assetRenditionRepo: deps.renditionRepo,
     authorize: async () => ({ allowed: true, reason: "matched" }),
-  }, { principalId: "copying-agent", id: original.id, overrides: {} }) as { media: MediaRecord };
+  }, principalId: "copying-agent", id: original.id, overrides: {} }) as { media: MediaRecord };
   assert.notEqual(result.media.id, original.id);
   assert.equal(result.media.createdBy, "copying-agent");
   assert.equal((await deps.mediaRepo.findById({ workspaceId: "creator-ws", id: original.id }))?.createdBy, "source-owner");
@@ -65,7 +65,7 @@ test("media copies attribute the new library entry to the copier while retaining
 });
 
 test("versioned memory writes preserve the original creator, including unknown legacy attribution", async () => {
-  const repo = new InMemoryVersionedMediaRepo();
+  const repo = new InMemoryVersionedMediaRepo({});
   await repo.save(row({ createdBy: "owner" }));
   await repo.save(row({ createdBy: "forged", version: 2 }));
   assert.equal((await repo.findById({ workspaceId: "creator-ws", id: "asset" }))?.createdBy, "owner");
@@ -79,7 +79,7 @@ test("versioned memory writes preserve the original creator, including unknown l
 test("one registered upload handler isolates attribution between concurrent actor calls", async () => {
   let id = 0;
   const deps = { workspaceId: "creator-ws", clock: { nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
-    idGen: { newId: () => `concurrent-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo(),
+    idGen: { newId: () => `concurrent-creator-${++id}` }, mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), authorize: async () => ({ allowed: true, reason: "matched" }),
     removeMedia: async () => { assert.fail("unexpected removal"); },
@@ -103,7 +103,7 @@ for (const adapter of eachDialect({ tables: ["media", "media_slug_history", "ass
   test(`[${adapter.name}] media works before migration and detects installation without recreating repo`, async () => {
     const { kernel, repo } = adapter.make();
     // The same regression suite remains runnable after the owner installs the staged patch.
-    if ((await listColumns(kernel, "media")).some(column => column.name === "created_by")) {
+    if ((await listColumns({ kernel, table: "media" })).some(column => column.name === "created_by")) {
       await kernel.execute(sql`ALTER TABLE media DROP COLUMN created_by`);
     }
     await repo.save(row({ createdBy: "before-install" }));

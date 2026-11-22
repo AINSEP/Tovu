@@ -71,7 +71,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserListRoute(app, deps);
+  registerAdminUserListRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -202,7 +202,7 @@ test("LIST_USERS route: 500 internal error when an unexpected error is thrown", 
 
 test("LIST_USERS route: a trashed (disabled + indexed) user is dropped from the list — OWNER DECISION 2026-09-24", async (t) => {
   const trashedIds = new Set<string>();
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => trashedIds.has(id) });
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => trashedIds.has(principalId) });
   const baseUrl = await startTestServer(app, t);
 
   const svcDeps = identityServiceDepsFrom(deps);

@@ -32,7 +32,7 @@ export type GrantSignedInDefaultsDeps = AgentPluginMcpContext & {
 /** Existing connect-defaults host binding, preserving the grant's explicit field selection. */
 function tovuGrantDeps(deps: GrantSignedInDefaultsDeps): PortableGrantDeps {
   const warn = deps.warn ?? ((message: string) => console.warn(message));
-  return withOverrides(withAgentPluginMcpPorts(deps), {
+  return withOverrides({ target: withAgentPluginMcpPorts(deps), overrides: {
     resolveServers: (input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout }),
     enablePlugin: (input: { workspaceId: string; pluginId: string; actor: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout }),
     isPluginOffByOperator: (pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId }),
@@ -40,7 +40,7 @@ function tovuGrantDeps(deps: GrantSignedInDefaultsDeps): PortableGrantDeps {
     combinedGrantRejected: tovuEnableAccessMessages.combinedGrantRejected,
     warn,
     approvedFailure: ({ connectionId, detail }: { connectionId: string; detail: string }) => `The plugin is on, but '${connectionId}' could not load its approved tools. Request plugins_set_enabled again to retry. Details: ${detail}`,
-  });
+  } });
 }
 
 /** Existing enable/sign-in signature; projections and approved key/principal pass through whole. */
@@ -53,11 +53,11 @@ export function grantDeclaredToolsToSignedInRows(
 
 /** Existing boot signature. One installed listing followed by one activation snapshot. */
 export function grantDeclaredToolsAtBoot(
-  deps: GrantSignedInDefaultsDeps & { readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]> },
-  log: TokenImportLog,
+  { deps, log }: { deps: GrantSignedInDefaultsDeps & { readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]> }; log: TokenImportLog },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
-  return bootWithPorts({ deps: withOverrides(tovuGrantDeps(deps), {
+  return bootWithPorts({ deps: withOverrides({ target: tovuGrantDeps(deps), overrides: {
     listPlugins: () => (deps.listPlugins ?? (() => listInstalledAgentPluginServers(deps)))(),
-    readActivations: () => agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
-  }), log });
+    readActivations: () => agentPluginActivations.readAgentPluginActivations({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
+  } }), log });
 }

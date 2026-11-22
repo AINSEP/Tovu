@@ -1,6 +1,9 @@
 /** @file SQL adapter for Jini's `MailCapturePort` (migration 0023): test/capture mode's message sink. */
-import { isLoopbackHostname } from "@jini-ai/platform/net";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import { isLoopbackHostname } from "@jini-ai/core/net";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
@@ -27,7 +30,7 @@ export const MAX_CAPTURE_LIST = 200;
 
 type Row = { id: string; lane: MailDeliveryLane; idempotency_key: string; to_address: string; subject: string; payload_json: string; created_at: string };
 
-const clampLimit = (limit: number | undefined): number =>
+const clampLimit = ({ limit }: { limit: number | undefined }, _optional = {}): number =>
   Math.min(MAX_CAPTURE_LIST, Math.max(1, Math.trunc(limit ?? DEFAULT_CAPTURE_LIST)));
 
 /**
@@ -53,7 +56,7 @@ export function createMailCaptureRepo<DB>(
     },
     async listCaptured({ workspaceId }, options = {}) {
       const rows = await db.query<Row>(sql`SELECT id, lane, idempotency_key, to_address, subject, payload_json, created_at FROM mail_capture
-        WHERE workspace_id = ${workspaceId} ORDER BY created_at DESC, id DESC LIMIT ${clampLimit(options.limit)}`);
+        WHERE workspace_id = ${workspaceId} ORDER BY created_at DESC, id DESC LIMIT ${clampLimit({ limit: options.limit })}`);
       return rows.map((row) => ({
         id: row.id, lane: row.lane, idempotencyKey: row.idempotency_key, to: row.to_address, subject: row.subject,
         message: JSON.parse(row.payload_json) as OutboundEmail, createdAt: row.created_at,

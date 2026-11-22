@@ -26,18 +26,15 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 
 /** `File.type` is the browser's own MIME sniff off the dropped/picked file — good enough to tell
  *  `ChatPane` how to render the attachment chip; not a security boundary either way. */
-function attachmentKind(file: File): ChatAttachment['kind'] {
+function attachmentKind({ file }: { file: File }, _options = {}): ChatAttachment['kind'] {
   return file.type.startsWith('image/') ? 'image' : 'file';
 }
 
-async function stageOne(
-  bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>,
-  file: File,
-  order: number,
+async function stageOne({ bridge, file, order }: { bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>; file: File; order: number }, _options = {}
 ): Promise<ChatAttachment> {
   const data = await file.arrayBuffer();
   const { path } = await bridge.saveChatAttachment({ name: file.name, data });
-  return { path, name: file.name, kind: attachmentKind(file), size: file.size, order };
+  return { path, name: file.name, kind: attachmentKind({ file }), size: file.size, order };
 }
 
 export function createLocalAttachmentUploader(
@@ -52,7 +49,7 @@ export function createLocalAttachmentUploader(
     // clean up on Runner's side (the staging directory is wiped at every boot, not accumulated
     // across a session's worth of abandoned drafts), so an abort simply drops the result on the
     // floor rather than rolling anything back.
-    const staged = await Promise.all(files.map((file, order) => stageOne(bridge, file, order)));
+    const staged = await Promise.all(files.map((file, order) => stageOne({ bridge, file, order })));
     if (options?.signal.aborted === true) return [];
     return staged;
   };

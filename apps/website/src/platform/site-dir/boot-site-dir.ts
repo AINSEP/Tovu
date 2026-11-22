@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { BootSiteDirDeps } from "./ports.js";
 import type { SiteStore } from "./site-store.js";
 import type { SitesWorkspace } from "./sites-home.js";
@@ -19,6 +20,8 @@ import { resolveWorkspace } from "./resolve-workspace.js";
 import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard.js";
 import { parseSiteStorage } from "./site-storage.js";
 import type { ConfigJson, SiteMetaJson, SiteStorage } from "./types.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-008 — `bootSiteDir`, `tovu serve`'s validate -> guard -> migrate+stamp ->
@@ -81,12 +84,12 @@ export type BootSiteDirResult = SqliteSiteDirBoot | StoreSiteDirBoot;
  * it, `boot.store` is closed directly. SQLite's borrowed `content.db` closes LAST, and even when
  * that close rejects: closing it first left a sweep batch still in flight on a closed connection.
  */
-export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<SiteStore, "close">): Promise<void> {
+export async function closeSiteDirBoot(boot: BootSiteDirResult, { composed }: { composed?: Pick<SiteStore, "close"> } = {}): Promise<void> {
   try {
     const store = composed ?? boot.store;
     if (store !== undefined) await store.close();
   } finally {
-    if (boot.db !== undefined) closeSqliteConnection(boot.db);
+    if (boot.db !== undefined) closeSqliteConnection({ source: boot.db });
   }
 }
 
@@ -116,7 +119,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, composed?: Pick<
  */
 export async function bootSiteDir(required: BootSiteDirRequired, options: BootSiteDirOptions = {}): Promise<BootSiteDirResult> {
   const { dir, deps } = required;
-  const target = resolveInstallDirTarget(dir);
+  const target = resolveInstallDirTarget({ dirArg: dir });
 
   // A dev site's `.site-meta.json` may hold only its site-key fields (`npm run dev` mints that
   // shape); complete it from the db first, or `readSiteDir` refuses a site that serves fine in dev.
@@ -125,12 +128,12 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
   // BR-05 steps 1-2: dir/config/meta validation (SiteDirInvalidError).
   const { config, meta } = readSiteDir({ dir: target });
-  const storage = parseSiteStorage(meta.storage);
+  const storage = parseSiteStorage({ value: meta.storage });
   if (storage.kind !== "sqlite") return bootStoreSiteDir({ deps, target, storage, config, meta }, options);
 
   const dbPath = resolveSiteDatabasePaths({ dir: target, siteId: meta.siteId }, { workspace: options.workspace }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
-    throw new SiteDirInvalidError(`bootSiteDir: content.db is missing at ${dbPath}`);
+    throw new SiteDirInvalidError({ message: `bootSiteDir: content.db is missing at ${dbPath}` });
   }
 
   // BR-05 step 4: schema guard, BEFORE the db is ever opened — a newer-or-divergent site's
@@ -141,20 +144,20 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
   // pending). A locked/corrupt db surfaces here (EC-05, RT-002).
   let db: ContentDb;
   try {
-    db = openSqliteContentConnection(dbPath);
+    db = openSqliteContentConnection({ filePath: dbPath });
   } catch (err) {
-    throw new SiteCorruptError(`bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}`);
+    throw new SiteCorruptError({ message: `bootSiteDir: content.db at ${dbPath} could not be opened: ${(err as Error).message}` });
   }
 
   try {
-    await migrateSqliteContentFile(db, dbPath);
+    await migrateSqliteContentFile({ db, filePath: dbPath });
 
     // The watermark singleton row every content store carries.
-    await prepareContentStore(contentKernel(db));
+    await prepareContentStore({ kernel: contentKernel({ store: db }) });
     // The stored-data repairs every other store opener runs. The CLI hands this handle to the
     // composition as `overrides.db`, which skips `openSiteContentDb` (where SQLite runs them), so
     // without this `tovu serve <dir>`/`tovu export <dir>` never repaired a SQLite install.
-    await deps.runBootDataRepairs({ kernel: contentKernel(db) });
+    await deps.runBootDataRepairs({ kernel: contentKernel({ store: db }) });
 
     // BR-05 step 5 / BR-06 / CIC U-002-B2/ORD1: the stamp rewrite happens ONLY when a migration
     // was actually needed, both fields together, in one atomic operation, and only AFTER
@@ -167,21 +170,20 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
     // BR-05 step 6 / CIC U-002-ORD2: workspace resolution is the final gate before the caller
     // may bind a listener — this must run AFTER the stamp write above, not before.
-    const workspace = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: options.workspaceId });
+    const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: options.workspaceId });
 
     // Folder-only consumers (export/plugin operations) also need normalized credential payloads.
-    await deps.normalizeSiteVaultAtBoot({ kernel: contentKernel(db), workspaceId: workspace.id, siteDir: target,
+    await deps.normalizeSiteVaultAtBoot({ kernel: contentKernel({ store: db }), workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
 
     // EC-07: an unrecognized templateId is provenance-only — warn, never block serving.
     if (meta.templateId !== "starter") {
-      // eslint-disable-next-line no-console
-      console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
+      consoleLogger.warn({ message: `bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)` });
     }
 
     return { storage, db, workspaceId: workspace.id, config };
   } catch (err) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw err;
   }
 }
@@ -212,8 +214,7 @@ async function bootStoreSiteDir(
     await deps.normalizeSiteVaultAtBoot({ kernel: store.content, workspaceId: workspace.id, siteDir: target,
       clock: { nowMs: () => Date.now() } });
     if (meta.templateId !== "starter") {
-      // eslint-disable-next-line no-console
-      console.warn(`bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)`);
+      consoleLogger.warn({ message: `bootSiteDir: unrecognized .site-meta.json templateId "${meta.templateId}" at ${target} — proceeding (provenance only)` });
     }
     return { storage, store, workspaceId: workspace.id, config };
   } catch (err) {

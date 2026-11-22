@@ -12,7 +12,7 @@ import {
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo, requestSignInLink, requestPasswordReset,
   type MemberRecord, type OutboundEmail,
 } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/write-service";
+import { issueMemberSession } from "#src/features/members/member-credentials";
 import {
   createRateLimiter, LOGIN_STRICT, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP,
   type RateLimiter,
@@ -67,7 +67,7 @@ function harness() {
   app.use(express.json());
   for (const register of [registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute,
     registerPublicMemberPasswordSignInRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberResetPasswordRoute,
-    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register(app, deps);
+    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register({ app, deps });
   async function seed(email = "ada@example.test", status: MemberRecord["status"] = "active", password: string | null = "x") {
     const member: MemberRecord = { id: email, workspaceId: deps.workspaceId, email, status,
       createdAt: clock.nowIso(), updatedAt: clock.nowIso(), version: 1 };

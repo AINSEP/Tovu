@@ -91,18 +91,8 @@ test("mcp.json offers the access-token fallback: Supabase's tokens page, probed 
     helpUrl: "https://supabase.com/dashboard/account/tokens",
     probeUrl: "https://api.supabase.com/v1/projects",
     // 2026-09-29: the retired env preset's token is copied onto this plugin's row at boot.
-    importFromEnv: "TOVU_SUPABASE_MCP_ACCESS_TOKEN",
-    retiredEnv: [
-      "TOVU_SUPABASE_MCP_ENABLED",
-      "TOVU_SUPABASE_MCP_PROJECT_REF",
-      "TOVU_SUPABASE_MCP_ALLOWED_TOOLS",
-      "TOVU_SUPABASE_MCP_FEATURES",
-      "TOVU_SUPABASE_MCP_PACKAGE",
-      "TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS",
-      "TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS",
-      "TOVU_SUPABASE_MCP_MAX_RESULT_BYTES",
-    ],
-  });
+    importFromEnv: "JINI_SUPABASE_MCP_ACCESS_TOKEN",
+  }, "the token fallback matches the bundled Supabase token settings");
 });
 
 test("mcp.json carries saved selections across Supabase's get_logs -> query_logs rename, and defaults use the new name", async () => {
@@ -130,7 +120,7 @@ test("plugin.json's description tells the model to start by connecting the Supab
 });
 
 test("the package packs through the real installer's packer, the eponymous skill and its reference included", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["plugin.json", "mcp.json", "skills/supabase/SKILL.md", "skills/supabase/references/failure-modes.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
@@ -234,7 +224,7 @@ test("the user signs up for their own account; Tovu's overlay says a sign-up lin
 });
 
 test("no file in the package carries credential material", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   const credentialShapes: readonly RegExp[] = [
     /\bBearer\s+[A-Za-z0-9._-]{16,}/,
     /\bsbp_[A-Za-z0-9]{16,}/,

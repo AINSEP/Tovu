@@ -8,9 +8,10 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryMediaContentTypeStore, InMemoryMediaRepo, type MediaRecord } from "../../media/index.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -49,7 +50,7 @@ function mediaRecord(overrides: Partial<MediaRecord>): MediaRecord {
 }
 
 async function fakeRouteDeps(options: { withMedia?: boolean } = {}) {
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const mediaRepo = new InMemoryMediaRepo({});
   const contentTypes = new InMemoryMediaContentTypeStore();
   await mediaRepo.save(mediaRecord({}));

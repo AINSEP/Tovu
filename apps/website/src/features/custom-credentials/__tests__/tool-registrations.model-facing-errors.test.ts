@@ -34,7 +34,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
 import { customCredentialsAgentToolCatalog } from "../agent-tools.js";
 import { InMemoryCredentialedRequestAuditLog } from "../credentialed-request.js";
@@ -43,8 +43,11 @@ import { createCustomCredential } from "../store.js";
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { bindSourceControlWritePort } from "#src/features/source-control/index";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 const WORKSPACE_ID = "ws-cred-model-facing";
@@ -93,6 +96,8 @@ async function makeRouteDeps(options: { allow?: boolean; httpError?: Error; seal
     idGen,
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
+    sourceControlWrite: bindSourceControlWritePort({ load: githubFromSource, httpClient }),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     // The example-host fixture plugin's scheme rules from source, shaped as a bundled plugin ships them.
     loadAuthSchemes: loadFixtureAuthSchemes,
     customCredentialsAudit: new InMemoryCredentialedRequestAuditLog(),
@@ -129,7 +134,7 @@ async function call(harness: Harness, toolId: string, input: unknown) {
     input = credentialSaveFixtureInput({ input, kind: "api", rotation: toolId === "custom_credential_set_token" });
     toolId = "credential_save";
   }
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: harness as never });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${++toolUseCounter}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } as never });
 }
 
 /** The exact fixed text `CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS` publishes for a secret-store
@@ -398,7 +403,8 @@ test("a transport failure stays redacted — its message can carry an internal a
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
-  assert.equal(result.error.message, "an internal error occurred");
+  // Jini daemon delegated-tools.ts (44ae8070): an unlisted fault now answers with this fixed server-fault guidance.
+  assert.equal(result.error.message, "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.");
   assert.ok(!JSON.stringify(result).includes("10.0.4.7"), "an internal address must never reach the wire");
 });
 

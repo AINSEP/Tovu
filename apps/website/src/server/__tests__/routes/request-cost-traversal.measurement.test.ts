@@ -7,7 +7,7 @@ import express from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { renderDocNode } from "../../inbound/public-http/http/site/render.js";
+import { renderDocNode } from "../../inbound/public-http/http/site/render/content-html.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";
@@ -52,7 +52,7 @@ function wideDoc(count: number) {
 function timeRender(doc: unknown): { ms: number; ok: boolean; error?: string; htmlLength?: number; html?: string } {
   const start = performance.now();
   try {
-    const html = renderDocNode(doc as never);
+    const html = renderDocNode({ node: doc as never });
     const ms = performance.now() - start;
     return { ms, ok: true, htmlLength: html.length, html };
   } catch (err) {
@@ -163,9 +163,9 @@ test("C: end-to-end — a real HTTP request for a 5000-deep post serves bounded 
     updatedAt: "2026-08-12T00:00:00.000Z",
     version: 1,
   };
-  deps.postRepo = new InMemoryPostRepo([CRASH_POST]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [CRASH_POST] });
   const app = express();
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/crash-test`);

@@ -1,4 +1,5 @@
 import type { DaemonDurableRunStore } from "#src/assistant/daemon-core-protocol";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { AgentSessionStore } from "#src/assistant/session-services";
 import type { ProcessStartReader } from "./attempt-process-identity.js";
 
@@ -37,7 +38,11 @@ export function createEarlySessionCapture(
     if (!accepted) return;
     const childPid = (event.payload as { childPid?: unknown }).childPid;
     if (typeof childPid !== "number" || !attemptStore) return;
-    const startedAt = await readStart({ pid: childPid }, {}).catch(() => null);
+    const startedAt = await readStart({ pid: childPid }, {}).catch((error: unknown) => {
+      console.warn(`[agent-daemon] Could not read the start time of child process ${childPid}:`,
+        describeErrorForLog({ err: error }));
+      return null;
+    });
     if (startedAt) await attemptStore.captureSession({ runId, sessionId, child: { pid: childPid, startedAt } }, {});
   };
 }

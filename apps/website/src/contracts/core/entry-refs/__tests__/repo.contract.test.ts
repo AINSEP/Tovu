@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryEntryRefsRepo } from "../repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
-import type { EntryRefsRepoPort } from "../ports.js";
-import type { EntryRefRow } from "../types.js";
+import type { EntryRefRow, EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 
 /**
- * @file Shared contract-test suite for `EntryRefsRepoPort`, run against both `repo.memory.ts` and
+ * @file Shared contract-test suite for `EntryRefsRepoPort`, run against both Jini's `InMemoryEntryRefsRepo` and
  * `repo.sqlite.ts` — mirrors `src/identity/__tests__/repo.contract.test.ts`'s shape (that file's
  * own header cites the convention this file follows).
  *
@@ -138,4 +137,4 @@ function runSuite(adapterName: string, makeRepo: () => EntryRefsRepoPort) {
 }
 
 runSuite("InMemoryEntryRefsRepo", () => new InMemoryEntryRefsRepo());
-runSuite("SqliteEntryRefsRepo", () => new SqliteEntryRefsRepo(openContentDb(":memory:")));
+runSuite("SqliteEntryRefsRepo", () => new SqliteEntryRefsRepo({ store: openContentDb(":memory:") }));

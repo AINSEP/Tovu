@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
-import type { FileBlobIndexPort } from "./file-blob-index.js";
+import type { FileBlobIndexPort } from "@jini-ai/cms/publish/transfer";
 import type { PeerBlobSource } from "./peer-transport.js";
 
 /**
@@ -51,7 +52,7 @@ import type { PeerBlobSource } from "./peer-transport.js";
  *  narrow is exceptional enough that surfacing it as a hard failure is more honest than silently
  *  reporting the blob as merely absent. */
 export class FileBlobUnavailableError extends Error {
-  constructor(sha256: string, reason: string) {
+  constructor({ sha256, reason }: { sha256: string; reason: string }) {
     super(`file blob '${sha256}' is unavailable: ${reason}`);
     this.name = "FileBlobUnavailableError";
   }
@@ -60,18 +61,14 @@ export class FileBlobUnavailableError extends Error {
 /** The narrow `BlobStorePort` read seam this module needs — never the write half, so a composite
  *  source can never be mistaken for something that writes to the media blob store. */
 export interface CompositeBlobStoreRead {
-  exists(input: { storageKey: string }): Promise<boolean>;
-  get(input: { storageKey: string }): Promise<Uint8Array>;
+  exists(input: { storageKey: string }, optional?: {}): Promise<boolean>;
+  get(input: { storageKey: string }, optional?: {}): Promise<Uint8Array>;
 }
 
 /** @complexity O(bytes) — one file read plus one sha256 digest. */
-async function readAndVerify(entry: { absPath: string; size: number }, sha256: string): Promise<Uint8Array | null> {
-  let bytes: Buffer;
-  try {
-    bytes = await readFile(entry.absPath);
-  } catch {
-    return null; // moved, deleted, or otherwise unreadable since it was packed.
-  }
+async function readAndVerify({ entry, sha256 }: { entry: { absPath: string; size: number }; sha256: string }, _optional = {}): Promise<Uint8Array | null> {
+  const bytes = await orFallback({ work: () => readFile(entry.absPath), fallback: null, step: "Read indexed publish blob" });
+  if (bytes === null) return null; // moved, deleted, or otherwise unreadable since it was packed.
   const actual = createHash("sha256").update(bytes).digest("hex");
   return actual === sha256 ? bytes : null;
 }
@@ -88,23 +85,23 @@ async function readAndVerify(entry: { absPath: string; size: number }, sha256: s
 export function createCompositePeerBlobSource(deps: {
   readonly blobStore: CompositeBlobStoreRead;
   readonly fileBlobIndex: FileBlobIndexPort;
-}): PeerBlobSource {
+}, _optional = {}): PeerBlobSource {
   return {
     async exists({ sha256, storageKey }) {
       if (await deps.blobStore.exists({ storageKey })) return true;
-      const entry = deps.fileBlobIndex.get(sha256);
+      const entry = deps.fileBlobIndex.get({ sha256 });
       if (!entry) return false;
-      return (await readAndVerify(entry, sha256)) !== null;
+      return (await readAndVerify({ entry, sha256 })) !== null;
     },
     async get({ sha256, storageKey }) {
       if (await deps.blobStore.exists({ storageKey })) return deps.blobStore.get({ storageKey });
-      const entry = deps.fileBlobIndex.get(sha256);
+      const entry = deps.fileBlobIndex.get({ sha256 });
       if (!entry) {
-        throw new FileBlobUnavailableError(sha256, "not present in the blob store or the file index");
+        throw new FileBlobUnavailableError({ sha256, reason: "not present in the blob store or the file index" });
       }
-      const verified = await readAndVerify(entry, sha256);
+      const verified = await readAndVerify({ entry, sha256 });
       if (!verified) {
-        throw new FileBlobUnavailableError(sha256, "the file at its indexed path no longer hashes to the requested sha256");
+        throw new FileBlobUnavailableError({ sha256, reason: "the file at its indexed path no longer hashes to the requested sha256" });
       }
       return verified;
     },

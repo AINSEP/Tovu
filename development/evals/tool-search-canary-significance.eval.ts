@@ -141,6 +141,13 @@ function run(): void {
   const promptVec = top1Vector((c) => shipped.search({ query: HYDE_PROMPT_EXPANSIONS[c.query]! }, { limit: 10 })[0]?.id ?? null);
 
   const n = HELD_OUT_CASES.length;
+  reportCanaryTopRankSignificance({ baselineVec, n, doc2Vec, hydeVec, promptVec });
+
+  // --- found@10 (recall@10): the dimension the first significance pass never tested ---
+  reportCanaryRecallSignificance(shipped, doc2Db, n);
+}
+
+function reportCanaryTopRankSignificance({ baselineVec, n, doc2Vec, hydeVec, promptVec }: { baselineVec: boolean[]; n: number; doc2Vec: boolean[]; hydeVec: boolean[]; promptVec: boolean[] }) {
   const pBase = baselineVec.filter(Boolean).length / n;
   const pDoc2 = doc2Vec.filter(Boolean).length / n;
   const pHyde = hydeVec.filter(Boolean).length / n;
@@ -159,7 +166,7 @@ function run(): void {
     let c = 0; // other hit, baseline miss
     let both = 0;
     let neither = 0;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0;i < n;i++) {
       if (baselineVec[i] && !vec[i]) b++;
       else if (!baselineVec[i] && vec[i]) c++;
       else if (baselineVec[i] && vec[i]) both++;
@@ -168,8 +175,10 @@ function run(): void {
     const p = mcnemarExactP(b, c);
     console.log(`     ${label.padEnd(20)} both-hit=${both} baseline-only=${b} other-only=${c} both-miss=${neither}   exact p=${p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant at .05"}`);
   }
+}
 
-  // --- found@10 (recall@10): the dimension the first significance pass never tested ---
+
+function reportCanaryRecallSignificance(shipped: ReturnType<typeof buildToolCatalogQuery>, doc2Db: InstanceType<typeof Database>, n: number) {
   const baselineFound = foundVector((c) => shipped.search({ query: c.query }, { limit: 10 }).map((r) => r.id));
   const doc2Found = foundVector((c) => searchToolCatalog({ db: doc2Db, query: c.query }, { limit: 10 }).map((r) => r.id));
   const hydeFound = foundVector((c) => shipped.search({ query: HYDE_EXPANSIONS[c.query] ?? c.query }, { limit: 10 }).map((r) => r.id));
@@ -182,7 +191,7 @@ function run(): void {
     let c = 0;
     let both = 0;
     let neither = 0;
-    for (let i = 0; i < n; i++) {
+    for (let i = 0;i < n;i++) {
       if (baselineFound[i] && !vec[i]) b++;
       else if (!baselineFound[i] && vec[i]) c++;
       else if (baselineFound[i] && vec[i]) both++;
@@ -190,7 +199,7 @@ function run(): void {
     }
     const p = mcnemarExactP(b, c);
     console.log(
-      `     ${label.padEnd(20)} found@10 ${vec.filter(Boolean).length}/${n}   both=${both} baseline-only=${b} other-only=${c} neither=${neither}   exact p=${p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant at .05"}`,
+      `     ${label.padEnd(20)} found@10 ${vec.filter(Boolean).length}/${n}   both=${both} baseline-only=${b} other-only=${c} neither=${neither}   exact p=${p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant at .05"}`
     );
   }
 
@@ -201,5 +210,6 @@ function run(): void {
   console.log(`  two marginal rates. Even the paired test is likely underpowered at n=20 for anything short`);
   console.log(`  of a large, consistent effect — treat "not significant" as "cannot confirm," not "disproven."\n`);
 }
+
 
 run();

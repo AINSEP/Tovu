@@ -56,7 +56,7 @@ async function installedMailProviderIds(input: Parameters<typeof setAgentPluginE
     filename: MAIL_ADAPTERS_FILENAME, contribution: 'mail adapters', requireActive: false });
   const verdict = verdicts.find(item => 'trusted' in item && item.trusted.pluginId === input.pluginId);
   if (!verdict || !('trusted' in verdict)) return [];
-  const parsed = parseMailAdaptersFile(await lifecycle.readTrustedPluginFile(verdict.trusted, MAIL_ADAPTERS_FILENAME));
+  const parsed = parseMailAdaptersFile({ raw: await lifecycle.readTrustedPluginFile({ plugin: verdict.trusted, filename: MAIL_ADAPTERS_FILENAME }) });
   return parsed.ok ? parsed.descriptors.map(adapter => adapter.id).filter(id => id !== 'smtp' && id !== 'console') : [];
 }
 
@@ -64,7 +64,7 @@ async function installedMailProviderIds(input: Parameters<typeof setAgentPluginE
  * Builds the lane-routed, policy-wrapped site mailer.
  * @complexity O(1); see `resolve-mailer.ts` for per-send costs.
  */
-export function createSiteMailer(required: SiteMailerRequired, options: { durableOutboxReady?: (capabilityName: string) => boolean; setAgentPluginEnabled?: typeof setAgentPluginEnabled } = {}): SiteMailer {
+export function createSiteMailer(required: SiteMailerRequired, options: { durableOutboxReady?: (required: { capabilityName: string }) => boolean; setAgentPluginEnabled?: typeof setAgentPluginEnabled } = {}): SiteMailer {
   const { resolve, settings, delivery } = required;
   const workspaceId = resolve.workspaceId;
   const ready = async () => { await required.settingsReady; };
@@ -72,7 +72,7 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     ...resolve,
     providerSetting: {
       read: async () => { await ready(); return readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }); },
-      write: async (value) => {
+      write: async ({ value }) => {
         await ready();
         await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: allowSystemMailMigration }, workspaceId, callerPrincipalId: settings.systemPrincipalId, value });
       },

@@ -1,8 +1,9 @@
 import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
+import { orFallback } from '@jini-ai/core/errors/idioms';
 import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
-import { approvalClassAsks, directPageAction, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
+import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, directPageAction, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
+import { approvalClassAsks, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.
@@ -38,7 +39,7 @@ export function createToolHumanConfirmer({ surfaces }: { surfaces: AssistantSurf
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
   { localeFor = async () => 'en', disclose, context }: {
-    localeFor?: (ctx: ToolExecutionContext) => Promise<string>;
+    localeFor?: (required: { ctx: ToolExecutionContext }, optional?: Record<string, never>) => Promise<string>;
     context?: ApprovalContextPort;
     /** Extra rows for the card, computed from the frozen call before asking (e.g. the account and
      *  the resources an external tool would change). A throw refuses the call before any effect. */
@@ -54,8 +55,8 @@ export function applyToolApprovalPolicy(
     classify: ({ input }) => approvalClassFor({ toolId, input }, { policy }),
     asks: ({ class: actionClass }) => approvalClassAsks({ class: actionClass }),
     describe: async ({ ctx, class: actionClass }) => {
-      let locale = 'en';
-      try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
+      /* Copy failure must never bypass a safety gate. */
+      const locale = await orFallback({ work: () => localeFor({ ctx }), fallback: 'en', step: 'Read approval locale' });
       const disclosed = disclose ? await disclose({ ctx }) : [];
       return toolApprovalConfirmation({ descriptor: registration.descriptor, input: ctx.input, locale, details: disclosed,
         danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing' });

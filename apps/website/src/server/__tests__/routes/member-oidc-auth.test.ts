@@ -9,7 +9,7 @@ import express from "express";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo, InMemoryMemberExternalIdentityRepo, type MemberRecord, type OutboundEmail } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/write-service";
+import { issueMemberSession } from "#src/features/members/member-credentials";
 import { cryptoFixture, originFixture, provider } from "#src/features/member-login/__tests__/fixtures";
 import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import { toPublicMembersWriteServiceDeps } from "../../inbound/public-http/routes/members/deps.js";
@@ -73,7 +73,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
   const app = express(); app.use(express.json());
   for (const register of [registerMemberLoginProvidersRoute, registerMemberOidcStartRoute, registerMemberOidcCallbackRoute,
     registerMemberOidcVerifyEmailRoute, registerMemberUnlinkIdentityRoute]) register({ app, deps });
-  registerPublicMemberMeRoute(app, members, { login: deps });
+  registerPublicMemberMeRoute({ app, deps: members }, { login: deps });
   async function start(base: string, memberCookie = "") {
     crypto.clock.advanceMs(1);
     const response = await fetch(`${base}${OIDC}/start`, { redirect: "manual", headers: { cookie: memberCookie } });
@@ -163,7 +163,7 @@ for (const override of [{ iss: "https://attacker.example" }, { aud: "wrong" }, {
     const f = fixture(override), base = await startTestServer(f.app, t), start = await f.start(base);
     const response = await callback(base, start.params, start.binding);
     refusedTo(response);
-    assert.deepEqual(await f.members.memberRepo.list({ workspaceId: "ws" }), []);
+    assert.deepEqual((await f.members.memberRepo.list({ workspaceId: "ws" })).items, []);
   });
 }
 
@@ -256,7 +256,7 @@ for (const mode of ["missing", "wrong", "duplicate", "tamper", "expire", "disabl
     assert.ok(!cookie(response, "tovu_member_session"));
     const challenge = await f.members.magicLinkRepo.findById({ workspaceId: "ws", id: proof.body.challengeId });
     assert.equal(challenge?.failedAttempts, 0); assert.ok(!challenge?.consumedAt);
-    assert.deepEqual(await f.members.memberRepo.list({ workspaceId: "ws" }), []);
+    assert.deepEqual((await f.members.memberRepo.list({ workspaceId: "ws" })).items, []);
   });
 }
 
@@ -302,7 +302,7 @@ for (const mode of ["stale", "no-alternative", "csrf", "duplicate", "staff", "fo
     const expected = new Map<string, number>([["csrf", 403], ["foreign-workspace", 404]]).get(mode) ?? 401;
     assert.equal(response.status, expected);
     assert.ok(!cookie(response, "tovu_member_session"));
-    const [member] = await f.members.memberRepo.list({ workspaceId: "ws" });
+    const { items: [member] } = await f.members.memberRepo.list({ workspaceId: "ws" });
     assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
   });
 }
@@ -370,7 +370,7 @@ async function unlinkAfter(t: test.TestContext, advanceMs: number, body: unknown
   const sessionCookie = cookie(login, "tovu_member_session");
   f.clock.advanceMs(advanceMs);
   const response = await post(base, `${BASE}/identities/google/unlink`, body, sessionCookie);
-  const [member] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  const { items: [member] } = await f.members.memberRepo.list({ workspaceId: "ws" });
   const unlinked = Boolean((await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
   return { f, base, response, unlinked };
 }
@@ -416,7 +416,7 @@ async function linkedLogin(t: test.TestContext) {
   return { f, member, base, sessionCookie: cookie(login, "tovu_member_session") };
 }
 const unverified = async (f: ReturnType<typeof fixture>) => {
-  const [current] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  const { items: [current] } = await f.members.memberRepo.list({ workspaceId: "ws" });
   await f.members.memberRepo.save({ ...current!, emailVerifiedAt: undefined });
 };
 

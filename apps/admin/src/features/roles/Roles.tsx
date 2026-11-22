@@ -1,14 +1,11 @@
-import { Fragment, type FormEvent } from "react";
-import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
-import { buildAgentListHandles } from "@jini-ai/agentic";
-
+import type { AdminPolicy, AdminRole } from "./api/roles-api.types";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { roleMenuItems, policyMenuItems } from "./rules";
-import { useWiredRoles, type PendingPermissionRemove } from "./hooks/use-roles.hooks";
+import { useWiredRoles } from "./hooks/use-roles.hooks";
 import { goToRolesTab, resolveRolesTabId, resolveRolesTabs, type RolesTabId } from "./Roles.hooks";
-import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts, permissionRemoveBodyParts } from "./roles-i18n";
+import { rolesDescriptionParts } from "./roles-i18n";
+import { RolesSection } from "./RolesSection";
+import { PoliciesSection } from "./PoliciesSection";
+import { RoleDeleteDialog, PolicyDeleteDialog, PermissionRemoveDialog } from "./RoleConfirmDialogs";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -58,6 +55,9 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts, perm
  * pair for roles and policies alike), and both delete dialogs (a confirm dialog is an overlay over
  * the whole page, and its pending state is shell state).
  */
+
+
+
 export interface RolesProps {
   /** The `?tab=` query value from `panels.tsx`'s `roles` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). Guarded by `resolveRolesTabId`, so a stale link or a typo
@@ -74,613 +74,6 @@ export interface RolesProps {
  *  hand-maintained mirror of a thirty-field controller that would drift the first time the hook
  *  grows a field. */
 type RolesController = ReturnType<typeof useWiredRoles>;
-
-/**
- * The create-a-role form, as one thing the section can be handed.
- *
- * Replaces the five loose `roleName`/`setRoleName`/`roleSaving`/`roleError`/`onCreateRole` props the
- * section used to take. They were never independent — every one of them is meaningless without the
- * other four — so naming the group is what lets a caller (or a test) supply a form rather than
- * assemble one out of parts.
- */
-export interface RoleCreateFormController {
-  name: string;
-  setName: (name: string) => void;
-  saving: boolean;
-  error: string | null;
-  submit: (e: FormEvent) => Promise<void>;
-}
-
-/** A role row's own affordances: rename in place, or ask for deletion. Grouped for the same reason
- *  as {@link RoleCreateFormController} — `editingId` and `draftName` describe one interaction. */
-export interface RoleRowController {
-  /** Which role is mid-rename, or `null`. */
-  editingId: string | null;
-  setEditingId: (roleId: string | null) => void;
-  draftName: string;
-  setDraftName: (name: string) => void;
-  startRename: (role: AdminRole) => void;
-  saveRename: (roleId: string) => Promise<void>;
-  /** Which row has a write in flight — drives the per-row Saving… label, not a page-wide spinner. */
-  savingId: string | null;
-  requestDelete: (role: AdminRole | null) => void;
-}
-
-export interface RolesSectionProps {
-  roles: AdminRole[];
-  create: RoleCreateFormController;
-  row: RoleRowController;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** "Roles" heading, create-role form, and the roles `DataTable`.
- *  `DataTable`'s own `cell` callbacks are already separately-scoped closures under ESLint (each
- *  gets its own report), so this split is about the create-form's own branches, not the table.
- *
- *  Exported so a test can render it against hand-built controllers — the seam only counts as one if
- *  something other than `Roles` can drive it. */
-export function RolesSection({ roles, create, row, t, locale }: RolesSectionProps) {
-  // Role ids are stable and unique, so they disambiguate one row's menu from another's — same
-  // reasoning as every other list on this workstream. Built-in rows render no `RowMenu` at all (see
-  // the "actions" cell's own guard below), but a handle is still computed for every role so index
-  // alignment with `roles` never drifts.
-  const roleMenuHandles = buildAgentListHandles({ prefix: "roles-row", ids: roles.map((role) => role.id) }
-  );
-  return (
-    <>
-      {/* Kept in the DOM, hidden from view. Once this section sits behind a tab whose label is
-          already the word "Roles", a visible `<h2>Roles</h2>` directly beneath it is pure visual
-          repetition — but simply deleting it is not the fix, because `role="tab"` buttons do not
-          appear in a screen reader's heading list, so the panel would be left with `H1` and nothing
-          else (the regression `deployment/HistoryTab.tsx`'s own comment records measuring live).
-          `.visually-hidden` keeps the structure for assistive tech and drops the duplicate from the
-          page — the same utility `TabBar.tsx` itself uses for its dot label. `Seo.tsx`'s
-          "Per-entry SEO" heading stays VISIBLE by the same rule: it is not a verbatim repeat of its
-          tab ("Pages & posts"), so it still tells a sighted reader something. */}
-      <h2 className="visually-hidden">{t("Roles")}</h2>
-      <form onSubmit={create.submit} className="notice integrations-form form-measure">
-        {create.error ? <span className="save-error">{create.error}</span> : null}
-        <label>
-          {t("Role name")}
-          <input
-            value={create.name}
-            onChange={(e) => create.setName(e.target.value)}
-            required
-            {...agentHandle({ handle: "roles-create-name" }, { role: "field", label: "New role's name" })}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={create.saving || !create.name}
-          {...agentHandle({ handle: "roles-create-submit" }, { role: "button", label: "Create this new role" })}
-        >
-          {create.saving ? t("Creating…") : t("Create role")}
-        </button>
-      </form>
-      <DataTable
-        rows={roles}
-        rowKey={(role) => role.id}
-        empty={
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("No roles yet.")}</p>
-            </div>
-          </div>
-        }
-        columns={[
-          {
-            key: "name",
-            header: t("Name"),
-            cell: (role, index) =>
-              row.editingId === role.id ? (
-                <input
-                  value={row.draftName}
-                  onChange={(e) => row.setDraftName(e.target.value)}
-                  {...agentHandle({ handle: `${roleMenuHandles[index]}-rename-name` }, { role: "field", label: "This role's new name" })}
-                />
-              ) : (
-                role.name
-              ),
-          },
-          { key: "type", header: t("Type"), cell: (role) => (role.isBuiltin ? t("Built-in") : t("Custom")) },
-          {
-            key: "actions",
-            header: t("More"),
-            cell: (role, index) => {
-              if (role.isBuiltin) return <span className="muted-cell">—</span>;
-              if (row.editingId === role.id) return (
-                <span className="editor-actions">
-                  <button
-                    type="button"
-                    disabled={row.savingId === role.id}
-                    onClick={() => row.saveRename(role.id)}
-                    {...agentHandle({ handle: `${roleMenuHandles[index]}-save` }, { role: "button", label: `Save this role's new name` })}
-                  >
-                    {row.savingId === role.id ? t("Saving…") : t("Save")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => row.setEditingId(null)}
-                    {...agentHandle({ handle: `${roleMenuHandles[index]}-cancel` }, { role: "button", label: "Cancel renaming this role" })}
-                  >
-                    {t("Cancel")}
-                  </button>
-                </span>
-              );
-              return (
-                <RowMenu
-                  triggerLabel={`${t("Actions for role")} "${role.name}"`}
-                  agentHandle={`${roleMenuHandles[index]}-menu`}
-                  items={roleMenuItems(role, { onRename: row.startRename, onDelete: row.requestDelete }, locale)}
-                />
-              );
-            },
-          },
-        ]}
-      />
-    </>
-  );
-}
-
-/** A policy row's own affordances — {@link RoleRowController}'s counterpart, with the extra
- *  description field a policy carries. */
-export interface PolicyRowController {
-  /** Which policy is mid-rename, or `null`. */
-  editingId: string | null;
-  setEditingId: (policyId: string | null) => void;
-  draftName: string;
-  setDraftName: (name: string) => void;
-  draftDescription: string;
-  setDraftDescription: (description: string) => void;
-  startRename: (policy: AdminPolicy) => void;
-  saveRename: (policyId: string) => Promise<void>;
-  savingId: string | null;
-  requestDelete: (policy: AdminPolicy | null) => void;
-}
-
-/** The inline "Add permission" editor: which row it is open on, its two fields, and its write.
- *  Separate from {@link PolicyRowController} because it is a different interaction on the same row —
- *  a row can be mid-rename or mid-permission, and neither controller's state means anything to the
- *  other. */
-export interface PolicyPermissionController {
-  /** The policy whose permission form is open, or `null` when none is. */
-  openForPolicyId: string | null;
-  permission: string;
-  setPermission: (permission: string) => void;
-  resourceType: string;
-  setResourceType: (resourceType: string) => void;
-  toggleForm: (policyId: string) => void;
-  write: (policyId: string) => Promise<void>;
-  /** The open policy's current permission rows, and the removal of one (OQ-10). Part of THIS
-   *  controller rather than {@link PolicyRowController} because the list is only ever shown inside
-   *  this same panel — it opens, loads, and closes with the add form. */
-  rows: AdminPolicyPermission[];
-  loading: boolean;
-  removingId: string | null;
-  /** Stages a removal for confirmation (C1) rather than removing directly — no UI path can reach
-   *  the unconfirmed write once this replaces a direct `remove` callback on the component contract. */
-  requestRemove: (target: PendingPermissionRemove) => void;
-}
-
-export interface PolicyRowProps {
-  policy: AdminPolicy;
-  row: PolicyRowController;
-  permission: PolicyPermissionController;
-  /** This row's own distinct handle base — computed once, across every rendered policy, by
-   *  `PoliciesSection` (via `buildAgentListHandles`); see `Users.tsx`'s `UserRowProps.agentBase`
-   *  for why a per-instance uniqueness search does not work here. */
-  agentBase: string;
-  t: (key: string) => string;
-  locale: string;
-}
-
-interface PolicyRowActionsProps {
-  policy: AdminPolicy;
-  row: PolicyRowController;
-  permission: PolicyPermissionController;
-  agentBase: string;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** The "More" cell's three-way branch (built-in/frozen -> dash, mid-rename -> Save/Cancel,
- *  at-rest -> `RowMenu`) — extracted out of `PolicyRow`, which was still 13/13 after the first
- *  split pass because this cell's own branches (the `||` guard plus its two nested ternaries) were
- *  still counted in `PolicyRow`'s scope. Same "the panel, not the row, was the actual size" lesson
- *  `Users.tsx`'s `UserRow` -> `UserManagePanel` split already applied. */
-function PolicyRowActions({ policy, row, permission, agentBase, t, locale }: PolicyRowActionsProps) {
-  if (policy.isBuiltin || policy.isFrozen) return <span className="muted-cell">—</span>;
-  if (row.editingId === policy.id) {
-    return (
-      <span className="editor-actions">
-        <button
-          type="button"
-          disabled={row.savingId === policy.id}
-          onClick={() => row.saveRename(policy.id)}
-          {...agentHandle({ handle: `${agentBase}-save` }, { role: "button", label: "Save this policy's new name and description" })}
-        >
-          {row.savingId === policy.id ? t("Saving…") : t("Save")}
-        </button>
-        <button
-          type="button"
-          onClick={() => row.setEditingId(null)}
-          {...agentHandle({ handle: `${agentBase}-cancel` }, { role: "button", label: "Cancel renaming this policy" })}
-        >
-          {t("Cancel")}
-        </button>
-      </span>
-    );
-  }
-  return (
-    <RowMenu
-      triggerLabel={`${t("Actions for policy")} "${policy.name}"`}
-      agentHandle={`${agentBase}-menu`}
-      items={policyMenuItems(
-        policy,
-        permission.openForPolicyId,
-        {
-          onRename: row.startRename,
-          onTogglePermissionForm: permission.toggleForm,
-          onDelete: row.requestDelete,
-        },
-        locale,
-      )}
-    />
-  );
-}
-
-interface PolicyPermissionFormProps {
-  policyId: string;
-  savingId: string | null;
-  permission: PolicyPermissionController;
-  t: (key: string) => string;
-}
-
-interface PolicyPermissionListProps {
-  policyId: string;
-  permission: PolicyPermissionController;
-  t: (key: string) => string;
-}
-
-/** The open policy's current permissions, each with a Remove (OQ-10). A separate top-level
- *  function rather than a block inside `PolicyPermissionForm` for the same complexity-ceiling
- *  reason `PolicyRowActions` is one: its loading/empty/list three-way branch plus the per-row
- *  disabled ternary would otherwise all count in the form's own scope. */
-function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListProps) {
-  if (permission.loading) return <p className="muted-cell">{t("Loading permissions…")}</p>;
-  if (permission.rows.length === 0) return <p className="muted-cell">{t("No permissions yet.")}</p>;
-  // Only the currently-open policy's own permission list is ever mounted at once, so a handle
-  // needs to be unique within THIS list, not across every policy — same reasoning `Roles`' own
-  // per-policy `agentBase` already applies one level up.
-  const removeHandles = buildAgentListHandles({ prefix: `policy-permission-remove-${policyId}`, ids: permission.rows.map((row) => row.id) }
-  );
-  return (
-    <ul className="permission-list">
-      {permission.rows.map((row, index) => (
-        <li key={row.id}>
-          <code>{row.permission}</code>
-          {row.resourceType ? <span className="muted-cell"> ({row.resourceType})</span> : null}
-          <button
-            type="button"
-            disabled={permission.removingId === row.id}
-            aria-label={`${t("Remove permission")} ${row.permission}`}
-            onClick={() => permission.requestRemove({ policyId, row })}
-            {...agentHandle({ handle: removeHandles[index]! }, { role: "button", label: `Remove the "${row.permission}" permission from this policy` })}
-          >
-            {permission.removingId === row.id ? t("Removing…") : t("Remove")}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** The inline permission panel — the policy's current permissions (each removable) above the
- *  "Add permission" form. Extracted out of `PolicyRow` verbatim, for the same reason as
- *  `PolicyRowActions` above. */
-function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
-  // Only the currently-open policy's own form is ever mounted at once — same reasoning
-  // `PolicyPermissionList`'s own `removeHandles` comment gives, one level up.
-  const formHandleBase = buildAgentListHandles({ prefix: "policy-permission-form", ids: [policyId] })[0]!;
-  return (
-    <tr>
-      <td colSpan={4}>
-        <div className="notice integrations-form">
-          <p>{t("Current permissions")}</p>
-          <PolicyPermissionList policyId={policyId} permission={permission} t={t} />
-          <label>
-            {t("Permission")}
-            <span className="editor-actions permission-form-fields">
-              <input
-                value={permission.permission}
-                onChange={(e) => permission.setPermission(e.target.value)}
-                placeholder={t("e.g. content.write")}
-                {...agentHandle({ handle: `${formHandleBase}-permission` }, { role: "field", label: "Permission string to grant, e.g. content.write" })}
-              />
-              <input
-                value={permission.resourceType}
-                onChange={(e) => permission.setResourceType(e.target.value)}
-                placeholder={t("resource type (optional)")}
-                {...agentHandle({ handle: `${formHandleBase}-resource-type` }, { role: "field", label: "Optional resource type this permission is scoped to" })}
-              />
-              <button
-                type="button"
-                disabled={!permission.permission || savingId === policyId}
-                onClick={() => permission.write(policyId)}
-                {...agentHandle({ handle: `${formHandleBase}-add` }, { role: "button", label: "Add this permission to the policy" })}
-              >
-                {savingId === policyId ? t("Saving…") : t("Add")}
-              </button>
-            </span>
-          </label>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/** One policy's row plus its optional inline "Add permission" row. `key` lives on the `<PolicyRow>`
- *  element at the call site, same convention `Users.tsx`'s `UserRow` uses.
- *
- *  Exported for the same reason as {@link RolesSection}. */
-export function PolicyRow({ policy, row, permission, agentBase, t, locale }: PolicyRowProps) {
-  const renaming = row.editingId === policy.id;
-  return (
-    <>
-      <tr>
-        <td>
-          {renaming ? (
-            <input
-              value={row.draftName}
-              onChange={(e) => row.setDraftName(e.target.value)}
-              {...agentHandle({ handle: `${agentBase}-rename-name` }, { role: "field", label: "This policy's new name" })}
-            />
-          ) : (
-            policy.name
-          )}
-        </td>
-        <td>
-          {renaming ? (
-            <input
-              value={row.draftDescription}
-              onChange={(e) => row.setDraftDescription(e.target.value)}
-              {...agentHandle({ handle: `${agentBase}-rename-description` }, { role: "field", label: "This policy's new description" })}
-            />
-          ) : (
-            policy.description ?? <span className="muted-cell">—</span>
-          )}
-        </td>
-        <td>
-          {policy.isBuiltin ? t("Built-in") : t("Custom")}
-          {policy.isFrozen ? ` ${t("(frozen)")}` : ""}
-        </td>
-        <td>
-          <PolicyRowActions policy={policy} row={row} permission={permission} agentBase={agentBase} t={t} locale={locale} />
-        </td>
-      </tr>
-      {permission.openForPolicyId === policy.id ? (
-        <PolicyPermissionForm policyId={policy.id} savingId={row.savingId} permission={permission} t={t} />
-      ) : null}
-    </>
-  );
-}
-
-/** The create-a-policy form — {@link RoleCreateFormController} plus the description field. */
-export interface PolicyCreateFormController {
-  name: string;
-  setName: (name: string) => void;
-  description: string;
-  setDescription: (description: string) => void;
-  saving: boolean;
-  error: string | null;
-  submit: (e: FormEvent) => Promise<void>;
-}
-
-export interface PoliciesSectionProps {
-  policies: AdminPolicy[];
-  create: PolicyCreateFormController;
-  row: PolicyRowController;
-  permission: PolicyPermissionController;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** "Policies" heading, create-policy form, and the policies table (or its empty state).
- *
- *  The row controllers pass straight through rather than being spread from an `Omit<PolicyRowProps,
- *  "policy">` rest object, which is what the old flat prop bag forced: with the props named, this
- *  section no longer has to restate the row's entire surface in its own type just to relay it. */
-export function PoliciesSection({ policies, create, row, permission, t, locale }: PoliciesSectionProps) {
-  // Policy ids are stable and unique, same reasoning as `RolesSection`'s `roleMenuHandles` above.
-  const policyMenuBases = buildAgentListHandles({ prefix: "policies-row", ids: policies.map((policy) => policy.id) }
-  );
-  return (
-    <>
-      {/* Hidden for view, kept for assistive tech — see the matching note in `RolesSection`. */}
-      <h2 className="visually-hidden">{t("Policies")}</h2>
-      <form onSubmit={create.submit} className="notice integrations-form form-measure">
-        {create.error ? <span className="save-error">{create.error}</span> : null}
-        <label>
-          {t("Policy name")}
-          <input
-            value={create.name}
-            onChange={(e) => create.setName(e.target.value)}
-            required
-            {...agentHandle({ handle: "policies-create-name" }, { role: "field", label: "New policy's name" })}
-          />
-        </label>
-        <label>
-          {t("Description (optional)")}
-          <input
-            value={create.description}
-            onChange={(e) => create.setDescription(e.target.value)}
-            {...agentHandle({ handle: "policies-create-description" }, { role: "field", label: "New policy's optional description" })}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={create.saving || !create.name}
-          {...agentHandle({ handle: "policies-create-submit" }, { role: "button", label: "Create this new policy" })}
-        >
-          {create.saving ? t("Creating…") : t("Create policy")}
-        </button>
-      </form>
-      {policies.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>{t("No policies yet.")}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>{t("Name")}</th>
-                <th>{t("Description")}</th>
-                <th>{t("Type")}</th>
-                <th>{t("More")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {policies.map((policy, index) => (
-                <Fragment key={policy.id}>
-                  <PolicyRow
-                    policy={policy}
-                    row={row}
-                    permission={permission}
-                    agentBase={policyMenuBases[index]!}
-                    t={t}
-                    locale={locale}
-                  />
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
-  );
-}
-
-interface RoleDeleteDialogProps {
-  pendingRoleDelete: AdminRole | null;
-  setPendingRoleDelete: (role: AdminRole | null) => void;
-  rowSavingId: string | null;
-  onDeleteRole: () => Promise<void>;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** The role-delete confirm dialog — extracted from `Roles` verbatim. */
-function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId, onDeleteRole, t, locale }: RoleDeleteDialogProps) {
-  const { prefix, suffix } = roleDeleteBodyParts(locale);
-  return (
-    <ConfirmDialog
-      open={pendingRoleDelete !== null}
-      agentHandle="roles-delete-role"
-      title={t("Delete role?")}
-      body={
-        pendingRoleDelete ? (
-          <p>
-            {prefix}
-            {pendingRoleDelete.name}
-            {suffix}
-          </p>
-        ) : null
-      }
-      confirmLabel={t("Delete")}
-      destructive
-      pending={pendingRoleDelete !== null && rowSavingId === pendingRoleDelete.id}
-      onConfirm={onDeleteRole}
-      onCancel={() => setPendingRoleDelete(null)}
-    />
-  );
-}
-
-interface PolicyDeleteDialogProps {
-  pendingPolicyDelete: AdminPolicy | null;
-  setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
-  rowSavingId: string | null;
-  onDeletePolicy: () => Promise<void>;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** The policy-delete confirm dialog — extracted from `Roles` verbatim. */
-function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSavingId, onDeletePolicy, t, locale }: PolicyDeleteDialogProps) {
-  const { prefix, suffix } = policyDeleteBodyParts(locale);
-  return (
-    <ConfirmDialog
-      open={pendingPolicyDelete !== null}
-      agentHandle="roles-delete-policy"
-      title={t("Delete policy?")}
-      body={
-        pendingPolicyDelete ? (
-          <p>
-            {prefix}
-            {pendingPolicyDelete.name}
-            {suffix}
-          </p>
-        ) : null
-      }
-      confirmLabel={t("Delete")}
-      destructive
-      pending={pendingPolicyDelete !== null && rowSavingId === pendingPolicyDelete.id}
-      onConfirm={onDeletePolicy}
-      onCancel={() => setPendingPolicyDelete(null)}
-    />
-  );
-}
-
-interface PermissionRemoveDialogProps {
-  pendingPermissionRemove: PendingPermissionRemove | null;
-  setPendingPermissionRemove: (target: PendingPermissionRemove | null) => void;
-  removingPermissionId: string | null;
-  onConfirmRemovePermission: () => Promise<void>;
-  t: (key: string) => string;
-  locale: string;
-}
-
-/** The permission-remove confirm dialog (C1) — same "own the whole sentence per locale" shape as
- *  {@link RoleDeleteDialog}/{@link PolicyDeleteDialog}, `tone="warning"` rather than `destructive`
- *  because the action is reversible (an owner can re-add the permission), matching Users' Disable.
- *  See `use-roles.hooks.ts`'s `pendingPermissionRemove` doc comment for the lockout analysis this
- *  dialog exists to cover. */
-function PermissionRemoveDialog({
-  pendingPermissionRemove,
-  setPendingPermissionRemove,
-  removingPermissionId,
-  onConfirmRemovePermission,
-  t,
-  locale,
-}: PermissionRemoveDialogProps) {
-  const { prefix, suffix } = permissionRemoveBodyParts(locale);
-  const pending = pendingPermissionRemove;
-  return (
-    <ConfirmDialog
-      open={pending !== null}
-      agentHandle="roles-remove-permission"
-      title={t("Remove permission?")}
-      body={
-        pending ? (
-          <p>
-            {prefix}
-            <code>{pending.row.permission}</code>
-            {pending.row.resourceType ? ` (${pending.row.resourceType})` : ""}
-            {suffix}
-          </p>
-        ) : null
-      }
-      confirmLabel={t("Remove")}
-      tone="warning"
-      pending={pending !== null && removingPermissionId === pending.row.id}
-      onConfirm={onConfirmRemovePermission}
-      onCancel={() => setPendingPermissionRemove(null)}
-    />
-  );
-}
 
 /**
  * The "Roles" tab panel — `RolesSection` with the five controller fields it needs, assembled here
@@ -772,7 +165,10 @@ function PoliciesTab({ controller, policies }: { controller: RolesController; po
  *  complexity. Same split `Deployment.tsx`'s `deploymentTabPanel` and `Sites.tsx`'s `sitesTabPanel`
  *  make for the identical gate.
  *  @complexity O(1) — two mutually exclusive branches, no iteration. */
-function rolesTabPanel(activeTabId: RolesTabId, controller: RolesController, lists: { roles: AdminRole[]; policies: AdminPolicy[] }) {
+function rolesTabPanel(
+  { activeTabId, controller, lists }: { activeTabId: RolesTabId; controller: RolesController; lists: { roles: AdminRole[]; policies: AdminPolicy[] } },
+  _options: Record<string, never> = {},
+) {
   if (activeTabId === "policies") return <PoliciesTab controller={controller} policies={lists.policies} />;
   return <RolesTab controller={controller} roles={lists.roles} />;
 }
@@ -804,19 +200,19 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
     locale,
   } = controller;
   const { prefix: descriptionPrefix, linkLabel: descriptionLinkLabel, suffix: descriptionSuffix } =
-    rolesDescriptionParts(locale);
+    rolesDescriptionParts({ locale });
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!roles || !policies) return <div className="notice">{t("Loading roles & permissions…")}</div>;
+  if (!roles || !policies) return <div className="notice">{t({ key: "Loading roles & permissions…" })}</div>;
 
-  const activeTabId = resolveRolesTabId(tabId);
+  const activeTabId = resolveRolesTabId({ tabId: tabId });
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("People")}</p>
-          <h1 className="page-title">{t("Roles & Permissions")}</h1>
+          <p className="page-kicker">{t({ key: "People" })}</p>
+          <h1 className="page-title">{t({ key: "Roles & Permissions" })}</h1>
           <p className="page-description">
             {descriptionPrefix}
             <a href="/admin/users">{descriptionLinkLabel}</a>
@@ -830,13 +226,13 @@ export function Roles({ tabId, useRolesHook = useWiredRoles }: RolesProps = {}) 
       {rowError ? <div className="notice error">{rowError}</div> : null}
 
       <TabBar
-        ariaLabel={t("Roles & Permissions")}
-        tabs={resolveRolesTabs(t)}
+        ariaLabel={t({ key: "Roles & Permissions" })}
+        tabs={resolveRolesTabs((key) => t({ key }))}
         activeId={activeTabId}
-        onChange={goToRolesTab}
+        onChange={(tabId) => goToRolesTab({ tabId })}
         containerHandle="roles-tab-bar"
       />
-      {rolesTabPanel(activeTabId, controller, { roles, policies })}
+      {rolesTabPanel({ activeTabId: activeTabId, controller: controller, lists: { roles, policies } })}
 
       <RoleDeleteDialog
         pendingRoleDelete={pendingRoleDelete}

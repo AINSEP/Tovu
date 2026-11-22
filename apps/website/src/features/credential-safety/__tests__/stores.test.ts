@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createHmac } from 'node:crypto';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs, listExternalMcpServerViews } from "../../external-mcp/external-mcp-store.js";
 import { InMemoryCustomCredentialSetRepo } from '../../custom-credentials/repo.memory.js';
@@ -40,12 +40,12 @@ function externalHarness(transport: 'streamable_http' | 'stdio' = 'streamable_ht
   return {
     save: accessToken => saveExternalMcpServer(deps, { workspaceId, serverId: 'fixture', label: 'Fixture', transport, authMode: 'static_env', command: transport === 'stdio' ? 'node' : '', args: '', url: transport === 'stdio' ? undefined : 'https://example.test/mcp', accessToken: accessToken as string, accessTokenEnvName: 'ACCESS_TOKEN', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', enabled: true }),
     read: async () => {
-      const { configs, failures } = await readEnabledExternalMcpConfigs(deps, workspaceId);
+      const { configs, failures } = await readEnabledExternalMcpConfigs({ deps, workspaceId });
       assert.equal(failures.length, 0);
       const target = configs[0]?.target;
       return target?.kind === 'stdio' ? target.env.ACCESS_TOKEN : target?.headers.authorization?.slice('Bearer '.length);
     },
-    hint: async () => (await listExternalMcpServerViews(deps, workspaceId))[0]?.accessTokenHint,
+    hint: async () => (await listExternalMcpServerViews({ deps, workspaceId }))[0]?.accessTokenHint,
   };
 }
 function customHarness(): Harness {
@@ -153,7 +153,7 @@ test('stdio JSON env preserves embedded newlines, edge spaces, Unicode and punct
   const deps = { ...cryptoDeps(), repo: new InMemoryExternalMcpServerRepo() };
   const value = '  café 東京\nsecond +/=._-~\nthird  ';
   await saveExternalMcpServer(deps, { workspaceId, serverId: 'env', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', env: JSON.stringify({ PRIVATE_VALUE: value }) });
-  const { configs } = await readEnabledExternalMcpConfigs(deps, workspaceId);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps, workspaceId });
   const target = configs[0]?.target;
   assert.equal(target?.kind === 'stdio' && Buffer.from(target.env.PRIVATE_VALUE ?? '').equals(Buffer.from(value)), true, 'multiline env is lossless');
 });
@@ -162,11 +162,11 @@ test('source-control checks declarations before sealing and probes only a durabl
   const registry = exampleRegistry({ ids: ['example-git'] });
   const deps = { ...cryptoDeps(), repo,
     loadSourceControlProviders: async () => { declarations++; return registry; },
-    fetchFn: async () => {
+    httpClient: { send: async () => {
       probes++;
       assert.equal((await repo.listByWorkspace({ workspaceId })).length, 1, 'save must be durable before probe');
-      return Response.json({ account: 'fixture' });
-    },
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ account: 'fixture' }) };
+    } },
   };
   await assert.rejects(createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection: { providerId: 'example-git', token: 'x'.repeat(8193) } } }), exactError(CREDENTIAL_MESSAGES.limit));
   assert.equal(probes, 0);
@@ -201,5 +201,5 @@ test('env-only credentials receive server-unsealed hints without sending their v
   assert.equal(JSON.stringify(summary).includes(token), false);
   assert.equal(JSON.stringify(summary).includes('short'), false);
   await saveExternalMcpServer(deps, { workspaceId, serverId: 'env-hint', transport: 'stdio', authMode: 'static_env', enabled: true, command: 'node', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'owner', env: '' });
-  assert.deepEqual((await listExternalMcpServerViews(deps, workspaceId))[0]?.envTokenHints, summary.envTokenHints);
+  assert.deepEqual((await listExternalMcpServerViews({ deps, workspaceId }))[0]?.envTokenHints, summary.envTokenHints);
 });

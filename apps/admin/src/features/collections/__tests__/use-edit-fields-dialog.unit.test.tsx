@@ -1,9 +1,9 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { EditFieldsDialog } from "../Collections";
+import { EditFieldsDialog } from "../EditFieldsDialog";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 import type { EditFieldsDialogPort } from "../hooks/edit-fields-dialog-port.hooks";
@@ -90,7 +90,7 @@ describe("field editing", () => {
   it("updateField patches the matching row", () => {
     const { view } = mount();
     const rowId = view.result.current.fields[0]._rowId;
-    act(() => view.result.current.updateField(rowId, { required: false }));
+    act(() => view.result.current.updateField({ rowId, patch: { required: false } }));
     expect(view.result.current.fields[0].required).toBe(false);
   });
 
@@ -103,7 +103,7 @@ describe("field editing", () => {
   it("removeField can remove down to an empty list (dialog-level; validation catches it on submit)", () => {
     const { view } = mount();
     const rowId = view.result.current.fields[0]._rowId;
-    act(() => view.result.current.removeField(rowId));
+    act(() => view.result.current.removeField({ rowId }));
     expect(view.result.current.fields).toEqual([]);
   });
 });
@@ -111,7 +111,7 @@ describe("field editing", () => {
 describe("submit — validation", () => {
   it("blocks submit with 'At least one field is required.' when the draft is emptied out, without calling fetch", async () => {
     const { view } = mount();
-    act(() => view.result.current.removeField(view.result.current.fields[0]._rowId));
+    act(() => view.result.current.removeField({ rowId: view.result.current.fields[0]._rowId }));
 
     await act(async () => {
       await view.result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
@@ -174,8 +174,8 @@ describe("submit — failure", () => {
 describe("native dialog lifecycle (M3)", () => {
   it("native cancel reaches the domain's current cancel handler", () => {
     const onCancel = vi.fn();
-    render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={onCancel} t={(key) => key}
-      useEditFieldsDialogHook={(props) => useEditFieldsDialog(props, createFakeEditFieldsDialogPort())} />, { wrapper });
+    render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={onCancel} t={({ key }, _optional = {}) => key}
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
     fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -184,8 +184,8 @@ describe("native dialog lifecycle (M3)", () => {
     const opener = document.createElement("button");
     document.body.appendChild(opener);
     opener.focus();
-    const { unmount } = render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={vi.fn()} t={(key) => key}
-      useEditFieldsDialogHook={(props) => useEditFieldsDialog(props, createFakeEditFieldsDialogPort())} />, { wrapper });
+    const { unmount } = render(<EditFieldsDialog contentType={TYPE} onSaved={vi.fn()} onCancel={vi.fn()} t={({ key }, _optional = {}) => key}
+      useEditFieldsDialogHook={(props) => useEditFieldsDialog({ props: props, port: createFakeEditFieldsDialogPort() })} />, { wrapper });
     expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
     expect(screen.getByRole("dialog")).toHaveAttribute("open");
     unmount();
@@ -200,7 +200,7 @@ describe("cancel — in-flight guard (H4)", () => {
     const onSaved = vi.fn();
     const updated = deferred<{ contentType: AdminContentType }>();
     const port: EditFieldsDialogPort = { updateContentTypeFields: () => updated.promise };
-    const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel }, port), {
+    const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel }, port: port }), {
       wrapper,
     });
 
@@ -227,7 +227,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const onSaved = vi.fn();
     try {
       const port = createFakeEditFieldsDialogPort();
-      const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel: vi.fn() }, port), { wrapper });
+      const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
 
       await act(async () => {
         await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
@@ -248,7 +248,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("maps a rejected injected port call through describeEditFieldsError (plain Error: its own message)", async () => {
     const port = createFakeEditFieldsDialogPort({ updateError: new Error("network down") });
     const onSaved = vi.fn();
-    const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel: vi.fn() }, port), { wrapper });
+    const { result } = renderHook(() => useEditFieldsDialog({ props: { contentType: TYPE, onSaved, onCancel: vi.fn() }, port: port }), { wrapper });
 
     await act(async () => {
       await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);

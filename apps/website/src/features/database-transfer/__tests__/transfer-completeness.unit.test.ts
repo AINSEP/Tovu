@@ -7,7 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { IncompleteTransferPlanError, planTransfer } from "@jini-ai/db/transfer";
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { planChatSnapshotTables, planSnapshotTables } from "../table-catalog.js";
 
 test("content.db and chat.db plans account for all three raw-SQL tables and name any removed table", () => {

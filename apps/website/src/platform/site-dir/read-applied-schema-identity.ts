@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { tableExists } from "../db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../db/migrations/index.js";
 import { LEDGER_TABLE } from "../db/migrations/runner.js";
 
@@ -63,7 +63,7 @@ interface SchemaLedgers {
 }
 
 async function readContentLedgerIdentity(
-  { ledgers, hasContentLedger }: { ledgers: StorageKernel<SchemaLedgers>; hasContentLedger: boolean },
+  { ledgers, hasContentLedger }: { ledgers: KyselyKernel<SchemaLedgers>; hasContentLedger: boolean },
   _options = {},
 ): Promise<AppliedSchemaIdentity> {
   if (!hasContentLedger) return "none";
@@ -86,15 +86,15 @@ async function readContentLedgerIdentity(
  *   collection.
  */
 export async function readAppliedSchemaIdentity<DB>(
-  kernel: StorageKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
+  kernel: KyselyKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
 ): Promise<AppliedSchemaIdentity> {
-  const ledgers = kernel as unknown as StorageKernel<SchemaLedgers>;
-  const hasContentLedger = await tableExists(kernel, LEDGER_TABLE);
+  const ledgers = kernel as unknown as KyselyKernel<SchemaLedgers>;
+  const hasContentLedger = await tableExists({ kernel, table: LEDGER_TABLE });
   if (kernel.dialect === "postgres" || (identity === "current" && hasContentLedger)) {
     return readContentLedgerIdentity({ ledgers, hasContentLedger });
   }
 
-  if (!(await tableExists(kernel, "__drizzle_migrations"))) return "none";
+  if (!(await tableExists({ kernel, table: "__drizzle_migrations" }))) return "none";
   const latest = await ledgers.run((db) =>
     db.selectFrom("__drizzle_migrations").select("created_at").orderBy("created_at", "desc").limit(1).executeTakeFirst()
   );
@@ -115,8 +115,8 @@ export async function readAppliedSchemaIdentity<DB>(
  *   `dbPath` does not exist at all — a caller that needs a distinct "no file" outcome checks
  *   `fs.existsSync(dbPath)` itself first.
  */
-export async function readAppliedSchemaIdentityOfFile(dbPath: string): Promise<AppliedSchemaIdentity> {
-  const kernel = openSqliteFileKernel(dbPath, { readOnly: true });
+export async function readAppliedSchemaIdentityOfFile({ dbPath }: { dbPath: string }, _optional = {}): Promise<AppliedSchemaIdentity> {
+  const kernel = openSqliteFileKernel({ filePath: dbPath }, { readOnly: true });
   try {
     return await readAppliedSchemaIdentity(kernel, { identity: "legacy-stamp" });
   } finally {

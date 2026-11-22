@@ -16,6 +16,8 @@
  * per-file Category 1/2/3 triage the plan doc's §3.8 gives the other 12 — see that doc before
  * promoting any one of these past `warn`.
  */
+import { readFileSync } from "node:fs";
+
 const HAND_WRITTEN_RULES = [
     {
       // Added 2026-08-28 — this repo had NO circular-dependency rule at all until now (confirmed by
@@ -110,7 +112,7 @@ const HAND_WRITTEN_RULES = [
       // adapter code, not core. The `pathNot` test-file exclusion below was a ready-to-apply
       // recommendation from `2026-08-13-boundary-lint-plan.md` §1.3, not yet landed until now: all
       // 21 remaining violations are contract/integration tests instantiating a concrete adapter
-      // (`db/sqlite/*`, `db/postgres/db-ops.ts`, or — post Job 2 — the post reverters via
+      // (`db/sqlite/*`, `db/postgres/db-ops-adapter.ts`, or — post Job 2 — the post reverters via
       // `features/post/index.ts`) to exercise a real implementation against its port contract,
       // which the plan doc's own reasoning treats as orthogonal to this rule's production-layering
       // concern (§1.3: "you cannot write a contract test without a concrete implementation").
@@ -157,8 +159,8 @@ const HAND_WRITTEN_RULES = [
       // `exportSite` pass, and `RouteDeps.runExportSite`'s contravariant parameter makes a narrower
       // `ExportEngine<T>` declaration impossible on its own (verified, not assumed) — is solved by a
       // NEW `RouteDeps.exportSiteBound` field (`server/routes/types.ts`): a pre-bound export call,
-      // closed over the full `RouteDeps` once at the composition root (`server/app.ts`'s
-      // `createRouteDeps()`/`server/deps.ts`'s `createSiteRouteDeps()`), so each narrow domain type
+      // closed over the full `RouteDeps` once at the composition root (`server/runtime/composition/app.ts`'s
+      // `createRouteDeps()`/`server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`), so each narrow domain type
       // only ever has to describe `{outputDir; clean?; basePath?}` — never `routeDeps` itself.
       // `features/deployments/export-run.ts` needed NO changes: its own `ExportEngine<TRouteDeps>`
       // was already generic and never named `RouteDeps` — it was already the target shape this whole
@@ -168,7 +170,7 @@ const HAND_WRITTEN_RULES = [
       // (`feature-no-express-or-admin-imports` -> `feature-no-server-or-framework-imports`) — the
       // old name described the old `to`. `apps/website/src/features/INFO.md` has always said "Features should not
       // import server/framework code", full stop; the rule only ever policed the `routes/` third of
-      // that, so an edge into `server/app.ts`, `server/deps.ts`, `server/http/**` or
+      // that, so an edge into `server/runtime/composition/app.ts`, `server/runtime/composition/deps.ts`, `server/http/**` or
       // `server/modules/**` was unpoliced. Widening was safe to do in one step rather than
       // incrementally because the production edge count into the newly-covered area was already
       // ZERO — measured from dependency-cruiser's own module graph across all 33 slices, including
@@ -338,6 +340,9 @@ const HAND_WRITTEN_RULES = [
           "^apps/website/src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
           "^apps/website/src/features/external-mcp/tool-registrations\\.ts$",
           "^apps/website/src/features/agent-plugins/federate-mcp\\.ts$",
+          // Moved here from server/runtime/services (2026-11 moves/r2-b): the probe binds Tovu's HTTP MCP
+          // session (`connectMcpHttpSession`), a connection helper rather than a tool registration.
+          "^apps/website/src/features/external-mcp/external-mcp-probe\\.ts$",
         ],
       },
       to: {
@@ -425,7 +430,7 @@ const GUARDED_MODULES = [
 // same role as `server`'s two files for the HTTP process (confirmed: `cli/commands/serve.ts`'s
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
 // `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
-// identical to `serve.ts`: both call `createSiteRouteDeps` (`server/deps.ts`) and reach
+// identical to `serve.ts`: both call `createSiteRouteDeps` (`server/runtime/composition/deps.ts`) and reach
 // `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
 // `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).
@@ -443,7 +448,9 @@ const COMPOSITION_ROOTS = [
   // `repairSite`/`planRepairSite`/`classifySiteMarkers` and `site-dir/resolve-install-dir-target.ts`
   // directly — the same boot-only files `init.ts`/`serve.ts` already reach past the barrel, which
   // deliberately does not re-export them (see `site-dir/index.ts`'s own header).
-  "^apps/website/src/cli/commands/(serve|init|introspect|export|adopt)\\.ts$",
+  // `serve-listen.ts` is the `app.listen` half split out of `serve.ts` (2026-11: serveBootedSite under 50
+  // lines), so it keeps `serve.ts`'s composition-root reach into `site-dir/boot-site-dir.ts` and `schema-guard.ts`.
+  "^apps/website/src/cli/commands/(serve|serve-listen|init|introspect|export|adopt)\\.ts$",
 ];
 
 // Tests need concrete internals to exercise implementations. Match the architecture checker's
@@ -471,7 +478,7 @@ const DB_SQLITE = "^apps/website/src/platform/db/sqlite";
 // 2026-08-17: the Stage 2 registry rollout MOVED this seam's caller. Domains no longer sit in
 // `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array (which is now empty save two
 // env-gated demo stubs); each domain instead calls `registerToolContributor` itself, and
-// `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` imports all 25
+// `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` imports all 25
 // `contribute<Domain>Tools` functions at boot. That made the production registrar a second seam
 // caller. It was not added here at the time, so all 25 conversions came through an UNREGISTERED
 // door: 19 violations (18 `warn`, plus 1 `error` for `features/post`, the one module promoted in
@@ -680,16 +687,20 @@ const PUBLIC_ENTRIES = {
   "features/media": ["contracts", "public-urls", "attachment-tools", "bootstrap", "guard-rendition-repo"],
   "features/members": ["access-resolver"],
   "features/navigation": ["render-entry"],
-  "features/post": ["contracts", "rendering", "read-model", "post"],
+  "features/post": ["contracts", "rendering", "read-model", "post", "post-read", "post-update", "post-trash"],
   "features/presentation": ["active-theme-id"],
-  "features/settings": ["contracts", "site-title"],
+  "features/seo": ["page-head-contributor"],
+  "features/settings": ["site-title"],
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],
   "features/theme": [
     "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
-    "token-aliases", "entry-list-render", "active-theme", "static-asset-contract", "theme", "theme-layout", "theme-id-aliases",
-    "preview-refresh", "theme-roster-sync",
+    "token-aliases", "entry-list-markup", "active-theme", "static-asset-contract", "theme", "theme-id-aliases",
+    "preview-policy", "theme-roster-ports",
+    "theme-page-eligibility", "visitor-publication",
+    "static-render-content", "static-render-menus", "static-render-previews",
+    "static-template-choice", "static-template-resolution",
   ],
-  "platform/site-dir": ["moves"],
+  "platform/site-dir": ["moves", "errors"],
 };
 
 // r26 Part A c-dispositions, IDs 15,16,18,30,32,37,81,87,88,89,91,92,94,95,
@@ -700,7 +711,11 @@ const REVIEWED_IMPORT_PAIRS = [
   ["features/site-export/media-original-urls.ts", "features/media/public-path.ts"],
   ["server/inbound/admin-http/routes/media/upload.ts", "features/media/document-archive.ts"],
   ["server/inbound/assistant/agent-daemon-server.ts", "features/media/document-archive.ts"],
-  ["server/inbound/public-http/http/site/render.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/template-render-data.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/doc/media-ref.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/doc/media-tags.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/doc/nodes-media.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/widgets/media.ts", "features/media/public-path.ts"],
   ["features/deployments/static-publish/adapter.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/static-security-headers.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher-html.ts"],
@@ -804,7 +819,7 @@ function noDeepImportRules(mod) {
       // this one just missed it because its `from` is a fixed pattern instead of derived from
       // `mod`. Verified: `assistant`'s `EXTRA_TO_EXEMPT` entry (mcp-federation) and every other
       // guarded module are unaffected — `modPath` for any mod other than "assistant" cannot match
-      // `apps/website/src/assistant/tool-registrations.ts` or `apps/website/src/server/tool-catalog-manifest.ts`.
+      // `apps/website/src/assistant/tool-registrations.ts` or `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`.
       name: `no-non-seam-deep-imports-from-tool-registration-caller:${mod}`,
       severity: "warn",
       comment: `assistant/tool-registrations.ts (and its own tests) may reach ${mod}'s tool-registrations.ts/agent-tools.ts seam, but nothing else in ${mod}.`,
@@ -814,8 +829,54 @@ function noDeepImportRules(mod) {
   ];
 }
 
+// ---------------------------------------------------------------------------------------------
+// feature-rank:<n> — no runtime import cycle between feature folders. Generated from one table,
+// `development/boundaries/feature-ranks.json` (one row per feature folder; the same file
+// `development/scripts/check-feature-ranks.mjs` checks against the folder list, because an edge
+// rule cannot see a folder that has no edges).
+//
+// Rank = the longest runtime import chain below the feature. The rule: a feature may value-import
+// only features of a STRICTLY lower rank. Same rank is not allowed, so no pair can ever be mutual,
+// and any graph that obeys a strict rank is acyclic. The table is a ratchet of today's legitimate
+// edges, not an ideal architecture: lowering a rank is a one-line change this rule itself
+// verifies; a new upward need is solved with a port the composition root binds, not by re-ranking
+// around it.
+//
+// `severity: "error"` since the five edges that closed the cycle were cut (S6): the count is 0, so a
+// new upward feature import fails `check:boundaries` at once.
+//
+// `dependencyTypesNot` needs BOTH values: "type-only" covers `import type`, and dependency-cruiser
+// tags an `import("x").T` type node as "type-import" (without it such a node is reported as a
+// value import). The filter is safe here although `no-circular` above explains why it cannot be
+// used on a reachability rule: this rule judges one edge at a time, the same use
+// `only-composition-constructs-concrete-adapters` makes of it.
+//
+// The filter is right ONLY while Tovu's compiler drops `import { type A } from "x"` (no
+// `verbatimModuleSyntax` in tsconfig.json), so "type-only before compilation" equals "not in the
+// emitted JavaScript". If `verbatimModuleSyntax` is ever turned on, such an import is emitted as
+// `import {} from "x"` and still loads the module: this rule must then read imports after
+// compilation (`tsPreCompilationDeps: false`) and drop the type filter.
+//
+// Tests are out of scope (they may import any feature), matching the rules above.
+const FEATURE_RANK = JSON.parse(readFileSync(new URL("./development/boundaries/feature-ranks.json", import.meta.url), "utf8"));
+const FEATURES = "apps/website/src/features";
+const FEATURE_RANK_TESTS = ".*/__tests__/.*|\\.test\\.ts$";
+const featureAlternatives = (names) => names.map((name) => name.replace(/-/g, "\\-")).join("|");
+const FEATURE_RANK_RULES = [...new Set(Object.values(FEATURE_RANK))].sort((a, b) => a - b).map((rank) => {
+  const here = Object.keys(FEATURE_RANK).filter((name) => FEATURE_RANK[name] === rank);
+  const sameOrHigher = Object.keys(FEATURE_RANK).filter((name) => FEATURE_RANK[name] >= rank);
+  return {
+    name: `feature-rank:${rank}`,
+    severity: "error",
+    comment: "A feature may value-import only features of a strictly lower rank (development/boundaries/feature-ranks.json). Need something from above? Declare a port and let the composition root bind it.",
+    // The group in `from.path` is the importing feature; `$1` in `to.pathNot` then skips imports inside that feature.
+    from: { path: `^${FEATURES}/(${featureAlternatives(here)})/`, pathNot: FEATURE_RANK_TESTS },
+    to: { path: `^${FEATURES}/(${featureAlternatives(sameOrHigher)})/`, pathNot: `^${FEATURES}/$1/`, dependencyTypesNot: ["type-only", "type-import"] },
+  };
+});
+
 export default {
-  forbidden: [...HAND_WRITTEN_RULES, ...GUARDED_MODULES.flatMap(noDeepImportRules)],
+  forbidden: [...HAND_WRITTEN_RULES, ...FEATURE_RANK_RULES, ...GUARDED_MODULES.flatMap(noDeepImportRules)],
   options: {
     doNotFollow: { path: "node_modules" },
     tsPreCompilationDeps: true,

@@ -24,7 +24,7 @@ import { currentToolIdFor } from "./content-read-tool.js";
  * catalog `source` — Tovu's `ToolDescriptor` carries no separate domain field, and every wired id
  * already follows `<domain>_<verb...>`, so deriving it is free rather than a new field to keep in
  * sync. */
-function sourceForToolId(id: string): string {
+function sourceForToolId({ id }: { id: string }, _options = {}): string {
   const [prefix] = id.split("_");
   return prefix && prefix.length > 0 ? prefix : "tovu";
 }
@@ -44,9 +44,9 @@ const enricher: SearchEnricher = {
   // Static publish's input/confirmation/result contract likewise diluted "publish the site" to rank 6.
   // Navigation's observation guidance describes clicks and discovery; rank its opening action
   // paragraph so that verification prose does not bury requests to open a screen or entity.
-  indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor(id,
-    indexableDescription({ id, description }), { ...optional, ...(metadata ? { metadata } : {}) }),
-  authoredDescription: ({ description }) => stripSearchKeywords(description),
+  indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor({ toolId: id,
+    description: indexableDescription({ id, description }) }, { ...optional, ...(metadata ? { metadata } : {}) }),
+  authoredDescription: ({ description }) => stripSearchKeywords({ indexed: description }),
 };
 /** The authored text BM25 indexes. The batch guidance most tools append (`items: [...]`) is the
  * same boilerplate everywhere, so it is dropped first: indexing it on ~200 tools ranked unrelated
@@ -56,7 +56,7 @@ function indexableDescription({ id, description }: { id: string; description: st
   const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || id === "page.navigate" || authored.includes(PAGE_HTML_CONTRACT);
   return actionParagraphOnly ? authored.split("\n\n", 1)[0]! : authored;
 }
-const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };
+const classifier = { classify: ({ id }: { id: string }) => sourceForToolId({ id: id }) };
 
 /** Describe this host's read-card family using only the cards in the same catalog snapshot.
  * No handler or schema is published for the family; callers must describe a concrete card.
@@ -75,7 +75,7 @@ function describeContentReadFamily(
       || `Read ${entry.id.slice("content_read.".length).replace(/_/g, " ")}.`;
     return `${entry.id} — ${purpose}`;
   });
-  return { id: "content_read", source: sourceForToolId("content_read"),
+  return { id: "content_read", source: sourceForToolId({ id: "content_read" }),
     description: ["content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.", ...lines].join("\n"),
     targetToolIds: cards.map(entry => entry.id),
   };
@@ -147,10 +147,10 @@ export function buildToolCatalogQuery(
       refresh();
       const entry = snapshot.query.describe({ id });
       if (entry) return entry;
-      const currentId = currentToolIdFor(id);
+      const currentId = currentToolIdFor({ toolId: id });
       // A retired id is guidance only: never publish a schema/callable for an unregistered alias.
       if (currentId !== id && snapshot.query.describe({ id: currentId })) {
-        return { id, source: sourceForToolId(id), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.`, targetToolIds: [currentId] };
+        return { id, source: sourceForToolId({ id: id }), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.`, targetToolIds: [currentId] };
       }
       // Only the namespace itself gets an overview; an unknown card must remain missing.
       return id === "content_read" ? describeContentReadFamily({ entries: snapshot.entries }, { visibleToolIds }) : null;

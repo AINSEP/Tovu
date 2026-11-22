@@ -22,6 +22,7 @@
  * Grounding imports (typecheck against real code): `../core/ports`, `../mail`.
  */
 import type { UUID } from "@jini-ai/core/primitives";
+import type { ListPage } from "@jini-ai/core/list-page";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -96,7 +97,8 @@ export interface NewsletterCampaignRepoPort {
   /** Bounded idle-safety probe; missing capability means busy, never a paginated-list fallback. */
   hasSending?(required: { workspaceId: UUID }, optional?: {}): Promise<boolean>;
   findById(required: { workspaceId: UUID; id: UUID }): Promise<CampaignRecord | null>;
-  list(required: { workspaceId: UUID; afterId?: UUID; limit?: number }): Promise<CampaignRecord[]>;
+  /** Returns campaigns in ID order; pass nextCursor to continue after the last returned ID. */
+  list(required: { workspaceId: UUID }, optional?: { limit?: number; cursor?: string | null }): Promise<ListPage<CampaignRecord>>;
   /**
    * Package-private by convention (Code Review file-boundary check) — called from
    * `campaign-write-service.ts` (inside a `transaction()` callback together with `appendRevision`,
@@ -114,7 +116,7 @@ export interface NewsletterCampaignRepoPort {
   appendRevision(revision: CampaignRevision): Promise<void>;
   listRevisions(required: { workspaceId: UUID; campaignId: UUID }): Promise<CampaignRevision[]>;
   /** Repo-port-level atomic boundary — mirrors `SettingsRepoPort.transaction`. */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(required: { fn: () => Promise<T> }, optional?: {}): Promise<T>;
   /**
    * Atomically adds 1 to one delivery counter of one campaign and sets its `updatedAt` (2026-09-16). The only writer of
    * `counters` once the row exists; touches no other field (status, version and editorial fields stay as stored). A missing
@@ -140,7 +142,8 @@ export interface NewsletterSubscriptionRepoPort {
     listId: UUID;
     subscriberId: UUID;
   }): Promise<SubscriptionRow | null>;
-  list(required: { workspaceId: UUID; listId: UUID; afterId?: UUID; limit?: number }): Promise<SubscriptionRow[]>;
+  /** Returns subscriptions in ID order, with a cursor when another page exists. */
+  list(required: { workspaceId: UUID; listId: UUID }, optional?: { limit?: number; cursor?: string | null }): Promise<ListPage<SubscriptionRow>>;
   listSubscribed(required: { workspaceId: UUID; listId: UUID }): Promise<SubscriptionRow[]>;
   save(row: SubscriptionRow): Promise<void>;
   remove(required: { workspaceId: UUID; id: UUID }): Promise<void>;

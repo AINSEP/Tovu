@@ -1,3 +1,4 @@
+import { readStdinOrRefuse } from "./stdin-input.js";
 import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
 import { composePluginCredentials } from "../../server/runtime/composition/agent-plugin-service-ports.js";
 import { ValidationError } from "../../platform/site-dir/index.js";
@@ -28,30 +29,23 @@ export function bundledAgentPluginsRoot(): string {
   return bundledAgentPluginsDir();
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
-}
-
-/** All of stdin (or the injected stream) as text. */
-export async function readAllStdin({ input = process.stdin }: { input?: NodeJS.ReadableStream } = {}): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of input) chunks.push(Buffer.from(chunk as Buffer));
-  return Buffer.concat(chunks).toString("utf8");
 }
 
 /**
  * The `{ [pluginId]: token }` JSON object read from stdin, validated by the create route's rules.
  * @throws {ValidationError} Not JSON, or not that shape. The message never carries a token.
  */
-export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<string> = readAllStdin): Promise<Record<string, string>> {
+export async function readNewSiteAgentPluginTokensFromStdin(_required: Record<string, never>, { read = () => readStdinOrRefuse({}, { flag: "--agent-plugin-tokens-stdin" }) }: { read?: () => Promise<string> } = {}): Promise<Record<string, string>> {
   let raw: unknown;
   try {
     raw = JSON.parse(await read());
   } catch {
-    throw new ValidationError("init: --agent-plugin-tokens-stdin expects a JSON object on stdin");
+    throw new ValidationError({ message: "init: --agent-plugin-tokens-stdin expects a JSON object on stdin" });
   }
-  const parsed = parseNewSiteAgentPluginTokens(raw);
-  if (!parsed.ok) throw new ValidationError(`init: ${parsed.error}`);
+  const parsed = parseNewSiteAgentPluginTokens({ raw });
+  if (!parsed.ok) throw new ValidationError({ message: `init: ${parsed.error}` });
   return parsed.tokens;
 }
 
@@ -59,8 +53,8 @@ export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<
 export type NewSiteAgentPluginTokenCheck = (input: { pluginId: string; token: string }) => Promise<TokenCheckOutcome>;
 
 /** The real check: the bundled plugins (the new site has no workspace yet) and the guarded client. */
-export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundledAgentPluginsRoot()): NewSiteAgentPluginTokenCheck {
-  const httpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
+export function defaultNewSiteAgentPluginTokenCheck(_required: Record<string, never>, { sourceRoot = bundledAgentPluginsRoot() }: { sourceRoot?: string } = {}): NewSiteAgentPluginTokenCheck {
+  const httpClient = createDefaultHttpClient({ policy: CUSTOM_CREDENTIALS_EGRESS_POLICY });
   const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: sourceRoot });
   return (input) => checkAgentPluginAccessToken({ workspaceId: "new-site", credentials: composePluginCredentials({ httpClient }), resolveInstalledPlugin }, input);
 }
@@ -69,9 +63,9 @@ export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundled
  * Refuses before anything is created when a token is rejected or its plugin takes no token.
  * @throws {ValidationError} The same plain message the admin's create route returns.
  */
-export async function assertNewSiteAgentPluginTokensAccepted(tokens: Readonly<Record<string, string>>, check: NewSiteAgentPluginTokenCheck): Promise<void> {
-  const refusal = await firstNewSiteAgentPluginTokenRefusal(check, tokens);
-  if (refusal) throw new ValidationError(refusal.error);
+export async function assertNewSiteAgentPluginTokensAccepted({ tokens, check }: { tokens: Readonly<Record<string, string>>; check: NewSiteAgentPluginTokenCheck }, _optional: Record<string, never> = {}): Promise<void> {
+  const refusal = await firstNewSiteAgentPluginTokenRefusal({ check, tokens });
+  if (refusal) throw new ValidationError({ message: refusal.error });
 }
 
 /** Seals the tokens into the just-created site, applied at its first boot. */
@@ -82,10 +76,10 @@ export type SealNewSiteAgentPluginTokens = (input: { siteDir: string; siteKeyId:
  * app reads it). The site already exists, so a failure is reported, not thrown.
  */
 export async function storeNewSiteAgentPluginTokens(
-  site: { dir: string; siteId: string },
-  tokens: Readonly<Record<string, string>>,
-  seal: SealNewSiteAgentPluginTokens = sealPendingAgentPluginTokensForNewSite,
-  write: (line: string) => void = (line) => void process.stdout.write(line),
+  { site, tokens }: { site: { dir: string; siteId: string }; tokens: Readonly<Record<string, string>> },
+  { seal = sealPendingAgentPluginTokensForNewSite, write = (line) => void process.stdout.write(line) }: {
+    seal?: SealNewSiteAgentPluginTokens; write?: (line: string) => void;
+  } = {},
 ): Promise<void> {
   const pluginIds = Object.keys(tokens);
   if (pluginIds.length === 0) return;
@@ -102,9 +96,9 @@ export async function storeNewSiteAgentPluginTokens(
  * a pasted token, as `{ "plugins": [{ pluginId, displayName, helpUrl }] }`.
  */
 export async function runTokenSignInPluginsCommand(
-  sourceRoot: string = bundledAgentPluginsRoot(),
-  { output = writeStdout }: { output?: (message: string) => void } = {},
+  _required: Record<string, never>,
+  { sourceRoot = bundledAgentPluginsRoot(), output = writeStdout }: { sourceRoot?: string; output?: (required: { message: string }, optional?: Record<string, never>) => void } = {},
 ): Promise<void> {
   const plugins = await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: sourceRoot });
-  output(`${JSON.stringify({ plugins })}\n`);
+  output({ message: `${JSON.stringify({ plugins })}\n` });
 }

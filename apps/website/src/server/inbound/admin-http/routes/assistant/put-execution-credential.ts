@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import type { Response } from "express";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   ExecutionCredentialSecretStoreUnconfiguredError,
   ExecutionCredentialValidationError,
@@ -10,11 +12,11 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 /** `maxTokens` and `providerId` each accept their own shape; every other field defaults to
  *  string-or-omitted (looked up via the `undefined` key below). */
 const EXECUTION_CREDENTIAL_FIELD_VALIDATORS: Readonly<
-  Record<string, { readonly ok: (value: unknown) => boolean; readonly message: string }>
+  Record<string, { readonly ok: (required: { value: unknown }, optional?: Record<string, never>) => boolean; readonly message: string }>
 > = {
-  maxTokens: { ok: (value) => value === undefined || typeof value === "number", message: "maxTokens must be a number" },
+  maxTokens: { ok: ({ value }) => value === undefined || typeof value === "number", message: "maxTokens must be a number" },
   providerId: {
-    ok: (value) => value === undefined || value === null || typeof value === "string",
+    ok: ({ value }) => value === undefined || value === null || typeof value === "string",
     message: "providerId must be a string or null",
   },
 };
@@ -27,13 +29,30 @@ const EXECUTION_CREDENTIAL_FIELD_VALIDATORS: Readonly<
  * @throws {ExecutionCredentialValidationError} if `value` doesn't match `field`'s accepted shape.
  * @complexity O(1).
  */
-function validateExecutionCredentialField(field: string, value: unknown): void {
+function validateExecutionCredentialField({ field, value }: { field: string; value: unknown }, _optional = {}): void {
   const specific = EXECUTION_CREDENTIAL_FIELD_VALIDATORS[field];
-  const ok = specific ? specific.ok(value) : value === undefined || typeof value === "string";
+  const ok = specific ? specific.ok({ value }) : value === undefined || typeof value === "string";
   if (ok) {
     return;
   }
   throw new ExecutionCredentialValidationError(specific ? specific.message : `${field} must be a string`);
+}
+
+function sendPutExecutionCredentialError(required: { res: Response; err: unknown }, _optional = {}): void {
+  const { res, err } = required;
+  if (err instanceof ExecutionCredentialValidationError) {
+    res.status(400).json({ error: err.message, code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof ExecutionCredentialSecretStoreUnconfiguredError) {
+    res.status(503).json({
+      error:
+        "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
+      code: "SECRET_STORE_UNCONFIGURED",
+    });
+    return;
+  }
+  sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-execution-credential", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -48,12 +67,9 @@ function validateExecutionCredentialField(field: string, value: unknown): void {
  * `SECRET_STORE_UNCONFIGURED` (missing `TOVU_SITE_KEY`, checked before any write), 500
  * everything else.
  */
-export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -66,7 +82,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
         maxTokens?: unknown;
       };
       for (const [field, value] of Object.entries(body)) {
-        validateExecutionCredentialField(field, value);
+        validateExecutionCredentialField({ field, value });
       }
 
       const view = await setExecutionCredential(
@@ -89,19 +105,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
       );
       res.json({ data: view });
     } catch (err) {
-      if (err instanceof ExecutionCredentialValidationError) {
-        res.status(400).json({ error: err.message, code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof ExecutionCredentialSecretStoreUnconfiguredError) {
-        res.status(503).json({
-          error:
-            "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
-          code: "SECRET_STORE_UNCONFIGURED",
-        });
-        return;
-      }
-      sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-execution-credential", code: "INTERNAL_ERROR" });
+      sendPutExecutionCredentialError({ res, err });
     }
   });
 };

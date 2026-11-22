@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Quick wins A: an admin adapter over the same guarded fetch and upload pipeline as the tool. */
 import type { Express } from "express";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
@@ -10,7 +11,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
 import type { MediaRouteDeps } from "./deps.js";
-import { parseOptionalStringField } from "./parse.js";
+import { parseOptionalStringField } from "@jini-ai/cms/media";
 
 export type MediaImportUrlRouteDeps = MediaRouteDeps & Pick<RouteDeps, "mediaImportHttpClient">;
 
@@ -25,10 +26,10 @@ function parseImportInput(required: { body: unknown }, _optional: Record<string,
   }
   return {
     url: input.url.trim(),
-    filename: parseOptionalStringField(input.filename, "filename"),
-    alt: parseOptionalStringField(input.alt, "alt"),
-    caption: parseOptionalStringField(input.caption, "caption"),
-    credit: parseOptionalStringField(input.credit, "credit"),
+    filename: parseOptionalStringField({ raw: input.filename, field: "filename" }),
+    alt: parseOptionalStringField({ raw: input.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: input.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: input.credit, field: "credit" }),
   };
 }
 
@@ -40,10 +41,7 @@ export function registerAdminMediaImportUrlRoute(
 ): void {
   const { app, deps } = required;
   app.post("/api/admin/v1/workspaces/:workspaceId/media/import-url", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const auth = await deps.authorize({ principalId: principal.id, permission: "media.upload", workspaceId: deps.workspaceId, entityType: "media" });
@@ -66,7 +64,7 @@ export function registerAdminMediaImportUrlRoute(
       // As with the assistant import and human upload, a failure here must not report success:
       // the next rendition needs the persisted sniffed type to serve this blob correctly.
       await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256: media.source.sha256, contentType: fetched.contentType });
-      const publicUrl = (await resolveMediaPublicUrls(deps, [media])).get(media.id) ?? null;
+      const publicUrl = (await resolveMediaPublicUrls({ deps, assets: [media] })).get(media.id) ?? null;
       res.status(201).json({ media: toAdminMediaResponse({ media, contentType: fetched.contentType, publicUrl, byteSize: fetched.bytes.byteLength }) });
     } catch (error) {
       if (error instanceof EgressRefusedError) {

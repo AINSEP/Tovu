@@ -20,7 +20,7 @@ import { RestorePointUnavailableError } from "#src/features/publish-content/exec
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
 import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
-import { sendAdminFailure } from "../../system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 test("the shared backup-route failure sender preserves typed disk refusals and their diagnosis", t => {
   t.mock.method(console, "error", () => {});
@@ -32,14 +32,14 @@ test("the shared backup-route failure sender preserves typed disk refusals and t
   const body = actual?.body as { code: string; message: string; errorId: string };
   assert.equal(body.code, "INSUFFICIENT_STORAGE");
   assert.equal(body.message, error.message);
-  assert.match(body.errorId, /^[a-f0-9-]{36}$/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the shared disk refusal returns a standard correlated incident ID");
 });
 
 test("disk budget refusal is HTTP 507 with its actionable typed message", t => {
   t.mock.method(console, "error", () => {});
   const err = new DatabaseDiskSpaceError({ freeBytes: 12 * 1024 * 1024, requiredBytes: 62 * 1024 * 1024 });
-  const response = importErrorResponse(err);
-  assert.match(response.body.errorId!, /^[a-f0-9-]{36}$/);
+  const response = importErrorResponse({ err });
+  assert.match(response.body.errorId!, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "the import disk refusal returns a standard correlated incident ID");
   assert.deepEqual(response, { status: 507, body: { error: err.message, code: "INSUFFICIENT_STORAGE", errorId: response.body.errorId } });
 });
 
@@ -55,7 +55,7 @@ test("the real pre-publish SQLite capture reaches HTTP 507 before writing, inclu
   const probe = t.mock.method(fsp, "statfs", async () => ({ ...space, bavail: 0 }));
   const adapter = new SqliteDbOpsAdapter({ db, filePath });
   await assert.rejects(adapter.captureRestorePoint({ scopeId: "s" }, { directory }), error => {
-    const refusal = importErrorResponse(error);
+    const refusal = importErrorResponse({ err: error });
     assert.equal(refusal.status, 507);
     assert.equal(refusal.body.code, "INSUFFICIENT_STORAGE");
     assert.match(refusal.body.error, /disk is almost full \(0 MB free, needs \d+ MB\)/);
@@ -71,17 +71,17 @@ test("each known import error maps to its status and code, keeping its message",
     [new PlanStaleError({ message: "plan changed" }), 409, "PLAN_STALE"],
     [new TokenExpiredError({ message: "token expired" }), 409, "TOKEN_EXPIRED"],
     [new TokenAlreadyRedeemedError({ message: "token used" }), 409, "TOKEN_ALREADY_REDEEMED"],
-    [new RestorePointUnavailableError("no restore point"), 409, "RESTORE_POINT_UNAVAILABLE"],
-    [new PublishContentBundleNotFoundError("bundle gone"), 404, "BUNDLE_NOT_FOUND"],
+    [new RestorePointUnavailableError({ message: "no restore point" }), 409, "RESTORE_POINT_UNAVAILABLE"],
+    [new PublishContentBundleNotFoundError({ message: "bundle gone" }), 404, "BUNDLE_NOT_FOUND"],
   ];
   for (const [err, status, code] of cases) {
-    assert.deepEqual(importErrorResponse(err), { status, body: { error: err.message, code } }, code);
+    assert.deepEqual(importErrorResponse({ err }), { status, body: { error: err.message, code } }, code);
   }
 });
 
 test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming the plugin, like the posts routes", () => {
   const err = new PluginHookFailedError("seo", "plugin 'seo' filter failed: password=hunter2", { refusedItemRef: "post:p-2" });
-  assert.deepEqual(importErrorResponse(err), {
+  assert.deepEqual(importErrorResponse({ err }), {
     status: 500,
     body: {
       error: "a site plugin (seo) refused item post:p-2; items applied before it stay saved, so check the import history before retrying",
@@ -94,13 +94,25 @@ test("a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming t
 test("an unrecognised error is a 500 with fixed text; its own message goes only to the server log", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
   const err = new Error("SQLITE_CANTOPEN: unable to open /srv/tovu/site.db (password=hunter2)");
-  assertAdminResponse({ actual: importErrorResponse(err), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
+  assertAdminResponse({ actual: importErrorResponse({ err }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/SQLITE_CANTOPEN: unable to open \/srv\/tovu\/site.db/] });
   assert.equal(JSON.stringify(logged.mock.calls).includes("hunter2"), false);
 });
 
 test("a non-Error throw is a 500 with the generic message, logged the same way", (t) => {
   const logged = t.mock.method(console, "error", () => undefined);
-  assertAdminResponse({ actual: importErrorResponse("secret detail"), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
+  assertAdminResponse({ actual: importErrorResponse({ err: "secret detail" }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/^secret detail$/] });
+});
+
+test("an explicit 503 override preserves default 507 behavior for other admin callers", t => {
+  t.mock.method(console, "error", () => {});
+  const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 100 });
+  let reply: { status: number; body: unknown } | undefined;
+  const res = { status(status: number) { return { json(body: unknown) { reply = { status, body }; } }; } };
+  sendAdminFailure({ res, error }, { status: 503, code: "CONSENT_UNAVAILABLE", message: "Published enforcement remains in place." });
+  assert.equal(reply?.status, 503);
+  assert.equal((reply?.body as { code: string }).code, "CONSENT_UNAVAILABLE");
+  sendAdminFailure({ res, error });
+  assert.equal(reply?.status, 507);
 });

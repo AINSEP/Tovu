@@ -2,7 +2,7 @@ import type { Insertable, Selectable } from "kysely";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
-import { toBool } from "../../platform/db/kernel/index.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
 import type {
   ConsentEvidence,
   ConsentPurpose,
@@ -74,7 +74,7 @@ export function toMemberRecord(row: MemberRow): MemberRecord {
   };
 }
 
-export function toMemberRow(record: MemberRecord): Insertable<ContentDatabase["members"]> {
+export function toMemberRow(record: MemberRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["members"]> {
   // Omit password_hash so ordinary profile upserts cannot erase a stored password.
   return {
     id: record.id,
@@ -102,7 +102,7 @@ export function toMemberTierRecord(row: MemberTierRow): MemberTierRecord {
     status: row.status as MemberTierStatus,
     description: row.description ?? undefined,
     welcomePagePath: row.welcome_page_path ?? undefined,
-    visibleInPortal: toBool(row.visible_in_portal) === true,
+    visibleInPortal: toBool({ value: row.visible_in_portal }) === true,
     monthlyPriceCents: row.monthly_price_cents == null ? undefined : Number(row.monthly_price_cents),
     yearlyPriceCents: row.yearly_price_cents == null ? undefined : Number(row.yearly_price_cents),
     currency: row.currency ?? undefined,
@@ -112,7 +112,7 @@ export function toMemberTierRecord(row: MemberTierRow): MemberTierRecord {
   };
 }
 
-export function toMemberTierRow(record: MemberTierRecord): Insertable<ContentDatabase["member_tiers"]> {
+export function toMemberTierRow(record: MemberTierRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["member_tiers"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -151,7 +151,7 @@ export function toMemberSubscriptionRecord(row: MemberSubscriptionRow): MemberSu
 }
 
 export function toMemberSubscriptionRow(
-  record: MemberSubscriptionRecord
+  record: MemberSubscriptionRecord, _optional: Record<string, never> = {}
 ): Insertable<ContentDatabase["member_subscriptions"]> {
   return {
     id: record.id,
@@ -185,7 +185,7 @@ export function toMemberSessionRecord(row: MemberSessionRow): MemberSessionRecor
   };
 }
 
-export function toMemberSessionRow(record: MemberSessionRecord): Insertable<ContentDatabase["member_sessions"]> {
+export function toMemberSessionRow(record: MemberSessionRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["member_sessions"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -201,7 +201,7 @@ export function toMemberSessionRow(record: MemberSessionRecord): Insertable<Cont
 }
 
 /** Maps legacy/new-address challenge rows without adding an undefined identity to legacy records. @complexity O(1). */
-export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord {
+export function toMagicLinkTokenRecord(row: MagicTokenRow, _optional: Record<string, never> = {}): MagicLinkTokenRecord {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -219,7 +219,7 @@ export function toMagicLinkTokenRecord(row: MagicTokenRow): MagicLinkTokenRecord
 }
 
 /** Stores new-address identity on the challenge only; legacy links retain a null email. @complexity O(1). */
-export function toMagicLinkTokenRow(record: MagicLinkTokenRecord): Insertable<ContentDatabase["member_magic_tokens"]> {
+export function toMagicLinkTokenRow(record: MagicLinkTokenRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["member_magic_tokens"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -235,7 +235,7 @@ export function toMagicLinkTokenRow(record: MagicLinkTokenRecord): Insertable<Co
   };
 }
 
-export function toMemberConsentRecord(row: MemberConsentRow): MemberConsentRecord {
+export function toMemberConsentRecord(row: MemberConsentRow, _optional: Record<string, never> = {}): MemberConsentRecord {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -251,7 +251,7 @@ export function toMemberConsentRecord(row: MemberConsentRow): MemberConsentRecor
   };
 }
 
-export function toMemberConsentRow(record: MemberConsentRecord): Insertable<ContentDatabase["member_consents"]> {
+export function toMemberConsentRow(record: MemberConsentRecord, _optional: Record<string, never> = {}): Insertable<ContentDatabase["member_consents"]> {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -284,7 +284,7 @@ export function toMemberConsentRevisionRecord(row: MemberRevisionRow): MemberCon
 
 /** The `member_revisions` row a consent revision appends (compact JSON snapshots). */
 export function toConsentRevisionRow(
-  record: Omit<MemberConsentRevisionRecord, "seq">
+  record: Omit<MemberConsentRevisionRecord, "seq">, _optional: Record<string, never> = {}
 ): Insertable<ContentDatabase["member_revisions"]> {
   return {
     entity_kind: "consent",

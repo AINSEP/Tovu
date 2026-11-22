@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from "vitest";
 
 import { persistableMessages, messageWriteKey, activeRunStub } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { ApiError, onUnauthenticated } from "../api";
+import { ApiError, onUnauthenticated } from "../admin-http/request";
 
 import {
   createConversation,
@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe("HttpError", () => {
   it("carries the status code separately from the rendered message", () => {
-    const error = new HttpError(503, "Service Unavailable");
+    const error = new HttpError({ status: 503, statusText: "Service Unavailable" });
     expect(error.status).toBe(503);
     expect(error.message).toBe("503 Service Unavailable");
     expect(error.name).toBe("HttpError");
@@ -42,8 +42,8 @@ describe("HttpError", () => {
 describe("authenticated transcript requests", () => {
   it.each([
     ["list", () => listConversations()],
-    ["save", () => saveMessage("c1", { id: "m1", role: "user", content: "hello" })],
-    ["delete", () => deleteConversation("c1")],
+    ["save", () => saveMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } })],
+    ["delete", () => deleteConversation({ id: "c1" })],
   ] as const)("%s notifies session expiry while preserving HttpError", async (_label, send) => {
     const listener = vi.fn();
     const unsubscribe = onUnauthenticated(listener);
@@ -112,7 +112,7 @@ describe("createConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({ conversation }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(createConversation()).resolves.toEqual(conversation);
+    await expect(createConversation({})).resolves.toEqual(conversation);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({});
   });
@@ -122,7 +122,7 @@ describe("createConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({ conversation }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await createConversation("hello there");
+    await createConversation({}, { firstMessage: "hello there" });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/assistant/chats");
@@ -136,7 +136,7 @@ describe("renameConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
 
-    await renameConversation("c/1", "New title");
+    await renameConversation({ id: "c/1", title: "New title" });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/assistant/chats/c%2F1");
@@ -148,7 +148,7 @@ describe("renameConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, 404, "Not Found"));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(renameConversation("c1", "x")).rejects.toMatchObject({ status: 404 });
+    await expect(renameConversation({ id: "c1", title: "x" })).rejects.toMatchObject({ status: 404 });
   });
 });
 
@@ -157,7 +157,7 @@ describe("deleteConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204, statusText: "No Content" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await deleteConversation("c/1");
+    await deleteConversation({ id: "c/1" });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c%2F1", expect.objectContaining({ method: "DELETE", credentials: "same-origin", signal: expect.any(AbortSignal) }));
   });
@@ -166,7 +166,7 @@ describe("deleteConversation", () => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 403, statusText: "Forbidden" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(deleteConversation("c1")).rejects.toMatchObject({ status: 403, message: "403 Forbidden" });
+    await expect(deleteConversation({ id: "c1" })).rejects.toMatchObject({ status: 403, message: "403 Forbidden" });
   });
 });
 
@@ -176,7 +176,7 @@ describe("loadMessages", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({ messages }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(loadMessages("c1")).resolves.toEqual(messages);
+    await expect(loadMessages({ conversationId: "c1" })).resolves.toEqual(messages);
     expect(fetchMock).toHaveBeenCalledWith("/api/assistant/chats/c1/messages", expect.objectContaining({ method: "GET", credentials: "same-origin", signal: expect.any(AbortSignal) }));
   });
 
@@ -184,7 +184,7 @@ describe("loadMessages", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(loadMessages("c1")).resolves.toEqual([]);
+    await expect(loadMessages({ conversationId: "c1" })).resolves.toEqual([]);
   });
 });
 
@@ -194,7 +194,7 @@ describe("saveMessage", () => {
     vi.stubGlobal("fetch", fetchMock);
     const message: ChatMessage = { id: "m/1", role: "assistant", content: "hello", runStatus: "succeeded" };
 
-    await saveMessage("c/1", message);
+    await saveMessage({ conversationId: "c/1", message });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/assistant/chats/c%2F1/messages/m%2F1");
@@ -206,7 +206,7 @@ describe("saveMessage", () => {
     fetchMock = vi.fn().mockResolvedValue(jsonResponse({}, 409, "Conflict"));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(saveMessage("c1", { id: "m1", role: "user", content: "x" })).rejects.toMatchObject({ status: 409 });
+    await expect(saveMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "x" } })).rejects.toMatchObject({ status: 409 });
   });
 });
 
@@ -292,7 +292,7 @@ test('unchanged focus refresh reads a tiny reply and retains the existing parsed
   const unchanged = jsonResponse({ unchanged: true }); unchanged.headers.set('ETag', '"v-history"');
   fetchMock = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(unchanged);
   vi.stubGlobal('fetch', fetchMock);
-  const initial = await loadMessages('conditional-history');
-  expect(await loadMessages('conditional-history')).toBe(initial);
+  const initial = await loadMessages({ conversationId: 'conditional-history' });
+  expect(await loadMessages({ conversationId: 'conditional-history' })).toBe(initial);
   expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/assistant/chats/conditional-history/messages?ifVersion=%22v-history%22');
 });

@@ -84,7 +84,7 @@ async function buildApp(contact: SubscriberContact | null) {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterResendConfirmationRoute(app, deps);
+  registerAdminNewsletterResendConfirmationRoute({ app, deps });
   return { app, deps, mailer };
 }
 

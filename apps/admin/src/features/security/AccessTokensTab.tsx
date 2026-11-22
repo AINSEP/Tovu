@@ -2,31 +2,21 @@ import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
 import { OnboardingChipField } from "@jini-ai/ui";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { AdminPublishTargetField } from "../../lib/api";
+
+import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
-import {
-  ACCESS_TOKEN_CATEGORIES,
-  accessTokenExtraFieldIdSuffix,
-  accessTokensCountText,
-  invalidAdditionalHostsEntries,
-  extraFieldsAroundToken,
-  providerGroupHandleLabel,
-  providerGroupSubtitleKeys,
-  tokenRowHandleLabel,
-  type AccessTokenCategoryId,
-  type AccessTokenProviderInfo,
-  type AccessTokenProviderRef,
-  type AccessTokenRow,
-  type AccessTokenRowCategoryId,
-} from "./rules";
+import { ACCESS_TOKEN_CATEGORIES, type AccessTokenCategoryId, type AccessTokenRowCategoryId } from "./rules";
+import { accessTokenExtraFieldIdSuffix } from "./access-token-forms";
+import { invalidAdditionalHostsEntries } from "./custom-credential-forms";
+import { accessTokensCountText } from "./other-credential-stores";
+import { extraFieldsAroundToken, providerGroupHandleLabel, providerGroupSubtitleKeys, tokenRowHandleLabel, type AccessTokenProviderInfo, type AccessTokenProviderRef } from "./access-token-providers";
+import { type AccessTokenRow } from "./access-token-rows";
 import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import type {
@@ -42,6 +32,8 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsO
 import { CopyKeysDialog } from "./CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 
@@ -95,7 +87,7 @@ export interface AccessTokensTabProps {
   useCopyKeysHook?: typeof useWiredCopyKeys;
   /** Whether the "Use a saved key" entry renders; defaults to
    *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11; shown again per owner 2026-11-08). */
-  showCopyKeysEntry?: boolean;
+  showCopyKeysEntry?: boolean; useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /** A provider group can take another saved token unless it is custom or unlisted. */
@@ -103,26 +95,22 @@ function acceptsAnotherToken(info: { kind: string; unlisted?: boolean }): boolea
   return info.kind !== "custom" && !info.unlisted;
 }
 
-function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
-  return override ?? useWiredAccessTokens;
-}
-function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials | undefined): typeof useWiredOtherCredentials {
-  return override ?? useWiredOtherCredentials;
-}
+
+
 
 /** Whether the "Use a saved key" entry renders above the list (see its render site). */
 const SHOW_COPY_KEYS_ENTRY = true;
 
-export function AccessTokensTab(props: AccessTokensTabProps) {
-  useAdminLocale();
-  const useAccessTokensHook = resolveAccessTokensHook(props.useAccessTokensHook);
-  const useOtherCredentialsHook = resolveOtherCredentialsHook(props.useOtherCredentialsHook);
+export function AccessTokensTab({ useAdminLocaleHook = useAdminLocale, useAccessTokensHook = useWiredAccessTokens, useOtherCredentialsHook = useWiredOtherCredentials, useCopyKeysHook = useWiredCopyKeys, ...props }: AccessTokensTabProps) {
+  useAdminLocaleHook();
+
+
   const controller = useAccessTokensHook();
   // Tier 2 reads `query`/`category` FROM Tier 1's own controller rather than owning either — one
   // search box, one category filter, across both tiers (this file's own header). See
   // `use-other-credentials.hooks.ts`'s header for why that state isn't duplicated here instead.
   const otherController = useOtherCredentialsHook({ query: controller.query, category: controller.category });
-  const useCopyKeysHook = props.useCopyKeysHook ?? useWiredCopyKeys;
+
   const copyDialog = useCopyKeysHook({ t: controller.t });
 
   return (
@@ -156,9 +144,11 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  * Rules of Hooks — even though its result is only rendered once the loading/error gates pass; it
  * tolerates either controller's `groups` still being `undefined` internally (`AccessTokensTab.hooks.tsx`'s
  * own doc), so calling it early costs nothing. */
-function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
+function AccessTokensBody({ controller, otherController,
+  useMergedSecretsOrderHook = useMergedSecretsOrder }: { controller: AccessTokensController; otherController: OtherCredentialsController;
+  useMergedSecretsOrderHook?: typeof useMergedSecretsOrder; }) {
   const addCustomDialogRef = useRef<HTMLDialogElement>(null);
-  const merged = useMergedSecretsOrder(controller, otherController, controller.query);
+  const merged = useMergedSecretsOrderHook({ controller, otherController, query: controller.query });
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle({ handle: "security-access-tokens-load-error" }, { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -201,7 +191,7 @@ function HostingPluginsHint({ controller }: { controller: AccessTokensController
   if (controller.query || !["all", "hosting"].includes(controller.category) || controller.groups?.some((group) => group.info.category === "hosting")) return null;
   return <div className="empty-state">
     <p>{controller.t("Enable a hosting plugin to manage its access tokens.")}</p>
-    <a href={adminHref("/addons/agent-plugins")}>{controller.t("Plugins")}</a>
+    <a href={adminHref({ routePath: "/addons/agent-plugins" })}>{controller.t("Plugins")}</a>
   </div>;
 }
 
@@ -214,14 +204,16 @@ function HostingPluginsHint({ controller }: { controller: AccessTokensController
  *  of {@link AccessTokensBody} for the complexity gate; its own branching is a single `.map()` plus
  *  one static button, so this split is about readability/reuse rather than a budget this one
  *  function would otherwise exceed. */
-function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { controller: AccessTokensController; onAddCustomProvider: () => void }) {
+function AccessTokensCategoryFilter({ controller, onAddCustomProvider,
+  useTabBarKeyboardHook = useTabBarKeyboard }: { controller: AccessTokensController; onAddCustomProvider: () => void;
+  useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
   const translate = controller.t;
   // Reuses `TabBar.hooks.tsx`'s WAI-ARIA tabs keyboard helpers rather than reimplementing them —
   // `ACCESS_TOKEN_CATEGORIES`'s `{ id, label }` shape structurally satisfies `TabBarTab`, and none
   // of these categories are ever disabled. `[role="tab"]` scoping already skips the non-tab
   // "+ Add custom provider" button below (this file's own header on why that button stays out of
   // the tablist's tab order).
-  const { onKeyDown } = useTabBarKeyboard({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, onChange: (id) => controller.setCategory(id as AccessTokenCategoryId) });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: ACCESS_TOKEN_CATEGORIES, activeId: controller.category, onChange: (id) => controller.setCategory(id as AccessTokenCategoryId) });
   return (
     <div
       className="access-tokens-category-filter"
@@ -259,8 +251,8 @@ function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { contr
 /** The search box and its own match-count line — counts are the SUM of both tiers'
  *  `totalCount`/`matchCount` (this file's header on why the combined count stays a GLOBAL fact,
  *  unaffected by the category filter below it). "token(s)" stays the noun even though the count now
- *  spans Tier 2's keys/credentials too — the existing e2e suite pins the exact string
- *  (`development/e2e/access-tokens.spec.ts`'s `/^0 tokens saved$/`), and nothing in this pass asked
+ *  spans Tier 2's keys/credentials too — the original e2e suite pins the exact string
+ *  (the access-token e2e check's `/^0 tokens saved$/`), and nothing in this pass asked
  *  for new copy here; a person calling an API key a "token" loosely is the same shorthand this
  *  page's own tab name already uses for the whole install. The line itself is `rules.ts`'s
  *  `accessTokensCountText` — a whole translated sentence per plural form, not fragments glued in
@@ -269,7 +261,7 @@ function AccessTokensSearch({ controller, otherController }: { controller: Acces
   const translate = controller.t;
   const totalCount = controller.totalCount + otherController.totalCount;
   const matchCount = controller.matchCount + otherController.matchCount;
-  const countText = accessTokensCountText(totalCount, matchCount, controller.query, translate);
+  const countText = accessTokensCountText({ totalCount, matchCount, query: controller.query }, { t: translate });
   return (
     <div className="access-tokens-search">
       <label className="visually-hidden" htmlFor="access-tokens-search">
@@ -303,7 +295,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
       className="access-tokens-provider-group"
       {...agentHandle({ handle: `security-access-tokens-group-${group.info.kind}-${agentHandleSegment({ value: group.info.providerId })}` }, {
         role: "region",
-        label: providerGroupHandleLabel(group.info, group.rows.length),
+        label: providerGroupHandleLabel({ info: group.info, connectedCount: group.rows.length }),
       })}
     >
       <h3 className="access-tokens-provider-heading">
@@ -392,7 +384,7 @@ function TokenRow({
       className="access-tokens-row access-tokens-row-done"
       {...agentHandle({ handle: `security-access-tokens-row-${state.row.kind}-${agentHandleSegment({ value: state.row.providerId })}-${agentHandleSegment({ value: state.row.id })}` }, {
         role: "region",
-        label: tokenRowHandleLabel(state.name, info.label),
+        label: tokenRowHandleLabel({ name: state.name, providerLabel: info.label }),
       })}
     >
       <summary className="access-tokens-row-summary">
@@ -404,7 +396,7 @@ function TokenRow({
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
           {state.row.worksFor?.length ? <span>{translate("Works for")}: {state.row.worksFor.join(", ")} · </span> : null}
-          {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { timeZone: "local" })} <CredentialHint hint={state.row.tokenHint} />
+          {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
           {translate(state.row.scope === "project" && !state.row.usedByThisSite ? "Details" : "Replace token")}
@@ -627,7 +619,7 @@ function ExtraFieldInputs({
       {fields.map((field) => (
         <ExtraFieldInput
           key={field.name}
-          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix(field.name)}`}
+          id={`${idPrefix}-${accessTokenExtraFieldIdSuffix({ fieldName: field.name })}`}
           field={field}
           value={values[field.name] ?? ""}
           onChange={(value) => onFieldChange(field.name, value)}
@@ -668,7 +660,7 @@ function ExtraFieldInput({
         onChange={(e) => onChange(e.target.value)}
         {...agentHandle({ handle: id }, { role: "field", label: `This provider's ${field.label}` })}
       />
-      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+      {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
     </div>
   );
 }
@@ -681,7 +673,7 @@ function WorksForField({ value = [], options = [], onChange, t }: {
   options: { value: string; label: string }[];
   onChange: (value: string[]) => void;
   t: Translate;
-}, _options = {}) {
+}) {
   const choices = new Map(options.map(option => [option.value, option]));
   for (const id of value) if (!choices.has(id)) choices.set(id, { value: id, label: id });
   return <div className="field" role="group" aria-label={t("Works for")}>
@@ -712,14 +704,14 @@ function ExistingTokenFields({
         token={state.token}
         values={state.values}
         username={state.username}
-        onNameChange={(v) => controller.setExistingField(state.row.id, { name: v })}
-        onTokenChange={(v) => controller.setExistingField(state.row.id, { token: v })}
-        onFieldChange={(name, v) => controller.setExistingField(state.row.id, { values: { ...state.values, [name]: v } })}
-        onUsernameChange={(v) => controller.setExistingField(state.row.id, { username: v })}
+        onNameChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { name: v } })}
+        onTokenChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { token: v } })}
+        onFieldChange={(name, v) => controller.setExistingField({ rowId: state.row.id, patch: { values: { ...state.values, [name]: v } } })}
+        onUsernameChange={(v) => controller.setExistingField({ rowId: state.row.id, patch: { username: v } })}
         connected
         t={translate}
       />
-      {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField(state.row.id, { worksFor })} t={translate} /> : null}
+      {info.kind !== "source-control" ? <WorksForField value={state.worksFor} options={controller.worksForOptions} onChange={worksFor => controller.setExistingField({ rowId: state.row.id, patch: { worksFor } })} t={translate} /> : null}
       <SharedKeyReplaceNote row={state.row} t={translate} />
       <div className="access-tokens-row-actions">
         <button
@@ -833,10 +825,14 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
  * credential action); the row's own SUMMARY stays tagged (`TokenRow`'s `agentHandle`), only this
  * dialog's destructive action does not.
  */
-const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate }>(
-  function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate }, ref) {
-    const locale = useAdminLocale();
-    const { close, confirm } = useRemoveConfirmDialog(ref, row, controller);
+const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate;
+  useAdminLocaleHook?: typeof useAdminLocale;
+  useRemoveConfirmDialogHook?: typeof useRemoveConfirmDialog; }>(
+  function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate,
+  useAdminLocaleHook = useAdminLocale,
+  useRemoveConfirmDialogHook = useRemoveConfirmDialog }, ref) {
+    const locale = useAdminLocaleHook();
+    const { close, confirm } = useRemoveConfirmDialogHook({ ref, row, controller });
     // `aria-labelledby`, not left implicit: a native `<dialog>` has no accessible name of its own
     // from an `<h2>` sitting inside it — that link has to be stated, the same way the shared
     // `ConfirmDialog` (`@jini-ai/admin/react`) already does via its own `titleId`. Without it, every
@@ -846,8 +842,8 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
     const titleId = `security-access-tokens-remove-title-${agentHandleSegment({ value: row.id })}`;
     return (
       <dialog ref={ref} className="confirm-dialog" aria-labelledby={titleId}>
-        <h2 id={titleId}>{removeDialogTitle(locale, row.name)}</h2>
-        <p className="confirm-dialog-body">{removeDialogBody(locale, info.label, info.vendorLabel)}</p>
+        <h2 id={titleId}>{removeDialogTitle({ locale, name: row.name })}</h2>
+        <p className="confirm-dialog-body">{removeDialogBody({ locale, credentialLabel: info.label, vendor: info.vendorLabel })}</p>
         {info.tokenPageUrl === "" ? null : <p>
           {/* `info.vendorLabel`, NOT `info.label` — this line says WHERE to revoke, and "GitHub
               Pages"/"Cloudflare Pages" are destinations with no revoke console of their own. See
@@ -862,7 +858,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
         </p>}
-        {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote(locale, info.label)}</p> : null}
+        {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote({ locale, provider: info.label })}</p> : null}
         <div className="confirm-dialog-actions">
           <button
             type="button"
@@ -898,7 +894,7 @@ function RequiredFieldMarker() {
  *  more decision point to whichever function renders it, and `AddCustomCredentialDialog` already
  *  carries a full field set's worth. */
 function AdditionalHostsField({ value, onChange, translate }: { value: string; onChange: (value: string) => void; translate: Translate }) {
-  const invalid = invalidAdditionalHostsEntries(value);
+  const invalid = invalidAdditionalHostsEntries({ raw: value });
   return (
     <div className="field">
       <label className="field-label" htmlFor="security-add-custom-additional-hosts">
@@ -941,9 +937,10 @@ function CustomKeyStorageChoice({ controller }: { controller: AccessTokensContro
  * existing custom row does not re-collect them) — bolting a fifth, create-only field onto a
  * component shared with the seven catalog providers' Replace flow would risk it leaking there too.
  */
-const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate }>(
-  function AddCustomCredentialDialog({ controller, t: translate }, ref) {
-    const { readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
+const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate;
+  useAddCustomCredentialDialogHook?: typeof useAddCustomCredentialDialog; }>(
+  function AddCustomCredentialDialog({ controller, t: translate, useAddCustomCredentialDialogHook = useAddCustomCredentialDialog }, ref) {
+    const { readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialogHook(ref, controller);
     const form = controller.customAddForm;
     // Same `aria-labelledby` fix as `RemoveConfirmDialog` above — one instance of this dialog per
     // page, so a static id is fine (contrast the per-row `row.id`-scoped id there).

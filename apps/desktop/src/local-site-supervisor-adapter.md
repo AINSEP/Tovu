@@ -7,7 +7,7 @@ and `killNow()` (synchronous signal path). `LocalSiteSupervisorPort` owns cap, p
 readiness/crash transitions, start/stop and a stopped-site lane for folder mutations.
 
 Desktop currently owns arbitrary project paths (`site-dir-store.ts` / `project-ipc.ts`), windows,
-partitions, persisted process registries and its Map-compatible `site-supervisor.ts` crash observer.
+partitions, persisted process registries and its Map-compatible `@jini-ai/sidecar/supervisor` crash observer.
 That observer is a window registry, not a launcher/cap/readiness lifecycle. No second IPC owner is
 wired by this change. Keep HTTP local management disabled for packaged desktop children today.
 

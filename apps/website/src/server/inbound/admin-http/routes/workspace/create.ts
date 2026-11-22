@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -10,16 +10,16 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  * and outbox-flush path requires AUTH_SESSION (mounted on /api/admin by core.ts) plus
  * `workspace.manage` authorization; unauthenticated callers must not create workspace rows.
  */
-export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "workspace.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

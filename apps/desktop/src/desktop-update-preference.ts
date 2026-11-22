@@ -2,21 +2,21 @@
 import { readJsonFile, withFileLock, writeJsonFileAtomic } from './durable-json-file.ts';
 import { desktopCopy } from './desktop-i18n.ts';
 
-function settingsAt(preferencePath: string): Record<string, unknown> {
-  const read = readJsonFile(preferencePath);
+function settingsAt({ preferencePath }: { preferencePath: string }, _options = {}): Record<string, unknown> {
+  const read = readJsonFile({ filePath: preferencePath });
   if (read.state !== 'ok') return {};
   const value = read.value;
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 export function readAutomaticUpdates({ preferencePath }: { preferencePath: string }, _optionalArgs = {}): boolean {
-  return settingsAt(preferencePath).automaticUpdates !== false;
+  return settingsAt({ preferencePath }).automaticUpdates !== false;
 }
 export function writeAutomaticUpdates({ preferencePath, enabled }: { preferencePath: string; enabled: boolean }, _optionalArgs = {}): void {
-  withFileLock(preferencePath, () => {
+  withFileLock({ filePath: preferencePath, critical: () => {
     // Preserve damaged bytes rather than silently replacing an unreadable preferences file.
-    if (readJsonFile(preferencePath).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic(preferencePath, { ...settingsAt(preferencePath), automaticUpdates: enabled });
-  });
+    if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt({ preferencePath }), automaticUpdates: enabled } });
+  } });
 }
 
 export function automaticUpdatesMenu({ locale, enabled, setEnabled, onError }: {

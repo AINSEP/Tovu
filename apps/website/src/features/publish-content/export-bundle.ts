@@ -1,6 +1,6 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
-import { entityKey } from "./planner.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
+import { entityKey } from "./plan-rows.js";
 import {
   buildPublishContentCatalog,
   type PackedEntity,
@@ -58,7 +58,7 @@ export interface PackAuthorizedEntitiesDeps {
  * @complexity O(t + e) — one `authorize()` call per registered type `t`, then one yield per entity
  * `e` the allowed types pack. Memory is O(1) in the corpus: entities are yielded, never collected.
  */
-export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps): AsyncGenerator<PackedEntity> {
+export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps, _optional = {}): AsyncGenerator<PackedEntity> {
   yield* packHandlerEntities({ ...deps, handlers: buildPublishContentCatalog(deps.publishContentDeps).handlers });
 }
 
@@ -75,7 +75,7 @@ export async function* packHandlerEntities(input: {
   readonly authorize: PublishContentAuthorize;
   readonly workspaceId: string;
   readonly principalId: string;
-}): AsyncGenerator<PackedEntity> {
+}, _optional = {}): AsyncGenerator<PackedEntity> {
   for (const handler of input.handlers) {
     const typeAuth = await input.authorize({
       principalId: input.principalId,
@@ -137,7 +137,7 @@ export async function collectSkippedEntities(input: {
   readonly authorize: PublishContentAuthorize;
   readonly workspaceId: string;
   readonly principalId: string;
-}): Promise<readonly SkippedPackEntity[]> {
+}, _optional = {}): Promise<readonly SkippedPackEntity[]> {
   const skipped: SkippedPackEntity[] = [];
   for (const handler of input.handlers) {
     if (!handler.listSkipped) continue;
@@ -172,10 +172,13 @@ export async function collectSkippedEntities(input: {
  * @complexity O(e) time in the envelope's entity count, O(e) space for the narrowed copy.
  */
 export function selectBundleEntities(
-  envelope: PublishContentExportEnvelope,
-  selectedKeys: ReadonlySet<string>
+  { envelope, selectedKeys }: {
+    envelope: PublishContentExportEnvelope;
+    selectedKeys: ReadonlySet<string>;
+  },
+  _optional = {}
 ): PublishContentExportEnvelope {
-  const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey(entity.entityType, entity.id)));
+  const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey({ entityType: entity.entityType, entityId: entity.id })));
   const requiredBlobs = new Set<string>();
   for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs) };
@@ -198,20 +201,23 @@ export function selectBundleEntities(
  * narrowed copy.
  */
 export function applyPublishScope(
-  envelope: PublishContentExportEnvelope,
-  scope: PublishScope
+  { envelope, scope }: {
+    envelope: PublishContentExportEnvelope;
+    scope: PublishScope;
+  },
+  _optional = {}
 ): PublishContentExportEnvelope {
   const entityKeys = scope.entityKeys ? new Set(scope.entityKeys) : null;
-  const matchesScope = (type: string, id: string): boolean => {
+  const matchesScope = ({ type, id }: { type: string; id: string }, _optional = {}): boolean => {
     if (scope.entityTypes && !scope.entityTypes.includes(type)) return false;
-    if (entityKeys && !entityKeys.has(entityKey(type, id))) return false;
+    if (entityKeys && !entityKeys.has(entityKey({ entityType: type, entityId: id }))) return false;
     return true;
   };
 
-  const entities = envelope.entities.filter((entity) => matchesScope(entity.entityType, entity.id));
+  const entities = envelope.entities.filter((entity) => matchesScope({ type: entity.entityType, id: entity.id }));
   const requiredBlobs = new Set<string>();
   for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
-  const skipped = envelope.skipped.filter((entry) => matchesScope(entry.entityType, entry.id));
+  const skipped = envelope.skipped.filter((entry) => matchesScope({ type: entry.entityType, id: entry.id }));
 
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs), skipped };
 }
@@ -232,11 +238,11 @@ export type ReferenceHandlers = ReadonlyMap<string, Pick<PublishContentHandler, 
  *  colliding slug). @complexity O(s). */
 function indexCarriable(source: PublishContentExportEnvelope, held: ReadonlySet<string>): Map<string, PackedEntity> {
   const byAddress = new Map<string, PackedEntity>();
-  const candidates = source.entities.filter((entity) => !held.has(entityKey(entity.entityType, entity.id)));
-  for (const entity of candidates) byAddress.set(entityKey(entity.entityType, entity.id), entity);
+  const candidates = source.entities.filter((entity) => !held.has(entityKey({ entityType: entity.entityType, entityId: entity.id })));
+  for (const entity of candidates) byAddress.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), entity);
   for (const entity of candidates) {
     const slug = entity.state.slug;
-    const address = typeof slug === "string" && slug.length > 0 ? entityKey(entity.entityType, slug) : null;
+    const address = typeof slug === "string" && slug.length > 0 ? entityKey({ entityType: entity.entityType, entityId: slug }) : null;
     if (address !== null && !byAddress.has(address)) byAddress.set(address, entity);
   }
   return byAddress;
@@ -267,32 +273,34 @@ function indexCarriable(source: PublishContentExportEnvelope, held: ReadonlySet<
  * most the `c` entities it can reach; O(s) extra space.
  */
 export function includeReferencedEntities(
-  envelope: PublishContentExportEnvelope,
-  source: PublishContentExportEnvelope,
-  handlers: ReferenceHandlers
+  { envelope, source, handlers }: { envelope: PublishContentExportEnvelope; source: PublishContentExportEnvelope; handlers: ReferenceHandlers },
+  _optional = {}
 ): ReferencedEntityInclusion {
-  const referencesOf = (entity: PackedEntity) => handlers.get(entity.entityType)?.references?.(entity) ?? [];
-  const held = new Set(envelope.entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const referencesOf = (entity: PackedEntity) => handlers.get(entity.entityType)?.references?.({ entity }) ?? [];
+  const held = new Set(envelope.entities.map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id })));
   const carriable = indexCarriable(source, held);
 
   const added: PackedEntity[] = [];
   const rootsByKey = new Map<string, Set<string>>();
   function includeRoot({ root }: { root: PackedEntity }, _options: Record<string, never> = {}): void {
-    const rootEntityKey = entityKey(root.entityType, root.id);
+    const rootEntityKey = entityKey({ entityType: root.entityType, entityId: root.id });
     const seen = new Set<string>();
     const pending = [...referencesOf(root)];
     while (pending.length > 0) {
-      const ref = pending.pop()!;
-      const target = carriable.get(entityKey(ref.entityType, ref.key));
+      const ref = pending.pop();
+      if (ref === undefined) throw new Error("Publish export has no pending reference");
+      const target = carriable.get(entityKey({ entityType: ref.entityType, entityId: ref.key }));
       if (!target) continue;
-      const key = entityKey(target.entityType, target.id);
+      const key = entityKey({ entityType: target.entityType, entityId: target.id });
       if (!seen.has(key)) {
         seen.add(key);
-        if (!rootsByKey.has(key)) {
-          rootsByKey.set(key, new Set());
+        let roots = rootsByKey.get(key);
+        if (!roots) {
+          roots = new Set();
+          rootsByKey.set(key, roots);
           added.push(target);
         }
-        rootsByKey.get(key)!.add(rootEntityKey);
+        roots.add(rootEntityKey);
         pending.push(...referencesOf(target));
       }
     }
@@ -315,7 +323,7 @@ export function includeReferencedEntities(
  * disclosed: an HTTP request body cannot be produced lazily through `HttpClientPort`.
  */
 export async function buildExportBundle(
-  deps: PackAuthorizedEntitiesDeps & { sourceLabel: string }
+  { deps }: { deps: PackAuthorizedEntitiesDeps & { sourceLabel: string } }, _optional = {}
 ): Promise<PublishContentExportEnvelope> {
   const entities: PackedEntity[] = [];
   const requiredBlobs = new Set<string>();

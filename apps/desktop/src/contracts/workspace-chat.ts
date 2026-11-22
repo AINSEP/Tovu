@@ -1,7 +1,7 @@
 /**
  * Browser-safe contract for the LEFT-hand "Workspace chat" — Runner's operator agent.
  *
- * Mirrors `runtime-inventory.ts`/`project-registry.ts`: channel constants and DTOs only,
+ * Mirrors `runtime-inventory.ts`/`the project registry contract`: channel constants and DTOs only,
  * no logic. The one structural difference is that a chat turn STREAMS, and Electron's
  * `ipcRenderer.invoke` is strictly request/response — so this contract has two halves:
  *
@@ -104,7 +104,7 @@ export interface WorkspaceChatRunSnapshot {
  * names over the bridge, and the renderer has to recognise them coming back (see
  * {@link desktopVerbForAgentToolName}).
  */
-export function mcpToolNameForVerb(verb: string): string {
+export function mcpToolNameForVerb({ verb }: { verb: string }, _options = {}): string {
   return verb.replace(/\./g, '_');
 }
 
@@ -116,12 +116,12 @@ export function mcpToolNameForVerb(verb: string): string {
  * `mcp__jini__desktop_project_list`), because the namespacing is the client's, not the server's, and
  * differs between clients.
  */
-export function desktopVerbForAgentToolName(agentToolName: string): string | undefined {
+export function desktopVerbForAgentToolName({ agentToolName }: { agentToolName: string }, _options = {}): string | undefined {
   let bare = agentToolName;
   if (bare.startsWith('mcp__')) {
     const separator = bare.indexOf('__', 'mcp__'.length);
     if (separator === -1) return undefined;
     bare = bare.slice(separator + 2);
   }
-  return runnerToolNames().find((verb) => mcpToolNameForVerb(verb) === bare);
+  return runnerToolNames().find((verb) => mcpToolNameForVerb({ verb }) === bare);
 }

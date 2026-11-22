@@ -49,7 +49,7 @@ describe("publish backstop hard boundaries", () => {
     assert.notEqual(checkRawValues({ values: { file: "sk-ant-api03-" + "X".repeat(120) } }), null);
   });
   it("derives stable gap labels", () => {
-    assert.equal(gapLabelFor({ entityType: "raw-row", table: "p_widgets" }), "table:p_widgets");
-    assert.equal(gapLabelFor({ entityType: "raw-file", relPath: "snippets/footer/custom.html" }), "folder:snippets/footer");
+    assert.equal(gapLabelFor({ item: { entityType: "raw-row", table: "p_widgets" } }), "table:p_widgets");
+    assert.equal(gapLabelFor({ item: { entityType: "raw-file", relPath: "snippets/footer/custom.html" } }), "folder:snippets/footer");
   });
 });

@@ -22,14 +22,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
-import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-aware-memory-repo.js";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createEntry } from "../../features/entries/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
+import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
@@ -298,13 +298,13 @@ test("the real Widgets catalog and tool-registrations' independent classificatio
   const { deps } = fakeRouteDeps();
   for (const id of widgetsRegistrations(deps).keys()) {
     if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Widgets catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("widgets_create_instance", { ...catalogEntry("widgets_create_instance"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "widgets_create_instance", catalogEntry: { ...catalogEntry("widgets_create_instance"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

@@ -1,9 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import {
   DISALLOWED_INLINE_CONTENT_TYPES,
   sendMediaOriginalResponse,
@@ -73,12 +73,12 @@ const ATTACHMENT_NOT_FOUND_BODY = { error: "attachment was not found", code: "NO
  * @complexity O(n) time/space in the attachment bytes read and served.
  */
 export function registerAdminChatAttachmentReadRoute(
-  app: Express,
-  deps: {
+  { app, deps }: { app: Express; deps: {
     readonly uploadDirectory: string;
     /** Owner-scoped reader boundary; defaults to the real filesystem implementation. */
     readonly readChatAttachmentForOwner?: typeof readChatAttachmentForOwner;
-  }
+  } },
+  _optional: Record<string, never> = {}
 ): void {
   app.get("/api/attachments/:ref", async (req, res) => {
     try {
@@ -93,10 +93,10 @@ export function registerAdminChatAttachmentReadRoute(
 
       const sniffed = sniffContentType({ bytes: result.bytes });
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
-      sendMediaOriginalResponse(res, result.bytes, parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), {
+      sendMediaOriginalResponse({ res, bytes: result.bytes, range: parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), contentType: {
         safe: forceDownload ? "application/octet-stream" : sniffed,
         forceDownload,
-      });
+      } });
     } catch (error) {
       // `readChatAttachmentForOwner` classifies every expected failure as a refusal rather than
       // throwing, so anything reaching here is genuinely unexpected (a filesystem fault between the

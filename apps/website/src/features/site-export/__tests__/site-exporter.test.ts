@@ -21,12 +21,12 @@ import { startTestServer } from "../../../server/__tests__/helpers/http-test-ser
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
-import type { ExportReport } from "../site-exporter.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 /**
  * @file Regression coverage for `exportSite` (SPEC — static site exporter, 2026-08-15).
  *
- * Runs the REAL exporter against `server/app.ts`'s own seeded demo workspace (the same fixture
+ * Runs the REAL exporter against `server/runtime/composition/app.ts`'s own seeded demo workspace (the same fixture
  * `route-manifest.test.ts` uses), over a real in-process HTTP server — no mocked render path, per
  * this feature's own "do not write a second renderer" rule.
  */
@@ -96,8 +96,8 @@ class FailingSlugPostRepo implements PostRepoPort {
   listRevisions(required: Parameters<PostRepoPort["listRevisions"]>[0]) {
     return this.inner.listRevisions(required);
   }
-  transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return this.inner.transaction(fn);
+  transaction<T>({ fn }: { fn: () => Promise<T> }, _optional: Record<string, never> = {}): Promise<T> {
+    return this.inner.transaction({ fn });
   }
 }
 
@@ -908,7 +908,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   // Written via `save()` directly into the EXISTING `base.redirectRepo` instance — NOT
   // `base.redirectRepo = new InMemoryRedirectRepo([rule])`. `createRouteDeps()` wires the live app's
   // redirect-serving phase handler (`RedirectPhaseHandlerResolver`) to this exact repo OBJECT at
-  // construction time (`server/app.ts`'s `registerRedirectsPhaseHandlers({ resolver: new
+  // construction time (`server/runtime/composition/app.ts`'s `registerRedirectsPhaseHandlers({ resolver: new
   // RedirectPhaseHandlerResolver({ repo: redirectRepo, ... }) })`) — a module-level registration, not
   // something `RouteDeps.redirectRepo` re-reads per request. Swapping the field to a fresh repo
   // instance (first attempt at this test) orphans it from that resolver: `buildRouteManifest` would
@@ -1303,25 +1303,25 @@ test("firstExportFailure: checks routes before assets when both have failures", 
  * to exercise that combination at all.
  */
 test("redirectOutcomeFor: a non-3xx status is not a redirect", () => {
-  assert.deepEqual(redirectOutcomeFor(200, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
+  assert.deepEqual(redirectOutcomeFor({ status: 200, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
 });
 
 /** Branch-coverage fill (2026-09-04): `status < 300 || status >= 400` — the test above only ever
  *  proves the LOW side of this OR (200). This proves the HIGH side independently. */
 test("redirectOutcomeFor: a status of 400 or above is ALSO not a redirect, independent of the below-300 case", () => {
-  assert.deepEqual(redirectOutcomeFor(500, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 500" });
+  assert.deepEqual(redirectOutcomeFor({ status: 500, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "expected a 3xx redirect response, got 500" });
 });
 
 test("redirectOutcomeFor: a 3xx with a Location header redirects to it, even when a manifest fallback is also present", () => {
-  assert.deepEqual(redirectOutcomeFor(302, "/from-header", "/fallback-target"), { kind: "redirect-to", location: "/from-header" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: "/from-header", manifestTarget: "/fallback-target" }), { kind: "redirect-to", location: "/from-header" });
 });
 
 test("redirectOutcomeFor: a 3xx with no Location header falls back to the manifest's redirectTarget", () => {
-  assert.deepEqual(redirectOutcomeFor(302, null, "/fallback-target"), { kind: "redirect-to", location: "/fallback-target" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: null, manifestTarget: "/fallback-target" }), { kind: "redirect-to", location: "/fallback-target" });
 });
 
 test("redirectOutcomeFor: a 3xx with neither a Location header nor a manifest redirectTarget fails", () => {
-  assert.deepEqual(redirectOutcomeFor(302, null, undefined), { kind: "failed", reason: "redirect response carried no Location header" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "redirect response carried no Location header" });
 });
 
 test("exportSite: a redirect-kind route whose live response is intercepted into a non-3xx is reported as a route failure", async (t) => {
@@ -1493,10 +1493,10 @@ test("exportSite: a see-more listing with a card <template> exports its JSON bat
     },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme];
-  base.postRepo = new InMemoryPostRepo(Array.from({ length: 30 }, (_, i) => ({
+  base.postRepo = new InMemoryPostRepo({}, { initialRows: Array.from({ length: 30 }, (_, i) => ({
     id: `json-export-${i}`, workspaceId: base.workspaceId, title: `Json export ${i}`, slug: `json-export-${i}`, bodyJson: { type: "doc", content: [] },
     bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
-  }) as PostRecord));
+  }) as PostRecord) });
 
   const report = await exportSite({ routeDeps: base, outputDir });
 
@@ -1527,10 +1527,10 @@ test("exportSite: a paged post listing exports every page as <page>/page/<n>/ind
     pages: { index: `<html><body>${paged}</body></html>`, blog: `<html><body>${paged}</body></html>` },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme];
-  base.postRepo = new InMemoryPostRepo(Array.from({ length: 25 }, (_, i) => ({
+  base.postRepo = new InMemoryPostRepo({}, { initialRows: Array.from({ length: 25 }, (_, i) => ({
     id: `paged-export-${i}`, workspaceId: base.workspaceId, title: `Paged export ${i}`, slug: `paged-export-${i}`, bodyJson: { type: "doc", content: [] },
     bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post", updatedAt: new Date(Date.UTC(2026, 0, 30 - i)).toISOString(), version: 1,
-  }) as PostRecord));
+  }) as PostRecord) });
 
   const report = await exportSite({ routeDeps: base, outputDir });
 

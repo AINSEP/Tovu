@@ -7,7 +7,7 @@ import { buildPageRowMenuHandleMap } from "../rules";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { adminHref, navigate } from "@/lib/router";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";
 
 const identityT = (key: string): string => key;
@@ -77,7 +77,7 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     // `Pages.tsx` destructures this from the hook rather than computing it itself (2026-09-07,
     // audit claim #2), so the fixture has to build it from whatever `pages` this call passes —
     // mirrors `posts/__tests__/Posts.unit.test.tsx`'s identical fixture line.
-    rowMenuHandleById: buildPageRowMenuHandleMap(pages),
+    rowMenuHandleById: buildPageRowMenuHandleMap({ pages }),
     ...overrides,
   };
 }
@@ -186,11 +186,11 @@ describe("populated table", () => {
     expect(titleLink).toHaveAttribute("href", "/admin/pages/home");
 
     const slugLink = screen.getByRole("link", { name: "/" });
-    expect(slugLink).toHaveAttribute("href", siteUrl("/"));
+    expect(slugLink).toHaveAttribute("href", siteUrl({ path: "/" }));
 
     await user.click(screen.getByRole("button", { name: 'Actions for "Home"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/home");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/pages/home" });
   });
 });
 
@@ -295,7 +295,7 @@ describe("row menu — Publish/Unpublish visibility mirrors pageRowMenuItems", (
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/about");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/pages/about" });
   });
 
   it("Unpublish calls togglePagePublish with the row", async () => {
@@ -537,7 +537,7 @@ describe("Theme Pages tab", () => {
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: true })] });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       const link = screen.getByRole("link", { name: "/pricing" });
-      expect(link).toHaveAttribute("href", siteUrl("/pricing"));
+      expect(link).toHaveAttribute("href", siteUrl({ path: "/pricing" }));
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noreferrer");
     });
@@ -579,7 +579,7 @@ describe("Theme Pages tab", () => {
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })] });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       const link = screen.getByRole("link", { name: "/" });
-      expect(link).toHaveAttribute("href", siteUrl("/"));
+      expect(link).toHaveAttribute("href", siteUrl({ path: "/" }));
       expect(link).toHaveAttribute("target", "_blank");
     });
 
@@ -890,7 +890,7 @@ describe("Theme Pages tab", () => {
     function resolvedEditDestination(): string {
       const call = vi.mocked(navigate).mock.calls.at(-1);
       if (!call) throw new Error("navigate was not called");
-      return adminHref(call[0]);
+      return adminHref({ routePath: call[0].routePath });
     }
 
     it("navigates to the same Theme Studio destination as the table's own Page column link", async () => {
@@ -984,21 +984,21 @@ describe("Theme Pages tab — deep link via ?tab=", () => {
  */
 describe("pagesListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    expect(pagesListNotice(null, "boom", identityT)).not.toBeNull();
+    expect(pagesListNotice({ pages: null, error: "boom", t: identityT })).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    expect(pagesListNotice(null, null, identityT)).not.toBeNull();
+    expect(pagesListNotice({ pages: null, error: null, t: identityT })).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{pagesListNotice(null, "boom", identityT)}</>);
+    render(<>{pagesListNotice({ pages: null, error: "boom", t: identityT })}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(pagesListNotice([], "a later error", identityT)).toBeNull();
+    expect(pagesListNotice({ pages: [], error: "a later error", t: identityT })).toBeNull();
   });
 });
 
@@ -1012,7 +1012,7 @@ describe("pagesListNotice", () => {
  * that sorted index, so every row whose sort position differed from its array position published
  * another page's handle — an agent asked to open "Draft Page" clicked "About".
  *
- * The fixture below is arranged so the default sort (`DEFAULT_PAGE_SORT`, Updated newest-first)
+ * The fixture below is arranged so the default sort (`DEFAULT_ADMIN_POST_SORT`, Updated newest-first)
  * inverts the array order: `pg1` is first in `pages` but renders second.
  */
 describe("per-row agent handles survive the table's own sort", () => {

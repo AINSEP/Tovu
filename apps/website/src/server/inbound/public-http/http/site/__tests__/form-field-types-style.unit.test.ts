@@ -3,8 +3,8 @@ import fs from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { FORM_BASELINE_STYLE, FORM_RANGE_READOUT_JS, FORM_RANGE_READOUT_SCRIPT } from "../form-render.js";
-import { renderWidgetIr } from "../render.js";
+import { FORM_BASELINE_STYLE, FORM_RANGE_READOUT_JS, FORM_RANGE_READOUT_SCRIPT } from "../form-presentation-assets.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 /**
  * @file Public styling for the registry field types beyond text (2026-10-11): groups, toggle,

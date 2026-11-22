@@ -42,14 +42,14 @@ for (const dialect of PARITY_DIALECTS) {
     const measure = async (call: () => Promise<unknown>) => { counting.statements.length = 0; await call(); return [...counting.statements]; };
 
     test("site-assistant key on the public render path: one indexed read", async () => {
-      const statements = await measure(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws" }));
+      const statements = await measure(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws" } }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       await assertIndexed(fixture.kernel, statements);
       assert.ok((await measure(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws" }))).length <= 1);
     });
 
     test("personal execution key on every assistant turn: one indexed read", async () => {
-      const statements = await measure(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
+      const statements = await measure(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p" } }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       await assertIndexed(fixture.kernel, statements);
     });
@@ -98,12 +98,12 @@ for (const dialect of PARITY_DIALECTS) {
     });
 
     test("MCP server list: statement count does not grow with the number of servers", async () => {
-      const before = await measure(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
+      const before = await measure(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
       for (const serverId of ["extra-one", "extra-two"]) {
         await mods.mcp.saveExternalMcpServer(d.mcp, { workspaceId: "ws", serverId, label: serverId, transport: "stdio", authMode: "static_env",
           enabled: true, command: "mcp-extra", args: "", allowedToolNames: "", writeAllowedToolNames: "", env: "KEY=value" });
       }
-      const grown = await measure(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
+      const grown = await measure(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
       assert.equal(grown.length, before.length, `4 servers: ${before.length} statements, 6 servers: ${grown.length}`);
       // One raw LEFT JOIN onto secrets_vault by primary key (external-mcp-repo.ts `read`): no N+1.
       // Raw statements carry no SQL in the counting kernel, so there is no plan to check here.

@@ -2,7 +2,7 @@
  * the page-body sanitizer, with its inert content held to the same element/attribute rules. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sanitizePageHtml } from '#src/features/widgets/media-html';
+import { sanitizePageHtml } from '@jini-ai/cms/widgets/html';
 
 test('sanitizePageHtml keeps an authored <template> and its safe item markup', () => {
   const html = `<section data-embed-config='{"type":"collection"}'><template><p class="item">{{title}}: {{fields.price}}</p></template>Fallback</section>`;

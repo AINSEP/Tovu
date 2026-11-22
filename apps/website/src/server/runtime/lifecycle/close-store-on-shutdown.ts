@@ -30,14 +30,12 @@ const DEFAULT_CLOSE_TIMEOUT_MS = 4_000;
  * always exit afterwards. Shared with `tovu serve`'s shutdown.
  */
 export function closeWithinBound(
-  close: () => Promise<void>,
-  options: { label: string; timeoutMs?: number; log?: (message: string) => void }
+  { close, label }: { close: () => Promise<void>; label: string },
+  { timeoutMs = DEFAULT_CLOSE_TIMEOUT_MS, log = (message: string) => console.error(message) }: { timeoutMs?: number; log?: (message: string) => void } = {}
 ): Promise<void> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
-  const log = options.log ?? ((message: string) => console.error(message));
   return new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
-      log(`[shutdown] ${options.label} did not close within ${timeoutMs} ms; exiting anyway`);
+      log(`[shutdown] ${label} did not close within ${timeoutMs} ms; exiting anyway`);
       resolve();
     }, timeoutMs);
     timer.unref();
@@ -48,7 +46,7 @@ export function closeWithinBound(
       },
       (error: unknown) => {
         clearTimeout(timer);
-        log(`[shutdown] closing ${options.label} failed: ${error instanceof Error ? error.message : String(error)}`);
+        log(`[shutdown] closing ${label} failed: ${error instanceof Error ? error.message : String(error)}`);
         resolve();
       }
     );
@@ -83,7 +81,7 @@ export function closeStoreOnShutdown(
   required: { store: Pick<SiteStore, "storage" | "close"> | undefined; onShutdown: () => unknown },
   optional: {
     /** Publish the same daemon-first stop for a private idle operation; signals still exit zero. */
-    registerStop?: (stop: (input: { exitCode: number }) => void) => void;
+    registerStop?: (required: { stop: (input: { exitCode: number }) => void }, optional?: Record<string, never>) => void;
     proc?: ShutdownProcess;
     timeoutMs?: number;
     log?: (message: string) => void;
@@ -105,20 +103,10 @@ export function closeStoreOnShutdown(
   let daemonStopped: unknown;
   const closeBounded = (): Promise<void> => {
     closing ??= closeWithinBound(
-      async () => {
-        await stopServing();
-        await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
-        // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
-        // connection's close: two processes closing at once can both leave them. So the daemon goes
-        // first, but only for a quarter of the bound, so an unresponsive daemon cannot keep ours open.
-        const daemon = Promise.allSettled([daemonStopped]);
-        await Promise.race([daemon, new Promise((resolve) => setTimeout(resolve, timeoutMs / 4).unref())]);
-        await store.close();
-        // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
-        const [stopped] = await daemon;
-        if (stopped.status === "rejected") throw stopped.reason;
-      },
-      { label: `the ${store.storage.kind} store`, timeoutMs, log }
+      { label: `the ${store.storage.kind} store`, close: async () => {
+        await closeStoreAfterDaemon({ store, stopServing, bootWork, timeoutMs, log, daemonStopped: () => daemonStopped });
+      } },
+      { timeoutMs, log }
     );
     return closing;
   };
@@ -126,10 +114,11 @@ export function closeStoreOnShutdown(
   let requestedExitCode: number | undefined;
   const stop = ({ exitCode }: { exitCode: number }): void => {
     requestedExitCode ??= exitCode;
+    const finalExitCode = requestedExitCode;
     daemonStopped = onShutdown();
-    void closeBounded().then(() => proc.exit(requestedExitCode!));
+    void closeBounded().then(() => proc.exit(finalExitCode));
   };
-  optional.registerStop?.(stop);
+  optional.registerStop?.({ stop });
   const stopNormally = () => stop({ exitCode: 0 });
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) proc.once(signal, stopNormally);
   registerStopOnEnd({ stream: optional.stopOnEnd, stop: stopNormally });
@@ -191,4 +180,21 @@ export async function stopServingWithinGrace(
   cut.unref();
   await Promise.all([workersStopped, serverClosed]);
   clearTimeout(cut);
+}
+
+async function closeStoreAfterDaemon({ store, stopServing, bootWork, timeoutMs, log, daemonStopped }: {
+  store: NonNullable<Parameters<typeof closeStoreOnShutdown>[0]["store"]>; stopServing: () => Promise<void>; bootWork: () => readonly Promise<unknown>[];
+  timeoutMs: number; log: (message: string) => void; daemonStopped: () => unknown;
+}): Promise<void> {
+        await stopServing();
+        await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
+        // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
+        // connection's close: two processes closing at once can both leave them. So the daemon goes
+        // first, but only for a quarter of the bound, so an unresponsive daemon cannot keep ours open.
+        const daemon = Promise.allSettled([daemonStopped()]);
+        await Promise.race([daemon, new Promise((resolve) => setTimeout(resolve, timeoutMs / 4).unref())]);
+        await store.close();
+        // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
+        const [stopped] = await daemon;
+        if (stopped.status === "rejected") throw stopped.reason;
 }

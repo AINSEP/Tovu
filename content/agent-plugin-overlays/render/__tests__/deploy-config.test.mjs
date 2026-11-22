@@ -59,15 +59,15 @@ test("tovu deploy config --target render carries Tovu's runtime mode and the loc
 test("render is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const manifest = JSON.parse(await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "render");
-  assert.equal(manifest.extensions.jini.id, "tovu/render");
+  assert.equal(manifest.extensions.jini.id, "jini/render", "the bundled Render plugin retains its Jini publisher identity");
   assert.equal(manifest.extensions.jini.displayName, "Render");
   assert.deepEqual(manifest.extensions.jini.provides, ["deploy-config:render", "deploy-ops:render"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers, {});
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "render", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["render"]);
-  const packed = await packAgentPluginDirectory(PLUGIN_DIR);
-  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/render.mjs", "skills/render/SKILL.md", "tovu-deploy-ops.json", "deploy-ops/render.mjs"]) assert.ok(packed.files.includes(file), file);
-  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+  const packed = await packAgentPluginDirectory({ sourceDir: PLUGIN_DIR });
+  for (const file of ["plugin.json", "mcp.json", "jini-deploy-configs.json", "deploy-configs/render.mjs", "skills/render/SKILL.md", "jini-deploy-ops.json", "deploy-ops/render.mjs"]) assert.ok(packed.files.includes(file), file);
+  assert.ok(!packed.files.includes("jini-deploy-targets.json"));
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("render"), false);
 });

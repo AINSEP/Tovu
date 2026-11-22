@@ -27,7 +27,8 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contentHash } from "#src/features/publish-content/content-hash";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { PostKind, PostRecord } from "../post.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostRecord } from "../post.js";
 import { contributePagePublish, contributePostPublish } from "../publish-content.js";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 
@@ -36,7 +37,7 @@ const IMPORTING_OPERATOR = "operator-running-the-import";
 
 function makeDeps(rows: PostRecord[]) {
   const outbox = new InMemoryOutbox();
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
@@ -363,7 +364,7 @@ test("publishing over a TRASHED destination row is refused rather than silently 
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  const reason = await handler.precheck(sourceEntity);
+  const reason = await handler.precheck({ entity: sourceEntity });
   assert.match(
     String(reason),
     /trash/i,

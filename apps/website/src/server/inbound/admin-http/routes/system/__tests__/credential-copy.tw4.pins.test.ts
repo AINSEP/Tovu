@@ -14,7 +14,8 @@ function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}
     authorize: async () => { calls.push("rbac"); return { allowed, reason: "pin" }; },
     gatedMutations: { gatewayDeps: { authorizeInstance: instance ? async () => { calls.push("instance"); return { allowed: instanceAllowed, reason: "pin" }; } : undefined } } as Deps["gatedMutations"],
     projectKeys: {
-      listChoices: async () => { calls.push("list"); return [{ keyId: "key", name: "Saved key", kind: "vendor", usedByThisSite: false, usedBy: [] }]; },
+      list: async () => [],
+      listChoices: async () => { calls.push("list"); return [{ keyId: "key", name: "Saved key", kind: "vendor", usedByThisSite: false, usedBy: [], siteName: "Source site", omittedCount: 2 }]; },
       listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => "custom-credentials.write",
       use: async input => { calls.push(input); return { keyId: input.keyId, usedByThisSite: input.use, usedBy: [], appliesAt: "now" }; },
@@ -49,7 +50,7 @@ test("owner browser approval grants one reference and never submits a target sit
   const f = fixture();
   const listed = await f.request({ method: "get" });
   assert.equal(listed.statusCode, 200);
-  assert.deepEqual(listed.jsonBody, { sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: [{ kind: "vendor", id: "key", label: "Saved key", provider: null, worksFor: [] }] }] });
+  assert.deepEqual(listed.jsonBody, { sources: [{ siteId: "shared-keys", name: "Shared Keys", keys: [{ kind: "vendor", id: "key", label: "Saved key", provider: null, worksFor: [], siteName: "Source site", omittedCount: 2 }] }] }, "GET projects the source name and omitted saved-key count");
   const result = await f.request({ method: "post", body: selection });
   assert.equal(result.statusCode, 200);
   assert.deepEqual(f.calls.at(-1), { keyId: "key", use: true });

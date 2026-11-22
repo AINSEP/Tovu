@@ -1,10 +1,10 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { getNav, type AdminNavItem } from "../nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Fallback screen for a section with no dedicated component yet — reached either directly
  * (`App.tsx`'s `SECTIONS` map, e.g. `newsletter`) or via the legacy `/section/:id` route's
@@ -41,7 +41,7 @@ import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
  * acceptable for a lookup that runs once per Placeholder render against a small, static list.
  * @overallScore 100
  */
-function findNavItem(sectionId: string): AdminNavItem | undefined {
+function findNavItem({ sectionId }: { sectionId: string }, _options: Record<string, never> = {}): AdminNavItem | undefined {
   for (const group of getNav()) {
     const item = group.items.find((entry) => entry.id === sectionId);
     if (item) return item;
@@ -56,7 +56,7 @@ function findNavItem(sectionId: string): AdminNavItem | undefined {
  *
  * Exported for `PlaceholderTabs`, deleted 2026-09-21 as dead code; `Placeholder` is now its only
  * production caller. */
-export function findNavGroupLabel(sectionId: string): string {
+export function findNavGroupLabel({ sectionId }: { sectionId: string }, _options: Record<string, never> = {}): string {
   for (const group of getNav()) {
     if (group.items.some((entry) => entry.id === sectionId)) return group.label ?? "Overview";
   }
@@ -92,7 +92,7 @@ const COMING_SOON_TEMPLATE: Record<string, string> = {
 
 /** "X is coming soon." in the caller's locale — `label` here is already translated (by
  *  `Placeholder`, via `translateAdminNavLabel`) by the time it reaches this component. */
-function comingSoonDescription(locale: string, label: string): string {
+function comingSoonDescription({ locale, label }: { locale: string; label: string }, _options: Record<string, never> = {}): string {
   return interpolate({ template: localeEntry({ table: COMING_SOON_TEMPLATE, locale }), vars: { label } });
 }
 
@@ -118,7 +118,7 @@ export function ComingSoonNotice(props: {
         <div className="page-header-text">
           <p className="page-kicker">{props.kicker}</p>
           <h1 className="page-title">{props.label}</h1>
-          <p className="page-description">{comingSoonDescription(locale, props.label)}</p>
+          <p className="page-description">{comingSoonDescription({ locale, label: props.label })}</p>
           {/* Optional second line for a section whose label alone could be mistaken for a
               DIFFERENT, already-shipped screen (`admin-appearance`, 2026-08-10: "Appearance" sits
               in the same Studio group as `id: "themes"`, itself labelled "Themes" but also
@@ -157,13 +157,15 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   it: "Sezione sconosciuta",
 };
 
-export function Placeholder(props: {
+export function Placeholder({
+  useWiredAdminLocaleHook = useWiredAdminLocale, ...props }: {
   sectionId: string;
   note?: string;
   /** Passed straight through to {@link ComingSoonNotice}, or applied to this component's own
    *  "Unknown section" notice when `sectionId` matches nothing in `getNav()`. Omit to leave either
    *  branch untagged. */
   agentHandle?: string;
+  useWiredAdminLocaleHook?: typeof useWiredAdminLocale;
 }) {
   // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
   // other host dependency in this file to combine it with, not rendered in a loop, and its only
@@ -171,8 +173,8 @@ export function Placeholder(props: {
   // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency. Points at
   // `useWiredAdminLocale` (2026-08-14) only because `useAdminLocale` itself now requires an injected
   // port — same non-decision otherwise.
-  const locale = useWiredAdminLocale();
-  const item = findNavItem(props.sectionId);
+  const locale = useWiredAdminLocaleHook();
+  const item = findNavItem({ sectionId: props.sectionId });
   if (!item) {
     const unknownSectionPrefix = localeEntry({ table: UNKNOWN_SECTION_PREFIX, locale });
     return (
@@ -187,7 +189,7 @@ export function Placeholder(props: {
 
   return (
     <ComingSoonNotice
-      kicker={translateAdminNavLabel({ locale: locale, key: findNavGroupLabel(props.sectionId) })}
+      kicker={translateAdminNavLabel({ locale, key: findNavGroupLabel({ sectionId: props.sectionId }) })}
       label={translateAdminNavLabel({ locale: locale, key: item.label })}
       locale={locale}
       note={props.note}

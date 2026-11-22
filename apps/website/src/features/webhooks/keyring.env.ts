@@ -8,7 +8,7 @@ import {
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-import type { KeyringPort } from "./ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { SITE_KEY_ENV_VAR_NAME, readSiteKeySourceMaterial, siteKeyFilePathFrom, type SiteKeySource, type SiteKeySourceMaterial } from "./site-key-sources.js";
 
 // Validation/derivation rationale: Jini packages/platform/src/secrets/keyring.env.ts.
@@ -129,12 +129,12 @@ export class EnvOrFileKeyring implements KeyringPort {
 
   async deriveSigningSecret(input: { workspaceId: string; subscriptionId: string; version: number }): Promise<Uint8Array> {
     try { return await this.resolveKeyring().deriveSigningSecret(input); }
-    catch (error) { return rethrowKeyringError(error); }
+    catch (error) { return rethrowKeyringError({ error }); }
   }
 
   async derive(input: { workspaceId: string; purpose: string; info: string }): Promise<Uint8Array> {
     try { return await this.resolveKeyring().derive(input); }
-    catch (error) { return rethrowKeyringError(error); }
+    catch (error) { return rethrowKeyringError({ error }); }
   }
 
   /** Ordered site sources are host policy. Reread them for each derive so recovery takes effect
@@ -153,13 +153,17 @@ export class EnvOrFileKeyring implements KeyringPort {
   }
 }
 
+export function isNoSiteKeyError({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
+  return error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("));
+}
+
 /** Candidate-key adapter supplies Tovu's immutable HKDF salt; no root material is persisted. */
 // Recovery checks a pasted/retained site key against sealed rows BEFORE writing it anywhere;
 // the candidate must derive exactly what the installed keyring would derive.
 export class FixedSiteKeyKeyring implements KeyringPort {
   private readonly keyring: JiniFixedSiteKeyKeyring;
 
-  constructor(hex: string, keyId = "v1") {
+  constructor({ hex }: { hex: string }, { keyId = "v1" }: { keyId?: string } = {}) {
     this.keyring = new JiniFixedSiteKeyKeyring({ hex, hkdfSalt: HKDF_EXTRACTION_SALT }, { keyId });
   }
 
@@ -173,7 +177,7 @@ export class FixedSiteKeyKeyring implements KeyringPort {
 }
 
 /** Jini owns key validation; Tovu retains its operator-facing refusal wording and error identity. */
-function rethrowKeyringError(error: unknown): never {
+function rethrowKeyringError({ error }: { error: unknown }, _optional = {}): never {
   if (error instanceof JiniUnusableSiteKeyError) {
     throw new UnusableSiteKeyError({ source: error.source, reason: error.reason,
       message: error.message.replace("The keyring refuses", "Tovu refuses"),
@@ -206,8 +210,8 @@ interface PresentSiteKey {
  */
 function firstPresentSiteKey(input: { sources: readonly SiteKeySource[]; env: Record<string, string | undefined> }): PresentSiteKey | undefined {
   for (const source of input.sources) {
-    const material = readSiteKeySourceMaterial(source, input.env);
-    if (material !== undefined) return { source, material, parsed: parseSiteKeyHex(material.raw) };
+    const material = readSiteKeySourceMaterial({ source, env: input.env });
+    if (material !== undefined) return { source, material, parsed: parseSiteKeyHex({ raw: material.raw }) };
   }
   return undefined;
 }
@@ -258,24 +262,24 @@ export type ParsedSiteKeyHex =
  *
  * @complexity O(n) in the value's length.
  */
-export function parseSiteKeyHex(raw: string): ParsedSiteKeyHex {
+export function parseSiteKeyHex({ raw }: { raw: string }, _optional = {}): ParsedSiteKeyHex {
   return parseKeyHex({ raw });
 }
 
 /** Plain-language "what is wrong with it", per rejection. A `Record` over the union, so adding a
  *  rejection without a description is a compile error. Never echoes the value itself. */
-const SITE_KEY_REJECTION_DETAIL: Record<SiteKeyRejection, (hexDigits: number) => string> = {
+const SITE_KEY_REJECTION_DETAIL: Record<SiteKeyRejection, (required: { hexDigits: number }, optional?: Record<string, never>) => string> = {
   empty: () => "it is empty",
   "not-hex": () =>
     'it contains characters that are not hex digits (only 0-9 and a-f are allowed; a "0x" prefix, whitespace inside the value, or a base64 or PEM body all fail this)',
-  "odd-length": (hexDigits) =>
+  "odd-length": ({ hexDigits }) =>
     `it has an odd number of hex digits (${hexDigits}), so it does not describe whole bytes — usually a partial write or a truncated copy`,
-  "too-short": (hexDigits) =>
+  "too-short": ({ hexDigits }) =>
     `it is ${hexDigits / 2} bytes (${hexDigits} hex digits); a site key must be at least ${SITE_KEY_LENGTH_BYTES} bytes (${SITE_KEY_LENGTH_BYTES * 2} hex digits) — usually a truncated copy`,
 };
 
 function describeSiteKeyRejection(parsed: { reason: SiteKeyRejection; hexDigits: number }): string {
-  return SITE_KEY_REJECTION_DETAIL[parsed.reason](parsed.hexDigits);
+  return SITE_KEY_REJECTION_DETAIL[parsed.reason]({ hexDigits: parsed.hexDigits });
 }
 
 /**
@@ -323,7 +327,7 @@ export class UnusableSiteKeyError extends Error {
  * module's own status/reveal functions compute — one algorithm, not two independently-reasoned
  * ones that could silently diverge.
  */
-export function fingerprintSiteKeyHex(hex: string): string {
+export function fingerprintSiteKeyHex({ hex }: { hex: string }, _optional = {}): string {
   return fingerprintKeyHex({ hex });
 }
 
@@ -364,7 +368,7 @@ export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, d
 /** One read behind both status functions; {@link inspectSiteKeyMaterial} drops `hex` from it. */
 function readSiteKeyReveal(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps): SiteKeyReveal {
   // No write target for a local site with unreadable metadata; legacy shared files are read-only.
-  const keyFilePath = siteKeyFilePathFrom(options.sources) ?? "";
+  const keyFilePath = siteKeyFilePathFrom({ sources: options.sources }) ?? "";
   const present = firstPresentSiteKey({ sources: options.sources, env: (deps.env ?? (() => process.env))() });
   return siteKeyRevealOf({ present, keyFilePath });
 }
@@ -378,7 +382,7 @@ function siteKeyRevealOf(input: { present: PresentSiteKey | undefined; keyFilePa
   const source = reportedSourceOf(present.source);
   const provenance = present.source.kind === "env" ? { envVarName: present.material.envVarName } : {};
   if (present.parsed.ok) {
-    return { active: true, source, hex: present.parsed.hex, fingerprint: fingerprintSiteKeyHex(present.parsed.hex), keyFilePath, ...provenance };
+    return { active: true, source, hex: present.parsed.hex, fingerprint: fingerprintSiteKeyHex({ hex: present.parsed.hex }), keyFilePath, ...provenance };
   }
   return { active: false, source, invalid: true, reason: present.parsed.reason, keyFilePath, ...provenance };
 }
@@ -409,7 +413,7 @@ export function revealSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, de
 
 /** Thrown by {@link generateFileSiteKey} when a key file already exists at the target path. */
 export class SiteKeyFileAlreadyExistsError extends Error {
-  constructor(keyFilePath: string) {
+  constructor({ keyFilePath }: { keyFilePath: string }) {
     super(`a site key file already exists at ${keyFilePath} — generate never overwrites an existing key`);
     this.name = "SiteKeyFileAlreadyExistsError";
   }
@@ -460,8 +464,8 @@ export function generateFileSiteKey(options: { keyFilePath: string }, _optional 
   mkdirSync(dirname(keyFilePath), { recursive: true, mode: 0o700 });
   try { return generateKeyFile({ keyFilePath }); }
   catch (error) {
-    if (isAlreadyExistsError(error) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) { // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
-      throw new SiteKeyFileAlreadyExistsError(keyFilePath);
+    if (isAlreadyExistsError({ err: error }) || (error instanceof Error && error.name === "RootKeyFileAlreadyExistsError")) { // site-key-legacy: until @jini-ai/platform release with SiteKey exports; remove on/after 2026-11-01
+      throw new SiteKeyFileAlreadyExistsError({ keyFilePath });
     }
     throw error;
   }
@@ -470,7 +474,7 @@ export function generateFileSiteKey(options: { keyFilePath: string }, _optional 
 /** Whether a failed exclusive create failed BECAUSE the path was taken (`EEXIST`), as opposed to a
  *  genuine I/O or permission fault that must keep propagating. `ELOOP` is the same answer wearing a
  *  different errno: a symlink chain the kernel refused to follow is still "something is there". */
-function isAlreadyExistsError(err: unknown): boolean {
+function isAlreadyExistsError({ err }: { err: unknown }, _optional = {}): boolean {
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
   const code = (err as { code?: unknown }).code;
   return code === "EEXIST" || code === "ELOOP";

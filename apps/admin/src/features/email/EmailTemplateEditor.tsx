@@ -1,5 +1,6 @@
+import { createEmailPageTranslator } from "./EmailTemplateEditor.hooks";
 import { useEffect } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -115,8 +116,8 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
       <h1 className="visually-hidden">{t({ locale, key: "Templates" })}</h1>
       <a
         className="content-editor-back"
-        href={adminHref("/email?tab=templates")}
-        aria-label={`${pageEditorT(locale, "Back")}: ${t({ locale, key: "Templates" })}`}
+        href={adminHref({ routePath: "/email?tab=templates" })}
+        aria-label={`${pageEditorT({ locale, key: "Back" })}: ${t({ locale, key: "Templates" })}`}
         {...agentHandle({ handle: "email-template-back" }, { role: "link", label: "Back to the email templates list" })}
       >
         <Icon name="arrow-left" size={22} aria-hidden="true" />
@@ -144,10 +145,10 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
 }
 
 /** HTML | Preview tabs (Pages' segmented tablist and keyboard contract), device widths, As sent. */
-function Toolbar(props: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string }) {
+function Toolbar({ useTabBarKeyboardHook = useTabBarKeyboard, ...props }: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string; useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
   const { controller, view, locale } = props;
-  const pageT = (key: string) => pageEditorT(locale, key);
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
+  const pageT = createEmailPageTranslator({ locale });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
   return (
     <div className="page-editor-toolbar">
       <div className="content-editor-toolbar-start">
@@ -253,7 +254,7 @@ function useEditorKeys(
 }
 
 /** The locale prop when a test passes one, else the operator's. */
-function useEditorLocale(override: string | undefined): string {
+function useEditorLocale({ override }: { override: string | undefined }, _options = {}): string {
   const adminLocale = useAdminLocale();
   return override ?? adminLocale;
 }
@@ -268,12 +269,11 @@ export function editorStatus(controller: Pick<EmailTemplateEditorController, "sa
 /**
  * The editor page. `useEditorHook` is the DI seam — a test mounts it over a fake controller.
  */
-export function EmailTemplateEditor(props: { id: string; useEditorHook?: (required: { id: string }) => EmailTemplateEditorController; locale?: string }) {
-  const useEditor = props.useEditorHook ?? useWiredEmailTemplateEditor;
-  const controller = useEditor({ id: props.id });
-  const locale = useEditorLocale(props.locale);
-  const view = useEmailTemplateView();
-  useEditorKeys({ controller, locale });
+export function EmailTemplateEditor({ useEditorHook = useWiredEmailTemplateEditor, useEditorLocaleHook = useEditorLocale, useEmailTemplateViewHook = useEmailTemplateView, useEditorKeysHook = useEditorKeys, ...props }: { id: string; useEditorHook?: (required: { id: string }) => EmailTemplateEditorController; locale?: string; useEditorLocaleHook?: typeof useEditorLocale; useEmailTemplateViewHook?: typeof useEmailTemplateView; useEditorKeysHook?: typeof useEditorKeys; }) {
+  const controller = useEditorHook({ id: props.id });
+  const locale = useEditorLocaleHook({ override: props.locale });
+  const view = useEmailTemplateViewHook();
+  useEditorKeysHook({ controller, locale });
   return (
     <div className="page content-editor-page email-template-page">
       <Header controller={controller} locale={locale} />

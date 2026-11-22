@@ -16,9 +16,10 @@ import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStat
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
-import { withFollowUps, type UnhideFollowUp } from "@jini-ai/cms/trash";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { withFollowUps, type UnhideFollowUp, type TrashRegistry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
@@ -51,9 +52,9 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = contentKernel(db);
+  const trashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   const widgetRestoreFollowUp: UnhideFollowUp =
     options.widgetRestoreFollowUp ??
@@ -67,19 +68,19 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     withFollowUps({ adapter: adapters.get("widget")! }, { afterUnhide: widgetRestoreFollowUp })
   );
   let seq = 0;
-  const transaction = createContentDbTransactionRunner(db.$client);
+  const transaction = createContentDbTransactionRunner({ store: db.$client });
   const trash = createTrashService({
-    repo: new SqliteTrashRepo(db.$client),
+    repo: new SqliteTrashRepo({ store: db.$client }),
     adapters,
     idGen: { newId: () => `trash-${(seq += 1)}` },
     transaction: ({ work }) => (transaction)(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const entries = new SqliteEntryRepo(db);
+  const entries = new SqliteEntryRepo({ store: db });
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
-    contentTypeRepo: new SqliteContentTypeRepo(db),
-    entryRefsRepo: new SqliteEntryRefsRepo(db),
+    contentTypeRepo: new SqliteContentTypeRepo({ store: db }),
+    entryRefsRepo: new SqliteEntryRefsRepo({ store: db }),
     clock: { nowMs: () => Date.parse(AT) },
     ids: { newId: () => randomUUID() },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
@@ -207,7 +208,7 @@ test("the widget entry's scope: moveToTrash on a non-widget entries row reads no
     {
       registry: h.registry,
       trash: h.trash,
-      db: contentKernel(h.db),
+      db: contentKernel({ store: h.db }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }

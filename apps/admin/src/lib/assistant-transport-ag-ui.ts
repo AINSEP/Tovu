@@ -4,7 +4,7 @@
  * ADR-059 — the AG-UI canary transport path `assistant-transport.ts` delegates to when its
  * Tovu-local `getAgUiEnabled` toggle is on. A third path alongside that file's existing Local CLI
  * and BYOK branches, talking to a genuinely different server surface:
- * `src/server/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH`, which streams real AG-UI wire events
+ * `apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH`, which streams real AG-UI wire events
  * — a translation layer in front of the SAME daemon-backed run lifecycle the Local CLI path uses.
  *
  * ADR-059 Decision 3 (AMENDED 2026-08-18): built on the real `@ag-ui/client`'s `HttpAgent`, which
@@ -33,8 +33,7 @@
 import { HttpAgent } from "@ag-ui/client";
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
 import { uniqueId } from "./unique-id";
-export type { AgUiEvent, AgUiToAgentTranslationState } from "@jini-ai/chat/core/ag-ui";
-/** Must match `src/server/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
+/** Must match `apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
 const CUSTOM_EVENT_NAMES = { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." };
 /** `localStorage` key for the AG-UI canary toggle — a dev-facing flip, not an admin-settings row:

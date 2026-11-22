@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -610,21 +610,21 @@ describe("resolveSelectTriggerLabel", () => {
   // Direct coverage of the trigger label/className derivation extracted out of `Select`'s own
   // render body under the tightened ≤9/≤9 pass.
   it("shows the selected option's label with no placeholder class when a value is selected", () => {
-    expect(resolveSelectTriggerLabel({ value: "a", label: "Alpha" }, "Pick one")).toEqual({
+    expect(resolveSelectTriggerLabel({ selectedOption: { value: "a", label: "Alpha" }, placeholder: "Pick one" })).toEqual({
       text: "Alpha",
       className: "select-trigger-label",
     });
   });
 
   it("falls back to the caller's placeholder, with the placeholder class, when nothing is selected", () => {
-    expect(resolveSelectTriggerLabel(null, "Pick one")).toEqual({
+    expect(resolveSelectTriggerLabel({ selectedOption: null, placeholder: "Pick one" })).toEqual({
       text: "Pick one",
       className: "select-trigger-label is-placeholder",
     });
   });
 
   it("falls back to the default placeholder text when the caller supplies none", () => {
-    expect(resolveSelectTriggerLabel(null, undefined)).toEqual({
+    expect(resolveSelectTriggerLabel({ selectedOption: null, placeholder: undefined })).toEqual({
       text: "Select…",
       className: "select-trigger-label is-placeholder",
     });

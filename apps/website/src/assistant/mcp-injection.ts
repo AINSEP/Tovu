@@ -22,17 +22,18 @@
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
+import * as httpMcp from "@jini-ai/mcp";
 
 const require = createRequire(import.meta.url);
 
-/** Library-only HTTP surface, loaded when an eligible run prepares its listener. */
+/** Library-only HTTP surface; eligible runs prepare their own listener. */
 type HttpMcpModule = Pick<typeof import("@jini-ai/mcp"), "assembleRunToolHost" | "startMcpHttpToolServer"> & {
   readonly MCP_HTTP_SESSION_MODE_SUPPORTED?: boolean;
 };
 
 /** The process facts that decide how the bridge is launched; injectable so both runtimes are testable. */
 export interface BridgeRuntime {
-  /** Lazy library seam; no MCP listener or tool assembly until an eligible run prepares HTTP. */
+  /** Injectable library seam; no MCP listener or tool assembly until an eligible run prepares HTTP. */
   readonly loadHttpMcp?: () => Promise<HttpMcpModule>;
   readonly execPath: string;
   /** `process.versions.electron`: set whenever this process is the Electron binary, even as Node. */
@@ -47,14 +48,12 @@ const currentRuntime = (): BridgeRuntime => ({
 });
 
 /**
- * @param mintRunCredential - Mints the bridge's per-run credential.
+ * @param required.mintRunCredential - Mints the bridge's per-run credential.
  *   Required, with no fallback to the proxy's boot-wide token: that token makes a caller's principal
  *   header trusted, which a model-driven bridge must never be.
  */
 export function resolveMcpJsonInjection(
-  daemonUrl: string,
-  mintRunCredential: (runId: string) => string,
-  runtime: BridgeRuntime = currentRuntime(),
+  { daemonUrl, mintRunCredential }: { daemonUrl: string; mintRunCredential: (runId: string) => string }, { runtime = currentRuntime() }: { runtime?: BridgeRuntime } = {},
 ): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");
   const script = join(dirname(entryPoint), "bin", "serve.js");
@@ -70,7 +69,7 @@ export function resolveMcpJsonInjection(
     daemonUrl,
     credential: ({ runId }) => mintRunCredential(runId),
     prepareHttp: async ({ runId }, options = {}) => {
-      const mcp = await (runtime.loadHttpMcp ?? (() => import("@jini-ai/mcp")))();
+      const mcp = runtime.loadHttpMcp ? await runtime.loadHttpMcp() : httpMcp;
       // The integration owner adds session mode. Until then retain the working stdio path;
       // stateless HTTP would silently lose published definitions and paged results.
       if (!("MCP_HTTP_SESSION_MODE_SUPPORTED" in mcp) || mcp.MCP_HTTP_SESSION_MODE_SUPPORTED !== true) {

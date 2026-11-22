@@ -22,7 +22,7 @@
  *                 or the child's output could not be parsed.
  */
 import { existsSync, readdirSync } from "node:fs";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,49 +54,49 @@ interface SmokeNativePorts {
 }
 
 /** Throw so the isolated app is cleaned up before main reports exit 1. */
-function fail(message: string): never {
+function fail({ message }: { message: string }, _options = {}): never {
   throw new Error(message);
 }
 
 /** Resolves `--platform-dir` against the desktop root, or exits when it is missing. */
-function platformDirFromArgv(argv: readonly string[]): string {
+function platformDirFromArgv({ argv }: { argv: readonly string[] }, _options = {}): string {
   const flagAt = argv.indexOf("--platform-dir");
   const platformDirArg = flagAt !== -1 ? argv[flagAt + 1] : undefined;
-  if (!platformDirArg) fail("smoke-native: --platform-dir <dir> is required");
+  if (!platformDirArg) fail({ message: "smoke-native: --platform-dir <dir> is required" });
   return path.resolve(DESKTOP_ROOT, platformDirArg);
 }
 
 /** Locates the packaged executable and its staged `node_modules` under `platformDir`, exiting with
  *  a specific reason when either cannot be found. */
-function locateTargets(platformDir: string, ports: SmokeNativePorts): SmokeTargets {
+function locateTargets({ platformDir, ports }: { platformDir: string; ports: SmokeNativePorts }, _options = {}): SmokeTargets {
   let entryNames: string[];
   try {
     entryNames = ports.readDirectory(platformDir);
   } catch (error) {
-    fail(`smoke-native: cannot read ${platformDir}: ${(error as Error).message}`);
+    fail({ message: `smoke-native: cannot read ${platformDir}: ${(error as Error).message}` });
   }
 
   let targets: SmokeTargets;
   try {
-    targets = resolveSmokeTargets(platformDir, entryNames);
+    targets = resolveSmokeTargets({ platformDir, entryNames });
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
 
   if (!ports.exists(targets.executablePath)) {
-    fail(`smoke-native: resolved executable does not exist: ${targets.executablePath}`);
+    fail({ message: `smoke-native: resolved executable does not exist: ${targets.executablePath}` });
   }
   if (!ports.exists(targets.nodeModulesDir)) {
-    fail(`smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}`);
+    fail({ message: `smoke-native: resolved node_modules dir does not exist: ${targets.nodeModulesDir}` });
   }
   return targets;
 }
 
 /** Spawns the packaged binary as Node, prints safe excerpts and returns raw stdout for parsing.
  * Rejects spawn failures, signals and nonzero exits; the final script sink redacts failure details. */
-function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
+function spawnSmoke({ targets, ports }: { targets: SmokeTargets; ports: SmokeNativePorts }, _options = {}): string {
   ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: `smoke-native: running against ${targets.executablePath}` }) }, { maxLength: 2_000 }) + "\n");
-  const script = buildSmokeScript(targets.nodeModulesDir);
+  const script = buildSmokeScript({ nodeModulesDir: targets.nodeModulesDir });
   const spawned = ports.spawn(targets.executablePath, ["-e", script], {
     env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
     cwd: path.dirname(targets.executablePath),
@@ -104,30 +104,36 @@ function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
   });
 
   if (spawned.error) {
-    fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+    fail({ message: `smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}` });
   }
+  relaySmokeOutput({ spawned, ports });
+  if (spawned.status !== 0) fail({ message: `smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}` });
+  return spawned.stdout ?? "";
+}
+
+/** Prints the child's stdout and stderr as safe excerpts. Split from {@link spawnSmoke} to keep it under the
+ *  desktop's 9/9 complexity ceiling. */
+function relaySmokeOutput({ spawned, ports }: { spawned: { stdout?: string | null; stderr?: string | null }; ports: SmokeNativePorts }, _options = {}): void {
   if (spawned.stdout) ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
   if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.status !== 0) fail(`smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
-  return spawned.stdout ?? "";
 }
 
 /** Sequential packaged checks share the isolation lifetime; owner-store diagnostics stay private. */
 async function runGate({ targets, directory, ports }: { targets: SmokeTargets; directory: string; ports: SmokeNativePorts }, _options = {}): Promise<void> {
-  const stdout = spawnSmoke(targets, ports);
+  const stdout = spawnSmoke({ targets, ports });
 
   let result: ReturnType<typeof parseSmokeOutput>;
   try {
-    result = parseSmokeOutput(stdout);
+    result = parseSmokeOutput({ stdout });
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
 
   if (!result.ok) {
-    fail("smoke-native: one or more native modules failed inside the packaged binary");
+    fail({ message: "smoke-native: one or more native modules failed inside the packaged binary" });
   }
   ports.out("smoke-native: OK — better-sqlite3, sharp, and argon2 all round-tripped\n");
-  checkEntryImports(targets, ports);
+  checkEntryImports({ targets, ports });
   const reply = await ports.ownerStatus({ targets, directory });
   assertPackagedOwnerStoreStatus({ reply });
   ports.out("smoke-native: OK — packaged owner-store status: no legacy owner store in an empty temporary profile\n");
@@ -158,31 +164,31 @@ async function runPackagedOwnerStoreStatus({ targets, directory }: { targets: Sm
 
 /** Runs {@link buildEntryLoadScript} in the packaged binary: every static import of the shell and
  *  server entries must resolve inside the shipped tree (0.1.15 crashed at launch on one that did not). */
-function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void {
-  const stdout = spawnEntryLoad(targets, ports);
+function checkEntryImports({ targets, ports }: { targets: SmokeTargets; ports: SmokeNativePorts }, _options = {}): void {
+  const stdout = spawnEntryLoad({ targets, ports });
   let result: ReturnType<typeof parseEntryLoadOutput>;
   try {
-    result = parseEntryLoadOutput(stdout);
+    result = parseEntryLoadOutput({ stdout });
   } catch (error) {
-    fail((error as Error).message);
+    fail({ message: (error as Error).message });
   }
-  if (!result.ok) fail(`smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}`);
+  if (!result.ok) fail({ message: `smoke-native: packaged entries import modules the app does not ship:\n  ${result.unresolved.join("\n  ")}` });
   ports.out("smoke-native: OK — every static import of the shell and server entries resolves\n");
 }
 
 /** The entry-load child run itself, split from {@link checkEntryImports} to keep both under the
  *  desktop's 9/9 complexity ceiling. Rejects spawn failures, signals and nonzero exits.
  *  @returns the child's raw stdout. */
-function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string {
+function spawnEntryLoad({ targets, ports }: { targets: SmokeTargets; ports: SmokeNativePorts }, _options = {}): string {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
   const spawned = ports.spawn(targets.executablePath, ["-e", buildEntryLoadScript({ resourcesDir })], {
     env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
     cwd: path.dirname(targets.executablePath),
     encoding: "utf8",
   });
-  if (spawned.error) fail(`smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}`);
+  if (spawned.error) fail({ message: `smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}` });
   if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.status !== 0) fail(`smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}`);
+  if (spawned.status !== 0) fail({ message: `smoke-native: entry-load child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}` });
   return spawned.stdout ?? "";
 }
 
@@ -195,13 +201,13 @@ function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string 
  */
 async function runSmokeNativeGate({ argv }: { argv: readonly string[] }, ports: SmokeNativePorts): Promise<void> {
   await ports.isolate({
-    targets: locateTargets(platformDirFromArgv(argv), ports), run: (targets, directory) => runGate({ targets, directory, ports }),
+    targets: locateTargets({ platformDir: platformDirFromArgv({ argv }), ports }), run: ({ targets, directory }, _options = {}) => runGate({ targets, directory, ports }),
   });
 }
 
 /** The one stderr line a failed gate prints: redacted and bounded, an Error's message or the value
  *  itself. @complexity O(n) in the message length. */
-function formatGateFailure(error: unknown): string {
+function formatGateFailure({ error }: { error: unknown }, _options = {}): string {
   return sanitizeUntrustedText({ text: redactLocalText({ text: error instanceof Error ? error.message : String(error) }) }, { maxLength: 2_000 }) + "\n";
 }
 
@@ -212,7 +218,7 @@ if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLTo
     ownerStatus: runPackagedOwnerStoreStatus,
     out: process.stdout.write.bind(process.stdout), err: process.stderr.write.bind(process.stderr), env: process.env,
   }).catch((error: unknown) => {
-    process.stderr.write(formatGateFailure(error));
+    process.stderr.write(formatGateFailure({ error }));
     process.exitCode = 1;
   });
 }

@@ -2,7 +2,10 @@ import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
@@ -44,7 +47,7 @@ beforeEach(() => {
   // reads `api.getSettingsEffective` — stub it to no rows so it resolves to `DEFAULT_LOCALE` ("en")
   // without a real network call. `useWiredMediaPickerItems` does not call `useAdminLocale()` at all
   // (its `locale` param stays defaulted), so this stub is a no-op for those tests.
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {
@@ -53,13 +56,13 @@ afterEach(() => {
 
 describe("useMediaPickerItems", () => {
   it("starts with items null and no error before the fetch resolves", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading shape
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading shape
     const { result } = renderHook(() => useWiredMediaPickerItems());
     expect(result.current).toEqual({ items: null, error: null });
   });
 
   it("filters trashed assets out, keeping only active ones", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({
       media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })],
     });
     const { result } = renderHook(() => useWiredMediaPickerItems());
@@ -70,7 +73,7 @@ describe("useMediaPickerItems", () => {
   });
 
   it("describes a failed fetch instead of leaving items stuck loading", async () => {
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("media table locked", 500));
+    vi.spyOn(mediaApi, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -82,7 +85,7 @@ describe("useMediaPickerItems", () => {
     // An empty-message ApiError, not a plain Error — `describeApiError` only falls back to the
     // default on the ApiError branch's `e.message || fallback`; a plain `Error` with `message: ""`
     // would return that empty string as-is (see `describeApiError`'s own two branches).
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("", 500));
+    vi.spyOn(mediaApi, "listMedia").mockRejectedValue(new ApiError({ message: "", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -92,9 +95,9 @@ describe("useMediaPickerItems", () => {
 
 describe("useMediaPickerDialog", () => {
   it("exposes select bound to the onSelect callback it was given", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media()] });
     const onSelect = vi.fn();
-    const { result } = renderHook(() => useWiredMediaPickerDialog(onSelect, vi.fn()));
+    const { result } = renderHook(() => useWiredMediaPickerDialog({ onSelect, onCancel: vi.fn() }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     const item = result.current.items![0];
@@ -103,7 +106,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("native cancel calls the current onCancel through the rendered dialog", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -112,7 +115,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("ignores non-Escape keys", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -121,7 +124,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("removes native cancellation on unmount, so a stray cancel afterward is a no-op", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     const { unmount } = render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -142,7 +145,7 @@ describe("useMediaPickerDialog", () => {
 describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dictionary)", () => {
   it("useMediaPickerDialog's t resolves against the real Spanish dictionary when given deps.locale", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port, locale: "es" }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port, locale: "es" } }));
 
     expect(result.current.locale).toBe("es");
     expect(result.current.t("Choose an image")).toBe("Elegir una imagen");
@@ -156,8 +159,8 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [row] }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
     try {
-      const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), {}));
-      expect(result.current.mediaOriginalUrl("m1")).toBe(api.mediaOriginalUrl("m1"));
+      const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
+      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(mediaApi.mediaOriginalUrl({ id: "m1" }));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
     } finally {
@@ -167,7 +170,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
 
   it("useMediaPickerDialog defaults locale/t to English when deps.locale is omitted", () => {
     const port = createFakeMediaPickerPort({ media: [] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
 
     expect(result.current.locale).toBe("en");
     expect(result.current.t("Choose an image")).toBe("Choose an image");
@@ -178,8 +181,8 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     // default when `e.message` is falsy (see WidgetPickerDialog.hooks.unit.test.tsx's identical
     // "falls back to the given default" case for `useExistingInstances`).
     const port = createFakeMediaPickerPort();
-    port.listMedia = () => Promise.reject(new ApiError("", 500));
-    const { result } = renderHook(() => useMediaPickerItems(port, "es"));
+    port.listMedia = () => Promise.reject(new ApiError({ message: "", status: 500 }));
+    const { result } = renderHook(() => useMediaPickerItems({ port }, { locale: "es" }));
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("no se pudo cargar el contenido multimedia");
@@ -196,9 +199,9 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
  */
 describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api spy)", () => {
   it("filters to active assets from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMedia");
+    const listSpy = vi.spyOn(mediaApi, "listMedia");
     const port = createFakeMediaPickerPort({ media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })] });
-    const { result } = renderHook(() => useMediaPickerItems(port));
+    const { result } = renderHook(() => useMediaPickerItems({ port }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media({ id: "a", status: "active" })]);
@@ -207,7 +210,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
 
   it("useMediaPickerDialog reads items from the injected port too", async () => {
     const port = createFakeMediaPickerPort({ media: [media()] });
-    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+    const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: { port } }));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media()]);
@@ -222,7 +225,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
   it("does not resolve items while the injected port's list call is still pending", () => {
     const port = createFakeMediaPickerPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMediaPickerItems(port));
+    const { result } = renderHook(() => useMediaPickerItems({ port }));
     expect(result.current.items).toBeNull();
   });
 });
@@ -234,7 +237,7 @@ describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api s
 describe("createFakeMediaPickerPort — mediaOriginalUrl", () => {
   it("returns a distinct fake:// URL, never the real api.mediaOriginalUrl shape", () => {
     const port = createFakeMediaPickerPort();
-    expect(port.mediaOriginalUrl("m1")).toBe("fake://media-picker-original/m1");
+    expect(port.mediaOriginalUrl({ id: "m1" })).toBe("fake://media-picker-original/m1");
   });
 });
 

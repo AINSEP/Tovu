@@ -50,13 +50,13 @@ function harness(options: HarnessOptions = {}): { trash: TrashPort; repo: Sqlite
     },
   };
 
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let seq = 0;
   const trash = createTrashService({
     repo,
     adapters: new Map([[STUB_ENTITY_TYPE, adapter]]),
     idGen: { newId: () => `trash-${(seq += 1)}` },
-    transaction: ({ work }) => (createContentDbTransactionRunner(client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: client }))(work),
     entityPolicy: ({ entityType }) => (new Map([[STUB_ENTITY_TYPE, adapter]])).has(entityType)
   }, {
     onChanged: options.onChanged,

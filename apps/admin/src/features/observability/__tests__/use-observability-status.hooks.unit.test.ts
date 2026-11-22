@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError } from "@/lib/api";
+import { observabilityApi } from "@/features/observability/api/observability-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeObservabilityStatusPort } from "../hooks/observability-status-dependencies.hooks";
 import { useObservabilityStatus, useWiredObservabilityStatus } from "../hooks/use-observability-status.hooks";
 import { t as translateObservability } from "../observability-i18n";
@@ -51,7 +52,7 @@ describe("useObservabilityStatus — injected port (no fetch stub, no api spy)",
   });
 
   it("reports OFF/noop when the injected status says disabled — the OTEL_EXPORTER_OTLP_ENDPOINT-unset case", async () => {
-    const getSpy = vi.spyOn(api, "getObservabilityStatus");
+    const getSpy = vi.spyOn(observabilityApi, "getObservabilityStatus");
     const port = createFakeObservabilityStatusPort({ status: { enabled: false, serviceName: null } });
     const { result } = renderHook(() => useObservabilityStatus({ port, locale: "en", t: (key: string) => key }));
 
@@ -114,8 +115,8 @@ describe("observability default binding and error copy", () => {
 
   it.each([
     ["non-Error rejection", "offline", "no se pudo cargar el estado de observabilidad"],
-    ["empty ApiError", new ApiError("", 503), "no se pudo cargar el estado de observabilidad"],
-    ["ApiError message", new ApiError("permission denied", 403), "permission denied"],
+    ["empty ApiError", new ApiError({ message: "", status: 503 }), "no se pudo cargar el estado de observabilidad"],
+    ["ApiError message", new ApiError({ message: "permission denied", status: 403 }), "permission denied"],
   ])("maps %s to operator copy", async (_name, failure, expected) => {
     const port = createFakeObservabilityStatusPort({ failWith: failure });
     const { result } = renderHook(() => useObservabilityStatus({ port, locale: "es", t: (key) => key }));

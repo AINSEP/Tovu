@@ -1,11 +1,13 @@
-import { describeApiError, type AdminDeploymentOverview } from "@/lib/api";
+import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, deploymentOverviewLoadErrorMessage } from "../deployment-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Overview tab does, so `OverviewTab.tsx` is only markup.
  *
@@ -28,9 +30,8 @@ export interface DeploymentOverviewController {
 }
 
 export function useDeploymentOverview(
-  port: DeploymentOverviewPort,
-  t: Translate,
-  locale: string
+  { port, t, locale }: { port: DeploymentOverviewPort; t: Translate; locale: string },
+  _options = {},
 ): DeploymentOverviewController {
   const query = useFetchQuery({
     key: ["deployment", "overview"],
@@ -38,7 +39,7 @@ export function useDeploymentOverview(
   });
 
   const error = query.error
-    ? deploymentOverviewLoadErrorMessage(locale, describeApiError(query.error, "unknown error"))
+    ? deploymentOverviewLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: "unknown error" }) })
     : null;
 
   return { snapshot: query.data, error, t };
@@ -55,5 +56,5 @@ export function useDeploymentOverview(
 export function useWiredDeploymentOverview(): DeploymentOverviewController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useDeploymentOverview(defaultDeploymentOverviewPort, t, locale);
+  return useDeploymentOverview({ port: defaultDeploymentOverviewPort, t, locale });
 }

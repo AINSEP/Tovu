@@ -4,7 +4,8 @@ import { pathToFileURL } from "node:url";
 import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 import test from "node:test";
 
-import { buildFormDestinationRegistry, loadFormDestinationRegistryFromSource, parseFormDestinationsFile } from "../registry.js";
+import { parseFormDestinationsFile } from "@jini-ai/cms/forms";
+import { loadFormDestinationRegistryFromSource } from "../registry.js";
 import type { FormDestinationDescriptor, FormDestinationModule, LoadedFormDestination } from "../types.js";
 
 /** @file The form destination category's parse, module-shape and cross-plugin rules, and the real bundled file. */
@@ -18,7 +19,7 @@ const loaded = (descriptor: FormDestinationDescriptor, pluginId: string, module:
 
 test("a valid file parses, keeping only declared fields", () => {
   const external = { id: "relay", label: "Relay", module: "d/relay.mjs", receive: "external", credentialLabel: "Relay key", extra: true };
-  assert.deepEqual(parseFormDestinationsFile(file([cohosted, external, { id: "push", label: "Push", module: "push.mjs" }])), { ok: true, descriptors: [
+  assert.deepEqual(parseFormDestinationsFile({ raw: file([cohosted, external, { id: "push", label: "Push", module: "push.mjs" }]) }), { ok: true, descriptors: [
     cohosted, { id: "relay", label: "Relay", module: "d/relay.mjs", receive: "external", credentialLabel: "Relay key" }, { id: "push", label: "Push", module: "push.mjs" },
   ] });
 });
@@ -40,50 +41,7 @@ test("invalid files are refused with the field that is wrong", () => {
     [file([{ ...cohosted, credentialLabel: "" }]), "destinations[0].credentialLabel must be a non-empty string"],
     [file([cohosted, cohosted]), "destinations[1].id 'co' is declared twice"],
   ];
-  for (const [raw, reason] of cases) assert.deepEqual(parseFormDestinationsFile(raw), { ok: false, reason }, raw);
-});
-
-test("a module missing what its receive mode needs is dropped with the reason", () => {
-  const registry = buildFormDestinationRegistry({ refusals: ["earlier refusal"], loaded: [
-    loaded(cohosted as FormDestinationDescriptor, "p1", { pull: receiving.pull }),
-    loaded({ id: "relay", label: "R", module: "r.mjs", receive: "external" }, "p2"),
-    loaded({ id: "push", label: "P", module: "p.mjs" }, "p3", {}),
-    loaded({ id: "ok-push", label: "P", module: "p.mjs" }, "p4", { deliver: async () => undefined }),
-  ] });
-  assert.deepEqual(registry.list().map((entry) => entry.descriptor.id), ["ok-push"]);
-  assert.deepEqual(registry.refusals, [
-    "earlier refusal",
-    "form destination 'co' from 'p1' was not loaded: a destination that receives submissions needs pull() and ack()",
-    "form destination 'relay' from 'p2' was not loaded: an external receiver needs prepare()",
-    "form destination 'push' from 'p3' was not loaded: a destination that does not receive submissions needs deliver()",
-  ]);
-});
-
-test("an id two plugins declare, and a host two co-hosted destinations claim, are dropped for both", () => {
-  const registry = buildFormDestinationRegistry({ refusals: [], loaded: [
-    loaded(cohosted as FormDestinationDescriptor, "p2"),
-    loaded(cohosted as FormDestinationDescriptor, "p1"),
-    loaded({ id: "one", label: "1", module: "1.mjs", receive: "co-hosted", hosts: ["shared", "only-one"] }, "p3"),
-    loaded({ id: "two", label: "2", module: "2.mjs", receive: "co-hosted", hosts: ["shared"] }, "p4"),
-    loaded({ id: "three", label: "3", module: "3.mjs", receive: "co-hosted", hosts: ["host-c", "host-c"] }, "p5"),
-  ] });
-  assert.deepEqual(registry.list().map((entry) => entry.descriptor.id), ["three"]);
-  assert.deepEqual(registry.refusals, [
-    "form destination 'co' was not loaded: more than one plugin declares it ('p1', 'p2')",
-    "form receiver for host 'shared' was not loaded: more than one co-hosted destination claims it ('p3', 'p4')",
-  ]);
-  assert.equal(registry.resolve({ scope: "only-one" }), undefined, "a dropped destination resolves nothing, even for its unshared host");
-});
-
-test("resolve maps a saved scope by destination id or by co-hosted host; get is by id only", () => {
-  const relay = loaded({ id: "relay", label: "R", module: "r.mjs", receive: "external" }, "p2", { ...receiving, prepare: async () => ({ submitUrl: "https://r.example" }) });
-  const registry = buildFormDestinationRegistry({ refusals: [], loaded: [loaded(cohosted as FormDestinationDescriptor, "p1"), relay] });
-  assert.equal(registry.resolve({ scope: "host-a" })?.descriptor.id, "co");
-  assert.equal(registry.resolve({ scope: "relay" }), relay);
-  assert.equal(registry.resolve({ scope: "co" })?.descriptor.id, "co");
-  assert.equal(registry.resolve({ scope: "unknown" }), undefined);
-  assert.equal(registry.get("host-a"), undefined);
-  assert.equal(registry.get("relay"), relay);
+  for (const [raw, reason] of cases) assert.deepEqual(parseFormDestinationsFile({ raw }), { ok: false, reason }, raw);
 });
 
 test("the bundled plugin's real file loads and resolves its hosting target to the D1 destination", async () => {
@@ -103,10 +61,15 @@ test("a destination module whose default export is not an object is refused by n
   const { tmpdir } = await import("node:os");
   const root = await mkdtemp(path.join(tmpdir(), "tovu-form-dest-"));
   try {
-    await writeFile(path.join(root, "tovu-form-destinations.json"), file([{ id: "bad", label: "Bad", module: "bad.mjs", receive: "external", credentialLabel: "Key" }]));
+    await writeFile(path.join(root, "jini-form-destinations.json"), file([{ id: "bad", label: "Bad", module: "bad.mjs", receive: "external", credentialLabel: "Key" }]));
     await writeFile(path.join(root, "bad.mjs"), "export default 42;\n");
     const registry = await loadFormDestinationRegistryFromSource({ pluginId: "relay", packageRoot: root }, {});
     assert.deepEqual(registry.refusals, ["form destination 'bad' from 'relay' was not loaded: its module's default export is not an object"]);
+    await writeFile(path.join(root, "jini-form-destinations.json"), file([{ id: "incomplete", label: "Incomplete", module: "incomplete.mjs", receive: "external" }]));
+    await writeFile(path.join(root, "incomplete.mjs"), "export default {};\n");
+    const incomplete = await loadFormDestinationRegistryFromSource({ pluginId: "relay", packageRoot: root }, {});
+    assert.deepEqual(incomplete.list(), []);
+    assert.deepEqual(incomplete.refusals, ["form destination 'incomplete' from 'relay' was not loaded: a destination that receives submissions needs pull() and ack()"]);
   } finally { await rm(root, { recursive: true, force: true }); }
 
   const { loadFormDestinationRegistry } = await import("../registry.js");

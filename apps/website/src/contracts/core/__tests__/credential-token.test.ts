@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CREDENTIAL_MESSAGES, CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, credentialTokenHint } from '../credential-token.js';
+import { assertCredentialFreeField } from '../credential-token.js';
+import { CREDENTIAL_MESSAGES, CredentialInputError, normalizeCredentialToken, credentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { ADMIN_LOCALES } from '../admin-locales.js';
-import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '../credential-copy.js';
+import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
 
 const rejected = (message: string) => (error: unknown) => error instanceof CredentialInputError && error.message === message;
 for (const value of [undefined, '', ' \n\t ']) test(`blank token refused (${typeof value === 'string' ? value.length : 'missing'})`, () => {

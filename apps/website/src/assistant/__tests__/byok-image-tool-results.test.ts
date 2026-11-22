@@ -57,10 +57,10 @@ function fakeRouteDeps(): ByokToolSurfaceDeps {
 
 test("SURFACE: execute_delegated_tool returns an image-bearing tool output as content blocks, not a JSON string", async () => {
   const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
-  const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
+  const result = await surface.executeMetaTool({ principal: { id: "principal-byok-image" }, run: { id: "run-byok-image" }, call: {
     name: "execute_delegated_tool",
     input: { toolId: "assistant_demo_image" },
-  });
+  } });
 
   assert.equal(result.isError, undefined, JSON.stringify(result).slice(0, 300));
   assert.ok(Array.isArray(result.content), `expected content blocks; got ${typeof result.content}: ${String(result.content).slice(0, 120)}`);
@@ -73,10 +73,10 @@ test("SURFACE: execute_delegated_tool returns an image-bearing tool output as co
 
 test("SURFACE: a tool whose output is plain JSON is still a JSON string, byte-identical to before", async () => {
   const surface = createByokToolSurface(fakeRouteDeps(), { ...( { installExtensions: false }), contributions });
-  const result = await surface.executeMetaTool({ id: "principal-byok-image" }, { id: "run-byok-image" }, {
+  const result = await surface.executeMetaTool({ principal: { id: "principal-byok-image" }, run: { id: "run-byok-image" }, call: {
     name: "search_tools",
     input: { query: "view image" },
-  });
+  } });
   assert.equal(typeof result.content, "string");
 });
 

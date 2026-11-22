@@ -138,21 +138,21 @@ test("a caller's shorter timeout stays below the policy ceiling", async () => {
 });
 
 test("classifyAddress: private/loopback/link-local/metadata/public per address family", () => {
-  assert.equal(classifyAddress("10.1.2.3"), "private");
-  assert.equal(classifyAddress("172.16.0.5"), "private");
-  assert.equal(classifyAddress("192.168.1.1"), "private");
-  assert.equal(classifyAddress("127.0.0.1"), "loopback");
-  assert.equal(classifyAddress("169.254.169.254"), "link-local"); // cloud metadata
-  assert.equal(classifyAddress("8.8.8.8"), "public");
+  assert.equal(classifyAddress({ ip: "10.1.2.3" }), "private");
+  assert.equal(classifyAddress({ ip: "172.16.0.5" }), "private");
+  assert.equal(classifyAddress({ ip: "192.168.1.1" }), "private");
+  assert.equal(classifyAddress({ ip: "127.0.0.1" }), "loopback");
+  assert.equal(classifyAddress({ ip: "169.254.169.254" }), "link-local"); // cloud metadata
+  assert.equal(classifyAddress({ ip: "8.8.8.8" }), "public");
 
-  assert.equal(classifyAddress("::1"), "loopback");
-  assert.equal(classifyAddress("fe80::1"), "link-local");
-  assert.equal(classifyAddress("fd00::1"), "private");
-  assert.equal(classifyAddress("2001:4860:4860::8888"), "public");
+  assert.equal(classifyAddress({ ip: "::1" }), "loopback");
+  assert.equal(classifyAddress({ ip: "fe80::1" }), "link-local");
+  assert.equal(classifyAddress({ ip: "fd00::1" }), "private");
+  assert.equal(classifyAddress({ ip: "2001:4860:4860::8888" }), "public");
 
   // IPv4-mapped IPv6, normalized before classification (ADR-038 amendment 2).
-  assert.equal(classifyAddress("::ffff:127.0.0.1"), "loopback");
-  assert.equal(classifyAddress("::ffff:10.0.0.1"), "private");
+  assert.equal(classifyAddress({ ip: "::ffff:127.0.0.1" }), "loopback");
+  assert.equal(classifyAddress({ ip: "::ffff:10.0.0.1" }), "private");
 });
 
 // -------------------------------------------------------------------------------------------
@@ -161,36 +161,36 @@ test("classifyAddress: private/loopback/link-local/metadata/public per address f
 // -------------------------------------------------------------------------------------------
 
 test("classifyAddress: RFC1918 172.16/12 boundaries are exact, not off-by-one", () => {
-  assert.equal(classifyAddress("172.15.255.255"), "public"); // just below the private block
-  assert.equal(classifyAddress("172.16.0.0"), "private"); // first private address
-  assert.equal(classifyAddress("172.31.255.255"), "private"); // last private address
-  assert.equal(classifyAddress("172.32.0.0"), "public"); // just above the private block
+  assert.equal(classifyAddress({ ip: "172.15.255.255" }), "public"); // just below the private block
+  assert.equal(classifyAddress({ ip: "172.16.0.0" }), "private"); // first private address
+  assert.equal(classifyAddress({ ip: "172.31.255.255" }), "private"); // last private address
+  assert.equal(classifyAddress({ ip: "172.32.0.0" }), "public"); // just above the private block
 });
 
 test("classifyAddress: CGNAT (RFC 6598 100.64.0.0/10) is treated as private, exact boundaries", () => {
   // Shared/carrier-grade-NAT space is not globally routable — blocked like the RFC1918 ranges.
-  assert.equal(classifyAddress("100.63.255.255"), "public"); // just below the CGNAT block
-  assert.equal(classifyAddress("100.64.0.0"), "private"); // first CGNAT address
-  assert.equal(classifyAddress("100.100.0.1"), "private");
-  assert.equal(classifyAddress("100.127.255.255"), "private"); // last CGNAT address
-  assert.equal(classifyAddress("100.128.0.0"), "public"); // just above the CGNAT block
+  assert.equal(classifyAddress({ ip: "100.63.255.255" }), "public"); // just below the CGNAT block
+  assert.equal(classifyAddress({ ip: "100.64.0.0" }), "private"); // first CGNAT address
+  assert.equal(classifyAddress({ ip: "100.100.0.1" }), "private");
+  assert.equal(classifyAddress({ ip: "100.127.255.255" }), "private"); // last CGNAT address
+  assert.equal(classifyAddress({ ip: "100.128.0.0" }), "public"); // just above the CGNAT block
 });
 
 test("classifyAddress: reserved and multicast IPv4 ranges fail closed", () => {
-  assert.equal(classifyAddress("0.0.0.0"), "reserved");
-  assert.equal(classifyAddress("0.1.2.3"), "reserved");
-  assert.equal(classifyAddress("223.255.255.255"), "public"); // just below multicast
-  assert.equal(classifyAddress("224.0.0.1"), "reserved"); // multicast
-  assert.equal(classifyAddress("239.255.255.255"), "reserved"); // end of multicast
-  assert.equal(classifyAddress("240.0.0.1"), "reserved"); // reserved/future
-  assert.equal(classifyAddress("255.255.255.255"), "reserved"); // limited broadcast
+  assert.equal(classifyAddress({ ip: "0.0.0.0" }), "reserved");
+  assert.equal(classifyAddress({ ip: "0.1.2.3" }), "reserved");
+  assert.equal(classifyAddress({ ip: "223.255.255.255" }), "public"); // just below multicast
+  assert.equal(classifyAddress({ ip: "224.0.0.1" }), "reserved"); // multicast
+  assert.equal(classifyAddress({ ip: "239.255.255.255" }), "reserved"); // end of multicast
+  assert.equal(classifyAddress({ ip: "240.0.0.1" }), "reserved"); // reserved/future
+  assert.equal(classifyAddress({ ip: "255.255.255.255" }), "reserved"); // limited broadcast
 });
 
 test("classifyAddress: malformed input fails closed to reserved, never public", () => {
-  assert.equal(classifyAddress("not-an-ip"), "reserved");
-  assert.equal(classifyAddress("999.999.999.999"), "reserved");
-  assert.equal(classifyAddress(""), "reserved");
-  assert.equal(classifyAddress("10.0.0"), "reserved"); // incomplete IPv4
+  assert.equal(classifyAddress({ ip: "not-an-ip" }), "reserved");
+  assert.equal(classifyAddress({ ip: "999.999.999.999" }), "reserved");
+  assert.equal(classifyAddress({ ip: "" }), "reserved");
+  assert.equal(classifyAddress({ ip: "10.0.0" }), "reserved"); // incomplete IPv4
 });
 
 // -------------------------------------------------------------------------------------------
@@ -200,35 +200,35 @@ test("classifyAddress: malformed input fails closed to reserved, never public", 
 // -------------------------------------------------------------------------------------------
 
 test("classifyAddress: IPv6 loopback and unspecified are exact single addresses, not ranges", () => {
-  assert.equal(classifyAddress("::1"), "loopback");
-  assert.equal(classifyAddress("::"), "reserved"); // unspecified address
-  assert.equal(classifyAddress("::0"), "reserved");
-  assert.equal(classifyAddress("::0.0.0.0"), "reserved"); // deprecated IPv4-compatible notation
+  assert.equal(classifyAddress({ ip: "::1" }), "loopback");
+  assert.equal(classifyAddress({ ip: "::" }), "reserved"); // unspecified address
+  assert.equal(classifyAddress({ ip: "::0" }), "reserved");
+  assert.equal(classifyAddress({ ip: "::0.0.0.0" }), "reserved"); // deprecated IPv4-compatible notation
   // `::2` sits in the deprecated IPv4-compatible block ::/96 (embedded 0.0.0.2), so Jini classifies it by
   // that embedded IPv4 address — reserved — whatever the spelling (`::0.0.0.2` and `::2` are the same bytes).
-  assert.equal(classifyAddress("::2"), "reserved");
+  assert.equal(classifyAddress({ ip: "::2" }), "reserved");
 });
 
 test("classifyAddress: IPv6 link-local fe80::/10 boundaries are exact, not off-by-one", () => {
-  assert.equal(classifyAddress("fe7f::1"), "public"); // just below the link-local block
-  assert.equal(classifyAddress("fe80::1"), "link-local"); // first address of the block
-  assert.equal(classifyAddress("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "link-local"); // last address
-  assert.equal(classifyAddress("fec0::1"), "public"); // just above the link-local block
+  assert.equal(classifyAddress({ ip: "fe7f::1" }), "public"); // just below the link-local block
+  assert.equal(classifyAddress({ ip: "fe80::1" }), "link-local"); // first address of the block
+  assert.equal(classifyAddress({ ip: "febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff" }), "link-local"); // last address
+  assert.equal(classifyAddress({ ip: "fec0::1" }), "public"); // just above the link-local block
 });
 
 test("classifyAddress: IPv6 unique-local fc00::/7 covers both the fc and fd halves, with exact boundaries", () => {
-  assert.equal(classifyAddress("fbff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "public"); // just below
-  assert.equal(classifyAddress("fc00::1"), "private"); // first address of the fc half
-  assert.equal(classifyAddress("fcff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "private"); // last of fc half
-  assert.equal(classifyAddress("fd00::1"), "private"); // first address of the fd half
-  assert.equal(classifyAddress("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "private"); // last address of the block
-  assert.equal(classifyAddress("fe00::1"), "public"); // just above
+  assert.equal(classifyAddress({ ip: "fbff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" }), "public"); // just below
+  assert.equal(classifyAddress({ ip: "fc00::1" }), "private"); // first address of the fc half
+  assert.equal(classifyAddress({ ip: "fcff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" }), "private"); // last of fc half
+  assert.equal(classifyAddress({ ip: "fd00::1" }), "private"); // first address of the fd half
+  assert.equal(classifyAddress({ ip: "fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" }), "private"); // last address of the block
+  assert.equal(classifyAddress({ ip: "fe00::1" }), "public"); // just above
 });
 
 test("classifyAddress: IPv4-mapped IPv6 (dotted-decimal form) is normalized before classification", () => {
-  assert.equal(classifyAddress("::ffff:127.0.0.1"), "loopback");
-  assert.equal(classifyAddress("::ffff:10.0.0.1"), "private");
-  assert.equal(classifyAddress("::ffff:8.8.8.8"), "public");
+  assert.equal(classifyAddress({ ip: "::ffff:127.0.0.1" }), "loopback");
+  assert.equal(classifyAddress({ ip: "::ffff:10.0.0.1" }), "private");
+  assert.equal(classifyAddress({ ip: "::ffff:8.8.8.8" }), "public");
 });
 
 test("classifyAddress: IPv4-mapped IPv6 written in HEX form (not dotted-decimal) is normalized the same as the dotted spelling", () => {
@@ -236,18 +236,18 @@ test("classifyAddress: IPv4-mapped IPv6 written in HEX form (not dotted-decimal)
   // must classify identically. A URL target of `https://[::ffff:a00:1]/` reaches this exact path
   // (the hostname is a literal IPv6 address, so `resolveHostAddresses` never touches DNS), so the
   // hex spelling must not be a bypass of the dotted-decimal one.
-  assert.equal(classifyAddress("::ffff:a00:1"), "private"); // hex form of 10.0.0.1
-  assert.equal(classifyAddress("::ffff:7f00:1"), "loopback"); // hex form of 127.0.0.1
-  assert.equal(classifyAddress("::ffff:c0a8:1"), "private"); // hex form of 192.168.0.1
-  assert.equal(classifyAddress("::ffff:808:808"), "public"); // hex form of 8.8.8.8
+  assert.equal(classifyAddress({ ip: "::ffff:a00:1" }), "private"); // hex form of 10.0.0.1
+  assert.equal(classifyAddress({ ip: "::ffff:7f00:1" }), "loopback"); // hex form of 127.0.0.1
+  assert.equal(classifyAddress({ ip: "::ffff:c0a8:1" }), "private"); // hex form of 192.168.0.1
+  assert.equal(classifyAddress({ ip: "::ffff:808:808" }), "public"); // hex form of 8.8.8.8
 });
 
 test("classifyAddress: IPv4-mapped IPv6 normalizes regardless of ::-compression, not just the two documented spellings", () => {
   // Same value (127.0.0.1 mapped), three different valid ways to write it: fully expanded with no
   // compression at all, fully expanded but with the low 32 bits still in dotted form, and the
   // ordinary compressed hex form already covered above. All three must agree.
-  assert.equal(classifyAddress("0:0:0:0:0:ffff:7f00:1"), "loopback"); // fully expanded, hex tail
-  assert.equal(classifyAddress("0:0:0:0:0:ffff:127.0.0.1"), "loopback"); // fully expanded, dotted tail
+  assert.equal(classifyAddress({ ip: "0:0:0:0:0:ffff:7f00:1" }), "loopback"); // fully expanded, hex tail
+  assert.equal(classifyAddress({ ip: "0:0:0:0:0:ffff:127.0.0.1" }), "loopback"); // fully expanded, dotted tail
 });
 
 test("classifyAddress: a near-miss IPv6 literal that merely resembles a mapped address is NOT force-mapped", () => {
@@ -255,20 +255,20 @@ test("classifyAddress: a near-miss IPv6 literal that merely resembles a mapped a
   // not 5), but it IS the IPv4-translated block ::ffff:0:0:0/96 (RFC 2765/6052), which embeds 127.0.0.1.
   // Jini classifies on the canonical 16 bytes and judges every embedded-IPv4 form by that IPv4 address,
   // so this is loopback — treating it as public was an SSRF gap the W2 cloud wave pinned.
-  assert.equal(classifyAddress("::ffff:0:7f00:1"), "loopback");
+  assert.equal(classifyAddress({ ip: "::ffff:0:7f00:1" }), "loopback");
 });
 
 test("classifyAddress: IPv6 multicast ff00::/8 is treated as reserved (blocked), mirroring IPv4 multicast, exact boundaries", () => {
-  assert.equal(classifyAddress("feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "public"); // just below the block
-  assert.equal(classifyAddress("ff00::1"), "reserved"); // first address of the block
-  assert.equal(classifyAddress("ff02::1"), "reserved"); // all-nodes link-local multicast
-  assert.equal(classifyAddress("ffff::1"), "reserved"); // last address of the block
+  assert.equal(classifyAddress({ ip: "feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" }), "public"); // just below the block
+  assert.equal(classifyAddress({ ip: "ff00::1" }), "reserved"); // first address of the block
+  assert.equal(classifyAddress({ ip: "ff02::1" }), "reserved"); // all-nodes link-local multicast
+  assert.equal(classifyAddress({ ip: "ffff::1" }), "reserved"); // last address of the block
 });
 
 test("classifyAddress: malformed IPv6-shaped input fails closed to reserved, never public", () => {
-  assert.equal(classifyAddress("gggg::1"), "reserved"); // invalid hex digit
-  assert.equal(classifyAddress("fe80:::1"), "reserved"); // malformed double "::"
-  assert.equal(classifyAddress("1:2:3:4:5:6:7:8:9"), "reserved"); // too many groups
+  assert.equal(classifyAddress({ ip: "gggg::1" }), "reserved"); // invalid hex digit
+  assert.equal(classifyAddress({ ip: "fe80:::1" }), "reserved"); // malformed double "::"
+  assert.equal(classifyAddress({ ip: "1:2:3:4:5:6:7:8:9" }), "reserved"); // too many groups
 });
 
 test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNAT target", async () => {
@@ -277,7 +277,7 @@ test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNA
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://100.64.0.1/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://100.64.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '100.64.0.1' (100.64.0.1) rejected: resolved address is private" });
   assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
 });
 
@@ -285,9 +285,9 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })));
-  await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })));
-  await assert.rejects(() => client.send(makeRequest({ url: "https://169.254.169.254/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '127.0.0.1' (127.0.0.1) rejected: resolved address is loopback" });
+  await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '10.0.0.1' (10.0.0.1) rejected: resolved address is private" });
+  await assert.rejects(() => client.send(makeRequest({ url: "https://169.254.169.254/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "egress to '169.254.169.254' (169.254.169.254) rejected: resolved address is link-local" });
   // WHATWG URL brackets a literal IPv6 hostname (`new URL("https://[::1]/").hostname === "[::1]"`).
   // Assert the EXACT classification message, not just "something threw" — before
   // `resolveHostAddresses` strips the brackets, `isIP("[::1]")` is 0, so this falls through to
@@ -559,14 +559,14 @@ test("rejects a scheme not in the policy's allowedSchemes", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https"] }) });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "http://example.com/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "http://example.com/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "scheme 'http:' is not in the allowed egress schemes" });
 });
 
 test("rejects a target URL carrying embedded credentials", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })));
+  await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })), { constructor: EgressRefusedError, name: "EgressRefusedError", message: "credentials embedded in the target URL are not allowed" });
 });
 
 // -------------------------------------------------------------------------------------------

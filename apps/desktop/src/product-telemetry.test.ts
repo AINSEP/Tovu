@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createNoopObservabilityPort, createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
+import { createNoopTracker, type Tracker } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { ProductTelemetry, ProductConsent, bootProductTelemetry } from '../../website/src/server/runtime/composition/product-telemetry.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './product-telemetry.ts';
 import { buildServeEnv } from './tovu-server.ts';
-import { createSiteSupervisor } from './site-supervisor.ts';
+import { createChildEntries } from '@jini-ai/sidecar/supervisor';
 
 const launch = { configPath: '/fake/product.json', preferencePath: '/fake/preferences.json', release: 'tovu-desktop@0.0.0-test' };
 const off: ProductConsent = { crashes: false, usage: false, installationId: null };
@@ -58,6 +59,21 @@ test('native reporter starts only with crashes already on at launch; switch-off 
   assert.deepEqual(later.starts, []); assert.deepEqual(later.uploads, []);
 });
 
+test('native reporter failure logs the redacted cause and continues startup', async () => {
+  const f = fixture(); f.consent(on);
+  const warnings: string[] = [];
+  const crashReporter = { ...f.crashReporter, start: () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); } };
+  const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter }, {
+    boot: f.boot, warn: message => warnings.push(message),
+  });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0] ?? '', /\[product-telemetry\] native crash reporting is unavailable/);
+  assert.match(warnings[0] ?? '', /boom/);
+  assert.match(warnings[0] ?? '', /product-telemetry\.test\.ts/);
+  assert.doesNotMatch(warnings[0] ?? '', /SECRETSECRETSECRETSECRET/);
+  await product.dispose();
+});
+
 test('app_started happens once per launch with usage consent, including a first-run grant', async () => {
   const f = fixture();
   const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter: f.crashReporter, launchMode: 'update' }, { boot: f.boot });
@@ -74,9 +90,11 @@ test('non-clean renderer/GPU/utility exits and one unexpected supervisor exit ca
   assert.equal(reports.length, 3);
   assert.deepEqual(reports[0]!.context, { operation: 'desktop.process_gone', attributes: { process: 'renderer', code: 'crashed' } });
   let exit!: (value: { code: number | null; signal: string | null }) => void;
-  const supervisor = createSiteSupervisor({ onUnexpectedExit: (_siteDir, outcome) => reportDesktopServerExit({ tracker, ...outcome }) });
-  supervisor.set('/fake/private-site', { server: { onExit: listener => { exit = listener; } } });
+  const supervisor = createChildEntries({ onUnexpectedExit: ({ exit }) => reportDesktopServerExit({ tracker, ...exit }) });
+  supervisor.set('/fake/private-site', { server: { onExit: ({ listener }) => { exit = listener; } } });
+  assert.equal(typeof exit, 'function', 'the object-shaped observer must subscribe');
   exit({ code: 7, signal: null }); exit({ code: 7, signal: null });
+  assert.equal(supervisor.has('/fake/private-site'), false);
   assert.equal(reports.length, 4);
   assert.equal(reports[3]!.error.message, 'site server exited');
   assert.deepEqual(reports[3]!.context, { operation: 'desktop.server_exit', attributes: { code: 7 } });

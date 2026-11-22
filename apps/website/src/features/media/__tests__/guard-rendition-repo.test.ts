@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MediaConflictError, type AssetRenditionRecord, type AssetRenditionRepoPort, type MediaRecord } from "@jini-ai/cms/media";
-import { guardMediaRenditionRepo } from "../guard-rendition-repo.js";
-import type { VersionedMediaRepoPort } from "../versioned-media-repo.js";
+import { type VersionedMediaRepoPort, guardMediaRenditionRepo, MediaConflictError, type AssetRenditionRecord, type AssetRenditionRepoPort, type MediaRecord } from "@jini-ai/cms/media";
 
 /** The rendition-repo guard: reads pass through, and a save persists only while the source is unchanged. */
 function recordingRenditions() {

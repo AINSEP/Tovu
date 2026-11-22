@@ -22,7 +22,7 @@ function fixture() {
   const deps = { workspaceId: "w", postRepo: { list: async () => rows } as never, listPublishedPosts, memberAccess: anonymousMemberAccess() };
   const ports: VisitorExecutionPorts = { initialPolicy: EMPTY_VISITOR_TOOL_POLICY, readPolicy: async () => EMPTY_VISITOR_TOOL_POLICY,
     budgets: { charge: async () => true }, ip: "ip", workspaceId: "w", runId: "turn", clock: { nowMs: () => 0, nowIso: () => "1970-01-01T00:00:00.000Z" },
-    ids: { newId: () => `parity-${++id}` }, sink: { append: async () => {} }, reportError: error => assert.fail(String(error)) };
+    ids: { newId: () => `parity-${++id}` }, sink: { append: async () => {} }, reportError: ({ error }) => assert.fail(String(error)) };
   return { deps, ports };
 }
 

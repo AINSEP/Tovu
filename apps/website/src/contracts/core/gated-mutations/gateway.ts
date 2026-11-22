@@ -100,7 +100,8 @@ import {
   type GatedMutationHooks,
   type GatewayPlan,
 } from "@jini-ai/core/gated-mutations";
-import type { AuthorizeFn, InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
+import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { adaptTokenStore, type ConfirmationTokenRecord, type TokenStorePort } from "./token.js";
 
 export { ForbiddenError, PlanStaleError, UnauthenticatedError } from "@jini-ai/core/gated-mutations";
@@ -154,7 +155,7 @@ function approvalDeps(deps: GatewayDeps): ApprovalDeps {
  * @complexity O(1) plus one downstream `authorize`/`authorizeInstance` call.
  * @overallScore 100
  */
-export function authorizeForHooks(deps: GatewayDeps, hooks: GatedMutationHooks<unknown, unknown>, required: { principalId: string; permission: string }): Promise<{ allowed: boolean; reason: string }> {
+export function authorizeForHooks({ deps, hooks, required }: { deps: GatewayDeps; hooks: GatedMutationHooks<unknown, unknown>; required: { principalId: string; permission: string } }, _options = {}): Promise<{ allowed: boolean; reason: string }> {
   return authorizeApproval({ ...required, deps: approvalDeps(deps), hooks });
 }
 
@@ -179,7 +180,7 @@ export function plan(required: { deps: GatewayDeps; principalId: string; princip
  * @complexity O(1) plus one `authorize()` call and one token store write.
  * @overallScore 100
  */
-export function confirm(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, unknown>; planId: string; planHash: string }, _optional: Record<string, never> = {}): Promise<ConfirmationTokenRecord> {
+export function confirm(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, unknown>; planId: string; planHash: string; signal?: AbortSignal }, _optional: Record<string, never> = {}): Promise<ConfirmationTokenRecord> {
   return confirmApproval({ ...required, deps: approvalDeps(required.deps) });
 }
 
@@ -207,6 +208,6 @@ export function confirm(required: { deps: GatewayDeps; principalId: string; prin
  * racing on the same token loses here (TokenAlreadyRedeemedError) before ever reaching the
  * mutation, even if it passed every check above.
  */
-export function execute<TResult>(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, TResult>; confirmationToken: string }, _optional: Record<string, never> = {}): Promise<TResult> {
+export function execute<TResult>(required: { deps: GatewayDeps; principalId: string; principalKind: PrincipalKind; hooks: GatedMutationHooks<unknown, TResult>; confirmationToken: string; signal?: AbortSignal }, _optional: Record<string, never> = {}): Promise<TResult> {
   return executeApproval({ ...required, deps: approvalDeps(required.deps) });
 }

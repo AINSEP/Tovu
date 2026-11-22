@@ -8,7 +8,7 @@ import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
 import { navigate } from "@/lib/router";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file `Posts` — markup-only list screen, twin of `features/pages/Pages.tsx`. Had NO test file
@@ -47,7 +47,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     createPost: vi.fn(async () => {}),
     togglePostPublish: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
-    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
+    rowMenuHandleById: buildPostRowMenuHandleMap({ posts: posts }),
     ...overrides,
   };
 }
@@ -244,7 +244,7 @@ describe("row menu — Publish/Unpublish visibility mirrors postRowMenuItems", (
     renderWith({ posts: [POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Hello World"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/posts/hello-world");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/posts/hello-world" });
   });
 
   it("Unpublish calls togglePostPublish with the row", async () => {
@@ -324,30 +324,30 @@ describe("delete confirmation dialog", () => {
  */
 describe("postsListNotice", () => {
   it("returns the error notice when there is an error and no list yet", () => {
-    const notice = postsListNotice(null, "boom", (key) => key);
+    const notice = postsListNotice({ posts: null, error: "boom", t: (key) => key });
     expect(notice).not.toBeNull();
   });
 
   it("returns the loading notice when there is no list and no error", () => {
-    const notice = postsListNotice(null, null, (key) => key);
+    const notice = postsListNotice({ posts: null, error: null, t: (key) => key });
     expect(notice).not.toBeNull();
   });
 
   it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
-    render(<>{postsListNotice(null, "boom", (key) => key)}</>);
+    render(<>{postsListNotice({ posts: null, error: "boom", t: (key) => key })}</>);
     expect(screen.getByText("boom")).toBeInTheDocument();
     expect(screen.queryByText("Loading posts…")).not.toBeInTheDocument();
   });
 
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
-    expect(postsListNotice([], "a later error", (key) => key)).toBeNull();
+    expect(postsListNotice({ posts: [], error: "a later error", t: (key) => key })).toBeNull();
   });
 });
 
 it("New Post opens the unsaved editor without persisting an Untitled post", async () => {
   const port = createFakePostsListPort({ posts: [] });
-  render(<Posts usePostsHook={() => usePosts({ port, navigate })} />);
+  render(<Posts usePostsHook={() => usePosts({ port, navigate: (routePath) => navigate({ routePath }) })} />);
   await userEvent.click(await screen.findByRole("button", { name: "New Post" }));
-  expect(navigate).toHaveBeenCalledWith("/posts?create=1");
+  expect(navigate).toHaveBeenCalledWith({ routePath: "/posts?create=1" });
   expect(port.posts).toEqual([]);
 });

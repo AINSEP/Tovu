@@ -59,7 +59,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
 }
 
 async function siteImportEnabled(layout: ReturnType<typeof resolveAgentPluginLayout>): Promise<boolean | undefined> {
-  const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
+  const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root });
   return activations.plugins[PLUGIN_ID]?.enabled;
 }
 
@@ -82,7 +82,7 @@ test("a fresh site seeds site-import ENABLED with no owner action", async () => 
 test("an existing site whose record is the seeder's untouched OFF is switched on at the next boot", async () => {
   await withAgentPluginsDir(async (layout) => {
     // What a site seeded before 2026-10-08 carries: the seeder's own disabled record, never touched.
-    await recordBundledAgentPluginIfAbsent({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: PLUGIN_ID });
+    await recordBundledAgentPluginIfAbsent({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root, pluginId: PLUGIN_ID });
     assert.equal(await siteImportEnabled(layout), false);
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: source.root });
     assert.equal(await siteImportEnabled(layout), true);
@@ -92,7 +92,7 @@ test("an existing site whose record is the seeder's untouched OFF is switched on
 test("an owner who switched site-import off stays off across boots", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: source.root });
-    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: PLUGIN_ID, enabled: false, actor: "test:operator" });
+    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root, pluginId: PLUGIN_ID, enabled: false, actor: "test:operator" });
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: source.root });
     assert.equal(await siteImportEnabled(layout), false);
   });

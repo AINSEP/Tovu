@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import { usePluginPackageFiles, type PluginPackageFilesController } from "./use-plugin-package-files.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `AgentPluginDetailsModal`'s data: one `AGENT_PLUGIN_FILES` read for the inspected plugin,
  * mapped onto the shared viewer's rows, plus which file is selected.
@@ -38,12 +39,12 @@ export interface AgentPluginDetailsModalDependencies {
  * {@link usePluginPackageFiles}.
  */
 export function useAgentPluginDetailsModal({ pluginId, port, t }: AgentPluginDetailsModalDependencies): PluginPackageFilesController {
-  return usePluginPackageFiles({ pluginId, queryRoot: "agent-plugins", port: { getPluginFiles: (id) => port.getAgentPluginFiles(id) }, t });
+  return usePluginPackageFiles({ pluginId, queryRoot: "agent-plugins", port: { getPluginFiles: ({ id }, _optional = {}) => port.getAgentPluginFiles({ pluginId: id }) }, t });
 }
 
 /** Binds the real `/api/.../agent-plugins/:id/files` client and a `plugins-i18n.ts` translator for
  *  the current admin locale. */
-export function useWiredAgentPluginDetailsModal(pluginId: string): PluginPackageFilesController {
+export function useWiredAgentPluginDetailsModal({ pluginId }: { pluginId: string }, _optional = {}): PluginPackageFilesController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
   return useAgentPluginDetailsModal({ pluginId, port: defaultAgentPluginsPort, t });

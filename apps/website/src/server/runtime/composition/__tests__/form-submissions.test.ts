@@ -8,13 +8,14 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
-import type { DeployHostKit } from "#src/features/deployments/deploy-targets/types";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import { formDestinationKeyLabel, type FormDestinationPage, type FormDestinationRegistry } from "#src/features/form-destinations/index";
 import { InMemorySettingsRepo, ensureSettingDefinitions, SCOPE_BIT } from "@jini-ai/core/settings";
 import { FORM_PULL_LEASE_MS } from "#src/features/form-destinations/index";
 import { closeSqliteConnection, sqliteKernel } from "#src/platform/db/kernel/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
+import { SqlFormPullLeaseRepo } from "@jini-ai/cms/forms/sql";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { composeFormSubmissions, type FormSubmissionsCompositionDeps } from "../form-submissions.js";
 
 /** @file The composed form destination pull: saved keys → destination pages → import → acknowledge → outbox. */
@@ -30,8 +31,8 @@ const openStores: Parameters<typeof closeSqliteConnection>[0][] = [];
 after(() => { for (const store of openStores) closeSqliteConnection(store); });
 function realLeases(): SqlFormPullLeaseRepo {
   const db = openContentDb(":memory:");
-  openStores.push(db);
-  return new SqlFormPullLeaseRepo({ kernel: sqliteKernel(db) });
+  openStores.push({ source: db });
+  return new SqlFormPullLeaseRepo({ kernel: schemaErasedKernel({ store: sqliteKernel({ source: db }) }), table: "form_receiver_pulls" });
 }
 
 function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string; pull?: () => Promise<FormDestinationPage> }> }) {

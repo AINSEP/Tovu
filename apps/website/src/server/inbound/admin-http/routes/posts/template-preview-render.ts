@@ -4,16 +4,13 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
-import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
-import {
-  renderViaTemplate,
-  resolveActiveTheme,
-  resolveHtmlEmbedsForRender,
-  resolveMediaAssetMetadataForRender,
-  resolveMediaTransformVersionsForRender,
-  resolveStaticMenusForRender,
-  resolveWidgetsForRender,
-} from "#src/server/inbound/public-http/routes/site/pages";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { isBarePageChoice, resolveTemplateBranchChoice } from "#src/features/theme/index";
+import { resolveActiveTheme } from "#src/features/theme/active-theme";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
+import { resolveMediaAssetMetadataForRender, resolveMediaTransformVersionsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/media-metadata";
+import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
+import { resolveHtmlEmbedsForRender, resolveWidgetsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/widgets";
 import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
 import { resolveSiteTitle } from "#src/features/settings/index";
 
@@ -29,10 +26,7 @@ import type { ContentRouteDeps } from "../content/deps.js";
  * @complexity O(1).
  */
 function buildPreviewPost(
-  post: PostRecord,
-  overrideTemplateChoice: string | null,
-  pendingBodyJson: JsonObject | undefined,
-  pendingBodyHtml: string | undefined
+  { post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml }: { post: PostRecord; overrideTemplateChoice: string | null; pendingBodyJson: JsonObject | undefined; pendingBodyHtml: string | undefined }, _options: Record<string, never> = {}
 ): PostRecord {
   return {
     ...post,
@@ -46,7 +40,7 @@ function buildPreviewPost(
  * Bare-page preview (owner ruling 2026-09-23, S5) — mirrors `pages.ts`'s own `renderBarePage`, but
  * built from `ContentRouteDeps`-compatible (Pick-typed) exports only, since this route's `deps` is
  * narrower than the full `RouteDeps` those two functions require. Inline `widgetEmbed` nodes resolve
- * through `resolveWidgetsForRender(deps, null, post)`, the same `theme: null` call the live bare
+ * through `resolveWidgetsForRender({ deps, theme: null }, { post })`, the same `theme: null` call the live bare
  * render makes: a doc-format Page can be bare too (the `templateChoice` query/API, not only the Pages
  * picker), and skipping it previewed every inline widget as the placeholder. Skips the SEO
  * `extraHead` fold (`buildExtraHead` is private to `pages.ts` and needs `originRegistry`, not in
@@ -64,10 +58,10 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
       },
       { workspaceId: deps.workspaceId }
     ),
-    resolveWidgetsForRender(deps, null, post),
-    resolveHtmlEmbedsForRender(deps, post),
+    resolveWidgetsForRender({ deps, theme: null }, { post }),
+    resolveHtmlEmbedsForRender({ deps, post }),
     resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post),
+    resolveMediaAssetMetadataForRender({ deps, post }),
   ]);
   return renderBareEntryDocument({
     post,
@@ -81,7 +75,12 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
 
 /** The route preserves these state-conflict statuses; the tool publishes the actionable message. */
 export class TemplatePreviewRenderError extends Error {
-  constructor(readonly status: number, message: string) { super(message); this.name = "TemplatePreviewRenderError"; }
+  readonly status: number;
+  constructor({ status, message }: { status: number; message: string }) {
+    super(message);
+    this.status = status;
+    this.name = "TemplatePreviewRenderError";
+  }
 }
 export interface PostPreviewRenderInput {
   post: PostRecord;
@@ -128,16 +127,16 @@ function resolvePreviewBodyOverrides(
  * template-selection meanings. Unsaved body fields override this render only.
  * @throws TemplatePreviewRenderError when a theme is unavailable for a template preview.
  * @complexity One bounded page render plus the existing theme, embed and menu repository reads.
- * @example await renderPostPreview(deps, { post, templateChoice: "article.html", bodyJson: pending });
+ * @example await renderPostPreview({ deps, input: { post, templateChoice: "article.html", bodyJson: pending } });
  */
-export async function renderPostPreview(deps: ContentRouteDeps, input: PostPreviewRenderInput): Promise<PostPreviewRenderResult> {
+export async function renderPostPreview({ deps, input }: { deps: ContentRouteDeps; input: PostPreviewRenderInput }, _optional = {}): Promise<PostPreviewRenderResult> {
   const post = input.post;
   const overrideTemplateChoice = input.templateChoice === undefined ? post.templateChoice ?? null : input.templateChoice;
   const pendingBodyJson = input.bodyJson;
   const pendingBodyHtml = input.bodyHtml;
   const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
 
-  const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
+  const previewPost = buildPreviewPost({ post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml });
 
   // Bare-page preview (owner ruling 2026-09-23, S5) — checked BEFORE any theme resolution/409: a
   // bare Page renders identically regardless of theme, mirroring `renderBarePage`'s own placement
@@ -154,9 +153,9 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
     deps: { repo: deps.presentationRepo },
     input: { workspaceId: deps.workspaceId },
   });
-  const resolved = resolveActiveTheme(deps, settings.activeThemeId);
+  const resolved = resolveActiveTheme({ deps, activeThemeId: settings.activeThemeId });
   if (resolved === null) {
-    throw new TemplatePreviewRenderError(500, "no themes installed");
+    throw new TemplatePreviewRenderError({ status: 500, message: "no themes installed" });
   }
   // Producer 4 of the optional-theme design. The thing this route previews IS a theme file, so
   // with the theme deliberately off there is nothing coherent to render. Before this guard the
@@ -168,7 +167,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // admin tool, not a public surface, so an explicit error is right here even though the public
   // site answers the same state by rendering unstyled.
   if (resolved === NO_THEME_ID) {
-    throw new TemplatePreviewRenderError(409, "this site has no active theme, so there is no template to preview — activate a theme to use the template picker");
+    throw new TemplatePreviewRenderError({ status: 409, message: "this site has no active theme, so there is no template to preview — activate a theme to use the template picker" });
   }
   const theme = resolved;
 
@@ -198,7 +197,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // own page-shell arm does it, so the row stays untemplated and a later explicit pick still wins.
   const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
 
-  const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath({ slug: post.slug }));
+  const staticMenus = await resolveStaticMenusForRender({ deps, theme, currentPath: postPublicPath({ slug: post.slug }) });
   // Preview the anonymous visitor's listing, never the admin's privileges. Passing access enables
   // the live pipeline's assembled-document resolution (plain, paged and keyed See more batches),
   // after pending content has been applied; no second listing fetch/render implementation.
@@ -206,7 +205,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
     resolver: createMemberAccessResolver({ deps }),
     context: { isAuthenticated: false, activeTierIds: [], isPaid: false },
   };
-  const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml, undefined, false, postPreviewsAccess);
+  const html = await renderViaTemplate({ deps, theme, post: renderedPost, staticMenus }, { pendingBodyJson: previewBodyJson, pendingBodyHtml: previewBodyHtml, siteAssistantEnabled: false, postPreviewsAccess });
 
   return { html, templateChoice: renderedPost.templateChoice ?? null };
 }

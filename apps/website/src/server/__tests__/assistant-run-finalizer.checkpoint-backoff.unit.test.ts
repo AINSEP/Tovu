@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import type { ChatRunLedger } from "#src/assistant/index";
-import { createAssistantRunFinalizer, type AssistantRunFinalizerOptions } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, type AssistantRunFinalizerOptions } from "../runtime/composition/modules/run-finalizer/entry.js";
 
 /**
  * @file Memory cause 3: a run's checkpoint rewrites its whole saved projection, so once that

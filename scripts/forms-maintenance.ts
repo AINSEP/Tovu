@@ -6,8 +6,8 @@ import { parseArgs } from 'node:util';
 import { openNativeSqlite } from '../apps/website/src/platform/db/kernel/drivers/sqlite.js';
 import { contentKernel } from '../apps/website/src/platform/db/content-kernel.js';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '../apps/website/src/platform/db/repos/media-repo.js';
-import { SqlEntryRefsRepo } from '../apps/website/src/platform/db/repos/entry-refs-repo.js';
-import { SqlOutboxAdapter } from '../apps/website/src/platform/db/repos/outbox-repo.js';
+import { SqliteEntryRefsRepo } from '../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js';
+import { SqliteOutboxAdapter } from '../apps/website/src/platform/db/sqlite/outbox-repo.sqlite.js';
 import { SqlitePostRepo } from '../apps/website/src/features/post/repo.sqlite.js';
 import { runFormFileMaintenance } from '../apps/website/src/features/forms/form-file-maintenance.js';
 
@@ -38,12 +38,13 @@ export async function runFormsMaintenanceCommand(
   try {
     // Keep EXCLUSIVE mode until close. Another site's owner must not race this offline apply.
     if (apply) native.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; ROLLBACK;');
-    const kernel = contentKernel(native);
+    const kernel = contentKernel({ store: native });
     const exists = await kernel.run(db => db.selectFrom('workspaces').select('id').where('id', '=', workspace).executeTakeFirst());
     if (!exists) throw new Error('The selected workspace is absent from this database. No form files were changed.');
+    const clock = { nowMs: () => Date.now() };
     const media = { mediaRepo: new SqlMediaRepo(kernel), blobRepo: new SqlAssetBlobRepo(kernel), renditionRepo: new SqlAssetRenditionRepo(kernel),
-      entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo(kernel) };
-    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqlOutboxAdapter(kernel), clock: { nowMs: () => Date.now() } }, { apply, ...(after === undefined ? {} : { after }) });
+      entryRefsRepo: new SqliteEntryRefsRepo({ store: kernel }), postRepo: new SqlitePostRepo({ store: kernel }), clock };
+    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqliteOutboxAdapter({ store: kernel }), clock }, { apply, ...(after === undefined ? {} : { after }) });
   } finally { native.close(); }
 }
 

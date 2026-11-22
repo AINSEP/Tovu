@@ -1,8 +1,10 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { RestoreOutcome } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * POST restore the selected items.
@@ -16,33 +18,19 @@ import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
  * Items are addressed by `{ entityType, entityId }` rather than by the trash row's id, so this
  * endpoint maps 1:1 onto `TrashPort.restore` and needs no id lookup the port does not have.
  */
-export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/restore", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       // The same entry gate `list.ts` and `purge.ts` apply, for the same reason: the Trash is one
       // surface, and three routes on it disagreeing about who is allowed onto it is how one of them
       // later gets widened alone. Per-item checks below still decide what actually moves.
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: TRASH_READ_PERMISSION,
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${TRASH_READ_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: TRASH_READ_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: TRASH_READ_PERMISSION, workspaceId: deps.workspaceId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const items = readItems(req.body);
+      const items = readItems({ body: req.body });
       if (!items) {
         res.status(400).json({
           error: `expected { items: [{ entityType, entityId }] } with 1..${MAX_TRASH_SELECTION} entries`,
@@ -86,7 +74,7 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) =
  *
  * @complexity O(n) in the selection's length.
  */
-function readItems(body: unknown): { entityType: string; entityId: string }[] | null {
+function readItems({ body }: { body: unknown }, _optional = {}): { entityType: string; entityId: string }[] | null {
   if (typeof body !== "object" || body === null) return null;
   const raw = (body as { items?: unknown }).items;
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TRASH_SELECTION) return null;

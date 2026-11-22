@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
-import { approvalClassAsks, directPageAction, toolApprovalPolicyFor, withExtensionApprovalPolicy } from "../../../assistant/assistant-tool-approval-policy.js";
+import { approvalClassAsks, toolApprovalPolicyFor, withExtensionApprovalPolicy } from "../../../assistant/assistant-tool-approval-policy.js";
+import { directPageAction } from "../index.js";
 
 function registration(id: string, metadata?: ToolRegistration["descriptor"]["metadata"]): ToolRegistration {
   return { descriptor: { id, inputSchema: { type: "object" }, ...(metadata === undefined ? {} : { metadata }) },

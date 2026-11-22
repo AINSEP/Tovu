@@ -1,7 +1,9 @@
-import type { CredentialTokenHint } from '@/lib/credential-copy';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { useCredentialHint } from '@/hooks/use-credential-hint.hooks';
 
-export function CredentialHint({ hint }: { hint?: CredentialTokenHint | null }) {
-  const text = useCredentialHint({ hint });
+export function CredentialHint({ hint,
+  useCredentialHintHook = useCredentialHint }: { hint?: CredentialTokenHint | null;
+  useCredentialHintHook?: typeof useCredentialHint; }) {
+  const text = useCredentialHintHook({ hint });
   return <span className="credential-token-hint" translate="no">{text}</span>;
 }

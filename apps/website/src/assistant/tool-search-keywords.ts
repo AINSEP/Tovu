@@ -1,4 +1,5 @@
 import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
+import { orFallbackSync } from '@jini-ai/core/errors/idioms';
 import { nativeToolMetadata } from '../contracts/core/tool-metadata/index.js';
 import type { ToolMetadata } from '@jini-ai/core';
 import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
@@ -24,16 +25,15 @@ export function readBundledToolKeywords(required: { sourceRoot: string }, option
   readText?: (file: string) => string;
 } = {}): Record<string, string> {
   const keywords: Record<string, string> = Object.create(null);
-  let sources: ReturnType<BundledToolKeywordSources>;
-  if (!optional.sources) return keywords;
-  try { sources = optional.sources({ ...required, filename: 'plugin.json' }); }
-  catch { return keywords; }
+  const listSources = optional.sources;
+  if (!listSources) return keywords;
+  const sources = orFallbackSync({ work: () => listSources({ ...required, filename: 'plugin.json' }), fallback: [], step: 'List tool keyword manifests' });
   for (const source of sources) {
-    try {
+    orFallbackSync({ work: () => {
       const readText = optional.readText ?? ((file: string) => readFileSync(file, 'utf8'));
       const manifest = JSON.parse(readText(path.join(source.packageRoot, 'plugin.json')));
       appendToolKeywords({ keywords, declaration: readAgentPluginMetadata({ value: manifest }).metadata.toolKeywords });
-    } catch { /* Optional search data never prevents tool catalog construction. */ }
+    }, fallback: undefined, step: 'Read tool keyword manifest' }); /* Optional search data never prevents tool catalog construction. */
   }
   return keywords;
 }
@@ -127,8 +127,7 @@ function searchEnricher(_required: Record<string, never>, _optional: Record<stri
  * the model actually reasons about in order to fix the thing it searches with.
  */
 export function indexedDescriptionFor(
-  toolId: string,
-  description: string,
+  { toolId, description }: { toolId: string; description: string },
   /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`. `false` folds the
    *  operator nouns but NOT the doc2query questions, which is the only way to still measure the
    *  pre-adoption baseline now that production includes both — without it, the adoption eval's
@@ -154,6 +153,6 @@ export function indexedDescriptionFor(
  * Tolerates text with no marker unchanged because every hit passes here, including tools with
  * no search vocabulary. Demo-only tools are excluded from operator-language enrichment.
  */
-export function stripSearchKeywords(indexed: string): string {
+export function stripSearchKeywords({ indexed }: { indexed: string }, _options = {}): string {
   return searchEnricher({}).authoredDescription({ description: indexed });
 }

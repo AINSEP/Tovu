@@ -1,13 +1,14 @@
 import type { Express, Response } from "express";
 
-import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type MenuRepoPort, type NavMenuMode } from "#src/features/navigation/index";
+import { isMenuHtmlAuthoring, MENU_RAW_HTML_PERMISSION, type MenuHtmlAuthoring, type NavMenuMode  } from "#src/features/navigation/index";
+import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type {
   NavItemNode,
-  NavLocationBindingRepoPort,
   NavLocationBindingRow,
   NavMenuEntry,
 } from "#src/features/navigation/index";
+import type { NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -17,7 +18,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * Purpose:
  * Serializes `navigation` library read models (`NavMenuEntry`,
  * `NavLocationBindingRow`) into stable admin JSON envelopes, mirroring
- * `server/http/admin/posts.ts`'s `toAdminPostResponse` pattern.
+ * `apps/website/src/server/inbound/admin-http/http/posts.ts`'s `toAdminPostResponse` pattern.
  *
  * Also declares `MenuRouteDeps` / `MenuRouteRegistrar` — the superset of the
  * shared `RouteDeps` (`server/routes/types.ts`) these routes need
@@ -25,7 +26,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `routes/types.ts` because that file is a shared collision point 4 parallel
  * agents are editing today for their own sections; folding these two fields
  * into `RouteDeps` and wiring `createRouteDeps()`/`createApp()`
- * (`server/app.ts`) is the integration step this build hands to the
+ * (`apps/website/src/server/runtime/composition/app.ts`) is the integration step this build hands to the
  * coordinator (see the wiring handoff report).
  *
  * Architectural role:
@@ -46,7 +47,7 @@ export interface MenuRouteDeps extends RouteDeps {
 }
 
 /** Registrar signature for the menus route modules (mirrors `RouteRegistrar`). */
-export type MenuRouteRegistrar = (app: Express, deps: MenuRouteDeps) => void;
+export type MenuRouteRegistrar = (required: { app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Wire-format link target — structurally identical to `navigation`'s `NavTarget`. */
 export type AdminMenuTargetDto = NavItemNode["target"];
@@ -131,7 +132,7 @@ export function toAdminMenuResponse(menu: NavMenuEntry): AdminMenuEnvelope {
   return { menu: toAdminMenuDto(menu) };
 }
 
-export function toAdminMenuListResponse(menus: NavMenuEntry[]): AdminMenuListEnvelope {
+export function toAdminMenuListResponse({ menus }: { menus: NavMenuEntry[] }, _optional = {}): AdminMenuListEnvelope {
   return { menus: menus.map(toAdminMenuDto) };
 }
 
@@ -174,12 +175,11 @@ export function parseMenuHtmlAuthoring(body: Record<string, unknown>): MenuHtmlA
  * and returns `false` on a denial, like `authorizeOrRespond`.
  */
 export async function authorizeMenuHtmlOrRespond(
-  res: Response,
-  deps: Pick<MenuRouteDeps, "authorize" | "workspaceId">,
-  { principalId, authoring, menuId }: { principalId: string; authoring: MenuHtmlAuthoring; menuId?: string },
+  { res, deps, principalId, authoring }: { res: Response; deps: Pick<MenuRouteDeps, "authorize" | "workspaceId">; principalId: string; authoring: MenuHtmlAuthoring },
+  { menuId }: { menuId?: string } = {},
 ): Promise<boolean> {
   if (!isMenuHtmlAuthoring(authoring)) return true;
-  return authorizeOrRespond(res, deps.authorize, {
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId, permission: MENU_RAW_HTML_PERMISSION, workspaceId: deps.workspaceId, entityType: "menu", ...(menuId ? { entityId: menuId } : {}),
-  });
+  } });
 }

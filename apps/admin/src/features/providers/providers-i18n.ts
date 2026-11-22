@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Integrations page (`features/providers/Providers.tsx`, route
  * `/admin/addons/integrations`) — this feature's own dictionary rather than the shared `lib/admin-nav-i18n.ts`
@@ -19,7 +20,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * "Webhooks" tab LABELS both read from `features/integrations/integrations-i18n.tsx` instead —
  * carried over unchanged from `DeveloperApi.tsx`, not duplicated here.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -35,8 +35,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Servicios externos a los que se conecta este sitio: generación de multimedia, cuentas de terceros y servidores de herramientas MCP externos.",
 
-
-
   },
   id: {
     "Always allow": "Selalu izinkan", "These tools run without asking. Revoke one and it asks again.": "Alat-alat ini berjalan tanpa bertanya. Cabut salah satunya dan alat itu akan bertanya lagi.", "Revoke": "Cabut", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Belum ada yang diatur ke Selalu izinkan. Pilih di kartu persetujuan alat di obrolan.", "Loading…": "Memuat…", "Couldn't load this list.": "Tidak dapat memuat daftar ini.", "Couldn't revoke. Try again.": "Tidak dapat mencabut. Coba lagi.",
@@ -50,8 +48,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "MCP eksternal",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Layanan luar yang terhubung dengan situs ini — pembuatan media, akun pihak ketiga, dan server alat MCP eksternal.",
-
-
 
   },
   de: {
@@ -67,8 +63,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Externe Dienste, mit denen diese Website verbunden ist – Medienerzeugung, Drittanbieterkonten und externe MCP-Tool-Server.",
 
-
-
   },
   "zh-CN": {
     "Always allow": "始终允许", "These tools run without asking. Revoke one and it asks again.": "这些工具无需询问即可运行。撤销其中一个，它会再次询问。", "Revoke": "撤销", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "尚无设为始终允许的工具。请在聊天中工具的批准卡片上选择。", "Loading…": "加载中…", "Couldn't load this list.": "无法加载此列表。", "Couldn't revoke. Try again.": "撤销失败，请重试。",
@@ -82,8 +76,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "外部 MCP",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "本站连接的外部服务 — 媒体生成、第三方账户，以及外部 MCP 工具服务器。",
-
-
 
   },
   "zh-TW": {
@@ -99,8 +91,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "本站連接的外部服務 — 媒體生成、第三方帳戶，以及外部 MCP 工具伺服器。",
 
-
-
   },
   "pt-BR": {
     "Always allow": "Sempre permitir", "These tools run without asking. Revoke one and it asks again.": "Estas ferramentas rodam sem perguntar. Revogue uma e ela volta a perguntar.", "Revoke": "Revogar", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nada está em Sempre permitir. Escolha no cartão de aprovação de uma ferramenta no chat.", "Loading…": "Carregando…", "Couldn't load this list.": "Não foi possível carregar esta lista.", "Couldn't revoke. Try again.": "Não foi possível revogar. Tente novamente.",
@@ -114,8 +104,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "MCP externo",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Serviços externos aos quais este site se conecta — geração de mídia, contas de terceiros e servidores de ferramentas MCP externos.",
-
-
 
   },
   ru: {
@@ -131,8 +119,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Внешние сервисы, к которым подключён этот сайт — генерация медиа, сторонние аккаунты и внешние MCP-серверы инструментов.",
 
-
-
   },
   fa: {
     "Always allow": "همیشه مجاز", "These tools run without asking. Revoke one and it asks again.": "این ابزارها بدون پرسش اجرا می‌شوند. یکی را لغو کنید تا دوباره بپرسد.", "Revoke": "لغو", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "هیچ ابزاری روی «همیشه مجاز» نیست. آن را در کارت تأیید ابزار در گفتگو انتخاب کنید.", "Loading…": "در حال بارگذاری…", "Couldn't load this list.": "بارگذاری این فهرست ممکن نشد.", "Couldn't revoke. Try again.": "لغو ممکن نشد. دوباره تلاش کنید.",
@@ -146,8 +132,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "MCP خارجی",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "سرویس‌های خارجی که این سایت به آن‌ها متصل می‌شود — تولید رسانه، حساب‌های شخص ثالث و سرورهای ابزار MCP خارجی.",
-
-
 
   },
   ar: {
@@ -163,8 +147,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "الخدمات الخارجية التي يتصل بها هذا الموقع — توليد الوسائط، وحسابات الأطراف الثالثة، وخوادم أدوات MCP الخارجية.",
 
-
-
   },
   ja: {
     "Always allow": "常に許可", "These tools run without asking. Revoke one and it asks again.": "これらのツールは確認なしで実行されます。取り消すと再び確認します。", "Revoke": "取り消す", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "「常に許可」に設定されたものはありません。チャットでツールの承認カードから選べます。", "Loading…": "読み込み中…", "Couldn't load this list.": "この一覧を読み込めませんでした。", "Couldn't revoke. Try again.": "取り消せませんでした。もう一度お試しください。",
@@ -178,8 +160,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "外部 MCP",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "このサイトが接続する外部サービス — メディア生成、サードパーティのアカウント、外部 MCP ツールサーバー。",
-
-
 
   },
   ko: {
@@ -195,8 +175,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "이 사이트가 연결하는 외부 서비스 — 미디어 생성, 서드파티 계정, 외부 MCP 도구 서버.",
 
-
-
   },
   pl: {
     "Always allow": "Zawsze zezwalaj", "These tools run without asking. Revoke one and it asks again.": "Te narzędzia działają bez pytania. Cofnij jedno, a znów zapyta.", "Revoke": "Cofnij", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nic nie ma ustawienia Zawsze zezwalaj. Wybierz je na karcie zatwierdzenia narzędzia w czacie.", "Loading…": "Wczytywanie…", "Couldn't load this list.": "Nie udało się wczytać tej listy.", "Couldn't revoke. Try again.": "Nie udało się cofnąć. Spróbuj ponownie.",
@@ -210,8 +188,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "Zewnętrzny MCP",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Zewnętrzne usługi, z którymi łączy się ta witryna — generowanie mediów, konta zewnętrzne i zewnętrzne serwery narzędzi MCP.",
-
-
 
   },
   hu: {
@@ -227,8 +203,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Külső szolgáltatások, amelyekhez ez a webhely csatlakozik – médiagenerálás, harmadik féltől származó fiókok és külső MCP-eszközkiszolgálók.",
 
-
-
   },
   fr: {
     "Always allow": "Toujours autoriser", "These tools run without asking. Revoke one and it asks again.": "Ces outils s'exécutent sans demander. Révoquez-en un et il redemandera.", "Revoke": "Révoquer", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Rien n'est en Toujours autoriser. Choisissez-le sur la carte d'approbation d'un outil dans le chat.", "Loading…": "Chargement…", "Couldn't load this list.": "Impossible de charger cette liste.", "Couldn't revoke. Try again.": "Impossible de révoquer. Réessayez.",
@@ -242,8 +216,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "MCP externe",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Services externes auxquels ce site se connecte — génération de médias, comptes tiers et serveurs d'outils MCP externes.",
-
-
 
   },
   uk: {
@@ -259,8 +231,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Зовнішні сервіси, до яких підключається цей сайт — генерація медіа, сторонні акаунти та зовнішні MCP-сервери інструментів.",
 
-
-
   },
   tr: {
     "Always allow": "Her zaman izin ver", "These tools run without asking. Revoke one and it asks again.": "Bu araçlar sormadan çalışır. Birini iptal edersen yeniden sorar.", "Revoke": "İptal et", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Her zaman izin ver olarak ayarlı bir şey yok. Sohbette bir aracın onay kartından seçebilirsin.", "Loading…": "Yükleniyor…", "Couldn't load this list.": "Bu liste yüklenemedi.", "Couldn't revoke. Try again.": "İptal edilemedi. Tekrar dene.",
@@ -274,8 +244,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "Harici MCP",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Bu sitenin bağlandığı dış hizmetler — medya üretimi, üçüncü taraf hesapları ve harici MCP araç sunucuları.",
-
-
 
   },
   th: {
@@ -291,8 +259,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "บริการภายนอกที่ไซต์นี้เชื่อมต่อ — การสร้างสื่อ บัญชีบุคคลที่สาม และเซิร์ฟเวอร์เครื่องมือ MCP ภายนอก",
 
-
-
   },
   it: {
     "Always allow": "Consenti sempre", "These tools run without asking. Revoke one and it asks again.": "Questi strumenti vengono eseguiti senza chiedere. Revocane uno e tornerà a chiedere.", "Revoke": "Revoca", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Niente è impostato su Consenti sempre. Sceglilo sulla scheda di approvazione di uno strumento in chat.", "Loading…": "Caricamento…", "Couldn't load this list.": "Impossibile caricare questo elenco.", "Couldn't revoke. Try again.": "Impossibile revocare. Riprova.",
@@ -306,8 +272,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "MCP esterno",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "Servizi esterni a cui questo sito si connette: generazione di media, account di terze parti e server di strumenti MCP esterni.",
-
-
 
   },
   hi: {
@@ -323,8 +287,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "बाहरी सेवाएँ जिनसे यह साइट जुड़ती है — मीडिया जनरेशन, थर्ड-पार्टी खाते, और बाहरी MCP टूल सर्वर।",
 
-
-
   },
   ur: {
     "Always allow": "ہمیشہ اجازت دیں", "These tools run without asking. Revoke one and it asks again.": "یہ ٹولز پوچھے بغیر چلتے ہیں۔ کسی ایک کو منسوخ کریں تو وہ دوبارہ پوچھے گا۔", "Revoke": "منسوخ کریں", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "کچھ بھی ہمیشہ اجازت دیں پر سیٹ نہیں ہے۔ اسے چیٹ میں کسی ٹول کے منظوری کارڈ پر منتخب کریں۔", "Loading…": "لوڈ ہو رہا ہے…", "Couldn't load this list.": "یہ فہرست لوڈ نہیں ہو سکی۔", "Couldn't revoke. Try again.": "منسوخ نہیں ہو سکا۔ دوبارہ کوشش کریں۔",
@@ -339,8 +301,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "بیرونی سروسز جن سے یہ سائٹ جڑتی ہے — میڈیا جنریشن، تھرڈ پارٹی اکاؤنٹس، اور بیرونی MCP ٹول سرورز۔",
 
-
-
   },
   bn: {
     "Always allow": "সবসময় অনুমতি দিন", "These tools run without asking. Revoke one and it asks again.": "এই টুলগুলো জিজ্ঞেস না করেই চলে। একটি প্রত্যাহার করলে সেটি আবার জিজ্ঞেস করবে।", "Revoke": "প্রত্যাহার", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "কিছুই সবসময় অনুমতি দিন-এ সেট নেই। চ্যাটে কোনো টুলের অনুমোদন কার্ডে এটি বেছে নিন।", "Loading…": "লোড হচ্ছে…", "Couldn't load this list.": "এই তালিকা লোড করা যায়নি।", "Couldn't revoke. Try again.": "প্রত্যাহার করা যায়নি। আবার চেষ্টা করুন।",
@@ -354,8 +314,6 @@ export const PROVIDERS_DICT: Record<string, Record<string, string>> = {
     "External MCP": "বাহ্যিক MCP",
     "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
       "বাহ্যিক পরিষেবা যেগুলির সঙ্গে এই সাইট যুক্ত হয় — মিডিয়া জেনারেশন, তৃতীয় পক্ষের অ্যাকাউন্ট, এবং বাহ্যিক MCP টুল সার্ভার।",
-
-
 
   },
 };

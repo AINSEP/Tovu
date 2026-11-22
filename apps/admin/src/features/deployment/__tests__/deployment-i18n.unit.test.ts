@@ -33,7 +33,7 @@ import {
 
 const UNSUPPORTED_LOCALE = "xx";
 
-const CASES: Array<{ name: string; fn: (locale: string, error: string) => string; en: string }> = [
+const CASES: Array<{ name: string; fn: (required: { locale: string; error: string }) => string; en: string }> = [
   { name: "deploymentOverviewLoadErrorMessage", fn: deploymentOverviewLoadErrorMessage, en: "Could not load deployment status ({error})." },
   { name: "dockerfileLoadErrorMessage", fn: dockerfileLoadErrorMessage, en: "Could not load the Dockerfile ({error})." },
   { name: "dockerfileSaveErrorMessage", fn: dockerfileSaveErrorMessage, en: "Could not save the Dockerfile ({error})." },
@@ -64,15 +64,15 @@ const CASES: Array<{ name: string; fn: (locale: string, error: string) => string
 
 describe("deployment-i18n error-message templates — unsupported-locale fallback", () => {
   it.each(CASES)("$name falls back to the English template for an unsupported locale", ({ fn, en }) => {
-    expect(fn(UNSUPPORTED_LOCALE, "disk full")).toBe(en.replace("{error}", "disk full"));
+    expect(fn({ locale: UNSUPPORTED_LOCALE, error: "disk full" })).toBe(en.replace("{error}", "disk full"));
   });
 
   it.each(CASES)("$name still renders the requested locale when it IS covered (en itself)", ({ fn, en }) => {
-    expect(fn("en", "disk full")).toBe(en.replace("{error}", "disk full"));
+    expect(fn({ locale: "en", error: "disk full" })).toBe(en.replace("{error}", "disk full"));
   });
 });
 
-const SPANISH_TEMPLATES: Array<{ fn: (locale: string, error: string) => string; template: string }> = [
+const SPANISH_TEMPLATES: Array<{ fn: (required: { locale: string; error: string }) => string; template: string }> = [
   { fn: deploymentOverviewLoadErrorMessage, template: "No se pudo cargar el estado del despliegue ({error})." },
   { fn: dockerfileLoadErrorMessage, template: "No se pudo cargar el Dockerfile ({error})." },
   { fn: dockerfileSaveErrorMessage, template: "No se pudo guardar el Dockerfile ({error})." },
@@ -85,9 +85,9 @@ const SPANISH_TEMPLATES: Array<{ fn: (locale: string, error: string) => string; 
 
 describe("deployment-i18n error-message templates — covered non-English locale", () => {
   it.each(SPANISH_TEMPLATES)("renders $template in Spanish and interpolates the error", ({ fn, template }) => {
-    const message = fn("es", "disk full");
+    const message = fn({ locale: "es", error: "disk full" });
     expect(message).toBe(template.replace("{error}", "disk full"));
-    expect(message).not.toBe(fn("en", "disk full"));
+    expect(message).not.toBe(fn({ locale: "en", error: "disk full" }));
     expect(message).toContain("disk full");
   });
 });
@@ -151,7 +151,7 @@ describe("index-aligned translation rows", () => {
     ["audit", auditTranslationEntries, /^Deployment audit translation has 1 entries; expected \d+\.$/],
     ["candidate-gap", candidateGapTranslationEntries, /^Deployment candidate translation has 1 entries; expected \d+\.$/],
   ] as const)("rejects a %s row whose length does not match the keys", (_name, build, message) => {
-    expect(() => build(["only one"])).toThrow(message);
+    expect(() => build({ entries: ["only one"] })).toThrow(message);
   });
 
   it.each([
@@ -161,7 +161,7 @@ describe("index-aligned translation rows", () => {
     // The key count is private to the module; the refusal message states it.
     const refusal = (() => {
       try {
-        build([]);
+        build({ entries: [] });
         return "";
       } catch (error) {
         return (error as Error).message;
@@ -169,7 +169,7 @@ describe("index-aligned translation rows", () => {
     })();
     const size = Number(/expected (\d+)\./.exec(refusal)?.[1]);
     expect(size).toBeGreaterThan(0);
-    const table = build(Array.from({ length: size }, (_, index) => `t${index}`));
+    const table = build({ entries: Array.from({ length: size }, (_, index) => `t${index}`) });
     expect(Object.values(table)).toEqual(Array.from({ length: size }, (_, index) => `t${index}`));
   });
 });

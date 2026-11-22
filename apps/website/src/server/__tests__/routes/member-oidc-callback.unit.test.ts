@@ -73,7 +73,7 @@ test("T44: a rate-limited OIDC email continuation redirects the browser to the s
 
   assert.equal(completed, 1);
   assert.deepEqual(limitedEmails, [email], "the email continuation limit must be reached after completion");
-  assert.deepEqual(await memberRepo.list({ workspaceId: "ws" }), []);
+  assert.deepEqual((await memberRepo.list({ workspaceId: "ws" })).items, []);
   assert.deepEqual(await identities.findBySubject({ workspaceId: "ws", issuer: "https://accounts.google.com", subject: "subject" }), null);
   assert.equal(res.statusCode, 303, "the top-level callback must redirect instead of rendering 429 JSON");
   assert.equal(location, "/signin#oidcError=LOGIN_UNAVAILABLE");

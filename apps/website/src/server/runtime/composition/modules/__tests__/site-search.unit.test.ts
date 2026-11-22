@@ -13,7 +13,7 @@ import type { LoadedSearchProviders } from "#src/features/agent-plugins/search-p
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { ensureSearchProviderSetting } from "#src/features/site-search/settings";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import {
@@ -109,16 +109,16 @@ function manualTimers(): { timers: MaintenanceTimers; queue: { run: () => void; 
   return {
     queue, cleared,
     timers: {
-      set: (run, ms) => { next += 1; queue.push({ run, ms, id: next }); return next; },
-      clear: handle => { cleared.push(handle); const at = queue.findIndex(item => item.id === handle); if (at >= 0) queue.splice(at, 1); },
+      set: ({ run, ms }) => { next += 1; queue.push({ run, ms, id: next }); return next; },
+      clear: ({ handle }) => { cleared.push(handle); const at = queue.findIndex(item => item.id === handle); if (at >= 0) queue.splice(at, 1); },
     },
     async fire() { queue.shift()!.run(); await settle(); },
   };
 }
 
 test("the credential label is the fixed prefix plus the provider label", () => {
-  assert.equal(SEARCH_CREDENTIAL_LABEL_PREFIX, "Tovu Search — ");
-  assert.equal(searchCredentialLabel({ providerLabel: "Meilisearch" }), "Tovu Search — Meilisearch");
+  assert.equal(SEARCH_CREDENTIAL_LABEL_PREFIX, "Search — ", "search credentials use the canonical prefix");
+  assert.equal(searchCredentialLabel({ providerLabel: "Meilisearch" }), "Search — Meilisearch", "provider labels use the canonical prefix");
 });
 
 test("with no built-in provider and no plugins, search is not configured and the default 'builtin' shows as unregistered", async () => {
@@ -224,16 +224,30 @@ test("a loader that throws is logged and leaves only the built-in; ready still r
 
 test("a vendor without a saved credential is not configured; a saved one supplies exactly its declared keys", async () => {
   const saved = { baseUrl: "https://meili.example", token: "key-123" };
-  let credential: typeof saved | null = null;
-  const h = harness({ resolveCredential: async ({ label }) => { h.credentialLabels.push(label); return credential; } }, { active: { providerId: "vendor" } });
+  const credentials = new Map<string, typeof saved>();
+  const h = harness({ resolveCredential: async ({ label }) => { h.credentialLabels.push(label); return credentials.get(label) ?? null; } }, { active: { providerId: "vendor" } });
   const { provider, contexts } = capturing(vendor());
   const runtime = runtimeOf({ ...h, ports: { ...h.ports, loadPluginProviders: async () => loaded({ id: "vendor", pluginId: "meili", provider }) } });
   await runtime.ready;
   assert.deepEqual(await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } }), { status: "unavailable", reason: "not_configured" });
-  assert.deepEqual(h.credentialLabels, ["Tovu Search — Vendor Search"]);
-  credential = saved;
-  await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } }, { audiences: ["members"] });
-  assert.deepEqual(contexts[0]!.credentials, { host: "https://meili.example", apiKey: "key-123" });
+  assert.deepEqual(h.credentialLabels, ["Search — Vendor Search", "Jini Search — Vendor Search", "Tovu Search — Vendor Search"], "a missing key checks canonical then both historical labels");
+  for (const entry of [
+    { label: "Tovu Search — Vendor Search", token: "tovu-key", lookups: ["Search — Vendor Search", "Jini Search — Vendor Search", "Tovu Search — Vendor Search"] },
+    { label: "Jini Search — Vendor Search", token: "jini-key", lookups: ["Search — Vendor Search", "Jini Search — Vendor Search"] },
+  ]) {
+    credentials.clear();
+    credentials.set(entry.label, { ...saved, token: entry.token });
+    h.credentialLabels.length = 0;
+    await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } }, { audiences: ["members"] });
+    assert.deepEqual(contexts.at(-1)!.credentials, { host: saved.baseUrl, apiKey: entry.token }, "the original saved key supplies the declared credentials");
+    assert.deepEqual(h.credentialLabels, entry.lookups, "historical keys follow canonical lookup order");
+  }
+  credentials.set("Tovu Search — Vendor Search", { ...saved, token: "tovu-key" });
+  credentials.set("Search — Vendor Search", saved);
+  h.credentialLabels.length = 0;
+  await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } });
+  assert.deepEqual(contexts.at(-1)!.credentials, { host: saved.baseUrl, apiKey: saved.token }, "the canonical key takes precedence over both historical keys");
+  assert.deepEqual(h.credentialLabels, ["Search — Vendor Search"], "a canonical key stops historical lookups");
 
   const hostOnly = capturing(vendor(["host"]));
   const h2 = harness({ resolveCredential: async () => saved, loadPluginProviders: async () => loaded({ id: "vendor", pluginId: "meili", provider: hostOnly.provider }) }, { active: { providerId: "vendor" } });
@@ -298,7 +312,7 @@ test("an unreadable credential and an unsupported credential key are logged and 
   const runtime = runtimeOf(h);
   await runtime.ready;
   assert.deepEqual(await runtime.service.query({ siteId: WS, workspaceId: WS, query: { text: "hello" } }), { status: "unavailable", reason: "not_configured" });
-  assert.deepEqual(h.logs, ['[site-search] the "Tovu Search — Vendor Search" credential could not be read (cannot decrypt)']);
+  assert.deepEqual(h.logs, ['[site-search] the "Search — Vendor Search" credential could not be read (cannot decrypt)'], "an unreadable canonical key preserves the existing error behavior");
 
   const h2 = harness({ resolveCredential: async () => ({ baseUrl: "https://x.example", token: "t" }), loadPluginProviders: async () => loaded({ id: "vendor", pluginId: "algolia", provider: vendor(["appId"]) }) }, { active: { providerId: "vendor" } });
   const runtime2 = runtimeOf(h2);
@@ -491,6 +505,20 @@ test("maintenance: the default timers run a real unref'd pass and stop cleanly",
   assert.ok(calls.filter(call => Array.isArray(call) && call[0] === "backfill").length >= 2);
 });
 
+async function assertBoundSearchPortStructure({ ports, httpClient }: { readonly ports: SiteSearchPorts; readonly httpClient: SiteSearchPorts["httpClient"] }) {
+  assert.equal(await ports.isPluginActive({ pluginId: "meilisearch" }), true);
+  assert.equal(await ports.isPluginActive({ pluginId: "other" }), false);
+  assert.equal(ports.siteId, WS, "v1: the workspace id is the site id");
+  assert.equal(ports.workspaceId, WS);
+  assert.deepEqual(ports.sources.map(s => s.collection), ["post", "page"]);
+  assert.equal(typeof ports.indexState.counts, "function");
+  assert.equal(typeof ports.targets.promote, "function");
+  assert.equal(typeof ports.access.visibleKeys, "function");
+  assert.equal(ports.httpClient, httpClient);
+  assert.equal(ports.now(), NOW);
+  assert.match(await ports.installId(), /^[A-Za-z0-9_-]+$/);
+}
+
 test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, member sessions, settings and the plugin loader", async () => {
   const settingsRepo = new InMemorySettingsRepo();
   const clock = { nowIso: () => new Date(NOW).toISOString(), nowMs: () => NOW };
@@ -519,20 +547,10 @@ test("bindSiteSearchPorts wires the CMS sources, the SQL stores, the vault, memb
     loadContributions: (async (input: unknown) => { contributionCalls.push(input); return { items: [], refusals: [] }; }) as unknown as LoadPluginContributions,
     isPluginActive: async ({ pluginId }) => pluginId === "meilisearch",
   });
-  assert.equal(await ports.isPluginActive({ pluginId: "meilisearch" }), true);
-  assert.equal(await ports.isPluginActive({ pluginId: "other" }), false);
-  assert.equal(ports.siteId, WS, "v1: the workspace id is the site id");
-  assert.equal(ports.workspaceId, WS);
-  assert.deepEqual(ports.sources.map(s => s.collection), ["post", "page"]);
-  assert.equal(typeof ports.indexState.counts, "function");
-  assert.equal(typeof ports.targets.promote, "function");
-  assert.equal(typeof ports.access.visibleKeys, "function");
-  assert.equal(ports.httpClient, httpClient);
-  assert.equal(ports.now(), NOW);
-  assert.match(await ports.installId(), /^[A-Za-z0-9_-]+$/);
-  assert.deepEqual(await ports.resolveCredential({ label: "Tovu Search — Meilisearch" }), { baseUrl: "https://meili.example", token: "k" });
+  await assertBoundSearchPortStructure({ ports, httpClient });
+  assert.deepEqual(await ports.resolveCredential({ label: "Search — Meilisearch" }), { baseUrl: "https://meili.example", token: "k" }, "the bound vault resolves canonical labels");
   assert.equal(await ports.resolveCredential({ label: "Tovu Search — Other" }), null);
-  assert.deepEqual(credentialCalls[0], { workspaceId: WS, label: "Tovu Search — Meilisearch" });
+  assert.deepEqual(credentialCalls[0], { workspaceId: WS, label: "Search — Meilisearch" }, "the canonical lookup stays in the existing workspace scope");
   assert.deepEqual(await ports.audiencesForSession({}), []);
   assert.deepEqual(await ports.audiencesForSession({ sessionToken: "tok" }), ["members", "paid", "tier:gold"]);
   assert.deepEqual(memberCalls, [

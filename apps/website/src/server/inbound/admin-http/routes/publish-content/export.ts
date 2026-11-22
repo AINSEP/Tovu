@@ -1,13 +1,13 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { rejectForeignWorkspace } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -24,8 +24,8 @@ import { rejectForeignWorkspace } from "./route-helpers.js";
  * called fresh at request time (never cached — see `type-registry.ts`'s own "fresh-read" rule). A
  * table added tomorrow with no contributor registered for it is therefore invisible to this route
  * BY CONSTRUCTION, not because someone remembered to add it to a deny-list. This is exactly the
- * property `__tests__/export.test.ts`'s "empty registry -> empty bundle, despite real DB content"
- * test pins directly, and `__tests__/export-no-leak.integration.test.ts` pins end-to-end against a
+ * property `apps/website/src/server/__tests__/routes/publish-content-export.test.ts`'s "empty registry -> empty bundle, despite real DB content"
+ * test pins directly, and `apps/website/src/server/__tests__/integration/publish-content-export-no-leak.integration.test.ts` pins end-to-end against a
  * real SQLite db seeded with a canary row in every named sensitive table.
  *
  * ## Two DIFFERENT permission checks, not one
@@ -54,7 +54,7 @@ import { rejectForeignWorkspace } from "./route-helpers.js";
  * rather than buffers"), for a principal that has already passed the route-level gate.
  * @complexity O(n) in the packed entities; memory O(1) entities plus the blob-manifest set.
  */
-async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, principalId: string): Promise<void> {
+async function streamExportBundle({ res, deps, principalId }: { res: Response; deps: PublishContentRouteDeps; principalId: string }, _options: Record<string, never> = {}): Promise<void> {
   const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   const sourceLabel = workspace?.name ?? deps.workspaceId;
   const publishContentDeps = toPublishContentDeps(deps);
@@ -87,9 +87,9 @@ async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, 
   res.end();
 }
 
-export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentExportRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/export", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -113,15 +113,15 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
       }
 
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "publish_content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
-      await streamExportBundle(res, deps, principal.id);
+      await streamExportBundle({ res, deps, principalId: principal.id });
     } catch (error) {
       // The envelope's opening brace may already be flushed by the time a contributor's pack()
       // throws mid-stream — a second `res.status().json()` on a headers-sent response would itself

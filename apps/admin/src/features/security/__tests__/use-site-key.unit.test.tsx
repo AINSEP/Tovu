@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "../hooks/site-key-port.hooks";
 import { useRevealedKeyCopy } from "../SiteKeyTab.hooks";
@@ -22,7 +23,7 @@ function makePort(overrides: Partial<SiteKeyPort> = {}): SiteKeyPort {
 }
 
 async function mount(port: SiteKeyPort, status = ACTIVE) {
-  const hook = renderHook(() => useSiteKey(port, t, "en"));
+  const hook = renderHook(() => useSiteKey({ port, t, locale: "en" }));
   await waitFor(() => expect(hook.result.current.status).toEqual(status));
   return hook;
 }
@@ -80,7 +81,7 @@ describe("useSiteKey", () => {
 
   it("does not reveal before status loads or when no key is active", async () => {
     const port = makePort({ status: vi.fn(async () => MISSING) });
-    const { result } = renderHook(() => useSiteKey(port, t, "en"));
+    const { result } = renderHook(() => useSiteKey({ port, t, locale: "en" }));
     await act(async () => result.current.reveal());
     await waitFor(() => expect(result.current.status).toEqual(MISSING));
     await act(async () => result.current.reveal());
@@ -115,7 +116,7 @@ describe("useSiteKey", () => {
     let finish!: (value: Awaited<ReturnType<SiteKeyPort["generate"]>>) => void;
     const pending = new Promise<Awaited<ReturnType<SiteKeyPort["generate"]>>>((resolve) => { finish = resolve; });
     const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(() => pending) });
-    const { result } = renderHook(() => useSiteKey(port, t, "en"));
+    const { result } = renderHook(() => useSiteKey({ port, t, locale: "en" }));
     await act(async () => result.current.generate());
     expect(port.generate).not.toHaveBeenCalled();
     await waitFor(() => expect(result.current.status).toEqual(MISSING));
@@ -135,7 +136,7 @@ describe("useSiteKey", () => {
 
   it("reports status and reveal failures without staying busy or exposing a key", async () => {
     const failedPort = makePort({ status: vi.fn(async () => { throw new Error("status unavailable"); }) });
-    const failed = renderHook(() => useSiteKey(failedPort, t, "en"));
+    const failed = renderHook(() => useSiteKey({ port: failedPort, t, locale: "en" }));
     await waitFor(() => expect(failed.result.current.loadError).toContain("status unavailable"));
     failed.unmount();
     const { result } = await mount(makePort({ reveal: vi.fn(async () => { throw new Error("reveal denied"); }) }));
@@ -162,7 +163,7 @@ describe("useSiteKey", () => {
     ["KEY_DEPENDENT_DATA", "locked"], ["KEY_MISMATCH", "locked"],
     ["KEY_INVALID", "refused"], ["SITE_META_UNREADABLE", "refused"],
   ])("classifies generate refusal %s and refresh clears it", async (code, kind) => {
-    const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(async () => { throw new ApiError(code, 409, undefined, { error: code, detail: "Nothing changed" }); }) });
+    const port = makePort({ status: vi.fn(async () => MISSING), generate: vi.fn(async () => { throw new ApiError({ message: code, status: 409 }, { code: undefined, body: { error: code, detail: "Nothing changed" } }); }) });
     const { result } = await mount(port, MISSING);
     await act(async () => result.current.generate());
     expect(result.current.generateError).toEqual({ kind, code, detail: "Nothing changed" });
@@ -189,7 +190,7 @@ describe("useRevealedKeyCopy", () => {
     vi.useFakeTimers();
     const writeText = vi.fn(async () => {});
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    const { result } = renderHook(() => useRevealedKeyCopy(HEX));
+    const { result } = renderHook(() => useRevealedKeyCopy({ hex: HEX }));
     await act(async () => result.current.copy());
     expect(writeText).toHaveBeenCalledWith(HEX);
     expect(result.current.copied).toBe(true);

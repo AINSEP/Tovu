@@ -113,7 +113,7 @@ describe("useLibrary previews", () => {
   it("opens a download-only document without loading anything", () => {
     const port = createFakeLibraryPort();
     const { result } = renderController(port);
-    const doc = fakeDocument("report.docx");
+    const doc = fakeDocument({ filename: "report.docx" });
     act(() => result.current.openPreview(doc));
     expect(result.current.preview).toMatchObject({ item: doc, kind: "download", loading: false, error: null });
     expect(port.calls).toEqual([]);
@@ -123,7 +123,7 @@ describe("useLibrary previews", () => {
     const port = createFakeLibraryPort();
     port.readDocumentText = async () => { throw new Error("text unavailable"); };
     const { result } = renderController(port);
-    act(() => result.current.openPreview(fakeDocument("a.txt")));
+    act(() => result.current.openPreview(fakeDocument({ filename: "a.txt" })));
     await waitFor(() => expect(result.current.preview).toMatchObject({ loading: false, error: "text unavailable" }));
   });
 
@@ -132,7 +132,7 @@ describe("useLibrary previews", () => {
     const text = deferred<{ text: string; truncated: boolean }>();
     port.readDocumentText = () => text.promise;
     const { result } = renderController(port);
-    act(() => result.current.openPreview(fakeDocument("a.txt")));
+    act(() => result.current.openPreview(fakeDocument({ filename: "a.txt" })));
     act(() => result.current.closePreview());
     await act(async () => text.resolve({ text: "late", truncated: false }));
     expect(result.current.preview).toBeNull();
@@ -145,8 +145,8 @@ describe("useLibrary previews", () => {
     const bytes = deferred<Blob>();
     port.fetchDocumentBlob = () => bytes.promise;
     const { result } = renderController(port);
-    act(() => result.current.openPreview(fakeDocument("guide.pdf")));
-    const other = fakeDocument("report.docx");
+    act(() => result.current.openPreview(fakeDocument({ filename: "guide.pdf" })));
+    const other = fakeDocument({ filename: "report.docx" });
     act(() => result.current.openPreview(other));
     await act(async () => bytes.resolve(new Blob(["%PDF"])));
     expect(createObjectURL).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe("useLibrary previews", () => {
 
 describe("useLibrary rename", () => {
   it("does nothing when no row is being edited", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
     act(() => result.current.rename.setDraft("Valid name"));
@@ -165,12 +165,12 @@ describe("useLibrary rename", () => {
   });
 
   it("ignores a second save while the first is still pending", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     const gate = deferred<void>();
     const rename = port.renameDocument;
-    port.renameDocument = async (target, input) => {
+    port.renameDocument = async (required) => {
       await gate.promise;
-      return rename(target, input);
+      return rename(required);
     };
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
@@ -188,7 +188,7 @@ describe("useLibrary rename", () => {
   });
 
   it("keeps the row in edit mode and shows the refusal when the rename fails", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     port.renameDocument = async () => { throw new Error("name taken"); };
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
@@ -200,7 +200,7 @@ describe("useLibrary rename", () => {
   });
 
   it("Cancel leaves edit mode without saving", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
     act(() => result.current.rename.start(result.current.documents![0]!));
@@ -213,7 +213,7 @@ describe("useLibrary rename", () => {
 
 describe("useLibrary Trash", () => {
   it("closes the preview of the document it just trashed", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("report.docx")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "report.docx" })] });
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
     const doc = result.current.documents![0]!;
@@ -224,7 +224,7 @@ describe("useLibrary Trash", () => {
   });
 
   it("keeps an unrelated preview open after a trash", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("report.docx"), fakeDocument("other.docx")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "report.docx" }), fakeDocument({ filename: "other.docx" })] });
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(2));
     const [first, second] = [result.current.documents![0]!, result.current.documents![1]!];
@@ -234,7 +234,7 @@ describe("useLibrary Trash", () => {
   });
 
   it("shows the refusal and clears the in-flight row when Trash fails", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     port.trashDocument = async () => { throw new Error("locked"); };
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
@@ -245,7 +245,7 @@ describe("useLibrary Trash", () => {
   });
 
   it("ignores a second Trash while one is in flight", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("a.md"), fakeDocument("b.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "a.md" }), fakeDocument({ filename: "b.md" })] });
     const gate = deferred<void>();
     const trash = port.trashDocument;
     port.trashDocument = async (id) => {
@@ -276,7 +276,7 @@ describe("useLibrary list, uploaders and refresh", () => {
   });
 
   it("works without a users listing (rows then show raw principal ids)", async () => {
-    const port = createFakeLibraryPort({ documents: [fakeDocument("notes.md")] });
+    const port = createFakeLibraryPort({ documents: [fakeDocument({ filename: "notes.md" })] });
     delete port.listUsers;
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toHaveLength(1));
@@ -297,7 +297,7 @@ describe("useLibrary list, uploaders and refresh", () => {
     port.listDocuments = listDocuments;
     const { result } = renderController(port);
     await waitFor(() => expect(result.current.documents).toEqual([]));
-    port.items.push(fakeDocument("agent.md"));
+    port.items.push(fakeDocument({ filename: "agent.md" }));
     act(() => publishContentRefresh(["media"]));
     await waitFor(() => expect(result.current.documents?.map((doc) => doc.id)).toEqual(["doc-agent.md"]));
     expect(listDocuments.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -305,13 +305,13 @@ describe("useLibrary list, uploaders and refresh", () => {
 
   it("builds the authenticated download URL through the port", () => {
     const { result } = renderController(createFakeLibraryPort());
-    expect(result.current.downloadUrl(fakeDocument("a.md"))).toBe("/api/admin/v1/workspaces/workspace-local/media/doc-a.md/original");
+    expect(result.current.downloadUrl({ item: fakeDocument({ filename: "a.md" }) })).toBe("/api/admin/v1/workspaces/workspace-local/media/doc-a.md/original");
   });
 });
 
 describe("useWiredLibrary", () => {
   it("reads documents through the real admin API and translates with the admin locale", async () => {
-    const doc = fakeDocument("wired.md");
+    const doc = fakeDocument({ filename: "wired.md" });
     const fetchFake = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       const body = url.includes("/media?kind=document") ? { media: [doc] } : url.includes("/users") ? { users: [] } : {};

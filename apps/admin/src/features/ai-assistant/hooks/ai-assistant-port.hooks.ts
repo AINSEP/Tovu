@@ -1,4 +1,4 @@
-import type { PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
 
 /**
  * @file What `use-ai-assistant.hooks.ts` needs from the outside world, as an interface rather than
@@ -11,5 +11,5 @@ import type { PublicAssistantSettings } from "@/lib/api";
  */
 export interface AiAssistantPort {
   getAssistantSettings(): Promise<{ data: PublicAssistantSettings }>;
-  setAssistantSettings(patch: Partial<PublicAssistantSettings>): Promise<{ data: PublicAssistantSettings }>;
+  setAssistantSettings(patch: Partial<PublicAssistantSettings>, optional?: Record<string, never>): Promise<{ data: PublicAssistantSettings }>;
 }

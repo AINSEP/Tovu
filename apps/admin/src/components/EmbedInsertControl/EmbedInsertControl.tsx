@@ -1,8 +1,9 @@
+import { createEmbedInsertControlTranslator } from "./EmbedInsertControl.hooks";
 import { useRef } from "react";
-import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
-import type { AdminWidgetType } from "../../lib/api";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import type { AgentElementRole } from "@jini-ai/core/agent-handles";
+import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t as sharedComponentsT } from "../shared-components-i18n";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetPickerDialog, WidgetSelectionDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
@@ -59,6 +60,7 @@ export interface EmbedInsertControlProps {
   /** This control's own base handle — see this file's "Agent handles" doc for the full scheme.
    *  Omit to leave every element below (including the dialogs this control opens) untagged. */
   agentHandle?: string;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
 /** The inline popover behind the "Embed" trigger: the four-choice menu (Media/Form/Menu/Widget…),
@@ -77,13 +79,13 @@ export interface EmbedInsertControlProps {
  *  four conditional agent-handle spreads was its own nested branch in `EmbedMenu`'s own cognitive
  *  complexity count. `{}` (no markup) when `base` is unset, same as every inline occurrence it
  *  replaces. */
-function handleSpread(base: string | undefined, suffix: string, opts: { role: AgentElementRole; label: string }): Record<string, unknown> {
+function handleSpread({ base, suffix, opts }: { base: string | undefined; suffix: string; opts: { role: AgentElementRole; label: string } }, _options: Record<string, never> = {}): Record<string, unknown> {
   return base ? agentHandle({ handle: `${base}-${suffix}` }, opts) : {};
 }
 
 /** `base ? \`${base}-<suffix>\` : undefined` as a named helper — same rationale as
  *  {@link handleSpread}, for the sub-handle string handed to `WidgetAddControl` as its own base. */
-function subHandle(base: string | undefined, suffix: string): string | undefined {
+function subHandle({ base, suffix }: { base: string | undefined; suffix: string }, _options: Record<string, never> = {}): string | undefined {
   return base ? `${base}-${suffix}` : undefined;
 }
 
@@ -95,54 +97,54 @@ function EmbedMenu(props: {
   onPickGallery: () => void;
   onEnterWidgetMode: () => void;
   agentHandle?: string;
-  t: (key: string) => string;
+  t: (input: { key: string }, options?: Record<string, never>) => string;
 }) {
   const { open, onPickMedia, onPickForm, onPickMenu, onPickGallery, onEnterWidgetMode, agentHandle: base, t } = props;
   if (!open) return null;
 
   return (
-    <span className="embed-insert-menu" role="menu" aria-label={t("Insert")}>
+    <span className="embed-insert-menu" role="menu" aria-label={t({ key: "Insert" })}>
           <button
             type="button"
             role="menuitem"
             className="tb-btn"
             onClick={onPickMedia}
-            {...handleSpread(base, "media", { role: "button", label: "Insert an existing media asset" })}
+            {...handleSpread({ base, suffix: "media", opts: { role: "button", label: "Insert an existing media asset" } })}
           >
-            {t("Media")}
+            {t({ key: "Media" })}
           </button>
           <button
             type="button"
             role="menuitem"
             className="tb-btn"
             onClick={onPickForm}
-            {...handleSpread(base, "form", { role: "button", label: "Insert a contact form" })}
+            {...handleSpread({ base, suffix: "form", opts: { role: "button", label: "Insert a contact form" } })}
           >
-            {t("Form")}
+            {t({ key: "Form" })}
           </button>
           <button
             type="button"
             role="menuitem"
             className="tb-btn"
             onClick={onPickMenu}
-            {...handleSpread(base, "menu", { role: "button", label: "Insert a menu" })}
+            {...handleSpread({ base, suffix: "menu", opts: { role: "button", label: "Insert a menu" } })}
           >
-            {t("Menu")}
+            {t({ key: "Menu" })}
           </button>
           <button
             type="button"
             role="menuitem"
             className="tb-btn"
             onClick={onPickGallery}
-            {...handleSpread(base, "gallery", { role: "button", label: "Insert a gallery" })}
+            {...handleSpread({ base, suffix: "gallery", opts: { role: "button", label: "Insert a gallery" } })}
           >
-            {t("Gallery")}
+            {t({ key: "Gallery" })}
           </button>
           <button type="button" role="menuitem" className="tb-btn"
             onClick={onEnterWidgetMode}
-            {...handleSpread(base, "widget", { role: "button", label: "Insert any other widget type" })}
+            {...handleSpread({ base, suffix: "widget", opts: { role: "button", label: "Insert any other widget type" } })}
           >
-            {t("Widget…")}
+            {t({ key: "Widget…" })}
           </button>
     </span>
   );
@@ -195,12 +197,13 @@ function WidgetShortcutPicker(props: {
  * {@link WidgetShortcutPicker} instances as THEIR dialogs' own base. Omit `agentHandle` and none of
  * this control's own elements, or any dialog it opens, are tagged.
  */
-export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base, ...props }: EmbedInsertControlProps) {
+export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHandle: base,
+  useAdminLocaleHook = useAdminLocale, ...props }: EmbedInsertControlProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const locale = useAdminLocale();
-  const t = (key: string) => sharedComponentsT({ locale: locale, key: key });
+  const locale = useAdminLocaleHook();
+  const t = createEmbedInsertControlTranslator({ locale });
   const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, galleryControl, insertWidget } =
-    useEmbed(props.editor);
+    useEmbed({ editor: props.editor });
 
   if (!props.editor) return null;
   const editor = props.editor;
@@ -211,7 +214,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
         ref={triggerRef}
         type="button"
         className="tb-btn"
-        title={t("Insert media, a form, a menu, or a widget")}
+        title={t({ key: "Insert media, a form, a menu, or a widget" })}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => {
@@ -220,7 +223,7 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
         }}
         {...(base ? agentHandle({ handle: base }, { role: "button", label: "Insert media, a form, a menu, or a widget" }) : {})}
       >
-        {t("Embed")}
+        {t({ key: "Embed" })}
       </button>
       <EmbedMenu
         open={open}
@@ -229,14 +232,14 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
           setOpen(false);
         }}
         onPickForm={() => {
-          formControl.setPickerType("contact-form");
+          formControl.setPickerType({ next: "contact-form" });
           setOpen(false);
         }}
         onPickMenu={() => {
-          menuControl.setPickerType("menu");
+          menuControl.setPickerType({ next: "menu" });
           setOpen(false);
         }}
-        onPickGallery={() => { galleryControl.setPickerType("gallery"); setOpen(false); }}
+        onPickGallery={() => { galleryControl.setPickerType({ next: "gallery" }); setOpen(false); }}
         onEnterWidgetMode={() => {
           // The menu item unmounts on open; give the native dialog a persistent
           // opener to restore instead of capturing the removed item's body fallback.
@@ -250,43 +253,49 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, agentHand
 
       {widgetMode ? (
         <WidgetSelectionDialog
-          onResolved={(widgetInstanceId) => { insertWidget(widgetInstanceId); setWidgetMode(false); }}
+          onResolved={(widgetInstanceId) => { insertWidget({ widgetEntryId: widgetInstanceId }); setWidgetMode(false); }}
           onCancel={() => setWidgetMode(false)}
-          agentHandle={subHandle(base, "widget-control")}
+          agentHandle={subHandle({ base, suffix: "widget-control" })}
         />
       ) : null}
 
-      {mediaPicking ? (
+      <EmbedMediaPicker open={mediaPicking} editor={editor} base={base} onClose={() => setMediaPicking(false)} />
+
+      <WidgetShortcutPicker
+        pickerType={formControl.pickerType}
+        error={formControl.error}
+        onUseExisting={(widgetInstanceId) => formControl.handleUseExisting({ widgetInstanceId })}
+        onCreateNew={(title, config) => formControl.handleCreateNew({ title, config })}
+        onCancel={() => formControl.setPickerType({ next: null })}
+        agentHandle={base ? `${base}-form-dialog` : undefined}
+      />
+      <WidgetShortcutPicker pickerType={galleryControl.pickerType} error={galleryControl.error} onUseExisting={(widgetInstanceId) => galleryControl.handleUseExisting({ widgetInstanceId })} onCreateNew={(title, config) => galleryControl.handleCreateNew({ title, config })} onCancel={() => galleryControl.setPickerType({ next: null })} agentHandle={subHandle({ base, suffix: "gallery-dialog" })} />
+      <WidgetShortcutPicker
+        pickerType={menuControl.pickerType}
+        error={menuControl.error}
+        onUseExisting={(widgetInstanceId) => menuControl.handleUseExisting({ widgetInstanceId })}
+        onCreateNew={(title, config) => menuControl.handleCreateNew({ title, config })}
+        onCancel={() => menuControl.setPickerType({ next: null })}
+        agentHandle={base ? `${base}-menu-dialog` : undefined}
+      />
+    </span>
+  );
+}
+
+function EmbedMediaPicker({ open, editor, base, onClose }: {
+  open: boolean; editor: NonNullable<EmbedInsertControlProps['editor']>; base: string | undefined; onClose: () => void;
+}) {
+  return (open ? (
         <MediaPickerDialog
           onSelect={(item) => {
             // 2026-09-11: inserts the generic `media` node (`insertMediaEmbed`), not the legacy
             // `image`-only ref (`insertMediaRef`) — see `lib/media-embed-extension.tsx`'s own file
             // header. A picked video asset now actually plays once saved.
             editor.commands.insertMediaEmbed({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
-            setMediaPicking(false);
+            onClose();
           }}
-          onCancel={() => setMediaPicking(false)}
+          onCancel={() => onClose()}
           agentHandle={base ? `${base}-media-dialog` : undefined}
         />
-      ) : null}
-
-      <WidgetShortcutPicker
-        pickerType={formControl.pickerType}
-        error={formControl.error}
-        onUseExisting={formControl.handleUseExisting}
-        onCreateNew={formControl.handleCreateNew}
-        onCancel={() => formControl.setPickerType(null)}
-        agentHandle={base ? `${base}-form-dialog` : undefined}
-      />
-      <WidgetShortcutPicker pickerType={galleryControl.pickerType} error={galleryControl.error} onUseExisting={galleryControl.handleUseExisting} onCreateNew={galleryControl.handleCreateNew} onCancel={() => galleryControl.setPickerType(null)} agentHandle={subHandle(base, "gallery-dialog")} />
-      <WidgetShortcutPicker
-        pickerType={menuControl.pickerType}
-        error={menuControl.error}
-        onUseExisting={menuControl.handleUseExisting}
-        onCreateNew={menuControl.handleCreateNew}
-        onCancel={() => menuControl.setPickerType(null)}
-        agentHandle={base ? `${base}-menu-dialog` : undefined}
-      />
-    </span>
-  );
+      ) : null);
 }

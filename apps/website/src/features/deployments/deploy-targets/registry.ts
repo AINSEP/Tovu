@@ -32,12 +32,12 @@ import type { InstalledDeployTarget, InstalledDeployTargetInventory, DeployTarge
  */
 
 /** The file a plugin ships at its root to contribute deploy targets. */
-export const DEPLOY_TARGETS_FILENAME = "tovu-deploy-targets.json";
+export const DEPLOY_TARGETS_FILENAME = "jini-deploy-targets.json";
 
 /** Every trust gate is the installed CALLER's job, or the hermetic source registry's trust basis. */
 const targetContribution = defineExecutablePluginContribution<DeployTargetDescriptor, DeployTargetModule>({
   filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets",
-  parse: ({ raw }) => parseDeployTargetsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  parse: ({ raw }) => parseDeployTargetsFile({ raw }), modulePath: ({ descriptor }) => descriptor.module,
   validate: ({ exported }) => asDeployTargetModule<FormDestinationForm, FormSubmissionsInspection>({ exported }),
   refusal: ({ plugin, descriptor, reason }) => `deploy target '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
 });
@@ -72,7 +72,7 @@ export async function loadInstalledDeployTargets(required: {
 }, _optional: Record<string, never> = {}): Promise<InstalledDeployTargetInventory> {
   const definition: PluginContributionDefinition<DeployTargetDescriptor, InstalledDeployTarget> = {
     filename: DEPLOY_TARGETS_FILENAME, contribution: "deploy targets", kind: "data",
-    parse: ({ raw }) => parseDeployTargetsFile(raw),
+    parse: ({ raw }) => parseDeployTargetsFile({ raw }),
     load: async ({ plugin, descriptor }) => ({ descriptor, pluginId: plugin.pluginId,
       enabled: await required.readEnabled({ workspaceId: required.workspaceId, pluginId: plugin.pluginId }) }),
   };
@@ -135,7 +135,11 @@ function buildRegistry<T extends Pick<LoadedDeployTarget, "descriptor" | "plugin
   const unique = new Map<string, T>();
   const allRefusals = [...refusals];
   for (const [id, claimants] of byId) {
-    if (claimants.length === 1) unique.set(id, claimants[0]!);
+    if (claimants.length === 1) {
+      const claimant = claimants[0];
+      if (claimant === undefined) throw new Error(`Deploy target ${id} has no claimant`);
+      unique.set(id, claimant);
+    }
     else {
       const owners = claimants.map((target) => `'${target.pluginId}'`).sort().join(", ");
       allRefusals.push(`deploy target '${id}' was not loaded: more than one plugin declares it (${owners})`);
@@ -150,10 +154,10 @@ function buildRegistry<T extends Pick<LoadedDeployTarget, "descriptor" | "plugin
 
 /**
  * Parses a plugin's {@link DEPLOY_TARGETS_FILENAME}. Pure (exported for its own tests). The parser
- * lives in `@jini-ai/devops/deploy`; this keeps the host's positional signature.
+ * lives in `@jini-ai/devops/deploy`; this retains the host's entry point.
  *
  * @complexity O(t) in the declared target count.
  */
-export function parseDeployTargetsFile(raw: string): ReturnType<typeof parseDeployTargetsDescriptors> {
+export function parseDeployTargetsFile({ raw }: { raw: string }, _options = {}): ReturnType<typeof parseDeployTargetsDescriptors> {
   return parseDeployTargetsDescriptors({ raw });
 }

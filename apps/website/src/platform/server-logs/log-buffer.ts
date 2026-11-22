@@ -51,7 +51,7 @@ export interface ServerLogBuffer {
   /** Oldest first. A copy: callers may not mutate the buffer through it. */
   entries(): readonly ServerLogEntry[];
   /** Called with each stored (redacted) entry; returns unsubscribe. A throwing listener is ignored. */
-  subscribe(listener: (entry: ServerLogEntry) => void): () => void;
+  subscribe(required: { listener: (entry: ServerLogEntry) => void }, optional?: Record<string, never>): () => void;
 }
 
 export const DEFAULT_MAX_ENTRIES = 2_000;
@@ -62,7 +62,7 @@ export const DEFAULT_MAX_MESSAGE_LENGTH = 8_000;
 
 export interface CreateLogBufferRequired {
   /** Applied to every message before it is stored. */
-  readonly redact: (text: string) => string;
+  readonly redact: (required: { text: string }, optional?: Record<string, never>) => string;
 }
 
 export interface CreateLogBufferOptional {
@@ -74,7 +74,7 @@ export interface CreateLogBufferOptional {
   readonly now?: () => Date;
 }
 
-function capMessage(message: string, maxLength: number): string {
+function capMessage({ message, maxLength }: { message: string; maxLength: number }, _optional = {}): string {
   if (message.length <= maxLength) return message;
   return `${message.slice(0, maxLength)}… [truncated ${message.length - maxLength} chars]`;
 }
@@ -85,7 +85,7 @@ function capMessage(message: string, maxLength: number): string {
  * @param optional Entry, byte and per-message caps plus a clock seam.
  * @returns The buffer; dropping is oldest-first when either cap is exceeded.
  * @complexity append is amortized O(1) plus the redactor's cost; entries() is O(n).
- * @example createLogBuffer({ redact: text => text }).append({ level: "error", source: "server", message: "boom" });
+ * @example createLogBuffer({ redact: ({ text }) => text }).append({ level: "error", source: "server", message: "boom" });
  */
 export function createLogBuffer(required: CreateLogBufferRequired, optional: CreateLogBufferOptional = {}): ServerLogBuffer {
   const maxEntries = Math.max(1, optional.maxEntries ?? DEFAULT_MAX_ENTRIES);
@@ -100,7 +100,9 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
   const listeners = new Set<(entry: ServerLogEntry) => void>();
 
   function dropOldest(): void {
-    bytes -= items[head]!.message.length;
+    const oldest = items[head];
+    if (!oldest) throw new Error("server log buffer has no oldest entry to drop");
+    bytes -= oldest.message.length;
     head += 1;
     // Compact once the dead prefix outweighs the live part, keeping memory bounded.
     if (head > 1_024 && head * 2 > items.length) {
@@ -118,7 +120,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
         at: now().toISOString(),
         level: input.level,
         source: input.source,
-        message: capMessage(required.redact(input.message), maxMessageLength),
+        message: capMessage({ message: required.redact({ text: input.message }), maxLength: maxMessageLength }),
       };
       items.push(entry);
       bytes += entry.message.length;
@@ -129,7 +131,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
       return entry;
     },
     entries: () => items.slice(head),
-    subscribe(listener) {
+    subscribe({ listener }) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },

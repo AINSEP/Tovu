@@ -16,9 +16,9 @@ import { contentHash } from '#src/features/publish-content/content-hash';
 import { MAX_SECRET_SCAN_BYTES } from '#src/features/publish-content/file-tree-policy';
 import type { PackedEntity, PublishContentDeps } from '#src/features/publish-content/type-registry';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
-import { createFileBlobIndex } from '#src/features/publish-content/file-blob-index';
+import { createFileBlobIndex } from '@jini-ai/cms/publish/transfer';
 import { contributeRawRowPublish } from '#src/features/publish-content/raw-row-contributor';
-import type { RawRowSnapshot } from '#src/features/publish-content/backstop-ports';
+import type { RawRowSnapshot } from '@jini-ai/cms/publish/transfer';
 import { registerPublishContentBlobGetRoute } from '#src/server/inbound/admin-http/routes/publish-content/blob-get';
 import { registerPublishContentBlobPutRoute } from '#src/server/inbound/admin-http/routes/publish-content/blob-put';
 import type { PublishContentRouteDeps } from '#src/server/inbound/admin-http/routes/publish-content/deps';
@@ -33,7 +33,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
   deps.blobStore.get = async input => { reads++; return get(input); };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
   const routeDeps = { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps;
-  registerPublishContentBlobGetRoute(app, routeDeps); registerPublishContentBlobPutRoute(app, routeDeps);
+  registerPublishContentBlobGetRoute({ app, deps: routeDeps }); registerPublishContentBlobPutRoute({ app, deps: routeDeps });
   const base = await startTestServer(app, t);
   const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
     referenceCheck: { findReferences: async () => [] } };
@@ -49,7 +49,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
     if (phase === 'purged') await purgeMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, id: media.id } });
     const response = await fetch(`${base}/api/admin/v1/workspaces/site-a/publish-content/blobs/${media.source.sha256}`);
     assert.equal(response.status, 404, phase); await response.arrayBuffer();
-    const documentRefusal = await handler.precheck(entity);
+    const documentRefusal = await handler.precheck({ entity });
     assert.ok(typeof documentRefusal === "string");
     assert.match(documentRefusal, /documents cannot be published/i);
     await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: phase }), /documents cannot be published/i);
@@ -94,7 +94,7 @@ test('Library forged raw-file/theme apply refuses private hashes before blob I/O
       ] as const) {
         const handler = contributor.build(publishDeps);
         const entity: PackedEntity = { entityType: contributor.entityType, id, state, schemaVersion: 1, hashVersion: 1,
-          contentHash: contentHash(contributor.entityType, state), requiredBlobs: [media.source.sha256] };
+          contentHash: contentHash({ entityType: contributor.entityType, state }), requiredBlobs: [media.source.sha256] };
         // Call apply directly: a forged sender need not have passed the planner's precheck.
         await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: 'owner',
           idempotencyKey: `${contributor.entityType}-${size}-${phase}` }), /Library documents cannot be published/);
@@ -141,7 +141,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
       'theme-files': { themesDir } },
     backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ siteDir }), blobs: deps.blobStore } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerPublishContentBlobGetRoute(app, { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps);
+  registerPublishContentBlobGetRoute({ app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
   const base = await startTestServer(app, t);
   for (const status of ['tombstoned', 'active'] as const) {
     await deps.assetBlobRepo.save({ ...retained, status });
@@ -157,15 +157,15 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
     ] as const) {
       const handler = contributor.build(publishDeps);
       const entity: PackedEntity = { entityType: contributor.entityType, id, state, schemaVersion: 1, hashVersion: 1,
-        contentHash: contentHash(contributor.entityType, state), requiredBlobs: [media.source.sha256] };
+        contentHash: contentHash({ entityType: contributor.entityType, state }), requiredBlobs: [media.source.sha256] };
       await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `${contributor.entityType}-${status}` });
       assert.deepEqual(await readFile(path), storedBytes);
     }
     const handler = contributeMediaPublish().build(publishDeps);
     const state = { ...media, id: `republished-${status}`, slug: `republished-${status}` };
     const entity: PackedEntity = { entityType: 'media', id: state.id, state, schemaVersion: 1, hashVersion: 1,
-      contentHash: contentHash('media', state), requiredBlobs: [media.source.sha256] };
-    assert.equal(await handler.precheck(entity), null, status);
+      contentHash: contentHash({ entityType: 'media', state }), requiredBlobs: [media.source.sha256] };
+    assert.equal(await handler.precheck({ entity }), null, status);
     await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `ordinary-media-${status}` });
     assert.equal((await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: state.id }))?.source.sha256, media.source.sha256);
     // Drop the new live owner so the next status case still has no ordinary media row.

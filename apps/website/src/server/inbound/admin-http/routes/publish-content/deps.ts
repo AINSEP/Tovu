@@ -91,7 +91,7 @@ export type PublishContentRouteDeps = Pick<
   | keyof ContentPublishSources
 >;
 
-export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
+export type PublishContentRouteRegistrar = (required: { app: Express; deps: PublishContentRouteDeps }, optional?: Record<string, never>) => void;
 
 export type PublishContentProjectionDeps = ContentPublishSources & Partial<Pick<PublishContentRouteDeps, "contentKernel" | "siteBinding">> & Pick<PublishContentRouteDeps,
   | "clock" | "idGen" | "outbox" | "pluginBeforeSaveHook" | "blobStore"
@@ -117,8 +117,9 @@ export type PublishContentProjectionDeps = ContentPublishSources & Partial<Pick<
  * `mediaRepo`/`assetBlobRepo`/`blobStore` are REQUIRED on `RouteDeps`, so a route file physically
  * cannot build a bag without them any more — the omission is now a compile error, not a silent skip.
  *
- * `beforeSaveHook` is the one renamed field: `RouteDeps` calls it `pluginBeforeSaveHook` (it is the
- * plugin runtime's hook), `PublishContentDeps` calls it `beforeSaveHook`. Mapped here once.
+ * The before-save hook is the one renamed field: `RouteDeps` calls it `pluginBeforeSaveHook` (it is
+ * the plugin runtime's hook); the publish bag carries it as `ports.hooks.beforeSave`, in the host's
+ * own port bag, because the engine never reads it. Mapped here once.
  *
  * @complexity O(1) — a field projection, no I/O.
  */
@@ -130,10 +131,9 @@ export function toPublishContentDeps(deps: PublishContentProjectionDeps): Publis
     clock: deps.clock,
     idGen: deps.idGen,
     outbox: deps.outbox,
-    beforeSaveHook: deps.pluginBeforeSaveHook,
     backstop: buildPublishBackstopPorts(deps),
-    // F2 — one ports bag keyed by entityType, instead of nine flat fields. See `type-registry.ts`'s
-    // `PublishContentPorts` header for why. Apply-only ports (`post.forgetRemoved`/`.remove`,
+    // F2 — one ports bag keyed by entityType, instead of nine flat fields. See
+    // `tovu-publish-ports.ts`'s header for why. Apply-only ports (`post.forgetRemoved`/`.remove`,
     // `theme-files.onReplaced`) are supplied only by the apply bag (`apply-loop.ts`'s
     // `toPublishContentApplyDeps`), never here — this route bag only ever packs/inspects/prechecks.
     ports: {
@@ -148,6 +148,7 @@ export function toPublishContentDeps(deps: PublishContentProjectionDeps): Publis
       menu: { repo: deps.menuRepo, bindingRepo: deps.navLocationBindingRepo },
       "theme-files": { themesDir: deps.themesDir, fileBlobIndex: deps.fileBlobIndex },
       ...buildContentPublishPorts(deps),
+      hooks: { beforeSave: deps.pluginBeforeSaveHook },
     },
   };
 }

@@ -14,7 +14,7 @@
  * fails.
  */
 
-import type { PublishContentOutcomeKind, PublishContentReport } from "./planner.js";
+import type { PublishContentOutcomeKind, PublishContentReport } from "./plan-rows.js";
 
 export type PublishContentRunItemPhase = "pending" | "content_applied" | "completed" | "failed";
 
@@ -71,8 +71,8 @@ export interface PublishContentRunRecord {
 export interface PublishContentRunRepoPort {
   /** Upserts one run snapshot. Apply writes an `applying` snapshot before content, then progress
    *  snapshots after each item transition, then one terminal snapshot. */
-  save(record: PublishContentRunRecord): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<PublishContentRunRecord | null>;
+  save(required: { record: PublishContentRunRecord }, optional?: {}): Promise<void>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<PublishContentRunRecord | null>;
 }
 
 export interface PublishContentRunStatus {
@@ -96,8 +96,11 @@ export interface PublishContentRunStatus {
 
 /** Read-side status lookup used by the HTTP status route and retry diagnostics. */
 export async function getPublishContentRunStatus(
-  repo: PublishContentRunRepoPort,
-  input: { workspaceId: string; runId: string }
+  { repo, input }: {
+    repo: PublishContentRunRepoPort;
+    input: { workspaceId: string; runId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentRunStatus | null> {
   const record = await repo.findById({ workspaceId: input.workspaceId, id: input.runId });
   if (!record) return null;
@@ -129,7 +132,7 @@ export async function getPublishContentRunStatus(
 export class InMemoryPublishContentRunRepo implements PublishContentRunRepoPort {
   private readonly recordsById = new Map<string, PublishContentRunRecord>();
 
-  async save(record: PublishContentRunRecord): Promise<void> {
+  async save({ record }: { record: PublishContentRunRecord }): Promise<void> {
     this.recordsById.set(record.id, { ...record });
   }
 

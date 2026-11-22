@@ -1,11 +1,12 @@
 /**
  * @file In-memory adapters for all 6 Newsletter repo ports (ADR-PIPE-011 File Map).
  *
- * One class per port, matching `src/members/repo.memory.ts`'s convention: `private rows: X[];
- * constructor(initialRows: X[] = []) { this.rows = [...initialRows]; }`, then plain array
- * find/filter/push-or-replace methods. Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
+ * One class per port, matching `apps/website/src/features/members/repo.memory.ts`'s private rows and
+ * plain array find/filter/push-or-replace methods. Each constructor copies its optional initial rows.
+ * Rule-of-two adapter #1 (`repo.sqlite.ts` is #2).
  */
 import { upsertRecord } from "@jini-ai/core/records";
+import { decodeListCursor, pageFromArray, type ListPage } from "@jini-ai/core/list-page";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -49,14 +50,15 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
     );
   }
 
-  async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    let rows = this.campaigns.filter((c) => c.workspaceId === required.workspaceId);
-    rows = rows.slice().sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((c) => c.id > required.afterId!);
-    }
-    return rows.slice(0, limit);
+  /** Lists campaign envelopes with the same cursor contract as the SQL adapter.
+   * @throws {ToolInputError} If the cursor is malformed, including for an empty workspace.
+   * @complexity O(n log n) time and O(n) space for n stored campaigns; no I/O.
+   */
+  async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, shape: ['string'] });
+    return pageFromArray({ rows: this.campaigns.filter(c => c.workspaceId === required.workspaceId),
+      limit, cursor: optional.cursor ?? null, positionOf: campaign => [campaign.id], shape: ['string'] });
   }
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
@@ -76,7 +78,7 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
       .sort((a, b) => a.seq - b.seq);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _options = {}): Promise<T> {
     // In-process, single-threaded: mutations are already atomic — no-op, mirrors
     // `InMemorySettingsRepo.transaction`. A forced mid-transaction failure test (AC-08) therefore
     // proves the SQLite adapter's real transaction, not this one — see `repo.contract.test.ts`.
@@ -102,7 +104,7 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
 export class InMemoryNewsletterListRepo implements NewsletterListRepoPort {
   private rows: NewsletterListRow[];
 
-  constructor(initialRows: NewsletterListRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: NewsletterListRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -126,7 +128,7 @@ export class InMemoryNewsletterListRepo implements NewsletterListRepoPort {
 export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptionRepoPort {
   private rows: SubscriptionRow[];
 
-  constructor(initialRows: SubscriptionRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: SubscriptionRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -149,21 +151,18 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
     );
   }
 
+  /** Lists one list's subscriptions with the SQL adapter's position-based contract.
+   * @throws {ToolInputError} If the cursor is malformed, even for an empty list.
+   * @complexity O(n log n) time and O(n) space for n stored subscriptions; no I/O.
+   */
   async list(required: {
     workspaceId: string;
     listId: string;
-    afterId?: string;
-    limit?: number;
-  }): Promise<SubscriptionRow[]> {
-    const limit = required.limit ?? DEFAULT_LIST_LIMIT;
-    let rows = this.rows
-      .filter((r) => r.workspaceId === required.workspaceId && r.listId === required.listId)
-      .slice()
-      .sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((r) => r.id > required.afterId!);
-    }
-    return rows.slice(0, limit);
+  }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<SubscriptionRow>> {
+    const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, shape: ['string'] });
+    return pageFromArray({ rows: this.rows.filter(r => r.workspaceId === required.workspaceId && r.listId === required.listId),
+      limit, cursor: optional.cursor ?? null, positionOf: row => [row.id], shape: ['string'] });
   }
 
   async listSubscribed(required: { workspaceId: string; listId: string }): Promise<SubscriptionRow[]> {
@@ -184,7 +183,7 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
 export class InMemoryNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
   private rows: AudienceSnapshotRow[];
 
-  constructor(initialRows: AudienceSnapshotRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: AudienceSnapshotRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -209,7 +208,7 @@ export class InMemoryNewsletterAudienceSnapshotRepo implements NewsletterAudienc
 export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
   private rows: SendRow[];
 
-  constructor(initialRows: SendRow[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: SendRow[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -236,8 +235,9 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
       .filter((r) => r.workspaceId === required.workspaceId && r.campaignId === required.campaignId)
       .slice()
       .sort((a, b) => a.id.localeCompare(b.id));
-    if (required.afterId) {
-      rows = rows.filter((r) => r.id > required.afterId!);
+    const afterId = required.afterId;
+    if (afterId) {
+      rows = rows.filter((r) => r.id > afterId);
     }
     return rows.slice(0, limit);
   }
@@ -322,7 +322,7 @@ export class InMemoryNewsletterSendRepo implements NewsletterSendRepoPort {
 export class InMemoryNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {
   private rows: ConfirmationTokenRecord[];
 
-  constructor(initialRows: ConfirmationTokenRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: ConfirmationTokenRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 

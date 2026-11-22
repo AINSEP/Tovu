@@ -6,7 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
 
-import type { BackstopAuditRecord } from "#src/features/publish-content/backstop-audit";
+import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { createPublishContentPeer, InMemoryPublishContentPeerRepo, type PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -40,7 +40,7 @@ function backstopKernel(t: TestContext, options: { audit?: boolean | "broken" } 
   if (options.audit === "broken") db.exec("CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY)");
   else if (options.audit !== false) db.exec(AUDIT_TABLE);
   db.exec("CREATE TABLE p_banner(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_banner VALUES('one','New footer');");
-  return contentKernel(db);
+  return contentKernel({ store: db });
 }
 
 /** The peer's side of the wire, answering each publish-content call by path. */
@@ -78,8 +78,10 @@ async function backstopDeps(overrides: Partial<PublishContentRouteDeps> = {}): P
     ...overrides,
   });
   await createPublishContentPeer(
-    { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "Live", baseUrl: LIVE, remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef" }
+    {
+      deps: { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+      input: { workspaceId: deps.workspaceId, label: "Live", baseUrl: LIVE, remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef" }
+    }
   );
   return deps;
 }

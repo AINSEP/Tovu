@@ -1,10 +1,11 @@
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
-import type { EntryPublishPorts, PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { EntryPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "#src/features/taxonomy/term-sync";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "#src/features/taxonomy/index";
 
@@ -19,7 +20,7 @@ import {
   VersionConflictError,
   type EntryStatus,
 } from "./index.js";
-import type { TrashableEntryRecord } from "./trash-aware-memory-repo.js";
+import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
 
 /**
  * @file `collection-entry` on the publish factory: every entry except widgets and widget areas
@@ -36,7 +37,7 @@ const WIDGET_TYPES = ["widget", "widget_area"];
 /** Why a `collection-entry` entity naming a widget type is refused, or `null`. `list` never packs
  *  those types; this refuses them inbound too, since `widget`/`widget-area` write them under their
  *  own permissions and a grant limited to `collection-entry` must not reach them. */
-function widgetTypeRefusal(id: string, state: Record<string, unknown>): string | null {
+function widgetTypeRefusal({ id, state }: { id: string; state: Record<string, unknown> }, _options = {}): string | null {
   return WIDGET_TYPES.includes(state.type as string)
     ? `collection-entry '${id}' has type '${String(state.type)}', which is a widget type and publishes on its own, not as a collection entry`
     : null;
@@ -47,8 +48,96 @@ type EntryRow = TrashableEntryRecord & { termIds?: string[] };
 
 const withTerms = async (p: EntryPublishPorts, row: TrashableEntryRecord): Promise<EntryRow> => ({
   ...row,
-  termIds: await readTermIds(p.terms, row.type, row.id),
+  termIds: await readTermIds({ ports: p.terms, contentType: row.type, contentId: row.id }),
 });
+
+type EntryWriteInput = { ports: EntryPublishPorts; deps: Parameters<typeof gatewayDeps>[0]["deps"]; workspaceId: string; id: string; state: Record<string, unknown>; expectedVersion: number | undefined; principalId: string };
+
+/** Checks the widget guard, term permissions and term sync first, then imports the entry and applies terms. */
+async function writeCollectionEntry({ ports, deps, workspaceId, id, state, expectedVersion, principalId }: EntryWriteInput) {
+  const widgetType = widgetTypeRefusal({ id, state });
+  if (widgetType) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: widgetType });
+  const gateway = gatewayDeps({ deps, entityType: "collection-entry" });
+  // Checked before the entry is written, so a missing term or permission blocks the row whole.
+  const terms = await prepareTermSync({
+    ports: ports.terms,
+    deps,
+    entityType: "collection-entry",
+    entityId: id,
+    principalId,
+    contentType: state.type as string,
+    wanted: state.termIds,
+  });
+  const saved = okOrThrow(
+    {
+      result: await importEntry({
+        deps: {
+          entryRepo: ports.entries,
+          contentTypeRepo: ports.contentTypes,
+          clock: deps.clock,
+          // Preserve Jini's entry scope along with the gateway's publish-type stamp.
+          authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }),
+          outbox: toEntryOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId }),
+        },
+        input: {
+          actorId: principalId,
+          workspaceId,
+          id,
+          type: state.type as string,
+          slug: state.slug as string,
+          title: state.title as string,
+          status: state.status as EntryStatus,
+          fieldsJson: state.fieldsJson,
+          bodyJson: state.bodyJson,
+          publishedAt: (state.publishedAt ?? null) as string | null,
+          expectedVersion,
+        },
+      })
+    }
+  );
+  await terms.apply();
+  return { version: saved.entry.version };
+}
+
+/** A tombstoned collection at the destination refuses the entry; widget types are refused outright. */
+async function validateCollectionEntry({ ports, workspaceId, entity }: { ports: EntryPublishPorts; workspaceId: string; entity: { id: string; state: Record<string, unknown> } }) {
+  const widgetType = widgetTypeRefusal({ id: entity.id, state: entity.state });
+  if (widgetType) return widgetType;
+  const owner = await ports.contentTypes.findByKey({ workspaceId, key: entity.state.type as string });
+  return owner?.status === "tombstone" ? tombstonedAtDestination({ entityType: "content-type", id: owner.key }) : null;
+}
+
+const ENTRY_FIELD_POLICY = {
+    type: "transferred",
+    slug: "transferred",
+    title: "transferred",
+    status: "transferred",
+    bodyJson: "transferred",
+    fieldsJson: "transferred",
+    termIds: "transferred",
+    publishedAt: "provenance",
+    createdAt: "provenance",
+    id: "local",
+    workspaceId: "local",
+    updatedAt: "local",
+    version: "local",
+    deletedAt: "local",
+} as const;
+
+const ENTRY_PUBLISH_ERRORS = {
+    conflict: [VersionConflictError],
+    blocked: [
+      ForbiddenError,
+      ContentTypeNotFoundError,
+      ContentTypeNotActiveError,
+      EntryFieldValidationError,
+      EntrySlugConflictError,
+      // Term sync, when the destination changed between its pre-check and the assignment.
+      TermRecordNotFoundError,
+      ContentRecordNotFoundError,
+      TaxonomyNotApplicableError,
+    ],
+};
 
 export const contributeCollectionEntryPublish = (): PublishContentContributor =>
   createRepoPublishHandler<EntryRow, EntryPublishPorts>({
@@ -61,102 +150,28 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     alsoAuthorizes: [TERM_SYNC_PERMISSION],
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
-    ports: (deps) => deps.ports["collection-entry"],
-    list: async (p, workspaceId) => {
+    ports: ({ deps }, _optional = {}) => deps.ports["collection-entry"],
+    list: async ({ ports: p, workspaceId }) => {
       const rows = await p.entries.listByWorkspaceExcludingTypes({ workspaceId, excludeTypes: WIDGET_TYPES });
       return Promise.all(rows.map((row) => withTerms(p, { ...row, deletedAt: null })));
     },
-    find: async (p, workspaceId, id) => {
+    find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row ? withTerms(p, row) : null;
     },
-    isTrashed: (row) => row.deletedAt !== null,
-    fields: {
-      type: "transferred",
-      slug: "transferred",
-      title: "transferred",
-      status: "transferred",
-      bodyJson: "transferred",
-      fieldsJson: "transferred",
-      termIds: "transferred",
-      publishedAt: "provenance",
-      createdAt: "provenance",
-      id: "local",
-      workspaceId: "local",
-      updatedAt: "local",
-      version: "local",
-      deletedAt: "local",
-    },
+    isTrashed: ({ row }) => row.deletedAt !== null,
+    fields: ENTRY_FIELD_POLICY,
     omitWhenAbsent: ["termIds"],
     address: {
       field: "slug",
       // Trash included: a trashed row keeps its slug (`entries_workspace_type_slug_unique`).
-      holder: (p, workspaceId, slug, state) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
+      holder: ({ ports: p, workspaceId, value: slug, state }) => p.entries.findAnyBySlug({ workspaceId, type: state.type as string, slug }),
     },
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.
     // Its collection, plus whatever its body embeds and its categories/tags.
-    references: (entity) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
-    validate: async ({ ports, workspaceId, entity }) => {
-      const widgetType = widgetTypeRefusal(entity.id, entity.state);
-      if (widgetType) return widgetType;
-      const owner = await ports.contentTypes.findByKey({ workspaceId, key: entity.state.type as string });
-      return owner?.status === "tombstone" ? tombstonedAtDestination("content-type", owner.key) : null;
-    },
-    write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
-      const widgetType = widgetTypeRefusal(id, state);
-      if (widgetType) throw new PublishContentApplyRowError("blocked", widgetType);
-      const gateway = gatewayDeps(deps, "collection-entry");
-      // Checked before the entry is written, so a missing term or permission blocks the row whole.
-      const terms = await prepareTermSync({
-        ports: ports.terms,
-        deps,
-        entityType: "collection-entry",
-        entityId: id,
-        principalId,
-        contentType: state.type as string,
-        wanted: state.termIds,
-      });
-      const saved = okOrThrow(
-        await importEntry({
-          deps: {
-            entryRepo: ports.entries,
-            contentTypeRepo: ports.contentTypes,
-            clock: deps.clock,
-            // Preserve Jini's entry scope along with the gateway's publish-type stamp.
-            authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }),
-            outbox: toEntryOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId }),
-          },
-          input: {
-            actorId: principalId,
-            workspaceId,
-            id,
-            type: state.type as string,
-            slug: state.slug as string,
-            title: state.title as string,
-            status: state.status as EntryStatus,
-            fieldsJson: state.fieldsJson,
-            bodyJson: state.bodyJson,
-            publishedAt: (state.publishedAt ?? null) as string | null,
-            expectedVersion,
-          },
-        })
-      );
-      await terms.apply();
-      return { version: saved.entry.version };
-    },
-    errors: {
-      conflict: [VersionConflictError],
-      blocked: [
-        ForbiddenError,
-        ContentTypeNotFoundError,
-        ContentTypeNotActiveError,
-        EntryFieldValidationError,
-        EntrySlugConflictError,
-        // Term sync, when the destination changed between its pre-check and the assignment.
-        TermRecordNotFoundError,
-        ContentRecordNotFoundError,
-        TaxonomyNotApplicableError,
-      ],
-    },
+    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences({ state: entity.state })],
+    validate: validateCollectionEntry,
+    write: writeCollectionEntry,
+    errors: ENTRY_PUBLISH_ERRORS,
   });

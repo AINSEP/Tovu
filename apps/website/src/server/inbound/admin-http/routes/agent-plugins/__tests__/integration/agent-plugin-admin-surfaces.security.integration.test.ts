@@ -11,7 +11,8 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { AdminSurfaceHost, AdminSurfaceRequestContext, AdminSurfaceSource } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
-import { createIssuedSignInCollector, type IssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
+import type { IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
+import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { registerAgentPluginAdminSurfaceRoutes } from "../../admin-surfaces.js";
 
 /**
@@ -60,13 +61,13 @@ function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminS
   const deps = { ...baseDeps, adminSurfaceSource: source, adminSurfaceHost: host };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
   // Simulates what `requireAdminSession` records for an API-key credential (the owner's grants, a
   // machine credential kind), without minting a key through the api-keys module.
   app.use("/api/admin", (req, res, next) => { if (req.get("x-test-credential-kind") === "api_key") res.locals.authCredentialKind = "api_key"; next(); });
-  registerAgentPluginAdminSurfaceRoutes(app, deps);
-  registerAdminSurfaceFilesRoute(app, deps);
+  registerAgentPluginAdminSurfaceRoutes({ app, deps });
+  registerAdminSurfaceFilesRoute({ app, deps });
   return { app, harness, baseDeps };
 }
 

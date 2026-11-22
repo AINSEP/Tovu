@@ -89,7 +89,7 @@ test("bootSiteDir honors an explicit Postgres workspace instead of the oldest", 
 
 test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store)", async (t) => {
   const boot = await bootSiteDir({ dir });
-  let composed: Parameters<typeof closeSiteDirBoot>[1];
+  let composed: NonNullable<Parameters<typeof closeSiteDirBoot>[1]>["composed"];
   const sweeps: ReturnType<typeof setInterval>[] = [];
   const cleared: Parameters<typeof clearInterval>[0][] = [];
   const realSetInterval = globalThis.setInterval;
@@ -104,15 +104,15 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
     realClearInterval(timer);
   });
   try {
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       store: boot.store,
-      onStoreOpened: (store) => { composed = store; },
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
       db: boot.db,
       workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"),
       themesDir: path.join(dir, "themes"),
       siteBinding: { dir, name: "Postgres Boot Site", dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     assert.equal(deps.contentKernel, boot.store?.content, "the composition runs on the booted store, not a second pool");
     assert.equal(deps.workspaceId, boot.workspaceId);
     await Promise.allSettled(Object.values(deps).filter((value) => value instanceof Promise));
@@ -120,7 +120,7 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
     assert.equal(sweeps.length, 1, "the owner composition starts its guest-chat sweep");
   } finally {
     try {
-      await closeSiteDirBoot(boot, composed);
+      await closeSiteDirBoot(boot, { composed });
     } finally {
       intervalSpy.mock.restore();
       clearSpy.mock.restore();
@@ -142,7 +142,7 @@ test("createSiteRouteDeps refuses overrides.store without workspaceId (the pair 
   const boot = await bootSiteDir({ dir });
   try {
     await assert.rejects(
-      createSiteRouteDeps(path.join(dir, "content.db"), { store: boot.store }),
+      createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: { store: boot.store } }),
       /overrides\.db \(or overrides\.store\) and overrides\.workspaceId must be supplied together/
     );
   } finally {

@@ -8,13 +8,13 @@ import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import { jsonText, type KyselyKernel } from "@jini-ai/db/kernel";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { atomicCreateSiteKeyFile, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
@@ -70,7 +70,7 @@ const KEY_HEX = /^[0-9a-f]{64}$/;
  * anywhere), owned by this OS user, and no broader than 0600. A wider mode (a key restored or copied
  * as 0644) is narrowed rather than refused, since narrowing loses nothing; the other two are refused.
  */
-function checkKeyFile(file: string, uid: (() => number) | undefined): void {
+function checkKeyFile({ file, uid }: { file: string; uid: (() => number) | undefined }, _optional = {}): void {
   const stat = fs.lstatSync(file);
   if (!stat.isFile()) throw new Error(`the project key at ${file} is not a regular file; replace it with the key file itself`);
   if (uid && stat.uid !== uid()) throw new Error(`the project key at ${file} is owned by another user; restore your own copy`);
@@ -82,7 +82,7 @@ function checkKeyFile(file: string, uid: (() => number) | undefined): void {
  * with a key whose name was lost. Windows can't open a folder for fsync (EISDIR/EPERM); NTFS journals
  * the entry itself, so that is skipped.
  */
-function fsyncDirectory(dir: string): void {
+function fsyncDirectory({ dir }: { dir: string }, _optional = {}): void {
   if (process.platform === "win32") return;
   const fd = fs.openSync(dir, "r");
   try {
@@ -105,16 +105,16 @@ function fsyncDirectory(dir: string): void {
  */
 export function ensureProjectKey({ keyFile: file }: { keyFile: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
   if (!fs.existsSync(file)) {
-    atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
-    fsyncDirectory(path.dirname(file));
+    atomicCreateSiteKeyFile({ filePath: file, hex: (optional.mint ?? mintSiteKeyHex)() });
+    fsyncDirectory({ dir: path.dirname(file) });
   }
-  checkKeyFile(file, optional.uid ?? process.getuid);
+  checkKeyFile({ file, uid: optional.uid ?? process.getuid });
   const hex = fs.readFileSync(file, "utf8").trim();
   if (!KEY_HEX.test(hex)) throw new Error(`the project key file at ${file} does not hold a 64-character hex key; restore it from a backup`);
   return hex;
 }
 
-const idOfPath = (root: string): string => `project-${createHash("sha256").update(root).digest("hex").slice(0, 16)}`;
+const idOfPath = ({ root }: { root: string }, _optional = {}): string => `project-${createHash("sha256").update(root).digest("hex").slice(0, 16)}`;
 
 /**
  * The root as the filesystem names it: `realpath` (native: symlinks resolved, and on macOS/Windows the
@@ -122,7 +122,7 @@ const idOfPath = (root: string): string => `project-${createHash("sha256").updat
  * The filesystem decides what is "the same folder", so a case-sensitive disk keeps two cases apart.
  * @complexity O(depth) stats.
  */
-function canonicalRoot(root: string): string {
+function canonicalRoot({ root }: { root: string }, _optional = {}): string {
   const rest: string[] = [];
   for (let head = root; ; head = path.dirname(head)) {
     try {
@@ -141,7 +141,7 @@ function canonicalRoot(root: string): string {
  * in the sites root would sync (iCloud) and be copied with it.
  */
 export function projectIdFor({ sitesHome }: { sitesHome: string }, _optional: Record<string, never> = {}): string {
-  return idOfPath(canonicalRoot(path.resolve(sitesHome)));
+  return idOfPath({ root: canonicalRoot({ root: path.resolve(sitesHome) }) });
 }
 
 /**
@@ -157,7 +157,7 @@ function openProjectDb({ dbPath }: { dbPath: string }, _optional: Record<string,
     // retried rather than thrown.
     enableProjectWal({ db });
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
   return db;
@@ -224,7 +224,7 @@ export async function openProjectStore(
 ): Promise<ProjectStore> {
   const projectId = projectIdFor(required);
   const dbPath = projectDbPath(required);
-  const relative = path.relative(canonicalRoot(path.resolve(required.sitesHome)), canonicalRoot(path.dirname(dbPath)));
+  const relative = path.relative(canonicalRoot({ root: path.resolve(required.sitesHome) }), canonicalRoot({ root: path.dirname(dbPath) }));
   if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))) {
     throw new Error("Shared Keys must stay outside site folders. Choose a separate app-data folder, then restart Tovu. Details: P25_OWNER_STORE_INSIDE_SITES.");
   }
@@ -233,14 +233,14 @@ export async function openProjectStore(
   // The key first: no database is created beside a key that is refused.
   const hex = ensureProjectKey({ keyFile: projectKeyFilePath({ ...required, appDataDir: path.dirname(dbPath) }) });
   const db = openProjectDb({ dbPath });
-  const kernel = sqliteKernel<SecretsVaultDatabase>(db);
+  const kernel = sqliteKernel<SecretsVaultDatabase>({ source: db });
   try {
-    await migrateProjectDatabase(kernel as unknown as StorageKernel<unknown>);
+    await migrateProjectDatabase({ kernel: kernel as unknown as KyselyKernel<unknown> });
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
-  const keyring = new FixedSiteKeyKeyring(hex);
+  const keyring = new FixedSiteKeyKeyring({ hex });
   const scope: ProjectVaultScope = { workspaceId: PROJECT_WORKSPACE_ID, repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer(keyring) };
   const vault = createApiConnectionVault({ repo: scope.repo, keyring, sealer: scope.sealer,
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });
@@ -257,7 +257,9 @@ export async function openProjectStore(
     },
     inventory: async () => {
       // One picker open × at most 50 metadata rows. Never select ciphertext for owner discovery.
-      const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null; credential_format: string | null }>(sql`SELECT id, kind, label, json_extract(meta, '$.credentialType') AS credential_type, json_extract(meta, '$.credentialFormat') AS credential_format FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND (id LIKE 'plugin-state:%:provider.config' OR json_extract(meta, '$.credentialFormat')='oauth-token-set'))) ORDER BY id LIMIT 51`);
+      const credentialType = jsonText({ dialect: kernel.dialect, column: sql.ref("meta"), path: ["credentialType"] });
+      const credentialFormat = jsonText({ dialect: kernel.dialect, column: sql.ref("meta"), path: ["credentialFormat"] });
+      const rows = await kernel.query<{ id: string; kind: VaultRecord["kind"]; label: string; credential_type: string | null; credential_format: string | null }>(sql`SELECT id, kind, label, ${credentialType} AS credential_type, ${credentialFormat} AS credential_format FROM secrets_vault WHERE workspace_id='project' AND owner_key='tovu' AND principal_id IS NULL AND (kind IN ('vendor','custom','source-control') OR (kind='api-connection' AND (id LIKE 'plugin-state:%:provider.config' OR ${credentialFormat}='oauth-token-set'))) ORDER BY id LIMIT 51`);
       if (rows.length > 50) throw new Error("Shared Keys has more than 50 entries. Narrow the saved keys in Shared Keys before opening this picker.");
       return rows.map((row): VaultRecord => ({ workspaceId: PROJECT_WORKSPACE_ID, id: row.id, kind: row.kind, label: row.label,
         ownerKey: "tovu", principalId: null, binding: null, provider: null, isDefault: false, revision: 1,
@@ -265,6 +267,6 @@ export async function openProjectStore(
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
-    attachments: createKeyAttachments({ kernel: kernel as unknown as StorageKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
+    attachments: createKeyAttachments({ kernel: kernel as unknown as KyselyKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection({ source: db }) };
   return store;
 }

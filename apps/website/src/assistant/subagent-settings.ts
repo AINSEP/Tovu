@@ -1,6 +1,7 @@
+import { validateNativePermissionSnapshot, InvalidNativePermissionsError } from "@jini-ai/agent-runtime/native-permissions";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, CLI_CAPABILITY_KEYS, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 /** Fresh, owner/site-scoped launch snapshot in the existing ledger. Legacy booleans are read only
  * when no owner snapshot exists. Invalid persisted permissions and read failures deny access.
@@ -9,15 +10,13 @@ import { assistantCliPermissions } from "#src/assistant/assistant-subagents-poli
 export async function readAssistantCliPermissions(required: {
   settingsRepo: SettingsRepoPort; getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>; workspaceId: string; principalId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<AssistantCliPermissions> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<AssistantCliPermissions> {
   try {
     await required.settingsReady;
-    const stored = await required.getEffective({ repo: required.settingsRepo }, {
-      namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
-      scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
-    });
+    const stored = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_CLI_PERMISSIONS_KEY,
+      scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId } });
     // The definition default means no owner preference; inherit the legacy Full CLI access grant.
-    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.("site"); return parseCliPermissionsSnapshot({ value: stored.value }); }
+    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.({ source: "site" }); return parseCliPermissionsSnapshot({ value: stored.value }); }
     return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
   } catch (error) {
     denyOrRethrow({ error }, optional);
@@ -30,10 +29,15 @@ export async function readAssistantCliPermissions(required: {
  * @complexity O(c) for the fixed capability list.
  */
 function parseCliPermissionsSnapshot(required: { value: unknown }): AssistantCliPermissions {
-  const { enabled, capabilities, byAgent, userMcpDefaultOn } = required.value as Partial<AssistantCliPermissions> & { userMcpDefaultOn?: unknown };
-  if (typeof enabled !== "boolean" || !capabilities ||
-    !ASSISTANT_CLI_CAPABILITIES.every(({ key }) => typeof capabilities[key] === "boolean")) throw new Error("Invalid CLI permissions");
-  if (byAgent !== undefined) validateAgentPermissions({ byAgent });
+  let validated: AssistantCliPermissions;
+  try {
+    validated = validateNativePermissionSnapshot({ value: required.value, capabilityKeys: CLI_CAPABILITY_KEYS }, { message: "Invalid CLI permissions" });
+  } catch (error) {
+    if (error instanceof InvalidNativePermissionsError) throw new Error("Invalid CLI permissions", { cause: error });
+    throw error;
+  }
+  const { enabled, capabilities } = validated;
+  const { byAgent, userMcpDefaultOn } = required.value as Partial<AssistantCliPermissions> & { userMcpDefaultOn?: unknown };
   // Site-level saves before 2026-11-10 persisted personal MCP false as the default, whatever the
   // owner meant; read that false as unset. Saves since carry userMcpDefaultOn, so their false is the
   // owner's choice. Per-agent entries are only written by the owner's switch and are always kept.
@@ -62,14 +66,12 @@ export async function readAssistantSubagentsEnabled(required: {
   getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>;
   workspaceId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<boolean> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<boolean> {
   try {
     await required.settingsReady;
-    const setting = await required.getEffective({ repo: required.settingsRepo }, {
-      namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
-      scopeContext: { workspaceId: required.workspaceId },
-    });
-    optional.onSource?.(setting && setting.sourceLayer !== "default" ? "site" : "default");
+    const setting = await required.getEffective({ deps: { repo: required.settingsRepo }, namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
+      scopeContext: { workspaceId: required.workspaceId } });
+    optional.onSource?.({ source: setting && setting.sourceLayer !== "default" ? "site" : "default" });
     return setting === null ? true : setting.value === true;
   } catch (error) {
     denyOrRethrow({ error }, optional);
@@ -77,19 +79,3 @@ export async function readAssistantSubagentsEnabled(required: {
   }
 }
 
-/** Reject malformed per-agent overrides before any grant can reach a launch. Fixed keys per agent. */
-function validateAgentPermissions({ byAgent }: { byAgent: unknown }): void {
-  if (!byAgent || typeof byAgent !== "object" || Array.isArray(byAgent)) throw new Error("Invalid CLI permissions");
-  for (const value of Object.values(byAgent)) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid CLI permissions");
-    const entry = value as { enabled?: unknown; capabilities?: unknown };
-    if (entry.enabled !== undefined && typeof entry.enabled !== "boolean") throw new Error("Invalid CLI permissions");
-    validateAgentCapabilities({ capabilities: entry.capabilities });
-  }
-}
-
-function validateAgentCapabilities({ capabilities }: { capabilities: unknown }): void {
-  if (capabilities === undefined) return;
-  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) throw new Error("Invalid CLI permissions");
-  if (Object.entries(capabilities).some(([key, value]) => typeof value !== "boolean" || !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key))) throw new Error("Invalid CLI permissions");
-}

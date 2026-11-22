@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../features/media/api/media-api.types";
 import type { MediaPickerPort } from "../../MediaPickerDialog/media-picker-port.hooks";
 import { MediaContentEditor } from "../MediaContentEditor";
 import { useMediaContentEditor } from "../MediaContentEditor.hooks";
@@ -21,7 +21,7 @@ const asset = (id: string, slug: string, contentType: string): AdminMedia => ({
 } as AdminMedia);
 
 const LIBRARY = [asset("id-a", "sl-a", "image/png"), asset("id-b", "sl-b", "image/jpeg"), asset("id-v", "clip", "video/mp4"), asset("id-p", "doc", "application/pdf")];
-const port: MediaPickerPort = { listMedia: async () => ({ media: LIBRARY }), mediaOriginalUrl: (id) => `/m/${id}/original` };
+const port: MediaPickerPort = { listMedia: async () => ({ media: LIBRARY }), mediaOriginalUrl: ({ id }) => `/m/${id}/original` };
 
 function Harness({ initial, widgetType = "media", emits = [] }: { initial: Record<string, unknown>; widgetType?: string; emits?: unknown[] }) {
   const [config, setConfig] = useState(initial);
@@ -199,11 +199,11 @@ describe("MediaContentEditor", () => {
 
   it("is what WidgetConfigFields renders for media and gallery widgets", () => {
     expect(WIDGET_TYPE_OPTIONS).toContainEqual({ value: "media", label: "Media" });
-    expect(defaultWidgetConfig("media")).toEqual({ mode: "media", items: [], layout: "single" });
-    const { unmount } = render(<WidgetConfigFields widgetType="media" config={defaultWidgetConfig("media")} onChange={() => {}} />);
+    expect(defaultWidgetConfig({ widgetType: "media" })).toEqual({ mode: "media", items: [], layout: "single" });
+    const { unmount } = render(<WidgetConfigFields widgetType="media" config={defaultWidgetConfig({ widgetType: "media" })} onChange={() => {}} />);
     expect(screen.getByRole("tab", { name: "Raw HTML" })).toBeTruthy();
     unmount();
-    render(<WidgetConfigFields widgetType="gallery" config={defaultWidgetConfig("gallery")} onChange={() => {}} />);
+    render(<WidgetConfigFields widgetType="gallery" config={defaultWidgetConfig({ widgetType: "gallery" })} onChange={() => {}} />);
     expect(within(screen.getByRole("tablist")).getAllByRole("tab")).toHaveLength(2);
   });
 });
@@ -228,32 +228,32 @@ describe("MediaContentEditor controller boundaries", () => {
     expect(result.current.controller.rows.map(row => [row.item.slug, row.problem, row.kind])).toEqual([
       ["bad/slug", "invalid", "unknown"], ["sl-a", null, "image"], ["sl-a", "duplicate", "image"], ["missing", "unknown", "unknown"],
     ]);
-    expect(result.current.controller.mediaUrl(LIBRARY[0])).toBe("/m/id-a/original");
+    expect(result.current.controller.mediaUrl({ asset: LIBRARY[0] })).toBe("/m/id-a/original");
   });
 
   it("clamps numeric columns and removes an invalid column setting", () => {
     const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [], layout: "grid", columns: 3 }));
-    act(() => result.current.controller.setColumns("0"));
+    act(() => result.current.controller.setColumns({ value: "0" }));
     expect(result.current.config.columns).toBe(1);
-    act(() => result.current.controller.setColumns("9"));
+    act(() => result.current.controller.setColumns({ value: "9" }));
     expect(result.current.config.columns).toBe(6);
-    act(() => result.current.controller.setColumns("invalid"));
+    act(() => result.current.controller.setColumns({ value: "invalid" }));
     expect(result.current.config).not.toHaveProperty("columns");
   });
 
   it("persists aspect ratio and CSS class through the same replacement config", () => {
     const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [], layout: "single" }));
-    act(() => result.current.controller.setAspectRatio("16/9"));
-    act(() => result.current.controller.setCssClass("hero-media"));
+    act(() => result.current.controller.setAspectRatio({ aspectRatio: "16/9" }));
+    act(() => result.current.controller.setCssClass({ cssClass: "hero-media" }));
     expect(result.current.config).toEqual({ mode: "media", items: [], layout: "single", aspectRatio: "16/9", cssClass: "hero-media" });
   });
 
   it("does not emit for the active tab or an out-of-bounds move", () => {
     const initial = { mode: "media", items: [{ slug: "sl-a" }], layout: "single" };
     const { result } = renderHook(() => useControlledMedia(initial));
-    act(() => result.current.controller.setMode("media"));
-    act(() => result.current.controller.moveItem(0, -1));
-    act(() => result.current.controller.moveItem(0, 1));
+    act(() => result.current.controller.setMode({ mode: "media" }));
+    act(() => result.current.controller.moveItem({ index: 0, delta: -1 }));
+    act(() => result.current.controller.moveItem({ index: 0, delta: 1 }));
     act(() => result.current.controller.confirmPicker());
     expect(result.current.config).toEqual(initial);
     expect(result.current.emissions).toEqual([]);
@@ -262,24 +262,24 @@ describe("MediaContentEditor controller boundaries", () => {
   it("deselects one pick, cancels without saving, and clears selections on reopening", async () => {
     const { result } = renderHook(() => useControlledMedia({ mode: "media", items: [] }));
     await waitFor(() => expect(result.current.controller.library).toEqual(LIBRARY));
-    act(() => result.current.controller.openPicker("items"));
-    act(() => result.current.controller.togglePicked("sl-a"));
-    act(() => result.current.controller.togglePicked("sl-b"));
-    act(() => result.current.controller.togglePicked("sl-a"));
+    act(() => result.current.controller.openPicker({ target: "items" }));
+    act(() => result.current.controller.togglePicked({ slug: "sl-a" }));
+    act(() => result.current.controller.togglePicked({ slug: "sl-b" }));
+    act(() => result.current.controller.togglePicked({ slug: "sl-a" }));
     expect(result.current.controller.picked).toEqual(["sl-b"]);
     act(() => result.current.controller.cancelPicker());
     expect(result.current.controller.picker).toBeNull();
     expect(result.current.emissions).toEqual([]);
-    act(() => result.current.controller.openPicker("items"));
+    act(() => result.current.controller.openPicker({ target: "items" }));
     expect(result.current.controller.picked).toEqual([]);
   });
 
   it("appends HTML without a mounted textarea and skips a missing library asset", async () => {
     const { result, rerender } = renderHook(() => useControlledMedia({ mode: "html", html: "prefix" }));
     await waitFor(() => expect(result.current.controller.library).toEqual(LIBRARY));
-    act(() => result.current.controller.openPicker("html"));
-    act(() => result.current.controller.togglePicked("missing"));
-    act(() => result.current.controller.togglePicked("sl-a"));
+    act(() => result.current.controller.openPicker({ target: "html" }));
+    act(() => result.current.controller.togglePicked({ slug: "missing" }));
+    act(() => result.current.controller.togglePicked({ slug: "sl-a" }));
     act(() => result.current.controller.confirmPicker());
     const html = 'prefix<img data-media-slug="sl-a" alt="sl-a alt">';
     expect(result.current.config).toEqual({ mode: "html", html });
@@ -324,7 +324,7 @@ it("the controller's default port loads media through the real API adapter", asy
       widgetType: "media", onChange: () => { throw new Error("loading must not change the config"); } }));
     await waitFor(() => expect(result.current.library).toEqual(LIBRARY));
     expect(result.current.rows[0].asset).toEqual(LIBRARY[0]);
-    expect(result.current.mediaUrl(LIBRARY[0])).toBe("/api/admin/v1/workspaces/workspace-local/media/id-a/original");
+    expect(result.current.mediaUrl({ asset: LIBRARY[0] })).toBe("/api/admin/v1/workspaces/workspace-local/media/id-a/original");
     unmount();
   } finally { vi.unstubAllGlobals(); }
 });

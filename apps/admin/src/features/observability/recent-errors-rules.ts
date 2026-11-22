@@ -1,4 +1,4 @@
-import type { AdminServerLogEntry } from "@/lib/api";
+import type { AdminServerLogEntry } from "@/features/observability/api/observability-api.types";
 
 /**
  * @file Pure shaping for the Recent errors tab: one-line summaries, grouping of repeated errors,
@@ -53,24 +53,24 @@ export function summarizeErrorMessage({ message }: { message: string }): ErrorSu
   const first = lines[firstIndex].trim();
   const scopeMatch = SCOPE_PREFIX.exec(first);
   const headline = scopeMatch ? first.slice(scopeMatch[0].length) : first;
-  const cause = findThrownErrorText(lines.slice(firstIndex + 1));
-  const joined = joinHeadlineAndCause(headline, cause);
+  const cause = findThrownErrorText({ lines: lines.slice(firstIndex + 1) });
+  const joined = joinHeadlineAndCause({ headline: headline, cause: cause });
   // A line that is ONLY a tag ("[assistant]") with no error text after it keeps the tag visible.
-  return { scope: scopeMatch ? scopeMatch[1] : null, summary: truncate(joined || first) };
+  return { scope: scopeMatch ? scopeMatch[1] : null, summary: truncate({ text: joined || first }) };
 }
 
 /** The first `XError: text` line before the stack frames begin, or `null`. */
 /** The headline, then its thrown cause when that adds something; the cause alone when there is no headline. */
-function joinHeadlineAndCause(headline: string, cause: string | null): string {
+function joinHeadlineAndCause({ headline, cause }: { headline: string; cause: string | null }, _optional = {}): string {
   if (!cause || headline.includes(cause)) return headline;
   return headline ? `${headline} — ${cause}` : cause;
 }
 
 /** Where a thrown error's name ends when one starts at `at`: a capitalized identifier ending in
  *  `Error`/`Exception`, or `Caused by`. -1 otherwise. */
-function errorNameEnd(line: string, at: number): number {
+function errorNameEnd({ line, at }: { line: string; at: number }, _optional = {}): number {
   let end = at;
-  while (end < line.length && ERROR_NAME_CHAR.test(line[end]!)) end += 1;
+  while (end < line.length && ERROR_NAME_CHAR.test(line.charAt(end))) end += 1;
   const name = line.slice(at, end);
   if (/^[A-Z]/.test(name) && (name.endsWith("Error") || name.endsWith("Exception"))) return end;
   return line.startsWith("Caused by", at) ? at + "Caused by".length : -1;
@@ -78,11 +78,11 @@ function errorNameEnd(line: string, at: number): number {
 
 /** The message after the colon, trimmed; it must not span lines. An all-whitespace remainder
  *  yields its last same-line character, as the lazy `(.+?)` capture this replaces did. */
-function messageAfterColon(afterColon: string): string | null {
+function messageAfterColon({ afterColon }: { afterColon: string }, _optional = {}): string | null {
   const text = afterColon.trim();
   if (text !== "") return LINE_TERMINATOR.test(text) ? null : text;
   for (let i = afterColon.length - 1; i >= 0; i -= 1) {
-    if (!LINE_TERMINATOR.test(afterColon[i]!)) return afterColon[i]!;
+    if (!LINE_TERMINATOR.test(afterColon.charAt(i))) return afterColon.charAt(i);
   }
   return null;
 }
@@ -90,23 +90,23 @@ function messageAfterColon(afterColon: string): string | null {
 /** A thrown error's own line (`TypeError: fetch failed`, `Caused by: …`) → its message text.
  *  Same capture as `/^\s*(?:(?:[A-Z][\w$]*)?(?:Error|Exception)|Caused by)\s*:\s*(.+?)\s*$/`,
  *  in one linear pass. */
-function thrownErrorText(line: string): string | null {
-  const nameEnd = errorNameEnd(line, line.length - line.trimStart().length);
+function thrownErrorText({ line }: { line: string }, _optional = {}): string | null {
+  const nameEnd = errorNameEnd({ line: line, at: line.length - line.trimStart().length });
   if (nameEnd === -1) return null;
   const rest = line.slice(nameEnd).trimStart();
-  return rest.startsWith(":") ? messageAfterColon(rest.slice(1)) : null;
+  return rest.startsWith(":") ? messageAfterColon({ afterColon: rest.slice(1) }) : null;
 }
 
-function findThrownErrorText(lines: string[]): string | null {
+function findThrownErrorText({ lines }: { lines: string[] }, _optional = {}): string | null {
   for (const line of lines) {
     if (STACK_FRAME.test(line)) return null;
-    const text = thrownErrorText(line);
+    const text = thrownErrorText({ line: line });
     if (text !== null) return text;
   }
   return null;
 }
 
-function truncate(text: string): string {
+function truncate({ text }: { text: string }, _optional = {}): string {
   return text.length > SUMMARY_MAX_LENGTH ? `${text.slice(0, SUMMARY_MAX_LENGTH - 1)}…` : text;
 }
 

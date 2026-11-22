@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Response } from "express";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, type IdentityRepos } from "@jini-ai/user-management";
@@ -13,7 +13,7 @@ import type { IdentityRouteDepsSlice } from "#src/features/identity/wiring";
  * two guards all three routes share.
  *
  * Purpose:
- * Mirrors `routes/admin/users/deps.ts` exactly — same `Pick<RouteDeps, ...>` narrowing, same
+ * Mirrors `apps/website/src/server/inbound/admin-http/routes/users/deps.ts` exactly — same `Pick<RouteDeps, ...>` narrowing, same
  * "assemble the nested repo bag here so no route repeats the field mapping" role. The two extra
  * fields over `UsersRouteDeps` (`apiKeyRepo`, `apiKeySecretHasher`) are what `api-key-service.ts`
  * needs on top of the nine identity repos.
@@ -42,7 +42,7 @@ export type ApiKeysRouteDeps = Pick<
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the api-keys route modules (mirrors `UsersRouteRegistrar`). */
-export type ApiKeysRouteRegistrar = (app: Express, deps: ApiKeysRouteDeps) => void;
+export type ApiKeysRouteRegistrar = (required: { app: Express; deps: ApiKeysRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 function identityReposFrom(deps: ApiKeysRouteDeps): IdentityRepos {
@@ -89,7 +89,7 @@ export function apiKeyServiceDepsFrom(deps: ApiKeysRouteDeps): ApiKeyServiceDeps
  * @overallScore 100
  */
 export function rejectApiKeyCredential(res: Response): boolean {
-  return rejectUnlessSessionCredential(res, {
+  return rejectUnlessSessionCredential({ res,
     message: "api-key credentials may not manage api keys; use an admin session",
     permission: "apikey.manage",
   });
@@ -103,7 +103,7 @@ export function rejectApiKeyCredential(res: Response): boolean {
  * @complexity O(1).
  * @overallScore 100
  */
-export function sendApiKeyError(res: Response, err: unknown): void {
+export function sendApiKeyError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({
       error: err.message,

@@ -8,7 +8,7 @@ import { startTestServer } from "../../server/__tests__/helpers/http-test-server
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { A2UI_ACTIONS_PATH, readA2uiAction, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -24,7 +24,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 function buildApp(surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })): express.Express {
   const app = express();
   app.use(express.json());
-  registerA2uiActionsRoute(app, { surfaceExchanges });
+  registerA2uiActionsRoute({ app, deps: { surfaceExchanges } });
   return app;
 }
 
@@ -82,7 +82,7 @@ test("rejects an invalid exchangeId even when a valid functionResponse has no su
   // A surface-scoped action would let the later surfaceId cross-check mask a missing ID guard.
   const message = { version: "v1.0", functionResponse: { functionCallId: "call-1", call: "greetUser", value: "hi" } };
   for (const exchangeId of [undefined, null, "", 42]) {
-    assert.deepEqual(readA2uiAction({ exchangeId, message }), {
+    assert.deepEqual(readA2uiAction({ rawBody: { exchangeId, message } }), {
       ok: false,
       error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
     });
@@ -91,7 +91,7 @@ test("rejects an invalid exchangeId even when a valid functionResponse has no su
 
 test("rejects a null or absent A2UI body with a validation error", () => {
   for (const body of [null, undefined]) {
-    assert.deepEqual(readA2uiAction(body), {
+    assert.deepEqual(readA2uiAction({ rawBody: body }), {
       ok: false,
       error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
     });

@@ -8,7 +8,7 @@ import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-rem
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { MAX_MODULE_SLEEP_MS, runDeploy, runDeployOps, waitForDeployOps } from "../run-ops.js";
-import type { DeployOpsContext, DeployOpsStatus } from "../types.js";
+import type { DeployOpsContext, DeployOpsStatus } from "@jini-ai/devops/deploy";
 import { fixture } from "./example-ops-fixture.js";
 
 /**
@@ -24,7 +24,7 @@ const healthy = (summary = "ok"): DeployOpsStatus => ({ platform: "scripted", ta
 async function scripted(script: Script, run: (deps: ReturnType<typeof withRegistry>) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-run-ops-contract-"));
   try {
-    await writeFile(path.join(root, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
+    await writeFile(path.join(root, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "scripted", label: "Scripted", module: "ops.mjs", hosts: ["api.example-host.dev"] }] }));
     await writeFile(path.join(root, "ops.mjs"), MODULE);
     const registry = await loadDeployOpsRegistryFromSource({ pluginId: "scripted", packageRoot: root });
     assert.deepEqual(registry.refusals, []);
@@ -50,7 +50,7 @@ test("ctx.fail is a model-visible refusal and ctx.sleep clamps to [0, MAX_MODULE
     for (const ms of [-5, Number.NaN, 25, 1e12]) await ctx.sleep(ms);
     ctx.fail("the platform refused this target");
   }, async deps => {
-    await assert.rejects(runDeployOps({ ...deps, waitClock: { now: () => 0, sleep: async ms => { slept.push(ms); } } }, input, "status"), { name: "ToolInputError", message: "the platform refused this target" });
+    await assert.rejects(runDeployOps({ deps: { ...deps, waitClock: { now: () => 0, sleep: async ms => { slept.push(ms); } } }, input, operation: "status" }), { name: "ToolInputError", message: "the platform refused this target" });
   });
   assert.deepEqual(slept, [0, 0, 25, MAX_MODULE_SLEEP_MS]);
 });
@@ -65,7 +65,7 @@ test("ctx.sleep on the system clock resolves, and rejects when its signal aborts
     await assert.rejects(ctx.sleep(1), { message: "Deployment ops wait was aborted." });
     return healthy();
   }, async deps => {
-    assert.deepEqual(await runDeployOps(deps, input, "logs", controller.signal), healthy());
+    assert.deepEqual(await runDeployOps({ deps, input, operation: "logs" }, { signal: controller.signal }), healthy());
   });
 });
 
@@ -82,7 +82,7 @@ test("transport failures are named per method; a credential removed after bindin
     return healthy();
   }, async deps => {
     const broken = { ...deps, deployOpsHttpClient: { send: async (): Promise<never> => { throw new Error("socket hang up"); } } };
-    assert.deepEqual(await runDeployOps(broken as never, input, "status"), healthy());
+    assert.deepEqual(await runDeployOps({ deps: broken as never, input, operation: "status" }), healthy());
   });
   let removed = false;
   await scripted(async ctx => { removed = true; return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
@@ -94,7 +94,7 @@ test("transport failures are named per method; a credential removed after bindin
       const value = Reflect.get(source, key);
       return typeof value === "function" ? value.bind(source) : value;
     } }) };
-    await assert.rejects(runDeployOps(changing as never, { ...input, credentialLabel: "ops" }, "status"), (error: Error) => error.name === "ToolInputError" && /^Credential 'ops' changed or no longer allows host 'api.example-host.dev'\./.test(error.message));
+    await assert.rejects(runDeployOps({ deps: changing as never, input: { ...input, credentialLabel: "ops" }, operation: "status" }), (error: Error) => error.name === "ToolInputError" && /^Credential 'ops' changed or no longer allows host 'api.example-host.dev'\./.test(error.message));
   });
 });
 
@@ -112,7 +112,7 @@ test("a request fault the host does not classify (a row this site's sealer canno
         const value = Reflect.get(source, key);
         return typeof value === "function" ? value.bind(source) : value;
       } }) };
-    await assert.rejects(runDeployOps(changing as never, { ...input, credentialLabel: "ops" }, "status"), (error: Error) => error.name !== "ToolInputError" && error.message === "The credential could not be saved or unlocked. Check the site credential store.");
+    await assert.rejects(runDeployOps({ deps: changing as never, input: { ...input, credentialLabel: "ops" }, operation: "status" }), (error: Error) => error.name !== "ToolInputError" && error.message === "The credential could not be saved or unlocked. Check the site credential store.");
     assert.deepEqual(sent, []);
   });
 });
@@ -122,7 +122,7 @@ test("cancellation is checked before each request and again after the response; 
   await scripted(async ctx => { controller.abort(); return ctx.get("https://api.example-host.dev/v1/targets"); }, async deps => {
     const sent: string[] = [];
     const counted = { ...deps, deployOpsHttpClient: { send: async (request: { url: string }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "[]" }; } } };
-    await assert.rejects(runDeployOps(counted as never, input, "status", controller.signal), { message: "Deployment ops wait was aborted." });
+    await assert.rejects(runDeployOps({ deps: counted as never, input, operation: "status" }, { signal: controller.signal }), { message: "Deployment ops wait was aborted." });
     assert.deepEqual(sent, []);
   });
   const binding = new AbortController();
@@ -131,24 +131,24 @@ test("cancellation is checked before each request and again after the response; 
     const sent: string[] = [];
     const aborting = { ...deps, customCredentialSetRepo: switchingRepo(deps.customCredentialSetRepo, () => { if (armed) binding.abort(); return undefined; }),
       deployOpsHttpClient: { send: async (request: { url: string }) => { sent.push(request.url); return { status: 200, headers: {}, bodyText: "[]" }; } } };
-    await assert.rejects(runDeployOps(aborting as never, input, "status", binding.signal), { message: "Deployment ops wait was aborted." });
+    await assert.rejects(runDeployOps({ deps: aborting as never, input, operation: "status" }, { signal: binding.signal }), { message: "Deployment ops wait was aborted." });
     assert.deepEqual(sent, [], "an abort while the URL is being bound sends nothing");
   });
   const pre = new AbortController(); pre.abort();
   await scripted(async () => assert.fail("a pre-aborted call never reaches the module"), async deps => {
-    await assert.rejects(runDeployOps(deps as never, input, "status", pre.signal), { message: "Deployment ops wait was aborted." });
+    await assert.rejects(runDeployOps({ deps: deps as never, input, operation: "status" }, { signal: pre.signal }), { message: "Deployment ops wait was aborted." });
   });
   const late = new AbortController();
   await scripted(async ctx => ctx.get("https://api.example-host.dev/v1/targets"), async deps => {
     const { customCredentialsAudit: _audit, ...unaudited } = deps;
     const aborting = { ...unaudited, deployOpsHttpClient: { send: async () => { late.abort(); return { status: 200, headers: {}, bodyText: "[]" }; } } };
-    await assert.rejects(runDeployOps(aborting as never, input, "status", late.signal), { message: "Deployment ops wait was aborted." });
+    await assert.rejects(runDeployOps({ deps: aborting as never, input, operation: "status" }, { signal: late.signal }), { message: "Deployment ops wait was aborted." });
   });
   const ok = await (async () => {
     let result: unknown;
     await scripted(async ctx => (await ctx.get("https://api.example-host.dev/v1/targets")).json, async deps => {
       const { customCredentialsAudit: _audit, ...unaudited } = deps;
-      result = await runDeployOps({ ...unaudited, deployOpsHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "[1]" }) } } as never, input, "status");
+      result = await runDeployOps({ deps: { ...unaudited, deployOpsHttpClient: { send: async () => ({ status: 200, headers: {}, bodyText: "[1]" }) } } as never, input, operation: "status" });
     });
     return result;
   })();
@@ -163,7 +163,7 @@ test("a cancellation while the credential is being bound stops runDeployOps and 
       const saved = deps.customCredentialSetRepo;
       const aborting = { ...deps };
       Object.defineProperty(aborting, "customCredentialSetRepo", { get: () => { controller.abort(); return saved; } });
-      const call = operation === "status" ? runDeployOps(aborting as never, input, "status", controller.signal) : runDeploy({ deps: aborting as never, input }, { signal: controller.signal });
+      const call = operation === "status" ? runDeployOps({ deps: aborting as never, input, operation: "status" }, { signal: controller.signal }) : runDeploy({ deps: aborting as never, input }, { signal: controller.signal });
       await assert.rejects(call, { message: "Deployment ops wait was aborted." });
       const pre = new AbortController(); pre.abort();
       await assert.rejects(runDeploy({ deps: deps as never, input }, { signal: pre.signal }), { message: "Deployment ops wait was aborted." });
@@ -173,17 +173,17 @@ test("a cancellation while the credential is being bound stops runDeployOps and 
 });
 
 test("wait: system clock and default timeout reach healthy on the first poll; a status that aborts as it answers is a cancellation", async () => {
-  const reached = await waitForDeployOps({ status: async () => healthy() }, { until: "healthy" });
+  const reached = await waitForDeployOps({ deps: { status: async () => healthy() }, until: "healthy" });
   assert.equal(reached.reached, true);
   assert.equal(reached.polls, 1);
   assert.ok(reached.waitedSeconds >= 0 && reached.waitedSeconds < 180);
   const controller = new AbortController();
-  await assert.rejects(waitForDeployOps({ status: async () => { controller.abort(); return healthy(); } }, { until: "healthy", signal: controller.signal }), { message: "Deployment ops wait was aborted." });
+  await assert.rejects(waitForDeployOps({ deps: { status: async () => { controller.abort(); return healthy(); } }, until: "healthy" }, { signal: controller.signal }), { message: "Deployment ops wait was aborted." });
 });
 
 test("wait: an abort that lands while the final sleep crosses the deadline is still reported as a cancellation", async () => {
   let now = 0;
   const controller = new AbortController();
   const clock = { now: () => now, sleep: async () => { now = 5_000; controller.abort(); } };
-  await assert.rejects(waitForDeployOps({ status: async () => ({ ...healthy(), state: "deploying" as DeployOpsStatus["state"] }), clock }, { until: "healthy", timeoutSeconds: 1, signal: controller.signal }), { message: "Deployment ops wait was aborted." });
+  await assert.rejects(waitForDeployOps({ deps: { status: async () => ({ ...healthy(), state: "deploying" as DeployOpsStatus["state"] }), clock }, until: "healthy" }, { timeoutSeconds: 1, signal: controller.signal }), { message: "Deployment ops wait was aborted." });
 });

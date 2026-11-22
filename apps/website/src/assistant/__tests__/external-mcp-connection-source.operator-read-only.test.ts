@@ -45,7 +45,7 @@ function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
 
 test("stored config preserves plugin provenance for roster resolution", async () => {
   const deps = await harness();
-  const result = await readEnabledExternalMcpConfigs(deps, workspaceId);
+  const result = await readEnabledExternalMcpConfigs({ deps, workspaceId });
   assert.deepEqual(result.failures, []);
   assert.equal(result.configs.find((c) => c.serverId === "remote")?.provisionedByPluginId, pluginId);
 });
@@ -53,9 +53,9 @@ test("stored config preserves plugin provenance for roster resolution", async ()
 test("read defaults match both normalized server identity and exact URL, never only URL", () => {
   assert.equal(typeof federation.findAgentPluginMcpServerDefaults, "function", "shared endpoint-matching rule must be exported");
   const declared = servers(["inspect"]);
-  assert.deepEqual(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "remote", url })?.read, ["inspect"]);
-  assert.equal(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "remote", url: "https://changed.example/mcp" }), null);
-  assert.equal(federation.findAgentPluginMcpServerDefaults(declared, { serverId: "other", url }), null);
+  assert.deepEqual(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url } })?.read, ["inspect"]);
+  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "remote", url: "https://changed.example/mcp" } }), null);
+  assert.equal(federation.findAgentPluginMcpServerDefaults({ servers: declared, row: { serverId: "other", url } }), null);
 });
 
 test("each roster read loads the current manifest; URL-only servers never receive read metadata", async () => {
@@ -67,7 +67,7 @@ test("each roster read loads the current manifest; URL-only servers never receiv
       const { agentPluginLayout, ...identity } = input;
       assert.equal(agentPluginLayout, siteLayouts.deps.agentPluginLayout, "the fixed fixture layout reaches manifest resolution");
       calls.push(identity);
-      return new Set(federation.findAgentPluginMcpServerDefaults(servers(read), input)?.read ?? []);
+      return new Set(federation.findAgentPluginMcpServerDefaults({ servers: servers(read), row: input })?.read ?? []);
     },
   }));
   const first = await source.resolve();
@@ -110,7 +110,7 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
   try {
     // Paths come from the product layout so the fixture installs where the resolver reads
     // (Layout B moved packages to <workspace>/<pluginId>/package/sha256 in 852d711e6).
-    const workspaceLayout = siteLayouts.deps.agentPluginLayout.forWorkspace(workspaceId);
+    const workspaceLayout = siteLayouts.deps.agentPluginLayout.forWorkspace({ workspaceId });
     const workspaceRoot = workspaceLayout.root;
     const digest = "a".repeat(64);
     const packageRoot = path.join(workspaceLayout.pluginPackagesDir({ pluginId }), digest);
@@ -120,11 +120,11 @@ test("real manifest resolver grants only a build-seeded plugin at the exact endp
       mcpServers: { remote: { type: "streamable-http", url } } }));
     const input = testSiteLayoutContext({ ...siteLayouts.deps, workspaceId, pluginId, serverId: "remote", url });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "an arbitrary installed plugin is not an operator-reviewed bundled declaration");
-    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }], now: () => new Date("2026-10-01T12:00:00.000Z") });
+    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: digest }] }, { now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], ["inspect"]);
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, url: "https://changed.example/mcp" }))], []);
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(testSiteLayoutContext({ ...siteLayouts.deps, ...input, serverId: "other" }))], []);
-    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: "b".repeat(64) }], now: () => new Date("2026-10-01T12:00:00.000Z") });
+    await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: "b".repeat(64) }] }, { now: () => new Date("2026-10-01T12:00:00.000Z") });
     assert.deepEqual([...await federation.resolveAgentPluginReadOnlyRemoteNames(input)], [], "a stale or missing bundled digest must not trust a different installed package");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -155,7 +155,7 @@ test("a roster read rejecting with a non-Error value logs it and resolves to no 
   const warn = t.mock.method(console, "warn", () => {});
   const deps = await harness();
   const repo = { ...deps.repo, listByWorkspaceId: () => Promise.reject("locked"), findByServerId: deps.repo.findByServerId.bind(deps.repo),
-    upsert: deps.repo.upsert.bind(deps.repo), deleteByServerId: deps.repo.deleteByServerId.bind(deps.repo),
+    upsert: deps.repo.upsert.bind(deps.repo), insert: deps.repo.insert.bind(deps.repo), updateIfVersion: deps.repo.updateIfVersion.bind(deps.repo), updateOAuthRuntime: deps.repo.updateOAuthRuntime.bind(deps.repo), deleteByServerId: deps.repo.deleteByServerId.bind(deps.repo),
     updateAccessIfCurrent: deps.repo.updateAccessIfCurrent.bind(deps.repo),
     tryClaimOAuthRefreshLease: deps.repo.tryClaimOAuthRefreshLease.bind(deps.repo), releaseOAuthRefreshLease: deps.repo.releaseOAuthRefreshLease.bind(deps.repo) };
   const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ ...siteLayouts.deps, ...deps, repo, workspaceId, log: "[t05]" }));

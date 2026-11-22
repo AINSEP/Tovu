@@ -1,24 +1,18 @@
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import { nowIso as clockNowIso, type Clock as ClockPort, type JsonObject } from "@jini-ai/core/primitives";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
-import {
-  emitPublicTransitionEvent,
-  isTrashed,
-  PostVersionConflictError,
-  presentScheduleFields,
-  SYSTEM_ACTOR_ID,
-  type ForgetRemovedPostFn,
-  type PostRecord,
-  type PostRepoPort,
-  type PostStatus,
-} from "./post.js";
+import { emitPublicTransitionEvent } from "./post-write-effects.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { PostVersionConflictError, SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "./post.js";
+import { presentScheduleFields } from "./post-write-fields.js";
+import type { ForgetRemovedPostFn } from "./post-trash.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file Post-domain entity reverters (ADR-018 C-005/C-006).
  *
  * Purpose:
- * The concrete `post/update` and `post/delete` inverse appliers `core/commands/revert.ts`'s
+ * The concrete `post/update` and `post/delete` inverse appliers Jini `cms/core/commands/revert.ts`'s
  * generic `RevertRegistry` dispatches to. Adapter code, not core: they need `PostRecord`/
  * `PostStatus`/`classifyStatusTransition` — real domain knowledge that belongs to this feature
  * module. Moved out of `core/commands/appliers.ts` (2026-08-13 features-post-deep-import-trace.md
@@ -88,11 +82,11 @@ async function saveRevertedPost(
   if (!applied) {
     const current = await deps.postRepo.findById({ workspaceId: restored.workspaceId, id: restored.id });
     const currentVersion = current?.version ?? existing.version;
-    throw new PostVersionConflictError(
-      `post '${restored.id}' was modified while it was being reverted (expected version ${existing.version}, current version ${currentVersion})`,
-      existing.version,
-      currentVersion
-    );
+    throw new PostVersionConflictError({
+      message: `post '${restored.id}' was modified while it was being reverted (expected version ${existing.version}, current version ${currentVersion})`,
+      expectedVersion: existing.version,
+      currentVersion,
+    });
   }
   await deps.postRepo.appendRevision({
     postId: restored.id,
@@ -215,7 +209,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
           : {}),
       };
 
-      await deps.postRepo.transaction(async () => {
+      await deps.postRepo.transaction({ fn: async () => {
         await saveRevertedPost({ deps, existing, restored });
 
         // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
@@ -226,7 +220,7 @@ function createPostUpdateReverter(deps: PostReverterDeps): EntityReverter {
         // a publication yet (the go-live sweep announces it), and a pending go-live of `existing` is
         // announced before this save moves `updatedAt` past it. Same transaction as the save.
         await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
-      });
+      } });
     },
   };
 }
@@ -292,7 +286,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         version: existing.version + 1,
       };
 
-      await deps.postRepo.transaction(async () => {
+      await deps.postRepo.transaction({ fn: async () => {
         await saveRevertedPost({ deps, existing, restored });
 
         // Symmetric to the marker clear above, and conditional on the same thing `restorePostForward`
@@ -309,13 +303,13 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
         // shared schedule-aware emitter (2026-10-21): a trashed row reads as not public, and a
         // restored row still scheduled stays not public until the go-live sweep announces it.
         await emitPublicTransitionEvent({ outbox: deps.outbox, previous: existing, next: restored, nowIso: restored.updatedAt });
-      });
+      } });
     },
   };
 }
 
 /** Builds the `post/update` and `post/delete` reverters, closed over the given adapters. */
-export function createPostReverters(deps: PostReverterDeps): {
+export function createPostReverters(deps: PostReverterDeps, _optional: Record<string, never> = {}): {
   update: EntityReverter;
   delete: EntityReverter;
 } {
@@ -329,7 +323,7 @@ export function createPostReverters(deps: PostReverterDeps): {
  * Builds a `RevertRegistry` pre-loaded with the post-domain reverters — the composition-root
  * convenience `defaultRevertRegistry()` used to provide before the Job 2 inversion moved it here.
  */
-export function createPostRevertRegistry(deps: PostReverterDeps): RevertRegistry {
+export function createPostRevertRegistry(deps: PostReverterDeps, _optional: Record<string, never> = {}): RevertRegistry {
   const registry = createRevertRegistry();
   const reverters = createPostReverters(deps);
   registry.register("post", "update", reverters.update);

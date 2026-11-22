@@ -10,7 +10,6 @@ import test from "node:test";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import * as signIn from "@jini-ai/integrations/api-connections/hosted-mcp";
 import * as oldOAuth from "../../external-mcp-oauth.js";
-import * as oldShared from "../../external-mcp-shared-oauth.js";
 
 const here = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -18,7 +17,6 @@ test("old paths re-export the moved Jini values by identity", () => {
   assert.equal(oldOAuth.createHostedMcpConnectionGate, hosted.createHostedMcpConnectionGate);
   assert.equal(oldOAuth.createHostedMcpSignInService, signIn.createHostedMcpSignInService);
   assert.equal(oldOAuth.createDeviceAuthorizationStore, signIn.createDeviceAuthorizationStore);
-  assert.equal(oldShared.createSharedExternalMcpOAuth, signIn.createSharedExternalMcpOAuth);
 });
 
 test("Tovu's own names keep their arity and bindings", () => {
@@ -28,8 +26,8 @@ test("Tovu's own names keep their arity and bindings", () => {
   assert.equal(oldOAuth.tovuSignInPorts.errors.reauthRequired, oldOAuth.createExternalMcpReauthRequiredError);
   const error = oldOAuth.createExternalMcpReauthRequiredError({ serverId: "docs" });
   assert.ok(error instanceof oldOAuth.ExternalMcpReauthRequiredError);
-  assert.equal(error.settingsLink, oldOAuth.externalMcpSettingsDeepLink("docs"));
-  assert.equal(oldOAuth.externalMcpSettingsDeepLink("a b"), "/settings/external-mcp?server=a%20b");
+  assert.equal(error.settingsLink, oldOAuth.externalMcpSettingsDeepLink({ serverId: "docs" }));
+  assert.equal(oldOAuth.externalMcpSettingsDeepLink({ serverId: "a b" }), "/settings/external-mcp?server=a%20b");
 });
 
 test("no moved body is left in the old files", () => {
@@ -37,5 +35,4 @@ test("no moved body is left in the old files", () => {
   for (const body of ["function readConnectionRowOrRefuse", "function assertNotAwaitingReauth", "function oauthClientOptions", "function setOAuthStatus", "CONNECT_TIMEOUT_MS =", "new Map<string, DeviceAuthorization>"]) {
     assert.ok(!oauth.includes(body), `old external-mcp-oauth.ts still holds ${body}`);
   }
-  assert.ok(!here("../../external-mcp-shared-oauth.ts").includes("function createSharedExternalMcpOAuth"));
 });

@@ -37,8 +37,8 @@ interface ConversationStore {
 
 /** File ports, injected so the store is testable against a temp dir or an in-memory fake. */
 interface ConversationStorePorts {
-  read: (filePath: string) => ReturnType<typeof readJsonFile>;
-  write: (filePath: string, value: unknown) => void;
+  read: typeof readJsonFile;
+  write: typeof writeJsonFileAtomic;
   now: () => number;
   newId: () => string;
   withLock: typeof withFileLock;
@@ -56,9 +56,9 @@ function summarize(conversation: StoredConversation): WorkspaceConversationSumma
  */
 function titleFrom(message: ChatMessage): string | null {
   if (message.role !== "user") return null;
-  // `!`: `split` always returns at least one element, even for an empty string, so the old `?? ""`
+  // `split` always returns a first element, even for an empty string, so the old `?? ""`
   // fallback could never be taken.
-  const firstLine = message.content.trim().split("\n")[0]!;
+  const firstLine = message.content.trim().split("\n", 1).join("");
   return firstLine === "" ? null : firstLine.slice(0, 60);
 }
 
@@ -81,55 +81,63 @@ function createConversationStore(
     withLock: withFileLock,
     ...optional,
   };
-  const load = (): StoredConversation[] => {
-    const read = ports.read(required.filePath);
+  const load = createConversationReader(ports, required);
+  const readGaps = createToolGapReader(ports, required);
+  // Every chat write preserves audit metadata; renderer message saves cannot erase it.
+  const save = ({ rows }: { rows: StoredConversation[] }, _options = {}) => ports.write({ filePath: required.filePath, value: { conversations: rows, toolGaps: readGaps() } });
+  const locked = <T>({ critical }: { critical: () => T }, _options = {}) => ports.withLock({ filePath: required.filePath, critical });
+  const mutate = ({ id, change }: { id: string; change: (row: StoredConversation) => void }, _options = {}) => locked({ critical: () => {
+    const rows = load();
+    const row = rows.find((candidate) => candidate.id === id);
+    if (row === undefined) throw new Error(`Conversation ${id} does not exist.`);
+    change(row);
+    row.updatedAt = ports.now();
+    save({ rows });
+  } });
+
+  return {
+    appendToolGap: ({ entry }) => locked({ critical: () => {
+      const entries = readGaps().filter(existing => existing.id !== entry.id);
+      ports.write({ filePath: required.filePath, value: { conversations: load(), toolGaps: [...entries, entry].slice(-1000) } });
+    } }),
+    listToolGaps: (_required, { limit = 100 } = {}) => readGaps().slice(-Math.max(1, Math.min(200, limit))).reverse(),
+    list: () => load().map(summarize).sort((a, b) => b.updatedAt - a.updatedAt),
+    create: () => locked({ critical: () => {
+      const now = ports.now();
+      const row: StoredConversation = { id: ports.newId(), title: null, createdAt: now, updatedAt: now, messages: [] };
+      save({ rows: [...load(), row] });
+      return summarize(row);
+    } }),
+    rename: ({ id, title }) => mutate({ id, change: (row) => { row.title = title; } }),
+    remove: ({ id }) => locked({ critical: () => save({ rows: load().filter((row) => row.id !== id) }) }),
+    loadMessages: ({ conversationId }) => load().find((row) => row.id === conversationId)?.messages ?? [],
+    saveMessage: ({ conversationId, message }) => mutate({ id: conversationId, change: (row) => {
+      const index = row.messages.findIndex((existing) => existing.id === message.id);
+      if (index === -1) row.messages.push(message);
+      else row.messages[index] = message;
+      row.title ??= titleFrom(message);
+    } }),
+  };
+}
+
+function createConversationReader(ports: ConversationStorePorts, required: { filePath: string }) {
+  return (): StoredConversation[] => {
+    const read = ports.read({ filePath: required.filePath });
     if (read.state !== "ok") return [];
     const rows = (read.value as { conversations?: unknown } | null)?.conversations;
     return Array.isArray(rows) ? (rows as StoredConversation[]) : [];
   };
-  const readGaps = (): ToolGapEntry[] => {
-    const read = ports.read(required.filePath);
+}
+
+function createToolGapReader(ports: ConversationStorePorts, required: { filePath: string }) {
+  return (): ToolGapEntry[] => {
+    const read = ports.read({ filePath: required.filePath });
     if (read.state !== "ok") return [];
     const entries = (read.value as { toolGaps?: unknown } | null)?.toolGaps;
     return Array.isArray(entries) ? entries.flatMap(entry => {
       const decoded = decodeToolGapEntry({ json: JSON.stringify(entry) }, {});
       return decoded ? [decoded] : [];
     }) : [];
-  };
-  // Every chat write preserves audit metadata; renderer message saves cannot erase it.
-  const save = (rows: StoredConversation[]) => ports.write(required.filePath, { conversations: rows, toolGaps: readGaps() });
-  const locked = <T>(critical: () => T) => ports.withLock(required.filePath, critical);
-  const mutate = (id: string, change: (row: StoredConversation) => void) => locked(() => {
-    const rows = load();
-    const row = rows.find((candidate) => candidate.id === id);
-    if (row === undefined) throw new Error(`Conversation ${id} does not exist.`);
-    change(row);
-    row.updatedAt = ports.now();
-    save(rows);
-  });
-
-  return {
-    appendToolGap: ({ entry }) => locked(() => {
-      const entries = readGaps().filter(existing => existing.id !== entry.id);
-      ports.write(required.filePath, { conversations: load(), toolGaps: [...entries, entry].slice(-1000) });
-    }),
-    listToolGaps: (_required, { limit = 100 } = {}) => readGaps().slice(-Math.max(1, Math.min(200, limit))).reverse(),
-    list: () => load().map(summarize).sort((a, b) => b.updatedAt - a.updatedAt),
-    create: () => locked(() => {
-      const now = ports.now();
-      const row: StoredConversation = { id: ports.newId(), title: null, createdAt: now, updatedAt: now, messages: [] };
-      save([...load(), row]);
-      return summarize(row);
-    }),
-    rename: ({ id, title }) => mutate(id, (row) => { row.title = title; }),
-    remove: ({ id }) => locked(() => save(load().filter((row) => row.id !== id))),
-    loadMessages: ({ conversationId }) => load().find((row) => row.id === conversationId)?.messages ?? [],
-    saveMessage: ({ conversationId, message }) => mutate(conversationId, (row) => {
-      const index = row.messages.findIndex((existing) => existing.id === message.id);
-      if (index === -1) row.messages.push(message);
-      else row.messages[index] = message;
-      row.title ??= titleFrom(message);
-    }),
   };
 }
 

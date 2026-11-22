@@ -45,7 +45,7 @@ test("AC-11/REQ-06: every capability named in ADR-046's Context as currently in-
     "analytics",
   ];
   for (const name of mustBeClassified) {
-    const entry = findCapabilityEntry(name);
+    const entry = findCapabilityEntry({ name });
     assert.ok(entry, `capability "${name}" must have an inventory entry`);
     assert.ok(
       entry!.classification === "production" || entry!.classification === "local-only" || entry!.classification === "experimental",
@@ -67,7 +67,7 @@ test("AC-02/EC-01: an entry with an ambiguous owner documents the ambiguity expl
 });
 
 test("findCapabilityEntry returns undefined (not a thrown error) for an unknown capability name", () => {
-  assert.equal(findCapabilityEntry("this-capability-does-not-exist"), undefined);
+  assert.equal(findCapabilityEntry({ name: "this-capability-does-not-exist" }), undefined);
 });
 
 test("no duplicate capability names in the inventory", () => {

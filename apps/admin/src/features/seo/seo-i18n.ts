@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the SEO & Metadata screen (`/admin/seo`) — the site-wide defaults
  * form, the sitemap action, and the per-entry override panel + analyzer.
@@ -7,12 +8,10 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * marketing/developer usage, matching the brief's "keep the English term if that's what a
  * Spanish-speaking operator would actually expect to see" guidance.
  *
- * Scope note: `agentHandle(...)`'s `label` fields throughout `Seo.tsx` are NOT translated — per
+ * Scope note: `agentHandle(...)`'s `label` fields throughout `Jini packages/admin/src/seo/react/pages/SeoPage.tsx` are NOT translated — per
  * `@jini-ai/agentic`'s own source, they compile to `data-agent-label`, internal agent-tooling
  * metadata explicitly documented as "Never live text," not user-visible or screen-reader content.
  */
-
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** The sitemap link text is a file name, so every locale shows it unchanged. */
 const SITEMAP_LINK = "sitemap.xml ↗";

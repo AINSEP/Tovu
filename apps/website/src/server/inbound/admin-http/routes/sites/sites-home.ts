@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Local creation-home setting, authorized at the same boundary as Sites mutations. */
 import fs from "node:fs";
 import path from "node:path";
@@ -6,9 +6,10 @@ import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import { isSiteSwitcherEnabled, type SitesWorkspace } from "#src/platform/site-dir/index";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { UUID } from "@jini-ai/core/primitives";
 import { DirectoryUserConfigRefusal, validateDirectoryUserConfig } from "@jini-ai/platform/fs";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type SettingsDeps = {
   workspaceId: UUID;
@@ -17,7 +18,7 @@ type SettingsDeps = {
 };
 
 function admitSettingsRequest({ req, res, deps }: { req: Request; res: Response; deps: SettingsDeps }, _options = {}): boolean {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
   if (!(deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabled)()) { res.status(403).json({ error: "Local sites management is disabled." }); return false; }
   return true;
 }
@@ -28,7 +29,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
     if (!admitSettingsRequest({ req, res, deps })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: method === "get" ? "system.read" : "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: method === "get" ? "system.read" : "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       if (method === "get") { res.json(workspace.config({})); return; }
       try {
         // Validate the shape before inspecting paths; malformed input is a refusal, not an I/O error.
@@ -47,7 +48,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
     if (!admitSettingsRequest({ req, res, deps })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       const selected = req.body?.path;
       try {
         if (selected === undefined) throw new DirectoryUserConfigRefusal({ message: "Choose an absolute folder path for sites settings." });

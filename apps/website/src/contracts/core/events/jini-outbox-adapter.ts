@@ -1,5 +1,5 @@
 import { createConsoleLogger, type Clock } from "@jini-ai/core/primitives";
-import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { createNodeOutboxScheduler, DEFAULT_OUTBOX_CLAIM_LEASE_MS, type OutboxPort as JiniOutboxPort, type OutboxWorkerArgs } from "@jini-ai/infra/events/outbox";
 
 /**

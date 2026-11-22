@@ -7,14 +7,15 @@ import test from "node:test";
 
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import { buildVaultAad, InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { DestinationUnreadableError, SealedDatabaseDestinationStore, type SavedDatabaseDestination } from "../destination-store.js";
 import { DatabaseDestinationRepo } from "../destination-repo.js";
-import { CredentialInputError } from "../../../contracts/core/credential-token.js";
+import { CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
 
 /**
  * @file The saved destination is persistent and sealed: a server restart (a new store over the same
@@ -38,7 +39,7 @@ async function fixture(t: test.TestContext): Promise<{ db: ContentDb; keyring: I
     rmSync(dir, { recursive: true, force: true });
   });
   for (const id of ["ws-1", "ws-2"]) db.$client.prepare("INSERT INTO workspaces(id,name,slug,created_at) VALUES(?,?,?,?)").run(id, id, id, DESTINATION.savedAt);
-  await ensureVaultRepoFixture({ kernel: contentKernel(db) });
+  await ensureVaultRepoFixture({ kernel: contentKernel({ store: db }) });
   const keyring = new InMemoryKeyring();
   // Every `open()` builds a fresh store and repo; `reopen()` also reopens the database file —
   // together, what a restart does.
@@ -46,7 +47,7 @@ async function fixture(t: test.TestContext): Promise<{ db: ContentDb; keyring: I
     db.$client.close();
     db = openContentDb(path.join(dir, "content.db"));
   };
-  const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel(db)), sealer: new AesGcmSecretSealer(keyring), keyring });
+  const open = () => new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), sealer: new AesGcmSecretSealer(keyring), keyring });
   return { get db() { return db; }, keyring, open, reopen };
 }
 
@@ -92,7 +93,7 @@ test("saving again replaces the destination, and a new destination forgets the o
 test("a sealed address copied onto another workspace's row does not open, and says to save it again", async (t) => {
   const { db, open } = await fixture(t);
   await open().save("ws-1", DESTINATION);
-  const repo = new DatabaseDestinationRepo(contentKernel(db));
+  const repo = new DatabaseDestinationRepo(contentKernel({ store: db }));
   const record = (await repo.findDefault({ workspaceId: "ws-1", kind: "database-destination", ownerKey: "tovu", principalId: null, provider: null }))!;
   await repo.put({ record: { ...record, workspaceId: "ws-2", revision: 1 }, expectedRevision: null });
   await assert.rejects(open().get("ws-2"), (err: unknown) => {
@@ -104,10 +105,10 @@ test("a sealed address copied onto another workspace's row does not open, and sa
 
 test("a destination sealed under another site key does not open", async (t) => {
   const { db } = await fixture(t);
-  const other = new InMemoryKeyring("v1");
-  const repo = new DatabaseDestinationRepo(contentKernel(db));
+  const other = new InMemoryKeyring({}, { keyId: "v1" });
+  const repo = new DatabaseDestinationRepo(contentKernel({ store: db }));
   await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(other), keyring: other }).save("ws-1", DESTINATION);
-  const mine = new InMemoryKeyring("v1");
+  const mine = new InMemoryKeyring({}, { keyId: "v1" });
   await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(mine), keyring: mine }).get("ws-1"), DestinationUnreadableError);
 });
 
@@ -117,7 +118,7 @@ test("an unnormalized legacy vault row is refused before attempting decryption",
   db.$client.prepare("UPDATE secrets_vault SET meta = json_set(meta, '$.legacyAad', json('{}')) WHERE workspace_id = 'ws-1'").run();
   const realSealer = new AesGcmSecretSealer(keyring);
   let opens = 0;
-  const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel(db)), keyring, sealer: {
+  const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), keyring, sealer: {
     seal: input => realSealer.seal(input),
     open: (input, optional) => { opens += 1; return realSealer.open(input, optional); },
   } });
@@ -184,7 +185,7 @@ test("lastRun remains readable without opening the destination envelope", async 
   const run = { copied: true as const, snapshotAt: DESTINATION.savedAt, tableCount: 1, rowCount: 2 };
   await open().save("ws-1", DESTINATION);
   await open().recordRun("ws-1", run);
-  const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel(db)), keyring,
+  const store = new SealedDatabaseDestinationStore({ repo: new DatabaseDestinationRepo(contentKernel({ store: db })), keyring,
     sealer: { seal: async () => { throw new Error("no key"); }, open: async () => { throw new Error("no key"); } } });
   assert.deepEqual(await store.lastRun("ws-1"), run);
   await store.recordRun("missing", run);

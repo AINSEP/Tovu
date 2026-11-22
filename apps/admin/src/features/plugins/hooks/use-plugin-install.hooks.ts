@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { ApiError } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { ApiError } from "@/lib/admin-http/request";
+
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
-import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
+import { formatByteSize } from "@jini-ai/core/text";
 
+import { type Translate } from '@jini-ai/core/text';
 const ZIP_MAX_BYTES = 32 * 1024 * 1024;
 const TOO_LARGE = "ZIP exceeds the upload or expanded package size limit.";
 
@@ -25,9 +26,14 @@ const ERROR_STATUS_KEYS: Readonly<Record<number, string>> = {
   400: "Invalid plugin package. Check its manifest, integrity and folder.",
 };
 
-function errorKey(error: unknown, fallback: string): string {
+function errorKey({ error, fallback }: { error: unknown; fallback: string }, _optional = {}): string {
   if (!(error instanceof ApiError)) return fallback;
   return (error.code ? ERROR_CODE_KEYS[error.code] : undefined) ?? ERROR_STATUS_KEYS[error.status] ?? fallback;
+}
+
+/** The sentence key for a failed preview or install: the error's own when it has one, else a generic one. */
+function installFailureKey({ error, install }: { error: unknown; install: boolean }, _optional = {}): string {
+  return errorKey({ error, fallback: install ? "Failed to install plugin." : "Failed to preview plugin." });
 }
 
 /**
@@ -50,68 +56,72 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   useEffect(() => () => { sequence.current++; }, []);
   function invalidate() { sequence.current++; setPreview(null); setError(null); setInstalledName(null); }
   function clearZipInput() { if (zipInputRef.current) zipInputRef.current.value = ""; }
-  function chooseZip(file: File | null) {
+  function chooseZip({ file }: { file: File | null }, _optional = {}) {
     invalidate(); setFolder(""); clearZipInput();
     if (file && file.size > ZIP_MAX_BYTES) { setZipFile(null); setError(required.t(TOO_LARGE)); }
     else setZipFile(file);
   }
-  function chooseFolder(value: string) { invalidate(); setFolder(value); setZipFile(null); clearZipInput(); }
-  function chooseReplace(value: boolean) { invalidate(); setReplace(value); }
+  function chooseFolder({ value }: { value: string }, _optional = {}) { invalidate(); setFolder(value); setZipFile(null); clearZipInput(); }
+  function chooseReplace({ value }: { value: boolean }, _optional = {}) { invalidate(); setReplace(value); }
   function hasSource() { return folder.trim() !== "" || zipFile !== null; }
-  function canRun(install: boolean) { return !locked.current && hasSource() && (!install || preview !== null); }
+  function canRun({ install }: { install: boolean }, _optional = {}) { return !locked.current && hasSource() && (!install || preview !== null); }
   function currentSource(): PluginInstallSource {
     return { source: zipFile ? { kind: "zip", file: zipFile } : { kind: "folder", path: folder.trim() }, replace };
   }
   /** Runs one preview or install under the lock; a result is dropped if the inputs changed meanwhile. */
-  async function perform(install: boolean) {
-    if (!canRun(install)) return;
+  async function perform({ install }: { install: boolean }, _optional = {}) {
+    if (!canRun({ install })) return;
     locked.current = true; setBusy(true); setError(null); setInstalledName(null);
     sequence.current += 1;
     const generation = sequence.current;
     const source = currentSource();
     try {
-      await (install ? installReviewed(source, preview!, generation) : reviewSource(source, generation));
+      await runSource({ install, source, generation });
     } catch (e) {
-      if (generation === sequence.current) {
-        setPreview(null);
-        setError(required.t(errorKey(e, install ? "Failed to install plugin." : "Failed to preview plugin.")));
-      }
+      // A failure of a superseded run is dropped; the current run clears its preview and says why.
+      if (generation !== sequence.current) return;
+      setPreview(null); setError(required.t(installFailureKey({ error: e, install })));
     } finally { locked.current = false; setBusy(false); }
   }
-  async function reviewSource(source: PluginInstallSource, generation: number) {
+  async function runSource({ install, source, generation }: { install: boolean; source: PluginInstallSource; generation: number }, _optional = {}) {
+    if (!install) { await reviewSource({ source, generation }); return; }
+    if (!preview) throw new Error("plugin install has no reviewed preview");
+    await installReviewed({ source, reviewed: preview, generation });
+  }
+  async function reviewSource({ source, generation }: { source: PluginInstallSource; generation: number }, _optional = {}) {
     const result = await required.port.preview(source);
     if (generation === sequence.current) setPreview(result.plugin);
   }
-  async function installReviewed(source: PluginInstallSource, reviewed: PluginInstallPreview, generation: number) {
+  async function installReviewed({ source, reviewed, generation }: { source: PluginInstallSource; reviewed: PluginInstallPreview; generation: number }, _optional = {}) {
     await required.port.install({ ...source, expectedDigest: reviewed.digest });
     if (generation !== sequence.current) return;
     await required.onInstalled();
     if (generation !== sequence.current) return;
     setInstalledName(reviewed.name); setPreview(null); setFolder(""); setZipFile(null); setReplace(false); clearZipInput();
   }
-  const drop = useZipDrop({ isLocked: () => locked.current, onDropFiles: (files) => chooseZip(files[0] ?? null) });
+  const drop = useZipDrop({ isLocked: () => locked.current, onDropFiles: ({ files }, _optional = {}) => chooseZip({ file: files[0] ?? null }) });
   // A picked folder becomes `<folder>.zip` and then IS the chosen zip: same limit, preview, install.
   const folderUpload = useFolderUpload({
-    maxBytes: ZIP_MAX_BYTES, tooLarge: TOO_LARGE, isLocked: () => locked.current, onZipped: chooseZip,
-    onError: (key) => { invalidate(); setZipFile(null); setError(required.t(key)); },
+    maxBytes: ZIP_MAX_BYTES, tooLarge: TOO_LARGE, isLocked: () => locked.current, onZipped: (file) => chooseZip({ file }),
+    onError: ({ key }, _optional = {}) => { invalidate(); setZipFile(null); setError(required.t(key)); },
   });
   return {
     folder, zipFile, zipInputRef, replace, preview, error, drop, folderUpload, t: required.t,
     busy: busy || folderUpload.zipping,
-    zipSizeLabel: zipFile ? installArchiveSize({ bytes: zipFile.size }) : "",
+    zipSizeLabel: zipFile ? formatByteSize({ bytes: zipFile.size }, { megabyteLabel: "MiB" }) : "",
     reviewDisabled: busy || folderUpload.zipping || !hasSource(),
-    previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
-    installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", installedName) : null,
+    previewDisplay: preview ? pluginInstallPreviewDisplay({ preview, translate: required.t }) : null,
+    installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", () => installedName) : null,
     setFolder: chooseFolder,
-    onFolderChange: (event: ChangeEvent<HTMLInputElement>) => chooseFolder(event.target.value),
-    onSubmitFolder: (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void perform(false); },
+    onFolderChange: (event: ChangeEvent<HTMLInputElement>) => chooseFolder({ value: event.target.value }),
+    onSubmitFolder: (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void perform({ install: false }); },
     setZipFile: chooseZip,
     onChooseZip: () => zipInputRef.current?.click(),
-    onZipChange: (event: ChangeEvent<HTMLInputElement>) => chooseZip(event.target.files?.[0] ?? null),
+    onZipChange: (event: ChangeEvent<HTMLInputElement>) => chooseZip({ file: event.target.files?.[0] ?? null }),
     setReplace: chooseReplace,
-    onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => chooseReplace(event.target.checked),
+    onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => chooseReplace({ value: event.target.checked }),
     cancelReview: () => { if (!locked.current) invalidate(); },
-    review: () => perform(false), install: () => perform(true),
+    review: () => perform({ install: false }), install: () => perform({ install: true }),
   };
 }
 export type PluginInstallController = ReturnType<typeof usePluginInstall>;

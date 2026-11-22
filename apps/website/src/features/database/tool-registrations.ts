@@ -20,9 +20,10 @@ import type { Clock } from "@jini-ai/core/primitives";
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
-import { createDatabaseReadTools, type InputReaders } from "@jini-ai/db/tools";
+import { createDatabaseReadTools, type InputReaders, type RestorePointListPort, type RestorePointSavePort } from "@jini-ai/db/tools";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/post/tool-registrations.ts`'s identical import.
@@ -42,14 +43,10 @@ import type { ToolContributor } from "@jini-ai/core";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
-import { executeMigrateForward } from "./migrate-forward/execute.js";
+import { executeMigrateForward } from "@jini-ai/db/recovery/migrate-forward-execute";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
-import {
-  type RestorePointListPort,
-  type RestorePointSavePort,
-} from "./restore-points.js";
 import type { LedgerReadPort } from "./timeline.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -126,32 +123,8 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
   "database_get_restore_guidance",
 ]);
 
-export function buildDatabaseRegistrations(
-  routeDeps: DatabaseToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-): ToolRegistration[] {
-  const migrateHooks = (actorId: string) =>
-    buildMigrateForwardHooks({
-      workspaceId: routeDeps.workspaceId,
-      actorId,
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      dbOps: routeDeps.dbOps,
-      restorePointsRepo: routeDeps.restorePointsRepo,
-      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
-    }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
 
-  const portable = createDatabaseReadTools({
-    readers: databaseInputReaders,
-    workspaceId: routeDeps.workspaceId, introspection: routeDeps.databaseIntrospection,
-    ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
-    dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
-    requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
-  }, { messages: TOVU_DATABASE_MESSAGES });
-  const handlers: Record<string, ToolHandler> = {
-    ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
-
-    database_plan_migrate_forward: async (ctx) => {
+    async function planDatabaseMigrateForward(routeDeps: DatabaseToolDeps, ctx: Parameters<ToolHandler>[0]) {
       requireNoInput({ input: ctx.input });
       // No explicit pre-check here: `gateway.ts`'s plan() calls authorize() unconditionally,
       // BEFORE hooks.computePlan() ever runs — verified directly against its body (see
@@ -173,19 +146,41 @@ export function buildDatabaseRegistrations(
         principalKind: AGENT_TOOL_PRINCIPAL_KIND,
         hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
       });
-    },
+    }
+function migrateForwardDialog() {
+  return ({
+        toolId: MIGRATE_TOOL_ID,
+        errorCode: "DATABASE",
+        title: "Update the database?",
+        description: "Moves this site's database forward to the current schema. It affects the whole site.",
+        details: [{ label: "Restore point", value: "Taken first" }],
+        warning: "A restore point is taken first, so you can go back to how things are now.",
+        danger: true,
+        confirmLabel: "Update database",
+      });
+}
+function createMigrateHooks(routeDeps: DatabaseToolDeps) {
+  return ({ actorId }: { actorId: string }, _options = {}) =>
+    buildMigrateForwardHooks({
+      workspaceId: routeDeps.workspaceId,
+      actorId,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      dbOps: routeDeps.dbOps,
+      restorePointsRepo: routeDeps.restorePointsRepo,
+      databaseLedgerRepo: routeDeps.databaseLedgerRepo,
+    }) as unknown as GatedMutationHooks<unknown, { migrated: true }>;
+}
 
 
-    backup_create_restore_point: portable.find(tool => tool.descriptor.id === "backup_create_restore_point")!.handler,
-
-    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
-    // inside the same operation lock and cost-class refusal the admin execute route uses.
-    [MIGRATE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
+function createMigrateForwardHandler(routeDeps: DatabaseToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
+const migrateHooks = createMigrateHooks(routeDeps);
+  return humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
-      prepare: async (ctx) => {
+      prepare: async ({ ctx }) => {
         refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), []);
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "database.migrate" }, { entityType: "database" });
-        const hooks = migrateHooks(ctx.principal.id);
+        const hooks = migrateHooks({ actorId: ctx.principal.id });
         const plan = await gatewayPlan({
           deps: routeDeps.gatedMutations.gatewayDeps,
           principalId: ctx.principal.id,
@@ -198,19 +193,11 @@ export function buildDatabaseRegistrations(
         }
         return { hooks, plan, costClass };
       },
-      dialog: () => ({
-        toolId: MIGRATE_TOOL_ID,
-        errorCode: "DATABASE",
-        title: "Update the database?",
-        description: "Moves this site's database forward to the current schema. It affects the whole site.",
-        details: [{ label: "Restore point", value: "Taken first" }],
-        warning: "A restore point is taken first, so you can go back to how things are now.",
-        danger: true,
-        confirmLabel: "Update database",
-      }),
-      run: async (ctx, { hooks, plan, costClass }, confirmer) => {
+      dialog: migrateForwardDialog,
+      run: async ({ ctx, prepared: { hooks, plan, costClass }, confirmer }) => {
         const record = await gatewayConfirm({
           deps: routeDeps.gatedMutations.gatewayDeps,
+          signal: ctx.signal,
           principalId: confirmer.id,
           principalKind: confirmer.kind,
           hooks: hooks as GatedMutationHooks<unknown, unknown>,
@@ -225,6 +212,7 @@ export function buildDatabaseRegistrations(
           gatewayExecute: () =>
             gatewayExecute({
               deps: routeDeps.gatedMutations.gatewayDeps,
+              signal: ctx.signal,
               principalId: ctx.principal.id,
               principalKind: AGENT_TOOL_PRINCIPAL_KIND,
               hooks,
@@ -232,7 +220,35 @@ export function buildDatabaseRegistrations(
             }),
         });
       },
-    }),
+    });
+}
+
+
+
+export function buildDatabaseRegistrations(
+  routeDeps: DatabaseToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+
+  const portable = createDatabaseReadTools({
+    readers: databaseInputReaders,
+    workspaceId: routeDeps.workspaceId, introspection: routeDeps.databaseIntrospection,
+    ledger: routeDeps.databaseLedgerRepo, restorePoints: routeDeps.restorePointsRepo,
+    dbOps: routeDeps.dbOps, clock: routeDeps.clock, idGen: routeDeps.idGen,
+    requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
+  }, { messages: TOVU_DATABASE_MESSAGES });
+  const restorePointTool = portable.find(tool => tool.descriptor.id === "backup_create_restore_point");
+  if (restorePointTool === undefined) throw new Error("Database tools have no backup restore point registration");
+  const handlers: Record<string, ToolHandler> = {
+    ...Object.fromEntries(portable.filter(tool => tool.descriptor.id !== "backup_create_restore_point").map(tool => [tool.descriptor.id, tool.handler])),
+    database_plan_migrate_forward: (ctx) => planDatabaseMigrateForward(routeDeps, ctx),
+
+
+    backup_create_restore_point: restorePointTool.handler,
+
+    // Plans as the agent, asks the human, then confirms as the human and executes as the agent
+    // inside the same operation lock and cost-class refusal the admin execute route uses.
+    [MIGRATE_TOOL_ID]: createMigrateForwardHandler(routeDeps, surfaces),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

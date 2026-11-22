@@ -1,12 +1,15 @@
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t as sharedComponentsT } from "../shared-components-i18n";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
-import { agentHandle } from "@jini-ai/agentic";
-import type { AdminMedia } from "../../lib/api";
-import { buildAgentListHandles } from "@jini-ai/agentic";
-import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+
 import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
+import { splitOnPlaceholders } from '@jini-ai/core/text';
 /**
  * @file `MediaPickerDialog` — lets an operator choose an EXISTING asset from the Media library
  * instead of typing a URL. First call site: the Posts/Pages editors' toolbar ("Insert from Media
@@ -50,6 +53,8 @@ import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDial
  */
 
 export interface MediaPickerDialogProps {
+  useJiniMediaPickerHook?: typeof useJiniMediaPicker;
+  useAdminLocaleHook?: typeof useAdminLocale;
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
   /** Injectable seam for the dialog's data-fetch and Escape-to-cancel hook. Defaults to the real
@@ -94,9 +99,9 @@ function MediaPickerItems({ items, itemHandles, dialog, emptyState }: {
           className="media-picker-item"
           title={item.title}
           onClick={() => select(item)}
-          {...(itemHandles ? agentHandle({ handle: itemHandles[index]! }, { role: "button", label: item.title }) : {})}
+          {...(itemHandles ? agentHandle({ handle: itemHandles[index] }, { role: "button", label: item.title }) : {})}
         >
-          <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
+          <img src={mediaOriginalUrl({ id: item.id })} alt={item.alt || item.title} loading="lazy" />
           <span className="media-picker-item-title">{item.title}</span>
         </button>
       ))}
@@ -105,15 +110,15 @@ function MediaPickerItems({ items, itemHandles, dialog, emptyState }: {
 }
 
 function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, accept, ...props }: MediaPickerDialogProps) {
-  const dialog = useDialog(props.onSelect, props.onCancel);
+  const dialog = useDialog({ onSelect: props.onSelect, onCancel: props.onCancel });
   const { error, t } = dialog;
-  const items = acceptedMediaItems(dialog.items, accept);
+  const items = acceptedMediaItems({ items: dialog.items }, { accept });
   // Native modality keeps Tab inside; Jini also restores the opener when this dialog unmounts.
   // Cancel is always present regardless of loading/error/empty/populated state, the same reason
   // useMediaLightbox has an always-available Close target.
   const itemHandles = base && items ? buildAgentListHandles({ prefix: `${base}-item`, ids: items.map((item) => item.id) }) : undefined;
   // `{link}` must render as a real `<a>` node, not plain text — interpolate() can't produce that,
-  // so this splits the template around the token instead. See `lib/template-i18n.ts`'s own header.
+  // so this splits the template around the token instead. See `Jini packages/ui/src/features/i18n/template-i18n.ts`'s own header.
   const [emptyStateBefore, emptyStateAfter] = splitOnPlaceholders({ template: t("No media uploaded yet. Upload an asset from the {link} screen first."), tokens: ["{link}"] }
   );
 
@@ -144,7 +149,8 @@ function LegacyMediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentH
 }
 
 /** Existing callers keep their CMS callbacks; the mounted admin supplies Jini's promise service. */
-export function MediaPickerDialog(props: MediaPickerDialogProps, _optional: Record<string, never> = {}) {
-  const vm = useJiniMediaPicker(props);
-  return vm.enabled ? <>{vm.error && <div role="alert">{vm.error}<button type="button" onClick={vm.onCancel}>Cancel</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
+export function MediaPickerDialog({ useJiniMediaPickerHook = useJiniMediaPicker, useAdminLocaleHook = useAdminLocale, ...props }: MediaPickerDialogProps) {
+  const vm = useJiniMediaPickerHook(props);
+  const locale = useAdminLocaleHook();
+  return vm.enabled ? <>{vm.error && <div role="alert"><ErrorNotice failure={vm.error} /><button type="button" onClick={vm.onCancel}>{sharedComponentsT({ locale, key: "Cancel" })}</button></div>}</> : <LegacyMediaPickerDialog {...props} />;
 }

@@ -23,7 +23,7 @@ import { defineExecutablePluginContribution, type LoadPluginContributions } from
  * use their own OAuth client, `byo-client.ts`), which only the host reads.
  */
 
-export const API_CONNECTIONS_FILENAME = "tovu-connections.json";
+export const API_CONNECTIONS_FILENAME = "jini-connections.json";
 /** This host's client-setting namespace: every plugin's client settings are named `TOVU_<PLUGIN>_OAUTH_<RUNTIME>_CLIENT_*`. */
 const CLIENT_NAMESPACE = "TOVU_";
 
@@ -50,7 +50,12 @@ export function parseApiConnectionsFile(required: { readonly raw: string }, _opt
 
 const connectionContribution = defineExecutablePluginContribution<ApiConnectionDeclaration, ApiConnectionHooksModule>({
   filename: API_CONNECTIONS_FILENAME, contribution: "API connections",
-  parse: parseApiConnectionsFile, modulePath: ({ descriptor }) => descriptor.module,
+  parse: ({ raw }) => {
+    const parsed = parseApiConnectionsFile({ raw });
+    if (parsed.ok) return parsed;
+    const jini = parseApiConnectionDeclarations({ raw, clientNamespace: "JINI_" });
+    return jini.ok ? jini : parsed;
+  }, modulePath: ({ descriptor }) => descriptor.module,
   validate: ({ exported }) => asApiConnectionHooksModule({ exported }),
   refusal: ({ plugin, descriptor, reason }) => `API connection '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
 }, { onReadError: ({ error }) => ((error as NodeJS.ErrnoException)?.code === "ENOENT" ? [] : undefined) });
@@ -69,7 +74,7 @@ export async function loadDeclaredApiConnections(
   const refusals = [...load.refusals];
   for (const item of load.items) {
     try {
-      checkApiConnectionClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients, clientNamespace: CLIENT_NAMESPACE });
+      checkApiConnectionClientNamespace({ pluginId: item.pluginId, clients: item.descriptor.clients, clientNamespace: item.pluginId === "google-workspace" ? "JINI_" : CLIENT_NAMESPACE });
       const descriptor = parseApiConnectionDescriptor({ callbackFieldRules: apiConnectionCallbackFieldRules, value: { ...item.descriptor.descriptor, pluginId: item.pluginId, connectionId: item.descriptor.id } });
       const { clients, budgets, scopeSets, apiOrigins, byoClient } = item.descriptor;
       connections.push({ pluginId: item.pluginId, descriptor, clients, budgets, scopeSets, apiOrigins, byoClient, module: item.module });

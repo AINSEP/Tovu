@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { startupFailureMessage } from '@jini-ai/agent-runtime';
 import { createInMemoryEventLog, createRunLifecycle } from '@jini-ai/daemon';
 import { failRunBeforeStart } from '#src/assistant/agent-session-preset';
 import { captureDaemonRun } from './helpers/daemon-source.js';
@@ -14,6 +15,8 @@ test('onStarted saves the preparation stage and cause on a pre-spawn rejection',
     lifecycle, terminalFailure: true,
     bindings: {
       failRunBeforeStart,
+      // The production binding (`agentRuntime.failures.startupMessage`), not the capture's stage-only stub.
+      startupMessage: startupFailureMessage,
       console: { error() {}, warn() {}, log() {} },
       runOwners: { record() {}, forget() {} }, runCredentials: { revoke() {} }, RUN_OWNER_RETENTION_MS: 0,
       attachmentStore: undefined,

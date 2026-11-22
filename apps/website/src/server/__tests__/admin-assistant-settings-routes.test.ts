@@ -46,9 +46,9 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   { workspaceId: deps.workspaceId, apiKey: "visitorai-test-key", model: "saved-model" });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.(app);
+  createAssistantSettingsModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 

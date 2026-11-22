@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { MessageRow, clearExtEventRenderers, mcpUiSurfaceSlotKey, registerExtEventRenderer } from "@jini-ai/chat/react";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";

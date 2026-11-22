@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminMember } from "@/lib/api";
+import type { AdminMember } from "@/features/members/api/members-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { describeMembersError as describeApiError, emptyRowState, memberRowMenuItems } from "@jini-ai/user-management/react";
 import { t } from "../members-i18n";
 
@@ -24,13 +25,13 @@ const ACTIVE_MEMBER: AdminMember = {
 
 describe("describeApiError", () => {
   it("overrides FORBIDDEN with a fixed message", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 403 }, { code: "FORBIDDEN" }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "You do not have permission to do that.",
     );
   });
 
   it("an unrecognized code falls through to the shared default", () => {
-    expect(describeApiError({ error: new ApiError("raw message", 500, "SOMETHING_ELSE"), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw message", status: 500 }, { code: "SOMETHING_ELSE" }), fallback: "fallback", translate: key => t({ locale: "en", key: key }) })).toBe(
       "raw message",
     );
   });
@@ -42,13 +43,13 @@ describe("describeApiError", () => {
 
   // C4 — the FORBIDDEN override leaked English regardless of locale.
   it("translates the FORBIDDEN override into the operator's locale (es)", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "es", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 403 }, { code: "FORBIDDEN" }), fallback: "fallback", translate: key => t({ locale: "es", key: key }) })).toBe(
       "No tienes permiso para hacer eso.",
     );
   });
 
   it("falls back to English for an unrecognized locale", () => {
-    expect(describeApiError({ error: new ApiError("raw", 403, "FORBIDDEN"), fallback: "fallback", translate: key => t({ locale: "xx", key: key }) })).toBe(
+    expect(describeApiError({ error: new ApiError({ message: "raw", status: 403 }, { code: "FORBIDDEN" }), fallback: "fallback", translate: key => t({ locale: "xx", key: key }) })).toBe(
       "You do not have permission to do that.",
     );
   });

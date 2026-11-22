@@ -5,14 +5,16 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import {
   executeCommand,
+} from "@jini-ai/cms/core";
+import {
   type ChangeSetItemRecord,
   type ChangeSetRecord,
   type ChangeSetRepoPort,
   type ChangeSetWithItems,
   type CommandMutation,
   type DomainEvent,
-} from "@jini-ai/cms/core";
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
+} from "@jini-ai/core/contracts/events";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**
@@ -103,7 +105,7 @@ class FailingChangeSetRepo implements ChangeSetRepoPort {
 }
 
 test("AC-17: injected change-set persist failure rolls back the post, no change set, no event", async () => {
-  const repo = new InMemoryPostRepo([seededPost()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
   const before = await repo.findById({ workspaceId: WORKSPACE, id: POST_ID });
 
   const enqueued: DomainEvent[] = [];
@@ -134,7 +136,7 @@ test("AC-17: injected change-set persist failure rolls back the post, no change 
 });
 
 test("happy path: record commits, post updated, exactly one change set + one event", async () => {
-  const repo = new InMemoryPostRepo([seededPost()]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [seededPost()] });
 
   const enqueued: DomainEvent[] = [];
   const outbox = { enqueue: async (e: DomainEvent) => void enqueued.push(e) } as never;

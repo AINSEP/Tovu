@@ -12,6 +12,7 @@
  * the real asar verifier, and `process.stdout`/`process.stderr`.
  */
 import path from "node:path";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
 import type { AsarVerification } from "./asar-verify.ts";
 
@@ -36,11 +37,11 @@ interface TextSink {
 /** Everything `runVerifyPackage` touches outside its own arguments. */
 interface VerifyPackagePorts {
   fs: VerifyPackageFs;
-  verify(asarPath: string, sourceRoot: string, prefixes: string[]): AsarVerification;
-  isEmptyVerification(checkedCount: number): boolean;
-  formatMismatchReport(mismatches: AsarVerification["mismatches"]): string;
-  bundledNpmFailures(resourcesDirs: string[]): string[];
-  ptyHelperFailures(resourcesDirs: string[]): string[];
+  verify(input: { asarPath: string; sourceRoot: string; prefixes: string[] }, options?: Record<string, never>): AsarVerification;
+  isEmptyVerification(input: { checkedCount: number }, options?: Record<string, never>): boolean;
+  formatMismatchReport(input: { mismatches: AsarVerification["mismatches"] }, options?: Record<string, never>): string;
+  bundledNpmFailures(input: { resourcesDirs: string[] }, options?: Record<string, never>): string[];
+  ptyHelperFailures(required: { resourcesDirs: string[] }, options?: {}): string[];
   prefixes: string[];
   stdout: TextSink;
   stderr: TextSink;
@@ -50,16 +51,11 @@ interface VerifyPackagePorts {
  *  or probes, so finding ONE bundle is not enough on its own — see {@link resolveAsarPath}.
  *  An unreadable (or absent) directory contributes nothing.
  *  @complexity O(n) in directory entries under `dir`. */
-function findAppBundles(fs: VerifyPackageFs, dir: string): string[] {
-  let entries: VerifyPackageDirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
+function findAppBundles({ fs, dir }: { fs: VerifyPackageFs; dir: string }, _options = {}): string[] {
+  const entries = orFallbackSync({ work: () => fs.readdirSync(dir, { withFileTypes: true }), fallback: [], step: "Find application bundles" });
   return entries.filter((entry) => entry.isDirectory()).flatMap((entry) => {
     const full = path.join(dir, entry.name);
-    return entry.name.endsWith(".app") ? [full] : findAppBundles(fs, full);
+    return entry.name.endsWith(".app") ? [full] : findAppBundles({ fs, dir: full });
   });
 }
 
@@ -71,9 +67,9 @@ function findAppBundles(fs: VerifyPackageFs, dir: string): string[] {
  *
  * @complexity O(n) in bundles found under `release/`.
  */
-function findResourcesDirs(fs: VerifyPackageFs, desktopRoot: string): string[] {
+function findResourcesDirs({ fs, desktopRoot }: { fs: VerifyPackageFs; desktopRoot: string }, _options = {}): string[] {
   const releaseDir = path.join(desktopRoot, "release");
-  const dirs = findAppBundles(fs, releaseDir).map((bundle) => path.join(bundle, "Contents/Resources"));
+  const dirs = findAppBundles({ fs, dir: releaseDir }).map((bundle) => path.join(bundle, "Contents/Resources"));
   const winUnpackedResources = path.join(releaseDir, "win-unpacked", "resources");
   if (fs.existsSync(winUnpackedResources)) dirs.push(winUnpackedResources);
   return dirs;
@@ -103,7 +99,7 @@ export function resolveAsarPath({ fs, argv, desktopRoot }: { fs: VerifyPackageFs
   if (explicit) return path.resolve(explicit);
 
   const releaseDir = path.join(desktopRoot, "release");
-  const candidates = findAppBundles(fs, releaseDir).map((bundle) => path.join(bundle, "Contents/Resources/app.asar"));
+  const candidates = findAppBundles({ fs, dir: releaseDir }).map((bundle) => path.join(bundle, "Contents/Resources/app.asar"));
   candidates.push(path.join(releaseDir, "win-unpacked", "resources", "app.asar"));
   const existing = candidates.filter((candidate) => fs.existsSync(candidate));
   existing.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
@@ -111,27 +107,27 @@ export function resolveAsarPath({ fs, argv, desktopRoot }: { fs: VerifyPackageFs
 }
 
 /** The asar comparison half; returns the failure message, or `undefined` on a clean, non-empty pass. */
-function asarFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: string): string | undefined {
-  const { checkedCount, mismatches } = ports.verify(asarPath, desktopRoot, ports.prefixes);
+function asarFailure({ ports, asarPath, desktopRoot }: { ports: VerifyPackagePorts; asarPath: string; desktopRoot: string }, _options = {}): string | undefined {
+  const { checkedCount, mismatches } = ports.verify({ asarPath, sourceRoot: desktopRoot, prefixes: ports.prefixes });
   ports.stdout.write(`verify-package: ${checkedCount} file(s) checked\n`);
-  if (ports.isEmptyVerification(checkedCount)) {
+  if (ports.isEmptyVerification({ checkedCount })) {
     return "verify-package: verified nothing — path-separator or prefix bug (see asar-verify.ts's " +
       "toArchiveEntryPath doc comment); this is a failure, not a clean pass\n";
   }
-  if (mismatches.length > 0) return `verify-package: ${ports.formatMismatchReport(mismatches)}\n`;
+  if (mismatches.length > 0) return `verify-package: ${ports.formatMismatchReport({ mismatches })}\n`;
   return undefined;
 }
 
 /** The resources dirs the npm and spawn-helper checks read. The verified asar's own resources dir
  *  always counts, so an explicit `--asar` outside `release/` is checked too rather than passing
  *  with zero dirs. */
-function resourcesDirsFor(ports: VerifyPackagePorts, asarPath: string, desktopRoot: string): string[] {
-  return [...new Set([path.dirname(asarPath), ...findResourcesDirs(ports.fs, desktopRoot)])];
+function resourcesDirsFor({ ports, asarPath, desktopRoot }: { ports: VerifyPackagePorts; asarPath: string; desktopRoot: string }, _options = {}): string[] {
+  return [...new Set([path.dirname(asarPath), ...findResourcesDirs({ fs: ports.fs, desktopRoot })])];
 }
 
 /** The bundled-npm half; returns the failure message, or `undefined` on a pass. */
-function npmFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
-  const failures = ports.bundledNpmFailures(resourcesDirs);
+function npmFailure({ ports, resourcesDirs }: { ports: VerifyPackagePorts; resourcesDirs: string[] }, _options = {}): string | undefined {
+  const failures = ports.bundledNpmFailures({ resourcesDirs });
   if (failures.length === 0) return undefined;
   return `verify-package: bundled npm is missing from the packaged app:\n  ${failures.join("\n  ")}\n` +
     "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +
@@ -140,8 +136,8 @@ function npmFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string 
 
 /** The node-pty half; returns the failure message, or `undefined` on a pass. electron-builder keeps
  *  the mode it finds, so a helper staging left unexecutable ships that way (see pty-helpers.ts). */
-function ptyFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
-  const failures = ports.ptyHelperFailures(resourcesDirs);
+function ptyFailure({ ports, resourcesDirs }: { ports: VerifyPackagePorts; resourcesDirs: string[] }, _options = {}): string | undefined {
+  const failures = ports.ptyHelperFailures({ resourcesDirs });
   if (failures.length === 0) return undefined;
   return `verify-package: node-pty spawn-helper is missing or not executable in the packaged app:\n  ${failures.join("\n  ")}\n` +
     "Every terminal would fail with `posix_spawnp failed`. Check that `npm run stage` ran before " +
@@ -165,13 +161,13 @@ export function runVerifyPackage({ argv, desktopRoot }: { argv: readonly string[
     return 1;
   }
   ports.stdout.write(`verify-package: checking ${asarPath} against source under ${ports.prefixes.join(", ")}\n`);
-  const asarMessage = asarFailure(ports, asarPath, desktopRoot);
+  const asarMessage = asarFailure({ ports, asarPath, desktopRoot });
   if (asarMessage !== undefined) {
     ports.stderr.write(asarMessage);
     return 1;
   }
-  const resourcesDirs = resourcesDirsFor(ports, asarPath, desktopRoot);
-  const packagedMessage = npmFailure(ports, resourcesDirs) ?? ptyFailure(ports, resourcesDirs);
+  const resourcesDirs = resourcesDirsFor({ ports, asarPath, desktopRoot });
+  const packagedMessage = npmFailure({ ports, resourcesDirs }) ?? ptyFailure({ ports, resourcesDirs });
   if (packagedMessage !== undefined) {
     ports.stderr.write(packagedMessage);
     return 1;

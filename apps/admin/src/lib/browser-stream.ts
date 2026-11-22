@@ -1,5 +1,6 @@
 /** Browser connection ownership; transport callbacks retain their native retry policy. */
-import type { VisibilitySource } from "./visible-interval";
+import type { VisibilitySource } from "@jini-ai/ui/visible-interval";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import type { StreamActivity } from "./stream-activity";
 
 export interface StreamChannel {
@@ -43,63 +44,100 @@ const HIDDEN_GRACE_MS = 30_000;
  * Active chat retains tab streams. Pagehide/disposal always releases locks and connections.
  * @returns Idempotent disposer. Transport construction errors propagate in per-tab mode.
  * @complexity O(1) ownership state per subscriber; channel delivery is O(number of tabs).
- * @example startBrowserStream({ key: "feed", connect: ({ emit }) => openFeed(emit) });
+ * @example startBrowserStream({ key: "feed", connect: ({ emit }) => openFeed((frame) => emit({ frame })) });
  */
 export function startBrowserStream<Frame>(
   { key, connect, receive = () => {} }: {
     key: string;
-    connect: (required: { emit: (frame: Frame) => void }) => () => void;
+    connect: (required: { emit: (required: { frame: Frame }, optional?: Record<string, never>) => void }) => () => void;
     receive?: (required: { frame: Frame }) => void;
   },
   { ports = browserStreamPorts(), scope = "origin", activity }: {
     ports?: BrowserStreamPorts; scope?: "origin" | "tab"; activity?: StreamActivity;
   } = {},
 ): () => void {
-  let disposed = false;
-  let away = false;
-  let hiddenSince = hiddenSinceNow({ ports, previous: undefined });
-  let stopConnection: (() => void) | undefined;
-  let stopTimer: (() => void) | undefined;
-  let lock: AbortController | undefined;
-  let releaseLock: (() => void) | undefined;
+  const state: BrowserStreamState = {
+    disposed: false,
+    away: false,
+    hiddenSince: hiddenSinceNow({ ports, previous: undefined }),
+    stopConnection: undefined,
+    stopTimer: undefined,
+    lock: undefined,
+    releaseLock: undefined,
+    channel: undefined,
+  };
   // `stop` removes this listener, so a disposed stream never reaches it.
   const onMessage = (event: MessageEvent<unknown>) => {
-    if (!away) receive({ frame: event.data as Frame });
+    if (!state.away) receive({ frame: event.data as Frame });
   };
-  let channel = openSharedChannel({ key, scope, ports, onMessage });
+  state.channel = openSharedChannel({ key, scope, ports, onMessage });
+  const halt = () => haltBrowserStream(state);
+  const open = () => openBrowserStreamConnection<Frame>(state, { connect, receive });
+  const acquire = () => acquireBrowserStreamLock(state, { key, ports }, { open, halt, closeChannel, reconcile });
+  const closeChannel = () => closeBrowserStreamChannel(state, onMessage);
+  const reconcile = () => reconcileBrowserStream(state, { halt, acquire, reconcileTab });
+  const reconcileTab = () => reconcileTabStream(state, { ports, activity }, { halt, reconcile, open });
 
-  /** Close before releasing the lock: two tabs must never overlap their connections. */
-  function halt(): void {
-    stopConnection?.();
-    stopConnection = undefined;
-    lock?.abort();
-    lock = undefined;
-    releaseLock?.();
-    releaseLock = undefined;
+  const onVisibility = () => {
+    state.hiddenSince = hiddenSinceNow({ ports, previous: state.hiddenSince });
+    reconcile();
+  };
+  const onPageHide = () => { state.away = true; reconcile(); };
+  const onPageShow = () => { state.away = false; onVisibility(); };
+  ports.visibility.addEventListener("visibilitychange", onVisibility);
+  ports.page.addEventListener("pagehide", onPageHide);
+  ports.page.addEventListener("pageshow", onPageShow);
+  const unsubscribeActivity = activity?.subscribe({ listener: reconcile });
+  const stop = createBrowserStreamDisposer(state, { ports, onVisibility, onPageHide, onPageShow, unsubscribeActivity }, { halt, closeChannel });
+  try { reconcile(); } catch (error) { stop(); throw error; }
+  return stop;
+}
+
+interface BrowserStreamState {
+  disposed: boolean;
+  away: boolean;
+  hiddenSince: number | undefined;
+  stopConnection: (() => void) | undefined;
+  stopTimer: (() => void) | undefined;
+  lock: AbortController | undefined;
+  releaseLock: (() => void) | undefined;
+  channel: StreamChannel | undefined;
+}
+
+/** Close before releasing the lock: two tabs must never overlap their connections. */
+function haltBrowserStream(state: BrowserStreamState): void {
+    state.stopConnection?.();
+    state.stopConnection = undefined;
+    state.lock?.abort();
+    state.lock = undefined;
+    state.releaseLock?.();
+    state.releaseLock = undefined;
   }
 
-  function open(): void {
-    if (stopConnection) return;
+
+function openBrowserStreamConnection<Frame>(state: BrowserStreamState, { connect, receive }: Required<Pick<Parameters<typeof startBrowserStream<Frame>>[0], "connect" | "receive">>): void {
+    if (state.stopConnection) return;
     let connected = true;
-    const close = connect({ emit: (frame) => {
-      if (!connected || disposed || away) return;
+    const close = connect({ emit: ({ frame }, _optional = {}) => {
+      if (!connected || state.disposed || state.away) return;
       receive({ frame });
-      channel?.postMessage(frame);
+      state.channel?.postMessage(frame);
     } });
-    stopConnection = () => { connected = false; close(); };
+    state.stopConnection = () => { connected = false; close(); };
   }
 
-  /** A pending/acquired lock owns its own cancellation; denied hosts switch to tab mode. */
-  function acquire(): void {
-    if (lock) return;
+/** A pending/acquired lock owns its own cancellation; denied hosts switch to tab mode. */
+function acquireBrowserStreamLock(state: BrowserStreamState, { key, ports }: { key: string; ports: BrowserStreamPorts }, { open, halt, closeChannel, reconcile }: { open: () => void; halt: () => void; closeChannel: () => void; reconcile: () => void }): void {
+    if (state.lock) return;
+    if (!ports.requestLock) throw new Error("shared browser stream has no lock provider");
     const requested = new AbortController();
-    lock = requested;
+    state.lock = requested;
     // Disposal and pagehide both run `halt()`, which aborts this request, so its signal covers them.
-    void ports.requestLock!({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
+    void ports.requestLock({ key: `browser-stream:${key}`, signal: requested.signal, hold: async () => {
       if (requested.signal.aborted) return;
       // Set the release first so cleanup always releases even when connect throws.
       await new Promise<void>((resolve, reject) => {
-        releaseLock = resolve;
+        state.releaseLock = resolve;
         try { open(); } catch (error) { reject(error); }
       });
     } }).catch(() => {
@@ -110,49 +148,45 @@ export function startBrowserStream<Frame>(
     });
   }
 
-  function closeChannel(): void {
-    channel?.removeEventListener("message", onMessage);
-    channel?.close();
-    channel = undefined;
+
+function closeBrowserStreamChannel(state: BrowserStreamState, onMessage: (event: MessageEvent<unknown>) => void): void {
+    state.channel?.removeEventListener("message", onMessage);
+    state.channel?.close();
+    state.channel = undefined;
   }
 
-  /** Reconcile one tab's visibility/activity with its connection and queued lock. */
-  function reconcile(): void {
+/** Reconcile one tab's visibility/activity with its connection and queued lock. */
+function reconcileBrowserStream(state: BrowserStreamState, { halt, acquire, reconcileTab }: { halt: () => void; acquire: () => void; reconcileTab: () => void }): void {
+    const stopTimer = state.stopTimer;
     stopTimer?.();
-    stopTimer = undefined;
-    if (disposed || away) { halt(); return; }
-    if (channel) {
-      if (hiddenSince !== undefined) { halt(); return; }
+    state.stopTimer = undefined;
+    if (state.disposed || state.away) { halt(); return; }
+    if (state.channel) {
+      if (state.hiddenSince !== undefined) { halt(); return; }
       acquire();
       return;
     }
     reconcileTab();
   }
 
-  /** Per-tab mode: keep the connection through the hidden grace period unless a chat is active. */
-  function reconcileTab(): void {
-    if (hiddenSince !== undefined && !activity?.active({})) {
-      const remaining = HIDDEN_GRACE_MS - (ports.now() - hiddenSince);
+/** Per-tab mode: keep the connection through the hidden grace period unless a chat is active. */
+function reconcileTabStream(state: BrowserStreamState, { ports, activity }: { ports: BrowserStreamPorts; activity: StreamActivity | undefined }, { halt, reconcile, open }: { halt: () => void; reconcile: () => void; open: () => void }): void {
+    if (state.hiddenSince !== undefined && !activity?.active({})) {
+      const remaining = HIDDEN_GRACE_MS - (ports.now() - state.hiddenSince);
       if (remaining <= 0) { halt(); return; }
-      stopTimer = ports.schedule({ work: reconcile, delayMs: remaining });
+      state.stopTimer = ports.schedule({ work: reconcile, delayMs: remaining });
     }
     open();
   }
 
-  const onVisibility = () => {
-    hiddenSince = hiddenSinceNow({ ports, previous: hiddenSince });
-    reconcile();
-  };
-  const onPageHide = () => { away = true; reconcile(); };
-  const onPageShow = () => { away = false; onVisibility(); };
-  ports.visibility.addEventListener("visibilitychange", onVisibility);
-  ports.page.addEventListener("pagehide", onPageHide);
-  ports.page.addEventListener("pageshow", onPageShow);
-  const unsubscribeActivity = activity?.subscribe({ listener: reconcile });
-  const stop = () => {
-    if (disposed) return;
-    disposed = true;
+function createBrowserStreamDisposer(state: BrowserStreamState, { ports, onVisibility, onPageHide, onPageShow, unsubscribeActivity }: {
+  ports: BrowserStreamPorts; onVisibility: () => void; onPageHide: () => void; onPageShow: () => void; unsubscribeActivity: (() => void) | undefined;
+}, { halt, closeChannel }: { halt: () => void; closeChannel: () => void }): () => void {
+  return () => {
+    if (state.disposed) return;
+    state.disposed = true;
     halt();
+    const stopTimer = state.stopTimer;
     stopTimer?.();
     unsubscribeActivity?.();
     ports.visibility.removeEventListener("visibilitychange", onVisibility);
@@ -160,9 +194,8 @@ export function startBrowserStream<Frame>(
     ports.page.removeEventListener("pageshow", onPageShow);
     closeChannel();
   };
-  try { reconcile(); } catch (error) { stop(); throw error; }
-  return stop;
 }
+
 
 /**
  * When the tab became hidden: kept while it stays hidden, cleared once visible.
@@ -185,9 +218,8 @@ function openSharedChannel(
 ): StreamChannel | undefined {
   // Both capabilities are necessary: a lock without fan-out would silence follower tabs.
   if (scope !== "origin" || !ports.requestLock || !ports.openChannel) return undefined;
-  let channel: StreamChannel;
-  try { channel = ports.openChannel({ name: `browser-stream:${key}` }); }
-  catch { return undefined; /* Storage-denied hosts use the visibility-managed fallback. */ }
+  const channel = orFallbackSync({ work: () => ports.openChannel?.({ name: `browser-stream:${key}` }), fallback: undefined, step: "Open browser stream channel" });
+  if (!channel) return undefined; // Storage-denied hosts use the visibility-managed fallback.
   channel.addEventListener("message", onMessage);
   return channel;
 }

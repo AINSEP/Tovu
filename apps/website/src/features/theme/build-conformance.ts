@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { TRASH_DIR_NAME } from "./theme-layout.js";
+import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
 
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 
@@ -74,7 +74,7 @@ export interface ConformanceIssue {
  * the plain-string-count idiom this codebase already reaches for over a regex when the needle has no
  * pattern metacharacters worth escaping (the sentinel is a fixed literal).
  */
-function countOccurrences(haystack: string, needle: string): number {
+function countOccurrences({ haystack, needle }: { haystack: string; needle: string }, _optional = {}): number {
   return haystack.split(needle).length - 1;
 }
 
@@ -84,9 +84,9 @@ function countOccurrences(haystack: string, needle: string): number {
  * for this same condition), more than one means the runtime's single `.replace()` only tokens the
  * first occurrence and leaves the rest bare.
  */
-function checkStylesheetSentinel(pageId: string, html: string, apiVersion?: 2): ConformanceIssue[] {
-  const sentinel = tokenStylesheetSentinel(apiVersion);
-  const count = countOccurrences(html, sentinel);
+function checkStylesheetSentinel({ pageId, html }: { pageId: string; html: string }, { apiVersion }: { apiVersion?: 2 } = {}): ConformanceIssue[] {
+  const sentinel = tokenStylesheetSentinel({}, { apiVersion });
+  const count = countOccurrences({ haystack: html, needle: sentinel });
   if (count === 1) return [];
   return [
     {
@@ -119,9 +119,9 @@ function checkStylesheetSentinel(pageId: string, html: string, apiVersion?: 2): 
  * exists so a reader filtering issues down to just the `asset-path` rule still sees that this page's
  * assets were never actually verified, rather than reading silence as a clean bill of health.
  */
-function checkAssetPaths(pageId: string, html: string, themeId: string, apiVersion?: 2): ConformanceIssue[] {
-  const totalReferences = findUnrewrittenAssetPaths(html, apiVersion).length; // count BEFORE rewriting -- rewritable or not
-  const unrewritten = findUnrewrittenAssetPaths(rewriteAssetPaths(html, themeId, apiVersion), apiVersion);
+function checkAssetPaths({ pageId, html, themeId }: { pageId: string; html: string; themeId: string }, { apiVersion }: { apiVersion?: 2 } = {}): ConformanceIssue[] {
+  const totalReferences = findUnrewrittenAssetPaths({ html }, { apiVersion }).length; // count BEFORE rewriting -- rewritable or not
+  const unrewritten = findUnrewrittenAssetPaths({ html: rewriteAssetPaths({ html, themeId }, { apiVersion }) }, { apiVersion });
   const issues: ConformanceIssue[] = unrewritten.map((reference) => ({
     page: pageId,
     rule: "asset-path",
@@ -143,7 +143,7 @@ function checkAssetPaths(pageId: string, html: string, themeId: string, apiVersi
  * question a crawler with no JavaScript is asking. Comments and `<script>`/`<style>` bodies never count
  * as content; nested tags are stripped, not their text.
  */
-function visibleIslandText(innerHtml: string): string {
+function visibleIslandText({ innerHtml }: { innerHtml: string }, _optional = {}): string {
   const chunks = innerHtml
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "")
@@ -165,10 +165,10 @@ function visibleIslandText(innerHtml: string): string {
  * {@link ISLAND_MARKER}'s own doc for why. An island whose entire content is filled in by client-side
  * hydration (an empty mount point) fails here rather than shipping invisible-to-most-crawlers content.
  */
-function checkIslandContent(pageId: string, html: string): ConformanceIssue[] {
+function checkIslandContent({ pageId, html }: { pageId: string; html: string }, _optional = {}): ConformanceIssue[] {
   const issues: ConformanceIssue[] = [];
   for (const match of html.matchAll(ISLAND_MARKER)) {
-    if (visibleIslandText(match[2] ?? "").length === 0) {
+    if (visibleIslandText({ innerHtml: match[2] ?? "" }).length === 0) {
       issues.push({
         page: pageId,
         rule: "island-content",
@@ -225,7 +225,7 @@ const MAX_TOTAL_HASHED_BYTES = 64 * 1024 * 1024;
  * is a handful of lines of pure string logic — one extra copy of a boundary rule is the smaller,
  * contained risk, and a cross-check test in `build-conformance.test.ts` pins it equal to the original.
  */
-function isInGeneratedTree(relativePath: string, sourceDir: string | undefined): boolean {
+function isInGeneratedTree({ relativePath, sourceDir }: { relativePath: string; sourceDir: string | undefined }, _optional = {}): boolean {
   // Retained replacements and manually trashed files are local recovery data, never build output.
   if (relativePath.split("/", 1)[0] === TRASH_DIR_NAME) return false;
   if (relativePath === "theme.json") return false;
@@ -256,7 +256,7 @@ interface GeneratedTreeInventory {
  * no legitimate reason to contain a symlink, so this rejects the ENTRY KIND rather than attempting to
  * reason about where it points.
  *
- * Unlike an archive extractor's entry-PATH traversal risk (`agent-plugins/package-paths.ts`'s own
+ * Unlike an archive extractor's entry-PATH traversal risk (`Jini packages/agent-plugins/src/lifecycle/package-paths.ts`'s own
  * reason for full `realpath`-based containment on every entry), this walk has no equivalent lexical
  * `../` exposure: every path segment it ever joins comes from `readdirSync`'s own directory-entry
  * names, which the OS guarantees are single path components with no separator or `..` token — there is
@@ -276,8 +276,8 @@ interface GeneratedTreeInventory {
  * none can be used to escape containment the way a symlink can. */
 type GeneratedTreeEntryKind = "skip" | "symlink" | "directory" | "file";
 
-function classifyGeneratedTreeEntry(relativePath: string, absolute: string, sourceDir: string | undefined): GeneratedTreeEntryKind {
-  if (!isInGeneratedTree(relativePath, sourceDir)) return "skip";
+function classifyGeneratedTreeEntry({ relativePath, absolute, sourceDir }: { relativePath: string; absolute: string; sourceDir: string | undefined }, _optional = {}): GeneratedTreeEntryKind {
+  if (!isInGeneratedTree({ relativePath, sourceDir })) return "skip";
   const linkStat = lstatSync(absolute);
   if (linkStat.isSymbolicLink()) return "symlink";
   if (linkStat.isDirectory()) return "directory";
@@ -291,17 +291,10 @@ function classifyGeneratedTreeEntry(relativePath: string, absolute: string, sour
  * cognitive complexity penalizes nesting depth, not branch count: four sequential ifs one level
  * inside `walk`'s own `for` loop cost roughly double what the same four ifs cost sitting at a
  * function's own top level. */
-function visitGeneratedTreeEntry(
-  dir: string,
-  relPrefix: string,
-  name: string,
-  sourceDir: string | undefined,
-  files: Map<string, string>,
-  rejected: Map<string, ConformanceIssue>
-): { absolute: string; relativePath: string } | undefined {
+function visitGeneratedTreeEntry({ dir, relPrefix, name, sourceDir, files, rejected }: { dir: string; relPrefix: string; name: string; sourceDir: string | undefined; files: Map<string, string>; rejected: Map<string, ConformanceIssue> }, _optional = {}): { absolute: string; relativePath: string } | undefined {
   const absolute = join(dir, name);
   const relativePath = relPrefix ? `${relPrefix}/${name}` : name;
-  const kind = classifyGeneratedTreeEntry(relativePath, absolute, sourceDir);
+  const kind = classifyGeneratedTreeEntry({ relativePath, absolute, sourceDir });
 
   if (kind === "skip") return undefined;
   if (kind === "symlink") {
@@ -319,12 +312,12 @@ function visitGeneratedTreeEntry(
   return { absolute, relativePath }; // kind === "directory" — caller recurses
 }
 
-function walkGeneratedTree(themeDir: string, sourceDir: string | undefined): GeneratedTreeInventory {
+function walkGeneratedTree({ themeDir, sourceDir }: { themeDir: string; sourceDir: string | undefined }, _optional = {}): GeneratedTreeInventory {
   const files = new Map<string, string>();
   const rejected = new Map<string, ConformanceIssue>();
   if (!existsSync(themeDir)) return { files, rejected };
 
-  const walk = (dir: string, relPrefix: string, depth: number): void => {
+  const walk = ({ dir, relPrefix, depth }: { dir: string; relPrefix: string; depth: number }, _optional = {}): void => {
     if (depth > MAX_INVENTORY_WALK_DEPTH) {
       throw new GeneratedTreeInventoryLimitExceeded(
         `generated tree exceeds the ${MAX_INVENTORY_WALK_DEPTH}-level depth cap under '${relPrefix || "."}'`
@@ -334,12 +327,12 @@ function walkGeneratedTree(themeDir: string, sourceDir: string | undefined): Gen
       if (files.size >= MAX_INVENTORY_FILES) {
         throw new GeneratedTreeInventoryLimitExceeded(`generated tree exceeds the ${MAX_INVENTORY_FILES}-file inventory cap`);
       }
-      const toRecurse = visitGeneratedTreeEntry(dir, relPrefix, name, sourceDir, files, rejected);
-      if (toRecurse) walk(toRecurse.absolute, toRecurse.relativePath, depth + 1);
+      const toRecurse = visitGeneratedTreeEntry({ dir, relPrefix, name, sourceDir, files, rejected });
+      if (toRecurse) walk({ dir: toRecurse.absolute, relPrefix: toRecurse.relativePath, depth: depth + 1 });
     }
   };
 
-  walk(themeDir, "", 0);
+  walk({ dir: themeDir, relPrefix: "", depth: 0 });
   return { files, rejected };
 }
 
@@ -386,23 +379,13 @@ interface ArtifactHashEntryResult {
   readonly stop: boolean;
 }
 
-function checkOneArtifactHashEntry(
-  relativePath: string,
-  expected: string,
-  discovered: ReadonlyMap<string, string>,
-  rejected: ReadonlyMap<string, ConformanceIssue>,
-  totalHashedBytesSoFar: number
-): ArtifactHashEntryResult {
+function checkOneArtifactHashEntry({ relativePath, expected, discovered, rejected, totalHashedBytesSoFar }: { relativePath: string; expected: string; discovered: ReadonlyMap<string, string>; rejected: ReadonlyMap<string, ConformanceIssue>; totalHashedBytesSoFar: number }, _optional = {}): ArtifactHashEntryResult {
   if (rejected.has(relativePath)) return { bytesHashed: totalHashedBytesSoFar, stop: false }; // already reported, as a symlink, not "missing"
 
   const absolutePath = discovered.get(relativePath);
   if (absolutePath === undefined) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)` }),
       bytesHashed: totalHashedBytesSoFar,
       stop: false,
     };
@@ -411,11 +394,7 @@ function checkOneArtifactHashEntry(
   const size = statSync(absolutePath).size;
   if (size > MAX_HASHED_FILE_BYTES) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap` }),
       bytesHashed: totalHashedBytesSoFar,
       stop: false,
     };
@@ -424,11 +403,7 @@ function checkOneArtifactHashEntry(
   const bytesHashed = totalHashedBytesSoFar + size;
   if (bytesHashed > MAX_TOTAL_HASHED_BYTES) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'` }),
       bytesHashed,
       stop: true, // matches agent-plugins' own fail-fast on TOTAL_SIZE_EXCEEDED
     };
@@ -440,11 +415,7 @@ function checkOneArtifactHashEntry(
   const normalizedExpected = expected.replace(/^sha256[:-]/, "").toLowerCase();
   if (actual !== normalizedExpected) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it` }),
       bytesHashed,
       stop: false,
     };
@@ -453,19 +424,20 @@ function checkOneArtifactHashEntry(
   return { bytesHashed, stop: false };
 }
 
+/** One `artifactHashes` entry's conformance issue, always under the artifact-hash rule. */
+function artifactHashIssue({ relativePath, message }: { relativePath: string; message: string }, _optional = {}): ConformanceIssue {
+  return { page: relativePath, rule: ARTIFACT_HASH_RULE, message };
+}
+
 /** Phase 2 of {@link checkArtifactHashes}: every `artifactHashes` entry against the inventory
  * `walkGeneratedTree` already found — existence, the per-file and cumulative size caps, and the
  * digest itself. Stops hashing further entries (but not the whole function — phase 3 below still
  * runs against every declared key) once the cumulative cap trips. */
-function verifyArtifactHashEntries(
-  artifactHashes: Readonly<Record<string, string>>,
-  discovered: ReadonlyMap<string, string>,
-  rejected: ReadonlyMap<string, ConformanceIssue>
-): ConformanceIssue[] {
+function verifyArtifactHashEntries({ artifactHashes, discovered, rejected }: { artifactHashes: Readonly<Record<string, string>>; discovered: ReadonlyMap<string, string>; rejected: ReadonlyMap<string, ConformanceIssue> }, _optional = {}): ConformanceIssue[] {
   const issues: ConformanceIssue[] = [];
   let totalHashedBytes = 0;
   for (const [relativePath, expected] of Object.entries(artifactHashes)) {
-    const result = checkOneArtifactHashEntry(relativePath, expected, discovered, rejected, totalHashedBytes);
+    const result = checkOneArtifactHashEntry({ relativePath, expected, discovered, rejected, totalHashedBytesSoFar: totalHashedBytes });
     totalHashedBytes = result.bytesHashed;
     if (result.issue) issues.push(result.issue);
     if (result.stop) break;
@@ -494,14 +466,10 @@ function findUndeclaredGeneratedFiles(
   return issues;
 }
 
-function checkArtifactHashes(
-  themeDir: string,
-  sourceDir: string | undefined,
-  artifactHashes: Readonly<Record<string, string>>
-): ConformanceIssue[] {
+function checkArtifactHashes({ themeDir, sourceDir, artifactHashes }: { themeDir: string; sourceDir: string | undefined; artifactHashes: Readonly<Record<string, string>> }, _optional = {}): ConformanceIssue[] {
   let inventory: GeneratedTreeInventory;
   try {
-    inventory = walkGeneratedTree(themeDir, sourceDir);
+    inventory = walkGeneratedTree({ themeDir, sourceDir });
   } catch (error) {
     if (error instanceof GeneratedTreeInventoryLimitExceeded) {
       // an unfinished walk cannot safely back a "here is everything" claim either way
@@ -513,7 +481,7 @@ function checkArtifactHashes(
 
   return [
     ...rejected.values(),
-    ...verifyArtifactHashEntries(artifactHashes, discovered, rejected),
+    ...verifyArtifactHashEntries({ artifactHashes, discovered, rejected }),
     ...findUndeclaredGeneratedFiles(discovered, artifactHashes),
   ];
 }
@@ -561,14 +529,14 @@ export function checkBuiltThemeConformance(
   const issues: ConformanceIssue[] = [];
 
   for (const [pageId, html] of Object.entries(pages)) {
-    issues.push(...checkStylesheetSentinel(pageId, html, apiVersion));
-    issues.push(...checkAssetPaths(pageId, html, themeId, apiVersion));
-    issues.push(...checkIslandContent(pageId, html));
+    issues.push(...checkStylesheetSentinel({ pageId, html }, { apiVersion }));
+    issues.push(...checkAssetPaths({ pageId, html, themeId }, { apiVersion }));
+    issues.push(...checkIslandContent({ pageId, html }));
   }
   for (const [partialId, html] of Object.entries(partials)) {
-    issues.push(...checkIslandContent(partialId, html));
+    issues.push(...checkIslandContent({ pageId: partialId, html }));
   }
-  issues.push(...checkArtifactHashes(themeDir, sourceDir, artifactHashes));
+  issues.push(...checkArtifactHashes({ themeDir, sourceDir, artifactHashes }));
 
   return issues;
 }

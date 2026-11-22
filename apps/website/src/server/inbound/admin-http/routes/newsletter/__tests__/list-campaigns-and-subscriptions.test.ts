@@ -79,8 +79,8 @@ async function buildApp(): Promise<{ app: express.Express; deps: NewsletterRoute
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterListCampaignsRoute(app, deps);
-  registerAdminNewsletterListSubscriptionsRoute(app, deps);
+  registerAdminNewsletterListCampaignsRoute({ app, deps });
+  registerAdminNewsletterListSubscriptionsRoute({ app, deps });
   return { app, deps, permissions };
 }
 

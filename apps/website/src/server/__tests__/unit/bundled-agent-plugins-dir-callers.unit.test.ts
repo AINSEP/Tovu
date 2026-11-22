@@ -43,7 +43,7 @@ function composedRoot(t: TestContext, manifest: Record<string, unknown>): string
   const packageRoot = path.join(root, PLUGIN_ID);
   mkdirSync(packageRoot);
   writeFileSync(path.join(packageRoot, "plugin.json"), JSON.stringify({ name: PLUGIN_ID, version: "1.0.0", ...manifest }));
-  writeFileSync(path.join(packageRoot, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: PLATFORM_ID, label: "Composed Only", hosts: ["api.example.com"], module: "ops.mjs" }] }));
+  writeFileSync(path.join(packageRoot, "jini-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: PLATFORM_ID, label: "Composed Only", hosts: ["api.example.com"], module: "ops.mjs" }] }));
   writeFileSync(path.join(packageRoot, "ops.mjs"), "export default { status() {}, logs() {} };\n");
   return root;
 }

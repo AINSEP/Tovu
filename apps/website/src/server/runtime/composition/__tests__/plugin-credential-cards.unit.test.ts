@@ -17,7 +17,7 @@ async function loadDeclaredCards({ sources, mailCards = [] }: { sources: readonl
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => mailCards }, {
     readFile: async ({ plugin, filename }) => {
-      assert.ok(['plugin.json', 'tovu-deploy-targets.json', 'tovu-source-control.json', 'tovu-mail-adapters.json'].includes(filename));
+      assert.ok(['plugin.json', 'jini-deploy-targets.json', 'jini-source-control.json', 'jini-mail-adapters.json'].includes(filename));
       return filename === 'plugin.json' ? sources.find(entry => entry.pluginId === plugin.pluginId)?.raw ?? '{}' : '{}';
     },
     onRefusal: message => refusals.push(message),
@@ -125,8 +125,8 @@ test('bundled Fly and Meilisearch declarations survive real parsing and ownershi
   assert.deepEqual(result.refusals, []);
   assert.deepEqual(result.cards.map(card => [card.providerId, card.pluginId, card.label, card.ownedApiLabel]), [
     ['fly', 'fly', 'fly.io', 'fly.io'],
-    ['meilisearch', 'meilisearch', 'Tovu Search — Meilisearch', 'Tovu Search — Meilisearch'],
-  ]);
+    ['meilisearch', 'meilisearch', 'Search — Meilisearch', 'Search — Meilisearch'],
+  ], 'the real Meilisearch save card owns and writes the canonical label');
   assert.deepEqual(result.cards[0]!.additionalHosts, ['https://api.machines.dev']);
   assert.deepEqual(result.cards[1]!.fields?.map(field => [field.name, field.required]), [['baseUrl', true]]);
 });
@@ -156,10 +156,13 @@ test('a refused manifest does not remove working mail cards and its refusal is r
 test('a broken manifest loader retains mail cards and reports the fallback', async () => {
   const refusals: string[] = [];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [mail] }, {
-    loadContributions: async () => { throw new Error('EIO'); }, onRefusal: message => refusals.push(message),
+    loadContributions: async () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); }, onRefusal: message => refusals.push(message),
   });
   assert.deepEqual(await load('workspace'), [mail]);
   assert.match(refusals[0]!, /default/);
+  assert.match(refusals[0]!, /boom/);
+  assert.match(refusals[0]!, /plugin-credential-cards\.unit\.test\.ts/);
+  assert.doesNotMatch(refusals[0]!, /SECRETSECRETSECRETSECRET/);
 });
 
 test('trusted contribution materialization tags ownership and refuses cross-plugin identities', async () => {
@@ -171,7 +174,7 @@ test('trusted contribution materialization tags ownership and refuses cross-plug
     { ...manifest, providerId: 'own-dns', saveKind: 'publish-host' as const },
   ];
   const load = createPluginCredentialCardsLoader({ agentPluginLayout: {} as AgentPluginLayout, loadMailCards: async () => [] }, {
-    readFile: async ({ filename }) => filename === 'tovu-deploy-targets.json' ? JSON.stringify({ schemaVersion: 1, targets: [{ id: 'own-dns', label: 'DNS', module: 'dns.mjs', config: [] }] }) : '{}',
+    readFile: async ({ filename }) => filename === 'jini-deploy-targets.json' ? JSON.stringify({ schemaVersion: 1, targets: [{ id: 'own-dns', label: 'DNS', module: 'dns.mjs', config: [] }] }) : '{}',
     loadContributions: async ({ definition }) => {
       const items = [];
       for (const descriptor of declarations) {

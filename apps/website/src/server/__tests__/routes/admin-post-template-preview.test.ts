@@ -7,7 +7,8 @@ import express from "express";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";
@@ -86,13 +87,13 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   deps.themes = [theme];
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   // `as never`: `createContentModule` takes the narrower `ContentRouteDeps`, and `RouteDeps` is a
   // structural supertype of it — same cast the existing `post-template-site-serving.test.ts` uses at
   // its own identical call site.
-  createContentModule(deps as never).registerRoutes?.(app);
-  registerSiteRoutes(app, deps);
+  createContentModule(deps as never).registerRoutes?.({ app });
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

@@ -18,7 +18,10 @@ export type LocaleDictionary = Record<string, Record<string, string>>;
  * on a key collision. An overlay that has no entry for a locale contributes nothing to it.
  * Inputs are never mutated.
  */
-export function mergeLocaleOverlays(base: LocaleDictionary, ...overlays: readonly LocaleDictionary[]): LocaleDictionary {
+export function mergeLocaleOverlays(
+  { base }: { base: LocaleDictionary },
+  { overlays = [] }: { overlays?: readonly LocaleDictionary[] } = {},
+): LocaleDictionary {
   return Object.fromEntries(
     Object.entries(base).map(([locale, entries]) => [
       locale,

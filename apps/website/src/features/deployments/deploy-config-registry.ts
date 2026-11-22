@@ -5,15 +5,14 @@ import path from "node:path";
 import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type LoadPluginContributions, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import {
-  asDeployConfigGeneratorModule, isContainedDeployConfigPath, parseDeployConfigsFile as parseDeployConfigDescriptors,
+  asDeployConfigGeneratorModule, parseDeployConfigsFile as parseDeployConfigDescriptors,
   type DeployConfigGeneratorDescriptor, type DeployConfigGeneratorRegistry, type LoadedDeployConfigGenerator,
 } from "@jini-ai/devops/deploy";
 
 import type { DeployConfigGeneratorModule } from "./deploy-config.js";
 
-/** The generator descriptor, loaded-generator and registry shapes, and the declaration-path guard,
- *  live in `@jini-ai/devops/deploy`; this path keeps the host's existing imports. */
-export { isContainedDeployConfigPath };
+/** The generator descriptor, loaded-generator and registry shapes live in `@jini-ai/devops/deploy`;
+ *  this path keeps the host's existing imports. */
 export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, LoadedDeployConfigGenerator };
 
 /**
@@ -26,7 +25,7 @@ export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, Lo
  * Only the SOURCE loader exists today: its one caller, the CLI, runs at the repo root and reads the
  * product's own bundled `content/agent-plugins/<id>/`, the same trust basis as the hermetic
  * composition root. Module imports still go through the shared containment gate
- * (`features/agent-plugins/trusted-plugin-files.ts`). A workspace-installed variant (activation +
+ * (`Jini packages/agent-plugins/src/lifecycle/trusted-plugin-files.ts`). A workspace-installed variant (activation +
  * bundled-digest gates, like `deploy-targets/registry.ts`) is added when an admin route needs one.
  *
  * Failure isolation: a bad manifest drops the plugin's generators, a bad module only itself; every
@@ -37,11 +36,11 @@ export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, Lo
  */
 
 /** The file a plugin ships at its root to contribute deploy-config generators. */
-export const DEPLOY_CONFIGS_FILENAME = "tovu-deploy-configs.json";
+export const DEPLOY_CONFIGS_FILENAME = "jini-deploy-configs.json";
 
 const configContribution = defineExecutablePluginContribution<DeployConfigGeneratorDescriptor, DeployConfigGeneratorModule>({
   filename: DEPLOY_CONFIGS_FILENAME, contribution: "deploy configs",
-  parse: ({ raw }) => parseDeployConfigsFile(raw), modulePath: ({ descriptor }) => descriptor.module,
+  parse: ({ raw }) => parseDeployConfigsFile({ raw }), modulePath: ({ descriptor }) => descriptor.module,
   validate: ({ exported }) => asDeployConfigGeneratorModule({ exported }),
   refusal: ({ plugin, descriptor, reason }) => `deploy config '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
 }, { onReadError: ({ error }) => (error as NodeJS.ErrnoException).code === "ENOENT" ? [] : undefined });
@@ -73,7 +72,7 @@ export function readDeployConfigTargetIdsFromSource(plugin: TrustedPluginPackage
   } catch {
     return [];
   }
-  const parsed = parseDeployConfigsFile(raw);
+  const parsed = parseDeployConfigsFile({ raw });
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
@@ -120,7 +119,7 @@ export function readBundledDeployConfigDescriptors(required: { readonly sourceRo
   try { sources = bundledContributionSources({ ...required, filename: DEPLOY_CONFIGS_FILENAME }); } catch { return []; }
   const descriptors = sources.flatMap(plugin => {
     try {
-      const parsed = parseDeployConfigsFile(readFileSync(path.join(plugin.packageRoot, DEPLOY_CONFIGS_FILENAME), "utf8"));
+      const parsed = parseDeployConfigsFile({ raw: readFileSync(path.join(plugin.packageRoot, DEPLOY_CONFIGS_FILENAME), "utf8") });
       return parsed.ok ? parsed.descriptors : [];
     } catch { return []; }
   });
@@ -148,7 +147,7 @@ export function readBundledDeployWorkflowFile(required: { readonly sourceRoot: s
 export async function loadDeployWorkflowFiles(required: { workspaceId: string; loadContributions: LoadPluginContributions }, _options = {}): Promise<readonly string[]> {
   const definition: PluginContributionDefinition<DeployConfigGeneratorDescriptor, DeployConfigGeneratorDescriptor> = {
     filename: DEPLOY_CONFIGS_FILENAME, contribution: 'deploy workflow declarations', kind: 'data',
-    parse: ({ raw }) => parseDeployConfigsFile(raw), load: ({ descriptor }) => descriptor,
+    parse: ({ raw }) => parseDeployConfigsFile({ raw }), load: ({ descriptor }) => descriptor,
     onReadError: () => [],
   };
   const result = await required.loadContributions({ workspaceId: required.workspaceId, definition }, { requireActive: true, orderByPluginId: true });
@@ -166,10 +165,10 @@ function workflowFilesOf({ descriptors }: { descriptors: readonly DeployConfigGe
 
 /**
  * Parses a plugin's {@link DEPLOY_CONFIGS_FILENAME}. Pure (exported for its own tests). The parser
- * lives in `@jini-ai/devops/deploy`; this keeps the host's positional signature.
+ * lives in `@jini-ai/devops/deploy`; this retains the host's entry point.
  *
  * @complexity O(g) in the declared generator count.
  */
-export function parseDeployConfigsFile(raw: string): ReturnType<typeof parseDeployConfigDescriptors> {
+export function parseDeployConfigsFile({ raw }: { raw: string }, _options = {}): ReturnType<typeof parseDeployConfigDescriptors> {
   return parseDeployConfigDescriptors({ raw });
 }

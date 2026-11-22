@@ -44,7 +44,7 @@ existing sending key." Then tell the person:
    and creates a key with **Sending access** (only sending; the site needs nothing more). This is a
    different key from the Full access one above.
 2. **Save it through the Connect Resend card:** `credential_save { kind: "plugin-provider", target: "resend" }`.
-   The card asks only for the key and saves it under the label the host reads ("Tovu Mail — Resend API").
+   The card asks only for the key and saves it under the label the host reads ("Mail — Resend API").
    Never ask for the key in chat. If a sending key is already saved, reuse it. Only open a replacement
    card if the person explicitly asks to replace that key; explain that it REPLACES the saved key.
 3. **Verify the sending domain.** Until it is verified, Resend only sends to the account's own
@@ -57,7 +57,7 @@ existing sending key." Then tell the person:
 - `validation_error`: a bad address or an unverified sending domain. Fix the address or verify the domain.
 - `missing_api_key`, `invalid_api_key`, `restricted_api_key`: the saved key is wrong or lacks sending
   access. Explain the failure and needed access. Only after an
-  explicit replacement request, use `credential_save { kind: "api", target: "Tovu Mail — Resend API" }`.
+  explicit replacement request, use `credential_save { kind: "api", target: "Mail — Resend API" }`.
 - `rate_limit_exceeded`, HTTP 5xx, `TRANSPORT_ERROR`: temporary. The host retries these.
 
 

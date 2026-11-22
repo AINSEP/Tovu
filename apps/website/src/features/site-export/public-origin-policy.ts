@@ -1,4 +1,8 @@
-import { resolveConfiguredOrigin, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  resolveConfiguredOrigin,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 
 /** Same loopback spellings URL normalizes from IPv4/IPv6 literals, including mapped IPv4. */
 function isRenderHost({ hostname }: { hostname: string }, _options = {}): boolean {
@@ -12,8 +16,8 @@ function isRenderHost({ hostname }: { hostname: string }, _options = {}): boolea
  * @complexity One registry read; O(origin length) validation, no network access.
  */
 export async function exportPublicOrigin({ registry, workspaceId }: { registry: OriginRegistryPort; workspaceId: string }, _options = {}): Promise<string | undefined> {
-  let evidence: Awaited<ReturnType<OriginRegistryPort["canonicalOrigin"]>>;
-  try { evidence = await registry.canonicalOrigin({ workspaceId }); } catch { return undefined; }
+  const evidence = await orFallback({ work: () => registry.canonicalOrigin({ workspaceId }), fallback: undefined, step: "Read configured export origin" });
+  if (evidence === undefined) return undefined;
   if (evidence.source !== "workspace-setting") return undefined;
   const raw = `${evidence.scheme}://${evidence.host}${evidence.port === undefined ? "" : `:${evidence.port}`}`;
   const accepted = resolveConfiguredOrigin({ env: { origin: raw }, envVarName: "origin", clock: { nowIso: () => evidence.verifiedAt }, warn: () => {} });

@@ -89,7 +89,12 @@
   .site-transfer .site-transfer-acknowledge input[type="checkbox"] { min-height: 0; }
 }
 
-/* The "or" between the link field and the drop zone: a quiet rule-and-word divider. */
+/* The drop zone, then its Choose file… button under it (the zone is itself a button, so the
+   button cannot sit inside it). Files come first, as on the desktop app's Import page. */
+.site-transfer-drop { display: grid; justify-items: start; gap: var(--space-3); }
+.site-transfer-drop > .jini-file-dropzone { justify-self: stretch; }
+
+/* The "or" between the drop zone and the link field: a quiet rule-and-word divider. */
 .site-transfer-or {
   margin: 0; display: flex; align-items: center; gap: var(--space-3);
   color: var(--muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em;
@@ -132,7 +137,7 @@
 
 /* The native popover stays above clipped admin panels; its trigger supplies the anchor. */
 .static-export-split { display: inline-flex; align-items: stretch; }
-.static-export-action { display: inline-flex; align-items: center; gap: var(--space-2); min-block-size: 37px; border-start-end-radius: 0; border-end-end-radius: 0; }
+.static-export-action { display: inline-flex; align-items: center; gap: var(--space-2); min-block-size: 37px; min-inline-size: 11rem; justify-content: center; border-start-end-radius: 0; border-end-end-radius: 0; }
 .static-export-toggle { anchor-name: --static-export-picker; min-inline-size: 37px; border-inline-start: 0; border-start-start-radius: 0; border-end-start-radius: 0; }
 .static-export-popover { position: fixed; position-anchor: --static-export-picker; position-area: block-end span-inline-start; position-try-fallbacks: flip-block, flip-inline; inset: auto; margin: 0; margin-block-start: var(--space-2); padding: 0; border: 0; background: transparent; color: var(--fg); overflow: visible; }
 .static-export-panel.jini-popover { position: static; inline-size: min(20rem, calc(100vi - 2rem)); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }

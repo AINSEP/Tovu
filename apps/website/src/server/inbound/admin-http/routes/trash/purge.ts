@@ -1,7 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * POST permanently destroy the selected items. The ONLY caller of `TrashPort.purgeSelected` in the
@@ -22,30 +24,16 @@ import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
  * `adapter-unavailable` and `version-changed` do — a selection an operator ticked by hand must not
  * be aborted wholesale because one row was not theirs to destroy.
  */
-export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/purge", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: TRASH_READ_PERMISSION,
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${TRASH_READ_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: TRASH_READ_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: TRASH_READ_PERMISSION, workspaceId: deps.workspaceId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const ids = readIds(req.body);
+      const ids = readIds({ body: req.body });
       if (!ids) {
         res.status(400).json({
           error: `expected { ids: [string] } with 1..${MAX_TRASH_SELECTION} entries`,
@@ -83,7 +71,7 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => 
  *
  * @complexity O(n) in the selection's length.
  */
-function readIds(body: unknown): string[] | null {
+function readIds({ body }: { body: unknown }, _optional = {}): string[] | null {
   if (typeof body !== "object" || body === null) return null;
   const raw = (body as { ids?: unknown }).ids;
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TRASH_SELECTION) return null;

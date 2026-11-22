@@ -6,7 +6,8 @@ import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, LocalFsBlobStore, type BlobStorePort, type MediaRecord } from "#src/features/media/index";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { MediaApplyBlockedError, MediaApplyConflictError, contributeMediaPublish } from "../publish-content.js";
@@ -31,7 +32,7 @@ function photo(overrides: Partial<MediaRecord> = {}): MediaRecord {
 }
 
 async function fixture(input: { rows?: MediaRecord[]; staged?: boolean; sha256?: string; blobStore?: BlobStorePort } = {}) {
-  const repo = new InMemoryVersionedMediaRepo(input.rows ?? []);
+  const repo = new InMemoryVersionedMediaRepo({}, { initialRows: input.rows ?? [] });
   const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: [] });
   const blobStore = input.blobStore ?? new InMemoryBlobStore();
   const contentTypeStore = new InMemoryMediaContentTypeStore();
@@ -144,8 +145,8 @@ test("T12: malformed bundle hashes are refused before any filesystem blob probe 
 
   const forged = entity({ ...photo(), source: { sha256: traversal } });
   // Validate the record and manifest independently so neither can mask the other.
-  const sourceRefusal = await handler.precheck({ ...forged, requiredBlobs: [] });
-  const manifestRefusal = await handler.precheck({ ...entity({ ...photo() }), requiredBlobs: [traversal] });
+  const sourceRefusal = await handler.precheck({ entity: { ...forged, requiredBlobs: [] } });
+  const manifestRefusal = await handler.precheck({ entity: { ...entity({ ...photo() }), requiredBlobs: [traversal] } });
   await assert.rejects(
     handler.apply({ entity: forged, expectedVersion: undefined, principalId: "op", idempotencyKey: "t12" }),
     (error: unknown) => error instanceof MediaApplyBlockedError && error.code === "blocked:precondition",
@@ -161,12 +162,12 @@ test("T12: malformed bundle hashes are refused before any filesystem blob probe 
 
 test("precheck refuses a packed document discriminant", async () => {
   const { handler } = await fixture();
-  assert.equal(await handler.precheck(entity({ ...photo(), kind: "document" })), DOCUMENT_MESSAGE);
+  assert.equal(await handler.precheck({ entity: entity({ ...photo(), kind: "document" }) }), DOCUMENT_MESSAGE);
 });
 
 test("precheck refuses to overwrite a destination document", async () => {
   const { handler } = await fixture({ rows: [photo({ kind: "document", source: { sha256: "f".repeat(64) } })] });
-  assert.equal(await handler.precheck(entity({ ...photo() })), DOCUMENT_MESSAGE);
+  assert.equal(await handler.precheck({ entity: entity({ ...photo() }) }), DOCUMENT_MESSAGE);
 });
 
 test("precheck skips the document-blob probe for state with no sha256 and passes with nothing required", async () => {
@@ -175,13 +176,13 @@ test("precheck skips the document-blob probe for state with no sha256 and passes
   const list = repo.list.bind(repo);
   repo.list = async (input) => { lists++; return list(input); };
   const { source: _source, ...sourceless } = photo();
-  assert.equal(await handler.precheck(entity(sourceless)), null);
+  assert.equal(await handler.precheck({ entity: entity(sourceless) }), null);
   assert.equal(lists, 0);
 });
 
 test("precheck passes an explicit media discriminant with its blob staged", async () => {
   const { handler } = await fixture();
-  assert.equal(await handler.precheck(entity({ ...photo(), kind: "media" })), null);
+  assert.equal(await handler.precheck({ entity: entity({ ...photo(), kind: "media" }) }), null);
 });
 
 // --- undo summary --------------------------------------------------------------------------------
@@ -216,7 +217,7 @@ test("precheck refuses media whose bytes are owned only by a Library document", 
   const { handler, assetBlobRepo } = await fixture();
   await assetBlobRepo.save({ id: "b", workspaceId: WORKSPACE_ID, sha256: PNG_SHA, storageKey: "k", createdByPrincipal: "owner",
     createdAt: "2026-01-01T00:00:00.000Z", status: "active", documentOwned: true });
-  assert.equal(await handler.precheck(entity({ ...photo(), kind: "media" })), DOCUMENT_MESSAGE);
+  assert.equal(await handler.precheck({ entity: entity({ ...photo(), kind: "media" }) }), DOCUMENT_MESSAGE);
   const { handler: clean } = await fixture();
-  assert.equal(await clean.precheck(entity({ ...photo(), kind: "media" })), null);
+  assert.equal(await clean.precheck({ entity: entity({ ...photo(), kind: "media" }) }), null);
 });

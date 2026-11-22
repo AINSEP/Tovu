@@ -2,7 +2,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { buildAgentPluginConnectCard } from '../../../../apps/website/src/features/agent-plugins/connect-card-ui.ts';
 import { buildPluginCredentialForm } from "../../../../apps/website/src/contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "../../../../apps/website/src/features/custom-credentials/plugin-credential-card.js";
@@ -12,7 +12,7 @@ import { agentPluginSourceDir } from '../../../../development/test-support/agent
 const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
 
 const raw = readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8');
-const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8')).connections[0];
+const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'jini-connections.json'), 'utf8')).connections[0];
 const products = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'products.json'), 'utf8'));
 
 test('Google sign-in card matches the existing OAuth connection and its selected-file permission', () => {

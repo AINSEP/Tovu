@@ -14,7 +14,7 @@ import { registerVisitorToolsPermissionGrants } from "#src/features/settings/vis
  * This is the single list. A feature that introduces a permission needing a boot-time grant exports
  * a `register*PermissionGrants` function and is added here; every composition root
  * (`app.ts`, `deps.ts`) and every standalone script that builds identity deps
- * (`development/scripts/backfill-reset-admin-password.ts`) calls this and passes the result to
+ * (the admin-password reset backfill) calls this and passes the result to
  * `create*IdentityRouteDeps` as `permissionGrants`. Which grants exist therefore never depends on
  * which modules a process imported, or in what order.
  *

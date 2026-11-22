@@ -1,19 +1,18 @@
+import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { agentHandle } from "@jini-ai/agentic";
-import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
-import { ErrorNotice, type Translate } from "@jini-ai/ui/panel-kit";
-import { useCallback } from "react";
-import { t as translateSkills } from "./skills-i18n";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { Icon, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
 import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
 import { SkillRow } from "./SkillRow";
-import { SkillDocumentIcon } from "./skills-visuals";
 import { SKILL_FILE_ACCEPT, useSkills, type SkillsController } from "./use-skills.hooks";
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "./skills.css";
 
 /** Installed rows and their loading/empty states share the default Skills tab. */
@@ -66,17 +65,31 @@ function AddSkillPanel({ controller, t }: { controller: SkillsController; t: Tra
   );
 }
 
+/** The failure notice and the two dialogs the page raises; split out so the page body stays under the complexity ceiling. */
+function SkillsOverlays({ controller, t, filesModal }: { controller: SkillsController; t: Translate; filesModal: ReturnType<typeof useSkillFilesModal> }) {
+  return (
+    <>
+      {controller.failure ? <ErrorNotice failure={controller.failure} t={t} /> : null}
+      {controller.removing ? <SkillRemoveConfirmDialog controller={controller} t={t} /> : null}
+      {filesModal ? <PackageFilesModal {...filesModal} /> : null}
+    </>
+  );
+}
+
 /** Agent Plugins' shared tab shell; navigation and installation behavior live in hooks. */
-export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLocale }: {
+export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLocale, useAdminThemeBoundaryHook = useAdminThemeBoundary, useSkillsTranslatorHook = useSkillsTranslator, useSkillFilesModalHook = useSkillFilesModal }: {
   useSkillsHook?: typeof useSkills; useLocaleHook?: typeof useAdminLocale;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useSkillsTranslatorHook?: typeof useSkillsTranslator;
+  useSkillFilesModalHook?: typeof useSkillFilesModal;
 } = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   const locale = useLocaleHook();
-  const t = useCallback((key: string) => translateSkills({ locale, key }), [locale]);
+  const t = useSkillsTranslatorHook({ locale });
   const controller = useSkillsHook({ t });
-  const filesModal = useSkillFilesModal(controller.inspecting, controller.onCloseFiles, { t });
+  const filesModal = useSkillFilesModalHook({ skill: controller.inspecting, onClose: controller.onCloseFiles }, { t });
   const tabs: SettingsDialogTab[] = [
-    { id: "skills", label: t("Skills"), icon: <SkillDocumentIcon />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
+    { id: "skills", label: t("Skills"), icon: <Icon name="document-marked" size={18} strokeWidth={1.5} />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
     { id: "add", label: t("Add a skill"), title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <AddSkillPanel controller={controller} t={t} /> },
   ];
   return (
@@ -93,9 +106,7 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
         labels={{ kicker: t("Add-Ons"), sidebarAriaLabel: t("Skills sections") }}
       />
       <SkillInstallConfirmation install={controller.install} locale={locale} />
-      {controller.failure ? <ErrorNotice failure={controller.failure} t={t} /> : null}
-      {controller.removing ? <SkillRemoveConfirmDialog controller={controller} t={t} /> : null}
-      {filesModal ? <PackageFilesModal {...filesModal} /> : null}
+      <SkillsOverlays controller={controller} t={t} filesModal={filesModal} />
       <p className="field-hint">{t("Skills work with Claude Code, Codex and BYOK. Aider, Gemini CLI and Pi can't use them.")}</p>
     </section>
   );

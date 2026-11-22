@@ -1,8 +1,9 @@
-import type { AdminTrashedSite, AdminSitesSnapshot } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminTrashedSite, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import { resolveSiteSubtitle, resolveTrashCardActions } from "./Sites.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Recoverable site Trash, in the same card language as All sites (2026-10-08 polish). Permanent
  *  deletion is offered only here: select the card, then Delete permanently, which the controller
  *  confirms. The danger button appears once its card is selected rather than sitting disabled. */

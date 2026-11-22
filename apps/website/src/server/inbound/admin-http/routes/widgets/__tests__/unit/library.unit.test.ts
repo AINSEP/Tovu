@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminWidgetListRoute } from "../../list.js";
@@ -34,14 +34,14 @@ function harness(overrides: Record<string, unknown> = {}) {
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides,
   };
   const app = express();
-  registerAdminWidgetListRoute(app, deps as any);
-  registerAdminWidgetGetRoute(app, deps as any);
-  registerAdminWidgetCreateRoute(app, deps as any);
-  registerAdminWidgetAgentToolsRoutes(app, deps as any);
-  registerAdminWidgetRegionGetRoute(app, deps as any);
-  registerAdminWidgetRegionsListRoute(app, deps as any);
-  registerAdminWidgetRegionMutatePlacementsRoute(app, deps as any);
-  registerAdminWidgetTrashRoute(app, deps as any);
+  registerAdminWidgetListRoute({ app, deps: deps as any });
+  registerAdminWidgetGetRoute({ app, deps: deps as any });
+  registerAdminWidgetCreateRoute({ app, deps: deps as any });
+  registerAdminWidgetAgentToolsRoutes({ app, deps: deps as any });
+  registerAdminWidgetRegionGetRoute({ app, deps: deps as any });
+  registerAdminWidgetRegionsListRoute({ app, deps: deps as any });
+  registerAdminWidgetRegionMutatePlacementsRoute({ app, deps: deps as any });
+  registerAdminWidgetTrashRoute({ app, deps: deps as any });
   return { deps, invoke: async (method: "get" | "post" | "put", suffix = "", request: Record<string, unknown> = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

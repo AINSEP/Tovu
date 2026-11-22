@@ -1,4 +1,6 @@
-import type { AdminPostCreateInput, AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { AdminPostCreateInput, AdminPost } from "@/features/posts/api/posts-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
@@ -29,7 +31,7 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
 export interface PostEditorPort extends StandingDraftAutosavePort {
   /** Creates only on first Save, with every edited field in one request. */
   createPost(input: AdminPostCreateInput, options?: Record<string, never>): Promise<{ post: AdminPost }>;
-  getPost(id: string): Promise<{ post: AdminPost }>;
+  getPost(required: { id: string }, optional?: Record<string, never>): Promise<{ post: AdminPost }>;
   getPresentation(): Promise<{
     settings: PresentationSettings;
     availableThemes: AdminThemeSummary[]; // includes `apiVersion` — see that interface's own doc.
@@ -52,14 +54,17 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
    * this same route can also return, which carries no code at all.
    */
   updatePost(
-    target: { id: string },
-    patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
-      expectedVersion?: number;
-      hideCoverImageInBody?: boolean;
-      slugFromTitle?: boolean;
-    }
+    required: {
+      target: { id: string };
+      patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor">> & {
+        expectedVersion?: number;
+        hideCoverImageInBody?: boolean;
+        slugFromTitle?: boolean;
+      };
+    },
+    optional?: Record<string, never>
   ): Promise<{ post: AdminPost }>;
-  deletePost(id: string): Promise<{ post: AdminPost }>;
+  deletePost(required: { id: string }, optional?: Record<string, never>): Promise<{ post: AdminPost }>;
   /** Mention feature (2026-08-11, coordinator MSG #1 licensing sweep) — the picker list for
    *  "mention another post"; same wrapped-entry response shape `api.listPosts()` actually returns
    *  (confirmed against `use-posts.hooks.ts`'s own `r.posts.map((entry) => entry.post)`, not the
@@ -73,7 +78,7 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
    *  header — even though media itself is a different feature's domain; the editor is the only
    *  caller that needs it for THIS purpose (uploading whatever was just dropped, not browsing the
    *  library), so it belongs on this port rather than pulling in `features/media`'s own port. */
-  uploadMedia(input: { filename: string; contentType: string; dataBase64: string }): Promise<{ media: AdminMedia }>;
+  uploadMedia(input: { filename: string; contentType: string; dataBase64: string }, optional?: Record<string, never>): Promise<{ media: AdminMedia }>;
   /**
    * Synchronous URL builder for the admin-only template-preview iframe/form target (2026-08-14, moved
    * out of `PostEditor.tsx`/`PostPreview` — see `apps/admin/INFO.md`'s Hooks section) — NOT a network
@@ -83,5 +88,5 @@ export interface PostEditorPort extends StandingDraftAutosavePort {
    * that template. Mirrors `features/pages/hooks/page-editor-port.hooks.ts`'s identical member —
    * see `lib/api.ts`'s own `templatePreviewUrl` for the exact query-string contract both share.
    */
-  templatePreviewUrl(id: string, templateChoice: string | null): string;
+  templatePreviewUrl(required: { id: string; templateChoice: string | null }, optional?: Record<string, never>): string;
 }

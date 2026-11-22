@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { trashTaxonomy, trashTerm } from "../trash-term.js";
-import type { RemoveTaxonomyFn, RemoveTermFn, TaxonomyTrashReadPort, TermTrashReadPort } from "../trash-term.js";
+import { trashTaxonomy, trashTerm } from "@jini-ai/cms/taxonomy";
+import type { RemoveTaxonomyFn, RemoveTermFn, TaxonomyTrashReadPort, TermTrashReadPort } from "@jini-ai/cms/taxonomy";
 
 /**
  * @file Pure unit tests for `trashTerm`/`trashTaxonomy` (T6 commit 2) — every dependency is a
@@ -19,11 +19,11 @@ const clock = { nowIso: () => "2026-09-21T00:00:00.000Z" };
 const actor = { principalId: "user-1" };
 
 function termReadPort(row: { id: string; name: string; taxonomyName: string; version: number } | null): TermTrashReadPort {
-  return { findForTrash: async (id) => { assert.equal(id, "term-1"); return row && row.id === id ? row : null; } };
+  return { findForTrash: async ({ id }) => { assert.equal(id, "term-1"); return row && row.id === id ? row : null; } };
 }
 
 function taxonomyReadPort(row: { id: string; name: string; version: number } | null): TaxonomyTrashReadPort {
-  return { findForTrash: async (id) => { assert.equal(id, "tax-1"); return row && row.id === id ? row : null; } };
+  return { findForTrash: async ({ id }) => { assert.equal(id, "tax-1"); return row && row.id === id ? row : null; } };
 }
 
 test("trashTerm: a missing/already-trashed term (read port returns null) is not-found, remove is never called", async () => {
@@ -33,8 +33,8 @@ test("trashTerm: a missing/already-trashed term (read port returns null) is not-
     return { ok: true, version: 1 };
   };
   const result = await trashTerm(
-    { workspaceId: "ws-1", termId: "term-1", actor },
-    { termRepo: termReadPort(null), remove, clock }
+    { workspaceId: "ws-1", termId: "term-1", actor,
+      termRepo: termReadPort(null), remove, clock }
   );
   assert.deepEqual(result, { ok: false, reason: "not-found" });
   assert.equal(called, false);
@@ -47,8 +47,8 @@ test("trashTerm: calls remove with the registry's term display (title=name, subt
     return { ok: true, version: 2 };
   };
   const result = await trashTerm(
-    { workspaceId: "ws-1", termId: "term-1", actor },
-    { termRepo: termReadPort({ id: "term-1", name: "Red", taxonomyName: "Colors", version: 1 }), remove, clock }
+    { workspaceId: "ws-1", termId: "term-1", actor,
+      termRepo: termReadPort({ id: "term-1", name: "Red", taxonomyName: "Colors", version: 1 }), remove, clock }
   );
   assert.deepEqual(result, { ok: true, version: 2 });
   assert.deepEqual(seen, {
@@ -64,8 +64,8 @@ test("trashTerm: calls remove with the registry's term display (title=name, subt
 test("trashTerm: a 'blocked' remove outcome (TERM_HAS_CHILDREN) passes through unchanged", async () => {
   const remove: RemoveTermFn = async () => ({ ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 });
   const result = await trashTerm(
-    { workspaceId: "ws-1", termId: "term-1", actor },
-    { termRepo: termReadPort({ id: "term-1", name: "Parent", taxonomyName: "Colors", version: 1 }), remove, clock }
+    { workspaceId: "ws-1", termId: "term-1", actor,
+      termRepo: termReadPort({ id: "term-1", name: "Parent", taxonomyName: "Colors", version: 1 }), remove, clock }
   );
   assert.deepEqual(result, { ok: false, reason: "blocked", code: "TERM_HAS_CHILDREN", count: 2 });
 });
@@ -73,8 +73,8 @@ test("trashTerm: a 'blocked' remove outcome (TERM_HAS_CHILDREN) passes through u
 test("trashTerm: a 'version-changed' remove outcome passes through unchanged", async () => {
   const remove: RemoveTermFn = async () => ({ ok: false, reason: "version-changed" });
   const result = await trashTerm(
-    { workspaceId: "ws-1", termId: "term-1", actor },
-    { termRepo: termReadPort({ id: "term-1", name: "Red", taxonomyName: "Colors", version: 1 }), remove, clock }
+    { workspaceId: "ws-1", termId: "term-1", actor,
+      termRepo: termReadPort({ id: "term-1", name: "Red", taxonomyName: "Colors", version: 1 }), remove, clock }
   );
   assert.deepEqual(result, { ok: false, reason: "version-changed" });
 });
@@ -86,8 +86,8 @@ test("trashTaxonomy: a missing/already-trashed taxonomy is not-found, remove is 
     return { ok: true, version: 1 };
   };
   const result = await trashTaxonomy(
-    { workspaceId: "ws-1", taxonomyId: "tax-1", actor },
-    { taxonomyRepo: taxonomyReadPort(null), remove, clock }
+    { workspaceId: "ws-1", taxonomyId: "tax-1", actor,
+      taxonomyRepo: taxonomyReadPort(null), remove, clock }
   );
   assert.deepEqual(result, { ok: false, reason: "not-found" });
   assert.equal(called, false);
@@ -100,8 +100,8 @@ test("trashTaxonomy: calls remove with the registry's taxonomy display ({title: 
     return { ok: true, version: 3 };
   };
   const result = await trashTaxonomy(
-    { workspaceId: "ws-1", taxonomyId: "tax-1", actor },
-    { taxonomyRepo: taxonomyReadPort({ id: "tax-1", name: "Colors", version: 2 }), remove, clock }
+    { workspaceId: "ws-1", taxonomyId: "tax-1", actor,
+      taxonomyRepo: taxonomyReadPort({ id: "tax-1", name: "Colors", version: 2 }), remove, clock }
   );
   assert.deepEqual(result, { ok: true, version: 3 });
   assert.deepEqual(seen, {
@@ -117,7 +117,7 @@ test("trashTaxonomy: calls remove with the registry's taxonomy display ({title: 
 for (const reason of ["not-found", "version-changed"] as const) {
   test(`trashTaxonomy: ${reason} from remove passes through unchanged`, async () => {
     const outcome = { ok: false, reason } as const;
-    const result = await trashTaxonomy({ workspaceId: "ws-1", taxonomyId: "tax-1", actor }, {
+    const result = await trashTaxonomy({ workspaceId: "ws-1", taxonomyId: "tax-1", actor,
       taxonomyRepo: taxonomyReadPort({ id: "tax-1", name: "Colors", version: 2 }),
       clock, remove: async () => outcome,
     });

@@ -9,9 +9,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest } from "#src/platform/http/index";
 import type { MailerSendOptions } from "#src/platform/mail/index";
-import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
 import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
-import { readMailDomain, isDomainReadPermissionRefused } from "@jini-ai/platform/mail";
+import { readMailDomain, isDomainReadPermissionRefused, credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
 import { createTtlCache, MAIL_STATUS_TTL_MS } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
@@ -67,7 +66,7 @@ async function fixture(required: { setting: engine.MailProviderSetting | null },
   const resolved = createResolvedMailer({
     workspaceId: "ws", mode: "production", customCredentialRepo: repo, sealer,
     httpClient: fakeGuardedHttp({ calls }), loadMailAdapters: async () => adapters, warn: () => {},
-    providerSetting: { read: async () => state.setting, write: async setting => { writes.push(setting); state.setting = setting; } },
+    providerSetting: { read: async () => state.setting, write: async ({ value: setting }) => { writes.push(setting); state.setting = setting; } },
     readSenderEmail: async () => "news@Example.COM",
     resolvePluginAccountToken: async input => { accounts.push(input); return "account-key"; },
     wrapProviderMailer: createMailPolicyWrapper({

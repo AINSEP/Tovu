@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Response } from "express";
 import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
@@ -47,7 +48,8 @@ export function sendMemberAuthError({ res, error }: { res: Response; error: unkn
     res.status(400).json({ error: error.message });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  const { errorId } = reportServerFailure({ error, operation: "public:member-auth" }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ error: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.", errorId });
 }
 
 /** Exactly one credential form, with no missing/empty handle passed to the repository. O(1). */
@@ -74,7 +76,7 @@ export function completionCredential({ body, workspaceId }: { body: unknown; wor
  */
 
 /** Complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
-export function registerPublicMemberCompleteSignInRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in/complete", async (req, res) => {
     observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {

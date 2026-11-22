@@ -31,9 +31,8 @@ const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png
  * has not run `ensureCoreMediaTransform`, or this is a test double with no transform registered).
  */
 function resolveOneAssetPublicUrl(
-  asset: MediaRecord,
-  contentTypes: ReadonlyMap<string, string>,
-  latest: Awaited<ReturnType<typeof getLatestTransformDefinition>>
+  { asset, contentTypes, latest }: { asset: MediaRecord; contentTypes: ReadonlyMap<string, string>; latest: Awaited<ReturnType<typeof getLatestTransformDefinition>> },
+  _optional: Record<string, never> = {}
 ): string | null {
   const key = mediaUrlKey(asset);
   const contentType = contentTypes.get(asset.source.sha256);
@@ -57,8 +56,8 @@ function resolveOneAssetPublicUrl(
  * transform-version lookup (workspace-wide, not per-asset).
  */
 export async function resolveMediaPublicUrls(
-  deps: MediaPublicUrlDeps & { workspaceId: string },
-  assets: readonly MediaRecord[]
+  { deps, assets }: { deps: MediaPublicUrlDeps & { workspaceId: string }; assets: readonly MediaRecord[] },
+  _optional: Record<string, never> = {},
 ): Promise<Map<string, string | null>> {
   const result = new Map<string, string | null>();
   if (!deps.mediaContentTypeStore) {
@@ -84,7 +83,7 @@ export async function resolveMediaPublicUrls(
   }) : null;
 
   for (const asset of active) {
-    result.set(asset.id, resolveOneAssetPublicUrl(asset, contentTypes, latest));
+    result.set(asset.id, resolveOneAssetPublicUrl({ asset, contentTypes, latest }));
   }
   return result;
 }
@@ -119,13 +118,14 @@ function buildRecordUploadContentType(
 ): (params: { media: MediaRecord; bytes: Uint8Array }) => Promise<void> {
   const store = routeDeps.mediaContentTypeStore;
   return async ({ media, bytes }) => {
-    const contentType = assertAllowedSniffedContentType(bytes);
+    const contentType = assertAllowedSniffedContentType({ bytes });
     if (store) {
       await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
     }
     const family = contentType.split("/")[0];
     // Jini calls this hook only for a fresh row stamped from this invocation's ctx.principal.id.
-    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdBy!, byteLength: bytes.length,
+    if (media.createdBy == null) throw new Error("Uploaded media has no creating principal");
+    captureMediaUploaded({ tracker: routeDeps.tracker, actorId: media.createdBy, byteLength: bytes.length,
       kind: family === "image" || family === "audio" || family === "video" ? family : "other", source: "assistant" });
   };
 }
@@ -224,7 +224,7 @@ export function buildMediaRegistrationsForTovu(
   // agent/user uploads and chat promotions never share mutable actor state.
   const registrations = buildMediaRegistrations(routeDeps, {
     listContentTypes: routeDeps.mediaContentTypeStore,
-    resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
+    resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls({ deps: routeDeps, assets }),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });
@@ -249,7 +249,7 @@ export function buildMediaRegistrationsForTovu(
 
 /**
  * Contributes Media's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildMediaRegistrations`/
  * `mediaDerivedRisk` by name (only `MediaToolDeps` as an erased `import type`); this is the seam that
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why

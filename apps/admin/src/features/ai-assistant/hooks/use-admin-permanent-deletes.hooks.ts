@@ -15,7 +15,7 @@ export function useAdminPermanentDeletes(required: { port: AssistantPermanentDel
     confirmLabel: "Allow permanent deletes", failure: required.t?.("failed to save permanent delete access") ?? "failed to save permanent delete access",
   }, optional);
   const selected = state.settings?.allowedToolIds ?? [];
-  const saveSelection = async (allowedToolIds: string[]) => {
+  const saveSelection = async ({ allowedToolIds }: { allowedToolIds: string[] }, _options: Record<string, never> = {}) => {
     if (!state.settings?.enabled) return;
     await state.save({ settings: { enabled: true, allowedToolIds } });
   };
@@ -25,9 +25,9 @@ export function useAdminPermanentDeletes(required: { port: AssistantPermanentDel
       if (enabled === state.settings?.enabled) return;
       await state.save({ settings: { enabled, allowedToolIds: [...selected] } });
     },
-    setTool: ({ toolId, checked }: { toolId: string; checked: boolean }, _options = {}) => saveSelection(checked ? [...new Set([...selected, toolId])] : selected.filter(id => id !== toolId)),
-    selectAll: (_input: Record<string, never>, _options = {}) => saveSelection(PERMANENT_DELETE_TOOLS.map(tool => tool.id)),
-    selectNone: (_input: Record<string, never>, _options = {}) => saveSelection([]),
+    setTool: ({ toolId, checked }: { toolId: string; checked: boolean }, _options = {}) => saveSelection({ allowedToolIds: checked ? [...new Set([...selected, toolId])] : selected.filter(id => id !== toolId) }),
+    selectAll: (_input: Record<string, never>, _options = {}) => saveSelection({ allowedToolIds: PERMANENT_DELETE_TOOLS.map(tool => tool.id) }),
+    selectNone: (_input: Record<string, never>, _options = {}) => saveSelection({ allowedToolIds: [] }),
   };
 }
 export function useWiredAdminPermanentDeletes(required: { t?: (key: string) => string }, _optional = {}) {

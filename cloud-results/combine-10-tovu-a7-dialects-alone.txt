@@ -1,0 +1,149 @@
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [sqlite]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (56.322417ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (11.713556ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (9.774438ms)
+  ✔ an occupied slot does not persist the queued request's user payload (5.946927ms)
+  ✔ a colliding question ID cannot commit an answer without its question (5.769862ms)
+  ✔ foreign acceptance cannot persist its user payload (2.492263ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (6.952359ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (4.517282ms)
+  ✔ user and stub appends roll back together when the second write fails (5.816825ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (7.73961ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (5.413723ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (4.671303ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (7.478083ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (7.150123ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (30.496837ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (7.908735ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (8.413416ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (8.989613ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (8.37731ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (11.178663ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (6.542129ms)
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (11.646478ms)
+✔ durable attempts migration and fencing [sqlite] (237.529734ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [pglite]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (2073.035148ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (82.393518ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (86.095276ms)
+  ✔ an occupied slot does not persist the queued request's user payload (71.189859ms)
+  ✔ a colliding question ID cannot commit an answer without its question (41.967626ms)
+  ✔ foreign acceptance cannot persist its user payload (17.800975ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (49.113577ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (34.410384ms)
+  ✔ user and stub appends roll back together when the second write fails (41.820042ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (59.237638ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (40.824045ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (46.191772ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (53.295418ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (46.044157ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (45.386029ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (49.614005ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (72.147596ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (45.457289ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (50.531477ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (68.799754ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (39.977603ms)
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (84.794683ms)
+✔ durable attempts migration and fencing [pglite] (3208.60374ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'attempt-failed',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+▶ durable attempts migration and fencing [real postgres]
+  ✔ mri: missing Codex rollout reconstructs with prior context and saves no failure or Continuing notice (220.958261ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=false (49.052104ms)
+  ✔ first-turn acceptance persists user before answer when browserFirst=true (44.310745ms)
+  ✔ an occupied slot does not persist the queued request's user payload (37.670788ms)
+  ✔ a colliding question ID cannot commit an answer without its question (32.274108ms)
+  ✔ foreign acceptance cannot persist its user payload (20.412043ms)
+  ✔ an assistant ID colliding with a user row rolls back the newly appended question (31.568394ms)
+  ✔ an invalid user payload or shared user/assistant identity cannot be accepted (25.379717ms)
+  ✔ user and stub appends roll back together when the second write fails (28.108313ms)
+  ✔ a retry without a divider retains a checkpoint committed after the recovery probe (39.23588ms)
+  ✔ acceptance commits a queued stub and its runtime input once across duplicate POSTs (32.694525ms)
+  ✔ Stop beating acceptance creates a terminal tombstone that no late POST can launch (30.830829ms)
+  ✔ only one CAS wins and stale attempts cannot checkpoint, settle, capture sessions, or invoke tools (60.58809ms)
+  ✔ a checkpoint landing between recovery's read and CAS remains in the continuation segment (49.288434ms)
+  ✔ a host-minted locator is unconfirmed until the CLI reports it in status (58.67253ms)
+  ✔ progress resets the attempt counter, while init and terminal notices do not (50.948161ms)
+  ✔ recovery time pauses while executing and resumes with its exact remaining budget (44.108733ms)
+  ✔ an identical mutating delegated call is blocked after restart while its earlier outcome is unknown (62.010686ms)
+  ✔ a completed delegated mutation remains known even if the daemon dies before the trailing checkpoint (64.733495ms)
+  ✔ the slot follows the unfinished logical row and releases on finalization and deletion (60.384553ms)
+  ✔ browser snapshots cannot terminalize, shrink, or restore the old attempt after CAS (47.270829ms)
+[durable-recovery] Recovery decision. {
+  runId: 'old',
+  trigger: 'boot',
+  probe: 'dead',
+  decision: 'continued',
+  failureClass: 'retryable'
+}
+  ✔ the dev-restart incident resumes and finalizes the same message even if no browser returns (97.434184ms)
+✔ durable attempts migration and fencing [real postgres] (1201.800922ms)
+ℹ tests 66
+ℹ suites 3
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6283.151299
+▶ package adapter composition [sqlite]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (37.10525ms)
+  ✔ a throwing ledger write rolls back package history AND session writes (8.777647ms)
+  ✔ a late browser save cannot erase the first terminal answer; a request-bound run can retry (18.684488ms)
+  ✔ package delete cascades sessions AND host-owned approvals (5.00108ms)
+✔ package adapter composition [sqlite] (71.162968ms)
+▶ package adapter composition [pglite]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (2171.308939ms)
+  ✔ a throwing ledger write rolls back package history AND session writes (26.686294ms)
+  ✔ a late browser save cannot erase the first terminal answer; a request-bound run can retry (61.719084ms)
+  ✔ package delete cascades sessions AND host-owned approvals (17.48232ms)
+✔ package adapter composition [pglite] (2281.401928ms)
+▶ package adapter composition [real postgres]
+  ✔ bounded reads use the adopted history adapter and retain owner isolation (60.4303ms)
+  ✔ a throwing ledger write rolls back package history AND session writes (24.944822ms)
+  ✔ a late browser save cannot erase the first terminal answer; a request-bound run can retry (48.513256ms)
+  ✔ package delete cascades sessions AND host-owned approvals (17.039616ms)
+✔ package adapter composition [real postgres] (152.297395ms)
+✔ negative control: independent kernels do not participate in the ledger rollback (7.876059ms)
+ℹ tests 13
+ℹ suites 3
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3904.841483

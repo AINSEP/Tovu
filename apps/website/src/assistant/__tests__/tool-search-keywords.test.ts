@@ -11,7 +11,7 @@ import { indexedDescriptionFor, stripSearchKeywords } from "../tool-search-keywo
 const KEYWORD_MARKER = " — also known as: ";
 
 test("folds both keywords and doc2query questions in by default", () => {
-  const indexed = indexedDescriptionFor("identity_user_create", "Creates a new human operator user.");
+  const indexed = indexedDescriptionFor({ toolId: "identity_user_create", description: "Creates a new human operator user." });
 
   assert.ok(indexed.startsWith(`Creates a new human operator user.${KEYWORD_MARKER}`));
   assert.match(indexed, /\binvite\b/, "TOOL_SEARCH_KEYWORDS vocabulary must be folded in");
@@ -19,8 +19,8 @@ test("folds both keywords and doc2query questions in by default", () => {
 });
 
 test("includeDoc2query: false folds keywords only, omitting the doc2query questions", () => {
-  const withQuestions = indexedDescriptionFor("identity_user_create", "Creates a new human operator user.");
-  const withoutQuestions = indexedDescriptionFor("identity_user_create", "Creates a new human operator user.", { includeDoc2query: false });
+  const withQuestions = indexedDescriptionFor({ toolId: "identity_user_create", description: "Creates a new human operator user." });
+  const withoutQuestions = indexedDescriptionFor({ toolId: "identity_user_create", description: "Creates a new human operator user." }, { includeDoc2query: false });
 
   assert.match(withoutQuestions, /\binvite\b/, "the operator-noun keywords still fold in");
   assert.notEqual(withoutQuestions, withQuestions, "excluding doc2query must shorten the folded tail");
@@ -28,29 +28,29 @@ test("includeDoc2query: false folds keywords only, omitting the doc2query questi
 });
 
 test("a tool id with neither keywords nor a doc2query entry is returned unchanged, with no marker appended", () => {
-  const indexed = indexedDescriptionFor("not-a-real-tool-id", "Some description.");
+  const indexed = indexedDescriptionFor({ toolId: "not-a-real-tool-id", description: "Some description." });
   assert.equal(indexed, "Some description.");
   assert.doesNotMatch(indexed, /also known as:/);
 });
 
 test("an empty description with nothing to fold returns the empty string, not the marker alone", () => {
-  assert.equal(indexedDescriptionFor("not-a-real-tool-id", ""), "");
+  assert.equal(indexedDescriptionFor({ toolId: "not-a-real-tool-id", description: "" }), "");
 });
 
 test("an empty description WITH something to fold returns just the tail, with no leading marker", () => {
-  const indexed = indexedDescriptionFor("identity_user_create", "");
+  const indexed = indexedDescriptionFor({ toolId: "identity_user_create", description: "" });
   assert.equal(indexed.startsWith(KEYWORD_MARKER), false, "no description means no marker prefix, just the vocabulary itself");
   assert.match(indexed, /\binvite\b/);
 });
 
 test("stripSearchKeywords recovers the exact authored description from a folded string", () => {
   const original = "Creates a new human operator user.";
-  const indexed = indexedDescriptionFor("identity_user_create", original);
-  assert.equal(stripSearchKeywords(indexed), original);
+  const indexed = indexedDescriptionFor({ toolId: "identity_user_create", description: original });
+  assert.equal(stripSearchKeywords({ indexed: indexed }), original);
 });
 
 test("stripSearchKeywords returns text with no marker unchanged — most tools have no keywords entry at all", () => {
-  assert.equal(stripSearchKeywords("Plain description, never folded."), "Plain description, never folded.");
+  assert.equal(stripSearchKeywords({ indexed: "Plain description, never folded." }), "Plain description, never folded.");
 });
 
 /**
@@ -62,7 +62,7 @@ test("stripSearchKeywords returns text with no marker unchanged — most tools h
  * keyword entry the same way `identity_user_create`'s "invite" case is pinned above.
  */
 test("admin.capture_screenshot folds visual/screenshot vocabulary an operator would actually type", () => {
-  const indexed = indexedDescriptionFor("admin.capture_screenshot", "Captures a picture of the admin screen.");
+  const indexed = indexedDescriptionFor({ toolId: "admin.capture_screenshot", description: "Captures a picture of the admin screen." });
   assert.match(indexed, /\bscreenshot\b/, "the literal word an operator is most likely to type must be indexed");
   assert.match(indexed, /\blook\b|\blooks\b/, "'does this look right' phrasing must be indexed");
 });
@@ -77,7 +77,7 @@ test("admin.capture_screenshot folds visual/screenshot vocabulary an operator wo
  * does not exist."
  */
 test("assistant_ask_choice folds decision/confirmation vocabulary an operator would actually type", () => {
-  const indexed = indexedDescriptionFor("assistant_ask_choice", "Asks the administrator a real question through an interactive form.");
+  const indexed = indexedDescriptionFor({ toolId: "assistant_ask_choice", description: "Asks the administrator a real question through an interactive form." });
   assert.match(indexed, /\bconfirm\b/, "'confirm this action' phrasing must be indexed");
   assert.match(indexed, /\bchoice\b|\bchoices\b/, "'give the user a choice' phrasing must be indexed");
   assert.match(indexed, /\bapprove\b|\bapproval\b/, "'get approval first' phrasing must be indexed");

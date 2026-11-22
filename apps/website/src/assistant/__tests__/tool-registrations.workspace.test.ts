@@ -11,6 +11,7 @@ import { contributeWorkspaceTools } from "../../features/workspace/tool-registra
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -39,7 +40,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
-  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW }] });
+  const workspaceRepo = new InMemoryWorkspaceRepo({}, { initialRows: [{ id: WORKSPACE_ID, name: "Original Name", slug: "original-slug", createdAt: NOW, version: 1 }] });
 
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -62,13 +63,21 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function workspaceRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
   const found = workspaceRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
+}
+
+const rewriteRetiredIds = createRetiredReadToolIdRewriter({ retiredIds: new Set(RETIRED_READ_TOOL_TO_CARD.keys()) });
+
+/** A catalog entry's description and schema as the assistant publishes them (retired read ids rewritten). */
+function publishedForm(entry: WorkspaceAgentToolDefinition): { description: string | undefined; inputSchema: unknown } {
+  const { descriptor } = rewriteRetiredIds({ descriptor: { id: entry.name, description: entry.description, inputSchema: entry.inputSchema } } as unknown as ToolRegistration);
+  return { description: descriptor.description, inputSchema: descriptor.inputSchema };
 }
 
 function catalogEntry(toolId: string): WorkspaceAgentToolDefinition {
@@ -90,18 +99,18 @@ test("workspace get and list share a card alongside update", () => {
 test("workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_create"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_create", catalogEntry("workspace_create"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "workspace_create", catalogEntry: catalogEntry("workspace_create") }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_delete"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_delete", catalogEntry("workspace_delete"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "workspace_delete", catalogEntry: catalogEntry("workspace_delete") }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("workspace_create"), false);
   assert.equal(ids.includes("workspace_delete"), false);
 });
@@ -119,8 +128,12 @@ test("every wired workspace registration publishes its catalog entry's inputSche
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.workspace") continue;
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    // The assistant publishes each description through the retired-read-id rewrite (a retired read tool
+    // id in the text becomes the card that serves it now), so the catalog text is compared after that
+    // same pass — "workspace_get" in the catalog reads "content_read.workspace" on the wire.
+    const published = publishedForm(catalogEntry(id));
+    assert.deepEqual(registration.descriptor.inputSchema, published.inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, published.description);
   }
 });
 
@@ -144,13 +157,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.workspace") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("workspace_update", { ...catalogEntry("workspace_update"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "workspace_update", catalogEntry: { ...catalogEntry("workspace_update"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -169,7 +182,7 @@ test("the ToolPolicy layer is a pass-through 'allow' for both wired workspace re
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   "content_read.workspace": {},
-  workspace_update: { name: "Renamed" },
+  workspace_update: { name: "Renamed", expectedVersion: 1 },
 };
 
 test("every wired workspace tool has a known input fixture", () => {
@@ -210,14 +223,14 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
 
 test("workspace_update: rejects an empty update the same way the domain function does", async () => {
   const { deps } = fakeRouteDeps();
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({})), /WORKSPACE_VALIDATION: .*at least one of name or slug is required/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ expectedVersion: 1 })), /WORKSPACE_VALIDATION: .*at least one of name or slug is required/);
 });
 
 test("workspace_update: rejects a slug collision the same way the domain function does", async () => {
   const { deps, workspaceRepo } = fakeRouteDeps();
-  await workspaceRepo.insert({ id: "ws-other", name: "Other", slug: "taken-slug", createdAt: NOW });
+  await workspaceRepo.insert({ id: "ws-other", name: "Other", slug: "taken-slug", createdAt: NOW, version: 1 });
 
-  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug" })), /WORKSPACE_CONFLICT: .*already exists/);
+  await assert.rejects(() => wired(deps, "workspace_update").handler(executionContext({ slug: "taken-slug", expectedVersion: 1 })), /WORKSPACE_CONFLICT: .*already exists/);
 });
 
 // ---------------------------------------------------------------------------
@@ -231,7 +244,7 @@ test("workflow: get the current workspace, rename it, get again to confirm the r
   assert.equal(before.workspace.id, WORKSPACE_ID);
   assert.equal(before.workspace.name, "Original Name");
 
-  await wired(deps, "workspace_update").handler(executionContext({ name: "New Name", slug: "new-slug" }));
+  await wired(deps, "workspace_update").handler(executionContext({ name: "New Name", slug: "new-slug", expectedVersion: 1 }));
 
   const after = (await wired(deps, "content_read.workspace").handler(executionContext({ workspaceId: WORKSPACE_ID }))) as { workspace: { id: string; name: string; slug: string } };
   assert.equal(after.workspace.id, before.workspace.id, "id is immutable across the rename");

@@ -13,18 +13,11 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 import { act, createElement } from 'react';
 
-import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
-import {
-  FIND_FOCUS_RECLAIM_MS,
-  liveAnchorSelection,
-  liveFindClock,
-  useComposedGuestRef,
-  useFindInPage,
-  type FindBridge,
-  type FindFocusClock,
-  type FindInPage,
-  type FindableGuest,
-} from './use-find-in-page.hooks.js';
+import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from '@jini-ai/ui/core';
+import { FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
+import { liveAnchorSelection, type FindBridge, type FindableGuest } from './find-target.js';
+import { liveFindClock, type FindFocusClock } from './find-focus-clock.js';
+import { useComposedGuestRef, useFindInPage, type FindInPage } from './use-find-in-page.hooks.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
 
 type TestContext = { after: (fn: () => void) => void };
@@ -52,10 +45,10 @@ function manualClock() {
   const delays: number[] = [];
   const clock: FindFocusClock = {
     now: () => now,
-    requestFrame: (callback) => { frames.set(++nextId, callback); return nextId; },
-    cancelFrame: (frame) => { frames.delete(frame); },
-    schedule: (callback, delay) => { delays.push(delay); timers.set(++nextId, callback); return nextId; },
-    cancel: (timer) => { timers.delete(timer as number); },
+    requestFrame: ({ callback }) => { frames.set(++nextId, callback); return nextId; },
+    cancelFrame: ({ frame }) => { frames.delete(frame); },
+    schedule: ({ callback, delay }, _options = {}) => { delays.push(delay); timers.set(++nextId, callback); return nextId; },
+    cancel: ({ timer }, _options = {}) => { timers.delete(timer as number); },
   };
   const drain = (queue: Map<number, () => void>) => act(() => {
     const pending = [...queue.values()];
@@ -76,10 +69,10 @@ function fakeBridge() {
   let toggle: (() => void) | null = null;
   let report: ((result: FindInPageResult) => void) | null = null;
   const bridge: FindBridge = {
-    onFindToggle: (listener) => { toggle = listener; return () => { toggle = null; }; },
+    onFindToggle: ({ listener }, _options = {}) => { toggle = listener; return () => { toggle = null; }; },
     findInPage: async (query) => { calls.push(['find', query]); },
     stopFindInPage: async () => { calls.push(['stop']); },
-    onFindResult: (listener) => { report = listener; return () => { report = null; }; },
+    onFindResult: ({ listener }, _options = {}) => { report = listener; return () => { report = null; }; },
   };
   return {
     bridge, calls,
@@ -107,7 +100,7 @@ function renderFind(t: TestContext, ports: Parameters<typeof useFindInPage>[1], 
   let latest!: FindInPage;
   let guestId = initialGuestId;
   function Bar() {
-    latest = useFindInPage(guestId, ports);
+    latest = useFindInPage({ activeGuestId: guestId }, ports);
     return latest.open ? createElement('input', { ref: latest.inputRef, 'data-find': '' }) : null;
   }
   const host = document.body.appendChild(document.createElement('div'));
@@ -136,7 +129,7 @@ test('without a desktop bridge the bar has nothing to open and stays inert', (t)
   const bar = renderFind(t, { clock: time.clock });
   assert.equal(bar.current().open, false);
   assert.equal(bar.current().countLabel, '');
-  bar.act(() => bar.current().setQuery('anything'));
+  bar.act(() => bar.current().setQuery({ text: 'anything' }));
   time.runTimers();
   assert.equal(bar.input(), null, 'the bar never opened, so no input is rendered');
 });
@@ -151,7 +144,7 @@ test('Cmd+F opens and focuses the bar; a typed query searches the window once ty
   assert.deepEqual(window.calls, [['stop']], 'an open bar with no query stops any stale search');
   window.calls.length = 0;
 
-  bar.act(() => bar.current().setQuery('bak'));
+  bar.act(() => bar.current().setQuery({ text: 'bak' }));
   assert.deepEqual(window.calls, [], 'nothing is searched while typing has not settled');
   assert.ok(time.delays.includes(FIND_QUERY_SETTLE_MS));
   time.runTimers();
@@ -180,7 +173,7 @@ test('Enter and Shift+Enter step within the session; stepping with a pending que
   const window = fakeBridge();
   const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
   window.toggle();
-  bar.act(() => bar.current().setQuery('a'));
+  bar.act(() => bar.current().setQuery({ text: 'a' }));
   time.runTimers();
   window.calls.length = 0;
   time.frames.clear();
@@ -194,12 +187,12 @@ test('Enter and Shift+Enter step within the session; stepping with a pending que
   assert.equal(time.frames.size, 0, 'a step never arms the per-frame reclaim');
 
   window.calls.length = 0;
-  bar.act(() => bar.current().setQuery('ab'));
+  bar.act(() => bar.current().setQuery({ text: 'ab' }));
   bar.act(() => bar.current().next());
   assert.deepEqual(window.calls, [['find', { text: 'ab', forward: true, findNext: true }]],
     'Enter before typing settles starts the new query rather than stepping the stale one');
   window.calls.length = 0;
-  bar.act(() => bar.current().setQuery('abc'));
+  bar.act(() => bar.current().setQuery({ text: 'abc' }));
   bar.act(() => bar.current().previous());
   assert.deepEqual(window.calls, [['find', { text: 'abc', forward: true, findNext: true }]]);
 });
@@ -209,17 +202,17 @@ test('clearing the query stops the search and the counter; closing stops it and 
   const window = fakeBridge();
   const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
   window.toggle();
-  bar.act(() => bar.current().setQuery('x'));
+  bar.act(() => bar.current().setQuery({ text: 'x' }));
   time.runTimers();
   window.report(result(1, 1));
   window.calls.length = 0;
 
-  bar.act(() => bar.current().setQuery(''));
+  bar.act(() => bar.current().setQuery({ text: '' }));
   assert.deepEqual(window.calls, [['stop']]);
   assert.equal(bar.current().countLabel, '');
   assert.equal(window.subscribed().report, false, 'an empty query does not listen for results');
 
-  bar.act(() => bar.current().setQuery('y'));
+  bar.act(() => bar.current().setQuery({ text: 'y' }));
   time.runTimers();
   bar.input()!.blur(); // a reclaim timer is now pending
   window.calls.length = 0;
@@ -256,7 +249,7 @@ test('a blur long after the last find, or before any find, is the user clicking 
   assert.equal(focused(bar.input()), false, 'no find issued yet: the blur stands');
 
   bar.input()!.focus();
-  bar.act(() => bar.current().setQuery('q'));
+  bar.act(() => bar.current().setQuery({ text: 'q' }));
   time.runTimers();
   window.report(result(1, 2));
   time.advance(FIND_FOCUS_RECLAIM_MS);
@@ -276,7 +269,7 @@ test('an IME composition is never interrupted: searches wait for it and reports 
   const input = bar.input()!;
   window.calls.length = 0;
   input.dispatchEvent(new dom.window.Event('compositionstart'));
-  bar.act(() => bar.current().setQuery('日'));
+  bar.act(() => bar.current().setQuery({ text: '日' }));
   time.runTimers();
   assert.deepEqual(window.calls, [], 'mid-composition, the settled query reschedules instead of searching');
   assert.equal(time.timers.size, 1);
@@ -309,7 +302,7 @@ test('a mounted guest is searched directly, reports on its own event, and a tab 
   window.toggle();
   assert.deepEqual(site.calls, [['stop', 'clearSelection']], 'opening with no query clears the guest');
   site.calls.length = 0;
-  bar.act(() => bar.current().setQuery('menu'));
+  bar.act(() => bar.current().setQuery({ text: 'menu' }));
   time.runTimers();
   assert.deepEqual(site.calls, [['find', 'menu', { forward: true, findNext: true }]]);
   assert.deepEqual(window.calls, [], 'a guest target never searches the window');
@@ -329,7 +322,7 @@ test('a mounted guest is searched directly, reports on its own event, and a tab 
   bar.act(() => bar.current().registerGuest('site-a', null));
   bar.rerender();
   window.toggle();
-  bar.act(() => bar.current().setQuery('menu'));
+  bar.act(() => bar.current().setQuery({ text: 'menu' }));
   time.runTimers();
   assert.deepEqual(window.calls.at(-1), ['find', { text: 'menu', forward: true, findNext: true }],
     'a deregistered guest falls back to the window');
@@ -340,10 +333,10 @@ test('unmounting cancels every pending query, frame and blur reclaim', (t) => {
   const window = fakeBridge();
   const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
   window.toggle();
-  bar.act(() => bar.current().setQuery('a'));
+  bar.act(() => bar.current().setQuery({ text: 'a' }));
   time.runTimers();
   bar.input()!.blur();
-  bar.act(() => bar.current().setQuery('ab'));
+  bar.act(() => bar.current().setQuery({ text: 'ab' }));
   assert.ok(time.timers.size >= 2 && time.frames.size === 1);
   bar.unmount();
   assert.equal(time.timers.size, 0);
@@ -358,7 +351,7 @@ test('the blur inside the hook\'s own refocus never schedules a competing blur r
   const window = fakeBridge();
   const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
   window.toggle();
-  bar.act(() => bar.current().setQuery('a'));
+  bar.act(() => bar.current().setQuery({ text: 'a' }));
   time.runTimers();
   assert.ok(focused(bar.input()));
   assert.equal(time.timers.size, 0, 'issuing the find refocuses the input, and that blur is its own');
@@ -383,7 +376,7 @@ test('a closed bar\'s detached input is no longer listened to: its blur and comp
   assert.equal(time.timers.size, 0, 'a blur on the detached input schedules no reclaim');
   window.toggle();
   window.calls.length = 0;
-  bar.act(() => bar.current().setQuery('a'));
+  bar.act(() => bar.current().setQuery({ text: 'a' }));
   time.runTimers();
   assert.deepEqual(window.calls, [['find', { text: 'a', forward: true, findNext: true }]],
     'no composition from the old input holds back the next search');
@@ -397,7 +390,7 @@ test('useComposedGuestRef feeds one webview node to every registration, and is s
   const refs: Array<(node: HTMLWebViewElement | null) => void> = [];
   let withExtra = true;
   function Probe() {
-    refs.push(useComposedGuestRef(guestRef, registerGuest, 'site-a', withExtra ? extra : undefined));
+    refs.push(useComposedGuestRef({ guestRef, registerGuest, projectId: 'site-a' }, { extra: withExtra ? extra : undefined }));
     return null;
   }
   const root = createRoot(document.body.appendChild(document.createElement('div')));
@@ -422,21 +415,21 @@ test('the live ports read the real window: selection, clock, frames and timers',
   assert.equal(typeof before, 'number');
   const fired: string[] = [];
   await new Promise<void>((resolve) => {
-    liveFindClock.requestFrame(() => { fired.push('frame'); resolve(); });
+    liveFindClock.requestFrame({ callback: () => { fired.push('frame'); resolve(); } });
   });
-  const cancelledFrame = liveFindClock.requestFrame(() => fired.push('cancelled frame'));
-  liveFindClock.cancelFrame(cancelledFrame);
-  const cancelledTimer = liveFindClock.schedule(() => fired.push('cancelled timer'), 0);
-  liveFindClock.cancel(cancelledTimer);
-  await new Promise<void>((resolve) => { liveFindClock.schedule(() => { fired.push('timer'); resolve(); }, 0); });
-  await new Promise<void>((resolve) => { liveFindClock.requestFrame(() => resolve()); });
+  const cancelledFrame = liveFindClock.requestFrame({ callback: () => fired.push('cancelled frame') });
+  liveFindClock.cancelFrame({ frame: cancelledFrame });
+  const cancelledTimer = liveFindClock.schedule({ callback: () => fired.push('cancelled timer'), delay: 0 });
+  liveFindClock.cancel({ timer: cancelledTimer });
+  await new Promise<void>((resolve) => { liveFindClock.schedule({ callback: () => { fired.push('timer'); resolve(); }, delay: 0 }); });
+  await new Promise<void>((resolve) => { liveFindClock.requestFrame({ callback: () => resolve() }); });
   assert.deepEqual(fired, ['frame', 'timer']);
   assert.ok(liveFindClock.now() >= before);
 });
 
 test('the query scheduler\'s default clock is the real timer: cancel drops, settle runs', async () => {
   const runs: string[] = [];
-  const scheduler = createFindQueryScheduler();
+  const scheduler = createFindQueryScheduler({});
   scheduler.schedule({ run: () => runs.push('cancelled') });
   scheduler.cancel();
   await new Promise<void>((resolve) => {

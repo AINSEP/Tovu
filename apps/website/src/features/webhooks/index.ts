@@ -26,9 +26,7 @@ export type {
 
 export type {
   IntegrationSecretRepoPort,
-  KeyringPort,
   SiteKeyHandle,
-  SecretSealerPort,
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
 } from "./ports.js";
@@ -87,9 +85,9 @@ export {
   type SiteKeySource,
 } from "./site-key-sources.js";
 export {
-  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, parseSiteKeyHex,
+  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, isNoSiteKeyError, parseSiteKeyHex,
   revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus,
 } from "./keyring.env.js";
-export { scanTextForSecrets } from "./secret-scan-guard.js";
+
 export { InMemoryKeyring } from "./keyring.memory.js";
 export { AesGcmSecretSealer } from "./secret-sealer.aesgcm.js";

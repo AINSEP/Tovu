@@ -1,4 +1,4 @@
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /**
  * @file Everything the Library screen reads or writes, as one injectable port — the same
@@ -7,15 +7,15 @@ import type { AdminMedia } from "@/lib/api";
  */
 export interface LibraryPort {
   listDocuments(): Promise<{ media: AdminMedia[] }>;
-  uploadDocument(input: { filename: string; dataBase64: string }): Promise<{ media: AdminMedia }>;
+  uploadDocument(input: { filename: string; dataBase64: string }, optional?: Record<string, never>): Promise<{ media: AdminMedia }>;
   /** Rename changes the display stem only; the extension and stored bytes never change. */
-  renameDocument(target: { id: string }, input: { title: string }): Promise<{ media: AdminMedia }>;
-  trashDocument(id: string): Promise<{ media: AdminMedia }>;
-  readDocumentText(target: { id: string }): Promise<{ text: string; truncated: boolean }>;
+  renameDocument(required: { target: { id: string }; input: { title: string } }, optional?: Record<string, never>): Promise<{ media: AdminMedia }>;
+  trashDocument(required: { id: string }, optional?: Record<string, never>): Promise<{ media: AdminMedia }>;
+  readDocumentText(target: { id: string }, optional?: Record<string, never>): Promise<{ text: string; truncated: boolean }>;
   /** The authenticated download URL (served as an attachment). */
-  documentDownloadUrl(id: string): string;
+  documentDownloadUrl(required: { id: string }, optional?: Record<string, never>): string;
   /** The original bytes, for the browser's PDF viewer. */
-  fetchDocumentBlob(id: string): Promise<Blob>;
+  fetchDocumentBlob(required: { id: string }, optional?: Record<string, never>): Promise<Blob>;
   me(): Promise<{ effectivePermissions?: string[] }>;
   /** Names uploaders. Optional: without it (or when it fails) rows show the raw principal id. */
   listUsers?(): Promise<{ users: ReadonlyArray<{ principalId: string; username: string }> }>;

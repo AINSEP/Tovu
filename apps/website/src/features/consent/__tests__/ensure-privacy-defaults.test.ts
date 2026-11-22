@@ -11,14 +11,15 @@ import { ensureSitePrivacyDefaults, type PrivacyDefaultsDeps } from '../ensure-p
 
 const clock = { nowMs: () => 0, nowIso: () => '2026-10-22T00:00:00.000Z' };
 function fixture() {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   let counter = 0, url = '', writes = 0, seeds = 0, inTransaction = false;
   const transact = repo.transaction.bind(repo);
-  repo.transaction = async fn => transact(async () => {
+  // The repo port takes object args ({ fn }) since the Jini args sweep; the wrapper must follow it.
+  repo.transaction = async ({ fn }) => transact({ fn: async () => {
     const previous = inTransaction;
     inTransaction = true;
     try { return await fn(); } finally { inTransaction = previous; }
-  });
+  } });
   const deps: PrivacyDefaultsDeps = {
     workspaceId: 'site-a', post: { repo, clock }, ids: { newId: () => `id-${++counter}` },
     readUrl: async () => url,
@@ -26,10 +27,10 @@ function fixture() {
     readIdentity: async () => ({ siteTitle: 'A & B', email: 'owner@example.test', principalId: 'owner' }),
     pagesHtmlStore: scope => {
       const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-      return { ensureHtmlFormat: async html => {
+      return { ensureHtmlFormat: async ({ seedHtml: html }) => {
         assert.equal(inTransaction, true, 'create and HTML seed share a transaction');
         seeds++;
-        await store.ensureHtmlFormat(html);
+        await store.ensureHtmlFormat({ seedHtml: html });
       } };
     },
   };

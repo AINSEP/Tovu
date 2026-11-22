@@ -16,18 +16,18 @@ import { readTrackedSites } from "./tracked-sites.ts";
 
 interface DesktopChatMainDeps {
   /** Optional site-settings binding; standalone desktop uses the same environment/default policy. */
-  readFullCliAccess?: (input: { addressee: TurnAddressee | null }, options?: {}) => Promise<boolean | import("../../website/src/contracts/headless/index.ts").AssistantCliPermissions>;
+  readFullCliAccess?: (input: { addressee: TurnAddressee | null }, options?: {}) => Promise<boolean | import("@tovu/contracts/assistant-subagents-policy").AssistantCliPermissions>;
   /** Created once at app boot, shared by detection and execution, disposed by app shutdown. */
   agentRuntime: NativeAgentRuntime;
   ipcMain: ChatIpcMain;
   userDataDir: string;
   projectsPath: string;
-  revealPath: (target: string) => Promise<void>;
-  pickDirectory: (currentDirectory?: string) => Promise<string | null>;
+  revealPath: (required: { target: string }, options?: {}) => Promise<void>;
+  pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
   /** Sends one push message to every shell window. */
-  broadcast: (channel: string, payload: unknown) => void;
+  broadcast: (required: { channel: string; payload: unknown }, options?: {}) => void;
   /** Display name of a tracked site — `main.ts`'s own `readSiteName`. */
-  readSiteName: (siteDir: string) => string;
+  readSiteName: (required: { siteDir: string }, options?: {}) => string;
 }
 
 /**
@@ -36,12 +36,12 @@ interface DesktopChatMainDeps {
  * @complexity O(n) in the tracked-site count.
  */
 function resolveTrackedAddressee(
-  siteDir: string,
-  ports: { readTracked: () => readonly { siteDir: string }[]; readSiteName: (siteDir: string) => string },
+  { siteDir, ports }: { siteDir: string; ports: { readTracked: () => readonly { siteDir: string }[]; readSiteName: (required: { siteDir: string }, options?: {}) => string } },
+  _options = {},
 ): TurnAddressee | null {
   const resolved = path.resolve(path.sep, siteDir);
   const tracked = ports.readTracked().some((row) => row.siteDir === resolved);
-  return tracked ? { siteDir: resolved, name: ports.readSiteName(resolved) } : null;
+  return tracked ? { siteDir: resolved, name: ports.readSiteName({ siteDir: resolved }) } : null;
 }
 
 /**
@@ -59,10 +59,10 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     agentRuntime: deps.agentRuntime,
     workDir: path.join(deps.userDataDir, "desktop-agent"),
     buildTools: ({ addresseeOf }) => buildDesktopAgentTools({
-      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: deps.revealPath },
+      sitesToolContext: { userDataDir: deps.userDataDir, projectsPath: deps.projectsPath, revealPath: ({ target }) => deps.revealPath({ target }) },
       addresseeOf,
       siteTools: optional.siteTools ?? UNBUILT_SITE_TOOL_GATEWAY,
-      navigate: ({ section }) => deps.broadcast(WORKSPACE_CHAT_IPC.navigate, section),
+      navigate: ({ section }) => deps.broadcast({ channel: WORKSPACE_CHAT_IPC.navigate, payload: section }),
     }),
   }, { toolGapStore: conversations, ...(deps.readFullCliAccess ? { readFullCliAccess: deps.readFullCliAccess } : {}) });
   runtime.catch((error: unknown) => console.error("tovu-desktop: the desktop chat agent did not start", error));
@@ -70,9 +70,12 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     ipcMain: deps.ipcMain,
     runtime,
     conversations,
-    resolveAddressee: (siteDir) => resolveTrackedAddressee(siteDir, {
-      readTracked: () => readTrackedSites(deps.projectsPath),
-      readSiteName: deps.readSiteName,
+    resolveAddressee: ({ siteDir }, _options = {}) => resolveTrackedAddressee({
+      siteDir,
+      ports: {
+        readTracked: () => readTrackedSites({ projectsPath: deps.projectsPath }),
+        readSiteName: deps.readSiteName,
+      },
     }),
     listAgents: createAgentInventory({
       defs: AGENT_DEFS,

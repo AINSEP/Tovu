@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { outboxEvents } from "#src/platform/db/schema.sqlite";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "@jini-ai/cms/widgets";
 
 import {
@@ -61,7 +61,7 @@ import {
 
 function makeOutbox() {
   const db = openContentDb(":memory:");
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   return { db, outbox };
 }
 
@@ -349,7 +349,7 @@ test("widgets chokepoint: createWidgetInstance binds the RAW SqliteOutboxAdapter
     ids: { newId: () => `widget-id-${++counter}` },
     authorize: async () => ({ allowed: true, reason: "test: always allow" }),
     // Deliberately the raw adapter, unwrapped — this is the exact shape `src/server/deps.ts:384`
-    // constructs (`new SqliteOutboxAdapter(db)`) and passes as `deps.outbox`. The bridging into
+    // constructs (`new SqliteOutboxAdapter({ store: db })`) and passes as `deps.outbox`. The bridging into
     // `toEntryOutbox`/`toContentTypeOutbox` happens INSIDE `write-service.ts`/`entry-payload.ts`,
     // never at this call site — reproducing that exactly is the point of this test.
     outbox,

@@ -1,13 +1,12 @@
 import path from "node:path";
 import { format } from "node:util";
 
+import { installConsoleTee } from "@jini-ai/diagnostics/console-tee";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
-import { installConsoleTee } from "./console-tee.js";
 import { createLogBuffer, DEFAULT_MAX_ENTRIES, type ServerLogBuffer, type ServerLogEntry, type ServerLogSource } from "./log-buffer.js";
 import { createRotatingLogFileSink, readLogFileTail, type LogFileFsPort } from "./log-file.js";
 
-export { installConsoleTee, type TeeableConsole } from "./console-tee.js";
 export { createLogBuffer, DEFAULT_MAX_BYTES, DEFAULT_MAX_ENTRIES, type ServerLogAppendInput, type ServerLogBuffer, type ServerLogEntry, type ServerLogLevel, type ServerLogSource } from "./log-buffer.js";
 export { createRotatingLogFileSink, readLogFileTail, type LogFileFsPort } from "./log-file.js";
 
@@ -43,7 +42,7 @@ export function setServerLogTraceReader(required: { traceIds: () => { traceId: s
 
 /** Created lazily so a test or tool that only reads gets an empty buffer, never a crash. */
 export function getServerLogBuffer(): ServerLogBuffer {
-  processBuffer ??= createLogBuffer({ redact: text => redactSecretShapes({ text }).text }, { metadata: () => ({ ...identity, ...traceIds() }) });
+  processBuffer ??= createLogBuffer({ redact: ({ text }) => redactSecretShapes({ text }).text }, { metadata: () => ({ ...identity, ...traceIds() }) });
   return processBuffer;
 }
 
@@ -65,7 +64,7 @@ export function installServerLogCapture(optional: { source?: ServerLogSource; re
     identity = { release: optional.release ?? identity.release, environment: optional.environment ?? identity.environment };
     const source = optional.source ?? "server";
     const buffer = getServerLogBuffer();
-    const untee = installConsoleTee({ buffer }, { source, redact: text => redactSecretShapes({ text }).text });
+    const untee = installConsoleTee({ buffer }, { source, redact: ({ text }) => redactSecretShapes({ text }).text });
     const onFatal = (err: unknown) => {
       try { buffer.append({ level: "error", source, message: `[uncaughtException] ${format(err)}` }); } catch { /* never mask the crash */ }
     };
@@ -97,8 +96,8 @@ export function attachServerLogFile(required: { filePath: string }, optional: { 
   if (detachFile === null) {
     const sink = createRotatingLogFileSink({ filePath: required.filePath }, { fs: optional.fs });
     const buffer = getServerLogBuffer();
-    for (const entry of buffer.entries()) sink.write(entry);
-    const unsubscribe = buffer.subscribe(entry => sink.write(entry));
+    for (const entry of buffer.entries()) sink.write({ entry });
+    const unsubscribe = buffer.subscribe({ listener: entry => sink.write({ entry }) });
     readFilePaths = [required.filePath, ...(optional.alsoRead ?? [])];
     detachFile = () => { unsubscribe(); readFilePaths = []; detachFile = null; };
   }

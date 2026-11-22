@@ -1,5 +1,6 @@
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
-import { apiConnectionVaultScope, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, PLUGIN_STATE_FORMAT } from '../../../api-connections/vault-stores.js';
+import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
+import { createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore } from '../../../api-connections/vault-stores.js';
 import { createSiteOAuthBindings } from '../../../project-keys/site-references.js';
 import { createSavedKeysStore } from './saved-keys-store.fixture.js';
 /** k1 T1–T4: real SQL vaults, project attachments, envelope, ZIP, isolated worker and site creation. */
@@ -7,6 +8,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
+import { buildShareZip } from "../../share-zip.js";
 import express from "express";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { PassThrough } from "node:stream";
@@ -37,6 +40,24 @@ import { importFixture, MEDIA, OWNER_PASSWORD, reader } from "../import.fixture.
 import { verifySiteImport } from "../../import-verifier.js";
 import { rebuildImportDatabase } from "../../../../server/runtime/composition/site-portability.js";
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
+
+// Mutation: delete either additive-default map entry; the isolated worker refuses this archive.
+// Pins CURRENT behaviour (owner decision 2026-11-19): the verifier refuses a same-identity archive
+// whose Library predates the additive media/asset_blobs columns, rather than importing it with the
+// columns' defaults. If additive-default import is wanted, this is the test to flip.
+test("same-identity older Library shape is refused as a different Tovu version (current behaviour)", { timeout: 120000 }, async t => {
+  const h = await importFixture(t);
+  // openContentDb in the fixture runs the real chain. Only this serialized source copy is older.
+  const older = new Database(h.safe.bytes);
+  let bytes: Buffer;
+  try {
+    older.exec("ALTER TABLE media DROP COLUMN kind; ALTER TABLE media DROP COLUMN original_filename; ALTER TABLE media DROP COLUMN source_metadata_json; ALTER TABLE asset_blobs DROP COLUMN document_owned");
+    bytes = older.serialize();
+  } finally { older.close(); }
+  const archive = await buildShareZip({ plan: { ...h.plan, database: { bytes, watermarkAtCapture: 0 } }, zip: zipFolderFiles });
+  const { uploadId } = await h.backend.upload({ principalId: "owner", archive });
+  await assert.rejects(h.backend.importBackup({ principalId: "owner", source: { uploadId } }), /This ZIP was made by a different Tovu version/);
+});
 
 /** Real admin handlers over an in-process stream; no listening socket is needed. */
 async function shareRequest(app: express.Express, endpoint: string, body: unknown) {
@@ -69,12 +90,12 @@ for (const placement of ["inSite", "appData"] as const) {
     const sourcePath = path.join(h.root, "source.db");
     fs.writeFileSync(sourcePath, h.db.$client.serialize());
     const sourceDb = openContentDb({ filePath: sourcePath });
-    t.after(() => closeSqliteConnection(sourceDb));
+    t.after(() => closeSqliteConnection({ source: sourceDb }));
     assert.equal(sourceDb.$client.pragma("journal_mode", { simple: true }), "wal");
     const bearer = "roundTripCredentialValue987654321";
     sourceDb.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
-    const keyring = new FixedSiteKeyKeyring("11".repeat(32)), sealer = new AesGcmSecretSealer(keyring);
-    const source = await createSavedKeysStore({ kernel: contentKernel(sourceDb), workspaceId, keyring, sealer });
+    const keyring = new FixedSiteKeyKeyring({ hex: "11".repeat(32) }), sealer = new AesGcmSecretSealer(keyring);
+    const source = await createSavedKeysStore({ kernel: contentKernel({ store: sourceDb }), workspaceId, keyring, sealer });
     const put = async (store: typeof source, id: string, label: string, token: string) => store.vault.put({ workspaceId: store.workspaceId, id,
       kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, provider: "hosting", label, isDefault: false, expectedRevision: null,
       meta: { credentialType: "vendor", worksFor: ["hosting"] }, payload: { token } });
@@ -84,7 +105,7 @@ for (const placement of ["inSite", "appData"] as const) {
     sourceDb.$client.prepare("INSERT INTO setting_definitions(setting_id,version,namespace,key,owner_kind,schema_json,default_json,scopes,secret,status,created_at,updated_at) VALUES ('saved-secret',1,'core.archive-fixture','secret','core',?,'null',2,1,'active',?,?)").run('{"type":"string"}', "2026-10-31T00:00:00Z", "2026-10-31T00:00:00Z");
     sourceDb.$client.prepare("INSERT INTO setting_values_workspace(setting_id,workspace_id,value_json,state,def_version,seq,updated_by,updated_at) VALUES ('saved-secret','ws',?,'set',1,1,'owner',?)").run(JSON.stringify(settingSecret), "2026-10-31T00:00:00Z");
     const project = await openProjectStore({ sitesHome: h.workspace.home({}), home: h.root }); t.after(() => project.close({}));
-    const projectKernel = openSqliteFileKernel<ContentDatabase>(project.dbPath); t.after(() => projectKernel.close());
+    const projectKernel = openSqliteFileKernel<ContentDatabase>({ filePath: project.dbPath }); t.after(() => projectKernel.close());
     const projectKeys = await createSavedKeysStore({ kernel: projectKernel, ...project.vault });
     await put(projectKeys, "attached", "Attached", projectToken);
     await put(projectKeys, "shadow", "Hosting", "shadowed-project-secret");
@@ -152,7 +173,7 @@ for (const placement of ["inSite", "appData"] as const) {
     const ready = await imports.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD, savedKeysPassword: undefined });
     assert.equal(ready.status, "ready");
     const dir = path.join(h.workspace.home({}), ready.newSiteName!), dbPath = resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath;
-    const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection(imported));
+    const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection({ source: imported }));
     assert.equal(imported.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts WHERE id='post-0'").get()!.body_json.includes(bearer), true);
     const ids = imported.$client.prepare<[], { id: string }>("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
     assert.deepEqual(ids, []);

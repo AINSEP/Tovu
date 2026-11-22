@@ -1,6 +1,9 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import type { UUID } from "@jini-ai/core/primitives";
 import { ensureSettingDefinitions, getEffective, SCOPE_BIT, type EnsureSettingDefinitionsDeps, type SettingsRepoPort } from "@jini-ai/core/settings";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone, type SiteTimeZonePort } from "@jini-ai/cms/widgets/date-label";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file Bug D (2026-10-22): `core.site.timezone`, the IANA zone public pages format post dates in.
@@ -48,7 +51,7 @@ export interface ResolveSiteTimeZoneDeps {
 }
 
 /** `value` trimmed when `Intl` accepts it (an explicit "UTC" included), else undefined. */
-function validTimeZone(value: unknown): string | undefined {
+function validTimeZone({ value }: { value: unknown }, _optional = {}): string | undefined {
   if (typeof value !== "string") return undefined;
   const zone = normalizeTimeZone({ timeZone: value });
   // `normalizeTimeZone` returns the trimmed input only for a valid zone; anything else became UTC.
@@ -59,12 +62,12 @@ function validTimeZone(value: unknown): string | undefined {
 function creationOrDefault(deps: ResolveSiteTimeZoneDeps): string {
   // Legacy sites have no recorded zone. Pin the server's local zone before shared rendering so
   // article markers, Liquid workers and static exports all use the same calendar day.
-  return validTimeZone(deps.creationTimeZone?.read()) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return validTimeZone({ value: deps.creationTimeZone?.read() }) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 /** A usable owner value: a workspace-layer string `Intl` accepts. */
-function ownerTimeZone(resolved: { sourceLayer: string; value: unknown } | null): string | undefined {
-  return resolved?.sourceLayer === "workspace" ? validTimeZone(resolved.value) : undefined;
+function ownerTimeZone({ resolved }: { resolved: { sourceLayer: string; value: unknown } | null }, _optional = {}): string | undefined {
+  return resolved?.sourceLayer === "workspace" ? validTimeZone({ value: resolved.value }) : undefined;
 }
 
 /**
@@ -75,13 +78,11 @@ function ownerTimeZone(resolved: { sourceLayer: string; value: unknown } | null)
 export async function resolveSiteTimeZone(deps: ResolveSiteTimeZoneDeps, input: { workspaceId: UUID }): Promise<string> {
   try {
     const resolved = await getEffective(
-      { repo: deps.settingsRepo },
-      { namespace: SITE_TIMEZONE_NAMESPACE, key: SITE_TIMEZONE_KEY, scopeContext: { workspaceId: input.workspaceId } }
+      { deps: { repo: deps.settingsRepo }, namespace: SITE_TIMEZONE_NAMESPACE, key: SITE_TIMEZONE_KEY, scopeContext: { workspaceId: input.workspaceId } },
     );
-    return ownerTimeZone(resolved) ?? creationOrDefault(deps);
+    return ownerTimeZone({ resolved }) ?? creationOrDefault(deps);
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`resolveSiteTimeZone: using the creation zone for workspace '${input.workspaceId}': ${(err as Error).message}`);
+    consoleLogger.error({ message: `resolveSiteTimeZone: using the creation zone for workspace '${input.workspaceId}': ${(err as Error).message}` });
     return creationOrDefault(deps);
   }
 }

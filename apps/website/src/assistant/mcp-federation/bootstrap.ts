@@ -22,13 +22,18 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
  * so a future structured logger is a parameter change rather than an edit. */
 export interface FederationLogger {
-  info(message: string): void;
-  warn(message: string): void;
+  info(required: { message: string }, optional?: { error?: unknown }): void;
+  warn(required: { message: string }, optional?: { error?: unknown }): void;
 }
 
+/** Jini's federation loop logs fixed words in `message` and hands the original error as `{ error }` for the
+ * host sink; this console IS Tovu's host sink, so the error rides along as a second console argument
+ * (without it a failed connection would log no cause at all). */
+const consoleArgs = ({ line, error }: { line: string; error: unknown }): unknown[] => (error === undefined ? [line] : [line, error]);
+
 const consoleLogger: FederationLogger = {
-  info: (message) => console.log(`[agent-daemon] ${message}`),
-  warn: (message) => console.warn(`[agent-daemon] ${message}`),
+  info: ({ message }, { error } = {}) => console.log(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
+  warn: ({ message }, { error } = {}) => console.warn(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
 };
 
 export interface AttachFederatedToolsResult {
@@ -100,7 +105,7 @@ export interface AttachFederatedMcpToolsParams {
   connections?: readonly ResolvedFederatedConnection[];
   /**
    * Connections from a config source that is not the preset registry — today, the operator-editable
-   * roster in `assistant/external-mcp-store.ts`.
+   * roster in `apps/website/src/features/external-mcp/external-mcp-store.ts`.
    *
    * A second parameter rather than a second preset, because `FederatedMcpPresetResolver` cannot
    * express this source: it is synchronous (a DB read plus an unseal are not) and returns at most
@@ -204,9 +209,9 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
     extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
     env: params.env ?? process.env,
     logger: {
-      info: ({ message }) => logger.info(message),
-      warn: ({ message }) => logger.warn(message),
-      error: ({ message }) => logger.warn(message),
+      info: ({ message }, { error } = {}) => logger.info({ message }, { error }),
+      warn: ({ message }, { error } = {}) => logger.warn({ message }, { error }),
+      error: ({ message }, { error } = {}) => logger.warn({ message }, { error }),
     },
   });
   return result;
@@ -227,7 +232,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
 export function resolveRegisteredPresets({ env, logger, registry }: {
   env: NodeJS.ProcessEnv; logger: FederationLogger; registry: FederatedMcpPresetRegistry;
 }, _optional: Record<string, never> = {}): ResolvedFederatedConnection[] {
-  return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn(message) } });
+  return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn({ message }) } });
 }
 
 /** Bind Tovu's client identity, presentation and optional host channel to Jini's bounded factory.
@@ -243,7 +248,7 @@ export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchRes
   const connect = createJiniConnect({ resolver, clientInfo: TOVU_MCP_CLIENT_INFO,
     messages: tovuFederationMessages, bearerToken,
   }, {
-    logger: { warn: ({ message }) => logger.warn(message) },
+    logger: { warn: ({ message }) => logger.warn({ message }) },
     ...(spawnChannel ? { spawnChannel: ({ resolved }: { resolved: ResolvedStdioLaunch }) => spawnChannel(resolved) } : {}),
   });
   return connection => connect({ connection });

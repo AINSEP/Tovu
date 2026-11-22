@@ -17,8 +17,8 @@ import { registerAdminWorkspaceUpdateRoute } from "../update.js";
  */
 
 const base = "/api/admin/v1/workspaces";
-const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z" };
-const other = { id: "ws-8", name: "Other Site", slug: "other-site", createdAt: "2026-09-02T00:00:00Z" };
+const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdAt: "2026-09-01T00:00:00Z", version: 1 };
+const other = { id: "ws-8", name: "Other Site", slug: "other-site", createdAt: "2026-09-02T00:00:00Z", version: 1 };
 
 function harness(repo: unknown, allowed = true) {
   const app = express();
@@ -28,10 +28,10 @@ function harness(repo: unknown, allowed = true) {
     workspaceRepo: repo,
     authorize: async () => { authorizeCalls++; return { allowed, reason: allowed ? "matched" : "no-grant" }; },
   } as any;
-  registerAdminWorkspaceCreateRoute(app, deps);
-  registerAdminWorkspaceDeleteRoute(app, deps);
-  registerAdminWorkspaceGetRoute(app, deps);
-  registerAdminWorkspaceUpdateRoute(app, deps);
+  registerAdminWorkspaceCreateRoute({ app, deps });
+  registerAdminWorkspaceDeleteRoute({ app, deps });
+  registerAdminWorkspaceGetRoute({ app, deps });
+  registerAdminWorkspaceUpdateRoute({ app, deps });
   return {
     authorizeCalls: () => authorizeCalls,
     invoke: async (method: "get" | "patch" | "delete" | "post", path: string, req: { params?: unknown; body?: unknown }) => {
@@ -113,7 +113,7 @@ function sendingResponse() {
 test("deleteWorkspaceUnlessBound, given a non-bound target, runs the domain delete on deps.workspaceId (the pre-extraction handler's id) and answers 204", async () => {
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const { res, capture, sent } = sendingResponse();
-  await deleteWorkspaceUnlessBound(res, { workspaceId: "ws-7", workspaceRepo: repo }, "ws-8");
+  await deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repo }, targetWorkspaceId: "ws-8" });
   assert.equal(capture.statusCode, 204);
   assert.deepEqual(sent, [undefined]);
   assert.deepEqual(await repo.list(), [other]);
@@ -122,7 +122,7 @@ test("deleteWorkspaceUnlessBound, given a non-bound target, runs the domain dele
 test("deleteWorkspaceUnlessBound lets the domain's typed errors through for sendDeleteWorkspaceError to map", async () => {
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own] });
   const { res } = sendingResponse();
-  await assert.rejects(deleteWorkspaceUnlessBound(res, { workspaceId: "ws-7", workspaceRepo: repo }, "ws-8"), WorkspaceLastRemainingError);
+  await assert.rejects(deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repo }, targetWorkspaceId: "ws-8" }), WorkspaceLastRemainingError);
   assert.deepEqual(await repo.list(), [own]);
 });
 
@@ -131,7 +131,7 @@ test("deleteWorkspaceUnlessBound refuses to run without a transaction port", asy
   const repoWithoutTransaction = { findById: async () => other, list: async () => [own, other], delete: async (x: unknown) => { deleted.push(x); } };
   const { res } = sendingResponse();
   await assert.rejects(
-    deleteWorkspaceUnlessBound(res, { workspaceId: "ws-7", workspaceRepo: repoWithoutTransaction as any }, "ws-8"),
+    deleteWorkspaceUnlessBound({ res, deps: { workspaceId: "ws-7", workspaceRepo: repoWithoutTransaction as any }, targetWorkspaceId: "ws-8" }),
     { message: "workspace deletion requires a transaction port" }
   );
   assert.deepEqual(deleted, []);
@@ -144,7 +144,7 @@ test("sendDeleteWorkspaceError logs a non-Error throw and an Error without a sta
   stackless.stack = undefined;
   for (const err of ["plain string failure", stackless]) {
     const { res, capture } = createCapturingResponse();
-    sendDeleteWorkspaceError(res, err);
+    sendDeleteWorkspaceError({ res, err });
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } }, { failure: {"message":"The workspace removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove workspace"} });
   }
   assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^plain string failure$/, /^Error: stackless failure$/] });
@@ -155,10 +155,10 @@ test("an authorization backend failure on the delete route is answered by the op
   t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const app = express();
-  registerAdminWorkspaceDeleteRoute(app, {
+  registerAdminWorkspaceDeleteRoute({ app, deps: {
     workspaceId: "ws-7", workspaceRepo: repo,
     authorize: async () => { throw "authorizer offline"; },
-  } as any);
+  } as any });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);

@@ -1,6 +1,7 @@
 import { ForbiddenError, type SettingScope } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -9,7 +10,7 @@ const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
  * `null` means the body failed that check.
  * @complexity O(1).
  */
-function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
+function parseResetRequestFields({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const namespace = String(body.namespace ?? "");
   const scope = body.scope as SettingScope;
@@ -20,7 +21,7 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
 }
 
 /**
- * Partition selection and rationale: Jini packages/core/src/settings/express/cms-adapter.ts.
+ * Partition selection and rationale: Jini packages/core/src/settings/cms-adapter.ts.
  * The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
  * `global`, else this workspace's own partition, falling back to the ambient workspace when the
  * resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`
@@ -44,11 +45,11 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
  * platform partition (`workspaceId=null`); `scope=workspace`/`scope=user` read
  * this workspace's site-owned partition.
  */
-export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "post", path: "/api/admin/v1/workspaces/:workspaceId/settings/reset",
     errorMappings: [{ matches: (error) => error instanceof ForbiddenError, status: 403, code: "FORBIDDEN" }],
     handle: async ({ request: req, principal, authorize }) => {
-      const parsedBody = parseResetRequestFields(req.body);
+      const parsedBody = parseResetRequestFields({ rawBody: req.body });
       if (!parsedBody) {
         rejectSettingsRequest({ status: 400,
           error: "namespace and scope (global|workspace|user) are required",
@@ -56,10 +57,10 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
         });
       }
       const { namespace, scope, bodyWorkspaceId } = parsedBody;
-      // See `resolveTargetWorkspaceId` in `shared.ts`. This was the worst of the three: it took the
+      // See `resolveTargetWorkspaceId` (`@jini-ai/core/settings`). This was the worst of the three: it took the
       // target workspace from the body while authorizing against `deps.workspaceId` below, so one
       // request could wipe an entire namespace in another tenant.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

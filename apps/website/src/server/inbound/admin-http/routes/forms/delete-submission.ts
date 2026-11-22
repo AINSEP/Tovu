@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deleteFormSubmission } from "@jini-ai/cms/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
@@ -6,40 +8,24 @@ import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** DELETE moves one submission to the Trash (`FORMS_DELETE_SUBMISSION`). A submission of another
  *  form reads as not-found, same as a missing one (`deleteFormSubmission`). */
-export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const formId = String(req.params.formId ?? "");
       const submissionId = String(req.params.submissionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: "admin.forms.submissions.delete",
-          workspaceId: deps.workspaceId,
-          entityType: "form_submission",
-          entityId: submissionId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'admin.forms.submissions.delete' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: "admin.forms.submissions.delete", reason: authResult.reason },
-          });
-          return;
-        }
+        const params = { principalId: principal.id, permission: "admin.forms.submissions.delete", workspaceId: deps.workspaceId, entityType: "form_submission", entityId: submissionId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
         // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
         // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
         // param straight through as `formId` here.
-        const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+        const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
         if (!definition) {
           res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
           return;

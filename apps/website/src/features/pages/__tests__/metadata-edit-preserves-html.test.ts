@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createPost, updatePost, InMemoryPostRepo } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
@@ -52,13 +52,13 @@ async function seedHtmlPage(repo: InMemoryPostRepo, html: string) {
     { workspaceId: "ws-1", postId: "page-1" },
     { repo, clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("updatePost: renaming an html-format Page keeps its bodyFormat and body_html intact", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const generated = `<section data-agent-element="page-hero" data-agent-role="region"><h1>Pricing</h1></section>`;
   await seedHtmlPage(repo, generated);
 
@@ -85,7 +85,7 @@ test("updatePost: renaming an html-format Page keeps its bodyFormat and body_htm
 });
 
 test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, never written alongside body_html", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(repo, generated);
   const original = await repo.findById({ workspaceId: "ws-1", id: "page-1" });
@@ -113,7 +113,7 @@ test("updatePost: a caller-supplied bodyJson is ignored on an html-format Page, 
 });
 
 test("updatePost: a doc-format Page is unaffected — the fix must not widen the CIC-3 guarantee", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   await createPost({
     deps: { repo, clock },
     input: { workspaceId: "ws-1", id: "page-2", title: "About", kind: "page" },
@@ -145,7 +145,7 @@ describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revi
     await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: "ws-1", postId: "page-sql" }, { kernel, clock });
-    await store.ensureHtmlFormat(html);
+    await store.ensureHtmlFormat({ seedHtml: html });
     const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
     assert.ok(original);
     const { post } = await updatePost({

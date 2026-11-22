@@ -1,6 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule } from 'kysely';
-import type { StorageDialect } from '../kernel/port.js';
-import type { MigrationStep } from './step.js';
+import type { StorageDialect, MigrationStep } from '@jini-ai/core/contracts/storage';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 
 /** Public keys only; scope/credential uniqueness prevents rebinding another owner's key. */
 export function ownerPasskeysSchema({ schema, dialect }: { schema: SchemaModule; dialect: StorageDialect }, _options: Record<string, never> = {}) {
@@ -17,7 +17,7 @@ export function ownerPasskeysSchema({ schema, dialect }: { schema: SchemaModule;
 const schema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
 export const OWNER_PASSKEYS_SQL = ownerPasskeysSchema({ schema, dialect: 'sqlite' }).map(s => s.compile().sql);
 /** Append one credential table; reuse existing bounded MFA challenges. O(1) DDL, no data rewrite. */
-export function ownerPasskeys({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function ownerPasskeys({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: '0041_owner_passkeys', checksum, async up(kernel) {
     await kernel.run(async db => {
       for (const statement of ownerPasskeysSchema({ schema: db.schema, dialect: kernel.dialect })) await statement.execute();

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useDeploymentOverview } from "../use-deployment-overview.hooks";
 import { createFakeDeploymentOverviewPort } from "../deployment-overview-dependencies.hooks";
-import type { AdminDeploymentOverview } from "@/lib/api";
+import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file `useDeploymentOverview` — the Overview tab's single read. Injected-port coverage, same
@@ -45,9 +45,9 @@ describe("useDeploymentOverview — injected port", () => {
   it("loads the snapshot from the fake port's seed, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
-    const port = createFakeDeploymentOverviewPort(snapshotFixture({ mode: "production" }));
+    const port = createFakeDeploymentOverviewPort({ snapshot: snapshotFixture({ mode: "production" }) });
 
-    const { result } = renderHook(() => useDeploymentOverview(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDeploymentOverview({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
     expect(result.current.snapshot?.mode).toBe("production");
@@ -57,9 +57,9 @@ describe("useDeploymentOverview — injected port", () => {
   });
 
   it("surfaces a rejected port as a translated, formatted error message rather than throwing", async () => {
-    const port = createFakeDeploymentOverviewPort(() => Promise.reject(new Error("boom")));
+    const port = createFakeDeploymentOverviewPort({ snapshot: () => Promise.reject(new Error("boom")) });
 
-    const { result } = renderHook(() => useDeploymentOverview(port, fakeT, fakeLocale), { wrapper });
+    const { result } = renderHook(() => useDeploymentOverview({ port, t: fakeT, locale: fakeLocale }), { wrapper });
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.snapshot).toBeUndefined();
@@ -69,8 +69,8 @@ describe("useDeploymentOverview — injected port", () => {
 
   it("returns the injected t unchanged, proving the value isn't built internally", () => {
     const distinctT = (key: string): string => `xx-${key}`;
-    const port = createFakeDeploymentOverviewPort(snapshotFixture());
-    const { result } = renderHook(() => useDeploymentOverview(port, distinctT, fakeLocale), { wrapper });
+    const port = createFakeDeploymentOverviewPort({ snapshot: snapshotFixture() });
+    const { result } = renderHook(() => useDeploymentOverview({ port, t: distinctT, locale: fakeLocale }), { wrapper });
     expect(result.current.t("Overview")).toBe("xx-Overview");
   });
 });

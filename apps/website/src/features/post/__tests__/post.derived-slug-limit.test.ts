@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
-import { createPost, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, PostValidationError, updatePost, type PostRecord, type UpdatePostDeps } from "../post.js";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
+import { createPost } from "../post-create.js";
+import { MAX_SLUG_LENGTH } from "../slug.js";
+import { MAX_TITLE_LENGTH } from "../post-write-fields.js";
+import { PostValidationError, type PostRecord } from "../post.js";
+import { updatePost, type UpdatePostDeps } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
@@ -40,7 +44,7 @@ function legacy(overrides: Partial<PostRecord>): PostRecord {
 }
 
 test("createPost derives a slug no longer than the bound from a 200-character title, and that post can be re-saved", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const title = "a".repeat(MAX_TITLE_LENGTH);
   const { post } = await createPost({ deps: { repo, clock }, input: { workspaceId: WORKSPACE_ID, id: "p1", title } });
   assert.ok(post.slug.length <= MAX_SLUG_LENGTH, `derived slug is ${post.slug.length} characters`);
@@ -49,7 +53,7 @@ test("createPost derives a slug no longer than the bound from a 200-character ti
 });
 
 test("colliding derived slugs keep room for their numeric suffix and never exceed the bound", async () => {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const title = "word ".repeat(40).trim();
   const slugs: string[] = [];
   for (let i = 1; i <= 12; i++) {
@@ -64,7 +68,7 @@ test("colliding derived slugs keep room for their numeric suffix and never excee
 
 test("updatePost lets an unchanged over-limit legacy slug and title through a body-only edit", async () => {
   const record = legacy({ title: "t".repeat(MAX_TITLE_LENGTH + 5), slug: "s".repeat(MAX_SLUG_LENGTH + 5) });
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   const { post } = await updatePost({ deps: deps(repo), input: bodyEdit(record) });
   assert.equal(post.version, 2);
   assert.equal(post.slug, record.slug);
@@ -73,7 +77,7 @@ test("updatePost lets an unchanged over-limit legacy slug and title through a bo
 
 test("updatePost still refuses CHANGING to an over-limit slug or title, with the exact messages", async () => {
   const record = legacy({ title: "t".repeat(MAX_TITLE_LENGTH + 5), slug: "s".repeat(MAX_SLUG_LENGTH + 5) });
-  const repo = new InMemoryPostRepo([record]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [record] });
   await assert.rejects(
     () => updatePost({ deps: deps(repo), input: { ...bodyEdit(record), slug: "s".repeat(MAX_SLUG_LENGTH + 6) } }),
     (err: unknown) => err instanceof PostValidationError && err.message === "slug must be 120 characters or fewer"

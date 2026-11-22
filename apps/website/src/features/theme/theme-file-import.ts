@@ -25,7 +25,8 @@ import { sniffContentType } from "../media/index.js";
 import { fetchImage } from "../media-import/fetch-image.js";
 import { openFsFileForRead } from "../fs-files/fs-files.js";
 import { fileExtension } from "./file-identity-lock.js";
-import { MAX_THEME_FILE_BYTES, resolveThemeFilePath, ThemePathError, writeThemeBinaryFile } from "./theme-files.js";
+import { MAX_THEME_FILE_BYTES, resolveThemeFilePath, ThemePathError } from "./theme-files.js";
+import { writeThemeBinaryFile } from "./theme-file-writing.js";
 
 /** Largest file this tool imports: 10 MB — room for a CJK font or a hero image, a fifth of
  *  `theme_duplicate`'s whole-theme cap. */
@@ -100,11 +101,9 @@ type ThemeImportDestination = { themeDir: string; themesRoot: string; relativePa
  */
 function validateThemeImportDestination(required: ThemeImportDestination, _optional: Record<string, never> = {}): void {
   resolveThemeFilePath(required);
-  if (!IMPORTABLE_EXTENSIONS.has(fileExtension(required.relativePath))) {
-    throw new ThemePathError(
-      `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
-        "SVG and other text files: read as text and write with theme_write_file."
-    );
+  if (!IMPORTABLE_EXTENSIONS.has(fileExtension({ relativePath: required.relativePath }))) {
+    throw new ThemePathError({ message: `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
+        "SVG and other text files: read as text and write with theme_write_file." });
   }
 }
 
@@ -125,7 +124,7 @@ function persistThemeImport(
   if (bytes.byteLength === 0 || bytes.byteLength > THEME_IMPORT_MAX_BYTES || allowed.length === 0) {
     throw new MediaImportValidationError({ message: `'${source}' must contain a supported font or image, up to ${THEME_IMPORT_MAX_BYTES} bytes. Nothing was saved.` });
   }
-  if (!allowed.includes(fileExtension(relativePath))) {
+  if (!allowed.includes(fileExtension({ relativePath }))) {
     throw new MediaImportValidationError({
       message: `'${source}' is ${contentType}, so '${relativePath}' needs a ${allowed.join(" or ")} extension. Nothing was saved.`,
     });
@@ -150,15 +149,16 @@ function persistThemeImport(
  */
 export async function importThemeFileFromUrl(
   required: { httpClient: HttpClientPort; themeDir: string; themesRoot: string; relativePath: string; url: string },
-  { plainHttpTestOrigins }: { plainHttpTestOrigins?: readonly string[] } = {},
+  { plainHttpTestOrigins, signal }: { plainHttpTestOrigins?: readonly string[]; signal?: AbortSignal | undefined } = {},
 ): Promise<ImportedThemeFile> {
   const { httpClient, themeDir, themesRoot, relativePath, url } = required;
   validateThemeImportDestination(required);
 
   const fetched = await fetchImage(
     { deps: { httpClient, plainHttpTestOrigins }, url },
-    { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
+    { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT, signal },
   );
+  signal?.throwIfAborted();
   return { ...persistThemeImport({ themeDir, themesRoot, relativePath, bytes: fetched.bytes, source: fetched.url.href }), sourceUrl: fetched.url.href };
 }
 

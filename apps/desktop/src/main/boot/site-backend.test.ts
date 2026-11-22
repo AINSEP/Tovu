@@ -14,7 +14,7 @@ function fakeServer(overrides: Partial<FakeServer> = {}): FakeServer {
   const exitListeners: (() => void)[] = [];
   return {
     label: "spawned", adminUrl: "http://127.0.0.1:4100/admin/", port: 4100, workspaceId: "ws-own", pid: 77,
-    bootToken: "token-1", exitListeners, onExit: (listener) => { exitListeners.push(listener); }, ...overrides,
+    bootToken: "token-1", exitListeners, onExit: ({ listener }) => { exitListeners.push(listener); }, ...overrides,
   };
 }
 
@@ -42,9 +42,9 @@ function harness(overrides: Partial<SiteBackendPorts<FakeServer>> = {}) {
     armOwnerSignIn: (input) => { calls.push("arm"); arms.push(input); },
     ensureSession: async ({ redeem }) => { calls.push("ensure"); return redeem(); },
     redeemBootSession: async () => { calls.push("redeem"); return { ok: true }; },
-    log: (message) => logs.push(message),
-    warn: (message) => warns.push(message),
-    error: (message) => errors.push(message),
+    log: ({ message }) => logs.push(message),
+    warn: ({ message }) => warns.push(message),
+    error: ({ message }) => errors.push(message),
     openSites: { get: (dir) => openSites.get(dir), set: (dir, entry) => openSites.set(dir, entry) },
     syncThemePreview: ({ siteDir }) => { calls.push(`theme:${siteDir}`); },
     ...overrides,
@@ -177,7 +177,7 @@ test("a start whose session is still valid never redeems a boot token", async ()
 
 test("only freshly spawned servers receive the main's automatic capability recovery", async () => {
   const delivered: FakeServer[] = [];
-  const h = harness({ connectDesktopMcp: server => { delivered.push(server); } });
+  const h = harness({ connectDesktopMcp: ({ server }) => { delivered.push(server); } });
   await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx });
   assert.deepEqual(delivered, [h.spawned]);
   const attached = harness({ attachRunning: () => fakeServer(), connectDesktopMcp: () => assert.fail("foreign main must retain ownership") });
@@ -227,9 +227,12 @@ test("attached server retains its spawning instance", async () => {
 });
 
 test("listener failure leaves site hosting available without falling back to a launcher", async () => {
-  const h = harness({ desktopMcpEnv: async () => { throw new Error("bind failed"); },
+  const h = harness({ desktopMcpEnv: async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EADDRINUSE" }); },
   });
   assert.equal((await h.backend.startSiteBackend({ siteDir: "/sites/a", ctx })).server, h.spawned);
   assert.equal(h.warns.length, 1);
   assert.match(h.warns[0]!, /desktop tools.*retry/i);
+  assert.match(h.warns[0]!, /Error/);
+  assert.match(h.warns[0]!, /EADDRINUSE/);
+  assert.doesNotMatch(h.warns[0]!, /boom|SECRETSECRETSECRETSECRET/);
 });

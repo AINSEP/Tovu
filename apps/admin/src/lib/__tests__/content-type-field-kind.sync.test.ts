@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_TYPE_FIELD_KINDS as JINI_CONTENT_TYPE_FIELD_KINDS } from "@jini-ai/cms/content-types";
 
-import { CONTENT_TYPE_FIELD_KINDS } from "../api";
+import { CONTENT_TYPE_FIELD_KINDS } from "../../features/collections/api/collections-api.types";
 
 /**
  * @file Drift guard for `lib/api.ts`'s hand-copied `CONTENT_TYPE_FIELD_KINDS` — see that file's

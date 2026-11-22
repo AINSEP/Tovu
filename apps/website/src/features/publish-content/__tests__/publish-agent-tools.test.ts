@@ -95,7 +95,7 @@ const NO_SURFACES: AssistantSurfaceDeps = {
 } as unknown as AssistantSurfaceDeps;
 
 function registrationFor(deps: PublishContentToolDeps, toolId: string): ToolRegistration {
-  const found = buildPublishContentRegistrations(deps, NO_SURFACES).find((r) => r.descriptor.id === toolId);
+  const found = buildPublishContentRegistrations({ routeDeps: deps, surfaces: NO_SURFACES }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `${toolId} was not built`);
   return found;
 }
@@ -177,8 +177,8 @@ test("nothing publishable is checked BEFORE connectedness — it blocks the thin
 });
 
 test("siteLabelFor is the host, and an unparseable address does not throw", () => {
-  assert.equal(siteLabelFor("https://example.com/a/b"), "example.com");
-  assert.equal(siteLabelFor("not a url"), "not a url");
+  assert.equal(siteLabelFor({ baseUrl: "https://example.com/a/b" }), "example.com");
+  assert.equal(siteLabelFor({ baseUrl: "not a url" }), "not a url");
 });
 
 // ---------------------------------------------------------------------------
@@ -202,12 +202,12 @@ test("no verdict this function can produce teaches a concept or leaks a code", (
 });
 
 test("plainSentence passes a person's sentence through and discards one carrying a machine token", () => {
-  assert.equal(plainSentence("The site could not be reached.", "fallback"), "The site could not be reached.");
-  assert.equal(plainSentence("refused: PEER_NOT_FOUND", "fallback"), "fallback");
-  assert.equal(plainSentence("reason publish_trust_export_not_wired", "fallback"), "fallback");
-  assert.equal(plainSentence("   ", "fallback"), "fallback");
+  assert.equal(plainSentence({ text: "The site could not be reached.", fallback: "fallback" }), "The site could not be reached.");
+  assert.equal(plainSentence({ text: "refused: PEER_NOT_FOUND", fallback: "fallback" }), "fallback");
+  assert.equal(plainSentence({ text: "reason publish_trust_export_not_wired", fallback: "fallback" }), "fallback");
+  assert.equal(plainSentence({ text: "   ", fallback: "fallback" }), "fallback");
   // A capitalised site name is ordinary prose and must survive.
-  assert.equal(plainSentence("Example Site is offline.", "fallback"), "Example Site is offline.");
+  assert.equal(plainSentence({ text: "Example Site is offline.", fallback: "fallback" }), "Example Site is offline.");
 });
 
 // ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ test("the status tool reads and the connect tool does not claim to be read-only"
 
 test("the status tool answers the never-connected install in plain sentences", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps({ findPublishCandidate: async () => "https://example.com" }), PUBLISH_CONTENT_STATUS_TOOL_ID).handler(
     execContext({})
@@ -243,7 +243,7 @@ test("the status tool answers the never-connected install in plain sentences", a
 
 test("connect refuses plainly when there is no live site to connect to, rather than throwing", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps(), PUBLISH_CONTENT_CONNECT_TOOL_ID).handler(execContext({}))) as Record<string, unknown>;
   assert.equal(result.connected, false);
@@ -253,7 +253,7 @@ test("connect refuses plainly when there is no live site to connect to, rather t
 
 test("connect refuses an address that is not one, without naming a validation rule", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps(), PUBLISH_CONTENT_CONNECT_TOOL_ID).handler(
     execContext({ siteUrl: "definitely not a url" })
@@ -276,12 +276,12 @@ for (const failure of [null, "handshake", "provisioning"] as const) {
   test(`connect handler ${failure ?? "saves a connection and status reads it"}`, async (t) => {
     t.after(resetPublishContentContributorsForTests);
     resetPublishContentContributorsForTests();
-    registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+    registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
     const repo = new InMemoryPublishContentPeerRepo();
     const files = new Map<string, string>();
     const requests: unknown[] = [];
     const provisioning = createFileProvisioning({
-      io: { read: async path => failure === "provisioning" ? "{broken config" : files.get(path) ?? null, write: async (path, contents) => {
+      io: { read: async ({ path }) => failure === "provisioning" ? "{broken config" : files.get(path) ?? null, write: async ({ path, contents }) => {
         files.set(path, contents);
       } }, codec: COMMITTED_JSON_CODEC, path: "/test/publishing.json",
     });

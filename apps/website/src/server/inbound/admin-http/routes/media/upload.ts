@@ -6,8 +6,10 @@ import { captureMediaUploaded, MediaConflictError, MediaValidationError, resolve
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
-import { parseOptionalStringField } from "./parse.js";
-import { authorizeMediaOrRespond, rejectForeignWorkspace, sendValidationOrInternalError } from "./route-guards.js";
+import { parseOptionalStringField } from "@jini-ai/cms/media";
+import { sendValidationOrInternalError } from "./route-guards.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { toStoredMediaResponse } from "./stored-media-response.js";
 
 /** An upload request's fields after {@link parseUploadRequestFields}. */
@@ -23,7 +25,7 @@ interface UploadRequestFields {
 
 /** An omitted `kind` is an ordinary media upload; anything other than `media`/`document` is refused.
  *  @complexity O(1). */
-function parseUploadKind(raw: unknown): MediaKind {
+function parseUploadKind({ raw }: { raw: unknown }, _optional = {}): MediaKind {
   const kind = raw ?? "media";
   if (kind !== "media" && kind !== "document") throw new MediaValidationError({ message: "invalid media kind" });
   return kind;
@@ -32,7 +34,7 @@ function parseUploadKind(raw: unknown): MediaKind {
 /** The three required upload fields plus the three optional metadata fields, parsed off an untyped
  *  body in one place, or `null` if a required field is missing or the wrong shape. `dataBase64` must
  *  be a non-empty string — an absent or non-string value is rejected here rather than reaching
- *  `Buffer.from`. `alt`/`caption`/`credit` go through `parse.js`'s `parseOptionalStringField`, which
+ *  `Buffer.from`. `alt`/`caption`/`credit` go through `@jini-ai/cms/media`'s `parseOptionalStringField`, which
  *  throws `MediaValidationError` for a non-string, non-null, non-undefined value — the caller MUST
  *  invoke this inside a `try`/`catch` (or otherwise catch synchronously), not treat it as
  *  throw-free the way the `null` return above is. On upload there is no existing value to preserve,
@@ -40,9 +42,9 @@ function parseUploadKind(raw: unknown): MediaKind {
  *  `uploadMedia`'s `input.alt?.trim() ?? ""`), unlike `update.ts`'s PATCH route where `null` clears
  *  a possibly-non-empty existing value.
  *  @complexity O(1). */
-function parseUploadRequestFields(rawBody: unknown): UploadRequestFields | null {
+function parseUploadRequestFields({ rawBody }: { rawBody: unknown }, _optional = {}): UploadRequestFields | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  const kind = parseUploadKind(body.kind);
+  const kind = parseUploadKind({ raw: body.kind });
   const filename = typeof body.filename === "string" ? body.filename : "";
   const contentType = String(body.contentType ?? "");
   const dataBase64 = body.dataBase64;
@@ -55,9 +57,9 @@ function parseUploadRequestFields(rawBody: unknown): UploadRequestFields | null 
     filename,
     contentType,
     dataBase64,
-    alt: parseOptionalStringField(body.alt, "alt"),
-    caption: parseOptionalStringField(body.caption, "caption"),
-    credit: parseOptionalStringField(body.credit, "credit"),
+    alt: parseOptionalStringField({ raw: body.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: body.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: body.credit, field: "credit" }),
   };
 }
 
@@ -80,7 +82,7 @@ function parseUploadRequestFieldsOrRespond(
 ): ReturnType<typeof parseUploadRequestFields> {
   let fields: ReturnType<typeof parseUploadRequestFields>;
   try {
-    fields = parseUploadRequestFields(req.body);
+    fields = parseUploadRequestFields({ rawBody: req.body });
   } catch (error) {
     sendValidationOrInternalError({ res, error });
     return null;
@@ -108,7 +110,7 @@ function decodeUploadPayload(
   // `decodeStrictBase64`, not `Buffer.from(x, "base64")`: the latter never throws (it skips
   // characters outside the alphabet instead of refusing them), so a bare try/catch around it can
   // never fire — see that function's own header.
-  const bytes = decodeStrictBase64(dataBase64);
+  const bytes = decodeStrictBase64({ value: dataBase64 });
   if (!bytes) throw new MediaValidationError({ message: "dataBase64 is not valid base64" });
   // Trust sniffed bytes rather than the client label. HTML/unknown bytes are rejected;
   // uploadMedia sanitizes accepted SVG before hashing/storage.
@@ -128,6 +130,58 @@ function sendUploadFailure({ res, error }: { res: Response; error: unknown }): v
   sendValidationOrInternalError({ res, error });
 }
 
+type MediaUploadDeps = Parameters<MediaRouteRegistrar>[0]["deps"];
+type UploadFields = NonNullable<ReturnType<typeof parseUploadRequestFieldsOrRespond>>;
+
+/** Decodes and stores the upload, then records the sniffed type of a media blob. */
+async function persistUpload(required: { deps: MediaUploadDeps; fields: UploadFields; principalId: string }, _optional = {}) {
+  const { deps, fields, principalId } = required;
+  const { kind, filename, alt, caption, credit } = fields;
+  const { bytes, contentType: verifiedContentType } = decodeUploadPayload(fields);
+
+  const { media } = await uploadMedia({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      mediaRepo: deps.mediaRepo,
+      blobRepo: deps.assetBlobRepo,
+      renditionRepo: deps.assetRenditionRepo,
+      blobStore: deps.blobStore,
+      documentArchiveReader: createDocumentArchiveReader({}),
+    },
+    input: {
+      workspaceId: deps.workspaceId,
+      kind,
+      bytes,
+      filename,
+      contentType: verifiedContentType,
+      alt,
+      caption,
+      credit,
+      createdByPrincipal: principalId,
+    },
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+
+  // Only media uses the per-blob sniff cache; document type is its validated filename policy.
+  // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
+  // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
+  // blob row it updates is created there.
+  if (kind === "media") await deps.mediaContentTypeStore.set({
+    workspaceId: deps.workspaceId,
+    sha256: media.source.sha256,
+    contentType: verifiedContentType,
+  });
+  return { media, bytes, verifiedContentType };
+}
+
+/** The product-event kind of an upload: its document/media kind refined by the verified MIME family. */
+function uploadedMediaKind(required: { kind: string; contentType: string }, _optional = {}): "document" | "image" | "audio" | "video" | "other" {
+  const family = required.contentType.split("/")[0];
+  if (required.kind === "document") return "document";
+  if (family === "image" || family === "audio" || family === "video") return family;
+  return "other";
+}
+
 /**
  * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  *
@@ -137,22 +191,22 @@ function sendUploadFailure({ res, error }: { res: Response; error: unknown }): v
  * walking skeleton. This is a real, disclosed simplification: a production
  * upload path should stream bytes (multipart or raw octet-stream), not
  * base64-inflate them through JSON. `express.json()`'s body-size limit was
- * bumped in `server/app.ts` to accommodate this (see that file's comment).
+ * bumped in `server/runtime/composition/app.ts` to accommodate this (see that file's comment).
  */
-export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const fields = parseUploadRequestFieldsOrRespond(req, res);
     if (!fields) return;
-    const { kind, filename, alt, caption, credit } = fields;
+    const { kind } = fields;
 
     try {
       // Inside the try: requireAdminSession always sets res.locals.principal before this
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.upload",
         workspaceId: deps.workspaceId,
@@ -160,46 +214,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       } });
       if (!authorized) return;
 
-      const { bytes, contentType: verifiedContentType } = decodeUploadPayload(fields);
-
-      const { media } = await uploadMedia({
-        deps: {
-          clock: deps.clock,
-          idGen: deps.idGen,
-          mediaRepo: deps.mediaRepo,
-          blobRepo: deps.assetBlobRepo,
-          renditionRepo: deps.assetRenditionRepo,
-          blobStore: deps.blobStore,
-          documentArchiveReader: createDocumentArchiveReader({}),
-        },
-        input: {
-          workspaceId: deps.workspaceId,
-          kind,
-          bytes,
-          filename,
-          contentType: verifiedContentType,
-          alt,
-          caption,
-          credit,
-          createdByPrincipal: principal.id,
-        },
-      }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
-
-      // Only media uses the per-blob sniff cache; document type is its validated filename policy.
-      // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
-      // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
-      // blob row it updates is created there.
-      if (kind === "media") await deps.mediaContentTypeStore.set({
-        workspaceId: deps.workspaceId,
-        sha256: media.source.sha256,
-        contentType: verifiedContentType,
-      });
-
-      const family = verifiedContentType.split("/")[0];
-      let uploadedKind: "document" | "image" | "audio" | "video" | "other";
-      if (kind === "document") uploadedKind = "document";
-      else if (family === "image" || family === "audio" || family === "video") uploadedKind = family;
-      else uploadedKind = "other";
+      const { media, bytes, verifiedContentType } = await persistUpload({ deps, fields, principalId: principal.id });
+      const uploadedKind = uploadedMediaKind({ kind, contentType: verifiedContentType });
       captureMediaUploaded({ tracker: deps.tracker, actorId: principal.id, byteLength: bytes.byteLength,
         kind: uploadedKind, source: "admin" });
       res.status(201).json(await toStoredMediaResponse({ deps, media, contentType: verifiedContentType, byteLength: bytes.byteLength }));

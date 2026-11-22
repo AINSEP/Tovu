@@ -2,7 +2,7 @@ import { ToolInputError, type ToolHandler } from '@jini-ai/core';
 import { nowIso } from '@jini-ai/core/primitives';
 import { requireToolPermission, adaptLegacyAuthorize } from '@jini-ai/cms/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
-import { humanConfirmedToolHandler } from '#src/contracts/core/human-confirm';
+import { approvalToolHandler } from '#src/contracts/core/human-confirm';
 import { plan, confirm, execute, PlanStaleError, ForbiddenError, type GatedMutationHooks, type GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import { TokenExpiredError, TokenAlreadyRedeemedError } from '#src/contracts/core/gated-mutations/token';
 import { planHashOf, resolveActorClassIdentity } from '#src/contracts/core/gated-mutations/composition';
@@ -37,24 +37,27 @@ export function domainPublishTool(required: {
   const { deps, surfaces, config, projectName } = required;
   const gateway = deps.gatedMutations?.gatewayDeps;
   if (!gateway) throw new ToolInputError({ message: 'DOMAIN_APPROVAL_UNAVAILABLE: The shared mutation gateway is not configured. Contact the installation owner; no domain changes were made.' });
-  return humanConfirmedToolHandler(surfaces, {
-    flag: 'published',
-    prepare: async ctx => {
+  return approvalToolHandler({
+    surfaces,
+    prepare: async ({ ctx }, _options = {}) => {
       const hooks = makeHooks({ ...required, gateway, actorId: ctx.principal.id, signal: ctx.signal, requestId: ctx.executionId });
       const planned = await plan({ deps: gateway, principalId: ctx.principal.id, principalKind: 'agent', hooks });
       const details = planned.details as DomainPublishDetails;
       return { hooks, planned, details };
     },
-    dialog: ({ details }) => ({
-      toolId: 'deployment_execute_static_publish', errorCode: 'DOMAIN_PUBLISH', title: 'Publish and change these domain bindings?',
-      details: domainPublishRows({ inspection: details.inspection!, projectName, target: config.target }),
-      warning: 'The listed records, bindings and whole overlapping routes will be changed. This can interrupt the existing site and other hosts covered by wildcard routes. Mail, TXT and CAA stay unchanged. There is no automatic rollback. Cancel to keep everything as it is.',
-      danger: true, confirmLabel: 'Publish and apply these changes',
-    }),
-    run: async (ctx, { hooks, planned }, confirmer) => {
+    describe: ({ prepared: { details } }, _options = {}) => {
+      if (!details.inspection) throw new Error('Domain publish plan has no inspection');
+      return {
+        toolId: 'deployment_execute_static_publish', errorCode: 'DOMAIN_PUBLISH', title: 'Publish and change these domain bindings?',
+        details: domainPublishRows({ inspection: details.inspection, projectName, target: config.target }),
+        warning: 'The listed records, bindings and whole overlapping routes will be changed. This can interrupt the existing site and other hosts covered by wildcard routes. Mail, TXT and CAA stay unchanged. There is no automatic rollback. Cancel to keep everything as it is.',
+        danger: true, confirmLabel: 'Publish and apply these changes',
+      };
+    },
+    run: async ({ ctx, prepared: { hooks, planned }, confirmer }, _options = {}) => {
       const consent = await checkToolPublishConsent({ deps, principalId: ctx.principal.id });
       if (consent) {
-        deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
+        void deps.tracker?.capture({ name: 'site_publish_blocked', userId: ctx.principal.id }, { properties: { target: config.target, reasonClass: 'consent', source: 'assistant' } });
         return { published: false, cancelled: false, ...consent };
       }
       const token = await confirm({ deps: gateway, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });
@@ -62,7 +65,7 @@ export function domainPublishTool(required: {
       return { accepted: true, published: false, jobId: result.jobId, status: result.status, progress: result.progress,
         message: 'Publish started after domain approval. Call deployment_get_static_publish_status with this jobId in 5 seconds for progress and the final result. Do not publish again while it is running.' };
     },
-  });
+  }, { flag: 'published' });
 }
 
 /** Preserve typed gateway refusals through the tool transport's caller-safe error channel. */
@@ -99,17 +102,19 @@ function makeHooks(required: {
     executeMutation: async ({ details }) => {
       signal.throwIfAborted();
       if (getPublishRunSnapshot().status === 'running') throw new ToolInputError({ message: 'ALREADY_RUNNING: A publish is running. Wait for it to finish, then preview again.' });
-      const domainPlan = details.inspection!.domains!;
-      return startPublishRun({ credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts }, {
+      const domainPlan = details.inspection?.domains;
+      if (!domainPlan) throw new Error('Domain publish plan has no domain inspection');
+      if (!details.credentialBinding) throw new Error('Domain publish plan has no credential binding');
+      return startPublishRun({ deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, hostKit: deps.hostKit, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts }, input: {
         requestId: required.requestId, productEvent: { userId: actorId, source: "assistant" }, workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound,
         config, projectName, ...(details.credentialId ? { credentialId: details.credentialId } : {}),
-        domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding!, authorize: async ({ fingerprint }) => {
+        domainApproval: { plan: domainPlan, credentialBinding: details.credentialBinding, authorize: async ({ fingerprint }) => {
           // The approved background job outlives the initiating call. Recheck permission and
           // approval expiry here; cancelling that call after enqueue does not revoke this job.
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: actorId, permission: 'deployments.publish' });
           return fingerprint === domainPlan.fingerprint && Date.parse(nowIso({ clock: deps.clock })) <= expiresAt;
         } },
-      }, { nowIso: () => nowIso({ clock: deps.clock }) }, historyStore, { triggeredBy: "agent_tool", ...(required.onSettled ? { onSettled: required.onSettled } : {}) });
+      }, clock: { nowIso: () => nowIso({ clock: deps.clock }) }, historyStore }, { triggeredBy: "agent_tool", ...(required.onSettled ? { onSettled: required.onSettled } : {}) });
     },
   };
 }
@@ -117,7 +122,8 @@ function makeHooks(required: {
 /** The plugin fingerprint binds exact inventory and operations canonically. Preserve that contract:
  * response ordering alone must not invalidate a human's consent at the shared gateway. */
 function inspectionPlanHash({ details }: { details: DomainPublishDetails }, _options = {}): string {
-  const inspected = details.inspection!;
-  return planHashOf({ ...details, inspection: { resourceName: inspected.resourceName, targetId: inspected.targetId,
-    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains!.fingerprint } });
+  const inspected = details.inspection;
+  if (!inspected?.domains) throw new Error('Domain publish plan has no domain inspection');
+  return planHashOf({ details: { ...details, inspection: { resourceName: inspected.resourceName, targetId: inspected.targetId,
+    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains.fingerprint } } });
 }

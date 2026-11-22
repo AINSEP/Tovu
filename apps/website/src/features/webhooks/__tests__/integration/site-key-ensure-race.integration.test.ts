@@ -94,8 +94,8 @@ test("2 concurrent processes minting the same siteKeyId under the same home conv
     const siteKeysDir = path.join(home, ".tovu", "site-keys");
     const finalHex = readFileSync(path.join(siteKeysDir, `${siteKeyId}.hex`), "utf8").trim();
     assert.match(finalHex, /^[0-9a-f]{64}$/);
-    assert.equal(resultA.fingerprint, fingerprintSiteKeyHex(finalHex), "both results must name the key actually on disk");
-    assert.equal(resultB.fingerprint, fingerprintSiteKeyHex(finalHex));
+    assert.equal(resultA.fingerprint, fingerprintSiteKeyHex({ hex: finalHex }), "both results must name the key actually on disk");
+    assert.equal(resultB.fingerprint, fingerprintSiteKeyHex({ hex: finalHex }));
     const entries = readdirSync(siteKeysDir);
     assert.deepEqual(entries, [`${siteKeyId}.hex`], "exactly one file must exist — no leftover temp files, no duplicate");
   } finally {

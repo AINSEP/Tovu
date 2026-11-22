@@ -1,35 +1,36 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
-import { requestThemePreviewRefresh } from "#src/features/theme/index";
+// Moved to `theme-files.ts` (2026-09-12) so `tool-registrations.ts`'s `theme_copy_file` agent tool
+// can reuse the identical collision-avoidance the HTTP copy route below already relies on — see
+// that function's own doc for why this had to move rather than be reached by a deep import.
+import { copyThemeFile, nextAvailableFileName, renameThemeFile } from "@jini-ai/cms/themes/files/moves";
+import { resetThemeFileToOriginal, themeFileDiffersFromOriginal } from "@jini-ai/cms/themes/files/originals";
+import { resolveThemeOriginalSource, hasThemeOriginalLayoutMismatch, type ThemeOriginalSource } from "@jini-ai/cms/themes/files/original-source";
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { setThemePagePublished, ThemePagePublicationError } from "#src/features/theme/index";
 import type { Response } from "express";
+import { isPageFilePath, isPartialFilePath } from "@jini-ai/cms/themes/layout";
 
 import {
   findTheme,
   loadTheme,
   type DiscoveredTheme,
-  copyThemeFile,
   trashThemeFile,
   ThemeFileReadOnlyError,
   isGeneratedThemePath,
-  isPageFilePath,
-  isPartialFilePath,
   isPublishableThemePageCandidate,
   isStandaloneThemePage,
   listThemeFiles,
   MAX_THEME_FILE_BYTES,
   readThemeFile,
-  renameThemeFile,
-  resetThemeFileToOriginal,
   resolveThemeFileWriteScope,
-  resolveThemeOriginalSource,
   restoreBuiltThemeGeneratedTree,
   saveThemeAsOriginal,
-  themeFileDiffersFromOriginal,
-  themeOriginalResetRefusal,
+  themeOriginalFilePorts,
+  ORIGINAL_LAYOUT_MISMATCH_REFUSAL,
   writeThemeFile,
   ThemePathError,
   type ThemeFileWriteScope,
-  type ThemeOriginalSource,
   // The shared "can this file's identity/content change" gate pieces — extracted (2026-08-30) into
   // `file-identity-lock.ts` so `features/theme/tool-registrations.ts`'s `theme_rename_file`/
   // `theme_delete_file` can call the exact same decision this file's own rename/delete routes call.
@@ -41,20 +42,16 @@ import {
   isTrashedThemePath,
   validateFileIdentityChange,
   type ThemeFileGroup,
-  // Moved to `theme-files.ts` (2026-09-12) so `tool-registrations.ts`'s `theme_copy_file` agent tool
-  // can reuse the identical collision-avoidance the HTTP copy route below already relies on — see
-  // that function's own doc for why this had to move rather than be reached by a deep import.
-  nextAvailableFileName,
+  themeFileMovePorts,
 } from "#src/features/theme/index";
 
 // Re-exported so `explore-pure-helpers.unit.test.ts`'s existing direct import (`fileExtension` from
 // `../explore.js`) keeps working unchanged — this file no longer DEFINES `fileExtension`, it only
-// re-publishes the shared one, purely for that test's import path. `nextAvailableFileName` is
-// re-exported for the identical reason: `integration/explore.integration.test.ts` still imports it
-// directly from this module.
-export { fileExtension, nextAvailableFileName };
+// re-publishes the shared one, purely for that test's import path.
+export { fileExtension };
 import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { ContentRouteDeps } from "../content/deps.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
@@ -83,24 +80,12 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * security passes kept finding.
  */
 export async function authorizeThemeSetPermission(
-  deps: Pick<ContentRouteDeps, "workspaceId" | "authorize">,
-  res: Response
+  { deps, res }: { deps: Pick<ContentRouteDeps, "workspaceId" | "authorize">; res: Response },
+  _optional: Record<string, never> = {}
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await deps.authorize({
-    principalId: principal.id,
-    permission: "theme.set",
-    workspaceId: deps.workspaceId,
-    entityType: "presentation",
-  });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission: "theme.set", reason: authResult.reason },
-    });
-    return false;
-  }
+  const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return false;
   return true;
 }
 
@@ -114,7 +99,7 @@ async function authorizeThemeAccess(
     res.status(404).json({ error: "workspace was not found" });
     return false;
   }
-  return authorizeThemeSetPermission(deps, res);
+  return authorizeThemeSetPermission({ deps, res });
 }
 
 /** Resolves `:themeId` to a discovered theme, or writes the route's standard 404 and returns
@@ -141,7 +126,7 @@ function findThemeOrRespond(
  * broke" when the honest answer is "that path is not editable", which is the difference between a
  * user fixing their own mistake and filing a bug.
  */
-function sendThemeFileError(res: Response, err: unknown): void {
+function sendThemeFileError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ThemeFileReadOnlyError) {
     res.status(403).json({ error: err.message, code: "GENERATED_READONLY" });
     return;
@@ -170,12 +155,12 @@ function sendThemeFileError(res: Response, err: unknown): void {
  * checked identically to one written by hand, and a theme edited into an invalid state reports
  * `status: "invalid"` rather than silently rendering stale-but-valid markup.
  */
-export function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
+export function reloadTheme({ deps, themeId }: { deps: ContentRouteDeps; themeId: string }, _optional = {}): void {
   const index = deps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index < 0) return;
   const current = deps.themes[index];
   deps.themes[index] = loadTheme({ themeDir: current.dir, id: themeId, source: current.source });
-  requestThemePreviewRefresh({ themesDir: deps.themesDir });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
 }
 
 /**
@@ -214,7 +199,7 @@ const TEXT_READABLE_EXTENSIONS = new Set([
   ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest", ".liquid",
 ]);
 
-function isTextReadable(relativePath: string): boolean {
+function isTextReadable({ relativePath }: { relativePath: string }, _optional = {}): boolean {
   const dot = relativePath.lastIndexOf(".");
   return dot === -1 ? false : TEXT_READABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
 }
@@ -278,14 +263,14 @@ const CONTENT_EDIT_LOCKED_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set([
  * earlier `_unpublished/` convention was removed for.
  * @complexity O(k) time and space for k characters in the relative path; no I/O.
  */
-function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
-  if (!isTextReadable(relativePath)) return false;
+function isThemeFileWritable({ relativePath, apiVersion }: { relativePath: string; apiVersion: 2 | undefined }, _optional = {}): boolean {
+  if (!isTextReadable({ relativePath })) return false;
   return (
     // v2's render/pages grouping must not turn the read-only Liquid preview into an edit surface.
     !relativePath.toLowerCase().endsWith(".liquid") &&
-    !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
-    !isGeneratedThemePath(relativePath) &&
-    !isTrashedThemePath(relativePath)
+    !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup({ relativePath, apiVersion })) &&
+    !isGeneratedThemePath({ relativePath }) &&
+    !isTrashedThemePath({ relativePath })
   );
 }
 
@@ -295,7 +280,7 @@ function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): b
  * `readdirSync(pagesDir)`, which never sees a nested path). Not a general basename helper: only ever
  * called on a path {@link fileGroup} already classified `"page"`.
  */
-function pageIdForPagePath(relativePath: string): string {
+function pageIdForPagePath({ relativePath }: { relativePath: string }, _optional = {}): string {
   const base = relativePath.slice(relativePath.lastIndexOf("/") + 1);
   return base.endsWith(".html") ? base.slice(0, -".html".length) : base;
 }
@@ -305,7 +290,7 @@ function pageIdForPagePath(relativePath: string): string {
  *  wire. Named separately from {@link describeThemeFile}'s own inline return type only because
  *  {@link contentRecordsBySlug} below needs the identical shape for its `Map`'s value type, and
  *  respelling it a second time is exactly the drift risk a shared type exists to remove. */
-type ThemeFileContentCollision = { id: string; slug: string; title: string; kind: PostKind };
+type ThemeFileContentCollision = { id: string; slug: string; title: string; kind: PostRecord["kind"] };
 
 /**
  * One slug -> live content record lookup for an ENTIRE file listing, built from a SINGLE
@@ -356,16 +341,16 @@ function originalSourceFor(deps: ContentRouteDeps, theme: DiscoveredTheme): Them
 /**
  * Whether files in `theme` can be compared against, and reset from, its catalog original at all:
  * {@link originalSourceFor} found ONE (site or, since Design C, package) and
- * {@link themeOriginalResetRefusal} accepts it. Computed once per response, never per file, and fed
+ * {@link hasThemeOriginalLayoutMismatch} accepts it. Computed once per response, never per file, and fed
  * to {@link describeThemeFile} so `resettable`/`modified` agree with what the reset route will
  * actually do.
  *
  * @complexity O(s) in the two `theme.json` sizes, or O(1) when there is no source at all.
  */
-function originalComparableForReset(theme: DiscoveredTheme, originalSource: ThemeOriginalSource | null): boolean {
+function originalComparableForReset({ theme, originalSource }: { theme: DiscoveredTheme; originalSource: ThemeOriginalSource | null }, _optional = {}): boolean {
   return (
     originalSource !== null &&
-    themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir }) === null
+    !hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES })
   );
 }
 
@@ -384,13 +369,10 @@ function originalComparableForReset(theme: DiscoveredTheme, originalSource: Them
  * @complexity O(1) when there is no original or the sizes differ; O(s) in the file size when the sizes
  * match. Across a detail listing that is O(total bytes) of same-size files with an original.
  */
-function fileModifiedFromOriginal(
-  relativePath: string,
-  options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
-): boolean | null {
+function fileModifiedFromOriginal({ relativePath, options }: { relativePath: string; options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme } }, _optional = {}): boolean | null {
   if (!options.comparableOriginal || !options.originalSource) return null;
   try {
-    return themeFileDiffersFromOriginal({
+    return themeFileDiffersFromOriginal({ ports: themeOriginalFilePorts,
       themeDir: options.theme.dir,
       themesRoot: options.themesDir,
       originalDir: options.originalSource.originalDir,
@@ -436,17 +418,14 @@ function fileModifiedFromOriginal(
  * exists. Both are also `false`/`null` for every file of a theme whose original the reset route would
  * refuse (`comparableOriginal: false`, e.g. an original saved under another layout version).
  */
-function describeThemeFile(
-  relativePath: string,
-  options: {
+function describeThemeFile({ relativePath, options }: { relativePath: string; options: {
     originalSource: ThemeOriginalSource | null;
     comparableOriginal: boolean;
     themesDir: string;
     apiVersion: 2 | undefined;
     theme: DiscoveredTheme;
     contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>;
-  }
-): {
+  } }, _optional = {}): {
   path: string;
   group: ThemeExploreFileGroup;
   readable: boolean;
@@ -457,24 +436,24 @@ function describeThemeFile(
   collidingContent: ThemeFileContentCollision | null;
   inherited?: boolean;
 } {
-  const group = fileGroup(relativePath, options.apiVersion);
-  const pageId = group === "page" ? pageIdForPagePath(relativePath) : null;
-  const modified = fileModifiedFromOriginal(relativePath, options);
+  const group = fileGroup({ relativePath, apiVersion: options.apiVersion });
+  const pageId = group === "page" ? pageIdForPagePath({ relativePath }) : null;
+  const modified = fileModifiedFromOriginal({ relativePath, options });
   return {
     path: relativePath,
     group,
-    readable: isTextReadable(relativePath),
-    editable: isThemeFileWritable(relativePath, options.apiVersion),
+    readable: isTextReadable({ relativePath }),
+    editable: isThemeFileWritable({ relativePath, apiVersion: options.apiVersion }),
     // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
     // has no original to go back to, and offering a Reset that would fail is worse than not
     // offering one. `modified` is `null` for exactly those files.
     resettable: modified !== null,
     modified,
     published:
-      pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
-        ? isStandaloneThemePage(options.theme, pageId)
+      pageId !== null && isPublishableThemePageCandidate({ theme: options.theme, pageId })
+        ? isStandaloneThemePage({ theme: options.theme, pageId })
         : null,
-    collidingContent: themePageCollidingContent(options.theme, pageId, options.contentBySlug),
+    collidingContent: themePageCollidingContent({ theme: options.theme, pageId, contentBySlug: options.contentBySlug }),
   };
 }
 
@@ -491,31 +470,27 @@ function describeThemeFile(
  *
  * @complexity O(1) — one `Map` lookup.
  */
-function themePageCollidingContent(
-  theme: DiscoveredTheme,
-  pageId: string | null,
-  contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>
-): ThemeFileContentCollision | null {
+function themePageCollidingContent({ theme, pageId, contentBySlug }: { theme: DiscoveredTheme; pageId: string | null; contentBySlug: ReadonlyMap<string, ThemeFileContentCollision> }, _optional = {}): ThemeFileContentCollision | null {
   if (pageId === "index") return contentBySlug.get(ROOT_SLUG) ?? null;
-  if (pageId === null || !isPublishableThemePageCandidate(theme, pageId)) return null;
+  if (pageId === null || !isPublishableThemePageCandidate({ theme, pageId })) return null;
   return contentBySlug.get(pageId) ?? null;
 }
 
 /** A JSON request body coerced to a plain object — `{}` for a missing/`null`/non-object body,
  *  matching every mutating route below's existing lenient handling of an absent body. */
-export function bodyRecord(body: unknown): Record<string, unknown> {
+export function bodyRecord({ body }: { body: unknown }, _optional = {}): Record<string, unknown> {
   return (body ?? {}) as Record<string, unknown>;
 }
 
 /** One string field off a JSON body, defaulting to `""` when the body itself or the field is
  *  missing/non-string — the same coercion `path`/`name`/etc. already applied inline at each call
  *  site below, pulled into one definition so it is applied identically everywhere. */
-export function bodyStringField(body: unknown, field: string): string {
-  return String(bodyRecord(body)[field] ?? "");
+export function bodyStringField({ body, field }: { body: unknown; field: string }, _optional = {}): string {
+  return String(bodyRecord({ body })[field] ?? "");
 }
 
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
-export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -534,7 +509,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       // Once for the whole listing: whether any file here can be reset from that original.
-      const comparableOriginal = originalComparableForReset(theme, originalSource);
+      const comparableOriginal = originalComparableForReset({ theme, originalSource });
       // ONE batched lookup for the WHOLE listing below, not one `findBySlug` per file — see
       // `contentRecordsBySlug`'s own doc for why that per-file shape must never come back.
       const contentBySlug = contentRecordsBySlug(await deps.postRepo.list({ workspaceId: deps.workspaceId }));
@@ -544,16 +519,16 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // `theme_trash_file` must not surface as a file-list entry here either — trash is trash for a
       // human operator too, not only for the agent that put it there.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
-        .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
+        .filter((path) => !isGeneratedThemePath({ relativePath: path }) && !isTrashedThemePath({ relativePath: path }))
         .map((path) =>
-          describeThemeFile(path, {
+          describeThemeFile({ relativePath: path, options: {
             originalSource,
             comparableOriginal,
             themesDir: deps.themesDir,
             apiVersion: theme.manifest.apiVersion,
             theme,
             contentBySlug,
-          })
+          } })
         );
       // The loader owns inheritance. Virtual sources must be listed so View Template's Explore
       // link can select them, but they cannot masquerade as editable physical site files.
@@ -568,7 +543,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         tier: theme.manifest.tier,
         // 2026-08-19 architecture audit findings 1 & 2 — the admin SPA's own rename-lock check
         // (`use-theme-explore.hooks.ts`) needs this to resolve the SAME apiVersion-aware layout the
-        // server just used to build `files` above, via the shared `@tovu/theme-layout` resolver.
+        // server just used to build `files` above, via the shared `@jini-ai/cms/themes/layout` resolver.
         apiVersion: theme.manifest.apiVersion,
         status: theme.status,
         errors: theme.errors,
@@ -584,7 +559,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
 };
 
 /** GET the raw source of one file inside a theme. */
-export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -601,7 +576,7 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
       const content = readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
       res.json({ path, content });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -615,8 +590,8 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
 function parseThemeFilePutBody(
   req: { body: unknown }
 ): { ok: true; path: string; content: string; overwriteOversized: boolean } | { ok: false } {
-  const path = bodyStringField(req.body, "path");
-  const body = bodyRecord(req.body);
+  const path = bodyStringField({ body: req.body, field: "path" });
+  const body = bodyRecord({ body: req.body });
   if (typeof body.content !== "string") return { ok: false };
   return { ok: true, path, content: body.content, overwriteOversized: body.overwriteOversized === true };
 }
@@ -646,12 +621,12 @@ function parseThemeFilePutBody(
  * (`theme.ts`, the `build.source === "compiled"` manifest check) so a conflicting manifest is
  * refused at load, not only caught per-write here.
  */
-function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFileWriteScope): boolean {
+function isPutWritable({ theme, path, writeScope }: { theme: DiscoveredTheme; path: string; writeScope: ThemeFileWriteScope }, _optional = {}): boolean {
   return (
-    !isGeneratedThemePath(path) &&
-    (isInsideCompiledSourceDir(theme, path, writeScope)
-      ? isSourceDirWritableExtension(path)
-      : isThemeFileWritable(path, theme.manifest.apiVersion))
+    !isGeneratedThemePath({ relativePath: path }) &&
+    (isInsideCompiledSourceDir({ theme, relativePath: path, writeScope })
+      ? isSourceDirWritableExtension({ relativePath: path })
+      : isThemeFileWritable({ relativePath: path, apiVersion: theme.manifest.apiVersion }))
   );
 }
 
@@ -664,7 +639,7 @@ function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFi
  * and it holds here because of where the theme list comes from rather than because of a check
  * somebody has to remember to write.
  */
-export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -694,7 +669,7 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
         return;
       }
 
-      if (!isPutWritable(theme, path, writeScope)) {
+      if (!isPutWritable({ theme, path, writeScope })) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
           code: "READ_ONLY_FILE",
@@ -708,11 +683,11 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       );
 
       // Re-read from disk after writing, or the save is invisible. See `reloadTheme`.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
       res.json({ path, bytes: Buffer.byteLength(content, "utf8") });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -725,14 +700,14 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
  * route's full response itself (success or `NO_ORIGINAL`) since the two cases share nothing with
  * the per-file reset path below.
  */
-function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme, res: Response): void {
+function handleGeneratedTreeReset({ deps, theme, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; res: Response }, _optional = {}): void {
   try {
     const { restoredFiles } = restoreBuiltThemeGeneratedTree({
       themeDir: theme.dir,
       themesRoot: deps.themesDir,
       manifest: theme.manifest,
     });
-    reloadTheme(deps, theme.manifest.id);
+    reloadTheme({ deps, themeId: theme.manifest.id });
     res.json({ scope: "release", restoredFiles });
   } catch (err) {
     if (err instanceof ThemePathError) {
@@ -749,23 +724,17 @@ function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme
  * the CATALOG root before it touches the live side: `path` is operator input, and this is the one
  * place in the file that resolves it against a directory outside the theme's own folder. Writes the
  * route's 409 itself for both of its refusals, so the caller only has to check `ok`:
- * `ORIGINAL_LAYOUT_MISMATCH` when {@link themeOriginalResetRefusal} refuses the whole original (checked
+ * `ORIGINAL_LAYOUT_MISMATCH` when {@link hasThemeOriginalLayoutMismatch} refuses the whole original (checked
  * first, before any file is looked at), and `NOT_IN_ORIGINAL` when the catalog has no regular file at
  * `path`.
  */
-function resetFileFromOriginal(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  originalSource: ThemeOriginalSource,
-  path: string,
-  res: Response
-): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
-  const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
+function resetFileFromOriginal({ deps, theme, originalSource, path, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; originalSource: ThemeOriginalSource; path: string; res: Response }, _optional = {}): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
+  const refusal = hasThemeOriginalLayoutMismatch({ themeDir: theme.dir, originalDir: originalSource.originalDir, maxManifestBytes: MAX_THEME_FILE_BYTES }) ? ORIGINAL_LAYOUT_MISMATCH_REFUSAL : null;
   if (refusal) {
     res.status(409).json({ error: refusal.message, code: refusal.code });
     return { ok: false };
   }
-  const reset = resetThemeFileToOriginal({
+  const reset = resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir: theme.dir,
     themesRoot: deps.themesDir,
     originalDir: originalSource.originalDir,
@@ -791,12 +760,7 @@ function resetFileFromOriginal(
  * Behaviour is unchanged: `bytes` reports 0 when nothing was written, and `content` is `null` past
  * the {@link MAX_THEME_FILE_BYTES} text-read limit, exactly as inline before.
  */
-function buildFileResetResponse(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  path: string,
-  reset: { wasModified: boolean; bytes: number }
-): { scope: "file"; path: string; wasModified: boolean; bytes: number; content: string | null } {
+function buildFileResetResponse({ deps, theme, path, reset }: { deps: ContentRouteDeps; theme: DiscoveredTheme; path: string; reset: { wasModified: boolean; bytes: number } }, _optional = {}): { scope: "file"; path: string; wasModified: boolean; bytes: number; content: string | null } {
   return {
     scope: "file",
     path,
@@ -837,13 +801,13 @@ function buildFileResetResponse(
  * added; restoring it would mean deleting their file, which is a different and more destructive
  * operation than "reset", and is not what a button labelled Reset should silently do). A third
  * refusal, `ORIGINAL_LAYOUT_MISMATCH`, covers every file of a theme whose original was saved under a
- * different layout version or has an unreadable `theme.json` (see {@link themeOriginalResetRefusal}).
+ * different layout version or has an unreadable `theme.json` (see {@link hasThemeOriginalLayoutMismatch}).
  *
  * DESTRUCTIVE and deliberately not undoable here: it overwrites the working copy with no backup.
  * The confirmation belongs in the UI, where the operator can be told what they are about to lose in
  * words — a server-side "are you sure" flag would just be a second thing to get wrong.
  */
-export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/reset", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -851,11 +815,11 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const path = bodyStringField(req.body, "path");
+      const path = bodyStringField({ body: req.body, field: "path" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
       if (writeScope.kind === "generated-readonly") {
-        handleGeneratedTreeReset(deps, theme, res);
+        handleGeneratedTreeReset({ deps, theme, res });
         return;
       }
       // 2026-08-13 (security pass Finding 1, defense in depth, continuation agent): `writeScope`
@@ -864,7 +828,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       // read the theme's own catalog snapshot and write it straight back into `preview/`, unchecked —
       // not attacker-content injection, but still a write outside the "only `build-preview.mjs`
       // regenerates this folder" invariant every other write route here now honors.
-      if (isGeneratedThemePath(path)) {
+      if (isGeneratedThemePath({ relativePath: path })) {
         res.status(409).json({
           error: `'${path}' is generated output and cannot be reset here`,
           code: "READ_ONLY_FILE",
@@ -883,15 +847,15 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
         return;
       }
 
-      const resetResult = resetFileFromOriginal(deps, theme, originalSource, path, res);
+      const resetResult = resetFileFromOriginal({ deps, theme, originalSource, path, res });
       if (!resetResult.ok) return;
       // Reloaded even when nothing was written, matching `theme_reset_file`: this process's snapshot
       // is stale whenever a different process wrote the theme.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
-      res.json(buildFileResetResponse(deps, theme, path, resetResult));
+      res.json(buildFileResetResponse({ deps, theme, path, reset: resetResult }));
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -902,7 +866,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
  * the screen offers it; one that already has an original is refused (`ORIGINAL_EXISTS`) rather than
  * replaced, since that original is what Reset should keep restoring to. See `saveThemeAsOriginal`.
  */
-export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/original", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -917,7 +881,7 @@ export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, 
       }
       res.json({ themeId: theme.manifest.id, saved: true });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -936,7 +900,7 @@ export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, 
  * existing reference points at, so it carries none of the risk a script's content-edit block exists
  * to prevent.
  */
-export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -944,7 +908,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const sourcePath = bodyStringField(req.body, "path");
+      const sourcePath = bodyStringField({ body: req.body, field: "path" });
 
       // ADR-020 §5: duplicating a file INTO a built theme's generated tree would add an untracked
       // extra to a region `build.artifactHashes` is supposed to fully account for — a write, same as
@@ -962,7 +926,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       // conflated here, so copy never refused `preview/` the way PUT and rename already do. Since the
       // destination is always the SAME folder as `sourcePath` (see the comment above), checking the
       // source alone is sufficient, matching the rename route's own `sourceRenamable` check.
-      if (isGeneratedThemePath(sourcePath)) {
+      if (isGeneratedThemePath({ relativePath: sourcePath })) {
         res.status(409).json({
           error: `'${sourcePath}' is generated output and cannot be copied`,
           code: "READ_ONLY_FILE",
@@ -977,29 +941,29 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       }
 
       const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
-      copyThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+      copyThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
 
       // A new file on disk is exactly the same boot-time-snapshot problem writes are — see
       // `reloadTheme`'s doc comment. Skipping this means the copy exists on disk but the preview and
       // the next GET of `pages`/`partials` still act as if it does not.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
       const originalSource = originalSourceFor(deps, theme);
       res.json({
-        ...describeThemeFile(destPath, {
+        ...describeThemeFile({ relativePath: destPath, options: {
           originalSource,
-          comparableOriginal: originalComparableForReset(theme, originalSource),
+          comparableOriginal: originalComparableForReset({ theme, originalSource }),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
           // doc for why an empty map here is correct, not merely convenient.
           contentBySlug: NO_CONTENT_COLLISIONS,
-        }),
+        } }),
         copiedFrom: sourcePath,
       });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1019,7 +983,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
  * real operator-authored path input here is validated exactly as strictly as a write target, per
  * the containment rule every route in this file follows. `null` means `name` is valid.
  */
-function validateRenameTargetName(name: string): string | null {
+function validateRenameTargetName({ name }: { name: string }, _optional = {}): string | null {
   if (name.length === 0) return "name is required";
   if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
     return `name '${name}' must be a plain filename in the same folder, not a path`;
@@ -1036,13 +1000,7 @@ function validateRenameTargetName(name: string): string | null {
  * the rename succeeded (or was validly skipped as a no-op) and the caller should build its normal
  * response.
  */
-export function renameThemeFileIfChanged(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  paths: { sourcePath: string; destPath: string; name: string },
-  existingPaths: ReadonlySet<string>,
-  res: Response
-): boolean {
+export function renameThemeFileIfChanged({ deps, theme, paths, existingPaths, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; paths: { sourcePath: string; destPath: string; name: string }; existingPaths: ReadonlySet<string>; res: Response }, _optional = {}): boolean {
   const { sourcePath, destPath, name } = paths;
   if (destPath === sourcePath) return true;
 
@@ -1073,7 +1031,7 @@ export function renameThemeFileIfChanged(
   // check against `destPath` would NOT have closed it, since `.html`/`.svg` are themselves
   // ordinarily-writable extensions elsewhere in a theme; the bytes staying unvetted-as-that-extension
   // is the real invariant, not the extension's mere presence on an allowlist.
-  if (fileExtension(sourcePath) !== fileExtension(destPath)) {
+  if (fileExtension({ relativePath: sourcePath }) !== fileExtension({ relativePath: destPath })) {
     res.status(400).json({
       error: `renaming '${sourcePath}' to '${name}' would change its extension, which Explore does not allow — a file's extension decides how it is served and must not change via rename`,
       code: "EXTENSION_CHANGE_NOT_ALLOWED",
@@ -1081,8 +1039,8 @@ export function renameThemeFileIfChanged(
     return false;
   }
 
-  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
-  reloadTheme(deps, theme.manifest.id);
+  renameThemeFile({ ports: themeFileMovePorts, themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+  reloadTheme({ deps, themeId: theme.manifest.id });
   return true;
 }
 
@@ -1118,7 +1076,7 @@ export function renameThemeFileIfChanged(
  * {@link registerAdminThemeFileCopyRoute}'s own comment. Delete ({@link registerAdminThemeFileDeleteRoute})
  * hard-blocks the same groups for the same reason, only more so — see that route's own doc comment.
  */
-export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1126,17 +1084,17 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const sourcePath = bodyStringField(req.body, "path");
-      const name = bodyStringField(req.body, "name");
+      const sourcePath = bodyStringField({ body: req.body, field: "path" });
+      const name = bodyStringField({ body: req.body, field: "name" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
-      const sourceError = validateFileIdentityChange(theme, sourcePath, writeScope, "renamed");
+      const sourceError = validateFileIdentityChange({ theme, path: sourcePath, writeScope, action: "renamed" });
       if (sourceError) {
         res.status(sourceError.status).json({ error: sourceError.error, code: sourceError.code });
         return;
       }
 
-      const nameError = validateRenameTargetName(name);
+      const nameError = validateRenameTargetName({ name });
       if (nameError) {
         res.status(400).json({ error: nameError, code: "INVALID_NAME" });
         return;
@@ -1151,24 +1109,24 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       const slash = sourcePath.lastIndexOf("/");
       const destPath = slash === -1 ? name : `${sourcePath.slice(0, slash)}/${name}`;
 
-      if (!renameThemeFileIfChanged(deps, theme, { sourcePath, destPath, name }, existingPaths, res)) return;
+      if (!renameThemeFileIfChanged({ deps, theme, paths: { sourcePath, destPath, name }, existingPaths, res })) return;
 
       const originalSource = originalSourceFor(deps, theme);
       res.json({
-        ...describeThemeFile(destPath, {
+        ...describeThemeFile({ relativePath: destPath, options: {
           originalSource,
-          comparableOriginal: originalComparableForReset(theme, originalSource),
+          comparableOriginal: originalComparableForReset({ theme, originalSource }),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
           // doc for why an empty map here is correct, not merely convenient.
           contentBySlug: NO_CONTENT_COLLISIONS,
-        }),
+        } }),
         renamedFrom: sourcePath,
       });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1186,7 +1144,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
  * checks here to preserve their existing status/code contracts. A compiled release without a safe
  * trash destination is refused: UI deletion must never discard bytes.
  */
-export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1194,10 +1152,10 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, de
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const path = bodyStringField(req.body, "path");
+      const path = bodyStringField({ body: req.body, field: "path" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
-      const lockError = validateFileIdentityChange(theme, path, writeScope, "deleted");
+      const lockError = validateFileIdentityChange({ theme, path, writeScope, action: "deleted" });
       if (lockError) {
         res.status(lockError.status).json({ error: lockError.error, code: lockError.code });
         return;
@@ -1213,7 +1171,7 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, de
 
       res.json({ path, deleted: true });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1224,8 +1182,8 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, de
 function parseThemePagePublishBody(
   req: { body: unknown }
 ): { ok: true; page: string; published: boolean } | { ok: false } {
-  const page = bodyStringField(req.body, "page");
-  const published = bodyRecord(req.body).published;
+  const page = bodyStringField({ body: req.body, field: "page" });
+  const published = bodyRecord({ body: req.body }).published;
   if (typeof published !== "boolean") return { ok: false };
   return { ok: true, page, published };
 }
@@ -1258,7 +1216,7 @@ function parseThemePagePublishBody(
  * every call in the span being synchronous), not enforced by any lock — do not add an `await` in this
  * span without re-establishing it some other way.
  */
-export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1279,7 +1237,7 @@ export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = (app, d
         res.status(err.status).json({ error: err.message, code: err.code });
         return;
       }
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };

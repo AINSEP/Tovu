@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import type { Request, Response } from "express";
 
@@ -14,6 +15,8 @@ interface NoteWrite {
   readonly entryPath: string;
   readonly text: string;
 }
+
+const isNodeSystemError = ({ error }: { error: unknown }, _options = {}) => error instanceof Error && 'code' in error && typeof error.code === 'string';
 
 /**
  * True only for an object whose keys are exactly `entryPath` and `text`, both strings.
@@ -37,35 +40,40 @@ async function writeNoteOrRespond(required: { body: unknown; memory: ReturnType<
     res.status(400).json({ error: "entryPath and text are required", code: "VALIDATION_ERROR" }); return false;
   }
   try { await memory.writeNote({ entryPath: body.entryPath, text: body.text }); }
-  catch { res.status(422).json({ error: "note path, text or size is invalid", code: "PLUGIN_MEMORY_INVALID" }); return false; }
+  catch (error) {
+    if (isNodeSystemError({ error })) {
+      sendAdminFailure({ res, error }, { operation: "agent-plugins:write-note", message: "The note could not be saved." }); return false;
+    }
+    res.status(422).json({ error: "note path, text or size is invalid", code: "PLUGIN_MEMORY_INVALID" }); return false;
+  }
   return true;
 }
 
 /** @complexity O(p) in installed plugin count. */
-async function isInstalled(deps: AgentPluginsRouteDeps, pluginId: string): Promise<boolean> {
-  const workspace = deps.agentPluginLayout.forWorkspace(deps.workspaceId);
-  return (await listInstalledPlugins(workspace.root)).some(plugin => plugin.pluginId === pluginId);
+async function isInstalled({ deps, pluginId }: { deps: AgentPluginsRouteDeps; pluginId: string }, _optional = {}): Promise<boolean> {
+  const workspace = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
+  return (await listInstalledPlugins({ workspaceRoot: workspace.root })).some(plugin => plugin.pluginId === pluginId);
 }
 
 /** The user's notes editor writes notes only; learned knowledge stays separately readable. */
-export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   const url = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory";
-  const handle = (write: boolean) => async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+  const handle = ({ write }: { write: boolean }, _optional = {}) => async (req: Request, res: Response) => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: write ? "admin.plugins.enable" : "admin.plugins.read", workspaceId: deps.workspaceId }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: write ? "admin.plugins.enable" : "admin.plugins.read", workspaceId: deps.workspaceId } }))) return;
       const pluginId = String(req.params.pluginId);
-      if (!(await isInstalled(deps, pluginId))) {
+      if (!(await isInstalled({ deps, pluginId }))) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" }); return;
       }
-      const memory = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: deps.workspaceId, pluginId }, { layout: deps.agentPluginLayout });
+      const memory = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: deps.workspaceId, pluginId , layout: deps.agentPluginLayout });
       if (write && !(await writeNoteOrRespond({ body: req.body, memory, res }))) return;
       const [learned, notes] = await Promise.all([memory.list({ kind: "learned" }), memory.list({ kind: "notes" })]);
       res.json({ pluginId, learned, notes, limits: DEFAULT_PLUGIN_MEMORY_LIMITS });
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/memory", code: "INTERNAL_ERROR" }); }
   };
-  app.get(url, handle(false));
-  app.put(url, handle(true));
+  app.get(url, handle({ write: false }));
+  app.put(url, handle({ write: true }));
 };

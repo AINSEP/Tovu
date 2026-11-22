@@ -7,7 +7,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo, type PublicPostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages.js";
+import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages/template-render.js";
 
 const marker = `<p class="post-author" data-embed-config='{"type":"post-author"}'>fallback credit</p>`;
 const content = `<div data-embed-config='{"type":"content"}'></div>`;
@@ -22,14 +22,14 @@ async function render(required: { body: string; author?: string | null; showAuth
   });
   const posts = [post];
   if (optional.otherPost) posts.push(buildPostRecord({ ...optional.otherPost, workspaceId: deps.workspaceId }));
-  deps.postRepo = new InMemoryPostRepo(posts);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: posts });
   const theme: DiscoveredTheme = {
     manifest: { id: "author-test", name: "Author test", version: "1.0.0", tier: "static", engine: 1, templates: ["post.html"] },
     dir: "/nonexistent/author-test", tokens: {}, tokensLight: {}, templates: {}, liquidTemplates: {}, handlebarsTemplates: {},
     pages: { post: `<html><head><title>{{title}}</title><link rel="stylesheet" href="../css/styles.css" /></head><body>${required.body}</body></html>` },
     partials: required.partials ?? {}, css: "", source: "site", status: "valid", errors: [],
   };
-  return renderViaTemplate(deps, theme, post, undefined, required.preview ? post.bodyJson : undefined);
+  return renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyJson: required.preview ? post.bodyJson : undefined });
 }
 
 for (const [name, body, partials] of [
@@ -86,14 +86,14 @@ test("author: both Starter post templates and reset originals place exactly one 
     for (const templateChoice of ["posts-default.html", "posts-sidebar.html"]) {
       const deps = createRouteDeps();
       const post = buildPostRecord({ workspaceId: deps.workspaceId, templateChoice, author: "Annie Lee", showAuthor: true });
-      deps.postRepo = new InMemoryPostRepo([post]);
-      const shown = await renderViaTemplate(deps, theme, post, undefined);
+      deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
+      const shown = await renderViaTemplate({ deps, theme, post, staticMenus: undefined });
       assert.equal(shown.split("By Annie Lee").length - 1, 1, `${directory}/${templateChoice}`);
       assert.match(shown, /<div class="post-detail-header">[\s\S]*?<div class="post-meta"><time [^>]*>[^<]*<\/time><span data-post-author-separator="" class="post-author"> · By Annie Lee<\/span><\/div>[\s\S]*?<div class="post-detail-body">/);
       assert.doesNotMatch(shown, /<p class="post-author"/);
       const hidden = { ...post, author: "Secret Annie", showAuthor: false };
       await deps.postRepo.save(hidden);
-      const hiddenHtml = await renderViaTemplate(deps, theme, hidden, undefined);
+      const hiddenHtml = await renderViaTemplate({ deps, theme, post: hidden, staticMenus: undefined });
       assert.doesNotMatch(hiddenHtml, /Secret Annie|By Annie Lee|class="post-author"|data-post-author-separator/);
     }
   }

@@ -1,8 +1,8 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import type { OtherCredentialStoreInfo } from "./rules";
 
+import type { OtherCredentialStoreInfo } from "./other-credential-stores";
+
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
 const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
@@ -683,7 +683,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "Yönetici AI Asistanı anahtarı (BYOK)",
     "Media provider keys": "Medya sağlayıcı anahtarları",
 
-
     "AI Assistant": "AI Asistanı",
     "Settings · AI agent": "Ayarlar · Yapay zekâ ajanı",
     "Media · External Providers": "Medya · Harici Sağlayıcılar",
@@ -795,7 +794,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Ключ модели ассистента сайта",
     "Admin AI Assistant key (BYOK)": "Ключ AI-ассистента администратора (BYOK)",
     "Media provider keys": "Ключи провайдеров медиа",
-
 
     "AI Assistant": "AI-ассистент",
     "Settings · AI agent": "Настройки · ИИ-агент",
@@ -909,7 +907,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "Ключ AI-асистента адміністратора (BYOK)",
     "Media provider keys": "Ключі провайдерів медіа",
 
-
     "AI Assistant": "AI-асистент",
     "Settings · AI agent": "Налаштування · ШІ-агент",
     "Media · External Providers": "Медіа · Зовнішні провайдери",
@@ -1021,7 +1018,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Kunci model asisten situs",
     "Admin AI Assistant key (BYOK)": "Kunci AI Assistant admin (BYOK)",
     "Media provider keys": "Kunci penyedia media",
-
 
     "AI Assistant": "Asisten AI",
     "Settings · AI agent": "Pengaturan · Agen AI",
@@ -1135,7 +1131,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "مفتاح مساعد الذكاء الاصطناعي للمسؤول (BYOK)",
     "Media provider keys": "مفاتيح مزوّدي الوسائط",
 
-
     "AI Assistant": "مساعد الذكاء الاصطناعي",
     "Settings · AI agent": "الإعدادات · وكيل الذكاء الاصطناعي",
     "Media · External Providers": "الوسائط · المزودون الخارجيون",
@@ -1247,7 +1242,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "کلید مدل دستیار سایت",
     "Admin AI Assistant key (BYOK)": "کلید دستیار هوش مصنوعی مدیر (BYOK)",
     "Media provider keys": "کلیدهای ارائه‌دهندگان رسانه",
-
 
     "AI Assistant": "دستیار هوش مصنوعی",
     "Settings · AI agent": "تنظیمات · عامل هوش مصنوعی",
@@ -1361,7 +1355,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "एडमिन AI असिस्टेंट कुंजी (BYOK)",
     "Media provider keys": "मीडिया प्रदाता कुंजियां",
 
-
     "AI Assistant": "AI असिस्टेंट",
     "Settings · AI agent": "सेटिंग्स · AI एजेंट",
     "Media · External Providers": "मीडिया · बाहरी प्रदाता",
@@ -1473,7 +1466,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "সাইট অ্যাসিস্ট্যান্ট মডেল কী",
     "Admin AI Assistant key (BYOK)": "অ্যাডমিন AI অ্যাসিস্ট্যান্ট কী (BYOK)",
     "Media provider keys": "মিডিয়া প্রদানকারী কী",
-
 
     "AI Assistant": "AI অ্যাসিস্ট্যান্ট",
     "Settings · AI agent": "সেটিংস · AI এজেন্ট",
@@ -1587,7 +1579,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "ایڈمن AI اسسٹنٹ کلید (BYOK)",
     "Media provider keys": "میڈیا فراہم کنندہ کلیدیں",
 
-
     "AI Assistant": "AI اسسٹنٹ",
     "Settings · AI agent": "ترتیبات · AI ایجنٹ",
     "Media · External Providers": "میڈیا · بیرونی فراہم کنندگان",
@@ -1699,7 +1690,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "サイトアシスタントモデルキー",
     "Admin AI Assistant key (BYOK)": "管理者AIアシスタントキー（BYOK）",
     "Media provider keys": "メディアプロバイダーキー",
-
 
     "AI Assistant": "AIアシスタント",
     "Settings · AI agent": "設定 · AI エージェント",
@@ -1813,7 +1803,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "관리자 AI 어시스턴트 키(BYOK)",
     "Media provider keys": "미디어 공급자 키",
 
-
     "AI Assistant": "AI 어시스턴트",
     "Settings · AI agent": "설정 · AI 에이전트",
     "Media · External Providers": "미디어 · 외부 공급자",
@@ -1925,7 +1914,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "คีย์โมเดลผู้ช่วยไซต์",
     "Admin AI Assistant key (BYOK)": "คีย์ผู้ช่วย AI ของผู้ดูแลระบบ (BYOK)",
     "Media provider keys": "คีย์ผู้ให้บริการสื่อ",
-
 
     "AI Assistant": "ผู้ช่วย AI",
     "Settings · AI agent": "การตั้งค่า · เอเจนต์ AI",
@@ -2039,7 +2027,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "管理员 AI 助手密钥（BYOK）",
     "Media provider keys": "媒体提供商密钥",
 
-
     "AI Assistant": "AI 助手",
     "Settings · AI agent": "设置 · AI 智能体",
     "Media · External Providers": "媒体 · 外部服务商",
@@ -2152,7 +2139,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "管理員 AI 助理金鑰（BYOK）",
     "Media provider keys": "媒體供應商金鑰",
 
-
     "AI Assistant": "AI 助理",
     "Settings · AI agent": "設定 · AI 代理",
     "Media · External Providers": "媒體 · 外部服務商",
@@ -2195,7 +2181,7 @@ const COPY_REASON_TEXT: Record<string, string> = {
 };
 /** Only fixed status/reason copy and the server's four-character hint are rendered. */
 export function copyKeysResultText({ result, t }: {
-  result: import("@/lib/api").AdminCredentialCopyResult; t: (key: string) => string;
+  result: import("@/features/security/api/security-api.types").AdminCredentialCopyResult; t: (key: string) => string;
 }, _options = {}): string {
   if (result.status === "copied") return t("copied ✓") + (result.last4?.length === 4 ? " …" + result.last4 : "");
   return t(COPY_REASON_TEXT[result.reasonCode ?? ""] ?? "Copying keys failed. Try again.");
@@ -2206,7 +2192,7 @@ export function copyKeysResultText({ result, t }: {
 const ACCESS_TOKENS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't load saved access tokens: {error}",
 };
-export function accessTokensLoadErrorMessage(locale: string, error: string): string {
+export function accessTokensLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKENS_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2214,7 +2200,7 @@ export function accessTokensLoadErrorMessage(locale: string, error: string): str
 const ACCESS_TOKEN_SAVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't save this token: {error}",
 };
-export function accessTokenSaveErrorMessage(locale: string, error: string): string {
+export function accessTokenSaveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_SAVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2225,7 +2211,7 @@ export function accessTokenSaveErrorMessage(locale: string, error: string): stri
 const ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't remove this token: {error}",
 };
-export function accessTokenRemoveErrorMessage(locale: string, error: string): string {
+export function accessTokenRemoveErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2233,7 +2219,7 @@ export function accessTokenRemoveErrorMessage(locale: string, error: string): st
 const ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
   en: "Couldn't make this token the default: {error}",
 };
-export function accessTokenMakeDefaultErrorMessage(locale: string, error: string): string {
+export function accessTokenMakeDefaultErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2243,7 +2229,7 @@ export function accessTokenMakeDefaultErrorMessage(locale: string, error: string
 const ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE: Record<string, string> = {
   en: 'A token named "{name}" already exists for {provider}.',
 };
-export function accessTokenDuplicateNameMessage(locale: string, name: string, provider: string): string {
+export function accessTokenDuplicateNameMessage({ locale, name, provider }: { locale: string; name: string; provider: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: ACCESS_TOKEN_DUPLICATE_NAME_TEMPLATE, locale }), vars: { name, provider } });
 }
 
@@ -2254,7 +2240,7 @@ export function accessTokenDuplicateNameMessage(locale: string, name: string, pr
  *  flat-dictionary boundary and risk a future translator reordering it into something that drops or
  *  inverts the claim. */
 const REMOVE_DIALOG_TITLE_TEMPLATE: Record<string, string> = { en: 'Remove "{name}" from Tovu?' };
-export function removeDialogTitle(locale: string, name: string): string {
+export function removeDialogTitle({ locale, name }: { locale: string; name: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_TITLE_TEMPLATE, locale }), vars: { name } });
 }
 
@@ -2266,7 +2252,7 @@ export function removeDialogTitle(locale: string, name: string): string {
 const REMOVE_DIALOG_BODY_TEMPLATE: Record<string, string> = {
   en: "This deletes Tovu's saved copy of this {credentialLabel} token. It does NOT revoke the token on {vendor} — it stays valid there until you revoke it yourself.",
 };
-export function removeDialogBody(locale: string, credentialLabel: string, vendor: string): string {
+export function removeDialogBody({ locale, credentialLabel, vendor }: { locale: string; credentialLabel: string; vendor: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_BODY_TEMPLATE, locale }), vars: { credentialLabel, vendor } });
 }
 
@@ -2303,15 +2289,15 @@ const REMOVE_DIALOG_EXTERNAL_MCP_BODY: Record<string, string> = {
  *  wording (above), the other three keep {@link removeDialogBody} with `purposeLabel` for both
  *  placeholders, exactly as before (Tier 2 has no vendor/destination split — its deep links go to
  *  Tovu's own screens). @complexity O(1). */
-export function otherCredentialRemoveDialogBody(locale: string, store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel">): string {
+export function otherCredentialRemoveDialogBody({ locale, store }: { locale: string; store: Pick<OtherCredentialStoreInfo, "id" | "purposeLabel"> }, _options = {}): string {
   if (store.id === "external-mcp") return localeEntry({ table: REMOVE_DIALOG_EXTERNAL_MCP_BODY, locale });
-  return removeDialogBody(locale, store.purposeLabel, store.purposeLabel);
+  return removeDialogBody({ locale, credentialLabel: store.purposeLabel, vendor: store.purposeLabel });
 }
 
 const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
   en: "This is the only saved {provider} token — after removing it, nothing here will be marked as connected.",
 };
-export function removeDialogLastRowNote(locale: string, provider: string): string {
+export function removeDialogLastRowNote({ locale, provider }: { locale: string; provider: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: REMOVE_DIALOG_LAST_ROW_TEMPLATE, locale }), vars: { provider } });
 }
 
@@ -2341,7 +2327,7 @@ const SITE_KEY_LOAD_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法加载站点密钥状态：{error}",
   "zh-TW": "無法載入網站金鑰狀態：{error}",
 };
-export function siteKeyLoadErrorMessage(locale: string, error: string): string {
+export function siteKeyLoadErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_LOAD_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2372,7 +2358,7 @@ const SITE_KEY_GENERATE_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法生成站点密钥：{error}",
   "zh-TW": "無法產生網站金鑰：{error}",
 };
-export function siteKeyGenerateErrorMessage(locale: string, error: string): string {
+export function siteKeyGenerateErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_GENERATE_ERROR_TEMPLATE, locale }), vars: { error } });
 }
 
@@ -2403,6 +2389,6 @@ const SITE_KEY_REVEAL_ERROR_TEMPLATE: Record<string, string> = {
   "zh-CN": "无法显示站点密钥：{error}",
   "zh-TW": "無法顯示網站金鑰：{error}",
 };
-export function siteKeyRevealErrorMessage(locale: string, error: string): string {
+export function siteKeyRevealErrorMessage({ locale, error }: { locale: string; error: string }, _options = {}): string {
   return interpolate({ template: localeEntry({ table: SITE_KEY_REVEAL_ERROR_TEMPLATE, locale }), vars: { error } });
 }

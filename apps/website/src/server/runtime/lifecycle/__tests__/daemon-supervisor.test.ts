@@ -17,7 +17,8 @@ import {
   resetAssistantDaemonSingletonForTests,
 } from "../daemon-supervisor.js";
 import type { SpawnedDaemonProcess } from "../daemon-supervisor.js";
-import { createRespawnPolicy, AGENT_DAEMON_EXIT_CODE } from "#src/assistant/index";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { createRespawnPolicy } from "#src/assistant/index";
 
 /**
  * @file Proves the automatic-respawn wiring in `daemon-supervisor.ts` against a fake daemon
@@ -171,7 +172,7 @@ test("shutdown() on win32 reaps via the injected killTree(pid) instead of the PO
     spawnDaemonProcess: () => children[spawnCount++].handle,
     policy: createRespawnPolicy(),
     platform: "win32",
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: ({ pid }) => killTreeCalls.push(pid),
   });
 
   supervisor.start();
@@ -190,7 +191,7 @@ test("shutdown() on posix (the default) never calls an injected killTree", () =>
     policy: createRespawnPolicy(),
     // No `platform` passed — defaults to the real `process.platform`, POSIX on every host this
     // suite runs on.
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: ({ pid }) => killTreeCalls.push(pid),
   });
 
   supervisor.start();

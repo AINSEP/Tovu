@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   themePageCollisionAdminPath,
   themePagePublishSummary,
@@ -12,6 +12,7 @@ import {
 import { themePageCollisionMessage, themePagePublishState } from "./lib/theme-page-publish-state";
 import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Theme Pages tab's "Details" info modal — 2026-08-31 owner review pass, replacing the
  * row's old inline "see more" disclosure (`Pages.tsx`'s own header covers that history). Owner:
@@ -114,7 +115,7 @@ function ThemePageDetailsFacts({ row, t }: { row: ThemePageRow; t: Translate }):
       </div>
       <div className="theme-page-details-fact">
         <dt>{t("Publish")}</dt>
-        <dd>{themePagePublishSummary(row, t)}</dd>
+        <dd>{themePagePublishSummary({ row, t })}</dd>
       </div>
     </dl>
   );
@@ -129,7 +130,7 @@ function ThemePageDetailsFacts({ row, t }: { row: ThemePageRow; t: Translate }):
  * @complexity O(1).
  */
 function ThemePageDetailsNotes({ row, t }: { row: ThemePageRow; t: Translate }): ReactNode {
-  const showsToggleHint = themePagePublishState(row, t).kind === "toggle";
+  const showsToggleHint = themePagePublishState({ row, t }).kind === "toggle";
   const showsNoOriginalHint = !row.resettable;
   if (!showsToggleHint && !showsNoOriginalHint) return null;
   return (
@@ -205,18 +206,18 @@ function ThemePageDetailsCollisionWarning({
     <div className="notice warning theme-page-details-collision">
       <div className="theme-page-details-collision-body">
         <ThemePageCollisionIcon />
-        <p>{themePageCollisionMessage(collision, t)}</p>
+        <p>{themePageCollisionMessage({ collision, t })}</p>
       </div>
       <a
         className="btn-warning"
-        href={adminHref(adminPath)}
+        href={adminHref({ routePath: adminPath })}
         onClick={(e) => {
           e.preventDefault();
-          navigate(adminPath);
+          navigate({ routePath: adminPath });
         }}
         {...agentHandle({ handle: "theme-page-details-collision-open" }, { role: "link", label: "Open the colliding content record" })}
       >
-        {t("Open {title}").replace("{title}", collision.title)}
+        {t("Open {title}").replace("{title}", () => collision.title)}
       </a>
     </div>
   );
@@ -235,7 +236,7 @@ export interface ThemePageDetailsModalProps {
 }
 
 export function ThemePageDetailsModal({ row, onClose, t, useModal = useThemePageDetailsModal }: ThemePageDetailsModalProps) {
-  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(row !== null, onClose);
+  const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal({ open: row !== null, onClose });
 
   return (
     <dialog

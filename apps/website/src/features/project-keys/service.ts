@@ -1,5 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
-import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteKeyReferences } from "./site-references.js";
 import { attachedOnlyVault } from "./attached-vault.js";
 import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
@@ -14,13 +14,13 @@ export const isSharedOAuthKey = ({ row }: { row: Pick<VaultRecord, 'kind' | 'met
   row.kind === 'api-connection' && row.meta.credentialFormat === 'oauth-token-set';
 export interface ProjectKeyRow { keyId: string; name: string; kind: string; usedByThisSite: boolean; usedBy: readonly string[];
   /** Set for a key still saved only on a site; absent for a Shared Key. */
-  siteName?: string;
+  siteName?: string; omittedCount?: number;
   /** Plain words: why this site key can't be used yet and what to do. A locked row is never approved. */
   locked?: string }
 /** Marks a picker choice as a key still saved only on a site; never a Shared Keys row id. */
 export const SITE_KEY_ID_PREFIX = "saved-on-site:";
 /** Keys saved in site vaults on this install. Host-provided; deployed single sites have none. */
-export interface SiteKeyChoice { keyId: string; name: string; kind: string; siteName: string; locked?: string }
+export interface SiteKeyChoice { keyId: string; name: string; kind: string; siteName: string; locked?: string; omittedCount?: number }
 export interface SiteKeySource {
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<SiteKeyChoice[]>;
   /** Metadata only: the row a permission check needs. Never opens the key. */
@@ -48,6 +48,69 @@ export function projectKeyPermission({ row }: { row: VaultRecord }, _optional = 
   if (row.kind === "source-control") return "source-control.credentials.write";
   throw new ToolInputError({ message: "Choose an API key, provider-settings key or saved OAuth connection in Shared Keys. Details: P25_KEY_KIND_NOT_SUPPORTED." });
 }
+function createProjectKeyUse({ siteId, siteName, siteKeys, transaction, bindOAuth, references, attachments, reapply }: Parameters<typeof createProjectKeys>[0], { find, usage, isSiteKey }: { find: (input: { keyId: string }) => Promise<VaultRecord>; usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>>; isSiteKey: (input: { keyId: string }) => boolean }) {
+  /** Shared attachment lifecycle for a submitted card or an explicit project-key choice.
+   * Commit the reference before reapplying a provider; restart/failure status retains the reference.
+   */
+  const use: ProjectKeysPort["use"] = async (selected, _optional = {}) => {
+    if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
+    // Adoption runs after the card's approval and before the grant; a site key becomes a Shared Key here.
+    let input = selected;
+    if (selected.use && isSiteKey(selected)) {
+      if (!siteKeys) throw new Error("Project key adoption has no site key source");
+      input = { ...selected, ...(await siteKeys.adopt(selected)) };
+    }
+    await transaction({ run: async () => {
+      const row = await find(input);
+      if (input.use) {
+        if (isSharedOAuthKey({ row })) {
+          if (!bindOAuth) throw new ToolInputError({ message: "Choose a saved connection from this site's connection settings before granting access." });
+          await bindOAuth(input);
+        }
+        // A failed owner commit can leave an inert reference, never an unauthorized secret copy.
+        await references?.set({ credentialId: input.keyId });
+        await attachments.attach({ siteId, keyId: input.keyId, siteName });
+      } else await attachments.detach({ siteId, keyId: input.keyId });
+    } });
+    // References are portable-site metadata only; the owner grant remains the authority after revoke.
+    const pluginId = providerPluginOf(input);
+    const result = pluginId ? await reapply({ pluginId }) : "now";
+    return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
+      ...(input.use ? {} : { message: "Access is revoked within 30 seconds." }),
+      ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
+  };
+  return use;
+}
+
+function createProjectKeyListing({ vault, inventory, describeOAuth }: Pick<Parameters<typeof createProjectKeys>[0], 'vault' | 'inventory' | 'describeOAuth'>, { granted, usage }: { granted: ReturnType<typeof attachedOnlyVault>; usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>> }) {
+  async function listRows({ cards = [], owner = false }: { cards?: readonly PluginCredentialCard[]; owner?: boolean }) {
+      const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
+      const source = owner ? vault : granted;
+      const rows = owner && inventory ? await inventory() : (await Promise.all(kinds.map(kind => source.list({ workspaceId: "project", kind, ownerKey: "tovu", principalId: null })))).flat();
+      return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id }) || isSharedOAuthKey({ row })).map(async row => {
+        const pluginId = providerPluginOf({ keyId: row.id });
+        const card = pluginId ? cards.find(card => card.saveKind === "provider-settings" && card.saveTarget === pluginId) : undefined;
+        const oauthLabel = isSharedOAuthKey({ row }) ? await describeOAuth?.({ keyId: row.id }) : undefined;
+        return { ...(await usage({ keyId: row.id })), name: oauthLabel ?? card?.label ?? row.label, kind: row.kind };
+      }));
+  }
+  return listRows;
+}
+function createProjectKeySavedResult(vault: VaultRepoPort, usage: (input: { keyId: string }) => Promise<Pick<ProjectKeyRow, 'keyId' | 'usedByThisSite' | 'usedBy'>>, use: ProjectKeysPort['use']): ProjectKeysPort['savedResult'] {
+  return async ({ result }, _optional = {}) => {
+      const identity = savedKeyIdentity({ result });
+      if (!identity) return result;
+      const { keyId, value } = identity;
+      const row = await vault.find({ workspaceId: "project", id: keyId });
+      if (!row) return result;
+      // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
+      if (value.store === "site" || value.scope === "site" || (value.credential as { scope?: string } | undefined)?.scope === "site") return result;
+      const current = await usage({ keyId });
+      return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
+    };
+}
+
+
 
 /** Bounded project inventory; OAuth labels may project the selected sealed account identity.
  * Token payloads never enter the picker. A failed attachment propagates instead of reporting success.
@@ -78,45 +141,10 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     const effective = pluginId ? await providerUsage({ pluginId }) : undefined;
     return { keyId, usedByThisSite: effective ? effective.store === "project" && effective.usedByThisSite : users.some(user => user.siteId === siteId), usedBy: users.map(user => user.siteName) };
   }
-  /** Shared attachment lifecycle for a submitted card or an explicit project-key choice.
-   * Commit the reference before reapplying a provider; restart/failure status retains the reference.
-   */
-  const use: ProjectKeysPort["use"] = async (selected, _optional = {}) => {
-    if (!siteId) throw new ToolInputError({ message: "This site has no id yet; restart it." });
-    // Adoption runs after the card's approval and before the grant; a site key becomes a Shared Key here.
-    const input = selected.use && isSiteKey(selected) ? { ...selected, ...(await siteKeys!.adopt(selected)) } : selected;
-    await transaction({ run: async () => {
-      const row = await find(input);
-      if (input.use) {
-        if (isSharedOAuthKey({ row })) {
-          if (!bindOAuth) throw new ToolInputError({ message: "Choose a saved connection from this site's connection settings before granting access." });
-          await bindOAuth(input);
-        }
-        // A failed owner commit can leave an inert reference, never an unauthorized secret copy.
-        await references?.set({ credentialId: input.keyId });
-        await attachments.attach({ siteId, keyId: input.keyId, siteName });
-      } else await attachments.detach({ siteId, keyId: input.keyId });
-    } });
-    // References are portable-site metadata only; the owner grant remains the authority after revoke.
-    const pluginId = providerPluginOf(input);
-    const result = pluginId ? await reapply({ pluginId }) : "now";
-    return { ...(await usage(input)), appliesAt: typeof result === "string" ? result : result.appliesAt,
-      ...(input.use ? {} : { message: "Access is revoked within 30 seconds." }),
-      ...(typeof result === "string" ? {} : { message: `${result.reason} ${result.action}` }) };
-  };
+  const use = createProjectKeyUse({ siteId, siteName, siteKeys, transaction, bindOAuth, references, attachments, reapply, vault, providerUsage }, { find, usage, isSiteKey: input => isSiteKey(input) });
   const isSiteKey = ({ keyId }: { keyId: string }) => Boolean(siteKeys) && keyId.startsWith(SITE_KEY_ID_PREFIX);
   const granted = attachedOnlyVault({ vault, attachments, siteId });
-  async function listRows({ cards = [], owner = false }: { cards?: readonly PluginCredentialCard[]; owner?: boolean }) {
-      const kinds = ["api-connection", "vendor", "custom", "source-control"] as const;
-      const source = owner ? vault : granted;
-      const rows = owner && inventory ? await inventory() : (await Promise.all(kinds.map(kind => source.list({ workspaceId: "project", kind, ownerKey: "tovu", principalId: null })))).flat();
-      return Promise.all(rows.filter(row => row.kind !== "api-connection" || providerPluginOf({ keyId: row.id }) || isSharedOAuthKey({ row })).map(async row => {
-        const pluginId = providerPluginOf({ keyId: row.id });
-        const card = pluginId ? cards.find(card => card.saveKind === "provider-settings" && card.saveTarget === pluginId) : undefined;
-        const oauthLabel = isSharedOAuthKey({ row }) ? await describeOAuth?.({ keyId: row.id }) : undefined;
-        return { ...(await usage({ keyId: row.id })), name: oauthLabel ?? card?.label ?? row.label, kind: row.kind };
-      }));
-  }
+  const listRows = createProjectKeyListing({ vault, inventory, describeOAuth }, { granted, usage });
   return {
     site: { id: siteId, name: siteName },
     list: input => listRows({ ...input, owner: true }),
@@ -124,22 +152,13 @@ export function createProjectKeys({ vault, attachments, siteId, siteName, reappl
     listGranted: async input => (await listRows(input)).map(row => ({ ...row, usedBy: [] })),
     permissionFor: async input => {
       if (!isSiteKey(input)) return projectKeyPermission({ row: await find(input) });
-      const row = await siteKeys!.find(input);
+      if (!siteKeys) throw new Error("Project key lookup has no site key source");
+      const row = await siteKeys.find(input);
       if (!row) throw new ToolInputError({ message: "This saved key is no longer on that site. Open Use a saved key again." });
       return projectKeyPermission({ row });
     },
     use,
-    async savedResult({ result }, _optional = {}) {
-      const identity = savedKeyIdentity({ result });
-      if (!identity) return result;
-      const { keyId, value } = identity;
-      const row = await vault.find({ workspaceId: "project", id: keyId });
-      if (!row) return result;
-      // Provider ids also exist in site vaults; a site-only save must never attach its project sibling.
-      if (value.store === "site" || value.scope === "site" || (value.credential as { scope?: string } | undefined)?.scope === "site") return result;
-      const current = await usage({ keyId });
-      return { ...value, ...(current.usedByThisSite ? current : await use({ keyId, use: true })) };
-    },
+    savedResult: createProjectKeySavedResult(vault, usage, use),
   };
 }
 

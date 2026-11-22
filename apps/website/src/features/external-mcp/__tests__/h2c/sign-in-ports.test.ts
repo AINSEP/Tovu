@@ -2,7 +2,7 @@
  * EXTRACT-S5 H2c: the hosted-MCP sign-in runs only on its injected `HostedMcpSignInPorts`.
  * - A second host with its own registration identity, links, paths, copy and FAKE flow operations signs in,
  *   and none of Tovu's vocabulary reaches its output.
- * - Tovu's binding (`tovuSignInPorts`) is the real implementations by identity, with the exact pre-H2c copy bytes.
+ * - Tovu's binding (`tovuSignInPorts`) uses the real implementations and its hosted-port adapter, with the exact pre-H2c copy bytes.
  * - Provider canaries (token/secret/URL/path) never reach model-facing text.
  * - Canonical validation/unconfigured/reauth errors and real OAuth errors stay recognizable by the host's
  *   `isSignInRefusal`/`classifyError`, and an imitation OAuth error is not.
@@ -23,11 +23,11 @@ import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../.
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
-import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, saveExternalMcpServer, sealExternalMcpOAuthPayload } from "../../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../../external-mcp-store.js";
 import { resolveExternalMcpAuthMode, resolveExternalMcpOAuthStatus } from "../../../../contracts/core/external-mcp-auth.js";
 import {
   createDeviceAuthorizationStore, createExternalMcpReauthRequiredError, createHostedMcpSignInService, ExternalMcpReauthRequiredError,
-  tovuRegistrationIdentity, tovuSignInPorts,
+  tovuRegistrationIdentity, tovuSealExternalMcpOAuthPayload, tovuSignInPorts,
 } from "../../external-mcp-oauth.js";
 
 const WS = "22222222-2222-4222-8222-222222222222" as never;
@@ -169,12 +169,12 @@ test("second host: an onConnected failure goes to the host log port and never fa
   assert.ok(host.calls.includes(`log:${SERVER}`));
 });
 
-test("Tovu's binding is its real implementations by identity, and its copy is the exact pre-H2c bytes", () => {
+test("Tovu's binding uses its real implementations and hosted adapter, and its copy is the exact pre-H2c bytes", () => {
   const p = tovuSignInPorts;
   assert.equal(p.flow, oauthFlowOperations);
   assert.equal(p.errors.reauthRequired, createExternalMcpReauthRequiredError);
   assert.equal(p.store.openPayload, openExternalMcpOAuthPayload);
-  assert.equal(p.store.sealPayload, sealExternalMcpOAuthPayload);
+  assert.equal(p.store.sealPayload, tovuSealExternalMcpOAuthPayload);
   assert.equal(p.projections.authMode, resolveExternalMcpAuthMode);
   assert.equal(p.projections.oauthStatus, resolveExternalMcpOAuthStatus);
   assert.equal(p.aad.format, formatAad);

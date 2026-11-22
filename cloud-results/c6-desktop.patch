@@ -1,0 +1,60 @@
+From 4623e43c6d3c1eb277d1099b9ecba5f0f4c4a9f1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 16 Nov 2026 22:07:37 +0000
+Subject: [PATCH] refactor(desktop): C6 repoint agent vocabulary to
+ @jini-ai/core; read runtime.codex / runtime.pi
+
+Builds on Jini 96bf3028 (refactor/c6). The desktop executor still receives the Codex plugin policy and
+the Pi shutdown grace by value (same values as before) until daemon R8b binds the runtime port.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+---
+ apps/desktop/src/desktop-agent-inventory.test.ts | 2 +-
+ apps/desktop/src/desktop-agent-inventory.ts      | 2 +-
+ apps/desktop/src/desktop-agent.ts                | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/apps/desktop/src/desktop-agent-inventory.test.ts b/apps/desktop/src/desktop-agent-inventory.test.ts
+index e7dc8801..2aa7dc32 100644
+--- a/apps/desktop/src/desktop-agent-inventory.test.ts
++++ b/apps/desktop/src/desktop-agent-inventory.test.ts
+@@ -5,7 +5,7 @@
+  */
+ import test from "node:test";
+ import assert from "node:assert/strict";
+-import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
++import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
+ import { modelReasoningOptions } from "@jini-ai/agent-runtime/model-selection";
+ 
+ import { createAgentInventory, summarizeAgent, type AgentRuntimePorts } from "./desktop-agent-inventory.ts";
+diff --git a/apps/desktop/src/desktop-agent-inventory.ts b/apps/desktop/src/desktop-agent-inventory.ts
+index bdc54ee5..473d07f6 100644
+--- a/apps/desktop/src/desktop-agent-inventory.ts
++++ b/apps/desktop/src/desktop-agent-inventory.ts
+@@ -9,7 +9,7 @@
+  * Cached once per process like the site's: a PATH probe spawns every installed CLI for its version
+  * and model list, which is far too slow to repeat on every pane mount. `rescan` forces a fresh one.
+  */
+-import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
++import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
+ import type { RunnerAgentSummary } from "./contracts/runtime-inventory.ts";
+ 
+ /** The slice of `@jini-ai/agent-runtime` this module reads — injected so tests probe nothing. */
+diff --git a/apps/desktop/src/desktop-agent.ts b/apps/desktop/src/desktop-agent.ts
+index b93a2eaf..79af16ec 100644
+--- a/apps/desktop/src/desktop-agent.ts
++++ b/apps/desktop/src/desktop-agent.ts
+@@ -278,8 +278,8 @@ function defaultAgentExecutor(
+     resolveAgentLaunch: runtime.resolveAgentLaunch,
+     runtimeState: runtime.state,
+     hostEnv: runtime.hostEnv,
+-    codexDisablePlugins: runtime.codexDisablePlugins,
+-    piGracefulShutdownMs: runtime.piGracefulShutdownMs,
++    codexDisablePlugins: runtime.codex.disablePlugins === true,
++    piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
+     mcpJsonInjection: {
+       toolApprovalOwner: "host",
+       ...desktopBridgeLaunch(optional),
+-- 
+2.43.0
+

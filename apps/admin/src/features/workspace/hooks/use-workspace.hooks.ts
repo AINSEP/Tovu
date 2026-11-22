@@ -1,14 +1,16 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
 import type { WorkspacePort } from "./workspace-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Workspace screen does, so `Workspace.tsx` is only markup.
  *
@@ -63,12 +65,12 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
   const key = useMemo(() => ["workspace", "current"] as const, []);
   const fetchWorkspace = useCallback(async () => {
     try { return (await port.getWorkspace()).workspace; }
-    catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load workspace" }), locale)); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: t({ locale, key: "failed to load workspace" }), locale })); }
   }, [port, locale]);
   const query = useFetchQuery({ key, fetch: fetchWorkspace }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchWorkspace }, { staleTime: 0 });
   const error = query.error?.message ?? null;
-  const update = useFetchMutation({ run: ({ input }: { input: { name: string; slug: string } }) => port.updateWorkspace(input) }, { invalidates: [["workspace"]] });
+  const update = useFetchMutation({ run: ({ input }: { input: { name: string; slug: string } }) => port.updateWorkspace({ patch: input }) }, { invalidates: [["workspace"]] });
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -87,7 +89,8 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       hydrated.current = true;
       setName(workspace.name);
       setSlug(workspace.slug);
-    }).catch(() => {}); // The reactive query exposes this read's error.
+    }, () => { /* The reactive query exposes this read's error. */ })
+      .catch((error: unknown) => console.error("[workspace] Could not apply the loaded settings", describeErrorForLog({ err: error })));
     return () => { cancelled = true; };
   }, [loader]);
 
@@ -101,7 +104,7 @@ export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceControll
       loader.replace({ value: updated });
       setSaved(true);
     } catch (e) {
-      setSaveError(describeApiError(e, t({ locale: locale, key: "failed to save workspace" }), locale));
+      setSaveError(describeApiError({ e, fallback: t({ locale: locale, key: "failed to save workspace" }), locale }));
     } finally {
       setSaving(false);
     }

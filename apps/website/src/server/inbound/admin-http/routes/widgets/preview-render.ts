@@ -2,9 +2,11 @@ import type { JsonObject } from '@jini-ai/core/primitives';
 import { findWidgetTypeRegistration, validateWidgetConfig, WidgetConfigValidationError, WidgetTypeUnregisteredError } from '@jini-ai/cms/widgets';
 import { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
 import { resolveActiveThemeId } from '#src/features/presentation/index';
-import { resolveActiveTheme, NO_THEME_ID } from '#src/features/theme/index';
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme } from '#src/features/theme/index';
 import { renderStaticFragment } from '#src/features/theme/rendering';
-import { pageShell, renderWidgetIr } from '../../../public-http/http/site/render.js';
+import { renderWidgetIr } from '../../../public-http/http/site/render/content-html.js';
+import { pageShell } from '../../../public-http/http/site/render/document-shell.js';
 import type { RouteDeps } from '#src/server/routes/types';
 
 export interface WidgetPreviewInput { widgetType: string; content: JsonObject }
@@ -33,7 +35,7 @@ export async function renderWidgetPreview(
   const result = resolved.get(id);
   const html = renderWidgetIr(result?.ok ? result.ir : { componentId: 'widget-placeholder', props: {} });
   const activeThemeId = await resolveActiveThemeId(deps);
-  const active = resolveActiveTheme(deps, activeThemeId);
+  const active = resolveActiveTheme({ deps, activeThemeId });
   const theme = active === NO_THEME_ID ? null : active;
   const document = theme?.manifest.tier === 'static'
     ? renderStaticFragment({ theme, html, label: 'widget-preview' })

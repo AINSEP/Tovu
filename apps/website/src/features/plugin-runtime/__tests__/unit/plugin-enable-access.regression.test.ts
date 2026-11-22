@@ -64,7 +64,7 @@ test('a declined enable remains a choice when a seeded-off plugin signs in later
   const fixture = createTempSiteLayoutFixture({});
   t.after(fixture.cleanup);
   const { agentPluginLayout } = fixture.deps;
-  const workspaceRoot = agentPluginLayout.forWorkspace(WORKSPACE_ID).root;
+  const workspaceRoot = agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
   await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: input.pluginId, enabled: false, actor: 'system:seed' });
   const repo = new InMemoryExternalMcpServerRepo();
   const keyring = new InMemoryKeyring();

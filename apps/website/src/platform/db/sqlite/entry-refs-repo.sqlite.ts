@@ -1,6 +1,11 @@
-import { type ContentKernel, contentKernel } from "../content-kernel.js";
+import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
+import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentDb } from "./content-db.js";
-import { SqlEntryRefsRepo } from "../repos/entry-refs-repo.js";
+import { SqlEntryRefsRepo, type EntryRefsSqlRow } from "@jini-ai/cms/widgets/sql";
+
+true satisfies (ContentDatabase["entry_refs"] extends EntryRefsSqlRow
+  ? EntryRefsSqlRow extends ContentDatabase["entry_refs"] ? true : false
+  : false);
 
 /**
  * @file The entry-refs repo on a site's SQLite `content.db`: the one Kysely query body
@@ -9,7 +14,7 @@ import { SqlEntryRefsRepo } from "../repos/entry-refs-repo.js";
  */
 export class SqliteEntryRefsRepo extends SqlEntryRefsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
-    super(contentKernel(store));
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
+    super({ kernel: schemaErasedKernel({ store }), tables: { entryRefs: "entry_refs" } });
   }
 }

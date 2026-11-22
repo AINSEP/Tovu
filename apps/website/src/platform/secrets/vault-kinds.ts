@@ -1,8 +1,17 @@
-import { createVaultMetaParsers, isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
-  type VaultRepoPort, type VaultContext,
-  type VaultKind, type VaultMeta, type VaultMetaParser, type VaultMetaParsers, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
+import { createVaultMetaParsers, isCopyableKind, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VAULT_KINDS,
+  VaultError,
+  type VaultRepoPort,
+  type VaultContext,
+  type VaultKind,
+  type VaultMeta,
+  type VaultMetaParser,
+  type VaultMetaParsers,
+  type VaultOptions,
+} from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createStoreKeyring, protectStorage } from "./store-vault-guards.js";
 import { assertHostMetaRules, assertRecoveryMeta, parseStructuralMeta, withRecoveryMeta } from "./vault-meta-rules.js";
 
@@ -61,12 +70,12 @@ function createHostParser(
  */
 export function createTovuStoreVault(required: {
   repo: { vault?: VaultRepoPort }; kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; sealer: SecretSealerPort;
-  keyring?: KeyringPort; clock?: Clock; storageError: (error?: unknown) => Error;
+  keyring?: KeyringPort; clock?: Clock; storageError: (required: {}, options?: { error?: unknown }) => Error;
   /** Assistant stores constrain the full session/site scope and mint stable singleton IDs. */
   context?: VaultContext; newId?: (input: VaultOptions) => string;
 }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
-  const protect = <T>(operation: () => Promise<T>): Promise<T> => protectStorage({ operation, source: required });
+  const protect = <T>({ operation }: { operation: () => Promise<T> }, _optional = {}): Promise<T> => protectStorage({ operation, source: required });
   return new SecretsVaultService({ repo: required.repo.vault, metaParsers: storeMetaParsers,
     authorize: async ({ context }) => {
       if (required.context && context.workspaceId !== required.context.workspaceId) throw new VaultError({ code: "context" });
@@ -75,8 +84,8 @@ export function createTovuStoreVault(required: {
       if (invalidOwner || invalidScope) throw new VaultError({ code: "context" });
     },
     keyring: createStoreKeyring({ source: required }),
-    sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })),
-      open: (input, options) => protect(() => required.sealer.open(input, options)) },
+    sealer: { seal: input => protect({ operation: () => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad }) }),
+      open: (input, options) => protect({ operation: () => required.sealer.open(input, options) }) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => {
       if (required.newId) return required.newId({});

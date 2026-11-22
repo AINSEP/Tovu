@@ -3,13 +3,12 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY, MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -18,9 +17,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * shared MCP-UI held-open exchange (2026-09-08, ADS-memory/reports/
  * 2026-09-08-delete-confirmation-build.md). Modeled on
  * `features/post/__tests__/agent-tools.delete-confirmation.test.ts`, scoped to this domain's own
- * result shape. `deleteSubscription` performs its own fresh existence lookup at write time (no
- * `expectedVersion` field anywhere in its input), so there is no separate staleness re-check to
- * certify here.
+ * result shape. `deleteSubscription` compares the confirmed `expectedVersion` at write time;
+ * Jini rejects a write conflict as a target changed while confirmation was open refusal.
  */
 
 const WORKSPACE_ID = "ws-webhooks-delete-confirm";
@@ -48,7 +46,7 @@ async function seedSubscription(deps: IntegrationsToolDeps, overrides: { label?:
       clock: deps.clock,
       repo: deps.webhookSubscriptionRepo,
       idGenerator: deps.idGen,
-      isAllowedTarget: (url: string) => deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
+      isAllowedTarget: ({ url }: { url: string }) => deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
     },
     input: {
       workspaceId: WORKSPACE_ID,
@@ -338,4 +336,25 @@ test("a run aborted while the confirmed delete re-checks permission is abandoned
   assert.equal(authorizations, 2);
   const row = await deps.webhookSubscriptionRepo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
   assert.equal(row?.status, "active", "an abandoned run must not delete");
+});
+
+// REGRESSION (Stop before write): Stop pressed while the confirmed delete re-read the subscription
+// used to let the delete go through, after the run had already been told the call was stopped.
+test("a confirmed delete leaves the subscription in place when Stop lands during the re-read", async () => {
+  const deps = makeDeps();
+  const subscription = await seedSubscription(deps);
+  const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), DELETE_TOOL_ID);
+  const controller = new AbortController();
+  const { exchangeId, pending } = await raiseDialog(deleteTool, subscription.id, controller.signal);
+
+  const repo = deps.webhookSubscriptionRepo;
+  const read = repo.findById.bind(repo);
+  repo.findById = async (input) => { const row = await read(input); controller.abort(); return row; };
+  surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL_ID, params: { decision: "confirm" } }, { toolId: DELETE_TOOL_ID });
+  await pending.catch(() => undefined);
+  repo.findById = read;
+
+  const row = await repo.findById({ workspaceId: WORKSPACE_ID, id: subscription.id });
+  assert.equal(row?.status, "active", "a stopped call must not have deleted the subscription");
 });

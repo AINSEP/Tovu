@@ -14,7 +14,8 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { SourceControlCommitAdapter, SourceControlCommitResult } from "../commit-site.js";
+import type { SourceControlCommitAdapter } from "../commit-site.js";
+import type { SourceControlCommitResult } from "../provider-module.js";
 import { type LoadSourceControlProviders } from "../provider-registry.js";
 import { createSourceControlCredential } from "../store.js";
 import { createCustomCredential } from "../../custom-credentials/store.js";
@@ -23,8 +24,10 @@ import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtur
 import { githubFromSource } from "./fixtures/github-from-source.js";
 
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 
 /**
@@ -67,6 +70,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
     exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []})),
     sourceControlExportRootDir: exportDir,
     staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
+    staticSitePackager: createStaticSitePackager(),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -138,14 +142,14 @@ async function clickDialogAction(html: string, action: "confirm" | "cancel", sur
     addEventListener(name: string, fn: (event: unknown) => void) { this.listeners.set(name, fn); },
   }));
   let route!: (req: unknown, res: unknown) => Promise<void>;
-  registerMcpUiToolCallsRoute({ post: (_path: string, handler: typeof route) => { route = handler; } } as never, {
-    surfaceExchanges, toolExecutor: { execute: async () => { assert.fail("an exchange answer must not execute a fresh tool"); } } as never,
-  });
+  registerMcpUiToolCallsRoute({ app: { post: (_path: string, handler: typeof route) => { route = handler; } } as never, deps: {
+    scheduler: nodeIntervalScheduler, surfaceExchanges, toolExecutor: { execute: async () => { assert.fail("an exchange answer must not execute a fresh tool"); } } as never,
+  } });
   const routed: Promise<void>[] = [];
   let time = 0;
   const api = {
     callTool: (toolName: string, params: Record<string, unknown>) => {
-      const response = { statusCode: 0, status(code: number) { this.statusCode = code; return this; }, json(body: unknown) { assert.equal(this.statusCode, 202); assert.deepEqual(body, { delivered: true }); } };
+      const response = { statusCode: 0, on() { return this; }, off() { return this; }, status(code: number) { this.statusCode = code; return this; }, json(body: unknown) { assert.equal(this.statusCode, 202); assert.deepEqual(body, { delivered: true }); } };
       const pending = route({ get: () => PRINCIPAL_ID, body: { toolName, params } }, response);
       routed.push(pending);
       return pending;
@@ -495,7 +499,7 @@ test('without an adapter override the provider owns the commit, receiving only i
     ...base.module.create({ kit }),
     commitSite: async (input: unknown) => { captured.push(input); return { ok: false as const, code: 'repository-not-found' as const, message: 'example repository unavailable' }; },
   }) } };
-  const { deps } = fakeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === base.descriptor.id ? loaded : undefined, refusals: [] }) });
+  const { deps } = fakeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === base.descriptor.id ? loaded : undefined, refusals: [] }) });
   await seedExampleGitCredential(deps, 'fixture-wiring-token');
   const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' })), 'source_control_execute_commit');
   const { pending } = await beginCall(executeTool, { provider: 'example-git', owner: 'octo', repo: 'demo', commitMessage: 'x' });
@@ -703,7 +707,7 @@ test("saved GitHub API key: explicit connection wins with both present, then del
   const explicit = await createSourceControlCredential({ deps: {
     repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
-    loadSourceControlProviders: githubFromSource, fetchFn: async () => new Response('{"login":"octo"}'),
+    loadSourceControlProviders: githubFromSource, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: '{"login":"octo"}' }) },
   }, input: { workspaceId: deps.workspaceId, scope: "site", label: "Explicit GitHub",
     connection: { providerId: "github", token: EXPLICIT_GITHUB_KEY } } });
   const { execute } = savedKeyTools({ deps });
@@ -720,10 +724,10 @@ test("saved GitHub API key: explicit connection wins with both present, then del
 });
 
 test("saved GitHub API key: capabilities reports configured and its source without opening the secret", async () => {
-  const { deps } = fakeDeps({ loadSourceControlProviders: async workspaceId => {
-    const github = await githubFromSource(workspaceId);
+  const { deps } = fakeDeps({ loadSourceControlProviders: async ({ workspaceId }) => {
+    const github = await githubFromSource({ workspaceId });
     const other = exampleRegistry({ probe: false, ids: ["example-git"] });
-    return { list: () => [...github.list(), ...other.list()], get: id => github.get(id) ?? other.get(id), refusals: [] };
+    return { list: () => [...github.list(), ...other.list()], get: (required) => github.get(required) ?? other.get(required), refusals: [] };
   } });
   await seedSavedGitHubApiKey({ deps });
   let opens = 0;

@@ -8,7 +8,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { confirm as gatewayConfirm, ForbiddenError } from "#src/contracts/core/gated-mutations/gateway";
 import { buildGatewayDeps, buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
-import { entityKey } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import type { PublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
 import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
 
@@ -295,7 +295,7 @@ test("publish-content import: overwriteEntityKeys forces a no-baseline conflict 
   });
   const { bundleId } = await expectJson<{ bundleId: string }>(stageRes, 201);
 
-  const key = entityKey("post", post.id);
+  const key = entityKey({ entityType: "post", entityId: post.id });
 
   const planRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/plan`, {
     method: "POST",
@@ -447,8 +447,8 @@ test("publish-content run status returns persisted progress, isolates workspaces
     phase: "applied" as const, restorePointId: "restore-status", changeSetIdsJson: '["change-status"]', actorId: "operator-1",
     startedAt, finishedAt: startedAt, reportJson: null, itemsJson: "[]",
   };
-  await deps.publishContentRunRepo.save(record);
-  await deps.publishContentRunRepo.save({ ...record, id: "foreign-run", workspaceId: "foreign-workspace" });
+  await deps.publishContentRunRepo.save({ record });
+  await deps.publishContentRunRepo.save({ record: { ...record, id: "foreign-run", workspaceId: "foreign-workspace" } });
   const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/runs`;
   const response = await fetch(`${url}/status-run`, { headers: { cookie } });
   assert.deepEqual(await expectJson(response, 200), {

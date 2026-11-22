@@ -10,16 +10,16 @@ test("nodeProvisioningFileIo reads missing files as null and replaces complete U
   const root = await mkdtemp(join(tmpdir(), "tovu-provisioning-io-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, "nested", "config.json");
-  assert.equal(await nodeProvisioningFileIo.read(path), null);
+  assert.equal(await nodeProvisioningFileIo.read({ path: path }), null);
   const first = '{"site":"café","grants":["publish","read"]}\n';
-  await nodeProvisioningFileIo.write(path, first);
-  assert.equal(await nodeProvisioningFileIo.read(path), first);
+  await nodeProvisioningFileIo.write({ path, contents: first });
+  assert.equal(await nodeProvisioningFileIo.read({ path: path }), first);
   assert.equal(await readFile(path, "utf8"), first);
   const originalInode = (await stat(path)).ino;
 
   const replacement = '{"grants":[]}\n';
-  await nodeProvisioningFileIo.write(path, replacement);
-  assert.equal(await nodeProvisioningFileIo.read(path), replacement);
+  await nodeProvisioningFileIo.write({ path, contents: replacement });
+  assert.equal(await nodeProvisioningFileIo.read({ path: path }), replacement);
   assert.equal(await readFile(path, "utf8"), replacement);
   assert.notEqual((await stat(path)).ino, originalInode, "replacement must rename a complete staging file over the target");
   assert.deepEqual(await readdir(dirname(path)), ["config.json"], "successful replacement leaves no staging file");
@@ -29,11 +29,11 @@ test("nodeProvisioningFileIo propagates non-missing read errors rather than retu
   const root = await mkdtemp(join(tmpdir(), "tovu-provisioning-unreadable-"));
   const path = join(root, "config.json");
   t.after(() => rm(root, { recursive: true, force: true }));
-  await nodeProvisioningFileIo.write(path, '{"grants":["publish"]}');
+  await nodeProvisioningFileIo.write({ path, contents: '{"grants":["publish"]}' });
   // A directory cannot be read as a config document, even when the runner is root (chmod-based
   // permission fixtures would silently become readable in that environment).
-  await assert.rejects(nodeProvisioningFileIo.read(root), { code: "EISDIR" });
-  assert.equal(await nodeProvisioningFileIo.read(path), '{"grants":["publish"]}');
+  await assert.rejects(nodeProvisioningFileIo.read({ path: root }), { code: "EISDIR" });
+  assert.equal(await nodeProvisioningFileIo.read({ path: path }), '{"grants":["publish"]}');
 });
 
 /**

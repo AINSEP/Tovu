@@ -1,8 +1,9 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { mailDnsPorts, readMailDnsStatus, verifyMailDnsStatus, type DnsChangeToolDeps, type MailDnsStatus } from "#src/features/domain-dns/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file The Email page's **Sender and DNS** section, over the same operations as `mail_dns_status`
@@ -24,7 +25,7 @@ export interface AdminMailDnsDeps {
 type Operation = (required: Record<string, never>, ports: ReturnType<typeof mailDnsPorts>) => Promise<MailDnsStatus>;
 
 /** One authorized call of `operation`, with the mail-status route's 404/403/500 shapes. */
-function handler(deps: AdminMailDnsDeps, permission: string, operation: Operation) {
+function handler({ deps, permission, operation }: { deps: AdminMailDnsDeps; permission: string; operation: Operation }, _optional = {}) {
   return async (req: Request, res: Response): Promise<void> => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -32,11 +33,8 @@ function handler(deps: AdminMailDnsDeps, permission: string, operation: Operatio
     }
     try {
       const principal = getAuthedPrincipal(res);
-      const auth = await deps.dns.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "domain-dns" });
-      if (!auth.allowed) {
-        res.status(403).json({ error: `principal '${principal.id}' is not authorized for '${permission}' (${auth.reason})`, code: "FORBIDDEN", details: { permission, reason: auth.reason } });
-        return;
-      }
+      const params = { principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "domain-dns" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.dns.authorize, params }))) return;
       res.status(200).json(await operation({}, mailDnsPorts(deps.dns)));
     } catch (err) {
       sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-dns", code: "INTERNAL_ERROR" });
@@ -49,7 +47,7 @@ function handler(deps: AdminMailDnsDeps, permission: string, operation: Operatio
  * @complexity O(1) registration; each request is one operation run.
  * @example registerAdminMailDnsRoutes(app, { workspaceId, dns })
  */
-export function registerAdminMailDnsRoutes(app: Express, deps: AdminMailDnsDeps): void {
-  app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-dns", handler(deps, "deployments.read", readMailDnsStatus));
-  app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify", handler(deps, "deployments.publish", verifyMailDnsStatus));
+export function registerAdminMailDnsRoutes({ app, deps }: { app: Express; deps: AdminMailDnsDeps }, _optional: Record<string, never> = {}): void {
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-dns", handler({ deps, permission: "deployments.read", operation: readMailDnsStatus }));
+  app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify", handler({ deps, permission: "deployments.publish", operation: verifyMailDnsStatus }));
 }

@@ -42,7 +42,7 @@ test("GET /: an override redirect rule claiming / answers before any content ren
 
 test("GET /_more/1/<after>: a batch request for a static home with no see-more listing falls through to the 404", async (t) => {
   const base = createRouteDeps();
-  const { baseUrl } = await boot(t, { postRepo: new InMemoryPostRepo(Array.from({ length: 3 }, (_, index) => publishedPost(base.workspaceId, index))) });
+  const { baseUrl } = await boot(t, { postRepo: new InMemoryPostRepo({}, { initialRows: Array.from({ length: 3 }, (_, index) => publishedPost(base.workspaceId, index)) }) });
   assert.equal((await fetch(`${baseUrl}/`)).status, 200, "control: the home page itself renders");
   assert.equal((await fetch(`${baseUrl}/_more/1/13`)).status, 404);
 });
@@ -55,7 +55,7 @@ const titlesIn = (html: string) => [...html.matchAll(/<title>([^<]*)<\/title>/g)
 async function staticHomeTitles(t: TestContext, siteTitle: () => Promise<string | undefined>) {
   const theme = starterTheme();
   const base = createRouteDeps();
-  const { baseUrl } = await boot(t, { themes: [theme], postRepo: new InMemoryPostRepo([]), seoDeps: { ...base.seoDeps, siteTitle } });
+  const { baseUrl } = await boot(t, { themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }), seoDeps: { ...base.seoDeps, siteTitle } });
   const response = await fetch(`${baseUrl}/`);
   assert.equal(response.status, 200);
   return { titles: titlesIn(await response.text()), themeTitle: titlesIn(theme.pages.index ?? "")[0] };

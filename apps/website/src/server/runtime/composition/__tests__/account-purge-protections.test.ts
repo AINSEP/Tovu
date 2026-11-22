@@ -1,4 +1,4 @@
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutionContext } from "@jini-ai/core";
@@ -20,7 +20,7 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { createAppPermissionGrants } from "../app-permission-grants.js";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { buildPermanentDeleteDeps } from "../permanent-delete-deps.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -31,21 +31,21 @@ async function setup() {
   let n = 0;
   const idGen = { newId: () => `purge-${++n}` };
   db.$client.prepare("INSERT INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)").run(workspaceId, workspaceId, workspaceId, clock.nowIso());
-  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db: contentKernel(db), workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, db: contentKernel({ store: db }), workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}) });
   await identity.identityReady;
   const ownerId = await identity.ownerPrincipalId;
   const service = identityServiceDepsFrom({ ...identity, clock, idGen });
-  const trashRepo = new SqliteTrashRepo(db.$client);
-  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
+  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: { next: idGen.newId }, clock,
     assertAccountAction: (required, optional) => identity.transactions.run({ workspaceId, execute: () => assertUserAccountAction({ ...required, deps: service }, { ...optional, seededOwnerPrincipalId: ownerId }) }),
   });
   const trash = createTrashService({ repo: trashRepo, adapters: new Map([["user", adapter]]), idGen,
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work), entityPolicy: ({ entityType }) => entityType === "user" });
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work), entityPolicy: ({ entityType }) => entityType === "user" });
   const authorize = withUserTrashAdminOverride({ base: async () => ({ allowed: true, reason: "grant" }), identity: service, workspaceId, seededOwnerPrincipalId: ownerId });
-  const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel(db), authorize };
+  const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel({ store: db }), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);
   const app = express();
-  registerAdminTrashPurgeRoute(app, routeDeps);
+  registerAdminTrashPurgeRoute({ app, deps: routeDeps });
   const make = async (name: string, role: "admin" | "owner" | undefined = undefined) => {
     const { principal } = await createUser({ deps: service, input: { workspaceId, callerPrincipalId: ownerId, username: name, password: "correct-horse-battery" } });
     if (role) {

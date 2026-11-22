@@ -1,7 +1,7 @@
 // The local trash fork was removed; @jini-ai/cms/trash owns the shared adapter/hooks.
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { NavigationEventName, NavMenuChangedPayload, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 /**
@@ -48,10 +48,8 @@ export interface MenuTrashFollowUpHooks {
 
 /** @complexity O(1): builds one event from an already-loaded menu row. */
 function buildEvent(
-  deps: MenuTrashFollowUpDeps,
-  name: NavigationEventName,
-  workspaceId: UUID,
-  menu: NavMenuEntry
+  { deps, name, workspaceId, menu }: { deps: MenuTrashFollowUpDeps; name: NavigationEventName; workspaceId: UUID; menu: NavMenuEntry },
+  _optional = {}
 ): DomainEvent<NavMenuChangedPayload> {
   const payload: NavMenuChangedPayload = { menuId: menu.id, slug: menu.slug };
   return {
@@ -81,16 +79,16 @@ export function buildMenuTrashFollowUpHooks(deps: MenuTrashFollowUpDeps): MenuTr
   return {
     afterHide: async ({ workspaceId, entityId }) => {
       const menu = await deps.menuRepo.findByIdIncludingTrashed({ workspaceId, id: entityId });
-      if (menu) await enqueue(buildEvent(deps, "navigation.menu.updated", workspaceId, menu));
+      if (menu) await enqueue(buildEvent({ deps, name: "navigation.menu.updated", workspaceId, menu }));
     },
     afterUnhide: async ({ workspaceId, entityId }) => {
       const menu = await deps.menuRepo.findById({ workspaceId, id: entityId });
-      if (menu) await enqueue(buildEvent(deps, "navigation.menu.updated", workspaceId, menu));
+      if (menu) await enqueue(buildEvent({ deps, name: "navigation.menu.updated", workspaceId, menu }));
     },
     beforePurge: ({ workspaceId, entityId }) => deps.menuRepo.findByIdIncludingTrashed({ workspaceId, id: entityId }),
     afterPurge: async ({ workspaceId, priorState }) => {
       const menu = priorState as NavMenuEntry | null;
-      if (menu) await enqueue(buildEvent(deps, "navigation.menu.deleted", workspaceId, menu));
+      if (menu) await enqueue(buildEvent({ deps, name: "navigation.menu.deleted", workspaceId, menu }));
     },
   };
 }

@@ -24,7 +24,7 @@
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { fileURLToPath } from "node:url";
 
@@ -59,7 +59,7 @@ function candidatePaths(): string[] {
 /** A one-line fix hint for a single offending path — rename it, or add it to `ALLOWLIST` above with
  *  a reason, the same paperwork every other named exception in this repo carries.
  *  @complexity O(1). */
-function fixHint(offender: string): string {
+function fixHint({ offender }: { offender: string }, _options = {}): string {
   const converted = offender.replace(/\.(mjs|cjs|js)$/, ".ts");
   return `  - ${offender} — rename to ${converted}, or add it to ALLOWLIST in this script with a reason.`;
 }
@@ -79,10 +79,10 @@ interface CheckOutput {
  */
 function runJsBackslideCheck({ listPaths, out, err }: CheckOutput & { listPaths: () => string[] }): number {
   try {
-    const offenders = jsBackslideOffenders(listPaths(), ALLOWLIST);
+    const offenders = jsBackslideOffenders({ paths: listPaths() }, { allowlist: ALLOWLIST });
     if (offenders.length > 0) {
       err("check-js-backslide: apps/desktop must stay TypeScript-only — found JavaScript-family file(s):\n");
-      for (const offender of offenders) err(`${fixHint(offender)}\n`);
+      for (const offender of offenders) err(`${fixHint({ offender })}\n`);
       return 1;
     }
     out("check-js-backslide: OK — apps/desktop is TypeScript-only\n");

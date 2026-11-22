@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { memoryWidgetTrash } from "../support/memory-widget-trash.js";
@@ -12,7 +12,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -49,7 +49,7 @@ function makeDeps(): WidgetsToolDeps {
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
     widgetBindingRepo: new InMemoryWidgetRegionBindingRepo(),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     forgetRemovedPost: async () => {},
     changeSets: new InMemoryChangeSetRepo(),
     pluginBeforeSaveHook: undefined as unknown as WidgetsToolDeps["pluginBeforeSaveHook"],

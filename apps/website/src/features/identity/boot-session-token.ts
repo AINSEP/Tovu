@@ -68,13 +68,13 @@ export interface BootSessionTokenStore {
   /** Mint and arm a new token, replacing any previous one. Returns the raw token to hand out. */
   mint: () => string;
   /** Exchange a raw token. `true` at most once per {@link mint}; `false` for everything else. */
-  redeem: (rawToken: unknown) => boolean;
+  redeem: (required: { rawToken: unknown }, optional?: {}) => boolean;
   /** Whether a token is currently armed. Diagnostics only — never an authorization decision. */
   isArmed: () => boolean;
 }
 
 /** SHA-256 digest of a raw token. Fixed length, which is what makes `timingSafeEqual` usable. */
-function digest(rawToken: string): Buffer {
+function digest({ rawToken }: { rawToken: string }, _options = {}): Buffer {
   return createHash("sha256").update(rawToken, "utf8").digest();
 }
 
@@ -90,11 +90,11 @@ export function createBootSessionTokenStore(): BootSessionTokenStore {
   return {
     mint(): string {
       const rawToken = randomBytes(TOKEN_BYTES).toString("base64url");
-      armed = digest(rawToken);
+      armed = digest({ rawToken });
       return rawToken;
     },
 
-    redeem(rawToken: unknown): boolean {
+    redeem({ rawToken }: { rawToken: unknown }, _options = {}): boolean {
       if (armed === null) return false;
       if (typeof rawToken !== "string" || rawToken.length === 0) return false;
 
@@ -102,7 +102,7 @@ export function createBootSessionTokenStore(): BootSessionTokenStore {
       // checking halfway through, and so the clear below cannot race a second redeem into
       // succeeding against an already-spent token.
       const expected = armed;
-      if (!timingSafeEqual(digest(rawToken), expected)) return false;
+      if (!timingSafeEqual(digest({ rawToken }), expected)) return false;
 
       armed = null;
       return true;
@@ -125,8 +125,8 @@ export function mintBootSessionToken(): string {
 }
 
 /** Redeem a raw boot token. `false` unless one was minted this launch and this is it, first time. */
-export function redeemBootSessionToken(rawToken: unknown): boolean {
-  return processStore.redeem(rawToken);
+export function redeemBootSessionToken({ rawToken }: { rawToken: unknown }, _options = {}): boolean {
+  return processStore.redeem({ rawToken });
 }
 
 /** Whether this launch minted a boot token. Diagnostics only. */

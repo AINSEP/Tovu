@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it, vi } from 'vitest';
-import { useAssistantTransport } from '@/components/AssistantDock/hooks/AssistantDock.hooks';
-import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/AssistantDock.hooks';
+import { useAssistantTransport } from '@/components/AssistantDock/hooks/assistant-transport.hooks';
+import type { UseExecutionConfig } from '@/components/AssistantDock/hooks/execution-config.hooks';
 import { DEFAULT_EXECUTION_CONFIG } from '@/lib/execution-settings';
 import { useTovuDockExecution, useTovuSettingsExecution } from '../use-tovu-execution-adapters.hooks';
 import { useTovuExecutionPolicy } from '../use-tovu-execution-policy.hooks';
@@ -70,9 +70,9 @@ it('prevents deployed picker inventory IO and normalization writes', async () =>
   expect(await hidden.daemonOnline()).toBe(false);
   expect(port.listAgents).not.toHaveBeenCalled();
   const changed = vi.fn();
-  result.current.selectionChange(changed)({ agentId: 'claude' });
+  result.current.selectionChange({ change: changed })({ agentId: 'claude' });
   expect(changed).not.toHaveBeenCalled();
-  expect(result.current.agents([{ id: 'codex', name: 'Codex' }])).toEqual([]);
+  expect(result.current.agents({ agents: [{ id: 'codex', name: 'Codex' }] })).toEqual([]);
 });
 
 it('preserves mode through deployed BYOK settings edits without a mount-time write', async () => {

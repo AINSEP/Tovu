@@ -30,29 +30,29 @@ type GuestContents = NavigableContents & {
  * guest ANY window's `<webview>` ever attaches, and `contents.getType() !== "webview"` filters out
  * everything else (the sites home window's own top-level content included).
  *
- * @param contents the newly created contents, of any type.
- * @param isSupervisedGuestUrl whether a URL is one of this launch's supervised sites, read per call.
- * @param openExternal hands a URL to the operator's own browser.
+ * @param required.contents the newly created contents, of any type.
+ * @param required.isSupervisedGuestUrl whether a URL is one of this launch's supervised sites, read per call.
+ * @param required.openExternal hands a URL to the operator's own browser.
  * @complexity O(1) per event, beyond `isSupervisedGuestUrl`'s own cost.
  */
 function installWebviewGuestPolicy(
   { contents, isSupervisedGuestUrl, openExternal }: {
-    contents: GuestContents; isSupervisedGuestUrl: (url: string) => boolean; openExternal: (url: string) => void;
+    contents: GuestContents; isSupervisedGuestUrl: (required: { url: string }) => boolean; openExternal: (required: { url: string }) => void;
   },
   _optional = {},
 ): void {
   if (contents.getType() !== "webview") return;
 
-  const openExternally = (url: string) => {
-    if (isSupervisedGuestUrl(url)) openExternal(url);
+  const openExternally = ({ url }: { url: string }, _optional = {}) => {
+    if (isSupervisedGuestUrl({ url })) openExternal({ url });
   };
 
   installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal });
 
   contents.on("will-navigate", (event, url) => {
-    if (isSameOrigin(url, contents.getURL())) return;
+    if (isSameOrigin({ candidate: url, reference: contents.getURL() })) return;
     event.preventDefault();
-    openExternally(url);
+    openExternally({ url });
   });
 
   // A server-side 30x never fires `will-navigate`, and a site's redirect rules may name another
@@ -61,7 +61,7 @@ function installWebviewGuestPolicy(
   // never runs the preload. Nothing is handed to the OS browser: `openExternally` only ever opens
   // a supervised url, and a supervised url is allowed here.
   contents.on("will-redirect", (details) => {
-    if (!details.isMainFrame || isSupervisedGuestUrl(details.url)) return;
+    if (!details.isMainFrame || isSupervisedGuestUrl({ url: details.url })) return;
     details.preventDefault();
   });
 }

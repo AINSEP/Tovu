@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties, JSX } from "react";
 import { resolveTone, toneClassName, type RowMenuProps } from "@jini-ai/admin/react";
-import { agentHandle, buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useTaxonomyRowMenu } from "./TaxonomyRowMenu.hooks";
 
 type MenuState = ReturnType<typeof useTaxonomyRowMenu>;
@@ -9,6 +9,7 @@ type MenuState = ReturnType<typeof useTaxonomyRowMenu>;
 export type TaxonomyRowMenuProps = Pick<RowMenuProps, "items" | "triggerLabel" | "agentHandle"> & {
   /** Mounted page root, outside the row scroller and inside the scoped agent driver. */
   portalContainer: HTMLElement | null;
+  useTaxonomyRowMenuHook?: typeof useTaxonomyRowMenu;
 };
 
 /**
@@ -19,8 +20,9 @@ export type TaxonomyRowMenuProps = Pick<RowMenuProps, "items" | "triggerLabel" |
  * @returns Trigger plus a fixed popup; no popup is allowed before the page root mounts.
  * @example <TaxonomyRowMenu items={actions} triggerLabel="Actions" portalContainer={pageRoot} />
  */
-export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, portalContainer }: TaxonomyRowMenuProps): JSX.Element {
-  const menu = useTaxonomyRowMenu({ itemCount: items.length });
+export function TaxonomyRowMenu({ items, triggerLabel, agentHandle: baseHandle, portalContainer,
+  useTaxonomyRowMenuHook = useTaxonomyRowMenu }: TaxonomyRowMenuProps): JSX.Element {
+  const menu = useTaxonomyRowMenuHook({ itemCount: items.length });
   const itemHandles = baseHandle ? buildAgentListHandles({ prefix: `${baseHandle}-item`, ids: items.map((item) => item.key) }) : undefined;
   return <>
     <button

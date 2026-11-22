@@ -6,10 +6,10 @@ import { createMenuPageTargetResolver } from "../page-target-resolver.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 test("a routing miss uses only a safe last-known URL, scoped to the requested workspace", async () => {
-  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo([
+  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo({}, { initialRows: [
     buildPostRecord({ id: "missing", workspaceId: "other", kind: "page", title: "Other page", slug: "other-path", status: "published",
       bodyJson: {}, updatedAt: "2026-10-04", version: 1 }),
-  ]) });
+  ] }) });
   const context = { workspaceId: "ws" };
   const target = { kind: "entryRef" as const, entryId: "missing", entryType: "page", lastKnownHref: "/about" };
   assert.deepEqual(await resolve({ target, context }), { path: "/about", available: true });
@@ -21,12 +21,12 @@ test("a routing miss uses only a safe last-known URL, scoped to the requested wo
 });
 
 test("a URL target is left to the menu's URL resolver", async () => {
-  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo([]) }, {});
+  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) }, {});
   assert.equal(await resolve({ target: { kind: "url", href: "/about" }, context: { workspaceId: "ws" } }), null);
 });
 
 test("a missing entry with a whitespace-only URL snapshot stays unresolved", async () => {
-  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo([]) });
+  const resolve = createMenuPageTargetResolver({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   assert.equal(await resolve({
     target: { kind: "entryRef", entryId: "missing", lastKnownHref: " \t\n " },
     context: { workspaceId: "ws" },

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, FormDeliveryError } from "@jini-ai/cms/forms";
 import { InMemoryEventBus, InMemoryOutbox } from "../memory-bus.js";
 import { startOutboxDrainer } from "../outbox-drainer.js";
@@ -82,7 +82,7 @@ test("processOutbox schedules a retryable form-delivery failure on the webhook b
   await outbox.enqueue(event(FORM_DELIVERY_EVENT));
   await processOutbox({ outbox, bus, clock: { nowMs: () => NOW_MS } }, { random: () => 0 });
   const [retry] = await outbox.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" });
-  assert.deepEqual([retry?.nextAttemptAt, retry?.lastError], [new Date(NOW_MS + FIRST_WEBHOOK_BACKOFF_MS).toISOString(), "delivery-failed"]);
+  assert.deepEqual([retry?.nextAttemptAt, retry?.lastError], [new Date(NOW_MS + FIRST_WEBHOOK_BACKOFF_MS).toISOString(), "Error"] /* class label only: describeErrorForLog, infra outbox/worker.ts */);
 });
 
 test("the background drainer applies the same table: a non-retryable form delivery is attempted once", async (t) => {

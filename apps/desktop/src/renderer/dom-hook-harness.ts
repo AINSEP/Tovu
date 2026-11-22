@@ -37,9 +37,9 @@ export interface RenderedHook<T> {
 
 /**
  * Render `useHook` into its own root; `current()` is the value from the latest render.
- * @param t the test context, so the root is unmounted when the test ends.
+ * @param required.t the test context, so the root is unmounted when the test ends.
  */
-export function renderHook<T>(t: { after: (fn: () => void) => void }, useHook: () => T): RenderedHook<T> {
+export function renderHook<T>({ t, useHook }: { t: { after: (fn: () => void) => void }; useHook: () => T }, _options = {}): RenderedHook<T> {
   const window = installDom();
   let latest!: T;
   function Probe() { latest = useHook(); return null; }

@@ -1,3 +1,4 @@
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,7 +6,6 @@ import {
   bodyRecord,
   bodyStringField,
   fileExtension,
-  nextAvailableFileName,
   reloadTheme,
   renameThemeFileIfChanged,
 } from "../explore.js";
@@ -29,17 +29,17 @@ test("fileExtension: a path with no dot after the last slash has no extension", 
   // `nextAvailableFileName`'s doc explicitly cross-references this exact rule (dot must fall AFTER
   // the last slash to count as the file's own extension), and `isSourceDirWritableExtension` is the
   // one real caller -- a sourceDir file like `Makefile` or `LICENSE` has no extension at all.
-  assert.equal(fileExtension("Makefile"), "");
-  assert.equal(fileExtension("src/LICENSE"), "");
+  assert.equal(fileExtension({ relativePath: "Makefile" }), "");
+  assert.equal(fileExtension({ relativePath: "src/LICENSE" }), "");
 });
 
 test("fileExtension: a dotfile/directory-with-a-dot before the last slash still has no extension", () => {
-  assert.equal(fileExtension("v1.0/README"), "");
+  assert.equal(fileExtension({ relativePath: "v1.0/README" }), "");
 });
 
 test("fileExtension: a real extension is lowercased and returned with its leading dot", () => {
-  assert.equal(fileExtension("pages/about.HTML"), ".html");
-  assert.equal(fileExtension("styles.css"), ".css");
+  assert.equal(fileExtension({ relativePath: "pages/about.HTML" }), ".html");
+  assert.equal(fileExtension({ relativePath: "styles.css" }), ".css");
 });
 
 test("nextAvailableFileName: a desired path with no existing collision is returned unchanged", () => {
@@ -68,26 +68,26 @@ test("bodyRecord: a nullish body coerces to an empty object", () => {
   // Unreachable through any real route: the app's global `express.json()` (app.ts) always
   // defaults `req.body` to `{}` for any request it processes, so `body` is never actually
   // `undefined`/`null` at the one real call sites (bodyStringField, parseThemeFilePutBody).
-  assert.deepEqual(bodyRecord(undefined), {});
-  assert.deepEqual(bodyRecord(null), {});
+  assert.deepEqual(bodyRecord({ body: undefined }), {});
+  assert.deepEqual(bodyRecord({ body: null }), {});
 });
 
 test("bodyRecord: a real object body passes through unchanged", () => {
   const body = { path: "pages/index.html", content: "x" };
-  assert.deepEqual(bodyRecord(body), body);
+  assert.deepEqual(bodyRecord({ body }), body);
 });
 
 test("bodyStringField: a missing field defaults to the empty string", () => {
-  assert.equal(bodyStringField({}, "path"), "");
-  assert.equal(bodyStringField(undefined, "path"), "");
+  assert.equal(bodyStringField({ body: {}, field: "path" }), "");
+  assert.equal(bodyStringField({ body: undefined, field: "path" }), "");
 });
 
 test("bodyStringField: a present field is coerced to a string", () => {
-  assert.equal(bodyStringField({ path: "pages/index.html" }, "path"), "pages/index.html");
-  assert.equal(bodyStringField({ path: 42 }, "path"), "42");
-  assert.equal(bodyStringField({ path: false }, "path"), "false");
-  assert.equal(bodyStringField({ path: null }, "path"), "");
-  assert.equal(bodyStringField({ path: undefined }, "path"), "");
+  assert.equal(bodyStringField({ body: { path: "pages/index.html" }, field: "path" }), "pages/index.html");
+  assert.equal(bodyStringField({ body: { path: 42 }, field: "path" }), "42");
+  assert.equal(bodyStringField({ body: { path: false }, field: "path" }), "false");
+  assert.equal(bodyStringField({ body: { path: null }, field: "path" }), "");
+  assert.equal(bodyStringField({ body: { path: undefined }, field: "path" }), "");
 });
 
 test("reloadTheme: a themeId with no matching entry in deps.themes is a silent no-op", () => {
@@ -100,7 +100,7 @@ test("reloadTheme: a themeId with no matching entry in deps.themes is a silent n
   const original = { manifest: { id: "existing-theme" } } as ContentRouteDeps["themes"][number];
   const deps = { themes: [original] } as unknown as ContentRouteDeps;
 
-  reloadTheme(deps, "does-not-exist-in-themes-array");
+  reloadTheme({ deps, themeId: "does-not-exist-in-themes-array" });
 
   assert.equal(deps.themes.length, 1);
   assert.equal(deps.themes[0], original, "the unrelated existing entry must be untouched, not replaced");
@@ -123,13 +123,13 @@ test("renameThemeFileIfChanged: a destPath that resolves generated-readonly 409s
   const deps = {} as unknown as ContentRouteDeps;
   const { res, capture } = createCapturingResponse();
 
-  const changed = renameThemeFileIfChanged(
+  const changed = renameThemeFileIfChanged({
     deps,
     theme,
-    { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
-    new Set(["src/config.json"]),
-    res
-  );
+    paths: { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
+    existingPaths: new Set(["src/config.json"]),
+    res,
+  });
 
   assert.equal(changed, false);
   assert.equal(capture.statusCode, 409);

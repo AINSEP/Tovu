@@ -17,17 +17,17 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
 /**
  * Chat history backed by the host's own chat database.
  *
- * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`, which creates the
+ * @param required.store the chat kernel, or the open `chat.db` handle (`openChatDb`, which creates the
  *   tables) whose kernel to use. The store and its run ledger share that one kernel.
  */
-export function createChatStoreFactory(store: ChatKernel | SqliteConnectionSource): ChatStoreFactory {
-  const kernel = chatKernel(store);
+export function createChatStoreFactory({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}): ChatStoreFactory {
+  const kernel = chatKernel({ store });
   const ledger = createChatRunLedger({ store: kernel });
-  return (principal) => createTenantScopedChatStore(kernel, principal, ledger);
+  return (principal) => createTenantScopedChatStore({ db: kernel, principal: principal }, { ledger: ledger });
 }
 
 /**
- * Chat history backed by a private in-memory database, for `server/app.ts`'s test composition
+ * Chat history backed by a private in-memory database, for `apps/website/src/server/runtime/composition/app.ts`'s test composition
  * root.
  *
  * Opened lazily, matching `InMemoryPostSearchIndex`'s reasoning next to it: many tests build route
@@ -44,20 +44,20 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   // `openChatDb` turns `foreign_keys` on: without it the schema's `ON DELETE CASCADE` is inert, and
   // a test asserting that deleting a conversation removes its messages would pass against
   // production and fail here — or, worse, the reverse.
-  const open = (): ChatKernel => (db ??= chatKernel(openChatDb(":memory:")));
+  const open = (): ChatKernel => (db ??= chatKernel({ store: openChatDb({ filePath: ":memory:" }) }));
   // One kernel per connection (memoized), so building a ledger per use costs nothing and keeps the
   // database lazy.
   const chatRunLedger: ChatRunLedger = {
     hasActiveRuns: async () => db ? createChatRunLedger({ store: db }).hasActiveRuns({}, {}) : false,
     get durable() { return createChatRunLedger({ store: open() }).durable; },
-    unlessSettled: (run, write) => createChatRunLedger({ store: open() }).unlessSettled(run, write),
+    unlessSettled: (required, optional) => createChatRunLedger({ store: open() }).unlessSettled(required, optional),
     settle: (settlement) => createChatRunLedger({ store: open() }).settle(settlement),
     checkpoint: (progress, optional) => createChatRunLedger({ store: open() }).checkpoint(progress, optional),
     // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
     reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger({ store: db }).reconcileInterrupted(required, optional) : 0),
   };
   return {
-    chatHistory: (principal) => createTenantScopedChatStore(open(), principal, chatRunLedger),
+    chatHistory: (principal) => createTenantScopedChatStore({ db: open(), principal: principal }, { ledger: chatRunLedger }),
     chatRunLedger,
   };
 }

@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { createNodeAtomicFilesystem, writeFileAtomic } from "@jini-ai/platform/fs";
 
 /**
@@ -72,14 +74,16 @@ function requestRestartAcceptance({ requestFile, reason }: { requestFile: string
         remaining -= 1;
         if (remaining === 0) { resolve({ accepted: false, reason: "The dev supervisor did not confirm the restart request." }); return; }
         options.schedule(poll, 100);
-      } catch {
+      } catch (error) {
+        console.warn("[dev-restart] could not confirm the restart; the current server continues", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
         resolve({ accepted: false, reason: "Could not confirm the restart with the dev supervisor." });
       }
     };
     try {
       options.writeFile(requestFile, JSON.stringify({ reason, requestId, requestedAt: new Date().toISOString(), pid: process.pid }));
       options.schedule(poll, 100);
-    } catch {
+    } catch (error) {
+      console.warn("[dev-restart] could not send the restart request; the current server continues", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
       resolve({ accepted: false, reason: "Could not send the restart request to the dev supervisor." });
     }
   });

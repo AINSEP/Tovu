@@ -101,3 +101,14 @@ describe("browser-agent opt-out", () => {
     }
   });
 });
+
+describe("BrowserAgentSettingsPanel hook injection", () => {
+  it("renders the opt-out state returned by the injected useBrowserAgentSettingsHook and writes through it", async () => {
+    const setEnabled = vi.fn();
+    render(<BrowserAgentSettingsPanel locale="en" useBrowserAgentSettingsHook={() => ({ enabled: false, setEnabled })} />);
+    const toggle = screen.getByRole("checkbox");
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+    expect(setEnabled).toHaveBeenCalledWith({ enabled: true });
+  });
+});

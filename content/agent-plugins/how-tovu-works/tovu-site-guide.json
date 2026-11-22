@@ -5,7 +5,7 @@
       "id": "how-tovu-works-content",
       "title": "Content",
       "summary": "Reuse pages, posts and structured entries as the site data model.",
-      "explanation": "A directory starts with a content type and entries, not hardcoded profile cards in a theme. Choose fields from real requirements, discover the current content-type tools, and distinguish draft from published records. Render the same data in lists and pages. Public entry-page routing may require an additional capability; verify it rather than assuming every content type has its own public URL.",
+      "explanation": "A directory starts with a content type and entries, not hardcoded profile cards in a theme. Choose fields from real requirements, discover the current content-type tools, and distinguish draft from published records. Render the same data in lists and pages. Public entry-page routing may require an additional capability; verify it rather than assuming every content type has its own public URL. To build a page from an image, screenshot, mockup or design, create a page and put the full layout in the page's HTML so the editor's HTML and Interactive tabs show it. A post is a dated article (blog, news, update). Landing, service and about pages, anything with a custom or complex layout, and anything built from a design are pages. When unsure, use a page.",
       "permissions": [
         "content.read"
       ],
@@ -91,8 +91,8 @@
     {
       "id": "how-tovu-works-widgets",
       "title": "Widgets",
-      "summary": "Reuse widget instances and theme regions to compose pages.",
-      "explanation": "A widget instance is reusable content with a registered type/config schema. Creating it does not place it. Regions hold placements; an inline marker embeds an existing instance. Read current region versions before replacing placements. Contact forms reference native form definitions, recent-entry widgets reference real content, and unknown widget types must not be invented. A directory that needs filtering must verify a registered filtering capability before proposing it.",
+      "summary": "Reuse widget instances and theme regions for shared pieces; a page's own layout lives in its HTML.",
+      "explanation": "A widget instance is reusable content with a registered type/config schema. Creating it does not place it. Regions hold placements; an inline marker embeds an existing instance. Read current region versions before replacing placements. Contact forms reference native form definitions, recent-entry widgets reference real content, and unknown widget types must not be invented. A directory that needs filtering must verify a registered filtering capability before proposing it. Widgets are only for reusable pieces such as a contact form or a shared call to action: embed them in the page HTML with an inline marker, and never make widgets the page's main content.",
       "permissions": [
         "widgets.read"
       ],
@@ -148,7 +148,7 @@
       "id": "how-tovu-works-themes",
       "title": "Themes",
       "summary": "Use the active theme contracts, layouts and markers.",
-      "explanation": "Themes present site content; they do not own form persistence, member authorization or content CRUD. Before creating pages or themes, load the ui-ux-design skill first with agent_plugin_ui_ux_design({\"skill\":\"ui-ux-design\"}) and follow its guidance. Read installed/active theme facts and the current marker/layout registry. A single-quoted data-embed-config attribute carries JSON describing an existing content, form, widget, menu or partial target. Use only reported marker types. Duplicate the theme, inspect its actual files and preview changes before the owner approves activation. To make the site look like a URL, screenshot or picture, load agent_plugin_tovu_theme and follow its Part C: the duplicate is only a scaffold; rebuild the design system from the reference (palette, display and body fonts chosen to match it, type scale, layout) in tokens and css/theme.css instead of layering an override stylesheet on the starter; replace the starter's fonts; and fill photo slots with suitable images already in Media (content_read.media_asset) before any placeholder. Ask the host for another plugin capability rather than importing another plugin.",
+      "explanation": "Themes present site content; they do not own form persistence, member authorization or content CRUD. Before creating pages or themes, load the ui-ux-design skill first with agent_plugin_ui_ux_design({\"skill\":\"ui-ux-design\"}) and follow its guidance. Read installed/active theme facts and the current marker/layout registry. A single-quoted data-embed-config attribute carries JSON describing an existing content, form, widget, menu or partial target. Use only reported marker types. Duplicate the theme, inspect its actual files and preview changes before the owner approves activation. To make the site look like a URL, screenshot or picture, load agent_plugin_tovu_theme and follow its Part C: the duplicate is only a scaffold; rebuild the design system from the reference (palette, display and body fonts chosen to match it, type scale, layout) in tokens and css/theme.css instead of layering an override stylesheet on the starter; replace the starter's fonts; and fill photo slots with suitable images already in Media (content_read.media_asset) before any placeholder. That restyles the whole site; to build one page from a picture, screenshot or mockup, create a page and put its layout in the page's HTML (see how-tovu-works-content). Ask the host for another plugin capability rather than importing another plugin.",
       "permissions": [
         "theme.set"
       ],

@@ -1,9 +1,10 @@
 import { useConfirmRequest, type ConfirmDialogProps } from "@jini-ai/admin/react";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { useState } from "react";
 
 import { themeDeleteBlockReasonKey, type ThemeDeleteRequest } from "../theme-card-menu";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The card menu's "Delete theme…" flow (owner 2026-10-10): a refused Delete reports why, an
  * allowed one asks first ("Delete Plannie copy? It moves to Trash.") and only then calls `trash`.
@@ -28,7 +29,7 @@ export interface ThemeDeleteRequestController {
  * @complexity O(1) per request; at most one dialog open (a second request denies the first).
  */
 export function useThemeDeleteRequest(
-  required: { trash: (themeId: string) => Promise<void>; t: Translate },
+  required: { trash: (required: { themeId: string }, optional?: Record<string, never>) => Promise<void>; t: Translate },
   optional: { useConfirmation?: typeof useConfirmRequest } = {}
 ): ThemeDeleteRequestController {
   const { trash, t } = required;
@@ -39,7 +40,7 @@ export function useThemeDeleteRequest(
   async function requestDelete({ themeId, name, block }: ThemeDeleteRequest) {
     setBlockedNotice(null);
     if (block !== null) {
-      setBlockedNotice(t(themeDeleteBlockReasonKey(block)));
+      setBlockedNotice(t(themeDeleteBlockReasonKey({ block })));
       return;
     }
     const accepted = await approval.confirm({
@@ -50,7 +51,7 @@ export function useThemeDeleteRequest(
         tone: "danger",
       },
     });
-    if (accepted) await trash(themeId);
+    if (accepted) await trash({ themeId });
   }
 
   return { dialog: approval.dialog, requestDelete, blockedNotice, dismissBlockedNotice: () => setBlockedNotice(null) };

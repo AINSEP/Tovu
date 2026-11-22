@@ -1,6 +1,6 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import type { SiteStatusPort } from "#src/features/database/boot/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 
 /**
  * @file ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2
@@ -41,7 +41,7 @@ const ALWAYS_ALLOWED_PREFIXES = [
   // path-segment bounded and let such slugs bypass the block via the site's GET /:slug catch-all).
 ];
 
-function isAlwaysAllowed(path: string): boolean {
+function isAlwaysAllowed({ path }: { path: string }, _optional = {}): boolean {
   if (ALWAYS_ALLOWED_EXACT_PATHS.has(path)) return true;
   return ALWAYS_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
@@ -49,10 +49,10 @@ function isAlwaysAllowed(path: string): boolean {
 /** Mounts the recovery gate; status-store failures go to Express's error handler via `next`.
  * @complexity O(1) per request, with at most one status-store read.
  */
-export function applySiteServingGate(app: Express, deps: { siteStatusRepo: SiteStatusPort; workspaceId: string }): void {
+export function applySiteServingGate({ app, deps }: { app: Express; deps: { siteStatusRepo: SiteStatusPort; workspaceId: string } }, _optional: Record<string, never> = {}): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (isAlwaysAllowed(req.path)) {
+      if (isAlwaysAllowed({ path: req.path })) {
         next();
         return;
       }

@@ -25,94 +25,23 @@ test.use({ viewport: { width: 1280, height: 720 } });
 test.describe("Bug pin: plugin-install", { tag: "@isolated-site" }, () => {
   // Preserve the retired config budget for hooks as well as the test body.
   base.describe.configure({ timeout: 360_000 });
-// Runbook: README-plugin-install-tests.md.
-
-
-
-
-
-
-
-
-const test = base.extend<{ packages: PluginInstallFixtures; isolatedSite: IsolatedJourneySite }>({
-  isolatedSite: async ({ baseURL, journeySite: site }, use) => {
-    if (!site || !site.suite.startsWith("journeys") || site.database !== "sqlite" || (site.runtime !== "local-cli" && site.runtime !== "default")
-      || baseURL !== site.adminURL || site.adminURL !== `http://127.0.0.1:${site.ports.admin}`
-      || !site.runtimeDir.startsWith(path.join(os.tmpdir(), "tovu-journeys-"))
-      || site.siteDir !== path.join(site.runtimeDir, "sites", "journey-site")) {
-      throw new Error("Use playwright.journeys.config.ts; only its fresh isolated seeded site is allowed");
-    }
-    await use(site);
-  },
-  packages: async ({ isolatedSite, request }, use) => {
-    const packages = await createPluginInstallFixtures({ site: isolatedSite, request });
-    try { await use(packages); }
-    finally { await packages.cleanup(); } // Runs even when preview, chat or upgrade fails.
-  },
-});
-
-function handle({ page, name }: { page: Page; name: string }) {
-  return page.locator(`[data-agent-element=${JSON.stringify(name)}]`);
-}
-
-async function dropArchive({ page, zipPath }: { page: Page; zipPath: string }) {
-  const bytes = Array.from(await readFile(zipPath));
-  const transfer = await page.evaluateHandle(({ bytes, name }) => {
-    const transfer = new DataTransfer();
-    transfer.items.add(new File([new Uint8Array(bytes)], name, { type: "application/zip" }));
-    return transfer;
-  }, { bytes, name: path.basename(zipPath) });
-  try { await page.locator(".install-tab-dropzone").dispatchEvent("drop", { dataTransfer: transfer }); }
-  finally { await transfer.dispose(); }
-}
-
-async function reviewAndInstall({ page }: { page: Page }) {
-  await handle({ page, name: "plugins-install-preview" }).click();
-  await expect(page.locator(".install-tab-review")).toContainText("This plugin has no code; nothing in it runs on this computer.");
-  await expect(page.locator(".install-tab-review")).toContainText("1.0.0");
-  await handle({ page, name: "plugins-install-confirm" }).click();
-  await expect(page.getByRole("status")).toContainText("installed and switched off");
-}
-
-async function expectInstalledOff({ page, packages, family, version = "1.0.0" }: {
-  page: Page; packages: PluginInstallFixtures; family: PluginFamily; version?: string;
-}) {
-  await expect.poll(async () => (await pluginRows({ request: page.request, family })).find((row) => (row.pluginId ?? row.id) === packages.ids[family]))
-    .toMatchObject({ enabled: false, version });
-}
-
-/** Stock Chromium has no native WebMCP host. Capture the app's REAL registrations in
- * document.modelContext and call their execute methods; do not substitute DOM clicks for tools. */
-async function installWebMcpHost({ page }: { page: Page }) {
-  await page.addInitScript(() => {
-    const tools = new Map<string, { name: string; execute: (args: unknown) => Promise<unknown> }>();
-    const context = {
-      registerTool(registration: { tool?: { name: string; execute: (args: unknown) => Promise<unknown> }; name?: string; execute?: (args: unknown) => Promise<unknown> }, options?: { signal?: AbortSignal }) {
-        const tool = registration.tool ?? registration as { name: string; execute: (args: unknown) => Promise<unknown> };
-        tools.set(tool.name, tool);
-        options?.signal?.addEventListener("abort", () => { if (tools.get(tool.name) === tool) tools.delete(tool.name); }, { once: true });
-      },
-      listTools: () => [...tools.keys()],
-      executeTool: async (name: string, args: unknown) => {
-        const tool = tools.get(name);
-        if (!tool) throw new Error(`WebMCP tool not registered: ${name}`);
-        return tool.execute(args);
-      },
-    };
-    Object.defineProperty(document, "modelContext", { configurable: true, value: context });
-    localStorage.setItem("tovu.admin.webmcp.enabled", "true");
-    window.confirm = () => true;
-  });
-}
-
-async function webMcp({ page, name, args }: { page: Page; name: string; args: Record<string, unknown> }) {
-  return page.evaluate(async ({ name, args }) => {
-    const context = (document as unknown as { modelContext: { executeTool: (name: string, args: unknown) => Promise<unknown> } }).modelContext;
-    return context.executeTool(name, args);
-  }, { name, args });
-}
+const { test } = createPluginInstallTest();
+const registerPluginInstallMethods = createPluginInstallPluginInstallMethods({ test });
+const registerDownloadedRowLayoutTest = createPluginInstallDownloadedRowLayoutTest({ test });
+const registerChatPluginInstallTests = createPluginInstallChatPluginInstallTests({ test });
+const registerPluginUpgradeAndCleanupTests = createPluginInstallPluginUpgradeAndCleanupTests({ test });
 
 test.describe("isolated plugin installs", () => {
+  registerPluginInstallMethods();
+  registerDownloadedRowLayoutTest();
+  registerChatPluginInstallTests();
+  registerPluginUpgradeAndCleanupTests();
+});
+});
+
+function createPluginInstallPluginInstallMethods({ test }: { test: ReturnType<typeof createPluginInstallTest>["test"] }) {
+
+return function registerPluginInstallMethods() {
   test.skip(false, "Opt in with TOVU_E2E_PLUGIN_INSTALL=1; never use an external admin site");
 
   test("UI drop ZIP → Preview → Install appears switched off", async ({ page, packages }) => {
@@ -153,6 +82,12 @@ test.describe("isolated plugin installs", () => {
     await expect(page.getByRole("status")).toContainText("installed and switched off");
     await expectInstalledOff({ page, packages, family: "site" });
   });
+}
+}
+
+function createPluginInstallDownloadedRowLayoutTest({ test }: { test: ReturnType<typeof createPluginInstallTest>["test"] }) {
+
+return function registerDownloadedRowLayoutTest() {
 
   test("Downloaded rows wrap at container width with a 380px chat dock", async ({ page, packages }) => {
     const fixture = await packages.packageFiles({ family: "site" });
@@ -184,6 +119,12 @@ test.describe("isolated plugin installs", () => {
       })).toEqual({ truncated: false, overlap: false, stacked, overflow: false });
     }
   });
+}
+}
+
+function createPluginInstallChatPluginInstallTests({ test }: { test: ReturnType<typeof createPluginInstallTest>["test"] }) {
+
+return function registerChatPluginInstallTests() {
 
   for (const family of ["site", "agent"] as const) {
     test(`chat attaches ${family} plugin ZIP and installs with attachmentRef`, { tag: "@real-service" }, async ({ page, packages }) => {
@@ -232,6 +173,12 @@ test.describe("isolated plugin installs", () => {
       else await expect(page.getByRole("listitem", { name: packages.ids.agent.split("-").map((word) => word[0]!.toUpperCase() + word.slice(1)).join(" ") })).toHaveAttribute("data-enabled", "false");
     });
   }
+}
+}
+
+function createPluginInstallPluginUpgradeAndCleanupTests({ test }: { test: ReturnType<typeof createPluginInstallTest>["test"] }) {
+
+return function registerPluginUpgradeAndCleanupTests() {
 
   test("agent plugin ZIP installs off and Replace upgrades 1.0.0 → 1.0.1", async ({ page, packages }) => {
     const first = await packages.packageFiles({ family: "agent" });
@@ -276,5 +223,95 @@ test.describe("isolated plugin installs", () => {
       expect(leftovers, `${family} fixture cleanup left installed packages`).toEqual([]);
     }
   });
+}
+}
+
+async function webMcp({ page, name, args }: { page: Page; name: string; args: Record<string, unknown> }) {
+  return page.evaluate(async ({ name, args }) => {
+    const context = (document as unknown as { modelContext: { executeTool: (name: string, args: unknown) => Promise<unknown> } }).modelContext;
+    return context.executeTool(name, args);
+  }, { name, args });
+}
+
+/** Stock Chromium has no native WebMCP host. Capture the app's REAL registrations in
+ * document.modelContext and call their execute methods; do not substitute DOM clicks for tools. */
+async function installWebMcpHost({ page }: { page: Page }) {
+  await page.addInitScript(() => {
+    const tools = new Map<string, { name: string; execute: (args: unknown) => Promise<unknown> }>();
+    const context = {
+      registerTool(registration: { tool?: { name: string; execute: (args: unknown) => Promise<unknown> }; name?: string; execute?: (args: unknown) => Promise<unknown> }, options?: { signal?: AbortSignal }) {
+        const tool = registration.tool ?? registration as { name: string; execute: (args: unknown) => Promise<unknown> };
+        tools.set(tool.name, tool);
+        options?.signal?.addEventListener("abort", () => { if (tools.get(tool.name) === tool) tools.delete(tool.name); }, { once: true });
+      },
+      listTools: () => [...tools.keys()],
+      executeTool: async (name: string, args: unknown) => {
+        const tool = tools.get(name);
+        if (!tool) throw new Error(`WebMCP tool not registered: ${name}`);
+        return tool.execute(args);
+      },
+    };
+    Object.defineProperty(document, "modelContext", { configurable: true, value: context });
+    localStorage.setItem("tovu.admin.webmcp.enabled", "true");
+    window.confirm = () => true;
+  });
+}
+
+async function expectInstalledOff({ page, packages, family, version = "1.0.0" }: {
+  page: Page; packages: PluginInstallFixtures; family: PluginFamily; version?: string;
+}) {
+  await expect.poll(async () => (await pluginRows({ request: page.request, family })).find((row) => (row.pluginId ?? row.id) === packages.ids[family]))
+    .toMatchObject({ enabled: false, version });
+}
+
+async function reviewAndInstall({ page }: { page: Page }) {
+  await handle({ page, name: "plugins-install-preview" }).click();
+  await expect(page.locator(".install-tab-review")).toContainText("This plugin has no code; nothing in it runs on this computer.");
+  await expect(page.locator(".install-tab-review")).toContainText("1.0.0");
+  await handle({ page, name: "plugins-install-confirm" }).click();
+  await expect(page.getByRole("status")).toContainText("installed and switched off");
+}
+
+async function dropArchive({ page, zipPath }: { page: Page; zipPath: string }) {
+  const bytes = Array.from(await readFile(zipPath));
+  const transfer = await page.evaluateHandle(({ bytes, name }) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], name, { type: "application/zip" }));
+    return transfer;
+  }, { bytes, name: path.basename(zipPath) });
+  try { await page.locator(".install-tab-dropzone").dispatchEvent("drop", { dataTransfer: transfer }); }
+  finally { await transfer.dispose(); }
+}
+
+function handle({ page, name }: { page: Page; name: string }) {
+  return page.locator(`[data-agent-element=${JSON.stringify(name)}]`);
+}
+
+function createPluginInstallTest() {
+// Runbook: README-plugin-install-tests.md.
+
+
+
+
+
+
+
+
+const test = base.extend<{ packages: PluginInstallFixtures; isolatedSite: IsolatedJourneySite }>({
+  isolatedSite: async ({ baseURL, journeySite: site }, use) => {
+    if (!site || !site.suite.startsWith("journeys") || site.database !== "sqlite" || (site.runtime !== "local-cli" && site.runtime !== "default")
+      || baseURL !== site.adminURL || site.adminURL !== `http://127.0.0.1:${site.ports.admin}`
+      || !site.runtimeDir.startsWith(path.join(os.tmpdir(), "tovu-journeys-"))
+      || site.siteDir !== path.join(site.runtimeDir, "sites", "journey-site")) {
+      throw new Error("Use playwright.journeys.config.ts; only its fresh isolated seeded site is allowed");
+    }
+    await use(site);
+  },
+  packages: async ({ isolatedSite, request }, use) => {
+    const packages = await createPluginInstallFixtures({ site: isolatedSite, request });
+    try { await use(packages); }
+    finally { await packages.cleanup(); } // Runs even when preview, chat or upgrade fails.
+  },
 });
-});
+return { test };
+}

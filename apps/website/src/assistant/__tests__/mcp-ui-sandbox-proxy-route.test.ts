@@ -60,7 +60,7 @@ test("AssistantDock.tsx no longer builds its iframe URL as a same-origin route â
       "buildAssistantMcpUiSandboxProxyUrl (a data: URL) instead",
   );
   assert.ok(
-    rendererSource.includes("const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);"),
+    rendererSource.includes("const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });"),
     "the dock's renderer owner must build sandboxProxyUrl via buildAssistantMcpUiSandboxProxyUrl",
   );
   assert.ok(rendererSource.includes("sandboxProxyUrl: assistantMcpUiSandboxProxyUrl,"));

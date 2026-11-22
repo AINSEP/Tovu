@@ -1,5 +1,5 @@
 import { DEFAULT_SITE_LIST_PREFS } from "@jini-ai/ui/site-card";
-import type { SiteListPrefsController } from "../hooks/use-site-list-prefs.hooks";
+import type { SiteListPrefsController } from "@jini-ai/ui/site-card";
 
 /** Choices that are already loaded and go nowhere, for tests that are not about them. */
 export function staticListPrefs(overrides: Partial<SiteListPrefsController> = {}): SiteListPrefsController {

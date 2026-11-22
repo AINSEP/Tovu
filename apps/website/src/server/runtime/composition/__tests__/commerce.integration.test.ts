@@ -8,12 +8,13 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { listTables, type StorageKernel } from '@jini-ai/db/kernel';
+import { listTables, type KyselyKernel } from '@jini-ai/db/kernel';
 import { commercePriceRepoFor, commerceProductRepoFor } from '@jini-ai/commerce/repo';
 import { sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { leasedProviderItem, paymentsProviderContract, type LoadedProviderItem } from '@jini-ai/commerce/payments/kernel';
 import { createPluginContributionCapture, createPluginContributionRegistry, createPluginProviderHost,
-  type PluginManifest, type PluginSdk } from '@jini-ai/plugins/host';
+  type PluginManifest } from '@jini-ai/plugins/host';
+import { type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
@@ -60,13 +61,13 @@ async function eventually<T>(read: () => Promise<T>, accepts: (value: T) => bool
 async function fixture(t: test.TestContext, dialect: 'sqlite' | 'pglite') {
   const root = await mkdtemp(path.join(os.tmpdir(), `commerce-compose-${dialect}-`));
   const { host, item } = await provider();
-  let kernel: StorageKernel<unknown> | undefined, current: Runtime | undefined;
+  let kernel: KyselyKernel<unknown> | undefined, current: Runtime | undefined;
   t.after(async () => {
     try { await current?.close(); await kernel?.close(); await host.dispose({}); }
     finally { await rm(root, { recursive: true, force: true }); }
   });
   const open = () => dialect === 'sqlite'
-    ? openSqliteFileKernel<unknown>(path.join(root, 'content.db'))
+    ? openSqliteFileKernel<unknown>({ filePath: path.join(root, 'content.db') })
     : openPgliteKernel<unknown>({ dataDir: path.join(root, 'content-pg') });
   kernel = open();
   const clock = { nowMs: () => 1_800_000_000_000 };
@@ -127,12 +128,12 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.equal((await runtime.commerce.status()).ready, false);
     assert.deepEqual(await runtime.commerceCatalog.listProducts(), []);
     await f.stop();
-    assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    assert.deepEqual((await listTables({ kernel: f.kernel() })).filter(table => table.startsWith('commerce_')), []);
     await f.activation(true);
     runtime = f.boot();
     assert.equal((await runtime.commerce.status()).ready, false);
     await f.stop();
-    assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    assert.deepEqual((await listTables({ kernel: f.kernel() })).filter(table => table.startsWith('commerce_')), []);
     assert.ok(f.warnings.some(message => /configuration|configured|account|HTTPS/i.test(message)),
       'enabled checkout without merchant settings must warn specifically while keeping the CMS available');
     await f.write(configuration); await f.activation(true);
@@ -145,8 +146,8 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.deepEqual(f.requests, []);
     await f.saveProvider();
     assert.equal((await runtime.commerce.activate()).ready, true);
-    assert.ok((await listTables(f.kernel())).includes('commerce_products'));
-    assert.ok((await listTables(f.kernel())).includes('commerce_payments'));
+    assert.ok((await listTables({ kernel: f.kernel() })).includes('commerce_products'));
+    assert.ok((await listTables({ kernel: f.kernel() })).includes('commerce_payments'));
     const publicSettings = await f.providerConfig.readSettings({ pluginId: 'payments-stripe' });
     assert.deepEqual([...(publicSettings?.secretNames ?? [])].sort(), ['test_secretKey', 'test_webhookSecret']);
     assert.ok(!JSON.stringify(publicSettings).includes('sk_test_composition_fixture'));

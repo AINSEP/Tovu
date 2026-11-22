@@ -1,5 +1,8 @@
+import type { Response } from "express";
+import { ToolInputError } from "@jini-ai/core";
+import { RecordVersionConflictError, parseExpectedVersion, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
@@ -10,14 +13,14 @@ import { guardExternalMcpRequest } from "./guard.js";
 
 /** `undefined`/non-string collapses to `""` — the ordinary (non tri-state) field default this
  *  route uses for `command`/`args`/`allowedToolNames`. @complexity O(1). */
-function asStringField(value: unknown): string {
+function asStringField({ value }: { value: unknown }, _optional = {}): string {
   return typeof value === "string" ? value : "";
 }
 
 /** Carries a string field ONLY when the caller actually sent one, so `undefined` (keep what is
  *  stored) stays distinguishable from `""` (clear it). The `env` rule, applied to every field that
  *  shares its three-way meaning. @complexity O(1). */
-function optionalStringField(value: unknown, key: string): Record<string, string> {
+function optionalStringField({ value, key }: { value: unknown; key: string }, _optional = {}): Record<string, string> {
   return typeof value === "string" ? { [key]: value } : {};
 }
 
@@ -33,20 +36,20 @@ function optionalStringField(value: unknown, key: string): Record<string, string
  *
  * @complexity O(1).
  */
-function parseExternalMcpOAuthBody(rawOAuth: unknown): { oauth?: SaveExternalMcpOAuthInput } {
+function parseExternalMcpOAuthBody({ rawOAuth }: { rawOAuth: unknown }, _optional = {}): { oauth?: SaveExternalMcpOAuthInput } {
   if (rawOAuth === null || typeof rawOAuth !== "object" || Array.isArray(rawOAuth)) return {};
   const oauth = rawOAuth as Record<string, unknown>;
 
   const parsed: SaveExternalMcpOAuthInput = {
-    ...optionalStringField(oauth.providerId, "providerId"),
-    ...optionalStringField(oauth.grant, "grant"),
-    ...optionalStringField(oauth.clientId, "clientId"),
-    ...optionalStringField(oauth.clientSecret, "clientSecret"),
-    ...optionalStringField(oauth.scopes, "scopes"),
-    ...optionalStringField(oauth.tokenEnvName, "tokenEnvName"),
-    ...optionalStringField(oauth.authorizationEndpoint, "authorizationEndpoint"),
-    ...optionalStringField(oauth.tokenEndpoint, "tokenEndpoint"),
-    ...optionalStringField(oauth.deviceAuthorizationEndpoint, "deviceAuthorizationEndpoint"),
+    ...optionalStringField({ value: oauth.providerId, key: "providerId" }),
+    ...optionalStringField({ value: oauth.grant, key: "grant" }),
+    ...optionalStringField({ value: oauth.clientId, key: "clientId" }),
+    ...optionalStringField({ value: oauth.clientSecret, key: "clientSecret" }),
+    ...optionalStringField({ value: oauth.scopes, key: "scopes" }),
+    ...optionalStringField({ value: oauth.tokenEnvName, key: "tokenEnvName" }),
+    ...optionalStringField({ value: oauth.authorizationEndpoint, key: "authorizationEndpoint" }),
+    ...optionalStringField({ value: oauth.tokenEndpoint, key: "tokenEndpoint" }),
+    ...optionalStringField({ value: oauth.deviceAuthorizationEndpoint, key: "deviceAuthorizationEndpoint" }),
   };
 
   return Object.keys(parsed).length === 0 ? {} : { oauth: parsed };
@@ -60,7 +63,7 @@ function parseExternalMcpOAuthBody(rawOAuth: unknown): { oauth?: SaveExternalMcp
  *
  * @complexity O(1).
  */
-function parseExternalMcpPutBody(rawBody: unknown) {
+function parseExternalMcpPutBody({ rawBody }: { rawBody: unknown }, _optional = {}) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     ...(typeof body.label === "string" ? { label: body.label } : {}),
@@ -69,28 +72,66 @@ function parseExternalMcpPutBody(rawBody: unknown) {
     // choice it was never offered.
     transport: typeof body.transport === "string" ? body.transport : "stdio",
     enabled: body.enabled !== false,
-    command: asStringField(body.command),
+    command: asStringField({ value: body.command }),
     // Only meaningful for a remote transport, and tri-state so a stdio-shaped PUT does not clear a
     // stored endpoint.
-    ...optionalStringField(body.url, "url"),
+    ...optionalStringField({ value: body.url, key: "url" }),
     // Absent keeps an existing row's mode rather than silently demoting an OAuth connection to
     // `static_env` — which is what a toggle or rename would otherwise do.
-    ...optionalStringField(body.authMode, "authMode"),
-    args: asStringField(body.args),
-    allowedToolNames: asStringField(body.allowedToolNames),
+    ...optionalStringField({ value: body.authMode, key: "authMode" }),
+    args: asStringField({ value: body.args }),
+    allowedToolNames: asStringField({ value: body.allowedToolNames }),
     // Same `asStringField` treatment as `allowedToolNames` above — resent in full on every save, not
     // tri-state. NOTE (task #30, R-3): a non-string body value (e.g. an array) collapses to `""`
     // here, which for THIS field silently clears every write grant. Known, pre-existing behaviour of
     // `asStringField` on the sibling field too — undesirable, but it fails CLOSED, so it is not fixed
     // in this change. See `admin-external-mcp-routes.test.ts` for the pinned regression.
-    writeAllowedToolNames: asStringField(body.writeAllowedToolNames),
+    writeAllowedToolNames: asStringField({ value: body.writeAllowedToolNames }),
     // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
-    ...optionalStringField(body.env, "env"),
+    ...optionalStringField({ value: body.env, key: "env" }),
     // Same three-way meaning as `env`, and write-only: no read model returns the token.
-    ...optionalStringField(body.accessToken, "accessToken"),
-    ...optionalStringField(body.accessTokenEnvName, "accessTokenEnvName"),
-    ...parseExternalMcpOAuthBody(body.oauth),
+    ...optionalStringField({ value: body.accessToken, key: "accessToken" }),
+    ...optionalStringField({ value: body.accessTokenEnvName, key: "accessTokenEnvName" }),
+    ...parseExternalMcpOAuthBody({ rawOAuth: body.oauth }),
+    // The version the tab loaded. Absent is still accepted (the save then compares the version read in
+    // the same request); a malformed value is a 400, never read as "no basis".
+    ...expectedVersionField({ value: body.expectedVersion }),
   };
+}
+
+/** `{ expectedVersion }` when the caller sent one. @throws {ToolInputError} when malformed. @complexity O(1). */
+function expectedVersionField({ value }: { value: unknown }, _optional = {}): { expectedVersion?: number } {
+  const expectedVersion = parseExpectedVersion({ value });
+  return expectedVersion === undefined ? {} : { expectedVersion };
+}
+
+/**
+ * Maps a failed save onto its HTTP answer: 409 for a stale `expectedVersion` (the shared conflict
+ * body), 400 for a malformed one or an invalid field, 503 for a roster change that lowers tool
+ * access or a missing secret store, 500 for anything else. @complexity O(1).
+ */
+function respondToExternalMcpSaveFailure({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (err instanceof ToolAccessLoweringError) {
+    res.status(503).json({ error: err.message, code: err.code });
+    return;
+  }
+  if (err instanceof RecordVersionConflictError) {
+    res.status(409).json(versionConflictBody({ error: err }));
+    return;
+  }
+  if (err instanceof ToolInputError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof ExternalMcpValidationError) {
+    res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });
+    return;
+  }
+  if (err instanceof ExternalMcpSecretStoreUnconfiguredError) {
+    res.status(503).json({ error: err.message, code: "SECRET_STORE_UNCONFIGURED" });
+    return;
+  }
+  sendAdminFailure({ res, error: err }, { operation: "routes/external-mcp/put", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -106,7 +147,7 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * string clears them. Collapsing absent into empty is how a toggle would silently wipe a token.
  *
  * A saved row does NOT necessarily take effect until the agent daemon restarts — the admitted tool
- * set for any ONE connection is still frozen at connect (`mcp-federation/trust.ts` R5) and this route
+ * set for any ONE connection is still frozen at connect (`Jini packages/mcp/src/federation/trust.ts` R5) and this route
  * does not, and cannot, change that: editing an already-admitted connection's allowlist, credentials,
  * or transport here still needs a real restart, because that connection's one-time admission already
  * happened. `restartRequired: true` in the response reflects exactly that — it is conservative by
@@ -122,7 +163,7 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  *
  * Federation hot-reload trigger (2026-09-11), fired unconditionally after every successful save,
  * best effort for enabled connections (OFF awaits Stop/cleanup): the daemon-side coordinator
- * (`mcp-federation/reload.ts`) is what actually decides whether anything changed — a save that only
+ * (`Jini packages/mcp/src/federation/reload.ts`) is what actually decides whether anything changed — a save that only
  * edited fields on an ALREADY-admitted connection is a genuine no-op there (R5, restated above), and
  * a fresh `authMode: "oauth"` row is a no-op too until its own callback later completes and fires
  * the PRIMARY trigger (`public-http/routes/external-mcp/oauth-callback.ts`). The one case this
@@ -130,10 +171,10 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * exactly the "operator save/approve" trigger the feature's own spec calls out as the SECONDARY path,
  * next to a completed OAuth sign-in as the primary one.
  */
-export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
 
       const server = await saveExternalMcpServer(
         {
@@ -149,7 +190,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
           // `res.locals` (`getAuthedPrincipal` does no I/O), used ONLY to attribute a change to
           // `writeAllowedToolNames` if this save makes one.
           principalId: getAuthedPrincipal(res).id,
-          ...parseExternalMcpPutBody(req.body),
+          ...parseExternalMcpPutBody({ rawBody: req.body }),
         },
       );
 
@@ -158,19 +199,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
       else await notifyExternalMcpRosterChanged({ lowered: { serverIds: [server.serverId] } });
       res.json({ server: describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds }), restartRequired: true });
     } catch (err) {
-      if (err instanceof ToolAccessLoweringError) {
-        res.status(503).json({ error: err.message, code: err.code });
-        return;
-      }
-      if (err instanceof ExternalMcpValidationError) {
-        res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });
-        return;
-      }
-      if (err instanceof ExternalMcpSecretStoreUnconfiguredError) {
-        res.status(503).json({ error: err.message, code: "SECRET_STORE_UNCONFIGURED" });
-        return;
-      }
-      sendAdminFailure({ res, error: err }, { operation: "routes/external-mcp/put", code: "INTERNAL_ERROR" });
+      respondToExternalMcpSaveFailure({ res, err });
     }
   });
 };

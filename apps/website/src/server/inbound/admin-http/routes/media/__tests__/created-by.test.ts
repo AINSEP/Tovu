@@ -8,7 +8,8 @@ import { registerAdminMediaUploadRoute } from "../upload.js";
 import { registerAdminMediaUpdateRoute } from "../update.js";
 import { registerAdminMediaListRoute } from "../list.js";
 import type { MediaRouteDeps } from "../deps.js";
-import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo,
   InMemoryImageTransformer } from "#src/features/media/index";
 
@@ -19,7 +20,7 @@ test("admin upload stamps its actor, PATCH preserves it, and list exposes it", a
     tracker: createNoopTracker({}),
     workspaceId: "creator-ws", clock: { nowIso: () => "2026-10-04T00:00:00Z", nowMs: () => Date.parse("2026-10-04T00:00:00Z") },
     idGen: { newId: () => `creator-http-${++id}` }, authorize: async () => ({ allowed: true, reason: "matched" }),
-    mediaRepo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
+    mediaRepo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
     assetRenditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     imageTransformer: new InMemoryImageTransformer(), imageCodec: new SharpImageTransformer(),
@@ -29,9 +30,9 @@ test("admin upload stamps its actor, PATCH preserves it, and list exposes it", a
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "authenticated-owner" }; next(); });
-  registerAdminMediaUploadRoute(app, deps);
-  registerAdminMediaUpdateRoute(app, deps);
-  registerAdminMediaListRoute(app, deps);
+  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ app, deps });
+  registerAdminMediaListRoute({ app, deps });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/creator-ws/media`;
   const upload = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },

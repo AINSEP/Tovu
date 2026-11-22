@@ -20,9 +20,9 @@ function harness(overrides: PortFake<TaxonomyRouteDeps>) {
     workspaceId: "ws-7", authorize: allow, clock: { nowIso: () => "2026-10-21T00:00:00.000Z" }, idGen: { newId: () => "term-new" },
     outbox: { enqueue: async () => {} }, postRepo: {}, ...overrides,
   });
-  registerAdminTaxonomyCreateTermRoute(app, deps);
-  registerAdminTaxonomyDeleteRoute(app, deps);
-  registerAdminTaxonomyDeleteTermRoute(app, deps);
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyDeleteRoute({ app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ app, deps });
   return async (method: "post" | "delete", path: string, req: { params: Record<string, string>; body?: unknown }) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -107,4 +107,16 @@ test("delete-taxonomy and delete-term hide storage failures behind a generic 500
       statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
     } }, { failure: {"message":"The taxonomy operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"taxonomy operation"} });
   }
+});
+
+test("create-term unexpected failure emits one redacted incident with a matching reply ID", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("create context password=TERM_CANARY"); } } });
+  const reply = await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } });
+  assert.equal(reply.statusCode, 500);
+  const body = reply.jsonBody as { errorId: string };
+  assert.ok(body.errorId);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(reply) + JSON.stringify(logs.mock.calls), /TERM_CANARY/);
 });

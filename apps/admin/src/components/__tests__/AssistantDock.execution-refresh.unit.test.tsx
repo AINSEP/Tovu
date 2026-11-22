@@ -3,12 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import {
-  EXECUTION_CONFIG_MAX_AGE_MS,
-  useAssistantTransport,
-  useExecutionConfig,
-  useLocalCliSelection,
-} from "../AssistantDock/hooks/AssistantDock.hooks";
+import { useAssistantTransport } from "../AssistantDock/hooks/assistant-transport.hooks";
+import { EXECUTION_CONFIG_MAX_AGE_MS } from "../AssistantDock/hooks/execution-config-ledger.hooks";
+import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import type { ExecutionConfigWrite } from "../AssistantDock/execution-config-write";
 import { DEFAULT_EXECUTION_CONFIG, EXECUTION_NAMESPACE } from "../../lib/execution-settings";
 import { publishSettingsRefresh, resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
@@ -40,7 +38,7 @@ function harness() {
   let now = 0;
   const loadConfig = vi.fn(async () => saved);
   const port = { loadConfig, loadCredential: async () => ({ isSet: false }), now: () => now };
-  const persistWrite = vi.fn(async (write: ExecutionConfigWrite, _failureLog: string) => {
+  const persistWrite = vi.fn(async ({ write }: { write: ExecutionConfigWrite; failureLog: string }) => {
     saved = write.next;
     publishSettingsRefresh([EXECUTION_NAMESPACE]);
     return true;
@@ -94,8 +92,8 @@ describe("dock execution config freshness", () => {
   it("keeps Claude effort across rerender, reopen, reload and the actual next send", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude", "opus"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
-      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }] });
     const dock = renderHook(fake.useDock);
     await flush();
     act(() => dock.result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "high" }));
@@ -105,7 +103,7 @@ describe("dock execution config freshness", () => {
     await flush();
     expect(dock.result.current.localCliSelection).toEqual({ agentId: "claude", model: "opus", reasoning: "high" });
     expect(fake.persistWrite).toHaveBeenCalledTimes(1);
-    expect(fake.persistWrite.mock.calls[0]![0].next.localCli.reasoningByAgentId).toEqual({ claude: "high" });
+    expect(fake.persistWrite.mock.calls[0]![0].write.next.localCli.reasoningByAgentId).toEqual({ claude: "high" });
 
     dock.unmount();
     const reopened = renderHook(fake.useDock);
@@ -141,8 +139,8 @@ describe("dock execution config freshness", () => {
   it("includes reasoning in the saved axes so a same-model external effort change replaces normalization", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude", "opus"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
-      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }] });
     const { result } = renderHook(fake.useDock);
     await flush();
     act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "default" }));
@@ -336,9 +334,10 @@ describe("dock execution config freshness", () => {
     const { result } = renderHook(fake.useDock);
     await flush();
     fake.advanceClock(EXECUTION_CONFIG_MAX_AGE_MS);
-    fake.loadConfig.mockRejectedValueOnce(new Error("cannot read saved execution config"));
+    const failure = new Error("cannot read saved execution config");
+    fake.loadConfig.mockRejectedValueOnce(failure);
     await act(async () => {
-      await expect(result.current.transport.startRun(runInput, handlers)).rejects.toThrow("cannot read saved execution config");
+      await expect(result.current.transport.startRun(runInput, handlers)).rejects.toBe(failure);
     });
     expect(fake.startRun).not.toHaveBeenCalled();
   });
@@ -400,7 +399,7 @@ describe("dock execution config freshness", () => {
   it("an unrelated execution refresh preserves the picker's normalized default model", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     const { result } = renderHook(fake.useDock);
     await flush();
     act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));

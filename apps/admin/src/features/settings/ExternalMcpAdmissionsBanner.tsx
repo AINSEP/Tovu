@@ -1,13 +1,13 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 
 import { describeDriftHeadline, type AdmissionDriftConnection, type AdmissionDriftEntry } from "./external-mcp-admissions-rules";
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file "What the assistant is actually running" — the operator half of the refusal channel.
  *
- * The tab above this banner shows what was SAVED. `mcp-federation/trust.ts` R5 freezes the admitted
+ * The tab above this banner shows what was SAVED. `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted
  * set at connect, so those are two different objects, and until now the only way to see the gap was
  * to read the daemon's terminal at the moment it booted. That is how this project discovered
  * Higgsfield's blocked `generate_image` in the first place — and on a desktop app nobody can SSH
@@ -173,7 +173,7 @@ export function ExternalMcpAdmissionsBanner({ controller, t, onAllowWrite, onReq
     // `alert` and its `status`) would make a screen reader announce the whole banner again on every
     // inner change.
     <div className="external-mcp-banner external-mcp-drift">
-      <p>{t(describeDriftHeadline(controller.connections))}</p>
+      <p>{t(describeDriftHeadline({ connections: controller.connections }))}</p>
       {controller.connections.map((connection) => (
         <AdmissionConnectionSection key={connection.connectionId} connection={connection} t={t} onAllowWrite={onAllowWrite} onRequestRemove={onRequestRemove} />
       ))}

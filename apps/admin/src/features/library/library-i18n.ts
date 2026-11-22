@@ -1,11 +1,11 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Library screen (`Library.tsx`) — this feature's own dictionary, not
  * `lib/admin-nav-i18n.ts` (which only carries the sidebar's "Library" label). Same fallback as every
  * other admin `t()`: translated value, then `COMMON_I18N` (Cancel/More/Name/Save/Saving…), then
  * the English key itself. `lib/__tests__/untranslated-copy.unit.test.ts` checks every locale here.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const LIBRARY_DICT: Record<string, Record<string, string>> = {
   es: {

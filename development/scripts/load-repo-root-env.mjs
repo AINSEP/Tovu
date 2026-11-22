@@ -12,6 +12,7 @@
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { loadRepoRootEnvFile as loadSharedEnvFile } from "@jini-ai/devops/local-dev";
 
 /**
  * Loads `.env` from `repoRoot`, if one exists, before anything reads `process.env`.
@@ -44,8 +45,9 @@ import path from "node:path";
 export function loadRepoRootEnvFile(repoRoot, deps = {}) {
   const checkExists = deps.existsSync ?? existsSync;
   const doLoad = deps.loadEnvFile ?? process.loadEnvFile.bind(process);
-  const envFile = path.join(repoRoot, ".env");
-  if (!checkExists(envFile)) return false;
-  doLoad(envFile);
-  return true;
+  return loadSharedEnvFile({
+    environmentFile: path.join(repoRoot, ".env"),
+    fs: { exists: ({ path: file }) => checkExists(file) },
+    loader: { load: ({ path: file }) => doLoad(file) },
+  });
 }

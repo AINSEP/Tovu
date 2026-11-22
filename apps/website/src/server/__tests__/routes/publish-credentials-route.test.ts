@@ -5,7 +5,7 @@ import express from "express";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import { createPublishCredential, resolveForPublish } from "#src/features/deployments/publish-credentials/index";
 import type { VendorCredentialSetRepoPort } from "#src/features/vendor-credentials/types";
 import { registerAdminPublishCredentialsRoutes } from "#src/server/inbound/admin-http/routes/system/publish-credentials";
@@ -709,7 +709,7 @@ function repoThatVanishesRowOnSecondRead(real: VendorCredentialSetRepoPort): Ven
 test("publish-credentials: rejectUnlessAuthorized's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with workspaceId absent", async () => {
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps(), workspaceId: "" };
   const app = express();
-  registerAdminPublishCredentialsRoutes(app, deps);
+  registerAdminPublishCredentialsRoutes({ app, deps });
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials");
   const { res } = createCapturingResponse();
 

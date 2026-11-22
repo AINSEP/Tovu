@@ -1,5 +1,5 @@
 import { buildHeadElements, type GetEntryMetaDeps, type PageHeadHook } from "@jini-ai/cms/seo";
-import { withCoverReadDeps } from "./cover-image.js";
+import { withCoverReadDeps } from "@jini-ai/cms/seo/cover-image";
 
 /**
  * @file SEO's host PageHeadHook (ADR-PIPE-008 Decision, C-003). Ordered descriptor production

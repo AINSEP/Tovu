@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
   buildSourceControlConnectionInput,
@@ -100,7 +101,7 @@ describe("sourceControlProviderInfoFromDescriptor", () => {
 
 describe("sourceControlProviders (IRON RULE: a saved connection never drops off the page)", () => {
   it("lists the listed hosts in the server's order", () => {
-    expect(sourceControlProviders(SOURCE_CONTROL_PROVIDER_DESCRIPTORS, []).map((p) => [p.id, p.listed])).toEqual([
+    expect(sourceControlProviders({ descriptors: SOURCE_CONTROL_PROVIDER_DESCRIPTORS, credentials: [] }).map((p) => [p.id, p.listed])).toEqual([
       ["github", true],
       ["forge", true],
     ]);
@@ -108,7 +109,7 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 
   it("appends one bare unlisted entry per saved connection whose host is not listed, named by its id", () => {
     const rows = [credential({ id: "a", providerId: "gitlab" }), credential({ id: "b", providerId: "gitlab" }), credential({ id: "c", providerId: "github" })];
-    const providers = sourceControlProviders([GITHUB_PROVIDER], rows);
+    const providers = sourceControlProviders({ descriptors: [GITHUB_PROVIDER], credentials: rows });
     expect(providers.map((p) => [p.id, p.label, p.listed])).toEqual([
       ["github", "GitHub", true],
       ["gitlab", "gitlab", false],
@@ -116,7 +117,7 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
   });
 
   it("still lists saved connections' hosts while the host list is missing", () => {
-    expect(sourceControlProviders(undefined, [credential({ providerId: "bitbucket" })]).map((p) => p.id)).toEqual(["bitbucket"]);
+    expect(sourceControlProviders({ descriptors: undefined, credentials: [credential({ providerId: "bitbucket" })] }).map((p) => p.id)).toEqual(["bitbucket"]);
   });
 });
 
@@ -128,69 +129,69 @@ describe("buildSourceControlConnectionInput", () => {
         { name: "username", label: "Username", required: true },
       ],
     } });
-    const connection = buildSourceControlConnectionInput({ providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, info.fields);
+    const connection = buildSourceControlConnectionInput({ fields: { providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, declaredFields: info.fields });
     expect(connection).toEqual({ providerId: "example-access", token: " selected-secret ", username: "operator" });
   });
 
   it("omits declared fields that have no value in the form", () => {
-    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: {} }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+    expect(buildSourceControlConnectionInput({ fields: { providerId: "forge", token: "t", values: {} }, declaredFields: FORGE.fields })).toEqual({ providerId: "forge", token: "t" });
   });
 
   it("passes the token unchanged to the store when the host declares nothing else", () => {
-    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: `  ${SYNTHETIC_TOKEN}  ` }, GITHUB.fields)).toEqual({ providerId: "github", token: `  ${SYNTHETIC_TOKEN}  ` });
+    expect(buildSourceControlConnectionInput({ fields: { ...blankFields("github"), token: `  ${SYNTHETIC_TOKEN}  ` }, declaredFields: GITHUB.fields })).toEqual({ providerId: "github", token: `  ${SYNTHETIC_TOKEN}  ` });
   });
 
   it("trims ordinary declared fields and drops undeclared or blank ones, preserving the token", () => {
-    const input = buildSourceControlConnectionInput({ providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, FORGE.fields);
+    const input = buildSourceControlConnectionInput({ fields: { providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, declaredFields: FORGE.fields });
     expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice" });
-    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: { username: "  " } }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+    expect(buildSourceControlConnectionInput({ fields: { providerId: "forge", token: "t", values: { username: "  " } }, declaredFields: FORGE.fields })).toEqual({ providerId: "forge", token: "t" });
   });
 
   it("preserves secret fields and canonical keys alongside trimmed ordinary fields", () => {
-    const input = buildSourceControlConnectionInput({
+    const input = buildSourceControlConnectionInput({ fields: {
       providerId: "forge", token: " t ",
       values: { username: " alice ", password: " p ", blankSecret: "  ", emptySecret: "", optional: "  ", providerId: "other", token: "other", stray: "x" },
-    }, [...FORGE.fields, { name: "password", secret: true }, { name: "blankSecret", secret: true }, { name: "emptySecret", secret: true }, { name: "optional" }, { name: "providerId" }, { name: "token" }]);
+    }, declaredFields: [...FORGE.fields, { name: "password", secret: true }, { name: "blankSecret", secret: true }, { name: "emptySecret", secret: true }, { name: "optional" }, { name: "providerId" }, { name: "token" }] });
     expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice", password: " p ", blankSecret: "  " });
   });
 });
 
 describe("sourceControlCredentialRowReadyToSave", () => {
   it("is false with a blank token", () => {
-    expect(sourceControlCredentialRowReadyToSave(blankFields("github"), GITHUB)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: blankFields("github"), info: GITHUB })).toBe(false);
   });
 
   it("is true once the token alone is filled in when the host declares nothing else", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: SYNTHETIC_TOKEN }, GITHUB)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("github"), token: SYNTHETIC_TOKEN }, info: GITHUB })).toBe(true);
   });
 
   it("is false until every required declared field is filled, treating whitespace as blank", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("forge"), token: "t" }, FORGE)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "   " } }, FORGE)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, FORGE)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("forge"), token: "t" }, info: FORGE })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "   " } }, info: FORGE })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice" } }, info: FORGE })).toBe(true);
   });
 
   it("is never ready for an unlisted host", () => {
-    const unlisted = sourceControlProviders([], [credential({ providerId: "gitlab" })])[0]!;
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat" }, unlisted)).toBe(false);
+    const unlisted = sourceControlProviders({ descriptors: [], credentials: [credential({ providerId: "gitlab" })] })[0]!;
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("gitlab"), token: "glpat" }, info: unlisted })).toBe(false);
   });
 
   it("ignores an optional field while still requiring the host's required field", () => {
     const provider = { ...FORGE, fields: [...FORGE.fields, { name: "accountId", label: "Account ID", required: false }] };
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: {} }, provider)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, provider)).toBe(true);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice", accountId: "  " } }, provider)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: {} }, info: provider })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice" } }, info: provider })).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice", accountId: "  " } }, info: provider })).toBe(true);
   });
 });
 
 describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialForProvider", () => {
   it("filters to just one provider's saved connections", () => {
     const rows = [credential({ id: "a", providerId: "github" }), credential({ id: "b", providerId: "gitlab" })];
-    expect(sourceControlCredentialsForProvider(rows, "github").map((c) => c.id)).toEqual(["a"]);
+    expect(sourceControlCredentialsForProvider({ credentials: rows, providerId: "github" }).map((c) => c.id)).toEqual(["a"]);
   });
 
   it("returns undefined when nothing is saved for that provider yet", () => {
-    expect(defaultSourceControlCredentialForProvider([], "github")).toBeUndefined();
+    expect(defaultSourceControlCredentialForProvider({ credentials: [], providerId: "github" })).toBeUndefined();
   });
 
   it("prefers the row marked isDefault over an earlier non-default row", () => {
@@ -198,37 +199,37 @@ describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialFo
       credential({ id: "old", providerId: "github", isDefault: false }),
       credential({ id: "current", providerId: "github", isDefault: true }),
     ];
-    expect(defaultSourceControlCredentialForProvider(rows, "github")?.id).toBe("current");
+    expect(defaultSourceControlCredentialForProvider({ credentials: rows, providerId: "github" })?.id).toBe("current");
   });
 
   it("falls back to the first saved row when none is marked default (defensive read)", () => {
     const rows = [credential({ id: "only", providerId: "github", isDefault: false })];
-    expect(defaultSourceControlCredentialForProvider(rows, "github")?.id).toBe("only");
+    expect(defaultSourceControlCredentialForProvider({ credentials: rows, providerId: "github" })?.id).toBe("only");
   });
 });
 
 describe("classifySourceControlCredentialSubmitError", () => {
   it("classifies a non-ApiError as generic", () => {
-    expect(classifySourceControlCredentialSubmitError(new Error("boom"))).toEqual({ kind: "generic" });
+    expect(classifySourceControlCredentialSubmitError({ e: new Error("boom") })).toEqual({ kind: "generic" });
   });
 
   it("classifies a DUPLICATE_LABEL code as duplicate-label", () => {
-    const err = new ApiError("dup", 409, "DUPLICATE_LABEL");
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+    const err = new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION code, carrying the body's detail text", () => {
-    const err = new ApiError("bad request", 400, "VALIDATION", { detail: "token is required" });
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "token is required" });
+    const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "token is required" });
   });
 
   it("falls back to the message as detail when a VALIDATION error carries no body.detail", () => {
-    const err = new ApiError("bad request", 400, "VALIDATION");
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "bad request" });
+    const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "bad request" });
   });
 
   it("classifies any other ApiError as generic", () => {
-    const err = new ApiError("server exploded", 500);
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "generic" });
+    const err = new ApiError({ message: "server exploded", status: 500 });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "generic" });
   });
 });

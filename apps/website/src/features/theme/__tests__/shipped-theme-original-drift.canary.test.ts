@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { diffThemeFolders, writeGeneratedThemeOriginal } from "../sync-originals.js";
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "../theme.js";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 
 /**
  * @file Canary: every SHIPPED theme's committed original matches what the generator produces from
@@ -125,7 +125,7 @@ for (const { tier, id } of SHIPPED) {
       const generatedDir = path.join(tmpRoot, tier, id);
       writeGeneratedThemeOriginal({ liveDir, targetDir: generatedDir });
 
-      const diff = diffThemeFolders(generatedDir, committedOriginalDir);
+      const diff = diffThemeFolders({ aDir: generatedDir, bDir: committedOriginalDir });
       assert.deepEqual(
         diff,
         { added: [], removed: [], changed: [] },

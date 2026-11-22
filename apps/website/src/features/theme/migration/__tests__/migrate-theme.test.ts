@@ -253,11 +253,11 @@ test("cleanupMigrationOutput removes a dry run's staged output and leaves the re
   const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
   assert.ok(result.outputDir && fs.existsSync(result.outputDir));
 
-  cleanupMigrationOutput(result.outputDir!);
+  cleanupMigrationOutput({ outputDir: result.outputDir! });
 
   assert.equal(fs.existsSync(result.outputDir!), false);
   assert.deepEqual(snapshotTree(dir), before);
-  assert.doesNotThrow(() => cleanupMigrationOutput(result.outputDir!), "cleaning an already-removed output is a no-op");
+  assert.doesNotThrow(() => cleanupMigrationOutput({ outputDir: result.outputDir! }), "cleaning an already-removed output is a no-op");
 });
 
 test("migrateThemeToV2 dryRun of a theme that fails verification reports failed, with the staged output kept for inspection", () => {

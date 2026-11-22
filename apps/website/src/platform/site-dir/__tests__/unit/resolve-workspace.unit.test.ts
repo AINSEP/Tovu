@@ -36,7 +36,7 @@ import { resolveWorkspace } from "../../resolve-workspace.js";
 test("zero workspace rows: resolveWorkspace throws a SiteCorruptError naming zero rows", async () => {
   const db = openContentDb(":memory:");
   await assert.rejects(
-    resolveWorkspace({ kernel: contentKernel(db) }),
+    resolveWorkspace({ kernel: contentKernel({ store: db }) }),
     (err: unknown) => {
       assert.ok(err instanceof Error, "must throw a real Error, not a string/plain object");
       assert.equal((err as Error).name, "SiteCorruptError", "AC-09/state.spec.md §5 name this the SITE_CORRUPT-mapped error");
@@ -48,10 +48,10 @@ test("zero workspace rows: resolveWorkspace throws a SiteCorruptError naming zer
 
 test("exactly one workspace row: resolveWorkspace returns that row's WorkspaceRecord unchanged", async () => {
   const db = openContentDb(":memory:");
-  const record = { id: "ws-only-one", name: "Only Workspace", slug: "only-workspace", createdAt: "2026-07-28T00:00:00.000Z" };
+  const record = { id: "ws-only-one", name: "Only Workspace", slug: "only-workspace", createdAt: "2026-07-28T00:00:00.000Z", version: 7 };
   db.insert(workspaces).values(record).run();
 
-  const resolved = await resolveWorkspace({ kernel: contentKernel(db) });
+  const resolved = await resolveWorkspace({ kernel: contentKernel({ store: db }) });
   assert.deepEqual(resolved, record, "REQ-06: the resolved workspace must equal the db's one actual row, field for field");
 });
 
@@ -66,7 +66,7 @@ test("multiple workspace rows, no selector: resolveWorkspace returns the OLDEST 
     warnCalls.push(args);
   };
   try {
-    const resolved = await resolveWorkspace({ kernel: contentKernel(db) });
+    const resolved = await resolveWorkspace({ kernel: contentKernel({ store: db }) });
     assert.equal(resolved.id, "ws-older", "B1: with no explicit selector, the OLDEST row must win regardless of insertion/select order");
     assert.ok(warnCalls.length > 0, "a warning must be logged when more than one workspace row exists");
     assert.ok(
@@ -86,7 +86,7 @@ test("multiple workspace rows, tie in createdAt: resolveWorkspace breaks ties by
   const originalWarn = console.warn;
   console.warn = () => {};
   try {
-    const resolved = await resolveWorkspace({ kernel: contentKernel(db) });
+    const resolved = await resolveWorkspace({ kernel: contentKernel({ store: db }) });
     assert.equal(resolved.id, "ws-a", "when createdAt is tied, id comparison breaks tie deterministically");
   } finally {
     console.warn = originalWarn;
@@ -98,7 +98,7 @@ test("multiple workspace rows, explicit workspaceId: resolveWorkspace returns th
   db.insert(workspaces).values({ id: "ws-older", name: "Older", slug: "older", createdAt: "2026-07-28T00:00:00.000Z" }).run();
   db.insert(workspaces).values({ id: "ws-newer", name: "Newer", slug: "newer", createdAt: "2026-07-28T00:00:01.000Z" }).run();
 
-  const resolved = await resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: "ws-newer" });
+  const resolved = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: "ws-newer" });
   assert.equal(resolved.id, "ws-newer", "an explicit workspaceId must be honored even when a different row is older");
 });
 
@@ -107,7 +107,7 @@ test("explicit workspaceId matching no row: resolveWorkspace throws a Validation
   db.insert(workspaces).values({ id: "ws-a", name: "A", slug: "a", createdAt: "2026-07-28T00:00:00.000Z" }).run();
 
   await assert.rejects(
-    resolveWorkspace({ kernel: contentKernel(db) }, { workspaceId: "does-not-exist" }),
+    resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: "does-not-exist" }),
     (err: unknown) => {
       assert.ok(err instanceof Error);
       assert.equal((err as Error).name, "ValidationError");

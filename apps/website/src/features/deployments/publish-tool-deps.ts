@@ -4,13 +4,13 @@ import type { SiteConsentService } from '#src/features/consent/service';
 import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
-import type { ExportReport } from "#src/features/site-export/index";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { ExportReport } from "#src/contracts/core/export-report";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 import type { DeployTargetRegistry } from "./deploy-targets/types.js";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { PublishCredentialSource, PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishDeps } from "./static-publish/index.js";
 
 
@@ -67,7 +67,7 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
    *  fields a target takes and judges them. Production composition injects the installed deploy Agent Plugin
    *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Installed metadata; production binds the data contribution loader, never executable discovery. */
   readonly loadInstalledDeployTargets?: LoadInstalledDeployTargets;
   /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */

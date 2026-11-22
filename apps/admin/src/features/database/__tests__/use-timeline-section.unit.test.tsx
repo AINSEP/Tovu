@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { navigate } from "@/lib/router";
 import { navigateToRecoveryWithDeepLink, useTimelineSection, useWiredTimelineSection } from "../hooks/use-timeline-section.hooks";
@@ -55,7 +55,7 @@ describe("navigateToRecoveryWithDeepLink", () => {
   it("stashes a v1 envelope carrying the row's own id/restorePointId/kind, and navigates to /recovery", () => {
     navigateToRecoveryWithDeepLink(ROW_WITH_RESTORE_POINT);
 
-    expect(navigate).toHaveBeenCalledWith("/recovery");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/recovery" });
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
     expect(raw).not.toBeNull();
     const envelope = JSON.parse(raw!);
@@ -162,7 +162,7 @@ describe("loadMore", () => {
     const oldPage = new Promise<{ items: AdminLedgerRow[]; nextCursor: string | null }>((_resolve, reject) => { rejectOld = reject; });
     const filteredRow = { ...ROW_WITH_RESTORE_POINT, id: "filtered" };
     const port = {
-      getDatabaseTimeline: async ({ kind, cursor }: { kind?: string; cursor?: string } = {}) => {
+      getDatabaseTimeline: async (_required: {}, { options: { kind, cursor } = {} }: { options?: { kind?: string; cursor?: string } } = {}) => {
         if (cursor === "c2") return oldPage;
         if (kind === "core.backup") return { items: [filteredRow], nextCursor: null };
         return { items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" };
@@ -211,7 +211,7 @@ describe("loadMore", () => {
     expect(result.current.loadingMore).toBe(true);
 
     await act(async () => { resolveNew({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }); });
-    expect(getDatabaseTimeline.mock.calls.at(-1)?.[0]).toMatchObject({ kind: "core.backup", cursor: "filtered-c2" });
+    expect(getDatabaseTimeline.mock.calls.at(-1)?.[1]).toMatchObject({ options: { kind: "core.backup", cursor: "filtered-c2" } });
     expect(result.current.rows).toEqual([filteredRow, ROW_WITHOUT_RESTORE_POINT]);
     expect(result.current.loadingMore).toBe(false);
   });

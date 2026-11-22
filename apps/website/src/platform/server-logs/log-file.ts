@@ -22,23 +22,23 @@ const DEFAULT_LOG_TAIL_BYTES = 2_000_000;
 
 /** The filesystem calls the sink and reader need; injectable so rotation is testable in memory. */
 export interface LogFileFsPort {
-  appendFile(filePath: string, data: string): void;
+  appendFile(required: { filePath: string; data: string }, optional?: Record<string, never>): void;
   /** Size in bytes, or null when the file does not exist. */
-  size(filePath: string): number | null;
-  rename(from: string, to: string): void;
-  mkdirp(dir: string): void;
+  size(required: { filePath: string }, optional?: Record<string, never>): number | null;
+  rename(required: { from: string; to: string }, optional?: Record<string, never>): void;
+  mkdirp(required: { dir: string }, optional?: Record<string, never>): void;
   /** The last `maxBytes` of the file as UTF-8, or null when it does not exist. */
-  readTail(filePath: string, maxBytes: number): string | null;
+  readTail(required: { filePath: string; maxBytes: number }, optional?: Record<string, never>): string | null;
 }
 
 export const nodeLogFileFs: LogFileFsPort = {
-  appendFile: (filePath, data) => fs.appendFileSync(filePath, data, { mode: 0o600 }),
-  size: filePath => {
+  appendFile: ({ filePath, data }) => fs.appendFileSync(filePath, data, { mode: 0o600 }),
+  size: ({ filePath }) => {
     try { return fs.statSync(filePath).size; } catch { return null; }
   },
-  rename: (from, to) => fs.renameSync(from, to),
-  mkdirp: dir => { fs.mkdirSync(dir, { recursive: true }); },
-  readTail: (filePath, maxBytes) => {
+  rename: ({ from, to }) => fs.renameSync(from, to),
+  mkdirp: ({ dir }) => { fs.mkdirSync(dir, { recursive: true }); },
+  readTail: ({ filePath, maxBytes }) => {
     let fd: number;
     try { fd = fs.openSync(filePath, "r"); } catch { return null; }
     try {
@@ -54,7 +54,7 @@ export const nodeLogFileFs: LogFileFsPort = {
 };
 
 export interface LogFileSink {
-  write(entry: ServerLogEntry): void;
+  write(required: { entry: ServerLogEntry }, optional?: Record<string, never>): void;
   /** False once a write has failed; the sink then drops everything. */
   isHealthy(): boolean;
 }
@@ -73,20 +73,20 @@ export function createRotatingLogFileSink(required: { filePath: string }, option
   let healthy = true;
   let size: number | null = null;
   return {
-    write(entry) {
+    write({ entry }) {
       if (!healthy) return;
       try {
         if (size === null) {
-          io.mkdirp(path.dirname(required.filePath));
-          size = io.size(required.filePath) ?? 0;
+          io.mkdirp({ dir: path.dirname(required.filePath) });
+          size = io.size({ filePath: required.filePath }) ?? 0;
         }
         const line = `${JSON.stringify(entry)}\n`;
         const lineBytes = Buffer.byteLength(line);
         if (size > 0 && size + lineBytes > maxBytes) {
-          io.rename(required.filePath, `${required.filePath}.1`);
+          io.rename({ from: required.filePath, to: `${required.filePath}.1` });
           size = 0;
         }
-        io.appendFile(required.filePath, line);
+        io.appendFile({ filePath: required.filePath, data: line });
         size += lineBytes;
       } catch {
         healthy = false;
@@ -127,7 +127,7 @@ function parseLines({ text }: { text: string }, _options = {}): ServerLogEntry[]
  */
 function readTailEntries(required: { io: LogFileFsPort; filePath: string; size: number | null; budget: number }, _options = {}): ServerLogEntry[] {
   if (required.size === null) return [];
-  return parseLines({ text: required.io.readTail(required.filePath, required.budget) ?? "" });
+  return parseLines({ text: required.io.readTail({ filePath: required.filePath, maxBytes: required.budget }) ?? "" });
 }
 
 /**
@@ -140,9 +140,9 @@ function readTailEntries(required: { io: LogFileFsPort; filePath: string; size: 
 export function readLogFileTail(required: { filePath: string }, optional: { maxBytes?: number; maxEntries?: number; fs?: LogFileFsPort } = {}): ServerLogEntry[] | null {
   const io = optional.fs ?? nodeLogFileFs;
   const budget = optional.maxBytes ?? DEFAULT_LOG_TAIL_BYTES;
-  const currentSize = io.size(required.filePath);
+  const currentSize = io.size({ filePath: required.filePath });
   const rotatedPath = `${required.filePath}.1`;
-  const rotatedSize = io.size(rotatedPath);
+  const rotatedSize = io.size({ filePath: rotatedPath });
   if (currentSize === null && rotatedSize === null) return null;
   const current = readTailEntries({ io, filePath: required.filePath, size: currentSize, budget });
   const remaining = budget - Math.min(currentSize ?? 0, budget);

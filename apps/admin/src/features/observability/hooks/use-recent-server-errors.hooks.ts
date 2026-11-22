@@ -2,7 +2,8 @@ import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo } from "react";
 
-import { describeApiError, type AdminServerLogEntry, type AdminServerLogs } from "@/lib/api";
+import type { AdminServerLogEntry, AdminServerLogs } from "@/features/observability/api/observability-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import {
@@ -15,8 +16,8 @@ import {
 } from "../recent-errors-rules";
 import { defaultRecentServerErrorsPort } from "./recent-server-errors-dependencies.hooks";
 import type { RecentServerErrorsPort } from "./recent-server-errors-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Observability screen's Recent errors tab (gap A-04, slice L2): the newest
  * error lines from `GET .../system/server-logs?level=error` — the same `readServerLogs` the
@@ -74,7 +75,7 @@ export interface RecentServerErrorsController {
 export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDependencies): RecentServerErrorsController {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.getServerLogs({ level: "error", limit: RECENT_ERRORS_LIMIT }); }
-    catch (error) { throw new Error(describeApiError(error, translateObservability({ locale, key: "failed to load recent server errors" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: translateObservability({ locale, key: "failed to load recent server errors" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["observability", "server-errors", RECENT_ERRORS_LIMIT], fetch: queryFetch }, { staleTime: 0 });
   const logs = query.data ?? null;
@@ -82,11 +83,11 @@ export function useRecentServerErrors({ port, locale, t }: RecentServerErrorsDep
   const error = query.error?.message ?? null;
   const refresh = query.refetch;
 
-  const rows = useMemo(() => (logs ? toRows(logs.entries, locale) : []), [logs, locale]);
+  const rows = useMemo(() => (logs ? toRows({ entries: logs.entries, locale: locale }) : []), [logs, locale]);
   return { rows, logs, loading, error, refresh, clipboard: port, t };
 }
 
-function formatWhen(at: string, locale: string): string {
+function formatWhen({ at, locale }: { at: string; locale: string }, _optional = {}): string {
   try {
     return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium" }).format(new Date(at));
   } catch {
@@ -96,18 +97,18 @@ function formatWhen(at: string, locale: string): string {
 
 /** Newest first, repeats of the same error grouped. Memoized by the caller: segmenting 50 stack traces
  *  on every render would redo the same regex work for nothing. */
-function toRows(entries: AdminServerLogEntry[], locale: string): RecentServerErrorRow[] {
-  return groupErrorEntries({ entries }).map((group) => toRow(group, locale));
+function toRows({ entries, locale }: { entries: AdminServerLogEntry[]; locale: string }, _optional = {}): RecentServerErrorRow[] {
+  return groupErrorEntries({ entries }).map((group) => toRow({ group: group, locale: locale }));
 }
 
-function toRow(group: RecentErrorGroup, locale: string): RecentServerErrorRow {
+function toRow({ group, locale }: { group: RecentErrorGroup; locale: string }, _optional = {}): RecentServerErrorRow {
   const { latest, earliest, count } = group;
   const { scope, summary } = summarizeErrorMessage({ message: latest.message });
   return {
     key: group.key,
-    when: formatWhen(latest.at, locale),
+    when: formatWhen({ at: latest.at, locale: locale }),
     at: latest.at,
-    firstWhen: count > 1 ? formatWhen(earliest.at, locale) : null,
+    firstWhen: count > 1 ? formatWhen({ at: earliest.at, locale: locale }) : null,
     firstAt: count > 1 ? earliest.at : null,
     source: latest.source,
     scope,

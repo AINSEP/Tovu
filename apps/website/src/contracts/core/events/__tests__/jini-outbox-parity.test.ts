@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox, startOutboxDrainer, toEnqueueOnlyOutbox } from "../index.js";
 
 const NOW = "2026-10-07T00:00:00.000Z";
@@ -27,7 +27,7 @@ for (const storage of ["memory", "sqlite"] as const) {
   test(`${storage}: competing drains execute the full event once within its live lease`, async (t) => {
     const db = storage === "sqlite" ? openContentDb(":memory:") : undefined;
     if (db) t.after(() => db.$client.close());
-    const outbox: OutboxPort = db ? new SqliteOutboxAdapter(db) : new InMemoryOutbox();
+    const outbox: OutboxPort = db ? new SqliteOutboxAdapter({ store: db }) : new InMemoryOutbox();
     const bus = new InMemoryEventBus();
     const started = deferred();
     const finish = deferred();
@@ -63,7 +63,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
     .run(event.id, event.workspaceId, eventJson, "pending", 0, NOW, NOW);
   const snapshot = () => db.$client.prepare("SELECT * FROM outbox_events WHERE id = ?").get(event.id) as Record<string, unknown>;
   const initial = snapshot();
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   const daemon = toEnqueueOnlyOutbox(outbox);
   const bus = new InMemoryEventBus();
   const received: DomainEvent[] = [];
@@ -79,7 +79,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
 
   assert.equal(await processOutbox({ outbox, bus, clock }, { random: () => 0 }), 1);
   assert.deepEqual(snapshot(), {
-    ...initial, status: "pending", attempts: 1, last_error: "subscriber unavailable", next_attempt_at: "2026-10-07T00:00:15.000Z",
+    ...initial, status: "pending", attempts: 1, last_error: "Error", next_attempt_at: "2026-10-07T00:00:15.000Z",
   });
   nowMs += 14_999;
   assert.equal(await processOutbox({ outbox, bus, clock }), 0);
@@ -87,7 +87,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
   assert.equal(await processOutbox({ outbox, bus, clock }), 1);
   assert.deepEqual(received, [event, event]);
   assert.deepEqual(snapshot(), {
-    ...initial, status: "delivered", attempts: 2, last_error: "subscriber unavailable", next_attempt_at: "2026-10-07T00:30:15.000Z",
+    ...initial, status: "delivered", attempts: 2, last_error: "Error", next_attempt_at: "2026-10-07T00:30:15.000Z",
   });
   assert.equal(await processOutbox({ outbox, bus, clock }), 0);
 });
@@ -95,7 +95,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
 test("persisted poison rows get exactly six attempts with the historical retry times and terminal status", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const outbox = new SqliteOutboxAdapter(db);
+  const outbox = new SqliteOutboxAdapter({ store: db });
   const bus = new InMemoryEventBus();
   let attempts = 0;
   await bus.subscribe({ eventName: event.name, handler: async () => {
@@ -111,7 +111,7 @@ test("persisted poison rows get exactly six attempts with the historical retry t
     const stored = db.$client.prepare("SELECT status, attempts, next_attempt_at, last_error, event_json FROM outbox_events WHERE id = ?").get(event.id);
     assert.deepEqual(stored, {
       status: index === 5 ? "failed" : "pending", attempts: index + 1,
-      next_attempt_at: new Date(nowMs + delay).toISOString(), last_error: "permanent subscriber failure", event_json: JSON.stringify(event),
+      next_attempt_at: new Date(nowMs + delay).toISOString(), last_error: "Error", event_json: JSON.stringify(event),
     });
     assert.equal(await processOutbox({ outbox, bus, clock }), 0);
     nowMs += delay;
@@ -168,7 +168,7 @@ test("only the explicitly started serving drainer executes effects; inline drain
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
   test(`kysely/${each.name}: a timed-out attempt's late success still settles the row its timeout returned to pending`, async () => {
     const kernel = each.make();
-    const outbox = new SqlOutboxAdapter(kernel);
+    const outbox = outboxOn({ kernel });
     const bus = new InMemoryEventBus();
     const finish = deferred();
     let runs = 0;

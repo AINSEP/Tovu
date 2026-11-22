@@ -6,7 +6,7 @@ import type { MemberRecord, MemberStatus } from "#src/features/members/index";
  * Purpose:
  * Serializes `MemberRecord` for the new PUBLIC `sign-in/complete` route — the
  * response a member's own (unauthenticated) browser receives. Mirrors
- * `http/admin/members.ts`'s `toAdminMemberResponse` exclusion discipline, but
+ * `apps/website/src/server/inbound/admin-http/http/members.ts`'s `toAdminMemberResponse` exclusion discipline, but
  * STRICTER: this response goes to the member's own client on an
  * unauthenticated surface, not to an operator, so it additionally excludes
  * `emailVerifiedAt`, `workspaceId`, and `version` on top of everything the

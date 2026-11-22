@@ -1,7 +1,8 @@
 import { executeCommand } from "#src/contracts/core/commands/index";
 import { trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms/forms";
 import type { FieldDescriptor, FormDefinitionStatus } from "@jini-ai/cms/forms";
@@ -23,17 +24,17 @@ import { FORMS_TABLES } from "./repo.sqlite.js";
  * @overallScore 98 — Minor: the factory's typed state is trusted until existing command validation. */
 
 export const contributeFormPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<HtmlFormDefinitionRecord, PublishContentPorts["form"]>({
+  createRepoPublishHandler<HtmlFormDefinitionRecord, TovuPublishPorts["form"]>({
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
-    ports: (deps) => deps.ports.form,
-    list: async (p, workspaceId) => (await p.repo.list({ workspaceId })).map(publishableForm),
-    find: async (p, workspaceId, slug) => {
+    ports: ({ deps }, _optional = {}) => deps.ports.form,
+    list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(publishableForm),
+    find: async ({ ports: p, workspaceId, id: slug }) => {
       const row = await p.repo.findBySlug({ workspaceId, slug });
       return row ? publishableForm(row) : null;
     },
-    idOf: (row) => row.slug,
+    idOf: ({ row }, _optional = {}) => row.slug,
     fields: {
       name: "transferred",
       slug: "transferred",
@@ -50,9 +51,9 @@ export const contributeFormPublish = (): PublishContentContributor =>
       version: "local",
     },
     validate: async ({ ports, workspaceId, entity, existing }) =>
-      !existing && (await ports.repo.isSlugTaken({ workspaceId, slug: entity.id })) ? trashedAtDestination("form", entity.id) : null,
+      !existing && (await ports.repo.isSlugTaken({ workspaceId, slug: entity.id })) ? trashedAtDestination({ entityType: "form", id: entity.id }) : null,
     write: async ({ ports, deps, workspaceId, id, state, existing, principalId }) => {
-      const writeDeps = { ...gatewayDeps(deps, "form"), repo: ports.repo, executeCommand };
+      const writeDeps = { ...gatewayDeps({ deps, entityType: "form" }), repo: ports.repo, executeCommand };
       const actor = { id: principalId, kind: "user" as const };
       const name = state.name as string;
       const fields = state.fields as FieldDescriptor[];

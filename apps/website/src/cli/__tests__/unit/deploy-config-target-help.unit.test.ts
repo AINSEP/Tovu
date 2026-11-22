@@ -16,10 +16,10 @@ test("with the split bundled plugins, --target help follows plugin-id order", ()
 });
 
 test("formatTargetOptionHelp: joins one, two, and many ids", () => {
-  assert.equal(formatTargetOptionHelp([]), "deploy platform id declared by bundled plugins");
-  assert.equal(formatTargetOptionHelp(["fly"]), "deploy platform: fly");
-  assert.equal(formatTargetOptionHelp(["fly", "render"]), "deploy platform: fly or render");
-  assert.equal(formatTargetOptionHelp(["a", "b", "c", "d"]), "deploy platform: a, b, c, or d");
+  assert.equal(formatTargetOptionHelp({ ids: [] }), "deploy platform id declared by bundled plugins");
+  assert.equal(formatTargetOptionHelp({ ids: ["fly"] }), "deploy platform: fly");
+  assert.equal(formatTargetOptionHelp({ ids: ["fly", "render"] }), "deploy platform: fly or render");
+  assert.equal(formatTargetOptionHelp({ ids: ["a", "b", "c", "d"] }), "deploy platform: a, b, c, or d");
 });
 
 test("CLI help discovers all contributing packages through the same bundled source selector", async t => {
@@ -36,7 +36,7 @@ test("CLI help discovers all contributing packages through the same bundled sour
   for (const [pluginId, id] of [["zeta", "last"], ["alpha", "first"], ["tovu-deploy-fly", "retired"]]) {
     await mkdir(path.join(sourceRoot, pluginId!));
     await writeFile(path.join(sourceRoot, pluginId!, "plugin.json"), JSON.stringify({ name: pluginId, version: "1.0.0" }));
-    await writeFile(path.join(sourceRoot, pluginId!, "tovu-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id, label: id, module: "missing.mjs" }] }));
+    await writeFile(path.join(sourceRoot, pluginId!, "jini-deploy-configs.json"), JSON.stringify({ schemaVersion: 1, generators: [{ id, label: id, module: "missing.mjs" }] }));
   }
   process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = sourceRoot;
   assert.equal(deployConfigTargetOptionHelp(), "deploy platform: first or last");

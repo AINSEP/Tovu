@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -7,7 +8,7 @@ import { toContentTypeOutbox } from "#src/features/content-types/index";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
-import { contentTypeWriteErrorStatus } from "./write-error-status.js";
+import { contentTypeWriteErrorStatus } from "@jini-ai/cms/content-types";
 
 /**
  * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types/:key/lifecycle` (Deprecate /
@@ -20,24 +21,12 @@ import { contentTypeWriteErrorStatus } from "./write-error-status.js";
  * unparsed request value (mirrors `inbound/admin-http/routes/settings/register-definitions.ts`'s identical
  * `NON_REGISTER_DEFINITION_OPS` shape).
  */
-export function registerAdminContentTypeLifecycleRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeLifecycleRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/content-types/:key/lifecycle", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "content-type",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.manage", workspaceId: deps.workspaceId, entityType: "content-type" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       const op = parseContentTypeLifecycleOp({ op: body.op });

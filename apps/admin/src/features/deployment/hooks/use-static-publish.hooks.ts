@@ -2,14 +2,8 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 
-import {
-  describeApiError,
-  type AdminPublishRunSnapshot,
-  type AdminPublishTargetDescriptor,
-  type AdminStaticPublishConfig,
-  type AdminStaticPublishPreview,
-  type AdminStaticPublishTargetId,
-} from "@/lib/api";
+import type { AdminPublishRunSnapshot, AdminPublishTargetDescriptor, AdminStaticPublishConfig, AdminStaticPublishPreview, AdminStaticPublishTargetId } from "@/features/deployment/api/deployment-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -20,7 +14,7 @@ import {
   publishPreviewErrorMessage,
   publishTriggerErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   buildStaticPublishConfig,
   publishTargetById,
@@ -33,13 +27,14 @@ import {
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "The publish service returned no explanation. Check publish status before trying again, and report this message if the problem continues.";
 
 /**
  * @file Everything the Static Site tab's "Getting it online" provider form does — target selection,
  * the host's config fields and projectName, the preview action, and the publish
  * trigger+poll — so `StaticSiteTab.tsx` is only markup. Wired 2026-08-15 against
- * `src/server/routes/admin/system/publish-site.ts`'s three routes (preview, trigger, status).
+ * `apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`'s three routes (preview, trigger, status).
  *
  * ## One form, fields from the host's descriptor
  *
@@ -76,7 +71,7 @@ export interface StaticPublishController {
   setTarget: (target: AdminStaticPublishTargetId) => void;
   /** The selected target's config values, keyed by descriptor field name. */
   configValues: Readonly<Record<string, string>>;
-  setConfigField: (name: string, value: string) => void;
+  setConfigField: (required: { name: string; value: string }, optional?: {}) => void;
   /** Whether Preview / Publish may be asked for with the current values (`rules.ts`). */
   canPreview: boolean;
   canPublish: boolean;
@@ -151,15 +146,15 @@ const PUBLISH_POLL_INTERVAL_MS = 1500;
  *  {@link StaticPublishController.pollError} instead of retrying forever. */
 const PUBLISH_POLL_FAILURE_LIMIT = 3;
 
-export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: string): StaticPublishController {
+export function useStaticPublish({ port, t, locale }: { port: StaticPublishPort; t: Translate; locale: string }, _options = {}): StaticPublishController {
   const targetsQuery = useFetchQuery({ key: ["deployment", "publish-targets"], fetch: () => port.listPublishTargets() });
   // The host's own text in the viewer's locale, once, so every consumer (this form, the credential
   // rows built from these targets) renders it translated.
-  const targets = useMemo(() => localizePublishTargets(targetsQuery.data, locale), [targetsQuery.data, locale]);
-  const targetsError = targetsQuery.error ? publishLoadErrorMessage(locale, describeApiError(targetsQuery.error, UNKNOWN_ERROR)) : null;
+  const targets = useMemo(() => localizePublishTargets({ targets: targetsQuery.data, locale }), [targetsQuery.data, locale]);
+  const targetsError = targetsQuery.error ? publishLoadErrorMessage({ locale, error: describeApiError({ e: targetsQuery.error, fallback: UNKNOWN_ERROR }) }) : null;
   const [chosenTarget, setChosenTarget] = useState<AdminStaticPublishTargetId | null>(null);
   const target = selectedPublishTargetId({ chosenTarget, targets });
-  const selectedTarget = publishTargetById(targets, target);
+  const selectedTarget = publishTargetById({ targets, id: target });
   const [valuesByTarget, setValuesByTarget] = useState<Record<AdminStaticPublishTargetId, Record<string, string>>>({});
   const configValues = valuesByTarget[target] ?? {};
   const [projectName, setProjectName] = useState("");
@@ -190,11 +185,11 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPreviewError(null);
   }
   function setTarget(value: AdminStaticPublishTargetId) {
-    if (publishTargetById(targets, value) === undefined) return;
+    if (publishTargetById({ targets, id: value }) === undefined) return;
     setChosenTarget(value);
     invalidatePreview();
   }
-  function setConfigField(name: string, value: string) {
+  function setConfigField({ name, value }: { name: string; value: string }, _options = {}) {
     setValuesByTarget((prev) => ({ ...prev, [target]: { ...prev[target], [name]: value } }));
     invalidatePreview();
   }
@@ -216,7 +211,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setPreviewError(null);
     setPreviewLoading(true);
     try {
-      const result = await port.getPublishPreview(buildStaticPublishConfig(selectedTarget, configValues));
+      const result = await port.getPublishPreview(buildStaticPublishConfig({ target: selectedTarget, values: configValues }));
       // A field edited after this request started already invalidated the preview and moved the
       // generation forward — applying this now-stale result would repopulate the OLD fields over a
       // form the operator has since changed. Discard it silently; the edit's own `invalidatePreview()`
@@ -225,7 +220,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       setPreview(result);
     } catch (err) {
       if (previewGenerationRef.current !== requestGeneration) return;
-      setPreviewError(publishPreviewErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
+      setPreviewError(publishPreviewErrorMessage({ locale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }));
     } finally {
       // Unconditional, unlike the two branches above: this request's own spinner must stop once ITS
       // OWN network call settles regardless of generation, or a discarded stale response would leave
@@ -254,7 +249,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setRun(query.data);
   }, [query.status, query.data]);
 
-  const loadError = query.error ? publishLoadErrorMessage(locale, describeApiError(query.error, UNKNOWN_ERROR)) : null;
+  const loadError = query.error ? publishLoadErrorMessage({ locale, error: describeApiError({ e: query.error, fallback: UNKNOWN_ERROR }) }) : null;
 
   // Counts CONSECUTIVE poll failures for the `PUBLISH_POLL_FAILURE_LIMIT` bound below — same ref-not-
   // state reasoning `use-static-export.hooks.ts`'s own `pollFailuresRef` documents.
@@ -266,13 +261,15 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   const publishingRef = useRef(false);
 
   const isPublishing = run?.status === "running" && pollError === null;
+  const pollInputs = useRef({ port, locale });
+  pollInputs.current = { port, locale };
 
   // Self-scheduling poll loop, re-armed only when `isPublishing` flips true — identical shape and
   // identical reasoning to `use-static-export.hooks.ts`'s own poll effect; see that file's comment
   // for why `run`/`port` are deliberately excluded from the dependency list.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-armed only when `isPublishing` flips true; `run`/`port` deliberately excluded — see comment above.
   useEffect(() => {
     if (!isPublishing) return undefined;
+    const { port: pollPort, locale: pollLocale } = pollInputs.current;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
 
@@ -281,7 +278,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     }
     async function poll() {
       try {
-        const status = await port.getPublishStatus();
+        const status = await pollPort.getPublishStatus();
         if (cancelled) return;
         pollFailuresRef.current = 0;
         setRun(status);
@@ -294,7 +291,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
           // retry forever. Setting `pollError` also flips `isPublishing` false on the next render,
           // which re-arms this effect's own cleanup — but `return` here (no `scheduleNext()`) is
           // what actually stops the loop; it must not depend on that later render having happened.
-          setPollError(publishPollErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)));
+          setPollError(publishPollErrorMessage({ locale: pollLocale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }));
           return;
         }
         scheduleNext();
@@ -339,7 +336,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       });
       setRun(started);
     } catch (err) {
-      const failure = formatUserFacingError({ message: publishTriggerErrorMessage(locale, describeApiError(err, UNKNOWN_ERROR)),
+      const failure = formatUserFacingError({ message: publishTriggerErrorMessage({ locale, error: describeApiError({ e: err, fallback: UNKNOWN_ERROR }) }),
         action: t("Check publish status before starting another publish. Copy details and report this problem."), step: "static.publish.start", cause: err }, TOVU_ERROR_REDACTION_OPTIONS);
       setPublishError(failure.message);
       setPublishFailure(failure);
@@ -357,9 +354,9 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     setTarget,
     configValues,
     setConfigField,
-    canPreview: staticPublishFormReadyForPreview(selectedTarget, configValues),
-    canPublish: staticPublishFormReadyToPublish(selectedTarget, configValues, projectName),
-    projectNameCopy: staticPublishProjectNameCopy(selectedTarget),
+    canPreview: staticPublishFormReadyForPreview({ target: selectedTarget, values: configValues }),
+    canPublish: staticPublishFormReadyToPublish({ target: selectedTarget, values: configValues, projectName }),
+    projectNameCopy: staticPublishProjectNameCopy({ target: selectedTarget }),
     projectName,
     setProjectName,
     preview,
@@ -389,8 +386,8 @@ function publishRequestFor(input: {
   if (input.options.destination) return input.options.destination;
   if (input.selectedTarget === undefined) return undefined;
   return {
-    config: buildStaticPublishConfig(input.selectedTarget, input.configValues),
-    projectName: staticPublishProjectNameToSend(input.selectedTarget, input.projectName),
+    config: buildStaticPublishConfig({ target: input.selectedTarget, values: input.configValues }),
+    projectName: staticPublishProjectNameToSend({ target: input.selectedTarget, projectName: input.projectName }),
   };
 }
 
@@ -402,13 +399,13 @@ function publishRequestFor(input: {
 export function useWiredStaticPublish(): StaticPublishController {
   const locale = useAdminLocale();
   const t = (key: string): string => defaultT({ locale: locale, key: key });
-  return useStaticPublish(defaultStaticPublishPort, t, locale);
+  return useStaticPublish({ port: defaultStaticPublishPort, t, locale });
 }
 
 /** A chosen target wins; the initial target follows the provider's published ordering. */
 function selectedPublishTargetId({ chosenTarget, targets }: {
   chosenTarget: AdminStaticPublishTargetId | null;
-  targets: Parameters<typeof publishTargetById>[0];
+  targets: Parameters<typeof publishTargetById>[0]["targets"];
 }): AdminStaticPublishTargetId {
   return chosenTarget ?? targets?.[0]?.id ?? "";
 }

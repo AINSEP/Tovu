@@ -9,14 +9,14 @@
 /** The steps one menu open is made of, bound by `main.ts` to this launch's `ctx`. */
 interface SiteOpenActionPorts {
   /** `site-dir-store.ts`'s `adoptSiteDir`: re-classify (and init, if empty) the folder; resolves to the site dir. */
-  adoptSiteDir: (dir: string) => Promise<string>;
+  adoptSiteDir: (required: { dir: string }) => Promise<string>;
   /** `main.ts`'s `openSiteWindow`. */
-  openSiteWindow: (siteDir: string) => Promise<unknown>;
+  openSiteWindow: (required: { siteDir: string }) => Promise<unknown>;
   /** Rebuild the app menu so "Open Recent" reflects the new MRU order. */
   refreshAppMenu: () => void;
   /** The site-folder picker (`site-folder-prompt.ts`) with nothing rejected; `null` when cancelled. */
   promptForSiteDir: () => Promise<string | null>;
-  showErrorBox: (title: string, message: string) => void;
+  showErrorBox: (required: { title: string; message: string }) => void;
 }
 
 /**
@@ -28,10 +28,10 @@ interface SiteOpenActionPorts {
  */
 async function adoptAndOpenSite({ dir, ports }: { dir: string; ports: SiteOpenActionPorts }, _optional = {}): Promise<void> {
   try {
-    const adopted = await ports.adoptSiteDir(dir);
-    await ports.openSiteWindow(adopted);
+    const adopted = await ports.adoptSiteDir({ dir });
+    await ports.openSiteWindow({ siteDir: adopted });
   } catch (error) {
-    ports.showErrorBox("Tovu could not open that site", (error as Error).message);
+    ports.showErrorBox({ title: "Tovu could not open that site", message: (error as Error).message });
     return;
   }
   ports.refreshAppMenu();
@@ -45,7 +45,7 @@ async function promptAndOpenNewSite({ ports }: { ports: SiteOpenActionPorts }, _
   try {
     dir = await ports.promptForSiteDir();
   } catch (error) {
-    ports.showErrorBox("Tovu could not open that folder", (error as Error).message);
+    ports.showErrorBox({ title: "Tovu could not open that folder", message: (error as Error).message });
     return;
   }
   if (dir === null) return;

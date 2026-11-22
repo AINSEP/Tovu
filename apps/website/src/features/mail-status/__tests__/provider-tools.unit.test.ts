@@ -1,13 +1,14 @@
+import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import type { ChatDeleteSurfaceDeps } from '#src/contracts/core/chat-delete-grant';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 
-import { ConsoleMailerAdapter } from "../../members/index.js";
-import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "../../../platform/mail/mail-status.js";
+import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
+import type { MailProviderControl } from "../../../platform/mail/mail-status.js";
 import { buildMailProviderRegistrations, contributeMailProviderTools, currentLanesDetail, mailProviderDerivedRisk, readCurrentLanes, asToolInputError, type MailProviderToolDeps } from "../provider-tool-registrations.js";
 import { buildMailStatusRegistrations } from "../tool-registrations.js";
 
@@ -123,7 +124,7 @@ function statusTools(control: MailProviderControl, mailStatus?: (optional?: { re
     store.deliver({ exchangeId: `exchange-${count}`, principalId: "owner", params: { decision: "confirm" } }, { toolId });
   } });
   const surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: store, assertAccessApprover: async () => {} };
-  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: new ConsoleMailerAdapter(), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, surfaces);
+  const registrations = buildMailStatusRegistrations({ workspaceId: "ws", mailer: toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() }, preview: () => {} }).create({ credential: { token: "" }, kit: {} as never }) }), authorize: async () => ({ allowed: true, reason: "grant" }), mailProviderControl: control, ...(mailStatus ? { mailStatus } : {}) }, surfaces);
   const call = (name: string, input: unknown, options: ToolExecutionOptions = {}) => registrations.find((r) => r.descriptor.id === name)!.handler({ ...ctx, input }, options);
   return { call, confirm, cards };
 }

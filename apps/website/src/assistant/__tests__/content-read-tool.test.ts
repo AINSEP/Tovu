@@ -124,11 +124,11 @@ const EXPECTED_CARD_IDS: readonly string[] = [
 ];
 
 function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set<string> {
-  return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
+  return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions, ...options } }).map((r) => r.descriptor.id));
 }
 
 test("the real composition publishes exactly the 32 content_read cards", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const cards = registrations.filter(tool => tool.descriptor.id.startsWith("content_read."));
   assert.deepEqual(cards.map(tool => tool.descriptor.id).sort(), [...EXPECTED_CARD_IDS].sort());
   assert.ok(!registrations.some(tool => tool.descriptor.id === "content_read"));
@@ -139,7 +139,7 @@ test("the real composition publishes exactly the 32 content_read cards", () => {
 });
 
 test("content_read.menu publishes optional canonical id and documents its legacy selector", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
   const schema = menu.descriptor.inputSchema as { required?: string[]; properties: Record<string, { description?: string }> };
@@ -151,7 +151,7 @@ test("content_read.menu publishes optional canonical id and documents its legacy
 });
 
 test("the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading", async () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
   const inputs: unknown[] = [];
@@ -177,7 +177,7 @@ test("the execution gate accepts canonical and legacy menu selectors and rejects
 });
 
 test("canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   for (const [resource, idProperty] of [["comment", "commentId"], ["theme", "themeId"]]) {
     const registration = registrations.find((entry) => entry.descriptor.id === `content_read.${resource}`);
     assert.ok(registration);
@@ -222,12 +222,12 @@ test("includeContentReadCollapse:false reconstructs the true PRE-collapse catalo
 test("RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once", () => {
   assert.deepEqual([...RETIRED_READ_TOOL_TO_CARD.keys()].sort(), [...RETIRED_TIER1_IDS].sort());
   assert.deepEqual([...new Set(RETIRED_READ_TOOL_TO_CARD.values())].sort(), [...EXPECTED_CARD_IDS].sort());
-  assert.equal(currentToolIdFor("sites_list"), "content_read.site", "site eval ground truth maps to the published card");
-  assert.equal(currentToolIdFor("members_get_by_id"), "content_read.member");
-  assert.equal(currentToolIdFor("members_list"), "content_read.member", "both members of a merged pair resolve to the one card");
-  assert.equal(currentToolIdFor("content_read.content_region"), "content_read.widget_region");
-  assert.equal(currentToolIdFor("content_read.form"), "content_read.form_definition");
-  assert.equal(currentToolIdFor("content_post_search"), "content_post_search", "a tool the collapse never touched passes through unchanged");
+  assert.equal(currentToolIdFor({ toolId: "sites_list" }), "content_read.site", "site eval ground truth maps to the published card");
+  assert.equal(currentToolIdFor({ toolId: "members_get_by_id" }), "content_read.member");
+  assert.equal(currentToolIdFor({ toolId: "members_list" }), "content_read.member", "both members of a merged pair resolve to the one card");
+  assert.equal(currentToolIdFor({ toolId: "content_read.content_region" }), "content_read.widget_region");
+  assert.equal(currentToolIdFor({ toolId: "content_read.form" }), "content_read.form_definition");
+  assert.equal(currentToolIdFor({ toolId: "content_post_search" }), "content_post_search", "a tool the collapse never touched passes through unchanged");
 });
 
 test("every retired member's SEARCH VOCABULARY survives into its card's indexed description", () => {
@@ -237,7 +237,7 @@ test("every retired member's SEARCH VOCABULARY survives into its card's indexed 
   // own vocabulary into the card's indexed text through that key. Those keys look like stranded
   // references to a retired id — they are the opposite, and re-keying them onto the card ids would
   // silently drop every one of these words from the FTS index with no error anywhere.
-  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
 
   const checked: string[] = [];
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {

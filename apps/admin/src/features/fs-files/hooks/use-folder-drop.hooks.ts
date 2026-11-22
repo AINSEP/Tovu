@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { orFallback } from "@jini-ai/core/errors/idioms";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 
-import { api, ApiError } from "../../../lib/api";
+import { fsFilesApi } from "../api/fs-files-api";
+import { ApiError } from "../../../lib/admin-http/request";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 
@@ -93,7 +95,7 @@ export interface UseFolderDropInput {
 }
 
 export interface UseFolderDropDeps {
-  /** Test seam — defaults to the real `getFolderDropPort(undefined)` (`window.tovuFiles`). Called
+  /** Test seam — defaults to the real `getFolderDropPort({ targetWindow: undefined })` (`window.tovuFiles`). Called
    *  at render, not at drop; a drop uses the latest committed render's port. */
   readonly getPort?: () => FolderDropPort | null;
   /** Test seam — defaults to the real `api.setFsFilesCustomRoot`. */
@@ -120,7 +122,7 @@ const DEFAULT_AUTO_DISMISS_MS = 4000;
  * @complexity Time/space: O(1).
  */
 function defaultGetPort(): FolderDropPort | null {
-  return getFolderDropPort(undefined);
+  return getFolderDropPort({ targetWindow: undefined });
 }
 
 /**
@@ -134,7 +136,7 @@ function defaultGetPort(): FolderDropPort | null {
  *
  * @complexity Time/space: O(1).
  */
-function reasonForCustomRootError(err: unknown): FolderDropErrorReason {
+function reasonForCustomRootError({ err }: { err: unknown }, _options = {}): FolderDropErrorReason {
   if (!(err instanceof ApiError) || err.code !== "INVALID_PATH") return "endpoint-unreachable";
   const message = typeof err.body?.error === "string" ? err.body.error : "";
   return message.includes("does not exist") ? "does-not-exist" : "not-a-directory";
@@ -162,12 +164,10 @@ function dropHasFolder(dataTransfer: DataTransfer): boolean {
  * @complexity O(1) plus one request.
  */
 async function readPreviousCustomRoot(required: { readonly getCustomRoot: () => Promise<{ readonly path: string | null }> }): Promise<string | null> {
-  try {
+  // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
+  return orFallback({ work: async () => {
     return (await required.getCustomRoot()).path;
-  } catch {
-    // Best-effort only — see this module's own doc on why a failed read never blocks REQ-02.
-    return null;
-  }
+  }, fallback: null, step: "Read previous custom root" });
 }
 
 /**
@@ -200,8 +200,8 @@ function confirmationNotice(
  */
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
   const getPort = deps.getPort ?? defaultGetPort;
-  const setCustomRoot = deps.setCustomRoot ?? api.setFsFilesCustomRoot;
-  const getCustomRoot = deps.getCustomRoot ?? api.getFsFilesCustomRoot;
+  const setCustomRoot = deps.setCustomRoot;
+  const getCustomRoot = deps.getCustomRoot ?? fsFilesApi.getFsFilesCustomRoot;
   const autoDismissMs = deps.autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS;
 
   const [notice, setNotice] = useState<FolderDropNotice | null>(null);
@@ -251,7 +251,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
         if (!settlement.isCurrent({ generation })) return;
         const settlesHere = () => mountedRef.current && settlement.isCurrent({ generation });
         try {
-          await setCustomRoot(path);
+          await (setCustomRoot ? setCustomRoot(path) : fsFilesApi.setFsFilesCustomRoot({ path }));
           if (!settlesHere()) return;
           setNotice(confirmationNotice({ path, previousPath }, { paths }));
           scheduleAutoDismiss();
@@ -261,7 +261,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           if (!settlesHere()) return;
           // An error is not auto-dismissed, so an earlier success's pending timer must not wipe it.
           if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
-          setNotice({ kind: "error", path, reason: reasonForCustomRootError(err) });
+          setNotice({ kind: "error", path, reason: reasonForCustomRootError({ err }) });
         }
       } });
     },
@@ -284,11 +284,11 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     event.preventDefault();
     event.stopPropagation();
     const port = portRef.current;
-    const paths = port ? folderPathsFromDataTransfer(event.dataTransfer, port) : [];
+    const paths = port ? folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, port }) : [];
     if (paths.length === 0) { showPathHint(); return; }
     input.composerHandle.current?.addFolders({ folders: paths });
     // See this module's own doc ("Multiple folders in one drop event") for why the LAST path wins.
-    void applyCustomRoot(paths[paths.length - 1]!, paths);
+    void applyCustomRoot(paths[paths.length - 1], paths);
   }, [input.composerHandle, applyCustomRoot, showPathHint]);
 
   const { composerHandle } = input;

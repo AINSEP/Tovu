@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../../kernel/port.js";
-import type { MigrationStep } from "../step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 // Attempt metadata belongs beside the message: deleting its conversation cancels recovery by
 // deleting the binding. Keep the published Jini history schema independent of this prototype.
@@ -25,9 +25,9 @@ export function durableRunStatements({ dialect }: { dialect: string }, _optional
   )`];
 }
 
-export const durableRunAttempts = ({ checksum }: { checksum: string }, _optional = {}): MigrationStep => ({
+export const durableRunAttempts = ({ checksum }: { checksum: string }, _optional = {}): MigrationStep<KyselyKernel<unknown>> => ({
   id: "0002_durable_run_attempts", checksum,
-  async up(kernel: StorageKernel<unknown>) {
+  async up(kernel: KyselyKernel<unknown>) {
     for (const statement of durableRunStatements({ dialect: kernel.dialect }, {})) await kernel.execute(sql.raw(statement));
   },
 });

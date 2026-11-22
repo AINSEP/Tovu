@@ -5,7 +5,8 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "../pages.js";
+import { resolveMediaAssetMetadataForRender } from "../pages/render-context/media-metadata.js";
+import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
 
 /**
  * @file Direct-import characterization for `pages.ts`'s exported `resolve*ForRender` helpers'
@@ -51,20 +52,20 @@ function postRecord(overrides: Partial<PublicPostRecord> = {}): PublicPostRecord
 
 test("resolveHtmlEmbedsForRender: an undefined post short-circuits to undefined, never touching resolveHtmlPageEmbeds", async () => {
   const deps = createRouteDeps();
-  const result = await resolveHtmlEmbedsForRender(deps, undefined);
+  const result = await resolveHtmlEmbedsForRender({ deps, post: undefined });
   assert.equal(result, undefined);
 });
 
 test("resolveHtmlEmbedsForRender: an html-format post with a null bodyHtml falls back to an empty string, not a crash", async () => {
   const deps = createRouteDeps();
   const post = postRecord({ bodyFormat: "html", bodyHtml: null });
-  const result = await resolveHtmlEmbedsForRender(deps, post);
+  const result = await resolveHtmlEmbedsForRender({ deps, post });
   assert.deepEqual(result, new Map(), "the empty HTML fallback must resolve no embeds");
 });
 
 test("resolveMediaAssetMetadataForRender: an undefined post short-circuits to an empty map, never scanning for image assetIds", async () => {
   const deps = createRouteDeps();
-  const result = await resolveMediaAssetMetadataForRender(deps, undefined);
+  const result = await resolveMediaAssetMetadataForRender({ deps, post: undefined });
   assert.equal(result.size, 0);
 });
 
@@ -79,7 +80,7 @@ test("resolveMediaAssetMetadataForRender: a malformed bodyJson tree (a bare prim
       content: ["just a string", null, [{ type: "paragraph", content: null }]],
     },
   });
-  const result = await resolveMediaAssetMetadataForRender(deps, post);
+  const result = await resolveMediaAssetMetadataForRender({ deps, post });
   assert.equal(result.size, 0, "no real image node exists anywhere in this malformed tree, so nothing should resolve");
 });
 
@@ -95,7 +96,7 @@ test("resolveMediaAssetMetadataForRender: an image node whose attrs is itself an
       content: [{ type: "image", attrs: ["not", "a", "real", "attrs", "object"] }],
     },
   });
-  const result = await resolveMediaAssetMetadataForRender(deps, post);
+  const result = await resolveMediaAssetMetadataForRender({ deps, post });
   assert.equal(result.size, 0, "an array-shaped attrs must be rejected by isPlainObject, not read as a real attrs object");
 });
 
@@ -138,7 +139,7 @@ test(
       bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-vid-1", transformName: "public" } }] },
     });
 
-    const result = await resolveMediaAssetMetadataForRender(deps, post);
+    const result = await resolveMediaAssetMetadataForRender({ deps, post });
 
     assert.deepEqual(result.get("asset-vid-1"), {
       width: null,
@@ -161,7 +162,7 @@ test(
       bodyJson: { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-unsniffed-1", transformName: "public" } }] },
     });
 
-    const result = await resolveMediaAssetMetadataForRender(deps, post);
+    const result = await resolveMediaAssetMetadataForRender({ deps, post });
 
     assert.deepEqual(result.get("asset-unsniffed-1"), {
       width: null,
@@ -184,6 +185,6 @@ test("resolveMediaAssetMetadataForRender: image AND media ref nodes are collecte
     { type: "image", attrs: { assetId: "asset-c" } },
     { type: "paragraph", attrs: { assetId: "not-a-media-node" } },
   ] };
-  const result = await resolveMediaAssetMetadataForRender(deps, postRecord({ bodyJson }));
+  const result = await resolveMediaAssetMetadataForRender({ deps, post: postRecord({ bodyJson }) });
   assert.deepEqual([...result.keys()], ["asset-a", "asset-b", "asset-c"]);
 });

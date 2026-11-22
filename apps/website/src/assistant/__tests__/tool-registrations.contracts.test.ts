@@ -20,10 +20,11 @@ import { catalog as themePagePublishedCatalog } from "../../features/theme/page-
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry, resolveHostReadRefs, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { assertRepairKeywords } from "@jini-ai/core/tool-input-repairs";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
@@ -35,7 +36,7 @@ import { databaseTransferAgentToolCatalog } from "../../features/database-transf
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
-import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
+import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
@@ -48,7 +49,7 @@ import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
 import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import {
   contentTypesAgentToolCatalog,
   type ContentTypesAgentToolDefinition as AgentToolDefinition,
@@ -85,10 +86,10 @@ import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
 import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
-import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
+import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
 import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
 import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
-import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
+import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-theme-tool.js";
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
@@ -112,12 +113,13 @@ import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
-import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
-import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
+import { buildTrashAgentToolCatalog } from "@jini-ai/cms/trash";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
 import { catalog as commerceStatusCatalog, commerceCatalogToolCatalog } from "@jini-ai/commerce/tools";
 import { commerceResolutionToolCatalog } from "@jini-ai/commerce/payments/tools";
-import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
+import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
@@ -129,6 +131,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 import { META_TOOL_DESCRIPTORS } from '../byok-tool-surface.js';
 import { buildBaseSystemOverlay } from '../../server/inbound/assistant/assistant-system-overlay.js';
@@ -200,7 +203,7 @@ function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegist
 test('every tool description and explicit prompt call names only declared input arguments', () => {
   const descriptors = [...registrationsById().values()].map(tool => tool.descriptor).concat(META_TOOL_DESCRIPTORS);
   const byId = new Map(descriptors.map(tool => [tool.id, tool]));
-  const prompts = [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), buildBaseSystemOverlay(false, { nativeToolAccess: true })];
+  const prompts = [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true })];
   for (const tool of descriptors) {
     const schema = tool.inputSchema as { properties?: Record<string, { description?: string }> } | undefined;
     const fields = schema?.properties ?? {};
@@ -343,7 +346,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // Permanent deletes have their own confirmed-call contributor; trash owns list/restore.
   // The catalog enum must match the fixture's reachable kinds: fakeRouteDeps has no registry,
   // so trashToolEntityTypes(undefined) supplies the bespoke kinds instead of registry kinds.
-  trash: buildTrashAgentToolCatalog(trashToolEntityTypes(undefined)) as unknown as AgentToolDefinition[],
+  trash: buildTrashAgentToolCatalog({ kinds: trashToolEntityTypes(undefined) }) as unknown as AgentToolDefinition[],
   // This derived tool reuses built handlers, so contributor/DOMAIN_SLICES enumeration cannot
   // discover it. Keep this fallback separate from trash's list/restore catalog.
   "trash-item": getTrashItemAgentToolCatalog() as unknown as AgentToolDefinition[],
@@ -369,7 +372,8 @@ test("CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution reg
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = WIRED_CATALOGS.find((tool) => tool.name === toolId);
   assert.ok(entry, `no wired catalog has an entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 /**
@@ -470,7 +474,7 @@ test("identity_user_create's published schema/description are a real derivation 
   const registration = wiredRegistration("identity_user_create");
   const catalog = catalogEntry("identity_user_create");
 
-  assert.deepEqual(registration.descriptor.inputSchema, withoutPassword(catalog.inputSchema), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
+  assert.deepEqual(registration.descriptor.inputSchema, withoutPassword({ schema: catalog.inputSchema }), "identity_user_create's published schema must be Jini's catalog schema run through withoutPassword(), not a second, hand-copied shape that could silently drift from it");
   assert.equal(registration.descriptor.description, `${catalog.description}${USER_CREATE_DESCRIPTION_SUFFIX}`);
 });
 
@@ -605,27 +609,27 @@ test("the real catalog and this layer's independent classification agree for eve
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // already cross-checked pre-collapse, under its original id — see DERIVED_CONTENT_READ_IDS's own doc
     // The human-confirmed tools pass only with their handler — the build itself checked that.
     if (HUMAN_CONFIRMED_TOOL_IDS.includes(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_tombstone", catalogEntry: { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_future_tool", { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_future_tool", catalogEntry: { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" } }, { contributions: contributions }),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/,
   );
 });
 
 test("the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" } }, { contributions: contributions }),
     /declares sideEffects 'mints-token' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -636,7 +640,7 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 
 test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_tombstone", catalogEntry: { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" } }, { contributions: contributions }),
     {
       message:
         "tool-registrations: 'collections_content_type_tombstone' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
@@ -662,8 +666,8 @@ test("collections_execute_cleanup — the one catalog entry that DOES carry the 
 });
 
 test("an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" }, contributions));
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" }, contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" } }, { contributions: contributions }));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" } }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------
@@ -751,7 +755,7 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 
 /**
  * The bug this pins: `search_components`/`describe_component` were real `@jini-ai/mcp` top-level
- * tools for the spawned-CLI path (`registerComponentCatalogRoutes` in `agent-daemon-server.ts`), but
+ * tools for the spawned-CLI path (`componentCatalogRoutes` in `agent-daemon-server.ts`), but
  * `byok-tool-surface.ts` publishes only 3 meta-tools and resolves every other tool by an id through
  * `execute_delegated_tool` against the SAME `ToolRegistry` `buildRealAssembledSurface()` builds
  * below. Before `component-catalog-tool.ts` existed, neither id was registered there, so a BYOK turn
@@ -894,4 +898,96 @@ test('root-added load_agent_plugin is discoverable and publishes the shared doma
   assert.deepEqual(described.inputSchema, agentPluginGuidanceCatalog[0]!.inputSchema);
   assert.equal(described.description, agentPluginGuidanceCatalog[0]!.description);
   assert.deepEqual(wiredRegistration('load_agent_plugin').descriptor.metadata?.approval, { class: 'read', confirmation: 'direct' });
+});
+
+// ---------------------------------------------------------------------------
+// Declared repairs: every page, size and wait control states whether an out-of-range number is repaired
+// ---------------------------------------------------------------------------
+
+/** Names whose bound is a page, size or wait control: a caller's out-of-range value is a near miss, never a different target. */
+const BOUNDED_CONTROL_NAMES: ReadonlySet<string> = new Set(["limit", "offset", "pageSize", "maxResults", "width", "height", "waitMs", "timeoutMs"]);
+
+interface BoundedControl { readonly path: string; readonly property: Record<string, unknown> }
+
+/** Every integer property with a `maximum` and a control name, to the same depth `assertRepairKeywords` walks; arrays contribute their item properties. */
+function boundedControls({ schema, prefix = "", depth = 0 }: { schema: unknown; prefix?: string; depth?: number }): BoundedControl[] {
+  const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+  if (!record(schema) || depth > 6) return [];
+  const properties = record(schema.properties) ? schema.properties : {};
+  return Object.entries(properties).flatMap(([name, property]) => {
+    if (!record(property)) return [];
+    const path = `${prefix}${name}`;
+    const own = property.type === "integer" && property.maximum !== undefined && BOUNDED_CONTROL_NAMES.has(name) ? [{ path, property }] : [];
+    const nested = property.type === "array" ? property.items : property;
+    return [...own, ...boundedControls({ schema: nested, prefix: property.type === "array" ? `${path}[]` + "." : `${path}.`, depth: depth + 1 })];
+  });
+}
+
+/**
+ * Controls whose schema is owned by a Jini package (`@jini-ai/cms` media, `@jini-ai/db`, `@jini-ai/agent-plugins`,
+ * `@jini-ai/chat`), so Tovu cannot classify them: each is a page-size `limit` that the Jini owner declares
+ * `clamp: true` in a later Jini release. The list only shrinks: an entry whose control IS declared fails the
+ * second assertion, so the day the Jini release lands this list must lose that line.
+ */
+const JINI_OWNED_UNDECLARED: ReadonlySet<string> = new Set([
+  "library_list.limit", "content_read.media_asset.limit", "database_query_timeline.limit",
+  "search_agent_plugin_local.limit", "assistant_chats_list.limit", "assistant_chat_read.limit",
+]);
+
+test("every bounded page, size and wait control declares clamp true or false, and every declared clamp is usable", () => {
+  const undeclared: string[] = [];
+  for (const [id, registration] of registrationsById()) {
+    const schema = registration.descriptor.inputSchema;
+    assertRepairKeywords({ inputSchema: schema });
+    for (const { path, property } of boundedControls({ schema })) {
+      if (typeof property.clamp !== "boolean") undeclared.push(`${id}.${path}`);
+    }
+  }
+  const owned = undeclared.filter((control) => JINI_OWNED_UNDECLARED.has(control));
+  assert.deepEqual(undeclared.filter((control) => !JINI_OWNED_UNDECLARED.has(control)), [], `declare clamp: true (a page, size or wait control) or clamp: false (it selects, addresses, prices or authorizes) on each:\n${undeclared.join("\n")}`);
+  assert.deepEqual(owned.sort(), [...JINI_OWNED_UNDECLARED].sort(), "a Jini-owned control is declared now: remove it from JINI_OWNED_UNDECLARED");
+});
+
+// ---------------------------------------------------------------------------
+// Declared repairs: an `obtainFrom` points at a read tool that exists, and the theme id says where theme ids come from
+// ---------------------------------------------------------------------------
+
+/** Every `obtainFrom` declared in a schema, with its property path, to the depth `assertRepairKeywords` walks. */
+function obtainFromDeclarations({ schema, prefix = "", depth = 0 }: { schema: unknown; prefix?: string; depth?: number }): { path: string; toolId: unknown }[] {
+  const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+  if (!record(schema) || depth > 6) return [];
+  const properties = record(schema.properties) ? schema.properties : {};
+  return Object.entries(properties).flatMap(([name, property]) => {
+    if (!record(property)) return [];
+    const own = Object.hasOwn(property, "obtainFrom") ? [{ path: `${prefix}${name}`, toolId: property.obtainFrom }] : [];
+    return [...own, ...obtainFromDeclarations({ schema: property, prefix: `${prefix}${name}.`, depth: depth + 1 })];
+  });
+}
+
+test("every obtainFrom names a registered read-only tool, so a caller is never pointed at a tool it cannot call or one that writes", () => {
+  const registrations = registrationsById();
+  const wrong: string[] = [];
+  for (const [id, registration] of registrations) {
+    for (const { path, toolId } of obtainFromDeclarations({ schema: registration.descriptor.inputSchema })) {
+      const lister = typeof toolId === "string" ? registrations.get(toolId) : undefined;
+      if (lister === undefined || lister.descriptor.readOnly !== true) wrong.push(`${id}.${path} -> ${String(toolId)}`);
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+/** The theme file tools share one `themeId` property; `theme_set_active` and the content-read card have their own. */
+const SHARED_THEME_ID_TOOLS = [
+  "theme_list_files", "theme_read_file", "theme_write_file", "theme_edit_file", "theme_reset_file", "theme_rename_file",
+  "theme_copy_file", "theme_trash_file", "theme_restore_trashed_file",
+] as const;
+
+test("every theme file tool says content_read.theme is where theme ids come from (theme_list is a retired id)", () => {
+  const registrations = registrationsById();
+  for (const id of SHARED_THEME_ID_TOOLS) {
+    const registration = registrations.get(id);
+    assert.ok(registration, `${id} is registered`);
+    const declared = obtainFromDeclarations({ schema: registration.descriptor.inputSchema }).filter(({ path }) => path === "themeId");
+    assert.deepEqual(declared, [{ path: "themeId", toolId: "content_read.theme" }], id);
+  }
 });

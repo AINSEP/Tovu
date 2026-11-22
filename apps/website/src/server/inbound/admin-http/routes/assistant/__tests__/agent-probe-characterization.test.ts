@@ -42,14 +42,14 @@ for (const scenario of readinessCases) {
   test(`test-agent preserves ${scenario.name} and forces a fresh probe`, async () => {
     const app = express();
     let calls = 0;
-    registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
+    registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
       detectAgents: async (input, options) => {
         calls++;
         assert.deepEqual(input, { agentIds: ["fixture-cli"] });
         assert.deepEqual(options, { force: true });
         return scenario.agents;
       },
-    } }));
+    } }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-test" };
     await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
@@ -70,13 +70,13 @@ for (const force of [undefined, false, "true", true]) {
     try {
       const app = express();
       const events: unknown[] = [];
-      registerAdminAssistantDetectAgentsRoute(app, dependencies({ overrides: {
+      registerAdminAssistantDetectAgentsRoute({ app, deps: dependencies({ overrides: {
         assistantAgentInventory: {
           ...inventory,
           listDetectedAssistantAgents: async (input) => { events.push(input); return [agent]; },
           assistantAgentDiscoveryPending: () => { events.push("pending"); return true; },
         },
-      } }));
+      } }) });
       const { res, capture } = createCapturingResponse();
       res.locals.principal = { id: "principal-test" };
       await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents")({
@@ -98,12 +98,12 @@ test("test-agent probes through the assistant inventory's runtime when no detect
   });
   const forces: unknown[] = [];
   const app = express();
-  registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
+  registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
     assistantAgentInventory: {
       ...inventory,
       runtime: { ...inventory.runtime, detectAgents: async (_input, options) => { forces.push(options); return [agent]; } },
     },
-  } }));
+  } }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-test" };
   await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
@@ -118,10 +118,10 @@ test("test-agent refuses another workspace before authorizing or probing", async
   let authorizeCalls = 0;
   let probes = 0;
   const app = express();
-  registerAdminAssistantTestAgentRoute(app, dependencies({ overrides: {
+  registerAdminAssistantTestAgentRoute({ app, deps: dependencies({ overrides: {
     authorize: async () => { authorizeCalls++; return { allowed: true, reason: "granted" }; },
     detectAgents: async () => { probes++; return [agent]; },
-  } }));
+  } }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-test" };
   await extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent")({
@@ -147,7 +147,7 @@ const DEFAULT_DETECTOR_CHILD = `
 import express from "express";
 const { registerAdminAssistantTestAgentRoute } = await import(process.env.ROUTE_URL);
 const app = express();
-registerAdminAssistantTestAgentRoute(app, { workspaceId: "w", authorize: async () => ({ allowed: true, reason: "granted" }) });
+registerAdminAssistantTestAgentRoute({ app, deps: { workspaceId: "w", authorize: async () => ({ allowed: true, reason: "granted" }) } });
 const layer = app._router.stack.find((l) => l.route?.path?.endsWith("/test-agent"));
 const res = { locals: { principal: { id: "p" } }, statusCode: 200, status(code) { this.statusCode = code; return this; },
   json(body) { process.stdout.write(JSON.stringify({ status: this.statusCode, body })); } };

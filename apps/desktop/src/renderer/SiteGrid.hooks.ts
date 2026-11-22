@@ -21,36 +21,8 @@ import type { SiteRecord } from '../contracts/project.js';
  *
  * @complexity O(1) time, O(1) space.
  */
-export function isCardOpenable(project: SiteRecord, confirming: boolean): boolean {
+export function isCardOpenable({ project, confirming }: { project: SiteRecord; confirming: boolean }, _options = {}): boolean {
   return project.status !== 'provisioning' && project.status !== 'blocked' && !project.folderMissing && !confirming;
-}
-
-/**
- * Whether a keydown that reached the card should open the project.
- *
- * The `event.target !== event.currentTarget` half is the whole reason this is a function rather
- * than an inline condition. The card is a keyboard-activated open target, and it is also the
- * ANCESTOR of the delete button; a keydown on that button bubbles to the card, where an unguarded
- * handler called `preventDefault()` — cancelling the very click the browser was about to synthesize
- * from the key — and then opened the project. Keyboard users therefore could not reach the delete
- * confirmation at all: Enter or Space on a focused delete button opened the project instead.
- *
- * `CardConfirmOverlay` already carried the sibling of this guard (`onKeyDown` stopPropagation
- * alongside its `onClick` one) and its own comment states this exact mechanism; the delete button
- * was given only the `onClick` half. Guarding at the card instead of at each descendant fixes both
- * arms and any control added later, which is why the check lives here and not on the button.
- *
- * @param event the keydown, narrowed to the three fields this decision reads — so a test can call
- *   it with plain objects and no DOM.
- * @complexity O(1) time, O(1) space.
- */
-export function isCardOpenKey(event: {
-  key: string;
-  target: EventTarget | null;
-  currentTarget: EventTarget | null;
-}): boolean {
-  if (event.target !== event.currentTarget) return false;
-  return event.key === 'Enter' || event.key === ' ';
 }
 
 /**
@@ -155,93 +127,11 @@ export type CardOverlayMode = 'confirm' | 'stop' | 'rename' | null;
  *
  * @complexity O(1) time, O(1) space.
  */
-export function cardOverlay(
-  id: string,
-  pendingDeleteId: string | null,
-  renamingId: string | null,
-  confirmingStopId: string | null = null,
+export function cardOverlay({ id, pendingDeleteId, renamingId }: { id: string; pendingDeleteId: string | null; renamingId: string | null }, { confirmingStopId = null }: { confirmingStopId?: string | null } = {}
 ): CardOverlayMode {
   if (pendingDeleteId === id) return 'confirm';
   if (confirmingStopId === id) return 'stop';
   return renamingId === id ? 'rename' : null;
-}
-
-/** Exactly what {@link isCardOpenKey} reads, plus the one method the handler calls — so a test can
- *  drive `cardOpenProps` with a plain object and no DOM, the same way `isCardOpenKey` already can. */
-export interface CardOpenKeyEvent {
-  key: string;
-  target: EventTarget | null;
-  currentTarget: EventTarget | null;
-  preventDefault: () => void;
-}
-
-/**
- * The card's "I am an open target" props, or the inert equivalents.
- *
- * Extracted because the card element was carrying five separate `openable ? … : undefined`
- * ternaries for what is one decision — a reader had to check all five to confirm they agreed, and
- * a sixth attribute added later could disagree with the other five silently. One call, one answer.
- *
- * `onKeyDown` keeps using {@link isCardOpenKey} rather than an inline key check: it also refuses a
- * keydown that started on a DESCENDANT, which is what stops the delete button's and the ⋮ menu's
- * keyboard activation from opening the site instead. See that function's own doc.
- *
- * @param openable whether this card should respond at all.
- * @param onOpen invoked with nothing — the caller closes over which site it means.
- * @complexity O(1) time, O(1) space.
- */
-export function cardOpenProps(
-  openable: boolean,
-  onOpen: () => void,
-): {
-  role: 'button' | undefined;
-  tabIndex: 0 | undefined;
-  onClick: (() => void) | undefined;
-  onKeyDown: ((event: CardOpenKeyEvent) => void) | undefined;
-} {
-  if (!openable) {
-    return { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined };
-  }
-  return {
-    role: 'button',
-    tabIndex: 0,
-    onClick: onOpen,
-    onKeyDown: (event) => {
-      if (!isCardOpenKey(event)) return;
-      event.preventDefault();
-      onOpen();
-    },
-  };
-}
-
-/**
- * The ⋮ menu's per-entry `onClick` builder: every entry closes the menu first, then acts — the same
- * order `SettingsControl` (`App.tsx`) uses for its Appearance link. Acting first would leave an open
- * menu floating over whatever the action changed.
- *
- * @param setOpen the menu's open-state setter (`useDismissibleDropdown`'s).
- * @returns `choose(act)`, which builds one entry's handler. Building it runs nothing.
- * @complexity O(1) time, O(1) space.
- */
-export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => void) => () => void {
-  return (act) => () => {
-    setOpen(false);
-    act();
-  };
-}
-
-/**
- * A name is a label, never site identity. Keep unrelated cards and expose their parent paths.
- * @returns The display names more than one site has. @complexity O(n) in `projects`.
- */
-export function duplicateDisplayNames({ projects }: { projects: readonly Pick<SiteRecord, 'displayName'>[] }, _options = {}): Set<string> {
-  const seenNames = new Set<string>();
-  const duplicateNames = new Set<string>();
-  for (const project of projects) {
-    if (seenNames.has(project.displayName)) duplicateNames.add(project.displayName);
-    seenNames.add(project.displayName);
-  }
-  return duplicateNames;
 }
 
 /**
@@ -249,7 +139,7 @@ export function duplicateDisplayNames({ projects }: { projects: readonly Pick<Si
  * drain does. A failure is a warning, as it was on the card before the shared frame.
  * @returns The tone for this status. @complexity O(1) time and space.
  */
-export function siteCardTone(status: SiteRecord['status'], _options = {}): SiteCardTone {
+export function siteCardTone({ status }: { status: SiteRecord['status'] }, _options = {}): SiteCardTone {
   if (status === 'running') return 'running';
   if (status === 'starting' || status === 'stopping') return 'busy';
   return status === 'failed' ? 'warning' : 'neutral';
@@ -262,4 +152,16 @@ export function siteCardTone(status: SiteRecord['status'], _options = {}): SiteC
  */
 export function cardOpenClass({ openable }: { openable: boolean }, _options = {}): string {
   return openable ? 'is-openable' : '';
+}
+
+/** Parent-folder display keeps the saved path spelling, including Windows separators. O(n). */
+export function siteCardParentFolder({ installDir }: { installDir: string }, _options = {}): string {
+  const separator = ({ index }: { index: number }, _options = {}) => installDir[index] === '/' || installDir[index] === "\\";
+  let end = installDir.length;
+  while (separator({ index: end - 1 })) end--;
+  let start = end;
+  while (start > 0 && !separator({ index: start - 1 })) start--;
+  if (start === 0) return installDir || '/';
+  while (separator({ index: start - 1 })) start--;
+  return installDir.slice(0, start) || '/';
 }

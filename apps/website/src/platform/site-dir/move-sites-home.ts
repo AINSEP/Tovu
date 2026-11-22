@@ -250,8 +250,9 @@ export async function moveLegacySite({ dir }: { dir: string }, { workspace = cre
   const from = fs.realpathSync(dir), root = path.dirname(from);
   if (root !== workspace.nestedSitesRoot({})) throw new Error("Only sites inside the former default sites/ folder can be moved to Documents/Tovu.");
   const moved = await moveSitesHome({ repoRoot }, { apply: true, workspace, sites: [path.basename(from)], sourceRoots: [root], projectsPaths });
-  if (moved.length !== 1) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
-  return moved[0]!.to;
+  const result = moved[0];
+  if (moved.length !== 1 || !result) throw new Error("No site matched this move. Check its folder and the default Documents/Tovu home.");
+  return result.to;
 }
 
 /** Rename a direct child of the configured sites home, preserving display name and identity.
@@ -274,11 +275,11 @@ export async function renameSiteFolder(
   assertLocalSiteName({ name: oldName });
   assertLocalSiteName({ name: newName });
   // Windows device names are invalid directories even when the command runs on another OS.
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(newName)) throw new ValidationError("Site folder name is reserved on Windows.");
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(newName)) throw new ValidationError({ message: "Site folder name is reserved on Windows." });
   const workspace = suppliedWorkspace ?? createSitesWorkspace({});
   const home = filesystem.realpathSync(workspace.home({}));
   const from = path.join(home, oldName), to = path.join(home, newName);
-  if (!filesystem.lstatSync(from).isDirectory()) throw new ValidationError("The source site must be a real directory, not a symlink.");
+  if (!filesystem.lstatSync(from).isDirectory()) throw new ValidationError({ message: "The source site must be a real directory, not a symlink." });
   const plan = planMove({ from, to, workspace });
   if (plan.running) throw new Error(`Site is running in ${plan.running.app}: ${from}. Stop it before renaming it.`);
   await moveSite({ plan, workspace }, { relocateDirectory: moveDirectoryVerified, verifyDatabase: inspectStoppedDatabase });

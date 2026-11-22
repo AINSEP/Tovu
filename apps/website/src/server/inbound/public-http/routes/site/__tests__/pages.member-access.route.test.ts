@@ -79,7 +79,7 @@ function closeServer(server: ReturnType<typeof createServer>) {
 
 test("GET /:slug -- an anonymous visitor is 404'd for a members-only post", async (t) => {
   const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
-  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([post]) });
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/${post.slug}`);
@@ -89,8 +89,8 @@ test("GET /:slug -- an anonymous visitor is 404'd for a members-only post", asyn
 test("GET /:slug -- a signed-in member CAN read a members-only post", async (t) => {
   const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([post]),
-    memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
+    memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession()] }),
   });
   t.after(() => closeServer(server));
 
@@ -120,7 +120,7 @@ test("GET / -- a members-only post's title does not appear in the anonymous home
   const publicPost = memberGatedPost({ id: "post-member-gating-public-control", slug: "public-control-post", title: "Public Control Post" });
   const { server, baseUrl } = await startServer({
     themes: [theme],
-    postRepo: new InMemoryPostRepo([gatedPost, publicPost]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [gatedPost, publicPost] }),
   });
   t.after(() => closeServer(server));
 
@@ -139,7 +139,7 @@ test("GET / -- a members-only post's title does not appear in the anonymous home
 
 test("GET /:slug -- a NULL memberAccessJson post still renders publicly (pre-existing behavior, unchanged)", async (t) => {
   const post = memberGatedPost(); // memberAccessJson left unset -> NULL column, decodes as public
-  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([post]) });
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/${post.slug}`);
@@ -160,8 +160,8 @@ for (const tokenKind of ["unknown", "expired"] as const) {
     if (tokenKind === "expired") session.expiresAt = "2000-01-01T00:00:00.000Z";
     const { server, baseUrl } = await startServer({
       themes: [theme],
-      postRepo: new InMemoryPostRepo([gated, publicPost]),
-      memberSessionRepo: new InMemoryMemberSessionRepo([session]),
+      postRepo: new InMemoryPostRepo({}, { initialRows: [gated, publicPost] }),
+      memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [session] }),
     });
     t.after(() => closeServer(server));
     const cookie = `tovu_member_session=${tokenKind === "unknown" ? "forged-member-token" : RAW_MEMBER_TOKEN}`;
@@ -189,7 +189,7 @@ for (const tokenKind of ["unknown", "expired"] as const) {
 
 test("malformed member cookies do not turn a gated page into a 500", async t => {
   const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
-  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([post]) });
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo({}, { initialRows: [post] }) });
   t.after(() => closeServer(server));
   const response = await fetch(`${baseUrl}/${post.slug}`, { headers: { cookie: "tovu_member_session=%E0%A4%A" } });
   assert.equal(response.status, 404);

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { resolveBundledHostSignals } from "../../website/src/features/agent-plugins/host-signals.ts";
 import { bundledAgentPluginsDir } from "../../website/src/server/runtime/composition/site-paths.ts";
-import type { HostSignals } from "../../website/src/contracts/core/host-signals.ts";
+import type { HostSignals } from "@tovu/contracts/host-signals";
 
 /**
  * Bind shipped host data to Electron's payload, or normal product-root discovery in development.

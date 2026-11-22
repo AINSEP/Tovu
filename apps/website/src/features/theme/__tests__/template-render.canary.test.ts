@@ -6,10 +6,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages";
+import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages/handlers/post";
 import type { PublicPostRecord } from "#src/features/post/index";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
-import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
+import { injectCurrentEntityContentId, injectPageTitle } from "../static-render-content.js";
+import { renderStaticPage } from "../static-render.js";
+import { resolveTemplate } from "../static-template-resolution.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";
 import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
@@ -133,10 +135,10 @@ function renderThroughTemplate(
   assert.equal(resolution.kind, "template", "the real theme must offer a usable template");
   if (resolution.kind !== "template") throw new Error("unreachable");
 
-  const withTitle = injectPageTitle(resolution.html, title);
-  const withId = injectCurrentEntityContentId(withTitle, ENTITY_ID);
+  const withTitle = injectPageTitle({ html: resolution.html, title });
+  const withId = injectCurrentEntityContentId({ html: withTitle, entityId: ENTITY_ID });
   const resolved = new Map([["content", new Map([[ENTITY_ID, { componentId: "post-content", props: ENTITY_PROPS }]])]]);
-  const bodyResolved = renderHtmlPageBody(withId, resolved as never);
+  const bodyResolved = renderHtmlPageBody({ html: withId, resolved: resolved as never });
   return renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: bodyResolved, menus }) ?? "";
 }
 
@@ -163,8 +165,8 @@ test("canary: the page-embed stage leaves theme-owned markers untouched", () => 
   // The whole bug in one assertion: `partial` and `menu` belong to a LATER stage. Substituting
   // anything over them here — placeholder included — deletes the nav, sidebar, and footer.
   const theme = tovuTheme();
-  const template = injectCurrentEntityContentId(pageFor(theme, "sidebar"), ENTITY_ID);
-  const out = renderHtmlPageBody(template, undefined);
+  const template = injectCurrentEntityContentId({ html: pageFor(theme, "sidebar"), entityId: ENTITY_ID });
+  const out = renderHtmlPageBody({ html: template, resolved: undefined });
 
   assert.ok(out.includes(`'{"type":"partial","id":"nav"`), "the nav partial marker must survive this stage");
   // `docs-section` is the reserved sentinel id the promoted template carries in place of
@@ -179,7 +181,7 @@ test("canary: an OWNED marker with nothing resolved still degrades to the REQ-28
   // The other half of the ownership rule. `content` IS this stage's, so an unresolvable one must not
   // be left as raw marker markup for a visitor to see — the two halves fail in opposite directions
   // and a check for only one of them would pass against a stage that substitutes nothing at all.
-  const out = renderHtmlPageBody(injectCurrentEntityContentId(pageFor(tovuTheme(), "post"), ENTITY_ID), undefined);
+  const out = renderHtmlPageBody({ html: injectCurrentEntityContentId({ html: pageFor(tovuTheme(), "post"), entityId: ENTITY_ID }), resolved: undefined });
   assert.ok(out.includes("widget-placeholder"), "an unresolved content embed must degrade to the placeholder");
   assert.ok(!out.includes('"type":"content"'), "and must not leave its own marker markup in the output");
 });
@@ -296,7 +298,7 @@ test("canary: real Post and Page records render their selected templates through
       templateChoice: templateFor(theme, kind), updatedAt: new Date().toISOString(), version: 1,
     } as PublicPostRecord;
     await deps.postRepo.save(record);
-    const html = await renderTemplateBranchIfEligible(deps, theme, record, {}, false);
+    const html = await renderTemplateBranchIfEligible({ deps, theme, post: record, staticMenus: {}, siteAssistantEnabled: false });
     assert.ok(html);
     assert.ok(html.includes(`<title>Production ${kind}</title>`));
     assert.ok(html.includes(`<h1>Production ${kind}</h1>`));

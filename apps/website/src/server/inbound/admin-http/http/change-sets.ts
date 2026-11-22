@@ -1,4 +1,5 @@
-import type { ChangeSetItemRecord, ChangeSetRecord } from "#src/contracts/core/commands/index";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
+import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
 
 /**
  * @file HTTP response serializers for change sets (SPEC-001 api.spec §5).
@@ -8,17 +9,7 @@ import type { ChangeSetItemRecord, ChangeSetRecord } from "#src/contracts/core/c
  */
 
 export function toChangeSetHeaderResponse(changeSet: ChangeSetRecord) {
-  return {
-    id: changeSet.id,
-    workspaceId: changeSet.workspaceId,
-    actorId: changeSet.actorId ?? null,
-    status: changeSet.status,
-    summary: changeSet.summary,
-    intentRef: changeSet.intentRef ?? null,
-    createdAt: changeSet.createdAt,
-    appliedAt: changeSet.appliedAt ?? null,
-    revertedAt: changeSet.revertedAt ?? null,
-  };
+  return toChangeSetView({ changeSet });
 }
 
 export function toChangeSetItemResponse(item: ChangeSetItemRecord) {

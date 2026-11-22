@@ -11,7 +11,8 @@ import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The Agent Plugins lifecycle fields on screen (2026-10-21): a row this Tovu cannot run or
@@ -119,7 +120,7 @@ describe("AgentPluginUpdateControl, composed by its wired slot", () => {
     ["PLUGIN_MCP_PROVISION_FAILED", "The new version's MCP servers could not be set up; the previous version was restored."],
     ["UPDATE_JOURNAL_INVALID", "Could not update the plugin. Try again."],
   ])("a 409 %s refusal reads in plain words, never the server's text", async (code, message) => {
-    const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { failWith: new ApiError("server english", 409, code) });
+    const port = createFakeAgentPluginInstallPort({ row: UPLOADED }, { failWith: new ApiError({ message: "server english", status: 409 }, { code }) });
     const { onUpdated } = await openAndUpload(port);
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(onUpdated).not.toHaveBeenCalled();
@@ -133,7 +134,7 @@ describe("useAgentPluginInstall — install vs update copy", () => {
   }
 
   it("an unrecognised install refusal is the install's own try-again line, translated", async () => {
-    const result = hookWith(async () => { throw new ApiError("raw", 409, "SOMETHING_NEW"); });
+    const result = hookWith(async () => { throw new ApiError({ message: "raw", status: 409 }, { code: "SOMETHING_NEW" }); });
     act(() => result.current.onFileChange({ target: { files: [zip()] } } as never));
     await act(async () => result.current.install());
     expect(result.current.error).toBe("t:Could not install the plugin. Try again.");
@@ -220,6 +221,7 @@ describe("rules — lifecycle fields", () => {
   it("agentPluginWarningText translates the server's known warnings, keeping ids, and passes unknown ones through", () => {
     expect(agentPluginWarningText({ warning: "Needs x:y", translate })).toBe("[Needs {capabilities}]".replace("{capabilities}", "x:y"));
     expect(agentPluginWarningText({ warning: "consumer needs mail:send", translate })).toBe("[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
+    expect(agentPluginWarningText({ warning: "plugin$& needs mail:send", translate })).toBe("[plugin$& needs mail:send]");
     expect(agentPluginWarningText({ warning: "Unknown release version; explicit replacement required.", translate })).toBe("[This package has no release version to compare.]");
     expect(agentPluginWarningText({ warning: "Same version with different bytes; explicit replacement required.", translate })).toBe("[Same version number as the installed one, with different contents.]");
     expect(agentPluginWarningText({ warning: "Something the server added later", translate })).toBe("Something the server added later");
@@ -231,9 +233,9 @@ describe("rules — lifecycle fields", () => {
   });
 
   it("buildAgentPluginDisableConfirmCopy names dependents through the same warning translation, and none when nothing relies on it", () => {
-    const copy = buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", origin: "operator-installed", requiredBy: ["consumer needs mail:send"] }, translate);
+    const copy = buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", origin: "operator-installed", requiredBy: ["consumer needs mail:send"] }, { translate: translate });
     expect(copy.dependents).toBe("[Other enabled plugins rely on it:] " + "[{plugin} needs {capability}]".replace("{plugin}", "consumer").replace("{capability}", "mail:send"));
-    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: [] }, translate).dependents).toBeUndefined();
+    expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: [] }, { translate: translate }).dependents).toBeUndefined();
     // Without a translator the dictionary keys pass through untranslated.
     expect(buildAgentPluginDisableConfirmCopy({ name: "Mailer", variant: "disable", requiredBy: ["Needs x:y"] }).dependents).toBe("Other enabled plugins rely on it: Needs x:y");
   });

@@ -12,7 +12,8 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
-import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
+import { processOutbox } from "#src/contracts/core/events/index";
+import type { DomainEvent, EventBusPort } from "@jini-ai/core/contracts/events";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";
@@ -92,18 +93,18 @@ async function bootSqliteSite(t: TestContext) {
 
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => { composed = store; },
+    onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Module Identity Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
 
   await drainBootReadiness(deps);
   let closing: Promise<void> | undefined;
-  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, composed);
+  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, { composed });
   t.after(async () => {
     try { await close(); }
     finally { await removeFrozenPackageTree({ root: parent }); }
@@ -165,6 +166,8 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   (deps as { bus: EventBusPort }).bus = bus;
 
   createApp(deps);
+  // Why: the notify subscriber awaits its delivery-event subscription before subscribing the source event, so let that registration settle before counting.
+  await new Promise<void>((resolve) => setImmediate(resolve));
   const servedOnce = Object.fromEntries(bus.subscriptions);
   // Three distinct subscribers, each once: forms' consent-gated form_submitted analytics (cbf441365),
   // forms' notify mail, and integrations' webhook fan-out.
@@ -172,6 +175,7 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
 
   deps.createSiteApp();
   deps.createSiteApp();
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.deepEqual(
     Object.fromEntries(bus.subscriptions),
@@ -193,12 +197,14 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   const owner = await deps.ownerPrincipalId;
   const { subscription } = await createSubscription({
     deps: { repo: deps.webhookSubscriptionRepo, clock: deps.clock, idGenerator: deps.idGen,
-      isAllowedTarget: async (url) => url === "https://module-owner.example.test/hook" },
+      isAllowedTarget: async ({ url }) => url === "https://module-owner.example.test/hook" },
     input: { workspaceId: deps.workspaceId, ownerPrincipalId: owner, createdByPrincipalId: owner,
       label: "Module identity hook", targetUrl: "https://module-owner.example.test/hook", topics: ["form.submission.received"] },
   });
   await bus.publish({ id: "module-identity-event", name: "form.submission.received", workspaceId: deps.workspaceId,
     occurredAt: now, payload: { workspaceId: deps.workspaceId, formDefinitionId: "module-identity-form", submissionId: "module-identity-submission" } });
+  // Why: the notify subscriber plans one durable recipient job per submission on the shared outbox, so the mail leaves on the drain (still exactly once).
+  await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
   assert.deepEqual(sentTo, ["module-owner@example.test"]);
   const deliveries = await deps.webhookDeliveryRepo.listBySubscription({ workspaceId: deps.workspaceId, subscriptionId: subscription.id, limit: 10 });
   assert.equal(deliveries.length, 1);

@@ -5,6 +5,7 @@ import type { WidgetPlacementNode } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean; content?: JsonObject } {
   if (typeof value !== "object" || value === null) return false;
@@ -39,12 +40,9 @@ export function parseWidgetRegionPlacements({ raw }: { raw: readonly unknown[] }
  * whole-document, version-guarded write (INV-03) — never a per-placement patch endpoint, matching
  * `ui.spec.md` §4.6/§4.7's single `onSave` event over the full `placements` array.
  */
-export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.baseVersion !== "number" || !Array.isArray(body.placements)) {
@@ -80,7 +78,7 @@ export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = (a
       });
       res.status(200).json(toAdminWidgetAreaResponse(areaEntry));
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

@@ -10,7 +10,7 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createEntry, publishEntry, updateEntry } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
 import type { CollectionListQuery } from "../../public-list.js";
-import { entryRepoFor, SqlEntryRepo } from "../../repo.js";
+import { SqliteEntryRepo } from "../../repo.sqlite.js";
 
 /**
  * @file The entry repo contract, by the same assertions on EVERY dialect (SQLite and PGlite): one
@@ -20,7 +20,7 @@ import { entryRepoFor, SqlEntryRepo } from "../../repo.js";
  */
 
 interface Fixture {
-  repo: SqlEntryRepo;
+  repo: SqliteEntryRepo;
   kernel: ContentKernel;
 }
 
@@ -33,7 +33,7 @@ function lookup(workspaceId: string, key: string, fields: ContentTypeFieldDef[] 
   };
 }
 
-function depsFor(repo: SqlEntryRepo, idSeed: string, workspaceId = "ws-1", type = "recipe", fields: ContentTypeFieldDef[] = []) {
+function depsFor(repo: SqliteEntryRepo, idSeed: string, workspaceId = "ws-1", type = "recipe", fields: ContentTypeFieldDef[] = []) {
   return {
     entryRepo: repo,
     contentTypeRepo: lookup(workspaceId, type, fields),
@@ -51,7 +51,7 @@ const RECIPE_FIELDS: ContentTypeFieldDef[] = [
 ];
 
 async function createPublished(params: {
-  repo: SqlEntryRepo;
+  repo: SqliteEntryRepo;
   idSeed: string;
   slug: string;
   title?: string;
@@ -102,7 +102,7 @@ const listQuery = (overrides: Partial<CollectionListQuery>): CollectionListQuery
 
 describeEachDialect<Fixture>(
   "EntryRepoPort",
-  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: entryRepoFor(kernel), kernel }) },
+  { tables: ["entries", "entry_revisions"], make: (kernel) => ({ repo: new SqliteEntryRepo({ store: kernel }), kernel }) },
   (make) => {
     test("trash-aware lookups return null for a missing or foreign-workspace row", async () => {
       const { repo } = make();
@@ -137,7 +137,7 @@ describeEachDialect<Fixture>(
       const entry = await createPublished({ repo, idSeed: "r-1", slug: "soup", siteFields: {} });
       const failure = new Error("database connection closed");
       const unavailable: ContentKernel = { ...kernel, run: async () => { throw failure; } };
-      await assert.rejects(new SqlEntryRepo(unavailable).save({ ...entry, title: "Must not save" }), (error) => error === failure);
+      await assert.rejects(new SqliteEntryRepo({ store: unavailable }).save({ ...entry, title: "Must not save" }), (error) => error === failure);
       assert.equal((await repo.findById({ workspaceId: "ws-1", id: entry.id }))?.title, entry.title);
     });
 

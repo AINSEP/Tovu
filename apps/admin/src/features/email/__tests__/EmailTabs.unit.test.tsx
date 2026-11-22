@@ -2,7 +2,7 @@ import { useState } from "react";
 import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { MailTestSendResult } from "../email-api";
 import { ADD_PROVIDER_PART, CAPABILITIES_PART, EmailProviderTab, segmentLabel, shownProviderId } from "../EmailProviderTab";
 import { EmailSenderTab } from "../EmailSenderTab";
@@ -109,14 +109,14 @@ describe("Email tab components", () => {
     const a = { ...PROVIDER, id: "a" };
     const b = { ...PROVIDER, id: "b", lanes: ["transactional"] as const };
     const c = { ...PROVIDER, id: "c", lanes: ["transactional", "bulk"] as const };
-    expect(shownProviderId([a, b, c], "a")).toBe("a");
-    expect(shownProviderId([a, b, c], "gone")).toBe("c");
-    expect(shownProviderId([a, b], null)).toBe("b");
-    expect(shownProviderId([a], undefined)).toBe("a");
-    expect(shownProviderId([], "a")).toBeUndefined();
-    expect(segmentLabel("Console (local development, sends nothing)")).toBe("Console");
-    expect(segmentLabel("SMTP server")).toBe("SMTP server");
-    expect(segmentLabel("(odd)")).toBe("(odd)");
+    expect(shownProviderId({ providers: [a, b, c], selectedId: "a" })).toBe("a");
+    expect(shownProviderId({ providers: [a, b, c], selectedId: "gone" })).toBe("c");
+    expect(shownProviderId({ providers: [a, b], selectedId: null })).toBe("b");
+    expect(shownProviderId({ providers: [a], selectedId: undefined })).toBe("a");
+    expect(shownProviderId({ providers: [], selectedId: "a" })).toBeUndefined();
+    expect(segmentLabel({ label: "Console (local development, sends nothing)" })).toBe("Console");
+    expect(segmentLabel({ label: "SMTP server" })).toBe("SMTP server");
+    expect(segmentLabel({ label: "(odd)" })).toBe("(odd)");
   });
 
   it("shows DNS expected/observed values, treats unknown separately from mismatch, and saves sender explicitly", async () => {
@@ -222,7 +222,7 @@ describe("Email tab components", () => {
     const dialog = await screen.findByRole("dialog", { name: "Unblock this address?" });
     expect(dialog).toHaveTextContent(PLAN.warnings[0]!);
     expect(api.removeSuppression).toHaveBeenCalledTimes(1);
-    api.removeSuppression.mockRejectedValueOnce(new ApiError("Forbidden", 403));
+    api.removeSuppression.mockRejectedValueOnce(new ApiError({ message: "Forbidden", status: 403 }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Unblock" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Only the site owner can remove a block.");
     expect(screen.getByRole("dialog")).toBeInTheDocument();

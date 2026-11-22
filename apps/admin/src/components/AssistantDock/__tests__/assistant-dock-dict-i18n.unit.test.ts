@@ -6,7 +6,7 @@ import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
 /**
  * @file `ASSISTANT_DOCK_DICT` cross-locale coverage — same idiom as
  * `taxonomy/__tests__/taxonomy-i18n.unit.test.ts` (read that file's header): `assistant-dock-i18n.ts`
- * exported no module-level `t` for `ASSISTANT_DOCK_DICT` at all before this fix — `App.hooks.tsx`'s
+ * exported no module-level `t` for `ASSISTANT_DOCK_DICT` at all before this fix — `App.hooks.ts`'s
  * `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s `useAssistantDockChrome` each built
  * their own no-fallback `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key` closure independently.
  *
@@ -59,6 +59,6 @@ describe("ASSISTANT_DOCK_DICT: cross-locale key parity", () => {
 describe("ASSISTANT_DOCK_DICT: t() falls back to COMMON_I18N", () => {
   it("translates 'Cancel' in German even though ASSISTANT_DOCK_DICT.de never carries it", () => {
     expect(ASSISTANT_DOCK_DICT.de.Cancel).toBeUndefined();
-    expect(t("de", "Cancel")).toBe(COMMON_I18N.de.Cancel);
+    expect(t({ locale: "de", key: "Cancel" })).toBe(COMMON_I18N.de.Cancel);
   });
 });

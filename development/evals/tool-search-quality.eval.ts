@@ -174,7 +174,7 @@ function run(): void {
   const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }), undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const baseline = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
   const catalogSize = registry.list({}).length;
@@ -212,6 +212,10 @@ function run(): void {
   console.log(`  src/assistant/tool-search-keywords.ts. A large primary/held-out gap means overfitting.\n`);
   void top1; void top3; void found; void pct;
 
+  reportRetrievalFailures(heldOut, missed, results);
+}
+
+function reportRetrievalFailures(heldOut: CaseResult[], missed: CaseResult[], results: CaseResult[]) {
   const heldOutMissed = heldOut.filter((r) => r.rank === null);
   if (heldOutMissed.length > 0) {
     console.log(`  HELD-OUT MISSES — the honest failures:`);
@@ -236,5 +240,6 @@ function run(): void {
 
   console.log("");
 }
+
 
 run();

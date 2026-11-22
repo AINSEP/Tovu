@@ -70,7 +70,7 @@ test("/readyz 503s with only critical failures named, when the readiness snapsho
 
 test("/readyz stays 200 (ready:true) when the agent daemon is known-failed, but names it as a plain boolean — degraded-boot defect fix", async (t) => {
   setReadinessSnapshot({ ok: true, modules: [] });
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
   const app = createApp(createRouteDeps());
   const baseUrl = await startTestServer(app, t);

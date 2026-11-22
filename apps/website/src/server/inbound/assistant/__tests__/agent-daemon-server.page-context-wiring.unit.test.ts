@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { buildPageContextPromptBlock } from "#src/assistant/run-page-context";
 import { createRunActiveContextStore } from "#src/assistant/run-active-context";
-import { captureDaemonRun } from "./helpers/daemon-source.js";
+import { captureDaemonRun, daemonFunction } from "./helpers/daemon-source.js";
 
 /**
  * @file Proves `agent-daemon-server.ts`'s `onStarted` actually puts the decoded `pageContext` into
@@ -16,14 +16,14 @@ import { captureDaemonRun } from "./helpers/daemon-source.js";
  * module opens a real SQLite connection and binds a real port as a side effect of being loaded.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = daemonFunction("assembleRunPrompt").body!.getText();
 
 test("the run prompt renders decoded.pageContext directly after the dispatch marker", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
     // History is selected (resume tail or cold-start context) before this decoration, so the
     // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(prompt, buildPageContextPromptBlock\(pageContext\)\)\}`;/,
+    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
   );
 });
 
@@ -34,7 +34,7 @@ test("onStarted forwards page context and the operator's words to the executor",
   };
   const runActiveContexts = createRunActiveContextStore();
   const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts });
-  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock(pageContext)}\n\nPlease edit this page.`);
+  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock({ context: pageContext })}\n\nPlease edit this page.`);
   // The same decoded screen is what `GET /api/active` answers from while the run is live.
   const active = runActiveContexts.read();
   assert.equal(active.active, true);

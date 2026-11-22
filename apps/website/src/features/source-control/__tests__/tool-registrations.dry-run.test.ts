@@ -10,13 +10,14 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import type { ExportReport } from "#src/features/site-export/index";
+import type { ExportReport } from "#src/contracts/core/export-report";
 
 import type { ExportSiteBoundFn, SourceControlCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 
 /**
@@ -69,6 +70,7 @@ function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteB
     sourceControlExportRootDir: exportRootDir,
     exportSiteBound: options.exportSiteBound,
     staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
+    staticSitePackager: createStaticSitePackager(),
     gitAdapter: options.gitAdapter,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
@@ -104,7 +106,7 @@ test('target folder schema, normalized preview paths and capability refusal are 
   const calls = { count: 0 };
   let deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(calls), exportSiteBound: fakeExportSiteBound({ outputDir: null }) });
   const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
-  const loaded = registry.get('example-git')!;
+  const loaded = registry.get({ providerId: 'example-git' })!;
   deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
   const registration = buildExecuteCommitTool(deps);
   const schema = registration.descriptor.inputSchema as { properties: { folder: { title: string } } };
@@ -135,7 +137,7 @@ test('a supported folder reaches the provider and is returned with the launcher 
     return { ok: true, branch: 'main', branchCreated: false, commitSha: 'sha', commitUrl: 'https://example.test/sha', filesChanged: input.files.length, filesDeleted: 0 };
   } } });
   const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
-  const loaded = registry.get('example-git')!;
+  const loaded = registry.get({ providerId: 'example-git' })!;
   deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
   await seedExampleGitCredential(deps);
   const result = await call(buildExecuteCommitTool(deps), { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'update', folder: 'static_sites/' }) as Record<string, unknown>;

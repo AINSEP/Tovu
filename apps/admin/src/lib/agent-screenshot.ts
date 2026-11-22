@@ -4,7 +4,7 @@
  *
  * ## Wiring
  *
- * `App.hooks.tsx`'s `useAgentPageBridge` registers {@link renderAdminScreenshotCanvas} (indirectly,
+ * `apps/admin/src/App.hooks.ts`'s `useAgentPageBridge` registers {@link renderAdminScreenshotCanvas} (indirectly,
  * through {@link captureAdminScreenshotToolResult}) under `createFrontendSessionBridge`'s
  * `executors: {"admin.": ...}` prefix map — the same host-extension seam that file's own module doc
  * describes `chat.*`/`page.*` claiming, just exercised here by a Tovu-native verb instead of a Jini
@@ -54,7 +54,7 @@
  *    permission dialog on every screenshot reintroduces exactly that friction.
  * 3. **Server-side headless Chromium against an authenticated URL.** True pixels and high fidelity,
  *    but it renders a FRESH page load — wrong scroll position, no open dialog, no in-progress edit,
- *    none of the state that made the operator ask in the first place. `site-evidence/browser-port.ts`
+ *    none of the state that made the operator ask in the first place. `Jini packages/diagnostics/src/web-evidence/browser-port.ts`
  *    (Tovu's own existing headless-browser adapter) already documents that Chromium may be entirely
  *    ABSENT from a self-hosted Tovu image, which would make this capability silently unavailable in
  *    exactly the deployments most likely to need it (an operator with no screenshot tool of their
@@ -71,7 +71,7 @@
  * - Cross-origin `<img>` elements without permissive CORS headers taint the canvas and render blank.
  * - `<canvas>`/WebGL content and `<video>` frames frequently do not rasterize correctly.
  * - Only the `<main>` content area is captured (never the assistant's own chat dock, which sits
- *   outside it — see `App.hooks.tsx`'s `useAgentPageBridge` doc for why that boundary already
+ *   outside it — see `apps/admin/src/App.hooks.ts`'s `useAgentPageBridge` doc for why that boundary already
  *   exists), and only what is clipped to the CURRENT viewport — content scrolled out of view is not
  *   included, by design (see {@link renderAdminScreenshotCanvas}).
  * - Complex CSS (filters, some blend modes, a custom font not yet loaded) can visually drift from
@@ -82,13 +82,15 @@
  *
  * Every successful capture publishes {@link publishScreenshotCaptured} so the admin sees an
  * announcement, never a silent capture. This module does not call that bus directly — see this
- * file's own wiring note in `App.hooks.tsx` for why that stays the caller's responsibility.
+ * file's own wiring note in `apps/admin/src/App.hooks.ts` for why that stays the caller's responsibility.
  */
 
 /** Mirrors `@jini-ai/daemon`'s `ToolResultTextBlock`/`ToolResultImageBlock` field names exactly
  *  (`tool-result-media.ts`) — this is the wire shape `extractResultMedia` recognizes, not a new one.
  *  Redeclared locally rather than imported: apps/admin has no dependency on `@jini-ai/daemon`, and
  *  taking one solely for two structural field names would be a heavier coupling than restating them. */
+import html2canvas from "html2canvas-pro";
+
 export type ScreenshotContentBlock = { readonly type: "text"; readonly text: string } | { readonly type: "image"; readonly mimeType: string; readonly data: string };
 
 export interface ScreenshotToolResult {
@@ -135,16 +137,16 @@ export interface CapturedCanvas {
 export type RenderElementToCanvas = (element: HTMLElement) => Promise<CapturedCanvas>;
 
 export interface CaptureAdminScreenshotOptions {
-  /** `App.hooks.tsx`'s `contentEl` — `null` before it mounts, or if the effect tore the bridge down. */
+  /** `apps/admin/src/App.hooks.ts`'s `contentEl` — `null` before it mounts, or if the effect tore the bridge down. */
   readonly element: HTMLElement | null;
   readonly renderElementToCanvas: RenderElementToCanvas;
 }
 
-function buildTextBlock(text: string): ScreenshotContentBlock {
+function buildTextBlock({ text }: { text: string }, _options = {}): ScreenshotContentBlock {
   return { type: "text", text };
 }
 
-function buildImageBlock(mimeType: string, data: string): ScreenshotContentBlock {
+function buildImageBlock({ mimeType, data }: { mimeType: string; data: string }, _options = {}): ScreenshotContentBlock {
   return { type: "image", mimeType, data };
 }
 
@@ -155,8 +157,8 @@ function buildImageBlock(mimeType: string, data: string): ScreenshotContentBlock
  *
  * @complexity O(1).
  */
-export function buildScreenshotFailureResult(reason: string): ScreenshotToolResult {
-  return { content: [buildTextBlock(reason)] };
+export function buildScreenshotFailureResult({ reason }: { reason: string }, _options = {}): ScreenshotToolResult {
+  return { content: [buildTextBlock({ text: reason })] };
 }
 
 /**
@@ -167,12 +169,12 @@ export function buildScreenshotFailureResult(reason: string): ScreenshotToolResu
  * into a bogus image block would be worse than treating it as "nothing usable came back."
  * @complexity O(1) (a single bounded regex match; does not scan the base64 payload).
  */
-function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly data: string } | undefined {
+function parseDataUrl({ dataUrl }: { dataUrl: string }, _options = {}): { readonly mimeType: string; readonly data: string } | undefined {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   if (!match) return undefined;
   // Both capture groups use a `+` quantifier, so a successful match always carries a non-empty
-  // mime type and payload; the non-null assertions restate that regex guarantee for the type system.
-  return { mimeType: match[1]!, data: match[2]! };
+  // mime type and payload.
+  return { mimeType: match[1], data: match[2] };
 }
 
 /**
@@ -182,7 +184,7 @@ function parseDataUrl(dataUrl: string): { readonly mimeType: string; readonly da
  *
  * @complexity O(1) — reads `.length` and up to 2 trailing characters, never the whole string content.
  */
-function estimateBase64ByteLength(base64: string): number {
+function estimateBase64ByteLength({ base64 }: { base64: string }, _options = {}): number {
   let padding = 0;
   if (base64.endsWith("=")) padding = base64.endsWith("==") ? 2 : 1;
   return Math.floor((base64.length * 3) / 4) - padding;
@@ -201,9 +203,9 @@ function estimateBase64ByteLength(base64: string): number {
 function encodeWithinBudget(canvas: CapturedCanvas): readonly ScreenshotContentBlock[] | undefined {
   for (const quality of JPEG_QUALITIES) {
     const dataUrl = canvas.toDataURL("image/jpeg", quality);
-    const parsed = parseDataUrl(dataUrl);
-    if (parsed && estimateBase64ByteLength(parsed.data) <= MAX_SCREENSHOT_BYTES) {
-      return [buildTextBlock(FIDELITY_NOTE), buildImageBlock(parsed.mimeType, parsed.data)];
+    const parsed = parseDataUrl({ dataUrl });
+    if (parsed && estimateBase64ByteLength({ base64: parsed.data }) <= MAX_SCREENSHOT_BYTES) {
+      return [buildTextBlock({ text: FIDELITY_NOTE }), buildImageBlock({ mimeType: parsed.mimeType, data: parsed.data })];
     }
   }
   return undefined;
@@ -222,8 +224,7 @@ function encodeWithinBudget(canvas: CapturedCanvas): readonly ScreenshotContentB
 export async function captureAdminScreenshotToolResult(options: CaptureAdminScreenshotOptions): Promise<ScreenshotToolResult> {
   const { element, renderElementToCanvas } = options;
   if (!element || !element.isConnected) {
-    return buildScreenshotFailureResult(
-      "no admin content area is currently attached to capture — the admin tab may have navigated away or the page bridge has not finished attaching yet",
+    return buildScreenshotFailureResult({ reason: "no admin content area is currently attached to capture — the admin tab may have navigated away or the page bridge has not finished attaching yet" }
     );
   }
 
@@ -232,21 +233,20 @@ export async function captureAdminScreenshotToolResult(options: CaptureAdminScre
     canvas = await renderElementToCanvas(element);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return buildScreenshotFailureResult(`screenshot capture failed: ${message}`);
+    return buildScreenshotFailureResult({ reason: `screenshot capture failed: ${message}` });
   }
 
   const content = encodeWithinBudget(canvas);
   if (!content) {
-    return buildScreenshotFailureResult(
-      "the rendered view was too large to encode within this tool's size budget even after quality reduction — try narrowing the visible area (e.g. collapsing a panel) first",
+    return buildScreenshotFailureResult({ reason: "the rendered view was too large to encode within this tool's size budget even after quality reduction — try narrowing the visible area (e.g. collapsing a panel) first" }
     );
   }
   return { content };
 }
 
 /**
- * The real capture adapter — dynamically imports `html2canvas-pro` so its ~230KB parses only when
- * this capability is actually invoked, not on every admin page load. Not exercised by this module's
+ * The real capture adapter — `html2canvas-pro` adds ~230KB to the admin load; it was previously
+ * deferred until this capability was invoked. Not exercised by this module's
  * own unit tests (see this file's module doc): jsdom does not lay out or paint, so a test importing
  * the real library here would assert nothing about real rendering while paying real cost to run it.
  * Real verification is manual/browser (see the handoff's Self-Validation section) — which is what
@@ -269,7 +269,6 @@ export async function captureAdminScreenshotToolResult(options: CaptureAdminScre
  * to the viewport's rendered subtree size.
  */
 export async function renderAdminScreenshotCanvas(element: HTMLElement): Promise<CapturedCanvas> {
-  const { default: html2canvas } = await import("html2canvas-pro");
   return html2canvas(element, {
     scale: 1,
     useCORS: true,

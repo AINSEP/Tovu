@@ -1,4 +1,4 @@
-import { sendAdminFailure } from './routes/system/site-share-errors.js';
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { IdentityValidationError, OwnerRequiredError } from '@jini-ai/user-management';
 import { beginOwnerPasskeyEnrollment, confirmOwnerPasskeyEnrollment, beginOwnerPasskeyLogin, completeOwnerPasskeyLogin,
@@ -9,7 +9,7 @@ import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
 
 type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
-  authenticate: (req: Request) => Promise<{ principal: { id: string }; kind: string } | null>;
+  authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null>;
   signedIn: (req: Request, res: Response, result: Awaited<ReturnType<typeof completeOwnerPasskeyLogin>>) => Promise<void> };
 type Action = 'enroll' | 'confirm' | 'begin-login' | 'login' | 'remove';
 
@@ -35,7 +35,7 @@ async function passkeyDeps(admission: Admission, req: Request): Promise<OwnerPas
 }
 
 /** Admission failures reveal no credentials; protocol proofs are never logged. O(1). */
-function failure(res: Response, error: unknown): void {
+function failure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
   if (!expected) {
     sendAdminFailure({ res, error }, { operation: 'owner-passkey', code: 'PASSKEY_UNAVAILABLE',
@@ -50,9 +50,9 @@ function failure(res: Response, error: unknown): void {
 }
 
 /** Authenticate management calls separately; login calls require the password-created pending proof. */
-async function admit(admission: Admission, req: Request, action: Action, deps: OwnerPasskeyDeps) {
+async function admit({ admission, req, action, deps }: { admission: Admission; req: Request; action: Action; deps: OwnerPasskeyDeps }, _optional = {}) {
   if (action === 'begin-login' || action === 'login') return;
-  const caller = await admission.authenticate(req);
+  const caller = await admission.authenticate({ req });
   if (caller?.kind !== 'session' || caller.principal.id !== deps.mfa.seededOwnerPrincipalId) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to manage passkeys.' });
   }
@@ -74,16 +74,16 @@ async function handle(admission: Admission, req: Request, res: Response, action:
     const rate = await admission.limiter.check({ key: resolveClientIp(req) });
     if (!rate.allowed) { res.setHeader('Retry-After', String(rate.retryAfterSeconds));
       res.status(429).json({ error: 'Too many passkey attempts. Wait a minute and try again.', code: 'RATE_LIMIT_EXCEEDED' }); return; }
-    await admit(admission, req, action, deps);
+    await admit({ admission, req, action, deps });
     await execute(admission, req, res, action, deps);
-  } catch (error) { failure(res, error); }
+  } catch (error) { failure({ res, error }); }
 }
 
 /** Transport-only dispatch; scope never comes from the request body. */
 async function execute(admission: Admission, req: Request, res: Response, action: Action, deps: OwnerPasskeyDeps) {
-  const value = (key: string) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
+  const value = ({ key }: { key: string }, _optional = {}) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
   const input = { workspaceId: admission.deps.workspaceId, principalId: deps.mfa.seededOwnerPrincipalId,
-    password: value('password'), code: value('code'), pendingToken: value('pendingToken'), response: req.body?.response, id: value('id') };
+    password: value({ key: 'password' }), code: value({ key: 'code' }), pendingToken: value({ key: 'pendingToken' }), response: req.body?.response, id: value({ key: 'id' }) };
   switch (action) {
     case 'enroll': res.json(await beginOwnerPasskeyEnrollment({ deps, input })); return;
     case 'confirm': await confirmOwnerPasskeyEnrollment({ deps, input }); break;
@@ -102,12 +102,12 @@ export function registerOwnerPasskeyRoutes(admission: Admission, _options: Recor
   admission.app.get('/api/admin/v1/auth/passkeys', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      const caller = await admission.authenticate(req);
+      const caller = await admission.authenticate({ req });
       const isOwner = caller?.kind === 'session' && caller.principal.id === await admission.deps.ownerPrincipalId;
       if (!isOwner) { res.json({ isOwner: false, credentials: [] }); return; }
       const deps = await passkeyDeps(admission, req);
       const credentials = await deps.credentials.list({ workspaceId: admission.deps.workspaceId, principalId: deps.mfa.seededOwnerPrincipalId });
       res.json({ isOwner: true, credentials: credentials.map(c => ({ id: c.id })) });
-    } catch (error) { failure(res, error); }
+    } catch (error) { failure({ res, error }); }
   });
 }

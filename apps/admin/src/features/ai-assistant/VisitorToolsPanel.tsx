@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
@@ -27,8 +27,8 @@ const MODES: readonly { mode: VisitorToolMode; label: string }[] = [
   { mode: "auto", label: "Auto" }, { mode: "ask", label: "Ask first" }, { mode: "off", label: "Off" },
 ];
 /** Agent handles are lowercase hyphenated words; tool ids are server data (`list_posts`, plugin ids). */
-function toolHandle(id: string, part: string): string {
-  const slug = trimCharsEnd({ text: asciiSlug(id).slice(0, 40), chars: "-" }) || "tool";
+function toolHandle({ id, part }: { id: string; part: string }, _options: Record<string, never> = {}): string {
+  const slug = trimCharsEnd({ text: asciiSlug({ text: id }).slice(0, 40), chars: "-" }) || "tool";
   return `ai-assistant-visitor-tool-${slug}-${part}`;
 }
 const GROUP_LABELS: Record<VisitorToolView["source"], string> = {
@@ -123,8 +123,8 @@ function VisitorToolRow({ tool, controller, t }: { tool: VisitorToolView; contro
   );
 }
 
-function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolView; title: string; controller: VisitorToolsController; t: (key: string) => string }) {
-  const limits = useVisitorToolLimitsDraft({ tool, configure: controller.configure });
+function VisitorToolLimits({ tool, title, controller, t, useVisitorToolLimitsDraftHook = useVisitorToolLimitsDraft }: { tool: VisitorToolView; title: string; controller: VisitorToolsController; t: (key: string) => string; useVisitorToolLimitsDraftHook?: typeof useVisitorToolLimitsDraft; }) {
+  const limits = useVisitorToolLimitsDraftHook({ tool, configure: controller.configure });
   const ipId = useId();
   const siteId = useId();
   const errorId = useId();
@@ -144,13 +144,13 @@ function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolVi
             <input id={field.id} className="jini-input" type="number" inputMode="numeric" min={1} step={1}
               value={limits.draft[field.key]} disabled={locked}
               aria-invalid={limits.invalid || undefined} aria-describedby={limits.invalid ? errorId : undefined}
-              onChange={(event) => limits.edit(field.key, event.target.value)}
-              {...agentHandle({ handle: toolHandle(tool.id, field.key === "perIpPerHour" ? "per-visitor-limit" : "per-site-limit") }, { role: "field", label: `${title}: ${field.label}` })} />
+              onChange={(event) => limits.edit({ key: field.key, value: event.target.value })}
+              {...agentHandle({ handle: toolHandle({ id: tool.id, part: field.key === "perIpPerHour" ? "per-visitor-limit" : "per-site-limit" }) }, { role: "field", label: `${title}: ${field.label}` })} />
           </label>
         ))}
         <button type="button" className="btn-primary" disabled={locked || !limits.dirty || controller.busyToolId !== null}
           onClick={() => void limits.save()}
-          {...agentHandle({ handle: toolHandle(tool.id, "limits-save") }, { role: "button", label: `Save ${title} limits` })}>
+          {...agentHandle({ handle: toolHandle({ id: tool.id, part: "limits-save" }) }, { role: "button", label: `Save ${title} limits` })}>
           {controller.busyToolId === tool.id ? t("Saving…") : t("Save")}
         </button>
         {limits.invalid ? <span id={errorId} className="visitor-tool-limit-error" role="alert">{t("Use a whole number, 1 or more.")}</span> : null}
@@ -167,6 +167,6 @@ function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolVi
 /** Format the default budget hint independently of the interactive limits editor. */
 export function visitorToolDefaultLimitsText({ defaults, t }: { defaults?: VisitorToolView["limits"]; t: (key: string) => string }, _options = {}): string {
   return t("Default: {ip} per visitor/hour, {site} per site/day.")
-    .replace("{ip}", String(defaults?.perIpPerHour ?? ""))
-    .replace("{site}", String(defaults?.perSitePerDay ?? ""));
+    .replace("{ip}", () => String(defaults?.perIpPerHour ?? ""))
+    .replace("{site}", () => String(defaults?.perSitePerDay ?? ""));
 }

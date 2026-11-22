@@ -45,9 +45,9 @@ import type { RunAgentPayload, RunEndPayload, RunErrorPayload, RunProtocolEvent 
 interface FakeBridgeOverrides {
   chatStart?: (input: WorkspaceChatStartInput) => Promise<WorkspaceChatStartResult>;
   chatReattach?: (input: WorkspaceChatReattachInput) => Promise<void>;
-  chatDetach?: (subscriptionId: string) => Promise<void>;
-  chatStop?: (runId: string) => Promise<void>;
-  chatStatus?: (runId: string) => Promise<WorkspaceChatRunSnapshot | null>;
+  chatDetach?: (required: { subscriptionId: string }, options?: {}) => Promise<void>;
+  chatStop?: (required: { runId: string }, options?: {}) => Promise<void>;
+  chatStatus?: (required: { runId: string }, options?: {}) => Promise<WorkspaceChatRunSnapshot | null>;
 }
 
 interface FakeBridge {
@@ -89,17 +89,17 @@ function createFakeBridge(overrides: FakeBridgeOverrides = {}): FakeBridge {
       calls.chatReattach.push(input);
       return overrides.chatReattach ? overrides.chatReattach(input) : Promise.resolve(undefined);
     },
-    chatDetach: (subscriptionId: string): Promise<void> => {
+    chatDetach: ({ subscriptionId }: { subscriptionId: string }, _options = {}): Promise<void> => {
       calls.chatDetach.push(subscriptionId);
-      return overrides.chatDetach ? overrides.chatDetach(subscriptionId) : Promise.resolve(undefined);
+      return overrides.chatDetach ? overrides.chatDetach({ subscriptionId }) : Promise.resolve(undefined);
     },
-    chatStop: (runId: string): Promise<void> => {
+    chatStop: ({ runId }: { runId: string }, _options = {}): Promise<void> => {
       calls.chatStop.push(runId);
-      return overrides.chatStop ? overrides.chatStop(runId) : Promise.resolve(undefined);
+      return overrides.chatStop ? overrides.chatStop({ runId }) : Promise.resolve(undefined);
     },
-    chatStatus: (runId: string): Promise<WorkspaceChatRunSnapshot | null> =>
-      overrides.chatStatus ? overrides.chatStatus(runId) : Promise.resolve(null),
-    onChatEvent: (l: (message: WorkspaceChatEventMessage) => void): (() => void) => {
+    chatStatus: ({ runId }: { runId: string }, _options = {}): Promise<WorkspaceChatRunSnapshot | null> =>
+      overrides.chatStatus ? overrides.chatStatus({ runId }) : Promise.resolve(null),
+    onChatEvent: ({ listener: l }: { listener: (message: WorkspaceChatEventMessage) => void }, _options = {}): (() => void) => {
       registrations += 1;
       listeners.add(l);
       return () => {
@@ -540,7 +540,7 @@ test('a full turn translates every RunAgentPayload variant to its exact AgentEve
     }),
   );
   const sub = fake.calls.chatStart[0]!.subscriptionId;
-  const desktopStatusToolName = mcpToolNameForVerb('desktop.status'); // a real desktop.* verb, real mapping
+  const desktopStatusToolName = mcpToolNameForVerb({ verb: 'desktop.status' }); // a real desktop.* verb, real mapping
 
   const push = (payload: RunAgentPayload): void => fake.emit({ subscriptionId: sub, kind: 'event', event: agentEvent(payload) });
 

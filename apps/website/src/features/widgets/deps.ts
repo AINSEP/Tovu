@@ -1,3 +1,9 @@
+import { updatePost } from "../post/post-update.js";
+import { restorePostForward } from "../post/post-trash.js";
+import { findPublishedPostBySlug, createPublicPostReader, findPublishedPostById } from "../post/post-read.js";
+import { PostVersionConflictError, PostNotFoundError } from "../post/post.js";
+import type { ForgetRemovedPostFn, BeforeSaveHookPort, PostRecord, PostRepoPort } from "../post/contracts.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
 /**
  * @file One shared composer for the deps bag every widgets write-path function needs
  * (`Jini/packages/cms/src/widgets/write-service.ts`/`Jini/packages/cms/src/widgets/embed-service.ts`/`Jini/packages/cms/src/widgets/region-area-service.ts`).
@@ -8,7 +14,7 @@
  * `agent-tools.ts` AI-gateway surface) — see `ADS-memory/.local-artifacts/agent-reports/
  * 20260803-jini-outbox-contract.md` and `20260803-widget-delete-outbox-bug.md` for why that mattered:
  * every one of those ~11 call sites independently forgot to bridge the raw infra `outbox` port into
- * the narrower one `createEntry`/`updateEntry` declare locally (`features/entries/write-service.ts`'s
+ * the narrower one `createEntry`/`updateEntry` declare locally (`Jini packages/cms/src/entries/repo.memory.ts`'s
  * own header documents that bridge, `toEntryOutbox`), so every widget create/update/trash/purge threw
  * `NOT NULL constraint failed: outbox_events.id` against the real SQLite outbox — invisible against
  * the in-memory test double, which silently accepts any shape. `entries`/`content-types`/`taxonomy`
@@ -32,15 +38,14 @@
  * unchanged.
  */
 import type { Clock } from "@jini-ai/core/primitives";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
-import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
-import { registerContentType } from "#src/features/content-types/write-service";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
+import { registerContentType } from "#src/features/content-types/index";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
 import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictError, type EntryListPort, type EntryRepoPort } from "@jini-ai/cms/entries";
-import { createPublicPostReader, isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/post.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
-import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
 import { toSlug } from "../../platform/html/slug.js";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";
 import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
@@ -106,7 +111,7 @@ export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _opt
     },
     media: { findMediaByIdOrSlug, getLatestTransformDefinition, publicTransformName: CORE_PUBLIC_TRANSFORM_NAME },
     entryRefs: { extract: extractEntryRefs },
-    slugify: toSlug,
+    slugify: (text) => toSlug({ text }),
   };
 }
 

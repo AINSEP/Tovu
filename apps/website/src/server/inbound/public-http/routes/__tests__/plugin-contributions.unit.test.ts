@@ -8,8 +8,8 @@ import express, { type RequestHandler } from 'express';
 import {
   createPluginContributionRegistry, InMemoryPluginActivationRepo,
   type PluginActivationRepoPort, type PluginContributionRegistry, type PluginContributionsSnapshot,
-  type PluginRouteContribution, type PluginSdk,
 } from '@jini-ai/plugins/host';
+import { type PluginRouteContribution, type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { createRouteDeps } from '../../../../runtime/composition/app.js';
 import type { RouteDeps } from '../../../../routes/types.js';
 import { loginAsOwner, startTestServer } from '../../../../__tests__/helpers/http-test-server.js';
@@ -325,7 +325,7 @@ test('admin port forwards an operator authorization failure to next(error)', asy
   const base = createRouteDeps();
   const deps: RouteDeps = { ...base, authorize: async () => { throw new Error('authorizer down'); } };
   const app = express();
-  app.use(parsePublicJsonBody); registerAuthRoutes(app, deps);
+  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps });
   const ports = createPluginRouteAuthPorts({ deps });
   app.post('/probe', ports.admin, (_req, res) => { res.json({ reached: true }); });
   app.use(((error, _req, res, _next) => { res.status(599).json({ message: (error as Error).message }); }) satisfies express.ErrorRequestHandler);
@@ -340,7 +340,7 @@ test('admin port forwards an operator authorization failure to next(error)', asy
 test('admin port forwards an operator session parse failure to next(error)', async t => {
   const deps = createRouteDeps();
   const app = express();
-  app.use(parsePublicJsonBody); registerAuthRoutes(app, deps);
+  app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps });
   app.post('/api/p/probe', createPluginRouteAuthPorts({ deps }).admin, (_req, res) => { res.json({ reached: true }); });
   app.use(((error, _req, res, _next) => { res.status(599).json({ type: (error as { type?: string }).type }); }) satisfies express.ErrorRequestHandler);
   const baseUrl = await startTestServer(app, t);

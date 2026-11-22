@@ -1,23 +1,20 @@
 import { useState } from "react";
-import { Toast } from "@jini-ai/ui";
+import { Icon, Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
-import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
 import { buildThemeCardMenuItems, themeDeleteBlock, type ThemeDeleteBlock, type ThemeDeleteRequest } from "./theme-card-menu";
-import { CompassIcon } from "./themes-visuals";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -32,6 +29,7 @@ import {
   type ThemeTabGroup,
 } from "./rules";
 
+import { resolveActiveTabId, type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file The Themes screen — markup only.
  *
@@ -56,7 +54,7 @@ const THEME_BLURBS: Record<string, string> = {
  *
  * @complexity O(1).
  */
-function actionButtonAriaLabel(idleVerb: string, busyVerb: string, busy: boolean, itemName: string): string {
+function actionButtonAriaLabel({ idleVerb, busyVerb, busy, itemName }: { idleVerb: string; busyVerb: string; busy: boolean; itemName: string }, _optional = {}): string {
   return `${busy ? busyVerb : idleVerb} ${itemName}`;
 }
 
@@ -92,8 +90,10 @@ function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
  *
  * @complexity Time/space: O(1) — one `<img>`, one fallback stage, one modal-open boolean.
  */
-function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t }: { themeId: string; previewImageUrl?: string | null; agentHandleBase: string; t: Translate }) {
-  const { failed, src, expanded, setExpanded, handleError } = useThemeCardPreview({ themeId, previewImageUrl });
+function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t,
+  useThemeCardPreviewHook = useThemeCardPreview }: { themeId: string; previewImageUrl?: string | null; agentHandleBase: string; t: Translate;
+  useThemeCardPreviewHook?: typeof useThemeCardPreview; }) {
+  const { failed, src, expanded, setExpanded, handleError } = useThemeCardPreviewHook({ themeId, previewImageUrl });
 
   return (
     <div className="theme-card-preview">
@@ -150,6 +150,7 @@ export interface ThemesProps {
    * `/themes` regardless of which route rendered this component.
    */
   basePath?: string;
+  useFirstActiveThemeHook?: typeof useFirstActiveTheme;
 }
 
 /**
@@ -166,9 +167,7 @@ export interface ThemesProps {
  * @complexity Time/space: O(1) — fixed-size id list (four tab groups), not caller-controlled.
  */
 function resolveThemesActiveTabId(
-  tabId: string | null | undefined,
-  settings: PresentationSettings,
-  themeTiers: Record<string, ThemeTier>,
+  { tabId, settings, themeTiers }: { tabId: string | null | undefined; settings: PresentationSettings; themeTiers: Record<string, ThemeTier> }, _optional = {},
 ): string {
   const validTabIds: readonly string[] = THEME_TAB_GROUPS;
   return resolveActiveTabId({ tabId: tabId, validIds: validTabIds, defaultId: defaultThemeTabGroup(settings, themeTiers) });
@@ -310,7 +309,7 @@ function ThemeActivateSwitch({
   handleBase: string;
   settings: PresentationSettings;
   busyTheme: string | null;
-  activate: (themeId: string) => Promise<void>;
+  activate: ThemesController["activate"];
   t: Translate;
 }) {
   const control = themeCardSwitch({ settings, themeId, busyTheme });
@@ -322,8 +321,8 @@ function ThemeActivateSwitch({
       aria-busy={control.busy}
       className="agent-plugin-switch theme-card-switch"
       disabled={control.disabled}
-      onClick={() => void activate(control.target)}
-      aria-label={actionButtonAriaLabel(t("Activate"), t(control.busyKey), control.busy, name)}
+      onClick={() => void activate({ themeId: control.target })}
+      aria-label={actionButtonAriaLabel({ idleVerb: t("Activate"), busyVerb: t(control.busyKey), busy: control.busy, itemName: name })}
       title={t(control.titleKey)}
       {...agentHandle({ handle: `${handleBase}-activate` }, {
         role: "checkbox",
@@ -357,11 +356,11 @@ function ThemesBanners({
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
-      {isStrandedActiveTheme(settings, themes) ? (
+      {isStrandedActiveTheme({ settings, themes }) ? (
         <div className="notice warning">
           {t(
             "The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.",
-          ).replace("{id}", settings.activeThemeId)}
+          ).replace("{id}", () => settings.activeThemeId)}
         </div>
       ) : null}
       {/* Deliberately a plain `.notice`, NOT `.notice warning` — the operator chose this, and
@@ -396,7 +395,7 @@ function ThemeGrid({
   duplicatingTheme,
   duplicate,
   trash,
-  t,
+  t, useThemeDeleteRequestHook = useThemeDeleteRequest,
 }: {
   visibleThemes: string[];
   themeNames: Record<string, string>;
@@ -404,15 +403,18 @@ function ThemeGrid({
   themeBuiltIn: Record<string, boolean>;
   settings: PresentationSettings;
   busyTheme: string | null;
-  activate: (themeId: string) => Promise<void>;
+  activate: ThemesController["activate"];
   duplicatingTheme: string | null;
   duplicate: ThemesController["duplicate"];
   trash: ThemesController["trash"];
-  t: Translate;
+  t: Translate; useThemeDeleteRequestHook?: typeof useThemeDeleteRequest;
 }) {
   // A delete can only be requested through `onRequestDelete`, which exists only when `trash` does,
   // so the hook's `trash` is only ever called with `trash` defined.
-  const deletion = useThemeDeleteRequest({ t, trash: (themeId) => trash!(themeId) });
+  const deletion = useThemeDeleteRequestHook({ t, trash: ({ themeId }, _optional = {}) => {
+    if (!trash) throw new Error("theme delete action is unavailable");
+    return trash({ themeId });
+  } });
   const onRequestDelete = trash ? (request: ThemeDeleteRequest) => void deletion.requestDelete(request) : undefined;
   if (visibleThemes.length === 0) {
     return (
@@ -433,9 +435,9 @@ function ThemeGrid({
     <>
       <div className="theme-grid" role="group" aria-label={t("Themes")}>
         {visibleThemes.map((themeId, index) => {
-          const active = isActiveTheme(settings, themeId);
-          const handleBase = cardHandles[index]!;
-          const name = themeDisplayName(themeId, themeNames);
+          const active = isActiveTheme({ settings, themeId });
+          const handleBase = cardHandles[index];
+          const name = themeDisplayName({ themeId, themeNames });
           return (
             <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
               <ThemeCardPreview themeId={themeId} previewImageUrl={themePreviewImages[themeId]} agentHandleBase={handleBase} t={t} />
@@ -450,12 +452,12 @@ function ThemeGrid({
                   <button
                     type="button"
                     className="theme-card-icon-btn"
-                    onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                    onClick={() => navigate({ routePath: `/themes/explore?theme=${encodeURIComponent(themeId)}` })}
                     aria-label={`${t("Explore")} ${name}`}
                     title={t("Explore")}
                     {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
                   >
-                    <CompassIcon />
+                    <Icon name="compass" size={18} strokeWidth={1.5} />
                   </button>
                   <ThemeCardMenu
                     themeId={themeId}
@@ -510,7 +512,7 @@ function ThemesToolbar({
   return (
     <div className="themes-header-side">
       <a
-        href={siteUrl("/")}
+        href={siteUrl({ path: "/" })}
         target="_blank"
         rel="noreferrer"
         {...agentHandle({ handle: "themes-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
@@ -537,7 +539,7 @@ function ThemesToolbar({
             type="button"
             className="btn-secondary"
             disabled={busyTheme !== null}
-            onClick={() => void activate(NO_THEME_ID)}
+            onClick={() => void activate({ themeId: NO_THEME_ID })}
             {...agentHandle({ handle: "themes-disable" }, {
               role: "button",
               label: "Turn the theme off and render the site unstyled",
@@ -558,7 +560,7 @@ function ThemesToolbar({
  * pointer, and the second click of a double-click would activate that theme too (owner, 2026-11-03).
  * @returns The first active theme id, or `undefined` before settings load. @complexity O(1).
  */
-function useFirstActiveTheme(settings: PresentationSettings | null | undefined): string | undefined {
+function useFirstActiveTheme({ settings }: { settings: PresentationSettings | null | undefined }, _optional = {}): string | undefined {
   const [first, setFirst] = useState(settings?.activeThemeId);
   if (first === undefined && settings) setFirst(settings.activeThemeId);
   return first;
@@ -569,7 +571,7 @@ function useFirstActiveTheme(settings: PresentationSettings | null | undefined):
 // screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
 // (`undefined`) the same as an explicit `null` (its `tabId && ...` check is falsy either way), so a
 // third default here would cost a complexity point for zero behavioral benefit.
-export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes" }: ThemesProps) {
+export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes", useFirstActiveThemeHook = useFirstActiveTheme }: ThemesProps) {
   const {
     settings,
     themes,
@@ -594,7 +596,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     dismissTrashNotice,
     t,
   } = withThemeDefaults(useThemesHook());
-  const firstActiveThemeId = useFirstActiveTheme(settings);
+  const firstActiveThemeId = useFirstActiveThemeHook({ settings: settings });
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
@@ -604,22 +606,22 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     return error ? <div className="notice error">{error}</div> : <div className="notice">{t("Loading themes…")}</div>;
   }
 
-  const grouped = groupThemesByTabGroup(themes, themeTiers);
+  const grouped = groupThemesByTabGroup({ themes, themeTiers });
   // Derived straight from the `?tab=` prop (ADR-063) — no local `useState` override anymore.
   // `resolveThemesActiveTabId` folds in the same "fall back to the active theme's own tab group"
   // default `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and
   // additionally guards against an unrecognized/stale query value (see that function's own doc).
-  const activeTab = resolveThemesActiveTabId(tabId, settings, themeTiers);
+  const activeTab = resolveThemesActiveTabId({ tabId: tabId, settings: settings, themeTiers: themeTiers });
   // `?? []` is a guard, not a live branch: `resolveThemesActiveTabId` only returns a real
   // `ThemeTabGroup` now that the theme Marketplace tab is gone (2026-10-04).
   // The theme active when the screen opened first, then A-Z by display name (`sortThemesForDisplay`).
-  const visibleThemes = sortThemesForDisplay(
+  const visibleThemes = sortThemesForDisplay({
     // `groupThemesByTabGroup` seeds every tab group (empty when it has no themes) and `activeTab` is
     // always a resolved, valid group, so this lookup always hits.
-    grouped[activeTab as ThemeTabGroup],
-    firstActiveThemeId ?? settings.activeThemeId,
+    themeIds: grouped[activeTab as ThemeTabGroup],
+    activeThemeId: firstActiveThemeId ?? settings.activeThemeId,
     themeNames,
-  );
+  });
 
   return (
     // `themes-page` scopes the greyed "Soon" tab labels (`styles.css`) to this screen's tab strip.
@@ -657,7 +659,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           // Real `navigate()`, not local state (ADR-063) — same idiom Deployment/Database's tab
           // strips use: `replace: true` so switching tabs updates the deep link without growing
           // back-button history one entry per click.
-          navigate(`${basePath}?tab=${id}`, { replace: true });
+          navigate({ routePath: `${basePath}?tab=${id}` }, { replace: true });
         }}
       />
       <ThemeGrid themePreviewImages={themePreviewImages} themeBuiltIn={themeBuiltIn} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} duplicatingTheme={duplicatingTheme} duplicate={duplicate} trash={trash} t={t} />

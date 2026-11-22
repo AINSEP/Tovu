@@ -34,8 +34,8 @@ vi.mock("../../lib/settings-refresh-bus", () => ({
 }));
 vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({ useFolderDrop: vi.fn() }));
 
-import { useExecutionConfig } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { API_UNREACHABLE_CODE, ApiError } from "../../lib/api";
+import { useExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { API_UNREACHABLE_CODE, ApiError } from "../../lib/admin-http/request";
 import {
   DEFAULT_EXECUTION_CONFIG,
   loadAdminExecutionCredential,
@@ -48,7 +48,7 @@ type Credential = Awaited<ReturnType<typeof loadAdminExecutionCredential>>;
 
 /** Exactly what `request()` throws for the dev proxy's bare 500 while the API restarts. */
 function unreachable(): ApiError {
-  return new ApiError("cannot reach the Tovu API (HTTP 500) — is the server running?", 500, API_UNREACHABLE_CODE, {});
+  return new ApiError({ message: "cannot reach the Tovu API (HTTP 500) — is the server running?", status: 500 }, { code: API_UNREACHABLE_CODE, body: {} });
 }
 
 /** Exactly what `request()` throws for a fetch cut off by the page unloading. */
@@ -131,7 +131,7 @@ test("an API that stays down is still reported, once, after the retries give up"
 });
 
 test("a non-reachability failure is reported immediately, not retried", async () => {
-  const forbidden = new ApiError("forbidden", 403, "FORBIDDEN", {});
+  const forbidden = new ApiError({ message: "forbidden", status: 403 }, { code: "FORBIDDEN", body: {} });
   mockLoadExecutionConfig.mockRejectedValue(forbidden);
   mockLoadAdminExecutionCredential.mockResolvedValue({ isSet: false } as Credential);
 

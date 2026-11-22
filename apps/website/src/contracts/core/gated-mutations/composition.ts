@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway.js";
 import { InMemoryTokenStore } from "./token.js";
 import type { TokenStorePort } from "./token.js";
@@ -67,7 +67,7 @@ export function buildGatewayDeps(params: {
 /**
  * The minimal `InstanceAuthorizeFn` binding: grants every permission to exactly the seeded owner
  * principal, denies everyone else — the RBAC-table equivalent of `authorize()`'s own
- * `owner_wildcard` precedent (`@jini-ai/user-management/server/authorize.ts`), reused here rather than
+ * `owner_wildcard` precedent (`Jini packages/user-management/src/server/authorize.ts`), reused here rather than
  * inventing new vocabulary. Disclosed simplification, same shape as `resolveActorClassIdentity`'s
  * disclosure below: `db/schema.sqlite.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
  * `workspace_id NOT NULL` — today's identity model has no dedicated instance-level policy/permission
@@ -99,7 +99,7 @@ export function buildOwnerOnlyInstanceAuthorize(params: { ownerPrincipalId: Prom
  * this from LIVE state (not a cached value) at both `plan()`-time and `execute()`-time is what
  * makes CIC U-001-B3's "plan re-derivation" check meaningful — a details object that changed
  * between confirm and execute produces a different hash, which `execute()` rejects as `PLAN_STALE`. */
-export function planHashOf(details: unknown): string {
+export function planHashOf({ details }: { details: unknown }, _options = {}): string {
   return createHash("sha256").update(JSON.stringify(details)).digest("hex");
 }
 

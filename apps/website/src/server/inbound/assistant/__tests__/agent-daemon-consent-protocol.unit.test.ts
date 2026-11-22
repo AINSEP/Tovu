@@ -6,6 +6,20 @@ import { createDaemonCoreClient } from '../agent-daemon-core-client.js';
 const allowInput = { runId: 'accepted-run', agentId: 'antigravity', keys: ['userMcp'], expectedRevisionSeq: 4 };
 const snapshot = { permissions: { enabled: true, capabilities: { userMcp: false } }, revisionSeq: 4, allowed: true };
 
+test('telemetry serialization failure logs a redacted diagnostic and sends nothing', (t) => {
+  const warnings = t.mock.method(console, 'warn', () => undefined);
+  let requests = 0;
+  const client = createDaemonCoreClient({ baseUrl: 'http://127.0.0.1:1234', token: 'private-rpc' }, { fetch: async () => { requests++; return new Response('{}'); } });
+  const trace = client.trace({ capture: 'metadata' });
+  const event = { toJSON: () => { throw new Error('boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET'); } };
+  trace.record(event as unknown as Parameters<typeof trace.record>[0]);
+  assert.equal(requests, 0);
+  assert.equal(warnings.mock.calls[0]?.arguments[0], '[agent-daemon] telemetry serialization failed');
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /boom/);
+  assert.match(String(warnings.mock.calls[0]?.arguments[1]), /agent-daemon-consent-protocol\.unit\.test\.ts/);
+  assert.doesNotMatch(String(warnings.mock.calls[0]?.arguments[1]), /SECRETSECRETSECRETSECRET/);
+});
+
 test('consent RPC accepts only a run-bound target and explicit bounded capability keys', () => {
   assert.equal(daemonCoreRequest.safeParse({ operation: 'cliConsentSnapshot', input: { runId: 'accepted-run', agentId: 'antigravity' } }).success, true);
   assert.equal(daemonCoreRequest.safeParse({ operation: 'cliConsentAllow', input: allowInput }).success, true);

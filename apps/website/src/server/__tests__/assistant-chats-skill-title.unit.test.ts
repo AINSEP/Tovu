@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import type { RouteDeps } from "../routes/types.js";
-import type { AssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import type { AssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 type Handler = (req: Request, res: Response, next: NextFunction) => void;
@@ -18,7 +18,7 @@ function harness() {
   };
   const app = { use() {}, ...Object.fromEntries(["get", "post", "put", "patch", "delete"].map(method => [method, (path: string, handler: Handler) => { routes.set(`${method} ${path}`, handler); }])) } as unknown as Express;
   const deps = { workspaceId: "ws", tracker: createTracker({}), chatHistory: () => store, chatRunLedger: { reconcileInterrupted: async () => 0 } } as unknown as RouteDeps;
-  createAssistantChatsModule(deps, { finalizer: { watch() {} } as unknown as AssistantRunFinalizer }).registerRoutes!(app);
+  createAssistantChatsModule(deps, { finalizer: { watch() {} } as unknown as AssistantRunFinalizer }).registerRoutes!({ app });
   const invoke = (route: string, body: object) => new Promise<Record<string, any>>((resolve, reject) => {
     const res = { locals: { principal: { id: "owner" } }, status() { return this; }, json: resolve } as unknown as Response;
     routes.get(route)!({ body, params: { id: "c", messageId: "u" } } as unknown as Request, res, reject);
@@ -41,4 +41,13 @@ test("skill-only first user message uses its name, while user prose still uses t
   const prose = harness();
   await prose.invoke("put /api/assistant/chats/:id/messages/:messageId", { role: "user", content: "Redesign the menu", createdAt: 1 });
   assert.equal(prose.title(), "Redesign the menu");
+});
+
+test("a pasted secret is redacted from the auto title", async () => {
+  const h = harness();
+  // Built at runtime so no credential-shaped literal sits in the source.
+  const pasted = ["sk", "fakefakefakefakefakefake"].join("-");
+  await h.invoke("put /api/assistant/chats/:id/messages/:messageId", { role: "user", content: `Use this key ${pasted} for deploy`, createdAt: 1 });
+  assert.ok(h.title(), "the chat still gets a title");
+  assert.ok(!h.title()!.toLowerCase().includes(pasted), "the auto title must not contain the pasted secret");
 });

@@ -1,0 +1,694 @@
+### apps/site-chat/src/__tests__/site-assistant-transport.test.ts
+✖ apps/site-chat/src/__tests__/site-assistant-transport.test.ts (2567.265488ms)
+### apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts
+✖ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (347.634252ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+✖ explicit loader and guarded write refuse ask through the real executor (40.519901ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ accepted adapter prompt budget preserves preflight delivery (deepseek, pinned=true) (336.657961ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts
+✖ no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine) (2746.634685ms)
+  AssertionError [ERR_ASSERTION]: Domain/feature modules must not call assistant's tool-contribution registry directly — only server/tool-catalog-manifest.ts may. Offending edges:
+### apps/website/src/assistant/__tests__/mcp-ui-allowlist-completeness.test.ts
+✖ the scan finds the known exchange openers (guards against a scan that silently matches nothing) (2.518971ms)
+  AssertionError [ERR_ASSERTION]: expected the scan to find 'assistant_render_ui'
+### apps/website/src/assistant/__tests__/mcp-ui-sandbox-proxy-route.test.ts
+✖ AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix (26.435145ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.visitor-isolation.test.ts
+✖ admin MCP-UI replies cannot deliver visitor exchanges and the site assistant creates its own store (64.86073ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/assistant/persistence/__tests__/durable-run-store.dialects.test.ts
+✖ a colliding question ID cannot commit an answer without its question (77.504969ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+✖ an invalid user payload or shared user/assistant identity cannot be accepted (80.407953ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+### apps/website/src/assistant/persistence/__tests__/package-adapters.dialects.test.ts
+✖ bounded reads use the adopted history adapter and retain owner isolation (79.28426ms)
+  Error [ChatStoreError]: Chat store unavailable.
+✖ a throwing ledger write rolls back package history AND session writes (30.945404ms)
+  Error [ChatStoreError]: Chat store unavailable.
+✖ a late browser save cannot erase the first terminal answer; a request-bound run can retry (79.976291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/assistant/persistence/__tests__/run-ledger.dialects.test.ts
+✖ apps/website/src/assistant/persistence/__tests__/run-ledger.dialects.test.ts (899925.667025ms)
+### apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+✖ an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content (72083.401325ms)
+  AssertionError [ERR_ASSERTION]: the injected seed failure must actually occur
+### apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+✖ runServeCommand's body passes the resolved host into app.listen(port, host) (7.125214ms)
+  AssertionError [ERR_ASSERTION]: runServeCommand no longer calls app.listen(port, host) -- a bare app.listen(port) silently reverts to Node's own all-interfaces default, undoing the loopback default.
+✖ the BR-07 shutdown uses the shared bounded store close with the composition and boot work (8.555645ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/contracts/core/__tests__/unit/describe-error-for-log.unit.test.ts
+✖ never throws for hostile getters or a revoked proxy (2.653888ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/contracts/core/events/__tests__/forms-notification-retry.test.ts
+✖ outbox persists notification failure as pending retry (170.310709ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ outbox persists notification failure as terminal failed (9.688357ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts
+✖ processOutbox schedules a retryable form-delivery failure on the webhook backoff, not the 15 s default (7.525356ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts
+✖ a late outcome that cannot be recorded is reported, not thrown as an unhandled rejection (1026.901354ms)
+  AssertionError [ERR_ASSERTION]: the unrecordable late outcome was never reported
+### apps/website/src/features/agent-plugins/__tests__/unit/bundled-automatic-relevance.unit.test.ts
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site (710.573569ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (14.32083ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ Auto suggests only relevant bundled plugins: Import my old WordPress site (6.946059ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (7.41869ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-package.unit.test.ts
+✖ github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed (11.137486ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed (5.623881ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed (3.78665ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (3.022119ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (1.482739ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed (4.898834ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/agent-plugins/__tests__/unit/bundled-github-commit-site.unit.test.ts
+✖ folder commit reads only its local manifest and confines every mutation while preserving edited files (21.271554ms)
+  AssertionError [ERR_ASSERTION]: fetch call GET https://api.github.com/repos/octo/demo/contents/static_sites/.jini/managed-files.json?ref=main did not match expected pattern /\/contents\/static_sites\/\.tovu\/managed-files.json\?
+✖ invalid folders and file paths refuse before any network call (5.220593ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ a missing folder manifest never falls back to root, and an unchanged tree returns NO_CHANGES (2.05683ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ commit: existing branch, real content change — advances the branch, never force (1.482948ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ commit: branch omitted — resolves the repo's own default branch, never invents one (2.076637ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ commit: a 2xx ref-write response whose body fails to parse as JSON is STILL success — the irreversible step never depends on the body (0.773187ms)
+  AssertionError [ERR_ASSERTION]: expected success despite the unparseable ref-write body, got: {"ok":false,"code":"network-unreachable","message":"fetch call GET https://api.github.com/repos/octo/demo/contents/.jini/managed-files
+✖ commit: two files with IDENTICAL content dedupe to ONE blob call (1.467146ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ DIVERGED_BRANCH: a non-fast-forward ref update (422) is refused, never overwritten — the ref write is attempted WITHOUT force (1.074738ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ NETWORK_UNREACHABLE on the irreversible ref-write call itself is STILL reported honestly — never silently treated as success (2.288284ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /socket hang up/. Input:
+✖ PROVIDER_ERROR: a rejected (401) blob creation is reported with GitHub's own message, distinct from NETWORK_UNREACHABLE (1.154675ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/features/agent-plugins/__tests__/unit/federate-mcp.unit.test.ts
+✖ provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers (7.468088ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /transient lookup failure/. Input:
+✖ provisioning reports created, recognized, adopted, refused, and failed servers independently (11.148021ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ provisioning isolates adoption write failure (object) and continues (5.54508ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ provisioning isolates adoption write failure (string) and continues (2.157781ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/agent-plugins/__tests__/unit/install-upload-update.unit.test.ts
+✖ retired package cleanup failure keeps the published update and redacts its diagnostic (29.736607ms)
+  Error: Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.
+### apps/website/src/features/agent-plugins/__tests__/unit/mail-provider-contribution.unit.test.ts
+✖ parseMailAdaptersFile accepts schemaVersion 2 with credentialKeys/feedback and defaults the credential label (5.181341ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/features/agent-plugins/__tests__/unit/tw2-L224-characterization.unit.test.ts
+✖ site migration skips files and invalid workspace folders, deduplicates active id and returns its result (109.276667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/features/api-connections/__tests__/vendor-neutrality.test.ts
+✖ no generic seam file names the first provider (150.298432ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts
+✖ the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys (1344.406819ms)
+  Error: postgres: psql request failed
+✖ a re-copy replaces the site's own copy and never appends (121.770828ms)
+  Error: postgres: psql request failed
+✖ cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction (146.340719ms)
+  Error: postgres: psql request failed
+✖ a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead (88.430464ms)
+  Error: postgres: psql request failed
+✖ two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up (87.738625ms)
+  Error: postgres: psql request failed
+✖ a row Postgres rejects rolls the whole copy back and names only the table (94.953834ms)
+  Error: postgres: psql request failed
+✖ a count mismatch or rejected replacement preserves the earlier rows and marker (82.716562ms)
+  Error: postgres: psql request failed
+✖ a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied (49.176665ms)
+  Error: postgres: psql request failed
+✖ T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones (47.746859ms)
+  Error: postgres: psql request failed
+✖ T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result (56.919101ms)
+  Error: postgres: psql request failed
+### apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts
+✖ first copy runs headlessly; replacement waits for Copy; the password never shows (65.911911ms)
+  Error: postgres: psql request failed
+✖ Cancel writes nothing, and a used planId is gone (3.364039ms)
+  Error: postgres: psql request failed
+✖ the model never passes a connection string: no tool takes one, and the plan asks for the private form first (0.262996ms)
+  Error: postgres: psql request failed
+✖ the private form saves a reachable destination, and neither the form, its result nor the log shows the password (0.084037ms)
+  Error: postgres: psql request failed
+✖ a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted (0.06404ms)
+  Error: postgres: psql request failed
+✖ database_transfer_status reports the saved destination, this process's last run and the copy found there (0.050071ms)
+  Error: postgres: psql request failed
+✖ /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts (70.310662ms)
+  Error: postgres: psql request failed
+### apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (7062.575202ms)
+  AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+### apps/website/src/features/deployments/static-publish/__tests__/publish-run.unit.test.ts
+✖ a registry reload failure logs a sanitized warning and preserves outcome-only history (940.900099ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts
+✖ frozen fixture [postgres]: replayed sealed bytes open, refresh under the lease, re-save and survive a reconnect (2355.346737ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/media-import/__tests__/import-local-file-search.test.ts
+✖ adding the local importer introduces no misses in the 138 operator requests (598.28924ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/member-login/__tests__/providers.test.ts
+✖ bundled preset admits the active, unchanged installed contribution (57.475753ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/features/member-login/__tests__/ready-providers.test.ts
+✖ an admitted provider without a client card is not ready; saving one makes it ready on the next call (45.878961ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+✖ a client card in another workspace does not make this workspace's provider ready (5.437859ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+✖ a client card bound to a foreign token URL is not ready (3.27347ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+✖ a configured card cannot ready a provider shipped by a non-bundled plugin (3.485771ms)
+  AssertionError [ERR_ASSERTION]: the google-login bundled preset must exist
+### apps/website/src/features/plugins/__tests__/data-module-indexes.test.ts
+✖ missing-index verification rolls back index, column and migration writes and settles the journal (100.364969ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /post-DDL verification failed: index idx_p_idxtest__widgets__by_sku/. Input:
+### apps/website/src/features/plugins/__tests__/data-module.test.ts
+✖ dataModule: a dbPath naming a different real file warns, still installs, and snapshots the open database (60.178412ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /other\.db is not the database this connection has open .*content\.db.*Fix the configured database path/. Input:
+✖ dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives (108.668505ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /post-DDL verification failed/. Input:
+✖ dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result (7.63341ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /post-DDL verification failed/. Input:
+✖ dataModule rolls back migration bookkeeping when a created table cannot be verified (7.377799ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+✖ export keeps database values and complete plugin packages; download requires a durable acknowledgement (401.827864ms)
+  SiteShareRefusal: The export contains files with possible credentials. Remove the credentials and export again.
+### apps/website/src/features/site-backup/__tests__/import-restore.unit.test.ts
+✖ import keeps starter radio and URL form markup active while authored behavior stays off (0.762125ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'fieldKinds')
+### apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts
+✖ exports and imports contain no saved keys or inherited grants (inSite) (1163.802299ms)
+  AssertionError [ERR_ASSERTION]: HTTP/1.1 400 Bad Request
+✖ exports and imports contain no saved keys or inherited grants (appData) (1026.728308ms)
+  AssertionError [ERR_ASSERTION]: HTTP/1.1 400 Bad Request
+### apps/website/src/features/sites/__tests__/playwright-site-preview-capture.unit.test.ts
+✖ default preview capture returns a placeholder when neither browser can launch (5.956937ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /no browser installed/. Input:
+### apps/website/src/features/web-screenshot/__tests__/playwright-page-capture.unit.test.ts
+✖ the default launcher resolves the host Playwright module and captures through its structural adapter (61.592468ms)
+  Error [PageCaptureError]: browserType.launch: Target page, context or browser has been closed
+### apps/website/src/features/webhooks/__tests__/secret-scan-guard.test.ts
+✖ REGRESSION: the real tracked repo has zero un-allowlisted credential-shaped strings today (19.697516ms)
+  Error: spawnSync /usr/bin/git ENOBUFS
+✖ the real CLI succeeds on a clean repository and rejects text, binary and history-only leaks (430.784074ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/secret-scan-cli-luRLZv/apps/website/src/contracts/core/secret-scan.js' imported from /tmp/secret-scan-cli-luRLZv/apps/website/src/features/webhooks/secret-scan-guard.ts
+### apps/website/src/features/webhooks/__tests__/tool-contract.characterization.test.ts
+✖ (e) one success call per non-delete tool returns the model-facing view (33.088717ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ (e) delete confirmed: the dialog names the subscription, the human's confirm soft-deletes it once (41.468944ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+✖ resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake (8.719333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts
+✖ an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts (1321.67272ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks) (2642.807627ms)
+  AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+### apps/website/src/platform/db/migrations/__tests__/checksums.test.ts
+✖ every step's pinned checksum matches its sources (37.010032ms)
+  AssertionError [ERR_ASSERTION]: 0002_drop_empty_legacy_chat_tables changed after it was pinned; add a new step instead
+✖ 0012 activation appends the final checksum after 0011 without replacing history (64.181058ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts
+✖ applies on an empty database and matches schema.postgres.ts at head (7565.895681ms)
+  AssertionError [ERR_ASSERTION]: table external_mcp_servers
+### apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+✖ the content history through the current head applies on real Postgres (1925.511205ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts
+✖ plugin schema failures keep kernel diagnostics private and log them with secrets redacted (216.150615ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /SQLITE_ERROR/. Input:
+### apps/website/src/platform/headless-browser/__tests__/playwright-loader.unit.test.ts
+✖ the host loader adapts Playwright contexts and copies readonly launch arguments (71.068362ms)
+✖ importPlaywrightChromium resolves the host's Playwright adapter, which launches the native chromium (130.045095ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/platform/site-dir/__tests__/integration/init-site-branches.integration.test.ts
+✖ an import aborted during restore removes the partial site (640.05311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/__tests__/admin-local-boot-session-route.test.ts
+✖ security: a failing pull or a throwing sign-in port never changes the sign-in response, and logs no detail (1262.174506ms)
+  AssertionError [ERR_ASSERTION]: timed out waiting for the failed pull's log line
+### apps/website/src/server/__tests__/admin-page-html-route.test.ts
+✖ S7b: HTML route refuses a stale client basis on a doc page (289.062393ms)
+  AssertionError [ERR_ASSERTION]: {"error":"bodyJson must be a JSON object","code":"VALIDATION_ERROR"}
+### apps/website/src/server/__tests__/admin-trash-routes.test.ts
+✖ list: rows are filtered by the permission each row's own kind needs (371.433431ms)
+  AssertionError [ERR_ASSERTION]: content.read alone must not leak the titles of four domains' deleted rows
+✖ list: resolves the deleting principal to a username, and falls back to a readable label when there is none (486.032939ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ list: resolves the seeded owner/admin account's own deletions to its username, not a fallback (422.292213ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ list: pins actorIsSystem true for the system actor's own row and false for a human's row (416.989891ms)
+  AssertionError [ERR_ASSERTION]: the system actor's own row must be pinned actorIsSystem:true
+### apps/website/src/server/__tests__/bare-test-listeners.test.ts
+✖ no new bare listen(0) calls in repository tests or their helpers (1919.497745ms)
+  AssertionError [ERR_ASSERTION]: Bind test listeners to 127.0.0.1:
+### apps/website/src/server/__tests__/helper-teardown.unit.test.ts
+✖ prepared content DB transfers ownership only after prepare failure (52.89951ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  TypeError: Cannot read properties of undefined (reading 'close')
+✖ prepared content DB transfers ownership only after kernel failure (8.415688ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  TypeError: Cannot read properties of undefined (reading 'close')
+### apps/website/src/server/__tests__/integration/credentials-real-composition.unrun.integration.test.ts
+✖ [unrun] source-control credentials [sqlite]: create → rename keeps the sealed token → a duplicate label is 409 → delete (2589.5199ms)
+  AssertionError [ERR_ASSERTION]: the real module probes only through the captured HTTP edge
+✖ [unrun] source-control credentials [pglite]: create → rename keeps the sealed token → a duplicate label is 409 → delete (6009.62937ms)
+  AssertionError [ERR_ASSERTION]: the real module probes only through the captured HTTP edge
+### apps/website/src/server/__tests__/integration/forms-real-composition.unrun.integration.test.ts
+✖ [unrun] forms [sqlite]: validation failures are 400 with field errors and store nothing; the honeypot is accepted silently and stores nothing (955.309175ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ [unrun] forms [sqlite]: a disabled form refuses public submissions as not found; re-enabling accepts again; deleting a submission removes it from the list (899.355482ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ [unrun] forms [pglite]: validation failures are 400 with field errors and store nothing; the honeypot is accepted silently and stores nothing (7076.002326ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ [unrun] forms [pglite]: a disabled form refuses public submissions as not found; re-enabling accepts again; deleting a submission removes it from the list (7339.563343ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts
+✖ AC-23/24/REQ-12: every capability in the inventory is referenced by real code (not a comment) in deps.ts or app.ts (7.245354ms)
+  AssertionError [ERR_ASSERTION]: inventory entry "workspace": none of its sourceHints (SqliteWorkspaceRepo) is used by code in deps.ts/app.ts — likely stale (REQ-12)
+### apps/website/src/server/__tests__/routes/content-post-get-by-slug.test.ts
+✖ GET content post by slug: an unexpected repo error surfaces as a generic 500 (171.265482ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/__tests__/routes/forms-submit.test.ts
+✖ POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request (10.322207ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/__tests__/routes/member-password-auth.test.ts
+✖ challenge CAS rejection is 401 but database outage surfaces as 500 (132.615628ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/__tests__/routes/members-public-complete-sign-in.test.ts
+✖ a session-repo failure surfaces as a 500 internal error, past a valid token (205.841505ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/__tests__/routes/newsletter-public-routes.test.ts
+✖ UNSUBSCRIBE: an unexpected storage failure behind a validly signed token renders the generic 500 page (242.626376ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Unexpected server error/. Input:
+### apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+✖ PUT /pages/:id/html on a trashed page answers the 409 entity-not-live envelope, not a 500 (9.427794ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts
+✖ index.ts main(): the content.db schema guard and site key run before the composition root opens the database (5.474286ms)
+  AssertionError [ERR_ASSERTION]: anchor missing: await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), — update this test if the line's shape changed
+✖ createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise (0.756591ms)
+  AssertionError [ERR_ASSERTION]: anchor missing: await publishTrustRevocationStoreFor(kernel) — update this test if the line's shape changed
+### apps/website/src/server/__tests__/unit/forms-module-sender.unit.test.ts
+✖ a provider's { ok: false } result is logged as a fixed-word line plus the provider's own error (3.626344ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts
+✖ AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (object) (300.410903ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ AGENT_PLUGIN_SET_ENABLED: post-activation discovery failure preserves the successful toggle (string) (279.88729ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts
+✖ L244 authoring: absent or ignored patch preserves the definition: undefined (324.377959ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ L244 authoring: absent or ignored patch preserves the definition: null (147.708493ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ L244 authoring: absent or ignored patch preserves the definition: {} (129.053991ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ L244 authoring: absent or ignored patch preserves the definition: {"name":7,"fields":{},"ignored":true} (153.227003ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/inbound/admin-http/routes/media/__tests__/replace.test.ts
+✖ replace reports the stored size of a sanitized SVG, and null when that size is unknown (155.353989ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/inbound/admin-http/routes/media/__tests__/trash-route.unit.test.ts
+✖ media trash: an unknown stored size and public URL are reported as null (244.558329ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/inbound/admin-http/routes/media/__tests__/upload-route.unit.test.ts
+✖ media upload: an SVG reports its stored (sanitized) size, and null when that size is unknown (604.02337ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/browser-provider.integration.test.ts
+✖ step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs (805.805814ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-backups.integration.test.ts
+✖ site-backup routes gate, map errors and run the shared plan/push service (93.232375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.executable-tools-wiring.unit.test.ts
+✖ server executable plugin tools share the server's confirmation store (7.401543ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /registry\.register\(automaticPluginRuns\.loadRegistration\)/. Input:
+### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts
+✖ the loop iterates withPageNavigateErrorRewrap(frontendControl.toolRegistrations), not the bare array (3.040299ms)
+  AssertionError [ERR_ASSERTION]: the registration loop must wrap frontendControl.toolRegistrations in withPageNavigateErrorRewrap(...) before iterating — registering the bare array again would silently drop the page.navigate er
+✖ the loop marks the read-only frontend capabilities before registering (0.836626ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /withReadOnlyFrontendCapabilities\(frontendControl\.toolRegistrations\)/. Input:
+### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts
+✖ a run registers itself in the tracker before any await in onStarted's synchronous prefix (3.206742ms)
+  AssertionError [ERR_ASSERTION]: liveRunTracker.register must be called synchronously, before onStarted's first await (the custom-instructions refresh) — a register that runs after an await could lose the single-threaded-orderi
+### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.tool-restriction-wiring.unit.test.ts
+✖ imports the shared tool policy resolver from assistant-system-overlay.ts (4.082741ms)
+  AssertionError [ERR_ASSERTION]: agent-daemon-server.ts must import the shared resolver, not hardcode a second copy of the list
+### apps/website/src/server/inbound/assistant/__tests__/agent-daemon-startup-cause.unit.test.ts
+✖ onStarted saves the preparation stage and cause on a pre-spawn rejection (55.507986ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Startup stage: attachment preparation/. Input:
+### apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts
+✖ BYOK attachment refusals stay 400 while preparation faults become redacted incidents (142.557747ms)
+  ReferenceError [Error]: readAttachmentRefs is not defined
+✖ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory (46.26538ms)
+  ReferenceError [Error]: readAttachmentRefs is not defined
+### apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts
+✖ the real daemon answers component-catalog search, describe, and a 404 over real HTTP (4334.920674ms)
+  AssertionError [ERR_ASSERTION]: search request failed:
+### apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts
+✖ golden: every pinned hash matches the committed table (6.107665ms)
+  AssertionError [ERR_ASSERTION]: render output drifted for: widget:contact-form-default, widget:contact-form-range, widget:contact-form-html, widget:contact-form-collection, shell:assistant-on, site:static-home-assistant, site:fa
+### apps/website/src/server/inbound/public-http/http/site/__tests__/tiptap-render-contract.test.ts
+✖ drift guard: the actual editor schema's node and mark vocabulary has contract rows (440.966741ms)
+  Error: Cannot find module './post-editor-file-upload'
+### apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts
+✖ handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports (816.240509ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts names @jini-ai root barrels; use narrow export subpaths:
+✖ handlebars-worker.ts loads no database, blob-store or agent packages (1763.301232ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+✖ liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports (531.56628ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts names @jini-ai root barrels; use narrow export subpaths:
+✖ liquid-worker.ts loads no database, blob-store or agent packages (1502.908487ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+✖ public page requests do not load feature-wide barrels or assistant tools (10617.163997ms)
+  AssertionError [ERR_ASSERTION]: public page requests loaded @jini-ai root barrels:
+✖ ../../routes/site/products.ts keeps public reads separate from feature-wide write/tool barrels (1672.542846ms)
+  AssertionError [ERR_ASSERTION]: ../../routes/site/products.ts loaded feature barrels:
+✖ ../../routes/site/member-pages.ts keeps public reads separate from feature-wide write/tool barrels (3116.989894ms)
+  AssertionError [ERR_ASSERTION]: ../../routes/site/member-pages.ts loaded feature barrels:
+### apps/website/src/server/runtime/boot/__tests__/fatal-boot-failure.unit.test.ts
+✖ installUnhandledRejectionGuard's default logger writes the rejection to console.error (4.164551ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/boot/__tests__/index-bind-host-wiring.unit.test.ts
+✖ serve.ts pins composition, callback and actual listener origins in their owning boot phases (18.856405ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts
+✖ real bundled resend and SMTP composition retain requests, ordered ledger, policy, identity, status, rotation, cards and counters (67.934096ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/boot/__tests__/process-error-guards.unit.test.ts
+✖ installUnhandledRejectionGuard: with the guard installed, the SAME unhandled rejection is logged instead, and the process survives to run later work (383.503477ms)
+  AssertionError [ERR_ASSERTION]: the diagnostic must include the rejected error's reason
+### apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts
+✖ the default SMTP transport and console log are used when none is injected (57.224214ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/boot/__tests__/site-boot-readiness.unit.test.ts
+✖ both top-level boot paths await the shared list instead of an inline copy (3.956624ms)
+  AssertionError [ERR_ASSERTION]: cli/commands/serve.ts must await awaitSiteBootReadiness({ deps })
+### apps/website/src/server/runtime/boot/__tests__/site-daemon-callback-wiring.unit.test.ts
+✖ ../../../../cli/commands/serve.ts supplies and closes the daemon callback listener for LAN-bound sites (2.59551ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /await startSiteDaemonListener\(/. Input:
+### apps/website/src/server/runtime/boot/__tests__/site-key-boot-notice.unit.test.ts
+✖ cli/commands/serve.ts calls warnIfNoSiteKeyAtBoot unconditionally in serveBootedSite(), as the statement right after the site-key ensure (11.152915ms)
+  AssertionError [ERR_ASSERTION]: the call must be a top-level statement of serveBootedSite()
+### apps/website/src/server/runtime/composition/__tests__/app-federation-reload.observability.test.ts
+✖ a roster change after createApp traces the agent daemon's federation reload with RouteDeps.observability (468.091258ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts
+✖ step 5: boot enables and admits the bundled provider; disable/reboot preserves the owner's row (37.059917ms)
+  AssertionError [ERR_ASSERTION]: the reviewed bundled provider initializes without integrity warnings
+✖ N-1: an enabled 0.1.0 row boots, admits the packaged provider and serves the packaged bytes (4.717565ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/composition/__tests__/bundled-inactive-gating.integration.test.ts
+✖ every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection (2439.906252ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/create-app-route-table.pin.test.ts
+✖ createApp route table (default) keeps its pinned registration order (33.311583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (activateAssistantFederation) keeps its pinned registration order (26.085561ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (adminAssistantOff) keeps its pinned registration order (11.586181ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (themeIdOverride) keeps its pinned registration order (11.945109ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (cookieConsentPresent) keeps its pinned registration order (23.30359ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (consentAudit) keeps its pinned registration order (13.300454ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ createApp route table (stopForIdle) keeps its pinned registration order (20.294772ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts
+✖ a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault (825.37806ms)
+  AssertionError [ERR_ASSERTION]
+### apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts
+✖ memory root: routeDeps keeps its ordered key list and value kinds (166.530783ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts
+✖ createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller (1518.493192ms)
+  Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+✖ createRouteDeps (in-memory root): pages_write_html appends its html state to post_revisions, attributed to the caller (202.362921ms)
+  Error [ToolInputError]: 'expectedVersion' is required: call pages_read_html first and pass the record's current version.
+### apps/website/src/server/runtime/composition/__tests__/plugin-credential-cards.unit.test.ts
+✖ bundled Fly and Meilisearch declarations survive real parsing and ownership with saved labels unchanged (25.256047ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts
+✖ every bundled agent and site package declares a distinct publisher identity and discovery terms (985.505249ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ an approved enable reports the failed server and redacted reason to the owner (3.701779ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /repository.*provider refused/. Input:
+✖ an approved enable missing its snapshot cannot provision connections (2.136141ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /approved access snapshot is missing/. Input:
+### apps/website/src/server/runtime/composition/__tests__/portable-plugin-host.unit.test.ts
+✖ grant port runs after provisioning and its failure warnings, skipping exactly the failed servers (10.078951ms)
+  AssertionError [ERR_ASSERTION]: provisioning receives the host's same MCP port instance
+✖ approved enable whose provisioning failed refuses with host copy before any grant (5.462348ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  ToolInputError: other-host: ToolInputError
+### apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts
+✖ daemon dev mode passes bypass in the executor's options bag (10.028146ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts
+✖ Tovu consumes agent and provider subpaths and declares no standalone vendor packages (7.026864ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts
+✖ the pin is the exact version the manifest declares and the lockfile installs (6.798431ms)
+  AssertionError [ERR_ASSERTION]: @jini-ai/provider-plugins must be an exact version equal to the pin, not a range
+✖ the source directory is the pinned version inside the installed package, not content/plugins (0.38266ms)
+  AssertionError [ERR_ASSERTION]: @jini-ai/provider-plugins must ship plugins/charts-recharts/0.7.1
+✖ the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map (0.249552ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/jini.plugin.json'
+✖ every pinned file is on disk with exactly the pinned bytes (0.290574ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.7.1/client/provider.js'
+### apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts
+✖ a receiver trickling bytes forever is cut off by the total deadline through the guarded client (209.202018ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/composition/__tests__/webhook-delivery-worker.test.ts
+✖ the default log writes the failure line to console.error (3.505805ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts
+✖ row 7: no file outside the baseline builds an agent-plugin lifecycle owner or activation queue (79.597373ms)
+  AssertionError [ERR_ASSERTION]: a new owner or queue builder appeared
+### apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts
+✖ an accepted memory-mode answer reaches CLI launch through the site's attempt authority (859.325246ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### apps/website/src/server/runtime/composition/modules/__tests__/assistant-agent-plugin-preflight.integration.test.ts
+✖ pinned preflight always inlines text and carries its identity, even with pointer environment delivery (930.415235ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/modules/__tests__/assistant-byok.inputs-pin.test.ts
+✖ BYOK automatic preflight keeps the prompt and logs a redacted cause (151.911616ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /boom/. Input:
+### apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts
+✖ a vendor without a saved credential is not configured; a saved one supplies exactly its declared keys (9.67581ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ an unreadable credential and an unsupported credential key are logged and leave the vendor unconfigured (1.792909ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/after-assembly-forms-search.characterization.unit.test.ts
+✖ B25: the call keeps the moved statements' place in composeSiteRouteDeps (34.222657ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/agent-plugin-bootstrap.characterization.unit.test.ts
+✖ B01: the call keeps the moved statements' place in composeSiteRouteDeps (41.026576ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/boot-data.characterization.unit.test.ts
+✖ B06: the call keeps the moved statements' place in composeSiteRouteDeps (39.60899ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/chat-orphans-project-keys.characterization.unit.test.ts
+✖ H1: the calls keep their place and the root declares none of the functions (39.166543ms)
+  AssertionError [ERR_ASSERTION]: compositionProjectKeys call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/content-repos.characterization.unit.test.ts
+✖ B14: the call keeps the moved statements' place in composeSiteRouteDeps (43.694317ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/content-resolvers-comments.characterization.unit.test.ts
+✖ B15: the call keeps the moved statements' place in composeSiteRouteDeps (38.939365ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/content-stores.characterization.unit.test.ts
+✖ B20: the call keeps the moved statements' place in composeSiteRouteDeps (38.249957ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/database-journal.characterization.unit.test.ts
+✖ B13: the call keeps the moved statements' place in composeSiteRouteDeps (45.160358ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/events-origin.characterization.unit.test.ts
+✖ B07: the call keeps the moved statements' place in composeSiteRouteDeps (46.167968ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/mail-http.characterization.unit.test.ts
+✖ B19: the call keeps the moved statements' place in composeSiteRouteDeps (31.107568ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/media-storage.characterization.unit.test.ts
+✖ B02: the call keeps the moved statements' place in composeSiteRouteDeps (38.95132ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/plugin-runtime.characterization.unit.test.ts
+✖ B04: the call keeps the moved statements' place in composeSiteRouteDeps (62.112091ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/pre-assembly.characterization.unit.test.ts
+✖ B24: the call keeps the moved statements' place in composeSiteRouteDeps (34.713105ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/provider-identity.characterization.unit.test.ts
+✖ M3: deps.ts imports exactly what it still uses from the new file (11.814071ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/publish-apply.characterization.unit.test.ts
+✖ B22: the call keeps the moved statements' place in composeSiteRouteDeps (45.055254ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/publishing-stores-themes.characterization.unit.test.ts
+✖ B21: the call keeps the moved statements' place in composeSiteRouteDeps (31.58911ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/redirects.characterization.unit.test.ts
+✖ B12: the call keeps the moved statements' place in composeSiteRouteDeps (72.101081ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-assistant-mcp.characterization.unit.test.ts
+✖ L2: the run calls sit where their entries sat (51.390426ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-comments-plugins.characterization.unit.test.ts
+✖ L5: the run calls sit where their entries sat (53.715904ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-content-chat.characterization.unit.test.ts
+✖ L1: the run calls sit where their entries sat (39.420039ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-members-mail.characterization.unit.test.ts
+✖ L4: the run calls sit where their entries sat (51.611984ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-publish-credentials.characterization.unit.test.ts
+✖ L6: the run calls sit where their entries sat (50.201979ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/route-deps-site-providers.characterization.unit.test.ts
+✖ L3: the run calls sit where their entries sat (39.002248ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+### apps/website/src/server/runtime/composition/site-deps/__tests__/shared-oauth-commerce.characterization.unit.test.ts
+✖ H2: the calls keep their place and the root declares none of the functions (33.336239ms)
+  AssertionError [ERR_ASSERTION]: compositionCommerce call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/site-imports.characterization.unit.test.ts
+✖ H4: the calls keep their place and the root declares none of the functions (42.705286ms)
+  AssertionError [ERR_ASSERTION]: configureSiteImports call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/site-keys-members.characterization.unit.test.ts
+✖ B16: the call keeps the moved statements' place in composeSiteRouteDeps (38.159094ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/site-sharing.characterization.unit.test.ts
+✖ H3: the calls keep their place and the root declares none of the functions (30.15041ms)
+  AssertionError [ERR_ASSERTION]: configureSiteSharing call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/store-basics.characterization.unit.test.ts
+✖ B03: the call keeps the moved statements' place in composeSiteRouteDeps (36.365298ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/trash-adapters.characterization.unit.test.ts
+✖ B10: the call keeps the moved statements' place in composeSiteRouteDeps (53.83339ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/trash-follow-up-hooks.characterization.unit.test.ts
+✖ B09: the call keeps the moved statements' place in composeSiteRouteDeps (40.692085ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/trash-service.characterization.unit.test.ts
+✖ B11: the call keeps the moved statements' place in composeSiteRouteDeps (40.893623ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/composition/site-deps/__tests__/trash-stores.characterization.unit.test.ts
+✖ B08: the call keeps the moved statements' place in composeSiteRouteDeps (31.690762ms)
+  AssertionError [ERR_ASSERTION]: slice call missing
+### apps/website/src/server/runtime/lifecycle/__tests__/assistant-daemon-demand.unit.test.ts
+✖ both boot adapters register the readiness and eligibility gates without spawning (5.468717ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /beforeStart: async/. Input:
+### content/agent-plugin-overlays/calendly/__tests__/guidance.test.mjs
+✖ Tovu guidance gives the calendly embed markup and the page tools that write it (1.592799ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /"plugin":"tovu\/calendly"/. Input:
+### content/agent-plugin-overlays/fly/__tests__/deploy-config.test.mjs
+✖ renders the fly config to stdout and its operator notes to stderr, Tovu's Chromium note last (66.983591ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type object ({
+✖ --out writes the rendered fly.toml and reports where (8.490594ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type object ({
+### content/agent-plugin-overlays/fly/__tests__/host-signals.test.mjs
+✖ Fly's host declaration is plain manifest data, synchronously readable before activation (6.589154ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+✖ boot labels, ordering and full warning bytes stay identical, including incidental advice (2.069524ms)
+  AssertionError [ERR_ASSERTION]: false == true
+✖ valid shipped declaration: 4,500 combinations match frozen HEAD for every consumer (1.523921ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ valid shipped declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.802078ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ missing declaration: 4,500 combinations match frozen HEAD for every consumer (0.451704ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ missing declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.314609ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ unreadable manifest: 4,500 combinations match frozen HEAD for every consumer (0.413731ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ unreadable manifest: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.250303ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ malformed JSON: 4,500 combinations match frozen HEAD for every consumer (0.350464ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+✖ malformed JSON: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (0.235349ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### content/agent-plugin-overlays/fly/__tests__/publish-candidates.test.mjs
+✖ Fly declares deploy candidates and its workflow as data, usable before activation (12.817838ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### content/agent-plugin-overlays/github/__tests__/source-control-credential.test.mjs
+✖ GitHub credential admission needs only the token and probes through the injected transport after saving (30.533668ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+### content/agent-plugin-overlays/github/__tests__/source-control-tool-wiring.test.mjs
+✖ content/agent-plugin-overlays/github/__tests__/source-control-tool-wiring.test.mjs (993.29504ms)
+### content/agent-plugin-overlays/google-login/__tests__/exports.test.mjs
+✖ U1: every bundled public export template passes the single CMS fragment validator (9.159723ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+### content/agent-plugin-overlays/google-workspace/__tests__/form-delivery.e2e.test.mjs
+✖ content/agent-plugin-overlays/google-workspace/__tests__/form-delivery.e2e.test.mjs (2984.889326ms)
+### content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-host-schema.security.test.mjs
+✖ content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin-host-schema.security.test.mjs (872.06603ms)
+### content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs
+✖ content/agent-plugin-overlays/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs (1011.227306ms)
+### content/agent-plugin-overlays/railway/__tests__/credential-card.test.mjs
+✖ Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement (1.213449ms)
+  AssertionError [ERR_ASSERTION]: false == true
+### content/agent-plugin-overlays/railway/__tests__/deploy-config.test.mjs
+✖ tovu deploy config --target railway tells the operator to set Tovu's runtime mode and the local site's TOVU_SITE_ID (45.785683ms)
+  TypeError [Error]: line.includes is not a function
+### content/agent-plugin-overlays/render/__tests__/credential-card.test.mjs
+✖ Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement (1.583867ms)
+  AssertionError [ERR_ASSERTION]: false == true
+### content/agent-plugin-overlays/render/__tests__/deploy-config.test.mjs
+✖ tovu deploy config --target render carries Tovu's runtime mode and the local site's TOVU_SITE_ID into render.yaml (33.048038ms)
+  TypeError [Error]: line.includes is not a function
+### content/agent-plugin-overlays/resend/__tests__/bundled-mail.test.mjs
+✖ the credential label is byte-identical to the one sites already saved (no re-entry on upgrade) (11.223643ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs
+✖ content/agent-plugin-overlays/resend/__tests__/resend-mcp.test.mjs (1917.821691ms)
+### development/scripts/__tests__/bundled-agent-plugin-selection.test.ts
+✖ the composed bundled id set is pinned, and no id ships from both content and a package (10.406734ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### development/scripts/__tests__/check-idle-motion.test.ts
+✖ the live tree has no idle-CPU offenders and no stale allowlist entries (736.221547ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### development/scripts/__tests__/dead-path-sweep.test.ts
+✖ dead-path sweep: no path reference outside the known-broken register resolves to nothing (862.711884ms)
+  AssertionError [ERR_ASSERTION]: a path reference under development/scripts or the db tooling points at a file that does not exist
+✖ generated coverage artifacts are not reported as dead paths (0.522144ms)
+  AssertionError [ERR_ASSERTION]: development/coverage/lcov.unit.info's parent directory should exist
+### development/scripts/__tests__/dependency-cruiser.test.ts
+✖ deep-import rules exempt tests and current composition, retaining other production boundaries (474.151408ms)
+  AssertionError [ERR_ASSERTION]: dependency-cruiser failed before producing its graph: 
+### development/scripts/__tests__/openapi-contract-fixtures.test.ts
+✖ OpenAPI contract: all 29 original mismatches reach the documented condition with real HTTP inputs (903.154672ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+### development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts
+✖ theme CLI lists catalog and installed themes with optional lineage (27.393497ms)
+  SyntaxError: The requested module './theme.js' does not provide an export named 'loadTheme'
+### packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts
+✖ SDK external type contracts are declared package dependencies for standalone consumers (4.912034ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:

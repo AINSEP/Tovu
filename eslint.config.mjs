@@ -1,31 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 import { sonarSourceConfig } from './development/sonarjs/policy.mjs';
+import { complexityConfig } from './development/scripts/complexity-eslint.config.mjs';
+import { sizeConfig } from './development/scripts/size-eslint.config.mjs';
 
 import effectResourceCleanup from './development/eslint-rules/effect-resource-cleanup.mjs';
 import singleFetchQueryProvider from './development/eslint-rules/single-fetch-query-provider.mjs';
 
-// Single source of truth shared with `development/scripts/check-admin-complexity-drift.ts` — see
-// that file's header and the block below for why this list exists and how to shrink it.
-//
-// `admin-complexity-debt.json` is keyed per-VIOLATION (rule, file, reason), not per-file — see its
-// own `_comment_2026-09-05_per_function` for why (a per-file debt list let every OTHER function in
-// a listed file drift unnoticed). ESLint's flat config has no function-level scope, only file
-// globs, so this block can only ever relax a whole FILE — that is unchanged and intentional; the
-// per-function precision lives in check-admin-complexity-drift.ts's own --rule override, which
-// re-lints at the strict ceiling ignoring this relax block entirely. Dedup with `Set` because two
-// violations (one `complexity`, one `sonarjs/cognitive-complexity`) can name the same file.
-const ADMIN_COMPLEXITY_DEBT_PATH = fileURLToPath(
-  new URL('development/scripts/admin-complexity-debt.json', import.meta.url)
-);
-const ADMIN_COMPLEXITY_DEBT_FILES = [
-  ...new Set(
-    JSON.parse(readFileSync(ADMIN_COMPLEXITY_DEBT_PATH, 'utf8')).violations.map((entry) => entry.file)
-  ),
-];
+// Admin previously relaxed whole files with known debt because flat config cannot target functions.
+// That hid new functions in the same files; the shared ratchet now tracks individual violations.
 
 export default [
   {
@@ -227,8 +210,8 @@ export default [
       // Raw size/complexity metrics duplicating a gate this file already enforces differently, or
       // that this agent's own governing skill treats as never a standalone finding.
       'sonarjs/cyclomatic-complexity': 'off', // duplicates the `complexity` core rule already tiered per-scope in this file at a third default threshold (10)
-      'sonarjs/max-lines-per-function': 'off', // raw function size; never a standalone finding per this agent's own function-quality-assessment skill
-      'sonarjs/max-lines': 'off', // same size-metric objection, and fires mostly on `*-i18n.{ts,tsx}` flat translation dictionaries that are large by design
+      'sonarjs/max-lines-per-function': 'off', // raw function size; never a standalone finding per this agent's own function-quality-assessment skill; the owner-mandated core rule is applied below
+      'sonarjs/max-lines': 'off', // same size-metric objection, and fires mostly on `*-i18n.{ts,tsx}` flat translation dictionaries that are large by design; the scoped core rule is applied below
       // Duplicates biome, which already runs repo-wide via `npm run lint` (recommended preset).
       'sonarjs/no-unused-vars': 'off', // duplicates biome's `noUnusedVariables`
       'sonarjs/unused-import': 'off', // duplicates biome's `noUnusedImports`
@@ -276,50 +259,11 @@ export default [
     },
   },
   // After legacy Sonar overrides, before scope-specific complexity gates: all production
-  // Sonar rules warn while admin/desktop thresholds and debt overrides keep precedence.
+  // Sonar rules warn while the shared complexity thresholds below keep precedence.
   // quality:sonar supplies type information separately for type-dependent rules.
   sonarSourceConfig,
-  {
-    /**
-     * F06 option B (2026-08-10): `apps/admin` enforces the documented ≤9 cyclomatic / ≤9
-     * cognitive-complexity ceiling as a hard error, not the repo-wide `warn`/15 the block near the
-     * top of this file still sets everywhere else. Deliberately NOT a repo-wide flag day — ~114
-     * pre-existing findings exist outside `apps/admin` today and are out of scope for this pass.
-     *
-     * Reconciliation note, so the two counts anyone finds for this task don't look like a
-     * contradiction: measured AT THE REPO'S EXISTING 15/15 THRESHOLD, `apps/admin/src` has exactly
-     * 3 findings (2 `complexity`, 1 `sonarjs/cognitive-complexity` — `Media.tsx`, `PostEditor.tsx`,
-     * `Seo.tsx`, verified with `--rule '{"complexity":["error",15],"sonarjs/cognitive-complexity":
-     * ["error",15]}'`). Measured AT THE 9/9 CEILING THIS BLOCK ACTUALLY SETS, the same directory has
-     * 20 violating functions across 18 production files (`admin-complexity-debt.json`) — one
-     * further test-only violation is excluded below rather than counted as debt, see that `ignores`
-     * entry. Both counts are correct; they answer different questions — "what's already failing the
-     * old bar" vs. "what violates the ceiling this repo documents but never enforced." The 18-file
-     * debt list below is the 9/9 count, because 9/9 is what this block enforces.
-     *
-     * This block alone would also fail on every file listed in `admin-complexity-debt.json` — the
-     * grandfather block directly below re-lowers exactly those files back to `warn`/15 (flat config
-     * resolves later blocks over earlier ones for the same file+rule), so today's pre-existing debt
-     * doesn't fail CI while any NEW apps/admin function over the line still does.
-     */
-    files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
-    // Test files are excluded from this stricter gate entirely, not grandfathered as debt — a
-    // complexity ceiling on test code (setup tables, parametrized assertions) is a different, and
-    // weaker, argument than on production logic, and grandfathering implies "debt someone should pay
-    // down," which isn't the claim here. They still get the repo-wide `warn`/15 from the block above.
-    // `__measurements__/` is the same category under a different name: vitest files that assert
-    // request counts and render costs rather than correctness (see the request-volume /
-    // render-churn harnesses). They are setup tables and parametrized assertions exactly as above,
-    // so the weaker-argument reasoning applies unchanged — they are not production logic and not
-    // debt anyone should pay down.
-    ignores: ['apps/admin/src/**/__tests__/**', 'apps/admin/src/**/__measurements__/**'],
-    languageOptions: { parser: tseslint.parser },
-    plugins: { sonarjs },
-    rules: {
-      complexity: ['error', 9],
-      'sonarjs/cognitive-complexity': ['error', 9],
-    },
-  },
+  // Admin's 9/9 ceiling remains stricter. Tests and measurements are not production debt:
+  // their setup tables and parameterized assertions serve a different purpose.
   {
     // Resource-leak detection: a recurring bug shape found and fixed 2026-08-17 (see
     // `ADS-memory/reports/2026-08-17-resource-leak-sweep.md`) — a `useEffect` that opens a
@@ -360,16 +304,6 @@ export default [
     },
   },
   {
-    // Grandfathered debt for the block above — see `development/scripts/admin-complexity-debt.json`
-    // for what's here and why, and `development/scripts/check-admin-complexity-drift.ts` (`npm run
-    // check:admin-complexity-drift`) for the check that keeps this list from silently growing.
-    files: ADMIN_COMPLEXITY_DEBT_FILES,
-    rules: {
-      complexity: ['warn', 15],
-      'sonarjs/cognitive-complexity': ['warn', 15],
-    },
-  },
-  {
     /**
      * `apps/desktop` — the ONE thing this workspace needs from the shared config, added 2026-09-12.
      *
@@ -395,15 +329,11 @@ export default [
      * glob with `js,jsx,mjs,cjs`. Declaring `sonarjs` here is what lets the desktop gate use the
      * same `--rule` re-lint the admin ratchet has always used.
      *
-     * ## Severity is deliberately `warn`, not `error`
+     * ## Historical severity and the shared production override
      *
-     * STRICTLY ADDITIVE: `npm run complexity` is a blocking CI step, and desktop carries 10
-     * pre-existing 9/9 violations. Promoting them here would fail that gate for everyone the moment
-     * this lands, over debt this commit does not introduce. `warn`/15 matches what desktop's `.ts`
-     * and `.tsx` already got from the repo-wide block, so this block changes NO existing result —
-     * it only extends that same treatment to the `.js`/`.mjs`/`.cjs` files that had none. The hard
-     * 9/9 ceiling is enforced by `apps/desktop/scripts/check-complexity.mjs`'s own `--rule`
-     * re-lint against a per-violation debt list, exactly as `apps/admin` does it.
+     * This block originally used `warn`/15 so promoting desktop's existing debt would not fail CI.
+     * The final shared production block now overrides it at error/10. Desktop's independent 9/9
+     * check also covers files outside `src`, so it remains in `apps/desktop/scripts/check-complexity.ts`.
      *
      * `tseslint.parser` + `jsx: true` for the reason the `apps/admin` block documents above: a
      * widened glob that falls through to default espree makes a real `.jsx`/`.tsx` file a hard
@@ -434,4 +364,6 @@ export default [
       'sonarjs/cognitive-complexity': ['warn', 15],
     },
   },
+  ...complexityConfig,
+  ...sizeConfig,
 ];

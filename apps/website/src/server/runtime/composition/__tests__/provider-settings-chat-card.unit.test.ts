@@ -8,13 +8,13 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import type { AgentPluginStateStore } from "#src/features/api-connections/plugin-state";
-import { parsePluginCredentialCards } from "#src/features/agent-plugins/credential-cards";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildCredentialSaveRegistrations, type CredentialSaveAdapters } from "#src/features/custom-credentials/credential-save-tool";
 import { buildProviderSettingsCredentialHandler, buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
 import { buildProviderStatusRegistrations } from "#src/features/plugin-runtime/provider-status-tool";

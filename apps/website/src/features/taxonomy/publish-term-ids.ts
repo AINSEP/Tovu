@@ -1,5 +1,6 @@
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import type { PublishContentDeps, TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { assignTerms, toTaxonomyOutbox, unassignTerms } from "./index.js";
 
@@ -17,14 +18,20 @@ export const TERM_SYNC_PERMISSION = "admin.taxonomy.manage";
 
 /** The live terms assigned to one piece of content, sorted, or `undefined` when there are none (or
  *  the bag has no taxonomy ports, so terms are not part of it). @complexity one indexed query. */
-export async function readTermIds(ports: TaxonomyPublishPorts | undefined, contentType: string, contentId: string): Promise<string[] | undefined> {
+export async function readTermIds(
+  { ports, contentType, contentId }: { ports: TaxonomyPublishPorts | undefined; contentType: string; contentId: string },
+  _optional = {},
+): Promise<string[] | undefined> {
   if (!ports) return undefined;
   const ids = (await ports.entryTerms.listForContent({ contentType, contentId })).map((row) => row.termId).sort();
   return ids.length > 0 ? ids : undefined;
 }
 
 /** `state` plus `termIds` when there are any. */
-export function withTermIds<T extends Record<string, unknown>>(state: T, termIds: readonly string[] | undefined): T {
+export function withTermIds<T extends Record<string, unknown>>(
+  { state, termIds }: { state: T; termIds: readonly string[] | undefined },
+  _optional = {},
+): T {
   return termIds ? { ...state, termIds: [...termIds] } : state;
 }
 
@@ -61,7 +68,7 @@ export async function prepareTermSync(input: {
     if (wanted.length === 0) return noop;
     throw new Error(`publish-content: ${entityType} '${entityId}' carries term assignments, but this deps bag wires no taxonomy ports — wire ports.term.`);
   }
-  const current = (await readTermIds(ports, contentType, entityId)) ?? [];
+  const current = (await readTermIds({ ports, contentType, contentId: entityId })) ?? [];
   const add = wanted.filter((id) => !current.includes(id));
   const remove = current.filter((id) => !wanted.includes(id));
   if (add.length === 0 && remove.length === 0) return noop;
@@ -72,10 +79,7 @@ export async function prepareTermSync(input: {
   }
   const allowed = await authorize({ principalId, permission: TERM_SYNC_PERMISSION, workspaceId });
   if (!allowed.allowed) {
-    throw new PublishContentApplyRowError(
-      "blocked",
-      `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})`
-    );
+    throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})` });
   }
   await validateAddedTerms({ ports, termIds: add, entityType, entityId });
 
@@ -105,12 +109,9 @@ async function validateAddedTerms(
   _options: Record<string, never> = {}
 ): Promise<void> {
   for (const termId of termIds) {
-    const term = await ports.terms.findAnyById(termId);
+    const term = await ports.terms.findAnyById({ id: termId });
     if (!term || term.status === "trash") {
-      throw new PublishContentApplyRowError(
-        "blocked",
-        `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first`
-      );
+      throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first` });
     }
   }
 }

@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import { createInMemoryApp } from "../runtime/composition/memory-route-deps.js";
 import type { RouteDeps } from "../routes/types.js";
 import { extractRouteHandler, createCapturingResponse, loginAsBarePrincipal } from "./helpers/http-test-server.js";
 import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
@@ -22,7 +23,7 @@ import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert
 const WS = "workspace-local";
 
 async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -387,7 +388,7 @@ test("DELETE page: req.params.pageId is always populated by Express for a matche
 });
 
 test("DELETE page: req.params.workspaceId is likewise always populated by Express (its own ?? \"\" fallback is equally unreachable through real HTTP)", async () => {
-  const app = createApp();
+  const app = createInMemoryApp();
   const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId");
   const { res, capture } = createCapturingResponse();
 

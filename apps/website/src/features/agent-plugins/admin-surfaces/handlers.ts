@@ -1,7 +1,7 @@
 import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution, type AdminSurfaceCapabilitiesPort, type AdminSurfaceHostKind, type LoadedAdminSurfaceHandlers } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { IssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
-import type { IssuedSignInCollector } from "./issued-sign-ins.js";
+import type { IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
 import { ADMIN_SURFACES_FILENAME, type AdminSurfaceHost } from "./surfaces.js";
 
 /**
@@ -61,8 +61,8 @@ export function createAgentPluginAdminSurfaceHandlers(
   return {
     refresh,
     ...(optional.signIns === undefined ? {} : { signIns: optional.signIns }),
-    handlersFor: (input) => host.handlersFor(input),
-    async bootstrapData(input) {
+    handlersFor: (input, _optional = {}) => host.handlersFor(input),
+    async bootstrapData(input, _optional = {}) {
       await refresh();
       return host.bootstrapData(input);
     },

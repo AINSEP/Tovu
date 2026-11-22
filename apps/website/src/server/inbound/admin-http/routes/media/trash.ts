@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import type { MediaRecord } from "#src/features/media/index";
@@ -8,7 +8,9 @@ import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media"
 import { readRecordedContentType } from "./content-type.js";
 import { resolveMediaByteSizes } from "./byte-size.js";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
-import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace, sendMediaNotFound } from "./route-guards.js";
+import { sendMediaNotFound } from "./route-guards.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. Gated by
@@ -19,14 +21,14 @@ import { authorizeMediaOrRespond, readRouteParam, rejectForeignWorkspace, sendMe
  * this route already loaded — columns only, no payload parse, so an asset whose metadata is corrupt
  * is still deletable and still listable in the Trash.
  */
-export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       const mediaId = readRouteParam({ req, name: "mediaId" });
-      const authorized = await authorizeMediaOrRespond({ res, authorize: deps.authorize, params: {
+      const authorized = await authorizeDirectOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.delete",
         workspaceId: deps.workspaceId,
@@ -83,8 +85,8 @@ function sendRemoveFailure({ res, mediaId, reason }: { res: Response; mediaId: s
  *  @complexity O(1) — three independent single-asset lookups. */
 async function toTrashedMediaResponse({ deps, media }: { deps: MediaRouteDeps; media: MediaRecord }) {
   const [contentType, publicUrl, byteSizes] = await Promise.all([
-    readRecordedContentType(deps, media.source.sha256),
-    resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+    readRecordedContentType({ deps, sha256: media.source.sha256 }),
+    resolveMediaPublicUrls({ deps, assets: [media] }).then((urls) => urls.get(media.id) ?? null),
     resolveMediaByteSizes({ deps, media: [media] }),
   ]);
   return toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null });

@@ -1,8 +1,8 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { executeRegisteredTool } from "../../../assistant/__tests__/fixtures/execute-registered-tool.js";
 import { withBatchInput, type BatchResult } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { ToolInputError } from "@jini-ai/core";
@@ -37,7 +37,7 @@ const clock = { nowMs: () => Date.parse("2026-09-09T00:00:00.000Z") };
 const WS = "ws-region";
 
 function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const registrations = buildPagesRegistrations({
     workspaceId: WS,
     authorize: async () => ({ allowed: true, reason: "matched" }),
@@ -63,7 +63,7 @@ function harness(afterRead?: (repo: InMemoryPostRepo) => Promise<void>) {
     assert.ok(entry, `tool '${name}' is not registered`);
     // Direct-handler regressions apply only the domain alias hook; scalar validation stays visible.
     const normalized = entry.normalizeInput ? await entry.normalizeInput({ input }) : { input };
-    return entry.handler({ ...ctx, input: normalized.input } as never);
+    return entry.handler({ ...ctx, input: await pageToolInputWithBasis({ toolId: name, input: normalized.input, repo, workspaceId: WS }) } as never);
   }
 
   return { repo, byName, call };
@@ -370,9 +370,9 @@ const LEGACY_DUPLICATE =
 async function seedHtmlBypassingTools(repo: InMemoryPostRepo, id: string, html: string) {
   await seedPage(repo, id);
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: id, actorId: "seed" }, { repo, clock });
-  await store.ensureHtmlFormat(html);
+  await store.ensureHtmlFormat({ seedHtml: html });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused", async () => {
@@ -437,7 +437,7 @@ test("pages_write_region reports a store CAS race as an actionable input error a
   const { repo, call } = harness(async (repo) => {
     const winner = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-race" }, { repo, clock });
     await winner.read();
-    await winner.write(THREE_REGIONS.replace("Body copy.", "Winning edit."));
+    await winner.write({ html: THREE_REGIONS.replace("Body copy.", "Winning edit.") });
     winningRow = await repo.findById({ workspaceId: WS, id: "page-race" });
   });
   await seedHtmlBypassingTools(repo, "page-race", THREE_REGIONS);
@@ -511,7 +511,7 @@ test('delegated normalization: region aliases persist; foreign targets in single
     resolveTarget: async () => { throw new Error('writes cannot resolve peers'); },
   }, { refuseMessage: 'Writes run only on the active site. Switch with sites_switch_site first.' });
   const registration = withBatchInput({ registration: scoped!, tool: { toolId: 'pages_write_region' } });
-  const base = { id: 'mingjie', region: 'page-hero', html: '<h1>Mingjie Zhai</h1>' };
+  const base = { id: 'mingjie', expectedVersion: (await repo.findById({ workspaceId: WS, id: 'mingjie' }))!.version, region: 'page-hero', html: '<h1>Mingjie Zhai</h1>' };
   const reply = await executeDelegatedRegisteredTool({ registration, input: base });
   const visible = JSON.parse(delegatedText(reply));
   assert.equal(visible.status, 'completed');
@@ -571,11 +571,11 @@ for (const selector of ["regionId", "handle", "region"]) {
     await seedThreeRegionPage(h.call, h.repo, "landing");
     const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "landing" }, { repo: h.repo, clock });
     await store.read();
-    await store.write(THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>');
+    await store.write({ html: THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>' });
     const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
     for (const region of ["absent", "dup"]) {
       const result = await executeRegisteredTool({ registration: h.byName.get("pages_write_region")!,
-        input: { id: "landing", [selector]: region, html: "<h1>Canonical edit</h1>" } });
+        input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: region, html: "<h1>Canonical edit</h1>" } });
       assert.equal(result.errorKind, "validation");
       assert.match(result.error!, region === "absent" ? /has no region/ : /2 elements/);
       assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
@@ -598,7 +598,7 @@ for (const selector of ["regionId", "handle", "region"]) {
       },
       pagesHtmlStore: (scope) => { opened++; return new InMemoryPagesHtmlDocumentStore(scope, { repo: h.repo, clock }); },
     }).find((entry) => entry.descriptor.id === "pages_write_region")!;
-    const result = await executeRegisteredTool({ registration, input: { id: "landing", [selector]: "page-hero", html: "<h1>Canonical edit</h1>" } });
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, [selector]: "page-hero", html: "<h1>Canonical edit</h1>" } });
     assert.equal(result.status, "failed");
     assert.match(result.error!, /PAGES_FORBIDDEN/);
     assert.deepEqual(permissions, ["pages.edit_html"]);
@@ -618,7 +618,7 @@ test("pages_write_region: only canonical regionId is published; missing or inval
   assert.equal(Object.hasOwn(schema.properties, "region"), false);
   const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
   for (const target of [{}, { regionId: "" }, { regionId: null }, { handle: null }, { region: null }]) {
-    const result = await executeRegisteredTool({ registration, input: { id: "landing", ...target, html: "<h1>Canonical edit</h1>" } });
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, ...target, html: "<h1>Canonical edit</h1>" } });
     assert.equal(result.errorKind, "validation");
     assert.match(result.error!, /regionId/);
     assert.deepEqual(await h.repo.findById({ workspaceId: WS, id: "landing" }), before);
@@ -641,7 +641,7 @@ test("pages_write_region: all coexisting target spellings are rejected, includin
     { regionId: "page-hero", handle: "page-hero", region: "page-hero" },
     { regionId: "page-hero", handle: null },
   ]) {
-    const result = await executeRegisteredTool({ registration, input: { id: "landing", ...targets, html: "<h1>Canonical edit</h1>" } });
+    const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, ...targets, html: "<h1>Canonical edit</h1>" } });
     assert.equal(result.errorKind, "validation");
     assert.match(result.error!, /Send only regionId/);
     assert.equal(opened, 0);
@@ -653,9 +653,9 @@ test("pages_write_region: mixed batch keeps valid canonical/legacy items and ref
   const h = harness();
   await seedThreeRegionPage(h.call, h.repo, "landing");
   const registration = withBatchInput({ registration: h.byName.get("pages_write_region")!, tool: { toolId: "pages_write_region" } });
-  const result = await executeRegisteredTool({ registration, input: { id: "landing", items: [
+  const result = await executeRegisteredTool({ registration, input: { id: "landing", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version, items: [
     { regionId: "page-hero", html: "<h1>Canonical edit</h1>" },
-    { handle: "page-hero", html: "<h1>Legacy edit</h1>" },
+    { handle: "page-hero", html: "<h1>Legacy edit</h1>", expectedVersion: (await h.repo.findById({ workspaceId: WS, id: "landing" }))!.version + 1 },
     { region: "page-hero", regionId: "other", html: "<h1>Canonical edit</h1>" },
   ] } });
   const output = result.output as BatchResult;

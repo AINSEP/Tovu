@@ -1,8 +1,8 @@
 import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { RequestListener } from "node:http";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 
 import type { LiveOriginSourceDeps } from "./live-url.js";
@@ -107,7 +107,7 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
  * @returns The narrow port bag. Pure: constructing it performs no I/O.
  * @throws Nothing. The closures throw whatever their underlying repo throws, when invoked.
  * @complexity O(1) — closure construction only.
- * @example const profile = await buildSiteProfile(toSiteProfileDeps(routeDeps), { principalId });
+ * @example const profile = await buildSiteProfile({ deps: toSiteProfileDeps(routeDeps), input: { principalId } });
  */
 export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps {
   return {
@@ -129,8 +129,7 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
     listPluginActivations: () => deps.pluginActivationRepo.listAll(),
     readSetting: async ({ namespace, key }) => {
       const resolved = await deps.getEffective(
-        { repo: deps.settingsRepo },
-        { namespace, key, scopeContext: { workspaceId: deps.workspaceId } },
+        { deps: { repo: deps.settingsRepo }, namespace, key, scopeContext: { workspaceId: deps.workspaceId } },
       );
       // `ResolvedSetting.value` is the settings package's own `JsonValue`. The cast restates that
       // as this module's structurally identical `SiteProfileJsonValue` rather than importing a
@@ -152,7 +151,7 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
  * @returns The narrow port bag. Pure: constructing it performs no I/O.
  * @throws Nothing. The closures throw whatever their underlying reads throw, when invoked.
  * @complexity O(1) — closure construction only.
- * @example const capabilities = await buildSiteCapabilities(toSiteCapabilitiesDeps(routeDeps), { principalId });
+ * @example const capabilities = await buildSiteCapabilities({ deps: toSiteCapabilitiesDeps(routeDeps), input: { principalId } });
  */
 export function toSiteCapabilitiesDeps(deps: SiteInspectionToolDeps): SiteCapabilitiesDeps {
   return {

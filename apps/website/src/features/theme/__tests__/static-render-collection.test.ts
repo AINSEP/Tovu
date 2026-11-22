@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-render.js";
+import { ENTRY_LIST_DEFAULT_STYLE } from "../entry-list-markup.js";
 
-import { collectionMarkerKey, renderStaticPage, splitCollectionMarkerInner } from "../static-render.js";
+import { collectionMarkerKey, splitCollectionMarkerInner } from "@jini-ai/cms/listing";
+import { renderStaticPage } from "../static-render.js";
 import { markersOfType, COLLECTION_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import type { DiscoveredTheme } from "../theme.js";
 
@@ -146,25 +147,25 @@ test("renderStaticPage: no style is injected when no collection marker resolves 
 });
 
 test("splitCollectionMarkerInner: no <template> -> whole inner content is the fallback, no template returned", () => {
-  const result = splitCollectionMarkerInner("<p>empty state</p>");
+  const result = splitCollectionMarkerInner({ inner: "<p>empty state</p>" });
   assert.equal(result.template, undefined);
   assert.equal(result.fallback, "<p>empty state</p>");
 });
 
 test("splitCollectionMarkerInner: a <template> block is pulled out, remaining markup becomes the fallback", () => {
-  const result = splitCollectionMarkerInner('<template><h3>{{title}}</h3></template><p>empty state</p>');
+  const result = splitCollectionMarkerInner({ inner: '<template><h3>{{title}}</h3></template><p>empty state</p>' });
   assert.equal(result.template, "<h3>{{title}}</h3>");
   assert.equal(result.fallback, "<p>empty state</p>");
 });
 
 test("splitCollectionMarkerInner: only the FIRST <template> block is extracted", () => {
-  const result = splitCollectionMarkerInner("<template>one</template><template>two</template>");
+  const result = splitCollectionMarkerInner({ inner: "<template>one</template><template>two</template>" });
   assert.equal(result.template, "one");
   assert.equal(result.fallback, "<template>two</template>");
 });
 
 test("splitCollectionMarkerInner: an unterminated <template> is treated as no template at all", () => {
-  const result = splitCollectionMarkerInner("<template>never closed");
+  const result = splitCollectionMarkerInner({ inner: "<template>never closed" });
   assert.equal(result.template, undefined);
   assert.equal(result.fallback, "<template>never closed");
 });

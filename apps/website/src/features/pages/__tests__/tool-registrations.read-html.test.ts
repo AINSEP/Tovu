@@ -10,7 +10,7 @@ import type { DiscoveredTheme } from "../../theme/index.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
-import { renderDocBodyAsPageHtml } from "../../../server/inbound/public-http/http/site/render.js";
+import { renderDocBodyAsPageHtml } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 
 const workspaceId = "page-reader-workspace";
 const clock = { nowMs: () => Date.parse("2026-10-23T00:00:00.000Z") };
@@ -31,7 +31,7 @@ interface PageRead {
 
 /** Real domain/store plus the production batch selection and executor normalization gates. */
 function readerHarness(_required: Record<string, never>, { authorize, docBodyAsPageHtml }: Pick<Partial<PagesToolDeps>, "authorize" | "docBodyAsPageHtml"> = {}) {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   const deps: PagesToolDeps = {
     workspaceId, postRepo: repo, authorize: authorize ?? (async () => ({ allowed: true, reason: "test" })),
     pagesHtmlStore: scope => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock }),
@@ -51,7 +51,7 @@ async function seed(
   _optional: Record<string, never> = {},
 ) {
   await createPost({ deps: { repo, clock }, input: { workspaceId, id, slug, title: id, kind: "page" } });
-  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat(body);
+  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat({ seedHtml: body });
   return (await repo.findById({ workspaceId, id }))!;
 }
 
@@ -115,25 +115,25 @@ test("pages_read_html gives a doc page's own text and widget back as editable HT
   const { repo, call } = readerHarness({}, { docBodyAsPageHtml: renderDocBodyAsPageHtml });
   const bodyJson: JsonObject = { type: "doc", content: [
     { type: "paragraph", content: [{ type: "text", text: "Have a question?" }] },
-    { type: "widgetEmbed", attrs: { placementId: "place-1", widgetEntryId: "form-1" } },
+    { type: "widgetEmbed", attrs: { placementId: "place-1", widgetEntryId: "form-1", content: { note: "it's" } } },
   ] };
   await createPost({ deps: { repo, clock }, input: { workspaceId, id: "contact", slug: "contact", title: "Contact", kind: "page", bodyJson } });
   const before = structuredClone(await repo.findById({ workspaceId, id: "contact" }));
   const result = await call({ slug: "contact" }) as PageRead & { note?: string };
   assert.match(result.html, /<p>Have a question\?<\/p>/);
-  assert.match(result.html, /<div data-embed-config='\{"type":"widget","id":"form-1"\}'><\/div>/);
+  assert.match(result.html, /<div data-embed-config='\{"type":"widget","id":"form-1","content":\{"note":"it\\u0027s"\}\}'><\/div>/);
   assert.equal(result.hasDocContent, true);
   assert.match(String(result.note), /Keep what is there/);
   assert.deepEqual(await repo.findById({ workspaceId, id: "contact" }), before);
 });
 
 test("renderDocBodyAsPageHtml keeps managed media and widget styling as markers instead of placeholders", () => {
-  const html = renderDocBodyAsPageHtml({ type: "doc", content: [
+  const html = renderDocBodyAsPageHtml({ bodyJson: { type: "doc", content: [
     { type: "media", attrs: { assetId: "asset-1", alt: "Our shop" } },
     { type: "image", attrs: { assetId: "asset-2", transformName: "hero", alt: "Hero" } },
     { type: "widgetEmbed", attrs: { placementId: "p", widgetEntryId: "w", cssClass: "wide", content: { note: "it's" } } },
     { type: "image", attrs: { src: "https://example.com/a.png", alt: "Legacy" } },
-  ] });
+  ] } });
   assert.match(html, /<div alt="Our shop" data-embed-config='\{"type":"media","id":"asset-1"\}'><\/div>/);
   assert.match(html, /<div alt="Hero" data-embed-config='\{"type":"media","id":"asset-2"\}'><\/div>/);
   assert.match(html, /<div class="wide" data-embed-config='\{"type":"widget","id":"w","content":\{"note":"it\\u0027s"\}\}'><\/div>/);

@@ -24,13 +24,6 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/admin/src/features/members/hooks/members-dependencies.hooks.ts",
-      "line": 27,
-      "reason": "Export createFakeMembersPort duplicates a Jini function without using its owner.",
-      "fingerprint": "8528b17a15d6bc68fd45b35701e10d60f0710ae76dfa404e19235e26a044e87d"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts",
       "line": 80,
       "reason": "Export createFakeRolesPort duplicates a Jini function without using its owner.",
@@ -49,13 +42,6 @@
       "line": 7,
       "reason": "Export SkillRow duplicates a Jini function without using its owner.",
       "fingerprint": "bfbbb041a4274a35fddbe664e1241c541c8077e768b6a3971bccc3fe060e2b18"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/admin/src/features/users/hooks/users-dependencies.hooks.ts",
-      "line": 83,
-      "reason": "Export createFakeUsersPort duplicates a Jini function without using its owner.",
-      "fingerprint": "69d895dbd44eb85c9ee27974cabde11ae66ace5eb12ffed0cb739cc43c9f4aaf"
     },
     {
       "rule": "HW2-vendor-adapter",
@@ -121,60 +107,11 @@
       "fingerprint": "31ecdcd28cf5d2c9ab0483f6f85319ab4fbe3ba30674eac1e61afd7eaa96fd47"
     },
     {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/content-types/repo.rows.ts",
-      "line": 30,
-      "reason": "Export toRecord duplicates a Jini function without using its owner.",
-      "fingerprint": "1f5045681bf8345f2cb1d390b498de7d15c30df0284b8803559ca3e6cfb270e3"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/content-types/repo.rows.ts",
-      "line": 50,
-      "reason": "Export toRow duplicates a Jini function without using its owner.",
-      "fingerprint": "8b53ffe01d8c575dcebd940d41ddd34b2ac0894ce341cff89f4f630967afe1c6"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/content-types/repo.rows.ts",
-      "line": 68,
-      "reason": "Export updatableColumns duplicates a Jini function without using its owner.",
-      "fingerprint": "ca41c807d7c71552c97a2e829b3418e5a0515eeebdda547adeda382dbc9462a5"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/content-types/repo.rows.ts",
-      "line": 81,
-      "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
-      "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
-    },
-    {
       "rule": "HW8-provider-url",
       "file": "apps/website/src/features/custom-credentials/agent-tools.ts",
       "line": 76,
       "reason": "Vendor API URL belongs in a provider, adapter or catalog.",
       "fingerprint": "d964a5f3963d20cc36f7218b4971cfbec8c0ea622e91e25607d9f2292285e115"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 15,
-      "reason": "Export toRecord duplicates a Jini function without using its owner.",
-      "fingerprint": "1f5045681bf8345f2cb1d390b498de7d15c30df0284b8803559ca3e6cfb270e3"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 33,
-      "reason": "Export toRow duplicates a Jini function without using its owner.",
-      "fingerprint": "8b53ffe01d8c575dcebd940d41ddd34b2ac0894ce341cff89f4f630967afe1c6"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 51,
-      "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
-      "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
     },
     {
       "rule": "HW2-vendor-adapter",
@@ -193,7 +130,7 @@
     {
       "rule": "HW2-vendor-adapter",
       "file": "apps/website/src/features/plugin-runtime/host-binding.ts",
-      "line": 7,
+      "line": 5,
       "reason": "Driver/vendor dependency belongs in an adapter, kernel or provider.",
       "fingerprint": "d6114bf0100c0b61db95bed38164a356ee02e2008ea2bf2df0c802d09333999d"
     },

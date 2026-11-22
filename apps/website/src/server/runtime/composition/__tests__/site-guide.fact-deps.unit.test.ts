@@ -5,7 +5,7 @@ import { FIELD_TYPES } from "@jini-ai/cms/forms";
 import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 import { EMBED_MARKER_TARGET_KEYS, FEATURED_IMAGE_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { ToolInputError } from "@jini-ai/core";
-import { resolveThemeLayout } from "#src/features/theme/index";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 import { siteGuideFactDeps } from "../site-guide.js";
 
 /** The site guide's fact ports, exercised without a guide engine: registries are projected by key,
@@ -16,8 +16,8 @@ type Plugin = { pluginId: string; id?: string; displayName?: string; version?: s
 function harness(installed: Plugin[], verdicts: Record<string, string>) {
   const reads: string[] = [];
   const lifecycle = {
-    listInstalledPlugins: async (root: string) => { reads.push(`list:${root}`); return installed; },
-    readBundledAgentPluginDigests: async (root: string) => { reads.push(`digests:${root}`); return "digests"; },
+    listInstalledPlugins: async ({ workspaceRoot }: { workspaceRoot: string }) => { reads.push(`list:${workspaceRoot}`); return installed; },
+    readBundledAgentPluginDigests: async ({ workspaceRoot }: { workspaceRoot: string }) => { reads.push(`digests:${workspaceRoot}`); return "digests"; },
     preferBundledAgentPluginDigests: (plugins: Plugin[], digests: string) => { reads.push(`prefer:${digests}`); return plugins; },
     resolveAgentPluginActivation: async ({ workspaceRoot, pluginId }: { workspaceRoot: string; pluginId: string }) => {
       reads.push(`activation:${workspaceRoot}:${pluginId}`);
@@ -27,7 +27,7 @@ function harness(installed: Plugin[], verdicts: Record<string, string>) {
   const deps = {
     workspaceId: "ws-1",
     marker: "site-own-dep",
-    agentPluginLayout: { forWorkspace: (workspaceId: string) => ({ root: `/plugins/${workspaceId}` }) },
+    agentPluginLayout: { forWorkspace: ({ workspaceId }: { workspaceId: string }) => ({ root: `/plugins/${workspaceId}` }) },
   };
   return { reads, facts: siteGuideFactDeps({ deps: deps as never, lifecycle: lifecycle as never }, {
     readIdentity: async ({ plugin }) => ({ id: plugin.pluginId, keywords: [], provides: [], warnings: [], maturity: installed.find(item => item.pluginId === plugin.pluginId)?.maturity }),
@@ -50,7 +50,7 @@ test("registry projections list type keys, field types, unique markers and both 
   const markers = facts.listMarkers();
   assert.deepEqual(new Set(markers), new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE]));
   assert.equal(new Set(markers).size, markers.length);
-  assert.deepEqual(facts.listLayouts(), [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir]);
+  assert.deepEqual(facts.listLayouts(), [resolveThemeLayout({}).pagesDir, resolveThemeLayout({}, { apiVersion: 2 }).pagesDir]);
   assert.equal(await facts.readMembersEnabled(), null);
 });
 

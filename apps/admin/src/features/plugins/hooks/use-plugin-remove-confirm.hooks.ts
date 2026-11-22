@@ -1,9 +1,10 @@
 import { useEffect, useRef, type RefObject } from "react";
 
-import { useFocusTrap } from "@/hooks/use-focus-trap.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
+
 import { buildPluginRemoveConfirmCopy, type PluginRemoveConfirmCopy } from "../rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `PluginRemoveConfirmDialog`'s three behaviours — Escape-to-cancel, the name-derived copy,
  * and (2026-09-20 platform review, Finding 4) the Tab focus trap — so the dialog component itself is
@@ -35,7 +36,7 @@ export interface PluginRemoveConfirmController {
 export function usePluginRemoveConfirm(props: { name: string; onCancel: () => void; t?: Translate }): PluginRemoveConfirmController {
   const { onCancel } = props;
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  useFocusTrap(dialogRef);
+  useFocusTrap({ containerRef: dialogRef });
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -43,8 +44,7 @@ export function usePluginRemoveConfirm(props: { name: string; onCancel: () => vo
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCancel]);
 
-  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }, props.t), dialogRef };
+  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }, { translate: props.t }), dialogRef };
 }

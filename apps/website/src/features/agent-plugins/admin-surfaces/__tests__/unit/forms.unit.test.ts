@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { AuthorizeFn } from '@jini-ai/cms/core';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { createSurfaceForms } from '../../forms.js';
 
 function setup(options: { principalId?: string; workspaceId?: string; allowed?: boolean; authorizeError?: Error } = {}) {

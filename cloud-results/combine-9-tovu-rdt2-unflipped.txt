@@ -1,0 +1,87 @@
+✔ cold-session history is redacted before durable acceptance (4.18934ms)
+✔ durable context keeps the remainder and contains no raw credential (0.98055ms)
+✔ malformed context never echoes the failed input (5.631316ms)
+✔ a sanitized or client-redacted prompt gets one non-secret card request in model context (1.407439ms)
+✔ placeholder prose is not a redaction signal (2.882335ms)
+✖ a plain URL message is not a credential paste, even when earlier history in the cold-start context held a key-shaped value (5.048319ms)
+✖ real keys in the current prompt are still caught and still get the card note (6.65108ms)
+✔ assembled history is sanitized without reporting a new paste on the current request (3.354397ms)
+✔ direct daemon parsing does not turn a newly sanitized historical key into a current notice (0.386924ms)
+✖ public DKIM history cannot flag a current public deployment URL as a paste (2.985537ms)
+✔ a real current secret is sanitized before acceptance and warns on both CLI prompt choices (0.662299ms)
+✔ BYOK sanitizes old secrets but warns only for the current user turn (1.465009ms)
+✔ BYOK current-message selection tolerates invalid entries and repeated message references (0.489415ms)
+✔ credential guidance requires current-message evidence and preserves a configured provider (0.199554ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8029.099007
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/credential-chat-intake.unit.test.ts:5:729
+✖ a plain URL message is not a credential paste, even when earlier history in the cold-start context held a key-shaped value (5.048319ms)
+  AssertionError [ERR_ASSERTION]: history is still redacted before storage
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/tb/apps/website/src/assistant/__tests__/credential-chat-intake.unit.test.ts:51:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/credential-chat-intake.unit.test.ts:6:462
+✖ real keys in the current prompt are still caught and still get the card note (6.65108ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/tb/apps/website/src/assistant/__tests__/credential-chat-intake.unit.test.ts:61:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/credential-noise.unit.test.ts:9:277
+✖ public DKIM history cannot flag a current public deployment URL as a paste (2.985537ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/tb/apps/website/src/assistant/__tests__/credential-noise.unit.test.ts:38:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

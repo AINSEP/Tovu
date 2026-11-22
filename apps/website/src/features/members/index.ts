@@ -56,10 +56,12 @@ export type {
   MemberConsentRepoPort,
   MemberAccessResolver,
   MembersWriteServiceDeps,
+  MembersWriteServiceSourceDeps,
   MembersWriteService,
   MemberSignInInput,
   MemberSignInResult,
 } from "./ports.js";
+export { buildMembersWriteServiceDeps } from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
 // `members` consumers don't need to know the type moved.
@@ -78,7 +80,7 @@ export {
 
 // ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
 // built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
-// composition root until now (`server/deps.ts`).
+// composition root until now (`apps/website/src/server/runtime/composition/deps.ts`).
 export {
   SqliteMagicLinkTokenRepo,
   SqliteMemberConsentRepo,
@@ -91,7 +93,6 @@ export {
 
 export { SqlMemberExternalIdentityRepo } from "./repo.js";
 
-export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console.js";
 
 export {
   DefaultMemberAccessResolver, createMemberAccessResolver,
@@ -99,19 +100,11 @@ export {
   type MemberAccessResolverDeps,
 } from "./access-resolver.js";
 
-export {
-  compSubscription,
-  createMember,
-  completeSignIn,
-  issueMemberSession,
-  notifyMemberCreated,
-  disableMember,
-  membersWriteService,
-  requestSignInLink,
-  prepareMemberChallenge,
-  setSubscriptionStatus,
-  updateProfile,
-} from "./write-service.js";
+export { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "./member-admin-writes.js";
+export { createMember, completeSignIn, notifyMemberCreated } from "./member-sign-in.js";
+export { issueMemberSession } from "./member-credentials.js";
+export { membersWriteService } from "./write-service.js";
+export { requestSignInLink, prepareMemberChallenge } from "./member-challenge-request.js";
 
 // D1c consent chokepoint (ADR-PIPE-013 Decision §4) — kept separate from `write-service.ts`.
 export {
@@ -130,5 +123,6 @@ export {
 
 export { trashMember } from "./trash-member.js";
 
-export { signInWithPassword, requestPasswordReset, resetPassword, setMemberPassword } from "./password-auth.js";
+export { signInWithPassword, resetPassword, setMemberPassword } from "./password-auth.js";
+export { requestPasswordReset } from "./member-challenge-request.js";
 export { resolveMemberSession } from "./access-resolver.js";

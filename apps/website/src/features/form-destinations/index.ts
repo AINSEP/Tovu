@@ -1,6 +1,6 @@
 /**
  * @file Public surface of the form destinations category: where a published static site's form
- * submissions go, contributed by Agent Plugins (`tovu-form-destinations.json`). See `./types.ts`.
+ * submissions go, contributed by Agent Plugins (`jini-form-destinations.json`). See `./types.ts`.
  */
 export type {
   FormDeliveryConnectionPort,
@@ -20,7 +20,7 @@ export type {
   LoadedFormDestination,
   RemoteFormSubmission,
 } from "./types.js";
-export { buildFormDestinationRegistry, FORM_DESTINATIONS_FILENAME, loadFormDestinationRegistry, loadFormDestinationRegistryFromSource, parseFormDestinationsFile } from "./registry.js";
+export { FORM_DESTINATIONS_FILENAME, loadFormDestinationRegistry, loadFormDestinationRegistryFromSource } from "./registry.js";
 export { FORM_RECEIVER_AUTO, FORM_RECEIVER_NONE, selectFormReceiver, type FormReceiverSelection } from "./select.js";
 export { assertSubmitUrl, rewriteFormActions } from "./rewrite-actions.js";
 export { formDestinationKeyLabel, formReceiverKey, listFormDestinations } from "./key-store.js";

@@ -1,10 +1,12 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import { isUniqueViolation } from "@jini-ai/db/kernel";
-import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import { credentialTokenHint } from "#src/contracts/core/credential-token";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
+import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/core/contracts/vault";
+import { credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { normalizePeerBaseUrl } from "./peer-url.js";
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
+import type { SealedSecret } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -36,7 +38,7 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/
 
 /** Thrown when a named peer does not exist in this workspace. */
 export class PublishContentPeerNotFoundError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentPeerNotFoundError";
   }
@@ -45,7 +47,7 @@ export class PublishContentPeerNotFoundError extends Error {
 /** Thrown when operator-supplied peer input is unusable. `message` is operator-facing and never
  *  echoes a supplied credential. */
 export class PublishContentPeerValidationError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentPeerValidationError";
   }
@@ -53,7 +55,7 @@ export class PublishContentPeerValidationError extends Error {
 
 /** Thrown when a write would violate `publish_content_peers_workspace_label_unique`. */
 export class PublishContentPeerDuplicateLabelError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentPeerDuplicateLabelError";
   }
@@ -62,7 +64,7 @@ export class PublishContentPeerDuplicateLabelError extends Error {
 /** Thrown when `sealer.seal()`/`keyring.activeKey()` fails — fail-closed, never a plaintext write.
  *  Mirrors `PublishCredentialSecretStoreUnconfiguredError`. */
 export class PublishContentPeerSecretStoreUnconfiguredError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentPeerSecretStoreUnconfiguredError";
   }
@@ -70,7 +72,7 @@ export class PublishContentPeerSecretStoreUnconfiguredError extends Error {
 
 /** Thrown when a peer row exists but carries no sealed credential — a push/pull cannot proceed. */
 export class PublishContentPeerCredentialMissingError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentPeerCredentialMissingError";
   }
@@ -116,16 +118,16 @@ export interface PublishContentPeerSummary {
  *  {@link PublishContentPeerDuplicateLabelError} rather than propagating it raw. */
 export interface PublishContentPeerRepoPort {
   readonly vault: VaultRepoPort;
-  insert(record: PublishContentPeerRecord): Promise<void>;
+  insert(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
   /** Full-row replace by `(workspaceId, id)`. */
-  update(record: PublishContentPeerRecord): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null>;
+  update(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<PublishContentPeerRecord | null>;
   /** Every peer a workspace has saved. Inherently small — bounded by how many peers a human types
    *  into this one form, never by a caller-supplied N — so no pagination or cap, the same reasoning
    *  `VendorCredentialSetRepoPort.listByWorkspace` records. */
-  listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]>;
+  listByWorkspace(input: { workspaceId: string }, optional?: {}): Promise<PublishContentPeerRecord[]>;
   /** No-op (not an error) if no row exists — matches this feature's DELETE route contract. */
-  delete(input: { workspaceId: string; id: string }): Promise<void>;
+  delete(input: { workspaceId: string; id: string }, optional?: {}): Promise<void>;
 }
 
 /** Read-side deps: NO sealer, NO keyring — see this file's header. */
@@ -143,7 +145,7 @@ export interface PublishContentPeerWriteDeps extends PublishContentPeerReadDeps 
 }
 
 /** Jini owns hint length policy; the feature keeps its existing display format. */
-export function maskApiKey(apiKey: string): string {
+export function maskApiKey({ apiKey }: { apiKey: string }, _optional = {}): string {
   const hint = credentialTokenHint({ token: apiKey });
   return `••••${hint.last4 ?? ""}`;
 }
@@ -187,7 +189,7 @@ function peerRecord({ record }: { record: VaultRecord }, _options = {}): Publish
  *
  * @complexity O(1) — fixed-shape field mapping.
  */
-export function toPeerSummary(record: PublishContentPeerRecord): PublishContentPeerSummary {
+export function toPeerSummary({ record }: { record: PublishContentPeerRecord }, _optional = {}): PublishContentPeerSummary {
   return {
     id: record.id,
     label: record.label,
@@ -200,9 +202,9 @@ export function toPeerSummary(record: PublishContentPeerRecord): PublishContentP
 
 /** Trims and rejects a blank required string, with the field's own name in the message.
  *  @complexity O(n). */
-function requireNonEmpty(value: unknown, field: string): string {
+function requireNonEmpty({ value, field }: { value: unknown; field: string }, _optional = {}): string {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new PublishContentPeerValidationError(`'${field}' is required and must be a non-empty string`);
+    throw new PublishContentPeerValidationError({ message: `'${field}' is required and must be a non-empty string` });
   }
   return value.trim();
 }
@@ -212,19 +214,19 @@ function requireNonEmpty(value: unknown, field: string): string {
 const MAX_FIELD_LENGTH = 512;
 
 /** @complexity O(1). */
-function requireBoundedField(value: unknown, field: string): string {
-  const trimmed = requireNonEmpty(value, field);
+function requireBoundedField({ value, field }: { value: unknown; field: string }, _optional = {}): string {
+  const trimmed = requireNonEmpty({ value, field });
   if (trimmed.length > MAX_FIELD_LENGTH) {
-    throw new PublishContentPeerValidationError(`'${field}' must be at most ${MAX_FIELD_LENGTH} characters`);
+    throw new PublishContentPeerValidationError({ message: `'${field}' must be at most ${MAX_FIELD_LENGTH} characters` });
   }
   return trimmed;
 }
 
 /** @complexity O(n) in the length of `raw`. */
-function requireBaseUrl(raw: unknown): string {
-  const trimmed = requireBoundedField(raw, "baseUrl");
-  const result = normalizePeerBaseUrl(trimmed);
-  if ("error" in result) throw new PublishContentPeerValidationError(result.error);
+function requireBaseUrl({ raw }: { raw: unknown }, _optional = {}): string {
+  const trimmed = requireBoundedField({ value: raw, field: "baseUrl" });
+  const result = normalizePeerBaseUrl({ raw: trimmed });
+  if ("error" in result) throw new PublishContentPeerValidationError({ message: result.error });
   return result.baseUrl;
 }
 
@@ -247,13 +249,16 @@ export interface CreatePeerInput {
  * @complexity O(1) — one seal and one insert.
  */
 export async function createPublishContentPeer(
-  deps: PublishContentPeerWriteDeps,
-  input: CreatePeerInput
+  { deps, input }: {
+    deps: PublishContentPeerWriteDeps;
+    input: CreatePeerInput;
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
-  const label = requireBoundedField(input.label, "label");
-  const baseUrl = requireBaseUrl(input.baseUrl);
-  const remoteWorkspaceId = requireBoundedField(input.remoteWorkspaceId, "remoteWorkspaceId");
-  const apiKey = requireBoundedField(input.apiKey, "apiKey");
+  const label = requireBoundedField({ value: input.label, field: "label" });
+  const baseUrl = requireBaseUrl({ raw: input.baseUrl });
+  const remoteWorkspaceId = requireBoundedField({ value: input.remoteWorkspaceId, field: "remoteWorkspaceId" });
+  const apiKey = requireBoundedField({ value: input.apiKey, field: "apiKey" });
 
   const id = deps.idGen.newId();
   const now = nowIso({ clock: deps.clock });
@@ -264,7 +269,7 @@ export async function createPublishContentPeer(
   } catch (err) {
     await rethrowPeerWriteError(deps, { err, workspaceId: input.workspaceId, label });
   }
-  return { id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
+  return { id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey({ apiKey }), hasCredential: true };
 }
 
 export interface UpdatePeerInput {
@@ -286,27 +291,30 @@ export interface UpdatePeerInput {
  * @complexity O(1) — one read, at most one seal, one update.
  */
 export async function updatePublishContentPeer(
-  deps: PublishContentPeerWriteDeps,
-  input: UpdatePeerInput
+  { deps, input }: {
+    deps: PublishContentPeerWriteDeps;
+    input: UpdatePeerInput;
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
+  if (!existing) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
 
-  const label = input.label === undefined ? existing.label : requireBoundedField(input.label, "label");
-  const baseUrl = input.baseUrl === undefined ? existing.baseUrl : requireBaseUrl(input.baseUrl);
+  const label = input.label === undefined ? existing.label : requireBoundedField({ value: input.label, field: "label" });
+  const baseUrl = input.baseUrl === undefined ? existing.baseUrl : requireBaseUrl({ raw: input.baseUrl });
   const remoteWorkspaceId =
     input.remoteWorkspaceId === undefined
       ? existing.remoteWorkspaceId
-      : requireBoundedField(input.remoteWorkspaceId, "remoteWorkspaceId");
+      : requireBoundedField({ value: input.remoteWorkspaceId, field: "remoteWorkspaceId" });
 
   const now = nowIso({ clock: deps.clock });
   if (input.apiKey === undefined) {
     await updatePeerMetadata(deps, { record: { ...existing, label, baseUrl, remoteWorkspaceId, updatedAt: now } });
-    return toPeerSummary({ ...existing, label, baseUrl, remoteWorkspaceId });
+    return toPeerSummary({ record: { ...existing, label, baseUrl, remoteWorkspaceId } });
   }
-  const apiKey = requireBoundedField(input.apiKey, "apiKey");
+  const apiKey = requireBoundedField({ value: input.apiKey, field: "apiKey" });
   const current = await deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
-  if (!current) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
+  if (!current) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
   try {
     await peerVault({ ...deps, now: () => now }).put({ ...peerScope, workspaceId: input.workspaceId, id: input.id,
       binding: null, expectedRevision: current.revision, label, meta: { ...current.meta, baseUrl, remoteWorkspaceId },
@@ -314,7 +322,7 @@ export async function updatePublishContentPeer(
   } catch (err) {
     await rethrowPeerWriteError(deps, { err, workspaceId: input.workspaceId, label, excludeId: input.id });
   }
-  return { id: input.id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey(apiKey), hasCredential: true };
+  return { id: input.id, label, baseUrl, remoteWorkspaceId, masked: maskApiKey({ apiKey }), hasCredential: true };
 }
 
 /**
@@ -322,11 +330,14 @@ export async function updatePublishContentPeer(
  * @complexity O(n) in the workspace's peer count (one repo read plus one projection each).
  */
 export async function listPublishContentPeers(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary[]> {
   const records = await deps.repo.listByWorkspace(input);
-  return records.map(toPeerSummary);
+  return records.map((record) => toPeerSummary({ record }));
 }
 
 /**
@@ -335,11 +346,14 @@ export async function listPublishContentPeers(
  * @complexity O(1).
  */
 export async function getPublishContentPeerSummary(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toPeerSummary(record) : null;
+  return record ? toPeerSummary({ record }) : null;
 }
 
 /**
@@ -347,8 +361,11 @@ export async function getPublishContentPeerSummary(
  * @complexity O(1).
  */
 export async function deletePublishContentPeer(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<void> {
   await deps.repo.delete(input);
 }
@@ -375,15 +392,16 @@ export interface ResolvedPeerCredential {
  * @complexity Two row reads and one AEAD open; no group scan.
  */
 export async function resolvePeerCredential(
-  deps: { repo: PublishContentPeerRepoPort; sealer: SecretSealerPort },
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: { repo: PublishContentPeerRepoPort; sealer: SecretSealerPort };
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<ResolvedPeerCredential> {
   const record = await deps.repo.findById(input);
-  if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
+  if (!record) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
   if (!record.sealed) {
-    throw new PublishContentPeerCredentialMissingError(
-      `peer '${record.label}' has no saved credential; add one before pushing or pulling`
-    );
+    throw new PublishContentPeerCredentialMissingError({ message: `peer '${record.label}' has no saved credential; add one before pushing or pulling` });
   }
 
   let apiKey: string;
@@ -393,7 +411,7 @@ export async function resolvePeerCredential(
     apiKey = opened.payload.apiKey;
   } catch {
     // Raw crypto/driver errors can describe secrets; only the feature's safe error crosses out.
-    throw new PublishContentPeerSecretStoreUnconfiguredError(`peer '${record.label}' credential could not be opened`);
+    throw new PublishContentPeerSecretStoreUnconfiguredError({ message: `peer '${record.label}' credential could not be opened` });
   }
 
   return {
@@ -412,8 +430,8 @@ export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
   readonly vault: VaultRepoPort;
 
-  async insert(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: true }); }
-  async update(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: false }); }
+  async insert({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: true }); }
+  async update({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: false }); }
 
   /** Preserve opaque bytes for metadata edits; Jini guards the replacement revision.
    * @complexity O(metadata size), one read and one CAS write; only conflicts query labels.
@@ -502,7 +520,7 @@ export class InMemoryPublishContentPeerRepo extends VaultPublishContentPeerRepo 
  * @complexity O(n) in the workspace's peer count.
  */
 export function selectConnectedDestination(
-  rows: readonly PublishContentPeerRecord[]
+  { rows }: { rows: readonly PublishContentPeerRecord[] }, _optional = {}
 ): PublishContentPeerRecord | null {
   let chosen: PublishContentPeerRecord | null = null;
   for (const row of rows) {
@@ -513,11 +531,14 @@ export function selectConnectedDestination(
 }
 
 export async function saveConnectedDestination(
-  deps: PublishContentPeerReadDeps & { clock: Clock; idGen: { newId(): string } },
-  input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps & { clock: Clock; idGen: { newId(): string } };
+    input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
-  const baseUrl = requireBaseUrl(input.baseUrl);
-  const remoteWorkspaceId = requireBoundedField(input.remoteWorkspaceId, "remoteWorkspaceId");
+  const baseUrl = requireBaseUrl({ raw: input.baseUrl });
+  const remoteWorkspaceId = requireBoundedField({ value: input.remoteWorkspaceId, field: "remoteWorkspaceId" });
   const existing = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const match = existing.find((row) => row.baseUrl === baseUrl) ?? null;
 
@@ -528,7 +549,7 @@ export async function saveConnectedDestination(
   const superseded = existing.filter((row) => row.sealed === null && row.baseUrl !== baseUrl);
   const supersededIds = new Set(superseded.map((row) => row.id));
 
-  const wanted = requireBoundedField(input.label, "label");
+  const wanted = requireBoundedField({ value: input.label, field: "label" });
   const takenByAnother = existing.some(
     (row) => row.label === wanted && row.id !== match?.id && !supersededIds.has(row.id)
   );
@@ -557,9 +578,9 @@ export async function saveConnectedDestination(
   // exists to prevent. Being briefly disconnected is truthful; publishing to the wrong site is not.
   for (const row of superseded) await deps.repo.delete({ workspaceId: input.workspaceId, id: row.id });
 
-  if (match) await deps.repo.update(record);
-  else await deps.repo.insert(record);
-  return toPeerSummary(record);
+  if (match) await deps.repo.update({ record });
+  else await deps.repo.insert({ record });
+  return toPeerSummary({ record });
 }
 
 /**
@@ -572,8 +593,11 @@ export async function saveConnectedDestination(
  * @complexity O(n) in the workspace's peer count, plus at most one delete.
  */
 export async function removeConnectedDestination(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; baseUrl: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; baseUrl: string };
+  },
+  _optional = {}
 ): Promise<boolean> {
   const rows = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const match = rows.find((row) => row.baseUrl === input.baseUrl && row.sealed === null);
@@ -597,19 +621,19 @@ async function rethrowPeerWriteError(
   { repo }: PublishContentPeerReadDeps,
   { err, workspaceId, label, excludeId }: { err: unknown; workspaceId: string; label: string; excludeId?: string },
 ): Promise<never> {
-  if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
+  if (isUniqueViolation({ err })) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${label}' already exists in this workspace` });
   if (err instanceof VaultError && err.code === "conflict") {
     const rows = await repo.listByWorkspace({ workspaceId });
-    if (rows.some(row => row.id !== excludeId && row.label === label)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${label}' already exists in this workspace`);
+    if (rows.some(row => row.id !== excludeId && row.label === label)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${label}' already exists in this workspace` });
   }
   if (err instanceof VaultError) throw err;
-  throw new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured");
+  throw new PublishContentPeerSecretStoreUnconfiguredError({ message: "publish-content peer secret store is unconfigured" });
 }
 
 async function updatePeerMetadata({ repo }: PublishContentPeerReadDeps, { record }: { record: PublishContentPeerRecord }): Promise<void> {
-  try { await repo.update(record); }
+  try { await repo.update({ record }); }
   catch (err) {
-    if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError(`a peer labelled '${record.label}' already exists in this workspace`);
+    if (isUniqueViolation({ err })) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${record.label}' already exists in this workspace` });
     throw err;
   }
 }

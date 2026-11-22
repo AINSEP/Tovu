@@ -1,6 +1,21 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { importExportApi } from "../../features/import-export/api/import-export-api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
+import { mediaApi } from "../../features/media/api/media-api";
+import { rolesApi } from "../../features/roles/api/roles-api";
+import { usersApi } from "../../features/users/api/users-api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import { databaseApi } from "../../features/database/api/database-api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { membersApi } from "../../features/members/api/members-api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import { commentsApi } from "../../features/comments/api/comments-api";
+import { analyticsApi } from "../../features/analytics/api/analytics-api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file Coverage-gap-fill pass (2026-09-04) for `api.ts`'s per-endpoint wrapper functions — the
@@ -47,14 +62,14 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 test("requestMemberMagicLink omits redirectPath from the body when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.requestMemberMagicLink({ email: "a@b.com" });
+  await membersApi.requestMemberMagicLink({ email: "a@b.com" });
   expect(calls[0].url).toContain("/members/request-magic-link");
   expect(body()).toEqual({ email: "a@b.com" });
 });
 
 test("requestMemberMagicLink includes redirectPath when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.requestMemberMagicLink({ email: "a@b.com" }, { redirectPath: "/welcome" });
+  await membersApi.requestMemberMagicLink({ email: "a@b.com" }, { redirectPath: "/welcome" });
   expect(body()).toEqual({ email: "a@b.com", redirectPath: "/welcome" });
 });
 
@@ -62,13 +77,13 @@ test("requestMemberMagicLink includes redirectPath when the caller passes one", 
 
 test("listRecentAnalyticsHits omits the limit query param when none is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecentAnalyticsHits();
+  await analyticsApi.listRecentAnalyticsHits();
   expect(calls[0].url).not.toContain("limit=");
 });
 
 test("listRecentAnalyticsHits appends ?limit= when a limit is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecentAnalyticsHits({ limit: 50 });
+  await analyticsApi.listRecentAnalyticsHits({ limit: 50 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("50");
 });
 
@@ -76,26 +91,26 @@ test("listRecentAnalyticsHits appends ?limit= when a limit is given", async () =
 
 test("createMenu omits items from the body when the caller doesn't pass any", async () => {
   const { body } = stubFetchCapturing();
-  await api.createMenu({ title: "Main", slug: "main" });
+  await menusApi.createMenu({ title: "Main", slug: "main" });
   expect(body()).toEqual({ title: "Main", slug: "main" });
 });
 
 test("createMenu includes items when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
   const items = [{ id: "i1", target: { kind: "url" as const, href: "/x" } }];
-  await api.createMenu({ title: "Main", slug: "main" }, { items });
+  await menusApi.createMenu({ title: "Main", slug: "main" }, { items });
   expect(body()).toEqual({ title: "Main", slug: "main", items });
 });
 
 test("updateMenuTree omits title/slug from the body when the caller doesn't pass them", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] });
+  await menusApi.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] });
   expect(body()).toEqual({ expectedVersion: 1, items: [] });
 });
 
 test("updateMenuTree includes title/slug when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] }, { title: "New", slug: "new" });
+  await menusApi.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] }, { title: "New", slug: "new" });
   expect(body()).toEqual({ expectedVersion: 1, items: [], title: "New", slug: "new" });
 });
 
@@ -103,11 +118,11 @@ test("updateMenuTree includes title/slug when the caller passes them", async () 
 
 test("pauseIntegrationSubscription sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: withoutArg } = stubFetchCapturing();
-  await api.pauseIntegrationSubscription({ id: "s1", paused: true });
+  await integrationsApi.pauseIntegrationSubscription({ id: "s1", paused: true });
   vi.unstubAllGlobals();
 
   const { calls: withArg } = stubFetchCapturing();
-  await api.pauseIntegrationSubscription({ id: "s1", paused: true }, {});
+  await integrationsApi.pauseIntegrationSubscription({ id: "s1", paused: true }, {});
 
   expect(withArg[0].url).toBe(withoutArg[0].url);
   expect(withArg[0].init?.body).toBe(withoutArg[0].init?.body);
@@ -123,13 +138,13 @@ test("pauseIntegrationSubscription sends the same request whether or not the unu
 
 test("uploadMedia sends no extra metadata fields when the caller passes none", async () => {
   const { body } = stubFetchCapturing();
-  await api.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
+  await mediaApi.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
   expect(body()).toEqual({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
 });
 
 test("uploadMedia includes alt/caption/credit when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
-  await api.uploadMedia(
+  await mediaApi.uploadMedia(
     { filename: "f.png", contentType: "image/png", dataBase64: "AA==" },
     { alt: "a photo", caption: "cap", credit: "cred" }
   );
@@ -147,34 +162,34 @@ test("uploadMedia includes alt/caption/credit when the caller passes them", asyn
 
 test("createUser omits email from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createUser({ username: "bob", password: "pw" });
+  await usersApi.createUser({ username: "bob", password: "pw" });
   expect(body()).toEqual({ username: "bob", password: "pw" });
 });
 
 test("createUser includes email when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createUser({ username: "bob", password: "pw" }, { email: "bob@x.com" });
+  await usersApi.createUser({ username: "bob", password: "pw" }, { email: "bob@x.com" });
   expect(body()).toEqual({ username: "bob", password: "pw", email: "bob@x.com" });
 });
 
 test("updateUser sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateUser({ principalId: "p1" });
+  await usersApi.updateUser({ principalId: "p1" });
   expect(body()).toEqual({});
 });
 
 test("updateUser sends the patch fields when the caller passes options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateUser({ principalId: "p1" }, { email: "new@x.com" });
+  await usersApi.updateUser({ principalId: "p1" }, { email: "new@x.com" });
   expect(body()).toEqual({ email: "new@x.com" });
 });
 
 test("resetUserPassword sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.resetUserPassword({ principalId: "p1", password: "pw" });
+  await usersApi.resetUserPassword({ principalId: "p1", password: "pw" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.resetUserPassword({ principalId: "p1", password: "pw" }, {});
+  await usersApi.resetUserPassword({ principalId: "p1", password: "pw" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toContain("/reset-password");
   for (const call of [a[0], b[0]]) {
@@ -185,67 +200,67 @@ test("resetUserPassword sends the same request whether or not the unused options
 
 test("assignRole sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.assignRole({ principalId: "p1", roleId: "r1" });
+  await usersApi.assignRole({ principalId: "p1", roleId: "r1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.assignRole({ principalId: "p1", roleId: "r1" }, {});
+  await usersApi.assignRole({ principalId: "p1", roleId: "r1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ roleId: "r1" });
 });
 
 test("attachPolicy sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.attachPolicy({ principalId: "p1", policyId: "pol1" });
+  await usersApi.attachPolicy({ principalId: "p1", policyId: "pol1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.attachPolicy({ principalId: "p1", policyId: "pol1" }, {});
+  await usersApi.attachPolicy({ principalId: "p1", policyId: "pol1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ policyId: "pol1" });
 });
 
 test("updateRole sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.updateRole({ roleId: "r1", name: "New name" });
+  await rolesApi.updateRole({ roleId: "r1", name: "New name" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.updateRole({ roleId: "r1", name: "New name" }, {});
+  await rolesApi.updateRole({ roleId: "r1", name: "New name" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ name: "New name" });
 });
 
 test("createPolicy omits description from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createPolicy({ name: "policy-1" });
+  await rolesApi.createPolicy({ name: "policy-1" });
   expect(body()).toEqual({ name: "policy-1", description: undefined });
 });
 
 test("createPolicy includes description when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createPolicy({ name: "policy-1" }, { description: "does things" });
+  await rolesApi.createPolicy({ name: "policy-1" }, { description: "does things" });
   expect(body()).toEqual({ name: "policy-1", description: "does things" });
 });
 
 test("updatePolicy sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updatePolicy({ policyId: "pol1" });
+  await rolesApi.updatePolicy({ policyId: "pol1" });
   expect(body()).toEqual({});
 });
 
 test("updatePolicy sends the patch fields when the caller passes options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updatePolicy({ policyId: "pol1" }, { name: "renamed" });
+  await rolesApi.updatePolicy({ policyId: "pol1" }, { name: "renamed" });
   expect(body()).toEqual({ name: "renamed" });
 });
 
 test("writePolicyPermission drops resourceType from the body when none is given", async () => {
   const { body } = stubFetchCapturing();
-  await api.writePolicyPermission({ policyId: "pol1", permission: "read" });
+  await rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" });
   expect(body()).toEqual({ permission: "read" });
 });
 
 test("writePolicyPermission includes a real resourceType in the body", async () => {
   const { body } = stubFetchCapturing();
-  await api.writePolicyPermission({ policyId: "pol1", permission: "read" }, { resourceType: "post" });
+  await rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" }, { resourceType: "post" });
   expect(body()).toEqual({ permission: "read", resourceType: "post" });
 });
 
@@ -253,7 +268,7 @@ test("writePolicyPermission includes a real resourceType in the body", async () 
 
 test("getSettingsEffective adds principalId to the query only when the caller passes one", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getSettingsEffective({ namespace: "core" }, { principalId: "p1" });
+  await settingsApi.getSettingsEffective({ namespace: "core" }, { principalId: "p1" });
   expect(calls[0].url).toContain("principalId=p1");
 });
 
@@ -261,20 +276,20 @@ test("getSettingsEffective adds principalId to the query only when the caller pa
 // `if (options.principalId)`: every existing call in the verified-clean scope supplied one.
 test("getSettingsEffective omits principalId from the query when the caller passes no options", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getSettingsEffective({ namespace: "core" });
+  await settingsApi.getSettingsEffective({ namespace: "core" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core`);
   expect(calls[0].url).not.toContain("principalId");
 });
 
 test("setSetting sends only the input fields when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.setSetting({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
+  await settingsApi.setSetting({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
   expect(body()).toEqual({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
 });
 
 test("setSetting merges principalId into the body when the caller passes it", async () => {
   const { body } = stubFetchCapturing();
-  await api.setSetting({ namespace: "core", key: "k", scope: "user", valueJson: 1 }, { principalId: "p1" });
+  await settingsApi.setSetting({ namespace: "core", key: "k", scope: "user", valueJson: 1 }, { principalId: "p1" });
   expect(body()).toEqual({ namespace: "core", key: "k", scope: "user", valueJson: 1, principalId: "p1" });
 });
 
@@ -284,18 +299,18 @@ test("setSetting merges principalId into the body when the caller passes it", as
 
 test("restartAssistantDaemon preserves the API-unreachable translation for a network TypeError", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-  await expect(api.restartAssistantDaemon()).rejects.toThrow(ApiError);
+  await expect(aiAssistantApi.restartAssistantDaemon()).rejects.toThrow(ApiError);
 });
 
 test("restartAssistantDaemon rethrows a non-ApiError failure untouched", async () => {
   const failure = new RangeError("unexpected fetch failure");
   vi.stubGlobal("fetch", vi.fn(async () => { throw failure; }));
-  await expect(api.restartAssistantDaemon()).rejects.toBe(failure);
+  await expect(aiAssistantApi.restartAssistantDaemon()).rejects.toBe(failure);
 });
 
 test("restartAssistantDaemon rethrows an ApiError whose body has no string reason", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "boom" }), { status: 500, headers: { "Content-Type": "application/json" } })));
-  const error = await api.restartAssistantDaemon().catch((e: unknown) => e);
+  const error = await aiAssistantApi.restartAssistantDaemon().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).message).toBe("boom");
 });
@@ -311,7 +326,7 @@ test("restartAssistantDaemon resolves { ok: false, reason } for a 409 refusal, i
         })
     )
   );
-  await expect(api.restartAssistantDaemon()).resolves.toEqual({ ok: false, reason: "shutting down" });
+  await expect(aiAssistantApi.restartAssistantDaemon()).resolves.toEqual({ ok: false, reason: "shutting down" });
 });
 
 // --- SEO -----------------------------------------------------------------
@@ -322,7 +337,7 @@ test("restartAssistantDaemon resolves { ok: false, reason } for a 409 refusal, i
 
 test("listEntries has no ?type query param when no type filter is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listEntries();
+  await collectionsApi.listEntries();
   expect(calls[0].url).toBe(`/api/admin/v1/entries`);
 });
 
@@ -330,7 +345,7 @@ test("listEntries has no ?type query param when no type filter is given", async 
 
 test("getDatabaseTimeline sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline({ limit: 25 });
+  await databaseApi.getDatabaseTimeline({ limit: 25 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("25");
 });
 
@@ -339,7 +354,7 @@ test("getDatabaseTimeline sets limit in the query when given", async () => {
 // `limit`'s own false arm, and the empty-querystring ternary arm were all untested.
 test("getDatabaseTimeline sets every other filter option in the query when given (and omits limit)", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline({
+  await databaseApi.getDatabaseTimeline({
     kind: "migration",
     outcome: "success",
     fromDate: "2026-01-01",
@@ -358,16 +373,16 @@ test("getDatabaseTimeline sets every other filter option in the query when given
 
 test("getDatabaseTimeline builds a bare, query-less URL when every filter option is omitted", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline();
+  await databaseApi.getDatabaseTimeline();
   expect(calls[0].url).toBe(`/api/admin/v1/database/timeline`);
 });
 
 test("confirmMigrateForward sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.confirmMigrateForward({ planId: "p1", planHash: "h1" });
+  await databaseApi.confirmMigrateForward({ planId: "p1", planHash: "h1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.confirmMigrateForward({ planId: "p1", planHash: "h1" }, {});
+  await databaseApi.confirmMigrateForward({ planId: "p1", planHash: "h1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toBe(`/api/admin/v1/database/migrate-forward/confirm`);
   for (const call of [a[0], b[0]]) {
@@ -380,25 +395,25 @@ test("confirmMigrateForward sends the same request whether or not the unused opt
 
 test("listCommentsQueue has no query string when no options are given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue();
+  await commentsApi.listCommentsQueue();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/queue`);
 });
 
 test("listCommentsQueue sets status in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ status: "pending" });
+  await commentsApi.listCommentsQueue({ status: "pending" });
   expect(calls[0].url).toContain("status=pending");
 });
 
 test("listCommentsQueue sets cursor in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ cursor: "c1" });
+  await commentsApi.listCommentsQueue({ cursor: "c1" });
   expect(calls[0].url).toContain("cursor=c1");
 });
 
 test("listCommentsQueue sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ limit: 20 });
+  await commentsApi.listCommentsQueue({ limit: 20 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("20");
 });
 
@@ -406,31 +421,31 @@ test("listCommentsQueue sets limit in the query when given", async () => {
 
 test("listWidgets has no query string when no options are given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets();
+  await widgetsApi.listWidgets();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets`);
 });
 
 test("listWidgets sets widgetType in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets({ widgetType: "text" });
+  await widgetsApi.listWidgets({ widgetType: "text" });
   expect(calls[0].url).toContain("widgetType=text");
 });
 
 test("listWidgets sets includeInactive=true in the query when requested", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets({ includeInactive: true });
+  await widgetsApi.listWidgets({ includeInactive: true });
   expect(calls[0].url).toContain("includeInactive=true");
 });
 
 test("createWidget omits slug from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createWidget({ widgetType: "text", title: "My widget", config: {} });
+  await widgetsApi.createWidget({ widgetType: "text", title: "My widget", config: {} });
   expect(body()).toEqual({ widgetType: "text", title: "My widget", config: {} });
 });
 
 test("createWidget includes slug when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createWidget({ widgetType: "text", title: "My widget", config: {} }, { slug: "my-widget" });
+  await widgetsApi.createWidget({ widgetType: "text", title: "My widget", config: {} }, { slug: "my-widget" });
   expect(body()).toEqual({ widgetType: "text", title: "My widget", config: {}, slug: "my-widget" });
 });
 
@@ -447,7 +462,7 @@ test("setDockerfileSource merges the ETag response header into a successful resu
         })
     )
   );
-  await expect(api.setDockerfileSource("FROM node:22\n", '"abc123"')).resolves.toEqual({
+  await expect(deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' })).resolves.toEqual({
     exists: true,
     contents: "FROM node:22\n",
     etag: '"def456"',
@@ -465,7 +480,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
         })
     )
   );
-  await expect(api.setDockerfileSource("x", '"abc123"')).resolves.toEqual({ exists: true, contents: "x", etag: "" });
+  await expect(deploymentApi.setDockerfileSource({ contents: "x", ifMatch: '"abc123"' })).resolves.toEqual({ exists: true, contents: "x", etag: "" });
 });
 
 // Regression for the 2026-09-04 complexity pass on `buildFetchInit` (`api.ts`): `setDockerfileSource`
@@ -480,7 +495,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
 // doesn't intend), and this assertion goes red the moment it does.
 test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header, and still defaults credentials to same-origin", async () => {
   const { calls } = stubFetchCapturing();
-  await api.setDockerfileSource("FROM node:22\n", '"abc123"');
+  await deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' });
   expect(calls[0].init?.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
@@ -494,7 +509,7 @@ test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body",
     error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
   }, { status: 412 }));
   vi.stubGlobal("fetch", fetchMock);
-  await expect(api.setDockerfileSource("FROM node:22\n", '"old"')).rejects.toMatchObject({
+  await expect(deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"old"' })).rejects.toMatchObject({
     status: 412, code: "DOCKERFILE_CONFLICT", body: {
       error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
     },
@@ -504,19 +519,19 @@ test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body",
 
 test("triggerSiteExport sends an empty body when called with no options at all", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerSiteExport();
+  await importExportApi.triggerSiteExport();
   expect(body()).toEqual({});
 });
 
 test("triggerSiteExport sends the given options as the body", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerSiteExport({ clean: true, basePath: "/blog" });
+  await importExportApi.triggerSiteExport({ clean: true, basePath: "/blog" });
   expect(body()).toEqual({ clean: true, basePath: "/blog" });
 });
 
 test("getPublishPreview sends the target plus each config field as a query param", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "repo-host", fields: { owner: "acme", repo: "site" } });
+  await deploymentApi.getPublishPreview({ target: "repo-host", fields: { owner: "acme", repo: "site" } });
   expect(calls[0].url).toContain("target=repo-host");
   expect(calls[0].url).toContain("owner=acme");
   expect(calls[0].url).toContain("repo=site");
@@ -525,7 +540,7 @@ test("getPublishPreview sends the target plus each config field as a query param
 
 test("getPublishPreview for a host with no config fields sends only the target", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "plain-host", fields: {} });
+  await deploymentApi.getPublishPreview({ target: "plain-host", fields: {} });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish/preview?target=plain-host`);
 });
 
@@ -539,6 +554,6 @@ test("getPublishTargets GETs /system/publish-targets and unwraps the targets lis
       return okJson({ targets });
     })
   );
-  await expect(api.getPublishTargets()).resolves.toEqual(targets);
+  await expect(deploymentApi.getPublishTargets()).resolves.toEqual(targets);
   expect(calls[0]).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish-targets`);
 });

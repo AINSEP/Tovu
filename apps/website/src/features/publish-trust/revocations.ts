@@ -75,8 +75,8 @@ export interface PublishTrustRevocationPort {
     readonly sourceInstallationId: string;
     readonly nowIso: string;
     readonly note?: string;
-  }): Promise<RevocationWrite>;
-  restore(input: { readonly sourceInstallationId: string }): Promise<RevocationWrite>;
+  }, optional?: {}): Promise<RevocationWrite>;
+  restore(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<RevocationWrite>;
 }
 
 /** @complexity O(1). */
@@ -93,7 +93,7 @@ function isBoundedString(value: unknown): value is string {
  *
  * @complexity O(n) in the record count, bounded by {@link MAX_REVOCATIONS}.
  */
-export function parseRevocationDocument(text: string): RevocationRead {
+export function parseRevocationDocument({ text }: { text: string }, _optional = {}): RevocationRead {
   if (text.length > MAX_DOCUMENT_BYTES) return { ok: false, reason: `revocation list exceeds ${MAX_DOCUMENT_BYTES} bytes` };
   if (text.trim().length === 0) return { ok: true, revocations: [] };
 
@@ -108,7 +108,7 @@ export function parseRevocationDocument(text: string): RevocationRead {
 
   const revocations: PublishTrustRevocation[] = [];
   for (const entry of raw) {
-    const revocation = parseRevocationEntry(entry);
+    const revocation = parseRevocationEntry({ entry });
     if (typeof revocation === "string") return { ok: false, reason: revocation };
     revocations.push(revocation);
   }
@@ -122,17 +122,24 @@ export function parseRevocationDocument(text: string): RevocationRead {
  * @returns The record, or a reason string.
  * @complexity O(1) — every string is bounded by `MAX_FIELD_LENGTH`.
  */
-function parseRevocationEntry(entry: unknown): PublishTrustRevocation | string {
+function parseRevocationEntry({ entry }: { entry: unknown }, _optional = {}): PublishTrustRevocation | string {
   if (typeof entry !== "object" || entry === null) return "each revocation must be an object";
   const { sourceInstallationId, revokedAt, note } = entry as Record<string, unknown>;
   if (!isBoundedString(sourceInstallationId)) return "each revocation needs a 'sourceInstallationId'";
   if (!isBoundedString(revokedAt) || Number.isNaN(Date.parse(revokedAt))) {
     return "each revocation needs an ISO-8601 'revokedAt'";
   }
+  const noteRefusal = refuseNote({ note });
+  if (noteRefusal !== undefined) return noteRefusal;
+  return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
+}
+
+/** The reason a stored record's optional `note` is invalid, or `undefined` when absent, null or fine. @complexity O(1). */
+function refuseNote({ note }: { note: unknown }, _optional = {}): string | undefined {
   if (note !== undefined && note !== null && !isBoundedString(note)) {
     return "a revocation 'note' must be a non-empty string when present";
   }
-  return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
+  return undefined;
 }
 
 /**
@@ -140,7 +147,10 @@ function parseRevocationEntry(entry: unknown): PublishTrustRevocation | string {
  *
  * @complexity O(n) in the record count.
  */
-export function isRevoked(revocations: readonly PublishTrustRevocation[], sourceInstallationId: string): boolean {
+export function isRevoked(
+  { revocations, sourceInstallationId }: { revocations: readonly PublishTrustRevocation[]; sourceInstallationId: string },
+  _optional = {}
+): boolean {
   return revocations.some((r) => r.sourceInstallationId === sourceInstallationId);
 }
 
@@ -164,7 +174,10 @@ export type PublishAdmission =
  *  not a developer and must never be shown one of these as a string like
  *  "no accepted public key for the claimed generation".
  *  @complexity O(1). */
-function refusalMessage(refusal: Exclude<AdmissionRefusal, never>, siteLabel: string): string {
+function refusalMessage(
+  { refusal, siteLabel }: { refusal: Exclude<AdmissionRefusal, never>; siteLabel: string },
+  _optional = {}
+): string {
   switch (refusal) {
     case "site-not-configured":
       return `${siteLabel} isn't set up to accept published changes yet.`;
@@ -204,22 +217,22 @@ export function admitPublish(input: {
   readonly publicKeyB64u: string;
   readonly siteLabel: string;
   readonly nowIso: string;
-}): PublishAdmission {
+}, _optional = {}): PublishAdmission {
   const refuse = (refusal: AdmissionRefusal): PublishAdmission => ({
     allowed: false,
     refusal,
-    message: refusalMessage(refusal, input.siteLabel),
+    message: refusalMessage({ refusal, siteLabel: input.siteLabel }),
   });
 
   // Deny first, and before anything that could throw or short-circuit: a disconnected computer must
   // be refused even while the grant side of the config is broken or absent.
   if (input.revocations === null) return refuse("revocations-unreadable");
-  if (isRevoked(input.revocations, input.sourceInstallationId)) return refuse("disconnected");
+  if (isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse("disconnected");
 
   if (input.resolution.state !== "configured") return refuse("site-not-configured");
-  const grant = findGrantForSource(input.resolution, input.sourceInstallationId);
+  const grant = findGrantForSource({ res: input.resolution, sourceInstallationId: input.sourceInstallationId });
   if (grant === null) return refuse("not-connected");
-  if (!isGrantActive(grant, input.nowIso)) return refuse("expired");
+  if (!isGrantActive({ grant, nowIso: input.nowIso })) return refuse("expired");
   if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) return refuse("superseded-key");
 
   return { allowed: true, grant };
@@ -240,7 +253,7 @@ type RevocationEdit = (current: readonly PublishTrustRevocation[]) => readonly P
  */
 function revokeEdit({ sourceInstallationId, nowIso, note }: Parameters<PublishTrustRevocationPort["revoke"]>[0]): RevocationEdit {
   return (current) =>
-    isRevoked(current, sourceInstallationId)
+    isRevoked({ revocations: current, sourceInstallationId })
       ? current
       : [...current, { sourceInstallationId, revokedAt: nowIso, note: note ?? null }];
 }

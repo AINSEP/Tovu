@@ -5,20 +5,20 @@ import { bundledContributionSources } from "./bundled-contribution-sources.js";
 export type { MailAdapterDescriptor, MailCredentialCard, LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 import type { LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plugins/lifecycle/mail";
 /** The file a plugin ships at its root to contribute mail adapters. */
-export const MAIL_ADAPTERS_FILENAME = "tovu-mail-adapters.json";
-/** The credential label a v2 descriptor without one uses; matches the v1 bundled label shape (`Tovu Mail — <label> API`). */
-export function defaultCredentialLabel({ label }: { label: string }): string { return `Tovu Mail — ${label} API`; }
+export const MAIL_ADAPTERS_FILENAME = "jini-mail-adapters.json";
+/** The credential label a v2 descriptor without one uses; matches the v1 bundled label shape (`Mail — <label> API`). */
+export function defaultCredentialLabel({ label }: { label: string }, _optional: Record<string, never> = {}): string { return `Mail — ${label} API`; }
 const contributions = createMailContributions({ filename: MAIL_ADAPTERS_FILENAME, parseSetup: parseMailProviderSetupProperty,
   defaultCredentialLabel, abi: { fromPositionalMailer, toPluginHttpClient }, loadFromSource: loadPluginContributionsFromSource });
 export const { loadMailAdapterRegistry, loadMailAdapterRegistryFromSource, contributeMailProviders } = contributions;
 /**
  * Parses a plugin's {@link MAIL_ADAPTERS_FILENAME}. Pure. Unknown keys are ignored.
- * The parser lives in `@jini-ai/agent-plugins/lifecycle/mail`; this keeps the host's positional
- * signature and supplies this host's {@link defaultCredentialLabel}.
+ * The parser lives in `@jini-ai/agent-plugins/lifecycle/mail`; this supplies the host's
+ * {@link defaultCredentialLabel}.
  *
  * @complexity O(a) in the declared adapter count.
  */
-export function parseMailAdaptersFile(raw: string): ReturnType<typeof parseMailAdapterDescriptors> {
+export function parseMailAdaptersFile({ raw }: { raw: string }, _optional: Record<string, never> = {}): ReturnType<typeof parseMailAdapterDescriptors> {
   return parseMailAdapterDescriptors({ raw, parseSetup: parseMailProviderSetupProperty }, { defaultCredentialLabel });
 }
 /**

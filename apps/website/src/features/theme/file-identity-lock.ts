@@ -1,8 +1,27 @@
-import { resolveThemeLayout } from "./theme-layout.js";
-import { TRASH_DIR_NAME } from "./theme-layout.js";
-import { isPageFilePath, isPartialFilePath } from "./theme-layout.js";
-import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-files.js";
-import type { ThemeManifest } from "./theme.js";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
+/**
+ * The top-level folder `theme_trash_file` moves a soft-deleted file into (2026-08-30, owner
+ * decision: "agent can only do soft-delete and hard-delete is gated by needing a human" — see
+ * `tool-registrations.ts`'s `theme_trash_file`/`theme_restore_trashed_file` for the operations that
+ * use this).
+ *
+ * Deliberately NOT the `_unpublished/` convention an earlier agent invented ad hoc the same week to
+ * hide a page from public routing (moving its file out of `render/pages/` and dropping it from
+ * `theme.json`, entirely outside any audited read/write path — see that convention's own removal,
+ * replaced by `ThemeManifest.publishedPages`). The lesson that removal leaves: a new "hidden" location
+ * has to be a location every relevant scanner/writer explicitly knows about, not a side channel
+ * nothing else is aware of. `.trash/` is that: every discovery loader in `theme.ts` only ever
+ * `readdirSync`s a SPECIFIC named folder (`pagesDir`/`partialsDir`/`templatesDir`, never `themeDir`
+ * itself), so a `.trash/` folder is invisible to page/partial/template discovery for every tier by
+ * construction — but `theme_list_files` and `explore.ts`'s own file list are BOTH updated to filter
+ * it out explicitly (not left to accidentally not-show-up), and `assertThemeFileWritable`/
+ * `isThemeFileWritable` both refuse writing INTO it directly, so the only doors in or out are
+ * `theme_trash_file`/`theme_restore_trashed_file` themselves.
+ */
+import { TRASH_DIR_NAME } from "@jini-ai/cms/themes/layout";
+import { isPageFilePath, isPartialFilePath } from "@jini-ai/cms/themes/layout";
+import { isGeneratedThemePath, type ThemeFileWriteScope } from "./theme-file-policy.js";
+import type { ThemeManifest } from "./render-contract.js";
 
 /**
  * @file The shared "can this file's IDENTITY change" gate — extracted (2026-08-30) from
@@ -54,14 +73,14 @@ const ASSET_EXTENSIONS = new Set([
   ".woff", ".woff2", ".ttf", ".otf", ".eot",
 ]);
 
-function isAssetExtension(relativePath: string): boolean {
+function isAssetExtension({ relativePath }: { relativePath: string }, _optional = {}): boolean {
   const dot = relativePath.lastIndexOf(".");
   return dot === -1 ? false : ASSET_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
 }
 
 /** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
- *  count, matching {@link import("./theme-layout.js")}'s layout paths using the same rule. */
-export function fileExtension(relativePath: string): string {
+ *  count, matching {@link import("@jini-ai/cms/themes/layout")}'s layout paths using the same rule. */
+export function fileExtension({ relativePath }: { relativePath: string }, _optional = {}): string {
   const dot = relativePath.lastIndexOf(".");
   const slash = relativePath.lastIndexOf("/");
   return dot > slash ? relativePath.slice(dot).toLowerCase() : "";
@@ -72,13 +91,13 @@ export function fileExtension(relativePath: string): string {
  * for the page/partial cases) alone. See `explore.ts`'s original doc (git history) for the full
  * per-group reasoning; unchanged here, just relocated.
  */
-export function fileGroup(relativePath: string, apiVersion: 2 | undefined): ThemeFileGroup {
-  if (isPageFilePath(relativePath, apiVersion)) return "page";
+export function fileGroup({ relativePath, apiVersion }: { relativePath: string; apiVersion: 2 | undefined }, _optional = {}): ThemeFileGroup {
+  if (isPageFilePath({ relativePath }, { apiVersion })) return "page";
   if (relativePath.endsWith(".css")) return "style";
   if (/\.[mc]?js$/.test(relativePath)) return "script";
   if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
-  if (isPartialFilePath(relativePath, apiVersion)) return "partial";
-  if (isAssetExtension(relativePath)) return "asset";
+  if (isPartialFilePath({ relativePath }, { apiVersion })) return "partial";
+  if (isAssetExtension({ relativePath })) return "asset";
   return "other";
 }
 
@@ -104,18 +123,14 @@ const SOURCE_DIR_WRITABLE_EXTENSIONS = new Set([...FRAMEWORK_SOURCE_EXTENSIONS, 
 /** Whether `relativePath` sits inside a BUILT theme's real, hand-authored source (ADR-020 §5,
  *  `build.sourceDir`) — the LOCATION half of the sourceDir carve-out; unchanged from `explore.ts`'s
  *  original `isInsideCompiledSourceDir`. */
-export function isInsideCompiledSourceDir(
-  theme: { manifest: Pick<ThemeManifest, "build"> },
-  relativePath: string,
-  writeScope: ThemeFileWriteScope
-): boolean {
+export function isInsideCompiledSourceDir({ theme, relativePath, writeScope }: { theme: { manifest: Pick<ThemeManifest, "build"> }; relativePath: string; writeScope: ThemeFileWriteScope }, _optional = {}): boolean {
   return theme.manifest.build?.source === "compiled" && writeScope.kind === "editable" && relativePath !== "theme.json";
 }
 
 /** The extension half of the sourceDir carve-out — unchanged from `explore.ts`'s original
  *  `isSourceDirWritableExtension`. */
-export function isSourceDirWritableExtension(relativePath: string): boolean {
-  return SOURCE_DIR_WRITABLE_EXTENSIONS.has(fileExtension(relativePath));
+export function isSourceDirWritableExtension({ relativePath }: { relativePath: string }, _optional = {}): boolean {
+  return SOURCE_DIR_WRITABLE_EXTENSIONS.has(fileExtension({ relativePath }));
 }
 
 /**
@@ -124,30 +139,10 @@ export function isSourceDirWritableExtension(relativePath: string): boolean {
  * `resolveThemeLayout` so it stays in lockstep with `pagesDir`/`indexPagePath` rather than
  * re-spelling the same path a second time.
  */
-export function requiredThemeFiles(apiVersion: 2 | undefined): readonly string[] {
-  return resolveThemeLayout(apiVersion).requiredFiles;
+export function requiredThemeFiles({ apiVersion }: { apiVersion: 2 | undefined }, _optional = {}): readonly string[] {
+  return resolveThemeLayout({}, { apiVersion }).requiredFiles;
 }
 
-/**
- * The top-level folder `theme_trash_file` moves a soft-deleted file into (2026-08-30, owner
- * decision: "agent can only do soft-delete and hard-delete is gated by needing a human" — see
- * `tool-registrations.ts`'s `theme_trash_file`/`theme_restore_trashed_file` for the operations that
- * use this).
- *
- * Deliberately NOT the `_unpublished/` convention an earlier agent invented ad hoc the same week to
- * hide a page from public routing (moving its file out of `render/pages/` and dropping it from
- * `theme.json`, entirely outside any audited read/write path — see that convention's own removal,
- * replaced by `ThemeManifest.publishedPages`). The lesson that removal leaves: a new "hidden" location
- * has to be a location every relevant scanner/writer explicitly knows about, not a side channel
- * nothing else is aware of. `.trash/` is that: every discovery loader in `theme.ts` only ever
- * `readdirSync`s a SPECIFIC named folder (`pagesDir`/`partialsDir`/`templatesDir`, never `themeDir`
- * itself), so a `.trash/` folder is invisible to page/partial/template discovery for every tier by
- * construction — but `theme_list_files` and `explore.ts`'s own file list are BOTH updated to filter
- * it out explicitly (not left to accidentally not-show-up), and `assertThemeFileWritable`/
- * `isThemeFileWritable` both refuse writing INTO it directly, so the only doors in or out are
- * `theme_trash_file`/`theme_restore_trashed_file` themselves.
- */
-export { TRASH_DIR_NAME } from "./theme-layout.js";
 
 /** Collapse a theme-relative path to comparable segments — `/` separators, no `.`, no `..`, no empty
  *  segments. A small local copy of the same normalization `theme-files.ts`'s own (private, exported
@@ -155,7 +150,7 @@ export { TRASH_DIR_NAME } from "./theme-layout.js";
  *  reason that function's own doc cites a real historical bypass for: comparing a path AS SPELLED
  *  would let `pages/../.trash/x` look like an ordinary `pages/` path to a caller that never resolves
  *  `..` before asking "is this in the trash folder". */
-function normalizedPathSegments(relativePath: string): string[] {
+function normalizedPathSegments({ relativePath }: { relativePath: string }, _optional = {}): string[] {
   const segments: string[] = [];
   for (const segment of relativePath.split(/[\\/]/)) {
     if (segment === "" || segment === ".") continue;
@@ -169,8 +164,8 @@ function normalizedPathSegments(relativePath: string): string[] {
 }
 
 /** Whether `relativePath` (once `.`/`..`-collapsed) is `.trash` itself or sits inside it. */
-export function isTrashedThemePath(relativePath: string): boolean {
-  return normalizedPathSegments(relativePath)[0] === TRASH_DIR_NAME;
+export function isTrashedThemePath({ relativePath }: { relativePath: string }, _optional = {}): boolean {
+  return normalizedPathSegments({ relativePath })[0] === TRASH_DIR_NAME;
 }
 
 /**
@@ -187,9 +182,9 @@ export function isTrashedThemePath(relativePath: string): boolean {
  * with no ambiguity. If the clock repeats a millisecond already present in the trash, advance the
  * timestamp until an unused folder is found. The caller supplies the current on-disk paths.
  */
-export function trashDestinationFor(relativePath: string, existingPaths: ReadonlySet<string> = new Set()): string {
+export function trashDestinationFor({ relativePath }: { relativePath: string }, { existingPaths = new Set() }: { existingPaths?: ReadonlySet<string> } = {}): string {
   const usedFolders = new Set(
-    [...existingPaths].filter(isTrashedThemePath).map((existing) => normalizedPathSegments(existing)[1]),
+    [...existingPaths].filter((existing) => isTrashedThemePath({ relativePath: existing })).map((existing) => normalizedPathSegments({ relativePath: existing })[1]),
   );
   let timestamp = Date.now();
   while (usedFolders.has(String(timestamp))) timestamp += 1;
@@ -205,8 +200,8 @@ export function trashDestinationFor(relativePath: string, existingPaths: Readonl
  * `theme_restore_trashed_file` throws `theme-files.ts`'s `ThemePathError` for it), not a value this
  * function should guess at.
  */
-export function originalPathFromTrashedPath(trashedPath: string): string | null {
-  const segments = normalizedPathSegments(trashedPath);
+export function originalPathFromTrashedPath({ trashedPath }: { trashedPath: string }, _optional = {}): string | null {
+  const segments = normalizedPathSegments({ relativePath: trashedPath });
   if (segments.length < 3 || segments[0] !== TRASH_DIR_NAME) return null;
   if (segments[1] === 'revisions') return segments.length >= 4 && /^\d+$/.test(segments[2]!) ? segments.slice(3).join('/') : null;
   return segments.slice(2).join("/");
@@ -218,16 +213,12 @@ export function originalPathFromTrashedPath(trashedPath: string): string | null 
  * inside a compiled theme's sourceDir, ONLY {@link isSourceDirWritableExtension} decides; everywhere
  * else, {@link IDENTITY_LOCKED_GROUPS} does.
  */
-function isFileIdentityChangeAllowed(
-  theme: { manifest: Pick<ThemeManifest, "apiVersion" | "build"> },
-  path: string,
-  writeScope: ThemeFileWriteScope
-): boolean {
+function isFileIdentityChangeAllowed({ theme, path, writeScope }: { theme: { manifest: Pick<ThemeManifest, "apiVersion" | "build"> }; path: string; writeScope: ThemeFileWriteScope }, _optional = {}): boolean {
   return (
-    !isGeneratedThemePath(path) &&
-    (isInsideCompiledSourceDir(theme, path, writeScope)
-      ? isSourceDirWritableExtension(path)
-      : !IDENTITY_LOCKED_GROUPS.has(fileGroup(path, theme.manifest.apiVersion)))
+    !isGeneratedThemePath({ relativePath: path }) &&
+    (isInsideCompiledSourceDir({ theme, relativePath: path, writeScope })
+      ? isSourceDirWritableExtension({ relativePath: path })
+      : !IDENTITY_LOCKED_GROUPS.has(fileGroup({ relativePath: path, apiVersion: theme.manifest.apiVersion })))
   );
 }
 
@@ -263,12 +254,7 @@ export interface FileIdentityLockResult {
  * `theme_trash_file`) — see this file's own header for why a single relocated function, not
  * independently-written copies, is the point.
  */
-export function validateFileIdentityChange(
-  theme: { manifest: Pick<ThemeManifest, "apiVersion" | "build"> },
-  path: string,
-  writeScope: ThemeFileWriteScope,
-  action: "renamed" | "deleted" | "trashed"
-): FileIdentityLockResult | null {
+export function validateFileIdentityChange({ theme, path, writeScope, action }: { theme: { manifest: Pick<ThemeManifest, "apiVersion" | "build"> }; path: string; writeScope: ThemeFileWriteScope; action: "renamed" | "deleted" | "trashed" }, _optional = {}): FileIdentityLockResult | null {
   const hasNonCanonicalSegment = path
     .split("/")
     .some((segment) => segment === "" || segment === "." || segment === "..");
@@ -279,7 +265,7 @@ export function validateFileIdentityChange(
       code: "NON_CANONICAL_PATH",
     };
   }
-  if (requiredThemeFiles(theme.manifest.apiVersion).includes(path)) {
+  if (requiredThemeFiles({ apiVersion: theme.manifest.apiVersion }).includes(path)) {
     return {
       status: 409,
       error: `'${path}' cannot be ${action} — every theme requires it at this exact path`,
@@ -289,7 +275,7 @@ export function validateFileIdentityChange(
   if (writeScope.kind === "generated-readonly") {
     return { status: 409, error: `'${path}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" };
   }
-  if (!isFileIdentityChangeAllowed(theme, path, writeScope)) {
+  if (!isFileIdentityChangeAllowed({ theme, path, writeScope })) {
     return { status: 409, error: `'${path}' is read-only in Explore and cannot be ${action}`, code: "READ_ONLY_FILE" };
   }
   return null;

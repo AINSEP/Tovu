@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, describeApiError, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
@@ -30,9 +32,9 @@ afterEach(() => {
 
 describe("media error presentation", () => {
   it("uses the supplied fallback for empty API errors and non-Error failures", () => {
-    expect(describeApiError(new ApiError("", 503, "UNAVAILABLE"), "Try again")).toBe("Try again");
-    expect(describeApiError("unstructured failure", "Try again")).toBe("Try again");
-    expect(describeApiError(new Error("network unavailable"), "Try again")).toBe("network unavailable");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 503 }, { code: "UNAVAILABLE" }), fallback: "Try again" })).toBe("Try again");
+    expect(describeApiError({ e: "unstructured failure", fallback: "Try again" })).toBe("Try again");
+    expect(describeApiError({ e: new Error("network unavailable"), fallback: "Try again" })).toBe("network unavailable");
   });
 
   it("prioritizes trash over purge and list failures even after media has loaded", () => {
@@ -41,7 +43,7 @@ describe("media error presentation", () => {
   });
 
   it("shows the purge fallback ahead of the list error when trash succeeded", () => {
-    expect(visibleMediaError({ trashError: null, purgeError: new ApiError("", 503, "UNAVAILABLE"), restoreError: new Error("Restore refused"), restoreFallback: "Restore failed",
+    expect(visibleMediaError({ trashError: null, purgeError: new ApiError({ message: "", status: 503 }, { code: "UNAVAILABLE" }), restoreError: new Error("Restore refused"), restoreFallback: "Restore failed",
       listError: new Error("Refresh failed"), hasMedia: true, deleteFallback: "Delete failed", listFallback: "Load failed" })).toBe("Delete failed");
   });
 
@@ -54,7 +56,7 @@ describe("media error presentation", () => {
 
   it("shows a restore failure (fallback when empty) ahead of a loaded list's refresh error", () => {
     const input = { trashError: null, purgeError: null, restoreFallback: "Restore failed", listError: new Error("Offline"), deleteFallback: "Delete failed", listFallback: "Load failed", hasMedia: true };
-    expect(visibleMediaError({ ...input, restoreError: new ApiError("", 409, "CONFLICT") })).toBe("Restore failed");
+    expect(visibleMediaError({ ...input, restoreError: new ApiError({ message: "", status: 409 }, { code: "CONFLICT" }) })).toBe("Restore failed");
     expect(visibleMediaError({ ...input, restoreError: new Error("Restore refused") })).toBe("Restore refused");
   });
 });
@@ -241,7 +243,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   });
 
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMedia");
+    const listSpy = vi.spyOn(mediaApi, "listMedia");
     const port = createFakeMediaPort({
       media: [
         {

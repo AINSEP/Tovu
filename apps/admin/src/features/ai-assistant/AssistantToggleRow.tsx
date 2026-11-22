@@ -1,6 +1,6 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { AgentHandleProps } from "@jini-ai/agentic";
+import type { AgentHandleProps } from "@jini-ai/core/agent-handles";
 
 /**
  * One on/off setting on the AI Assistant screen: checkbox, bold label, and an ⓘ holding the
@@ -44,7 +44,7 @@ export function AssistantToggleRow(props: AssistantToggleRowProps) {
         <div className="assistant-toggle-copy">
           <label htmlFor={inputId}>{props.label}</label>
           {"\u00a0"}
-          <InfoTip label={props.info} triggerLabel={props.t("More info: {name}").replace("{name}", props.label)}
+          <InfoTip label={props.info} triggerLabel={props.t("More info: {name}").replace("{name}", () => props.label)}
             descriptionId={infoId} agentHandle={props.infoHandle} />
         </div>
       </div>

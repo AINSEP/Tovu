@@ -23,7 +23,7 @@
  * boundary, so non-object nodes, non-array `content` and non-string `text` are skipped, and the walk
  * stops at `MAX_DEPTH` so a cyclic or absurdly deep tree cannot overflow the stack. Never throws.
  */
-import type { ContentBlock, HeadingLevel } from "./analyze-content.js";
+import type { ContentBlock, HeadingLevel } from "@jini-ai/cms/seo/content-analysis";
 
 /** Far deeper than any real document (nested lists inside quotes inside tables), far shallower
  * than the stack. Anything below it is ignored. */
@@ -39,7 +39,7 @@ interface NodeView {
   children: readonly unknown[];
 }
 
-function view(node: unknown): NodeView | undefined {
+function view({ node }: { node: unknown }, _optional = {}): NodeView | undefined {
   if (typeof node !== "object" || node === null || Array.isArray(node)) return undefined;
   const { type, attrs, text, content } = node as Record<string, unknown>;
   return {
@@ -50,7 +50,7 @@ function view(node: unknown): NodeView | undefined {
   };
 }
 
-function headingLevel(level: unknown): HeadingLevel {
+function headingLevel({ level }: { level: unknown }, _optional = {}): HeadingLevel {
   return Number.isInteger(level) && (level as number) >= 1 && (level as number) <= 6 ? (level as HeadingLevel) : 2;
 }
 
@@ -61,7 +61,7 @@ function imageBlock(node: NodeView): ContentBlock {
 /** Collects a block's inline text; inline images found on the way go to `images`. Its depth budget
  * starts fresh at each block (callers pass 0) so a paragraph sitting just above the block-walk cap
  * still yields its text; total recursion stays bounded by 2 x `MAX_DEPTH`. */
-function inlineText(node: NodeView, images: ContentBlock[], depth: number): string {
+function inlineText({ node, images, depth }: { node: NodeView; images: ContentBlock[]; depth: number }, _optional = {}): string {
   if (depth > MAX_DEPTH) return "";
   if (typeof node.text === "string") return node.text;
   if (node.type === "hardBreak") return " ";
@@ -71,8 +71,8 @@ function inlineText(node: NodeView, images: ContentBlock[], depth: number): stri
   }
   let text = "";
   for (const child of node.children) {
-    const childView = view(child);
-    if (childView) text += inlineText(childView, images, depth + 1);
+    const childView = view({ node: child });
+    if (childView) text += inlineText({ node: childView, images, depth: depth + 1 });
   }
   return text;
 }
@@ -81,8 +81,8 @@ function inlineText(node: NodeView, images: ContentBlock[], depth: number): stri
 function inlineBlock(required: { node: NodeView }): ContentBlock[] {
   const { node } = required;
   const images: ContentBlock[] = [];
-  const text = inlineText(node, images, 0);
-  return [node.type === "heading" ? { kind: "heading", level: headingLevel(node.attrs.level), text } : { kind: "text", text }, ...images];
+  const text = inlineText({ node, images, depth: 0 });
+  return [node.type === "heading" ? { kind: "heading", level: headingLevel({ level: node.attrs.level }), text } : { kind: "text", text }, ...images];
 }
 
 /** The blocks one block-level node yields, or `undefined` for a container whose children are walked. */
@@ -98,31 +98,31 @@ function leafBlocks(required: { node: NodeView }): ContentBlock[] | undefined {
   return undefined;
 }
 
-function walk(node: unknown, out: ContentBlock[], depth: number): void {
+function walk({ node, out, depth }: { node: unknown; out: ContentBlock[]; depth: number }, _optional = {}): void {
   if (depth > MAX_DEPTH) return;
   if (Array.isArray(node)) {
-    for (const child of node) walk(child, out, depth + 1);
+    for (const child of node) walk({ node: child, out, depth: depth + 1 });
     return;
   }
-  const current = view(node);
+  const current = view({ node });
   if (!current) return;
   const blocks = leafBlocks({ node: current });
   if (blocks) {
     out.push(...blocks);
     return;
   }
-  for (const child of current.children) walk(child, out, depth + 1);
+  for (const child of current.children) walk({ node: child, out, depth: depth + 1 });
 }
 
 /**
  * Flattens a TipTap document into analyzer blocks, in document order.
  *
- * @param bodyJson - A TipTap doc (or a bare array of nodes); any other value yields `[]`.
+ * @param required.bodyJson - A TipTap doc (or a bare array of nodes); any other value yields `[]`.
  * @returns The `ContentBlock[]` for `analyzeContent`. Never throws.
  * @complexity O(nodes), bounded by `MAX_DEPTH` levels.
  */
-export function tiptapToBlocks(bodyJson: unknown): ContentBlock[] {
+export function tiptapToBlocks({ bodyJson }: { bodyJson: unknown }, _optional = {}): ContentBlock[] {
   const out: ContentBlock[] = [];
-  walk(bodyJson, out, 0);
+  walk({ node: bodyJson, out, depth: 0 });
   return out;
 }

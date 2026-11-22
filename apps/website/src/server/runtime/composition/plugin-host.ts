@@ -9,7 +9,7 @@ import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
-import { readInstalledAgentPluginIdentity } from '#src/features/agent-plugins/identity';
+import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
@@ -19,6 +19,7 @@ import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-acc
 import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
+import type { provisionAgentPluginMcpServers as provisionPortableMcpServers } from '@jini-ai/agent-plugins/connect';
 import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
@@ -39,6 +40,27 @@ export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;
 }
 
+async function resolvePluginEnabled(
+  required: { workspaceRoot: string; pluginId: string; resolveEnabled: ((required: { workspaceRoot: string; pluginId: string }, optional?: Record<string, never>) => Promise<boolean>) | undefined },
+  _optional = {},
+): Promise<boolean> {
+  const { workspaceRoot, pluginId, resolveEnabled } = required;
+  if (resolveEnabled) return resolveEnabled({ workspaceRoot, pluginId });
+  return (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === 'active';
+}
+
+async function readInactivePluginIds(required: { workspaceRoot: string }, _optional = {}): Promise<Set<string>> {
+  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: required.workspaceRoot });
+  return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
+}
+
+async function setTovuPluginEnabled(required: { deps: TovuPluginHostDeps; input: Omit<Parameters<typeof setAgentPluginEnabled>[0], 'agentPluginLayout'> }, _optional = {}) {
+  const { deps, input } = required;
+  const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
+  if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
+  return result;
+}
+
 /** Bind both plugin families to one workspace. Read manifests through the same installed-package
  * index; the extra manifest read bridges existing compiled lifecycle versions until Jini builds.
  * @throws Unreadable activation (fail closed).
@@ -53,18 +75,19 @@ export function createTovuPluginHost(
     resolveEnabled?: (required: { workspaceRoot: string; pluginId: string }, optional?: Record<string, never>) => Promise<boolean>;
     warn?: (message: string) => void;
     resolveMcpServers?: typeof resolveAgentPluginMcpServers;
-    provisionMcpServers?: typeof provisionAgentPluginMcpServers;
+    provisionMcpServers?: typeof provisionPortableMcpServers;
   } = {},
 ): PluginHostPort {
-  const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const listInstalled = async () => (deps.listInstalledAgentPlugins ?? listInstalledPlugins)(resolveWorkspaceRoot());
+  const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const listInstalled = async () => (deps.listInstalledAgentPlugins ?? listInstalledPlugins)({ workspaceRoot: resolveWorkspaceRoot() });
   const warn = optional.warn ?? ((message: string) => console.warn(`[plugins] ${message}`));
-  const readAgentIdentity = optional.readAgentManifest
-    ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await optional.readAgentManifest!({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
+  const readAgentManifest = optional.readAgentManifest;
+  const readAgentIdentity = readAgentManifest
+    ? async ({ plugin }: { plugin: InstalledAgentPlugin }) => readPluginIdentity({ manifest: await readAgentManifest({ plugin }), name: plugin.pluginId, namespace: 'tovu' })
     : readInstalledAgentPluginIdentity;
 
   // Thin Tovu binder: every runtime owner, path, namespace and product text is bound here; the
-  // decisions live in `portable-plugin-host.ts`. The projection pair is resolved once per binding:
+  // decisions live in the portable plugin host. The projection pair is resolved once per binding:
   // preview, provisioning grant and status share it (legacy no-ports fallback stays Tovu-only).
   return createPluginHost<Parameters<AgentPluginHostCapability['uninstall']>[0], TovuPluginHostDeps['agentPluginLayout']>({ deps: {
     workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, clock: deps.clock, namespace: 'tovu',
@@ -72,23 +95,12 @@ export function createTovuPluginHost(
     getActivation: input => deps.pluginActivationRepo.getActivation(input),
     lifecycle: {
       listInstalled,
-      preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests(resolveWorkspaceRoot())),
+      preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests({ workspaceRoot: resolveWorkspaceRoot() })),
       readIdentity: readAgentIdentity,
-      isEnabled: async ({ pluginId }) => {
-        const workspaceRoot = resolveWorkspaceRoot();
-        if (optional.resolveEnabled) return optional.resolveEnabled({ workspaceRoot, pluginId });
-        return (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === 'active';
-      },
-      inactivePluginIds: async () => {
-        const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
-        return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
-      },
+      isEnabled: ({ pluginId }) => resolvePluginEnabled({ workspaceRoot: resolveWorkspaceRoot(), pluginId, resolveEnabled: optional.resolveEnabled }),
+      inactivePluginIds: () => readInactivePluginIds({ workspaceRoot: resolveWorkspaceRoot() }),
       assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
-      setEnabled: async input => {
-        const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
-        if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
-        return result;
-      },
+      setEnabled: input => setTovuPluginEnabled({ deps, input }),
       uninstall: input => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
     },
     withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),

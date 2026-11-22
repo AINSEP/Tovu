@@ -19,5 +19,5 @@ export interface AdminLocalePort {
   /** Calls `listener` whenever a refresh notification is relevant to the locale — already filtered
    *  by namespace, so the hook never has to reason about scope. Returns an unsubscribe function,
    *  same shape as the real `subscribeToSettingsRefresh`. */
-  subscribeToSettingsRefresh(listener: () => void): () => void;
+  subscribeToSettingsRefresh(required: { listener: () => void }): () => void;
 }

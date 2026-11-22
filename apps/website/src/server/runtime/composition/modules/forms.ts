@@ -6,7 +6,7 @@
  * Subscribes `form.submission.received`; on a notify-enabled definition, calls `MailerPort.send()`
  * per configured recipient through an isolated durable job. The one piece of Forms-owned business logic riding the outbox — kept
  * separate from the webhook-fanout forwarding (which is not Forms-owned logic; see
- * `server/app.ts`'s wiring). Legacy hosts log failures; durable recipient jobs propagate
+ * `apps/website/src/server/runtime/composition/app.ts`'s wiring). Legacy hosts log failures; durable recipient jobs propagate
  * failures to their own outbox row, outside the source `EventBusPort.publish()` subscriber loop (`core/events/memory-bus.ts`'s `publish`
  * does not catch handler errors itself — a subscriber that fails to catch its own errors would
  * break every OTHER subscriber to the same event, including the webhook fan-out). Recipient jobs
@@ -18,13 +18,13 @@
  */
 import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { EventBusPort } from "@jini-ai/cms/core";
+import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {
   bus: EventBusPort;
-  outbox?: import("@jini-ai/cms/core").OutboxPort;
+  outbox?: import("@jini-ai/core/contracts/events").OutboxPort;
   fileCleanup?: Omit<Parameters<typeof registerFormAttachmentCleanup>[0], "bus">;
   tracker: Tracker;
   mailer: MailerPort;
@@ -62,7 +62,7 @@ export function createFormsModule(deps: FormsModuleDeps): ServerModuleHandle {
           // The definition read can yield; recheck visitor consent immediately before delivery.
           if (!proof.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: proof.consentProof })) return;
           // The provider dedupes retries with this committed domain event id; no form answers leave.
-          deps.tracker.capture({ name: "form_submitted", userId: proof.subjectId }, { properties: {
+          void deps.tracker.capture({ name: "form_submitted", userId: proof.subjectId }, { properties: {
             eventId: event.id, formId: definition.id, formSlug: definition.slug,
             deliveryMode: event.payload.deliveryMode === "remote_import" ? "remote_import" : "live",
           } });

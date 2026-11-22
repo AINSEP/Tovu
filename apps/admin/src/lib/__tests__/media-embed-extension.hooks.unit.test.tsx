@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { NodeViewProps } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { mediaApi } from "../../features/media/api/media-api";
 import { mediaPreviewKind, readMediaEmbedAttrs, useMediaEmbedNodeView } from "../media-embed-extension.hooks";
 
 /**
@@ -18,18 +18,18 @@ function fakeProps(attrs: Record<string, unknown>) {
   return { props, updateAttributes, deleteNode };
 }
 
-const imageType = vi.fn(async (_assetId: string) => "image/png");
-function deps(locale: string, contentTypeOf: (assetId: string) => Promise<string> = imageType) {
+const imageType = vi.fn(async (_required: { id: string }) => "image/png");
+function deps(locale: string, contentTypeOf: (required: { id: string }, optional?: Record<string, never>) => Promise<string> = imageType) {
   return { locale, contentTypeOf };
 }
 
 describe("mediaPreviewKind", () => {
   it("video/* is a video; images, octet-stream and a failed lookup ('') are images", () => {
-    expect(mediaPreviewKind("video/mp4")).toBe("video");
-    expect(mediaPreviewKind("Video/WebM; codecs=vp9")).toBe("video");
-    expect(mediaPreviewKind("image/png")).toBe("image");
-    expect(mediaPreviewKind("application/octet-stream")).toBe("image");
-    expect(mediaPreviewKind("")).toBe("image");
+    expect(mediaPreviewKind({ contentType: "video/mp4" })).toBe("video");
+    expect(mediaPreviewKind({ contentType: "Video/WebM; codecs=vp9" })).toBe("video");
+    expect(mediaPreviewKind({ contentType: "image/png" })).toBe("image");
+    expect(mediaPreviewKind({ contentType: "application/octet-stream" })).toBe("image");
+    expect(mediaPreviewKind({ contentType: "" })).toBe("image");
   });
 });
 
@@ -54,7 +54,7 @@ describe("readMediaEmbedAttrs", () => {
 describe("useMediaEmbedNodeView", () => {
   it("a complete ref previews api.mediaOriginalUrl(assetId); an incomplete one previews nothing", () => {
     const complete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public" }).props, deps("en")));
-    expect(complete.result.current.previewSrc).toBe(api.mediaOriginalUrl("a1"));
+    expect(complete.result.current.previewSrc).toBe(mediaApi.mediaOriginalUrl({ id: "a1" }));
 
     const incomplete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1" }).props, deps("en")));
     expect(incomplete.result.current.previewSrc).toBe("");
@@ -87,7 +87,7 @@ describe("useMediaEmbedNodeView", () => {
   });
 
   it("Replace writes the picked ref and closes the picker; the new asset's kind is looked up afresh", async () => {
-    const contentTypeOf = vi.fn(async (id: string) => (id === "a2" ? "video/mp4" : "image/png"));
+    const contentTypeOf = vi.fn(async ({ id }: { id: string }) => (id === "a2" ? "video/mp4" : "image/png"));
     const initial = fakeProps({ assetId: "a1", transformName: "public" });
     const { result, rerender } = renderHook((p: NodeViewProps) => useMediaEmbedNodeView(p, deps("en", contentTypeOf)), {
       initialProps: initial.props,
@@ -103,7 +103,7 @@ describe("useMediaEmbedNodeView", () => {
     rerender(fakeProps({ assetId: "a2", transformName: "public" }).props);
     expect(result.current.previewKind).toBe("pending");
     await waitFor(() => expect(result.current.previewKind).toBe("video"));
-    expect(contentTypeOf).toHaveBeenLastCalledWith("a2");
+    expect(contentTypeOf).toHaveBeenLastCalledWith({ id: "a2" });
   });
 
   it("Save in the Edit dialog writes all three fields and closes it", () => {
@@ -136,10 +136,10 @@ describe("useMediaEmbedNodeView", () => {
 
   it("t translates the node view's copy for deps.locale", () => {
     const { result } = renderHook(() => useMediaEmbedNodeView(fakeProps({}).props, deps("es")));
-    expect(result.current.t("Edit")).toBe("Editar");
-    expect(result.current.t("Replace")).toBe("Reemplazar");
-    expect(result.current.t("Remove")).toBe("Quitar");
-    expect(result.current.t("Media unavailable")).toBe("Contenido multimedia no disponible");
-    expect(result.current.t("Broken media reference")).toBe("Referencia multimedia rota");
+    expect(result.current.t({ key: "Edit" })).toBe("Editar");
+    expect(result.current.t({ key: "Replace" })).toBe("Reemplazar");
+    expect(result.current.t({ key: "Remove" })).toBe("Quitar");
+    expect(result.current.t({ key: "Media unavailable" })).toBe("Contenido multimedia no disponible");
+    expect(result.current.t({ key: "Broken media reference" })).toBe("Referencia multimedia rota");
   });
 });

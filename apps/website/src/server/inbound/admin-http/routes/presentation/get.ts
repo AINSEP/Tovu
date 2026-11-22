@@ -1,16 +1,20 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { applicableThemeTemplates, type ThemeTemplateKind } from "@jini-ai/cms/themes/template-applicability";
+import { isPackageShippedTheme } from "@jini-ai/cms/themes/files/original-source";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
   type PresentationSettingsRecord,
 } from "#src/features/presentation/index";
-import { applicableThemeTemplates, findStoredTheme, validThemeIds, isPackageShippedTheme, type ThemeTemplateKind } from "#src/features/theme/index";
+import { findStoredTheme, validThemeIds } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 function activeThemeResponseFields(
   { themes, settings, kind }: {
@@ -50,15 +54,12 @@ function activeThemeResponseFields(
  * single-permission-per-domain reasoning as `member.manage`). Disclosed explicitly in the
  * Programmer handoff since this reuses a write-shaped permission name for a read route.
  */
-export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPresentationGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   // The image route behind every card URL this listing hands out, registered with it so the two
   // cannot be mounted apart.
   registerAdminThemePreviewRoute({ app, deps });
   app.get("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const kind = req.query.kind;
@@ -67,20 +68,8 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         return;
       }
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.set",
-        workspaceId: deps.workspaceId,
-        entityType: "presentation",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.set", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // **Deliberately NOT the write allowlist.** This list is echoed straight back to the client as
       // `AdminPresentation.availableThemeIds` and is what the admin's theme picker renders one card
@@ -95,7 +84,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // did not change: a reader reducing duplication in this directory sees two identical calls in
       // sibling files and no reason not to merge them. There is one, and it is this.
       const result = await getPresentationSettings({
-        deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds(deps.themes) },
+        deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds({ themes: deps.themes }) },
         input: { workspaceId: deps.workspaceId },
       });
 

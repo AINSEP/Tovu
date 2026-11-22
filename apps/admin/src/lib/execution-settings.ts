@@ -1,3 +1,5 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
@@ -10,7 +12,7 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    protocol, providerId, baseUrl, model, maxTokens for the ACTIVE selection
  *    — is stored as SPEC-007 `setting_definitions` values in the
  *    `core.execution` namespace, written through `api.setSetting` (the
- *    ADR-028 single write chokepoint). `src/assistant/execution-mode-
+ *    ADR-028 single write chokepoint). `apps/website/src/assistant/execution-mode-
  *    settings.ts` registers these definitions at server boot.
  *
  * 2. **Credential storage — now server-side, write-only (2026-08-05).**
@@ -64,14 +66,12 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    `createExecutionPort` below.
  */
 
-import {
-  api,
-  ApiError,
-  type AdminExecutionCredential,
-  type AdminExecutionCredentialPatch,
-  type SettingResolvedValue,
-  type SettingScope,
-} from "./api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
+import { settingsApi } from "../features/settings/api/settings-api";
+import { ApiError } from "./admin-http/request";
+import type { SettingResolvedValue } from "./settings-effective-reads";
+import type { SettingScope } from "@jini-ai/core/settings";
 import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No
@@ -106,7 +106,7 @@ const MAX_TOKENS_UNSET_SENTINEL = 0;
 const SCOPE: SettingScope = "workspace";
 
 /** Composer selections belong to the person; the workspace value remains their inherited default. */
-function executionSettingScope(key: string): SettingScope {
+function executionSettingScope({ key }: { key: string }, _optional: Record<string, never> = {}): SettingScope {
   return key.startsWith("localCli.") ? "user" : SCOPE;
 }
 
@@ -136,18 +136,16 @@ const LEGACY_CREDENTIALS_STORAGE_KEY = "tovu:execution-credentials:v1";
  * @overallScore 100
  */
 export function readLegacyLocalCredential(): string | null {
-  try {
+  // Malformed/inaccessible localStorage (private-browsing quota errors, a hand-edited value)
+  // reads as "nothing to migrate" rather than throwing — the prompt is a convenience, not a
+  // guarantee, and a parse failure here must not block the rest of the screen from rendering.
+  return orFallbackSync({ work: () => {
     const raw = window.localStorage.getItem(LEGACY_CREDENTIALS_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { apiKey?: unknown };
     const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : "";
     return apiKey.length > 0 ? apiKey : null;
-  } catch {
-    // Malformed/inaccessible localStorage (private-browsing quota errors, a hand-edited value)
-    // reads as "nothing to migrate" rather than throwing — the prompt is a convenience, not a
-    // guarantee, and a parse failure here must not block the rest of the screen from rendering.
-    return null;
-  }
+  }, fallback: null, step: "Read legacy execution credential" });
 }
 
 /**
@@ -163,18 +161,17 @@ export function readLegacyLocalCredential(): string | null {
  * @overallScore 100
  */
 export function clearLegacyLocalCredential(): void {
-  try {
+  // Best-effort. A browser that cannot clear localStorage could not have written it moments ago
+  // either — this is not a new failure mode, and swallowing it here matches
+  // `readLegacyLocalCredential`'s own defensive posture rather than surfacing a confusing error
+  // after the part the admin actually cares about (the server save) already succeeded.
+  orFallbackSync({ work: () => {
     window.localStorage.removeItem(LEGACY_CREDENTIALS_STORAGE_KEY);
-  } catch {
-    // Best-effort. A browser that cannot clear localStorage could not have written it moments ago
-    // either — this is not a new failure mode, and swallowing it here matches
-    // `readLegacyLocalCredential`'s own defensive posture rather than surfacing a confusing error
-    // after the part the admin actually cares about (the server save) already succeeded.
-  }
+  }, fallback: undefined, step: "Clear legacy execution credential" });
 }
 
 /** Compatibility wrapper for config/credential reads; the package owns the shape guard. */
-function requireData<T>(response: { data?: T | null } | null | undefined, callSite: string): T {
+function requireData<T>({ response, callSite }: { response: { data?: T | null } | null | undefined; callSite: string }, _optional: Record<string, never> = {}): T {
   return requireExecutionResponseData({ response, callSite }, {});
 }
 
@@ -194,7 +191,7 @@ function requireData<T>(response: { data?: T | null } | null | undefined, callSi
  * @overallScore 100
  */
 export async function loadAdminExecutionCredential(): Promise<AdminExecutionCredential> {
-  return requireData(await api.getAdminExecutionCredential(), "getAdminExecutionCredential");
+  return requireData({ response: await aiAssistantApi.getAdminExecutionCredential(), callSite: "getAdminExecutionCredential" });
 }
 
 /**
@@ -212,7 +209,7 @@ export async function loadAdminExecutionCredential(): Promise<AdminExecutionCred
 export async function saveAdminExecutionCredential(
   patch: AdminExecutionCredentialPatch,
 ): Promise<AdminExecutionCredential> {
-  return requireData(await api.setAdminExecutionCredential(patch), "setAdminExecutionCredential");
+  return requireData({ response: await aiAssistantApi.setAdminExecutionCredential(patch), callSite: "setAdminExecutionCredential" });
 }
 
 /** A key exists — either just typed in this form, or already stored on the server. Both make the
@@ -224,7 +221,7 @@ export async function saveAdminExecutionCredential(
  * @complexity O(1).
  * @overallScore 100
  */
-export function hasUsableAdminKey(apiKey: string, stored: { isSet: boolean } | null): boolean {
+export function hasUsableAdminKey({ apiKey, stored }: { apiKey: string; stored: { isSet: boolean } | null }, _optional: Record<string, never> = {}): boolean {
   return Boolean(apiKey.trim()) || stored?.isSet === true;
 }
 
@@ -243,11 +240,11 @@ export function hasUsableAdminKey(apiKey: string, stored: { isSet: boolean } | n
  * enabled over an empty field, offering to write nothing. Derived synchronously from the trimmed
  * value on every render — never debounced, so it can never lag a keystroke and re-open that window.
  *
- * @param apiKey - The raw field value; trimmed here, so whitespace-only reads as blank.
+ * @param input.apiKey - The raw field value; trimmed here, so whitespace-only reads as blank.
  * @returns `true` only when the field holds a non-whitespace value.
  * @complexity O(n) in the field length, for the trim.
  */
-export function hasTypedAdminKey(apiKey: string): boolean {
+export function hasTypedAdminKey({ apiKey }: { apiKey: string }, _optional: Record<string, never> = {}): boolean {
   return Boolean(apiKey.trim());
 }
 
@@ -263,7 +260,7 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
   localCli: { agentId: null },
 };
 
-function asString(value: unknown, fallback: string): string {
+function asString({ value, fallback }: { value: unknown; fallback: string }, _optional: Record<string, never> = {}): string {
   return typeof value === "string" ? value : fallback;
 }
 
@@ -271,7 +268,7 @@ function asString(value: unknown, fallback: string): string {
  *  (unset, or a value this admin build no longer recognizes). Pulled out of `loadExecutionConfig`
  *  (2026-08-06, complexity pass) as its own named step — see {@link buildByokConfigFromLedger}'s doc
  *  for why the whole function was split this way. */
-export function readExecutionMode(raw: unknown, fallback: ExecutionConfig["mode"]): ExecutionConfig["mode"] {
+export function readExecutionMode({ raw, fallback }: { raw: unknown; fallback: ExecutionConfig["mode"] }, _optional: Record<string, never> = {}): ExecutionConfig["mode"] {
   return raw === "local-cli" || raw === "byok" ? raw : fallback;
 }
 
@@ -279,13 +276,13 @@ const BYOK_PROTOCOLS: readonly ByokConfig["protocol"][] = ["anthropic", "openai"
 
 /** Ledger `byok.protocol` value -> `ByokConfig["protocol"]`, same fallback contract as
  *  {@link readExecutionMode}. */
-export function readByokProtocol(raw: unknown, fallback: ByokConfig["protocol"]): ByokConfig["protocol"] {
+export function readByokProtocol({ raw, fallback }: { raw: unknown; fallback: ByokConfig["protocol"] }, _optional: Record<string, never> = {}): ByokConfig["protocol"] {
   return BYOK_PROTOCOLS.includes(raw as ByokConfig["protocol"]) ? (raw as ByokConfig["protocol"]) : fallback;
 }
 
 /** `null` is a real, distinct value here (it selects the custom endpoint), so only `undefined`
  *  (unset) falls back to `fallback` — a plain `??` would treat both the same. */
-export function readByokProviderId(raw: unknown, fallback: string | null): string | null {
+export function readByokProviderId({ raw, fallback }: { raw: unknown; fallback: string | null }, _optional: Record<string, never> = {}): string | null {
   if (raw === null) return null;
   return typeof raw === "string" ? raw : fallback;
 }
@@ -300,16 +297,16 @@ export function readByokProviderId(raw: unknown, fallback: string | null): strin
  * what gets computed, only makes each one independently readable (and, for the `read*` functions,
  * independently testable) instead of one undifferentiated expression.
  */
-export function buildByokConfigFromLedger(byKey: Map<string, unknown>, defaults: ExecutionConfig): ByokConfig {
+export function buildByokConfigFromLedger({ byKey, defaults }: { byKey: Map<string, unknown>; defaults: ExecutionConfig }, _optional: Record<string, never> = {}): ByokConfig {
   const rawMaxTokens = byKey.get(KEYS.maxTokens);
   return {
-    protocol: readByokProtocol(byKey.get(KEYS.protocol), defaults.byok.protocol),
-    providerId: readByokProviderId(byKey.get(KEYS.providerId), defaults.byok.providerId),
+    protocol: readByokProtocol({ raw: byKey.get(KEYS.protocol), fallback: defaults.byok.protocol }),
+    providerId: readByokProviderId({ raw: byKey.get(KEYS.providerId), fallback: defaults.byok.providerId }),
     // Write-only — see this file's own doc. Never anything but "", regardless of whether a
     // credential is stored server-side.
     apiKey: "",
-    baseUrl: asString(byKey.get(KEYS.baseUrl), defaults.byok.baseUrl),
-    model: asString(byKey.get(KEYS.model), defaults.byok.model),
+    baseUrl: asString({ value: byKey.get(KEYS.baseUrl), fallback: defaults.byok.baseUrl }),
+    model: asString({ value: byKey.get(KEYS.model), fallback: defaults.byok.model }),
     ...(typeof rawMaxTokens === "number" && rawMaxTokens !== MAX_TOKENS_UNSET_SENTINEL
       ? { maxTokens: rawMaxTokens }
       : {}),
@@ -320,10 +317,10 @@ export function buildByokConfigFromLedger(byKey: Map<string, unknown>, defaults:
 
 /** Builds the `localCli` half of `loadExecutionConfig`'s result from the ledger rows — see
  *  {@link buildByokConfigFromLedger}'s doc for why this is split out the same way. */
-export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): ExecutionConfig["localCli"] {
-  const agentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
-  const model = asString(byKey.get(KEYS.localCliModel), "").trim();
-  const reasoning = asString(byKey.get(KEYS.localCliReasoning), "").trim();
+export function buildLocalCliConfigFromLedger({ byKey }: { byKey: Map<string, unknown> }, _optional: Record<string, never> = {}): ExecutionConfig["localCli"] {
+  const agentId = asString({ value: byKey.get(KEYS.localCliAgentId), fallback: "" }).trim();
+  const model = asString({ value: byKey.get(KEYS.localCliModel), fallback: "" }).trim();
+  const reasoning = asString({ value: byKey.get(KEYS.localCliReasoning), fallback: "" }).trim();
   return {
     // `""` is the ledger's "nothing picked yet" (a non-null default is
     // required — see `execution-mode-settings.ts`), which `@jini-ai/ui`
@@ -355,7 +352,7 @@ export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): Exec
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   let rows: SettingResolvedValue[];
   try {
-    rows = requireData(await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), "getSettingsEffective");
+    rows = requireData({ response: await settingsApi.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), callSite: "getSettingsEffective" });
   } catch (error) {
     // A namespace with no registered definitions is the expected cold-start
     // state, not an error worth surfacing — fall back to defaults.
@@ -366,9 +363,9 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   const byKey = new Map<string, unknown>(rows.map((row) => [row.key, row.value]));
   const defaults = DEFAULT_EXECUTION_CONFIG;
   return {
-    mode: readExecutionMode(byKey.get(KEYS.mode), defaults.mode),
-    byok: buildByokConfigFromLedger(byKey, defaults),
-    localCli: buildLocalCliConfigFromLedger(byKey),
+    mode: readExecutionMode({ raw: byKey.get(KEYS.mode), fallback: defaults.mode }),
+    byok: buildByokConfigFromLedger({ byKey, defaults }),
+    localCli: buildLocalCliConfigFromLedger({ byKey }),
   };
 }
 
@@ -475,7 +472,7 @@ export async function saveExecutionConfig(
   const written: string[] = [];
   try {
     for (const { key, valueJson } of changed) {
-      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope(key), valueJson });
+      await settingsApi.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson });
       written.push(key);
     }
   } catch (error) {
@@ -494,9 +491,9 @@ export async function saveExecutionConfig(
  *  Never rejects. */
 async function restoreLedgerKeys(keys: readonly string[], previousValues: ReadonlyMap<string, unknown>): Promise<void> {
   for (const key of [...keys].reverse()) {
-    await api
-      .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope(key), valueJson: previousValues.get(key) })
-      .catch(() => undefined);
+    await settingsApi
+      .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson: previousValues.get(key) })
+      .catch((error: unknown) => console.error("[execution-settings] Could not restore a setting", describeErrorForLog({ err: error })));
   }
 }
 
@@ -507,7 +504,7 @@ async function restoreLedgerKeys(keys: readonly string[], previousValues: Readon
  * `loadExecutionConfig` always returns `byok.apiKey: ""` (this file's header, item 2 — the server
  * never returns key material), and `refresh()` fires on ANY out-of-band notification — including a
  * same-tab echo of THIS SLICE'S OWN debounced write arriving back over the settings-changed SSE feed
- * (`settings-events.ts`; `src/server/routes/admin/settings/events.ts` broadcasts to every open
+ * (`settings-events.ts`; `apps/website/src/server/inbound/admin-http/routes/settings/events.ts` broadcasts to every open
  * connection for the workspace on a ~1s poll, the writer's own tab included, with no self-exclusion).
  *
  * The failure this prevents: an operator types a key, then edits a ledger field (baseUrl, model,
@@ -535,10 +532,10 @@ export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded
 
 /** Routes and authenticated HTTP remain host-owned; one adapter shares detection across mounts. */
 const executionHttpAdapter = createExecutionHttpAdapter({ transport: {
-  detectExecutionAgents: (input, options) => api.detectExecutionAgents(input, options),
-  testExecutionConnection: (input) => api.testExecutionConnection(input),
-  testExecutionAgent: (input) => api.testExecutionAgent(input),
-  listExecutionModels: (input) => api.listExecutionModels(input),
+  detectExecutionAgents: (input, options) => aiAssistantApi.detectExecutionAgents(input, options),
+  testExecutionConnection: (input) => aiAssistantApi.testExecutionConnection(input),
+  testExecutionAgent: (input) => aiAssistantApi.testExecutionAgent(input),
+  listExecutionModels: (input) => aiAssistantApi.listExecutionModels(input),
 } }, {});
 export type { CreateExecutionPortOptions } from "@jini-ai/ui";
 /** Existing screens retain their flags; the package boundary receives two objects. */

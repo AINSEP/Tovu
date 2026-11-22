@@ -1,3 +1,5 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import "../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -100,8 +102,9 @@ test("preview asset handler disables storage and validators while normal asset o
     },
   };
   const options: unknown[] = [];
-  registerThemeStaticAssets(app as never, {
+  registerThemeStaticAssets({ app: app as never,
     themeRoots: [root],
+  }, {
     serveStatic: Object.assign((_dir: string, opts?: Parameters<typeof express.static>[1]) => {
       options.push(opts);
       return (_req: unknown, res: express.Response) => res.send("fresh stylesheet");
@@ -146,8 +149,9 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   fs.writeFileSync(path.join(root, "test", "css", "main.css"), css);
   let staticHandler: Function = () => {};
   const authenticated = new Set<string>();
-  registerThemeStaticAssets({ use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never, {
-    themeRoots: [root], serveStatic: Object.assign(() => (_req: unknown, res: express.Response) => res.send(css), { mime: express.static.mime }),
+  registerThemeStaticAssets({ app: { use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never,
+    themeRoots: [root],
+  }, { serveStatic: Object.assign(() => (_req: unknown, res: express.Response) => res.send(css), { mime: express.static.mime }),
     isAuthenticatedPreviewRevision: ({ revision }) => authenticated.has(revision),
   });
   const previewHandler = createThemePreviewMiddleware({
@@ -232,19 +236,19 @@ test("preview reload refuses a principal without theme.set without writing a ref
 });
 
 test("cross-process: a theme another process created resolves on the server's next public request (no fallback)", async (t) => {
-  const { resolveActiveTheme, requestThemePreviewRefresh } = await import("#src/features/theme/index");
+  const { resolveActiveTheme } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
 
   // The agent daemon's `theme_duplicate`: a new folder on disk plus the marker bump — nothing in
   // THIS process's roster is touched.
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
 
   const warnings: string[] = [];
   t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
   await request("/");
-  const resolved = resolveActiveTheme({ themes }, "editorial-rose");
+  const resolved = resolveActiveTheme({ deps: { themes }, activeThemeId: "editorial-rose" });
   assert.notEqual(resolved, null);
   assert.equal(typeof resolved === "object" && resolved?.manifest.id, "editorial-rose");
   assert.deepEqual(warnings, [], "the active theme must resolve without a fallback warning");
@@ -259,11 +263,10 @@ test("cross-process: the admin Themes API sees a new theme without a manual resc
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
 
   await request("/api/admin/v1/workspaces/ws/presentation");
-  assert.deepEqual(validThemeIds(themes).sort(), ["editorial-rose", "tovu-starter"]);
+  assert.deepEqual(validThemeIds({ themes }).sort(), ["editorial-rose", "tovu-starter"]);
 });
 
 test("cross-process: a theme another process trashed drops out of the server's roster", async (t) => {
-  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
@@ -271,17 +274,16 @@ test("cross-process: a theme another process trashed drops out of the server's r
   assert.ok(themes.some((theme) => theme.manifest.id === "editorial-rose"));
 
   fs.rmSync(path.join(themesDir, "static", "editorial-rose"), { recursive: true });
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   await request("/admin/themes");
   assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
 
 test("theme asset requests never touch the roster", async (t) => {
-  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
   const { fs, path, themesDir, themes, request } = await bootServerRoster(t);
   await request("/");
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   await request("/theme-assets/editorial-rose/styles.css");
   assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
 });
@@ -336,6 +338,8 @@ test("an authenticated preview asset request remembers the revision, skips the r
 });
 
 test("preview reload writes a fresh refresh frame, and a themes path that cannot hold the marker answers 500", async (t) => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const { fs, path, themesDir, reload, deps } = await bootServerRoster(t);
   const ok = createCapturingResponse();
   ok.res.locals.principal = { id: "owner" };
@@ -344,14 +348,26 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   assert.equal(typeof (ok.capture.jsonBody as { revision?: unknown }).revision, "string");
   assert.equal(fs.existsSync(path.join(themesDir, ".preview-refresh.json")), true);
 
-  const blocker = path.join(themesDir, "not-a-directory");
+  const blocker = path.join(themesDir, "boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
   fs.writeFileSync(blocker, "file");
   (deps as { themesDir: string }).themesDir = blocker;
   const failed = createCapturingResponse();
   failed.res.locals.principal = { id: "owner" };
   await reload({ params: { workspaceId: "ws" } }, failed.res);
   assert.equal(failed.capture.statusCode, 500);
-  assert.deepEqual(failed.capture.jsonBody, { error: "preview reload failed" });
+  const body = failed.capture.jsonBody as { error: string; errorId: string };
+  assert.match(body.error, /The preview could not be reloaded/);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+  assert.doesNotMatch(JSON.stringify(body), /SECRETSECRETSECRETSECRET/);
+  const entry = logs.find(args => args[0] === "[theme-preview:refresh]"); assert.ok(entry, "the failure is logged");
+  const detail = entry[1] as { errorId: string; diagnostic: string };
+  assert.equal(detail.errorId, body.errorId);
+  assert.match(detail.diagnostic, /boom/);
+  // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any
+  // more; the failing call chain inside the product is the proof.
+  assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*refresh\.node\.(?:ts|js)/);
+  assert.match(detail.diagnostic, /at handler \(.*theme-preview-refresh\.ts/);
+  assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
 });
 
 test("registered refresh remembers only the 512 most recent authenticated preview revisions, and never an anonymous one", async (t) => {
@@ -362,7 +378,7 @@ test("registered refresh remembers only the 512 most recent authenticated previe
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const wasAuthenticated = registerThemePreviewRefresh({ app, deps });
   app.get("/preview-probe", (_req, res) => { res.send("ok"); });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

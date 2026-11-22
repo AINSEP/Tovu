@@ -5,11 +5,12 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as yauzl from 'yauzl';
-import type { FormCollectionProvider } from '@jini-ai/cms/forms';
+import type { FormCollectionProvider } from '@jini-ai/core/contracts/forms';
 import type { JsonObject } from '@jini-ai/core/primitives';
-import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render.js';
+import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
-import { downloadForms, exportHtml } from '../export-html-policy.js';
+import { exportHtml } from '../export-html-policy.js';
+import { downloadForms } from '#src/features/site-backup/static-download-html';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';
 import { createShareArchiveReader } from '../../site-backup/import-archive-reader.js';
 

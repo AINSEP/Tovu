@@ -1,38 +1,10 @@
-export type { PackedEntity } from "./packed-entity.js";
-import type { PackedEntity } from "./packed-entity.js";
-import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
-import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
-import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
-import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
-import type {
-  ContentLookupPort,
-  ContentTypeTaxonomyPolicyPort,
-  EntryTermRepoPort,
-  ImportableTaxonomyRepoPort,
-  ImportableTermRepoPort,
-  TaxonomyListPort,
-  TaxonomyRepoPort,
-  TaxonomyRevisionRepoPort,
-  TermListPort,
-  TermRepoPort,
-  UnassignableEntryTermRepoPort,
-} from "#src/features/taxonomy/index";
-import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "#src/features/taxonomy/contracts";
-import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
-import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
-import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
-import type { EntryListExcludingTypesPort, EntryPublishReadPort } from "#src/features/entries/contracts";
-import type { FileBlobIndexPort } from "./file-blob-index.js";
+export type { PackedEntity } from "@jini-ai/cms/publish/transfer";
+import type { PackedEntity } from "@jini-ai/cms/publish/transfer";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
-import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
-import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import type { DiscoveredTheme } from "#src/features/theme/catalog";
-import type { BackstopPorts } from "./backstop-ports.js";
-import type { BackstopMetadata } from "./backstop-audit.js";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
+import type { BackstopPorts } from "@jini-ai/cms/publish/transfer";
+import type { BackstopMetadata } from "@jini-ai/cms/publish/transfer";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 
 /**
  * @file Task 2 of the publish-content (Publish Content) feature —
@@ -93,117 +65,19 @@ import type { BackstopMetadata } from "./backstop-audit.js";
  * 5. A type absent from the registry is absent from the bundle and from the report — silence is
  *    never "nothing changed" (Task 4's export route is built as an ALLOWLIST of registered types for
  *    exactly this reason: plan §5 risk #8).
- *
- * ## `PublishContentDeps.ports` — one typed bag, keyed by `entityType` (F2)
- *
- * Every registered type used to widen `PublishContentDeps` with its own flat, individually-optional
- * field (`mediaRepo`, `redirectsWriteDeps`, `menuRepo`, `navLocationBindingRepo`, …) — about a dozen
- * of them accumulated one type at a time, each threaded by hand through `routes/publish-content/
- * deps.ts`, `tool-registrations.ts`, both composition roots, and `publish-content-seed-hash.ts`.
- * `media` shipped with a real `apply()` for a while before it could actually travel, because every
- * one of those builders forgot three of the fields and nothing complained — the fields were
- * OPTIONAL, so a missing one silently degraded `pack`/`inspect`/`precheck` to "nothing to report"
- * (see each handler's own `if (!deps.mediaRepo) return;`-shaped guard) instead of failing anywhere.
- *
- * {@link PublishContentPorts} replaces that with ONE interface, one line per registered type, so a
- * root that forgets a type's ports is a type error at exactly one place ({@link PublishContentDeps}
- * for `pack`/`inspect`/`precheck` callers, or `apply-loop.ts`'s `PublishContentApplyDeps` for the
- * apply path) instead of an N-file scavenger hunt. `ports` itself stays `Partial` here — a caller
- * that only ever exports/plans (never applies) still has no use for supplying every type's ports,
- * the same "absent behaves like it always did" contract the old per-type optional fields carried —
- * but each individual port's OWN shape is exhaustive for that type, so a root that does supply a
- * port can no longer misspell or half-supply one of its fields.
  */
-export interface PublishContentPorts {
-  readonly post: {
-    readonly repo: PostRepoPort;
-    /** Apply-only — `apply()`'s rollback path (drops the Trash index row when the write it undoes
-     *  was a trash). Never read by `pack`/`inspect`/`precheck`. */
-    readonly forgetRemoved?: ForgetRemovedPostFn;
-    /** Apply-only — `retire()`'s address-clash overwrite (`retirePostForReplacement`). */
-    readonly remove?: RemovePostFn;
-  };
-  readonly media: {
-    readonly repo: VersionedMediaRepoPort;
-    readonly assetBlobRepo: AssetBlobRepoPort;
-    readonly blobStore: BlobStorePort;
-    /** Where an imported blob's sniffed type is recorded — what the embed resolver reads to render a
-     *  video as `<video>` rather than an image. */
-    readonly contentTypeStore: MediaContentTypeStorePort;
-  };
-  /** `features/redirects/publish-content.ts`'s one real dependency: the same write-chokepoint deps
-   *  bag `createRedirect`/`updateRedirect` themselves take. */
-  readonly redirect: RedirectsWriteDeps;
-  readonly menu: {
-    readonly repo: MenuRepoPort;
-    readonly bindingRepo: NavLocationBindingRepoPort;
-  };
-  readonly "theme-files": {
-    readonly themesDir: string;
-    /** Apply-only — called right after `apply()` swaps a tree into {@link themesDir} (and again
-     *  after a rollback swaps it back), so the running site's in-memory `DiscoveredTheme.pages`/
-     *  `partials` re-render without a restart (2026-09-24, hosted production site). A composition root binds it
-     *  to `rescanThemes` over its own `RouteDeps.themes` array. */
-    readonly onReplaced?: () => void | Promise<void>;
-    /** The process-wide `sha256 -> {absPath, size}` map a file-tree `pack()` fills as it walks a
-     *  tree (`file-blob-index.ts`) — MUST be the same shared instance across every caller in one
-     *  process (never rebuilt per request); see that module's own header. */
-    readonly fileBlobIndex?: FileBlobIndexPort;
-  };
-  // Factory-built types (`repo-handler.ts`) below — every root builds these through ONE function,
-  // `server/runtime/composition/content-publish-ports.ts`'s `buildContentPublishPorts`, so a new line here is one edit there.
-  readonly form: { readonly repo: FormDefinitionRepoPort };
-  readonly "content-type": { readonly repo: ContentTypeRepoPort & ContentTypeListPort; readonly indexProvisioner: IndexProvisionerPort };
-  readonly taxonomy: TaxonomyPublishPorts;
-  readonly term: TaxonomyPublishPorts;
-  readonly "collection-entry": EntryPublishPorts;
-  readonly widget: WidgetPublishPorts;
-  readonly "widget-area": WidgetPublishPorts;
-  /** `set` needs `principals` in its deps; a workspace-scope write never reads it. */
-  readonly "site-setting": { readonly settings: SettingsRepoPort; readonly principals: PrincipalRepoPort };
-  /** `themes` is the root's live array (`rescanThemes` refills it in place after `theme-files` applies). */
-  readonly "active-theme": { readonly presentation: PresentationSettingsRepoPort; readonly themes: readonly DiscoveredTheme[] };
-}
-
-/** `widget` and `widget-area` share one bag: the widgets write-service deps minus the gateway fields. */
-export interface WidgetPublishPorts {
-  readonly entries: EntryRepoPort & EntryListPort & EntryPublishReadPort;
-  readonly contentTypes: ContentTypeRepoPort;
-  readonly entryRefs: EntryRefsRepoPort;
-  readonly bindings: WidgetRegionBindingRepoPort;
-  /** A `contact-form` widget names its form by id; the form travels by slug (`widgets/publish-content.ts`). */
-  readonly forms: FormDefinitionRepoPort;
-}
-
-/** `collection-entry`'s bag: the entry repo (trash-inclusive read), the owning-type lookup and the term bag. */
-export interface EntryPublishPorts {
-  readonly entries: EntryRepoPort & EntryListExcludingTypesPort & EntryPublishReadPort;
-  readonly contentTypes: ContentTypeRepoPort;
-  /** An entry's categories/tags (`termIds`) read and sync through the taxonomy bag. */
-  readonly terms: TaxonomyPublishPorts;
-}
-
-/** `taxonomy` and `term` share one bag: the Jini taxonomy write-service deps, minus the gateway
- *  fields `PublishContentDeps` already carries. */
-export interface TaxonomyPublishPorts {
-  readonly taxonomies: TaxonomyRepoPort & TaxonomyListPort & ImportableTaxonomyRepoPort & TaxonomyPublishReadPort;
-  readonly terms: TermRepoPort & TermListPort & ImportableTermRepoPort & TermPublishReadPort;
-  /** Also read and unassigned: post/page/entry `termIds` sync through these (`taxonomy/publish-term-ids.ts`). */
-  readonly entryTerms: EntryTermRepoPort & UnassignableEntryTermRepoPort & EntryTermReadPort;
-  readonly revisions: TaxonomyRevisionRepoPort;
-  readonly stampWatermark: () => Promise<void> | void;
-  /** Resolves posts/pages and collection entries (Jini `createContentLookup`). */
-  readonly contentLookup: ContentLookupPort;
-  /** Which collection types take terms: every live one (`server/runtime/composition/content-publish-ports.ts`). */
-  readonly contentTypeTaxonomyPolicy: ContentTypeTaxonomyPolicyPort;
-}
-
 /**
  * Mirrors `assistant/tool-registrations.ts`'s own `AssistantToolRegistryDeps`: a wide deps bag
  * assembled from every registered type's OWN deps needs via type-only imports, so this registry
  * module itself never has to know what any particular resource needs to build its handler.
+ *
+ * Generic over the host's port bag: the engine never reads a field of `ports`, it only hands the
+ * bag to the handler each registered type builds. `TPorts` defaults to this product's bag
+ * (`tovu-publish-ports.ts`) so every existing importer compiles unchanged while the engine is still
+ * in this repository; the default is removed, and every importer names its bag, when these types
+ * leave for the shared package.
  */
-export interface PublishContentDeps {
+export interface PublishContentDeps<TPorts = TovuPublishPorts> {
   /** Only explicit selection packs raw items; ordinary exports always yield none. */
   readonly backstop?: BackstopPorts;
   /** Every publish-content operation is scoped to one workspace (plan §1.1's mount-path
@@ -213,10 +87,10 @@ export interface PublishContentDeps {
   readonly workspaceId: string;
   readonly clock: ClockPort;
   readonly idGen: { newId(): string };
-  /** Optional — absent behaves exactly like `CreatePostDeps.outbox`/`beforeSaveHook` absent: no
-   *  status-transition event fires, no plugin `ext` patch is applied. See `post.ts`'s own docs. */
+  /** Optional — absent behaves exactly like `CreatePostDeps.outbox` absent: no status-transition
+   *  event fires. See `post.ts`'s own docs. (The plugin before-save hook is not an engine
+   *  dependency: it travels in the host's bag as `ports.hooks.beforeSave`.) */
   readonly outbox?: OutboxPort;
-  readonly beforeSaveHook?: BeforeSaveHookPort;
   /**
    * Task 8 (plan §4 task 8) — added when `apply()` finally got a real implementation. Every
    * `pack`/`inspect`/`precheck` caller (Task 4's export route, Task 5/7's planner/gated-hooks) never
@@ -230,9 +104,9 @@ export interface PublishContentDeps {
    */
   readonly changeSets?: ChangeSetRepoPort;
   readonly authorize?: AuthorizeFn;
-  /** F2 — every registered type's own ports, keyed by `entityType`. See {@link PublishContentPorts}'s
+  /** F2 — every registered type's own ports, keyed by `entityType`. See `tovu-publish-ports.ts`'s
    *  own header for why this replaced a dozen individually-optional flat fields. */
-  readonly ports: Partial<PublishContentPorts>;
+  readonly ports: Partial<TPorts>;
 }
 
 /**
@@ -345,7 +219,7 @@ export interface PublishContentHandler {
   /** Import side: what the destination currently holds for `id`, or `null` when there is no such
    *  row — the planner's `created` vs `unchanged`/`applied`/`conflict` classification (plan §4's
    *  "seven outcomes" table) starts here. */
-  inspect(id: string): Promise<{ version: number; hash: string } | null>;
+  inspect(required: { id: string }, optional?: Record<string, never>): Promise<{ version: number; hash: string } | null>;
   /** Import side: a PURE precondition check that never writes — slug availability, a
    *  format/shape violation, a required blob's absence. Returns a human-readable blocking reason, or
    *  `null` when there is no blocking condition. A structured source refusal can be overwritten
@@ -353,7 +227,7 @@ export interface PublishContentHandler {
    *  write and catch the constraint violation" — plan §5 risk #4 is specifically that a caught
    *  constraint violation kills the whole surrounding chunk transaction (Task 8), not just the one
    *  offending entity. */
-  precheck(entity: PackedEntity): Promise<string | OverwritablePrecheckRefusal | null>;
+  precheck(required: { entity: PackedEntity }, optional?: Record<string, never>): Promise<string | OverwritablePrecheckRefusal | null>;
   /** Import side: applies ONE entity through the real domain write function, inside the caller's own
    *  `executeCommand` (plan §1.4) — never through the raw repo. Receives `expectedVersion` (`undefined`
    *  for a brand-new entity with no destination row yet) and MUST fail rather than overwrite when the
@@ -367,7 +241,7 @@ export interface PublishContentHandler {
     idempotencyKey: string;
     /** Trusted apply-loop context, never read from PackedEntity.state. */
     sourceReplacement?: MediaSourceReplacement;
-  }): Promise<{ changeSetId: string }>;
+  }, optional?: {}): Promise<{ changeSetId: string }>;
 
   /**
    * S4 (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — read-only, like {@link precheck}: reports
@@ -376,7 +250,7 @@ export interface PublishContentHandler {
    * e.g. the home page). Never writes. Only meaningful for a `blocked` `precheck()` result; the
    * planner (`planner.ts`) is what decides when to call it.
    */
-  planRetire?(entity: PackedEntity): Promise<RetireTarget | null>;
+  planRetire?(required: { entity: PackedEntity }, optional?: Record<string, never>): Promise<RetireTarget | null>;
   /**
    * S4 — the write side of an address-clash overwrite: moves `target` to Trash under a renamed slug
    * (never in place) so the incoming entity can take the address under its own id, through the same
@@ -389,7 +263,7 @@ export interface PublishContentHandler {
     target: RetireTarget;
     principalId: string;
     idempotencyKey: string;
-  }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
+  }, optional?: {}): Promise<{ changeSetId: string; undo(): Promise<void> }>;
 
   /**
    * `publish-repoint-menus-plan-2026-09-24.md` §2.1/§2.2 — read-only, like {@link planRetire}: every
@@ -398,7 +272,7 @@ export interface PublishContentHandler {
    * with every retire-target id collected across the whole report — never once per row. A handler
    * with no concept of "links to another entity by id" simply omits this method.
    */
-  referencesTo?(ids: readonly string[]): Promise<readonly ReferenceHolder[]>;
+  referencesTo?(required: { ids: readonly string[] }, optional?: Record<string, never>): Promise<readonly ReferenceHolder[]>;
   /**
    * §2.3 — the write side: for each of `replacements`, repoints every live link `oldId -> newId` in
    * entities of this type, skipping any holder named in `skipIds` (written this run, so its own
@@ -412,7 +286,7 @@ export interface PublishContentHandler {
     skipIds: ReadonlySet<string>;
     principalId: string;
     runId: string;
-  }): Promise<RepointResult>;
+  }, optional?: {}): Promise<RepointResult>;
   /**
    * Post-publish safety check (2026-09-26): after every row has landed, confirms this type's
    * entities from the run are actually servable here — e.g. a media item's bytes are present and its
@@ -422,7 +296,7 @@ export interface PublishContentHandler {
    * operator-facing lines, one per problem; empty when all is well. Called by the apply loop once,
    * after the repoint pass; a throw is caught and reported, never fails the run (the content landed).
    */
-  verifyApplied?(input: { entities: readonly PackedEntity[] }): Promise<readonly string[]>;
+  verifyApplied?(input: { entities: readonly PackedEntity[] }, optional?: {}): Promise<readonly string[]>;
 
   /**
    * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first
@@ -433,7 +307,7 @@ export interface PublishContentHandler {
    * whose seed is not a DB row (e.g. `theme-files`, seeded as `__original-themes__` folders), which
    * the generic seed-db lookup cannot see. Read-only; absent means "no seed to compare against".
    */
-  seedHash?(id: string): Promise<string | null>;
+  seedHash?(required: { id: string }, optional?: Record<string, never>): Promise<string | null>;
 
   /**
    * `publish-files-plan-2026-09-24.md` §2/§6 — export side, read-only: every WHOLE unit this handler
@@ -455,7 +329,7 @@ export interface PublishContentHandler {
    * the carried ones' own references in turn. Unlike `dependsOn`, a reference implies no apply order
    * and the destination need not validate it. A type that uses nothing omits this method.
    */
-  references?(entity: PackedEntity): readonly PublishContentReference[];
+  references?(required: { entity: PackedEntity }, optional?: Record<string, never>): readonly PublishContentReference[];
 
   /**
    * True for one of this type's OWN errors that means "this row changed on the destination during
@@ -508,18 +382,18 @@ export interface SkippedPackEntity {
  * so the planner can compute apply order (rule 4 above) without having to `build()` every
  * contributor first just to read a static ordering fact.
  */
-export interface PublishContentContributor {
+export interface PublishContentContributor<TPorts = TovuPublishPorts> {
   /** Full-table/root coverage prevents raw imports from bypassing typed validation. */
   readonly coversTables?: readonly string[];
   readonly coversRoots?: readonly string[];
   readonly entityType: string;
   readonly dependsOn: readonly string[];
-  readonly build: (deps: PublishContentDeps) => PublishContentHandler;
+  readonly build: (deps: PublishContentDeps<TPorts>, optional?: {}) => PublishContentHandler;
 }
 
 /** A programmer-authored registry configuration that cannot produce a safe apply order. */
 export class PublishContentCatalogConfigurationError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentCatalogConfigurationError";
   }
@@ -539,18 +413,18 @@ function catalogDependencies(
   const known = new Set(originalOrder);
   // Seeded with every registered type, so a lookup by a registered type (each contributor's own
   // `entityType`, every dependent, every `originalOrder` entry) always finds a count; the
-  // non-null reads below rely on that instead of a fallback that could never be taken.
+  // checked reads below enforce that invariant instead of using a fallback that could never be taken.
   const inDegree = new Map<string, number>(originalOrder.map((entityType) => [entityType, 0]));
   const dependents = new Map<string, string[]>();
 
   for (const contributor of snapshot) {
     for (const dependency of new Set(contributor.dependsOn)) {
       if (!known.has(dependency)) {
-        throw new PublishContentCatalogConfigurationError(
-          `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'`
-        );
+        throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'` });
       }
-      inDegree.set(contributor.entityType, inDegree.get(contributor.entityType)! + 1);
+      const count = inDegree.get(contributor.entityType);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${contributor.entityType}' has no dependency count` });
+      inDegree.set(contributor.entityType, count + 1);
       const waiting = dependents.get(dependency) ?? [];
       waiting.push(contributor.entityType);
       dependents.set(dependency, waiting);
@@ -567,7 +441,7 @@ function catalogDependencies(
  * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
  * rejects before any handler is built or any publish-content read/write begins.
  */
-export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
+export function buildPublishContentCatalog(deps: PublishContentDeps, _optional = {}): PublishContentCatalog {
   const snapshot = [...contributors];
   const originalOrder = snapshot.map((contributor) => contributor.entityType);
   const { inDegree, dependents } = catalogDependencies({ snapshot, originalOrder });
@@ -580,18 +454,18 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
     );
     if (!next) {
       const cycleMembers = originalOrder.filter((entityType) => remaining.has(entityType));
-      throw new PublishContentCatalogConfigurationError(
-        `publish-content dependency cycle among registered types: ${cycleMembers.join(", ")}`
-      );
+      throw new PublishContentCatalogConfigurationError({ message: `publish-content dependency cycle among registered types: ${cycleMembers.join(", ")}` });
     }
     applyOrder.push(next);
     remaining.delete(next);
     for (const dependent of dependents.get(next) ?? []) {
-      inDegree.set(dependent, inDegree.get(dependent)! - 1);
+      const count = inDegree.get(dependent);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${dependent}' has no dependency count` });
+      inDegree.set(dependent, count - 1);
     }
   }
 
-  const handlers = snapshot.map((contributor) => contributor.build(stampPublishType(deps, contributor.entityType)));
+  const handlers = snapshot.map((contributor) => contributor.build(stampPublishType({ deps, publishType: contributor.entityType })));
   return {
     handlers,
     handlerByType: new Map(handlers.map((handler) => [handler.entityType, handler] as const)),
@@ -616,7 +490,7 @@ export interface PublishTypeStamp {
  *
  * @complexity O(1) — one object spread per call.
  */
-function stampPublishType(deps: PublishContentDeps, publishType: string): PublishContentDeps {
+function stampPublishType({ deps, publishType }: { deps: PublishContentDeps; publishType: string }, _optional = {}): PublishContentDeps {
   const { authorize } = deps;
   if (!authorize) return deps;
   const stamped: AuthorizeFn = (params) => authorize({ ...params, publishType } as Parameters<AuthorizeFn>[0]);
@@ -625,7 +499,7 @@ function stampPublishType(deps: PublishContentDeps, publishType: string): Publis
 
 /** Every permission a publishing grant may answer for `handler`'s writes: its own
  *  {@link PublishContentHandler.permission} plus {@link PublishContentHandler.alsoAuthorizes}. */
-export function publishTypePermissions(handler: PublishContentHandler): readonly string[] {
+export function publishTypePermissions({ handler }: { handler: PublishContentHandler }, _optional = {}): readonly string[] {
   return [handler.permission, ...(handler.alsoAuthorizes ?? [])];
 }
 
@@ -640,8 +514,8 @@ export function publishTypePermissions(handler: PublishContentHandler): readonly
  *
  * @complexity O(types) handler builds, each cheap (no I/O).
  */
-export function registeredPublishTypePermissions(deps: PublishContentDeps): ReadonlyMap<string, readonly string[]> {
-  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions(contributor.build(deps))] as const));
+export function registeredPublishTypePermissions(deps: PublishContentDeps, _optional = {}): ReadonlyMap<string, readonly string[]> {
+  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions({ handler: contributor.build(deps) })] as const));
 }
 
 let contributors: PublishContentContributor[] = [];
@@ -655,7 +529,7 @@ let contributors: PublishContentContributor[] = [];
  * instance, safe for a test process that legitimately re-registers. Registration order is otherwise
  * preserved so a replacement does not silently reorder the registry.
  */
-export function registerPublishContentContributor(contributor: PublishContentContributor): void {
+export function registerPublishContentContributor({ contributor }: { contributor: PublishContentContributor }, _optional = {}): void {
   const existing = contributors.findIndex((candidate) => candidate.entityType === contributor.entityType);
   if (existing >= 0) {
     contributors[existing] = contributor;

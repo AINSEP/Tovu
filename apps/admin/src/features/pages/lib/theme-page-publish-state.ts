@@ -1,8 +1,9 @@
 import { adminHref } from "../../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure publish-state logic for a Theme Pages row — pulled out of `ThemePagesTab.tsx` (2026-08-31
  * RowMenu/modal pass) so `ThemePageDetailsModal.tsx` can read the SAME derivation the table's own
@@ -23,7 +24,7 @@ import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";
  *  link, and {@link themePagePublicLinkState} for the public-site column's full link/no-link state.
  *
  *  @complexity Time/space: O(1). */
-export function themePagePath(pageId: string): string {
+export function themePagePath({ pageId }: { pageId: string }, _options = {}): string {
   return pageId === "index" ? "/" : `/${pageId}`;
 }
 
@@ -43,7 +44,7 @@ export function themePagePath(pageId: string): string {
  *  one would otherwise forge a third query parameter.
  *
  *  @complexity Time/space: O(1). */
-export function themeStudioRoutePath(themeId: string, pageId: string): string {
+export function themeStudioRoutePath({ themeId, pageId }: { themeId: string; pageId: string }, _options = {}): string {
   return `/themes/explore?theme=${encodeURIComponent(themeId)}&page=${encodeURIComponent(pageId)}`;
 }
 
@@ -57,8 +58,8 @@ export function themeStudioRoutePath(themeId: string, pageId: string): string {
  *  see that function's own doc for why.
  *
  *  @complexity Time/space: O(1). */
-export function themeStudioHref(themeId: string, pageId: string): string {
-  return adminHref(themeStudioRoutePath(themeId, pageId));
+export function themeStudioHref({ themeId, pageId }: { themeId: string; pageId: string }, _options = {}): string {
+  return adminHref({ routePath: themeStudioRoutePath({ themeId, pageId }) });
 }
 
 /** One of the two states a row's publish switch can render — mirrors `ThemeExplore.tsx`'s own
@@ -80,8 +81,8 @@ export type ThemePagePublishState =
  *
  * @complexity O(1).
  */
-export function lockedPublishReason(pageId: string, t: Translate): { on: boolean; reason: string } {
-  if (pageId === "index") return homeFallbackPublishReason(null, t);
+export function lockedPublishReason({ pageId, t }: { pageId: string; t: Translate }, _options = {}): { on: boolean; reason: string } {
+  if (pageId === "index") return homeFallbackPublishReason({ homePage: null, t });
   if (pageId === "404") return { on: true, reason: t("Always published — error page") };
   return { on: false, reason: t("Not a standalone page — used as a content template") };
 }
@@ -97,11 +98,9 @@ export function lockedPublishReason(pageId: string, t: Translate): { on: boolean
  *
  * @complexity O(1).
  */
-export function homeFallbackPublishReason(
-  homePage: ThemePageSlugCollision | null,
-  t: Translate
+export function homeFallbackPublishReason({ homePage, t }: { homePage: ThemePageSlugCollision | null; t: Translate }, _options = {}
 ): { on: boolean; reason: string } {
-  if (homePage) return { on: false, reason: t("Not shown — {title} is your home page").replace("{title}", homePage.title) };
+  if (homePage) return { on: false, reason: t("Not shown — {title} is your home page").replace("{title}", () => homePage.title) };
   return { on: true, reason: t("Home page fallback — shown at / until one of your pages is set as the home page") };
 }
 
@@ -114,7 +113,7 @@ export function homeFallbackPublishReason(
  *
  * @complexity O(1).
  */
-export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: Translate): string {
+export function themePageCollisionMessage({ collision, t }: { collision: ThemePageSlugCollision; t: Translate }, _optional: Record<string, never> = {}): string {
   const message =
     collision.slug === "/"
       ? t(
@@ -123,7 +122,7 @@ export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: 
       : t(
           "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
         );
-  return message.replace("{title}", collision.title);
+  return message.replace("{title}", () => collision.title);
 }
 
 /**
@@ -134,10 +133,10 @@ export function themePageCollisionMessage(collision: ThemePageSlugCollision, t: 
  *
  * @complexity O(1).
  */
-export function themePagePublishState(row: ThemePageRow, t: Translate): ThemePagePublishState {
+export function themePagePublishState({ row, t }: { row: ThemePageRow; t: Translate }, _optional: Record<string, never> = {}): ThemePagePublishState {
   if (row.published !== null) return { kind: "toggle", published: row.published };
-  if (row.pageId === "index") return { kind: "locked", ...homeFallbackPublishReason(row.collidingContent, t) };
-  return { kind: "locked", ...lockedPublishReason(row.pageId, t) };
+  if (row.pageId === "index") return { kind: "locked", ...homeFallbackPublishReason({ homePage: row.collidingContent, t }) };
+  return { kind: "locked", ...lockedPublishReason({ pageId: row.pageId, t }) };
 }
 
 /** The shapes the public-site URL column can render for one row — replaces the single path-
@@ -171,15 +170,15 @@ export type ThemePagePublicLinkState =
  *
  * @complexity O(1).
  */
-export function themePagePublicLinkState(row: ThemePageRow, t: Translate): ThemePagePublicLinkState {
+export function themePagePublicLinkState({ row, t }: { row: ThemePageRow; t: Translate }, _optional: Record<string, never> = {}): ThemePagePublicLinkState {
   if (row.pageId === "index") {
     return row.collidingContent
-      ? { kind: "replaced", reason: homeFallbackPublishReason(row.collidingContent, t).reason }
+      ? { kind: "replaced", reason: homeFallbackPublishReason({ homePage: row.collidingContent, t }).reason }
       : { kind: "live", path: "/" };
   }
-  const state = themePagePublishState(row, t);
+  const state = themePagePublishState({ row, t });
   if (state.kind === "locked") return { kind: "none" };
-  return { kind: state.published ? "live" : "not-live", path: themePagePath(row.pageId) };
+  return { kind: state.published ? "live" : "not-live", path: themePagePath({ pageId: row.pageId }) };
 }
 
 /**
@@ -191,6 +190,6 @@ export function themePagePublicLinkState(row: ThemePageRow, t: Translate): Theme
  *
  * @complexity O(1).
  */
-export function themePagePublishTooltip(state: Extract<ThemePagePublishState, { kind: "locked" }>): string {
+export function themePagePublishTooltip(state: Extract<ThemePagePublishState, { kind: "locked" }>, _optional: Record<string, never> = {}): string {
   return state.reason;
 }

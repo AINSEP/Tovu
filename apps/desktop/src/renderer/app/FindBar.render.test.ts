@@ -16,7 +16,7 @@ function fakeFind(fields: Partial<FindInPage> = {}): { find: FindInPage; calls: 
   const calls: string[] = [];
   const find: FindInPage = {
     open: true, query: 'tovu', result: null, countLabel: '2 of 5', inputRef: () => {},
-    setQuery: (text) => { calls.push(`query:${text}`); },
+    setQuery: ({ text }) => { calls.push(`query:${text}`); },
     next: () => { calls.push('next'); }, previous: () => { calls.push('previous'); }, close: () => { calls.push('close'); },
     registerGuest: () => {},
     ...fields,
@@ -37,7 +37,7 @@ test('FindBar: open shows the query and the count, and typing hands the text to 
   assert.equal(view.container.querySelector('.findbar')?.getAttribute('role'), 'search');
   assert.equal(input.value, 'tovu');
   assert.equal(view.container.querySelector('.findbar__count')?.textContent, '2 of 5');
-  await view.type(input, 'tovu site');
+  await view.type({ input, value: 'tovu site' });
   assert.deepEqual(calls, ['query:tovu site']);
 });
 
@@ -60,16 +60,16 @@ test('FindBar: Enter steps forward, Shift+Enter back, Escape closes, any other k
 test('FindBar: previous, next and close buttons each run their own action', async (t) => {
   const { find, calls } = fakeFind();
   const view = mount({ t, element: createElement(FindBar, { find }) });
-  await view.click(view.byLabel('Previous match'));
-  await view.click(view.byLabel('Next match'));
-  await view.click(view.byLabel('Close find bar'));
+  await view.click({ el: view.byLabel({ label: 'Previous match' }) });
+  await view.click({ el: view.byLabel({ label: 'Next match' }) });
+  await view.click({ el: view.byLabel({ label: 'Close find bar' }) });
   assert.deepEqual(calls, ['previous', 'next', 'close']);
 });
 
 test('FindBar: with nothing typed there is nothing to step through, so previous and next are disabled', (t) => {
   const { find } = fakeFind({ query: '' });
   const view = mount({ t, element: createElement(FindBar, { find }) });
-  assert.equal(view.byLabel('Previous match')?.hasAttribute('disabled'), true);
-  assert.equal(view.byLabel('Next match')?.hasAttribute('disabled'), true);
-  assert.equal(view.byLabel('Close find bar')?.hasAttribute('disabled'), false, 'close always works');
+  assert.equal(view.byLabel({ label: 'Previous match' })?.hasAttribute('disabled'), true);
+  assert.equal(view.byLabel({ label: 'Next match' })?.hasAttribute('disabled'), true);
+  assert.equal(view.byLabel({ label: 'Close find bar' })?.hasAttribute('disabled'), false, 'close always works');
 });

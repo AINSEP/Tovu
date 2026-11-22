@@ -32,7 +32,7 @@ async function boot(t: TestContext, options: { granted?: ReadonlySet<string>; ov
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminEmailTemplateRoutes(app, deps);
+  registerAdminEmailTemplateRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
   const send = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -115,7 +115,7 @@ test("trash between a successful lookup and real Pages store access returns not-
         trashedId = row.id;
       }
       return store.read();
-    }, capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: seed => store.ensureHtmlFormat(seed) };
+    }, capturedVersion: () => store.capturedVersion(), write: ({ html }) => store.write({ html }), ensureHtmlFormat: ({ seedHtml }) => store.ensureHtmlFormat({ seedHtml }) };
   } } });
   const created = await r.send("POST", BASE, { name: "Racy", html: HTML });
   assert.equal(created.status, 201);

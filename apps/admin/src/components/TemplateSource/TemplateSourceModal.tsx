@@ -1,14 +1,14 @@
-import { agentHandle } from "@jini-ai/agentic";
-import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
-import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
+import { createGoToTemplateInEditor } from "./TemplateSourceModal.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import { CodeWithLines, CodeWrapToggle, useCodeWrap } from "@jini-ai/ui";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
-import type { ThemeTier } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { navigate } from "@/lib/router";
-import { templateEditUrl, useWiredTemplateSource } from "./use-template-source.hooks";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 
+import { useWiredTemplateSource } from "./use-template-source.hooks";
+
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file "View Template" (2026-08-10) — read-only inspection of the theme page a Post's or Page's
  * `templateChoice` renders through on the public site. The owner's own framing: "I just wanna see
@@ -84,6 +84,7 @@ export interface TemplateSourceModalProps {
    *  {@link useWiredTemplateSource}; a test can pass a fake here to exercise the modal's rendering
    *  without a real `fetch`. */
   readonly useTemplateSourceHook?: typeof useWiredTemplateSource;
+  useCodeWrapHook?: typeof useCodeWrap;
 }
 
 export function TemplateSourceModal({
@@ -95,26 +96,19 @@ export function TemplateSourceModal({
   confirmLeave,
   t,
   editAgentHandleId,
-  useTemplateSourceHook = useWiredTemplateSource,
+  useTemplateSourceHook = useWiredTemplateSource, useCodeWrapHook = useCodeWrap,
 }: TemplateSourceModalProps) {
-  const fetchState = useTemplateSourceHook(themeId, themeTier, themeApiVersion, templateFilename);
+  const fetchState = useTemplateSourceHook({ themeId, themeTier, themeApiVersion, templateFilename });
   // Wrap on by default, same toggle as the plugin files viewer (owner, 2026-10-10).
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = useCodeWrapHook();
 
-  // Closing before navigating (not after — `navigate()` doesn't return a completion signal to
-  // sequence on) so this modal's own state never lingers mounted-but-stale under whatever screen
-  // Theme Explore renders next.
-  function goToTemplateInEditor() {
-    if (!confirmLeave()) return;
-    onClose();
-    navigate(templateEditUrl(themeId, templateFilename));
-  }
+  const goToTemplateInEditor = createGoToTemplateInEditor({ themeId, templateFilename, confirmLeave, onClose });
 
   let stageContent;
   if (themeTier === null) {
     stageContent = (
       <p role="status">
-        {translateTemplate(t, "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.", { themeId })}
+        {translateTemplate({ t, key: "Could not determine the active theme's (\"{themeId}\") capability tier, so this cannot tell whether it has a plain-HTML template to show.", values: { themeId } })}
       </p>
     );
   } else if (themeTier !== "static") {
@@ -122,7 +116,7 @@ export function TemplateSourceModal({
     // true (this theme's tier) rather than implying the template itself is missing.
     stageContent = (
       <p role="status">
-        {translateTemplate(t, "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.", { themeId, themeTier })}
+        {translateTemplate({ t, key: "The active theme (\"{themeId}\") is a {themeTier} theme — its page templates are not plain HTML files under this admin, so there is nothing to show here.", values: { themeId, themeTier } })}
       </p>
     );
   } else if (fetchState.status === "loading") {
@@ -130,11 +124,11 @@ export function TemplateSourceModal({
   } else if (fetchState.status === "error") {
     stageContent = (
       <p role="alert">
-        {translateTemplate(t, "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}", { templateFilename, themeId, message: fetchState.message })}
+        {translateTemplate({ t, key: "Could not load \"{templateFilename}\" from the \"{themeId}\" theme: {message}", values: { templateFilename, themeId, message: fetchState.message } })}
       </p>
     );
   } else {
-    stageContent = <CodeView text={fetchState.html} wrap={wrap} />;
+    stageContent = <CodeWithLines text={fetchState.html} wrap={wrap} />;
   }
 
   return (
@@ -167,6 +161,6 @@ export function TemplateSourceModal({
   );
 }
 
-function translateTemplate(t: Translate, key: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key));
+function translateTemplate({ t, key, values }: { t: Translate; key: string; values: Record<string, string> }, _options: Record<string, never> = {}): string {
+  return Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, () => value), t(key));
 }

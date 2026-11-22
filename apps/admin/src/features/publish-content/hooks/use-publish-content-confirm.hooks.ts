@@ -47,14 +47,17 @@ import {
  * non-Error.
  *
  */
-import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
+import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
+import { buildCriteriaPublishResult } from "./criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The colocated `PublishContentDialog` behaviour — Escape-to-cancel, plus plan -> confirm ->
  * execute ceremony (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4
@@ -102,7 +105,7 @@ export interface PublishContentConfirmView {
   readonly selectedPeerId: string | null;
   /** Choosing a different site discards any plan on screen — a plan belongs to the site that made
    *  it — and is ignored while {@link peerSelectionEnabled} is `false`. */
-  readonly onSelectPeer: (peerId: string) => void;
+  readonly onSelectPeer: (input: { peerId: string }, options?: Record<string, never>) => void;
   /** `false` while a plan is being worked out and from the moment the operator commits: there the
    *  site is part of what is already in flight, and changing it could only misdescribe it. */
   readonly peerSelectionEnabled: boolean;
@@ -132,7 +135,7 @@ export interface PublishContentConfirmView {
    *  that currently publish, because a page/post that uses them is still ticked. Their checkbox is
    *  shown ticked (and never clickable) exactly when the row is in here. */
   readonly carriedAlongKeys: ReadonlySet<string>;
-  readonly onToggleRow: (key: string) => void;
+  readonly onToggleRow: (input: { key: string }, options?: Record<string, never>) => void;
   /** Checks every selectable row, or unchecks every one of them when any is currently checked. */
   readonly onToggleAll: () => void;
   /** `false` once the operator has committed (confirming/executing/done) — the report stays on
@@ -229,9 +232,7 @@ export type PublishPrimaryKind = "start" | "confirm";
 export const CONFIRM_ARM_DELAY_MS = 400;
 
 /** `start` until a plan is on screen (or the run is done), `confirm` from then on. @complexity O(1). */
-function primaryKindFor(
-  phase: PublishContentPhase,
-  connectOffer: PublishContentConnectOffer | null
+function primaryKindFor({ phase, connectOffer }: { phase: PublishContentPhase; connectOffer: PublishContentConnectOffer | null }, _options: Record<string, never> = {}
 ): PublishPrimaryKind {
   if (connectOffer || canRequestPlan(phase) || phase.kind === "planning") return "start";
   return "confirm";
@@ -240,7 +241,7 @@ function primaryKindFor(
 /**
  * Builds the primary button's label. Counted copy is assembled from `t()`-resolved fragments rather
  * than one interpolated key, because this app's translator is a key lookup with no interpolation
- * (`lib/dictionary-translator.ts`) — the alternative is a key per possible count.
+ * (`Jini packages/ui/src/features/i18n/dictionary-translator.ts`) — the alternative is a key per possible count.
  *
  * The connect offer takes priority over every phase check below it: while it is present, the same
  * button IS the connect action (see this file's header note on why one control is reused rather
@@ -249,13 +250,16 @@ function primaryKindFor(
  * @complexity O(1).
  */
 function primaryLabelFor(
-  phase: PublishContentPhase,
-  selectedPublishing: number,
-  connectOffer: PublishContentConnectOffer | null,
-  connecting: boolean,
-  t: Translate,
-  scope: PublishScope | undefined,
-  onlyLiveGaps: boolean
+  { phase, selectedPublishing, connectOffer, connecting, t, scope, onlyLiveGaps }: {
+    phase: PublishContentPhase;
+    selectedPublishing: number;
+    connectOffer: PublishContentConnectOffer | null;
+    connecting: boolean;
+    t: Translate;
+    scope: PublishScope | undefined;
+    onlyLiveGaps: boolean;
+  },
+  _options: Record<string, never> = {},
 ): string {
   if (connectOffer) return connecting ? t("Connecting…") : t("Connect");
   if (phase.kind === "planning") return t("Planning…");
@@ -263,7 +267,7 @@ function primaryLabelFor(
   if (phase.kind === "done") return t("Published");
   // plan-publish-sections-2026-09-25.md §2 S2 — before a plan lands, the idle button promises what
   // this dialog is scoped to, same label as its own title (`publishScopeTitleKey`).
-  if (phase.kind !== "planned") return t(publishScopeTitleKey(scope));
+  if (phase.kind !== "planned") return t(publishScopeTitleKey({ scope: scope }));
   return plannedPrimaryLabel({ selectedPublishing, onlyLiveGaps, t });
 }
 
@@ -289,15 +293,12 @@ function plannedPrimaryLabel(
  *
  * @complexity O(n log n) in `entries.length`.
  */
-export function liveGapLinesFor(
-  entries: readonly PublishContentNotSupportedByLive[] | undefined,
-  t: Translate,
-  locale?: string
+export function liveGapLinesFor({ entries, t }: { entries: readonly PublishContentNotSupportedByLive[] | undefined; t: Translate }, { locale }: { locale?: string } = {}
 ): readonly string[] {
   return (entries ?? [])
     .filter((entry) => entry.count > 0)
-    .map((entry) => ({ label: t(publishEntityTypePluralLabel(entry.entityType)), count: entry.count }))
-    .sort(publishOrderComparator(locale, (line) => ({ group: "blocked", label: line.label })))
+    .map((entry) => ({ label: t(publishEntityTypePluralLabel({ entityType: entry.entityType })), count: entry.count }))
+    .sort(publishOrderComparator({ locale, keyOf: (line) => ({ group: "blocked", label: line.label }) }))
     .map((line) => `${line.label} (${line.count}) ${t("can't publish yet: the live site needs an update first.")}`);
 }
 
@@ -343,7 +344,7 @@ function completionMessagesFor(
 /** Count actual row outcomes, retaining the count-only reply from older peers.
  * @complexity O(n) actual report rows; no I/O. */
 function completionOutcomeMessage({ result, t }: { result: PublishContentExecuteResult; t: Translate }, _options = {}): string {
-  const actual = result.report ? summarizePublishReport(toPublishReportRows(result.report)) : null;
+  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows(result.report) }) : null;
   const changeCount = actual?.publishing ?? result.changeSetIds.length;
   const published = publishedCountMessage({ count: changeCount, t });
   const skipped = actual?.skipped ?? 0;
@@ -419,7 +420,7 @@ function publishInFlight(phase: PublishContentPhase): boolean {
 
 /**
  * Whether `peerId` is an actually-chosen site, as opposed to the picker's blank placeholder
- * (`PublishContentDialog.tsx`'s `<option value="">`, which fires `onSelectPeer("")`) or nothing
+ * (`PublishContentDialog.tsx`'s `<option value="">`, which fires `onSelectPeer({ peerId: "" })`) or nothing
  * chosen at all. Every guard downstream of a peer id — the start gate, the confirm gate, and the
  * execute effect's gate — reads this rather than a bare `!== null`, so an empty string can never slip
  * through one of them into a `planPublish`/`confirmPublish`/`executePublish` call with an empty
@@ -432,51 +433,6 @@ function publishInFlight(phase: PublishContentPhase): boolean {
  */
 function isChosenPeerId(peerId: string | null): peerId is string {
   return peerId !== null && peerId !== "";
-}
-
-/**
- * S2 — what `props.onPlanned` is called with: the SAME `rows`/`selection` the dialog itself renders
- * from, so a chat/WebMCP caller's report can never disagree with what the operator sees on screen.
- *
- * `willOverwrite` is a subset of `willPublish`, not a separate list: a `forced` row is also a row
- * that will be published (plan §2's own `PublishRequestResult` doc says as much — "what would be
- * published or overwritten"), it just publishes BY overwriting. `leftAlone` only ever names a
- * `skipped` row — an `unchanged` row isn't "left alone" by the criteria, it was already a no-op
- * before any criteria existed.
- *
- * @complexity O(rows).
- */
-function buildCriteriaPublishResult(
-  rows: readonly PublishReportRow[],
-  selection: CriteriaSelection,
-  siteLabel: string | null
-): PublishRequestResult {
-  const willPublish: string[] = [];
-  const willOverwrite: string[] = [];
-  const leftAlone: { label: string; reason: string }[] = [];
-  const selected = new Set(selectableRowKeys(rows).filter((key) => !selection.deselectedKeys.has(key)));
-  for (const row of rows) {
-    // A carried-along media row publishes with the pages/posts that use it (`rowPublishesWithSelection`).
-    if (rowPublishesWithSelection(row, selected)) {
-      willPublish.push(row.entityLabel);
-      if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
-      continue;
-    }
-    // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
-    // peer sent none), so a skipped row's `reason` is never null here.
-    if (row.disposition === "skipped") leftAlone.push({ label: row.entityLabel, reason: row.reason! });
-  }
-  return {
-    opened: true,
-    planned: true,
-    site: siteLabel,
-    willPublish,
-    willOverwrite,
-    leftAlone,
-    unmatchedItems: selection.unmatchedItems,
-    unknownTypes: selection.unknownTypes,
-    nextStep: "Check the list in the Publish dialog, then click Publish.",
-  };
 }
 
 /**
@@ -503,7 +459,7 @@ function buildCriteriaPublishResult(
  * space: O(n) for the shaped rows. Native dialog dismissal is owned by Jini.
  */
 /** A replan's scope: just the peer, plus the ticked overwrite keys when there are any. */
-function planScope(peerId: string, overwriteKeys: ReadonlySet<string>): { peerId: string; overwriteEntityKeys?: string[] } {
+function planScope({ peerId, overwriteKeys }: { peerId: string; overwriteKeys: ReadonlySet<string> }, _options: Record<string, never> = {}): { peerId: string; overwriteEntityKeys?: string[] } {
   return overwriteKeys.size === 0 ? { peerId } : { peerId, overwriteEntityKeys: Array.from(overwriteKeys) };
 }
 
@@ -565,8 +521,11 @@ export function usePublishContentConfirm(props: {
   const [destination, setDestination] = useState<AdminPublishDestinationView | null>(null);
   const [destinationLoaded, setDestinationLoaded] = useState(false);
   const [destinationError, setDestinationError] = useState<string | null>(null);
+  const peerLoadTranslator = useRef(t);
+  peerLoadTranslator.current = t;
 
   useEffect(() => {
+    const t = peerLoadTranslator.current;
     let cancelled = false;
     const readDestination = async (_required: Record<string, never>, _options: Record<string, never> = {}) => {
       try {
@@ -576,7 +535,7 @@ export function usePublishContentConfirm(props: {
       } catch (destinationErr) {
         if (cancelled || !live.current) return;
         setDestinationError(
-          describeApiError(destinationErr, t("Could not check whether this install can publish yet."))
+          describeApiError({ e: destinationErr, fallback: t("Could not check whether this install can publish yet.") })
         );
       } finally {
         if (!cancelled && live.current) setDestinationLoaded(true);
@@ -599,7 +558,7 @@ export function usePublishContentConfirm(props: {
         }
       } catch (error) {
         if (cancelled || !live.current) return;
-        setPeersError(describeApiError(error, t("Could not load publish targets.")));
+        setPeersError(describeApiError({ e: error, fallback: t("Could not load publish targets.") }));
       } finally {
         if (!cancelled && live.current) setPeersLoaded(true);
       }
@@ -610,7 +569,6 @@ export function usePublishContentConfirm(props: {
     // `t` is read only for a fallback string and is deliberately NOT a dependency: a caller whose
     // translator is a fresh closure each render would otherwise refetch the peer list on every
     // render. The worst case is a fallback sentence in a stale locale.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
   const connectOffer = publishConnectOffer({
@@ -702,7 +660,7 @@ export function usePublishContentConfirm(props: {
         if (!live.current || planPeerRef.current !== peerId) return;
         setPhase({
           kind: "failed",
-          message: describeApiError(error, t("Could not work out what would be published.")),
+          message: describeApiError({ e: error, fallback: t("Could not work out what would be published.") }),
           code: null,
         });
       }
@@ -741,7 +699,7 @@ export function usePublishContentConfirm(props: {
         try {
           const replanned = useBase
             ? base
-            : await planInScope(planScope(peerId, nextOverwriteKeys));
+            : await planInScope(planScope({ peerId: peerId, overwriteKeys: nextOverwriteKeys }));
           if (!isCurrentReplan({})) return;
           setReplanPending(false);
           if (
@@ -762,7 +720,7 @@ export function usePublishContentConfirm(props: {
           setReplanPending(false);
           setPhase({
             kind: "failed",
-            message: describeApiError(error, t("Could not work out what would be published.")),
+            message: describeApiError({ e: error, fallback: t("Could not work out what would be published.") }),
             code: null,
           });
         }
@@ -793,7 +751,7 @@ export function usePublishContentConfirm(props: {
     setConnecting(true);
     setDestinationError(null);
     try {
-      const view = await port.connectDestination();
+      const view = await port.connectDestination({});
       if (!live.current) return;
       if (view.site === null) {
         // Contract violation, not a user-facing failure mode: `destination.ts`'s `/connect` always
@@ -810,7 +768,7 @@ export function usePublishContentConfirm(props: {
       void requestPlan(site.id);
     } catch (error) {
       if (!live.current) return;
-      setDestinationError(describeApiError(error, t("Could not connect.")));
+      setDestinationError(describeApiError({ e: error, fallback: t("Could not connect.") }));
       setConnecting(false);
     }
   }, [port, requestPlan, t]);
@@ -825,7 +783,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "planned", plan: error.plan });
         return;
       }
-      setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
+      setPhase({ kind: "failed", message: describeApiError({ e: error, fallback: t("Could not publish.") }), code: null });
     },
     [peers, t]
   );
@@ -873,7 +831,7 @@ export function usePublishContentConfirm(props: {
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
     const planRows = toPublishReportRows(plan.details);
-    const selectable = selectableRowKeys(planRows);
+    const selectable = selectableRowKeys({ rows: planRows });
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
     if (keep.length === 0) return;
     // A carried-along media row is never selectable, so it is never in `keep` — but it still publishes
@@ -889,7 +847,7 @@ export function usePublishContentConfirm(props: {
       const confirmed = await preparePublishConfirmation({
         plan,
         deselectedKeys,
-        planPublish: (input) => planInScope({ peerId, ...input }),
+        planPublish: (input, _options = {}) => planInScope({ peerId, ...input }),
       });
       await confirmPreparedPlan({ peerId, confirmed });
     } catch (error) {
@@ -925,7 +883,7 @@ export function usePublishContentConfirm(props: {
         setPhase({ kind: "done", result });
       } catch (error) {
         if (!live.current) return;
-        setPhase({ kind: "failed", message: describeApiError(error, t("Could not publish.")), code: null });
+        setPhase({ kind: "failed", message: describeApiError({ e: error, fallback: t("Could not publish.") }), code: null });
       }
     })();
   }, [executionToken, phase, port, t]);
@@ -975,6 +933,10 @@ export function usePublishContentConfirm(props: {
   const criteriaAppliedRef = useRef(false);
   const criteriaSelectionRef = useRef<CriteriaSelection | null>(null);
   const criteriaAwaitingReplanRef = useRef(false);
+  const criteriaInputs = useRef({ criteria: props.criteria, applyOverwriteKeys });
+  criteriaInputs.current = { criteria: props.criteria, applyOverwriteKeys };
+  const planReportInputs = useRef({ onPlanned: props.onPlanned, peers, selectedPeerId });
+  planReportInputs.current = { onPlanned: props.onPlanned, peers, selectedPeerId };
 
   useEffect(() => {
     if (props.criteria === undefined || criteriaAutoPlanRef.current) return;
@@ -984,9 +946,10 @@ export function usePublishContentConfirm(props: {
   }, [props.criteria, selectedPeerId, phase, requestPlan]);
 
   useEffect(() => {
-    if (props.criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
+    const { criteria, applyOverwriteKeys } = criteriaInputs.current;
+    if (criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
     criteriaAppliedRef.current = true;
-    const sel = applyPublishCriteria(toPublishReportRows(phase.plan.details), props.criteria);
+    const sel = applyPublishCriteria({ rows: toPublishReportRows(phase.plan.details), criteria });
     criteriaSelectionRef.current = sel;
     setDeselectedKeys(sel.deselectedKeys);
     if (sel.overwriteKeys.size > 0) {
@@ -997,12 +960,12 @@ export function usePublishContentConfirm(props: {
     // where `phase` FIRST becomes "planned" (so `applyOverwriteKeys`'s own `phase.kind==="planned"`
     // guard is current, not stale — see this block's own header), and it self-guards with the ref
     // against ever running a second time regardless of what else changes identity around it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   useEffect(() => {
+    const { onPlanned, peers, selectedPeerId } = planReportInputs.current;
     const sel = criteriaSelectionRef.current;
-    if (sel === null || phase.kind !== "planned" || props.onPlanned === undefined) return;
+    if (sel === null || phase.kind !== "planned" || onPlanned === undefined) return;
     if (criteriaAwaitingReplanRef.current) {
       // The real (not stale-closure) current value — see this file's header on why `requestPlan`
       // can't read `phase` this way but a ref always can.
@@ -1011,8 +974,7 @@ export function usePublishContentConfirm(props: {
     }
     criteriaSelectionRef.current = null;
     const siteLabel = peers.find((peer) => peer.id === selectedPeerId)?.label ?? null;
-    props.onPlanned(buildCriteriaPublishResult(rows, sel, siteLabel));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    onPlanned(buildCriteriaPublishResult({ rows: rows, selection: sel, siteLabel: siteLabel }));
   }, [phase, rows]);
 
   const { overwriteWarning, overwriteUnavailable } = publishOverwriteNotices({
@@ -1027,7 +989,7 @@ export function usePublishContentConfirm(props: {
   // only phase where changing the selection could still change what gets published.
   const selectionEnabled = phase.kind === "planned";
 
-  const onToggleRow = (key: string): void => {
+  const onToggleRow = ({ key }: { key: string }, _options: Record<string, never> = {}): void => {
     setDeselectedKeys((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -1043,7 +1005,7 @@ export function usePublishContentConfirm(props: {
   };
 
   const peerSelectionEnabled = peerSelectionOpen(phase);
-  const onSelectPeer = (peerId: string): void => {
+  const onSelectPeer = ({ peerId }: { peerId: string }, _options: Record<string, never> = {}): void => {
     // The picker's blank "Choose a site…" option fires this with `""` (its `value`) — normalized to
     // `null` here so `selectedPeerId` can never hold it, the same "nothing chosen" state a fresh
     // dialog starts in. This is the fix, not just a defense: every downstream guard reads
@@ -1070,7 +1032,7 @@ export function usePublishContentConfirm(props: {
     return isChosenPeerId(selectedPeerId) ? requestPlan(selectedPeerId) : Promise.resolve();
   }, [confirmPlan, connectOffer, onConnect, phase, requestPlan, selectedPeerId]);
 
-  const primaryKind = primaryKindFor(phase, connectOffer);
+  const primaryKind = primaryKindFor({ phase: phase, connectOffer: connectOffer });
   const primaryDisabled = publishPrimaryDisabled({
     phase,
     selectedPeerId,
@@ -1137,16 +1099,16 @@ export function usePublishContentConfirm(props: {
     overwriteWarning,
     overwriteMismatch,
     overwriteUnavailable,
-    title: publishScopeTitleKey(props.scope),
-    description: publishScopeDescriptionKey(props.scope),
+    title: publishScopeTitleKey({ scope: props.scope }),
+    description: publishScopeDescriptionKey({ scope: props.scope }),
     primaryLabel: primaryLabelFor(
-      phase,
-      selectedPublishing,
-      connectOffer,
-      connecting,
-      t,
-      props.scope,
-      rows.length === 0 && liveGapNotices.length > 0
+      { phase: phase,
+      selectedPublishing: selectedPublishing,
+      connectOffer: connectOffer,
+      connecting: connecting,
+      t: t,
+      scope: props.scope,
+      onlyLiveGaps: rows.length === 0 && liveGapNotices.length > 0 }
     ),
     primaryKind,
     primaryDisabled,
@@ -1175,22 +1137,22 @@ function publishReportSelection(
   // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
-    report === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(report, { completed: phase.kind === "done" }), locale);
-  const summary = report === null || phase.kind === "done" ? null : summarizePublishReport(rows);
+    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows(report, { completed: phase.kind === "done" }), locale });
+  const summary = report === null || phase.kind === "done" ? null : summarizePublishReport({ rows });
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.
   const listedRows = rows.filter((row) => row.disposition !== "unchanged");
   const upToDateRows = rows.filter((row) => row.disposition === "unchanged");
-  const liveGapNotices = liveGapLinesFor(visiblePlan?.notSupportedByLive, t, locale);
+  const liveGapNotices = liveGapLinesFor({ entries: visiblePlan?.notSupportedByLive, t: t }, { locale: locale });
 
   // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
   // disagree with it or with the rows currently on screen.
-  const selectableKeys = selectableRowKeys(rows);
+  const selectableKeys = selectableRowKeys({ rows });
   const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
-  const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
+  const selectedPublishing = countSelectedPublishing({ rows, selected: selectedKeys });
   const carriedAlongKeys: ReadonlySet<string> = new Set(
     rows
-      .filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, selectedKeys))
+      .filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection({ row, selected: selectedKeys }))
       .map((row) => row.key)
   );
   const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;

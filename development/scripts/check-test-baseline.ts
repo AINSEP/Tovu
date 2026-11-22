@@ -189,7 +189,24 @@ function main(): void {
   const fileRollups = unmatched.filter(isFileLevelRollup);
   const fixedFailures = [...knownFailures].filter((name) => !currentFailures.has(name));
 
-  const reportKnownFailures = (_required: Record<string, never>, _options = {}): void => {
+  const reportKnownFailures = createReportKnownFailures(fixedFailures, baselinePath, fileRollups);
+  reportKnownFailures({});
+
+  if (newFailures.length === 0) {
+    console.log(
+      `check:route-test-baseline — OK: ${currentFailures.size} failing test(s), all in the ${knownFailures.size}-entry baseline.`
+    );
+    return;
+  }
+
+  console.error(`check:route-test-baseline — ${newFailures.length} NEW failing test(s), not in the baseline:`);
+  for (const name of newFailures) console.error(`  - ${name}`);
+  console.error(`Fix it, or if it is genuinely pre-existing debt, add it to ${path.relative(REPO_ROOT, baselinePath)} with a reason.`);
+  process.exit(1);
+}
+
+function createReportKnownFailures(fixedFailures: string[], baselinePath: string, fileRollups: string[]) {
+  return (_required: Record<string, never>, _options = {}): void => {
     // Deliberately console.error (not console.log) even though this block is advisory, not a
     // failure: on POSIX, Node.js writes to a *pipe* (not a TTY or a plain file) are asynchronous,
     // and GitHub Actions captures step output through a pipe. When this block and the NEW-failures
@@ -215,19 +232,6 @@ function main(): void {
     }
 
   };
-  reportKnownFailures({});
-
-  if (newFailures.length === 0) {
-    console.log(
-      `check:route-test-baseline — OK: ${currentFailures.size} failing test(s), all in the ${knownFailures.size}-entry baseline.`
-    );
-    return;
-  }
-
-  console.error(`check:route-test-baseline — ${newFailures.length} NEW failing test(s), not in the baseline:`);
-  for (const name of newFailures) console.error(`  - ${name}`);
-  console.error(`Fix it, or if it is genuinely pre-existing debt, add it to ${path.relative(REPO_ROOT, baselinePath)} with a reason.`);
-  process.exit(1);
 }
 
 // Guarded, matching the idiom check-src-complexity-drift.ts already uses in this directory (see

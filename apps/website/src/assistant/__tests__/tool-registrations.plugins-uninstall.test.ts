@@ -7,8 +7,8 @@ import test, { after } from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "#src/assistant/index";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
@@ -32,7 +32,7 @@ import { composePluginProviderFaces } from "../../server/runtime/composition/age
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -93,7 +93,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const deps: PluginsToolDeps & TovuPluginHostDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     preferences: { locale: async () => "en" },
     notifyRosterChanged: notifyExternalMcpRosterChanged,
-    providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace(WORKSPACE_ID).root }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace({ workspaceId: WORKSPACE_ID }).root }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

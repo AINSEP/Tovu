@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createKeyringBackedSigner } from "../signing.keyring.js";
 import { createFixedSecretSigner, verifySignature } from "../signing.js";
-import type { KeyringPort } from "../ports.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { WebhookSubscriptionRecord } from "../types.js";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {
@@ -22,6 +22,7 @@ function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): W
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     disabledAt: null,
+    version: 1,
     ...overrides,
   };
 }
@@ -47,7 +48,7 @@ test("createKeyringBackedSigner produces the same signature createFixedSecretSig
   const timestampSeconds = Math.floor(Date.now() / 1000);
 
   const keyringSigner = createKeyringBackedSigner(makeFixedKeyring(secret));
-  const fixedSigner = createFixedSecretSigner(new Map([[subscription.id, secret]]));
+  const fixedSigner = createFixedSecretSigner({ secrets: new Map([[subscription.id, secret]]) });
 
   const fromKeyring = await keyringSigner.signForSubscription({ subscription, rawBody, timestampSeconds });
   const fromFixed = await fixedSigner.signForSubscription({ subscription, rawBody, timestampSeconds });

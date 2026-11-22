@@ -27,10 +27,10 @@ import { BASE, FailingPeerRepo, routeApp, routeDeps } from "./route-fixture.js";
 const PEERS = `${BASE}/peers`;
 
 const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
-  [new PublishContentPeerValidationError("label is required"), 400, "VALIDATION_ERROR"],
-  [new PublishContentPeerDuplicateLabelError("a peer labelled 'Live' already exists"), 409, "DUPLICATE_LABEL"],
-  [new PublishContentPeerNotFoundError("peer 'p' was not found"), 404, "PEER_NOT_FOUND"],
-  [new PublishContentPeerSecretStoreUnconfiguredError("publish-content peer secret store is unconfigured"), 503, "SECRET_STORE_UNCONFIGURED"],
+  [new PublishContentPeerValidationError({ message: "label is required" }), 400, "VALIDATION_ERROR"],
+  [new PublishContentPeerDuplicateLabelError({ message: "a peer labelled 'Live' already exists" }), 409, "DUPLICATE_LABEL"],
+  [new PublishContentPeerNotFoundError({ message: "peer 'p' was not found" }), 404, "PEER_NOT_FOUND"],
+  [new PublishContentPeerSecretStoreUnconfiguredError({ message: "publish-content peer secret store is unconfigured" }), 503, "SECRET_STORE_UNCONFIGURED"],
 ];
 
 for (const [error, status, code] of TYPED_ERRORS) {
@@ -46,7 +46,7 @@ test("GET .../peers answers an untyped failure with a fixed 500 that never echoe
 });
 
 test("a typed error this route does not map (credential missing) is still the fixed 500", async () => {
-  const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerCredentialMissingError("peer has no credential")) }));
+  const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerCredentialMissingError({ message: "peer has no credential" })) }));
   assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", PEERS), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The publishing destinations could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load publishing destinations"} });
 });
 
@@ -56,7 +56,7 @@ test("GET .../peers lists the saved peers", async () => {
 });
 
 test("PATCH .../peers/:peerId answers a store failure through the same mapping", async () => {
-  const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerNotFoundError("peer 'p' was not found")) }));
+  const app = routeApp(registerPublishContentPeerRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerNotFoundError({ message: "peer 'p' was not found" })) }));
   assert.deepEqual(await dispatchJsonRequest(app, "PATCH", `${PEERS}/p`, { label: "Renamed" }), { status: 404, body: { error: "peer 'p' was not found", code: "PEER_NOT_FOUND" } });
 });
 

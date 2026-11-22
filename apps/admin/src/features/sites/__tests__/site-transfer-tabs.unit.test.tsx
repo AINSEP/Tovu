@@ -1,20 +1,27 @@
 import userEvent from "@testing-library/user-event";
 import type { SiteExportController, SiteImportController } from "../hooks/use-site-transfer.hooks";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The tabs take the viewer's zone from the admin boundary; a getter lets one test pick a zone.
+const viewerZone = vi.hoisted(() => ({ value: "UTC" }));
+vi.mock("@/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZONE() { return viewerZone.value; } }));
+
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
 import { SiteExportTab } from "../SiteExportTab";
 import { SiteImportTab } from "../SiteImportTab";
 import { createFakeSiteTransferPort, defaultSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";
 import { useSiteExport, useSiteImport } from "../hooks/use-site-transfer.hooks";
+import type { LiveImportSiteController } from "../hooks/use-live-import-site.hooks";
+import type { DesktopImportController } from "../hooks/use-desktop-import.hooks";
 import {
   formatTransferBytes,
   importOptionsTip,
   importSourceLabel,
   importStateView,
+  liveImportMode,
   shareStatusView,
   shortLink,
 } from "../site-transfer-rules";
@@ -51,10 +58,15 @@ function renderExport(port: SiteTransferPort, clipboard?: Pick<Clipboard, "write
   );
 }
 
-function renderImport(port: SiteTransferPort) {
+/** The live-website source's own seam: records the address it was asked to make a new site for. */
+function liveSite(overrides: Partial<LiveImportSiteController> = {}): LiveImportSiteController {
+  return { creating: false, error: null, start: vi.fn(async () => {}), ...overrides };
+}
+
+function renderImport(port: SiteTransferPort, live: LiveImportSiteController = liveSite()) {
   render(
     <FetchQueryProvider>
-      <SiteImportTab t={t} useImport={({ t: tr }) => useSiteImport({ port, t: tr })} showNewSiteLink />
+      <SiteImportTab t={t} useImport={({ t: tr }) => useSiteImport({ port, t: tr })} useLiveSite={() => live} canMakeSites />
     </FetchQueryProvider>,
   );
 }
@@ -65,35 +77,46 @@ describe("site transfer display rules", () => {
   it.each([
     [null, "—"], [-1, "—"], [Number.NaN, "—"], [512, "512 B"], [2048, "2 KB"], [3 * 1024 ** 2, "3.0 MB"], [1.5 * 1024 ** 3, "1.5 GB"],
   ])("formatTransferBytes(%s) is %s", (bytes, expected) => {
-    expect(formatTransferBytes(bytes)).toBe(expected);
+    expect(formatTransferBytes({ bytes: bytes })).toBe(expected);
   });
 
   it("gives each export and import state its label and tone", () => {
-    expect(shareStatusView("active", t)).toEqual({ label: "Active", className: "status status-ok" });
-    expect(shareStatusView("revoked", t)).toEqual({ label: "Revoked", className: "status status-neutral" });
-    expect(shareStatusView("failed", t)).toEqual({ label: "Failed", className: "status status-error" });
-    expect(importStateView("ready", t)).toEqual({ label: "Ready", className: "status status-ok" });
-    expect(importStateView("failed", t)).toEqual({ label: "Failed", className: "status status-error" });
-    expect(importStateView("needs-owner", t)).toEqual({ label: "Needs a password", className: "status status-warning" });
-    expect(importStateView("verifying", t)).toEqual({ label: "Checking…", className: "status status-neutral" });
-    expect(importStateView("creating", t)).toEqual({ label: "Creating…", className: "status status-neutral" });
+    expect(shareStatusView({ status: "active", t })).toEqual({ label: "Active", className: "status status-ok" });
+    expect(shareStatusView({ status: "revoked", t })).toEqual({ label: "Revoked", className: "status status-neutral" });
+    expect(shareStatusView({ status: "failed", t })).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "ready", t })).toEqual({ label: "Ready", className: "status status-ok" });
+    expect(importStateView({ state: "failed", t })).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "needs-owner", t })).toEqual({ label: "Needs a password", className: "status status-warning" });
+    expect(importStateView({ state: "verifying", t })).toEqual({ label: "Checking…", className: "status status-neutral" });
+    expect(importStateView({ state: "creating", t })).toEqual({ label: "Creating…", className: "status status-neutral" });
     // A state a newer server added reads as Failed, never as a blank pill.
-    expect(importStateView("archived" as Parameters<typeof importStateView>[0], t)).toEqual({ label: "Failed", className: "status status-error" });
+    expect(importStateView({ state: "archived" as Parameters<typeof importStateView>[0]["state"], t })).toEqual({ label: "Failed", className: "status status-error" });
   });
 
   it("shortens links to host and path, and names an uploaded zip without a path", () => {
-    expect(shortLink("https://example.com/_share/abc/x.zip?y=1")).toBe("example.com/_share/abc/x.zip");
-    expect(shortLink("https://example.com/")).toBe("example.com");
-    expect(shortLink("not a url")).toBe("not a url");
-    expect(importSourceLabel({ url: "https://example.com/s/abc" }, t)).toBe("example.com/s/abc");
-    expect(importSourceLabel({ uploadId: "u-1" }, t)).toBe("Uploaded zip");
+    expect(shortLink({ link: "https://example.com/_share/abc/x.zip?y=1" })).toBe("example.com/_share/abc/x.zip");
+    expect(shortLink({ link: "https://example.com/" })).toBe("example.com");
+    expect(shortLink({ link: "not a url" })).toBe("not a url");
+    expect(importSourceLabel({ source: { url: "https://example.com/s/abc" }, t })).toBe("example.com/s/abc");
+    expect(importSourceLabel({ source: { uploadId: "u-1" }, t })).toBe("Uploaded zip");
+  });
+
+  it("a live website imports into this site only on the site made for it; elsewhere it makes a new site, or is not offered", () => {
+    expect(liveImportMode({ arrivedForImport: true, canMakeSites: false })).toBe("this-new-site");
+    expect(liveImportMode({ arrivedForImport: true, canMakeSites: true })).toBe("this-new-site");
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: true })).toBe("new-site");
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: false })).toBe("unavailable");
+    // Inside the desktop app (its Import bridge is there) the live source hands off to the app's Import tab.
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: false }, { desktopImport: true })).toBe("desktop");
+    expect(liveImportMode({ arrivedForImport: false, canMakeSites: true }, { desktopImport: true })).toBe("new-site");
+    expect(liveImportMode({ arrivedForImport: true, canMakeSites: false }, { desktopImport: true })).toBe("this-new-site");
   });
 
   it("puts both ways in under one tip, a bullet each", () => {
-    const lines = importOptionsTip(t).split("\n");
+    const lines = importOptionsTip({ t }).split("\n");
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatch(/^• Share link or zip: /);
-    expect(lines[1]).toMatch(/^• Live website: /);
+    expect(lines[1]).toBe("• Live website: Makes a new site, and the assistant copies a public website's pages into it. You read its request first, then press Send.");
   });
 });
 
@@ -153,7 +176,7 @@ describe("SiteExportTab", () => {
     renderExport(createFakeSiteTransferPort({ listShares: () => new Promise((_, reject) => { fail = reject; }) }));
     expect(screen.getByText("Loading exports…")).toBeTruthy();
     await waitFor(() => expect(fail).toBeDefined());
-    fail!(new ApiError("", 500));
+    fail!(new ApiError({ message: "", status: 500 }));
     expect(await screen.findByText("Couldn't load exports.")).toBeTruthy();
   });
 
@@ -241,27 +264,106 @@ describe("SiteImportTab", () => {
   });
 
   it("shows the import list's error state", async () => {
-    renderImport(createFakeSiteTransferPort({ listImports: async () => { throw new ApiError("", 500); } }));
+    renderImport(createFakeSiteTransferPort({ listImports: async () => { throw new ApiError({ message: "", status: 500 }); } }));
     expect(await screen.findByText("Couldn't load imports.")).toBeTruthy();
   });
 
-  it("hands a live website to the assistant only once its address is valid", () => {
+  it("makes a NEW site for a live website, once its address is valid, and never drafts an import into this site (owner, 2026-11-10)", () => {
     const insertText = vi.fn();
     function Dock() {
       useAssistantPromptRequests({ current: { insertText } } as never);
       return null;
     }
     render(<Dock />);
-    renderImport(createFakeSiteTransferPort());
+    const live = liveSite();
+    renderImport(createFakeSiteTransferPort(), live);
+    expect(screen.getAllByText("Makes a new site. This site stays as it is.")).toHaveLength(2);
+    expect(screen.queryByText(/Imports into this site/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "New site" })).toBeNull();
     const start = screen.getByRole("button", { name: "Import with the assistant" }) as HTMLButtonElement;
     expect(start.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Website address"), { target: { value: "https://example.com" } });
     expect(start.disabled).toBe(false);
     fireEvent.click(start);
-    expect(insertText).toHaveBeenCalledWith("Import the live website at https://example.com into this site with the site-import agent plugin.");
-    expect(screen.getByRole("link", { name: "New site" }).getAttribute("href")).toBe("/admin/sites?tab=new");
+    expect(live.start).toHaveBeenCalledExactlyOnceWith("https://example.com");
+    expect(insertText).not.toHaveBeenCalled();
+  });
+
+  it("drafts the import on the new site itself, which opened with the address filled in", () => {
+    window.history.replaceState(null, "", "/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2Fabout");
+    try {
+      const insertText = vi.fn();
+      function Dock() {
+        useAssistantPromptRequests({ current: { insertText } } as never);
+        return null;
+      }
+      render(<Dock />);
+      const live = liveSite();
+      renderImport(createFakeSiteTransferPort(), live);
+      expect(screen.getByText("Imports into this new site.")).toBeTruthy();
+      expect((screen.getByLabelText("Website address") as HTMLInputElement).value).toBe("https://example.com/about");
+      fireEvent.click(screen.getByRole("button", { name: "Import with the assistant" }));
+      expect(insertText).toHaveBeenCalledWith("Import the live website at https://example.com/about into this site with the site-import agent plugin.");
+      expect(live.start).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("shows the new site's progress and its plain-words failure on the live source", () => {
+    render(<SiteImportTab t={t} useImport={() => importController({ liveAddress: "https://example.com", liveAddressValid: true })}
+      useLiveSite={() => liveSite({ creating: true, error: "example-com was made but didn't start." })} canMakeSites />);
+    const busy = screen.getByRole("button", { name: "Creating…" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toBe("example-com was made but didn't start.");
+  });
+
+  it("inside the desktop app, hands a live website to Tovu's own Import tab with the typed address (owner, 2026-11-10)", () => {
+    const desktop = desktopImport();
+    render(<SiteImportTab t={t} useImport={() => importController({ liveAddress: " https://example.com/about ", liveAddressValid: true })}
+      useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    expect(screen.getByText("Tovu's Import tab makes a new site from it.")).toBeTruthy();
+    expect(screen.queryByText("This host can't make new sites, so it can't import a live website here.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import with the assistant" })).toBeNull();
+    const open = screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement;
+    handle(open, "sites-import-live-desktop", "button", "Open Tovu's Import tab with this address");
+    fireEvent.click(open);
+    expect(desktop.open).toHaveBeenCalledExactlyOnceWith("https://example.com/about");
+  });
+
+  it("inside the desktop app, opens Import with no address, but not with one it would refuse", () => {
+    const desktop = desktopImport();
+    const { unmount } = render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Import in Tovu" }));
+    expect(desktop.open).toHaveBeenCalledExactlyOnceWith("");
+    unmount();
+    render(<SiteImportTab t={t} useImport={() => importController({ liveAddress: "not an address", liveAddressValid: false })}
+      useLiveSite={() => liveSite()} useDesktop={() => desktop} />);
+    expect((screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("inside the desktop app, shows the hand-off in flight and its plain-words failure", () => {
+    render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()}
+      useDesktop={() => desktopImport({ opening: true, error: "Couldn't open Tovu's Import tab. Open Tovu's home window, then try again." })} />);
+    const busy = screen.getByRole("button", { name: "Open Import in Tovu" }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toBe("Couldn't open Tovu's Import tab. Open Tovu's home window, then try again.");
+  });
+
+  it("a hosted install that can't make sites, outside the desktop app, keeps its message and no form", () => {
+    render(<SiteImportTab t={t} useImport={() => importController()} useLiveSite={() => liveSite()} useDesktop={() => desktopImport({ available: false })} />);
+    expect(screen.getByText("This host can't make new sites, so it can't import a live website here.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open Import in Tovu" })).toBeNull();
+    expect(screen.queryByLabelText("Website address")).toBeNull();
   });
 });
+
+/** The desktop hand-off's seam: records the address it was asked to open Import with. */
+function desktopImport(overrides: Partial<DesktopImportController> = {}): DesktopImportController {
+  return { available: true, opening: false, error: null, open: vi.fn(async () => {}), ...overrides };
+}
 
 // Exercise markup through the components' supported controller seam. Effects and persistence
 // remain covered above through the real hooks; these cases pin every transient display state.
@@ -271,7 +373,7 @@ function exportController(overrides: Partial<SiteExportController> = {}): SiteEx
     staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
     exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
-    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`,
+    copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: ({ share }) => `/download/${share.shareId}`,
     credentialGate: () => null, acknowledge: vi.fn(async () => {}), download: vi.fn(async () => {}), ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
@@ -279,7 +381,7 @@ function importController(overrides: Partial<SiteImportController> = {}): SiteIm
     canImport: false, importing: false, importError: null, startImport: vi.fn(async () => {}), current: null, resume: vi.fn(),
     password: "", setPassword: vi.fn(), confirm: "", setConfirm: vi.fn(), passwordProblem: null, settingOwner: false,
     ownerError: null, completeOwner: vi.fn(async () => {}), liveAddress: "", setLiveAddress: vi.fn(),
-    liveAddressValid: false, startLiveImport: vi.fn(), ...overrides };
+    liveAddressValid: false, startLiveImport: vi.fn(), arrivedForImport: false, ...overrides };
 }
 function handle(element: HTMLElement, id: string, role: string, label: string) {
   expect(element.getAttribute("data-agent-element")).toBe(id);
@@ -340,9 +442,11 @@ describe("transfer tab presentation contracts", () => {
 
   it("publishes source forms, accessible fields, assistant guidance, and prevents browser submission", async () => {
     const controller = importController({ canImport: true, liveAddressValid: true, liveAddress: "https://live.example", link: "https://share.example" });
-    const { container } = render(<SiteImportTab t={t} useImport={() => controller} showNewSiteLink />);
+    const liveStub = liveSite();
+    const { container } = render(<SiteImportTab t={t} useImport={() => controller} useLiveSite={() => liveStub} canMakeSites />);
     expect(screen.getByRole("region", { name: "Import Site" })).toBeTruthy();
-    for (const text of ["Bring in a site from a Tovu export or a live website.", "From a Tovu share link or zip", "Makes a new site. This site stays as it is.", "From a live website", "Imports into this site. To keep this site as it is, make a new site first.", "The assistant opens with the request written. Press Send to start.", "or", "Up to 300 MB", "Drop a .tovu.zip here, or click to browse"]) expect(screen.getByText(text)).toBeTruthy();
+    for (const text of ["Bring in a site from a Tovu export or a live website.", "From a .tovu.zip or share link", "From a live website", "The new site opens with the request written. Press Send there to start.", "or", "Up to 300 MB", "Drop a .tovu.zip here, or click to browse"]) expect(screen.getByText(text)).toBeTruthy();
+    expect(screen.getAllByText("Makes a new site. This site stays as it is.")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "About importing" })).toBeTruthy();
     const link = screen.getByLabelText("Share link");
     handle(link, "sites-import-link", "field", "Tovu share link to import");
@@ -355,29 +459,40 @@ describe("transfer tab presentation contracts", () => {
     expect(live.getAttribute("inputmode")).toBe("url");
     expect(live.getAttribute("placeholder")).toBe("https://");
     expect(live.getAttribute("aria-describedby")).toBe("sites-import-live-hint");
-    expect(screen.getByRole("link", { name: "New site" }).className).toBe("link-button");
-    expect(screen.getByRole("link", { name: "New site" }).closest("p")?.textContent).toBe("Imports into this site. To keep this site as it is, make a new site first. New site");
-    handle(screen.getByRole("link", { name: "New site" }), "sites-import-live-new-site", "link", "Go to the New site tab");
+    // Files first, then the web addresses (owner, 2026-11-10): the drop zone and its Choose file…
+    // button come before the share link, and both before the live website's address.
+    const zone = screen.getByText("Drop a .tovu.zip here, or click to browse");
+    const choose = screen.getByRole("button", { name: "Choose file…" });
+    handle(choose, "sites-import-file-choose", "button", "Choose a .tovu.zip file to import");
+    for (const [before, after] of [[zone, choose], [choose, link], [link, live]] as const) {
+      expect(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const picked = vi.fn();
+    input.addEventListener("click", (event) => { event.preventDefault(); picked(); });
+    await userEvent.click(choose);
+    expect(picked).toHaveBeenCalledTimes(1);
     const submit = screen.getByRole("button", { name: "Import as a new site" });
     handle(submit, "sites-import-start", "button", "Import the link or zip as a new site");
-    handle(screen.getByRole("button", { name: "Import with the assistant" }), "sites-import-live-start", "button", "Open the assistant with the import request");
+    handle(screen.getByRole("button", { name: "Import with the assistant" }), "sites-import-live-start", "button", "Make a new site and open its assistant with the import request");
     const forms = container.querySelectorAll("form");
     handle(forms[0]!, "sites-import-archive-form", "form", "Import a Tovu share link or .tovu.zip as a new site");
-    handle(forms[1]!, "sites-import-live-form", "form", "Import a live website with the assistant");
+    handle(forms[1]!, "sites-import-live-form", "form", "Import a live website into a new site with the assistant");
     const prevented: boolean[] = [];
     container.addEventListener("submit", event => prevented.push(event.defaultPrevented));
     await userEvent.click(submit);
     await userEvent.click(screen.getByRole("button", { name: "Import with the assistant" }));
     expect(prevented).toEqual([true, true]);
     expect(controller.startImport).toHaveBeenCalledExactlyOnceWith();
-    expect(controller.startLiveImport).toHaveBeenCalledExactlyOnceWith();
+    expect(liveStub.start).toHaveBeenCalledExactlyOnceWith("https://live.example");
+    expect(controller.startLiveImport).not.toHaveBeenCalled();
   });
 
-  it("drops the New site link where there is no Sites section, keeping the sentence (owner, 2026-10-25)", () => {
-    render(<SiteImportTab t={t} useImport={() => importController({})} />);
-    expect(screen.queryByRole("link", { name: "New site" })).toBeNull();
-    expect(screen.getByText("Imports into this site. To keep this site as it is, make a new site first.").textContent)
-      .toBe("Imports into this site. To keep this site as it is, make a new site first.");
+  it("offers no live import where this host can't make a new site, rather than importing into this one (owner, 2026-11-10)", () => {
+    render(<SiteImportTab t={t} useImport={() => importController({})} useLiveSite={() => liveSite()} />);
+    expect(screen.getByText("This host can't make new sites, so it can't import a live website here.")).toBeTruthy();
+    expect(screen.queryByLabelText("Website address")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import with the assistant" })).toBeNull();
   });
 
   it("shows a chosen file, can remove it, and locks archive inputs during import", async () => {
@@ -459,7 +574,7 @@ describe("transfer tab presentation contracts", () => {
     const finish = within(table).getByRole("button", { name: "Finish setup" });
     handle(finish, "sites-import-2-finish", "button", "Finish this import's owner password step");
     await userEvent.click(finish);
-    expect(controller.resume).toHaveBeenCalledExactlyOnceWith(pending);
+    expect(controller.resume).toHaveBeenCalledExactlyOnceWith({ item: pending });
     const open = within(table).getByRole("link", { name: "Open" });
     handle(open, "sites-import-1-open", "link", "Open this imported site's admin");
     expect(open.getAttribute("target")).toBe("_blank");
@@ -476,18 +591,13 @@ describe("transfer tab presentation contracts", () => {
 
 describe("transfer tab browser contracts", () => {
   it("formats both history dates in the viewer's local time", () => {
-    const getters = [
-      vi.spyOn(Date.prototype, "getFullYear").mockReturnValue(2042),
-      vi.spyOn(Date.prototype, "getMonth").mockReturnValue(3),
-      vi.spyOn(Date.prototype, "getDate").mockReturnValue(5),
-      vi.spyOn(Date.prototype, "getHours").mockReturnValue(6),
-      vi.spyOn(Date.prototype, "getMinutes").mockReturnValue(7),
-    ];
+    // Kolkata (+05:30) differs from the stored UTC prefix, so this proves the viewer zone is applied.
+    viewerZone.value = "Asia/Kolkata";
     try {
       render(<><SiteExportTab t={t} useExport={() => exportController({ shares: [share()] })} /><SiteImportTab t={t} useImport={() => importController({ imports: [siteImport()] })} /></>);
-      expect(screen.getAllByText("2042-04-05 06:07")).toHaveLength(2);
-      for (const date of screen.getAllByText("2042-04-05 06:07")) expect(date.className).toBe("site-transfer-num");
-    } finally { for (const getter of getters) getter.mockRestore(); }
+      const dates = [screen.getByText("2026-10-18 15:30"), screen.getByText("2026-10-18 16:30")];
+      for (const date of dates) expect(date.className).toBe("site-transfer-num");
+    } finally { viewerZone.value = "UTC"; }
   });
 
   it("uploads and removes a zip through the real dropzone and sends the uploaded ID as the source", async () => {
@@ -514,10 +624,12 @@ describe("transfer tab browser contracts", () => {
 
   it("forwards field edits to their controllers and exposes loading import history", async () => {
     const controller = importController({ imports: undefined, link: "https://share.example", liveAddress: "https://live.example", current: siteImport(), password: "password", confirm: "password" });
-    render(<SiteImportTab t={t} useImport={() => controller} />);
+    // A host that can make sites: since 2026-11-10 the live-website field shows only there (or in the
+    // desktop app's hand-off); `canMakeSites` defaults off, as on a hosted install.
+    render(<SiteImportTab t={t} useImport={() => controller} canMakeSites />);
     expect(screen.getByText("Loading imports…").className).toBe("notice");
     await userEvent.clear(screen.getByLabelText("Share link"));
-    expect(controller.setLink).toHaveBeenCalledWith("");
+    expect(controller.setLink).toHaveBeenCalledWith({ next: "" });
     await userEvent.clear(screen.getByLabelText("Website address"));
     expect(controller.setLiveAddress).toHaveBeenCalledWith("");
     await userEvent.clear(screen.getByLabelText("Password"));

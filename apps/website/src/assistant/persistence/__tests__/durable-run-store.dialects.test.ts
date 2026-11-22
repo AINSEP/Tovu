@@ -5,16 +5,15 @@ import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 import { createChatRunLedger } from "../run-ledger.js";
 import { createChatStoreFactory } from "../store-factory.js";
 import { RunSlotBusyError, RUN_SLOT_BUSY } from "../durable-run-store.js";
-import { CONTINUATION_DIVIDER } from "../../durable-runs/continuation.js";
-import { createDurableRecovery } from "../../durable-runs/recover.js";
+import { CONTINUATION_DIVIDER, createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import { INCIDENT_PARTIAL } from "../../durable-runs/__tests__/incident.fixture.js";
-import type { DurableRun } from "../../durable-runs/ports.js";
+import type { DurableRun } from "@jini-ai/chat/server/durable-runs";
 
 const TIME = 1_790_000_000_000;
 function harness(kernel: ChatKernel) {
   const ledger = createChatRunLedger({ store: kernel });
   const store = ledger.durable!;
-  const history = createChatStoreFactory(kernel)({ kind: "user", workspaceId: "ws", userId: "admin" });
+  const history = createChatStoreFactory({ store: kernel })({ kind: "user", workspaceId: "ws", userId: "admin" });
   async function accept(messageId = "answer", runId = "old") {
     if (!await history.get({ id: "chat" })) await history.create({ id: "chat" });
     return (await store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId, runId, now: TIME,

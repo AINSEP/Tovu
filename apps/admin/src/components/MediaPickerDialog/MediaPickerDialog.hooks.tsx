@@ -1,21 +1,23 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { acceptsMedia } from "@jini-ai/admin/media";
-import { describeApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as sharedComponentsT } from "../shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `MediaPickerDialog`'s data-fetch and selection state, split out of the component so
  * it can be swapped for a fake via the `useDialog` prop on `MediaPickerDialogProps` — see that
  * prop's doc comment in `MediaPickerDialog.tsx`. Same split `ConfirmDialog`/`ConfirmDialog.hooks.tsx`
  * uses in `@jini-ai/admin`.
  *
- * `useMediaPickerDialog` takes `onSelect`/`onCancel` as two positional callbacks rather than the
+ * `useMediaPickerDialog` takes `onSelect`/`onCancel` in an input object rather than the
  * whole `MediaPickerDialogProps` object — mirrors `useConfirmDialog`'s primitives-in shape there,
  * and avoids a type-only import cycle back into `MediaPickerDialog.tsx` for the `useDialog` prop's
  * own type (`typeof useWiredMediaPickerDialog`). Historically the Escape listener listed `onCancel`
@@ -38,18 +40,18 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  * Fetches the workspace's active media once per mount — mirrors `useExistingInstances`'s exact
  * shape (`null` while loading, a describable `error` string on failure).
  *
- * @param port - Injected `MediaPickerPort` — see `media-picker-port.hooks.ts`.
- * @param locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
+ * @param input.port - Injected `MediaPickerPort` — see `media-picker-port.hooks.ts`.
+ * @param options.locale - Translates the `describeApiError` fallback via `shared-components-i18n.ts`'s `t`.
  *   Defaults to `DEFAULT_LOCALE` ("en"), which renders the same English fallback as before this
  *   parameter existed — mirrors `useExistingInstances`'s identical `locale` parameter in
  *   `WidgetPickerDialog.hooks.tsx`.
  * @returns `items` (`null` while the fetch is in flight, otherwise the loaded, active-only list)
  *   and `error` (a describable failure message, or `null`).
  */
-export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFAULT_LOCALE) {
+export function useMediaPickerItems({ port }: { port: MediaPickerPort }, { locale = DEFAULT_LOCALE }: { locale?: string } = {}) {
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.listMedia(); }
-    catch (error) { throw new Error(describeApiError(error, sharedComponentsT({ locale, key: "failed to load media" }))); }
+    catch (error) { throw new Error(describeApiError({ e: error, fallback: sharedComponentsT({ locale, key: "failed to load media" }) })); }
   }, [port, locale]);
   const query = useFetchQuery({ key: ["media"], fetch: queryFetch }, { staleTime: 0 });
   const items = query.data?.media.filter(item => item.status === "active") ?? null;
@@ -61,7 +63,7 @@ export function useMediaPickerItems(port: MediaPickerPort, locale: string = DEFA
  *  this dialog and the Jini picker (handed the same `accept` list) can never disagree on a type.
  *  `null` (still loading) passes through.
  *  @complexity O(n · a) for n items and a accept entries. */
-export function acceptedMediaItems(items: AdminMedia[] | null, accept: readonly string[] = []): AdminMedia[] | null {
+export function acceptedMediaItems({ items }: { items: AdminMedia[] | null }, { accept = [] }: { accept?: readonly string[] } = {}): AdminMedia[] | null {
   return items && items.filter((item) => acceptsMedia({ item, accept }));
 }
 
@@ -71,7 +73,7 @@ export function acceptedMediaItems(items: AdminMedia[] | null, accept: readonly 
  *  {@link useWiredMediaPickerDialog} below), but given its own wired pair since the existing test
  *  file exercises it directly. */
 export function useWiredMediaPickerItems() {
-  return useMediaPickerItems(defaultMediaPickerPort);
+  return useMediaPickerItems({ port: defaultMediaPickerPort });
 }
 
 /** What {@link useMediaPickerDialog} (and {@link useWiredMediaPickerDialog}) hands back to
@@ -84,7 +86,7 @@ export interface MediaPickerDialogController {
    *  {@link MediaPickerPort} — see that port's own `mediaOriginalUrl` doc for why a pure URL
    *  template still crosses this seam rather than staying a direct `lib/api` import in the
    *  component. */
-  mediaOriginalUrl: (id: string) => string;
+  mediaOriginalUrl: (required: { id: string }, optional?: Record<string, never>) => string;
   /** Bound to `deps.locale` (or `DEFAULT_LOCALE`) via `shared-components-i18n.ts`'s `t` — see this
    *  file's header for why it's resolved here rather than at each call site. */
   t: Translate;
@@ -104,23 +106,24 @@ export interface MediaPickerDialogController {
  * to what was captured. Without this, closing left focus on `<body>` — a keyboard/screen-reader
  * user was dropped to the top of the page instead of back at the control that opened the dialog.
  *
- * @param onSelect - Called with the chosen item when a thumbnail is clicked.
- * @param _onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
- * @param deps - Injected `{ port?; locale? }` — both optional/defaulted, mirroring
+ * @param input.onSelect - Called with the chosen item when a thumbnail is clicked.
+ * @param input._onCancel - Retained for the existing hook ABI; the component forwards cancellation to Jini.
+ * @param input.deps - Injected `{ port?; locale? }` — both optional/defaulted, mirroring
  *   `useWidgetPickerDialog`'s identical shape in `WidgetPickerDialog.hooks.tsx`. `port` defaults to
  *   {@link defaultMediaPickerPort} and `locale` to `DEFAULT_LOCALE`, so every existing call site
  *   that still passes only `{ port: fakePort }` keeps compiling and behaving unchanged.
  * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
 export function useMediaPickerDialog(
-  onSelect: (item: AdminMedia) => void,
-  _onCancel: () => void,
-  deps: { port?: MediaPickerPort; locale?: string }
+  { onSelect, _onCancel, deps }: {
+    onSelect: (item: AdminMedia) => void; _onCancel: () => void; deps: { port?: MediaPickerPort; locale?: string };
+  },
+  _options: Record<string, never> = {},
 ): MediaPickerDialogController {
   const port = deps.port ?? defaultMediaPickerPort;
   const locale = deps.locale ?? DEFAULT_LOCALE;
   const t: Translate = (key) => sharedComponentsT({ locale: locale, key: key });
-  const { items, error } = useMediaPickerItems(port, locale);
+  const { items, error } = useMediaPickerItems({ port }, { locale });
   // Jini captures at mount, before focus moves onto Cancel — the element that had focus then is,
   // by construction, whatever opened this dialog (e.g. the Posts/Pages editor's "Insert from Media
   // Library" toolbar button). Restored on unmount. This component is only ever rendered while the
@@ -142,11 +145,11 @@ export function useMediaPickerDialog(
  * `MediaPickerDialog.tsx` composes this and a test composes {@link useMediaPickerDialog} with
  * `createFakeMediaPickerPort`.
  *
- * @param onSelect - Forwarded to {@link useMediaPickerDialog}.
- * @param onCancel - Forwarded to {@link useMediaPickerDialog}.
+ * @param input.onSelect - Forwarded to {@link useMediaPickerDialog}.
+ * @param input.onCancel - Forwarded to {@link useMediaPickerDialog}.
  * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
-export function useWiredMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCancel: () => void): MediaPickerDialogController {
+export function useWiredMediaPickerDialog({ onSelect, onCancel }: { onSelect: (item: AdminMedia) => void; onCancel: () => void }, _options: Record<string, never> = {}): MediaPickerDialogController {
   const locale = useAdminLocale();
-  return useMediaPickerDialog(onSelect, onCancel, { port: defaultMediaPickerPort, locale });
+  return useMediaPickerDialog({ onSelect, _onCancel: onCancel, deps: { port: defaultMediaPickerPort, locale } });
 }

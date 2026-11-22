@@ -2,7 +2,8 @@ import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-quer
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { api, type PresentationSettings } from "@/lib/api";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { Themes } from "../Themes";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, type ThemesController } from "../hooks/use-themes.hooks";
@@ -18,17 +19,17 @@ const identity = (key: string): string => key;
 
 describe("useThemes — duplicate", () => {
   it("duplicates through the port as '<name> copy', reloads the list, and announces the copy", async () => {
-    const duplicateSpy = vi.spyOn(api, "duplicateTheme");
+    const duplicateSpy = vi.spyOn(themesApi, "duplicateTheme");
     const port = createFakeThemesPort({ availableThemeIds: ["basic"], availableThemes: [{ id: "basic", name: "Basic", tier: "declarative" }] });
     const portSpy = vi.spyOn(port, "duplicateTheme");
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.themes).toEqual(["basic"]));
 
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
 
-    expect(portSpy).toHaveBeenCalledWith("basic", "Basic copy");
+    expect(portSpy).toHaveBeenCalledWith({ themeId: "basic", newName: "Basic copy" });
     expect(result.current.themes).toEqual(["basic", "basic-copy"]);
     expect(result.current.themeNames).toMatchObject({ "basic-copy": "Basic copy" });
     expect(result.current.duplicateNotice).toBe('Duplicated as "Basic copy"');
@@ -45,9 +46,9 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.themes).toEqual(["quartz"]));
     await act(async () => {
-      await result.current.duplicate?.("quartz");
+      await result.current.duplicate?.({ themeId: "quartz" });
     });
-    expect(portSpy).toHaveBeenCalledWith("quartz", "quartz copy");
+    expect(portSpy).toHaveBeenCalledWith({ themeId: "quartz", newName: "quartz copy" });
   });
 
   it("surfaces a refusal as the screen error and clears the busy state", async () => {
@@ -58,7 +59,7 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
     expect(result.current.error).toBe("theme id 'basic-copy' is already taken");
     expect(result.current.duplicatingTheme).toBeNull();
@@ -71,7 +72,7 @@ describe("useThemes — duplicate", () => {
     const { result } = renderHook(() => useThemes({ port, t: identity }));
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     await act(async () => {
-      await result.current.duplicate?.("basic");
+      await result.current.duplicate?.({ themeId: "basic" });
     });
     expect(result.current.error).toBe("failed to duplicate theme");
   });
@@ -88,7 +89,7 @@ describe("Themes — Copy theme (card menu)", () => {
     render(<Themes useThemesHook={() => controller({ duplicate, duplicatingTheme: null })} />);
     await userEvent.click(screen.getByRole("button", { name: "More actions for column" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Copy theme" }));
-    expect(duplicate).toHaveBeenCalledWith("column");
+    expect(duplicate).toHaveBeenCalledWith({ themeId: "column" });
   });
 
   it("shows the busy label and does nothing while a copy is in flight", async () => {

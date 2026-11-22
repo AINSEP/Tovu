@@ -43,14 +43,14 @@ test.beforeEach((t) => {
 
 test("unset by default", () => {
   const siteDir = freshSiteDir();
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("setting a real absolute directory makes it the current custom root, resolved through realpath", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dir));
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), fs.realpathSync(dir));
 });
 
 test("setting does not read, list, or otherwise touch anything INSIDE the folder", (t) => {
@@ -72,7 +72,7 @@ test("setting does not read, list, or otherwise touch anything INSIDE the folder
   syncBuiltinESMExports();
   t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
   const before = Date.now();
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
   const elapsedMs = Date.now() - before;
   assert.ok(elapsedMs < 1000, `setCustomFsRoot took ${elapsedMs}ms — expected an O(1) stat, not a walk`);
   assert.deepEqual(forbiddenAccesses, [], "setting a path must never enumerate the folder or read/stat its children");
@@ -80,15 +80,15 @@ test("setting does not read, list, or otherwise touch anything INSIDE the folder
 
 test("a relative path is refused", () => {
   const siteDir = freshSiteDir();
-  assert.throws(() => setCustomFsRoot(WORKSPACE_A, "relative/path", { siteDir }), CustomFsRootError);
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.throws(() => setCustomFsRoot({ workspaceId: WORKSPACE_A, path: "relative/path", optional: { siteDir } }), CustomFsRootError);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("a path that does not exist is refused", () => {
   const siteDir = freshSiteDir();
   const missing = path.join(os.tmpdir(), `tovu-custom-root-missing-${Date.now()}`);
-  assert.throws(() => setCustomFsRoot(WORKSPACE_A, missing, { siteDir }), CustomFsRootError);
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.throws(() => setCustomFsRoot({ workspaceId: WORKSPACE_A, path: missing, optional: { siteDir } }), CustomFsRootError);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("a path naming a FILE, not a directory, is refused", () => {
@@ -96,26 +96,26 @@ test("a path naming a FILE, not a directory, is refused", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
   const file = path.join(dir, "not-a-directory.txt");
   fs.writeFileSync(file, "hello", "utf8");
-  assert.throws(() => setCustomFsRoot(WORKSPACE_A, file, { siteDir }), CustomFsRootError);
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.throws(() => setCustomFsRoot({ workspaceId: WORKSPACE_A, path: file, optional: { siteDir } }), CustomFsRootError);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("setting null clears a previously-set root", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
-  assert.notEqual(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
-  setCustomFsRoot(WORKSPACE_A, null, { siteDir });
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
+  assert.notEqual(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: null, optional: { siteDir } });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("a rejected set leaves a previously-valid root untouched", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
-  const before = getCustomFsRoot(WORKSPACE_A, { siteDir });
-  assert.throws(() => setCustomFsRoot(WORKSPACE_A, "relative/nonsense", { siteDir }), CustomFsRootError);
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), before);
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
+  const before = getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } });
+  assert.throws(() => setCustomFsRoot({ workspaceId: WORKSPACE_A, path: "relative/nonsense", optional: { siteDir } }), CustomFsRootError);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), before);
 });
 
 // ---------------------------------------------------------------------------
@@ -125,21 +125,21 @@ test("a rejected set leaves a previously-valid root untouched", () => {
 test("a set folder survives a simulated restart — a fresh call against the same siteDir still sees it", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
 
   const moduleUrl = new URL("../custom-root-store.ts", import.meta.url).href;
   // The site-dir barrel also loads database runtimes whose handles can keep the child alive.
   // Finish this read-only probe after stdout flushes; persistence is asserted from its actual output.
-  const script = `import { getCustomFsRoot } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(getCustomFsRoot(process.argv[1], { siteDir: process.argv[2] })) ?? "null", () => process.exit(0));`;
+  const script = `import { getCustomFsRoot } from ${JSON.stringify(moduleUrl)}; process.stdout.write(JSON.stringify(getCustomFsRoot({ workspaceId: process.argv[1], optional: { siteDir: process.argv[2] } })) ?? "null", () => process.exit(0));`;
   const persisted = execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, WORKSPACE_A, siteDir], { encoding: "utf8", timeout: 10000 });
   assert.equal(JSON.parse(persisted), fs.realpathSync(dir), "a new process must load the persisted path without the setter's module state");
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dir));
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), fs.realpathSync(dir));
 });
 
 test("the persistence file is small, inspectable JSON keyed by workspace id", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
 
   const persisted = fs.readFileSync(path.join(siteDir, ".fs-custom-root.json"), "utf8");
   const parsed = JSON.parse(persisted);
@@ -153,12 +153,12 @@ test("the persistence file is small, inspectable JSON keyed by workspace id", ()
 test("a path that vanished after being set is reported as vanished, not as unset", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
   const realDir = fs.realpathSync(dir);
 
   fs.rmSync(dir, { recursive: true, force: true });
 
-  const status = getCustomFsRootStatus(WORKSPACE_A, { siteDir });
+  const status = getCustomFsRootStatus({ workspaceId: WORKSPACE_A, optional: { siteDir } });
   assert.equal(status.path, undefined);
   assert.equal(status.vanished, true);
   assert.equal(status.vanishedPath, realDir);
@@ -167,15 +167,15 @@ test("a path that vanished after being set is reported as vanished, not as unset
 test("getCustomFsRoot treats a vanished path the same as unset — undefined either way", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
   fs.rmSync(dir, { recursive: true, force: true });
 
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
 });
 
 test("never having set anything is NOT reported as vanished", () => {
   const siteDir = freshSiteDir();
-  const status = getCustomFsRootStatus(WORKSPACE_A, { siteDir });
+  const status = getCustomFsRootStatus({ workspaceId: WORKSPACE_A, optional: { siteDir } });
   assert.equal(status.path, undefined);
   assert.equal(status.vanished, false);
   assert.equal(status.vanishedPath, undefined);
@@ -190,12 +190,12 @@ test("two workspaces do not share a custom root", () => {
   const dirA = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-a-"));
   const dirB = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-b-"));
 
-  setCustomFsRoot(WORKSPACE_A, dirA, { siteDir });
-  assert.equal(getCustomFsRoot(WORKSPACE_B, { siteDir }), undefined, "workspace B must not see workspace A's root");
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dirA, optional: { siteDir } });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_B, optional: { siteDir } }), undefined, "workspace B must not see workspace A's root");
 
-  setCustomFsRoot(WORKSPACE_B, dirB, { siteDir });
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), fs.realpathSync(dirA), "workspace A's own root must be unaffected");
-  assert.equal(getCustomFsRoot(WORKSPACE_B, { siteDir }), fs.realpathSync(dirB));
+  setCustomFsRoot({ workspaceId: WORKSPACE_B, path: dirB, optional: { siteDir } });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), fs.realpathSync(dirA), "workspace A's own root must be unaffected");
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_B, optional: { siteDir } }), fs.realpathSync(dirB));
 });
 
 test("clearing one workspace's root leaves the other workspace's root untouched", () => {
@@ -203,30 +203,30 @@ test("clearing one workspace's root leaves the other workspace's root untouched"
   const dirA = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-a-"));
   const dirB = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-b-"));
 
-  setCustomFsRoot(WORKSPACE_A, dirA, { siteDir });
-  setCustomFsRoot(WORKSPACE_B, dirB, { siteDir });
-  setCustomFsRoot(WORKSPACE_A, null, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dirA, optional: { siteDir } });
+  setCustomFsRoot({ workspaceId: WORKSPACE_B, path: dirB, optional: { siteDir } });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: null, optional: { siteDir } });
 
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
-  assert.equal(getCustomFsRoot(WORKSPACE_B, { siteDir }), fs.realpathSync(dirB));
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_B, optional: { siteDir } }), fs.realpathSync(dirB));
 });
 
 test("corrupt persistence degrades to an unset root without throwing", () => {
   const siteDir = freshSiteDir();
   fs.writeFileSync(path.join(siteDir, ".fs-custom-root.json"), "{garbage JSON");
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
-  assert.deepEqual(getCustomFsRootStatus(WORKSPACE_A, { siteDir }), { path: undefined, vanished: false });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
+  assert.deepEqual(getCustomFsRootStatus({ workspaceId: WORKSPACE_A, optional: { siteDir } }), { path: undefined, vanished: false });
 });
 
 test("a saved directory replaced by a file is reported as vanished", () => {
   const siteDir = freshSiteDir();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-custom-root-"));
-  setCustomFsRoot(WORKSPACE_A, dir, { siteDir });
+  setCustomFsRoot({ workspaceId: WORKSPACE_A, path: dir, optional: { siteDir } });
   const realDir = fs.realpathSync(dir);
   fs.rmSync(dir, { recursive: true });
   fs.writeFileSync(dir, "now a file");
-  assert.equal(getCustomFsRoot(WORKSPACE_A, { siteDir }), undefined);
-  assert.deepEqual(getCustomFsRootStatus(WORKSPACE_A, { siteDir }), { path: undefined, vanished: true, vanishedPath: realDir });
+  assert.equal(getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), undefined);
+  assert.deepEqual(getCustomFsRootStatus({ workspaceId: WORKSPACE_A, optional: { siteDir } }), { path: undefined, vanished: true, vanishedPath: realDir });
 });
 
 test("resetCustomFsRootForTests ignores a site directory that does not exist but surfaces any other write fault", () => {
@@ -239,4 +239,13 @@ test("resetCustomFsRootForTests ignores a site directory that does not exist but
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }
+});
+
+test("persistence read I/O rejection propagates instead of becoming an empty store", t => {
+  const siteDir = freshSiteDir();
+  const cause = Object.assign(new Error("persistence read canary"), { code: "EACCES" });
+  t.mock.method(fs, "readFileSync", () => { throw cause; });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); fs.rmSync(siteDir, { recursive: true, force: true }); });
+  assert.throws(() => getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), error => error === cause);
 });

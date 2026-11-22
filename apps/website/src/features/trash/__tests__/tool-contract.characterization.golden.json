@@ -1,0 +1,112 @@
+{
+  "trash_list_items": {
+    "id": "trash_list_items",
+    "description": "Lists what is currently in the Trash — anything in the Trash: posts, pages, comments, media, redirects, forms and submissions, widgets, menus, taxonomies and terms, plugins, themes, members; see the entityType enum for the exact list — newest first. Each row reports trashItemId (pass it to trash_purge_item), entityType, entityId, the title as it was when it was deleted, who deleted it, when, and the date it will be permanently removed automatically. Rows past that date are already excluded. Restore anything listed here with trash_restore_item using entityType and entityId. Reading this never touches the deleted thing itself, so it works even on items whose content is corrupt. Rows the caller has no permission to restore are omitted. Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen. Items here are removed automatically on the date shown.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "post",
+              "comment",
+              "media",
+              "redirect",
+              "plugin",
+              "theme",
+              "user",
+              "email-template",
+              "member",
+              "form",
+              "form_submission",
+              "widget",
+              "menu",
+              "term",
+              "taxonomy"
+            ],
+            "description": "Which kind of thing this is, exactly as trash_list_items reported it."
+          },
+          "minItems": 1,
+          "description": "Optional filter. Omit it to see everything the caller is allowed to see."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "clamp": true,
+          "description": "Rows per page. Default 25."
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The nextCursor from a previous call. Omit it for the first page."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "whats what's trash bin recycle deleted items recently deleted show list empty trash permanently delete purge"
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "trash_restore_item": {
+    "id": "trash_restore_item",
+    "description": "Takes one item back out of the Trash and makes it live again — anything in the Trash: posts, pages, comments, media, redirects, forms and submissions, widgets, menus, taxonomies and terms, plugins, themes, members; see the entityType enum for the exact list. Reversible — deleting it again puts it back. Returns { restored: true } on success. Returns restored:false with a reason when the item is not in the Trash ('not-found'), when it changed since it was deleted ('version-changed' — nothing was touched), or when the plugin that owns that kind of thing is no longer installed ('adapter-unavailable'). Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entityType",
+        "entityId"
+      ],
+      "properties": {
+        "entityType": {
+          "type": "string",
+          "enum": [
+            "post",
+            "comment",
+            "media",
+            "redirect",
+            "plugin",
+            "theme",
+            "user",
+            "email-template",
+            "member",
+            "form",
+            "form_submission",
+            "widget",
+            "menu",
+            "term",
+            "taxonomy"
+          ],
+          "description": "Which kind of thing this is, exactly as trash_list_items reported it."
+        },
+        "entityId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entityId trash_list_items reported — the thing's own id, not the trash row's id."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "recover undelete restore deleted bring back get back undo delete removed page post image"
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}

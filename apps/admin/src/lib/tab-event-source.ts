@@ -25,8 +25,10 @@ export function openTabEventSource(
     open?: (url: string) => Source; ports?: BrowserStreamPorts; activity?: StreamActivity;
   } = {},
 ): EventSource {
-  let source: Source | undefined;
-  let disposed = false;
+  const state = {
+    source: undefined as Source | undefined,
+    disposed: false,
+  };
   class ManagedSource extends EventTarget implements EventSource {
     // EventTarget already supports these listeners; expose EventSource's typed event overloads.
     readonly addEventListener = super.addEventListener.bind(this) as EventSource["addEventListener"];
@@ -39,21 +41,26 @@ export function openTabEventSource(
     onerror: EventSource["onerror"] = null;
     onmessage: EventSource["onmessage"] = null;
     onopen: EventSource["onopen"] = null;
-    get readyState(): number { return disposed ? 2 : source?.readyState ?? 0; }
+    get readyState(): number { return state.disposed ? 2 : state.source?.readyState ?? 0; }
     close(): void {
-      if (disposed) return;
-      disposed = true;
+      if (state.disposed) return;
+      state.disposed = true;
       stop();
     }
   }
   const managed = new ManagedSource();
   // Assigned before `managed` is returned, so no caller can reach `close()` while it is unset.
-  const stop = startBrowserStream({ key: url, connect: () => {
+  const stop = startBrowserStream({ key: url, connect: createTabSourceConnector({ open, url, state, managed }) }, { ports, scope: "tab", activity });
+  return managed;
+}
+
+function createTabSourceConnector({ open, url, state, managed }: { open: (url: string) => Source; url: string; state: { source: Source | undefined; disposed: boolean; }; managed: EventSource }) {
+  return () => {
     const current = open(url);
-    source = current;
+    state.source = current;
     for (const kind of ["message", "error", "open", "parked"] as const) {
       current.addEventListener(kind, (event) => {
-        if (source !== current || disposed) return;
+        if (state.source !== current || state.disposed) return;
         const message = event as MessageEvent<string>;
         const forwarded = forwardedTabEvent({ kind, message });
         managed.dispatchEvent(forwarded);
@@ -63,13 +70,12 @@ export function openTabEventSource(
       });
     }
     return () => {
-      source = undefined;
+      state.source = undefined;
       current.close();
       // The daemon revokes its token on close. Clear the bridge's copy before another run starts.
-      if (!disposed) {
+      if (!state.disposed) {
         managed.dispatchEvent(new Event("suspended"));
       }
     };
-  } }, { ports, scope: "tab", activity });
-  return managed;
+  };
 }

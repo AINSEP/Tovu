@@ -16,8 +16,9 @@ import { startTestServer } from "../../server/__tests__/helpers/http-test-server
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -85,7 +86,7 @@ test("real round trip: a browser confirmation click for external_mcp_save is acc
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -138,7 +139,7 @@ test("SECURITY: a Cancel click for external_mcp_save also reaches the allowlist 
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -169,7 +170,7 @@ test("a hosted token delivered by the human MCP-UI form is stored without echoin
   const exchangeId = exchangeIdFromEmission(emitted[0]!);
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
   const secret = "n04-human-form-token";
   const response = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -187,7 +188,7 @@ test("a hosted token delivered by the human MCP-UI form is stored without echoin
   assert.equal(executed.status, "completed");
   assert.equal((executed.output as { saved: boolean }).saved, true);
   assert.equal(JSON.stringify(executed).includes(secret), false);
-  const resolved = await readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
   assert.deepEqual(resolved.configs.find(config => config.serverId === "hosted-token")!.target,
     { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
 });

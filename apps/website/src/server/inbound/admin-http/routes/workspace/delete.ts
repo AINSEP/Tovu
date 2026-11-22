@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "#src/features/workspace/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -17,7 +17,7 @@ import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "./deps.js";
  *
  * @complexity O(1).
  */
-export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
+export function sendDeleteWorkspaceError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof WorkspaceLastRemainingError) {
     res.status(409).json({ error: err.message, code: "LAST_WORKSPACE" });
     return;
@@ -45,11 +45,7 @@ export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
  *
  * @complexity O(1) plus `deleteWorkspace`'s own O(workspaces) roster check.
  */
-export async function deleteWorkspaceUnlessBound(
-  res: Response,
-  deps: Pick<WorkspaceRouteDeps, "workspaceId" | "workspaceRepo">,
-  targetWorkspaceId: string
-): Promise<void> {
+export async function deleteWorkspaceUnlessBound({ res, deps, targetWorkspaceId }: { res: Response; deps: Pick<WorkspaceRouteDeps, "workspaceId" | "workspaceRepo">; targetWorkspaceId: string }, _optional = {}): Promise<void> {
   if (targetWorkspaceId === deps.workspaceId) {
     res.status(409).json({
       error: "the workspace this server is bound to cannot be deleted while it is serving that workspace",
@@ -98,7 +94,7 @@ export async function deleteWorkspaceUnlessBound(
  * Placed AFTER `authorize()` on purpose, in the position the count guard occupied, preserving
  * EC-04: an unauthorized caller still learns nothing about workspace count or bindings.
  */
-export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {
     const targetWorkspaceId = String(req.params.workspaceId ?? "");
     if (targetWorkspaceId !== deps.workspaceId) {
@@ -109,17 +105,17 @@ export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "workspace.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
-      await deleteWorkspaceUnlessBound(res, deps, targetWorkspaceId);
+      await deleteWorkspaceUnlessBound({ res, deps, targetWorkspaceId });
     } catch (err) {
-      sendDeleteWorkspaceError(res, err);
+      sendDeleteWorkspaceError({ res, err });
     }
   });
 };

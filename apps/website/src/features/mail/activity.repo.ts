@@ -19,56 +19,9 @@
  * guessed.
  */
 import { sql, type RawBuilder } from "kysely";
+import type { MailActivityFilter, MailActivityOutcome, MailActivityPosition, MailActivityRecord, MailActivityRepo, MailActivityUse, MailFeedbackRecord } from "@jini-ai/platform/mail";
 import type { MailRepoDeps } from "./ledger.repo.js";
 import { MAIL_ACTIVITY_RETENTION_MS } from "./retention.js";
-
-export const MAIL_ACTIVITY_OUTCOMES = ["accepted", "delivered", "bounced", "complained", "suppressed", "deferred", "failed", "unknown", "captured"] as const;
-export type MailActivityOutcome = (typeof MAIL_ACTIVITY_OUTCOMES)[number];
-export const MAIL_ACTIVITY_USES = ["sign_in", "newsletter_confirmation", "form_notification", "newsletter", "test", "unknown"] as const;
-export type MailActivityUse = (typeof MAIL_ACTIVITY_USES)[number];
-
-export interface MailActivityRecord {
-  cursorKey: string;
-  originalRecipient?: string;
-  deliveryMode?: "redirect" | "capture";
-  idempotencyKey: string;
-  recipient: string;
-  lane: "transactional" | "bulk";
-  providerId: string;
-  use: MailActivityUse;
-  outcome: MailActivityOutcome;
-  providerMessageId: string | null;
-  errorCode: string | null;
-  message: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MailFeedbackRecord {
-  kind: "delivered" | "bounced" | "complained";
-  hardBounce: boolean;
-  providerId: string;
-  occurredAt: string;
-  receivedAt: string;
-}
-
-/** Keyset position: rows at or before `createdAt`, skipping the `skip` already returned at exactly that time. */
-export interface MailActivityPosition {
-  createdAt: string;
-  key: string;
-}
-
-export interface MailActivityFilter {
-  outcome?: MailActivityOutcome;
-  use?: MailActivityUse;
-  /** Exact address, compared lowercased as the ledger stores it. */
-  recipient?: string;
-}
-
-export interface MailActivityRepo {
-  list(required: { workspaceId: string; limit: number }, optional?: MailActivityFilter & { before?: MailActivityPosition }): Promise<MailActivityRecord[]>;
-  get(required: { workspaceId: string; idempotencyKey: string; recipient: string }): Promise<{ record: MailActivityRecord; feedback: MailFeedbackRecord[] } | null>;
-}
 
 type Row = {
   activity_id: string; effective_recipient: string; delivery_mode: "off" | "capture" | "redirect"; idempotency_key: string; recipient: string; lane: "transactional" | "bulk"; provider_id: string; use_id: MailActivityUse;
@@ -104,12 +57,12 @@ type SourceQuery = { workspaceId: string; cutoff: string; filter: MailActivityFi
 function sourceConditions(required: SourceQuery & { legacy: boolean }, _optional: Record<string, never> = {}): RawBuilder<unknown> {
   const { filter, legacy } = required;
   const alias = legacy ? "old" : "a";
-  const col = (name: string) => sql.ref(`${alias}.${name}`);
-  const where = [sql`${col("workspace_id")} = ${required.workspaceId}`, sql`${col("created_at")} >= ${required.cutoff}`];
-  if (filter.use) where.push(sql`${legacy ? legacyUse() : col("use_id")} = ${filter.use}`);
-  if (required.idempotencyKey) where.push(sql`${col("idempotency_key")} = ${required.idempotencyKey}`);
+  const col = ({ name }: { name: string }, _optional = {}) => sql.ref(`${alias}.${name}`);
+  const where = [sql`${col({ name: "workspace_id" })} = ${required.workspaceId}`, sql`${col({ name: "created_at" })} >= ${required.cutoff}`];
+  if (filter.use) where.push(sql`${legacy ? legacyUse() : col({ name: "use_id" })} = ${filter.use}`);
+  if (required.idempotencyKey) where.push(sql`${col({ name: "idempotency_key" })} = ${required.idempotencyKey}`);
   if (filter.recipient) where.push(recipientCondition({ ...required, recipient: filter.recipient }));
-  if (filter.before) where.push(sql`(${col("created_at")} < ${filter.before.createdAt} OR (${col("created_at")} = ${filter.before.createdAt} AND ${col(legacy ? "activity_id" : "id")} < ${filter.before.key}))`);
+  if (filter.before) where.push(sql`(${col({ name: "created_at" })} < ${filter.before.createdAt} OR (${col({ name: "created_at" })} = ${filter.before.createdAt} AND ${col({ name: legacy ? "activity_id" : "id" })} < ${filter.before.key}))`);
   return sql.join(where, sql` AND `);
 }
 

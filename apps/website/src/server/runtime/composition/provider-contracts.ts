@@ -1,5 +1,6 @@
 import { paymentsProviderContract } from "@jini-ai/commerce/payments/kernel";
-import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import { observabilityProviderContract } from "@jini-ai/diagnostics/observability";
+import type { ProductAnalyticsPort } from "@jini-ai/core/contracts/observability";
 import type { PluginProviderContract } from "@jini-ai/plugins/host";
 
 const hasMethods = ({ value, names }: { value: unknown; names: readonly string[] }): boolean =>
@@ -9,8 +10,8 @@ const hasMethods = ({ value, names }: { value: unknown; names: readonly string[]
 export const PROVIDER_CONTRACTS: readonly PluginProviderContract[] = [
   { contract: "form_collection", validate: ({ provider }) => hasMethods({ value: provider, names: ["plan"] }) ? undefined : "not a FormCollectionProvider" },
   paymentsProviderContract,
-  // `metric` is not required: contract v1 providers predate it, and gatedPort routes a missing method to the noop.
-  { contract: "observability", validate: ({ provider }) => hasMethods({ value: provider, names: ["trackRequest", "trackDbQuery", "trackOutboundCall", "trackAgentRun", "trackOperation", "reportError"] }) ? undefined : "not an ObservabilityPort" },
+  // The observability port check (and why `metric` is not required) lives with the domain, in diagnostics' provider-contract.ts.
+  observabilityProviderContract,
   { contract: "product_analytics", validate: ({ provider }) => hasMethods({ value: provider, names: ["capture", "identify"] }) && validAiCapability({ provider }) ? undefined : "not a ProductAnalyticsPort" },
   { contract: "ai_trace", validate: ({ provider }) => hasMethods({ value: provider, names: ["record"] }) ? undefined : "not an AiTraceSink" },
 ];

@@ -9,11 +9,22 @@ import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "#src/
 import { sql } from "kysely";
 import type { Clock } from "@jini-ai/core/primitives";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { AesGcmSecretSealer, credentialTokenHint, type KeyringPort, type SiteKeyHandle, type SecretSealerPort } from "@jini-ai/platform/secrets";
-import { buildVaultAad, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { AesGcmSecretSealer, credentialTokenHint } from "@jini-ai/platform/secrets";
+import {
+  type KeyringPort,
+  type RootKeyHandle,
+  type SecretSealerPort,
+  VaultError,
+  VAULT_KINDS,
+  type VaultKind,
+  type VaultMeta,
+  type VaultRecord,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { legacyTargetProvider, legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
@@ -32,7 +43,7 @@ export interface VaultBootReport {
   flagged: { id: string; kind: VaultKind; reason: BlockReason }[];
 }
 export interface VaultBootInput {
-  kernel: StorageKernel<unknown>; siteId: string; workspaceId: string; clock: Clock;
+  kernel: KyselyKernel<unknown>; siteId: string; workspaceId: string; clock: Clock;
   keyring: KeyringPort; sealer: SecretSealerPort; registry: ReturnType<typeof createTovuVaultKinds>;
 }
 class RowBlocked extends Error {
@@ -118,9 +129,9 @@ function normalizationProvider({ input, record, legacy }: LegacyRecordInput, _op
   return provider;
 }
 
-async function openLegacyRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput, _options = {}): Promise<{ plaintext: string | null; key: SiteKeyHandle }> {
+async function openLegacyRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput, _options = {}): Promise<{ plaintext: string | null; key: RootKeyHandle }> {
   let plaintext: string | null = null;
-  let key!: SiteKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
+  let key!: RootKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
   if (record.sealed) {
     try { key = await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
     try { plaintext = await previous.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy }) }); }
@@ -146,7 +157,7 @@ function parseLegacyRecord({ input, record, legacy, plaintext }: LegacyRecordInp
 }
 
 async function sealNormalizedRecord({ input, replacement, normalized, key }: {
-  input: VaultBootInput; replacement: VaultRecord; normalized: ReturnType<typeof normalizeLegacyVaultPayload>; key: SiteKeyHandle;
+  input: VaultBootInput; replacement: VaultRecord; normalized: ReturnType<typeof normalizeLegacyVaultPayload>; key: RootKeyHandle;
 }, _options = {}): Promise<void> {
   if (normalized.payload !== null) {
     const payloadText = JSON.stringify(normalized.payload);
@@ -218,7 +229,7 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
   try {
     const report = await input.kernel.transaction(async () => {
       await input.kernel.lockKey(`secrets_vault:${input.workspaceId}`);
-      const repo = new SqlSecretsVaultRepo({ kernel: input.kernel as StorageKernel<SecretsVaultDatabase> });
+      const repo = new SqlSecretsVaultRepo({ kernel: input.kernel as KyselyKernel<SecretsVaultDatabase> });
       // Unopened sites retain the old kind until 0013 is activated for their database. Count it
       // without changing authenticated identity; only an explicit legacyAad marker requests resealing.
       const report: VaultBootReport = { green: false, flagged: [], kinds: Object.fromEntries([...VAULT_KINDS, "custom" as const].map(kind => [kind,
@@ -303,7 +314,7 @@ async function reportBlockedRow({ input, record, error, coverage, hasLegacy, rep
  * @complexity O(plugin catalog + vault rows); normalization owns the lock, CAS and crypto work.
  */
 export async function normalizeSiteVaultAtBoot<Database>(required: {
-  kernel: StorageKernel<Database>; workspaceId: string; siteDir?: string; clock: Clock;
+  kernel: KyselyKernel<Database>; workspaceId: string; siteDir?: string; clock: Clock;
 }, optional: {
   keyring?: KeyringPort; sealer?: SecretSealerPort; loadContributions?: LoadPluginContributions;
   report?: (report: VaultBootReport) => void;
@@ -315,7 +326,7 @@ export async function normalizeSiteVaultAtBoot<Database>(required: {
   const sealer = optional.sealer ?? new AesGcmSecretSealer({ keyring });
   const registry = await loadSiteVaultKinds(required, { loadContributions: optional.loadContributions });
   // Normalization uses raw SQL, independent of the caller's typed content-query surface.
-  return normalizeVaultAtBoot({ ...required, kernel: required.kernel as unknown as StorageKernel<unknown>,
+  return normalizeVaultAtBoot({ ...required, kernel: required.kernel as unknown as KyselyKernel<unknown>,
     siteId: required.workspaceId, keyring, sealer, registry }, {
     report: optional.report ?? (report => {
       // Safe coverage only: neither crypto errors nor secret material belong in boot logs.

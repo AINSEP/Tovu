@@ -1,5 +1,5 @@
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
@@ -55,7 +55,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db), workspaceId, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel({ store: db }), workspaceId, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
@@ -78,16 +78,16 @@ async function setup(workspaceId: string): Promise<Fixture> {
     idGen: counterIdGen(),
   };
 
-  const trashRepo = new SqliteTrashRepo(db.$client);
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
     idGen: { newId: () => (counterTrashIdGen()).next() },
-    transaction: ({ work }) => (createContentDbTransactionRunner(db.$client))(work),
+    transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]])).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const isInTrash = async (principalId: string): Promise<boolean> =>
+  const isInTrash = async ({ principalId }: { principalId: string }): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
   return {

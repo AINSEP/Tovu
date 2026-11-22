@@ -1,13 +1,16 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/pages.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
+// Core keeps missing/malformed bases model-facing: ToolInputError survives delegated transport's
+// internal-error redaction, so the model receives the read-and-retry instruction.
+import { requireExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -15,7 +18,9 @@ import { type AgentToolDefinition as PagesAgentToolDefinition } from "@jini-ai/c
 import { pagesAgentToolCatalog } from "./agent-tools.js";
 import { describeScriptRevealedContent } from "./hidden-until-script.js";
 import { requirePageAuthoringHtml } from "./authoring-html.js";
-import { NO_THEME_ID, resolveActiveTheme, syncThemeRoster, type DiscoveredTheme } from "../theme/index.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme, themeRosterPorts, type DiscoveredTheme } from "../theme/index.js";
+import { syncThemeRoster } from "@jini-ai/cms/themes/preview/roster";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
@@ -78,29 +83,6 @@ const pagesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffec
 const CATALOG_BY_ID = indexCatalogById({ catalog: pagesAgentToolCatalog });
 
 /**
- * The optimistic-concurrency basis off an untyped tool input.
- *
- * Same contract, same rejection TEXT, and the same reason for existing as `features/post`'s
- * `parseExpectedVersion` — a value this handler failed to recognize must not coerce to "no basis
- * sent" and be written through as an unguarded save. The rejection TYPE differs on purpose:
- * `features/post`'s throws `PostValidationError` because every one of its arms wraps handlers in
- * `withSchemaOnRejection`, which reclassifies it. Pages has no such wrapper, and `@jini-ai/daemon`'s
- * `ToolExecutor` tags anything that is not a `ToolInputError` as `errorKind: 'internal'`, which
- * `@jini-ai/daemon/http`'s `delegatedToolExecuteRoute` then SEC-005-redacts to a bare INTERNAL_ERROR.
- * Reusing the class here would tell the model its site fell over when it actually sent `"3"` instead
- * of `3`. The message constant IS imported, so the two arms cannot drift on what they say.
- *
- * @complexity O(1).
- */
-function parsePageExpectedVersion(raw: unknown): number | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
-    throw new ToolInputError({ message: EXPECTED_VERSION_REJECTION });
-  }
-  return raw;
-}
-
-/**
  * The version the store captured on its most recent read — the exact predicate its next `write()`
  * will use.
  *
@@ -129,12 +111,12 @@ function requireCapturedVersion(store: PagesHtmlDocumentStorePort): number {
  * arrive. The classification is honest rather than a trick: a stale basis IS a caller-input problem
  * that a different (freshly re-read) input resolves.
  *
- * @throws {ToolInputError} When a basis was sent and does not match.
+ * @throws {ToolInputError} When the required basis does not match.
  * @complexity O(1).
  */
-function assertExpectedVersion(required: { id: string; expectedVersion: number | undefined; basis: number }): void {
+function assertExpectedVersion(required: { id: string; expectedVersion: number; basis: number }): void {
   const { id, expectedVersion, basis } = required;
-  if (expectedVersion === undefined || expectedVersion === basis) return;
+  if (expectedVersion === basis) return;
   throw new ToolInputError({ message: `${VERSION_CONFLICT_CODE}: page '${id}' is at version ${basis}, not the version ${expectedVersion} you based this edit on. ` +
       "Someone else saved it after you read it, so your edit was NOT applied and nothing was overwritten. " +
       "Re-read the page with pages_read_html, reapply your change on top of the body you get back, and resend " +
@@ -146,14 +128,14 @@ function assertExpectedVersion(required: { id: string; expectedVersion: number |
  * through untouched.
  *
  * The window this catches is narrower than {@link assertExpectedVersion}'s and is not the same
- * check: a writer can land between this turn's `read()` and its `write()` even when the caller sent
- * no basis at all, and `PagesHtmlDocumentStore` refuses that write by design (CIC-1). Before this,
+ * check: a writer can land between this turn's `read()` and its `write()` after the caller
+ * supplied a matching basis, and `PagesHtmlDocumentStore` refuses that write by design (CIC-1). Before this,
  * both page writers let that rejection propagate as a bare `Error`, which the delegated transport
  * redacts — so a genuine concurrent edit reached the model as an unexplained server error.
  *
  * @complexity O(1).
  */
-function toModelFacingWriteError(err: unknown): unknown {
+function toModelFacingWriteError({ err }: { err: unknown }, _optional = {}): unknown {
   if (!(err instanceof PageConcurrentEditError)) return err;
   return new ToolInputError({ message: `${VERSION_CONFLICT_CODE}: ${err.message}. Nothing was written. Re-read the page with pages_read_html, ` +
       "reapply your change to the body you get back, and resend." });
@@ -185,7 +167,7 @@ function assertTopLevelSectionsAreTagged(
   { html, scan }: { html: string; scan: HtmlRegionScan },
   _options: Record<string, never> = {},
 ): void {
-  const offenders = untaggedTopLevelSections({ html, scan }, { slugify: toSlug });
+  const offenders = untaggedTopLevelSections({ html, scan }, { slugify: (text) => toSlug({ text }) });
   if (offenders.length === 0) return;
   const listed = offenders
     .map((offender) =>
@@ -212,7 +194,7 @@ function assertTopLevelSectionsAreTagged(
  *
  * @complexity O(r) in the document's region count.
  */
-function describeRegionProblem(id: string, handle: string, problem: RegionLookupProblem): string {
+function describeRegionProblem({ id, handle, problem }: { id: string; handle: string; problem: RegionLookupProblem }, _optional = {}): string {
   if (problem.kind === "ambiguous") {
     return (
       `Nothing was written: ${problem.count} elements in page '${id}' carry data-agent-element="${handle}", so that handle ` +
@@ -252,7 +234,7 @@ function requireRegion(
   _options: Record<string, never> = {},
 ): ScannedRegion {
   const lookup = locateRegion({ scan, handle });
-  if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
+  if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem({ id, handle, problem: lookup.problem }) });
   return lookup.region;
 }
 
@@ -289,7 +271,7 @@ function joinWarnings(
  *
  * @complexity O(k) in the offending handle count.
  */
-function describeHandleCollision(id: string, handle: string, collisions: readonly string[]): string {
+function describeHandleCollision({ id, handle, collisions }: { id: string; handle: string; collisions: readonly string[] }, _optional = {}): string {
   const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
   return (
     `Nothing was written: the html for region "${handle}" carries data-agent-element=${quoted}, which ` +
@@ -303,7 +285,7 @@ function describeHandleCollision(id: string, handle: string, collisions: readonl
  *
  * @complexity O(k) in the offending handle count.
  */
-function describeFullWriteHandleCollision(id: string, collisions: readonly string[]): string {
+function describeFullWriteHandleCollision({ id, collisions }: { id: string; collisions: readonly string[] }, _optional = {}): string {
   const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
   return (
     `Nothing was written: the html for page '${id}' puts data-agent-element=${quoted} on more than one element, ` +
@@ -386,7 +368,7 @@ async function openForFullWrite(
     store: PagesHtmlDocumentStorePort;
     seedHtml: string;
     scan: HtmlRegionScan;
-    guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number | undefined };
+    guard: { postRepo: PostRepoPort; workspaceId: string; id: string; expectedVersion: number };
   },
   _options: Record<string, never> = {},
 ): Promise<FullWriteOpening> {
@@ -403,7 +385,7 @@ async function openForFullWrite(
 
   const row = await guard.postRepo.findById({ workspaceId: guard.workspaceId, id: guard.id });
   if (row) assertExpectedVersion({ id: guard.id, expectedVersion: guard.expectedVersion, basis: row.version });
-  await store.ensureHtmlFormat(seedHtml);
+  await store.ensureHtmlFormat({ seedHtml, expectedVersion: guard.expectedVersion });
   return { basis: null };
 }
 
@@ -417,7 +399,7 @@ export interface PagesToolDeps {
   themesDir?: string;
   resolveActiveThemeId?: () => Promise<string>;
   /** Renders a doc body as Page HTML. Absent only in standalone page-store consumers. */
-  docBodyAsPageHtml?: (bodyJson: unknown) => string;
+  docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
 }
 
 /**
@@ -433,8 +415,8 @@ async function readPageTheme(
   _options: Record<string, never> = {},
 ) {
   if (!deps.themes || !deps.resolveActiveThemeId) return null;
-  if (deps.themesDir) syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
-  const theme = resolveActiveTheme({ themes: deps.themes }, await deps.resolveActiveThemeId());
+  if (deps.themesDir) syncThemeRoster({ ...themeRosterPorts, themes: deps.themes, themesDir: deps.themesDir });
+  const theme = resolveActiveTheme({ deps: { themes: deps.themes }, activeThemeId: await deps.resolveActiveThemeId() });
   if (theme === null || theme === NO_THEME_ID) return null;
   return { id: theme.manifest.id, tokens: theme.tokens, tokensLight: theme.tokensLight };
 }
@@ -459,7 +441,7 @@ async function readDocPageFallback(
   // model must be told before it calls `pages_write_html` and silently discards it.
   const hasDocContent = Array.isArray(row.bodyJson.content) && row.bodyJson.content.length > 0;
   // Without this the model sees an empty page and any addition erases the owner's text and form.
-  const html = hasDocContent && deps.docBodyAsPageHtml ? deps.docBodyAsPageHtml(row.bodyJson) : "";
+  const html = hasDocContent && deps.docBodyAsPageHtml ? deps.docBodyAsPageHtml({ bodyJson: row.bodyJson }) : "";
   return {
     id,
     html,
@@ -468,16 +450,21 @@ async function readDocPageFallback(
     version: row.version,
     hasDocContent,
     theme: await readPageTheme({ deps }),
-    ...(hasDocContent
-      ? {
-          note: html
-            ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
-              "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
-            : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
-              "replaces that rich-text body; the previous body is kept in the page's revision history.",
-        }
-      : {}),
+    ...docPageNote({ hasDocContent, html }),
   };
+}
+
+/** The `note` telling the model a doc page already has content, and what writing HTML does to it. */
+function docPageNote({ hasDocContent, html }: { hasDocContent: boolean; html: string }, _options: Record<string, never> = {}) {
+  return hasDocContent
+    ? {
+        note: html
+          ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
+            "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
+          : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
+            "replaces that rich-text body; the previous body is kept in the page's revision history.",
+      }
+    : {};
 }
 
 /**
@@ -522,11 +509,9 @@ function embedWarningMessages({ store }: { store: import("./html-document-store.
   return (store.embedWarnings?.() ?? []).map(warning => warning.message);
 }
 
-export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
     // Resolve against this handler's site dependencies, after scope selection and permission checks.
     // Region selection stays outside the document fallback so a failed lookup cannot return a full page.
-    pages_read_html: async (ctx) => {
+    async function readPageHtml(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post" });
 
@@ -548,15 +533,16 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       if (input.regionId === undefined) return result;
       const region = requireRegion({ scan, id, handle: requireString({ input, key: "regionId" }) });
       return { ...result, html: page.html.slice(region.start, region.end) };
-    },
+    }
 
-    pages_write_html: async (ctx) => {
+
+    async function writePageHtml(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
       const html = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       // Before anything is opened or converted, so a refused write leaves the row exactly as it was
       // — including a `doc`-format row that would otherwise have been converted one-way by
       // `ensureHtmlFormat` on the way to a rejection.
@@ -569,9 +555,9 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       try {
         const opening = await openForFullWrite({ store, seedHtml: html, scan, guard: { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion } });
         // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
-        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision(id, opening.madeAmbiguous) };
+        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision({ id, collisions: opening.madeAmbiguous }) };
         if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
-        await store.write(html);
+        await store.write({ html });
       } catch (err) {
         if (err instanceof PageKindMismatchError) {
           // Surfaced as a model-facing reason rather than a thrown error: this is a mistake the
@@ -585,27 +571,28 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
               "kind:'page' to find the right id, or content_post_create with kind:'page' to make one.",
           };
         }
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
 
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
       // mistake, but a deliberately hidden element is legal (see `hidden-until-script.ts`).
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html }), describeUnsafeRegions({ scan }), ...embedWarningMessages({ store })] });
       return { written: true, id, regions: regionHandlesIn({ scan }), version: requireCapturedVersion(store), ...warning };
-    },
+    }
+
 
     /**
      * The one-section edit. Read, splice, version-conditioned write — server-side, so the model
      * never has to hold or re-emit the rest of the document.
      */
-    pages_write_region: async (ctx) => {
+    async function writePageRegion(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const fragment = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
@@ -634,7 +621,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       const scan = scanHtmlRegions({ html: current });
       const lookup = locateRegion({ scan, handle });
-      if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
+      if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem({ id, handle, problem: lookup.problem }) });
 
       // Inner-only replacement preserves the address, classes and aria attributes by construction;
       // asking the model to re-emit the whole element would let a typo erase the address being edited.
@@ -646,12 +633,13 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       if (madeAmbiguous.length > 0) {
         // Returned, not thrown, like the other refusals the model fixes by changing its own input:
         // here it only has to drop or rename the reused handle in its fragment.
-        return { written: false, reason: describeHandleCollision(id, handle, madeAmbiguous) };
+        return { written: false, reason: describeHandleCollision({ id, handle, collisions: madeAmbiguous }) };
       }
       try {
-        await store.write(next);
+        ctx.signal.throwIfAborted();
+        await store.write({ html: next });
       } catch (err) {
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
 
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html: fragment }), describeUnsafeRegions({ scan: nextScan }), ...embedWarningMessages({ store })] });
@@ -666,20 +654,21 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         version: requireCapturedVersion(store),
         ...warning,
       };
-    },
+    }
+
 
     /**
      * The section reorder. Read, cut-and-reinsert one whole region element, version-conditioned
      * write — so "swap these two sections" never means re-sending the page.
      */
-    pages_move_region: async (ctx) => {
+    async function movePageRegion(routeDeps: PagesToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PAGES_EDIT_HTML_PERMISSION }, { entityType: "post" });
 
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const { placement, targetHandle } = parseMovePlacement(input);
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "pages_read_html" });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
@@ -710,13 +699,25 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
         };
       }
       try {
-        await store.write(moved.html);
+        ctx.signal.throwIfAborted();
+        await store.write({ html: moved.html });
       } catch (err) {
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
       const movedScan = scanHtmlRegions({ html: moved.html });
       return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };
-    },
+    }
+
+
+
+
+
+export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    pages_read_html: (ctx) => readPageHtml(routeDeps, ctx),
+    pages_write_html: (ctx) => writePageHtml(routeDeps, ctx),
+    pages_write_region: (ctx) => writePageRegion(routeDeps, ctx),
+    pages_move_region: (ctx) => movePageRegion(routeDeps, ctx),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,
@@ -732,7 +733,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // stays a separate, inline reclassification at its own two call sites (unchanged) — it targets
     // `PageConcurrentEditError` specifically, with a narrower message than a generic allowlist rule
     // would produce.
-    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }, { error: PostNotFoundError, code: "PAGES_NOT_FOUND" }] }),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND", guidance: "List pages with content_post_list, then pass its id." }, { error: PostNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
     inputNormalizers: Object.fromEntries([...CATALOG_BY_ID.keys()].map(toolId => [toolId,
       ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizePageInput({ input, toolId }),
@@ -744,7 +745,7 @@ export { pagesDerivedRisk };
 
 /**
  * Contributes Pages' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildPagesRegistrations`/
  * `pagesDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2). Safe: the only
  * importer of `features/pages/tool-registrations` (relative or `#src/*` subpath) is

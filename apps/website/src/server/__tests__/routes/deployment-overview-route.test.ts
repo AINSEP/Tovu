@@ -223,7 +223,7 @@ test("deployment-overview: an owner whose stored password is no longer the defau
 });
 
 test("deployment-overview: reports a known agent-daemon failure, latched from outside runBootLifecycle", async (t) => {
-  recordAssistantDaemonFailure("boom");
+  recordAssistantDaemonFailure({ reasonCode: "boom" });
   t.after(() => clearAssistantDaemonFailure());
 
   const deps: ReturnType<typeof createRouteDeps> = { ...createRouteDeps() };

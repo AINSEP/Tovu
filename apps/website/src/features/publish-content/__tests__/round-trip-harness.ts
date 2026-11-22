@@ -11,10 +11,11 @@ import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, Sq
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
+import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "@jini-ai/cms/publish/transfer";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { CONTENT_HASH_VERSION } from "../content-hash.js";
-import { entityKey, planImport, type PublishContentReport } from "../planner.js";
+import { planImport } from "../planner.js";
+import { entityKey, type PublishContentReport } from "../plan-rows.js";
 import {
   buildPublishContentCatalog,
   registerPublishContentContributor,
@@ -22,8 +23,8 @@ import {
   type PackedEntity,
   type PublishContentContributor,
   type PublishContentDeps,
-  type PublishContentPorts,
 } from "../type-registry.js";
+import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 
 /**
  * @file Shared round trip for a factory-built type's test: pack the source, plan against the
@@ -37,7 +38,7 @@ export const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 /** One instance's apply-capable deps over `ports`: in-memory change sets and outbox, allow-all
  *  authorize, a ticking clock and counting ids. */
-export function makeSite(ports: Partial<PublishContentPorts>, name = "site"): PublishContentDeps {
+export function makeSite(ports: Partial<TovuPublishPorts>, name = "site"): PublishContentDeps {
   const outbox = new InMemoryOutbox();
   let tick = 0;
   let id = 0;
@@ -58,9 +59,9 @@ export function registerOnly(contributors: readonly PublishContentContributor[])
   for (const dep of new Set(contributors.flatMap((c) => c.dependsOn))) {
     if (known.has(dep)) continue;
     known.add(dep);
-    registerPublishContentContributor(emptyContributor(dep));
+    registerPublishContentContributor({ contributor: emptyContributor(dep) });
   }
-  for (const contributor of contributors) registerPublishContentContributor(contributor);
+  for (const contributor of contributors) registerPublishContentContributor({ contributor });
 }
 
 function emptyContributor(entityType: string): PublishContentContributor {
@@ -93,8 +94,10 @@ export async function packAll(deps: PublishContentDeps): Promise<PackedEntity[]>
 /** No baselines, so a changed row plans `conflict`; `force` lists `entityKey`s to push past it. */
 export async function plan(entities: readonly PackedEntity[], destination: PublishContentDeps, force: readonly string[] = []): Promise<PublishContentReport> {
   return planImport(
-    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-    { publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
+    {
+      bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
+      deps: { publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
+    }
   );
 }
 
@@ -102,13 +105,13 @@ export async function plan(entities: readonly PackedEntity[], destination: Publi
  *  idempotency key names the content hash, as the apply loop's does, so a later edit re-applies. */
 export async function applyReport(report: PublishContentReport, entities: readonly PackedEntity[], destination: PublishContentDeps): Promise<void> {
   const { handlerByType } = buildPublishContentCatalog(destination);
-  const byKey = new Map(entities.map((e) => [entityKey(e.entityType, e.id), e] as const));
+  const byKey = new Map(entities.map((e) => [entityKey({ entityType: e.entityType, entityId: e.id }), e] as const));
   for (const row of report.rows) {
     if (!row.writes) continue;
     const handler = handlerByType.get(row.entityType)!;
-    const entity = byKey.get(entityKey(row.entityType, row.entityId))!;
+    const entity = byKey.get(entityKey({ entityType: row.entityType, entityId: row.entityId }))!;
     // As `apply-loop.ts`: a `created` row is always a create; otherwise the freshly read version.
-    const expectedVersion = row.outcome === "created" ? undefined : (await handler.inspect(entity.id))?.version;
+    const expectedVersion = row.outcome === "created" ? undefined : (await handler.inspect({ id: entity.id }))?.version;
     await handler.apply({ entity, expectedVersion, principalId: "owner", idempotencyKey: `idem-${row.entityType}-${row.entityId}-${entity.contentHash}` });
   }
 }
@@ -134,22 +137,22 @@ export function sqliteContentSite() {
   const workspaceId = WORKSPACE_ID;
   const repos = {
     db,
-    posts: new SqlitePostRepo(db),
-    entries: new SqliteEntryRepo(db),
+    posts: new SqlitePostRepo({ store: db }),
+    entries: new SqliteEntryRepo({ store: db }),
     contentTypes: new InMemoryContentTypeRepo(),
     taxonomies: new SqliteTaxonomyRepo({ db, workspaceId }),
     terms: new SqliteTermRepo({ db, workspaceId }),
     entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
-    settings: new SqliteSettingsRepo(db),
-    presentation: new SqlitePresentationSettingsRepo(db),
+    settings: new SqliteSettingsRepo({ store: db }),
+    presentation: new SqlitePresentationSettingsRepo({ store: db }),
     /** The site's discovered themes; a test pushes stand-ins. */
     themes: [] as DiscoveredTheme[],
   };
-  const ports: Partial<PublishContentPorts> = {
+  const ports: Partial<TovuPublishPorts> = {
     // A function port, so not `unused()`'s Proxy (calling a Proxy over `{}` is a bare TypeError).
     post: { repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
     ...buildContentPublishPorts({
-      formDefinitionRepo: new SqliteFormDefinitionRepo(db),
+      formDefinitionRepo: new SqliteFormDefinitionRepo({ store: db }),
       contentTypeRepo: repos.contentTypes,
       contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
       workspaceId,

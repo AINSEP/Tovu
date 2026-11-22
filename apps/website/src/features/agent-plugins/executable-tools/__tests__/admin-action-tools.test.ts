@@ -5,18 +5,18 @@ import test from 'node:test';
 import { createToolRegistry } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { createAdminSurfaceActionDispatcher, type LoadedAdminSurface } from '@jini-ai/agent-plugins/admin-surfaces';
-import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
 import { allowAll, fakeConnections, fakeHttp, PLUGIN, WORKSPACE, startConfirmingCall } from './fixtures.js';
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { createSurfaceConnections } from '../../../api-connections/surface-connections.js';
 import type { ApiConnectionHost } from '../../../api-connections/host.js';
-import { createFrozenConnectionAccounts } from '../host-capabilities.js';
+import { createFrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 
 const surface: LoadedAdminSurface = {
   plugin: { pluginId: PLUGIN, packageRoot: '/trusted/acme' },

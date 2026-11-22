@@ -3,7 +3,8 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { APIRequestContext, PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
-import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform";
+import { listProcessSnapshots, stopProcesses } from "@jini-ai/platform";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 import { test as journeyTest, expect } from "../journeys/_fixtures.js";
 import { createIsolatedJourneySite, JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD, type IsolatedJourneySite } from "./isolated-journey-site.js";
 import JourneySiteCleanupReporter from "./journey-site-cleanup-reporter.js";
@@ -164,7 +165,7 @@ async function runPinSite(
       // Preview/publish pins must stay credential-free, including every descriptor env alias:
       // a runner's real token would turn the expected local refusal into an outbound publish.
       // Each hosting plugin ships its own targets file; both ship from @jini-ai/agent-plugins/<id> (D-W2).
-      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "tovu-deploy-targets.json")).filter(file => existsSync(file))
+      const targets = ["github-pages", "vercel"].map(pluginId => path.join(agentPluginSourceDir({ pluginId }), "jini-deploy-targets.json")).filter(file => existsSync(file))
         .flatMap(file => (JSON.parse(readFileSync(file, "utf8")) as { targets: Array<{ id: string; env?: { tokenVars: string[] } }> }).targets);
       for (const target of targets) {
         if (target.id !== "github-pages" && target.id !== "vercel") continue;
@@ -245,7 +246,7 @@ async function runPinSite(
   } finally {
     // Capture descendants before stopping their parents: daemon launchers own separate process
     // groups. Jini's existing process-tree stopper proves even those detached descendants exited.
-    const owned = collectProcessTreePids(await listProcessSnapshots(), children.flatMap((child) => child.pid ? [child.pid] : []));
+    const owned = collectProcessTreePids({ processes: await listProcessSnapshots(), rootPids: children.flatMap((child) => child.pid ? [child.pid] : []) });
     const stopped = await Promise.allSettled(children.map(stop));
     const tree = await stopProcesses(owned);
     for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }

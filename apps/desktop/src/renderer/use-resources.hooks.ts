@@ -1,3 +1,4 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Pull-only Tovu resource readings. Main owns sampling policy and process attribution. */
 import { useEffect, useRef, useState } from 'react';
 import { runnerInventoryBridge } from './runner-api.js';
@@ -11,15 +12,15 @@ export interface ResourcesPorts {
     addEventListener: (event: 'visibilitychange', listener: () => void) => void;
     removeEventListener: (event: 'visibilitychange', listener: () => void) => void;
   };
-  setTimer: (run: () => void, delay: number) => number;
-  clearTimer: (id: number) => void;
+  setTimer: (input: { run: () => void; delay: number }) => number;
+  clearTimer: (input: { id: number }) => void;
 }
 
 const browserPorts: ResourcesPorts = {
   getBridge: runnerInventoryBridge,
   get document() { return document; },
-  setTimer: (run, delay) => window.setTimeout(run, delay),
-  clearTimer: (id) => window.clearTimeout(id),
+  setTimer: ({ run, delay }) => window.setTimeout(run, delay),
+  clearTimer: ({ id }) => window.clearTimeout(id),
 };
 
 /** A visibility change invalidates a pending reading; retry it before the next normal cadence. */
@@ -40,9 +41,11 @@ function pollDelay({ currentVisibility, snapshot }: { currentVisibility: boolean
 export function useResources({ panelOpen }: ResourcesRequest, { ports = browserPorts, refreshKey }: { ports?: ResourcesPorts; refreshKey?: string } = {}) {
   const [snapshot, setSnapshot] = useState<ResourcesSnapshot | null>(null);
   const inFlight = useRef<Promise<ResourcesSnapshot | null> | null>(null);
+  const failing = useRef(false);
   useEffect(() => {
     const bridge = ports.getBridge();
     if (!bridge?.getResources) return undefined;
+    const getResources = bridge.getResources.bind(bridge);
     let active = true;
     let pending = false;
     let visibilityVersion = 0;
@@ -50,7 +53,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
 
     /** Clear the scheduled read before hiding, refreshing or disposing this effect. */
     function clearTimer() {
-      if (timer !== undefined) ports.clearTimer(timer);
+      if (timer !== undefined) ports.clearTimer({ id: timer });
       timer = undefined;
     }
 
@@ -62,7 +65,14 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) { pending = false; return; }
       const version = visibilityVersion;
       // Resolve failures locally: raw native/IPC messages may contain sensitive process details.
-      const request = Promise.resolve().then(() => bridge!.getResources!({ panelOpen })).catch(() => null);
+      const request = Promise.resolve().then(() => getResources({ panelOpen })).then((result) => {
+        failing.current = false;
+        return result;
+      }).catch((error: unknown) => {
+        if (!failing.current) console.error("[resources] Could not read resource usage", describeErrorForLog({ err: error }));
+        failing.current = true;
+        return null;
+      });
       inFlight.current = request;
       const next = await request;
       inFlight.current = null;
@@ -70,7 +80,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) return;
       const currentVisibility = version === visibilityVersion;
       if (currentVisibility) setSnapshot(next);
-      timer = ports.setTimer(() => { void poll(); }, pollDelay({ currentVisibility, snapshot: next }));
+      timer = ports.setTimer({ run: () => { void poll(); }, delay: pollDelay({ currentVisibility, snapshot: next }) });
     }
 
     /** A hidden document owns no timer. Returning to it asks main for a fresh/cached snapshot. */

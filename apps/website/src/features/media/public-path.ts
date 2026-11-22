@@ -10,7 +10,7 @@ import { isValidMediaSlugFormat } from "@jini-ai/cms/media/slug";
  * would break a URL already baked into rendered HTML). That is no longer the reason to prefer the
  * id: `media_slug_history` (S2a/S2b) makes a retired slug keep resolving, so emitting the CURRENT
  * slug is safe. This slice only builds and tests the two functions; the four existing callers
- * (`render.ts`'s `renderImageTag`/`renderVideoTag`, `Jini/packages/cms/src/seo/media.ts`'s `buildSeoImageUrl`,
+ * (`site/render/doc/media-ref.ts`, `site/render/doc/nodes-media.ts`, `site/render/widgets/media.ts`, `Jini/packages/cms/src/seo/media.ts`'s `buildSeoImageUrl`,
  * `tool-registrations.ts`'s `resolveOneAssetPublicUrl`) move onto {@link mediaPublicPath} in this
  * same slice but keep passing the id, so their output is byte-identical. Actually emitting a slug
  * (calling {@link mediaUrlKey} at each call site) is S3/S4's job, once the rename-safety and

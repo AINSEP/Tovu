@@ -1,8 +1,25 @@
 import { ToolInputError } from '@jini-ai/core';
-import { isInVaultQueryScope, type VaultRecord, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
+import {
+  isInVaultQueryScope,
+  type VaultRecord,
+  type VaultRepoPort,
+} from '@jini-ai/core/contracts/vault';
 import type { KeyAttachments } from './attachments.js';
 
 export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspaceId: string; label: string }, options?: Record<string, never>) => Promise<VaultRecord | null> };
+function createGrantedVaultFind(vault: VaultRepoPort, siteId: string, attachments: KeyAttachments): VaultRepoPort['find'] {
+  return async (input, options) => {
+    try {
+      if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
+      return await vault.find(input, options);
+    } catch (error) {
+      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
+      return null;
+    }
+  };
+}
+
 
 /** Site consumption adapter over CMS site grants. Never reads ungranted envelopes or forwards writes.
  * Each lookup rechecks the grant; inventory reads at most 100 selected rows, never the owner vault.
@@ -12,15 +29,7 @@ export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspa
 export function attachedOnlyVault({ vault, siteId, attachments }: {
   vault: VaultRepoPort; siteId: string; attachments: KeyAttachments;
 }, _optional = {}): SiteGrantedVault {
-  const find: VaultRepoPort['find'] = async (input, options) => {
-    try {
-      if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
-      return await vault.find(input, options);
-    } catch {
-      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.');
-      return null;
-    }
-  };
+  const find: VaultRepoPort['find'] = createGrantedVaultFind(vault, siteId, attachments);
   async function granted({ workspaceId }: { workspaceId: string }): Promise<VaultRecord[]> {
     const rows: VaultRecord[] = [];
     for (const id of await attachments.keysFor({ siteId }).catch(() => {
@@ -37,14 +46,15 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
   const refuse = async (): Promise<never> => {
     throw new ToolInputError({ message: 'Change this saved key in Shared Keys. To stop using it here, revoke its grant on this site.' });
   };
+  const keyForLabel = attachments.keyForLabel?.bind(attachments);
   return {
     find, list,
-    ...(attachments.keyForLabel ? { findByLabel: async (input: { workspaceId: string; label: string }) => {
+    ...(keyForLabel ? { findByLabel: async (input: { workspaceId: string; label: string }) => {
       try {
-        const id = await attachments.keyForLabel!({ siteId, label: input.label });
+        const id = await keyForLabel({ siteId, label: input.label });
         return id ? await find({ workspaceId: input.workspaceId, id }) : null;
-      } catch {
-        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.');
+      } catch (error) {
+        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
         return null;
       }
     } } : {}),
@@ -53,7 +63,11 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
       && (input.principalId === undefined || row.principalId === input.principalId)) ?? null,
     findDefault: async input => {
       const rows = await list(input);
-      return rows.find(row => row.isDefault) ?? (rows.length === 1 ? rows[0]! : null);
+      const selected = rows.find(row => row.isDefault);
+      if (selected || rows.length !== 1) return selected ?? null;
+      const only = rows[0];
+      if (only === undefined) throw new Error("Shared key inventory has no sole row");
+      return only;
     },
     put: refuse, patchMeta: refuse, delete: refuse, applyBatch: refuse,
   };

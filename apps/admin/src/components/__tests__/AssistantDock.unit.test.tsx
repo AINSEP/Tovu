@@ -1,4 +1,4 @@
-import { act, fireEvent, render as renderWithoutProvider, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -58,14 +58,9 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
 }
 
-import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 
-/** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
- *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */
-function render(ui: ReactNode) {
-  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
-}
+// `render` (from the kits helper) mounts the production query cache, kits and chat surfaces, as `main.tsx` does for the real dock.
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,
@@ -74,12 +69,14 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { useByokRuntime, useExecutionConfig, useLocalCliSelection, type UseByokRuntime, type UseExecutionConfig, type UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
+import { useByokRuntime, type UseByokRuntime } from "../AssistantDock/hooks/byok-runtime.hooks";
+import { useExecutionConfig, type UseExecutionConfig } from "../AssistantDock/hooks/execution-config.hooks";
+import { useLocalCliSelection, type UseLocalCliSelection } from "../AssistantDock/hooks/local-cli-selection.hooks";
 import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, registerExtEventRenderer, getExtEventRenderer, type ExtEventRenderProps, type ExtEventRendererRegistry } from "@jini-ai/chat/react";
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
-import { zipFolderFiles } from "../InstallTabCard/folder-zip";
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();
 const mockSaveExecutionConfig = vi.fn<typeof saveExecutionConfig>();
@@ -91,7 +88,7 @@ const executionConfigPort = {
   loadCredential: mockLoadAdminExecutionCredential,
   now: Date.now,
 };
-const persistWrite: typeof import("../AssistantDock/execution-config-write").persistExecutionConfigWrite = async (write) => {
+const persistWrite: typeof import("../AssistantDock/execution-config-write").persistExecutionConfigWrite = async ({ write }) => {
   await mockSaveExecutionConfig(write.next, write.previous);
   return true;
 };
@@ -649,7 +646,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
   });
 
   it("passes no placeholder agents when the runtime access is injected — a fake has no cache to seed from", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     const fakeRuntimeAccess = {
       listAgents: vi.fn().mockResolvedValue([]),
       rescanAgents: vi.fn().mockResolvedValue([]),
@@ -663,7 +660,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
   });
 
   it("seeds ChatPane's agents from the last live list this browser stored, before listAgents resolves", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
 
     render(<AssistantDock useChats={() => fakeChats()} />);
 
@@ -688,7 +685,7 @@ describe("AssistantDock useAdminLocale injection", () => {
  * Regression coverage for the `chat.get_state` hang (production `agent_tool_attempts` rows:
  * `requested` -> 30.008s later -> `timed-out`, run `4ea23482-c7de-4402-8985-1b83470f4ff8`).
  *
- * Root cause, traced end to end: `useAgentPageBridge` (`App.hooks.tsx`) builds the page-control
+ * Root cause, traced end to end: `useAgentPageBridge` (`App.hooks.ts`) builds the page-control
  * bridge via `createFrontendSessionBridge({ pageDriver, onError })` with no `executors`. Jini's
  * `createFrontendSessionBridge` (`frontend-session-bridge.ts`) claims ALL seven `CHAT_CAPABILITIES`
  * ids unconditionally in its `attached` handshake (unlike `page.*`, gated behind `pageDriver`) — so
@@ -890,6 +887,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
     expect(element.type).toBe(RoutedA2uiSurfaceCard);
     expect(element.props).toMatchObject({ actionId: "a-1", someProp: "value" });
     expect(typeof element.props.onAgentAction).toBe("function");
+    expect(typeof (element.props.clock as { nowMs: unknown }).nowMs).toBe("function");
   });
 
   it("registers a renderer under 'slow_running' that renders SlowRunNoticeCard with every prop passed through", () => {
@@ -1002,7 +1000,7 @@ describe("AssistantDock — permanent conversation deletion", () => {
       expect(chats.remove).not.toHaveBeenCalled();
       fireEvent.click(screen.getByTestId("conversation-delete-conv-delete"));
       fireEvent.click(within(screen.getByRole("dialog", { name: "Delete conversation" })).getByRole("button", { name: "Delete conversation" }));
-      await waitFor(() => expect(chats.remove).toHaveBeenCalledExactlyOnceWith("conv-delete"));
+      await waitFor(() => expect(chats.remove).toHaveBeenCalledExactlyOnceWith({ id: "conv-delete" }));
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(nativeConfirm).not.toHaveBeenCalled();
     } finally {

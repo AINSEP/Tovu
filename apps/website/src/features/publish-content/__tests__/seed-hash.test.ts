@@ -18,19 +18,21 @@ import {
 
 function registerInspect(entityType: string, inspect: PublishContentHandler["inspect"]): void {
   registerPublishContentContributor({
-    entityType,
-    dependsOn: [],
-    build: () => ({
+                                      contributor: {
       entityType,
-      schemaVersion: 1,
-      permission: "content.write",
       dependsOn: [],
-      pack: async function* () {},
-      inspect,
-      precheck: async () => null,
-      apply: async () => ({ changeSetId: "unused" }),
-    }),
-  });
+      build: () => ({
+        entityType,
+        schemaVersion: 1,
+        permission: "content.write",
+        dependsOn: [],
+        pack: async function* () {},
+        inspect,
+        precheck: async () => null,
+        apply: async () => ({ changeSetId: "unused" }),
+      }),
+    }
+                                    });
 }
 
 const seedDeps = { workspaceId: "ws-seed" } as PublishContentDeps;
@@ -44,7 +46,7 @@ test("NO_PUBLISH_CONTENT_SEED_HASH answers null for any row", async () => {
 });
 
 test("a found seed row answers its inspect() hash; an absent row answers null", async () => {
-  registerInspect("page", async (id) => (id === "p-1" ? { hash: "seed-hash-p1" } as never : null));
+  registerInspect("page", async ({ id }) => (id === "p-1" ? { hash: "seed-hash-p1" } as never : null));
   const lookup = createPublishContentSeedHash({ loadSeedDeps: () => seedDeps });
 
   assert.equal(await lookup({ entityType: "page", entityId: "p-1" }), "seed-hash-p1");

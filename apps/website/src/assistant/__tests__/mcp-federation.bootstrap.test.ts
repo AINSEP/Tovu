@@ -130,7 +130,13 @@ test("attachFederatedMcpTools stamps preset connections with a preset origin, fo
 
 function collectingLogger() {
   const messages: string[] = [];
-  return { messages, logger: { info: (m: string) => messages.push(`info:${m}`), warn: (m: string) => messages.push(`warn:${m}`) } };
+  // Jini logs fixed words as `message` and hands the original error as `{ error }` for the host sink.
+  const errors: unknown[] = [];
+  const keep = ({ error }: { error?: unknown }) => { if (error !== undefined) errors.push(error); };
+  return { messages, errors, logger: {
+    info: ({ message }: { message: string }, optional: { error?: unknown } = {}) => { messages.push(`info:${message}`); keep(optional); },
+    warn: ({ message }: { message: string }, optional: { error?: unknown } = {}) => { messages.push(`warn:${message}`); keep(optional); },
+  } };
 }
 
 const UVX_UNAVAILABLE_MESSAGE =
@@ -165,7 +171,7 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
     close: async () => undefined,
   };
 
-  const { messages, logger } = collectingLogger();
+  const { messages, errors, logger } = collectingLogger();
   const registry = fakeRegistry();
 
   const result = await attachFederatedMcpTools({
@@ -185,9 +191,10 @@ test("createDefaultConnect: a stdioLaunchResolver that throws McpLaunchUnavailab
 
   assert.equal(spawnCalls, 0, "the resolver's throw must prevent any spawn from ever happening");
   assert.ok(
-    messages.some((message) => message === `warn:mcp-federation: '${UVX_CONFIG.connectionId}' failed, continuing without its tools — McpLaunchUnavailableError: ${UVX_UNAVAILABLE_MESSAGE}\n    at resolver fixture`),
-    `expected logger.warn to receive the resolver's exact message; got ${JSON.stringify(messages)}`,
+    messages.includes(`warn:mcp-federation: '${UVX_CONFIG.connectionId}' failed, continuing without its tools`),
+    `expected the fixed warn line; got ${JSON.stringify(messages)}`,
   );
+  assert.ok(errors.includes(failure), "the resolver's own error object reaches the logger's host-sink argument");
   assert.equal(registry.registered.length, 1, "the other connection must still attach and register its tool");
   assert.deepEqual(result.registeredToolIds, ["mcp__ok-vendor__ping"]);
   // Operator-facing admissions read connectFailures; logger warnings alone do not reach them.

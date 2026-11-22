@@ -31,12 +31,13 @@ export const customizeAgentPluginCatalog: AgentToolDefinition = {
 export async function prepareCustomizedAgentPluginArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _options = {}): Promise<Uint8Array> {
   const input = requireInputRecord({ input: ctx.input });
   const pluginId = requireString({ input, key: 'pluginId' });
-  const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
-  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins(workspaceRoot), await readBundledAgentPluginDigests(workspaceRoot));
+  const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
+  const installed = preferBundledAgentPluginDigests(await listInstalledPlugins({ workspaceRoot }), await readBundledAgentPluginDigests({ workspaceRoot }));
   const sources = installed.filter(plugin => plugin.pluginId === pluginId);
-  if (sources.length !== 1) throw new ToolInputError({ message: `Source '${pluginId}' must identify exactly one installed Agent Plugin.` });
+  const source = sources[0];
+  if (sources.length !== 1 || source === undefined) throw new ToolInputError({ message: `Source '${pluginId}' must identify exactly one installed Agent Plugin.` });
   try {
-    return await zipCustomizedAgentPluginFolder({ path: sources[0]!.packageRoot, maxBytes: maxAgentPluginInstallArchiveBytes(), name: requireString({ input, key: 'newId' }), identityNamespace: 'jini',
+    return await zipCustomizedAgentPluginFolder({ path: source.packageRoot, maxBytes: maxAgentPluginInstallArchiveBytes(), name: requireString({ input, key: 'newId' }), identityNamespace: 'jini',
       edit: { path: requireString({ input, key: 'path' }), oldString: requireString({ input, key: 'oldString' }), newString: requireString({ input, key: 'newString' }, { allowEmpty: true }) } });
   } catch (error) {
     if (error instanceof FolderZipError) throw new ToolInputError({ message: error.message });

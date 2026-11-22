@@ -5,10 +5,9 @@ import {
   DuplicateCommandError,
   ForbiddenError,
   executeCommand,
-  type AuthorizeFn,
-  type CommandMutation,
 } from "@jini-ai/cms/core";
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
+import { type AuthorizeFn, type CommandMutation } from "@jini-ai/core/contracts/events";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 
 /**
  * @file SPEC-006 REQ-05/INV-04 — the gateway's `authorize()` gate.

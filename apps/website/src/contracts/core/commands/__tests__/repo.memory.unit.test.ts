@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  DomainEvent,
+  OutboxPort,
+} from "@jini-ai/core/contracts/events";
 
 function makeRecord(overrides: Partial<ChangeSetRecord> = {}): ChangeSetRecord {
   return {

@@ -101,7 +101,7 @@ for (const corruptFile of ["template.json", "seed-content.json", "missing-seed"]
   test(`readTemplate rejects ${corruptFile} as InternalError using isolated files`, (t) => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-template-"));
     const templateId = "isolated-corrupt-template";
-    const requestedDir = path.join(resolveProductRoot(), "content", "templates", templateId);
+    const requestedDir = path.join(resolveProductRoot({}), "content", "templates", templateId);
     fs.writeFileSync(path.join(fixture, "template.json"), corruptFile === "template.json" ? "{ broken metadata" : JSON.stringify({ id: templateId, version: "1.0.0", name: "Fixture" }));
     if (corruptFile !== "missing-seed") fs.writeFileSync(path.join(fixture, "seed-content.json"), corruptFile === "template.json" ? JSON.stringify({ workspace: seededWorkspace, entries: seededPosts, presentation: seededPresentation }) : "{ broken seed");
     const read = fs.readFileSync;

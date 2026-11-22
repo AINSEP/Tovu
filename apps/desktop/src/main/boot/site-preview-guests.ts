@@ -1,6 +1,6 @@
 /** Main-only guest registrations, installed by the owning shell's did-attach-webview callback. */
 import { isPublicPreviewUrl, type LivePreviewGuest } from './site-preview.ts';
-import type { PreviewTarget } from '../../site-preview-scheduler.ts';
+import type { PreviewTarget } from './site-preview.ts';
 
 type GuestEvent = 'did-start-navigation' | 'did-finish-load' | 'did-navigate-in-page' | 'destroyed';
 interface PreviewGuestContents {
@@ -49,7 +49,12 @@ export function createLivePreviewGuests<Owner extends { isDestroyed(): boolean }
       const snapshot = live.get(siteDir);
       return snapshot?.isCurrent() ? snapshot : undefined;
     },
-    register({ owner, guest }: { owner: Owner; guest: Guest }, _options = {}): () => void {
+    register: createPreviewGuestRegistrar({ live, cancel, resolve, allowed, schedule }),
+  };
+}
+
+function createPreviewGuestRegistrar<Owner extends { isDestroyed(): boolean }, Guest extends PreviewGuestContents>({ live, cancel, resolve, allowed, schedule }: { live: Map<string, LivePreviewGuest>; cancel: (input: { siteDir: string; }) => void; resolve: (input: { url: string; }) => (PreviewTarget & { siteDir: string; }) | undefined; allowed: (input: { owner: Owner; guest: Guest; target: PreviewTarget & { siteDir: string; }; }) => boolean; schedule: (input: { siteDir: string; }) => void }) {
+  return function register({ owner, guest }: { owner: Owner; guest: Guest }, _options = {}): () => void {
       let generation = 0;
       let disposed = false;
       let previous: { siteDir: string; snapshot: LivePreviewGuest } | undefined;
@@ -92,6 +97,5 @@ export function createLivePreviewGuests<Owner extends { isDestroyed(): boolean }
       guest.on('did-navigate-in-page', ready);
       guest.on('destroyed', off);
       return off;
-    },
-  };
+    };
 }

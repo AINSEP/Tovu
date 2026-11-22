@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveAssistantCliPermissions } from "../../assistant-native-fallbacks.js";
-import { ASSISTANT_CLI_CAPABILITIES } from "../../../headless/index.js";
-import { assistantCliPermissions } from "../../../../assistant/assistant-subagents-policy.js";
+import { resolveAssistantCliPermissions, assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/contracts/assistant-subagents-policy";
 
 test("local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive", () => {
   for (const { key } of ASSISTANT_CLI_CAPABILITIES) {
@@ -37,4 +36,12 @@ for (const env of [{ TOVU_HOSTED: "1" }, { TOVU_RUNTIME_MODE: "production" }, { 
 test("non-owners cannot establish an individual grant", () => {
   const actual = resolveAssistantCliPermissions({ isOwner: false, env: {}, settings: assistantCliPermissions({ enabled: true, capabilities: { userMcp: true } }) });
   assert.ok(Object.values(actual.capabilities).every(value => !value));
+});
+
+test("fill and owner/local projection retain the supplied per-agent map", () => {
+  const byAgent = { codex: { capabilities: { shell: false } } };
+  const settings = assistantCliPermissions({ enabled: true, byAgent });
+  assert.strictEqual(settings.byAgent, byAgent);
+  const projected = resolveAssistantCliPermissions({ isOwner: true, env: {}, settings, agentId: "codex" });
+  assert.strictEqual(projected.byAgent, byAgent);
 });

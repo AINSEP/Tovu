@@ -1,11 +1,11 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
-import { AGENT_ELEMENT_ATTRIBUTE } from "@jini-ai/agentic";
+import { AGENT_ELEMENT_ATTRIBUTE } from "@jini-ai/core/agent-handles";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { SiteKeyTab } from "../SiteKeyTab";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
-import type { AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file The Site key is the site key. The assistant drives this page through the real page

@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { SkillInstallInput } from "@jini-ai/agentic/skills/install";
 import type { Request, Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -7,6 +7,7 @@ import { installSkill, setSkillEnabled, uninstallSkill, SkillInputError } from "
 import { loadInstalledSkillToolSources, buildSkillToolRegistrations } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): fields is Record<string, unknown> & { files: { path: string; contentBase64: string }[] } {
   return Array.isArray(fields.files) && fields.files.every(f => {
@@ -16,12 +17,18 @@ function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): 
   });
 }
 
-function installationInput(body: unknown, workspaceId: string): SkillInstallInput {
+/** Validates the request shape (one object, confirmed, exactly one known source) and returns its fields. */
+function validatedInstallFields({ body }: { body: unknown }, _optional = {}): Record<string, unknown> {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
   const fields = body as Record<string, unknown>;
   if (fields.confirmed !== true) throw new SkillInputError({ message: "Confirm the skill installation first." });
   const sources = ["githubUrl", "files", "archiveBase64"].filter(key => fields[key] !== undefined);
   if (sources.length !== 1 || Object.keys(fields).some(key => !["confirmed", "githubUrl", "files", "archiveBase64"].includes(key))) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
+  return fields;
+}
+
+function installationInput({ body, workspaceId }: { body: unknown; workspaceId: string }, _optional = {}): SkillInstallInput {
+  const fields = validatedInstallFields({ body });
   if (typeof fields.githubUrl === "string") return { workspaceId, githubUrl: fields.githubUrl };
   if (typeof fields.archiveBase64 === "string") return { workspaceId, archiveBase64: fields.archiveBase64 };
   if (hasUploadedSkillFiles(fields)) return { workspaceId, files: fields.files };
@@ -30,15 +37,18 @@ function installationInput(body: unknown, workspaceId: string): SkillInstallInpu
 
 /** Session-gated routes; one validator/service owns every installation transport. */
 export const registerSkillsManagementRoutes = (
-  app: Parameters<SkillsRouteRegistrar>[0],
-  deps: Parameters<SkillsRouteRegistrar>[1] & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  { app, deps }: {
+    app: Parameters<SkillsRouteRegistrar>[0]["app"];
+    deps: Parameters<SkillsRouteRegistrar>[0]["deps"] & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy };
+  },
+  _optional = {},
 ): void => {
   const base = "/api/admin/v1/workspaces/:workspaceId/skills";
   const guarded = (work: (req: Request, res: Response) => Promise<void>) => async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId } })) return;
       await work(req, res);
     } catch (error) {
       if (error instanceof SkillInputError) res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
@@ -46,7 +56,7 @@ export const registerSkillsManagementRoutes = (
     }
   };
   app.post(base, guarded(async (req, res) => {
-    const skill = await installSkill({ ...installationInput(req.body, deps.workspaceId), skillLayout: deps.skillLayout, siteBinding: deps.siteBinding });
+    const skill = await installSkill({ ...installationInput({ body: req.body, workspaceId: deps.workspaceId }), skillLayout: deps.skillLayout, siteBinding: deps.siteBinding });
     res.status(201).json({ skill });
   }));
   app.patch(`${base}/:toolId`, guarded(async (req, res) => {
@@ -63,7 +73,8 @@ export const registerSkillsManagementRoutes = (
     const source = sources.find(s => s.id === req.params.toolId);
     if (!source) { res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" }); return; }
     const [registration] = buildSkillToolRegistrations({ sources: [source], withExtensionApprovalPolicy: deps.withExtensionApprovalPolicy });
+    if (!registration) throw new Error("selected skill has no tool registration for preview");
     // The selected skill's read-only handler and the browser share exactly the same payload.
-    res.json(await registration!.handler({ executionId: "skill-preview", principal: { id: getAuthedPrincipal(res).id }, run: { id: "skill-preview" }, input: {}, signal: new AbortController().signal }));
+    res.json(await registration.handler({ executionId: "skill-preview", principal: { id: getAuthedPrincipal(res).id }, run: { id: "skill-preview" }, input: {}, signal: new AbortController().signal }));
   }));
 };

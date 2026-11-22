@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   toChangeSetHeaderResponse,
   toChangeSetItemResponse,
@@ -11,32 +13,16 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *
  * Gated by the existing `changeset.read` permission, checked directly via `authorize()`.
  */
-export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const changeSetId = String(req.params.changeSetId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "changeset.read",
-        workspaceId: deps.workspaceId,
-        entityType: "change_set",
-        entityId: changeSetId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'changeset.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "changeset.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "changeset.read", workspaceId: deps.workspaceId, entityType: "change_set", entityId: changeSetId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const found = await deps.changeSets.findById({
         workspaceId: deps.workspaceId,

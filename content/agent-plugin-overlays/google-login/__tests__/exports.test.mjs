@@ -16,11 +16,11 @@ const root = pathToFileURL(`${PLUGIN_ROOT}/`);
 const raw = JSON.parse(readFileSync(new URL('plugin.json', root), 'utf8'));
 const parsed = parseAgentPluginManifest({ value: raw }, { identityNamespace: 'jini' });
 const workspaceId = 'ws-google-button';
-const config = { type: 'plugin', plugin: 'tovu/google-login', component: 'sign-in-button', version: 1, props: { variant: 'light' } };
+const config = { type: 'plugin', plugin: 'jini/google-login', component: 'sign-in-button', version: 1, props: { variant: 'light' } };
 
 function harness({ enabled = true, ready = true, providerPlugin = 'google-login' } = {}) {
   assert.equal(parsed.ok, true);
-  const owner = { ...parsed.manifest, id: 'tovu/google-login', enabled,
+  const owner = { ...parsed.manifest, id: 'jini/google-login', enabled,
     plugin: { pluginId: 'google-login', packageRoot: '/unused/google-login' } };
   return createPluginExportRuntime({ workspaceId, source: {
     list: async () => [owner],
@@ -66,7 +66,7 @@ test('U1: disabled, unconfigured and foreign-owner providers cannot render a but
   assert.equal(rows.get('google-login')[0].snippet, null);
   const configured = await harness().catalog({ workspaceId });
   assert.equal(configured.get('google-login')[0].availability, 'props-required');
-  assert.equal(configured.get('google-login')[0].plugin, 'tovu/google-login');
+  assert.equal(configured.get('google-login')[0].plugin, 'jini/google-login', 'the export catalog retains the Jini publisher identity');
 });
 
 test('U1: arbitrary variant, label and URL props are rejected, including a mixed valid/invalid batch', async () => {

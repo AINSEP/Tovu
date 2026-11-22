@@ -24,7 +24,7 @@ test.beforeEach(() => {
 /** The bundled `github` plugin's provider over `httpClient`, built with the real kit and a sleep
  *  that only records. */
 function githubProvider(httpClient: HttpClientPort): SourceControlProviderOperations {
-  const loaded = registry.get("github");
+  const loaded = registry.get({ providerId: "github" });
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
   return loaded.module.create({ kit: createSourceControlProviderKit({ httpClient, sleep: async (ms) => void sleeps.push(ms) }) });
 }

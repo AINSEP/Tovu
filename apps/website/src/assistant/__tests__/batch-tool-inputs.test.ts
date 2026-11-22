@@ -176,9 +176,9 @@ test("a pure read with only optional selectors batches by default; native items 
 
 test("guard: every production pure read batches; other tools retain explicit write opt-outs", () => {
   // Raw, pre-batch registrations with every permanent delete granted, so the guard sees them all.
-  const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, {
+  const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: {
     contributions: productionContributions(), includeContentReadCollapse: false, batchableTools: [], permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
-  });
+  } });
   const optOut = new Set(BATCH_OPT_OUT.map(entry => entry.toolId));
   const ids = new Set(raw.map(registration => registration.descriptor.id));
   const selected = new Set(resolveBatchableTools({ registrations: raw }).map(tool => tool.toolId));
@@ -209,12 +209,12 @@ test("guard: every production pure read batches; other tools retain explicit wri
 test("the real composition: every default batchable tool publishes items with its cap", () => {
   const contributions = productionContributions();
   const deps = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
-  const raw = buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: false, batchableTools: [] });
-  const byId = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const raw = buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions, includeContentReadCollapse: false, batchableTools: [] } });
+  const byId = new Map(buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
   const tools = resolveBatchableTools({ registrations: raw });
   assert.ok(tools.length > 150, `expected default-on batching, got ${tools.length} tools`);
   for (const { toolId, maxItems = DEFAULT_MAX_BATCH_ITEMS } of tools) {
-    const schema = byId.get(currentToolIdFor(toolId))?.descriptor.inputSchema as { properties?: Record<string, { type?: string; maxItems?: number }> } | undefined;
+    const schema = byId.get(currentToolIdFor({ toolId: toolId }))?.descriptor.inputSchema as { properties?: Record<string, { type?: string; maxItems?: number }> } | undefined;
     assert.ok(schema, `expected '${toolId}' in the production catalog`);
     assert.equal(schema.properties?.items?.type, "array", `${toolId} must accept items`);
     if (byId.has(toolId)) assert.equal(schema.properties?.items?.maxItems, maxItems, `${toolId}'s cap`);
@@ -244,7 +244,7 @@ test("a theme batch validates every destination before writing, then reads the c
       themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
     } as unknown as RegistryDepsWithoutLimiter;
-    const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+    const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
 
     await assert.rejects(() => invokeRegistration(byId.get("theme_write_file")!, executionContext({
       themeId: "plain",
@@ -254,10 +254,11 @@ test("a theme batch validates every destination before writing, then reads the c
     assert.equal(fs.existsSync(path.join(dir, 'assets', 'b.css')), false);
     const written = await invokeRegistration(byId.get('theme_write_file')!, executionContext({ themeId: 'plain',
       items: [{ path: 'assets/a.css', content: 'a{}' }, { path: 'assets/b.css', content: 'b{}' }],
-    })) as { batch: boolean; total: number; results: { path: string }[] };
+    })) as { batch: boolean; total: number; results: { ok: boolean; result: { path: string } }[] };
     assert.equal(written.batch, true);
     assert.equal(written.total, 2);
-    assert.deepEqual(written.results.map(result => result.path), ['assets/a.css', 'assets/b.css']);
+    // Jini's chained batch reports each item as { index, ok, result } (createChainedBatchHandler).
+    assert.deepEqual(written.results.map(item => item.ok && item.result.path), ['assets/a.css', 'assets/b.css']);
     assert.equal(fs.readFileSync(path.join(dir, "assets", "b.css"), "utf8"), "b{}");
     assert.equal(fs.existsSync(path.join(root, "escape.css")), false);
 
@@ -280,7 +281,7 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
     descriptor: { id: "tool_batch_probe", description: "Probe.", inputSchema: { type: "object", properties: { method: { type: "string" } } }, metadata: { approval: { class: "edit", confirmation: "direct", rule: "http-method" } } },
   };
   contributions.contributors.register({ contribution: { domain: "probe", build: () => [probe], risk: new Map([["tool_batch_probe", "mutates-durable-state"]]) } });
-  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, batchableTools: [{ toolId: "tool_batch_probe" }] })
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions, batchableTools: [{ toolId: "tool_batch_probe" }] } })
     .find((r) => r.descriptor.id === "tool_batch_probe");
   assert.ok(registration);
 
@@ -307,7 +308,7 @@ test("web fetch batches refuse screenshots from shared or item fields before ren
   assert.equal(inputs.length, 2, "single calls still reach the image-producing handler");
 });
 
-test("local theme asset plans retain completed effects, stop on refusal and accept a valid retry", async (t) => {
+test("local theme asset plans report a refused item in its own result, keep the other items' effects and accept a valid retry", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-batch-local-theme-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const dir = path.join(root, "plain");
@@ -330,23 +331,26 @@ test("local theme asset plans retain completed effects, stop on refusal and acce
   });
   const registration = applyBatchInputs({ registrations }).find(r => r.descriptor.id === "theme_import_local_file")!;
   // Owner changes 20871ad239 / 27ba3c762 put these imports through the complete prepared plan.
-  // Execution failures stop subsequent items; prior effects remain and must be reviewed for retry.
-  await assert.rejects(invokeRegistration(registration, executionContext({
+  // Owner (combine-6): a batch reports per-item results (Jini createChainedBatchHandler's
+  // { index, ok, result | error }), so a refused item fails alone and the items after it still run.
+  const partial = await invokeRegistration(registration, executionContext({
     themeId: "plain", root: "custom", sourcePath: "font.woff2",
     items: [{ path: "assets/font.woff2" }, { sourcePath: ".env", path: "assets/denied.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
-  })), /matches a denied filename pattern/);
+  })) as { batch: boolean; total: number; results: { index: number; ok: boolean; error?: string }[] };
+  assert.deepEqual(partial.results.map(item => [item.index, item.ok]), [[0, true], [1, false], [2, true]]);
+  assert.match(partial.results[1]!.error!, /matches a denied filename pattern/);
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/font.woff2"))), font);
   assert.equal(fs.existsSync(path.join(dir, "assets/denied.woff2")), false);
-  assert.equal(fs.existsSync(path.join(dir, "assets/icon.ico")), false);
-  assert.deepEqual(permissions, Array(5).fill("theme.edit"), "three preparations and two attempted effects; the third effect never runs");
+  assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/icon.ico"))), icon);
+  assert.deepEqual(permissions, Array(6).fill("theme.edit"), "three preparations and three attempted effects; the refused one writes nothing");
   const batch = await invokeRegistration(registration, executionContext({
     themeId: "plain", root: "custom", sourcePath: "font.woff2",
     items: [{ path: "assets/font.woff2" }, { root: "site", sourcePath: "icon.ico", path: "assets/icon.ico" }],
-  })) as { batch: boolean; total: number; results: { path: string; sourcePath: string }[] };
+  })) as { batch: boolean; total: number; results: { ok: boolean; result: { path: string; sourcePath: string } }[] };
   assert.equal(batch.batch, true);
   assert.equal(batch.total, 2);
-  assert.deepEqual(batch.results.map(item => [item.path, item.sourcePath]), [["assets/font.woff2", "font.woff2"], ["assets/icon.ico", "icon.ico"]]);
-  assert.deepEqual(permissions, Array(9).fill("theme.edit"), "the retry prepares and executes both authorized items");
+  assert.deepEqual(batch.results.map(item => [item.ok, item.result.path, item.result.sourcePath]), [[true, "assets/font.woff2", "font.woff2"], [true, "assets/icon.ico", "icon.ico"]]);
+  assert.deepEqual(permissions, Array(10).fill("theme.edit"), "the retry prepares and executes both authorized items");
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/font.woff2"))), font);
   assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(dir, "assets/icon.ico"))), icon);
   assert.equal(fs.existsSync(path.join(dir, "assets/denied.woff2")), false);

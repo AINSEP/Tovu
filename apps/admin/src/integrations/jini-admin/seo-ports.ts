@@ -1,13 +1,15 @@
 /** Host bindings for the canonical Jini SEO API; authentication stays with mediaTransport. */
 import { createHttpSeoApi, type SeoTransportPort, type SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import type { AdminSeoPort, SeoEventsPort, SeoTranslator, SeoErrorFormatter } from '@jini-ai/admin/seo';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
-import { WORKSPACE_ID, describeApiError } from '../../lib/api';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
+import { describeApiError } from '../../lib/admin-http/request';
 import { siteUrl } from '../../lib/site-url';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { t as translateSeo } from '../../features/seo/seo-i18n';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface SeoHostPorts {
   seoApi: AdminSeoPort;
   seoEvents?: SeoEventsPort;
@@ -15,7 +17,7 @@ export interface SeoHostPorts {
 
 export const seoEvents: SeoEventsPort = {
   subscribe({ onRefresh }) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies(scope, 'seo')) onRefresh(); });
+    return subscribeToContentRefresh({ listener: scope => { if (contentRefreshApplies({ scope, resource: 'seo' })) onRefresh(); } });
   },
 };
 
@@ -23,7 +25,7 @@ export const seoEvents: SeoEventsPort = {
 // site server. The desktop's same-origin /admin proxy must retain relative paths instead.
 export const seoSitemapTransport: SeoSitemapTransportPort = {
   get({ path, credentials }, { signal } = {}) {
-    return fetch(siteUrl(path), { credentials, signal });
+    return fetch(siteUrl({ path }), { credentials, signal });
   },
 };
 
@@ -38,7 +40,7 @@ export const seoImageTransport = {
  * @returns The core SEO API and its filtered refresh port; transport errors propagate unchanged.
  * @example createSeoHostPorts({ transport: mediaTransport });
  */
-export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport, imageTransport = seoImageTransport, siteOrigin = siteUrl('') || globalThis.location?.origin }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort; imageTransport?: typeof seoImageTransport; siteOrigin?: string } = {}): SeoHostPorts {
+export function createSeoHostPorts({ transport }: { transport: SeoTransportPort }, { workspaceId = WORKSPACE_ID, sitemapTransport = seoSitemapTransport, imageTransport = seoImageTransport, siteOrigin = siteUrl({ path: '' }) || globalThis.location?.origin }: { workspaceId?: string; sitemapTransport?: SeoSitemapTransportPort; imageTransport?: typeof seoImageTransport; siteOrigin?: string } = {}): SeoHostPorts {
   return {
     /** Entry reads resolve effective SEO meta (SPEC-037 REQ-06); analysis reads its score/issues
      * (REQ-07). PUT applies partial overrides; a `409`-shaped body never occurs here (this route has
@@ -62,7 +64,7 @@ export function createSeoTranslator({ locale }: { locale: string }, _optional: R
 }
 
 /** Preserve the host ApiError empty-message fallback for entry/picker failures. */
-export const describeSeoHostError: SeoErrorFormatter = ({ error, fallback }) => describeApiError(error, fallback);
+export const describeSeoHostError: SeoErrorFormatter = ({ error, fallback }) => describeApiError({ e: error, fallback });
 
 /** Expand session grants through the host permission owner before Jini's explicit route gate.
  * Server requests retain their own authorization; this controls screen affordances only.

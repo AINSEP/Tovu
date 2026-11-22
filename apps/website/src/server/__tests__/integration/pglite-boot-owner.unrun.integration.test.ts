@@ -50,7 +50,7 @@ async function freshPgliteSite(t: TestContext): Promise<PgliteSite> {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "unrun-pglite-boot-"));
   const siteDir = path.join(parent, "site");
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  const socketDir = defaultPgliteSocketDir(dataDir);
+  const socketDir = defaultPgliteSocketDir({ dataDir });
   t.after(() => {
     fs.rmSync(parent, { recursive: true, force: true });
     fs.rmSync(socketDir, { recursive: true, force: true });
@@ -65,7 +65,7 @@ test("[unrun] pglite boot: a lock held by a live foreign process refuses the boo
   const { siteDir, dataDir, socketPath } = await freshPgliteSite(t);
   const lockPath = path.join(dataDir, OWNER_LOCK_FILE);
   assert.equal(fs.existsSync(lockPath), false, "initSite released its own lock");
-  assert.equal(runningPgliteOwner(dataDir), undefined);
+  assert.equal(runningPgliteOwner({ dataDir }), undefined);
 
   // The test runner's parent process: alive for the whole test, and not this process.
   const foreignPid = process.ppid;
@@ -82,7 +82,7 @@ test("[unrun] pglite boot: a lock held by a live foreign process refuses the boo
   });
   assert.equal(fs.readFileSync(lockPath, "utf8"), `${foreignPid}\n`, "a live owner's lock is never reaped");
   assert.equal(fs.existsSync(socketPath), false, "the refused boot never opened a socket");
-  assert.equal(runningPgliteOwner(dataDir), undefined, "the refused boot registered no owner");
+  assert.equal(runningPgliteOwner({ dataDir }), undefined, "the refused boot registered no owner");
   assert.deepEqual(
     fs.readdirSync(dataDir).filter((name) => name.startsWith(`${OWNER_LOCK_FILE}.`)),
     [],
@@ -109,19 +109,19 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   let composed: SiteStore | undefined;
   let closed = false;
   t.after(async () => {
-    if (!closed) await closeSiteDirBoot(boot, composed).catch(() => undefined);
+    if (!closed) await closeSiteDirBoot(boot, { composed }).catch(() => undefined);
   });
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => (composed = store),
+    onStoreOpened: ({ store }, _optional = {}) => (composed = store),
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   await drainBootReadiness(deps);
 
-  const owner = runningPgliteOwner(dataDir);
+  const owner = runningPgliteOwner({ dataDir });
   assert.ok(owner, "the booted site's owner is reachable in-process");
   assert.equal(owner.socketPath, socketPath, "the owner serves the socket derived from its data dir");
   assert.equal(boot.store?.pgliteSocketPath, socketPath, "the store connects through that same socket");
@@ -136,9 +136,9 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   assert.deepEqual(rows.rows, [{ one: 1 }]);
 
   await drainBootReadiness(deps);
-  await closeSiteDirBoot(boot, composed);
+  await closeSiteDirBoot(boot, { composed });
   closed = true;
-  assert.equal(runningPgliteOwner(dataDir), undefined, "a clean close unregisters the owner");
+  assert.equal(runningPgliteOwner({ dataDir }), undefined, "a clean close unregisters the owner");
   assert.equal(fs.existsSync(path.join(dataDir, "PG_VERSION")), true, "the data dir itself is kept");
 });
 
@@ -162,10 +162,10 @@ test("[unrun] pglite boot: the serve boot modules all come up ready on Postgres 
       { name: "comments", owner: "comments", criticality: "optional", lifecycle: { status: "ready" } },
     ],
   };
-  assert.deepEqual(await runBootLifecycle(modules), expected);
+  assert.deepEqual(await runBootLifecycle({ modules }), expected);
   assert.equal(await site.deps.siteStatusRepo.get(site.deps.workspaceId), "SERVING", "no interrupted migration was found");
 
   assert.equal("store" in site.deps, false, "commerce is not composed into the serve dependencies");
   assert.equal(buildBootModules(site.deps, { useMemory: false, defaultContentDbPath: () => path.join(site.siteDir, "content.db") }).some(module => module.name === "store-plugin"), false);
-  assert.deepEqual(await runBootLifecycle(modules), expected, "a re-run (the next boot) is ready again");
+  assert.deepEqual(await runBootLifecycle({ modules }), expected, "a re-run (the next boot) is ready again");
 });

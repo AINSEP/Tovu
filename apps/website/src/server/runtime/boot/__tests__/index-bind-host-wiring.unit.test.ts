@@ -23,11 +23,11 @@ function readSource(): string {
   return fs.readFileSync(INDEX_TS_PATH, "utf8");
 }
 
-test("index.ts resolves TOVU_HOST via resolveBindHost(process.env.TOVU_HOST, undefined) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
+test("index.ts resolves TOVU_HOST via resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined }) -- undefined is its OWN existing all-interfaces default, unchanged", () => {
   const source = readSource();
   assert.ok(
-    source.includes("resolveBindHost(process.env.TOVU_HOST, undefined)"),
-    "index.ts no longer resolves TOVU_HOST with resolveBindHost(process.env.TOVU_HOST, undefined) -- deleting or " +
+    source.includes("resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined })"),
+    "index.ts no longer resolves TOVU_HOST with resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined }) -- deleting or " +
       "rewording that call silently reverts every container/server boot to ignoring TOVU_HOST entirely " +
       "(see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md). index.ts has no --host flag, so it passes " +
       "the env value directly, unlike serve.ts's input.host ?? process.env.TOVU_HOST."
@@ -44,7 +44,7 @@ test("index.ts resolves TOVU_HOST via resolveBindHost(process.env.TOVU_HOST, und
   const initializer = bindings[0].initializer;
   assert.ok(initializer && ts.isCallExpression(initializer));
   assert.equal(initializer.expression.getText(ast), "resolveBindHost");
-  assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ["process.env.TOVU_HOST", "undefined"]);
+  assert.deepEqual(initializer.arguments.map((argument) => argument.getText(ast)), ["{ raw: process.env.TOVU_HOST, fallback: undefined }"]);
 });
 
 function parseIndex(): ts.SourceFile {

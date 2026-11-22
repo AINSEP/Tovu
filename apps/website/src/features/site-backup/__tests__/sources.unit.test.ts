@@ -369,16 +369,16 @@ test("an unreadable snapshot artifact is removed even on failure; failed cleanup
 // Limits — the host's declared per-file ceiling (GitHub: 100 MiB), plus count/total bounds
 // ---------------------------------------------------------------------------
 
-/** What the bundled github plugin declares in tovu-source-control.json. */
+/** What the bundled github plugin declares in jini-source-control.json. */
 const GITHUB_HOST = { label: "GitHub", maxFileBytes: 100 * 1024 * 1024 };
 
 test("a file over GitHub's 100 MiB limit is refused, naming the host, the file and its size — never truncated", () => {
   const result = checkSiteBackupLimits(
-    [
+    { files: [
       { path: "database/content.db", bytes: GITHUB_HOST.maxFileBytes + 1 },
       { path: "uploads/small.png", bytes: 10 },
     ],
-    GITHUB_HOST,
+    host: GITHUB_HOST },
   );
   assert.equal(result.ok, false);
   if (result.ok) return;
@@ -389,34 +389,34 @@ test("a file over GitHub's 100 MiB limit is refused, naming the host, the file a
 
 test("exactly 100 MiB is allowed; the total is summed", () => {
   const result = checkSiteBackupLimits(
-    [
+    { files: [
       { path: "a", bytes: GITHUB_HOST.maxFileBytes },
       { path: "b", bytes: 5 },
     ],
-    GITHUB_HOST,
+    host: GITHUB_HOST },
   );
   assert.deepEqual(result, { ok: true, totalBytes: GITHUB_HOST.maxFileBytes + 5 });
 });
 
 test("a host that declares no per-file limit gets no per-file check, only this tool's own caps", () => {
-  const result = checkSiteBackupLimits([{ path: "big", bytes: 200 * 1024 * 1024 }], { label: "Other Host" });
+  const result = checkSiteBackupLimits({ files: [{ path: "big", bytes: 200 * 1024 * 1024 }], host: { label: "Other Host" } });
   assert.deepEqual(result, { ok: true, totalBytes: 200 * 1024 * 1024 });
 });
 
 test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
   const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, root: "/site", identity: null, nlink: 1, bytes, mtimeMs: 1, scope: "media" as const });
-  const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
+  const result = skipOversizedFiles({ files: [file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], host: GITHUB_HOST });
   assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
   assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
-  assert.deepEqual(skipOversizedFiles([file("big", 200 * 1024 * 1024)], { label: "Other Host" }).skipped, [], "no declared limit, nothing skipped");
+  assert.deepEqual(skipOversizedFiles({ files: [file("big", 200 * 1024 * 1024)], host: { label: "Other Host" } }).skipped, [], "no declared limit, nothing skipped");
 });
 
 test("too many files, or too many bytes in total, is refused with the cap named", () => {
   const many = Array.from({ length: 4 }, (_, i) => ({ path: `f${i}`, bytes: 1 }));
-  const countResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxFiles: 3 });
+  const countResult = checkSiteBackupLimits({ files: many, host: GITHUB_HOST }, { limits: { ...SITE_BACKUP_LIMITS, maxFiles: 3 } });
   assert.equal(countResult.ok, false);
   if (!countResult.ok) assert.match(countResult.message, /4 files/);
-  const totalResult = checkSiteBackupLimits(many, GITHUB_HOST, { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 });
+  const totalResult = checkSiteBackupLimits({ files: many, host: GITHUB_HOST }, { limits: { ...SITE_BACKUP_LIMITS, maxTotalBytes: 3 } });
   assert.equal(totalResult.ok, false);
 });
 
@@ -513,7 +513,7 @@ test("the manifest names the format, Tovu version, schema, timestamp, scopes, da
   assert.deepEqual(manifest.files, [{ path: "database/content.db", bytes: 6, sha256: "a".repeat(64) }]);
 });
 
-const walkFileSystem = { lstat, lstatBigInt: (file: string) => lstat(file, { bigint: true }), readdir: (dir: string) => readdir(dir, { withFileTypes: true }) };
+const walkFileSystem = { lstat: ({ file }: { file: string }) => lstat(file), lstatBigInt: ({ file }: { file: string }) => lstat(file, { bigint: true }), readdir: ({ dir }: { dir: string }) => readdir(dir, { withFileTypes: true }) };
 
 test("absent scope folders and settings files produce an empty backup", async (t) => {
   const site = makeSite();
@@ -557,7 +557,7 @@ test("a file disappearing between listing and lstat is omitted without losing st
   t.after(site.cleanup);
   const target = path.join(site.root, "config.json");
   const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }, {
-    fileSystem: { ...walkFileSystem, lstat: async file => {
+    fileSystem: { ...walkFileSystem, lstat: async ({ file }) => {
       if (file === target) throw Object.assign(new Error("removed"), { code: "ENOENT" });
       return lstat(file);
     } },
@@ -596,7 +596,7 @@ test("plugin workspace links, invalid ids and stray files are not traversed", as
 test("plugin paths that are missing or regular files are empty, and invalid plugin ids are ignored", async (t) => {
   const site = makeSite();
   t.after(site.cleanup);
-  const ws = site.sources.agentPlugins.forWorkspace("workspace-local");
+  const ws = site.sources.agentPlugins.forWorkspace({ workspaceId: "workspace-local" });
   write(path.join(ws.root, "invalid_id", "package", "sha256", "secret"), "excluded");
   write(path.join(ws.root, "empty-plugin", "package"), "not a directory");
   write(path.join(ws.root, "other-plugin", "memory"), "not a directory");
@@ -610,9 +610,9 @@ test("plugin-owned-directory lstat failures other than ENOENT abort collection",
   const site = makeSite();
   t.after(site.cleanup);
   const failure = Object.assign(new Error("package metadata unavailable"), { code: "EIO" });
-  const packagePath = path.join(site.sources.agentPlugins.forWorkspace("workspace-local").root, "packages");
+  const packagePath = path.join(site.sources.agentPlugins.forWorkspace({ workspaceId: "workspace-local" }).root, "packages");
   await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, plugins: true } }, {
-    fileSystem: { ...walkFileSystem, lstat: async file => {
+    fileSystem: { ...walkFileSystem, lstat: async ({ file }) => {
       if (file === packagePath) throw failure;
       return lstat(file);
     } },
@@ -620,7 +620,7 @@ test("plugin-owned-directory lstat failures other than ENOENT abort collection",
 });
 
 for (const [bytes, formatted] of [[0, "0 B"], [1023, "1023 B"], [1024, "1 KiB"], [1536, "1.5 KiB"], [1048576, "1 MiB"], [1073741824, "1 GiB"], [1610612736, "1.5 GiB"]] as const) {
-  test(`${bytes} bytes formats as ${formatted}`, () => assert.equal(formatByteSize(bytes), formatted));
+  test(`${bytes} bytes formats as ${formatted}`, () => assert.equal(formatByteSize({ bytes }), formatted));
 }
 
 test("a planned file replaced by a directory is stale", async (t) => {

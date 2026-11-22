@@ -25,7 +25,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-040) — the `users` server module (users/roles/policies admin
  * CRUD, ADR-021/SPEC-006 identity RBAC).
  *
- * `UsersRouteDeps` (new this pass, `routes/admin/users/deps.ts`) is a genuine `Pick<RouteDeps,
+ * `UsersRouteDeps` (new this pass, `apps/website/src/server/inbound/admin-http/routes/users/deps.ts`) is a genuine `Pick<RouteDeps,
  * ...>` narrowing — see that file's header for the confirmed field set, and for why
  * `identityReposFrom`/`identityServiceDepsFrom` (the pre-existing, unrelated helper functions in
  * the same file) were retyped from `RouteDeps` to this same narrow type rather than left
@@ -46,27 +46,27 @@ import type { ServerModuleHandle } from "./types.js";
 export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
     name: "users",
-    registerRoutes: (app) => {
-      registerAdminUserListRoute(app, deps);
-      registerAdminUserCreateRoute(app, deps);
-      registerAdminUserUpdateRoute(app, deps);
-      registerAdminUserDisableRoute(app, deps);
-      registerAdminUserEnableRoute(app, deps);
-      registerAdminUserResetPasswordRoute(app, deps);
-      registerAdminUserDeleteRoute(app, deps);
-      registerAdminUserAssignRoleRoute(app, deps);
-      registerAdminUserAttachPolicyRoute(app, deps);
-      registerAdminRoleListRoute(app, deps);
-      registerAdminRoleCreateRoute(app, deps);
-      registerAdminRoleUpdateRoute(app, deps);
-      registerAdminRoleDeleteRoute(app, deps);
-      registerAdminPolicyListRoute(app, deps);
-      registerAdminPolicyCreateRoute(app, deps);
-      registerAdminPolicyUpdateRoute(app, deps);
-      registerAdminPolicyDeleteRoute(app, deps);
-      registerAdminPolicyWritePermissionRoute(app, deps);
-      registerAdminPolicyPermissionListRoute(app, deps);
-      registerAdminPolicyPermissionRemoveRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminUserListRoute({ app, deps });
+      registerAdminUserCreateRoute({ app, deps });
+      registerAdminUserUpdateRoute({ app, deps });
+      registerAdminUserDisableRoute({ app, deps });
+      registerAdminUserEnableRoute({ app, deps });
+      registerAdminUserResetPasswordRoute({ app, deps });
+      registerAdminUserDeleteRoute({ app, deps });
+      registerAdminUserAssignRoleRoute({ app, deps });
+      registerAdminUserAttachPolicyRoute({ app, deps });
+      registerAdminRoleListRoute({ app, deps });
+      registerAdminRoleCreateRoute({ app, deps });
+      registerAdminRoleUpdateRoute({ app, deps });
+      registerAdminRoleDeleteRoute({ app, deps });
+      registerAdminPolicyListRoute({ app, deps });
+      registerAdminPolicyCreateRoute({ app, deps });
+      registerAdminPolicyUpdateRoute({ app, deps });
+      registerAdminPolicyDeleteRoute({ app, deps });
+      registerAdminPolicyWritePermissionRoute({ app, deps });
+      registerAdminPolicyPermissionListRoute({ app, deps });
+      registerAdminPolicyPermissionRemoveRoute({ app, deps });
     },
   };
 }

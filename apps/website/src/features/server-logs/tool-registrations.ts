@@ -4,7 +4,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { serverLogsAgentToolCatalog } from "./agent-tools.js";
 import { processServerLogSource } from "./process-source.js";
 import { parseServerLogFilters, readServerLogs, ServerLogFilterError, type ServerLogSourcePort } from "./read-server-logs.js";

@@ -6,6 +6,6 @@
  * @returns Combined prompt, with one blank line between non-empty sections.
  * @complexity O(prompt + prefix bytes) time/space; pure, no lifecycle or filesystem work.
  */
-export function assemblePromptWithPluginPrefix(basePrompt: string, pluginPromptPrefix: string): string {
+export function assemblePromptWithPluginPrefix({ basePrompt, pluginPromptPrefix }: { basePrompt: string; pluginPromptPrefix: string }, _optional = {}): string {
   return pluginPromptPrefix.length > 0 ? `${pluginPromptPrefix}\n\n${basePrompt}` : basePrompt;
 }

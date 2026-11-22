@@ -17,7 +17,7 @@ import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runt
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo, createPost } from "#src/features/post/index";
-import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
+import { toAdminPluginResponse } from "@jini-ai/plugins/host";
 
 /**
  * @file C-011/C-012 `setPluginEnabled()`/`getActivation()` — SPEC-005 REQ-07, BR-05, AC-02, AC-13
@@ -496,7 +496,7 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
   assert.equal(quarantined?.quarantinedAt, "2026-08-12T12:00:00.000Z");
   assert.equal(quarantined?.quarantineFailureCount, 2);
   assert.match(quarantined?.quarantineReason ?? "", /save blocker/);
-  assert.deepEqual(toAdminPluginResponse(discovery[0]!, quarantined).quarantine, {
+  assert.deepEqual(toAdminPluginResponse({ discovery: discovery[0]!, activation: quarantined }).quarantine, {
     at: "2026-08-12T12:00:00.000Z",
     reason: "plugin 'throwing-plugin' content.entry.beforeSave filter failed: save blocker",
     consecutiveFailures: 2,
@@ -516,7 +516,7 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
   });
   assert.equal(reEnabled.enabled, true);
   assert.equal(reEnabled.quarantinedAt ?? null, null);
-  assert.equal(toAdminPluginResponse(discovery[0]!, reEnabled).quarantine, null);
+  assert.equal(toAdminPluginResponse({ discovery: discovery[0]!, activation: reEnabled }).quarantine, null);
   assert.deepEqual(await runtime.beforeSaveHook(entry), { "throwing-plugin": { ok: true } });
 });
 
@@ -602,7 +602,7 @@ test("P0a: a plugin enabled in a prior process is re-attached at boot, without a
 /**
  * REACHABILITY (Milestone 1 dispatch, 2026-08-20): before this slice, `composePluginRuntime` never
  * forwarded `installDir` to `discoverPluginRuntimePlugins()` — every real composition root
- * (`server/deps.ts`, `server/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and
+ * (`server/runtime/composition/deps.ts`, `server/runtime/composition/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and
  * nothing else, so a plugin placed on disk at the REQ-02 install layout was invisible no matter how
  * it got there. `discoverPlugins()` itself already fully implements and tests the install-dir scan
  * (`discovery.integration.test.ts`'s AC-11 fixture) — the gap was purely in this composition seam.
@@ -849,7 +849,7 @@ test("disabling through the real runtime callback stops the filter contributing 
   const source = markerSource("disable-marker");
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [source] });
   const deps = { clock: clock(), repo, discovery: await runtime.discoverPlugins(), onEnabled: runtime.onPluginEnabled, onDisabled: runtime.onPluginDisabled };
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const save = (id: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title: id } });
   await setPluginEnabled({ deps, input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true } });
   await save("before-disable");
@@ -895,7 +895,7 @@ test("runtime SDK content reads and extension writes are isolated across overlap
   };
   const runtime = composePluginRuntime({ workspaceId: WORKSPACE, clock: clock(), activationRepo: repo, sources: [sdkSource] });
   await runtime.onPluginEnabled(sdkSource.manifest.id);
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const save = (id: string, title: string) => createPost({ deps: { repo: postRepo, clock: clock(), beforeSaveHook: runtime.beforeSaveHook }, input: { workspaceId: WORKSPACE, id, title } });
   await Promise.all([save("first", "First title"), save("second", "Second title")]);
   assert.deepEqual((await postRepo.findById({ workspaceId: WORKSPACE, id: "first" }))?.ext, { "sdk-marker": { firstOnly: true, title: "First title" } });

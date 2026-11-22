@@ -24,7 +24,7 @@ export async function applyShareProjection(required: { files: Map<string, Buffer
   const { files, projection } = required;
   placeArchiveMedia({ files, projection, manifest: required.manifest });
   const referencedMedia = new Set(projection.media.map(media => "uploads/" + media.storageKey));
-  for (const file of files.keys()) if (file.startsWith("uploads/") && !referencedMedia.has(file)) refuseArchive("Unreferenced uploads are outside the portable share media policy.");
+  for (const file of files.keys()) if (file.startsWith("uploads/") && !referencedMedia.has(file)) refuseArchive({ message: "Unreferenced uploads are outside the portable share media policy." });
   checkProjectedMedia({ files, projection });
   await admitProjectedDocuments({ files, documents: projection.documents ?? [] }, optional);
   applyDestinationMoves({ files, media: projection.media });
@@ -39,7 +39,7 @@ function placeArchiveMedia(required: { files: Map<string, Buffer>; projection: S
   for (const copy of required.manifest.media) {
     const keys = byHash.get(copy.sha256);
     const bytes = required.files.get(copy.path);
-    if (!keys || !bytes) refuseArchive("Archive media is not referenced by the projected database.");
+    if (!keys || !bytes) refuseArchive({ message: "Archive media is not referenced by the projected database." });
     for (const key of keys) {
       validateSharePath({ path: "uploads/" + key });
       required.files.set("uploads/" + key, bytes);
@@ -53,7 +53,7 @@ function checkProjectedMedia(required: { files: ReadonlyMap<string, Buffer>; pro
   for (const media of required.projection.media) {
     validateSharePath({ path: "uploads/" + media.storageKey });
     const content = required.files.get("uploads/" + media.storageKey);
-    if (!content || media.sha256 && sha256Hex(content) !== media.sha256) refuseArchive(documentKeys.has(media.storageKey) ? "Referenced document blob is missing or corrupt." : "Referenced media is missing or failed its hash.");
+    if (!content || media.sha256 && sha256Hex({ bytes: content }) !== media.sha256) refuseArchive({ message: documentKeys.has(media.storageKey) ? "Referenced document blob is missing or corrupt." : "Referenced media is missing or failed its hash." });
   }
 }
 
@@ -67,11 +67,11 @@ export async function admitProjectedDocuments(required: { files: ReadonlyMap<str
   for (const document of required.documents) {
     optional.signal?.throwIfAborted();
     const content = required.files.get("uploads/" + document.storageKey);
-    if (!content || sha256Hex(content) !== document.sha256) refuseArchive("Referenced document blob is missing or corrupt.");
+    if (!content || sha256Hex({ bytes: content }) !== document.sha256) refuseArchive({ message: "Referenced document blob is missing or corrupt." });
     // A valid outer ZIP checksum cannot grant document admission. Reuse upload policy,
     // including bounded DOCX package validation, before staging or creating the new site.
     try { await admitDocument({ filename: document.originalFilename, bytes: content }); }
-    catch (error) { refuseArchive(`Invalid Library document: ${error instanceof Error ? error.message : "document ingress rejected"}`); }
+    catch (error) { refuseArchive({ message: `Invalid Library document: ${error instanceof Error ? error.message : "document ingress rejected"}` }); }
   }
 }
 
@@ -89,8 +89,10 @@ function applyDestinationMoves(required: { files: Map<string, Buffer>; media: Sh
   const moves = new Map(required.media.filter(media => media.destinationStorageKey && media.destinationStorageKey !== media.storageKey).map(media => ["uploads/" + media.storageKey, "uploads/" + media.destinationStorageKey]));
   for (const [source, destination] of moves) {
     validateSharePath({ path: destination });
-    const bytes = files.get(source)!;
-    if (files.has(destination) && !files.get(destination)!.equals(bytes)) refuseArchive("Conflicting imported document blob keys.");
+    const bytes = files.get(source);
+    if (bytes === undefined) refuseArchive({ message: "Imported document blob is missing." });
+    const existing = files.get(destination);
+    if (existing !== undefined && !existing.equals(bytes)) refuseArchive({ message: "Conflicting imported document blob keys." });
     files.set(destination, bytes);
     files.delete(source);
   }

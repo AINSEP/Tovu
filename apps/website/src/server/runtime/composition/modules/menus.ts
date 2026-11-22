@@ -25,13 +25,13 @@ import type { ServerModuleHandle } from "./types.js";
 export function createMenusModule(deps: MenuRouteDeps): ServerModuleHandle {
   return {
     name: "menus",
-    registerRoutes: (app) => {
-      registerAdminMenuListRoute(app, deps);
-      registerAdminMenuGetRoute(app, deps);
-      registerAdminMenuCreateRoute(app, deps);
-      registerAdminMenuUpdateTreeRoute(app, deps);
-      registerAdminMenuAssignLocationRoute(app, deps);
-      registerAdminMenuDeleteRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminMenuListRoute({ app, deps });
+      registerAdminMenuGetRoute({ app, deps });
+      registerAdminMenuCreateRoute({ app, deps });
+      registerAdminMenuUpdateTreeRoute({ app, deps });
+      registerAdminMenuAssignLocationRoute({ app, deps });
+      registerAdminMenuDeleteRoute({ app, deps });
     },
   };
 }

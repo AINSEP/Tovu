@@ -6,10 +6,10 @@ import { sql } from "kysely";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { listColumns, listIndexes, listTables } from "#src/platform/db/kernel/dialect";
-import { type DataModuleDecl, declareDataModule } from "../data-module.js";
-import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries, stageJournalPhase } from "../migration-journal.js";
-import { checkNamespaceAdoption, getPluginIdentity } from "../plugin-identity.js";
+import { listColumns, listIndexes, listTables } from "@jini-ai/db/kernel";
+import { type DataModuleDecl, declareDataModule } from "@jini-ai/db/data-modules";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries, stageJournalPhase } from "@jini-ai/db/data-modules";
+import { checkNamespaceAdoption, getPluginIdentity } from "@jini-ai/db/data-modules";
 
 /**
  * @file The plugin dataModule engine on every dialect (storage plan P1): install, upgrade
@@ -62,7 +62,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       const first = await declareDataModule({ db: kernel, dbPath: ":memory:", decl: V1 });
       assert.deepEqual(first, { ok: true, created: ["p_dm__widgets"], altered: [], snapshotPath: null });
 
-      const columns = await listColumns(kernel, "p_dm__widgets");
+      const columns = await listColumns({ kernel, table: "p_dm__widgets" });
       assert.deepEqual(
         columns.map((c) => [c.name, c.notNull, c.primaryKey]),
         [
@@ -73,7 +73,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
           ["payload", false, false],
         ]
       );
-      const index = (await listIndexes(kernel, "p_dm__widgets")).get("idx_p_dm__widgets__by_workspace");
+      const index = (await listIndexes({ kernel, table: "p_dm__widgets" })).get("idx_p_dm__widgets__by_workspace");
       assert.deepEqual(index, { name: "idx_p_dm__widgets__by_workspace", columns: ["workspace_id"], unique: false });
 
       const recorded = await kernel.query<{ table_name: string }>(sql`SELECT table_name FROM _plugin_migrations ORDER BY id`);
@@ -113,7 +113,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       assert.equal(result.ok, true);
       assert.equal(result.snapshotPath, null, "no snapshot on Postgres, whatever dbPath says");
       assert.equal(spaceProbe?.mock.callCount(), 0, "Postgres never probes SQLite copy space");
-      assert.equal((await listTables(kernel)).includes("_plugin_migration_journal"), false);
+      assert.equal((await listTables({ kernel })).includes("_plugin_migration_journal"), false);
     });
   });
 
@@ -125,8 +125,8 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
 
       const result = await declareDataModule({ db: kernel, dbPath: ":memory:", decl: v2 });
       assert.deepEqual(result, { ok: true, created: [], altered: ["p_dm__widgets"], snapshotPath: null });
-      assert.ok((await listColumns(kernel, "p_dm__widgets")).some((c) => c.name === "sku"));
-      assert.deepEqual((await listIndexes(kernel, "p_dm__widgets")).get("idx_p_dm__widgets__by_sku")?.unique, true);
+      assert.ok((await listColumns({ kernel, table: "p_dm__widgets" })).some((c) => c.name === "sku"));
+      assert.deepEqual((await listIndexes({ kernel, table: "p_dm__widgets" })).get("idx_p_dm__widgets__by_sku")?.unique, true);
       assert.deepEqual((await declareDataModule({ db: kernel, dbPath: ":memory:", decl: v2 })).altered, []);
     });
 
@@ -135,7 +135,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       await declareDataModule({ db: kernel, dbPath: ":memory:", decl: V1 });
       const v2 = withWidgetColumns([], [{ name: "by_workspace", columns: ["workspace_id", "count"] }]);
       assert.deepEqual((await declareDataModule({ db: kernel, dbPath: ":memory:", decl: v2 })).altered, ["p_dm__widgets"]);
-      assert.deepEqual((await listIndexes(kernel, "p_dm__widgets")).get("idx_p_dm__widgets__by_workspace")?.columns, ["workspace_id", "count"]);
+      assert.deepEqual((await listIndexes({ kernel, table: "p_dm__widgets" })).get("idx_p_dm__widgets__by_workspace")?.columns, ["workspace_id", "count"]);
     });
 
     test("fails closed on a changed column type and on a NOT NULL column added to an existing table", async () => {
@@ -160,7 +160,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       const result = await declareDataModule({ db: kernel, dbPath: ":memory:", decl: v2 });
       assert.equal(result.ok, false);
       assert.equal(result.error?.code, "DDL_FAILED");
-      assert.equal((await listColumns(kernel, "p_dm__widgets")).some((c) => c.name === "sku"), false, "the ADD COLUMN rolled back too");
+      assert.equal((await listColumns({ kernel, table: "p_dm__widgets" })).some((c) => c.name === "sku"), false, "the ADD COLUMN rolled back too");
       const recorded = await kernel.query<{ n: unknown }>(sql`SELECT COUNT(*) AS n FROM _plugin_migrations`);
       assert.equal(Number(recorded[0].n), 2, "only the v1 install's two records remain");
     });
@@ -184,14 +184,14 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       const other = withWidgetColumns([{ name: "sku", type: "TEXT" }]);
       const result = await declareDataModule({ db: kernel, dbPath: ":memory:", decl: { ...other, provenance: { sourceUrl: "https://evil.example", publisher: "x" } } });
       assert.equal(result.error?.code, "IDENTITY_ADOPTION_REQUIRES_CONSENT");
-      assert.equal((await listColumns(kernel, "p_dm__widgets")).some((c) => c.name === "sku"), false);
+      assert.equal((await listColumns({ kernel, table: "p_dm__widgets" })).some((c) => c.name === "sku"), false);
     });
   });
 
   describe("journal and recovery scan", () => {
     test("entries move through their phases; only non-terminal ones are surfaced for recovery", async () => {
       const kernel = makeKernel();
-      await ensureMigrationJournal(kernel);
+      await ensureMigrationJournal({ store: kernel });
       const crashed = await beginJournalEntry({ db: kernel, pluginId: "crashed", snapshotPath: "/snap/crashed" });
       const done = await beginJournalEntry({ db: kernel, pluginId: "done", snapshotPath: "/snap/done" });
       const rolled = await beginJournalEntry({ db: kernel, pluginId: "rolled", snapshotPath: "/snap/rolled" });
@@ -201,7 +201,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       await advanceJournalPhase({ db: kernel, id: done, phase: "COMMITTED" });
       await kernel.transaction(() => stageJournalPhase({ db: kernel, id: rolled, phase: "ROLLED_BACK" }));
 
-      const incomplete = await findIncompleteJournalEntries(kernel);
+      const incomplete = await findIncompleteJournalEntries({ store: kernel });
       assert.equal(incomplete.length, 1);
       assert.equal(incomplete[0].id, crashed);
       assert.equal(incomplete[0].pluginId, "crashed");
@@ -212,7 +212,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
 
     test("a staged phase rolls back with its transaction", async () => {
       const kernel = makeKernel();
-      await ensureMigrationJournal(kernel);
+      await ensureMigrationJournal({ store: kernel });
       const id = await beginJournalEntry({ db: kernel, pluginId: "p", snapshotPath: "/snap/p" });
       await assert.rejects(
         kernel.transaction(async () => {
@@ -221,7 +221,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
         }),
         /boom/
       );
-      assert.equal((await findIncompleteJournalEntries(kernel))[0]?.phase, "PREPARED_SNAPSHOT");
+      assert.equal((await findIncompleteJournalEntries({ store: kernel }))[0]?.phase, "PREPARED_SNAPSHOT");
     });
   });
 });

@@ -1,8 +1,12 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { authorizeSend, claimBatch, freezeAudience } from "#src/features/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /** Composition seams for {@link createAdminNewsletterSendCampaignRoute}. */
 export interface SendCampaignRouteOptions {
@@ -21,7 +25,7 @@ export interface SendCampaignRouteOptions {
  *
  * Chains `authorizeSend` -> `freezeAudience` -> `claimBatch` (orchestrator.spec.md §5:
  * `onFreezeAudience` runs "immediately after `authorizeSend` commits, before any batch is
- * claimed"), mirroring `routes/admin/posts/update.ts`'s inline `processOutbox` drain-after-write
+ * claimed"), mirroring `apps/website/src/server/inbound/admin-http/routes/posts/update.ts`'s inline `processOutbox` drain-after-write
  * idiom (`claimBatch` IS `processOutbox` for this pipeline — see `send-pipeline.ts`). Responds
  * `202` with the campaign as soon as `authorizeSend` itself succeeds (its own committed `status:
  * 'sending'`) — `freezeAudience`/`claimBatch` run best-effort immediately after; per
@@ -37,23 +41,14 @@ export interface SendCampaignRouteOptions {
  */
 export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRouteOptions = {}): RouteRegistrar {
   const { buildSendPipelineDeps = toSendPipelineDeps } = optional;
-  return (app, routeDeps) => {
+  return ({ app, deps: routeDeps }, _options = {}) => {
     const deps = routeDeps as NewsletterRouteDeps;
 
     app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send", async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
-        const principal = await requireNewsletterPermissionOrRespond(
-          deps.authorize,
-          deps.workspaceId,
-          "admin.newsletter.campaign.send",
-          "newsletter_campaign",
-          res
-        );
+        const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.send", entityType: "newsletter_campaign", res });
         if (!principal) return;
 
         await deps.newsletterReady;
@@ -62,7 +57,7 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
           deps: sendPipelineDeps,
           input: { workspaceId: deps.workspaceId, campaignId: String(req.params.id) },
         });
-        res.status(202).json(toDataResponse(campaign));
+        res.status(202).json(toDataResponse({ data: campaign }));
 
         try {
           await freezeAudience({
@@ -71,11 +66,10 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
           });
           await claimBatch({ deps: sendPipelineDeps });
         } catch (freezeErr) {
-          // eslint-disable-next-line no-console
-          console.error(`freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}`);
+          consoleLogger.error({ message: `freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}` });
         }
       } catch (err) {
-        mapNewsletterErrorToResponse(err, res);
+        mapNewsletterErrorToResponse({ err, res });
       }
     });
   };

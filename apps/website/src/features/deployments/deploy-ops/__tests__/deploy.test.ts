@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runDeploy, runDeployOps } from "../run-ops.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import type { DeployOpsContext, DeployOpsDeployInput, DeployOpsDeployResult } from "../types.js";
+import type { DeployOpsContext, DeployOpsDeployInput, DeployOpsDeployResult } from "@jini-ai/devops/deploy";
 import { fixture, execution } from "./example-ops-fixture.js";
 
 type Deploy = (ctx: DeployOpsContext, input: DeployOpsDeployInput) => Promise<DeployOpsDeployResult>;
@@ -119,7 +119,8 @@ test("a throwing history store preserves an accepted deploy and logs no error pa
   assert.deepEqual(await runDeploy({ deps: { ...f.deps, publishHistoryStore: store }, input: { platform: "example-host", target: "shop" } }),
     { platform: "example-host", target: "shop", started: true, summary: "accepted", runId: "42" });
   assert.equal(deploys, 1);
-  assert.deepEqual(warnings, [["[deploy-ops] destination history write failed after accepted deploy"]]);
+  // Jini's deploy-ops logger names the error class only (log-safety), never its message.
+  assert.deepEqual(warnings, [["[deploy-ops] destination history write failed after accepted deploy", "Error"]]);
 });
 
 test("accepted deploys append descriptor identity to the shared ledger and link only matching saved peers", async () => {
@@ -154,7 +155,7 @@ test("an accepted deploy followed by failing status never becomes a confirmed de
     summary: "Deploy failed", items: [], checkedAt: "2026-10-18T00:00:00Z" });
   const deps = { ...f.deps, publishHistoryStore: historyStore };
   await runDeploy({ deps, input: { platform: "example-host", target: "shop" } });
-  assert.equal((await runDeployOps(deps, { platform: "example-host", target: "shop", runId: "42" }, "status")).state, "failing");
+  assert.equal((await runDeployOps({ deps, input: { platform: "example-host", target: "shop", runId: "42" }, operation: "status" })).state, "failing");
   const destinations = await listPublishDestinations({ workspaceId: "ws", historyStore,
     registry: await loadBundledDeployTargets(), peers: [] });
   assert.equal(destinations.length, 1);

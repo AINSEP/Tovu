@@ -34,12 +34,10 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
   const workspaceId = randomUUID();
   const registrations: ToolRegistration[] = [];
   const registry = { register: (registration: ToolRegistration) => void registrations.push(registration) };
-  await registerInstalledExtensionTools(
-    registry,
-    testSiteLayoutContext({
+  await registerInstalledExtensionTools({ registry, deps: testSiteLayoutContext({
       authorize: async () => ({ allowed: true }) as never,
       workspaceId,
-      postRepo: new InMemoryPostRepo([
+      postRepo: new InMemoryPostRepo({}, { initialRows: [
         {
           id: "post-1",
           workspaceId,
@@ -54,15 +52,13 @@ async function callAnalyzerTool(extra: Partial<InstalledExtensionToolDeps>): Pro
           version: 1,
           ext: { "content-analyzer": { score: 12 } },
         },
-      ]),
+      ] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [
         { pluginId: "content-analyzer", workspaceId, version: "1.0.0", enabled: true, updatedAt: "2026-10-04T00:00:00.000Z" },
       ] }),
       discoverPlugins: async () => [RECORD],
       ...extra,
-    }),
-    "[preview-port-test]",
-  );
+    }), log: "[preview-port-test]" });
   const tool = registrations.find((registration) => registration.descriptor.id === "plugin_capability_content_analyzer");
   assert.ok(tool, "the enabled tier-2 plugin's capability tool must be registered");
   return (await tool.handler({ input: { postId: "post-1" }, principal: { id: "owner" }, run: { id: "run-1" } } as never)) as Record<string, unknown>;

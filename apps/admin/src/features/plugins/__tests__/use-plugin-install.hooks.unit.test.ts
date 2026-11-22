@@ -1,7 +1,7 @@
 /** Folder install consent: no write before confirmation; stale previews never authorize install. */
 import { act, renderHook } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { usePluginInstall } from "../hooks/use-plugin-install.hooks";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";
@@ -12,7 +12,7 @@ describe("folder install hook", () => {
   it("only installs reviewed digest after confirm, then reloads and clears the form", async () => {
     const port = createFakePluginInstallPort({ preview }); const onInstalled = vi.fn(async () => {});
     const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled }));
-    act(() => { result.current.setFolder("/server/package"); });
+    act(() => { result.current.setFolder({ value: "/server/package" }); });
     await act(async () => { await result.current.install(); });
     expect(port.installed).toHaveLength(0);
     await act(async () => { await result.current.review(); });
@@ -27,13 +27,13 @@ describe("folder install hook", () => {
   it("changing folder or replacement option invalidates consent", async () => {
     const port = createFakePluginInstallPort({ preview });
     const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
-    act(() => { result.current.setFolder("/one"); });
+    act(() => { result.current.setFolder({ value: "/one" }); });
     await act(async () => { await result.current.review(); });
-    act(() => result.current.setFolder("/two"));
+    act(() => result.current.setFolder({ value: "/two" }));
     await act(async () => { await result.current.install(); });
     expect(result.current.preview).toBeNull(); expect(port.installed).toHaveLength(0);
     await act(async () => { await result.current.review(); });
-    act(() => result.current.setReplace(true));
+    act(() => result.current.setReplace({ value: true }));
     expect(result.current.preview).toBeNull();
   });
 
@@ -42,20 +42,20 @@ describe("folder install hook", () => {
     const port = createFakePluginInstallPort({ preview });
     const read = vi.spyOn(port, "preview").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
     const { result } = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled: async () => {} }));
-    act(() => { result.current.setFolder("/one"); });
+    act(() => { result.current.setFolder({ value: "/one" }); });
     let pending!: Promise<void>;
     act(() => { pending = result.current.review(); void result.current.review(); });
     expect(read).toHaveBeenCalledOnce();
-    act(() => result.current.setFolder("/two"));
+    act(() => result.current.setFolder({ value: "/two" }));
     await act(async () => { finish({ plugin: preview }); await pending; });
     expect(result.current.preview).toBeNull();
   });
 
   it("digest rejection keeps the chosen folder and requires a new preview", async () => {
     const port = createFakePluginInstallPort({ preview });
-    vi.spyOn(port, "install").mockRejectedValue(new ApiError("changed", 409, "PLUGIN_CHANGED_SINCE_PREVIEW"));
+    vi.spyOn(port, "install").mockRejectedValue(new ApiError({ message: "changed", status: 409 }, { code: "PLUGIN_CHANGED_SINCE_PREVIEW" }));
     const { result } = renderHook(() => usePluginInstall({ port, t: (key) => `translated:${key}`, onInstalled: async () => {} }));
-    act(() => { result.current.setFolder("/one"); });
+    act(() => { result.current.setFolder({ value: "/one" }); });
     await act(async () => { await result.current.review(); });
     await act(async () => { await result.current.install(); });
     expect(result.current.preview).toBeNull(); expect(result.current.folder).toBe("/one");
@@ -66,15 +66,15 @@ describe("folder install hook", () => {
 describe("folder install hook — refusal copy, late results and input plumbing", () => {
   function setup(port = createFakePluginInstallPort({ preview }), onInstalled: () => Promise<void> = async () => {}) {
     const hook = renderHook(() => usePluginInstall({ port, t: (key) => key, onInstalled }));
-    act(() => { hook.result.current.setFolder("/server/package"); });
+    act(() => { hook.result.current.setFolder({ value: "/server/package" }); });
     return { port, ...hook };
   }
 
   it.each([
     ["a non-API failure", new Error("socket hang up"), "Failed to preview plugin."],
-    ["an unknown code with a known status", new ApiError("bad", 400, "SOMETHING_NEW"), "Invalid plugin package. Check its manifest, integrity and folder."],
-    ["a known status without a code", new ApiError("conflict", 409), "Installation conflicts with an existing plugin. Check its version and replacement option."],
-    ["an unknown code and status", new ApiError("boom", 500, "SOMETHING_NEW"), "Failed to preview plugin."],
+    ["an unknown code with a known status", new ApiError({ message: "bad", status: 400 }, { code: "SOMETHING_NEW" }), "Invalid plugin package. Check its manifest, integrity and folder."],
+    ["a known status without a code", new ApiError({ message: "conflict", status: 409 }), "Installation conflicts with an existing plugin. Check its version and replacement option."],
+    ["an unknown code and status", new ApiError({ message: "boom", status: 500 }, { code: "SOMETHING_NEW" }), "Failed to preview plugin."],
   ])("maps %s on preview to operator copy", async (_name, failure, expected) => {
     const { port, result } = setup();
     vi.spyOn(port, "preview").mockRejectedValue(failure);
@@ -96,7 +96,7 @@ describe("folder install hook — refusal copy, late results and input plumbing"
     vi.spyOn(port, "preview").mockImplementation(() => new Promise((_resolve, reject) => { fail = () => reject(new Error("late")); }));
     let reviewing!: Promise<void>;
     act(() => { reviewing = result.current.review(); });
-    act(() => result.current.setFolder("/other"));
+    act(() => result.current.setFolder({ value: "/other" }));
     await act(async () => { fail(); await reviewing; });
     expect(result.current.error).toBeNull();
   });
@@ -109,7 +109,7 @@ describe("folder install hook — refusal copy, late results and input plumbing"
     vi.spyOn(port, "install").mockImplementation(() => new Promise((resolve) => { finish = () => resolve({ plugin: preview }); }));
     let installing!: Promise<void>;
     act(() => { installing = result.current.install(); });
-    act(() => result.current.setFolder("/other"));
+    act(() => result.current.setFolder({ value: "/other" }));
     await act(async () => { finish(); await installing; });
     expect(onInstalled).not.toHaveBeenCalled();
     expect(result.current.installedMessage).toBeNull();
@@ -123,7 +123,7 @@ describe("folder install hook — refusal copy, late results and input plumbing"
     let installing!: Promise<void>;
     act(() => { installing = result.current.install(); });
     await vi.waitFor(() => expect(onInstalled).toHaveBeenCalledOnce());
-    act(() => result.current.setFolder("/other"));
+    act(() => result.current.setFolder({ value: "/other" }));
     await act(async () => { reloaded(); await installing; });
     expect(result.current.installedMessage).toBeNull();
     expect(result.current.folder).toBe("/other");
@@ -139,7 +139,7 @@ describe("folder install hook — refusal copy, late results and input plumbing"
     act(() => result.current.cancelReview());
     expect(result.current.preview).not.toBeNull();
     await act(async () => { finish(); await installing; });
-    act(() => { result.current.setFolder("/again"); });
+    act(() => { result.current.setFolder({ value: "/again" }); });
     await act(async () => { await result.current.review(); });
     act(() => result.current.cancelReview());
     expect(result.current.preview).toBeNull();

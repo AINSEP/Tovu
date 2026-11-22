@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { hkdfSync } from "node:crypto";
 import test from "node:test";
 
-import type { KeyringPort } from "../../webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import {
   derivePublishSigningKey,
   deriveInstallationId,
@@ -76,7 +76,7 @@ test("each destination gets its own key — a signature for one cannot authentic
   // key, so a compromised staging cannot relay a captured challenge response to production.
   const message = "challenge:abc";
   assert.equal(
-    verifyPublishSignature({ publicKeyB64u: staging.publicKeyB64u, message, signatureB64u: prod.sign(message) }),
+    verifyPublishSignature({ publicKeyB64u: staging.publicKeyB64u, message, signatureB64u: prod.sign({ message }) }),
     false
   );
 });
@@ -91,7 +91,7 @@ test("a genuine signature verifies", async () => {
   const key = await derivePublishSigningKey(keyInput());
   const message = "challenge:nonce-1|aud:target-install|src:src-install";
   assert.equal(
-    verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: key.sign(message) }),
+    verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: key.sign({ message }) }),
     true
   );
 });
@@ -102,14 +102,14 @@ test("a signature from the WRONG key is refused", async () => {
   const message = "challenge:nonce-1";
 
   assert.equal(
-    verifyPublishSignature({ publicKeyB64u: real.publicKeyB64u, message, signatureB64u: attacker.sign(message) }),
+    verifyPublishSignature({ publicKeyB64u: real.publicKeyB64u, message, signatureB64u: attacker.sign({ message }) }),
     false
   );
 });
 
 test("a tampered message is refused — the signature does not cover a rewritten challenge", async () => {
   const key = await derivePublishSigningKey(keyInput());
-  const signed = key.sign("challenge:nonce-1|aud:target-install");
+  const signed = key.sign({ message: "challenge:nonce-1|aud:target-install" });
 
   assert.equal(
     verifyPublishSignature({
@@ -124,7 +124,7 @@ test("a tampered message is refused — the signature does not cover a rewritten
 test("malformed key material is refused, not thrown on — no 500-vs-401 oracle", async () => {
   const key = await derivePublishSigningKey(keyInput());
   const message = "challenge:nonce-1";
-  const good = key.sign(message);
+  const good = key.sign({ message });
 
   for (const badKey of ["", "!!!not-base64!!!", "c2hvcnQ", key.publicKeyB64u.slice(0, 10)]) {
     assert.equal(verifyPublishSignature({ publicKeyB64u: badKey, message, signatureB64u: good }), false);
@@ -137,7 +137,7 @@ test("malformed key material is refused, not thrown on — no 500-vs-401 oracle"
 test("non-string publishing keys and signatures are refused without throwing", async () => {
   const key = await derivePublishSigningKey(keyInput());
   const message = "challenge:nonce-1";
-  const signatureB64u = key.sign(message);
+  const signatureB64u = key.sign({ message });
 
   // Raw bytes would decode to valid material if the string-only boundary were bypassed.
   for (const value of [undefined, null, 42, Buffer.from(key.publicKeyB64u, "base64url")]) {
@@ -182,7 +182,7 @@ test("the installation id is domain-separated from the signing key derivation", 
 });
 
 test("the publishing principal id is stable and self-describing", () => {
-  assert.equal(publishPrincipalIdFor("src-install"), "pub:src-install");
+  assert.equal(publishPrincipalIdFor({ sourceInstallationId: "src-install" }), "pub:src-install");
 });
 
 test("a derived key exposes no way to serialize its private half", async () => {
@@ -195,7 +195,7 @@ test("a derived key exposes no way to serialize its private half", async () => {
 test("a crypto provider failure refuses a well-formed publishing signature without throwing", async () => {
   const key = await derivePublishSigningKey(keyInput());
   const message = "challenge:provider-failure";
-  const input = { publicKeyB64u: key.publicKeyB64u, message, signatureB64u: key.sign(message) };
+  const input = { publicKeyB64u: key.publicKeyB64u, message, signatureB64u: key.sign({ message }) };
   assert.equal(verifyPublishSignature(input), true, "the failure is in crypto, not malformed material");
   const attempts: unknown[] = [];
   const accepted = verifyPublishSignature(input, { verifyDecoded: (decoded) => {

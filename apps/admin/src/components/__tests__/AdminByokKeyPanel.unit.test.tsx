@@ -223,17 +223,17 @@ describe("AdminByokSettingsFooter", () => {
 
 describe("resolveByokSettingsStatusLine", () => {
   it("reports progress and a settings-only confirmation, and nothing otherwise", () => {
-    expect(resolveByokSettingsStatusLine("saving")).toBe("Saving…");
-    expect(resolveByokSettingsStatusLine("saved")).toBe("Settings saved.");
-    expect(resolveByokSettingsStatusLine("idle")).toBeNull();
-    expect(resolveByokSettingsStatusLine("error")).toBeNull();
+    expect(resolveByokSettingsStatusLine({ status: "saving" })).toBe("Saving…");
+    expect(resolveByokSettingsStatusLine({ status: "saved" })).toBe("Settings saved.");
+    expect(resolveByokSettingsStatusLine({ status: "idle" })).toBeNull();
+    expect(resolveByokSettingsStatusLine({ status: "error" })).toBeNull();
   });
 
   it("routes both reportable lines through a supplied t, and defaults to English passthrough", () => {
     const t = (key: string) => `[es] ${key}`;
-    expect(resolveByokSettingsStatusLine("saving", t)).toBe("[es] Saving…");
-    expect(resolveByokSettingsStatusLine("saved", t)).toBe("[es] Settings saved.");
+    expect(resolveByokSettingsStatusLine({ status: "saving" }, { t })).toBe("[es] Saving…");
+    expect(resolveByokSettingsStatusLine({ status: "saved" }, { t })).toBe("[es] Settings saved.");
     // No t supplied: same untranslated English as before this param existed.
-    expect(resolveByokSettingsStatusLine("saved")).toBe("Settings saved.");
+    expect(resolveByokSettingsStatusLine({ status: "saved" })).toBe("Settings saved.");
   });
 });

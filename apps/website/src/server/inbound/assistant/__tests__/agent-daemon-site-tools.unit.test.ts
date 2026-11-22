@@ -53,6 +53,16 @@ test("concurrent principals have isolated catalogs and terminal cleanup", async 
   assert.throws(() => host.registry.list({}), /live run/);
 });
 
+test("the content_read group is read from the same run-scoped registry the route decides with", async () => {
+  const { host, local } = siteToolsFixture();
+  local.register({ descriptor: { id: "content_read.menu", readOnly: true }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
+  await host.start({ runId: "a1", principalId: "alice" });
+  const members = host.withRun({ runId: "a1", fn: () => host.families.describeFamily({ familyId: "content_read" })?.members });
+  assert.deepEqual(members, ["content_read.menu"]);
+  host.finish({ runId: "a1" });
+  assert.throws(() => host.families.describeFamily({ familyId: "content_read" }), /live run/);
+});
+
 test("component requests refresh the server snapshot and fail closed without a core fallback", async () => {
   const { host, requests, advance, invalidate } = siteToolsFixture();
   await host.start({ runId: "run", principalId: "alice" });
@@ -94,7 +104,7 @@ test("component snapshot reads reject oversized and malformed provider metadata"
 });
 
 test("the inherited site tool token is removed before any CLI or plugin runtime can inherit it", async () => {
-  const { daemonInitializer, daemonSource, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
+  const { daemonInitializer, daemonSource, statementsFor, evaluateDaemonExpression } = await import("./helpers/daemon-source.js");
   const { ensureToolExecToken } = await import("#src/assistant/daemon-access");
   const env = { TOVU_TOOL_EXEC_TOKEN: "inherited-site-secret" };
   const token = evaluateDaemonExpression<string>(daemonInitializer("siteToolToken"), { ensureToolExecToken, env, toolExecTokenHolder: {} });
@@ -102,8 +112,11 @@ test("the inherited site tool token is removed before any CLI or plugin runtime 
   assert.equal(env.TOVU_TOOL_EXEC_TOKEN, undefined);
   const initializer = daemonInitializer("siteToolToken");
   assert.ok(initializer.pos < daemonInitializer("assistantRuntime").pos, "clear the inherited environment before constructing the agent runtime");
-  assert.ok(initializer.pos < daemonInitializer("routeDeps").pos, "clear the inherited environment before plugin composition");
-  assert.ok(initializer.pos < daemonSource.end);
+  const root = statementsFor("agent-daemon-scope.ts", "createSiteScope");
+  const runtimeIndex = root.findIndex(statement => statement.getText(statement.getSourceFile()).includes("= createScopeRuntime("));
+  const routeIndex = statementsFor("agent-daemon-scope.ts", "createSiteScope.try").findIndex(statement => statement.getText(statement.getSourceFile()).startsWith("const routeDeps ="));
+  const tryIndex = root.findIndex(statement => statement.getText(statement.getSourceFile()).startsWith("try"));
+  assert.ok(runtimeIndex >= 0 && tryIndex > runtimeIndex && routeIndex >= 0, "clear the inherited environment before plugin composition");
 });
 
 test("an obsolete start failure cannot remove a newer start of the same run", async () => {
@@ -136,11 +149,12 @@ test("plugin preflight sends only the live run id and closes after receiving its
     fetch: async (url, init) => {
       if (new URL(String(url)).pathname === "/internal/tool-catalog") return Response.json({ tools: [] });
       requests.push(init!);
-      return Response.json({ prefix: "site prepared guidance", refusalPrefix: "refused connection" });
+      return Response.json({ prefix: "site prepared guidance", refusalPrefix: "refused connection", pluginIds: ["parent-plugin"] });
     },
   });
   await host.start({ runId: "live", principalId: "member" });
-  assert.deepEqual(await host.preflight({ runId: "live" }), { prefix: "site prepared guidance", refusalPrefix: "refused connection" });
+  // The site's preflight reply also names the parent plugins a subagent must load (assistant-tool-exec.ts).
+  assert.deepEqual(await host.preflight({ runId: "live" }), { prefix: "site prepared guidance", refusalPrefix: "refused connection", pluginIds: ["parent-plugin"] });
   assert.deepEqual(JSON.parse(String(requests[0]?.body)), { runId: "live" });
   assert.equal(requests[0]?.redirect, "error");
   host.finish({ runId: "live" });
@@ -151,7 +165,7 @@ test("the agent launches only after site catalog and plugin preparation finish",
   const { captureDaemonRun } = await import("./helpers/daemon-source.js");
   const order: string[] = [];
   const input = await captureDaemonRun({ prompt: "hello" }, { bindings: {
-    siteTools: { start: async () => { order.push("catalog"); }, preflight: async () => { order.push("preflight"); return { prefix: "site guidance", refusalPrefix: "withheld connection" }; },
+    siteTools: { start: async () => { order.push("catalog"); }, preflight: async () => { order.push("preflight"); return { prefix: "site guidance", refusalPrefix: "withheld connection", pluginIds: [] }; },
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
   } });
   assert.deepEqual(order, ["catalog", "preflight"]);

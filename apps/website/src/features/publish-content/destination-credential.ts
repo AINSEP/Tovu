@@ -1,6 +1,6 @@
 import { openPublishSession, PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 import {
   PublishContentPeerNotFoundError,
@@ -65,19 +65,19 @@ export async function resolvePublishDestinationCredential(
   { openSession = openPublishSession }: { openSession?: typeof openPublishSession } = {}
 ): Promise<ResolvedPeerCredential> {
   const record = await deps.repo.findById(input);
-  if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
+  if (!record) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
 
   if (record.sealed !== null) {
     // Deliberately re-entered rather than inlined: `resolvePeerCredential` is the ONLY function
     // allowed to decrypt (`peers.ts`'s header), and it is worth one extra indexed read to keep that
     // property literally true instead of "true apart from here".
-    return resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, input);
+    return resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input });
   }
 
-  const session = await openSession(
-    { httpClient: deps.httpClient, keyring: deps.keyring },
-    { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) }
-  );
+  const session = await openSession({
+    deps: { httpClient: deps.httpClient, keyring: deps.keyring },
+    input: { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) },
+  });
 
   // The workspace learned at connect time, re-checked against what the site says about itself right
   // now. A destination rebuilt under a different workspace is a DIFFERENT site; publishing into it
@@ -85,10 +85,7 @@ export async function resolvePublishDestinationCredential(
   // above would not have caught this on its own — a grant is bound to the destination's
   // installation, and a restore can change the workspace while the grant still verifies.
   if (session.identity.workspaceId !== record.remoteWorkspaceId) {
-    throw new PublishTrustHandshakeError(
-      `${record.label} is not the site this computer was connected to. Connect it again to confirm.`,
-      "refused"
-    );
+    throw new PublishTrustHandshakeError({ message: `${record.label} is not the site this computer was connected to. Connect it again to confirm.`, failure: "refused" });
   }
 
   return {

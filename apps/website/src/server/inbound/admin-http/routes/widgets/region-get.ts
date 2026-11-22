@@ -2,21 +2,19 @@ import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry }
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET one region's area entry, with each placement's `widgetTitle`/`widgetType` resolved —
  * `ui.spec.md` §3.7's `RegionPlacementEditorScreen` loaded state ("an operator must be able to
  * identify what's placed without a second lookup", §5).
  */
-export const registerAdminWidgetRegionGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.read", res });
       if (!principal) return;
 
       const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId: deps.workspaceId, regionKey: String(req.params.regionKey) });
@@ -47,7 +45,7 @@ export const registerAdminWidgetRegionGetRoute: RouteRegistrar = (app, deps) => 
 
       res.status(200).json({ ...toAdminWidgetAreaResponse(area), placements });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

@@ -1,11 +1,11 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Response } from "express";
 import type { MediaRouteDeps } from "./deps.js";
 import type { MediaWhereUsedDeps } from "./where-used.js";
-import { readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion
@@ -14,20 +14,20 @@ import { readRouteParam, rejectForeignWorkspace } from "./route-guards.js";
  * narrower permission than the ordinary trash's `media.delete`, since this is an irreversible purge
  * (mirrors `admin.menus.delete` vs `admin.menus.delete.force`'s split).
  */
-export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps & MediaWhereUsedDeps): void => {
+export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       const mediaId = readRouteParam({ req, name: "mediaId" });
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.delete.force",
         workspaceId: deps.workspaceId,
         entityType: "media",
         entityId: mediaId,
-      });
+      } });
       if (!authorized) return;
 
       // `purgeMedia` resolves `{ purged: true }` or throws, so there is no not-purged outcome to skip.
@@ -39,6 +39,7 @@ export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps
           blobRepo: deps.assetBlobRepo,
           renditionRepo: deps.assetRenditionRepo,
           blobStore: deps.blobStore,
+          clock: deps.clock,
         },
         input: { workspaceId: deps.workspaceId, id: mediaId },
       });

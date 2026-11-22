@@ -22,7 +22,8 @@
  * dependency-cruiser permits to import `src/platform/db/**` directly.
  */
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
+// Shared phases/events/append contract belong to the daemon; Tovu owns durable storage adapters.
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 /**
  * Per-workspace row cap.
@@ -42,7 +43,7 @@ const PRUNE_CHECK_INTERVAL = 256;
 
 export interface SqlToolAttemptAuditSinkOptions {
   /** Reported when a write fails. @default `console.error` */
-  onError?: (error: unknown) => void;
+  onError?: (required: { error: unknown }, optional?: Record<string, never>) => void;
   /** Per-workspace row cap. @default {@link MAX_ROWS_PER_WORKSPACE} */
   maxRowsPerWorkspace?: number;
   /** Separate anonymous bucket; the administrator cap excludes this principal entirely. */
@@ -60,7 +61,7 @@ export interface SqlToolAttemptAuditSinkOptions {
  */
 export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
   private readonly appendsSincePruneCheck = new Map<string, number>();
-  private readonly onError: (error: unknown) => void;
+  private readonly onError: (required: { error: unknown }, optional?: Record<string, never>) => void;
   private readonly maxRows: number;
   private readonly maxVisitorRows: number;
   private readonly pruneCheckInterval: number;
@@ -69,7 +70,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
     protected readonly kernel: ContentKernel,
     options: SqlToolAttemptAuditSinkOptions = {},
   ) {
-    this.onError = options.onError ?? ((error) => console.error("[tool-audit] append failed", error));
+    this.onError = options.onError ?? (({ error }) => console.error("[tool-audit] append failed", error));
     this.maxRows = options.maxRowsPerWorkspace ?? MAX_ROWS_PER_WORKSPACE;
     this.maxVisitorRows = options.maxVisitorRowsPerWorkspace ?? MAX_VISITOR_ROWS_PER_WORKSPACE;
     this.pruneCheckInterval = options.pruneCheckInterval ?? PRUNE_CHECK_INTERVAL;
@@ -123,7 +124,7 @@ export class SqlToolAttemptAuditSink implements ToolAttemptAuditSink {
         await this.pruneWorkspace({ workspaceId: event.workspaceId, visitor });
       }
     } catch (error) {
-      this.onError(error);
+      this.onError({ error });
     }
     return committed;
   }

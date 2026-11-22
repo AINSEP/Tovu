@@ -7,7 +7,7 @@ import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
 import { createEntry } from "#src/features/entries/index";
@@ -128,7 +128,7 @@ function makeSharedRepos() {
     entryRepo: trash.entryRepo,
     contentTypeRepo: new InMemoryContentTypeRepo(),
     entryRefsRepo: new InMemoryEntryRefsRepo(),
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
     changeSets: new InMemoryChangeSetRepo(),
   };
 }
@@ -557,9 +557,9 @@ test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead
 test("insertWidgetEmbed rolls back document, version, refs and revision when ref persistence fails", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const entryRepo = new SqliteEntryRepo(db);
-  const contentTypeRepo = new SqliteContentTypeRepo(db);
-  const entryRefsRepo = new SqliteEntryRefsRepo(db);
+  const entryRepo = new SqliteEntryRepo({ store: db });
+  const contentTypeRepo = new SqliteContentTypeRepo({ store: db });
+  const entryRefsRepo = new SqliteEntryRefsRepo({ store: db });
   const memory = makeSharedRepos();
   const deps = makeDeps(memory, { entryRepo, contentTypeRepo, entryRefsRepo });
   await registerContentType({ deps: { repo: contentTypeRepo, clock: deps.clock, ids: deps.ids, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
@@ -586,7 +586,7 @@ test("insertWidgetEmbed rolls back document, version, refs and revision when ref
       throw failure;
     }
   }
-  await assert.rejects(insertWidgetEmbed({ deps: { ...deps, entryRefsRepo: new FailingRefs(db) },
+  await assert.rejects(insertWidgetEmbed({ deps: { ...deps, entryRefsRepo: new FailingRefs({ store: db }) },
     input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: "host-atomic", baseVersion: 1, widgetEntryId: "widget-atomic" } }), (error) => error === failure);
   assert.equal(refWrites, 1, "failure follows a real ref write");
   assert.deepEqual(await entryRepo.findById({ workspaceId: WORKSPACE_ID, id: "host-atomic" }), before);

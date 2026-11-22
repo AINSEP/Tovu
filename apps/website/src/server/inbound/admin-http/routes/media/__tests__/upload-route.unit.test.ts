@@ -86,7 +86,7 @@ test('media upload: an SVG reports its stored (sanitized) size, and null when th
   assert.ok(blob);
   assert.equal(media.byteSize, (await deps.blobStore.get({ storageKey: blob.storageKey })).byteLength);
   assert.notEqual(media.byteSize, Buffer.byteLength(svg));
-  t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
+  t.mock.method(deps.assetBlobRepo, 'list', async () => []);
   const unknown = await dispatchJsonRequest(app, 'POST', `${BASE}/media`, { ...png, filename: 'other.svg', dataBase64: Buffer.from(svg.replace('10', '20')).toString('base64') });
   assert.equal(unknown.status, 201);
   assert.equal((unknown.body as Uploaded).media.byteSize, null);

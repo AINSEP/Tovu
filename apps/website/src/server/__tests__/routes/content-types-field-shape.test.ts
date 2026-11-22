@@ -32,11 +32,11 @@ function buildTestApp(): express.Express {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminContentTypeListRoute(app, deps);
-  registerAdminContentTypeRegisterRoute(app, deps);
-  registerAdminContentTypeUpdateFieldsRoute(app, deps);
+  registerAdminContentTypeListRoute({ app, deps });
+  registerAdminContentTypeRegisterRoute({ app, deps });
+  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
   return app;
 }
 

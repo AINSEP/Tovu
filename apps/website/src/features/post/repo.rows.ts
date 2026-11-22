@@ -4,18 +4,11 @@ import type { Insertable, Selectable } from "kysely";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
-import { toBool } from "../../platform/db/kernel/index.js";
-import {
-  DEFAULT_BODY_JSON,
-  presentScheduleFields,
-  type PostBodyFormat,
-  type PostKind,
-  type PostRecord,
-  type PostRevisionInput,
-  type PostRevisionOp,
-  type PostRevisionRecord,
-  type PostStatus,
-} from "./post.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
+import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostRecord, type PostRevisionInput, type PostRevisionOp, type PostRevisionRecord } from "./post.js";
+import { presentScheduleFields } from "./post-write-fields.js";
+import type { PostKind } from "#src/contracts/core/post-kind";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file Row mapping for `posts` / `post_revisions`, shared by every dialect: the columns are the
@@ -33,7 +26,7 @@ export type PostRow = Selectable<ContentDatabase["posts"]>;
 export type PostRevisionRow = Selectable<ContentDatabase["post_revisions"]>;
 
 /** `{}` (the column default, and every pre-SPEC-005 row) reads back as no `ext` at all — AC-14. */
-function parseExt(rawExt: string): JsonObject | undefined {
+function parseExt({ rawExt }: { rawExt: string }, _optional: Record<string, never> = {}): JsonObject | undefined {
   const parsed = JSON.parse(rawExt) as JsonObject;
   return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
@@ -43,7 +36,7 @@ function readPostAttribution({ row }: { row: PostRow }, _options: Record<string,
     createdByPrincipalId: row.created_by_principal_id ?? null,
     createdAt: row.created_at ?? null,
     author: row.author ?? null,
-    showAuthor: toBool(row.show_author) ?? false,
+    showAuthor: toBool({ value: row.show_author }) ?? false,
   };
 }
 
@@ -53,7 +46,7 @@ function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, ne
     seoExtJson: row.seo_ext_json ?? null,
     deletedAt: row.deleted_at ?? null,
     templateChoice: row.template_choice ?? null,
-    overridesThemePage: toBool(row.overrides_theme_page),
+    overridesThemePage: toBool({ value: row.overrides_theme_page }),
     memberAccessJson: row.member_access_json ?? null,
     ...readPostAttribution({ row }),
   };
@@ -75,7 +68,7 @@ function readPostMetadata({ row }: { row: PostRow }, _options: Record<string, ne
  * of `bodyJson` must check `bodyFormat` the same way before trusting it.
  */
 export function toRecord(row: PostRow): PostRecord {
-  const ext = parseExt(row.ext);
+  const ext = parseExt({ rawExt: row.ext });
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -147,7 +140,7 @@ function writePostPublication({ record }: { record: PostRecord }, _options: Reco
  *
  * @complexity O(size of the record's JSON fields) — two `JSON.stringify` calls.
  */
-export function toRow(record: PostRecord) {
+export function toRow(record: PostRecord, _optional: Record<string, never> = {}) {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -193,7 +186,7 @@ export function toRow(record: PostRecord) {
  *
  * @complexity O(1).
  */
-export function updatableColumns(row: ReturnType<typeof toRow>) {
+export function updatableColumns(row: ReturnType<typeof toRow>, _optional: Record<string, never> = {}) {
   return {
     workspace_id: row.workspace_id,
     title: row.title,
@@ -238,7 +231,7 @@ export function toRevisionRecord(row: PostRevisionRow): PostRevisionRecord {
 
 /** The revision row `appendRevision` writes: `content_hash` is over the exact text written,
  *  computed here so no caller can hand in a hash that drifts from the bytes. */
-export function toRevisionRow(input: PostRevisionInput, id: string): Insertable<ContentDatabase["post_revisions"]> {
+export function toRevisionRow({ input, id }: { input: PostRevisionInput; id: string }, _optional: Record<string, never> = {}): Insertable<ContentDatabase["post_revisions"]> {
   const stateJsonText = JSON.stringify(input.stateJson);
   return {
     id,

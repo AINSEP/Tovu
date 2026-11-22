@@ -1,4 +1,6 @@
+import { formatErrorForLog } from "@jini-ai/core";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
 
@@ -37,7 +39,7 @@ import { redactedError } from "@jini-ai/diagnostics/observability/node";
  * when the caller supplies a flush port. Without one, a monitor leaves Node's listeners intact.
  *
  * Architectural role:
- * Boot-time process wiring, `src/server/boot/` sibling to `registerPluginSdkResolver()` (see that
+ * Boot-time process wiring, `apps/website/src/server/runtime/boot/` sibling to `registerPluginSdkResolver()` (see that
  * file's own header for this directory's shared "one real top-level boot path, testable via an
  * injectable seam" shape, reused here). Called from `index.ts`'s `main()` — `index.ts` is that one
  * real top-level boot path (never imported by a test), so this file itself must expose the actual
@@ -73,8 +75,7 @@ export function installUnhandledRejectionGuard(options: InstallUnhandledRejectio
   const log =
     options.log ??
     ((message: string, reason: unknown) => {
-      // eslint-disable-next-line no-console
-      console.error(message, reason);
+      console.error(message, formatErrorForLog({ error: reason }, TOVU_ERROR_REDACTION_OPTIONS));
     });
   const handler = (reason: unknown): void => {
     log("[unhandledRejection] an async operation rejected with no catch anywhere in its chain — logged, not fatal:", reason);
@@ -125,6 +126,7 @@ export function installProcessErrorReporting(
     try {
       tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "process.uncaught_exception", attributes: { process: processRole } } });
     } catch { /* A broken diagnostic sink must not skip the fatal drain and exit. */ } finally {
+      // Fatal shutdown still exits if the already-reported crash prevents telemetry flushing.
       void Promise.resolve().then(() => optional.flush?.()).catch(() => {}).finally(finish);
     }
   };

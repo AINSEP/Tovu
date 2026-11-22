@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
@@ -21,14 +21,13 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's five writable PUT fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parsePageUpdateBody(
-  rawBody: unknown
-): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion" | "publishAt" | "featuredMediaId"> {
+function parsePageUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion" | "publishAt" | "featuredMediaId"> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
@@ -42,13 +41,13 @@ function parsePageUpdateBody(
     // accepts a basis, so a mistyped `"3"` is a 400 here exactly as it is on `posts/update.ts`
     // rather than coercing to "no basis sent" and becoming an unguarded save by a client that
     // believes it is protected.
-    expectedVersion: parseExpectedVersion(body.expectedVersion),
+    expectedVersion: parseExpectedVersion({ raw: body.expectedVersion }),
   };
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPageUpdateError(res: Response, err: unknown): void {
-  if (sendPluginHookFailedError(res, err)) return;
+function sendPageUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (sendPluginHookFailedError({ res, err })) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -126,24 +125,17 @@ function sendPageUpdateError(res: Response, err: unknown): void {
  * cap `pages/create.ts` applies, since §4 scopes it to the update endpoints too — so an oversized
  * request 413s before `updatePost`/the command gateway ever runs.
  */
-export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put(
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const pageId = String(req.params.pageId ?? "");
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
-      // Full pre-edit record, captured in captureInverse and reused verbatim by
-      // rollback so the gateway's unit-of-work compensation (SPEC-001
-      // REQ-01/EC-08/AC-17) restores the page exactly — version included — if the
-      // change-set record fails to persist after updatePost applies.
-      let priorPost: PostRecord | null = null;
+
 
       try {
         // Inside the try: requireAdminSession always sets res.locals.principal before this
@@ -165,10 +157,33 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
             idempotencyKey,
             permission: "content.write",
           },
-          mutation: {
+          mutation: updatePageMutation(deps, { pageId, principal, req }),
+        });
+
+        // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
+        // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
+        // `bus.subscribe`d consumers, mirroring `posts/update.ts`'s identical inline `processOutbox` call.
+        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
+        // Owner-action product event on the draft → published transition only (consent-gated port).
+        res.json(toAdminPostResponse(result.post));
+      } catch (err) {
+        sendPageUpdateError({ res, err });
+      }
+    }
+  );
+};
+
+function updatePageMutation(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
+      // Full pre-edit record, captured in captureInverse and reused verbatim by
+      // rollback so the gateway's unit-of-work compensation (SPEC-001
+      // REQ-01/EC-08/AC-17) restores the page exactly — version included — if the
+      // change-set record fails to persist after updatePost applies.
+  let priorPost: PostRecord | null = null;
+  return {
             entityType: "post",
             entityId: pageId,
-            operation: "update",
+            operation: "update" as const,
             captureInverse: async () => {
               const existing = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });
               if (existing?.kind !== "page") {
@@ -186,8 +201,25 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 featuredMediaId: priorPost.featuredMediaId ?? null,
               };
             },
-            execute: async () => {
-              const body = parsePageUpdateBody(req.body);
+            execute: () => executePageUpdate(deps, { pageId, principal, req }),
+            captureEntityVersion: ({ result }: { result: Awaited<ReturnType<typeof updatePost>> }) => result.post.version,
+            rollback: async () => {
+              if (!priorPost) return;
+              await restorePostForward({
+                deps: {
+                  repo: deps.postRepo,
+                  clock: deps.clock,
+                  outbox: deps.outbox,
+                  forgetRemoved: deps.forgetRemovedPost,
+                },
+                input: { prior: priorPost, actorId: principal.id },
+              });
+            },
+          };
+}
+
+async function executePageUpdate(deps: Parameters<ContentRouteRegistrar>[0]["deps"], { pageId, principal, req }: { pageId: string; principal: ReturnType<typeof getAuthedPrincipal>; req: Request }) {
+              const body = parsePageUpdateBody({ rawBody: req.body });
               return updatePost({
                 deps: {
                   repo: deps.postRepo,
@@ -212,33 +244,4 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                   analyticsSource: "admin",
                 },
               });
-            },
-            captureEntityVersion: ({ result }) => result.post.version,
-            rollback: async () => {
-              if (!priorPost) return;
-              await restorePostForward({
-                deps: {
-                  repo: deps.postRepo,
-                  clock: deps.clock,
-                  outbox: deps.outbox,
-                  forgetRemoved: deps.forgetRemovedPost,
-                },
-                input: { prior: priorPost, actorId: principal.id },
-              });
-            },
-          },
-        });
-
-        // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
-        // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
-        // `bus.subscribe`d consumers, mirroring `posts/update.ts`'s identical inline `processOutbox` call.
-        await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
-
-        // Owner-action product event on the draft → published transition only (consent-gated port).
-        res.json(toAdminPostResponse(result.post));
-      } catch (err) {
-        sendPageUpdateError(res, err);
-      }
-    }
-  );
-};
+            }

@@ -28,6 +28,10 @@ const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
  *  MCP-UI tool-calls endpoint, so they need no allowlist entry. */
 const A2UI_EXCHANGE_TOOL_IDS = new Set(["assistant_render_ui", "assistant_demo_a2ui"]);
 
+// Visitor confirmations use a dedicated store and reply channel, keeping visitor replies separate
+// from admin MCP-UI callbacks. Jini owns their open call; mcp-ui-tool-calls-route.visitor-isolation.test.ts
+// guards the host's store construction and reply isolation instead of adding an admin allowlist entry.
+
 /** Permanent-delete handlers iterate a static catalog and pass a parameterised toolId to
  * requireHumanConfirm. Their real exchange/handler tests exercise every id, including bypasses. */
 const PARAMETERISED_EXCHANGE_TOOL_IDS = new Set<string>([
@@ -79,6 +83,9 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   // All five replacement tools are exercised against real exchanges by theme-file-safety.test.ts.
   ["features/theme/file-mutation-tools.ts", new Set(["description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
+  // The ask-choice store adapter forwards the Jini open() args untouched; assistant_ask_choice is already
+  // listed as a parameterised exchange id above, so the id stays covered.
+  ["assistant/ask-choice-custom-answer.ts", new Set(["args"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
   // The copy tool receives the host-bound credential_copy_from_project id; Jini owns the exchange.
   ["features/custom-credentials/credential-copy-tool.ts", new Set(["toolId"])],
@@ -87,27 +94,15 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
-  // fc576483f: visitor Ask-first confirmations open on the site assistant's OWN exchange store
-  // (channel "visitor-tool-confirmation", principal "anonymous-visitor"); the MCP-UI admin route never sees them.
-  ["assistant/site/visitor-confirmations.ts", new Set(["binding.executionId"])],
 ]);
 
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.
 // Match the complete reviewed call and file: a different argument or receiver still fails closed.
 const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
-  // c387a9b3e added the native theme watcher. Keep the full call reviewed, like the sealers below.
-  ["features/theme/theme-watcher.ts", new Set([`watchPort.open({
-      themesDir: required.themesDir,
-      onChange: (filename) => {
-        if (closed || ignoredThemeWatchPath(filename)) return;
-        clearTimeout(pending);
-        pending = setTimeout(refresh, settleMs);
-        pending.unref();
-      },
-      onError: (error) => { stop(); onError({ error }); },
-    })`])],
   // 9abe6503d: the Tovu sealer opens through a per-call Jini sealer that wraps its keyring.
   ["features/webhooks/secret-sealer.aesgcm.ts", new Set(["new JiniSecretSealer({ keyring }).open(input, optional)"])],
+  // The import-local CLI opens a bounded archive FILE with fs.promises.open; nothing to do with an exchange.
+  ["cli/commands/import-local.ts", new Set([`fsp.open(file, "r")`])],
   ["features/plugin-runtime/source-tools.ts", new Set(["port.open({ id: pluginId }, {})"])],
   ["features/vendor-credentials/vault-adapter.ts", new Set(["required.sealer.open(input, options)"])],
   ["server/runtime/composition/site-key-recovery.ts", new Set(["input.previous.open(required, options)"])],
@@ -119,7 +114,7 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   // 2b0e2d7d9: member OIDC login unseals its redirect state and emailed-code continuation.
   ["features/member-login/oidc-login.ts", new Set([
     "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
-    "continuationCodec(deps, input, config.version).open({ state: input.continuation })",
+    "continuationCodec({ deps, input, version: config.version }).open({ state: input.continuation })", // object-args form of the same reviewed call
   ])],
 ]);
 

@@ -107,10 +107,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminRecoveryRestoreRoutes(app, deps);
+  registerAdminRecoveryRestoreRoutes({ app, deps });
   return { app, deps };
 }
 
@@ -147,7 +147,7 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
     return append(row);
   };
   const migrations = new InMemoryMigrationRunsRepo();
-  migrations.setNonTerminal({ id: "interrupted-memory-migration", status: "DDL_IN_PROGRESS" });
+  migrations.setNonTerminal({ value: { id: "interrupted-memory-migration", status: "DDL_IN_PROGRESS" } });
   const resolved: string[] = [];
   const markResolved = migrations.markResolved.bind(migrations);
   migrations.markResolved = async ({ id }) => {
@@ -533,7 +533,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
 
 test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {
   const { res, capture } = createCapturingResponse();
-  sendRecoveryError(res, { code: "PLAN_STALE" });
+  sendRecoveryError({ res, error: { code: "PLAN_STALE" } });
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "PLAN_STALE", code: "PLAN_STALE" });
 });

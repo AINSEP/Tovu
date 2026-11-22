@@ -1,7 +1,7 @@
+import { pageToolInputWithBasis } from "./page-tool-input.js";
 import { createTransactionalInMemoryIdentityRepos } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
-
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, authorize, migrateDeprecatedPermissionGrants, seedIdentity } from "@jini-ai/user-management/server";
 import { type IdentityRepos } from "@jini-ai/user-management";
 
@@ -339,7 +339,7 @@ test("the 'owner' principal is unaffected — it clears the gate on its '*' wild
  *  a store that records every method it is asked for so a refusal can be proven to touch nothing. */
 async function toolHarness() {
   const chain = await buildChain();
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const storeCalls: string[] = [];
 
   const registrations = buildPagesRegistrations({
@@ -352,17 +352,17 @@ async function toolHarness() {
     pagesHtmlStore: (scope) => {
       const real = new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock });
       return {
-        ensureHtmlFormat: async (seedHtml: string) => {
+        ensureHtmlFormat: async ({ seedHtml }: { seedHtml: string }) => {
           storeCalls.push("ensureHtmlFormat");
-          return real.ensureHtmlFormat(seedHtml);
+          return real.ensureHtmlFormat({ seedHtml });
         },
         read: async () => {
           storeCalls.push("read");
           return real.read();
         },
-        write: async (html: string) => {
+        write: async ({ html }: { html: string }) => {
           storeCalls.push("write");
-          return real.write(html);
+          return real.write({ html });
         },
         // Not spied: `capturedVersion` is a pure accessor over what the three calls above already
         // recorded, so counting it would add a call to `storeCalls` that says nothing about which
@@ -373,13 +373,13 @@ async function toolHarness() {
   });
 
   const byName = new Map(registrations.map((entry) => [entry.descriptor.id, entry]));
-  const call = (name: string, principalId: string, input: Record<string, unknown>) => {
+  const call = async (name: string, principalId: string, input: Record<string, unknown>) => {
     const entry = byName.get(name);
     assert.ok(entry, `tool '${name}' is not registered`);
     return entry.handler({
       principal: { id: principalId, kind: "user" },
       signal: new AbortController().signal,
-      input,
+      input: await pageToolInputWithBasis({ toolId: name, input, repo: postRepo, workspaceId: WORKSPACE }),
     } as never);
   };
 

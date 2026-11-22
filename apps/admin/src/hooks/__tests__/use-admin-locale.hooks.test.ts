@@ -54,7 +54,7 @@ describe("useAdminLocale — refresh on a relevant settings-refresh notification
     const { result } = renderHook(() => useAdminLocale(port));
     await waitFor(() => expect(result.current).toBe("en"));
 
-    act(() => port.publishLocaleChange("de"));
+    act(() => port.publishLocaleChange({ next: "de" }));
     await waitFor(() => expect(result.current).toBe("de"));
   });
 
@@ -72,7 +72,7 @@ describe("useAdminLocale — refresh on a relevant settings-refresh notification
     const callsBeforeUnmount = loadLanguageSpy.mock.calls.length;
 
     unmount();
-    act(() => port.publishLocaleChange("de"));
+    act(() => port.publishLocaleChange({ next: "de" }));
 
     expect(loadLanguageSpy.mock.calls.length).toBe(callsBeforeUnmount);
   });
@@ -90,7 +90,7 @@ describe("useAdminLocale — StrictMode effect replay", () => {
     // If the effect's `cancelled` flag were declared outside the effect body (or otherwise failed
     // to reset on this second mount), this update would be silently dropped — the real bug shape
     // StrictMode's dev-only mount→unmount→mount would expose.
-    act(() => port.publishLocaleChange("ja"));
+    act(() => port.publishLocaleChange({ next: "ja" }));
     await waitFor(() => expect(result.current).toBe("ja"));
     expect(load).toHaveBeenCalledTimes(2);
   });
@@ -112,7 +112,7 @@ describe("useAdminLocale — an older read never overwrites a newer one", () => 
           loads.push(resolve);
         });
       },
-      subscribeToSettingsRefresh(l) {
+      subscribeToSettingsRefresh({ listener: l }) {
         listener = l;
         return () => {
           listener = null;
@@ -171,7 +171,7 @@ describe("language query ownership", () => {
     const { result } = renderHook(() => ({ first: useAdminLocale(port), second: useAdminLocale(port) }));
     await waitFor(() => expect(result.current).toEqual({ first: "fr", second: "fr" }));
     expect(read).toHaveBeenCalledTimes(1);
-    act(() => fake.publishLocaleChange("de"));
+    act(() => fake.publishLocaleChange({ next: "de" }));
     await waitFor(() => expect(result.current).toEqual({ first: "de", second: "de" }));
   });
 });

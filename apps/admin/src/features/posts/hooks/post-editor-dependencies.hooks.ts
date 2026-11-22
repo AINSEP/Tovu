@@ -1,5 +1,11 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { ApiError, api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
@@ -11,22 +17,22 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
-  getPost: (id) => api.getPost(id),
-  createPost: (input, options = {}) => api.createPost(input, options),
-  getPresentation: () => api.getPresentation({ kind: "post" }),
-  updatePost: (target, patch) => api.updatePost(target, patch),
-  deletePost: (id) => api.deletePost(id),
-  listPosts: () => api.listPosts(),
-  uploadMedia: (input) => api.uploadMedia(input),
-  templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
-  putAutosave: (id, draft, options) => api.putAutosave(id, draft, options),
+  getPost: ({ id }, _optional = {}) => postsApi.getPost({ id }),
+  createPost: (input, options = {}) => postsApi.createPost(input, options),
+  getPresentation: () => themesApi.getPresentation({ kind: "post" }),
+  updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
+  listPosts: () => postsApi.listPosts(),
+  uploadMedia: (input, _optional = {}) => mediaApi.uploadMedia(input),
+  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => postsApi.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => postsApi.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: (id) => api.getAutosave(id),
-  discardAutosave: (id) => api.discardAutosave(id),
+  getAutosave: ({ id }, _optional = {}) => postsApi.getAutosave({ id }),
+  discardAutosave: ({ id }, _optional = {}) => postsApi.discardAutosave({ id }),
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
-export const defaultFeaturedImageRenditionUrl = (id: string): string => api.mediaPreviewRenditionUrl(id);
+export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => mediaApi.mediaPreviewRenditionUrl({ id });
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {
@@ -96,6 +102,20 @@ const DEFAULT_MEDIA: AdminMedia = {
   publicUrl: null,
 };
 
+
+/** The real route's optimistic-concurrency guard: a send that names a version other than the stored one is a 409. */
+function assertExpectedVersion(
+  { expectedVersion, post }: { expectedVersion: number | undefined; post: { id: string; version: number } }, _optional = {},
+): void {
+  if (expectedVersion === undefined || expectedVersion === post.version) return;
+  throw new ApiError(
+    { message: `post '${post.id}' was modified by another save (expected version ${expectedVersion}, current version ${post.version})`,
+    status: 409 },
+    { code: POST_VERSION_CONFLICT_CODE,
+    body: { details: { expectedVersion, currentVersion: post.version } } }
+  );
+}
+
 /**
  * An in-memory {@link PostEditorPort} for tests — the fake that lets a test describe "this post is
  * loaded, published, with these theme templates" directly instead of stubbing global `fetch` or a
@@ -117,12 +137,19 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   /** Every `updatePost` patch this fake received, in call order — the assertion surface for "did
    *  the editor actually SEND the basis version", which `post` alone cannot show (a patch the fake
    *  applied and a patch it merely received look identical in the stored row). */
-  readonly updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]>;
+  readonly updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]>;
   /** Advances the stored row as though a DIFFERENT operator had just saved it, without the editor
    *  under test knowing — the only way to reach a genuine stale-basis conflict rather than faking
    *  the rejection. */
-  simulateConcurrentSave(title?: string): void;
+  simulateConcurrentSave(required: Record<string, never>, optional?: { title?: string }): void;
 } {
+  return createFakePostEditorStore({ options });
+}
+
+function createFakePostEditorStore(
+  { options }:
+    { options: NonNullable<Parameters<typeof createFakePostEditorPort>[0]> }
+): ReturnType<typeof createFakePostEditorPort> {
   const state = { post: options.post ?? { ...DEFAULT_POST } };
   const settings: PresentationSettings = {
     workspaceId: "fake-ws",
@@ -133,7 +160,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
   let autosave: StandingDraftAutosaveSnapshot | null = options.autosave ?? null;
   const putAutosaveCalls: StandingDraftAutosaveInput[] = [];
   let discardAutosaveCalled = false;
-  const updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[1]> = [];
+  const updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]> = [];
 
   return {
     get post() {
@@ -148,9 +175,96 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       return discardAutosaveCalled;
     },
 
-    simulateConcurrentSave(title = "Saved by someone else") {
+    simulateConcurrentSave(_required, { title = "Saved by someone else" } = {}) {
       state.post = { ...state.post, title, version: state.post.version + 1 };
     },
+    ...createFakePostResources({ state, options, settings }),
+    ...createFakePostWrites({ updatePostCalls, options, state }),
+
+    // Models the real guard, not just the happy path: `writeAutosave`
+    // (`apps/website/src/features/post/repo.sqlite.ts`) is one `UPDATE ... WHERE version =
+    // baseVersion`, so a draft built on a superseded basis is REFUSED — `{ applied: false }`, and
+    // nothing is parked. Reproducing that here is what lets a test reach a genuine stale basis via
+    // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
+    // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
+    // server threw away" is exactly the observation a stale-basis test needs.
+    async putAutosave({ id, draft }, _options = {}) {
+      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
+      putAutosaveCalls.push(draft);
+      if (draft.baseVersion !== state.post.version) return { applied: false };
+      autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
+      return { applied: true };
+    },
+
+    async getAutosave() {
+      return { autosave };
+    },
+
+    async discardAutosave() {
+      discardAutosaveCalled = true;
+      autosave = null;
+      return { ok: true };
+    },
+  };
+}
+
+function createFakePostWrites(
+  { updatePostCalls, options, state }:
+    Pick<Parameters<typeof createFakePostEditorStore>[0], "options"> &
+    { updatePostCalls: Array<Parameters<PostEditorPort["updatePost"]>[0]["patch"]>; state: { post: AdminPost } }
+): Pick<ReturnType<typeof createFakePostEditorPort>, "updatePost" | "deletePost" | "listPosts" | "uploadMedia" | "templatePreviewUrl"> {
+  return {
+
+    async updatePost({ target, patch }, _optional = {}) {
+      updatePostCalls.push(patch);
+      if (options.updatePostError) throw new Error(options.updatePostError);
+      if (target.id !== state.post.id) throw new Error(`fake post not found: ${target.id}`);
+      // The real route's optimistic-concurrency guard, modeled rather than stubbed (2026-09-06):
+      // the same opt-in strict-equality compare `updatePost` runs server-side, rejecting with the
+      // same `ApiError` shape `lib/api.ts` builds from a `409 VERSION_CONFLICT` body. Modeled here
+      // so a hook test reaches a conflict by actually being stale (`simulateConcurrentSave`), not
+      // by seeding a canned rejection that would pass just as happily if the editor never sent a
+      // version at all.
+      const { expectedVersion, hideCoverImageInBody, slugFromTitle, ...fields } = patch;
+      assertExpectedVersion({ expectedVersion, post: state.post });
+      // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.
+      state.post = { ...state.post, ...fields,
+        ...(slugFromTitle ? { slug: postSlugForTitle({ title: fields.title ?? state.post.title }) } : {}),
+        ...(hideCoverImageInBody !== undefined ? { ext: { ...state.post.ext, "post-presentation": { ...state.post.ext?.["post-presentation"], hideCoverImageInBody } } } : {}),
+        version: state.post.version + 1 };
+      return { post: state.post };
+    },
+
+    async deletePost({ id }, _optional = {}) {
+      if (options.deletePostError) throw new Error(options.deletePostError);
+      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
+      return { post: state.post };
+    },
+
+    async listPosts() {
+      return { posts: (options.mentionablePosts ?? []).map((post) => ({ post })) };
+    },
+
+    async uploadMedia() {
+      if (options.uploadMediaError) throw new Error(options.uploadMediaError);
+      return { media: options.uploadMediaResult ?? DEFAULT_MEDIA };
+    },
+
+    // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
+    // `/api/admin/...` shape — same "the fake proves the seam, not just the shape" reasoning
+    // `createFakePageEditorPort`'s identical member documents.
+    templatePreviewUrl({ id, templateChoice }, _optional = {}) {
+      return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
+    },
+  };
+}
+
+function createFakePostResources(
+  { state, options, settings }:
+    Pick<Parameters<typeof createFakePostEditorStore>[0], "options"> &
+    { state: { post: AdminPost }; settings: PresentationSettings }
+): Pick<PostEditorPort, "createPost" | "getPost" | "getPresentation"> {
+  return {
 
     async createPost(input, _options = {}) {
       state.post = { ...DEFAULT_POST, ...input, id: "created-post-1", slug: input.slug ?? postSlugForTitle({ title: input.title }), version: 1 };
@@ -169,80 +283,6 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
         activeThemeTemplates: options.presentation?.activeThemeTemplates ?? [],
         activeThemeStaticPageIds: options.presentation?.activeThemeStaticPageIds ?? [],
       };
-    },
-
-    async updatePost(target, patch) {
-      updatePostCalls.push(patch);
-      if (options.updatePostError) throw new Error(options.updatePostError);
-      if (target.id !== state.post.id) throw new Error(`fake post not found: ${target.id}`);
-      // The real route's optimistic-concurrency guard, modeled rather than stubbed (2026-09-06):
-      // the same opt-in strict-equality compare `updatePost` runs server-side, rejecting with the
-      // same `ApiError` shape `lib/api.ts` builds from a `409 VERSION_CONFLICT` body. Modeled here
-      // so a hook test reaches a conflict by actually being stale (`simulateConcurrentSave`), not
-      // by seeding a canned rejection that would pass just as happily if the editor never sent a
-      // version at all.
-      const { expectedVersion, hideCoverImageInBody, slugFromTitle, ...fields } = patch;
-      if (expectedVersion !== undefined && expectedVersion !== state.post.version) {
-        throw new ApiError(
-          `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
-          409,
-          POST_VERSION_CONFLICT_CODE,
-          { details: { expectedVersion, currentVersion: state.post.version } }
-        );
-      }
-      // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.
-      state.post = { ...state.post, ...fields,
-        ...(slugFromTitle ? { slug: postSlugForTitle({ title: fields.title ?? state.post.title }) } : {}),
-        ...(hideCoverImageInBody !== undefined ? { ext: { ...state.post.ext, "post-presentation": { ...state.post.ext?.["post-presentation"], hideCoverImageInBody } } } : {}),
-        version: state.post.version + 1 };
-      return { post: state.post };
-    },
-
-    async deletePost(id) {
-      if (options.deletePostError) throw new Error(options.deletePostError);
-      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
-      return { post: state.post };
-    },
-
-    async listPosts() {
-      return { posts: (options.mentionablePosts ?? []).map((post) => ({ post })) };
-    },
-
-    async uploadMedia() {
-      if (options.uploadMediaError) throw new Error(options.uploadMediaError);
-      return { media: options.uploadMediaResult ?? DEFAULT_MEDIA };
-    },
-
-    // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
-    // `/api/admin/...` shape — same "the fake proves the seam, not just the shape" reasoning
-    // `createFakePageEditorPort`'s identical member documents.
-    templatePreviewUrl(id, templateChoice) {
-      return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
-    },
-
-    // Models the real guard, not just the happy path: `writeAutosave`
-    // (`apps/website/src/features/post/repo.sqlite.ts`) is one `UPDATE ... WHERE version =
-    // baseVersion`, so a draft built on a superseded basis is REFUSED — `{ applied: false }`, and
-    // nothing is parked. Reproducing that here is what lets a test reach a genuine stale basis via
-    // `simulateConcurrentSave` instead of stubbing the answer, which would pass whether or not the
-    // editor reads `applied` at all. The call is still recorded: "the editor sent a write the
-    // server threw away" is exactly the observation a stale-basis test needs.
-    async putAutosave(id, draft) {
-      if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
-      putAutosaveCalls.push(draft);
-      if (draft.baseVersion !== state.post.version) return { applied: false };
-      autosave = { ...draft, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local" };
-      return { applied: true };
-    },
-
-    async getAutosave() {
-      return { autosave };
-    },
-
-    async discardAutosave() {
-      discardAutosaveCalled = true;
-      autosave = null;
-      return { ok: true };
     },
   };
 }

@@ -50,7 +50,7 @@ function mkSiteDir(): string {
 
 /** One expired and one unexpired guest chat, written straight into a fresh chat.db. */
 function seedGuestChats(chatDbPath: string): void {
-  const chat = openChatDb(chatDbPath);
+  const chat = openChatDb({ filePath: chatDbPath });
   try {
     const now = Date.now();
     const insert = chat.prepare(
@@ -65,7 +65,7 @@ function seedGuestChats(chatDbPath: string): void {
 }
 
 function chatIds(chatDbPath: string): string[] {
-  const chat = openChatDb(chatDbPath);
+  const chat = openChatDb({ filePath: chatDbPath });
   try {
     return (chat.prepare("SELECT id FROM ai_chats ORDER BY id").all() as { id: string }[]).map((row) => row.id);
   } finally {
@@ -118,7 +118,7 @@ test("sqlite: a chat.db that cannot open rejects, and the content.db this call o
 
 test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db open", async () => {
   const dir = mkSiteDir();
-  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
   try {
     const chatDbPath = path.join(dir, "chat.db");
     fs.mkdirSync(chatDbPath);
@@ -126,16 +126,16 @@ test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db ope
       openSiteStore({ storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath, role: "owner" }, { db }),
       /unable to open database file/
     );
-    assert.equal(sqliteClientOf(db).open, true, "the caller's handle is the caller's to close");
+    assert.equal(sqliteClientOf({ source: db }).open, true, "the caller's handle is the caller's to close");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("sqlite: closing a store over a caller-supplied content.db closes chat.db and leaves content.db open", async () => {
   const dir = mkSiteDir();
-  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
   try {
     const store = await openSiteStore(
       { storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" },
@@ -143,10 +143,10 @@ test("sqlite: closing a store over a caller-supplied content.db closes chat.db a
     );
     assert.equal(store.sqliteDb, db, "the supplied handle backs the content kernel");
     await store.close();
-    assert.equal(sqliteConnectionOf(store.chat)?.open, false, "chat.db, opened by the call, is closed");
-    assert.equal(sqliteClientOf(db).open, true, "content.db, supplied by the caller, stays open");
+    assert.equal(sqliteConnectionOf({ kernel: store.chat })?.open, false, "chat.db, opened by the call, is closed");
+    assert.equal(sqliteClientOf({ source: db }).open, true, "content.db, supplied by the caller, stays open");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -197,7 +197,7 @@ test("a pglite owner ignores an inherited TOVU_PG_SOCKET: it serves its own data
       { env: { [PG_SOCKET_ENV]: foreignSocket } }
     );
     try {
-      const expected = path.join(defaultPgliteSocketDir(path.join(dir, PGLITE_DATA_DIR_NAME)), PGLITE_SOCKET_FILE);
+      const expected = path.join(defaultPgliteSocketDir({ dataDir: path.join(dir, PGLITE_DATA_DIR_NAME) }), PGLITE_SOCKET_FILE);
       assert.equal(store.pgliteSocketPath, expected);
       assert.equal(fs.readFileSync(foreignSocket, "utf8"), "another site's live socket");
     } finally {
@@ -231,7 +231,7 @@ test("the API process's composition starts the guest-chat expiry sweep on chat.d
   try {
     const chatDbPath = path.join(dir, "chat.db");
     seedGuestChats(chatDbPath);
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
     await waitFor(() => !chatIds(chatDbPath).includes("expired"), "the expired guest chat to be swept");
     assert.deepEqual(chatIds(chatDbPath), ["fresh"], "only the expired chat goes");
     await deps.commentsReady; // the last boot write; the folder is removed after it
@@ -252,10 +252,10 @@ test("the API process's sweep re-runs on its interval: a chat that expires after
       passes++;
       return clock;
     };
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
-    });
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
+    } });
     await bootSettled(deps);
     await waitFor(() => passes >= 3, "two passes after the boot pass");
     assert.deepEqual(chatIds(chatDbPath), ["fresh"], "the boot pass took the expired chat; later passes keep the unexpired one");
@@ -282,16 +282,16 @@ test("closing the API process's store waits for the sweep pass in flight before 
       if (armed && closing === undefined) queueMicrotask(() => (closing = store?.close()));
       return clock;
     };
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
-    });
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
+    } });
     await bootSettled(deps);
     clock += 2 * 3_600_000;
     armed = true;
     await waitFor(() => closing !== undefined, "a pass to start, and the store to start closing during it");
     await closing;
-    assert.equal(sqliteConnectionOf(store!.chat)?.open, false, "chat.db is closed");
+    assert.equal(sqliteConnectionOf({ kernel: store!.chat })?.open, false, "chat.db is closed");
     assert.deepEqual(chatIds(chatDbPath), [], "the pass in flight finished its delete before chat.db closed");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -309,11 +309,11 @@ test("the agent daemon's composition (client) never starts the sweep", async () 
       passes++;
       return Date.now();
     };
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       storeRole: "client",
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
-    });
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
+    } });
     await bootSettled(deps);
     // A started sweep runs its first pass synchronously while the composition opens its store, so a
     // clock never read means no sweep, without waiting on the timer.

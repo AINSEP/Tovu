@@ -24,9 +24,10 @@ test("form definition responses clone field objects and notification recipients"
     fields: [{ id: "email", label: "Email address", type: "email", required: true, maxLength: 123, className: "wide", attributes: { placeholder: "Your email" } }],
     mode: "builder", html: undefined,
     notify: { enabled: true, recipients: ["ops@example.org", "audit@example.org"] }, status: "active",
-    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z",
+    // The optimistic-concurrency version rides every definition response (84d9382e): the next save names it.
+    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 4,
   } });
-  const list = toAdminFormDefinitionListResponse([definition]);
+  const list = toAdminFormDefinitionListResponse({ definitions: [definition] });
   single.data.fields[0].label = "Changed in response";
   single.data.notify.enabled = false;
   single.data.notify.recipients.push("new@example.org");
@@ -34,7 +35,7 @@ test("form definition responses clone field objects and notification recipients"
   list.data[0].notify.recipients[0] = "replaced@example.org";
   assert.deepEqual(definition.fields, [{ id: "email", label: "Email address", type: "email", required: true, maxLength: 123, className: "wide", attributes: { placeholder: "Your email" } }]);
   assert.deepEqual(definition.notify, { enabled: true, recipients: ["ops@example.org", "audit@example.org"] });
-  assert.deepEqual(toAdminFormDefinitionListResponse([]), { data: [] });
+  assert.deepEqual(toAdminFormDefinitionListResponse({ definitions: [] }), { data: [] });
 });
 
 // F4.1/F4.3/F4.6: these are wire-contract literals, including the legacy builder default
@@ -55,10 +56,10 @@ for (const mode of ["html", "builder"] as const) {
       html: '<input name="message" required>',
       fields: [{ id: "message", label: "Message", type: "text", required: true }],
       notify: { enabled: false, recipients: [] }, status: "active",
-      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z",
+      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z", version: 1,
     };
     assert.deepEqual(toAdminFormDefinitionResponse(definition), { data: expected });
-    assert.deepEqual(toAdminFormDefinitionListResponse([definition]), { data: [expected] });
+    assert.deepEqual(toAdminFormDefinitionListResponse({ definitions: [definition] }), { data: [expected] });
   });
 }
 
@@ -118,14 +119,14 @@ const errorCases = [
 for (const { label, error, status, body } of errorCases) {
   test(`forms error mapper sends exact ${label} status and details`, () => {
     const { res, capture } = createCapturingResponse();
-    assert.equal(mapFormsWriteError(error, res), true);
+    assert.equal(mapFormsWriteError({ err: error, res }), true);
     assert.deepEqual(capture, { statusCode: status, jsonBody: body });
   });
 }
 
 test("unknown forms errors leave the response untouched for the caller's generic fallback", () => {
   const { res, capture } = createCapturingResponse();
-  assert.equal(mapFormsWriteError(new Error("private db path"), res), false);
+  assert.equal(mapFormsWriteError({ err: new Error("private db path"), res }), false);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
 

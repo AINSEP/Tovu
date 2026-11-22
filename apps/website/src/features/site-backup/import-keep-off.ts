@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
-import { NO_THEME_ID } from "#src/features/theme/active-theme";
-import { sanitizePageHtml } from "#src/features/widgets/media-html";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 
 /**
  * @file What an imported archive may leave switched ON. Imported themes and HTML pages count as
@@ -21,7 +21,7 @@ const INERT_DROPS: ReadonlySet<string> = new Set(["mark"]);
 const MAX_PAGE_NOTICES = 20;
 const MAX_NOTICE_TITLE = 80;
 
-type Kernel = StorageKernel<ContentDatabase>;
+type Kernel = KyselyKernel<ContentDatabase>;
 
 /**
  * Ids of live theme trees that are not byte-identical to the copy this new site already holds.
@@ -33,12 +33,12 @@ export function unrecognisedThemes(required: { root: string; dir: string; files:
   for (const file of required.files) {
     const match = LIVE_THEME_FILE.exec(file);
     if (!match || !required.liveThemes.has(match[1]!) || unrecognised.has(match[2]!)) continue;
-    if (!sameBytes(path.join(required.root, file), path.join(required.dir, file))) unrecognised.add(match[2]!);
+    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]!);
   }
   return unrecognised;
 }
 
-function sameBytes(left: string, right: string): boolean {
+function sameBytes({ left, right }: { left: string; right: string }, _optional: Record<string, never> = {}): boolean {
   return fs.existsSync(right) && fs.readFileSync(left).equals(fs.readFileSync(right));
 }
 
@@ -60,24 +60,31 @@ function formBodyMayRunScript(required: { html: string }, _optional = {}): boole
   const tags = new Set(["fieldset", "legend", "optgroup"]);
   const attrs = new Set(["maxlength", "pattern", "accept", "inputmode", "spellcheck", "autocapitalize", "readonly", "label"]);
   while (pending.length) {
-    const { node, depth } = pending.pop()!;
+    const next = pending.pop();
+    if (next === undefined) throw new Error("Imported markup scan has no pending node");
+    const { node, depth } = next;
     if (!("tagName" in node)) continue;
     if (depth >= 128) return true;
-    if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
-      // Keep option grouping valid inside select so reparsing preserves its attributes.
-      if (tags.has(node.tagName)) node.tagName = node.nodeName = node.tagName === "optgroup" ? "option" : "div";
-      node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
-    }
+    stripInertFormHints(node, tags, attrs);
     pending.push(...[...node.childNodes, ...("content" in node ? node.content.childNodes : [])].map(node => ({ node, depth: depth + 1 })));
   }
   return pageBodyMayRunScript({ html: serialize(root) });
+}
+
+function stripInertFormHints(node: DefaultTreeAdapterMap["element"], tags: ReadonlySet<string>, attrs: ReadonlySet<string>): void {
+  if (node.namespaceURI === "http://www.w3.org/1999/xhtml") {
+    // Keep option grouping valid inside select so reparsing preserves its attributes.
+    if (tags.has(node.tagName)) node.tagName = node.nodeName = node.tagName === "optgroup" ? "option" : "div";
+    node.attrs = node.attrs.filter(attr => attr.namespace || attr.prefix || !attrs.has(attr.name));
+  }
 }
 
 function attributeHoldsMarkup(root: DefaultTreeAdapterMap["documentFragment"]): boolean {
   // Depth is bounded by the sanitizer above: anything deeper than its limit counts as a drop.
   const pending: DefaultTreeAdapterMap["childNode"][] = [...root.childNodes];
   while (pending.length) {
-    const node = pending.pop()!;
+    const node = pending.pop();
+    if (node === undefined) throw new Error("Imported attribute scan has no pending node");
     if (!("tagName" in node)) continue;
     if (node.attrs.some(attr => /[<>\\]/.test(attr.value))) return true;
     pending.push(...node.childNodes, ...("content" in node ? node.content.childNodes : []));
@@ -127,35 +134,59 @@ async function keepPagesOff(required: { db: Kernel }): Promise<string[]> {
 export async function keepImportedCodeOff(required: { dbPath: string; fallback: string; liveThemes: ReadonlySet<string>; unrecognised: ReadonlySet<string>; setAside: boolean; openContent: (required: { filePath: string }) => Kernel }): Promise<string[]> {
   const db = required.openContent({ filePath: required.dbPath });
   try {
-    const liveThemeIds = new Set([...required.liveThemes].flatMap(id => id.startsWith("__") ? [] : [id.split("/").at(-1)!]));
+    const liveThemeIds = new Set([...required.liveThemes].flatMap(id => {
+      if (id.startsWith("__")) return [];
+      const name = id.split("/").at(-1);
+      if (name === undefined) throw new Error("Imported live theme has no ID");
+      return [name];
+    }));
     const setAside = required.setAside ? [`The imported file's copy of '${required.fallback}' differs from this site's own, so the site kept its own and the imported copy was set aside.`] : [];
-    const notices = [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db })];
-    const menuNotices: string[] = [];
-    const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).execute());
-    for (const menu of menus) {
-      let doc: { mode?: unknown; html?: unknown } | null;
-      try { doc = JSON.parse(menu.doc_json); } catch { continue; }
-      if (!doc || doc.mode !== "html" || typeof doc.html !== "string" || !pageBodyMayRunScript({ html: doc.html })) continue;
-      // Draft menus still resolve at markers; items mode keeps the original HTML without serving it.
-      await db.run(query => query.updateTable("menus").set({ doc_json: JSON.stringify({ ...doc, mode: "items" }) }).where("id", "=", menu.id).execute());
-      menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' (ID ${menu.id}) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
-    }
-    const moreMenus = menuNotices.length - MAX_PAGE_NOTICES;
-    notices.push(...menuNotices.slice(0, MAX_PAGE_NOTICES));
-    if (moreMenus > 0) notices.push(`${moreMenus} more menus hold their own code and their HTML was kept switched off.`);
-    const formNotices: string[] = [];
-    const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).execute());
-    for (const form of forms) {
-      let fields: { mode?: unknown; html?: unknown } | null;
-      try { fields = JSON.parse(form.fields_json); } catch { continue; }
-      if (!fields || fields.mode !== "html" || typeof fields.html !== "string" || !formBodyMayRunScript({ html: fields.html })) continue;
-      // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
-      await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
-      formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' (ID ${form.id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
-    }
-    const moreForms = formNotices.length - MAX_PAGE_NOTICES;
-    notices.push(...formNotices.slice(0, MAX_PAGE_NOTICES));
-    if (moreForms > 0) notices.push(`${moreForms} more forms hold their own code and were imported disabled.`);
-    return notices;
+    return [...setAside, ...await keepThemesOff({ db, fallback: required.fallback, liveThemeIds, unrecognised: required.unrecognised }), ...await keepPagesOff({ db }), ...await keepMenusOff({ db }), ...await keepFormsOff({ db })];
   } finally { await db.close(); }
+}
+
+/**
+ * Switches every HTML-mode menu that could run script back to items mode.
+ * @returns At most {@link MAX_PAGE_NOTICES} menu notices plus one summary line.
+ * @complexity O(menus + their bytes) once per import; one update per kept-off menu.
+ */
+async function keepMenusOff(required: { db: Kernel }, _optional = {}): Promise<string[]> {
+  const { db } = required;
+  const menuNotices: string[] = [];
+  const menus = await db.run(query => query.selectFrom("menus").select(["id", "title", "doc_json"]).execute());
+  for (const menu of menus) {
+    let doc: { mode?: unknown; html?: unknown } | null;
+    try { doc = JSON.parse(menu.doc_json); } catch { continue; }
+    if (!doc || doc.mode !== "html" || typeof doc.html !== "string" || !pageBodyMayRunScript({ html: doc.html })) continue;
+    // Draft menus still resolve at markers; items mode keeps the original HTML without serving it.
+    await db.run(query => query.updateTable("menus").set({ doc_json: JSON.stringify({ ...doc, mode: "items" }) }).where("id", "=", menu.id).execute());
+    menuNotices.push(`Menu '${String(menu.title).slice(0, MAX_NOTICE_TITLE)}' (ID ${menu.id}) holds its own code, so its HTML was kept switched off. Choose HTML mode in Menus if you trust this file.`);
+  }
+  const moreMenus = menuNotices.length - MAX_PAGE_NOTICES;
+  const notices = menuNotices.slice(0, MAX_PAGE_NOTICES);
+  if (moreMenus > 0) notices.push(`${moreMenus} more menus hold their own code and their HTML was kept switched off.`);
+  return notices;
+}
+
+/**
+ * Disables every HTML-mode form that could run script.
+ * @returns At most {@link MAX_PAGE_NOTICES} form notices plus one summary line.
+ * @complexity O(forms + their bytes) once per import; one update per kept-off form.
+ */
+async function keepFormsOff(required: { db: Kernel }, _optional = {}): Promise<string[]> {
+  const { db } = required;
+  const formNotices: string[] = [];
+  const forms = await db.run(query => query.selectFrom("form_definitions").select(["id", "name", "fields_json"]).execute());
+  for (const form of forms) {
+    let fields: { mode?: unknown; html?: unknown } | null;
+    try { fields = JSON.parse(form.fields_json); } catch { continue; }
+    if (!fields || fields.mode !== "html" || typeof fields.html !== "string" || !formBodyMayRunScript({ html: fields.html })) continue;
+    // Disabled forms do not resolve at markers; keep the authored envelope byte-for-byte.
+    await db.run(query => query.updateTable("form_definitions").set({ status: "disabled" }).where("id", "=", form.id).execute());
+    formNotices.push(`Form '${String(form.name).slice(0, MAX_NOTICE_TITLE)}' (ID ${form.id}) holds its own code, so it was imported disabled. Enable it in Forms if you trust this file.`);
+  }
+  const moreForms = formNotices.length - MAX_PAGE_NOTICES;
+  const notices = formNotices.slice(0, MAX_PAGE_NOTICES);
+  if (moreForms > 0) notices.push(`${moreForms} more forms hold their own code and were imported disabled.`);
+  return notices;
 }

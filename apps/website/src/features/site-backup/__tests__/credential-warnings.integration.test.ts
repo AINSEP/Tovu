@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,7 +11,7 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { requireShareSecretFree, excludedSharePath, validateSharePath } from "../share-file-policy.js";
 import type { CredentialWarning } from "../credential-warnings.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { sanitizeShareDatabase, rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
@@ -25,6 +25,16 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 const key = "ghp_" + "a".repeat(36);
 const stamp = "2026-11-03T00:00:00Z";
+
+// Mutations: return false/refuse on a warning, or suppress provider-shaped warning collection.
+test("requireShareSecretFree currently includes files with secret warnings (BK-R/hardening decides refusal)", () => {
+  const credentialWarnings: CredentialWarning[] = [];
+  const bytes = Buffer.from(`export const token = "${key}";`);
+  assert.equal(requireShareSecretFree({ path: "themes/static/site/credential.js", bytes }, { credentialWarnings }), true);
+  assert.ok(credentialWarnings.some(warning => warning.path === "themes/static/site/credential.js" && warning.kind === "provider key shape"));
+  assert.equal(JSON.stringify(credentialWarnings).includes(key), false);
+  assert.deepEqual(bytes, Buffer.from(`export const token = "${key}";`));
+});
 
 test("credential-looking files stay included and warnings contain only locations and match kinds", () => {
   const credentialWarnings: CredentialWarning[] = [];
@@ -41,10 +51,10 @@ test("credential-looking files stay included and warnings contain only locations
   assert.throws(() => validateSharePath({ path: "themes/../escape" }), { code: "UNSAFE_PATH" });
 });
 
-test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
+async function prepareWarnedShareFixture({ t }: { t: TestContext }) {
   const directory = await mkdtemp(path.join(tmpdir(), "credential-warning-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const db = openContentDb({ filePath: ":memory:" }); t.after(() => closeSqliteConnection(db));
+  const db = openContentDb({ filePath: ":memory:" }); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("INSERT INTO workspaces(id,name,slug,created_at) VALUES ('ws','Site','site',?)").run(stamp);
   db.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES (?,'ws','Title',?,?,'draft','post',?,1)").run("one", key, JSON.stringify({ text: key }), stamp);
   const projected = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
@@ -59,16 +69,15 @@ test("export keeps database values and complete plugin packages; download requir
     ], plugins: [{ kind: "agent", id: "custom", version: "1", digest: "a".repeat(64), enabled: true, shipped: true }],
     include: { database: true, media: true, themes: true, plugins: true, settings: true }, skipped: [], scopeNotes: {},
     totalBytes: projected.bytes.length + 500, site: { name: "Site", folderName: "site" }, schema: runtimeSchemaVersion(), tovuVersion: "test", createdAt: stamp };
+  return { directory, plan };
+}
+
+test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
+  const { directory, plan } = await prepareWarnedShareFixture({ t });
   const registry = new SiteShareRegistry({ directory });
-  let uploads = 0;
-  const delivery = { provider: "fixture", store: { upload: async ({ key }: { key: string }) => {
-    const [, token, file] = key.split("/");
-    assert.ok(await registry.findToken({ token: token!, file: file! }), "runtime delivery can see the acknowledged artifact before verification");
-    uploads++; return { url: "https://example.test/shared.zip" };
-  }, verify: async () => true, delete: async () => {} } };
-  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => delivery });
+  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => plan, zip: zipFolderFiles, delivery: async () => undefined });
   const created = await backend.create({ principalId: "owner", signal: new AbortController().signal }, { waitMs: 60_000 }) as { shareId: string; credentialWarnings: CredentialWarning[]; needsAcknowledgement: boolean; url: string | null };
-  assert.equal(created.needsAcknowledgement, true); assert.equal(created.url, null); assert.equal(uploads, 0);
+  assert.equal(created.needsAcknowledgement, true); assert.equal(created.url, null);
   assert.ok(created.credentialWarnings.some(warning => warning.path === "agent-plugins/custom/package/SKILL.md"));
   assert.equal(JSON.stringify(created.credentialWarnings).includes(key), false);
   const pendingRow = (await registry.get({ shareId: created.shareId }))!;
@@ -88,16 +97,15 @@ test("export keeps database values and complete plugin packages; download requir
   assert.equal((await registry.get({ shareId: created.shareId }))?.needsAcknowledgement, true);
   allowed = true;
   const blocked = await dispatchJsonRequest(app, "GET", root + "/download");
-  assert.equal(blocked.status, 409);
+  assert.equal(blocked.status, 403, "the owner must acknowledge warned bytes before downloading");
   assert.deepEqual(blocked.body, { code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: created.credentialWarnings });
   const acknowledged = await dispatchJsonRequest(app, "POST", root + "/acknowledge", {});
-  assert.equal(acknowledged.status, 200); assert.equal(uploads, 1);
+  assert.equal(acknowledged.status, 200, "the owner can acknowledge the private download");
   const reopened = new SiteShareRegistry({ directory });
   assert.equal((await reopened.get({ shareId: created.shareId }))?.needsAcknowledgement, false);
   assert.equal((await backend.list({}))[0]?.needsAcknowledgement, false);
-  assert.equal((await registry.findToken(pendingRow))?.needsAcknowledgement, false);
+  assert.equal(await registry.findToken(pendingRow), null, "warned exports remain private after acknowledgement");
   assert.equal((await dispatchJsonRequest(app, "POST", root + "/acknowledge", {})).status, 200);
-  assert.equal(uploads, 1, "acknowledgement retries do not upload twice");
   // sendFile needs real HTTP backpressure/drain handling, absent from the in-memory socket.
   const origin = await startTestServer(app, t);
   const downloaded = await fetch(origin + root + "/download");

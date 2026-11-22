@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { restoreFromSnapshot } from "../restore.js";
+import { restoreFromSnapshot } from "@jini-ai/db/data-modules";
 
 test("restoreFromSnapshot: restores db from snapshot and cleans wal/shm sidecars", (t) => {
   const dir = mkdtempSync(join(tmpdir(), "restore-test-"));

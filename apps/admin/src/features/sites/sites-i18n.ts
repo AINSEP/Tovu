@@ -2,8 +2,8 @@ import { t as settingsTranslator } from "./sites-settings-i18n";
 import { t as transferTranslator } from "./site-transfer-i18n";
 import { t as publishTranslator } from "./site-publish-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Copy for the Sites admin screen (`/admin/sites`).
  *
@@ -203,7 +203,6 @@ const SITES_DETAIL_DICT: Record<string, Record<string, string>> = {
     "Creating and activating sites is turned off on this deployment. Tovu-Runner switches sites itself, and a hosted install uses workspaces instead. The site being served is still shown above.": "此部署已關閉建立和啟用網站功能。Tovu-Runner 會自行切換網站，託管安裝則使用工作區。正在提供服務的網站仍顯示在上方。", "Could not load the site list.": "無法載入網站清單。", "Loading sites…": "正在載入網站…", "Each site under sites/ has its own content, uploads, and themes. Switching between them takes a restart.": "sites/ 下的每個網站都有自己的內容、上傳和佈景主題。在它們之間切換需要重新啟動。",
   },
 };
-
 
 /** Create-form copy for optional inline service tokens (2026-09-29; disclosure placement 2026-10-08). */
 const SITES_TOKEN_DICT: Record<string, Record<string, string>> = {

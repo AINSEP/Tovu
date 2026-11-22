@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
@@ -15,7 +15,7 @@ const RESTORE_PERMISSION = "backup.restore";
  * @file SPEC-019 C-301/C-302/C-303 — `POST /api/admin/v1/recovery/restore/{plan,confirm,execute}`
  * (ADR-045 §3's restore ceremony). Gated by `backup.read` (`plan`/`confirm`) / `backup.restore`
  * (`execute`, enforced inside `gateway.ts`'s own fixed check-sequence). Mirrors
- * `routes/admin/taxonomy/merge-term.ts`'s 3-endpoint shape, composed directly over
+ * `apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts`'s 3-endpoint shape, composed directly over
  * `features/recovery/recovery-orchestrator.ts`'s already-built `planRestore`/`confirmRestore`/
  * `executeRestore` wrappers (this file supplies the `Result`-wrapped gateway binding + the real
  * `core/operation-lock.ts` primitive those wrappers were built to receive from a composition root
@@ -38,7 +38,7 @@ const STATUS_BY_RECOVERY_ERROR_CODE: Readonly<Record<string, number>> = {
   RESTORE_OPERATION_IN_FLIGHT: 409,
 };
 
-function statusForCode(code: string): number {
+function statusForCode({ code }: { code: string }, _options: Record<string, never> = {}): number {
   return STATUS_BY_RECOVERY_ERROR_CODE[code] ?? 500;
 }
 
@@ -46,19 +46,25 @@ function statusForCode(code: string): number {
  *  producer reachable from these three routes today (`toRecoveryResult`'s classifier and the
  *  orchestrator's own short-circuits) always sets one -- so the `?? error.code` fallback is only
  *  observable by handing this a contract-valid, message-less payload directly. */
-export function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
-  const status = statusForCode(error.code);
+export function sendRecoveryError({ res, error }: { res: import("express").Response; error: RecoveryErrorPayload }, _optional: Record<string, never> = {}): void {
+  const status = statusForCode({ code: error.code });
   if (status === 500) { sendAdminFailure({ res, error: new Error(error.message ?? error.code) }, { operation: "routes/recovery/restore", code: error.code }); return; }
   res.status(status).json({ error: error.message ?? error.code, code: error.code });
 }
 
 /** The one 500 shape all three ceremony routes share for anything thrown outside the gateway's own
  *  `Result` wrapping (a missing session principal, a throwing `dbOps`/`authorize` port). */
-function sendInternalError(res: import("express").Response, err: unknown): void {
+function sendInternalError({ res, err }: { res: import("express").Response; err: unknown }, _options: Record<string, never> = {}): void {
   sendAdminFailure({ res, error: err }, { operation: "routes/recovery/restore", code: "INTERNAL_ERROR" });
 }
 
-export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  registerRecoveryRestorePlanRoute({ app, deps });
+  registerRecoveryRestoreConfirmRoute({ app, deps });
+  registerRecoveryRestoreExecuteRoute({ app, deps });
+}
+
+function registerRecoveryRestorePlanRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.post("/api/admin/v1/recovery/restore/plan", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -83,18 +89,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                   deps: deps.gatedMutations.gatewayDeps,
                   principalId: input.principalId,
                   principalKind: input.principalKind,
-                  hooks: buildRestoreHooks({
-                    workspaceId: deps.workspaceId,
-                    actorId: principal.id,
-                    restorePointId: input.restorePointId,
-                    clock: deps.clock,
-                    idGen: deps.idGen,
-                    restorePointsRepo: deps.restorePointsRepo,
-                    databaseLedgerRepo: deps.databaseLedgerRepo,
-                    dbOps: deps.dbOps,
-                    migrationRunsRepo: deps.migrationRunsRepo,
-                    siteStatus: deps.siteStatusRepo,
-                  }) as never,
+                  hooks: restoreHooksFor(deps, principal.id, input.restorePointId) as never,
                 }) }, {}
               ),
           },
@@ -103,14 +98,17 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
+}
+
+function registerRecoveryRestoreConfirmRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
 
   app.post("/api/admin/v1/recovery/restore/confirm", async (req, res) => {
     try {
@@ -149,54 +147,23 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
+}
+
+function registerRecoveryRestoreExecuteRoute({ app, deps }: { app: Express; deps: RouteDeps }): void {
 
   app.post("/api/admin/v1/recovery/restore/execute", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
 
-      // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
-      // executeRestore acquires the shared cross-domain operation lock strictly before
-      // gatewayExecute() runs -- that ordering exists for mutation-failure/lock-leak safety, not
-      // authorization, so an unauthorized-but-authenticated caller could still reach and briefly
-      // hold the lock before the gateway's own authorize() rejected them, contending with a
-      // concurrent authorized restore. Authorize inline, before any lock acquisition; the
-      // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
-      // check and is unchanged by this.
-      //
-      // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
-      // call) with `scopeKind: "instance"` -- `backup.restore`'s real scope, per
-      // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment -- so this pre-check
-      // agrees with what `execute()`'s own internal check will decide. A hardcoded workspace-scoped
-      // check here would let a workspace-scoped-but-not-instance-authorized caller pass this gate,
-      // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
-      // very race AUD-001 closed, one layer up.
-      const authResult = await authorizeForHooks(
-        deps.gatedMutations.gatewayDeps,
-        buildConfirmOnlyHooks({
-          domain: RESTORE_PERMISSION,
-          readPermission: "backup.read",
-          mutatePermission: RESTORE_PERMISSION,
-          scopeId: deps.workspaceId,
-          scopeKind: "instance",
-        }),
-        { principalId: principal.id, permission: RESTORE_PERMISSION }
-      );
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.restore' (${authResult.reason})`,
-          code: "NOT_AUTHORIZED",
-          details: { permission: RESTORE_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      if (!(await authorizeRestoreExecution(deps, principal.id, res))) return;
 
       const { confirmationToken, restorePointId } = req.body ?? {};
       if (typeof confirmationToken !== "string" || typeof restorePointId !== "string") {
@@ -204,18 +171,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
         return;
       }
 
-      const hooks = buildRestoreHooks({
-        workspaceId: deps.workspaceId,
-        actorId: principal.id,
-        restorePointId,
-        clock: deps.clock,
-        idGen: deps.idGen,
-        restorePointsRepo: deps.restorePointsRepo,
-        databaseLedgerRepo: deps.databaseLedgerRepo,
-        dbOps: deps.dbOps,
-        migrationRunsRepo: deps.migrationRunsRepo,
-        siteStatus: deps.siteStatusRepo,
-      });
+      const hooks = restoreHooksFor(deps, principal.id, restorePointId);
 
       const result = await executeRestore({
         deps: {
@@ -238,12 +194,67 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
+}
+
+
+function restoreHooksFor(deps: RouteDeps, actorId: string, restorePointId: string) {
+  return buildRestoreHooks({
+        workspaceId: deps.workspaceId,
+        actorId,
+        restorePointId,
+        clock: deps.clock,
+        idGen: deps.idGen,
+        restorePointsRepo: deps.restorePointsRepo,
+        databaseLedgerRepo: deps.databaseLedgerRepo,
+        dbOps: deps.dbOps,
+        migrationRunsRepo: deps.migrationRunsRepo,
+        siteStatus: deps.siteStatusRepo,
+      });
+}
+
+async function authorizeRestoreExecution(deps: RouteDeps, principalId: string, res: import("express").Response): Promise<boolean> {
+  // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
+  // executeRestore acquires the shared cross-domain operation lock strictly before
+  // gatewayExecute() runs -- that ordering exists for mutation-failure/lock-leak safety, not
+  // authorization, so an unauthorized-but-authenticated caller could still reach and briefly
+  // hold the lock before the gateway's own authorize() rejected them, contending with a
+  // concurrent authorized restore. Authorize inline, before any lock acquisition; the
+  // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
+  // check and is unchanged by this.
+  //
+  // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
+  // call) with `scopeKind: "instance"` -- `backup.restore`'s real scope, per
+  // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment -- so this pre-check
+  // agrees with what `execute()`'s own internal check will decide. A hardcoded workspace-scoped
+  // check here would let a workspace-scoped-but-not-instance-authorized caller pass this gate,
+  // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
+  // very race AUD-001 closed, one layer up.
+  const authResult = await authorizeForHooks(
+    { deps: deps.gatedMutations.gatewayDeps,
+    hooks: buildConfirmOnlyHooks({
+      domain: RESTORE_PERMISSION,
+      readPermission: "backup.read",
+      mutatePermission: RESTORE_PERMISSION,
+      scopeId: deps.workspaceId,
+      scopeKind: "instance",
+    }),
+    required: { principalId: principalId, permission: RESTORE_PERMISSION } }
+  );
+  if (!authResult.allowed) {
+    res.status(403).json({
+      error: `principal '${principalId}' is not authorized for 'backup.restore' (${authResult.reason})`,
+      code: "NOT_AUTHORIZED",
+      details: { permission: RESTORE_PERMISSION, reason: authResult.reason },
+    });
+    return false;
+  }
+  return true;
 }

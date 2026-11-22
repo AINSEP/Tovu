@@ -26,7 +26,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -105,7 +105,7 @@ function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRe
  *  directly — proving the wiring end to end, not just that the builder itself works. */
 function assembledExternalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps as never, undefined, { contributions })
+    buildAssistantToolRegistrations(deps as never, { surfaces: undefined, options: { contributions } })
       // `content_read.external_mcp` (2026-09-08, assistant/content-read-tool.ts) is what
       // `external_mcp_list` becomes on the way through the REAL assembly path — the collapse
       // rewrites the final wired list only, which is exactly the difference this function exists to
@@ -218,7 +218,7 @@ test("every wired external-mcp registration publishes its catalog entry's inputS
 test("the independent risk classification agrees with the catalog for all five tools", () => {
   const { deps } = fakeDeps();
   for (const id of externalMcpRegistrations(deps).keys()) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
@@ -513,6 +513,7 @@ test("external_mcp_test_connection: unknown id reports ok:false with a named rea
 test("external_mcp_test_connection: a disabled server reports ok:false without decrypting anything", async () => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "disabled-one",
     label: null,
@@ -552,6 +553,7 @@ test("external_mcp_test_connection: a disabled server reports ok:false without d
 test("external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects", async (t) => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "ready-one",
     label: null,
@@ -755,7 +757,7 @@ test("external_mcp_save: re-saving with a blank env field keeps the previously s
   const record = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "envkeep" });
   assert.equal(record?.envNames, '["API_KEY"]', "a blank env resubmission must not clear the stored env names");
   assert.notEqual(record?.sealedEnv, null, "the sealed env blob must survive a blank resubmission");
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE_ID });
   assert.deepEqual(resolved.failures, []);
   const config = resolved.configs.find((candidate) => candidate.serverId === "envkeep");
   assert.ok(config);
@@ -839,7 +841,7 @@ test("external_mcp_oauth_poll_device: only the 'connected' transition notifies r
   resetExternalMcpRosterChangeListenersForTests();
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
   let notified = 0;
-  onExternalMcpRosterChanged("test-runtime", () => { notified += 1; });
+  onExternalMcpRosterChanged({ key: "test-runtime", listener: () => { notified += 1; } });
   const statuses = ["pending", "connected"] as const;
   let polls = 0;
   const oauth: Pick<ExternalMcpOAuthService, "pollDeviceAuthorization"> = {
@@ -901,14 +903,14 @@ test("external_mcp_save: update identity and auth stay bound despite forged hidd
   assert.equal(result.server.transport, "streamable_http");
   assert.equal(result.server.authMode, "static_env");
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "other" }), null);
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE_ID });
   assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://bound.example/mcp", headers: { authorization: `Bearer ${secret}` } });
   assert.equal(exchanges.size(), 0);
 });
 
 /** DI fake for driver failures: real sealing still runs, but no failed write can persist a row. */
 class RejectingCardWriteRepo extends InMemoryExternalMcpServerRepo {
-  override async upsert(record: ExternalMcpServerRecord): Promise<void> {
+  override async insert({ record }: { record: ExternalMcpServerRecord }): Promise<boolean> {
     if (record.serverId === "invalid") throw new ExternalMcpValidationError("The server URL must be a valid absolute URL.", "url");
     throw new Error("driver failed phase9-error-canary");
   }
@@ -985,7 +987,7 @@ for (const transport of ['streamable_http', 'stdio'] as const) test(`credential 
   const saved = await repo.findByServerId(identity);
   assert.deepEqual(JSON.parse(saved!.allowedToolNames!), ['read', 'write']);
   assert.deepEqual(JSON.parse(saved!.writeAllowedToolNames!), ['write']);
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer: deps.siteAssistantSecretSealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer: deps.siteAssistantSecretSealer }, workspaceId: WORKSPACE_ID });
   const target = resolved.configs.find(config => config.serverId === identity.serverId)!.target;
   if (target.kind === 'stdio') assert.equal(target.env.API_TOKEN, 'synthetic-rotated');
   else assert.equal(target.headers?.authorization, 'Bearer synthetic-rotated');

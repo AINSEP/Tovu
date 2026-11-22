@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { bindRemoveEntity, createTrashService, type TrashItem } from "@jini-ai/cms/trash";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, deletePost, SqlitePostRepo } from "#src/features/post/index";
@@ -25,16 +25,16 @@ const outbox: OutboxPort = {
 function harness(t: { after(fn: () => Promise<void>): void }) {
   const db = openContentDb(":memory:");
   db.$client.prepare("INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   t.after(() => kernel.close());
-  const postRepo = new SqlitePostRepo(db);
-  const trashRepo = new SqliteTrashRepo(db);
+  const postRepo = new SqlitePostRepo({ store: db });
+  const trashRepo = new SqliteTrashRepo({ store: db });
   let seq = 0;
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map([["post", createPostTrashAdapter(kernel)]]),
     idGen: { newId: () => `trash-${++seq}` },
-    transaction: ({ work }) => createContentDbTransactionRunner(db)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db })(work),
     entityPolicy: ({ entityType }) => entityType === "post",
   });
   const remove = removeEntityWithoutBlocker({ remove: bindRemoveEntity({ trash, entityType: "post" }) });
@@ -44,7 +44,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     userRepo: { list: async () => [] } as unknown as TrashRouteDeps["userRepo"],
   };
-  registerAdminTrashListRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
   return {
     kernel, postRepo, trashRepo, deps,
     async trashPost(kind: "page" | "post", id = kind) {

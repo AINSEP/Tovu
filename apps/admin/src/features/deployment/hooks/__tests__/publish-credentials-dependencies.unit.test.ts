@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/lib/api";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/features/security/api/security-api.types";
 
 /**
  * @file Coverage for `publish-credentials-dependencies.hooks.ts` (3/14 funcs) —
@@ -17,12 +17,9 @@ const { listPublishCredentials, createPublishCredential, updatePublishCredential
   verifyPublishCredential: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, verifyPublishCredential },
-  };
+vi.mock("../../../security/api/security-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../security/api/security-api")>();
+  return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, verifyPublishCredential } };
 });
 
 const { createFakePublishCredentialsPort, defaultPublishCredentialsPort } = await import("../publish-credentials-dependencies.hooks");
@@ -74,27 +71,27 @@ describe("defaultPublishCredentialsPort", () => {
     const c = credential();
     const verification: AdminPublishCredentialVerification = { status: "valid", message: "Connected as octocat.", checkedAt: "2026-09-24T00:00:00.000Z", accountLabel: "octocat" };
     updatePublishCredential.mockResolvedValue({ credential: c, verification });
-    await expect(defaultPublishCredentialsPort.updateCredential("cred-1", { connection: { providerId: "github-pages", token: "t" } })).resolves.toEqual({ ...c, verification });
+    await expect(defaultPublishCredentialsPort.updateCredential({ id: "cred-1", input: { connection: { providerId: "github-pages", token: "t" } } })).resolves.toEqual({ ...c, verification });
   });
 
   it("updateCredential forwards id + input to api.updatePublishCredential and unwraps the envelope", async () => {
     const c = credential({ label: "Renamed" });
     updatePublishCredential.mockResolvedValue({ credential: c });
-    await expect(defaultPublishCredentialsPort.updateCredential("cred-1", { label: "Renamed" })).resolves.toEqual(c);
-    expect(updatePublishCredential).toHaveBeenCalledWith("cred-1", { label: "Renamed" });
+    await expect(defaultPublishCredentialsPort.updateCredential({ id: "cred-1", input: { label: "Renamed" } })).resolves.toEqual(c);
+    expect(updatePublishCredential).toHaveBeenCalledWith({ id: "cred-1", input: { label: "Renamed" } });
   });
 
   it("deleteCredential forwards id to api.deletePublishCredential", async () => {
     deletePublishCredential.mockResolvedValue(undefined);
-    await expect(defaultPublishCredentialsPort.deleteCredential("cred-1")).resolves.toBeUndefined();
-    expect(deletePublishCredential).toHaveBeenCalledWith("cred-1");
+    await expect(defaultPublishCredentialsPort.deleteCredential({ id: "cred-1" })).resolves.toBeUndefined();
+    expect(deletePublishCredential).toHaveBeenCalledWith({ id: "cred-1" });
   });
 
   it("verifyCredential forwards id to api.verifyPublishCredential and unwraps the { verification } envelope", async () => {
     const v = verification({ status: "invalid", message: "bad token" });
     verifyPublishCredential.mockResolvedValue({ verification: v });
-    await expect(defaultPublishCredentialsPort.verifyCredential("cred-1")).resolves.toEqual(v);
-    expect(verifyPublishCredential).toHaveBeenCalledWith("cred-1");
+    await expect(defaultPublishCredentialsPort.verifyCredential({ id: "cred-1" })).resolves.toEqual(v);
+    expect(verifyPublishCredential).toHaveBeenCalledWith({ id: "cred-1" });
   });
 });
 
@@ -107,13 +104,13 @@ describe("createFakePublishCredentialsPort — defaults", () => {
   it("create/update/verify reject with a named 'not stubbed for this test' error", async () => {
     const port = createFakePublishCredentialsPort();
     await expect(port.createCredential({ label: "x", connection: { providerId: "github-pages", token: "t" } })).rejects.toThrow("createCredential not stubbed for this test");
-    await expect(port.updateCredential("id", {})).rejects.toThrow("updateCredential not stubbed for this test");
-    await expect(port.verifyCredential("id")).rejects.toThrow("verifyCredential not stubbed for this test");
+    await expect(port.updateCredential({ id: "id", input: {} })).rejects.toThrow("updateCredential not stubbed for this test");
+    await expect(port.verifyCredential({ id: "id" })).rejects.toThrow("verifyCredential not stubbed for this test");
   });
 
   it("deleteCredential defaults to a safe idempotent resolve, never throwing", async () => {
     const port = createFakePublishCredentialsPort();
-    await expect(port.deleteCredential("id")).resolves.toBeUndefined();
+    await expect(port.deleteCredential({ id: "id" })).resolves.toBeUndefined();
   });
 
   it("an override wins over each default", async () => {

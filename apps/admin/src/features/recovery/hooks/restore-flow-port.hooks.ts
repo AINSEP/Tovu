@@ -1,4 +1,5 @@
-import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, RestoreExecuteResult } from "@/lib/api";
+import type { GatedConfirmResult, GatedPlanResult } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminDisclosureResult, RestoreExecuteResult } from "@/features/recovery/api/recovery-api.types";
 
 /**
  * @file What `use-restore-flow.hooks.ts` needs from the outside world, as an interface rather than
@@ -6,8 +7,8 @@ import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, Restor
  * `apps/admin/INFO.md`'s Hooks section.
  */
 export interface RestoreFlowPort {
-  computeRecoveryDisclosure(restorePointId: string): Promise<AdminDisclosureResult>;
-  planRestore(restorePointId: string): Promise<GatedPlanResult>;
+  computeRecoveryDisclosure(input: { restorePointId: string }): Promise<AdminDisclosureResult>;
+  planRestore(input: { restorePointId: string }): Promise<GatedPlanResult>;
   confirmRestore(input: { planId: string; planHash: string; disclosureAcknowledged: boolean }): Promise<GatedConfirmResult>;
   executeRestore(input: { confirmationToken: string; restorePointId: string }): Promise<RestoreExecuteResult>;
 }

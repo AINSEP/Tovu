@@ -1,5 +1,5 @@
 /**
- * @file The sites-home window's Zoom controls, spliced into `site-history-menu.ts`'s View menu:
+ * @file The sites-home window's Zoom controls, spliced into `main/boot/boot-sequence.ts`'s View menu:
  * Actual Size (Cmd+0), Zoom In (Cmd+Plus), Zoom Out (Cmd+-).
  *
  * Custom items, not Electron's built-in `role: 'zoomIn'/'zoomOut'/'resetZoom'` — those operate on

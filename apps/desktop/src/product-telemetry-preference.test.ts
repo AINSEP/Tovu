@@ -41,7 +41,7 @@ test('unreadable bytes refuse writes and restore both menu choices without chang
   assert.deepEqual(f.read(), OFF);
   assert.throws(() => f.save({ crashes: false }), { message: 'DESKTOP_PREFERENCES_UNREADABLE' });
   let applied = 0, errors = 0;
-  const menu = productTelemetryMenu({ preference, save: f.save, changed: () => { applied++; }, onError: () => { errors++; } });
+  const menu = productTelemetryMenu({ preference, save: ({ patch }) => f.save(patch), changed: () => { applied++; }, onError: () => { errors++; } });
   for (const entry of menu) {
     const item = { checked: false };
     entry.click(item);
@@ -57,7 +57,7 @@ test('a failed save restores the pre-click state even when the dialog refreshed 
   fs.writeFileSync(f.preferencePath, '{damaged');
   let errors = 0;
   // Built while both were off; the first-run dialog later checked them in place (refreshProductMenu).
-  const menu = productTelemetryMenu({ preference: OFF, save: f.save, changed: () => assert.fail('nothing persisted'), onError: () => { errors++; } });
+  const menu = productTelemetryMenu({ preference: OFF, save: ({ patch }) => f.save(patch), changed: () => assert.fail('nothing persisted'), onError: () => { errors++; } });
   for (const entry of menu) {
     const item = { checked: false }; // Electron already toggled true -> false before click.
     entry.click(item);
@@ -69,7 +69,7 @@ test('a failed save restores the pre-click state even when the dialog refreshed 
 test('menu persists the requested switch before applying live behavior; the other switch is preserved', t => {
   const f = fixture(t);
   const observed: unknown[] = [];
-  const menu = productTelemetryMenu({ preference: OFF, save: f.save, changed: value => {
+  const menu = productTelemetryMenu({ preference: OFF, save: ({ patch }) => f.save(patch), changed: ({ preference: value }) => {
     assert.deepEqual(f.read(), value);
     observed.push([value.crashes, value.usage]);
   }, onError: () => assert.fail('unexpected save error') });
@@ -88,8 +88,8 @@ test('first-run only with active config and undecided prefs; each button writes 
   const saved: unknown[] = [];
   let shown = 0;
   const run = (active: boolean, decidedAt: string | null, response: number) => offerProductTelemetryConsent({ active,
-    preference: { ...OFF, decidedAt }, show: async options => { assert.equal(options, PRODUCT_CONSENT_DIALOG); shown++; return { response }; },
-    save: patch => { saved.push(patch); } });
+    preference: { ...OFF, decidedAt }, show: async ({ options }) => { assert.equal(options, PRODUCT_CONSENT_DIALOG); shown++; return { response }; },
+    save: ({ patch }) => { saved.push(patch); } });
   assert.equal(await run(false, null, 0), false);
   assert.equal(await run(true, 'already-decided', 0), false);
   assert.equal(shown, 0);

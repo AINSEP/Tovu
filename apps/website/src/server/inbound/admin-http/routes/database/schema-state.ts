@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -30,29 +31,17 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  * prevent. The client is left to decide how to say "we could not determine this".
  *
  * `databaseIntrospection` was already composed into `RouteDeps` in BOTH composition roots
- * (`server/deps.ts`'s real `SqliteDatabaseIntrospectionAdapter`, `server/app.ts`'s
+ * (`apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteDatabaseIntrospectionAdapter`, `apps/website/src/server/runtime/composition/app.ts`'s
  * `InMemoryDatabaseIntrospectionAdapter`) before this route — it was simply never read over HTTP.
- * See `routes/admin/database-recovery/deps.ts`, whose header previously listed it among the fields
+ * See `apps/website/src/server/inbound/admin-http/routes/database-recovery/deps.ts`, whose header previously listed it among the fields
  * excluded from `DatabaseRecoveryRouteDeps` for want of a consumer; this route is that consumer.
  */
-export function registerAdminDatabaseSchemaStateRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseSchemaStateRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/database/schema-state", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "database.read",
-        workspaceId: deps.workspaceId,
-        entityType: "database-schema",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'database.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "database.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "database.read", workspaceId: deps.workspaceId, entityType: "database-schema" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const schemaState = await deps.databaseIntrospection.getSchemaState();
       res.json(schemaState);

@@ -13,11 +13,11 @@ test('production composition preserves the none sentinel and legacy unstyled sta
   await mkdir(themesDir);
   await mkdir(uploadsDir);
   let close: (() => Promise<void>) | undefined;
-  const deps = await createSiteRouteDeps(path.join(siteDir, 'data.nosync', 'content.db'), {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, 'data.nosync', 'content.db'), overrides: {
     themesDir, uploadsDir,
     siteBinding: { dir: siteDir, name: 'site', dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: store => { close = () => store.close(); },
-  });
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
+  } });
   t.after(() => close?.());
   await deps.identityReady;
   deps.resolveActiveThemeId = async () => 'none';

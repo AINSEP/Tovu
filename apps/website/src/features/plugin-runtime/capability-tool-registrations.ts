@@ -4,7 +4,7 @@ import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import type { DerivedRiskByToolId } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
@@ -63,7 +63,7 @@ export interface PluginCapabilityToolDeps {
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly postRead: PluginPostReadPort;
+  readonly postRead: PluginPostReadPort<PostRecord>;
   /** Re-read on EVERY call by each registration's policy — see the Jini registrar's "Revocation". */
   readonly pluginActivationRepo: PluginActivationRepoPort;
   /** Runs ONE attached plugin's beforeSave filter on a draft without saving — the composition
@@ -105,7 +105,7 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
 }
 
 /** Every capability tool is a pure read: `"none"` risk. */
-export function pluginCapabilityToolDerivedRisk(sources: readonly PluginCapabilityToolSource[]): DerivedRiskByToolId {
+export function pluginCapabilityToolDerivedRisk({ sources }: { sources: readonly PluginCapabilityToolSource[] }, _optional: Record<string, never> = {}): DerivedRiskByToolId {
   return derivedRiskFor({ sources });
 }
 
@@ -119,11 +119,11 @@ export function buildPluginCapabilityToolRegistrations(
 
 /** Composition-root entry point; registry collisions throw to the caller's fail-open try/catch. */
 export async function registerEnabledPluginCapabilityTools(
-  registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] },
-  deps: PluginCapabilityToolDeps & {
+  { registry, deps }: { registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] }; deps: PluginCapabilityToolDeps & {
     readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
     readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
-  },
+  } },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   await capabilityTools.registerEnabled({ registry, deps, applyApprovalPolicy: deps.withExtensionApprovalPolicy });
 }

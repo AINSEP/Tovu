@@ -4,7 +4,7 @@ import { parseDeployOpsFile } from "../registry.js";
 import { boundContext, runDeploy, waitForDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
 import { runSetSecret, runUnsetSecret, type SecretConfirm } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import type { DeployOpsModule, DeployOpsStatus, DeployOpsDeployResult, DeployOpsSecretRead } from "../types.js";
+import type { DeployOpsModule, DeployOpsStatus, DeployOpsDeployResult, DeployOpsSecretRead } from "@jini-ai/devops/deploy";
 import { fixture, execution } from "./example-ops-fixture.js";
 
 const entry = { id: "example", label: "Example", module: "ops/main.mjs", hosts: ["api.example.test"] };
@@ -19,9 +19,9 @@ test("L041 manifest guards preserve refusal order and contained-path rules", () 
     ...[undefined, 42, "a.js", "/a.mjs", "a\\b.mjs", "../a.mjs", "./a.mjs", "a//b.mjs"].map(module => [JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, module }] }), "platforms[0].module must be a contained relative .mjs path"]),
     ...[null, [], Array(9).fill("api.example.test"), ["https://api.example.test"], [1], ["x".repeat(254)]].map(hosts => [JSON.stringify({ schemaVersion: 1, platforms: [{ ...entry, hosts }] }), "platforms[0].hosts must be a non-empty array of HTTPS hostnames"]),
     [JSON.stringify({ schemaVersion: 1, platforms: [entry, { ...entry, label: "" }] }), "platforms[1].id 'example' is declared twice"],
-  ]) assert.deepEqual(parseDeployOpsFile(raw!), { ok: false, reason });
-  assert.deepEqual(parseDeployOpsFile(JSON.stringify({ schemaVersion: 1, platforms: [entry] })), { ok: true, descriptors: [entry] });
-  assert.deepEqual(parseDeployOpsFile('{"schemaVersion":1,"platforms":[]}'), { ok: true, descriptors: [] });
+  ]) assert.deepEqual(parseDeployOpsFile({ raw: raw! }), { ok: false, reason });
+  assert.deepEqual(parseDeployOpsFile({ raw: JSON.stringify({ schemaVersion: 1, platforms: [entry] }) }), { ok: true, descriptors: [entry] });
+  assert.deepEqual(parseDeployOpsFile({ raw: '{"schemaVersion":1,"platforms":[]}' }), { ok: true, descriptors: [] });
 });
 
 async function fakePlatform({ module }: { module: Partial<DeployOpsModule> }, _options = {}) {
@@ -35,7 +35,7 @@ const value = ["private", "fixture", "value"].join(":");
 
 test("L041 bound facade retains URL gates, JSON parsing and transport clipping", async () => {
   const f = await fakePlatform({ module: {} });
-  const ctx = await boundContext(f.deps, f.platform, undefined);
+  const ctx = await boundContext({ deps: f.deps, platform: f.platform, explicit: undefined });
   for (const url of ["bad url", "http://api.example-host.dev/", "https://user@api.example-host.dev/", "https://user:pass@api.example-host.dev/", "https://api.example-host.dev:444/", "https://other.test/"]) {
     await assert.rejects(ctx.get(url), { name: "ToolInputError" });
   }
@@ -134,12 +134,12 @@ test("L041 wait handles zero deadline, late observations and reader errors", asy
   const observation: DeployOpsStatus = { platform: "example-host", target: "shop", state: "healthy", summary: "ok", items: [], checkedAt: "" };
   let now = 0; let polls = 0;
   const clock = { now: () => now, sleep: async (ms: number) => { now += ms; } };
-  const zero = await waitForDeployOps({ clock, status: async () => { assert.fail("zero deadline polled"); } }, { until: "healthy", timeoutSeconds: 0 });
+  const zero = await waitForDeployOps({ deps: { clock, status: async () => { assert.fail("zero deadline polled"); } }, until: "healthy" }, { timeoutSeconds: 0 });
   assert.equal(zero.reached, false); assert.equal(zero.polls, 0);
-  const late = await waitForDeployOps({ clock, status: async () => { polls++; now = 10001; return observation; } }, { until: "healthy", timeoutSeconds: 10 });
+  const late = await waitForDeployOps({ deps: { clock, status: async () => { polls++; now = 10001; return observation; } }, until: "healthy" }, { timeoutSeconds: 10 });
   assert.deepEqual(late, { reached: false, waitedSeconds: 10, polls: 1, last: observation });
   const error = new Error("reader refused");
-  await assert.rejects(waitForDeployOps({ clock, status: async () => { throw error; } }, { until: "finished", timeoutSeconds: 10 }), error);
+  await assert.rejects(waitForDeployOps({ deps: { clock, status: async () => { throw error; } }, until: "finished" }, { timeoutSeconds: 10 }), error);
   assert.equal(polls, 1);
 });
 

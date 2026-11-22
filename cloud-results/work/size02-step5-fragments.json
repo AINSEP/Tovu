@@ -1,0 +1,114 @@
+[
+ {
+  "name": "memoryTrashCoreDeps",
+  "file": "trash-and-content",
+  "from": 0,
+  "to": 7,
+  "doc": "Trash service and registry, the forms mover, and the site-backup sanitizer, plugin exports and agent inventory that open the root."
+ },
+ {
+  "name": "memoryTrashRemoverDeps",
+  "file": "trash-and-content",
+  "from": 8,
+  "to": 14,
+  "doc": "Per-entity `remove*` bindings over the root's Trash service."
+ },
+ {
+  "name": "memoryTrashSweepDeps",
+  "file": "trash-and-content",
+  "from": 15,
+  "to": 20,
+  "doc": "The taxonomy remover, the forget-removed bindings, the Trash sweep and the publish-trust revocations."
+ },
+ {
+  "name": "memoryPostChatDeps",
+  "file": "trash-and-content",
+  "from": 21,
+  "to": 32,
+  "doc": "Workspace and post repos, search, page store, chat history, agent sessions and the approval options."
+ },
+ {
+  "name": "memorySettingsSeoDeps",
+  "file": "trash-and-content",
+  "from": 33,
+  "to": 43,
+  "doc": "Presentation and settings repos, the settings write seam, SEO and visitor tools."
+ },
+ {
+  "name": "memoryAssistantCredentialDeps",
+  "file": "assistant-and-site",
+  "from": 44,
+  "to": 56,
+  "doc": "Site-assistant credentials and the external MCP repos, preferences and provider faces."
+ },
+ {
+  "name": "memoryMcpOAuthDeps",
+  "file": "assistant-and-site",
+  "from": 57,
+  "to": 61,
+  "doc": "The external MCP OAuth service, derived origins and the agent-plugin connection seams."
+ },
+ {
+  "name": "memoryReadinessRevertDeps",
+  "file": "assistant-and-site",
+  "from": 62,
+  "to": 72,
+  "doc": "Readiness promises, consent store, change sets and the revert registry."
+ },
+ {
+  "name": "memorySiteBindingDeps",
+  "file": "assistant-and-site",
+  "from": 73,
+  "to": 91,
+  "doc": "Themes, site binding and layouts, outbox, bus, observability, clock and the identity spread."
+ },
+ {
+  "name": "memoryMemberMediaDeps",
+  "file": "members-media-newsletter-forms",
+  "from": 92,
+  "to": 114,
+  "doc": "Redirects, members, mailer, menus, webhooks and the media stores."
+ },
+ {
+  "name": "memoryNewsletterFormsDeps",
+  "file": "members-media-newsletter-forms",
+  "from": 115,
+  "to": 134,
+  "doc": "Newsletter repos, forms, rate limiters and the database ledger."
+ },
+ {
+  "name": "memoryContentModelDeps",
+  "file": "model-comments-plugins",
+  "from": 135,
+  "to": 151,
+  "doc": "Content types, entries, taxonomy, restore points, tool audit and the gated-mutations gateway."
+ },
+ {
+  "name": "memoryCommentsPluginDeps",
+  "file": "model-comments-plugins",
+  "from": 152,
+  "to": 177,
+  "doc": "The comments module and the plugin runtime."
+ },
+ {
+  "name": "memoryPublishExportDeps",
+  "file": "publish-export",
+  "from": 178,
+  "to": 192,
+  "doc": "Publish-content stores, the export engine and the nullary closures over the final routeDeps."
+ },
+ {
+  "name": "memoryDeployRegistryDeps",
+  "file": "publish-export",
+  "from": 193,
+  "to": 205,
+  "doc": "Publish history and the bundled deploy / source-control / mail / auth-scheme registries."
+ },
+ {
+  "name": "memoryClientsAndSiteContextDeps",
+  "file": "publish-export",
+  "from": 206,
+  "to": 213,
+  "doc": "Custom credentials, the guarded HTTP clients, the export bound to routeDeps and the static site context."
+ }
+]

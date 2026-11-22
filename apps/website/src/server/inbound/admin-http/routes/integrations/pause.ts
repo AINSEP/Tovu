@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { RecordVersionConflictError, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Request } from "express";
 
 import {
@@ -25,27 +27,24 @@ function resolvePausedFlag(req: Request): boolean {
  *
  * Gated by `admin.integrations.manage`, checked directly via `authorize()` (same pattern as `create.ts`).
  */
-export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const paused = resolvePausedFlag(req);
       const subscriptionId = String(req.params.subscriptionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authorized = await authorizeOrRespond(res, deps.authorize, {
+        const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.integrations.manage",
           workspaceId: deps.workspaceId,
           entityType: "webhook_subscription",
           entityId: subscriptionId,
-        });
+        } });
         if (!authorized) return;
 
         const { subscription } = await pauseSubscription(
@@ -69,6 +68,11 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
 
         if (err instanceof WebhookSubscriptionValidationError) {
           res.status(400).json({ error: err.message });
+          return;
+        }
+
+        if (err instanceof RecordVersionConflictError) {
+          res.status(409).json(versionConflictBody({ error: err }));
           return;
         }
 

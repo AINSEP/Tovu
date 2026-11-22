@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ReactElement } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";

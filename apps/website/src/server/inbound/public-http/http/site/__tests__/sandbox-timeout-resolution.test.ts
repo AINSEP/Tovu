@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { resolveDefaultTimeoutMs as resolveHandlebars } from "../handlebars-sandbox.js";
 import { renderLiquidInSandbox, resolveDefaultTimeoutMs as resolveLiquid } from "../liquid-sandbox.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { resolveDefaultTimeoutMs } from "../worker-sandbox.js";
 
 /**

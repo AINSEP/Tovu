@@ -23,7 +23,7 @@ import { parseApiConnectionsFile } from "../contribution.js";
 import { createApiConnectionHost } from "../host.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");
-const fixtureRaw = readFileSync(path.join(fixtureRoot, "tovu-connections.json"), "utf8");
+const fixtureRaw = readFileSync(path.join(fixtureRoot, "jini-connections.json"), "utf8");
 
 /** Nothing in these pins may reach a network: every outbound call is a test failure. */
 const noNetwork = () => { throw new Error("unexpected outbound call"); };

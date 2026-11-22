@@ -20,7 +20,7 @@ function fixture() {
 // no longer copy into sites, so the reply has no sync rows; import feedback is what counts now.
 test('loads metadata; import feedback counts imported keys and mentions kept site copies', async t => {
   const f = fixture();
-  const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge }));
+  const hook = renderHook({ t, useHook: () => useSharedKeys({ bridge: f.bridge }) });
   await settle();
   assert.deepEqual(hook.current().entries, [entry]);
   assert.equal(hook.current().loaded, true);
@@ -42,7 +42,7 @@ test('loads metadata; import feedback counts imported keys and mentions kept sit
 
 test('same-turn double submit performs one action and one refresh', async t => {
   const f = fixture();
-  const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge })); await settle();
+  const hook = renderHook({ t, useHook: () => useSharedKeys({ bridge: f.bridge }) }); await settle();
   let finish!: (reply: OwnerStoreReply<'put'>) => void;
   let calls = 0;
   const action = () => { calls++; return new Promise<OwnerStoreReply<'put'>>(resolve => { finish = resolve; }); };
@@ -56,7 +56,7 @@ test('same-turn double submit performs one action and one refresh', async t => {
 
 test('opaque failures never expose submitted values and stale revisions are withdrawn', async t => {
   const f = fixture();
-  const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge })); await settle();
+  const hook = renderHook({ t, useHook: () => useSharedKeys({ bridge: f.bridge }) }); await settle();
   const secret = ['fixture', 'private', String(123)].join('-');
   await act(async () => { await hook.current().run({ action: async () => { throw new Error(secret); } }); });
   assert.equal(hook.current().error, 'Shared Keys could not finish the request. Refresh the key list and submit the secure form again. Details: OWNER_STORE_OPERATION_FAILED; secret values omitted.');
@@ -69,7 +69,7 @@ test('opaque failures never expose submitted values and stale revisions are with
 
 test('failed inventory reads clear old entries; unmounted completions do not read again', async t => {
   const f = fixture();
-  const hook = renderHook(t, () => useSharedKeys({ bridge: f.bridge })); await settle();
+  const hook = renderHook({ t, useHook: () => useSharedKeys({ bridge: f.bridge }) }); await settle();
   f.setList(async () => ({ version: 1, ok: false, action: 'list', error: { code: 'recovery-required', message: 'unused' } }));
   await act(async () => { await hook.current().run(); });
   assert.equal(hook.current().error, 'The older key store needs its original owner.key. Restore it, or import a backup.');
@@ -82,6 +82,6 @@ test('failed inventory reads clear old entries; unmounted completions do not rea
 });
 
 test('stale preload offers an unavailable state without any operation', async t => {
-  const hook = renderHook(t, () => useSharedKeys()); await settle();
+  const hook = renderHook({ t, useHook: () => useSharedKeys() }); await settle();
   assert.equal(hook.current().available, false); assert.equal(hook.current().busy, false);
 });

@@ -14,8 +14,8 @@
  * A site directory is also where every backup, snapshot, and derived output lands. Observed in
  * `sites/tovu-dev/` at the time of writing: `chat.db` + `chat.db-wal`/`-shm` + `chat.db.bak`,
  * `content.db.bak`, `content.db.predelete.bak`, `content.db.bak-<timestamp>`, `content.seed.db`,
- * seven `restore-point-*.db` snapshots (written BESIDE `content.db` by design — Jini
- * `infra/src/db/sqlite/db-ops.ts`), plus `ops/`'s operational journals and `out/`'s publish and
+ * seven `restore-point-*.db` snapshots (written BESIDE `content.db` by design —
+ * `Jini packages/db/src/sqlite/db-ops.ts`), plus `ops/`'s operational journals and `out/`'s publish and
  * export output. Every `.db`/`.bak` among those is a FULL copy of the source site's database, and
  * the ones predating the split still hold the `ai_chats` rows a duplicate is supposed to leave
  * behind. All of them were copied into every duplicate.
@@ -138,13 +138,13 @@ export const UPLOADS_ENTRY_NAME = "uploads";
 /**
  * True for a top-level site-directory entry a duplicate is allowed to carry verbatim.
  *
- * @param entryName - one `fs.Dirent.name` from the source site directory's own top-level listing.
+ * @param required.entryName - one `fs.Dirent.name` from the source site directory's own top-level listing.
  * @returns `true` only for a name on {@link PORTABLE_ENTRY_NAMES}; `false` for everything else,
  *   including every artifact this file has never heard of — see this file's own header for why
  *   that default is the point rather than a gap.
  * @complexity O(1) — one `Set` lookup.
  * @overallScore 100
  */
-export function isPortableSiteEntry(entryName: string): boolean {
+export function isPortableSiteEntry({ entryName }: { entryName: string }, _optional = {}): boolean {
   return PORTABLE_ENTRY_NAMES.has(entryName);
 }

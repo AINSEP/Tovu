@@ -15,7 +15,7 @@ import { EntityNotLiveError } from "@jini-ai/cms/core";
  * any other error, so a route's own error mapper can call this first and keep going.
  * @complexity O(1).
  */
-export function entityNotLiveResponse(err: unknown): { status: 409; body: { error: string; code: string } } | null {
+export function entityNotLiveResponse({ err }: { err: unknown }, _optional = {}): { status: 409; body: { error: string; code: string } } | null {
   if (!(err instanceof EntityNotLiveError)) return null;
   return { status: 409, body: { error: err.message, code: err.code } };
 }

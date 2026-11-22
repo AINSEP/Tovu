@@ -14,8 +14,8 @@ import type { CanvasContentWrapperNode } from "@jini-ai/ui/html-editor";
  * marks its content with
  * `<div data-embed-config='{"type":"content"}'></div>`, and the PUBLISHED page renders that as a bare
  * `<div>` (attribute stripped, tag kept) directly around the page's real body HTML — matching
- * `src/contracts/core/embeds/marker.ts`'s `withInnerContentFinal`, which the server's `content`-marker splice
- * uses (`server/routes/site/pages.ts`): "strips the marker's own `data-embed-config` attribute...
+ * `Jini packages/cms/src/widgets/markers/marker.ts`'s `withInnerContentFinal`, which the server's `content`-marker splice
+ * uses (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`): "strips the marker's own `data-embed-config` attribute...
  * every other authored attribute survives". A derivation that stopped at the marker's PARENT (i.e.
  * treated the marker as pure scaffolding to be discarded) would silently drop that innermost level and
  * under-wrap the canvas relative to the real page.
@@ -28,7 +28,7 @@ import type { CanvasContentWrapperNode } from "@jini-ai/ui/html-editor";
 
 /**
  * `data-embed-config` values this module recognizes as THE content marker — mirrors
- * `src/contracts/core/embeds/marker.ts`'s own parse rules (valid JSON, a plain object, `type` present) so a
+ * `Jini packages/cms/src/widgets/markers/marker.ts`'s own parse rules (valid JSON, a plain object, `type` present) so a
  * template that fails those same checks is treated the same way the server's marker scanner treats
  * it: not a usable marker, not a hard error. Re-implemented rather than imported because that module
  * is server/Node-only `core/` code (regex-based, source-offset-preserving) — this runs in the browser
@@ -65,7 +65,7 @@ function attributesOf(el: Element, options: { dropEmbedConfig: boolean }): Recor
  * itself) to, but not including, `<body>`, returning each level outermost-first — the exact shape
  * `@jini-ai/ui/html-editor`'s `applyCanvasContentWrapper` expects for `CanvasStyling.contentWrapper`.
  *
- * @param templateHtml - A theme template's raw HTML source, exactly as served from
+ * @param required.templateHtml - A theme template's raw HTML source, exactly as served from
  *   `/theme-assets/{themeId}/{pagesDir}/{templateChoice}` (see `templateMarkupUrl` in
  *   `use-theme-canvas-styling.hooks.ts`) — unresolved, marker still present. Works whether this is a
  *   full document (`<html>…<body>…`) or a bare fragment: `DOMParser` synthesizes the missing
@@ -78,7 +78,7 @@ function attributesOf(el: Element, options: { dropEmbedConfig: boolean }): Recor
  * @complexity O(n + d) — n = template markup size (one parse), d = the marker's own ancestor depth
  *   (one full walk up, independent of the document's overall size).
  */
-export function deriveContentWrapperChain(templateHtml: string): CanvasContentWrapperNode[] | null {
+export function deriveContentWrapperChain({ templateHtml }: { templateHtml: string }, _options = {}): CanvasContentWrapperNode[] | null {
   const doc = new DOMParser().parseFromString(templateHtml, "text/html");
   const marker = Array.from(doc.querySelectorAll("[data-embed-config]")).find(isContentMarker);
   if (!marker) return null;

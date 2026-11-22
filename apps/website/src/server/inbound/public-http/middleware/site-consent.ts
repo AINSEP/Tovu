@@ -5,9 +5,9 @@ import type { RateLimitProfile } from '#src/contracts/core/rate-limit/rate-limit
 import { parseConsentConfig, consentConfigProblems } from '#src/features/consent/validation';
 import { withSiteConsentDefaultCss } from '#src/features/consent/config';
 import { createSiteConsentConfig } from '#src/features/consent/settings';
-import { findPublishedPostBySlug } from '#src/features/post/post';
+import { findPublishedPostBySlug } from "#src/features/post/post-read";
 import type { RouteDeps } from '#src/server/routes/types';
-import { resolvePublicOrigin, resolveProtocol } from '../routes/oauth/public-origin.js';
+import { resolvePublicOrigin, resolveProtocol } from '../../../../platform/express/public-origin.js';
 /** Receipt evidence is non-portable and stays outside the public site assets. */
 export const CONSENT_RECEIPTS_DIR_NAME = 'consent-receipts';
 /** Twenty choices per ten minutes per address, with a small burst for retries. */

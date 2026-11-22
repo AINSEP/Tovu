@@ -1,5 +1,6 @@
 import { sql } from "kysely";
-import type { MigrationStep } from "../step.js";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** Host-owned ADR-066 step. The partial covering index keeps idle probes off event overflow pages.
  * @returns DDL for the host's existing chat namespace; no data is rewritten.
@@ -11,7 +12,7 @@ export function activeRunIndexStatement({ dialect }: { dialect: string }, _optio
 }
 
 /** Apply through the chat migration ledger, never opportunistically from a runtime probe. */
-export const activeRunIndex = ({ checksum }: { checksum: string }, _optional = {}): MigrationStep => ({
+export const activeRunIndex = ({ checksum }: { checksum: string }, _optional = {}): MigrationStep<KyselyKernel<unknown>> => ({
   id: "0003_active_run_index", checksum,
   async up(kernel) { await kernel.execute(sql.raw(activeRunIndexStatement({ dialect: kernel.dialect }, {}))); },
 });

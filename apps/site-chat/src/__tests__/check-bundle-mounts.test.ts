@@ -48,18 +48,18 @@ const scenario = (prefix: string): BundleScenario => {
   assert.ok(found, `no scenario named ${prefix}…`);
   return found;
 };
-const verify = (prefix: string, storage: Storage, document = page(), navigations: string[] = []) => scenario(prefix).verify!(storage, document, navigations);
+const verify = (prefix: string, storage: Storage, document = page(), navigations: string[] = []) => scenario(prefix).verify!({ storage, document, navigationAttempts: navigations });
 const rejects = (fn: () => void, pattern: RegExp) => assert.throws(fn, (error: unknown) => error instanceof BundleCheckError && pattern.test(error.message));
 
 test('fail throws a BundleCheckError carrying the message', () => {
-  rejects(() => fail('nope'), /^nope$/);
+  rejects(() => fail({ message: 'nope' }), /^nope$/);
 });
 
 test('isNavigationError recognises only jsdom\'s navigation report', () => {
-  assert.equal(isNavigationError(new Error('Not implemented: navigation (except hash changes)')), true);
-  assert.equal(isNavigationError(new Error('Not implemented: window.alert')), false);
-  assert.equal(isNavigationError({ message: 42 }), false);
-  assert.equal(isNavigationError(null), false);
+  assert.equal(isNavigationError({ error: new Error('Not implemented: navigation (except hash changes)') }), true);
+  assert.equal(isNavigationError({ error: new Error('Not implemented: window.alert') }), false);
+  assert.equal(isNavigationError({ error: { message: 42 } }), false);
+  assert.equal(isNavigationError({ error: null }), false);
 });
 
 test('a bundle that mounts passes, with the page stubs real browsers provide in place', async () => {
@@ -77,8 +77,8 @@ test('a bundle that mounts passes, with the page stubs real browsers provide in 
   await runScenario({
     scenario: {
       name: 'exerciser',
-      seed: (storage) => storage.setItem('seeded', 'yes'),
-      verify: (storage, document, navigations) => {
+      seed: ({ storage }) => storage.setItem('seeded', 'yes'),
+      verify: ({ storage, document, navigationAttempts: navigations }) => {
         seen.push(storage.getItem('seeded')!);
         const heading = document.querySelector('.entry-title') as unknown as { __tovuScrollIntoViewCalls: number; __tovuLastScrollIntoViewOptions: unknown };
         seen.push(String(heading.__tovuScrollIntoViewCalls), JSON.stringify(heading.__tovuLastScrollIntoViewOptions));
@@ -116,7 +116,7 @@ test('a bundle that removes the mount point, or never renders into it, fails', a
 test('the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry', () => {
   for (const [prefix, survivor] of [['poisoned transcript', '{not valid json'], ['wrong-shaped transcript', '{"oops":1}']] as const) {
     const seeded = memoryStorage();
-    scenario(prefix).seed!(seeded);
+    scenario(prefix).seed!({ storage: seeded });
     assert.ok(seeded.getItem(TRANSCRIPT_STORAGE_KEY), `${prefix} seeds the transcript key`);
     verify(prefix, memoryStorage());
     verify(prefix, memoryStorage({ [TRANSCRIPT_STORAGE_KEY]: JSON.stringify({ open: false, messages: [] }) }));
@@ -131,7 +131,7 @@ test('the poisoned and wrong-shaped transcript scenarios seed their keys and acc
 test('retired queue data cannot scroll, highlight or navigate on mount', () => {
   const prefix = 'retired action queue';
   const storage = memoryStorage();
-  scenario(prefix).seed!(storage);
+  scenario(prefix).seed!({ storage });
   verify(prefix, storage, page(), []);
   rejects(() => verify(prefix, storage, page({ scrolls: 1 }), []), /scrolled/);
   rejects(() => verify(prefix, storage, page({ highlighted: true }), []), /highlighted/);
@@ -141,7 +141,7 @@ test('retired queue data cannot scroll, highlight or navigate on mount', () => {
 test('the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt', () => {
   const prefix = 'a rehydrated message';
   const seeded = memoryStorage();
-  scenario(prefix).seed!(seeded);
+  scenario(prefix).seed!({ storage: seeded });
   assert.equal(JSON.parse(seeded.getItem(TRANSCRIPT_STORAGE_KEY)!).messages.at(-1).events[0].data.action.auto, true);
   verify(prefix, memoryStorage(), page(), []);
   rejects(() => verify(prefix, memoryStorage(), page(), ['Not implemented: navigation']), /re-fired on mount — 1 navigation attempt/);
@@ -175,7 +175,7 @@ test('main reports an unreadable bundle or a failed scenario on stderr with exit
   const missing = await main({}, { ...ports, readText: () => { throw new Error('ENOENT'); }, check: async () => assert.fail('unreached') });
   assert.equal(missing, 1);
   assert.match(errors[0]!, new RegExp(`^\\[check-bundle-mounts\\] FAIL: could not read ${BUNDLE_PATH.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')} — did the build run first\\? \\(ENOENT\\)$`));
-  const failed = await main({}, { ...ports, readText: () => '', check: async () => fail('[x] broke') });
+  const failed = await main({}, { ...ports, readText: () => '', check: async () => fail({ message: '[x] broke' }) });
   assert.equal(failed, 1);
   assert.equal(errors[1], '[check-bundle-mounts] FAIL: [x] broke');
   assert.deepEqual(exits, [1, 1]);

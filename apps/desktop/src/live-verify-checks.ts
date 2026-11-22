@@ -9,7 +9,7 @@
 /** One verifier run's ledger. */
 interface CheckLog {
   /** Record one check, printing `PASS:: <name> — <detail>` or `FAIL:: <name> — <detail>`. */
-  check(name: string, ok: boolean, detail: string): void;
+  check(required: { name: string; ok: boolean; detail: string }, optional?: {}): void;
   /** Print the verdict: every failure (exit 1) or `VERIFY_OK` (exit 0). */
   report(): 0 | 1;
 }
@@ -18,19 +18,19 @@ interface CheckLog {
  * @param input.log where each line goes — `console.log` at the composition edge.
  * @returns a fresh ledger with no recorded failures.
  */
-export function createCheckLog({ log }: { log: (line: string) => void }): CheckLog {
+export function createCheckLog({ log }: { log: (input: { line: string }, options?: Record<string, never>) => void }): CheckLog {
   const failures: string[] = [];
   return {
-    check(name, ok, detail) {
-      log(`${ok ? "PASS" : "FAIL"}:: ${name} — ${detail}`);
+    check({ name, ok, detail }, _optional = {}) {
+      log({ line: `${ok ? "PASS" : "FAIL"}:: ${name} — ${detail}` });
       if (!ok) failures.push(`${name}: ${detail}`);
     },
     report() {
       if (failures.length > 0) {
-        log(`\nVERIFY_FAILED:: ${failures.length} check(s)\n- ${failures.join("\n- ")}`);
+        log({ line: `\nVERIFY_FAILED:: ${failures.length} check(s)\n- ${failures.join("\n- ")}` });
         return 1;
       }
-      log("\nVERIFY_OK:: every check passed");
+      log({ line: "\nVERIFY_OK:: every check passed" });
       return 0;
     },
   };

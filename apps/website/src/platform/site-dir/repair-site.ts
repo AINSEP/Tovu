@@ -89,8 +89,7 @@ export type SiteRepairRefusalReason =
 export class SiteRepairRefusedError extends Error {
   public readonly reason: SiteRepairRefusalReason;
   constructor(
-    message: string,
-    reason: SiteRepairRefusalReason
+    { message, reason }: { message: string; reason: SiteRepairRefusalReason }
   ) {
     super(message);
     this.reason = reason;
@@ -127,7 +126,7 @@ export interface SiteRepairPlan {
 /** True when `fs.statSync(target)` succeeds and names a directory — false for "does not exist" AND
  *  for "exists but is a file", which this function's one caller treats identically (both are "not a
  *  valid repair target"). */
-function isExistingDirectory(target: string): boolean {
+function isExistingDirectory({ target }: { target: string }, _optional = {}): boolean {
   try {
     return fs.statSync(target).isDirectory();
   } catch {
@@ -164,21 +163,21 @@ export interface SiteMarkerClassification {
  *
  * A key-only `.site-meta.json` is not a marker (this file's header) and classifies as missing.
  *
- * @param target - a resolved directory path; a non-existent path classifies as `"none"` (nothing is
+ * @param required.target - a resolved directory path; a non-existent path classifies as `"none"` (nothing is
  *   present), which is correct — its refusal is `NOT_A_DIRECTORY`, checked separately.
  * @complexity O(1) — two `existsSync` calls and at most one small file read.
  */
-export function classifySiteMarkers(target: string): SiteMarkerClassification {
+export function classifySiteMarkers({ target }: { target: string }, _optional = {}): SiteMarkerClassification {
   const names = [CONFIG_FILE_NAME, SITE_META_FILE_NAME];
-  const keyOnlyMeta = readKeyOnlySiteMeta(target) !== undefined;
+  const keyOnlyMeta = readKeyOnlySiteMeta({ dir: target }) !== undefined;
   const present = names.filter((name) => fs.existsSync(path.join(target, name)) && !(keyOnlyMeta && name === SITE_META_FILE_NAME));
   const missing = names.filter((name) => !present.includes(name));
-  return { state: markerState(present.length, names.length), present, missing, keyOnlyMeta };
+  return { state: markerState({ presentCount: present.length, totalCount: names.length }), present, missing, keyOnlyMeta };
 }
 
 /** `classifySiteMarkers`'s three-way state, split out so the classification reads as one expression
  *  rather than a nested ternary. */
-function markerState(presentCount: number, totalCount: number): SiteMarkerState {
+function markerState({ presentCount, totalCount }: { presentCount: number; totalCount: number }, _optional = {}): SiteMarkerState {
   if (presentCount === 0) return "none";
   if (presentCount === totalCount) return "complete";
   return "partial";
@@ -186,8 +185,8 @@ function markerState(presentCount: number, totalCount: number): SiteMarkerState 
 
 /** The subset of `["config.json", ".site-meta.json"]` already present at `target` — empty when
  *  neither exists, which is the only case {@link planRepairSite} allows past this check. */
-function existingMarkerFiles(target: string): string[] {
-  return classifySiteMarkers(target).present;
+function existingMarkerFiles({ target }: { target: string }, _optional = {}): string[] {
+  return classifySiteMarkers({ target }).present;
 }
 
 /**
@@ -206,48 +205,48 @@ function existingMarkerFiles(target: string): string[] {
  */
 async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairPlan> {
   const { dir, name } = required;
-  const target = resolveInstallDirTarget(dir);
-  const resolvedName = resolveSiteName(target, name);
+  const target = resolveInstallDirTarget({ dirArg: dir });
+  const resolvedName = resolveSiteName({ target, name });
 
-  if (!isExistingDirectory(target)) {
+  if (!isExistingDirectory({ target })) {
     throw new SiteRepairRefusedError(
-      `repairSite: refusing — ${target} is not an existing directory; repairSite writes markers into an ALREADY-populated site directory (use 'tovu init' to create a brand-new one)`,
-      "NOT_A_DIRECTORY"
+      { message: `repairSite: refusing — ${target} is not an existing directory; repairSite writes markers into an ALREADY-populated site directory (use 'tovu init' to create a brand-new one)`,
+      reason: "NOT_A_DIRECTORY" }
     );
   }
 
-  const existingMarkers = existingMarkerFiles(target);
+  const existingMarkers = existingMarkerFiles({ target });
   if (existingMarkers.length > 0) {
     throw new SiteRepairRefusedError(
-      `repairSite: refusing — ${target} already has ${existingMarkers.join(" and ")} — a repair must never overwrite an existing marker file`,
-      "MARKER_ALREADY_EXISTS"
+      { message: `repairSite: refusing — ${target} already has ${existingMarkers.join(" and ")} — a repair must never overwrite an existing marker file`,
+      reason: "MARKER_ALREADY_EXISTS" }
     );
   }
 
   const dbPath = resolveSiteDatabasePaths({ dir: target }).contentDbPath;
   if (!fs.existsSync(dbPath)) {
     throw new SiteRepairRefusedError(
-      `repairSite: refusing — no content.db at ${dbPath}; nothing to derive a schema stamp from`,
-      "CONTENT_DB_MISSING"
+      { message: `repairSite: refusing — no content.db at ${dbPath}; nothing to derive a schema stamp from`,
+      reason: "CONTENT_DB_MISSING" }
     );
   }
 
-  const identity = await readAppliedSchemaIdentityOfFile(dbPath);
+  const identity = await readAppliedSchemaIdentityOfFile({ dbPath });
   if (identity === "none") {
     throw new SiteRepairRefusedError(
-      `repairSite: refusing — ${dbPath} has never had a migration applied (no __drizzle_migrations rows); there is no applied schema state to stamp`,
-      "CONTENT_DB_UNMIGRATED"
+      { message: `repairSite: refusing — ${dbPath} has never had a migration applied (no __drizzle_migrations rows); there is no applied schema state to stamp`,
+      reason: "CONTENT_DB_UNMIGRATED" }
     );
   }
   if (identity === "diverged") {
     throw new SiteRepairRefusedError(
-      `repairSite: refusing — ${dbPath}'s latest applied migration matches no entry in this runtime's bundled db/drizzle/meta/_journal.json — refusing to guess at a divergent schema lineage rather than risk corrupting it (the same posture 'tovu serve' takes via compareSchemaVersion's RT-005 divergent-tag check)`,
-      "CONTENT_DB_DIVERGED"
+      { message: `repairSite: refusing — ${dbPath}'s latest applied migration matches no entry in this runtime's bundled db/drizzle/meta/_journal.json — refusing to guess at a divergent schema lineage rather than risk corrupting it (the same posture 'tovu serve' takes via compareSchemaVersion's RT-005 divergent-tag check)`,
+      reason: "CONTENT_DB_DIVERGED" }
     );
   }
 
   const config: ConfigJson = { name: resolvedName, domain: null, port: null };
-  const keyOnly = readKeyOnlySiteMeta(target);
+  const keyOnly = readKeyOnlySiteMeta({ dir: target });
   const meta: SiteMetaJson = {
     siteId: randomUUID(),
     templateId: UNKNOWN_TEMPLATE_ID,
@@ -271,7 +270,7 @@ async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairP
  * @throws see {@link planSiteRepair}.
  * @complexity see {@link planSiteRepair}.
  */
-export function planRepairSite(required: RepairSiteRequired): Promise<SiteRepairPlan> {
+export function planRepairSite(required: RepairSiteRequired, _optional: Record<string, never> = {}): Promise<SiteRepairPlan> {
   return planSiteRepair(required);
 }
 
@@ -299,7 +298,7 @@ export function planRepairSite(required: RepairSiteRequired): Promise<SiteRepair
  * @complexity see {@link planSiteRepair}, plus two bounded atomic file writes.
  * @overallScore 100
  */
-export async function repairSite(required: RepairSiteRequired): Promise<RepairSiteResult> {
+export async function repairSite(required: RepairSiteRequired, _optional: Record<string, never> = {}): Promise<RepairSiteResult> {
   const plan = await planSiteRepair(required);
   const configPath = path.join(plan.dir, CONFIG_FILE_NAME);
   const metaPath = path.join(plan.dir, SITE_META_FILE_NAME);
@@ -320,7 +319,7 @@ export async function repairSite(required: RepairSiteRequired): Promise<RepairSi
         // require .site-meta.json), so a failed cleanup here is not itself a data-safety problem.
       }
     }
-    throw new InternalError(`repairSite: failed while writing markers at ${plan.dir}: ${(err as Error).message}`);
+    throw new InternalError({ message: `repairSite: failed while writing markers at ${plan.dir}: ${(err as Error).message}` });
   }
 
   return { dir: plan.dir, siteId: plan.meta.siteId, schemaVersion: plan.meta.schemaVersion, schemaTag: plan.meta.schemaTag };

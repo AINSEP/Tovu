@@ -23,13 +23,13 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsListRoute(app, deps);
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsGetRoute(app, deps);
-  registerAdminFormsUpdateRoute(app, deps);
+  registerAdminFormsListRoute({ app, deps });
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsGetRoute({ app, deps });
+  registerAdminFormsUpdateRoute({ app, deps });
   return { app, deps };
 }
 

@@ -1,4 +1,5 @@
-import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/observability";
+import type { TrackerSpan } from "@jini-ai/diagnostics/observability";
+import type { AgentRunTrackingOutcome } from "@jini-ai/core/contracts/observability";
 /**
  * @file ADR-059 — the admin assistant's AG-UI canary transport (Agent-User Interaction Protocol,
  * https://ag-ui.com). Additive only: the existing Local CLI (`assistant.ts`) and BYOK
@@ -23,10 +24,11 @@ import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/
  *
  * Translation is two composed pure steps, matching ADR-059 Decision 2's "translate `AgentEvent`,
  * not either backend's raw wire format" — one shared pivot, not two adapters that could drift:
- * {@link reduceAgentWirePayload} ports `apps/admin/src/lib/assistant-transport.ts`'s
- * `translateRunAgentPayload` reduction server-side (same vocabulary, same output — a PORT, not an
- * import, because `src/server/` cannot depend on `apps/admin/`, a separate deployable app), and
- * {@link translateAgentEventToAgUi} maps that shared `AgentEvent` shape onward into AG-UI events.
+ * Jini's `translateRunFrame` (`@jini-ai/chat/core/run-events`) is the ONE reading of a daemon SSE
+ * frame (`agent`, `stdout`, `stderr`, `error`, `end`) into `AgentEvent`s plus the run's ending,
+ * shared with the browser and the run finalizer, and {@link translateAgentEventToAgUi} maps that
+ * shared `AgentEvent` shape onward into AG-UI events. Tovu supplies only the notice words
+ * (`RUN_NOTICES`).
  *
  * Client-supplied run/thread ids (`ADR-059` Consequences): unlike the daemon-backed Local CLI path
  * (server-minted, reattachable), AG-UI's own `RunAgentInput` shape expects the CALLER to supply
@@ -40,7 +42,7 @@ import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/
  * Tovu's agent-selector value arrives as `body.forwardedProps.agentId`, not a top-level
  * `body.agentId` — a real `RunAgentInput` (what the client's `HttpAgent` actually sends) has no
  * top-level `agentId` field; `forwardedProps` is that schema's own documented passthrough
- * extension point. See {@link resolveForwardedAgentId}.
+ * extension point. Jini's `resolveAgUiRunInput` (`@jini-ai/chat/server/ag-ui/run-input`) reads it.
  */
 import { randomUUID } from "node:crypto";
 
@@ -49,23 +51,20 @@ import type { Express, NextFunction, Request, Response } from "express";
 import { EventType } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
-import type { AgentEvent } from "@jini-ai/chat/core";
-import { parseUsageEvent } from "@jini-ai/chat/core/run-events";
+import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
-  createAgUiTranslationState as createJiniAgUiTranslationState,
-  translateAgentEventToAgUi as translateJiniAgentEventToAgUi,
-  closeAgUiRun as closeJiniAgUiRun,
+  createAgUiTranslationState,
+  drainRunFramesToAgUi,
   type AgUiEvent,
-  type AgUiTranslationState,
+  type CustomEventNames,
+  type EventIdGenerator,
 } from "@jini-ai/chat/core/ag-ui";
 
-export type { AgUiEvent, AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
-
+import { RUN_NOTICES } from "#src/contracts/core/assistant-run-events";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
-import type { AgentRunStatus } from "#src/platform/observability/index";
-import { redactedError } from "#src/platform/observability/report-error";
+import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -75,40 +74,6 @@ export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
  *  in a long chat more expensive than the last. */
 const MAX_HISTORY_MESSAGES = 40;
 
-interface AgUiChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-function isPlainMessage(value: unknown): value is { role: unknown; content: unknown } {
-  return typeof value === "object" && value !== null;
-}
-
-/** Validates one raw history entry, same fail-soft posture as `resolveAgUiMessages`'s own doc:
- *  `null` for anything malformed rather than throwing, since history is passive background context,
- *  not something the caller just authored this instant. Split out of `resolveAgUiMessages` so the
- *  per-entry branching is scored in this function's own complexity budget, not the loop's. */
-function parseAgUiMessage(entry: unknown): AgUiChatMessage | null {
-  if (!isPlainMessage(entry)) return null;
-  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
-  const content = typeof entry.content === "string" ? entry.content : null;
-  if (role === null || content === null || content.length === 0) return null;
-  return { role, content };
-}
-
-/** Validates and bounds the client-supplied `messages` array — same fail-soft-on-malformed-entries
- *  posture as `assistant-byok.ts`'s `resolveMessages` (history is passive background context, not
- *  something the caller just authored this instant). */
-export function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
-  if (!Array.isArray(raw)) return [];
-  const messages: AgUiChatMessage[] = [];
-  for (const entry of raw) {
-    const message = parseAgUiMessage(entry);
-    if (message) messages.push(message);
-  }
-  return messages.slice(-MAX_HISTORY_MESSAGES);
-}
-
 /**
  * Flattens an AG-UI message history into the single prompt string the daemon's `contextRef.prompt`
  * expects (`assistant-transport.ts`'s `buildLocalCliContextRef` does the equivalent client-side for
@@ -117,88 +82,8 @@ export function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
  * AG-UI POST from a client this project also controls, not replayed from persisted storage. A known
  * simplification for this first canary slice, not an oversight.
  */
-function flattenMessagesToPrompt(messages: AgUiChatMessage[]): string {
+function flattenMessagesToPrompt({ messages }: { messages: AgUiChatMessage[] }, _optional = {}): string {
   return messages.map((m) => `## ${m.role}\n${m.content}`).join("\n\n");
-}
-
-// ---------------------------------------------------------------------------------------------
-// Wire -> AgentEvent reduction (server-side port of `translateRunAgentPayload`)
-// ---------------------------------------------------------------------------------------------
-
-interface RunAgentWirePayload {
-  readonly type: string;
-  readonly [key: string]: unknown;
-}
-
-function asString(v: unknown): string {
-  if (typeof v === "string") return v;
-  return v == null ? "" : JSON.stringify(v);
-}
-
-// Jini owns usage validation and session cost metadata for every transport.
-function reduceUsagePayload(payload: RunAgentWirePayload): AgentEvent {
-  return parseUsageEvent({ payload });
-}
-
-/**
- * One entry per recognized wire `payload.type`. A dispatch table rather than the flat `switch`
- * `translateRunAgentPayload` uses client-side (see this file's own header for why this is a port,
- * not an import — keep the two in sync): `payload.type` is an untyped wire string, not a checked TS
- * union, so — unlike Jini's exhaustive switch over `AgentEvent.kind` — a table costs no
- * exhaustiveness guarantee a `switch`+`default` wasn't already forgoing. Chosen
- * because a flat switch's cyclomatic cost is one per `case` regardless of body size: 10 wire types
- * puts the floor at 11 before any real branching, over this repo's ≤9 gate by construction.
- */
-const WIRE_PAYLOAD_REDUCERS: Record<string, (payload: RunAgentWirePayload) => AgentEvent | null> = {
-  status: (payload) => ({ kind: "status", label: asString(payload.label), detail: payload.detail ? asString(payload.detail) : undefined }),
-  text_delta: (payload) => ({ kind: "text", text: asString(payload.delta) }),
-  thinking_delta: (payload) => ({ kind: "thinking", text: asString(payload.delta) }),
-  tool_use: (payload) => ({ kind: "tool_use", id: asString(payload.id), name: asString(payload.name), input: payload.input }),
-  tool_result: (payload) => ({
-    kind: "tool_result",
-    toolUseId: asString(payload.toolUseId),
-    content: asString(payload.content),
-    isError: Boolean(payload.isError),
-  }),
-  usage: reduceUsagePayload,
-  raw: (payload) => ({ kind: "raw", line: asString(payload.line) }),
-  // Inert on the AG-UI path for this slice — no renderer exists for it here (ADR-059 Decision 5).
-  // Routed through `ext` -> `CUSTOM` below so the stream doesn't silently drop the event.
-  "mcp-ui": (payload) => ({ kind: "ext", name: "mcp-ui", data: payload.resource }),
-  // Jini's own unrelated generative-UI channel, despite the similar name to AG-UI. Same
-  // inert-passthrough treatment as `mcp-ui` above, for the same reason.
-  a2ui: (payload) => ({ kind: "ext", name: "a2ui", data: payload.message }),
-  // No wire-side `thinking_end` counterpart exists (verified against `@jini-ai/protocol`'s source),
-  // so `translateRunAgentPayload` drops this event today — mirrored here rather than "fixed", since
-  // changing that reduction is out of this slice's scope.
-  thinking_start: () => null,
-};
-
-/**
- * Reduces one daemon wire payload (a `RunProtocolEventWire.payload`, kind `"agent"`) into zero or
- * one `AgentEvent`s. Field-for-field parity with `translateRunAgentPayload` is load-bearing — see
- * {@link WIRE_PAYLOAD_REDUCERS}'s own doc for why this is a table, not a switch.
- */
-export function reduceAgentWirePayload(payload: RunAgentWirePayload): AgentEvent | null {
-  const reducer = WIRE_PAYLOAD_REDUCERS[payload.type];
-  // `tool_input_delta`/`stage_start`/`stage_end`/`surface_request`/`surface_response`: no dedicated
-  // `AgentEvent` variant, same as the client-side switch's `default` — routed through `ext` so a
-  // future renderer can opt in without a translator change.
-  return reducer ? reducer(payload) : { kind: "ext", name: payload.type, data: payload };
-}
-
-/**
- * Turns a terminal stream `reason` into the one renderable event a human needs to see, or `null`
- * when the reason speaks for itself. Mirrors `assistant-transport.ts`'s `terminalReasonNotice`
- * exactly — see that function's doc for why `max_tool_turns` specifically needs a notice.
- */
-export function terminalReasonNotice(reason: string): AgentEvent | null {
-  if (reason !== "max_tool_turns") return null;
-  return {
-    kind: "status",
-    label: "Stopped early — tool-step limit reached",
-    detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
-  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -221,25 +106,14 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
  * have no matched end, so CUSTOM is used instead of STEP_STARTED/STEP_FINISHED. Extension events
  * (`mcp-ui`/`a2ui`/unmodeled types) remain inert side-channels (ADR-059 Decision 5).
  *
- * Retain this host API for existing callers; Jini owns the exhaustive AgentEvent projection.
+ * Jini owns the exhaustive AgentEvent projection; this host supplies only the two values below,
+ * its id format and its custom wire names, as one config for every run's translation state.
  * @complexity O(1) per state creation or translated event.
  */
-export function createAgUiTranslationState(): AgUiTranslationState {
-  return createJiniAgUiTranslationState({
-    ids: { next: ({ prefix, ordinal }) => `${prefix}_${ordinal}` },
-    customEventNames: { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." },
-  });
-}
-
-/** Project one reduced event using the per-run state and Tovu wire names above. */
-export function translateAgentEventToAgUi(event: AgentEvent, state: AgUiTranslationState): AgUiEvent[] {
-  return translateJiniAgentEventToAgUi({ event, state });
-}
-
-/** Close pending messages before RUN_FINISHED/RUN_ERROR so a client never retains an open lifecycle. */
-export function closeAgUiRun(state: AgUiTranslationState): AgUiEvent[] {
-  return closeJiniAgUiRun({ state });
-}
+export const AG_UI_TRANSLATION: { readonly ids: EventIdGenerator; readonly customEventNames: CustomEventNames } = {
+  ids: { next: ({ prefix, ordinal }) => `${prefix}_${ordinal}` },
+  customEventNames: { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." },
+};
 
 // ---------------------------------------------------------------------------------------------
 // Route
@@ -276,212 +150,6 @@ function beginAgUiStream(req: Request, res: Response, requestId: string): void {
   res.flushHeaders?.();
 }
 
-interface DaemonFrame {
-  event: string;
-  data: string;
-}
-
-/** Per-frame `event:`/`data:` parsing for the daemon's own SSE format (`id: <cursor>\nevent:
- *  <kind>\ndata: <json>\n\n`, `@jini-ai/http-kit`'s `defaultFormatEvent`) — a local port of
- *  `assistant-transport.ts`'s `parseFrame`, not an import, for the same cross-app-boundary reason
- *  {@link reduceAgentWirePayload} is a port. `id:` is intentionally ignored: this path has no
- *  reattach story to resume a cursor for. */
-function parseDaemonFrame(rawFrame: string): DaemonFrame | null {
-  let event = "message";
-  const dataLines: string[] = [];
-  for (const line of rawFrame.split("\n")) {
-    if (line.startsWith("event:")) event = line.slice(6).trim();
-    else {
-      if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-    }
-  }
-  return dataLines.length > 0 ? { event, data: dataLines.join("\n") } : null;
-}
-
-/** Splits the daemon events stream into `{event, data}` frames — a local port of
- *  `assistant-transport.ts`'s `readSseFrames`, same reasoning as {@link parseDaemonFrame}.
- *
- * Takes an already-acquired `reader`, not the raw `body`, so the caller can hold the SAME reader
- * for both this generator and its own `res.on("close", ...)` cancel hook — a `ReadableStream` can
- * only have one active reader at a time; calling `body.getReader()` a second time here (with the
- * caller's own reader still locking the stream) throws `TypeError: ReadableStream is locked`.
- *
- * @complexity O(n) in response body bytes; O(1) additional buffering per chunk beyond the
- *   not-yet-terminated tail of the current frame. */
-async function* readDaemonSseFrames(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<DaemonFrame> {
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary !== -1) {
-      const rawFrame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const frame = parseDaemonFrame(rawFrame);
-      if (frame) yield frame;
-      boundary = buffer.indexOf("\n\n");
-    }
-  }
-}
-
-/**
- * Dispatches one parsed daemon frame into zero or more AG-UI events written directly to `res`.
- *
- * @returns `true` once an `"end"` (or `"error"`) frame has closed the run — the caller stops
- *   reading further frames and ends the response.
- */
-/** Every daemon SSE frame's `data:` line is the FULL `RunProtocolEventWire` envelope
- *  (`{runId, eventId, opaqueCursor, protocolVersion, ts, kind, payload, durability}`, per
- *  `@jini-ai/http-kit`), not the inner payload directly — `payload` is one field of that envelope.
- *  `assistant-transport.ts`'s own working `subscribeToRun` always unwraps `.payload` before using a
- *  frame's contents (see its `source.addEventListener("agent", ...)` and `readTerminalReason`'s
- *  `wrapped` parameter); this port must do the same or every field access below reads properties of
- *  the wrong object. */
-function unwrapDaemonEnvelope(raw: string): Record<string, unknown> {
-  const parsed = JSON.parse(raw) as { payload?: unknown };
-  return (parsed.payload ?? {}) as Record<string, unknown>;
-}
-
-interface AgUiFrameContext {
-  res: Response;
-  threadId: string;
-  runId: string;
-  state: AgUiTranslationState;
-}
-
-/** Writes every event in `events` to `res`, in order — the repeated `for (const e of events)
- *  writeAgUiEvent(res, e)` pattern below, named once so each frame handler is a flat sequence of
- *  statements rather than its own loop. */
-function writeAllAgUiEvents(res: Response, events: AgUiEvent[]): void {
-  for (const event of events) writeAgUiEvent(res, event);
-}
-
-/** The `"agent"` case of {@link handleDaemonFrame}. */
-function handleAgentDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const payload = unwrapDaemonEnvelope(data) as RunAgentWirePayload;
-  const reduced = reduceAgentWirePayload(payload);
-  if (reduced) writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi(reduced, ctx.state));
-}
-
-/** The `"stdout"` case of {@link handleDaemonFrame}. */
-function handleStdoutDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const chunk = asString((unwrapDaemonEnvelope(data) as { chunk?: unknown }).chunk);
-  writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi({ kind: "raw", line: chunk }, ctx.state));
-}
-
-/** The `"error"` case of {@link handleDaemonFrame} — a terminal frame, so it also closes any open
- *  message/reasoning segment before emitting `RUN_ERROR` (same reasoning as
- *  {@link handleEndDaemonFrame}). */
-function handleErrorDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const message = asString((unwrapDaemonEnvelope(data) as { message?: unknown }).message);
-  writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-  writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: message || "agent run failed" });
-}
-
-/** The `"end"` case of {@link handleDaemonFrame} — a terminal frame: emits a terminal-reason notice
- *  when one applies, closes any open message/reasoning segment, then `RUN_FINISHED`. */
-function handleEndDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const reason = asString((unwrapDaemonEnvelope(data || "{}") as { reason?: unknown }).reason);
-  const notice = terminalReasonNotice(reason);
-  if (notice) writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi(notice, ctx.state));
-  writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-  writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: reason || "stop" } });
-}
-
-/**
- * Dispatches one parsed daemon frame into zero or more AG-UI events written directly to `res`. Each
- * frame kind's own logic lives in its own named function above, so this dispatcher's only cost is
- * its four `if`s — pulling the case bodies inline here was what made the original single function
- * cyclomatic 15 / cognitive 20 (every frame kind's internal loops and ifs counted against the same
- * function).
- *
- * @returns the run's final status once an `"end"` (`succeeded`) or `"error"` (`failed`) frame has
- *   closed it — the caller stops reading further frames and ends the response — else `null`.
- */
-function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunStatus | null {
-  if (frame.event === "agent") {
-    handleAgentDaemonFrame(frame.data, ctx);
-    return null;
-  }
-  if (frame.event === "stdout") {
-    handleStdoutDaemonFrame(frame.data, ctx);
-    return null;
-  }
-  if (frame.event === "error") {
-    handleErrorDaemonFrame(frame.data, ctx);
-    return "failed";
-  }
-  if (frame.event === "end") {
-    handleEndDaemonFrame(frame.data, ctx);
-    return "succeeded";
-  }
-  return null;
-}
-
-interface AgUiRunRequest {
-  frontendBindToken?: string;
-  frontendTabId?: string;
-  threadId: string;
-  runId: string;
-  requestId: string;
-  agentId?: string;
-  messages: AgUiChatMessage[];
-  secretRedacted: boolean;
-}
-
-/** `value` when it's a non-empty string, else `undefined` — the shared shape behind `threadId`,
- *  `runId`, and `agentId`'s "caller-supplied or minted" resolution below. */
-function resolveNonEmptyString(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-/** `RunAgentInput.forwardedProps` has no declared shape of its own (`z.ZodAny` in `@ag-ui/core`) —
- *  it's the schema's documented passthrough extension point, and Tovu's agent-selector value rides
- *  there as `forwardedProps.agentId` (there is no top-level `agentId` field on a real
- *  `RunAgentInput`; that's a separate, unrelated `AgentConfig`-level concept in `@ag-ui/client`). */
-function resolveForwardedAgentId(forwardedProps: unknown): string | undefined {
-  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  return resolveNonEmptyString((forwardedProps as { agentId?: unknown }).agentId);
-}
-
-/** Read only the bounded attachment identity fields, never a surface id or tool handler. The
- * daemon's registry verifies the token against the authenticated principal and originating tab.
- * @complexity O(1) time and space.
- * @overallScore 100 */
-function resolveForwardedBindingField({ forwardedProps, field }: { forwardedProps: unknown; field: "frontendBindToken" | "frontendTabId" }, _options = {}): string | undefined {
-  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  const value = (forwardedProps as Record<string, unknown>)[field];
-  return typeof value === "string" && value.length > 0 && value.length <= 256 ? value : undefined;
-}
-
-/** Validates and normalizes one AG-UI run request body, or `null` when it fails the one hard
- *  requirement: a non-empty `messages` array ending in a user turn. Split out of `handleAgUiRun` so
- *  that function's own body is just the request's control flow, not this parsing.
- * @complexity O(h) time and space in the supplied history; attachment fields are constant work.
- * @overallScore 100 */
-function resolveAgUiRunRequest(body: {
-  threadId?: unknown;
-  runId?: unknown;
-  messages?: unknown;
-  forwardedProps?: unknown;
-}): AgUiRunRequest | null {
-  const messages = resolveAgUiMessages(body.messages);
-  if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") return null;
-  return {
-    threadId: resolveNonEmptyString(body.threadId) ?? randomUUID(),
-    runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
-    requestId: randomUUID(),
-    agentId: resolveForwardedAgentId(body.forwardedProps),
-    frontendBindToken: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendBindToken" }),
-    frontendTabId: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendTabId" }),
-    secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
-      && (body.forwardedProps as { secretRedacted?: unknown }).secretRedacted === true,
-    messages,
-  };
-}
-
 /** Starts the real daemon run for one AG-UI request — the identical `POST /api/runs` shape
  *  `assistant.ts`'s `proxyRunStart` uses. Split out of `handleAgUiRun` so its own two failure shapes
  *  (transport-level via `fetchAgentDaemon`, and a non-ok daemon status) don't add to that function's
@@ -492,11 +160,11 @@ function resolveAgUiRunRequest(body: {
 async function startDaemonRun(
   req: Request,
   res: Response,
-  run: AgUiRunRequest,
+  run: AgUiRunInput,
   principalId: string,
   daemon: DaemonCallOptions,
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
-  const prompt = flattenMessagesToPrompt(run.messages);
+  const prompt = flattenMessagesToPrompt({ messages: run.messages });
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
@@ -518,7 +186,7 @@ async function startDaemonRun(
 }
 
 /** Subscribes to one daemon run's native SSE stream, returning a reader ready for
- *  {@link readDaemonSseFrames}, or `null` once an error response has already been written (same
+ *  {@link streamFromReader}, or `null` once an error response has already been written (same
  *  contract as {@link startDaemonRun}). Split out of `handleAgUiRun` for the same reason.
  *
  * Built on {@link fetchAgentDaemonEventStream} rather than `fetchAgentDaemon` — see that function's
@@ -535,41 +203,13 @@ async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId:
   return eventsUpstream.body.getReader();
 }
 
-/** Drains one AG-UI run's daemon frames to completion, writing translated events directly to
- *  `ctx.res` and ending the response either on an explicit terminal frame, on the stream simply
- *  closing (same dual-completion posture `consumeByokStream` uses for the identical case), or on a
- *  read error. Split out of `handleAgUiRun` so the try/catch and its loop don't add to that
- *  function's own branch count.
- *  @returns How the run ended, for its agent-run span: a natural close counts as `succeeded`, like
- *  the `RUN_FINISHED` it writes; a read error is `failed` with that error. */
-async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, ctx: AgUiFrameContext): Promise<{ status: AgentRunStatus; error?: unknown }> {
-  try {
-    for await (const frame of readDaemonSseFrames(reader)) {
-      const status = handleDaemonFrame(frame, ctx);
-      if (status) {
-        ctx.res.end();
-        return { status };
-      }
-    }
-    writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
-    ctx.res.end();
-    return { status: "succeeded" };
-  } catch (error) {
-    writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
-    ctx.res.end();
-    return { status: "failed", error };
-  }
-}
-
 /** Stands in for the run's tracker until the daemon run exists, so `runTracker` is never null. Never
  *  ended: the close handler only ends a tracker once a daemon run exists. */
 const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 
 async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, "tracker" | "observability">): Promise<void> {
-  const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; forwardedProps?: unknown };
-  const run = resolveAgUiRunRequest(body);
+  const body = (req.body ?? {}) as AgUiRunBody;
+  const run = resolveAgUiRunInput({ body, maxHistoryMessages: MAX_HISTORY_MESSAGES, ids: { newId: randomUUID } });
   if (!run) {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return undefined;
@@ -582,7 +222,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // (1) a client abort while either of those `await`s was still pending was missed permanently,
   // since nothing was listening for `"close"` yet; (2) a subscribe HTTP failure (the 502 branch
   // below) ends this response NORMALLY from the server's own point of view, so it looked identical
-  // to a successful `drainAgUiStream` finish and never triggered a cancel either.
+  // to a successful `drainRunFramesToAgUi` finish and never triggered a cancel either.
   //
   // The handler is registered here, before either daemon call, so no window is uncovered. It cannot
   // cancel before a daemon run actually exists, so `daemonRunId` starts `null`; if `"close"` fires
@@ -594,7 +234,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // `runFinished` (not `res.writableEnded`) is what distinguishes "the run reached its own terminal
   // state" from "this response ended early while the run is still executing" — both leave
   // `writableEnded === true`, which is exactly why the previous fix's guard missed case (2) above.
-  // It is set `true` only once `drainAgUiStream` has actually driven the run to completion (terminal
+  // It is set `true` only once `drainRunFramesToAgUi` has actually driven the run to completion (terminal
   // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
   // before this function returns and therefore strictly before the async `"close"` event can fire —
   // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
@@ -607,6 +247,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   let closedEarly = false;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   res.on("close", () => {
+    // Closing the response already ends this reader; cancellation is best-effort cleanup.
     reader?.cancel().catch(() => undefined);
     if (runFinished) return;
     if (daemonRunId) {
@@ -640,9 +281,11 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     beginAgUiStream(req, res, run.requestId);
     writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
-    const state = createAgUiTranslationState();
-    const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
+    const state = createAgUiTranslationState(AG_UI_TRANSLATION);
+    const outcome = await drainRunFramesToAgUi({ reader: subscribedReader, threadId: run.threadId, runId: run.runId, state,
+      notices: RUN_NOTICES, write: (event) => writeAgUiEvent(res, event) });
     runFinished = true;
+    res.end();
     runTracker.setOutcome(outcome);
   } }, { agent: { runId: daemonRunId, conversationId: run.threadId, agentName: run.agentId } });
 }
@@ -650,7 +293,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
   return {
     name: "assistant-ag-ui",
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {

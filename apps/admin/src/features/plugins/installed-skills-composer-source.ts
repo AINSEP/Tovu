@@ -1,7 +1,9 @@
-import { ApiError, authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
+import { ApiError, authenticatedAdminRequest } from "../../lib/admin-http/request";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
+
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 
+import { isAbortError } from '@jini-ai/core/text';
 /** Installed standalone skills use a conditional snapshot scoped to this source's lifetime.
  * Selection pins guidance behind a removable composer chip; dispatch adds it to the run prompt. */
 
@@ -50,7 +52,7 @@ async function readSkillsSnapshot(
   try {
     const body = await request<InstalledSkillsResponse>({ path: INSTALLED_SKILLS_PATH, method: "GET" }, {
       headers: cached?.etag ? { "If-None-Match": cached.etag } : {},
-      onOk: response => { etag = response.headers?.get("ETag") ?? undefined; },
+      onOk: ({ response }, _optional = {}) => { etag = response.headers?.get("ETag") ?? undefined; },
     });
     return skillsSnapshotFromBody({ body, cached, etag });
   } catch (error) {

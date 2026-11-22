@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { categoryLabel, costClassLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope, restoreButtonAccessibleName, recoveryBannerTone } from "../rules";
-import type { AdminDegradedBanner } from "@/lib/api";
+import type { AdminDegradedBanner } from "@/features/recovery/api/recovery-api.types";
 
 /**
  * @file Pure logic for `features/recovery` — `categoryLabel`, `isAssertiveRecoveryBanner`,
@@ -26,34 +26,34 @@ it("D-33: standing disclosure limitations are neutral; operational problems reta
 
 describe("categoryLabel", () => {
   it("maps posts_pages to its human label", () => {
-    expect(categoryLabel("posts_pages", "en")).toBe("posts/pages writes");
+    expect(categoryLabel({ category: "posts_pages", locale: "en" })).toBe("posts/pages writes");
   });
 
   it("maps plugin_table to its human label", () => {
-    expect(categoryLabel("plugin_table", "en")).toBe("plugin-table rows");
+    expect(categoryLabel({ category: "plugin_table", locale: "en" })).toBe("plugin-table rows");
   });
 
   it("falls back to '<category> writes' for an untaught category, rather than throwing or returning undefined", () => {
-    expect(categoryLabel("taxonomy_terms", "en")).toBe("taxonomy_terms writes");
+    expect(categoryLabel({ category: "taxonomy_terms", locale: "en" })).toBe("taxonomy_terms writes");
   });
 
   it("falls back for an empty-string category too", () => {
-    expect(categoryLabel("", "en")).toBe(" writes");
+    expect(categoryLabel({ category: "", locale: "en" })).toBe(" writes");
   });
 
   it("translates known categories to Spanish when locale is es", () => {
-    expect(categoryLabel("posts_pages", "es")).toBe("escrituras de posts/páginas");
-    expect(categoryLabel("plugin_table", "es")).toBe("filas de tablas de plugins");
+    expect(categoryLabel({ category: "posts_pages", locale: "es" })).toBe("escrituras de posts/páginas");
+    expect(categoryLabel({ category: "plugin_table", locale: "es" })).toBe("filas de tablas de plugins");
   });
 
   it("falls back to a Spanish '<category> writes' template for an untaught category in es", () => {
-    expect(categoryLabel("taxonomy_terms", "es")).toBe("escrituras de taxonomy_terms");
+    expect(categoryLabel({ category: "taxonomy_terms", locale: "es" })).toBe("escrituras de taxonomy_terms");
   });
 });
 
 describe("costClassLabel", () => {
   it("preserves an unrecognized server cost class instead of losing the badge text", () => {
-    expect(costClassLabel("remote-snapshot", "es")).toBe("remote-snapshot");
+    expect(costClassLabel({ costClass: "remote-snapshot", locale: "es" })).toBe("remote-snapshot");
   });
 });
 
@@ -82,7 +82,7 @@ describe("isAssertiveRecoveryBanner", () => {
 describe("parseDeepLinkEnvelope", () => {
   it("returns ok:true with the parsed envelope for valid JSON", () => {
     const raw = JSON.stringify({ v: 1, correlationId: "c1", siteId: "s1", ledgerEventId: null, restorePointId: "rp1", drift: "none", intent: "view", issuedAt: "2026-08-01T00:00:00.000Z" });
-    const result = parseDeepLinkEnvelope(raw);
+    const result = parseDeepLinkEnvelope({ raw: raw });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.envelope).toEqual(JSON.parse(raw));
@@ -90,11 +90,11 @@ describe("parseDeepLinkEnvelope", () => {
   });
 
   it("returns ok:false for unparseable JSON (the only failure mode)", () => {
-    expect(parseDeepLinkEnvelope("{not json")).toEqual({ ok: false });
+    expect(parseDeepLinkEnvelope({ raw: "{not json" })).toEqual({ ok: false });
   });
 
   it("returns ok:false for an empty string", () => {
-    expect(parseDeepLinkEnvelope("")).toEqual({ ok: false });
+    expect(parseDeepLinkEnvelope({ raw: "" })).toEqual({ ok: false });
   });
 
   // Landmine, deliberate and disclosed (rules.ts's own doc comment): `"null"` is valid JSON that
@@ -104,35 +104,35 @@ describe("parseDeepLinkEnvelope", () => {
   // JSON.parse succeeds here, so this MUST be ok:true, even though the parsed value itself is
   // falsy.
   it("LANDMINE: 'null' is valid JSON — returns ok:true with envelope:null, not ok:false", () => {
-    const result = parseDeepLinkEnvelope("null");
+    const result = parseDeepLinkEnvelope({ raw: "null" });
     expect(result).toEqual({ ok: true, envelope: null });
   });
 
   // Same landmine, second falsy-but-valid case named explicitly in the doc comment.
   it("LANDMINE: '0' is valid JSON — returns ok:true with envelope:0, not ok:false", () => {
-    const result = parseDeepLinkEnvelope("0");
+    const result = parseDeepLinkEnvelope({ raw: "0" });
     expect(result).toEqual({ ok: true, envelope: 0 });
   });
 
   it("LANDMINE: 'false' is valid JSON — returns ok:true with envelope:false, not ok:false", () => {
-    const result = parseDeepLinkEnvelope("false");
+    const result = parseDeepLinkEnvelope({ raw: "false" });
     expect(result).toEqual({ ok: true, envelope: false });
   });
 });
 
 describe("restoreButtonAccessibleName", () => {
   it("appends the row's timestamp AFTER the visible 'Restore…' label", () => {
-    expect(restoreButtonAccessibleName("en", { createdAt: "2026-08-01T12:34:00.000Z" })).toBe("Restore… 2026-08-01 12:34");
+    expect(restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" } })).toBe("Restore… 2026-08-01 12:34");
   });
 
   it("starts with the exact visible text, per-locale (WCAG 2.5.3 Label in Name)", () => {
-    const name = restoreButtonAccessibleName("es", { createdAt: "2026-08-01T12:34:00.000Z" });
+    const name = restoreButtonAccessibleName({ locale: "es", point: { createdAt: "2026-08-01T12:34:00.000Z" } });
     expect(name.startsWith("Restaurar…")).toBe(true);
   });
 
   it("gives two restore points captured at different times two DIFFERENT accessible names", () => {
-    const a = restoreButtonAccessibleName("en", { createdAt: "2026-08-01T12:34:00.000Z" });
-    const b = restoreButtonAccessibleName("en", { createdAt: "2026-08-02T09:00:00.000Z" });
+    const a = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-01T12:34:00.000Z" } });
+    const b = restoreButtonAccessibleName({ locale: "en", point: { createdAt: "2026-08-02T09:00:00.000Z" } });
     expect(a).not.toBe(b);
   });
 });

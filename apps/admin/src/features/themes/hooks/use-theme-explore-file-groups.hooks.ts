@@ -37,7 +37,7 @@ export interface ThemeExploreFileGroupTab {
  *
  * @complexity O(g + n) time: one pass over `n` files, then one over the fixed `g` groups; O(g) space.
  */
-export function themeExploreFileGroupTabs(files: readonly ThemeExploreFile[]): ThemeExploreFileGroupTab[] {
+export function themeExploreFileGroupTabs({ files }: { files: readonly ThemeExploreFile[] }, _optional: Record<string, never> = {}): ThemeExploreFileGroupTab[] {
   const counts = new Map<ThemeFileGroup, { count: number; modified: boolean }>();
   for (const file of files) {
     const entry = counts.get(file.kind) ?? { count: 0, modified: false };
@@ -73,10 +73,10 @@ export function themeExploreActiveGroup({
   highlightedPath: string | null;
   choice: ThemeExploreGroupChoice | null;
 }): ThemeFileGroup | null {
-  const hasGroup = (group: ThemeFileGroup | undefined) => group !== undefined && tabs.some((tab) => tab.key === group);
+  const hasGroup = (group: ThemeFileGroup | undefined): group is ThemeFileGroup => group !== undefined && tabs.some((tab) => tab.key === group);
   if (choice && choice.forPath === highlightedPath && hasGroup(choice.group)) return choice.group;
   const selectedKind = files.find((file) => file.path === highlightedPath)?.kind;
-  if (hasGroup(selectedKind)) return selectedKind!;
+  if (hasGroup(selectedKind)) return selectedKind;
   return tabs[0]?.key ?? null;
 }
 
@@ -97,14 +97,17 @@ export function themeExploreVisibleGroupFiles(
   if (expanded || !collapsible) return { visible: [...files], collapsible };
   const visible = files.slice(0, limit);
   const highlightedIndex = files.findIndex((file) => file.path === highlightedPath);
-  if (highlightedIndex >= limit) visible.push(files[highlightedIndex]!);
+  if (highlightedIndex >= limit) {
+    if (highlightedIndex < 0) throw new Error("theme file group has an invalid collapsed limit");
+    visible.push(files[highlightedIndex]);
+  }
   return { visible, collapsible };
 }
 
 export interface ThemeExploreFileGroupsController {
   tabs: ThemeExploreFileGroupTab[];
   activeGroup: ThemeFileGroup | null;
-  chooseGroup: (group: ThemeFileGroup) => void;
+  chooseGroup: (required: { group: ThemeFileGroup }, optional?: Record<string, never>) => void;
   /** The active group's chips, already collapsed or not. */
   visibleFiles: ThemeExploreFile[];
   /** The active group's full size, for the "Show all ({count})" label. */
@@ -135,7 +138,7 @@ export function useThemeExploreFileGroups({
   const [choice, setChoice] = useState<ThemeExploreGroupChoice | null>(null);
   const [expandedGroup, setExpandedGroup] = useState<ThemeFileGroup | null>(null);
 
-  const tabs = themeExploreFileGroupTabs(files);
+  const tabs = themeExploreFileGroupTabs({ files });
   const activeGroup = themeExploreActiveGroup({ tabs, files, highlightedPath, choice });
   const groupFiles = files.filter((file) => file.kind === activeGroup);
   const expanded = activeGroup !== null && expandedGroup === activeGroup;
@@ -144,7 +147,7 @@ export function useThemeExploreFileGroups({
   return {
     tabs,
     activeGroup,
-    chooseGroup: (group) => setChoice({ group, forPath: highlightedPath }),
+    chooseGroup: ({ group }, _optional = {}) => setChoice({ group, forPath: highlightedPath }),
     visibleFiles: visible,
     groupCount: groupFiles.length,
     collapsible,

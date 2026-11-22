@@ -20,7 +20,7 @@ export interface RunIntrospectCommandInput {
 const VALID_FORMATS = new Set(["commander", "mcp"]);
 
 /** Default output port, wired at this composition edge; tests inject their own. */
-const writeStdout = (message: string): void => {
+const writeStdout = ({ message }: { message: string }, _optional = {}): void => {
   process.stdout.write(message);
 };
 
@@ -35,13 +35,13 @@ const writeStdout = (message: string): void => {
  */
 export async function runIntrospectCommand(
   input: RunIntrospectCommandInput,
-  optional: { output?: (message: string) => void } = {}
+  optional: { output?: (required: { message: string }, optional?: Record<string, never>) => void } = {}
 ): Promise<void> {
   const format = input.format ?? "commander";
   if (!VALID_FORMATS.has(format)) {
-    throw new ValidationError(`--format must be one of: commander, mcp (got "${format}")`);
+    throw new ValidationError({ message: `--format must be one of: commander, mcp (got "${format}")` });
   }
 
   const output = format === "mcp" ? toMcpTools(input.manifest) : input.manifest;
-  (optional.output ?? writeStdout)(`${JSON.stringify(output, null, 2)}\n`);
+  (optional.output ?? writeStdout)({ message: `${JSON.stringify(output, null, 2)}\n` });
 }

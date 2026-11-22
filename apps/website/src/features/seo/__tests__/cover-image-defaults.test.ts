@@ -1,9 +1,9 @@
 /** @file TW2-L302: pin the existing detached SEO cover projection before refactoring. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CoverImage } from "../../post/cover-image.js";
+import type { CoverImage } from "@jini-ai/cms/media/cover-image";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
-import { withCoverSeoDefaults } from "../cover-image.js";
+import { withCoverSeoDefaults } from "@jini-ai/cms/seo/cover-image";
 
 const externalCover: CoverImage = { url: "https://images.example/cover.jpg", alt: "Cover", width: null, height: null };
 

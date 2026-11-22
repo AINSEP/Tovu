@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Owner decision 2026-10-04: a form submission's source IP is cleared after 90 days, so the
@@ -10,12 +10,31 @@ import type { MigrationStep } from "./step.js";
  */
 export const SUBMISSION_IP_RETENTION_MIGRATION_ID = "0006_submission_ip_retention";
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect === "sqlite") {
     const columns = await kernel.query<{ name: string; notnull: number }>(sql`PRAGMA table_info(form_submissions)`);
     const ip = columns.find(column => column.name === "source_ip");
     if (!ip) throw new Error("form_submissions.source_ip is missing");
     if (ip.notnull !== 0) {
+      await rebuildSubmissionTable(kernel, columns);
+    }
+  } else {
+    await kernel.execute(sql`ALTER TABLE form_submissions ALTER COLUMN source_ip DROP NOT NULL`);
+  }
+  await kernel.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_form_submissions_ip_retention
+    ON form_submissions(submitted_at, id) WHERE source_ip IS NOT NULL
+  `);
+}
+
+export function submissionIpRetentionMigration(
+  { checksum }: { checksum: string },
+  _optional: Record<string, never> = {},
+): MigrationStep<KyselyKernel<unknown>> {
+  return { id: SUBMISSION_IP_RETENTION_MIGRATION_ID, checksum, up };
+}
+
+async function rebuildSubmissionTable(kernel: KyselyKernel<unknown>, columns: readonly { name: string; notnull: number }[]): Promise<void> {
       const expected = ["id", "workspace_id", "form_definition_id", "data_json", "source_ip", "submitted_at", "deleted_at", "version"];
       if (columns.length !== expected.length || columns.some(column => !expected.includes(column.name))) {
         throw new Error("form_submissions schema changed; revise this migration before applying it");
@@ -54,19 +73,4 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
       await kernel.execute(sql`DROP TABLE form_submissions`);
       await kernel.execute(sql`ALTER TABLE form_submissions_ip_retention_new RENAME TO form_submissions`);
       for (const object of objects) await kernel.execute(sql.raw(object.sql));
-    }
-  } else {
-    await kernel.execute(sql`ALTER TABLE form_submissions ALTER COLUMN source_ip DROP NOT NULL`);
-  }
-  await kernel.execute(sql`
-    CREATE INDEX IF NOT EXISTS idx_form_submissions_ip_retention
-    ON form_submissions(submitted_at, id) WHERE source_ip IS NOT NULL
-  `);
-}
-
-export function submissionIpRetentionMigration(
-  { checksum }: { checksum: string },
-  _optional: Record<string, never> = {},
-): MigrationStep {
-  return { id: SUBMISSION_IP_RETENTION_MIGRATION_ID, checksum, up };
 }

@@ -21,11 +21,11 @@ import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import {
   computeBlobStorageKey,
   InMemoryAssetBlobRepo,
   InMemoryBlobStore,
-  InMemoryVersionedMediaRepo,
   MediaConflictError,
   type AssetBlobRecord,
   type MediaRecord,
@@ -97,7 +97,7 @@ function makeDeps(overrides: Partial<ImportMediaEntityDeps> = {}): ImportMediaEn
   blobStore: InMemoryBlobStore;
 } {
   return {
-    mediaRepo: new InMemoryVersionedMediaRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo({}),
     assetBlobRepo: new InMemoryAssetBlobRepo({}),
     blobStore: new InMemoryBlobStore(),
     clock: makeClock(),
@@ -322,7 +322,7 @@ test("importMediaEntity: a brand-new blob IS stamped with the supplied blobCreat
 test("importMediaEntity translates a slug acquired during the write window into a typed block", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const mediaRepo = new SqliteMediaRepo(db);
+  const mediaRepo = new SqliteMediaRepo({ store: db });
   const deps = makeDeps({ mediaRepo });
   const holder = makeMediaRecord({ id: "racing-holder", slug: "racing-slug", source: { sha256: "a".repeat(64) } });
   const realInsert = mediaRepo.insertIfAbsent.bind(mediaRepo);

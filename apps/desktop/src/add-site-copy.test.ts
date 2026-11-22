@@ -7,8 +7,9 @@ import path from "node:path";
 import { createNodeAtomicFilesystem } from "@jini-ai/platform/fs";
 import { addSitePointer } from "./add-site-pointer.ts";
 import { createSitesWorkspace, shareSiteDirectories } from "./shared-sites.ts";
-import { handleAddSite, handleStart } from "./project-ipc.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { handleAddSite } from "./project-ipc.import.ts";
+import { handleStart } from "./project-ipc.server.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 import { readTrackedSites, trackSite } from "./tracked-sites.ts";
 
 const ORIGINAL_ID = "11111111-1111-4111-8111-111111111111";
@@ -75,14 +76,14 @@ test("adding the same copied folder twice is idempotent", (t) => {
   fs.cpSync(f.original, f.copy, { recursive: true });
   const first = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const before = fs.readFileSync(path.join(f.copy, ".site-meta.json"));
-  const rows = readTrackedSites(f.projectsPath);
+  const rows = readTrackedSites({ projectsPath: f.projectsPath });
   const second = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
 
   assert.equal(first.alreadyTracked, false);
   assert.equal(second.alreadyTracked, true);
   assert.notEqual(readMeta({ siteDir: f.copy }).siteId, ORIGINAL_ID);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, ".site-meta.json")), before);
-  assert.deepEqual(readTrackedSites(f.projectsPath), rows);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), rows);
 });
 
 test("adding a symlink alias keeps the original directory identity", (t) => {
@@ -106,31 +107,37 @@ test("a failed atomic identity replacement leaves both folders untouched and rep
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
   let attemptedRename = false;
+  const cause = Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EACCES" });
   const filesystem = { ...createNodeAtomicFilesystem({}), rename: () => {
     attemptedRename = true;
-    throw Object.assign(new Error("read-only folder"), { code: "EACCES" });
+    throw cause;
   } };
 
-  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }),
-    { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
+  assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace, filesystem }), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.message, "This copied website could not start because Tovu could not give its folder a separate identity.");
+    assert.equal(error.cause, cause);
+    assert.doesNotMatch(error.message, /SECRETSECRETSECRETSECRET/);
+    return true;
+  });
   assert.equal(attemptedRename, true, "the failure must come from the real atomic replacement");
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
   assert.deepEqual(readMeta({ siteDir: f.copy }), f.meta);
   assert.deepEqual(fs.readdirSync(f.copy).sort(), fs.readdirSync(f.original).sort(), "temporary file was removed");
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });
 
 test("Start automatically re-identifies a copy already tracked by an older desktop", async (t) => {
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
-  trackSite(f.projectsPath, f.copy);
-  trackSite(f.projectsPath, f.original);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.original });
   const started: string[] = [];
   const deps = {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
-    openSiteServer: async (siteDir: string) => {
+    openSiteServer: async ({ siteDir }: { siteDir: string }) => {
       const id = readMeta({ siteDir }).siteId;
       if (siteDir === f.copy) assert.notEqual(id, ORIGINAL_ID, "identity must be repaired before spawning");
       else assert.equal(id, ORIGINAL_ID);
@@ -138,8 +145,8 @@ test("Start automatically re-identifies a copy already tracked by an older deskt
       started.push(siteDir);
     },
   };
-  await handleStart(f.copy, deps);
-  await handleStart(f.original, deps);
+  await handleStart({ id: f.copy, deps });
+  await handleStart({ id: f.original, deps });
   assert.deepEqual(started, [f.copy, f.original]);
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
 });
@@ -149,16 +156,16 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
   fs.renameSync(f.original, f.copy);
   fs.rmSync(path.join(f.copy, "content.db"));
   f.workspace.updateConfig({ patch: { databases: "appData" } });
-  trackSite(f.projectsPath, f.copy);
-  await handleStart(f.copy, {
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
-    openSiteServer: async (siteDir) => {
+    openSiteServer: async ({ siteDir }) => {
       assert.equal(readMeta({ siteDir }).siteId, ORIGINAL_ID);
       assert.equal(f.workspace.registry({}).list({}).find((row) => row.id === ORIGINAL_ID)?.path, f.copy);
     },
-  });
+  } });
   assert.deepEqual(readMeta({ siteDir: f.copy }), f.meta);
 });
 
@@ -167,14 +174,14 @@ test("Start reports a plain sentence when a linked marker cannot safely be re-id
   fs.cpSync(f.original, f.copy, { recursive: true });
   fs.rmSync(path.join(f.copy, ".site-meta.json"));
   fs.symlinkSync(path.join(f.original, ".site-meta.json"), path.join(f.copy, ".site-meta.json"));
-  trackSite(f.projectsPath, f.copy);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   let spawned = false;
-  await assert.rejects(handleStart(f.copy, {
+  await assert.rejects(handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
-    openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
+    openSites: new Map(), serializer: createKeyedSerializer({}), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async () => { spawned = true; },
-  }), { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
+  } }), { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
   assert.equal(spawned, false);
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
 });

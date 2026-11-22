@@ -10,12 +10,12 @@ import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/feature
 import { createMailSendLedgerRepo } from "#src/features/mail/ledger.repo";
 import { createMailSuppressionRepo } from "#src/features/mail/suppression.repo";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { closeSqliteConnection, openPostgresKernel, openSqliteFileKernel } from "#src/platform/db/kernel/index";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
 import { InMemoryEventBus, processOutbox } from "../index.js";
@@ -34,8 +34,8 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
   const database = `tovu_mail_restart_${suffix}`;
   let open: () => ContentKernel;
   if (dialect === "sqlite") {
-    closeSqliteConnection(openContentDb(filePath));
-    open = () => openSqliteFileKernel(filePath);
+    closeSqliteConnection({ source: openContentDb(filePath) });
+    open = () => openSqliteFileKernel({ filePath });
   } else {
     const connectionString = freshPostgresDatabase(database);
     open = () => openPostgresKernel({ connectionString });
@@ -46,20 +46,20 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
     if (dialect === "postgres") dropDatabase({ database });
     rmSync(dir, { recursive: true, force: true });
   });
-  if (dialect === "postgres") await migrateContentDatabase(db as StorageKernel<unknown>);
+  if (dialect === "postgres") await migrateContentDatabase({ kernel: db as KyselyKernel<unknown> });
   return { db, restart: async () => { await db.close(); db = open(); return db; } };
 }
 
 async function seed(db: ContentKernel, recipients: string[]) {
   await db.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES (${WS}, 'Mail fixture', ${WS}, ${T0})`);
-  await new SqliteFormDefinitionRepo(db).create({ id: "form", workspaceId: WS, slug: "contact", name: "Contact", fields: [],
+  await new SqliteFormDefinitionRepo({ store: db }).create({ id: "form", workspaceId: WS, slug: "contact", name: "Contact", fields: [],
     notify: { enabled: true, recipients }, version: 1, status: "active", createdAt: T0, updatedAt: T0 });
-  await new SqliteFormSubmissionRepo(db).create({ id: "submission", workspaceId: WS, formDefinitionId: "form",
+  await new SqliteFormSubmissionRepo({ store: db }).create({ id: "submission", workspaceId: WS, formDefinitionId: "form",
     data: { message: "fixture answer" }, sourceIp: null, submittedAt: T0 });
 }
 
 async function boot(db: ContentKernel, send: MailerPort["send"], ledger = createMailSendLedgerRepo({ db })) {
-  const bus = new InMemoryEventBus(), outbox = new SqlOutboxAdapter(db);
+  const bus = new InMemoryEventBus(), outbox = outboxOn({ kernel: db });
   const capabilities = () => ({ driver: "fixture", supportsIdempotencyKey: false, supportsWebhookFeedback: false,
     supportsAttachments: false, maxBatchSize: 1 });
   const provider: MailProviderModule = { id: "fixture", label: "Fixture", credentialKeys: [],
@@ -68,7 +68,7 @@ async function boot(db: ContentKernel, send: MailerPort["send"], ledger = create
     providerId: "fixture", provider, mailer: { capabilities, send, sendBatch: async () => { throw new Error("unused"); } },
   });
   const stop = await registerFormNotifySubscriber({ bus, outbox, sender, logger: { warn() {} },
-    formDefinitionRepo: new SqliteFormDefinitionRepo(db), formSubmissionRepo: new SqliteFormSubmissionRepo(db),
+    formDefinitionRepo: new SqliteFormDefinitionRepo({ store: db }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: db }),
     mailer: { send: ({ message, options }) => mailer.send(message, options) } });
   return { bus, outbox, mailer, stop, drain: (at: number) => processOutbox({ bus, outbox, clock: { nowMs: () => at } }, { random: () => 0 }) };
 }
@@ -82,7 +82,7 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     const storage = await store(t, dialect, "outcomes");
     const recipients = ["sent@example.test", "limited@example.test", "unknown@example.test"];
     await seed(storage.db, recipients);
-    await new SqlOutboxAdapter(storage.db).enqueue(source);
+    await outboxOn({ kernel: storage.db }).enqueue(source);
     const calls: { message: OutboundEmail; options: MailerSendOptions }[] = [];
     const send: MailerPort["send"] = async (message, options) => {
       calls.push({ message, options });
@@ -109,7 +109,8 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     assert.equal(delivered.get(jobId(recipients[1]!))?.status, "pending");
     assert.equal(delivered.get(jobId(recipients[1]!))?.next_attempt_at, "2026-11-05T00:15:00.000Z");
     assert.equal(delivered.get(jobId(recipients[2]!))?.status, "failed");
-    assert.match(delivered.get(jobId(recipients[2]!))?.last_error ?? "", /outcome is unknown/);
+    // The row stores the listed failure code, not the error text (Jini outbox worker, error-system E1a/b).
+    assert.equal(delivered.get(jobId(recipients[2]!))?.last_error, "outcome-unknown");
     assert.ok([...delivered.values()].every(row => !row.last_error?.includes("provider secret")));
     assert.ok(calls.every(call => JSON.stringify(call.message.from) === JSON.stringify(sender) && call.options.lane === "notification"));
     await runtime.stop();
@@ -148,7 +149,7 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     assert.equal(calls, 1, "a reserved ledger identity is uncertain after restart");
     const job = (await rows(db)).find(row => row.id === jobId("accepted@example.test"));
     assert.equal(job?.status, "failed");
-    assert.match(job?.last_error ?? "", /outcome is unknown/);
+    assert.equal(job?.last_error, "outcome-unknown");
     assert.deepEqual(await db.query(sql`SELECT outcome FROM mail_send_ledger`), [{ outcome: "reserved" }]);
     await next.stop();
   });

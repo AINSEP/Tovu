@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 
-import type { AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
 
 /** The banner line (English; also the `app-i18n.ts` key). */
 export const MAIL_UNCONFIGURED_TEXT =
@@ -14,15 +15,15 @@ export const MAIL_BANNER_DISMISSED_KEY = "tovu.admin.mail-status-banner.dismisse
 
 /** The slice of `localStorage` the dismiss needs; injected for tests. */
 export interface MailBannerStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+  getItem(input: { key: string }, options?: Record<string, never>): string | null;
+  setItem(input: { key: string; value: string }, options?: Record<string, never>): void;
 }
 
 /** Touches `localStorage` only inside each call, so a privacy mode that throws on the property
  *  access itself is caught by the try/catch in the read/write helpers below. */
 const browserStorage: MailBannerStorage = {
-  getItem: (key) => localStorage.getItem(key),
-  setItem: (key, value) => localStorage.setItem(key, value),
+  getItem: ({ key }, _options = {}) => localStorage.getItem(key),
+  setItem: ({ key, value }, _options = {}) => localStorage.setItem(key, value),
 };
 
 /** Pure: whether a status shows the banner — only when no provider is chosen, never when unknown. */
@@ -33,21 +34,18 @@ export function mailStatusBannerVisible({ status }: { status: AdminMailStatus | 
 /** Best-effort read — a failing storage just shows the banner again, which is harmless.
  *  @complexity Time/space: O(1). */
 export function readMailBannerDismissed({ storage }: { storage: MailBannerStorage }): boolean {
-  try {
-    return storage.getItem(MAIL_BANNER_DISMISSED_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return orFallbackSync({ work: () => {
+    return storage.getItem({ key: MAIL_BANNER_DISMISSED_KEY }) === "1";
+  }, fallback: false, step: "Read mail banner dismissal" });
 }
 
 /** Best-effort write — silent on storage failure; the caller's state still hides it for the session.
  *  @complexity Time/space: O(1). */
 export function writeMailBannerDismissed({ storage }: { storage: MailBannerStorage }): void {
-  try {
-    storage.setItem(MAIL_BANNER_DISMISSED_KEY, "1");
-  } catch {
-    // best-effort; see the doc comment above.
-  }
+  // best-effort; see the doc comment above.
+  orFallbackSync({ work: () => {
+    storage.setItem({ key: MAIL_BANNER_DISMISSED_KEY, value: "1" });
+  }, fallback: undefined, step: "Remember mail banner dismissal" });
 }
 
 /**

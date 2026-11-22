@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "@/lib/api";
+import type { AdminDisclosureResult, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultRestoreFlowPort } from "./restore-flow-dependencies.hooks";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) plus the
  * discarded-write-window disclosure fetch, so `RestoreFlow` in `Recovery.tsx` is only markup.
@@ -67,6 +69,99 @@ export interface RestoreFlowController {
  * and a bound `t`/`locale` — see this file's header for the full rationale.
  */
 export function useRestoreFlow(props: { point: AdminRestorePoint }, port: RestoreFlowPort): RestoreFlowController {
+  const {
+    locale, boundT, disclosure, error, acknowledged, setAcknowledged, step, setStep, busy, setBusy, ceremonyError, setCeremonyError, plan, setPlan,
+    confirmationToken, setConfirmationToken, result, setResult,
+  } = useRestoreFlowState({ port, props });
+  const { startPlan, doConfirm } = createRestorePlanningActions({ setBusy, setCeremonyError, port, props, setPlan, setStep, locale, plan, acknowledged, setConfirmationToken });
+  const { doExecute } = createRestoreExecuteAction({ confirmationToken, setBusy, setCeremonyError, port, props, setResult, setStep, locale });
+
+  return {
+    disclosure,
+    error,
+    acknowledged,
+    setAcknowledged,
+    step,
+    busy,
+    ceremonyError,
+    plan,
+    confirmationToken,
+    result,
+    startPlan,
+    doConfirm,
+    doExecute,
+    t: boundT,
+    locale,
+  };
+}
+
+function createRestoreExecuteAction(
+  { confirmationToken, setBusy, setCeremonyError, port, props, setResult, setStep, locale }:
+    Pick<ReturnType<typeof useRestoreFlowState>, "confirmationToken" | "setBusy" | "setCeremonyError" | "setResult" | "setStep" | "locale"> &
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
+  async function doExecute() {
+    if (!confirmationToken) return;
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await port.executeRestore({ confirmationToken, restorePointId: props.point.id });
+      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
+      setStep("done");
+    } catch (e) {
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to execute the restore" }) }));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { doExecute };
+}
+
+function createRestorePlanningActions(
+  { setBusy, setCeremonyError, port, props, setPlan, setStep, locale, plan, acknowledged, setConfirmationToken }:
+    Pick<ReturnType<typeof useRestoreFlowState>, "setBusy" | "setCeremonyError" | "setPlan" | "setStep" | "locale" | "plan" | "acknowledged"
+    | "setConfirmationToken"> &
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
+  async function startPlan() {
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await port.planRestore({ restorePointId: props.point.id });
+      setPlan({ planId: r.planId, planHash: r.planHash });
+      setStep("planned");
+    } catch (e) {
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to plan the restore" }) }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doConfirm() {
+    if (!plan) return;
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await port.confirmRestore({
+        planId: plan.planId,
+        planHash: plan.planHash,
+        disclosureAcknowledged: acknowledged,
+      });
+      setConfirmationToken(r.confirmationToken);
+      setStep("confirmed");
+    } catch (e) {
+      setCeremonyError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to confirm the restore" }) }));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { startPlan, doConfirm };
+}
+
+function useRestoreFlowState(
+  { port, props }:
+    { port: Parameters<typeof useRestoreFlow>[1]; props: Parameters<typeof useRestoreFlow>[0] }
+) {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t({ locale: locale, key: key });
   const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
@@ -93,75 +188,13 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
     setConfirmationToken(null);
     setResult(null);
     port
-      .computeRecoveryDisclosure(props.point.id)
+      .computeRecoveryDisclosure({ restorePointId: props.point.id })
       .then(setDisclosure)
-      .catch((e) => setError(describeApiError(e, t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }))));
+      .catch((e) => setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to compute the discarded-write-window disclosure" }) })));
   }, [props.point.id, port]);
-
-  async function startPlan() {
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await port.planRestore(props.point.id);
-      setPlan({ planId: r.planId, planHash: r.planHash });
-      setStep("planned");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to plan the restore" })));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doConfirm() {
-    if (!plan) return;
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await port.confirmRestore({
-        planId: plan.planId,
-        planHash: plan.planHash,
-        disclosureAcknowledged: acknowledged,
-      });
-      setConfirmationToken(r.confirmationToken);
-      setStep("confirmed");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to confirm the restore" })));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doExecute() {
-    if (!confirmationToken) return;
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await port.executeRestore({ confirmationToken, restorePointId: props.point.id });
-      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
-      setStep("done");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, t({ locale: locale, key: "Failed to execute the restore" })));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return {
-    disclosure,
-    error,
-    acknowledged,
-    setAcknowledged,
-    step,
-    busy,
-    ceremonyError,
-    plan,
-    confirmationToken,
-    result,
-    startPlan,
-    doConfirm,
-    doExecute,
-    t: boundT,
-    locale,
+    locale, boundT, disclosure, error, acknowledged, setAcknowledged, step, setStep, busy, setBusy, ceremonyError, setCeremonyError, plan, setPlan,
+    confirmationToken, setConfirmationToken, result, setResult,
   };
 }
 

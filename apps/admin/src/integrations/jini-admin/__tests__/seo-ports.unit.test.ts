@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SeoTransportPort, SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
-import { ApiError } from '../../../lib/api';
+import { ApiError } from '../../../lib/admin-http/request';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 import { createSeoHostPorts, createSeoTranslator, describeSeoHostError, seoEvents, seoSessionGrants, seoSitemapTransport, seoImageTransport } from '../seo-ports';
 import { siteUrl } from '../../../lib/site-url';
@@ -64,11 +64,11 @@ describe('SEO host ports', () => {
     vi.stubGlobal('fetch', fetch);
     const signal = new AbortController().signal;
     await seoSitemapTransport.get({ path: '/sitemap.xml', credentials: 'same-origin' }, { signal });
-    expect(fetch).toHaveBeenCalledWith(siteUrl('/sitemap.xml'), { credentials: 'same-origin', signal });
+    expect(fetch).toHaveBeenCalledWith(siteUrl({ path: '/sitemap.xml' }), { credentials: 'same-origin', signal });
   });
 
   it('retains host error identity and the original empty-message fallback', async () => {
-    const error = new ApiError('', 403, 'DENIED', { detail: 'original detail' });
+    const error = new ApiError({ message: '', status: 403 }, { code: 'DENIED', body: { detail: 'original detail' } });
     const transport: SeoTransportPort = { request: async () => { throw error; }, url: ({ path }) => path };
     await expect(createSeoHostPorts({ transport }).seoApi.listSeoPosts({})).rejects.toBe(error);
     expect(describeSeoHostError({ error, fallback: 'failed to load entries' })).toBe('failed to load entries');

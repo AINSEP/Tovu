@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { posts } from "#src/platform/db/schema.sqlite";
@@ -68,7 +69,7 @@ for (const valid of [true, false]) {
         assert.equal(post.title, "Stock post");
         assert.deepEqual(post.bodyJson, bodyJson, "read actual persisted content, not only a missing-row lookup");
         assert.equal(await deps.ports.post!.repo.findById({ workspaceId: "ws", id: "absent" }), null);
-      } else assert.throws(() => loadSqliteSeedDeps(input));
+      } else assert.throws(() => loadSqliteSeedDeps(input), { constructor: Database.SqliteError, name: "SqliteError", code: "SQLITE_NOTADB", message: "file is not a database" });
       assert.deepEqual(readFileSync(seedDbPath), original, "the shipped seed must never be mutated");
       assert.deepEqual(readdirSync(dir).sort(), seedFiles, "loading must leave no database copies or journal sidecars beside the seed");
       const leaked = readdirSync(tmpdir()).filter(name => name.startsWith("tovu-publish-seed-") && !before.has(name));

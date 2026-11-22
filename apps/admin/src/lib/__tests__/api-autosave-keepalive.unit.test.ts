@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../admin-http/request";
 
 /**
  * @file REGRESSION (2026-09-07 audit claim #3) for the unload-safe transport on the standing-draft
@@ -43,20 +44,20 @@ const DRAFT = {
 describe("api.putAutosave keepalive", () => {
   it("sets keepalive on the fetch when the caller asks for it", async () => {
     const calls = stubFetchCapturing();
-    await api.putAutosave("p1", { ...DRAFT }, { keepalive: true });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT } }, { keepalive: true });
     expect(calls[0]?.init?.keepalive).toBe(true);
   });
 
   it("omits keepalive entirely on an ordinary write", async () => {
     const calls = stubFetchCapturing();
-    await api.putAutosave("p1", { ...DRAFT });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT } });
     expect(calls[0]?.init?.keepalive).toBeUndefined();
   });
 
   it("drops keepalive for a body over the ceiling — a rejected request beats no request", async () => {
     const calls = stubFetchCapturing();
     // Over 64 KiB once serialized, so `fetch` would reject outright rather than send it.
-    await api.putAutosave("p1", { ...DRAFT, bodyHtml: "x".repeat(KEEPALIVE_MAX_BODY_BYTES + 1) }, { keepalive: true });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT, bodyHtml: "x".repeat(KEEPALIVE_MAX_BODY_BYTES + 1) } }, { keepalive: true });
     expect(calls[0]?.init?.keepalive).toBeUndefined();
     // The write is still attempted, just over the ordinary transport.
     expect(calls[0]?.init?.method).toBe("PUT");
@@ -68,11 +69,11 @@ describe("bodyFitsKeepalive", () => {
     // 20_000 characters, but 80_000 bytes: a `.length` check would wave this through.
     const astral = "\u{1F600}".repeat(20_000);
     expect(astral.length).toBeLessThan(KEEPALIVE_MAX_BODY_BYTES);
-    expect(bodyFitsKeepalive(astral)).toBe(false);
+    expect(bodyFitsKeepalive({ body: astral })).toBe(false);
   });
 
   it("accepts a body exactly at the ceiling and refuses the next byte", () => {
-    expect(bodyFitsKeepalive("a".repeat(KEEPALIVE_MAX_BODY_BYTES))).toBe(true);
-    expect(bodyFitsKeepalive("a".repeat(KEEPALIVE_MAX_BODY_BYTES + 1))).toBe(false);
+    expect(bodyFitsKeepalive({ body: "a".repeat(KEEPALIVE_MAX_BODY_BYTES) })).toBe(true);
+    expect(bodyFitsKeepalive({ body: "a".repeat(KEEPALIVE_MAX_BODY_BYTES + 1) })).toBe(false);
   });
 });

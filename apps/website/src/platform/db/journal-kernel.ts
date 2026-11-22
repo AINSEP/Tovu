@@ -1,6 +1,6 @@
 import type { Generated } from "kysely";
 
-import type { StorageKernel } from "./kernel/index.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The sidecar database journal (`ops/database-journal.db`, see `sqlite/database-journal-db.ts`)
@@ -74,14 +74,14 @@ export type JournalDatabase = {
   restore_points: RestorePointsTable;
 };
 
-export type JournalKernel = StorageKernel<JournalDatabase>;
+export type JournalKernel = KyselyKernel<JournalDatabase>;
 
 /**
  * `kernel` with every database call held until `ready` settles (and failing with its error if it
  * rejects), and `ready` reported as the kernel's own: the {@link StorageKernel.ready} contract, for a
  * kernel whose schema is applied through the kernel itself after the connection opens.
  */
-export function gateJournalKernel(kernel: JournalKernel, ready: Promise<void>): JournalKernel {
+export function gateJournalKernel({ kernel, ready }: { kernel: JournalKernel; ready: Promise<void> }, _optional: Record<string, never> = {}): JournalKernel {
   // Observed here so a failed open is not an unhandled rejection; every call below re-throws it.
   ready.catch(() => {});
   return {
@@ -108,6 +108,7 @@ export function gateJournalKernel(kernel: JournalKernel, ready: Promise<void>): 
       await kernel.backupTo(destPath);
     },
     close: async () => {
+      // Readiness errors reach kernel callers; close must still release the underlying handle.
       await ready.catch(() => {});
       await kernel.close();
     },

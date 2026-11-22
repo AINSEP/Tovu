@@ -1,4 +1,4 @@
-import { adminFailureResponse } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { respondToApiError } from "#src/server/error-mapping/respond";
 // Jini owns LocalBufferSink via the host adapter.
 import type { Express } from "express";
@@ -22,8 +22,8 @@ import type { RouteDeps } from "#src/server/routes/types";
  * list — no totals, no breakdowns, no charts. Do not read more into the response shape than that.
  *
  * How it relates to the project:
- * - Mirrors `routes/admin/posts/list.ts`'s registrar shape and workspace-guard convention.
- * - `server/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
+ * - Mirrors `apps/website/src/server/inbound/admin-http/routes/posts/list.ts`'s registrar shape and workspace-guard convention.
+ * - `apps/website/src/server/runtime/composition/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
  *   registrar runs (see `inbound/admin-http/dev-auth.ts`), same as every other admin route — but that only
  *   proves *authentication*. FEAT-014/ADR-PIPE-014 closes the remaining *authorization* gap: this
  *   route previously had zero per-action `authorize()` call, unlike every sibling admin route.
@@ -65,13 +65,13 @@ function toAdminAnalyticsHitResponse(hit: NormalizedHit): AdminAnalyticsHitRespo
  * the sink's `list()` owns the actual clamping/default, this just guards against handing it a
  * non-numeric string.
  */
-function parseLimitParam(raw: unknown): number | undefined {
+function parseLimitParam({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (typeof raw !== "string" || raw.trim() === "") return undefined;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminAnalyticsRecentHitsDeps): void {
+export function registerAdminAnalyticsRecentHitsRoute({ app, deps }: { app: Express; deps: AdminAnalyticsRecentHitsDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       respondToApiError({ res, code: "NOT_FOUND", message: "workspace was not found" });
@@ -93,8 +93,8 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
         return;
       }
 
-      const limit = parseLimitParam(req.query.limit);
-      const hits = (await deps.analyticsSink.list({ limit })).map(toAdminAnalyticsHitResponse);
+      const limit = parseLimitParam({ raw: req.query.limit });
+      const hits = (await deps.analyticsSink.list({}, { limit })).map(toAdminAnalyticsHitResponse);
       res.json({ hits });
     } catch (err) {
       // Keep shared redacted diagnostics without replacing the canonical analytics wire contract.

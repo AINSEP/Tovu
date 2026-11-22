@@ -55,7 +55,7 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     hasStoredKey: false,
     storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
-    providerGroups: visitorProviderGroups(new Set()),
+    providerGroups: visitorProviderGroups({ configuredIds: new Set() }),
     selectPresetById: vi.fn(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
@@ -86,24 +86,23 @@ describe("visitorCredentialKeyStatusMessage", () => {
 
 describe("visitorCredentialApiKeyPlaceholder", () => {
   it("returns undefined when nothing is stored", () => {
-    expect(visitorCredentialApiKeyPlaceholder(null)).toBeUndefined();
+    expect(visitorCredentialApiKeyPlaceholder({ stored: null })).toBeUndefined();
   });
 
   it("returns undefined when stored but the server sent no mask", () => {
-    expect(visitorCredentialApiKeyPlaceholder({ isSet: true, masked: null, provider: "google", baseUrl: null, model: null, updatedAt: null })).toBeUndefined();
+    expect(visitorCredentialApiKeyPlaceholder({ stored: { isSet: true, masked: null, provider: "google", baseUrl: null, model: null, updatedAt: null } })).toBeUndefined();
   });
 
   it("returns the mask when one is stored and the server sent it", () => {
     expect(
-      visitorCredentialApiKeyPlaceholder({ isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null }),
+      visitorCredentialApiKeyPlaceholder({ stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null } }),
     ).toBe("••••ab12");
   });
 
   it("returns undefined when the stored key belongs to another endpoint, so the new provider's field reads empty", () => {
     expect(
       visitorCredentialApiKeyPlaceholder(
-        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
-        true,
+        { stored: { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null } }, { storedKeyIsForOtherEndpoint: true },
       ),
     ).toBeUndefined();
   });
@@ -113,34 +112,34 @@ describe("visitorCredentialSaveStatusMessage", () => {
   it("asks for this provider's key in plain language when the stored key belongs to another endpoint", () => {
     expect(
       visitorCredentialSaveStatusMessage(
-        { status: "idle" },
-        { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null },
-        undefined,
-        true,
+        { saveState: { status: "idle" },
+        stored: { isSet: true, masked: "••••mw4w", provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: null, updatedAt: null } },
+        { t: undefined,
+        storedKeyIsForOtherEndpoint: true },
       ),
     ).toBe("Your saved key is for a different provider. Paste a key for this one.");
   });
 
   it("reports Saving… while saving, regardless of stored", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "saving" }, null)).toBe("Saving…");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "saving" }, stored: null })).toBe("Saving…");
   });
 
   it("reports success once saved", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "saved", at: null }, null)).toBe("Saved to the server, encrypted.");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "saved", at: null }, stored: null })).toBe("Saved to the server, encrypted.");
   });
 
   it("reports the stored key when idle and a key is stored", () => {
     expect(
-      visitorCredentialSaveStatusMessage({ status: "idle" }, { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null }),
+      visitorCredentialSaveStatusMessage({ saveState: { status: "idle" }, stored: { isSet: true, masked: "••••ab12", provider: "google", baseUrl: null, model: null, updatedAt: null } }),
     ).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
   });
 
   it("prompts to paste a key, naming the button that writes it, when idle and nothing is stored", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "idle" }, null)).toBe("Paste your key, check it with Show, then press Save key.");
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "idle" }, stored: null })).toBe("Paste your key, check it with Show, then press Save key.");
   });
 
   it("returns null on error (the error itself renders separately)", () => {
-    expect(visitorCredentialSaveStatusMessage({ status: "error", message: "boom" }, null)).toBeNull();
+    expect(visitorCredentialSaveStatusMessage({ saveState: { status: "error", message: "boom" }, stored: null })).toBeNull();
   });
 });
 
@@ -318,7 +317,7 @@ describe("VisitorCredentialForm", () => {
     const toggle = screen.getByRole("switch");
     expect(screen.queryByText("Save a key in step 1 first.")).toBeNull();
     fireEvent.click(toggle);
-    expect(setPublicEnabled).toHaveBeenCalledWith(true);
+    expect(setPublicEnabled).toHaveBeenCalledWith({ publicEnabled: true });
   });
 
   it("the panel blocks the switch with its reason until a key is stored", () => {
@@ -375,7 +374,7 @@ describe("VisitorCredentialForm", () => {
     for (const baseUrl of ["https://api.openai.com/v1", "https://openrouter.ai/api/v1"]) {
       const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.baseUrl === baseUrl)!;
       await user.selectOptions(screen.getByRole("combobox", { name: "Provider" }), preset.id);
-      expect(selectPresetById).toHaveBeenLastCalledWith(preset.id);
+      expect(selectPresetById).toHaveBeenLastCalledWith({ presetId: preset.id });
     }
   });
 
@@ -422,7 +421,7 @@ it("warns when an Anthropic key is pasted into the standalone OpenAI form", () =
   const preset = DEFAULT_PROVIDER_PRESETS.find((entry) => entry.id === "openai")!;
   render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
     preset,
-    config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: preset.preferredModels[0], apiKey: "sk-ant-" + "x".repeat(40) },
+    config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: "test-model", apiKey: "sk-ant-" + "x".repeat(40) },
   })} />);
   expect(screen.getByText(/looks like.*Anthropic/i)).toBeInTheDocument();
 });
@@ -472,7 +471,7 @@ describe("in-flight and settled states of the visitor key and settings controls"
   it("marks a provider that already holds a saved key as configured", () => {
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
     render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
-      preset, providerGroups: visitorProviderGroups(new Set([preset.id])),
+      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]) }),
     })} />);
     expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
   });

@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../../kernel/port.js";
-import type { MigrationStep } from "../step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Chat step `0001_sqlite_chat_tables` (R1 plan R1h): the AI chat tables in a SQLite site's
@@ -70,9 +70,9 @@ export const SQLITE_CHAT_STATEMENTS: readonly string[] = [
 )`,
 ];
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect !== "sqlite") return;
   for (const statement of SQLITE_CHAT_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const sqliteChatTables = (checksum: string): MigrationStep => ({ id: SQLITE_CHAT_TABLES_ID, checksum, up });
+export const sqliteChatTables = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: SQLITE_CHAT_TABLES_ID, checksum, up });

@@ -4,8 +4,8 @@ import type { SurfaceEmission, ToolExecutionContext } from '@jini-ai/core';
 
 import { requireHumanConfirm, type HumanConfirmOutcome } from '../human-confirm.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from '@jini-ai/protocol/mcp-ui';
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

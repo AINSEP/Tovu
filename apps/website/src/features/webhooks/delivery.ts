@@ -60,6 +60,7 @@ export function adaptWebhookHttpClient({ httpClient }: { httpClient: HttpClientP
 }
 
 /** Jini owns claim/retry/hooks/sign/send; host adapters preserve transport and signature headers.
+ * Delivery is at least once. Receivers can deduplicate by `tovu-delivery-id` within the subscription.
  * @complexity O(batch size × bounded envelope bytes), with one bounded HTTP request per delivery.
  */
 export function processDueDeliveries({ deps }: ProcessDueDeliveriesRequired, optional: ProcessDueDeliveriesOptional = {}): Promise<ProcessDueDeliveriesResult> {

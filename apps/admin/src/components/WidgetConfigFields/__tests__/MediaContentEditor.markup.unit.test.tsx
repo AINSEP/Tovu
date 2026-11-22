@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../features/media/api/media-api.types";
 import { MediaContentEditor } from "../MediaContentEditor";
 import type { MediaContentEditorController, MediaItemRow } from "../MediaContentEditor.hooks";
 import type { MediaSlugProblem } from "../media-content-rules";
@@ -35,7 +35,7 @@ function fakeController(overrides: Partial<MediaContentEditorController> = {}) {
   const record = (name: string) => (...args: unknown[]) => { calls.push([name, ...args]); };
   const vm: MediaContentEditorController = {
     mode: "media", setMode: record("setMode"), inactiveHasContent: false, library: [], libraryError: null, pickable: [],
-    mediaUrl: (media) => `/m/${media.id}`,
+    mediaUrl: ({ asset }) => `/m/${asset.id}`,
     layouts: ["single", "grid"], media: { items: [], layout: "single" }, showColumns: false,
     setLayout: record("setLayout"), setColumns: record("setColumns"), setAspectRatio: record("setAspectRatio"), setCssClass: record("setCssClass"),
     rows: [], maxItems: 50, updateItem: record("updateItem"), moveItem: record("moveItem"), removeItem: record("removeItem"),
@@ -176,7 +176,7 @@ describe("item rows", () => {
     fireEvent.change(screen.getByLabelText("Media slug 1"), { target: { value: " b " } });
     fireEvent.change(screen.getByLabelText("Alt text 1"), { target: { value: "" } });
     fireEvent.change(screen.getByLabelText("Caption 1"), { target: { value: "" } });
-    expect(calls).toEqual([["updateItem", 0, { slug: "b" }], ["updateItem", 0, { alt: undefined }], ["updateItem", 0, { caption: undefined }]]);
+    expect(calls).toEqual([["updateItem", { index: 0, patch: { slug: "b" } }], ["updateItem", { index: 0, patch: { alt: undefined } }], ["updateItem", { index: 0, patch: { caption: undefined } }]]);
   });
 
   it("keeps typed alt and caption text", () => {
@@ -184,7 +184,7 @@ describe("item rows", () => {
     renderEditor(vm);
     fireEvent.change(screen.getByLabelText("Alt text 1"), { target: { value: "Alt" } });
     fireEvent.change(screen.getByLabelText("Caption 1"), { target: { value: "Cap" } });
-    expect(calls).toEqual([["updateItem", 0, { alt: "Alt" }], ["updateItem", 0, { caption: "Cap" }]]);
+    expect(calls).toEqual([["updateItem", { index: 0, patch: { alt: "Alt" } }], ["updateItem", { index: 0, patch: { caption: "Cap" } }]]);
   });
 
   it("uses the library's alt and caption as placeholders, else the field names", () => {
@@ -203,7 +203,7 @@ describe("item rows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Move up 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Move down 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove 2" }));
-    expect(calls).toEqual([["moveItem", 1, -1], ["moveItem", 0, 1], ["removeItem", 1]]);
+    expect(calls).toEqual([["moveItem", { index: 1, delta: -1 }], ["moveItem", { index: 0, delta: 1 }], ["removeItem", { index: 1 }]]);
   });
 });
 
@@ -216,7 +216,7 @@ describe("layout fields", () => {
     fireEvent.change(columns, { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText("Aspect ratio"), { target: { value: "16/9" } });
     fireEvent.change(screen.getByLabelText("CSS class"), { target: { value: "wide" } });
-    expect(calls).toEqual([["setColumns", "4"], ["setAspectRatio", "16/9"], ["setCssClass", "wide"]]);
+    expect(calls).toEqual([["setColumns", { value: "4" }], ["setAspectRatio", { aspectRatio: "16/9" }], ["setCssClass", { cssClass: "wide" }]]);
   });
 
   it("shows the saved column count", () => {
@@ -231,7 +231,7 @@ describe("tabs, notices and preview", () => {
     const { vm, calls } = fakeController();
     renderEditor(vm);
     fireEvent.keyDown(screen.getByRole("tab", { name: "Media" }), { key: "ArrowRight" });
-    expect(calls).toEqual([["setMode", "html"]]);
+    expect(calls).toEqual([["setMode", { mode: "html" }]]);
   });
 
   it("shows a library load failure", () => {
@@ -289,6 +289,6 @@ describe("library picker", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     // The buttons hand their click event straight to the controller, so compare the actions only.
     expect(calls.map(([name]) => name)).toEqual(["togglePicked", "confirmPicker", "cancelPicker"]);
-    expect(calls[0]).toEqual(["togglePicked", "photo"]);
+    expect(calls[0]).toEqual(["togglePicked", { slug: "photo" }]);
   });
 });

@@ -1,6 +1,7 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { SurfaceEmission } from "@jini-ai/core";
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
-import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+import { credentialText, formatCredentialHint, translateCredentialMessage } from '@tovu/contracts/credential-copy';
 import type { DatabaseDestinationStorePort } from './destination-store.js';
 import { buildDestinationOutcome } from './destination-ui.js';
 
@@ -34,7 +35,10 @@ async function reportDestinationSuccess<T>({ result, store, workspaceId, exchang
   result: T; store: DatabaseDestinationStorePort; workspaceId: string; exchangeId: string; locale: string;
 }, _options = {}) {
   // Open the saved value; never derive a client hint from unverified submitted bytes.
-  const destination = await store.get(workspaceId).catch(() => null);
+  const destination = await store.get(workspaceId).catch((error: unknown) => {
+    console.error("[database-transfer] Could not read the saved destination", describeErrorForLog({ err: error }));
+    return null;
+  });
   const tokenHint = destination?.tokenHint ?? null;
   const hint = formatCredentialHint({ hint: tokenHint, locale });
   const message = `${hint ? hint + '. ' : ''}${credentialText({ id: 'connected', locale })}`;

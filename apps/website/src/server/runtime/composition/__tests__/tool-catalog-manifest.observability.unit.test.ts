@@ -9,10 +9,10 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -43,7 +43,7 @@ async function callGetAdmissions(contributions: ReturnType<typeof freshContribut
 test("installFirstPartyToolContributors builds every guarded HTTP client with the observability port it was given", () => {
   const observability = createNoopObservabilityPort({});
   const built: { policy: unknown; options: unknown }[] = [];
-  const createHttpClient = ((policy, options) => {
+  const createHttpClient = (({ policy }, options) => {
     built.push({ policy, options });
     return {} as ReturnType<typeof createDefaultHttpClient>;
   }) as typeof createDefaultHttpClient;

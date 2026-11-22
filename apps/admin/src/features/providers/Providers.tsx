@@ -1,13 +1,13 @@
+import { navigateProvidersTab } from "./Providers.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { I18nProvider, IntegrationsTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { ComingSoonPanel } from "../../components/ComingSoonPanel";
+import { ComingSoonPanel } from "@jini-ai/ui/admin-widgets";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
 import { Integrations } from "../integrations/Integrations";
@@ -16,6 +16,7 @@ import { t as tIntegrations } from "../integrations/integrations-i18n";
 import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Integrations page (`/admin/addons/integrations`) — every outside connection this install has,
  * in both directions, in one place.
@@ -98,7 +99,7 @@ type ProvidersTabId = (typeof PROVIDERS_TAB_IDS)[number];
  *  must open on a real tab, never a blank panel. The retired `/admin/integrations` page's own
  *  redirect (`panels.tsx`'s `integrations` panel) points at `?tab=webhooks` explicitly, so that
  *  URL's pre-merge default screen is preserved regardless of what this function's own default is. */
-function resolveProvidersTabId(tabId: string | null | undefined): ProvidersTabId {
+function resolveProvidersTabId({ tabId }: { tabId: string | null | undefined }, _options: Record<string, never> = {}): ProvidersTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: PROVIDERS_TAB_IDS, defaultId: "external-mcp" });
 }
 
@@ -124,22 +125,9 @@ export interface ProvidersProps {
   useIntegrationsHook?: typeof useWiredIntegrations;
 }
 
-/** Resolved separately rather than as a default parameter value inside {@link Providers}'s own body
- *  — same complexity-ceiling idiom `SettingsUi.tsx`'s own resolver group uses: ESLint counts a
- *  default inside a function's OWN body as one of that function's branches, a call out to a
- *  separately-scoped resolver does not. */
-function resolveProvidersHook(override: typeof useProviders | undefined): typeof useProviders {
-  return override ?? useProviders;
-}
-
-export function Providers(props: ProvidersProps) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const locale = useAdminLocale();
-  const useProvidersHook = resolveProvidersHook(props.useProvidersHook);
-  const p = useProvidersHook();
-  const activeTabId = resolveProvidersTabId(props.tabId);
-
-  const tabs: TabBarTab[] = [
+/** The four tab-bar entries, labelled for `locale`. */
+function providersTabs({ locale }: { locale: ReturnType<typeof useAdminLocale> }, _options: Record<string, never> = {}): TabBarTab[] {
+  return [
     {
       id: "external-mcp",
       label: t({ locale: locale, key: "External MCP" }),
@@ -203,10 +191,30 @@ export function Providers(props: ProvidersProps) {
       handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes (soon)",
     },
   ];
+}
 
-  function handleTabChange(nextTabId: string) {
-    navigate(`/addons/integrations?tab=${nextTabId}`, { replace: true });
-  }
+/** Hooks `Providers` calls itself; defaults to the real ones, a test hands in fakes. */
+export const defaultProvidersHooks = { useAdminThemeBoundary, useAdminLocale };
+export type ProvidersHooks = typeof defaultProvidersHooks;
+
+/** Hook-calling shell. The screen body lives in {@link ProvidersView}, so these injected defaults
+ *  are branches of this tiny function, not of the body's own complexity budget. */
+export function Providers({ useProvidersHook = useProviders, hooks = defaultProvidersHooks, ...props }: ProvidersProps & { hooks?: ProvidersHooks | undefined }) {
+  const themeBoundary = hooks.useAdminThemeBoundary({}, {});
+  const locale = hooks.useAdminLocale();
+  const p = useProvidersHook();
+  return <ProvidersView {...props} p={p} locale={locale} themeBoundary={themeBoundary} />;
+}
+
+function ProvidersView(props: ProvidersProps & {
+  p: ReturnType<typeof useProviders>;
+  locale: ReturnType<typeof useAdminLocale>;
+  themeBoundary: ReturnType<typeof useAdminThemeBoundary>;
+}) {
+  const { p, locale, themeBoundary } = props;
+  const activeTabId = resolveProvidersTabId({ tabId: props.tabId });
+
+  const tabs = providersTabs({ locale });
 
   return (
     <I18nProvider
@@ -244,7 +252,7 @@ export function Providers(props: ProvidersProps) {
           ariaLabel={t({ locale: locale, key: "Integrations" })}
           tabs={tabs}
           activeId={activeTabId}
-          onChange={handleTabChange}
+          onChange={(nextTabId) => navigateProvidersTab({ nextTabId })}
           containerHandle="providers-tab-bar"
         />
 
@@ -256,7 +264,7 @@ export function Providers(props: ProvidersProps) {
           // why the subtitle stays regardless. `saveStatusLabel` carries the restart notice rather
           // than "All changes saved", for the reason that tab's own comment gave: a saved row is
           // persisted but NOT live, because the admitted tool set is frozen at connect
-          // (`mcp-federation/trust.ts` R5). Telling an operator their change is saved, while the
+          // (`Jini packages/mcp/src/federation/trust.ts` R5). Telling an operator their change is saved, while the
           // running assistant still cannot see the server, would be true and useless. D-33
           // (2026-10-06): show it only after an actual configuration save — the standing "Changes
           // apply when Tovu restarts" pill read as a pending change on a fresh site.

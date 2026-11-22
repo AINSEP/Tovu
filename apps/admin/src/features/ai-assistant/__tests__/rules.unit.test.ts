@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import { ApiError, type SiteAssistantCredential } from "@/lib/api";
+import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import {
   defaultVisitorCredentialConfig,
@@ -28,34 +29,34 @@ function stored(overrides: Partial<SiteAssistantCredential> = {}): SiteAssistant
 describe("assistant error copy", () => {
   // Removing any code-specific override must fail its literal assertion (F1.2/F4.4).
   it("names the assistant setting on forbidden writes", () => {
-    expect(describeApiError(new ApiError("raw denial", 403, "FORBIDDEN"), "fallback"))
+    expect(describeApiError({ e: new ApiError({ message: "raw denial", status: 403 }, { code: "FORBIDDEN" }), fallback: "fallback" }))
       .toBe("You do not have permission to change the AI assistant's settings.");
   });
 
   it.each(["ASSISTANT_SETTINGS_VALIDATION_ERROR", "SITE_CREDENTIAL_VALIDATION_ERROR"])("preserves %s details and supplies its empty-message fallback", (code) => {
-    expect(describeApiError(new ApiError("Model is unavailable", 400, code), "generic fallback")).toBe("Model is unavailable");
-    expect(describeApiError(new ApiError("", 400, code), "generic fallback")).toBe("That value was rejected.");
+    expect(describeApiError({ e: new ApiError({ message: "Model is unavailable", status: 400 }, { code }), fallback: "generic fallback" })).toBe("Model is unavailable");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 400 }, { code }), fallback: "generic fallback" })).toBe("That value was rejected.");
   });
 
   it("explains an unconfigured secret store without blaming the pasted key", () => {
-    expect(describeApiError(new ApiError("operator-only detail", 503, "SECRET_STORE_UNCONFIGURED"), "fallback"))
+    expect(describeApiError({ e: new ApiError({ message: "operator-only detail", status: 503 }, { code: "SECRET_STORE_UNCONFIGURED" }), fallback: "fallback" }))
       .toBe("The server can't store keys yet: it has no site key. Set TOVU_SITE_KEY (hex) and restart. Your key was not saved.");
   });
 
   it("delegates unrelated API, ordinary Error and non-Error failures", () => {
-    expect(describeApiError(new ApiError("Conflict detail", 409, "CONFLICT"), "fallback")).toBe("Conflict detail");
-    expect(describeApiError(new ApiError("", 500, "OTHER"), "fallback")).toBe("fallback");
-    expect(describeApiError(new Error("offline"), "fallback")).toBe("offline");
-    expect(describeApiError({ code: "FORBIDDEN" }, "fallback")).toBe("fallback");
-    expect(describeApiError(null, "fallback")).toBe("fallback");
+    expect(describeApiError({ e: new ApiError({ message: "Conflict detail", status: 409 }, { code: "CONFLICT" }), fallback: "fallback" })).toBe("Conflict detail");
+    expect(describeApiError({ e: new ApiError({ message: "", status: 500 }, { code: "OTHER" }), fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: new Error("offline"), fallback: "fallback" })).toBe("offline");
+    expect(describeApiError({ e: { code: "FORBIDDEN" }, fallback: "fallback" })).toBe("fallback");
+    expect(describeApiError({ e: null, fallback: "fallback" })).toBe("fallback");
   });
 });
 
 describe("stored credential presence", () => {
   it("requires the server's isSet flag, even when other metadata is present", () => {
-    expect(hasStoredCredential(null)).toBe(false);
-    expect(hasStoredCredential(stored({ isSet: false }))).toBe(false);
-    expect(hasStoredCredential(stored())).toBe(true);
+    expect(hasStoredCredential({ stored: null })).toBe(false);
+    expect(hasStoredCredential({ stored: stored({ isSet: false }) })).toBe(false);
+    expect(hasStoredCredential({ stored: stored() })).toBe(true);
   });
 });
 
@@ -63,7 +64,7 @@ describe("automatic discovery destination gate", () => {
   // BUG, F4.4/F6.2: Azure's empty URL placeholder is not a preset-supplied destination.
   // Clearing an endpoint must not authorize automatic credential-bearing discovery.
   it.each(["", " \t\n"])("rejects a missing destination %j", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(false);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
   });
 
   // A startsWith comparison would transmit a key to a suffix host or changed path (F4.4).
@@ -72,8 +73,8 @@ describe("automatic discovery destination gate", () => {
     "https://generativelanguage.googleapis.com", "https://openrouter.ai/api/v1",
     "http://localhost:11434/v1",
   ])("accepts the exact preset endpoint %s, including surrounding whitespace", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(true);
-    expect(isPresetSuppliedEndpoint(` \t${url}\n`)).toBe(true);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(true);
+    expect(isPresetSuppliedEndpoint({ baseUrl: ` \t${url}\n` })).toBe(true);
   });
 
   it.each([
@@ -81,7 +82,7 @@ describe("automatic discovery destination gate", () => {
     "https://api.openai.com/v1/", "http://localhost:11435/v1",
     "https://api.openai.co", "https://custom.example/v1",
   ])("rejects an operator endpoint or incomplete hostname: %s", (url) => {
-    expect(isPresetSuppliedEndpoint(url)).toBe(false);
+    expect(isPresetSuppliedEndpoint({ baseUrl: url })).toBe(false);
   });
 });
 
@@ -111,7 +112,7 @@ describe("visitor credential hydration", () => {
     ["openai", "https://unlisted.example/v1", null],
   ] as const)("restores %s / %s with the correct preset identity", (protocol, baseUrl, providerId) => {
     const current = Object.freeze(config());
-    expect(hydrateVisitorCredentialConfig(current, stored({ provider: protocol, baseUrl }))).toEqual({
+    expect(hydrateVisitorCredentialConfig({ current, stored: stored({ provider: protocol, baseUrl }) })).toEqual({
       protocol, providerId, apiKey: "typed-secret", baseUrl, model: "stored-model",
     });
     expect(current.protocol).toBe("google");
@@ -119,14 +120,14 @@ describe("visitor credential hydration", () => {
   });
 
   it("keeps the protocol and preset for an unknown server provider while hydrating its values", () => {
-    expect(hydrateVisitorCredentialConfig(config({ protocol: "anthropic", providerId: "anthropic" }), stored({ provider: "future-provider", baseUrl: "https://future.example", model: "future-model" })))
+    expect(hydrateVisitorCredentialConfig({ current: config({ protocol: "anthropic", providerId: "anthropic" }), stored: stored({ provider: "future-provider", baseUrl: "https://future.example", model: "future-model" }) }))
       .toEqual({ protocol: "anthropic", providerId: "anthropic", apiKey: "typed-secret", baseUrl: "https://future.example", model: "future-model" });
   });
 
   it("preserves current values for null stored fields but respects explicit empty strings", () => {
-    expect(hydrateVisitorCredentialConfig(config({ baseUrl: "https://local.example/v1", model: "draft-model" }), stored({ provider: "google", baseUrl: null, model: null })))
+    expect(hydrateVisitorCredentialConfig({ current: config({ baseUrl: "https://local.example/v1", model: "draft-model" }), stored: stored({ provider: "google", baseUrl: null, model: null }) }))
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "https://local.example/v1", model: "draft-model" });
-    expect(hydrateVisitorCredentialConfig(config(), stored({ provider: "google", baseUrl: "", model: "" })))
+    expect(hydrateVisitorCredentialConfig({ current: config(), stored: stored({ provider: "google", baseUrl: "", model: "" }) }))
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "", model: "" });
   });
 });

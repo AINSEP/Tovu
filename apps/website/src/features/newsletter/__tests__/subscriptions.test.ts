@@ -54,9 +54,9 @@ function makeDeps(): SubscriptionsDeps & { sentEmails: OutboundEmail[] } {
   };
   const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo();
   confirmationDeps.subscriptionRepo = subscriptionRepo;
-  const listRepo = new InMemoryNewsletterListRepo([
+  const listRepo = new InMemoryNewsletterListRepo({}, { initialRows: [
     { id: "list-1", workspaceId: WS, name: "Fixture list", slug: "fixture-list", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW },
-  ]);
+  ] });
   return { subscriptionRepo, listRepo, subscriberDirectory, confirmationDeps, clock, ids, sentEmails };
 }
 
@@ -86,7 +86,7 @@ test("saveSubscription: a repeat call for the same subscriber+list reuses the EX
   const second = await saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "signup_form" } });
   assert.equal(second.subscription.id, first.subscription.id);
 
-  const all = await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 10 });
+  const all = (await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 10 })).items;
   assert.equal(all.length, 1, "no duplicate row for a repeat saveSubscription call");
 });
 
@@ -169,7 +169,7 @@ test("importSubscriptions: batch of 500 accepted, 501 rejected before any row is
     importSubscriptions({ deps: fresh, input: { workspaceId: WS, listId: "list-1", subscribers: batch501 } }),
     NewsletterValidationError
   );
-  assert.deepEqual(await fresh.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 1000 }), []);
+  assert.deepEqual((await fresh.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 1000 })).items, []);
   assert.deepEqual(fresh.sentEmails, []);
 });
 
@@ -277,6 +277,6 @@ test("importSubscriptions: a dependency failure is reported at its index and pro
   const result = await importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [{ subscriberId: "broken", source: "import" }, { subscriberId: "subscriber-2", source: "import" }] } });
   assert.deepEqual(result.failed, [{ index: 0, code: "INTERNAL_ERROR", message: "directory unavailable" }]);
   assert.deepEqual(result.created.map((row) => row.subscriberId), ["subscriber-2"]);
-  assert.deepEqual(await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 10 }), result.created);
+  assert.deepEqual((await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1" }, { limit: 10 })).items, result.created);
   assert.deepEqual(deps.sentEmails.map((email) => email.to.email), ["b@b.test"]);
 });

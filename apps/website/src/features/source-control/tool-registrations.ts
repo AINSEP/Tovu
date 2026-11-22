@@ -1,33 +1,32 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "./commit-schema.js";
-import { LANDING_FILE } from "../site-backup/static-download-landing.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { buildDomainRegistrations, indexCatalogById, optionalBoolean, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, requireInputRecord, requireNoInput, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import {
   commitSiteToSourceControl,
   previewCommitExport,
-  validateCommitTarget,
   type ExportSiteBoundFn,
   type CommitSiteInput,
-  type StaticSiteContextFn,
+  type StaticSiteHostPorts,
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
+import { validateCommitTarget } from "./commit-target.js";
 import {
   buildSourceControlProvider,
   switchedOffPluginSentence,
@@ -35,11 +34,13 @@ import {
   type SourceControlProviderDescriptor,
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
-import { sourceControlSavedApiKeyLabels, type RepositoryTargetValidator } from "./provider-module.js";
+import type { RepositoryTargetValidator } from "./provider-module.js";
+import { sourceControlSavedApiKeyLabels } from "./saved-key-bindings.js";
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import type { HttpClientPort } from "../../platform/http/index.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/
@@ -63,14 +64,6 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  *   credential, target and branch checks still apply; existing Git history preserves overwritten
  *   files. Credentials remain server-side and are never included in the model's call or result.
  */
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /** No arguments — matches `publish-agent-tools.ts`'s own `NO_INPUT_SCHEMA`, declared separately here
  *  per this file's own "no dependency on `features/deployments/**`" rule. */
@@ -105,7 +98,7 @@ function providerLoader(deps: SourceControlToolDeps): LoadSourceControlProviders
 }
 
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
-async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: string): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
+async function resolveCommitAdapter({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _optional = {}): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
   if (deps.gitAdapter) return { ok: true, adapter: deps.gitAdapter };
   const built = await buildSourceControlProvider({ load: deps.loadSourceControlProviders, observability: deps.observability, workspaceId: deps.workspaceId, providerId });
   return built.ok ? { ok: true, adapter: { commit: built.provider.commitSite } } : { ok: false, message: built.message };
@@ -123,8 +116,8 @@ async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: str
 async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
   deps: SourceControlToolDeps; providerId: string; authorizeSavedLookup: () => Promise<void>;
 }, _options = {}): Promise<{ label: string; supportsFolder?: boolean; validateTarget?: RepositoryTargetValidator }> {
-  const registry = await providerLoader(deps)(deps.workspaceId);
-  const loaded = registry.get(providerId);
+  const registry = await providerLoader(deps)({ workspaceId: deps.workspaceId });
+  const loaded = registry.get({ providerId });
   if (loaded !== undefined) return { label: loaded.descriptor.label, supportsFolder: loaded.module.supportsFolder === true, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
   if (registry.switchedOff?.has(providerId)) return { label: providerId };
   // Saved-only ids are opaque. Authorize before inspecting their existence (registry metadata is public).
@@ -229,8 +222,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  * Passing that one pre-bound operation lets the tool run a real export without importing the
  * composition root's wide RouteDeps type; route callers satisfy the narrower shape structurally.
  */
-export interface SourceControlToolDeps {
-  readonly staticSiteContext: StaticSiteContextFn;
+export interface SourceControlToolDeps extends StaticSiteHostPorts {
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
@@ -240,8 +232,9 @@ export interface SourceControlToolDeps {
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
   readonly clock: Clock;
-  /** Overrides only the existing save-time provider identity probe in tests. */
-  readonly fetchFn?: typeof fetch;
+  /** The guarded client for the save-time provider identity probe, which carries the saved token
+   *  (`RouteDeps.customCredentialsHttpClient`). Absent, the probe is not attempted. */
+  readonly customCredentialsHttpClient?: HttpClientPort;
   /** `RouteDeps.observability`: a commit's git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
   readonly sourceControlExportRootDir: string;
@@ -295,9 +288,9 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
  * @throws {ToolInputError} on any invalid field.
  * @complexity O(1).
  */
-function requireValidTarget(command: ParsedCommitCommand, validateTarget: RepositoryTargetValidator | undefined): void {
+function requireValidTarget({ command, validateTarget }: { command: ParsedCommitCommand; validateTarget: RepositoryTargetValidator | undefined }, _optional = {}): void {
   const { owner, repo, branch, commitMessage } = command;
-  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, validateTarget);
+  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, { validateTarget });
   if (configError !== null) {
     throw new ToolInputError({ message: `source_control_execute_commit: ${configError}` });
   }
@@ -308,7 +301,7 @@ function requireValidTarget(command: ParsedCommitCommand, validateTarget: Reposi
  */
 function commitInput({ deps, command }: { deps: SourceControlToolDeps; command: ParsedCommitCommand }, _options = {}): CommitSiteInput {
   return { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir,
-    idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, staticSiteContext: deps.staticSiteContext,
+    idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, staticSiteContext: deps.staticSiteContext, packager: deps.staticSitePackager,
     owner: command.owner, repo: command.repo, folder: command.folder, commitMessage: command.commitMessage,
     ...(command.branch !== undefined ? { branch: command.branch } : {}) };
 }
@@ -349,8 +342,8 @@ function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown 
  *
  * @complexity O(1) — fixed string interpolation, no iteration.
  */
-function buildCapabilityGuidance(providerId: string, configured: boolean, commitReady: boolean, switchedOffPluginId: string | undefined): string | undefined {
-  const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence(switchedOffPluginId)}`;
+function buildCapabilityGuidance({ providerId, configured, commitReady, switchedOffPluginId }: { providerId: string; configured: boolean; commitReady: boolean; switchedOffPluginId: string | undefined }, _optional = {}): string | undefined {
+  const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence({ pluginIds: [switchedOffPluginId] })}`;
   if (!configured && !commitReady) {
     return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
   }
@@ -387,6 +380,81 @@ export function buildSourceControlCredentialHandler({ deps, surfaces }: { deps: 
   return (ctx, optional = {}) => proposeSourceControlCredential({ ctx, deps: { ...deps, loadSourceControlProviders: providerLoader(deps) }, surfaces }, optional);
 }
 
+async function previewSourceControlCommit({ deps, command, host }: { deps: SourceControlToolDeps; command: ParsedCommitCommand; host: Awaited<ReturnType<typeof requireKnownHost>> }) {
+  // Same "presence only" read `source_control_get_capabilities` and the real-commit path
+  // below both rely on — never decrypts. No dialog: a dry run only previews what a real
+  // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
+  const existing = await findConfiguredCredential({ deps, providerId: command.provider });
+  const preview = await previewCommitExport(commitInput({ deps, command }), { providerId: command.provider, validateTarget: host.validateTarget });
+  if (!preview.ok) {
+    return {
+      dryRun: true,
+      committed: false,
+      owner: command.owner,
+      repo: command.repo,
+      branch: command.branch,
+      credentialConfigured: existing !== null,
+      code: preview.code,
+      message: preview.message,
+    };
+  }
+  return {
+    dryRun: true,
+    committed: false,
+    owner: command.owner,
+    repo: command.repo,
+    branch: command.branch,
+    credentialConfigured: existing !== null,
+    fileCount: preview.fileCount,
+    totalBytes: preview.totalBytes,
+    paths: preview.paths,
+    folder: command.folder,
+    entryPath: prefixRepositoryPath({ folder: command.folder, path: deps.staticSitePackager.entryFile }),
+    note: "Nothing was sent. Call again without dryRun to commit.",
+  };
+}
+
+async function executeSourceControlCommit({ deps, ctx }: { deps: SourceControlToolDeps; ctx: Parameters<ToolHandler>[0] }) {
+  const raw = requireInputRecord({ input: ctx.input });
+  const command = parseCommitCommand(raw);
+
+  const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
+  const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
+  const hostLabel = host.label;
+  requireValidTarget({ command, validateTarget: host.validateTarget });
+  await authorizeCommit();
+  if (command.folder && host.supportsFolder !== true) return { committed: false, reason: "folder-unsupported", message: `${hostLabel} does not support folder commits. Update its provider before selecting a folder.` };
+
+  if (command.dryRun) {
+    return previewSourceControlCommit({ deps, command, host });
+  }
+
+  // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
+  // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
+  // attention.
+  const existing = await findConfiguredCredential({ deps, providerId: command.provider });
+  if (!existing) {
+    return {
+      committed: false,
+      reason: "no-credential",
+      message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
+    };
+  }
+  const commitAdapter = await resolveCommitAdapter({ deps, providerId: command.provider });
+  if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
+
+  // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
+  if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
+  const outcome = await commitSiteToSourceControl(
+    { providerId: existing.providerId, supportsFolder: host.supportsFolder === true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+      resolveSavedApiKey: (input, options = {}) => resolveSavedApiKey({ deps, ...input }, options),
+    }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
+    commitInput({ deps, command })
+  );
+
+  return buildCommitOutcomeResult(outcome);
+}
+
 export function buildSourceControlRegistrations(deps: SourceControlToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     source_control_get_capabilities: async (ctx) => {
@@ -394,7 +462,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.read" }, { entityType: "source-control" });
 
       const saved = await listSourceControlCredentials({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId });
-      const registry = await providerLoader(deps)(deps.workspaceId);
+      const registry = await providerLoader(deps)({ workspaceId: deps.workspaceId });
 
       const providers = await Promise.all(reportedProviderIds(registry, saved.map((credential) => credential.providerId)).map(async (providerId) => {
         const savedCredentials = saved
@@ -403,9 +471,9 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         let hasSavedApiKey = false;
         if (savedCredentials.length === 0) hasSavedApiKey = (await findSavedApiKey({ deps, providerId })) !== null;
         const configured = savedCredentials.length > 0 || hasSavedApiKey;
-        const loaded = registry.get(providerId);
+        const loaded = registry.get({ providerId });
         const ready = loaded !== undefined;
-        const guidance = buildCapabilityGuidance(providerId, configured, ready, registry.switchedOff?.get(providerId));
+        const guidance = buildCapabilityGuidance({ providerId, configured, commitReady: ready, switchedOffPluginId: registry.switchedOff?.get(providerId) });
 
         return {
           providerId,
@@ -424,77 +492,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
     /** Shared approval precedes real export commits, which can remove stale paths;
      * dry-run previews stay direct. Target, credential and branch checks remain. */
-    source_control_execute_commit: async (ctx) => {
-      const raw = requireInputRecord({ input: ctx.input });
-      const command = parseCommitCommand(raw);
-
-      const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
-      const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
-      const hostLabel = host.label;
-      requireValidTarget(command, host.validateTarget);
-      await authorizeCommit();
-      if (command.folder && host.supportsFolder !== true) return { committed: false, reason: "folder-unsupported", message: `${hostLabel} does not support folder commits. Update its provider before selecting a folder.` };
-
-      if (command.dryRun) {
-        // Same "presence only" read `source_control_get_capabilities` and the real-commit path
-        // below both rely on — never decrypts. No dialog: a dry run only previews what a real
-        // commit would export, so it never opens the confirmation surface or touches `emitSurface`.
-        const existing = await findConfiguredCredential({ deps, providerId: command.provider });
-        const preview = await previewCommitExport(commitInput({ deps, command }), { providerId: command.provider, validateTarget: host.validateTarget });
-        if (!preview.ok) {
-          return {
-            dryRun: true,
-            committed: false,
-            owner: command.owner,
-            repo: command.repo,
-            branch: command.branch,
-            credentialConfigured: existing !== null,
-            code: preview.code,
-            message: preview.message,
-          };
-        }
-        return {
-          dryRun: true,
-          committed: false,
-          owner: command.owner,
-          repo: command.repo,
-          branch: command.branch,
-          credentialConfigured: existing !== null,
-          fileCount: preview.fileCount,
-          totalBytes: preview.totalBytes,
-          paths: preview.paths,
-          folder: command.folder,
-          entryPath: prefixRepositoryPath({ folder: command.folder, path: LANDING_FILE }),
-          note: "Nothing was sent. Call again without dryRun to commit.",
-        };
-      }
-
-      // Never decrypts — a plain repo read, same "presence only" contract `source_control_get_capabilities`
-      // relies on. Checked before raising any dialog so a guaranteed-fail call never wastes a human's
-      // attention.
-      const existing = await findConfiguredCredential({ deps, providerId: command.provider });
-      if (!existing) {
-        return {
-          committed: false,
-          reason: "no-credential",
-          message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
-        };
-      }
-      const commitAdapter = await resolveCommitAdapter(deps, command.provider);
-      if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
-
-      // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.
-      if (ctx.signal.aborted) return { committed: false, cancelled: false, reason: "abandoned" };
-      const outcome = await commitSiteToSourceControl(
-        { providerId: existing.providerId, supportsFolder: host.supportsFolder === true, credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
-          resolveSavedApiKey: (input, options = {}) => resolveSavedApiKey({ deps, ...input }, options),
-        }, gitAdapter: commitAdapter.adapter, ...(host.validateTarget ? { validateTarget: host.validateTarget } : {}) },
-        commitInput({ deps, command })
-      );
-
-      return buildCommitOutcomeResult(outcome);
-
-    },
+    source_control_execute_commit: async (ctx) => executeSourceControlCommit({ deps, ctx }),
   };
 
   // No `unwiredToolIds`: this domain wires its ENTIRE catalog — a 3rd catalog entry added without a

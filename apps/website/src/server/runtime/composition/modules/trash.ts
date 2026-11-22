@@ -23,11 +23,11 @@ import type { ServerModuleHandle } from "./types.js";
 export function createTrashModule(deps: TrashRouteDeps): ServerModuleHandle {
   return {
     name: "trash",
-    registerRoutes: (app) => {
-      registerAdminTrashListRoute(app, deps);
-      registerAdminTrashRestoreRoute(app, deps);
-      registerAdminTrashPurgeRoute(app, deps);
-      registerAdminTrashMoveToTrashRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminTrashListRoute({ app, deps });
+      registerAdminTrashRestoreRoute({ app, deps });
+      registerAdminTrashPurgeRoute({ app, deps });
+      registerAdminTrashMoveToTrashRoute({ app, deps });
     },
   };
 }

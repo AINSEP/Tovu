@@ -7,8 +7,9 @@ import test, { type TestContext } from "node:test";
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
-import { discoverAllBuiltInThemes } from "../theme.js";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
+import { buildThemesRegistrations } from "../tool-registrations.js";
+import { type ThemeToolDeps } from "../asset-operations.js";
 
 /**
  * @file Demo 2026-11-02 exposed theme overwrites with no undo; the retained revision fixes that.

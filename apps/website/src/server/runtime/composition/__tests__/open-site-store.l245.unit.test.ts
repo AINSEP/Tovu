@@ -19,14 +19,12 @@ for (const scenario of [
     t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 1000 });
     const customSocket = path.join(siteDir, "custom-socket");
     const socketPath = scenario.socketEnv === "custom" ? customSocket :
-      path.join(defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME)), PGLITE_SOCKET_FILE);
+      path.join(defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) }), PGLITE_SOCKET_FILE);
     const env = scenario.socketEnv === "absent" ? {} : { [PG_SOCKET_ENV]: scenario.socketEnv === "blank" ? "   " : ` ${customSocket} ` };
     let settled = false;
     const opening = openSiteStore({ storage: { kind: "pglite" }, dbPath: path.join(siteDir, "content.db"),
       chatDbPath: path.join(siteDir, "chat.db"), role: "client" }, { env, pgliteClientWaitMs: scenario.waitMs });
-    const rejected = assert.rejects(opening, new StorageNotAvailableError(
-      `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry`
-    ));
+    const rejected = assert.rejects(opening, new StorageNotAvailableError({ message: `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry` }));
     void opening.catch(() => { settled = true; });
     // Advance one poll at a time: the next poll is scheduled after the await resumes.
     for (let elapsed = 0; elapsed < scenario.duration; elapsed += 200) {

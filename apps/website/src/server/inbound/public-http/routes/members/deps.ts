@@ -6,7 +6,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  *
  * Purpose:
  * `MemberPublicRouteDeps` is deliberately NARROWER than
- * `routes/admin/members/deps.ts`'s `MembersRouteDeps` — no `authorize`, no
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `MembersRouteDeps` — no `authorize`, no
  * admin session dependency at all. This route family
  * (`POST .../sign-in`, `POST .../sign-in/complete`) must stay unauthenticated
  * by design (ADR-030 §3): a visitor has no admin session, and must never be
@@ -14,7 +14,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
  *
  * Architectural role:
  * Composition-boundary glue only — no business logic. Mirrors
- * `routes/admin/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
+ * `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` helper.
  */
 import type {
   MagicLinkTokenRepoPort,
@@ -26,7 +26,7 @@ import type {
   MembersWriteServiceDeps,
 } from "#src/features/members/index";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
@@ -73,9 +73,10 @@ export interface MemberPublicRouteDeps extends VisitorAnalyticsDeps {
 
 /** Assemble the `MembersWriteServiceDeps` bundle from `MemberPublicRouteDeps`. */
 export function toPublicMembersWriteServiceDeps(deps: MemberPublicRouteDeps, optional: { request?: Request } = {}): MembersWriteServiceDeps {
+  const request = optional.request;
   return {
-    onMemberCreated: optional.request ? ({ workspaceId, memberId, creationSource, initialState }) => {
-      void captureVisitorEvent({ deps, request: optional.request!, name: "member_registered", properties: {
+    onMemberCreated: request ? ({ workspaceId, memberId, creationSource, initialState }) => {
+      void captureVisitorEvent({ deps, request, name: "member_registered", properties: {
         eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
       } }, { subjectId: `member:${workspaceId}:${memberId}` });
     } : undefined,

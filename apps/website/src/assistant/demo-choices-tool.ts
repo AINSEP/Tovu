@@ -1,7 +1,9 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildFormSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildUIToolResult } from "./mcp-ui.js";
 import {
@@ -53,15 +55,6 @@ import {
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
 export const DEMO_CHOICES_TOOL_ID = "assistant_demo_choices";
-
-/** Mirrors each domain's own local catalog interface — see `features/post/agent-tools.ts:120`. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 export const demoChoicesAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -230,15 +223,15 @@ async function awaitDemoChoicesSubmission(input: {
 /**
  * Builds this tool's registration unconditionally; see the module header.
  *
- * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * @param required._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
- * @param surfaces - Supplies the exchange store. Must be the same instance
+ * @param required.surfaces - Supplies the exchange store. Must be the same instance
  * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
  * @returns A single registration.
  */
 export function buildDemoChoicesRegistrations(
-  _routeDeps: unknown,
-  surfaces: AssistantSurfaceDeps,
+  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
+  _optional = {},
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [DEMO_CHOICES_TOOL_ID]: async (ctx, { emitSurface } = {}) => {

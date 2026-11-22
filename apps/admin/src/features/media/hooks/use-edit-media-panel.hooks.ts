@@ -2,14 +2,16 @@ import { useMemo, useRef, useState } from "react";
 
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
-import { describeApiError, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
 import {
   KEYS,
   describeMediaHtmlAttributeError,
   diffMediaMetadata,
   mediaCreatedByLabel,
-  parseMediaHtmlAttributes,
   parseOptionalPixelSize,
   type MediaMetadataPatch,
 } from "../rules";
@@ -187,10 +189,10 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setDraft((d) => ({ ...d, credit: value }));
   }
   function setWidth(value: string) {
-    setDraft((d) => ({ ...d, width: parseOptionalPixelSize(value) }));
+    setDraft((d) => ({ ...d, width: parseOptionalPixelSize({ value }) }));
   }
   function setHeight(value: string) {
-    setDraft((d) => ({ ...d, height: parseOptionalPixelSize(value) }));
+    setDraft((d) => ({ ...d, height: parseOptionalPixelSize({ value }) }));
   }
   function setCssClass(value: string) {
     setDraft((d) => ({ ...d, cssClass: value.trim() === "" ? null : value }));
@@ -199,9 +201,9 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setDraft((d) => ({ ...d, htmlAttributes: value.trim() === "" ? null : value }));
   }
 
-  const htmlAttributesParsed = parseMediaHtmlAttributes(draft.htmlAttributes ?? "");
+  const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "", policy: embedPolicy });
   const htmlAttributesError = htmlAttributesParsed.error
-    ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
+    ? describeMediaHtmlAttributeError({ error: htmlAttributesParsed.error, locale })
     : null;
 
   async function copyHash() {
@@ -255,7 +257,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     }
   }
 
-  const error = saveMutation.error ? describeApiError(saveMutation.error, t({ locale: locale, key: "failed to save media metadata" })) : null;
+  const error = saveMutation.error ? describeApiError({ e: saveMutation.error, fallback: t({ locale: locale, key: "failed to save media metadata" }) }) : null;
 
   const creators = useFetchQuery({
     key: ["media", "creator-names"],

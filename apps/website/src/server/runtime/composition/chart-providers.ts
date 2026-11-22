@@ -13,8 +13,10 @@ export function chartProviderAssetUrl(
   { workspaceId, provider, asset }: { workspaceId: string; provider: AdmittedBrowserProvider; asset: BrowserProviderAsset },
   _options: Record<string, never> = {},
 ): string {
+  const filename = asset.path.split("/").at(-1);
+  if (filename === undefined) throw new Error("chart provider asset has no filename");
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/chart-providers/assets/` +
-    [provider.pluginId, provider.version, asset.digest, asset.path.split("/").at(-1)!].map(encodeURIComponent).join("/");
+    [provider.pluginId, provider.version, asset.digest, filename].map(encodeURIComponent).join("/");
 }
 
 /** The site's chart preference: a stored (operator-set) value wins; otherwise the provider the host
@@ -26,7 +28,7 @@ async function readSiteChartProvider(
   { workspaceId, settingsRepo, defaultProvider }: { workspaceId: string; settingsRepo: SettingsRepoPort; defaultProvider: string | undefined },
   _options: Record<string, never> = {},
 ): Promise<string> {
-  const setting = await getEffective({ repo: settingsRepo }, { namespace: "core.charts", key: "provider", scopeContext: { workspaceId } });
+  const setting = await getEffective({ deps: { repo: settingsRepo }, namespace: "core.charts", key: "provider", scopeContext: { workspaceId } });
   const stored = setting?.sourceLayer !== "default" && typeof setting?.value === "string" ? setting.value : undefined;
   return stored ?? defaultProvider ?? CHART_TABLE_PROVIDER;
 }
@@ -49,7 +51,8 @@ export async function readAdminChartProviderSnapshot(
   const siteProvider = await readSiteChartProvider({ workspaceId, settingsRepo, defaultProvider });
   const admitted = browserProviders({});
   const providers = admitted.providers.map((provider) => {
-    const javascript = provider.assets.find((asset) => asset.path === provider.declaration.javascript)!;
+    const javascript = provider.assets.find((asset) => asset.path === provider.declaration.javascript);
+    if (!javascript) throw new Error(`chart provider ${provider.pluginId} has no declared JavaScript asset`);
     const stylesheet = provider.assets.find((asset) => asset.path === provider.declaration.stylesheet);
     return { id: provider.declaration.id, kinds: provider.declaration.kinds,
       javascript: chartProviderAssetUrl({ workspaceId, provider, asset: javascript }),

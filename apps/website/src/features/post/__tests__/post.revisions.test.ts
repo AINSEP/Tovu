@@ -2,16 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import {
-  createPost,
-  deletePost,
-  updatePost,
-  SYSTEM_ACTOR_ID,
-  type PostRecord,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost } from "../post-trash.js";
+import { updatePost } from "../post-update.js";
+import { SYSTEM_ACTOR_ID, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";
@@ -57,8 +53,8 @@ function seed(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 const ADAPTERS: Array<{ name: string; make: () => PostRepoPort }> = [
-  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo() },
-  { name: "SqlitePostRepo", make: () => new SqlitePostRepo(openContentDb(":memory:")) },
+  { name: "InMemoryPostRepo", make: () => new InMemoryPostRepo({}) },
+  { name: "SqlitePostRepo", make: () => new SqlitePostRepo({ store: openContentDb(":memory:") }) },
   { name: "PglitePostRepo", make: () => makePglitePostRepo().repo },
 ];
 
@@ -361,7 +357,7 @@ function withThrowingAppendRevision(inner: PostRepoPort): PostRepoPort {
       throw new Error("simulated appendRevision failure");
     },
     listRevisions: (r) => inner.listRevisions(r),
-    transaction: (fn) => inner.transaction(fn),
+    transaction: ({ fn }) => inner.transaction({ fn }),
   };
 }
 

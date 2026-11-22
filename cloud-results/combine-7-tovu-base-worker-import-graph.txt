@@ -1,0 +1,826 @@
+✖ handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports (1665.235902ms)
+✖ handlebars-worker.ts loads no database, blob-store or agent packages (5809.262381ms)
+✖ liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports (1192.026967ms)
+✖ liquid-worker.ts loads no database, blob-store or agent packages (5564.493899ms)
+✔ source graph follows unexecuted production edges: import "./leaf.js"; (2.268019ms)
+✔ source graph follows unexecuted production edges: export * from "./leaf.js"; (1.215625ms)
+✔ source graph follows unexecuted production edges: function deferred() { return require("./leaf.js"); } (1.028337ms)
+✔ source graph follows unexecuted production edges: function deferred() { return import("./leaf.js"); } (0.998463ms)
+✔ source graph follows executable imports inside TSX instead of treating JSX text as code (2.935306ms)
+✔ source graph inspects conditional ESM executables behind declarations: import "conditional-leaf"; (4.575879ms)
+✔ source graph inspects conditional ESM executables behind declarations: export * from "conditional-leaf"; (1.836255ms)
+✔ source graph inspects conditional ESM executables behind declarations: function deferred() { return import("conditional-leaf"); } (4.498017ms)
+✔ source graph refuses executable edges that resolve only to declarations (2.415024ms)
+✖ public page requests do not load feature-wide barrels or assistant tools (8826.600613ms)
+✖ ../../routes/site/products.ts keeps public reads separate from feature-wide write/tool barrels (2227.322742ms)
+✔ ../../routes/site/media-rendition.ts keeps public reads separate from feature-wide write/tool barrels (2501.602451ms)
+✖ ../../routes/site/member-pages.ts keeps public reads separate from feature-wide write/tool barrels (2094.49082ms)
+✔ ../../routes/content/posts/get-by-slug.ts keeps public reads separate from feature-wide write/tool barrels (270.633168ms)
+✔ ../../middleware/site-consent.ts keeps public reads separate from feature-wide write/tool barrels (203.386667ms)
+✔ ../../middleware/theme-preview-switcher.ts keeps public reads separate from feature-wide write/tool barrels (440.208577ms)
+✔ ../../http/shared/post.ts keeps public reads separate from feature-wide write/tool barrels (136.150888ms)
+✔ ../../routes/site/feed.ts keeps public reads separate from feature-wide write/tool barrels (323.35416ms)
+✔ ../../middleware/theme-static-assets.ts keeps public reads separate from feature-wide write/tool barrels (334.829678ms)
+✔ ../../middleware/theme-preview-refresh.ts keeps public reads separate from feature-wide write/tool barrels (1685.561693ms)
+✔ ../../routes/plugin-contributions.ts keeps public reads separate from feature-wide write/tool barrels (1520.797863ms)
+✔ visitor publication uses narrow package entries on public HTML responses (326.012866ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 19
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36119.382399
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:16:247
+✖ handlebars-worker.ts source graph contains no @jini-ai package roots, including deferred imports (1665.235902ms)
+  AssertionError [ERR_ASSERTION]: cannot resolve production edge /home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/utils.js -> canvas
+      at resolveProductionImports (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:45:10)
+      at sourceRootBarrelImports (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:65:24)
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:140:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:17:29
+✖ handlebars-worker.ts loads no database, blob-store or agent packages (5809.262381ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core
+  /home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core
+  /apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core
+  /apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core
+  /apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core
+  /apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core
+  /apps/website/src/features/media/original-bytes.ts -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:148:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      '/home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core',                   '/home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',                         '/home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core',                  '/home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core',
+      '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core',          '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core',                        '/home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core',                              '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+      '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',              '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core',                              '/home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core',
+      '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',                    '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+      '/home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core',             '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core',
+      '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core',              '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core',
+      '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',                  '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core',                   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core',
+      '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core',      '/home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core',
+      '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core',        '/home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol',                   '/home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol',                 '/home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol',                  '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol',                  '/home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol',             '/home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core',               '/home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core',                     '/home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core',                         '/home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core',           '/home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core',            '/home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core',                        '/home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core',          '/home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core',      '/home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core',              '/home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core',    '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core',                '/home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core',                 '/home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime', '/home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core',                     '/home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core',                      '/home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol',                     '/home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core',                             '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol',                           '/home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol',                '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol',                        '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol',                      '/home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core',                             '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core',              '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol',                            '/home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core',                                  '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol',                              '/home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol',            '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol',         '/home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core',                     '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core'
+    ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:16:247
+✖ liquid-worker.ts source graph contains no @jini-ai package roots, including deferred imports (1192.026967ms)
+  AssertionError [ERR_ASSERTION]: cannot resolve production edge /home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/utils.js -> canvas
+      at resolveProductionImports (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:45:10)
+      at sourceRootBarrelImports (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:65:24)
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:140:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:17:29
+✖ liquid-worker.ts loads no database, blob-store or agent packages (5564.493899ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts loaded @jini-ai root barrels; use narrow export subpaths:
+  /home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core
+  /home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core
+  /apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core
+  /apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core
+  /apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core
+  /apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core
+  /apps/website/src/features/media/original-bytes.ts -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime',
+  +   '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol',
+  +   '/home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core',
+  +   '/home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core',
+  +   '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:148:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [
+      '/home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core',                   '/home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core',                         '/home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core',                  '/home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core',
+      '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core',          '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core',                        '/home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core',                              '/home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core',
+      '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',              '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core',                              '/home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core',
+      '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',                    '/home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core',
+      '/home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core',             '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core',
+      '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core',              '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core',
+      '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',                  '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+      '/home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core',                   '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core',
+      '/home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core',      '/home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core',
+      '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core',        '/home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol',                   '/home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol',                 '/home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol',                  '/home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol',                  '/home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol',             '/home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core',               '/home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core',                     '/home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core',                         '/home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core',           '/home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core',            '/home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core',                        '/home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core',          '/home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core',      '/home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core',              '/home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core',    '/home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core',
+      '/home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core',                '/home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core',                 '/home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime', '/home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core',                     '/home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core',                      '/home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol',                     '/home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core',                             '/home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol',                           '/home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol',                '/home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol',                        '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol',                      '/home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core',                             '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core',              '/home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol',                            '/home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core',                                  '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime',
+      '/home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol',                              '/home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol',
+      '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol',            '/home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol',         '/home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core',
+      '/home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core',                     '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core'
+    ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:19:1970
+✖ public page requests do not load feature-wide barrels or assistant tools (8826.600613ms)
+  AssertionError [ERR_ASSERTION]: public page requests loaded @jini-ai root barrels:
+  /home/user/Jini/packages/cms/dist/core/commands/command.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/entity-liveness.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/tools/args.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/keyset-cursor.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/seo/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/platform/dist/web/web-page.js -> @jini-ai/core
+  /apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core
+  /apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/list-page.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/media/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/diagnostics/dist/core/secrets-only.js -> @jini-ai/core
+  /home/user/Jini/packages/integrations/dist/api-connections/connect.js -> @jini-ai/core
+  /apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/secret-card.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/tool-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/ui/dist/features/mcp-ui/surfaces/access-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/surface-exchanges.js -> @jini-ai/core
+  /apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/cancel-owned-runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/active-context.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/host-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/resource-request.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/runs.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/delegated-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-timers.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/run-lifecycle-transitions.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/tool-executor-approval.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-authorization.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-executor-handler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/delegated-tool-bridge.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/tool-result-media.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/remote-tool-executor.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/mcp-bridge-probe.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/launch.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/agent-runtime/dist/providers/model-catalog.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-guard.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/diagnostics.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/claude-stream-frames.js -> @jini-ai/protocol
+  /home/user/Jini/packages/agent-runtime/dist/providers/connection-test.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/anthropic-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/openai-chat-request.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/google-messages.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/ollama-chat.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/pkce.js -> @jini-ai/oauth
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-callback-server.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/oauth-tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/agent-runtime/dist/providers/tool-turn.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/model-receipts.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/run-output.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/agent-executor/child-stream-events.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/agent-executor/claude/filesystem.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/tokens.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/legacy-data-migration.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/routines/scheduler.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/core/read-only-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/health.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/memory.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/routines.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/db-ops.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/component-catalog.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/remote-run-events.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/terminals.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/model-proxy.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/connectors.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/research-tavily.adapter.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/research.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/media.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/attachments.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/agent-runtime
+  /home/user/Jini/packages/daemon/dist/http/xai.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/tool-execution-caller.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/attachment-lookup-routes.js -> @jini-ai/protocol
+  /home/user/Jini/packages/daemon/dist/http/frontend-guest-scope.js -> @jini-ai/core
+  /home/user/Jini/packages/daemon/dist/http/surface-callback.js -> @jini-ai/core
+  /apps/website/src/features/media/original-bytes.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/html-widget-embeds.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/config-validation.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/core/form-collection.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/entry-payload.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/document-embed-refs.js -> @jini-ai/core
+  /apps/website/src/features/post/expected-version.ts -> @jini-ai/core
+  /apps/website/src/platform/db/sqlite/content-db.ts -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/content-types/errors.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/content-types/cleanup.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/content-types/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/entries/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/embed-service.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/agent-tools.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/tool-handlers.areas.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/widgets/tool-handlers.instances.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/navigation/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/cms/dist/navigation/tool-registrations.js -> @jini-ai/core
+  /home/user/Jini/packages/plugins/dist/host/contributions.js -> @jini-ai/core
+  /home/user/Jini/packages/plugins/dist/host/tool-contributions.js -> @jini-ai/core
+  /home/user/Jini/packages/plugins/dist/host/capability-tools.js -> @jini-ai/core
+  + actual - expected
+  
+  + [
+  +   '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core',
+  +   '/apps/website/src/features/post/expected-version.ts -> @jini-ai/core',
+  +   '/apps/website/src/platform/db/sqlite/content-db.ts -> @jini-ai/core'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:243:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/apps/website/src/features/theme/reviewed-write-commit.ts -> @jini-ai/core', '/apps/website/src/features/theme/preview-refresh.ts -> @jini-ai/core', '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core', '/apps/website/src/features/theme/page-publish-tool.ts -> @jini-ai/core', '/apps/website/src/features/media/library-save-attachment.ts -> @jini-ai/core', '/apps/website/src/contracts/core/chat-delete-grant.ts -> @jini-ai/core', '/apps/website/src/contracts/core/tool-metadata/index.ts -> @jini-ai/core', '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core', '/apps/website/src/contracts/core/human-confirm.ts -> @jini-ai/core', '/apps/website/src/features/media/promote-chat-attachment.ts -> @jini-ai/core', '/apps/website/src/features/media/original-bytes.ts -> @jini-ai/core', '/apps/website/src/features/post/expected-version.ts -> @jini-ai/core', '/apps/website/src/platform/db/sqlite/content-db.ts -> @jini-ai/core' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:21:465
+✖ ../../routes/site/products.ts keeps public reads separate from feature-wide write/tool barrels (2227.322742ms)
+  AssertionError [ERR_ASSERTION]: ../../routes/site/products.ts loaded feature barrels:
+  /apps/website/src/features/theme/index.ts
+  /apps/website/src/features/media/index.ts
+  /apps/website/src/features/post/index.ts
+  + actual - expected
+  
+  + [
+  +   '/apps/website/src/features/theme/index.ts',
+  +   '/apps/website/src/features/media/index.ts',
+  +   '/apps/website/src/features/post/index.ts'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:260:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/apps/website/src/features/theme/index.ts', '/apps/website/src/features/media/index.ts', '/apps/website/src/features/post/index.ts' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:21:465
+✖ ../../routes/site/member-pages.ts keeps public reads separate from feature-wide write/tool barrels (2094.49082ms)
+  AssertionError [ERR_ASSERTION]: ../../routes/site/member-pages.ts loaded feature barrels:
+  /apps/website/src/features/theme/index.ts
+  /apps/website/src/features/media/index.ts
+  /apps/website/src/features/post/index.ts
+  + actual - expected
+  
+  + [
+  +   '/apps/website/src/features/theme/index.ts',
+  +   '/apps/website/src/features/media/index.ts',
+  +   '/apps/website/src/features/post/index.ts'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:260:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/apps/website/src/features/theme/index.ts', '/apps/website/src/features/media/index.ts', '/apps/website/src/features/post/index.ts' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

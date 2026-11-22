@@ -27,6 +27,7 @@ import {
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { MemberConflictError, MemberAuthError } from "../types.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-members-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -72,7 +73,7 @@ async function buildHarness(routeDeps: MembersToolDeps) {
 type Harness = Awaited<ReturnType<typeof buildHarness>>;
 
 async function call(harness: Harness, toolId: string, input: unknown) {
-  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: harness });
+  return delegatedToolExecuteRoute.handle({ input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input }, deps: { ...harness, reportInternalError: reportRouteInternalError } });
 }
 
 test("members_get_by_id for an unknown member is BAD_REQUEST with the real not-found reason, not a redacted 500", async () => {
@@ -199,7 +200,7 @@ test("list, get, disable and magic-link success preserve the model-facing payloa
   const deps = makeRouteDeps();
   await seedMember(deps);
   const harness = await buildHarness(deps);
-  assert.deepEqual(output(await call(harness, "members_list", {})), { members: [MEMBER_VIEW] });
+  assert.deepEqual(output(await call(harness, "members_list", {})), { members: [MEMBER_VIEW], nextCursor: null });
   assert.deepEqual(output(await call(harness, "members_get_by_id", { memberId: "m-1" })), { member: MEMBER_VIEW });
   const disabled = { ...MEMBER_VIEW, status: "disabled", updatedAt: NOW, version: 4 };
   assert.deepEqual(output(await call(harness, "members_disable", { memberId: "m-1" })), { member: disabled });
@@ -236,7 +237,7 @@ test("magic-link limiter shares normalized email budget and authorization denial
 test("a repository conflict is model-facing while an unexpected auth error remains redacted", async () => {
   for (const [error, expected] of [
     [new MemberConflictError("member update conflicted"), { code: "BAD_REQUEST", message: "MEMBERS_CONFLICT: member update conflicted" }],
-    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "an internal error occurred" }],
+    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." }], // Jini daemon delegated-tools.ts (44ae8070): fixed server-fault guidance
   ] as const) {
     const deps = makeRouteDeps();
     deps.memberRepo.findById = async () => { throw error; };
@@ -254,7 +255,8 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
   await seedMember(deps);
   const harness = await buildHarness(deps);
 
-  for (const limit of [-5, 0, 1.5]) {
+  // -5 and 0 are repaired to the nearest bound by the declared clamp (below); only a non-integer is refused.
+  for (const limit of [1.5, 2.5, -0.5]) {
     const result = await call(harness, "members_list", { limit });
     assert.equal(result.ok, false);
     if (result.ok) return;
@@ -265,8 +267,31 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
   if (unknown.ok) return;
   assert.deepEqual(unknown.error, { code: "BAD_REQUEST", message: "unknown afterId 'ghost'" });
 
-  assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [] });
-  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW] });
+  assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [], nextCursor: null });
+  // Declared clamp: an out-of-range page size runs at the nearest bound and says so, instead of being refused
+  // (the original fault was `-5 reads as an empty page`; it now reads as a page of one).
+  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW], nextCursor: null, normalizationNotes: ["limit was lowered to its maximum, 100"] });
+  for (const limit of [-5, 0]) {
+    assert.deepEqual(output(await call(harness, "members_list", { limit })), { members: [MEMBER_VIEW], nextCursor: null, normalizationNotes: ["limit was raised to its minimum, 1"] });
+  }
+});
+
+// REGRESSION (refactor pattern list-cursor): a full page came back as a bare array, so the model read
+// the first 100 members as "all members" and could not reach the rest.
+test("members_list says when the list is incomplete and its nextCursor reaches the rest", async () => {
+  const deps = makeRouteDeps();
+  await seedMember(deps);
+  await deps.memberRepo.save({ ...MEMBER_VIEW, id: "m-2", email: "bob@example.com", workspaceId: WORKSPACE_ID, note: "", fields: {} });
+  const harness = await buildHarness(deps);
+
+  const first = output(await call(harness, "members_list", { limit: 1 })) as { members: { id: string }[]; nextCursor: string | null; more?: string };
+  assert.deepEqual(first.members.map((member) => member.id), ["m-1"]);
+  assert.equal(typeof first.nextCursor, "string");
+  assert.match(first.more ?? "", /NOT the full list.*members_list.*nextCursor/);
+  const second = output(await call(harness, "members_list", { limit: 1, cursor: first.nextCursor })) as { members: { id: string }[]; nextCursor: string | null; more?: string };
+  assert.deepEqual(second.members.map((member) => member.id), ["m-2"]);
+  assert.equal(second.nextCursor, null);
+  assert.equal(second.more, undefined);
 });
 
 
@@ -333,11 +358,30 @@ test("member create and update reject invalid input and denied permission withou
     const result = await call(await buildHarness(deps), toolId, input);
     assert.equal(result.ok, false);
     if (!result.ok) assert.deepEqual(result.error, { code: "BAD_REQUEST", message });
-    assert.deepEqual((await deps.memberRepo.list({ workspaceId: WORKSPACE_ID })).map(member => member.id), ["m-1"]);
+    assert.deepEqual((await deps.memberRepo.list({ workspaceId: WORKSPACE_ID })).items.map(member => member.id), ["m-1"]);
     assert.equal((await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" }))?.version, 3);
     deps.authorize = async () => ({ allowed: false, reason: "insufficient_permission" });
     const denied = await call(await buildHarness(deps), toolId, input);
     assert.equal(denied.ok, false);
     if (!denied.ok) assert.equal(denied.error.message, "MEMBERS_FORBIDDEN: principal 'principal-1' is not authorized for 'member.manage' (insufficient_permission)");
   }
+});
+
+// REGRESSION (Stop before write): Stop pressed while the permission check is in flight used to let
+// the rename go through while the executor reported the call as cancelled.
+test("members_update_profile leaves the member unchanged when Stop lands during the permission check", async () => {
+  const controller = new AbortController();
+  const deps: MembersToolDeps = {
+    ...makeRouteDeps(),
+    authorize: async () => { controller.abort(); return { allowed: true, reason: "matched" }; },
+  };
+  await seedMember(deps);
+  const { run, toolExecutor } = await buildHarness(deps);
+  const result = await toolExecutor.execute(
+    { principal: { id: PRINCIPAL_ID }, run, toolId: "members_update_profile", input: { memberId: "m-1", name: "Renamed after Stop" } },
+    { signal: controller.signal },
+  );
+  assert.equal(result.status, "cancelled");
+  const stored = await deps.memberRepo.findById({ workspaceId: WORKSPACE_ID, id: "m-1" });
+  assert.equal(stored?.name, MEMBER_VIEW.name, "a stopped call must not have renamed the member");
 });

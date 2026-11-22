@@ -1,0 +1,30 @@
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ lists a target from an enabled, Tovu-bundled plugin and builds a working DeployTarget from its module (96.084739ms)
+✔ refuses a plugin whose installed digest is not the one Tovu shipped (26.705288ms)
+✔ refuses a module path that escapes the plugin root (29.403676ms)
+✔ refuses a module that is not an .mjs file, so no host package.json can turn it into CommonJS (35.756319ms)
+✔ a disabled bundled plugin contributes nothing and is not an error (40.633824ms)
+✔ an unreadable activation record fails CLOSED with its reason (30.950227ms)
+Plugin 'plain-skill' has no publisher-qualified id; using 'unknown/plain-skill'.
+✔ plugins without a deploy-targets file are ignored entirely (32.888637ms)
+✔ a malformed descriptor drops that plugin with the parse reason (33.905673ms)
+✔ a module without create() is refused and its siblings still load (30.867051ms)
+✔ a module that throws on import is refused with the error message (36.024729ms)
+Plugin 'other-deploy' has no publisher-qualified id; using 'unknown/other-deploy'.
+✔ two bundled plugins declaring the same target id: neither is used (99.899202ms)
+✔ an altered installation is refused even when the original bundled digest is recorded (43.658082ms)
+Plugin 'zeta-deploy' has no publisher-qualified id; using 'unknown/zeta-deploy'.
+Plugin 'alpha-deploy' has no publisher-qualified id; using 'unknown/alpha-deploy'.
+✔ installed targets list in plugin-id order, not install order (52.93651ms)
+✔ the bundled source registry is the union of every plugin dir that ships targets, in plugin-id order (7.736479ms)
+✔ the bundled source registry skips retired ids and dirs without a plugin.json (10.92668ms)
+✔ the bundled source registry drops a target id two plugin dirs both declare (14.057395ms)
+✔ the product's own bundled plugins load every host with no refusal (no target left in two plugins) (35.16809ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2668.025162

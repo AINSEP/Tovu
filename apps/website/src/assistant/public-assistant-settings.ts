@@ -4,7 +4,7 @@ import { type SettingsRepoPort, type AuthorizeFn } from "../features/settings/in
 
 /**
  * @file The master on/off switch for the VISITOR-FACING assistant, on the ADR-028 Settings Layered
- * Ledger. Mirrors `src/seo/settings.ts` and `src/comments/settings.ts` exactly — same idempotent
+ * Ledger. Mirrors `apps/website/src/features/seo/settings.ts` and `apps/website/src/features/comments/settings.ts` exactly — same idempotent
  * boot-time definition registration, same `getEffective` read, same validate-then-`set()` write —
  * applied to the visitor switch and its renderer choice.
  * The clock contract and its rationale live in Jini core/primitives; the supplied clock is forwarded directly.
@@ -33,7 +33,7 @@ import { type SettingsRepoPort, type AuthorizeFn } from "../features/settings/in
  * Turning it on is a deliberate act.
  *
  * NOT the admin assistant. The admin dock (`apps/admin`'s `AssistantDock`, proxied by
- * `server/modules/assistant.ts` to the agent daemon) sits behind `requireAdminSession` and is
+ * `apps/website/src/server/runtime/composition/modules/assistant.ts` to the agent daemon) sits behind `requireAdminSession` and is
  * unaffected by this switch — an operator who disables the public assistant keeps their own. The key
  * is named `public_enabled` rather than `enabled` precisely so that boundary is legible at the call
  * site.
@@ -50,7 +50,7 @@ type GetEffective = typeof import("@jini-ai/core/settings").getEffective;
 type SetSettingValue = typeof import("@jini-ai/core/settings").set;
 
 /**
- * ADR-028's namespace owner fence (`features/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
+ * ADR-028's namespace owner fence (`Jini packages/core/src/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
  * every `ownerKind: "site"` definition to live under `site.` — the same constraint `site.seo` and
  * `site.comments` carry, and the same one a bare `"assistant"` would fail at the write chokepoint.
  */
@@ -136,8 +136,7 @@ export async function getPublicAssistantSettings(
 ): Promise<PublicAssistantSettings> {
   const publicEnabled = await isPublicAssistantEnabled(deps, input);
   const widget = await deps.getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: ASSISTANT_NAMESPACE, key: "widget", scopeContext: { workspaceId: input.workspaceId } }
+    { deps: { repo: deps.settingsRepo }, namespace: ASSISTANT_NAMESPACE, key: "widget", scopeContext: { workspaceId: input.workspaceId } },
   );
   return { publicEnabled, widget: widget?.value === "vanilla" ? "vanilla" : "react" };
 }
@@ -160,8 +159,7 @@ export async function isPublicAssistantEnabled(
 ): Promise<boolean> {
   // The endpoint's kill-switch check needs only this field; do not add a widget lookup to each turn.
   const resolved = await deps.getEffective(
-    { repo: deps.settingsRepo },
-    { namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } }
+    { deps: { repo: deps.settingsRepo }, namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } },
   );
   return resolved?.value === true;
 }

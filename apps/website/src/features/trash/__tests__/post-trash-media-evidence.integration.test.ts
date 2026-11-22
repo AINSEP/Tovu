@@ -9,7 +9,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { createPost } from "#src/features/post/index";
-import { getMediaAccessEvidenceCache } from "#src/features/media/access-evidence";
+import { getMediaAccessEvidenceCache } from "#src/platform/media-access-evidence";
 import { POST_ENTITY_TYPE } from "../adapters/post.js";
 
 /**
@@ -22,12 +22,12 @@ test("Trash hide and restore clear the media access evidence once they commit", 
   await initSite({ dir, name: "Trash Evidence Site" });
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
-    db: boot.db, workspaceId: boot.workspaceId, onStoreOpened: store => { composed = store; },
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
+    db: boot.db, workspaceId: boot.workspaceId, onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Trash Evidence Site", dirOverridden: true, switcherCompatible: false },
-  });
-  t.after(async () => { await closeSiteDirBoot(boot, composed); fs.rmSync(parent, { recursive: true, force: true }); });
+  } });
+  t.after(async () => { await closeSiteDirBoot(boot, { composed }); fs.rmSync(parent, { recursive: true, force: true }); });
 
   const workspaceId = boot.workspaceId;
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId, id: "gated-post", title: "Gated", slug: "gated-post", kind: "post" } });

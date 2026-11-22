@@ -1,4 +1,6 @@
-import type { AdminContentType, AdminFormDefinition, AdminMenu } from "../../lib/api";
+import type { AdminContentType } from "../../features/collections/api/collections-api.types";
+import type { AdminMenu } from "../../features/menus/api/menus-api.types";
+import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 
 /**
  * @file What `WidgetConfigFields.tsx`'s `MenuConfigFields`/`ContactFormConfigFields`/

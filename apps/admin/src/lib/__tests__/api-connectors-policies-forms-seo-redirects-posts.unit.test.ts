@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isAdminDevServerOrigin } from "../admin-dev-origin";
-import { ApiError, api } from "../api";
+import { rolesApi } from "../../features/roles/api/roles-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { formsApi } from "../../features/forms/api/forms-api";
+import { ApiError } from "../admin-http/request";
 
 // `templatePreviewUrl` routes through `lib/site-url.ts`, which now asks whether the page is actually
 // on the admin dev server's own origin before absolutizing. Mocked rather than driven through
@@ -69,14 +72,14 @@ describe("posts", () => {
     const { calls, method } = stubFetchCapturing(() =>
       jsonResponse({ posts: [{ post: { id: "p1", kind: "post" } }] })
     );
-    await expect(api.listPosts()).resolves.toEqual({ posts: [{ post: { id: "p1", kind: "post" } }] });
+    await expect(postsApi.listPosts()).resolves.toEqual({ posts: [{ post: { id: "p1", kind: "post" } }] });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts`);
     expect(method()).toBe("GET");
   });
 
   test("createPost POSTs { title } and resolves the created post", async () => {
     const { body, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", title: "Hello" } }));
-    await expect(api.createPost({ title: "Hello" })).resolves.toEqual({ post: { id: "p1", title: "Hello" } });
+    await expect(postsApi.createPost({ title: "Hello" })).resolves.toEqual({ post: { id: "p1", title: "Hello" } });
     expect(body()).toEqual({ title: "Hello" });
     expect(method()).toBe("POST");
   });
@@ -84,14 +87,14 @@ describe("posts", () => {
   test("createPost forwards the first-save document and metadata in the same POST", async () => {
     const { body, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1" } }));
     const fields = { bodyJson: { type: "doc" }, templateChoice: "post.html", publishAt: "2030-01-01T00:00:00.000Z", hideCoverImageInBody: false };
-    await api.createPost({ title: "Hello", ...fields });
+    await postsApi.createPost({ title: "Hello", ...fields });
     expect(body()).toEqual({ title: "Hello", ...fields });
     expect(method()).toBe("POST");
   });
 
   test("getPost GETs the post by id, encodeURIComponent-applied like templatePreviewUrl", async () => {
     const { calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "a/b" } }));
-    await api.getPost("a/b");
+    await postsApi.getPost({ id: "a/b" });
     // Was pinned as raw/unencoded (`.../posts/a/b`) — fixed 2026-09-05 (`fix-apienc` dispatch) for
     // consistency with templatePreviewUrl and the rest of this sweep; see
     // `api-id-url-encoding.unit.test.ts` for the full id-encoding coverage this fix added.
@@ -101,7 +104,7 @@ describe("posts", () => {
 
   test("getPost propagates a thrown ApiError with the server's exact message", async () => {
     stubFetchCapturing(() => jsonResponse({ error: "post not found", code: "NOT_FOUND" }, 404));
-    const error = await api.getPost("missing").catch((e: unknown) => e);
+    const error = await postsApi.getPost({ id: "missing" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).message).toBe("post not found");
     expect((error as ApiError).code).toBe("NOT_FOUND");
@@ -109,7 +112,7 @@ describe("posts", () => {
 
   test("updatePost PUTs the given partial fields as the body", async () => {
     const { body, method, calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", title: "New" } }));
-    await api.updatePost({ id: "p1" }, { title: "New", status: "published" });
+    await postsApi.updatePost({ id: "p1" }, { options: { title: "New", status: "published" } });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/p1`);
     expect(method()).toBe("PUT");
     expect(body()).toEqual({ title: "New", status: "published" });
@@ -117,13 +120,13 @@ describe("posts", () => {
 
   test("updatePost sends an empty body when the caller passes no options", async () => {
     const { body } = stubFetchCapturing();
-    await api.updatePost({ id: "p1" });
+    await postsApi.updatePost({ id: "p1" });
     expect(body()).toEqual({});
   });
 
   test("deletePost DELETEs the post by id and resolves the (soft-deleted) post", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", status: "draft" } }));
-    await expect(api.deletePost("p1")).resolves.toEqual({ post: { id: "p1", status: "draft" } });
+    await expect(postsApi.deletePost({ id: "p1" })).resolves.toEqual({ post: { id: "p1", status: "draft" } });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/p1`);
     expect(method()).toBe("DELETE");
   });
@@ -134,7 +137,7 @@ describe("posts", () => {
 
     test("outside dev, builds a bare relative BASE-prefixed URL with the id encoded", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("a/b", null)).toBe(
+      expect(postsApi.templatePreviewUrl({ id: "a/b", templateChoice: null })).toBe(
         `${BASE_WORKSPACE}/posts/${encodeURIComponent("a/b")}/template-preview`
       );
     });
@@ -142,7 +145,7 @@ describe("posts", () => {
     test("in dev, prefixes with the site origin (VITE_TOVU_SITE_URL when set)", async () => {
       vi.stubEnv("DEV", true);
       vi.stubEnv("VITE_TOVU_SITE_URL", "https://staging.example.com");
-      expect(api.templatePreviewUrl("p1", null)).toBe(
+      expect(postsApi.templatePreviewUrl({ id: "p1", templateChoice: null })).toBe(
         `https://staging.example.com${BASE_WORKSPACE}/posts/p1/template-preview`
       );
     });
@@ -153,22 +156,22 @@ describe("posts", () => {
       // a bare `npm run desktop` has nothing listening on.
       vi.stubEnv("DEV", true);
       vi.mocked(isAdminDevServerOrigin).mockReturnValue(false);
-      expect(api.templatePreviewUrl("p1", null)).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview`);
+      expect(postsApi.templatePreviewUrl({ id: "p1", templateChoice: null })).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview`);
     });
 
     test("templateChoice: null omits the query param entirely", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", null)).not.toContain("templateChoice");
+      expect(postsApi.templatePreviewUrl({ id: "p1", templateChoice: null })).not.toContain("templateChoice");
     });
 
     test("templateChoice: empty string sends the explicit opt-out `?templateChoice=`", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", "")).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=`);
+      expect(postsApi.templatePreviewUrl({ id: "p1", templateChoice: "" })).toBe(`${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=`);
     });
 
     test("templateChoice: a real filename is sent, encoded", async () => {
       vi.stubEnv("DEV", false);
-      expect(api.templatePreviewUrl("p1", "page one.html")).toBe(
+      expect(postsApi.templatePreviewUrl({ id: "p1", templateChoice: "page one.html" })).toBe(
         `${BASE_WORKSPACE}/posts/p1/template-preview?templateChoice=${encodeURIComponent("page one.html")}`
       );
     });
@@ -182,20 +185,20 @@ describe("policies", () => {
     const { calls, method } = stubFetchCapturing(() =>
       jsonResponse({ policies: [{ id: "pol1", name: "editors" }] })
     );
-    await expect(api.listPolicies()).resolves.toEqual({ policies: [{ id: "pol1", name: "editors" }] });
+    await expect(rolesApi.listPolicies()).resolves.toEqual({ policies: [{ id: "pol1", name: "editors" }] });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies`);
     expect(method()).toBe("GET");
   });
 
   test("createPolicy POSTs and resolves the created policy", async () => {
     const { method } = stubFetchCapturing(() => jsonResponse({ policy: { id: "pol1", name: "policy-1" } }));
-    await expect(api.createPolicy({ name: "policy-1" })).resolves.toEqual({ policy: { id: "pol1", name: "policy-1" } });
+    await expect(rolesApi.createPolicy({ name: "policy-1" })).resolves.toEqual({ policy: { id: "pol1", name: "policy-1" } });
     expect(method()).toBe("POST");
   });
 
   test("updatePolicy PATCHes and resolves the updated policy", async () => {
     const { method, calls } = stubFetchCapturing(() => jsonResponse({ policy: { id: "pol1", name: "renamed" } }));
-    await expect(api.updatePolicy({ policyId: "pol1" }, { name: "renamed" })).resolves.toEqual({
+    await expect(rolesApi.updatePolicy({ policyId: "pol1" }, { name: "renamed" })).resolves.toEqual({
       policy: { id: "pol1", name: "renamed" },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1`);
@@ -204,7 +207,7 @@ describe("policies", () => {
 
   test("deletePolicy DELETEs the policy by id", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse(null));
-    await api.deletePolicy("pol1");
+    await rolesApi.deletePolicy({ policyId: "pol1" });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1`);
     expect(method()).toBe("DELETE");
   });
@@ -213,7 +216,7 @@ describe("policies", () => {
     const { method, calls } = stubFetchCapturing(() =>
       jsonResponse({ policyPermission: { id: "pp1", permission: "read" } })
     );
-    await expect(api.writePolicyPermission({ policyId: "pol1", permission: "read" })).resolves.toEqual({
+    await expect(rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" })).resolves.toEqual({
       policyPermission: { id: "pp1", permission: "read" },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
@@ -224,7 +227,7 @@ describe("policies", () => {
     const { calls } = stubFetchCapturing(() =>
       jsonResponse({ policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }] })
     );
-    await expect(api.listPolicyPermissions("pol1")).resolves.toEqual({
+    await expect(rolesApi.listPolicyPermissions({ policyId: "pol1" })).resolves.toEqual({
       policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }],
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
@@ -233,14 +236,14 @@ describe("policies", () => {
 
   test("removePolicyPermission DELETEs the specific permission by both ids", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse(null));
-    await api.removePolicyPermission({ policyId: "pol1", policyPermissionId: "pp1" });
+    await rolesApi.removePolicyPermission({ policyId: "pol1", policyPermissionId: "pp1" });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions/pp1`);
     expect(method()).toBe("DELETE");
   });
 
   test("a policy-scoped call propagates a thrown ApiError with the server's exact message", async () => {
     stubFetchCapturing(() => jsonResponse({ error: "cannot delete a builtin policy", code: "FORBIDDEN" }, 403));
-    const error = await api.deletePolicy("builtin-1").catch((e: unknown) => e);
+    const error = await rolesApi.deletePolicy({ policyId: "builtin-1" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).message).toBe("cannot delete a builtin policy");
     expect((error as ApiError).status).toBe(403);
@@ -252,7 +255,7 @@ describe("policies", () => {
 describe("forms", () => {
   test("listForms GETs the workspace forms collection and resolves it verbatim", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse({ data: [{ id: "f1", name: "Contact" }] }));
-    await expect(api.listForms()).resolves.toEqual({ data: [{ id: "f1", name: "Contact" }] });
+    await expect(formsApi.listForms()).resolves.toEqual({ data: [{ id: "f1", name: "Contact" }] });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms`);
     expect(method()).toBe("GET");
   });

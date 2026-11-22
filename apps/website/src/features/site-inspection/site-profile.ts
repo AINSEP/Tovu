@@ -3,8 +3,7 @@
 // header on the structural-declaration discipline) but was never a rule about VALUES: a second
 // literal spelling of "no theme" here is exactly the drift that discipline exists to prevent.
 // Profile reads need theme identity, not theme maintenance and media write services.
-import { NO_THEME_ID } from "../theme/active-theme.js";
-import { themeIdCandidates } from "../theme/theme-id-aliases.js";
+import { NO_THEME_ID, themeIdCandidates } from "#src/contracts/core/theme-ids";
 
 import {
   authorizeAndCollectSection,
@@ -27,7 +26,7 @@ import {
  * aggregation, the frontend would need a second implementation — and this codebase has ALREADY
  * produced exactly that divergence once, in settings (`settings_get_effective` is implemented
  * independently in `@jini-ai/core/settings`'s tool registrations and in
- * `server/routes/admin/settings/get-effective.ts`, and the two drifted on principal handling).
+ * `apps/website/src/server/inbound/admin-http/routes/settings/get-effective.ts`, and the two drifted on principal handling).
  *
  * ---------------------------------------------------------------------------
  * Two properties this module is built to hold. Both are STRUCTURAL, not conventions.
@@ -50,7 +49,7 @@ import {
  * **2. Secrets are unrepresentable, not redacted.**
  * {@link SiteProfileDeps} names only read ports for pages, themes, presentation, settings,
  * content-types and plugin activation. It cannot reach `external-mcp-store.ts` (`sealedEnv`),
- * `connectors/connector-credential-store.ts` (`sealed`), `byok-credential.ts`,
+ * `apps/website/src/features/api-connections/vault-stores.ts` (`sealed`), `byok-credential.ts`,
  * `site-credential-store.ts`, `execution-credential-store.ts`, or `vendor-credentials` — those
  * modules are not imported here and there is no dep field that could carry one. Leaking a secret
  * from this file therefore requires ADDING A DEPENDENCY, which is a compile-time event a reviewer
@@ -58,14 +57,14 @@ import {
  * Every DTO below is likewise built by NAMING FIELDS — never by spreading a domain record — so a
  * new field appearing on `PostRecord`/`ThemeManifest`/`PluginDiscoveryRecord` upstream cannot
  * silently appear in this response. This mirrors
- * `server/routes/admin/system/deployment-overview.ts`'s `{ name, set }` precedent: report presence,
+ * `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`'s `{ name, set }` precedent: report presence,
  * never a value.
  *
  * ---------------------------------------------------------------------------
  * Deliberate non-features
  * ---------------------------------------------------------------------------
  * - **No cache.** The agent daemon is a separate OS process with its own SQLite handle over the
- *   same WAL file (`server/agent-daemon/agent-daemon-server.ts`), so a process-local memo would
+ *   same WAL file (`apps/website/src/server/inbound/assistant/agent-daemon-server.ts`), so a process-local memo would
  *   produce two caches that disagree — and the agent path is where staleness is most dangerous (an
  *   agent edits a page, re-reads a cached profile predating its own write, and concludes the edit
  *   failed). Under `TOVU_DB=memory` the two processes do not even share a database. The fan-out is
@@ -90,9 +89,9 @@ export type SiteProfileSectionName = (typeof SITE_PROFILE_SECTION_NAMES)[number]
  * - `pages` -> `content.read` (`features/pages/agent-tools.ts`)
  * - `theme` -> `theme.set` (`features/theme/agent-tools.ts`'s `THEME_READ_PERMISSION`)
  * - `plugins` -> `admin.plugins.read` (`features/plugin-runtime/agent-tools.ts`,
- *   `server/routes/admin/plugins/list.ts`)
+ *   `apps/website/src/server/inbound/admin-http/routes/plugins/list.ts`)
  * - `settings` -> `settings.read` (`@jini-ai/core/settings`'s `settings_get_effective`)
- * - `contentTypes` -> `admin.collections.read` (`server/routes/admin/content-types/list.ts`)
+ * - `contentTypes` -> `admin.collections.read` (`apps/website/src/server/inbound/admin-http/routes/content-types/list.ts`)
  *
  * A NEW aggregate permission was deliberately NOT minted: a caller who may not read settings must
  * not become able to read them by asking a different door, and a fresh `site.profile.read` grant
@@ -280,7 +279,7 @@ export type SiteProfileAuthorizeFn = InspectionAuthorizeFn;
 
 /**
  * Every dependency `buildSiteProfile` has. Each field is a narrow read port bound by an ADAPTER
- * (`site-profile-deps.ts`) from the composition root's deps bag — deliberately NOT the deps bag
+ * (`apps/website/src/features/site-inspection/deps.ts`) from the composition root's deps bag — deliberately NOT the deps bag
  * itself, so this signature enumerates exactly what the profile can reach and a reader can check
  * the secret-safety claim by reading this one interface.
  */
@@ -318,11 +317,7 @@ export const MAX_PAGE_ITEMS = 200;
 
 /** A setting value serializing beyond this is reported as `truncated` with `value: null` rather
  *  than inlined. Bounds a single misconfigured JSON setting from dominating the whole snapshot. */
-export const MAX_SETTING_VALUE_CHARS = 2_000;
-
-/** Default per-section wall clock. Owned by `section-collector.ts`; re-exported here under the name
- *  this module has always published. */
-export { DEFAULT_SECTION_TIMEOUT_MS };
+const MAX_SETTING_VALUE_CHARS = 2_000;
 
 /**
  * The inventory-safe settings this profile reports, as an explicit allowlist of `(namespace, key)`
@@ -393,7 +388,7 @@ function authorizeAndCollect<T>(
 
 /** Tally of one field's values across rows — the `countsBy*` maps' single implementation.
  *  @complexity O(N) in `rows`. */
-function tally<T>(rows: readonly T[], pick: (row: T) => string): Record<string, number> {
+function tally<T>({ rows, pick }: { rows: readonly T[]; pick: (row: T) => string }, _optional = {}): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {
     const key = pick(row);
@@ -444,15 +439,15 @@ function toThemeSummary(row: SiteProfileThemeRow): SiteProfileThemeSummary {
  * @throws Whatever `listPosts()` throws — the caller converts it to `unavailable`.
  * @complexity O(N) in the workspace's post count; `PostRepoPort.list()` has no limit parameter, so
  *   the READ is unbounded by that port's design and only the response is capped.
- * @example await collectPages(deps, 50);
+ * @example await collectPages({ deps, limit: 50 });
  */
-async function collectPages(deps: SiteProfileDeps, limit: number): Promise<CollectedSection<SiteProfilePages>> {
+async function collectPages({ deps, limit }: { deps: SiteProfileDeps; limit: number }, _optional = {}): Promise<CollectedSection<SiteProfilePages>> {
   const rows = (await deps.listPosts()).filter((row) => row.deletedAt === undefined || row.deletedAt === null);
   const items = rows.slice(0, limit).map(toPageSummary);
   const data: SiteProfilePages = {
     total: rows.length,
-    countsByKind: tally(rows, (row) => row.kind),
-    countsByStatus: tally(rows, (row) => row.status),
+    countsByKind: tally({ rows, pick: (row) => row.kind }),
+    countsByStatus: tally({ rows, pick: (row) => row.status }),
     items,
   };
   return rows.length > items.length ? { data, truncated: true } : { data };
@@ -485,7 +480,7 @@ async function collectTheme(deps: SiteProfileDeps): Promise<CollectedSection<Sit
       active:
         activeThemeId === null
           ? null
-          : (themeIdCandidates(activeThemeId)
+          : (themeIdCandidates({ id: activeThemeId })
               .map((id) => installed.find((theme) => theme.id === id))
               .find((theme) => theme !== undefined) ?? null),
       themeDisabled: activeThemeId === NO_THEME_ID,
@@ -588,7 +583,7 @@ async function collectContentTypes(deps: SiteProfileDeps): Promise<CollectedSect
 /** Clamps a caller-supplied page limit into `[1, MAX_PAGE_ITEMS]`, defaulting when absent.
  *  Non-integers and out-of-range values fall back to the default rather than propagating into a
  *  `slice()` that would silently return nothing. */
-function resolvePageLimit(requested: number | undefined): number {
+function resolvePageLimit({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined || !Number.isInteger(requested) || requested < 1) return DEFAULT_PAGE_ITEMS;
   return Math.min(requested, MAX_PAGE_ITEMS);
 }
@@ -614,23 +609,22 @@ function resolvePageLimit(requested: number | undefined): number {
  * @complexity O(N + T + P + A + C + S) — one read per section, run concurrently; `N` (posts)
  * dominates on a large site.
  * @example
- * const profile = await buildSiteProfile(deps, { principalId: "p-1" }, { sections: ["theme", "settings"] });
+ * const profile = await buildSiteProfile({ deps, input: { principalId: "p-1" } }, { sections: ["theme", "settings"] });
  */
 export async function buildSiteProfile(
-  deps: SiteProfileDeps,
-  input: { principalId: string },
+  { deps, input }: { deps: SiteProfileDeps; input: { principalId: string } },
   options: BuildSiteProfileOptions = {},
 ): Promise<SiteProfile> {
   const capturedAt = deps.clock.nowIso();
   // Key order follows the closed vocabulary, however the caller ordered or repeated `sections`.
   const requested = resolveRequestedSections({ vocabulary: SITE_PROFILE_SECTION_NAMES, requested: options.sections });
-  const pageLimit = resolvePageLimit(options.pageLimit);
+  const pageLimit = resolvePageLimit({ requested: options.pageLimit });
   const timeoutMs = options.sectionTimeoutMs ?? DEFAULT_SECTION_TIMEOUT_MS;
   const principalId = input.principalId;
 
   const collectors: Record<SiteProfileSectionName, () => Promise<SiteProfileSection<unknown>>> = {
     pages: () =>
-      authorizeAndCollect(deps, { principalId, section: "pages", timeoutMs, collect: () => collectPages(deps, pageLimit) }),
+      authorizeAndCollect(deps, { principalId, section: "pages", timeoutMs, collect: () => collectPages({ deps, limit: pageLimit }) }),
     theme: () => authorizeAndCollect(deps, { principalId, section: "theme", timeoutMs, collect: () => collectTheme(deps) }),
     plugins: () =>
       authorizeAndCollect(deps, { principalId, section: "plugins", timeoutMs, collect: () => collectPlugins(deps) }),

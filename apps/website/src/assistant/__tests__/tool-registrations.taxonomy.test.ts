@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
@@ -23,8 +23,9 @@ import {
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
-import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations.js";
+import { taxonomyDerivedRisk } from "@jini-ai/cms/taxonomy";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 
@@ -65,7 +66,7 @@ function fakeRouteDeps(options: { allow?: boolean; deny?: string[] } = {}) {
   const termRepo = new InMemoryTermRepo();
   const entryTermRepo = new InMemoryEntryTermRepo();
   const taxonomyRevisionRepo = new InMemoryTaxonomyRevisionRepo();
-  const postRepo = new InMemoryPostRepo();
+  const postRepo = new InMemoryPostRepo({});
   const entryRepo = new InMemoryEntryRepo();
   const contentTypeRepo = new InMemoryContentTypeRepo();
   const authorizeCalls: Array<Record<string, unknown>> = [];
@@ -119,7 +120,7 @@ function catalogEntry(toolId: string): TaxonomyAgentToolDefinition {
 }
 
 function taxonomyRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || (r.descriptor.id === "content_read.taxonomy" || r.descriptor.id === "content_read.term")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions, includeContentReadCollapse } }).filter((r) => r.descriptor.id.startsWith("taxonomy_") || (r.descriptor.id === "content_read.taxonomy" || r.descriptor.id === "content_read.term")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -157,7 +158,7 @@ test("taxonomy_execute_merge_term is registered, classified mutates-durable-stat
   assert.equal(taxonomyDerivedRisk.get("taxonomy_execute_merge_term"), "mutates-durable-state");
   assert.equal(catalogEntry("taxonomy_execute_merge_term").sideEffects, "mutates-durable-state");
   // The handler-less check stands for "a plain handler": still refused at build time.
-  assert.throws(() => assertRiskMetadataIsWirable("taxonomy_execute_merge_term", catalogEntry("taxonomy_execute_merge_term"), contributions), {
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "taxonomy_execute_merge_term", catalogEntry: catalogEntry("taxonomy_execute_merge_term") }, { contributions: contributions }), {
     message:
       "tool-registrations: 'taxonomy_execute_merge_term' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
       "build its handler with humanConfirmedHandler so a human answers through the host's confirmation transport (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
@@ -228,13 +229,13 @@ test("the independent risk classification agrees with the catalog for all 9 wire
     if (id.startsWith("content_read.")) continue;
     // Its actor-class rule needs the handler too — checked in section 1 above.
     if (id === "taxonomy_execute_merge_term") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring taxonomy_create_taxonomy sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("taxonomy_create_taxonomy", { ...catalogEntry("taxonomy_create_taxonomy"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "taxonomy_create_taxonomy", catalogEntry: { ...catalogEntry("taxonomy_create_taxonomy"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -543,7 +544,7 @@ async function seedMergeableTerms(deps: RegistryDepsWithoutLimiter): Promise<{ t
  */
 async function startMerge(deps: RegistryDepsWithoutLimiter, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool, `expected '${MERGE_TOOL}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
@@ -606,7 +607,7 @@ test(`${MERGE_TOOL}: nothing in the model's input can stand in for the click —
   const { deps } = fakeRouteDeps();
   const { fromTermId, intoTermId } = await seedMergeableTerms(deps);
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === MERGE_TOOL);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === MERGE_TOOL);
   assert.ok(tool);
 
   for (const key of ["confirm", "confirmationToken"]) {

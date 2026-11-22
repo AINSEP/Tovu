@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
@@ -18,7 +18,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
 
 /** The `EntityNotLiveError` arm is S10 (web-high fix plan, 2026-09-24) — assigning terms to a
  * trashed post/page now 409s instead of silently joining terms to it. */
-function statusFor(err: unknown): { status: number; code: string; message: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } | null {
   if (err instanceof EntityNotLiveError) return { status: 409, code: err.code, message: err.message };
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TermRecordNotFoundError) return { status: 404, code: "TERM_NOT_FOUND", message: err.message };
@@ -30,7 +30,7 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   ) {
     return { status: 400, code: "VALIDATION_ERROR", message: err.message };
   }
-  return { status: 500, code: "INTERNAL_ERROR", message: "internal error" };
+  return null;
 }
 
 const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
@@ -63,10 +63,10 @@ function readAssignmentBody(req: Request, res: Response): { contentType: string;
   return { contentType: body.contentType, contentId: body.contentId, termIds: body.termIds };
 }
 
-function sendError(res: Response, err: unknown): void {
-  const { status, code, message } = statusFor(err);
-  if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-  res.status(status).json({ error: message, code });
+function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  const failure = statusFor({ err });
+  if (!failure) { sendAdminFailure({ res, error: err }); return; }
+  res.status(failure.status).json({ error: failure.message, code: failure.code });
 }
 
 /**
@@ -81,17 +81,17 @@ function sendError(res: Response, err: unknown): void {
  * live-collection policy publishing uses. Tagging also needs the content's own edit permission:
  * `content.write` for a post/page, `admin.collections.manage` for an entry.
  */
-export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyAssignTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentEdit(deps, principal.id, body.contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType: body.contentType });
       await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }
@@ -101,17 +101,17 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
  * Categories & Tags box saves with (Jini `unassignTerms`: same permission, target and term checks as assign;
  * removing a term that is not assigned is a no-op).
  */
-export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyUnassignTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/unassign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
       const body = readAssignmentBody(req, res);
       if (!body) return;
-      await authorizeContentEdit(deps, principal.id, body.contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType: body.contentType });
       await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }
@@ -120,7 +120,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
  * `GET /api/admin/v1/taxonomy/assigned-terms?contentType=&contentId=` — `{ termIds }`, the terms one
  * post, page or entry holds now, so the editor shows them ticked. Same permissions as a write.
  */
-export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyAssignedTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/taxonomy/assigned-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -133,11 +133,11 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       if (!allowed.allowed) {
         throw new ForbiddenError({ message: `principal '${principal.id}' is not authorized for '${TAXONOMY_PERMISSION}' (${allowed.reason})`, permission: TAXONOMY_PERMISSION, reason: allowed.reason });
       }
-      await authorizeContentEdit(deps, principal.id, contentType);
+      await authorizeContentEdit({ deps, principalId: principal.id, contentType });
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
       res.json({ termIds: rows.map((row) => row.termId).sort() });
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }

@@ -16,7 +16,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file The `agent-plugins` server module (2026-09-09) — mirrors `modules/plugins.ts`'s own
  * structure for the separate `.tovu-plugin` site/runtime family.
  *
- * `AgentPluginsRouteDeps` (`routes/admin/agent-plugins/deps.ts`) is a structural subset of
+ * `AgentPluginsRouteDeps` (`apps/website/src/server/inbound/admin-http/routes/agent-plugins/deps.ts`) is a structural subset of
  * `RouteDeps` (`workspaceId`/`authorize` only — see that file's own header for why this domain
  * needs no wider slice), so `RouteDeps` satisfies it with no cast, same as `widgets.ts`'s own
  * rationale for its module deps.
@@ -43,18 +43,18 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   return {
     name: "agent-plugins",
-    registerRoutes: (app) => {
-      registerAgentPluginsListRoute(app, deps);
-      registerAgentPluginSetEnabledRoute(app, deps);
-      registerAgentPluginFilesRoute(app, deps);
-      registerAgentPluginInstallRoute(app, deps);
-      registerAgentPluginMemoryRoutes(app, deps);
-      registerAgentPluginAdminSurfaceRoutes(app, deps);
-      registerAdminSurfaceFilesRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAgentPluginsListRoute({ app, deps });
+      registerAgentPluginSetEnabledRoute({ app, deps });
+      registerAgentPluginFilesRoute({ app, deps });
+      registerAgentPluginInstallRoute({ app, deps });
+      registerAgentPluginMemoryRoutes({ app, deps });
+      registerAgentPluginAdminSurfaceRoutes({ app, deps });
+      registerAdminSurfaceFilesRoute({ app, deps });
       registerPluginExportFilesRoute({ app, deps });
       if (deps.apiConnections) {
-        registerApiConnectionSignInRoute(app, { workspaceId: deps.workspaceId, host: deps.apiConnections.host });
-        registerApiConnectionOAuthCallbackRoute(app, { host: deps.apiConnections.host, callbackLimiter });
+        registerApiConnectionSignInRoute({ app, deps: { workspaceId: deps.workspaceId, host: deps.apiConnections.host } });
+        registerApiConnectionOAuthCallbackRoute({ app, deps: { host: deps.apiConnections.host, callbackLimiter } });
       }
     },
   };

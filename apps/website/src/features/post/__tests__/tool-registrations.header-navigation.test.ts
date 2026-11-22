@@ -5,13 +5,15 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { capabilityCard as themes } from "#src/features/theme/capability-card";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { postAgentToolCatalog } from "../agent-tools.js";
-import { buildPostRegistrations, PAGE_HEADER_NAVIGATION, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { PAGE_HEADER_NAVIGATION } from "../post-tool-views.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 
 /**
  * @file Demo 2026-11-02: after creating pages the chat's final summary named header links ("Menu",
@@ -26,7 +28,7 @@ function registrations(): Map<string, ToolRegistration> {
   const deps = {
     workspaceId: "ws-header-nav", clock: { nowMs: () => Date.parse("2026-11-02T00:00:00.000Z") },
     idGen: { newId: () => `id-${++counter}` }, changeSets: new InMemoryChangeSetRepo(),
-    outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), postRepo: new InMemoryPostRepo(),
+    outbox: new InMemoryOutbox(), bus: new InMemoryEventBus(), postRepo: new InMemoryPostRepo({}),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   } as unknown as PostToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });

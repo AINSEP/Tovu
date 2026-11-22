@@ -26,9 +26,9 @@ const BASE = `/api/admin/v1/workspaces/${WORKSPACE_ID}/publish-content/capabilit
 test("raw capabilities need both backstop trust and an explicit type, including for API-key callers", async (t) => {
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(stubHandler("post", 1));
-  registerPublishContentContributor(stubHandler("raw-row", 1));
-  registerPublishContentContributor(stubHandler("raw-file", 1));
+  registerPublishContentContributor({ contributor: stubHandler("post", 1) });
+  registerPublishContentContributor({ contributor: stubHandler("raw-row", 1) });
+  registerPublishContentContributor({ contributor: stubHandler("raw-file", 1) });
   for (const trust of [undefined, publishTrust(["post", "raw-row", "raw-file"]),
     { ...publishTrust(["post", "raw-row"]), capabilities: ["publish_content.apply", "publish_content.backstop"] as const }]) {
     const server = await startTestServer(buildApp({ publishTrust: trust }), t);
@@ -84,7 +84,7 @@ function buildApp(options: {
     if (options.publishTrust) res.locals.publishTrust = options.publishTrust;
     next();
   });
-  registerPublishContentCapabilitiesRoute(app, deps);
+  registerPublishContentCapabilitiesRoute({ app, deps });
   return app;
 }
 
@@ -120,8 +120,8 @@ test("403s when the permission is denied, naming publish_content.apply — the s
 
 test("with no publishing grant on the request, answers every registered type — the same reading bundle-create.ts gives that absence", async (t) => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(stubHandler("post", 1));
-  registerPublishContentContributor(stubHandler("media", 2));
+  registerPublishContentContributor({ contributor: stubHandler("post", 1) });
+  registerPublishContentContributor({ contributor: stubHandler("media", 2) });
   const app = buildApp();
   const server = await startTestServer(app, t);
 
@@ -134,9 +134,9 @@ test("with no publishing grant on the request, answers every registered type —
 
 test("with a publishing grant, answers the intersection of registered types and the grant's own entityTypes", async (t) => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(stubHandler("post", 1));
-  registerPublishContentContributor(stubHandler("media", 2));
-  registerPublishContentContributor(stubHandler("redirect", 1));
+  registerPublishContentContributor({ contributor: stubHandler("post", 1) });
+  registerPublishContentContributor({ contributor: stubHandler("media", 2) });
+  registerPublishContentContributor({ contributor: stubHandler("redirect", 1) });
   const app = buildApp({ publishTrust: publishTrust(["post", "redirect"]) });
   const server = await startTestServer(app, t);
 
@@ -151,7 +151,7 @@ test("with a publishing grant, answers the intersection of registered types and 
 
 test("a grant naming a type nobody registered names nothing this instance does not actually have", async (t) => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(stubHandler("post", 1));
+  registerPublishContentContributor({ contributor: stubHandler("post", 1) });
   const app = buildApp({ publishTrust: publishTrust(["post", "theme-files"]) });
   const server = await startTestServer(app, t);
 
@@ -162,7 +162,7 @@ test("a grant naming a type nobody registered names nothing this instance does n
 
 test("publish-overwrite-live-plan §4/S6: answers 'overwrite-live' in features, unconditionally — a code capability, not a per-grant content type", async (t) => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(stubHandler("post", 1));
+  registerPublishContentContributor({ contributor: stubHandler("post", 1) });
   const app = buildApp({ publishTrust: publishTrust(["post"]) });
   const server = await startTestServer(app, t);
 

@@ -1,4 +1,5 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { createSkillInstallConfirmationTranslator } from "./SkillInstallConfirmation.hooks";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillInstallConfirmation } from "./use-skill-confirmation.hooks";
 import { t } from "./skills-i18n";
@@ -7,9 +8,9 @@ import { skillFailure } from "./skill-failure";
 import "./skills.css";
 
 /** `locale` is the caller's admin locale (the dock and the Skills page each resolve one); English when omitted. */
-export function SkillInstallConfirmation({ install, locale = "en" }: { install: ReturnType<typeof useSkillInstall>; locale?: string }) {
-  const confirmation = useSkillInstallConfirmation(install);
-  const tr = (key: string) => t({ locale, key });
+export function SkillInstallConfirmation({ install, locale = "en", useSkillInstallConfirmationHook = useSkillInstallConfirmation }: { install: ReturnType<typeof useSkillInstall>; locale?: string; useSkillInstallConfirmationHook?: typeof useSkillInstallConfirmation; }) {
+  const confirmation = useSkillInstallConfirmationHook(install);
+  const tr = createSkillInstallConfirmationTranslator({ locale });
   const failure = install.error ? skillFailure({ error: install.cause ?? new Error(install.error), message: install.error, t: tr }) : null;
   // A read failure has no confirmation dialog. Keep it in a compact, dismissible row;
   // a bare notice inherits the dock's flex: 1 rule and consumes half the transcript.

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { SurfaceCardSignInSpec, SurfaceCardSignInState } from '@jini-ai/core/contracts/cards';
-import type { AgentPluginCardsPort } from '../../service-ports.js';
+import type { AgentPluginCardsPort } from '@jini-ai/agent-plugins/connect';
 import { waitAtAgentPluginSignInCardWithPorts } from '../../connect-sign-in-wait.js';
 import { buildAgentPluginConnectCardWithPorts } from '../../connect-card-ui.js';
 

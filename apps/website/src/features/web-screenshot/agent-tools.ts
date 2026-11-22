@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, VIEWPORT_NAMES, WEB_SCREENSHOT_TOOL_ID } from "./web-screenshot.js";
 
@@ -11,13 +12,7 @@ import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, 
  * literal allowlist (`modules/site-assistant.ts`), so a catalog tool never reaches it.
  */
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> };
 
 /** Same gate as `web_fetch_page`: any admin who may use the assistant may look at public pages through it. */
 export const WEB_SCREENSHOT_PERMISSION = "admin.assistant.use";
@@ -32,7 +27,7 @@ export const WEB_SCREENSHOT_INPUT_SCHEMA = {
     viewport: { type: "string", enum: VIEWPORT_NAMES, description: "desktop (1280x800, default), tablet (768x1024) or mobile (375x812)." },
     fullPage: { type: "boolean", description: `false (default): the first screen only. true: the whole page down to ${MAX_FULL_PAGE_HEIGHT_PX}px, returned as several images top to bottom (costs more tokens).` },
     dismissCookieBanners: { type: "boolean", description: "Default false: leave cookie banners visible. Set true to click a common cookie accept/close control. sitePath captures never show this site's own banner." },
-    waitMs: { type: "integer", minimum: 0, maximum: MAX_WAIT_MS, description: `Settle time after DOM content loaded (never network idle) for late paint/animations, followed by a capped best-effort load wait. Default ${DEFAULT_WAIT_MS}.` },
+    waitMs: { type: "integer", minimum: 0, maximum: MAX_WAIT_MS, clamp: true, description: `Settle time after DOM content loaded (never network idle) for late paint/animations, followed by a capped best-effort load wait. Default ${DEFAULT_WAIT_MS}.` },
   },
 } as const;
 

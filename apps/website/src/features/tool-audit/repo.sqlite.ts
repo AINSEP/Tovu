@@ -10,8 +10,8 @@ export { MAX_ROWS_PER_WORKSPACE } from "./repo.js";
  * it from the content db handle stays as it is.
  */
 export class SqliteToolAttemptAuditSink extends SqlToolAttemptAuditSink {
-  /** @param store - The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb, options: SqlToolAttemptAuditSinkOptions = {}) {
-    super(contentKernel(store), options);
+  /** @param required.store - The connection's kernel, or the content db handle it is derived from. */
+  constructor({ store }: { store: ContentKernel | ContentDb }, options: SqlToolAttemptAuditSinkOptions = {}) {
+    super(contentKernel({ store }), options);
   }
 }

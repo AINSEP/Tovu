@@ -43,7 +43,7 @@ function buildApp(options: { allowed?: boolean; permissions?: string[] } = {}) {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDuplicateRoute(app, deps);
+  registerAdminThemeDuplicateRoute({ app, deps });
   return { app, root, themes, permissions };
 }
 
@@ -134,14 +134,14 @@ test("duplicate: an unexpected failure is a bare 500", async (t) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDuplicateRoute(failing, {
+  registerAdminThemeDuplicateRoute({ app: failing, deps: {
     workspaceId: WORKSPACE_ID,
     authorize: async () => {
       throw new Error("authorizer offline");
     },
     themes: [],
     themesDir: "/nonexistent",
-  } as unknown as ContentRouteDeps);
+  } as unknown as ContentRouteDeps });
   const { status, json } = await post(t, failing, { body: { newName: "X" } });
   assert.equal(status, 500);
   assertAdminResponse({ actual: json, expected: { error: "internal error" } }, { failure: {"message":"The theme operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"theme operation"} });

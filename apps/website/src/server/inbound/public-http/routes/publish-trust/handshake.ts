@@ -1,4 +1,7 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Express, Request, Response } from "express";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 
 import { createRateLimiter, resolveClientIp, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import {
@@ -10,7 +13,8 @@ import {
 import { isGrantActive } from "#src/features/publish-trust/grant";
 import { findGrantForSource, type PublishTrustResolution } from "#src/features/publish-trust/provisioning";
 import { mintPublishSession } from "#src/features/publish-trust/session";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import { isNoSiteKeyError } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 /**
  * @file Zero-setup publishing auth — the destination's three unauthenticated handshake routes.
@@ -93,6 +97,11 @@ function originOf(req: Request): string {
   return host === "" ? "" : `${req.protocol}://${host}`;
 }
 
+/** True for an array whose every element is a string. */
+function isStringArray({ value }: { value: unknown }, _optional = {}): boolean {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
 /**
  * Narrows an untrusted request body to the challenge-response shape.
  *
@@ -102,13 +111,13 @@ function originOf(req: Request): string {
  *
  * @complexity O(1).
  */
-function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
+function asChallengeResponse({ body }: { body: unknown }, _optional = {}): PublishChallengeResponse | null {
   if (typeof body !== "object" || body === null) return null;
   const candidate = body as Record<string, unknown>;
   if (typeof candidate.nonce !== "string") return null;
   if (typeof candidate.sourceInstallationId !== "string") return null;
   if (typeof candidate.generation !== "number" || !Number.isInteger(candidate.generation)) return null;
-  if (!Array.isArray(candidate.capabilities) || candidate.capabilities.some((c) => typeof c !== "string")) return null;
+  if (!isStringArray({ value: candidate.capabilities })) return null;
   if (typeof candidate.signatureB64u !== "string") return null;
   return {
     nonce: candidate.nonce,
@@ -119,16 +128,27 @@ function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
   };
 }
 
-/**
- * Registers `GET /identity`, `POST /challenge` and `POST /session` under `/api/publish-trust/v1`.
- *
- * @complexity O(1) per request — see each handler.
- */
-export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
+/** The per-request guards every handshake handler shares, built once per registration. */
+interface HandshakeGuards {
+  deps: PublishTrustHandshakeDeps;
+  withinRateLimit: (req: Request, res: Response) => Promise<boolean>;
+  installationIdOrRefuse: (res: Response) => Promise<string | null>;
+  answered: (handler: (req: Request, res: Response) => Promise<void>) => (req: Request, res: Response) => Promise<void>;
+}
+
+function createHandshakeGuards(deps: PublishTrustHandshakeDeps): HandshakeGuards {
+  const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
+    // A site without a configured key is an ordinary state, not a boot failure.
+    if (isNoSiteKeyError({ error })) return null;
+    console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
+      describeErrorForLog({ err: error }));
+    return null;
+  });
   const limiter = createRateLimiter({
     profile: PUBLISH_TRUST_HANDSHAKE_PER_IP,
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
   });
+
 
   /** True when this caller is within its per-IP ceiling; on `false` the 429 has already been sent. */
   async function withinRateLimit(req: Request, res: Response): Promise<boolean> {
@@ -145,7 +165,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
 
   /** This install's id, or `null` after sending the 503 when the site key is missing. */
   async function installationIdOrRefuse(res: Response): Promise<string | null> {
-    const id = await deps.targetInstallationId.catch(() => null);
+    const id = await targetInstallationId;
     if (id === null) res.status(503).json(NO_SITE_KEY);
     return id;
   }
@@ -157,13 +177,18 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       try {
         await handler(req, res);
       } catch (err) {
-        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, err);
+        console.error(`[publish-trust] handshake ${req.method} ${req.path} failed:`, formatErrorForLog({ error: err }, TOVU_ERROR_REDACTION_OPTIONS));
         res.status(500).json(HANDSHAKE_FAILED);
       }
     };
   }
 
-  app.get("/api/publish-trust/v1/identity", answered(async (req, res) => {
+  return { deps, withinRateLimit, installationIdOrRefuse, answered };
+}
+
+/** `GET /identity` — this install's id, workspace and origin. */
+async function handleIdentity(input: { guards: HandshakeGuards; req: Request; res: Response }): Promise<void> {
+  const { guards: { deps, installationIdOrRefuse }, req, res } = input;
     const installationId = await installationIdOrRefuse(res);
     if (installationId === null) return;
     res.json({
@@ -171,9 +196,11 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       workspaceId: deps.workspaceId,
       origin: originOf(req),
     });
-  }));
+}
 
-  app.post("/api/publish-trust/v1/challenge", answered(async (req, res) => {
+/** `POST /challenge` — issue a nonce bound to this install's audience. */
+async function handleChallenge(input: { guards: HandshakeGuards; req: Request; res: Response }): Promise<void> {
+  const { guards: { deps, withinRateLimit, installationIdOrRefuse }, req, res } = input;
     if (!(await withinRateLimit(req, res))) return;
 
     const targetInstallationId = await installationIdOrRefuse(res);
@@ -192,12 +219,14 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
       targetInstallationId: record.targetInstallationId,
       expiresAt: record.expiresAtIso,
     });
-  }));
+}
 
-  app.post("/api/publish-trust/v1/session", answered(async (req, res) => {
+/** `POST /session` — verify the signed challenge response and mint a short-lived session token. */
+async function handleSession(input: { guards: HandshakeGuards; req: Request; res: Response }): Promise<void> {
+  const { guards: { deps, withinRateLimit, installationIdOrRefuse }, req, res } = input;
     if (!(await withinRateLimit(req, res))) return;
 
-    const response = asChallengeResponse(req.body);
+    const response = asChallengeResponse({ body: req.body });
     if (!response) {
       res.status(401).json(HANDSHAKE_REFUSAL);
       return;
@@ -208,19 +237,21 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     const targetInstallationId = await installationIdOrRefuse(res);
     if (targetInstallationId === null) return;
 
-    const grant = findGrantForSource(await deps.grants(), response.sourceInstallationId);
+    const grant = findGrantForSource({ res: await deps.grants(), sourceInstallationId: response.sourceInstallationId });
     // An absent grant is the ordinary state of a site nobody has paired with, not an error. It is
     // answered with the same refusal as a bad signature so this route cannot be used to ask
     // "has anyone provisioned publishing here yet?" — nor, by naming installation ids one at a
     // time, "is THIS publisher allowed here?".
-    if (!grant || !isGrantActive(grant, deps.clock.nowIso())) {
+    if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {
       res.status(401).json(HANDSHAKE_REFUSAL);
       return;
     }
 
     const verification = await verifyChallengeResponse(
-      { store: deps.challengeStore, clock: deps.clock },
-      { grant, targetInstallationId, response }
+      {
+        deps: { store: deps.challengeStore, clock: deps.clock },
+        input: { grant, targetInstallationId, response }
+      }
     );
     if (!verification.ok) {
       res.status(401).json(HANDSHAKE_REFUSAL);
@@ -228,15 +259,28 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     }
 
     const { token, payload } = await mintPublishSession(
-      { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
       {
-        sourceInstallationId: verification.verified.sourceInstallationId,
-        targetInstallationId,
-        capabilities: verification.verified.capabilities,
-        generation: verification.verified.generation,
+        deps: { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
+        input: {
+          sourceInstallationId: verification.verified.sourceInstallationId,
+          targetInstallationId,
+          capabilities: verification.verified.capabilities,
+          generation: verification.verified.generation,
+        }
       }
     );
 
     res.json({ token, expiresAt: payload.expiresAtIso, capabilities: payload.capabilities });
-  }));
+}
+
+/**
+ * Registers `GET /identity`, `POST /challenge` and `POST /session` under `/api/publish-trust/v1`.
+ *
+ * @complexity O(1) per request — see each handler.
+ */
+export function registerPublishTrustHandshakeRoutes({ app, deps }: { app: Express; deps: PublishTrustHandshakeDeps }, _optional: Record<string, never> = {}): void {
+  const guards = createHandshakeGuards(deps);
+  app.get("/api/publish-trust/v1/identity", guards.answered((req, res) => handleIdentity({ guards, req, res })));
+  app.post("/api/publish-trust/v1/challenge", guards.answered((req, res) => handleChallenge({ guards, req, res })));
+  app.post("/api/publish-trust/v1/session", guards.answered((req, res) => handleSession({ guards, req, res })));
 }

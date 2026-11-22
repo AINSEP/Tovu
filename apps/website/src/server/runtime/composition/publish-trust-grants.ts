@@ -60,7 +60,7 @@ export function createPublishTrustGrantResolver(
       // — the empty value is the provider-console kill switch — so this must not collapse them.
       const envValue = env[PUBLISH_TRUST_ENV_VAR];
       const configPath = path.join(resolveCommittedConfigRoot(env), PUBLISH_TRUST_CONFIG_PATH);
-      const fileContents = await readFile(configPath);
+      const fileContents = await readFile({ path: configPath });
       return resolvePublishTrust({ envValue, fileContents });
     })().catch((error: unknown) => {
       cached = null;

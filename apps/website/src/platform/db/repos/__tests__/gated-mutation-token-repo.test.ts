@@ -4,7 +4,7 @@ import test from "node:test";
 import { sql } from "kysely";
 
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlTokenStore } from "../gated-mutation-token-repo.js";
+import { SqliteTokenStore } from "../../sqlite/gated-mutation-token-repo.sqlite.js";
 import { mintToken } from "#src/contracts/core/gated-mutations/token";
 import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 
@@ -18,7 +18,7 @@ import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 test("tryRedeem() refuses redemption when the database skips the status update", async () => {
   const kernel = freshSqliteContentKernel();
   try {
-    const store = new SqlTokenStore(kernel);
+    const store = new SqliteTokenStore({ store: kernel });
     const record = mintToken({ planId: "plan-1", planHash: "hash-1", scopeId: "scope-1", confirmerPrincipalId: "user-1", now: "2026-08-31T00:00:00.000Z" });
     await store.save(record);
     // A real skipped UPDATE exercises the defensive result check even while the token lock holds.
@@ -26,16 +26,16 @@ test("tryRedeem() refuses redemption when the database skips the status update",
     const input = { token: record.confirmationToken, now: "2026-08-31T00:01:00.000Z" };
 
     assert.deepEqual(await store.tryRedeem(input), { redeemed: false, record });
-    assert.deepEqual(await store.findByToken(record.confirmationToken), record);
+    assert.deepEqual(await store.findByToken({ token: record.confirmationToken }), record);
 
     await kernel.execute(sql`DROP TRIGGER skip_token_redemption`);
     const redeemed = { ...record, status: "redeemed" as const };
     assert.deepEqual(await store.tryRedeem(input), { redeemed: true, record: redeemed });
-    assert.deepEqual(await store.findByToken(record.confirmationToken), redeemed);
-  } finally { sqliteConnectionOf(kernel)?.close(); }
+    assert.deepEqual(await store.findByToken({ token: record.confirmationToken }), redeemed);
+  } finally { sqliteConnectionOf({ kernel })?.close(); }
 });
 
-describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqlTokenStore(kernel) }, (makeStore) => {
+describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqliteTokenStore({ store: kernel }) }, (makeStore) => {
   test("save() then findByToken() round-trips a minted record", async () => {
     const store = makeStore();
     const record = mintToken({
@@ -47,14 +47,14 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
     });
 
     await store.save(record);
-    const found = await store.findByToken(record.confirmationToken);
+    const found = await store.findByToken({ token: record.confirmationToken });
 
     assert.deepEqual(found, record);
   });
 
   test("findByToken() returns null for a token never saved", async () => {
     const store = makeStore();
-    assert.equal(await store.findByToken("ctok_never-existed"), null);
+    assert.equal(await store.findByToken({ token: "ctok_never-existed" }), null);
   });
 
   test("tryRedeem() atomically transitions minted -> redeemed and reports the redeemed record", async () => {
@@ -74,7 +74,7 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
     assert.equal(result.record?.status, "redeemed");
 
     // Persisted, not just returned in-memory.
-    const found = await store.findByToken(record.confirmationToken);
+    const found = await store.findByToken({ token: record.confirmationToken });
     assert.equal(found?.status, "redeemed");
   });
 
@@ -153,7 +153,7 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
     await store.save(record);
     await store.save({ ...record, status: "expired" });
 
-    const found = await store.findByToken(record.confirmationToken);
+    const found = await store.findByToken({ token: record.confirmationToken });
     assert.equal(found?.status, "expired");
               assert.equal(await store.count(), 1, "the upsert must not have created a second row");
               const now = "2026-08-31T00:00:01.000Z";
@@ -163,7 +163,7 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
                 redeemed: false,
                 record: expired,
               });
-              assert.deepEqual(await store.findByToken(record.confirmationToken), expired);
+              assert.deepEqual(await store.findByToken({ token: record.confirmationToken }), expired);
               assert.equal(await store.count(), 1);
   });
 
@@ -180,8 +180,8 @@ describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make:
     await store.expire({ token: redeemedLater.confirmationToken });
     await store.expire({ token: "ctok_never-existed" });
 
-    assert.deepEqual(await store.findByToken(minted.confirmationToken), { ...minted, status: "expired" });
-    assert.equal((await store.findByToken(redeemedLater.confirmationToken))?.status, "redeemed");
+    assert.deepEqual(await store.findByToken({ token: minted.confirmationToken }), { ...minted, status: "expired" });
+    assert.equal((await store.findByToken({ token: redeemedLater.confirmationToken }))?.status, "redeemed");
     assert.deepEqual(await store.tryRedeem({ token: minted.confirmationToken, now }), { redeemed: false, record: { ...minted, status: "expired" } });
     assert.equal(await store.count(), 2, "expire() never inserts a row for an unknown token");
   });

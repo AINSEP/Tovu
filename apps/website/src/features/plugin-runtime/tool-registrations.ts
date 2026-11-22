@@ -4,8 +4,7 @@ import type { Tracker } from '@jini-ai/diagnostics/observability';
 import type { PluginExportCatalogPort } from '../../contracts/headless/plugin-export-catalog.js';
 import type { OperatorLocaleDeps, PluginHostPort, AgentPluginLayout, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput } from '../../contracts/headless/index.js';
 import type { Clock } from '@jini-ai/core/primitives';
-import type { OutboxPort } from '@jini-ai/cms/core';
-import type { AuthorizeFn, ChangeSetRepoPort } from '../../contracts/core/commands/index.js';
+import type { OutboxPort, AuthorizeFn, ChangeSetRepoPort } from '@jini-ai/core/contracts/events';
 import type { RememberedApprovalPort, ToolContributor, ToolRegistration } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { PluginActivationRepoPort, PluginConflict, RemovePluginFn } from '@jini-ai/plugins/host';
@@ -40,7 +39,7 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   assertAgentPluginActivationsWritable?: (required: { workspaceRoot: string }) => Promise<void>;
   /** Bind the same lifecycle owner with host effects; no module replacement is needed for failures. */
   setAgentPluginEnabled?: (required: SetAgentPluginEnabledInput) => Promise<SetAgentPluginEnabledResult>;
-  listInstalledAgentPlugins?: (workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>;
+  listInstalledAgentPlugins?: (required: { workspaceRoot: string }, optional?: Record<string, never>) => Promise<readonly InstalledAgentPlugin[]>;
   /** Bound to the existing remembered-approval store; only enable escalations get reusable keys. */
   nativeApprovalMemory?: RememberedApprovalPort;
   uninstallAgentPlugin?: AgentPluginUninstallToolDeps["uninstallAgentPlugin"];

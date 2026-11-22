@@ -98,7 +98,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     try {
       const snapshot = async () => {
         const tables: Record<string, unknown[]> = {};
-        for (const ref of await discoverSealedColumns(fx.kernel)) tables[ref.table] = await fx.kernel.query(sql`SELECT * FROM ${sql.id(ref.table)} ORDER BY 1, 2`);
+        for (const ref of await discoverSealedColumns({ kernel: fx.kernel })) tables[ref.table] = await fx.kernel.query(sql`SELECT * FROM ${sql.id(ref.table)} ORDER BY 1, 2`);
         return tables;
       };
       // SQLite counts every change on the connection; the table snapshot is the dialect-neutral half.
@@ -128,7 +128,7 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     await createCustomCredential({ ...store, repo: custom, idGen: { newId: () => "custom-real" } },
       { workspaceId: WS, label: "Mail", category: "general", baseUrl: "https://mail.example.test", connection: { token: "LEAK-real-store-token" } });
     const inventory = await inventoryVaultCredentials({ kernel: fx.kernel, ...fx.right, hasSiteKeySource: () => true });
-    assert.equal((await resolveSiteAssistantApiKey({ repo: assistant, sealer: fx.right.sealer }, { workspaceId: WS }))?.apiKey, "LEAK-real-store-api-key");
+    assert.equal((await resolveSiteAssistantApiKey({ deps: { repo: assistant, sealer: fx.right.sealer }, input: { workspaceId: WS } }))?.apiKey, "LEAK-real-store-api-key");
     assert.equal((await resolveCustomCredentialByLabel({ repo: custom, sealer: fx.right.sealer }, { workspaceId: WS, label: "Mail" }))?.connection.token, "LEAK-real-store-token");
     assert.deepEqual(inventory.totals, { sealed: 2, opens: 2, doesNotOpen: 0, unknown: 0 });
     assert.equal(JSON.stringify(inventory).includes("LEAK"), false);

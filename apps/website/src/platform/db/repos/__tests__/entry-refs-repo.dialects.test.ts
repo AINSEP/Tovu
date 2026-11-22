@@ -3,8 +3,8 @@ import { test } from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { EntryRefRow } from "#src/contracts/core/entry-refs/types";
-import { entryRefsRepoFor } from "../entry-refs-repo.js";
+import type { EntryRefRow } from "@jini-ai/cms/widgets";
+import { SqliteEntryRefsRepo } from "../../sqlite/entry-refs-repo.sqlite.js";
 
 /**
  * @file The entry-refs repo's one Kysely body on every dialect (`describeEachDialect` + ONE
@@ -28,7 +28,7 @@ function ref(sourceEntryId: string, targetId: string, overrides: Partial<EntryRe
 }
 
 function repos(kernel: ContentKernel) {
-  return { kernel, repo: entryRefsRepoFor(kernel) };
+  return { kernel, repo: new SqliteEntryRefsRepo({ store: kernel }) };
 }
 
 describeEachDialect("entry refs repo", { tables: ["entry_refs"], make: repos }, (makeRepos) => {

@@ -1,6 +1,7 @@
 import { Button, Dialog, TextField } from "@jini-ai/ui-kit/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";
 import "./post-url-dialog.css";
 

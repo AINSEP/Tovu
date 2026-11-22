@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** Add the site's one-price purchase form, using its trusted workspace and a catalog price id.
@@ -8,23 +9,23 @@ export function appendProductCheckout(
   _optional: Record<string, never> = {},
 ): string {
   const orders = `/api/commerce/v1/workspaces/${encodeURIComponent(workspaceId)}/orders`;
-  const markup = `<section class="wrap commerce-checkout"><form data-commerce-checkout data-orders-url="${escapeHtml(orders)}" data-price-id="${escapeHtml(priceId)}"><button type="submit" class="button">Buy now</button><button type="button" class="button" data-checkout-new-order hidden>Start a new order</button><p data-checkout-status role="status" aria-live="polite"></p><a data-checkout-order hidden>View order</a></form></section><script src="/commerce/checkout.js" defer></script>`;
+  const markup = `<section class="wrap commerce-checkout"><form data-commerce-checkout data-orders-url="${escapeHtml({ text: orders })}" data-price-id="${escapeHtml({ text: priceId })}"><button type="submit" class="button">Buy now</button><button type="button" class="button" data-checkout-new-order hidden>Start a new order</button><p data-checkout-status role="status" aria-live="polite"></p><a data-checkout-order hidden>View order</a></form></section><script src="/commerce/checkout.js" defer></script>`;
   return appendMarkup({ html, markup });
 }
 
 /** Both checkout controls and the deployed-shop link occupy the same theme-owned main layout. */
 function appendMarkup({ html, markup }: { html: string; markup: string }): string {
-  if (html.includes("</main>")) return html.replace("</main>", `${markup}</main>`);
-  if (html.includes("</body>")) return html.replace("</body>", `${markup}</body>`);
+  if (html.includes("</main>")) return html.replace("</main>", () => `${markup}</main>`);
+  if (html.includes("</body>")) return html.replace("</body>", () => `${markup}</body>`);
   return html + markup;
 }
 
 /** A link sink still checks the configured origin even though commerce validates its configuration. */
 function deployedShop({ origin, productSlug }: { origin: string; productSlug: string }): string | null {
-  try {
+  return orFallbackSync({ work: () => {
     const url = new URL(origin);
     return url.protocol === "https:" && url.origin === origin ? `${origin}/products/${encodeURIComponent(productSlug)}` : null;
-  } catch { return null; }
+  }, fallback: null, step: "Resolve hosted checkout link" });
 }
 
 export interface ProductCheckoutReadiness { active: boolean; ready: boolean; checkoutOrigin?: string | null }
@@ -49,5 +50,5 @@ export async function productCheckoutWhenReady(
   const shop = origin ? deployedShop({ origin, productSlug }) : null;
   if (!shop) return html;
   if (currentOrigin === origin) return appendProductCheckout({ html, workspaceId, priceId });
-  return appendMarkup({ html, markup: `<section class="wrap commerce-checkout"><a class="button" href="${escapeHtml(shop)}">Open shop to buy</a></section>` });
+  return appendMarkup({ html, markup: `<section class="wrap commerce-checkout"><a class="button" href="${escapeHtml({ text: shop })}">Open shop to buy</a></section>` });
 }

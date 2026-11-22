@@ -69,6 +69,35 @@ async function activateThroughUi(page: Page, theme: ThemeSummary): Promise<void>
 }
 
 test.describe("W5 theme switching", () => {
+  registerThemeSwitchRoundTripTest();
+
+  test("double-clicking Activate sends exactly one theme change", { tag: ["@unrun"] }, async ({ page, request }) => {
+    const before = await readPresentation(request);
+    const target = pickStaticTarget(before);
+    const patches: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "PATCH" && r.url().endsWith(`${WS_API}/presentation`)) patches.push(r.url());
+    });
+    try {
+      await page.goto(`/admin/themes?tab=${tabGroupOf(target.tier)}`);
+      // bd99e7cbd: Activate is a switch, so an unswallowed second click would turn the theme back off.
+      const toggle = page.getByRole("switch", { name: `Activate ${displayName(target)}`, exact: true });
+      await toggle.dblclick();
+      await expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(patches, "the busy state must swallow the second click").toHaveLength(1);
+    } finally {
+      await restoreTheme(request, before.settings.activeThemeId);
+    }
+  });
+
+  test("Themes screen baseline", { tag: ["@unrun"] }, async ({ page }) => {
+    await page.goto("/admin/themes");
+    await expect(page.locator(".theme-card").first()).toBeVisible();
+    await expect(page).toHaveScreenshot("themes-list.png", { fullPage: true });
+  });
+});
+
+function registerThemeSwitchRoundTripTest() {
   test("activating another theme changes the public home, and reverting through the screen restores it", { tag: ["@unrun"] }, async ({ page, request }) => {
     const before = await readPresentation(request);
     const original = before.availableThemes.find((t) => t.id === before.settings.activeThemeId);
@@ -105,29 +134,4 @@ test.describe("W5 theme switching", () => {
       await restoreTheme(request, before.settings.activeThemeId);
     }
   });
-
-  test("double-clicking Activate sends exactly one theme change", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const before = await readPresentation(request);
-    const target = pickStaticTarget(before);
-    const patches: string[] = [];
-    page.on("request", (r) => {
-      if (r.method() === "PATCH" && r.url().endsWith(`${WS_API}/presentation`)) patches.push(r.url());
-    });
-    try {
-      await page.goto(`/admin/themes?tab=${tabGroupOf(target.tier)}`);
-      // bd99e7cbd: Activate is a switch, so an unswallowed second click would turn the theme back off.
-      const toggle = page.getByRole("switch", { name: `Activate ${displayName(target)}`, exact: true });
-      await toggle.dblclick();
-      await expect(toggle).toHaveAttribute("aria-checked", "true");
-      expect(patches, "the busy state must swallow the second click").toHaveLength(1);
-    } finally {
-      await restoreTheme(request, before.settings.activeThemeId);
-    }
-  });
-
-  test("Themes screen baseline", { tag: ["@unrun"] }, async ({ page }) => {
-    await page.goto("/admin/themes");
-    await expect(page.locator(".theme-card").first()).toBeVisible();
-    await expect(page).toHaveScreenshot("themes-list.png", { fullPage: true });
-  });
-});
+}

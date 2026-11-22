@@ -15,7 +15,7 @@ import { closePublishRequest, requestPublish, usePublishRequest } from "../hooks
  * else (and any older server without the field) Publish stays available.
  */
 describe("publish-availability store", () => {
-  afterEach(() => { closePublishRequest(); setPublishToLiveAvailable(true); });
+  afterEach(() => { closePublishRequest(); setPublishToLiveAvailable({ next: true }); });
 
   it("reads /auth/me's canPublishToLive, treating an absent field as available", () => {
     expect(readPublishToLiveAvailability({ canPublishToLive: false })).toBe(false);
@@ -28,7 +28,7 @@ describe("publish-availability store", () => {
   });
 
   it("hides a section's Publish button on the live site", () => {
-    setPublishToLiveAvailable(false);
+    setPublishToLiveAvailable({ next: false });
     render(<PublishSectionButton section="pages" />);
     expect(screen.queryByRole("button", { name: "Publish pages" })).toBeNull();
   });
@@ -41,7 +41,7 @@ describe("publish-availability store", () => {
   it("requestPublish (deep link, chat, WebMCP) never opens the dialog on the live site", async () => {
     const subscriber = renderHook(() => usePublishRequest());
     expect(subscriber.result.current).toBeNull();
-    setPublishToLiveAvailable(false);
+    setPublishToLiveAvailable({ next: false });
     let result!: Awaited<ReturnType<typeof requestPublish>>;
     await act(async () => { result = await requestPublish({}); });
     expect(subscriber.result.current).toBeNull();

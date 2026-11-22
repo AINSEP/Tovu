@@ -2,9 +2,9 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { useCallback, useRef, useState } from "react";
 
-import type { ContentTypeFieldKind } from "../../lib/api";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
+import type { ContentTypeFieldKind } from "../../features/collections/api/collections-api.types";
 
+import { isAbortError } from '@jini-ai/core/text';
 /**
  * @file `WidgetConfigFields.tsx`'s data-fetching state, split out per the `@jini-ai/admin`
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`ConfirmDialog.tsx`/`ConfirmDialog.hooks.tsx`
@@ -48,27 +48,27 @@ const SOCIAL_LINKS_MAX = 20;
  * `links` replaced — `config` carries no other state this hook needs to preserve, so a full replace
  * is exactly as safe as a patch here and matches the pre-extraction inline functions verbatim.
  *
- * @param config - The widget's config object; `config.links` is read as `SocialLink[]` (or `[]`).
- * @param onChange - Called with the whole config, `links` replaced — never a partial patch.
+ * @param required.config - The widget's config object; `config.links` is read as `SocialLink[]` (or `[]`).
+ * @param required.onChange - Called with the whole config, `links` replaced — never a partial patch.
  * @returns `links` plus `updateLink`/`removeLink`/`addLink`.
  * @complexity Time/space: O(links.length) per call — same as the array methods each wraps.
  */
 export function useSocialLinksConfig(
-  config: Record<string, unknown>,
-  onChange: (config: Record<string, unknown>) => void,
+  { config, onChange }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void },
+  _options: Record<string, never> = {},
 ): {
   links: SocialLink[];
-  updateLink: (index: number, patch: Partial<SocialLink>) => void;
-  removeLink: (index: number) => void;
+  updateLink: (required: { index: number; patch: Partial<SocialLink> }, optional?: Record<string, never>) => void;
+  removeLink: (required: { index: number }, optional?: Record<string, never>) => void;
   addLink: () => void;
 } {
   const links: SocialLink[] = Array.isArray(config.links) ? (config.links as SocialLink[]) : [];
 
-  function updateLink(index: number, patch: Partial<SocialLink>): void {
+  function updateLink({ index, patch }: { index: number; patch: Partial<SocialLink> }, _options: Record<string, never> = {}): void {
     const next = links.map((l, i) => (i === index ? { ...l, ...patch } : l));
     onChange({ ...config, links: next });
   }
-  function removeLink(index: number): void {
+  function removeLink({ index }: { index: number }, _options: Record<string, never> = {}): void {
     onChange({ ...config, links: links.filter((_, i) => i !== index) });
   }
   function addLink(): void {
@@ -100,7 +100,7 @@ export const COLLECTION_DISPLAYABLE_FIELD_KINDS: ReadonlySet<ContentTypeFieldKin
  * (`"docs_page"`, `"publishedAt"`) into a label (`"Docs page"`, `"Published at"`) for the
  * Fields/Sort/Filter controls.
  */
-export function humanizeFieldName(name: string): string {
+export function humanizeFieldName({ name }: { name: string }, _options: Record<string, never> = {}): string {
   const words = name
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .split(/[_-\s]+/)
@@ -116,7 +116,7 @@ export function humanizeFieldName(name: string): string {
 /** A `where` value coerced from the filter row's raw text input, per the target field's kind —
  *  booleans and numbers travel as their real JS type (matches `CollectionWhereClause.value`'s
  *  `string | number | boolean` shape server-side), everything else stays a string. */
-function coerceFilterValue(raw: string, kind: ContentTypeFieldKind | undefined): string | number | boolean {
+function coerceFilterValue({ raw, kind }: { raw: string; kind: ContentTypeFieldKind | undefined }, _options: Record<string, never> = {}): string | number | boolean {
   if (kind === "boolean") return raw === "true";
   if (kind === "integer" || kind === "real") {
     const n = Number(raw);
@@ -139,7 +139,7 @@ function stringifyScalar(value: Scalar): string {
 /** The one `[field, value]` pair of a plain, single-key object, or `null` for anything else
  *  (missing, multi-key, an array, …) — split out so {@link readFilterClause} reads as one
  *  straight-line sequence of early returns instead of one compound condition. */
-function singleEntry(value: unknown): [string, unknown] | null {
+function singleEntry({ value }: { value: unknown }, _options: Record<string, never> = {}): [string, unknown] | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   const keys = Object.keys(value as Record<string, unknown>);
   return keys.length === 1 ? [keys[0], (value as Record<string, unknown>)[keys[0]]] : null;
@@ -148,36 +148,36 @@ function singleEntry(value: unknown): [string, unknown] | null {
 /** Reads the Collection list widget's single supported `where` clause (plan A1: "one filter row")
  *  back out of `config.where`, tolerating anything not shaped like `{ [field]: scalar }`. */
 function readFilterClause(config: Record<string, unknown>): { field: string; value: string } | null {
-  const entry = singleEntry(config.where);
+  const entry = singleEntry({ value: config.where });
   if (entry === null) return null;
   const [field, value] = entry;
   if (!isScalar(value)) return null;
   return { field, value: stringifyScalar(value) };
 }
 
-function stringConfigValue(config: Record<string, unknown>, key: string): string {
+function stringConfigValue({ config, key }: { config: Record<string, unknown>; key: string }, _options: Record<string, never> = {}): string {
   const value = config[key];
   return typeof value === "string" ? value : "";
 }
 
-function numberConfigValue(config: Record<string, unknown>, key: string): number | "" {
+function numberConfigValue({ config, key }: { config: Record<string, unknown>; key: string }, _options: Record<string, never> = {}): number | "" {
   const value = config[key];
   return typeof value === "number" ? value : "";
 }
 
-function stringArrayConfigValue(config: Record<string, unknown>, key: string): string[] {
+function stringArrayConfigValue({ config, key }: { config: Record<string, unknown>; key: string }, _options: Record<string, never> = {}): string[] {
   const value = config[key];
   return Array.isArray(value) ? (value as string[]) : [];
 }
 
-function resolveFilterField(draft: string | null, clause: { field: string } | null): string {
+function resolveFilterField({ draft, clause }: { draft: string | null; clause: { field: string } | null }, _options: Record<string, never> = {}): string {
   if (draft !== null) return draft;
   return clause !== null ? clause.field : "";
 }
 
 /** The filter value box shows what the operator typed, not the coerced stored value: re-rendering
  *  the coerced value mid-typing ate keystrokes ("t" became `false`, "1." became `1`). */
-function resolveFilterValue(draft: string | null, clause: { value: string } | null): string {
+function resolveFilterValue({ draft, clause }: { draft: string | null; clause: { value: string } | null }, _options: Record<string, never> = {}): string {
   if (draft !== null) return draft;
   return clause !== null ? clause.value : "";
 }
@@ -198,87 +198,23 @@ function resolveFilterValue(draft: string | null, clause: { value: string } | nu
  * re-renders — `config` alone can't hold "a field is chosen, no value yet".
  */
 export function useRecentEntriesConfig(
-  config: Record<string, unknown>,
-  onChange: (config: Record<string, unknown>) => void,
+  { config, onChange }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void },
+  _options: Record<string, never> = {},
 ) {
-  const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
-  const [filterValueDraft, setFilterValueDraft] = useState<string | null>(null);
+  const { setFilterFieldDraft, setFilterValueDraft, collection, sort, layout, columns, fields, filterField, filterValue, patch } = useRecentEntriesState({ config, onChange });
 
-  const clause = readFilterClause(config);
-  const collection = stringConfigValue(config, "collection");
-  const sort = stringConfigValue(config, "sort");
-  const layout = stringConfigValue(config, "layout");
-  const columns = numberConfigValue(config, "columns");
-  const fields = stringArrayConfigValue(config, "fields");
-  const filterField = resolveFilterField(filterFieldDraft, clause);
-  const filterValue = resolveFilterValue(filterValueDraft, clause);
-
-  function patch(mutate: (next: Record<string, unknown>) => void): void {
-    const next = { ...config };
-    mutate(next);
-    onChange(next);
-  }
-
-  function setCollection(value: string): void {
+  function setCollection({ value }: { value: string }, _options: Record<string, never> = {}): void {
     setFilterFieldDraft(null);
     setFilterValueDraft(null);
-    patch((next) => {
+    patch({ mutate: (next) => {
       if (value) next.collection = value;
       else delete next.collection;
       delete next.fields;
       delete next.where;
-    });
+    } });
   }
-
-  function setSort(value: string): void {
-    patch((next) => {
-      if (value) next.sort = value;
-      else delete next.sort;
-    });
-  }
-
-  function setLayout(value: string): void {
-    patch((next) => {
-      if (value) next.layout = value;
-      else delete next.layout;
-      if (value !== "cards") delete next.columns;
-    });
-  }
-
-  function setColumns(value: string): void {
-    patch((next) => {
-      if (value === "") delete next.columns;
-      else next.columns = Number(value);
-    });
-  }
-
-  function toggleField(name: string, checked: boolean): void {
-    patch((next) => {
-      const current = Array.isArray(next.fields) ? (next.fields as string[]) : [];
-      const nextFields = checked ? [...current, name] : current.filter((f) => f !== name);
-      if (nextFields.length > 0) next.fields = nextFields;
-      else delete next.fields;
-    });
-  }
-
-  function setFilterField(name: string): void {
-    setFilterFieldDraft(name || null);
-    setFilterValueDraft(null);
-    patch((next) => {
-      delete next.where;
-    });
-  }
-
-  function setFilterValue(raw: string, kind: ContentTypeFieldKind | undefined): void {
-    setFilterValueDraft(raw);
-    patch((next) => {
-      if (!filterField || raw === "") {
-        delete next.where;
-        return;
-      }
-      next.where = { [filterField]: coerceFilterValue(raw, kind) };
-    });
-  }
+  const { setSort, setLayout, setColumns, toggleField } = createRecentEntriesLayoutActions({ patch });
+  const { setFilterField, setFilterValue } = createRecentEntriesFilterActions({ setFilterFieldDraft, setFilterValueDraft, patch, filterField });
 
   return {
     collection,
@@ -296,6 +232,92 @@ export function useRecentEntriesConfig(
     setFilterField,
     setFilterValue,
   };
+}
+
+function createRecentEntriesFilterActions(
+  { setFilterFieldDraft, setFilterValueDraft, patch, filterField }:
+    Pick<ReturnType<typeof useRecentEntriesState>, "setFilterFieldDraft" | "setFilterValueDraft" | "patch" | "filterField">
+) {
+  function setFilterField({ name }: { name: string }, _options: Record<string, never> = {}): void {
+    setFilterFieldDraft(name || null);
+    setFilterValueDraft(null);
+    patch({ mutate: (next) => {
+      delete next.where;
+    } });
+  }
+
+  function setFilterValue({ raw, kind }: { raw: string; kind: ContentTypeFieldKind | undefined }, _options: Record<string, never> = {}): void {
+    setFilterValueDraft(raw);
+    patch({ mutate: (next) => {
+      if (!filterField || raw === "") {
+        delete next.where;
+        return;
+      }
+      next.where = { [filterField]: coerceFilterValue({ raw, kind }) };
+    } });
+  }
+  return { setFilterField, setFilterValue };
+}
+
+function createRecentEntriesLayoutActions(
+  { patch }:
+    Pick<ReturnType<typeof useRecentEntriesState>, "patch">
+) {
+  function setSort({ value }: { value: string }, _options: Record<string, never> = {}): void {
+    patch({ mutate: (next) => {
+      if (value) next.sort = value;
+      else delete next.sort;
+    } });
+  }
+
+  function setLayout({ value }: { value: string }, _options: Record<string, never> = {}): void {
+    patch({ mutate: (next) => {
+      if (value) next.layout = value;
+      else delete next.layout;
+      if (value !== "cards") delete next.columns;
+    } });
+  }
+
+  function setColumns({ value }: { value: string }, _options: Record<string, never> = {}): void {
+    patch({ mutate: (next) => {
+      if (value === "") delete next.columns;
+      else next.columns = Number(value);
+    } });
+  }
+
+  function toggleField({ name, checked }: { name: string; checked: boolean }, _options: Record<string, never> = {}): void {
+    patch({ mutate: (next) => {
+      const current = Array.isArray(next.fields) ? (next.fields as string[]) : [];
+      const nextFields = checked ? [...current, name] : current.filter((f) => f !== name);
+      if (nextFields.length > 0) next.fields = nextFields;
+      else delete next.fields;
+    } });
+  }
+  return { setSort, setLayout, setColumns, toggleField };
+}
+
+function useRecentEntriesState(
+  { config, onChange }:
+    Pick<Parameters<typeof useRecentEntriesConfig>[0], "config" | "onChange">
+) {
+  const [filterFieldDraft, setFilterFieldDraft] = useState<string | null>(null);
+  const [filterValueDraft, setFilterValueDraft] = useState<string | null>(null);
+
+  const clause = readFilterClause(config);
+  const collection = stringConfigValue({ config, key: "collection" });
+  const sort = stringConfigValue({ config, key: "sort" });
+  const layout = stringConfigValue({ config, key: "layout" });
+  const columns = numberConfigValue({ config, key: "columns" });
+  const fields = stringArrayConfigValue({ config, key: "fields" });
+  const filterField = resolveFilterField({ draft: filterFieldDraft, clause });
+  const filterValue = resolveFilterValue({ draft: filterValueDraft, clause });
+
+  function patch({ mutate }: { mutate: (next: Record<string, unknown>) => void }, _options: Record<string, never> = {}): void {
+    const next = { ...config };
+    mutate(next);
+    onChange(next);
+  }
+  return { setFilterFieldDraft, setFilterValueDraft, collection, sort, layout, columns, fields, filterField, filterValue, patch };
 }
 
 /**

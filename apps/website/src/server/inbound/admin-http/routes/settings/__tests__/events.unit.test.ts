@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -6,7 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import express from "express";
 import type { SettingDefinitionRecord, SettingRevisionRecord } from "@jini-ai/core/settings";
-import { requestThemePreviewRefresh } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSettingsEventsRoute, type SettingsEventsDeps } from "../events.js";
 
@@ -114,7 +115,7 @@ async function open(t: test.TestContext, options: OpenOptions = {}) {
     ...options.deps,
   };
   const app = express();
-  registerAdminSettingsEventsRoute(app, deps);
+  registerAdminSettingsEventsRoute({ app, deps });
   const req = new FakeRequest(options.params ?? { workspaceId: WS }, options.query ?? {}, options.headers ?? {}, options.httpVersionMajor ?? 1);
   const res = new FakeResponse();
   if (options.principal !== null) res.locals.principal = options.principal ?? { id: "owner" };
@@ -329,11 +330,11 @@ function themesDir(t: test.TestContext): string {
 
 test("a theme-only subscriber gets preview frames and never reads the settings ledger", async (t) => {
   const dir = themesDir(t);
-  requestThemePreviewRefresh({ themesDir: dir }, { revision: "r1" });
+  requestThemePreviewRefresh({ themesDir: dir, isReservedPath: isReservedThemePreviewPath }, { revision: "r1" });
   const h = await open(t, { grants: ["theme.set"], query: { themePreview: "1" }, deps: { themesDir: dir } });
   await h.advance(1_000);
   assert.deepEqual(h.res.frames, [CONNECTED]);
-  requestThemePreviewRefresh({ themesDir: dir }, { revision: "r2" });
+  requestThemePreviewRefresh({ themesDir: dir, isReservedPath: isReservedThemePreviewPath }, { revision: "r2" });
   await h.advance(1_000);
   assert.deepEqual(h.res.frames, [CONNECTED, 'event: theme-preview-refresh\ndata: {"revision":"r2"}\n\n']);
   assert.deepEqual(h.ledger.pageReads, []);
@@ -341,7 +342,7 @@ test("a theme-only subscriber gets preview frames and never reads the settings l
 
 test("themeRevision resumes the preview channel, replaying a newer marker", async (t) => {
   const dir = themesDir(t);
-  requestThemePreviewRefresh({ themesDir: dir }, { revision: "r1" });
+  requestThemePreviewRefresh({ themesDir: dir, isReservedPath: isReservedThemePreviewPath }, { revision: "r1" });
   const h = await open(t, { grants: ["theme.set"], query: { themePreview: "1", themeRevision: "r0" }, deps: { themesDir: dir } });
   await h.advance(1_000);
   assert.deepEqual(h.res.frames, [CONNECTED, 'event: theme-preview-refresh\ndata: {"revision":"r1"}\n\n']);

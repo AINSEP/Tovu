@@ -8,15 +8,15 @@ import path from 'node:path';
  * @complexity O(n) in the path length, with no filesystem probes.
  */
 export function assertSpecificSiteRoot({ root }: { root: string }, { homeDir = os.homedir(), sitesHome }: { homeDir?: string; sitesHome?: string } = {}): void {
-  const normalized = normalizeRoot(root);
-  const home = trimSlashes(homeDir);
+  const normalized = normalizeRoot({ root });
+  const home = trimSlashes({ value: homeDir });
   // The selected local fallback has one known Tovu parent at the former level. This narrow
   // application folder can be scanned without admitting unrelated direct home children.
-  if (normalized === `${home}/Tovu` && sitesHome !== undefined && trimSlashes(sitesHome) === `${normalized}/sites`) return;
-  if (isBroadRoot(normalized, home)) throw new Error(`Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`);
+  if (normalized === `${home}/Tovu` && sitesHome !== undefined && trimSlashes({ value: sitesHome }) === `${normalized}/sites`) return;
+  if (isBroadRoot({ normalized, home })) throw new Error(`Sites folder is too broad: ${root}. Choose a specific folder containing your Tovu websites.`);
 }
 
-function trimSlashes(value: string): string {
+function trimSlashes({ value }: { value: string }, _optional = {}): string {
   const spelling = value.replaceAll('\\', '/');
   let end = spelling.length;
   while (end > 0 && spelling[end - 1] === '/') end--;
@@ -24,9 +24,9 @@ function trimSlashes(value: string): string {
 }
 
 /** Forward slashes, no trailing slash; a UNC `//host/share` is kept as written. */
-function normalizeRoot(root: string): string {
+function normalizeRoot({ root }: { root: string }, _optional = {}): string {
   const spelling = root.replaceAll('\\', '/');
-  return spelling.startsWith('//') ? trimSlashes(spelling) : trimSlashes(path.posix.normalize(spelling)) || '/';
+  return spelling.startsWith('//') ? trimSlashes({ value: spelling }) : trimSlashes({ value: path.posix.normalize(spelling) }) || '/';
 }
 
 /** Whole accounts, volumes, drives, shares and direct home children. */
@@ -34,7 +34,7 @@ const BROAD_ROOT_PATTERNS = [
   /^~\/[^/]+$/, /^\/(?:Users|home)(?:\/[^/]+)?$/, /^[a-z]:$/i, /^\/\/[^/]+(?:\/[^/]+)?$/, /^\/(?:Volumes|mnt|media)(?:\/[^/]+)?$/,
 ];
 
-function isBroadRoot(normalized: string, home: string): boolean {
+function isBroadRoot({ normalized, home }: { normalized: string; home: string }, _optional = {}): boolean {
   if (['/', '~', home].includes(normalized) || path.posix.dirname(normalized) === home) return true;
   return BROAD_ROOT_PATTERNS.some((pattern) => pattern.test(normalized));
 }

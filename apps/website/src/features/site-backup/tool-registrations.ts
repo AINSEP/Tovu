@@ -3,7 +3,7 @@ import { SiteShareRefusal } from "./share-policy.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/site-backup.js';
 import { parseSiteImportInput } from "./import-backend.js";
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection as the caller's to fix instead of redacting it into a message-stripped 500.
@@ -38,14 +38,6 @@ export { PUSH_WAIT_MS, SITE_BACKUP_PUSH_TOOL_ID, type PushResult, type SiteBacku
  * shares (`site_share_*`) and imports (`site_import_*`). This module is the catalog, the risk map and
  * the thin handlers.
  */
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 const INCLUDE_SCHEMA = {
   type: "object",
@@ -117,7 +109,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "site_share_create",
-    description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Rendered HTML is a separate download through site_export_static. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. Caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables are refused by name. Credential-looking content is included verbatim; credentialWarnings lists only paths and match kinds. When needsAcknowledgement is true, show the warnings and direct the person to acknowledge in Exports before downloading or publishing the link. Returns {shareId,url,bytes,sha256,downloadUrl,credentialWarnings,needsAcknowledgement}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
+    description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Rendered HTML is a separate download through site_export_static. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. Caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables are refused by name. Credential-looking content is included verbatim in owner downloads; credentialWarnings lists only paths and match kinds. When needsAcknowledgement is true, show the warnings and direct the person to acknowledge in Exports before downloading. Provider delivery refuses exports with credential warnings. Returns {shareId,url,bytes,sha256,downloadUrl,credentialWarnings,needsAcknowledgement}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
     sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling: the jobId returned by this same create operation." } } },

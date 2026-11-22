@@ -7,10 +7,10 @@ import Database from "better-sqlite3";
 import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
 import { computeBlobStorageKey, MediaValidationError } from "#src/features/media/index";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { declareDataModule, type DataModuleDecl } from "#src/features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-manifest";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import { listColumns, listTables } from "../../kernel/dialect.js";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openContentDb } from "../content-db.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";
@@ -125,7 +125,7 @@ test("exactly enough staging space proceeds, and the staging directory is remove
   let staging = "";
   const statfsPort: StagingSpacePort = async (dir) => { staging = dir; return { bavail: sql.serialize().length + 16 * 1024 * 1024, bsize: 1 }; };
   const { rows } = await share(t, sql, { statfs: statfsPort });
-  assert.deepEqual(rows("workspaces"), [{ id: "ws", name: "Site", slug: "site", created_at: stamp }]);
+  assert.deepEqual(rows("workspaces"), [{ id: "ws", name: "Site", slug: "site", created_at: stamp, version: 1 }]);
   assert.equal(existsSync(staging), false);
 });
 
@@ -207,7 +207,7 @@ test("an older share without the additive Library columns takes their trusted de
 
 test("a populated portable plugin table travels with only its policy columns; private plugin tables carry nothing", async t => {
   const { sql, db } = sourceDb(t);
-  assert.equal((await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
   sql.exec("ALTER TABLE p_newsletter__lists ADD COLUMN owner_email TEXT");
   sql.prepare("INSERT INTO p_newsletter__lists (id,workspace_id,name,slug,is_default,status,created_at,updated_at,owner_email) VALUES ('l1','ws','News','news',1,'active',?,?,'private@example.test')").run(stamp, stamp);
   sql.prepare("INSERT INTO p_newsletter__subscriptions (id,workspace_id,list_id,subscriber_id,status,source,created_at,updated_at) VALUES ('s1','ws','l1','sub','active','form',?,?)").run(stamp, stamp);
@@ -218,7 +218,7 @@ test("a populated portable plugin table travels with only its policy columns; pr
 
 test("a portable plugin table missing one of its policy columns refuses with UNSUPPORTED_SCHEMA", async t => {
   const { sql, db } = sourceDb(t);
-  assert.equal((await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
+  assert.equal((await declareDataModule({ db: contentKernel({ store: db }), dbPath: ":memory:", decl: NEWSLETTER_DATA_MODULE })).ok, true);
   sql.exec("ALTER TABLE p_newsletter__lists DROP COLUMN status");
   await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("UNSUPPORTED_SCHEMA", "Cannot share 'p_newsletter__lists': its columns differ from the trusted current schema. Update the site first."));
 });
@@ -418,12 +418,12 @@ test("workspace values: credential-looking valid values stay included; invalid a
 async function pluginTarget(t: TestContext) {
   const db = openContentDb({ filePath: ":memory:" });
   t.after(() => db.$client.close());
-  return sqliteKernel<Record<string, Row>>(db);
+  return sqliteKernel<Record<string, Row>>({ source: db });
 }
 
 test("plugin tables: present portable tables are built with only their policy columns; private names are always reported", async t => {
   const target = await pluginTarget(t);
-  const before = new Set(await listTables(target));
+  const before = new Set(await listTables({ kernel: target }));
   const modules = [
     fixtureModule([
       { name: "notes", columns: NOTES_COLUMNS, portability: { kind: "portable", columns: ["id", "body"] } },
@@ -436,8 +436,8 @@ test("plugin tables: present portable tables are built with only their policy co
   const present = new Set(["p_fixture__notes", "p_fixture__secrets", "p_fixture__plain"]);
   const result = await prepareSharePluginTables({ target, present, modules });
   assert.deepEqual(result, { portable: new Set(["p_fixture__notes"]), private: new Set(["p_fixture__secrets", "p_privateonly__audit"]) });
-  assert.deepEqual((await listTables(target)).filter(name => !before.has(name) && name.startsWith("p_")), ["p_fixture__notes"]);
-  assert.deepEqual((await listColumns(target, "p_fixture__notes")).map(column => column.name), ["id", "body"]);
+  assert.deepEqual((await listTables({ kernel: target })).filter(name => !before.has(name) && name.startsWith("p_")), ["p_fixture__notes"]);
+  assert.deepEqual((await listColumns({ kernel: target, table: "p_fixture__notes" })).map(column => column.name), ["id", "body"]);
 });
 
 test("plugin tables: a portable policy naming an undeclared column refuses with UNSUPPORTED_SCHEMA", async t => {

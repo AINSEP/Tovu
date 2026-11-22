@@ -25,11 +25,12 @@ test('useSitesPolling: loads, re-polls on each tick, reports a failed poll, and 
   const bridge = { listSites: () => responses.shift()! };
   const ticks: (() => void)[] = [];
   let stopped = 0;
-  const startInterval = (tick: () => void, periodMs: number) => { assert.equal(periodMs, 4000); ticks.push(tick); return () => { stopped++; }; };
+  const startInterval = ({ tick, periodMs }: { tick: () => void; periodMs: number }) => { assert.equal(periodMs, 4000); ticks.push(tick); return () => { stopped++; }; };
   const getBridge = () => bridge;
   responses.push(Promise.resolve([site('a')]));
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   assert.equal(hook.current().projectsLoading, true);
+  assert.equal(ticks.length, 1);
   await settle();
   assert.deepEqual(hook.current().projects.map((p) => p.id), ['a']);
   assert.equal(hook.current().projectsLoading, false);
@@ -57,7 +58,7 @@ test('useSitesPolling: a lookup that changes drops every result the previous one
   const newBridge = { listSites: () => fresh.promise };
   const ticks: (() => void)[] = [];
   const stops: number[] = [];
-  const startInterval = (tick: () => void) => { ticks.push(tick); const index = ticks.length; return () => stops.push(index); };
+  const startInterval = ({ tick }: { tick: () => void }) => { ticks.push(tick); const index = ticks.length; return () => stops.push(index); };
   let getBridge: () => { listSites: () => Promise<readonly SiteRecord[]> } = () => oldBridge;
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   ticks[0]!();
@@ -83,7 +84,7 @@ test('useSitesPolling: a poll that started before a local write is dropped, and 
   const responses = [Promise.resolve([site('a')]), inFlight.promise, Promise.resolve([site('a'), site('server')])];
   const getBridge = () => ({ listSites: () => responses.shift()! });
   let tick!: () => void;
-  const startInterval = (callback: () => void) => { tick = callback; return () => {}; };
+  const startInterval = ({ tick: callback }: { tick: () => void }) => { tick = callback; return () => {}; };
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   await settle();
   act(() => tick());
@@ -100,7 +101,7 @@ test('useSitesPolling: a poll that started before a local write is dropped, and 
 
 function useRescanWithList(getBridge: () => Pick<RunnerInventoryBridge, 'rescanSites'> | undefined) {
   const [projects, setProjects] = useState<readonly SiteRecord[]>([site('kept')]);
-  return { projects, ...useSiteRescan(setProjects, { getBridge }) };
+  return { projects, ...useSiteRescan({ setProjects }, { getBridge }) };
 }
 
 test('useSiteRescan: applies the returned list at once and shows scanning only while the call is open', async (t) => {
@@ -160,7 +161,7 @@ function useProjectsWith<T>(initial: readonly SiteRecord[], useRest: (setProject
 // stop those four seconds are the whole problem — the card would go on saying `Running` after the
 // operator watched their stop succeed. The App-level wiring is `App.sites-home.render.test.ts`.
 test('useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids', (t) => {
-  const hook = renderHook(t, () => useProjectsWith([site('a'), site('b'), site('c')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([site('a'), site('b'), site('c')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   act(() => hook.current().apply(site('b', { status: 'running' })));
   assert.deepEqual(hook.current().projects.map((p) => `${p.id}:${p.status}`), ['a:stopped', 'b:running', 'c:stopped']);
   // A missing-folder card's Locate comes back under its NEW folder id and replaces the card at
@@ -173,7 +174,7 @@ test('useApplySiteRecord: replaces the matching row, merges a located site into 
 });
 
 test('useApplySiteRecord: keeps one stable callback per setter', (t) => {
-  const hook = renderHook(t, () => useProjectsWith([site('a')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([site('a')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   const first = hook.current().apply;
   hook.rerender();
   assert.equal(hook.current().apply, first);
@@ -181,7 +182,7 @@ test('useApplySiteRecord: keeps one stable callback per setter', (t) => {
 
 test('a late Locate result cannot remove the existing destination card after the source card disappears', (t) => {
   const destination = site('destination', { status: 'running' });
-  const hook = renderHook(t, () => useProjectsWith([destination, site('kept')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([destination, site('kept')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   act(() => hook.current().apply(site('destination', { displayName: 'stale locate' }), 'removed-source'));
   assert.deepEqual(hook.current().projects, [destination, site('kept')]);
 });

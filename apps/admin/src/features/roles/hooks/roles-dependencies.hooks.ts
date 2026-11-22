@@ -1,194 +1,32 @@
-import { api, type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "@/lib/api";
-import type { RolesPort } from "./roles-port.hooks";
+import { rolesApi } from "@/features/roles/api/roles-api";
+import type { RolesPort } from "@jini-ai/user-management/react";
 
 /**
- * @file The only place `use-roles.hooks.ts` reaches `lib/api` — see `roles-port.hooks.ts` for why
- * the split exists.
+ * @file The live Jini RolesPort binding — the only place `use-roles.hooks.ts` reaches `lib/api`.
+ * Follows the `useX(dependencies)` / `useWiredX()` pair `apps/admin/
+ * INFO.md`'s "Hooks" section documents (canonical example: `features/pages/hooks/theme-pages-
+ * port.hooks.ts`).
+ *
+ * One shared port for the whole screen, matching the users screen's identical reasoning (its port is now `UsersPort` in `@jini-ai/user-management/react`)
+ * (`Roles` is one hook backing one screen; `@jini-ai/admin/seo`'s historical eight-method
+ * SEO port, now core `AdminSeoPort`, is the closest existing precedent for keeping a port this size as one flat interface
+ * rather than splitting by concern, e.g. "roles" vs. "policies" — a split this codebase has no
+ * existing precedent for anywhere, and which would not reduce what a full-hook or full-render test
+ * has to fake, since every render loads both `listRoles` and `listPolicies` together regardless of
+ * which mutation is under test).
  */
 
 /** The live implementation, as a module-level singleton. */
 export const defaultRolesPort: RolesPort = {
-  listRoles: () => api.listRoles(),
-  listPolicies: () => api.listPolicies(),
-  createRole: (name) => api.createRole(name),
-  updateRole: (input) => api.updateRole(input),
-  deleteRole: (roleId) => api.deleteRole(roleId),
-  createPolicy: (input, options) => api.createPolicy(input, options),
-  updatePolicy: (target, options) => api.updatePolicy(target, options),
-  deletePolicy: (policyId) => api.deletePolicy(policyId),
-  writePolicyPermission: (input, options) => api.writePolicyPermission(input, options),
-  listPolicyPermissions: (policyId) => api.listPolicyPermissions(policyId),
-  removePolicyPermission: (input) => api.removePolicyPermission(input),
+  listRoles: () => rolesApi.listRoles(),
+  listPolicies: () => rolesApi.listPolicies(),
+  createRole: ({ name }, _optional = {}) => rolesApi.createRole({ name }),
+  updateRole: (input, _optional = {}) => rolesApi.updateRole(input),
+  deleteRole: ({ roleId }, _optional = {}) => rolesApi.deleteRole({ roleId }),
+  createPolicy: (input, options = {}) => rolesApi.createPolicy(input, options),
+  updatePolicy: (target, options = {}) => rolesApi.updatePolicy(target, options),
+  deletePolicy: ({ policyId }, _optional = {}) => rolesApi.deletePolicy({ policyId }),
+  writePolicyPermission: (input, options = {}) => rolesApi.writePolicyPermission(input, options),
+  listPolicyPermissions: ({ policyId }, _optional = {}) => rolesApi.listPolicyPermissions({ policyId }),
+  removePolicyPermission: (input, _optional = {}) => rolesApi.removePolicyPermission(input),
 };
-
-const FAKE_WORKSPACE_ID = "fake-ws";
-
-/** Every caller names the row's `id` (it is derived from the store size), so `id` is required
- *  here and comes from the trailing `...overrides` spread. Same for {@link fakePolicy}. */
-function fakeRole(overrides: Pick<AdminRole, "id"> & Partial<AdminRole>): AdminRole {
-  return {
-    workspaceId: FAKE_WORKSPACE_ID,
-    name: "Fake role",
-    isBuiltin: false,
-    ...overrides,
-  };
-}
-
-function fakePolicy(overrides: Pick<AdminPolicy, "id"> & Partial<AdminPolicy>): AdminPolicy {
-  return {
-    workspaceId: FAKE_WORKSPACE_ID,
-    name: "Fake policy",
-    isBuiltin: false,
-    isFrozen: false,
-    ...overrides,
-  };
-}
-
-/** Seed state for {@link createFakeRolesPort}. */
-export interface FakeRolesPortOptions {
-  roles?: AdminRole[];
-  policies?: AdminPolicy[];
-  /** When set, `createRole()` rejects with this instead of resolving. */
-  createRoleError?: Error;
-  /** When set, `updateRole()` rejects with this instead of resolving. */
-  updateRoleError?: Error;
-  /** When set, `deleteRole()` rejects with this instead of resolving. */
-  deleteRoleError?: Error;
-  /** When set, `createPolicy()` rejects with this instead of resolving. */
-  createPolicyError?: Error;
-  /** When set, `updatePolicy()` rejects with this instead of resolving. */
-  updatePolicyError?: Error;
-  /** When set, `deletePolicy()` rejects with this instead of resolving. */
-  deletePolicyError?: Error;
-  /** When set, `writePolicyPermission()` rejects with this instead of resolving. */
-  writePermissionError?: Error;
-  /** When set, `listPolicyPermissions()` rejects with this instead of resolving. */
-  listPermissionsError?: Error;
-  /** When set, `removePolicyPermission()` rejects with this instead of resolving. */
-  removePermissionError?: Error;
-  /** Permission rows the fake starts with, so a test can open a policy that already HAS
-   *  permissions without writing them one call at a time. */
-  initialPolicyPermissions?: AdminPolicyPermission[];
-}
-
-/**
- * An in-memory {@link RolesPort} for tests — "every port gets a fake" (see `assistant-chats-
- * dependencies.hooks.ts`). Mirrors `posts-list-dependencies.hooks.ts`'s `createFakePostsListPort`:
- * mutations write through to the same backing arrays the list methods read, so a test can assert a
- * write's outcome by reading the exposed `roles`/`policies` arrays back, with no `fetch` stub.
- */
-export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPort & {
-  /** Every role currently in the fake's store, in list order. */
-  readonly roles: AdminRole[];
-  /** Every policy currently in the fake's store, in list order. */
-  readonly policies: AdminPolicy[];
-  /** Every policy-permission row currently in the fake's store (OQ-10), so a removal test can read
-   *  the outcome back the same way `roles`/`policies` already allow. */
-  readonly policyPermissions: AdminPolicyPermission[];
-} {
-  const roles = [...(options.roles ?? [])];
-  const policies = [...(options.policies ?? [])];
-  const policyPermissions = [...(options.initialPolicyPermissions ?? [])];
-
-  function requireRole(roleId: string): AdminRole {
-    const found = roles.find((r) => r.id === roleId);
-    if (!found) throw new Error(`fake role not found: ${roleId}`);
-    return found;
-  }
-
-  function requirePolicy(policyId: string): AdminPolicy {
-    const found = policies.find((p) => p.id === policyId);
-    if (!found) throw new Error(`fake policy not found: ${policyId}`);
-    return found;
-  }
-
-  return {
-    roles,
-    policies,
-    policyPermissions,
-    async listRoles() {
-      return { roles: [...roles] };
-    },
-    async listPolicies() {
-      return { policies: [...policies] };
-    },
-    async createRole(name) {
-      if (options.createRoleError) throw options.createRoleError;
-      const created = fakeRole({ id: `fake-role-${roles.length + 1}`, name });
-      roles.push(created);
-      return { role: created };
-    },
-    async updateRole(input) {
-      if (options.updateRoleError) throw options.updateRoleError;
-      const index = roles.findIndex((r) => r.id === input.roleId);
-      if (index < 0) throw new Error(`fake role not found: ${input.roleId}`);
-      const updated = { ...roles[index]!, name: input.name };
-      roles[index] = updated;
-      return { role: updated };
-    },
-    async deleteRole(roleId) {
-      if (options.deleteRoleError) throw options.deleteRoleError;
-      requireRole(roleId);
-      const index = roles.findIndex((r) => r.id === roleId);
-      roles.splice(index, 1);
-    },
-    async createPolicy(input, opts) {
-      if (options.createPolicyError) throw options.createPolicyError;
-      const created = fakePolicy({
-        id: `fake-policy-${policies.length + 1}`,
-        name: input.name,
-        description: opts?.description,
-      });
-      policies.push(created);
-      return { policy: created };
-    },
-    async updatePolicy(target, opts) {
-      if (options.updatePolicyError) throw options.updatePolicyError;
-      const index = policies.findIndex((p) => p.id === target.policyId);
-      if (index < 0) throw new Error(`fake policy not found: ${target.policyId}`);
-      const updated = { ...policies[index]!, ...opts };
-      policies[index] = updated;
-      return { policy: updated };
-    },
-    async deletePolicy(policyId) {
-      if (options.deletePolicyError) throw options.deletePolicyError;
-      requirePolicy(policyId);
-      const index = policies.findIndex((p) => p.id === policyId);
-      policies.splice(index, 1);
-    },
-    async writePolicyPermission(input) {
-      if (options.writePermissionError) throw options.writePermissionError;
-      requirePolicy(input.policyId);
-      const created = {
-        id: `fake-perm-${policyPermissions.length + 1}`,
-        workspaceId: FAKE_WORKSPACE_ID,
-        policyId: input.policyId,
-        permission: input.permission,
-        resourceType: null,
-        constraintJson: null,
-      };
-      policyPermissions.push(created);
-      return { policyPermission: created };
-    },
-    async listPolicyPermissions(policyId) {
-      if (options.listPermissionsError) throw options.listPermissionsError;
-      requirePolicy(policyId);
-      return { policyPermissions: policyPermissions.filter((row) => row.policyId === policyId) };
-    },
-    async removePolicyPermission(input) {
-      if (options.removePermissionError) throw options.removePermissionError;
-      requirePolicy(input.policyId);
-      // Mirrors the server's membership proof: a row is only removable through the policy it
-      // actually belongs to, so a test cannot get a cross-policy delete past the fake either.
-      const index = policyPermissions.findIndex(
-        (row) => row.id === input.policyPermissionId && row.policyId === input.policyId,
-      );
-      if (index < 0) {
-        throw new Error(
-          `policy permission '${input.policyPermissionId}' was not found on policy '${input.policyId}'`,
-        );
-      }
-      policyPermissions.splice(index, 1);
-    },
-  };
-}

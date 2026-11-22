@@ -25,11 +25,11 @@ describe("parameterized webhook copy", () => {
     ["xx", 'Delete webhook "', '"? This cannot be undone.', 'Actions for webhook "', '"'],
   ])("renders %s destructive copy and action labels around the exact webhook name", (locale, before, after, actionBefore, actionAfter) => {
     const label = "Payments <b>& {label} $&</b>";
-    const { container } = render(<>{deleteWebhookBody(locale, label)}</>);
+    const { container } = render(<>{deleteWebhookBody({ locale: locale, label: label })}</>);
     expect(container.querySelector("p")?.textContent).toBe(`${before}${label}${after}`);
     expect(container.querySelector("b")).toBeNull();
-    expect(actionsForWebhookLabel(locale, label)).toBe(`${actionBefore}${label}${actionAfter}`);
-    expect(actionsForWebhookLabel(locale, "Other webhook")).toBe(`${actionBefore}Other webhook${actionAfter}`);
+    expect(actionsForWebhookLabel({ locale: locale, label: label })).toBe(`${actionBefore}${label}${actionAfter}`);
+    expect(actionsForWebhookLabel({ locale: locale, label: "Other webhook" })).toBe(`${actionBefore}Other webhook${actionAfter}`);
   });
 
   // F4.2/F5.2: use the real locale picker as the completeness boundary, with membership controls.
@@ -37,12 +37,12 @@ describe("parameterized webhook copy", () => {
     const locales = ADMIN_LOCALES.filter(({ code }) => code !== "en");
     expect(locales.map(({ code }) => code)).toContain("tr");
     for (const { code } of locales) {
-      const { container, unmount } = render(<>{deleteWebhookBody(code, "payments-17")}</>);
+      const { container, unmount } = render(<>{deleteWebhookBody({ locale: code, label: "payments-17" })}</>);
       const paragraph = container.querySelector("p");
       expect(paragraph, code).toBeInTheDocument();
       expect(paragraph!.textContent, code).toContain("payments-17");
       expect(paragraph!.textContent, code).not.toBe('Delete webhook "payments-17"? This cannot be undone.');
-      const name = actionsForWebhookLabel(code, "payments-17");
+      const name = actionsForWebhookLabel({ locale: code, label: "payments-17" });
       expect(name, code).toContain("payments-17");
       expect(name, code).not.toBe('Actions for webhook "payments-17"');
       unmount();

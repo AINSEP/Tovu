@@ -5,15 +5,21 @@ import { openFetchFrontendStream } from '@jini-ai/chat/browser/frontend-session-
 import { createVisitorFrontendControl } from '../visitor-frontend-control.js';
 import { allowsVisitorRequestOrigin } from '../visitor-request-origin.js';
 import { publishVisitorPage } from '#src/features/theme/visitor-publication';
+import { requestHookInput } from '#src/server/inbound/shared/request-facts';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/server/runtime/composition/jini-routes';
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
+
+/** What the composition root lends the visitor control: the real mount, host and timer, so these tests go through the same path the site uses. */
+const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput };
 
 /** Exercise the mounted routes and native HTTP objects without a listening socket. */
 function policyFixture() {
   const app = express();
   const frontend = createVisitorFrontendControl({ workspaceId: 'origin-policy-test', enabled: async () => true,
-    clock: { nowMs: () => 0 },
+    ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -21,10 +27,10 @@ function policyFixture() {
   registerSiteAssistantConfirm({ app, ports: {
     confirmations: { request: async () => false, confirm: async () => { deliveries++; return true; } },
     enabled: async () => true, allowsOrigin: async ({ origin }) => origin === 'https://public.test',
-    limiter: { check: async () => ({ allowed: true }) }, reportError: error => { throw error; },
+    limiter: { check: async () => ({ allowed: true }) }, reportError: ({ error }) => { throw error; },
   } });
   app.use('/origin-policy', async (req, res) => {
-    const allowed = await allowsVisitorRequestOrigin({ req, method: req.method,
+    const allowed = await allowsVisitorRequestOrigin({ ...requestHookInput({ req }),
       allowsOrigin: async ({ origin }) => origin === 'https://public.test' });
     res.sendStatus(allowed ? 200 : 403);
   });
@@ -124,7 +130,7 @@ test('F3c real site-chat GET stream shape resolves its visitor owner without Ori
   const probe = express();
   // Use the stream's real owner boundary without opening an SSE connection or listening socket.
   probe.get('/api/site-assistant/frontend-sessions/stream', async (req, res) => {
-    res.sendStatus(await frontend.resolveOwner({ req }) ? 200 : 403);
+    res.sendStatus(await frontend.resolveOwner(requestHookInput({ req })) ? 200 : 403);
   });
   let finish!: (status: number) => void;
   let fail!: (error: unknown) => void;
@@ -155,14 +161,14 @@ test('F3c real site-chat GET stream shape resolves its visitor owner without Ori
   finally { stream.close(); }
 });
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, { trust = 'loopback' }: { trust?: 'loopback' | 1 | null } = {}) {
   const controllers: AbortController[] = [];
   t.after(() => controllers.forEach(controller => controller.abort()));
   const app = express();
-  // Simulate distinct clients behind an explicitly trusted loopback proxy in this test only.
-  app.set('trust proxy', 'loopback');
+  // Simulate distinct clients behind an explicitly trusted loopback proxy in this test only (`null`: no trust setting at all).
+  if (trust !== null) app.set('trust proxy', trust);
   const frontend = createVisitorFrontendControl({ workspaceId: 'quota-test', enabled: async () => true,
-    clock: { nowMs: () => 0 },
+    ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -232,3 +238,81 @@ test('credential minting is rate limited per authenticated guest across IPs', as
   for (let index = 1; index <= 30; index++) assert.equal((await mint(index)).status, 200);
   assert.equal((await mint(31)).status, 429);
 });
+
+/** Opens `count` streams, each from a fresh guest, with the forwarded-for text `spoof(i)`; answers the statuses in order. */
+async function openAll(f: Awaited<ReturnType<typeof fixture>>, { count, spoof }: { count: number; spoof: (index: number) => string }) {
+  const statuses: number[] = [];
+  for (let index = 1; index <= count; index++) statuses.push((await f.open(spoof(index), await f.issue(spoof(index)))).status);
+  return statuses;
+}
+
+// Pin A2: with no trust setting the key is the socket's own address, so a spoofed X-Forwarded-For cannot buy a new quota.
+test('spoofed X-Forwarded-For pin: without a trust setting four different spoofed clients share one socket quota', async t => {
+  const f = await fixture(t, { trust: null });
+  assert.deepEqual(await openAll(f, { count: 4, spoof: index => `203.0.113.${index}` }), [200, 200, 200, 429]);
+});
+
+// Pin A3: with one trusted hop Express takes the rightmost address, so text the client put on the left is not the key.
+test('rightmost hop pin: with one trusted proxy the rightmost forwarded address is the quota key, a spoofed left address is not', async t => {
+  const f = await fixture(t, { trust: 1 });
+  assert.deepEqual(await openAll(f, { count: 4, spoof: index => `198.51.100.${index}, 192.0.2.9` }), [200, 200, 200, 429]);
+  // A different rightmost address is a different client.
+  assert.equal((await f.open('198.51.100.9, 192.0.2.10', await f.issue('192.0.2.10'))).status, 200);
+});
+
+/** One credentials POST; returns the whole answer. `origin` is built from the serving protocol the request claims. */
+async function issueRaw(f: Awaited<ReturnType<typeof fixture>>, { forwardedProto }: { forwardedProto?: string }) {
+  const host = new URL(f.base).host;
+  const response = await fetch(`${f.base}/api/site-assistant/frontend-sessions/credentials`, { method: 'POST',
+    headers: { origin: `https://${host}`, ...(forwardedProto === undefined ? {} : { 'x-forwarded-proto': forwardedProto }) } });
+  return { status: response.status, setCookie: response.headers.get('set-cookie'), cacheControl: response.headers.get('cache-control'), body: await response.text() };
+}
+
+// Pin A5: the cookie's bytes and its Secure flag follow req.secure, which is not the serving protocol the origin check uses.
+for (const [name, trust, forwardedProto, secure] of [
+  ['one trusted proxy + https', 1, 'https', true],
+  ['no trust + https', null, 'https', false],
+  ['one trusted proxy + HTTPS,http (the first hop is not exactly "https")', 1, 'HTTPS,http', false],
+] as const) test(`Secure cookie pin: ${name}: Secure is ${secure}, attributes in order, body is the credential only`, async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_700_000_000_000 });
+  const f = await fixture(t, { trust });
+  const answer = await issueRaw(f, { forwardedProto });
+  assert.equal(answer.status, 200);
+  assert.match(answer.setCookie ?? '', new RegExp(`^tovu_visitor_frontend=[A-Za-z0-9_.%-]+; Max-Age=1800; Path=/api/site-assistant; Expires=Tue, 14 Nov 2023 22:43:20 GMT; HttpOnly;${secure ? ' Secure;' : ''} SameSite=Strict$`));
+  assert.equal(answer.cacheControl, 'no-store');
+  assert.match(answer.body, /^\{"tabCredential":"[A-Za-z0-9_.-]+"\}$/);
+});
+
+// Pin A6: the Referrer spelling wins over Referer, and an absent Host is printed as the word "undefined" in the serving origin.
+for (const [name, headers, allowed] of [
+  ['Referrer is the serving origin, Referer is forged', { referrer: 'https://preview.site.test/page', referer: 'https://forged.invalid/page' }, true],
+  ['Referer is the serving origin, Referrer is forged', { referer: 'https://preview.site.test/page', referrer: 'https://forged.invalid/page' }, false],
+  ['Referer alone is the serving origin', { referer: 'https://preview.site.test/page' }, true],
+] as const) test(`Referrer pin: GET without Origin, ${name}: ${allowed ? 'allowed' : 'refused'}`, async () => {
+  const { app } = policyFixture();
+  const response = await dispatchHttpRequest({ app, method: 'GET', url: '/origin-policy', headers: { host: 'preview.site.test', 'x-forwarded-proto': 'https', ...headers } });
+  assert.equal(response.status, allowed ? 200 : 403);
+});
+
+test('Referrer pin: a request with no Host header and Origin "https://undefined" is allowed today (the absent Host prints as the word undefined)', async () => {
+  const { app } = policyFixture();
+  const response = await dispatchHttpRequest({ app, method: 'GET', url: '/origin-policy',
+    headers: { host: undefined, 'x-forwarded-proto': 'https', origin: 'https://undefined' } as unknown as Record<string, string> });
+  assert.equal(response.status, 200);
+});
+
+for (const [name, method, path] of [['credentials minting', 'POST', 'credentials'], ['the quota gate', 'GET', 'stream']] as const) {
+  test(`a throwing policy during ${name} answers a plain 403 and hands the error to the visitor reporter`, async () => {
+    const app = express();
+    const reported: unknown[] = [];
+    const frontend = createVisitorFrontendControl({ workspaceId: 'report-test', enabled: async () => { throw new Error('policy store down'); },
+      ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { reported.push(error); },
+      canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }) });
+    frontend.mount({ app });
+    const response = await dispatchHttpRequest({ app, method, url: `/api/site-assistant/frontend-sessions/${path}`, headers: { host: 'public.test', origin: 'https://public.test', 'x-forwarded-proto': 'https' } });
+    assert.equal(response.status, 403);
+    assert.equal(response.body, 'Forbidden');
+    assert.equal(reported.length, 1);
+    assert.match(String((reported[0] as Error).message), /policy store down/);
+  });
+}

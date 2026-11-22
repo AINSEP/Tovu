@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPluginProviderSettings } from "@/lib/api";
+import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
 import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
 import { PluginRow } from "../PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
@@ -27,7 +27,7 @@ function card(overrides: Partial<AdminPluginProviderSettings> = {}): AdminPlugin
 }
 
 function dialogWith(port: ReturnType<typeof createFakePluginsPort>, { onClose = () => {}, onSaved = () => {} }: { onClose?: () => void; onSaved?: () => void } = {}) {
-  const useSettings = (pluginId: string) => usePluginProviderSettings({ pluginId, port, t });
+  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
   return render(<PluginProviderSettingsDialog plugin={{ id: "observability-opentelemetry", name: "OpenTelemetry" }} agentHandleBase="row-otel" onClose={onClose} onSaved={onSaved} useSettings={useSettings} />);
 }
 
@@ -45,7 +45,7 @@ function posthogCard(overrides: Partial<AdminPluginProviderSettings["fields"][nu
 
 function posthogDialog(providerSettings: Record<string, AdminPluginProviderSettings>, onSaved = () => {}) {
   const port = createFakePluginsPort({ providerSettings });
-  const useSettings = (pluginId: string) => usePluginProviderSettings({ pluginId, port, t });
+  const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
   render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="row-posthog" onClose={() => {}} onSaved={onSaved} useSettings={useSettings} />);
   return port;
 }
@@ -177,7 +177,7 @@ describe("PluginProviderSettingsDialog", () => {
       { name: "apiKey", label: "Project API key", secret: true, required: true, saved: false },
     ] });
     const port = createFakePluginsPort({ providerSettings: { "analytics-posthog": posthog } });
-    const useSettings = (pluginId: string) => usePluginProviderSettings({ pluginId, port, t });
+    const useSettings = ({ pluginId }: { pluginId: string }) => usePluginProviderSettings({ pluginId, port, t });
     render(<PluginProviderSettingsDialog plugin={{ id: "analytics-posthog", name: "PostHog" }} agentHandleBase="plugins-row-analytics-posthog" onClose={() => {}} onSaved={() => {}} useSettings={useSettings} />);
     const apiKey = await findControl(/Project API key/);
     expect(control(/PostHog host/).getAttribute("data-agent-element")).toBe("plugins-row-analytics-posthog-setting-api-host");
@@ -235,7 +235,7 @@ describe("PluginProviderSettingsDialog", () => {
     const port = createFakePluginsPort({ providerSettings: { "observability-opentelemetry": card() } });
     let release = () => {};
     const realSave = port.saveProviderSettings.bind(port);
-    port.saveProviderSettings = (id, values) => new Promise((resolve, reject) => { release = () => { realSave(id, values).then(resolve, reject); }; });
+    port.saveProviderSettings = ({ id, values }) => new Promise((resolve, reject) => { release = () => { realSave({ id, values }).then(resolve, reject); }; });
     let saved = 0;
     dialogWith(port, { onSaved: () => { saved += 1; } });
     await findControl(/OTLP endpoint/);
@@ -311,11 +311,11 @@ describe("declared defaults, options and the secret eye", () => {
 describe("fake port saves like the real route", () => {
   it("refuses undeclared names and unknown plugins", async () => {
     const port = createFakePluginsPort({ providerSettings: { p: card({ pluginId: "p" }) } });
-    await expect(port.saveProviderSettings("p", { token: "x" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_INVALID" });
-    await expect(port.getProviderSettings("nope")).rejects.toMatchObject({ code: "PLUGIN_NOT_FOUND" });
-    await expect(port.saveProviderSettings("p", { endpoint: " ", headers: "" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
-    await expect(port.saveProviderSettings("p", { endpoint: " ", headers: "a=b" })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_REQUIRED" });
-    const saved = await port.saveProviderSettings("p", { endpoint: "https://old.example.test", headers: "a=b" });
+    await expect(port.saveProviderSettings({ id: "p", values: { token: "x" } })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_INVALID" });
+    await expect(port.getProviderSettings({ id: "nope" })).rejects.toMatchObject({ code: "PLUGIN_NOT_FOUND" });
+    await expect(port.saveProviderSettings({ id: "p", values: { endpoint: " ", headers: "" } })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_SECRET_REENTRY" });
+    await expect(port.saveProviderSettings({ id: "p", values: { endpoint: " ", headers: "a=b" } })).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_REQUIRED" });
+    const saved = await port.saveProviderSettings({ id: "p", values: { endpoint: "https://old.example.test", headers: "a=b" } });
     expect(saved.fields.map((field) => [field.saved, field.value])).toEqual([[true, "https://old.example.test"], [true, undefined]]);
   });
 });

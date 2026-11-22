@@ -56,7 +56,7 @@ test("requests without a key resolve to null and receive the exact 401 without c
     assert.equal(capture.statusCode, 401);
     assert.deepEqual(capture.jsonBody, { error: "unauthenticated", code: "UNAUTHENTICATED" });
     assert.deepEqual(nextCalls, []);
-    assert.strictEqual(await currentCredential(deps, req), null);
+    assert.strictEqual(await currentCredential({ deps, req }), null);
   }
 });
 
@@ -65,7 +65,7 @@ test("GET /auth/me directly returns the exact 401 for an unauthenticated request
   const deps = createRouteDeps();
   await deps.identityReady;
   const app = express();
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/auth/me");
   const { res, capture } = createCapturingResponse();
 
@@ -80,7 +80,7 @@ test("GET /auth/me/password-status directly returns the exact 401 for an unauthe
   const deps = createRouteDeps();
   await deps.identityReady;
   const app = express();
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const handler = extractRouteHandler(app, "get", "/api/admin/v1/auth/me/password-status");
   const { res, capture } = createCapturingResponse();
 
@@ -95,7 +95,7 @@ test("malformed authorization schemes never authenticate and invalid bearer keys
   await deps.identityReady;
   for (const authorization of ["Bearer", "Bearer  ", "ApiKey", "Bearer one two", "Bearer invalid-key", "ApiKey invalid-key"]) {
     const req = { headers: { authorization }, socket: { localPort: 0 } } as Request;
-    assert.equal(await currentCredential(deps, req), null, authorization);
+    assert.equal(await currentCredential({ deps, req }), null, authorization);
     const { res, capture } = createCapturingResponse();
     let nextCalls = 0;
     await requireAdminSession(deps)(req, res, () => { nextCalls++; });
@@ -111,7 +111,7 @@ test("password login without a User-Agent still creates a usable session without
   await deps.identityReady;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const base = await startTestServer(app, t);
   const save = t.mock.method(deps.sessionRepo, "save");
   const response = await new Promise<{ status: number | undefined; cookie: string; body: string }>((resolve, reject) => {
@@ -177,7 +177,7 @@ test("a local owner cookie on a listener without a TCP port (a unix socket) is k
   await deps.identityReady;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const base = await startTestServer(app, t);
   const login = await fetch(`${base}/api/admin/v1/auth/login`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
@@ -187,10 +187,10 @@ test("a local owner cookie on a listener without a TCP port (a unix socket) is k
   const localOwnerSignIn = { enabled: true };
   const portless = (name: string) => ({ headers: { cookie: `${name}=${rawToken}` }, socket: {} }) as unknown as Request;
 
-  const resolved = await currentCredential(deps, portless("tovu_session_local_0"), { localOwnerSignIn });
+  const resolved = await currentCredential({ deps, req: portless("tovu_session_local_0") }, { localOwnerSignIn });
   assert.equal(resolved?.principal.id, await deps.ownerPrincipalId);
   assert.equal(resolved?.kind, "session");
-  assert.equal(await currentCredential(deps, portless("tovu_session_local_undefined"), { localOwnerSignIn }), null);
+  assert.equal(await currentCredential({ deps, req: portless("tovu_session_local_undefined") }, { localOwnerSignIn }), null);
 });
 
 test("a login body without username or password fields is the same uniform 401 as a wrong password", async (t) => {
@@ -198,7 +198,7 @@ test("a login body without username or password fields is the same uniform 401 a
   await deps.identityReady;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const base = await startTestServer(app, t);
   const response = await fetch(`${base}/api/admin/v1/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   assert.equal(response.status, 401);
@@ -211,7 +211,7 @@ test("login attempts beyond the per-client minute budget are refused with 429 an
   await deps.identityReady;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const base = await startTestServer(app, t);
   const attempt = () => fetch(`${base}/api/admin/v1/auth/login`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: "wrong-password" }),

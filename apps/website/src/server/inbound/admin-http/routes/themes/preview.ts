@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file `GET /api/admin/v1/workspaces/:ws/themes/:themeId/preview` — a Themes card's picture of the
  * theme's OWN render.
@@ -29,6 +30,7 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import { themeContentVersion, themePreviewImage } from "#src/features/theme/theme-preview-image";
 import { servingAddressOf } from "../sites/site-previews.js";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 export interface ThemePreviewRouteDeps extends Pick<RouteDeps, "workspaceId" | "authorize" | "themes"> {
   siteBinding?: RouteDeps["siteBinding"];
@@ -53,10 +55,13 @@ function capturePageId(theme: DiscoveredTheme): string | null {
 }
 
 /** Resolves after `ms`, or when `work` settles — whichever is first. Never rejects. */
-function settleWithin(work: Promise<void>, ms: number): Promise<void> {
+function settleWithin({ work, ms }: { work: Promise<void>; ms: number }, _optional = {}): Promise<void> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); });
-  return Promise.race([work.catch(() => {}), timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([work.catch((error: unknown) => {
+    console.warn("[theme-preview] Could not wait for the preview capture:",
+      describeErrorForLog({ err: error }));
+  }), timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Read a current capture, waiting for the existing queue only when this theme needs one. */
@@ -77,7 +82,7 @@ async function readThemeCapture(
   if (captured === undefined && serving) {
     const url = `${serving.scheme}://localhost:${serving.port}/theme-explore/${encodeURIComponent(themeId)}/${encodeURIComponent(pageId)}`;
     previews.versions({ sites: [site], targets: [{ name: themeId, url, lifecycle: String(version) }] });
-    await settleWithin(previews.idle(), waitMs);
+    await settleWithin({ work: previews.idle(), ms: waitMs });
     captured = previews.versions({ sites: [site], targets: [] })[themeId];
   }
   return captured === undefined ? null : previews.read({ name: themeId });
@@ -98,12 +103,12 @@ export function registerAdminThemePreviewRoute(
   if (deps.themePreviews === undefined && deps.siteBinding) previews = previewServiceForHost({ binding: deps.siteBinding });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/preview", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       // Same permission as the presentation listing that hands out this URL.
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" } }))) return;
       const themeId = String(req.params.themeId ?? "");
       const theme = deps.themes.find((t) => t.status === "valid" && t.manifest.id === themeId && t.manifest.tier === "static");
       if (!theme) { res.status(404).json({ code: "THEME_NOT_FOUND", error: "no such static theme" }); return; }

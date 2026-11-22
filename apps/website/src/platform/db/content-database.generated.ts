@@ -299,6 +299,7 @@ export interface ExternalMcpServersTable {
   oauth_refresh_lease_until: string | null;
   created_at: string;
   updated_at: string;
+  version: Generated<number>;
 }
 
 export interface ExternalMcpToolApprovalsTable {
@@ -382,6 +383,7 @@ export interface IdentityUsersTable {
   email: string | null;
   password_hash: string;
   last_login_at: string | null;
+  version: Generated<number>;
 }
 
 export interface MediaTable {
@@ -666,6 +668,7 @@ export interface PoliciesTable {
   description: string | null;
   is_builtin: number;
   is_frozen: number;
+  version: Generated<number>;
 }
 
 export interface PolicyPermissionsTable {
@@ -884,6 +887,7 @@ export interface RolesTable {
   workspace_id: string;
   name: string;
   is_builtin: number;
+  version: Generated<number>;
 }
 
 export interface SecretsVaultTable {
@@ -1088,6 +1092,7 @@ export interface WebhookSubscriptionsTable {
   created_by_plugin_id: string | null;
   created_at: string;
   updated_at: string;
+  version: Generated<number>;
   disabled_at: string | null;
 }
 
@@ -1103,4 +1108,5 @@ export interface WorkspacesTable {
   name: string;
   slug: string;
   created_at: string;
+  version: Generated<number>;
 }

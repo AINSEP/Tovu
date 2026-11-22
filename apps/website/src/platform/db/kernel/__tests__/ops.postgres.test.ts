@@ -8,7 +8,7 @@ import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 import { openPostgresKernel } from "../drivers/postgres.js";
 import { StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 const { dropDatabase } = createPgFixture({
   host: process.env.PGHOST ?? "/tmp",
@@ -22,7 +22,7 @@ const { dropDatabase } = createPgFixture({
  */
 
 const DB = "tovu_kernel_ops_test";
-let kernel: StorageKernel<unknown>;
+let kernel: KyselyKernel<unknown>;
 
 before(() => {
   kernel = openPostgresKernel<unknown>({ connectionString: freshPostgresDatabase(DB) });
@@ -33,7 +33,7 @@ after(async () => {
 });
 
 test("Postgres copyTo is refused with what to do instead", async () => {
-  await assert.rejects(storageOps(kernel).copyTo("/never"), (err: unknown) => {
+  await assert.rejects(storageOps({ kernel }).copyTo("/never"), (err: unknown) => {
     assert.ok(err instanceof StorageOpNotSupportedError);
     assert.equal(
       err.message,
@@ -44,13 +44,13 @@ test("Postgres copyTo is refused with what to do instead", async () => {
 });
 
 test("Postgres compactAndVerify refuses a missing ledger, then passes once it has a step", async () => {
-  await assert.rejects(storageOps(kernel).compactAndVerify(), (err: unknown) => {
+  await assert.rejects(storageOps({ kernel }).compactAndVerify(), (err: unknown) => {
     assert.ok(err instanceof StorageOpError);
     assert.match(err.message, /^the migration ledger tovu_migrations cannot be read back: relation "tovu_migrations" does not exist/);
     return true;
   });
   await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
   await kernel.execute(sql`INSERT INTO tovu_migrations VALUES ('0000_test')`);
-  await storageOps(kernel).compactAndVerify();
-  await assert.rejects(kernel.transaction(async () => storageOps(kernel).compactAndVerify()), /must be called outside a transaction/);
+  await storageOps({ kernel }).compactAndVerify();
+  await assert.rejects(kernel.transaction(async () => storageOps({ kernel }).compactAndVerify()), /must be called outside a transaction/);
 });

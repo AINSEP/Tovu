@@ -10,7 +10,7 @@ import { type ContentKernel, contentKernel } from "#src/platform/db/content-kern
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { MAX_ROWS_PER_WORKSPACE, SqliteToolAttemptAuditSink } from "../../repo.sqlite.js";
-import type { ToolAttemptEvent } from "../../types.js";
+import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 /**
  * @file Real SQLite persistence for the agent tool-attempt audit trail. Uses a temp-file database
@@ -53,8 +53,8 @@ test("an appended attempt survives closing and reopening the database — the wh
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  await new SqliteToolAttemptAuditSink(db).append(event());
-  await new SqliteToolAttemptAuditSink(db).append(event({ phase: "completed", detail: null }));
+  await new SqliteToolAttemptAuditSink({ store: db }).append(event());
+  await new SqliteToolAttemptAuditSink({ store: db }).append(event({ phase: "completed", detail: null }));
 
   db.$client.close();
   assert.equal(db.$client.open, false);
@@ -78,7 +78,7 @@ test("a null executionId round-trips as NULL — the unknown-tool case must be s
   const { db, tmpDir } = openTempContentDb();
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
-  await new SqliteToolAttemptAuditSink(db).append(event({ executionId: null, phase: "unknown-tool", toolId: "collections_typo" }));
+  await new SqliteToolAttemptAuditSink({ store: db }).append(event({ executionId: null, phase: "unknown-tool", toolId: "collections_typo" }));
 
   const [row] = db.select().from(agentToolAttempts).all();
   assert.equal(row.executionId, null);
@@ -91,17 +91,17 @@ test("append never throws, even when the underlying write fails — audit is obs
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const errors: unknown[] = [];
-  const kernel = contentKernel(db);
+  const kernel = contentKernel({ store: db });
   const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
 
-  await assert.doesNotReject(() => new SqliteToolAttemptAuditSink(broken, { onError: (e) => errors.push(e) }).append(event()));
+  await assert.doesNotReject(() => new SqliteToolAttemptAuditSink({ store: broken }, { onError: ({ error: e }) => errors.push(e) }).append(event()));
   assert.equal(errors.length, 1, "the failure must be reported, not silently dropped");
 });
 
 test("stores each event's workspaceId alongside its attemptId (ADR-007)", async (t) => {
   const { db, tmpDir } = openTempContentDb();
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
-  const sink = new SqliteToolAttemptAuditSink(db);
+  const sink = new SqliteToolAttemptAuditSink({ store: db });
 
   await sink.append(event({ workspaceId: "ws-1", attemptId: "first-workspace-attempt" }));
   await sink.append(event({ workspaceId: "ws-2", attemptId: "second-workspace-attempt" }));
@@ -120,8 +120,8 @@ test("RETENTION: the per-workspace cap prunes oldest-first and leaves other work
 
   // The cap and check interval are injected small so this exercises the real trigger path — a
   // genuine append driving a genuine prune — instead of calling a private method or writing 50k rows.
-  const sink = new SqliteToolAttemptAuditSink(db, { maxRowsPerWorkspace: 10, pruneCheckInterval: 4 });
-  await new SqliteToolAttemptAuditSink(db).append(event({ workspaceId: "ws-other", attemptId: "other-1" }));
+  const sink = new SqliteToolAttemptAuditSink({ store: db }, { maxRowsPerWorkspace: 10, pruneCheckInterval: 4 });
+  await new SqliteToolAttemptAuditSink({ store: db }).append(event({ workspaceId: "ws-other", attemptId: "other-1" }));
 
   for (let i = 0; i < 40; i += 1) await sink.append(event({ workspaceId: "ws-1", attemptId: `attempt-${i}` }));
 
@@ -141,7 +141,7 @@ test("RETENTION: the per-workspace cap prunes oldest-first and leaves other work
 test("RETENTION: a workspace under the cap is never pruned", async (t) => {
   const { db, tmpDir } = openTempContentDb();
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
-  const sink = new SqliteToolAttemptAuditSink(db, { maxRowsPerWorkspace: 10, pruneCheckInterval: 2 });
+  const sink = new SqliteToolAttemptAuditSink({ store: db }, { maxRowsPerWorkspace: 10, pruneCheckInterval: 2 });
 
   for (let i = 0; i < 10; i += 1) await sink.append(event({ attemptId: `attempt-${i}` }));
 

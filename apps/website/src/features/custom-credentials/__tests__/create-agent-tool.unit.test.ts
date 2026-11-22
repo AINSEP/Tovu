@@ -6,11 +6,11 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
+import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "../vault-repo.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -19,8 +19,10 @@ import { createCustomCredential, resolveCustomCredentialByLabel, type CustomCred
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -78,6 +80,8 @@ function fakeRouteDeps(options: { allow?: boolean; httpClient?: HttpClientPort }
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,
@@ -668,7 +672,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
   test(`create catalog enrichment preserves optional plugin behavior: ${mode}`, { timeout: 5000 }, async t => {
     const { deps } = fakeRouteDeps();
     const calls: string[] = [];
-    const loadDeployTargets: CustomCredentialsToolDeps["loadDeployTargets"] = mode === "missing" ? undefined : async workspaceId => {
+    const loadDeployTargets: CustomCredentialsToolDeps["loadDeployTargets"] = mode === "missing" ? undefined : async ({ workspaceId }) => {
       assert.equal(workspaceId, WORKSPACE_ID);
       calls.push("deploy");
       if (mode === "unavailable") throw new Error("catalog unavailable");
@@ -683,7 +687,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
     const configured: CustomCredentialsToolDeps = {
       ...deps,
       ...(loadDeployTargets ? { loadDeployTargets } : {}),
-      loadSourceControlProviders: async workspaceId => {
+      loadSourceControlProviders: async ({ workspaceId }) => {
         assert.equal(workspaceId, WORKSPACE_ID);
         calls.push("source");
         if (mode === "unavailable" || mode === "partial") throw new Error("source catalog unavailable");

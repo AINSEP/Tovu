@@ -1,6 +1,6 @@
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";

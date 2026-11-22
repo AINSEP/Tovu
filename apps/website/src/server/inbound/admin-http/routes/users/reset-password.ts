@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { assertUserAccountAction, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
@@ -7,13 +7,14 @@ import { resetUserPassword } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. Exported for direct-invoke
  *  coverage: `assertUserAccountAction` deliberately exempts `reset-password` from its self-target
  *  refusal (the owner may reset its own password), so no current service path raises
  *  `SelfDeleteError` here — the mapping stays as defence-in-depth should that exemption change.
  *  @complexity O(1). */
-export function sendResetPasswordError(res: Response, err: unknown): void {
+export function sendResetPasswordError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof UserInTrashError) {
     res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
     return;
@@ -46,16 +47,13 @@ export function sendResetPasswordError(res: Response, err: unknown): void {
  * by **`user.manage`** only (stricter than `UPDATE_USER`). No response body — the raw new password
  * is never echoed back (INV-05); revokes every one of the target's active sessions (AC-29). Refuses
  * a THIRD-PARTY caller resetting the seeded owner's password (REQ-11/REQ-13) — the owner may still
- * reset its own — see `identity/admin-crud-service.ts`'s `resetUserPassword` for the full contract;
+ * reset its own — see `Jini packages/user-management/src/server/admin-crud-service.ts`'s `resetUserPassword` for the full contract;
  * `seededOwnerPrincipalId` is resolved here exactly as `disable.ts` resolves it for
  * `DISABLE_PRINCIPAL`.
  */
-export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
@@ -64,7 +62,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
 
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition;
       // see `enable.ts`'s identical guard for why.
-      if (await deps.isInTrash(principalId)) {
+      if (await deps.isInTrash({ principalId })) {
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 
@@ -87,7 +85,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
 
       res.status(204).send();
     } catch (err) {
-      sendResetPasswordError(res, err);
+      sendResetPasswordError({ res, err });
     }
   });
 };

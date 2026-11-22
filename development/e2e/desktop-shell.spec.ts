@@ -146,7 +146,7 @@ test.describe("apps/desktop shell", () => {
   test("macOS native Find shortcut, typing and match navigation keep the find input focused", async () => {
     test.skip(process.platform !== "darwin", "this test uses macOS System Events for real OS key routing");
     const userDataDir = scratchHome("native-find-profile");
-    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    trackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir: path.join(fixtureRoot, "site-alpha") }, { origin: SITE_ORIGIN.adopted });
     const app = await launchShell({
       HOME: scratchHome("native-find"),
       TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
@@ -231,7 +231,7 @@ test.describe("apps/desktop shell", () => {
   test("macOS spellcheck suggestion replaces text in the real guest editor", async () => {
     test.skip(process.platform !== "darwin", "uses the native macOS spelling dictionary");
     const userDataDir = scratchHome("spellcheck-profile");
-    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    trackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir: path.join(fixtureRoot, "site-alpha") }, { origin: SITE_ORIGIN.adopted });
     const app = await launchShell({
       TOVU_DESKTOP_USER_DATA_DIR: userDataDir, TOVU_DESKTOP_UI: "runner",
       TOVU_DESKTOP_SITE_DIR: "", TOVU_DESKTOP_SITE_DIRS: "", TOVU_DESKTOP_URL: "",
@@ -550,7 +550,7 @@ test.describe("apps/desktop shell", () => {
 
   test("card body keeps text beside actions and stacks menu above power", async () => {
     const userDataDir = scratchHome("card-layout-profile");
-    trackSite(sitesFilePath(userDataDir), path.join(fixtureRoot, "site-alpha"), SITE_ORIGIN.adopted);
+    trackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir: path.join(fixtureRoot, "site-alpha") }, { origin: SITE_ORIGIN.adopted });
     const app = await launchShell({
       TOVU_DESKTOP_UI: "runner",
       TOVU_DESKTOP_USER_DATA_DIR: userDataDir,
@@ -588,7 +588,7 @@ test.describe("apps/desktop shell", () => {
   test("a host click at the guest assistant FAB opens the guest assistant", async () => {
     const siteDir = path.join(fixtureRoot, "site-alpha");
     const userDataDir = scratchHome("guest-fab-profile");
-    trackSite(sitesFilePath(userDataDir), siteDir, SITE_ORIGIN.adopted);
+    trackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir }, { origin: SITE_ORIGIN.adopted });
     const app = await launchShell({
       TOVU_DESKTOP_UI: "runner",
       TOVU_DESKTOP_USER_DATA_DIR: userDataDir,

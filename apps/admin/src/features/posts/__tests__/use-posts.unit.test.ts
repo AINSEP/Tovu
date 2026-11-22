@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { settingsApi } from "@/features/settings/api/settings-api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
@@ -45,7 +46,7 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {
@@ -430,7 +431,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     await waitFor(() => expect(result.current.posts).not.toBeNull());
 
     // Another operator (the full editor, say) saves first.
-    port.simulateConcurrentSave(POST.id, "Their edit");
+    port.simulateConcurrentSave({ id: POST.id }, { title: "Their edit" });
 
     await act(async () => {
       await result.current.togglePostPublish(POST);
@@ -557,12 +558,12 @@ describe("usePosts — content refresh bus", () => {
 // `<Posts />` render.
 describe("usePostRowMenuHandleMap", () => {
   it("keys the handle by post id, matching buildPostRowMenuHandleMap", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap([POST]));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: [POST] }));
     expect(result.current.get(POST.id)).toBe(`posts-row-${POST.id}`);
   });
 
   it("returns an empty map for null posts", () => {
-    const { result } = renderHook(() => usePostRowMenuHandleMap(null));
+    const { result } = renderHook(() => usePostRowMenuHandleMap({ posts: null }));
     expect(result.current.size).toBe(0);
   });
 

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 import { createFakeWorkspacePort } from "../hooks/workspace-dependencies.hooks";
 import { useWiredWorkspace, useWorkspace } from "../hooks/use-workspace.hooks";
 
@@ -147,7 +147,7 @@ describe("useWorkspace — onSave", () => {
     await act(async () => view.result.current.onSave(event));
 
     expect(event.preventDefault).toHaveBeenCalledOnce();
-    expect(updateSpy).toHaveBeenCalledWith({ name: "Renamed Site", slug: "renamed-site" });
+    expect(updateSpy).toHaveBeenCalledWith({ patch: { name: "Renamed Site", slug: "renamed-site" } });
     expect(view.result.current.workspace).toEqual({ ...WORKSPACE, name: "Renamed Site", slug: "renamed-site" });
     expect(view.result.current.saved).toBe(true);
     expect(view.result.current.saveError).toBeNull();

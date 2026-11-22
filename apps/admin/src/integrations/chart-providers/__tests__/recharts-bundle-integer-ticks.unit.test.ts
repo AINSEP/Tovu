@@ -10,10 +10,16 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import rootPackage from "../../../../../../package.json";
 import { act } from "@testing-library/react";
+import { applyChartTheme } from "@jini-ai/ui/charts/browser";
 
-/** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
-const PINNED_VERSION = "0.6.24";
+/**
+ * The bundle folder is named for the package version, and the root dependency is EXACT so that version
+ * is the pin (`recharts-package-pin.unit.test.ts` ties it to RECHARTS_BROWSER_APPROVAL.version; the admin
+ * cannot import server composition). Reading it here means a re-pin cannot leave this test on a stale folder.
+ */
+const PINNED_VERSION = rootPackage.dependencies["@jini-ai/provider-plugins"];
 // The package exports `./catalog` (catalog.json at its root), not `package.json`.
 const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"));
 const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts-recharts", PINNED_VERSION, "client/provider.js")).href;
@@ -44,7 +50,7 @@ async function yTicks(kind: "bar" | "line", values: number[]): Promise<string[]>
   const data = values.map((count, i) => ({ status: `s${i}`, count }));
   let instance!: Instance;
   act(() => {
-    instance = mount({ element, spec: { kind, data, categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "light" } }) as Instance;
+    instance = mount({ element, applyTheme: applyChartTheme, spec: { kind, data, categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "light" } }) as Instance;
   });
   await instance.ready;
   // The bundle carries its own React, so its passive effects (where ResponsiveContainer measures)
@@ -98,7 +104,7 @@ it.each([180, 240, 375])("keeps middle-dot label separators with a word at %spx"
   const element = document.createElement("div");
   document.body.append(element);
   const labels = ["Pages · Published", "Posts · Drafts", "Media · Active"];
-  const instance = mount({ element, spec: { kind: "bar", data: labels.map(status => ({ status, count: 1 })), categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "dark" } }) as Instance;
+  const instance = mount({ element, applyTheme: applyChartTheme, spec: { kind: "bar", data: labels.map(status => ({ status, count: 1 })), categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "dark" } }) as Instance;
   try {
     await instance.ready;
     await vi.waitFor(() => expect(element.querySelector(".recharts-xAxis-tick-labels tspan")).not.toBeNull());

@@ -22,6 +22,6 @@ export interface VisitorExecutionPorts {
   readonly clock: { nowMs(): number; nowIso(): string };
   readonly ids: { newId(): string };
   readonly sink: ToolAttemptAuditSink;
-  readonly reportError: (error: unknown) => void;
+  readonly reportError: (required: { error: unknown }, optional?: Record<string, never>) => void;
   readonly signal?: AbortSignal;
 }

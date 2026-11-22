@@ -87,7 +87,7 @@ for (const part of [
   });
 }
 
-for (const name of ["mcp.json", "tovu-credential-schemes.json", "nested/dir/MCP.json"]) {
+for (const name of ["mcp.json", "jini-credential-schemes.json", "nested/dir/MCP.json"]) {
   test(`'${name}' below an installed package root is package content`, { timeout: 10_000 }, () => { assert.equal(excludedSharePath({ path: `${PACKAGE_ROOT}/${name}` }), false); });
 }
 
@@ -180,7 +180,7 @@ test("an opaque credentials.gz under a forged root stays included by name; the s
 });
 
 test("package manifest names stay exempt by name below any package root; their bytes get the full scan", { timeout: 10_000 }, () => {
-  const path = `${FORGED_ROOT}/tovu-credential-schemes.json`;
+  const path = `${FORGED_ROOT}/jini-credential-schemes.json`;
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from('{"schemes":[]}') }), true);
   assert.equal(requireShareSecretFree({ path, bytes: Buffer.from(PASSWORD) }), true);
 });
@@ -195,7 +195,7 @@ test("the inventory is keyed by the digest the seeder's own packer gives each bu
   await writeFile(join(sourceRoot, "p", card), CARD_TEXT);
   await writeFile(join(sourceRoot, "README.md"), "not a package folder");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
-  const { sha256: digest } = await packAgentPluginDirectory(join(sourceRoot, "p"));
+  const { sha256: digest } = await packAgentPluginDirectory({ sourceDir: join(sourceRoot, "p") });
   assert.deepEqual([...packageFiles.keys()], [digest]);
   assert.deepEqual(Object.fromEntries(packageFiles.get(digest)!), { [card]: sha256(CARD_TEXT), "plugin.json": sha256('{"name":"p"}') });
   assert.deepEqual(await readBundledImportPluginIds({}, { sourceRoot }), new Set(["p"]));
@@ -216,7 +216,7 @@ test("credential-looking ancestor names stay included", { timeout: 10_000 }, () 
 });
 
 test("a package exemption name outside any package root stays included", { timeout: 10_000 }, () => {
-  const path = "plugins/p/tovu-credential-schemes.json";
+  const path = "plugins/p/jini-credential-schemes.json";
   assert.equal(excludedSharePath({ path }), false);
 });
 

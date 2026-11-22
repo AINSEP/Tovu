@@ -108,7 +108,7 @@ export async function revokeSiteShare(required: { registry: SiteShareRegistry; s
   const row = await required.registry.disable(required);
   if (!row) throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Share not found for this site." });
   try { await required.registry.deleteArtifact({ shareId: row.shareId }); }
-  catch { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." }); }
+  catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share token is disabled but its ZIP could not be deleted. Retry revoke." }, { cause: error }); }
   if (row.storage && !isOwnShareFolder({ storage: row.storage })) await deleteRemoteArtifact({ row, storage: row.storage }, { delivery: optional.delivery });
   return row;
 }
@@ -120,11 +120,11 @@ async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: N
     await delivery.store.delete({ key: storage.key });
     const url = required.row.url ?? storage.url;
     if (url && !await delivery.store.verify({ key: storage.key, url, present: false })) throw new Error("purge unverified");
-  } catch { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }); }
+  } catch (error) { throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally but remote deletion/purge is not verified. Retry revoke." }, { cause: error }); }
 }
 
-/** Acknowledge this immutable archive, then reuse its original delivery lifecycle. Public uploads
- * are deferred until this explicit action; replays return the acknowledged row without reuploading.
+/** Acknowledge the owner download; warned exports stay private. */
+/**
  * Revocation tombstones remain authoritative across racing updates.
  * @throws SiteShareRefusal for a missing/revoked export or unavailable original storage.
  * @complexity O(archive bytes) for a pending remote delivery, O(1) for ZIP-only exports/retries.
@@ -134,14 +134,20 @@ export async function acknowledgeSiteShare(required: { registry: SiteShareRegist
   if (!row || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "This export is missing or was revoked." });
   if (!row.needsAcknowledgement) return row;
   const acknowledged = { ...row, needsAcknowledgement: false };
+  const deliveryStorage = !row.credentialWarnings?.length ? row.storage : undefined;
   const delivery = optional.delivery;
-  if (row.storage && (!delivery || delivery.provider !== row.storage.provider || delivery.binding !== row.storage.binding)) {
-    throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Acknowledgement delivery failed: reconnect this export's original storage and retry." });
-  }
+  if (deliveryStorage) assertOriginalDelivery({ row }, { delivery });
   // Runtime delivery verifies through findToken too. Persist consent before asking the same
   // delivery owner to publish/verify; otherwise its own acknowledgement gate hides the artifact.
   await required.registry.put({ record: acknowledged });
-  if (!row.storage || !delivery) return acknowledged;
+  if (!deliveryStorage || !delivery) return acknowledged;
   const archive = await required.registry.readArtifact(required);
-  return deliverShare({ registry: required.registry, row: acknowledged, delivery, key: row.storage.key, file: row.file, archive }, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+  return deliverShare({ registry: required.registry, row: acknowledged, delivery, key: deliveryStorage.key, file: row.file, archive }, { signal: AbortSignal.timeout(10 * 60 * 1000) });
+}
+
+/** A stored export publishes only through the provider and binding that first stored it. */
+function assertOriginalDelivery({ row }: { row: SiteShareRecord }, { delivery }: { delivery?: ShareDelivery } = {}): void {
+  if (row.storage && (!delivery || delivery.provider !== row.storage.provider || delivery.binding !== row.storage.binding)) {
+    throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Acknowledgement delivery failed: reconnect this export's original storage and retry." });
+  }
 }

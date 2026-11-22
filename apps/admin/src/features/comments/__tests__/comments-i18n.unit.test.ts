@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { t } from "../comments-i18n";
 import { describeModerationError as describeJiniModerationError } from "@jini-ai/admin/comments";
 import { createCommentsTranslator } from "../../../integrations/jini-admin/comments-ports";
@@ -12,9 +12,9 @@ const describeModerationError = (e: unknown, locale: string) =>
 // missing contract is localized errors and templates. Real rules/translator, no mocks/state.
 describe("comment moderation translation gaps", () => {
   it("reports the current version through the real localized error consumer", () => {
-    const conflict = new ApiError("raw conflict", 409, "CONFLICT", { currentVersion: 17 });
+    const conflict = new ApiError({ message: "raw conflict", status: 409 }, { code: "CONFLICT", body: { currentVersion: 17 } });
     expect(describeModerationError(conflict, "es")).toBe("Este comentario cambió desde que lo cargaste (versión actual 17); actualiza e inténtalo de nuevo.");
-    expect(describeModerationError(new ApiError("raw conflict", 409, "CONFLICT"), "es"))
+    expect(describeModerationError(new ApiError({ message: "raw conflict", status: 409 }, { code: "CONFLICT" }), "es"))
       .toBe("Este comentario cambió desde que lo cargaste; actualiza e inténtalo de nuevo.");
     expect(describeModerationError(null, "es")).toBe("No se pudo actualizar el comentario.");
   });

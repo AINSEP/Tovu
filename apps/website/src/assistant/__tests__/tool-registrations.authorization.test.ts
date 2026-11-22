@@ -1,5 +1,7 @@
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
+import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -166,6 +168,31 @@ function permissionFor(toolId: string): string {
 function registrationsById(): Map<string, ToolRegistration> {
   const { deps } = fakeRouteDeps({ allow: true });
   return new Map(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).map((registration) => [registration.descriptor.id, registration]));
+}
+
+for (const { toolId, input } of [
+  { toolId: "assistant_admin_screen_link", input: { path: "settings" } },
+  { toolId: "search_components", input: { query: "button" } },
+  { toolId: "describe_component", input: { id: ALL_MANIFESTS[0]!.id } },
+  { toolId: "assistant_demo_image", input: {} },
+]) {
+  for (const allow of [false, true]) {
+    test(`${toolId}: the executor ${allow ? "admits" : "denies"} the handler after one workspace permission decision`, async () => {
+      const { deps, authorizeCalls } = fakeRouteDeps({ allow });
+      const registration = buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: deps }), options: { contributions } }).find((entry) => entry.descriptor.id === toolId);
+      assert.ok(registration, "the delegated admin tool is present in the assembled registry");
+      let handlerEntries = 0;
+      const registry = createToolRegistry({});
+      registry.register({ ...registration, handler: (ctx, optional) => {
+        handlerEntries++;
+        return registration.handler(ctx, optional);
+      } });
+      const result = await createToolExecutor({ registry }).execute({ principal: { id: PRINCIPAL_ID }, run: { id: "delegated-admin" }, toolId, input });
+      assert.equal(result.status, allow ? "completed" : "denied", "the workspace decision controls delegated admin execution");
+      assert.equal(handlerEntries, allow ? 1 : 0, "denial prevents handler entry and allowance invokes it once");
+      assert.deepEqual(authorizeCalls, [{ workspaceId: WORKSPACE_ID, principalId: PRINCIPAL_ID, permission: "admin.assistant.use" }], "the executor requests exactly one assistant permission decision for its workspace and principal");
+    });
+  }
 }
 
 test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired tool must be added here, not silently skipped", () => {

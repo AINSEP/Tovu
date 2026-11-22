@@ -11,10 +11,10 @@ import { contentKernel } from "../../content-kernel.js";
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
-export async function writeDuringOthersRollback<T>(db: Parameters<typeof contentKernel>[0], write: () => Promise<T>): Promise<T> {
+export async function writeDuringOthersRollback<T>(db: Parameters<typeof contentKernel>[0]["store"], write: () => Promise<T>): Promise<T> {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => (release = resolve));
-  const other = contentKernel(db).transaction(async () => {
+  const other = contentKernel({ store: db }).transaction(async () => {
     await gate;
     throw new Error("the other caller rolls back");
   });

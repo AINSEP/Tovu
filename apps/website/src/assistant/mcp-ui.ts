@@ -1,7 +1,9 @@
-import { buildUIToolResult as buildResult } from "@jini-ai/ui/mcp-ui/surfaces";
-import type { UIToolResult as OwnerToolResult, UIResource, TextContent } from "@jini-ai/ui/mcp-ui/surfaces";
-export { MCP_UI_MIME_TYPE } from "@jini-ai/ui/mcp-ui/surfaces";
-export type { UIResourceUri, UIResourceMimeType, UIResourceContent, UIResource, TextContent } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildUIToolResult as buildResult } from "@jini-ai/protocol/mcp-ui";
+import type {
+  UIToolResult as OwnerToolResult,
+  UIResource,
+  TextContent,
+} from "@jini-ai/protocol/mcp-ui";
 
 /**
  * @file Tovu's compatibility surface for Jini-owned MCP-UI tool results and wire types.
@@ -10,7 +12,6 @@ export type { UIResourceUri, UIResourceMimeType, UIResourceContent, UIResource, 
  * belong only in the UI resource and must never enter modelText.
  */
 
-export type { UIActionType, UIActionResult } from "@jini-ai/ui/mcp-ui/surfaces";
 
 /** Mutable tuple compatibility for existing server result contracts. No runtime shape changes. */
 export type UIToolResult = Omit<OwnerToolResult, "content"> & { content: [TextContent, UIResource] };

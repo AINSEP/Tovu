@@ -104,3 +104,42 @@ test("the website's local-site launcher references no dev-only package the packa
   const bare = refs.filter(ref => !ref.typeOnly && !ref.specifier.startsWith(".") && !ref.specifier.startsWith("#") && !ref.specifier.startsWith("node:"));
   assert.deepEqual(bare.filter(ref => /^tsx(\/|$)/.test(ref.specifier)).map(ref => `${ref.specifier}:${ref.line}`), []);
 });
+
+// D0a/D0b (desktop extraction): the pure contracts the shell shares with the website live in
+// `@tovu/contracts`, and its log helpers in `@jini-ai/diagnostics`; the packaged app resolves both like
+// any other dependency. A relative path into `website/src` for one of them would need the second staged
+// copy of the website that D0c2 removes.
+const MOVED_WEBSITE_MODULES = [
+  "assistant/daemon-exit-codes",
+  "assistant/assistant-subagents-policy",
+  "contracts/core/hosted-sign-in-links",
+  "contracts/core/host-signals",
+  "contracts/core/assistant-native-fallbacks",
+  "contracts/headless/index",
+  "contracts/headless/assistant-subagents-policy",
+  "platform/server-logs/redact-local-text",
+  "platform/server-logs/console-tee",
+  "server/runtime/lifecycle/assistant-daemon-connection",
+];
+const WEBSITE_CONTRACT_PATHS = new RegExp(`['"](?:\\.\\./)+website/src/(?:${MOVED_WEBSITE_MODULES.join("|")})[^'"]*['"]`);
+
+function desktopSourceFiles({ root }: { root: string }): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx|mts|cts)$/.test(entry.name) && !/\.test\./.test(entry.name)) out.push(full);
+    }
+  };
+  for (const sub of ["src", "scripts", "bin"]) if (fs.existsSync(path.join(root, sub))) walk(path.join(root, sub));
+  return out;
+}
+
+test("no desktop source file imports the website's contracts or daemon exit codes by relative path", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const offenders = desktopSourceFiles({ root })
+    .filter(file => WEBSITE_CONTRACT_PATHS.test(fs.readFileSync(file, "utf8")))
+    .map(file => path.relative(root, file));
+  assert.deepEqual(offenders, []);
+});

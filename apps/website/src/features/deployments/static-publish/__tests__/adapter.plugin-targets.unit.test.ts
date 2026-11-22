@@ -12,13 +12,13 @@ import type { DeployTarget } from "@jini-ai/devops/deploy";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import type {
-  DeployHostKit,
   DeployTargetCreateContext,
   DeployTargetModule,
   DeployTargetRegistry,
   HostDeployPublishInput,
   LoadedDeployTarget,
 } from "#src/features/deployments/deploy-targets/types";
+import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
 import { renderHeadersFile } from "#src/features/site-export/static-security-headers";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 
@@ -92,7 +92,7 @@ test("a registry-known target is built by its plugin module, gets responseHeader
 
   const result = await publishWith(
     {
-      loadDeployTargets: async (workspaceId) => {
+      loadDeployTargets: async ({ workspaceId }) => {
         seen.workspaceId = workspaceId;
         return registryOf([loaded("netlify", module)]);
       },

@@ -40,7 +40,7 @@ export interface MediaTabsController {
  *  Exported (2026-09-06) so `Media.hooks.tsx`'s `resolveMediaTabChange` can run `TabBar`'s
  *  string id through the same guard instead of a cast; behavior unchanged.
  *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-export function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
+export function resolveActiveTab({ tabId }: { tabId: string | null | undefined }, _optional: Record<string, never> = {}): MediaTabId {
   return tabId && MEDIA_TAB_IDS.includes(tabId) ? (tabId as MediaTabId) : "all";
 }
 
@@ -64,9 +64,9 @@ export function resolveActiveTab(tabId: string | null | undefined): MediaTabId {
  * per click.
  */
 export function useMediaTabs(tabId?: string | null): MediaTabsController {
-  const activeTab = resolveActiveTab(tabId);
+  const activeTab = resolveActiveTab({ tabId });
   function setActiveTab(tab: MediaTabId) {
-    navigate(`/media?tab=${tab}`, { replace: true });
+    navigate({ routePath: `/media?tab=${tab}` }, { replace: true });
   }
   return { activeTab, setActiveTab };
 }

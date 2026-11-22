@@ -25,7 +25,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../../agent-plugins/lifecycle.js";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/index.js";
 import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRuntime } from "../../host.js";
-import type { PluginHttp } from "../../hook-http.js";
+import type { PluginHttp } from "@jini-ai/integrations/api-connections";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 import { trackStartingBrowser, type StartingBrowser } from "./starting-browser.js";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
@@ -102,7 +102,7 @@ export function acmeFixtureCopy(t: { after(fn: () => void): void }, edit: (decla
   const root = mkdtempSync(path.join(tmpdir(), "acme-c3-"));
   onTeardown({ t, step: () => rmSync(root, { recursive: true, force: true }) });
   cpSync(ACME_FIXTURE_ROOT, root, { recursive: true });
-  const file = path.join(root, "tovu-connections.json");
+  const file = path.join(root, "jini-connections.json");
   const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };
   edit(parsed.connections[0]!);
   writeFileSync(file, JSON.stringify(parsed));
@@ -172,7 +172,7 @@ export async function startAcmeHarness(): Promise<AcmeHarness> {
     }, { ...(options.startLoopback === undefined ? {} : { startLoopback: options.startLoopback }), ...(options.shared ? { shared: options.shared } : {}) });
     const app = express();
     const logs = options.logs;
-    registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } });
+    registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: (line) => { logs?.push(line); } } });
     siteServer.removeAllListeners("request");
     siteServer.on("request", app);
     browser = trackStartingBrowser({ host });

@@ -11,9 +11,11 @@ import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-rost
 import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
 import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential-card';
 import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
-import { resolveOperatorLocale } from '#src/features/settings/operator-locale';
+import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
 import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
+import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
+import { explicitRootSoonCatalog } from '#src/features/agent-plugins/lifecycle';
 import type { AgentPluginApiConnectionsPort, AgentPluginMcpServicesPort, AgentPluginSignInPort, AgentPluginOAuthPort, AgentPluginPreferencesPort, PluginCredentialsPort } from '#src/features/agent-plugins/service-ports';
 import { agentPluginMcpProjections, classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from '#src/features/agent-plugins/mcp-host-bindings';
 import type { PluginProviderFacesPort } from '#src/features/plugin-runtime/service-ports';
@@ -44,7 +46,7 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
   return {
     locale: (input, _options = {}) => resolveOperatorLocale({ ...input, deps: { settingsRepo: settings.repo } }),
     mode: async ({ workspaceId, principalId }, _options = {}) => {
-      const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
+      const effective = await read({ deps: { repo: settings.repo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
       return effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto';
     },
     snapshot: async ({ workspaceId, principalId }, _options = {}) => {
@@ -52,7 +54,7 @@ export function composeAgentPluginPreferences({ settings, read = getEffective, w
       // Read the addressed revision first: a personal change during the effective read must
       // invalidate the later write, never attach the new revision to an old approval snapshot.
       const layer = definition ? await settings.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId }) : null;
-      const effective = await read({ repo: settings.repo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
+      const effective = await read({ deps: { repo: settings.repo }, namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId, principalId } });
       return { mode: effective?.value === 'ask' || effective?.value === 'off' ? effective.value : 'auto', revisionSeq: layer?.seq ?? 0 };
     },
     saveAuto: async ({ workspaceId, principalId, expectedRevisionSeq }, _options = {}) => {
@@ -69,6 +71,10 @@ export function composePluginProviderFaces({ workspaceRoot }: { workspaceRoot: (
     affectedPluginIds: async ({ pluginId }, _options = {}) => [pluginId, ...[...await ports.links({})].filter(([, provider]) => provider === pluginId).map(([face]) => face)],
     describeLinkedFace: (input, _options = {}) => new AgentPluginLinkedError(input),
     describeLinkedError: ({ error }, _options = {}) => error instanceof AgentPluginLinkedError ? error : undefined,
+    describeNotReady: async ({ pluginId }, _options = {}) => {
+      const soon = await findSoonAgentPlugin({ catalog: explicitRootSoonCatalog, workspaceRoot: workspaceRoot(), pluginId });
+      return soon ? new AgentPluginNotReadyError({ pluginId, name: soon.name }) : undefined;
+    },
   };
 }
 

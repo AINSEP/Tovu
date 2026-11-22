@@ -1,0 +1,13 @@
+typecheck 2 6
+typecheck-tests 2 8
+typecheck-scripts 2 9
+admin-tsc 0 1
+desktop-tsc 0 9
+check-size 1 13
+check-complexity 0 6
+check-architecture 1 107
+check-boundaries 12 183
+check-hooks 0 9
+check-why-comments 1 85
+worker-import-graph 143 4184
+check-errors 0 7

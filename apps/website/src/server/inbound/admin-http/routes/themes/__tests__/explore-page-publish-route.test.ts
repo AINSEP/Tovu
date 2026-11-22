@@ -68,7 +68,7 @@ function buildTestApp(themesDir: string): { app: express.Express; deps: ContentR
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemePagePublishRoute(app, deps);
+  registerAdminThemePagePublishRoute({ app, deps });
   return { app, deps };
 }
 
@@ -93,8 +93,8 @@ test("THE CRITICAL GUARANTEE: a theme's first-ever toggle publishes ONLY the tog
   const themeBefore = deps.themes.find((th) => th.manifest.id === "plain")!;
   assert.equal(themeBefore.manifest.publishedPages, undefined, "no recorded decision yet");
   // Off by default: nothing is live yet, even though these pages exist as candidates.
-  assert.equal(isStandaloneThemePage(themeBefore, "about"), false);
-  assert.equal(isStandaloneThemePage(themeBefore, "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme: themeBefore, pageId: "about" }), false);
+  assert.equal(isStandaloneThemePage({ theme: themeBefore, pageId: "pricing" }), false);
 
   const res = await toggle(baseUrl, "plain", "pricing", true);
   const body = (await res.json()) as { page: string; published: boolean; publishedPages: string[] };
@@ -104,12 +104,12 @@ test("THE CRITICAL GUARANTEE: a theme's first-ever toggle publishes ONLY the tog
   assert.deepEqual(body.publishedPages, ["pricing"]);
 
   const themeAfter = deps.themes.find((th) => th.manifest.id === "plain")!;
-  assert.equal(isStandaloneThemePage(themeAfter, "pricing"), true, "the toggled page is now on");
-  assert.equal(isStandaloneThemePage(themeAfter, "about"), false, "an untouched page stays off — no resurrection");
+  assert.equal(isStandaloneThemePage({ theme: themeAfter, pageId: "pricing" }), true, "the toggled page is now on");
+  assert.equal(isStandaloneThemePage({ theme: themeAfter, pageId: "about" }), false, "an untouched page stays off — no resurrection");
   // index/404/the template shell were never live pages and stay that way regardless.
-  assert.equal(isStandaloneThemePage(themeAfter, "index"), false);
-  assert.equal(isStandaloneThemePage(themeAfter, "404"), false);
-  assert.equal(isStandaloneThemePage(themeAfter, "page-shell"), false);
+  assert.equal(isStandaloneThemePage({ theme: themeAfter, pageId: "index" }), false);
+  assert.equal(isStandaloneThemePage({ theme: themeAfter, pageId: "404" }), false);
+  assert.equal(isStandaloneThemePage({ theme: themeAfter, pageId: "page-shell" }), false);
 });
 
 test("a second toggle on an already-opted-in theme is a plain add/remove, no re-backfill", async (t) => {
@@ -123,8 +123,8 @@ test("a second toggle on an already-opted-in theme is a plain add/remove, no re-
   assert.deepEqual(body.publishedPages, ["about"]);
 
   const theme = deps.themes.find((th) => th.manifest.id === "plain")!;
-  assert.equal(isStandaloneThemePage(theme, "about"), true);
-  assert.equal(isStandaloneThemePage(theme, "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "about" }), true);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), false);
 });
 
 test("publishing a page that was off adds it back", async (t) => {
@@ -138,7 +138,7 @@ test("publishing a page that was off adds it back", async (t) => {
   assert.deepEqual(body.publishedPages, ["about", "pricing"]);
 
   const theme = deps.themes.find((th) => th.manifest.id === "plain")!;
-  assert.equal(isStandaloneThemePage(theme, "pricing"), true);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), true);
 });
 
 test("theme.json on disk actually gains publishedPages, every other field untouched", async (t) => {

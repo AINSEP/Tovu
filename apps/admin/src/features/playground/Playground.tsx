@@ -1,7 +1,7 @@
+import { createPlaygroundTranslator } from "./Playground.hooks";
 import "../../styles/playground.css";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { usePlaygroundCanvas } from "./hooks/use-playground-canvas.hooks";
-import { t as translatePlayground } from "./playground-i18n";
 
 /**
  * @file The Studio "Playground" screen — a whiteboard for the assistant.
@@ -38,30 +38,31 @@ export interface PlaygroundProps {
    *  {@link usePlaygroundCanvas}; a test can pass a fake here to exercise `Playground`'s rendering
    *  without driving the real `playground-render-target-bus` module state. */
   usePlaygroundCanvasHook?: typeof usePlaygroundCanvas;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
-export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: PlaygroundProps = {}) {
+export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas, useAdminLocaleHook = useAdminLocale }: PlaygroundProps = {}) {
   const { registerCanvas } = usePlaygroundCanvasHook();
-  const locale = useAdminLocale();
-  const t = (key: string) => translatePlayground({ locale: locale, key: key });
+  const locale = useAdminLocaleHook();
+  const t = createPlaygroundTranslator({ locale });
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t("Studio")}</p>
-          <h1 className="page-title">{t("Playground")}</h1>
+          <p className="page-kicker">{t({ key: "Studio" })}</p>
+          <h1 className="page-title">{t({ key: "Playground" })}</h1>
           <p className="page-description">
-            {t("Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.")}
+            {t({ key: "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it." })}
           </p>
         </div>
       </div>
 
       <div className="card playground-canvas">
-        <h2 className="playground-panel-title">{t("Canvas")}</h2>
+        <h2 className="playground-panel-title">{t({ key: "Canvas" })}</h2>
         <div className="playground-canvas-body">
           <div className="playground-render-target" ref={registerCanvas} />
-          <p className="playground-empty-state">{t("Nothing drawn yet — ask the assistant.")}</p>
+          <p className="playground-empty-state">{t({ key: "Nothing drawn yet — ask the assistant." })}</p>
         </div>
       </div>
     </div>

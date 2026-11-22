@@ -1,7 +1,9 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/external-mcp.js';
-import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { UUID } from "@jini-ai/core/primitives";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
@@ -77,18 +79,6 @@ import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "..
 
 export const EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID = "external_mcp_reauth_prompt";
 
-/** Mirrors the shared low-level shapes every domain re-imports the same way — see `ask-choice-tool.ts`'s
- *  identical import for the precedent this file follows (as opposed to `features/external-mcp/
- *  agent-tools.ts`'s own LOCAL redeclaration, which exists for a domain-isolation reason specific to
- *  that file and does not apply here). */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
-
 /**
  * The same permission `features/external-mcp/agent-tools.ts`'s `EXTERNAL_MCP_MANAGE_PERMISSION`
  * declares, and the admin OAuth HTTP routes gate on (`server/inbound/admin-http/routes/external-mcp/
@@ -159,7 +149,7 @@ export interface ExternalMcpReauthToolDeps {
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
 }
 
-function reauthSurfaceUri(exchangeId: string): UIResourceUri {
+function reauthSurfaceUri({ exchangeId }: { exchangeId: string }, _optional = {}): UIResourceUri {
   return `ui://tovu/external-mcp-reauth/${exchangeId}` as UIResourceUri;
 }
 
@@ -171,7 +161,7 @@ function reauthSurfaceUri(exchangeId: string): UIResourceUri {
 function buildReauthSurface(input: { exchangeId: string; expiresAtMs: number; label: string; settingsLink: string }): UIResource {
   const { exchangeId, expiresAtMs, label, settingsLink } = input;
   return buildConfirmationSurface({
-    uri: reauthSurfaceUri(exchangeId),
+    uri: reauthSurfaceUri({ exchangeId: exchangeId }),
     title: `Reconnect ${label}`,
     description:
       `"${label}"'s sign-in has expired. The assistant cannot renew it from chat — open Settings → ` +
@@ -228,8 +218,7 @@ function parseReauthServerId(ctx: Parameters<ToolHandler>[0]): string {
  *   was never going to have one.
  */
 async function requireReauthableExternalMcpServer(
-  routeDeps: ExternalMcpReauthToolDeps,
-  serverId: string,
+  { routeDeps, serverId }: { routeDeps: ExternalMcpReauthToolDeps; serverId: string }, _optional = {},
 ): Promise<ExternalMcpServerRecord> {
   const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
   if (!record) throw new ExternalMcpReauthRequiredError({ serverId, label: null });
@@ -331,7 +320,7 @@ export function buildExternalMcpReauthRegistrations(
   const handlers: Record<string, ToolHandler> = {
     [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0], optional = {}) => {
       const serverId = parseReauthServerId(ctx);
-      const record = await requireReauthableExternalMcpServer(routeDeps, serverId);
+      const record = await requireReauthableExternalMcpServer({ routeDeps: routeDeps, serverId: serverId });
       const label = record.label ?? record.serverId;
 
       // No interactive channel on this execution — degrade to a plain, honest instruction rather than
@@ -354,7 +343,7 @@ export function buildExternalMcpReauthRegistrations(
       const closeOnAbort = () => exchange.close({});
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink(serverId) });
+        const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink({ serverId }) });
         const answer = await resolveReauthAcknowledgement(exchange, ui);
 
         // Best-effort re-read: the administrator may answer well after the row's own status changed

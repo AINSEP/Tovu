@@ -32,7 +32,7 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
     const listener = vi.fn();
     subscribeToAssistantDock(listener);
 
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
 
     expect(getAssistantDockOpen()).toBe(true);
     expect(listener).toHaveBeenCalledTimes(1);
@@ -40,10 +40,10 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
 
   it("publishing the same value again is a no-op — no notification, no re-render storm", () => {
     const listener = vi.fn();
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
     subscribeToAssistantDock(listener);
 
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -53,7 +53,7 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
     const unsubscribe = subscribeToAssistantDock(listener);
     unsubscribe();
 
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -67,7 +67,7 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
     subscribeToAssistantDock(throwing);
     subscribeToAssistantDock(healthy);
 
-    publishAssistantDockState(true);
+    publishAssistantDockState({ open: true });
 
     expect(healthy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith("[admin] assistant dock listener failed", expect.any(Error));
@@ -77,24 +77,24 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
 describe("subscribeToAssistantDockRequests / requestAssistantDock", () => {
   it("calls the registered handler with the requested open value", () => {
     const handler = vi.fn();
-    subscribeToAssistantDockRequests(handler);
+    subscribeToAssistantDockRequests({ listener: handler });
 
-    requestAssistantDock(true);
-    requestAssistantDock(false);
+    requestAssistantDock({ open: true });
+    requestAssistantDock({ open: false });
 
     expect(handler.mock.calls).toEqual([[true], [false]]);
   });
 
   it("is a safe no-op when nothing is listening (e.g. a section rendered standalone in a test)", () => {
-    expect(() => requestAssistantDock(true)).not.toThrow();
+    expect(() => requestAssistantDock({ open: true })).not.toThrow();
   });
 
   it("the disposer returned by subscribeToAssistantDockRequests stops future delivery", () => {
     const handler = vi.fn();
-    const unsubscribe = subscribeToAssistantDockRequests(handler);
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: handler });
     unsubscribe();
 
-    requestAssistantDock(true);
+    requestAssistantDock({ open: true });
 
     expect(handler).not.toHaveBeenCalled();
   });
@@ -105,10 +105,10 @@ describe("subscribeToAssistantDockRequests / requestAssistantDock", () => {
       throw new Error("boom");
     });
     const healthy = vi.fn();
-    subscribeToAssistantDockRequests(throwing);
-    subscribeToAssistantDockRequests(healthy);
+    subscribeToAssistantDockRequests({ listener: throwing });
+    subscribeToAssistantDockRequests({ listener: healthy });
 
-    requestAssistantDock(true);
+    requestAssistantDock({ open: true });
 
     expect(healthy).toHaveBeenCalledWith(true);
     expect(errorSpy).toHaveBeenCalledWith("[admin] assistant dock request handler failed", expect.any(Error));
@@ -120,15 +120,15 @@ describe("resetAssistantDockBus", () => {
     const stateListener = vi.fn();
     const requestListener = vi.fn();
     subscribeToAssistantDock(stateListener);
-    subscribeToAssistantDockRequests(requestListener);
-    publishAssistantDockState(true);
+    subscribeToAssistantDockRequests({ listener: requestListener });
+    publishAssistantDockState({ open: true });
 
     resetAssistantDockBus();
 
     expect(getAssistantDockOpen()).toBe(false);
     stateListener.mockClear();
-    publishAssistantDockState(true); // would notify the old listener if it survived the reset
-    requestAssistantDock(true); // would notify the old request listener if it survived the reset
+    publishAssistantDockState({ open: true }); // would notify the old listener if it survived the reset
+    requestAssistantDock({ open: true }); // would notify the old request listener if it survived the reset
     expect(stateListener).not.toHaveBeenCalled();
     expect(requestListener).not.toHaveBeenCalled();
   });

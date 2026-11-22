@@ -1,6 +1,7 @@
 import { VISITOR_TOOL_PRESENTATION } from './visitor-tool-presentation.js';
 /** CMS policy over Jini's frontend registrations; no second page executor. */
-import { PAGE_CAPABILITIES, findCapabilityInputError, normalizeAgentLabel, pageActionNeedsConfirmation, type PagePublication, type CapabilityDef } from '@jini-ai/agentic';
+import { PAGE_CAPABILITIES, normalizeAgentLabel, pageActionNeedsConfirmation, type PagePublication } from '@jini-ai/agentic';
+import { findCapabilityInputError, type CapabilityDef } from '@jini-ai/core/contracts/capabilities';
 import type { ToolRegistration } from '@jini-ai/core';
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from './public-content.js';
 import { postPublicPath, checkSiteRelativeTarget } from '#src/platform/routing/index';
@@ -61,7 +62,7 @@ const VISITOR_NAVIGATE = {
 export const VISITOR_PAGE_CAPABILITIES: readonly CapabilityDef[] = PAGE_CAPABILITIES.map(capability =>
   capability.id === 'page.navigate' ? { ...capability, ...VISITOR_NAVIGATE } : capability);
 function assertVisitorPath({ path }: { path: string }): void {
-  if (checkSiteRelativeTarget(path).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
+  if (checkSiteRelativeTarget({ raw: path }).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
 }
 
 /** Server-issued action classes determine both eligibility and forced confirmation. */

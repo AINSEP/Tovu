@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui";
+import type { AgUiEvent } from "@jini-ai/chat/core/ag-ui";
+import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
 import { EventType } from "@ag-ui/core";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
@@ -10,7 +11,6 @@ import {
   AG_UI_RUN_PATH,
   agUiRunClient,
   isAgUiTransportEnabled,
-  type AgUiEvent,
 } from "../assistant-transport-ag-ui";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
@@ -163,11 +163,18 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
     ]);
   });
 
-  test("tool_result loses isError across the round trip — AG-UI's ToolCallResultEvent has no such field", () => {
+  test("tool_result without the extra isError field reads as a success — a server that sends none is not an error", () => {
     const state = createAgUiToAgentTranslationState({ customEventNames: CUSTOM_EVENT_NAMES }, {});
     expect(
       translateAgUiEventToAgentEvent({ event: { type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "3 posts" }, state: state }, {}),
-    ).toEqual([{ kind: "tool_result", toolUseId: "call-1", content: "3 posts", isError: false }]);
+    ).toStrictEqual([{ kind: "tool_result", toolUseId: "call-1", content: "3 posts", isError: false }]);
+  });
+
+  test("tool_result keeps isError when the server sends it as an extra field", () => {
+    const state = createAgUiToAgentTranslationState({ customEventNames: CUSTOM_EVENT_NAMES }, {});
+    expect(
+      translateAgUiEventToAgentEvent({ event: { type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "no such post", isError: true }, state: state }, {}),
+    ).toStrictEqual([{ kind: "tool_result", toolUseId: "call-1", content: "no such post", isError: true }]);
   });
 });
 
@@ -374,9 +381,9 @@ describe("startAgUiRun — request shape", () => {
     fetchMock = vi.fn(async () => new Response("agent daemon rejected the run", { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(
-      /^HTTP 502: agent daemon rejected the run$/,
-    );
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(HTTP 502, /));
+    expect(failure).toHaveProperty("cause.message", "HTTP 502: agent daemon rejected the run");
   });
 
   test("a network-level fetch rejection is rethrown as an Error", async () => {
@@ -385,7 +392,9 @@ describe("startAgUiRun — request shape", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow("Failed to fetch");
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause.message", "Failed to fetch");
   });
 
   test("a network-level fetch rejection with a non-Error value is wrapped in a real Error", async () => {
@@ -394,14 +403,18 @@ describe("startAgUiRun — request shape", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow("connection reset");
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause", "connection reset");
   });
 
   test("a non-ok response with an empty body still carries the 'HTTP <status>: ' prefix with an empty detail", async () => {
     fetchMock = vi.fn(async () => new Response("", { status: 500 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(/^HTTP 500: $/);
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(HTTP 500, /));
+    expect(failure).toHaveProperty("cause.message", "HTTP 500: ");
   });
 
   test("a non-ok response whose body stream errors while reading detail surfaces the raw read error unwrapped — @ag-ui/client does not status-wrap it", async () => {
@@ -413,9 +426,9 @@ describe("startAgUiRun — request shape", () => {
     fetchMock = vi.fn(async () => new Response(brokenBody, { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {})).rejects.toThrow(
-      /^body read failed$/,
-    );
+    const failure = await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: handlers() }, {}).then(() => undefined, (error: unknown) => error);
+    expect(failure).toHaveProperty("message", expect.stringMatching(/^The agent run stream stopped with an error \(/));
+    expect(failure).toHaveProperty("cause.message", "body read failed");
   });
 
   test("mints a timestamp-based fallback id when crypto.randomUUID is unavailable", async () => {
@@ -530,11 +543,43 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
     await flushMicrotasks();
     await flushMicrotasks();
 
-    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(h.errors.map((e) => e.message)).toEqual([expect.stringMatching(/^The agent run stream stopped with an error \(/)]);
+    expect(h.errors[0]).toHaveProperty("cause.message", "connection reset");
     expect(h.done).toEqual([
       { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
       { kind: "text", text: "partial" },
     ]);
+  });
+
+  // AG-UI has no standard field for these, so the server writes them as extra fields. This drives
+  // the real `HttpAgent` (its SSE parse and its per-event schema check) to prove they are not
+  // stripped on the way to the reducer. If an `@ag-ui/client` upgrade starts dropping unknown
+  // fields, this is the test that fails.
+  test("extra tool fields survive the official HttpAgent pipeline: bridge correlation, isError, media, outcome", async () => {
+    const bridgeCall = { name: "posts.search", input: { q: "posts" }, buffered: true };
+    const media = [{ type: "image" as const, mimeType: "image/png", data: "AAAA" }];
+    const stream = streamFromChunks([
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search", toolOrigin: "bridge", bridgeCall }),
+      frame({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: JSON.stringify({ q: "posts" }) }),
+      frame({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }),
+      frame({ type: EventType.TOOL_CALL_RESULT, messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3", role: "tool", isError: true, media, outcome: "unknown" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r", result: { reason: "stop" } }),
+    ]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const h = handlers();
+
+    await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: h }, {});
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(h.events).toStrictEqual([
+      { kind: "tool_use", id: "call-1", name: "search", input: { q: "posts" }, toolOrigin: "bridge", bridgeCall },
+      { kind: "tool_result", toolUseId: "call-1", content: "found 3", isError: true, media, outcome: "unknown" },
+    ]);
+    expect(h.done).toEqual(h.events);
+    expect(h.errors).toEqual([]);
   });
 
   // --- ADR-059 Decision 6: the named, load-bearing interruption-sequence regression ------------

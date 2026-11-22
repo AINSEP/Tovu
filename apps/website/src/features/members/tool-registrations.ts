@@ -14,14 +14,17 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
 import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
+import { encodeListCursor, listPageForModel } from "@jini-ai/core/list-page";
 
 import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { membersAgentToolCatalog } from "./agent-tools.js";
+import { buildMembersWriteServiceDeps } from "./ports.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -31,7 +34,9 @@ import type {
   MembersWriteServiceDeps,
 } from "./ports.js";
 import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
-import { createMember, disableMember, requestSignInLink, updateProfile } from "./write-service.js";
+import { createMember } from "./member-sign-in.js";
+import { disableMember, updateProfile } from "./member-admin-writes.js";
+import { requestSignInLink } from "./member-challenge-request.js";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
 
@@ -56,7 +61,7 @@ export interface MagicLinkRateLimiter {
 
 /**
  * The exact slice of the route-deps bag Members' tool handlers read. Declared structurally (rather
- * than importing `server/routes/types`'s `RouteDeps`, or `server/routes/admin/members/deps.ts`'s
+ * than importing `server/routes/types`'s `RouteDeps`, or `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s
  * `MembersRouteDeps`, which itself extends `RouteDeps`) so this module carries no back-edge into the
  * composition root. `server/routes/*` satisfies this structurally by passing its existing
  * `MembersRouteDeps` object; nothing there changes.
@@ -87,31 +92,6 @@ export interface MembersToolDeps {
 }
 
 /**
- * Assembles `write-service.ts`'s `MembersWriteServiceDeps` bundle from {@link MembersToolDeps} —
- * a local duplicate of `server/routes/admin/members/deps.ts`'s `toMembersWriteServiceDeps` rather
- * than an import of it, for the identical reason `features/settings/tool-registrations.ts`'s header
- * gives for duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this
- * codebase's ports/adapters direction. It is a field mapping, not logic, so the two copies carry no
- * behavioral drift risk.
- */
-function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDeps {
-  return {
-    clock: deps.clock,
-    ids: deps.idGen,
-    members: deps.memberRepo,
-    tiers: deps.memberTierRepo,
-    subscriptions: deps.memberSubscriptionRepo,
-    sessions: deps.memberSessionRepo,
-    magicLinks: deps.magicLinkRepo,
-    mailer: deps.mailer,
-    mailStatus: deps.mailStatus,
-    origin: deps.originRegistry,
-    principals: deps.principalRepo,
-    senderIdentity: deps.mailSenderIdentity,
-  };
-}
-
-/**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
  * `sideEffects` declaration.
@@ -134,7 +114,7 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 
 /**
  * Projects a `MemberRecord` into the model-facing shape used by every Members tool — mirrors
- * `http/admin/members.ts`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
+ * `apps/website/src/server/inbound/admin-http/http/members.ts`'s own `toAdminMemberResponse` field set (so a tool sees exactly what the
  * admin UI already shows a human) MINUS `workspaceId` (the agent is already scoped to one
  * workspace it cannot change, the same reasoning content-types'/Forms' `to*View` apply) and MINUS
  * `note`/`fields` (the admin response itself already withholds the operator-only note and the raw
@@ -192,14 +172,15 @@ const MEMBERS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 /** `members_list`'s schema cap (`agent-tools.ts`), which is also the repo's own page size. */
 const MEMBERS_LIST_MAX_LIMIT = 100;
 
-export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
-  const handlers: Record<string, ToolHandler> = {
+function memberProfileHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     /** Operator creation shares sign-up persistence while withholding tokens and mail. */
     members_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
-      const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
-        deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
+      ctx.signal.throwIfAborted();
+      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
+        void deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
         } });
       } }, input: { workspaceId: deps.workspaceId, email: requireString({ input, key: "email" }) } }, { name: optionalString({ input, key: "name" }) });
@@ -210,23 +191,36 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const input = requireInputRecord({ input: ctx.input });
       const memberId = requireString({ input, key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
-      const { member } = await updateProfile({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
+      ctx.signal.throwIfAborted();
+      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
+  };
+}
+
+function memberReadHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
 
       const afterId = optionalString({ input, key: "afterId" });
+      const cursor = optionalString({ input, key: "cursor" });
+      if (afterId !== undefined && cursor !== undefined) throw new ToolInputError({ message: "pass cursor or afterId, not both" });
       const limit = readToolLimit({ input, max: MEMBERS_LIST_MAX_LIMIT, fallback: MEMBERS_LIST_MAX_LIMIT });
-      // The repo treats an afterId it cannot find as "first page" (the admin list relies on that);
-      // a model that passed one meant a real member, so a miss is its mistake to hear about.
+      // The repo pages by position, so an afterId naming no member would quietly page from wherever
+      // that id sorts; a model that passed one meant a real member, so a miss is its mistake to hear about.
       if (afterId !== undefined && !(await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: afterId }))) {
         throw new ToolInputError({ message: `unknown afterId '${afterId}'` });
       }
-      const members = await deps.memberRepo.list({ workspaceId: deps.workspaceId, afterId, limit });
-      return { members: members.map(toMemberToolView) };
+      const page = await deps.memberRepo.list({ workspaceId: deps.workspaceId }, {
+        limit, cursor: afterId === undefined ? cursor ?? null : encodeListCursor({ position: [afterId] }),
+      });
+      // `members` keeps the key the description and callers already use; `more` tells the model the
+      // list is incomplete (a capped array alone read as "all members").
+      const { items, ...paging } = listPageForModel({ page, toolId: "members_list" });
+      return { members: items.map(toMemberToolView), ...paging };
     },
 
     members_get_by_id: async (ctx) => {
@@ -239,9 +233,15 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       return { member: toMemberToolView(member) };
     },
 
+  };
+}
+
+function memberRemovalHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_delete: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
+      ctx.signal.throwIfAborted();
       return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.principal.id } },
         { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clock: deps.clock }) } });
     },
@@ -251,10 +251,16 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
-      const { member } = await disableMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId } });
+      ctx.signal.throwIfAborted();
+      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },
 
+  };
+}
+
+function memberSignInHandlers(deps: MembersToolDeps): Record<string, ToolHandler> {
+  return {
     members_request_magic_link: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const email = requireString({ input: input, key: "email" });
@@ -282,7 +288,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: toMembersWriteServiceDeps(deps),
+        deps: buildMembersWriteServiceDeps({ deps }),
         input: {
           workspaceId: deps.workspaceId,
           email,
@@ -293,6 +299,15 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       // here means delivery is available; the privileged operator gets the actual send result.
       return { delivered: result.delivered, mailDeliveryAvailable: true };
     },
+  };
+}
+
+export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
+  const handlers: Record<string, ToolHandler> = {
+    ...memberProfileHandlers(deps),
+    ...memberReadHandlers(deps),
+    ...memberRemovalHandlers(deps),
+    ...memberSignInHandlers(deps),
   };
 
   // No `unwiredToolIds`: Members wires its ENTIRE catalog, same tripwire discipline as Forms.
@@ -309,7 +324,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
 /**
  * Contributes Members' AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildMembersRegistrations`/
  * `membersDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
  * rollout — no sibling domain still statically wired through `assistant` imports `members`, so this

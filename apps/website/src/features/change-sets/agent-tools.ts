@@ -17,7 +17,7 @@ import type { AgentToolDefinition } from "@jini-ai/core";
  * tool for "bring this back", so both descriptions point there instead of leaving an agent to
  * guess which one to reach for.
  *
- * `change_sets_revert` never accepts `force` — see `contracts/core/commands/revert.ts`'s own
+ * `change_sets_revert` never accepts `force` — see Jini `@jini-ai/cms/core/commands` `revert.ts`'s own
  * `RevertChangeSetRequired.input.force` doc: an operator can explicitly click through a stale-
  * version conflict, but an agent principal is unconditionally forbidden from doing so
  * (`RevertForbiddenError`, `"AGENT_CANNOT_FORCE"`) the same way `gated-mutations/gateway.ts`'s
@@ -57,7 +57,7 @@ const LIST_SCHEMA = {
     limit: {
       type: "integer",
       minimum: 1,
-      maximum: CHANGE_SETS_MAX_LIST_LIMIT,
+      maximum: CHANGE_SETS_MAX_LIST_LIMIT, clamp: true,
       description: `Maximum rows to return, newest first. Default ${CHANGE_SETS_DEFAULT_LIST_LIMIT}, maximum ${CHANGE_SETS_MAX_LIST_LIMIT}.`,
     },
   },

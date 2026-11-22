@@ -1,25 +1,22 @@
 import type { HttpClientPort } from "../../platform/http/index.js";
+import type { BackupRepositoryState } from "@jini-ai/devops/source-control";
 
 /**
  * @file The contract a git-host provider MODULE (shipped inside an Agent Plugin) is written against.
  *
  * Git-host vendors live in plugins, not core (the bundled `github` plugin ships
  * `@jini-ai/agent-plugins/github/source-control/github.mjs` today). Core loads a plugin's module
- * through `features/agent-plugins/source-control-registry.ts`, builds it with a
+ * through `apps/website/src/features/source-control/provider-registry.ts`, builds it with a
  * {@link SourceControlProviderKit}, and calls the generic operations below: committing the site's
  * static export (`source_control_execute_commit`), reading a token's account name (the admin Source
  * Control page), writing files through a saved custom credential (`custom_credential_write_files`)
- * and pushing a site backup (`site_backup_*`). Saved API-key labels below are Tovu's credential
+ * and pushing a site backup (`site_backup_*`). Saved API-key labels in `saved-key-bindings.ts` are Tovu's credential
  * bindings; vendor operations remain in the plugin.
  *
  * Every operation reports failure as a value, never a throw. `network-unreachable` always means no
  * response arrived (so says nothing about the credential); `provider-error` means the host answered
  * and refused; `diverged` means the branch moved and nothing was overwritten.
  */
-
-/** Provider id -> saved custom API-key label. Only declared bindings may supply a commit fallback;
- * explicit source-control connections always win. */
-export const sourceControlSavedApiKeyLabels: ReadonlyMap<string, string> = new Map([["github", "github"]]);
 
 /** One file of a site export, relative to the selected folder. The provider prefixes it once. */
 export interface CommitFile {
@@ -46,6 +43,7 @@ export type SourceControlCommitResult =
 
 export interface CommitSiteInput {
   readonly folder?: string;
+  readonly previousManagedManifestPath?: string;
   readonly token: string;
   readonly owner: string;
   readonly repo: string;
@@ -91,14 +89,6 @@ export type FileWritePlanResult = { ok: true; plan: FileWritePlan } | { ok: fals
 
 export type CommitFilesResult = { ok: true; commitSha: string; commitUrl: string } | { ok: false; code: "diverged"; message: string } | ProviderCallFailure;
 
-export interface BackupRepositoryState {
-  readonly branch: string;
-  readonly parentCommitSha: string;
-  readonly baseTreeSha: string;
-  readonly htmlUrl: string;
-  readonly folderExists: boolean;
-}
-
 export type InspectBackupRepositoryFailureCode = "repo-not-found" | "repo-not-private" | "no-push-permission" | "repo-empty" | "branch-not-found" | "folder-is-file";
 
 export type InspectBackupRepositoryResult =
@@ -134,7 +124,7 @@ export interface CommitBackupTreeInput extends CredentialedRepositoryTarget {
   readonly entries: readonly BackupTreeEntry[];
 }
 
-/** The host facts a plugin DECLARES in `tovu-source-control.json` (`provider-registry.ts`), carried
+/** The host facts a plugin DECLARES in `jini-source-control.json` (`provider-registry.ts`), carried
  *  on every built provider so core copy and checks can name the host without hard-coding one. */
 export interface SourceControlHostFacts {
   /** The `source_control_credential_sets.provider_id` this host serves. */
@@ -185,7 +175,12 @@ export interface DescribedTransportError {
   readonly logDetail: string;
 }
 
-/** What a module may call that is not a Node builtin: a plugin ships no npm dependencies. */
+/**
+ * What a module may call that is not a Node builtin: a plugin ships no npm dependencies.
+ * why: this is the plugin module ABI. Shipped provider modules (`@jini-ai/agent-plugins/github`)
+ * call `kit.fetch(url, init)` positionally, like the deploy and form-destination kits, so the
+ * args rule does not apply here; an object signature would hand them `url === undefined`.
+ */
 export interface SourceControlProviderKit {
   readonly repositoryPaths: import("@jini-ai/devops/source-control").SourceControlProviderKit["repositoryPaths"];
   /** Plain `fetch`, looked up at call time. */

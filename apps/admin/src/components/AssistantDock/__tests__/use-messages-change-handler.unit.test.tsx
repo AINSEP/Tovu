@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { useMessagesChangeHandler } from "../hooks/AssistantDock.hooks";
+import { useMessagesChangeHandler } from "../hooks/messages-change.hooks";
 import { resetContentRefreshBus, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import { resetSettingsRefreshBus, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
 
@@ -45,10 +45,34 @@ function runningWithToolResults(id: string, count: number): ChatMessage {
   };
 }
 
+it("mirrors before persistence and advances both publication markers before synchronous settings re-entry", () => {
+  const messages: ChatMessage[] = [{ ...runningWithToolResults("reentrant", 1), runStatus: "succeeded" }];
+  const order: string[] = [];
+  const onMessagesChange = vi.fn(() => {
+    expect(window.__tovuAssistantMessages).toBe(messages);
+    order.push("persist");
+  });
+  const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
+  const settings = vi.fn(() => {
+    order.push("settings");
+    if (settings.mock.calls.length === 1) result.current(messages);
+  });
+  const content = vi.fn(() => { order.push("content"); });
+  subscribeToSettingsRefresh(settings);
+  subscribeToContentRefresh({ listener: content });
+  result.current(messages);
+  expect(onMessagesChange).toHaveBeenCalledTimes(2);
+  expect(onMessagesChange).toHaveBeenNthCalledWith(1, { messages });
+  expect(onMessagesChange).toHaveBeenNthCalledWith(2, { messages });
+  expect(settings).toHaveBeenCalledTimes(1);
+  expect(content).toHaveBeenCalledTimes(1);
+  expect(order).toEqual(["persist", "settings", "persist", "content"]);
+});
+
 it("announces a content refresh when a run finishes, not only a settings refresh", () => {
   const content = vi.fn();
   const settings = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   subscribeToSettingsRefresh(settings);
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
@@ -63,7 +87,7 @@ it("announces a content refresh when a run finishes, not only a settings refresh
 
 it("publishes once per finished run, not once per streaming delta", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
@@ -84,19 +108,19 @@ it("publishes once per finished run, not once per streaming delta", () => {
 it("still forwards the transcript to the chat store when the run is not terminal", () => {
   const onMessagesChange = vi.fn();
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
   const messages: ChatMessage[] = [{ id: "m1", role: "user", content: "make a Seasons taxonomy" }];
   result.current(messages);
 
-  expect(onMessagesChange).toHaveBeenCalledWith(messages);
+  expect(onMessagesChange).toHaveBeenCalledWith({ messages });
   expect(content).not.toHaveBeenCalled();
 });
 
 it("announces a content refresh as soon as a tool call returns, not only when the run ends", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   // The 2026-09-15 bug: `content_post_create` returned, and the assistant then navigated to Posts
@@ -110,7 +134,7 @@ it("announces a content refresh as soon as a tool call returns, not only when th
 
 it("announces once per returned tool call, not once per streaming delta", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   result.current([runningWithToolResults("m1", 1)]);
@@ -133,7 +157,7 @@ it("does not announce a settings refresh mid-run", () => {
 
 it("does not announce twice when the terminal delta also carries a new tool result", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   result.current([{ ...runningWithToolResults("m1", 1), runStatus: "succeeded" }]);
@@ -143,14 +167,14 @@ it("does not announce twice when the terminal delta also carries a new tool resu
 
 it("a freshly opened pane with no stored history still announces its first finished run", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const onMessagesChange = vi.fn();
 
   // A pane key but no `initialMessages`: a brand-new conversation, nothing settled to skip.
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange, paneKey: "pane-new" } }));
   result.current([settledAssistantMessage("m1")]);
 
-  expect(onMessagesChange).toHaveBeenCalledWith([settledAssistantMessage("m1")]);
+  expect(onMessagesChange).toHaveBeenCalledWith({ messages: [settledAssistantMessage("m1")] });
   expect(content).toHaveBeenCalledTimes(1);
   expect(content).toHaveBeenCalledWith(null);
 });

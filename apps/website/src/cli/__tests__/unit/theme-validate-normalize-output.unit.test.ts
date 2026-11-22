@@ -18,7 +18,7 @@ async function validate(result: ValidateThemePackageResult, input: { profile?: s
   const out: string[] = []; const codes: number[] = []; const calls: unknown[] = [];
   await runThemeValidateCommand({ dir, ...input }, {
     validate: (required) => { calls.push(required); return result; },
-    output: (message) => out.push(message), setExitCode: (code) => codes.push(code),
+    output: ({ message }, _optional = {}) => out.push(message), setExitCode: ({ code }, _optional = {}) => codes.push(code),
   });
   return { out: out.join(""), codes, calls };
 }
@@ -59,7 +59,7 @@ function normalized(discarded: string[]): NormalizeBuildOutputResult {
 test("normalize-build defaults --pages to index.html and summarises moves, rewrites and discards", async () => {
   const out: string[] = []; const calls: unknown[] = [];
   await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: "app.css" }, {
-    normalize: (required) => { calls.push(required); return normalized([".vite", "manifest.json"]); }, output: (message) => out.push(message) });
+    normalize: (required) => { calls.push(required); return normalized([".vite", "manifest.json"]); }, output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(calls, [{ outputDir: dir, pageFileNames: ["index.html"], primaryStylesheetFile: "app.css" }]);
   assert.equal(out.join(""), [
     "normalized 1 asset file(s), rewrote 1 page file(s)", "  moved app.css -> assets/app.css", "  rewrote index.html",
@@ -70,11 +70,11 @@ test("normalize-build defaults --pages to index.html and summarises moves, rewri
 test("normalize-build trims the --pages list, omits an empty discard line, and --json prints the raw result", async () => {
   const out: string[] = []; const calls: Array<{ pageFileNames: readonly string[] }> = [];
   await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: "app.css", pages: " index.html , ,about.html" }, {
-    normalize: (required) => { calls.push(required); return normalized([]); }, output: (message) => out.push(message) });
+    normalize: (required) => { calls.push(required); return normalized([]); }, output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(calls[0]!.pageFileNames, ["index.html", "about.html"]);
   assert.doesNotMatch(out.join(""), /discarded/);
   const json: string[] = [];
-  await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: "app.css", json: true }, { normalize: () => normalized([]), output: (message) => json.push(message) });
+  await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: "app.css", json: true }, { normalize: () => normalized([]), output: ({ message }, _optional = {}) => json.push(message) });
   assert.deepEqual(JSON.parse(json.join("")), normalized([]));
 });
 

@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
@@ -54,10 +54,10 @@ async function fixture(t: { after(callback: () => unknown): void }) {
     authorize: async () => ({ allowed: true, reason: 'matched' }), clock,
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [{ id: 'word-count', name: 'Word Count', version: '1.0.0', source: 'built-in', status: 'valid', errors: [], manifest: WORD_COUNT_MANIFEST }, ...extraSitePlugins],
-    listInstalledAgentPlugins: async workspaceRoot => { listedRoots.push(workspaceRoot); return installed; },
+    listInstalledAgentPlugins: async ({ workspaceRoot }) => { listedRoots.push(workspaceRoot); return installed; },
     mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
     preferences: { locale: async () => "en" },
-    providerFaces: composePluginProviderFaces({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
   };
   const host = createTovuPluginHost({ deps }, { readAgentManifest: async () => manifest, resolveEnabled: async () => enabled, warn: message => warnings.push(message) });
   return { root, deps, host, warnings, listedRoots, enable: () => { enabled = true; }, remove: () => { installed = []; }, addSite: (rows: readonly PluginDiscoveryRecord[]) => { extraSitePlugins = rows; } };
@@ -183,7 +183,7 @@ test('search_tools indexes a site plugin keyword and provides capability', async
 const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([
   ['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent'], ['slide-design', 'jini/slide-design'],
   ['commerce', 'jini/commerce'], ['stripe', 'jini/stripe'], ['software-engineering', 'jini/software-engineering'],
-  ['formspree', 'jini/formspree-agent'], ['google-forms', 'jini/google-forms-agent'],
+  ['google-forms', 'jini/google-forms-agent'], ['kuinetic', 'jini/kuinetic'], ['shadcn-ui', 'jini/shadcn-ui'],
 ]);
 
 test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async (t) => {
@@ -267,8 +267,8 @@ test('conflicting revisions retain every publisher reservation even when a bundl
     await assert.rejects(host.withInstallIdentity({ candidate: { id, localId: 'alias', family: 'site-runtime' }, run: async () => 'must not publish' }), { message: `Duplicate plugin id '${id}'.` });
   }
   assert.equal(await host.withInstallIdentity({ candidate: { id: 'vendor/new', localId: 'new', family: 'agent-plugin' }, run: async () => 'installed' }), 'installed');
-  await mkdir(ctx.deps.agentPluginLayout.forWorkspace('site').root, { recursive: true });
-  await recordBundledAgentPluginDigests({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, seeded: [{ pluginId: 'github', archiveDigest: plugin.archiveDigest }] });
+  await mkdir(ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, { recursive: true });
+  await recordBundledAgentPluginDigests({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, seeded: [{ pluginId: 'github', archiveDigest: plugin.archiveDigest }] });
   assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.version, '1.2.3');
   await assert.rejects(host.withInstallIdentity({ candidate: { id: 'vendor/github', localId: 'alias', family: 'site-runtime' }, run: async () => 'must not publish' }), { message: "Duplicate plugin id 'vendor/github'." });
 });
@@ -327,7 +327,8 @@ test('MCP provisioning logs each server and reason while preserving activation s
   assert.deepEqual(warnings, ["Plugin 'github': MCP provisioning for server 'repository' failed — connection id is owned by another plugin"]);
   const unavailable = createTovuPluginHost({ deps: ctx.deps }, { warn: message => warnings.push(message), resolveMcpServers: async () => { throw new Error('manifest unavailable'); } });
   await unavailable.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'operator' });
-  assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
+  // Why: Jini's lifecycle names only the error class in its warning (fixed words, never the thrown message).
+  assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — Error");
 });
 
 for (const separatelyConfigured of [false, true]) test(`a signed-in connection receives the reviewed plugin defaults: operator source ${separatelyConfigured}`, async t => {
@@ -339,10 +340,10 @@ for (const separatelyConfigured of [false, true]) test(`a signed-in connection r
   await writeFile(path.join(source, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'media-fixture', version: '1.0.0' }));
   await writeFile(path.join(source, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
     mcpServers: { media: { type: 'streamable-http', url: 'https://mcp.media.example/mcp', tovuAuthMode: 'oauth', tovuDefaultTools: { allow, write } } } }));
-  const packed = await packAgentPluginDirectory(source);
+  const packed = await packAgentPluginDirectory({ sourceDir: source });
   await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: ctx.deps.agentPluginLayout, workspaceId: ctx.deps.workspaceId });
   try {
-    const workspaceRoot = ctx.deps.agentPluginLayout.forWorkspace(ctx.deps.workspaceId).root;
+    const workspaceRoot = ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: ctx.deps.workspaceId }).root;
     // Signed in while the operator had the plugin off (the sign-in grant skipped it), then switched on in chat.
     const keyring = new InMemoryKeyring();
     await saveExternalMcpServer({ repo: ctx.deps.mcp.repo as InMemoryExternalMcpServerRepo, sealer: new AesGcmSecretSealer(keyring), keyring, clock: ctx.deps.clock }, {
@@ -351,7 +352,7 @@ for (const separatelyConfigured of [false, true]) test(`a signed-in connection r
       principalId: 'operator', provisionedByPluginId: separatelyConfigured ? undefined : 'media-fixture' });
     const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
     assert.equal(signedOut?.provisionedByPluginId, separatelyConfigured ? null : 'media-fixture');
-    await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
+    await ctx.deps.mcp.repo.updateIfVersion({ record: { ...signedOut!, oauthStatus: 'connected' }, expectedVersion: signedOut!.version, replaces: { sealedEnv: signedOut!.sealedEnv, sealedOAuth: signedOut!.sealedOAuth } });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
 
     const agentPlugins = ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;
@@ -400,9 +401,9 @@ test('L058b default agent activation is resolved through the lifecycle owner', a
   const ctx = await fixture(t);
   const host = createTovuPluginHost({ deps: ctx.deps }, { readAgentManifest: async () => manifest, warn: () => {} });
   assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
-  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, pluginId: 'github', enabled: false, actor: 'pin' });
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, pluginId: 'github', enabled: false, actor: 'pin' });
   assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, false);
-  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, pluginId: 'github', enabled: true, actor: 'pin' });
+  await agentPluginActivations.setAgentPluginActivation({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, pluginId: 'github', enabled: true, actor: 'pin' });
   assert.equal((await host.getPlugin({ id: 'tovu/github' }))?.enabled, true);
 });
 
@@ -427,8 +428,8 @@ test('L058b agent revision lookup and admission retain distinct selection contra
   conflicting = true;
   assert.equal(await host.getPlugin({ id: 'tovu/github' }), null);
   assert.ok(warnings.includes("Plugin 'github': conflicting publisher identities; omitted from metadata lookup."));
-  await mkdir(ctx.deps.agentPluginLayout.forWorkspace('site').root, { recursive: true });
-  await recordBundledAgentPluginDigests({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace('site').root, seeded: [{ pluginId: 'github', archiveDigest: old.archiveDigest }] });
+  await mkdir(ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, { recursive: true });
+  await recordBundledAgentPluginDigests({ workspaceRoot: ctx.deps.agentPluginLayout.forWorkspace({ workspaceId: 'site' }).root, seeded: [{ pluginId: 'github', archiveDigest: old.archiveDigest }] });
   assert.deepEqual(await host.getPlugin({ id: 'vendor/github' }), {
     id: 'vendor/github', localId: 'github', family: 'agent-plugin', version: null, enabled: true, keywords: ['repository'], provides: [],
   });

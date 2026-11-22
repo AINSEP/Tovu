@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin-only chart metadata and immutable bytes; installed/custom browser providers never enter this port. */
 import type { Express } from "express";
 import { CHART_TABLE_PROVIDER } from "@jini-ai/ui/charts";
@@ -6,6 +6,7 @@ import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 type ChartRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "pluginRuntimeReady" | "siteTitleReady" | "browserProviders" | "chartProviderSnapshot">;
 
 /** Register the authenticated chart bootstrap and exact admitted-asset lookup.
@@ -20,12 +21,10 @@ export function registerChartProviderRoutes(
   const base = "/api/admin/v1/workspaces/:workspaceId/chart-providers";
   // One guard covers metadata and assets, before either can disclose a provider or execute bytes.
   app.use(base, async (req, res, next) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" }); return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId } }))) return;
       await Promise.all([deps.pluginRuntimeReady, deps.siteTitleReady]);
       next();
     } catch (error) {

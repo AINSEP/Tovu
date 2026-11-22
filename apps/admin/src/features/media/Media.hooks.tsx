@@ -1,4 +1,5 @@
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
+import { Icon } from "@jini-ai/ui";
 import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 
 /**
@@ -17,85 +18,19 @@ import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController
  * where the buttons are drawn from.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px/1.5-stroke/round-join set
- *  `Roles.hooks.tsx`, `source-control-visuals.tsx` and `deployment-visuals.tsx` each define
- *  locally, so every tab row in this admin reads as one family. `aria-hidden`, because each sits
- *  directly beside the text label that already says the same thing. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
 
-/** All — a four-tile grid, i.e. the whole library at once. */
-export function AllMediaIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <rect x="4" y="4" width="6.5" height="6.5" rx="1.2" />
-      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2" />
-      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" />
-      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" />
-    </svg>
-  );
-}
-
-/** Images — a framed picture: a sun and a horizon. */
-export function ImagesIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <rect x="3.5" y="5" width="17" height="14" rx="2" />
-      <circle cx="8.5" cy="9.5" r="1.5" />
-      <path d="M20.5 15.5 16 11l-6.5 6.5M3.5 17l3.5-3.5 2.5 2.5" />
-    </svg>
-  );
-}
-
-/** Videos — the same frame with a play mark inside it. */
-export function VideosIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <rect x="3.5" y="5" width="17" height="14" rx="2" />
-      <path d="M10.25 9.25v5.5l4.5-2.75z" />
-    </svg>
-  );
-}
-
-/** External Providers — a cloud, the generic shape of "hosted elsewhere". This tab carried the same
- *  silhouette on its own brief stop as the "Media" tab on `features/providers/Providers.tsx` (that
- *  file's own 18-viewBox `TabIcon` frame) — redrawn here in this file's 24-viewBox `LINE_ICON`
- *  convention instead, since every other tab on this page uses that frame. No vendor mark: this
- *  admin draws zero brand logos (see `source-control-visuals.tsx`'s header), and this tab lists
- *  several. */
-export function ExternalProvidersIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M7 16h9.5a3.5 3.5 0 0 0 .4-6.98A4.75 4.75 0 0 0 7.7 7.2 3.5 3.5 0 0 0 7 16Z" />
-    </svg>
-  );
-}
-
-/** Trash — a lidded bin, the same glyph family as the icons above. */
-export function TrashMediaIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M4.5 7h15M9.5 7V4.75h5V7M6.5 7l.9 12.25h9.2L17.5 7M10.25 10.5v5.5M13.75 10.5v5.5" />
-    </svg>
-  );
-}
 
 /** Which icon each `MEDIA_TABS` id carries — a lookup rather than a field on `MEDIA_TABS` itself,
  *  because that constant lives in a `.hooks.ts` file (no JSX) and is the URL contract
  *  `use-media-tabs.hooks.ts` resolves `?tab=` against; the icons are presentation. */
 const MEDIA_TAB_ICONS = {
-  all: <AllMediaIcon />,
-  images: <ImagesIcon />,
-  videos: <VideosIcon />,
-  "external-providers": <ExternalProvidersIcon />,
-  trash: <TrashMediaIcon />,
+  // All uses a four-tile grid to represent the whole library at once.
+  all: <Icon name="tiles-four" size={16} strokeWidth={1.5} />,
+  images: <Icon name="picture-frame" size={16} strokeWidth={1.5} />,
+  videos: <Icon name="video-frame" size={16} strokeWidth={1.5} />,
+  // The cloud represents hosting across several providers and follows the admin’s convention of using generic glyphs for provider groups.
+  "external-providers": <Icon name="cloud-outline" size={16} strokeWidth={1.5} />,
+  trash: <Icon name="bin-lidded" size={16} strokeWidth={1.5} />,
 } as const;
 
 /**
@@ -115,7 +50,7 @@ const MEDIA_TAB_ICONS = {
  *
  * @complexity O(1) — a fixed five-element array.
  */
-export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Record<MediaTabId, number>> = {}): TabBarTab[] {
+export function resolveMediaTabs({ t }: { t: (key: string) => string }, { counts = {} }: { counts?: Partial<Record<MediaTabId, number>> } = {}): TabBarTab[] {
   return MEDIA_TABS.map((tab) => ({
     id: tab.id,
     label: t(tab.label),
@@ -130,6 +65,6 @@ export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Rec
  *  through the same `resolveActiveTab` guard the URL value goes through rather than a cast — every
  *  id `TabBar` can hand back came from `resolveMediaTabs` above, so the fallback never fires, but
  *  the guard is what makes that a checked fact instead of an asserted one. */
-export function resolveMediaTabChange(setActiveTab: MediaTabsController["setActiveTab"]): (id: string) => void {
-  return (id) => setActiveTab(resolveActiveTab(id));
+export function resolveMediaTabChange({ setActiveTab }: { setActiveTab: MediaTabsController["setActiveTab"] }, _optional: Record<string, never> = {}): (id: string) => void {
+  return (id) => setActiveTab(resolveActiveTab({ tabId: id }));
 }

@@ -3,8 +3,9 @@ import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, type MediaRecord } from "#src/features/media/index";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 
 import { contributeMediaPublish } from "../publish-content.js";
@@ -76,7 +77,7 @@ async function deps(opts: { wired?: boolean; staged?: boolean } = {}): Promise<P
     ports:
       opts.wired === false
         ? {}
-        : { media: { repo: new InMemoryVersionedMediaRepo([structuredClone(PHOTO), structuredClone(BARE)]), assetBlobRepo: new InMemoryAssetBlobRepo({}, { initialRows: [] }), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
+        : { media: { repo: new InMemoryVersionedMediaRepo({}, { initialRows: [structuredClone(PHOTO), structuredClone(BARE)] }), assetBlobRepo: new InMemoryAssetBlobRepo({}, { initialRows: [] }), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() } },
   };
 }
 
@@ -95,10 +96,10 @@ test("creation attribution travels in packed state without changing legacy conte
     const base = await deps();
     const ports = base.ports.media!;
     const fixture: PublishContentDeps = { ...base, ports: { ...base.ports,
-      media: { ...ports, repo: new InMemoryVersionedMediaRepo([{ ...PHOTO, createdBy }, BARE]) },
+      media: { ...ports, repo: new InMemoryVersionedMediaRepo({}, { initialRows: [{ ...PHOTO, createdBy }, BARE] }) },
     } };
     const handler = contributeMediaPublish().build(fixture);
-    assert.deepEqual(await handler.inspect("media-photo"), { version: 4, hash: PINNED_HASHES["media-photo"] });
+    assert.deepEqual(await handler.inspect({ id: "media-photo" }), { version: 4, hash: PINNED_HASHES["media-photo"] });
     const packed: PackedEntity[] = [];
     for await (const item of handler.pack()) packed.push(item);
     assert.equal(packed[0].contentHash, PINNED_HASHES["media-photo"]);
@@ -122,27 +123,27 @@ test("pack(): pinned contentHash, required blob and packed state per media row",
 
 test("inspect(): the destination's hash equals the pinned pack hash", async () => {
   const handler = contributeMediaPublish().build(await deps());
-  assert.deepEqual(await handler.inspect("media-photo"), { version: 4, hash: PINNED_HASHES["media-photo"] });
-  assert.deepEqual(await handler.inspect("media-bare"), { version: 1, hash: PINNED_HASHES["media-bare"] });
-  assert.equal(await handler.inspect("nope"), null);
+  assert.deepEqual(await handler.inspect({ id: "media-photo" }), { version: 4, hash: PINNED_HASHES["media-photo"] });
+  assert.deepEqual(await handler.inspect({ id: "media-bare" }), { version: 1, hash: PINNED_HASHES["media-bare"] });
+  assert.equal(await handler.inspect({ id: "nope" }), null);
 });
 
 test("precheck(): exact reason strings", async () => {
   const incoming = { ...PHOTO, id: "media-new", slug: "fresh" };
   assert.equal(
-    await contributeMediaPublish().build(await deps({ wired: false })).precheck(entity(incoming)),
+    await contributeMediaPublish().build(await deps({ wired: false })).precheck({ entity: entity(incoming) }),
     "media entity 'media-new' cannot be prechecked — no media port wired for this deps bag"
   );
   const handler = contributeMediaPublish().build(await deps());
-  assert.equal(await handler.precheck(entity(incoming)), null);
-  assert.equal(await handler.precheck(entity(PHOTO)), null);
+  assert.equal(await handler.precheck({ entity: entity(incoming) }), null);
+  assert.equal(await handler.precheck({ entity: entity(PHOTO) }), null);
   assert.equal(
-    await handler.precheck(entity({ ...incoming, slug: "team-photo" })),
+    await handler.precheck({ entity: entity({ ...incoming, slug: "team-photo" }) }),
     "slug 'team-photo' is already held by a different media ('media-photo')"
   );
-  assert.equal(await handler.precheck(entity({ ...incoming, slug: "" })), null);
+  assert.equal(await handler.precheck({ entity: entity({ ...incoming, slug: "" }) }), null);
   assert.equal(
-    await contributeMediaPublish().build(await deps({ staged: false })).precheck(entity(incoming)),
+    await contributeMediaPublish().build(await deps({ staged: false })).precheck({ entity: entity(incoming) }),
     `required blob '${SHA}' is not available on this destination`
   );
 });

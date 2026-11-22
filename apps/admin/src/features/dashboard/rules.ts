@@ -1,6 +1,7 @@
-import type { AdminPost, AdminSiteKeyState } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import type { AdminSiteKeyState } from "../sites/api/sites-api.types";
+import type { AdminPost } from "../posts/api/posts-api.types";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `dashboard` feature — everything that computes a value rather than
  * rendering one.
@@ -19,7 +20,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
  * dedup map and result array.
  * @overallScore 100
  */
-export function mergeRecent(prev: AdminPost[] | null, incoming: AdminPost[]): AdminPost[] {
+export function mergeRecent({ prev, incoming }: { prev: AdminPost[] | null; incoming: AdminPost[] }, _options = {}): AdminPost[] {
   const byId = new Map((prev ?? []).map((row) => [row.id, row]));
   for (const row of incoming) byId.set(row.id, row);
   return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -60,22 +61,22 @@ export function activeThemeName(presentation: {
 }
 
 /** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
-export function postsStatMeta(published: number | null, t: Translate): string {
-  return published === null ? "" : t("{count} published").replace("{count}", String(published));
+export function postsStatMeta({ published, t }: { published: number | null; t: Translate }, _options = {}): string {
+  return published === null ? "" : t("{count} published").replace("{count}", () => String(published));
 }
 
 /** The Pages stat card's meta line — blank while `drafts` is still pending, singular/plural
  *  otherwise. */
-export function pagesStatMeta(drafts: number | null, t: Translate): string {
+export function pagesStatMeta({ drafts, t }: { drafts: number | null; t: Translate }, _options = {}): string {
   if (drafts === null) return "";
-  return t(drafts === 1 ? "{count} draft" : "{count} drafts").replace("{count}", String(drafts));
+  return t(drafts === 1 ? "{count} draft" : "{count} drafts").replace("{count}", () => String(drafts));
 }
 
 /** The Comments stat card's meta line. Note this reads `StatState.value` directly rather than a
  *  loading-aware wrapper: `null !== 0`, so it reads "awaiting moderation" while the count is still
  *  pending, same as before this was extracted — preserved rather than fixed, since a moderation
  *  queue of unknown size defaulting to "may need attention" is arguably the safer default anyway. */
-export function commentsStatMeta(pendingCount: number | null, t: Translate): string {
+export function commentsStatMeta({ pendingCount, t }: { pendingCount: number | null; t: Translate }, _options = {}): string {
   return t(pendingCount === 0 ? "nothing to review" : "awaiting moderation");
 }
 
@@ -90,7 +91,7 @@ export function commentsStatMeta(pendingCount: number | null, t: Translate): str
  *
  * @complexity O(1).
  */
-export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dismissed: boolean): boolean {
+export function shouldShowDefaultPasswordBanner({ usesDefault, dismissed }: { usesDefault: boolean | null; dismissed: boolean }, _options = {}): boolean {
   return usesDefault === true && !dismissed;
 }
 
@@ -108,7 +109,7 @@ export function shouldShowDefaultPasswordBanner(usesDefault: boolean | null, dis
  *
  * @complexity O(1).
  */
-export function shouldShowSiteKeyBanner(state: AdminSiteKeyState | undefined): boolean {
+export function shouldShowSiteKeyBanner({ state }: { state: AdminSiteKeyState | undefined }, _options = {}): boolean {
   return state === "missing-with-data" || state === "mismatch" || state === "invalid";
 }
 
@@ -121,7 +122,7 @@ export function shouldShowSiteKeyBanner(state: AdminSiteKeyState | undefined): b
  *
  * @complexity O(1).
  */
-export function siteKeyBannerCopy(state: AdminSiteKeyState | undefined, t: Translate): string {
+export function siteKeyBannerCopy({ state, t }: { state: AdminSiteKeyState | undefined; t: Translate }, _options = {}): string {
   switch (state) {
     case "missing-with-data":
       return t("This site has saved credentials, but no site key was found to open them.");

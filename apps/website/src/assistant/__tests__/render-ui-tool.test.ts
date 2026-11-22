@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { A2UI_DISPLAY_ONLY_PROPERTY } from "@jini-ai/agentic/a2ui";
+import { A2UI_DISPLAY_ONLY_PROPERTY } from "@jini-ai/protocol/a2ui";
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations, renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -27,8 +27,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * every run; only a test that specifically wants to observe grace-period timing should override it. */
 function buildHandler(surfaceExchanges: SurfaceExchangeStore, rejectionGraceMs = 10) {
   const registrations: ToolRegistration[] = buildRenderUiRegistrations(
-    undefined,
-    { surfaceExchanges },
+    { _routeDeps: undefined,
+    surfaces: { surfaceExchanges } },
     { rejectionGraceMs },
   );
   const registration = registrations.find((r) => r.descriptor.id === RENDER_UI_TOOL_ID);
@@ -44,7 +44,7 @@ test("registers unconditionally — no environment can switch this tool off", ()
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    const registrations = buildRenderUiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+    const registrations = buildRenderUiRegistrations({ _routeDeps: undefined, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
     assert.ok(
       registrations.some((r) => r.descriptor.id === RENDER_UI_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
@@ -174,7 +174,7 @@ test("with the production grace period, a relayed non-refusal answer settles the
   // No `rejectionGraceMs` option: the real 4 s grace applies, but a relayed message ends the wait
   // as soon as it arrives. A message that is not an `error` shape (here `null`) is not a refusal.
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registration = buildRenderUiRegistrations(undefined, { surfaceExchanges }).find((r) => r.descriptor.id === RENDER_UI_TOOL_ID);
+  const registration = buildRenderUiRegistrations({ _routeDeps: undefined, surfaces: { surfaceExchanges } }).find((r) => r.descriptor.id === RENDER_UI_TOOL_ID);
   assert.ok(registration);
   const emitted: unknown[] = [];
   const started = Date.now();

@@ -3,8 +3,9 @@ import path from "node:path";
 import test from "node:test";
 import { loadTheme } from "#src/features/theme/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { injectPostAuthor } from "#src/features/theme/static-render";
-import { renderHtmlPageBody, renderSite } from "../render.js";
+import { injectPostAuthor } from "#src/features/theme/index";
+import { renderSite } from "../render-site.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
 
 const root = path.resolve(import.meta.dirname, "../../../../../../../../../");
 const credit = '<script>alert("credit")</script> & Writer';
@@ -53,7 +54,7 @@ test("postpolish: static content headers have exactly date · By author and no o
   const resolved = (updatedAt: string) => new Map([["content" as const, new Map([[author.id, { componentId: "post-content", props: {
     title: "Title", bodyJson: { type: "doc", content: [] }, updatedAt,
   } }]])]]);
-  const render = (post = author, html = shell, date = "2026-10-11T12:00:00Z") => injectPostAuthor({ html: renderHtmlPageBody(html, resolved(date), { postAuthor: post }), post });
+  const render = (post = author, html = shell, date = "2026-10-11T12:00:00Z") => injectPostAuthor({ html: renderHtmlPageBody({ html, resolved: resolved(date) }, { postAuthor: post }), post });
   assert.ok(render().includes('<time datetime="2026-10-11T12:00:00Z">Oct 11, 2026</time><span data-post-author-separator="" class="post-author"> · By Jane &amp; Doe</span>'));
   assert.equal((render().match(/ · /g) ?? []).length, 1);
   assert.ok(!render({ ...author, showAuthor: false }).includes(" · "));

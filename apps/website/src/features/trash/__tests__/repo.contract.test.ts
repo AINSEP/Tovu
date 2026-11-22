@@ -7,11 +7,11 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { contentKernel, type ContentKernel } from "#src/platform/db/content-kernel";
+import { contentKernel, schemaErasedKernel, type ContentKernel } from "#src/platform/db/content-kernel";
 import { eachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlTrashRepo } from "../repo.js";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
 import type { TrashItem, TrashRepoPort } from "@jini-ai/cms/trash";
+import { SqlTrashRepo } from "@jini-ai/cms/trash/sql";
 
 /**
  * @file Persistent contract suite for `TrashRepoPort`; the memory lane moved to Jini
@@ -25,6 +25,9 @@ import type { TrashItem, TrashRepoPort } from "@jini-ai/cms/trash";
  * keyset cursor, `INSERT OR IGNORE` idempotency, the claim lease) would make every green service
  * test meaningless on the running server.
  */
+
+/** The Jini adapter bound the way `SqliteTrashRepo` binds it: this kernel, this table. */
+const sqlTrashRepo = (kernel: ContentKernel): SqlTrashRepo => new SqlTrashRepo({ kernel: schemaErasedKernel({ store: kernel }), tables: { trashedItems: "trashed_items" } }, {});
 
 const WS = "workspace-1";
 const WS2 = "workspace-2";
@@ -194,8 +197,8 @@ test("overlapping claims on independent SQLite connections lease disjoint batche
   const b = new Database(file);
   t.after(() => { b.close(); a.close(); fs.rmSync(root, { recursive: true, force: true }); });
   seedWorkspaces(a);
-  const kernelA = contentKernel(a);
-  const kernelB = contentKernel(b);
+  const kernelA = contentKernel({ store: a });
+  const kernelB = contentKernel({ store: b });
   let selected!: () => void;
   let release!: () => void;
   const firstSelected = new Promise<void>((resolve) => { selected = resolve; });
@@ -213,8 +216,8 @@ test("overlapping claims on independent SQLite connections lease disjoint batche
       return result;
     }) as ContentKernel["run"],
   };
-  const firstRepo = new SqlTrashRepo(heldKernel);
-  const secondRepo = new SqlTrashRepo(kernelB);
+  const firstRepo = sqlTrashRepo(heldKernel);
+  const secondRepo = sqlTrashRepo(kernelB);
   for (let n = 1; n <= 4; n += 1) {
     await firstRepo.insert({ row: item({ id: `due-${n}`, entityId: `post-${n}`, purgeAfter: `2026-09-0${n}T00:00:00.000Z` }) });
   }
@@ -233,7 +236,7 @@ runSuite("SqliteTrashRepo", () => {
   const db = openContentDb(":memory:");
   const client = (db as unknown as { $client: Database.Database }).$client;
   seedWorkspaces(client);
-  return new SqliteTrashRepo(client);
+  return new SqliteTrashRepo({ store: client });
 });
 
 /** `kernel` with the two workspaces seeded before its first call. */
@@ -248,6 +251,6 @@ function withWorkspaces(kernel: ContentKernel): ContentKernel {
   return heldUntil(kernel, seeded.then(() => undefined));
 }
 
-for (const each of eachDialect({ tables: ["workspaces", "trashed_items"], make: (kernel) => new SqlTrashRepo(withWorkspaces(kernel)) })) {
+for (const each of eachDialect({ tables: ["workspaces", "trashed_items"], make: (kernel) => sqlTrashRepo(withWorkspaces(kernel)) })) {
   runSuite(`SqlTrashRepo ${each.name}`, each.make);
 }

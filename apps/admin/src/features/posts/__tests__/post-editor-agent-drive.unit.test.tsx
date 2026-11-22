@@ -6,7 +6,8 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -32,7 +33,7 @@ vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
  * screen; this one is `PostEditor.tsx`-scoped — the screen that row's own agentHandle'd link opens).
  * Same convention: drive the REAL `executePageCapability` and the REAL `createDomPageDriver`, not
  * `userEvent` alone, and scope the driver to `root: container` (standing in for `contentEl`, the
- * real bridge's own scope — `App.hooks.tsx`) rather than `document.body` — see that sibling file's
+ * real bridge's own scope — `App.hooks.ts`) rather than `document.body` — see that sibling file's
  * own "KNOWN GAP" doc header for why a broader root can hide exactly this kind of unreachable-handle
  * defect.
  *
@@ -59,8 +60,8 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
   const setConfirmingDelete = vi.fn();
   const setShowTemplateModal = vi.fn();
   return {
-    onPublish: () => save("published"),
-    onSave: () => save(),
+    onPublish: () => save({}, { statusOverride: "published" }),
+    onSave: () => save({}),
     onDeleteClick: () => setConfirmingDelete(true),
     onDeleteCancel: () => setConfirmingDelete(false),
     confirmingUnchangedSave: false,
@@ -110,7 +111,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     confirmLeave: () => true,
     dirty: false,
     contentDirty: false,
-    templatePreviewUrl: api.templatePreviewUrl(post.id, null),
+    templatePreviewUrl: postsApi.templatePreviewUrl({ id: post.id, templateChoice: null }),
     bodyJson: null,
     showTemplateModal: false,
     setShowTemplateModal,

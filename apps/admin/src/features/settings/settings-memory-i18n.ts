@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Settings -> Memory tab: the copy `@jini-ai/ui`'s `MemorySettingsPanel` renders (the header
  * card, the "Memories | How it works" switch, `MemoryList`'s empty state, `MemoryHowPanel` and
@@ -12,7 +13,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * mechanism, no change to `@jini-ai/ui`. Keys are the package's literal English strings; English
  * itself needs no block (a miss renders the key).
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const SETTINGS_MEMORY_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -864,6 +864,6 @@ const MEMORY_PANEL_KEYS: readonly string[] = [
  *
  * @complexity O(k) in the key count.
  */
-export function memoryPanelDictionaries(locale: string): Record<string, Record<string, string>> {
+export function memoryPanelDictionaries({ locale }: { locale: string }, _options = {}): Record<string, Record<string, string>> {
   return { [locale]: Object.fromEntries(MEMORY_PANEL_KEYS.map((key) => [key, t({ locale: locale, key: key })])) };
 }

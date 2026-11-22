@@ -1,5 +1,5 @@
-import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "../../lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
@@ -9,6 +9,7 @@ import { useImportExportTranslate, useSitesSectionAvailable, useSiteTransferTran
 import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
 import { GitBackupCard } from "./GitBackupCard";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Operations → Import & Export (`/admin/import-export`). Three tabs (owner, 2026-10-25,
  * option A): Export and Import render the Sites screen's own Export Site / Import Site tabs as they
@@ -52,7 +53,7 @@ function ImportExportCard({ link, t }: { link: ImportExportLink; t: Translate })
 
 /** The Other tab: the cards for screens elsewhere, then Git backup. Its own component so the Git
  *  backup read runs only while this tab is open. */
-function OtherTab({ t, useGitBackup }: { t: Translate; useGitBackup: typeof useWiredGitBackup }) {
+function OtherTab({ t, useGitBackup = useWiredGitBackup }: { t: Translate; useGitBackup?: typeof useWiredGitBackup }) {
   const gitBackup = useGitBackup({ t });
   return (
     <>
@@ -66,10 +67,10 @@ function OtherTab({ t, useGitBackup }: { t: Translate; useGitBackup: typeof useW
 
 /** The Export and Import tabs, each with the translator it was written against. Hooks run here, not
  *  in `ImportExport`, so the Other tab never reads the sites list. */
-function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
+function TransferTab({ tab, useTransferTranslate = useSiteTransferTranslate, useSitesAvailable = useSitesSectionAvailable }: {
   tab: "export" | "import";
-  useTransferTranslate: () => Translate;
-  useSitesAvailable: () => boolean;
+  useTransferTranslate?: typeof useSiteTransferTranslate;
+  useSitesAvailable?: typeof useSitesSectionAvailable;
 }) {
   const t = useTransferTranslate();
   const sitesAvailable = useSitesAvailable();
@@ -79,12 +80,12 @@ function TransferTab({ tab, useTransferTranslate, useSitesAvailable }: {
   // read as publishing the zip. Publishing stays on the dashboard's "Publish All" and Deployment,
   // both present on desktop too.
   if (tab === "export") return <SiteExportTab t={t} />;
-  return <SiteImportTab t={t} showNewSiteLink={sitesAvailable} />;
+  return <SiteImportTab t={t} canMakeSites={sitesAvailable} />;
 }
 
 /** `replace: true` so switching tabs does not grow the back stack, as Sites and Deployment do. */
 function goToImportExportTab(id: string) {
-  navigate(`/import-export?tab=${id}`, { replace: true });
+  navigate({ routePath: `/import-export?tab=${id}` }, { replace: true });
 }
 
 export function ImportExport({
@@ -95,7 +96,7 @@ export function ImportExport({
   tabId,
 }: ImportExportProps = {}) {
   const t = useTranslate();
-  const tab: ImportExportTabId = resolveImportExportTabId(tabId);
+  const tab: ImportExportTabId = resolveImportExportTabId({ tabId: tabId });
   return (
     // No "Operations" kicker above the title (owner, 2026-10-25); the other Operations pages keep theirs.
     <div className="page import-export-page">

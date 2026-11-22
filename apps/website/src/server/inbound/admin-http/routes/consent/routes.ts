@@ -1,3 +1,5 @@
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 /** @file Authenticated, workspace-scoped projections of the shared consent service. */
 import type { Express, Request, Response } from 'express';
 import { ToolInputError } from '@jini-ai/core';
@@ -20,17 +22,16 @@ export function registerAdminConsentRoutes({ app, deps, service }: { app: Expres
   const mount = ({ method, suffix, write, run }: { method: 'get' | 'post' | 'put'; suffix: string; write: boolean; run: (input: { req: Request; principalId: string }) => Promise<unknown> }, _optional = {}) => {
     app[method](`${BASE}${suffix}`, async (req: Request, res: Response) => {
       res.set('Cache-Control', 'no-store');
-      if (String(req.params.workspaceId ?? '') !== deps.workspaceId) { res.status(404).json({ error: 'workspace was not found' }); return; }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       try {
         const principal = getAuthedPrincipal(res);
-        if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, workspaceId: deps.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read', entityType: 'site-consent' })) return;
+        if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, workspaceId: deps.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read', entityType: 'site-consent' } })) return;
         res.json(await run({ req, principalId: principal.id }));
       } catch (error) {
         if (error instanceof ToolInputError) { res.status(400).json({ code: 'CONSENT_VALIDATION_FAILED', error: error.message }); return; }
         if (error instanceof SiteConsentConflict) { res.status(409).json({ code: 'CONSENT_REVISION_CONFLICT', error: error.message }); return; }
         if (error instanceof ForbiddenError) { res.status(403).json({ code: 'FORBIDDEN', error: 'Permission to access cookie consent was denied.' }); return; }
-        console.error('[consent-admin] operation failed');
-        res.status(503).json({ code: 'CONSENT_UNAVAILABLE', error: 'Cookie consent settings are unavailable. Published enforcement remains in place.' });
+        sendAdminFailure({ res, error }, { status: 503, operation: 'consent-admin', code: 'CONSENT_UNAVAILABLE', message: 'Cookie consent settings are unavailable. Published enforcement remains in place.' });
       }
     });
   };

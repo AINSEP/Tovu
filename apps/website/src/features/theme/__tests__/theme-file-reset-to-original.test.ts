@@ -5,8 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { THEME_CATALOG_DIR } from "../theme.js";
-import { resetThemeFileToOriginal, ThemePathError } from "../theme-files.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "../theme-file-write-ports.js";
+import { ThemePathError } from "../theme-files.js";
 
 /**
  * @file `resetThemeFileToOriginal` — the byte copy behind Explore's per-file reset route and
@@ -36,7 +38,7 @@ function write(dir: string, relativePath: string, content: string | Buffer): str
 }
 
 function reset(root: ReturnType<typeof makeRoot>, relativePath: string): { wasModified: boolean; bytes: number } | null {
-  return resetThemeFileToOriginal({
+  return resetThemeFileToOriginal({ ports: themeOriginalFilePorts,
     themeDir: root.themeDir,
     themesRoot: root.themesRoot,
     originalDir: root.originalDir,

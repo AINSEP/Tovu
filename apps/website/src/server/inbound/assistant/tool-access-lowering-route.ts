@@ -1,6 +1,7 @@
 import type { Express } from 'express';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import type { ToolAccessChange, ToolAccessStopResult } from '@jini-ai/daemon';
+import { sendAdminFailure } from '#src/server/inbound/shared/admin-failure';
 
 export const TOOL_ACCESS_LOWERING_PATH = '/api/tool-access/lower';
 const ids = z.array(z.string().min(1).max(128)).max(32).optional();
@@ -23,8 +24,8 @@ export function registerToolAccessLoweringRoute({ app, lower }: {
     try {
       const result = await lower(parsed.data);
       res.status(result.failedRunIds.length === 0 ? 200 : 503).json({ ok: result.failedRunIds.length === 0, ...result });
-    } catch {
-      res.status(503).json({ ok: false, error: "Couldn't stop affected answers after tool access changed." });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "tool-access:lower", message: "Couldn't stop affected answers after tool access changed." });
     }
   });
 }

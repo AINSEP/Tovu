@@ -30,7 +30,7 @@ export interface FolderChooserCommand {
   readonly file: string;
   readonly args: readonly string[];
   /** Whether a failed run was the user pressing Cancel rather than a real error. */
-  readonly cancelled: (failure: ChooserFailure) => boolean;
+  readonly cancelled: (required: { failure: ChooserFailure }) => boolean;
 }
 
 // `activate` (no target) brings osascript itself to the front, so the dialog does not open behind
@@ -39,13 +39,13 @@ export interface FolderChooserCommand {
 const MAC_COMMAND: FolderChooserCommand = {
   file: "/usr/bin/osascript",
   args: ["-e", "activate", "-e", `POSIX path of (choose folder with prompt "${PROMPT}")`],
-  cancelled: (failure) => failure.code === 1 && /\(-128\)/.test(failure.stderr ?? ""),
+  cancelled: ({ failure }) => failure.code === 1 && /\(-128\)/.test(failure.stderr ?? ""),
 };
 
 // zenity and kdialog both exit 1 on Cancel with nothing on stdout.
 const LINUX_COMMANDS: readonly FolderChooserCommand[] = [
-  { file: "/usr/bin/zenity", args: ["--file-selection", "--directory", `--title=${PROMPT}`], cancelled: (failure) => failure.code === 1 },
-  { file: "/usr/bin/kdialog", args: ["--title", PROMPT, "--getexistingdirectory"], cancelled: (failure) => failure.code === 1 },
+  { file: "/usr/bin/zenity", args: ["--file-selection", "--directory", `--title=${PROMPT}`], cancelled: ({ failure }) => failure.code === 1 },
+  { file: "/usr/bin/kdialog", args: ["--title", PROMPT, "--getexistingdirectory"], cancelled: ({ failure }) => failure.code === 1 },
 ];
 
 // A hidden TopMost owner form keeps the dialog above the browser. Cancel exits 0 with no output.
@@ -122,7 +122,7 @@ async function runChooser({ command, execFile }: { command: FolderChooserCommand
     return chosenFolderPath({ stdout });
   } catch (error) {
     const failure = error as ChooserFailure;
-    if (failure.killed === true || command.cancelled(failure)) return null;
+    if (failure.killed === true || command.cancelled({ failure })) return null;
     throw error;
   }
 }

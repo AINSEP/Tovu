@@ -5,7 +5,7 @@ import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
-import type { ToolAttemptAuditSink } from "../../features/tool-audit/types.js";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { describeInput, withToolAttemptAudit } from "../tool-audit-preset.js";
 import type { RedactedToolExecutionResult } from "../tool-recovery-preset.js";
 

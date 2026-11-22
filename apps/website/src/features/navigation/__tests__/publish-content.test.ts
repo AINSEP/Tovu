@@ -9,11 +9,10 @@ import type { PackedEntity, PublishContentDeps } from "#src/features/publish-con
 import {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
-  type MenuRepoPort,
-  type NavLocationBindingRepoPort,
   type NavMenuDoc,
   type NavMenuEntry,
 } from "../index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { contributeMenusPublish } from "../publish-content.js";
 
@@ -280,7 +279,7 @@ test("precheck() rejects a slug already held by a different menu", async () => {
   ] as NavMenuEntry[] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const reason = await handler.precheck(packedEntity("menu-incoming", menuState({ slug: "header-nav" })));
+  const reason = await handler.precheck({ entity: packedEntity("menu-incoming", menuState({ slug: "header-nav" })) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /already held by a different menu/);
 });
@@ -290,7 +289,7 @@ test("precheck() reports the tree validator's own message for an invalid doc", a
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
   const badDoc: NavMenuDoc = { type: "menu", version: 1, items: [{ id: "", label: "Bad", target: { kind: "url", href: "/ok" } }] };
-  const reason = await handler.precheck(packedEntity("menu-bad", menuState({ doc: badDoc })));
+  const reason = await handler.precheck({ entity: packedEntity("menu-bad", menuState({ doc: badDoc })) });
   assert.equal(reason, "every menu item requires a non-empty id");
 });
 
@@ -391,7 +390,7 @@ test("referencesTo() finds a menu whose nested entryRef targets one of the given
   ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const holders = await handler.referencesTo!(["post-about"]);
+  const holders = await handler.referencesTo!({ ids: ["post-about"] });
 
   assert.deepEqual(holders, [{ entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" }]);
 });
@@ -405,7 +404,7 @@ test("referencesTo() finds nothing for a menu whose only item is a url target", 
   ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const holders = await handler.referencesTo!(["post-about"]);
+  const holders = await handler.referencesTo!({ ids: ["post-about"] });
   assert.deepEqual(holders, []);
 });
 
@@ -597,7 +596,7 @@ test("repointReferences retries a single conflict from fresh state, preserving t
 
 
 test("referencesTo returns no holders without a menu port", async () => {
-  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!(["old"]), []);
+  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!({ ids: ["old"] }), []);
 });
 
 for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
@@ -657,7 +656,7 @@ test("apply defaults omitted locations to an empty list", async () => {
 test("precheck reports a non-Error thrown while reading the doc as its string form", async () => {
   const deps = makePublishDeps({ menuRepo: new InMemoryMenuRepo({}), navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) });
   const doc = { type: "menu", version: 1, get items(): never { throw "items unreadable"; } };
-  assert.equal(await contributeMenusPublish().build(deps).precheck(packedEntity("incoming", menuState({ doc: doc as unknown as NavMenuDoc }))), "items unreadable");
+  assert.equal(await contributeMenusPublish().build(deps).precheck({ entity: packedEntity("incoming", menuState({ doc: doc as unknown as NavMenuDoc })) }), "items unreadable");
 });
 
 const REPOINT_OLD_TO_NEW = { replacements: [{ entityType: "post", oldId: "post-about", newId: "post-about-new" }], skipIds: new Set<string>(), principalId: "operator-1", runId: "run-1" };

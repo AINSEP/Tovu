@@ -18,6 +18,6 @@ it("the live credential port reads and saves through the authenticated API", asy
   });
   vi.stubGlobal("fetch", fetch);
   await expect(defaultAdminExecutionCredentialPort.loadAdminExecutionCredential()).resolves.toEqual(UNSET_ADMIN_EXECUTION_CREDENTIAL);
-  await expect(defaultAdminExecutionCredentialPort.saveAdminExecutionCredential({ apiKey: "test-key-tail" })).resolves.toEqual(saved);
+  await expect(defaultAdminExecutionCredentialPort.saveAdminExecutionCredential({ patch: { apiKey: "test-key-tail" } })).resolves.toEqual(saved);
   expect(fetch).toHaveBeenCalledTimes(2);
 });

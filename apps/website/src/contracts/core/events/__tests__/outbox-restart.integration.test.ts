@@ -21,7 +21,7 @@ test("SqliteOutboxAdapter: an enqueued event survives a simulated process restar
   try {
     // "First boot": enqueue an event, do NOT deliver it (simulates a crash before the worker ran).
     const db1 = openContentDb(dbPath);
-    const outbox1 = new SqliteOutboxAdapter(db1);
+    const outbox1 = new SqliteOutboxAdapter({ store: db1 });
     await outbox1.enqueue({
       id: "evt-restart-1",
       name: "change-set.applied",
@@ -33,7 +33,7 @@ test("SqliteOutboxAdapter: an enqueued event survives a simulated process restar
     // "Restart": a brand-new content.db handle + a brand-new SqliteOutboxAdapter against the SAME
     // on-disk file — the in-memory adapter this replaces would have lost the event entirely.
     const db2 = openContentDb(dbPath);
-    const outbox2 = new SqliteOutboxAdapter(db2);
+    const outbox2 = new SqliteOutboxAdapter({ store: db2 });
 
     const claimed = await outbox2.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
     assert.equal(claimed.length, 1, "the enqueued event must survive a restart");
@@ -45,7 +45,7 @@ test("SqliteOutboxAdapter: an enqueued event survives a simulated process restar
     await outbox2.markDelivered({ id: "evt-restart-1" });
 
     const db3 = openContentDb(dbPath);
-    const outbox3 = new SqliteOutboxAdapter(db3);
+    const outbox3 = new SqliteOutboxAdapter({ store: db3 });
     const afterDelivery = await outbox3.claimPending({ batchSize: 10, nowIso: "2099-01-01T00:00:00.000Z" });
     assert.equal(afterDelivery.length, 0, "a delivered event must not be re-claimed after a restart");
   } finally {
@@ -59,7 +59,7 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
   try {
     // "First boot": executeCommand()'s real path — insert() co-persists the outbox event.
     const db1 = openContentDb(dbPath);
-    const changeSets1 = new SqliteChangeSetRepo(db1);
+    const changeSets1 = new SqliteChangeSetRepo({ store: db1 });
     await changeSets1.insert({ record: {
         id: "cs-cochangeset-1",
         workspaceId: "workspace-restart-test",
@@ -89,7 +89,7 @@ test("SqliteChangeSetRepo.insert() + SqliteOutboxAdapter: the co-persisted event
     // "Restart": a fresh SqliteOutboxAdapter must find the event that SqliteChangeSetRepo wrote —
     // proving the two adapters genuinely share one table, not two disconnected write paths.
     const db2 = openContentDb(dbPath);
-    const outbox2 = new SqliteOutboxAdapter(db2);
+    const outbox2 = new SqliteOutboxAdapter({ store: db2 });
     const claimed = await outbox2.claimPending({ batchSize: 10, nowIso: "2026-07-16T00:00:01.000Z" });
 
     assert.equal(claimed.length, 1);
@@ -106,7 +106,7 @@ test("SqliteOutboxAdapter: a row stranded in processing by a process that died m
   try {
     // "First process": claims the row, then dies before its handler finishes, so neither
     // markDelivered nor markFailed ever runs (a tsx-watch reload or a crash does exactly this).
-    const outbox1 = new SqliteOutboxAdapter(openContentDb(dbPath), { claimLeaseMs: 60_000 });
+    const outbox1 = new SqliteOutboxAdapter({ store: openContentDb(dbPath) }, { claimLeaseMs: 60_000 });
     await outbox1.enqueue({
       id: "evt-stranded-1",
       name: "entry.updated",
@@ -118,7 +118,7 @@ test("SqliteOutboxAdapter: a row stranded in processing by a process that died m
 
     // "Next process": fresh handles on the same file, a bus carrying the real subscriber, and a
     // drain that runs after the dead process's claim lease has run out.
-    const outbox2 = new SqliteOutboxAdapter(openContentDb(dbPath), { claimLeaseMs: 60_000 });
+    const outbox2 = new SqliteOutboxAdapter({ store: openContentDb(dbPath) }, { claimLeaseMs: 60_000 });
     const bus = new InMemoryEventBus();
     const received: string[] = [];
     await bus.subscribe({ eventName: "entry.updated", handler: async (event) => {

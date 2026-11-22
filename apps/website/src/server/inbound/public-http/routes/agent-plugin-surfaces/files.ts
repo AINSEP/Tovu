@@ -44,7 +44,7 @@ function notFound(res: import("express").Response): void {
 /** Mount public static files with a per-route limiter; denied calls do no plugin I/O.
  * @complexity O(p + s) admitted plugin/surface scan per allowed request; limiter state is window-bounded.
  */
-export function registerAdminSurfaceFilesRoute(app: Express, deps: AdminSurfaceFilesRouteDeps, options: { readonly limiter?: RateLimiter } = {}): void {
+export function registerAdminSurfaceFilesRoute({ app, deps }: { app: Express; deps: AdminSurfaceFilesRouteDeps }, options: { readonly limiter?: RateLimiter } = {}): void {
   const limiter = options.limiter ?? createRateLimiter({ profile: ADMIN_SURFACE_FILES_PER_IP, clock: deps.clock });
   const source = deps.adminSurfaceSource ?? createAgentPluginAdminSurfaceSource({ lifecycle: deps.agentPluginLifecycle });
   // No param fallbacks: Express sets both named params of a matched route, and the `*` tail as a

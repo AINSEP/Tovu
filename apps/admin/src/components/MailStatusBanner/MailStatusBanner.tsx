@@ -1,6 +1,6 @@
 import { Icon } from "@jini-ai/ui";
 
-import type { AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
 import { adminHref } from "@/lib/router";
 
 import { useMailStatusBanner, type MailBannerStorage } from "./hooks/use-mail-status-banner.hooks";
@@ -13,19 +13,21 @@ import "./mail-status-banner.css";
  * email stays unconfigured on purpose). "Set up email" opens the Email screen's Provider tab (2026-10-22). Logic:
  * `useMailStatusBanner`.
  */
-export function MailStatusBanner(props: {
+export function MailStatusBanner({
+  useMailStatusBannerHook = useMailStatusBanner, ...props }: {
   fetchStatus: () => Promise<AdminMailStatus>;
   /** Already translated by the caller: the line, the link to Email, and the × button's name. */
   labels: { text: string; setUp: string; dismiss: string };
   storage?: MailBannerStorage;
+  useMailStatusBannerHook?: typeof useMailStatusBanner;
 }) {
-  const { visible, dismiss } = useMailStatusBanner({ fetchStatus: props.fetchStatus }, { storage: props.storage });
+  const { visible, dismiss } = useMailStatusBannerHook({ fetchStatus: props.fetchStatus }, { storage: props.storage });
   if (!visible) return null;
   return (
     <div className="mail-status-banner" role="alert">
       <span className="mail-status-banner-text">
         {props.labels.text}{" "}
-        <a className="mail-status-banner-link" href={adminHref("/email?tab=provider")}>{props.labels.setUp}</a>
+        <a className="mail-status-banner-link" href={adminHref({ routePath: "/email?tab=provider" })}>{props.labels.setUp}</a>
       </span>
       <button
         type="button"

@@ -60,12 +60,13 @@ test("the credential label is byte-identical to the one sites already saved (no 
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(
     registry.list().map((adapter) => [adapter.descriptor.id, adapter.descriptor.credentialLabel]),
-    [["resend", "Tovu Mail — Resend API"]],
+    [["resend", "Mail — Resend API"]],
+    "the bundled Resend descriptor saves under the canonical mail label",
   );
 });
 
 test("the package packs through the real packer with its descriptor, module and skill", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
   for (const file of ["plugin.json", "mcp.json", MAIL_ADAPTERS_FILENAME, "adapters/resend.mjs", "skills/resend/SKILL.md"]) {
     assert.ok(packed.files.includes(file), `${file} must survive packing`);
   }
@@ -89,12 +90,12 @@ test("seeded by the real seeder, resend stays disabled until explicit enable loa
     const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "resend")?.status, "seeded");
 
-    const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
+    const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root });
     assert.equal(activations.plugins.resend?.enabled, false);
     const lifecycle = createTovuAgentPluginLifecycle({ layout });
     const disabled = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
     assert.deepEqual(disabled.list(), []);
-    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: "resend", enabled: true, actor: "test:operator" });
+    await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root, pluginId: "resend", enabled: true, actor: "test:operator" });
 
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
@@ -106,7 +107,7 @@ test("seeded by the real seeder, resend stays disabled until explicit enable loa
 test("an operator who switched resend off stays switched off across boots, and the registry then has no adapter", async () => {
   await withAgentPluginsDir(async (layout) => {
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
-    const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "resend", enabled: false, actor: "test:operator" });
 
     await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
@@ -134,7 +135,7 @@ test("mail_list_providers discovers the seeded, disabled resend plugin without l
       assert.deepEqual({ pluginId: resend.pluginId, enabled: resend.enabled, mcpServers: resend.mcpServers }, { pluginId: "resend", enabled: false, mcpServers: ["resend"] });
       assert.match(resend.description, /domains/);
       assert.ok(!JSON.stringify(result).includes(layout.root), "discovery must not expose filesystem paths");
-      assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root })).plugins.resend?.enabled, false);
+      assert.equal((await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root })).plugins.resend?.enabled, false);
     } finally {
       await forceRemove(sourceRoot);
     }

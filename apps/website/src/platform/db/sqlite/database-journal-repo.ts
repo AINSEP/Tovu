@@ -2,11 +2,14 @@ import type { Updateable } from "kysely";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pruneDatabaseCopies } from "@jini-ai/db/sqlite";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery";
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
-import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
-import type { CreateRestorePointRepoPort } from "#src/features/recovery/restore-points";
-import { decodeKeysetCursor, encodeKeysetCursor } from "../keyset-cursor.js";
+import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";
 import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
 import type { JournalDatabase } from "../journal-kernel.js";
@@ -23,8 +26,8 @@ import type { JournalDatabase } from "../journal-kernel.js";
  * `database_ledger` table.
  *
  * How it relates to the project:
- * `server/deps.ts` constructs these against the journal kernel `database-journal-db.ts` opens
- * alongside `content.db`; `server/app.ts`'s in-memory test composition uses simple in-process
+ * `apps/website/src/server/runtime/composition/deps.ts` constructs these against the journal kernel `database-journal-db.ts` opens
+ * alongside `content.db`; `apps/website/src/server/runtime/composition/app.ts`'s in-memory test composition uses simple in-process
  * fakes instead (mirrors every other feature's app.ts/deps.ts split in this codebase).
  *
  * Architectural role:
@@ -37,13 +40,13 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 /** `created_at` is a full ISO timestamp compared as a string, so a bare `2026-09-24` upper bound sorted
  *  before every row of that day and excluded it. A date-only bound means "through the end of that day".
  *  @complexity O(1). */
-function inclusiveUpperBound(toDate: string): string {
+function inclusiveUpperBound({ toDate }: { toDate: string }, _optional: Record<string, never> = {}): string {
   return DATE_ONLY.test(toDate) ? `${toDate}T23:59:59.999Z` : toDate;
 }
 
 /** An optional port field that was left out is stored as SQL `NULL`, the same as an explicit `null`.
  *  @complexity O(1). */
-function orNull<T>(value: T | null | undefined): T | null {
+function orNull<T>({ value }: { value: T | null | undefined }, _optional: Record<string, never> = {}): T | null {
   return value ?? null;
 }
 
@@ -81,7 +84,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
       if (filter.kind) query = query.where("kind", "=", filter.kind);
       if (filter.outcome) query = query.where("outcome", "=", filter.outcome);
       if (filter.fromDate) query = query.where("created_at", ">=", filter.fromDate);
-      if (filter.toDate) query = query.where("created_at", "<=", inclusiveUpperBound(filter.toDate));
+      if (filter.toDate) query = query.where("created_at", "<=", inclusiveUpperBound({ toDate: filter.toDate }));
       if (decoded) {
         query = query.where((eb) =>
           eb.or([
@@ -109,24 +112,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
 
   /** Appends one `database_ledger` row (ADR-041 §4). Never mutates or deletes an existing row —
    * the ledger is append-only by construction. */
-  async append(row: {
-    id: string;
-    kind: string;
-    correlationId?: string | null;
-    restorePointId?: string | null;
-    schemaBeforeVersion?: number | null;
-    schemaBeforeTag?: string | null;
-    schemaAfterVersion?: number | null;
-    schemaAfterTag?: string | null;
-    driftStatus?: string | null;
-    outcome: string;
-    detailJson?: string | null;
-    actorWorkspaceId?: string | null;
-    actorId?: string | null;
-    delegatedByWorkspaceId?: string | null;
-    delegatedById?: string | null;
-    createdAt: string;
-  }): Promise<void> {
+  async append(row: Parameters<LedgerAppendPort["append"]>[0]): Promise<void> {
     await this.deps.db.run((db) =>
       db
         .insertInto("database_ledger")
@@ -134,19 +120,19 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
           id: row.id,
           site_id: this.deps.siteId,
           kind: row.kind,
-          correlation_id: orNull(row.correlationId),
-          restore_point_id: orNull(row.restorePointId),
-          schema_before_version: orNull(row.schemaBeforeVersion),
-          schema_before_tag: orNull(row.schemaBeforeTag),
-          schema_after_version: orNull(row.schemaAfterVersion),
-          schema_after_tag: orNull(row.schemaAfterTag),
-          drift_status: orNull(row.driftStatus),
+          correlation_id: orNull({ value: row.correlationId }),
+          restore_point_id: orNull({ value: row.restorePointId }),
+          schema_before_version: orNull({ value: row.schemaBeforeVersion }),
+          schema_before_tag: orNull({ value: row.schemaBeforeTag }),
+          schema_after_version: orNull({ value: row.schemaAfterVersion }),
+          schema_after_tag: orNull({ value: row.schemaAfterTag }),
+          drift_status: orNull({ value: row.driftStatus }),
           outcome: row.outcome,
-          detail_json: orNull(row.detailJson),
-          actor_workspace_id: orNull(row.actorWorkspaceId),
-          actor_id: orNull(row.actorId),
-          delegated_by_workspace_id: orNull(row.delegatedByWorkspaceId),
-          delegated_by_id: orNull(row.delegatedById),
+          detail_json: orNull({ value: row.detailJson }),
+          actor_workspace_id: orNull({ value: row.actorWorkspaceId }),
+          actor_id: orNull({ value: row.actorId }),
+          delegated_by_workspace_id: orNull({ value: row.delegatedByWorkspaceId }),
+          delegated_by_id: orNull({ value: row.delegatedById }),
           created_at: row.createdAt,
         })
         .execute()
@@ -244,7 +230,7 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
           dialect: row.dialect,
           status: row.status,
           blue_touched: 0,
-          correlation_id: orNull(row.correlationId),
+          correlation_id: orNull({ value: row.correlationId }),
           created_at: row.createdAt,
           updated_at: row.updatedAt,
         })
@@ -312,9 +298,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
           cost_class: row.costClass ?? "cheap",
           kind: row.kind ?? "file-snapshot",
           artifact_ref: row.artifactRef ?? "",
-          watermark_at_capture: orNull(row.watermarkAtCapture),
-          captured_schema_version: orNull(row.capturedSchemaVersion),
-          captured_schema_tag: orNull(row.capturedSchemaTag),
+          watermark_at_capture: orNull({ value: row.watermarkAtCapture }),
+          captured_schema_version: orNull({ value: row.capturedSchemaVersion }),
+          captured_schema_tag: orNull({ value: row.capturedSchemaTag }),
           idempotency_key: row.idempotencyKey,
           actor_id: row.createdBy,
           created_at: row.createdAt,
@@ -324,9 +310,9 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
     if (!row.artifactRef) return;
     try {
       await this.pruneCopies({ justWritten: row.artifactRef });
-    } catch {
+    } catch (error) {
       // The copy and its row are saved; cleanup must not turn the operation that needed them into an error.
-      console.warn("[restore-points] Could not prune older restore points.");
+      console.warn("[restore-points] Could not prune older restore points.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
     }
   }
 

@@ -19,8 +19,8 @@ export function createChatAgentPluginsPreferencePort(
   _optional: Record<string, never> = {},
 ): ChatAgentPluginsPort {
   const ledger: ChatDisplayLedgerPort = {
-    load: ({ namespace }) => loadValues(namespace),
-    save: async ({ namespace, scope, candidates }) => { await saveEntries(namespace, scope, candidates); },
+    load: ({ namespace }) => loadValues({ namespace }),
+    save: async ({ namespace, scope, candidates }) => { await saveEntries({ namespace, scope, candidates }); },
   };
   return {
     load: (_input: Record<string, never> = {}, _options = {}) => loadChatAgentPlugins({ port: ledger }),

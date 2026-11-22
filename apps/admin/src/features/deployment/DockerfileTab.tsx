@@ -1,13 +1,14 @@
-import { agentHandle } from "@jini-ai/agentic";
-import type { AdminDockerfileSource } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import type { AdminDockerfileSource } from "./api/deployment-api.types";
+
 import { dockerfileLineCountLabel } from "./deployment-i18n";
 import { LayersIcon } from "./deployment-visuals";
 import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Dockerfile tab — the repo-root `Dockerfile`'s contents, fetched from and now also written to
- * `.../system/dockerfile` (`src/server/routes/admin/system/dockerfile-source.ts`).
+ * `.../system/dockerfile` (`apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`).
  *
  * ## Third pass (2026-08-15) — read-only became editable
  *
@@ -53,6 +54,7 @@ import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
  * separate, larger decision than "make this one tab editable."
  */
 export interface DockerfileTabProps {
+  hooks?: { useDockerfileSourceHook: typeof useWiredDockerfileSource };
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useDockerfileSourceHook?: typeof useWiredDockerfileSource;
 }
@@ -60,7 +62,8 @@ export interface DockerfileTabProps {
 /** Resolves {@link DockerfileTabProps.useDockerfileSourceHook} to the real hook when a caller
  *  passes none — same reasoning as `OverviewTab.tsx`'s `resolveDeploymentOverviewHook`. */
 function resolveDockerfileSourceHook(
-  override: typeof useWiredDockerfileSource | undefined
+  { override }: { override: typeof useWiredDockerfileSource | undefined },
+  _options = {},
 ): typeof useWiredDockerfileSource {
   return override ?? useWiredDockerfileSource;
 }
@@ -70,7 +73,7 @@ function resolveDockerfileSourceHook(
  *  `use-dockerfile-source.hooks.ts`'s header for why `copy` DOES live there but this doesn't).
  *  `URL.revokeObjectURL` after the click so the blob URL doesn't leak for the rest of the page's
  *  lifetime — the anchor never needs to be appended to the document for `.click()` to fire it. */
-function downloadDockerfile(contents: string): void {
+function downloadDockerfile({ contents }: { contents: string }, _options = {}): void {
   const blob = new Blob([contents], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -85,7 +88,7 @@ function downloadDockerfile(contents: string): void {
  *  many. Counts `draft`, not the last-saved `snapshot.contents`, so the count tracks what the
  *  operator is actually looking at, including unsaved edits.
  *  @complexity O(n) in the draft's length, once per render of an already-in-memory string. */
-function countLines(draft: string): number {
+function countLines({ draft }: { draft: string }, _options = {}): number {
   if (!draft) return 0;
   return draft.trimEnd().split("\n").length;
 }
@@ -203,6 +206,21 @@ function DockerfileSaveStatus({
   return null;
 }
 
+interface DockerfileEditorState {
+  draft: string;
+  setDraft: (value: string) => void;
+  isDirty: boolean;
+  saving: boolean;
+  saveError: string | null;
+  saveConflict: { exists: boolean; contents: string | null } | null;
+  saved: boolean;
+  copied: boolean;
+  onCopy: () => void;
+  onSave: () => void;
+  onReloadAfterConflict: () => void;
+  t: Translate;
+}
+
 /** The editable Dockerfile card: Copy/Download/Save actions, the line count, an "unsaved changes"
  *  pill, and the textarea itself — the one card that renders in BOTH the "exists" and "doesn't exist
  *  yet" cases (see `dockerfileTabBody`), since the write route makes both cases the same underlying
@@ -221,21 +239,7 @@ function DockerfileEditorCard({
   onSave,
   onReloadAfterConflict,
   t,
-}: {
-  exists: boolean;
-  draft: string;
-  setDraft: (value: string) => void;
-  isDirty: boolean;
-  saving: boolean;
-  saveError: string | null;
-  saveConflict: { exists: boolean; contents: string | null } | null;
-  saved: boolean;
-  copied: boolean;
-  onCopy: () => void;
-  onSave: () => void;
-  onReloadAfterConflict: () => void;
-  t: Translate;
-}) {
+}: DockerfileEditorState & { exists: boolean }) {
   // Copy/Download act on `draft` — see `use-dockerfile-source.hooks.ts`'s header for why the copy
   // handler itself reads `draft` rather than the last-saved `snapshot`. There is nothing worth
   // copying or downloading out of an empty, untouched box, so both are disabled on a blank draft
@@ -253,7 +257,7 @@ function DockerfileEditorCard({
       <div className="card-head">
         <h2 className="card-title">{t("Dockerfile")}</h2>
         <div className="card-head-actions">
-          <span className="deployment-provider-cost">{dockerfileLineCountLabel(t, countLines(draft))}</span>
+          <span className="deployment-provider-cost">{dockerfileLineCountLabel({ translate: t, count: countLines({ draft }) })}</span>
           {isDirty ? (
             <span
               className="status status-warning"
@@ -293,7 +297,7 @@ function DockerfileEditorCard({
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => downloadDockerfile(draft)}
+            onClick={() => downloadDockerfile({ contents: draft })}
             disabled={!hasContent}
             {...agentHandle({ handle: "deployment-dockerfile-download" }, {
               role: "button",
@@ -346,7 +350,7 @@ function DockerfileEditorCard({
 }
 
 export function DockerfileTab(props: DockerfileTabProps) {
-  const useDockerfileSourceHook = resolveDockerfileSourceHook(props.useDockerfileSourceHook);
+  const { hooks = { useDockerfileSourceHook: resolveDockerfileSourceHook({ override: props.useDockerfileSourceHook }) } } = props;
   const {
     snapshot,
     draft,
@@ -362,7 +366,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
     copy,
     save,
     t,
-  } = useDockerfileSourceHook();
+  } = hooks.useDockerfileSourceHook();
 
   if (error && !snapshot)
     return (
@@ -415,20 +419,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
  *  `DockerfileEditorCard`'s own doc); only the illustrated empty-state block is conditional. */
 function dockerfileTabBody(
   snapshot: AdminDockerfileSource,
-  editor: {
-    draft: string;
-    setDraft: (value: string) => void;
-    isDirty: boolean;
-    saving: boolean;
-    saveError: string | null;
-    saveConflict: { exists: boolean; contents: string | null } | null;
-    saved: boolean;
-    copied: boolean;
-    onCopy: () => void;
-    onSave: () => void;
-    onReloadAfterConflict: () => void;
-    t: Translate;
-  }
+  editor: DockerfileEditorState
 ) {
   return (
     <>

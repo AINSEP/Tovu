@@ -1,16 +1,16 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
-import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";
-import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
+import { assistantSubagentsPort, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/headless";
-import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
+import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 const settingsKey = ["admin-assistant", "subagents"] as const;
 /** The panel and dock share the site-owner grant query. */
 export function useAssistantSubagentsSettings(required: { port: AssistantSubagentsPort; mode: string; agentId: string | null }, _optional = {}) {
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
   const localAgent = required.mode === "local-cli" && required.agentId !== null;
-  const granted = subagentsGranted(state.settings);
+  const granted = subagentsGranted({ settings: state.settings });
   const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
@@ -109,6 +109,6 @@ export function useWiredAssistantSubagentsSettings(required: { mode: string; age
 }
 
 /** Explicit per-capability grants override the legacy master flag, including explicit false. */
-function subagentsGranted(settings: AssistantSubagentsSettings | null) {
+function subagentsGranted({ settings }: { settings: AssistantSubagentsSettings | null }, _options: Record<string, never> = {}) {
   return settings?.capabilities?.subagents ?? settings?.enabled;
 }

@@ -1,8 +1,9 @@
-import type { ConsentFieldProblem } from '@jini-ai/admin/consent/react';
-import { resolveActiveTabId } from '@jini-ai/ui/panel-kit';
-import { ApiError } from '@/lib/api';
+import type { ConsentFieldProblem } from '@jini-ai/cookie-consent/react';
+
+import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentDetectedItem } from './settings.hooks';
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /** @file Pure decisions for the Cookie Consent page: tabs, problem routing, status copy, publish gate. */
 
 export const CONSENT_TAB_IDS = ['overview', 'banner', 'look', 'rules'] as const;
@@ -37,8 +38,8 @@ const CATEGORY_ORDER = ['necessary', 'functional', 'analytics', 'marketing'];
 export function pausedByCategory({ detected }: { detected: readonly ConsentDetectedItem[] }, _optional = {}): { category: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const item of detected) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
-  const rank = (category: string) => { const index = CATEGORY_ORDER.indexOf(category); return index === -1 ? CATEGORY_ORDER.length : index; };
-  return [...counts].map(([category, count]) => ({ category, count })).sort((a, b) => rank(a.category) - rank(b.category) || a.category.localeCompare(b.category));
+  const rank = ({ category }: { category: string }, _optional = {}) => { const index = CATEGORY_ORDER.indexOf(category); return index === -1 ? CATEGORY_ORDER.length : index; };
+  return [...counts].map(([category, count]) => ({ category, count })).sort((a, b) => rank({ category: a.category }) - rank({ category: b.category }) || a.category.localeCompare(b.category));
 }
 
 export type ConsentSaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
@@ -66,15 +67,4 @@ export function canPublishConsent(
  * (which the server pre-fills into an empty field and delivers when the field is empty). */
 export function canResetConsentCss({ customCss, defaultCss }: { customCss: string | undefined; defaultCss: string | undefined }, _optional = {}): boolean {
   return Boolean(defaultCss) && (customCss ?? '') !== defaultCss;
-}
-
-/** The page width the Desktop preview lays out at. The engine's banner switches to its phone layout
- * (a full-width sheet) at 480px and below, so a preview drawn at the pane's own ~400px width showed
- * that phone sheet under the "Desktop" label instead of the corner card visitors see. */
-export const CONSENT_PREVIEW_DESKTOP_WIDTH = 1024;
-
-/** How far the desktop-width page is scaled down to fit the preview pane; never enlarged.
- * An unmeasured (0) pane keeps 1. @complexity O(1). */
-export function consentPreviewScale({ paneWidth }: { paneWidth: number }, _optional = {}): number {
-  return paneWidth > 0 ? Math.min(1, paneWidth / CONSENT_PREVIEW_DESKTOP_WIDTH) : 1;
 }

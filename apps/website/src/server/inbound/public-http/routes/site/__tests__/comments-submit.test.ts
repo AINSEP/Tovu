@@ -40,12 +40,12 @@ function buildApp(
   };
   const app = express();
   app.use(express.json());
-  registerCommentsSubmitRoute(app, {
+  registerCommentsSubmitRoute({ app, deps: {
     ingressPolicy, workspaceId: WORKSPACE_ID,
     // Normalization tests isolate ingress behavior from the separately owned HTTP budget.
     rateLimiter: { check: async () => ({ allowed: true }) },
     ipHashSalt,
-  });
+  } });
   return { app, calls };
 }
 
@@ -218,11 +218,11 @@ test("comments-submit: a salt that never resolves to a usable value fails the re
 test("comments-submit: registering without ipHashSalt refuses with a named TypeError", () => {
   const app = express();
   assert.throws(
-    () => registerCommentsSubmitRoute(app, {
+    () => registerCommentsSubmitRoute({ app, deps: {
       ingressPolicy: { submit: async () => ({ ok: false, reason: "entry-not-found" }) },
       workspaceId: WORKSPACE_ID,
       rateLimiter: { check: async () => ({ allowed: true }) },
-    } as unknown as Parameters<typeof registerCommentsSubmitRoute>[1]),
+    } as unknown as Parameters<typeof registerCommentsSubmitRoute>[0]["deps"] }),
     { name: "TypeError", message: "registerCommentsSubmitRoute requires deps.ipHashSalt (a Promise<string> from resolveCommentsIpHashSalt at the composition root)" }
   );
 });
@@ -264,10 +264,10 @@ test('provider submission dispatch preserves hashes and refuses disabled/embedde
     const active = { kind: kind === 'rejected' ? 'stored' : kind,
       submission: { submit: async (input: unknown) => { inputs.push(input); return kind === 'rejected'
         ? { ok: false, reason: 'honeypot-tripped' } : { ok: true, id: 'c', status: 'pending' }; } } };
-    registerCommentsSubmitRoute(app, { workspaceId: 's', ingressPolicy: { submit: async () => { throw new Error('must dispatch provider'); } },
+    registerCommentsSubmitRoute({ app, deps: { workspaceId: 's', ingressPolicy: { submit: async () => { throw new Error('must dispatch provider'); } },
       ipHashSalt: Promise.resolve('salt'), rateLimiter: { check: async () => ({ allowed: true }) },
-      providers: { active: async () => ({ adapter: kind === 'disabled' ? undefined : active }) } as unknown as NonNullable<Parameters<typeof registerCommentsSubmitRoute>[1]['providers']>,
-    });
+      providers: { active: async () => ({ adapter: kind === 'disabled' ? undefined : active }) } as unknown as NonNullable<Parameters<typeof registerCommentsSubmitRoute>[0]["deps"]['providers']>,
+    } });
     const response = await directFetch(app)('http://site.test', { body: JSON.stringify({ entryId: 'e', authorName: 'Name', body: 'Text', website: '' }) });
     assert.equal(response.status, kind === 'stored' ? 201 : 422);
     assert.deepEqual(await response.json(), kind === 'stored' ? { id: 'c', status: 'pending' }
@@ -303,9 +303,9 @@ test('behind a trusted proxy hop, two visitors sharing the proxy socket get sepa
     const app = express();
     app.set('trust proxy', trustProxy);
     app.use(express.json());
-    registerCommentsSubmitRoute(app, { workspaceId: WORKSPACE_ID, ipHashSalt: Promise.resolve('salt'),
+    registerCommentsSubmitRoute({ app, deps: { workspaceId: WORKSPACE_ID, ipHashSalt: Promise.resolve('salt'),
       ingressPolicy: { submit: async () => ({ ok: false, reason: 'entry-not-found' }) },
-      rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true }; } } });
+      rateLimiter: { check: async ({ key }) => { keys.push(key); return { allowed: true }; } } } });
     const baseUrl = await startTestServer(app, t);
     for (const visitor of ['198.51.100.7', '198.51.100.8']) {
       const res = await fetch(`${baseUrl}/api/site/comments`, { method: 'POST', body: JSON.stringify({ entryId: 'e', body: 'x' }),

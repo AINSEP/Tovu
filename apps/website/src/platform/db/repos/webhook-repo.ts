@@ -1,4 +1,5 @@
 import type { Insertable, Selectable } from "kysely";
+import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 
 import type { ContentKernel } from "../content-kernel.js";
 import type { WebhookDeliveriesTable, WebhookSubscriptionsTable } from "../content-database.generated.js";
@@ -45,7 +46,7 @@ function topicsToJson(topics: readonly WebhookTopic[]): string {
   return JSON.stringify(topics);
 }
 
-function topicsFromJson(json: string): WebhookTopic[] {
+function topicsFromJson({ json }: { json: string }, _optional: Record<string, never> = {}): WebhookTopic[] {
   return JSON.parse(json) as WebhookTopic[];
 }
 
@@ -56,7 +57,7 @@ function toSubscriptionRecord(row: Selectable<WebhookSubscriptionsTable>): Webho
     ownerPrincipalId: row.owner_principal_id,
     label: row.label,
     targetUrl: row.target_url,
-    topics: topicsFromJson(row.topics_json),
+    topics: topicsFromJson({ json: row.topics_json }),
     secretVersion: row.secret_version,
     previousSecretVersion: row.previous_secret_version,
     status: row.status as WebhookSubscriptionStatus,
@@ -65,6 +66,7 @@ function toSubscriptionRecord(row: Selectable<WebhookSubscriptionsTable>): Webho
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     disabledAt: row.disabled_at,
+    version: row.version,
   };
 }
 
@@ -84,6 +86,7 @@ function toSubscriptionRow(record: WebhookSubscriptionRecord): Insertable<Webhoo
     created_at: record.createdAt,
     updated_at: record.updatedAt,
     disabled_at: record.disabledAt,
+    version: record.version,
   };
 }
 
@@ -111,8 +114,19 @@ export class SqlWebhookSubscriptionRepo implements WebhookSubscriptionRepoPort {
     await this.kernel.run((db) => db.insertInto("webhook_subscriptions").values(toSubscriptionRow(record)).execute());
   }
 
-  async save(record: WebhookSubscriptionRecord): Promise<void> {
+  async save(record: WebhookSubscriptionRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
     const row = toSubscriptionRow(record);
+    const { expectedVersion } = optional;
+    if (expectedVersion !== undefined) {
+      const { id: _id, workspace_id: _workspaceId, ...values } = row;
+      // A single conditional UPDATE rejects stale editors without re-creating missing rows.
+      const result = await this.kernel.run((db) => db.updateTable("webhook_subscriptions").set(values)
+        .where("workspace_id", "=", record.workspaceId).where("id", "=", record.id)
+        .where("version", "=", expectedVersion).executeTakeFirst());
+      await assertVersionedWrite({ changedRows: result.numUpdatedRows, recordKind: "webhook subscription", recordId: record.id,
+        expectedVersion, readCurrentVersion: async () => (await this.findById({ workspaceId: record.workspaceId, id: record.id }))?.version ?? null });
+      return;
+    }
     await this.kernel.run((db) =>
       db
         .insertInto("webhook_subscriptions")
@@ -288,7 +302,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
         // Ownership fence: a stale claimer's outcome must not overwrite a newer claim.
-        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
+        .$if(claimedAttempts !== undefined, (qb) => claimedAttempts === undefined ? qb : qb.where("attempts", "=", claimedAttempts))
         .execute()
     );
   }
@@ -318,7 +332,7 @@ export class SqlWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Delivery
         })
         .where("workspace_id", "=", required.workspaceId)
         .where("id", "=", required.id)
-        .$if(claimedAttempts !== undefined, (qb) => qb.where("attempts", "=", claimedAttempts!))
+        .$if(claimedAttempts !== undefined, (qb) => claimedAttempts === undefined ? qb : qb.where("attempts", "=", claimedAttempts))
         .execute()
     );
   }

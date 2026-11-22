@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
+import { encodeListCursor } from "@jini-ai/core/list-page";
 
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { installNewsletterDataModule, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
-import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterCampaignRepo, SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSendRepo, SqlNewsletterSubscriptionRepo } from "../repo.js";
+import { SqlNewsletterAudienceSnapshotRepo, SqlNewsletterSendRepo } from "../repo-sends.js";
+import { SqlNewsletterCampaignRepo } from "../repo.js";
+import { SqlNewsletterConfirmationTokenRepo, SqlNewsletterListRepo, SqlNewsletterSubscriptionRepo } from "../repo-subscribers.js";
 import type { AudienceSnapshotRow, CampaignRecord, CampaignRevision, ConfirmationTokenRecord, NewsletterListRow, SendRow, SubscriptionRow } from "../types.js";
 
 /**
@@ -141,7 +144,7 @@ describeEachDialect(
         const detail = await reopened.findById({ workspaceId: WS, id: first.id });
         assert.deepEqual(detail?.bodyJson, latest.bodyJson);
         assert.equal(detail?.counters.delivered, 1);
-        assert.equal((await reopened.list({ workspaceId: WS, limit: 1 }))[0]?.bodyJson, undefined);
+        assert.equal((await reopened.list({ workspaceId: WS }, { limit: 1 })).items[0]?.bodyJson, undefined);
         assert.equal(await reopened.findById({ workspaceId: OTHER, id: first.id }), null);
       });
       test("list queries never select revision bodies, and a corrupt latest body does not break detail", async (t) => {
@@ -159,7 +162,7 @@ describeEachDialect(
           async transformResult({ result }) { return result; },
         }))) });
         const listed = await observed.list({ workspaceId: WS });
-        assert.equal(listed[0]?.bodyJson, undefined);
+        assert.equal(listed.items[0]?.bodyJson, undefined);
         assert.ok(queries.every(query => !query.includes("newsletter_campaign_revisions")), "list must not read then discard bodies");
         const warnings: string[] = [];
         t.mock.method(console, "warn", (line: string) => warnings.push(line));
@@ -215,10 +218,10 @@ describeEachDialect(
         const { campaigns } = makeRepos();
         for (const id of ["c3", "c1", "c2"]) await campaigns.saveCampaignRow(campaign(id));
         await campaigns.saveCampaignRow(campaign("x1", { workspaceId: OTHER }));
-        assert.deepEqual((await campaigns.list({ workspaceId: WS })).map((c) => c.id), ["c1", "c2", "c3"]);
-        assert.deepEqual((await campaigns.list({ workspaceId: WS, limit: 2 })).map((c) => c.id), ["c1", "c2"]);
-        assert.deepEqual((await campaigns.list({ workspaceId: WS, afterId: "c1", limit: 1 })).map((c) => c.id), ["c2"]);
-        assert.deepEqual(await campaigns.list({ workspaceId: "empty" }), []);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS })).items.map((c) => c.id), ["c1", "c2", "c3"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS }, { limit: 2 })).items.map((c) => c.id), ["c1", "c2"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: WS }, { cursor: encodeListCursor({ position: ["c1"] }), limit: 1 })).items.map((c) => c.id), ["c2"]);
+        assert.deepEqual((await campaigns.list({ workspaceId: "empty" })).items, []);
       });
 
       test("revisions append in seq order, are scoped, and carry the JSON state", async () => {
@@ -261,11 +264,11 @@ describeEachDialect(
       test("transaction commits its writes and returns the callback's value", async () => {
         const { campaigns } = makeRepos();
         const c = campaign("c1");
-        const value = await campaigns.transaction(async () => {
+        const value = await campaigns.transaction({ fn: async () => {
           await campaigns.saveCampaignRow(c);
           await campaigns.appendRevision(revision(c));
           return "done";
-        });
+        } });
         assert.equal(value, "done");
         assert.ok(await campaigns.findById({ workspaceId: WS, id: "c1" }));
         assert.equal((await campaigns.listRevisions({ workspaceId: WS, campaignId: "c1" })).length, 1);
@@ -275,11 +278,11 @@ describeEachDialect(
         const { campaigns } = makeRepos();
         const c = campaign("c1");
         await assert.rejects(
-          campaigns.transaction(async () => {
+          campaigns.transaction({ fn: async () => {
             await campaigns.saveCampaignRow(c);
             await campaigns.appendRevision(revision(c));
             throw new Error("boom");
-          }),
+          } }),
           /boom/
         );
         assert.equal(await campaigns.findById({ workspaceId: WS, id: "c1" }), null);
@@ -363,10 +366,10 @@ describeEachDialect(
         for (const id of ["s3", "s1", "s2"]) await subscriptions.save(subscription(id));
         await subscriptions.save(subscription("s9", { listId: "list-2" }));
         await subscriptions.save(subscription("sx", { workspaceId: OTHER }));
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" })).map((s) => s.id), ["s1", "s2", "s3"]);
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", limit: 2 })).map((s) => s.id), ["s1", "s2"]);
-        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1", afterId: "s1", limit: 1 })).map((s) => s.id), ["s2"]);
-        assert.deepEqual(await subscriptions.list({ workspaceId: OTHER, listId: "list-2" }), []);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" })).items.map((s) => s.id), ["s1", "s2", "s3"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" }, { limit: 2 })).items.map((s) => s.id), ["s1", "s2"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: WS, listId: "list-1" }, { cursor: encodeListCursor({ position: ["s1"] }), limit: 1 })).items.map((s) => s.id), ["s2"]);
+        assert.deepEqual((await subscriptions.list({ workspaceId: OTHER, listId: "list-2" })).items, []);
       });
 
       test("listSubscribed returns only subscribed rows of that workspace and list", async () => {

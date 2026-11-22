@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { attachGlueContentLifecycle, type AttachGlueContentLifecycleRequired, type GlueContentLifecycleFilter, type GlueFieldDecl } from "@jini-ai/plugins/glue";
-import { attachLoadedPlugin, type BeforeSaveFilter } from "@jini-ai/plugins/host";
+import { attachLoadedPlugin } from "@jini-ai/plugins/host";
+import { type BeforeSaveFilter } from "@jini-ai/core/contracts/plugin-sdk";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import type { ContentEntryDraft } from "@tovu/sdk";
 

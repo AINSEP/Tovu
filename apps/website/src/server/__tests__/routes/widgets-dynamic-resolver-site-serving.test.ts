@@ -57,13 +57,13 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   // reachable only when no Page claims the root slug — see `widgets-site-serving.test.ts`'s
   // `buildTestApp` for the full rationale (same fix, same root cause: `seed.ts`'s `seededPosts`
   // now includes a `kind: "page"` row at "/").
-  deps.postRepo = new InMemoryPostRepo(seededPosts.filter((post) => post.slug !== ROOT_SLUG));
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts.filter((post) => post.slug !== ROOT_SLUG) });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createWidgetsModule(deps).registerRoutes?.(app);
-  registerSiteRoutes(app, deps);
+  createWidgetsModule(deps).registerRoutes?.({ app });
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

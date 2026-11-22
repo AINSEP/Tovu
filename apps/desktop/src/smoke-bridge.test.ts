@@ -77,7 +77,7 @@ test("packaged resolver script calls the real resolver and entry builder with is
   assert.ok(script.includes(JSON.stringify(resourcesDir)));
   assert.ok(script.includes(JSON.stringify(executablePath)));
   assert.ok(script.includes('"dist/src/assistant/mcp-injection.js"'));
-  assert.ok(script.includes('resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke"'));
+  assert.ok(script.includes('resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke" }'));
   assert.ok(script.includes('electronVersion: "smoke", env: {}'));
   assert.ok(script.includes('createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")'));
   assert.ok(script.includes('buildMcpJsonServerEntry({ runId: "release-smoke", options }, { credential: "smoke" })'));
@@ -93,7 +93,7 @@ test("resolver output requires both bridge entries, preserving their command/arg
   for (const entries of [null, [], [site], [site, { ...desktop, env: {} }], [site, { ...desktop, args: [42] }]]) {
     assert.throws(() => parseJiniEntries({ stdout: JSON.stringify({ entries, desktopHttp: true }) }));
   }
-  assert.throws(() => parseJiniEntries({ stdout: "not json" }));
+  assert.throws(() => parseJiniEntries({ stdout: "not json" }), { name: "Error", message: "invalid packaged Jini entries: not json" });
 });
 
 test("packaged desktop smoke exercises authenticated HTTP without a launcher or keyring", () => {
@@ -250,4 +250,14 @@ test("bridge failures redact split native stderr and retain exit code and signal
     assert.ok(!error.message.includes(homePath));
     return true;
   });
+});
+
+test("the packaged smoke's failed HTTP call preserves its response status", async () => {
+  const script = buildJiniEntryScript({ resourcesDir: "/bundle", executablePath: "/Tovu" });
+  const start = script.indexOf("const send = async");
+  const end = script.indexOf("const refused =", start);
+  const send = new Function("fetch", "host", script.slice(start, end) + "return send;")(
+    async () => new Response(null, { status: 502 }), { url: "http://127.0.0.1/mcp", token: "smoke" },
+  );
+  await assert.rejects(send("initialize"), { message: "Desktop tools smoke call returned HTTP 502." });
 });

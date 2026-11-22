@@ -35,7 +35,7 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
   if (input.namespace !== SITE_TITLE_NAMESPACE || input.key !== SITE_TITLE_KEY || typeof input.value !== "string") {
     return input;
   }
-  const title = normalizeSiteTitle(input.value);
+  const title = normalizeSiteTitle({ value: input.value });
   if (title === undefined) throw new ValueValidationFailedError(SITE_TITLE_REJECTION);
   return { ...input, value: title };
 }
@@ -142,7 +142,7 @@ export async function refuseDedicatedSettingClear(required: {
  * A namespace reset loops `clear` over every key its scope's partition lists for the namespace, alias
  * rows included, without this host's chokepoint, so the same keys are resolved here first and the
  * whole reset is refused before any write when one has a dedicated writer. The partition rule is the
- * CMS adapter's own (Jini `packages/core/src/settings/express/cms-adapter.ts`).
+ * CMS adapter's own (Jini `packages/core/src/settings/cms-adapter.ts`).
  *
  * @throws {ForbiddenError} When a key the reset would clear has a dedicated writer.
  * @complexity O(d) over the partition's definitions, plus one bounded alias resolution per namespace key.
@@ -170,12 +170,12 @@ export async function clear(required: ClearValueRequired, _optional = {}): Promi
 }
 
 /** Refuse the whole reset before the ledger clears any dedicated writer's key. Keys are part of
- * the required object; this thin host adapter passes them to Jini's existing two-argument API.
+ * the required object, which this thin host adapter hands to Jini's `resetNamespace` unchanged.
  * @complexity O(d) preflight (partition definitions), followed by the settings owner's transaction.
  */
 export async function resetNamespace(required: ResetNamespaceRequired & { keysInNamespace: string[] }, _optional = {}): ReturnType<typeof resetSettingNamespace> {
   await refuseDedicatedSettingReset({ repo: required.deps.repo, input: required.input });
-  return resetSettingNamespace(required, required.keysInNamespace);
+  return resetSettingNamespace(required);
 }
 
 // Keep existing host imports compatible while the one table guards both dedicated settings.

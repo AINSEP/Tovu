@@ -38,10 +38,10 @@ export interface StartupSiteDirPorts {
   resolveOrInitSiteDir: (input: { dir: string; onMissingSite: typeof ENV_SITE_DIR_ON_MISSING; repoRoot: string; cliMode: CliMode }) => Promise<string>;
   resolveSiteDir: (input: {
     envDir: string | undefined; onMissingSite: typeof ENV_SITE_DIR_ON_MISSING; statePath: string; devFallbackDir: string | null;
-    repoRoot: string; cliMode: CliMode; pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+    repoRoot: string; cliMode: CliMode; pickDir: (required: { rejectedDefault: RejectedDefault | null }) => Promise<string | null>;
   }) => Promise<string>;
   /** `main.ts`'s `promptForSiteDir`. */
-  pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+  pickDir: (required: { rejectedDefault: RejectedDefault | null }) => Promise<string | null>;
 }
 
 /** Resolves the site dir(s) to open at launch: `TOVU_DESKTOP_SITE_DIRS` (plural) wins outright when
@@ -96,7 +96,7 @@ export async function resolveStartupSiteDirs({ ctx, ports }: { ctx: OwnServerCtx
  * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
- * launchd before terminating it (see `site-process-registry.ts`'s `isOrphanedProcess`), and never
+ * launchd before terminating it (see `site-child-registry.ts`'s `isOrphanedProcess`), and never
  * rewrites a live sibling's registry file — each instance writes only its own.
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,
@@ -104,14 +104,12 @@ export async function resolveStartupSiteDirs({ ctx, ports }: { ctx: OwnServerCtx
  */
 export async function reconcileOrphansOnBoot({ registryPath, reconcileOrphans, log }: {
   registryPath: string;
-  reconcileOrphans: (registryPath: string) => Promise<readonly { siteDir: string }[]>;
-  log: (message: string) => void;
+  reconcileOrphans: (required: { registryPath: string }) => Promise<readonly { siteDir: string }[]>;
+  log: (required: { message: string }) => void;
 }, _optional = {}): Promise<void> {
-  const reconciled = await reconcileOrphans(registryPath);
+  const reconciled = await reconcileOrphans({ registryPath });
   if (reconciled.length === 0) return;
-  log(
-    `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}`,
-  );
+  log({ message: `tovu desktop: reconciled ${reconciled.length} orphaned site process(es) left running by a previous crash: ${reconciled.map((row) => row.siteDir).join(", ")}` });
 }
 
 /**
@@ -127,26 +125,26 @@ export function shouldReopenOnActivate({ windowCount, quitPhase }: { windowCount
 export interface OwnServerBootPorts {
   /** `sharedSites.config({}).warning`. */
   sitesConfigWarning: () => { message: string; localHome: string } | null | undefined;
-  warn: (message: string) => void;
+  warn: (required: { message: string }) => void;
   refreshAppMenu: (ctx: OwnServerCtx) => void;
   /** {@link resolveStartupSiteDirs} with its ports bound. */
   resolveStartupSiteDirs: (ctx: OwnServerCtx) => Promise<string[]>;
   selftest: boolean;
   /** Build the self-test tracker for `expectedCount` windows and install it for `createWindow`. */
   installSelftestTracker: (required: { expectedCount: number }) => void;
-  /** `serializer.run(siteDir, work)`. */
-  runSerialized: <T>(siteDir: string, work: () => Promise<T>) => Promise<T>;
-  /** `main.ts`'s `openSiteWindow(siteDir, ctx, { port })`. */
-  openSiteWindow: (required: { siteDir: string; ctx: OwnServerCtx }, optional: { port?: number }) => Promise<unknown>;
+  /** `serializer.run({ key: siteDir, fn: work })`. */
+  runSerialized: <T>(required: { siteDir: string; work: () => Promise<T> }) => Promise<T>;
+  /** `main.ts`'s `openSiteWindow({ siteDir, ctx }, { port })`. */
+  openSiteWindow: (required: { siteDir: string; ctx: OwnServerCtx }, optional?: { port?: number }) => Promise<unknown>;
   /** `app.on("activate", listener)`. */
-  onActivate: (listener: () => void) => void;
+  onActivate: (required: { listener: () => void }) => void;
   windowCount: () => number;
   quitPhase: () => QuitPhase;
   /** The site dir of every `openSites` entry. */
   openSiteDirs: () => string[];
   promptAndOpenNewSite: (ctx: OwnServerCtx) => Promise<void>;
   /** Recoverable restore failure: show the open error without quitting the running app. */
-  reportOpenFailure: (error: Error) => void;
+  reportOpenFailure: (required: { error: Error }) => void;
 }
 
 /**
@@ -163,7 +161,7 @@ export function createOwnServerActivate({ ctx, ports }: { ctx: OwnServerCtx; por
       return;
     }
     for (const siteDir of siteDirs) {
-      if (siteDir) void ports.runSerialized(siteDir, () => ports.openSiteWindow({ siteDir, ctx }, {})).catch(ports.reportOpenFailure);
+      if (siteDir) void ports.runSerialized({ siteDir, work: () => ports.openSiteWindow({ siteDir, ctx }, {}) }).catch((error: Error) => ports.reportOpenFailure({ error }));
     }
   };
 }
@@ -182,7 +180,7 @@ export function createOwnServerActivate({ ctx, ports }: { ctx: OwnServerCtx; por
  */
 export async function bootOwnServerMode({ ctx, ports }: { ctx: OwnServerCtx; ports: OwnServerBootPorts }, _optional = {}): Promise<void> {
   const warning = ports.sitesConfigWarning();
-  if (warning) ports.warn(`[tovu-desktop] ${warning.message} Choose appData in Sites settings or use ${warning.localHome}.`);
+  if (warning) ports.warn({ message: `[tovu-desktop] ${warning.message} Choose appData in Sites settings or use ${warning.localHome}.` });
 
   ports.refreshAppMenu(ctx);
 
@@ -194,9 +192,9 @@ export async function bootOwnServerMode({ ctx, ports }: { ctx: OwnServerCtx; por
     // Only the FIRST site in this launch's list ever honors a pinned port — see
     // `resolveStartupSiteDirs` and `openSiteWindow`'s own doc on why.
     const port = index === 0 ? ctx.firstSitePort : undefined;
-    await ports.runSerialized(siteDir, () => ports.openSiteWindow({ siteDir, ctx }, { port }));
+    await ports.runSerialized({ siteDir, work: () => ports.openSiteWindow({ siteDir, ctx }, { port }) });
   }
   ports.refreshAppMenu(ctx);
 
-  ports.onActivate(createOwnServerActivate({ ctx, ports }));
+  ports.onActivate({ listener: createOwnServerActivate({ ctx, ports }) });
 }

@@ -14,7 +14,7 @@ export function sqlitePluginActivationRepoFor(
   _optional: Record<string, never> = {},
 ): SqlPluginActivationRepo {
   return pluginActivationRepoFor({
-    kernel: contentKernel(required.store) as unknown as PluginActivationSqlRequired["kernel"],
+    kernel: contentKernel({ store: required.store }) as unknown as PluginActivationSqlRequired["kernel"],
     tables: { activations: "plugin_activations" },
   }, {});
 }

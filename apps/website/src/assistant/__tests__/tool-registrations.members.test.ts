@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { type AgentToolDefinition } from "@jini-ai/core";
+import { decodeListCursor } from "@jini-ai/core/list-page";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import {
   InMemoryMagicLinkTokenRepo,
@@ -70,7 +71,7 @@ function seedMember(overrides: Partial<MemberRecord> = {}): MemberRecord {
 
 function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {}) {
   const allow = options.allow ?? true;
-  const memberRepo = new InMemoryMemberRepo(options.seed ?? []);
+  const memberRepo = new InMemoryMemberRepo({}, { initialRows: options.seed ?? [] });
   const memberSessionRepo = new InMemoryMemberSessionRepo();
   const magicLinkRepo = new InMemoryMagicLinkTokenRepo();
   const principalRepo = new InMemoryPrincipalRepo({});
@@ -129,7 +130,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function membersRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("members_") || r.descriptor.id === "content_read.member")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -202,13 +203,13 @@ test("the real Members catalog and tool-registrations' independent risk classifi
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.member") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Members catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("members_disable", { ...catalogEntry("members_disable"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "members_disable", catalogEntry: { ...catalogEntry("members_disable"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -282,15 +283,16 @@ test("members_list: afterId and limit are threaded through from tool input when 
   const { deps, memberRepo } = fakeRouteDeps({
     seed: [seedMember({ id: "member-a" }), seedMember({ id: "member-b" })],
   });
-  let observed: { afterId?: string; limit?: number } = {};
+  let observed: { cursor?: string | null; limit?: number } = {};
   const originalList = memberRepo.list.bind(memberRepo);
-  memberRepo.list = (async (required: { workspaceId: string; afterId?: string; limit?: number }) => {
-    observed = { afterId: required.afterId, limit: required.limit };
-    return originalList(required);
+  // list-cursor contract: list({ workspaceId }, { limit, cursor }) and afterId travels as an encoded keyset cursor.
+  memberRepo.list = (async (required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}) => {
+    observed = { cursor: optional.cursor, limit: optional.limit };
+    return originalList(required, optional);
   }) as typeof memberRepo.list;
 
   await wired("content_read.member", deps).handler(executionContext({ afterId: "member-a", limit: 5 }));
-  assert.equal(observed.afterId, "member-a");
+  assert.deepEqual(decodeListCursor({ cursor: observed.cursor ?? "", shape: ["string"] }), ["member-a"]);
   assert.equal(observed.limit, 5);
 });
 

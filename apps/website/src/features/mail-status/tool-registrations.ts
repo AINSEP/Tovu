@@ -1,13 +1,13 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/mail-status.js';
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { UserRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailProviderControl, MailStatusReport } from "../../platform/mail/index.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";
@@ -41,7 +41,7 @@ export const mailStatusDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   ["mail_send_test", "mutates-durable-state"],
 ]);
 
-function permission(deps: MailStatusToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
+function permission({ deps, ctx, name }: { deps: MailStatusToolDeps; ctx: ToolExecutionContext; name: string }, _optional = {}): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
 }
 
@@ -52,7 +52,7 @@ function providerControl(deps: MailStatusToolDeps): MailProviderControl {
 }
 
 /** The provider id the model asked for; the card and the write both use this frozen value. */
-function readProviderId(input: unknown): string {
+function readProviderId({ input }: { input: unknown }, _optional = {}): string {
   const record = requireInputRecord({ input });
   const providerId = typeof record.providerId === "string" ? record.providerId.trim() : "";
   if (!providerId) throw new ToolInputError({ message: "providerId must be an installed provider id from system_get_mail_status." });
@@ -64,6 +64,34 @@ function testModeDetails(plan: MailTestSendPlan): { label: string; value: string
   if (plan.redirectTo !== undefined) return [{ label: "Test mode", value: `Redirected to ${plan.redirectTo}` }];
   return plan.capture ? [{ label: "Test mode", value: "Captured on this server; nothing is sent" }] : [];
 }
+
+    // No rememberKey: a provider switch redirects every email the site sends, so it always asks.
+    function createSetMailProviderHandler(deps: MailStatusToolDeps, surfaces: AssistantSurfaceDeps): ToolHandler {
+  return approvalToolHandler({ surfaces,
+      prepare: async ({ ctx }) => {
+        const providerId = readProviderId({ input: ctx.input });
+        await permission({ deps, ctx, name: "settings.workspace.write" });
+        const control = providerControl(deps);
+        const { label } = await asToolInputError({ run: () => checkMailProvider({ control, providerId }) });
+        if (!control.readSelection) throw new ToolInputError({ message: "Mail provider selection snapshot is unavailable on this server. Nothing was changed. Reopen the chat after this site finishes starting." });
+        const snapshot = await control.readSelection();
+        return { providerId, label, current: snapshot.setting, revisionSeq: snapshot.revisionSeq };
+      },
+      describe: ({ ctx, prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
+        access: { resources: [{ id: "core.mail.provider", label: "Mail provider", scope: { personId: ctx.principal.id, siteId: deps.workspaceId },
+          previous: prepared.current, proposed: { transactional: prepared.providerId, bulk: prepared.providerId }, revision: String(prepared.revisionSeq) }] },
+        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }, ...currentLanesDetail(prepared)],
+        warning: "From the next message on, every email this site sends (sign-in links, confirmations, form notifications, newsletters) goes through this provider.", confirmLabel: "Switch provider" }),
+      run: async ({ ctx, prepared }) => {
+        // The card may sit open for minutes: recheck the grant at the moment of the write.
+        await permission({ deps, ctx, name: "settings.workspace.write" });
+        // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
+        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id, expectedRevisionSeq: prepared.revisionSeq }) });
+        return { set: true, providerId: prepared.providerId };
+      },
+    }, { flag: "set" });
+}
+
 
 /** Reads delivery configuration after the admin route's permission check, and offers the two
  * approval-gated controls (`mail_set_provider`, `mail_send_test`).
@@ -78,48 +106,28 @@ export function buildMailStatusRegistrations(deps: MailStatusToolDeps, surfaces:
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail", catalogModule: "features/mail-status/agent-tools.ts", catalog: indexCatalogById({ catalog: mailStatusAgentToolCatalog }), derivedRisk: mailStatusDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     system_get_mail_status: async ctx => {
       const refresh = requireInputRecord({ input: ctx.input }).refresh === true;
-      await permission(deps, ctx, "admin.forms.manage");
+      await permission({ deps, ctx, name: "admin.forms.manage" });
       const mailDeliveryAvailable = isMailDeliveryAvailable(deps.mailer);
       const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
       return { mailDeliveryAvailable, driver: deps.mailer.capabilities().driver, note: mailDeliveryAvailable ? "Email sending is configured." : MAIL_DELIVERY_UNAVAILABLE_NOTE, ...status };
     },
-    // No rememberKey: a provider switch redirects every email the site sends, so it always asks.
-    mail_set_provider: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => {
-        const providerId = readProviderId(ctx.input);
-        await permission(deps, ctx, "settings.workspace.write");
-        const control = providerControl(deps);
-        const { label } = await asToolInputError({ run: () => checkMailProvider({ control, providerId }) });
-        if (!control.readSelection) throw new ToolInputError({ message: "Mail provider selection snapshot is unavailable on this server. Nothing was changed. Reopen the chat after this site finishes starting." });
-        const snapshot = await control.readSelection();
-        return { providerId, label, current: snapshot.setting, revisionSeq: snapshot.revisionSeq };
-      },
-      describe: ({ ctx, prepared }) => ({ toolId: "mail_set_provider", errorCode: "MAIL", title: `Send this site's email through ${prepared.label}?`,
-        access: { resources: [{ id: "core.mail.provider", label: "Mail provider", scope: { personId: ctx.principal.id, siteId: deps.workspaceId },
-          previous: prepared.current, proposed: { transactional: prepared.providerId, bulk: prepared.providerId }, revision: String(prepared.revisionSeq) }] },
-        details: [{ label: "Provider", value: `${prepared.label} (${prepared.providerId})` }, { label: "Applies to", value: "Transactional and bulk mail" }, ...currentLanesDetail(prepared)],
-        warning: "From the next message on, every email this site sends (sign-in links, confirmations, form notifications, newsletters) goes through this provider.", confirmLabel: "Switch provider" }),
-      run: async ({ ctx, prepared }) => {
-        // The card may sit open for minutes: recheck the grant at the moment of the write.
-        await permission(deps, ctx, "settings.workspace.write");
-        // The shared activation re-checks the provider too: a key deleted meanwhile refuses, unchanged.
-        await asToolInputError({ run: () => activateMailProvider({ control: providerControl(deps), providerId: prepared.providerId, principalId: ctx.principal.id, expectedRevisionSeq: prepared.revisionSeq }) });
-        return { set: true, providerId: prepared.providerId };
-      },
-    }, { flag: "set" }),
+    mail_set_provider: createSetMailProviderHandler(deps, surfaces),
     mail_send_test: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
         const to = readTestRecipient({ value: requireInputRecord({ input: ctx.input }).to });
-        await permission(deps, ctx, "admin.forms.manage");
+        await permission({ deps, ctx, name: "admin.forms.manage" });
         const plan = await planMailTestSend({ ...{ principalId: ctx.principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
         // Display metadata must not prevent preparing a send when the catalog read is unavailable.
-        const providers = await deps.mailProviderControl?.describe?.().catch(() => undefined);
+        const providers = await deps.mailProviderControl?.describe?.().catch((error: unknown) => {
+          console.error("[mail] Could not read the provider catalog", describeErrorForLog({ err: error }));
+          return undefined;
+        });
         return { ...plan, providerLabel: providers?.providers.find(provider => provider.id === plan.approval.providerId)?.label ?? plan.driver };
       },
       describe: ({ prepared }) => ({ toolId: "mail_send_test", errorCode: "MAIL", title: `Send a test email to ${prepared.to}?`,
         details: [{ label: "From", value: prepared.approval.from.email }, { label: "To", value: prepared.to }, { label: "Through", value: prepared.providerLabel }, ...testModeDetails(prepared)], confirmLabel: "Send test email" }),
       run: async ({ ctx, prepared }) => {
-        await permission(deps, ctx, "admin.forms.manage");
+        await permission({ deps, ctx, name: "admin.forms.manage" });
         const result = await runMailTestSend({ deps, principalId: ctx.principal.id, plan: prepared, ref: ctx.executionId });
         // `sent` means it left for its recipient; a capture or a refusal did not. Never "delivered".
         return { sent: result.outcome === "accepted" || result.outcome === "redirected", ...result };

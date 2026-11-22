@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
@@ -20,25 +20,25 @@ describe("new-page HTML tab metadata validation regression", () => {
     const order: string[] = [];
     // Model the server's real doc-format validation. The previous permissive fake let
     // missing bodyJson through and concealed this failure after metadata was reordered.
-    port.updatePost = async (target, patch) => {
+    port.updatePost = async ({ target, patch }) => {
       order.push("metadata");
       if (port.current.bodyFormat !== "html" && (!patch.bodyJson || Array.isArray(patch.bodyJson))) {
         throw new Error("bodyJson must be a JSON object");
       }
-      return metadataWrite(target, patch);
+      return metadataWrite({ target, patch });
     };
     const htmlWrite = port.updatePageHtml.bind(port);
-    port.updatePageHtml = async (id, html) => {
+    port.updatePageHtml = async ({ id, html, expectedVersion }) => {
       order.push("html");
-      return htmlWrite(id, html);
+      return htmlWrite({ id, html, expectedVersion });
     };
     // One deps object for every render — a fresh literal per render re-fires the editor's
     // dependency-keyed effects forever (the worker ran out of heap).
     const deps = {
       port, themeCanvasPort: createFakeThemeCanvasPort(), navigate: vi.fn(),
-      locale: "en", t: (_locale: string, key: string) => key,
+      locale: "en", t: ({ key }: { locale: string; key: string }) => key,
     };
-    const { result } = renderHook(() => usePageEditor("untitled", deps));
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "untitled", deps }));
     await waitFor(() => expect(result.current.page?.id).toBe(page.id));
     act(() => {
       result.current.setView("html");

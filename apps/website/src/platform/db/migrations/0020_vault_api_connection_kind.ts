@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Admits the `api-connection` vault kind (plugin-declared OAuth API connections: sealed token
@@ -36,7 +36,7 @@ export function widenedVaultTableDdl({ original }: { original: string }, _option
   return `${before.replace("CREATE TABLE secrets_vault (", "CREATE TABLE secrets_vault_0020 (")}${NEW_KINDS}${rest[0]}`;
 }
 
-async function upSqlite(kernel: StorageKernel<unknown>): Promise<void> {
+async function upSqlite(kernel: KyselyKernel<unknown>): Promise<void> {
   const [table] = await kernel.query<{ sql: string }>(sql`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'secrets_vault'`);
   if (!table) throw new Error("secrets_vault is missing; 0012_secrets_vault must run first");
   const objects = await kernel.query<{ sql: string }>(sql`SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = 'secrets_vault' AND sql IS NOT NULL`);
@@ -63,13 +63,13 @@ async function upSqlite(kernel: StorageKernel<unknown>): Promise<void> {
   await kernel.execute(sql`DROP TABLE _vault_0020_pointers`);
 }
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect === "sqlite") return upSqlite(kernel);
   await kernel.execute(sql.raw(`ALTER TABLE secrets_vault DROP CONSTRAINT secrets_vault_kind,
     ADD CONSTRAINT secrets_vault_kind CHECK(kind IN (${KIND_LIST}))`));
 }
 
 /** Widen the vault kind CHECK in both dialects. @example vaultApiConnectionKind({ checksum }) */
-export function vaultApiConnectionKind(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function vaultApiConnectionKind(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: VAULT_API_CONNECTION_KIND_ID, checksum: required.checksum, up };
 }

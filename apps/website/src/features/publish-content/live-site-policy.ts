@@ -20,6 +20,6 @@ export const PUBLISH_FROM_LIVE_SITE_ERROR =
  * @returns `false` only when the runtime mode is `production`.
  * @complexity O(1).
  */
-export function canPublishToLive(options?: ResolveRuntimeModeOptions): boolean {
+export function canPublishToLive(options?: ResolveRuntimeModeOptions, _optional = {}): boolean {
   return resolveRuntimeMode(options) !== "production";
 }

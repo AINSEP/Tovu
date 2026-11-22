@@ -5,7 +5,7 @@ import test from "node:test";
 import { createToolRegistry, type Principal, type RunRef, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { isReadOnlyTool } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
@@ -25,8 +25,10 @@ import {
 } from "../read-only-tool-constraint.js";
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -105,6 +107,8 @@ async function buildHarness(): Promise<Harness> {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolDeps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: repo,
@@ -337,7 +341,7 @@ test("FAIL CLOSED: a gate wired without a registry refuses every constrained dis
     cancel: () => {},
     getAuditRecord: () => null,
   };
-  const gated = withReadOnlyToolConstraint(inner, { registry: undefined });
+  const gated = withReadOnlyToolConstraint({ inner, deps: { registry: undefined } });
 
   const refused = await gated.execute({ principal: READ_ONLY, run:  RUN, toolId:  "anything_at_all", input:  {} });
   assert.equal(refused.status, "denied");

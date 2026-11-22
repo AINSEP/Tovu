@@ -12,7 +12,7 @@ function post(id: string, workspaceId = "ws"): PostRecord {
 const query = { workspaceId: "ws", terms: ["findable"], limit: 10 };
 
 test("a hard deletion removes old FTS entries on the very next search without hiding surviving neighbors", async () => {
-  const repo = new InMemoryPostRepo([post("removed"), post("kept")]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [post("removed"), post("kept")] });
   const search = new InMemoryPostSearchIndex(repo);
   assert.deepEqual((await search.search(query)).map((h) => h.id).sort(), ["kept", "removed"]);
   await repo.hardDelete({ workspaceId: "ws", id: "removed" });
@@ -22,7 +22,7 @@ test("a hard deletion removes old FTS entries on the very next search without hi
 });
 
 test("one search index can alternate workspaces and handle concurrent calls without swapping their hits", { timeout: 10000 }, async (t) => {
-  const repo = new InMemoryPostRepo([post("own"), post("foreign", "other")]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [post("own"), post("foreign", "other")] });
   const search = new InMemoryPostSearchIndex(repo);
   for (const workspaceId of ["ws", "other", "ws"]) {
     assert.deepEqual((await search.search({ ...query, workspaceId })).map((h) => h.id), [workspaceId === "ws" ? "own" : "foreign"]);
@@ -57,7 +57,7 @@ test("one search index can alternate workspaces and handle concurrent calls with
 });
 
 test("a repository read failure propagates instead of returning stale hits, and a retry reads fresh state", async (t) => {
-  const repo = new InMemoryPostRepo([post("first")]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [post("first")] });
   const search = new InMemoryPostSearchIndex(repo);
   assert.deepEqual((await search.search(query)).map((h) => h.id), ["first"]);
   const failure = new Error("post read failed");
@@ -71,8 +71,8 @@ test("a repository read failure propagates instead of returning stale hits, and 
 
 // F2.6/F6.2: run the real mirror and FTS query against an HTML page, whose doc placeholder is empty.
 test("BUG: the memory index finds HTML page body prose instead of indexing only its empty doc placeholder", async () => {
-  const repo = new InMemoryPostRepo([{ ...post("html-page"), kind: "page", title: "Studio", slug: "studio",
-    bodyFormat: "html", bodyHtml: "<p>Needleword lives in the page body.</p>" }]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [{ ...post("html-page"), kind: "page", title: "Studio", slug: "studio",
+    bodyFormat: "html", bodyHtml: "<p>Needleword lives in the page body.</p>" }] });
   const search = new InMemoryPostSearchIndex(repo);
   assert.deepEqual((await search.search({ ...query, terms: ["studio"] })).map((hit) => hit.id), ["html-page"]);
   assert.deepEqual((await search.search({ ...query, terms: ["needleword"] })).map((hit) => hit.id), ["html-page"]);

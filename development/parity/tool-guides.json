@@ -1,0 +1,2915 @@
+{
+  "tools": 324,
+  "local": [
+    "search_components",
+    "query",
+    "describe_component",
+    "id",
+    "execute_delegated_tool",
+    "execute_readonly_delegated_tool",
+    "start_run",
+    "get_run",
+    "cancel_run",
+    "get_active_context",
+    "list_agents",
+    "search_tools",
+    "describe_tool",
+    "wait_for"
+  ],
+  "named": {
+    "agent_plugin_connect": [
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:37 (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "registry registry:credential_save.description (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.enabled (prose)"
+    ],
+    "agent_plugins_customize": [
+      "registry registry:agent_plugins_install.description (prose)",
+      "registry registry:agent_plugins_update.description (prose)"
+    ],
+    "assistant_ask_choice": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:270 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "assistant_chat_read": [
+      "registry registry:assistant_chats_list.description (prose)"
+    ],
+    "assistant_render_ui": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:255 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:257 (prose)"
+    ],
+    "backup_plan_restore": [
+      "registry registry:backup_execute_restore.description (prose)"
+    ],
+    "change_sets_list": [
+      "registry registry:change_sets_revert.inputSchema.changeSetId (prose)"
+    ],
+    "change_sets_revert": [
+      "registry registry:change_sets_list.description (prose)"
+    ],
+    "collections_entry_create": [
+      "registry registry:collections_entry_publish.inputSchema.id (prose)",
+      "registry registry:collections_entry_unpublish.inputSchema.id (prose)",
+      "registry registry:collections_entry_update.inputSchema.id (prose)"
+    ],
+    "collections_entry_publish": [
+      "registry registry:collections_entry_create.description (prose)",
+      "registry registry:collections_entry_unpublish.description (prose)"
+    ],
+    "collections_entry_unpublish": [
+      "registry registry:collections_entry_publish.description (prose)"
+    ],
+    "comments_approve_comment": [
+      "registry registry:comments_mark_comment_spam.description (prose)"
+    ],
+    "comments_get_provider": [
+      "registry registry:comments_set_provider.description (prose)"
+    ],
+    "comments_mark_comment_spam": [
+      "registry registry:comments_approve_comment.description (prose)"
+    ],
+    "comments_restore_comment": [
+      "registry registry:comments_approve_comment.description (prose)",
+      "registry registry:comments_mark_comment_spam.description (prose)",
+      "registry registry:comments_trash_comment.description (prose)"
+    ],
+    "comments_trash_comment": [
+      "registry registry:comments_approve_comment.description (prose)"
+    ],
+    "consent_get_settings": [
+      "registry registry:consent_publish_settings.inputSchema.expectedPublishedId (prose)",
+      "registry registry:consent_update_settings.description (prose)",
+      "registry registry:consent_update_settings.inputSchema.expectedDraftId (prose)"
+    ],
+    "content_post_create": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_delete.inputSchema.id (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_update.inputSchema.id (prose)",
+      "registry registry:content_read.content_post.inputSchema.id (prose)",
+      "registry registry:pages_move_region.inputSchema.id (prose)",
+      "registry registry:pages_read_html.inputSchema.id (prose)",
+      "registry registry:pages_write_html.inputSchema.id (prose)",
+      "registry registry:pages_write_region.inputSchema.id (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_reorder_embeds.inputSchema.hostEntryId (prose)"
+    ],
+    "content_post_delete": [
+      "registry registry:trash_item.inputSchema.entityType (prose)"
+    ],
+    "content_post_update": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_post_create.description (prose)",
+      "registry registry:content_post_preview.description (prose)"
+    ],
+    "content_read.backup_restore_point": [
+      "registry registry:backup_execute_restore.inputSchema.restorePointId (prose)",
+      "registry registry:backup_plan_restore.inputSchema.restorePointId (prose)",
+      "registry registry:content_read.backup_restore_point.description (prose)",
+      "registry registry:content_read.backup_restore_point.inputSchema.id (prose)"
+    ],
+    "content_read.collection_content_type": [
+      "registry registry:content_read.collection_content_type.description (prose)",
+      "registry registry:content_read.collection_content_type.inputSchema.id (prose)"
+    ],
+    "content_read.collection_entry": [
+      "registry registry:collections_entry_publish.inputSchema.expectedVersion (prose)",
+      "registry registry:collections_entry_publish.inputSchema.id (prose)",
+      "registry registry:collections_entry_unpublish.inputSchema.expectedVersion (prose)",
+      "registry registry:collections_entry_unpublish.inputSchema.id (prose)",
+      "registry registry:collections_entry_update.inputSchema.expectedVersion (prose)",
+      "registry registry:collections_entry_update.inputSchema.id (prose)",
+      "registry registry:content_read.collection_entry.description (prose)",
+      "registry registry:content_read.collection_entry.inputSchema.id (prose)"
+    ],
+    "content_read.comment": [
+      "registry registry:content_read.comment.description (prose)"
+    ],
+    "content_read.comment_moderation_queue": [
+      "registry registry:comments_approve_comment.inputSchema.commentId (prose)",
+      "registry registry:comments_mark_comment_spam.inputSchema.commentId (prose)",
+      "registry registry:comments_restore_comment.inputSchema.commentId (prose)",
+      "registry registry:comments_trash_comment.inputSchema.commentId (prose)",
+      "registry registry:content_read.comment.inputSchema.id (prose)",
+      "registry registry:content_read.comment_moderation_queue.description (prose)"
+    ],
+    "content_read.content_post": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_delete.inputSchema.id (prose)",
+      "registry registry:content_post_search.description (prose)",
+      "registry registry:content_post_update.description (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_update.inputSchema.id (prose)",
+      "registry registry:content_read.content_post.description (prose)",
+      "registry registry:content_read.content_post.inputSchema.id (prose)",
+      "registry registry:content_stats.description (prose)",
+      "registry registry:pages_move_region.inputSchema.id (prose)",
+      "registry registry:pages_read_html.inputSchema.id (prose)",
+      "registry registry:pages_write_html.inputSchema.id (prose)",
+      "registry registry:pages_write_region.inputSchema.id (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_reorder_embeds.inputSchema.hostEntryId (prose)"
+    ],
+    "content_read.custom_credential": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:205 (prose)",
+      "registry registry:content_read.custom_credential.description (prose)",
+      "registry registry:content_read.custom_credential.inputSchema.id (prose)",
+      "registry registry:credential_save.description (prose)",
+      "registry registry:custom_credential_make_request.description (prose)",
+      "registry registry:custom_credential_make_request.inputSchema.label (prose)",
+      "registry registry:custom_credential_make_request.inputSchema.url (prose)",
+      "registry registry:custom_credential_set_username.description (prose)",
+      "registry registry:custom_credential_set_username.inputSchema.label (prose)",
+      "registry registry:custom_credential_verify.description (prose)",
+      "registry registry:custom_credential_verify.inputSchema.label (prose)",
+      "registry registry:custom_credential_write_files.description (prose)",
+      "registry registry:custom_credential_write_files.inputSchema.label (prose)"
+    ],
+    "content_read.database_pending_migration": [
+      "registry registry:content_read.database_pending_migration.description (prose)"
+    ],
+    "content_read.database_restore_point": [
+      "registry registry:backup_execute_restore.inputSchema.restorePointId (prose)",
+      "registry registry:backup_plan_restore.inputSchema.restorePointId (prose)",
+      "registry registry:content_read.database_restore_point.description (prose)"
+    ],
+    "content_read.external_mcp": [
+      "registry registry:content_read.external_mcp.description (prose)",
+      "registry registry:content_read.external_mcp.inputSchema.id (prose)",
+      "registry registry:external_mcp_get_admissions.description (prose)",
+      "registry registry:external_mcp_oauth_connect.description (prose)",
+      "registry registry:external_mcp_probe_connection.inputSchema.id (prose)",
+      "registry registry:external_mcp_save.description (prose)",
+      "registry registry:external_mcp_save.inputSchema.writeAllowedToolNames (prose)"
+    ],
+    "content_read.form_definition": [
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:content_read.form_definition.description (prose)",
+      "registry registry:content_read.form_definition.inputSchema.id (prose)",
+      "registry registry:forms_update_definition.description (prose)",
+      "registry registry:forms_update_definition.inputSchema.expectedVersion (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_region.description (prose)"
+    ],
+    "content_read.identity_policy": [
+      "registry registry:content_read.identity_policy.description (prose)",
+      "registry registry:content_read.identity_policy.inputSchema.id (prose)",
+      "registry registry:identity_policy_attach.inputSchema.policyId (prose)",
+      "registry registry:identity_policy_list_permissions.description (prose)",
+      "registry registry:identity_policy_update.inputSchema.policyId (prose)"
+    ],
+    "content_read.identity_role": [
+      "registry registry:content_read.identity_role.description (prose)",
+      "registry registry:content_read.identity_role.inputSchema.id (prose)",
+      "registry registry:identity_role_assign.inputSchema.roleId (prose)",
+      "registry registry:identity_role_rename.inputSchema.roleId (prose)"
+    ],
+    "content_read.identity_user": [
+      "registry registry:content_read.identity_user.description (prose)",
+      "registry registry:content_read.identity_user.inputSchema.id (prose)",
+      "registry registry:identity_policy_attach.inputSchema.principalId (prose)",
+      "registry registry:identity_role_assign.inputSchema.principalId (prose)",
+      "registry registry:identity_user_change_username.description (prose)",
+      "registry registry:identity_user_change_username.inputSchema.principalId (prose)",
+      "registry registry:identity_user_disable.inputSchema.principalId (prose)",
+      "registry registry:identity_user_enable.inputSchema.principalId (prose)",
+      "registry registry:identity_user_update_email.inputSchema.principalId (prose)"
+    ],
+    "content_read.media_asset": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9] (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_create.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9] (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_update.inputSchema.featuredImage (prose)",
+      "registry registry:content_read.media_asset.description (prose)",
+      "registry registry:content_read.media_asset.inputSchema.id (prose)",
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:media_import_from_url.description (prose)",
+      "registry registry:media_trash_asset.inputSchema.mediaId (prose)",
+      "registry registry:media_update_metadata.inputSchema.mediaId (prose)",
+      "registry registry:media_view_image.description (prose)",
+      "registry registry:media_view_video.inputSchema.mediaId (prose)",
+      "registry registry:media_view_video.inputSchema.slug (prose)"
+    ],
+    "content_read.member": [
+      "registry registry:content_read.member.description (prose)",
+      "registry registry:content_read.member.inputSchema.id (prose)",
+      "registry registry:members_delete.inputSchema.memberId (prose)",
+      "registry registry:members_disable.inputSchema.memberId (prose)",
+      "registry registry:members_update_profile.inputSchema.memberId (prose)"
+    ],
+    "content_read.menu": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_post_create.description (prose)",
+      "registry registry:content_read.menu.description (prose)",
+      "registry registry:content_read.menu.inputSchema.id (prose)",
+      "registry registry:menus_assign_location.inputSchema.menuId (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.id (prose)"
+    ],
+    "content_read.newsletter_campaign": [
+      "registry registry:content_read.newsletter_campaign.description (prose)",
+      "registry registry:content_read.newsletter_campaign.inputSchema.id (prose)",
+      "registry registry:newsletter_cancel_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_list_send_log.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_pause_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.campaignId (prose)"
+    ],
+    "content_read.newsletter_list": [
+      "registry registry:content_read.newsletter_list.description (prose)",
+      "registry registry:newsletter_archive_list.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_campaign.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_list_subscriptions.inputSchema.listId (prose)",
+      "registry registry:newsletter_remove_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.listId (prose)"
+    ],
+    "content_read.plugin": [
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:2 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:3 (prose)",
+      "registry registry:agent_plugins_customize.inputSchema.pluginId (prose)",
+      "registry registry:agent_plugins_install.inputSchema.source.bundledId (prose)",
+      "registry registry:agent_plugins_update.description (prose)",
+      "registry registry:content_read.plugin.description (prose)",
+      "registry registry:content_read.plugin.inputSchema.id (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_region.description (prose)",
+      "registry registry:plugins_install.description (prose)",
+      "registry registry:plugins_set_enabled.description (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.family (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.pluginId (prose)",
+      "registry registry:plugins_uninstall.inputSchema.family (prose)",
+      "registry registry:plugins_uninstall.inputSchema.pluginId (prose)",
+      "registry registry:provider_status.inputSchema.pluginId (prose)",
+      "registry registry:search_agent_plugin_local.description (prose)"
+    ],
+    "content_read.redirect": [
+      "registry registry:content_read.redirect.description (prose)",
+      "registry registry:content_read.redirect.inputSchema.id (prose)",
+      "registry registry:redirects_get_hits.inputSchema.id (prose)",
+      "registry registry:redirects_tombstone.inputSchema.id (prose)",
+      "registry registry:redirects_update.inputSchema.id (prose)"
+    ],
+    "content_read.seo_entry_meta": [
+      "registry registry:content_read.seo_entry_meta.description (prose)",
+      "registry registry:seo_set_entry_overrides.description (prose)",
+      "registry registry:seo_set_entry_overrides.inputSchema.expectedVersion (prose)"
+    ],
+    "content_read.setting_definition": [
+      "registry registry:content_read.setting_definition.description (prose)",
+      "registry registry:settings_clear_value.inputSchema.namespace (prose)",
+      "registry registry:settings_set_value.description (prose)",
+      "registry registry:settings_set_value.inputSchema.namespace (prose)",
+      "registry registry:settings_set_value.inputSchema.value (prose)"
+    ],
+    "content_read.site": [
+      "registry registry:content_read.site.description (prose)",
+      "registry registry:sites_switch_site.description (prose)",
+      "registry registry:sites_switch_site.inputSchema.name (prose)"
+    ],
+    "content_read.taxonomy": [
+      "registry registry:content_read.taxonomy.description (prose)",
+      "registry registry:content_read.taxonomy.inputSchema.id (prose)",
+      "registry registry:content_read.term.description (prose)",
+      "registry registry:taxonomy_create_term.inputSchema.taxonomyId (prose)",
+      "registry registry:taxonomy_get_assigned_terms.description (prose)",
+      "registry registry:taxonomy_rename_term.inputSchema.termId (prose)"
+    ],
+    "content_read.term": [
+      "registry registry:content_read.term.description (prose)"
+    ],
+    "content_read.theme": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:agent_plugins_customize.description (prose)",
+      "registry registry:content_read.theme.description (prose)",
+      "registry registry:content_read.theme.inputSchema.id (prose)",
+      "registry registry:content_read.theme_page_publication.inputSchema.themeId (prose)",
+      "registry registry:theme_copy_file.inputSchema.themeId (prose)",
+      "registry registry:theme_duplicate.inputSchema.sourceThemeId (prose)",
+      "registry registry:theme_edit_file.inputSchema.themeId (prose)",
+      "registry registry:theme_import_file_from_url.inputSchema.themeId (prose)",
+      "registry registry:theme_import_local_file.inputSchema.themeId (prose)",
+      "registry registry:theme_list_files.inputSchema.themeId (prose)",
+      "registry registry:theme_read_file.inputSchema.themeId (prose)",
+      "registry registry:theme_rename_file.inputSchema.themeId (prose)",
+      "registry registry:theme_reset_file.inputSchema.themeId (prose)",
+      "registry registry:theme_restore_trashed_file.inputSchema.themeId (prose)",
+      "registry registry:theme_trash.inputSchema.themeId (prose)",
+      "registry registry:theme_trash_file.inputSchema.themeId (prose)",
+      "registry registry:theme_write_file.inputSchema.themeId (prose)"
+    ],
+    "content_read.theme_page_publication": [
+      "registry registry:content_read.theme_page_publication.description (prose)",
+      "registry registry:content_read.theme_page_publication.inputSchema.id (prose)"
+    ],
+    "content_read.webhook_subscription": [
+      "registry registry:content_read.webhook_subscription.description (prose)",
+      "registry registry:content_read.webhook_subscription.inputSchema.id (prose)",
+      "registry registry:webhooks_get_deliveries.inputSchema.subscriptionId (prose)",
+      "registry registry:webhooks_pause_subscription.inputSchema.subscriptionId (prose)",
+      "registry registry:webhooks_update_subscription.description (prose)",
+      "registry registry:webhooks_update_subscription.inputSchema.expectedVersion (prose)"
+    ],
+    "content_read.widget_instance": [
+      "registry registry:content_read.widget_instance.description (prose)",
+      "registry registry:content_read.widget_instance.inputSchema.id (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.widgetEntryId (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.placements.items.widgetEntryId (prose)",
+      "registry registry:widgets_trash_instance.inputSchema.widgetInstanceId (prose)",
+      "registry registry:widgets_update_instance.inputSchema.widgetInstanceId (prose)"
+    ],
+    "content_read.widget_region": [
+      "registry registry:content_read.widget_region.description (prose)",
+      "registry registry:content_read.widget_region.inputSchema.id (prose)",
+      "registry registry:widgets_bind_region.inputSchema.regionKey (prose)",
+      "registry registry:widgets_set_region_placements.description (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.placements.items.placementId (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.regionKey (prose)"
+    ],
+    "content_read.workspace": [
+      "registry registry:content_read.workspace.description (prose)",
+      "registry registry:workspace_update.description (prose)",
+      "registry registry:workspace_update.inputSchema.expectedVersion (prose)"
+    ],
+    "credential_copy_from_project": [
+      "registry registry:deployment_get_static_publish_capabilities.description (prose)",
+      "registry registry:project_key_use.description (prose)",
+      "registry registry:project_keys_list.description (prose)"
+    ],
+    "credential_save": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:278 (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:agent_plugin_connect.description (prose)",
+      "registry registry:custom_credential_make_request.description (prose)",
+      "registry registry:custom_credential_verify.description (prose)",
+      "registry registry:deployment_generate_bucket_hosting_setup.description (prose)",
+      "registry registry:deployment_get_static_publish_capabilities.description (prose)",
+      "registry registry:mail_configure_provider.description (prose)",
+      "registry registry:mail_get_feedback_setup.description (prose)",
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:site_backup_plan.description (prose)",
+      "registry registry:source_control_get_capabilities.description (prose)"
+    ],
+    "custom_credential_make_request": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:206 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:274 (prose)",
+      "registry registry:content_read.custom_credential.description (prose)",
+      "registry registry:custom_credential_verify.description (prose)",
+      "registry registry:custom_credential_write_files.inputSchema.branch (prose)",
+      "registry registry:deployment_ops_list_targets.description (prose)",
+      "registry registry:deployment_ops_logs.description (prose)",
+      "registry registry:deployment_ops_status.description (prose)",
+      "registry registry:deployment_ops_wait.description (prose)"
+    ],
+    "custom_credential_verify": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:206 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:273 (prose)",
+      "registry registry:content_read.custom_credential.description (prose)",
+      "registry registry:custom_credential_make_request.description (prose)",
+      "registry registry:deployment_ops_deploy.description (prose)",
+      "registry registry:deployment_ops_list_targets.description (prose)",
+      "registry registry:deployment_ops_logs.description (prose)",
+      "registry registry:deployment_ops_status.description (prose)",
+      "registry registry:deployment_ops_wait.description (prose)"
+    ],
+    "database_plan_migrate_forward": [
+      "registry registry:database_execute_migrate_forward.description (prose)"
+    ],
+    "database_transfer_plan": [
+      "registry registry:database_transfer_run.description (prose)",
+      "registry registry:database_transfer_run.inputSchema.planId (prose)",
+      "registry registry:database_transfer_set_destination.description (prose)"
+    ],
+    "database_transfer_run": [
+      "registry registry:database_transfer_plan.description (prose)"
+    ],
+    "database_transfer_set_destination": [
+      "registry registry:database_transfer_plan.description (prose)"
+    ],
+    "deployment_execute_static_publish": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:deployment_diagnose_static_export.description (prose)",
+      "registry registry:deployment_get_static_publish_capabilities.description (prose)",
+      "registry registry:deployment_get_static_publish_status.description (prose)",
+      "registry registry:deployment_ops_deploy.description (prose)"
+    ],
+    "deployment_get_dockerfile": [
+      "registry registry:deployment_set_dockerfile.description (prose)",
+      "registry registry:deployment_set_dockerfile.inputSchema.contents (prose)",
+      "registry registry:deployment_set_dockerfile.inputSchema.ifMatch (prose)"
+    ],
+    "deployment_get_export_status": [
+      "registry registry:deployment_trigger_export.description (prose)"
+    ],
+    "deployment_get_static_publish_capabilities": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:credential_save.description (prose)",
+      "registry registry:deployment_execute_static_publish.description (prose)",
+      "registry registry:deployment_execute_static_publish.inputSchema.target (prose)",
+      "registry registry:deployment_generate_bucket_hosting_setup.inputSchema.target (prose)",
+      "registry registry:deployment_ops_list_targets.description (prose)",
+      "registry registry:deployment_ops_logs.description (prose)",
+      "registry registry:deployment_ops_status.description (prose)",
+      "registry registry:deployment_ops_wait.description (prose)",
+      "registry registry:deployment_preview_static_publish.description (prose)",
+      "registry registry:deployment_preview_static_publish.inputSchema.target (prose)"
+    ],
+    "deployment_get_static_publish_status": [
+      "registry registry:deployment_execute_static_publish.description (prose)"
+    ],
+    "deployment_ops_deploy": [
+      "registry registry:deployment_ops_list_targets.description (prose)",
+      "registry registry:deployment_ops_logs.description (prose)",
+      "registry registry:deployment_ops_set_secret.description (prose)",
+      "registry registry:deployment_ops_status.description (prose)",
+      "registry registry:deployment_ops_wait.description (prose)"
+    ],
+    "deployment_ops_status": [
+      "registry registry:deployment_ops_deploy.description (prose)"
+    ],
+    "deployment_ops_wait": [
+      "registry registry:deployment_ops_deploy.description (prose)"
+    ],
+    "deployment_preview_static_publish": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:deployment_get_static_publish_capabilities.description (prose)"
+    ],
+    "deployment_set_dockerfile": [
+      "registry registry:deployment_get_dockerfile.description (prose)"
+    ],
+    "deployment_trigger_export": [
+      "registry registry:deployment_get_export_status.description (prose)"
+    ],
+    "describe_component": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:258 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:35 (prose)",
+      "registry registry:assistant_render_ui.description (prose)",
+      "registry registry:search_components.description (prose)"
+    ],
+    "describe_tool": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:175 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:181 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:210 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:260 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:272 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:287 (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:56 (prose)",
+      "registry registry:site_describe_capabilities.description (prose)"
+    ],
+    "dns_instructions": [
+      "registry registry:dns_plan.description (prose)"
+    ],
+    "dns_verify": [
+      "registry registry:dns_instructions.description (prose)",
+      "registry registry:dns_instructions.inputSchema.requirements (prose)",
+      "registry registry:dns_plan.description (prose)",
+      "registry registry:dns_plan.inputSchema.requirements (prose)",
+      "registry registry:dns_verify.inputSchema.requirements (prose)"
+    ],
+    "domain_check_dns": [
+      "registry registry:domain_lookup_dns.description (prose)"
+    ],
+    "email_template_get": [
+      "registry registry:email_template_create.description (prose)",
+      "registry registry:email_template_edit.description (prose)"
+    ],
+    "execute_delegated_tool": [
+      "guide ../Jini/packages/daemon/src/core/read-only-tools.ts:45 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:211 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:260 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:272 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:287 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:300 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:56 (prose)"
+    ],
+    "execute_readonly_delegated_tool": [
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:150 (prose)"
+    ],
+    "external_mcp_get_admissions": [
+      "registry registry:external_mcp_probe_connection.description (prose)",
+      "registry registry:external_mcp_test_connection.description (prose)"
+    ],
+    "external_mcp_oauth_connect": [
+      "registry registry:content_read.external_mcp.description (prose)",
+      "registry registry:external_mcp_oauth_poll_device.description (prose)",
+      "registry registry:external_mcp_save.inputSchema.authMode (prose)"
+    ],
+    "external_mcp_oauth_poll_device": [
+      "registry registry:content_read.external_mcp.description (prose)",
+      "registry registry:external_mcp_oauth_connect.description (prose)"
+    ],
+    "external_mcp_probe_connection": [
+      "registry registry:external_mcp_get_admissions.description (prose)",
+      "registry registry:external_mcp_test_connection.description (prose)"
+    ],
+    "external_mcp_reauth_prompt": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:283 (prose)"
+    ],
+    "external_mcp_save": [
+      "registry registry:content_read.external_mcp.description (prose)",
+      "registry registry:external_mcp_get_admissions.description (prose)",
+      "registry registry:external_mcp_oauth_connect.description (prose)",
+      "registry registry:external_mcp_test_connection.description (prose)"
+    ],
+    "external_mcp_test_connection": [
+      "registry registry:external_mcp_probe_connection.description (prose)"
+    ],
+    "fetch_live_url": [
+      "registry registry:content_post_preview.description (prose)",
+      "registry registry:deployment_ops_deploy.description (prose)",
+      "registry registry:web_fetch_page.description (prose)"
+    ],
+    "fetch_published_page": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_post_preview.description (prose)",
+      "registry registry:content_read.content_post.description (prose)",
+      "registry registry:fetch_live_url.description (prose)",
+      "registry registry:site_get_profile.description (prose)",
+      "registry registry:web_fetch_page.description (prose)"
+    ],
+    "files_copy": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "forms_create_definition": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:forms_list_providers.description (prose)"
+    ],
+    "forms_get_submission": [
+      "registry registry:content_read.form_definition.description (prose)"
+    ],
+    "forms_list_providers": [
+      "registry registry:forms_create_definition.description (prose)",
+      "registry registry:forms_create_definition.inputSchema.provider.config (prose)",
+      "registry registry:forms_create_definition.inputSchema.provider.id (prose)",
+      "registry registry:forms_update_definition.description (prose)",
+      "registry registry:forms_update_definition.inputSchema.provider.config (prose)",
+      "registry registry:forms_update_definition.inputSchema.provider.id (prose)"
+    ],
+    "forms_list_submissions": [
+      "registry registry:content_read.form_definition.description (prose)",
+      "registry registry:forms_delivery_status.inputSchema.submissionId (prose)",
+      "registry registry:forms_get_submission.inputSchema.submissionId (prose)"
+    ],
+    "forms_set_definition_status": [
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:content_read.form_definition.description (prose)"
+    ],
+    "forms_update_definition": [
+      "registry registry:content_read.form_definition.description (prose)",
+      "registry registry:forms_list_providers.description (prose)"
+    ],
+    "fs_list_files": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:media_import_local_file.description (prose)",
+      "registry registry:media_import_local_file.inputSchema.path (prose)",
+      "registry registry:media_replace_file.description (prose)",
+      "registry registry:media_replace_file.inputSchema.path (prose)",
+      "registry registry:theme_import_local_file.description (prose)",
+      "registry registry:theme_import_local_file.inputSchema.sourcePath (prose)"
+    ],
+    "fs_read_file": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/references/kuinetic-worked-example.md (prose)",
+      "registry registry:fs_list_files.description (prose)",
+      "registry registry:fs_write_files.description (prose)",
+      "registry registry:media_import_local_file.description (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_region.description (prose)",
+      "registry registry:theme_import_local_file.description (prose)"
+    ],
+    "fs_write_files": [
+      "guide apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts:99 (prose)",
+      "registry registry:files_copy.description (prose)",
+      "registry registry:image_transform.description (prose)"
+    ],
+    "get_run": [
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:30 (call)"
+    ],
+    "id": [
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:2 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:5 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:258 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:281 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:283 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:284 (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (prose)",
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/references/motion.md (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/references/theme-v2-contract.md (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:35 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:70 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:75 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:184 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:150 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:70 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:89 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:150 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:155 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:156 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:157 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:56 (prose)",
+      "registry registry:agent_plugin_connect.description (prose)",
+      "registry registry:agent_plugin_connect.inputSchema.pluginId (prose)",
+      "registry registry:agent_plugins_customize.description (prose)",
+      "registry registry:agent_plugins_customize.inputSchema.pluginId (prose)",
+      "registry registry:agent_plugins_install.description (prose)",
+      "registry registry:agent_plugins_install.inputSchema.replace (prose)",
+      "registry registry:agent_plugins_update.description (prose)",
+      "registry registry:agent_plugins_update.inputSchema.pluginId (prose)",
+      "registry registry:assistant_admin_screen_link.inputSchema.path (prose)",
+      "registry registry:assistant_admin_screen_link.inputSchema.tab (prose)",
+      "registry registry:assistant_ask_choice.description (prose)",
+      "registry registry:assistant_chats_list.description (prose)",
+      "registry registry:assistant_render_ui.description (prose)",
+      "registry registry:backup_execute_restore.inputSchema.restorePointId (prose)",
+      "registry registry:backup_plan_restore.inputSchema.restorePointId (prose)",
+      "registry registry:change_sets_list.description (prose)",
+      "registry registry:change_sets_revert.inputSchema.changeSetId (prose)",
+      "registry registry:collections_entry_publish.description (prose)",
+      "registry registry:collections_entry_publish.inputSchema.id (prose)",
+      "registry registry:collections_entry_publish.inputSchema.items (prose)",
+      "registry registry:collections_entry_unpublish.description (prose)",
+      "registry registry:collections_entry_unpublish.inputSchema.id (prose)",
+      "registry registry:collections_entry_unpublish.inputSchema.items (prose)",
+      "registry registry:collections_entry_update.description (prose)",
+      "registry registry:collections_entry_update.inputSchema.id (prose)",
+      "registry registry:collections_entry_update.inputSchema.items (prose)",
+      "registry registry:comments_approve_comment.inputSchema.commentId (prose)",
+      "registry registry:comments_mark_comment_spam.inputSchema.commentId (prose)",
+      "registry registry:comments_restore_comment.inputSchema.commentId (prose)",
+      "registry registry:comments_trash_comment.inputSchema.commentId (prose)",
+      "registry registry:consent_publish_settings.inputSchema.expectedPublishedId (prose)",
+      "registry registry:consent_update_settings.inputSchema.expectedDraftId (prose)",
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:content_duplicate.inputSchema.id (prose)",
+      "registry registry:content_duplicate.inputSchema.items (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[10].attrs.src (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[11] (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[11].attrs.placementId (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9] (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.htmlAttributes (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.inlineContent.items[2] (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_create.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_delete.description (prose)",
+      "registry registry:content_post_delete.inputSchema.id (prose)",
+      "registry registry:content_post_delete.inputSchema.items (prose)",
+      "registry registry:content_post_preview.description (prose)",
+      "registry registry:content_post_preview.inputSchema.id (prose)",
+      "registry registry:content_post_preview.inputSchema.postId (prose)",
+      "registry registry:content_post_search.description (prose)",
+      "registry registry:content_post_update.description (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[10].attrs.src (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[11] (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[11].attrs.placementId (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9] (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.htmlAttributes (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.inlineContent.items[2] (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.inlineContent.items[2].attrs.id (prose)",
+      "registry registry:content_post_update.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_update.inputSchema.id (prose)",
+      "registry registry:content_post_update.inputSchema.items (prose)",
+      "registry registry:content_post_update.inputSchema.kind (prose)",
+      "registry registry:content_read.backup_restore_point.description (prose)",
+      "registry registry:content_read.backup_restore_point.inputSchema.id (prose)",
+      "registry registry:content_read.collection_content_type.description (prose)",
+      "registry registry:content_read.collection_content_type.inputSchema.id (prose)",
+      "registry registry:content_read.collection_entry.description (prose)",
+      "registry registry:content_read.collection_entry.inputSchema.id (prose)",
+      "registry registry:content_read.comment.description (prose)",
+      "registry registry:content_read.comment.inputSchema.id (prose)",
+      "registry registry:content_read.comment.inputSchema.items (prose)",
+      "registry registry:content_read.comment_moderation_queue.description (prose)",
+      "registry registry:content_read.content_post.description (prose)",
+      "registry registry:content_read.content_post.inputSchema.fields (prose)",
+      "registry registry:content_read.content_post.inputSchema.id (prose)",
+      "registry registry:content_read.content_post.inputSchema.includeBody (prose)",
+      "registry registry:content_read.content_post.inputSchema.kind (prose)",
+      "registry registry:content_read.custom_credential.description (prose)",
+      "registry registry:content_read.custom_credential.inputSchema.id (prose)",
+      "registry registry:content_read.database_pending_migration.description (prose)",
+      "registry registry:content_read.database_restore_point.description (prose)",
+      "registry registry:content_read.external_mcp.description (prose)",
+      "registry registry:content_read.external_mcp.inputSchema.id (prose)",
+      "registry registry:content_read.form_definition.description (prose)",
+      "registry registry:content_read.form_definition.inputSchema.id (prose)",
+      "registry registry:content_read.identity_policy.description (prose)",
+      "registry registry:content_read.identity_policy.inputSchema.id (prose)",
+      "registry registry:content_read.identity_role.description (prose)",
+      "registry registry:content_read.identity_role.inputSchema.id (prose)",
+      "registry registry:content_read.identity_user.description (prose)",
+      "registry registry:content_read.identity_user.inputSchema.id (prose)",
+      "registry registry:content_read.media_asset.description (prose)",
+      "registry registry:content_read.media_asset.inputSchema.id (prose)",
+      "registry registry:content_read.member.description (prose)",
+      "registry registry:content_read.member.inputSchema.afterId (prose)",
+      "registry registry:content_read.member.inputSchema.id (prose)",
+      "registry registry:content_read.menu.description (prose)",
+      "registry registry:content_read.menu.inputSchema.id (prose)",
+      "registry registry:content_read.newsletter_campaign.description (prose)",
+      "registry registry:content_read.newsletter_campaign.inputSchema.id (prose)",
+      "registry registry:content_read.newsletter_list.description (prose)",
+      "registry registry:content_read.plugin.description (prose)",
+      "registry registry:content_read.plugin.inputSchema.id (prose)",
+      "registry registry:content_read.redirect.description (prose)",
+      "registry registry:content_read.redirect.inputSchema.id (prose)",
+      "registry registry:content_read.seo_entry_meta.description (prose)",
+      "registry registry:content_read.seo_entry_meta.inputSchema.id (prose)",
+      "registry registry:content_read.seo_entry_meta.inputSchema.items (prose)",
+      "registry registry:content_read.setting_definition.description (prose)",
+      "registry registry:content_read.site.description (prose)",
+      "registry registry:content_read.taxonomy.description (prose)",
+      "registry registry:content_read.taxonomy.inputSchema.id (prose)",
+      "registry registry:content_read.term.description (prose)",
+      "registry registry:content_read.term.inputSchema.items (prose)",
+      "registry registry:content_read.theme.description (prose)",
+      "registry registry:content_read.theme.inputSchema.id (prose)",
+      "registry registry:content_read.theme_page_publication.description (prose)",
+      "registry registry:content_read.theme_page_publication.inputSchema.id (prose)",
+      "registry registry:content_read.theme_page_publication.inputSchema.themeId (prose)",
+      "registry registry:content_read.webhook_subscription.description (prose)",
+      "registry registry:content_read.webhook_subscription.inputSchema.id (prose)",
+      "registry registry:content_read.widget_instance.description (prose)",
+      "registry registry:content_read.widget_instance.inputSchema.id (prose)",
+      "registry registry:content_read.widget_region.description (prose)",
+      "registry registry:content_read.workspace.description (prose)",
+      "registry registry:content_read.workspace.inputSchema.id (prose)",
+      "registry registry:credential_save.description (prose)",
+      "registry registry:credential_save.inputSchema.target (prose)",
+      "registry registry:deployment_get_static_publish_capabilities.description (prose)",
+      "registry registry:deployment_ops_list_targets.description (prose)",
+      "registry registry:describe_component.description (prose)",
+      "registry registry:describe_component.inputSchema.id (prose)",
+      "registry registry:describe_component.inputSchema.items (prose)",
+      "registry registry:dns_instructions.inputSchema.requirements.items.providerId (prose)",
+      "registry registry:dns_plan.inputSchema.requirements.items.providerId (prose)",
+      "registry registry:dns_verify.inputSchema.requirements.items.providerId (prose)",
+      "registry registry:email_template_edit.description (prose)",
+      "registry registry:email_template_edit.inputSchema.items (prose)",
+      "registry registry:email_template_get.description (prose)",
+      "registry registry:email_template_get.inputSchema.items (prose)",
+      "registry registry:email_template_list.description (prose)",
+      "registry registry:email_template_preview.description (prose)",
+      "registry registry:external_mcp_oauth_connect.description (prose)",
+      "registry registry:external_mcp_oauth_connect.inputSchema.id (prose)",
+      "registry registry:external_mcp_oauth_poll_device.inputSchema.id (prose)",
+      "registry registry:external_mcp_probe_connection.description (prose)",
+      "registry registry:external_mcp_probe_connection.inputSchema.id (prose)",
+      "registry registry:external_mcp_probe_connection.inputSchema.items (prose)",
+      "registry registry:external_mcp_reauth_prompt.description (prose)",
+      "registry registry:external_mcp_reauth_prompt.inputSchema.id (prose)",
+      "registry registry:external_mcp_save.description (prose)",
+      "registry registry:external_mcp_save.inputSchema.id (prose)",
+      "registry registry:external_mcp_save.inputSchema.items (prose)",
+      "registry registry:external_mcp_save.inputSchema.label (prose)",
+      "registry registry:external_mcp_save.inputSchema.oauthProviderId (prose)",
+      "registry registry:external_mcp_save.inputSchema.writeAllowedToolNames (prose)",
+      "registry registry:external_mcp_test_connection.description (prose)",
+      "registry registry:external_mcp_test_connection.inputSchema.id (prose)",
+      "registry registry:external_mcp_test_connection.inputSchema.items (prose)",
+      "registry registry:files_copy.inputSchema.sources.items.path (prose)",
+      "registry registry:forms_create_definition.description (prose)",
+      "registry registry:forms_create_definition.inputSchema.fields (prose)",
+      "registry registry:forms_create_definition.inputSchema.fields.items.attributes (prose)",
+      "registry registry:forms_create_definition.inputSchema.fields.items.id (prose)",
+      "registry registry:forms_create_definition.inputSchema.fields.items.name (prose)",
+      "registry registry:forms_create_definition.inputSchema.provider.id (prose)",
+      "registry registry:forms_delivery_status.inputSchema.submissionId (prose)",
+      "registry registry:forms_get_submission.description (prose)",
+      "registry registry:forms_get_submission.inputSchema.formId (prose)",
+      "registry registry:forms_get_submission.inputSchema.submissionId (prose)",
+      "registry registry:forms_list_submissions.inputSchema.formId (prose)",
+      "registry registry:forms_pull_submissions.inputSchema.targetId (prose)",
+      "registry registry:forms_set_definition_status.inputSchema.formId (prose)",
+      "registry registry:forms_update_definition.inputSchema.fields (prose)",
+      "registry registry:forms_update_definition.inputSchema.fields.items.attributes (prose)",
+      "registry registry:forms_update_definition.inputSchema.fields.items.id (prose)",
+      "registry registry:forms_update_definition.inputSchema.fields.items.name (prose)",
+      "registry registry:forms_update_definition.inputSchema.formId (prose)",
+      "registry registry:forms_update_definition.inputSchema.provider.id (prose)",
+      "registry registry:identity_policy_attach.inputSchema.policyId (prose)",
+      "registry registry:identity_policy_list_permissions.description (prose)",
+      "registry registry:identity_policy_update.inputSchema.policyId (prose)",
+      "registry registry:identity_role_assign.inputSchema.roleId (prose)",
+      "registry registry:identity_role_rename.inputSchema.roleId (prose)",
+      "registry registry:image_transform.description (prose)",
+      "registry registry:image_transform.inputSchema.source.path (prose)",
+      "registry registry:mail_configure_provider.inputSchema.providerId (prose)",
+      "registry registry:mail_get_activity.description (prose)",
+      "registry registry:mail_get_activity.inputSchema.activityId (prose)",
+      "registry registry:mail_list_activity.description (prose)",
+      "registry registry:mail_list_providers.description (prose)",
+      "registry registry:mail_remove_suppression.description (prose)",
+      "registry registry:mail_set_provider.inputSchema.providerId (prose)",
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:media_import_from_url.description (prose)",
+      "registry registry:media_import_local_file.description (prose)",
+      "registry registry:media_list_providers.description (prose)",
+      "registry registry:media_replace_file.description (prose)",
+      "registry registry:media_trash_asset.inputSchema.mediaId (prose)",
+      "registry registry:media_update_metadata.description (prose)",
+      "registry registry:media_update_metadata.inputSchema.mediaId (prose)",
+      "registry registry:media_view_image.description (prose)",
+      "registry registry:media_view_image.inputSchema.mediaId (prose)",
+      "registry registry:media_view_video.inputSchema.mediaId (prose)",
+      "registry registry:members_delete.inputSchema.memberId (prose)",
+      "registry registry:members_disable.inputSchema.memberId (prose)",
+      "registry registry:members_update_profile.inputSchema.memberId (prose)",
+      "registry registry:menus_assign_location.inputSchema.menuId (prose)",
+      "registry registry:menus_create_menu.inputSchema.items.$defs.navItem.id (prose)",
+      "registry registry:menus_create_menu.inputSchema.items.$defs.navItem.target[0].entryId (prose)",
+      "registry registry:menus_create_menu.inputSchema.items.$defs.navItem.target[1].termId (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.id (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.items.$defs.navItem.id (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.items.$defs.navItem.target[0].entryId (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.items.$defs.navItem.target[1].termId (prose)",
+      "registry registry:newsletter_archive_list.inputSchema.listId (prose)",
+      "registry registry:newsletter_cancel_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_create_campaign.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_subscription.inputSchema.subscriberId (prose)",
+      "registry registry:newsletter_list_send_log.description (prose)",
+      "registry registry:newsletter_list_send_log.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_list_subscriptions.inputSchema.listId (prose)",
+      "registry registry:newsletter_pause_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_remove_subscription.description (prose)",
+      "registry registry:newsletter_remove_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_remove_subscription.inputSchema.subscriptionId (prose)",
+      "registry registry:newsletter_resend_confirmation.inputSchema.subscriptionId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.listId (prose)",
+      "registry registry:pages_move_region.description (prose)",
+      "registry registry:pages_move_region.inputSchema.id (prose)",
+      "registry registry:pages_move_region.inputSchema.items (prose)",
+      "registry registry:pages_read_html.description (prose)",
+      "registry registry:pages_read_html.inputSchema.id (prose)",
+      "registry registry:pages_read_html.inputSchema.slug (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_html.inputSchema.id (prose)",
+      "registry registry:pages_write_html.inputSchema.items (prose)",
+      "registry registry:pages_write_region.description (prose)",
+      "registry registry:pages_write_region.inputSchema.id (prose)",
+      "registry registry:pages_write_region.inputSchema.items (prose)",
+      "registry registry:plugin_source_create.description (prose)",
+      "registry registry:plugin_source_create.inputSchema.id (prose)",
+      "registry registry:plugin_source_create.inputSchema.items (prose)",
+      "registry registry:plugin_source_delete.inputSchema.id (prose)",
+      "registry registry:plugin_source_edit.description (prose)",
+      "registry registry:plugin_source_edit.inputSchema.id (prose)",
+      "registry registry:plugin_source_edit.inputSchema.items (prose)",
+      "registry registry:plugin_source_list.description (prose)",
+      "registry registry:plugin_source_list.inputSchema.id (prose)",
+      "registry registry:plugin_source_list.inputSchema.items (prose)",
+      "registry registry:plugin_source_open.description (prose)",
+      "registry registry:plugin_source_open.inputSchema.id (prose)",
+      "registry registry:plugin_source_open.inputSchema.items (prose)",
+      "registry registry:plugin_source_read.description (prose)",
+      "registry registry:plugin_source_read.inputSchema.id (prose)",
+      "registry registry:plugin_source_read.inputSchema.items (prose)",
+      "registry registry:plugin_source_rollback.description (prose)",
+      "registry registry:plugin_source_rollback.inputSchema.id (prose)",
+      "registry registry:plugin_source_rollback.inputSchema.items (prose)",
+      "registry registry:plugin_source_seal.description (prose)",
+      "registry registry:plugin_source_seal.inputSchema.id (prose)",
+      "registry registry:plugin_source_seal.inputSchema.items (prose)",
+      "registry registry:plugin_source_write.description (prose)",
+      "registry registry:plugin_source_write.inputSchema.id (prose)",
+      "registry registry:plugin_source_write.inputSchema.items (prose)",
+      "registry registry:plugins_install.inputSchema.replace (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.enabled (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.family (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.pluginId (prose)",
+      "registry registry:plugins_uninstall.description (prose)",
+      "registry registry:plugins_uninstall.inputSchema.family (prose)",
+      "registry registry:plugins_uninstall.inputSchema.pluginId (prose)",
+      "registry registry:provider_status.inputSchema.pluginId (prose)",
+      "registry registry:publish_content_publish.description (prose)",
+      "registry registry:recovery_resolve_deep_link.description (prose)",
+      "registry registry:recovery_resolve_deep_link.inputSchema.envelope.correlationId (prose)",
+      "registry registry:recovery_resolve_deep_link.inputSchema.envelope.ledgerEventId (prose)",
+      "registry registry:recovery_resolve_deep_link.inputSchema.envelope.restorePointId (prose)",
+      "registry registry:recovery_resolve_deep_link.inputSchema.envelope.siteId (prose)",
+      "registry registry:redirects_get_hits.description (prose)",
+      "registry registry:redirects_get_hits.inputSchema.id (prose)",
+      "registry registry:redirects_get_hits.inputSchema.items (prose)",
+      "registry registry:redirects_tombstone.description (prose)",
+      "registry registry:redirects_tombstone.inputSchema.id (prose)",
+      "registry registry:redirects_tombstone.inputSchema.items (prose)",
+      "registry registry:redirects_update.description (prose)",
+      "registry registry:redirects_update.inputSchema.id (prose)",
+      "registry registry:redirects_update.inputSchema.items (prose)",
+      "registry registry:search_agent_plugin_local.description (prose)",
+      "registry registry:search_agent_plugin_local.inputSchema.query (prose)",
+      "registry registry:search_components.description (prose)",
+      "registry registry:seo_analyze_entry.inputSchema.entryId (prose)",
+      "registry registry:seo_set_entry_overrides.inputSchema.entryId (prose)",
+      "registry registry:settings_set_ui_preference.inputSchema.setting (prose)",
+      "registry registry:site_describe_capabilities.description (prose)",
+      "registry registry:site_guide.description (prose)",
+      "registry registry:site_guide.inputSchema.topic (prose)",
+      "registry registry:sites_duplicate_site.description (prose)",
+      "registry registry:source_control_get_capabilities.description (prose)",
+      "registry registry:taxonomy_assign_terms.description (prose)",
+      "registry registry:taxonomy_assign_terms.inputSchema.contentId (prose)",
+      "registry registry:taxonomy_create_term.inputSchema.parentId (prose)",
+      "registry registry:taxonomy_create_term.inputSchema.taxonomyId (prose)",
+      "registry registry:taxonomy_rename_term.description (prose)",
+      "registry registry:taxonomy_rename_term.inputSchema.termId (prose)",
+      "registry registry:taxonomy_unassign_terms.inputSchema.contentId (prose)",
+      "registry registry:theme_copy_file.inputSchema.themeId (prose)",
+      "registry registry:theme_duplicate.description (prose)",
+      "registry registry:theme_duplicate.inputSchema.newId (prose)",
+      "registry registry:theme_duplicate.inputSchema.sourceThemeId (prose)",
+      "registry registry:theme_edit_file.inputSchema.themeId (prose)",
+      "registry registry:theme_import_local_file.inputSchema.themeId (prose)",
+      "registry registry:theme_list_files.inputSchema.themeId (prose)",
+      "registry registry:theme_read_file.inputSchema.themeId (prose)",
+      "registry registry:theme_rename_file.inputSchema.themeId (prose)",
+      "registry registry:theme_reset_file.inputSchema.themeId (prose)",
+      "registry registry:theme_restore_trashed_file.inputSchema.themeId (prose)",
+      "registry registry:theme_set_active.description (prose)",
+      "registry registry:theme_set_active.inputSchema.themeId (prose)",
+      "registry registry:theme_set_page_published.inputSchema.page (prose)",
+      "registry registry:theme_trash_file.inputSchema.themeId (prose)",
+      "registry registry:theme_write_file.inputSchema.themeId (prose)",
+      "registry registry:tool_gaps_list.description (prose)",
+      "registry registry:trash_item.inputSchema.entityId (prose)",
+      "registry registry:trash_restore_item.inputSchema.entityId (prose)",
+      "registry registry:visitor_tool_configure.description (prose)",
+      "registry registry:webhooks_get_deliveries.inputSchema.subscriptionId (prose)",
+      "registry registry:webhooks_pause_subscription.inputSchema.subscriptionId (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.widgetEntryId (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.placementId (prose)",
+      "registry registry:widgets_reorder_embeds.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.placements.items.placementId (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.placements.items.widgetEntryId (prose)",
+      "registry registry:widgets_trash_instance.inputSchema.widgetInstanceId (prose)",
+      "registry registry:widgets_update_instance.inputSchema.widgetInstanceId (prose)",
+      "registry registry:workspace_update.description (prose)"
+    ],
+    "identity_policy_create": [
+      "registry registry:identity_policy_attach.inputSchema.policyId (prose)",
+      "registry registry:identity_policy_update.inputSchema.policyId (prose)"
+    ],
+    "identity_role_assign": [
+      "registry registry:identity_policy_attach.description (prose)",
+      "registry registry:identity_user_create.description (prose)"
+    ],
+    "identity_role_create": [
+      "registry registry:identity_role_assign.inputSchema.roleId (prose)",
+      "registry registry:identity_role_rename.inputSchema.roleId (prose)"
+    ],
+    "identity_user_create": [
+      "registry registry:identity_policy_attach.inputSchema.principalId (prose)",
+      "registry registry:identity_role_assign.inputSchema.principalId (prose)",
+      "registry registry:identity_user_change_username.inputSchema.principalId (prose)",
+      "registry registry:identity_user_disable.inputSchema.principalId (prose)",
+      "registry registry:identity_user_enable.inputSchema.principalId (prose)",
+      "registry registry:identity_user_update_email.inputSchema.principalId (prose)"
+    ],
+    "image_transform": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "library_list": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "library_read": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_read_file.description (prose)"
+    ],
+    "mail_configure_provider": [
+      "registry registry:mail_list_providers.description (prose)",
+      "registry registry:mail_set_provider.description (prose)"
+    ],
+    "mail_dns_verify": [
+      "registry registry:mail_dns_status.description (prose)"
+    ],
+    "mail_get_activity": [
+      "registry registry:mail_list_activity.description (prose)"
+    ],
+    "mail_list_activity": [
+      "registry registry:mail_get_activity.description (prose)",
+      "registry registry:mail_get_activity.inputSchema.activityId (prose)"
+    ],
+    "mail_list_providers": [
+      "registry registry:mail_configure_provider.inputSchema.providerId (prose)",
+      "registry registry:system_get_mail_status.description (prose)"
+    ],
+    "mail_list_suppressions": [
+      "registry registry:mail_remove_suppression.description (prose)"
+    ],
+    "mail_send_test": [
+      "registry registry:mail_set_provider.description (prose)"
+    ],
+    "mail_set_provider": [
+      "registry registry:mail_configure_provider.description (prose)",
+      "registry registry:mail_list_providers.description (prose)",
+      "registry registry:mail_send_test.description (prose)"
+    ],
+    "media_generate_asset": [
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_create.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_update.inputSchema.featuredImage (prose)",
+      "registry registry:media_import_from_url.description (prose)"
+    ],
+    "media_import_from_url": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_create.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_update.inputSchema.featuredImage (prose)",
+      "registry registry:media_import_local_file.description (prose)",
+      "registry registry:theme_import_file_from_url.description (prose)",
+      "registry registry:web_fetch_page.description (prose)"
+    ],
+    "media_import_local_file": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:media_import_local_file.description (prose)",
+      "registry registry:media_import_local_file.inputSchema.path (prose)",
+      "registry registry:media_replace_file.inputSchema.path (prose)",
+      "registry registry:theme_import_local_file.description (prose)"
+    ],
+    "media_list_providers": [
+      "registry registry:credential_save.description (prose)"
+    ],
+    "media_trash_asset": [
+      "registry registry:content_duplicate.description (prose)",
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:media_import_from_url.description (prose)"
+    ],
+    "media_update_metadata": [
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:media_import_from_url.description (prose)",
+      "registry registry:media_view_image.description (prose)"
+    ],
+    "media_upload_asset": [
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_create.inputSchema.featuredImage (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[9].attrs.assetId (prose)",
+      "registry registry:content_post_update.inputSchema.featuredImage (prose)",
+      "registry registry:media_generate_asset.description (prose)",
+      "registry registry:media_import_from_url.description (prose)",
+      "registry registry:media_trash_asset.inputSchema.mediaId (prose)",
+      "registry registry:media_update_metadata.inputSchema.mediaId (prose)"
+    ],
+    "media_view_image": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:175 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:176 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "media_view_video": [
+      "registry registry:media_view_image.description (prose)"
+    ],
+    "members_delete": [
+      "registry registry:members_disable.description (prose)"
+    ],
+    "members_request_magic_link": [
+      "registry registry:members_create.description (prose)"
+    ],
+    "menus_assign_location": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:menus_create_menu.description (prose)"
+    ],
+    "menus_create_menu": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_read.menu.inputSchema.id (prose)",
+      "registry registry:menus_assign_location.inputSchema.menuId (prose)",
+      "registry registry:menus_update_menu_tree.inputSchema.id (prose)"
+    ],
+    "menus_update_menu_tree": [
+      "registry registry:content_post_create.description (prose)"
+    ],
+    "newsletter_create_campaign": [
+      "registry registry:content_read.newsletter_campaign.inputSchema.id (prose)",
+      "registry registry:newsletter_cancel_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_list_send_log.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_pause_campaign.inputSchema.campaignId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.campaignId (prose)"
+    ],
+    "newsletter_create_list": [
+      "registry registry:newsletter_archive_list.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_campaign.inputSchema.listId (prose)",
+      "registry registry:newsletter_create_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_list_subscriptions.inputSchema.listId (prose)",
+      "registry registry:newsletter_remove_subscription.inputSchema.listId (prose)",
+      "registry registry:newsletter_update_campaign.inputSchema.listId (prose)"
+    ],
+    "newsletter_create_subscription": [
+      "registry registry:newsletter_remove_subscription.inputSchema.subscriptionId (prose)",
+      "registry registry:newsletter_resend_confirmation.inputSchema.subscriptionId (prose)"
+    ],
+    "newsletter_list_subscriptions": [
+      "registry registry:newsletter_remove_subscription.inputSchema.subscriptionId (prose)",
+      "registry registry:newsletter_resend_confirmation.inputSchema.subscriptionId (prose)"
+    ],
+    "newsletter_pause_campaign": [
+      "registry registry:newsletter_resume_campaign.description (prose)"
+    ],
+    "newsletter_resume_campaign": [
+      "registry registry:newsletter_pause_campaign.description (prose)"
+    ],
+    "newsletter_schedule_campaign": [
+      "registry registry:newsletter_create_campaign.description (prose)"
+    ],
+    "newsletter_send_campaign": [
+      "registry registry:newsletter_create_campaign.description (prose)",
+      "registry registry:newsletter_schedule_campaign.description (prose)"
+    ],
+    "newsletter_send_test": [
+      "registry registry:newsletter_create_campaign.description (prose)"
+    ],
+    "newsletter_update_campaign": [
+      "registry registry:newsletter_create_campaign.description (prose)"
+    ],
+    "pages_move_region": [
+      "registry registry:pages_write_region.description (prose)"
+    ],
+    "pages_read_html": [
+      "registry registry:fetch_published_page.description (prose)",
+      "registry registry:pages_move_region.description (prose)",
+      "registry registry:pages_move_region.inputSchema.expectedVersion (prose)",
+      "registry registry:pages_move_region.inputSchema.regionId (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_html.inputSchema.expectedVersion (prose)",
+      "registry registry:pages_write_region.description (prose)",
+      "registry registry:pages_write_region.inputSchema.expectedVersion (prose)",
+      "registry registry:pages_write_region.inputSchema.regionId (prose)",
+      "registry registry:site_get_profile.description (prose)"
+    ],
+    "pages_write_html": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:pages_move_region.description (prose)",
+      "registry registry:pages_read_html.description (prose)",
+      "registry registry:pages_write_region.description (prose)"
+    ],
+    "pages_write_region": [
+      "registry registry:media_update_metadata.description (prose)",
+      "registry registry:pages_move_region.description (prose)",
+      "registry registry:pages_read_html.description (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.hostEntryId (prose)",
+      "registry registry:widgets_reorder_embeds.inputSchema.hostEntryId (prose)"
+    ],
+    "plugin_source_create": [
+      "registry registry:plugin_source_create.description (prose)",
+      "registry registry:plugin_source_delete.description (prose)",
+      "registry registry:plugin_source_edit.description (prose)",
+      "registry registry:plugin_source_list.description (prose)",
+      "registry registry:plugin_source_open.description (prose)",
+      "registry registry:plugin_source_read.description (prose)",
+      "registry registry:plugin_source_rollback.description (prose)",
+      "registry registry:plugin_source_seal.description (prose)",
+      "registry registry:plugin_source_write.description (prose)",
+      "registry registry:plugins_install.description (prose)",
+      "registry registry:plugins_set_enabled.description (prose)"
+    ],
+    "plugin_source_open": [
+      "registry registry:plugin_source_create.description (prose)",
+      "registry registry:plugin_source_delete.description (prose)",
+      "registry registry:plugin_source_edit.description (prose)",
+      "registry registry:plugin_source_list.description (prose)",
+      "registry registry:plugin_source_open.description (prose)",
+      "registry registry:plugin_source_read.description (prose)",
+      "registry registry:plugin_source_rollback.description (prose)",
+      "registry registry:plugin_source_seal.description (prose)",
+      "registry registry:plugin_source_write.description (prose)"
+    ],
+    "plugin_source_seal": [
+      "registry registry:plugin_source_create.description (prose)",
+      "registry registry:plugin_source_delete.description (prose)",
+      "registry registry:plugin_source_edit.description (prose)",
+      "registry registry:plugin_source_list.description (prose)",
+      "registry registry:plugin_source_open.description (prose)",
+      "registry registry:plugin_source_read.description (prose)",
+      "registry registry:plugin_source_rollback.description (prose)",
+      "registry registry:plugin_source_seal.description (prose)",
+      "registry registry:plugin_source_write.description (prose)",
+      "registry registry:plugins_set_enabled.description (prose)"
+    ],
+    "plugins_install": [
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:70 (prose)"
+    ],
+    "plugins_set_enabled": [
+      "guide apps/website/src/features/agent-plugins/host-tool-ports.ts:31 (prose)",
+      "guide apps/website/src/features/plugin-runtime/capability-card.ts:8 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:39 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:40 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:68 (prose)",
+      "registry registry:agent_plugins_customize.description (prose)",
+      "registry registry:agent_plugins_install.description (prose)",
+      "registry registry:fs_list_files.inputSchema.root (prose)",
+      "registry registry:fs_read_file.inputSchema.root (prose)",
+      "registry registry:mail_list_providers.description (prose)",
+      "registry registry:pages_write_html.description (prose)",
+      "registry registry:pages_write_region.description (prose)",
+      "registry registry:plugin_source_create.description (prose)",
+      "registry registry:plugin_source_delete.description (prose)",
+      "registry registry:plugin_source_edit.description (prose)",
+      "registry registry:plugin_source_list.description (prose)",
+      "registry registry:plugin_source_open.description (prose)",
+      "registry registry:plugin_source_read.description (prose)",
+      "registry registry:plugin_source_rollback.description (prose)",
+      "registry registry:plugin_source_seal.description (prose)",
+      "registry registry:plugin_source_write.description (prose)",
+      "registry registry:plugins_install.description (prose)",
+      "registry registry:plugins_uninstall.description (prose)",
+      "registry registry:plugins_uninstall.inputSchema.family (prose)",
+      "registry registry:search_agent_plugin_local.description (prose)"
+    ],
+    "plugins_uninstall": [
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:59 (prose)",
+      "registry registry:plugin_source_delete.description (prose)"
+    ],
+    "project_key_use": [
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "registry registry:provider_status.description (prose)"
+    ],
+    "provider_status": [
+      "registry registry:credential_save.description (prose)"
+    ],
+    "publish_content_connect": [
+      "registry registry:publish_content_disconnect.description (prose)"
+    ],
+    "publish_content_execute_pull": [
+      "registry registry:publish_content_plan_pull.description (prose)"
+    ],
+    "publish_content_plan_pull": [
+      "registry registry:publish_content_execute_pull.description (prose)"
+    ],
+    "publish_content_publish": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:194 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:196 (prose)",
+      "registry registry:publish_content_execute_pull.description (prose)",
+      "registry registry:publish_content_plan_pull.description (prose)"
+    ],
+    "publish_content_status": [
+      "registry registry:publish_content_connect.description (prose)"
+    ],
+    "query": [
+      "guide ../Jini/packages/mcp/src/server/tool-result-pages.ts:53 (prose)",
+      "guide ../Jini/packages/mcp/src/server/tool-result-pages.ts:60 (prose)",
+      "guide ../Jini/packages/mcp/src/server/tool-result-pages.ts:80 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:208 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:assistant_admin_screen_link.description (prose)",
+      "registry registry:content_post_search.description (prose)",
+      "registry registry:content_post_search.inputSchema.items (prose)",
+      "registry registry:content_post_search.inputSchema.query (prose)",
+      "registry registry:content_read.content_post.description (prose)",
+      "registry registry:content_read.content_post.inputSchema.query (prose)",
+      "registry registry:search_agent_plugin_local.description (prose)",
+      "registry registry:search_components.description (prose)",
+      "registry registry:search_components.inputSchema.items (prose)",
+      "registry registry:site_guide.description (prose)",
+      "registry registry:site_guide.inputSchema.topic (prose)"
+    ],
+    "redirects_create": [
+      "registry registry:content_read.redirect.inputSchema.id (prose)",
+      "registry registry:redirects_get_hits.inputSchema.id (prose)",
+      "registry registry:redirects_import.description (prose)",
+      "registry registry:redirects_import.inputSchema.rules (prose)",
+      "registry registry:redirects_tombstone.inputSchema.id (prose)",
+      "registry registry:redirects_update.description (prose)",
+      "registry registry:redirects_update.inputSchema.id (prose)"
+    ],
+    "redirects_tombstone": [
+      "registry registry:content_read.redirect.description (prose)",
+      "registry registry:redirects_update.inputSchema.status (prose)"
+    ],
+    "redirects_update": [
+      "registry registry:redirects_tombstone.description (prose)"
+    ],
+    "search_agent_plugin_local": [
+      "guide apps/website/src/features/plugin-runtime/capability-card.ts:8 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:2 (prose)",
+      "guide apps/website/src/features/plugin-runtime/plugin-tool-messages.ts:3 (prose)",
+      "registry registry:agent_plugin_connect.description (prose)",
+      "registry registry:agent_plugin_connect.inputSchema.pluginId (prose)",
+      "registry registry:mail_list_providers.description (prose)",
+      "registry registry:plugins_set_enabled.description (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.family (prose)",
+      "registry registry:plugins_set_enabled.inputSchema.pluginId (prose)",
+      "registry registry:plugins_uninstall.inputSchema.family (prose)",
+      "registry registry:plugins_uninstall.inputSchema.pluginId (prose)"
+    ],
+    "search_components": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:258 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:70 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:75 (prose)",
+      "registry registry:assistant_render_ui.description (prose)",
+      "registry registry:describe_component.description (prose)",
+      "registry registry:describe_component.inputSchema.id (prose)"
+    ],
+    "search_tools": [
+      "guide ../Jini/packages/daemon/src/core/read-only-tools.ts:49 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:168 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:171 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:208 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:241 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:260 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:272 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:287 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:87 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:89 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:90 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:98 (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md (prose)",
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:150 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:155 (prose)",
+      "registry registry:site_describe_capabilities.description (prose)",
+      "registry registry:site_guide.description (prose)",
+      "registry registry:skills_install.description (prose)"
+    ],
+    "settings_get_effective": [
+      "registry registry:settings_list_ui_locales.description (prose)",
+      "registry registry:settings_set_ui_preference.description (prose)"
+    ],
+    "settings_set_ui_preference": [
+      "registry registry:settings_list_ui_locales.description (prose)"
+    ],
+    "settings_set_value": [
+      "registry registry:settings_clear_value.description (prose)"
+    ],
+    "site_backup_plan": [
+      "registry registry:backup_get_capabilities.description (prose)",
+      "registry registry:site_backup_push.description (prose)",
+      "registry registry:site_backup_push.inputSchema.planId (prose)"
+    ],
+    "site_backup_push": [
+      "registry registry:backup_get_capabilities.description (prose)",
+      "registry registry:site_backup_plan.description (prose)",
+      "registry registry:site_backup_push.description (prose)"
+    ],
+    "site_export_static": [
+      "registry registry:site_share_create.description (prose)"
+    ],
+    "site_get_profile": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:site_describe_capabilities.description (prose)"
+    ],
+    "site_guide": [
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (call)",
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (gateway)",
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (prose)",
+      "registry registry:site_guide.inputSchema.topic (prose)"
+    ],
+    "site_share_list": [
+      "registry registry:site_share_revoke.description (prose)"
+    ],
+    "sites_duplicate_site": [
+      "registry registry:content_read.site.description (prose)",
+      "registry registry:sites_create_site.description (prose)"
+    ],
+    "sites_switch_site": [
+      "registry registry:sites_create_site.description (prose)"
+    ],
+    "source_control_execute_commit": [
+      "registry registry:site_backup_plan.description (prose)",
+      "registry registry:source_control_get_capabilities.description (prose)"
+    ],
+    "source_control_get_capabilities": [
+      "registry registry:backup_get_capabilities.description (prose)",
+      "registry registry:credential_save.description (prose)",
+      "registry registry:site_backup_plan.description (prose)",
+      "registry registry:site_backup_plan.inputSchema.credential (prose)",
+      "registry registry:source_control_execute_commit.inputSchema.provider (prose)"
+    ],
+    "start_run": [
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:150 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:66 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:70 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:85 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:89 (prose)"
+    ],
+    "system_get_mail_status": [
+      "registry registry:mail_set_provider.description (prose)",
+      "registry registry:mail_set_provider.inputSchema.providerId (prose)",
+      "registry registry:members_request_magic_link.description (prose)"
+    ],
+    "taxonomy_assign_terms": [
+      "registry registry:taxonomy_get_assigned_terms.description (prose)",
+      "registry registry:taxonomy_unassign_terms.description (prose)"
+    ],
+    "taxonomy_create_taxonomy": [
+      "registry registry:taxonomy_create_term.inputSchema.taxonomyId (prose)"
+    ],
+    "taxonomy_create_term": [
+      "registry registry:taxonomy_rename_term.inputSchema.termId (prose)"
+    ],
+    "taxonomy_execute_merge_term": [
+      "registry registry:taxonomy_plan_merge_term.description (prose)"
+    ],
+    "taxonomy_plan_merge_term": [
+      "registry registry:taxonomy_execute_merge_term.description (prose)"
+    ],
+    "taxonomy_unassign_terms": [
+      "registry registry:taxonomy_assign_terms.description (prose)"
+    ],
+    "theme_copy_file": [
+      "registry registry:theme_reset_file.description (prose)"
+    ],
+    "theme_duplicate": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_write_file.description (prose)"
+    ],
+    "theme_edit_file": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:agent_plugins_customize.description (prose)",
+      "registry registry:theme_copy_file.description (prose)",
+      "registry registry:theme_duplicate.description (prose)",
+      "registry registry:theme_reset_file.description (prose)",
+      "registry registry:theme_write_file.description (prose)",
+      "registry registry:theme_write_file.inputSchema.content (prose)"
+    ],
+    "theme_get_preview_switcher": [
+      "registry registry:theme_update_preview_switcher.description (prose)",
+      "registry registry:theme_update_preview_switcher.inputSchema.expectedRevisionSeq (prose)"
+    ],
+    "theme_import_file_from_url": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_import_local_file.description (prose)"
+    ],
+    "theme_import_local_file": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "theme_list_files": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_copy_file.inputSchema.path (prose)",
+      "registry registry:theme_edit_file.inputSchema.path (prose)",
+      "registry registry:theme_read_file.description (prose)",
+      "registry registry:theme_read_file.inputSchema.path (prose)",
+      "registry registry:theme_rename_file.inputSchema.path (prose)",
+      "registry registry:theme_reset_file.inputSchema.path (prose)",
+      "registry registry:theme_restore_trashed_file.inputSchema.trashedPath (prose)",
+      "registry registry:theme_trash_file.inputSchema.path (prose)",
+      "registry registry:theme_write_file.inputSchema.path (prose)"
+    ],
+    "theme_read_file": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:168 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:171 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_edit_file.description (prose)",
+      "registry registry:theme_edit_file.inputSchema.oldString (prose)",
+      "registry registry:theme_import_file_from_url.description (prose)",
+      "registry registry:theme_import_local_file.description (prose)",
+      "registry registry:theme_list_files.description (prose)",
+      "registry registry:theme_read_file.description (prose)",
+      "registry registry:theme_reset_file.description (prose)",
+      "registry registry:theme_write_file.description (prose)",
+      "registry registry:theme_write_file.inputSchema.overwriteOversized (prose)"
+    ],
+    "theme_rescan": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_write_file.description (prose)"
+    ],
+    "theme_restore_trashed_file": [
+      "registry registry:theme_edit_file.description (prose)",
+      "registry registry:theme_import_file_from_url.description (prose)",
+      "registry registry:theme_import_local_file.description (prose)",
+      "registry registry:theme_list_files.inputSchema.includeTrash (prose)",
+      "registry registry:theme_reset_file.description (prose)",
+      "registry registry:theme_trash_file.description (prose)",
+      "registry registry:theme_write_file.description (prose)"
+    ],
+    "theme_set_active": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_duplicate.description (prose)",
+      "registry registry:theme_trash.description (prose)"
+    ],
+    "theme_set_page_published": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:content_read.theme_page_publication.description (prose)"
+    ],
+    "theme_trash_file": [
+      "registry registry:theme_list_files.description (prose)",
+      "registry registry:theme_list_files.inputSchema.includeTrash (prose)",
+      "registry registry:theme_restore_trashed_file.description (prose)",
+      "registry registry:theme_restore_trashed_file.inputSchema.trashedPath (prose)",
+      "registry registry:theme_trash.description (prose)"
+    ],
+    "theme_write_file": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/references/kuinetic-worked-example.md (prose)",
+      "registry registry:theme_copy_file.description (prose)",
+      "registry registry:theme_duplicate.description (prose)",
+      "registry registry:theme_edit_file.description (prose)",
+      "registry registry:theme_import_file_from_url.description (prose)",
+      "registry registry:theme_import_local_file.description (prose)",
+      "registry registry:theme_reset_file.description (prose)"
+    ],
+    "tool_gaps_list": [
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "trash_item": [
+      "registry registry:content_read.menu.description (prose)",
+      "registry registry:forms_list_submissions.description (prose)",
+      "registry registry:menus_create_menu.description (prose)",
+      "registry registry:menus_update_menu_tree.description (prose)"
+    ],
+    "trash_list_items": [
+      "registry registry:trash_list_items.inputSchema.entityTypes.items (prose)",
+      "registry registry:trash_restore_item.inputSchema.entityId (prose)",
+      "registry registry:trash_restore_item.inputSchema.entityType (prose)"
+    ],
+    "trash_restore_item": [
+      "registry registry:change_sets_list.description (prose)",
+      "registry registry:change_sets_revert.description (prose)",
+      "registry registry:content_post_delete.description (prose)",
+      "registry registry:members_delete.description (prose)",
+      "registry registry:theme_trash.description (prose)",
+      "registry registry:trash_item.description (prose)",
+      "registry registry:trash_list_items.description (prose)"
+    ],
+    "visitor_tool_configure": [
+      "registry registry:visitor_tool_delete.description (prose)",
+      "registry registry:visitor_tool_save.description (prose)"
+    ],
+    "visitor_tools_list": [
+      "registry registry:visitor_tool_configure.description (prose)"
+    ],
+    "wait_for": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:175 (call)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:175 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:180 (call)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:182 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (call)"
+    ],
+    "web_fetch_page": [
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:227 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)",
+      "registry registry:theme_import_file_from_url.description (prose)",
+      "registry registry:web_screenshot_page.description (prose)"
+    ],
+    "web_screenshot_page": [
+      "guide apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts:41 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts:44 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:227 (prose)",
+      "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:228 (prose)",
+      "guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md (prose)"
+    ],
+    "webhooks_create_subscription": [
+      "registry registry:webhooks_get_deliveries.inputSchema.subscriptionId (prose)",
+      "registry registry:webhooks_pause_subscription.inputSchema.subscriptionId (prose)"
+    ],
+    "widgets_create_instance": [
+      "guide content/agent-plugins/how-tovu-works/tovu-site-guide.json (prose)",
+      "registry registry:content_read.widget_instance.inputSchema.id (prose)",
+      "registry registry:forms_create_definition.description (prose)",
+      "registry registry:widgets_insert_embed.inputSchema.widgetEntryId (prose)",
+      "registry registry:widgets_set_region_placements.inputSchema.placements.items.widgetEntryId (prose)",
+      "registry registry:widgets_trash_instance.inputSchema.widgetInstanceId (prose)",
+      "registry registry:widgets_update_instance.inputSchema.widgetInstanceId (prose)"
+    ],
+    "widgets_insert_embed": [
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[11] (prose)",
+      "registry registry:content_post_create.inputSchema.bodyJson.$defs.blockNode[11].attrs.placementId (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[11] (prose)",
+      "registry registry:content_post_update.inputSchema.bodyJson.$defs.blockNode[11].attrs.placementId (prose)",
+      "registry registry:forms_create_definition.description (prose)",
+      "registry registry:widgets_create_instance.description (prose)",
+      "registry registry:widgets_remove_embed.inputSchema.placementId (prose)"
+    ],
+    "widgets_set_region_placements": [
+      "registry registry:content_read.widget_region.description (prose)",
+      "registry registry:widgets_create_instance.description (prose)"
+    ]
+  },
+  "gatewayForm": {
+    "site_guide": [
+      "guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md (gateway)"
+    ]
+  },
+  "unknownCalls": [
+    "agent_plugin_<id>  registry registry:plugins_set_enabled.inputSchema.enabled",
+    "agent_plugin_ui_ux_design  guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md",
+    "agent_plugin_how_tovu_works  guide content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md",
+    "agent_plugin_ui_ux_design  guide content/agent-plugins/how-tovu-works/tovu-site-guide.json",
+    "agent_plugin_ui_ux_design  guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md",
+    "agent_plugin_site_import  guide content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md"
+  ],
+  "candidates": {
+    "unclassified": [
+      {
+        "path": "apps/website/src/assistant/ask-choice-tool.ts",
+        "ids": [
+          "assistant_ask_choice"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/batch-tool-inputs.ts",
+        "ids": [
+          "web_fetch_page"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/component-catalog-tool.ts",
+        "ids": [
+          "describe_component",
+          "search_components"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/content-target-inputs.ts",
+        "ids": [
+          "content_post_preview",
+          "pages_read_html",
+          "media_view_video"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/credential-guidance.ts",
+        "ids": [
+          "assistant_ask_choice",
+          "content_read.custom_credential",
+          "media_list_providers",
+          "source_control_get_capabilities",
+          "deployment_get_static_publish_capabilities",
+          "credential_save",
+          "agent_plugin_connect",
+          "external_mcp_save",
+          "deployment_ops_set_secret"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/lost-frontend-binding.ts",
+        "ids": [
+          "publish_content_publish"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/render-ui-tool.ts",
+        "ids": [
+          "search_components",
+          "describe_component"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/rewrap-page-navigate-error.ts",
+        "ids": [
+          "content_post_search",
+          "content_read.content_post"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/run-page-context.ts",
+        "ids": [
+          "assistant_render_ui"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/site-guide-pointer.ts",
+        "ids": [
+          "site_guide",
+          "fs_list_files",
+          "theme_list_files",
+          "theme_read_file",
+          "media_import_local_file",
+          "media_import_from_url"
+        ]
+      },
+      {
+        "path": "apps/website/src/assistant/tool-registrations.ts",
+        "ids": [
+          "sites_switch_site"
+        ]
+      },
+      {
+        "path": "apps/website/src/contracts/core/assistant-native-fallbacks.ts",
+        "ids": [
+          "theme_list_files",
+          "theme_read_file",
+          "fs_list_files",
+          "fs_read_file",
+          "fetch_published_page",
+          "files_copy",
+          "media_view_image",
+          "library_list",
+          "library_read",
+          "tool_gaps_list"
+        ]
+      },
+      {
+        "path": "apps/website/src/contracts/core/page-html.ts",
+        "ids": [
+          "pages_read_html",
+          "plugins_set_enabled",
+          "fs_read_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/automatic-agent-plugins.ts",
+        "ids": [
+          "search_agent_plugin_local",
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/connect-sign-in-wait.ts",
+        "ids": [
+          "agent_plugin_connect"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/connect-tool.ts",
+        "ids": [
+          "search_agent_plugin_local",
+          "credential_save",
+          "agent_plugin_connect",
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/customize-tool.ts",
+        "ids": [
+          "plugins_set_enabled",
+          "theme_edit_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/enable-access.ts",
+        "ids": [
+          "external_mcp_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/install-tool.ts",
+        "ids": [
+          "agent_plugins_customize",
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/lifecycle.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/provider-plugin-link.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/agent-plugins/uninstall-tool.ts",
+        "ids": [
+          "plugins_uninstall"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/analytics/tool-registrations.ts",
+        "ids": [
+          "analytics_list_recent_hits"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/asset-transfer/copy-tool.ts",
+        "ids": [
+          "fs_write_files"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/change-sets/agent-tools.ts",
+        "ids": [
+          "change_sets_list",
+          "trash_restore_item",
+          "change_sets_revert"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/comments/agent-tools.ts",
+        "ids": [
+          "content_read.comment_moderation_queue",
+          "comments_get_provider",
+          "comments_mark_comment_spam",
+          "comments_trash_comment",
+          "comments_restore_comment",
+          "comments_approve_comment"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/consent/tool-registrations.ts",
+        "ids": [
+          "consent_get_settings"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/content-duplication/agent-tools.ts",
+        "ids": [
+          "content_read.content_post",
+          "content_read.form_definition",
+          "content_read.media_asset",
+          "forms_set_definition_status",
+          "media_trash_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/content-duplication/tool-registrations.ts",
+        "ids": [
+          "content_duplicate"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/agent-tools.ts",
+        "ids": [
+          "content_read.custom_credential",
+          "custom_credential_make_request",
+          "custom_credential_verify",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/credential-save-tool.ts",
+        "ids": [
+          "agent_plugin_connect",
+          "provider_status",
+          "content_read.custom_credential",
+          "media_list_providers",
+          "source_control_get_capabilities",
+          "deployment_get_static_publish_capabilities"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/provider-settings-card.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/custom-credentials/tool-registrations.ts",
+        "ids": [
+          "credential_save",
+          "custom_credential_make_request",
+          "custom_credential_set_username"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/database/db-messages.ts",
+        "ids": [
+          "database_plan_migrate_forward"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/database-transfer/destination-store.ts",
+        "ids": [
+          "database_transfer_set_destination"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/database-transfer/transfer-messages.ts",
+        "ids": [
+          "database_transfer_plan",
+          "database_transfer_set_destination",
+          "database_transfer_run"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/agent-tools.ts",
+        "ids": [
+          "deployment_get_dockerfile",
+          "deployment_get_export_status",
+          "deployment_execute_static_publish",
+          "deployment_trigger_export",
+          "deployment_set_dockerfile"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/export-run.ts",
+        "ids": [
+          "deployment_get_export_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/publish-agent-tools.ts",
+        "ids": [
+          "deployment_get_static_publish_capabilities",
+          "deployment_execute_static_publish",
+          "deployment_preview_static_publish",
+          "credential_save",
+          "credential_copy_from_project",
+          "deployment_get_static_publish_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/tool-registrations.ts",
+        "ids": [
+          "deployment_set_dockerfile",
+          "deployment_get_dockerfile"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/domain-dns/dns-tools.ts",
+        "ids": [
+          "dns_verify",
+          "dns_instructions"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/domain-dns/mail-dns-tools.ts",
+        "ids": [
+          "mail_dns_verify"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/domain-dns/mail-requirements.ts",
+        "ids": [
+          "mail_set_provider"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/domain-dns/tools.ts",
+        "ids": [
+          "domain_check_dns"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/email-templates/agent-tools.ts",
+        "ids": [
+          "email_template_get"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/email-templates/operations.ts",
+        "ids": [
+          "email_template_list"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/agent-tools.ts",
+        "ids": [
+          "content_read.external_mcp",
+          "external_mcp_oauth_connect",
+          "external_mcp_save",
+          "external_mcp_oauth_poll_device",
+          "external_mcp_probe_connection",
+          "external_mcp_get_admissions"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/external-mcp-oauth.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/operations-tools.ts",
+        "ids": [
+          "external_mcp_test_connection",
+          "external_mcp_get_admissions",
+          "content_read.external_mcp",
+          "external_mcp_probe_connection",
+          "external_mcp_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/external-mcp/tool-registrations.ts",
+        "ids": [
+          "external_mcp_save",
+          "external_mcp_oauth_connect",
+          "external_mcp_oauth_poll_device"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/forms/agent-tools.ts",
+        "ids": [
+          "forms_list_submissions",
+          "forms_list_providers",
+          "forms_create_definition",
+          "forms_update_definition",
+          "forms_set_definition_status",
+          "forms_get_submission",
+          "widgets_create_instance",
+          "widgets_insert_embed",
+          "content_read.form_definition",
+          "trash_item"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/forms/tool-registrations.ts",
+        "ids": [
+          "content_duplicate",
+          "forms_set_definition_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/fs-files/agent-tools.ts",
+        "ids": [
+          "fs_read_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/fs-files/layout.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/fs-files/site-file-request.ts",
+        "ids": [
+          "fs_list_files",
+          "media_import_local_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/fs-files/tool-registrations.ts",
+        "ids": [
+          "fs_list_files",
+          "fs_read_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/identity/permission-list-tool.ts",
+        "ids": [
+          "content_read.identity_policy"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/image-transform/tool.ts",
+        "ids": [
+          "fs_write_files"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/activity.ts",
+        "ids": [
+          "mail_list_activity"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/agent-tools.ts",
+        "ids": [
+          "mail_list_providers",
+          "system_get_mail_status",
+          "mail_configure_provider",
+          "mail_send_test",
+          "mail_set_provider"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/delivery-agent-tools.ts",
+        "ids": [
+          "mail_get_activity",
+          "mail_list_activity",
+          "mail_list_suppressions",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/delivery-tool-registrations.ts",
+        "ids": [
+          "mail_list_activity"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/provider-agent-tools.ts",
+        "ids": [
+          "plugins_set_enabled",
+          "search_agent_plugin_local",
+          "mail_configure_provider",
+          "mail_set_provider",
+          "credential_save",
+          "mail_list_providers"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/provider-tool-registrations.ts",
+        "ids": [
+          "mail_list_providers",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/mail-status/tool-registrations.ts",
+        "ids": [
+          "system_get_mail_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/duplicate-asset.ts",
+        "ids": [
+          "content_duplicate",
+          "media_trash_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/library-save-attachment.ts",
+        "ids": [
+          "files_copy"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/list-pending-chat-attachments.ts",
+        "ids": [
+          "plugins_install",
+          "agent_plugins_install"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/promote-chat-attachment.ts",
+        "ids": [
+          "media_upload_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/view-image-tool.ts",
+        "ids": [
+          "content_read.media_asset",
+          "media_update_metadata",
+          "media_view_video"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media/view-video-tool.ts",
+        "ids": [
+          "content_read.media_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media-generation/agent-tools.ts",
+        "ids": [
+          "media_upload_asset",
+          "content_read.media_asset",
+          "media_update_metadata",
+          "media_trash_asset",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media-generation/providers-tools.ts",
+        "ids": [
+          "media_list_providers"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media-generation/tool-registrations.ts",
+        "ids": [
+          "media_generate_asset",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/media-import/agent-tools.ts",
+        "ids": [
+          "fs_list_files",
+          "fs_read_file",
+          "media_import_from_url",
+          "media_upload_asset",
+          "media_generate_asset",
+          "content_read.media_asset",
+          "media_update_metadata",
+          "media_trash_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/members/agent-tools.ts",
+        "ids": [
+          "content_read.member",
+          "members_request_magic_link",
+          "trash_restore_item",
+          "members_delete",
+          "system_get_mail_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/newsletter/agent-tools.ts",
+        "ids": [
+          "newsletter_create_campaign",
+          "content_read.newsletter_campaign",
+          "newsletter_create_list",
+          "content_read.newsletter_list",
+          "newsletter_update_campaign",
+          "newsletter_send_test",
+          "newsletter_send_campaign",
+          "newsletter_schedule_campaign",
+          "newsletter_resume_campaign",
+          "newsletter_create_subscription",
+          "newsletter_list_subscriptions"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/observability/tool-registrations.ts",
+        "ids": [
+          "observability_send_test_error"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/pages/agent-tools.ts",
+        "ids": [
+          "content_post_create",
+          "content_read.content_post",
+          "pages_read_html",
+          "pages_write_region",
+          "pages_write_html",
+          "pages_move_region"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/pages/tool-registrations.ts",
+        "ids": [
+          "pages_read_html",
+          "pages_write_html",
+          "pages_write_region",
+          "pages_move_region",
+          "content_post_update",
+          "content_post_create"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/permanent-delete/agent-tools.ts",
+        "ids": [
+          "trash_list_items",
+          "trash_item",
+          "media_trash_asset",
+          "comments_trash_comment",
+          "identity_user_disable",
+          "content_read.custom_credential",
+          "deployment_get_static_publish_capabilities",
+          "source_control_get_capabilities"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/agent-tools.ts",
+        "ids": [
+          "search_agent_plugin_local",
+          "content_read.plugin",
+          "agent_plugin_connect",
+          "plugins_set_enabled",
+          "plugin_source_seal",
+          "plugin_source_create"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/capability-tool-registrations.ts",
+        "ids": [
+          "content_post_search"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/install-tool-catalog.ts",
+        "ids": [
+          "content_read.plugin",
+          "plugins_set_enabled",
+          "plugin_source_create"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/provider-status-tool.ts",
+        "ids": [
+          "project_key_use",
+          "provider_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/plugin-runtime/source-tool-catalog.ts",
+        "ids": [
+          "plugin_source_create",
+          "plugin_source_open",
+          "plugin_source_seal",
+          "plugins_set_enabled",
+          "plugins_uninstall"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/post/agent-tools.ts",
+        "ids": [
+          "content_read.media_asset",
+          "media_upload_asset",
+          "media_generate_asset",
+          "media_import_from_url",
+          "content_post_create",
+          "content_read.content_post",
+          "widgets_insert_embed",
+          "fetch_published_page",
+          "content_post_update",
+          "menus_update_menu_tree",
+          "trash_restore_item"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/post/content-stats-tool.ts",
+        "ids": [
+          "content_read.content_post",
+          "content_stats"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/post/preview-tool.ts",
+        "ids": [
+          "fetch_published_page",
+          "fetch_live_url",
+          "content_post_update",
+          "content_post_preview",
+          "content_read.content_post"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/post/tool-registrations.ts",
+        "ids": [
+          "content_read.media_asset",
+          "publish_content_publish",
+          "menus_update_menu_tree",
+          "content_post_delete",
+          "content_post_update",
+          "pages_write_html",
+          "pages_write_region",
+          "content_duplicate"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/project-keys/tools.ts",
+        "ids": [
+          "credential_copy_from_project"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/publish-content/agent-tools.ts",
+        "ids": [
+          "publish_content_execute_pull",
+          "publish_content_publish",
+          "publish_content_plan_pull",
+          "publish_content_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/publish-content/disconnect-tool.ts",
+        "ids": [
+          "publish_content_connect"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/publish-content/publish-tool.ts",
+        "ids": [
+          "publish_content_connect"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/publish-content/tool-registrations.ts",
+        "ids": [
+          "publish_content_plan_pull",
+          "publish_content_connect",
+          "publish_content_execute_pull"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/recovery/agent-tools.ts",
+        "ids": [
+          "content_read.backup_restore_point",
+          "content_read.database_restore_point",
+          "source_control_get_capabilities",
+          "site_backup_plan",
+          "site_backup_push",
+          "backup_plan_restore"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/recovery/capability-card.ts",
+        "ids": [
+          "source_control_get_capabilities",
+          "credential_save",
+          "site_backup_plan",
+          "site_backup_push",
+          "source_control_execute_commit"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/redirects/agent-tools.ts",
+        "ids": [
+          "redirects_create",
+          "content_read.redirect",
+          "redirects_tombstone",
+          "redirects_update"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/seo/agent-tools.ts",
+        "ids": [
+          "content_read.seo_entry_meta"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/settings/site-title-write.ts",
+        "ids": [
+          "comments_set_provider"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/settings/tool-registrations.ts",
+        "ids": [
+          "mail_set_provider",
+          "consent_update_settings",
+          "consent_publish_settings"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/settings/ui-locales-tool.ts",
+        "ids": [
+          "settings_set_ui_preference",
+          "settings_get_effective"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/settings/visitor-tools-agent-tools.ts",
+        "ids": [
+          "visitor_tools_list",
+          "visitor_tool_configure"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/settings/visitor-tools-configure.ts",
+        "ids": [
+          "visitor_tools_list"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-backup/backup-service.ts",
+        "ids": [
+          "credential_save",
+          "site_backup_push",
+          "site_backup_plan"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-backup/share-service.ts",
+        "ids": [
+          "site_share_revoke"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-backup/sources.ts",
+        "ids": [
+          "site_backup_plan"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-backup/tool-registrations.ts",
+        "ids": [
+          "source_control_get_capabilities",
+          "site_backup_plan",
+          "credential_save",
+          "source_control_execute_commit",
+          "site_backup_push",
+          "site_export_static",
+          "site_share_list",
+          "site_import_list"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-inspection/agent-tools.ts",
+        "ids": [
+          "fetch_published_page",
+          "pages_read_html",
+          "site_get_profile"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-inspection/live-url.ts",
+        "ids": [
+          "fetch_live_url",
+          "fetch_published_page"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/site-inspection/tool-registrations.ts",
+        "ids": [
+          "fetch_published_page",
+          "pages_read_html",
+          "fetch_live_url"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/sites/agent-tools.ts",
+        "ids": [
+          "sites_switch_site",
+          "sites_duplicate_site",
+          "content_read.site"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/sites/tool-registrations.ts",
+        "ids": [
+          "sites_duplicate_site",
+          "content_read.site"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/source-control/commit-schema.ts",
+        "ids": [
+          "source_control_get_capabilities"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/source-control/credential-setup.ts",
+        "ids": [
+          "source_control_get_capabilities"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/source-control/tool-registrations.ts",
+        "ids": [
+          "source_control_execute_commit",
+          "source_control_get_capabilities",
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/taxonomy/agent-tools.ts",
+        "ids": [
+          "content_read.taxonomy",
+          "taxonomy_assign_terms"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/taxonomy/tool-registrations.ts",
+        "ids": [
+          "content_read.taxonomy"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/agent-tools.ts",
+        "ids": [
+          "theme_read_file",
+          "theme_restore_trashed_file",
+          "content_read.theme",
+          "theme_list_files",
+          "theme_trash_file",
+          "theme_edit_file",
+          "theme_set_page_published",
+          "library_read",
+          "theme_duplicate",
+          "theme_rescan",
+          "theme_write_file",
+          "theme_copy_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/asset-operations.ts",
+        "ids": [
+          "theme_duplicate",
+          "theme_restore_trashed_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/capability-card.ts",
+        "ids": [
+          "menus_update_menu_tree"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/duplicate-theme-tool.ts",
+        "ids": [
+          "theme_write_file",
+          "theme_edit_file",
+          "theme_set_active"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/hardcoded-link-lists.ts",
+        "ids": [
+          "menus_create_menu"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/import-theme-file-tool.ts",
+        "ids": [
+          "web_fetch_page",
+          "theme_write_file",
+          "media_import_from_url",
+          "fs_list_files",
+          "fs_read_file",
+          "media_import_local_file",
+          "theme_import_file_from_url"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/page-publication.ts",
+        "ids": [
+          "content_read.theme"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/preview-switcher-tools.ts",
+        "ids": [
+          "theme_get_preview_switcher"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/theme-file-import.ts",
+        "ids": [
+          "theme_write_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/theme-read-content.ts",
+        "ids": [
+          "theme_read_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/tool-registrations.ts",
+        "ids": [
+          "theme_read_file",
+          "content_read.theme",
+          "theme_write_file",
+          "theme_restore_trashed_file",
+          "theme_trash_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/trash-theme-tool.ts",
+        "ids": [
+          "trash_restore_item",
+          "theme_set_active",
+          "theme_trash_file",
+          "theme_trash",
+          "trash_list_items"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/theme/verify-active-theme.ts",
+        "ids": [
+          "theme_read_file",
+          "theme_write_file"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/trash/agent-tools.ts",
+        "ids": [
+          "trash_list_items",
+          "trash_restore_item"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/trash/tool-registrations.ts",
+        "ids": [
+          "trash_restore_item",
+          "trash_list_items"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/trash/trash-item-tool.ts",
+        "ids": [
+          "trash_restore_item",
+          "content_post_delete",
+          "trash_item"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/web/agent-tools.ts",
+        "ids": [
+          "media_import_from_url",
+          "fetch_published_page",
+          "fetch_live_url"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/web/web-page.ts",
+        "ids": [
+          "web_fetch_page"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/web-screenshot/agent-tools.ts",
+        "ids": [
+          "web_fetch_page"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/webhooks/agent-tools.ts",
+        "ids": [
+          "webhooks_create_subscription",
+          "content_read.webhook_subscription"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/widgets/agent-tools.ts",
+        "ids": [
+          "widgets_create_instance",
+          "content_read.widget_instance",
+          "content_post_create",
+          "content_read.content_post",
+          "pages_write_region",
+          "content_read.widget_region",
+          "widgets_set_region_placements",
+          "widgets_insert_embed"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/widgets/tool-registrations.ts",
+        "ids": [
+          "content_read.widget_region"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/deploy-ops/agent-tools.ts",
+        "ids": [
+          "custom_credential_make_request",
+          "deployment_ops_deploy",
+          "deployment_get_static_publish_capabilities",
+          "custom_credential_verify",
+          "deployment_ops_wait",
+          "fetch_live_url",
+          "deployment_ops_status",
+          "deployment_execute_static_publish"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/deploy-ops/run-ops.ts",
+        "ids": [
+          "credential_save"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/static-publish/adapter.ts",
+        "ids": [
+          "deployment_diagnose_static_export"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/deployments/static-publish/domain-publish-tool.ts",
+        "ids": [
+          "deployment_get_static_publish_status"
+        ]
+      },
+      {
+        "path": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
+        "ids": [
+          "newsletter_send_campaign",
+          "newsletter_pause_campaign"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/boot/resolve-mailer.ts",
+        "ids": [
+          "mail_set_provider"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
+        "ids": [
+          "domain_lookup_dns"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/permanent-delete-deps.ts",
+        "ids": [
+          "media_trash_asset"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/plugin-host.ts",
+        "ids": [
+          "plugins_set_enabled"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/plugin-runtime.ts",
+        "ids": [
+          "plugins_set_enabled",
+          "plugin_source_rollback"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/site-guide-tools.ts",
+        "ids": [
+          "site_guide"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/site-guide.ts",
+        "ids": [
+          "site_guide"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/trash-user-tool-port.ts",
+        "ids": [
+          "trash_item"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
+        "ids": [
+          "site_guide"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts",
+        "ids": [
+          "deployment_set_dockerfile"
+        ]
+      },
+      {
+        "path": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
+        "ids": [
+          "deployment_execute_static_publish"
+        ]
+      },
+      {
+        "path": "apps/admin/src/features/skills/api.ts",
+        "ids": [
+          "fs_read_file"
+        ]
+      },
+      {
+        "path": "../Jini/packages/core/src/settings/agent-tools.ts",
+        "ids": [
+          "settings_get_effective",
+          "settings_set_value"
+        ]
+      },
+      {
+        "path": "../Jini/packages/core/src/settings/tool-registrations.ts",
+        "ids": [
+          "settings_set_value"
+        ]
+      },
+      {
+        "path": "../Jini/packages/mcp/src/server/resources/site-guide-resource.ts",
+        "ids": [
+          "site_guide"
+        ]
+      }
+    ]
+  },
+  "sourceProblems": [],
+  "pinnedFit": {
+    "namedDescriptors": 202,
+    "schemaBytes": 533124,
+    "limitTools": 64,
+    "limitBytes": 262144,
+    "fits": false
+  }
+}

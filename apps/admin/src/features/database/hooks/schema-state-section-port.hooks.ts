@@ -1,4 +1,4 @@
-import type { AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
 
 /**
  * @file What `use-schema-state-section.hooks.ts` needs from the outside world, as an interface
@@ -6,7 +6,7 @@ import type { AdminSchemaState } from "@/lib/api";
  * documented in `apps/admin/INFO.md`'s Hooks section, same as this feature's three older sections.
  *
  * READ-ONLY BY CONSTRUCTION: one method, no counterpart that repairs or reconciles anything. The
- * server exposes no such route either (see `src/server/routes/admin/database/schema-state.ts`), so
+ * server exposes no such route either (see `apps/website/src/server/inbound/admin-http/routes/database/schema-state.ts`), so
  * there is nothing here to widen this port to. Bringing a drifted database back in line is the
  * migrate-forward ceremony's job, and it has its own gated plan/confirm/execute port already.
  */

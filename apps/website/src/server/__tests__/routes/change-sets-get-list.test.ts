@@ -10,7 +10,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminChangeSetGetRoute } from "../../inbound/admin-http/routes/change-sets/get.js";
 import { registerAdminChangeSetListRoute } from "../../inbound/admin-http/routes/change-sets/list.js";
 import type { RouteDeps } from "../../routes/types.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
@@ -28,10 +28,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminChangeSetListRoute(app, deps);
-  registerAdminChangeSetGetRoute(app, deps);
+  registerAdminChangeSetListRoute({ app, deps });
+  registerAdminChangeSetGetRoute({ app, deps });
   return { app, deps };
 }
 

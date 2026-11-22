@@ -50,7 +50,7 @@ describeEachDialect('tool gap audit read', { tables: ['agent_tool_attempts'], ma
     assert.deepEqual(result.output, { entries });
 
     let handler!: (req: Request, res: Response) => Promise<void>;
-    registerAdminToolGapsRoute({ get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps);
+    registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps });
     let body: unknown;
     const res = { locals: { principal: { id: 'owner' } }, json(value: unknown) { body = value; return this; } };
     await handler({ params: { workspaceId: 'w' } } as unknown as Request, res as unknown as Response);

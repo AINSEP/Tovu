@@ -14,8 +14,8 @@ function appWithPrincipal() {
 test("analytics retains its canonical error and the shared incident reference", async t => {
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
-  registerAdminAnalyticsRecentHitsRoute(app, { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
-    analyticsSink: { list: async () => { throw new Error("PRIVATE_SINK password=SECRET_CANARY"); } } as never });
+  registerAdminAnalyticsRecentHitsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    analyticsSink: { list: async () => { throw new Error("PRIVATE_SINK password=SECRET_CANARY"); } } as never } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/analytics/recent-hits");
   assert.equal(response.status, 500);
   const body = response.body as any;
@@ -34,14 +34,15 @@ test("analytics retains its canonical error and the shared incident reference", 
 test("forms pull gives its formatter the concrete explanation and correlated reference", async t => {
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
-  registerAdminFormsPullSubmissionsRoute(app, { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
-    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never);
+  registerAdminFormsPullSubmissionsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never });
   const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/workspaces/ws/forms/submissions/pull");
   assert.equal(response.status, 500);
   const body = response.body as any;
   assert.equal(body.code, "INTERNAL_ERROR");
   assert.equal(body.details.failure.message, "Form submission retrieval stopped before any published host was read.");
   assert.equal(body.details.failure.errorId, body.errorId);
+  assert.match(body.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/, "forms pull returns a standard correlated incident ID");
   assert.equal(body.details.failure.step, "forms.submissions.pull");
   assert.equal(body.details.failure.cause, "The error ID identifies the server report.");
   assert.equal(body.error, `${body.details.failure.message} ${body.details.failure.action} (error ${body.errorId})`);

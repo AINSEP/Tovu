@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FormSubmissionValidationError, InMemoryFormSubmissionRepo, type FieldDescriptor, type FormDefinitionRecord } from "@jini-ai/cms/forms";
 import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
-import { FORM_LONG_TEXT_MAX_CHARS, FORM_TEXT_MAX_CHARS, fieldMaxChars } from "../field-length-caps.js";
 import { submitForm } from "../index.js";
 
 const FIELDS: FieldDescriptor[] = [
@@ -18,6 +17,7 @@ function submitter() {
   const definition = { id: "def-1", workspaceId: "ws", name: "Contact", slug: "contact", fields: FIELDS, status: "active", version: 1 } as unknown as FormDefinitionRecord;
   let id = 0;
   const deps = {
+    crypto: globalThis.crypto, // the Jini submit-form deps take the crypto port explicitly
     definitionRepo: { findBySlug: async () => definition }, submissionRepo: new InMemoryFormSubmissionRepo(),
     clock: { nowMs: () => 1000 }, idGen: { newId: () => `id-${++id}` }, bus: new InMemoryEventBus(),
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
@@ -35,46 +35,6 @@ async function fieldErrors(submit: ReturnType<typeof submitter>, body: Record<st
     return error.fieldErrors;
   }
 }
-
-test("defaults: one-line text 100, long text 2000, non-text uncapped; a field's own maxLength wins", () => {
-  assert.equal(FORM_TEXT_MAX_CHARS, 100);
-  assert.equal(FORM_LONG_TEXT_MAX_CHARS, 2000);
-  for (const type of ["text", "email", "phone", "url"] as const) assert.equal(fieldMaxChars({ field: { type } }), 100);
-  assert.equal(fieldMaxChars({ field: { type: "textarea" } }), 2000);
-  assert.equal(fieldMaxChars({ field: { type: "hidden" } }), 2000);
-  assert.equal(fieldMaxChars({ field: { type: "select" } }), undefined);
-  assert.equal(fieldMaxChars({ field: { type: "text", maxLength: 7 } }), 7);
-});
-
-test("server accepts text exactly at the cap and refuses one character over with too_long", async () => {
-  const submit = submitter();
-  assert.deepEqual(await fieldErrors(submit, { name: "a".repeat(100), message: "m".repeat(2000) }), []);
-  assert.deepEqual(await fieldErrors(submit, { name: "a".repeat(101), message: "m".repeat(2001) }), [
-    { field: "name", reason: "too_long" }, { field: "message", reason: "too_long" },
-  ]);
-});
-
-test("emoji count as one character each (code points, not UTF-16 units)", async () => {
-  const submit = submitter();
-  assert.deepEqual(await fieldErrors(submit, { name: "😀".repeat(100), message: "🎉".repeat(2000) }), []);
-  assert.deepEqual(await fieldErrors(submit, { name: "😀".repeat(101) }), [{ field: "name", reason: "too_long" }]);
-  assert.deepEqual(await fieldErrors(submit, { name: `${"a".repeat(99)}😀😀` }), [{ field: "name", reason: "too_long" }]);
-});
-
-test("a per-field maxLength overrides the default in both directions", async () => {
-  const submit = submitter();
-  assert.deepEqual(await fieldErrors(submit, { code: "12345", bio: "b".repeat(300) }), []);
-  assert.deepEqual(await fieldErrors(submit, { code: "123456", bio: "b".repeat(301) }), [
-    { field: "code", reason: "too_long" }, { field: "bio", reason: "too_long" },
-  ]);
-});
-
-test("choice fields keep their option check and are not length-capped", async () => {
-  const submit = submitter();
-  assert.deepEqual(await fieldErrors(submit, { topic: "sales" }), []);
-  assert.deepEqual(await fieldErrors(submit, { topic: "x".repeat(101) }), [{ field: "topic", reason: "invalid_option" }]);
-});
-
 
 test("published receiver preserves the live wrapper's code-point boundaries for emoji", async () => {
   const receiver = await import(import.meta.resolve("@jini-ai/agent-plugins/cloudflare/worker/forms-receiver.mjs"));

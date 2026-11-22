@@ -68,11 +68,11 @@ async function markerPresent(content: ContentKernel): Promise<boolean> {
 test("sqlite: openSiteContentDb runs the repair (its marker is written on a fresh site)", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-boot-data-repairs-sqlite-"));
   try {
-    const db = await openSiteContentDb(path.join(dir, "content.db"));
+    const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
     try {
-      assert.equal(await markerPresent(contentKernel(db)), true);
+      assert.equal(await markerPresent(contentKernel({ store: db })), true);
     } finally {
-      closeSqliteConnection(db);
+      closeSqliteConnection({ source: db });
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -101,12 +101,12 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
   try {
     await initSite({ dir, name: "Repair Site" });
     const database = resolveSiteDatabasePaths({ dir }).contentDbPath;
-    const seeded = await openSiteContentDb(database);
-    await contentKernel(seeded).run((db) =>
+    const seeded = await openSiteContentDb({ dbPath: database });
+    await contentKernel({ store: seeded }).run((db) =>
       db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
     );
-    assert.equal(await markerPresent(contentKernel(seeded)), false);
-    closeSqliteConnection(seeded);
+    assert.equal(await markerPresent(contentKernel({ store: seeded })), false);
+    closeSqliteConnection({ source: seeded });
 
     // Real migrated sites retain these recovery artifacts; only an exact .db file is authoritative.
     const leftovers = ["content.db-shm", "content.db-wal", "content.db.home2-backup"];
@@ -114,7 +114,7 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
 
     const boot = await bootSiteDir({ dir });
     try {
-      assert.equal(boot.db !== undefined && (await markerPresent(contentKernel(boot.db))), true);
+      assert.equal(boot.db !== undefined && (await markerPresent(contentKernel({ store: boot.db }))), true);
       assert.equal(resolveSiteDatabasePaths({ dir }).contentDbPath, database);
       for (const name of leftovers) assert.equal(fs.readFileSync(path.join(dir, name), "utf8"), "legacy recovery artifact");
     } finally {

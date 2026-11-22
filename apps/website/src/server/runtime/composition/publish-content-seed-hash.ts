@@ -4,12 +4,12 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-a
 import { inMemoryReadableBytes } from "@jini-ai/db/transfer";
 
 import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
-import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.sqlite";
+import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
+import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";
@@ -49,14 +49,14 @@ export interface CreateSqlitePublishContentSeedHashInput {
 }
 
 /**
- * A port {@link PublishContentPorts} requires present but which this lookup's own callers
+ * A port {@link TovuPublishPorts} requires present but which this lookup's own callers
  * (`inspect()` on every registered handler) never actually invoke — `media.assetBlobRepo`/
  * `.blobStore` and `menu.bindingRepo` fall in this bucket (see the field comments above the ports
  * bag below for which handler reads which field). Throws loudly if that assumption is ever wrong,
  * rather than silently returning wrong data.
  * @complexity O(1).
  */
-function unusedBySeedInspect<T extends object>(label: string): T {
+function unusedBySeedInspect<T extends object>({ label }: { label: string }, _optional = {}): T {
   return new Proxy(
     {},
     {
@@ -83,7 +83,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
   const seedBytes = inMemoryReadableBytes({ bytes: readFileSync(input.seedDbPath) }, {});
   const seedDb = openContentDb(":memory:", { open: (_file, options) => openNativeSqlite(seedBytes, options) });
   const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
-  const seedPostRepo = new SqlitePostRepo(seedDb);
+  const seedPostRepo = new SqlitePostRepo({ store: seedDb });
   const { workspaceId } = input;
   return {
     workspaceId: input.workspaceId,
@@ -92,38 +92,38 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
     // F2 — one ports bag. Only the ports each registered type's `inspect()` actually reads need
     // real seed-backed instances (see this file's own header: "the redirect handler's `inspect()`
     // reads nothing but `repo`" is one example of this already being partial by design). The
-    // fields `PublishContentPorts` requires but no `inspect()` reads get a throwing stand-in
+    // fields `TovuPublishPorts` requires but no `inspect()` reads get a throwing stand-in
     // ({@link unusedBySeedInspect}) instead of a real instance, so a future handler that DOES
     // start reading one fails loudly here rather than silently hashing against the wrong store.
     ports: {
       post: { repo: seedPostRepo },
       media: {
-        repo: new SqliteMediaRepo(seedDb),
-        assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
-        blobStore: unusedBySeedInspect("media.blobStore"),
-        contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),
+        repo: new SqliteMediaRepo({ store: seedDb }),
+        assetBlobRepo: unusedBySeedInspect({ label: "media.assetBlobRepo" }),
+        blobStore: unusedBySeedInspect({ label: "media.blobStore" }),
+        contentTypeStore: unusedBySeedInspect({ label: "media.contentTypeStore" }),
       },
-      menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
+      menu: { repo: new SqliteMenuRepo({ store: seedDb }), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
       redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
       ...buildContentPublishPorts({
-        formDefinitionRepo: new SqliteFormDefinitionRepo(seedDb),
-        contentTypeRepo: new SqliteContentTypeRepo(seedDb),
-        contentTypeIndexProvisioner: unusedBySeedInspect("contentTypeIndexProvisioner"),
+        formDefinitionRepo: new SqliteFormDefinitionRepo({ store: seedDb }),
+        contentTypeRepo: new SqliteContentTypeRepo({ store: seedDb }),
+        contentTypeIndexProvisioner: unusedBySeedInspect({ label: "contentTypeIndexProvisioner" }),
         workspaceId,
         postRepo: seedPostRepo,
         taxonomyRepo: new SqliteTaxonomyRepo({ db: seedDb, workspaceId }),
         termRepo: new SqliteTermRepo({ db: seedDb, workspaceId }),
         // Read by post/page/entry `inspect()` for their `termIds`.
         entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
-        taxonomyRevisionRepo: unusedBySeedInspect("taxonomyRevisionRepo"),
-        stampWatermark: () => unusedBySeedInspect<{ call: never }>("stampWatermark").call,
-        entryRepo: new SqliteEntryRepo(seedDb),
-        entryRefsRepo: unusedBySeedInspect("entryRefsRepo"),
-        widgetBindingRepo: unusedBySeedInspect("widgetBindingRepo"),
+        taxonomyRevisionRepo: unusedBySeedInspect({ label: "taxonomyRevisionRepo" }),
+        stampWatermark: () => unusedBySeedInspect<{ call: never }>({ label: "stampWatermark" }).call,
+        entryRepo: new SqliteEntryRepo({ store: seedDb }),
+        entryRefsRepo: unusedBySeedInspect({ label: "entryRefsRepo" }),
+        widgetBindingRepo: unusedBySeedInspect({ label: "widgetBindingRepo" }),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.
-        settingsRepo: new SqliteSettingsRepo(seedDb),
-        principalRepo: unusedBySeedInspect("principalRepo"),
-        presentationRepo: new SqlitePresentationSettingsRepo(seedDb),
+        settingsRepo: new SqliteSettingsRepo({ store: seedDb }),
+        principalRepo: unusedBySeedInspect({ label: "principalRepo" }),
+        presentationRepo: new SqlitePresentationSettingsRepo({ store: seedDb }),
         themes: [],
       }),
     },

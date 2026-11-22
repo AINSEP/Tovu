@@ -24,7 +24,7 @@ function createFakePort(initial: InterfaceConfig | Error) {
   const listeners = new Set<() => void>();
   const port: InterfacePreferencesPort = {
     loadInterface: () => (stored instanceof Error ? Promise.reject(stored) : Promise.resolve(stored)),
-    subscribeToSettingsRefresh: (listener) => {
+    subscribeToSettingsRefresh: ({ listener }) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },

@@ -83,19 +83,19 @@ export interface CompareSchemaVersionRequired {
  *   constant number of comparisons; not a function of any caller-controlled collection.
  * @overallScore 100
  */
-export function compareSchemaVersion(required: CompareSchemaVersionRequired): "migrate" | "compatible" {
+export function compareSchemaVersion(required: CompareSchemaVersionRequired, _optional: Record<string, never> = {}): "migrate" | "compatible" {
   const { schemaVersion, schemaTag } = required;
   const runtime = runtimeSchemaVersion();
 
   if (schemaVersion > runtime.index) {
     throw new SiteNewerThanRuntimeError(
-      `site schema (v${schemaVersion}) is newer than this runtime supports (v${runtime.index}) — upgrade tovu`
+      { message: `site schema (v${schemaVersion}) is newer than this runtime supports (v${runtime.index}) — upgrade tovu` }
     );
   }
   if (schemaVersion === runtime.index) {
     if (schemaTag !== runtime.tag) {
       throw new SiteNewerThanRuntimeError(
-        `site schema index (v${schemaVersion}) matches this runtime, but its schemaTag ("${schemaTag}") diverges from the runtime's ("${runtime.tag}") — divergent lineage, refusing rather than guessing`
+        { message: `site schema index (v${schemaVersion}) matches this runtime, but its schemaTag ("${schemaTag}") diverges from the runtime's ("${runtime.tag}") — divergent lineage, refusing rather than guessing` }
       );
     }
     return "compatible";

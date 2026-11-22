@@ -1,7 +1,9 @@
 import type { PresentationSettingsRepoPort } from "../presentation/index.js";
 import { resolveActiveThemeId } from "../presentation/index.js";
-import { applicableThemeTemplates, NO_THEME_ID, resolveActiveTheme, type DiscoveredTheme } from "../theme/index.js";
-import type { PublicPostKind } from "./post.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { resolveActiveTheme, type DiscoveredTheme } from "../theme/index.js";
+import { applicableThemeTemplates } from "@jini-ai/cms/themes/template-applicability";
+import type { PublicPostKind } from "@jini-ai/cms/core";
 
 /** Host theme dependencies; production supplies both, older tool fixtures may omit them. */
 export interface PostTemplateDeps {
@@ -26,6 +28,6 @@ export async function readPostTemplateOptions(
 ): Promise<string[]> {
   if (!deps.presentationRepo || !deps.themes) return [];
   const activeId = await resolveActiveThemeId({ workspaceId: deps.workspaceId, presentationRepo: deps.presentationRepo });
-  const theme = resolveActiveTheme({ themes: deps.themes }, activeId);
+  const theme = resolveActiveTheme({ deps: { themes: deps.themes }, activeThemeId: activeId });
   return applicableThemeTemplates({ manifest: theme && theme !== NO_THEME_ID ? theme.manifest : undefined, kind });
 }

@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
@@ -26,29 +28,14 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * id, wrong field type, oversized field), 503 `SECRET_STORE_UNCONFIGURED` (missing
  * `TOVU_SITE_KEY`, detected before any write lands), 500 everything else.
  */
-export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = (app, deps) => {
+export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/media/providers", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.integrations.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "media",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.integrations.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.integrations.manage", workspaceId: deps.workspaceId, entityType: "media" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const providers = await saveMediaProviderCredentials(
         {

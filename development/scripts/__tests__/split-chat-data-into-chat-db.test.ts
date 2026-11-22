@@ -49,7 +49,7 @@ function seedContentDbFixture(dbPath: string): void {
   db.insert(workspaces).values({ id: "ws-1", name: "Workspace One", slug: "workspace-one", createdAt: "2026-09-01T00:00:00.000Z" }).run();
   db.$client.close();
 
-  const raw = openChatDb(dbPath);
+  const raw = openChatDb({ filePath: dbPath });
   raw
     .prepare(
       `INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, title, title_source, created_at, updated_at, expires_at)
@@ -104,7 +104,7 @@ test("reportDryRun: reports the exact seeded counts, and touches neither content
     seedContentDbFixture(contentDbPath);
     const beforeCounts = chatRowCounts(contentDbPath);
 
-    const readOnly = openContentDbReadOnly(contentDbPath);
+    const readOnly = openContentDbReadOnly({ filePath: contentDbPath });
     const messages: string[] = [];
     const plan = reportDryRun(readOnly.$client, (m) => messages.push(m));
     readOnly.$client.close();
@@ -135,7 +135,7 @@ test("applyChatSplit: copies all 3 tables into chat.db, empties them in content.
 
     const beforeRows = chatRows(contentDbPath);
     const contentDb = openContentDb(contentDbPath);
-    const chatDb = openChatDb(chatDbPath);
+    const chatDb = openChatDb({ filePath: chatDbPath });
     const result = applyChatSplit({ contentDb: contentDb.$client, chatDb, log: () => {} });
     chatDb.close();
     contentDb.$client.close();
@@ -175,13 +175,13 @@ test("applyChatSplit: re-running after a full migration is a no-op — reports n
     seedContentDbFixture(contentDbPath);
 
     const contentDb1 = openContentDb(contentDbPath);
-    const chatDb1 = openChatDb(chatDbPath);
+    const chatDb1 = openChatDb({ filePath: chatDbPath });
     applyChatSplit({ contentDb: contentDb1.$client, chatDb: chatDb1, log: () => {} });
     chatDb1.close();
     contentDb1.$client.close();
 
     const contentDb2 = openContentDb(contentDbPath);
-    const chatDb2 = openChatDb(chatDbPath);
+    const chatDb2 = openChatDb({ filePath: chatDbPath });
     const secondRun = applyChatSplit({ contentDb: contentDb2.$client, chatDb: chatDb2, log: () => {} });
     chatDb2.close();
     contentDb2.$client.close();
@@ -202,7 +202,7 @@ test("applyChatSplit: a conflicting pre-existing destination row aborts the ENTI
 
     // Pre-seed chat.db with a DIFFERENT row under the SAME primary key ("conv-1") — simulating a
     // prior manual edit or an unrelated write that now conflicts with what content.db holds.
-    const chatDbPre = openChatDb(chatDbPath);
+    const chatDbPre = openChatDb({ filePath: chatDbPath });
     chatDbPre
       .prepare(
         `INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, title, title_source, created_at, updated_at, expires_at)
@@ -212,7 +212,7 @@ test("applyChatSplit: a conflicting pre-existing destination row aborts the ENTI
     chatDbPre.close();
 
     const contentDb = openContentDb(contentDbPath);
-    const chatDb = openChatDb(chatDbPath);
+    const chatDb = openChatDb({ filePath: chatDbPath });
     assert.throws(
       () => applyChatSplit({ contentDb: contentDb.$client, chatDb, log: () => {} }),
       /verification failed/,
@@ -397,7 +397,7 @@ test("applyChatSplit: rows arriving after the snapshot survive in content.db", (
   const chatPath = path.join(dir, "chat.db");
   seedContentDbFixture(contentPath);
   const source = new Database(contentPath);
-  const destination = openChatDb(chatPath);
+  const destination = openChatDb({ filePath: chatPath });
   t.after(() => { destination.close(); source.close(); });
   let arrived = false;
   destination.function("arrive_after_snapshot", () => {
@@ -423,7 +423,7 @@ test("applyChatSplit: matching destination rows from an interrupted run are veri
   seedContentDbFixture(contentPath);
   const before = chatRows(contentPath);
   const source = new Database(contentPath);
-  const destination = openChatDb(chatPath);
+  const destination = openChatDb({ filePath: chatPath });
   t.after(() => { destination.close(); source.close(); });
   for (const [table, rows] of Object.entries(before)) {
     for (const row of rows as Array<Record<string, unknown>>) {
@@ -445,7 +445,7 @@ for (const failure of ["missing-destination", "mid-copy", "mid-delete"]) {
     seedContentDbFixture(contentPath);
     const before = chatRows(contentPath);
     const source = new Database(contentPath);
-    const destination = openChatDb(chatPath);
+    const destination = openChatDb({ filePath: chatPath });
     t.after(() => { destination.close(); source.close(); });
     if (failure === "missing-destination") {
       destination.exec("CREATE TRIGGER skip_message BEFORE INSERT ON ai_chat_messages BEGIN SELECT RAISE(IGNORE); END;");

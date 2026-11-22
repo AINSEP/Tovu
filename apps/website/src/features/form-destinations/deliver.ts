@@ -65,5 +65,6 @@ function credentialScopedKit(required: { kit: FormDestinationKit; credential: Fo
     }
     return kit.fetch(url, init, options);
   };
-  return { fetch, timeouts: kit.timeouts, ...(kit.now ? { now: () => kit.now!() } : {}) };
+  const now = kit.now?.bind(kit);
+  return { fetch, timeouts: kit.timeouts, ...(now ? { now: () => now() } : {}) };
 }

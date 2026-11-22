@@ -52,7 +52,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * self-describing, e.g. `<Scheme>fm2_...` (a macaroon), and the leading scheme word is not incidental
  * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
  * the value. The live verification is recorded with the rule itself, in the contributing plugin's
- * `tovu-credential-schemes.json` (`note`).
+ * `jini-credential-schemes.json` (`note`).
  *
  * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes
  * (self-describing, Basic, Bearer) to send; {@link buildAuthorizationHeader} and
@@ -60,10 +60,10 @@ import type { Clock } from "@jini-ai/core/primitives";
  * scheme a 401/403 diagnostic REPORTS can never drift from the scheme that was actually SENT.
  * RECOGNIZING a self-describing scheme, however, is deliberately NOT this module's own logic, and
  * core names no vendor: the scheme rules are data that bundled Agent Plugins ship
- * (`tovu-credential-schemes.json`), loaded once per call at each entry point
+ * (`jini-credential-schemes.json`), loaded once per call at each entry point
  * ({@link verifyCustomCredential}, {@link makeCredentialedRequest}) through
  * `CredentialedRequestDeps.loadAuthSchemes` and passed down to {@link detectSelfDescribingAuthScheme}
- * (`./auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why
+ * (`Jini packages/integrations/src/credentialed-http/auth-schemes.ts` / `apps/website/src/features/agent-plugins/auth-schemes.ts`). See that file's header for the rule format, the trust gates, and why
  * dispatch is try-each-in-turn (recognize by the token's own content) rather than keyed by the
  * credential's saved host. This module's job stays exactly "apply the loaded rules, then the fixed
  * three-way precedence below," never "know which vendors exist."
@@ -203,7 +203,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *
  *  Deliberately NOT an `EgressPolicy` refusal (2026-09-10 — before this date it was: this class's
  *  own doc used to list "or an `EgressPolicy` refusal" as a third cause). `makeCredentialedRequest`'s
- *  catch block now rethrows `platform/http/errors.ts`'s `EgressRefusedError` UNCHANGED rather than
+ *  catch block now rethrows `Jini packages/platform/src/http/guarded/errors.ts`'s `EgressRefusedError` UNCHANGED rather than
  *  wrapping it here, so its `instanceof` identity survives to `tool-registrations.ts`'s
  *  `isCredentialedRequestShapeRejection` — the property that lets an egress refusal (an off-allowlist
  *  redirect target, an SSRF-denied address) reach the caller as a specific, actionable message
@@ -214,7 +214,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *
  * Bounds one credentialed call — same order of magnitude as every other "an agent is waiting on
  *  this synchronously" bounded probe in this codebase (`static-publish/verify.ts`'s
- *  `VERIFY_TIMEOUT_MS`, `vendor-credentials/store.ts`'s `ACCOUNT_LABEL_PROBE_TIMEOUT_MS`). The
+ *  `VERIFY_TIMEOUT_MS`, `vendor credential account-label probe`'s `ACCOUNT_LABEL_PROBE_TIMEOUT_MS`). The
  *  composition root's own `EgressPolicy.connectTimeoutMs` is a CEILING on this value, never a
  *  replacement for it — see `platform/http/client.ts`'s `sendWithPolicy`.
  *
@@ -319,7 +319,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it, plus
  *   {@link redactTruncatedTail}'s own cost when `bodyTruncated`.
  *
- * Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
+ * Every HTTP method this tool will send — mirrors `Jini packages/core/src/primitives/http.ts`'s `HttpRequest.method`
  *  union exactly, so a value that passes this check always type-checks as one `httpClient.send()`
  *  itself accepts.
  *
@@ -353,7 +353,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  {@link resolveAuthorizationScheme}'s own doc for the precedence order this discriminates.
  *  `"self-describing"`'s `scheme` is a plain `string`, not a closed literal union: it is whatever
  *  scheme word the matching plugin-declared rule names, and that rule set is meant to grow without
- *  this file changing — see `./auth-schemes.ts`'s header.
+ *  this file changing — see `apps/website/src/features/agent-plugins/auth-schemes.ts`'s header.
  *
  * Resolves which of the three shapes {@link buildAuthorizationHeader} sends for one connection, in
  * the exact precedence this module applies: (1) a self-describing scheme when
@@ -379,7 +379,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  reused rather than re-derived so the scheme a future 401/403 there could report can never drift
  *  from the scheme this module actually sends.
  *
- *  `schemes` are the plugin-declared self-describing scheme rules (`./auth-schemes.ts`). This
+ *  `schemes` are the plugin-declared self-describing scheme rules (`apps/website/src/features/agent-plugins/auth-schemes.ts`). This
  *  module's own entry points always pass the loaded set; an external caller that omits it (the
  *  git-host callers, whose tokens never embed a scheme word) gets Basic/Bearer only.
  *
@@ -434,7 +434,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  *  source rules instead.
  *
  * The scheme rules one call applies, loaded once at the entry point and passed down.
- *  @complexity One registry read (see `./auth-schemes.ts`).
+ *  @complexity One registry read (see `apps/website/src/features/agent-plugins/auth-schemes.ts`).
  *
  * The non-decrypting half of credential resolution: finds the credential by label and computes its
  * allowed-origin set (`baseUrl` + `additionalHosts`, both plaintext), WITHOUT ever touching the
@@ -598,7 +598,7 @@ import {
 // EgressRefusedError is a runtime import so REQUEST_POLICY preserves refusal identity; the barrel
 // otherwise supplies types, and feature code must receive its guarded client from composition.
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
 
@@ -625,7 +625,7 @@ export interface CredentialedRequestAuditPort {
 export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
   private readonly audit: JiniConsoleAuditLog;
 
-  constructor(log: (line: string) => void = (line) => console.log(line)) {
+  constructor(_required: Record<string, never>, { log = (line: string) => console.log(line) }: { log?: (line: string) => void } = {}) {
     this.audit = new JiniConsoleAuditLog({ prefix: "[custom-credentials]", log: ({ line }) => log(line) });
   }
 
@@ -669,7 +669,7 @@ function adaptCredentialResolver(deps: Pick<CredentialedRequestDeps, "repo" | "s
 
 /** Translate body/audit arguments without changing the guarded transport or plugin trust gates. */
 function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
-  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
+  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog({});
   return {
     resolver: adaptCredentialResolver(deps),
     // Forward the policy so a pre-save probe cannot follow redirects through the legacy host ABI.
@@ -703,7 +703,7 @@ const REQUEST_POLICY: CredentialedRequestOptions = {
 };
 
 /** Keep host not-found identity and the Access Tokens remedy wording at the adapter boundary. */
-function rethrowHostError(error: unknown): never {
+function rethrowHostError({ error }: { error: unknown }, _optional = {}): never {
   if (error instanceof CredentialNotFoundError) throw new CustomCredentialNotFoundError(error.message);
   if (error instanceof CredentialedRequestValidationError && error.message.includes("which is not one of this credential's saved hosts (")) {
     throw new CredentialedRequestValidationError({ message: `${error.message} — add it to this credential in the Access Tokens form first` });
@@ -725,7 +725,7 @@ export async function resolveRequestTarget(
     return await resolveCredentialTarget({ resolver: {
       describe: (required) => describeCredentialByLabel({ repo: deps.repo }, required),
     }, input });
-  } catch (error) { return rethrowHostError(error); }
+  } catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Probe through the guarded port, retaining Tovu's diagnostic policy and host error identity.
@@ -736,7 +736,7 @@ export async function verifyCustomCredential(
   input: { workspaceId: string; label: unknown }
 ): Promise<CustomCredentialVerificationResult> {
   try { return await verifyCredential({ deps: adaptRequestDeps(deps), input }, REQUEST_POLICY); }
-  catch (error) { return rethrowHostError(error); }
+  catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Execute an authorized request; Jini owns validation, header injection and response redaction.
@@ -753,7 +753,7 @@ export async function makeCredentialedRequest(
   const { headers, body, ...requiredInput } = input;
   try {
     return await requestWithCredential({ deps: adaptRequestDeps(deps), input: requiredInput }, { ...REQUEST_POLICY, headers, body });
-  } catch (error) { return rethrowHostError(error); }
+  } catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Adapt the guarded host client to Jini's bodyless, redirect-refusing GET probe.
@@ -764,5 +764,5 @@ export async function makeCredentialedRequest(
  * @example probeCredentialConnection({ connection, url, schemes }, { httpClient });
  */
 export function probeCredentialConnection(required: CredentialConnectionProbeInput, options: { httpClient: HttpClientPort }): Promise<CredentialConnectionProbeStatus> {
-  return jiniProbe(required, { httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
+  return jiniProbe({ ...required, httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
 }

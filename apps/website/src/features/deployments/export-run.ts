@@ -25,7 +25,7 @@ import { firstExportFailure } from '@jini-ai/devops/static-export/failure-summar
  * and back then `src/features/site-export/site-exporter.ts` imported `createApp` from `server/app.ts`,
  * whose module body ended with an EAGER `export const app = createApp();` that ran the whole
  * app-boot call graph (including, via the BYOK execution mode, `buildAssistantToolRegistrations`) as
- * a side effect of merely LOADING `server/app.ts` — closing a real cycle: `assistant/
+ * a side effect of merely LOADING `server/runtime/composition/app.ts` — closing a real cycle: `assistant/
  * tool-registrations.ts` (loading) -> this domain's `tool-registrations.ts` -> this file ->
  * `export/index.ts` -> `site-exporter.ts` -> `server/app.ts` -> (via `modules/assistant-byok.ts`/
  * `byok-tool-surface.ts`) back into the STILL-LOADING `assistant/tool-registrations.ts`, calling
@@ -44,7 +44,7 @@ import { firstExportFailure } from '@jini-ai/devops/static-export/failure-summar
  * export engine as a parameter (typed structurally via {@link ExportEngine}, never by naming
  * `ExportSiteOptions`/`ExportReport`), and `RouteDeps.runExportSite`
  * (`server/routes/types.ts`) is where the real `exportSite` function is bound — exactly once, in
- * `server/app.ts`'s `createRouteDeps()` and `server/deps.ts`'s `createSiteRouteDeps()`, the two
+ * `apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()` and `apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`, the two
  * places that are safe to import `#src/features/site-export/index` directly (neither is reachable FROM
  * `assistant/tool-registrations.ts`, so no cycle closes). Both callers of `startExportRun` —
  * `export-site.ts`'s POST handler and this domain's `deployment_trigger_export` handler — pass
@@ -62,7 +62,7 @@ import { firstExportFailure } from '@jini-ai/devops/static-export/failure-summar
  * be visible from Tovu's main process") — disclosed here rather than silently assumed away. Closing
  * it for real needs either a cross-process lock (e.g. a lockfile under `outputDir`) or routing the
  * daemon's trigger back over HTTP to the main process, both out of scope for this wiring pass. The
- * BYOK execution mode (`server/modules/assistant-byok.ts`, which composes the SAME tool catalog
+ * BYOK execution mode (`apps/website/src/server/runtime/composition/modules/assistant-byok.ts`, which composes the SAME tool catalog
  * in-process inside the main server) is unaffected — it shares this exact module instance with the
  * HTTP route, so single-flight holds there.
  */
@@ -107,7 +107,7 @@ export interface ExportRunSnapshot {
  * {@link summarizeCompletedReport} actually reads. Declared locally, never imported, per this
  * file's header. The real `ExportReport` satisfies this structurally (it has every field below,
  * with compatible types), so passing the real `exportSite` as an {@link ExportEngine} type-checks
- * with no cast at the one place it is actually bound (`server/app.ts`/`server/deps.ts`).
+ * with no cast at the one place it is actually bound (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`).
  */
 export interface ExportRunReportLike {
   routes: { succeeded: unknown[]; failed: { path: string; kind: string; reason: string }[] };
@@ -130,7 +130,7 @@ export type ExportEngine<TRouteDeps> = (options: {
   outputDir: string;
   clean?: boolean;
   basePath?: string;
-}) => Promise<ExportRunReportLike>;
+}, optional?: object) => Promise<ExportRunReportLike>;
 
 const IDLE_RUN: ExportRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, outputDir: null };
 
@@ -187,12 +187,12 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowMs()` and
  * `.exportOutputRootDir` — passed straight through to `runExportSite`. `exportOutputRootDir` is
  * `RouteDeps.exportOutputRootDir` (`TOVU_EXPORT_DIR` env, then the served site's `out/export`), resolved ONCE
- * by the composition root (`server/app.ts`/`server/deps.ts`) — this function never reads
+ * by the composition root (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`) — this function never reads
  * `process.env` itself, and a test overrides the directory by setting this field on the fake
  * `routeDeps` it constructs, not by mutating real process env vars.
  * @param required.runExportSite - The actual export engine, injected by the caller — see this file's header
  * for why it is never imported here directly. In production this is always `routeDeps.runExportSite`
- * (bound to the real `exportSite` by `server/app.ts`/`server/deps.ts`).
+ * (bound to the real `exportSite` by `apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`).
  * @param required.clean - Forwarded to `runExportSite`; wipes `outputDir` first when `true`.
  * @param optional.basePath - Forwarded to `runExportSite`; see `ExportSiteOptions.basePath`'s own doc
  * (`site-exporter.ts`).
@@ -237,7 +237,7 @@ export function startExportRun<TRouteDeps extends { clock: Clock; exportOutputRo
     .finally(() => {
       const status = currentRun.status === "completed" ? "completed" : "errored";
       const event = optional?.productEvent;
-      event?.tracker.capture({ name: "site_exported", userId: event.userId }, { properties: { outcome: status, operationId: event.operationId, eventId: `export:${event.operationId}`, source: event.source } });
+      void event?.tracker.capture({ name: "site_exported", userId: event.userId }, { properties: { outcome: status, operationId: event.operationId, eventId: `export:${event.operationId}`, source: event.source } });
       optional?.onSettled?.({ status });
     });
 

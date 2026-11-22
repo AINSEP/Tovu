@@ -1,8 +1,8 @@
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
 import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
-import type { ImportableTermRepoPort, MergeTermPlanDetails, TermRepoPort, TaxonomyRevisionRepoPort } from "./index.js";
+import type { MergeTermPlanDetails } from "./index.js";
+import { buildMergeTermHooks as buildJiniMergeTermHooks, type MergeableEntryTermRepoPort, type ImportableTermRepoPort, type TermRepoPort, type TaxonomyRevisionRepoPort } from "@jini-ai/cms/taxonomy";
 
 /**
  * @file Taxonomy's `GatedMutationHooks` factory for the `mergeTerm` ceremony (SPEC-018 C-207) —
@@ -13,13 +13,6 @@ import type { ImportableTermRepoPort, MergeTermPlanDetails, TermRepoPort, Taxono
  * from — the correct direction (a domain depending on `core`), unlike the old direction (a domain
  * depending on `server`).
  */
-
-/** Additive capability beyond the certified `EntryTermRepoPort` (which has no by-term enumeration
- * method at all) — implemented on both `InMemoryEntryTermRepo` and `SqliteEntryTermRepo`. */
-export interface MergeableEntryTermRepoPort {
-  countOverlap(params: { fromTermId: string; intoTermId: string }): Promise<number>;
-  repointTerm(params: { fromTermId: string; intoTermId: string }): Promise<{ repointedCount: number }>;
-}
 
 export interface BuildMergeTermHooksInput {
   workspaceId: string;
@@ -57,47 +50,12 @@ export interface BuildMergeTermHooksInput {
  * @overallScore 100
  */
 export function buildMergeTermHooks(input: BuildMergeTermHooksInput): GatedMutationHooks<MergeTermPlanDetails, { mergedCount: number }> {
-  return {
+  return buildJiniMergeTermHooks({
+    ...input,
+    planHashOf: (details) => planHashOf({ details }),
+    resolveActorClassIdentity,
     domain: "taxonomy.merge",
     readPermission: "admin.taxonomy.manage",
     mutatePermission: "admin.taxonomy.manage",
-    scopeId: input.workspaceId,
-    computePlan: async () => {
-      const overlappingContentCount = await input.entryTermRepo.countOverlap({ fromTermId: input.fromTermId, intoTermId: input.intoTermId });
-      const details: MergeTermPlanDetails = {
-        fromTermId: input.fromTermId,
-        intoTermId: input.intoTermId,
-        overlapLossDisclosed: overlappingContentCount > 0,
-        overlappingContentCount,
-      };
-      return { planHash: planHashOf(details), details };
-    },
-    executeMutation: async () => {
-      const { repointedCount } = await input.entryTermRepo.repointTerm({ fromTermId: input.fromTermId, intoTermId: input.intoTermId });
-
-      const fromTerm = await input.termRepo.findByIdFull({ id: input.fromTermId });
-      if (fromTerm) {
-        await input.termRepo.update({
-          id: fromTerm.id,
-          taxonomyId: fromTerm.taxonomyId,
-          parentId: null,
-          name: fromTerm.name,
-          status: "deprecated",
-          updatedAt: clockNowIso({ clock: input.clock }),
-          // Advance, never reset: a stale editor holding the pre-merge version must lose its CAS.
-          version: fromTerm.version + 1,
-        });
-        await input.taxonomyRevisionRepo.insert({
-          taxonomyId: fromTerm.taxonomyId,
-          op: "deprecate",
-          previousState: { mergedInto: input.intoTermId, fromTermId: input.fromTermId, repointedCount },
-          actorId: input.actorId,
-          recordedAt: clockNowIso({ clock: input.clock }),
-        });
-      }
-
-      return { mergedCount: repointedCount };
-    },
-    resolveActorClassIdentity,
-  };
+  });
 }

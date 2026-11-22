@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../../runtime/composition/app.js";
+import { createInMemoryApp } from "../../runtime/composition/memory-route-deps.js";
 
 /**
  * @file C02 (fable bugs audit, 2026-09-06) — `PUT /pages/:pageId` must honour `expectedVersion`,
@@ -30,7 +30,7 @@ import { createApp } from "../../runtime/composition/app.js";
 const WS = "workspace-local";
 
 async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

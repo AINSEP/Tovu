@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { WorkspaceRepoPort } from "@jini-ai/cms/workspace";
+import { workspaceRepoFor } from "@jini-ai/cms/workspace/sql";
 
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { workspaceRepoFor } from "../repo.js";
+import { WORKSPACE_TABLES } from "../repo.sqlite.js";
 
 /** @file The workspace repo's one Kysely body on SQLite and PGlite (storage plan §4). */
 
-const ACME = { id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z" };
-const GLOBEX = { id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z" };
+const ACME = { id: "ws-1", name: "Acme", slug: "acme", createdAt: "2026-07-15T00:00:00.000Z", version: 1 };
+const GLOBEX = { id: "ws-2", name: "Globex", slug: "globex", createdAt: "2026-07-15T00:00:01.000Z", version: 1 };
 
-describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"], make: workspaceRepoFor }, (makeRepo) => {
+describeEachDialect<WorkspaceRepoPort>("workspace repo", { tables: ["workspaces"], make: (kernel) => workspaceRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: WORKSPACE_TABLES }) }, (makeRepo) => {
   test("insert, find by id and slug, list", async () => {
     const repo = makeRepo();
     await repo.insert(ACME);

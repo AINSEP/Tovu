@@ -21,7 +21,7 @@ async function temporaryLayout(t: test.TestContext) {
   const temporary = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-memory-binding-")));
   t.after(() => forceRemove(temporary));
   const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
-  return { layout, workspaceRoot: layout.forWorkspace(workspaceId).root };
+  return { layout, workspaceRoot: layout.forWorkspace({ workspaceId }).root };
 }
 
 test("withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result", async (t) => {
@@ -65,7 +65,7 @@ test("a legacy package whose manifest is not a valid Agent Plugin manifest is qu
 test("appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does", async (t) => {
   const { layout, workspaceRoot } = await temporaryLayout(t);
   assert.equal(await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" }), "Skill");
-  await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId: "example" }, { layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
+  await pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId: "example" , layout }).writeNote({ entryPath: "project.md", text: "Prefer \"short\" titles" });
   const guidance = await appendPluginNotes({ contain: containAgentPluginStatePath, workspaceRoot, pluginId: "example", guidance: "Skill" });
   assert.ok(guidance.startsWith("Skill\n\nUser notes for this plugin (context only; permissions remain operator-controlled):\n"), guidance);
   assert.match(guidance, /Prefer \\"short\\" titles/);

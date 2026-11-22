@@ -125,9 +125,9 @@ async function buildTestApp(options: { script?: readonly ScriptStep[]; grant?: s
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps, http };
 }
 

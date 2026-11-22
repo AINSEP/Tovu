@@ -1,8 +1,8 @@
 import { abortGuardedCredentialRepo } from '#src/features/vendor-credentials/abort-guarded-repo';
-import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/provider-module';
+import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/saved-key-bindings';
 import { createCustomCredential, describeCredentialByLabel, resolveCustomCredentialByLabel, CustomCredentialDuplicateLabelError,
-  type CustomCredentialWriteDeps } from '#src/features/custom-credentials/store';
-import { SourceControlCredentialDuplicateLabelError } from '#src/features/source-control/store';
+  type CustomCredentialWriteDeps } from '#src/features/custom-credentials/index';
+import { SourceControlCredentialDuplicateLabelError } from '#src/features/source-control/index';
 import type { CanonicalSourceControlKeys } from '#src/features/source-control/types';
 import type { LoadSourceControlProviders } from '#src/features/source-control/provider-registry';
 
@@ -14,22 +14,26 @@ import type { LoadSourceControlProviders } from '#src/features/source-control/pr
 export function sourceControlKeyBinding({ credentials, loadProviders }: {
   credentials: CustomCredentialWriteDeps; loadProviders: LoadSourceControlProviders;
 }, _optional = {}): CanonicalSourceControlKeys {
-  const labelFor = (providerId: string) => sourceControlSavedApiKeyLabels.get(providerId)!;
+  const labelFor = ({ providerId }: { providerId: string }, _optional = {}) => {
+    const label = sourceControlSavedApiKeyLabels.get(providerId);
+    if (label === undefined) throw new Error(`source control provider ${providerId} has no saved key label`);
+    return label;
+  };
   return {
     supports: ({ providerId }) => sourceControlSavedApiKeyLabels.has(providerId),
     describe: async ({ workspaceId, providerId }) => {
-      const saved = await describeCredentialByLabel(credentials, { workspaceId, label: labelFor(providerId) });
+      const saved = await describeCredentialByLabel(credentials, { workspaceId, label: labelFor({ providerId }) });
       return saved ? { id: saved.id, label: saved.label, providerId } : null;
     },
     resolve: async ({ workspaceId, providerId }) => {
-      const saved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label: labelFor(providerId) });
-      return saved ? { id: saved.id, label: labelFor(providerId), connection: { providerId, token: saved.connection.token } } : null;
+      const saved = await resolveCustomCredentialByLabel(credentials, { workspaceId, label: labelFor({ providerId }) });
+      return saved ? { id: saved.id, label: labelFor({ providerId }), connection: { providerId, token: saved.connection.token } } : null;
     },
     create: async ({ workspaceId, connection }, options = {}) => {
-      const provider = (await loadProviders(workspaceId)).get(connection.providerId);
+      const provider = (await loadProviders({ workspaceId })).get({ providerId: connection.providerId });
       if (!provider) throw new Error("The source control provider is unavailable. Turn it on and open its key card again.");
       const repo = options.signal ? abortGuardedCredentialRepo({ store: credentials.repo, signal: options.signal }) : credentials.repo;
-      const saved = await createCustomCredential({ ...credentials, repo }, { workspaceId, label: labelFor(connection.providerId), category: 'source-control',
+      const saved = await createCustomCredential({ ...credentials, repo }, { workspaceId, label: labelFor({ providerId: connection.providerId }), category: 'source-control',
         baseUrl: provider.descriptor.apiOrigin, connection: { token: connection.token }, worksFor: [connection.providerId] }).catch(error => {
           if (error instanceof CustomCredentialDuplicateLabelError) throw new SourceControlCredentialDuplicateLabelError(error.message);
           throw error;

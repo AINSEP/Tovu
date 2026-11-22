@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Media.tsx`'s own UI chrome — page header, tab strip, toolbar,
  * empty states, the metadata edit panel, and the lightbox/purge dialogs.
@@ -15,7 +16,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  *
  * `t()` falls back to `COMMON_I18N` via `createDictionaryTranslator`, same as `trash-i18n.ts`.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {

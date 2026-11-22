@@ -39,7 +39,7 @@ test("desktop declares the DOM dependency its real renderer hook tests need", ()
 
 test("package.json's test script runs the same globs under the same runners as TEST_PASSES", () => {
   const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
-  assert.deepEqual(runnerSplitDrift(TEST_PASSES, parseNodeTestScript(manifest.scripts.test)), []);
+  assert.deepEqual(runnerSplitDrift({ passes: TEST_PASSES, scriptPasses: parseNodeTestScript({ script: manifest.scripts.test }) }), []);
 });
 
 test("every suite and coverage pass using module mocks enables Node's module-mock flag", () => {
@@ -47,7 +47,7 @@ test("every suite and coverage pass using module mocks enables Node's module-moc
   // Agreement alone would accept both runners dropping the flag. Inspect their actual inputs,
   // including the compiled-preload parity check that skips on a never-built CI checkout.
   for (const [runner, passes] of [
-    ["npm test", parseNodeTestScript(manifest.scripts.test)],
+    ["npm test", parseNodeTestScript({ script: manifest.scripts.test })],
     ["coverage", TEST_PASSES],
   ] as const) {
     const checked: string[] = [];

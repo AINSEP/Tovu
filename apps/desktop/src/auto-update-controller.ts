@@ -13,12 +13,12 @@ interface AutoUpdateControllerDeps {
   pid: number;
   presenceDir: string;
   now: () => number;
-  isAlive?: (pid: number) => boolean;
-  promptUpdateReady: (version: string) => Promise<boolean>;
-  explainOthersOpen: (count: number) => void;
+  isAlive?: (required: { pid: number }) => boolean;
+  promptUpdateReady: (required: { version: string }) => Promise<boolean>;
+  explainOthersOpen: (required: { count: number }) => void;
   /** Normal app.quit(), including the site drain; updater restart must use the same shutdown path. */
   quit: () => void;
-  log: (message: string) => void;
+  log: (required: { message: string }) => void;
   stageTimeoutMs?: number;
 }
 
@@ -36,12 +36,12 @@ function createAutoUpdateController(deps: AutoUpdateControllerDeps): AutoUpdateC
     platform: deps.platform,
     pid: deps.pid,
     presence: createInstancePresence({ directory: deps.presenceDir },
-      isAlive ? { isAlive: ({ pid }) => isAlive(pid) } : {}),
+      isAlive ? { isAlive } : {}),
     clock: { nowMs: deps.now },
-    promptUpdateReady: ({ version }) => deps.promptUpdateReady(version),
-    explainOthersOpen: ({ count }) => deps.explainOthersOpen(count),
+    promptUpdateReady: ({ version }) => deps.promptUpdateReady({ version }),
+    explainOthersOpen: ({ count }) => deps.explainOthersOpen({ count }),
     quit: deps.quit,
-    log: ({ message }) => deps.log(message),
+    log: ({ message }) => deps.log({ message }),
   }, deps.stageTimeoutMs === undefined ? {} : { timing: { stageTimeoutMs: deps.stageTimeoutMs } });
 }
 

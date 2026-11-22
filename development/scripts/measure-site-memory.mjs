@@ -69,7 +69,8 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { collectProcessTreePids, listProcessSnapshots, listProcessUsage, parseProcessFootprint as parseFootprint, sampleProcessPrivateMemory } from "@jini-ai/platform/process";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
+import { listProcessSnapshots, listProcessUsage, parseProcessFootprint as parseFootprint, sampleProcessPrivateMemory } from "@jini-ai/platform/process";
 
 export { parseFootprint };
 
@@ -534,27 +535,103 @@ async function chatTurnInServer({ urls, dbFile }) {
   const { openChatDb } = await import(urls.database);
   const db = openChatDb({ filePath: dbFile });
   const ledger = createChatRunLedger({ store: db });
+  const { runId, encode, pause } = createChatFrameEncoder();
+  const statistics = {
+    checkpoints: 0,
+    writeFailures: 0,
+    timer: undefined,
+    samples: 0,
+    peak: { rss: 0, heapUsed: 0 },
+  };
+  const sample = createChatMemorySampler(statistics);
+  const seed = createChatMessageSeeder(db, runId);
+  /** Real writes, with counters and natural samples; omit recovery only because no attempt is dispatched. */
+  const run = createChatFinalizerRun({ seed, createAssistantRunFinalizer, ledger, statistics, sample, runId });
+  /** 64 batches: 128 unique 768-byte deltas, then a 16 KiB tool input and result. */
+  const payloadAt = createChatFramePayload();
+  const traffic = {
+    connections: 0,
+    emitted: 0,
+    wireBytes: 0,
+  };
+  const totalFrames = 64 * 130;
+  const daemon = createChatEventDaemon({ traffic, totalFrames, encode, pause, payloadAt });
+  try {
+    await run("warmup", { runStatus: async () => 200, openEvents: async () => new Response(new Blob([
+      encode("agent", { type: "text_delta", delta: "warmup" }), encode("end", { status: "succeeded", code: 0 }),
+    ])) });
+    statistics.checkpoints = 0;
+    statistics.samples = 0;
+    statistics.peak = { rss: 0, heapUsed: 0 };
+    const baseline = sample();
+    const startedAt = Date.now();
+    statistics.timer = setInterval(sample, 250);
+    await run("long-turn", daemon);
+    const end = sample();
+    const saved = db.prepare("SELECT run_status AS status, length(content) AS contentBytes, length(events_json) AS eventsBytes FROM ai_chat_messages WHERE id = 'long-turn'").get();
+    const toolResults = db.prepare("SELECT count(*) AS count FROM ai_chat_messages, json_each(events_json) WHERE ai_chat_messages.id = 'long-turn' AND json_extract(json_each.value, '$.kind') = 'tool_result'").get().count;
+    const complete = saved.status === "succeeded" && saved.contentBytes >= 6 * 1024 * 1024 && saved.eventsBytes >= 8 * 1024 * 1024
+      && toolResults === 64 && traffic.connections === 2 && traffic.emitted === totalFrames && statistics.checkpoints > 1 && statistics.writeFailures === 0;
+    return { complete, memoryUnit: "bytes", baseline, peak: statistics.peak, end, samples: statistics.samples, elapsedMs: Date.now() - startedAt, checkpoints: statistics.checkpoints, writeFailures: statistics.writeFailures,
+      connections: traffic.connections, emitted: traffic.emitted, wireBytes: traffic.wireBytes, saved, toolResults, execArgv: process.execArgv, runtime: process.version };
+  } finally {
+    clearInterval(statistics.timer);
+    db.close();
+  }
+}
+
+function buildChatTurnExpression(input) {
+  const helpers = [createChatMemorySampler, createChatMessageSeeder, createChatFinalizerRun, createChatFramePayload, createChatEventDaemon, createChatFrameEncoder].map(helper => helper.toString()).join("\n");
+  return `(() => { ${helpers}; return (${chatTurnInServer.toString()})(${JSON.stringify(input)}); })()`;
+}
+
+
+function createChatFrameEncoder() {
   const runId = "memory-budget-run";
   const encoder = new TextEncoder();
   const pause = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   const encode = (kind, payload) => encoder.encode(`event: ${kind}\ndata: ${JSON.stringify({ runId, kind, payload })}\n\n`);
-  let checkpoints = 0;
-  let writeFailures = 0;
-  let timer;
-  let samples = 0;
-  let peak = { rss: 0, heapUsed: 0 };
-  const sample = () => {
-    const { rss, heapUsed } = process.memoryUsage();
-    peak = { rss: Math.max(peak.rss, rss), heapUsed: Math.max(peak.heapUsed, heapUsed) };
-    samples += 1;
-    return { rss, heapUsed };
+  return { runId, encode, pause };
+}
+
+
+function createChatEventDaemon({ traffic, totalFrames, encode, pause, payloadAt }) {
+  return {
+    runStatus: async () => 200,
+    async openEvents() {
+      const connection = ++traffic.connections;
+      let next = 0;
+      return new Response(new ReadableStream({
+        async pull(controller) {
+          if (connection === 1 && next === totalFrames / 2) { controller.close(); return; }
+          if (next === totalFrames) { controller.enqueue(encode("end", { status: "succeeded", code: 0 })); controller.close(); return; }
+          const replay = next < traffic.emitted;
+          if (!replay) await pause(1_200_000 / totalFrames);
+          // A quiet tool wait must let the existing trailing checkpoint flush naturally.
+          if (!replay && next === 48 * 130 + 129) await pause(15_000);
+          const frame = encode("agent", payloadAt(next));
+          if (!replay) { traffic.emitted += 1; traffic.wireBytes += frame.byteLength; }
+          next += 1;
+          controller.enqueue(frame);
+        },
+      }, { highWaterMark: 0 }), { headers: { "content-type": "text/event-stream" } });
+    },
   };
-  function seed(messageId) {
-    db.prepare("INSERT OR IGNORE INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('memory-budget', 'memory-budget', 'user', 'memory-budget', 0, 0)").run();
-    db.prepare("INSERT INTO ai_chat_messages (id, conversation_id, role, content, run_id, run_status, position, created_at) VALUES (?, 'memory-budget', 'assistant', '', ?, 'running', ?, 0)").run(messageId, runId, messageId === "warmup" ? 0 : 1);
-  }
-  /** Real writes, with counters and natural samples; omit recovery only because no attempt is dispatched. */
-  async function run(messageId, daemon) {
+}
+
+function createChatFramePayload() {
+  return function payloadAt(index) {
+    const batch = Math.floor(index / 130);
+    const offset = index % 130;
+    const id = `tool-${batch}`;
+    if (offset === 128) return { type: "tool_use", id, name: "read_fixture", input: { body: `input-${batch}:`.padEnd(16_384, "i") } };
+    if (offset === 129) return { type: "tool_result", toolUseId: id, content: `result-${batch}:`.padEnd(16_384, "r"), isError: false };
+    return { type: "text_delta", delta: `batch ${batch}, delta ${offset}: `.padEnd(768, String.fromCharCode(97 + batch % 26)) };
+  };
+}
+
+function createChatFinalizerRun({ seed, createAssistantRunFinalizer, ledger, statistics, sample, runId }) {
+  return async function run(messageId, daemon) {
     seed(messageId);
     const finalizer = createAssistantRunFinalizer({
       ledger: {
@@ -562,11 +639,11 @@ async function chatTurnInServer({ urls, dbFile }) {
         async checkpoint(progress, optional) {
           try {
             const written = await ledger.checkpoint(progress, optional);
-            if (written) checkpoints += 1;
-            else writeFailures += 1;
+            if (written) statistics.checkpoints += 1;
+            else statistics.writeFailures += 1;
             sample();
             return written;
-          } catch (error) { writeFailures += 1; throw error; }
+          } catch (error) { statistics.writeFailures += 1; throw error; }
         },
       },
       daemon, reconnectDelayMs: 0,
@@ -575,63 +652,23 @@ async function chatTurnInServer({ urls, dbFile }) {
       id: messageId, role: "assistant", content: "", runId, runStatus: "running", events: [],
     } });
     await finalizer.idle();
-  }
-  /** 64 batches: 128 unique 768-byte deltas, then a 16 KiB tool input and result. */
-  function payloadAt(index) {
-    const batch = Math.floor(index / 130);
-    const offset = index % 130;
-    const id = `tool-${batch}`;
-    if (offset === 128) return { type: "tool_use", id, name: "read_fixture", input: { body: `input-${batch}:`.padEnd(16_384, "i") } };
-    if (offset === 129) return { type: "tool_result", toolUseId: id, content: `result-${batch}:`.padEnd(16_384, "r"), isError: false };
-    return { type: "text_delta", delta: `batch ${batch}, delta ${offset}: `.padEnd(768, String.fromCharCode(97 + batch % 26)) };
-  }
-  let connections = 0;
-  let emitted = 0;
-  let wireBytes = 0;
-  const totalFrames = 64 * 130;
-  const daemon = {
-    runStatus: async () => 200,
-    async openEvents() {
-      const connection = ++connections;
-      let next = 0;
-      return new Response(new ReadableStream({
-        async pull(controller) {
-          if (connection === 1 && next === totalFrames / 2) { controller.close(); return; }
-          if (next === totalFrames) { controller.enqueue(encode("end", { status: "succeeded", code: 0 })); controller.close(); return; }
-          const replay = next < emitted;
-          if (!replay) await pause(1_200_000 / totalFrames);
-          // A quiet tool wait must let the existing trailing checkpoint flush naturally.
-          if (!replay && next === 48 * 130 + 129) await pause(15_000);
-          const frame = encode("agent", payloadAt(next));
-          if (!replay) { emitted += 1; wireBytes += frame.byteLength; }
-          next += 1;
-          controller.enqueue(frame);
-        },
-      }, { highWaterMark: 0 }), { headers: { "content-type": "text/event-stream" } });
-    },
   };
-  try {
-    await run("warmup", { runStatus: async () => 200, openEvents: async () => new Response(new Blob([
-      encode("agent", { type: "text_delta", delta: "warmup" }), encode("end", { status: "succeeded", code: 0 }),
-    ])) });
-    checkpoints = 0;
-    samples = 0;
-    peak = { rss: 0, heapUsed: 0 };
-    const baseline = sample();
-    const startedAt = Date.now();
-    timer = setInterval(sample, 250);
-    await run("long-turn", daemon);
-    const end = sample();
-    const saved = db.prepare("SELECT run_status AS status, length(content) AS contentBytes, length(events_json) AS eventsBytes FROM ai_chat_messages WHERE id = 'long-turn'").get();
-    const toolResults = db.prepare("SELECT count(*) AS count FROM ai_chat_messages, json_each(events_json) WHERE ai_chat_messages.id = 'long-turn' AND json_extract(json_each.value, '$.kind') = 'tool_result'").get().count;
-    const complete = saved.status === "succeeded" && saved.contentBytes >= 6 * 1024 * 1024 && saved.eventsBytes >= 8 * 1024 * 1024
-      && toolResults === 64 && connections === 2 && emitted === totalFrames && checkpoints > 1 && writeFailures === 0;
-    return { complete, memoryUnit: "bytes", baseline, peak, end, samples, elapsedMs: Date.now() - startedAt, checkpoints, writeFailures,
-      connections, emitted, wireBytes, saved, toolResults, execArgv: process.execArgv, runtime: process.version };
-  } finally {
-    clearInterval(timer);
-    db.close();
-  }
+}
+
+function createChatMessageSeeder(db, runId) {
+  return function seed(messageId) {
+    db.prepare("INSERT OR IGNORE INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('memory-budget', 'memory-budget', 'user', 'memory-budget', 0, 0)").run();
+    db.prepare("INSERT INTO ai_chat_messages (id, conversation_id, role, content, run_id, run_status, position, created_at) VALUES (?, 'memory-budget', 'assistant', '', ?, 'running', ?, 0)").run(messageId, runId, messageId === "warmup" ? 0 : 1);
+  };
+}
+
+function createChatMemorySampler(statistics) {
+  return () => {
+    const { rss, heapUsed } = process.memoryUsage();
+    statistics.peak = { rss: Math.max(statistics.peak.rss, rss), heapUsed: Math.max(statistics.peak.heapUsed, heapUsed) };
+    statistics.samples += 1;
+    return { rss, heapUsed };
+  };
 }
 
 /**
@@ -646,7 +683,7 @@ async function measureChatTurn({ started, temp }) {
   const extension = path.extname(started.entry);
   const moduleUrl = (relative) => new URL(`../${relative}${extension}`, pathToFileURL(started.entry)).href;
   const input = { dbFile: path.join(temp, "chat-workload.db"), urls: {
-    finalizer: moduleUrl("server/runtime/composition/modules/assistant-run-finalizer"),
+    finalizer: moduleUrl("server/runtime/composition/modules/run-finalizer/entry"),
     ledger: moduleUrl("assistant/persistence/run-ledger"), database: moduleUrl("platform/db/sqlite/chat-db"),
   } };
   log("running ~20 minute deterministic chat turn in the server (8 MiB, 64 tools, one reconnect)");
@@ -654,7 +691,7 @@ async function measureChatTurn({ started, temp }) {
   let timeout;
   try {
     const result = await Promise.race([
-      cdp.send("Runtime.evaluate", { expression: `(${chatTurnInServer.toString()})(${JSON.stringify(input)})`, awaitPromise: true, returnByValue: true }),
+      cdp.send("Runtime.evaluate", { expression: buildChatTurnExpression(input), awaitPromise: true, returnByValue: true }),
       new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("chat-turn workload exceeded 30 minutes")), 1_800_000); }),
     ]);
     if (result.exceptionDetails) throw new Error(`chat-turn workload failed: ${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}`);

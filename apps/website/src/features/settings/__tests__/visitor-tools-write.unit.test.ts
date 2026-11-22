@@ -36,7 +36,7 @@ test("the host reset still clears unrelated namespaces through the existing sett
   const input = { ...f.input, namespace: "site.notes", key: "text", value: "changed" };
   await set({ deps: f.deps, input });
   await resetNamespace({ deps: f.deps, input, keysInNamespace: [input.key] });
-  const resolved = await getEffective({ repo: f.repo }, { namespace: input.namespace, key: input.key, scopeContext: { workspaceId: ws } });
+  const resolved = await getEffective({ deps: { repo: f.repo }, namespace: input.namespace, key: input.key, scopeContext: { workspaceId: ws } });
   assert.equal(resolved?.value, "default");
 });
 

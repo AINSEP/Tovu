@@ -1,0 +1,8 @@
+O1 toRecord returns no owner: RED (expected test); red tests: ['✖ the widget and widget-area types read back with the declared owner (']
+O2 toRecord spreads owner: undefined: RED (expected test); red tests: ['✖ a site type reads back with no owner key at all (113.912653ms)', '✖ a type keyed like an Object.prototype member has no owner and saves ']
+O3 toRow drops the undeclared-owner throw: RED (expected test); red tests: ['✖ an undeclared owner is refused with the declared list in the message']
+O4 plain index lookup of the owner: RED (expected test); red tests: ['✖ a type keyed like an Object.prototype member has no owner and saves ']
+?? apps/website/src/features/content-types/__tests__/repo.characterization.test.ts
+?? cloud-results/su-cms/arch-diff-s1c.txt
+?? cloud-results/su-cms/mutate-s2a.py
+?? cloud-results/su-cms/mutations-s2a.txt

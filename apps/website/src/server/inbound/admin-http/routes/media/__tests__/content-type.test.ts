@@ -56,7 +56,7 @@ function buildDeps(options: {
       },
     },
   };
-  return { deps: deps as unknown as Parameters<typeof resolveContentTypes>[0], reads, sets, store };
+  return { deps: deps as unknown as Parameters<typeof resolveContentTypes>[0]["deps"], reads, sets, store };
 }
 
 test("resolveContentTypes: an unreadable blob is skipped and left unrecorded; the other rows are still sniffed and persisted", async () => {
@@ -65,7 +65,7 @@ test("resolveContentTypes: an unreadable blob is skipped and left unrecorded; th
     bytes: { "key-broken": new Error("ENOENT"), "key-png": PNG },
   });
 
-  const result = await resolveContentTypes(deps, [media("sha-broken"), media("sha-png")]);
+  const result = await resolveContentTypes({ deps, media: [media("sha-broken"), media("sha-png")] });
 
   assert.deepEqual([...result.entries()], [["sha-png", "image/png"]]);
   assert.deepEqual(sets, [{ workspaceId: WS, sha256: "sha-png", contentType: "image/png" }]);
@@ -74,7 +74,7 @@ test("resolveContentTypes: an unreadable blob is skipped and left unrecorded; th
 test("resolveContentTypes: a hash with no blob row is skipped, not an error", async () => {
   const { deps, reads, sets } = buildDeps({ blobs: {}, bytes: {} });
 
-  const result = await resolveContentTypes(deps, [media("sha-orphan")]);
+  const result = await resolveContentTypes({ deps, media: [media("sha-orphan")] });
 
   assert.equal(result.size, 0);
   assert.deepEqual(reads, []);
@@ -88,7 +88,7 @@ test("resolveContentTypes: an already-recorded type is returned as recorded and 
     bytes: { "key-known": PNG },
   });
 
-  const result = await resolveContentTypes(deps, [media("sha-known")]);
+  const result = await resolveContentTypes({ deps, media: [media("sha-known")] });
 
   assert.equal(result.get("sha-known"), "video/mp4");
   assert.deepEqual(reads, []);
@@ -98,7 +98,7 @@ test("resolveContentTypes: an already-recorded type is returned as recorded and 
 test("resolveContentTypes: two assets sharing one blob are sniffed and persisted once", async () => {
   const { deps, reads, sets } = buildDeps({ blobs: { "sha-dup": "key-dup" }, bytes: { "key-dup": PNG } });
 
-  const result = await resolveContentTypes(deps, [media("sha-dup"), media("sha-dup")]);
+  const result = await resolveContentTypes({ deps, media: [media("sha-dup"), media("sha-dup")] });
 
   assert.equal(result.get("sha-dup"), "image/png");
   assert.deepEqual(reads, ["key-dup"]);
@@ -112,8 +112,8 @@ test("readRecordedContentType: returns the recorded type, or null without backfi
     bytes: { "key-new": PNG },
   });
 
-  assert.equal(await readRecordedContentType(deps, "sha-known"), "image/webp");
-  assert.equal(await readRecordedContentType(deps, "sha-new"), null);
+  assert.equal(await readRecordedContentType({ deps, sha256: "sha-known" }), "image/webp");
+  assert.equal(await readRecordedContentType({ deps, sha256: "sha-new" }), null);
   assert.deepEqual(reads, [], "the write-path reader must never touch blob bytes");
   assert.deepEqual(sets, []);
 });

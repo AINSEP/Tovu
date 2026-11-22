@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishDestinationView } from "@/lib/api";
+import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 import { createFakePublishContentPort } from "../publish-content-dependencies.hooks";
 import { usePublishContentConfirm } from "../use-publish-content-confirm.hooks";
 

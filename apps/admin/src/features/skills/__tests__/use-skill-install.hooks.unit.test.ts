@@ -114,7 +114,7 @@ it("an older install cannot dismiss a newer proposal and waits for the installed
   const refreshed = deferred<void>();
   const started = deferred<void>();
   const requests = installEndpoint(() => response.promise);
-  const { result } = renderHook(() => useSkillInstall(async () => { started.resolve(); await refreshed.promise; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: async () => { started.resolve(); await refreshed.promise; } }));
   act(() => result.current.propose(proposal));
   let completion!: Promise<void>;
   act(() => { completion = result.current.confirm(); });
@@ -134,7 +134,7 @@ it("a refused install retains the proposal and releases the confirmation lock fo
     ? Response.json({ error: "Skill archive refused" }, { status: 400 })
     : Response.json({ skill: {} }));
   let installed = 0;
-  const { result } = renderHook(() => useSkillInstall(() => { installed++; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: () => { installed++; } }));
   act(() => result.current.propose(proposal));
   await act(async () => { await result.current.confirm(); });
   expect(result.current.error).toBe("Skill archive refused");
@@ -152,11 +152,41 @@ it("a refused install retains the proposal and releases the confirmation lock fo
 
 it("a non-Error callback failure uses the install fallback and releases busy state", async () => {
   const requests = installEndpoint();
-  const { result } = renderHook(() => useSkillInstall(async () => { throw "refresh unavailable"; }));
+  const { result } = renderHook(() => useSkillInstall({}, { onInstalled: async () => { throw "refresh unavailable"; } }));
   act(() => result.current.propose(proposal));
   await act(async () => { await result.current.confirm(); });
   expect(requests).toEqual([{ ...proposal, confirmed: true }]);
   expect(result.current.pending).toBeNull();
   expect(result.current.busy).toBe(false);
   expect(result.current.error).toBe("Could not install skill.");
+});
+
+it("keeps file-read cause privately and redacts the displayed failure", async () => {
+  const cause = new Error("password=FILE_READ_CANARY");
+  const file = { name: "SKILL.md", size: 5, arrayBuffer: () => Promise.reject(cause) } as File;
+  const { result } = renderHook(() => useSkillInstall());
+  await act(async () => { await result.current.proposeFiles([file]); });
+  expect(result.current.cause).toMatchObject({ cause });
+  expect(result.current.error).not.toContain("FILE_READ_CANARY");
+  expect(result.current.error).toBe("Could not read skill files.");
+});
+
+it("redacts an install failure and keeps the original API incident for details", async () => {
+  installEndpoint(async () => Response.json({ error: "password=INSTALL_CANARY", errorId: "skill-install-incident" }, { status: 400 }));
+  const { result } = renderHook(() => useSkillInstall());
+  act(() => result.current.propose(proposal));
+  await act(async () => { await result.current.confirm(); });
+  expect(result.current.error).not.toContain("INSTALL_CANARY");
+  expect(result.current.cause).toMatchObject({ body: { errorId: "skill-install-incident" } });
+  expect(result.current.pending).toEqual(proposal);
+});
+
+it("an obsolete successful file read cannot replace a new proposal", async () => {
+  const read = deferred<ArrayBuffer>();
+  const { result } = renderHook(() => useSkillInstall());
+  let completion!: Promise<void>;
+  act(() => { completion = result.current.proposeFiles([heldFile(read)]); });
+  act(() => result.current.propose(replacement));
+  await act(async () => { read.resolve(Uint8Array.of(115).buffer); await completion; });
+  expect(result.current.pending).toEqual(replacement);
 });

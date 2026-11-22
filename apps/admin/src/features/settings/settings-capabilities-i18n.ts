@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Settings screen "no backend yet" capability-status notes (the disabled-panel reference
  * text for Privacy/telemetry, Media providers, Memory, External MCP, and Skills,
@@ -7,8 +8,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * backend state, which doesn't belong in a package Zana and other hosts also consume. See
  * project memory "Settings-dialog i18n relocation" for the full decision record.
  */
-
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const SETTINGS_CAPABILITIES_DICT: Record<string, Record<string, string>> = {
   es: {

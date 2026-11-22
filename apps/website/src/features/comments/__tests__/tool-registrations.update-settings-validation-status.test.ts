@@ -8,13 +8,13 @@ import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureCommentsSettingDefinitions, getCommentsSettings } from "../settings.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { buildCommentsRegistrations, commentsDerivedRisk, contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
-import { createCommentHookRegistry } from "@jini-ai/cms/comments";
+import { buildCommentsRegistrations, contributeCommentsTools, type CommentsToolDeps } from "../tool-registrations.js";
+import { commentsDerivedRisk, createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { commentTrashDoubles } from "./comment-trash-doubles.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

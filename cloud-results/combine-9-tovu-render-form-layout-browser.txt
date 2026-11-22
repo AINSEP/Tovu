@@ -1,0 +1,12 @@
+✔ repeated Builder forms across embeds and regions keep every ID and association within its occurrence (5.30982ms)
+✔ a successful contact form is hidden by the emitted stylesheet in a browser (838.158635ms)
+✔ contact form fallback error and success colors apply in both modes without theme tokens (361.665963ms)
+✔ checkbox fields render inline before their label with only the emitted stylesheet (287.829306ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2435.560566

@@ -7,6 +7,8 @@ import type test from "node:test";
 import type express from "express";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
+import { unwrapRouteHandle } from "./unwrap-route-handle.js";
+
 /** The narrow slice `loginAsBarePrincipal` below needs — satisfied structurally by `RouteDeps`
  *  (and by any `Pick<RouteDeps, ...>` narrowing, since every field listed here is also on
  *  `RouteDeps`), so callers pass their real route deps object straight through with no adapter. */
@@ -149,11 +151,11 @@ export function extractRouteHandler(
   app: express.Express,
   method: "get" | "post" | "put" | "patch" | "delete",
   path: string
-): (req: unknown, res: unknown) => unknown {
+): (req: unknown, res: unknown, next?: () => void) => unknown {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
   for (const layer of stack) {
     if (layer.route && layer.route.path === path && layer.route.methods[method]) {
-      return layer.route.stack[0].handle;
+      return unwrapRouteHandle(layer.route.stack[0].handle);
     }
   }
   throw new Error(`extractRouteHandler: no ${method.toUpperCase()} route registered for path "${path}"`);

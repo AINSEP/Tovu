@@ -36,7 +36,7 @@ function assets(count: number): ThemeExploreFile[] {
 describe("themeExploreFileGroupTabs", () => {
   it("lists only non-empty groups, in the fixed group order, with counts", () => {
     const shuffled = [FILES[4]!, FILES[3]!, FILES[0]!, FILES[2]!, FILES[1]!];
-    expect(themeExploreFileGroupTabs(shuffled).map(({ key, count }) => [key, count])).toEqual([
+    expect(themeExploreFileGroupTabs({ files: shuffled }).map(({ key, count }) => [key, count])).toEqual([
       ["page", 2],
       ["partial", 1],
       ["style", 1],
@@ -45,22 +45,22 @@ describe("themeExploreFileGroupTabs", () => {
   });
 
   it("flags a group when any one of its files is modified, and only that group", () => {
-    const tabs = themeExploreFileGroupTabs(FILES);
+    const tabs = themeExploreFileGroupTabs({ files: FILES });
     expect(tabs.filter((tab) => tab.modified).map((tab) => tab.key)).toEqual(["page"]);
   });
 
   it("carries the untranslated label and an id equal to the key for the tab keyboard helpers", () => {
-    const [pages] = themeExploreFileGroupTabs(FILES);
+    const [pages] = themeExploreFileGroupTabs({ files: FILES });
     expect(pages).toMatchObject({ id: "page", key: "page", label: "Pages" });
   });
 
   it("returns no tabs for a theme with no files", () => {
-    expect(themeExploreFileGroupTabs([])).toEqual([]);
+    expect(themeExploreFileGroupTabs({ files: [] })).toEqual([]);
   });
 });
 
 describe("themeExploreActiveGroup", () => {
-  const tabs = themeExploreFileGroupTabs(FILES);
+  const tabs = themeExploreFileGroupTabs({ files: FILES });
 
   it("follows the highlighted file's own group when nothing was chosen", () => {
     expect(themeExploreActiveGroup({ tabs, files: FILES, highlightedPath: "css/styles.css", choice: null })).toBe("style");
@@ -145,7 +145,7 @@ describe("useThemeExploreFileGroups", () => {
 
   it("switches group on chooseGroup without changing the selection", () => {
     const { result } = renderHook(() => useThemeExploreFileGroups({ files: FILES, highlightedPath: "pages/index.html" }));
-    act(() => result.current.chooseGroup("style"));
+    act(() => result.current.chooseGroup({ group: "style" }));
     expect(result.current.activeGroup).toBe("style");
     expect(result.current.visibleFiles.map((f) => f.path)).toEqual(["css/styles.css"]);
   });
@@ -154,7 +154,7 @@ describe("useThemeExploreFileGroups", () => {
     const { result, rerender } = renderHook(({ path }) => useThemeExploreFileGroups({ files: FILES, highlightedPath: path }), {
       initialProps: { path: "pages/index.html" },
     });
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     rerender({ path: "nav.html" });
     expect(result.current.activeGroup).toBe("partial");
   });
@@ -163,7 +163,7 @@ describe("useThemeExploreFileGroups", () => {
     const { result, rerender } = renderHook(({ path }) => useThemeExploreFileGroups({ files: FILES, highlightedPath: path }), {
       initialProps: { path: "pages/index.html" },
     });
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     rerender({ path: "assets/logo.svg" });
     expect(result.current.activeGroup).toBe("asset");
   });
@@ -171,7 +171,7 @@ describe("useThemeExploreFileGroups", () => {
   it("expands and collapses a long group, and keeps that group open across a tab round trip", () => {
     const files = [...FILES, ...assets(THEME_EXPLORE_COLLAPSED_FILE_LIMIT + 2)];
     const { result } = renderHook(() => useThemeExploreFileGroups({ files, highlightedPath: "pages/index.html" }));
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     expect(result.current.collapsible).toBe(true);
     expect(result.current.expanded).toBe(false);
     expect(result.current.visibleFiles).toHaveLength(THEME_EXPLORE_COLLAPSED_FILE_LIMIT);
@@ -181,9 +181,9 @@ describe("useThemeExploreFileGroups", () => {
     expect(result.current.expanded).toBe(true);
     expect(result.current.visibleFiles).toHaveLength(THEME_EXPLORE_COLLAPSED_FILE_LIMIT + 3);
 
-    act(() => result.current.chooseGroup("page"));
+    act(() => result.current.chooseGroup({ group: "page" }));
     expect(result.current.expanded).toBe(false);
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     expect(result.current.expanded).toBe(true);
 
     act(() => result.current.toggleExpanded());

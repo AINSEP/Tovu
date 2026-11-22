@@ -1,9 +1,10 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 /**
  * @file `POST /api/federation/reload` — re-admits federated MCP connections an operator authorized
  * AFTER this daemon process already booted, without a restart. See
- * `assistant/mcp-federation/reload.ts` for the coordinator this route is a thin HTTP wrapper over,
+ * `Jini packages/mcp/src/federation/reload.ts` for the coordinator this route is a thin HTTP wrapper over,
  * and that file's own header for the R5 guarantee this route cannot violate: it only ever widens the
  * admitted set with connections that have NEVER been admitted before; an edit to an already-admitted
  * connection is invisible to it, exactly as it was before this route existed.
@@ -11,7 +12,7 @@ import type { Express, Request, Response } from "express";
  * Authenticated by the SAME mechanism as every other route in this process — `agent-daemon-
  * server.ts` mounts `requireAgentDaemonToken()` globally, as the very first `app.use`, before any
  * route (including this one) is registered, and this path is never added to that gate's
- * `exemptPaths`. See `federation-admissions-route.ts`'s identical note, and `daemon-auth.ts`.
+ * `exemptPaths`. See `federation-admissions-route.ts`'s identical note, and `apps/website/src/assistant/daemon-access.ts`.
  *
  * Failure stays VISIBLE, never silent, per the feature's own hard requirement: a rejection from
  * `deps.reload()` is logged here (this process's own stderr — the channel every other failure in
@@ -28,7 +29,7 @@ import type { Express, Request, Response } from "express";
 export const FEDERATION_RELOAD_PATH = "/api/federation/reload";
 
 export interface FederationReloadRouteDeps {
-  /** The coordinator's own `reload()` — see `mcp-federation/reload.ts`. Injected rather than
+  /** The coordinator's own `reload()` — see `Jini packages/mcp/src/federation/reload.ts`. Injected rather than
    *  constructed here so this route stays a pure Express adapter, testable without a real
    *  `ToolRegistry` or a real external MCP connection. */
   readonly reload: () => Promise<{ readonly newlyAdmittedConnectionIds: readonly string[] }>;
@@ -41,15 +42,14 @@ export interface FederationReloadRouteDeps {
  * `FederationReloadCoordinator.reload`).
  * @overallScore 100
  */
-export function registerFederationReloadRoute(app: Express, deps: FederationReloadRouteDeps): void {
+export function registerFederationReloadRoute({ app, deps }: { app: Express; deps: FederationReloadRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post(FEDERATION_RELOAD_PATH, async (_req: Request, res: Response) => {
     try {
       const result = await deps.reload();
       res.status(200).json({ ok: true, newlyAdmittedConnectionIds: result.newlyAdmittedConnectionIds });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[agent-daemon] mcp-federation: reload failed — ${message}`);
-      res.status(500).json({ ok: false, error: "federation reload failed" });
+      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ ok: false, error: "The assistant connections could not be reloaded. Restart the site or app and report this error ID if it keeps happening.", errorId });
     }
   });
 }

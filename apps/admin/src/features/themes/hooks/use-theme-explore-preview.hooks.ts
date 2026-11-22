@@ -38,7 +38,7 @@ export type ThemeExplorePreviewMode = "render" | "code";
  *
  * @complexity O(k) time, O(1) space for k characters in the file path (the `.liquid` check).
  */
-export function themeExplorePreviewMode(file: ThemeExploreFile | undefined): ThemeExplorePreviewMode {
+export function themeExplorePreviewMode({ file }: { file: ThemeExploreFile | undefined }, _optional = {}): ThemeExplorePreviewMode {
   if (!file || !file.readable || file.kind === "asset") return "render";
   if (isLiquidTemplateFile(file) || file.kind === "page" || file.kind === "partial") return "render";
   return "code";
@@ -72,24 +72,22 @@ export function themeExplorePreviewMode(file: ThemeExploreFile | undefined): The
  * @complexity O(k) time and space for k characters in the theme id and selected file path/label.
  */
 export function previewSrcFor(
-  themeId: string,
-  file: ThemeExploreFile | undefined,
-  previewNonce: number,
+  { themeId, file, previewNonce }: { themeId: string; file: ThemeExploreFile | undefined; previewNonce: number }, _optional = {},
 ): string | null {
   if (!file) return null;
   const theme = encodeURIComponent(themeId);
   // v2 Liquid pages share the page group with HTML, but need the gated template renderer.
   if (isLiquidTemplateFile(file)) {
     const templateId = file.label.replace(/\.liquid$/i, "");
-    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}` });
   }
   if (file.kind === "page")
-    return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}` });
   if (file.kind === "partial") {
-    return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+    return siteUrl({ path: `/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}` });
   }
   return siteUrl(
-    `/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`,
+    { path: `/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}` },
   );
 }
 
@@ -106,7 +104,7 @@ export function useThemeExplorePreview(
   const [initialNonce] = useState(previewNonce);
   const file = files.find((file) => file.path === selected);
   const refreshed = useThemePreviewRefresh({
-    url: detail ? previewSrcFor(detail.id, file, initialNonce) ?? "" : "",
+    url: detail ? previewSrcFor({ themeId: detail.id, file: file, previewNonce: initialNonce }) ?? "" : "",
     makeRevision,
   });
   return refreshed.url || null;

@@ -4,7 +4,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import test, { type TestContext } from 'node:test';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createPluginSourcePolicy, InMemoryPluginActivationRepo, setPluginEnabled } from '@jini-ai/plugins/host';
@@ -15,7 +15,7 @@ import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';
 import { buildPluginSourceRegistrations } from '../../source-tools.js';
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from '../../install.js';
-import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals } from '../../../../contracts/core/host-signals.js';
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals } from '@tovu/contracts/host-signals';
 import { providerFacesFor } from '../fixtures/plugins-tool-harness.js';
 
 const id = 'site-rules';
@@ -107,9 +107,9 @@ test('new versions update active pointers across workspaces and the existing pol
   const poll = { workspaceId: remoteWorkspace, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: remote.pluginLoadedVersion,
     onPluginEnabled: async (pluginId: string) => { reloads++; await remote.onPluginEnabled(pluginId); }, onPluginDisabled: remote.onPluginDisabled };
   const attached = new Set([id]);
-  await reconcilePluginActivationsOnce(poll, attached);
+  await reconcilePluginActivationsOnce({ deps: poll, attachedIds: attached });
   assert.deepEqual(await remote.beforeSaveHook(remoteDraft), { [id]: { value: 3 } });
-  await reconcilePluginActivationsOnce(poll, attached); assert.equal(reloads, 1);
+  await reconcilePluginActivationsOnce({ deps: poll, attachedIds: attached }); assert.equal(reloads, 1);
 });
 
 test('removing a filter from a sealed manifest clears the old running hook', async t => {
@@ -134,7 +134,7 @@ test('a newly installed package does not replace the active pointer at boot unti
   await restarted.attachEnabledPluginsAtBoot();
   assert.deepEqual(await restarted.beforeSaveHook(draft), { [id]: { value: 1 } });
   assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
-  await reconcilePluginActivationsOnce({ workspaceId, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: restarted.pluginLoadedVersion, onPluginEnabled: restarted.onPluginEnabled, onPluginDisabled: restarted.onPluginDisabled }, new Set([id]));
+  await reconcilePluginActivationsOnce({ deps: { workspaceId, pluginActivationRepo: h.activationRepo, pluginLoadedVersion: restarted.pluginLoadedVersion, onPluginEnabled: restarted.onPluginEnabled, onPluginDisabled: restarted.onPluginDisabled }, attachedIds: new Set([id]) });
   assert.equal(restarted.pluginLoadedVersion({ id }), '0.1.0');
 });
 

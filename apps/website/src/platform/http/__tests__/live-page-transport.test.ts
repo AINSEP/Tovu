@@ -28,7 +28,7 @@ test('real transport pins the validated IP, preserves cookies, caps reads and fo
   let dnsCalls = 0;
   t.mock.module('node:dns/promises', { namedExports: { lookup: async () => { dnsCalls++; return [{ address: dnsCalls === 1 ? '8.8.8.8' : '9.9.9.9', family: 4 }]; } } });
   const { createDefaultHttpClient } = await import('../client.js');
-  const client = createDefaultHttpClient(LIVE_PAGE_EGRESS_POLICY);
+  const client = createDefaultHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY });
   const signal = new AbortController().signal;
   const result = await client.send({ method: 'GET', url: 'https://site.example/', headers: {}, timeoutMs: 15000, maxResponseBytes: 5, signal });
   assert.equal(result.bodyText, 'abcde'); assert.equal(result.bodyBytes?.byteLength, 5); assert.equal(result.bodyTruncated, true);

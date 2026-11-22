@@ -1,5 +1,5 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
-import { createProviderMailer as createEngineProviderMailer } from "@jini-ai/platform/mail";
+import { createProviderMailer as createEngineProviderMailer, defaultMailProviderSetup } from "@jini-ai/platform/mail";
 import type { UUID } from "@jini-ai/core/primitives";
 import {
   createConsoleMailProvider,
@@ -14,9 +14,8 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
-import type { SecretSealerPort } from "#src/features/webhooks/index";
+import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";
 import type { MailProviderSetup } from "#src/platform/mail/index";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
@@ -25,7 +24,7 @@ import {
   type MailerPort,
   type SmtpTransport,
 } from "#src/platform/mail/index";
-import { toTovuMailer } from "#src/platform/mail/index";
+import { toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /**
  * @file The keyed mail-provider catalog `resolve-mailer.ts` selects from (email provider contract v1,
@@ -89,17 +88,18 @@ export const resolveMailDomainReadCredential = (required: { deps: MailProviderCa
  * @complexity One credential list + one decrypt.
  */
 export async function resolveMailCredential(
-  required: { deps: MailProviderCatalogDeps; catalog: MailProviderCatalog; id: string },
+  required: { deps: MailProviderCatalogDeps; labels: readonly string[]; id: string },
   _optional: Record<string, never> = {}
 ): Promise<MailAdapterCredential | null> {
-  const { deps, catalog, id } = required;
-  const label = catalog.credentialLabelFor({ id });
-  if (label === undefined) return null;
-  const resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialRepo, sealer: deps.sealer }, { workspaceId: deps.workspaceId, label });
-  if (!resolved) return null;
-  const username = resolved.connection.username;
-  if (id === "smtp" && !username) return null;
-  return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+  const { deps, labels, id } = required;
+  for (const label of labels) {
+    const resolved = await resolveCustomCredentialByLabel({ repo: deps.customCredentialRepo, sealer: deps.sealer }, { workspaceId: deps.workspaceId, label });
+    if (!resolved) continue;
+    const username = resolved.connection.username;
+    if (id === "smtp" && !username) return null;
+    return { token: resolved.connection.token, baseUrl: resolved.baseUrl, ...(username ? { username } : {}) };
+  }
+  return null;
 }
 
 /** Caller-safe credential refusal. Raw store/decrypt error text must never leave this boundary. */

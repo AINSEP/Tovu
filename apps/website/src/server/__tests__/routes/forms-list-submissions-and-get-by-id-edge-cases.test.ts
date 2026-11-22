@@ -22,12 +22,12 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 function buildTestApp(deps: RouteDeps = createRouteDeps()): { app: express.Express; deps: RouteDeps } {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsGetRoute(app, deps);
-  registerAdminFormsListSubmissionsRoute(app, deps);
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsGetRoute({ app, deps });
+  registerAdminFormsListSubmissionsRoute({ app, deps });
   return { app, deps };
 }
 

@@ -48,15 +48,15 @@ test("tovu deploy config --target railway tells the operator to set Tovu's runti
 test("railway is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const manifest = JSON.parse(await readFile(path.join(PLUGIN_DIR, "plugin.json"), "utf8"));
   assert.equal(manifest.name, "railway");
-  assert.equal(manifest.extensions.jini.id, "tovu/railway");
+  assert.equal(manifest.extensions.jini.id, "jini/railway", "the bundled Railway plugin retains its Jini publisher identity");
   assert.equal(manifest.extensions.jini.displayName, "Railway");
   assert.deepEqual(manifest.extensions.jini.provides, ["deploy-config:railway", "deploy-ops:railway"]);
   assert.deepEqual(JSON.parse(await readFile(path.join(PLUGIN_DIR, "mcp.json"), "utf8")).mcpServers, {});
   const registry = await loadDeployConfigGeneratorsFromSource({ pluginId: "railway", packageRoot: PLUGIN_DIR });
   assert.deepEqual(registry.refusals, []);
   assert.deepEqual(registry.list().map(item => item.descriptor.id), ["railway"]);
-  const packed = await packAgentPluginDirectory(PLUGIN_DIR);
-  for (const file of ["plugin.json", "mcp.json", "tovu-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md", "tovu-deploy-ops.json", "deploy-ops/railway.mjs"]) assert.ok(packed.files.includes(file), file);
-  assert.ok(!packed.files.includes("tovu-deploy-targets.json"));
+  const packed = await packAgentPluginDirectory({ sourceDir: PLUGIN_DIR });
+  for (const file of ["plugin.json", "mcp.json", "jini-deploy-configs.json", "deploy-configs/railway.mjs", "skills/railway/SKILL.md", "jini-deploy-ops.json", "deploy-ops/railway.mjs"]) assert.ok(packed.files.includes(file), file);
+  assert.ok(!packed.files.includes("jini-deploy-targets.json"));
   assert.equal(BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has("railway"), false);
 });

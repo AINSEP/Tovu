@@ -18,7 +18,7 @@ import path from "node:path";
 import test, { after, before, type TestContext } from "node:test";
 
 import { AesGcmSecretSealer as PlatformSealer } from "@jini-ai/platform/secrets";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";
@@ -105,7 +105,7 @@ test("counter: token lookup (contribution reload, credential opens) per getAcces
   // The loader reads each contribution file through a `readFile` bound when the lifecycle was built,
   // so a file-system spy cannot see it; it then parses the file's text. A load is counted as one
   // parse of a contribution file's exact text (no production change).
-  const contributionTexts = new Map(["tovu-connections.json", "tovu-agent-tools.json", "tovu-admin-surfaces.json", "tovu-form-destinations.json"]
+  const contributionTexts = new Map(["jini-connections.json", "jini-agent-tools.json", "jini-admin-surfaces.json", "jini-form-destinations.json"]
     .map((name) => [readFileSync(path.join(ACME_PACKAGE_ROOT, name), "utf8"), name] as const));
   const lookup = async () => {
     const loads: string[] = [];
@@ -126,7 +126,7 @@ test("counter: token lookup (contribution reload, credential opens) per getAcces
 });
 
 const MAIL_WORKSPACE = "ws-1";
-const MAIL_LABEL = "Tovu Mail — Resend API";
+const MAIL_LABEL = "Jini Mail — Resend API";
 const MESSAGE = { workspaceId: MAIL_WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" };
 
 /** The resolver over counting ports: the same synthetic hosted provider `resolve-mailer.unit.test.ts` uses. */
@@ -159,7 +159,7 @@ async function countingMailer(initial: MailProviderSetting) {
   } as never }] };
   let value: MailProviderSetting | null = initial;
   const deps: ResolveMailerDeps = {
-    providerSetting: { read: async () => { counts.settingReads += 1; return value; }, write: async (next) => { value = next; } },
+    providerSetting: { read: async () => { counts.settingReads += 1; return value; }, write: async ({ value: next }) => { value = next; } },
     log: () => {}, workspaceId: MAIL_WORKSPACE, customCredentialRepo: countingRepo, sealer: countingSealer, httpClient: http, mode: "production",
     loadMailAdapters: async () => { counts.catalogLoads += 1; return registry; },
     createSmtpTransport: () => { throw new Error("SMTP is not selected in this baseline"); }, warn: () => {},

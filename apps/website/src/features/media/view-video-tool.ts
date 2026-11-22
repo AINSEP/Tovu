@@ -4,7 +4,7 @@ import { VIDEO_MAX_FRAMES, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_INPUT_BYTES, VIDEO_M
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
 import { prepareMessageAttachments } from '@jini-ai/daemon';
 import type { ToolContributor } from '@jini-ai/core';
-import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRepoPort } from './index.js';
 import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult } from './read-chat-attachment.js';
 
@@ -62,7 +62,8 @@ function isFiniteNumber(value: unknown): value is number {
 /** Exactly one owned source id, never anything path-shaped. */
 function readSource({ record }: { record: Record<string, unknown> }, _optional: Record<string, never> = {}) {
   const refs = ['mediaId', 'attachmentRef'].filter(key => record[key] !== undefined);
-  const key = refs.length === 1 ? refs[0]! : '';
+  const key = refs.length === 1 ? refs[0] : '';
+  if (key === undefined) throw refusal({ message: 'the video source reference is missing.' });
   const value = record[key];
   if (!key || typeof value !== 'string' || !value) {
     throw refusal({ message: 'pass exactly one mediaId or attachmentRef (attachment:<uuid>); filesystem paths are refused.' });
@@ -96,7 +97,7 @@ function readInput({ input }: { input: unknown }, _optional: Record<string, neve
   assertEveryAndStart({ record });
   return { key, value, layout: record.layout as 'frames' | 'sheet' | undefined, frames: record.frames as number | undefined, at: record.at as number[] | undefined, every: record.every as number | undefined, start: record.start as number | undefined };
 }
-function isPreviewableSize(size: number | null | undefined): boolean {
+function isPreviewableSize({ size }: { size: number | null | undefined }, _optional: Record<string, never> = {}): boolean {
   if (size === undefined || size === null) return false;
   return Number.isFinite(size) && size > 0 && size <= VIDEO_MAX_INPUT_BYTES;
 }
@@ -110,7 +111,7 @@ async function ownedMediaBytes(
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: asset.source.sha256 });
   if (!blob) throw refusal({ message: 'media has no stored video.' });
   const size = await deps.blobStore.sizeOf?.({ storageKey: blob.storageKey }, {});
-  if (!isPreviewableSize(size)) throw refusal({ message: 'video size is unknown or exceeds the preview size limit (64 MiB).' });
+  if (!isPreviewableSize({ size })) throw refusal({ message: 'video size is unknown or exceeds the preview size limit (64 MiB).' });
   return deps.blobStore.get({ storageKey: blob.storageKey });
 }
 /** The caller's own video bytes, from the library or a chat attachment, checked as a previewable video. */
@@ -140,7 +141,7 @@ function extractionOptions({ input, signal }: { input: VideoToolInput; signal: A
 type ExtractedVideo = Extract<Awaited<ReturnType<VideoFrameExtractor['extract']>>, { ok: true }>;
 type ContactSheet = NonNullable<ExtractedVideo['sheets']>[number];
 
-function isGridSize(value: number, max: number): boolean {
+function isGridSize({ value, max }: { value: number; max: number }, _optional: Record<string, never> = {}): boolean {
   return Number.isInteger(value) && value >= 1 && value <= max;
 }
 /** Tile metadata must actually map each row-major position to a nonnegative finite time. */
@@ -154,7 +155,7 @@ function hasRowMajorTiles(sheet: ContactSheet): boolean {
 function isSheetWithinLimits(sheet: ContactSheet): boolean {
   const validFormat = sheet.bytes.byteLength <= VIDEO_MAX_SHEET_BYTES && sheet.mimeType === 'image/jpeg';
   if (!validFormat) return false;
-  return isGridSize(sheet.columns, 4) && isGridSize(sheet.rows, 4) && isGridSize(sheet.tileEdgePx, 768) && hasRowMajorTiles(sheet);
+  return isGridSize({ value: sheet.columns, max: 4 }) && isGridSize({ value: sheet.rows, max: 4 }) && isGridSize({ value: sheet.tileEdgePx, max: 768 }) && hasRowMajorTiles(sheet);
 }
 function assertSheetOutput({ result }: { result: ExtractedVideo }, _optional: Record<string, never> = {}): readonly ContactSheet[] {
   const sheets = result.sheets;
@@ -187,8 +188,16 @@ async function previewEnvelope({ result, sheetMode }: { result: ExtractedVideo; 
   const refs = images.map((_, index) => String(index));
   const prepared = await prepareMessageAttachments({ refs, read: async ({ ref }) => {
     const index = Number(ref);
-    const image = images[index]!;
-    return { name: sheets ? `Video contact sheet ${index + 1}` : `Video frame at ${result.frames[index]!.at}s`, mimeType: image.mimeType, bytes: image.bytes };
+    const image = images[index];
+    if (image === undefined) throw new Error('Video preview has no image for its attachment');
+    let name: string;
+    if (sheets) name = `Video contact sheet ${index + 1}`;
+    else {
+      const frame = result.frames[index];
+      if (frame === undefined) throw new Error('Video preview has no frame for its attachment');
+      name = `Video frame at ${frame.at}s`;
+    }
+    return { name, mimeType: image.mimeType, bytes: image.bytes };
   } }, {});
   return { content: [
     { type: 'text', text: videoSummaryText({ result, sheets }) },

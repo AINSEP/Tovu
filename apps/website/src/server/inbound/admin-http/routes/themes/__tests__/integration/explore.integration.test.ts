@@ -1,3 +1,4 @@
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -9,11 +10,12 @@ import { syncBuiltinESMExports } from "node:module";
 
 import type { Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore.js";
+import { reloadTheme, renameThemeFileIfChanged } from "../../explore.js";
 
 /**
  * @file Integration-tier coverage for the theme Explore routes (`explore.ts`) — real composed app
@@ -1246,13 +1248,13 @@ test("renameThemeFileIfChanged: a destPath resolving into a built theme's genera
     },
   } as unknown as Response;
 
-  const changed = renameThemeFileIfChanged(
+  const changed = renameThemeFileIfChanged({
     deps,
-    theme!,
-    { sourcePath: "src/Header.tsx", destPath: "preview/Header.tsx", name: "Header.tsx" },
-    new Set(["src/Header.tsx"]),
-    res
-  );
+    theme: theme!,
+    paths: { sourcePath: "src/Header.tsx", destPath: "preview/Header.tsx", name: "Header.tsx" },
+    existingPaths: new Set(["src/Header.tsx"]),
+    res,
+  });
 
   assert.equal(changed, false);
   assert.equal(statusCode, 409);
@@ -1272,7 +1274,7 @@ test("reloadTheme: an id absent from deps.themes is a silent no-op -- the early 
   const deps = testDeps(themesDir);
   const before = [...deps.themes];
 
-  reloadTheme(deps, "does-not-exist-in-deps-themes");
+  reloadTheme({ deps, themeId: "does-not-exist-in-deps-themes" });
 
   assertAdminResponse({ actual: deps.themes, expected: before });
 });

@@ -1,11 +1,12 @@
-import { api, type AdminExportRunSnapshot } from "@/lib/api";
+import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import { importExportApi } from "@/features/import-export/api/import-export-api";
 import type { StaticExportPort } from "./static-export-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultStaticExportPort: StaticExportPort = {
-  triggerSiteExport: (options) => api.triggerSiteExport(options),
-  getSiteExportStatus: () => api.getSiteExportStatus(),
+  triggerSiteExport: (_required, { options } = {}) => importExportApi.triggerSiteExport(options),
+  getSiteExportStatus: () => importExportApi.getSiteExportStatus(),
 };
 
 /** An in-memory {@link StaticExportPort} for tests. `status` seeds the poll's answer; both calls
@@ -14,11 +15,11 @@ export const defaultStaticExportPort: StaticExportPort = {
  *  independently for a test that needs the trigger and the poll to diverge (e.g. a trigger that
  *  starts a run whose FIRST poll already reports it finished). */
 export function createFakeStaticExportPort(
-  status: AdminExportRunSnapshot | (() => Promise<AdminExportRunSnapshot>),
+  { status }: { status: AdminExportRunSnapshot | (() => Promise<AdminExportRunSnapshot>) },
   options: {
-    triggerSiteExport?: (opts?: { clean?: boolean }) => Promise<AdminExportRunSnapshot>;
+    triggerSiteExport?: StaticExportPort["triggerSiteExport"];
     getSiteExportStatus?: () => Promise<AdminExportRunSnapshot>;
-  } = {}
+  } = {},
 ): StaticExportPort {
   const resolve = () => (typeof status === "function" ? status() : Promise.resolve(status));
   return {

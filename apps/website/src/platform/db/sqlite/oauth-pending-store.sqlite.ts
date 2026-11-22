@@ -1,6 +1,6 @@
 import type { UUID, Clock } from "@jini-ai/core/primitives";
 
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import type { DeviceAuthorizationStore } from "../../../features/external-mcp/contracts.js";
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { createSqlDeviceAuthorizationStore } from "../repos/oauth-pending-store.js";
@@ -23,5 +23,5 @@ export interface SqliteDeviceAuthorizationStoreDeps {
 
 /** {@link createSqlDeviceAuthorizationStore} on `deps.db`, scoped to one workspace. */
 export function createSqliteDeviceAuthorizationStore(deps: SqliteDeviceAuthorizationStoreDeps, _optional: Record<string, never> = {}): DeviceAuthorizationStore {
-  return createSqlDeviceAuthorizationStore({ ...deps, kernel: contentKernel(deps.db) });
+  return createSqlDeviceAuthorizationStore({ ...deps, kernel: contentKernel({ store: deps.db }) });
 }

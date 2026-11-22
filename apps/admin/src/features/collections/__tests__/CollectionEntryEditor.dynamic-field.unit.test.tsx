@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
-import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file `CollectionEntryEditor` — the render-layer branches `CollectionEntryEditor.unit.test.tsx`
@@ -99,7 +99,7 @@ function editorController(overrides: Partial<CollectionEntryEditorController> = 
     // `useAdminLocale()` call in this render-only test (defaults to "en", and `COLLECTIONS_DICT`
     // has no "en" entries, so every lookup already fell through to `?? key`), so every existing
     // literal-English-string assertion below stays valid unchanged.
-    t: (key: string) => key,
+    t: ({ key }: { key: string }, _optional = {}) => key,
     ...overrides,
   };
 }
@@ -198,7 +198,7 @@ describe("lifecycle buttons — Publish/Unpublish", () => {
     const toggleLifecycle = vi.fn(async () => {});
     renderEditor({ entry: { ...ENTRY, status: "draft" }, toggleLifecycle });
     await user.click(screen.getByRole("button", { name: "Publish" }));
-    expect(toggleLifecycle).toHaveBeenCalledWith("publish");
+    expect(toggleLifecycle).toHaveBeenCalledWith({ op: "publish" });
   });
 
   it("clicking Unpublish calls toggleLifecycle('unpublish')", async () => {
@@ -206,7 +206,7 @@ describe("lifecycle buttons — Publish/Unpublish", () => {
     const toggleLifecycle = vi.fn(async () => {});
     renderEditor({ entry: { ...ENTRY, status: "published" }, toggleLifecycle });
     await user.click(screen.getByRole("button", { name: "Unpublish" }));
-    expect(toggleLifecycle).toHaveBeenCalledWith("unpublish");
+    expect(toggleLifecycle).toHaveBeenCalledWith({ op: "unpublish" });
   });
 });
 

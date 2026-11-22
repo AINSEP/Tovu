@@ -1,33 +1,18 @@
+import { openLightboxDialog, closeLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
 /**
- * @file `MessageOverflowModal`'s `<dialog>` lifecycle — mirrors `ImagePreviewModal.hooks.tsx`'s
+ * @file `MessageOverflowModal`'s `<dialog>` lifecycle — mirrors `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`'s
  * open/close/backdrop/Escape handling line for line (same native `<dialog>` foundation
  * `@jini-ai/admin/react`'s `ConfirmDialog` uses: real focus trapping, Escape-as-close, and a
  * backdrop, all courtesy of the browser's own top layer). Owned locally rather than importing that
  * file's hook directly — `ImagePreviewModal.tsx`'s own doc gives the same reasoning for why IT
  * doesn't reuse `ConfirmDialog`'s implementation despite the identical lifecycle shape: a future
  * image-specific tweak to that hook should never silently change an unrelated modal's behavior too.
- * No `-port.hooks.ts` pair, same reasoning as `ImagePreviewModal.hooks.tsx`: the only outside
+ * No `-port.hooks.ts` pair, same reasoning as `Jini packages/ui/src/features/admin-widgets/components/ImagePreviewModal.hooks.tsx`: the only outside
  * dependency is the native `<dialog>` element's own synchronous `showModal`/`close`, nothing async
  * to fake a rejection for.
  */
-function openDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.showModal === "function") {
-    if (!dialog.open) dialog.showModal();
-    return;
-  }
-  dialog.setAttribute("open", "");
-}
-
-function closeDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.close === "function") {
-    if (dialog.open) dialog.close();
-    return;
-  }
-  dialog.removeAttribute("open");
-}
-
 export interface MessageOverflowModalController {
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   /** Fires on the dialog's native `cancel` event (Escape). Prevented and routed through `onClose`
@@ -44,21 +29,21 @@ export interface MessageOverflowModalController {
  * (Escape, backdrop click) — the close button itself stays a plain `onClick={onClose}` in the
  * component, since it needs no state of its own.
  *
- * @param open - Whether the dialog should be showing.
- * @param onClose - Called on any dismiss path (close button, backdrop click, Escape).
+ * @param input.open - Whether the dialog should be showing.
+ * @param input.onClose - Called on any dismiss path (close button, backdrop click, Escape).
  * @returns `dialogRef` to attach to the `<dialog>` element, plus its `cancel`/backdrop-click
  *   handlers.
  * @complexity Time/space: O(1) per open/close transition — one `showModal`/`close` call, no other
  *   state.
  */
-export function useMessageOverflowModal(open: boolean, onClose: () => void): MessageOverflowModalController {
+export function useMessageOverflowModal({ open, onClose }: { open: boolean; onClose: () => void }, _options: Record<string, never> = {}): MessageOverflowModalController {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open) openDialog(dialog);
-    else closeDialog(dialog);
+    if (open) openLightboxDialog(dialog);
+    else closeLightboxDialog(dialog);
   }, [open]);
 
   function handleNativeCancel(e: SyntheticEvent<HTMLDialogElement>) {

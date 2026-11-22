@@ -4,7 +4,7 @@ import express from "express";
 import { DefinitionNotFoundError, ensureSettingDefinitions, ForbiddenError, InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createCommentsSelectionStore, ensureCommentsProviderDefinition } from "#src/features/comments/provider-selection";
 import type { SetCommentsSettingsDeps } from "#src/features/comments/settings";
 import { contributeSettingsTools, type SettingsToolDeps } from "#src/features/settings/tool-registrations";
@@ -44,9 +44,9 @@ async function fixture() {
   const deps = { workspaceId: WS, authorize, settingsReady: Promise.resolve(), settingsRepo, clock: comments.clock, idGen: comments.ids,
     principalRepo: comments.principals } as unknown as SettingsRouteDeps;
   const app = express();
-  registerAdminSettingsClearRoute(app, deps);
-  registerAdminSettingsResetRoute(app, deps);
-  registerAdminSettingsSetRoute(app, deps);
+  registerAdminSettingsClearRoute({ app, deps });
+  registerAdminSettingsResetRoute({ app, deps });
+  registerAdminSettingsSetRoute({ app, deps });
   return { settingsRepo, store, comments, deps,
     async request(method: "delete" | "post" | "put", path: string, body: unknown) {
       const { res, capture } = createCapturingResponse();

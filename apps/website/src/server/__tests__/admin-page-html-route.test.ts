@@ -173,3 +173,50 @@ test("PUT /pages/:id/html 404s for an id that does not exist, and 400s a non-str
   const oversized = await putHtml(baseUrl, cookie, pageId, "x".repeat(2 * 1024 * 1024));
   assert.equal(oversized.status, 413);
 });
+
+for (const converted of [false, true]) {
+  test(`S7b: HTML route refuses a stale client basis on a ${converted ? "HTML" : "doc"} page`, async t => {
+    const { baseUrl, cookie, deps } = await startServer(t);
+    const pageId = await createRow(baseUrl, cookie, "pages", "Versioned page");
+    if (converted) await putHtml(baseUrl, cookie, pageId, "<p>Original</p>");
+    const first = await deps.postRepo.findById({ workspaceId: WS, id: pageId });
+    const delayed = await deps.postRepo.findById({ workspaceId: WS, id: pageId });
+    assert.ok(first && delayed);
+    if (converted) {
+      const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, {
+        method: "PUT", headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ html: "<p>First writer</p>", expectedVersion: first.version }),
+      });
+      assert.equal(response.status, 200, await response.text());
+    } else {
+      const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${pageId}`, {
+        method: "PUT", headers: { "content-type": "application/json", cookie },
+        body: JSON.stringify({ title: "First writer", slug: first.slug, status: "draft", expectedVersion: first.version }),
+      });
+      assert.equal(response.status, 200, await response.text());
+    }
+    const saved = await deps.postRepo.findById({ workspaceId: WS, id: pageId });
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, {
+      method: "PUT", headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ html: "<p>Delayed writer</p>", expectedVersion: delayed.version }),
+    });
+    assert.equal(response.status, 409);
+    const error = await response.json() as { code: string; error: string };
+    assert.equal(error.code, "CONCURRENT_EDIT");
+    assert.match(error.error, new RegExp(`version ${saved?.version}, not the expected version ${delayed.version}`));
+    assert.deepEqual(await deps.postRepo.findById({ workspaceId: WS, id: pageId }), saved);
+  });
+}
+
+test("S7b: HTML route refuses a malformed basis without converting the page", async t => {
+  const { baseUrl, cookie, deps } = await startServer(t);
+  const pageId = await createRow(baseUrl, cookie, "pages", "Untouched");
+  const before = await deps.postRepo.findById({ workspaceId: WS, id: pageId });
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${pageId}/html`, {
+    method: "PUT", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ html: "<p>Delayed writer</p>", expectedVersion: "3" }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json() as { code: string }).code, "VALIDATION_ERROR");
+  assert.deepEqual(await deps.postRepo.findById({ workspaceId: WS, id: pageId }), before);
+});

@@ -35,17 +35,17 @@ export function switchOnSavedTokenConnection(
   target: { readonly pluginId: string; readonly connectionId: string },
 ): Promise<SavedTokenSwitchOutcome> {
   const mcp = withAgentPluginMcpPorts(deps.mcp);
-  return switchWithPorts({
+  return switchWithPorts({ deps: {
     workspaceId: deps.workspaceId, mcp,
     isPluginOffByOperator: deps.isPluginOffByOperator ?? ((pluginId: string) => defaultIsPluginOffByOperator({ ...deps, pluginId })),
     // Created on first use (after the operator-off check), as before the move.
     onConnected: deps.onConnected ?? ((serverId: string) => createApplyConnectDefaults({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, repo: mcp.repo, applyAccess: mcp.applyAccess, clock: deps.clock, notifyRosterChanged: deps.notifyRosterChanged, projections: mcp.projections, classifyError: mcp.classifyError })(serverId)),
     switchPluginOn: deps.switchPluginOn ?? ((pluginId: string) => switchPluginOnUnlessOperatorOff({ ...deps, pluginId })),
-  }, target);
+  }, ...target });
 }
 
 /** The plain next-step line for each outcome. Never carries a token. */
-export function describeSavedTokenSwitch(outcome: SavedTokenSwitchOutcome, names: { readonly displayName: string; readonly connectionId: string }): string {
+export function describeSavedTokenSwitch({ outcome, ...names }: { outcome: SavedTokenSwitchOutcome; readonly displayName: string; readonly connectionId: string }, _optional: Record<string, never> = {}): string {
   const messages = {
     on: `${names.displayName} is connected and switched on. Its tools are ready to use.`,
     'plugin-off-by-operator': `Token saved. ${names.displayName} stays off because an operator turned it off. To use it, switch '${names.displayName}' on in ${AGENT_PLUGINS_SCREEN}.`,

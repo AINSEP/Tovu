@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { KeyringPort } from "@jini-ai/platform/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { createStoreKeyring, protectStorage, type StorageFailureSource } from "../store-vault-guards.js";
 
 /** Typed fake keyring: records each call and answers with fixed bytes / key handle. */
@@ -16,7 +16,7 @@ function recordingKeyring(): { keyring: KeyringPort; calls: unknown[][] } {
 /** Storage-error translator that numbers each error and records what it was given. */
 function countingSource(keyring?: KeyringPort): StorageFailureSource & { seen: unknown[][] } {
   const seen: unknown[][] = [];
-  return { keyring, seen, storageError: (...args: unknown[]) => { seen.push(args); return new Error(`storage failure ${seen.length}`); } };
+  return { keyring, seen, storageError: (_required, options) => { seen.push(options ? [options.error] : []); return new Error(`storage failure ${seen.length}`); } };
 }
 
 const deriveInput = { workspaceId: "ws", purpose: "webhook", info: "v1" };

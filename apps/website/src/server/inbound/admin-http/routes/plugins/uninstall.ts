@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginNotFoundError } from "@jini-ai/plugins/host";
 import { PluginAlreadyInTrashError, PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "@jini-ai/plugins/host";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
@@ -6,10 +6,11 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
 import type { PluginsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendPluginUninstallError(res: Response, err: unknown): void {
+function sendPluginUninstallError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof PluginNotFoundError) {
     res.status(404).json({ error: err.message, code: "PLUGIN_NOT_FOUND" });
     return;
@@ -42,23 +43,20 @@ function sendPluginUninstallError(res: Response, err: unknown): void {
  * @file `PLUGIN_UNINSTALL` moves a site plugin to the 60-day Trash. The package directory is shared
  * by every workspace on this site, while the Trash row belongs to the workspace making the request.
  */
-export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginUninstallRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.enable",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 
@@ -79,7 +77,7 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) =
 
       res.json({ pluginId, trashed: result.trashed });
     } catch (err) {
-      sendPluginUninstallError(res, err);
+      sendPluginUninstallError({ res, err });
     }
   });
 };

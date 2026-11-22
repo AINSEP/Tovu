@@ -5,11 +5,11 @@ import { rebuildImportDatabase as rebuildWithWorker, type RebuildImportDatabaseO
 import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import type { SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createSiteSavedKeys } from "#src/features/site-backup/saved-keys";
 /** Bind the newly allocated destination, never the requesting site's layout or ambient overrides. */
 export function restoreStagedImport(required: Omit<Parameters<typeof restoreWithLayout>[0], "pluginLayout" | "openContent">, optional: Parameters<typeof restoreWithLayout>[1] = {}) {
-  return restoreWithLayout({ ...required, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>(filePath), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
+  return restoreWithLayout({ ...required, openContent: ({ filePath }) => openSqliteFileKernel<ContentDatabase>({ filePath }), pluginLayout: resolveAgentPluginLayout({ siteDir: required.dir }, { env: {} }) }, optional);
 }
 
 export { rewriteArchiveMedia } from "#src/features/site-backup/share-database/repo.sqlite";

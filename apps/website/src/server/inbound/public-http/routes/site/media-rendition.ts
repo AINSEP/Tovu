@@ -1,20 +1,21 @@
-import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/features/media/access-evidence';
+import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from "#src/platform/media-access-evidence";
 import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
 import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 
-import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
-import { findMediaByIdOrSlug, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
+import { guardMediaRenditionRepo, findMediaByIdOrSlug, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
 import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
-import { isTrashed, type PostRecord } from "#src/features/post/post";
+import { isTrashed } from "#src/contracts/core/soft-delete";
+import type { PostRecord } from "#src/features/post/post";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";
-import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
+import { parseRangeHeader } from "@jini-ai/http-kit/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 const CACHE_CONTROL_HEADER = "Cache-Control";
 
@@ -66,7 +67,7 @@ const REVALIDATING_PUBLIC = "public, max-age=60";
  *
  * @complexity O(1).
  */
-function sendMediaNotFound(res: Response, error: string): void {
+function sendMediaNotFound({ res, error }: { res: Response; error: string }, _optional = {}): void {
   res.status(404).set(CACHE_CONTROL_HEADER, PRIVATE_NO_STORE).json({ error });
 }
 
@@ -78,10 +79,7 @@ function sendMediaNotFound(res: Response, error: string): void {
  *
  * @complexity O(1) — one regex match plus two range/shape checks.
  */
-function resolveTransformSpec(
-  assetId: string,
-  transformSpec: string,
-): { transformName: string; version: number } | { errorMessage: string } {
+function resolveTransformSpec({ assetId, transformSpec }: { assetId: string; transformSpec: string }, _optional = {}): { transformName: string; version: number } | { errorMessage: string } {
   const match = TRANSFORM_SPEC_PATTERN.exec(transformSpec);
   if (!assetId || !match) {
     return { errorMessage: "malformed media rendition URL" };
@@ -111,7 +109,7 @@ function resolveTransformSpec(
  *  anonymous visitors with a year-long immutable CDN header. A legacy `src`-only node still
  *  contributes nothing, matching `render.ts`'s own `image` case, which never reads `src` at all once
  *  a ref shape exists. */
-function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
+function collectMediaRefAssetIds({ root, out }: { root: unknown; out: Set<string> }, _optional = {}): void {
   // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
   // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
   // MAX_RENDER_DEPTH placeholder could ever apply. Children are pushed in reverse so the walk stays
@@ -119,7 +117,7 @@ function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
   // Completeness matters most here: this set gates members-only media, so the walk must never stop
   // early at a depth bound — an asset it misses would be served under the fail-open default.
   // The shared authored-reference collector owns that iterative walk, including placement content.
-  for (const key of collectReferencedMediaKeys({ bodyJson: root })) out.add(key);
+  for (const key of collectReferencedMediaKeys({ state: { bodyJson: root } })) out.add(key);
 }
 
 /**
@@ -138,7 +136,7 @@ const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
  *  and opaque-body classification) share one definition of "gated" instead of three inline
  *  `resolvePostMemberAccess(...).visibility` reads that could drift apart. */
 function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
-  return resolvePostMemberAccess(entry.memberAccessJson).visibility !== "public";
+  return resolvePostMemberAccess({ raw: entry.memberAccessJson }).visibility !== "public";
 }
 
 /**
@@ -174,9 +172,9 @@ function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
  *
  * @complexity O(n) over `bodyHtml`'s length (one shared regex scan), plus O(k) over the markers found.
  */
-function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): void {
+function addHtmlEmbedAssetIds({ bodyHtml, out }: { bodyHtml: string; out: Set<string> }, _optional = {}): void {
   // The same untruncated marker scan now includes compound media, raw tokens and content overlays.
-  for (const key of collectReferencedMediaKeys({ bodyHtml })) out.add(key);
+  for (const key of collectReferencedMediaKeys({ state: { bodyHtml } })) out.add(key);
 }
 
 /** Every asset id one entry references, across BOTH body columns, plus whether this scan knows how
@@ -191,8 +189,8 @@ interface EntryAssetScan {
 
 function scanEntryAssets(entry: PostRecord, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): EntryAssetScan {
   const ids = new Set<string>();
-  collectMediaRefAssetIds(entry.bodyJson, ids);
-  if (entry.bodyHtml !== null) addHtmlEmbedAssetIds(entry.bodyHtml, ids);
+  collectMediaRefAssetIds({ root: entry.bodyJson, out: ids });
+  if (entry.bodyHtml !== null) addHtmlEmbedAssetIds({ bodyHtml: entry.bodyHtml, out: ids });
   // Featured image (2026-10-05): a gated post's header image is gated with it, same as a body image.
   if (entry.featuredMediaId) ids.add(entry.featuredMediaId);
   const widgets = collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml, savedWidgets });
@@ -232,7 +230,7 @@ function isLiveReferrerCandidate(entry: PostRecord): boolean {
 /** Index each live entry once per workspace snapshot, sharing one access record across all
  * aliases so a post mentioned by id and slug cannot be double-counted. Unreadable gated bodies
  * remain fail-closed for assets they do not explicitly reference. */
-function indexEntryAssets(index: AssetReferenceIndex, entry: PostRecord, savedWidgets?: ReadonlyMap<string, Record<string, unknown>>): void {
+function indexEntryAssets({ index, entry }: { index: AssetReferenceIndex; entry: PostRecord }, { savedWidgets }: { savedWidgets?: ReadonlyMap<string, Record<string, unknown>> } = {}): void {
   if (!isLiveReferrerCandidate(entry)) return;
   const scan = scanEntryAssets(entry, savedWidgets);
   const access = { memberAccessJson: entry.memberAccessJson };
@@ -268,7 +266,7 @@ async function buildAssetReferenceIndex(
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   const savedWidgets = await loadSavedWidgetConfigs(deps, entries);
   const index: AssetReferenceIndex = { byAsset: new Map(), opaqueGated: new Set() };
-  for (const entry of entries) indexEntryAssets(index, entry, savedWidgets);
+  for (const entry of entries) indexEntryAssets({ index, entry }, { savedWidgets });
   return index;
 }
 
@@ -305,7 +303,7 @@ async function cachedAssetReferences(deps: MediaRenditionRouteDeps, aliases: Rea
 type SavedWidgetRow = Awaited<ReturnType<NonNullable<MediaRenditionRouteDeps["entryRepo"]>["listByWorkspace"]>>[number];
 
 /** Indexes one saved widget's config under both its id and its slug, when it is live and active. */
-function addActiveWidgetConfig(savedWidgets: Map<string, Record<string, unknown>>, row: SavedWidgetRow): void {
+function addActiveWidgetConfig({ savedWidgets, row }: { savedWidgets: Map<string, Record<string, unknown>>; row: SavedWidgetRow }, _optional = {}): void {
   if ((row as typeof row & { deletedAt?: string | null }).deletedAt != null) return;
   try {
     const payload = parseWidgetInstancePayload({ fieldsJson: row.fieldsJson });
@@ -326,7 +324,7 @@ async function loadSavedWidgetConfigs(
   const needsWidgets = entries.some(entry => isLiveReferrerCandidate(entry) && !collectPlacedWidgetMediaKeys({ bodyJson: entry.bodyJson, bodyHtml: entry.bodyHtml }).readable);
   if (!deps.entryRepo || !needsWidgets) return undefined;
   const savedWidgets = new Map<string, Record<string, unknown>>();
-  for (const row of await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }, { type: 'widget' })) addActiveWidgetConfig(savedWidgets, row);
+  for (const row of await deps.entryRepo.listByWorkspace({ workspaceId: deps.workspaceId }, { type: 'widget' })) addActiveWidgetConfig({ savedWidgets, row });
   return savedWidgets;
 }
 
@@ -369,10 +367,7 @@ interface AssetAliasResolution {
  * @complexity O(1) — the two indexed lookups `findMediaByIdOrSlug` already performs, plus one more
  * indexed lookup for `listRetiredSlugs`.
  */
-async function resolveAssetAliases(
-  deps: Pick<MediaRenditionRouteDeps, "mediaRepo" | "workspaceId">,
-  idOrSlug: string
-): Promise<AssetAliasResolution> {
+async function resolveAssetAliases({ deps, idOrSlug }: { deps: Pick<MediaRenditionRouteDeps, "mediaRepo" | "workspaceId">; idOrSlug: string }, _optional = {}): Promise<AssetAliasResolution> {
   const media = await findMediaByIdOrSlug({
     deps: { mediaRepo: deps.mediaRepo },
     input: { workspaceId: deps.workspaceId, idOrSlug },
@@ -448,12 +443,8 @@ function createMemberAccessResolver(
  *
  * @complexity O(p) — see {@link scanEntriesForAsset}; `decide` itself is pure O(1) per gating entry.
  */
-async function resolveMediaAccessDecision(
-  deps: MediaRenditionRouteDeps,
-  req: Request,
-  assetId: string
-): Promise<{ gated: boolean; allowed: boolean; record: MediaRecord | null }> {
-  const { aliases, media } = await resolveAssetAliases(deps, assetId);
+async function resolveMediaAccessDecision({ deps, req, assetId }: { deps: MediaRenditionRouteDeps; req: Request; assetId: string }, _optional = {}): Promise<{ gated: boolean; allowed: boolean; record: MediaRecord | null }> {
+  const { aliases, media } = await resolveAssetAliases({ deps, idOrSlug: assetId });
   // Documents and submitted files are private even when their id/slug is guessed or embedded in published content.
   if (media?.kind === "document" || media?.source.private) return { gated: true, allowed: false, record: media };
   const { referencing, opaqueGated } = await cachedAssetReferences(deps, aliases);
@@ -475,7 +466,7 @@ async function resolveMediaAccessDecision(
     nowIso: new Date().toISOString(),
   });
   const allowed = gating.some(
-    (entry) => resolver.decide({ access: resolvePostMemberAccess(entry.memberAccessJson), context }).allowed
+    (entry) => resolver.decide({ access: resolvePostMemberAccess({ raw: entry.memberAccessJson }), context }).allowed
   );
   return { gated: true, allowed, record: media };
 }
@@ -509,7 +500,7 @@ async function publicRenditionTag({ deps, media, transformName, version }: {
 }
 
 /** GET validators use weak comparison and accept a list or wildcard, as If-None-Match requires. */
-function matchesRenditionTag(req: Request, etag: string): boolean {
+function matchesRenditionTag({ req, etag }: { req: Request; etag: string }, _optional = {}): boolean {
   return String(req.headers['if-none-match'] ?? '').split(',').some(value => {
     const candidate = value.trim();
     return candidate === '*' || candidate.replace(/^W\//, '') === etag.replace(/^W\//, '');
@@ -523,7 +514,7 @@ async function sendNotModifiedRendition({ deps, req, res, access, transformName,
 }): Promise<boolean> {
   if (access.gated || !req.headers['if-none-match']) return false;
   const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
-  if (!etag || !matchesRenditionTag(req, etag)) return false;
+  if (!etag || !matchesRenditionTag({ req, etag })) return false;
   res.status(304).set(CACHE_CONTROL_HEADER, REVALIDATING_PUBLIC).set('ETag', etag).end();
   return true;
 }
@@ -547,7 +538,7 @@ async function sendMediaRenditionResult(
   version: number
 ): Promise<void> {
   try {
-    const access = await resolveMediaAccessDecision(deps, req, assetId);
+    const access = await resolveMediaAccessDecision({ deps, req, assetId });
     if (!access.allowed) {
       // ADR-030 §4 gate (2026-09-03 sweep): the SAME "rendition not found" 404 an unknown
       // assetId already gets below — a gated asset must be indistinguishable from one that
@@ -555,7 +546,7 @@ async function sendMediaRenditionResult(
       // short-TTL `public` header the plain not-found branch below uses: this outcome depends on
       // the caller's own session cookie, so a shared/CDN cache must never replay it to a
       // DIFFERENT visitor (see `MediaRenditionRouteDeps`'s own doc).
-      sendMediaNotFound(res, "rendition not found");
+      sendMediaNotFound({ res, error: "rendition not found" });
       return;
     }
 
@@ -577,47 +568,9 @@ async function sendMediaRenditionResult(
       input: { workspaceId: deps.workspaceId, assetId, transformName, version },
     });
 
-    if (result.outcome === "gone") {
-      // ADR-027 §4: a purged/gone asset is `410 no-store`. See
-      // `rendition-service.ts`'s doc comment for the disclosed
-      // trashed-stands-in-for-purged mapping this build uses.
-      res.status(410).set(CACHE_CONTROL_HEADER, "no-store").end();
-      return;
-    }
-
-    if (result.outcome === "not-found") {
-      // Not-yet-generated-and-not-generatable-anonymously (or a wholly unknown assetId/transform).
-      //
-      // `private, no-store`, matching the gate-denied 404 above BYTE FOR BYTE (2026-09-05 fix).
-      // This branch used to send `public, max-age=60`, which made the two 404s trivially
-      // distinguishable on a header alone: any caller could ask "does this assetId exist and is it
-      // gated?" and read the answer off `Cache-Control`, defeating the indistinguishability the
-      // gate branch's own comment says it is there to provide. The two headers can only be
-      // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
-      // never be given a shared-cacheable header. The cost is the 60s negative cache on a
-      // not-found rendition, which is the correct thing to trade for closing the oracle.
-      sendMediaNotFound(res, "rendition not found");
-      return;
-    }
-
-    if (result.contentType === "image/svg+xml") {
-      // Vector passthroughs do not receive the raster pipeline's re-encode protection.
-      res.set("X-Content-Type-Options", "nosniff");
-      res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
-    }
-    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
-    if (!access.gated) {
-      const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
-      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
-      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
-    }
-    res
-      .status(200)
-      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
-      .set("Content-Type", result.contentType)
-      .send(Buffer.from(result.bytes));
+    await sendResolvedRendition({ deps, res, access, transformName, version }, result);
   } catch (err) {
-    sendRenditionFailure(res, err);
+    sendRenditionFailure({ res, err });
   }
 }
 
@@ -635,7 +588,7 @@ function renditionCacheControl({ access }: { access: { gated: boolean } }, _opti
 }
 
 /** Maps a failure while resolving/generating a rendition to its HTTP response. @complexity O(1). */
-function sendRenditionFailure(res: Response, err: unknown): void {
+function sendRenditionFailure({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ImageTransformUnavailableError) {
     // The transform is valid and generation was allowed, but the real pixel-operation
     // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
@@ -656,10 +609,10 @@ function sendRenditionFailure(res: Response, err: unknown): void {
   res.status(500).json({ error: "internal error" });
 }
 
-export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, deps) => {
-  app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
+export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = ({ app, deps }, _options = {}) => {
+  app.get("/m/:assetId/:transformSpec/:filename", asyncRoute({ handler: async (req, res) => {
     const { assetId, transformSpec } = readRenditionRouteParams(req);
-    const parsed = resolveTransformSpec(assetId, transformSpec);
+    const parsed = resolveTransformSpec({ assetId, transformSpec });
 
     if ("errorMessage" in parsed) {
       res.status(400).json({ error: parsed.errorMessage });
@@ -668,7 +621,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
 
     const { transformName, version } = parsed;
     await sendMediaRenditionResult(deps, req, res, assetId, transformName, version);
-  });
+  } }));
 };
 
 /**
@@ -689,7 +642,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  * passthrough rendition row already is, just without a transform-definition lookup gating it.
  *
  * So this route bypasses the transform system entirely: {@link resolveMediaOriginalBlob} +
- * {@link sendMediaOriginalResponse} are the SAME functions `routes/admin/media/original.ts`'s
+ * {@link sendMediaOriginalResponse} are the SAME functions `apps/website/src/server/inbound/admin-http/routes/media/original.ts`'s
  * authenticated admin-preview route already uses (content-type sniffed fresh from bytes, SVG sanitized, HTML
  * forced to `application/octet-stream` + `attachment`, `nosniff`/CSP/CORP headers, `Range` support
  * for video seeking) — reused, not reimplemented, so the two routes' security posture can't drift
@@ -711,16 +664,16 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
  * @complexity O(1) plus the byte copy for a partial range (inherited from
  * {@link sendMediaOriginalResponse}), plus {@link resolveMediaAccessDecision}'s own O(p) cost.
  */
-export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (app, deps) => {
+export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = ({ app, deps }, _options = {}) => {
   // Both URL generations use the same gate, byte sniffing and response headers. The suffix is
   // for static-host MIME inference; it never selects the live response's Content-Type.
   app.get(["/m/:assetId/original", "/m/:assetId/original.:ext"], async (req, res) => {
     const { assetId } = readRenditionRouteParams(req);
 
     try {
-      const access = await resolveMediaAccessDecision(deps, req, assetId);
+      const access = await resolveMediaAccessDecision({ deps, req, assetId });
       if (!access.allowed) {
-        sendMediaNotFound(res, "video rendition not found");
+        sendMediaNotFound({ res, error: "video rendition not found" });
         return;
       }
 
@@ -728,9 +681,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       // just above (2026-09-23 oracle close, S2b) — `resolveMediaOriginalBlob`'s own default 404
       // (a bare `{error: "media '<x>' was not found"}`, no Cache-Control at all) stays reserved for
       // its authenticated admin caller; see that function's `onNotFound` doc.
-      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId: assetId }, (r) =>
-        sendMediaNotFound(r, "video rendition not found")
-      );
+      const resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: deps.workspaceId, mediaId: assetId } }, { onNotFound: (r) =>
+        sendMediaNotFound({ res: r, error: "video rendition not found" }) });
       if (!resolved) {
         return;
       }
@@ -744,7 +696,7 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
         // `private, no-store` for the same reason the rendition route's not-found branch uses it
         // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,
         // or the header alone tells an anonymous caller which of the two they hit.
-        sendMediaNotFound(res, "video rendition not found");
+        sendMediaNotFound({ res, error: "video rendition not found" });
         return;
       }
 
@@ -752,12 +704,57 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
       const totalLength = bytes.byteLength;
       const range = parseRangeHeader({ header: req.get("range"), totalLength });
-      sendMediaOriginalResponse(res, bytes, range, {
+      sendMediaOriginalResponse({ res, bytes, range, contentType: {
         safe: sniffed,
         forceDownload: DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed),
-      });
+      } });
     } catch {
       res.status(500).json({ error: "internal error" });
     }
   });
 };
+
+async function sendResolvedRendition(
+  { deps, res, access, transformName, version }: { deps: MediaRenditionRouteDeps; res: Response; access: { gated: boolean; record: MediaRecord | null }; transformName: string; version: number },
+  result: Awaited<ReturnType<typeof resolveMediaRendition>>,
+): Promise<void> {
+    if (result.outcome === "gone") {
+      // ADR-027 §4: a purged/gone asset is `410 no-store`. See
+      // `rendition-service.ts`'s doc comment for the disclosed
+      // trashed-stands-in-for-purged mapping this build uses.
+      res.status(410).set(CACHE_CONTROL_HEADER, "no-store").end();
+      return;
+    }
+
+    if (result.outcome === "not-found") {
+      // Not-yet-generated-and-not-generatable-anonymously (or a wholly unknown assetId/transform).
+      //
+      // `private, no-store`, matching the gate-denied 404 above BYTE FOR BYTE (2026-09-05 fix).
+      // This branch used to send `public, max-age=60`, which made the two 404s trivially
+      // distinguishable on a header alone: any caller could ask "does this assetId exist and is it
+      // gated?" and read the answer off `Cache-Control`, defeating the indistinguishability the
+      // gate branch's own comment says it is there to provide. The two headers can only be
+      // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
+      // never be given a shared-cacheable header. The cost is the 60s negative cache on a
+      // not-found rendition, which is the correct thing to trade for closing the oracle.
+      sendMediaNotFound({ res, error: "rendition not found" });
+      return;
+    }
+
+    if (result.contentType === "image/svg+xml") {
+      // Vector passthroughs do not receive the raster pipeline's re-encode protection.
+      res.set("X-Content-Type-Options", "nosniff");
+      res.set("Content-Security-Policy", SVG_CONTENT_SECURITY_POLICY);
+    }
+    // Prefer source/rendition identities; legacy sources without stored evidence still hash bytes.
+    if (!access.gated) {
+      const identity = `${access.record?.source.sha256}:${transformName}:${version}:`;
+      const etag = await publicRenditionTag({ deps, media: access.record, transformName, version });
+      res.set("ETag", etag ?? `"${createHash("sha256").update(identity).update(result.bytes).digest("hex")}"`);
+    }
+    res
+      .status(200)
+      .set(CACHE_CONTROL_HEADER, renditionCacheControl({ access }))
+      .set("Content-Type", result.contentType)
+      .send(Buffer.from(result.bytes));
+}

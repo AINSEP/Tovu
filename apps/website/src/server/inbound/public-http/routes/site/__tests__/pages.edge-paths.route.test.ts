@@ -12,24 +12,24 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { ContentTypeRecord } from "#src/features/content-types/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
 import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
-import { NO_THEME_ID, renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
+import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
-import {
-  finishStaticTierDocument,
-  placeAfterCurrentContent,
-  registerSiteRoutes,
-  resolveHtmlFormatContentMarkers,
-  resolveMarketingPageOrOverride,
-  resolveStaticMenusForRender,
-} from "../pages.js";
+import { registerSiteRoutes } from "../pages.js";
+import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
+import { finishStaticTierDocument } from "../pages/static-tier.js";
+import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
+import { resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
+import { contentMarkerPorts } from "../pages/render-context/content-marker-ports.js";
+import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 
@@ -88,7 +88,7 @@ async function withQuietConsole<T>(fn: () => Promise<T>): Promise<T> {
 /** A post repo whose slug lookup fails for one slug the way a broken database would. */
 class FailingSlugPostRepo extends InMemoryPostRepo {
   constructor(rows: PostRecord[], private readonly failingSlug: string, readonly failure: Error) {
-    super(rows);
+    super({}, { initialRows: rows });
   }
 
   override async findBySlug(required: { workspaceId: string; slug: string }): Promise<PostRecord | null> {
@@ -131,7 +131,7 @@ test("docs pager: a neighbour page's authored cssClass is kept beside the docs-p
   const theme = staticTheme({ quickstart: `<html><body>${pager}</body></html>` }, ["quickstart"]);
   const deps = { ...createRouteDeps(), menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavWithAuthoredInstallClass()] }) };
 
-  const menus = await resolveStaticMenusForRender(deps, theme, "/quickstart");
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/quickstart" });
   const html = renderStaticPage({ theme, pageId: "quickstart", menus }) ?? "";
 
   const labelIndex = html.indexOf(">Install<");
@@ -142,15 +142,13 @@ test("docs pager: a neighbour page's authored cssClass is kept beside the docs-p
 // --- html-format content markers ----------------------------------------------------------------
 
 function contentMarkerDeps(rows: PostRecord[]) {
-  return { ...createRouteDeps(), postRepo: new InMemoryPostRepo(rows) };
+  return { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: rows }) };
 }
 
 test("content marker: an html-format entity whose bodyHtml is null resolves exactly like an empty body", async () => {
   const marker = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>`;
-  const nullBody = await resolveHtmlFormatContentMarkers(
-    contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]), marker, 0, { remaining: 5 });
-  const emptyBody = await resolveHtmlFormatContentMarkers(
-    contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]), marker, 0, { remaining: 5 });
+  const nullBody = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]) }), html: marker, depth: 0, budget: { remaining: 5 } });
+  const emptyBody = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]) }), html: marker, depth: 0, budget: { remaining: 5 } });
 
   assert.notEqual(nullBody, marker, "the marker resolved rather than staying as written");
   assert.equal(nullBody, emptyBody);
@@ -161,7 +159,7 @@ test("content marker: a marker naming neither id nor slug stays as written while
   const html = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>${keyless}`;
   const deps = contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "<p>Resolved body</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(deps, html, 0, { remaining: 5 });
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps }), html, depth: 0, budget: { remaining: 5 } });
 
   assert.match(result, /<p>Resolved body<\/p>/);
   assert.ok(result.endsWith(keyless), `expected the keyless marker untouched, got ${result}`);
@@ -190,7 +188,7 @@ test("marketing page: a post lookup failure other than not-found propagates inst
   const deps = { ...createRouteDeps(), postRepo: new FailingSlugPostRepo([], "pricing", failure) };
   const theme = staticTheme({ pricing: "<html><body><main>pricing</main></body></html>" }, ["pricing"]);
 
-  await assert.rejects(resolveMarketingPageOrOverride(deps, theme, "pricing", undefined, false), (err) => err === failure);
+  await assert.rejects(resolveMarketingPageOrOverride({ deps, theme, slug: "pricing", staticMenus: undefined, siteAssistantEnabled: false }), (err) => err === failure);
 });
 
 test("GET /pricing: a failing explicit-title lookup lets the folded site title replace the page's own title", async (t) => {
@@ -222,12 +220,12 @@ function gadget(overrides: Partial<EntryRecord> & Pick<EntryRecord, "id" | "slug
 async function datedCollectionHtml(entry: EntryRecord): Promise<string> {
   const contentTypeRepo = new InMemoryContentTypeRepo();
   await contentTypeRepo.save(gadgetType());
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await entryRepo.save(entry);
   const deps = { ...createRouteDeps(), contentTypeRepo, entryRepo };
   const marker = `<section data-embed-config='{"type":"collection","typeKey":"gadget"}'><template><p class="dated">{{title}}|{{date}}</p></template>No gadgets</section>`;
   const theme = staticTheme({ pricing: "<html><body></body></html>" }, ["pricing"]);
-  return finishStaticTierDocument(deps, { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined });
+  return finishStaticTierDocument({ deps, input: { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined } }, {});
 }
 
 test("collection list: an entry with no publishedAt is dated by its updatedAt", async () => {
@@ -270,13 +268,13 @@ async function lastJsonItem(t: TestContext, overrides: Partial<Deps>): Promise<R
 }
 
 test("see-more JSON: an html-format post's excerpt is the plain text of its HTML body", async (t) => {
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({ bodyFormat: "html", bodyHtml: "<p>Html <em>body</em> text</p>" })) });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({ bodyFormat: "html", bodyHtml: "<p>Html <em>body</em> text</p>" }) }) });
 
   assert.equal(item.excerpt, "Html body text");
 });
 
 test("see-more JSON: a post with no body text carries no excerpt field", async (t) => {
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({})) });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({}) }) });
 
   assert.deepEqual(Object.keys(item).sort(), ["cover", "date", "dateLabel", "href", "terms", "title"]);
 });
@@ -285,7 +283,7 @@ test("see-more JSON: a post's assigned terms are listed by name", async (t) => {
   const terms: readonly AssignedTermView[] = [{ termId: "term-1", termName: "Recipes", taxonomyName: "category" }];
   const entryTermReadRepo: EntryTermReadPort = { listForContent: async () => terms };
 
-  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo(thirteenPosts({})), entryTermReadRepo });
+  const item = await lastJsonItem(t, { postRepo: new InMemoryPostRepo({}, { initialRows: thirteenPosts({}) }), entryTermReadRepo });
 
   assert.deepEqual(item.terms, ["Recipes"]);
 });
@@ -306,8 +304,8 @@ test("GET /: a members-only page claiming / is not shown to an anonymous visitor
     id: "gated-home", slug: ROOT_SLUG, kind: "page", bodyFormat: "html", bodyHtml: "<p>Members-only home body</p>",
     memberAccessJson: JSON.stringify({ visibility: "members" }),
   });
-  const gatedUrl = await boot(t, { postRepo: new InMemoryPostRepo([gatedHome]) });
-  const defaultUrl = await boot(t, { postRepo: new InMemoryPostRepo([]) });
+  const gatedUrl = await boot(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [gatedHome] }) });
+  const defaultUrl = await boot(t, { postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
 
   const gated = await fetch(`${gatedUrl}/`);
   const gatedHtml = await gated.text();
@@ -330,7 +328,7 @@ function homePosts(): PostRecord[] {
 
 function unstyledSite(): Partial<Deps> {
   return {
-    postRepo: new InMemoryPostRepo(homePosts()),
+    postRepo: new InMemoryPostRepo({}, { initialRows: homePosts() }),
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: WORKSPACE_ID, activeThemeId: NO_THEME_ID, updatedAt: NOW }] }),
   };
 }
@@ -371,7 +369,7 @@ test("GET /<a>/<b>: a redirect phase that throws is handed to Express's error ha
   const failure = new Error("redirect phase down");
   const seen: unknown[] = [];
   const app = express();
-  registerSiteRoutes(app, createRouteDeps());
+  registerSiteRoutes({ app, deps: createRouteDeps() });
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     seen.push(err);
     res.status(500).send("error handler");

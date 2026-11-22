@@ -8,8 +8,9 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, SURFACE_TYPED_AN
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 test("secret-card POSTs only answer a principal-bound open exchange and never execute a fresh tool", async t => {
@@ -23,7 +24,7 @@ test("secret-card POSTs only answer a principal-bound open exchange and never ex
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
   const post = (toolName: string, params: Record<string, unknown>, principalId = "principal-1") => fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST", headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: principalId },

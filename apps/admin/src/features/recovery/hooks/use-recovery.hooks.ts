@@ -1,17 +1,20 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "@/lib/api";
+import type { AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Recovery SCREEN (the restore-points list + status/banner) does, so
  * `Recovery.tsx`'s exported `Recovery` component is only markup.
@@ -86,7 +89,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     try {
       const [status, result] = await Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()]);
       return { status, points: result.items };
-    } catch (error) { throw new Error(describeApiError(error, t({ locale, key: "failed to load Recovery" }))); }
+    } catch (error) { throw new Error(describeApiError({ e: error, fallback: t({ locale, key: "failed to load Recovery" }) })); }
   }, [port, locale]);
   // Mount reads and tool-progress refreshes can overlap. The shared query cache owns read
   // settlement order so an earlier status/list response cannot overwrite a newer refresh.
@@ -98,12 +101,12 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const invalidate = useInvalidate();
-  const create = useFetchMutation({ run: () => port.createRestorePoint({ trigger: "manual", costAck: true }) }, { invalidates: [["recovery"]] });
+  const create = useFetchMutation({ run: () => port.createRestorePoint({}, { trigger: "manual", costAck: true }) }, { invalidates: [["recovery"]] });
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
   // Read ordering and background data retention now belong to the shared query cache.
   const load = useCallback(() => { setError(null); invalidate({ key: ["recovery"] }); }, [invalidate]);
-  useContentRefreshSubscription(RECOVERY_RESOURCE, load);
+  useContentRefreshSubscription({ resource: RECOVERY_RESOURCE, onRefresh: load });
 
   /** Restore-point functionality consolidation (2026-09-10) — same no-capabilities-read shape
    *  Database's former create action used: no route exists yet to learn
@@ -120,7 +123,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
       await create.mutate({ input: {} });
       await loader.load().catch(() => {}); // Await settlement; query.error owns read failures, never retry an accepted capture.
     } catch (e) {
-      setError(describeApiError(e, t({ locale: locale, key: "Failed to create restore point" })));
+      setError(describeApiError({ e, fallback: t({ locale: locale, key: "Failed to create restore point" }) }));
     } finally {
       setCreating(false);
     }
@@ -134,13 +137,14 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
     if (!raw) return;
     sessionStorage.removeItem("recovery-deep-link-envelope");
-    const parsed = parseDeepLinkEnvelope(raw);
+    const parsed = parseDeepLinkEnvelope({ raw: raw });
     if (!parsed.ok) return;
     port
       .resolveRecoveryDeepLink(parsed.envelope)
       .then((result) => {
-        if (result.found && result.restorePoint) {
-          const match = points.find((p) => p.id === result.restorePoint!.restorePointId);
+        const restorePoint = result.restorePoint;
+        if (result.found && restorePoint) {
+          const match = points.find((p) => p.id === restorePoint.restorePointId);
           if (match) {
             setSelected(match);
             // Tabs (2026-09-10): a resolved deep link used to swap straight into `RestoreFlow` with
@@ -148,12 +152,15 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
             // URL onto the "restore" tab, or the operator would land on the Restore points list with
             // no visible sign the ceremony is one click away — same silent-regression risk this
             // effect's whole existence guards against.
-            navigate("/recovery?tab=restore", { replace: true });
+            navigate({ routePath: "/recovery?tab=restore" }, { replace: true });
           }
         }
-      })
-      .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
-  }, [points, port]);
+      }, () => undefined) // a failed re-verification falls back to the plain list, no alarm
+      .catch((error: unknown) => {
+        console.error("[recovery] Could not apply the recovery link", describeErrorForLog({ err: error }));
+        setError(t({ locale, key: "Failed to open recovery link" }));
+      });
+  }, [points, port, locale]);
 
   return { status, points, error, creating, createRestorePoint, selected, setSelected, t: boundT, locale };
 }

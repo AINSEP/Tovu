@@ -36,9 +36,9 @@ describe("usePublishContentConfirm — selection and re-entry guards", () => {
   it("unticking a row and ticking it again restores it to the selection", async () => {
     const { result } = await planned();
     const key = [...result.current.selectedKeys][0]!;
-    act(() => result.current.onToggleRow(key));
+    act(() => result.current.onToggleRow({ key: key }));
     expect(result.current.selectedKeys.has(key)).toBe(false);
-    act(() => result.current.onToggleRow(key));
+    act(() => result.current.onToggleRow({ key: key }));
     expect(result.current.selectedKeys.has(key)).toBe(true);
   });
 
@@ -210,7 +210,7 @@ describe("usePublishContentConfirm — a site id the loaded list does not name",
     const { result } = renderHook(() => usePublishContentConfirm({ onCancel: () => {}, t, port, criteria: {}, onPlanned }));
     await waitFor(() => expect(result.current.peers).toHaveLength(2));
 
-    act(() => result.current.onSelectPeer("retired-site"));
+    act(() => result.current.onSelectPeer({ peerId: "retired-site" }));
 
     await waitFor(() => expect(onPlanned).toHaveBeenCalledTimes(1));
     expect(port.calls.planPublish[0]).toMatchObject({ peerId: "retired-site" });

@@ -1,12 +1,13 @@
 import type { CSSProperties } from "react";
 import type { SettingsThemeChoice } from "@jini-ai/ui";
-import { interpolate } from "@jini-ai/ui/panel-kit";
-import { agentHandle } from "@jini-ai/agentic";
+
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { resolveAdminThemeDocument } from "../../admin-themes/apply";
 import { ADMIN_THEMES, findAdminTheme, type AdminThemeManifest, type AdminThemeScheme } from "../../admin-themes/registry";
 import { useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { t } from "./admin-themes-i18n";
+import { interpolate } from '@jini-ai/core/text';
 import "./admin-themes.css";
 
 /**
@@ -30,7 +31,7 @@ export function schemeOptionAvailable({ theme, value }: { theme: AdminThemeManif
  *  `env`'s when one is given, otherwise the browser's. No `typeof window` guard: without `env` the
  *  picker already reads `document.documentElement` during this same render, so a window-less
  *  (non-browser) render never gets this far. */
-function previewMatchMedia(env: AdminThemeDocumentEnv | undefined) {
+function previewMatchMedia({ env }: { env: AdminThemeDocumentEnv | undefined }, _options: Record<string, never> = {}) {
   if (env) return env.matchMedia;
   return typeof window.matchMedia === "function" ? window.matchMedia.bind(window) : undefined;
 }
@@ -58,9 +59,9 @@ function ThemeSwatch({ theme, scheme }: { theme: AdminThemeManifest; scheme: Adm
 }
 
 /** Appearance reuses the picker so scheme preview, persistence and rollback have one owner. */
-export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv } = {}) {
-  const locale = useAdminLocale();
-  const picker = useAdminThemePicker({}, { port, env });
+export function AdminThemeSchemeControl({ port, env, hooks = { useAdminLocale, useAdminThemePicker } }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; hooks?: { useAdminLocale: typeof useAdminLocale; useAdminThemePicker: typeof useAdminThemePicker }; } = {}) {
+  const locale = hooks.useAdminLocale();
+  const picker = hooks.useAdminThemePicker({}, { port, env });
   const activeTheme = findAdminTheme({ id: picker.themeId ?? "" });
   return (
     <div className="jini-field">
@@ -76,7 +77,7 @@ export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; 
               aria-checked={checked}
               className={checked ? "is-active" : undefined}
               disabled={!picker.ready || !schemeOptionAvailable({ theme: activeTheme, value: option.value }, {})}
-              onClick={() => picker.selectPreference(option.value)}
+              onClick={() => picker.selectPreference({ preference: option.value })}
               {...agentHandle({ handle: `admin-themes-scheme-${option.value}` }, { role: "button", label: `${option.label} color scheme` })}
             >
               {t({ locale, key: option.label })}
@@ -94,11 +95,11 @@ export function AdminThemeSchemeControl({ port, env }: { port?: AdminThemePort; 
 }
 
 /** `themes` defaults to the installed registry; a host (or test) can pass its own manifests. */
-export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; themes?: readonly AdminThemeManifest[] } = {}) {
-  const locale = useAdminLocale();
-  const picker = useAdminThemePicker({}, { port, env });
+export function AdminThemes({ port, env, themes = ADMIN_THEMES, hooks = { useAdminLocale, useAdminThemePicker } }: { port?: AdminThemePort; env?: AdminThemeDocumentEnv; themes?: readonly AdminThemeManifest[]; hooks?: { useAdminLocale: typeof useAdminLocale; useAdminThemePicker: typeof useAdminThemePicker }; } = {}) {
+  const locale = hooks.useAdminLocale();
+  const picker = hooks.useAdminThemePicker({}, { port, env });
   const activeTheme = findAdminTheme({ id: picker.themeId ?? "" }, { themes });
-  const matchMedia = previewMatchMedia(env);
+  const matchMedia = previewMatchMedia({ env });
   return (
     <div className="page admin-themes-page">
       <div className="page-header">
@@ -125,7 +126,7 @@ export function AdminThemes({ port, env, themes = ADMIN_THEMES }: { port?: Admin
               aria-checked={active}
               disabled={!picker.ready}
               className={`theme-card admin-theme-card${active ? " active" : ""}`}
-              onClick={() => picker.selectTheme(theme.id)}
+              onClick={() => picker.selectTheme({ themeId: theme.id })}
               {...agentHandle({ handle: `admin-themes-card-${theme.id}` }, { role: "button", label: `${theme.name} admin theme` })}
             >
               <ThemeSwatch theme={theme} scheme={scheme} />

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { MailTestSendResult } from "../email-api";
 import { useEmailOverview } from "../hooks/use-email-overview.hooks";
 import { createEmailFake, AT } from "./email.test-helpers";
@@ -39,7 +39,7 @@ describe("useEmailOverview", () => {
   it("renders the result carried by a 429 instead of a generic transport error", async () => {
     const api = createEmailFake();
     const answer: MailTestSendResult = { ...base, outcome: "failed", errorCode: "RATE_LIMITED", message: "Wait before sending again.", retryable: true };
-    api.sendTest.mockRejectedValue(new ApiError("Too many requests", 429, "RATE_LIMITED", { result: answer }));
+    api.sendTest.mockRejectedValue(new ApiError({ message: "Too many requests", status: 429 }, { code: "RATE_LIMITED", body: { result: answer } }));
     const { result } = renderHook(() => useEmailOverview({ api }));
     await act(() => result.current.sendTest());
     expect(result.current.test).toEqual({ kind: "done", result: answer });
@@ -47,7 +47,7 @@ describe("useEmailOverview", () => {
 
   it("reports an error without a result, then permits retry", async () => {
     const api = createEmailFake();
-    api.sendTest.mockRejectedValueOnce(new ApiError("Unavailable", 503));
+    api.sendTest.mockRejectedValueOnce(new ApiError({ message: "Unavailable", status: 503 }));
     const { result } = renderHook(() => useEmailOverview({ api }));
     await act(() => result.current.sendTest());
     expect(result.current.test).toEqual({ kind: "error", message: "Unavailable" });

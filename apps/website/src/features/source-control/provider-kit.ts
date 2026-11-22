@@ -2,7 +2,8 @@ import { createSourceControlProviderKit as createKit } from "@jini-ai/devops/sou
 
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-import { trackFetch, type ObservabilityPort } from "../../platform/observability/index.js";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { SourceControlProviderKit } from "./provider-module.js";
 
 /**
@@ -38,6 +39,7 @@ export function createSourceControlProviderKit(
   }, { fetchRedirectPolicy: "caller" });
   return {
     repositoryPaths: kit.repositoryPaths,
+    // why: positional on purpose: the plugin module ABI (see SourceControlProviderKit).
     fetch: (url, init) => kit.fetch({ url, init }),
     redirectGuardInit: init => kit.redirectGuardInit({ init }),
     assertNotRedirected: (response, hostName) => kit.assertNotRedirected({ response, hostName }),

@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { formatByteSize } from "@jini-ai/admin/media";
+import { formatByteSize } from "@jini-ai/core/text";
 import { useMediaCardMetadata } from "../hooks/use-media-card-metadata.hooks";
 
 describe("legacy media card metadata", () => {

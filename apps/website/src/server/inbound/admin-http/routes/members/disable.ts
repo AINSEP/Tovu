@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -18,14 +19,11 @@ import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
  * to this spec, see the Programmer handoff), so `authorize()` is called
  * directly rather than via `executeCommand`'s `deps.authorize` hook.
  */
-export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const memberId = String(req.params.memberId ?? "");
 
@@ -35,13 +33,13 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) 
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
 
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "member.manage",
         workspaceId: deps.workspaceId,
         entityType: "member",
         entityId: memberId,
-      });
+      } });
       if (!authorized) return;
 
       const result = await disableMember({

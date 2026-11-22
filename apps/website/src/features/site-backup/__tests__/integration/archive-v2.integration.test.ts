@@ -17,7 +17,8 @@ import { computeBlobStorageKey, SharpImageTransformer } from "#src/features/medi
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { loadTheme } from "#src/features/theme/theme";
-import { resetThemeFileToOriginal } from "#src/features/theme/theme-files";
+import { resetThemeFileToOriginal } from "@jini-ai/cms/themes/files/originals";
+import { themeOriginalFilePorts } from "#src/features/theme/theme-file-write-ports";
 import { prepareShareContent } from "../../share-preparation.js";
 import { bufferArchiveMedia } from "../../archive-media.js";
 import { buildShareZip } from "../../share-zip.js";
@@ -107,7 +108,7 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
   const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
-  await lifecycle.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace("ws").root, pluginId: "demo", enabled: optional.pluginEnabled ?? true, actor: "owner" });
+  await lifecycle.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace({ workspaceId: "ws" }).root, pluginId: "demo", enabled: optional.pluginEnabled ?? true, actor: "owner" });
   write(siteDir, "agent-plugins/ws/ws/demo/memory/notes/note.md", "Site note");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
   const sourceBefore = db.$client.serialize();
@@ -178,11 +179,11 @@ test("v2 tree, one public media copy per item, no secrets and full content round
   assert.equal(fs.readFileSync(path.join(dir, "themes/__original-themes__/static/site/index.html"), "utf8"), "<main>original theme</main>");
   const themesRoot = path.join(dir, "themes");
   assert.equal(loadTheme({ themeDir: path.join(themesRoot, "static/site"), id: "site", source: "site" }).status, "valid");
-  assert.equal(resetThemeFileToOriginal({ themeDir: path.join(themesRoot, "static/site"), themesRoot, originalDir: path.join(themesRoot, "__original-themes__/static/site"), originalsRoot: path.join(themesRoot, "__original-themes__"), relativePath: "index.html" })?.wasModified, true);
+  assert.equal(resetThemeFileToOriginal({ ports: themeOriginalFilePorts, themeDir: path.join(themesRoot, "static/site"), themesRoot, originalDir: path.join(themesRoot, "__original-themes__/static/site"), originalsRoot: path.join(themesRoot, "__original-themes__"), relativePath: "index.html" })?.wasModified, true);
   assert.equal(fs.readFileSync(path.join(themesRoot, "static/site/index.html"), "utf8"), "<main>original theme</main>");
   assert.ok(fs.existsSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs")));
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-  const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, true);
 });
 
@@ -260,7 +261,7 @@ test("edited plugin and theme import with a warning and the whole unit kept off"
   assert.equal(fs.existsSync(path.join(dir, "themes/static/site/index.html")), false);
   assert.ok(fs.existsSync(path.join(dir, ".import-quarantine/themes/static/site/index.html")));
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-  const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, false);
   // A later boot's seeder must preserve the importer's explicit disabled decision.
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id, sourceRoot: path.join(h.root, "bundled") });
@@ -285,12 +286,12 @@ for (const enabled of [false, true]) test(`a different build carries the plugin'
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
-  const workspaceRoot = layout.forWorkspace(workspaceId).root;
+  const workspaceRoot = layout.forWorkspace({ workspaceId }).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, enabled);
   // A later boot must preserve the imported operator choice, including an explicit off.
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: bundled });
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, enabled);
-  const [installed] = await lifecycle.listInstalledPlugins(workspaceRoot);
+  const [installed] = await lifecycle.listInstalledPlugins({ workspaceRoot });
   assert.equal(fs.readFileSync(path.join(installed!.packageRoot, "server.mjs"), "utf8"), "export const value = 2;");
   assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs"), "utf8"), "export const value = 1;");
   // Notices must follow the activation actually restored, even though source code stays quarantined.
@@ -309,8 +310,8 @@ test("an enabled plugin absent from this build stays quarantined and the import 
   stageVerifiedImport({ root: stage, verified });
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
-  const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
-  assert.deepEqual(await lifecycle.listInstalledPlugins(workspaceRoot), []);
+  const workspaceRoot = layout.forWorkspace({ workspaceId: readTemplate({ templateId: "starter" }).seed.workspace.id }).root;
+  assert.deepEqual(await lifecycle.listInstalledPlugins({ workspaceRoot }), []);
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, false);
   assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs"), "utf8"), "export const value = 1;");
   assert.ok(stagedImportWarnings({ root: stage }).includes("Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off."));

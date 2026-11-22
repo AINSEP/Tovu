@@ -8,6 +8,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 import { submitForm } from "../index.js";
 import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 test("assistant tools create/edit a dropdown with options and persist only declared submissions", async () => {
   let id = 0;
@@ -23,15 +24,15 @@ test("assistant tools create/edit a dropdown with options and persist only decla
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "formsfields" });
   let callId = 0;
-  const call = (toolId: string, input: unknown) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "owner" }) } });
+  const call = (toolId: string, input: unknown) => delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: `call-${++callId}`, toolId, input }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "owner" }) } });
   const field = { id: "topic", label: "Topic", type: "select", required: true, options: [{ value: "sales", label: "Sales" }] };
   const created = await call("forms_create_definition", { name: "Contact", slug: "contact", fields: [field] });
   assert.equal(created.ok, true);
   const definition = (await deps.formDefinitionRepo.list({ workspaceId: "ws" }))[0]!;
   assert.equal(definition.fields[0]!.type, "select");
-  const updated = await call("forms_update_definition", { formId: definition.id, fields: [{ ...field, options: [...field.options, { value: "help", label: "Help" }], helpText: "Pick a topic" }] });
+  const updated = await call("forms_update_definition", { formId: definition.id, expectedVersion: definition.version, fields: [{ ...field, options: [...field.options, { value: "help", label: "Help" }], helpText: "Pick a topic" }] });
   assert.equal(updated.ok, true);
-  const submitDeps = { definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, bus: new InMemoryEventBus(), rateLimiter: { check: async () => ({ allowed: true as const }) } };
+  const submitDeps = { crypto: globalThis.crypto, definitionRepo: deps.formDefinitionRepo, submissionRepo: deps.formSubmissionRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox, bus: new InMemoryEventBus(), rateLimiter: { check: async () => ({ allowed: true as const }) } };
   const input = { workspaceId: "ws", slug: "contact", sourceIp: "127.0.0.1", body: { topic: "help" } };
   await submitForm({ deps: submitDeps, input });
   await assert.rejects(submitForm({ deps: submitDeps, input: { ...input, body: { topic: "unknown" } } }));

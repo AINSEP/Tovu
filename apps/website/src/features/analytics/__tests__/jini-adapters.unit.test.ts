@@ -4,7 +4,7 @@ import test from "node:test";
 import { analyticsPrivacyPolicy, analyticsSaltContext, createAnalyticsIngestBinding, createLocalAnalyticsSink, type AnalyticsIngestRouteDeps } from "../jini-adapters.js";
 import type { NormalizedHit } from "../types.js";
 
-/** @file The Tovu → @jini-ai/analytics port binding: every positional host port is reached through the object API. */
+/** @file The Tovu → @jini-ai/analytics port binding forwards each object argument. */
 
 function hostDeps(withHooks: boolean) {
   const calls: Array<[string, unknown]> = [];
@@ -14,13 +14,13 @@ function hostDeps(withHooks: boolean) {
     config: { enabled: true },
     sink: {
       capabilities: () => { calls.push(["capabilities", undefined]); return capabilities; },
-      accept: async (hit: NormalizedHit) => { calls.push(["accept", hit]); },
-      acceptBatch: async (hits: NormalizedHit[]) => { calls.push(["acceptBatch", hits]); },
-      list: async (optional: unknown) => { calls.push(["list", optional]); return listed; },
+      accept: async ({ hit }: { hit: NormalizedHit }) => { calls.push(["accept", hit]); },
+      acceptBatch: async ({ hits }: { hits: NormalizedHit[] }) => { calls.push(["acceptBatch", hits]); },
+      list: async (_required: unknown, optional: unknown) => { calls.push(["list", optional]); return listed; },
     },
     resolveWorkspaceForHost: (host: string) => { calls.push(["resolve", host]); return host === "site.example" ? "ws-1" : null; },
     analyticsSeed: "seed-for-test",
-    ...(withHooks ? { hooks: { beforeIngest: async (hit: NormalizedHit) => { calls.push(["beforeIngest", hit]); } } } : {}),
+    ...(withHooks ? { hooks: { beforeIngest: async ({ hit }: { hit: NormalizedHit }) => { calls.push(["beforeIngest", hit]); } } } : {}),
   } as unknown as AnalyticsIngestRouteDeps;
   return { deps, calls, capabilities, listed };
 }
@@ -51,14 +51,14 @@ test("host hooks are adapted to Jini's object-argument beforeIngest", async () =
   assert.deepEqual(host.calls, [["beforeIngest", hit]]);
 });
 
-test("the local sink adapts Jini's buffer to the positional Tovu sink port, seeded with initial hits", async () => {
+test("the local sink adapts Jini's buffer to the Tovu sink port, seeded with initial hits", async () => {
   const hit = (path: string, second: number) => ({ path, workspaceId: "ws-1", occurredAt: `2026-10-20T00:00:0${second}.000Z` } as unknown as NormalizedHit);
   const sink = createLocalAnalyticsSink({}, { initialHits: [hit("/seed", 0)] });
   assert.equal(sink.capabilities().durable, false);
-  await sink.accept(hit("/one", 1));
-  await sink.acceptBatch([hit("/two", 2), hit("/three", 3)]);
+  await sink.accept({ hit: hit("/one", 1) });
+  await sink.acceptBatch({ hits: [hit("/two", 2), hit("/three", 3)] });
   assert.deepEqual(sink.all().map((stored) => stored.path), ["/seed", "/one", "/two", "/three"]);
-  const listed = await sink.list({ limit: 2 });
+  const listed = await sink.list({}, { limit: 2 });
   assert.equal(listed.length, 2);
   assert.ok(listed.every((stored) => ["/seed", "/one", "/two", "/three"].includes(stored.path)));
 });

@@ -6,7 +6,7 @@ import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
 /**
  * @file Adversarial verification (peer-dispatched, 2026-09-05) of an externally-reported,
@@ -44,7 +44,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 
 test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIFFERENT header options must render each occurrence with ITS OWN header setting, not whichever one won the resolve-time Map collapse', async () => {
   const entryRepo = new InMemoryEntryRepo();
-  const postRepo = new InMemoryPostRepo([postRecord()]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [postRecord()] });
 
   const html =
     `<section id="with-header"><main data-embed-config='{"type":"content","id":"entity-1","header":true}'></main></section>` +
@@ -55,7 +55,7 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
     input: { workspaceId: WORKSPACE_ID, html },
   });
 
-  const output = renderHtmlPageBody(html, resolved);
+  const output = renderHtmlPageBody({ html, resolved });
   const withHeader = output.match(/<section id="with-header">([\s\S]*?)<\/section>/)?.[1];
   const withoutHeader = output.match(/<section id="without-header">([\s\S]*?)<\/section>/)?.[1];
   assert.ok(withHeader);

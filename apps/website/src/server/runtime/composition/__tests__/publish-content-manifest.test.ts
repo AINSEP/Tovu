@@ -1,5 +1,5 @@
-import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
-import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
+import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — proves
@@ -36,13 +36,18 @@ import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sql
 import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
+import { createFileBlobIndex } from "@jini-ai/cms/publish/transfer";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
-import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash";
 import { packThemeFilesEntities } from "#src/features/theme/publish-content";
 import { createRedirect, InMemoryRedirectRepo, redirectMatcher, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
@@ -132,9 +137,9 @@ for (const fixture of APPLY_FIXTURES) {
         dir: "/themes/static/registry-theme", source: "site", tokens: {}, tokensLight: {}, templates: {},
         liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {},
       } satisfies DiscoveredTheme);
-      const forms = new SqliteFormDefinitionRepo(site.db);
+      const forms = new SqliteFormDefinitionRepo({ store: site.db });
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
-        entryRefs: new SqliteEntryRefsRepo(site.db), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
+        entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
       const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
       const handler = buildPublishContentCatalog(deps).handlerByType.get(fixture.entityType);
       assert.ok(handler, `${fixture.entityType} must be installed`);
@@ -145,8 +150,8 @@ for (const fixture of APPLY_FIXTURES) {
       else assert.equal(prior, undefined, "the target must not already exist");
 
       await handler.apply({ entity: { entityType: fixture.entityType, id: fixture.id, state: fixture.state,
-        schemaVersion: handler.schemaVersion, contentHash: contentHash(fixture.entityType, fixture.state), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
-      }, expectedVersion: (await handler.inspect(fixture.id))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
+        schemaVersion: handler.schemaVersion, contentHash: contentHash({ entityType: fixture.entityType, state: fixture.state }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
+      }, expectedVersion: (await handler.inspect({ id: fixture.id }))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
 
       const after = [];
       for await (const entity of handler.pack()) after.push(entity);
@@ -171,7 +176,7 @@ test("the registered raw-row contributor creates a row readable through an indep
   try {
     site.db.$client.exec("CREATE TABLE p_registry_article (id TEXT PRIMARY KEY, title TEXT)");
     const deps: PublishContentDeps = { ...makeSite({}, "raw-row-registry"),
-      backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(site.db) }), coveredTables: [], coveredRoots: [] } };
+      backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: site.db }) }), coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-row");
     assert.ok(handler);
     const id = 'p_registry_article:{"id":"article-1"}';
@@ -180,7 +185,7 @@ test("the registered raw-row contributor creates a row readable through an indep
       values: { id: "article-1", title: "Registry raw article" } };
     assert.equal((site.db.$client.prepare("SELECT count(*) AS n FROM p_registry_article").get() as { n: number }).n, 0);
     await handler.apply({ entity: { entityType: "raw-row", id, state, schemaVersion: 1,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-row", state), requiredBlobs: [],
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [],
     }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-row" });
     assert.deepEqual(site.db.$client.prepare("SELECT id, title FROM p_registry_article").all(), [{ id: "article-1", title: "Registry raw article" }]);
   } finally {
@@ -198,7 +203,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
     await blobs.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes });
     // f6de81431 requires real ownership repos even for staged, ordinary non-media files.
     const deps: PublishContentDeps = { ...makeSite({ media: {
-      repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
+      repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}),
       blobStore: blobs, contentTypeStore: new InMemoryMediaContentTypeStore(),
     } }, "raw-file-registry"),
       backstop: { files: createRawFileSitePort({ siteDir: root }), blobs, fileBlobIndex: createFileBlobIndex(),
@@ -209,7 +214,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
     const state = { path: id, size: bytes.byteLength, sha256, mode: 0o644 };
     await assert.rejects(readFile(path.join(root, id)), { code: "ENOENT" });
     await handler.apply({ entity: { entityType: "raw-file", id, state, schemaVersion: 1,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256],
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [sha256],
     }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-file" });
     assert.deepEqual(await readFile(path.join(root, id)), bytes);
   } finally {
@@ -244,7 +249,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
     htmlAttributes: null,
   };
 
-  const mediaRepo = new InMemoryVersionedMediaRepo();
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
   const blobStore = new InMemoryBlobStore();
   await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
   const outbox = new InMemoryOutbox();
@@ -264,7 +269,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
       entityType: "media",
       id: record.id,
       schemaVersion: 1,
-      contentHash: contentHash("media", { ...record }),
+      contentHash: contentHash({ entityType: "media", state: { ...record } }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [sha256],
       state: { ...record } as unknown as Record<string, unknown>,
@@ -382,7 +387,7 @@ test("the registered menu contributor's apply() is a real write path, not a thro
       entityType: "menu",
       id: "menu-header-nav",
       schemaVersion: 1,
-      contentHash: contentHash("menu", record),
+      contentHash: contentHash({ entityType: "menu", state: record }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [],
       state: record as unknown as Record<string, unknown>,
@@ -429,7 +434,7 @@ test("the registered theme-files contributor's apply() is a real write path, not
       authorize: async () => ({ allowed: true, reason: "test-always-allow" }),
       ports: {
         // Use the real ownership guard introduced by f6de81431, not undefined policy ports.
-        media: { repo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
+        media: { repo: new InMemoryVersionedMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), blobStore, contentTypeStore: new InMemoryMediaContentTypeStore() },
         "theme-files": { themesDir: destThemes },
       },
     };

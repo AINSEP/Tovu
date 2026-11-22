@@ -1,21 +1,19 @@
+import { createStaticSiteTabTranslator } from "./StaticSiteTab.hooks";
+import { useWiredCopyToClipboard } from "@jini-ai/ui";
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { useState, type ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import type { ReactNode } from "react";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { ErrorNotice, formatTimestamp } from "@jini-ai/ui/panel-kit";
-import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
-import type {
-  AdminExportRunSnapshot,
-  AdminPublishExecutionMode,
-  AdminPublishTargetField,
-  AdminStaticPublishPreview,
-  AdminStaticPublishTargetId,
-} from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
+
+import type { AdminPublishExecutionMode } from "../security/api/security-api.types";
+import type { AdminPublishTargetField, AdminStaticPublishPreview, AdminStaticPublishTargetId } from "./api/deployment-api.types";
+import type { AdminExportRunSnapshot } from "../import-export/api/import-export-api.types";
+
 import { t } from "./deployment-i18n";
 import {
   STATIC_SITE_CAPABILITIES,
@@ -31,7 +29,7 @@ import {
   credentialVerifyStatusClass,
 } from "./rules";
 import { CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
-import { PublishRunResult } from "./PublishRunResult";
+import { PublishRunResult } from "@jini-ai/devops/deploy/react";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
@@ -39,6 +37,8 @@ import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
+import { formatTimestamp, interpolate, splitOnPlaceholders, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 function PublishFailureNotice({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
   if (controller.publishFailure) return <ErrorNotice failure={controller.publishFailure} t={translate} className="save-error" />;
   return controller.publishError ? <p className="save-error" role="alert">{controller.publishError}</p> : null;
@@ -53,12 +53,12 @@ function PublishFailureNotice({ controller, t: translate }: { controller: Static
  * The second pass's own header traced a grep (`runExportCommand|exportSite\b` against
  * `src/server/routes`) that returned nothing, and concluded the build button had to stay inert. That
  * grep is now stale for a second time, the same way it was corrected once already: a concurrent
- * agent landed `src/server/routes/admin/system/export-site.ts` (`POST`/`GET .../system/export`,
- * trigger+poll, `system.export`-gated) the same session, registered in `server/app.ts`, tested in
+ * agent landed `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` (`POST`/`GET .../system/export`,
+ * trigger+poll, `system.export`-gated) the same session, registered in `apps/website/src/server/runtime/composition/app.ts`, tested in
  * `export-site-route.test.ts`. The build button below now calls it for real, through
  * `useWiredStaticExport` (`hooks/use-static-export.hooks.ts`).
  *
- * The publish half tells the same story a second time over: `src/server/routes/admin/system/
+ * The publish half tells the same story a second time over: `apps/website/src/server/inbound/admin-http/routes/system/
  * publish-site.ts` (preview + trigger + poll, wrapping `features/deployments/static-publish/`) also
  * landed the same session, cookie-authed — a HUMAN clicking Publish in this admin, not the AI
  * assistant (`deployment_execute_static_publish`, the agent-tool half of this same feature, stays
@@ -173,7 +173,7 @@ function PublishFailureNotice({ controller, t: translate }: { controller: Static
  *  left with the CLI-first route on 2026-09-29, so the flag had no caller and was removed; bring
  *  it back with the first new prose call site.
  *
- *  Component-local `useState` rather than a hook + port pair — there is nothing to inject, same
+ *  Component-local state rather than a hook + port pair — there is nothing to inject, same
  *  carve-out `ThemeExplore.tsx`'s device-width/fullscreen state documents.
  *
  *  A denied clipboard permission is swallowed, same as everywhere else in this app: the text is
@@ -185,6 +185,7 @@ function CopyLine({
   copiedLabel,
   copyAccessibleName,
   agentHandleId,
+  useCopyLine: useCopyLineHook = useWiredCopyToClipboard,
 }: {
   text: string;
   copyLabel: string;
@@ -198,18 +199,9 @@ function CopyLine({
    *  CLI's "ask the assistant" line) — the id is caller-supplied rather than a constant baked into
    *  this component, same reason `copyAccessibleName` is. */
   agentHandleId: string;
+  useCopyLine?: typeof useWiredCopyToClipboard;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context) — see this component's doc.
-    }
-  }
+  const { copied, copy } = useCopyLineHook();
 
   return (
     <div className="deployment-command">
@@ -219,7 +211,7 @@ function CopyLine({
       <button
         type="button"
         className="btn-secondary"
-        onClick={() => void copy()}
+        onClick={() => void copy(text)}
         aria-label={copyAccessibleName}
         {...agentHandle({ handle: agentHandleId }, { role: "button", label: copyAccessibleName })}
       >
@@ -237,20 +229,22 @@ function CopyLine({
  *  it to 11 — same reasoning `PublishPreviewAction`'s own doc gives for splitting the publish half of
  *  this tab. No behavior moved, only where the branches are counted. */
 function ExportRunCounts({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
+  const counts = run.counts;
+  if (!counts) throw new Error("completed export run has no counts");
   return (
     <div className="deployment-facts">
       <div className="deployment-fact">
         <span className="deployment-fact-label">{translate("Routes")}</span>
         <span className="deployment-fact-value">
-          {run.counts!.routesSucceeded} {translate("succeeded")}
-          {run.counts!.routesFailed > 0 ? `, ${run.counts!.routesFailed} ${translate("failed")}` : ""}
+          {counts.routesSucceeded} {translate("succeeded")}
+          {counts.routesFailed > 0 ? `, ${counts.routesFailed} ${translate("failed")}` : ""}
         </span>
       </div>
       <div className="deployment-fact">
         <span className="deployment-fact-label">{translate("Assets")}</span>
         <span className="deployment-fact-value">
-          {run.counts!.assetsSucceeded} {translate("succeeded")}
-          {run.counts!.assetsFailed > 0 ? `, ${run.counts!.assetsFailed} ${translate("failed")}` : ""}
+          {counts.assetsSucceeded} {translate("succeeded")}
+          {counts.assetsFailed > 0 ? `, ${counts.assetsFailed} ${translate("failed")}` : ""}
         </span>
       </div>
       {run.outputDir ? (
@@ -325,7 +319,7 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
  *  build action: a clean/overwrite checkbox, the Build button itself, a live status pill, and the
  *  run's own result once it settles. */
 function BuildExportCard({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
-  const tone = runStatusTone(controller.run?.status ?? "idle", controller.run?.ok);
+  const tone = runStatusTone({ status: controller.run?.status ?? "idle" }, { ok: controller.run?.ok });
 
   return (
     <div
@@ -338,7 +332,7 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
       <div className="card-head">
         <h2 className="card-title">{translate("Build here or in a terminal")}</h2>
         <div className="card-head-actions">
-          <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey(controller.run))}</span>
+          <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey({ run: controller.run }))}</span>
         </div>
       </div>
       <div className="deployment-card-body">
@@ -438,6 +432,7 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
 }
 
 export interface StaticSiteTabProps {
+  hooks?: { useStaticExportHook: typeof useWiredStaticExport; useStaticPublishHook: typeof useWiredStaticPublish; usePublishCredentialsHook: typeof useWiredPublishCredentials; useAdminLocale: typeof useAdminLocale };
   /** DI seams for tests — same convention as every other wired-hook prop in this app
    *  (`DockerfileTabProps.useDockerfileSourceHook`, `OverviewTabProps.useDeploymentOverviewHook`). */
   useStaticExportHook?: typeof useWiredStaticExport;
@@ -446,18 +441,16 @@ export interface StaticSiteTabProps {
 }
 
 export function StaticSiteTab(props: StaticSiteTabProps) {
-  const locale = useAdminLocale();
-  const translate = (key: string): string => t({ locale: locale, key: key });
+  const { hooks = { useStaticExportHook: props.useStaticExportHook ?? useWiredStaticExport, useStaticPublishHook: props.useStaticPublishHook ?? useWiredStaticPublish, usePublishCredentialsHook: props.usePublishCredentialsHook ?? useWiredPublishCredentials, useAdminLocale } } = props;
+  const locale = hooks.useAdminLocale();
+  const translate = createStaticSiteTabTranslator({ locale });
 
   // Keep the DI seams. Forwarding resolvers previously isolated these branches for the
   // complexity gate; this component is small enough to resolve its defaults directly.
-  const useStaticExportHook = props.useStaticExportHook ?? useWiredStaticExport;
-  const useStaticPublishHook = props.useStaticPublishHook ?? useWiredStaticPublish;
-  const usePublishCredentialsHook = props.usePublishCredentialsHook ?? useWiredPublishCredentials;
 
-  const exportController = useStaticExportHook();
-  const publishController = useStaticPublishHook();
-  const credentialsController = usePublishCredentialsHook(publishController.targets);
+  const exportController = hooks.useStaticExportHook();
+  const publishController = hooks.useStaticPublishHook();
+  const credentialsController = hooks.usePublishCredentialsHook({ targets: publishController.targets });
 
   return (
     <div className="deployment-tab">
@@ -531,7 +524,7 @@ function GettingItOnlineCard({
   if (publishController.targets?.length === 0 && !publishController.targetsError) {
     return <div className="empty-state">
       <p>{translate("Enable a hosting plugin to publish this site.")}</p>
-      <a href={adminHref("/addons/agent-plugins")}>{translate("Plugins")}</a>
+      <a href={adminHref({ routePath: "/addons/agent-plugins" })}>{translate("Plugins")}</a>
     </div>;
   }
   const selectedTargetId = publishController.target;
@@ -628,7 +621,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
       <button
         type="button"
         className="link-button"
-        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        onClick={() => navigate({ routePath: "/access-tokens?tab=access-tokens" })}
         {...agentHandle({ handle: "deployment-static-site-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
@@ -775,7 +768,7 @@ function PublishCredentialFields({
 
   return (
     <>
-      {fieldHelpText(row.credential) ? <p className="deployment-action-reason">{fieldHelpText(row.credential)}</p> : null}
+      {fieldHelpText({ field: row.credential }) ? <p className="deployment-action-reason">{fieldHelpText({ field: row.credential })}</p> : null}
       <div className="deployment-credential-fields">
         {row.credential.fields.map((field) => (
           <CredentialFieldInput key={field.name} row={row} field={field} controller={controller} t={translate} />
@@ -832,7 +825,7 @@ function CredentialFieldInput({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  const id = credentialFieldHandleId(row.providerId, field.name, row.credential.tokenField);
+  const id = credentialFieldHandleId({ providerId: row.providerId, fieldName: field.name, tokenField: row.credential.tokenField });
   const isToken = field.name === row.credential.tokenField;
   return (
     <div className="field">
@@ -843,14 +836,14 @@ function CredentialFieldInput({
         id={id}
         autoComplete="new-password"
         value={row.values[field.name] ?? ""}
-        onChange={(e) => controller.setField(row.providerId, field.name, e.target.value)}
+        onChange={(e) => controller.setField({ providerId: row.providerId, fieldName: field.name, value: e.target.value })}
         {...agentHandle({ handle: id }, {
           role: "field",
           label: isToken ? `${row.label} access token — stored encrypted, never shown again once saved` : `${row.label} ${field.label}`,
         })}
       />
       {isToken ? <TokenFieldHints row={row} t={translate} /> : null}
-      {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+      {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
     </div>
   );
 }
@@ -919,7 +912,7 @@ function CredentialStepTodo({
           <h3 className="deployment-step-title">
             {translate("Connect")} <span translate="no">{row.label}</span>
           </h3>
-          <p className="deployment-step-subtitle">{credentialStepSubtitle(executionMode, row.credential, translate)}</p>
+          <p className="deployment-step-subtitle">{credentialStepSubtitle({ executionMode, credential: row.credential, translate })}</p>
         </div>
       </div>
       <PublishCredentialFields row={row} controller={controller} t={translate} />
@@ -967,7 +960,7 @@ function CredentialStepTodo({
  * capabilities`) started telling a human to come HERE and "hit verify on the token" whenever its
  * cached verification went cold (e.g. a server restart — `InMemoryPublishCredentialVerificationCache`
  * has no persistence), and grepping this file for "verify" turned up nothing to click (see
- * `development/e2e/deployment-static-site-verify-gap.spec.ts`'s header for the full live-reproduction
+ * the original verification-gap investigation for the full live-reproduction
  * chain). `POST .../credentials/:id/verify` (`publish-credentials.ts`) already existed and worked; the
  * gap was UI wiring only. {@link CredentialVerifyAction} closes it — a real re-check button living
  * inside `<summary>` itself (not the `<details>` content revealed on expand), because it has to stay
@@ -1004,6 +997,8 @@ function CredentialStepDone({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
+  const saved = row.saved;
+  if (!saved) throw new Error(`publish credential row ${row.providerId} has no saved credential`);
   return (
     <details
       className="deployment-step deployment-step-done"
@@ -1021,13 +1016,13 @@ function CredentialStepDone({
             <span translate="no">{row.label}</span>
           </TemplateWithNode>{" "}
           · {translate("token stored, encrypted")} ·{" "}
-          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: row.saved!.updatedAt }, { timeZone: "local" }) } })} <CredentialHint hint={row.saved!.tokenHint} />
-          {row.saved!.accountLabel ? (
+          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: saved.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) } })} <CredentialHint hint={saved.tokenHint} />
+          {saved.accountLabel ? (
             <>
               {" "}
               ·{" "}
               <TemplateWithNode template={translate("connected as {account}")} token="{account}">
-                <span translate="no">{row.saved!.accountLabel}</span>
+                <span translate="no">{saved.accountLabel}</span>
               </TemplateWithNode>
             </>
           ) : null}
@@ -1118,10 +1113,12 @@ function CredentialTokenPicker({
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  // Rendered only inside the connected row (`row.saved` set — that row reads `row.saved!` too), so
+  // Rendered only inside the connected row (`row.saved` set — that row checks it too), so
   // the selected value falls back to the saved default's id with no further "nothing saved" arm.
   const options = controller.credentialsForProvider(row.providerId);
   if (options.length < 2) return null;
+  const saved = row.saved;
+  if (!saved) throw new Error(`publish credential picker ${row.providerId} has no saved credential`);
   const fieldId = `deployment-static-site-credentials-picker-${row.providerId}`;
   return (
     <div className="field">
@@ -1130,9 +1127,9 @@ function CredentialTokenPicker({
       </label>
       <select
         id={fieldId}
-        value={row.selectingCredentialId ?? row.saved!.id}
+        value={row.selectingCredentialId ?? saved.id}
         disabled={row.selectingCredentialId !== null}
-        onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
+        onChange={(e) => void controller.selectCredential({ providerId: row.providerId, credentialId: e.target.value })}
         {...agentHandle({ handle: fieldId }, {
           role: "field",
           label: `Choose which of this workspace's saved ${row.label} tokens is the one Tovu publishes with`,
@@ -1140,7 +1137,7 @@ function CredentialTokenPicker({
       >
         {options.map((credential) => (
           <option key={credential.id} value={credential.id}>
-            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp({ iso: credential.updatedAt }, { timeZone: "local" })}
+            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp({ iso: credential.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
           </option>
         ))}
       </select>
@@ -1172,7 +1169,7 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
   return (
     <>
       {target.configFields.map((field) => {
-        const id = publishConfigFieldHandleId(field.name);
+        const id = publishConfigFieldHandleId({ fieldName: field.name });
         return (
           <div className="field" key={field.name}>
             <FieldLabel field={field} htmlFor={id} t={translate} />
@@ -1180,10 +1177,10 @@ function StaticPublishTargetFields({ controller, t: translate }: { controller: S
               id={id}
               type="text"
               value={controller.configValues[field.name] ?? ""}
-              onChange={(e) => controller.setConfigField(field.name, e.target.value)}
+              onChange={(e) => controller.setConfigField({ name: field.name, value: e.target.value })}
               {...agentHandle({ handle: id }, { role: "field", label: `${target.label} ${field.label}` })}
             />
-            {fieldHelpText(field) ? <p className="field-hint">{fieldHelpText(field)}</p> : null}
+            {fieldHelpText({ field }) ? <p className="field-hint">{fieldHelpText({ field })}</p> : null}
           </div>
         );
       })}
@@ -1235,7 +1232,7 @@ function PublishPreviewAction({
  *  complexity-gate reason {@link PublishPreviewAction} documents. `busy` and `runTone` are passed in
  *  rather than recomputed here — `busy` is `StaticPublishForm`'s own value, read by BOTH the disabled
  *  check below and the button's own label, and computing it twice would let the two drift; `runTone`
- *  is `runStatusTone(controller.run?.status ?? "idle", ...)`, whose own optional-chaining/`??`
+ *  is `runStatusTone({ status: controller.run?.status ?? "idle" }, ...)`, whose own optional-chaining/`??`
  *  operators each count as a branch for this repo's `complexity` rule same as a ternary does — kept
  *  in the parent (mirrors `BuildExportCard` keeping its own `tone` outside `ExportTriggerAction`)
  *  rather than pushing this function back over the 9/9 gate the same way computing it here once did. */
@@ -1262,7 +1259,7 @@ function PublishTriggerAction({
 }) {
   return (
     <div className="deployment-action">
-      <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
+      <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey({ run: controller.run }))}</span>
       <button
         type="button"
         disabled={!canPublish || busy || credentialChangePending}
@@ -1287,7 +1284,7 @@ function PublishTriggerAction({
           {controller.pollError}
         </p>
       ) : null}
-      {controller.run ? <PublishRunResult run={controller.run} t={translate} /> : null}
+      {controller.run ? <PublishRunResult run={controller.run} publishedLabel={translate("Published:")} linkLabel="Open the just-published site" linkHandle="deployment-static-site-publish-result-url" /> : null}
     </div>
   );
 }
@@ -1325,7 +1322,7 @@ function StaticPublishForm({
   t: Translate;
 }) {
   const { canPreview, canPublish, projectNameCopy } = controller;
-  const runTone = runStatusTone(controller.run?.status ?? "idle", controller.run?.result?.ok);
+  const runTone = runStatusTone({ status: controller.run?.status ?? "idle" }, { ok: controller.run?.result?.ok });
   // `publishing` (the POST-in-flight flag) is included alongside `isPublishing` (the server-confirmed
   // "running" state) on purpose — without it, the window between clicking Publish and the response
   // supplying a "running" run left the button enabled, which is exactly how a double-click could send

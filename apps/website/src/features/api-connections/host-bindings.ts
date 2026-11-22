@@ -1,7 +1,6 @@
 import type { Clock } from '@jini-ai/core/primitives';
 import type { OAuthHttpPorts } from '@jini-ai/core/contracts/oauth';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import type { KeyringPort, SecretSealerPort, VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { startLoopbackAuthorizationReceiver } from '@jini-ai/oauth';
 import { apiConnectionOAuthCapabilities } from './oauth-bindings.js';
 import type { ApiConnectionHostPorts, ApiConnectionHostMessages, ApiConnectionRuntime, ApiConnectionSharedFactoryInput, PluginHttp } from '@jini-ai/integrations/api-connections';
@@ -68,7 +67,10 @@ export function bindApiConnectionHost({ required, optional }: { required: ApiCon
       pluginHttp: required.pluginHttp, runtime: required.runtime, env: required.env, publicOrigin: required.publicOrigin,
       apiConnectionStorage: { records, tokensFor: ({ owner }: Parameters<ApiConnectionHostPorts['apiConnectionStorage']['tokensFor']>[0]) => createApiConnectionVaultTokenStore({ vault, records, clock: required.clock, owner }) },
       loadDeclaredConnections: ({ workspaceId }: { workspaceId: string }) => loadDeclaredApiConnections({ workspaceId, loadContributions: required.loadContributions }),
-      createSharedConnections: (input: ApiConnectionSharedFactoryInput) => createSharedApiConnections({ ...optional.shared!, ...input }),
+      createSharedConnections: (input: ApiConnectionSharedFactoryInput) => {
+        if (optional.shared === undefined) throw new Error('Shared API connections have no host configuration');
+        return createSharedApiConnections({ ...optional.shared, ...input });
+      },
       appIdentity: { clientDisplayName: 'Tovu', softwareId: 'tovu' },
       byoCredentials: createByoCredentials({ credentials: { repo: required.customCredentialRepo, keyring: required.keyring, sealer: required.sealer } }),
       createLimiter,

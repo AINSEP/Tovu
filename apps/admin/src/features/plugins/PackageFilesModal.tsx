@@ -1,17 +1,15 @@
-import { RemixIcon } from "@jini-ai/ui";
+import { CodeWithLines, CodeWrapToggle, RemixIcon, useCodeWrap } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
-import { buildAgentListHandles } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
-import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
-import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The read-only package-files browser BOTH plugin screens open — a VS Code-style file tree
  * (files first, chevrons, indent guides, file-type icons; since 2026-09-29) on the left, the
@@ -96,7 +94,7 @@ function PackageTreeIcon({ folder, expanded, name }: { folder: boolean; expanded
   </>;
   return <>
     <span className="agent-plugin-source-tree-twistie" aria-hidden />
-    <RemixIcon name={FILE_ICON_GLYPH[packageFileIconKind(name)]} className={`agent-plugin-source-tree-icon is-${packageFileIconKind(name)}`} />
+    <RemixIcon name={FILE_ICON_GLYPH[packageFileIconKind({ fileName: name })]} className={`agent-plugin-source-tree-icon is-${packageFileIconKind({ fileName: name })}`} />
   </>;
 }
 
@@ -113,6 +111,7 @@ function PackageFileTree({
   fileHandleByPath,
   handlePrefix,
   label,
+  hooks = { usePackageFileTree },
 }: {
   files: readonly PackageFileView[];
   selectedPath: string | null;
@@ -120,18 +119,19 @@ function PackageFileTree({
   fileHandleByPath: ReadonlyMap<string, string>;
   handlePrefix: string;
   label: string;
+  hooks?: { usePackageFileTree: typeof usePackageFileTree };
 }) {
-  const tree = usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
+  const tree = hooks.usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
   const folderPaths = tree.rows.filter((row) => row.node.kind === "folder").map((row) => row.node.path);
   const folderHandles = buildAgentListHandles({ prefix: `${handlePrefix}-folder`, ids: folderPaths });
-  const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]!]));
+  const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]]));
 
   return (
     <div ref={tree.treeRef} role="tree" aria-label={label} className="agent-plugin-source-tree" onKeyDown={tree.onKeyDown}>
       {tree.rows.map((row) => {
         const { node } = row;
         const folder = node.kind === "folder";
-        const expanded = folder && tree.isExpanded(node.path);
+        const expanded = folder && tree.isExpanded({ folderPath: node.path });
         const handle = folder
           ? agentHandle({ handle: `${folderHandleByPath.get(node.path)}-toggle` }, { role: "button", label: `Expand or collapse the "${node.path}" folder` })
           : agentHandle({ handle: `${fileHandleByPath.get(node.path)}-select` }, { role: "button", label: `Select the "${node.path}" file` });
@@ -181,13 +181,15 @@ function PackageFileContent({
   headingId,
   agentHandleBase,
   t,
+  hooks = { useCodeWrap },
 }: {
   file: PackageFileView;
   headingId: string;
   agentHandleBase: string;
   t: Translate;
+  hooks?: { useCodeWrap: typeof useCodeWrap };
 }) {
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = hooks.useCodeWrap();
   const hasContent = file.content !== null;
 
   return (
@@ -213,7 +215,46 @@ function PackageFileBody({ file, wrap }: { file: PackageFileView; wrap: boolean 
       </p>
     );
   }
-  return <CodeView text={file.content} wrap={wrap} />;
+  return <CodeWithLines text={file.content} wrap={wrap} />;
+}
+
+interface PackageSourceBrowserProps extends Pick<PackageFilesModalProps, "files" | "selectedFile" | "onSelectFile" | "status" | "listNotice" | "handlePrefix" | "t"> {
+  selectedHandle: string | undefined;
+  fileHandleByPath: ReadonlyMap<string, string>;
+  headingId: string;
+}
+
+/** The two-pane body of the modal's "Package files" view: the file tree beside the selected file. */
+function PackageSourceBrowser({ files, selectedFile, selectedHandle, fileHandleByPath, onSelectFile, status, listNotice, handlePrefix, headingId, t }: PackageSourceBrowserProps) {
+  return (
+    <div className="agent-plugin-source-browser">
+      <nav className="agent-plugin-source-files" aria-label={t("Package files")}>
+        {listNotice ? (
+          <p className="page-description" role="note">
+            {listNotice}
+          </p>
+        ) : null}
+        <PackageFileTree
+          files={files}
+          selectedPath={selectedFile?.relativePath ?? null}
+          onSelectFile={onSelectFile}
+          fileHandleByPath={fileHandleByPath}
+          handlePrefix={handlePrefix}
+          label={t("Package files")}
+        />
+      </nav>
+      {selectedFile && selectedHandle !== undefined ? (
+        <PackageFileContent
+          file={selectedFile}
+          headingId={headingId}
+          key={selectedFile.relativePath}
+          agentHandleBase={selectedHandle}
+          t={t}
+        />
+      ) : null}
+      {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
+    </div>
+  );
 }
 
 export function PackageFilesModal({
@@ -237,7 +278,9 @@ export function PackageFilesModal({
   // other list on this workstream uses (`buildAgentListHandles`).
   const fileHandles = buildAgentListHandles({ prefix: handlePrefix, ids: files.map((file) => file.relativePath) }
   );
-  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]!]));
+  const fileHandleByPath = new Map(files.map((file, index) => [file.relativePath, fileHandles[index]]));
+  const selectedHandle = selectedFile ? fileHandleByPath.get(selectedFile.relativePath) : undefined;
+  if (selectedFile && selectedHandle === undefined) throw new Error(`package file ${selectedFile.relativePath} has no handle`);
 
   return (
     <PreviewModalShell
@@ -253,33 +296,18 @@ export function PackageFilesModal({
           id: "package-source",
           label: t("Package files"),
           custom: (
-            <div className="agent-plugin-source-browser">
-              <nav className="agent-plugin-source-files" aria-label={t("Package files")}>
-                {listNotice ? (
-                  <p className="page-description" role="note">
-                    {listNotice}
-                  </p>
-                ) : null}
-                <PackageFileTree
-                  files={files}
-                  selectedPath={selectedFile?.relativePath ?? null}
-                  onSelectFile={onSelectFile}
-                  fileHandleByPath={fileHandleByPath}
-                  handlePrefix={handlePrefix}
-                  label={t("Package files")}
-                />
-              </nav>
-              {selectedFile ? (
-                <PackageFileContent
-                  file={selectedFile}
-                  headingId={selectedFileHeadingId}
-                  key={selectedFile.relativePath}
-                  agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
-                  t={t}
-                />
-              ) : null}
-              {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
-            </div>
+            <PackageSourceBrowser
+              files={files}
+              selectedFile={selectedFile}
+              selectedHandle={selectedHandle}
+              fileHandleByPath={fileHandleByPath}
+              onSelectFile={onSelectFile}
+              status={status}
+              listNotice={listNotice}
+              handlePrefix={handlePrefix}
+              headingId={selectedFileHeadingId}
+              t={t}
+            />
           ),
         },
         ...additionalViews,

@@ -17,7 +17,7 @@ import { type Locator } from "../support/bug-pin-fixtures.js";
 test.use({ viewport: { width: 1280, height: 720 } });
 
 // Migrated from admin-composer-agent-plugin-chip.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-composer-agent-plugin-chip", () => {
+{
 /**
  * @file Deterministic, self-asserting proof that "the operator pins the UI/UX Design Agent Plugin
  * from the composer's '+' menu -> its real ref reaches the agent" actually works end to end on the
@@ -109,8 +109,22 @@ async function pinAgentPluginChipViaSlash(page: Page): Promise<void> {
   await expect(textarea).toHaveValue("/ui-ux-design");
   await page.getByRole("option", { name: AGENT_PLUGIN_MENU_ITEM_NAME }).click();
 }
-
-test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () => {
+async function stubPinnedPluginRunCompletion(page: Page) {
+  await page.route("**/api/runs/*/events", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/event-stream",
+    body: 'event: end\ndata: {"status":"succeeded","code":0}\n\n',
+  }));
+  // An SSE end finishes an attempt; the durable saved message now finishes the logical run.
+  await page.route("**/api/runs/e2e-fake-run-*/recover", (route) => {
+    const runId = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    return route.fulfill({ json: { message: {
+      id: `message-${runId}`, role: "assistant", content: "", events: [],
+      runId, runStatus: "succeeded",
+    } } });
+  });
+}
+function registerPluginChipSelection() {
   test("pinning the Agent Plugin row renders a removable chip and types nothing into the draft", async ({ page }) => {
     await openDock(page);
     const textarea = page.locator("textarea.jini-composer-input");
@@ -149,7 +163,8 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     const context = JSON.parse((await captured).postDataJSON().contextRef) as Record<string, unknown>;
     expect(context).not.toHaveProperty("pluginRefIds");
   });
-
+}
+function registerPluginChipTransport() {
   test("sending with the chip pinned puts pluginRefIds on the real outbound /api/runs request body", async ({ page }) => {
     await openDock(page);
     await pinAgentPluginChip(page);
@@ -168,19 +183,7 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     // (`/api/runs/:id/events`, `/api/runs/:id/cancel`) do not match this glob (it requires the URL
     // to END at "/api/runs"), so this leaves this test's own SSE reattach path alone.
     let runNumber = 0;
-    await page.route("**/api/runs/*/events", (route) => route.fulfill({
-      status: 200,
-      contentType: "text/event-stream",
-      body: 'event: end\ndata: {"status":"succeeded","code":0}\n\n',
-    }));
-    // An SSE end finishes an attempt; the durable saved message now finishes the logical run.
-    await page.route("**/api/runs/e2e-fake-run-*/recover", (route) => {
-      const runId = new URL(route.request().url()).pathname.split("/").at(-2)!;
-      return route.fulfill({ json: { message: {
-        id: `message-${runId}`, role: "assistant", content: "", events: [],
-        runId, runStatus: "succeeded",
-      } } });
-    });
+    await stubPinnedPluginRunCompletion(page);
     await page.route("**/api/runs", async (route: Route) => {
       const request = route.request();
       if (request.method() !== "POST") {
@@ -216,6 +219,13 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     expect(JSON.parse(secondBody.contextRef).pluginRefIds).toEqual([AGENT_PLUGIN_REF_ID]);
     await expect.poll(() => runNumber).toBe(2);
   });
+}
+
+test.describe("Bug pin: admin-composer-agent-plugin-chip", () => {
+
+test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () => {
+  registerPluginChipSelection();
+  registerPluginChipTransport();
 
   test("selecting the Agent Plugin row via the SLASH trigger pins the chip and leaves the draft empty", async ({
     page,
@@ -238,9 +248,10 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
   });
 });
 });
+}
 
 // Migrated from admin-composer-attachment-picker.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-composer-attachment-picker", () => {
+{
 /**
  * @file Regression coverage for "certain files, `.md` in particular, won't upload as chat
  * attachments" — the admin composer's "+" file picker used to pass `attachmentAccept="image/*"`
@@ -404,8 +415,7 @@ async function runMatrixCase(
     await expect(chat.ui.errors).toHaveCount(0);
   });
 }
-
-test.describe("admin composer — attachment file picker excludes no file type", () => {
+function registerAttachmentTypeMatrix() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -470,6 +480,12 @@ test.describe("admin composer — attachment file picker excludes no file type",
 
     await expect(chat.ui.attachmentChips).toHaveCount(IMAGE_BINARY_AND_NAME_MATRIX.length + 1);
   });
+}
+
+test.describe("Bug pin: admin-composer-attachment-picker", () => {
+
+test.describe("admin composer — attachment file picker excludes no file type", () => {
+  registerAttachmentTypeMatrix();
 
   test("a zero-byte attachment is rejected by the daemon, with no chip added", async ({ page }) => {
     const chat = createAdminChatDriver({ page });
@@ -533,9 +549,10 @@ test.describe("admin composer — attachment file picker excludes no file type",
   });
 });
 });
+}
 
 // Migrated from admin-composer-discovery-menu-overlap.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: admin-composer-discovery-menu-overlap", () => {
+{
 /**
  * @file Composer discovery/slash-menu popover overlap + dismissal, browser-verified 2026-08-21.
  *
@@ -568,8 +585,7 @@ test.describe("Bug pin: admin-composer-discovery-menu-overlap", () => {
  */
 
 const TEXTAREA_SELECTOR = "textarea.jini-composer-input";
-
-test.describe("admin composer discovery popovers float above the input, not over it", () => {
+function registerContextPopoverGeometry() {
   test("the + Add Context popover does not overlap the textarea, and a real click into the textarea reaches it and dismisses the popover", async ({ page }) => {
     await loginAsAdmin(page);
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -609,6 +625,12 @@ test.describe("admin composer discovery popovers float above the input, not over
     // closed it — this popover previously had no click-outside affordance at all. ---
     await expect(menu).not.toBeVisible();
   });
+}
+
+test.describe("Bug pin: admin-composer-discovery-menu-overlap", () => {
+
+test.describe("admin composer discovery popovers float above the input, not over it", () => {
+  registerContextPopoverGeometry();
 
   test("the slash-command palette does not overlap the textarea and Escape dismisses it", async ({ page }) => {
     await loginAsAdmin(page);
@@ -661,6 +683,7 @@ test.describe("admin composer discovery popovers float above the input, not over
   });
 });
 });
+}
 
 // Migrated from admin-composer-discovery-menu-scroll.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: admin-composer-discovery-menu-scroll", () => {

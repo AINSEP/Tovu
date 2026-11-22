@@ -5,7 +5,7 @@ import express from "express";
 
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { evaluateHostSignals } from "#src/contracts/core/host-signals";
+import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import { applyTrustProxy, resolveTrustProxySetting } from "../trust-proxy.js";
 
 const declaration = { signals: [{ env: "EXAMPLE_APP", facts: { trustProxyHops: 1 } }] };

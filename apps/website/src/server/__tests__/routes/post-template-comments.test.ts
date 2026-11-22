@@ -8,7 +8,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages.js";
+import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages/template-render.js";
 
 const root = path.resolve(import.meta.dirname, "../../../../../..");
 
@@ -23,12 +23,12 @@ test("comments: the Starter post template shows approved comments + the no-JS fo
   assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
   const deps = createRouteDeps();
   const post = buildPostRecord({ workspaceId: deps.workspaceId, templateChoice: "posts-default.html", status: "published" });
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   await deps.commentsSettingsReady;
   await deps.commentRepo.create({ record: comment({ id: "c-ok", workspaceId: deps.workspaceId, entryId: post.id }) });
   await deps.commentRepo.create({ record: comment({ id: "c-held", workspaceId: deps.workspaceId, entryId: post.id, status: "pending", bodyText: "HELD_BODY" }) });
 
-  const html = await renderViaTemplate(deps, theme, post, undefined);
+  const html = await renderViaTemplate({ deps, theme, post, staticMenus: undefined });
   assert.match(html, /<section class="post-comments wrap"[^>]*><div data-comments-surface><section id="comments"/);
   assert.match(html, /Approved hello/);
   assert.match(html, new RegExp(`<form method="post" action="/api/site/comments"><input type="hidden" name="entryId" value="${post.id}">`));
@@ -38,7 +38,7 @@ test("comments: the Starter post template shows approved comments + the no-JS fo
 
   const { revision } = await deps.commentsProviders!.active({ siteId: deps.workspaceId });
   await deps.commentsProviders!.select({ siteId: deps.workspaceId, providerId: null, expectedRevision: revision, actorPrincipalId: await deps.ownerPrincipalId });
-  const off = await renderViaTemplate(deps, theme, post, undefined);
+  const off = await renderViaTemplate({ deps, theme, post, staticMenus: undefined });
   assert.doesNotMatch(off, /Approved hello|<form method="post" action="\/api\/site\/comments"/, "disable takes effect on the very next render (no cache)");
   assert.match(off, /data-comments-surface><\/div>/);
 });

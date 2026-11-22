@@ -14,6 +14,7 @@ import { toolSearchKeywords } from '../../../assistant/tool-search-keywords.js';
 import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { invokeRegisteredTool, executeRegisteredTool, executeDelegatedRegisteredTool, delegatedText } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 import { withContentTargets } from '../../../assistant/__tests__/fixtures/content-target-inputs.js';
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 // Contract: ADS-memory/.local-artifacts/codex/2026-10-06-release-0111-video64/staged/spec.md.
 // Spec SHA256: 855beddf17d8f9a6a7f7974a54d3ca396fb8eab2a9e0bb3ed49b59a7bad6939d.
@@ -276,7 +277,7 @@ test('read-only delegated gateway preserves frames and the real BYOK OpenAI payl
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: 'video-delivery' });
   const execute = async () => {
-    const routed = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: 'video-call', toolId: MEDIA_VIEW_VIDEO_TOOL_ID, input: { attachmentRef }, requireReadOnly: true }, deps: { lifecycle, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: owner }) } as never });
+    const routed = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: 'video-call', toolId: MEDIA_VIEW_VIDEO_TOOL_ID, input: { attachmentRef }, requireReadOnly: true }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }), resolvePrincipal: () => ({ id: owner }) } as never });
     assert.equal(routed.ok, true);
     if (!routed.ok) throw new Error('tool route refused');
     return (routed.value as { result: { output: Envelope } }).result.output;

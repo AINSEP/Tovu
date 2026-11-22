@@ -7,7 +7,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, duplicateDisplayNames, isCardOpenKey, isCardOpenable, siteCardTone } from "./SiteGrid.hooks.js";
+import { cardOpenClass, databaseLabel, isCardOpenable, siteCardTone } from "./SiteGrid.hooks.js";
+import { isCardOpenKey, cardOpenProps, closeMenuThen, duplicateDisplayNames } from "@jini-ai/ui/site-card";
 import type { SiteRecord } from "../contracts/project.js";
 
 /** Stand-ins for the two DOM nodes involved. Identity is all `isCardOpenKey` compares, so plain
@@ -43,8 +44,8 @@ test("Enter or Space on a control INSIDE the card does not open the project", ()
 test("a menu entry closes the menu BEFORE running its action", () => {
   // Acting first would leave an open menu floating over whatever the action changed.
   const calls: string[] = [];
-  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
-  const onClick = choose(() => calls.push("act"));
+  const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
+  const onClick = choose({ act: () => calls.push("act") });
   assert.equal(calls.length, 0, "building an entry's handler must run nothing");
   onClick();
   assert.deepEqual(calls, ["setOpen:false", "act"]);
@@ -52,9 +53,9 @@ test("a menu entry closes the menu BEFORE running its action", () => {
 
 test("every entry built from one closeMenuThen runs only its own action", () => {
   const calls: string[] = [];
-  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
-  const rename = choose(() => calls.push("rename"));
-  const start = choose(() => calls.push("start"));
+  const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
+  const rename = choose({ act: () => calls.push("rename") });
+  const start = choose({ act: () => calls.push("start") });
   start();
   rename();
   assert.deepEqual(calls, ["setOpen:false", "start", "setOpen:false", "rename"]);
@@ -62,8 +63,8 @@ test("every entry built from one closeMenuThen runs only its own action", () => 
 
 test("a card whose folder is missing does not open — there is no site to start there", () => {
   const record = (fields: Partial<SiteRecord>) => ({ status: "stopped", folderMissing: false, ...fields }) as SiteRecord;
-  assert.equal(isCardOpenable(record({}), false), true);
-  assert.equal(isCardOpenable(record({ folderMissing: true }), false), false);
+  assert.equal(isCardOpenable({ project: record({}), confirming: false }), true);
+  assert.equal(isCardOpenable({ project: record({ folderMissing: true }), confirming: false }), false);
 });
 
 test("cardOpenProps opens only for accepted keys on the card and leaves descendant controls alone", () => {
@@ -73,7 +74,7 @@ test("cardOpenProps opens only for accepted keys on the card and leaves descenda
   ] as const) {
     let opened = 0;
     let prevented = 0;
-    const props = cardOpenProps(true, () => opened++);
+    const props = cardOpenProps({ openable: true, onOpen: () => opened++ });
     assert.equal(props.role, "button");
     assert.equal(props.tabIndex, 0);
     props.onKeyDown!({ key, target, currentTarget: card, preventDefault: () => prevented++ });
@@ -81,9 +82,9 @@ test("cardOpenProps opens only for accepted keys on the card and leaves descenda
     assert.equal(prevented, expected, key);
   }
   let opened = 0;
-  cardOpenProps(true, () => opened++).onClick!();
+  cardOpenProps({ openable: true, onOpen: () => opened++ }).onClick!();
   assert.equal(opened, 1);
-  assert.deepEqual(cardOpenProps(false, () => opened++), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
+  assert.deepEqual(cardOpenProps({ openable: false, onOpen: () => opened++ }), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
   assert.equal(opened, 1);
 });
 
@@ -95,7 +96,7 @@ test("the open-affordance class is absent for every inert card", () => {
     ['running', true, false, ''], ['running', false, true, ''],
   ] as const) {
     const project = { status, folderMissing } as SiteRecord;
-    assert.equal(cardOpenClass({ openable: isCardOpenable(project, overlay) }), expected);
+    assert.equal(cardOpenClass({ openable: isCardOpenable({ project, confirming: overlay }) }), expected);
   }
 });
 
@@ -108,11 +109,11 @@ test("databaseLabel names the provisioned database, an operator's own label, or 
 });
 
 test("siteCardTone: running is green, both transitions are busy, a failure warns, the rest are neutral", () => {
-  assert.equal(siteCardTone("running"), "running");
-  assert.equal(siteCardTone("starting"), "busy");
-  assert.equal(siteCardTone("stopping"), "busy");
-  assert.equal(siteCardTone("failed"), "warning");
-  assert.equal(siteCardTone("stopped"), "neutral");
+  assert.equal(siteCardTone({ status: "running" }), "running");
+  assert.equal(siteCardTone({ status: "starting" }), "busy");
+  assert.equal(siteCardTone({ status: "stopping" }), "busy");
+  assert.equal(siteCardTone({ status: "failed" }), "warning");
+  assert.equal(siteCardTone({ status: "stopped" }), "neutral");
 });
 
 test("duplicateDisplayNames: only names more than one site has", () => {

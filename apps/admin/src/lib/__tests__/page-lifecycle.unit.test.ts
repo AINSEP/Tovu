@@ -18,7 +18,7 @@ it("reports unloading from pagehide until the next pageshow (bfcache restore)", 
 });
 
 it("with no page to listen to (a non-browser host) never reports unloading", () => {
-  const lifecycle = createPageLifecycle(undefined);
+  const lifecycle = createPageLifecycle({ target: undefined });
   expect(lifecycle.isPageUnloading()).toBe(false);
   window.dispatchEvent(new Event("pagehide"));
   expect(lifecycle.isPageUnloading()).toBe(false);
@@ -27,7 +27,7 @@ it("with no page to listen to (a non-browser host) never reports unloading", () 
 
 it("each lifecycle follows only its own page's events", () => {
   const page = new EventTarget();
-  const lifecycle = createPageLifecycle(page);
+  const lifecycle = createPageLifecycle({ target: page });
   page.dispatchEvent(new Event("pagehide"));
   expect(lifecycle.isPageUnloading()).toBe(true);
   expect(isPageUnloading()).toBe(false);

@@ -130,7 +130,7 @@ async function harness(
     res.locals.principal = { id: PRINCIPAL_ID };
     next();
   });
-  registerAdminPageUpdateHtmlRoute(app, deps);
+  registerAdminPageUpdateHtmlRoute({ app, deps });
 
   const server = createServer(app);
   server.listen(0);
@@ -198,17 +198,16 @@ test("PUT /pages/:id/html authorizes BEFORE validating the body — an unauthori
 // The allow path — present only to prove the gate is a gate and not a wall.
 // ---------------------------------------------------------------------------
 
-test("PUT /pages/:id/html still serves an authorized principal, running the full ensureHtmlFormat -> read -> write sequence", async (t) => {
+test("PUT /pages/:id/html still serves an authorized principal, running the full ensureHtmlFormat -> write sequence", async (t) => {
   const { baseUrl, authorizeCalls, storeCalls } = await harness(t, { allow: true });
 
   const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
 
   assert.equal(response.status, 200, await response.clone().text());
   assert.equal(authorizeCalls.length, 1);
-  // Order matters and is asserted, not just membership: `read()` is what captures the version
-  // `write()` conditions its compare-and-set on (CIC-1), so a reordering would silently turn the
-  // write into an unconditional overwrite.
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  // The store checks the submitted basis during ensureHtmlFormat and captures it for write().
+  // Another read here would replace that basis with a newer version.
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "write"]);
 });
 
 test("PUT /pages/:id/html opens the store as the authenticated principal, so its post_revisions rows are attributed to them (S1)", async (t) => {
@@ -376,7 +375,7 @@ async function realIdentityHarness(
     res.locals.principal = { id: principalId };
     next();
   });
-  registerAdminPageUpdateHtmlRoute(app, deps);
+  registerAdminPageUpdateHtmlRoute({ app, deps });
 
   const server = createServer(app);
   server.listen(0);
@@ -413,7 +412,7 @@ test("a real, seeded 'admin' principal still authors page HTML through this rout
   const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
 
   assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "write"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -432,7 +431,7 @@ test("a real, seeded 'admin' principal in a pre-theme.edit (already-deployed) wo
   const response = await putHtml(baseUrl, { html: "<p>legitimate</p>" });
 
   assert.equal(response.status, 200, await response.clone().text());
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "write"]);
 });
 
 
@@ -441,7 +440,7 @@ test("PUT /pages/:id/html reports a concurrent store refusal as 409 without repo
   const response = await putHtml(baseUrl, { html: "<p>stale edit</p>" });
   assert.equal(response.status, 409);
   assert.deepEqual(await response.json(), { error: "page changed since read", code: "CONCURRENT_EDIT" });
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "write"]);
 });
 
 test("PUT /pages/:id/html for a workspace that is not this site's is 404 before authorize() or the store is consulted", async (t) => {
@@ -477,5 +476,5 @@ test("PUT /pages/:id/html whose page vanishes between the write and the re-read 
   const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
   assert.equal(response.status, 404);
   assert.deepEqual(await response.json(), { error: `page '${PAGE_ID}' was not found`, code: "ENTRY_NOT_FOUND" });
-  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "read", "write"]);
+  assert.deepEqual(storeCalls, ["ensureHtmlFormat", "write"]);
 });

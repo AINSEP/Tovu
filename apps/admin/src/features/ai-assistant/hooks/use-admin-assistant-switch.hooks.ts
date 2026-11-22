@@ -13,7 +13,7 @@ import { getAssistantDockOpen, requestAssistantDock, subscribeToAssistantDock } 
 
 export interface AdminAssistantSwitchController {
   open: boolean;
-  setOpen: (open: boolean) => void;
+  setOpen: (required: { open: boolean }, optional?: Record<string, never>) => void;
 }
 
 /**

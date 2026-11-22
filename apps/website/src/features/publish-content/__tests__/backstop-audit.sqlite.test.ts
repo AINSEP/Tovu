@@ -3,7 +3,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
-import type { BackstopAuditRecord } from "../backstop-audit.js";
+import type { BackstopAuditRecord } from "@jini-ai/cms/publish/transfer";
 import { runAuditedBackstop } from "../backstop-service.js";
 import { BackstopRefusal } from "../backstop-policy.js";
 
@@ -13,7 +13,7 @@ test("failed manual sends redact credentials before audit persistence and preser
   db.exec(`CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT, direction TEXT,
     actor_id TEXT, destination TEXT, reason TEXT, at TEXT, items_json TEXT, gap_labels_json TEXT,
     result TEXT, run_id TEXT, details_json TEXT, inverses_json TEXT)`);
-  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel(db) });
+  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel({ store: db }) });
   const record: BackstopAuditRecord = { id: "failed", workspaceId: "ws", direction: "source", actorId: "owner",
     destination: "https://live.example", reason: "Emergency row repair", at: "2026-10-31T00:00:00.000Z",
     items: [], gapLabels: [], result: "pending", runId: null, details: {}, inverses: [] };
@@ -37,7 +37,7 @@ test("failed manual sends redact credentials before audit persistence and preser
 test("audit storage stays closed before installation and persists source and destination events by workspace", async (t) => {
   const db = new Database(":memory:");
   t.after(() => db.close());
-  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel(db) });
+  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel({ store: db }) });
   assert.equal(await audit.ready(), false);
   // Test-only schema: the production migration remains staged, never installed by this job.
   db.exec(`CREATE TABLE publish_backstop_log (
@@ -78,7 +78,7 @@ test("gaps rank labels by how often successful or undone source events hit them,
     items_json TEXT NOT NULL, gap_labels_json TEXT NOT NULL, result TEXT NOT NULL,
     run_id TEXT, details_json TEXT NOT NULL, inverses_json TEXT NOT NULL
   )`);
-  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel(db) });
+  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel({ store: db }) });
   const base: BackstopAuditRecord = {
     id: "", workspaceId: "ws", direction: "source", actorId: "admin", destination: "https://live.example", reason: "",
     at: "", items: [], gapLabels: [], result: "success", runId: null, details: {}, inverses: [],

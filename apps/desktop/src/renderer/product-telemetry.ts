@@ -5,7 +5,7 @@ import type { ShellTelemetryPayload, ShellTelemetryBridge } from '../contracts/p
 export function reportShellTelemetry({ payload }: { payload: ShellTelemetryPayload }, { bridge = typeof window === 'undefined' ? undefined : window.tovuTelemetry }: {
   bridge?: ShellTelemetryBridge;
 } = {}): void {
-  try { bridge?.report(payload); } catch { /* Product reporting cannot interrupt the shell. */ }
+  try { bridge?.report({ payload }); } catch { /* Product reporting cannot interrupt the shell. */ }
 }
 
 /** Install once at renderer boot, before React mounts. Native browser events retain normal handling.
@@ -14,13 +14,13 @@ export function reportShellTelemetry({ payload }: { payload: ShellTelemetryPaylo
 export function installShellErrorReporting({ target }: { target: Pick<Window, 'addEventListener' | 'removeEventListener'> }, {
   report = reportShellTelemetry,
 }: { report?: typeof reportShellTelemetry } = {}): () => void {
-  const send = (failure: unknown, fallback: string) => {
+  const send = ({ failure, fallback }: { failure: unknown; fallback: string }, _options = {}) => {
     const message = typeof failure === 'string' ? failure : fallback;
     const error = failure instanceof Error ? failure : new Error(message);
     report({ payload: { kind: 'error', message: error.message.slice(0, 1000), stack: (error.stack ?? '').slice(0, 8000) } });
   };
-  const error = (event: ErrorEvent) => send(event.error, event.message);
-  const rejection = (event: PromiseRejectionEvent) => send(event.reason, 'Unhandled rejection');
+  const error = (event: ErrorEvent) => send({ failure: event.error, fallback: event.message });
+  const rejection = (event: PromiseRejectionEvent) => send({ failure: event.reason, fallback: 'Unhandled rejection' });
   target.addEventListener('error', error as EventListener);
   target.addEventListener('unhandledrejection', rejection as EventListener);
   return () => {

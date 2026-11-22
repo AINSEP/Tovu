@@ -1,7 +1,7 @@
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -36,7 +36,7 @@ const contributions = {
  * `buildAssistantToolRegistrations(createRouteDeps())` — this domain's own narrow deps type is the
  * seam worth proving; the full 26-domain assembler is `assistant/tool-registrations.ts`'s own test
  * suite's job, and a real `createRouteDeps()` boot would also make this suite depend on
- * `server/deps.ts`, which another agent owns this session.
+ * `server/runtime/composition/deps.ts`, which another agent owns this session.
  *
  * Every refusal case asserts NOT ONLY that the call throws, but that `duplicateSite` (the
  * side-effecting fake) was never invoked — "it threw" alone would also pass a handler that checked
@@ -283,7 +283,7 @@ for (const ErrorClass of [ValidationError, InitDirNotEmptyError, SiteDirInvalidE
   test(`sites_duplicate_site: ${ErrorClass.name} is returned as a schema-decorated input error`, async () => {
     const { routeDeps } = fakeDeps();
     const message = `${ErrorClass.name}: cannot copy this source to this target`;
-    routeDeps.duplicateSite = async () => { throw new ErrorClass(message); };
+    routeDeps.duplicateSite = async () => { throw new ErrorClass({ message: message }); };
     await assert.rejects(registrationFor(buildSitesRegistrations(routeDeps), "sites_duplicate_site").handler(
       ctxFor({ sourceName: "source-site", targetName: "new-client" })), (error: unknown) => {
       assert.ok(error instanceof Error);

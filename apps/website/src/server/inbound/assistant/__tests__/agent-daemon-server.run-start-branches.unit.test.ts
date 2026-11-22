@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
-import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker } from "../../../../assistant/agent-session-preset.js";
 import { captureDaemonRun } from "./helpers/daemon-source.js";
@@ -39,7 +39,7 @@ function conversationRun(
   const liveRunTracker = createLiveRunTracker({}, {});
   if (concurrent) liveRunTracker.register({ conversationId: CONVERSATION, runId: OTHER_RUN }, {});
   const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: async () => {}, onCancelRequested: () => () => {} };
-  const bindings = {
+  const bindings: Record<string, unknown> = {
     liveRunTracker, waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 0, CONCURRENT_RUN_REFUSAL_MESSAGE,
     routeDeps: { workspaceId: "ws-pinned", agentSessions, chatRunLedger: { durable } },
     console: { error: (...args: unknown[]) => { calls.errors.push(args.map(String).join(" ")); }, log() {}, warn: (...args: unknown[]) => { calls.warnings.push(args.map(String).join(" ")); } },
@@ -230,9 +230,11 @@ describe("onStarted continuation — early stops and prompt assembly", () => {
 
   test("an unavailable automatic preflight is warned about and the run starts without it", async () => {
     const run = conversationRun();
-    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw new Error("offline"); }) });
+    const input = await start({ prompt: "go" }, run, { siteTools: site(async () => { throw Object.assign(new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"), { code: "EIO" }); }) });
     assert.equal(input.prompt, "<<SUBAGENT_DISPATCH>>\n\ngo");
-    assert.deepEqual(run.calls.warnings, ["[agent-plugins] automatic preflight unavailable"]);
+    assert.equal(run.calls.warnings.length, 1);
+    assert.match(run.calls.warnings[0] ?? '', /automatic preflight unavailable.*Error.*EIO/);
+    assert.doesNotMatch(run.calls.warnings[0] ?? '', /boom|SECRETSECRETSECRETSECRET/);
   });
 
   test("an unavailable preflight cannot silently omit an explicitly selected plugin", async () => {

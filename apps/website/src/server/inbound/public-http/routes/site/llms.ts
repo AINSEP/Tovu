@@ -1,4 +1,5 @@
-import { computeIndexableEntries, type IndexableEntry } from "@jini-ai/cms/seo";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { computeIndexableEntries, renderLlmsTxt } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "#src/features/settings/index";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
@@ -26,29 +27,7 @@ import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/se
 
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
-/**
- * Pure render: `IndexableEntry[]` -> the CommonMark body (llmstxt.org shape, see file header).
- * Sorted by resolved title — display order only, orthogonal to `computeIndexableEntries`'
- * inclusion/visibility rules — so the index reads as a stable, human-scannable list rather than
- * database insertion order. A page with no resolved description (no override, no site default, no
- * derivable excerpt — `SeoMeta.description` is optional) is still listed, just without the
- * trailing `: description` — never a fabricated one.
- *
- * @complexity O(n log n) in `entries.length` (the sort); the render itself is O(n).
- */
-function renderLlmsTxt({ entries, title, description }: { entries: readonly IndexableEntry[]; title: string; description?: string }, _options = {}): string {
-  const sorted = [...entries].sort((a, b) => a.meta.title.localeCompare(b.meta.title));
-  const lines = [`# ${title.replace(/\s+/g, " ")}`, ""];
-  if (description) lines.push(`> ${description.replace(/\s+/g, " ")}`, "");
-  lines.push("## Pages", "");
-  for (const entry of sorted) {
-    const description = entry.meta.description ? `: ${entry.meta.description}` : "";
-    lines.push(`- [${entry.meta.title}](${entry.meta.canonical})${description}`);
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/llms.txt", async (req, res) => {
     try {
       await deps.seoReady;
@@ -62,9 +41,10 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
         { workspaceId: deps.workspaceId },
       );
       const { defaultDescription: description } = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt({ entries, title, ...(description ? { description } : {}) }));
-    } catch {
-      res.status(500).type("text/plain").send("internal error");
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt({ entries, title }, { description }));
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "public:llms" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("text/plain").send(`The site couldn’t load the site index. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
     }
   });
 };

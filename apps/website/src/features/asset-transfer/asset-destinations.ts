@@ -11,7 +11,8 @@ import { persistImportedMedia, type MediaImportToolDeps } from "../media-import/
 import { validateImageBytes } from "../media-import/fetch-image.js";
 import { saveLibraryDocument } from "../media/index.js";
 import { THEME_WRITE_PERMISSION } from "../theme/asset-operations.js";
-import { resolveThemeFilePath, writeThemeBinaryFile, nextAvailableFileName } from "../theme/asset-operations.js";
+import { resolveThemeFilePath, writeThemeBinaryFile } from "../theme/asset-operations.js";
+import { nextAvailableFileName } from "@jini-ai/cms/themes/files/moves";
 import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, type ThemeToolDeps } from "../theme/asset-operations.js";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "../fs-files/custom-root-permission.js";
 import { inspectWriteTarget, prepareFileWrites, writePreparedFiles } from "../fs-files/write-files.js";
@@ -58,8 +59,9 @@ function choosePath({ folder, path, policy, reserved }: { folder: string; path: 
 /** Per-destination checks that need no write: theme scope/containment, media file name and type. */
 function checkFile({ deps, destination, path, bytes }: { deps: AssetToolDeps; destination: AssetDestination; path: string; bytes: Buffer }): void {
   if (destination.kind === "theme") {
-    const theme = findThemeOrThrow(deps, destination.themeId!);
-    assertThemeFileWritable(theme, path);
+    if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+    const theme = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId });
+    assertThemeFileWritable({ theme, relativePath: path });
     resolveThemeFilePath({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
   }
   if (destination.kind !== "media") return;
@@ -75,7 +77,10 @@ export function prepareAssetWrites({ deps, destination, files, policy = "overwri
   const prepared: PreparedAssets = { destination, files: [], skipped: [] };
   let folder: string | undefined;
   if (destination.kind === "site") folder = deps.siteBinding.dir;
-  if (destination.kind === "theme") folder = findThemeOrThrow(deps, destination.themeId!).dir;
+  if (destination.kind === "theme") {
+    if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+    folder = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId }).dir;
+  }
   const reserved = new Set<string>();
   for (const file of files) {
     const path = folder ? choosePath({ folder, path: file.path, policy, reserved }) : file.path;
@@ -112,9 +117,11 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
     }
     return { written: files.map(({ path }) => path), skipped, media };
   }
-  const theme = findThemeOrThrow(deps, destination.themeId!);
+  const themeId = destination.themeId;
+  if (themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
+  const theme = findThemeOrThrow({ routeDeps: deps, themeId });
   for (const file of files) writeThemeBinaryFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: file.path, bytes: file.bytes });
-  const reloaded = files.length ? reloadThemeInPlace(deps, theme, destination.themeId!) : theme;
+  const reloaded = files.length ? reloadThemeInPlace({ routeDeps: deps, theme, themeId }) : theme;
   return { written: files.map(({ path }) => path), skipped, status: reloaded.status, errors: reloaded.errors };
 }
 

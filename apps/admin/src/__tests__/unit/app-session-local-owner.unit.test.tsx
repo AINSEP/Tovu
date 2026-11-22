@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
 import { useAdminSession } from "../../App.hooks";
-import { ApiError } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
 
 /** devsignin: exercise the real hook with DI fakes, including a same-tab site restart. */
 function fixture(hostname = "localhost") {
@@ -13,7 +13,7 @@ function fixture(hostname = "localhost") {
   let authenticated = hostname === "example.com";
   const sessionApi = {
     async signInLocalOwner() { calls.push("bootstrap"); if (!allowed) throw new Error("local owner sign-in is disabled"); authenticated = true; return { user: { id: currentId } }; },
-    async me() { calls.push("me"); if (!authenticated) throw new ApiError("unauthenticated", 401, "UNAUTHENTICATED"); return { user: { id: currentId, username: "admin" }, effectivePermissions: [currentId] }; },
+    async me() { calls.push("me"); if (!authenticated) throw new ApiError({ message: "unauthenticated", status: 401 }, { code: "UNAUTHENTICATED" }); return { user: { id: currentId, username: "admin" }, effectivePermissions: [currentId] }; },
     async redeemBootSession() { calls.push("fragment"); return { user: { id: currentId } }; },
     async logout() { calls.push("logout"); authenticated = false; return { ok: true }; },
   };

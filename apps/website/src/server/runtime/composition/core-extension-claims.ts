@@ -39,11 +39,11 @@ const CORE_PERMISSION_NAMESPACES = [
 ] as const;
 const CORE_TOOL_PREFIXES = ["plugins_*"] as const;
 
-const exclusive = (kind: string) => (key: string): ExtensionClaim => ({ kind, key, mode: "exclusive" });
+const exclusive = ({ kind }: { kind: string }, _optional = {}) => (key: string): ExtensionClaim => ({ kind, key, mode: "exclusive" });
 
 export const TOVU_CORE_EXTENSION_CLAIMS: readonly ExtensionClaim[] = [
-  ...[...CORE_ROUTE_PREFIXES, ...CORE_ROUTES].map(exclusive("route")),
-  ...CORE_PERMISSION_NAMESPACES.map((namespace) => `${namespace}.*`).map(exclusive("permission")),
-  ...CORE_TOOL_PREFIXES.map(exclusive("tool")),
-  ...FIRST_PARTY_DATA_MODULES.map((decl) => `p_${decl.pluginId}__*`).map(exclusive("table")),
+  ...[...CORE_ROUTE_PREFIXES, ...CORE_ROUTES].map(exclusive({ kind: "route" })),
+  ...CORE_PERMISSION_NAMESPACES.map((namespace) => `${namespace}.*`).map(exclusive({ kind: "permission" })),
+  ...CORE_TOOL_PREFIXES.map(exclusive({ kind: "tool" })),
+  ...FIRST_PARTY_DATA_MODULES.map((decl) => `p_${decl.pluginId}__*`).map(exclusive({ kind: "table" })),
 ];

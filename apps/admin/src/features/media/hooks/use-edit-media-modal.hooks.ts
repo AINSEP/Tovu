@@ -1,10 +1,11 @@
+import { openLightboxDialog, closeLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
 /**
  * @file `EditMediaModal`'s native `<dialog>` lifecycle — the metadata edit form used to render as
  * a full-width `.card` pushing the grid down (`Media.tsx`'s own header comment has the history);
  * owner ask (2026-09-07): reach it from an eye icon on the card instead, as a modal. This hook owns
- * exactly the open/close/backdrop/Escape mechanics, same shape as `ThemePageDetailsModal.hooks.ts`'s
+ * exactly the open/close/backdrop/Escape mechanics, same shape as `apps/admin/src/features/pages/ThemePageDetailsModal.hooks.tsx`'s
  * `useThemePageDetailsModal` and `AssistantDock/MessageOverflowModal.hooks.tsx` — copied rather than
  * imported, same reasoning those two give each other: a future media-specific tweak (e.g. warning
  * on unsaved changes before backdrop-dismiss) should never silently change an unrelated table's
@@ -18,22 +19,6 @@ import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
  * remounts it and reseeds its draft — this hook has no opinion on that; it only opens and closes
  * the `<dialog>` box around whatever is currently keyed inside it.
  */
-function openDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.showModal === "function") {
-    if (!dialog.open) dialog.showModal();
-    return;
-  }
-  dialog.setAttribute("open", "");
-}
-
-function closeDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.close === "function") {
-    if (dialog.open) dialog.close();
-    return;
-  }
-  dialog.removeAttribute("open");
-}
-
 export interface EditMediaModalController {
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   /** Fires on the dialog's native `cancel` event (Escape). Prevented and routed through `onClose`
@@ -64,8 +49,8 @@ export function useEditMediaModal(open: boolean, onClose: () => void): EditMedia
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open) openDialog(dialog);
-    else closeDialog(dialog);
+    if (open) openLightboxDialog(dialog);
+    else closeLightboxDialog(dialog);
   }, [open]);
 
   function handleNativeCancel(e: SyntheticEvent<HTMLDialogElement>) {

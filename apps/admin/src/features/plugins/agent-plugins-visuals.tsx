@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { Icon, ICON_PATH_DATA } from "@jini-ai/ui";
 /**
  * @file The Agent Plugins screen's icon adapters. Exact repeated shapes use Jini UI's icon
@@ -13,17 +14,8 @@ import { Icon, ICON_PATH_DATA } from "@jini-ai/ui";
  *     own. See `AgentPluginRow`'s own call sites.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px grid, 1.5 stroke, and round joins
- *  every other `*-visuals.tsx` set in this admin uses, so every icon row reads as one family. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 export interface IconProps {
   size?: number;

@@ -17,7 +17,7 @@ import {
  *
  * 204 with no body (api.spec §3), mirroring `users/reset-password.ts`.
  */
-export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = (app, deps) => {
+export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/api-keys/:id/revoke", async (req, res) => {
     try {
       if (!rejectApiKeyCredential(res)) return;
@@ -34,7 +34,7 @@ export const registerAdminApiKeyRevokeRoute: ApiKeysRouteRegistrar = (app, deps)
 
       res.status(204).end();
     } catch (err) {
-      sendApiKeyError(res, err);
+      sendApiKeyError({ res, err });
     }
   });
 };

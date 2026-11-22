@@ -1,12 +1,12 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { resolveThemeLayout } from "@tovu/theme-layout";
+import { resolveThemeLayout } from "@jini-ai/cms/themes/layout";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useDirtyGuard, type DirtyGuard, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard, type DirtyGuard, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { homeFallbackPublishReason } from "../../pages/lib/theme-page-publish-state";
 import { THEME_FILES_RESOURCE } from "../rules";
 import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
@@ -24,6 +24,7 @@ import {
   writeThemeExploreSelectionToUrl,
 } from "./theme-explore-url.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
  * `use-themes.hooks.ts` / `Themes.tsx`.
@@ -138,11 +139,11 @@ export interface ThemeExploreDetail {
  * `pages/index.html` unconditionally, so a v2 theme's `render/pages/index.html` (every real static
  * theme on disk today) was never actually locked client-side — the operator's rename would start
  * inline, then fail with a round trip instead of an immediate inline refusal. Derived from
- * `resolveThemeLayout` (`@tovu/theme-layout` — the SAME resolver `explore.ts`'s server route uses)
+ * `resolveThemeLayout` (`@jini-ai/cms/themes/layout` — the SAME resolver `explore.ts`'s server route uses)
  * so the two cannot drift apart again.
  */
-function lockedIdentityPaths(apiVersion: 2 | undefined): readonly string[] {
-  return resolveThemeLayout(apiVersion).requiredFiles;
+function lockedIdentityPaths({ apiVersion }: { apiVersion: 2 | undefined }, _options = {}): readonly string[] {
+  return resolveThemeLayout({}, { apiVersion }).requiredFiles;
 }
 
 /**
@@ -165,7 +166,7 @@ const IDENTITY_LOCKED_GROUPS: ReadonlySet<ThemeFileGroup> = new Set(["script", "
  *
  * @complexity O(k) in the translated string's length.
  */
-function translateWith(t: Translate, key: string, token: string, value: string): string {
+function translateWith({ t, key, token, value }: { t: Translate; key: string; token: string; value: string }, _options = {}): string {
   return t(key).replace(`{${token}}`, () => value);
 }
 
@@ -189,15 +190,13 @@ const LOCKED_IDENTITY_COPY = {
  *  three checks {@link lockedIdentityPaths}/{@link IDENTITY_LOCKED_GROUPS} answer server-side via
  *  `explore.ts`'s `validateFileIdentityChange`. Translated through `t`. */
 function lockedIdentityChangeReason(
-  path: string,
-  apiVersion: 2 | undefined,
-  action: "renamed" | "deleted",
-  t: Translate
+  { path, apiVersion, action, t }: { path: string; apiVersion: 2 | undefined; action: "renamed" | "deleted"; t: Translate },
+  _options = {},
 ): string {
   const copy = LOCKED_IDENTITY_COPY[action];
-  if (path === resolveThemeLayout(apiVersion).indexPagePath) return translateWith(t, copy.page, "file", path);
-  if (lockedIdentityPaths(apiVersion).includes(path)) return translateWith(t, copy.file, "file", path);
-  return translateWith(t, copy.group, "file", path);
+  if (path === resolveThemeLayout({}, { apiVersion }).indexPagePath) return translateWith({ t, key: copy.page, token: "file", value: path });
+  if (lockedIdentityPaths({ apiVersion }).includes(path)) return translateWith({ t, key: copy.file, token: "file", value: path });
+  return translateWith({ t, key: copy.group, token: "file", value: path });
 }
 
 export interface ThemeExploreController {
@@ -335,15 +334,13 @@ export interface ThemeExploreController {
  * every entry has it. Everything else KEEPS its extension, because `styles` vs `styles.css` vs
  * `styles.min.css` is exactly the distinction an author needs to see in a Styles or Assets list.
  */
-function fileLabel(path: string, kind: ThemeFileGroup): string {
+function fileLabel({ path, kind }: { path: string; kind: ThemeFileGroup }, _options = {}): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return kind === "page" || kind === "partial" ? base.replace(/\.html$/, "") : base;
 }
 
 /** The path's own filename segment, extension included — what an inline rename edits. */
-function basenameOf(path: string): string {
-  return path.slice(path.lastIndexOf("/") + 1);
-}
+function basenameOf({ path }: { path: string }, _options = {}): string { return path.slice(path.lastIndexOf("/") + 1); }
 
 /**
  * Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
@@ -373,8 +370,8 @@ export type ThemeExplorePublishState =
  * @complexity O(1).
  */
 export function dispatchPublishToggle(
-  state: ThemeExplorePublishState,
-  setPagePublished: (published: boolean) => Promise<void>,
+  { state, setPagePublished }: { state: ThemeExplorePublishState; setPagePublished: (published: boolean) => Promise<void> },
+  _options = {},
 ): void {
   if (state.kind === "toggle") void setPagePublished(!state.published);
 }
@@ -399,8 +396,8 @@ export function dispatchPublishToggle(
  *
  * @complexity O(1).
  */
-export function lockedPublishReason(pageLabel: string, t: Translate): { on: boolean; reason: string } {
-  if (pageLabel === "index") return homeFallbackPublishReason(null, t);
+export function lockedPublishReason({ pageLabel, t }: { pageLabel: string; t: Translate }, _options = {}): { on: boolean; reason: string } {
+  if (pageLabel === "index") return homeFallbackPublishReason({ homePage: null, t });
   if (pageLabel === "404") return { on: true, reason: t("Always published — error page") };
   return { on: false, reason: t("Not a standalone page — used as a content template") };
 }
@@ -422,16 +419,16 @@ export function lockedPublishReason(pageLabel: string, t: Translate): { on: bool
  * @complexity O(1).
  */
 export function selectedFilePublishState(
-  file: ThemeExploreFile | undefined,
-  t: Translate
+  { file, t }: { file: ThemeExploreFile | undefined; t: Translate },
+  _options = {},
 ): ThemeExplorePublishState | null {
   if (!file) return null;
   if (file.published !== null) return { kind: "toggle", published: file.published };
   if (file.kind !== "page") return null;
   // `index` is the home fallback: OFF once a content Page is the home page — see
   // `homeFallbackPublishReason` (`features/pages/lib/theme-page-publish-state.ts`).
-  if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason(file.collidingContent, t) };
-  return { kind: "locked", ...lockedPublishReason(file.label, t) };
+  if (file.label === "index") return { kind: "locked", ...homeFallbackPublishReason({ homePage: file.collidingContent, t }) };
+  return { kind: "locked", ...lockedPublishReason({ pageLabel: file.label, t }) };
 }
 
 /**
@@ -444,7 +441,7 @@ export function selectedFilePublishState(
  *
  * @complexity O(1).
  */
-export function publishToggleTipLabel(state: ThemeExplorePublishState, t: Translate): string {
+export function publishToggleTipLabel({ state, t }: { state: ThemeExplorePublishState; t: Translate }, _optional: Record<string, never> = {}): string {
   if (state.kind === "locked") return state.reason;
   return t(
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own."
@@ -461,7 +458,7 @@ export function publishToggleTipLabel(state: ThemeExplorePublishState, t: Transl
  *
  * @complexity O(1).
  */
-export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
+export function selectedFileLabel({ file }: { file: ThemeExploreFile | undefined }, _options = {}): string {
   return file?.label ?? "";
 }
 
@@ -473,8 +470,8 @@ export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
  *
  * @complexity O(1).
  */
-export function canResetThemeFile(file: ThemeExploreFile | undefined): file is ThemeExploreFile {
-  return file?.resettable === true && file.modified === true;
+export function canResetThemeFile(required: { file: ThemeExploreFile | undefined }, _optional: Record<string, never> = {}): required is { file: ThemeExploreFile } {
+  return required.file?.resettable === true && required.file.modified === true;
 }
 
 /**
@@ -483,7 +480,7 @@ export function canResetThemeFile(file: ThemeExploreFile | undefined): file is T
  *
  * @complexity O(1).
  */
-export function isThemeFileModified(file: ThemeExploreFile): boolean {
+export function isThemeFileModified(file: ThemeExploreFile, _optional: Record<string, never> = {}): boolean {
   return file.modified === true;
 }
 
@@ -497,8 +494,8 @@ export function isThemeFileModified(file: ThemeExploreFile): boolean {
  * @complexity O(1).
  */
 export function themeExploreHtmlMode(
-  file: ThemeExploreFile | undefined,
-  sourceLoaded: boolean
+  { file, sourceLoaded }: { file: ThemeExploreFile | undefined; sourceLoaded: boolean },
+  _options = {},
 ): "binary" | "unloaded" | "readonly" | "editable" {
   if (!file) return "editable";
   if (!file.readable) return "binary";
@@ -534,7 +531,7 @@ function isSameOpenFile(a: OpenFileSnapshot, b: OpenFileSnapshot): boolean {
  * @complexity O(s) in the text length, for the buffer comparison.
  */
 function refreshableOpenFilePath(open: OpenFileSnapshot): string | null {
-  if (!isOpenFileLoaded(open.loadedFile, open.themeId, open.selected)) return null;
+  if (!isOpenFileLoaded({ loaded: open.loadedFile, themeId: open.themeId, selected: open.selected })) return null;
   return open.source === open.savedSource ? open.selected : null;
 }
 
@@ -555,7 +552,7 @@ export function shouldAdoptRefreshedText({
   current: OpenFileSnapshot;
   content: string;
 }): boolean {
-  if (!isSameOpenFile(current, started) || !isOpenFileLoaded(current.loadedFile, started.themeId, started.selected)) {
+  if (!isSameOpenFile(current, started) || !isOpenFileLoaded({ loaded: current.loadedFile, themeId: started.themeId, selected: started.selected })) {
     return false;
   }
   return (
@@ -602,9 +599,8 @@ export function shouldAwaitFileText({
  * @complexity O(1).
  */
 function readPathFor(
-  pending: { themeId: string; path: string } | null,
-  themeId: string,
-  selected: string | null
+  { pending, themeId, selected }: { pending: { themeId: string; path: string } | null; themeId: string; selected: string | null },
+  _options = {},
 ): string | null {
   return pending !== null && pending.themeId === themeId ? pending.path : selected;
 }
@@ -618,7 +614,7 @@ export interface SelectionHoldSnapshot extends OpenFileSnapshot {
  *
  * @complexity O(n) in `files.length`.
  */
-function isListedReadable(files: ThemeExploreFile[], path: string | null): boolean {
+function isListedReadable({ files, path }: { files: ThemeExploreFile[]; path: string | null }, _options = {}): boolean {
   return path !== null && files.find((f) => f.path === path)?.readable === true;
 }
 
@@ -649,13 +645,13 @@ export function requestedSelectionMove({
   listedThemeId: string | null;
 }): RequestedSelectionMove {
   if (clickedSinceLoad && listedThemeId === themeId) return { kind: "skip" };
-  if (path === null || !isListedReadable(files, open.selected)) return { kind: "open", path };
+  if (path === null || !isListedReadable({ files, path: open.selected })) return { kind: "open", path };
   const hold = shouldAwaitFileText({
     view: open.view,
     file: files.find((f) => f.path === path),
     path,
     selected: open.selected,
-    sourceLoaded: isOpenFileLoaded(open.loadedFile, themeId, open.selected),
+    sourceLoaded: isOpenFileLoaded({ loaded: open.loadedFile, themeId: themeId, selected: open.selected }),
   });
   return hold ? { kind: "hold", path } : { kind: "open", path };
 }
@@ -664,7 +660,7 @@ export function requestedSelectionMove({
  *
  * @complexity O(1).
  */
-function renamedPath(path: string | null, from: string, to: string): string | null {
+function renamedPath({ path, from, to }: { path: string | null; from: string; to: string }, _options = {}): string | null {
   return path === from ? to : path;
 }
 
@@ -679,10 +675,10 @@ function renamedPath(path: string | null, from: string, to: string): string | nu
  * @complexity O(1).
  */
 export function loadedFileAfterRename(
-  loaded: { themeId: string; path: string } | null,
-  { themeId, from, to, renamed }: { themeId: string; from: string; to: string; renamed: ThemeExploreFile | undefined }
+  { loaded, rename: { themeId, from, to, renamed } }: { loaded: { themeId: string; path: string } | null; rename: { themeId: string; from: string; to: string; renamed: ThemeExploreFile | undefined } },
+  _options = {},
 ): { themeId: string; path: string } | null {
-  if (!isOpenFileLoaded(loaded, themeId, from) || renamed?.readable !== true || renamed?.editable !== true) return loaded;
+  if (!isOpenFileLoaded({ loaded: loaded, themeId: themeId, selected: from }) || renamed?.readable !== true || renamed?.editable !== true) return loaded;
   return { themeId, path: to };
 }
 
@@ -694,7 +690,7 @@ export function loadedFileAfterRename(
  *
  * @complexity O(n + m) in `files.length` and `serverFiles.length` — one Map build, one pass.
  */
-export function withServerModifiedState(files: ThemeExploreFile[], serverFiles: ThemeExploreFile[]): ThemeExploreFile[] {
+export function withServerModifiedState({ files, serverFiles }: { files: ThemeExploreFile[]; serverFiles: ThemeExploreFile[] }, _options = {}): ThemeExploreFile[] {
   const serverByPath = new Map(serverFiles.map((f) => [f.path, f]));
   return files.map((f) => {
     const server = serverByPath.get(f.path);
@@ -720,10 +716,10 @@ export function withServerModifiedState(files: ThemeExploreFile[], serverFiles: 
  *
  * @complexity O(n) in `entries.length` — one pass, each file mapped independently.
  */
-function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
+function mapDetailFiles({ entries }: { entries: ThemeExploreFileEntry[] }, _options = {}): ThemeExploreFile[] {
   return entries.map((f) => ({
     path: f.path,
-    label: fileLabel(f.path, f.group),
+    label: fileLabel({ path: f.path, kind: f.group }),
     kind: f.group,
     readable: f.readable,
     editable: f.editable,
@@ -748,10 +744,10 @@ function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
  * instead of two `.map()`s drifting apart.
  */
 async function fetchThemeExploreState(
-  themeId: string,
-  port: ThemeExplorePort
+  { themeId, port }: { themeId: string; port: ThemeExplorePort },
+  _options = {},
 ): Promise<{ detail: ThemeExploreDetail; files: ThemeExploreFile[] }> {
-  const r = await port.getThemeDetail(themeId);
+  const r = await port.getThemeDetail({ themeId });
   return {
     detail: {
       id: r.id,
@@ -762,7 +758,7 @@ async function fetchThemeExploreState(
       errors: r.errors,
       hasOriginal: r.hasOriginal,
     },
-    files: mapDetailFiles(r.files),
+    files: mapDetailFiles({ entries: r.files }),
   };
 }
 
@@ -776,12 +772,11 @@ async function fetchThemeExploreState(
  * @complexity Time/space: O(f) in the theme's file count (the one detail read it wraps).
  */
 async function refetchAfterMutation(
-  themeId: string,
-  port: ThemeExplorePort,
-  t: Translate
+  { themeId, port, t }: { themeId: string; port: ThemeExplorePort; t: Translate },
+  _options = {},
 ): Promise<({ ok: true } & Awaited<ReturnType<typeof fetchThemeExploreState>>) | { ok: false; message: string }> {
   try {
-    return { ok: true, ...(await fetchThemeExploreState(themeId, port)) };
+    return { ok: true, ...(await fetchThemeExploreState({ themeId, port })) };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : t("failed to refresh file list") };
   }
@@ -836,8 +831,8 @@ export interface ThemeExploreOptions {
  *
  * @complexity Time O(n) in `files.length` — at most three independent scans, no nesting.
  */
-function defaultSelectedPath(files: ThemeExploreFile[], apiVersion: 2 | undefined): string | null {
-  const indexPagePath = resolveThemeLayout(apiVersion).indexPagePath;
+function defaultSelectedPath({ files, apiVersion }: { files: ThemeExploreFile[]; apiVersion: 2 | undefined }, _options = {}): string | null {
+  const indexPagePath = resolveThemeLayout({}, { apiVersion }).indexPagePath;
   return (
     files.find((f) => f.path === indexPagePath)?.path ??
     files.find((f) => f.kind === "page")?.path ??
@@ -859,16 +854,12 @@ function defaultSelectedPath(files: ThemeExploreFile[], apiVersion: 2 | undefine
  * @complexity Time O(n) in `files.length`.
  */
 function initialSelectedPath(
-  files: ThemeExploreFile[],
-  {
-    fileId,
-    pageId,
-    apiVersion,
-  }: { fileId: string | undefined; pageId: string | undefined; apiVersion: 2 | undefined }
+  { files, selection: { fileId, pageId, apiVersion } }: { files: ThemeExploreFile[]; selection: { fileId: string | undefined; pageId: string | undefined; apiVersion: 2 | undefined } },
+  _options = {},
 ): { path: string | null; missed: string | null } {
-  const requested = resolveRequestedThemeExploreSelection(files, { fileId, pageId });
+  const requested = resolveRequestedThemeExploreSelection({ files }, { fileId, pageId });
   if (requested.path !== null) return requested;
-  return { path: defaultSelectedPath(files, apiVersion), missed: requested.missed };
+  return { path: defaultSelectedPath({ files, apiVersion }), missed: requested.missed };
 }
 
 /**
@@ -876,9 +867,9 @@ function initialSelectedPath(
  * `Error` its own message, and anything else a generic fallback. Pulled out of `performRename`'s
  * `catch` under the complexity ceiling.
  */
-function renameErrorMessage(e: unknown, name: string, t: Translate): string {
+function renameErrorMessage({ e, name, t }: { e: unknown; name: string; t: Translate }, _options = {}): string {
   if (e instanceof ApiError && e.code === "NAME_TAKEN") {
-    return translateWith(t, "'{name}' already exists in this theme", "name", name);
+    return translateWith({ t, key: "'{name}' already exists in this theme", token: "name", value: name });
   }
   return e instanceof Error ? e.message : t("failed to rename file");
 }
@@ -898,21 +889,20 @@ const RESET_REFUSAL_COPY: ReadonlyMap<string, string> = new Map([
  *
  * @complexity O(k) in the message length.
  */
-function resetErrorMessage(e: unknown, path: string, t: Translate): string {
+function resetErrorMessage({ e, path, t }: { e: unknown; path: string; t: Translate }, _options = {}): string {
   const copy = e instanceof ApiError && e.code !== undefined ? RESET_REFUSAL_COPY.get(e.code) : undefined;
-  if (copy !== undefined) return translateWith(t, copy, "file", path);
+  if (copy !== undefined) return translateWith({ t, key: copy, token: "file", value: path });
   return e instanceof Error ? e.message : t("failed to reset file");
 }
 
 export function useThemeExplore(
-  themeId: string,
-  { port, t }: ThemeExploreDependencies,
-  { pageId, fileId }: ThemeExploreOptions = {}
+  { themeId, dependencies: { port, t } }: { themeId: string; dependencies: ThemeExploreDependencies },
+  { pageId, fileId }: ThemeExploreOptions = {},
 ): ThemeExploreController {
   const detailKey = useMemo(() => ["themes", "detail", themeId] as const, [themeId]);
   // One definition of "read this theme's detail", used both as the loader's own default fetch and by
   // `cachedReads.getThemeDetail` below for any id.
-  const detailFetchFor = useCallback((id: string) => () => port.getThemeDetail(id), [port]);
+  const detailFetchFor = useCallback((id: string) => () => port.getThemeDetail({ themeId: id }), [port]);
   const fetchDetail = useMemo(() => detailFetchFor(themeId), [detailFetchFor, themeId]);
   const detailLoader = useCachedLoader({ key: detailKey, fetch: fetchDetail }, { staleTime: 0 });
   const sourceKey = useMemo(() => ["themes", "source", themeId] as const, [themeId]);
@@ -920,11 +910,11 @@ export function useThemeExplore(
   // `cachedReads.getThemeFile`), so an argument-less `load()` here would be a bug — the loader rejects it.
   const sourceLoader = useCachedLoader<Awaited<ReturnType<ThemeExplorePort["getThemeFile"]>>>({ key: sourceKey }, { staleTime: 0 });
   const cachedReads = useMemo<ThemeExplorePort>(() => ({ ...port,
-    getThemeDetail: id => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
-    getThemeFile: (id, path) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile(id, path) }),
+    getThemeDetail: ({ themeId: id }, _options = {}) => detailLoader.load({ key: ["themes", "detail", id], fetch: detailFetchFor(id) }),
+    getThemeFile: ({ themeId: id, path }, _options = {}) => sourceLoader.load({ key: ["themes", "file", id, path], fetch: () => port.getThemeFile({ themeId: id, path }) }),
   }), [port, detailLoader, sourceLoader, detailFetchFor]);
   const listingKey = useMemo(() => ["themes", "explore", themeId] as const, [themeId]);
-  const fetchListing = useCallback(() => fetchThemeExploreState(themeId, cachedReads), [themeId, cachedReads]);
+  const fetchListing = useCallback(() => fetchThemeExploreState({ themeId, port: cachedReads }), [themeId, cachedReads]);
   const listingQuery = useFetchQuery({ key: listingKey, fetch: fetchListing }, { staleTime: 0 });
   const listingLoader = useCachedLoader({ key: listingKey, fetch: fetchListing }, { staleTime: 0 });
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
@@ -1017,11 +1007,11 @@ export function useThemeExplore(
         // loading `?theme=basic` bare should not rewrite the URL the instant the default page
         // resolves, the same "only a real user action moves the URL" restraint
         // `use-media-tabs.hooks.ts`'s own `setActiveTab` follows; only {@link select} below does.
-        const { path, missed } = initialSelectedPath(nextFiles, {
+        const { path, missed } = initialSelectedPath({ files: nextFiles, selection: {
           fileId,
           pageId,
           apiVersion: nextDetail.apiVersion,
-        });
+        } });
         // Decided from the commit-time snapshot, not this closure: the view, the open file and a click
         // can all have moved while the listing was in flight. MUST be computed before `listedThemeRef`
         // is updated below.
@@ -1049,7 +1039,7 @@ export function useThemeExplore(
         // theme has — an intentional layered fallback (`fileId` failing over to a valid `pageId`)
         // is not a miss. This is the fix for the owner-reported bug: a stale/mistyped link must
         // never look like it silently opened a different, valid file with nothing amiss.
-        if (missed !== null) setError(translateWith(tRef.current, "\"{name}\" isn't a page or file in this theme.", "name", missed));
+        if (missed !== null) setError(translateWith({ t: tRef.current, key: "\"{name}\" isn't a page or file in this theme.", token: "name", value: missed }));
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : tRef.current("failed to load theme"));
@@ -1074,7 +1064,7 @@ export function useThemeExplore(
     const listing = listingQuery.data;
     if (!listing || listedThemeRef.current !== themeId) return;
     setDetail(listing.detail);
-    setFiles(previous => withServerModifiedState(previous, listing.files));
+    setFiles(previous => withServerModifiedState({ files: previous, serverFiles: listing.files }));
   }, [listingQuery.data, themeId]);
 
   // The effect below keys off the open file's `readable` flag, not the whole `files` array. A list
@@ -1082,15 +1072,18 @@ export function useThemeExplore(
   // toggle, a rename or delete of another file) must not re-read the open file: that would overwrite
   // `source` and discard edits typed since.
   const selectedReadable = files.find((f) => f.path === selected)?.readable;
-  const sourceLoaded = isOpenFileLoaded(loadedFile, themeId, selected);
+  const sourceLoaded = isOpenFileLoaded({ loaded: loadedFile, themeId: themeId, selected: selected });
   // The read below is for a click `select` is holding, else the open file. It keys off that file's own
   // `readable` flag and loaded state, for the same reason given for `selectedReadable` above.
-  const readPath = readPathFor(pendingSelection, themeId, selected);
+  const readPath = readPathFor({ pending: pendingSelection, themeId, selected });
   const readPathReadable = files.find((f) => f.path === readPath)?.readable;
-  const readPathLoaded = isOpenFileLoaded(loadedFile, themeId, readPath);
+  const readPathLoaded = isOpenFileLoaded({ loaded: loadedFile, themeId: themeId, selected: readPath });
 
   const textKey = useMemo(() => ["themes", "file", themeId, readPath ?? "", fileReadNonce] as const, [themeId, readPath, fileReadNonce]);
-  const fetchText = useCallback(() => cachedReads.getThemeFile(themeId, readPath!), [themeId, readPath, cachedReads]);
+  const fetchText = useCallback(() => {
+    if (readPath === null) throw new Error("theme file read has no selected path");
+    return cachedReads.getThemeFile({ themeId, path: readPath });
+  }, [themeId, readPath, cachedReads]);
   useFetchQuery({ key: textKey, fetch: fetchText }, { enabled: readPath !== null && readPathReadable !== false && !readPathLoaded, staleTime: 0 });
   const textLoader = useCachedLoader({ key: textKey, fetch: fetchText }, { staleTime: 0 });
   // `fileReadNonce` is a dependency only so a reset that returned no text can re-run this read. Every
@@ -1168,13 +1161,13 @@ export function useThemeExplore(
       const { detail: nextDetail, files: serverFiles } = await listingLoader.load();
       if (!stillCurrent()) return null;
       if (!reconcileFiles) {
-        setFiles((prev) => withServerModifiedState(prev, serverFiles));
+        setFiles((prev) => withServerModifiedState({ files: prev, serverFiles }));
         return serverFiles;
       }
       setDetail(nextDetail);
       setFiles(serverFiles);
       if (keepsOpenFileSelected({ serverFiles, open: openFileRef.current, themeId })) return serverFiles;
-      const path = defaultSelectedPath(serverFiles, nextDetail.apiVersion);
+      const path = defaultSelectedPath({ files: serverFiles, apiVersion: nextDetail.apiVersion });
       setPendingSelection(null);
       setSelected(path);
       setLoadedFile(null);
@@ -1211,7 +1204,7 @@ export function useThemeExplore(
     if (path === null) return;
     const generation = openFileTextSettlement.next();
     try {
-      const { content } = await cachedReads.getThemeFile(started.themeId, path);
+      const { content } = await cachedReads.getThemeFile({ themeId: started.themeId, path });
       if (!openFileTextSettlement.isCurrent({ generation })) return;
       if (!shouldAdoptRefreshedText({ started, current: openFileRef.current, content })) return;
       setSource(content);
@@ -1229,7 +1222,7 @@ export function useThemeExplore(
       if (serverFiles?.some((file) => file.path === openFileRef.current.selected)) void refreshOpenFileText();
     });
   }, [refreshModifiedState, refreshOpenFileText]);
-  useContentRefreshSubscription(THEME_FILES_RESOURCE, refreshFromContentBus);
+  useContentRefreshSubscription({ resource: THEME_FILES_RESOURCE, onRefresh: refreshFromContentBus });
   useEffect(() => subscribeThemePreviewRefresh({ listener: refreshFromContentBus }), [refreshFromContentBus]);
 
   const save = useCallback(async () => {
@@ -1240,12 +1233,13 @@ export function useThemeExplore(
     // effect's `loadedFile` clear being the only thing standing between a stale buffer and the server.
     // An externally deleted file may deliberately still have an unsaved buffer open.
     if (selected === null || !sourceLoaded || selectedReadable !== true) return;
+    const selectedPath = selected;
     setSaving(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.putThemeFile(themeId, selected, source) }) as Awaited<ReturnType<typeof port.putThemeFile>>;
+      await write.mutate({ input: () => port.putThemeFile({ themeId: themeId, path: selectedPath, content: source }) }) as Awaited<ReturnType<typeof port.putThemeFile>>;
       setSavedSource(source);
-      setNotice(translateWith(tRef.current, "Saved {file}", "file", selected));
+      setNotice(translateWith({ t: tRef.current, key: "Saved {file}", token: "file", value: selected }));
       setPreviewNonce((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : tRef.current("failed to save file"));
@@ -1265,10 +1259,11 @@ export function useThemeExplore(
    */
   const reset = useCallback(async () => {
     if (selected === null) return;
+    const selectedPath = selected;
     setResetting(true);
     setError(null);
     try {
-      const r = await write.mutate({ input: () => port.resetThemeFile(themeId, selected) }) as Awaited<ReturnType<typeof port.resetThemeFile>>;
+      const r = await write.mutate({ input: () => port.resetThemeFile({ themeId: themeId, path: selectedPath }) }) as Awaited<ReturnType<typeof port.resetThemeFile>>;
       // Adopt the server's returned content rather than re-fetching: it is the text of the bytes just
       // restored, so the editor cannot briefly show the pre-reset source. `null` means the file is
       // past the server's text-read limit. Its bytes are restored, but there is no text to edit, so
@@ -1284,11 +1279,11 @@ export function useThemeExplore(
         setSavedSource(r.content);
         setLoadedFile({ themeId, path: selected });
       }
-      setNotice(translateWith(tRef.current, "Reset {file} to the original", "file", selected));
+      setNotice(translateWith({ t: tRef.current, key: "Reset {file} to the original", token: "file", value: selected }));
       setPreviewNonce((n) => n + 1);
       setResetConfirmOpen(false);
     } catch (e) {
-      setError(resetErrorMessage(e, selected, tRef.current));
+      setError(resetErrorMessage({ e, path: selected, t: tRef.current }));
       return;
     } finally {
       setResetting(false);
@@ -1307,10 +1302,10 @@ export function useThemeExplore(
     setSavingOriginal(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.saveThemeOriginal(themeId) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
+      await write.mutate({ input: () => port.saveThemeOriginal({ themeId: themeId }) }) as Awaited<ReturnType<typeof port.saveThemeOriginal>>;
       modifiedRefreshSettlement.next();
       setNotice(tRef.current("Saved as this theme's original"));
-      const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
+      const refetched = await refetchAfterMutation({ themeId, port: cachedReads, t: tRef.current });
       if (!refetched.ok) {
         setError(refetched.message);
         return;
@@ -1344,16 +1339,16 @@ export function useThemeExplore(
       setRenaming(true);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.renameThemeFile(themeId, sourcePath, name) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
+        const r = await write.mutate({ input: () => port.renameThemeFile({ themeId: themeId, path: sourcePath, name: name }) }) as Awaited<ReturnType<typeof port.renameThemeFile>>;
         modifiedRefreshSettlement.next();
-        const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
+        const refetched = await refetchAfterMutation({ themeId, port: cachedReads, t: tRef.current });
         // Superseded by a newer rename call started after this one — that later call owns
         // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
         // whichever rename happens to settle LAST win regardless of which file was actually
         // renamed last. See `renameSettlement`'s doc comment above.
         if (!renameSettlement.isCurrent({ generation })) return;
         // The rename is done whatever the re-read says — see `refetchAfterMutation`.
-        setNotice(translateWith(tRef.current, "Renamed to {file}", "file", r.path));
+        setNotice(translateWith({ t: tRef.current, key: "Renamed to {file}", token: "file", value: r.path }));
         setPreviewNonce((n) => n + 1);
         if (!refetched.ok) {
           setError(refetched.message);
@@ -1369,12 +1364,12 @@ export function useThemeExplore(
         const renamed = nextFiles.find((f) => f.path === r.path);
         // The open file's old `?page=`/`?file=` would name nothing on a reload or a copied link.
         if (renamed && openFileRef.current.selected === sourcePath) writeThemeExploreSelectionToUrl(renamed);
-        setSelected((current) => renamedPath(current, sourcePath, r.path));
-        setLoadedFile((current) => loadedFileAfterRename(current, { themeId, from: sourcePath, to: r.path, renamed }));
+        setSelected((current) => renamedPath({ path: current, from: sourcePath, to: r.path }));
+        setLoadedFile((current) => loadedFileAfterRename({ loaded: current, rename: { themeId, from: sourcePath, to: r.path, renamed } }));
         setPendingSelection(null);
       } catch (e) {
         if (!renameSettlement.isCurrent({ generation })) return;
-        setError(renameErrorMessage(e, name, tRef.current));
+        setError(renameErrorMessage({ e, name, t: tRef.current }));
       } finally {
         if (!renameSettlement.isCurrent({ generation })) return;
         setRenaming(false);
@@ -1389,13 +1384,13 @@ export function useThemeExplore(
     (path: string) => {
       const kind = files.find((f) => f.path === path)?.kind;
       const apiVersion = detail?.apiVersion;
-      if (lockedIdentityPaths(apiVersion).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
-        setError(lockedIdentityChangeReason(path, apiVersion, "renamed", tRef.current));
+      if (lockedIdentityPaths({ apiVersion }).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
+        setError(lockedIdentityChangeReason({ path, apiVersion, action: "renamed", t: tRef.current }));
         return;
       }
       setError(null);
       setRenamingPath(path);
-      setRenameDraft(basenameOf(path));
+      setRenameDraft(basenameOf({ path }));
     },
     [files, detail]
   );
@@ -1415,7 +1410,7 @@ export function useThemeExplore(
     if (renamingPath === null) return;
     const sourcePath = renamingPath;
     const name = renameDraft.trim();
-    const currentBase = basenameOf(sourcePath);
+    const currentBase = basenameOf({ path: sourcePath });
 
     if (name.length === 0) {
       setError(tRef.current("Name cannot be empty"));
@@ -1474,12 +1469,12 @@ export function useThemeExplore(
       setCopyingPath(path);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.copyThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
+        const r = await write.mutate({ input: () => port.copyThemeFile({ themeId: themeId, path: path }) }) as Awaited<ReturnType<typeof port.copyThemeFile>>;
         modifiedRefreshSettlement.next();
         // The copy is done whatever the re-read says — see `refetchAfterMutation`. Selecting the new
         // file waits for a list that has it.
-        setNotice(translateWith(tRef.current, "Copied to {file}", "file", r.path));
-        const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
+        setNotice(translateWith({ t: tRef.current, key: "Copied to {file}", token: "file", value: r.path }));
+        const refetched = await refetchAfterMutation({ themeId, port: cachedReads, t: tRef.current });
         if (!refetched.ok) {
           setError(refetched.message);
           return;
@@ -1512,8 +1507,8 @@ export function useThemeExplore(
     (path: string) => {
       const kind = files.find((f) => f.path === path)?.kind;
       const apiVersion = detail?.apiVersion;
-      if (lockedIdentityPaths(apiVersion).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
-        setError(lockedIdentityChangeReason(path, apiVersion, "deleted", tRef.current));
+      if (lockedIdentityPaths({ apiVersion }).includes(path) || (kind !== undefined && IDENTITY_LOCKED_GROUPS.has(kind))) {
+        setError(lockedIdentityChangeReason({ path, apiVersion, action: "deleted", t: tRef.current }));
         return;
       }
       setError(null);
@@ -1541,22 +1536,22 @@ export function useThemeExplore(
     setDeleting(true);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deleteThemeFile(themeId, path) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
+      await write.mutate({ input: () => port.deleteThemeFile({ themeId: themeId, path: path }) }) as Awaited<ReturnType<typeof port.deleteThemeFile>>;
       modifiedRefreshSettlement.next();
       // The file is gone from here on, whatever the re-read says — see `refetchAfterMutation`. The
       // dialog closes and the notice says so; a failed re-read drops the file from the list locally
       // (the one change a delete makes to it) and is reported as its own error.
       setDeleteTarget(null);
       setPendingSelection(null);
-      setNotice(translateWith(tRef.current, "Deleted {file}", "file", path));
-      const refetched = await refetchAfterMutation(themeId, cachedReads, tRef.current);
+      setNotice(translateWith({ t: tRef.current, key: "Deleted {file}", token: "file", value: path }));
+      const refetched = await refetchAfterMutation({ themeId, port: cachedReads, t: tRef.current });
       const next = refetched.ok ? refetched : { detail, files: files.filter((f) => f.path !== path) };
       if (refetched.ok) setDetail(refetched.detail);
       else setError(refetched.message);
       setFiles(next.files);
       // Deleting the open file falls back to the default one; the address bar follows it, the same
       // way the external-removal path in `refreshModifiedState` already does.
-      const fallbackPath = defaultSelectedPath(next.files, next.detail?.apiVersion);
+      const fallbackPath = defaultSelectedPath({ files: next.files, apiVersion: next.detail?.apiVersion });
       const fallback = openFileRef.current.selected === path ? next.files.find((f) => f.path === fallbackPath) : undefined;
       if (fallback) writeThemeExploreSelectionToUrl(fallback);
       setSelected((current) => (current === path ? fallbackPath : current));
@@ -1621,9 +1616,9 @@ export function useThemeExplore(
       setPublishing(true);
       setError(null);
       try {
-        const r = await write.mutate({ input: () => port.setPagePublished(themeId, pageId, published) }) as Awaited<ReturnType<typeof port.setPagePublished>>;
+        const r = await write.mutate({ input: () => port.setPagePublished({ themeId: themeId, page: pageId, published: published }) }) as Awaited<ReturnType<typeof port.setPagePublished>>;
         setFiles((prev) => prev.map((f) => (f.path === file.path ? { ...f, published: r.published } : f)));
-        setNotice(translateWith(tRef.current, r.published ? "Published {page}" : "Unpublished {page}", "page", pageId));
+        setNotice(translateWith({ t: tRef.current, key: r.published ? "Published {page}" : "Unpublished {page}", token: "page", value: pageId }));
       } catch (e) {
         setError(e instanceof Error ? e.message : tRef.current("failed to update publish state"));
       } finally {
@@ -1714,8 +1709,8 @@ export function useThemeExplore(
  * `ThemeExplore.tsx` composes this and a test composes {@link useThemeExplore} with
  * `createFakeThemeExplorePort`.
  */
-export function useWiredThemeExplore(themeId: string, options: ThemeExploreOptions = {}): ThemeExploreController {
+export function useWiredThemeExplore({ themeId }: { themeId: string }, options: ThemeExploreOptions = {}): ThemeExploreController {
   const locale = useAdminLocale();
   const t = (key: string): string => translateThemes({ locale: locale, key: key });
-  return useThemeExplore(themeId, { port: defaultThemeExplorePort, t }, options);
+  return useThemeExplore({ themeId, dependencies: { port: defaultThemeExplorePort, t } }, options);
 }

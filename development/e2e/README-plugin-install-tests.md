@@ -91,8 +91,7 @@ Files in this UI/E2E change (including the retained interrupted-run edits):
   `agent-plugin-install-dependencies.hooks.ts`.
 - Its `__tests__/`: `AgentPlugins.unit.test.tsx`, `AgentPluginsAddTab.unit.test.tsx`,
   `plugin-install-size.unit.test.ts`, `plugin-list-refresh.unit.test.ts`.
-- `apps/admin/src/components/InstallTabCard/install-archive-size.ts`,
-  `apps/admin/src/panels.tsx`, `apps/admin/src/styles.css`.
+- `apps/admin/src/panels.tsx`, `apps/admin/src/styles.css`.
 - `development/e2e/journeys/plugins.pins.journey.ts`, `development/e2e/support/plugin-install-fixtures.ts`,
   `development/playwright.journeys.config.ts`, this runbook.
 - `development/e2e/fixtures/plugins/qa-fake-hello/{1.0.0,1.0.1}/{tovu.plugin.json,README.md}`.

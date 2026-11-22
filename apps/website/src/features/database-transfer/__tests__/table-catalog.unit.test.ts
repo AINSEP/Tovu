@@ -6,7 +6,7 @@ import Database from "better-sqlite3";
 import { sql } from "drizzle-orm";
 import { boolean, check, ForeignKeyBuilder, index, integer, jsonb, pgTable, primaryKey, text, unique } from "drizzle-orm/pg-core";
 
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { collectSchemaTables, collectTransferTables, planChatSnapshotTables, planSnapshotTables } from "../table-catalog.js";
 import { indexSql } from "@jini-ai/db/transfer";
 

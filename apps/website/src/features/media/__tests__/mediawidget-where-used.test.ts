@@ -2,17 +2,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Clock } from '@jini-ai/core/primitives';
-import { InMemoryVersionedMediaRepo } from '../versioned-media-repo.js';
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
 import { findMediaWhereUsed } from '#src/features/media/where-used';
-import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
-import { InMemoryEntryRefsRepo } from '#src/contracts/core/entry-refs/repo.memory';
+import { extractEntryRefs } from '@jini-ai/cms/widgets';
+import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost, InMemoryPostRepo } from '#src/features/post/index';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 
 test('usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies', async () => {
   const clock: Clock = { nowMs: () => Date.parse('2026-10-10T00:00:00.000Z') };
-  const workspaceId = 'usage-ws', mediaRepo = new InMemoryVersionedMediaRepo(), entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo();
+  const workspaceId = 'usage-ws', mediaRepo = new InMemoryVersionedMediaRepo({}), entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
   await entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: 'widget', refs: extractEntryRefs({ workspaceId, sourceEntryId: 'widget', sourceEntryType: 'widget', bodyJson: null, fieldsExt: { widget: { widgetType: 'media', config: { items: [{ slug: 'photo' }] } } } }) });
   const raw = await createPost({ deps: { clock, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'raw-post', workspaceId, title: 'Raw', slug: 'raw', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { html: '<img data-media-slug="photo">' } } }] } } });
   const placed = await createPost({ deps: { clock, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'placed-post', workspaceId, title: 'Placed', slug: 'placed', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { items: [{ slug: 'photo' }] } } }] } } });
@@ -25,13 +25,13 @@ test('usage queries canonical id and slug and combines indexed widgets with curr
 
 test('usage HTTP route enforces workspace and media.read before any asset lookup', async () => {
   const { registerAdminMediaWhereUsedRoute } = await import('#src/server/inbound/admin-http/routes/media/where-used');
-  const { InMemoryVersionedMediaRepo } = await import('#src/features/media/index');
+  const { InMemoryVersionedMediaRepo } = await import("@jini-ai/cms/media");
   let handler: (req: any, res: any) => Promise<void> = async () => {};
   let reads = 0, allowed = false, status = 200, body: any;
   class MediaRepo extends InMemoryVersionedMediaRepo { override async findById(input: Parameters<InstanceType<typeof InMemoryVersionedMediaRepo>['findById']>[0]) { reads++; return super.findById(input); } }
-  const mediaRepo = new MediaRepo();
+  const mediaRepo = new MediaRepo({});
   const app = { get: (_path: string, fn: typeof handler) => { handler = fn; } } as unknown as Parameters<typeof registerAdminMediaWhereUsedRoute>[0]['app'];
-  registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo(), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
+  registerAdminMediaWhereUsedRoute({ app, deps: { workspaceId: 'ws', mediaRepo, entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: new InMemoryPostRepo({}), authorize: async () => ({ allowed, reason: allowed ? 'matched' : 'insufficient_permission' }) } });
   const res = { req: { method: 'GET', route: { path: '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/where-used' } },
     locals: { principal: { id: 'owner', kind: 'user' } }, status: (code: number) => { status = code; return res; }, json: (value: unknown) => { body = value; return res; } };
   await handler({ params: { workspaceId: 'other', mediaId: 'm' } }, res);
@@ -55,9 +55,9 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
 // Exercise the purge adapter, not a second copy of the scanner or deletion ladder.
 test('Tovu purge refuses retired slug references from current post bodies and succeeds after removal', async () => {
   const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
-  const workspaceId = 'purge-ws', entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo();
-  const mediaRepo = new InMemoryVersionedMediaRepo();
-  const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
+  const workspaceId = 'purge-ws', entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
+  const mediaRepo = new InMemoryVersionedMediaRepo({});
+  const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => Date.now() } };
   await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: 'Photo', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'ref-post', workspaceId, title: 'Referencing post', slug: 'ref-post', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { src: '/m/photo' } }] } } });
   // Use the same raw-HTML placement format as the existing scanner contract above.
@@ -75,23 +75,23 @@ test('Tovu purge refuses retired slug references from current post bodies and su
 
 test('usage reports an html-format post body under bodyHtml and never counts a soft-deleted post', async () => {
   const clock: Clock = { nowMs: () => Date.parse('2026-10-10T00:00:00.000Z') };
-  const workspaceId = 'usage-html-ws', seedRepo = new InMemoryPostRepo();
+  const workspaceId = 'usage-html-ws', seedRepo = new InMemoryPostRepo({});
   const embed = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { html: '<img data-media-slug="photo">' } } }] };
   const html = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'html-post', workspaceId, title: 'Html', slug: 'html', actorId: 'owner', bodyJson: embed } });
   const gone = await createPost({ deps: { clock, repo: seedRepo, outbox: new InMemoryOutbox() }, input: { id: 'gone-post', workspaceId, title: 'Gone', slug: 'gone', actorId: 'owner', bodyJson: embed } });
   const posts = [{ ...html.post, bodyFormat: 'html' as const }, { ...gone.post, deletedAt: '2026-10-11T00:00:00.000Z' }];
-  const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo() }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
+  const usage = await findMediaWhereUsed({ deps: { entryRefsRepo: new InMemoryEntryRefsRepo(), postRepo: { list: async () => posts }, mediaRepo: new InMemoryVersionedMediaRepo({}) }, input: { workspaceId, mediaId: 'canonical-photo', slug: 'photo' } });
   assert.equal(usage.count, 1);
   assert.deepEqual(usage.references.map(ref => [ref.sourceEntryId, ref.fieldPath, ref.targetId]), [['html-post', 'bodyHtml', 'canonical-photo']]);
 });
 
 test('cleanup usage includes restorable posts when requested and purge refuses their media', async () => {
   const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
-  const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo(), mediaRepo = new InMemoryVersionedMediaRepo();
+  const workspaceId = 'trash-usage', postRepo = new InMemoryPostRepo({}), mediaRepo = new InMemoryVersionedMediaRepo({});
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'restorable', workspaceId, title: 'Trash', slug: 'trash', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'asset' } }] } } });
   await postRepo.save({ ...post, deletedAt: '2026-10-10T00:00:00Z' });
-  const deps = { postRepo, mediaRepo, entryRefsRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
+  const deps = { postRepo, mediaRepo, entryRefsRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 } };
   await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: '', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: 'now', updatedAt: 'now', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const usage = await findMediaWhereUsed({ deps, input: { workspaceId, mediaId: 'asset', slug: 'photo' } }, { includeTrashed: true });
   assert.deepEqual(usage.references.map(row => row.sourceEntryId), ['restorable']);

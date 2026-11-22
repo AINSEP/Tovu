@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../posts-i18n";
 
-import { type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
@@ -87,8 +87,8 @@ export interface PostsController {
  * alone so re-sorting or any other unrelated re-render (`sort`, `locale`) does not rebuild this map
  * and hand `RowMenu` a new handle-string identity every time.
  */
-export function usePostRowMenuHandleMap(posts: AdminPost[] | null): Map<string, string> {
-  return useMemo(() => buildPostRowMenuHandleMap(posts), [posts]);
+export function usePostRowMenuHandleMap({ posts }: { posts: AdminPost[] | null }, _options: Record<string, never> = {}): Map<string, string> {
+  return useMemo(() => buildPostRowMenuHandleMap({ posts: posts }), [posts]);
 }
 
 export interface PostsListDependencies {
@@ -110,7 +110,7 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
   const query = useFetchQuery({ key, fetch: fetchList }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchList }, { staleTime: 0 });
   const posts = query.data ?? null;
-  function setPosts(update: (current: AdminPost[] | null) => AdminPost[] | null) {
+  function setPosts({ update }: { update: (current: AdminPost[] | null) => AdminPost[] | null }, _options: Record<string, never> = {}) {
     const next = update(loader.peek() ?? null);
     if (next !== null) loader.replace({ value: next });
   }
@@ -130,9 +130,9 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
   // Query ownership replaces the latest-wins read guard described above; background
   // refreshes keep the table and cache replacements protect newer mutation responses.
   const load = useCallback(() => invalidate({ key: ["posts"] }), [invalidate]);
-  useContentRefreshSubscription(POSTS_RESOURCE, load);
+  useContentRefreshSubscription({ resource: POSTS_RESOURCE, onRefresh: load });
 
-  const rowMenuHandleById = usePostRowMenuHandleMap(posts);
+  const rowMenuHandleById = usePostRowMenuHandleMap({ posts: posts });
 
   /** Opens a local working copy. The editor owns creation on the first Save/Publish. */
   async function createPost() {
@@ -173,11 +173,9 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
     setRowSavingId(post.id);
     setError(null);
     try {
-      const { post: updated } = await write.mutate({ input: () => port.updatePost(
-        { id: post.id },
-        { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version }
+      const { post: updated } = await write.mutate({ input: () => port.updatePost({ target: { id: post.id }, patch: { title: post.title, slug: post.slug, bodyJson: post.bodyJson, status: nextStatus, expectedVersion: post.version } }
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
-      setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
+      setPosts({ update: (prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t(nextStatus === "published" ? "failed to publish post" : "failed to unpublish post"));
     } finally {
@@ -212,8 +210,8 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
     setRowSavingId(post.id);
     setError(null);
     try {
-      await write.mutate({ input: () => port.deletePost(post.id) });
-      setPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
+      await write.mutate({ input: () => port.deletePost({ id: post.id }) });
+      setPosts({ update: (prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev) });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("failed to delete post"));
     } finally {
@@ -246,5 +244,6 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
  */
 export function useWiredPosts(): PostsController {
   const locale = useWiredAdminLocale();
-  return usePosts({ port: defaultPostsListPort, navigate: defaultNavigate }, { locale });
+  const navigate = useCallback((routePath: string) => defaultNavigate({ routePath }), []);
+  return usePosts({ port: defaultPostsListPort, navigate }, { locale });
 }

@@ -1,4 +1,7 @@
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
+import { usersApi } from "@/features/users/api/users-api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
 
@@ -11,18 +14,18 @@ import { asciiSlug } from "../../../lib/ascii-slug";
  *  than pointing at it directly, so a route's default-parameter shape (`uploadMedia`'s
  *  `options = {}`, `updateMedia`'s `options = {}`) stays `lib/api.ts`'s to own. */
 export const defaultMediaPort: MediaPort = {
-  listMedia: () => api.listMedia(),
-  uploadMedia: (input, options) => api.uploadMedia(input, options),
-  updateMedia: (target, options) => api.updateMedia(target, options),
-  trashMedia: (id) => api.trashMedia(id),
-  deleteMedia: (id) => api.deleteMedia(id),
+  listMedia: () => mediaApi.listMedia(),
+  uploadMedia: (input, options) => mediaApi.uploadMedia(input, options),
+  updateMedia: (target, options) => mediaApi.updateMedia(target, options),
+  trashMedia: (id) => mediaApi.trashMedia({ id }),
+  deleteMedia: (id) => mediaApi.deleteMedia({ id }),
   // No media-specific restore route: the shared Trash restore already handles media rows.
   restoreMedia: async (id) => {
-    const report = await api.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
+    const report = await trashApi.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
     return { restored: report.restored === 1 };
   },
-  mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
-  listUsers: () => api.listUsers(),
+  mediaOriginalUrl: (id) => mediaApi.mediaOriginalUrl({ id }),
+  listUsers: () => usersApi.listUsers(),
 };
 
 /** Seed state for {@link createFakeMediaPort}. */
@@ -53,7 +56,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       // enough for a fake store's own uniqueness-free happy path; a test needing a REAL collision or
       // conflict must seed `options.media` directly with an explicit `slug`, same as `contentType`'s
       // own disclosed limit above.
-      slug: asciiSlug(input.filename) || "untitled",
+      slug: asciiSlug({ text: input.filename }) || "untitled",
       alt: opts.alt ?? "",
       caption: opts.caption ?? "",
       credit: opts.credit ?? "",
@@ -62,7 +65,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       cssClass: null,
       htmlAttributes: null,
       // The REAL server ignores this declared string and stores `sniffContentType(bytes)` instead
-      // (see `server/routes/admin/media/upload.ts`). This fake has no bytes to sniff — its input is
+      // (see `apps/website/src/server/inbound/admin-http/routes/media/upload.ts`). This fake has no bytes to sniff — its input is
       // an opaque base64 string a test made up — so it echoes what the caller declared. A test that
       // needs the two to disagree (uploading bytes whose real type differs from the declared one)
       // must seed `options.media` directly rather than rely on this path.
@@ -90,7 +93,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async updateMedia({ id }, options = {}) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      const updated = { ...items[index]!, ...options };
+      const updated = { ...items[index], ...options };
       items[index] = updated;
       return { media: updated };
     },
@@ -98,7 +101,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async trashMedia(id) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      const trashed: AdminMedia = { ...items[index]!, status: "trashed" };
+      const trashed: AdminMedia = { ...items[index], status: "trashed" };
       items[index] = trashed;
       return { media: trashed };
     },
@@ -106,7 +109,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
     async restoreMedia(id) {
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`fake media not found: ${id}`);
-      items[index] = { ...items[index]!, status: "active" };
+      items[index] = { ...items[index], status: "active" };
       return { restored: true };
     },
 

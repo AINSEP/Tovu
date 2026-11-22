@@ -11,10 +11,10 @@ for (const root of ["memory", "sqlite"] as const) {
   test(`${root} composition applies a bundle staged through its exposed repository`, async (t) => {
     const { createSiteRouteDeps } = await import("#src/server/runtime/composition/deps");
     const { createRouteDeps, createApp } = await import("#src/server/runtime/composition/app");
-    const { stageBundle } = await import("../bundle-staging.js");
+    const { stageBundle } = await import("@jini-ai/cms/publish/transfer");
     const { planImport } = await import("../planner.js");
     const { contentHash, CONTENT_HASH_VERSION } = await import("../content-hash.js");
-    const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("../artifact-format.js");
+    const { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } = await import("@jini-ai/cms/publish/transfer");
     const { getPublishContentRunStatus } = await import("../run-repo.js");
     const { initSite } = await import("#src/server/runtime/composition/site-dir");
     const { bootSiteDir } = await import("#src/server/runtime/composition/site-dir");
@@ -34,13 +34,13 @@ for (const root of ["memory", "sqlite"] as const) {
       await initSite({ dir: siteDir, name: "Publish test" });
       const boot = await bootSiteDir({ dir: siteDir });
       let composed: { close(): Promise<void> } | undefined;
-      release = () => closeSiteDirBoot(boot, composed);
-      deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+      release = () => closeSiteDirBoot(boot, { composed });
+      deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
         db: boot.db, workspaceId: boot.workspaceId,
-        onStoreOpened: (store) => { composed = store; },
+        onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
         uploadsDir: path.join(siteDir, "uploads"), themesDir: path.join(siteDir, "themes"),
         siteBinding: { dir: siteDir, name: "Publish test", dirOverridden: true, switcherCompatible: false },
-      });
+      } });
     }
     await Promise.all([deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady,
       deps.commentsSettingsReady, deps.executionSettingsReady, deps.settingsUiTabsReady,
@@ -49,23 +49,30 @@ for (const root of ["memory", "sqlite"] as const) {
     const state = { title: "Published through composition", slug: "composition-publish", kind: "post",
       bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null, status: "draft", termIds: [] };
     const entity = { entityType: "post", id: "composition-publish", schemaVersion: 2,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("post", state), requiredBlobs: [], state };
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [], state };
     const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
       hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] };
-    const { bundleId } = await stageBundle({ ...bundle, workspaceId: deps.workspaceId,
-      sourcePrincipalId: "peer-source" }, { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen });
-    const report = await planImport(bundle, {
-      publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
-        ports: { post: { repo: deps.postRepo } } },
-      getBaseline: async () => null, hasBlob: async () => true,
+    const { bundleId } = await stageBundle({
+      input: { ...bundle, workspaceId: deps.workspaceId, sourcePrincipalId: "peer-source" },
+      deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen },
+    });
+    const report = await planImport({
+      bundle,
+      deps: {
+        publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
+          ports: { post: { repo: deps.postRepo } } },
+        getBaseline: async () => null, hasBlob: async () => true,
+      },
     });
     assert.equal(report.rows[0]?.outcome, "created", report.rows[0]?.reason ?? report.refusalReason ?? "");
     const result = await deps.publishContentApplyPort.applyReport({ report, bundleId,
       principalId: await deps.ownerPrincipalId, restorePointId: "test-restore-point" });
     assert.equal(result.changeSetIds.length, 1);
     assert.equal((await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id }))?.title, state.title);
-    const status = await getPublishContentRunStatus(deps.publishContentRunRepo,
-      { workspaceId: deps.workspaceId, runId: result.runId });
+    const status = await getPublishContentRunStatus({
+      repo: deps.publishContentRunRepo,
+      input: { workspaceId: deps.workspaceId, runId: result.runId },
+    });
     assert.equal(status?.phase, "applied");
     assert.deepEqual(status?.changeSetIds, result.changeSetIds);
     assert.equal(status?.report?.rows[0]?.outcome, "created");

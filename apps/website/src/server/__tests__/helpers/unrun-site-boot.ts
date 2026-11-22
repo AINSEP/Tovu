@@ -22,7 +22,7 @@ import { bootAuthenticated } from "./http-test-server.js";
  * `platform/db/kernel/__tests__/dialect-matrix.ts`'s repo-level `describeEachDialect`.
  *
  * Modeled on `runtime/composition/__tests__/create-site-route-deps.pglite.integration.test.ts`'s
- * `bootOwner`; teardown follows `serve.ts` (`closeSiteDirBoot(boot, composedStore)`).
+ * `bootOwner`; teardown follows `serve.ts` (`closeSiteDirBoot(boot, { composed: composedStore })`).
  */
 
 export type SiteDialect = "sqlite" | "pglite";
@@ -85,7 +85,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), `unrun-site-${dialect}-`));
   const siteDir = path.join(parent, "site");
   const savedSocketEnv = process.env[PG_SOCKET_ENV];
-  const socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
+  const socketDir = defaultPgliteSocketDir({ dataDir: path.join(siteDir, PGLITE_DATA_DIR_NAME) });
   if (dialect === "pglite") process.env[PG_SOCKET_ENV] = path.join(socketDir, PGLITE_SOCKET_FILE);
 
   let boot: Awaited<ReturnType<typeof bootSiteDir>> | undefined;
@@ -97,18 +97,18 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   try {
     await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
     boot = await bootSiteDir({ dir: siteDir });
-    deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, {
+    deps = await createSiteRouteDeps({}, { dbPath: resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,
-      onStoreOpened: (store) => (composed = store),
+      onStoreOpened: ({ store }, _optional = {}) => (composed = store),
       uploadsDir: path.join(siteDir, "uploads"),
       themesDir: path.join(siteDir, "themes"),
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     await drainBootReadiness(deps);
     optional.configureDeps?.(deps);
-    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
+    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: ({ work }) => appBootWork.push(work) }), t);
     return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };
   } finally {
     // Register after HTTP teardown, even if login fails: node:test skips hooks after one throws.
@@ -120,7 +120,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
         if (failed?.status === "rejected") throw failed.reason;
       } finally {
         // A rejected boot pass must still close the store and restore process-global fixtures.
-        try { if (boot) await closeSiteDirBoot(boot, composed); }
+        try { if (boot) await closeSiteDirBoot(boot, { composed }); }
         finally {
           // A close failure must fail the test, while still restoring globals and removing files.
           if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];

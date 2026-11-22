@@ -9,10 +9,10 @@ it("switches to the requested roles tab without growing browser history", () => 
   // Reject: omit replace:true or navigate to /seo.
   window.history.replaceState(null, "", "/admin/roles?tab=roles");
   const entries = window.history.length;
-  goToRolesTab("policies");
+  goToRolesTab({ tabId: "policies" });
   expect(window.location.pathname + window.location.search).toBe("/admin/roles?tab=policies");
   expect(window.history.length).toBe(entries);
-  goToRolesTab("roles");
+  goToRolesTab({ tabId: "roles" });
   expect(window.location.pathname + window.location.search).toBe("/admin/roles?tab=roles");
   expect(window.history.length).toBe(entries);
 });

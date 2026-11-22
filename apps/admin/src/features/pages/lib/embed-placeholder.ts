@@ -1,9 +1,10 @@
-import { hasAttributeOnAnyNodeShape, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
+import { type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
+import { hasAttributeOnAnyNodeShape } from "@jini-ai/core/primitives";
 import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@jini-ai/cms/widgets/markers";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import type { AdminPagePluginEmbed } from "@/lib/api";
+import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Bug A (2026-09-23 interactive-bugs plan, Slice A2): the Tovu-specific adapter
  * `PageEditor.tsx` (Slice A3) hands to `@jini-ai/ui/html-editor`'s generic `InteractiveHtmlEditor` as
@@ -28,7 +29,7 @@ const EMBED_MARKER_ATTRIBUTES = ["data-embed-config", "data-embed-type", "data-w
  *  `isComponent` callback, which is not always called with a real DOM `Element` — see that helper's
  *  own doc in `@jini-ai/ui/html-editor`. */
 export function isProtectedEmbedElement(el: Element): boolean {
-  return EMBED_MARKER_ATTRIBUTES.some((attr) => hasAttributeOnAnyNodeShape(el, attr));
+  return EMBED_MARKER_ATTRIBUTES.some((attr) => hasAttributeOnAnyNodeShape({ node: el, attribute: attr }));
 }
 
 /**
@@ -57,7 +58,7 @@ const EMBED_KIND_LABEL_KEYS: Readonly<Record<string, string>> = {
  *  doesn't (yet) name, so the card still reads as a word rather than a raw lower-case config value.
  *  Never routed through `t()`: an unrecognized type is a free string with no translation to look up,
  *  same as Jini's own adapter's identical `titleCase` fallback. */
-function titleCase(value: string): string {
+function titleCase({ value }: { value: string }, _options = {}): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
@@ -70,7 +71,7 @@ const TARGET_VALUE_PREVIEW_LENGTH = 32;
 
 /** `value`, unchanged if it fits {@link TARGET_VALUE_PREVIEW_LENGTH}, else cut to that length with a
  *  trailing "…". @complexity O(1). */
-function truncateTargetValue(value: string): string {
+function truncateTargetValue({ value }: { value: string }, _options = {}): string {
   return value.length > TARGET_VALUE_PREVIEW_LENGTH ? `${value.slice(0, TARGET_VALUE_PREVIEW_LENGTH)}…` : value;
 }
 
@@ -88,14 +89,14 @@ function truncateTargetValue(value: string): string {
  * @complexity O(1) — one `embedMarkerTarget` call (itself O(k) in a small fixed key list) plus one
  * bounded string truncation.
  */
-function targetIdentityLabel(type: string, config: Readonly<Record<string, unknown>>, t: Translate): string {
+function targetIdentityLabel({ type, config, t }: { type: string; config: Readonly<Record<string, unknown>>; t: Translate }, _options = {}): string {
   const target: EmbedMarkerTarget | undefined = embedMarkerTarget({ type, config });
   if (target === undefined) return t("no id set");
   if (target.key === "none") {
     const limit = config.limit;
     return typeof limit === "number" ? `${t("Latest posts")} (${limit})` : t("Latest posts");
   }
-  return `${target.key} ${truncateTargetValue(target.value)}`;
+  return `${target.key} ${truncateTargetValue({ value: target.value })}`;
 }
 
 /**
@@ -136,9 +137,9 @@ export function createEmbedPlaceholderDescriber({ t }: { t: Translate }, options
 /** Preserve the existing name-first labels for non-plugin markers. O(1), no side effects. */
 function standardPlaceholder({ type, config, t }: { type: string; config: Readonly<Record<string, unknown>>; t: Translate }, _options = {}): CanvasEmbedPlaceholderDescriptor {
   const kindLabelKey = EMBED_KIND_LABEL_KEYS[type];
-  const kindLabel = kindLabelKey !== undefined ? t(kindLabelKey) : titleCase(type);
+  const kindLabel = kindLabelKey !== undefined ? t(kindLabelKey) : titleCase({ value: type });
   const name = typeof config.name === "string" && config.name.length > 0 ? config.name : undefined;
-  return { kindLabel, identityLabel: name ?? targetIdentityLabel(type, config, t) };
+  return { kindLabel, identityLabel: name ?? targetIdentityLabel({ type, config, t }) };
 }
 
 /** Readiness is injected from T1, never inferred from authored stamps or props. Canvas cards
@@ -149,9 +150,9 @@ function pluginPlaceholder(required: { config: Readonly<Record<string, unknown>>
   const plugin = typeof config.plugin === "string" ? config.plugin : t("Unknown plugin");
   const component = typeof config.component === "string" ? config.component : t("Unknown component");
   const row = required.rows.find(item => item.plugin === plugin && item.component === component);
-  const label = truncateTargetValue(row?.displayName || plugin);
+  const label = truncateTargetValue({ value: row?.displayName || plugin });
   const status = pluginAvailabilityLabel({ availability: row?.availability, t });
-  return { kindLabel: label, identityLabel: `${truncateTargetValue(component)} — ${status}`,
+  return { kindLabel: label, identityLabel: `${truncateTargetValue({ value: component })} — ${status}`,
     guidanceLabel: t("Preview shows the current button or your fallback. Static exports always use your fallback.") };
 }
 

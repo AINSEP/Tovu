@@ -1,4 +1,6 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
   MenuConflictError,
   MenuNotFoundError,
@@ -15,7 +17,7 @@ import type { Response } from "express";
 /** The PUT body's fields, read off an untyped body, or `null` if `items` is not an array. `items` may
  *  be omitted only by an HTML-mode write (`mode`/`html` sent), which keeps the stored tree.
  *  @complexity O(1). */
-function parseMenuTreeRequestBody(rawBody: unknown): {
+function parseMenuTreeRequestBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   items: NavItemNode[] | undefined;
   expectedVersion: number;
   title: string | undefined;
@@ -42,15 +44,15 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
  * The three typed cases, and a trashed menu (409 via `entityNotLiveResponse`), carry their own
  * message through to the caller. Anything else is a genuine
  * server fault and is flattened to an opaque "internal error" — but logged first, matching
- * `routes/connectors/errors.ts`'s `sendConnectorError`. Without that log the flattening is total:
+ * `sendConnectorError`. Without that log the flattening is total:
  * an unmapped throw (the `TypeError` a missing menu-item `target` used to raise before
  * `@jini-ai/cms`'s `e467f5c4` guarded it) reached an operator as "something broke" with no
  * message, no stack, and no way to tell a client-shaped bug from a real outage. The response
  * body is deliberately unchanged — only the server-side diagnostic is added.
  *
  *  @complexity O(1). */
-function sendUpdateMenuTreeError(res: Response, err: unknown): void {
-  const live = entityNotLiveResponse(err);
+function sendUpdateMenuTreeError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  const live = entityNotLiveResponse({ err });
   if (live) {
     res.status(live.status).json(live.body);
     return;
@@ -92,14 +94,11 @@ function sendUpdateMenuTreeError(res: Response, err: unknown): void {
  * checked directly via `authorize()` (same in-route pattern as `members/disable.ts`, appropriate
  * here since this bypasses the gateway).
  */
-export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseMenuTreeRequestBody(req.body);
+    const parsedBody = parseMenuTreeRequestBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;
@@ -109,22 +108,9 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.menus.update",
-        workspaceId: deps.workspaceId,
-        entityType: "menu",
-        entityId: menuId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.menus.update' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.menus.update", reason: authResult.reason },
-        });
-        return;
-      }
-      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring, menuId }))) return;
+      const params = { principalId: principal.id, permission: "admin.menus.update", workspaceId: deps.workspaceId, entityType: "menu", entityId: menuId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
+      if (!(await authorizeMenuHtmlOrRespond({ res, deps, principalId: principal.id, authoring: parsedBody.authoring }, { menuId }))) return;
 
       const { menu } = await updateMenuTree({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
@@ -141,7 +127,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
 
       res.json(toAdminMenuResponse(menu));
     } catch (err) {
-      sendUpdateMenuTreeError(res, err);
+      sendUpdateMenuTreeError({ res, err });
     }
   });
 };

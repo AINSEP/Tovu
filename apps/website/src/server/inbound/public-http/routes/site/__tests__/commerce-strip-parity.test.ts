@@ -1,5 +1,5 @@
 import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
-import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render-context";
 type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";
@@ -19,7 +19,8 @@ import { collectTransferTables } from "#src/features/database-transfer/table-cat
 import { classifyAllCoreColumns } from "#src/platform/db/migration/manifest";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -50,10 +51,15 @@ const MCP_POINTERS = ["env_secret_id", "oauth_secret_id"];
 
 // Preserve the historical golden: these later migrations add columns, never exemptions from parity.
 // f6de81431 (0014), 14f5085fd (0015), c29687fd7 (0016/0017).
-const LATER_COLUMNS: Record<string, { before: string; classes: Record<string, string> }> = {
+// 50253e2d (0042): the optimistic-concurrency `version` column on six editable tables (`before: null` appends).
+const LATER_COLUMNS: Record<string, { before: string | null; classes: Record<string, string> }> = {
   asset_blobs: { before: "content_type", classes: { document_owned: "boolean-flag" } },
   media: { before: "title", classes: { kind: "plain-text", original_filename: "plain-text" } },
   publish_history: { before: "published_at", classes: { credential_id: "plain-text", config_fields_json: "json-text", kind: "plain-text" } },
+  webhook_subscriptions: { before: "disabled_at", classes: { version: "plain-integer" } },
+  policies: { before: null, classes: { version: "plain-integer" } },
+  roles: { before: null, classes: { version: "plain-integer" } },
+  workspaces: { before: null, classes: { version: "plain-integer" } },
 };
 
 // Later migrations' whole tables, pinned column by column the same way: copied tables enter the
@@ -87,6 +93,9 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
 const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = {
   members: { password_hash: "plain-text" },
   member_magic_tokens: { email: "plain-text", code_hash: "plain-text", failed_attempts: "plain-integer" },
+  // 0042 again, for the two tables a copy never carries.
+  identity_users: { version: "plain-integer" },
+  external_mcp_servers: { version: "plain-integer" },
 };
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
@@ -181,7 +190,7 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
     await assert.rejects(kernel.query(sql`SELECT count(*) AS n FROM commerce_orders`));
     const entry = buildTrashRegistry().get("member")!;
     assert.equal(entry.blocker, undefined);
-    const member = createMemberTrashAdapter({ adapter: createTableTrashAdapter({ entry, db: kernel }), db: kernel });
+    const member = createMemberTrashAdapter({ adapter: createTableTrashAdapter({ entry, kernel, tables: TRASH_TABLES }), db: kernel });
 
     const hidden = await member.hide({ workspaceId: WS, entityId: "member-1", at: AT, expectedVersion: 1 });
     assert.equal(hidden.ok, true);
@@ -212,7 +221,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
     const expected = without(golden.transfer, [...COMMERCE, "members"]);
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       const columns = [...expected[table]];
-      const at = columns.indexOf(addition.before);
+      const at = addition.before === null ? columns.length : columns.indexOf(addition.before);
       assert.notEqual(at, -1, `${table}: the pre-strip insertion anchor must exist`);
       columns.splice(at, 0, ...Object.keys(addition.classes));
       expected[table] = columns;

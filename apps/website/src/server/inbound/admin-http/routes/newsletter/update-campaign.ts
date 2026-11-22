@@ -4,6 +4,7 @@ import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toD
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type ExistingCampaign = NonNullable<Awaited<ReturnType<NewsletterCampaignRepoPort["findById"]>>>;
 
@@ -115,14 +116,11 @@ function mergeCampaignPatchFields(
  * The envelope-only table previously caused bodyJson to be discarded here too. The document now
  * travels through the write chokepoint into revision JSON; an omitted document remains unchanged.
  */
-export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.patch("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = (req.body ?? {}) as Record<string, unknown>;
     const validationError = validateCampaignPatchBody(body);
@@ -132,13 +130,7 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.compose",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -156,9 +148,9 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
           fields: mergeCampaignPatchFields(body, existing),
         },
       });
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

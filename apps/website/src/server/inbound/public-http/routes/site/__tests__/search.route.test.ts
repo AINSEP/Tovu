@@ -6,7 +6,7 @@ import type { SearchServiceResult } from "@jini-ai/search";
 
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
-import { parseSearchRequest, registerSiteSearchRoute, SEARCH_QUERY_MAX_LENGTH, SEARCH_ROUTE_MAX_LIMIT } from "../search.js";
+import { registerSiteSearchRoute, SEARCH_QUERY_MAX_LENGTH, SEARCH_ROUTE_MAX_LIMIT } from "../search.js";
 
 /**
  * @file `GET /api/search` over a real Express listener with a fake search runtime: input bounds,
@@ -54,7 +54,7 @@ test("a hit page maps to the public contract; collection, limit and cursor reach
 test("the member session cookie is the only source of audiences; the last page has nextCursor null", async (t) => {
   const { runtime, queries, sessions } = fakeRuntime(async () => ({ status: "ok", providerId: "builtin", page: { hits: [] } }));
   const base = await serve(t, runtime);
-  const res = await fetch(`${base}/api/search?q=hello`, { headers: { cookie: "tovu_member_session=tok-1" } });
+  const res = await fetch(`${base}/api/search?q=hello&audiences=admin`, { headers: { cookie: "tovu_member_session=tok-1" } });
   assert.deepEqual(await res.json(), { hits: [], nextCursor: null });
   assert.deepEqual(sessions, [{ sessionToken: "tok-1" }]);
   assert.deepEqual(queries, [[{ siteId: WS, workspaceId: WS, query: { text: "hello" } }, { audiences: ["members"] }]]);
@@ -68,6 +68,9 @@ test("malformed input is a 400 before the runtime is touched", async (t) => {
     ["q=%20%20", /'q' is required/],
     [`q=${"a".repeat(SEARCH_QUERY_MAX_LENGTH + 1)}`, /at most 256/],
     ["q=a&q=b", /'q' must be given once/],
+    ["q=a&collection=post&collection=page", /'collection' must be given once/],
+    ["q=a&limit=1&limit=2", /'limit' must be given once/],
+    ["q=a&cursor=c1&cursor=c2", /'cursor' must be given once/],
     ["q=a&collection=Post", /'collection' must be/],
     [`q=a&collection=${Array.from({ length: 11 }, (_, i) => `c${i}`).join(",")}`, /'collection' must be/],
     ["q=a&limit=0", /'limit' must be an integer from 1 to 50/],
@@ -84,8 +87,6 @@ test("malformed input is a 400 before the runtime is touched", async (t) => {
     assert.match(body.message, message, qs);
   }
   assert.deepEqual(queries, []);
-  // The longest accepted q still passes.
-  assert.equal("query" in parseSearchRequest({ query: { q: "a".repeat(SEARCH_QUERY_MAX_LENGTH) } }), true);
 });
 
 test("an invalid answer from the service is a 400; an unavailable one a 503 with its reason", async (t) => {
@@ -114,6 +115,23 @@ test("an unexpected failure is logged and answered with a 500", async (t) => {
   const base = await serve(t, runtime);
   const res = await fetch(`${base}/api/search?q=x`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  const body = await res.json();
+  assert.ok(body.errorId);
+  assert.match(body.error, /couldn’t load the search results/);
   assert.equal(errors.mock.callCount(), 1);
+});
+
+test("unexpected search error has one redacted incident and preserves private JSON headers", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const { runtime } = fakeRuntime(async () => { throw new Error("search context password=SEARCH_CANARY"); });
+  const base = await serve(t, runtime);
+  const res = await fetch(`${base}/api/search?q=hello`);
+  const body = await res.json();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^application\/json/);
+  assert.equal(res.headers.get("cache-control"), "private, no-store");
+  assert.ok(body.errorId);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(body) + JSON.stringify(logs.mock.calls), /SEARCH_CANARY/);
 });

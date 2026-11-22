@@ -16,7 +16,7 @@ async function invoke({ register, deps, params, body, key }: {
 }, _options = {}) {
   let handler: RequestHandler | undefined;
   const capture = (_path: string, callback: RequestHandler) => { handler = callback; };
-  register({ put: capture, delete: capture } as unknown as Express, deps);
+  register({ app: { put: capture, delete: capture } as unknown as Express, deps });
   assert.ok(handler);
   let status = 200;
   let responseBody: unknown;

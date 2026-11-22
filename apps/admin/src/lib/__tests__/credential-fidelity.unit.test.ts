@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ADMIN_LOCALES } from '../../../../website/src/contracts/core/admin-locales';
-import { CREDENTIAL_COPY } from '../../../../website/src/contracts/core/credential-copy';
-import { credentialDraftError, credentialText, formatCredentialHint, storedCredentialHint } from '../credential-copy';
+import { CREDENTIAL_COPY, credentialText, formatCredentialHint } from '@tovu/contracts/credential-copy';
+import { credentialDraftError, storedCredentialHint } from '../credential-copy';
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
 import { buildCredentialConnectionInput } from '../../features/deployment/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
-import type { AdminExternalMcpServer } from '../api';
+import type { AdminExternalMcpServer } from '../../features/integrations/api/integrations-api.types';
 
 describe('credential byte preservation and safe admin hints', () => {
   it('uses server hints for both BYOK placeholders and separates a literal dot from the ellipsis', () => {
@@ -23,14 +23,20 @@ describe('credential byte preservation and safe admin hints', () => {
     expect(storedCredentialHint({ stored: null })).toBeUndefined();
   });
   it('rethrows a validator failure that is not a credential input error instead of displaying it', () => {
+    expect.assertions(3);
     const failure = new RangeError('validator bug');
     expect(() => credentialDraftError({ value: 'abc' }, { assertToken: () => { throw failure; } })).toThrow(failure);
+    try {
+      credentialDraftError({ value: 'abc' }, { assertToken: () => { throw failure; } });
+    } catch (error) {
+      expect(error).toBe(failure);
+    }
     expect(credentialDraftError({ value: 'abc' }, { assertToken: () => {} })).toBe(null);
   });
   it('sends the original entered token to the store; blank and whitespace stay distinct', () => {
     for (const token of [' \nabc+/=._-~\n ', '', '   ']) {
-      expect(buildSourceControlConnectionInput({ providerId: 'github', token, values: {} }, []).token === token).toBe(true);
-      const published = buildCredentialConnectionInput('fixture-host', { tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true }] }, { apiKey: token });
+      expect(buildSourceControlConnectionInput({ fields: { providerId: 'github', token, values: {} }, declaredFields: [] }).token === token).toBe(true);
+      const published = buildCredentialConnectionInput({ providerId: 'fixture-host', spec: { tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true }] }, values: { apiKey: token } });
       expect(token === '' ? !('apiKey' in published) : published.apiKey === token).toBe(true);
       expect(toAccessTokenWriteBody({ authMode: 'static_env', accessToken: token })).toEqual(token === '' ? {} : { accessToken: token });
     }

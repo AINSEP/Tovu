@@ -27,14 +27,14 @@ function context(t: { after: (fn: () => void) => void }, rows: { siteDir: string
   const projectsPath = path.join(dir, 'projects.json');
   fs.writeFileSync(projectsPath, JSON.stringify({ projects: rows, dismissed: [] }));
   const revealed: string[] = [];
-  return { revealed, ctx: { projectsPath, revealPath: async (target: string) => { revealed.push(target); }, classifySiteDir: (dir: string) => (present.has(dir) ? 'site' : 'empty') as never } };
+  return { revealed, ctx: { projectsPath, revealPath: async ({ target }: { target: string }) => { revealed.push(target); }, classifySiteDir: ({ dir }: { dir: string }) => (present.has(dir) ? 'site' : 'empty') as never } };
 }
 const errorText = (result: Awaited<ReturnType<typeof runSitesMcpTool>>) => { assert.equal(result.isError, true); return result.content[0]?.text; };
 
 test("reveal_site_folder: a missing, non-string or blank siteDir is a tool error naming the parameter; nothing is revealed", async t => {
   const { ctx, revealed } = context(t, [{ siteDir: '/sites/a', createdAt: 'c' }]);
   for (const args of [{}, { siteDir: 5 }, { siteDir: '' }, { siteDir: '   ' }, { siteDir: null }, null]) {
-    const result = await runSitesMcpTool('reveal_site_folder', args as never, ctx);
+    const result = await runSitesMcpTool({ name: 'reveal_site_folder', args: args as never, context: ctx });
     assert.equal(errorText(result), "'siteDir' is required and must be a non-empty string.", JSON.stringify(args));
     assert.deepEqual(result.structuredContent, { error: "'siteDir' is required and must be a non-empty string." });
   }
@@ -44,12 +44,12 @@ test("reveal_site_folder: a missing, non-string or blank siteDir is a tool error
 test('reveal_site_folder opens only a TRACKED folder, compared after resolving the requested path', async t => {
   const { ctx, revealed } = context(t, [{ siteDir: '/sites/a', createdAt: 'c' }]);
   for (const siteDir of ['/sites/b', '/sites', '/sites/a/sub', 'sites/b']) {
-    const text = errorText(await runSitesMcpTool('reveal_site_folder', { siteDir }, ctx));
+    const text = errorText(await runSitesMcpTool({ name: 'reveal_site_folder', args: { siteDir }, context: ctx }));
     assert.match(text!, /is not one of this app's websites, so it will not be opened/);
   }
   assert.deepEqual(revealed, []);
   for (const siteDir of ['/sites/a', '/sites/x/../a', 'sites/a']) {
-    const ok = await runSitesMcpTool('reveal_site_folder', { siteDir }, ctx);
+    const ok = await runSitesMcpTool({ name: 'reveal_site_folder', args: { siteDir }, context: ctx });
     assert.equal(ok.isError, undefined);
     assert.deepEqual(ok.structuredContent, { siteDir: '/sites/a', revealed: true });
   }
@@ -58,10 +58,10 @@ test('reveal_site_folder opens only a TRACKED folder, compared after resolving t
 
 test('list_sites: the empty sentence, and a missing folder is marked per row', async t => {
   const empty = context(t, []);
-  const none = await runSitesMcpTool('list_sites', {}, empty.ctx);
+  const none = await runSitesMcpTool({ name: 'list_sites', args: {}, context: empty.ctx });
   assert.deepEqual([none.content[0]?.text, none.structuredContent], ['This Tovu desktop app is not tracking any websites yet.', { sites: [], count: 0 }]);
   const two = context(t, [{ siteDir: '/sites/a', createdAt: 'c1', origin: 'created' }, { siteDir: '/sites/b', createdAt: 'c2' }], new Set(['/sites/a']));
-  const listed = await runSitesMcpTool('list_sites', {}, two.ctx);
+  const listed = await runSitesMcpTool({ name: 'list_sites', args: {}, context: two.ctx });
   assert.equal(listed.content[0]?.text, 'a — /sites/a\nb — /sites/b (folder missing)');
   assert.deepEqual(listed.structuredContent, { count: 2, sites: [
     { siteDir: '/sites/a', name: 'a', origin: 'created', addedAt: 'c1', present: true },
@@ -71,8 +71,8 @@ test('list_sites: the empty sentence, and a missing folder is marked per row', a
 
 test('an unknown tool lists the available ones; an internal fault names the tool', async t => {
   const { ctx } = context(t, []);
-  assert.equal(errorText(await runSitesMcpTool('delete_site', {}, ctx)), "Unknown tool 'delete_site'. Available: list_sites, add_site_pointer, reveal_site_folder.");
+  assert.equal(errorText(await runSitesMcpTool({ name: 'delete_site', args: {}, context: ctx })), "Unknown tool 'delete_site'. Available: list_sites, add_site_pointer, reveal_site_folder.");
   const tracked = context(t, [{ siteDir: '/sites/a', createdAt: 'c' }]);
-  const failing = await runSitesMcpTool('reveal_site_folder', { siteDir: '/sites/a' }, { ...tracked.ctx, revealPath: async () => { throw new Error('shell unavailable'); } });
+  const failing = await runSitesMcpTool({ name: 'reveal_site_folder', args: { siteDir: '/sites/a' }, context: { ...tracked.ctx, revealPath: async () => { throw new Error('shell unavailable'); } } });
   assert.equal(errorText(failing), "The Tovu desktop app could not complete 'reveal_site_folder': shell unavailable");
 });

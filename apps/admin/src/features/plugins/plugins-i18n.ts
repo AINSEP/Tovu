@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the `plugins` feature's own screens (`Plugins.tsx` and
  * `AgentPlugins.tsx`) — this feature's own dictionary, not the shared `lib/admin-nav-i18n.ts` one,
@@ -6,7 +7,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * two-step fallback every other `t()` in this app uses: translated value, else the English source
  * string itself.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const PLUGINS_DICT: Record<string, Record<string, string>> = {
   es: {

@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, type MediaProviderCredentialWriteDeps } from '../media/provider-credential-store.js';
 
 /**
@@ -19,8 +19,8 @@ export async function saveMediaProviderKey(input: { deps: MediaProviderCredentia
     replaceWorkspace: spec => deps.repo.replaceWorkspace({
       workspaceId: spec.workspaceId,
       // Pure synchronous merge runs on CURRENT rows, after sealing, with no stale pre-read map.
-      plan: current => {
-        const patch = spec.plan(current);
+      plan: ({ existing: current }) => {
+        const patch = spec.plan({ existing: current });
         const existing = current.find(row => row.providerId === provider);
         return { tombstoneProviderIds: [], upserts: patch.upserts.map(row => {
           const merged = { ...row, baseUrl: existing?.baseUrl ?? null, model: existing?.model ?? null };

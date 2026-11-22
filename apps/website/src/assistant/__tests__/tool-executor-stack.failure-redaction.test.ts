@@ -20,8 +20,10 @@ import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-su
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-recovery-preset.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 
 /**
@@ -100,7 +102,7 @@ test("BRIDGE: the persisted tool_result event and http-kit's internal-error log 
   const loggedArgs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => void loggedArgs.push(args));
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL } }
   );
 
   assert.equal(result.ok, false);
@@ -131,7 +133,7 @@ test("ROUTE: with the daemon's isModelSafeToolFailure wiring, the model gets 'Er
   const { run } = await lifecycle.start({ contextRef: "ctx-model-safe-failure" });
   t.mock.method(console, "error", () => undefined);
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError, lifecycle, toolExecutor, resolvePrincipal: () => PRINCIPAL, isModelSafeToolFailure: ({ result }) => isRedactedToolFailure({ result: result }, {}) } }
   );
 
   assert.equal(result.ok, false);
@@ -149,7 +151,7 @@ test("ROUTE: a failure with no minted ID stays the redacted INTERNAL_ERROR even 
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-unredacted-failure" });
 
-  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: {
+  const result = await delegatedToolExecuteRoute.handle({ input: { runId: run.id, toolUseId: "tu-1", toolId: "throws_secret", input: {} }, deps: { reportInternalError: reportRouteInternalError,
       lifecycle,
       toolExecutor,
       resolvePrincipal: () => PRINCIPAL,
@@ -204,7 +206,7 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute({ app, deps: { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges } });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -291,7 +293,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   const refusal = refuseNonReadOnlyDispatch({ principal: readOnlyPrincipal, toolId: "ro_probe_write", registry });
   assert.ok(refusal, "PREMISE: the remedy must actually be refused for a read-only principal");
   assert.equal(result.status, "completed", "the original read still completed — only the remedy is refused");
-  assert.equal(result.error, readOnlyRemedyRefusalMessage(refusal), "the refusal message must be the exact, untouched text — never redacted");
+  assert.equal(result.error, readOnlyRemedyRefusalMessage({ refusal: refusal }), "the refusal message must be the exact, untouched text — never redacted");
   assert.equal(result.error,
     'this call failed and its automatic recovery was NOT attempted: tool "ro_probe_write" is not registered as read-only — this execution was started through a read-only gateway and may run only tools whose registration declares readOnly; call it through execute_delegated_tool instead. The failure reported alongside this message is unchanged — nothing was written. Retry through execute_delegated_tool if the write is intended.',
   );
@@ -339,7 +341,7 @@ test("BYOK: execute_delegated_tool's error carries the SAME ID as the default [t
   const s = createByokToolSurface(fakeByokRouteDeps());
   registerThrowingTool(s.registry as unknown as ToolRegistry, "throws_secret_byok");
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } });
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } } });
 
   assert.equal(result.isError, true);
   assert.ok(typeof result.content === "string", "execute_delegated_tool's error reply is plain text");

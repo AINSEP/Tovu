@@ -38,7 +38,7 @@
  * {@link refuseNonReadOnlyDispatch} is the ONLY place the question "may this dispatch proceed?" is
  * answered, and it answers it by asking `@jini-ai/core`'s `isReadOnlyTool` through `@jini-ai/daemon/read-only-tools` — the single
  * read-only determination the route and `@jini-ai/cms`'s wiring already consult. Its other two
- * consumers (the executor gate below, and `tool-failure-recovery.ts`'s pre-dispatch check, which
+ * consumers (the executor gate below, and `Jini packages/daemon/src/tool-recovery/recovery.ts`'s pre-dispatch check, which
  * exists so a human is never asked to fill in a form whose answer would then be refused) call this
  * function; neither re-implements it. Changing what the constraint means is one edit, here.
  *
@@ -47,8 +47,8 @@
  * safety — the same posture `@jini-ai/core`'s `ToolDescriptor.readOnly` doc sets for its own
  * omitted flag.
  *
- * Architectural role: `src/assistant` composition-layer adapter, alongside `tool-executor-audit.ts`
- * and `tool-failure-recovery.ts` — depends on the kernel's `Principal`/`ToolRegistry`/`ToolExecutor`
+ * Architectural role: `src/assistant` composition-layer adapter, alongside `apps/website/src/assistant/tool-audit-preset.ts`
+ * and `apps/website/src/assistant/tool-recovery-preset.ts` — depends on the kernel's `Principal`/`ToolRegistry`/`ToolExecutor`
  * shapes and on no domain feature.
  */
 import { randomUUID } from "node:crypto";
@@ -83,7 +83,7 @@ export function constrainPrincipalToReadOnlyTools(principal: Principal): ReturnT
  * `@jini-ai/daemon/http`'s own `readOnlyRefusalMessage` so a caller refused at either layer reads the
  * same remedy.
  */
-export function readOnlyToolRefusalMessage(toolId: string): string {
+export function readOnlyToolRefusalMessage({ toolId }: { toolId: string }, _optional = {}): string {
   return `tool "${toolId}" is not registered as read-only — this execution was started through a read-only gateway and may run only tools whose registration declares readOnly; call it through execute_delegated_tool instead`;
 }
 
@@ -95,7 +95,7 @@ export const READ_ONLY_UNCHECKABLE_MESSAGE =
 
 export const tovuReadOnlyToolMessages: ReadOnlyToolMessages = {
   unverifiableMessage: READ_ONLY_UNCHECKABLE_MESSAGE,
-  toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage(toolId),
+  toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage({ toolId: toolId }),
   unknownToolMessage: defaultDaemonMessages.readOnly.unknownToolMessage,
 };
 
@@ -128,10 +128,10 @@ export function refuseNonReadOnlyDispatch(required: {
  * not be left believing nothing was ever going to be attempted. "Read-only path silently swallows
  * the remedy" is a different lie from "read-only path performs a write", not an improvement on it.
  *
- * @param refusal - Whatever {@link refuseNonReadOnlyDispatch} returned, quoted verbatim so the two
+ * @param required.refusal - Whatever {@link refuseNonReadOnlyDispatch} returned, quoted verbatim so the two
  *   surfaces never describe the same refusal two different ways.
  */
-export function readOnlyRemedyRefusalMessage(refusal: string): string {
+export function readOnlyRemedyRefusalMessage({ refusal }: { refusal: string }, _optional = {}): string {
   return formatDaemonReadOnlyRemedyRefusal({
     refusal,
     formatMessage: ({ refusal }) =>
@@ -165,7 +165,7 @@ export interface ReadOnlyToolConstraintDeps {
  *   straight through, matching `withToolAttemptAudit`'s own shape.
  * @complexity One extra property read per unconstrained call; one registry scan per constrained one.
  */
-export function withReadOnlyToolConstraint(inner: ToolExecutor, deps: ReadOnlyToolConstraintDeps): ToolExecutor {
+export function withReadOnlyToolConstraint({ inner, deps }: { inner: ToolExecutor; deps: ReadOnlyToolConstraintDeps }, _optional: Record<string, never> = {}): ToolExecutor {
   return withDaemonReadOnlyToolConstraint({
     inner,
     registry: deps.registry,

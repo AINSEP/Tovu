@@ -39,24 +39,24 @@ test('toggle intent preserves no-op, synchronous lock and external-stop confirma
 // ---------------------------------------------------------------------------------------------
 
 test('a running site is offered Stop', () => {
-  assert.deepEqual(powerControl('running'), { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true });
+  assert.deepEqual(powerControl({ status: 'running' }), { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true });
 });
 
 test('a stopped site is offered Start', () => {
-  assert.deepEqual(powerControl('stopped'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.deepEqual(powerControl({ status: 'stopped' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('a FAILED site is offered Start, not a disabled button — a failed boot is the one you retry', () => {
-  assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.deepEqual(powerControl({ status: 'failed' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('a SLEEPING site uses Start directly without changing its lifecycle record', () => {
-  assert.deepEqual(powerControl('sleeping'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
-  assert.equal(powerControl('sleeping', { external: true }), null);
+  assert.deepEqual(powerControl({ status: 'sleeping' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.equal(powerControl({ status: 'sleeping' }, { external: true }), null);
 });
 
 test('mid-start the button says Starting… and does nothing when pressed', () => {
-  const control = powerControl('starting');
+  const control = powerControl({ status: 'starting' });
   assert.equal(control?.label, 'Starting…');
   assert.equal(control?.tooltip, 'Starting…');
   assert.equal(control?.action, null, 'a press mid-transition must not queue a second one');
@@ -65,7 +65,7 @@ test('mid-start the button says Starting… and does nothing when pressed', () =
 });
 
 test('mid-stop the button says Stopping… and does nothing when pressed', () => {
-  const control = powerControl('stopping');
+  const control = powerControl({ status: 'stopping' });
   assert.equal(control?.label, 'Stopping…');
   assert.equal(control?.tooltip, 'Stopping…');
   assert.equal(control?.action, null);
@@ -76,15 +76,15 @@ test('mid-stop the button says Stopping… and does nothing when pressed', () =>
 test('provisioning and blocked get NO button rather than an inert one', () => {
   // A control that is permanently dead teaches an operator that this card's buttons sometimes do
   // nothing, which then applies to the ones that work.
-  assert.equal(powerControl('provisioning'), null);
-  assert.equal(powerControl('blocked'), null);
+  assert.equal(powerControl({ status: 'provisioning' }), null);
+  assert.equal(powerControl({ status: 'blocked' }), null);
 });
 
 test('no status produces a label that contradicts its action', () => {
   // The whole contract in one sweep: an actionable control never reads as busy, and a busy one
   // never offers an action.
   for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'sleeping', 'failed', 'blocked'] as const) {
-    const control = powerControl(status);
+    const control = powerControl({ status });
     if (control === null) continue;
     assert.equal(control.busy, control.action === null, `${status}: busy and action disagree`);
     assert.notEqual(control.label, '', `${status}: a button with no label`);
@@ -97,13 +97,13 @@ test('no status produces a label that contradicts its action', () => {
 
 test("'start' calls startSite and reports main's own record back", async () => {
   const calls: string[] = [];
-  const result = await performPowerAction('start', '/sites/a', {
-    startSite: async (id) => {
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: {
+    startSite: async ({ id }, _options = {}) => {
       calls.push(`start:${id}`);
       return RECORD;
     },
     stopSite: async () => assert.fail('stopSite must not be called for a start'),
-  });
+  } });
 
   assert.deepEqual(calls, ['start:/sites/a']);
   assert.equal(result.record, RECORD, 'the record must be the one main resolved with, not one composed here');
@@ -111,13 +111,13 @@ test("'start' calls startSite and reports main's own record back", async () => {
 
 test("'stop' calls stopSite, never startSite", async () => {
   const calls: string[] = [];
-  const result = await performPowerAction('stop', '/sites/b', {
+  const result = await performPowerAction({ action: 'stop', id: '/sites/b', bridge: {
     startSite: async () => assert.fail('startSite must not be called for a stop'),
-    stopSite: async (id) => {
+    stopSite: async ({ id }, _options = {}) => {
       calls.push(`stop:${id}`);
       return RECORD;
     },
-  });
+  } });
 
   assert.deepEqual(calls, ['stop:/sites/b']);
   assert.equal(result.record, RECORD, 'stop must propagate the record returned by main');
@@ -127,32 +127,32 @@ test("'stop' calls stopSite, never startSite", async () => {
 test('a rejected call surfaces the Error message verbatim rather than re-wrapping it', async () => {
   // Main's refusals name the fix ("tovu serve failed: PORT_IN_USE: …"). A paraphrase here would
   // throw that away at the only place the operator reads it.
-  const result = await performPowerAction('start', '/sites/a', {
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: {
     startSite: () => Promise.reject(new Error('tovu serve failed: PORT_IN_USE')),
     stopSite: async () => RECORD,
-  });
+  } });
 
   assert.equal(result.error, 'tovu serve failed: PORT_IN_USE');
   assert.equal(result.record, undefined);
 });
 
 test('a non-Error rejection is coerced with String(), not left as [object Object]', async () => {
-  const result = await performPowerAction('stop', '/sites/a', {
+  const result = await performPowerAction({ action: 'stop', id: '/sites/a', bridge: {
     startSite: async () => RECORD,
     stopSite: () => Promise.reject('offline'),
-  });
+  } });
 
   assert.equal(result.error, 'offline');
 });
 
 test('no bridge at all is an operator-facing message, not a thrown error', async () => {
-  const result = await performPowerAction('start', '/sites/a', undefined);
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: undefined });
   assert.equal(result.error, 'The desktop bridge is unavailable.');
 });
 
 test('the in-flight status of each action is the lifecycle status of the same name', () => {
   // These two strings are `SiteLifecycleStatus` members that main also produces
-  // (`site-transitions.ts`), so a card mid-click and a card mid-drain render identically.
+  // (`@jini-ai/sidecar/supervisor`), so a card mid-click and a card mid-drain render identically.
   assert.deepEqual(IN_FLIGHT_STATUS, { start: 'starting', stop: 'stopping' });
 });
 
@@ -247,17 +247,17 @@ test('Stop confirmation inserts site and app names as literal text', () => {
 });
 
 test('codeSpans renders backticked text as code and drops empty parts', () => {
-  assert.deepEqual(codeSpans('This stops `npm run dev`, including it.'), [
+  assert.deepEqual(codeSpans({ text: 'This stops `npm run dev`, including it.' }), [
     { text: 'This stops ', code: false }, { text: 'npm run dev', code: true }, { text: ', including it.', code: false },
   ]);
-  assert.deepEqual(codeSpans('`npm run dev` を停止'), [{ text: 'npm run dev', code: true }, { text: ' を停止', code: false }]);
-  assert.deepEqual(codeSpans('plain'), [{ text: 'plain', code: false }]);
+  assert.deepEqual(codeSpans({ text: '`npm run dev` を停止' }), [{ text: 'npm run dev', code: true }, { text: ' を停止', code: false }]);
+  assert.deepEqual(codeSpans({ text: 'plain' }), [{ text: 'plain', code: false }]);
 });
 
 test('the Stop confirm is its own card overlay; delete still wins a tie', () => {
-  assert.equal(cardOverlay('/a', null, null, '/a'), 'stop');
-  assert.equal(cardOverlay('/a', '/a', null, '/a'), 'confirm');
-  assert.equal(cardOverlay('/a', null, '/a', '/a'), 'stop');
-  assert.equal(cardOverlay('/a', null, null, '/b'), null);
-  assert.equal(cardOverlay('/a', null, '/a'), 'rename');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: null }, { confirmingStopId: '/a' }), 'stop');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: '/a', renamingId: null }, { confirmingStopId: '/a' }), 'confirm');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: '/a' }, { confirmingStopId: '/a' }), 'stop');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: null }, { confirmingStopId: '/b' }), null);
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: '/a' }), 'rename');
 });

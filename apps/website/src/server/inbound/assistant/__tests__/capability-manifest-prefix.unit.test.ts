@@ -23,34 +23,34 @@ test("resolveCapabilityManifestArm reads passive, gate and mandate exactly", () 
 });
 
 test("buildCapabilityManifestPrefix('off') is empty — matches today's behavior exactly", () => {
-  assert.equal(buildCapabilityManifestPrefix("off"), "");
+  assert.equal(buildCapabilityManifestPrefix({ arm: "off" }), "");
 });
 
 test("an 'off' prefix leaves the assembled prompt byte-for-byte unchanged", () => {
   const basePrompt = "deploy my site";
-  const assembled = assemblePromptWithPluginPrefix(basePrompt, buildCapabilityManifestPrefix("off"));
+  const assembled = assemblePromptWithPluginPrefix({ basePrompt, pluginPromptPrefix: buildCapabilityManifestPrefix({ arm: "off" }) });
   assert.equal(assembled, basePrompt);
 });
 
 test("buildCapabilityManifestPrefix('passive') is exactly the manifest text, no gate instruction", () => {
-  const prefix = buildCapabilityManifestPrefix("passive");
+  const prefix = buildCapabilityManifestPrefix({ arm: "passive" });
   assert.equal(prefix, CAPABILITY_MANIFEST_TEXT);
   assert.equal(prefix.includes("Before proposing an implementation path"), false);
 });
 
 test("buildCapabilityManifestPrefix('gate') is the manifest text PLUS the imperative instruction", () => {
-  const prefix = buildCapabilityManifestPrefix("gate");
+  const prefix = buildCapabilityManifestPrefix({ arm: "gate" });
   assert.equal(prefix.startsWith(CAPABILITY_MANIFEST_TEXT), true);
   assert.equal(prefix.includes("Before proposing an implementation path"), true);
-  assert.notEqual(prefix, buildCapabilityManifestPrefix("passive"));
+  assert.notEqual(prefix, buildCapabilityManifestPrefix({ arm: "passive" }));
 });
 
 test("buildCapabilityManifestPrefix('mandate') is the manifest text PLUS an unconditional first-turn instruction", () => {
-  const prefix = buildCapabilityManifestPrefix("mandate");
+  const prefix = buildCapabilityManifestPrefix({ arm: "mandate" });
   assert.equal(prefix.startsWith(CAPABILITY_MANIFEST_TEXT), true);
   assert.equal(prefix.includes("MANDATORY FIRST STEP"), true);
-  assert.notEqual(prefix, buildCapabilityManifestPrefix("passive"));
-  assert.notEqual(prefix, buildCapabilityManifestPrefix("gate"));
+  assert.notEqual(prefix, buildCapabilityManifestPrefix({ arm: "passive" }));
+  assert.notEqual(prefix, buildCapabilityManifestPrefix({ arm: "gate" }));
 });
 
 test("the mandate instruction carries NO precondition — this is the whole reason it exists", () => {
@@ -58,7 +58,7 @@ test("the mandate instruction carries NO precondition — this is the whole reas
   // never fired: 3/3 runs asked a clarifying question instead. Any precondition phrasing creeping
   // into `mandate` would silently reintroduce exactly that hole, and the failure is invisible —
   // the arm looks enabled and simply never activates. Assert the absence directly.
-  const prefix = buildCapabilityManifestPrefix("mandate");
+  const prefix = buildCapabilityManifestPrefix({ arm: "mandate" });
   assert.equal(prefix.includes("Before proposing an implementation path"), false);
   assert.equal(/before proposing/i.test(prefix), false);
 });
@@ -67,7 +67,7 @@ test("the mandate instruction closes the two escape routes real runs actually to
   // Not stylistic assertions: each corresponds to a recorded failure. The agent asked a clarifying
   // question rather than acting (which is what dodged `gate`), and it resolved "design guidance" to
   // "the active theme" before searching at all (the measured root cause of the 0/5 case-(b) result).
-  const prefix = buildCapabilityManifestPrefix("mandate");
+  const prefix = buildCapabilityManifestPrefix({ arm: "mandate" });
   assert.equal(/clarifying question/i.test(prefix), true);
   assert.equal(/plausible/i.test(prefix), true);
 });
@@ -84,7 +84,7 @@ test("manifest text names the search surface and the fallback bucket", () => {
 // `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
 test("manifest text never points the agent at the removed capability_search tool", () => {
   assert.equal(CAPABILITY_MANIFEST_TEXT.includes("capability_search"), false);
-  assert.equal(buildCapabilityManifestPrefix("mandate").includes("capability_search"), false);
+  assert.equal(buildCapabilityManifestPrefix({ arm: "mandate" }).includes("capability_search"), false);
 });
 
 test("manifest text is phrased as a pointer to a search vocabulary, never an existence claim", () => {
@@ -108,5 +108,5 @@ This applies EVEN IF:
 - the request seems simple enough not to need it.
 
 A plausible answer you reached on your own is NOT evidence that nothing is installed for this. Search first, then answer. Briefly state what you searched for and what came back.`;
-  assert.equal(buildCapabilityManifestPrefix("mandate"), `${CAPABILITY_MANIFEST_TEXT}\n\n${instruction}`);
+  assert.equal(buildCapabilityManifestPrefix({ arm: "mandate" }), `${CAPABILITY_MANIFEST_TEXT}\n\n${instruction}`);
 });

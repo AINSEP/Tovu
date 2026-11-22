@@ -1,5 +1,5 @@
 /**
- * @file Test harness for the Sheets admin tools: boots the plugin's REAL `tovu-agent-tools.json` and
+ * @file Test harness for the Sheets admin tools: boots the plugin's REAL `jini-agent-tools.json` and
  * modules through Jini's tool contribution definition (parse + contained module load) and Tovu's
  * real registrar, approval owner and host capabilities, over the local fake Google. Also builds the
  * per-call capabilities a module receives, for pins that call one module directly.
@@ -36,17 +36,17 @@ export const SHEETS_ON = Object.freeze({ get: async ({ key }) => (key === 'produ
 
 /** The plugin's declared tools, loaded the way the host loader loads them. */
 export async function loadPluginTools() {
-  const definition = defineAgentPluginToolContribution({ filename: 'tovu-agent-tools.json' });
-  const parsed = definition.parse({ raw: await readFile(path.join(PLUGIN_ROOT, 'tovu-agent-tools.json'), 'utf8') });
+  const definition = defineAgentPluginToolContribution({ filename: 'jini-agent-tools.json' });
+  const parsed = definition.parse({ raw: await readFile(path.join(PLUGIN_ROOT, 'jini-agent-tools.json'), 'utf8') });
   if (!parsed.ok) throw new Error(parsed.reason);
   const plugin = { pluginId: PLUGIN, packageRoot: PLUGIN_ROOT };
   const importModule = async ({ modulePath }) => ({ exported: (await import(pathToFileURL(path.join(PLUGIN_ROOT, modulePath)).href)).default });
   return Promise.all(parsed.descriptors.map((descriptor) => definition.load({ plugin, descriptor, importModule })));
 }
 
-/** The host's `apiOrigins` port, answered from the plugin's own `tovu-connections.json` (what the real host reads). */
+/** The host's `apiOrigins` port, answered from the plugin's own `jini-connections.json` (what the real host reads). */
 async function declaredApiOrigins() {
-  const declared = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
+  const declared = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'jini-connections.json'), 'utf8'));
   return declared.connections.flatMap((connection) => connection.apiOrigins ?? []);
 }
 

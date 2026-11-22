@@ -190,7 +190,7 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       assert.equal(await members.findById({ workspaceId: OTHER, id: "m1" }), null);
       assert.equal(await members.findByEmail({ workspaceId: WS, email: "nope@example.com" }), null);
       assert.equal(await members.findByEmail({ workspaceId: OTHER, email: "a@example.com" }), null);
-      assert.deepEqual(await members.list({ workspaceId: OTHER }), []);
+      assert.deepEqual((await members.list({ workspaceId: OTHER })).items, []);
     });
 
     test("save upserts by id; another workspace may reuse the email", async () => {
@@ -202,7 +202,7 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       assert.equal(updated?.name, "Renamed");
       assert.equal(updated?.version, 2);
       assert.equal(updated?.fields, undefined);
-      assert.equal((await members.list({ workspaceId: WS })).length, 1);
+      assert.equal((await members.list({ workspaceId: WS })).items.length, 1);
     });
 
     test("the unique index rejects a second member with the same email in a workspace", async () => {
@@ -212,18 +212,19 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       assert.equal(await members.findById({ workspaceId: WS, id: "m2" }), null);
     });
 
-    test("list orders by id, pages after a cursor and ignores an unknown or foreign cursor", async () => {
+    test("list orders by id, pages through nextCursor and never leaks another workspace", async () => {
       const { members } = makeRepos();
       for (const id of ["m3", "m1", "m2", "m4"]) await members.save(member(id, `${id}@example.com`));
-      await members.save(member("m0", "m0@example.com", { workspaceId: OTHER }));
-      const ids = async (o: { afterId?: string; limit?: number } = {}) =>
-        (await members.list({ workspaceId: WS, ...o })).map((m) => m.id);
+      await members.save(member("m25", "m25@example.com", { workspaceId: OTHER }));
+      const ids = async (o: { limit?: number; cursor?: string | null } = {}) =>
+        (await members.list({ workspaceId: WS }, o)).items.map((m) => m.id);
       assert.deepEqual(await ids(), ["m1", "m2", "m3", "m4"]);
-      assert.deepEqual(await ids({ limit: 2 }), ["m1", "m2"]);
-      assert.deepEqual(await ids({ afterId: "m2", limit: 5 }), ["m3", "m4"]);
-      assert.deepEqual(await ids({ afterId: "unknown" }), ["m1", "m2", "m3", "m4"]);
-      // A cursor id from another workspace resolves to nothing (first page).
-      assert.deepEqual(await ids({ afterId: "m0" }), ["m1", "m2", "m3", "m4"]);
+      const first = await members.list({ workspaceId: WS }, { limit: 2 });
+      assert.deepEqual(first.items.map((m) => m.id), ["m1", "m2"]);
+      // The other workspace's m25 sorts between m2 and m3 but never appears on this workspace's pages.
+      assert.deepEqual(await ids({ cursor: first.nextCursor, limit: 5 }), ["m3", "m4"]);
+      // A cursor is a position, not a row that must exist: an empty or garbled one is refused, never page one.
+      await assert.rejects(members.list({ workspaceId: WS }, { cursor: "unknown" }), /invalid cursor/i);
     });
 
     test("list caps a page at 100 members", async () => {
@@ -232,8 +233,8 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
         const id = `p${String(i).padStart(3, "0")}`;
         await members.save(member(id, `${id}@example.com`));
       }
-      assert.equal((await members.list({ workspaceId: WS, limit: 500 })).length, 100);
-      assert.equal((await members.list({ workspaceId: WS })).length, 100);
+      assert.equal((await members.list({ workspaceId: WS }, { limit: 500 })).items.length, 100);
+      assert.equal((await members.list({ workspaceId: WS })).items.length, 100);
     });
 
     test("saves inside a rolled-back transaction leave nothing behind", async () => {
@@ -572,13 +573,13 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
 
     test("transaction returns the callback's value; a throw rolls the consent and its revision back together", async () => {
       const { consents } = makeRepos();
-      assert.equal(await consents.transaction(async () => 42), 42);
+      assert.equal(await consents.transaction({ fn: async () => 42 }), 42);
       await assert.rejects(
-        consents.transaction(async () => {
+        consents.transaction({ fn: async () => {
           await consents.save(consent("c1"));
           await consents.appendRevision(revision("c1", "newsletter"));
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);
@@ -588,12 +589,12 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
     test("nested transactions join the outer one", async () => {
       const { consents } = makeRepos();
       await assert.rejects(
-        consents.transaction(async () => {
-          await consents.transaction(async () => {
+        consents.transaction({ fn: async () => {
+          await consents.transaction({ fn: async () => {
             await consents.save(consent("c1"));
-          });
+          } });
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);

@@ -1,4 +1,5 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Response } from "express";
 
@@ -8,7 +9,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /** A query field, read as a string if present, or `undefined`.
  *  @complexity O(1). */
-function readOptionalQueryString(value: unknown): string | undefined {
+function readOptionalQueryString({ value }: { value: unknown }, _optional = {}): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
@@ -16,11 +17,11 @@ function readOptionalQueryString(value: unknown): string | undefined {
  *  @complexity O(1). */
 function parseTimelineFilter(query: Record<string, unknown>) {
   return {
-    kind: readOptionalQueryString(query.kind),
-    outcome: readOptionalQueryString(query.outcome),
-    fromDate: readOptionalQueryString(query.fromDate),
-    toDate: readOptionalQueryString(query.toDate),
-    cursor: readOptionalQueryString(query.cursor),
+    kind: readOptionalQueryString({ value: query.kind }),
+    outcome: readOptionalQueryString({ value: query.outcome }),
+    fromDate: readOptionalQueryString({ value: query.fromDate }),
+    toDate: readOptionalQueryString({ value: query.toDate }),
+    cursor: readOptionalQueryString({ value: query.cursor }),
     limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
   };
 }
@@ -29,7 +30,7 @@ function parseTimelineFilter(query: Record<string, unknown>) {
  *  (matched by `name` since it isn't an exported class here) or the ledger's `ToolInputError` (an
  *  undecodable cursor) is a 400, everything else a 500.
  *  @complexity O(1). */
-function sendTimelineError(res: Response, err: unknown): void {
+function sendTimelineError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   const isValidationError = err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
   if (!isValidationError) { sendAdminFailure({ res, error: err }); return; }
   const message = err instanceof Error ? err.message : "Invalid timeline query.";
@@ -44,31 +45,19 @@ function sendTimelineError(res: Response, err: unknown): void {
  * read-first Timeline). Gated by `database.read` (ADR-041 §6's permission catalog).
  *
  * The first (and, for this dispatch, only) Database/Recovery admin route wired end-to-end against
- * a real adapter (`SqliteDatabaseLedgerRepo`, `server/deps.ts`) — demonstrates the sidecar journal
+ * a real adapter (`SqliteDatabaseLedgerRepo`, `apps/website/src/server/runtime/composition/deps.ts`) — demonstrates the sidecar journal
  * is genuinely reachable over HTTP, following the exact pattern
- * `routes/admin/redirects/list.ts` already established. The remaining Database/Recovery API
+ * `apps/website/src/server/inbound/admin-http/routes/redirects/list.ts` already established. The remaining Database/Recovery API
  * surface (migrate-forward plan/confirm/execute, restore-point creation, the restore ceremony,
  * the Tier-3 browser) stays unwired — that is the admin-UI-adjacent backend work item B in
  * `todos.md` anticipates, not this slice's scope (see the progress ledger's Session 4 entry).
  */
-export function registerAdminDatabaseTimelineRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseTimelineRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/database/timeline", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "database.read",
-        workspaceId: deps.workspaceId,
-        entityType: "database-ledger",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'database.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "database.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "database.read", workspaceId: deps.workspaceId, entityType: "database-ledger" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await getTimeline({
         ledger: deps.databaseLedgerRepo,
@@ -77,7 +66,7 @@ export function registerAdminDatabaseTimelineRoute(app: Express, deps: DatabaseR
 
       res.json(result);
     } catch (err) {
-      sendTimelineError(res, err);
+      sendTimelineError({ res, err });
     }
   });
 }

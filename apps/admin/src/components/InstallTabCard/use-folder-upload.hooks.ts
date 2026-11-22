@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { FOLDER_EMPTY, FOLDER_UNREADABLE, FolderZipError, zipFolderFiles } from "./folder-zip";
+import { FOLDER_EMPTY, FOLDER_UNREADABLE, FolderZipError, zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 export const FOLDER_TOO_MANY = "That folder has more than 4096 files.";
 
@@ -32,21 +32,21 @@ function refusalKey({ error, tooLarge }: { error: unknown; tooLarge: string }): 
  * @param required.onError - Receives a dictionary key for a refused folder.
  */
 export function useFolderUpload(
-  required: { maxBytes: number; tooLarge: string; isLocked: () => boolean; onZipped: (file: File) => void; onError: (key: string) => void },
+  required: { maxBytes: number; tooLarge: string; isLocked: () => boolean; onZipped: (file: File) => void; onError: (required: { key: string }, optional?: Record<string, never>) => void },
   _optional: Record<string, never> = {},
 ) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [zipping, setZipping] = useState(false);
   const zippingRef = useRef(false);
 
-  async function zip(files: File[]): Promise<void> {
+  async function zip({ files }: { files: File[] }, _options: Record<string, never> = {}): Promise<void> {
     if (zippingRef.current || required.isLocked()) return;
     zippingRef.current = true;
     setZipping(true);
     try {
       required.onZipped(await zipFolderFiles({ files, maxBytes: required.maxBytes }));
     } catch (error) {
-      required.onError(refusalKey({ error, tooLarge: required.tooLarge }));
+      required.onError({ key: refusalKey({ error, tooLarge: required.tooLarge }) });
     } finally {
       zippingRef.current = false;
       setZipping(false);
@@ -62,7 +62,7 @@ export function useFolderUpload(
     onChange: (event: { target: PickedFolderInput }) => {
       const files = Array.from(event.target.files ?? []);
       event.target.value = "";
-      return zip(files);
+      return zip({ files });
     },
   };
 }

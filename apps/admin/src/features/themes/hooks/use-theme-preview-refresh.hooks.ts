@@ -19,7 +19,7 @@ export function useThemePreviewRefresh(
   useEffect(
     () =>
       subscribeThemePreviewRefresh({
-        listener: (next) =>
+        listener: (next, _options = {}) =>
           setFrame((current) => ({
             ...next,
             path: next.path ?? (current.source === url ? current.path : undefined),

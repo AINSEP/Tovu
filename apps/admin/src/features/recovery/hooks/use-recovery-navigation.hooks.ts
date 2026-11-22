@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import type { AdminRestorePoint } from "@/lib/api";
+import type { AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 import { navigate } from "@/lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const RECOVERY_TAB_IDS = ["restore-points", "restore"] as const;
 
 export interface RecoveryNavigationPort {
@@ -25,18 +25,18 @@ export function useRecoveryNavigation(
   const activeTabId = resolveActiveTabId({ tabId: tabId, validIds: RECOVERY_TAB_IDS, defaultId: "restore-points" });
   const onTabChange = useCallback((nextTabId: string) => {
     const next = resolveActiveTabId({ tabId: nextTabId, validIds: RECOVERY_TAB_IDS, defaultId: "restore-points" });
-    port.navigate(`/recovery?tab=${next}`, { replace: true });
+    port.navigate({ routePath: `/recovery?tab=${next}` }, { replace: true });
   }, [port]);
 
   // Selecting a row and backing out both navigate explicitly, rather than deriving the active
   // tab from selected: the two sections remain independently reachable through ?tab=.
   const onSelectPoint = useCallback((point: AdminRestorePoint) => {
     setSelected(point);
-    port.navigate("/recovery?tab=restore", { replace: true });
+    port.navigate({ routePath: "/recovery?tab=restore" }, { replace: true });
   }, [port, setSelected]);
   const onBackFromFlow = useCallback(() => {
     setSelected(null);
-    port.navigate("/recovery?tab=restore-points", { replace: true });
+    port.navigate({ routePath: "/recovery?tab=restore-points" }, { replace: true });
   }, [port, setSelected]);
 
   return { activeTabId, onTabChange, onSelectPoint, onBackFromFlow };

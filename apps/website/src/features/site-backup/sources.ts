@@ -8,7 +8,7 @@ import { readReviewedFile, reviewedFileIdentity, type ReviewedFile, type Reviewe
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { listSitePluginPackage, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
+import { listSitePluginPackage, PluginPackagePathError, type PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { AgentPluginLayout } from "../agent-plugins/layout.js";
 
 /**
@@ -145,28 +145,28 @@ interface WalkSink {
 
 /** The filesystem reads used by backup collection, including files removed during the walk. */
 export interface SiteBackupWalkFileSystem {
-  readonly lstat: (file: string) => Promise<Stats>;
-  readonly lstatBigInt: (file: string) => Promise<Pick<BigIntStats, "dev" | "ino">>;
-  readonly readdir: (dir: string) => Promise<Dirent[]>;
+  readonly lstat: (required: { file: string }) => Promise<Stats>;
+  readonly lstatBigInt: (required: { file: string }, optional?: Record<string, never>) => Promise<Pick<BigIntStats, "dev" | "ino">>;
+  readonly readdir: (required: { dir: string }, optional?: Record<string, never>) => Promise<Dirent[]>;
 }
 
 const WALK_FILE_SYSTEM: SiteBackupWalkFileSystem = {
-  lstat,
-  lstatBigInt: file => lstat(file, { bigint: true }),
-  readdir: (dir) => readdir(dir, { withFileTypes: true }),
+  lstat: ({ file }) => lstat(file),
+  lstatBigInt: ({ file }, _optional = {}) => lstat(file, { bigint: true }),
+  readdir: ({ dir }, _optional = {}) => readdir(dir, { withFileTypes: true }),
 };
 
-function isMissing(err: unknown): boolean {
+function isMissing({ err }: { err: unknown }, _optional: Record<string, never> = {}): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ENOENT";
 }
 
 /** `readdir` that treats a folder that doesn't exist as empty: a site with no themes folder yet has
  *  nothing to back up there, which is not an error. */
-async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem): Promise<Dirent[]> {
+async function readdirOrEmpty({ dir, fileSystem }: { dir: string; fileSystem: SiteBackupWalkFileSystem }, _optional: Record<string, never> = {}): Promise<Dirent[]> {
   try {
-    return await fileSystem.readdir(dir);
+    return await fileSystem.readdir({ dir });
   } catch (err) {
-    if (isMissing(err)) return [];
+    if (isMissing({ err })) return [];
     throw err;
   }
 }
@@ -181,9 +181,9 @@ async function addFile(sink: WalkSink, input: { root: string; absPath: string; r
   if (sink.profile === "share" && excludedSharePath({ path: input.relPath }, { notices: sink.notices })) return;
   let info;
   try {
-    info = await sink.fileSystem.lstat(input.absPath);
+    info = await sink.fileSystem.lstat({ file: input.absPath });
   } catch (err) {
-    if (isMissing(err)) return;
+    if (isMissing({ err })) return;
     throw err;
   }
   if (info.isSymbolicLink()) {
@@ -195,7 +195,7 @@ async function addFile(sink: WalkSink, input: { root: string; absPath: string; r
     return;
   }
   checkShareFile({ sink, relPath: input.relPath, info });
-  const ids = await sink.fileSystem.lstatBigInt(input.absPath).catch(err => isMissing(err) ? null : Promise.reject(err));
+  const ids = await sink.fileSystem.lstatBigInt({ file: input.absPath }).catch(err => isMissing({ err }) ? null : Promise.reject(err));
   if (ids === null) return;
   sink.files.push({ path: input.relPath, bytes: info.size, scope: input.scope, root: input.root, absPath: input.absPath, mtimeMs: info.mtimeMs, identity: reviewedFileIdentity({ info: ids }), nlink: info.nlink });
 }
@@ -217,7 +217,7 @@ function checkShareFile({ sink, relPath, info }: { sink: WalkSink; relPath: stri
  */
 async function walkTree(sink: WalkSink, input: { root?: string; absDir: string; relDir: string; scope: SiteBackupScope; excludeTopLevel?: ReadonlySet<string> }): Promise<void> {
   if (sink.profile === "share" && !(await enterShareDirectory({ sink, absDir: input.absDir, relDir: input.relDir }))) return;
-  const entries = await readdirOrEmpty(input.absDir, sink.fileSystem);
+  const entries = await readdirOrEmpty({ dir: input.absDir, fileSystem: sink.fileSystem });
   for (const entry of entries) {
     if (skippedWalkEntry({ sink, relDir: input.relDir, name: entry.name }, { excludeTopLevel: input.excludeTopLevel })) continue;
     await walkEntry({ sink, entry, root: input.root ?? input.absDir, absDir: input.absDir, relDir: input.relDir, scope: input.scope });
@@ -227,7 +227,7 @@ async function walkTree(sink: WalkSink, input: { root?: string; absDir: string; 
 /** Share profile: a private folder is not entered, a missing one is empty, a linked or special one refuses. */
 async function enterShareDirectory(required: { sink: WalkSink; absDir: string; relDir: string }): Promise<boolean> {
   if (excludedSharePath({ path: required.relDir }, { notices: required.sink.notices })) return false;
-  const info = await required.sink.fileSystem.lstat(required.absDir).catch(err => isMissing(err) ? null : Promise.reject(err));
+  const info = await required.sink.fileSystem.lstat({ file: required.absDir }).catch(err => isMissing({ err }) ? null : Promise.reject(err));
   if (!info) return false;
   if (!info.isDirectory() || info.isSymbolicLink()) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses linked or special directory '${required.relDir}'.` });
   validateSharePath({ path: required.relDir });
@@ -263,7 +263,7 @@ async function walkEntry(required: { sink: WalkSink; entry: Dirent; root: string
 const PLUGIN_WORKSPACE_FILES: ReadonlySet<string> = new Set(["activations.json", "bundled-digests.json"]);
 
 /** `agent-plugins/<path under the layout root>`, `/`-separated. */
-function agentPluginsRelPath(layout: AgentPluginLayout, absPath: string): string {
+function agentPluginsRelPath({ layout, absPath }: { layout: AgentPluginLayout; absPath: string }, _optional: Record<string, never> = {}): string {
   return ["agent-plugins", ...path.relative(layout.root, absPath).split(path.sep)].join("/");
 }
 
@@ -278,15 +278,15 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
   let current = input.baseDir;
   for (const segment of path.relative(input.baseDir, input.absDir).split(path.sep)) {
     current = path.join(current, segment);
-    const info = await sink.fileSystem.lstat(current).catch((err: unknown) => (isMissing(err) ? null : Promise.reject(err)));
+    const info = await sink.fileSystem.lstat({ file: current }).catch((err: unknown) => (isMissing({ err }) ? null : Promise.reject(err)));
     if (info === null) return;
     if (info.isSymbolicLink()) {
-      sink.skipped.push({ path: agentPluginsRelPath(input.layout, current), reason: SYMLINK_REASON });
+      sink.skipped.push({ path: agentPluginsRelPath({ layout: input.layout, absPath: current }), reason: SYMLINK_REASON });
       return;
     }
     if (!info.isDirectory()) return;
   }
-  await walkTree(sink, { root: input.layout.workspacesDir, absDir: input.absDir, relDir: agentPluginsRelPath(input.layout, input.absDir), scope: "plugins" });
+  await walkTree(sink, { root: input.layout.workspacesDir, absDir: input.absDir, relDir: agentPluginsRelPath({ layout: input.layout, absPath: input.absDir }), scope: "plugins" });
 }
 
 /**
@@ -300,7 +300,7 @@ async function walkOwnedDir(sink: WalkSink, input: { layout: AgentPluginLayout; 
  * @complexity O(entries under each included folder).
  */
 async function walkAgentPlugins(sink: WalkSink, layout: AgentPluginLayout): Promise<void> {
-  for (const entry of await readdirOrEmpty(layout.workspacesDir, sink.fileSystem)) {
+  for (const entry of await readdirOrEmpty({ dir: layout.workspacesDir, fileSystem: sink.fileSystem })) {
     const workspace = installerWorkspace({ sink, layout, entry });
     if (workspace) await walkPluginWorkspace({ sink, layout, workspace });
   }
@@ -313,20 +313,20 @@ function installerWorkspace(required: { sink: WalkSink; layout: AgentPluginLayou
   const { sink, layout, entry } = required;
   const absWorkspace = path.join(layout.workspacesDir, entry.name);
   if (entry.isSymbolicLink()) {
-    sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: SYMLINK_REASON });
+    sink.skipped.push({ path: agentPluginsRelPath({ layout, absPath: absWorkspace }), reason: SYMLINK_REASON });
     return null;
   }
   if (!entry.isDirectory()) return null;
   let workspace;
   try {
-    workspace = layout.forWorkspace(entry.name);
+    workspace = layout.forWorkspace({ workspaceId: entry.name });
   } catch {
     workspace = null;
   }
   // A folder the installer could never have written (an invalid id, or one that only resolves
   // after case-folding to a different folder) is reported rather than walked under a guessed shape.
   if (workspace === null || workspace.root !== absWorkspace) {
-    sink.skipped.push({ path: agentPluginsRelPath(layout, absWorkspace), reason: "not a workspace folder the plugin installer writes" });
+    sink.skipped.push({ path: agentPluginsRelPath({ layout, absPath: absWorkspace }), reason: "not a workspace folder the plugin installer writes" });
     return null;
   }
   return workspace;
@@ -336,10 +336,10 @@ async function walkPluginWorkspace(required: { sink: WalkSink; layout: AgentPlug
   const { sink, layout, workspace } = required;
   for (const name of PLUGIN_WORKSPACE_FILES) {
     const absPath = path.join(workspace.root, name);
-    await addFile(sink, { root: layout.workspacesDir, absPath, relPath: agentPluginsRelPath(layout, absPath), scope: "plugins" });
+    await addFile(sink, { root: layout.workspacesDir, absPath, relPath: agentPluginsRelPath({ layout, absPath }), scope: "plugins" });
   }
   await walkOwnedDir(sink, { layout, baseDir: workspace.root, absDir: workspace.packages });
-  for (const pluginEntry of await readdirOrEmpty(workspace.root, sink.fileSystem)) await walkInstalledPlugin({ sink, layout, workspace, pluginEntry });
+  for (const pluginEntry of await readdirOrEmpty({ dir: workspace.root, fileSystem: sink.fileSystem })) await walkInstalledPlugin({ sink, layout, workspace, pluginEntry });
 }
 
 async function walkInstalledPlugin(required: { sink: WalkSink; layout: AgentPluginLayout; workspace: PluginWorkspace; pluginEntry: Dirent }): Promise<void> {
@@ -352,7 +352,7 @@ async function walkInstalledPlugin(required: { sink: WalkSink; layout: AgentPlug
     return; // `staging/`, `packages/`, `data/` and anything not named like a plugin id.
   }
   if (pluginEntry.isSymbolicLink()) {
-    sink.skipped.push({ path: agentPluginsRelPath(layout, pluginRoot), reason: SYMLINK_REASON });
+    sink.skipped.push({ path: agentPluginsRelPath({ layout, absPath: pluginRoot }), reason: SYMLINK_REASON });
     return;
   }
   const pluginId = pluginEntry.name;
@@ -421,7 +421,7 @@ async function pinShareThemeFiles(required: { sink: WalkSink; siteDir: string })
     const planned = { ...file, absPath: path.join(scopeRoot, relative), root: scopeRoot };
     const read = await readDiskFile(planned, { unlinkedPath: true });
     if (!read.ok) throw new SiteShareRefusal({ code: "PLAN_STALE", message: read.message });
-    files[index] = { ...planned, sha256: sha256Hex(read.bytes) };
+    files[index] = { ...planned, sha256: sha256Hex({ bytes: read.bytes }) };
   }
 }
 
@@ -442,7 +442,7 @@ async function collectPluginScope(required: { sink: WalkSink; sources: SiteBacku
   const { sink, sources } = required;
   if (sink.profile === "share") {
     for (const root of [sources.agentPlugins.root, sources.agentPlugins.workspacesDir]) {
-      const info = await sink.fileSystem.lstat(root).catch(err => isMissing(err) ? null : Promise.reject(err));
+      const info = await sink.fileSystem.lstat({ file: root }).catch(err => isMissing({ err }) ? null : Promise.reject(err));
       if (info && (!info.isDirectory() || info.isSymbolicLink())) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: "Share refuses a linked plugin root." });
     }
   }
@@ -471,7 +471,7 @@ async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSo
   const { installDir, records } = await sources.sitePlugins?.() ?? { installDir: path.join(sources.siteDir, "plugins"), records: [] };
   if (!(await enterShareDirectory({ sink, absDir: installDir, relDir: "plugins" }))) return;
   const leftOut: string[] = [];
-  for (const { name } of await readdirOrEmpty(installDir, sink.fileSystem)) {
+  for (const { name } of await readdirOrEmpty({ dir: installDir, fileSystem: sink.fileSystem })) {
     if (name.startsWith(".")) continue; // Jini's own staging (`.drafts`) and Finder files; never a plugin.
     const record = records.find(candidate => candidate.source === "site" && candidate.id === name);
     const files = record && await sitePluginPackageFiles({ sink, installDir, record });
@@ -487,7 +487,11 @@ async function walkSitePlugins(required: { sink: WalkSink; sources: SiteBackupSo
  *  excluded or changed. */
 async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: string; record: PluginDiscoveryRecord }): Promise<PlannedDiskFile[] | null> {
   const { record } = required;
-  const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch(() => null);
+  // A damaged or changed package is omitted and reported in the backup scope notes.
+  const listed = await listSitePluginPackage({ installDir: required.installDir, record }).catch((error: unknown) => {
+    if (!(error instanceof PluginPackagePathError)) console.error("[site-backup] Could not inspect an installed plugin", describeErrorForLog({ err: error }));
+    return null;
+  });
   if (listed === null) return null;
   const staged: WalkSink = { ...required.sink, files: [], skipped: [] };
   for (const file of listed.files) {
@@ -495,18 +499,24 @@ async function sitePluginPackageFiles(required: { sink: WalkSink; installDir: st
   }
   // addFile adds nothing for a missing, excluded, linked or non-regular file, so a short list is every refusal.
   if (staged.files.length !== listed.files.length) return null;
+  return pinSitePluginFiles(staged.files, listed.files);
+}
+
+async function pinSitePluginFiles(files: PlannedDiskFile[], listed: NonNullable<Awaited<ReturnType<typeof listSitePluginPackage>>>["files"]): Promise<PlannedDiskFile[] | null> {
   const pinned: PlannedDiskFile[] = [];
-  for (const [index, planned] of staged.files.entries()) {
-    const expected = listed.files[index]!.sha256;
+  for (const [index, planned] of files.entries()) {
+    const listedFile = listed[index];
+    if (listedFile === undefined) throw new Error(`Backup source inventory has no file at index ${index}`);
+    const expected = listedFile.sha256;
     const read = await readDiskFile(planned, { unlinkedPath: true });
-    const sha256 = read.ok ? sha256Hex(read.bytes) : null;
+    const sha256 = read.ok ? sha256Hex({ bytes: read.bytes }) : null;
     if (sha256 === null || (expected !== null && sha256 !== expected)) return null;
     pinned.push({ ...planned, sha256 });
   }
   return pinned;
 }
 
-function sha256Hex(bytes: Buffer): string {
+function sha256Hex({ bytes }: { bytes: Buffer }, _optional: Record<string, never> = {}): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
@@ -545,7 +555,7 @@ export async function captureDatabaseSnapshot(input: { dbOps: DbOpsPort; scopeId
   try {
     return await readRestorePoint(input, { ...optional, directory });
   } finally {
-    await rm(directory, { recursive: true, force: true }).catch(() => undefined);
+    await rm(directory, { recursive: true, force: true }).catch((error: unknown) => console.error("[site-backup] Could not remove the snapshot directory", describeErrorForLog({ err: error })));
   }
 }
 
@@ -565,21 +575,24 @@ async function readRestorePoint(input: { dbOps: DbOpsPort; scopeId: string }, op
   } catch (err) {
     return { ok: false, message: "the database snapshot could not be read back; nothing was backed up", logDetail: describeErrorForLog({ err }) };
   } finally {
-    await unlink(artifactRef).catch(() => undefined);
+    await unlink(artifactRef).catch((error: unknown) => {
+      // An already removed snapshot needs no further cleanup.
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) console.error("[site-backup] Could not remove the snapshot", describeErrorForLog({ err: error }));
+    });
   }
 }
 
 /** One decimal place, dropped when it is `.0` (`100 MiB`, not `100.0 MiB`). */
-function oneDecimal(value: number): string {
+function oneDecimal({ value }: { value: number }, _optional: Record<string, never> = {}): string {
   return value.toFixed(1).replace(/\.0$/, "");
 }
 
 /** `123 B`, `4.2 KiB`, `12.5 MiB`, `1 GiB` — for messages and the confirmation dialog. */
-export function formatByteSize(bytes: number): string {
+export function formatByteSize({ bytes }: { bytes: number }, _optional: Record<string, never> = {}): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < MIB) return `${oneDecimal(bytes / 1024)} KiB`;
-  if (bytes < 1024 * MIB) return `${oneDecimal(bytes / MIB)} MiB`;
-  return `${oneDecimal(bytes / (1024 * MIB))} GiB`;
+  if (bytes < MIB) return `${oneDecimal({ value: bytes / 1024 })} KiB`;
+  if (bytes < 1024 * MIB) return `${oneDecimal({ value: bytes / MIB })} MiB`;
+  return `${oneDecimal({ value: bytes / (1024 * MIB) })} GiB`;
 }
 
 /**
@@ -590,12 +603,12 @@ export function formatByteSize(bytes: number): string {
  *
  * @complexity O(n).
  */
-export function skipOversizedFiles(files: readonly PlannedDiskFile[], host: SiteBackupHostLimit): { files: PlannedDiskFile[]; skipped: SkippedSiteBackupFile[] } {
+export function skipOversizedFiles({ files, host }: { files: readonly PlannedDiskFile[]; host: SiteBackupHostLimit }, _optional: Record<string, never> = {}): { files: PlannedDiskFile[]; skipped: SkippedSiteBackupFile[] } {
   const maxFileBytes = host.maxFileBytes;
   if (maxFileBytes === undefined) return { files: [...files], skipped: [] };
   const skipped = files
     .filter((file) => file.bytes > maxFileBytes)
-    .map((file) => ({ path: file.path, reason: `${formatByteSize(file.bytes)}, over ${host.label}'s ${formatByteSize(maxFileBytes)} per-file limit` }));
+    .map((file) => ({ path: file.path, reason: `${formatByteSize({ bytes: file.bytes })}, over ${host.label}'s ${formatByteSize({ bytes: maxFileBytes })} per-file limit` }));
   return { files: files.filter((file) => file.bytes <= maxFileBytes), skipped };
 }
 
@@ -609,19 +622,16 @@ export type SiteBackupLimitsResult = { ok: true; totalBytes: number } | { ok: fa
  *
  * @complexity O(n) in the file count.
  */
-export function checkSiteBackupLimits(
-  files: readonly { path: string; bytes: number }[],
-  host: SiteBackupHostLimit,
-  limits: SiteBackupLimits = SITE_BACKUP_LIMITS,
+export function checkSiteBackupLimits({ files, host }: { files: readonly { path: string; bytes: number }[]; host: SiteBackupHostLimit }, { limits = SITE_BACKUP_LIMITS }: { limits?: SiteBackupLimits } = {}
 ): SiteBackupLimitsResult {
   const maxFileBytes = host.maxFileBytes;
   const oversized = maxFileBytes === undefined ? [] : files.filter((file) => file.bytes > maxFileBytes);
   if (maxFileBytes !== undefined && oversized.length > 0) {
     // The exact byte count too: a file 1 byte over rounds to the limit's own size.
-    const named = oversized.map((file) => `${file.path} (${formatByteSize(file.bytes)}, ${file.bytes} bytes)`).join(", ");
+    const named = oversized.map((file) => `${file.path} (${formatByteSize({ bytes: file.bytes })}, ${file.bytes} bytes)`).join(", ");
     return {
       ok: false,
-      message: `${oversized.length} file(s) exceed ${host.label}'s ${formatByteSize(maxFileBytes)} per-file limit and cannot be backed up: ${named}. Nothing is truncated or split; remove or shrink these, or turn off the scope that holds them.`,
+      message: `${oversized.length} file(s) exceed ${host.label}'s ${formatByteSize({ bytes: maxFileBytes })} per-file limit and cannot be backed up: ${named}. Nothing is truncated or split; remove or shrink these, or turn off the scope that holds them.`,
     };
   }
   if (files.length > limits.maxFiles) {
@@ -629,7 +639,7 @@ export function checkSiteBackupLimits(
   }
   const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
   if (totalBytes > limits.maxTotalBytes) {
-    return { ok: false, message: `the backup totals ${formatByteSize(totalBytes)}, over the ${formatByteSize(limits.maxTotalBytes)} cap. Turn off a scope (media usually holds the most bytes) and plan again.` };
+    return { ok: false, message: `the backup totals ${formatByteSize({ bytes: totalBytes })}, over the ${formatByteSize({ bytes: limits.maxTotalBytes })} cap. Turn off a scope (media usually holds the most bytes) and plan again.` };
   }
   return { ok: true, totalBytes };
 }
@@ -652,7 +662,7 @@ type ReadPlannedFileOptions = { fileSystem?: ReviewedFileSystem; openFile?: Revi
  */
 export async function readPlannedFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions = {}): Promise<ReadPlannedFileResult> {
   const read = await readDiskFile(file, { ...optional, unlinkedPath: file.sha256 !== undefined });
-  return read.ok && file.sha256 !== undefined && sha256Hex(read.bytes) !== file.sha256 ? staleResult(file) : read;
+  return read.ok && file.sha256 !== undefined && sha256Hex({ bytes: read.bytes }) !== file.sha256 ? staleResult(file) : read;
 }
 
 function staleResult(file: PlannedDiskFile): ReadPlannedFileResult {
@@ -663,7 +673,11 @@ function staleResult(file: PlannedDiskFile): ReadPlannedFileResult {
  *  realpath differs, i.e. one reached through a linked folder (`O_NOFOLLOW` guards only the last name). */
 async function readDiskFile(file: PlannedDiskFile, optional: ReadPlannedFileOptions & { unlinkedPath?: boolean }): Promise<ReadPlannedFileResult> {
   // Preserve the stricter absolute-path check for pinned package/theme bytes.
-  if (optional.unlinkedPath && (await realpath(file.absPath).catch(() => null)) !== file.absPath) return staleResult(file);
+  if (optional.unlinkedPath && (await realpath(file.absPath).catch((error: unknown) => {
+    // Removed paths and broken links are an ordinary stale-plan refusal.
+    if (!(error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR" || error.code === "ELOOP"))) console.error("[site-backup] Could not resolve the planned file", describeErrorForLog({ err: error }));
+    return null;
+  })) !== file.absPath) return staleResult(file);
   const fileSystem = optional.fileSystem ?? (optional.openFile ? {
     open: optional.openFile, lstat: (file: string) => lstat(file, { bigint: true }), realpath,
   } : undefined);

@@ -1,6 +1,6 @@
 import { exportUrlLocations } from "@jini-ai/devops/static-export";
 import type { MediaRepoPort } from "@jini-ai/cms/media";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { findMediaByIdOrSlug } from "@jini-ai/cms/media";
 import { mediaPublicPath } from "../media/public-path.js";
 import { resolveContentTypes, type ContentTypeDeps } from "../media/index.js";
@@ -51,11 +51,13 @@ export async function rewriteMediaOriginalUrls(
   const paths = await localOriginalPaths({ body, deps, locations });
   if (paths.size === 0) return body;
   const records = await exportableMediaRecords({ paths, deps });
-  const contentTypes = await resolveContentTypes(deps, [...records.values()]);
+  const contentTypes = await resolveContentTypes({ deps, media: [...records.values()] });
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
     const type = contentTypes.get(record.source.sha256);
-    const { prefix, key } = paths.get(url)!;
+    const path = paths.get(url);
+    if (path === undefined) throw new Error("Export media record has no matching URL path");
+    const { prefix, key } = path;
     const query = new URL(url, "https://export.invalid").searchParams;
     query.delete("v");
     if (type) replacements.set(url, prefix + mediaPublicPath({ key, sha256: record.source.sha256, variant: { kind: "original", contentType: type } }) + (query.size ? `&${query}` : ""));

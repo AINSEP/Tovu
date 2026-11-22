@@ -40,7 +40,7 @@ test("share download retains a complete 101 MiB response under the existing 300 
 
 test("share download timeout details in CLI output identify only the origin", () => {
   const error = new FetchTimeoutError("https://provider.example/share/sample-share-code/site.tovu.zip?download=sample-query", 120000);
-  const outcome = mapErrorToCliOutcome(error);
+  const outcome = mapErrorToCliOutcome({ err: error });
   assert.match(outcome.stderrLine!, /fetch timed out after 120000ms: https:\/\/provider\.example/);
   assert.ok(!outcome.stderrLine!.includes("sample-share-code"));
   assert.ok(!outcome.stderrLine!.includes("sample-query"));
@@ -78,7 +78,7 @@ for (const elapsedMs of [239_999, 240_000]) test(`share download at ${elapsedMs}
   else await assert.rejects(download, error => {
     assert.equal((error as { code: string }).code, "DOWNLOAD_TIMEOUT");
     assert.equal((error as Error).message, "The share download from https://provider.example timed out after 240 seconds. Download the ZIP file and import it.");
-    const output = mapErrorToCliOutcome(error).stderrLine!;
+  const output = mapErrorToCliOutcome({ err: error }).stderrLine!;
     assert.match(output, /share download.*240 seconds/);
     assert.equal(output.includes("sample-file"), false);
     assert.equal(output.includes("sample-query"), false);

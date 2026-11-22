@@ -8,7 +8,8 @@ import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPlugi
 import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import { classifyAgentPluginMcpServerTrust } from './capability-projection.js';
 import { tovuFederationMessages } from './federate-mcp.js';
-import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
+import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpProjectionPorts } from '@jini-ai/agent-plugins/connect';
 export { storedAgentPluginGrants } from '@jini-ai/agent-plugins/connect';
 
 /** Tovu's refusal copy (names Tovu's settings screen). Bytes unchanged from the pre-move body. */
@@ -22,12 +23,12 @@ export function validatedAgentPluginToolGrant(
   required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
   options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {},
 ): AgentPluginToolGrant | null {
-  return validatedWithPorts(required, { ...options, ports: options.ports ?? agentPluginMcpProjectionPorts, messages: tovuEnableAccessMessages });
+  return validatedWithPorts({ ...required, ports: options.ports ?? agentPluginMcpProjectionPorts, messages: tovuEnableAccessMessages }, { reason: options.reason });
 }
 
 export function previewAgentPluginEnableAccess(
   input: Omit<Parameters<typeof previewWithPorts>[0], 'projections' | 'classifyError' | 'classifyTrust' | 'messages'> & AgentPluginMcpContext,
   _options = {},
 ): ReturnType<typeof previewWithPorts> {
-  return previewWithPorts(withOverrides(withAgentPluginMcpPorts(input), { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages }));
+  return previewWithPorts(withOverrides({ target: withAgentPluginMcpPorts(input), overrides: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages } }));
 }

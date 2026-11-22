@@ -28,9 +28,7 @@ export async function isPublishedWebMcpEnabled(
   { settingsRepo, getEffective: read }: { settingsRepo: SettingsRepoPort; getEffective: typeof getEffective },
   { workspaceId }: { workspaceId: string },
 ): Promise<boolean> {
-  const setting = await read({ repo: settingsRepo }, {
-    namespace: PUBLISHED_WEBMCP_NAMESPACE, key: PUBLISHED_WEBMCP_KEY, scopeContext: { workspaceId },
-  });
+  const setting = await read({ deps: { repo: settingsRepo }, namespace: PUBLISHED_WEBMCP_NAMESPACE, key: PUBLISHED_WEBMCP_KEY, scopeContext: { workspaceId } });
   // The definition may still be bootstrapping. Only absence uses the owner's
   // ON default; malformed values and read failures do not grant access.
   return setting === null ? true : setting.value === true;

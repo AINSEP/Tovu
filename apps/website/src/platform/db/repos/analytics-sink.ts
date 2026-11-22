@@ -25,14 +25,14 @@ import type { AnalyticsEventsTable } from "../content-database.generated.js";
  *
  * Architectural role:
  * Infrastructure adapter. `analytics` never imports this file — it depends only on
- * `AnalyticsSinkPort`; composition roots (`server/deps.ts`) bind the concrete class.
+ * `AnalyticsSinkPort`; composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete class.
  */
 
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 500;
 
 /** Same clamp discipline as Jini LocalBufferSink: a caller cannot force an unbounded array copy. */
-function clampListLimit(requested: number | undefined): number {
+function clampListLimit({ requested }: { requested: number | undefined }, _optional: Record<string, never> = {}): number {
   if (requested === undefined || !Number.isFinite(requested)) return DEFAULT_LIST_LIMIT;
   return Math.min(Math.max(Math.trunc(requested), 1), MAX_LIST_LIMIT);
 }
@@ -95,17 +95,17 @@ export class SqlBufferSink implements AnalyticsSinkPort {
     return { durable: true, batch: true };
   }
 
-  async accept(hit: NormalizedHit): Promise<void> {
+  async accept({ hit }: { hit: NormalizedHit }, _optional = {}): Promise<void> {
     await this.deps.kernel.run((db) => db.insertInto("analytics_events").values(toRow(hit)).execute());
   }
 
-  async acceptBatch(hits: readonly NormalizedHit[]): Promise<void> {
+  async acceptBatch({ hits }: { hits: readonly NormalizedHit[] }, _optional = {}): Promise<void> {
     if (hits.length === 0) return;
     await this.deps.kernel.run((db) => db.insertInto("analytics_events").values(hits.map(toRow)).execute());
   }
 
-  async list(input: { limit?: number } = {}): Promise<NormalizedHit[]> {
-    const limit = clampListLimit(input.limit);
+  async list(_required: Record<string, never>, input: { limit?: number } = {}): Promise<NormalizedHit[]> {
+    const limit = clampListLimit({ requested: input.limit });
     const rows = await this.deps.kernel.run((db) =>
       db
         .selectFrom("analytics_events")

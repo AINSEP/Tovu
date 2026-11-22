@@ -12,7 +12,7 @@ import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../f
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 
 /**
  * @file RED-first coverage for `external-mcp-connection-source.ts`'s two new pieces (design-byok
@@ -28,7 +28,7 @@ function repoWhoseListThrows(error: Error): ExternalMcpServerRepoPort {
   return {
     listByWorkspaceId: () => Promise.reject(error),
     findByServerId: (input) => inner.findByServerId(input),
-    upsert: (record) => inner.upsert(record),
+    upsert: (record) => inner.upsert(record), insert: (input) => inner.insert(input), updateIfVersion: (input) => inner.updateIfVersion(input), updateOAuthRuntime: (input) => inner.updateOAuthRuntime(input),
     deleteByServerId: (input) => inner.deleteByServerId(input),
     updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
@@ -131,7 +131,7 @@ test("buildExternalMcpFederationDeps wires onAuthFailed to oauth.reportAuthFailu
 
   assert.equal(typeof deps.onAuthFailed, "function");
   const authError = new Error("401");
-  await assert.rejects(() => deps.onAuthFailed?.("server-1", authError as never) ?? Promise.resolve(), authError);
+  await assert.rejects(() => deps.onAuthFailed?.({ connectionId: "server-1", error: authError as never }) ?? Promise.resolve(), authError);
   assert.deepEqual(calls, [{ connectionId: "server-1", error: authError }]);
 });
 
@@ -145,4 +145,15 @@ test("buildExternalMcpFederationDeps wires a per-call confirmer when a surface e
     idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const deps = buildExternalMcpFederationDeps(testSiteLayoutContext({ authorize: allow, workspaceId: WORKSPACE, repo: new InMemoryExternalMcpServerRepo(), surfaceExchanges }));
   assert.equal(typeof deps.confirmCall, "function");
+});
+
+test("legacy desktop cleanup keeps suppression and emits redacted cause", async t => {
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.join(" ")));
+  const repo = new InMemoryExternalMcpServerRepo();
+  t.mock.method(repo, "findByServerId", async () => { throw new Error("legacy lookup context password=MCP_CLEANUP_CANARY"); });
+  const source = createStoredExternalMcpConnectionSource(testSiteLayoutContext({ repo, sealer: new AesGcmSecretSealer(new InMemoryKeyring()), workspaceId: WORKSPACE, log: "[cleanup-test]", desktopOwned: true }));
+  assert.deepEqual(await source.resolve(), []);
+  assert.match(warnings.join(" "), /legacy desktop MCP cleanup.*legacy lookup context/);
+  assert.doesNotMatch(warnings.join(" "), /MCP_CLEANUP_CANARY/);
 });

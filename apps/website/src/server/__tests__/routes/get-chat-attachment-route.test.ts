@@ -13,7 +13,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createAssistantModule } from "../../runtime/composition/modules/assistant.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -99,8 +99,8 @@ async function boot(t: test.TestContext, staged: Staged) {
   deps.siteStoragePaths = { ...deps.siteStoragePaths, chatAttachmentsDir: staged.uploadDirectory };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
-  createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
+  registerAuthRoutes({ app, deps });
+  createAssistantModule({ routeDeps: deps, byokSurfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }).registerRoutes?.({ app });
 
   const baseUrl = await startTestServer(app, t);
   const uploaderName = `uploader-${Math.random().toString(36).slice(2, 10)}`;

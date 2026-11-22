@@ -1,14 +1,14 @@
 /**
  * @file `App.hooks.ts` is now a barrel: each hook family lives in its own `use-<thing>.hooks.ts`
  * (plus `sites-home-view.ts`), and their behaviour is tested beside each one. What is left to pin
- * here is the barrel's own contract — every name it exported before the split is still exported,
+ * here is the post-extraction barrel contract — every remaining name is still exported,
  * and is the very same function its family module exports, so no importer of `./App.hooks.js` can
  * have been handed a stale copy or a wrapper.
  *
  * **How this file runs.** `apps/desktop`'s `test` script is two commands: a bare
  * `node --test "src/*.test.ts" "src/!(renderer|contracts)/**\/*.test.ts"` first, which has no
- * runner for TypeScript imported across a `.js`-specifier boundary (see `folder-drop.ts`'s own
- * header for why); that is why every renderer test before this one was a source-text assertion (see
+ * runner for TypeScript imported across a `.js`-specifier boundary; that is why every renderer
+ * test before this one was a source-text assertion (see
  * `rescan-wiring.test.ts`'s own header). This file, living under `src/renderer/`, is executed by the
  * second command instead, `node --import tsx --test "src/renderer/**\/*.test.ts" "src/contracts/**\/*.test.ts"`.
  *
@@ -27,7 +27,6 @@ import test from 'node:test';
 import * as barrel from './App.hooks.js';
 import * as createForm from './use-create-website-form.hooks.js';
 import * as deleteConfirmation from './use-delete-confirmation.hooks.js';
-import * as dropdownMenu from './use-dropdown-menu.hooks.js';
 import * as expandedMode from './use-expanded-mode.hooks.js';
 import * as projectMutations from './use-project-mutations.hooks.js';
 import * as projectTabs from './use-project-tabs.hooks.js';
@@ -39,7 +38,7 @@ import * as sitesInventory from './use-sites-inventory.hooks.js';
 import * as webviewLoadFailure from './use-webview-load-failure.hooks.js';
 import * as workspaceChatTransport from './use-workspace-chat-transport.hooks.js';
 
-/** Every runtime (non-type) name `App.hooks.ts` exported before the split, by its new home. */
+/** Every remaining runtime (non-type) name in the post-extraction barrel, by its home. */
 const HOMES: Record<string, Record<string, unknown>> = {
   useSitesPolling: sitesInventory, useSiteRescan: sitesInventory, useApplySiteRecord: sitesInventory, countRunningSites: sitesInventory,
   useRunnerNavigation: sectionNav, useSectionNav: sectionNav, navLinkClick: sectionNav,
@@ -47,7 +46,6 @@ const HOMES: Record<string, Record<string, unknown>> = {
   useProjectMutations: projectMutations,
   deriveSitesHomeView: sitesHomeView, appPresentation: sitesHomeView,
   useExpandedMode: expandedMode,
-  useDismissibleDropdown: dropdownMenu, menuFocusIndex: dropdownMenu, useMenuKeyboard: dropdownMenu, settingsControlHandlers: dropdownMenu,
   useDeleteConfirmation: deleteConfirmation,
   performSiteStart: siteStart, useSiteStart: siteStart, startThenNotify: siteStart,
   useWebviewLoadFailure: webviewLoadFailure,
@@ -56,7 +54,7 @@ const HOMES: Record<string, Record<string, unknown>> = {
   computeCanCreate: createForm, buildCreateProjectInput: createForm, siteSlug: createForm, useCreateWebsiteForm: createForm,
 };
 
-test('the barrel exports exactly the runtime names it exported before the split, and nothing else', () => {
+test('the post-extraction barrel exports exactly its remaining runtime names, and nothing else', () => {
   assert.deepEqual(Object.keys(barrel).sort(), Object.keys(HOMES).sort());
 });
 

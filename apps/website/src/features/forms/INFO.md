@@ -39,7 +39,7 @@ ADR-036 subsystem — Forms adds zero webhook-dispatch code, only the event).
   `routes/site/analytics-ingest.ts`'s precedent.
 - Enqueue `form.submission.received` on the core outbox for every accepted submission, consumed by
   both `notify-subscriber.ts` (Forms-owned) and `integrations`' `enqueueDelivery` (forwarded from
-  one line in `server/app.ts` — zero Forms-owned webhook logic).
+  one line in `server/runtime/composition/app.ts` — zero Forms-owned webhook logic).
 - Reuse the existing `server/middleware/rate-limit.ts` fixed-window limiter (`rate-limit-profile.ts`
   wraps it with a `(sourceIp, formDefinitionId)` composite key) rather than hand-rolling a second one.
 

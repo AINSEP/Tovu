@@ -45,6 +45,7 @@ export interface AnalyticsIngestRouteDeps<Request = unknown> extends IngestDeps,
    * Absent or empty → the built-in sink alone, exactly the pre-forwarding path.
    */
   forwarders?: (required: { request: unknown }) => Promise<readonly BoundAnalyticsForwarder[]>;
+  vendorHooksAllowed?: (required: { request: Request }) => Promise<boolean>;
 }
 
 /** Vendor failures are logged by forwarder id and outcome only — never the hit or a payload. */
@@ -63,17 +64,17 @@ const reportForwardFailure: AnalyticsForwardReport = ({ forwarderId, outcome, me
  */
 export function createAnalyticsIngestBinding<Request>(
   required: { deps: AnalyticsIngestRouteDeps<Request> },
-  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter } = {},
+  optional: { forwarders?: readonly BoundAnalyticsForwarder[]; limiter?: AnalyticsForwardLimiter; skipHooks?: boolean } = {},
 ): { deps: IngestHitDeps; optional: IngestHitOptional } {
   const host = required.deps;
-  const hooks = host.hooks;
+  const hooks = optional.skipHooks ? undefined : host.hooks;
   // The host's built-in sink stays the awaited primary; forwarders are detached and isolated.
   const sink = createFanOutAnalyticsSink({
     primary: {
       capabilities: () => host.sink.capabilities(),
-      accept: ({ hit }) => host.sink.accept(hit),
-      acceptBatch: ({ hits }) => host.sink.acceptBatch(hits),
-      list: (_required, listOptional) => host.sink.list(listOptional),
+      accept: ({ hit }) => host.sink.accept({ hit }),
+      acceptBatch: ({ hits }) => host.sink.acceptBatch({ hits }),
+      list: (_required, listOptional) => host.sink.list({}, listOptional),
     },
   }, { forwarders: optional.forwarders ?? [], report: reportForwardFailure, ...(optional.limiter ? { limiter: optional.limiter } : {}) });
   return {
@@ -85,7 +86,7 @@ export function createAnalyticsIngestBinding<Request>(
       saltContext: analyticsSaltContext,
       privacyPolicy: analyticsPrivacyPolicy,
     },
-    optional: hooks ? { hooks: { beforeIngest: ({ hit }) => hooks.beforeIngest(hit) } } : {},
+    optional: hooks ? { hooks: { beforeIngest: ({ hit }) => hooks.beforeIngest({ hit }) } } : {},
   };
 }
 
@@ -104,9 +105,9 @@ export function createLocalAnalyticsSink(
   const sink = new LocalBufferSink({}, optional);
   return {
     capabilities: () => sink.capabilities({}),
-    accept: (hit) => sink.accept({ hit }),
-    acceptBatch: (hits) => sink.acceptBatch({ hits }),
-    list: (input) => sink.list({}, input),
+    accept: ({ hit }, _optional = {}) => sink.accept({ hit }),
+    acceptBatch: ({ hits }, _optional = {}) => sink.acceptBatch({ hits }),
+    list: (_required, optional = {}) => sink.list({}, optional),
     all: () => sink.all({}),
   };
 }

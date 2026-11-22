@@ -12,9 +12,20 @@ import { createEarlySessionCapture } from "#src/server/inbound/assistant/early-r
 import { captureDaemonRun } from "#src/server/inbound/assistant/__tests__/helpers/daemon-source";
 import { createLiveRunTracker, waitForStoppingRuns, STOPPING_RUN_WAIT_MS, CONCURRENT_RUN_REFUSAL_MESSAGE } from "#src/assistant/agent-session-preset";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+import { openChatDb } from "#src/platform/db/sqlite/chat-db";
+import { chatKernel } from "#src/platform/db/chat-kernel";
+import { createChatRunLedger, createChatStoreFactory, createSqliteAgentSessionStore } from "#src/assistant/index";
 
 async function fixture(t: import("node:test").TestContext, overrides: Partial<Pick<ReturnType<typeof createRouteDeps>, "tracker" | "aiTraceSink">> = {}) {
-  const server = { ...createRouteDeps(), ...overrides };
+  const base = createRouteDeps();
+  const db = openChatDb({ filePath: ":memory:" });
+  t.after(() => db.close());
+  const store = chatKernel({ store: db });
+  const server = { ...base,
+    chatHistory: createChatStoreFactory({ store }),
+    chatRunLedger: createChatRunLedger({ store }),
+    agentSessions: createSqliteAgentSessionStore({ store, clock: base.clock }),
+    ...overrides };
   await Promise.all(Object.entries(server).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
   const token = ensureToolExecToken({}, {});
   const app = express();
@@ -89,7 +100,7 @@ test("daemon diagnostics and every AI trace event use the site's configured prov
   const { createNoopTracker } = await import("@jini-ai/diagnostics/observability");
   const errors: { message: string; process: unknown }[] = [];
   const captures: unknown[] = [];
-  const events: import("@jini-ai/agent-runtime/ai-trace").AiTraceEvent[] = [];
+  const events: import("@jini-ai/core/contracts/ai-trace").AiTraceEvent[] = [];
   let flushed = 0; let disposed = 0;
   const f = await fixture(t, { tracker: { ...createNoopTracker({}),
     capture: (event, options) => { captures.push({ ...event, ...options }); },
@@ -124,7 +135,7 @@ test("attempt lookup carries live authority without copying the answer event log
 });
 
 test("the next daemon run reads live provider capture policy from its site authority", async t => {
-  let capture: import("@jini-ai/agent-runtime/ai-trace").AiContentCapture = "metadata";
+  let capture: import("@jini-ai/core/contracts/ai-trace").AiContentCapture = "metadata";
   const f = await fixture(t, { aiTraceSink: { get capture() { return capture; }, record() {} } });
   assert.equal(f.core.aiTraceSink?.capture, "metadata");
   capture = "full";

@@ -45,11 +45,11 @@ async function setup() {
     return policyId;
   };
   const app = express();
-  registerAdminUserCreateRoute(app, deps);
-  registerAdminUserUpdateRoute(app, deps);
-  registerAdminUserEnableRoute(app, deps);
-  registerAdminUserAssignRoleRoute(app, deps);
-  registerAdminUserAttachPolicyRoute(app, deps);
+  registerAdminUserCreateRoute({ app, deps });
+  registerAdminUserUpdateRoute({ app, deps });
+  registerAdminUserEnableRoute({ app, deps });
+  registerAdminUserAssignRoleRoute({ app, deps });
+  registerAdminUserAttachPolicyRoute({ app, deps });
   const invoke = async (method: "post" | "patch", suffix: string, callerId: string, principalId: string, body: unknown) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: callerId };

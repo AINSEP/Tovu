@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
-import { InMemoryVersionedMediaRepo } from "#src/features/media/versioned-media-repo";
-import {
-  MAX_CONTENT_EMBED_DEPTH,
-  MAX_CONTENT_EMBED_FETCHES,
-  resolveHtmlFormatContentMarkers,
-  type ContentMarkerResolutionDeps,
-} from "../pages.js";
+import { InMemoryVersionedMediaRepo } from "@jini-ai/cms/media";
+import { MAX_CONTENT_EMBED_DEPTH, MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "@jini-ai/cms/widgets/content-markers";
+import { contentMarkerPorts } from "../pages/render-context/content-marker-ports.js";
+import type { ContentMarkerResolutionDeps } from "../pages/render-context/deps.js";
 
 /**
  * @file Guard 3 of the unified-content-marker design (`ADS-memory/reports/design/
@@ -54,7 +51,7 @@ function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
 /** Wraps `InMemoryPostRepo.findById` to count real lookups — the guard-3 budget's own claim ("bounds
  * total DB work") is only proven by watching the call count, not by watching wall-clock time alone. */
 function countingPostRepo(rows: PostRecord[]): { repo: InMemoryPostRepo; callCount: () => number } {
-  const repo = new InMemoryPostRepo(rows);
+  const repo = new InMemoryPostRepo({}, { initialRows: rows });
   let calls = 0;
   const originalFindById = repo.findById.bind(repo);
   repo.findById = async (required) => {
@@ -68,8 +65,8 @@ function deps(postRepo: InMemoryPostRepo): ContentMarkerResolutionDeps {
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
-    entryRepo: new TrashAwareInMemoryEntryRepo(),
-    mediaRepo: new InMemoryVersionedMediaRepo(),
+    entryRepo: trashAwareEntryRepo(),
+    mediaRepo: new InMemoryVersionedMediaRepo({}),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };
@@ -96,7 +93,7 @@ test("GUARD 3: a self-referencing body (A embeds A) terminates", async () => {
 
   const startHtml = `<main data-embed-config='{"type":"content","id":"a"}'></main>`;
   const result = await withTimeout(
-    resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES }),
+    resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }),
     5000,
     "self-referencing resolution"
   );
@@ -113,7 +110,7 @@ test("GUARD 3: a mutually-referencing chain (A embeds B, B embeds A) terminates"
 
   const startHtml = `<main data-embed-config='{"type":"content","id":"a"}'></main>`;
   const result = await withTimeout(
-    resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES }),
+    resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }),
     5000,
     "mutually-referencing resolution"
   );
@@ -145,12 +142,7 @@ test("GUARD 3: depth alone bounds a self-reference to a FIXED fetch count, never
     const { repo, callCount } = countingPostRepo([
       postRecord({ id: "a", bodyHtml: `<div data-embed-config='{"type":"content","id":"a"}'></div>` }),
     ]);
-    await resolveHtmlFormatContentMarkers(
-      deps(repo),
-      `<main data-embed-config='{"type":"content","id":"a"}'></main>`,
-      0,
-      { remaining: MAX_CONTENT_EMBED_FETCHES }
-    );
+    await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","id":"a"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
     assert.equal(callCount(), MAX_CONTENT_EMBED_DEPTH + 1, `expected a fixed fetch count, got ${callCount()}`);
   })();
 });
@@ -173,7 +165,7 @@ test("GUARD 3 (resource bound): a WIDE branching structure exceeding the fetch b
   const { repo, callCount } = countingPostRepo(rows);
 
   const result = await withTimeout(
-    resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES }),
+    resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }),
     5000,
     "wide-branch resolution"
   );
@@ -188,12 +180,7 @@ test("GUARD 3 (resource bound): a WIDE branching structure exceeding the fetch b
 test("a non-recursive, non-cyclic html-format reference resolves normally and splices real content in", async () => {
   const { repo } = countingPostRepo([postRecord({ id: "a", bodyHtml: "<p>Real spliced content</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(
-    deps(repo),
-    `<main data-embed-config='{"type":"content","id":"a"}'></main>`,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES }
-  );
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","id":"a"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
 
   assert.ok(result.includes("Real spliced content"), "a genuinely resolvable html-format reference must still work");
   assert.ok(!result.includes("data-embed-config"), "the resolved marker must be inert to a later re-scan (withInnerContentFinal)");
@@ -206,7 +193,7 @@ test("a doc-format reference is left untouched for the registry resolver, not co
     ]);
 
     const startHtml = `<main data-embed-config='{"type":"content","id":"doc-1"}'></main>`;
-    const result = await resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
+    const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
 
     assert.equal(result, startHtml, "a doc-format target must be left exactly as authored by this pass");
     assert.equal(callCount(), 1, "one fetch to LEARN it is doc-format, then it is left alone — no further recursion");
@@ -220,12 +207,7 @@ test("a doc-format reference is left untouched for the registry resolver, not co
 test("a slug-only reference to an html-format page is spliced by this recursive pass, the same as an id-based one", async () => {
   const { repo } = countingPostRepo([postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Real spliced content</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(
-    deps(repo),
-    `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES }
-  );
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
 
   assert.ok(result.includes("Real spliced content"), "a slug-addressed html-format reference must resolve exactly like an id-addressed one");
   assert.ok(!result.includes("data-embed-config"), "the resolved marker must be inert to a later re-scan (withInnerContentFinal)");
@@ -246,7 +228,7 @@ test("a mixed body -- one resolvable content marker, one referencing an id that 
     `<div data-embed-config='{"type":"menu","id":"some-menu"}'></div>`,
   ].join("");
 
-  const result = await resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
 
   assert.ok(result.includes("Real spliced content"), "the resolvable marker must still splice in");
   assert.ok(
@@ -266,13 +248,7 @@ test("a mixed body -- one resolvable content marker, one referencing an id that 
 test("pendingHtmlOverride matches a slug-only ref by the previewed row's slug, the same way pendingContentOverride does", async () => {
   const { repo } = countingPostRepo([postRecord({ id: "a", slug: "our-story", bodyHtml: "<p>Saved body</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(
-    deps(repo),
-    `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES },
-    { id: "a", slug: "our-story", bodyHtml: "<p>Pending unsaved body</p>" }
-  );
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","slug":"our-story"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: { id: "a", slug: "our-story", bodyHtml: "<p>Pending unsaved body</p>" } });
 
   assert.ok(result.includes("Pending unsaved body"), "the operator's pending body must win for a slug-only ref naming the previewed row");
   assert.ok(!result.includes("Saved body"));
@@ -284,27 +260,15 @@ test("pendingHtmlOverride never matches by slug a marker that carries an id — 
     postRecord({ id: "b", slug: "other", bodyHtml: "<p>Row B</p>" }),
   ]);
 
-  const result = await resolveHtmlFormatContentMarkers(
-    deps(repo),
-    `<main data-embed-config='{"type":"content","id":"b","slug":"our-story"}'></main>`,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES },
-    { id: "a", slug: "our-story", bodyHtml: "<p>Pending A</p>" }
-  );
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","id":"b","slug":"our-story"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: { id: "a", slug: "our-story", bodyHtml: "<p>Pending A</p>" } });
 
-  assert.ok(result.includes("Row B"));
-  assert.ok(!result.includes("Pending A"));
+  assert.equal(result, "<main><p>Row B</p></main>");
 });
 
 test("GUARD 2 (slug twin): a slug naming a DRAFT html-format page is not spliced by this pass", async () => {
   const { repo } = countingPostRepo([postRecord({ id: "d", slug: "draft-page", status: "draft", bodyHtml: "<p>Draft secret</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(
-    deps(repo),
-    `<main data-embed-config='{"type":"content","slug":"draft-page"}'></main>`,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES }
-  );
+  const result = await resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: `<main data-embed-config='{"type":"content","slug":"draft-page"}'></main>`, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
 
   assert.ok(!result.includes("Draft secret"));
 });
@@ -326,7 +290,7 @@ test("GUARD 3: nested branches share the recursive splice budget", async () => {
   }
   const { repo, callCount } = countingPostRepo(rows);
   const budget = { remaining: MAX_CONTENT_EMBED_FETCHES };
-  const result = await withTimeout(resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, budget), 5000, "nested branches");
+  const result = await withTimeout(resolveHtmlFormatContentMarkers({ ports: contentMarkerPorts({ deps: deps(repo) }), html: startHtml, depth: 0, budget }), 5000, "nested branches");
   assert.equal(budget.remaining, 0);
   // Two parent fetches use the same allowance as their children. The registry then fetches
   // the remaining html-format leaves once to render placeholders, without recursing into them.

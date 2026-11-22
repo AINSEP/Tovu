@@ -4,11 +4,11 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
 import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 /**
  * @file ADR-046 Phase 1 — shared `OutboxPort` contract-test suite, run against BOTH
@@ -240,11 +240,11 @@ function runSettledRowSuite(label: string, makeOutbox: () => OutboxPort) {
 
 runContractSuite("memory", (options) => new InMemoryOutbox(options));
 
-runContractSuite("sqlite", (options) => new SqliteOutboxAdapter(openContentDb(":memory:"), options));
-runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter(openContentDb(":memory:")));
+runContractSuite("sqlite", (options) => new SqliteOutboxAdapter({ store: openContentDb(":memory:") }, options));
+runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter({ store: openContentDb(":memory:") }));
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
-  runContractSuite(`kysely/${each.name}`, (options) => new SqlOutboxAdapter(each.make(), options));
-  runSettledRowSuite(`kysely/${each.name}`, () => new SqlOutboxAdapter(each.make()));
+  runContractSuite(`kysely/${each.name}`, (options) => outboxOn({ kernel: each.make() }, options));
+  runSettledRowSuite(`kysely/${each.name}`, () => outboxOn({ kernel: each.make() }));
 }

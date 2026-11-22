@@ -7,7 +7,8 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import { InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
@@ -34,10 +35,10 @@ test("H0 per-row counts through the shims: save seals env+static once each; toVi
     args: "", env: "REGION=eu", allowedToolNames: "", authMode: "static_env", accessToken: "count-token-123456", accessTokenEnvName: "TOKEN" } as never);
   assert.deepEqual(counts, { seal: 2, open: 2 });
   reset();
-  const [view] = await listExternalMcpServerViews({ repo, sealer }, WS as never);
+  const [view] = await listExternalMcpServerViews({ deps: { repo, sealer }, workspaceId: WS as never });
   assert.deepEqual([counts, view!.accessTokenHint, view!.envTokenHints], [{ seal: 0, open: 2 }, { length: 18, last4: "3456" }, { REGION: { length: 2, last4: null } }]);
   reset();
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WS as never);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WS as never });
   assert.deepEqual([counts, configs.length], [{ seal: 0, open: 2 }, 1]);
 });
 

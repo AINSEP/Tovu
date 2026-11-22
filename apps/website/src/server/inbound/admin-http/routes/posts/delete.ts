@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
@@ -14,9 +14,10 @@ import {
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPostDeleteError(res: Response, err: unknown): void {
+function sendPostDeleteError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -37,6 +38,95 @@ function sendPostDeleteError(res: Response, err: unknown): void {
     return;
   }
   sendAdminFailure({ res, error: err }, { operation: "routes/posts/delete", code: "INTERNAL_ERROR" });
+}
+
+type PostDeleteDeps = Parameters<ContentRouteRegistrar>[0]["deps"];
+
+/** The post id to trash: the slug resolved to its id up front; a missing post keeps the raw id (the delete reports the 404). Null once the failure response is sent. */
+async function resolvePostIdForDelete(required: { deps: PostDeleteDeps; res: Response; rawParam: string }, _optional = {}): Promise<string | null> {
+  const { deps, res, rawParam } = required;
+  // Admin URLs use the slug when one resolves (2026-08-10) — same resolve-up-front rationale as
+  // `posts/update.ts`.
+  let postId: string;
+  try {
+    postId = (await getAdminPostByIdOrSlug({
+      deps: { repo: deps.postRepo },
+      input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+    })).post.id;
+  } catch (error) {
+    if (!(error instanceof PostNotFoundError)) {
+      sendPostDeleteError({ res, err: error });
+      return null;
+    }
+    // A missing post keeps the existing raw-id lookup and not-found response.
+    postId = rawParam;
+  }
+  return postId;
+}
+
+async function restoreTrashedPost(required: { deps: PostDeleteDeps; prior: PostRecord; actorId: string }, _optional = {}): Promise<void> {
+  const { deps, prior, actorId } = required;
+  // Compensates the post row, its revision ledger AND the Trash index row `deletePost`
+  // wrote through the injected `remove` port — `forgetRemoved` drops that row inside the
+  // same transaction as the restore, so an undone delete cannot leave a live post listed
+  // in the Trash. See `restorePostForward`'s own doc.
+  await restorePostForward({
+    deps: {
+      repo: deps.postRepo,
+      clock: deps.clock,
+      outbox: deps.outbox,
+      forgetRemoved: deps.forgetRemovedPost,
+    },
+    input: { prior, actorId },
+  });
+}
+
+async function trashPostCommand(
+  required: { deps: PostDeleteDeps; postId: string; principalId: string; idempotencyKey: string | undefined },
+  _optional = {},
+) {
+  const { deps, postId, principalId, idempotencyKey } = required;
+  // Full pre-trash record, captured in captureInverse and reused verbatim by rollback so the
+  // gateway's unit-of-work compensation restores the post exactly — trash marker and version
+  // included — if the change-set record fails to persist after deletePost applies.
+  let priorPost: PostRecord | null = null;
+
+  const { result } = await executeCommand({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      changeSets: deps.changeSets,
+      outbox: deps.outbox,
+      authorize: deps.authorize,
+    },
+    command: {
+      workspaceId: deps.workspaceId,
+      actor: { id: principalId, kind: "user" },
+      summary: `Delete post ${postId}`,
+      idempotencyKey,
+      permission: "content.write",
+    },
+    mutation: {
+      entityType: "post",
+      entityId: postId,
+      operation: "delete",
+      captureInverse: async () => {
+        priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+        if (!priorPost) return null; // execute() throws PostNotFoundError → 404 below
+        // The whole inverse of a soft delete is "clear the marker" — see postDeleteReverter's
+        // own doc for why capturing a second copy of the row's fields would be wrong.
+        return { deletedAt: null };
+      },
+      execute: () =>
+        deletePost({
+          deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
+          input: { workspaceId: deps.workspaceId, id: postId, actorId: principalId },
+        }),
+      captureEntityVersion: ({ result }) => result.post.version,
+      rollback: () => (priorPost ? restoreTrashedPost({ deps, prior: priorPost, actorId: principalId }) : Promise.resolve()),
+    },
+  });
+  return result;
 }
 
 /**
@@ -67,79 +157,17 @@ function sendPostDeleteError(res: Response, err: unknown): void {
  * of new endpoints — matching `pages/update.ts`'s disclosed treatment rather than
  * `posts/update.ts`'s message-only legacy shape.
  */
-export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const rawParam = String(req.params.postId ?? "");
-    // Admin URLs use the slug when one resolves (2026-08-10) — same resolve-up-front rationale as
-    // `posts/update.ts`.
-    const postId = (await getAdminPostByIdOrSlug({
-      deps: { repo: deps.postRepo },
-      input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
-    }).catch(() => null))?.post.id ?? rawParam;
+    const postId = await resolvePostIdForDelete({ deps, res, rawParam: String(req.params.postId ?? "") });
+    if (postId === null) return;
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
-
-    // Full pre-trash record, captured in captureInverse and reused verbatim by rollback so the
-    // gateway's unit-of-work compensation restores the post exactly — trash marker and version
-    // included — if the change-set record fails to persist after deletePost applies.
-    let priorPost: PostRecord | null = null;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const { result } = await executeCommand({
-        deps: {
-          clock: deps.clock,
-          idGen: deps.idGen,
-          changeSets: deps.changeSets,
-          outbox: deps.outbox,
-          authorize: deps.authorize,
-        },
-        command: {
-          workspaceId: deps.workspaceId,
-          actor: { id: principal.id, kind: "user" },
-          summary: `Delete post ${postId}`,
-          idempotencyKey,
-          permission: "content.write",
-        },
-        mutation: {
-          entityType: "post",
-          entityId: postId,
-          operation: "delete",
-          captureInverse: async () => {
-            priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-            if (!priorPost) return null; // execute() throws PostNotFoundError → 404 below
-            // The whole inverse of a soft delete is "clear the marker" — see postDeleteReverter's
-            // own doc for why capturing a second copy of the row's fields would be wrong.
-            return { deletedAt: null };
-          },
-          execute: () =>
-            deletePost({
-              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, remove: deps.removePost },
-              input: { workspaceId: deps.workspaceId, id: postId, actorId: principal.id },
-            }),
-          captureEntityVersion: ({ result }) => result.post.version,
-          rollback: async () => {
-            if (!priorPost) return;
-            // Compensates the post row, its revision ledger AND the Trash index row `deletePost`
-            // wrote through the injected `remove` port — `forgetRemoved` drops that row inside the
-            // same transaction as the restore, so an undone delete cannot leave a live post listed
-            // in the Trash. See `restorePostForward`'s own doc.
-            await restorePostForward({
-              deps: {
-                repo: deps.postRepo,
-                clock: deps.clock,
-                outbox: deps.outbox,
-                forgetRemoved: deps.forgetRemovedPost,
-              },
-              input: { prior: priorPost, actorId: principal.id },
-            });
-          },
-        },
-      });
+      const result = await trashPostCommand({ deps, postId, principalId: principal.id, idempotencyKey });
 
       // Drains deletePost's `entry.unpublished` event (emitted only when a PUBLISHED row is
       // trashed) to SEO's sitemap-cache invalidation subscriber at once — identical to the inline
@@ -148,7 +176,7 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {
-      sendPostDeleteError(res, err);
+      sendPostDeleteError({ res, err });
     }
   });
 };

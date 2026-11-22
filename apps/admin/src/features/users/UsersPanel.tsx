@@ -1,8 +1,9 @@
-import { Users as JiniUsers, type UsersController as JiniController } from "@jini-ai/user-management/react";
+import { createUsersControllerHook } from "./UsersPanel.hooks";
+import { Users as JiniUsers } from "@jini-ai/user-management/react";
 import { ServerLabel } from "@/components/status-labels";
-import { WORKSPACE_ID } from "@/lib/api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { useWiredUsers } from "./hooks/users-controller.hooks";
-import { defaultUsersPort, toJiniUsersPort } from "./hooks/users-dependencies.hooks";
+import { defaultUsersPort } from "./hooks/users-dependencies.hooks";
 
 export { UserManagePanel } from "@jini-ai/user-management/react";
 export type { UserManageController } from "@jini-ai/user-management/react";
@@ -18,14 +19,11 @@ export interface UsersProps {
    *  `Users` itself has no opinion on what it means, see `use-users.hooks.ts` for the behavior. */
   openOwnPasswordReset?: boolean;
 }
-const port = toJiniUsersPort({ port: defaultUsersPort });
+const port = defaultUsersPort;
 
 /** Product composition only; Jini owns markup, hooks and account protections. */
 export function Users({ useUsersHook = useWiredUsers, openOwnPasswordReset }: UsersProps = {}) {
-  function useController(): JiniController {
-    const controller = useUsersHook({ openOwnPasswordReset });
-    return { ...controller, translate: controller.t };
-  }
+  const useController = createUsersControllerHook({ useUsersHook, openOwnPasswordReset });
   return <JiniUsers port={port} queryScope={WORKSPACE_ID}
     useUsersHook={useController} renderServerLabel={({ value }) => <ServerLabel value={value} />} />;
 }

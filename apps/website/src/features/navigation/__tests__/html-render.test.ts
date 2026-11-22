@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderHtmlMenu, type HtmlMenuItem } from "../html-render.js";
+import { renderHtmlMenu, type HtmlMenuItem } from "#src/platform/html/menu-render";
 
 // Byte-exact pins for the menu renderer: its escaping and tool-exposure rules are security-sensitive,
 // so every branch is asserted against the full output string rather than a loose regex.

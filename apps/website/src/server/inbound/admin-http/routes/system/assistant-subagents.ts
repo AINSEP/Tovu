@@ -1,15 +1,28 @@
 import { lowerAssistantToolAccess } from "#src/server/runtime/composition/modules/assistant-tool-access-lowering";
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 import { readCliPermissionLayer, patchCliPermissionLayer } from "#src/assistant/cli-permission-layer";
-import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { readAssistantCliPermissions } from "#src/assistant/runtime-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "#src/contracts/headless/index";
-import { assistantCliPermissions } from "#src/assistant/runtime-settings";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
 import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 import type { Express } from "express";
+
+function projectAssistantSubagentsRead({ settings, isOwner }: { settings: Awaited<ReturnType<typeof readAssistantCliPermissions>>; isOwner: boolean }) {
+  // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
+  // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
+  const envLock = fullCliEnvLock({ env: process.env });
+  const hostSignals = resolveHostSignals({ env: process.env });
+  const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
+  let availability: { unavailableReason?: string };
+  if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
+  else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
+  else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
+  else availability = {};
+  return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
+}
 
 /** Owner/site-scoped CLI permissions through the existing authenticated, audited grant owner.
  * The master writes all defaults; explicit item choices survive until the master is changed.
@@ -24,20 +37,8 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
     read: async () => readAssistantCliPermissions({ ...required.deps, principalId: await required.deps.ownerPrincipalId,
       settingsReady: required.deps.settingsUiTabsReady }, { readFailure: "throw" }),
     canEdit: ({ isOwner }) => isOwner && !isHostedAssistantRuntime({ env: process.env }, { hostSignals: resolveHostSignals({ env: process.env }) }),
-    // An env lock keeps canEdit (the owner's stored choice still saves) but must say why every
-    // switch reads OFF; without a reason the dock showed clickable switches that snapped back.
-    projectRead: ({ settings, isOwner }) => {
-      const envLock = fullCliEnvLock({ env: process.env });
-      const hostSignals = resolveHostSignals({ env: process.env });
-      const permissions = resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals });
-      let availability: { unavailableReason?: string };
-      if (isHostedAssistantRuntime({ env: process.env }, { hostSignals })) availability = { unavailableReason: "Not available on hosted sites" };
-      else if (!isOwner) availability = { unavailableReason: "Only the owner can change agent permissions." };
-      else if (envLock) availability = { unavailableReason: `Turned off on this computer by ${envLock}.` };
-      else availability = {};
-      return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
-    },
-    parse: body => {
+    projectRead: ({ settings, isOwner }) => projectAssistantSubagentsRead({ settings, isOwner }),
+    parse: ({ body }, _optional = {}) => {
       const overrides = body.capabilities;
       const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
       const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
@@ -68,6 +69,6 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
       if (agentIds.length) await lowerAssistantToolAccess({ agentIds });
       return next;
     },
-    value: settings => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
+    value: ({ settings }, _optional = {}) => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
   }, { requireAcknowledgment: false, scope: "user" });
 }

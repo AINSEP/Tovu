@@ -101,7 +101,7 @@ for (const mode of ['https-dev', 'desktop'] as const) {
     const { createRequire } = await import('node:module');
     const { pathToFileURL } = await import('node:url');
     const { pinSiteListenerOrigin } = await import('../../boot/site-listener-origin.js');
-    const { deriveDevScheme, resolveDevTls } = await import('../../boot/dev-tls.js');
+    const { deriveDevScheme, resolveDevTls } = await import('../../../../platform/dev-host/dev-tls.js');
     const fixture = mkdtempSync(path.join(tmpdir(), 'tovu-origin-spawn-'));
     const keys = ['JINI_AGENT_DAEMON_URL', 'JINI_AGENT_DAEMON_PORT', 'TOVU_SITE_DIR', 'TOVU_SITE_LISTENER_ORIGIN', 'PORT', 'TOVU_DISABLE_DEV_TLS', 'TOVU_DB', 'HOME'];
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
@@ -121,7 +121,7 @@ for (const mode of ['https-dev', 'desktop'] as const) {
       });
       assert.equal(tls.active, true);
       const selected = mode === 'https-dev'
-        ? { scheme: deriveDevScheme(tls.active), host: undefined, port: 3047 }
+        ? { scheme: deriveDevScheme({ tlsActive: tls.active }), host: undefined, port: 3047 }
         : { scheme: 'http' as const, host: '127.0.0.1', port: 43127 };
       pinSiteListenerOrigin(selected);
       const expected = mode === 'https-dev' ? 'https://localhost:3047' : 'http://127.0.0.1:43127';

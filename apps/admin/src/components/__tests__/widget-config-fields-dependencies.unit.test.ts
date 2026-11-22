@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import {
   createFakeWidgetConfigFieldsPort,
   defaultWidgetConfigFieldsPort,
@@ -23,21 +25,21 @@ describe("defaultWidgetConfigFieldsPort", () => {
 
   it("listMenus delegates to api.listMenus", async () => {
     const result = { menus: [{ id: "m1", workspaceId: "ws1", slug: "main", title: "Main", status: "published" as const, items: [], locations: [], updatedAt: "2026-01-01", version: 1 }] };
-    const spy = vi.spyOn(api, "listMenus").mockResolvedValue(result);
+    const spy = vi.spyOn(menusApi, "listMenus").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listMenus()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("listForms delegates to api.listForms", async () => {
     const result = { data: [{ id: "f1", workspaceId: "ws1", name: "Contact us", slug: "contact", fields: [], notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "2026-01-01", updatedAt: "2026-01-01" }] };
-    const spy = vi.spyOn(api, "listForms").mockResolvedValue(result);
+    const spy = vi.spyOn(formsApi, "listForms").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listForms()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
   it("listContentTypes delegates to api.listContentTypes", async () => {
     const result = { items: [{ workspaceId: "ws1", key: "docs_page", label: "Docs page", fields: [], status: "active" as const, version: 1 }] };
-    const spy = vi.spyOn(api, "listContentTypes").mockResolvedValue(result);
+    const spy = vi.spyOn(collectionsApi, "listContentTypes").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listContentTypes()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });

@@ -1,6 +1,7 @@
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { CopyKeysController } from "./hooks/use-copy-keys.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";
 import "./copy-keys-dialog.css";
 
@@ -19,6 +20,7 @@ export function CopyKeysDialog({ dialog, t }: { dialog: CopyKeysController; t: T
           <div className="copy-keys-list">
             {dialog.keys.map(key => <label key={key.id}><input type="radio" name="saved-key" value={key.id} checked={key.checked} onChange={dialog.changeKey} disabled={locked || Boolean(key.locked)} />{key.text}{key.worksFor ? <span> · {key.worksFor}</span> : null}{key.locked ? <span className="jini-field-error"> {t(key.locked)}</span> : null}</label>)}
           </div>
+          {dialog.omissions.map(omission => <p key={omission.id}>{omission.siteName}: {omission.count} {t("more not shown")}</p>)}
           {dialog.error ? <span className="jini-field-error" role="alert">{dialog.error}</span> : null}
           {dialog.results.length ? <ul aria-live="polite" className="copy-keys-results">{dialog.results.map(result => <li key={result.key}>{result.text}</li>)}</ul> : null}
         </div>

@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
@@ -6,10 +6,11 @@ import { updatePolicy } from "@jini-ai/user-management/server";
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's two writable PATCH fields — `undefined` means "leave unchanged" — read off an
  *  untyped body in one place. @complexity O(1). */
-function parsePolicyUpdateBody(rawBody: unknown): { name: string | undefined; description: string | undefined } {
+function parsePolicyUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { name: string | undefined; description: string | undefined } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     name: body.name !== undefined ? String(body.name) : undefined,
@@ -18,7 +19,7 @@ function parsePolicyUpdateBody(rawBody: unknown): { name: string | undefined; de
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPolicyUpdateError(res: Response, err: unknown): void {
+function sendPolicyUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -39,21 +40,18 @@ function sendPolicyUpdateError(res: Response, err: unknown): void {
  * non-built-in, non-frozen policy. Gated by `role.manage`; a built-in or frozen target is refused
  * `VALIDATION_ERROR` (INV-06/AC-26, AC-30).
  */
-export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/policies/:policyId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
 
-      const { policy } = await updatePolicy({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? "") } }, { ...parsePolicyUpdateBody(req.body) });
+      const { policy } = await updatePolicy({ deps: identityServiceDepsFrom(deps), input: { workspaceId: deps.workspaceId, callerPrincipalId: caller.id, policyId: String(req.params.policyId ?? "") } }, { ...parsePolicyUpdateBody({ rawBody: req.body }) });
 
       res.json({ policy: toAdminPolicyResponse(policy) });
     } catch (err) {
-      sendPolicyUpdateError(res, err);
+      sendPolicyUpdateError({ res, err });
     }
   });
 };

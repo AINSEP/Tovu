@@ -1,7 +1,9 @@
-import { ProjectKeyCreateConflictError } from "../project-keys/create-vault.js";
-import { normalizeCredentialWorksFor, VaultError } from "@jini-ai/platform/secrets/credential-sets";
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
-import { isUniqueViolation } from "@jini-ai/db/kernel";
+import { ProjectKeyCreateConflictError } from "#src/contracts/core/credential-store";
+import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken } from '@jini-ai/platform/secrets/credential-token';
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { credentialCreateTarget, credentialScopes } from "../vendor-credentials/index.js";
 import { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
@@ -36,7 +38,8 @@ export const tovuCredentialSetHost: CredentialSetStoreHost<CustomCredentialCateg
     storageError: () => new CustomCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) }),
   scopes: credentialScopes,
   createTarget: credentialCreateTarget,
-  isUniqueViolation,
+  // The integrations host port is positional; core's isUniqueViolation takes { err } (args-jini-core-mcp).
+  isUniqueViolation: (err) => isUniqueViolation({ err }),
   isCreateConflict: (error): error is Error => error instanceof ProjectKeyCreateConflictError,
   token: {
     normalize: ({ value }) => normalizeCredentialToken({ value }),

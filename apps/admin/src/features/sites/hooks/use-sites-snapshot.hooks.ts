@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { QueryResult } from "@jini-ai/core/fetch";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { KEYS, SITES_RESOURCE } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
@@ -22,6 +22,6 @@ export function useSitesSnapshot(
   // render — same note as `Jini redirects/react/hooks/use-redirects.hooks.ts`'s own `invalidateList`.
   const invalidate = useInvalidate();
   const invalidateList = useCallback(() => invalidate({ key: KEYS.list }), [invalidate]);
-  useContentRefreshSubscription(SITES_RESOURCE, invalidateList);
+  useContentRefreshSubscription({ resource: SITES_RESOURCE, onRefresh: invalidateList });
   return list;
 }

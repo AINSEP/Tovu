@@ -13,7 +13,7 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { MCP_UI_MIME_TYPE, type UIResource } from "../index.js";
+import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
@@ -42,7 +42,7 @@ import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { MCP_UI_REDEEMABLE_TOOL_IDS } from "../mcp-ui-tool-calls.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -147,7 +147,7 @@ async function withInstalledAgentPlugin<T>(
       layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE_ID,
     });
-    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -259,7 +259,7 @@ test("plugins_set_enabled is present in the BUILT registration list, reached thr
   contributions.contributors.clear({});
   contributions.contributors.register({ contribution: contributePluginsTools() });
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
   assert.ok(ids.includes(SET_ENABLED), `built catalog is missing '${SET_ENABLED}' — it would be silently uncallable`);
 });
 
@@ -701,7 +701,7 @@ test("server-composed approval memory cannot replace the owner card when enablin
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: {
     ...composed, ...deps, nativeApprovalMemory, conversationToolApprovals: store,
     clock: { ...deps.clock, nowIso: () => NOW },
-  } as RegistryDepsWithoutLimiter }), { surfaceExchanges: surfaces }, { contributions: daemonContributions });
+  } as RegistryDepsWithoutLimiter }), { surfaces: { surfaceExchanges: surfaces }, options: { contributions: daemonContributions } });
   const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
   assert.ok(tool);
   const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };

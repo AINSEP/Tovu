@@ -1,7 +1,10 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
-import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/post";
+import { getPublishedPostBySlug } from "#src/features/post/post-read";
+import { PostNotFoundError } from "#src/features/post/post";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
 import type { MemberAccessResolver } from "#src/features/members/index";
@@ -26,12 +29,9 @@ function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
   });
 }
 
-export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
+export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/content/v1/workspaces/:workspaceId/posts/:slug", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const slug = String(req.params.slug ?? "");
@@ -57,7 +57,7 @@ export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
       // a gated post is indistinguishable from one that doesn't exist -- no separate 403/teaser
       // response that would itself leak "a post exists at this slug, but you can't read it."
       const decision = memberAccessResolver.decide({
-        access: resolvePostMemberAccess(post.memberAccessJson),
+        access: resolvePostMemberAccess({ raw: post.memberAccessJson }),
         context: memberContext,
       });
       if (!decision.allowed) {
@@ -77,7 +77,8 @@ export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      const { errorId } = reportServerFailure({ error: err, operation: "public:post" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ error: "The site couldn’t load the post. Reload this page and report this error ID if it keeps happening.", errorId });
     }
   });
 };

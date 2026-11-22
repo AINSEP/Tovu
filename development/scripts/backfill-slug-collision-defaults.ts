@@ -20,7 +20,7 @@
  * This script recovers case 2 using the one piece of information a migration cannot see: live theme
  * data. It resolves the SAME theme catalog the production site resolver consults
  * (`server/routes/site/pages.ts:765`, `discoverAllBuiltInThemes({ dir: builtInThemesDir() })` — the
- * exact call `server/app.ts`'s composition root makes, and the exact directory `themes/explore.ts`'s
+ * exact call `server/runtime/composition/app.ts`'s composition root makes, and the exact directory `themes/explore.ts`'s
  * install flow writes into, so this script sees precisely what the live server would have seen at
  * decision time, not an approximation of it) and reclassifies only rows whose slug matches NO page in
  * ANY of those themes, at ANY tier the collision check applies to (`static`, the only tier
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
   const dbPath = resolveExistingDbPath(args.dbPath);
   // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
   // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
-  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly({ filePath: dbPath });
 
   const possiblyCollidingSlugs = collectPossiblyCollidingSlugs(builtInThemesDir());
   console.log(

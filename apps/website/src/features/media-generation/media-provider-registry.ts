@@ -44,7 +44,7 @@ const mediaProviderContribution = defineProviderContribution<ProviderContributio
   contract: MEDIA_PROVIDER_CONTRACT,
   filename: MEDIA_PROVIDERS_FILENAME,
   parse: ({ raw }) => parseMediaProvidersFile({ raw }),
-  validate: ({ exported }) => asContribution(exported),
+  validate: ({ exported }) => asContribution({ candidate: exported }),
 }, {
   // Per-plugin recovery: an unreadable manifest or a module/containment I/O fault costs only that
   // plugin's vendors. Without these the fault reaches loadMediaProviderRegistry's outer catch, which
@@ -107,7 +107,7 @@ function keepMatchingIds(items: readonly LoadedProviderContribution<MediaProvide
 }
 
 /** Light structural check after the contained import; the registry's own validate does the rest. @complexity O(1). */
-function asContribution(candidate: unknown): MediaProviderContribution | string {
+function asContribution({ candidate }: { candidate: unknown }, _optional = {}): MediaProviderContribution | string {
   if (!isPlainObject(candidate) || !isPlainObject(candidate.provider) || typeof candidate.provider.id !== "string") return "its module must export { provider, models, adapters }";
   return candidate as unknown as MediaProviderContribution;
 }
@@ -129,7 +129,7 @@ export function parseMediaProvidersFile({ raw }: { readonly raw: string }, _opti
   if (!Array.isArray(value.providers)) return { ok: false, reason: "providers must be an array" };
   const descriptors: ProviderContributionDescriptor[] = [];
   for (const [index, entry] of value.providers.entries()) {
-    const result = parseDescriptor(entry, `providers[${index}]`);
+    const result = parseDescriptor({ entry, at: `providers[${index}]` });
     if (typeof result === "string") return { ok: false, reason: result };
     if (descriptors.some((seen) => seen.id === result.id)) return { ok: false, reason: `providers[${index}].id '${result.id}' is declared twice` };
     descriptors.push(result);
@@ -138,13 +138,21 @@ export function parseMediaProvidersFile({ raw }: { readonly raw: string }, _opti
 }
 
 /** One descriptor entry, or the reason it is invalid. @complexity O(1). */
-function parseDescriptor(entry: unknown, at: string): ProviderContributionDescriptor | string {
+function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional = {}): ProviderContributionDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module, label } = entry;
   if (typeof id !== "string") return `${at}.id must be a string`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
+  const labelRefusal = refuseLabel({ label, at });
+  if (labelRefusal !== undefined) return labelRefusal;
+  // `refuseLabel` above already refused every non-string label, so this guard only narrows for the compiler.
+  return { id, module, ...(typeof label === "string" ? { label } : {}) };
+}
+
+/** The reason a descriptor's optional `label` is invalid, or `undefined` when absent or fine. @complexity O(1). */
+function refuseLabel({ label, at }: { label: unknown; at: string }, _optional = {}): string | undefined {
   if (label !== undefined && (typeof label !== "string" || label.trim() === "")) return `${at}.label must be a non-empty string when present`;
-  return { id, module, ...(label === undefined ? {} : { label }) };
+  return undefined;
 }
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {

@@ -11,7 +11,7 @@ import { CONTENT_MIGRATIONS } from '#src/platform/db/migrations/index';
 import { LEDGER_TABLE } from '#src/platform/db/migrations/runner';
 import { SqlitePresentationSettingsRepo } from '#src/features/presentation/index';
 import { planFormDeliveries } from '@jini-ai/cms/forms';
-import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
+import { createSiteFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-binding";
 import { buildAssistantToolRegistrations } from '#src/assistant/tool-registrations';
 import { CrossSiteUnavailable, createPeerSiteReads } from '../peer-site-reads.js';
 import { peerFixture } from './peer-site-reads.fixture.js';
@@ -39,7 +39,7 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
       fs.writeFileSync(path.join(dir, 'styles.css'), 'body{margin:0}');
       for (const template of ['home', 'entry']) fs.writeFileSync(path.join(dir, 'templates', `${template}.json`), '{"type":"doc","content":[]}');
     }
-    await new SqlitePresentationSettingsRepo(site.kernel).save({ workspaceId: site.workspaceId,
+    await new SqlitePresentationSettingsRepo({ store: site.kernel }).save({ workspaceId: site.workspaceId,
       activeThemeId: site.name === 'B' ? 'selected' : 'decoy', updatedAt: site.clock.nowIso() });
   }
   const files = [f.b.paths.contentDbPath, f.b.paths.chatDbPath, f.b.journalPath];
@@ -60,7 +60,8 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
   const html = await f.call('pages_read_html', { site: 'B', id: 'page' }) as { html: string; theme: unknown };
   assert.match(html.html, /B page/);
   assert.deepEqual(html.theme, { id: 'selected', tokens: { '--ink': '#123456' }, tokensLight: {} });
-  assert.deepEqual(await f.call('theme_get_preview_switcher', { site: 'B' }), { enabled: false, themes: [], position: 'top' });
+  // why: 84d9382e2 (Terra lost-update) returns revisionSeq so theme_update_preview_switcher can send expectedRevisionSeq.
+  assert.deepEqual(await f.call('theme_get_preview_switcher', { site: 'B' }), { enabled: false, themes: [], position: 'top', revisionSeq: 0 });
   const image = await f.call('media_view_image', { site: 'B', mediaId: 'media' }) as { content: Array<{ type: string; data?: string }> };
   const block = image.content.find(block => block.type === 'image'); assert.ok(block?.data);
   const pixels = await sharp(Buffer.from(block.data, 'base64')).removeAlpha().raw().toBuffer();
@@ -132,7 +133,7 @@ test("forms_delivery_status on B reads only B's delivery rows, never A's, and ne
   // Both sites hold a plan for the SAME submission id: a fallback to A's kernel or workspace would surface A's binding.
   for (const site of [f.a, f.b]) {
     await planFormDeliveries({ workspaceId: site.workspaceId, submissionId: 's1', formId: 'form', deps: {
-      plans: new SqlFormDeliveryRepo({ kernel: site.kernel }),
+      plans: createSiteFormDeliveryRepo({ kernel: site.kernel }),
       bindings: async () => [{ bindingId: `${site.name}-binding`, adapterId: 'adapter', connectionRef: 'conn', enabled: true, config: {} }],
       snapshot: async () => ({ form: { slug: 'form', fields: [{ name: 'email', required: true }] },
         submission: { id: 's1', answers: { email: `${site.name}-answer@example.com` }, submittedAt: site.clock.nowIso() } }),
@@ -199,7 +200,7 @@ test('peer content/chat/journal connections reject writes; missing dependencies 
   f.b.db.$client.prepare('UPDATE identity_users SET username = ? WHERE principal_id = ?').run('renamed-owner', f.b.ownerId);
   let peerDeps: Parameters<typeof buildAssistantToolRegistrations>[0] | undefined;
   const resolved = await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
-    buildRegistrations: deps => { peerDeps = deps; return inspection(async () => deps.workspaceId); } });
+    buildRegistrations: ({ deps }, _optional = {}) => { peerDeps = deps; return inspection(async () => deps.workspaceId); } });
   assert.notEqual(resolved, 'current');
   assert.equal(resolved !== 'current' && (resolved.principal as { toolAccess?: string }).toolAccess, 'read-only');
   for (const handle of f.contentHandles) await assert.rejects(handle.execute(sql`CREATE TABLE forbidden(id TEXT)`), /readonly|read-only/i);
@@ -236,8 +237,8 @@ test('LRU eviction closes the oldest bag; warm reads reuse it and idle callbacks
   const schedule = ((callback: () => void) => { callbacks.push(callback); return { unref() {} }; }) as unknown as typeof setTimeout;
   let closes = 0, builds = 0;
   const port = createPeerSiteReads({ currentSiteDir: f.a.dir }, { ...f.options, maxSites: 2, idleMs: 100, now: () => clock, schedule,
-    openContent: (<DB>(file: string, optional: { readOnly?: boolean } = {}) => {
-      const kernel = openSqliteFileKernel<DB>(file, optional);
+    openContent: (<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}) => {
+      const kernel = openSqliteFileKernel<DB>({ filePath }, optional);
       return { ...kernel, close: async () => { closes++; await kernel.close(); } };
     }) as typeof openSqliteFileKernel,
   });
@@ -277,8 +278,8 @@ test('a missing journal refuses without creating it and closes the provisional c
 
 test('batch shared site and collapsed content_read dispatch reach B through the same wrappers', async t => {
   const f = await peerFixture(t);
-  const registrations = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions,
-    includeContentReadCollapse: false, batchableTools: [{ toolId: 'content_post_list' }] });
+  const registrations = buildAssistantToolRegistrations(f.deps, { surfaces: undefined, options: { contributions: f.contributions,
+    includeContentReadCollapse: false, batchableTools: [{ toolId: 'content_post_list' }] } });
   const list = registrations.find(tool => tool.descriptor.id === 'content_post_list')!;
   const batch = await invokeRegisteredTool(list, { ...context({ site: 'B', kind: 'post', items: [{}, {}] }), principal: { id: f.a.ownerId } }) as {
     succeeded: number; results: Array<{ result: unknown }>;
@@ -341,7 +342,7 @@ test("a peer's blob store reads only files inside its own uploads folder, and th
   const f = await peerFixture(t);
   let peerDeps: Record<string, any> | undefined;
   await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
-    buildRegistrations: deps => { peerDeps = deps as unknown as Record<string, any>; return inspection(async () => deps.workspaceId); } });
+    buildRegistrations: ({ deps }, _optional = {}) => { peerDeps = deps as unknown as Record<string, any>; return inspection(async () => deps.workspaceId); } });
   assert.ok(peerDeps);
   const uploads = path.join(f.b.dir, 'uploads');
   const stored = (fs.readdirSync(uploads, { recursive: true, withFileTypes: true }) as fs.Dirent[]).find(entry => entry.isFile());

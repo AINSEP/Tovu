@@ -25,7 +25,7 @@ function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string,
     get: (path: string, handler: Handler) => handlers.set(`GET ${path}`, handler),
     post: (path: string, handler: Handler) => handlers.set(`POST ${path}`, handler),
   } as unknown as Express;
-  registerPublishTrustHandshakeRoutes(app, {
+  registerPublishTrustHandshakeRoutes({ app, deps: {
     keyring: {} as never,
     workspaceId: "w-1",
     clock,
@@ -34,7 +34,7 @@ function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string,
     targetInstallationId: noKey,
     grants: async () => ({ state: "configured", origin: "env", grants: [ACTIVE_GRANT], reason: null }) as PublishTrustResolution,
     ...overrides,
-  });
+  } });
   return handlers;
 }
 
@@ -87,6 +87,23 @@ test("GET /identity on a keyless instance answers 503 instead of hanging", async
   assert.deepEqual(sent.body, KEYLESS_BODY);
 });
 
+test("keyless handshakes stay quiet and unexpected identity failures are redacted", async (t) => {
+  const errors = t.mock.method(console, "error", () => {});
+  async function attempt(error: Error) {
+    const handler = routes({ targetInstallationId: Promise.reject(error) }).get("GET /api/publish-trust/v1/identity");
+    assert.ok(handler);
+    const { res, sent } = fakeRes();
+    await handler(fakeReq(), res);
+    assert.equal(sent.status, 503);
+    assert.deepEqual(sent.body, KEYLESS_BODY);
+  }
+  await attempt(new Error("no site key"));
+  await attempt(new Error("no site key: none of the configured sources resolved (/private/path)"));
+  assert.equal(errors.mock.callCount(), 0);
+  await attempt(new TypeError("sensitive-token"));
+  assert.deepEqual(errors.mock.calls.map(call => call.arguments), [["[publish-trust] Could not derive the site's publishing identity for the handshake:", "TypeError"]]);
+});
+
 test("POST /challenge on a keyless instance answers 503 instead of hanging", async () => {
   const { res, sent } = fakeRes();
   await routes().get("POST /api/publish-trust/v1/challenge")!(fakeReq(), res);
@@ -119,7 +136,7 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   const handlers = routes({
     targetInstallationId: Promise.resolve("dest-1"),
     grants: async () => {
-      throw new Error("grant store exploded");
+      throw new Error("grant store exploded with tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET");
     },
   });
   const body = { nonce: "n", sourceInstallationId: "src-1", generation: 1, capabilities: [], signatureB64u: "s" };
@@ -134,6 +151,11 @@ test("POST /session answers 500 rather than hanging when the grant store throws"
   assert.equal(sent.status, 500);
   assert.deepEqual(sent.body, { error: "the publishing handshake failed", code: "INTERNAL_ERROR" });
   assert.equal(logged.length, 1);
+  // The log keeps the redacted message + stack (not just the class) and never the key.
+  const line = JSON.stringify(logged);
+  assert.match(line, /grant store exploded/);
+  assert.match(line, /handshake-keyless\.unit\.test\.ts/);
+  assert.equal(line.includes("SECRETSECRETSECRETSECRET"), false);
 });
 
 for (const [field, value] of [
@@ -207,8 +229,8 @@ test("keyed challenge requests hit the per-IP ceiling without minting another no
   assert.deepEqual(sent.body, { error: "too many publishing handshake attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
   assert.equal(headers["Retry-After"], "60");
   assert.equal(minted, 40);
-  assert.equal((await store.takeOnce("rate-nonce-40"))?.targetInstallationId, "dest-1");
-  assert.equal(await store.takeOnce("rate-nonce-41"), null);
+  assert.equal((await store.takeOnce({ nonce: "rate-nonce-40" }))?.targetInstallationId, "dest-1");
+  assert.equal(await store.takeOnce({ nonce: "rate-nonce-41" }), null);
 });
 
 test("keyed GET /identity reports the origin the caller reached, and an empty origin when no Host header arrived", async () => {

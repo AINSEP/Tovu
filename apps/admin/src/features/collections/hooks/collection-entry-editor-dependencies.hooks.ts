@@ -1,4 +1,5 @@
-import { api, type AdminContentType, type AdminEntry } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import { collectionsApi } from "@/features/collections/api/collections-api";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
 /**
@@ -8,11 +9,11 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
 
 /** The live implementation, as a module-level singleton. */
 export const defaultCollectionEntryEditorPort: CollectionEntryEditorPort = {
-  listContentTypes: () => api.listContentTypes(),
-  listEntries: (options) => api.listEntries(options),
-  updateEntry: (target, patch) => api.updateEntry(target, patch),
-  createEntry: (input, options) => api.createEntry(input, options),
-  entryLifecycle: (input) => api.entryLifecycle(input),
+  listContentTypes: () => collectionsApi.listContentTypes(),
+  listEntries: (options, _optional = {}) => collectionsApi.listEntries(options),
+  updateEntry: ({ target, patch }, _optional = {}) => collectionsApi.updateEntry(target, patch),
+  createEntry: ({ input, options }, _optional = {}) => collectionsApi.createEntry(input, options),
+  entryLifecycle: (input, _optional = {}) => collectionsApi.entryLifecycle(input),
 };
 
 /** Its one caller (`createEntry` below) always assigns the next id, so `id` is required rather
@@ -68,18 +69,18 @@ export function createFakeCollectionEntryEditorPort(
       if (options.listContentTypesError) throw options.listContentTypesError;
       return { items: types };
     },
-    async listEntries(queryOptions) {
+    async listEntries(queryOptions, _optional = {}) {
       return { items: queryOptions.type ? entries.filter((e) => e.type === queryOptions.type) : entries };
     },
-    async updateEntry({ id, expectedVersion }, patch) {
+    async updateEntry({ target: { id, expectedVersion }, patch }, _optional = {}) {
       if (options.saveError) throw options.saveError;
       const index = entries.findIndex((e) => e.id === id);
       if (index < 0) throw new Error(`fake entry not found: ${id}`);
-      const updated = { ...entries[index]!, ...patch, version: expectedVersion + 1 } as AdminEntry;
+      const updated = { ...entries[index], ...patch, version: expectedVersion + 1 } as AdminEntry;
       entries[index] = updated;
       return { entry: updated };
     },
-    async createEntry(input, createOptions) {
+    async createEntry({ input, options: createOptions }, _optional = {}) {
       if (options.saveError) throw options.saveError;
       const created = fakeEntry({
         id: `fake-entry-${entries.length + 1}`,
@@ -91,12 +92,12 @@ export function createFakeCollectionEntryEditorPort(
       entries.push(created);
       return { entry: created };
     },
-    async entryLifecycle({ id, op, expectedVersion }) {
+    async entryLifecycle({ id, op, expectedVersion }, _optional = {}) {
       if (options.lifecycleError) throw options.lifecycleError;
       const index = entries.findIndex((e) => e.id === id);
       if (index < 0) throw new Error(`fake entry not found: ${id}`);
       const updated: AdminEntry = {
-        ...entries[index]!,
+        ...entries[index],
         status: op === "publish" ? "published" : "unpublished",
         version: expectedVersion + 1,
       };

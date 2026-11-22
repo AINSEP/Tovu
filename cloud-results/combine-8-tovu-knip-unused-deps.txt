@@ -1,0 +1,71 @@
+Unused dependencies (10)
+micromark                  apps/admin/package.json:75:6        
+micromark-extension-gfm    apps/admin/package.json:76:6        
+@jini-ai/integrations      apps/desktop/package.json:38:6      
+@modelcontextprotocol/sdk  apps/desktop/package.json:45:6      
+jszip                      apps/desktop/package.json:55:6      
+@jini-ai/plugin-catalog    package.json:158:6                  
+jszip                      package.json:186:6                  
+mammoth                    package.json:189:6                  
+unpdf                      package.json:200:6                  
+@jini-ai/analytics         packages/contracts/package.json:22:6
+Unused devDependencies (8)
+jsdom                                    apps/desktop/package.json:76:6
+micromark                                apps/desktop/package.json:77:6
+micromark-extension-gfm                  apps/desktop/package.json:78:6
+npm                                      apps/desktop/package.json:79:6
+@opentelemetry/exporter-trace-otlp-http  package.json:208:6            
+@types/js-yaml                           package.json:217:6            
+astro                                    package.json:223:6            
+drizzle-kit                              package.json:225:6            
+Configuration hints (49)
+.                                                   …ip.scratch.json  Add entry and/or refine project files in workspac…
+apps/admin                                          …ip.scratch.json  Add entry and/or refine project files in workspac…
+apps/desktop                                        …ip.scratch.json  Add entry and/or refine project files in workspac…
+…ntent/agent-plugins/*/scripts/*.mjs                …ip.scratch.json  Refine entry pattern (no matches)                 
+src/index.ts                          …s/contracts  …ip.scratch.json  Refine entry pattern (no matches)                 
+[src/**/*.ts]                         …s/contracts  …ip.scratch.json  Refine project pattern (no matches)               
+[src/**/*.ts]                         packages/sdk  …ip.scratch.json  Refine project pattern (no matches)               
+apps/website/src/cli/main.ts                        …ip.scratch.json  Remove redundant entry pattern                    
+…/scripts/agent-plugin-activation.ts                …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/build-server.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…pment/scripts/check-architecture.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ripts/check-capability-inventory.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…scripts/check-coverage-integrity.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…scripts/check-embed-marker-drift.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…check-governance-adr-scope-drift.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…opment/scripts/check-hardwiring.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…opment/scripts/check-idle-motion.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ripts/check-jini-registry-drift.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…s/check-menu-href-allowlist-sync.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…nt/scripts/check-no-linked-jini.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…t/scripts/check-openapi-contract.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ripts/check-openapi-secret-leaks.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ment/scripts/check-outbox-bridge.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…cripts/check-route-coverage-diff.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ripts/check-route-coverage-floor.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ripts/check-src-complexity-drift.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ment/scripts/check-test-baseline.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…ts/check-theme-replaced-elements.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…t/scripts/classify-coverage-gaps.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…nt/scripts/deploy-html-snapshot.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/dev-desktop.mjs                 …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/dev.mjs                         …ip.scratch.json  Remove redundant entry pattern                    
+…diagnose-jini-typecheck-failure.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…nt/scripts/generate-seed-content.ts                …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/link-jini.mjs                   …ip.scratch.json  Remove redundant entry pattern                    
+…opment/scripts/measure-idle-cpu.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…ent/scripts/package-agent-plugin.ts                …ip.scratch.json  Remove redundant entry pattern                    
+…t/scripts/prepare-desktop-hooks.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…velopment/scripts/prepare-start.mjs                …ip.scratch.json  Remove redundant entry pattern                    
+…nt/scripts/report-churn-hotspots.ts                …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/seed-site.mjs                   …ip.scratch.json  Remove redundant entry pattern                    
+…elopment/scripts/sites-move-home.ts                …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/start.mjs                       …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/theme-tool.ts                   …ip.scratch.json  Remove redundant entry pattern                    
+development/scripts/unlink-jini.mjs                 …ip.scratch.json  Remove redundant entry pattern                    
+src/main/index.ts                     apps/desktop  …ip.scratch.json  Remove redundant entry pattern                    
+src/speech/preload-speech.cts         apps/desktop  …ip.scratch.json  Remove redundant entry pattern                    
+src/__tests__/setup.ts                apps/admin    …ip.scratch.json  Remove redundant entry pattern                    
+src/index.ts                          packages/sdk  …ip.scratch.json  Remove redundant entry pattern                    
+EXIT 1

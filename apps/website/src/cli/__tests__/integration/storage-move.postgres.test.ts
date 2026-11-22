@@ -9,7 +9,7 @@ import { sql } from "kysely";
 
 import { readCatalog } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import type { StorageKernel } from "#src/platform/db/kernel/index";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
@@ -26,9 +26,9 @@ import { runStorageMoveCommand } from "../../commands/storage-move.js";
  * is covered in `server/runtime/composition/__tests__/move-site-storage.postgres.test.ts`.
  */
 
-async function counts(kernel: StorageKernel<unknown>): Promise<Record<string, number>> {
+async function counts(kernel: KyselyKernel<unknown>): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
-  for (const table of await readCatalog(kernel)) {
+  for (const table of await readCatalog({ kernel })) {
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
     result[`${table.schema}.${table.name}`] = row.n;
   }
@@ -89,7 +89,7 @@ test("--storage-env moves the site and leaves the connection string in that vari
     to: "postgres",
     storageEnv: "TOVU_MOVE_URL",
     env: { TOVU_MOVE_URL: url },
-    write: (line) => lines.push(line),
+    write: ({ line }, _optional = {}) => lines.push(line),
   });
   const meta = JSON.parse(fs.readFileSync(path.join(site.dir, SITE_META_FILENAME), "utf8"));
   assert.deepEqual(meta.storage, { kind: "postgres", secretRef: { env: "TOVU_MOVE_URL" } });
@@ -100,13 +100,13 @@ test("--storage-env moves the site and leaves the connection string in that vari
     `moved site at ${site.dir} to postgres: ${result.tables.length} tables, ${rows} rows`,
     `the PGlite data dir is kept at ${path.join(site.dir, "pglite")}; remove it yourself once the site checks out`,
   ]);
-  const storage = resolveSiteStorage(site.dir);
+  const storage = resolveSiteStorage({ siteDir: site.dir });
   const target = await openSiteStore({
     storage, dbPath: path.join(site.dir, "content.db"), chatDbPath: path.join(site.dir, "chat.db"), role: "owner",
   }, { env: { TOVU_MOVE_URL: url } });
   try {
     assert.equal(target.storage.kind, "postgres", "reopen through the moved site's metadata");
-    assert.deepEqual(await counts(target.content as unknown as StorageKernel<unknown>), sourceCounts, "every destination table must retain its source row count");
+    assert.deepEqual(await counts(target.content as unknown as KyselyKernel<unknown>), sourceCounts, "every destination table must retain its source row count");
     assert.deepEqual(await target.content.run((db) => db.selectFrom("posts").select(["id", "title", "slug", "body_json"]).orderBy("id").execute()), sourcePosts);
     assert.deepEqual(await target.content.run((db) => db.selectFrom("workspaces").select(["id", "slug"]).execute()), [
       { id: "workspace-local", slug: "local-tovu" },

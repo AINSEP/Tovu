@@ -174,7 +174,7 @@ async function bootGeminiStub(
 
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes?.(app);
+  createSiteAssistantModule(deps, { env: testEnv }).registerRoutes?.({ app });
   return startTestServer(app, t);
 }
 
@@ -220,7 +220,7 @@ for (const policyFlag of [undefined, "off"] as const) {
     const rows = (deps.toolAttemptAuditSink as InMemoryToolAttemptAuditSink).events.filter(event => event.principalId === "anonymous-visitor");
     assert.deepEqual(rows.map(row => row.phase), policyFlag === "off" ? [] : ["requested", "denied"]);
     assert.doesNotMatch(JSON.stringify(rows), /visitor-private-input|127\.0\.0\.1/);
-    const stored = await deps.getEffective({ repo: deps.settingsRepo }, { namespace: "site.assistant", key: "visitor_tools", scopeContext: { workspaceId: deps.workspaceId } });
+    const stored = await deps.getEffective({ deps: { repo: deps.settingsRepo }, namespace: "site.assistant", key: "visitor_tools", scopeContext: { workspaceId: deps.workspaceId } });
     assert.equal((stored?.value as { tools: { list_categories: { mode: string } } }).tools.list_categories.mode, "off");
   });
 }
@@ -622,7 +622,7 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: `http://127.0.0.1:${address.port}` });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes?.(app);
+  createSiteAssistantModule(deps, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   const controller = new AbortController();
   t.after(() => controller.abort());

@@ -41,7 +41,7 @@ const ANONYMOUS_CONTEXT: MemberContext = { isAuthenticated: false, activeTierIds
  *
  * @complexity O(1) — one `JSON.parse` of a small, editorial-sized string.
  */
-export function resolvePostMemberAccess(raw: string | null | undefined): MemberContentAccess {
+export function resolvePostMemberAccess({ raw }: { raw: string | null | undefined }, _optional = {}): MemberContentAccess {
   if (!raw) return { visibility: "public" };
   try {
     return JSON.parse(raw) as MemberContentAccess;
@@ -56,7 +56,7 @@ export function resolvePostMemberAccess(raw: string | null | undefined): MemberC
  * not import from `write-service.ts`: the read-path resolver has no business
  * depending on the mutation-path module).
  */
-function hashToken(rawToken: string): string {
+function hashToken({ rawToken }: { rawToken: string }, _optional = {}): string {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
@@ -70,7 +70,7 @@ export async function resolveMemberSession(required: {
 }, _options = {}): Promise<MemberSessionRecord | null> {
   const { sessions, workspaceId, sessionToken, nowIso } = required;
   if (!sessionToken) return null;
-  const session = await sessions.findByTokenHash({ workspaceId, tokenHash: hashToken(sessionToken) });
+  const session = await sessions.findByTokenHash({ workspaceId, tokenHash: hashToken({ rawToken: sessionToken }) });
   if (!session || session.revokedAt || session.expiresAt <= nowIso) return null;
   return session;
 }

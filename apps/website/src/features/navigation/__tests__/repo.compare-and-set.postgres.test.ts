@@ -6,10 +6,11 @@ import { sql } from "kysely";
 import { MenuConflictError, MenuVersionConflictError, type NavMenuEntry } from "@jini-ai/cms/navigation";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
-import { SqlMenuRepo } from "../repo.js";
+import { SqliteMenuRepo } from "../repo.sqlite.js";
 
 /**
  * @file Menu compare-and-set (wm S4) on a REAL Postgres server, two pooled kernels = two
@@ -30,7 +31,7 @@ before(async () => {
   const url = freshPostgresDatabase(DATABASE);
   first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   second = openPostgresKernel<ContentDatabase>({ connectionString: url });
-  await migrateContentDatabase(first as unknown as StorageKernel<unknown>);
+  await migrateContentDatabase({ kernel: first as unknown as KyselyKernel<unknown> });
 });
 
 after(async () => {
@@ -66,8 +67,8 @@ async function untilALockWaits(kernel: ContentKernel): Promise<void> {
 }
 
 test("postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict", async () => {
-  const repoA = new SqlMenuRepo(first);
-  const repoB = new SqlMenuRepo(second);
+  const repoA = new SqliteMenuRepo({ store: first });
+  const repoB = new SqliteMenuRepo({ store: second });
   await repoA.save(menu());
 
   let releaseA!: () => void;
@@ -98,8 +99,8 @@ test("postgres: two writers on the same base version, B blocked on A's row lock 
 });
 
 test("postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict", async () => {
-  const repoA = new SqlMenuRepo(first);
-  const repoB = new SqlMenuRepo(second);
+  const repoA = new SqliteMenuRepo({ store: first });
+  const repoB = new SqliteMenuRepo({ store: second });
   const created = (title: string) => menu({ id: "created-1", slug: "created", title });
 
   let releaseA!: () => void;

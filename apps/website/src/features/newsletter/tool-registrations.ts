@@ -1,19 +1,26 @@
+import { listPageForModel, parseListPageRequest } from "@jini-ai/core/list-page";
 import { toolMetadata } from '../../contracts/core/tool-metadata/newsletter.js';
+import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file Newsletter's half of ADR-049 Decision 4 (ADR-PIPE-011/SPEC-011): maps `agent-tools.ts`'s
  * catalog entries onto existing campaign/list/subscription services as ToolRegistrations.
  * Delivery operations are contributed separately from delivery/tool-registrations.ts; bulk import is absent.
  *
- * Authorization shape: `http/admin/newsletter.ts`'s file header records that "none of Newsletter's
+ * Authorization shape: `apps/website/src/server/inbound/admin-http/http/newsletter.ts`'s file header records that "none of Newsletter's
  * domain functions call authorize() ... every admin route therefore calls
  * requireNewsletterPermissionOrRespond as its own first line". Every handler here does the same via
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import {
+  type AuthorizeFn,
+  type EventBusPort,
+  type OutboxPort,
+} from "@jini-ai/core/contracts/events";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -28,7 +35,8 @@ import {
   saveCampaign,
   type CampaignWriteServiceDeps,
 } from "./campaign-write-service.js";
-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
+import { issueConfirmationToken } from "./confirmation.js";
+import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
@@ -53,10 +61,10 @@ import type {
   SubscriberDirectoryPort,
 } from "./ports.js";
 import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
+import { DEFAULT_LIST_LIMIT } from "./repo-subscribers.js";
 import {
   saveSubscription,
   unsubscribeSubscription,
-  type SubscriptionsDeps,
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
@@ -100,7 +108,7 @@ export interface NewsletterToolDeps {
 
 /**
  * Assembles `campaign-write-service.ts`'s deps bundle from {@link NewsletterToolDeps} — a local
- * duplicate of `server/routes/admin/newsletter/deps.ts`'s `toCampaignWriteServiceDeps` rather than
+ * duplicate of `apps/website/src/server/inbound/admin-http/routes/newsletter/deps.ts`'s `toCampaignWriteServiceDeps` rather than
  * an import of it, for the same reason `features/settings/tool-registrations.ts`'s header gives for
  * duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this codebase's
  * ports/adapters direction. Each `to*Deps` mapper below carries the identical rationale.
@@ -119,33 +127,6 @@ function toListsDeps(deps: NewsletterToolDeps): ListsDeps {
   return { listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen };
 }
 
-/** Assembles `confirmation.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above. */
-function toConfirmationDeps(deps: NewsletterToolDeps): ConfirmationDeps {
-  return {
-    tokenRepo: deps.newsletterConfirmationTokenRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    mailer: deps.mailer,
-    consentCapability: deps.membersConsentCapability,
-    originRegistry: deps.originRegistry,
-    clock: deps.clock,
-    ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
-  };
-}
-
-/** Assembles `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription`
- * triggers `issueConfirmationToken`) — the local twin of `toCampaignWriteServiceDeps` above. */
-function toSubscriptionsDeps(deps: NewsletterToolDeps): SubscriptionsDeps {
-  return {
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    listRepo: deps.newsletterListRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    confirmationDeps: toConfirmationDeps(deps),
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
-}
-
 /** Assembles `subscriptions.ts`'s `unsubscribeSubscription` deps bundle — the local twin of
  * `toCampaignWriteServiceDeps` above. */
 function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSubscriptionDeps {
@@ -161,26 +142,8 @@ function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSub
  * The optional launch-setting binding defaults to false, preserving the admin routes' existing
  * fail-closed behavior. Runtime composition still has no sending toggle or consent binding.
  */
-export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
-  return {
-    campaignRepo: deps.newsletterCampaignRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
-    sendRepo: deps.newsletterSendRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    hooks: deps.newsletterHooks,
-    mailer: deps.mailer,
-    launchGateDeps: {
-      isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false),
-      consentCapability: deps.membersConsentCapability,
-      originRegistry: deps.originRegistry,
-      mailer: deps.mailer,
-    },
-    outbox: deps.outbox,
-    bus: deps.bus,
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
+export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps, _optional: Record<string, never> = {}): SendPipelineDeps {
+  return buildSendPipelineDeps({ deps, isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false) });
 }
 
 /**
@@ -319,209 +282,266 @@ async function resendPendingSubscriptionConfirmation(
     if (signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
     if (contact) {
       await issueConfirmationToken({
-        deps: toConfirmationDeps(deps),
+        deps: buildConfirmationDeps({ deps }),
         input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
       });
     }
-  } catch {
+  } catch (error) {
+    let errorDiagnostic = "[diagnostic unavailable]";
+    try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
     // Keep diagnostics free of addresses, tokens and provider endpoints.
-    console.error("[newsletter] confirmation request could not be processed; inspect mail configuration");
+    console.error("[newsletter] confirmation request could not be processed; inspect mail configuration", errorDiagnostic);
   }
   return { delivered: true, mailDeliveryAvailable: true };
 }
 
+function createNewsletterListCampaignsHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  const status = typeof input.status === "string" ? input.status : undefined;
+  const paging = parseListPageRequest({ value: input }, { defaultLimit: 100, maxLimit: 100 });
+  const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, paging);
+  const items = status ? page.items.filter(campaign => campaign.status === status) : page.items;
+  const { items: campaigns, ...continuation } = listPageForModel({ page: { ...page, items }, toolId: "newsletter_list_campaigns" });
+  return { campaigns: campaigns.map(toCampaignToolView), ...continuation };
+};
+}
+
+function createNewsletterGetCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
+  return { campaign: toCampaignToolView(campaign) };
+};
+}
+
+function createNewsletterListListsHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_list" });
+
+  await deps.newsletterReady;
+  const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
+  return { lists: lists.map(toListToolView) };
+};
+}
+
+function createNewsletterListSubscriptionsHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const listId = requireString({ input, key: "listId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_subscription" });
+
+  await deps.newsletterReady;
+  const paging = parseListPageRequest({ value: input }, { defaultLimit: 100, maxLimit: 100 });
+  const page = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId }, paging);
+  const { items, ...continuation } = listPageForModel({ page, toolId: "newsletter_list_subscriptions" });
+  return { subscriptions: items.map(toSubscriptionToolView), ...continuation };
+};
+}
+
+function createNewsletterListSendLogHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+  if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
+  const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId, limit: DEFAULT_LIST_LIMIT + 1 });
+  return { sends: rows.slice(0, DEFAULT_LIST_LIMIT).map(toSendLogToolView), truncated: rows.length > DEFAULT_LIST_LIMIT };
+};
+}
+
+function createNewsletterCreateCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  ctx.signal.throwIfAborted();
+  const { campaign } = await saveCampaign({
+    deps: toCampaignWriteServiceDeps(deps),
+    input: {
+      workspaceId: deps.workspaceId,
+      actorId: ctx.principal.id,
+      fields: {
+        subject: requireString({ input, key: "subject" }),
+        preheader: typeof input.preheader === "string" ? input.preheader : null,
+        fromName: requireString({ input, key: "fromName" }),
+        fromEmail: requireString({ input, key: "fromEmail" }),
+        replyTo: requireString({ input, key: "replyTo" }),
+        listId: requireString({ input, key: "listId" }),
+      },
+    },
+  });
+  return { campaign: toCampaignToolView(campaign) };
+};
+}
+
+function createNewsletterUpdateCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const campaignId = requireString({ input, key: "campaignId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
+  if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
+
+  ctx.signal.throwIfAborted();
+  const { campaign } = await saveCampaign({
+    deps: toCampaignWriteServiceDeps(deps),
+    input: {
+      workspaceId: deps.workspaceId,
+      id: campaignId,
+      actorId: ctx.principal.id,
+      fields: {
+        subject: typeof input.subject === "string" ? input.subject : existing.subject,
+        preheader: typeof input.preheader === "string" ? input.preheader : existing.preheader,
+        fromName: typeof input.fromName === "string" ? input.fromName : existing.fromName,
+        fromEmail: typeof input.fromEmail === "string" ? input.fromEmail : existing.fromEmail,
+        replyTo: typeof input.replyTo === "string" ? input.replyTo : existing.replyTo,
+        listId: typeof input.listId === "string" ? input.listId : existing.listId,
+      },
+    },
+  });
+  return { campaign: toCampaignToolView(campaign) };
+};
+}
+
+function createNewsletterCancelCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  ctx.signal.throwIfAborted();
+  const { campaign } = await cancelCampaign({
+    deps: toCampaignWriteServiceDeps(deps),
+    input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id },
+  });
+  return { campaign: toCampaignToolView(campaign) };
+};
+}
+
+function createNewsletterPauseCampaignHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
+
+  await deps.newsletterReady;
+  const { campaign } = await pauseCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
+  return { campaign: toCampaignToolView(campaign) };
+};
+}
+
+function createNewsletterCreateListHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
+
+  await deps.newsletterReady;
+  ctx.signal.throwIfAborted();
+  const { list } = await saveList({
+    deps: toListsDeps(deps),
+    input: { workspaceId: deps.workspaceId, name: requireString({ input, key: "name" }), slug: requireString({ input, key: "slug" }) },
+  });
+  return { list: toListToolView(list) };
+};
+}
+
+function createNewsletterArchiveListHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
+
+  await deps.newsletterReady;
+  ctx.signal.throwIfAborted();
+  const { list } = await archiveList({ deps: toListsDeps(deps), input: { workspaceId: deps.workspaceId, id: listId } });
+  return { list: toListToolView(list) };
+};
+}
+
+function createNewsletterCreateSubscriptionHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const listId = requireString({ input, key: "listId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
+
+  await deps.newsletterReady;
+  const source = typeof input.source === "string" ? (input.source as SubscriptionRow["source"]) : "admin";
+  ctx.signal.throwIfAborted();
+  const { subscription } = await saveSubscription({
+    deps: buildSubscriptionsDeps({ deps }),
+    input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString({ input, key: "subscriberId" }), source },
+  });
+  return { subscription: toSubscriptionToolView(subscription) };
+};
+}
+
+function createNewsletterRemoveSubscriptionHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const listId = requireString({ input, key: "listId" });
+  const subscriptionId = requireString({ input, key: "subscriptionId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
+
+  await deps.newsletterReady;
+  const existing = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  if (!existing || existing.listId !== listId) {
+    throw new NewsletterSubscriptionNotFoundError(`subscription ${subscriptionId} was not found`);
+  }
+
+  const { subscription } = await unsubscribeSubscription({
+    deps: toUnsubscribeSubscriptionDeps(deps),
+    input: { workspaceId: deps.workspaceId, id: subscriptionId },
+  });
+  return { subscription: toSubscriptionToolView(subscription) };
+};
+}
+
+function createNewsletterResendConfirmationHandler(deps: NewsletterToolDeps): ToolHandler {
+  return async (ctx) => {
+  const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
+
+  await deps.newsletterReady;
+  const mailOff = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
+  const driver = deps.mailer.capabilities().driver;
+  if (driver === "console" || driver === "memory") return mailOff;
+  if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
+  const currentDriver = deps.mailer.capabilities().driver;
+  if (currentDriver === "console" || currentDriver === "memory") return mailOff;
+  return resendPendingSubscriptionConfirmation({ deps, subscriptionId, signal: ctx.signal });
+};
+}
+
 export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces?: AssistantSurfaceDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    newsletter_list_campaigns: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
+    newsletter_list_campaigns: createNewsletterListCampaignsHandler(deps),
+    newsletter_get_campaign: createNewsletterGetCampaignHandler(deps),
+    newsletter_list_lists: createNewsletterListListsHandler(deps),
+    newsletter_list_subscriptions: createNewsletterListSubscriptionsHandler(deps),
+    newsletter_list_send_log: createNewsletterListSendLogHandler(deps),
+    newsletter_create_campaign: createNewsletterCreateCampaignHandler(deps),
+    newsletter_update_campaign: createNewsletterUpdateCampaignHandler(deps),
+    newsletter_cancel_campaign: createNewsletterCancelCampaignHandler(deps),
+    newsletter_pause_campaign: createNewsletterPauseCampaignHandler(deps),
+    newsletter_create_list: createNewsletterCreateListHandler(deps),
+    newsletter_archive_list: createNewsletterArchiveListHandler(deps),
+    newsletter_create_subscription: createNewsletterCreateSubscriptionHandler(deps),
+    newsletter_remove_subscription: createNewsletterRemoveSubscriptionHandler(deps),
+    newsletter_resend_confirmation: createNewsletterResendConfirmationHandler(deps),
 
-      await deps.newsletterReady;
-      const status = typeof input.status === "string" ? input.status : undefined;
-      const campaigns = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId });
-      const filtered = status ? campaigns.filter((campaign) => campaign.status === status) : campaigns;
-      return { campaigns: filtered.map(toCampaignToolView) };
-    },
-
-    newsletter_get_campaign: async (ctx) => {
-      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-      if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-      return { campaign: toCampaignToolView(campaign) };
-    },
-
-    newsletter_list_lists: async (ctx) => {
-      requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.read" }, { entityType: "newsletter_list" });
-
-      await deps.newsletterReady;
-      const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
-      return { lists: lists.map(toListToolView) };
-    },
-
-    newsletter_list_subscriptions: async (ctx) => {
-      const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_subscription" });
-
-      await deps.newsletterReady;
-      const subscriptions = await deps.newsletterSubscriptionRepo.list({ workspaceId: deps.workspaceId, listId });
-      return { subscriptions: subscriptions.map(toSubscriptionToolView) };
-    },
-
-    newsletter_list_send_log: async (ctx) => {
-      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.read" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const campaign = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-      if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-      const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId });
-      return { sends: rows.map(toSendLogToolView) };
-    },
-
-    newsletter_create_campaign: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const { campaign } = await saveCampaign({
-        deps: toCampaignWriteServiceDeps(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          actorId: ctx.principal.id,
-          fields: {
-            subject: requireString({ input, key: "subject" }),
-            preheader: typeof input.preheader === "string" ? input.preheader : null,
-            fromName: requireString({ input, key: "fromName" }),
-            fromEmail: requireString({ input, key: "fromEmail" }),
-            replyTo: requireString({ input, key: "replyTo" }),
-            listId: requireString({ input, key: "listId" }),
-          },
-        },
-      });
-      return { campaign: toCampaignToolView(campaign) };
-    },
-
-    newsletter_update_campaign: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const campaignId = requireString({ input, key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const existing = await deps.newsletterCampaignRepo.findById({ workspaceId: deps.workspaceId, id: campaignId });
-      if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${campaignId} was not found`);
-
-      const { campaign } = await saveCampaign({
-        deps: toCampaignWriteServiceDeps(deps),
-        input: {
-          workspaceId: deps.workspaceId,
-          id: campaignId,
-          actorId: ctx.principal.id,
-          fields: {
-            subject: typeof input.subject === "string" ? input.subject : existing.subject,
-            preheader: typeof input.preheader === "string" ? input.preheader : existing.preheader,
-            fromName: typeof input.fromName === "string" ? input.fromName : existing.fromName,
-            fromEmail: typeof input.fromEmail === "string" ? input.fromEmail : existing.fromEmail,
-            replyTo: typeof input.replyTo === "string" ? input.replyTo : existing.replyTo,
-            listId: typeof input.listId === "string" ? input.listId : existing.listId,
-          },
-        },
-      });
-      return { campaign: toCampaignToolView(campaign) };
-    },
-
-    newsletter_cancel_campaign: async (ctx) => {
-      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.compose" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const { campaign } = await cancelCampaign({
-        deps: toCampaignWriteServiceDeps(deps),
-        input: { workspaceId: deps.workspaceId, id: campaignId, actorId: ctx.principal.id },
-      });
-      return { campaign: toCampaignToolView(campaign) };
-    },
-
-    newsletter_pause_campaign: async (ctx) => {
-      const campaignId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "campaignId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.campaign.send" }, { entityType: "newsletter_campaign" });
-
-      await deps.newsletterReady;
-      const { campaign } = await pauseCampaign({ deps: toNewsletterSendPipelineDeps(deps), input: { workspaceId: deps.workspaceId, campaignId } });
-      return { campaign: toCampaignToolView(campaign) };
-    },
-
-    newsletter_create_list: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
-
-      await deps.newsletterReady;
-      const { list } = await saveList({
-        deps: toListsDeps(deps),
-        input: { workspaceId: deps.workspaceId, name: requireString({ input, key: "name" }), slug: requireString({ input, key: "slug" }) },
-      });
-      return { list: toListToolView(list) };
-    },
-
-    newsletter_archive_list: async (ctx) => {
-      const listId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "listId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.list.manage" }, { entityType: "newsletter_list" });
-
-      await deps.newsletterReady;
-      const { list } = await archiveList({ deps: toListsDeps(deps), input: { workspaceId: deps.workspaceId, id: listId } });
-      return { list: toListToolView(list) };
-    },
-
-    newsletter_create_subscription: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const listId = requireString({ input, key: "listId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
-
-      await deps.newsletterReady;
-      const source = typeof input.source === "string" ? (input.source as SubscriptionRow["source"]) : "admin";
-      const { subscription } = await saveSubscription({
-        deps: toSubscriptionsDeps(deps),
-        input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString({ input, key: "subscriberId" }), source },
-      });
-      return { subscription: toSubscriptionToolView(subscription) };
-    },
-
-    newsletter_remove_subscription: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const listId = requireString({ input, key: "listId" });
-      const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
-
-      await deps.newsletterReady;
-      const existing = await deps.newsletterSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
-      if (!existing || existing.listId !== listId) {
-        throw new NewsletterSubscriptionNotFoundError(`subscription ${subscriptionId} was not found`);
-      }
-
-      const { subscription } = await unsubscribeSubscription({
-        deps: toUnsubscribeSubscriptionDeps(deps),
-        input: { workspaceId: deps.workspaceId, id: subscriptionId },
-      });
-      return { subscription: toSubscriptionToolView(subscription) };
-    },
-
-    newsletter_resend_confirmation: async (ctx) => {
-      const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.newsletter.subscriber.manage" }, { entityType: "newsletter_subscription" });
-
-      await deps.newsletterReady;
-      const mailOff = { delivered: false, mailDeliveryAvailable: false, note: "Email sending is not configured. Configure an SMTP credential or a mail adapter in Agent Plugins to send real email." };
-      const driver = deps.mailer.capabilities().driver;
-      if (driver === "console" || driver === "memory") return mailOff;
-      if (ctx.signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
-      const currentDriver = deps.mailer.capabilities().driver;
-      if (currentDriver === "console" || currentDriver === "memory") return mailOff;
-      return resendPendingSubscriptionConfirmation({ deps, subscriptionId, signal: ctx.signal });
-    },
   };
 
   // No `unwiredToolIds`: Newsletter wires its ENTIRE catalog, same tripwire discipline as Forms.
@@ -538,7 +558,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
 
 /**
  * Contributes Newsletter's AI tools to the assistant's catalog — called once by
- * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
  * module. `assistant/tool-registrations.ts` no longer imports `buildNewsletterRegistrations`/
  * `newsletterDerivedRisk` by name; this is the seam that replaced it (2026-08-17 — see
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with

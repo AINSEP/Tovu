@@ -41,14 +41,18 @@ export interface PushToTalkMicButtonProps {
   /** Injectable seam for testing (a fake voice port and/or capture backend), same "useX" DI
    *  convention `AssistantDockProps` already uses throughout this app. A real caller omits it. */
   overrides?: UsePushToTalkOverrides;
+  useTHook?: typeof useT;
+  usePushToTalkHook?: typeof usePushToTalk;
+  useMicButtonViewHook?: typeof useMicButtonView;
+  useSpaceHoldToTalkHook?: typeof useSpaceHoldToTalk;
 }
 
-export function PushToTalkMicButton({ onTranscript, overrides }: PushToTalkMicButtonProps) {
-  const t = useT();
+export function PushToTalkMicButton({ onTranscript, overrides, useTHook = useT, usePushToTalkHook = usePushToTalk, useMicButtonViewHook = useMicButtonView, useSpaceHoldToTalkHook = useSpaceHoldToTalk }: PushToTalkMicButtonProps) {
+  const t = useTHook();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const { available, unavailableReason, indicator, startHold, endHold } = usePushToTalk({ onTranscript }, overrides);
-  const view = useMicButtonView({ available, indicator, unavailableReason });
-  useSpaceHoldToTalk({
+  const { available, unavailableReason, indicator, startHold, endHold } = usePushToTalkHook({ options: { onTranscript }, overrides });
+  const view = useMicButtonViewHook({ available, indicator, unavailableReason });
+  useSpaceHoldToTalkHook({
     anchorRef: buttonRef,
     enabled: available === true,
     onEngage: startHold,

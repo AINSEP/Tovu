@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { buildAgentListHandles } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file `ExternalMcpToolPicker.tsx`'s own derived-value logic, split out per the
  * `<Name>.tsx`/`<Name>.hooks.tsx` pattern (admin TSX-logic-sweep, 2026-09-05) — this repo's rule
@@ -21,7 +20,7 @@ import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./e
  *  card's own base so the two never collide and an agent reading `page.find_elements` sees one
  *  obvious namespace per server. Mirrors `@jini-ai/ui`'s `sourceConfigActionHandle` scheme
  *  (`<base>-<action>`) without importing a function that package does not export to hosts. */
-export function toolPickerHandle(cardHandle: string): string {
+export function toolPickerHandle({ cardHandle }: { cardHandle: string }, _options = {}): string {
   return `${cardHandle}-tools`;
 }
 
@@ -35,7 +34,7 @@ export function toolPickerHandle(cardHandle: string): string {
  *
  * @complexity See `buildAgentListHandles`.
  */
-export function useToolRowHandles(base: string, rows: readonly ToolPickerRow[]): string[] {
+export function useToolRowHandles({ base, rows }: { base: string; rows: readonly ToolPickerRow[] }, _options = {}): string[] {
   const names = rows.map((row) => row.remoteName);
   // `names` is rebuilt every render by design (the `.map()` above); the join is the stable
   // identity that should actually gate the recompute, so it — not the array itself — is the
@@ -61,7 +60,7 @@ export interface ToolRowBadge {
  *  its unremarkable row IS the statement.
  *
  *  @complexity O(1). */
-export function describeToolRowBadges(row: ToolPickerRow, t: Translate): ToolRowBadge[] {
+export function describeToolRowBadges({ row, t }: { row: ToolPickerRow; t: Translate }, _optional: Record<string, never> = {}): ToolRowBadge[] {
   if (row.kind === "absent") return [{ label: t("This server does not offer a tool by that name."), tone: "warning" }];
   const badges: ToolRowBadge[] = [];
   if (row.destructiveDeclared) badges.push({ label: t("Destructive"), tone: "danger" });
@@ -75,7 +74,7 @@ export function describeToolRowBadges(row: ToolPickerRow, t: Translate): ToolRow
  *  `external-mcp-tool-picker-rules.ts`'s header for why this is a lock rather than a default.
  *
  *  @complexity O(1). */
-export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | null {
+export function describeToolRowLock({ row, t }: { row: ToolPickerRow; t: Translate }, _optional: Record<string, never> = {}): string | null {
   if (!isToolRowLocked(row)) return null;
   return t("The server marks this tool as destructive. Tovu does not enable destructive external tools.");
 }
@@ -86,7 +85,7 @@ export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | 
  *  glance, which is the same class of quiet failure as an inert write grant.
  *
  *  @complexity O(1). */
-export function describeToolCount(enabled: number, total: number, t: Translate): string {
+export function describeToolCount({ enabled, total, t }: { enabled: number; total: number; t: Translate }, _options = {}): string {
   if (enabled === 0) return interpolate({ template: t("0 of {total} tools enabled — this connection contributes nothing"), vars: { total } });
   return interpolate({ template: t("{enabled} of {total} tools enabled"), vars: { enabled, total } });
 }
@@ -114,9 +113,9 @@ export interface ToolPickerFilter {
 
 /** Case-insensitive match on the tool's name or the description the row actually shows.
  *  @complexity O(n) in the name plus description length. */
-export function matchesToolQuery(row: ToolPickerRow, needle: string): boolean {
+export function matchesToolQuery({ row, needle }: { row: ToolPickerRow; needle: string }, _options = {}): boolean {
   if (!needle) return true;
-  return row.remoteName.toLowerCase().includes(needle) || displayToolDescription(row.description).toLowerCase().includes(needle);
+  return row.remoteName.toLowerCase().includes(needle) || displayToolDescription({ description: row.description }).toLowerCase().includes(needle);
 }
 
 /**
@@ -139,7 +138,7 @@ export function useToolPickerFilter(
     () =>
       rows
         .map((row, index) => ({ row, handle: handles[index] ?? `${base}-tool-${index}` }))
-        .filter(({ row }) => matchesToolQuery(row, needle)),
+        .filter(({ row }) => matchesToolQuery({ row, needle })),
     [rows, handles, base, needle],
   );
   const selectable = visible.filter(({ row }) => !isToolRowLocked(row));

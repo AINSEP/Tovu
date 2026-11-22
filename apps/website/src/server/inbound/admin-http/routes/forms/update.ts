@@ -1,5 +1,6 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import type { FormAuthoring } from "@jini-ai/cms/forms";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import {
   FormDefinitionNotFoundError,
@@ -20,6 +21,16 @@ import type { FormsRouteRegistrar } from "./deps.js";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
 
+/** Picks the recognized field-patch keys out of the PUT body; an empty result means "no field patch". */
+function buildFormPatch({ body }: { body: Record<string, unknown> }, _optional = {}): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring {
+  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
+  if (typeof body.name === "string") patch.name = body.name;
+  if (Array.isArray(body.fields)) patch.fields = body.fields as FieldDescriptor[];
+  if (body.notify !== undefined) patch.notify = body.notify as NotifyConfig;
+  if (body.provider !== undefined) patch.provider = body.provider as FormAuthoring["provider"];
+  return patch;
+}
+
 /**
  * Applies the PATCH body's field patch and/or status change (each optional, either or both may
  * apply), then falls back to a plain read when neither ran — a request with no recognized fields is
@@ -28,19 +39,10 @@ const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
  * @throws {FormDefinitionNotFoundError} if neither write ran and the form id doesn't exist either.
  * @complexity O(1) — at most two writes and one read.
  */
-async function resolveFormUpdateResult(
-  writeDeps: FormWriteServiceDeps,
-  repo: FormDefinitionRepoPort,
-  params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> }
-): Promise<FormDefinitionRecord> {
+async function resolveFormUpdateResult({ writeDeps, repo, params }: { writeDeps: FormWriteServiceDeps; repo: FormDefinitionRepoPort; params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> } }, _optional = {}): Promise<FormDefinitionRecord> {
   const { workspaceId, actor, formId, body } = params;
 
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
-  if (typeof body.name === "string") patch.name = body.name;
-  if (Array.isArray(body.fields)) patch.fields = body.fields as FieldDescriptor[];
-  if (body.notify !== undefined) patch.notify = body.notify as NotifyConfig;
-  if (body.provider !== undefined) patch.provider = body.provider as FormAuthoring["provider"];
-
+  const patch = buildFormPatch({ body });
   let definition: FormDefinitionRecord | undefined;
   if (Object.keys(patch).length > 0) {
     ({ definition } = await updateFormDefinition({ deps: writeDeps, input: { workspaceId, actor, formId, patch } }));
@@ -69,12 +71,9 @@ async function resolveFormUpdateResult(
  * REQ-04). `slug` is deliberately ignored if present in the body (behavior.spec.md §1.1 — handled
  * inside `write-service.ts`'s `updateFormDefinition`, which never reads `patch.slug`).
  */
-export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const formId = String(req.params.formId ?? "");
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -83,13 +82,13 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
       const principal = getAuthedPrincipal(res);
       // Empty/ignored bodies fall through to a read without invoking the write service's
       // gateway. Gate that path too, before it can return a definition or disclose its absence.
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.forms.manage",
         workspaceId: deps.workspaceId,
         entityType: "form_definition",
         entityId: formId,
-      });
+      } });
       if (!authorized) return;
       const actor = { id: principal.id, kind: "user" as const };
       const writeDeps = {
@@ -103,16 +102,16 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
         authorize: deps.authorize,
       };
 
-      const definition = await resolveFormUpdateResult(writeDeps, deps.formDefinitionRepo, {
+      const definition = await resolveFormUpdateResult({ writeDeps, repo: deps.formDefinitionRepo, params: {
         workspaceId: deps.workspaceId,
         actor,
         formId,
         body,
-      });
+      } });
 
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (err) {
-      if (mapFormsWriteError(err, res)) return;
+      if (mapFormsWriteError({ err, res })) return;
       sendAdminFailure({ res, error: err }, { operation: "routes/forms/update", code: "INTERNAL_ERROR" });
     }
   });

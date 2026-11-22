@@ -1,7 +1,7 @@
 /** @file Tovu compatibility facade over the shared Jini database package. */
 // Storage-op rationale: Jini packages/db/src/kernel/{ops,sqlite/ops,pglite/ops,postgres/ops}.ts.
 import { PGlite } from "@electric-sql/pglite";
-import { type StorageKernel, type StorageOps, StorageOpNotSupportedError } from "@jini-ai/db/kernel";
+import { type KyselyKernel, type StorageOps, StorageOpNotSupportedError } from "@jini-ai/db/kernel";
 import { sqliteOps } from "@jini-ai/db/kernel/sqlite";
 import { pgliteOps, copyServedPgliteTo as jiniCopyServedPgliteTo, type PgliteExclusive } from "@jini-ai/db/kernel/pglite";
 import { postgresOps } from "@jini-ai/db/kernel/postgres";
@@ -11,12 +11,12 @@ export { StorageOpError, StorageOpNotSupportedError, type StorageOps } from "@ji
 export type { PgliteExclusive } from "@jini-ai/db/kernel/pglite";
 
 /** Keep Tovu's single ops entry point; database mechanics belong to the shared adapters. */
-export function storageOps<DB>(kernel: StorageKernel<DB>, optional: { pgliteOwner?: PgliteExclusive } = {}): StorageOps {
-  if (kernel.dialect === "sqlite") return sqliteOps(kernel);
+export function storageOps<DB>({ kernel }: { kernel: KyselyKernel<DB> }, optional: { pgliteOwner?: PgliteExclusive } = {}): StorageOps {
+  if (kernel.dialect === "sqlite") return sqliteOps({ kernel });
   if (kernel.transport === "pglite" || (kernel.transport === "pglite-socket" && optional.pgliteOwner !== undefined)) {
-    return pgliteOps(kernel, { PGlite, ownerLockFileName: OWNER_LOCK_FILE, ledgerTable: "tovu_migrations" }, optional);
+    return pgliteOps({ kernel, PGlite, ownerLockFileName: OWNER_LOCK_FILE, ledgerTable: "tovu_migrations" }, optional);
   }
-  const ops = postgresOps(kernel, { ledgerTable: "tovu_migrations" });
+  const ops = postgresOps({ kernel, ledgerTable: "tovu_migrations" });
   return {
     ...ops,
     // The shared node-postgres copyTo always rejects, so only its rejection is translated here.
@@ -32,6 +32,6 @@ export function storageOps<DB>(kernel: StorageKernel<DB>, optional: { pgliteOwne
 }
 
 /** Restore a served dump with Tovu's driver and remove its historical owner lock from the copy. */
-export function copyServedPgliteTo(owner: PgliteExclusive, targetPath: string): Promise<void> {
-  return jiniCopyServedPgliteTo(owner, targetPath, { PGlite, ownerLockFileName: OWNER_LOCK_FILE });
+export function copyServedPgliteTo({ owner, targetPath }: { owner: PgliteExclusive; targetPath: string }, _optional: Record<string, never> = {}): Promise<void> {
+  return jiniCopyServedPgliteTo({ owner, targetPath, PGlite, ownerLockFileName: OWNER_LOCK_FILE });
 }

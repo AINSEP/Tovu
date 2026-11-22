@@ -16,7 +16,7 @@ import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
-import { sendAdminFailure } from "../../routes/system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[]) {
   const app = express();
@@ -33,7 +33,7 @@ function fixture(error: unknown, tracked: unknown[]) {
     dbOps: { getCapabilities: fail }, gatedMutations: { gatewayDeps: { authorizeInstance: fail } },
   } as unknown as RouteDeps;
   registerAdminSiteImportRoutes({ app, deps });
-  registerAdminRecoveryRestoreRoutes(app, deps);
+  registerAdminRecoveryRestoreRoutes({ app, deps });
   return app;
 }
 
@@ -75,7 +75,7 @@ test("restore gateway Result errors have the same private diagnostic envelope as
   let status = 0, body: any;
   const res = { locals: { adminFailureTracker: { error: (value: unknown) => tracked.push(value) } },
     status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
-  sendRecoveryError(res as any, { code: "INTERNAL_ERROR", message: `database failed ${secret}` });
+  sendRecoveryError({ res: res as any, error: { code: "INTERNAL_ERROR", message: `database failed ${secret}` } });
   assert.equal(status, 500);
   assert.equal(typeof body.errorId, "string");
   assert.ok(body.error.includes(body.errorId));
@@ -87,7 +87,7 @@ test("restore gateway Result errors have the same private diagnostic envelope as
 test("the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private", async t => {
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
-  const root = site.deps.skillLayout.forWorkspace("workspace-local").root;
+  const root = site.deps.skillLayout.forWorkspace({ workspaceId: "workspace-local" }).root;
   for (const name of ["first", "second"]) {
     const dir = path.join(root, name);
     fs.mkdirSync(dir, { recursive: true });
@@ -97,7 +97,7 @@ test("the recorded duplicate-skill-name refusal remains actionable while unexpec
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute(app, { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) });
+  registerSkillsListRoute({ app, deps: { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/workspace-local/skills");
   const body = response.body as Record<string, string>;
   assert.equal(response.status, 500);
@@ -123,22 +123,22 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  newsletter: newsletterErrorToResponse,
-  widgets: widgetErrorToResponse,
+  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse({ err }, options),
+  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
-  peers: (error: unknown, options: Parameters<typeof importErrorResponse>[1]) => mappedErrorResponse(error, [], options),
-  installation: installErrorResponse,
+  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),
+  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => installErrorResponse({ error: err }, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {
     const secret = "ghp_" + "x".repeat(36);
     const logs: unknown[][] = [], tracked: any[] = [];
     t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
     for (const error of [new Error(`private ${secret}`), `private ${secret}`, null]) {
-      const failure = map(error, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
+      const failure = map({ err: error }, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
       const body = failure.body as Record<string, unknown>;
       assert.equal(failure.status, 500);
       assert.equal(body.code, "INTERNAL_ERROR");
-      assert.match(String(body.errorId), /^[0-9a-f-]{36}$/);
+      assert.match(String(body.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
       assert.equal(body.error, name === "publishing"
         ? `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`
         : `The ${({ newsletter: "newsletter", widgets: "widget", peers: "publishing", installation: "agent plugin" } as Record<string, string>)[name]} operation could not be completed. Check the result before repeating this operation. Copy details and report this problem. (error ${body.errorId})`);
@@ -191,7 +191,7 @@ test("class guard: admin route error mappings send unexpected 500s through the s
   for (const entry of fs.readdirSync(root, { recursive: true, withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.includes(".test.") || entry.parentPath.includes("__tests__")) continue;
     const file = path.join(entry.parentPath, entry.name);
-    if (!/\/(routes|http)\//.test(file) || file.endsWith("site-share-errors.ts") || file.endsWith("plugin-hook-error.ts")) continue;
+    if (!/\/(routes|http)\//.test(file) || file.endsWith("plugin-hook-error.ts")) continue;
     const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
     const visit = (node: ts.Node) => {
       if ((isDirect500(node, source) && !isExpectedRefusal(node, source)) || isUnreported500Body(node, source) || isUnclassifiedCatch(node, source)) {

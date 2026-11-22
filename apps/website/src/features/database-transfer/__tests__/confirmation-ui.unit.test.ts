@@ -1,7 +1,7 @@
 import { renderHumanApproval } from "../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 
 import { describeTransferApproval, formatSnapshotTime } from "../confirmation-ui.js";
 import type { DatabaseTransferPlan } from "../plan-store.js";
@@ -40,6 +40,6 @@ test("snapshot time uses English formatting in an explicitly pinned timezone and
   const prior = process.env.TZ;
   process.env.TZ = "UTC";
   t.after(async () => { if (prior === undefined) delete process.env.TZ; else process.env.TZ = prior; });
-  assert.equal(formatSnapshotTime("2026-09-27T15:41:00Z"), "Sep 27, 3:41 PM");
-  assert.equal(formatSnapshotTime("not-a-date"), "not-a-date");
+  assert.equal(formatSnapshotTime({ iso: "2026-09-27T15:41:00Z" }), "Sep 27, 3:41 PM");
+  assert.equal(formatSnapshotTime({ iso: "not-a-date" }), "not-a-date");
 });

@@ -68,7 +68,7 @@ export function getPlaygroundRenderTarget(): HTMLDivElement | null {
  *
  * @complexity O(n) in the subscriber count, O(1) when unchanged.
  */
-export function setPlaygroundRenderTarget(node: HTMLDivElement | null): void {
+export function setPlaygroundRenderTarget({ node }: { node: HTMLDivElement | null }, _options = {}): void {
   if (node === targetNode) return;
   targetNode = node;
   for (const listener of [...listeners]) {

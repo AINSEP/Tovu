@@ -1,8 +1,7 @@
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { StorageKernel } from "./kernel/port.js";
+import type { SecretSealerPort, RootKeyHandle, VaultRecord } from "@jini-ai/core/contracts/vault";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { opensVaultCredential, snapshotVaultCredentials, siblingColumns,
   type VaultCredentialKeyDeps, type VaultCredentialValue } from "./vault-credential-inventory.js";
 
@@ -12,7 +11,7 @@ import { opensVaultCredential, snapshotVaultCredentials, siblingColumns,
  */
 export type SealedCredentialKeyDeps = VaultCredentialKeyDeps;
 export interface ResealCredentialsDeps extends VaultCredentialKeyDeps {
-  sealer: Pick<SecretSealerPort, "seal" | "open">; key: SiteKeyHandle; previous: Pick<SecretSealerPort, "open">;
+  sealer: Pick<SecretSealerPort, "seal" | "open">; key: RootKeyHandle; previous: Pick<SecretSealerPort, "open">;
   /** Host codec normalizes legacy rows or rotates ordinary rows through Jini, with CAS. */
   resealRecord: (input: { record: VaultRecord; previous: Pick<SecretSealerPort, "open"> }) => Promise<void>;
 }
@@ -25,7 +24,7 @@ async function lockWorkspaces({ deps, values }: { deps: SealedCredentialKeyDeps;
 }
 /** Recheck all revisions BEFORE mutations: default promotion may legitimately advance later rows. */
 async function currentValues({ deps, values }: { deps: SealedCredentialKeyDeps; values: VaultCredentialValue[] }): Promise<VaultCredentialValue[]> {
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const current: VaultCredentialValue[] = [];
   for (const value of values) {
     if (!value.record) { current.push(value); continue; }
@@ -36,18 +35,20 @@ async function currentValues({ deps, values }: { deps: SealedCredentialKeyDeps; 
 }
 /** Unlink first in the same transaction, then delete the vault row (FK is deliberately RESTRICT).
  * OAuth refresh cannot resurrect the discarded session; a fresh connect is required.
+ * Each unlink advances `version`: a stored credential disappearing is an edit (lost-update rule M7), so a form
+ * loaded before it conflicts instead of saving the old pointers back.
  */
 async function unlinkMcp({ deps, record }: { deps: SealedCredentialKeyDeps; record: VaultRecord }): Promise<void> {
-  if (record.kind === "mcp-env") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NULL
+  if (record.kind === "mcp-env") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NULL, version=version+1
     WHERE workspace_id=${record.workspaceId} AND env_secret_id=${record.id}`);
   if (record.kind === "mcp-auth") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET oauth_secret_id=NULL,
-    oauth_status='needs_reauth', oauth_expires_at=NULL, oauth_refresh_lease_until=NULL
+    oauth_status='needs_reauth', oauth_expires_at=NULL, oauth_refresh_lease_until=NULL, version=version+1
     WHERE workspace_id=${record.workspaceId} AND oauth_secret_id=${record.id}`);
 }
 /** Remove only a current record. Settings survive optional clears; hints and legacy markers do not. */
 async function discardVaultValue({ deps, value }: { deps: SealedCredentialKeyDeps; value: VaultCredentialValue }): Promise<number> {
   if (!value.record) return mutateOther({ deps, value });
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const record = await repo.find(value.record);
   if (!record) return 0;
   if (OPTIONAL_ENVELOPES.has(record.kind)) {
@@ -66,7 +67,7 @@ async function mutateOther({ deps, value, sealed }: {
   deps: SealedCredentialKeyDeps; value: VaultCredentialValue; sealed?: { keyId: string; ciphertext: string; nonce: string; alg: string };
 }): Promise<number> {
   const { ref } = value;
-  const siblings = siblingColumns(ref.column);
+  const siblings = siblingColumns({ column: ref.column });
   const envelope = value.guard ?? { [ref.column]: value.ciphertext };
   const guards = Object.entries(envelope).map(([column, value]) => value === null
     ? sql`${sql.id(column)} IS NULL` : sql`${sql.id(column)}=${value}`);

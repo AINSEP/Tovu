@@ -35,7 +35,7 @@ export async function runBootDataRepairs(
     removeUnreadableOwnerEntries: unreadable = removeUnreadableOwnerEntries,
     logError = console.error,
   } = optional;
-  const stampWatermark = kernelStampWatermark(kernel);
+  const stampWatermark = kernelStampWatermark({ kernel });
   await footer({ kernel, stampWatermark });
   try {
     await unreadable({ kernel, stampWatermark });

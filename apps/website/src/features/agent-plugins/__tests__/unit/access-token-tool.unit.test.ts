@@ -8,7 +8,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -17,7 +17,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 
@@ -313,7 +313,7 @@ test("AC-12: once saved and enabled, the account-wide row carries the token only
   assert.equal(result.saved, true);
   await enableRow(env);
 
-  const after = await readEnabledExternalMcpConfigs({ repo: env.repo, sealer: env.sealer }, WORKSPACE);
+  const after = await readEnabledExternalMcpConfigs({ deps: { repo: env.repo, sealer: env.sealer }, workspaceId: WORKSPACE });
   assert.equal(after.configs.length, 1);
   const target = after.configs[0]!.target;
   assert.equal(target.kind, "streamable_http");
@@ -385,7 +385,7 @@ test("a store failure after a successful probe is redacted and leaves the previo
   const env = await setup();
   const { pending, exchangeId, emitted } = await raise(env.tools);
   const before = await env.readRow();
-  const writes = t.mock.method(env.repo, "upsert", async () => { throw new Error(`store failed ${TOKEN}`); });
+  const writes = t.mock.method(env.repo, "updateIfVersion", async () => { throw new Error(`store failed ${TOKEN}`); });
   env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN });
   const result = await pending;
   assert.deepEqual(result, { saved: false, reason: "error", message: "The access token could not be saved. Nothing was changed." });

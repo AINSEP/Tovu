@@ -10,8 +10,8 @@ test("site card remaps eval ground truth and reads by folder name with serving c
   const deps: Deps = { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
     siteBinding: { dir: site.dir, name: "alpha", dirOverridden: false, switcherCompatible: true },
     listSites: () => { reads++; return [site]; }, readPersistedActiveSite: () => "beta", isSiteSwitcherEnabled: () => false };
-  const card = () => deriveContentReadRegistrations(buildRegistrations(deps)).find(r => r.descriptor.id === "content_read.site")!;
-  assert.equal(currentToolIdFor("sites_list"), "content_read.site");
+  const card = () => deriveContentReadRegistrations({ sourceRegistrations: buildRegistrations(deps) }).find(r => r.descriptor.id === "content_read.site")!;
+  assert.equal(currentToolIdFor({ toolId: "sites_list" }), "content_read.site");
   assert.ok(card());
   const ctx = (input: unknown) => ({ input, principal: { id: "owner" } } as ToolExecutionContext);
   const listed = await card().handler(ctx({})) as { sites: unknown[]; persistedSiteName: string };

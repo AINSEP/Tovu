@@ -6,7 +6,7 @@ import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "../../lib/agent-screensh
 import { PUBLISH_CONTENT_CAPABILITY, type PublishRequestResult } from "@tovu/publish-content-ui";
 
 /**
- * @file `App.hooks.tsx`'s `buildAdminCapabilityExecutors` — the `executors` map
+ * @file `App.hooks.ts`'s `buildAdminCapabilityExecutors` — the `executors` map
  * `useAgentPageBridge` registers under `createFrontendSessionBridge`'s `"admin."` prefix (see that
  * hook's own doc comment, and `agent-screenshot.ts`'s module doc for the capability this answers).
  *
@@ -17,7 +17,7 @@ import { PUBLISH_CONTENT_CAPABILITY, type PublishRequestResult } from "@tovu/pub
 
 describe("buildAdminCapabilityExecutors", () => {
   it("registers exactly one prefix, 'admin.'", () => {
-    const executors = buildAdminCapabilityExecutors(null, vi.fn());
+    const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn() });
     expect(Object.keys(executors)).toEqual(["admin."]);
   });
 
@@ -27,7 +27,7 @@ describe("buildAdminCapabilityExecutors", () => {
     const renderElementToCanvas = vi.fn().mockResolvedValue({
       toDataURL: () => `data:image/jpeg;base64,${"A".repeat(100)}`,
     });
-    const executors = buildAdminCapabilityExecutors(element, renderElementToCanvas);
+    const executors = buildAdminCapabilityExecutors({ contentEl: element }, { renderElementToCanvas });
 
     const result = (await executors["admin."]!(ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, {})) as { content: unknown[] };
 
@@ -39,7 +39,7 @@ describe("buildAdminCapabilityExecutors", () => {
   });
 
   it("rejects an unrecognized id under the 'admin.' prefix by name, rather than silently returning nothing", async () => {
-    const executors = buildAdminCapabilityExecutors(null, vi.fn());
+    const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn() });
 
     await expect(executors["admin."]!("admin.something_else", {})).rejects.toThrow(/admin\.something_else/);
   });
@@ -47,13 +47,13 @@ describe("buildAdminCapabilityExecutors", () => {
   it("announces a successful capture on the screenshot-captured bus", async () => {
     resetScreenshotCapturedBus();
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
     const element = document.createElement("main");
     document.body.appendChild(element);
     const renderElementToCanvas = vi.fn().mockResolvedValue({
       toDataURL: () => `data:image/jpeg;base64,${"A".repeat(100)}`,
     });
-    const executors = buildAdminCapabilityExecutors(element, renderElementToCanvas);
+    const executors = buildAdminCapabilityExecutors({ contentEl: element }, { renderElementToCanvas });
 
     await executors["admin."]!(ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, {});
 
@@ -65,9 +65,9 @@ describe("buildAdminCapabilityExecutors", () => {
   it("does NOT announce on the bus when capture fails (nothing was actually seen)", async () => {
     resetScreenshotCapturedBus();
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
     // `element: null` -> captureAdminScreenshotToolResult's own "no admin content area" failure path.
-    const executors = buildAdminCapabilityExecutors(null, vi.fn());
+    const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn() });
 
     await executors["admin."]!(ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, {});
 
@@ -90,7 +90,7 @@ describe("buildAdminCapabilityExecutors", () => {
       nextStep: "Check the list in the Publish dialog, then click Publish.",
     };
     const requestPublish = vi.fn().mockResolvedValue(planned);
-    const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+    const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn(), requestPublishFn: requestPublish });
 
     const result = await executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: ["page"], overwrite: true });
 
@@ -100,7 +100,7 @@ describe("buildAdminCapabilityExecutors", () => {
 
   it("admin.publish_content rejects a bad input", async () => {
     const requestPublish = vi.fn();
-    const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+    const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn(), requestPublishFn: requestPublish });
 
     await expect(executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: "page" })).rejects.toThrow(
       "admin.publish_content: 'types' must be an array of strings"
@@ -112,7 +112,7 @@ describe("buildAdminCapabilityExecutors", () => {
     vi.useFakeTimers();
     try {
       const requestPublish = vi.fn(() => new Promise<PublishRequestResult>(() => {}));
-      const executors = buildAdminCapabilityExecutors(null, vi.fn(), requestPublish);
+      const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn(), requestPublishFn: requestPublish });
       const settled = vi.fn();
       const result = executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, { types: ["page"] });
       void result.then(settled);
@@ -140,7 +140,7 @@ describe("buildAdminCapabilityExecutors", () => {
     vi.useFakeTimers();
     try {
       const planned = { opened: true, planned: true };
-      const executors = buildAdminCapabilityExecutors(null, vi.fn(), vi.fn().mockResolvedValue(planned));
+      const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn(), requestPublishFn: vi.fn().mockResolvedValue(planned) });
       await expect(executors["admin."]!(PUBLISH_CONTENT_CAPABILITY.id, {})).resolves.toEqual(planned);
       expect(vi.getTimerCount()).toBe(0);
     } finally {

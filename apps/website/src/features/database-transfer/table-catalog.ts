@@ -2,8 +2,7 @@ import { is, SQL } from "drizzle-orm";
 import { getTableConfig, PgDialect, type IndexedColumn, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
-import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-source.js";
-import { quoteIdent } from "@jini-ai/db/transfer";
+import { quoteIdent, type SourceColumn, type SourceTableLayout, type TransferSource } from "@jini-ai/db/transfer";
 
 /**
  * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}
@@ -23,7 +22,7 @@ export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, 
 import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
 
-function quoteLiteral(value: string): string {
+function quoteLiteral({ value }: { value: string }, _options = {}): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
@@ -31,7 +30,7 @@ function coreDefault(column: PgColumn): string | undefined {
   if (!column.hasDefault || column.default === undefined) return undefined;
   const value: unknown = column.default;
   if (is(value, SQL)) return dialect.sqlToQuery(value).sql;
-  if (typeof value === "string") return quoteLiteral(value);
+  if (typeof value === "string") return quoteLiteral({ value });
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   throw new Error(`schema.postgres.ts: '${column.name}' has a default this copier cannot write`);
 }
@@ -53,11 +52,19 @@ function coreColumn(column: PgColumn): TransferColumn {
 function coreIndexes(cfg: ReturnType<typeof getTableConfig>): TransferIndex[] {
   const declared = cfg.indexes.map((index) => ({
     name: index.config.name ?? `${cfg.name}_idx`,
-    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => (column as IndexedColumn).name!),
+    columns: index.config.columns.filter(column => !is(column, SQL)).map(column => {
+      const name = (column as IndexedColumn).name;
+      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
+      return name;
+    }),
     // Drizzle's index rendering omits table qualifiers. Only the developer-owned schema supplies
     // expressions; introspected plugin expressions remain excluded by Jini's snapshot planner.
-    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column =>
-      is(column, SQL) ? `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})` : quoteIdent({ name: (column as IndexedColumn).name! })) } : {}),
+    ...(index.config.columns.some(column => is(column, SQL)) ? { expressions: index.config.columns.map(column => {
+      if (is(column, SQL)) return `(${dialect.sqlToQuery(new SQL(column.queryChunks).inlineParams(), "indexes").sql})`;
+      const name = (column as IndexedColumn).name;
+      if (name === undefined) throw new Error(`Index ${index.config.name ?? cfg.name} has a column with no name`);
+      return quoteIdent({ name });
+    }) } : {}),
     unique: index.config.unique,
     // Only the developer-owned Postgres schema supplies SQL; plugin predicates stay excluded.
     ...(index.config.where === undefined ? {} : { where: dialect.sqlToQuery(index.config.where).sql }),
@@ -171,7 +178,7 @@ export function planChatSnapshotTables(source: TransferSource): SnapshotTablePla
     secretColumnPattern: /(?!)/,
   } });
   return { ...plan, tables: [...plan.tables].sort((a, b) => {
-    const rank = (name: string) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
-    return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+    const rank = ({ name }: { name: string }, _options = {}) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
+    return rank({ name: a.name }) - rank({ name: b.name }) || a.name.localeCompare(b.name);
   }) };
 }

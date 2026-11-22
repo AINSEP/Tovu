@@ -1,6 +1,7 @@
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET every currently-bound widget region (SPEC-043 REQ-11/12), `widgets.read`-gated — backs
@@ -10,15 +11,12 @@ import type { RouteRegistrar } from "#src/server/routes/types";
  * `repo.memory.ts`'s `markInactive`) — a separate "list every widget_area entry including
  * currently-unbound ones" view is not built in this pass, disclosed rather than silently omitted.
  */
-export const registerAdminWidgetRegionsListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionsListRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.read", res });
       if (!principal) return;
       const bindings = await deps.widgetBindingRepo.listByWorkspace({ workspaceId: deps.workspaceId });
       const regions = await Promise.all(
@@ -30,7 +28,7 @@ export const registerAdminWidgetRegionsListRoute: RouteRegistrar = (app, deps) =
       );
       res.status(200).json({ regions });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

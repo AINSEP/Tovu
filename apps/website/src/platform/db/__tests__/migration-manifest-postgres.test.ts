@@ -309,7 +309,7 @@ test("reseedSequenceSql, executed after a copy that preserved original ids, make
   const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_posts (id, title) OVERRIDING SYSTEM VALUE VALUES (1, 'a'), (2, 'b'), (5, 'e');` });
   assert.equal(bulkCopy.ok, true, bulkCopy.stderr);
 
-  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_posts", "id") });
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql({ sqlTableName: "fx_posts", sqlColumnName: "id" }) });
   assert.equal(reseed.ok, true, reseed.stderr);
 
   const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_posts (title) VALUES ('next') RETURNING id;` });
@@ -321,7 +321,7 @@ test("reseedSequenceSql handles the empty-table edge case: reseeding an empty ta
   const create = psql({ database: FIXTURE_DB, sql: `CREATE TABLE fx_empty (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY, title text);` });
   assert.equal(create.ok, true, create.stderr);
 
-  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_empty", "id") });
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql({ sqlTableName: "fx_empty", sqlColumnName: "id" }) });
   assert.equal(reseed.ok, true, reseed.stderr);
 
   const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_empty (title) VALUES ('first') RETURNING id;` });
@@ -346,7 +346,7 @@ test("reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and 
   const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_nonpositive (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b');` });
   assert.equal(bulkCopy.ok, true, `the OLD reseedSequenceSql would still let this bulk copy through — the bug is in the reseed step, not the copy: ${bulkCopy.stderr}`);
 
-  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_nonpositive", "id") });
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql({ sqlTableName: "fx_nonpositive", sqlColumnName: "id" }) });
   assert.equal(reseed.ok, true, `reseed must succeed — the OLD formula failed here with "value 0 is out of bounds": ${reseed.stderr}`);
 
   const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_nonpositive (title) VALUES ('next') RETURNING id;` });
@@ -366,7 +366,7 @@ test("reseedSequenceSql: a mixed-sign table (some non-positive, some positive id
   const bulkCopy = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_mixed_sign (id, title) OVERRIDING SYSTEM VALUE VALUES (-1, 'a'), (0, 'b'), (3, 'c');` });
   assert.equal(bulkCopy.ok, true, bulkCopy.stderr);
 
-  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql("fx_mixed_sign", "id") });
+  const reseed = psql({ database: FIXTURE_DB, sql: reseedSequenceSql({ sqlTableName: "fx_mixed_sign", sqlColumnName: "id" }) });
   assert.equal(reseed.ok, true, reseed.stderr);
 
   const insert = psql({ database: FIXTURE_DB, sql: `INSERT INTO fx_mixed_sign (title) VALUES ('next') RETURNING id;` });

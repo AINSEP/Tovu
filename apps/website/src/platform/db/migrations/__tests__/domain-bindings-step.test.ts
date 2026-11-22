@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { DOMAIN_BINDINGS_ID } from "../0024_domain_bindings.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
@@ -20,8 +20,8 @@ const AT = "2026-10-21T12:00:00.000Z";
 
 for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
-  const withKernel = async (body: (kernel: StorageKernel<unknown>) => Promise<void>) => {
-    const kernel = adapter.make() as StorageKernel<unknown>;
+  const withKernel = async (body: (kernel: KyselyKernel<unknown>) => Promise<void>) => {
+    const kernel = adapter.make() as KyselyKernel<unknown>;
     try {
       await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('w', 'W', 'w', ${AT}), ('w2', 'W2', 'w2', ${AT})`);
       await body(kernel);
@@ -29,7 +29,7 @@ for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], ma
       if (name === "sqlite") await kernel.close();
     }
   };
-  const bindingRow = (kernel: StorageKernel<unknown>, workspace: string, status = "pending") =>
+  const bindingRow = (kernel: KyselyKernel<unknown>, workspace: string, status = "pending") =>
     kernel.execute(sql`INSERT INTO domain_binding (workspace_id, hostname, zone, requirements_json, status, started_at, created_at, updated_at)
       VALUES (${workspace}, 'www.example.com', 'example.com', '[]', ${status}, ${AT}, ${AT}, ${AT})`);
 
@@ -40,8 +40,8 @@ for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], ma
     assert.equal(step.checksum, MIGRATION_CHECKSUMS[DOMAIN_BINDINGS_ID]);
     await kernel.execute(sql.raw("DROP TABLE domain_binding"));
     const options = { ledgerTable: "domain_bindings_step_contract_migrations" };
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [DOMAIN_BINDINGS_ID]);
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [], "a second run applies nothing");
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [DOMAIN_BINDINGS_ID]);
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [], "a second run applies nothing");
     assert.deepEqual(await kernel.query(sql`SELECT * FROM domain_binding`), []);
   }));
 

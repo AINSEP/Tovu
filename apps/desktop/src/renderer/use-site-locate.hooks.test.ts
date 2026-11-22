@@ -14,7 +14,7 @@ const FOUND = { id: '/sites/tovu-dev', folderMissing: false } as unknown as Site
 test('a located folder resolves with main\'s record at its new id', async () => {
   const asked: string[] = [];
   const result = await performSiteFolderAction({ id: '/sites/tovu-com', bridge: {
-    locateSite: async (id) => {
+    locateSite: async ({ id }, _options = {}) => {
       asked.push(id);
       return FOUND;
     },
@@ -56,14 +56,14 @@ test('the locate hook shows pending/error state and delivers the found record wi
   let settle!: (record: SiteRecord) => void;
   let reject!: (error: Error) => void;
   const asked: string[] = [];
-  dom.window.tovuRunner = { locateSite: (id: string) => {
+  dom.window.tovuRunner = { locateSite: ({ id }: { id: string }, _options = {}) => {
     asked.push(id);
     return new Promise<SiteRecord>((resolve, refuse) => { settle = resolve; reject = refuse; });
   } };
   let latest!: ReturnType<typeof useSiteLocate>;
   const delivered: unknown[] = [];
   const onLocated = (record: SiteRecord, previousId: string) => delivered.push([record, previousId]);
-  function Probe() { latest = useSiteLocate(onLocated); return null; }
+  function Probe() { latest = useSiteLocate({}, { onLocated }); return null; }
   const root = createRoot(dom.window.document.getElementById('root')!);
   t.after(() => {
     act(() => root.unmount());
@@ -75,17 +75,17 @@ test('the locate hook shows pending/error state and delivers the found record wi
   });
   act(() => root.render(createElement(Probe)));
   let pending!: Promise<void>;
-  act(() => { pending = latest.locate('/sites/missing'); });
+  act(() => { pending = latest.locate({ id: '/sites/missing' }); });
   assert.equal(latest.locatingId, '/sites/missing');
   await act(async () => { reject(new Error('Folder is incomplete')); await pending; });
-  assert.equal(latest.errorOf('/sites/missing'), 'Folder is incomplete');
+  assert.equal(latest.errorOf({ id: '/sites/missing' }), 'Folder is incomplete');
   assert.equal(latest.locatingId, null);
   assert.deepEqual(delivered, []);
-  act(() => { pending = latest.locate('/sites/missing'); });
+  act(() => { pending = latest.locate({ id: '/sites/missing' }); });
   await act(async () => { settle(FOUND); await pending; });
   assert.deepEqual(asked, ['/sites/missing', '/sites/missing']);
   assert.deepEqual(delivered, [[FOUND, '/sites/missing']]);
-  assert.equal(latest.errorOf('/sites/missing'), null);
+  assert.equal(latest.errorOf({ id: '/sites/missing' }), null);
   assert.equal(latest.locatingId, null);
 
 });

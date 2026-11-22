@@ -16,21 +16,24 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
  * under `apps/website/` has to change for the desktop shell to exist.
  */
 import { redactSecrets } from "@jini-ai/core";
-import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { orFallback } from "@jini-ai/core/errors/idioms";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import fs from "node:fs";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
-import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";
-import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
+import { omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import { provideNodeStartupSecrets, splitNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
-import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../website/src/server/runtime/boot/startup-secrets.ts';
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '@tovu/contracts/startup-secret-keys';
 import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import { waitForChildReady, stopSpawnedChild, createChildExitSignal } from "@jini-ai/sidecar/supervisor/node";
+import { createBootOutputSink, describeServeReadinessFailure } from "./tovu-server.output.ts";
+import type { BootState } from "./tovu-server.output.ts";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** `apps/website/src/cli/commands/serve.ts`'s documented startup line (api.spec.md §5). */
@@ -51,19 +54,16 @@ const BOOT_TOKEN_LINE = /^tovu serve: bootToken=(\S+)$/m;
  *  puts in an error — see {@link redactBootToken}. */
 const BOOT_TOKEN_LINE_GLOBAL = /^tovu serve: bootToken=\S*\r?\n?/gm;
 
-/** The most child output one mirror write or one boot-failure message echoes. */
-const MAX_ECHOED_OUTPUT_CHARS = 2_000;
-
 /**
  * `text` with any boot-token line removed and remaining secret values redacted.
  *
  * The token must never reach the parent's own stdout, a log file, or an `Error` message: the E2E
- * suite captures child output, and `describeBootFailure` puts accumulated output straight into a
+ * suite captures child output, and `describeServeReadinessFailure` puts accumulated output straight into a
  * thrown error. Stripped at every egress rather than trusting each call site to remember.
  *
  * @complexity O(n) in the text length.
  */
-function redactBootToken(text: string): string {
+function redactBootToken({ text }: { text: string }, _options = {}): string {
   return redactLocalText({ text: redactSecretShapes({ text: text.replace(BOOT_TOKEN_LINE_GLOBAL, "") }).text });
 }
 
@@ -71,9 +71,9 @@ function redactBootToken(text: string): string {
  * The boot token from accumulated child output, or `null` when none was printed.
  * @complexity O(n) in the text length.
  */
-function parseBootToken(text: string): string | null {
+function parseBootToken({ text }: { text: string }, _options = {}): string | null {
   const match = BOOT_TOKEN_LINE.exec(text);
-  return match === null ? null : match[1]!;
+  return match === null || match[1] === undefined ? null : match[1];
 }
 
 /** `apps/website/src/cli/errors.ts`'s single stderr line — `stderrLine()` builds exactly this shape. */
@@ -109,10 +109,10 @@ interface BootLineFields {
  * @returns the reported fields, or `null` if the line has not been printed yet.
  * @complexity O(n) in `text` length per call.
  */
-function parseBootLine(text: string): BootLineFields | null {
+function parseBootLine({ text }: { text: string }, _options = {}): BootLineFields | null {
   const match = BOOT_LINE.exec(text);
-  if (match === null) return null;
-  return { dir: match[1]!, port: Number(match[2]!), schemaVersion: Number(match[3]!), workspaceId: match[4]! };
+  if (match === null || match[1] === undefined || match[2] === undefined || match[3] === undefined || match[4] === undefined) return null;
+  return { dir: match[1], port: Number(match[2]), schemaVersion: Number(match[3]), workspaceId: match[4] };
 }
 
 /** The fields {@link CLI_ERROR_LINE} captures, parsed. */
@@ -128,9 +128,9 @@ interface CliErrorFields {
  * @returns `{ code, message }`, or `null` when the child failed without printing one.
  * @complexity O(n) in `text` length per call.
  */
-function parseCliErrorLine(text: string): CliErrorFields | null {
+function parseCliErrorLine({ text }: { text: string }, _options = {}): CliErrorFields | null {
   const match = CLI_ERROR_LINE.exec(text);
-  return match === null ? null : { code: match[1]!, message: match[2]! };
+  return match === null || match[1] === undefined || match[2] === undefined ? null : { code: match[1], message: match[2] };
 }
 
 /** The one field this module reads out of the repo's own `package.json`. */
@@ -150,7 +150,7 @@ interface TovuPackageManifest {
  * @throws {Error} when the manifest has no `bin.tovu`, or the entry it names is not built yet.
  * @complexity O(1).
  */
-function resolveCliEntry(repoRoot: string): string {
+function resolveCliEntry({ repoRoot }: { repoRoot: string }, _options = {}): string {
   const manifestPath = path.join(repoRoot, "package.json");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as TovuPackageManifest;
   if (typeof manifest.bin?.tovu !== "string") {
@@ -185,7 +185,7 @@ function resolveCliEntry(repoRoot: string): string {
  *   at all, which "packaged" mode would use instead — see {@link buildCliSpawnPlan}).
  * @complexity O(1).
  */
-function resolveDevCliEntry(repoRoot: string): string {
+function resolveDevCliEntry({ repoRoot }: { repoRoot: string }, _options = {}): string {
   const entry = path.join(repoRoot, "apps", "website", "src", "cli", "main.ts");
   if (!fs.existsSync(entry)) {
     throw new Error(`Tovu's CLI source is missing: ${entry} does not exist.`);
@@ -255,9 +255,9 @@ function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
   if (cliMode === "source") {
     const scripts = path.join(input.repoRoot, "development", "scripts");
     return { command: process.execPath, args: [...nodeArgs, "--import", pathToFileURL(path.join(scripts, "dev-tsx-loader.mjs")).href,
-      "--import", pathToFileURL(path.join(scripts, "dev-source-maps-off.mjs")).href, resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
+      "--import", pathToFileURL(path.join(scripts, "dev-source-maps-off.mjs")).href, resolveDevCliEntry({ repoRoot: input.repoRoot }), ...input.cliArgs] };
   }
-  return { command: process.execPath, args: [...nodeArgs, resolveCliEntry(input.repoRoot), ...input.cliArgs] };
+  return { command: process.execPath, args: [...nodeArgs, resolveCliEntry({ repoRoot: input.repoRoot }), ...input.cliArgs] };
 }
 
 /**
@@ -553,7 +553,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
     env.TOVU_AGENT_CWD = input.siteDir;
   }
 
-  applyRepoRootDefaults(env, repoRoot);
+  applyRepoRootDefaults({ env, repoRoot });
 
   applyAdminDevProxyEnv({ env, adminDevProxyUrl: input.adminDevProxyUrl });
 
@@ -616,11 +616,11 @@ function applyAdminDevProxyEnv({ env, adminDevProxyUrl }: {
  * them yields to a value the operator already set. Split out of `buildServeEnv` only to keep that
  * function under the complexity ceiling; the rules are unchanged.
  *
- * @param env the env being built, mutated in place.
- * @param repoRoot the repo root the defaults are resolved against.
+ * @param required.env the env being built, mutated in place.
+ * @param required.repoRoot the repo root the defaults are resolved against.
  * @complexity O(1); two `existsSync` probes.
  */
-function applyRepoRootDefaults(env: NodeJS.ProcessEnv, repoRoot: string): void {
+function applyRepoRootDefaults({ env, repoRoot }: { env: NodeJS.ProcessEnv; repoRoot: string }, _options = {}): void {
   const adminDist = path.join(repoRoot, "apps", "admin", "dist");
   if (!env.TOVU_ADMIN_DIST && fs.existsSync(adminDist)) {
     env.TOVU_ADMIN_DIST = adminDist;
@@ -687,176 +687,26 @@ interface SpawnedChild {
 /**
  * Default win32 tree-kill escalation: `taskkill /pid <pid> /T /F`.
  *
+ * On polite Stop, serve.ts runs BR-07: stop accepting, finish in-flight work,
+ * shutdownAssistantDaemon(), then close the SQLite handle. A wedged child has not reaped its
+ * daemon, so force must target the whole group/tree. Without a Windows stdin pipe, tree kill
+ * is the first request: direct-child termination would cancel escalation and orphan the daemon.
+ * SQLite's journal makes that forced shutdown safe. A missing taskkill or vanished pid falls
+ * back to direct-child termination, while Stop still requires observed exit.
+ *
  * Windows has no process groups — the `detached: true` spawn binds no group there the way it does
- * on POSIX, so {@link stopChild}'s POSIX `process.kill(-pid, "SIGKILL")` escalation has nothing to
+ * on POSIX, so {@link stopSpawnedChild}'s POSIX `process.kill(-pid, "SIGKILL")` escalation has nothing to
  * target and would only ever reach the immediate `tovu serve` process, orphaning its agent-daemon
  * grandchild exactly the way plan item W7 describes. `/T` walks the whole tree taskkill itself
  * spawned, the same intent as the negative-pid signal on POSIX; `/F` forces it, matching SIGKILL.
  *
- * @param pid the child's own pid (never negated — there is no process-group id to negate on win32).
+ * @param required.pid the child's own pid (never negated — there is no process-group id to negate on win32).
  * @complexity O(1); delegates to the OS via a synchronous child process.
  */
-function taskkillTree(pid: number): void {
+function taskkillTree({ pid }: { pid: number }, _options = {}): void {
   const command = resolveOnPath({ bin: 'taskkill' });
   if (command === null) throw new Error('taskkill executable is unavailable.');
   execFileSync(command, ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
-}
-
-/**
- * Terminate a spawned `tovu serve` and everything it spawned, then resolve once it is really gone.
- *
- * SIGTERM goes to the child itself, because `serve.ts` handles it with a real graceful drain
- * (BR-07: stop accepting, finish in-flight, `shutdownAssistantDaemon()`, close the sqlite handle) —
- * that path also reaps the agent daemon, so the polite signal is the *complete* one. SIGKILL is the
- * escalation, and it goes to the process **group** (`-pid`, which the `detached: true` spawn makes
- * available) on POSIX: a `tovu serve` wedged badly enough to ignore SIGTERM has not run its own
- * shutdown, so its daemon child is exactly what would be left behind. On win32 there is neither a
- * process group nor a polite signal: a child spawned with a stdin pipe (the real one) is asked to stop by
- * closing that pipe (`serve.ts` runs the same drain on its end) and tree-killed after the grace;
- * without one the injected `killTree(pid)` (production default: {@link taskkillTree}) runs
- * IMMEDIATELY instead of SIGTERM — see {@link killWin32Tree} for why it cannot wait for the grace.
- *
- * @param input the spawned child and graceful/forced-exit wait bound in milliseconds.
- * @param options.platform selects the escalation primitive; defaults to the real `process.platform`. Test
- *   seam so the win32 branch is exercised on any host.
- * @param options.killTree win32-only tree-kill, defaulting to {@link taskkillTree}. Never called on POSIX.
- * @throws {Error} if no exit event arrives within another `graceMs` after escalation. The caller
- *   must retain its crash-recovery row: requesting SIGKILL does not prove the process has exited.
- * @complexity O(1) time/space; waits at most twice `graceMs`.
- */
-function stopChild(
-  { child, graceMs }: { child: SpawnedChild; graceMs: number },
-  { platform = process.platform, killTree = taskkillTree }: {
-    platform?: NodeJS.Platform; killTree?: (pid: number) => void;
-  } = {},
-): Promise<void> {
-  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
-
-  return new Promise((resolve, reject) => {
-    let exitTimer: ReturnType<typeof setTimeout> | undefined;
-    let signalError: unknown;
-    const timer = setTimeout(() => {
-      // Keep listening after the kill request; the OS may deliver exit later. Bound that wait
-      // separately so a failed signal or missing exit is reported instead of claiming success.
-      exitTimer = setTimeout(() => {
-        child.removeListener("exit", onExit);
-        reject(new Error(`tovu serve (pid ${child.pid}) did not exit within ${graceMs}ms after forced Stop.`, { cause: signalError }));
-      }, graceMs);
-      try {
-        if (platform === "win32") {
-          if (child.stdin) killWin32Tree(child, killTree);
-        } else {
-          // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
-          process.kill(-child.pid!, "SIGKILL");
-        }
-      } catch (error) {
-        // Even ESRCH is not the exit event. Await it, or report the failure at the bound.
-        signalError = error;
-      }
-    }, graceMs);
-
-    const onExit = () => {
-      clearTimeout(timer);
-      clearTimeout(exitTimer);
-      resolve();
-    };
-    child.once("exit", onExit);
-
-    try {
-      if (platform === "win32") {
-        // EPIPE when the child exits first must not become an unhandled stream error.
-        if (child.stdin) child.stdin.once("error", () => undefined).end();
-        else killWin32Tree(child, killTree);
-      } else {
-        child.kill("SIGTERM");
-      }
-    } catch (error) {
-      // A failed polite signal still needs escalation and exit confirmation.
-      signalError = error;
-    }
-  });
-}
-
-/**
- * {@link stopChild}'s win32 stop, run FIRST rather than as an escalation. Node on Windows ignores
- * the signal name in `child.kill(...)` and terminates the direct child at once, so sending that
- * first would fire `exit`, clear the escalation timer, and leave the agent-daemon grandchild
- * orphaned (plan item W7). There is no graceful signal a console child can receive on win32, so
- * without a stdin pipe to close the forced tree kill is the whole stop; SQLite's journal is what
- * makes that safe. A failing
- * `taskkill` (missing binary, pid already gone) falls back to the direct-child kill.
- *
- * @complexity O(1); delegates to the OS.
- */
-function killWin32Tree(child: SpawnedChild, killTree: (pid: number) => void): void {
-  try {
-    // `!`: `stopChild` only runs on an already-spawned child, so it has a pid.
-    killTree(child.pid!);
-  } catch {
-    child.kill("SIGTERM");
-  }
-}
-
-/** Compose the most useful failure message available: Tovu's own error line, else the raw tail.
- *  `output` is the whole (redacted) text: Tovu prints its error line last, so only the fallback
- *  tail is capped (from its start, where a native fatal error names itself), never the text
- *  searched for that line. */
-function describeBootFailure(output: string, fallback: string): string {
-  const cliError = parseCliErrorLine(output);
-  if (cliError !== null) return `tovu serve failed: ${cliError.code}: ${cliError.message}`;
-  const tail = output.trim().split("\n").slice(-5).join("\n").slice(0, MAX_ECHOED_OUTPUT_CHARS);
-  return tail.length > 0 ? `${fallback}\n${tail}` : fallback;
-}
-
-/** One child exit, as {@link createExitSignal} replays it. */
-interface ExitOutcome {
-  code: number | null;
-  signal: NodeJS.Signals | null;
-}
-
-/** What {@link createExitSignal} returns. */
-interface ExitSignal {
-  onExit(listener: (exit: ExitOutcome) => void): void;
-}
-
-/**
- * A one-shot, replayable exit signal for a spawned child.
- *
- * The gap this closes (D-06): the only `exit` listener {@link startTovuServer} had fed its
- * single-settle `finish()`, which is a NO-OP once the boot line has already resolved the promise.
- * So nothing in this process observed a child dying AFTER it came up — `main.ts`'s `openSites`
- * kept the dead handle, `buildSiteRecord` kept reporting `running`, and "Start site" handed the
- * corpse straight back instead of spawning a replacement.
- *
- * REPLAYING rather than just forwarding is the load-bearing part. A supervisor attaches its
- * listener after `startTovuServer` resolves, and a child is free to die inside that gap; a plain
- * `child.once("exit", listener)` registered then would never fire, and the entry would be wedged
- * "running" for the whole session — the very state this exists to prevent. Registering the capture
- * here, immediately after `spawn` and before any `await`, means there is no instant at which an
- * exit can go unrecorded.
- *
- * @returns `{ onExit }` — `onExit(listener)` calls `listener({code, signal})` when the child exits,
- *   or immediately if it already has. Listeners fire once each and are then dropped.
- * @complexity O(1) per registration; O(n) in registered listeners at exit time.
- */
-function createExitSignal(child: SpawnedChild): ExitSignal {
-  let exit: ExitOutcome | null = null;
-  const waiting: Array<(exit: ExitOutcome) => void> = [];
-
-  child.once("exit", (code, signal) => {
-    exit = { code, signal };
-    for (const listener of waiting.splice(0)) listener(exit);
-  });
-
-  return {
-    onExit(listener) {
-      if (exit !== null) {
-        listener(exit);
-        return;
-      }
-      waiting.push(listener);
-    },
-  };
 }
 
 /** Injectable `child_process.spawn` — the test seam. See {@link SpawnedChild}. */
@@ -891,24 +741,24 @@ interface StartTovuServerInput {
   /** Runtime-only server capability from the spawning main, never ambient CLI environment. */
   desktopMcpEnv?: Record<string, string>;
   emitBootToken?: boolean;
-  /** Test seam: injects the OS platform {@link stopChild} branches its kill escalation on. Defaults
+  /** Test seam: injects the OS platform {@link stopSpawnedChild} branches its kill escalation on. Defaults
    *  to the real `process.platform`; production never passes this. */
   platform?: NodeJS.Platform;
-  /** Test seam: win32-only tree-kill passed through to {@link stopChild}. Defaults to `taskkill /pid
+  /** Test seam: win32-only tree-kill passed through to {@link stopSpawnedChild}. Defaults to `taskkill /pid
    *  <pid> /T /F`; production never passes this. */
-  killTree?: (pid: number) => void;
+  killTree?: (required: { pid: number }) => void;
 }
 
 /** Configure the owned server's process group and platform-specific stop channel.
  * @complexity O(e) time/space on Windows for e environment entries; O(1) on POSIX.
  */
 function buildServeSpawnOptions({ env, platform }: { env: NodeJS.ProcessEnv; platform: NodeJS.Platform | undefined }, _options = {}): SpawnOptions {
-  // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
+  // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopSpawnedChild`).
   const win32 = (platform ?? process.platform) === "win32";
   return {
     env: win32 ? { ...env, TOVU_STOP_ON_STDIN_EOF: "1" } : env,
     stdio: [win32 ? "pipe" : "ignore", "pipe", "pipe", "ipc"],
-    // Own process group, so `stopChild`'s SIGKILL escalation can reap the agent daemon
+    // Own process group, so `stopSpawnedChild`'s SIGKILL escalation can reap the agent daemon
     // `tovu serve` spawns rather than just the immediate child. Same reason
     // `development/scripts/dev.mjs` and `daemon-supervisor.ts` both detach.
     detached: true,
@@ -932,7 +782,7 @@ interface TovuServerHandle {
   ownerSignInCapability?: string;
   /** Resolve only after confirmed exit; reject if escalation's bounded exit wait expires. */
   stop(): Promise<void>;
-  onExit: ExitSignal["onExit"];
+  onExit: ReturnType<typeof createChildExitSignal>["onExit"];
   /** Private owned-child operation. False means busy/uncertain; never escalates or signals. */
   stopIfIdle?(required?: {}, optional?: {}): Promise<boolean>;
   /** Bounded redacted diagnostics only, including post-ready lines; no environment snapshots. */
@@ -964,21 +814,70 @@ interface TovuServerHandle {
  *   `admin-dev-proxy.ts`'s `resolveAdminDevProxyUrl` — which probes, and yields nothing when
  *   packaged — rather than passing a bare URL, since an unreachable origin turns `/admin/` into a
  *   502 rather than falling back. Omit to serve the built bundle exactly as before.
- * @param input.platform test seam forwarded to {@link stopChild}; defaults to `process.platform`.
- * @param input.killTree win32-only test seam forwarded to {@link stopChild}; defaults to
+ * @param input.platform test seam forwarded to {@link stopSpawnedChild}; defaults to `process.platform`.
+ * @param input.killTree win32-only test seam forwarded to {@link stopSpawnedChild}; defaults to
  *   {@link taskkillTree}.
  * @param input.nodeToolchainEnv forwarded to {@link buildServeEnv}'s field of the same name — the
  *   bundled node/npm toolchain's env contract. Omit to leave the child's env exactly as before.
  * @returns The authenticated site handle, explicit and guarded stops, bounded redacted `outputTail`,
- *   and `onExit`: the replayable post-ready liveness signal (see {@link createExitSignal}).
+ *   and `onExit`: the replayable post-ready liveness signal (see {@link createChildExitSignal}).
  * @throws {Error} when the CLI is unbuilt/missing, the boot line times out, or the child exits early.
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
 async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerHandle> {
-  const spawnFn: SpawnFn = input.spawnFn ?? nodeSpawn;
   const readyTimeoutMs = input.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const stopGraceMs = input.stopGraceMs ?? DEFAULT_STOP_GRACE_MS;
   const port = input.port ?? (await allocatePort());
+  const { child, serveEnv, startup } = spawnServeChild({ input, port });
+  const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
+  const exitSignal = createChildExitSignal({ child });
+  const state: BootState = { outputTail: "", bootToken: null };
+  const redactOutput = createBootRedactor({ startup, serveEnv, state });
+  // serve.ts drains SQLite and its daemon on polite Stop; forced Stop must reap the whole tree.
+  const stop = () => {
+    const { platform, killTree } = input;
+    return stopSpawnedChild({ child, graceMs: stopGraceMs, killTree: killTree ?? taskkillTree,
+      describeFailure: (failure) => failure.type === "timeout"
+        ? `tovu serve (pid ${failure.pid}) did not exit within ${failure.graceMs}ms after forced Stop.`
+        : failure.phase === "force" ? "tovu serve has no process id for forced stop" : "tovu serve has no process id for Windows tree stop",
+    }, { platform });
+  };
+  const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
+  return await waitForChildReady({ child, readyTimeoutMs, parseReady: parseBootLine,
+    onReady: ({ ready, text }) => {
+      agentBinding?.setIdentity({ siteId: ready.workspaceId }, {});
+      state.bootToken = parseBootToken({ text });
+    },
+    createOutputSink: ({ stream }) => createBootOutputSink({ stream, state, mirror, redactOutput }),
+    describeFailure: (failure) => describeServeReadinessFailure({ failure, redactOutput, parseCliErrorLine }),
+  }).then(({ ready: boot, pid }): TovuServerHandle => {
+    const origin = `http://127.0.0.1:${boot.port}`;
+    return {
+      port: boot.port,
+      pid,
+      origin,
+      adminUrl: `${origin}/admin/`,
+      workspaceId: boot.workspaceId,
+      schemaVersion: boot.schemaVersion,
+      // Printed BEFORE the boot line, so by the time this resolves it is already in the output
+      // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
+      // passed, which is every caller but the desktop shell.
+      bootToken: state.bootToken,
+      ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
+      stop,
+      onExit: exitSignal.onExit,
+      stopIfIdle: createStopIfIdle({ agentBinding, exitSignal, stopGraceMs }),
+      outputTail: (_required = {}, _optional = {}) => state.outputTail.slice(-16_384),
+    };
+  }).catch(async (error) => {
+    await stop();
+    throw error;
+  });
+}
+
+/** Build the serve command and env, spawn it, hand it its startup secrets, and drop them from the env. */
+function spawnServeChild({ input, port }: { input: StartTovuServerInput; port: number }, _optional = {}) {
+  const spawnFn: SpawnFn = input.spawnFn ?? nodeSpawn;
   const plan = buildCliSpawnPlan({
     repoRoot: input.repoRoot,
     cliMode: input.cliMode,
@@ -1011,112 +910,39 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   const delivery = provideNodeStartupSecrets({ peer: child as ChildProcess, secrets: startup.secrets });
   child.once('exit', () => delivery.dispose({}));
   child.once('error', () => delivery.dispose({}));
+  return { child, serveEnv, startup };
+}
 
-  const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
-
-  const exitSignal = createExitSignal(child);
-  let outputTail = "";
-  let bootToken: string | null = null;
+/** Redact every secret the child was given, plus its boot token once it is known. */
+function createBootRedactor(
+  { startup, serveEnv, state }: { startup: { secrets: Record<string, string> }; serveEnv: Record<string, string | undefined>; state: BootState },
+  _optional = {},
+): (required: { text: string }) => string {
   const exactSecrets = [...Object.values(startup.secrets), ...Object.entries(serveEnv)
     .filter(([key]) => /secret|token|password|credential|authorization|api.?key|owner.?signin/i.test(key))
     .map(([, value]) => value ?? "")];
-  const redactOutput = (text: string) => redactBootToken(redactSecrets({ input: text }, {
-    exactSecrets: bootToken ? [...exactSecrets, bootToken] : exactSecrets, redactPii: false,
-  }));
+  return ({ text }) => redactBootToken({ text: redactSecrets({ input: text }, {
+    exactSecrets: state.bootToken ? [...exactSecrets, state.bootToken] : exactSecrets, redactPii: false,
+  }) });
+}
 
-  /** Intake is already fenced on acceptance. Keep serialized wake behind confirmed exit, bounded
-   * without a kill: uncertainty can only defer maintenance, never interrupt an active chat.
-   * @complexity O(1) plus one private IPC request; at most one exit wait per accepted sleep.
-   */
-  async function stopIfIdle(_required = {}, _optional = {}): Promise<boolean> {
-    try {
+/** Intake is already fenced on acceptance. Keep serialized wake behind confirmed exit, bounded
+ * without a kill: uncertainty can only defer maintenance, never interrupt an active chat.
+ * @complexity O(1) plus one private IPC request; at most one exit wait per accepted sleep.
+ */
+function createStopIfIdle(
+  { agentBinding, exitSignal, stopGraceMs }: {
+    agentBinding: ReturnType<DesktopAgentService["bindServer"]> | undefined; exitSignal: ReturnType<typeof createChildExitSignal>; stopGraceMs: number;
+  },
+  _optional = {},
+): (required?: Record<string, never>, optional?: Record<string, never>) => Promise<boolean> {
+  return async () => orFallback({ work: async () => {
       if (!agentBinding || !(await agentBinding.stopIfIdle({}, {}))) return false;
-      return await new Promise(resolve => {
+      return await new Promise<boolean>(resolve => {
         const timer = setTimeout(() => resolve(false), stopGraceMs * 2);
-        exitSignal.onExit(exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); });
+        exitSignal.onExit({ listener: exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); } });
       });
-    } catch { return false; }
-  }
-
-  return await new Promise<TovuServerHandle>((resolve, reject) => {
-    let output = "";
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      if (finish()) reject(new Error(describeBootFailure(redactOutput(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`)));
-    }, readyTimeoutMs);
-
-    /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
-    function finish(): boolean {
-      if (settled) return false;
-      settled = true;
-      clearTimeout(timer);
-      return true;
-    }
-
-    const stop = () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
-
-    function readStream(stream: Readable, mirror: Writable): void {
-      stream.setEncoding("utf8");
-      // The framed sink redacts BEFORE either copy is retained or mirrored, even across chunks.
-      const safeMirror = createRedactedOutputSink({ sink: { write(safe: string) {
-        outputTail += safe;
-        // Amortize tail copies across small log lines; diagnostics expose only the latest 16 KiB.
-        if (outputTail.length > 32_768) outputTail = outputTail.slice(-16_384);
-        return mirror.write(safe);
-      } }, redact: redactOutput }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
-      stream.once("end", () => safeMirror.end());
-      stream.on("data", (chunk) => {
-        safeMirror.write(chunk);
-        if (settled) return;
-        if (output.length + chunk.length > 1_000_000) {
-          if (finish()) reject(new Error("tovu serve startup output exceeded the diagnostic limit."));
-          return;
-        }
-        output += chunk;
-
-        const boot = parseBootLine(output);
-        if (boot === null) return;
-        agentBinding?.setIdentity({ siteId: boot.workspaceId }, {});
-        const origin = `http://127.0.0.1:${boot.port}`;
-        if (!finish()) return;
-        bootToken = parseBootToken(output);
-        resolve({
-          port: boot.port,
-          pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
-          origin,
-          adminUrl: `${origin}/admin/`,
-          workspaceId: boot.workspaceId,
-          schemaVersion: boot.schemaVersion,
-          // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
-          // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
-          // passed, which is every caller but the desktop shell.
-          bootToken,
-          ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
-          stop,
-          onExit: exitSignal.onExit,
-          stopIfIdle,
-          outputTail: (_required = {}, _optional = {}) => outputTail.slice(-16_384),
-        });
-        output = ""; // Boot parsing is finished; retain only the bounded redacted tail now.
-      });
-    }
-
-    const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
-    readStream(child.stdout!, mirror.stdout);
-    readStream(child.stderr!, mirror.stderr);
-
-    child.once("error", (error) => { if (finish()) reject(error); });
-    child.once("exit", (code, signal) => {
-      if (!finish()) return;
-      const signalDetail = signal ? ` Signal: ${signal}.` : "";
-      const detail = `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signalDetail}`;
-      reject(new Error(describeBootFailure(redactOutput(output), detail)));
-    });
-  }).catch(async (error) => {
-    await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
-    throw error;
-  });
+    }, fallback: false, step: "desktop-stop-if-idle" });
 }
 
 export {
@@ -1130,7 +956,6 @@ export {
   buildCliSpawnPlan,
   buildServeEnv,
   allocatePort,
-  createExitSignal,
   startTovuServer,
   DEFAULT_READY_TIMEOUT_MS,
   DEFAULT_STOP_GRACE_MS,

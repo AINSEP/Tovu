@@ -7,7 +7,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openChatDb, openSiteChatDb } from "../chat-db.js";
-import { UnknownAppliedMigrationError } from "../../migrations/index.js";
+import { UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
 /**
  * @file Integration tests for the sidecar `chat.db` bootstrap, against a real temp-file SQLite
@@ -20,7 +20,7 @@ import { UnknownAppliedMigrationError } from "../../migrations/index.js";
 function openTempChatDb() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "chat-db-"));
   const filePath = path.join(tmpDir, "chat.db");
-  const db = openChatDb(filePath);
+  const db = openChatDb({ filePath });
   return { db, filePath, tmpDir };
 }
 
@@ -43,12 +43,12 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
       let db: Database.Database | undefined;
       try {
         if (mode === "legacy") {
-          db = openChatDb(file);
+          db = openChatDb({ filePath: file });
           seed(db);
           db.close();
           db = undefined;
         }
-        db = await openSiteChatDb(file);
+        db = await openSiteChatDb({ filePath: file });
         for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "assistant_conversation_tool_approvals", "assistant_run_attempts", "tovu_chat_migrations"]) {
           assert.ok(tableNames(db).includes(name), `${mode}: ${name} must exist`);
         }
@@ -65,7 +65,7 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
         assert.equal(messages.length, 1);
         const ledger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all();
         db.close();
-        db = await openSiteChatDb(file);
+        db = await openSiteChatDb({ filePath: file });
         assert.deepEqual(db.prepare("SELECT * FROM ai_chats ORDER BY id").all(), chats);
         assert.deepEqual(db.prepare("SELECT * FROM ai_chat_messages ORDER BY id").all(), messages);
         assert.deepEqual(db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all(), ledger);
@@ -75,7 +75,7 @@ test("openSiteChatDb migrates fresh and legacy files, preserves conversations an
         const invalidLedger = db.prepare("SELECT * FROM tovu_chat_migrations ORDER BY id").all();
         db.close();
         db = undefined;
-        await assert.rejects(() => openSiteChatDb(file), (error: unknown) =>
+        await assert.rejects(() => openSiteChatDb({ filePath: file }), (error: unknown) =>
           error instanceof UnknownAppliedMigrationError && error.ids.includes("9999_unknown_chat_step")
         );
         db = new Database(file, { readonly: true });
@@ -142,7 +142,7 @@ test("openChatDb is idempotent: reopening an already-initialized file preserves 
     ).run();
     first.close();
 
-    const second = openChatDb(filePath);
+    const second = openChatDb({ filePath });
     const row = second.prepare(`SELECT id FROM ai_chats WHERE id = 'conv-1'`).get() as { id: string } | undefined;
     assert.equal(row?.id, "conv-1", "reopening must not drop or recreate an already-populated table");
     second.close();

@@ -120,7 +120,7 @@ test("the eponymous skill folder exists — run-start injection resolves skills/
 });
 
 test("the package packs through the real installer's own packer, references included", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
 
   assert.ok(packed.files.includes("plugin.json"));
   assert.ok(packed.files.includes("mcp.json"));
@@ -366,7 +366,7 @@ test("delivered failure guidance routes an expired OAuth token to the one tool t
 });
 
 test("no file in the package carries credential material", async () => {
-  const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
+  const packed = await packAgentPluginDirectory({ sourceDir: PACKAGE_ROOT });
 
   // This plugin documents an OAuth-authenticated third-party server, which makes it the bundled
   // package most likely to acquire a pasted token during a well-meaning edit. Credentials belong in

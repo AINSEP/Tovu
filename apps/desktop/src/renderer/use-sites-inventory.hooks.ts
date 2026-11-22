@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { runnerInventoryBridge, type BridgeLookup } from './runner-api.js';
-import { startVisibleInterval } from './visible-interval.js';
+import { startVisibleInterval } from '@jini-ai/ui/visible-interval';
 import type { SiteRecord } from '../contracts/project.js';
 
 /**
@@ -22,7 +22,7 @@ export function useSitesPolling(
   {
     getBridge = runnerInventoryBridge,
     startInterval = startVisibleInterval,
-  }: { getBridge?: BridgeLookup<'listSites'>; startInterval?: (tick: () => void, periodMs: number) => () => void } = {},
+  }: { getBridge?: BridgeLookup<'listSites'>; startInterval?: typeof startVisibleInterval } = {},
 ): {
   projects: readonly SiteRecord[];
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
@@ -66,7 +66,7 @@ export function useSitesPolling(
     };
 
     void load();
-    const stop = startInterval(() => void load(), 4000);
+    const stop = startInterval({ tick: () => void load(), periodMs: 4000 });
     return () => {
       cancelled = true;
       stop();
@@ -93,7 +93,7 @@ export function useSitesPolling(
  * true only until the first list arrives, so it would report nothing at all here.
  */
 export function useSiteRescan(
-  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+  { setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
   { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'rescanSites'> } = {},
 ): {
   rescanning: boolean;
@@ -137,7 +137,8 @@ export function useSiteRescan(
  * @complexity O(n) in the project count, once per applied record.
  */
 export function useApplySiteRecord(
-  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+  { setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
+  _options = {},
 ): (record: SiteRecord, previousId?: string) => void {
   return useCallback(
     (record: SiteRecord, previousId: string = record.id) => {
@@ -158,6 +159,6 @@ export function useApplySiteRecord(
  *
  * @complexity O(n) in the number of sites.
  */
-export function countRunningSites(projects: readonly SiteRecord[]): number {
+export function countRunningSites({ projects }: { projects: readonly SiteRecord[] }, _options = {}): number {
   return projects.filter((project) => project.status === 'running').length;
 }

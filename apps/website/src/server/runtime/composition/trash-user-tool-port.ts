@@ -2,7 +2,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
 import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-service";
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
-import type { TrashUserPort } from "#src/features/trash/index";
+import type { TrashUserPort } from "@jini-ai/cms/trash";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "#src/server/inbound/admin-http/routes/users/deps";
 
 /**

@@ -1,11 +1,11 @@
 import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
 import { ACCENT_SWATCH_PRESETS } from "@jini-ai/ui/core";
 
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = (key) => key;
 
 /**
@@ -66,12 +66,17 @@ export interface MergedSourceUpdate {
  *
  * @complexity Time/space: O(k) in the patch's own field count — one shallow merge, no iteration.
  */
-export function mergeSourceUpdate(previous: PreviousSourceFields | undefined, patch: SourceUpdatePatch): MergedSourceUpdate {
+export function mergeSourceUpdate({ previous, patch }: { previous: PreviousSourceFields | undefined; patch: SourceUpdatePatch }, _options = {}): MergedSourceUpdate {
   return {
     fields: { ...(previous?.fields ?? {}), ...(patch.fields ?? {}) },
-    enabled: patch.enabled ?? previous?.enabled ?? true,
+    enabled: mergeEnabled({ previous, patch }),
     label: patch.label ?? previous?.label,
   };
+}
+
+/** A patch's `enabled` wins, then the stored one; a source nobody has toggled yet is on. */
+function mergeEnabled({ previous, patch }: { previous: PreviousSourceFields | undefined; patch: SourceUpdatePatch }, _options: Record<string, never> = {}): boolean {
+  return patch.enabled ?? previous?.enabled ?? true;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,37 +97,20 @@ export function mergeSourceUpdate(previous: PreviousSourceFields | undefined, pa
  *  `parseExternalMcpPutBody` applies server-side, restated here so the add form shows the SAME
  *  set of required/visible fields a freshly-opened, not-yet-touched draft would actually save as.
  *  @complexity O(1). */
-export function resolveExternalMcpEffectiveTransport(values: SourceFieldValues): "stdio" | "streamable_http" {
+export function resolveExternalMcpEffectiveTransport(values: SourceFieldValues, _optional: Record<string, never> = {}): "stdio" | "streamable_http" {
   return values.transport === "streamable_http" ? "streamable_http" : "stdio";
 }
 
 /** A server is `static_env` unless it explicitly says `none` or `oauth` — mirrors
  *  `resolveExternalMcpAuthMode`'s server-side default for the identical reason
  *  {@link resolveExternalMcpEffectiveTransport} does. @complexity O(1). */
-export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues): "none" | "static_env" | "oauth" {
+export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues, _optional: Record<string, never> = {}): "none" | "static_env" | "oauth" {
   if (values.authMode === "none") return "none";
   if (values.authMode === "oauth") return "oauth";
   return "static_env";
 }
 
-/**
- * Builds the field-spec list a draft's CURRENT `transport`/`authMode` values imply.
- *
- * Order matters for both forms this feeds: connection identity first, then how to reach it
- * (transport-specific), then how to authenticate (auth-mode-specific) — an operator reads the form
- * top to bottom in the order they'd naturally think through setting up a connection.
- *
- * @param values - The draft's current field values (or a saved item's `fields`, for the edit card).
- * @returns The specs to render AND validate against for these values — nothing else exists to the
- * form once this returns; see this module's own section header for why that is the whole mechanism.
- * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
- */
-export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Translate = identityTranslate): SourceFieldSpec[] {
-  const transport = resolveExternalMcpEffectiveTransport(values);
-  const authMode = resolveExternalMcpEffectiveAuthMode(values);
-  const isStdio = transport === "stdio";
-  const isOAuth = authMode === "oauth";
-
+function buildExternalMcpIdentityFieldSpecs({ t }: { t: Translate }): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     { key: "id", label: t("ID"), kind: "text", required: true, placeholder: t("lowercase letters, digits and dashes") },
     {
@@ -150,7 +138,30 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
     },
   ];
 
-  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs(isStdio, t));
+  return specs;
+}
+
+/**
+ * Builds the field-spec list a draft's CURRENT `transport`/`authMode` values imply.
+ *
+ * Order matters for both forms this feeds: connection identity first, then how to reach it
+ * (transport-specific), then how to authenticate (auth-mode-specific) — an operator reads the form
+ * top to bottom in the order they'd naturally think through setting up a connection.
+ *
+ * @param values - The draft's current field values (or a saved item's `fields`, for the edit card).
+ * @returns The specs to render AND validate against for these values — nothing else exists to the
+ * form once this returns; see this module's own section header for why that is the whole mechanism.
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+export function buildExternalMcpFieldSpecs(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): SourceFieldSpec[] {
+  const transport = resolveExternalMcpEffectiveTransport(values);
+  const authMode = resolveExternalMcpEffectiveAuthMode(values);
+  const isStdio = transport === "stdio";
+  const isOAuth = authMode === "oauth";
+
+  const specs = buildExternalMcpIdentityFieldSpecs({ t });
+
+  if (authMode === "static_env") specs.push(...buildAccessTokenFieldSpecs({ isStdio, t }));
 
   if (isStdio) {
     specs.push(
@@ -190,7 +201,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
     });
   }
 
-  if (isOAuth) specs.push(...buildOAuthFieldSpecs(isStdio, t));
+  if (isOAuth) specs.push(...buildOAuthFieldSpecs({ isStdio, t }));
 
   return specs;
 }
@@ -207,7 +218,7 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues, t: Transla
  *
  * @complexity O(1).
  */
-function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
+function buildAccessTokenFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     { key: "accessToken", label: t("Access token"), kind: "password", placeholder: t("leave blank to keep the stored token") },
   ];
@@ -222,16 +233,7 @@ function buildAccessTokenFieldSpecs(isStdio: boolean, t: Translate): SourceField
   return specs;
 }
 
-/**
- * The OAuth-mode field specs — split out purely to keep {@link buildExternalMcpFieldSpecs} under the
- * shop's complexity ceiling, the same move this file's header describes for `mergeSourceUpdate`'s
- * 2026-08-12 pass: every field here shares one revealing condition (`authMode === 'oauth'`), so
- * extracting the whole block removes it from the caller's own branch count entirely, rather than
- * just relocating branches that would still be counted there.
- *
- * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
- */
-function buildOAuthFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[] {
+function buildOAuthClientFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }): SourceFieldSpec[] {
   const specs: SourceFieldSpec[] = [
     {
       key: "oauthProviderId",
@@ -270,6 +272,20 @@ function buildOAuthFieldSpecs(isStdio: boolean, t: Translate): SourceFieldSpec[]
     { key: "oauthClientSecret", label: t("Client secret"), kind: "password", placeholder: t("leave blank to keep the stored secret") },
     { key: "oauthScopes", label: t("Scopes"), kind: "text", placeholder: t("space- or comma-separated") },
   ];
+  return specs;
+}
+
+/**
+ * The OAuth-mode field specs — split out purely to keep {@link buildExternalMcpFieldSpecs} under the
+ * shop's complexity ceiling, the same move this file's header describes for `mergeSourceUpdate`'s
+ * 2026-08-12 pass: every field here shares one revealing condition (`authMode === 'oauth'`), so
+ * extracting the whole block removes it from the caller's own branch count entirely, rather than
+ * just relocating branches that would still be counted there.
+ *
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+function buildOAuthFieldSpecs({ isStdio, t }: { isStdio: boolean; t: Translate }, _options = {}): SourceFieldSpec[] {
+  const specs = buildOAuthClientFieldSpecs({ isStdio, t });
   if (isStdio) {
     specs.push({
       key: "oauthTokenEnvName",
@@ -328,7 +344,7 @@ export const EXTERNAL_MCP_CARD_HANDLE_PREFIX = "mcp-server";
  * @returns One base handle per id, positionally aligned with `sourceIds`, all distinct.
  * @complexity See {@link buildAgentListHandles}.
  */
-export function buildExternalMcpCardHandles(sourceIds: readonly string[]): string[] {
+export function buildExternalMcpCardHandles({ sourceIds }: { sourceIds: readonly string[] }, _optional: Record<string, never> = {}): string[] {
   return buildAgentListHandles({ prefix: EXTERNAL_MCP_CARD_HANDLE_PREFIX, ids: sourceIds });
 }
 
@@ -347,7 +363,7 @@ export function buildExternalMcpCardHandles(sourceIds: readonly string[]): strin
  * @returns An operator-facing message when the rule is violated, else `null`.
  * @complexity O(1).
  */
-export function validateExternalMcpOAuthIdentity(values: SourceFieldValues, t: Translate = identityTranslate): string | null {
+export function validateExternalMcpOAuthIdentity(values: SourceFieldValues, { t = identityTranslate }: { t?: Translate } = {}): string | null {
   if (resolveExternalMcpEffectiveAuthMode(values) !== "oauth") return null;
   if (resolveExternalMcpEffectiveTransport(values) !== "stdio") return null;
   const hasProviderId = (values.oauthProviderId ?? "").trim() !== "";
@@ -370,7 +386,7 @@ export interface SliceLoadState {
  *
  * @complexity Time: O(n) in slice count; space: O(1).
  */
-export function areAnySlicesLoading(slices: readonly SliceLoadState[]): boolean {
+export function areAnySlicesLoading({ slices }: { slices: readonly SliceLoadState[] }, _optional: Record<string, never> = {}): boolean {
   return slices.some((slice) => slice.value === null);
 }
 
@@ -381,7 +397,7 @@ export function areAnySlicesLoading(slices: readonly SliceLoadState[]): boolean 
  *
  * @complexity Time: O(n) in slice count; space: O(1).
  */
-export function firstLoadError(slices: readonly SliceLoadState[]): string | null {
+export function firstLoadError({ slices }: { slices: readonly SliceLoadState[] }, _optional: Record<string, never> = {}): string | null {
   return slices.find((slice) => slice.loadError !== null)?.loadError ?? null;
 }
 
@@ -391,7 +407,7 @@ export function firstLoadError(slices: readonly SliceLoadState[]): string | null
  *
  * @complexity Time/space: O(1).
  */
-export function describeSaveStatus(save: SaveState): string {
+export function describeSaveStatus(save: SaveState, _optional: Record<string, never> = {}): string {
   if (save.status === "saving") return "Saving…";
   if (save.status === "saved") return "Saved";
   if (save.status === "error") return save.message;
@@ -408,7 +424,7 @@ export function describeSaveStatus(save: SaveState): string {
  *
  * @complexity O(1).
  */
-export function resolveByokConfig(executionConfig: ExecutionConfig | null): ByokConfig {
+export function resolveByokConfig({ executionConfig }: { executionConfig: ExecutionConfig | null }, _options = {}): ByokConfig {
   return executionConfig?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }
 
@@ -441,10 +457,10 @@ export interface RemoveConfirmCopy {
  */
 export function buildExternalMcpRemoveConfirmCopy(
   params: { name: string; isOAuth: boolean },
-  t: Translate = identityTranslate,
+  { t = identityTranslate }: { t?: Translate } = {},
 ): RemoveConfirmCopy {
   return {
-    title: t('Remove "{name}"?').replace("{name}", params.name),
+    title: t('Remove "{name}"?').replace("{name}", () => params.name),
     body: params.isOAuth
       ? t("This connection will stop working immediately. Its OAuth credential is sealed and cannot be recovered — reconnecting will require signing in again.")
       : t("This connection will stop working immediately. You'll need to re-enter its configuration to use it again."),
@@ -481,6 +497,6 @@ export const ACCENT_SWATCH_NAMES: Readonly<Record<string, string>> = {
 
 /** A preset's English name key, or its hex for a colour this table doesn't know (a new upstream
  *  preset or a custom colour still gets a usable, if technical, name). @complexity O(1). */
-export function accentSwatchName(color: string): string {
+export function accentSwatchName({ color }: { color: string }, _options = {}): string {
   return ACCENT_SWATCH_NAMES[color.toLowerCase()] ?? color;
 }

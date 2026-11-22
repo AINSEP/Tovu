@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 
 /**
  * @file Direct unit coverage of `change-set-repo.sqlite.ts` — no dedicated unit test file existed
@@ -56,7 +56,7 @@ function item(overrides: Partial<ChangeSetItemRecord> = {}): ChangeSetItemRecord
 }
 
 function openRepo(): SqliteChangeSetRepo {
-  return new SqliteChangeSetRepo(openContentDb(":memory:"));
+  return new SqliteChangeSetRepo({ store: openContentDb(":memory:") });
 }
 
 test("actorId round-trips as undefined (not null) when the change set has no actor — the null side of `row.actorId ?? undefined`, never hit by any other suite's always-actored fixtures", async () => {

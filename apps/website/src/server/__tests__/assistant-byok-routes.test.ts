@@ -44,7 +44,7 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
 import { startStubProviderServer, type StubProviderReply, type StubProviderRequest } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -521,7 +521,7 @@ test(`${BYOK_TURN_PATH} composes 'system' from SYSTEM_PREAMBLE plus the admin In
   assert.equal(res.status, 200);
   await res.text(); // drain the stream so the request completes
 
-  const expectedOverlay = formatCustomInstructionsOverlay("Always respond in pirate slang.");
+  const expectedOverlay = formatCustomInstructionsOverlay({ customInstructions: "Always respond in pirate slang." });
   assert.equal(capturedSystem, `${SYSTEM_PREAMBLE}\n\n${expectedOverlay}`);
 });
 
@@ -603,8 +603,8 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
 async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, toolSurface).registerRoutes?.(app);
+  registerAuthRoutes({ app, deps });
+  createAssistantByokModule({ routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
   return bootAuthenticated(app, t);
 }
 
@@ -1270,7 +1270,7 @@ test(`${BYOK_TURN_PATH} spans: the browser disconnecting mid-turn ends the span 
   }).then((res) => res.text());
   await providerCalled;
   controller.abort();
-  await assert.rejects(pending);
+  await assert.rejects(pending, { constructor: DOMException, name: "AbortError", message: "This operation was aborted" });
 
   const run = await agentRunSpan();
   assert.equal(run.attributes["agent.run.status"], "canceled");
@@ -1338,14 +1338,14 @@ test("BYOK discovery is OFF by default and updates checked tools without rebuild
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
   // d1c1fbd9a grants owners all deletes; the site switch still governs authorized non-owners.
   const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-discovery" };
-  const describe = () => surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } });
+  const describe = () => surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "trash_empty" } } });
   const off = await describe(); assert.equal(off.isError, true);
   await grantChatDeletes(deps);
   assert.equal((await describe()).isError, undefined);
   await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
     key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: true, allowedToolIds: ["trash_empty"] },
     workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
-  assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_purge_item" } })).isError, true);
+  assert.equal((await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "trash_purge_item" } } })).isError, true);
   assert.equal((await describe()).isError, undefined);
 });
 
@@ -1354,12 +1354,12 @@ test("BYOK execute-time revocation refuses a previously discovered handler witho
   const deps = createRouteDeps(); await grantChatDeletes(deps);
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
   const principal = await principalWithPermissions({ deps, permissions: ["content.read"] }), run = { id: "pdel-revoke" };
-  assert.equal((await surface.executeMetaTool(principal, run, { name: "describe_tool", input: { id: "trash_empty" } })).isError, undefined);
+  assert.equal((await surface.executeMetaTool({ principal: principal, run: run, call: { name: "describe_tool", input: { id: "trash_empty" } } })).isError, undefined);
   await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
     key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: ["trash_empty"] },
     workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
-  const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: "trash_empty", input: {} } }, undefined,
-    async () => assert.fail("revoked access must not open a card"));
+  const result = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: "trash_empty", input: {} } } }, { signal: undefined,
+    emitSurface: async () => assert.fail("revoked access must not open a card") });
   assert.equal(result.isError, true);
   assert.ok(JSON.stringify(result.content).includes("permanent deletes from chat are disabled"));
   assert.ok(JSON.stringify(result.content).includes("/admin/trash"));
@@ -1374,20 +1374,20 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
   const surface = createByokToolSurface(deps, { contributions: firstPartyContributions(), installExtensions: false });
   const principal = await principalWithPermissions({ deps, permissions: ["content.read", "content.write"] }), run = { id: "pdel-revoke-at-card" };
   let cards = 0;
-  const result = await surface.executeMetaTool(principal, run, { name: "execute_delegated_tool", input: { toolId: PURGE_TOOL_ID, input: { trashItemId } } }, undefined, async () => {
+  const result = await surface.executeMetaTool({ principal: principal, run: run, call: { name: "execute_delegated_tool", input: { toolId: PURGE_TOOL_ID, input: { trashItemId } } } }, { signal: undefined, emitSurface: async () => {
     cards++;
     await setSiteSetting({ deps: toWriteServiceDeps(deps), input: { namespace: ASSISTANT_PERMANENT_DELETES_NAMESPACE,
       key: ASSISTANT_PERMANENT_DELETES_KEY, scope: "workspace", value: { enabled: false, allowedToolIds: [PURGE_TOOL_ID] },
       workspaceId: deps.workspaceId, authWorkspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
     const exchangeId = surface.surfaceExchanges.findTypedAnswerTarget({ principalId: principal.id, toolId: PURGE_TOOL_ID })!;
     assert.deepEqual(surface.surfaceExchanges.deliver({ exchangeId, principalId: principal.id, params: { decision: "confirm" } }, { toolId: PURGE_TOOL_ID }), { ok: true });
-  });
+  } });
   assert.equal(cards, 1); assert.equal(result.isError, true);
   assert.ok(JSON.stringify(result.content).includes("permanent deletes from chat are disabled"));
   assert.equal(await trashRowFor(deps, postId), trashItemId);
 });
 
-test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the real delegated tool surface`, async t => {
+test(`${BYOK_TURN_PATH} delivers the top plugin's guidance, then an explicit read loads it again through the real delegated tool surface`, async t => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'byok-hint-plugins-'));
   t.after(() => forceRemove(cwd));
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
@@ -1405,15 +1405,15 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
       }
     } },
   });
-  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace(deps.workspaceId).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
+  await recordBundledAgentPluginDigests({ workspaceRoot: layout.forWorkspace({ workspaceId: deps.workspaceId }).root, seeded: [{ pluginId: installed.pluginId, archiveDigest: installed.archiveDigest }] });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   let calls = 0;
   const providerUrl = await stubProvider(t, (count, body) => {
     calls++;
     if (count === 1) {
-      assert.match(JSON.stringify(body.system), /Relevant agent plugins for this request:/);
-      assert.match(JSON.stringify(body.system), /Holography Author/);
-      assert.doesNotMatch(JSON.stringify(body), /Follow the unique BYOK holography discipline/);
+      // Why: Jini delivers a fresh query's single top match in full (3665df68, owner decision 2026-10-18), so the first prompt already carries the guidance; the explicit read below still returns it in full (7f730e4b).
+      assert.match(JSON.stringify(body.system), /<<AGENT_PLUGIN pluginId=/);
+      assert.match(JSON.stringify(body.system), /Follow the unique BYOK holography discipline/);
       return sseBody(messageStart(), toolUseBlock(0, 'hint_load', 'execute_delegated_tool', { toolId: 'load_agent_plugin', input: { pluginId: 'synthetic-hint' } }), messageDelta('tool_use'), messageStop());
     }
     assert.equal(count, 2);
@@ -1428,6 +1428,6 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
   assert.equal(calls, 2);
   assert.equal(frames.some(frame => frame.event === 'error'), false);
   const usage = frames.filter(frame => frame.event === 'agent' && frame.payload.type === 'agent_plugins');
-  assert.equal(usage.length, 1, 'a suggestion alone must not publish loaded usage');
+  assert.equal(usage.length, 1, 'one delivered primary publishes exactly one usage event');
   assert.deepEqual(usage[0]!.payload.plugins, [{ id: 'synthetic-hint', name: 'Holography Author' }]);
 });

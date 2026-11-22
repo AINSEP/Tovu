@@ -43,41 +43,17 @@ export interface ConsentServiceDeps {
   consents: MemberConsentRepoPort;
 }
 
-async function assertMemberExists(deps: ConsentServiceDeps, workspaceId: string, memberId: string): Promise<void> {
+async function assertMemberExists({ deps, workspaceId, memberId }: { deps: ConsentServiceDeps; workspaceId: string; memberId: string }, _optional = {}): Promise<void> {
   const member = await deps.members.findById({ workspaceId, id: memberId });
   if (!member) {
     throw new MemberNotFoundError(`member '${memberId}' was not found`);
   }
 }
 
-/**
- * Begin a consent request: creates (or resets) a `status: 'pending'` row for
- * `(memberId, purpose)` and appends a `consent_request` revision, in the same
- * `transaction()` call.
- *
- * @complexity O(1) — one member lookup, one consent lookup, one upsert, one revision append.
- * @overallScore 100
- */
-export async function requestConsent(required: {
-  deps: ConsentServiceDeps;
-  input: {
-    workspaceId: string;
-    memberId: string;
-    purpose: ConsentPurpose;
-    evidence: ConsentEvidence;
-    originModule: string;
-  };
-}): Promise<{ consent: MemberConsentRecord }> {
-  const { deps, input } = required;
-  await assertMemberExists(deps, input.workspaceId, input.memberId);
-
-  const nowIso = clockNowIso({ clock: deps.clock });
-  const existing = await deps.consents.findByMemberAndPurpose({
-    workspaceId: input.workspaceId,
-    memberId: input.memberId,
-    purpose: input.purpose,
-  });
-
+function buildPendingConsent({ deps, input, existing, nowIso }: {
+  deps: ConsentServiceDeps; input: Parameters<typeof requestConsent>[0]["input"];
+  existing: Awaited<ReturnType<ConsentServiceDeps["consents"]["findByMemberAndPurpose"]>>; nowIso: string;
+}): MemberConsentRecord {
   const consent: MemberConsentRecord = existing
     ? {
         ...existing,
@@ -100,7 +76,40 @@ export async function requestConsent(required: {
         version: 1,
       };
 
-  await deps.consents.transaction(async () => {
+  return consent;
+}
+
+/**
+ * Begin a consent request: creates (or resets) a `status: 'pending'` row for
+ * `(memberId, purpose)` and appends a `consent_request` revision, in the same
+ * `transaction()` call.
+ *
+ * @complexity O(1) — one member lookup, one consent lookup, one upsert, one revision append.
+ * @overallScore 100
+ */
+export async function requestConsent(required: {
+  deps: ConsentServiceDeps;
+  input: {
+    workspaceId: string;
+    memberId: string;
+    purpose: ConsentPurpose;
+    evidence: ConsentEvidence;
+    originModule: string;
+  };
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
+  const { deps, input } = required;
+  await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
+
+  const nowIso = clockNowIso({ clock: deps.clock });
+  const existing = await deps.consents.findByMemberAndPurpose({
+    workspaceId: input.workspaceId,
+    memberId: input.memberId,
+    purpose: input.purpose,
+  });
+
+  const consent = buildPendingConsent({ deps, input, existing, nowIso });
+
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -113,7 +122,7 @@ export async function requestConsent(required: {
       originModule: input.originModule,
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }
@@ -134,9 +143,9 @@ export async function confirmConsent(required: {
     evidence: ConsentEvidence;
     originModule: string;
   };
-}): Promise<{ consent: MemberConsentRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
-  await assertMemberExists(deps, input.workspaceId, input.memberId);
+  await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
 
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,
@@ -162,7 +171,7 @@ export async function confirmConsent(required: {
     version: existing.version + 1,
   };
 
-  await deps.consents.transaction(async () => {
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -175,7 +184,7 @@ export async function confirmConsent(required: {
       originModule: input.originModule,
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }
@@ -193,7 +202,7 @@ export async function confirmConsent(required: {
 export async function revokeConsent(required: {
   deps: ConsentServiceDeps;
   input: { workspaceId: string; memberId: string; purpose: ConsentPurpose };
-}): Promise<{ consent: MemberConsentRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,
@@ -219,7 +228,7 @@ export async function revokeConsent(required: {
     version: existing.version + 1,
   };
 
-  await deps.consents.transaction(async () => {
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -234,7 +243,7 @@ export async function revokeConsent(required: {
       originModule: "members",
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }
@@ -250,7 +259,7 @@ export async function revokeConsent(required: {
 export async function checkConsent(required: {
   deps: ConsentServiceDeps;
   input: { workspaceId: string; memberId: string; purpose: ConsentPurpose };
-}): Promise<{ status: MemberConsentRecord["status"] | "none" }> {
+}, _optional: Record<string, never> = {}): Promise<{ status: MemberConsentRecord["status"] | "none" }> {
   const { deps, input } = required;
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,

@@ -42,12 +42,12 @@ function fakePort(stored: ChatDisplayPreferences = DEFAULT_CHAT_DISPLAY): FakePo
       if (port.failLoads) throw new Error("settings read failed");
       return { ...port.stored };
     },
-    save: async (next, previous) => {
+    save: async ({ next, previous }) => {
       port.saves.push({ next, previous });
       if (port.failSaves) throw new Error("settings write failed");
       port.stored = { ...next };
     },
-    subscribeToSettingsRefresh: (listener) => {
+    subscribeToSettingsRefresh: ({ listener }) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -102,7 +102,7 @@ describe("useChatDisplayPreferences", () => {
     async (patch, reversal) => {
       const port = fakePort();
       const pending: (() => void)[] = [];
-      port.save = (next, previous) => {
+      port.save = ({ next, previous }) => {
         port.saves.push({ next, previous });
         // Apply only the diff, like the real append-only settings ledger.
         for (const key of ["toolCalls", "showUsageLine", "showThinking"] as const) {
@@ -187,7 +187,7 @@ describe("useChatDisplayPreferences", () => {
 describe("defaultChatDisplayPreferencesPort.subscribeToSettingsRefresh", () => {
   it("re-reads for core.interface or an unknown scope, not for another namespace", () => {
     const listener = vi.fn();
-    const unsubscribe = defaultChatDisplayPreferencesPort.subscribeToSettingsRefresh(listener);
+    const unsubscribe = defaultChatDisplayPreferencesPort.subscribeToSettingsRefresh({ listener });
 
     publishSettingsRefresh(["core.appearance"]);
     expect(listener).not.toHaveBeenCalled();

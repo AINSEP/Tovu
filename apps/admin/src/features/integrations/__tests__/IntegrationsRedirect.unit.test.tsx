@@ -1,5 +1,5 @@
 import { render, renderHook } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 import { IntegrationsRedirect } from "../IntegrationsRedirect";
 import { useIntegrationsRedirect } from "../hooks/use-integrations-redirect.hooks";
@@ -44,4 +44,12 @@ it("uses the resolved destination and updates it when the same redirect componen
   rerender(<IntegrationsRedirect routePath="/addons/integrations/sub%2F1?cursor=a%2Bb" />);
   expect(window.location.pathname + window.location.search).toBe("/admin/addons/integrations/sub%2F1?cursor=a%2Bb");
   expect(window.history.length).toBe(historyLength);
+});
+
+it("delegates the redirect to the injected useIntegrationsRedirectHook instead of navigating itself", () => {
+  window.history.replaceState(null, "", "/admin/integrations");
+  const useIntegrationsRedirectHook = vi.fn();
+  render(<IntegrationsRedirect routePath="/integrations" useIntegrationsRedirectHook={useIntegrationsRedirectHook} />);
+  expect(useIntegrationsRedirectHook).toHaveBeenCalledWith({ routePath: "/integrations" });
+  expect(window.location.pathname).toBe("/admin/integrations");
 });

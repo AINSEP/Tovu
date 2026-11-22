@@ -11,8 +11,8 @@ import { parseSourceControlCredentialForm } from "../credential-form.js";
 const TOKEN = { name: "token", label: "Token", required: true, secret: true };
 
 test("absent is none; a full block parses and tokenField defaults to 'token'", () => {
-  assert.equal(parseSourceControlCredentialForm(undefined, "c"), undefined);
-  assert.deepEqual(parseSourceControlCredentialForm({ help: "h", tokenPageUrl: "https://x.test/new", fields: [TOKEN, { name: "username", label: "Username", required: true }] }, "c"), {
+  assert.equal(parseSourceControlCredentialForm({ value: undefined, at: "c" }), undefined);
+  assert.deepEqual(parseSourceControlCredentialForm({ value: { help: "h", tokenPageUrl: "https://x.test/new", fields: [TOKEN, { name: "username", label: "Username", required: true }] }, at: "c" }), {
     help: "h",
     tokenPageUrl: "https://x.test/new",
     tokenField: "token",
@@ -33,42 +33,42 @@ test("malformed blocks are refused with the exact reason", () => {
     [{ fields: [{ ...TOKEN, secret: false }] }, "c.tokenField must name a declared secret field"],
     [{ fields: [TOKEN], tokenField: "missing" }, "c.tokenField must name a declared secret field"],
   ];
-  for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm(value, "c"), reason);
+  for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm({ value, at: "c" }), reason);
 });
 
 test("non-object credential fields are refused with their field location", () => {
   for (const field of [null, "token", []]) {
-    assert.equal(parseSourceControlCredentialForm({ fields: [field] }, "c"), "c.fields[0] must be an object");
+    assert.equal(parseSourceControlCredentialForm({ value: { fields: [field] }, at: "c" }), "c.fields[0] must be an object");
   }
 });
 
 test("non-boolean required flags are refused instead of silently becoming optional", () => {
-  assert.equal(parseSourceControlCredentialForm({ fields: [{ ...TOKEN, required: "true" }] }, "c"),
+  assert.equal(parseSourceControlCredentialForm({ value: { fields: [{ ...TOKEN, required: "true" }] }, at: "c" }),
     "c.fields[0].required must be a boolean");
 });
 
 test("non-boolean secret flags on non-token fields are refused", () => {
-  assert.equal(parseSourceControlCredentialForm({ fields: [TOKEN, { name: "username", label: "Username", secret: "true" }] }, "c"),
+  assert.equal(parseSourceControlCredentialForm({ value: { fields: [TOKEN, { name: "username", label: "Username", secret: "true" }] }, at: "c" }),
     "c.fields[1].secret must be a boolean");
 });
 
 test("token page URLs must be strings of at most 500 characters", () => {
   const url = "https://x.test/".padEnd(500, "a");
-  assert.deepEqual(parseSourceControlCredentialForm({ fields: [TOKEN], tokenPageUrl: url }, "c"), {
+  assert.deepEqual(parseSourceControlCredentialForm({ value: { fields: [TOKEN], tokenPageUrl: url }, at: "c" }), {
     tokenPageUrl: url, tokenField: "token", fields: [TOKEN],
   });
   for (const tokenPageUrl of [url + "a", new URL("https://x.test/new")]) {
-    assert.equal(parseSourceControlCredentialForm({ fields: [TOKEN], tokenPageUrl }, "c"),
+    assert.equal(parseSourceControlCredentialForm({ value: { fields: [TOKEN], tokenPageUrl }, at: "c" }),
       "c.tokenPageUrl must be an https URL");
   }
 });
 
 
 test("a custom tokenField selects the declared alternate secret with all field flags preserved", () => {
-  assert.deepEqual(parseSourceControlCredentialForm({
+  assert.deepEqual(parseSourceControlCredentialForm({ value: {
     help: "Use an access token", tokenPageUrl: "https://git.test/tokens", tokenField: "accessToken",
     fields: [{ name: "accessToken", label: "Access token", required: true, secret: true }, { name: "username", label: "Username", required: false, secret: false }],
-  }, "c"), {
+  }, at: "c" }), {
     help: "Use an access token", tokenPageUrl: "https://git.test/tokens", tokenField: "accessToken",
     fields: [{ name: "accessToken", label: "Access token", required: true, secret: true }, { name: "username", label: "Username", required: false }],
   });
@@ -90,10 +90,10 @@ test("L146 validation preserves bounds, optional flags and first-error ordering"
     [{ fields: [{ ...TOKEN, secret: null }] }, "c.fields[0].secret must be a boolean"],
     [{ fields: [TOKEN], tokenField: null }, "c.tokenField must name a declared secret field"],
   ];
-  for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm(value, "c"), reason);
-  assert.deepEqual(parseSourceControlCredentialForm({ help: "h".repeat(500), fields: [TOKEN,
+  for (const [value, reason] of cases) assert.equal(parseSourceControlCredentialForm({ value, at: "c" }), reason);
+  assert.deepEqual(parseSourceControlCredentialForm({ value: { help: "h".repeat(500), fields: [TOKEN,
     { name: "username", label: " User ".padEnd(100, " ") },
-  ] }, "c"), { help: "h".repeat(500), tokenField: "token", fields: [TOKEN,
+  ] }, at: "c" }), { help: "h".repeat(500), tokenField: "token", fields: [TOKEN,
     { name: "username", label: " User ".padEnd(100, " "), required: false },
   ] });
 });

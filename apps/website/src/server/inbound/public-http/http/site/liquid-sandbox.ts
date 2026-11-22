@@ -51,5 +51,5 @@ export function renderLiquidInSandbox(
   input: LiquidWorkerInput,
   options: LiquidSandboxOptions = {}
 ): Promise<string> {
-  return renderInWorkerSandbox("liquid-worker", "Liquid", input, options);
+  return renderInWorkerSandbox({ workerBasename: "liquid-worker", errorLabel: "Liquid", input }, options);
 }

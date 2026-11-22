@@ -2,6 +2,7 @@ import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { bindWidgetArea } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * POST bind a new region by key (SPEC-043 REQ-11/13), `widgets.place`-gated. `bindWidgetArea`
@@ -10,12 +11,9 @@ import type { RouteRegistrar } from "#src/server/routes/types";
  * counterpart to REQ-13's (currently unwired, see the implementation-outline addendum) automatic
  * on-theme-activation seeding.
  */
-export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionBindRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.regionKey !== "string" || body.regionKey.trim() === "") {
@@ -24,7 +22,7 @@ export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) =>
     }
 
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.place", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.place", res });
       if (!principal) return;
       const { areaEntry } = await bindWidgetArea({
         deps: buildWidgetsRegionDeps(deps),
@@ -32,7 +30,7 @@ export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) =>
       });
       res.status(201).json(toAdminWidgetAreaResponse(areaEntry));
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 
-import { createSiteRouteDeps, defaultDatabaseJournalDbPath } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { defaultDatabaseJournalDbPath } from "../../runtime/composition/site-paths.js";
 import { buildBootModules } from "../../runtime/boot/bootstrap.js";
 import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
 import { createApp } from "../../runtime/composition/app.js";
@@ -43,9 +44,9 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
     // path createSiteRouteDeps() will derive and open — simulates a process that crashed
     // mid-migration on a PRIOR boot. `deps.ts` normally creates the `ops/` dir itself; this
     // pre-seed step runs BEFORE createSiteRouteDeps(), so it must create it too.
-    const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+    const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-1",
@@ -57,8 +58,8 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
     await databaseJournalDb.close();
 
     // Now boot for real, through the exact path index.ts uses.
-    const deps = await createSiteRouteDeps(dbPath);
-    const result = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps = await createSiteRouteDeps({}, { dbPath });
+    const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation?.lifecycle.status, "ready", "the scan itself succeeds (finding an interrupted migration is a successful detection, not a module failure)");
@@ -85,9 +86,9 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
   process.env.TOVU_ADMIN_DIST = adminDist;
   delete process.env.TOVU_ADMIN_DEV_PROXY_URL;
   try {
-    const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+    const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-2",
@@ -98,8 +99,8 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
     });
     await databaseJournalDb.close();
 
-    const deps = await createSiteRouteDeps(dbPath);
-    await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps = await createSiteRouteDeps({}, { dbPath });
+    await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
     const app = createApp(deps);
@@ -168,9 +169,9 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-second-boot-"));
   const dbPath = path.join(dir, "content.db");
   try {
-    const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+    const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-restart-safe",
@@ -182,8 +183,8 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
     await databaseJournalDb.close();
 
     // Boot #1 (simulates the operator's process starting after the crash).
-    const deps1 = await createSiteRouteDeps(dbPath);
-    const result1 = await runBootLifecycle(buildBootModules(deps1, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps1 = await createSiteRouteDeps({}, { dbPath });
+    const result1 = await runBootLifecycle({ modules: buildBootModules(deps1, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation1 = result1.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation1?.lifecycle.status, "ready", "boot 1: detection succeeds");
     assert.equal(await deps1.siteStatusRepo.get(deps1.workspaceId), "BLOCKED_PENDING_RECOVERY");
@@ -200,8 +201,8 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
     // deterministic id `interrupted-run-crashed-restart-safe` collided with boot 1's own row,
     // throwing UNIQUE constraint failed -- the critical module failed, `ok` went false, and
     // index.ts would process.exit(1) before ever calling listen(), locking Recovery itself out.
-    const deps2 = await createSiteRouteDeps(dbPath);
-    const result2 = await runBootLifecycle(buildBootModules(deps2, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps2 = await createSiteRouteDeps({}, { dbPath });
+    const result2 = await runBootLifecycle({ modules: buildBootModules(deps2, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation2 = result2.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation2?.lifecycle.status, "ready", "boot 2 must NOT crash the critical module on the same still-unresolved migration");
     assert.equal(result2.ok, true, "boot 2 must succeed overall so the process reaches listen() and Recovery stays reachable");
@@ -218,9 +219,9 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-restore-exit-"));
   const dbPath = path.join(dir, "content.db");
   try {
-    const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+    const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
     fs.mkdirSync(path.dirname(databaseJournalDbPath), { recursive: true });
-    const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
+    const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
     const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: "workspace-local" });
     await migrationRunsRepo.insert({
       id: "run-crashed-restore-exit",
@@ -232,8 +233,8 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     await databaseJournalDb.close();
 
     // Boot #1: blocked, as before.
-    const deps = await createSiteRouteDeps(dbPath);
-    await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps = await createSiteRouteDeps({}, { dbPath });
+    await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
     // Run the real Recovery restore ceremony (plan -> confirm -> execute) end-to-end over real
@@ -309,8 +310,8 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     // sibling "second boot" test above (avoids an unrelated identity-seed race, not what this test
     // is proving).
     await deps.identityReady;
-    const rebootDeps = await createSiteRouteDeps(dbPath);
-    const rebootResult = await runBootLifecycle(buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const rebootDeps = await createSiteRouteDeps({}, { dbPath });
+    const rebootResult = await runBootLifecycle({ modules: buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(rebootResult.ok, true);
     assert.equal(await rebootDeps.siteStatusRepo.get(rebootDeps.workspaceId), "SERVING", "the resolution must survive a reboot -- the exit is durable, not just an in-process flag flip");
     assert.equal(
@@ -336,8 +337,8 @@ test("a clean sidecar (no non-terminal migration_runs row) boots normally: siteS
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migration-reconcile-clean-"));
   const dbPath = path.join(dir, "content.db");
   try {
-    const deps = await createSiteRouteDeps(dbPath);
-    const result = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const deps = await createSiteRouteDeps({}, { dbPath });
+    const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation?.lifecycle.status, "ready");

@@ -157,13 +157,18 @@ test("templated route: home, products and product templates each render with the
 test("templated route: a failure while gathering render data answers a plain 500 without the cause", async (t) => {
   const { deps, baseUrl, cookie } = await bootSite(t);
   t.mock.method(deps.postRepo, "list", async () => { throw new Error("content store offline"); });
-  await expectText(await fetch(`${baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie } }), 500, "preview render failed");
+  const response = await fetch(`${baseUrl}/theme-explore/fashion-modern/template/home`, { headers: { cookie } });
+  assert.equal(response.status, 500);
+  const text = await response.text();
+  assert.match(text, /The preview could not be rendered/);
+  assert.match(text, /report error ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}/);
+  assert.doesNotMatch(text, /content store offline/);
 });
 
 test("route-param guards: each preview handler reached without its params refuses an empty theme id instead of crashing", async (t) => {
   const deps = createRouteDeps();
   const routed = express();
-  registerThemePagePreview(routed, deps);
+  registerThemePagePreview({ app: routed, deps });
   type Layer = { route?: { path: string; stack: Array<{ handle: express.RequestHandler }> } };
   const finalHandler = (routePath: string): express.RequestHandler => {
     const layer = (routed as unknown as { _router: { stack: Layer[] } })._router.stack.find((entry) => entry.route?.path === routePath);
@@ -172,7 +177,7 @@ test("route-param guards: each preview handler reached without its params refuse
   };
   const bare = express();
   bare.use(express.json());
-  registerAuthRoutes(bare, deps);
+  registerAuthRoutes({ app: bare, deps });
   bare.get("/bare-page", finalHandler("/theme-explore/:themeId/:pageId"));
   bare.get("/bare-partial", finalHandler("/theme-explore/:themeId/partial/:partialId"));
   bare.get("/bare-template", requireAdminSession(deps), finalHandler("/theme-explore/:themeId/template/:templateId"));

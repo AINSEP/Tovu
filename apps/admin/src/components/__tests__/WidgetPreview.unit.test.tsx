@@ -7,7 +7,7 @@ import type { HtmlPreviewPort } from '@jini-ai/ui/admin-widgets';
 import type { MediaPickerPort } from '../MediaPickerDialog/media-picker-port.hooks';
 import { SHARED_COMPONENTS_DICT } from '../shared-components-i18n';
 import { renderWidgetPreviewDocument } from '../WidgetConfigFields/widget-config-fields-dependencies.hooks';
-import type { authenticatedAdminRequest } from '../../lib/api';
+import type { authenticatedAdminRequest } from '../../lib/admin-http/request';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());

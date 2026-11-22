@@ -1,5 +1,5 @@
-import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
-import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
+import { sqliteForeignKeyCheckedTransaction } from "@jini-ai/db/kernel/sqlite";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,7 +9,7 @@ import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import type { ContentKernel } from "../../content-kernel.js";
 import { createRawRowSqlitePort } from "../../../../features/publish-content/publish-backstop-row.sqlite.js";
-import type { RawValue } from "#src/features/publish-content/backstop-ports";
+import type { RawValue } from "@jini-ai/cms/publish/transfer";
 
 /**
  * @file The "send by hand" raw-row port on a real in-memory SQLite content kernel: the policy and

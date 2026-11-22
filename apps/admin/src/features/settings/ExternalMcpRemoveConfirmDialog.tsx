@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 import type { useT } from "@jini-ai/ui";
 
 import { useExternalMcpRemoveConfirm } from "./hooks/use-external-mcp-remove-confirm.hooks";
@@ -56,46 +56,22 @@ export function ExternalMcpRemoveConfirmDialog({
   const titleId = `${cardHandle}-remove-confirm-title`;
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{copy.title}</h2>
-        <p>{copy.body}</p>
-        <span className="editor-actions">
-          {/* Cancel is the default-focused control — this action is not reversible from this
-              screen (an OAuth secret cannot be recovered), matching `LifecycleConfirmDialog`'s
-              own "Tombstone" precedent for the same reason. */}
-          <button
-            type="button"
-            className="btn-secondary"
-            autoFocus
-            onClick={onCancel}
-            {...agentHandle({ handle: `${cardHandle}-remove-cancel` }, {
-              role: "button",
-              label: `Close this dialog without removing ${name}`,
-            })}
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={onConfirm}
-            {...agentHandle({ handle: `${cardHandle}-remove-confirm` }, {
-              role: "button",
-              label: `Permanently remove ${name} — this cannot be undone from this screen`,
-            })}
-          >
-            {t("Remove")}
-          </button>
-        </span>
-      </div>
-    </div>
+    /* Cancel is the default-focused control — this action is not reversible from this
+       screen (an OAuth secret cannot be recovered), matching `LifecycleConfirmDialog`'s
+       own "Tombstone" precedent for the same reason. */
+    <ConfirmActionDialog
+      dialogRef={dialogRef}
+      titleId={titleId}
+      title={copy.title}
+      body={copy.body}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      cancelText={t("Cancel")}
+      confirmText={t("Remove")}
+      cancelHandle={`${cardHandle}-remove-cancel`}
+      cancelAgentLabel={`Close this dialog without removing ${name}`}
+      confirmHandle={`${cardHandle}-remove-confirm`}
+      confirmAgentLabel={`Permanently remove ${name} — this cannot be undone from this screen`}
+    />
   );
 }

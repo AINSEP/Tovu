@@ -10,7 +10,7 @@ import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard
 import { buildShareZip } from "../../share-zip.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
-import type { SiteSharePlanContent } from "../../plan-store.js";
+import type { SiteSharePlanContent } from "../../plan-content.js";
 import * as yauzl from "yauzl";
 import Database from "better-sqlite3";
 import fs from "node:fs/promises";
@@ -37,13 +37,13 @@ function plan(bytes: Buffer): SiteSharePlanContent {
     totalBytes: bytes.length, site: { name: "Site", folderName: "site" }, schema: runtimeSchemaVersion(), tovuVersion: "test", createdAt: stamp };
 }
 test("safe source baseline uses real trusted projection", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}'").run();
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   assert.ok(safe.bytes.length);
 });
 test("Bearer post remains in SQLite and FTS with a safe column warning", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   assert.equal(safe.bytes.includes(Buffer.from("exampleCredentialValue987654321")), true);
   assert.ok(safe.credentialWarnings!.some(warning => warning.path === "content.db:posts.body_json"));
@@ -54,7 +54,7 @@ test("Bearer post remains in SQLite and FTS with a safe column warning", { timeo
   assert.equal(db.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts").get()!.body_json, JSON.stringify({ text: bearer }), "source is untouched");
 });
 test("correctly checksummed imported Bearer post is retained by the real worker", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   // Use trusted schema bytes but bypass the export projection to exercise hostile import input.
   const archive = await buildShareZip({ plan: plan(db.$client.serialize()), zip: zipFolderFiles });
   const imported = await verifySiteImport({ archive, reader, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion() });
@@ -62,7 +62,7 @@ test("correctly checksummed imported Bearer post is retained by the real worker"
   assert.ok(imported.credentialWarnings!.some(warning => warning.path === "content.db:posts.body_json"));
 });
 test("credential-looking files and edited bundled labels stay included", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}'").run();
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
   const labels = Buffer.from('{"API token":"Token de API","edited":true}');
@@ -89,7 +89,7 @@ test("credential-looking files and edited bundled labels stay included", { timeo
 });
 
 test("import retains credential-looking media and its database references", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}', featured_media_id='image'").run();
   const content = Buffer.from("Authorization: Bearer " + "mediaCredential987654321");
   const sha256 = createHash("sha256").update(content).digest("hex");
@@ -114,7 +114,7 @@ test("import retains credential-looking media and its database references", { ti
 });
 
 test("production preparation retains credential-looking media", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}', featured_media_id='image'").run();
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "archive-media-omission-")); t.after(() => fs.rm(root, { recursive: true, force: true }));
   const content = Buffer.from("Authorization: Bearer " + "mediaCredential987654321");
@@ -138,7 +138,7 @@ test("production preparation retains credential-looking media", { timeout: 12000
 });
 
 test("two suspicious unique slugs cannot turn sanitization into a constraint refusal", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}', slug=?").run("ghp_" + "a".repeat(36));
   db.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES ('second','ws','Second',?,'{}','draft','post',?,1)").run("ghp_" + "b".repeat(36), stamp);
   const safe = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });
@@ -149,7 +149,7 @@ test("two suspicious unique slugs cannot turn sanitization into a constraint ref
 });
 
 test("credential-looking menu slugs retain their portable bindings", { timeout: 120000 }, async t => {
-  const db = source(); t.after(() => closeSqliteConnection(db));
+  const db = source(); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("UPDATE posts SET body_json='{}'").run();
   const menu = db.$client.prepare("INSERT INTO menus(id,workspace_id,slug,title,status,doc_json,locations_json,updated_at,version) VALUES (?,'ws',?,'Menu','active','{\"items\":[]}','[]',?,1)");
   menu.run("bad-menu", "ghp_" + "c".repeat(36), stamp); menu.run("good-menu", "good", stamp);

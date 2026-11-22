@@ -66,7 +66,7 @@ function setup(overrides: Partial<ReturnType<typeof createRouteDeps>> = {}) {
     ...overrides,
   };
   const app = express();
-  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes(app, deps) };
+  return { app, deps, permissions, register: () => registerAdminPublishSiteRoutes({ app, deps }) };
 }
 
 async function direct(app: express.Express, path: string, req: object, locals: Record<string, unknown> = { principal: { id: "owner" } }) {
@@ -116,9 +116,9 @@ test("publish-targets and destinations: a registry load failure is a fixed 500 t
 test("publish destinations: a publishing-grant request reads peers through its grant, not the session authorizer", async () => {
   const { app, deps, permissions, register } = setup();
   register();
-  await deps.publishContentPeerRepo.insert({ workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
+  await deps.publishContentPeerRepo.insert({ record: { workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
     baseUrl: "https://live.example.test", remoteWorkspaceId: "remote", sealed: null, masked: null,
-    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" } });
   await deps.publishHistoryStore.recordSuccess({ workspaceId: deps.workspaceId, entry: {
     kind: "tovu-peer", target: "peer-saved", projectName: "", url: "https://live.example.test/", reachable: true,
     status: "applied", publishedAt: "2026-10-18T03:00:00Z", triggeredBy: "admin_ui" } });

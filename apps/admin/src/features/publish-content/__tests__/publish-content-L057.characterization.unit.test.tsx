@@ -53,7 +53,7 @@ describe("L057 view characterization before extraction", () => {
     expect(result.current.allSelected).toBe(true);
     act(() => {
       result.current.onToggleUpToDate();
-      result.current.onToggleRow("page:b");
+      result.current.onToggleRow({ key: "page:b" });
     });
     expect(result.current.upToDateExpanded).toBe(true);
     expect(result.current.primaryLabel).toBe("Publish 1 item");

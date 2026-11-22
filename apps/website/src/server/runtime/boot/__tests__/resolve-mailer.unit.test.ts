@@ -10,7 +10,8 @@ import {
   type CustomCredentialWriteDeps,
 } from "#src/features/custom-credentials/index";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
+import type { SmtpTransport } from "#src/platform/mail/index";
+import type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";
@@ -26,7 +27,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 const WORKSPACE = "ws-1";
 
 /** The label sites already saved their Resend key under; it now lives in the plugin's descriptor. */
-const MAIL_HTTP_API_CREDENTIAL_LABEL = "Tovu Mail — Resend API";
+const MAIL_HTTP_API_CREDENTIAL_LABEL = "Jini Mail — Resend API";
 
 /** Synthetic provider uses the same injected HTTP port as any plugin adapter. */
 async function loadBundledMailAdapters(): Promise<MailAdapterRegistry> {
@@ -112,7 +113,7 @@ function memorySetting(initial: MailProviderSetting | null = null): MailProvider
     value: initial,
     writes: [] as MailProviderSetting[],
     read: async () => port.value,
-    write: async (value: MailProviderSetting) => { port.writes.push(value); port.value = value; },
+    write: async ({ value }: { value: MailProviderSetting }) => { port.writes.push(value); port.value = value; },
   };
   return port;
 }
@@ -251,7 +252,7 @@ test("after the setting exists, selection reads only it: a saved resend key does
   const httpClient = new FakeHttpClient();
   const { mailer, ready } = createResolvedMailer(makeResolveDeps({
     customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting, httpClient,
-    createSmtpTransport: () => ({ sendMail: async (mail) => { deliveries.push(mail.subject); return { messageId: "smtp-1" }; } }),
+    createSmtpTransport: () => ({ sendMail: async ({ mail }) => { deliveries.push(mail.subject); return { messageId: "smtp-1" }; } }),
   }));
   await ready;
   assert.equal(mailer.capabilities().driver, "smtp");
@@ -272,7 +273,7 @@ test("a selected provider without a credential refuses in production (and is ret
   const { mailer } = createResolvedMailer(deps);
   const refused = await mailer.send(MESSAGE, OPTIONS);
   assert.equal(!refused.ok && refused.errorCode, "MAIL_PROVIDER_UNAVAILABLE");
-  assert.match(warnings[0]!, /'resend' has no saved credential "Tovu Mail — Resend API"/);
+  assert.match(warnings[0]!, /'resend' has no saved credential "Jini Mail — Resend API"/);
   await saveResendKey(credentialDeps);
   assert.equal((await mailer.send(MESSAGE, OPTIONS)).ok, true, "a key saved later is picked up on the next send");
 

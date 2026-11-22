@@ -1,5 +1,6 @@
-import * as mediaFormatters from "@jini-ai/admin/media";
-import type { AdminMedia } from "@/lib/api";
+import { formatUploadDate } from "@jini-ai/admin/media";
+import { formatByteSize } from "@jini-ai/core/text";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /** Jini owns generic formatting; this hook only adapts the legacy card's view model. */
 export interface MediaMetadataFormatters {
@@ -7,9 +8,9 @@ export interface MediaMetadataFormatters {
   formatUploadDate?: (required: { createdAt: string }, optional?: { locale?: string }) => string | null;
 }
 
-// The linked package's built barrel can predate the new source export. Keep hot reload
-// importable until the coordinator rebuilds Jini; never duplicate its formatter here.
-const defaultFormatters: MediaMetadataFormatters = mediaFormatters;
+// The byte-size label lives in `@jini-ai/core/text` (moved out of `@jini-ai/admin/media`, which no longer
+// exports it); the upload-date label stays in admin/media. Never duplicate either formatter here.
+const defaultFormatters: MediaMetadataFormatters = { formatByteSize, formatUploadDate };
 
 /** The card's size text (owner, 2026-09-21) uses Jini's 1024-based KB/MB/GB, matching
  * TOVU_MAX_UPLOAD_BYTES and chat's formatByteLimit rather than IEC KiB/MiB names. Whole B/KB

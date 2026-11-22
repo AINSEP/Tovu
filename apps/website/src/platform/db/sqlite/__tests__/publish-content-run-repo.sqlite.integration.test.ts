@@ -23,7 +23,7 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
   const { dir, dbPath } = createFreshContentDbInTempDir();
   const db = openContentDb(dbPath);
   try {
-    const repo = new SqlitePublishContentRunRepo(db);
+    const repo = new SqlitePublishContentRunRepo({ store: db });
     const initial: PublishContentRunRecord = {
       id: "run-progress-1",
       workspaceId: "workspace-local",
@@ -52,8 +52,8 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
         },
       ]),
     };
-    await repo.save(initial);
-    await repo.save({
+    await repo.save({ record: initial });
+    await repo.save({ record: {
       ...initial,
       phase: "failed",
       changeSetIdsJson: '["cs-1"]',
@@ -72,18 +72,21 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
           updatedAt: "2026-09-19T00:00:01.000Z",
         },
       ]),
-    });
+    } });
 
-    const status = await getPublishContentRunStatus(repo, {
-      workspaceId: initial.workspaceId,
-      runId: initial.id,
-    });
+    const status = await getPublishContentRunStatus({
+                                                      repo,
+                                                      input: {
+        workspaceId: initial.workspaceId,
+        runId: initial.id,
+      }
+                                                    });
     assert.equal(status?.phase, "failed");
     assert.deepEqual(status?.changeSetIds, ["cs-1"]);
     assert.equal(status?.items[0]?.phase, "content_applied");
     assert.equal(status?.items[0]?.idempotencyKey, "publish-content:v1:exact");
     assert.equal(
-      await getPublishContentRunStatus(repo, { workspaceId: "another-workspace", runId: initial.id }),
+      await getPublishContentRunStatus({ repo, input: { workspaceId: "another-workspace", runId: initial.id } }),
       null,
       "a run id alone must not cross workspace boundaries"
     );

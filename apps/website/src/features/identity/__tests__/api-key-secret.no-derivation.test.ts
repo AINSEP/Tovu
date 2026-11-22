@@ -37,7 +37,7 @@ for (const [label, stored] of [
 ] as const) {
   test(`verify refuses ${label} WITHOUT running scrypt`, async t => {
     const scrypt = countScrypt(t);
-    assert.equal(await new ScryptApiKeySecretHasher().verify(stored, "presented-secret"), false);
+    assert.equal(await new ScryptApiKeySecretHasher().verify({ storedHash: stored, secret: "presented-secret" }), false);
     assert.equal(scrypt.calls(), 0);
   });
 }
@@ -45,14 +45,14 @@ for (const [label, stored] of [
 test("the largest admitted work (128*N*r*p exactly 64 MiB), the minimum (N=2, r=1, p=1) and this file's own parameters reach scrypt", async t => {
   const scrypt = countScrypt(t);
   for (const stored of [`scrypt$65536$8$1$${SALT}$${DIGEST}`, `scrypt$16384$8$4$${SALT}$${DIGEST}`, `scrypt$2$1$1$${SALT}$${DIGEST}`, `scrypt$16384$8$1$${SALT}$${DIGEST}`]) {
-    assert.equal(await new ScryptApiKeySecretHasher().verify(stored, "presented-secret"), false);
+    assert.equal(await new ScryptApiKeySecretHasher().verify({ storedHash: stored, secret: "presented-secret" }), false);
   }
   assert.equal(scrypt.calls(), 4);
 });
 
 test("a digest this file writes still verifies after the work bound (no legitimate row is refused)", async () => {
   const hasher = new ScryptApiKeySecretHasher();
-  const stored = await hasher.hash("the-secret");
+  const stored = await hasher.hash({ secret: "the-secret" });
   assert.match(stored, /^scrypt\$16384\$8\$1\$/);
-  assert.equal(await hasher.verify(stored, "the-secret"), true);
+  assert.equal(await hasher.verify({ storedHash: stored, secret: "the-secret" }), true);
 });

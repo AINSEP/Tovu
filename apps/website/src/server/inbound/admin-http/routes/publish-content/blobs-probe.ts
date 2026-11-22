@@ -1,12 +1,13 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
-import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -28,7 +29,7 @@ import type { PublishContentRouteRegistrar } from "./deps.js";
  *  a non-empty array, within the resource-bounds cap, of strings that each look like a sha256 hex
  *  digest. Returns the validated array, or a human-readable error string to send as a 400.
  *  @complexity O(n) in the array length. */
-function validateProbeShas(rawBody: unknown): { shas: string[] } | { error: string } {
+function validateProbeShas({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): { shas: string[] } | { error: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const shas = body.shas;
   if (!Array.isArray(shas) || shas.length === 0) {
@@ -38,35 +39,32 @@ function validateProbeShas(rawBody: unknown): { shas: string[] } | { error: stri
     return { error: `at most ${PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS} shas are allowed per request` };
   }
   for (const sha of shas) {
-    if (typeof sha !== "string" || !isValidSha256Hex(sha)) {
+    if (typeof sha !== "string" || !isValidSha256Hex({ value: sha })) {
       return { error: `'${String(sha)}' is not a valid lowercase sha256 hex digest` };
     }
   }
   return { shas: shas as string[] };
 }
 
-export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         const principal = getAuthedPrincipal(res);
         if (
-          !(await authorizeOrRespond(res, deps.authorize, {
+          !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
             principalId: principal.id,
             permission: "publish_content.apply",
             workspaceId: deps.workspaceId,
-          }))
+          } }))
         )
           return;
 
-        const validated = validateProbeShas(req.body);
+        const validated = validateProbeShas({ rawBody: req.body });
         if ("error" in validated) {
           res.status(400).json({ error: validated.error });
           return;

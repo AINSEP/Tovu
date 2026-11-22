@@ -8,9 +8,9 @@ describe("browser stream ownership", () => {
     const origin = fakeBrowserOrigin();
     const a = origin.tab();
     const b = origin.tab();
-    const connections: { closed: boolean; emit: (frame: { data: string; id: string }) => void }[] = [];
+    const connections: { closed: boolean; emit: (required: { frame: { data: string; id: string } }) => void }[] = [];
     const received: { data: string; id: string }[][] = [[], []];
-    const connect = ({ emit }: { emit: (frame: { data: string; id: string }) => void }) => {
+    const connect = ({ emit }: { emit: (required: { frame: { data: string; id: string } }) => void }) => {
       const connection = { closed: false, emit };
       connections.push(connection);
       return () => { connection.closed = true; };
@@ -19,7 +19,7 @@ describe("browser stream ownership", () => {
     const stopB = startBrowserStream({ key: "settings/ws/user", connect, receive: ({ frame }) => { received[1]!.push(frame); } }, { ports: b.ports });
     await settleLocks();
     expect(connections).toHaveLength(1);
-    connections[0]!.emit({ data: "verbatim", id: "42" });
+    connections[0]!.emit({ frame: { data: "verbatim", id: "42" } });
     await settleLocks();
     expect(received).toEqual([[{ data: "verbatim", id: "42" }], [{ data: "verbatim", id: "42" }]]);
     stopA();
@@ -37,7 +37,7 @@ describe("browser stream ownership", () => {
     const b = origin.tab();
     const opened: string[] = [];
     const closed: string[] = [];
-    let emit: (frame: string) => void = () => {};
+    let emit: (required: { frame: string }) => void = () => {};
     const received: string[] = [];
     const stopA = startBrowserStream({ key: "feed", connect: () => { opened.push("a"); return () => { closed.push("a"); }; }, receive: ({ frame }: { frame: string }) => { received.push(frame); } }, { ports: a.ports });
     const stopB = startBrowserStream({ key: "feed", connect: (args) => { emit = args.emit; opened.push("b"); return () => { closed.push("b"); }; } }, { ports: b.ports });
@@ -46,7 +46,7 @@ describe("browser stream ownership", () => {
     await settleLocks();
     expect(opened).toEqual(["a", "b"]);
     expect(closed).toEqual(["a"]);
-    emit("hidden follower refresh");
+    emit({ frame: "hidden follower refresh" });
     await settleLocks();
     expect(received).toEqual(["hidden follower refresh"]);
     a.show();
@@ -136,9 +136,9 @@ describe("browser stream ownership", () => {
   it("ignores frames from a former leader after handoff and never resurrects a disposed follower", async () => {
     const origin = fakeBrowserOrigin();
     const a = origin.tab(); const b = origin.tab(); const c = origin.tab();
-    const emitters: ((frame: string) => void)[] = [];
+    const emitters: ((required: { frame: string }) => void)[] = [];
     const received: string[] = [];
-    const connect = ({ emit }: { emit: (frame: string) => void }) => { emitters.push(emit); return () => {}; };
+    const connect = ({ emit }: { emit: (required: { frame: string }) => void }) => { emitters.push(emit); return () => {}; };
     const stopA = startBrowserStream({ key: "feed", connect }, { ports: a.ports });
     const stopB = startBrowserStream({ key: "feed", connect, receive: ({ frame }) => { received.push(frame); } }, { ports: b.ports });
     const stopC = startBrowserStream({ key: "feed", connect }, { ports: c.ports });
@@ -146,7 +146,7 @@ describe("browser stream ownership", () => {
     stopC(); stopC(); stopA();
     await settleLocks();
     expect(emitters).toHaveLength(2);
-    emitters[0]!("stale"); emitters[1]!("current");
+    emitters[0]!({ frame: "stale" }); emitters[1]!({ frame: "current" });
     await settleLocks();
     expect(received).toEqual(["current"]);
     stopB(); await settleLocks();
@@ -258,13 +258,13 @@ describe("browser stream lifecycle edges", () => {
   it("a follower that left the page ignores frames broadcast by the leader", async () => {
     const origin = fakeBrowserOrigin();
     const a = origin.tab(); const b = origin.tab();
-    let emit: (frame: string) => void = () => {};
+    let emit: (required: { frame: string }) => void = () => {};
     const received: string[] = [];
-    const stopA = startBrowserStream({ key: "feed", connect: (args: { emit: (frame: string) => void }) => { emit = args.emit; return () => {}; } }, { ports: a.ports });
+    const stopA = startBrowserStream({ key: "feed", connect: (args: { emit: (required: { frame: string }) => void }) => { emit = args.emit; return () => {}; } }, { ports: a.ports });
     const stopB = startBrowserStream({ key: "feed", connect: () => () => {}, receive: ({ frame }: { frame: string }) => { received.push(frame); } }, { ports: b.ports });
     await settleLocks();
     b.page("pagehide");
-    emit("while away");
+    emit({ frame: "while away" });
     await settleLocks();
     expect(received).toEqual([]);
     stopA(); stopB();

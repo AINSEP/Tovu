@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from '@/__tests__/fetch-query-provider.test-helper';
@@ -19,13 +19,13 @@ afterEach(() => {
   for (const scope of scopes.splice(0)) { scope.admin.dispose(); scope.overlays.dispose(); }
   resetContentRefreshBus();
   vi.unstubAllGlobals();
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   window.history.replaceState(null, '', '/');
 });
 
 /** Real module, controllers and memory adapter; only the host locale/API ports are injected. */
 function fixture({ useLocale = () => 'en', tabId = null, sitemapText = '<urlset><url><loc>https://site.test/one</loc></url></urlset>' }: { useLocale?: () => string; tabId?: string | null; sitemapText?: string } = {}) {
-  setPublishToLiveAvailable(true);
+  setPublishToLiveAvailable({ next: true });
   const api = createMemorySeoApi({ sitemapText });
   const load = vi.spyOn(api, 'getSeoSettings');
   const subscribe = vi.fn(seoEvents.subscribe);

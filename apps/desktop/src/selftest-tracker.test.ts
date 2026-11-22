@@ -42,7 +42,7 @@ function recordingCallbacks(): { calls: RecordedCalls; callbacks: SelftestCallba
 
 test("a single window: onAllSettled fires once it finishes loading", () => {
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(1, callbacks);
+  const tracker = createSelftestTracker({ expectedCount: 1, callbacks });
   const window = fakeWindow("http://x/a", "A");
 
   tracker.add(window);
@@ -54,7 +54,7 @@ test("a single window: onAllSettled fires once it finishes loading", () => {
 
 test("two windows, added one at a time: the FIRST window finishing before the SECOND is even added does not settle early", () => {
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(2, callbacks);
+  const tracker = createSelftestTracker({ expectedCount: 2, callbacks });
 
   const first = fakeWindow("http://x/a", "A");
   tracker.add(first);
@@ -75,7 +75,7 @@ test("two windows, added one at a time: the FIRST window finishing before the SE
 
 test("a failed load reports failure and settles with failed:true, without waiting for the other window", () => {
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(2, callbacks);
+  const tracker = createSelftestTracker({ expectedCount: 2, callbacks });
 
   const first = fakeWindow("http://x/a", "A");
   const second = fakeWindow("http://x/b", "B");
@@ -90,7 +90,7 @@ test("a failed load reports failure and settles with failed:true, without waitin
 
 test("a second failure after the first is already reported is ignored — onAllSettled fires exactly once", () => {
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(2, callbacks);
+  const tracker = createSelftestTracker({ expectedCount: 2, callbacks });
 
   const first = fakeWindow("http://x/a", "A");
   const second = fakeWindow("http://x/b", "B");
@@ -106,7 +106,7 @@ test("a second failure after the first is already reported is ignored — onAllS
 
 test("a successful load after a failure elsewhere does not also settle as success", () => {
   const { calls, callbacks } = recordingCallbacks();
-  const tracker = createSelftestTracker(2, callbacks);
+  const tracker = createSelftestTracker({ expectedCount: 2, callbacks });
 
   const first = fakeWindow("http://x/a", "A");
   const second = fakeWindow("http://x/b", "B");
@@ -123,7 +123,7 @@ test("a successful load after a failure elsewhere does not also settle as succes
 for (const [code, isMainFrame] of [[-2, false], [-3, true]] as const) {
   test(`nonfatal load (${code}, main frame ${isMainFrame}) does not fail or consume the fatal-load listener`, () => {
     const { calls, callbacks } = recordingCallbacks();
-    const tracker = createSelftestTracker(1, callbacks);
+    const tracker = createSelftestTracker({ expectedCount: 1, callbacks });
     const window = fakeWindow("http://x/a", "A");
     tracker.add(window);
     window.failLoad(code, "ignored load", isMainFrame);

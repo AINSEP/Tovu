@@ -1,3 +1,5 @@
+import ts from "typescript";
+import { createAttachmentRunFieldsResolver } from "../agent-daemon-scope-attachments.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,15 +18,23 @@ import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attach
 import { createLiveRunTracker, failRunBeforeStart, waitForStoppingRuns, STOPPING_RUN_WAIT_MS } from "../../../../assistant/agent-session-preset.js";
 import { extractSessionRefFromEndEvent, shouldClearSessionOnFailedResume } from "../../../../assistant/agent-session-preset.js";
 import { agentReceivesImageAttachments } from "../run-start-decisions.js";
-import { captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { statementsFor, captureDaemonRun, daemonFunction, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 /** ADR-070 moved discovery to the server. Evaluate the daemon's real outgoing binding and feed it
  * through the server's real context/registration owners, without booting a listener or daemon. */
 function discoveryRegistration({ attachmentStore, ...bindings }: Record<string, unknown>): ToolRegistration {
-  const contextFor = evaluateDaemonExpression<{ contextFor: (input: { runId: string }) => DaemonCallContext }>(
-    daemonInitializer("siteTools"), { env: {}, siteToolToken: "fixture", registry: {}, routeDeps: {},
-      createDaemonSiteTools: (required: unknown) => required, ...bindings },
-  ).contextFor;
+  const statement = statementsFor("agent-daemon-scope.ts", "createSiteScope.try").find(node =>
+    ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration =>
+      declaration.initializer && ts.isCallExpression(declaration.initializer) && declaration.initializer.expression.getText() === "createScopeToolRegistry"));
+  assert.ok(statement && ts.isVariableStatement(statement));
+  const initializer = statement.declarationList.declarations[0]!.initializer;
+  assert.ok(initializer && ts.isCallExpression(initializer));
+  const config = initializer.arguments[0];
+  assert.ok(config && ts.isObjectLiteralExpression(config));
+  const context = config.properties.find(property => ts.isPropertyAssignment(property) && property.name.getText() === "contextFor");
+  assert.ok(context && ts.isPropertyAssignment(context));
+  const contextFor = evaluateDaemonExpression<(input: { runId: string }) => DaemonCallContext>(context.initializer, bindings);
   const registration = buildDaemonAttachmentTools({ deps: {} as never, registrations: [] },
     { getLookup: () => attachmentStore as AttachmentLookup })
     .find(tool => tool.descriptor.id === "chat_list_pending_attachments");
@@ -62,9 +72,7 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
     assert.equal("contextRef" in (await lifecycle.get({ runId: run.id }))!, false);
     const registration = discoveryRegistration({ attachmentStore: store, messageAttachmentRefsByRunId, liveRunTracker });
     const stagedAttachmentCleanupByRunId = new Map<string, () => Promise<void>>();
-    const resolveAttachmentRunFields = evaluateDaemonExpression<(required: unknown, optional: {}) => Promise<unknown>>(
-      daemonFunction("resolveAttachmentRunFields"),
-      { attachmentStore: store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, DEFAULT_AGENT_ID: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
+    const resolveAttachmentRunFields = createAttachmentRunFieldsResolver({ getAttachmentStore: () => store, stageAttachmentClaim, routeDeps: { siteBinding: { dir: root } }, stagedAttachmentCleanupByRunId, defaultAgentId: "claude", getAgentDef, prepareMessageAttachments, readFile, sniffContentType, failRunBeforeStart, agentReceivesImageAttachments },
     );
     const launched = await captureDaemonRun(context, {
       lifecycle, request: { agentId: "claude" }, bindings: {
@@ -86,12 +94,13 @@ test("Claude Local-CLI claiming and delegated discovery share the actual accepte
 
     const registry = createToolRegistry({});
     registry.register(registration);
-    const resolvePrincipal = evaluateDaemonExpression<DelegatedToolsHttpDeps["resolvePrincipal"]>(daemonInitializer("resolvePrincipal"),
-      { principalByRunId, constrainPrincipalToReadOnlyTools });
+    const resolve = evaluateDaemonExpression<(required: { principalByRunId: typeof principalByRunId; request: Parameters<DelegatedToolsHttpDeps["resolvePrincipal"]>[0]["request"] }) => Principal>(daemonFunction("resolvePrincipal"),
+      { constrainPrincipalToReadOnlyTools });
+    const resolvePrincipal: DelegatedToolsHttpDeps["resolvePrincipal"] = input => resolve({ ...input, principalByRunId });
     const deps = { lifecycle, resolvePrincipal, toolRegistry: registry, toolExecutor: createToolExecutor({ registry }) };
     const result = await delegatedToolExecuteRoute.handle({ input: {
       runId: launched.runId, toolUseId: "claude-discover", toolId: registration.descriptor.id, input: {}, requireReadOnly: true,
-    }, deps });
+    }, deps: { ...deps, reportInternalError: reportRouteInternalError } });
     if (!result.ok) assert.fail(result.error.message);
     const output = result.value.result.output as { attachments: { attachmentRef: string }[] };
     assert.deepEqual(output.attachments.map(item => item.attachmentRef), [video.path]);

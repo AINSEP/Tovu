@@ -1,23 +1,24 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import type {
   EntityReplacement,
   PublishContentContributor,
   PublishContentDeps,
-  PublishContentPorts,
   ReferenceHolder,
   RepointResult,
 } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMenuEntity } from "./import-menu.js";
 import { menuHoldersReferencing, repointMenuItems } from "./repoint-menu-refs.js";
 import type { MenuRepointReplacement } from "./repoint-menu-refs.js";
 import { MenuConflictError, MenuNotFoundError, MenuValidationError, updateMenuTree, validateAndCloneTree } from "./index.js";
-import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "./index.js";
+import type { MenuStatus, NavMenuDoc, NavMenuEntry  } from "./index.js";
+import type { MenuRepoPort } from "@jini-ai/cms/navigation";
 
 /**
  * @file `menu`'s publish-content contribution, built on `createRepoPublishHandler`
@@ -61,18 +62,45 @@ import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "./index
  * post). `publish-content-manifest.test.ts` builds the real catalog to catch that.
  */
 
+/** A menu's validation message, or null when its item tree is acceptable. */
+function menuDocProblem(required: { doc: NavMenuDoc }, _optional = {}): string | null {
+  try {
+    validateAndCloneTree({ items: required.doc.items });
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+/** The menu record an apply writes from a transferred state; bookkeeping fields are recomputed on import. */
+function menuRecordFromState(required: { id: string; workspaceId: string; state: Readonly<Record<string, unknown>>; now: string }, _optional = {}): NavMenuEntry {
+  const { id, workspaceId, state, now } = required;
+  return {
+      id,
+      workspaceId,
+      slug: state.slug as string,
+      title: state.title as string,
+      status: state.status as MenuStatus,
+      doc: state.doc as NavMenuDoc,
+      locations: (state.locations as readonly string[] | undefined) ?? [],
+      // Local bookkeeping, recomputed inside `importMenuEntity`; never read back.
+      updatedAt: now,
+      version: 0,
+  };
+}
+
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMenusPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<NavMenuEntry, PublishContentPorts["menu"]>({
+  createRepoPublishHandler<NavMenuEntry, TovuPublishPorts["menu"]>({
     entityType: "menu",
     coversTables: ["menus", "nav_location_bindings"],
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).
     permission: "admin.menus.update",
     dependsOn: ["post", "page"],
-    ports: (deps) => deps.ports.menu,
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
-    isTrashed: (row) => row.status === "trash",
+    ports: ({ deps }, _optional = {}) => deps.ports.menu,
+    list: ({ ports: p, workspaceId }) => p.repo.list({ workspaceId }),
+    find: ({ ports: p, workspaceId, id }) => p.repo.findById({ workspaceId, id }),
+    isTrashed: ({ row }) => row.status === "trash",
     // `NavMenuEntry` has no authorship/provenance field, so everything packed is hashed.
     fields: {
       slug: "transferred",
@@ -85,31 +113,13 @@ export const contributeMenusPublish = (): PublishContentContributor =>
       updatedAt: "local",
       version: "local",
     },
-    address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
-    validate: async ({ entity }) => {
-      try {
-        validateAndCloneTree({ items: (entity.state.doc as NavMenuDoc).items });
-        return null;
-      } catch (err) {
-        return err instanceof Error ? err.message : String(err);
-      }
-    },
+    address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }) => p.repo.findBySlug({ workspaceId, slug }) },
+    validate: async ({ entity }) => menuDocProblem({ doc: entity.state.doc as NavMenuDoc }),
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion }) => {
       if (!deps.outbox) {
         throw new Error("publish-content: menu.apply() requires PublishContentDeps.outbox — wire it from the real apply-loop composition root (features/publish-content/apply-loop.ts).");
       }
-      const record: NavMenuEntry = {
-        id,
-        workspaceId,
-        slug: state.slug as string,
-        title: state.title as string,
-        status: state.status as MenuStatus,
-        doc: state.doc as NavMenuDoc,
-        locations: (state.locations as readonly string[] | undefined) ?? [],
-        // Local bookkeeping, recomputed inside `importMenuEntity`; never read back.
-        updatedAt: clockNowIso({ clock: deps.clock }),
-        version: 0,
-      };
+      const record = menuRecordFromState({ id, workspaceId, state, now: clockNowIso({ clock: deps.clock }) });
       const importDeps = { clock: deps.clock, idGen: deps.idGen, repo: ports.repo, bindingRepo: ports.bindingRepo, outbox: deps.outbox };
       await importMenuEntity({ deps: importDeps, input: { workspaceId, record, expectedVersion } });
     },
@@ -164,8 +174,6 @@ function notUpdatedOutcome({ err, menu }: { err: unknown; menu: NavMenuEntry }):
   throw err; // a genuine fault — never swallowed
 }
 
-/** R3 (`plan-publish-repoint-menus-2026-09-24.md`): find and repoint menu links to retired rows. */
-function menuReferenceMethods(deps: PublishContentDeps) {
   /**
    * R3 (`plan-publish-repoint-menus-2026-09-24.md` §2.1/§2.2) — read-only: every live menu with at
    * least one item, at any depth, whose `entryRef.entryId` is one of `ids`. Delegates the tree walk
@@ -175,11 +183,11 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * @complexity O(n) over every item across every live menu (n = total item count including
    * descendants) via {@link menuHoldersReferencing}, plus one repo list call.
    */
-  async function referencesTo(ids: readonly string[]): Promise<readonly ReferenceHolder[]> {
+  async function referencesTo({ deps, ids }: { deps: PublishContentDeps; ids: readonly string[] }): Promise<readonly ReferenceHolder[]> {
     const menuRepo = deps.ports.menu?.repo;
     if (!menuRepo) return [];
     const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
-    return menuHoldersReferencing(menus, ids);
+    return menuHoldersReferencing({ menus, ids });
   }
 
   /**
@@ -203,12 +211,12 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * item count across live menus), plus up to 2 repo round-trips and one `executeCommand` per menu
    * that actually needs a write.
    */
-  async function repointReferences(input: {
+  async function repointReferences({ deps, input }: { deps: PublishContentDeps; input: {
     replacements: readonly EntityReplacement[];
     skipIds: ReadonlySet<string>;
     principalId: string;
     runId: string;
-  }): Promise<RepointResult> {
+  } }): Promise<RepointResult> {
     const ports = requireRepointPorts(deps);
     const replacementByOldId = new Map<string, MenuRepointReplacement>(
       input.replacements.map((replacement) => [replacement.oldId, { newId: replacement.newId, entityType: replacement.entityType }] as const)
@@ -220,15 +228,15 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     const notUpdated: string[] = [];
 
     for (const menu of menus) {
-      if (input.skipIds.has(menu.id) || repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
+      if (input.skipIds.has(menu.id) || repointMenuItems({ items: menu.doc.items, replacements: replacementByOldId }).count === 0) continue;
 
-      const outcome = await repointOneMenu({
+      const outcome = await repointOneMenu({ deps, input: {
         ...ports,
         menuId: menu.id,
         replacementByOldId,
         principalId: input.principalId,
         runId: input.runId,
-      });
+      } });
       if (outcome.kind === "written") {
         changeSetIds.push(outcome.changeSetId);
         linksUpdated += outcome.count;
@@ -257,21 +265,20 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * tree walk (n = this one menu's item count) and `executeCommand`'s own cost.
    */
   async function repointOneMenu(
-    input: RepointMenuInput,
-    { attemptsLeft = MAX_REPOINT_ATTEMPTS }: { attemptsLeft?: number } = {},
+    { deps, input, attemptsLeft = MAX_REPOINT_ATTEMPTS }: { deps: PublishContentDeps; input: RepointMenuInput; attemptsLeft?: number },
   ): Promise<RepointOutcome> {
     const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
     if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
 
-    const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
+    const repointed = repointMenuItems({ items: menu.doc.items, replacements: input.replacementByOldId });
     if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
 
     try {
-      const changeSetId = await writeRepointedMenu({ input, menu, items: repointed.items });
+      const changeSetId = await writeRepointedMenu({ deps, input, menu, items: repointed.items });
       return { kind: "written", changeSetId, count: repointed.count };
     } catch (err) {
       if (err instanceof MenuConflictError && attemptsLeft > 1) {
-        return repointOneMenu(input, { attemptsLeft: attemptsLeft - 1 }); // one retry, against a fresh read
+        return repointOneMenu({ deps, input, attemptsLeft: attemptsLeft - 1 }); // one retry, against a fresh read
       }
       return notUpdatedOutcome({ err, menu });
     }
@@ -282,7 +289,8 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * revertible, audited change set; resolves to that change set's id.
    * @complexity O(1) repo calls plus `executeCommand`'s own cost.
    */
-  async function writeRepointedMenu({ input, menu, items }: {
+  async function writeRepointedMenu({ deps, input, menu, items }: {
+    deps: PublishContentDeps;
     input: RepointMenuInput;
     menu: NavMenuEntry;
     items: NavMenuDoc["items"];
@@ -330,5 +338,10 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     return changeSetId;
   }
 
-  return { referencesTo, repointReferences };
+/** R3 (`plan-publish-repoint-menus-2026-09-24.md`): find and repoint menu links to retired rows. */
+function menuReferenceMethods(deps: PublishContentDeps) {
+  return {
+    referencesTo: ({ ids }: { ids: readonly string[] }, _optional = {}) => referencesTo({ deps, ids }),
+    repointReferences: (input: Parameters<typeof repointReferences>[0]["input"]) => repointReferences({ deps, input }),
+  };
 }

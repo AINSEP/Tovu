@@ -45,16 +45,16 @@ test("L005: composition discovers the bound site's key and passes its directory 
   const { createSiteRouteDeps } = await import("../deps.js");
   let close: (() => Promise<void>) | undefined;
   try {
-    const deps = await createSiteRouteDeps(path.join(root, "relocated", "content.db"), {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(root, "relocated", "content.db"), overrides: {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { close = () => store.close(); },
-    });
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
+    } });
     await deps.identityReady;
     assert.equal(bootSiteDir, siteDir, "vault contributions load from the served site's directory");
     const input = { workspaceId: deps.workspaceId, purpose: "l005-pin", info: "bound-site" };
     assert.deepEqual(await deps.siteAssistantSecretKeyring.derive(input),
-      await new FixedSiteKeyKeyring(material).derive(input), "the site's per-site key wins over ambient sources");
+      await new FixedSiteKeyKeyring({ hex: material }).derive(input), "the site's per-site key wins over ambient sources");
   } finally {
     await close?.();
   }

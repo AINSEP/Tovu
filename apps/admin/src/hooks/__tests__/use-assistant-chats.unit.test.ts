@@ -95,7 +95,7 @@ describe("typing with no conversation selected", () => {
     expect(result.current.activeId).toBeNull();
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
 
     await waitFor(() => expect(result.current.activeId).toBe("new-1"));
@@ -113,7 +113,7 @@ describe("typing with no conversation selected", () => {
     const keyBefore = result.current.paneKey;
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("new-1"));
 
@@ -125,8 +125,8 @@ describe("typing with no conversation selected", () => {
     await waitFor(() => expect(result.current.conversations).toEqual([]));
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "one")]);
-      result.current.onMessagesChange([message("m1", "one"), message("m2", "two")]);
+      result.current.onMessagesChange({ messages: [message("m1", "one")] });
+      result.current.onMessagesChange({ messages: [message("m1", "one"), message("m2", "two")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("new-1"));
 
@@ -171,13 +171,13 @@ describe("a failed message write is retried", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: (_conversationId, _message, attempt) => {
-        if (attempt === 1) throw new HttpError(503, "Service Unavailable");
+        if (attempt === 1) throw new HttpError({ status: 503, statusText: "Service Unavailable" });
       },
     });
 
     const { result } = await mountWith(port);
     act(() => {
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
 
     // Past the first backoff step (1s), not past the second — so this asserts the retry happened,
@@ -208,13 +208,13 @@ describe("a failed message write is retried", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: () => {
-        throw new HttpError(400, "Bad Request");
+        throw new HttpError({ status: 400, statusText: "Bad Request" });
       },
     });
 
     const { result } = await mountWith(port);
     act(() => {
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
     // Well past every backoff step, so a retry would certainly have fired by now.
     await act(async () => {
@@ -227,7 +227,7 @@ describe("a failed message write is retried", () => {
     // The transcript grows, as it does on every streamed delta, and still carries m1.
     for (let delta = 0; delta < 3; delta += 1) {
       act(() => {
-        result.current.onMessagesChange([message("m1", "hello"), message(`m${delta + 2}`, "more")]);
+        result.current.onMessagesChange({ messages: [message("m1", "hello"), message(`m${delta + 2}`, "more")] });
       });
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60_000);
@@ -255,17 +255,17 @@ describe("deleting the last conversation does not wedge persistence", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "first")]);
+      result.current.onMessagesChange({ messages: [message("m1", "first")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("fake-1"));
 
     await act(async () => {
-      await result.current.remove("fake-1");
+      await result.current.remove({ id: "fake-1" });
     });
     expect(result.current.activeId).toBeNull();
 
     await act(async () => {
-      result.current.onMessagesChange([message("m2", "second")]);
+      result.current.onMessagesChange({ messages: [message("m2", "second")] });
     });
 
     // A second conversation, and the message actually in it. Before the fix `activeId` stayed
@@ -299,18 +299,18 @@ describe("a background adoption never overrides an explicit switch", () => {
     let createCalls = 0;
     const port: AssistantChatsPort = {
       ...base,
-      async createConversation(firstMessage?: string) {
+      async createConversation(_required, { firstMessage } = {}) {
         createCalls += 1;
         // Only the adoption's own POST is held open; the explicit `create()` below resolves at once.
         if (createCalls === 1) await gate;
-        return base.createConversation(firstMessage);
+        return base.createConversation({}, { firstMessage: firstMessage });
       },
     };
 
     const { result } = await mountWith(port);
 
     act(() => {
-      result.current.onMessagesChange([message("m1", "typed into the fresh pane")]);
+      result.current.onMessagesChange({ messages: [message("m1", "typed into the fresh pane")] });
     });
 
     await act(async () => {
@@ -354,9 +354,9 @@ describe("a background adoption never overrides an explicit switch", () => {
     });
     const port: AssistantChatsPort = {
       ...base,
-      async createConversation(firstMessage?: string) {
+      async createConversation(_required, { firstMessage } = {}) {
         await gate;
-        return base.createConversation(firstMessage);
+        return base.createConversation({}, { firstMessage: firstMessage });
       },
     };
 
@@ -372,10 +372,10 @@ describe("a background adoption never overrides an explicit switch", () => {
      * apart. The adoption then resolves LAST and publishes into a pane that has been re-keyed to B.
      */
     act(() => {
-      result.current.select("existing-b");
+      result.current.select({ id: "existing-b" });
     });
     act(() => {
-      result.current.onMessagesChange([message("m1", "typed before the switch settled")]);
+      result.current.onMessagesChange({ messages: [message("m1", "typed before the switch settled")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("existing-b"));
 
@@ -405,16 +405,16 @@ describe("a background adoption never overrides an explicit switch", () => {
     let createCalls = 0;
     const port: AssistantChatsPort = {
       ...base,
-      async createConversation(firstMessage?: string) {
+      async createConversation(_required, { firstMessage } = {}) {
         createCalls += 1;
         // #1 is the doomed adoption, held open so it can reject LATE. #3 is the live adoption it
         // must not disturb, left pending forever. #2 is the explicit create, which resolves at once.
         if (createCalls === 1) {
           await firstGate;
-          throw new HttpError(500, "Internal Server Error");
+          throw new HttpError({ status: 500, statusText: "Internal Server Error" });
         }
         if (createCalls >= 3) return new Promise<never>(() => {});
-        return base.createConversation(firstMessage);
+        return base.createConversation({}, { firstMessage: firstMessage });
       },
     };
 
@@ -422,7 +422,7 @@ describe("a background adoption never overrides an explicit switch", () => {
 
     // Adoption #1 starts and hangs.
     act(() => {
-      result.current.onMessagesChange([message("m1", "first turn")]);
+      result.current.onMessagesChange({ messages: [message("m1", "first turn")] });
     });
 
     // Create then delete the only conversation — the one route back to `activeId === null`, which
@@ -432,13 +432,13 @@ describe("a background adoption never overrides an explicit switch", () => {
       await result.current.create();
     });
     await act(async () => {
-      await result.current.remove("fake-1");
+      await result.current.remove({ id: "fake-1" });
     });
     expect(result.current.activeId).toBeNull();
 
     // Adoption #3 (call three) starts and stays in flight.
     await act(async () => {
-      result.current.onMessagesChange([message("m2", "second turn")]);
+      result.current.onMessagesChange({ messages: [message("m2", "second turn")] });
       await Promise.resolve();
     });
 
@@ -450,7 +450,7 @@ describe("a background adoption never overrides an explicit switch", () => {
     });
 
     await act(async () => {
-      result.current.onMessagesChange([message("m2", "second turn")]);
+      result.current.onMessagesChange({ messages: [message("m2", "second turn")] });
       await Promise.resolve();
     });
 
@@ -527,10 +527,10 @@ describe("the real client is what classifies a failure", () => {
       vi.fn(async () => new Response("nope", { status: 503, statusText: "Service Unavailable" })),
     );
 
-    await expect(defaultAssistantChatsPort.saveMessage("c1", message("m1", "hi"))).rejects.toBeInstanceOf(
+    await expect(defaultAssistantChatsPort.saveMessage({ conversationId: "c1", message: message("m1", "hi") })).rejects.toBeInstanceOf(
       HttpError,
     );
-    await expect(defaultAssistantChatsPort.saveMessage("c1", message("m1", "hi"))).rejects.toMatchObject({
+    await expect(defaultAssistantChatsPort.saveMessage({ conversationId: "c1", message: message("m1", "hi") })).rejects.toMatchObject({
       status: 503,
     });
   });
@@ -563,13 +563,13 @@ describe("guards proven necessary by deleting them", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: (_c, _m, attempt) => {
-        if (attempt === 1) throw new HttpError(404, "Not Found");
+        if (attempt === 1) throw new HttpError({ status: 404, statusText: "Not Found" });
       },
     });
 
     const { result } = await mountWith(port);
     act(() => {
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_000);
@@ -599,21 +599,21 @@ describe("guards proven necessary by deleting them", () => {
     });
     const port: AssistantChatsPort = {
       ...base,
-      async renameConversation(id: string, title: string) {
+      async renameConversation({ id, title }) {
         await patchGate;
-        return base.renameConversation(id, title);
+        return base.renameConversation({ id, title });
       },
     };
 
     const { result } = await mountWith(port);
     let renaming: Promise<void> | undefined;
     act(() => {
-      renaming = result.current.rename("c1", "New");
+      renaming = result.current.rename({ id: "c1", title: "New" });
     });
 
     // An unrelated refresh lands while the PATCH is still open. The server still says "Old".
     await act(async () => {
-      await result.current.remove("nonexistent");
+      await result.current.remove({ id: "nonexistent" });
     });
 
     expect(result.current.conversations.find((c) => c.id === "c1")?.title).toBe("New");
@@ -636,7 +636,7 @@ describe("guards proven necessary by deleting them", () => {
     vi.useFakeTimers();
     const port = createFakeAssistantChatsPort({
       onSaveMessage: () => {
-        throw new HttpError(503, "Service Unavailable");
+        throw new HttpError({ status: 503, statusText: "Service Unavailable" });
       },
     });
 
@@ -645,7 +645,7 @@ describe("guards proven necessary by deleting them", () => {
       await Promise.resolve();
     });
     act(() => {
-      rendered.result.current.onMessagesChange([message("m1", "hello")]);
+      rendered.result.current.onMessagesChange({ messages: [message("m1", "hello")] });
     });
     await act(async () => {
       await Promise.resolve();
@@ -714,16 +714,16 @@ describe("guards proven necessary by deleting them", () => {
 
     const { result } = await mountWith(port);
     act(() => {
-      result.current.select("A");
+      result.current.select({ id: "A" });
     });
     await waitFor(() => expect(result.current.activeId).toBe("A"));
 
     let removingA: Promise<void> | undefined;
     act(() => {
-      removingA = result.current.remove("A");
+      removingA = result.current.remove({ id: "A" });
     });
     await act(async () => {
-      await result.current.remove("C");
+      await result.current.remove({ id: "C" });
     });
     await act(async () => {
       openFirstList?.();
@@ -748,7 +748,7 @@ describe("guards proven necessary by deleting them", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "how many published posts do I have")]);
+      result.current.onMessagesChange({ messages: [message("m1", "how many published posts do I have")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("fake-1"));
     await waitFor(() =>
@@ -770,19 +770,19 @@ describe("guards proven necessary by deleting them", () => {
     const { result } = await mountWith(port);
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "first")]);
+      result.current.onMessagesChange({ messages: [message("m1", "first")] });
     });
     await waitFor(() => expect(result.current.activeId).toBe("fake-1"));
 
     // Deleted out from under the pane, the way another tab would.
     await act(async () => {
-      await port.deleteConversation("fake-1");
+      await port.deleteConversation({ id: "fake-1" });
     });
 
     vi.useFakeTimers();
 
     await act(async () => {
-      result.current.onMessagesChange([message("m1", "first"), message("m2", "second")]);
+      result.current.onMessagesChange({ messages: [message("m1", "first"), message("m2", "second")] });
       await vi.advanceTimersByTimeAsync(20_000);
     });
 
@@ -867,7 +867,7 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
 
     await act(async () => {
       const ensured = result.current.ensureConversationId();
-      result.current.onMessagesChange([message("m1", "hello")]);
+      result.current.onMessagesChange({ messages: [message("m1", "hello")] });
       await ensured;
     });
     await waitFor(() => expect(result.current.activeId).toBe("new-1"));
@@ -890,8 +890,8 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
       ...base,
       createConversation: async () => {
         attempts += 1;
-        if (attempts === 1) throw new HttpError(500, "boom");
-        return base.createConversation();
+        if (attempts === 1) throw new HttpError({ status: 500, statusText: "boom" });
+        return base.createConversation({});
       },
     };
     const { result } = renderHook(() => useAssistantChats(port));
@@ -912,17 +912,17 @@ describe("ensureConversationId — the run needs the id BEFORE the first delta e
   });
 });
 
-describe("sharedPort — Jini's object-shaped port over the host's positional one", () => {
+describe("sharedPort — adapts Jini's port to the host's argument objects", () => {
   it("forwards every call, seeding the title only when a first message is given", async () => {
     const calls: unknown[][] = [];
     const conversation = { id: "c1", title: "t" } as unknown as AssistantConversation;
     const host: AssistantChatsPort = {
       listConversations: async () => { calls.push(["list"]); return [conversation]; },
-      createConversation: async (...args: [string?]) => { calls.push(["create", ...args]); return conversation; },
-      renameConversation: async (id, title) => { calls.push(["rename", id, title]); },
-      deleteConversation: async (id) => { calls.push(["delete", id]); },
-      loadMessages: async (id) => { calls.push(["load", id]); return []; },
-      saveMessage: async (id, message) => { calls.push(["save", id, message.id]); },
+      createConversation: async (_required, { firstMessage } = {}) => { calls.push(firstMessage === undefined ? ["create"] : ["create", firstMessage]); return conversation; },
+      renameConversation: async ({ id, title }) => { calls.push(["rename", id, title]); },
+      deleteConversation: async ({ id }) => { calls.push(["delete", id]); },
+      loadMessages: async ({ conversationId }) => { calls.push(["load", conversationId]); return []; },
+      saveMessage: async ({ conversationId, message }) => { calls.push(["save", conversationId, message.id]); },
     };
     const port = sharedPort(host);
     expect(await port.listConversations({}, {})).toEqual([conversation]);

@@ -1,4 +1,5 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "./api";
+import { authenticatedAdminRequest } from "./admin-http/request";
+import { WORKSPACE_ID } from "./admin-http/config";
 
 /** Mirrors `VisitorToolsView` in `apps/website/src/contracts/site-assistant/visitor-tools-management.ts`.
  * The admin page and the assistant chat's `visitor_tools_list` read the same service, so this shape
@@ -48,5 +49,5 @@ const path = `/workspaces/${WORKSPACE_ID}/assistant/visitor-tools`;
 /** Thin host adapter over the shared authenticated request (session, error and reconnect boundary). */
 export const visitorToolsPort: VisitorToolsPort = {
   list: async () => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "GET" })).data,
-  configure: async (body) => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "PUT", body })).data,
+  configure: async (body, _optional = {}) => (await authenticatedAdminRequest<{ data: VisitorToolsView }>({ path, method: "PUT", body })).data,
 };

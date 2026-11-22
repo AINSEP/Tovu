@@ -1,6 +1,6 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -73,7 +73,7 @@ function mountApp(deps: UsersRouteDeps, callerId: string): express.Express {
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserDeleteRoute(app, deps);
+  registerAdminUserDeleteRoute({ app, deps });
   return app;
 }
 
@@ -85,18 +85,18 @@ async function buildApp(
   db.$client
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WORKSPACE_ID, WORKSPACE_ID, WORKSPACE_ID, "2026-01-01T00:00:00.000Z");
-  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db), workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel({ store: db }), workspaceId: WORKSPACE_ID, clock, idGen: counterIdGen() });
   await wiring.identityReady;
   const ownerId = await wiring.ownerPrincipalId;
   const callerId = principalId ?? ownerId;
 
-  const trashRepo = new SqliteTrashRepo(db.$client);
-  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
+  const trashRepo = new SqliteTrashRepo({ store: db.$client });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel({ store: db }), purge: new SqliteUserPurge({ kernel: contentKernel({ store: db }), eventValues: outboxEventValues }), idGen: counterTrashIdGen(), clock });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]),
     idGen: { newId: counterTrashIdGen().next },
-    transaction: ({ work }) => createContentDbTransactionRunner(db.$client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: db.$client })(work),
     entityPolicy: ({ entityType }) => entityType === USER_ENTITY_TYPE,
   });
 
@@ -122,8 +122,8 @@ async function buildApp(
     ownerPrincipalId: wiring.ownerPrincipalId,
     outbox: new InMemoryOutbox(),
     removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
-    isInTrash: async (principalIdToCheck: string) =>
-      (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalIdToCheck })) !== null,
+    isInTrash: async ({ principalId }: { principalId: string }) =>
+      (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null,
     ...depsOverrides,
   };
   const app = mountApp(deps, callerId);
@@ -176,7 +176,7 @@ test("DELETE_USER route: 204 trashes an existing user", async (t) => {
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 204);
   assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "disabled");
-  assert.equal(await deps.isInTrash!(target.id), true);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), true);
   assert.equal(await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: active.session.id }), null);
   assert.equal(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }), null);
 });
@@ -207,7 +207,7 @@ test("DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor 
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "FORBIDDEN");
-  assert.equal(await deps.isInTrash!(target.id), false);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), false);
   assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "active");
 });
 
@@ -272,7 +272,7 @@ test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.man
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "only an owner can delete, trash, disable or reset the password of an admin or owner account", code: "OWNER_REQUIRED" });
   assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }), before);
-  assert.equal(await deps.isInTrash!(target.id), false);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), false);
 });
 
 test("DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal", async (t) => {

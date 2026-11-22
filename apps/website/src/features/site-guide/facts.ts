@@ -1,6 +1,6 @@
 import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
-import type { SiteFact } from "./contracts.js";
-import type { PluginMaturity } from "#src/features/agent-plugins/identity";
+import type { GuideFact as SiteFact } from "@jini-ai/agentic/core";
+import type { PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
 /** Only read ports: live registries and host module status. No settings or credential values. */
 export interface SiteGuideFactsDeps extends SiteProfileSourceDeps {
@@ -29,7 +29,7 @@ async function readProfileFacts({ deps, caller, requested }: {
   deps: SiteGuideFactsDeps; caller: { principalId: string }; requested: ReadonlySet<string>;
 }, _options: Record<string, never> = {}): Promise<Record<string, SiteFact>> {
   const sections = PROFILE_TOPICS.filter(([topic]) => requested.has(topic)).map(([, section]) => section);
-  const profile = sections.length ? await buildSiteProfile(toSiteProfileDeps(deps), caller, { sections }) : undefined;
+  const profile = sections.length ? await buildSiteProfile({ deps: toSiteProfileDeps(deps), input: caller }, { sections }) : undefined;
   const facts: Record<string, SiteFact> = {};
   for (const [topic, section] of PROFILE_TOPICS) {
     const read = profile?.sections[section];

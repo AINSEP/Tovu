@@ -7,13 +7,15 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost, DEFAULT_BODY_JSON } from "../post.js";
+import { createPost } from "../post-create.js";
+import { DEFAULT_BODY_JSON } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -31,7 +33,7 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-09-24T00:00:00.000Z";
 
 function fakeRouteDeps<R extends InMemoryPostRepo | SqlitePostRepo = InMemoryPostRepo>(
-  postRepo: R = new InMemoryPostRepo() as R
+  postRepo: R = new InMemoryPostRepo({}) as R
 ) {
   let counter = 0;
   const deps = {
@@ -82,9 +84,9 @@ async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo | Sql
     { workspaceId: WORKSPACE_ID, postId: "page-1" },
     { repo: postRepo, clock: deps.clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("content_post_update: a different bodyJson on a bespoke-HTML page is REJECTED, not silently dropped", async () => {
@@ -148,7 +150,7 @@ test("content_post_update: the real sqlite placeholder bodyJson, JSON-serialized
   // can't prove the guard's deep-equal matches what an agent actually sends. This one reads through
   // `SqlitePostRepo` (whose `toRecord` fills an html row's NULL `body_json` with the placeholder)
   // and round-trips that bodyJson through JSON, as the tool transport does.
-  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo(openContentDb(":memory:")));
+  const { deps, postRepo } = fakeRouteDeps(new SqlitePostRepo({ store: openContentDb(":memory:") }));
   const generated = `<section data-agent-element="page-body" data-agent-role="region"><p>Real content</p></section>`;
   await seedHtmlPage(deps, postRepo, generated);
   const registrations = registrationsFor(deps);

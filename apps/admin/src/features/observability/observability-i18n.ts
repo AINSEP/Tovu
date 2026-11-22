@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Observability page (`/admin/observability`). Same shape as
  * `security/security-i18n.ts`: a flat `DICT[locale][englishKey] = translation` map, `t =
@@ -51,6 +51,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "assistant": "assistant",
     "server": "server",
     "failed to load recent server errors": "failed to load recent server errors",
+    "failed to load observability status": "failed to load observability status",
     "Copy": "Copy",
     "Copied": "Copied",
     "Copy the time, source and full message, ready to paste.": "Copy the time, source and full message, ready to paste.",

@@ -1,3 +1,4 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { JsonValue, UUID } from "@jini-ai/core/primitives";
 // From the package, not `./index.js`: the barrel's `set` comes from `site-title-write.ts`, which
@@ -13,6 +14,8 @@ import {
   type SettingsRepoPort,
 } from "@jini-ai/core/settings";
 import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-050 (`core.site.title`): the public site title as a per-workspace setting, the one
@@ -75,7 +78,7 @@ export async function ensureSiteTitleSettingDefinition(
  *
  * @complexity O(n) in the value's length.
  */
-export function normalizeSiteTitle(value: JsonValue | undefined): string | undefined {
+export function normalizeSiteTitle({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= SITE_TITLE_MAX_LENGTH ? trimmed : undefined;
@@ -90,7 +93,7 @@ export interface SiteTitlePreservationStorePort {
   /** Recorded workspaces whose pin has not landed yet, sorted by id. */
   listPendingWorkspaceIds(): Promise<UUID[]>;
   /** True only for a recorded workspace whose pin has not landed yet. */
-  isPending(workspaceId: UUID): Promise<boolean>;
+  isPending(required: { workspaceId: UUID }, optional?: Record<string, never>): Promise<boolean>;
   /** Resolves one pending workspace. A no-op for an unrecorded or already resolved id. */
   markPreserved(required: { workspaceId: UUID; preservedAt: string }): Promise<void>;
 }
@@ -107,7 +110,7 @@ export class InMemorySiteTitlePreservationStore implements SiteTitlePreservation
     return [...this.pending].sort();
   }
 
-  async isPending(workspaceId: UUID): Promise<boolean> {
+  async isPending({ workspaceId }: { workspaceId: UUID }, _optional = {}): Promise<boolean> {
     return this.pending.has(workspaceId);
   }
 
@@ -127,7 +130,7 @@ export interface PreserveLegacySiteTitlesResult {
   failedWorkspaceIds: UUID[];
 }
 
-/** Always-allow shim scoped to this one system write, the same shape `migration.ts` uses for its own. */
+/** Always-allow shim scoped to this one system write, the same shape `settings migration` uses for its own. */
 const allowSystemPin: AuthorizeFn = async () => ({ allowed: true, reason: "system_migration" });
 
 type PinOutcome = "pinned" | "skipped" | "failed";
@@ -161,16 +164,13 @@ export async function preserveLegacySiteTitles(
   for (const workspaceId of pendingWorkspaceIds) {
     const outcome: PinOutcome = definition
       ? await pinOneWorkspace(deps, { settingId: definition.settingId, workspaceId, systemPrincipalId: input.systemPrincipalId })
-      : logPinFailure(workspaceId, "core.site/title is not registered");
+      : logPinFailure({ workspaceId, reason: "core.site/title is not registered" });
     if (outcome === "pinned") result.pinnedWorkspaceIds.push(workspaceId);
     else if (outcome === "skipped") result.skippedWorkspaceIds.push(workspaceId);
     else result.failedWorkspaceIds.push(workspaceId);
   }
 
-  // eslint-disable-next-line no-console
-  console.info(
-    `preserveLegacySiteTitles: pinned=${result.pinnedWorkspaceIds.length} skipped=${result.skippedWorkspaceIds.length} failed=${result.failedWorkspaceIds.length}`
-  );
+  consoleLogger.info({ message: `preserveLegacySiteTitles: pinned=${result.pinnedWorkspaceIds.length} skipped=${result.skippedWorkspaceIds.length} failed=${result.failedWorkspaceIds.length}` });
   return result;
 }
 
@@ -199,13 +199,12 @@ async function pinOneWorkspace(
     await deps.preservationStore.markPreserved({ workspaceId, preservedAt: clockNowIso({ clock: deps.clock }) });
     return existing ? "skipped" : "pinned";
   } catch (err) {
-    return logPinFailure(workspaceId, (err as Error).message);
+    return logPinFailure({ workspaceId, reason: (err as Error).message });
   }
 }
 
-function logPinFailure(workspaceId: UUID, reason: string): "failed" {
-  // eslint-disable-next-line no-console
-  console.error(`preserveLegacySiteTitles: workspace '${workspaceId}' stays pending, pin failed: ${reason}`);
+function logPinFailure({ workspaceId, reason }: { workspaceId: UUID; reason: string }, _optional = {}): "failed" {
+  consoleLogger.error({ message: `preserveLegacySiteTitles: workspace '${workspaceId}' stays pending, pin failed: ${reason}` });
   return "failed";
 }
 
@@ -254,27 +253,25 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
     // second, so a pending marker can only be followed by no value or the pin, and both render the
     // legacy title. In the other order, a pin landing between the two reads would render the
     // display name for that request.
-    const pending = await deps.preservationStore.isPending(input.workspaceId);
+    const pending = await deps.preservationStore.isPending({ workspaceId: input.workspaceId });
     const resolved = await getEffective(
-      { repo: deps.settingsRepo },
-      { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: input.workspaceId } }
+      { deps: { repo: deps.settingsRepo }, namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: input.workspaceId } },
     );
     if (resolved === null) return LEGACY_SITE_TITLE;
-    const workspaceTitle = resolved.sourceLayer === "workspace" ? normalizeSiteTitle(resolved.value) : undefined;
+    const workspaceTitle = resolved.sourceLayer === "workspace" ? normalizeSiteTitle({ value: resolved.value }) : undefined;
     if (workspaceTitle !== undefined) return workspaceTitle;
     if (pending) return LEGACY_SITE_TITLE;
     return (await resolveSiteDisplayName(deps, input.workspaceId)) ?? LEGACY_SITE_TITLE;
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`resolveSiteTitle: falling back to the legacy title for workspace '${input.workspaceId}': ${(err as Error).message}`);
+    consoleLogger.error({ message: `resolveSiteTitle: falling back to the legacy title for workspace '${input.workspaceId}': ${(err as Error).message}` });
     return LEGACY_SITE_TITLE;
   }
 }
 
 /** NC-2 = B: the configured display name as it stands now (REQ-13), else the workspace row's name, each only if renderable. */
 async function resolveSiteDisplayName(deps: ResolveSiteTitleDeps, workspaceId: UUID): Promise<string | undefined> {
-  const configured = normalizeSiteTitle(deps.siteDisplayName.read());
+  const configured = normalizeSiteTitle({ value: deps.siteDisplayName.read() });
   if (configured !== undefined) return configured;
   const workspace = await deps.workspaceRepo.findById({ id: workspaceId });
-  return normalizeSiteTitle(workspace?.name);
+  return normalizeSiteTitle({ value: workspace?.name });
 }

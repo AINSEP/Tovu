@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildVaultAad, createVaultMetaParsers, InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, createVaultMetaParsers, InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { CredentialSetProjectScope } from "@jini-ai/core/contracts/credentials";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";

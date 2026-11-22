@@ -1,9 +1,10 @@
 import { createRepoPublishHandler, type FieldDisposition } from "#src/features/publish-content/repo-handler";
-import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
+import { PublishContentApplyRowError } from "@jini-ai/cms/publish/transfer";
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
-import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
+import { isValidSha256Hex } from "@jini-ai/cms/publish/transfer/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { PublishContentContributor, PublishContentPorts, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "./import-media-entity.js";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
@@ -67,8 +68,8 @@ export type MediaApplyBlockedCode = "blocked:missing-blob" | "blocked:slug-taken
 export class MediaApplyBlockedError extends PublishContentApplyRowError {
   readonly code: MediaApplyBlockedCode;
 
-  constructor(code: MediaApplyBlockedCode, message: string) {
-    super("blocked", message);
+  constructor({ code, message }: { code: MediaApplyBlockedCode; message: string }) {
+    super({ rowOutcome: "blocked", message });
     this.name = "MediaApplyBlockedError";
     this.code = code;
   }
@@ -81,8 +82,8 @@ export class MediaApplyBlockedError extends PublishContentApplyRowError {
  * `rowOutcome: "conflict"`, so the row downgrades and the run continues. Thrown before any write.
  */
 export class MediaApplyConflictError extends PublishContentApplyRowError {
-  constructor(message: string) {
-    super("conflict", message);
+  constructor({ message }: { message: string }) {
+    super({ rowOutcome: "conflict", message });
     this.name = "MediaApplyConflictError";
   }
 }
@@ -113,7 +114,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
 
 const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";
 
-type MediaPorts = PublishContentPorts["media"];
+type MediaPorts = TovuPublishPorts["media"];
 
 /** Changed bytes require explicit review even when live still matches its last baseline.
  * @returns An overwrite offer, a hard capability refusal, or no source change. No I/O.
@@ -141,11 +142,11 @@ async function assertPublishableMedia(
   _options = {}
 ): Promise<void> {
   if (isLibraryDocument({ kind: state.kind, existing })) {
-    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+    throw new MediaApplyBlockedError({ code: "blocked:precondition", message: LIBRARY_DOCUMENT_REFUSAL });
   }
   const record = state as unknown as MediaRecord; // this handler's own pack() produced it
   if (await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: record.source?.sha256 ?? "" } })) {
-    throw new MediaApplyBlockedError("blocked:precondition", LIBRARY_DOCUMENT_REFUSAL);
+    throw new MediaApplyBlockedError({ code: "blocked:precondition", message: LIBRARY_DOCUMENT_REFUSAL });
   }
 }
 
@@ -155,8 +156,8 @@ async function assertPublishableMedia(
  * @returns The refusal, or null when every given hash is a sha256. @complexity O(b) required blobs.
  */
 function malformedHashRefusal({ sourceSha256, requiredBlobs }: { sourceSha256: string | undefined; requiredBlobs: readonly string[] }, _options = {}): string | null {
-  if (sourceSha256 && !isValidSha256Hex(sourceSha256)) return `malformed source sha256 '${sourceSha256}'`;
-  const malformed = requiredBlobs.find(sha256 => !isValidSha256Hex(sha256));
+  if (sourceSha256 && !isValidSha256Hex({ value: sourceSha256 })) return `malformed source sha256 '${sourceSha256}'`;
+  const malformed = requiredBlobs.find(sha256 => !isValidSha256Hex({ value: sha256 }));
   return malformed === undefined ? null : `required blob '${malformed}' is not a sha256 hash`;
 }
 
@@ -175,66 +176,21 @@ function importedOrThrow(
   _options = {}
 ): Extract<ImportMediaEntityResult, { status: "imported" }> {
   if (outcome.status === "conflict") {
-    throw new MediaApplyConflictError(`media '${id}' changed on the destination during apply: ${outcome.reason}`);
+    throw new MediaApplyConflictError({ message: `media '${id}' changed on the destination during apply: ${outcome.reason}` });
   }
   if (outcome.status === "blocked") {
-    throw new MediaApplyBlockedError(`blocked:${outcome.code}`, `media '${id}' cannot be applied — ${outcome.reason}`);
+    throw new MediaApplyBlockedError({ code: `blocked:${outcome.code}`, message: `media '${id}' cannot be applied — ${outcome.reason}` });
   }
   return outcome;
 }
 
-/** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
-export const contributeMediaPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<MediaRecord, PublishContentPorts["media"]>({
-    entityType: "media",
-    // Operational sidecars are also media-owned; raw-row fallback must not export a private
-    // document's slug history or original-rendition storage key after typed pack excluded it.
-    coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
-    // The same permission `post`/`page` declare; media has no write permission of its own.
-    permission: "content.write",
-    ports: (deps) => deps.ports.media,
-    // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
-    include: row => row.kind !== "document",
-    list: (p, workspaceId) => p.repo.list({ workspaceId }),
-    find: (p, workspaceId, id) => p.repo.findById({ workspaceId, id }),
-    fields: MEDIA_FIELDS,
-    // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
-    omitWhenAbsent: Object.keys(MEDIA_FIELDS),
-    legacyHashState: (row) => {
-      const { createdBy: _creator, kind: _kind, originalFilename: _filename, ...legacyState } = row;
-      return legacyState;
-    },
-    requiredBlobs: (row) => [row.source.sha256],
-    // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
-    // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
-    references: (entity) =>
-      typeof entity.state.htmlAttributes === "string"
-        ? [...collectMediaUrlKeys(entity.state.htmlAttributes)].map((key) => ({ entityType: "media", key }))
-        : [],
-    // `media.slug` may be empty on pre-backfill rows; the factory skips an empty address.
-    address: { field: "slug", holder: (p, workspaceId, slug) => p.repo.findBySlug({ workspaceId, slug }) },
-    // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
-    // media is the one type whose entity IS its blob.
-    validate: async ({ ports, workspaceId, entity, existing }) => {
-      if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
-      const source = entity.state.source as { sha256?: string } | undefined;
-      const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
-      if (malformed) return malformed;
-      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
-      for (const sha256 of entity.requiredBlobs) {
-        if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
-          return `required blob '${sha256}' is not available on this destination`;
-        }
-      }
-      return sourceReplacementRefusal({ ports, existing, sha256: source?.sha256 });
-    },
-    write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
+const writePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['write'] = async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, sourceReplacement }) => {
       await assertPublishableMedia({ ports, workspaceId, state, existing });
       const { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore } = ports;
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
       // Same shape check as `validate`, again here: apply must not trust that precheck ran.
       const sha256 = record.source?.sha256;
-      if (sha256 && !isValidSha256Hex(sha256)) throw new MediaApplyBlockedError("blocked:precondition", `media '${id}' cannot be applied — malformed source sha256 '${sha256}'`);
+      if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },
@@ -257,11 +213,59 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       // `blobWritten`: true when this import created the `asset_blobs` row, false when the bytes were
       // already there (a normal dedup, not a conflict). Passed through on `apply()`'s result.
       return { blobWritten: outcome.blobWritten, version: saved?.version };
+    };
+const validatePublishedMedia: Parameters<typeof createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>>[0]['validate'] = async ({ ports, workspaceId, entity, existing }) => {
+      if (isLibraryDocument({ kind: entity.state.kind, existing })) return LIBRARY_DOCUMENT_REFUSAL;
+      const source = entity.state.source as { sha256?: string } | undefined;
+      const malformed = malformedHashRefusal({ sourceSha256: source?.sha256, requiredBlobs: entity.requiredBlobs });
+      if (malformed) return malformed;
+      if (source?.sha256 && await isDocumentOnlyBlob({ deps: { mediaRepo: ports.repo, blobRepo: ports.assetBlobRepo }, input: { workspaceId, sha256: source.sha256 } })) return LIBRARY_DOCUMENT_REFUSAL;
+      for (const sha256 of entity.requiredBlobs) {
+        if (!(await ports.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId, sha256 }) }))) {
+          return `required blob '${sha256}' is not available on this destination`;
+        }
+      }
+      return sourceReplacementRefusal({ ports, existing, sha256: source?.sha256 });
+    };
+
+/** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
+export const contributeMediaPublish = (): PublishContentContributor =>
+  createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>({
+    entityType: "media",
+    // Operational sidecars are also media-owned; raw-row fallback must not export a private
+    // document's slug history or original-rendition storage key after typed pack excluded it.
+    coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
+    // The same permission `post`/`page` declare; media has no write permission of its own.
+    permission: "content.write",
+    ports: ({ deps }, _optional = {}) => deps.ports.media,
+    // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
+    include: ({ row }, _optional = {}) => row.kind !== "document",
+    list: ({ ports: p, workspaceId }, _optional = {}) => p.repo.list({ workspaceId }),
+    find: ({ ports: p, workspaceId, id }, _optional = {}) => p.repo.findById({ workspaceId, id }),
+    fields: MEDIA_FIELDS,
+    // Packed exactly as the row holds it: an absent field stays absent rather than becoming `null`.
+    omitWhenAbsent: Object.keys(MEDIA_FIELDS),
+    legacyHashState: ({ row }, _optional = {}) => {
+      const { createdBy: _creator, kind: _kind, originalFilename: _filename, ...legacyState } = row;
+      return legacyState;
     },
+    requiredBlobs: ({ row }, _optional = {}) => [row.source.sha256],
+    // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
+    // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
+    references: ({ entity }, _optional = {}) =>
+      typeof entity.state.htmlAttributes === "string"
+        ? [...collectMediaUrlKeys({ text: entity.state.htmlAttributes })].map((key) => ({ entityType: "media", key }))
+        : [],
+    // `media.slug` may be empty on pre-backfill rows; the factory skips an empty address.
+    address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }, _optional = {}) => p.repo.findBySlug({ workspaceId, slug }) },
+    // Also checked by the planner's `hasBlob` pass, but that depends on the caller wiring the probe;
+    // media is the one type whose entity IS its blob.
+    validate: validatePublishedMedia,
+    write: writePublishedMedia,
     undo: {
       // An update restores the prior record verbatim; a create removes its row. The blob row and bytes
       // stay: they are append-only and content-addressed, and an orphan is reclaimable by GC.
-      restore: ({ ports, deps }, prior) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
+      restore: ({ ctx: { ports, deps }, prior }, _optional = {}) => restoreImportedMedia({ deps: { mediaRepo: ports.repo,
         assetBlobRepo: ports.assetBlobRepo, blobStore: ports.blobStore, idGen: deps.idGen,
         clock: { nowIso: () => clockNowIso({ clock: deps.clock }) } }, prior }),
       remove: ({ ports, workspaceId, id }) => ports.repo.remove({ workspaceId, id }),
@@ -273,11 +277,11 @@ export const contributeMediaPublish = (): PublishContentContributor =>
           : `Import media '${id}' via publish-content (new blob ${sha256})`;
       },
     },
-    conflictError: (message) => new MediaApplyConflictError(message),
+    conflictError: ({ message }, _optional = {}) => new MediaApplyConflictError({ message }),
     extend: ({ deps, ports }) => ({
       verifyApplied: async ({ entities }) => {
         const p = ports();
-        return p ? verifyPublishedMedia(p, deps.workspaceId, entities) : [];
+        return p ? verifyPublishedMedia({ ports: p, workspaceId: deps.workspaceId, entities }) : [];
       },
     }),
   });

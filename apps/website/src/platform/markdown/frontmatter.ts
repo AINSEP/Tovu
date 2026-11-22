@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { isNonArrayRecord } from "@jini-ai/core";
 import { load, FAILSAFE_SCHEMA } from "js-yaml";
 
@@ -22,18 +23,18 @@ import { load, FAILSAFE_SCHEMA } from "js-yaml";
 /** Collapses any run of whitespace (including the newlines a block scalar joins with) to one space
  *  and trims the ends. Applied uniformly to both the YAML and fallback paths, so a caller sees the
  *  same shape of value regardless of which one resolved it. */
-function collapseWhitespace(raw: string): string | undefined {
+function collapseWhitespace({ raw }: { raw: string }, _optional = {}): string | undefined {
   const value = raw.replace(/\s+/g, " ").trim();
   return value.length > 0 ? value : undefined;
 }
 
 /** Today's original single-line reader, kept verbatim as the fallback for frontmatter that YAML
  *  itself refuses to parse — trims the value and strips one layer of surrounding quotes. */
-function readFieldByRegex(frontmatter: string, key: string): string | undefined {
+function readFieldByRegex({ frontmatter, key }: { frontmatter: string; key: string }, _optional = {}): string | undefined {
   const match = frontmatter.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
   const raw = match?.[1];
   if (!raw) return undefined;
-  return collapseWhitespace(raw.trim().replace(/^["']|["']$/g, ""));
+  return collapseWhitespace({ raw: raw.trim().replace(/^["']|["']$/g, "") });
 }
 
 /**
@@ -44,23 +45,19 @@ function readFieldByRegex(frontmatter: string, key: string): string | undefined 
  * present" contract both prior single-purpose readers already had.
  * @complexity O(n) in the frontmatter block's own length.
  */
-export function readFrontmatterField(markdown: string, key: string): string | undefined {
+export function readFrontmatterField({ markdown, key }: { markdown: string; key: string }, _optional = {}): string | undefined {
   if (!markdown.startsWith("---")) return undefined;
   const closing = markdown.slice(3).match(/\r?\n---[ \t]*(?:\r?\n|$)/);
-  if (!closing) return undefined;
-  const frontmatter = markdown.slice(3, 3 + closing.index!);
+  if (!closing || closing.index === undefined) return undefined;
+  const frontmatter = markdown.slice(3, 3 + closing.index);
 
-  const parsed = { value: undefined as unknown };
-  try {
-    parsed.value = load(frontmatter, { schema: FAILSAFE_SCHEMA });
-  } catch {
-    return readFieldByRegex(frontmatter, key);
-  }
+  const parsed = orFallbackSync({ work: () => ({ value: load(frontmatter, { schema: FAILSAFE_SCHEMA }) }), fallback: null, step: "Decode frontmatter" });
+  if (parsed === null) return readFieldByRegex({ frontmatter, key });
 
   if (!isNonArrayRecord(parsed)) return undefined;
   const raw = parsed.value[key];
-  if (typeof raw === "string") return collapseWhitespace(raw);
+  if (typeof raw === "string") return collapseWhitespace({ raw });
   // A value YAML reads as a sequence/map (e.g. `description: [Beta]`) was a plain string to the old
   // regex; keep reading it that way so such a skill doesn't silently stop loading.
-  return raw === undefined || raw === null ? undefined : readFieldByRegex(frontmatter, key);
+  return raw === undefined || raw === null ? undefined : readFieldByRegex({ frontmatter, key });
 }

@@ -46,7 +46,7 @@ async function withComposedSite(
     const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
     const open = async () => {
       assert.equal(closeStore, undefined, "close the previous composition before reopening");
-      const deps = await createSiteRouteDeps(dbPath, { siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, storeRole: "client", onStoreOpened: (store) => { closeStore = () => store.close(); } });
+      const deps = await createSiteRouteDeps({}, { dbPath, overrides: { siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); } } });
       await Promise.all(Object.values(deps).filter((value) => value instanceof Promise));
       // Drain the SQLite boot writers chained off the exposed readiness promises.
       await new Promise<void>((resolve) => setImmediate(resolve));
@@ -105,7 +105,7 @@ test("the real production gateway keeps a pending confirmation token after closi
     await first.gatedMutations.gatewayDeps.tokens.save(record);
     await close();
     const reopened = await open();
-    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.findByToken(record.confirmationToken), record);
+    assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.findByToken({ token: record.confirmationToken }), record);
     assert.deepEqual(await reopened.gatedMutations.gatewayDeps.tokens.tryRedeem({ token: record.confirmationToken, now: "2026-10-01T00:05:00.000Z" }), {
       redeemed: true, record: { ...record, status: "redeemed" },
     });

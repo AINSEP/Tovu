@@ -1,0 +1,405 @@
+{
+  "seo_get_entry_meta": {
+    "id": "seo_get_entry_meta",
+    "description": "Resolves one entry's effective SEO meta (title, description, canonical, robots, OpenGraph, Twitter card, JSON-LD), applying the override > site-default > derived precedence. Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entryId"
+      ],
+      "properties": {
+        "entryId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry's id (a post or page), as returned by other tools that list or return entries."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "seo meta title description tags page preview snippet",
+        "queries": [
+          "What SEO title and description is actually showing for this page?",
+          "Can you show me the effective meta tags for this entry?",
+          "What's the resolved Open Graph and Twitter card data for this page?",
+          "I want to see the final SEO values after overrides are applied.",
+          "What does the JSON-LD look like for this specific entry?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "seo_analyze_entry": {
+    "id": "seo_analyze_entry",
+    "description": "Runs the SEO analysis (score 0-100 plus a list of issues, e.g. missing title/description) over one entry's effective SEO meta. Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entryId"
+      ],
+      "properties": {
+        "entryId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry's id (a post or page), as returned by other tools that list or return entries."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "seo search results ranking google visibility not showing up indexed problems audit page",
+        "queries": [
+          "How's this page's SEO score?",
+          "What SEO issues does this page have, like a missing description?",
+          "Can you audit this entry's search-engine metadata?",
+          "Is this page missing anything important for SEO?",
+          "Can you grade this page's SEO out of 100?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "seo_set_entry_overrides": {
+    "id": "seo_set_entry_overrides",
+    "description": "Sets one or more per-entry SEO field overrides, merged onto the entry's existing overrides (omitted fields are left unchanged; an unregistered field name is rejected). Pass null for a field to clear that override back to inheriting the site default / derived value. If the patch touches 'noindex' or 'canonical', the sitemap cache is invalidated so the next sitemap read reflects the change. Pass expectedVersion from content_read.seo_entry_meta; if someone changed it since, nothing is saved and you must re-read.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entryId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "entryId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The entry's id (a post or page), as returned by other tools that list or return entries."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The record's version from content_read.seo_entry_meta. Required."
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "Meta title override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "Meta description override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "canonical": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048,
+          "description": "Canonical URL override (absolute). Optional override. At most 2048 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "noindex": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Set true to exclude this entry from indexing (emits robots:noindex and drops it from the sitemap). Pass null to clear this override and inherit the site default."
+        },
+        "nofollow": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Set true to emit robots:nofollow for this entry. Pass null to clear this override and inherit the site default."
+        },
+        "schemaType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "JSON-LD schema.org @type override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "ogTitle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "OpenGraph title override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "ogDescription": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "OpenGraph description override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "ogImage": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048,
+          "description": "OpenGraph image override (media ref or absolute URL). Optional override. At most 2048 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "ogType": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "website",
+            "article",
+            "profile",
+            null
+          ],
+          "description": "OpenGraph type override. One of website, article, profile. Pass null to clear this override."
+        },
+        "twitterTitle": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "Twitter/X card title override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "twitterDescription": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "Twitter/X card description override. Optional override. At most 500 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "twitterImage": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048,
+          "description": "Twitter/X card image override (media ref or absolute URL). Optional override. At most 2048 characters. Omit to leave the existing override (if any) unchanged. Pass null to clear this override."
+        },
+        "twitterCard": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "summary",
+            "summary_large_image",
+            null
+          ],
+          "description": "Twitter/X card kind override. One of summary, summary_large_image. Pass null to clear this override."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "seo meta title description override page tags hide google noindex robots search engines index indexing exclude",
+        "queries": [
+          "Can you set a custom SEO title for just this one page?",
+          "I want to override the meta description on this entry.",
+          "How do I mark this page as noindex?",
+          "Can you set a canonical URL for this entry — does that also refresh the sitemap?",
+          "How do I override SEO fields for one page without touching the site defaults?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "seo_get_settings": {
+    "id": "seo_get_settings",
+    "description": "Reads the workspace's site-wide SEO settings (title template, default description/OG image/Twitter site, default robots directive, sitemap toggle, custom robots.txt rules). Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "seo settings current site wide defaults meta social",
+        "queries": [
+          "What are our site-wide SEO defaults?",
+          "What's our default Open Graph image set to?",
+          "Is the sitemap toggle turned on for the whole site?",
+          "What do our robots.txt custom rules look like?",
+          "What's the title template applied across all pages?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "seo_set_settings": {
+    "id": "seo_set_settings",
+    "description": "Updates one or more of the workspace's site-wide SEO settings. All-or-nothing: if any field in the patch fails validation, nothing is written. Omitted fields are left unchanged.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "titleTemplate": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Title template applied to every entry without its own title override. MUST contain '%s' at least once (the per-page title is substituted there). At most 500 characters."
+        },
+        "defaultDescription": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500,
+          "description": "Site-wide default meta description, used when an entry has neither its own override nor a derivable excerpt. At most 500 characters. Pass null to clear."
+        },
+        "defaultOgImage": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048,
+          "description": "Site-wide default OpenGraph/Twitter image (media ref or absolute URL). At most 2048 characters. Pass null to clear."
+        },
+        "twitterSite": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100,
+          "description": "Site-wide @handle attributed as the Twitter/X card's site. At most 100 characters. Pass null to clear."
+        },
+        "defaultRobots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "noindex",
+            "nofollow"
+          ],
+          "description": "Site-wide default robots directive, used when an entry has no per-entry noindex/nofollow override.",
+          "properties": {
+            "noindex": {
+              "type": "boolean"
+            },
+            "nofollow": {
+              "type": "boolean"
+            }
+          }
+        },
+        "sitemapEnabled": {
+          "type": "boolean",
+          "description": "Whether the sitemap is advertised in robots.txt at all."
+        },
+        "robotsRules": {
+          "type": "array",
+          "maxItems": 50,
+          "description": "Custom robots.txt rules, one per user agent. At most 50 rules.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "userAgent"
+            ],
+            "properties": {
+              "userAgent": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The user agent this rule targets, e.g. '*' or 'Googlebot'."
+              },
+              "allow": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Allowed path prefixes. At most 100 entries."
+              },
+              "disallow": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Disallowed path prefixes. At most 100 entries."
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "seo settings change update site wide defaults meta social robots",
+        "queries": [
+          "Can you update our default meta description for the whole site?",
+          "How do I change the site-wide title template?",
+          "Can you turn off the sitemap for the whole site?",
+          "I want to update our robots.txt rules — will it fail entirely if one field is wrong?",
+          "How do I set a new default social share image sitewide?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "seo_regenerate_sitemap": {
+    "id": "seo_regenerate_sitemap",
+    "description": "Force-rebuilds the workspace's cached sitemap now, bypassing the cache-hit path. Never loses data — it only recomputes the same entries a normal cache-miss read would compute, sooner.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "sitemap google search engine index rebuild regenerate crawl submit",
+        "queries": [
+          "Can you force the sitemap to rebuild right now?",
+          "Our sitemap seems stale, can you refresh it?",
+          "How do I bypass the sitemap cache and regenerate it immediately?",
+          "Can you rebuild the sitemap without losing any entries?",
+          "I just changed a bunch of pages, can you regenerate the sitemap now?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}

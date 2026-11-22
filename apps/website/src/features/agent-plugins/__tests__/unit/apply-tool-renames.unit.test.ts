@@ -70,7 +70,7 @@ async function makeHarness(row: {
   const logs: string[] = [];
   const run = () =>
     applyAgentPluginToolRenames(
-      testSiteLayoutContext({
+      { deps: testSiteLayoutContext({
         workspaceId: WORKSPACE,
         externalMcpServerRepo: repo,
         clock,
@@ -79,7 +79,7 @@ async function makeHarness(row: {
           notifications += 1;
         },
       }),
-      { info: (m) => logs.push(`info: ${m}`), warn: (m) => logs.push(`warn: ${m}`) },
+      log: { info: (m) => logs.push(`info: ${m}`), warn: (m) => logs.push(`warn: ${m}`) } },
     );
   const read = async () => {
     const saved = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
@@ -90,10 +90,10 @@ async function makeHarness(row: {
 }
 
 test("renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched", () => {
-  assert.deepEqual(renameToolNames(["a", "get_logs", "b"], { get_logs: "query_logs" }), ["a", "query_logs", "b"]);
-  assert.deepEqual(renameToolNames(["get_logs", "query_logs"], { get_logs: "query_logs" }), ["query_logs"]);
-  assert.equal(renameToolNames(["a", "b"], { get_logs: "query_logs" }), null);
-  assert.equal(renameToolNames([], { get_logs: "query_logs" }), null);
+  assert.deepEqual(renameToolNames({ names: ["a", "get_logs", "b"], renames: { get_logs: "query_logs" } }), ["a", "query_logs", "b"]);
+  assert.deepEqual(renameToolNames({ names: ["get_logs", "query_logs"], renames: { get_logs: "query_logs" } }), ["query_logs"]);
+  assert.equal(renameToolNames({ names: ["a", "b"], renames: { get_logs: "query_logs" } }), null);
+  assert.equal(renameToolNames({ names: [], renames: { get_logs: "query_logs" } }), null);
 });
 
 test("a provisioned row's saved allowlist follows the declared rename, and the roster is notified once", async () => {
@@ -177,7 +177,7 @@ test("a plugin that declares no renames writes nothing", async () => {
 test("a plugin listing that throws is a warning, never a boot failure", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    testSiteLayoutContext({
+    { deps: testSiteLayoutContext({
       workspaceId: WORKSPACE,
       externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
       clock: createFakeClock({ startIso: NOW }),
@@ -186,12 +186,12 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
       },
       notifyRosterChanged: async () => assert.fail("must not notify"),
     }),
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
-  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: package store unreadable"]);
+  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: Error"]); // fixed class label, not the message (describeErrorForLog)
 });
 
-for (const operation of ["findByServerId", "upsert"] as const) {
+for (const operation of ["findByServerId", "updateIfVersion"] as const) {
   test(`a per-server ${operation} failure preserves that row and still renames a later server`, async (t) => {
     const h = await makeHarness({ allowedToolNames: "get_logs", writeAllowedToolNames: "get_logs" });
     const before = await h.read();
@@ -204,9 +204,9 @@ for (const operation of ["findByServerId", "upsert"] as const) {
         return original(input);
       });
     } else {
-      const original = h.repo.upsert.bind(h.repo);
-      t.mock.method(h.repo, "upsert", async (input: Parameters<typeof original>[0]) => {
-        if (input.serverId === SERVER) throw new Error("repository unavailable");
+      const original = h.repo.updateIfVersion.bind(h.repo);
+      t.mock.method(h.repo, "updateIfVersion", async (input: Parameters<typeof original>[0]) => {
+        if (input.record.serverId === SERVER) throw new Error("repository unavailable");
         return original(input);
       });
     }
@@ -219,7 +219,7 @@ for (const operation of ["findByServerId", "upsert"] as const) {
     assert.deepEqual(JSON.parse(later.writeAllowedToolNames!), ["query_logs"]);
     assert.equal(h.notifications(), 1);
     assert.deepEqual(h.logs, [
-      "warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': repository unavailable",
+      "warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': Error",
       "info: [agent-plugins] 'later': renamed saved tools to follow the 'supabase' plugin (get_logs -> query_logs).",
     ]);
   });
@@ -249,11 +249,11 @@ test("tool renames skip local, invalid, missing, and unreadable rows while later
 
 test("tool renames propagate a roster notification failure after persisting the rename (reported, not fixed)", async () => {
   const h = await makeHarness({ allowedToolNames: "get_logs" });
-  await assert.rejects(applyAgentPluginToolRenames(testSiteLayoutContext({
+  await assert.rejects(applyAgentPluginToolRenames({ deps: testSiteLayoutContext({
     workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
     listPlugins: async () => h.plugins,
     notifyRosterChanged: async () => { throw new Error("roster unavailable"); },
-  }), { info() {}, warn() {} }), /roster unavailable/);
+  }), log: { info() {}, warn() {} } }), /roster unavailable/);
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
 });
 
@@ -261,26 +261,26 @@ test("tool renames still notify after a successful write when its info logger th
   const h = await makeHarness({ allowedToolNames: "get_logs" });
   let notified = 0;
   const warnings: string[] = [];
-  await applyAgentPluginToolRenames(testSiteLayoutContext({
+  await applyAgentPluginToolRenames({ deps: testSiteLayoutContext({
     workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
     listPlugins: async () => h.plugins, notifyRosterChanged: async () => { notified++; },
-  }), { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } });
+  }), log: { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } } });
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
   assert.equal(notified, 1);
-  assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': logger unavailable"]);
+  assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': Error"]);
 });
 
-test("a non-Error thrown by the plugin listing is still reported as text", async () => {
+test("a non-Error thrown by the plugin listing is reported by its typeof, never its text", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    testSiteLayoutContext({
+    { deps: testSiteLayoutContext({
       workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
       listPlugins: async () => { throw "listing offline"; },
       notifyRosterChanged: async () => assert.fail("must not notify"),
     }),
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
-  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: listing offline"]);
+  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: string"]);
 });
 
 test("without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched", async (t) => {
@@ -288,9 +288,9 @@ test("without an injected listing, the workspace's installed plugins are read (n
   t.after(() => forceRemove(temporary));
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
+    { deps: { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
       notifyRosterChanged: async () => assert.fail("must not notify"), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) },
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
   assert.deepEqual(logs, []);
 });
@@ -314,11 +314,11 @@ test("an empty stored read list counts as no tools, not as an unreadable list", 
   assert.deepEqual(JSON.parse((await h.read()).writeAllowedToolNames ?? "null"), ["query_logs"]);
 });
 
-test("a non-Error upsert failure is reported as text and the row is kept", async () => {
+test("a non-Error write failure is reported by its typeof, never its text, and the row is kept", async () => {
   const h = await makeHarness({ allowedToolNames: "get_logs" });
   const before = await h.read();
-  h.repo.upsert = async () => { throw "disk full"; };
+  h.repo.updateIfVersion = async () => { throw "disk full"; };
   await h.run();
   assert.deepEqual(await h.read(), before);
-  assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': disk full"]);
+  assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': string"]);
 });

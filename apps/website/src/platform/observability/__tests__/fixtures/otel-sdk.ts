@@ -22,13 +22,18 @@ import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
-  createOtelObservabilityPort as createDiagnosticOtelPort,
+  errorType,
+  redactLabel,
+  redactOperationAttributes,
   type ObservabilityConfigEnabled,
-  type ObservabilityPort,
-  type TraceSpanKind,
   type TraceSpanPort,
-  type TracerPort,
 } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import {
+  createOtelObservabilityPort as createDiagnosticOtelPort,
+  type TraceSpanKind,
+  type TracerPort,
+} from "@jini-ai/provider-plugins/observability-opentelemetry/port";
 import { createAsyncLocalSpanScope } from "@jini-ai/diagnostics/observability/node";
 
 /** Test seam: replace the OTLP batch pipeline with explicit SDK span processors. */
@@ -94,5 +99,9 @@ export function createOtelObservabilityPort({ config }: { config: ObservabilityC
       const provider = new NodeTracerProvider({ resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName }), spanProcessors: options.spanProcessors });
       return { getTracer: ({ name }) => adaptTracer({ tracer: provider.getTracer(name) }) };
     },
-  } }, { scope: createAsyncLocalSpanScope({}) });
+  } }, {
+    scope: createAsyncLocalSpanScope({}),
+    // Jini's port takes its redaction and error-label helpers as injected options (provider-plugins otel-port.ts), no longer imports them.
+    helpers: { errorType, redactOperationAttributes, redactLabel },
+  });
 }

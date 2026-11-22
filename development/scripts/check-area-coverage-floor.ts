@@ -45,16 +45,15 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { loadLcov, pct, REPO_ROOT, type FileCoverage } from "./route-coverage-lib.js";
+import {
+  evaluateArea as evaluateSharedArea,
+  type AreaFloor,
+  type AreaFloorResult,
+  type FileCoverage,
+} from "@jini-ai/devops/checks/coverage";
+import { loadLcov, REPO_ROOT } from "./route-coverage-lib.js";
 
 const FLOORS_PATH = path.join(import.meta.dirname, "area-coverage-floors.json");
-
-interface AreaFloor {
-  readonly prefix: string;
-  readonly line: number;
-  readonly branch: number;
-  readonly funcs: number;
-}
 
 interface FloorsFile {
   readonly _comment?: string;
@@ -78,51 +77,15 @@ export function isMeasurableAreaFile(relPath: string, prefix: string): boolean {
   return base !== "deps.ts" && base !== "execution-deps.ts" && base !== "types.ts";
 }
 
-interface AreaResult {
-  readonly area: AreaFloor;
-  readonly count: number;
-  readonly line: number;
-  readonly branch: number;
-  readonly funcs: number;
-  readonly failures: readonly string[];
-}
-
-export function evaluateArea(area: AreaFloor, all: readonly FileCoverage[]): AreaResult {
-  const files = all.filter((f) => isMeasurableAreaFile(f.file, area.prefix));
-  let lf = 0,
-    lh = 0,
-    brf = 0,
-    brh = 0,
-    fnf = 0,
-    fnh = 0;
-  for (const f of files) {
-    lf += f.lf;
-    lh += f.lh;
-    brf += f.brf;
-    brh += f.brh;
-    fnf += f.fnf;
-    fnh += f.fnh;
-  }
-  const line = pct(lh, lf);
-  const branch = pct(brh, brf);
-  const funcs = pct(fnh, fnf);
-
-  const failures: string[] = [];
-  // Zero measurable files is never a legitimate pass. `pct()`'s 0-found-is-100% convention is
-  // correct for one file with no branches, but for a whole configured area it means the lcov is
-  // empty, truncated, or the prefix no longer matches anything (a directory got renamed). Without
-  // this check that reads as a clean 100% on all three axes -- the exact shape of a gate that
-  // silently stops gating.
-  if (files.length === 0) {
-    failures.push(
-      `0 measurable files matched "${area.prefix}" -- lcov is empty/truncated, or the prefix is stale (directory renamed?)`
-    );
-  } else {
-    if (line < area.line) failures.push(`line ${line.toFixed(2)}% < floor ${area.line}%`);
-    if (branch < area.branch) failures.push(`branch ${branch.toFixed(2)}% < floor ${area.branch}%`);
-    if (funcs < area.funcs) failures.push(`funcs ${funcs.toFixed(2)}% < floor ${area.funcs}%`);
-  }
-  return { area, count: files.length, line, branch, funcs, failures };
+// Zero measurable files is never a legitimate pass. `pct()`'s 0-found-is-100% convention is
+// correct for one file with no branches, but for a whole configured area it means the lcov is
+// empty, truncated, or the prefix no longer matches anything (a directory got renamed). Without
+// this check that reads as a clean 100% on all three axes -- the exact shape of a gate that
+// silently stops gating.
+export function evaluateArea(area: AreaFloor, all: readonly FileCoverage[]): AreaFloorResult {
+  const result = evaluateSharedArea({ area, all, isMeasurable: ({ file }) => isMeasurableAreaFile(file, area.prefix) });
+  if (result.count !== 0) return result;
+  return { ...result, failures: [`0 measurable files matched "${area.prefix}" -- lcov is empty/truncated, or the prefix is stale (directory renamed?)`] };
 }
 
 function readFloors(): FloorsFile {

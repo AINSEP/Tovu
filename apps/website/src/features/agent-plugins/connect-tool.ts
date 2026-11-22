@@ -3,7 +3,8 @@
  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import type { AgentToolDefinition, DerivedRiskByToolId } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { tovuEnableAccessMessages } from "./enable-access.js";
@@ -18,7 +19,6 @@ import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./ca
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
-import { parsePluginCredentialCards } from "./credential-cards.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig } from "./mcp-metadata.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
@@ -27,6 +27,7 @@ import {
   agentPluginConnectAgentToolCatalogFor, agentPluginConnectDerivedRiskFor,
   type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages, type AgentPluginConnectOptions, type AgentPluginConnectResult,
   type ResolvedAgentPluginForConnect,
+  parsePluginCredentialCards,
 } from "@jini-ai/agent-plugins/connect";
 export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "@jini-ai/agent-plugins/connect";
 
@@ -51,7 +52,7 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  * thrown as a `ToolInputError` — a bad operator env var is a composition-root problem this tool did
  * not introduce and has no confirmation surface built for; the real form tool still reports it loudly.
  */
-function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string | undefined): string | undefined {
+function resolveConnectRedirectUri({ serverId, derivedPublicOrigin }: { serverId: string; derivedPublicOrigin: string | undefined }, _optional: Record<string, never> = {}): string | undefined {
   const configured = process.env.TOVU_PUBLIC_URL?.trim();
   let origin: string | undefined;
   if (configured) {
@@ -74,21 +75,21 @@ function resolveConnectRedirectUri(serverId: string, derivedPublicOrigin: string
  *  (bundled-preferred) installed digest for a pluginId. Returns `null` for a pluginId not installed
  *  in this workspace. */
 export async function defaultResolveInstalledAgentPlugin(input: { workspaceId: string; pluginId: string; agentPluginLayout: AgentPluginLayout }, _options = {}): Promise<ResolvedAgentPluginForConnect | null> {
-  const workspaceLayout = input.agentPluginLayout.forWorkspace(input.workspaceId);
+  const workspaceLayout = input.agentPluginLayout.forWorkspace({ workspaceId: input.workspaceId });
   const installed = preferBundledAgentPluginDigests(
-    await listInstalledPlugins(workspaceLayout.root),
-    await readBundledAgentPluginDigests(workspaceLayout.root),
+    await listInstalledPlugins({ workspaceRoot: workspaceLayout.root }),
+    await readBundledAgentPluginDigests({ workspaceRoot: workspaceLayout.root }),
   );
   const plugin = installed.find((candidate) => candidate.pluginId === input.pluginId);
   if (!plugin) return null;
-  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile(plugin, "plugin.json") });
-  return { servers: await readInstalledMcpServers(plugin.packageRoot), credentialCards: cards.ok ? cards.descriptors : [] };
+  const cards = parsePluginCredentialCards({ raw: await readTrustedPluginFile({ plugin, filename: "plugin.json" }) });
+  return { servers: await readInstalledMcpServers({ packageRoot: plugin.packageRoot }), credentialCards: cards.ok ? cards.descriptors : [] };
 }
 
 /** "supabase" -> "Supabase", "higgsfield-media" -> "Higgsfield Media". There is no separate
  *  display-name field in `plugin.json` (agent-plugins.org has none) — `uninstall-confirmation-ui.ts`'s
  *  own dialog makes the identical choice, naming the plugin by its id. */
-export function titleCaseFromPluginId(pluginId: string): string {
+export function titleCaseFromPluginId({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}): string {
   return titleCaseWithPorts({ pluginId });
 }
 
@@ -111,7 +112,7 @@ export interface AgentPluginConnectToolDeps {
   /** Injectable for tests, so a fixture plugin needs no real install on disk. A real composition
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
-  /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
+  /** Plugin-declared OAuth API connections (`jini-connections.json`). Absent: only MCP servers connect. */
   readonly apiConnections?: AgentPluginApiConnectionsPort;
 }
 
@@ -175,7 +176,7 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
     notConfirmedResult: ({ reason }) => notConfirmedResult({ confirmed: false, reason }),
   },
   messages: tovuAgentPluginConnectMessages,
-  publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri(serverId, derivedPublicOrigin) },
+  publicUrl: { redirectUri: ({ serverId, derivedPublicOrigin }) => resolveConnectRedirectUri({ serverId, derivedPublicOrigin }) },
   federation: { classifyTrust: classifyAgentPluginMcpServerTrust, messages: tovuEnableAccessMessages },
   actors: { connectDeclined: CONNECT_DECLINED_ACTOR },
   waitAtSignInCard: (required, optional) => waitAtAgentPluginSignInCard(required, optional),
@@ -188,13 +189,13 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
 function tovuConnectDeps(routeDeps: AgentPluginConnectToolDeps): AgentPluginConnectDeps<AssistantSurfaceDeps, DeclaredApiConnection> {
   type ConnectMcp = ReturnType<typeof withAgentPluginMcpPorts<AgentPluginConnectToolDeps["mcp"]>>;
   let mcp: ConnectMcp | undefined;
-  const deps = withOverrides(routeDeps, {
+  const deps = withOverrides({ target: routeDeps, overrides: {
     isPluginEnabled: (pluginId: string) => routeDeps.isPluginEnabled ? routeDeps.isPluginEnabled(pluginId)
-      : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root, pluginId }),
+      : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }).root, pluginId }),
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
       : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
     host: tovuAgentPluginConnectHost,
-  });
+  } });
   return Object.defineProperty(deps, "mcp", { get: () => (mcp ??= withAgentPluginMcpPorts(routeDeps.mcp)), enumerable: true, configurable: true }) as Omit<typeof deps, "mcp"> & { readonly mcp: ConnectMcp };
 }
 

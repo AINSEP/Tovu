@@ -21,7 +21,7 @@ test("site-dir typed domain errors: constructors set name, message, and inherit 
   ];
 
   for (const { Cls, expectedName, message } of cases) {
-    const err = new Cls(message);
+    const err = new Cls({ message: message });
     assert.ok(err instanceof Error, `${expectedName} must inherit from Error`);
     assert.equal(err.name, expectedName, `${expectedName} must have .name set to "${expectedName}"`);
     assert.equal(err.message, message, `${expectedName} must preserve the message passed to constructor`);

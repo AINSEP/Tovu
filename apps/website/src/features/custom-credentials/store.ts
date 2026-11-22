@@ -1,5 +1,5 @@
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
 import { createCredentialSet, deleteCredentialSet, describeCredentialSet, describeCredentialSetByLabel, listCredentialSetInventory,
   listCredentialSets, resolveCredentialSetByLabel, updateCredentialSet } from "@jini-ai/integrations/credentialed-http/sets";
 import { tovuCredentialSetHost as host } from "./tovu-credential-sets.js";

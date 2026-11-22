@@ -16,7 +16,7 @@ import { workspaces, members, media } from "#src/platform/db/schema.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/index";
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "#src/platform/db/migrations/0011_drop_empty_core_commerce_tables";
-import { declareDataModule } from "#src/features/plugins/data-module";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/manifest";
 import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
 import { buildBootModules } from "../../boot/bootstrap.js";
@@ -58,12 +58,12 @@ function snapshot(filePath: string) {
 /** Drain every boot task before comparison and close the composition's complete store (chat too). */
 async function bootAndClose(filePath: string): Promise<void> {
   let closeStore: (() => Promise<void>) | undefined;
-  const deps = await createSiteRouteDeps(filePath, { onStoreOpened: store => { closeStore = () => store.close(); } });
+  const deps = await createSiteRouteDeps({}, { dbPath: filePath, overrides: { onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); } } });
   try {
     const modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => filePath });
     assert.equal(modules.some(module => module.name === "store-plugin"), false);
     // Exercise the data-related serve lifecycle without starting unrelated plugin polling.
-    const result = await runBootLifecycle(modules.filter(module => ["database-migration-reconciliation", "settings", "seo", "comments"].includes(module.name)));
+    const result = await runBootLifecycle({ modules: modules.filter(module => ["database-migration-reconciliation", "settings", "seo", "comments"].includes(module.name)) });
     assert.equal(result.ok, true);
     await Promise.all([deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady, deps.executionSettingsReady, deps.settingsUiTabsReady, deps.analyticsSettingsReady, deps.siteTitleReady, deps.pluginRuntimeReady, deps.blobHydrationReady, deps.adminPasswordResetReady]);
   } finally { await closeStore?.(); }
@@ -98,16 +98,17 @@ for (const populated of [false, true]) {
       const { contentDbPath: filePath } = resolveSiteDatabasePaths({ dir }, { workspace });
       // initSite closes its handles. Replace only this temporary fixture's database to model an upgrade.
       for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${filePath}${suffix}`, { force: true });
-      const db = openSqliteContentConnection(filePath);
+      const db = openSqliteContentConnection({ filePath });
       try {
-        await runMigrations(sqliteKernel<unknown>(db), CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID));
+        await runMigrations({ kernel: sqliteKernel<unknown>({ source: db }), steps: CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID) });
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
         for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
-          const result = await declareDataModule({ db: contentKernel(db), dbPath: filePath, decl });
+          const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: filePath, decl });
           assert.equal(result.ok, true);
         }
-        db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
+        // Why: the fixture is historical (before 0042 added `workspaces.version`), so insert only the columns that existed then; the current Drizzle schema would name `version`.
+        db.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run("retained-ws", "Retained", "retained", NOW);
         if (populated) {
           // Keep this pre-0011 upgrade fixture historical: current Drizzle also names 0014's
           // kind/original_filename and 0034's members.password_hash columns. The shared copier
@@ -130,7 +131,7 @@ for (const populated of [false, true]) {
         db.$client.prepare("INSERT INTO p_lipay__refunds (id, workspace_id, payment_id, idempotency_key, amount_minor, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("refund", "retained-ws", "payment", "retained-refund-key", 12, "USD", "succeeded", 1, 2);
         db.$client.prepare("INSERT INTO p_store__products (id, title, price, stock, version) VALUES (?, ?, ?, ?, ?)").run("retained-stock", "Historical", 123, 17, 8);
         db.$client.prepare("INSERT INTO p_store__orders (id, product_id, qty, total, at) VALUES (?, ?, ?, ?, ?)").run("retained-store-order", "retained-stock", 2, 246, 3);
-      } finally { closeSqliteConnection(db); }
+      } finally { closeSqliteConnection({ source: db }); }
       const before = snapshot(filePath);
       assert.equal(before.rows.length, 11);
       assert.deepEqual(before.retirement, []);

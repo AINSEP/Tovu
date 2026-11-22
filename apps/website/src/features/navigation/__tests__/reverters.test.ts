@@ -5,7 +5,8 @@ import { createRevertRegistry, InMemoryChangeSetRepo, revertChangeSet, RevertCon
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
 
-import { InMemoryMenuRepo, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "../index.js";
+import { InMemoryMenuRepo, type NavMenuEntry  } from "../index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
 import { contributeMenusPublish } from "../publish-content.js";
 import { createMenuReverters, registerMenuReverters } from "../reverters.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -86,12 +87,12 @@ test("revertChangeSet undoes a repoint change set, restoring the prior entryRef"
   const landedBeforeRevert = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
   assert.equal((landedBeforeRevert?.doc.items[0]?.target as { entryId: string }).entryId, "post-about-new");
 
-  const registry = registerMenuReverters(createRevertRegistry(), {
+  const registry = registerMenuReverters({ registry: createRevertRegistry(), deps: {
     menuRepo,
     clock: deps.clock,
     idGen: deps.idGen,
     outbox: deps.outbox!,
-  });
+  } });
 
   await revertChangeSet({
     deps: { changeSets: deps.changeSets, registry, clock: deps.clock, idGen: deps.idGen },
@@ -122,12 +123,12 @@ test("revertChangeSet refuses a repoint change set whose menu changed since — 
   const afterRepoint = await menuRepo.findById({ workspaceId: WORKSPACE_ID, id: "menu-header" });
   await menuRepo.save({ ...afterRepoint!, version: afterRepoint!.version + 1 });
 
-  const registry = registerMenuReverters(createRevertRegistry(), {
+  const registry = registerMenuReverters({ registry: createRevertRegistry(), deps: {
     menuRepo,
     clock: deps.clock,
     idGen: deps.idGen,
     outbox: deps.outbox!,
-  });
+  } });
 
   await assert.rejects(
     () =>

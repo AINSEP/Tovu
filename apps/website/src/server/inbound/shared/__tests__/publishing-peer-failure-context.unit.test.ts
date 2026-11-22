@@ -31,9 +31,9 @@ for (const row of cases) {
         if (authenticated) res.locals.principal = { id: "owner" };
         next();
       });
-      registerPublishContentPeerRoutes(app, { workspaceId: "ws", authorize: async () => {
+      registerPublishContentPeerRoutes({ app, deps: { workspaceId: "ws", authorize: async () => {
         throw new Error(`PRIVATE_BACKEND password=${CANARY}`);
-      } } as never);
+      } } as never });
       const baseUrl = await startTestServer(app, t);
       const body = ["POST", "PATCH"].includes(row.method) ? JSON.stringify({ label: "Live", apiKey: CANARY }) : undefined;
       const response = await fetch(`${baseUrl}${row.path}?token=${CANARY}`, {
@@ -42,7 +42,7 @@ for (const row of cases) {
       assert.equal(response.status, 500);
       const failureBody = await response.json() as any;
       assert.equal(failureBody.code, "INTERNAL_ERROR");
-      assert.match(failureBody.errorId, /^[0-9a-f-]{36}$/);
+      assert.match(failureBody.errorId, /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
       const action = authenticated ? row.action : row.anonymousAction;
       assert.equal(failureBody.error, `${row.message} ${action} (error ${failureBody.errorId})`);
       if (authenticated) {

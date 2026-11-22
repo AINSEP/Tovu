@@ -24,8 +24,8 @@ import {
   type PublishContentDeps,
 } from "#src/features/publish-content/type-registry";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
-import type { BackstopSelection } from "#src/features/publish-content/backstop-ports";
-import { entityKey } from "#src/features/publish-content/planner";
+import type { BackstopSelection } from "@jini-ai/cms/publish/transfer";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";
@@ -201,7 +201,7 @@ function publishDeps(s: Site): PublishContentDeps {
     ...toPublishContentDeps(s),
     backstop: {
       ...buildPublishBackstopPorts({
-        contentKernel: contentKernel(s.rawDb), siteBinding: { dir: s.rawFilesDir },
+        contentKernel: contentKernel({ store: s.rawDb }), siteBinding: { dir: s.rawFilesDir },
         blobStore: s.blobStore, fileBlobIndex: s.fileBlobIndex,
       }),
       selection: s.backstopSelection,
@@ -247,7 +247,7 @@ function asPublisher(s: Site, grantTypes: readonly string[], calls: Call[]): Pub
   };
   // RBAC knows no `pub:` principal, so anything the attenuation does not answer is refused.
   const rbac = { authorize: async (_params: { permission: string; publishType?: string }) => ({ allowed: false, reason: "principal_disabled" }) };
-  const trusted = withPublishTrustContentAuthorize(res as never, rbac, registeredPublishTypePermissions(base)).authorize!;
+  const trusted = withPublishTrustContentAuthorize({ res: res as never, deps: rbac, typePermissions: registeredPublishTypePermissions(base) }).authorize!;
   const authorize = (async (params: { permission: string; publishType?: string }) => {
     const out = await trusted(params);
     calls.push({ publishType: params.publishType, permission: params.permission, ...out });
@@ -306,7 +306,7 @@ test("a publishing grant naming every type applies one entity of each, with no p
   const entities = await packAll(sourceDeps);
   await stageBlobs(entities, source, destination);
   // No sync baseline on a fresh pair, so a row both sides hold (the active theme) is a conflict until forced.
-  const report = await plan(entities, destinationDeps, entities.map((e) => entityKey(e.entityType, e.id)));
+  const report = await plan(entities, destinationDeps, entities.map((e) => entityKey({ entityType: e.entityType, entityId: e.id })));
   const writing = new Set(report.rows.filter((r) => r.writes).map((r) => r.entityType));
   assert.deepEqual(
     registered.filter((type) => !writing.has(type)),

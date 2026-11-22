@@ -2,7 +2,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInp
 import { adaptLegacyAuthorize, requireToolPermission, ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { TelemetryTestResult } from "@jini-ai/diagnostics/observability";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import { toolMetadata } from "../../contracts/core/tool-metadata/observability.js";
 
@@ -33,6 +33,7 @@ export function buildObservabilityRegistrations(deps: ObservabilityToolDeps, _op
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
           principalId: ctx.principal.id, permission: "system.write" }, { entityType: "observability" });
         if (!deps.sendTelemetryTest) throw new ToolInputError({ message: "Telemetry test is unavailable on this server." });
+        ctx.signal.throwIfAborted();
         return deps.sendTelemetryTest({});
       },
     }, rules: [forbiddenRule({ domainPrefix: "OBSERVABILITY", error: ForbiddenError })] }),

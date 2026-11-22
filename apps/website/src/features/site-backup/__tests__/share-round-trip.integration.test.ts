@@ -27,9 +27,9 @@ const packageFiles = new Map([
   ["plugin.json", Buffer.from('{"name":"portable","version":"1.0.0"}')],
   ["mcp.json", Buffer.from('{"mcpServers":{"portable":{"command":"node","args":["server.mjs"]}}}')],
   ["server.mjs", Buffer.from("throw new Error('must never execute during import');")],
-  ["tovu-credential-schemes.json", Buffer.from('{"schemes":[]}')],
-  ["tovu-deploy-targets.json", Buffer.from('{"targets":[]}')],
-  ["tovu-deploy-configs.json", Buffer.from('{"configs":[]}')],
+  ["jini-credential-schemes.json", Buffer.from('{"schemes":[]}')],
+  ["jini-deploy-targets.json", Buffer.from('{"targets":[]}')],
+  ["jini-deploy-configs.json", Buffer.from('{"configs":[]}')],
   // These references must survive the same package scan as literal credential-bearing files.
   ["targets/cloudflare-pages.mjs", Buffer.from([
     'export const headers = config => ({ Authorization: `Bearer ${config.token}` });',
@@ -55,7 +55,7 @@ test("share code awareness is restricted to code extensions", { timeout: 120000 
 test("verified plugin package files get a vendor-key scan only; settings JSON elsewhere stays strict", { timeout: 120000 }, () => {
   const at = (name: string) => `${packageRoot}/${name}`;
   const publicFiles = [
-    ["tovu-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
+    ["jini-deploy-targets.json", '{"i18n":{"es":{"API token": "Token de API", "token": "Zq7xK2mP9vR4tL8wN3bY6cH1"}}}'],
     ["skills/jev/SKILL.md", "curl -H 'Authorization: Bearer <API_KEY>' https://api.example.com"],
     ["deploy-configs/railway.mjs", 'export const regions = ["us-west2", "europe-west4-drams3a", "asia-southeast1-eqsg3a"];'],
   ] as const;
@@ -68,7 +68,7 @@ test("verified plugin package files get a vendor-key scan only; settings JSON el
   // A provider-shaped key is refused wherever it sits in a package.
   for (const secret of [["sk", "proj", ""].join("-") + "Zq7xK2mP9vR4tL8wN3bY6cH1", "gh" + "p_" + "a1".repeat(18),
     "-----BEGIN " + "PRIVATE KEY-----\nabc\n-----END " + "PRIVATE KEY-----"]) {
-    assert.equal(requireShareSecretFree({ path: at("tovu-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), true);
+    assert.equal(requireShareSecretFree({ path: at("jini-deploy-targets.json"), bytes: Buffer.from(`{"note": "${secret}"}`) }, { packageFiles }), true);
     assert.equal(requireShareSecretFree({ path: at("skills/jev/SKILL.md"), bytes: Buffer.from(secret) }, { packageFiles }), true);
   }
   // A malformed package root is not a package payload; non-package settings keep the strict scan.
@@ -123,7 +123,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-secret")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-session")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-chat-private")), false);
-  } finally { closeSqliteConnection(exported); }
+  } finally { closeSqliteConnection({ source: exported }); }
   const pending = await backend.importBackup({ principalId: "recipient", source: { url: `https://public.example/_share/${shared.token}/${shared.file}` } });
   assert.equal(downloads, 1);
   const stage = h.registry.stagePath({ importId: pending.importId });
@@ -136,7 +136,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     }
     const names = projected.$client.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all() as { name: string }[];
     assert.equal(names.some(row => /^(?:ai_chats|ai_chat_messages|assistant_agent_sessions)$/.test(row.name)), false);
-  } finally { closeSqliteConnection(projected); }
+  } finally { closeSqliteConnection({ source: projected }); }
   const result = await backend.completeOwner({ principalId: "recipient", importId: pending.importId, adminPassword: OWNER_PASSWORD });
   const entry = h.workspace.registry({}).list({})[0]!;
   assert.equal(result.newSiteId, entry.id);
@@ -160,7 +160,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     const accounts = imported.$client.prepare("SELECT principal_id FROM identity_users").all() as { principal_id: string }[];
     assert.equal(accounts.length, 1);
     assert.notEqual(accounts[0]!.principal_id, "source-owner");
-  } finally { closeSqliteConnection(imported); }
+  } finally { closeSqliteConnection({ source: imported }); }
   assert.equal(createHash("sha256").update(fs.readFileSync(path.join(entry.path, "uploads", STORAGE_KEY))).digest("hex"), HASH);
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "themes/static/site/index.html")), h.files.get("themes/static/site/index.html"));
   for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine/agent-plugins/portable/package", name)), bytes, "B preserves quarantined " + name);

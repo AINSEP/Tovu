@@ -134,7 +134,7 @@ function buildCombinedIndex(
   reseedToolCatalog({ db, entries: [
     ...real.map((d) => ({
       id: d.id,
-      description: includeSearchKeywords ? indexedDescriptionFor(d.id, d.description ?? "") : (d.description ?? ""),
+      description: includeSearchKeywords ? indexedDescriptionFor({ toolId: d.id, description: d.description ?? "" }) : (d.description ?? ""),
       inputSchema: d.inputSchema,
       source: sourceForToolId(d.id),
     })),
@@ -147,7 +147,7 @@ function buildCombinedIndex(
   ] });
   return {
     search(query, limit = 10) {
-      return searchToolCatalog({ db, query }, { limit }).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
+      return searchToolCatalog({ db, query }, { limit }).map((hit) => ({ ...hit, description: stripSearchKeywords({ indexed: hit.description }) }));
     },
   };
 }
@@ -197,6 +197,13 @@ function run(): void {
   // summary printed at the end.
   const acrossSizes: Array<{ size: number; configs: Array<{ name: string; vecs: Record<Cutoff, boolean[]> }> }> = [];
 
+  scoreCatalogSize({ SIZES, realDescriptors, n, acrossSizes });
+
+  // --- Cross-size ranking-stability / crossover summary ---
+  reportCrossSizeSummary(acrossSizes, SIZES, n);
+}
+
+function scoreCatalogSize({ SIZES, realDescriptors, n, acrossSizes }: { SIZES: readonly [131, 250, 500, 1000]; realDescriptors: ReturnType<ReturnType<typeof buildEvalToolRegistry>["list"]>; n: number; acrossSizes: Array<{ size: number; configs: Array<{ name: string; vecs: Record<Cutoff, boolean[]> }> }> }) {
   for (const size of SIZES) {
     const distractors = distractorsForSize(size);
     const meta = new Map<string, ToolMeta>();
@@ -206,7 +213,7 @@ function run(): void {
     const noKeywords = buildCombinedIndex(realDescriptors, distractors, false);
     const doc2Templated = buildDoc2QueryIndex(realDescriptors, distractors, MASTER_DISTRACTOR_DOC2QUERY);
 
-    const configs: Array<{ name: string; vecs: Record<Cutoff, boolean[]>; missClass: Record<ToolClass, number> }> = [
+    const configs: Array<{ name: string; vecs: Record<Cutoff, boolean[]>; missClass: Record<ToolClass, number>; }> = [
       { name: "no keywords (pre-fix)", ...scoreConfig((c) => noKeywords.search(c.query, 10).map((h) => h.id), meta) },
       { name: "shipped keywords", ...scoreConfig((c) => withKeywords.search(c.query, 10).map((h) => h.id), meta) },
       { name: "doc2query (blind)", ...scoreConfig((c) => doc2Templated.search(c.query, 10).map((h) => h.id), meta) },
@@ -228,7 +235,7 @@ function run(): void {
       const t1 = cfg.vecs[1].filter(Boolean).length;
       const f10 = cfg.vecs[10].filter(Boolean).length;
       console.log(
-        `\n  Rerank ceiling (${configName}) — already #1: ${t1}/${n} (${((t1 / n) * 100).toFixed(1)}%)  addressable: ${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(1)}pp)  unreachable: ${n - f10} (${(((n - f10) / n) * 100).toFixed(1)}%)  ceiling: ${((f10 / n) * 100).toFixed(1)}%`,
+        `\n  Rerank ceiling (${configName}) — already #1: ${t1}/${n} (${((t1 / n) * 100).toFixed(1)}%)  addressable: ${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(1)}pp)  unreachable: ${n - f10} (${(((n - f10) / n) * 100).toFixed(1)}%)  ceiling: ${((f10 / n) * 100).toFixed(1)}%`
       );
     }
 
@@ -252,8 +259,10 @@ function run(): void {
       console.log(`\n  >>> CALIBRATION DELTA (top-1, doc2query blind): templated ${((templatedT1 / n) * 100).toFixed(1)}% vs calibrated ${((calibratedT1 / n) * 100).toFixed(1)}% => ${deltaPP >= 0 ? "+" : ""}${deltaPP.toFixed(1)}pp inflation from templating <<<\n`);
     }
   }
+}
 
-  // --- Cross-size ranking-stability / crossover summary ---
+
+function reportCrossSizeSummary(acrossSizes: Array<{ size: number; configs: Array<{ name: string; vecs: Record<Cutoff, boolean[]> }> }>, SIZES: readonly [131, 250, 500, 1000], n: number) {
   console.log(`\n${"=".repeat(100)}`);
   console.log("CROSS-SIZE TOP-1 SUMMARY (does the approach ranking stay stable, or cross over?)");
   console.log(`${"=".repeat(100)}\n`);
@@ -269,5 +278,6 @@ function run(): void {
   }
   console.log();
 }
+
 
 run();

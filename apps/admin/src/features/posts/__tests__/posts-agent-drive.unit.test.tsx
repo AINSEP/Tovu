@@ -6,7 +6,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { currentRoutePath, installInternalLinkInterceptor } from "@/lib/router";
 
 /**
@@ -21,7 +21,7 @@ import { currentRoutePath, installInternalLinkInterceptor } from "@/lib/router";
  *
  * KNOWN GAP (documented fully in `taxonomy-agent-drive.unit.test.tsx`, same file with the original
  * finding): `RowMenu` portals its dropdown to `document.body`, while Tovu's real agent bridge
- * (`App.hooks.tsx`) scopes its driver to `contentEl` on purpose — narrower than `document.body`.
+ * (`App.hooks.ts`) scopes its driver to `contentEl` on purpose — narrower than `document.body`.
  * The trigger is discoverable and clickable through that scoped root; the items it reveals are not.
  * The tests below assert that real, scoped-root shape (`root: container`) rather than testing
  * against `document.body`, which would hide the gap.
@@ -56,7 +56,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     // `Posts.tsx` now destructures this from the hook (moved there in 45537ee2) instead of
     // computing it itself — this fixture fell out of sync with that move. Mirrors
     // `Posts.unit.test.tsx`'s identical fixture fix from the same commit.
-    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
+    rowMenuHandleById: buildPostRowMenuHandleMap({ posts: posts }),
     ...overrides,
   };
 }
@@ -86,7 +86,7 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
   it("publishes a distinct, clickable handle per row; the dropdown item stays outside the production-scoped root", async () => {
     const { container } = renderPosts({ posts: [POST, SECOND_POST] });
     await screen.findByText("Hello World");
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this file's "KNOWN GAP" doc comment.
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -139,7 +139,7 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
       for (const post of [POST, SECOND_POST]) {
         await executePageCapability({ driver, capabilityId: "page.click", input: { handle: `posts-row-${post.id}-edit` } });
         await driver.settle?.({});
-        expect(currentRoutePath()).toBe(`/posts/${post.slug}`);
+        expect(currentRoutePath({})).toBe(`/posts/${post.slug}`);
         expect(window.location.pathname).toBe(`/admin/posts/${post.slug}`);
       }
     } finally {

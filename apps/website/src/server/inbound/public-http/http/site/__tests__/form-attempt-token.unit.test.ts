@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderHtmlForm } from "@jini-ai/cms/forms";
-import { injectFormAttemptTokens, injectFormSubmissionResultIntoHtml } from "../form-render.js";
-import { renderWidgetIr } from "../render.js";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 /**
  * @file The per-response `_attempt` token every public form carries (2026-10-05 double-submit fix):
@@ -19,7 +21,7 @@ function counter() {
 const builderForm = () => renderWidgetIr({ componentId: "contact-form", props: {
   slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }],
 } });
-const htmlModeForm = () => renderHtmlForm({ slug: "signup", action: "/forms/signup/submit", fields: [{ id: "email", label: "Email", type: "email", required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } });
+const htmlModeForm = () => renderHtmlForm({ slug: "signup", action: "/forms/signup/submit", fields: [{ id: "email", label: "Email", type: "email", required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error" } });
 
 test("injectFormAttemptTokens: a Builder form and an HTML-mode form each get their own hidden token as their first child", () => {
   const slugs: string[] = [];
@@ -51,6 +53,12 @@ test("injectFormAttemptTokens: the token is HTML-escaped", () => {
 });
 
 test("injectFormAttemptTokens: composes with a success result splice (the form is hidden, the token still inside it)", () => {
-  const html = injectFormAttemptTokens({ html: injectFormSubmissionResultIntoHtml(builderForm(), { kind: "success", slug: "contact" }), newToken: counter() }, {});
+  const html = injectFormAttemptTokens({ html: injectFormSubmissionResultIntoHtml({ html: builderForm(), result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), newToken: counter() }, {});
   assert.match(html, /<form hidden [^>]*><input type="hidden" name="_attempt" value="tok-1">/);
+});
+
+test("attempt token is inserted before an authored first child in exact output", () => {
+  const html = '<form data-form-slug="s"><p>First</p></form>';
+  assert.equal(injectFormAttemptTokens({ html, newToken: () => "token" }),
+    '<form data-form-slug="s"><input type="hidden" name="_attempt" value="token"><p>First</p></form>');
 });

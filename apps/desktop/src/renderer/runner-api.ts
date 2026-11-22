@@ -32,10 +32,11 @@ import type { ZoomDirection } from '../contracts/zoom.js';
 import type { RunnerAppVersionBridge, RunnerUpdateCheckBridge } from '../contracts/app-version.js';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
 import type { OwnerStoreBridge } from '../contracts/owner-store.js';
+import type { ImportHandoffRequest } from '../contracts/import-handoff.js';
 
 export interface RunnerInventoryBridge {
   /** Optional for stale preloads. Poll only while visible; use reply.pollIntervalMs, never subscribe.
-   * Join sites by SiteRecord.id, label RSS “about”, and keep Stop on stopSite(id). */
+   * Join sites by SiteRecord.id, label RSS “about”, and keep Stop on stopSite({ id }). */
   getResources?: (input: ResourcesRequest, options?: {}) => Promise<ResourcesSnapshot>;
   /** Optional for a stale preload; the current bridge resolves Electron's app.getVersion(). */
   getAppVersion?: RunnerAppVersionBridge['getAppVersion'];
@@ -51,9 +52,9 @@ export interface RunnerInventoryBridge {
   reportOpenSiteTabs?: (input: { siteIds: readonly string[] }, options?: {}) => Promise<void>;
   /** The gear menu's Loaded sites stepper saves here; main clamps to 1–5, answers with the saved
    *  value and pushes it through `onMaximumLiveSiteViewsChanged`. Absent → no stepper row. */
-  setMaximumLiveSiteViews?: (maximum: number) => Promise<number>;
+  setMaximumLiveSiteViews?: (required: { maximum: number }, options?: {}) => Promise<number>;
   /** Fires when the operator picks another limit (native menu or stepper); returns its teardown. */
-  onMaximumLiveSiteViewsChanged?: (listener: (maximum: number) => void) => () => void;
+  onMaximumLiveSiteViewsChanged?: (required: { listener: (maximum: number) => void }, options?: {}) => () => void;
   listAgents: () => Promise<readonly RunnerAgentSummary[]>;
   rescanAgents: () => Promise<readonly RunnerAgentSummary[]>;
   daemonOnline: () => Promise<boolean>;
@@ -86,29 +87,29 @@ export interface RunnerInventoryBridge {
    *  Optional so an older preload without it simply offers none. */
   listTokenSignInPlugins?: () => Promise<readonly TokenSignInPlugin[]>;
   /** Changes a site's display name (`config.json`'s `name`) and resolves the refreshed record.
-   *  Rejects with an operator-facing reason — surface it verbatim; see `use-rename-site.hooks.ts`. */
+   *  Rejects with an operator-facing reason — surface it verbatim; see `apps/desktop/src/renderer/use-site-rename.hooks.ts`. */
   renameSite: (input: RenameSiteInput) => Promise<SiteRecord>;
   /** One site's cached preview image as a `data:` URL, or `null` when no capture exists yet — the
    *  ordinary state for a site that has never been opened. Fetch again only when
    *  `SiteRecord.previewVersion` CHANGES; see that field's own doc and `use-site-preview.hooks.ts`. */
-  getSitePreview: (id: string) => Promise<string | null>;
+  getSitePreview: (required: { id: string }, options?: {}) => Promise<string | null>;
   /** A missing card's Locate: main opens a folder picker and resolves the record at the picked
    *  folder — a new id, since a record's id is its folder. Rejects with an operator-facing reason;
    *  surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
-  locateSite: (id: string) => Promise<SiteRecord>;
+  locateSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>;
   /** Keep this site awake after its tab closes until Stop, manual Start, deletion or app exit. */
   keepSiteRunning?: (input: { id: string }, options?: {}) => Promise<void>;
-  startSite: (id: string) => Promise<SiteRecord>;
-  stopSite: (id: string) => Promise<SiteRecord>;
+  startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>;
+  stopSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>;
   /** Irreversible. Resolves with nothing — the project it names no longer exists. */
-  deleteSite: (id: string) => Promise<void>;
+  deleteSite: (required: { id: string }, options?: {}) => Promise<void>;
   /** Hands one of a project's surfaces to the default browser. Main derives the url from the id. */
   openSiteExternal: (input: OpenSiteSurfaceInput) => Promise<void>;
   chatStart: (input: WorkspaceChatStartInput) => Promise<WorkspaceChatStartResult>;
   chatReattach: (input: WorkspaceChatReattachInput) => Promise<void>;
-  chatDetach: (subscriptionId: string) => Promise<void>;
-  chatStop: (runId: string) => Promise<void>;
-  chatStatus: (runId: string) => Promise<WorkspaceChatRunSnapshot | null>;
+  chatDetach: (required: { subscriptionId: string }, options?: {}) => Promise<void>;
+  chatStop: (required: { runId: string }, options?: {}) => Promise<void>;
+  chatStatus: (required: { runId: string }, options?: {}) => Promise<WorkspaceChatRunSnapshot | null>;
   /** Writes one dropped/picked file's bytes into Runner's staging directory; resolves its absolute path. */
   saveChatAttachment: (input: SaveChatAttachmentInput) => Promise<SaveChatAttachmentResult>;
   /** The fleet chat's persisted conversation threads. Most-recently-active first. */
@@ -116,35 +117,37 @@ export interface RunnerInventoryBridge {
   createConversation: () => Promise<WorkspaceConversationSummary>;
   renameConversation: (input: RenameConversationInput) => Promise<void>;
   /** Irreversible: drops the conversation row and every message in it. */
-  deleteConversation: (id: string) => Promise<void>;
-  loadConversationMessages: (conversationId: string) => Promise<ChatMessage[]>;
+  deleteConversation: (required: { id: string }, options?: {}) => Promise<void>;
+  loadConversationMessages: (required: { conversationId: string }, options?: {}) => Promise<ChatMessage[]>;
   /** Upserts one message by id into a conversation's persisted transcript. */
   saveConversationMessage: (input: SaveConversationMessageInput) => Promise<void>;
   /** Registers a run-event listener; returns its teardown. Every subscription multiplexes over this one channel. */
-  onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) => () => void;
+  onChatEvent: (required: { listener: (message: WorkspaceChatEventMessage) => void }, options?: {}) => () => void;
   /** Fires when the `desktop.navigate` tool moves the top nav. */
-  onNavigate: (listener: (section: RunnerSectionId) => void) => () => void;
+  onNavigate: (required: { listener: (section: RunnerSectionId) => void }, options?: {}) => () => void;
+  /** Fires when the web admin's "Open Import in Tovu" asks for the Import tab; the address is untrusted. */
+  onOpenImport: (required: { listener: (request: ImportHandoffRequest) => void }, options?: {}) => () => void;
   /** Fires on the app menu's History > Back / Forward (Cmd+[ / Cmd+]); returns its teardown. */
   /** Owns this tab's main-process theme feed claim until cleanup (also for hidden public tabs). */
   watchSitePreview?: (required: { siteDir: string; listener: (frame: SiteThemePreviewRefresh) => void }) => () => void;
-  onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => () => void;
+  onSiteHistory: (required: { listener: (command: SiteHistoryCommand) => void }, options?: {}) => () => void;
   /** Fires on the app menu's Find (Cmd+F); returns its teardown. See `use-find-in-page.hooks.ts`. */
-  onFindToggle: (listener: () => void) => () => void;
+  onFindToggle: (required: { listener: () => void }, options?: {}) => () => void;
   /** Runs a `webContents.findInPage` on the SITES HOME WINDOW'S OWN top-level page — used only when
    *  no project tab's `<webview>` is the visible surface, which calls its own `findInPage` directly
    *  instead. See `contracts/find-in-page.ts`'s header for the full split. */
   findInPage: (query: FindInPageQuery) => Promise<void>;
   stopFindInPage: () => Promise<void>;
   /** One `found-in-page` result for the top-level target above; returns its teardown. */
-  onFindResult: (listener: (result: FindInPageResult) => void) => () => void;
+  onFindResult: (required: { listener: (result: FindInPageResult) => void }, options?: {}) => () => void;
   /** Fires on the app menu's Zoom In / Zoom Out / Actual Size (Cmd+Plus / Cmd+- / Cmd+0); returns
    *  its teardown. See `use-zoom.hooks.ts`. */
-  onZoomCommand: (listener: (direction: ZoomDirection) => void) => () => void;
+  onZoomCommand: (required: { listener: (direction: ZoomDirection) => void }, options?: {}) => () => void;
   /** The sites home window's OWN top-level page's zoom level (0 = 100%) — used only when no project
    *  tab's `<webview>` is the visible surface, which zooms itself directly instead. Synchronous,
    *  like `getPathForFile`: see the preload's own doc on why this needs no IPC round trip. */
   getZoomLevel: () => number;
-  setZoomLevel: (level: number) => void;
+  setZoomLevel: (required: { level: number }, options?: {}) => void;
   /**
    * Resolves a `File`'s absolute OS path. Runs in the preload, not over IPC — see the bridge
    * implementation. Returns `''` for a `File` that did not come directly off a drop/dialog event
@@ -153,10 +156,10 @@ export interface RunnerInventoryBridge {
    */
   getPathForFile: (file: File) => string;
   /** Native folder dialog. Resolves `null` when the operator cancels. Also records the pick as recent. */
-  pickWorkingDirectory: (currentDirectory?: string) => Promise<string | null>;
+  pickWorkingDirectory: (required: Record<string, never>, options?: { currentDirectory?: string }) => Promise<string | null>;
   recentWorkingDirectories: () => Promise<readonly string[]>;
-  workingDirectoryExists: (directory: string) => Promise<boolean>;
-  normalizeWorkingDirectory: (directory: string) => Promise<string | null>;
+  workingDirectoryExists: (required: { directory: string }, options?: {}) => Promise<boolean>;
+  normalizeWorkingDirectory: (required: { directory: string }, options?: {}) => Promise<string | null>;
 }
 
 declare global {

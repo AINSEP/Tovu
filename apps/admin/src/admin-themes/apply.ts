@@ -1,4 +1,5 @@
 import type { SettingsThemeChoice } from "@jini-ai/ui";
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { resolveColorScheme, type MatchMediaPort } from "@jini-ai/ui/theme";
 import { ADMIN_THEMES, findAdminTheme, resolveAdminThemeScheme, type AdminThemeManifest, type AdminThemeScheme } from "./registry";
 
@@ -70,9 +71,8 @@ export function rememberAdminThemeChoice(
   { storage, themes = ADMIN_THEMES }: { storage: AdminThemeStoragePort | undefined; themes?: readonly AdminThemeManifest[] },
 ): void {
   const theme = findAdminTheme({ id: choice.themeId }, { themes });
-  try {
+  // Storage can throw (quota, disabled site data); the ledger still holds the choice.
+  orFallbackSync({ work: () => {
     storage?.setItem(ADMIN_THEME_STORAGE_KEY, JSON.stringify({ themeId: theme.id, preference: choice.preference, schemes: theme.schemes }));
-  } catch {
-    // Storage can throw (quota, disabled site data); the ledger still holds the choice.
-  }
+  }, fallback: undefined, step: "Remember admin theme" });
 }

@@ -16,7 +16,7 @@ test("installCommentsDataModule: installs tables cleanly on a fresh database", a
   db.pragma("journal_mode = WAL");
 
   try {
-    await installCommentsDataModule({ db: contentKernel(db), dbPath });
+    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath });
 
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
@@ -29,7 +29,7 @@ test("installCommentsDataModule: installs tables cleanly on a fresh database", a
     assert.ok(names.includes("p_comments__moderation_log"), `expected p_comments__moderation_log in [${names.join(", ")}]`);
 
     // Idempotent: re-invoking succeeds
-    await installCommentsDataModule({ db: contentKernel(db), dbPath }, {});
+    await installCommentsDataModule({ db: contentKernel({ store: db }), dbPath }, {});
   } finally {
     db.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -47,7 +47,7 @@ test("installCommentsDataModule: throws Error when declareDataModule fails", asy
     db.prepare(`CREATE TABLE p_comments__comments (id INTEGER PRIMARY KEY)`).run();
 
     await assert.rejects(
-      () => installCommentsDataModule({ db: contentKernel(db), dbPath }),
+      () => installCommentsDataModule({ db: contentKernel({ store: db }), dbPath }),
       /comments dataModule declaration failed/
     );
   } finally {

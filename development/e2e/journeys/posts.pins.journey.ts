@@ -104,6 +104,8 @@ test("reload recovers the newest draft while an earlier autosave PUT is pending"
 
 // Migrated from post-editor-image-sizing.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: post-editor-image-sizing", () => {
+const openFreshPost = createImageSizingOpenFreshPost();
+const registerUploadedImageSizingTest = createImageSizingUploadedImageSizingTest({ openFreshPost });
 /** Absolute — `addStyleTag`'s `path` option resolves against `process.cwd()` at test-run time,
  *  which varies by how the suite is invoked; anchoring to `import.meta.dirname` (this file's own directory,
  *  matching `byok-google-live-smoke.spec.ts`/`placeholder-tabs-card-parity.spec.ts`'s own
@@ -164,125 +166,31 @@ const BIG_SVG_DATA_URI =
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1500"><rect width="2400" height="1500" fill="#4caf7a"/></svg>'
   );
+const registerLegacyImageSizingTest = createImageSizingLegacyImageSizingTest({ openFreshPost, API_BASE, WORKSPACE_ID, BIG_SVG_DATA_URI });
+registerEditorAndThemeImageTests({ registerLegacyImageSizingTest, registerUploadedImageSizingTest, BASIC_THEME_CSS_PATH });
+registerPublicPageImageTest({ openFreshPost });
+registerImageActionSpacingTest({ openFreshPost });
+});
 
-/** Copied (not imported) from `post-editor-preview-branches.spec.ts` — see that file's own header
- *  for why this directory duplicates small scenario setup instead of sharing it. */
-async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
-  await page.goto("/admin/posts");
-  await page.getByRole("button", { name: "New Post" }).click();
-  await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
-  const id = page.url().split("/").pop()!;
-  const slug = await page.getByLabel("URL slug").inputValue();
-  return { id, slug };
-}
+function registerImageActionSpacingTest({ openFreshPost }: { openFreshPost: ReturnType<typeof createImageSizingOpenFreshPost> }) {
 
-/** Reads the box a real browser would paint from, not just declared CSS — `getBoundingClientRect`
- *  plus the three cascade-precedence properties this bug (and its public-theme sibling) hinge on. */
-async function measureImage(locator: Locator) {
-  return locator.evaluate(async (el) => {
-    // Attachment precedes image decoding; measuring before decode reads naturalWidth=0.
-    await (el as HTMLImageElement).decode();
-    const rect = el.getBoundingClientRect();
-    const style = getComputedStyle(el);
-    return {
-      width: rect.width,
-      height: rect.height,
-      naturalWidth: (el as HTMLImageElement).naturalWidth,
-      naturalHeight: (el as HTMLImageElement).naturalHeight,
-      maxWidth: style.maxWidth,
-      height_css: style.height,
-      display: style.display,
-    };
-  });
-}
-
-test.describe("post editor — inserted image sizing", () => {
+test.describe("media image node — Replace/Remove button spacing (owner-reported, same dispatch)", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
 
-  test("a legacy src-only image node (pre-existing content, no assetId/transformName) is constrained to the editor pane, not its raw intrinsic size", async ({
-    page,
-  }) => {
-    // Was: click the toolbar's "Insert image by URL" button (`window.prompt`s for the URL/alt).
-    // That control was REMOVED 2026-08-12 in the same dispatch as this rewrite (owner-reported
-    // bug: it wrote exactly this `src`-only node shape, which never renders on the public site —
-    // see `PostEditor.tsx`'s own comment on the removal). The node shape itself is still real,
-    // reachable content: any post SAVED before the removal (or written some other way) can still
-    // carry it, and `MediaImageNodeView`'s legacy branch (`media-image-extension.tsx`) still renders
-    // it for exactly that backward-compat reason. There is no toolbar path left that produces this
-    // shape, so this test now writes it directly through the same authenticated admin API the editor
-    // itself uses (`post-editor-toolbar.spec.ts`'s own `fetchBodyJson` pattern), then reloads —
-    // simulating "open a post that already has one", the one way this shape is reached now.
-    const { id } = await openFreshPost(page);
-    const editorBody = page.locator(".editor-body");
-    const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
+  test("the Replace and Remove buttons have a visible gap, not flush edges", async ({ page }) => {
+    const { id: postId } = await openFreshPost(page);
 
-    // `PUT /posts/:id` (`src/server/inbound/admin-http/routes/posts/update.ts`) has no partial-update path — it
-    // reads `title`/`slug`/`status` off the request body with `?? ""`/`undefined` fallbacks and
-    // `updatePost` then rejects an empty title/invalid status outright, so the full current record
-    // (not just the one field this test cares about) has to travel in every PUT.
-    const post = await page.evaluate(
-      async ({ url }) => {
-        const res = await fetch(url, { credentials: "same-origin" });
-        const data = await res.json();
-        return data.post;
-      },
-      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}` }
-    );
-    post.bodyJson.content.push({ type: "image", attrs: { src: BIG_SVG_DATA_URI, alt: "legacy image" } });
-    const putResult = await page.evaluate(
-      async ({ url, post }) => {
-        const res = await fetch(url, {
-          method: "PUT",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: post.title, slug: post.slug, status: post.status, bodyJson: post.bodyJson }),
-        });
-        return { status: res.status, text: await res.text() };
-      },
-      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}`, post }
-    );
-    expect(putResult.status, `seeding the legacy image node must succeed — got ${putResult.status}: ${putResult.text}`).toBe(200);
-    await page.reload();
-
-    const img = page.locator('[data-agent-element="post-body"] img').last();
-    await img.waitFor({ state: "attached", timeout: 5000 });
-    const m = await measureImage(img);
-
-    // The regression: pre-fix this was `naturalWidth` (2400) with `maxWidth: "none"`, overflowing
-    // the pane. Post-fix it must be constrained to (at most) the pane's own width, scaled down from
-    // the 2400x1500 source with its aspect ratio intact.
-    expect(m.naturalWidth).toBe(2400);
-    expect(m.width).toBeLessThanOrEqual(paneWidth + 1); // +1: sub-pixel rounding
-    expect(m.width).toBeLessThan(m.naturalWidth);
-    expect(m.maxWidth).toBe("100%");
-    expect(m.display).toBe("block");
-    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
-  });
-
-  test("an image inserted by drag/paste upload (FileHandler -> MediaImage node view) is equally constrained", async ({
-    page,
-  }) => {
-    await openFreshPost(page);
-    const editorBody = page.locator(".editor-body");
-    const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
-
-    // Builds a real 2400x1500 PNG in-browser (canvas -> toBlob -> File) so this test needs no
-    // binary fixture checked into the repo, then dispatches a real `drop` DragEvent onto the
-    // ProseMirror editable — the same path `FileHandler.onDrop` (`use-post-editor.hooks.ts`)
-    // listens on. TOVU_DB=memory for this suite's hermetic server (see
-    // `playwright.post-editor.config.ts`), so the resulting upload is discarded with the rest of
-    // the test DB — unlike the live dev server, no manual cleanup is needed here.
     await page.evaluate(async () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 2400;
-      canvas.height = 1500;
+      canvas.width = 400;
+      canvas.height = 300;
       const ctx = canvas.getContext("2d")!;
       ctx.fillStyle = "#4caf7a";
-      ctx.fillRect(0, 0, 2400, 1500);
+      ctx.fillRect(0, 0, 400, 300);
       const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
-      const file = new File([blob], "big-drop-test.png", { type: "image/png" });
+      const file = new File([blob], "button-gap-test.png", { type: "image/png" });
       const dt = new DataTransfer();
       dt.items.add(file);
       const target = document.querySelector('[data-agent-element="post-body"] .ProseMirror')!;
@@ -298,54 +206,24 @@ test.describe("post editor — inserted image sizing", () => {
       );
     });
 
-    // f1d6c87b4 intentionally inserts ref-based `media` nodes for file drops, not legacy `image` nodes.
-    const img = page.locator(".media-embed-node__preview").last();
-    await img.waitFor({ state: "attached", timeout: 15_000 });
-    const m = await measureImage(img);
+    await page.locator(".media-embed-node__preview").last().waitFor({ state: "attached", timeout: 15_000 });
 
-    expect(m.naturalWidth).toBe(2400);
-    expect(m.width).toBeLessThanOrEqual(paneWidth + 1);
-    expect(m.width).toBeLessThan(m.naturalWidth);
-    expect(m.maxWidth).toBe("100%");
-    expect(m.display).toBe("block");
-    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
+    // f1d6c87b4: generic media has Edit/Replace/Remove and the owner approved a 10px gap.
+    // Use names so adding/reordering an action cannot make this measure the wrong pair.
+    const actions = page.locator(".media-embed-node__actions").last();
+    const replaceBox = await actions.getByRole("button", { name: "Replace", exact: true }).boundingBox();
+    const removeBox = await actions.getByRole("button", { name: "Remove", exact: true }).boundingBox();
+    if (!replaceBox || !removeBox) throw new Error("Replace/Remove buttons did not render a bounding box");
+    const gap = removeBox.x - (replaceBox.x + replaceBox.width);
+    expect(gap).toBeGreaterThanOrEqual(9);
+    expect(gap).toBeLessThanOrEqual(11);
+
+    await page.request.delete(`${PIN_PUBLIC_URL}/api/admin/v1/workspaces/workspace-local/posts/${postId}`);
   });
 });
+}
 
-test.describe("public theme — post body image sizing (the second bug this dispatch found)", () => {
-  /**
-   * `render.ts`'s `renderImageTag` emits BOTH `width` and `height` HTML attributes whenever a
-   * media asset has that metadata stored (`meta?.width`/`meta?.height`, independent of each
-   * other). This suite's hermetic post has no such asset (creating one needs a real upload +
-   * transform-registry entry, which is what test 2 above already exercises against the ADMIN
-   * side of the same node). What matters for THIS bug is the CSS rule alone: given an `<img>`
-   * with explicit `width`/`height` attributes, does `.post-detail-body img` preserve aspect ratio
-   * or squash it? That is a direct, deterministic function of the stylesheet, asserted here
-   * against a minimal fixture that loads the real theme CSS — not a live post render, but not a
-   * gap either, since the CSS rule (not the render path that reaches it) is what this dispatch
-   * changed.
-   */
-  test("`.post-detail-body img` scales height when the img carries explicit width/height attributes", async ({
-    page,
-  }) => {
-    await page.setContent(`<!doctype html><html><body>
-      <div class="post-detail-body">
-        <img id="probe" width="2400" height="1500"
-             src="data:image/svg+xml,${encodeURIComponent(
-               '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1500"><rect width="2400" height="1500" fill="#4caf7a"/></svg>'
-             )}" alt="probe">
-      </div>
-    </body></html>`);
-    await page.addStyleTag({ path: BASIC_THEME_CSS_PATH });
-
-    const img = page.locator("#probe");
-    const m = await measureImage(img);
-
-    // Pre-fix this was `height_css: "1500px"` regardless of the shrunk width — a squashed image.
-    expect(m.maxWidth).toBe("100%");
-    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
-  });
-});
+function registerPublicPageImageTest({ openFreshPost }: { openFreshPost: ReturnType<typeof createImageSizingOpenFreshPost> }) {
 
 /**
  * Second owner-reported bug, same dispatch, next escalation (2026-08-12): "the actual image is not
@@ -438,24 +316,146 @@ test.describe("public page — inserted image actually renders (not a filename p
     }
   );
 });
+}
 
-test.describe("media image node — Replace/Remove button spacing (owner-reported, same dispatch)", () => {
+function registerEditorAndThemeImageTests({ registerLegacyImageSizingTest, registerUploadedImageSizingTest, BASIC_THEME_CSS_PATH }: { registerLegacyImageSizingTest: ReturnType<typeof createImageSizingLegacyImageSizingTest>; registerUploadedImageSizingTest: ReturnType<typeof createImageSizingUploadedImageSizingTest>; BASIC_THEME_CSS_PATH: string }) {
+
+test.describe("post editor — inserted image sizing", () => {
+  registerLegacyImageSizingTest();
+  registerUploadedImageSizingTest();
+});
+
+test.describe("public theme — post body image sizing (the second bug this dispatch found)", () => {
+  /**
+   * `render.ts`'s `renderImageTag` emits BOTH `width` and `height` HTML attributes whenever a
+   * media asset has that metadata stored (`meta?.width`/`meta?.height`, independent of each
+   * other). This suite's hermetic post has no such asset (creating one needs a real upload +
+   * transform-registry entry, which is what test 2 above already exercises against the ADMIN
+   * side of the same node). What matters for THIS bug is the CSS rule alone: given an `<img>`
+   * with explicit `width`/`height` attributes, does `.post-detail-body img` preserve aspect ratio
+   * or squash it? That is a direct, deterministic function of the stylesheet, asserted here
+   * against a minimal fixture that loads the real theme CSS — not a live post render, but not a
+   * gap either, since the CSS rule (not the render path that reaches it) is what this dispatch
+   * changed.
+   */
+  test("`.post-detail-body img` scales height when the img carries explicit width/height attributes", async ({
+    page,
+  }) => {
+    await page.setContent(`<!doctype html><html><body>
+      <div class="post-detail-body">
+        <img id="probe" width="2400" height="1500"
+             src="data:image/svg+xml,${encodeURIComponent(
+               '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1500"><rect width="2400" height="1500" fill="#4caf7a"/></svg>'
+             )}" alt="probe">
+      </div>
+    </body></html>`);
+    await page.addStyleTag({ path: BASIC_THEME_CSS_PATH });
+
+    const img = page.locator("#probe");
+    const m = await measureImage(img);
+
+    // Pre-fix this was `height_css: "1500px"` regardless of the shrunk width — a squashed image.
+    expect(m.maxWidth).toBe("100%");
+    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
+  });
+});
+}
+
+function createImageSizingLegacyImageSizingTest({ openFreshPost, API_BASE, WORKSPACE_ID, BIG_SVG_DATA_URI }: { openFreshPost: ReturnType<typeof createImageSizingOpenFreshPost>; API_BASE: string; WORKSPACE_ID: string; BIG_SVG_DATA_URI: string }) {
+
+return function registerLegacyImageSizingTest() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
 
-  test("the Replace and Remove buttons have a visible gap, not flush edges", async ({ page }) => {
-    const { id: postId } = await openFreshPost(page);
+  test("a legacy src-only image node (pre-existing content, no assetId/transformName) is constrained to the editor pane, not its raw intrinsic size", async ({
+    page,
+  }) => {
+    // Was: click the toolbar's "Insert image by URL" button (`window.prompt`s for the URL/alt).
+    // That control was REMOVED 2026-08-12 in the same dispatch as this rewrite (owner-reported
+    // bug: it wrote exactly this `src`-only node shape, which never renders on the public site —
+    // see `PostEditor.tsx`'s own comment on the removal). The node shape itself is still real,
+    // reachable content: any post SAVED before the removal (or written some other way) can still
+    // carry it, and `MediaImageNodeView`'s legacy branch (`media-image-extension.tsx`) still renders
+    // it for exactly that backward-compat reason. There is no toolbar path left that produces this
+    // shape, so this test now writes it directly through the same authenticated admin API the editor
+    // itself uses (`post-editor-toolbar.spec.ts`'s own `fetchBodyJson` pattern), then reloads —
+    // simulating "open a post that already has one", the one way this shape is reached now.
+    const { id } = await openFreshPost(page);
+    const editorBody = page.locator(".editor-body");
+    const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
 
+    // `PUT /posts/:id` (`src/server/inbound/admin-http/routes/posts/update.ts`) has no partial-update path — it
+    // reads `title`/`slug`/`status` off the request body with `?? ""`/`undefined` fallbacks and
+    // `updatePost` then rejects an empty title/invalid status outright, so the full current record
+    // (not just the one field this test cares about) has to travel in every PUT.
+    const post = await page.evaluate(
+      async ({ url }) => {
+        const res = await fetch(url, { credentials: "same-origin" });
+        const data = await res.json();
+        return data.post;
+      },
+      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}` }
+    );
+    post.bodyJson.content.push({ type: "image", attrs: { src: BIG_SVG_DATA_URI, alt: "legacy image" } });
+    const putResult = await page.evaluate(
+      async ({ url, post }) => {
+        const res = await fetch(url, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: post.title, slug: post.slug, status: post.status, bodyJson: post.bodyJson }),
+        });
+        return { status: res.status, text: await res.text() };
+      },
+      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}`, post }
+    );
+    expect(putResult.status, `seeding the legacy image node must succeed — got ${putResult.status}: ${putResult.text}`).toBe(200);
+    await page.reload();
+
+    const img = page.locator('[data-agent-element="post-body"] img').last();
+    await img.waitFor({ state: "attached", timeout: 5000 });
+    const m = await measureImage(img);
+
+    // The regression: pre-fix this was `naturalWidth` (2400) with `maxWidth: "none"`, overflowing
+    // the pane. Post-fix it must be constrained to (at most) the pane's own width, scaled down from
+    // the 2400x1500 source with its aspect ratio intact.
+    expect(m.naturalWidth).toBe(2400);
+    expect(m.width).toBeLessThanOrEqual(paneWidth + 1); // +1: sub-pixel rounding
+    expect(m.width).toBeLessThan(m.naturalWidth);
+    expect(m.maxWidth).toBe("100%");
+    expect(m.display).toBe("block");
+    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
+  });
+}
+}
+
+function createImageSizingUploadedImageSizingTest({ openFreshPost }: { openFreshPost: ReturnType<typeof createImageSizingOpenFreshPost> }) {
+
+return function registerUploadedImageSizingTest() {
+
+  test("an image inserted by drag/paste upload (FileHandler -> MediaImage node view) is equally constrained", async ({
+    page,
+  }) => {
+    await openFreshPost(page);
+    const editorBody = page.locator(".editor-body");
+    const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
+
+    // Builds a real 2400x1500 PNG in-browser (canvas -> toBlob -> File) so this test needs no
+    // binary fixture checked into the repo, then dispatches a real `drop` DragEvent onto the
+    // ProseMirror editable — the same path `FileHandler.onDrop` (`use-post-editor.hooks.ts`)
+    // listens on. TOVU_DB=memory for this suite's hermetic server (see
+    // `playwright.post-editor.config.ts`), so the resulting upload is discarded with the rest of
+    // the test DB — unlike the live dev server, no manual cleanup is needed here.
     await page.evaluate(async () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 400;
-      canvas.height = 300;
+      canvas.width = 2400;
+      canvas.height = 1500;
       const ctx = canvas.getContext("2d")!;
       ctx.fillStyle = "#4caf7a";
-      ctx.fillRect(0, 0, 400, 300);
+      ctx.fillRect(0, 0, 2400, 1500);
       const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
-      const file = new File([blob], "button-gap-test.png", { type: "image/png" });
+      const file = new File([blob], "big-drop-test.png", { type: "image/png" });
       const dt = new DataTransfer();
       dt.items.add(file);
       const target = document.querySelector('[data-agent-element="post-body"] .ProseMirror')!;
@@ -471,58 +471,46 @@ test.describe("media image node — Replace/Remove button spacing (owner-reporte
       );
     });
 
-    await page.locator(".media-embed-node__preview").last().waitFor({ state: "attached", timeout: 15_000 });
+    // f1d6c87b4 intentionally inserts ref-based `media` nodes for file drops, not legacy `image` nodes.
+    const img = page.locator(".media-embed-node__preview").last();
+    await img.waitFor({ state: "attached", timeout: 15_000 });
+    const m = await measureImage(img);
 
-    // f1d6c87b4: generic media has Edit/Replace/Remove and the owner approved a 10px gap.
-    // Use names so adding/reordering an action cannot make this measure the wrong pair.
-    const actions = page.locator(".media-embed-node__actions").last();
-    const replaceBox = await actions.getByRole("button", { name: "Replace", exact: true }).boundingBox();
-    const removeBox = await actions.getByRole("button", { name: "Remove", exact: true }).boundingBox();
-    if (!replaceBox || !removeBox) throw new Error("Replace/Remove buttons did not render a bounding box");
-    const gap = removeBox.x - (replaceBox.x + replaceBox.width);
-    expect(gap).toBeGreaterThanOrEqual(9);
-    expect(gap).toBeLessThanOrEqual(11);
-
-    await page.request.delete(`${PIN_PUBLIC_URL}/api/admin/v1/workspaces/workspace-local/posts/${postId}`);
+    expect(m.naturalWidth).toBe(2400);
+    expect(m.width).toBeLessThanOrEqual(paneWidth + 1);
+    expect(m.width).toBeLessThan(m.naturalWidth);
+    expect(m.maxWidth).toBe("100%");
+    expect(m.display).toBe("block");
+    expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
   });
-});
-});
+}
+}
 
-// Migrated from post-editor-mention-preview-link.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: post-editor-mention-preview-link", () => {
-/**
- * @file Owner-reported bug (2026-08-12), with the owner's own exact repro evidence: clicking a
- * mention link "took me to this blank screen with this message in preview: 'The server is
- * configured with a public base URL of /admin/ — did you mean to visit /admin/token-locator-probe
- * instead?'" — Vite's own stock 404 page for a path outside its configured `base: "/admin/"`.
- *
- * Reproduced live (headless Chromium, before this fix) inside the Posts editor's Preview tab,
- * pending-content branch (`PostPreview`'s branch 3, `PostEditor.tsx` — see that function's own file
- * header for the branch numbering).
- *
- * Root cause: `api.templatePreviewUrl` (branches 2 and 3's iframe `src`/form `action`) used to
- * return a bare `/api/admin/v1/...` path. Every OTHER admin API call stays relative like this on
- * purpose (`request()`'s calls are fetched via Vite's own `/api` dev proxy, same origin as the admin
- * SPA) — but THIS path is different: its response is loaded as a real navigated HTML document, which
- * makes the URL's own origin that document's base URI for every relative link INSIDE it. In dev,
- * that origin is the ADMIN Vite server, which proxies only a small explicit allowlist (`/api`,
- * `/agent-icons`, `/theme-assets`) — so `/theme-assets/...` links in the rendered page kept working
- * (proxied) while a mention's `<a href="/{slug}">` (render.ts's `"mention"` case) did not (not in
- * the allowlist), landing on Vite's own dev server for an unrecognized top-level path. The fix wraps
- * that URL in `siteUrl(...)` (`site-url.ts`) — the SAME helper the live-site branch's own iframe
- * `src` already uses for exactly this "escape the admin origin in dev" reason — making it absolute
- * in dev and a no-op in production, where the admin SPA, this API, and the public site already share
- * one origin.
- *
- * Confirmed live (real headless Chromium, this suite's own hermetic `TOVU_DB=memory` boot) before
- * being written up as the RED state this test started from.
- */
+/** Reads the box a real browser would paint from, not just declared CSS — `getBoundingClientRect`
+ *  plus the three cascade-precedence properties this bug (and its public-theme sibling) hinge on. */
+async function measureImage(locator: Locator) {
+  return locator.evaluate(async (el) => {
+    // Attachment precedes image decoding; measuring before decode reads naturalWidth=0.
+    await (el as HTMLImageElement).decode();
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return {
+      width: rect.width,
+      height: rect.height,
+      naturalWidth: (el as HTMLImageElement).naturalWidth,
+      naturalHeight: (el as HTMLImageElement).naturalHeight,
+      maxWidth: style.maxWidth,
+      height_css: style.height,
+      display: style.display,
+    };
+  });
+}
 
-
+function createImageSizingOpenFreshPost() {
 
 /** Copied (not imported) from `post-editor-preview-branches.spec.ts` — see that file's own header
  *  for why this directory duplicates small scenario setup instead of sharing it. */
-async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
+return async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
   await page.goto("/admin/posts");
   await page.getByRole("button", { name: "New Post" }).click();
   await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
@@ -530,34 +518,24 @@ async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> 
   const slug = await page.getByLabel("URL slug").inputValue();
   return { id, slug };
 }
-
-function bodyParagraph(page: Page) {
-  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
 }
 
-async function publishAndWaitForConfirmation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Publish" }).click();
-  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
-}
-
-/** Same poll-for-frame idiom as `post-editor-preview-branches.spec.ts`'s own
- *  `waitForPendingContentFrame` — copied rather than imported for the same DAMP reason that file's
- *  own header states. */
-async function waitForPendingContentFrame(page: Page): Promise<Frame> {
-  await expect
-    .poll(() => page.frames().some((f) => f.url().includes("/template-preview")), { timeout: 10_000 })
-    .toBe(true);
-  const frame = page.frames().find((f) => f.url().includes("/template-preview"));
-  if (!frame) {
-    throw new Error(
-      "no /template-preview child frame found — frames seen: " + page.frames().map((f) => f.url()).join(", ")
-    );
-  }
-  await frame.locator("body").waitFor({ state: "attached", timeout: 10_000 });
-  return frame;
-}
+// Migrated from post-editor-mention-preview-link.spec.ts; original pin intent and why comments follow.
+test.describe("Bug pin: post-editor-mention-preview-link", () => {
+const waitForPendingContentFrame = createMentionPreviewWaitForPendingContentFrame();
+const publishAndWaitForConfirmation = createMentionPreviewPublishAndWaitForConfirmation();
+const bodyParagraph = createMentionPreviewBodyParagraph();
+const openFreshPost = createMentionPreviewOpenFreshPost();
+const registerMentionNavigationTest = createMentionPreviewMentionNavigationTest({ publishAndWaitForConfirmation, openFreshPost, bodyParagraph, waitForPendingContentFrame });
 
 test.describe("Post editor Preview tab — mention link regression (2026-08-12)", () => {
+  registerMentionNavigationTest();
+});
+});
+
+function createMentionPreviewMentionNavigationTest({ publishAndWaitForConfirmation, openFreshPost, bodyParagraph, waitForPendingContentFrame }: { publishAndWaitForConfirmation: ReturnType<typeof createMentionPreviewPublishAndWaitForConfirmation>; openFreshPost: ReturnType<typeof createMentionPreviewOpenFreshPost>; bodyParagraph: ReturnType<typeof createMentionPreviewBodyParagraph>; waitForPendingContentFrame: ReturnType<typeof createMentionPreviewWaitForPendingContentFrame> }) {
+
+return function registerMentionNavigationTest() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
@@ -630,8 +608,86 @@ test.describe("Post editor Preview tab — mention link regression (2026-08-12)"
     // fix (e.g. `target="_top"` somewhere) could have navigated the whole admin tab away instead.
     expect(page.url()).toContain(`/admin/posts/`);
   });
-});
-});
+}
+}
+
+function createMentionPreviewWaitForPendingContentFrame() {
+
+/** Same poll-for-frame idiom as `post-editor-preview-branches.spec.ts`'s own
+ *  `waitForPendingContentFrame` — copied rather than imported for the same DAMP reason that file's
+ *  own header states. */
+return async function waitForPendingContentFrame(page: Page): Promise<Frame> {
+  await expect
+    .poll(() => page.frames().some((f) => f.url().includes("/template-preview")), { timeout: 10_000 })
+    .toBe(true);
+  const frame = page.frames().find((f) => f.url().includes("/template-preview"));
+  if (!frame) {
+    throw new Error(
+      "no /template-preview child frame found — frames seen: " + page.frames().map((f) => f.url()).join(", ")
+    );
+  }
+  await frame.locator("body").waitFor({ state: "attached", timeout: 10_000 });
+  return frame;
+}
+}
+
+function createMentionPreviewPublishAndWaitForConfirmation() {
+
+return async function publishAndWaitForConfirmation(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
+}
+}
+
+function createMentionPreviewBodyParagraph() {
+
+return function bodyParagraph(page: Page) {
+  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
+}
+}
+
+function createMentionPreviewOpenFreshPost() {
+/**
+ * @file Owner-reported bug (2026-08-12), with the owner's own exact repro evidence: clicking a
+ * mention link "took me to this blank screen with this message in preview: 'The server is
+ * configured with a public base URL of /admin/ — did you mean to visit /admin/token-locator-probe
+ * instead?'" — Vite's own stock 404 page for a path outside its configured `base: "/admin/"`.
+ *
+ * Reproduced live (headless Chromium, before this fix) inside the Posts editor's Preview tab,
+ * pending-content branch (`PostPreview`'s branch 3, `PostEditor.tsx` — see that function's own file
+ * header for the branch numbering).
+ *
+ * Root cause: `api.templatePreviewUrl` (branches 2 and 3's iframe `src`/form `action`) used to
+ * return a bare `/api/admin/v1/...` path. Every OTHER admin API call stays relative like this on
+ * purpose (`request()`'s calls are fetched via Vite's own `/api` dev proxy, same origin as the admin
+ * SPA) — but THIS path is different: its response is loaded as a real navigated HTML document, which
+ * makes the URL's own origin that document's base URI for every relative link INSIDE it. In dev,
+ * that origin is the ADMIN Vite server, which proxies only a small explicit allowlist (`/api`,
+ * `/agent-icons`, `/theme-assets`) — so `/theme-assets/...` links in the rendered page kept working
+ * (proxied) while a mention's `<a href="/{slug}">` (render.ts's `"mention"` case) did not (not in
+ * the allowlist), landing on Vite's own dev server for an unrecognized top-level path. The fix wraps
+ * that URL in `siteUrl(...)` (`site-url.ts`) — the SAME helper the live-site branch's own iframe
+ * `src` already uses for exactly this "escape the admin origin in dev" reason — making it absolute
+ * in dev and a no-op in production, where the admin SPA, this API, and the public site already share
+ * one origin.
+ *
+ * Confirmed live (real headless Chromium, this suite's own hermetic `TOVU_DB=memory` boot) before
+ * being written up as the RED state this test started from.
+ */
+
+
+
+/** Copied (not imported) from `post-editor-preview-branches.spec.ts` — see that file's own header
+ *  for why this directory duplicates small scenario setup instead of sharing it. */
+return async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
+  await page.goto("/admin/posts");
+  await page.getByRole("button", { name: "New Post" }).click();
+  await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
+  const id = page.url().split("/").pop()!;
+  const slug = await page.getByLabel("URL slug").inputValue();
+  return { id, slug };
+}
+}
 
 // Migrated from post-editor-open-redirect-link.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: post-editor-open-redirect-link", () => {
@@ -728,6 +784,279 @@ test.describe("Post editor Link toolbar — open-redirect fix (2026-08-20)", () 
 
 // Migrated from post-editor-preview-branches.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: post-editor-preview-branches", () => {
+const waitForPendingContentFrame = createPostPreviewWaitForPendingContentFrame();
+const publishAndWaitForConfirmation = createPostPreviewPublishAndWaitForConfirmation();
+const bodyParagraph = createPostPreviewBodyParagraph();
+const openFreshPost = createPostPreviewOpenFreshPost();
+const readPublishedPostBackground = createPostPreviewReadPublishedPostBackground({ openFreshPost, bodyParagraph, publishAndWaitForConfirmation });
+const registerFormattedPostPreviewTest = createPostPreviewFormattedPostPreviewTest({ readPublishedPostBackground, bodyParagraph, waitForPendingContentFrame });
+const registerUntouchedDraftPreviewTest = createPostPreviewUntouchedDraftPreviewTest({ openFreshPost, waitForPendingContentFrame });
+const registerDraftAndPublishedPreviewTests = createPostPreviewDraftAndPublishedPreviewTests({ openFreshPost, bodyParagraph, waitForPendingContentFrame, publishAndWaitForConfirmation });
+
+test.describe("Post editor Preview tab — which of the four branches renders", () => {
+  registerUntouchedDraftPreviewTest();
+  registerDraftAndPublishedPreviewTests();
+  registerFormattedPostPreviewTest();
+
+  test("BRANCH 2: changing only a published post's template loads the alternate preview without changing the live page", async ({ page, request }) => {
+    const { slug } = await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Template-only preview content");
+    await publishAndWaitForConfirmation(page);
+    const liveBefore = await request.get(`${PIN_PUBLIC_URL}/${slug}`);
+    expect(liveBefore.ok()).toBe(true);
+    const liveHtml = await liveBefore.text();
+    // STALE PIN UPDATED: 948706418 promotes the current posts-sidebar template name.
+    await page.locator('[data-agent-element="post-template-choice"]').selectOption("posts-sidebar.html");
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const { src, srcdoc } = await previewIframeState(page);
+    expect(srcdoc).toBeNull();
+    expect(src).toContain("/template-preview?templateChoice=posts-sidebar.html");
+    const preview = page.getByTitle("Post preview", { exact: true }).contentFrame();
+    await expect(preview.locator("body")).toContainText("Template-only preview content");
+    await expect(preview.locator(".docs-sidebar")).toBeVisible();
+    await expectNoPreviewNotice(page);
+    const liveAfter = await request.get(`${PIN_PUBLIC_URL}/${slug}`);
+    expect(liveAfter.ok()).toBe(true);
+    expect(await liveAfter.text()).toBe(liveHtml);
+  });
+});
+});
+
+function createPostPreviewFormattedPostPreviewTest({ readPublishedPostBackground, bodyParagraph, waitForPendingContentFrame }: { readPublishedPostBackground: ReturnType<typeof createPostPreviewReadPublishedPostBackground>; bodyParagraph: ReturnType<typeof createPostPreviewBodyParagraph>; waitForPendingContentFrame: ReturnType<typeof createPostPreviewWaitForPendingContentFrame> }) {
+
+return function registerFormattedPostPreviewTest() {
+
+  test("FIXED (2026-08-12, owner-reported bug): formatting a PUBLISHED post's content keeps its Preview themed via the pending-content branch, carrying the unsaved edit", async ({
+    page,
+  }) => {
+    const { liveBodyBackground } = await readPublishedPostBackground(page);
+
+    // The owner's own repro step: format existing text with the inline-code toolbar button.
+    await page.getByRole("tab", { name: "Editor" }).click();
+    await page.getByText("Sample text", { exact: true }).click({ clickCount: 3 });
+    await page.getByTitle("Inline code", { exact: true }).click();
+    // A second, independent edit — proves the pending frame reflects the LIVE unsaved buffer, not
+    // just whatever `bodyJson` looked like at the moment `contentDirty` first flipped true.
+    await bodyParagraph(page).click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" plus a live edit");
+
+    await page.getByRole("tab", { name: "Preview" }).click();
+    // Neither `src` nor `srcdoc` is set for this branch (see `previewIframeState`'s own doc) — this
+    // is itself the first confirmation that the raw SrcDocSandbox fallback (branch 4) was NOT chosen.
+    const { src, srcdoc } = await previewIframeState(page);
+    expect(srcdoc, "FIX: must not fall back to the raw, unstyled SrcDocSandbox render").toBeNull();
+    expect(src, "branch 3 never sets `src` directly — it navigates via a targeted form submit").toBeNull();
+
+    const pendingFrame = await waitForPendingContentFrame(page);
+    expect(pendingFrame.url(), "must reuse the SAME template-preview endpoint branch 2 GETs, just POSTed").toContain(
+      "/template-preview"
+    );
+
+    // Theme CSS parity — the actual bug this fix closes. Computed style, not markup presence, per
+    // this project's own memory on CSS presence not being proof of precedence.
+    const pendingBodyBackground = await pendingFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(
+      pendingBodyBackground,
+      "the pending-content preview must carry the SAME theme CSS as the live site, not go unstyled"
+    ).toBe(liveBodyBackground);
+
+    // Must reflect the LIVE unsaved buffer, not the last-SAVED body (a silently-stale render would
+    // still pass a naive "is it themed" check while showing the wrong content).
+    await expect(pendingFrame.locator("body")).toContainText("Sample text plus a live edit");
+    // Rendered through the real server pipeline (`renderDocNode`/`renderMarks`, not Tiptap's own
+    // `editor.getHTML()`) — a genuine DOM query on the server-rendered output, not a raw-string match,
+    // confirming the inline-code mark just applied actually survived that pipeline.
+    await expect(pendingFrame.locator("code")).toContainText("Sample text");
+
+    await expectNoPreviewNotice(page);
+  });
+}
+}
+
+function createPostPreviewReadPublishedPostBackground({ openFreshPost, bodyParagraph, publishAndWaitForConfirmation }: { openFreshPost: ReturnType<typeof createPostPreviewOpenFreshPost>; bodyParagraph: ReturnType<typeof createPostPreviewBodyParagraph>; publishAndWaitForConfirmation: ReturnType<typeof createPostPreviewPublishAndWaitForConfirmation> }) {
+
+return async function readPublishedPostBackground(page: Page) {
+    const { slug } = await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Sample text");
+    await publishAndWaitForConfirmation(page);
+
+    // BEFORE state matches the owner's own report: it looked fine before he touched it. Also the
+    // reference point for the theme-CSS-parity assertion below.
+    await page.getByRole("tab", { name: "Preview" }).click();
+    expect(withoutPreviewRevision((await previewIframeState(page)).src, page.url())).toBe(new URL(`/${slug}`, page.url()).href);
+    const liveFrame = await waitForLivePostFrame({ page, slug });
+    await liveFrame.locator("body").waitFor({ state: "attached" });
+    const liveBodyBackground = await liveFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
+    return { liveBodyBackground };
+  }
+}
+
+function createPostPreviewUntouchedDraftPreviewTest({ openFreshPost, waitForPendingContentFrame }: { openFreshPost: ReturnType<typeof createPostPreviewOpenFreshPost>; waitForPendingContentFrame: ReturnType<typeof createPostPreviewWaitForPendingContentFrame> }) {
+
+return function registerUntouchedDraftPreviewTest() {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
+  test("FIXED (2026-09-11, owner-reported): a brand-new, UNTOUCHED draft's Preview tab shows the real themed template render, not the raw editor-buffer fallback", async ({
+    page,
+  }) => {
+    await openFreshPost(page);
+    // Deliberately nothing typed — `contentDirty` stays `false`. Before this fix that was exactly
+    // the one state that fell through every branch to the raw `SrcDocSandbox` fallback (see this
+    // file's header); now it's simply "not live, not template-choice-only," so it takes branch 3.
+
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const { src, srcdoc } = await previewIframeState(page);
+
+    expect(src, "a clean draft must never resolve to the live-site or template-preview iframe").toBeNull();
+    expect(srcdoc, "REGRESSION GUARD: must never fall back to the deleted SrcDocSandbox render again").toBeNull();
+
+    const pendingFrame = await waitForPendingContentFrame(page);
+    expect(
+      pendingFrame.url(),
+      "must reuse the SAME id-based template-preview endpoint every other branch-3 case uses"
+    ).toContain("/template-preview");
+    // Real, themed chrome — a `<body>` attached inside a real navigated document, not an inline
+    // `srcDoc` string with no template/theme CSS at all.
+    await expect(pendingFrame.locator("body")).toBeVisible();
+    await pendingFrame.waitForLoadState("load");
+    const livePage = await page.context().newPage();
+    try {
+      await livePage.goto(PIN_PUBLIC_URL, { waitUntil: "load" });
+      const liveBackground = await livePage.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(liveBackground, "control must itself have a themed background").not.toBe("rgba(0, 0, 0, 0)");
+      expect(await pendingFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(liveBackground);
+    } finally {
+      await livePage.close();
+    }
+
+    // The notices were removed (`58a7c284e`) — neither the old "rough render" one nor its successor.
+    await expectNoPreviewNotice(page);
+  });
+}
+}
+
+function createPostPreviewDraftAndPublishedPreviewTests({ openFreshPost, bodyParagraph, waitForPendingContentFrame, publishAndWaitForConfirmation }: { openFreshPost: ReturnType<typeof createPostPreviewOpenFreshPost>; bodyParagraph: ReturnType<typeof createPostPreviewBodyParagraph>; waitForPendingContentFrame: ReturnType<typeof createPostPreviewWaitForPendingContentFrame>; publishAndWaitForConfirmation: ReturnType<typeof createPostPreviewPublishAndWaitForConfirmation> }) {
+
+return function registerDraftAndPublishedPreviewTests() {
+
+  test("WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback", async ({
+    page,
+  }) => {
+    await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Draft body");
+
+    await page.getByRole("tab", { name: "Preview" }).click();
+    // Neither `src` nor `srcdoc` is set for branch 3 (see `previewIframeState`'s own doc) — this is
+    // itself the first confirmation that the raw SrcDocSandbox fallback (branch 4) was NOT chosen.
+    const { src, srcdoc } = await previewIframeState(page);
+    expect(srcdoc, "a dirty draft must NOT fall back to the raw, unstyled SrcDocSandbox render").toBeNull();
+    expect(src, "branch 3 never sets `src` directly — it navigates via a targeted form submit").toBeNull();
+
+    const pendingFrame = await waitForPendingContentFrame(page);
+    expect(
+      pendingFrame.url(),
+      "must reuse the SAME id-based template-preview endpoint a published post's branch 3 uses"
+    ).toContain("/template-preview");
+
+    // Real, themed chrome around the draft's own unsaved text — the exact visibility-guard bypass
+    // `template-preview.ts`'s `pendingBodyJson` override exists for.
+    await expect(pendingFrame.locator("body")).toContainText("Draft body");
+
+    await expectNoPreviewNotice(page);
+  });
+
+  test("INTENDED: a published, unedited post's Preview tab shows the real live site through an actual navigable iframe, with NO notice", async ({
+    page,
+  }) => {
+    const { slug } = await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Published body");
+    await publishAndWaitForConfirmation(page);
+
+    await page.getByRole("tab", { name: "Preview" }).click();
+    const { src, srcdoc } = await previewIframeState(page);
+
+    expect(srcdoc, "a clean published post must not fall back to the raw sandbox").toBeNull();
+    expect(withoutPreviewRevision(src, page.url())).toBe(new URL(`/${slug}`, page.url()).href);
+    const liveFrame = await waitForLivePostFrame({ page, slug });
+    await expect(liveFrame.locator("body")).toContainText("Published body");
+
+    // `canShowLiveSite` renders NO notice element at all (`{canShowLiveSite ? null : (...)}`) — not
+    // merely a hidden one, so this asserts absence from the DOM, not just non-visibility.
+    await expect(page.locator(".editor-preview-notice")).toHaveCount(0);
+  });
+}
+}
+
+/** STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted every "Previewing your
+ *  …" notice above the preview frame, so every branch now pins its ABSENCE from the DOM. */
+async function expectNoPreviewNotice(page: Page): Promise<void> {
+  await expect(page.locator(".editor-preview-notice")).toHaveCount(0);
+}
+
+function createPostPreviewWaitForPendingContentFrame() {
+
+/**
+ * Waits for branch 3's debounced hidden-form submit to land, then returns the resulting child
+ * `Frame`. Polls `page.frames()` for one whose URL matches `/template-preview` rather than
+ * `page.waitForNavigation`/`waitForURL` (both are page-level, and this navigation happens inside a
+ * named iframe, not the top-level page). 500ms debounce (`PostPreview`'s own effect) plus network
+ * time comfortably fits inside the default poll timeout.
+ */
+return async function waitForPendingContentFrame(page: Page): Promise<Frame> {
+  await expect
+    .poll(() => page.frames().some((f) => f.url().includes("/template-preview")), { timeout: 10_000 })
+    .toBe(true);
+  const frame = page.frames().find((f) => f.url().includes("/template-preview"));
+  if (!frame) {
+    throw new Error(
+      "no /template-preview child frame found — frames seen: " + page.frames().map((f) => f.url()).join(", ")
+    );
+  }
+  await frame.locator("body").waitFor({ state: "attached", timeout: 10_000 });
+  return frame;
+}
+}
+
+/** The "Post preview" iframe carries `src` for branches 1/2 (a real navigable iframe pointed at a
+ *  URL up front). Branch 3 (pending-content) sets NEITHER `src` NOR `srcdoc` — it only ever gets a
+ *  `name`, and its navigation happens via a targeted form submit rather than an attribute the DOM
+ *  exposes, so this structural signal only distinguishes branches 1/2 from branch 3; branch 3 is
+ *  asserted with {@link waitForPendingContentFrame} instead. `srcdoc` is still checked below (never
+ *  present, on any branch) as a standing regression guard for the raw `SrcDocSandbox` fallback this
+ *  file's header records as deleted 2026-09-11 — that component never sets `src`, only `srcdoc`, so a
+ *  reappearing `srcdoc` attribute would be the tell if it ever came back. */
+async function previewIframeState(page: Page): Promise<{ src: string | null; srcdoc: string | null }> {
+  const iframe = page.getByTitle("Post preview", { exact: true });
+  await expect(iframe).toBeVisible();
+  return {
+    src: await iframe.getAttribute("src"),
+    srcdoc: await iframe.getAttribute("srcdoc"),
+  };
+}
+
+function createPostPreviewPublishAndWaitForConfirmation() {
+
+return async function publishAndWaitForConfirmation(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
+}
+}
+
+function createPostPreviewBodyParagraph() {
+
+return function bodyParagraph(page: Page) {
+  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
+}
+}
+
+function createPostPreviewOpenFreshPost() {
 /**
  * @file The Posts editor's Preview tab (`PostEditor.tsx`'s `PostPreview`) — which of its THREE
  * branches renders, and whether the explanatory notice that is supposed to accompany the non-live
@@ -805,7 +1134,7 @@ test.describe("Bug pin: post-editor-preview-branches", () => {
  *  (not imported) from `post-editor-toolbar.spec.ts` — small enough that duplicating it keeps this
  *  file readable on its own, matching this directory's own DAMP-over-shared-helper convention for
  *  scenario-adjacent setup (`test-design` skill: "avoid shared setup for the scenario logic itself"). */
-async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
+return async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
   await page.goto("/admin/posts");
   await page.getByRole("button", { name: "New Post" }).click();
   await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
@@ -813,234 +1142,13 @@ async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> 
   const slug = await page.getByLabel("URL slug").inputValue();
   return { id, slug };
 }
-
-function bodyParagraph(page: Page) {
-  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
 }
-
-async function publishAndWaitForConfirmation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Publish" }).click();
-  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
-}
-
-/** The "Post preview" iframe carries `src` for branches 1/2 (a real navigable iframe pointed at a
- *  URL up front). Branch 3 (pending-content) sets NEITHER `src` NOR `srcdoc` — it only ever gets a
- *  `name`, and its navigation happens via a targeted form submit rather than an attribute the DOM
- *  exposes, so this structural signal only distinguishes branches 1/2 from branch 3; branch 3 is
- *  asserted with {@link waitForPendingContentFrame} instead. `srcdoc` is still checked below (never
- *  present, on any branch) as a standing regression guard for the raw `SrcDocSandbox` fallback this
- *  file's header records as deleted 2026-09-11 — that component never sets `src`, only `srcdoc`, so a
- *  reappearing `srcdoc` attribute would be the tell if it ever came back. */
-async function previewIframeState(page: Page): Promise<{ src: string | null; srcdoc: string | null }> {
-  const iframe = page.getByTitle("Post preview", { exact: true });
-  await expect(iframe).toBeVisible();
-  return {
-    src: await iframe.getAttribute("src"),
-    srcdoc: await iframe.getAttribute("srcdoc"),
-  };
-}
-
-/**
- * Waits for branch 3's debounced hidden-form submit to land, then returns the resulting child
- * `Frame`. Polls `page.frames()` for one whose URL matches `/template-preview` rather than
- * `page.waitForNavigation`/`waitForURL` (both are page-level, and this navigation happens inside a
- * named iframe, not the top-level page). 500ms debounce (`PostPreview`'s own effect) plus network
- * time comfortably fits inside the default poll timeout.
- */
-async function waitForPendingContentFrame(page: Page): Promise<Frame> {
-  await expect
-    .poll(() => page.frames().some((f) => f.url().includes("/template-preview")), { timeout: 10_000 })
-    .toBe(true);
-  const frame = page.frames().find((f) => f.url().includes("/template-preview"));
-  if (!frame) {
-    throw new Error(
-      "no /template-preview child frame found — frames seen: " + page.frames().map((f) => f.url()).join(", ")
-    );
-  }
-  await frame.locator("body").waitFor({ state: "attached", timeout: 10_000 });
-  return frame;
-}
-
-/** STALE PIN UPDATED: `58a7c284e` (owner, 2026-10-10: "remove this") deleted every "Previewing your
- *  …" notice above the preview frame, so every branch now pins its ABSENCE from the DOM. */
-async function expectNoPreviewNotice(page: Page): Promise<void> {
-  await expect(page.locator(".editor-preview-notice")).toHaveCount(0);
-}
-
-test.describe("Post editor Preview tab — which of the four branches renders", () => {
-  test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
-  });
-
-  test("FIXED (2026-09-11, owner-reported): a brand-new, UNTOUCHED draft's Preview tab shows the real themed template render, not the raw editor-buffer fallback", async ({
-    page,
-  }) => {
-    await openFreshPost(page);
-    // Deliberately nothing typed — `contentDirty` stays `false`. Before this fix that was exactly
-    // the one state that fell through every branch to the raw `SrcDocSandbox` fallback (see this
-    // file's header); now it's simply "not live, not template-choice-only," so it takes branch 3.
-
-    await page.getByRole("tab", { name: "Preview" }).click();
-    const { src, srcdoc } = await previewIframeState(page);
-
-    expect(src, "a clean draft must never resolve to the live-site or template-preview iframe").toBeNull();
-    expect(srcdoc, "REGRESSION GUARD: must never fall back to the deleted SrcDocSandbox render again").toBeNull();
-
-    const pendingFrame = await waitForPendingContentFrame(page);
-    expect(
-      pendingFrame.url(),
-      "must reuse the SAME id-based template-preview endpoint every other branch-3 case uses"
-    ).toContain("/template-preview");
-    // Real, themed chrome — a `<body>` attached inside a real navigated document, not an inline
-    // `srcDoc` string with no template/theme CSS at all.
-    await expect(pendingFrame.locator("body")).toBeVisible();
-    await pendingFrame.waitForLoadState("load");
-    const livePage = await page.context().newPage();
-    try {
-      await livePage.goto(PIN_PUBLIC_URL, { waitUntil: "load" });
-      const liveBackground = await livePage.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
-      expect(liveBackground, "control must itself have a themed background").not.toBe("rgba(0, 0, 0, 0)");
-      expect(await pendingFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(liveBackground);
-    } finally {
-      await livePage.close();
-    }
-
-    // The notices were removed (`58a7c284e`) — neither the old "rough render" one nor its successor.
-    await expectNoPreviewNotice(page);
-  });
-
-  test("WIDENED (2026-09-09): a DRAFT post's own content edit shows the themed pending-content preview, not the raw editor-buffer fallback", async ({
-    page,
-  }) => {
-    await openFreshPost(page);
-    await bodyParagraph(page).click();
-    await page.keyboard.type("Draft body");
-
-    await page.getByRole("tab", { name: "Preview" }).click();
-    // Neither `src` nor `srcdoc` is set for branch 3 (see `previewIframeState`'s own doc) — this is
-    // itself the first confirmation that the raw SrcDocSandbox fallback (branch 4) was NOT chosen.
-    const { src, srcdoc } = await previewIframeState(page);
-    expect(srcdoc, "a dirty draft must NOT fall back to the raw, unstyled SrcDocSandbox render").toBeNull();
-    expect(src, "branch 3 never sets `src` directly — it navigates via a targeted form submit").toBeNull();
-
-    const pendingFrame = await waitForPendingContentFrame(page);
-    expect(
-      pendingFrame.url(),
-      "must reuse the SAME id-based template-preview endpoint a published post's branch 3 uses"
-    ).toContain("/template-preview");
-
-    // Real, themed chrome around the draft's own unsaved text — the exact visibility-guard bypass
-    // `template-preview.ts`'s `pendingBodyJson` override exists for.
-    await expect(pendingFrame.locator("body")).toContainText("Draft body");
-
-    await expectNoPreviewNotice(page);
-  });
-
-  test("INTENDED: a published, unedited post's Preview tab shows the real live site through an actual navigable iframe, with NO notice", async ({
-    page,
-  }) => {
-    const { slug } = await openFreshPost(page);
-    await bodyParagraph(page).click();
-    await page.keyboard.type("Published body");
-    await publishAndWaitForConfirmation(page);
-
-    await page.getByRole("tab", { name: "Preview" }).click();
-    const { src, srcdoc } = await previewIframeState(page);
-
-    expect(srcdoc, "a clean published post must not fall back to the raw sandbox").toBeNull();
-    expect(withoutPreviewRevision(src, page.url())).toBe(new URL(`/${slug}`, page.url()).href);
-    const liveFrame = await waitForLivePostFrame({ page, slug });
-    await expect(liveFrame.locator("body")).toContainText("Published body");
-
-    // `canShowLiveSite` renders NO notice element at all (`{canShowLiveSite ? null : (...)}`) — not
-    // merely a hidden one, so this asserts absence from the DOM, not just non-visibility.
-    await expect(page.locator(".editor-preview-notice")).toHaveCount(0);
-  });
-
-  test("FIXED (2026-08-12, owner-reported bug): formatting a PUBLISHED post's content keeps its Preview themed via the pending-content branch, carrying the unsaved edit", async ({
-    page,
-  }) => {
-    const { slug } = await openFreshPost(page);
-    await bodyParagraph(page).click();
-    await page.keyboard.type("Sample text");
-    await publishAndWaitForConfirmation(page);
-
-    // BEFORE state matches the owner's own report: it looked fine before he touched it. Also the
-    // reference point for the theme-CSS-parity assertion below.
-    await page.getByRole("tab", { name: "Preview" }).click();
-    expect(withoutPreviewRevision((await previewIframeState(page)).src, page.url())).toBe(new URL(`/${slug}`, page.url()).href);
-    const liveFrame = await waitForLivePostFrame({ page, slug });
-    await liveFrame.locator("body").waitFor({ state: "attached" });
-    const liveBodyBackground = await liveFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
-
-    // The owner's own repro step: format existing text with the inline-code toolbar button.
-    await page.getByRole("tab", { name: "Editor" }).click();
-    await page.getByText("Sample text", { exact: true }).click({ clickCount: 3 });
-    await page.getByTitle("Inline code", { exact: true }).click();
-    // A second, independent edit — proves the pending frame reflects the LIVE unsaved buffer, not
-    // just whatever `bodyJson` looked like at the moment `contentDirty` first flipped true.
-    await bodyParagraph(page).click();
-    await page.keyboard.press("End");
-    await page.keyboard.type(" plus a live edit");
-
-    await page.getByRole("tab", { name: "Preview" }).click();
-    // Neither `src` nor `srcdoc` is set for this branch (see `previewIframeState`'s own doc) — this
-    // is itself the first confirmation that the raw SrcDocSandbox fallback (branch 4) was NOT chosen.
-    const { src, srcdoc } = await previewIframeState(page);
-    expect(srcdoc, "FIX: must not fall back to the raw, unstyled SrcDocSandbox render").toBeNull();
-    expect(src, "branch 3 never sets `src` directly — it navigates via a targeted form submit").toBeNull();
-
-    const pendingFrame = await waitForPendingContentFrame(page);
-    expect(pendingFrame.url(), "must reuse the SAME template-preview endpoint branch 2 GETs, just POSTed").toContain(
-      "/template-preview"
-    );
-
-    // Theme CSS parity — the actual bug this fix closes. Computed style, not markup presence, per
-    // this project's own memory on CSS presence not being proof of precedence.
-    const pendingBodyBackground = await pendingFrame.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(
-      pendingBodyBackground,
-      "the pending-content preview must carry the SAME theme CSS as the live site, not go unstyled"
-    ).toBe(liveBodyBackground);
-
-    // Must reflect the LIVE unsaved buffer, not the last-SAVED body (a silently-stale render would
-    // still pass a naive "is it themed" check while showing the wrong content).
-    await expect(pendingFrame.locator("body")).toContainText("Sample text plus a live edit");
-    // Rendered through the real server pipeline (`renderDocNode`/`renderMarks`, not Tiptap's own
-    // `editor.getHTML()`) — a genuine DOM query on the server-rendered output, not a raw-string match,
-    // confirming the inline-code mark just applied actually survived that pipeline.
-    await expect(pendingFrame.locator("code")).toContainText("Sample text");
-
-    await expectNoPreviewNotice(page);
-  });
-
-  test("BRANCH 2: changing only a published post's template loads the alternate preview without changing the live page", async ({ page, request }) => {
-    const { slug } = await openFreshPost(page);
-    await bodyParagraph(page).click();
-    await page.keyboard.type("Template-only preview content");
-    await publishAndWaitForConfirmation(page);
-    const liveBefore = await request.get(`${PIN_PUBLIC_URL}/${slug}`);
-    expect(liveBefore.ok()).toBe(true);
-    const liveHtml = await liveBefore.text();
-    // STALE PIN UPDATED: 948706418 promotes the current posts-sidebar template name.
-    await page.locator('[data-agent-element="post-template-choice"]').selectOption("posts-sidebar.html");
-    await page.getByRole("tab", { name: "Preview" }).click();
-    const { src, srcdoc } = await previewIframeState(page);
-    expect(srcdoc).toBeNull();
-    expect(src).toContain("/template-preview?templateChoice=posts-sidebar.html");
-    const preview = page.getByTitle("Post preview", { exact: true }).contentFrame();
-    await expect(preview.locator("body")).toContainText("Template-only preview content");
-    await expect(preview.locator(".docs-sidebar")).toBeVisible();
-    await expectNoPreviewNotice(page);
-    const liveAfter = await request.get(`${PIN_PUBLIC_URL}/${slug}`);
-    expect(liveAfter.ok()).toBe(true);
-    expect(await liveAfter.text()).toBe(liveHtml);
-  });
-});
-});
 
 // Migrated from post-editor-toolbar.spec.ts; original pin intent and why comments follow.
 test.describe("Bug pin: post-editor-toolbar", () => {
+const saveAndWaitForConfirmation = createToolbarSaveAndWaitForConfirmation();
+const bodyParagraph = createToolbarBodyParagraph();
+const openFreshPost = createToolbarOpenFreshPost();
 /**
  * @file The Posts/Pages editor's TipTap formatting toolbar (`PostEditor.tsx`'s `Toolbar`), driven in
  * a real browser.
@@ -1090,129 +1198,64 @@ test.describe("Bug pin: post-editor-toolbar", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const API_BASE = "/api/admin/v1";
-/** Must match `playwright.post-editor.config.ts`'s own `API_PORT` — the public site is served by the
- *  API process directly, a different origin from the admin SPA's Vite dev server this suite's
- *  `baseURL` points at, so the full-chain test below cannot reach it through a relative path. */
-
-
-// ---------------------------------------------------------------------------
-// bodyJson helpers — a minimal recursive walker over the TipTap-JSON shape,
-// just enough to answer "does this mark/node exist in the saved document".
-// ---------------------------------------------------------------------------
-
-interface DocNode {
-  type?: string;
-  attrs?: Record<string, unknown>;
-  marks?: Array<{ type?: string }>;
-  content?: DocNode[];
-  text?: string;
-}
-
-function findNode(node: DocNode | undefined, predicate: (n: DocNode) => boolean): DocNode | null {
-  if (!node) return null;
-  if (predicate(node)) return node;
-  for (const child of node.content ?? []) {
-    const found = findNode(child, predicate);
-    if (found) return found;
-  }
-  return null;
-}
-
-/** True if a text node with this exact text carries a mark of this type anywhere in the doc. */
-function hasMarkedText(doc: DocNode, text: string, markType: string): boolean {
-  return findNode(doc, (n) => n.type === "text" && n.text === text && (n.marks ?? []).some((m) => m.type === markType)) !== null;
-}
-
-/** The first node of this type anywhere in the doc, or `null`. */
-function findNodeOfType(doc: DocNode, type: string): DocNode | null {
-  return findNode(doc, (n) => n.type === type);
-}
-
-// ---------------------------------------------------------------------------
-// Page-driving helpers
-// ---------------------------------------------------------------------------
-
-/** Clicks "New Post", waits for the editor route, and returns the new post's id (from the URL) and
- *  its auto-assigned slug (read off the slug field once the post has loaded). */
-async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
-  await page.goto("/admin/posts");
-  await page.getByRole("button", { name: "New Post" }).click();
-  await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
-  const id = page.url().split("/").pop()!;
-  const slug = await page.getByLabel("URL slug").inputValue();
-  return { id, slug };
-}
-
-/** The single starter paragraph below the (non-deletable) title node — see `post-title-extension.ts`.
- *  A fresh post's body is exactly this one empty `<p>`, so it is the reliable place to click to start
- *  typing into the BODY rather than the title. `.ProseMirror` is TipTap's own stable root class, not
- *  an app styling class that a redesign could rename. */
-function bodyParagraph(page: Page) {
-  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
-}
-
-async function clickToolbar(page: Page, title: string): Promise<void> {
-  await page.getByTitle(title, { exact: true }).click();
-}
-
-/**
- * Selects an entire (one-word) paragraph with a TRIPLE CLICK and clicks a toolbar button — every
- * word this suite marks lives alone on its own paragraph (see the two tests below), so "select the
- * whole line" is exactly "select the word".
- *
- * Two other selection strategies were tried and rejected live, in order, before this one — recorded
- * here so nobody re-discovers the same dead ends:
- *
- * 1. **`dblclick()` then click the toolbar immediately.** Applied NO mark to four or five of five
- *    words in a row, every run. `Toolbar`'s buttons carry no `onMouseDown={e => e.preventDefault()}`
- *    guard (the conventional rich-text-editor precaution against a button's own mousedown disturbing
- *    the editor's selection before its `onClick` runs), so this looked like exactly that race.
- * 2. **Same, plus `waitForFunction` on `window.getSelection()!.toString() === word` before clicking**
- *    (to confirm the race theory). This TIMED OUT outright: `window.getSelection()` inside this
- *    ProseMirror `contenteditable` never reported the double-clicked word's text at all, so whatever
- *    `dblclick()` selects here is not what the native Selection API reflects.
- * 3. **`Home` then `Shift+End`** (keyboard-only, to sidestep both unknowns above). `window.
- *    getSelection()` now correctly showed each word alone — but the SAVED document still showed
- *    every mark from every PRIOR word compounding onto every later one (Delta ended up bold+italic+
- *    strike+underline, only the last of which was its own button). The visible/DOM selection was
- *    right; whatever ProseMirror itself used to decide "add vs. remove this mark" was not reading it.
- *
- * A triple click is a single, real, synchronous mouse event ProseMirror's own click handling
- * intercepts directly (unlike two independent key presses whose effects the DOM Selection API and
- * ProseMirror's internal selection apparently didn't agree on in this editor) — confirmed live: every
- * mark below lands on exactly the word it was applied to, nothing more, nothing less, across repeated
- * runs.
- */
-async function selectWordAndToggleMark(page: Page, word: string, toolbarTitle: string): Promise<void> {
-  await page.getByText(word, { exact: true }).click({ clickCount: 3 });
-  await clickToolbar(page, toolbarTitle);
-}
-
-async function saveAndWaitForConfirmation(page: Page, label: "Saved" | "Published" = "Saved"): Promise<void> {
-  await page.getByRole("button", { name: label === "Published" ? "Publish" : /^Save/ }).click();
-  // Scoped to `.save-ok` (`PostEditorHeader`'s own status span), not a bare `getByText` — the status
-  // select ALSO has a literal `<option value="published">Published</option>`, and `getByText`
-  // without that scope is a strict-mode violation the moment the label is "Published" (confirmed
-  // live). `.save-ok` is the app's own semantic class for this exact feedback message, not a
-  // brittle styling hook — there is no ARIA live-region role on it to prefer instead.
-  await expect(page.locator(".save-ok")).toContainText(label, { timeout: 10_000 });
-}
-
-/** Re-fetches the post through the real authenticated admin API — the strongest available proof that
- *  a toolbar click's effect actually persisted, not just that the in-memory editor briefly showed it. */
-async function fetchBodyJson(page: Page, id: string): Promise<DocNode> {
-  const bodyJson = await page.evaluate(
-    async ({ url }) => {
-      const res = await fetch(url, { credentials: "same-origin" });
-      const data = await res.json();
-      return data.post.bodyJson;
-    },
-    { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}` }
-  );
-  return bodyJson as DocNode;
-}
+const fetchBodyJson = createToolbarFetchBodyJson({ API_BASE, WORKSPACE_ID });
+const registerTextMarkPersistenceTest = createToolbarTextMarkPersistenceTest({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson });
+const registerHeadingPersistenceTest = createToolbarHeadingPersistenceTest({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson });
+const registerListAndBlockPersistenceTests = createToolbarListAndBlockPersistenceTests({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson });
+const registerDividerAlignmentAndPublishTests = createToolbarDividerAlignmentAndPublishTests({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson });
 
 test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => {
+  registerTextMarkPersistenceTest();
+  registerHeadingPersistenceTest();
+  registerListAndBlockPersistenceTests();
+  registerDividerAlignmentAndPublishTests();
+
+  test("full chain: formatting applied through the toolbar, published, is present in the served public HTML", async ({ page, request }) => {
+    const { id, slug } = await openFreshPost(page);
+
+    // Two words, each alone on its own paragraph — same reasoning as the marks test above:
+    // `getByText(word, {exact:true})` needs an element whose own text is exactly that word. Typing
+    // finishes COMPLETELY before any mark gets toggled — see the marks test above for why Enter can
+    // never safely follow a mark toggle in this editor.
+    await bodyParagraph(page).click();
+    await page.keyboard.type("Bold");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("link");
+
+    await selectWordAndToggleMark(page, "Bold", "Bold (⌘B)");
+
+    await selectWordAndToggleMark(page, "link", "Link");
+    await answerUrlDialog(page, { title: "Link URL", url: "https://example.com/full-chain" });
+
+    // Centers whichever paragraph the cursor is in — "link", since it's the one just edited. The
+    // assertion below only checks the STYLE exists in the served HTML, not which paragraph carries
+    // it, so this is enough to prove the Align center button's own wiring.
+    await clickToolbar(page, "Align center");
+
+    // Publish (not Save): the public site only serves published posts — see
+    // `PostEditorHeader`'s own "Publish" button, which saves and sets status in one action.
+    await saveAndWaitForConfirmation(page, "Published");
+
+    // Fetched via `request` (Playwright's own HTTP client, not `page.evaluate`/`fetch`): the public
+    // site is served by the API server directly, a different origin from the admin SPA's Vite dev
+    // server in this config, and `APIRequestContext` is not subject to the browser's same-origin
+    // policy the way an in-page `fetch` would be.
+    const publicUrl = `${PIN_PUBLIC_URL}/${slug}`;
+    const res = await request.get(publicUrl);
+    expect(res.status(), `expected the published post to be publicly reachable at ${publicUrl}`).toBe(200);
+    const html = await res.text();
+
+    expect(html).toContain("<strong>Bold</strong>");
+    // The served editor HTML preserves Link's safe new-tab attributes as well as href and text.
+    expect(html).toContain('<a href="https://example.com/full-chain" rel="noopener noreferrer" target="_blank">link</a>');
+    expect(html).toMatch(/style="text-align:center"/);
+  });
+});
+});
+
+function createToolbarTextMarkPersistenceTest({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson }: { openFreshPost: ReturnType<typeof createToolbarOpenFreshPost>; bodyParagraph: ReturnType<typeof createToolbarBodyParagraph>; saveAndWaitForConfirmation: ReturnType<typeof createToolbarSaveAndWaitForConfirmation>; fetchBodyJson: ReturnType<typeof createToolbarFetchBodyJson> }) {
+
+return function registerTextMarkPersistenceTest() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
   });
@@ -1273,6 +1316,12 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
       expect(node!.marks?.map((m) => m.type), `${word} must carry only its own mark`).toEqual([mark]);
     }
   });
+}
+}
+
+function createToolbarHeadingPersistenceTest({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson }: { openFreshPost: ReturnType<typeof createToolbarOpenFreshPost>; bodyParagraph: ReturnType<typeof createToolbarBodyParagraph>; saveAndWaitForConfirmation: ReturnType<typeof createToolbarSaveAndWaitForConfirmation>; fetchBodyJson: ReturnType<typeof createToolbarFetchBodyJson> }) {
+
+return function registerHeadingPersistenceTest() {
 
   test("H1, H2 and H3 create heading nodes at the correct level, each ending Enter back at a plain paragraph", async ({ page }) => {
     const { id } = await openFreshPost(page);
@@ -1310,6 +1359,12 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
       expect(parent!.type).toBe("paragraph");
     }
   });
+}
+}
+
+function createToolbarListAndBlockPersistenceTests({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson }: { openFreshPost: ReturnType<typeof createToolbarOpenFreshPost>; bodyParagraph: ReturnType<typeof createToolbarBodyParagraph>; saveAndWaitForConfirmation: ReturnType<typeof createToolbarSaveAndWaitForConfirmation>; fetchBodyJson: ReturnType<typeof createToolbarFetchBodyJson> }) {
+
+return function registerListAndBlockPersistenceTests() {
 
   test("the bullet-list and numbered-list buttons produce the correct list node, not each other's", async ({ page }) => {
     const { id } = await openFreshPost(page);
@@ -1360,6 +1415,12 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     const codeBlock = findNode(doc, (n) => n.type === "codeBlock" && (n.content ?? []).some((c) => c.text === "const x = 1;"));
     expect(codeBlock, "the Code block button must produce a codeBlock node, not an inline code mark").not.toBeNull();
   });
+}
+}
+
+function createToolbarDividerAlignmentAndPublishTests({ openFreshPost, bodyParagraph, saveAndWaitForConfirmation, fetchBodyJson }: { openFreshPost: ReturnType<typeof createToolbarOpenFreshPost>; bodyParagraph: ReturnType<typeof createToolbarBodyParagraph>; saveAndWaitForConfirmation: ReturnType<typeof createToolbarSaveAndWaitForConfirmation>; fetchBodyJson: ReturnType<typeof createToolbarFetchBodyJson> }) {
+
+return function registerDividerAlignmentAndPublishTests() {
 
   test("the Divider button inserts a horizontalRule node between two paragraphs", async ({ page }) => {
     const { id } = await openFreshPost(page);
@@ -1433,65 +1494,96 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     await openFreshPost(page);
     await expect(page.locator('button[title="Insert image by URL"]')).toHaveCount(1);
   });
+}
+}
 
-  test("full chain: formatting applied through the toolbar, published, is present in the served public HTML", async ({ page, request }) => {
-    const { id, slug } = await openFreshPost(page);
+function createToolbarFetchBodyJson({ API_BASE, WORKSPACE_ID }: { API_BASE: string; WORKSPACE_ID: string }) {
 
-    // Two words, each alone on its own paragraph — same reasoning as the marks test above:
-    // `getByText(word, {exact:true})` needs an element whose own text is exactly that word. Typing
-    // finishes COMPLETELY before any mark gets toggled — see the marks test above for why Enter can
-    // never safely follow a mark toggle in this editor.
-    await bodyParagraph(page).click();
-    await page.keyboard.type("Bold");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("link");
+/** Re-fetches the post through the real authenticated admin API — the strongest available proof that
+ *  a toolbar click's effect actually persisted, not just that the in-memory editor briefly showed it. */
+return async function fetchBodyJson(page: Page, id: string): Promise<DocNode> {
+  const bodyJson = await page.evaluate(
+    async ({ url }) => {
+      const res = await fetch(url, { credentials: "same-origin" });
+      const data = await res.json();
+      return data.post.bodyJson;
+    },
+    { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}` }
+  );
+  return bodyJson as DocNode;
+}
+}
 
-    await selectWordAndToggleMark(page, "Bold", "Bold (⌘B)");
+function createToolbarSaveAndWaitForConfirmation() {
 
-    await selectWordAndToggleMark(page, "link", "Link");
-    await answerUrlDialog(page, { title: "Link URL", url: "https://example.com/full-chain" });
+return async function saveAndWaitForConfirmation(page: Page, label: "Saved" | "Published" = "Saved"): Promise<void> {
+  await page.getByRole("button", { name: label === "Published" ? "Publish" : /^Save/ }).click();
+  // Scoped to `.save-ok` (`PostEditorHeader`'s own status span), not a bare `getByText` — the status
+  // select ALSO has a literal `<option value="published">Published</option>`, and `getByText`
+  // without that scope is a strict-mode violation the moment the label is "Published" (confirmed
+  // live). `.save-ok` is the app's own semantic class for this exact feedback message, not a
+  // brittle styling hook — there is no ARIA live-region role on it to prefer instead.
+  await expect(page.locator(".save-ok")).toContainText(label, { timeout: 10_000 });
+}
+}
 
-    // Centers whichever paragraph the cursor is in — "link", since it's the one just edited. The
-    // assertion below only checks the STYLE exists in the served HTML, not which paragraph carries
-    // it, so this is enough to prove the Align center button's own wiring.
-    await clickToolbar(page, "Align center");
-
-    // Publish (not Save): the public site only serves published posts — see
-    // `PostEditorHeader`'s own "Publish" button, which saves and sets status in one action.
-    await saveAndWaitForConfirmation(page, "Published");
-
-    // Fetched via `request` (Playwright's own HTTP client, not `page.evaluate`/`fetch`): the public
-    // site is served by the API server directly, a different origin from the admin SPA's Vite dev
-    // server in this config, and `APIRequestContext` is not subject to the browser's same-origin
-    // policy the way an in-page `fetch` would be.
-    const publicUrl = `${PIN_PUBLIC_URL}/${slug}`;
-    const res = await request.get(publicUrl);
-    expect(res.status(), `expected the published post to be publicly reachable at ${publicUrl}`).toBe(200);
-    const html = await res.text();
-
-    expect(html).toContain("<strong>Bold</strong>");
-    // The served editor HTML preserves Link's safe new-tab attributes as well as href and text.
-    expect(html).toContain('<a href="https://example.com/full-chain" rel="noopener noreferrer" target="_blank">link</a>');
-    expect(html).toMatch(/style="text-align:center"/);
-  });
-});
-});
-
-// Migrated from post-editor-youtube-preview.spec.ts; original pin intent and why comments follow.
-test.describe("Bug pin: post-editor-youtube-preview", () => {
 /**
- * The historical raw sandboxed draft preview could not initialize YouTube storage. Drafts now
- * use a navigated server-rendered preview, as published pages do. f65fb186a deliberately sandboxes
- * admin previews in an opaque origin, accepting blocked embed storage to protect the admin session.
- * Exercise both current paths with a controlled embed response that requires origin storage,
- * avoiding external player traffic: blocked in the draft preview, ready on the public site.
+ * Selects an entire (one-word) paragraph with a TRIPLE CLICK and clicks a toolbar button — every
+ * word this suite marks lives alone on its own paragraph (see the two tests below), so "select the
+ * whole line" is exactly "select the word".
+ *
+ * Two other selection strategies were tried and rejected live, in order, before this one — recorded
+ * here so nobody re-discovers the same dead ends:
+ *
+ * 1. **`dblclick()` then click the toolbar immediately.** Applied NO mark to four or five of five
+ *    words in a row, every run. `Toolbar`'s buttons carry no `onMouseDown={e => e.preventDefault()}`
+ *    guard (the conventional rich-text-editor precaution against a button's own mousedown disturbing
+ *    the editor's selection before its `onClick` runs), so this looked like exactly that race.
+ * 2. **Same, plus `waitForFunction` on `window.getSelection()!.toString() === word` before clicking**
+ *    (to confirm the race theory). This TIMED OUT outright: `window.getSelection()` inside this
+ *    ProseMirror `contenteditable` never reported the double-clicked word's text at all, so whatever
+ *    `dblclick()` selects here is not what the native Selection API reflects.
+ * 3. **`Home` then `Shift+End`** (keyboard-only, to sidestep both unknowns above). `window.
+ *    getSelection()` now correctly showed each word alone — but the SAVED document still showed
+ *    every mark from every PRIOR word compounding onto every later one (Delta ended up bold+italic+
+ *    strike+underline, only the last of which was its own button). The visible/DOM selection was
+ *    right; whatever ProseMirror itself used to decide "add vs. remove this mark" was not reading it.
+ *
+ * A triple click is a single, real, synchronous mouse event ProseMirror's own click handling
+ * intercepts directly (unlike two independent key presses whose effects the DOM Selection API and
+ * ProseMirror's internal selection apparently didn't agree on in this editor) — confirmed live: every
+ * mark below lands on exactly the word it was applied to, nothing more, nothing less, across repeated
+ * runs.
  */
+async function selectWordAndToggleMark(page: Page, word: string, toolbarTitle: string): Promise<void> {
+  await page.getByText(word, { exact: true }).click({ clickCount: 3 });
+  await clickToolbar(page, toolbarTitle);
+}
 
+async function clickToolbar(page: Page, title: string): Promise<void> {
+  await page.getByTitle(title, { exact: true }).click();
+}
 
+function createToolbarBodyParagraph() {
 
-/** Copied (not imported) from `post-editor-preview-branches.spec.ts` — see that file's own header
- *  for why this directory duplicates small scenario setup instead of sharing it. */
-async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
+/** The single starter paragraph below the (non-deletable) title node — see `post-title-extension.ts`.
+ *  A fresh post's body is exactly this one empty `<p>`, so it is the reliable place to click to start
+ *  typing into the BODY rather than the title. `.ProseMirror` is TipTap's own stable root class, not
+ *  an app styling class that a redesign could rename. */
+return function bodyParagraph(page: Page) {
+  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
+}
+}
+
+function createToolbarOpenFreshPost() {
+
+// ---------------------------------------------------------------------------
+// Page-driving helpers
+// ---------------------------------------------------------------------------
+
+/** Clicks "New Post", waits for the editor route, and returns the new post's id (from the URL) and
+ *  its auto-assigned slug (read off the slug field once the post has loaded). */
+return async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
   await page.goto("/admin/posts");
   await page.getByRole("button", { name: "New Post" }).click();
   await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
@@ -1499,17 +1591,94 @@ async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> 
   const slug = await page.getByLabel("URL slug").inputValue();
   return { id, slug };
 }
-
-function bodyParagraph(page: Page) {
-  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
 }
 
-async function publishAndWaitForConfirmation(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Publish" }).click();
-  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
+/** The first node of this type anywhere in the doc, or `null`. */
+function findNodeOfType(doc: DocNode, type: string): DocNode | null {
+  return findNode(doc, (n) => n.type === type);
 }
+
+/** True if a text node with this exact text carries a mark of this type anywhere in the doc. */
+function hasMarkedText(doc: DocNode, text: string, markType: string): boolean {
+  return findNode(doc, (n) => n.type === "text" && n.text === text && (n.marks ?? []).some((m) => m.type === markType)) !== null;
+}
+
+function findNode(node: DocNode | undefined, predicate: (n: DocNode) => boolean): DocNode | null {
+  if (!node) return null;
+  if (predicate(node)) return node;
+  for (const child of node.content ?? []) {
+    const found = findNode(child, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+
+
+/** Must match `playwright.post-editor.config.ts`'s own `API_PORT` — the public site is served by the
+ *  API process directly, a different origin from the admin SPA's Vite dev server this suite's
+ *  `baseURL` points at, so the full-chain test below cannot reach it through a relative path. */
+
+
+// ---------------------------------------------------------------------------
+// bodyJson helpers — a minimal recursive walker over the TipTap-JSON shape,
+// just enough to answer "does this mark/node exist in the saved document".
+// ---------------------------------------------------------------------------
+
+interface DocNode {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  marks?: Array<{ type?: string }>;
+  content?: DocNode[];
+  text?: string;
+}
+
+// Migrated from post-editor-youtube-preview.spec.ts; original pin intent and why comments follow.
+test.describe("Bug pin: post-editor-youtube-preview", () => {
+const publishAndWaitForConfirmation = createYoutubePreviewPublishAndWaitForConfirmation();
+const bodyParagraph = createYoutubePreviewBodyParagraph();
+const openFreshPost = createYoutubePreviewOpenFreshPost();
+const registerDraftYoutubePreviewTest = createYoutubePreviewDraftYoutubePreviewTest({ openFreshPost, bodyParagraph });
 
 test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)", () => {
+  registerDraftYoutubePreviewTest();
+
+  test("published YouTube iframe retains its complete attributes and initializes a controlled player", async ({
+    page,
+  }) => {
+    const { slug } = await openFreshPost(page);
+    await bodyParagraph(page).click();
+    await page.keyboard.type("hello world");
+    await page.click('button[title="Insert YouTube video"]');
+    await answerUrlDialog(page, { title: "YouTube video URL", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" });
+    await page.getByText("hello world").click();
+    await publishAndWaitForConfirmation(page);
+
+    const res = await page.request.get(`${PIN_PUBLIC_URL}/${slug}`);
+    expect(res.status()).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"');
+    expect(html).not.toContain("embed-preview-unavailable");
+    await page.goto(`${PIN_PUBLIC_URL}/${slug}`);
+    const player = page.locator(".youtube-embed iframe");
+    await expect(player).toHaveCount(1);
+    await expect(player).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(await player.getAttribute("sandbox")).toBeNull();
+    await expect(player).toHaveAttribute("allowfullscreen", "");
+    expect(await player.evaluate((element) => Object.fromEntries([...element.attributes].map((attribute) => [attribute.name, attribute.value])))).toEqual({
+      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+      title: "YouTube video",
+      allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+      allowfullscreen: "", loading: "lazy",
+    });
+    await player.scrollIntoViewIfNeeded();
+    await expect(player.contentFrame().locator("body")).toHaveText("Player ready");
+  });
+});
+});
+
+function createYoutubePreviewDraftYoutubePreviewTest({ openFreshPost, bodyParagraph }: { openFreshPost: ReturnType<typeof createYoutubePreviewOpenFreshPost>; bodyParagraph: ReturnType<typeof createYoutubePreviewBodyParagraph> }) {
+
+return function registerDraftYoutubePreviewTest() {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
     // Exercise browser restrictions using a deterministic embed that needs origin storage,
@@ -1550,37 +1719,43 @@ test.describe("Post editor Preview tab — YouTube embed regression (2026-08-12)
     // The child inherits the preview's opaque-origin sandbox despite having no sandbox attribute.
     await expect(player.contentFrame().locator("body")).toHaveText("Player blocked");
   });
+}
+}
 
-  test("published YouTube iframe retains its complete attributes and initializes a controlled player", async ({
-    page,
-  }) => {
-    const { slug } = await openFreshPost(page);
-    await bodyParagraph(page).click();
-    await page.keyboard.type("hello world");
-    await page.click('button[title="Insert YouTube video"]');
-    await answerUrlDialog(page, { title: "YouTube video URL", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" });
-    await page.getByText("hello world").click();
-    await publishAndWaitForConfirmation(page);
+function createYoutubePreviewPublishAndWaitForConfirmation() {
 
-    const res = await page.request.get(`${PIN_PUBLIC_URL}/${slug}`);
-    expect(res.status()).toBe(200);
-    const html = await res.text();
-    expect(html).toContain('<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"');
-    expect(html).not.toContain("embed-preview-unavailable");
-    await page.goto(`${PIN_PUBLIC_URL}/${slug}`);
-    const player = page.locator(".youtube-embed iframe");
-    await expect(player).toHaveCount(1);
-    await expect(player).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
-    expect(await player.getAttribute("sandbox")).toBeNull();
-    await expect(player).toHaveAttribute("allowfullscreen", "");
-    expect(await player.evaluate((element) => Object.fromEntries([...element.attributes].map((attribute) => [attribute.name, attribute.value])))).toEqual({
-      src: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-      title: "YouTube video",
-      allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-      allowfullscreen: "", loading: "lazy",
-    });
-    await player.scrollIntoViewIfNeeded();
-    await expect(player.contentFrame().locator("body")).toHaveText("Player ready");
-  });
-});
-});
+return async function publishAndWaitForConfirmation(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
+}
+}
+
+function createYoutubePreviewBodyParagraph() {
+
+return function bodyParagraph(page: Page) {
+  return page.locator('[data-agent-element="post-body"] .ProseMirror p').last();
+}
+}
+
+function createYoutubePreviewOpenFreshPost() {
+/**
+ * The historical raw sandboxed draft preview could not initialize YouTube storage. Drafts now
+ * use a navigated server-rendered preview, as published pages do. f65fb186a deliberately sandboxes
+ * admin previews in an opaque origin, accepting blocked embed storage to protect the admin session.
+ * Exercise both current paths with a controlled embed response that requires origin storage,
+ * avoiding external player traffic: blocked in the draft preview, ready on the public site.
+ */
+
+
+
+/** Copied (not imported) from `post-editor-preview-branches.spec.ts` — see that file's own header
+ *  for why this directory duplicates small scenario setup instead of sharing it. */
+return async function openFreshPost(page: Page): Promise<{ id: string; slug: string }> {
+  await page.goto("/admin/posts");
+  await page.getByRole("button", { name: "New Post" }).click();
+  await expect(page).toHaveURL(/\/admin\/posts\/[^/]+$/);
+  const id = page.url().split("/").pop()!;
+  const slug = await page.getByLabel("URL slug").inputValue();
+  return { id, slug };
+}
+}

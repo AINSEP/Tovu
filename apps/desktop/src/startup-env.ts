@@ -12,7 +12,7 @@ export type CliMode = "source" | "compiled";
 /** The candidate the startup picker is told was tried first and turned down: `site-dir-store.ts`'s
  *  `RejectedDevFallback`, read off {@link resolveSiteDir}'s picker seam because that module does not
  *  export it. */
-export type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]>;
+export type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]["rejectedDefault"]>;
 
 /** The environment slice these decisions read. */
 export type StartupEnv = Readonly<Record<string, string | undefined>>;
@@ -73,7 +73,8 @@ export function describeRejectedDefault(rejectedDefault: RejectedDefault, _optio
   if (rejectedDefault.kind === "unreadable") return "could not be read (check its permissions, or whether something replaced it)";
   // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
   // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
-  const missing = rejectedDefault.missing!.join(" and "); // `!`: "incomplete" and "occupied", the only kinds left, always carry it.
+  if (!rejectedDefault.missing) throw new Error("rejected startup site folder has no missing marker list");
+  const missing = rejectedDefault.missing.join(" and "); // "incomplete" and "occupied", the only kinds left, carry this list.
   return rejectedDefault.kind === "incomplete"
     ? `is missing ${missing} — it looks like a half-initialized site`
     : `is not a Tovu site (missing ${missing})`;

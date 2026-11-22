@@ -30,7 +30,7 @@ function sourceFolder({ deps, source }: { deps: AssetToolDeps; source: Record<st
   if (root === "site") return siteDir;
   if (root === "picked") return resolvePickedFolder({ routeDeps: deps });
   if (root !== "theme") throw new ToolInputError({ message: "source.root must be site, picked, theme, media or url" });
-  return resolveFsFilePath({ rootPath: siteDir, relativePath: relative(siteDir, findThemeOrThrow(deps, requireString({ input: source, key: "themeId" })).dir) });
+  return resolveFsFilePath({ rootPath: siteDir, relativePath: relative(siteDir, findThemeOrThrow({ routeDeps: deps, themeId: requireString({ input: source, key: "themeId" }) }).dir) });
 }
 
 /** Authorize and select a local source folder; callers lstat-walk each file before reading it.

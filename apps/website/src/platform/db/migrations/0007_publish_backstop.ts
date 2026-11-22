@@ -1,8 +1,8 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   const jsonType = sql.raw(kernel.dialect === "postgres" ? "jsonb" : "text");
   await kernel.execute(sql`CREATE TABLE publish_backstop_log (
     id text PRIMARY KEY NOT NULL, workspace_id text NOT NULL,
@@ -16,6 +16,6 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 export const publishBackstop = (required: { checksum: string },
-  _optional: Record<string, never> = {}): MigrationStep => ({
+  _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({
   id: "0007_publish_backstop", checksum: required.checksum, up,
 });

@@ -6,7 +6,7 @@ import { packAgentPluginDirectory } from '../../../../apps/website/src/features/
 
 test('the theme package ships its v2 contract and teaches native tool authoring', async () => {
   const root = path.resolve(import.meta.dirname, '..');
-  const packed = await packAgentPluginDirectory(root);
+  const packed = await packAgentPluginDirectory({ sourceDir: root });
   assert.ok(packed.files.includes('skills/tovu-theme/references/theme-v2-contract.md'));
   assert.ok(packed.files.includes('skills/tovu-theme/references/kuinetic-worked-example.md'));
   assert.ok(packed.files.includes('skills/tovu-theme/references/motion.md'));

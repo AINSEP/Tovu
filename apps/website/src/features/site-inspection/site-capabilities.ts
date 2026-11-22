@@ -62,7 +62,7 @@ export const SITE_CAPABILITIES_SECTION_PERMISSIONS: Readonly<Record<SiteCapabili
 export const MAX_TOOL_SUMMARY_CHARS = 120;
 
 /** The `tools` section's `reason` when the composition root supplied no registry reader. */
-export const TOOLS_NOT_WIRED_REASON = "not-wired";
+const TOOLS_NOT_WIRED_REASON = "not-wired";
 
 const TOOLS_NOTE =
   "Each tool is listed by id with the first line of its description. Call describe_tool with an id for its full description and input schema, or search_tools to find a tool by what it does. A listed tool still checks its own permission when you run it.";
@@ -177,9 +177,9 @@ export interface SiteCapabilities {
  * @param description - The authored description, search vocabulary already stripped.
  * @returns The one-line summary; `""` for an empty description.
  * @complexity O(n) in the description length.
- * @example summarizeToolDescription("Creates a form. Use forms_update_definition to change one."); // => "Creates a form."
+ * @example summarizeToolDescription({ description: "Creates a form. Use forms_update_definition to change one." }); // => "Creates a form."
  */
-export function summarizeToolDescription(description: string): string {
+export function summarizeToolDescription({ description }: { description: string }, _optional = {}): string {
   const text = description.replace(/\s+/g, " ").trim();
   const sentenceEnd = text.search(/[.!?](?=\s+[A-Z]|$)/);
   const sentence = sentenceEnd === -1 ? text : text.slice(0, sentenceEnd + 1);
@@ -193,7 +193,7 @@ export function summarizeToolDescription(description: string): string {
 }
 
 /** Code-unit order: deterministic regardless of the process locale. */
-function compareCodeUnits(a: string, b: string): number {
+function compareCodeUnits({ a, b }: { a: string; b: string }, _optional = {}): number {
   if (a < b) return -1;
   return a > b ? 1 : 0;
 }
@@ -206,21 +206,21 @@ function compareCodeUnits(a: string, b: string): number {
  * @complexity O(r log r) in registered tools — one grouping pass, then sorts.
  */
 async function collectTools(deps: SiteCapabilitiesDeps): Promise<CollectedSection<SiteCapabilitiesTools>> {
-  if (deps.listCatalogTools === undefined) throw new SectionUnavailableError(TOOLS_NOT_WIRED_REASON);
+  if (deps.listCatalogTools === undefined) throw new SectionUnavailableError({ reason: TOOLS_NOT_WIRED_REASON });
 
   const rows = deps.listCatalogTools();
   const toolsByDomain = new Map<string, SiteCapabilitiesToolSummary[]>();
   for (const row of rows) {
     const tools = toolsByDomain.get(row.source) ?? [];
-    tools.push({ id: row.id, summary: summarizeToolDescription(row.description) });
+    tools.push({ id: row.id, summary: summarizeToolDescription({ description: row.description }) });
     toolsByDomain.set(row.source, tools);
   }
   const domains = [...toolsByDomain.entries()]
-    .sort(([a], [b]) => compareCodeUnits(a, b))
+    .sort(([a], [b]) => compareCodeUnits({ a, b }))
     .map(([domain, tools]) => ({
       domain,
       count: tools.length,
-      tools: tools.sort((a, b) => compareCodeUnits(a.id, b.id)),
+      tools: tools.sort((a, b) => compareCodeUnits({ a: a.id, b: b.id })),
     }));
 
   return { data: { total: rows.length, domainCount: domains.length, note: TOOLS_NOTE, domains } };
@@ -269,18 +269,17 @@ async function collectContentTypes(deps: SiteCapabilitiesDeps): Promise<Collecte
  * `ok`. Never rejects for a section-level failure.
  * @complexity O(r log r + s + c) — registered tools dominate.
  * @example
- * const capabilities = await buildSiteCapabilities(deps, { principalId: "p-1" }, { sections: ["tools"] });
+ * const capabilities = await buildSiteCapabilities({ deps, input: { principalId: "p-1" } }, { sections: ["tools"] });
  */
 export async function buildSiteCapabilities(
-  deps: SiteCapabilitiesDeps,
-  input: { principalId: string },
+  { deps, input }: { deps: SiteCapabilitiesDeps; input: { principalId: string } },
   options: BuildSiteCapabilitiesOptions = {},
 ): Promise<SiteCapabilities> {
   const capturedAt = deps.clock.nowIso();
   const requested = resolveRequestedSections({ vocabulary: SITE_CAPABILITIES_SECTION_NAMES, requested: options.sections });
   const timeoutMs = options.sectionTimeoutMs ?? DEFAULT_SECTION_TIMEOUT_MS;
 
-  const collect = <T>(section: SiteCapabilitiesSectionName, collector: () => Promise<CollectedSection<T>>) =>
+  const collect = <T>({ section, collector }: { section: SiteCapabilitiesSectionName; collector: () => Promise<CollectedSection<T>> }, _optional = {}) =>
     authorizeAndCollectSection({
       authorize: deps.authorize,
       workspaceId: deps.workspaceId,
@@ -294,9 +293,9 @@ export async function buildSiteCapabilities(
     });
 
   const collectors: Record<SiteCapabilitiesSectionName, () => Promise<InspectionSection<unknown>>> = {
-    tools: () => collect("tools", () => collectTools(deps)),
-    adminScreens: () => collect("adminScreens", () => collectAdminScreens(deps)),
-    contentTypes: () => collect("contentTypes", () => collectContentTypes(deps)),
+    tools: () => collect({ section: "tools", collector: () => collectTools(deps) }),
+    adminScreens: () => collect({ section: "adminScreens", collector: () => collectAdminScreens(deps) }),
+    contentTypes: () => collect({ section: "contentTypes", collector: () => collectContentTypes(deps) }),
   };
 
   const results = await Promise.all(requested.map(async (name) => [name, await collectors[name]()] as const));

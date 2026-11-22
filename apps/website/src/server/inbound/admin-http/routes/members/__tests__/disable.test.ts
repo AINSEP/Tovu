@@ -54,7 +54,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminMemberDisableRoute(app, deps);
+  registerAdminMemberDisableRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

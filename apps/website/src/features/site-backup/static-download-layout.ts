@@ -1,6 +1,6 @@
 import path from "node:path";
 import { exportUrlLocations, extractHtmlReferences, outputFileForUrl } from "@jini-ai/devops/static-export";
-import { downloadDocumentBase } from "../site-export/export-html-policy.js";
+import { downloadDocumentBase } from "./static-download-html.js";
 import { validateSharePath, sharePathAlias } from "./share-file-policy.js";
 import { allocateStaticExportThemes, type StaticExportTheme } from "./static-export-selection.js";
 import { checkShareLimits } from "./share-policy.js";
@@ -20,7 +20,7 @@ export interface StaticDownloadCopy {
 }
 type Copy = StaticDownloadCopy;
 type File = Copy["files"][number];
-type RewriteUrl = (value: string) => string;
+type RewriteUrl = (required: { value: string }, optional?: Record<string, never>) => string;
 const LOCAL_ORIGIN = "https://static-copy.invalid";
 
 /** Resolve local references against their original file; foreign URLs and fragments stay intact. */
@@ -51,7 +51,7 @@ function rewriteSrcset({ value, rewrite }: { value: string; rewrite: RewriteUrl 
   for (const { url } of refs) {
     const start = value.indexOf(url, cursor);
     if (start < 0) continue;
-    parts.push(value.slice(cursor, start), rewrite(url));
+    parts.push(value.slice(cursor, start), rewrite({ value: url }));
     cursor = start + url.length;
   }
   return parts.join("") + value.slice(cursor);
@@ -63,9 +63,9 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
   let cursor = 0;
   for (const { start, end } of exportUrlLocations({ body, contentType: "text/css" })) {
     const inner = body.slice(start + 4, end - 1).trim();
-    const quote = /^["']/.test(inner) ? inner[0]! : "";
+    const quote = /^["']/.test(inner) ? inner[0] : "";
     const value = quote ? inner.slice(1, -1) : inner;
-    parts.push(body.slice(cursor, start), `url(${quote}${rewrite(value)}${quote})`);
+    parts.push(body.slice(cursor, start), `url(${quote}${rewrite({ value })}${quote})`);
     cursor = end;
   }
   return parts.join("") + body.slice(cursor);
@@ -73,7 +73,7 @@ function rewriteCss({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _o
 
 /** HTML edits use parser-backed source ranges, preserving theme scripts and surrounding bytes. */
 function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _options = {}): string {
-  body = downloadDocumentBase({ html: body, rewrite });
+  body = downloadDocumentBase({ html: body, rewrite: value => rewrite({ value }) });
   const parts: string[] = [];
   let cursor = 0;
   for (const { start, end, kind, identity } of exportUrlLocations({ body, contentType: "text/html" })) {
@@ -90,14 +90,14 @@ function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _
 function rewriteHtmlValue({ value, kind, rewrite }: { value: string; kind: string; rewrite: RewriteUrl }, _options = {}): string {
   if (kind === "css") return rewriteCss({ body: value, rewrite });
   if (kind === "srcset") return rewriteSrcset({ value, rewrite });
-  return rewrite(value);
+  return rewrite({ value });
 }
 
 /** Rewrite manifest link fields structurally; malformed manifests retain their original bytes. */
 function rewriteManifest({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _options = {}): string {
   try {
     return JSON.stringify(JSON.parse(body), (key, value: unknown) =>
-      typeof value === "string" && ["src", "href", "url", "start_url", "scope"].includes(key) ? rewrite(value) : value);
+      typeof value === "string" && ["src", "href", "url", "start_url", "scope"].includes(key) ? rewrite({ value }) : value);
   } catch { return body; }
 }
 
@@ -117,7 +117,7 @@ function rewriteMarkdown({ body, rewrite }: { body: string; rewrite: RewriteUrl 
   const parts: string[] = [];
   let cursor = 0;
   for (const { start, end } of exportUrlLocations({ body, contentType: "text/markdown" })) {
-    parts.push(body.slice(cursor, start), rewrite(body.slice(start, end)));
+    parts.push(body.slice(cursor, start), rewrite({ value: body.slice(start, end) }));
     cursor = end;
   }
   return parts.join("") + body.slice(cursor);
@@ -140,7 +140,7 @@ function referencedFiles({ copy }: { copy: Copy }, _options = {}): Set<string> {
   for (const name of reached) {
     const file = files.get(name);
     if (!file) continue;
-    rewriteFile({ file, rewrite: value => {
+    rewriteFile({ file, rewrite: ({ value }, _optional = {}) => {
       const url = localUrl({ value, file: name, publicOrigin: copy.publicOrigin, basePath: copy.basePath });
       if (url && files.has(url.pathname.slice(1))) reached.add(url.pathname.slice(1));
       return value;
@@ -164,7 +164,9 @@ function allocateDownloadPath({ target, claimed }: { target: string; claimed: Se
 
 /** Flatten public media independently of theme images, using the same portable filename allocator. */
 function mediaPath({ file, claimed }: { file: string; claimed: Set<string> }, _options = {}): string {
-  return allocateDownloadPath({ target: `media/${file.split("/")[1]!}${path.posix.extname(file)}`, claimed });
+  const name = file.split("/")[1];
+  if (name === undefined) throw new Error(`Static download media path has no filename: ${file}`);
+  return allocateDownloadPath({ target: `media/${name}${path.posix.extname(file)}`, claimed });
 }
 
 /** Repeated public URLs across themes use the first allocated media destination. */
@@ -259,9 +261,19 @@ export function staticDownloadLayout({ copy, copies = [copy], activeThemeId, the
     landing.push(landingTheme({ plan, files, activeThemeId: activeThemeId ?? copy.themeId }));
   }
   // A partial render may lose a home page; the landing page still lists every delivered page.
-  add({ path: LANDING_FILE, content: staticLandingPage({ siteName: copy.readme?.name ?? copy.siteSlug ?? "Website", exportedWords: copy.readme?.words, themes: landing }) });
-  if (readmes.length) add({ path: "README.txt", content: Buffer.from(readmes.join("\n") + (copies.length > 1 ? `\nShared media: ${deliveredMedia.size} files in media/.\n` : "")) });
+  add(landingFile({ copy, landing }));
+  if (readmes.length) add(readmeFile({ readmes }, { sharedMedia: copies.length > 1 ? deliveredMedia.size : undefined }));
   return entries;
+}
+
+/** The download's landing page, named after the site and listing every theme card. */
+function landingFile({ copy, landing }: { copy: Copy; landing: readonly LandingTheme[] }, _options = {}): File {
+  return { path: LANDING_FILE, content: staticLandingPage({ siteName: copy.readme?.name ?? copy.siteSlug ?? "Website", exportedWords: copy.readme?.words, themes: landing }) };
+}
+
+/** The combined per-theme README; a multi-theme download also counts its shared media. */
+function readmeFile({ readmes }: { readmes: readonly string[] }, { sharedMedia }: { sharedMedia?: number } = {}): File {
+  return { path: "README.txt", content: Buffer.from(readmes.join("\n") + (sharedMedia !== undefined ? `\nShared media: ${sharedMedia} files in media/.\n` : "")) };
 }
 
 /** One landing card: the theme's display title, its folder and its delivered pages (redirect stubs omitted). */
@@ -283,7 +295,8 @@ function downloadPlans({ copies, themes, siteSlug }: { copies: readonly Copy[]; 
   const folders = new Map((themes ?? allocateStaticExportThemes({ themeIds: copies.map(item => item.themeId ?? item.metadata?.theme ?? "site"), siteSlug })).map(theme => [theme.themeId, theme.name]));
   const media = new Map<string, string>(), claimed = new Set<string>();
   return copies.map(item => {
-    const theme = folders.get(item.themeId ?? item.metadata?.theme ?? "site")!;
+    const theme = folders.get(item.themeId ?? item.metadata?.theme ?? "site");
+    if (theme === undefined) throw new Error("Static download has no allocated theme folder");
     return { copy: item, theme, paths: downloadPaths({ copy: item, theme, reached: referencedFiles({ copy: item }), media, claimed }) };
   });
 }
@@ -299,7 +312,7 @@ function relocatedFiles({ copy, theme, paths, deliveredMedia }: { copy: Copy; th
     if (target.startsWith("media/")) {
       deliveredMedia.add(target);
     }
-    const content = downloadRobots({ file: file.path, content: rewriteFile({ file, rewrite: value => relocatedUrl({ value, file: file.path, target, paths, copy, theme }) }) });
+    const content = downloadRobots({ file: file.path, content: rewriteFile({ file, rewrite: ({ value }, _optional = {}) => relocatedUrl({ value, file: file.path, target, paths, copy, theme }) }) });
     entries.push({ path: target, content });
   }
   return entries;

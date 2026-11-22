@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentTimers } from '../consent-autosave';
 import type { ConsentDraftSaved, ConsentPreview, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from '../settings.hooks';
 import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '../use-consent-page.hooks';
@@ -13,7 +13,7 @@ const t = (key: string) => key;
 /** Autosave timers the test fires by hand. */
 function manualTimers() {
   let next: (() => void) | null = null;
-  const timers: ConsentTimers = { setTimeout: callback => { next = callback; return callback; }, clearTimeout: handle => { if (handle === next) next = null; } };
+  const timers: ConsentTimers = { setTimeout: ({ callback }, _optional = {}) => { next = callback; return callback; }, clearTimeout: ({ handle }, _optional = {}) => { if (handle === next) next = null; } };
   return { timers, fire: () => { const callback = next; next = null; callback?.(); } };
 }
 
@@ -54,7 +54,7 @@ describe('useConsentPage: load', () => {
   });
 
   it('shows the load error', async () => {
-    const port = fakeConsentPort({ get: () => Promise.reject(new ApiError('', 503)) });
+    const port = fakeConsentPort({ get: () => Promise.reject(new ApiError({ message: '', status: 503 })) });
     const { result } = renderHook(() => useConsentPage({ port, t }));
     await waitFor(() => expect(result.current.loadError).toBe("Couldn't load cookie consent."));
     expect(result.current.value).toBeNull();
@@ -125,7 +125,7 @@ describe('useConsentPage: autosave', () => {
   });
 
   it('keeps the edits and shows the error when a save fails', async () => {
-    const page = await mountPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError('Disk full.', 500)) }));
+    const page = await mountPage(fakeConsentPort({ saveDraft: () => Promise.reject(new ApiError({ message: 'Disk full.', status: 500 })) }));
     await editAndSave(page);
     expect(page.result.current).toMatchObject({ saveState: 'error', saveError: 'Disk full.', value: { title: 'New title' } });
   });
@@ -166,7 +166,7 @@ describe('useConsentPage: publish', () => {
   });
 
   it('shows any other publish error and keeps the draft', async () => {
-    const page = await mountPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError('', 503)) }));
+    const page = await mountPage(fakeConsentPort({ get: () => Promise.resolve(withDraft), publish: () => Promise.reject(new ApiError({ message: '', status: 503 })) }));
     await act(async () => { await page.result.current.publish(); });
     expect(page.result.current).toMatchObject({ publishError: "Couldn't publish.", hasUnpublished: true, saveState: 'idle' });
   });
@@ -215,7 +215,7 @@ describe('useConsentPreview', () => {
 
   it('keeps the last preview and reports a render failure', async () => {
     let fail = false;
-    const port = fakeConsentPort({ preview: () => fail ? Promise.reject(new ApiError('', 500)) : Promise.resolve(preview('<p>ok</p>')) });
+    const port = fakeConsentPort({ preview: () => fail ? Promise.reject(new ApiError({ message: '', status: 500 })) : Promise.resolve(preview('<p>ok</p>')) });
     const { result, rerender } = renderHook(({ config }) => useConsentPreview({ port, config, t }, { delayMs: 0 }), { initialProps: { config: CONSENT_CONFIG } });
     await waitFor(() => expect(result.current.html).toBe('<p>ok</p>'));
     fail = true;
@@ -264,7 +264,7 @@ describe('useConsentReadiness', () => {
   });
 
   it('reports a failed check', async () => {
-    const port = fakeConsentPort({ readiness: () => Promise.reject(new ApiError('', 503)) });
+    const port = fakeConsentPort({ readiness: () => Promise.reject(new ApiError({ message: '', status: 503 })) });
     const { result } = renderHook(() => useConsentReadiness({ port, refresh: '', t }));
     await waitFor(() => expect(result.current).toEqual({ readiness: null, error: "Couldn't check readiness." }));
   });

@@ -31,9 +31,7 @@ export async function prepareChatExecutionWrite({ deps, request }: {
   // Use the existing run entitlement, independently of the settings writer's scope permission.
   const access = await deps.authorize({ principalId: request.ctx.principal.id, workspaceId: deps.workspaceId, permission: "admin.assistant.use" });
   if (!access.allowed) throw new ToolInputError({ message: "Chat selection requires permission 'admin.assistant.use'." });
-  const values = await Promise.all(CHAT_EXECUTION_KEYS.map(key => getEffective({ repo: deps.settingsRepo }, {
-    namespace: "core.execution", key, scopeContext: { workspaceId: deps.workspaceId, principalId: request.ctx.principal.id },
-  })));
+  const values = await Promise.all(CHAT_EXECUTION_KEYS.map(key => getEffective({ deps: { repo: deps.settingsRepo }, namespace: "core.execution", key, scopeContext: { workspaceId: deps.workspaceId, principalId: request.ctx.principal.id } })));
   const snapshot = values.map(value => value?.value ?? "");
   const axis = CHAT_EXECUTION_KEYS.indexOf(key as typeof CHAT_EXECUTION_KEYS[number]);
   // An explicit empty override repairs one axis without activating any stale sibling selection.
@@ -48,9 +46,7 @@ export async function prepareChatExecutionWrite({ deps, request }: {
 /** Resolve a clear against inherited settings, rather than treating it as an empty override. */
 async function resultingSelection({ deps, request, key, snapshot, axis }:
   Parameters<typeof prepareChatExecutionWrite>[0] & { key: string; snapshot: unknown[]; axis: number }, _options = {}): Promise<unknown[]> {
-  const inherited = request.toolId === "settings_clear_value" ? await getEffective({ repo: deps.settingsRepo }, {
-    namespace: "core.execution", key, scopeContext: { workspaceId: deps.workspaceId },
-  }) : null;
+  const inherited = request.toolId === "settings_clear_value" ? await getEffective({ deps: { repo: deps.settingsRepo }, namespace: "core.execution", key, scopeContext: { workspaceId: deps.workspaceId } }) : null;
   const resulting: unknown[] = [...snapshot];
   resulting[axis] = request.toolId === "settings_clear_value" ? inherited?.value ?? "" : request.value;
   return resulting;

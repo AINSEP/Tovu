@@ -24,7 +24,7 @@ function fixture() {
 
 test("a concurrent caller gets its own transaction: another caller's rollback does not undo its write", async () => {
   const { client, values, insert } = fixture();
-  const runInTransaction = createContentDbTransactionRunner(client);
+  const runInTransaction = createContentDbTransactionRunner({ store: client });
   let releaseA!: () => void;
   const aHolds = new Promise<void>((resolve) => (releaseA = resolve));
 
@@ -46,10 +46,10 @@ test("a concurrent caller gets its own transaction: another caller's rollback do
 
 test("a nested call joins the caller's kernel transaction and rolls back with it", async () => {
   const { db, client, values, insert } = fixture();
-  const runInTransaction = createContentDbTransactionRunner(client);
+  const runInTransaction = createContentDbTransactionRunner({ store: client });
 
   await assert.rejects(
-    contentKernel(db).transaction(async () => {
+    contentKernel({ store: db }).transaction(async () => {
       await runInTransaction(async () => insert("inner"));
       throw new Error("outer fails");
     }),

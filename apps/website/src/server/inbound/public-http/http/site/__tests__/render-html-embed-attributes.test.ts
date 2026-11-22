@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderHtmlPageBody } from "../render.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
 
 // ---------------------------------------------------------------------------
 // T5 (2026-09-16 embed-attributes plan) — `renderHtmlPageBody` forwards a "media" marker's own
@@ -33,7 +33,7 @@ const NO_SUPPORT_FALLBACK = "Your browser does not support the video tag.";
 
 test("renderHtmlPageBody: autoplay muted loop playsinline on a media wrapper land on the rendered <video>, the wrapper keeps its class", () => {
   const html = `<div class="xai-video" data-embed-config='{"type":"media","id":"asset-1"}' autoplay muted loop playsinline></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", VIDEO_IR) });
   assert.equal(
     out,
     `<div class="xai-video"><video src="/m/asset-1/original.mp4" controls autoplay muted loop playsinline>${NO_SUPPORT_FALLBACK}</video></div>`
@@ -42,19 +42,19 @@ test("renderHtmlPageBody: autoplay muted loop playsinline on a media wrapper lan
 
 test('renderHtmlPageBody: a marker controls="false" attribute removes the default controls attribute', () => {
   const html = `<div class="probe" data-embed-config='{"type":"media","id":"asset-1"}' controls="false"></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", VIDEO_IR) });
   assert.equal(out, `<div class="probe"><video src="/m/asset-1/original.mp4">${NO_SUPPORT_FALLBACK}</video></div>`);
 });
 
 test("renderHtmlPageBody: a bare marker controls attribute keeps controls on", () => {
   const html = `<div data-embed-config='{"type":"media","id":"asset-1"}' controls></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", VIDEO_IR) });
   assert.equal(out, `<div><video src="/m/asset-1/original.mp4" controls>${NO_SUPPORT_FALLBACK}</video></div>`);
 });
 
 test("renderHtmlPageBody: a <video> marker collapses — class, id, style and autoplay all land on the one rendered <video>", () => {
   const html = `<video data-embed-config='{"type":"media","id":"asset-1"}' class="hero" id="v1" style="max-width:600px" autoplay></video>`;
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", VIDEO_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", VIDEO_IR) });
   assert.equal(
     out,
     `<video src="/m/asset-1/original.mp4" controls class="hero" id="v1" style="max-width:600px" autoplay>${NO_SUPPORT_FALLBACK}</video>`
@@ -67,7 +67,7 @@ test("renderHtmlPageBody: marker class is appended after the asset cssClass, nev
     componentId: "media-image",
     props: { assetId: "asset-1", transformName: "public", version: 3, alt: "A photo", width: null, height: null, cssClass: "rounded" },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.equal(out, `<img src="/m/asset-1/public.v3/image.jpg" alt="A photo" class="rounded hero wide" loading="lazy">`);
 });
 
@@ -86,7 +86,7 @@ test("renderHtmlPageBody: a marker attribute beats the asset htmlAttributes valu
       htmlAttributes: 'loading="lazy"',
     },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.equal(out, `<img src="/m/asset-1/public.v3/image.jpg" alt="Marker &amp; caption" width="320" height="240" loading="eager">`);
   assert.equal((out.match(/loading=/g) ?? []).length, 1, "loading must appear exactly once, not twice");
 });
@@ -97,7 +97,7 @@ test("renderHtmlPageBody: author src and srcset never override the resolved asse
     componentId: "media-image",
     props: { assetId: "asset-1", transformName: "public", version: 3, alt: "", width: null, height: null, cssClass: null },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.ok(out.includes('src="/m/asset-1/public.v3/image.jpg"'), "the resolved asset URL must be the img's src");
   assert.ok(!out.includes("evil.example"), "the author-supplied src/srcset must never reach the output");
   assert.doesNotMatch(out, /srcset/, "srcset is renderer-owned (D3) — dropped, not merely overridden");
@@ -109,7 +109,7 @@ test("renderHtmlPageBody: marker values are source text — &amp; is not double-
     componentId: "media-image",
     props: { assetId: "asset-1", transformName: "public", version: 3, alt: "", width: null, height: null, cssClass: null },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.ok(out.includes('title="a &amp; b"'), "the marker's own &amp; must survive unchanged");
   assert.ok(!out.includes("&amp;amp;"), "a source-text &amp; must never be re-escaped into &amp;amp;");
 });
@@ -129,7 +129,7 @@ test("renderHtmlPageBody: an asset htmlAttributes value with on* is still droppe
       htmlAttributes: 'onerror="alert(1)"',
     },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.doesNotMatch(out, /onerror/i, "the asset-level allowlist must still fail closed");
   assert.doesNotMatch(out, /alert\(1\)/, "the rejected payload must never reach the rendered page");
   assert.ok(out.includes('data-foo="bar"'), "a marker attribute must still land even though the asset's own value was rejected");
@@ -141,7 +141,7 @@ test("renderHtmlPageBody: a media embed with no marker attributes renders byte-i
     componentId: "media-image",
     props: { assetId: "asset-1", transformName: "public", version: 3, alt: "A photo", width: 640, height: 480, cssClass: "rounded" },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.equal(out, `<div><img src="/m/asset-1/public.v3/image.jpg" alt="A photo" width="640" height="480" class="rounded" loading="lazy"></div>`);
 });
 
@@ -153,7 +153,7 @@ test("renderHtmlPageBody: the same asset embedded twice with different attribute
     componentId: "media-image",
     props: { assetId: "asset-1", transformName: "public", version: 1, alt: "", width: null, height: null, cssClass: null },
   };
-  const out = renderHtmlPageBody(html, resolvedMap("media", "asset-1", ir));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("media", "asset-1", ir) });
   assert.equal(
     out,
     `<img src="/m/asset-1/public.v1/image.jpg" alt="" class="a" loading="lazy">` +

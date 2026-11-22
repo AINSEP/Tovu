@@ -29,7 +29,7 @@ export interface CreateFederationRuntimeParams {
   /** Reads the operator-editable roster fresh — today, `readEnabledExternalMcpConfigs` wrapped by
    *  `external-mcp-connection-source.ts`'s `createStoredExternalMcpConnectionSource`. Called once at
    *  boot and once per actual reload pass, never once per `reload()` caller — see
-   *  `mcp-federation/reload.ts`'s own coalescing doc. */
+   *  `Jini packages/mcp/src/federation/reload.ts`'s own coalescing doc. */
   readonly resolveConnections: () => Promise<readonly ResolvedFederatedConnection[]>;
   /**
    * Resolved before `start()`'s own boot pass ever calls `attach` — today, the installed-extension
@@ -52,7 +52,7 @@ export interface CreateFederationRuntimeParams {
   readonly attach?: typeof attachFederatedMcpTools;
   /** Test seam — the session factory for the boot pass only, matching
    *  `AttachFederatedMcpToolsParams.connect`'s own scope: a reload pass never overrides `connect` (see
-   *  `mcp-federation/reload.ts`'s `runOnePass`), so this has nothing to thread through there. */
+   *  `Jini packages/mcp/src/federation/reload.ts`'s `runOnePass`), so this has nothing to thread through there. */
   readonly connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
 }
 
@@ -85,7 +85,7 @@ export interface FederationRuntime {
   /**
    * The boot roster's connection ids — `undefined` until `resolveConnections()` resolves
    * (the roster itself is not known yet), then fixed for the rest of boot. Lets a caller building
-   * `FederationBootStatus` (`federated-refusal-diagnosis.ts`) tell "a real, pending roster connection"
+   * `FederationBootStatus` (`Jini packages/daemon/src/tool-recovery/federated-refusal.ts`) tell "a real, pending roster connection"
    * apart from "never configured at all" while `!started`, without waiting for the whole boot pass —
    * see that file's `configuredConnectionIds` doc for why `undefined` and `[]` are different claims.
    */
@@ -97,58 +97,9 @@ export interface FederationRuntime {
 type AttachFederatedMcpToolsResult = Awaited<ReturnType<typeof attachFederatedMcpTools>>;
 type AttachFederatedToolsResultReports = AttachFederatedMcpToolsResult["reports"];
 type AttachFederatedToolsResultConnectFailures = AttachFederatedMcpToolsResult["connectFailures"];
-
-/**
- * Builds one process's federation runtime. Nothing here performs I/O until `start()` or `reload()` is
- * called — constructing this is free, which is what lets a caller (`installed-extension-tools.ts`)
- * build it unconditionally and leave starting it to whichever root decides when.
- *
- * @complexity O(1) to construct; `start()`/`reload()` inherit their cost from `attachFederatedMcpTools`
- * and `createFederationReloadCoordinator`.
- * @overallScore 100
- */
-export function createFederationRuntime(params: CreateFederationRuntimeParams): FederationRuntime {
-  const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
-  const attach = params.attach ?? attachFederatedMcpTools;
-  const logger: FederationLogger = {
-    info: (message) => console.log(`${params.log} ${message}`),
-    warn: (message) => console.warn(`${params.log} ${message}`),
-  };
-
-  let mergedReports: AttachFederatedToolsResultReports = [];
-  let mergedConnectFailures: AttachFederatedToolsResultConnectFailures = [];
-  let cachedPrefix = "";
-  let startPromise: Promise<void> | undefined;
-  let startedFlag = false;
-  let coordinator: ReturnType<typeof createFederationReloadCoordinator> | undefined;
-  let configuredConnectionIds: readonly string[] | undefined;
-
-  function recomputePrefix(): void {
-    cachedPrefix = buildFederatedRefusalPrefix({ snapshot: mergedReports, messages: tovuFederationMessages });
-  }
-
-  async function runStart(): Promise<void> {
-    // Catch prerequisites as well as attachment: a failed roster read must complete boot's
-    // lifecycle so later calls are diagnosed as failed rather than "still connecting" forever.
-    // Optional federation failures cannot disable the native assistant.
-    try {
-      await (params.after ?? Promise.resolve());
-      const connections = await params.resolveConnections();
-      configuredConnectionIds = connections.map((connection) => connection.config.connectionId);
-      const attached = await attach({
-        presetRegistry,
-        registry: params.registry,
-        deps: params.deps,
-        extraConnections: connections,
-        logger,
-        ...(params.connect ? { connect: params.connect } : {}),
-      });
-
-      mergedReports = attached.reports;
-      mergedConnectFailures = attached.connectFailures;
-      recomputePrefix();
+function buildRuntimeReloadCoordinator(params: CreateFederationRuntimeParams, { presetRegistry, attach, logger }: { presetRegistry: ReturnType<typeof createFederatedMcpPresetRegistry>; attach: typeof attachFederatedMcpTools; logger: FederationLogger }, { connections, mergedReports }: { connections: readonly ResolvedFederatedConnection[]; mergedReports: AttachFederatedToolsResultReports }) {
       const emptyGrantIds = new Set(connections.filter(connection => connection.config.allowedToolNames.length === 0).map(connection => connection.config.connectionId));
-      coordinator = createFederationReloadCoordinator({ coordDeps: {
+      return createFederationReloadCoordinator({ coordDeps: {
           registry: params.registry,
           deps: params.deps,
           // Presets can arrive after a failed desktop listener bind. The existing coordinator
@@ -164,21 +115,31 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
       }, { initiallyAwaitingGrants: mergedReports.filter(entry => !entry.isPreset && entry.report.admitted.length === 0
         && emptyGrantIds.has(entry.connectionId))
         .map(entry => entry.connectionId) });
-    } catch (error) {
-      logger.warn(`mcp-federation: boot pass failed, continuing without federated tools — ${messageOf(error)}`);
-    } finally {
-      startedFlag = true;
-    }
+}
+
+function createFederationAccounting(params: CreateFederationRuntimeParams, { presetRegistry, attach, logger }: { presetRegistry: ReturnType<typeof createFederatedMcpPresetRegistry>; attach: typeof attachFederatedMcpTools; logger: FederationLogger }, getStartPromise: () => Promise<void> | undefined) {
+
+  let mergedReports: AttachFederatedToolsResultReports = [];
+
+  let mergedConnectFailures: AttachFederatedToolsResultConnectFailures = [];
+
+  let cachedPrefix = "";
+
+  let startedFlag = false;
+
+  let coordinator: ReturnType<typeof createFederationReloadCoordinator> | undefined;
+
+  let configuredConnectionIds: readonly string[] | undefined;
+
+  function recomputePrefix(): void {
+    cachedPrefix = buildFederatedRefusalPrefix({ snapshot: mergedReports, messages: tovuFederationMessages });
   }
 
-  function start(): Promise<void> {
-    if (!startPromise) startPromise = runStart();
-    return startPromise;
-  }
 
   async function reload(): Promise<FederationReloadResult> {
     // Federation remains lazy before the first BYOK turn; installed guidance still needs the
     // operator's reload now. An in-flight boot must finish before refreshing either catalog.
+    const startPromise = getStartPromise();
     if (startPromise) await startPromise;
 
     const installedChanged = await params.beforeReload?.() ?? false;
@@ -204,23 +165,76 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
     params.onAdmitted?.(result);
     return result;
   }
+  function seed(attached: AttachFederatedMcpToolsResult, connections: readonly ResolvedFederatedConnection[]): void {
+    mergedReports = attached.reports;
+    mergedConnectFailures = attached.connectFailures;
+    recomputePrefix();
+    coordinator = buildRuntimeReloadCoordinator(params, { presetRegistry, attach, logger }, { connections, mergedReports });
+  }
+  return { reload, seed, configure: (ids: readonly string[]) => { configuredConnectionIds = ids; }, complete: () => { startedFlag = true; },
+    reports: () => mergedReports, connectFailures: () => mergedConnectFailures, refusalPrefix: () => cachedPrefix,
+    configuredConnectionIds: () => configuredConnectionIds, get started() { return startedFlag; } };
+}
 
-  return {
-    start,
-    reload,
-    reports: () => mergedReports,
-    connectFailures: () => mergedConnectFailures,
-    refusalPrefix: () => cachedPrefix,
-    configuredConnectionIds: () => configuredConnectionIds,
-    get started() {
-      return startedFlag;
-    },
+
+/**
+ * Builds one process's federation runtime. Nothing here performs I/O until `start()` or `reload()` is
+ * called — constructing this is free, which is what lets a caller (`installed-extension-tools.ts`)
+ * build it unconditionally and leave starting it to whichever root decides when.
+ *
+ * @complexity O(1) to construct; `start()`/`reload()` inherit their cost from `attachFederatedMcpTools`
+ * and `createFederationReloadCoordinator`.
+ * @overallScore 100
+ */
+export function createFederationRuntime(params: CreateFederationRuntimeParams): FederationRuntime {
+  const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
+  const attach = params.attach ?? attachFederatedMcpTools;
+  const logger: FederationLogger = {
+    // The original error (Jini's `{ error }` host-sink argument) rides along as a second console argument.
+    info: ({ message }, { error } = {}) => console.log(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
+    warn: ({ message }, { error } = {}) => console.warn(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
   };
+  let startPromise: Promise<void> | undefined;
+  const accounting = createFederationAccounting(params, { presetRegistry, attach, logger }, () => startPromise);
+
+  async function runStart(): Promise<void> {
+    // Catch prerequisites as well as attachment: a failed roster read must complete boot's
+    // lifecycle so later calls are diagnosed as failed rather than "still connecting" forever.
+    // Optional federation failures cannot disable the native assistant.
+    try {
+      await (params.after ?? Promise.resolve());
+      const connections = await params.resolveConnections();
+      accounting.configure(connections.map((connection) => connection.config.connectionId));
+      const attached = await attach({
+        presetRegistry,
+        registry: params.registry,
+        deps: params.deps,
+        extraConnections: connections,
+        logger,
+        ...(params.connect ? { connect: params.connect } : {}),
+      });
+
+      accounting.seed(attached, connections);
+    } catch (error) {
+      logger.warn({ message: `mcp-federation: boot pass failed, continuing without federated tools — ${messageOf({ error: error })}` });
+    } finally {
+      accounting.complete();
+    }
+  }
+
+  function start(): Promise<void> {
+    if (!startPromise) startPromise = runStart();
+    return startPromise;
+  }
+
+  return { start, reload: accounting.reload, reports: accounting.reports, connectFailures: accounting.connectFailures,
+    refusalPrefix: accounting.refusalPrefix, configuredConnectionIds: accounting.configuredConnectionIds,
+    get started() { return accounting.started; } };
 }
 
 /** Local copy of `bootstrap.ts`'s private helper of the same name — not shared because that file
  *  exports nothing for this one purpose, and this is a one-line reduction, not a policy this module
  *  needs to stay byte-identical with. */
-function messageOf(error: unknown): string {
+function messageOf({ error }: { error: unknown }, _optional = {}): string {
   return error instanceof Error ? error.message : String(error);
 }

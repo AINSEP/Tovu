@@ -1,7 +1,7 @@
 import { EMAIL_TABS_DICT } from "./email-tabs-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Dictionary for the Email screen. English copy is the key (this app's convention); a missing
  * locale/key falls through to `COMMON_I18N` (which carries "Status") and then to the English key.

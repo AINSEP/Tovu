@@ -10,6 +10,6 @@ import type { ContentDb } from "./content-db.js";
 export class SqliteBufferSink extends SqlBufferSink {
   /** `db`: the connection's kernel, or the content db handle it is derived from. */
   constructor(deps: { db: ContentKernel | ContentDb; workspaceId: string }) {
-    super({ kernel: contentKernel(deps.db), workspaceId: deps.workspaceId });
+    super({ kernel: contentKernel({ store: deps.db }), workspaceId: deps.workspaceId });
   }
 }

@@ -4,7 +4,8 @@ import path from "node:path";
 import { copyPgStore, type CopiedTable, nonEmptyTables } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { acquireOwnerLock, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { openPostgresKernel, storageOps, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel, storageOps } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { ValidationError } from "#src/platform/site-dir/errors";
@@ -52,24 +53,24 @@ export interface MoveSiteStorageResult {
   keptPgliteDir: string;
 }
 
-function readMeta(siteDir: string): Record<string, unknown> {
+function readMeta({ siteDir }: { siteDir: string }, _optional = {}): Record<string, unknown> {
   const metaPath = path.join(siteDir, SITE_META_FILENAME);
   try {
     return JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
   } catch (err) {
-    throw new ValidationError(`storage move: ${metaPath} cannot be read: ${(err as Error).message}`);
+    throw new ValidationError({ message: `storage move: ${metaPath} cannot be read: ${(err as Error).message}` });
   }
 }
 
 /** Refuse unsupported storage and missing data before acquiring any handles. O(1). */
 function requirePgliteDataDir({ siteDir, meta }: { siteDir: string; meta: Record<string, unknown> }, _options = {}): string {
-  const from = parseSiteStorage(meta.storage);
+  const from = parseSiteStorage({ value: meta.storage });
   if (from.kind !== "pglite") {
     const hint = from.kind === "sqlite" ? "; a SQLite site moves with the database transfer tools" : "";
-    throw new ValidationError(`storage move: this site is stored on ${from.kind}, not pglite${hint}`);
+    throw new ValidationError({ message: `storage move: this site is stored on ${from.kind}, not pglite${hint}` });
   }
   const dataDir = path.join(siteDir, PGLITE_DATA_DIR_NAME);
-  if (!fs.existsSync(dataDir)) throw new ValidationError(`storage move: the site's PGlite data dir ${dataDir} does not exist`);
+  if (!fs.existsSync(dataDir)) throw new ValidationError({ message: `storage move: the site's PGlite data dir ${dataDir} does not exist` });
 
   return dataDir;
 }
@@ -77,10 +78,10 @@ function requirePgliteDataDir({ siteDir, meta }: { siteDir: string; meta: Record
 /** Translate only the shared owner's running-site refusal; other failures propagate. O(1). */
 function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () => void {
   try {
-    return acquireOwnerLock(dataDir);
+    return acquireOwnerLock({ dataDir });
   } catch (err) {
     if (err instanceof PgliteOwnerLockedError) {
-      throw new ValidationError(`storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it`);
+      throw new ValidationError({ message: `storage move: the site is running (process ${err.pid ?? "unknown"}); stop it, then move it` });
     }
     throw err;
   }
@@ -98,25 +99,25 @@ function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () =>
  */
 export async function moveSiteStorage(required: MoveSiteStorageRequired, optional: MoveSiteStorageOptional = {}): Promise<MoveSiteStorageResult> {
   const { siteDir, connectionString, secretRef } = required;
-  const meta = readMeta(siteDir);
+  const meta = readMeta({ siteDir });
   const dataDir = requirePgliteDataDir({ siteDir, meta });
   const release = lockStoppedSite({ dataDir });
-  let source: StorageKernel<unknown> | undefined;
-  let target: StorageKernel<unknown> | undefined;
+  let source: KyselyKernel<unknown> | undefined;
+  let target: KyselyKernel<unknown> | undefined;
   try {
     source = openPgliteKernel<unknown>({ dataDir });
     target = openPostgresKernel<unknown>({ connectionString, max: 2 });
-    const occupied = await nonEmptyTables(target);
+    const occupied = await nonEmptyTables({ kernel: target });
     if (occupied.length > 0) {
       const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
-      throw new ValidationError(`storage move: the target database already holds data (${named}); move into an empty database`);
+      throw new ValidationError({ message: `storage move: the target database already holds data (${named}); move into an empty database` });
     }
     for (const kernel of [source, target]) {
-      await migrateContentDatabase(kernel);
-      await migrateChatDatabase(kernel);
+      await migrateContentDatabase({ kernel });
+      await migrateChatDatabase({ kernel });
     }
-    const tables = await copyPgStore(source, target, { onCopied: optional.onCopied });
-    await storageOps(target).compactAndVerify();
+    const tables = await copyPgStore({ source, target }, { onCopied: optional.onCopied });
+    await storageOps({ kernel: target }).compactAndVerify();
 
     if (secretRef === "site") await writeSealedConnectionString({ siteDir, connectionString }, optional.sealer);
     const storage: SiteStorage = { kind: "postgres", secretRef };

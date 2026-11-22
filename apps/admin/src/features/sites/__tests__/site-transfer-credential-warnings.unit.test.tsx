@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { SiteExportTab } from "../SiteExportTab";
 import { SiteImportTab } from "../SiteImportTab";
 import { createFakeSiteTransferPort, defaultSiteTransferPort, type SiteImport, type SiteShare, type SiteTransferPort } from "../hooks/site-transfer-dependencies.hooks";
@@ -102,7 +102,7 @@ describe("export credential warning", () => {
   });
 
   it("says when I understand could not be saved and keeps the download disabled", async () => {
-    const acknowledgeShare = vi.fn(async () => { throw new ApiError("Export acknowledgement requires an authorized admin session.", 403, "FORBIDDEN"); });
+    const acknowledgeShare = vi.fn(async () => { throw new ApiError({ message: "Export acknowledgement requires an authorized admin session.", status: 403 }, { code: "FORBIDDEN" }); });
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share({ credentialWarnings: warnings, needsAcknowledgement: true })] }), acknowledgeShare }));
     const row = await exportRow();
     const box = within(row).getByRole("checkbox", { name: "I understand this export may contain credentials" }) as HTMLInputElement;
@@ -129,7 +129,7 @@ describe("export credential warning", () => {
 
   it("shows the server's own reason and the same checkbox when a download is still refused, then downloads once checked", async () => {
     const downloadShare = vi.fn();
-    const shareDownloadRefusal = vi.fn().mockResolvedValueOnce({ status: 409, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }).mockResolvedValue(null);
+    const shareDownloadRefusal = vi.fn().mockResolvedValueOnce({ status: 403, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }).mockResolvedValue(null);
     const acknowledgeShare = vi.fn(async () => share());
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: [share()] }), downloadShare, shareDownloadRefusal, acknowledgeShare }));
     const row = await exportRow();
@@ -224,10 +224,16 @@ describe("live port: acknowledgement and download check", () => {
     const methods: (string | undefined)[] = [];
     vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
       methods.push(init?.method);
-      return init?.method === "HEAD" ? new Response(null, { status: 409 })
-        : new Response(JSON.stringify({ code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }), { status: 409, headers: { "Content-Type": "application/json" } });
+      return init?.method === "HEAD" ? new Response(null, { status: 403 })
+        : new Response(JSON.stringify({ code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings }), { status: 403, headers: { "Content-Type": "application/json" } });
     });
-    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 409, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings });
+    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() }), "the download refusal preserves the server's acknowledgement status and warning payload").toEqual({ status: 403, code: "ACKNOWLEDGE_CREDENTIALS", message: REFUSAL, credentialWarnings: warnings });
     expect(methods).toEqual(["HEAD", "GET"]);
+  });
+
+  it("keeps the GET status and no warnings when a refusal body is not JSON", async () => {
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) =>
+      init?.method === "HEAD" ? new Response(null, { status: 409 }) : new Response("refused", { status: 403 }));
+    expect(await defaultSiteTransferPort.shareDownloadRefusal({ share: share() })).toEqual({ status: 403, credentialWarnings: [] });
   });
 });

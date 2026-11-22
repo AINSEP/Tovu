@@ -1,3 +1,4 @@
+import { optimisticConcurrencyVersions } from './0042_optimistic_concurrency_versions.js';
 import { ownerPasskeys } from './0041_owner_passkeys.js';
 import { ownerMfa } from './0040_owner_mfa.js';
 import { ownerRecoveryCodes } from './0039_owner_recovery_codes.js';
@@ -25,7 +26,7 @@ import { formSubmissionRemoteReceipts } from "./0018_form_submission_remote_rece
 import { formDeliveryPlans } from "./0019_form_delivery_plans.js";
 import { vaultApiConnectionKind } from "./0020_vault_api_connection_kind.js";
 import { AI_CHAT_SCHEMA } from "../chat-kernel.js";
-import type { StorageKernel } from "../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { legacyBaseline } from "./0000_legacy_baseline.js";
 import { postSearch } from "./0001_post_search.js";
 import { dropEmptyLegacyChatTables } from "./0002_drop_empty_legacy_chat_tables.js";
@@ -53,7 +54,7 @@ import { documentBlobOwnership } from "./0015_document_blob_ownership.js";
 import { publishDestinationHistory } from "./0016_publish_destination_history.js";
 import { MIGRATION_CHECKSUMS } from "./checksums.js";
 import { LEDGER_TABLE, type MigrationReport, runMigrations } from "./runner.js";
-import type { MigrationStep } from "./step.js";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file The content database's migration history (ADR-066), in order. Add a step as
@@ -74,7 +75,7 @@ function pinned(id: string): string {
   return checksum;
 }
 
-export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
+export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
   legacyBaseline(pinned("0000_legacy_baseline")),
   postSearch(pinned("0001_post_search")),
   dropEmptyLegacyChatTables(pinned("0002_drop_empty_legacy_chat_tables")),
@@ -118,9 +119,10 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep[] = [
   ownerRecoveryCodes({ checksum: pinned('0039_owner_recovery_codes') }),
   ownerMfa({ checksum: pinned('0040_owner_mfa') }),
   ownerPasskeys({ checksum: pinned('0041_owner_passkeys') }),
+  optimisticConcurrencyVersions({ checksum: pinned('0042_optimistic_concurrency_versions') }),
 ];
 
-export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
+export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
   chatBaseline(pinned("chat/0000_chat_baseline")),
   sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
@@ -129,14 +131,14 @@ export const CHAT_MIGRATIONS: readonly MigrationStep[] = [
 
 /** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */
 export const PROJECT_LEDGER_TABLE = "tovu_project_migrations";
-export const PROJECT_MIGRATIONS: readonly MigrationStep[] = [
+export const PROJECT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
   projectVault(pinned("project/0000_project_vault")),
   projectCredentialKinds(pinned("project/0001_project_credential_kinds")),
   siteKeyAttachments({ checksum: pinned("project/0002_site_key_attachments") }),
 ];
 
 /** Opt-in history: dormant commerce never creates catalog tables at ordinary CMS boot. */
-export const COMMERCE_MIGRATIONS: readonly MigrationStep[] = [
+export const COMMERCE_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
   commerceCatalog({ checksum: pinned("commerce/0000_catalog") }),
 ];
 
@@ -145,22 +147,22 @@ export const COMMERCE_MIGRATIONS: readonly MigrationStep[] = [
  * @returns Applied step ids and diagnostics; activation handles failures without stopping the CMS.
  * @complexity One bounded schema step on first activation, one ledger read thereafter.
  */
-export function migrateCommerceDatabase({ kernel }: { kernel: StorageKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, COMMERCE_MIGRATIONS, { ledgerTable: COMMERCE_LEDGER_TABLE });
+export function migrateCommerceDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations({ kernel, steps: COMMERCE_MIGRATIONS }, { ledgerTable: COMMERCE_LEDGER_TABLE });
 }
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
-export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
+export function migrateProjectDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations({ kernel, steps: PROJECT_MIGRATIONS }, { ledgerTable: PROJECT_LEDGER_TABLE });
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
-export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: {
+export function migrateContentDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, optional: {
   backupPath?: string;
   onBackupError?: (input: { error: unknown; backupPath: string }) => void;
   onBackupComplete?: (input: { backupPath: string }) => Promise<void>;
 } = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, CONTENT_MIGRATIONS, { ...optional, ledgerTable: LEDGER_TABLE });
+  return runMigrations({ kernel, steps: CONTENT_MIGRATIONS }, { ...optional, ledgerTable: LEDGER_TABLE });
 }
 
 /**
@@ -168,10 +170,9 @@ export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional:
  * kernel; tables and ledger `tovu_chat_migrations` in the `ai_chat` schema. SQLite: `kernel` is the
  * site's `chat.db`; same ledger, no schema.
  */
-export function migrateChatDatabase(kernel: StorageKernel<unknown>): Promise<MigrationReport> {
+export function migrateChatDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
   const schema = kernel.dialect === "postgres" ? AI_CHAT_SCHEMA : undefined;
-  return runMigrations(kernel, CHAT_MIGRATIONS, { ledgerTable: CHAT_LEDGER_TABLE, schema });
+  return runMigrations({ kernel, steps: CHAT_MIGRATIONS }, { ledgerTable: CHAT_LEDGER_TABLE, schema });
 }
 
 export { type MigrationOptions, type MigrationReport, runMigrations } from "./runner.js";
-export { LegacyHistoryError, MigrationChecksumError, type MigrationStep, UnknownAppliedMigrationError } from "./step.js";

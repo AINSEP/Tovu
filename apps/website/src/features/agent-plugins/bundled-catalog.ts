@@ -16,8 +16,12 @@
  * `ui-ux-design` (owner, 2026-10-14): theme/page/import work must load the design skill first, so it
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
+ * `kuinetic` (owner, 2026-11-19): kUInetic is the owner's own animation library and is updated
+ * independently of ui-ux-design, whose core tells the agent to load it first for kUInetic work.
+ * Not seeded on: `shadcn-ui` (split from ui-ux-design 2026-11-19) is React/Tailwind app guidance built
+ * around shell and package installs, which Tovu chat refuses; no core product path runs through it.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design", "kuinetic"]);
 
 /** Agent plugins ship as subpaths of ONE Jini package (owner, 11-02: no per-plugin npm packages). */
 const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
@@ -38,11 +42,19 @@ const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
  * stripping, which cannot follow `./x.js` imports or compile enums.
  */
 export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design", "software-engineering",
+  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "kuinetic", "shadcn-ui", "slide-design", "software-engineering",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
   "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media", "commerce", "stripe",
-  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "formspree", "google-forms", "calendly",
+  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "google-forms", "calendly",
 ].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
+
+/**
+ * Bundled plugins Tovu marks "soon" although their Jini manifest carries no maturity flag (owner,
+ * 2026-11-10). They are the assistant faces of provider plugins the owner has not tested. The Soon lock
+ * (`soon-lock.ts`) reads this list beside the manifest flag, so they are locked off exactly like a
+ * manifest-flagged Soon plugin. Drop an id here once it is tested; a manifest flag still wins.
+ */
+export const HOST_SOON_AGENT_PLUGINS: ReadonlySet<string> = new Set(["posthog", "opentelemetry", "stripe", "sentry", "google-forms"]);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
@@ -61,6 +73,11 @@ export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new M
  * `create-tovu-theme` and `tovuize-site` -> `tovu-theme` (2026-10-06): one theme plugin for both
  * jobs, a new theme or a converted static site. They shared the theme-format rules and had started
  * contradicting each other about them; `tovu-theme`'s skill now carries both procedures.
+ *
+ * `formspree` -> nothing (2026-11-10, owner): parked, not deleted. The plugin stays in
+ * `@jini-ai/agent-plugins` and `@jini-ai/provider-plugins`; Tovu just stops shipping it, and boot
+ * removes the installed copy from existing sites. To restore, drop this row and re-add
+ * `"formspree"` to `SELECTED_AGENT_PLUGIN_PACKAGES`.
  */
 export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonly string[]> = new Map<string, string | readonly string[]>([
   ["tovu-deploy-fly", "fly"],
@@ -68,6 +85,7 @@ export const RETIRED_BUNDLED_AGENT_PLUGINS: ReadonlyMap<string, string | readonl
   ["cloudflare-pages", "cloudflare"],
   ["create-tovu-theme", "tovu-theme"],
   ["tovuize-site", "tovu-theme"],
+  ["formspree", []],
 ]);
 
 /**
@@ -82,7 +100,7 @@ export const RETIRED_PLUGIN_REPLACEMENTS: ReadonlyMap<string, string> = new Map(
 /** Maps each pinned ref through {@link RETIRED_PLUGIN_REPLACEMENTS}, keeping order and dropping a
  *  duplicate the translation creates (`deploy` and `fly` both pinned).
  *  @complexity O(n) in ref count. */
-export function translateRetiredPluginRefs(pluginRefIds: readonly string[]): readonly string[] {
+export function translateRetiredPluginRefs({ pluginRefIds }: { pluginRefIds: readonly string[] }, _optional: Record<string, never> = {}): readonly string[] {
   return [...new Set(pluginRefIds.map((id) => RETIRED_PLUGIN_REPLACEMENTS.get(id) ?? id))];
 }
 
@@ -95,7 +113,7 @@ export function translateRetiredPluginRefs(pluginRefIds: readonly string[]): rea
  *  formatting helper of a sibling module" reasoning). If the two ever drift, `resolve-agent-plugin-
  *  refs.unit.test.ts`'s pointer-mode tests assert against the REAL installed tool id, not this
  *  template, so a drift fails loudly there. */
-export function toAgentPluginToolId(pluginId: string): string {
+export function toAgentPluginToolId({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}): string {
   return `agent_plugin_${pluginId.replace(/-/g, "_")}`;
 }
 
@@ -137,7 +155,7 @@ export function toAgentPluginToolId(pluginId: string): string {
  */
 export function formatPluginToolPointer({ pluginId: pluginRefId, skill, file }: { readonly pluginId: string; readonly skill?: string; readonly file?: string }, _optional = {}): string {
   if (skill !== undefined || file !== undefined) return `load_agent_plugin(${JSON.stringify({ pluginId: pluginRefId, ...(skill === undefined ? {} : { skill }), ...(file === undefined ? {} : { file }) })})`;
-  const toolId = toAgentPluginToolId(pluginRefId);
+  const toolId = toAgentPluginToolId({ pluginId: pluginRefId });
   return [
     `MANDATORY — before you begin this task, make this one tool call and follow what it returns:`,
     ``,

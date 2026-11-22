@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { sql } from "kysely";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { SecretsVaultService, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { fingerprintSiteKeyHex, FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
@@ -35,17 +36,17 @@ async function fixture() {
     fs.mkdirSync(path.join(home, ".tovu", "site-keys"), { recursive: true });
     const keyPath = path.join(home, ".tovu", "site-keys", `${id}.hex`);
     fs.writeFileSync(keyPath, hex);
-    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: id, siteKeyId: id, siteKeyFingerprint: fingerprintSiteKeyHex(hex), storage: { kind: "sqlite" } }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: id, siteKeyId: id, siteKeyFingerprint: fingerprintSiteKeyHex({ hex }), storage: { kind: "sqlite" } }));
     workspace.registry({}).merge({ entries: [{ id, path: dir, name: id, createdBy: "key-share-test", lastOpened: null }] });
     const dbPath = resolveSiteDatabasePaths({ dir }, { workspace, placement: "inSite", reserveIdentity: false }).contentDbPath;
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const kernel = openSqliteFileKernel<ContentDatabase>(dbPath);
+    const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: dbPath });
     openKernels.push(kernel);
     await kernel.execute(sql`CREATE TABLE workspaces(id TEXT PRIMARY KEY, name TEXT, slug TEXT, created_at TEXT)`);
     await kernel.execute(sql`CREATE TABLE principals(id TEXT PRIMARY KEY)`);
     await kernel.execute(sql`INSERT INTO workspaces VALUES(${id},${id},${id},${stamp})`);
     for (const statement of secretsVaultStatements({ dialect: "sqlite" })) await kernel.execute(sql.raw(statement));
-    const keyring = new FixedSiteKeyKeyring(hex);
+    const keyring = new FixedSiteKeyKeyring({ hex });
     const service = new SecretsVaultService({ repo: vaultRepo(kernel), keyring, sealer: new AesGcmSecretSealer({ keyring }), metaParsers,
       authorize: async () => {}, now: () => stamp, newId: () => "unused" });
     return { id, dir, dbPath, keyPath, service, kernel };
@@ -95,6 +96,39 @@ test("a key saved only on site A is listed on site B and usable there after appr
     const grantedOnA = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.a.id });
     assert.equal(await grantedOnA.find({ workspaceId: "project", id: used.keyId }), null, "only the approving site gets a grant");
     assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "the source vault is never written");
+  } finally { await f.close(); }
+});
+
+test("picker keeps fifty per source and reports each omitted count", async () => {
+  const f = await fixture();
+  try {
+    for (let index = 0; index < 51; index++) await f.save(f.a, `key-${index}`, `A key ${index}`);
+    for (let index = 0; index < 52; index++) await f.save(f.b, `key-${index}`, `B key ${index}`);
+    const rows = await f.keysOnB.listChoices({});
+    for (const { site, count } of [{ site: f.a, count: 1 }, { site: f.b, count: 2 }]) {
+      const choices = rows.filter(row => row.siteName === site.id);
+      assert.equal(choices.length, 50, "each source offers fifty actual saved keys");
+      assert.deepEqual(choices.filter(row => row.omittedCount !== undefined).map(row => row.omittedCount), [count], "each source reports its omitted count exactly once");
+    }
+  } finally { await f.close(); }
+});
+
+test("an approved saved key remains usable after fifty earlier keys are inserted on its source site", async () => {
+  const f = await fixture();
+  try {
+    await f.save(f.a, "vercel-a", "Vercel");
+    const row = siteRow(await f.keysOnB.listChoices({}), "Vercel, site-a");
+    for (let index = 0; index < 50; index++) {
+      await f.save(f.a, `ahead-${String(index).padStart(2, "0")}`, `Earlier key ${index}`, "fake-earlier-token-not-real-5678");
+    }
+    const before = fs.readFileSync(f.a.dbPath);
+    const used = await f.keysOnB.use({ keyId: row.keyId, use: true });
+    assert.equal(used.keyId, "vercel-a", "the captured saved-key ID adopts the original row beyond the picker limit");
+    assert.equal(used.usedByThisSite, true, "the approving site receives the saved key");
+    assert.equal(await projectToken(f, used.keyId), FAKE_TOKEN, "the original key is re-sealed into the owner store");
+    const granted = attachedOnlyVault({ vault: f.store.vault.repo, attachments: f.store.attachments, siteId: f.b.id });
+    assert.equal((await granted.find({ workspaceId: "project", id: used.keyId }))?.id, used.keyId, "site B can read the adopted key through its grant");
+    assert.deepEqual(fs.readFileSync(f.a.dbPath), before, "adopting the captured key leaves the source vault unchanged");
   } finally { await f.close(); }
 });
 

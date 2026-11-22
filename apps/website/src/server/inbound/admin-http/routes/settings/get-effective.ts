@@ -1,8 +1,11 @@
 import type { SettingsRouteRegistrar } from "./deps.js";
 import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
+/** What a 400 for a missing or empty `namespace` tells the caller, in plain words (a person reads it in the admin). */
+const NAMESPACE_REQUIRED_MESSAGE = "Say which group of settings to read: add ?namespace=<group> to the address, for example ?namespace=core.language.";
+
 /**
- * Resolution and rationale now live in Jini packages/core/src/settings/express/cms-adapter.ts:
+ * Resolution and rationale now live in Jini packages/core/src/settings/cms-adapter.ts:
  * Resolves every effective value for a namespace across the keys registered on either the
  * platform partition (`workspaceId=null`) or this workspace's own site-owned partition — see the
  * route doc above for why both partitions are enumerated.
@@ -18,7 +21,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * follows the codebase's established `/api/admin/v1/workspaces/:workspaceId/...`
  * mount convention rather than api.spec.md's literal (workspace-less) path.
  *
- * `getEffective`/`resolveDefinition` (`features/settings/settings.ts`) are
+ * `getEffective`/`resolveDefinition` (`Jini packages/core/src/settings/settings.ts`) are
  * pure reads with no `authorize()` call of their own (unlike `write-service.ts`),
  * so this route does the explicit authorize-then-call dance itself, mirroring
  * `presentation/get.ts`.
@@ -27,7 +30,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * as a request param, but it is NOT honored — the workspace always comes from the
  * authorized `deps.workspaceId`. `principalId` naming another principal requires
  * `settings.user.read`, which is what the Settings admin screen's target-principal
- * selector (`apps/admin/src/sections/Settings.tsx`, AC-23) gates itself on too.
+ * selector (AC-23) gates itself on too.
  *
  * Enumerates every active key in the requested namespace across both the
  * platform partition (`workspaceId=null`, core/theme owners) and this
@@ -35,14 +38,14 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * fallback order (`settings.ts`), since `SettingsRepoPort.listActiveDefinitions`
  * only takes one exact `workspaceId` per call.
  */
-export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/effective",
     handle: async ({ request: req, principal, authorize }) => {
       await authorize({ permission: "settings.read", entityType: "setting-value" });
 
       const namespace = String(req.query.namespace ?? "");
       if (!namespace) {
-        rejectSettingsRequest({ status: 400, error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
+        rejectSettingsRequest({ status: 400, error: NAMESPACE_REQUIRED_MESSAGE, code: "VALIDATION_ERROR" });
       }
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
       // the actual read target a different workspace or principal than what was authorized.

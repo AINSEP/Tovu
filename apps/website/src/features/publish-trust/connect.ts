@@ -1,6 +1,6 @@
-import { isContainedDeployConfigPath } from "../deployments/index.js";
+import { isContainedDeployConfigPath } from "@jini-ai/devops/deploy";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import type { KeyringPort } from "#src/features/webhooks/index";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 
 import {
   DEFAULT_PUBLISHING_CAPABILITIES,
@@ -44,7 +44,7 @@ import {
 
 /* Deploy-config files a repo may carry, in the order they are consulted for a candidate address.
  *  The vendor paths and their order are declared as plain data by the bundled deploy-config
- *  plugins (`candidatePaths` in `tovu-deploy-configs.json`); core adds only the neutral `app.json`.
+ *  plugins (`candidatePaths` in `jini-deploy-configs.json`); core adds only the neutral `app.json`.
  *  Operator repos may commit generated configs; this repo keeps generation inputs in its workflow.
  *
  *  This is a SUGGESTION mechanism, never a trust decision: whatever it finds is shown to the owner
@@ -75,11 +75,11 @@ const PUBLIC_URL_PATTERN = new RegExp(`${PUBLIC_URL_KEY}\\s*[:=]\\s*["']?(https:
 export async function findCandidateDestination(deps: {
   readonly io: ProvisioningFileIo;
   /** Absolute path for a repo-relative config file. */
-  readonly resolvePath: (relative: string) => string;
+  readonly resolvePath: (required: { relative: string }, optional?: Record<string, never>) => string;
 }, { candidatePaths = ["app.json"] }: { readonly candidatePaths?: readonly string[] } = {}): Promise<string | null> {
   for (const relative of candidatePaths) {
     if (!isContainedDeployConfigPath({ value: relative })) continue;
-    const contents = await deps.io.read(deps.resolvePath(relative));
+    const contents = await deps.io.read({ path: deps.resolvePath({ relative }) });
     if (contents !== null) {
       const found = PUBLIC_URL_PATTERN.exec(contents)?.[1];
       if (found !== undefined) return found;
@@ -110,7 +110,7 @@ export interface ConnectedDestination {
 
 /** Thrown when the grant could not be written. `message` is a sentence for the owner. */
 export class PublishTrustConnectError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishTrustConnectError";
   }
@@ -132,10 +132,13 @@ export class PublishTrustConnectError extends Error {
  * @complexity O(1) plus one round trip, two HKDFs, one file read and one file write.
  */
 export async function connectDestination(
-  deps: ConnectDeps,
-  input: { baseUrl: string; entityTypes: readonly string[] }
+  { deps, input }: {
+    deps: ConnectDeps;
+    input: { baseUrl: string; entityTypes: readonly string[] };
+  },
+  _optional = {}
 ): Promise<ConnectedDestination> {
-  const identity = await fetchDestinationIdentity(deps, input);
+  const identity = await fetchDestinationIdentity({ deps, input });
 
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: deps.workspaceId });
   const signingKey = await derivePublishSigningKey({
@@ -158,11 +161,11 @@ export async function connectDestination(
     // Connecting is the ordinary publish path. Backstop trust is reviewed in deploy config.
     entityTypes: input.entityTypes.filter((entityType) => !isBackstopEntityType({ entityType })),
     capabilities: DEFAULT_PUBLISHING_CAPABILITIES,
-    notAfter: grantNotAfterFrom(nowIso({ clock: deps.clock })),
+    notAfter: grantNotAfterFrom({ nowIso: nowIso({ clock: deps.clock }) }),
   };
 
   const written = await deps.provisioning.connect({ grant });
-  if (!written.ok) throw new PublishTrustConnectError(`This site's publishing settings could not be saved: ${written.reason}`);
+  if (!written.ok) throw new PublishTrustConnectError({ message: `This site's publishing settings could not be saved: ${written.reason}` });
 
   return {
     identity,
@@ -186,11 +189,11 @@ export async function connectDestination(
  * @complexity O(1) plus one HKDF, one file read and one file write.
  */
 export async function disconnectDestination(
-  deps: Pick<ConnectDeps, "keyring" | "provisioning" | "workspaceId">
+  { deps }: { deps: Pick<ConnectDeps, "keyring" | "provisioning" | "workspaceId"> }, _optional = {}
 ): Promise<{ changed: boolean; target: ProvisioningTarget }> {
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: deps.workspaceId });
   const written = await deps.provisioning.disconnect({ sourceInstallationId });
-  if (!written.ok) throw new PublishTrustConnectError(`This site's publishing settings could not be saved: ${written.reason}`);
+  if (!written.ok) throw new PublishTrustConnectError({ message: `This site's publishing settings could not be saved: ${written.reason}` });
   return { changed: written.changed, target: written.target };
 }
 

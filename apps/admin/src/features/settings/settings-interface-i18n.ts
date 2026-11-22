@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /** Settings → User Interface copy (owner, 2026-10-06; tab wrapping 2026-10-07), across the same 21 admin locales as `settings-i18n.ts`. */
 const INTERFACE_DICT: Record<string, Record<string, string>> = {
   es: { "User Interface": "Interfaz de usuario", "How the admin's controls behave for you. Saved per operator.": "Cómo se comportan para ti los controles del administrador. Se guarda por operador.", "Hide the chat button while the chat is open": "Ocultar el botón del chat mientras el chat está abierto", "On: the chat panel's ✕ closes it. Off: the button stays on screen above the open panel and closes it.": "Activado: la ✕ del panel del chat lo cierra. Desactivado: el botón sigue visible sobre el panel abierto y lo cierra.", "Wrap tabs instead of scrolling": "Ajustar las pestañas en varias filas en lugar de desplazarlas", "On: on narrow screens, tab rows wrap onto more lines so every tab is visible. Off: they stay on one row you swipe sideways.": "Activado: en pantallas estrechas, las filas de pestañas pasan a varias líneas para que todas se vean. Desactivado: se quedan en una sola fila que se desliza hacia los lados." },

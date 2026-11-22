@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo, sqliteTableExtendedInfo } from "../sqlite-only.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo, sqliteTableExtendedInfo } from "@jini-ai/db/kernel/sqlite";
 
 /**
  * @file The SQLite-only kernel primitives publish's "send by hand" ships across peers: the exact
@@ -17,7 +17,7 @@ import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInf
 function kernelWith(ddl: string) {
   const client = new Database(":memory:");
   client.exec(ddl);
-  return { client, kernel: sqliteKernel<unknown>(client) };
+  return { client, kernel: sqliteKernel<unknown>({ source: client }) };
 }
 
 test("archive schema inspection preserves generated/hidden columns and exact metadata with the installed Jini driver", async () => {
@@ -81,7 +81,7 @@ test("sqliteForeignKeyCheckedTransaction: a dangling reference throws onViolatio
         await kernel.execute(sql`INSERT INTO parent VALUES ('kept-only-if-committed')`);
         await kernel.execute(sql`INSERT INTO child VALUES ('c1', 'missing')`);
       },
-      onViolation: (first) => new Error(`violation ${first.table} -> ${first.parent}`),
+      onViolation: ({ violation: first }) => new Error(`violation ${first.table} -> ${first.parent}`),
     }),
     { message: "violation child -> parent" },
   );

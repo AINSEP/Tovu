@@ -21,7 +21,7 @@ import {
 /** In-memory `MailBannerStorage` fake. */
 function memoryStorage(seed: Record<string, string> = {}): MailBannerStorage & { data: Record<string, string> } {
   const data = { ...seed };
-  return { data, getItem: (key) => data[key] ?? null, setItem: (key, value) => { data[key] = value; } };
+  return { data, getItem: ({ key }) => data[key] ?? null, setItem: ({ key, value }) => { data[key] = value; } };
 }
 
 /** A storage whose every call throws, like `localStorage` in some privacy modes. */

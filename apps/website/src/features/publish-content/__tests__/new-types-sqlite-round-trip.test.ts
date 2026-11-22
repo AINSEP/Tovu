@@ -17,7 +17,7 @@ import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "@jini-ai/cms
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 
-import { entityKey } from "../planner.js";
+import { entityKey } from "../plan-rows.js";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "./round-trip-harness.js";
 
 /**
@@ -32,10 +32,10 @@ const at = "2026-09-01T00:00:00.000Z";
 function instance(name: string) {
   const db = openContentDb(":memory:");
   const repos = {
-    forms: new SqliteFormDefinitionRepo(db),
-    contentTypes: new SqliteContentTypeRepo(db),
-    entries: new SqliteEntryRepo(db),
-    entryRefs: new SqliteEntryRefsRepo(db),
+    forms: new SqliteFormDefinitionRepo({ store: db }),
+    contentTypes: new SqliteContentTypeRepo({ store: db }),
+    entries: new SqliteEntryRepo({ store: db }),
+    entryRefs: new SqliteEntryRefsRepo({ store: db }),
     bindings: new SqliteWidgetRegionBindingRepo(db),
   };
   const widget = { entries: repos.entries, contentTypes: repos.contentTypes, entryRefs: repos.entryRefs, bindings: repos.bindings, forms: repos.forms };
@@ -146,7 +146,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
     areaEntryId: areaEntry.id, baseVersion: sourceArea!.version, placements,
   } });
   const changedEntities = await packAll(src.site);
-  const firstUpdate = await plan(changedEntities, dst.site, entities.map((e) => entityKey(e.entityType, e.id)));
+  const firstUpdate = await plan(changedEntities, dst.site, entities.map((e) => entityKey({ entityType: e.entityType, entityId: e.id })));
   await applyReport(firstUpdate, changedEntities, dst.site);
   const updated = { first: firstUpdate, second: await plan(changedEntities, dst.site) };
   assert.deepEqual(updated.first.rows.map((r) => [r.entityType, r.outcome]).sort(),

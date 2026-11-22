@@ -40,7 +40,7 @@ function noopIndexProvisioner() {
 test("create -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteContentTypeRepo(db);
+    const repo = new SqliteContentTypeRepo({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
 
     const registered = await registerContentType({
@@ -53,7 +53,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     // repo instance, and confirm the row survives — proving real filesystem persistence, not an
     // in-process cache.
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqliteContentTypeRepo(dbAfterRestart);
+    const repoAfterRestart = new SqliteContentTypeRepo({ store: dbAfterRestart });
     const found = await repoAfterRestart.findByKey({ workspaceId: "ws-1", key: "recipe" });
     assert.ok(found);
     assert.equal(found?.label, "Recipe");
@@ -67,7 +67,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
 test("workspace-scoping boundary: a content type registered in ws-1 is invisible to ws-2's lookups", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteContentTypeRepo(db);
+    const repo = new SqliteContentTypeRepo({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
@@ -88,7 +88,7 @@ test("workspace-scoping boundary: a content type registered in ws-1 is invisible
 test("revision/audit trail actually persists: register + field-change + deprecate each append a real content_type_revisions row", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteContentTypeRepo(db);
+    const repo = new SqliteContentTypeRepo({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
@@ -121,7 +121,7 @@ test("revision/audit trail actually persists: register + field-change + deprecat
     const updated = { ...registered, fields: [{ name: "title", kind: "text", required: true, queryable: false }], version: 2 };
     const deprecated = { ...updated, status: "deprecated", version: 3 };
     assert.deepEqual(rows.map((row) => JSON.parse(row.state_json)), [registered, updated, deprecated]);
-    assert.deepEqual(await new SqliteContentTypeRepo(dbAfterRestart).findByKey({ workspaceId: "ws-1", key: "recipe" }), deprecated);
+    assert.deepEqual(await new SqliteContentTypeRepo({ store: dbAfterRestart }).findByKey({ workspaceId: "ws-1", key: "recipe" }), deprecated);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -130,12 +130,12 @@ test("revision/audit trail actually persists: register + field-change + deprecat
 test("audit provenance persists: principal_kind distinguishes a human write from an assistant write on identical actor ids", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteContentTypeRepo(db);
+    const repo = new SqliteContentTypeRepo({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
     // Both writes are attributed to the SAME principal id — the assistant runs under the human's
-    // own principal (see `server/modules/assistant.ts`), so `actor_id` cannot tell them apart.
+    // own principal (see `server/runtime/composition/modules/assistant.ts`), so `actor_id` cannot tell them apart.
     await registerContentType({
       deps,
       input: { actorId: "principal-7", principalKind: "user", workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [] },

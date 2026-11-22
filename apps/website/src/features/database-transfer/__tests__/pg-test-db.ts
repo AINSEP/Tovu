@@ -19,7 +19,7 @@ export function connectionFor(database: string, password?: string): string {
 
 /** Runs one statement; rows joined by newlines, cells by tabs. Throws on any error. */
 export async function sql(database: string, statement: string): Promise<string> {
-  const result = await createPsqlPostgresTarget(connectionFor(database)).query(statement);
+  const result = await createPsqlPostgresTarget({ connectionString: connectionFor(database) }).query(statement);
   if (!result.ok) throw new Error(`${database}: ${result.error}`);
   return result.value.map((row) => row.join("\t")).join("\n");
 }

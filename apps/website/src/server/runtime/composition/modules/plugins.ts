@@ -13,7 +13,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file The `plugins` server module (SPEC-005, ADR-005-ARCH) — ADR-046 Phase 3 server-module
  * convention, mirroring `modules/widgets.ts` exactly.
  *
- * `PluginsRouteDeps` (`routes/admin/plugins/deps.ts`) is a structural subset of `RouteDeps` —
+ * `PluginsRouteDeps` (`apps/website/src/server/inbound/admin-http/routes/plugins/deps.ts`) is a structural subset of `RouteDeps` —
  * `pluginActivationRepo`/`discoverPlugins` were added directly to `RouteDeps` (mirroring how
  * `widgetBindingRepo`/`entryRefsRepo` were added for the `widgets` module), so no widened or
  * narrowed local type is needed here, same as `widgets.ts`'s own rationale.
@@ -31,17 +31,17 @@ import type { ServerModuleHandle } from "./types.js";
 export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
     name: "plugins",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerChartProviderRoutes({ app, deps });
-      registerPluginsListRoute(app, deps);
-      registerPluginSetEnabledRoute(app, deps);
-      registerPluginUninstallRoute(app, deps);
-      registerPluginFilesRoute(app, deps);
-      registerPluginProviderSettingsRoutes(app, deps);
-      registerPluginInstallRoutes(app, deps);
+      registerPluginsListRoute({ app, deps });
+      registerPluginSetEnabledRoute({ app, deps });
+      registerPluginUninstallRoute({ app, deps });
+      registerPluginFilesRoute({ app, deps });
+      registerPluginProviderSettingsRoutes({ app, deps });
+      registerPluginInstallRoutes({ app, deps });
       // After the install routes: `.../plugins/:pluginId/preview` also matches
       // `.../plugins/install/preview`, and Express runs the first registered match.
-      registerPluginPreviewRoute(app, deps);
+      registerPluginPreviewRoute({ app, deps });
     },
   };
 }

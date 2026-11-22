@@ -16,9 +16,9 @@ const post: PostRecord = {
 
 // F1.1/F4.3: replacing NFKD with NFC, or dropping separator normalization, changes these literals.
 test("Postgres indexing folds combining marks, compatibility characters and punctuation into searchable words", () => {
-  assert.equal(foldForIndex("  CAFÉ\u0301—crème/brûlée!  "), "CAFE creme brulee");
-  assert.equal(foldForIndex("Ｆｕｌｌ １２３ ﬃ 日本語"), "Full 123 ffi 日本語");
-  assert.equal(foldForIndex("!?\t\n"), "");
+  assert.equal(foldForIndex({ text: "  CAFÉ\u0301—crème/brûlée!  " }), "CAFE creme brulee");
+  assert.equal(foldForIndex({ text: "Ｆｕｌｌ １２３ ﬃ 日本語" }), "Full 123 ffi 日本語");
+  assert.equal(foldForIndex({ text: "!?\t\n" }), "");
 });
 
 for (const [query, bug] of [

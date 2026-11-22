@@ -56,7 +56,7 @@ test("Add Tovu Website adopts an existing site; it starts, opens authenticated, 
     const record = (await listSites(win)).find((s) => s.displayName === EXISTING);
     expect(record?.installDir).toBe(existingDir);
     expect(record?.deleteErasesFiles, "an adopted folder must never be erasable").toBe(false);
-    expect(fs.readFileSync(sitesFilePath(userDataDir), "utf8")).toContain(existingDir);
+    expect(fs.readFileSync(sitesFilePath({ userDataDir }), "utf8")).toContain(existingDir);
 
     await startSite(win, EXISTING);
     await openSiteTab(app, win, EXISTING);

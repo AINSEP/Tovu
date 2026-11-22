@@ -1,13 +1,18 @@
 /** Chart plan step 6: real A2UI validation/rendering use the same capability-resolved entry. */
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, waitFor } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
+import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it } from "vitest";
-import { createLabCatalog } from "@jini-ai/agentic/a2ui";
+import { createLabCatalog } from "@jini-ai/protocol/a2ui";
 import { DEFAULT_INTERACTIVE_UI_REGISTRY } from "@jini-ai/ui/interactive-ui";
 import { createChartProviderRegistry } from "@jini-ai/ui/charts";
 import { createChartInteractiveRegistry } from "@jini-ai/ui/charts/react";
 import { AdminChartRegistryContext } from "@/integrations/chart-providers/chart-registry-context";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@/lib/playground-render-target-bus";
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 afterEach(() => { cleanup(); resetPlaygroundRenderTargetBus(); });
 
@@ -23,7 +28,7 @@ function snapshot(id: string, generation: string) {
 }
 
 function card(component: string, surfaceId: string) {
-  return <RoutedA2uiSurfaceCard name="a2ui" runId="run-chart" runStreaming={false} runSucceeded={true} events={[{
+  return <RoutedA2uiSurfaceCard name="a2ui" clock={testClock} runId="run-chart" runStreaming={false} runSucceeded={true} events={[{
     version: "v1.0", createSurface: { surfaceId, catalogId: createLabCatalog({}).catalogId,
       components: [{ id: "root", component, data: [{ name: "Ada", value: 3 }], categoryKey: "name", valueKey: "value" }] },
   }]} />;
@@ -32,7 +37,7 @@ function card(component: string, surfaceId: string) {
 it.each([false, true])("renders all three wire aliases with boundary CSS (canvas=%s)", async (canvas) => {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  if (canvas) setPlaygroundRenderTarget(target);
+  if (canvas) setPlaygroundRenderTarget({ node: target });
   try {
     const current = snapshot("plugin.reviewed", "boot");
     for (const kind of ["bar", "line", "pie"]) {

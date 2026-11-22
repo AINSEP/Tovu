@@ -1,4 +1,6 @@
-import { describeApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "./api/media-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
+import type { MediaHtmlAttributeError } from "@jini-ai/admin/media";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";
@@ -107,267 +109,11 @@ const MEDIA_METADATA_PATCH_FIELDS: readonly (keyof MediaMetadataPatch)[] = [
  *  Not guarded against `NaN` here — the input's own `type="number"` keeps free-text out in
  *  practice, and a stray `NaN` would fail `updateMediaMetadata`'s positive-integer check server-side
  *  rather than silently save, matching this fix's "quick and dirty, not silently wrong" bar. */
-export function parseOptionalPixelSize(value: string): number | null {
+export function parseOptionalPixelSize({ value }: { value: string }, _optional: Record<string, never> = {}): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
-/**
- * WIRED TO `EditMediaPanel`'s "HTML attributes" field (2026-09-07). Originally built ahead of the
- * field it now backs (see the removed/re-added history in `ADS-memory/reports/
- * 2026-09-07-media-admin-ui.md` and `2026-09-07-media-slug-and-attributes.md`): `AdminMedia`/
- * `MediaRecord` gained `htmlAttributes: string | null` (same "one string column, `null` means not
- * set" shape as `cssClass`), the server now persists and re-validates it (write path:
- * `updateMediaMetadata`'s `resolveHtmlAttributesForUpdate`; render path: `render.ts`'s
- * `renderImageTag`/`renderVideoTag`, both re-parsing with `@jini-ai/cms/media`'s own copy of this
- * allowlist), and this file's `isAllowedMediaHtmlAttributeName`/`parseMediaHtmlAttributes`/
- * `describeMediaHtmlAttributeError` now back the admin form's live, as-you-type hint.
- *
- * That hint is a UX convenience, not the security boundary: the server re-validates independently
- * (its own ported copy of this same allowlist, `@jini-ai/cms/media`'s `html-attributes.ts` — see
- * that file's doc for why it is a separate copy, not a shared import across the browser/Node
- * boundary) and fails closed, so a client bypassed or out of date cannot smuggle a rejected value
- * onto the public render. This form-side copy exists purely so an operator sees WHY a value would be
- * rejected before ever clicking save, and it must never gate `save()` itself — see
- * `use-edit-media-panel.hooks.ts`'s `save()` doc for the incident (`a7cce060`) this rule prevents.
- *
- * Exact-match attribute names the allowlist accepts beyond the open-ended `data-`/`aria-` prefix
- * families (checked separately in {@link isAllowedMediaHtmlAttributeName}) — see
- * {@link parseMediaHtmlAttributes}'s own header for why this is an allowlist, not a blocklist.
- * Picked for the owner's stated near-term uses (animations, custom WebMCP hooks) plus the standard
- * `<img>`/`<video>` attributes those uses actually need; extend this list, not the parser, when a
- * new one is needed.
- *
- * Widened 2026-09-23 (widget-attrs plan §2) to match the shared server parser
- * (`apps/website/src/contracts/core/embeds/html-attributes.ts`'s `EMBED_HTML_ATTRIBUTE_ALLOWED_NAMES`,
- * this list's twin — see that file's own header for why it is a separate copy, not a shared import
- * across the browser/Node boundary) one-for-one: `class`/`id`/`style`/`title`/`role`/`tabindex`/
- * `lang`/`dir`/`hidden`/`translate`/`draggable` are global attributes any element can carry
- * (styling/animation/a11y an embed author needs), kept in the SAME flat list as the pre-existing
- * `<img>`/`<video>` extras rather than one list per element — the owner rejected per-element name
- * filtering (an extra `loading` on a `<div>` wrapper is harmless).
- */
-export const MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES = [
-  // Global attributes (2026-09-23).
-  "class",
-  "id",
-  "style",
-  "title",
-  "role",
-  "tabindex",
-  "lang",
-  "dir",
-  "hidden",
-  "translate",
-  "draggable",
-  // Pre-existing <img>/<video> extras, kept everywhere (one list, not one per element).
-  "loading",
-  "decoding",
-  "playsinline",
-  "muted",
-  "loop",
-  "autoplay",
-  "poster",
-] as const;
-
-/**
- * The shape EVERY accepted attribute name must have, checked before allowlist membership
- * (2026-09-07 stored-XSS fix; keep identical in `@jini-ai/cms/media`'s `html-attributes.ts` — see
- * that file's copy of this comment for the full incident).
- *
- * The `data-`/`aria-` families below are open-ended by design — no fixed suffix list — so the
- * prefix check alone accepted whatever characters {@link HTML_ATTRIBUTE_TOKEN}'s name class
- * (`[^\s="']+`, which excludes only whitespace, `=` and quotes) let through. `<`, `>` and `/` are
- * all legal in that class, and the server renderer templating a name into ` name="value"` escapes
- * only the VALUE — so a stored `data-x><svg/onload=alert(1)` closed the `<img>` and opened a live
- * `<svg onload>` on the public page. Constraining the NAME to the characters a real HTML attribute
- * name can contain is what makes "the value is escaped" sufficient.
- */
-const MEDIA_HTML_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
-
-/** Whether `name` is on the allowlist — a well-formed attribute name
- *  ({@link MEDIA_HTML_ATTRIBUTE_NAME_PATTERN}) that is either an exact match against
- *  {@link MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES} or carries a `data-`/`aria-` prefix (both open-ended
- *  families with no fixed suffix list). Case-insensitive: HTML attribute names are themselves
- *  case-insensitive, and an operator typing `DATA-FOO` should not slip past a lowercase-only check.
- *
- * @complexity O(n) in the name's length (one anchored regex test), then O(1) — one prefix check,
- * one fixed-length array lookup.
- */
-export function isAllowedMediaHtmlAttributeName(name: string): boolean {
-  const lower = name.toLowerCase();
-  if (!MEDIA_HTML_ATTRIBUTE_NAME_PATTERN.test(lower)) return false;
-  if (lower.startsWith("data-") || lower.startsWith("aria-")) return true;
-  return (MEDIA_HTML_ATTRIBUTE_ALLOWED_NAMES as readonly string[]).includes(lower);
-}
-
-/** Why one parsed attribute token was rejected — see {@link parseMediaHtmlAttributes}'s own doc for
- *  why `event-handler`/`unsafe-url` are checked, and reported, ahead of plain allowlist membership.
- *  `unsafe-url` replaces the old `javascript-url` name (2026-09-23: it now also covers
- *  `vbscript:`/`data:` schemes, not just `javascript:`) — the i18n message key for it is unchanged.
- *  `unsafe-style` is new: a `style` value carrying a known CSS injection/escape vector. */
-export type MediaHtmlAttributeRejectionReason = "disallowed-name" | "event-handler" | "unsafe-url" | "unsafe-style" | "malformed";
-
-export interface MediaHtmlAttributeError {
-  reason: MediaHtmlAttributeRejectionReason;
-  /** The exact attribute name (or, for `malformed`, the unparsable fragment) the caller's error
-   *  message must name — never a generic "invalid input" (owner requirement: a visible, specific
-   *  error naming the rejected attribute). */
-  attribute: string;
-}
-
-export interface ParsedMediaHtmlAttributes {
-  /** Lowercased attribute name -> value, for every token that WAS accepted. Never all-or-nothing
-   *  except on `malformed` (see {@link parseMediaHtmlAttributes}'s own header): a rejected token
-   *  (2026-09-23) is simply absent here while every other accepted token in the same string still
-   *  lands. A boolean attribute (`muted`, written with no `="..."`) maps to `""`. */
-  attributes: Record<string, string>;
-  /** Every rejection found, in the order encountered — zero or more (2026-09-23). Unlike
-   *  `attributes`, this is never reset to empty except that a `malformed` entry is always the last
-   *  one recorded (parsing stops there). */
-  errors: MediaHtmlAttributeError[];
-  /** The FIRST rejection in {@link errors}, or `null` when every token was accepted — kept as its
-   *  own field for the existing single-reason hint consumers (`MediaEditDialog.hooks.tsx`,
-   *  `use-edit-media-panel.hooks.ts`) that only ever show one reason at a time. */
-  error: MediaHtmlAttributeError | null;
-}
-
-/** Matches one `name`, or one `name="value"`/`name='value'`/`name=value` pair — the same loose
- *  shape real HTML attribute syntax allows, since that is the syntax an operator typing this field
- *  would naturally reach for. */
-const HTML_ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
-
-/** The highest ASCII code point {@link isUnsafeMediaUrlValue} strips: every C0 control character
- *  plus the ordinary space, i.e. code points `0`-`32` inclusive. Named rather than written as an
- *  inline regex control-character range so the linter never has to reason about a literal control
- *  character inside a pattern. Ported from the shared server parser, `html-attributes.ts`. */
-const ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT = 0x20;
-
-/**
- * Whether `value`'s scheme, once every ASCII whitespace/control character (code points `0`-`32`) is
- * stripped and the result lowercased, starts with `javascript:`, `vbscript:` or `data:` — the three
- * schemes a browser will still execute or navigate to even when the URL carries interior whitespace
- * a naive end-trim (the old `.trim()`-only check) would miss, e.g. `java\tscript:x`: browsers strip
- * tabs and newlines from inside a URL before parsing its scheme, so this check must too. Ported
- * 2026-09-23 from the shared server parser's `isUnsafeUrlValue` (`html-attributes.ts`).
- *
- * @complexity O(n) in the value's length (one filter pass, one prefix test).
- */
-function isUnsafeMediaUrlValue(value: string): boolean {
-  let stripped = "";
-  for (const char of value) {
-    // `charCodeAt`, not `codePointAt(0) ?? 0`: a `for…of` item is never empty, so the `?? 0` fallback
-    // could never run, and for an astral character the high surrogate (>= 0xD800) is already far
-    // above the ASCII cutoff, so the comparison answers the same as with the full code point.
-    if (char.charCodeAt(0) > ASCII_WHITESPACE_OR_CONTROL_MAX_CODE_POINT) stripped += char;
-  }
-  stripped = stripped.toLowerCase();
-  return stripped.startsWith("javascript:") || stripped.startsWith("vbscript:") || stripped.startsWith("data:");
-}
-
-/**
- * Whether a `style` value carries a known CSS injection or CSS-escape-bypass vector:
- * `expression(...)` (legacy IE script-in-CSS), a `javascript:`/`vbscript:` value inside a CSS
- * `url(...)`, `-moz-binding`/`behavior:` (XBL/HTC script bindings), `@import` (pulls in a second,
- * unvetted stylesheet), or ANY backslash — a CSS escape sequence (`\65` is `e`) can respell any of
- * the above past a plain substring check, so a backslash anywhere in the value is rejected outright.
- * Plain `url(...)` values (background images) are otherwise allowed. Ported 2026-09-23 from the
- * shared server parser's `isUnsafeStyleValue` (`html-attributes.ts`).
- *
- * @complexity O(n) in the value's length (one regex test).
- */
-const UNSAFE_MEDIA_STYLE_PATTERN = /expression\(|javascript:|vbscript:|-moz-binding|behavior:|@import|\\/i;
-function isUnsafeMediaStyleValue(value: string): boolean {
-  return UNSAFE_MEDIA_STYLE_PATTERN.test(value);
-}
-
-/** Classifies one already-tokenized `name`/`value` pair. Split out of {@link parseMediaHtmlAttributes}
- *  so each rejection reason is its own directly testable branch, and so the loop below reads as
- *  "tokenize, then classify" rather than one function doing both.
- *
- * Order matters (ported 2026-09-23 from the shared server parser's `classifyEmbedHtmlAttributeToken`):
- * `on*` is checked FIRST (so an `onerror` always reports as `event-handler`, the more actionable
- * reason, never the generic `disallowed-name`), then the URL-scheme check runs against EVERY value
- * regardless of name (matching the pre-existing `javascript:` check this is ported from), then
- * allowlist membership, then — only for an already-allowed `style` — the CSS-specific unsafe-value
- * check.
- *
- * @complexity O(1) — four fixed checks against one already-extracted token; each check's own O(n) in
- * the token's length is linear, not nested.
- */
-function classifyMediaHtmlAttributeToken(name: string, value: string): MediaHtmlAttributeError | null {
-  if (name.startsWith("on")) return { reason: "event-handler", attribute: name };
-  if (isUnsafeMediaUrlValue(value)) return { reason: "unsafe-url", attribute: name };
-  if (!isAllowedMediaHtmlAttributeName(name)) return { reason: "disallowed-name", attribute: name };
-  if (name === "style" && isUnsafeMediaStyleValue(value)) return { reason: "unsafe-style", attribute: name };
-  return null;
-}
-
-/**
- * Parses the `HTML attributes` field's free text (`name="value" name2="value2"`, or a bare
- * boolean `name`) into a validated attribute map, per-token (ported 2026-09-23 from the shared
- * server parser, `html-attributes.ts`'s `parseEmbedHtmlAttributes`): an accepted token lands in
- * `attributes`, a rejected one lands in `errors` and is simply omitted — this string never fails
- * closed as a whole EXCEPT when the tokenizer itself loses sync (a stray quote or other unparseable
- * fragment), in which case `attributes` is `{}` and the sole entry in `errors` has
- * `reason: "malformed"` (token boundaries downstream of a sync loss cannot be trusted — value text
- * could re-parse as a name — so that one case still discards everything).
- *
- * This is a SECURITY boundary, not a syntax convenience: media metadata is authored in this admin
- * but rendered on the public site, so a free-text HTML-attribute passthrough is a stored-XSS vector
- * (`onerror`, `onclick`, `href="javascript:"`, any `on*` handler, an unsafe `style` value) the
- * moment it reaches a public page. The allowlist in {@link isAllowedMediaHtmlAttributeName} is
- * therefore the ONLY path to acceptance — nothing here tries to sanitize or escape an otherwise-
- * disallowed name or value into something safe; it is rejected outright, and the caller must show
- * the reason (not silently drop it) so an operator can tell a typo from a hard "no". NOTE: this
- * validator runs in the admin only — see this repo's media-admin-ui report for where the write and
- * render paths that would actually persist and emit this attribute still need the SAME allowlist
- * enforced server-side (a client-only check is not a control, since the API accepts whatever a
- * caller sends).
- *
- * @complexity Time O(n) in `text`'s length (one regex pass over it), space O(k) for k accepted
- *   attributes plus O(e) for e rejected tokens.
- */
-export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttributes {
-  const trimmed = text.trim();
-  if (trimmed === "") return { attributes: {}, errors: [], error: null };
-
-  const attributes: Record<string, string> = {};
-  const errors: MediaHtmlAttributeError[] = [];
-  HTML_ATTRIBUTE_TOKEN.lastIndex = 0;
-  let consumed = 0;
-  // A `for` loop (rather than `while ((match = …exec(trimmed)) !== null)`) keeps every assignment
-  // to `match` in statement position, never inside the loop's own test expression.
-  for (let match = HTML_ATTRIBUTE_TOKEN.exec(trimmed); match !== null; match = HTML_ATTRIBUTE_TOKEN.exec(trimmed)) {
-    // Non-whitespace text between the previous match and this one is a fragment the token pattern
-    // could not parse as a name (e.g. a stray quote) — the tokenizer has lost sync, so everything
-    // parsed so far is discarded rather than trusted.
-    const skipped = trimmed.slice(consumed, match.index);
-    if (skipped.trim() !== "") {
-      const malformed: MediaHtmlAttributeError = { reason: "malformed", attribute: skipped.trim() };
-      errors.push(malformed);
-      return { attributes: {}, errors, error: malformed };
-    }
-    consumed = match.index + match[0].length;
-
-    const name = match[1]!.toLowerCase();
-    const value = mediaAttributeTokenValue(match);
-    const rejection = classifyMediaHtmlAttributeToken(name, value);
-    if (rejection) {
-      errors.push(rejection);
-      continue;
-    }
-    attributes[name] = value;
-  }
-
-  const trailing = trimmed.slice(consumed);
-  if (trailing.trim() !== "") {
-    const malformed: MediaHtmlAttributeError = { reason: "malformed", attribute: trailing.trim() };
-    errors.push(malformed);
-    return { attributes: {}, errors, error: malformed };
-  }
-  return { attributes, errors, error: errors[0] ?? null };
-}
-
+// The HTML-attribute allowlist and parser belong to the content domain (`@jini-ai/cms/widgets/markers`); `integrations/jini-admin/embed-policy-ports.ts` binds them to `@jini-ai/admin/media`'s `parseMediaHtmlAttributes`, and Tovu keeps only the translated message.
 /** Formats a {@link MediaHtmlAttributeError} into the specific, visible message the edit form
  *  shows — always names the rejected attribute or fragment (owner requirement). Same
  *  `media-i18n.ts`'s `t` (COMMON_I18N-falling-back) + `.replace("{placeholder}", ...)` idiom
@@ -375,24 +121,24 @@ export function parseMediaHtmlAttributes(text: string): ParsedMediaHtmlAttribute
  *
  * @complexity O(1).
  */
-export function describeMediaHtmlAttributeError(error: MediaHtmlAttributeError, locale: string): string {
+export function describeMediaHtmlAttributeError({ error, locale }: { error: MediaHtmlAttributeError; locale: string }, _optional: Record<string, never> = {}): string {
   const t = (key: string): string => translate({ locale: locale, key: key });
   const ATTRIBUTE_PLACEHOLDER = "{attribute}";
   if (error.reason === "event-handler") {
-    return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("Event handler attributes like '{attribute}' are not allowed.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "unsafe-url") {
     // Message text unchanged across the 2026-09-23 `javascript-url` -> `unsafe-url` rename (plan
     // §2) — every locale already carries this key.
-    return t("'{attribute}' cannot use a javascript: value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("'{attribute}' cannot use a javascript: value.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "unsafe-style") {
-    return t("'{attribute}' cannot use an unsafe style value.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+    return t("'{attribute}' cannot use an unsafe style value.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
   }
   if (error.reason === "malformed") {
-    return t("Could not parse HTML attributes near '{fragment}'.").replace("{fragment}", error.attribute);
+    return t("Could not parse HTML attributes near '{fragment}'.").replace("{fragment}", () => error.attribute);
   }
-  return t("'{attribute}' is not an allowed HTML attribute.").replace(ATTRIBUTE_PLACEHOLDER, error.attribute);
+  return t("'{attribute}' is not an allowed HTML attribute.").replace(ATTRIBUTE_PLACEHOLDER, () => error.attribute);
 }
 
 /** The slice of the browser's `FileReader` {@link readFileAsBase64} drives, so tests can hand it a
@@ -408,7 +154,7 @@ export interface Base64FileReader {
 /** Reads a browser `File` into a base64 string (no data: URL prefix).
  *  @param optional.createReader - Builds the reader; defaults to the browser's `FileReader`. */
 export function readFileAsBase64(
-  file: File,
+  { file }: { file: File },
   optional: { createReader?: () => Base64FileReader } = {},
 ): Promise<string> {
   const createReader = optional.createReader ?? (() => new FileReader());
@@ -444,7 +190,7 @@ export function readFileAsBase64(
  *
  * @complexity Time O(n), space O(n).
  */
-export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): AdminMedia[] {
+export function filterMediaByTab({ media, tab }: { media: AdminMedia[]; tab: MediaContentTabId }, _optional: Record<string, never> = {}): AdminMedia[] {
   // Trash is its own tab (owner, 2026-10-23): the list route returns every status, so trashed rows
   // are split off here and appear on no other tab.
   if (tab === "trash") return media.filter((item) => item.status === "trashed");
@@ -469,13 +215,13 @@ export function filterMediaByTab(media: AdminMedia[], tab: MediaContentTabId): A
  * single loop, since this runs once per render on an already-small, unpaginated array and four
  * readable filter calls are clearer than one hand-merged one.
  */
-export function mediaContentTabCounts(media: AdminMedia[] | null): Partial<Record<MediaContentTabId, number>> {
+export function mediaContentTabCounts({ media }: { media: AdminMedia[] | null }, _optional: Record<string, never> = {}): Partial<Record<MediaContentTabId, number>> {
   if (!media) return {};
   return {
-    all: filterMediaByTab(media, "all").length,
-    images: filterMediaByTab(media, "images").length,
-    videos: filterMediaByTab(media, "videos").length,
-    trash: filterMediaByTab(media, "trash").length,
+    all: filterMediaByTab({ media, tab: "all" }).length,
+    images: filterMediaByTab({ media, tab: "images" }).length,
+    videos: filterMediaByTab({ media, tab: "videos" }).length,
+    trash: filterMediaByTab({ media, tab: "trash" }).length,
   };
 }
 
@@ -542,7 +288,7 @@ function compareAscending(a: string, b: string): number {
  * never mutates the caller's array, since `Media.tsx` still needs `media` itself unsorted for
  * `hasUntypedMedia`.
  */
-export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): AdminMedia[] {
+export function sortMediaByOrder({ media, orderBy }: { media: AdminMedia[]; orderBy: MediaOrderBy }, _optional: Record<string, never> = {}): AdminMedia[] {
   const sorted = [...media];
   if (orderBy === "alphabetical") {
     sorted.sort((a, b) => {
@@ -571,19 +317,19 @@ export function sortMediaByOrder(media: AdminMedia[], orderBy: MediaOrderBy): Ad
  *
  * @complexity Time O(n), space O(1).
  */
-export function hasUntypedMedia(media: AdminMedia[]): boolean {
+export function hasUntypedMedia({ media }: { media: AdminMedia[] }, _optional: Record<string, never> = {}): boolean {
   return media.some((item) => item.contentType === null);
 }
 
 /** Whether the active tab shows {@link hasUntypedMedia}'s note: only the type tabs drop untyped
  *  rows, and a trashed untyped row is on the Trash tab, not missing from All. */
-export function showsUntypedMediaNote(media: AdminMedia[], tab: MediaContentTabId): boolean {
-  return (tab === "images" || tab === "videos") && hasUntypedMedia(filterMediaByTab(media, "all"));
+export function showsUntypedMediaNote({ media, tab }: { media: AdminMedia[]; tab: MediaContentTabId }, _optional: Record<string, never> = {}): boolean {
+  return (tab === "images" || tab === "videos") && hasUntypedMedia({ media: filterMediaByTab({ media, tab: "all" }) });
 }
 
 /** Alt text fallback chain for a previewed media asset: prefers the operator-set alt, falls back
  *  to the title, and finally a generic label when neither is set. */
-export function mediaAltText(item: AdminMedia, untitledAsset: string): string {
+export function mediaAltText({ item, untitledAsset }: { item: AdminMedia; untitledAsset: string }, _optional: Record<string, never> = {}): string {
   return item.alt || item.title || untitledAsset;
 }
 
@@ -604,7 +350,7 @@ const NAMED_RATIOS: readonly [number, number][] = [[1, 1], [4, 3], [3, 4], [3, 2
 export const LONG_MEDIA_HEIGHT_RATIO = 3;
 
 /** The card badges for a loaded asset: "9:16 · 1080×1920", a m:ss duration, and whether it is long. */
-export function mediaShapeBadges(shape: MediaShape): { size: string; duration: string | null; isLong: boolean } {
+export function mediaShapeBadges(shape: MediaShape, _optional: Record<string, never> = {}): { size: string; duration: string | null; isLong: boolean } {
   const pixels = `${shape.width}×${shape.height}`;
   const ratio = shape.width / shape.height;
   const named = NAMED_RATIOS.find(([w, h]) => Math.abs(w / h - ratio) / ratio < 0.02);
@@ -618,7 +364,7 @@ export function mediaShapeBadges(shape: MediaShape): { size: string; duration: s
 
 /** The upload button's text for the tab being viewed (owner, 2026-11-01), and the file kinds its
  *  picker accepts — kept in step so the label is always true to what the picker lets through. */
-export function mediaUploadLabel(tab: MediaContentTabId): string {
+export function mediaUploadLabel({ tab }: { tab: MediaContentTabId }, _optional: Record<string, never> = {}): string {
   if (tab === "images") return "Upload image";
   return tab === "videos" ? "Upload video" : "Upload image or video";
 }
@@ -627,7 +373,7 @@ const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif,image
 const VIDEO_ACCEPT = "video/mp4,video/webm";
 
 /** The picker's `accept` for a tab. Advisory only: the server still enforces its allowlist. */
-export function mediaUploadAccept(tab: MediaContentTabId): string {
+export function mediaUploadAccept({ tab }: { tab: MediaContentTabId }, _optional: Record<string, never> = {}): string {
   if (tab === "images") return IMAGE_ACCEPT;
   return tab === "videos" ? VIDEO_ACCEPT : `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
 }
@@ -644,7 +390,7 @@ export type MediaGridSize = (typeof MEDIA_GRID_SIZES)[number]["id"];
 export const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
 /** A stored value back to a size id; anything unknown is the default, Medium (2/3 of today's width; owner, 2026-11-01). */
-export function parseMediaGridSize(value: string | null): MediaGridSize {
+export function parseMediaGridSize({ value }: { value: string | null }, _optional: Record<string, never> = {}): MediaGridSize {
   return MEDIA_GRID_SIZES.some((size) => size.id === value) ? (value as MediaGridSize) : "medium";
 }
 
@@ -656,14 +402,14 @@ const FILL_RATIO_MIN = 1.25;
 const FILL_RATIO_MAX = 2;
 
 /** Whether a loaded asset's shape suits edge-to-edge fill of the card preview. */
-export function mediaFillsPreview(shape: MediaShape): boolean {
+export function mediaFillsPreview(shape: MediaShape, _optional: Record<string, never> = {}): boolean {
   const ratio = shape.width / shape.height;
   return ratio >= FILL_RATIO_MIN && ratio <= FILL_RATIO_MAX;
 }
 
 /** Resolves `media.find((m) => m.id === editingId)`, or `null` — the item whose `EditMediaPanel`
  *  is expanded, resolved once here rather than in the view. */
-export function findEditingItem(media: AdminMedia[] | null, editingId: string | null): AdminMedia | null {
+export function findEditingItem({ media, editingId }: { media: AdminMedia[] | null; editingId: string | null }, _optional: Record<string, never> = {}): AdminMedia | null {
   if (!media) return null;
   return media.find((m) => m.id === editingId) ?? null;
 }
@@ -698,11 +444,11 @@ export function visibleMediaError(params: {
   listFallback: string;
   hasMedia: boolean;
 }): string | null {
-  if (params.trashError) return describeApiError(params.trashError, params.deleteFallback);
-  if (params.purgeError) return describeApiError(params.purgeError, params.deleteFallback);
-  if (params.restoreError) return describeApiError(params.restoreError, params.restoreFallback);
+  if (params.trashError) return describeApiError({ e: params.trashError, fallback: params.deleteFallback });
+  if (params.purgeError) return describeApiError({ e: params.purgeError, fallback: params.deleteFallback });
+  if (params.restoreError) return describeApiError({ e: params.restoreError, fallback: params.restoreFallback });
   if (params.hasMedia) return null;
-  return params.listError ? describeApiError(params.listError, params.listFallback) : null;
+  return params.listError ? describeApiError({ e: params.listError, fallback: params.listFallback }) : null;
 }
 
 /** The callbacks a media row menu needs. Passed in rather than imported so this module stays free
@@ -725,10 +471,8 @@ export interface MediaRowMenuHandlers {
  * @complexity Time/space: O(1) — at most two entries, no iteration.
  */
 export function mediaRowMenuItems(
-  item: AdminMedia,
-  editingId: string | null,
-  handlers: MediaRowMenuHandlers,
-  locale: string,
+  { item, editingId, handlers, locale }: { item: AdminMedia; editingId: string | null; handlers: MediaRowMenuHandlers; locale: string },
+  _optional: Record<string, never> = {},
 ): RowMenuItem[] {
   const t = (key: string): string => translate({ locale: locale, key: key });
   const items: RowMenuItem[] = [
@@ -748,11 +492,6 @@ export function mediaRowMenuItems(
 
 /** Resolves the lightbox's currently-open item from an index into `items`, or `null` when
  *  `activeIndex` is `null` (closed). */
-export function resolveLightboxItem(items: AdminMedia[], activeIndex: number | null): AdminMedia | null {
+export function resolveLightboxItem({ items, activeIndex }: { items: AdminMedia[]; activeIndex: number | null }, _optional: Record<string, never> = {}): AdminMedia | null {
   return activeIndex !== null ? items[activeIndex] ?? null : null;
-}
-
-/** The tokenizer captures double-quoted, single-quoted and unquoted values separately. */
-function mediaAttributeTokenValue(match: RegExpExecArray): string {
-  return match[2] ?? match[3] ?? match[4] ?? "";
 }

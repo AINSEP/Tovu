@@ -12,12 +12,16 @@ import { createSeoPostPort } from "#src/features/seo/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { loadTheme } from "#src/features/theme/index";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveMarketingPageOrOverride } from "../pages.js";
+import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
-import type { PageHeadHook } from "../../../http/site/page-head.js";
+import type { PageHeadHook } from "@jini-ai/cms/seo";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
+import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
 
 /**
  * @file Regression coverage for the "brand-new workspace, no seeded content" 500 on the public
@@ -65,7 +69,7 @@ test("GET /welcome: a missing presentation-settings row — not the empty post l
 
   // Baseline arm: presentation settings ARE seeded; no posts. Known-good today.
   const baseline = await startServer({
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(baseline.server));
   const baselineRes = await fetch(`${baseline.baseUrl}/welcome`);
@@ -79,7 +83,7 @@ test("GET /welcome: a missing presentation-settings row — not the empty post l
   // condition — keeping the empty post list identical to the baseline.
   const treatment = await startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(treatment.server));
   const treatmentRes = await fetch(`${treatment.baseUrl}/welcome`);
@@ -93,7 +97,7 @@ test("GET /welcome: a missing presentation-settings row — not the empty post l
 test("GET /: a brand-new workspace with no presentation-settings row renders the empty-state home page instead of 500ing", async (t) => {
   const { server, baseUrl } = await startServer({
     presentationRepo: new InMemoryPresentationSettingsRepo({}, { initialRows: [] }),
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -135,7 +139,7 @@ function extractSlugHandler(app: ReturnType<typeof createApp>): (req: unknown, r
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
   const layer = stack.find((l) => l.route?.path === "/:slug");
   if (!layer?.route) throw new Error(`route '/:slug' was not found in the router stack`);
-  return layer.route.stack[0].handle;
+  return unwrapRouteHandle(layer.route.stack[0].handle);
 }
 
 test("GET /:slug -- `req.params.slug ?? \"\"` fallback, forced via a direct handler call with slug omitted -- falls through to next(), not a crash", async () => {
@@ -202,7 +206,7 @@ test("GET /index: a static theme's own index page is never treated as a marketin
   const theme = staticThemeWithThemed404();
   const { server, baseUrl } = await startServer({
     themes: [theme],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -246,7 +250,7 @@ function staticThemeWithThemed404(): DiscoveredTheme {
 test("GET /:slug: a static theme's own pages/404.html renders instead of the bare fallback 404", async (t) => {
   const { server, baseUrl } = await startServer({
     themes: [staticThemeWithThemed404()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -285,7 +289,7 @@ test("GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> 
   } as unknown as PostRecord;
 
   const { server, baseUrl } = await startServer({
-    postRepo: new UnresolvableCanonicalPostRepo([post]),
+    postRepo: new UnresolvableCanonicalPostRepo({}, { initialRows: [post] }),
     pageHeadContributors: [canonicalContextProbe()],
   });
   t.after(() => closeServer(server));
@@ -320,7 +324,7 @@ test("GET /:slug (post route): canonical and og:url are absolute, using the serv
   } as unknown as PostRecord;
 
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([post]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
   });
   t.after(() => closeServer(server));
 
@@ -339,7 +343,7 @@ test("GET /:slug (post route): canonical and og:url are absolute, using the serv
 
 test("GET /: the root page's canonical is absolute with exactly one trailing slash, never '<origin>//' (2026-09-03 fix)", async (t) => {
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -366,7 +370,7 @@ class NoOriginRegistry implements OriginRegistryPort {
 
 test("GET /: with no verified origin registered, the page renders and canonical still uses the serving origin", async (t) => {
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
     originRegistry: new NoOriginRegistry(),
   });
   t.after(() => closeServer(server));
@@ -392,7 +396,7 @@ class ThrowsPostNotFoundOnListPostRepo extends InMemoryPostRepo {
 
 test("GET /:slug: a PostNotFoundError thrown before theme resolution completes still 404s through the bare fallback (theme is null in the catch block)", async (t) => {
   const { server, baseUrl } = await startServer({
-    postRepo: new ThrowsPostNotFoundOnListPostRepo([]),
+    postRepo: new ThrowsPostNotFoundOnListPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -442,7 +446,7 @@ function staticThemeWithEmptyPage(): DiscoveredTheme {
 test("GET /empty-page: a static theme page whose own file is a literal empty string falls through to the ordinary post lookup (and 404s), rather than rendering as an empty 200", async (t) => {
   const { server, baseUrl } = await startServer({
     themes: [staticThemeWithEmptyPage()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -467,7 +471,7 @@ class ThrowsUnexpectedErrorOnListPostRepo extends InMemoryPostRepo {
 
 test("GET / 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
   const { server, baseUrl } = await startServer({
-    postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]),
+    postRepo: new ThrowsUnexpectedErrorOnListPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -524,7 +528,7 @@ function staticThemeWithTemplateShells(): DiscoveredTheme {
 test("GET /:slug: a theme.manifest.templates shell is NOT its own reachable page", async (t) => {
   const { server, baseUrl } = await startServer({
     themes: [staticThemeWithTemplateShells()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -552,7 +556,7 @@ test("GET /:slug: a theme.manifest.templates shell is NOT its own reachable page
 test("GET /404: a theme's own error page is not served as a 200 at its own slug", async (t) => {
   const { server, baseUrl } = await startServer({
     themes: [staticThemeWithTemplateShells()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -612,7 +616,7 @@ function staticThemeWithUnpublishedSignup(): DiscoveredTheme {
 test("GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA target must be reachable, matching its already-published signin sibling", async (t) => {
   const { server, baseUrl } = await startServer({
     themes: [staticThemeWithUnpublishedSignup()],
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -638,7 +642,7 @@ test("the shipped tovu-theme nav CTA reaches its real page after publication and
   assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
   assert.deepEqual(theme.manifest.publishedPages, [], "shipped generic pages require an operator's publication decision");
   assert.ok(theme.pages.download, "the shipped CTA must have a real authored destination");
-  const unpublished = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo([]) });
+  const unpublished = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(unpublished.server));
   const home = await fetch(unpublished.baseUrl);
   assert.equal(home.status, 200);
@@ -652,7 +656,7 @@ test("the shipped tovu-theme nav CTA reaches its real page after publication and
   assert.equal((await fetch(target)).status, 404, "generic download is off until explicitly published");
 
   const publishedTheme: DiscoveredTheme = { ...theme, manifest: { ...theme.manifest, publishedPages: ["download"] } };
-  const published = await startServer({ themes: [publishedTheme], postRepo: new InMemoryPostRepo([]) });
+  const published = await startServer({ themes: [publishedTheme], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(published.server));
   const response = await fetch(new URL(target.pathname, published.baseUrl));
   assert.equal(response.status, 200, "publishing the shipped CTA destination must make that same URL reachable");
@@ -687,7 +691,7 @@ test("GET /: a published Page claiming slug '/' with an explicit template render
   const base = createRouteDeps();
   const page = rootHomePage(base.workspaceId, { templateChoice: "page-shell.html" } as Partial<PostRecord>);
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([page]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [page] }),
   });
   t.after(() => closeServer(server));
 
@@ -703,7 +707,7 @@ test("GET /: a published Page claiming slug '/' with an explicit template render
 
 test("GET /: no page claims slug '/' -- falls back to the active theme's own index.html unchanged", async (t) => {
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
   });
   t.after(() => closeServer(server));
 
@@ -721,7 +725,7 @@ test("GET /: a Page claiming '/' with no explicit template still renders its own
   const base = createRouteDeps();
   const page = rootHomePage(base.workspaceId);
   const { server, baseUrl } = await startServer({
-    postRepo: new InMemoryPostRepo([page]),
+    postRepo: new InMemoryPostRepo({}, { initialRows: [page] }),
   });
   t.after(() => closeServer(server));
 
@@ -753,7 +757,7 @@ test("GET /: a Page claiming '/' with no explicit template still renders its own
 /** A `PostRepoPort` whose `list` fails — a content-database read failure reaching a site route's
  *  outer catch from inside the request, which is the fault arm's real-world shape. */
 function postRepoFailingList(error: Error): InMemoryPostRepo {
-  const repo = new InMemoryPostRepo([]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [] });
   repo.list = () => Promise.reject(error);
   return repo;
 }
@@ -810,7 +814,7 @@ test("GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT 
   // The negative half of the pair above. Without it, "report everything the catch sees" would pass
   // both fault tests while burying every real fault under one log line per 404 a crawler produces.
   const consoleError = t.mock.method(console, "error", () => undefined);
-  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo([]) });
+  const { server, baseUrl } = await startServer({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   t.after(() => closeServer(server));
 
   const res = await fetch(`${baseUrl}/no-such-page-here`);
@@ -822,15 +826,15 @@ test("GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT 
 
 
 test("a published empty theme page falls through before head or assistant injection", async () => {
-  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo([]) };
-  assert.deepEqual(await resolveMarketingPageOrOverride(
-    deps, staticThemeWithEmptyPage(), "empty-page", undefined, true,
-  ), { kind: "fallthrough" });
+  const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }) };
+  assert.deepEqual(await resolveMarketingPageOrOverride({
+    deps, theme: staticThemeWithEmptyPage(), slug: "empty-page", staticMenus: undefined, siteAssistantEnabled: true,
+  }), { kind: "fallthrough" });
 });
 
 
 test("GET /:slug: a failure during the not-found recovery completes an opaque 500", async (t) => {
-  const app = createApp({ ...createRouteDeps(), themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo([]) });
+  const app = createApp({ ...createRouteDeps(), themes: [staticThemeWithThemed404()], postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   const fault = new Error("redirect lookup failed during not-found recovery");
   const dispose = registerResolvePhase({ phase: "post_content", resolver: async () => { throw fault; } });
   t.after(dispose);
@@ -856,7 +860,7 @@ test("GET /:slug: a failure during the not-found recovery completes an opaque 50
 test("GET /:slug: the canonical fallback still identifies the post when its entryRef misses", async () => {
   const deps = createRouteDeps();
   const post = rootHomePage(deps.workspaceId, { slug: "broken-canonical", templateChoice: "page-shell.html" });
-  const app = createApp({ ...deps, postRepo: new UnresolvableCanonicalPostRepo([post]), pageHeadContributors: [canonicalContextProbe()] });
+  const app = createApp({ ...deps, postRepo: new UnresolvableCanonicalPostRepo({}, { initialRows: [post] }), pageHeadContributors: [canonicalContextProbe()] });
   let status = 200;
   let body = "";
   const res = {

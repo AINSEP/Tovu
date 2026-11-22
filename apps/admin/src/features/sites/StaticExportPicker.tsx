@@ -1,9 +1,10 @@
 import { useId, useState } from "react";
 import { PopoverMenu } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+
 import type { SiteExportController } from "./hooks/use-site-transfer.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Download-specific split action; the browser popover owns outside/Escape dismissal and focus.
  * Checkbox changes keep the panel open. Selection and requests belong to the controller.
  */
@@ -32,7 +33,6 @@ export function StaticExportPicker({ controller, t }: { controller: SiteExportCo
     </div>
   );
 }
-
 
 /** Loading/error copy shares the picker panel; unavailable rosters cannot offer selections. */
 function StaticExportChoices({ controller, t }: { controller: SiteExportController; t: Translate }) {

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { ChangeSetItemRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { copyBodyJsonWithFreshEmbedPlacements } from "../duplicate-embeds.js";
+import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { toRecord, toRow, updatableColumns } from "../repo.rows.js";
 import { createPostReverters } from "../reverters.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
@@ -23,7 +23,7 @@ test("L156 duplicate clones all leaves and malformed embeds, minting only string
     { type: "widgetEmbed", attrs: { placementId: "last", widgetEntryId: "shared" } },
   ] };
   let minted = 0;
-  const copy = copyBodyJsonWithFreshEmbedPlacements(doc, () => `new-${++minted}`);
+  const copy = copyBodyJsonWithFreshEmbedPlacements({ bodyJson: doc, newPlacementId: () => `new-${++minted}` });
   const expected = structuredClone(doc);
   const content = expected.content as JsonObject[];
   const parent = content[10]!.attrs as JsonObject;
@@ -71,7 +71,7 @@ test("L156 row mappings preserve null defaults, body exclusivity, tri-state and 
 test("L156 update inverse preserves legacy fields, restores explicit values, and replaces ext verbatim", async () => {
   const current = buildPostRecord({ author: "Current", showAuthor: true, templateChoice: "current",
     publishAt: "later", featuredMediaId: "current-media", ext: { current: true }, status: "draft" });
-  const repo = new InMemoryPostRepo([current]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [current] });
   const outbox = new InMemoryOutbox();
   const reverter = createPostReverters({ postRepo: repo, clock, outbox, forgetRemoved: async () => {} }).update;
   const item: ChangeSetItemRecord = { id: "item", changeSetId: "change", position: 0,
@@ -112,7 +112,7 @@ test("L156 update inverse preserves legacy fields, restores explicit values, and
 test("L156 publish import uses source provenance only on create and keeps destination ext on update", async (t) => {
   const existing = buildPostRecord({ createdAt: "local-created", createdByPrincipalId: "local-author",
     ext: { local: { flag: true } }, author: "Old", showAuthor: true, publishAt: "later", featuredMediaId: "old-media" });
-  const repo = new InMemoryPostRepo([existing]);
+  const repo = new InMemoryPostRepo({}, { initialRows: [existing] });
   const savedProvenance: unknown[] = [];
   const save = repo.save.bind(repo);
   t.mock.method(repo, "save", async (record: Parameters<typeof repo.save>[0]) => {
@@ -128,7 +128,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
     ports: { post: { repo, forgetRemoved: async () => {} } },
   });
   const source = toPublishableState(buildPostRecord({ createdAt: "source-created", createdByPrincipalId: "source-author" }));
-  const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash("post", source), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };
+  const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash({ entityType: "post", state: source }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };
   await handler.apply({ entity, expectedVersion: 1, principalId: "operator", idempotencyKey: "update" });
   const updated = (await repo.findById({ workspaceId: existing.workspaceId, id: existing.id }))!;
   assert.deepEqual([updated.createdAt, updated.createdByPrincipalId, updated.ext, updated.author, updated.showAuthor],
@@ -152,7 +152,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
 
 test("L156 duplicate treats an own __proto__ field as the clone prototype (reported, not fixed)", () => {
   const source = JSON.parse('{"type":"doc","__proto__":{"injected":true}}') as JsonObject;
-  const copy = copyBodyJsonWithFreshEmbedPlacements(source, () => "unused");
+  const copy = copyBodyJsonWithFreshEmbedPlacements({ bodyJson: source, newPlacementId: () => "unused" });
   assert.equal(Object.hasOwn(source, "__proto__"), true);
   assert.equal(Object.hasOwn(copy, "__proto__"), false);
   assert.deepEqual(Object.getPrototypeOf(copy), { injected: true });

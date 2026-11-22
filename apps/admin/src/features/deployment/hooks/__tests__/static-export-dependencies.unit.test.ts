@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExportRunSnapshot } from "@/lib/api";
+import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
 
 /**
  * @file Coverage for `static-export-dependencies.hooks.ts`. `defaultStaticExportPort
@@ -17,12 +17,9 @@ const { triggerSiteExport, getSiteExportStatus } = vi.hoisted(() => ({
   getSiteExportStatus: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, triggerSiteExport, getSiteExportStatus },
-  };
+vi.mock("../../../import-export/api/import-export-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../import-export/api/import-export-api")>();
+  return { ...actual, importExportApi: { ...actual.importExportApi, triggerSiteExport, getSiteExportStatus } };
 });
 
 const { createFakeStaticExportPort, defaultStaticExportPort } = await import("../static-export-dependencies.hooks");
@@ -33,13 +30,13 @@ const RUNNING_RUN: AdminExportRunSnapshot = { status: "running", startedAtIso: "
 describe("defaultStaticExportPort", () => {
   it("triggerSiteExport forwards options to api.triggerSiteExport", async () => {
     triggerSiteExport.mockResolvedValue(RUNNING_RUN);
-    await expect(defaultStaticExportPort.triggerSiteExport({ clean: true })).resolves.toEqual(RUNNING_RUN);
+    await expect(defaultStaticExportPort.triggerSiteExport({}, { options: { clean: true } })).resolves.toEqual(RUNNING_RUN);
     expect(triggerSiteExport).toHaveBeenCalledWith({ clean: true });
   });
 
   it("triggerSiteExport delegates with no options when called bare", async () => {
     triggerSiteExport.mockResolvedValue(RUNNING_RUN);
-    await expect(defaultStaticExportPort.triggerSiteExport()).resolves.toEqual(RUNNING_RUN);
+    await expect(defaultStaticExportPort.triggerSiteExport({})).resolves.toEqual(RUNNING_RUN);
     expect(triggerSiteExport).toHaveBeenCalledWith(undefined);
   });
 
@@ -52,14 +49,14 @@ describe("defaultStaticExportPort", () => {
 
 describe("createFakeStaticExportPort — defaults", () => {
   it("triggerSiteExport defaults to resolving the seeded status when not overridden", async () => {
-    const port = createFakeStaticExportPort(RUNNING_RUN);
-    await expect(port.triggerSiteExport()).resolves.toEqual(RUNNING_RUN);
+    const port = createFakeStaticExportPort({ status: RUNNING_RUN });
+    await expect(port.triggerSiteExport({})).resolves.toEqual(RUNNING_RUN);
   });
 
   it("an explicit triggerSiteExport override wins over the default", async () => {
     const triggerOverride = vi.fn().mockResolvedValue(RUNNING_RUN);
-    const port = createFakeStaticExportPort(IDLE_RUN, { triggerSiteExport: triggerOverride });
-    await expect(port.triggerSiteExport({ clean: true })).resolves.toEqual(RUNNING_RUN);
-    expect(triggerOverride).toHaveBeenCalledWith({ clean: true });
+    const port = createFakeStaticExportPort({ status: IDLE_RUN }, { triggerSiteExport: triggerOverride });
+    await expect(port.triggerSiteExport({}, { options: { clean: true } })).resolves.toEqual(RUNNING_RUN);
+    expect(triggerOverride).toHaveBeenCalledWith({}, { options: { clean: true } });
   });
 });

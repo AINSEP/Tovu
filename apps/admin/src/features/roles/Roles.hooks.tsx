@@ -1,8 +1,9 @@
+import { LINE_ICON } from "../../components/line-icon";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 
+import { type Translate, resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The `/admin/roles` tab system's non-JSX logic, plus the two tab glyphs.
  *
@@ -37,22 +38,7 @@ import { navigate } from "../../lib/router";
  * duplicated here.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px/1.5-stroke/round-join set
- *  `deployment-visuals.tsx` and Jini's `seo/react/components/SeoIcons.tsx` use, so every tab row in this admin reads as one
- *  family. Local rather than imported across a feature boundary (`features/deployment/index.ts` is
- *  that feature's public surface and does not export it, and this app ships no shared icon module —
- *  `App.tsx`'s sidebar glyphs and `SettingsUi.tsx`'s tab icons are inline SVG for the same reason).
- *  `aria-hidden`, because each sits directly beside the text label that already says the same
- *  thing. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts (the admin's shared layer replaced the per-feature copies this comment used to justify; App.tsx sidebar glyphs and SettingsUi.tsx tab icons remain inline SVG).
 
 /** Roles — a person, i.e. the thing a role is assigned TO. */
 export function RolesIcon({ size = 16 }: { size?: number }) {
@@ -82,7 +68,7 @@ export type RolesTabId = (typeof ROLES_TAB_IDS)[number];
 /** Falls back to the Roles list for an absent or unrecognized `?tab=` value, through the same
  *  shared guard `Deployment.tsx`/`Sites.tsx`/`Database.tsx`/`Themes.tsx` use — a stale bookmark or
  *  a typo must open a real tab, never a blank panel. */
-export function resolveRolesTabId(tabId: string | null | undefined): RolesTabId {
+export function resolveRolesTabId({ tabId }: { tabId: string | null | undefined }, _options: Record<string, never> = {}): RolesTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: ROLES_TAB_IDS, defaultId: "roles" });
 }
 
@@ -123,6 +109,6 @@ export function resolveRolesTabs(t: Translate): TabBarTab[] {
 /** `replace: true` so moving between the two tabs does not grow the back stack one entry per click
  *  — the same call `Deployment.tsx`/`Sites.tsx`/`Themes.tsx` make for their own `?tab=`. A
  *  module-level function, not an inline arrow, so `TabBar`'s `onChange` takes it directly. */
-export function goToRolesTab(tabId: string) {
-  navigate(`/roles?tab=${tabId}`, { replace: true });
+export function goToRolesTab({ tabId }: { tabId: string }, _options: Record<string, never> = {}) {
+  navigate({ routePath: `/roles?tab=${tabId}` }, { replace: true });
 }

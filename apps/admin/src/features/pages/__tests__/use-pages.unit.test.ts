@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { settingsApi } from "@/features/settings/api/settings-api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
@@ -35,7 +35,7 @@ import { PAGES_RESOURCE, pageAdminPath } from "../rules";
  */
 
 beforeEach(() => {
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -514,7 +514,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
-    port.simulateConcurrentSave(PAGE.id, "Their edit");
+    port.simulateConcurrentSave({ id: PAGE.id }, { title: "Their edit" });
 
     await act(async () => {
       await result.current.togglePagePublish(PAGE);

@@ -1,11 +1,10 @@
-import { useCallback, useMemo } from "react";
-import { useUsers as useJiniUsers, type UsersController as JiniController } from "@jini-ai/user-management/react";
+import { useCallback } from "react";
+import { useUsers as useJiniUsers, type UsersController as JiniController, type UsersPort } from "@jini-ai/user-management/react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { navigate as realNavigate } from "@/lib/router";
-import { WORKSPACE_ID } from "@/lib/api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { passwordResetNotice, t } from "../users-i18n";
-import { defaultUsersPort, toJiniUsersPort } from "./users-dependencies.hooks";
-import type { UsersPort } from "./users-port.hooks";
+import { defaultUsersPort } from "./users-dependencies.hooks";
 
 export type UsersController = Omit<JiniController, "translate"> & {
   // Retained host field; the comment below records the pre-extraction row-menu contract.
@@ -28,12 +27,11 @@ export interface UsersDependencies {
 export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependencies, _optional: Record<string, never> = {}): UsersController {
   const locale = useAdminLocale();
   const translate = useCallback((key: string) => t({ locale: locale, key: key }), [locale]);
-  const jiniPort = useMemo(() => toJiniUsersPort({ port }), [port]);
-  const controller = useJiniUsers({ port: jiniPort, translate, queryScope: WORKSPACE_ID }, {
+  const controller = useJiniUsers({ port, translate, queryScope: WORKSPACE_ID }, {
     openOwnPasswordReset,
     // A normal row-menu reset must not navigate; Jini calls this only for the deep-linked dialog.
     onOwnPasswordResetClosed: () => navigate?.("/users"),
-    passwordResetNotice: ({ username }) => passwordResetNotice(locale, username),
+    passwordResetNotice: ({ username }) => passwordResetNotice({ locale, username }),
   });
   return { ...controller, locale };
 }
@@ -52,5 +50,6 @@ export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependen
  */
 /** Bind the real API and route callback for the product panel. */
 export function useWiredUsers(options: { openOwnPasswordReset?: boolean } = {}): UsersController {
-  return useUsers({ port: defaultUsersPort, navigate: realNavigate, ...options });
+  const navigate = useCallback((routePath: string, navOptions?: { replace?: boolean }) => navOptions === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, navOptions), []);
+  return useUsers({ port: defaultUsersPort, navigate, ...options });
 }

@@ -3,18 +3,16 @@ import { getWidgetInstance } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET one widget instance (SPEC-043 REQ-04), plus its REQ-34 where-used disclosure — the exact
  * data `ui.spec.md`'s `WhereUsedBanner` needs, folded into the same response so the editor screen
  * needs one round-trip, not two.
  */
-export const registerAdminWidgetGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -25,7 +23,7 @@ export const registerAdminWidgetGetRoute: RouteRegistrar = (app, deps) => {
       const refs = await deps.entryRefsRepo.findByTarget({ workspaceId: deps.workspaceId, targetKind: "entry", targetId: instance.id });
       res.status(200).json({ widget: instance, revisions, whereUsed: toWhereUsedResponse({ refs }, {}) });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

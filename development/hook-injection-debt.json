@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "entries": {
+    "AdminExecutionMode::useAdminExecutionCredentialHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useAdminExecutionModeHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AdminExecutionMode::useTovuSettingsExecution": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useAgentPluginDetailsView": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useAgentPluginSurfaces": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginDetailsModal::useWiredAgentPluginMemory": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPluginDetailsModal.tsx"
+      ]
+    },
+    "AgentPluginUpdateSlot::useAgentPluginUpdate": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginConfirmation": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginInstall": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AgentPlugins::useAgentPluginTab": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/AgentPlugins.tsx"
+      ]
+    },
+    "AiAssistant::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AiAssistant::useAiAssistantTab": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AiAssistant::useWiredAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AssistantDaemonRestart::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AssistantDaemonRestart::useAssistantDaemonRestartHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "AssistantDaemonRestart::usePolicy": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    },
+    "CollectionEntryEditor::useCollectionEntryEditorHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
+      ]
+    },
+    "Database::useAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/database/Database.tsx"
+      ]
+    },
+    "EditMediaPanel::useEditMediaPanelHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "ExternalMcpSharedChoice::useLocal": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
+      ]
+    },
+    "ExternalMcpSharedChoice::useSaved": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
+      ]
+    },
+    "ExternalProvidersPanel::useAdminThemeBoundary": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "JsonFieldControl::useJsonFieldControl": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
+      ]
+    },
+    "Login::useWiredAdminLocale": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/auth/Login.tsx"
+      ]
+    },
+    "Media::useMediaHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "Media::useMediaItemLink": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "Media::useMediaTabsHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaCard::useWiredMediaPreview": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaCardMetadata::useMediaCardMetadata": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaGridOrEmpty::useMediaCardDetails": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaLibraryPanel::useMediaGridSize": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "MediaPreview::useMediaPreviewHook": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/Media.tsx"
+      ]
+    },
+    "PageEditor::useTabBarKeyboard": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ]
+    },
+    "PagePreviewFrame::useThemePreviewFrame": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/pages/PageEditor.tsx"
+      ]
+    },
+    "PluginProviderSettingsDialog::useProviderSettingsFocus": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx"
+      ]
+    },
+    "PluginProviderSettingsDialog::useSavedKey": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx"
+      ]
+    },
+    "RemoteImageImport::useRemoteImageImport": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/media/RemoteImageImport.tsx"
+      ]
+    },
+    "SharedChoices::useSaved": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/settings/ExternalMcpSharedChoice.tsx"
+      ]
+    },
+    "VisitorCredentialForm::useStoredCredentialHint": {
+      "count": 1,
+      "files": [
+        "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
+      ]
+    }
+  }
+}

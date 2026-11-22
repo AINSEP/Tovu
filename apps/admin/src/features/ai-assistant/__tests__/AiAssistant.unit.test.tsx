@@ -306,17 +306,17 @@ describe("?tab= deep linking", () => {
     expect(screen.queryByRole("switch", { name: "Enable the AI assistant on the public site" })).not.toBeInTheDocument();
     const toggle = screen.getByRole("checkbox", { name: "Open the assistant panel" });
     const requests: boolean[] = [];
-    const unsubscribe = subscribeToAssistantDockRequests((open) => requests.push(open));
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: (open) => requests.push(open) });
     try {
       expect(toggle).not.toBeChecked();
       await userEvent.click(toggle);
       expect(requests).toEqual([true]);
       expect(toggle).not.toBeChecked();
-      act(() => publishAssistantDockState(true));
+      act(() => publishAssistantDockState({ open: true }));
       expect(toggle).toBeChecked();
       await userEvent.click(toggle);
       expect(requests).toEqual([true, false]);
-      act(() => publishAssistantDockState(false));
+      act(() => publishAssistantDockState({ open: false }));
       expect(toggle).not.toBeChecked();
     } finally {
       unsubscribe();

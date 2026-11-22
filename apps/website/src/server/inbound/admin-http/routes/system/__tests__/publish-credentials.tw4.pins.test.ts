@@ -1,5 +1,5 @@
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -32,7 +32,7 @@ async function fixture({ accountLabel }: { accountLabel?: string } = {}, _option
   } satisfies Omit<AdminPublishCredentialsDeps, "contentKernel">;
   const app = express();
   // PUT never uses contentKernel; the fake provider performs no outbound request/observability work.
-  registerAdminPublishCredentialsRoutes(app, ports as AdminPublishCredentialsDeps);
+  registerAdminPublishCredentialsRoutes({ app, deps: ports as AdminPublishCredentialsDeps });
   return { saved, cache, repo, ports, probes: () => probes, deny: () => { allowed = false; },
     async call(method: "get" | "post" | "delete", routePath: string, { params = { workspaceId: "ws" }, body }: { params?: Record<string, string>; body?: unknown } = {}) {
       const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };

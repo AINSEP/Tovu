@@ -1,3 +1,4 @@
+import { orFallbackSync } from "@jini-ai/core/errors/idioms";
 import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
 import type { Response } from "express";
 
@@ -17,6 +18,7 @@ import {
 } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file The `widgets.place` / `widgets.create` / `widgets.remove` / `widgets.diagnose` AI tool
@@ -41,7 +43,7 @@ type PlaceTarget =
 
 /** Appends `widgetEntryId` to a region's CURRENT placement list (loaded fresh) and writes the
  * whole list back, per REQ-15's whole-document discipline — never a partial patch. */
-async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { principalId: string; kind: string }, regionKey: string, baseVersion: number, widgetEntryId: string) {
+async function placeIntoRegion({ deps, workspaceId, actor, regionKey, baseVersion, widgetEntryId }: { deps: RouteDeps; workspaceId: string; actor: { principalId: string; kind: string }; regionKey: string; baseVersion: number; widgetEntryId: string }, _optional = {}) {
   const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey });
   // Round-2 external-audit fix (2026-07-21, agy + Opus 4.8, independently converged): a bare Error
   // isn't recognized by widgetErrorToResponse, so an unbound region 500'd instead of the same 404
@@ -58,9 +60,9 @@ async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { pr
   });
 }
 
-async function placeTarget(deps: RouteDeps, workspaceId: string, actor: { principalId: string; kind: string }, target: PlaceTarget, widgetEntryId: string) {
+async function placeTarget({ deps, workspaceId, actor, target, widgetEntryId }: { deps: RouteDeps; workspaceId: string; actor: { principalId: string; kind: string }; target: PlaceTarget; widgetEntryId: string }, _optional = {}) {
   if (target.kind === "region") {
-    return placeIntoRegion(deps, workspaceId, actor, target.regionKey, target.baseVersion, widgetEntryId);
+    return placeIntoRegion({ deps, workspaceId, actor, regionKey: target.regionKey, baseVersion: target.baseVersion, widgetEntryId });
   }
   return insertWidgetEmbed({
     deps: buildWidgetsDeps(deps),
@@ -113,13 +115,7 @@ function parseCreateToolInput(body: Record<string, unknown>): CreateToolInput | 
 
 /** Removes an embed-hosted placement — thin pass-through to `removeWidgetEmbed`, kept symmetric
  *  with `removeRegionPlacement` below. @complexity O(1). */
-async function removeEmbedPlacement(
-  deps: RouteDeps,
-  workspaceId: string,
-  actor: { principalId: string; kind: string },
-  target: Extract<PlaceTarget, { kind: "embed" }>,
-  placementId: string
-) {
+async function removeEmbedPlacement({ deps, workspaceId, actor, target, placementId }: { deps: RouteDeps; workspaceId: string; actor: { principalId: string; kind: string }; target: Extract<PlaceTarget, { kind: "embed" }>; placementId: string }, _optional = {}) {
   return removeWidgetEmbed({
     deps: buildWidgetsDeps(deps),
     input: { workspaceId, actor, hostEntryId: target.hostEntryId, baseVersion: target.baseVersion, placementId },
@@ -129,13 +125,7 @@ async function removeEmbedPlacement(
 /** Removes a region-bound placement by loading the CURRENT placement list and writing it back
  *  without `placementId`, matching `placeIntoRegion`'s whole-document discipline (REQ-15).
  *  @complexity O(placements in the region). */
-async function removeRegionPlacement(
-  deps: RouteDeps,
-  workspaceId: string,
-  actor: { principalId: string; kind: string },
-  target: Extract<PlaceTarget, { kind: "region" }>,
-  placementId: string
-) {
+async function removeRegionPlacement({ deps, workspaceId, actor, target, placementId }: { deps: RouteDeps; workspaceId: string; actor: { principalId: string; kind: string }; target: Extract<PlaceTarget, { kind: "region" }>; placementId: string }, _optional = {}) {
   const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey: target.regionKey });
   if (!binding) throw new WidgetAreaNotFoundError({ message: `region '${target.regionKey}' is not bound` });
   const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
@@ -149,17 +139,11 @@ async function removeRegionPlacement(
 
 /** Dispatches to the embed or region removal path — mirrors `placeTarget`'s own dispatch shape.
  *  @complexity O(1) plus whichever branch's own cost. */
-async function removePlacement(
-  deps: RouteDeps,
-  workspaceId: string,
-  actor: { principalId: string; kind: string },
-  target: PlaceTarget,
-  placementId: string
-) {
+async function removePlacement({ deps, workspaceId, actor, target, placementId }: { deps: RouteDeps; workspaceId: string; actor: { principalId: string; kind: string }; target: PlaceTarget; placementId: string }, _optional = {}) {
   if (target.kind === "embed") {
-    return removeEmbedPlacement(deps, workspaceId, actor, target, placementId);
+    return removeEmbedPlacement({ deps, workspaceId, actor, target, placementId });
   }
-  return removeRegionPlacement(deps, workspaceId, actor, target, placementId);
+  return removeRegionPlacement({ deps, workspaceId, actor, target, placementId });
 }
 
 /** Resolves `widgets.diagnose`'s exists/status pair for an already-fetched entry — a bare
@@ -175,21 +159,16 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
   // widget instance (wrong content type, or a widget row with a malformed payload) used to 500 via
   // an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already guards the same
   // case with an `entry.type` check; this mirrors it instead of parsing blind.
-  try {
+  return orFallbackSync<{ exists: boolean; status: string | null }>({ work: () => {
     return { exists: true, status: parseWidgetInstancePayload({ fieldsJson: entry.fieldsJson }).status };
-  } catch {
-    return { exists: true, status: null };
-  }
+  }, fallback: { exists: true, status: null }, step: "Read saved widget status" });
 }
 
 /** `widgets.place` — reference an EXISTING widget instance into a target. Distinct from
  * `widgets.create` (REQ-35, AC-25): this call never creates a new instance. */
-const registerPlaceTool: RouteRegistrar = (app, deps) => {
+const registerPlaceTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/place", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const target = readTarget(body);
     if (!target || typeof body.widgetInstanceId !== "string") {
@@ -199,22 +178,19 @@ const registerPlaceTool: RouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const result = await placeTarget(deps, deps.workspaceId, { principalId: principal.id, kind: "user" }, target, body.widgetInstanceId);
+      const result = await placeTarget({ deps, workspaceId: deps.workspaceId, actor: { principalId: principal.id, kind: "user" }, target, widgetEntryId: body.widgetInstanceId });
       res.status(200).json({ tool: "widgets.place", result });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
 
 /** `widgets.create` — create a NEW widget instance and place it in one call. Distinct from
  * `widgets.place` (REQ-35, AC-25). */
-const registerCreateTool: RouteRegistrar = (app, deps) => {
+const registerCreateTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/create", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const parsed = parseCreateToolInput(body);
     if (!parsed) {
@@ -237,7 +213,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
       });
 
       try {
-        const placeResult = await placeTarget(deps, deps.workspaceId, actor, parsed.target, instance.id);
+        const placeResult = await placeTarget({ deps, workspaceId: deps.workspaceId, actor, target: parsed.target, widgetEntryId: instance.id });
         res.status(201).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, result: placeResult });
       } catch (placeErr) {
         // Finding D (Fable adversarial-review fix, 2026-07-21): placement failing AFTER the
@@ -246,23 +222,20 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
         // (especially a retrying AI agent) sees only an error, has no way to know the instance
         // already exists, and mints a duplicate via a second `widgets.create` call instead of
         // retrying placement with `widgets.place`.
-        const { status, body: errorBody } = widgetErrorToResponse(placeErr, { tracker: res.locals?.adminFailureTracker });
+        const { status, body: errorBody } = widgetErrorToResponse({ err: placeErr }, { tracker: res.locals?.adminFailureTracker });
         res.status(status).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, placementFailed: true, ...errorBody });
       }
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
 
 /** `widgets.remove` — remove a PLACEMENT (region entry or embed node), never the widget instance
  * itself (that's `widgets.delete`/`.delete.force` via the ordinary CRUD routes). */
-const registerRemoveTool: RouteRegistrar = (app, deps) => {
+const registerRemoveTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const target = readTarget(body);
     if (!target || typeof body.placementId !== "string") {
@@ -273,10 +246,10 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       const actor = { principalId: principal.id, kind: "user" };
-      const result = await removePlacement(deps, deps.workspaceId, actor, target, body.placementId);
+      const result = await removePlacement({ deps, workspaceId: deps.workspaceId, actor, target, placementId: body.placementId });
       res.status(200).json({ tool: "widgets.remove", result });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
@@ -284,14 +257,11 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
 /** `widgets.diagnose` — read-only: where-used + broken-reference state for one instance, sourced
  * entirely from the already-queryable `entry_refs` index (ADR-047 §5: "a broken widget reference
  * is already a queryable, first-class state, not new detection logic to build"). */
-const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
+const registerDiagnoseTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.read", res });
       if (!principal) return;
 
       const widgetInstanceId = String(req.params.widgetInstanceId);
@@ -305,14 +275,14 @@ const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
         whereUsed: toWhereUsedResponse({ refs }, {}),
       });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
 
-export const registerAdminWidgetAgentToolsRoutes: RouteRegistrar = (app, deps) => {
-  registerPlaceTool(app, deps);
-  registerCreateTool(app, deps);
-  registerRemoveTool(app, deps);
-  registerDiagnoseTool(app, deps);
+export const registerAdminWidgetAgentToolsRoutes: RouteRegistrar = ({ app, deps }, _options = {}) => {
+  registerPlaceTool({ app, deps });
+  registerCreateTool({ app, deps });
+  registerRemoveTool({ app, deps });
+  registerDiagnoseTool({ app, deps });
 };

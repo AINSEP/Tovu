@@ -3,7 +3,7 @@ import { createMfaStore } from "./mfa.repo.js";
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
 import { createRecoveryCodeStore } from "./recovery-codes.repo.js";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
@@ -35,8 +35,8 @@ import { createTransactionalInMemoryIdentityRepos, NodeSessionTokens } from "@ji
 import { createIdentityTransactions } from "./repo.js";
 
 /**
- * @file Shared identity wiring for the composition roots (`server/app.ts` /
- * `server/deps.ts`).
+ * @file Shared identity wiring for the composition roots (`apps/website/src/server/runtime/composition/app.ts` /
+ * `apps/website/src/server/runtime/composition/deps.ts`).
  *
  * Purpose:
  * Both composition roots need the identical identity slice of `RouteDeps`
@@ -141,7 +141,7 @@ export interface IdentityRouteDepsSlice {
    */
   removeUser?: RemoveUserFn;
   /** See {@link IdentityRouteDepsSlice.removeUser}'s doc — same default-then-override story. */
-  isInTrash: (principalId: UUID) => Promise<boolean>;
+  isInTrash: (required: { principalId: UUID }, optional?: Record<string, never>) => Promise<boolean>;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
   /**
@@ -153,55 +153,8 @@ export interface IdentityRouteDepsSlice {
    */
   ownerPrincipalId: Promise<UUID>;
 }
-
-/**
- * Shared build: kick off first-boot seeding over whichever `repos` the caller assembled, bind an
- * `authorize()` closure over the same repos, and return the `IdentityRouteDepsSlice` shape both
- * composition roots need. Factored out so the in-memory and SQLite constructors below stay
- * identical except for which repo instances they pass in.
- *
- * `required.permissionGrants` is the composition root's explicit grant registry
- * (`server/runtime/composition/app-permission-grants.ts`); the reconciliation below reads exactly
- * what it holds, so which grants a boot applies never depends on module import order.
- *
- * `required.reconcileGrantsOnBoot` (default `true`) gates the write-capable steps chained onto
- * `identityReady` below (`migrateDeprecatedPermissionGrants` + `applyBuiltinRoleGrants`) — see
- * their call site's own comment for why a caller holding a genuinely read-only connection MUST
- * pass `false` rather than relying on there being nothing left to reconcile.
- * A read-only host also supplies `readOnlyOwnerPrincipalId` from its verified owner SELECT:
- * that bypasses seeding entirely, including its repair paths and username-based lookup.
- */
-function buildIdentityRouteDeps(
-  repos: IdentityRepos,
-  apiKeyRepo: ApiKeyRepoPort,
-  required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID }
-): IdentityRouteDepsSlice {
-  assertOwnerCredentials(required.ownerCredentials);
-  const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
-  const apiKeySecretHasher = new ScryptApiKeySecretHasher();
-  const hostClock = required.clock;
-  const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
-
-  // Peer composition has already SELECTed the single owner. Never run seeding, even its
-  // idempotent lookup path, against that connection: a missing username could trigger writes.
-  if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !== false) {
-    throw new TypeError("A read-only owner requires reconcileGrantsOnBoot: false");
-  }
-  const seedResult = required.readOnlyOwnerPrincipalId !== undefined
-    ? Promise.resolve({ ownerPrincipalId: required.readOnlyOwnerPrincipalId })
-    : seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
-      // with no default: a library fallback would mean every host that forgot to pass one shipped
-      // the same owner credential. The env mapping (with its unchanged defaults) now lives in
-      // `resolveOwnerCredentials`, called only by composition roots — see its doc.
-      // Init supplies BOTH explicitly. Only this server's own first-boot seed retains the env
-      // contract (including the host's secret); a new site cannot inherit that deployment credential.
-      ownerUsername: required.ownerCredentials.username, ownerPassword: required.ownerCredentials.password } });
-
-  // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
-  // await just the owner id without waiting on the permission-migration fan-out below.
-  const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
-
-  const identityReady = seedResult
+function createIdentityReady(seedResult: Promise<{ ownerPrincipalId: UUID }>, repos: IdentityRepos, required: Parameters<typeof buildIdentityRouteDeps>[0]['required']): Promise<void> {
+  return seedResult
     .then(() => {
       // Both steps below are additive-only and idempotent (see their own headers) — "safe to run
       // on every boot" ASSUMES a writable connection. It is not: `migrateDeprecatedPermissionGrants`
@@ -209,7 +162,7 @@ function buildIdentityRouteDeps(
       // add, and calling `.save()` against a genuinely read-only SQLite handle (`better-sqlite3`'s
       // `readonly: true`, as `openContentDbReadOnly` uses) throws `SqliteError: attempt to write a
       // readonly database` rather than no-op'ing. A caller building identity deps over such a
-      // connection — `development/scripts/backfill-reset-admin-password.ts`'s dry-run path is the
+      // connection — `admin-password backfill`'s dry-run path is the
       // one that exists today — must pass `reconcileGrantsOnBoot: false` so this whole step is
       // skipped outright, instead of depending on the workspace happening to have nothing left to
       // reconcile (true today only by chance, not by any guarantee).
@@ -247,8 +200,9 @@ function buildIdentityRouteDeps(
       );
     })
     .then(() => undefined);
-
-  const authorize: AuthorizeFn = (params) =>
+}
+function createIdentityAuthorize(repos: IdentityRepos): AuthorizeFn {
+  return (params) =>
     authorizeCore({ deps: {
         principals: repos.principals,
         principalRoles: repos.principalRoles,
@@ -256,6 +210,63 @@ function buildIdentityRouteDeps(
         principalPolicies: repos.principalPolicies,
         policyPermissions: repos.policyPermissions,
       }, principalId: params.principalId, permission: params.permission, context: { workspaceId: params.workspaceId } }, { entityType: params.entityType, entityId: params.entityId });
+}
+
+
+
+/**
+ * Shared build: kick off first-boot seeding over whichever `repos` the caller assembled, bind an
+ * `authorize()` closure over the same repos, and return the `IdentityRouteDepsSlice` shape both
+ * composition roots need. Factored out so the in-memory and SQLite constructors below stay
+ * identical except for which repo instances they pass in.
+ *
+ * `required.permissionGrants` is the composition root's explicit grant registry
+ * (`server/runtime/composition/app-permission-grants.ts`); the reconciliation below reads exactly
+ * what it holds, so which grants a boot applies never depends on module import order.
+ *
+ * `required.reconcileGrantsOnBoot` (default `true`) gates the write-capable steps chained onto
+ * `identityReady` below (`migrateDeprecatedPermissionGrants` + `applyBuiltinRoleGrants`) — see
+ * their call site's own comment for why a caller holding a genuinely read-only connection MUST
+ * pass `false` rather than relying on there being nothing left to reconcile.
+ * A read-only host also supplies `readOnlyOwnerPrincipalId` from its verified owner SELECT:
+ * that bypasses seeding entirely, including its repair paths and username-based lookup.
+ */
+function buildIdentityRouteDeps(
+  { repos, apiKeyRepo, required }: {
+    repos: IdentityRepos;
+    apiKeyRepo: ApiKeyRepoPort;
+    required: { workspaceId: UUID; clock: ClockPort | { nowIso(): string }; idGen: IdGeneratorPort; permissionGrants: PermissionGrantRegistry; reconcileGrantsOnBoot?: boolean; ownerCredentials: OwnerCredentials; readOnlyOwnerPrincipalId?: UUID };
+  },
+  _options = {},
+): IdentityRouteDepsSlice {
+  assertOwnerCredentials(required.ownerCredentials);
+  const passwordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
+  const apiKeySecretHasher = new ScryptApiKeySecretHasher();
+  const hostClock = required.clock;
+  const clock: ClockPort = "nowMs" in hostClock ? hostClock : { nowMs: () => Date.parse(hostClock.nowIso()) };
+
+  // Peer composition has already SELECTed the single owner. Never run seeding, even its
+  // idempotent lookup path, against that connection: a missing username could trigger writes.
+  if (required.readOnlyOwnerPrincipalId !== undefined && required.reconcileGrantsOnBoot !== false) {
+    throw new TypeError("A read-only owner requires reconcileGrantsOnBoot: false");
+  }
+  const seedResult = required.readOnlyOwnerPrincipalId !== undefined
+    ? Promise.resolve({ ownerPrincipalId: required.readOnlyOwnerPrincipalId })
+    : seedIdentity({ deps: { repos, hasher: passwordHasher, clock, idGen: required.idGen }, input: { workspaceId: required.workspaceId, // Supplied by the host, not the library. `@jini-ai/user-management` deliberately requires `ownerPassword`
+      // with no default: a library fallback would mean every host that forgot to pass one shipped
+      // the same owner credential. The env mapping (with its unchanged defaults) now lives in
+      // `resolveOwnerCredentials`, called only by composition roots — see its doc.
+      // Init supplies BOTH explicitly. Only this server's own first-boot seed retains the env
+      // contract (including the host's secret); a new site cannot inherit that deployment credential.
+      ownerUsername: required.ownerCredentials.username, ownerPassword: required.ownerCredentials.password } });
+
+  // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
+  // await just the owner id without waiting on the permission-migration fan-out below.
+  const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
+
+  const identityReady = createIdentityReady(seedResult, repos, required);
+
+  const authorize: AuthorizeFn = createIdentityAuthorize(repos);
 
   return {
     transactions: repos.transactions,
@@ -284,7 +295,7 @@ function buildIdentityRouteDeps(
 
 /**
  * Build the in-memory identity repos, kick off first-boot seeding, and bind an `authorize()`
- * closure over those same repos. Used by `server/app.ts`'s hermetic test/dev composition, where
+ * closure over those same repos. Used by `apps/website/src/server/runtime/composition/app.ts`'s hermetic test/dev composition, where
  * per-test isolation (a fresh store per test) matters more than persistence.
  *
  * @complexity O(1) construction; `identityReady`'s underlying seed work is
@@ -316,13 +327,13 @@ export function createInMemoryIdentityRouteDeps(required: {
     principalRoles: new InMemoryPrincipalRoleRepo({}),
     principalPolicies: new InMemoryPrincipalPolicyRepo({}),
   } });
-  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
+  return buildIdentityRouteDeps({ repos, apiKeyRepo: new InMemoryApiKeyRepo(), required });
 }
 
 /**
  * Build the SQLite-backed identity repos over the same `content.db` handle every other feature's
  * `repo.sqlite.ts` adapter uses, kick off first-boot seeding, and bind `authorize()` over those
- * repos. Used by `server/deps.ts`'s real composition root — this is what makes a login survive a
+ * repos. Used by `apps/website/src/server/runtime/composition/deps.ts`'s real composition root — this is what makes a login survive a
  * `tsx watch` restart: the owner principal/user/session rows persist in `content.db`, and
  * `seedIdentity`'s existing idempotency check (look up the owner username before minting a new
  * principal) means the SAME principal id is reused on every subsequent boot, so a persisted
@@ -371,5 +382,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return { ...buildIdentityRouteDeps(repos, apiKeyRepo, seedRequired), recoveryCodes: createRecoveryCodeStore({ kernel: db }, {}), mfaStore: createMfaStore({ kernel: db }, {}), passkeyStore: createPasskeyStore({ kernel: db }, {}) };
+  return { ...buildIdentityRouteDeps({ repos, apiKeyRepo, required: seedRequired }), recoveryCodes: createRecoveryCodeStore({ kernel: db }, {}), mfaStore: createMfaStore({ kernel: db }, {}), passkeyStore: createPasskeyStore({ kernel: db }, {}) };
 }

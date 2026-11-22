@@ -10,7 +10,8 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import {
@@ -82,7 +83,7 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
     packageThemesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());
@@ -90,10 +91,10 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileRenameRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileRenameRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   return startTestServer(app, t);
 }
 
@@ -171,14 +172,14 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "site" }),
     themesDir,
-    postRepo: new InMemoryPostRepo(),
+    postRepo: new InMemoryPostRepo({}),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   fs.writeFileSync(path.join(themesDir, "static", "moddy", "pages", "index.html"), "<html><body>y</body></html>", "utf8");

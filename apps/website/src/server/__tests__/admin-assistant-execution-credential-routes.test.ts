@@ -10,7 +10,7 @@ import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/d
 import { createAssistantSettingsModule } from "../runtime/composition/modules/assistant-settings.js";
 import { resolveExecutionCredential } from "../../assistant/execution-credential-store.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import type { KeyringPort } from "@jini-ai/integrations/webhooks";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -45,9 +45,9 @@ function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Expres
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.(app);
+  createAssistantSettingsModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -269,6 +269,6 @@ async function resolveSavedCredential(deps: RouteDeps, baseUrl: string, cookie: 
   const me = await get(baseUrl, "/api/admin/v1/auth/me", cookie);
   assert.equal(me.status, 200);
   const { user } = await me.json() as { user: { id: string } };
-  return resolveExecutionCredential({ repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId, principalId: user.id });
+  return resolveExecutionCredential({ deps: { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    input: { workspaceId: deps.workspaceId, principalId: user.id } });
 }

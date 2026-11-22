@@ -1,4 +1,5 @@
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/source-control-credentials";
@@ -14,6 +15,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import type { CredentialProjectHalf } from "../../vendor-credentials/project-scope.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
+import type { HttpClientPort } from "#src/platform/http/index";
 import { exampleProviders, exampleProvidersWithoutProbe } from "./fixtures/example-provider.js";
 import {
   createSourceControlCredential,
@@ -39,7 +41,7 @@ const SITE_A = "ws-site-a";
 const SITE_B = "ws-site-b";
 // Fake secrets built at runtime, never literals that look like a key.
 const secret = (name: string) => `${name}-${"x".repeat(8)}-${name.length}1234`;
-const noNetwork = (async () => { throw new Error("no network in this test"); }) as unknown as typeof fetch;
+const noNetwork: HttpClientPort = { send: async () => { throw new Error("no network in this test"); } };
 
 function projectHalf(): CredentialProjectHalf<SourceControlCredentialSetRepoPort> {
   const keyring = new InMemoryKeyring();
@@ -51,7 +53,7 @@ function site(project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort
   const keyring = new InMemoryKeyring();
   return { repo: new InMemorySourceControlCredentialSetRepo({}, project ? { project } : {}), sealer: new AesGcmSecretSealer(keyring), keyring,
     clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }), idGen: { newId: () => `sc-${++ids}` },
-    fetchFn: noNetwork, loadSourceControlProviders: exampleProviders };
+    httpClient: noNetwork, loadSourceControlProviders: exampleProviders };
 }
 
 const save = (deps: SourceControlCredentialWriteDeps, workspaceId: string, label: string, token: string, optional: { scope?: string } = {}) =>
@@ -179,8 +181,8 @@ test('a Source control-page save is visible after reload on this site only; site
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminSourceControlCredentialsRoutes(app, {
-    observability: createNoopObservabilityPort({}),
+  registerAdminSourceControlCredentialsRoutes({ app, deps: {
+    customCredentialsHttpClient: noNetwork,
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.clock, idGen: a.idGen,
     sourceControlCredentialSetRepo: a.repo, siteAssistantSecretSealer: a.sealer, siteAssistantSecretKeyring: a.keyring,
     loadSourceControlProviders: exampleProvidersWithoutProbe, projectKeys: { ...keys, use: async (input, options) => {
@@ -188,7 +190,7 @@ test('a Source control-page save is visible after reload on this site only; site
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  });
+  } });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials';
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Git', connection: { providerId: 'example-git', token: secret('git') } } }, res);
@@ -223,11 +225,10 @@ test('a Source control-page save is visible after reload on this site only; site
 test('a create-only owner conflict stays a source-control duplicate with safe guidance', async () => {
   const project = projectHalf();
   await save(site(project), SITE_A, 'existing', secret('first'));
-  const { projectKeyCreateVault } = await import('#src/features/project-keys/create-vault');
   const raw = project.repo.vault!;
   const view = attachedOnlyVault({ vault: raw, attachments: fakeAttachments(), siteId: SITE_B });
   const b = site({ ...project, repo: new InMemorySourceControlCredentialSetRepo({ vault: view }),
     createRepo: new InMemorySourceControlCredentialSetRepo({ vault: projectKeyCreateVault({ owner: raw, view }) }) });
   await assert.rejects(save(b, SITE_B, 'existing', secret('second')), error =>
-    error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key'));
+    error instanceof SourceControlCredentialDuplicateLabelError && error.message.includes('Use a saved key') && error.message.includes('P25_KEY_CREATE_CONFLICT'));
 });

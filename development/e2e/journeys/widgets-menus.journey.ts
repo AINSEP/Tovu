@@ -74,6 +74,39 @@ async function addUrlItem(page: Page, label: string, href: string): Promise<void
 }
 
 test.describe("W7 menus and widgets", () => {
+  registerPublicMenuWidgetTest();
+
+  test("a widget whose id does not exist renders nothing and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
+    const pageSlug = uniqSlug("missing-widget");
+    await createPublishedPageWithHtml(request, {
+      title: "Missing widget",
+      slug: pageSlug,
+      html: `<main><p>before</p><div data-embed-type="widget" data-embed-id="does-not-exist"></div><p>after</p></main>`,
+    }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
+    const live = await fetchPublic(request, `/${pageSlug}`);
+    expect(live.status).toBe(200);
+    expect(live.html).toContain("before");
+    expect(live.html).toContain("after");
+    // Product decision (2e889b9a5): a missing widget renders nothing, not a placeholder or the raw marker.
+    expect(live.html).not.toContain("widget-placeholder");
+    expect(live.html).not.toContain('data-embed-id="does-not-exist"');
+    expect(live.html).toMatch(/<p>before<\/p>\s*<p>after<\/p>/);
+  });
+
+  test("menus list and editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
+    // A fixed slug: the title and slug are on screen in both shots.
+    const menu = await createMenuApi(request, "baseline-menu", ["One", "Two", "Three"]);
+    await narrowListForBaseline({ page, pathname: `${WS_API}/menus`, keep: (row) => row.slug === menu.slug });
+    await page.goto("/admin/menus");
+    await expect(page.getByText(menu.title)).toBeVisible();
+    await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
+    await page.goto(`/admin/menus/${menu.id}`);
+    await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
+    await expect(page).toHaveScreenshot("menu-editor.png");
+  });
+});
+
+function registerPublicMenuWidgetTest() {
   test("build a menu in the admin, wrap it in a menu widget, embed it with a text widget, and both render publicly", { tag: ["@unrun"] }, async ({ page, request }) => {
     const slug = uniqSlug("main-nav");
     await page.goto("/admin/menus");
@@ -121,71 +154,33 @@ test.describe("W7 menus and widgets", () => {
 
     // afterEach removes the page's embeds before purging these widgets and their menu.
   });
+}
 
-  test("a widget whose id does not exist renders nothing and never 500s the page", { tag: ["@unrun"] }, async ({ request }) => {
-    const pageSlug = uniqSlug("missing-widget");
+test.describe("menus stress", () => {
+  registerMenuConflictTest();
+  registerMenuConcurrentSaveTests();
+
+  test("a javascript: URL item is refused or neutralised in the public render", { tag: ["@unrun"] }, async ({ page, request }) => {
+    const slug = uniqSlug("js-menu");
+    await page.goto("/admin/menus/new");
+    await page.getByRole("textbox", { name: "Menu title" }).fill("JS link");
+    await page.getByRole("textbox", { name: "Menu slug" }).fill(slug);
+    await addUrlItem(page, "Click me", "javascript:alert(document.cookie)");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.locator(".save-ok, .notice.error[role='alert']").first()).toBeVisible();
+    if (await page.locator(".notice.error[role='alert']").isVisible()) return; // refused at save time: the safe outcome
+    const pageSlug = uniqSlug("js-menu-page");
     await createPublishedPageWithHtml(request, {
-      title: "Missing widget",
+      title: "JS menu",
       slug: pageSlug,
-      html: `<main><p>before</p><div data-embed-type="widget" data-embed-id="does-not-exist"></div><p>after</p></main>`,
+      html: `<div data-embed-config='{"type":"menu","id":"${slug}","mode":"html"}'></div>`,
     }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
     const live = await fetchPublic(request, `/${pageSlug}`);
-    expect(live.status).toBe(200);
-    expect(live.html).toContain("before");
-    expect(live.html).toContain("after");
-    // Product decision (2e889b9a5): a missing widget renders nothing, not a placeholder or the raw marker.
-    expect(live.html).not.toContain("widget-placeholder");
-    expect(live.html).not.toContain('data-embed-id="does-not-exist"');
-    expect(live.html).toMatch(/<p>before<\/p>\s*<p>after<\/p>/);
-  });
-
-  test("menus list and editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
-    // A fixed slug: the title and slug are on screen in both shots.
-    const menu = await createMenuApi(request, "baseline-menu", ["One", "Two", "Three"]);
-    await narrowListForBaseline({ page, pathname: `${WS_API}/menus`, keep: (row) => row.slug === menu.slug });
-    await page.goto("/admin/menus");
-    await expect(page.getByText(menu.title)).toBeVisible();
-    await expect(page).toHaveScreenshot("menus-list.png", { mask: [page.locator("time, [data-relative-time]")] });
-    await page.goto(`/admin/menus/${menu.id}`);
-    await expect(page.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
-    await expect(page).toHaveScreenshot("menu-editor.png");
+    expect(live.html.toLowerCase()).not.toContain('href="javascript:');
   });
 });
 
-test.describe("menus stress", () => {
-  test("two tabs save the same menu: exactly one wins, the other shows dedicated conflict copy and keeps its items", { tag: ["@unrun"] }, async ({ page, context, request }) => {
-    const slug = uniqSlug("contested-menu");
-    const menu = await createMenuApi(request, slug, ["Base item"]);
-    await page.goto(`/admin/menus/${menu.id}`);
-    const other = await context.newPage();
-    await other.goto(`/admin/menus/${menu.id}`);
-    await expect(other.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
-
-    await addUrlItem(page, "From tab A", "https://example.test/a");
-    await addUrlItem(other, "From tab B", "https://example.test/b");
-
-    const statuses: number[] = [];
-    for (const p of [page, other]) {
-      p.on("response", (r) => {
-        if (r.request().method() === "PUT" && MENU_ITEM.test(new URL(r.url()).pathname)) statuses.push(r.status());
-      });
-    }
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.locator(".save-ok")).toBeVisible();
-    await other.getByRole("button", { name: "Save" }).click();
-
-    // fb8962f41 moved the editor's save error into the top `.notice.error` alert banner.
-    const error = other.locator(".notice.error[role='alert']");
-    await expect(error).toBeVisible();
-    // INTENDED copy (likely bug today: the raw `MenuConflictError` message is shown).
-    await expect(error).toContainText("Someone else changed this while you were editing. Your changes were not saved.");
-    await expect(error).not.toContainText(/expected ?version|version mismatch/i);
-    await expect(other.getByPlaceholder("Label").last(), "the losing tab keeps its unsaved item").toHaveValue("From tab B");
-    expect(statuses.sort()).toEqual([200, 409]);
-    const stored = await readMenuBySlug(request, slug);
-    expect(stored.items.map((i) => i.label)).toEqual(["Base item", "From tab A"]);
-    await other.close();
-  });
+function registerMenuConcurrentSaveTests() {
 
   test("simultaneous saves from two tabs never both succeed", { tag: ["@unrun"] }, async ({ page, context, request }) => {
     const slug = uniqSlug("race-menu");
@@ -223,23 +218,40 @@ test.describe("menus stress", () => {
     const res = await request.get(`${WS_API}/menus`);
     expect(((await res.json()).menus as MenuDto[]).filter((m) => m.slug === slug)).toHaveLength(1);
   });
+}
 
-  test("a javascript: URL item is refused or neutralised in the public render", { tag: ["@unrun"] }, async ({ page, request }) => {
-    const slug = uniqSlug("js-menu");
-    await page.goto("/admin/menus/new");
-    await page.getByRole("textbox", { name: "Menu title" }).fill("JS link");
-    await page.getByRole("textbox", { name: "Menu slug" }).fill(slug);
-    await addUrlItem(page, "Click me", "javascript:alert(document.cookie)");
+function registerMenuConflictTest() {
+  test("two tabs save the same menu: exactly one wins, the other shows dedicated conflict copy and keeps its items", { tag: ["@unrun"] }, async ({ page, context, request }) => {
+    const slug = uniqSlug("contested-menu");
+    const menu = await createMenuApi(request, slug, ["Base item"]);
+    await page.goto(`/admin/menus/${menu.id}`);
+    const other = await context.newPage();
+    await other.goto(`/admin/menus/${menu.id}`);
+    await expect(other.getByRole("textbox", { name: "Menu title" })).toHaveValue(menu.title);
+
+    await addUrlItem(page, "From tab A", "https://example.test/a");
+    await addUrlItem(other, "From tab B", "https://example.test/b");
+
+    const statuses: number[] = [];
+    for (const p of [page, other]) {
+      p.on("response", (r) => {
+        if (r.request().method() === "PUT" && MENU_ITEM.test(new URL(r.url()).pathname)) statuses.push(r.status());
+      });
+    }
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.locator(".save-ok, .notice.error[role='alert']").first()).toBeVisible();
-    if (await page.locator(".notice.error[role='alert']").isVisible()) return; // refused at save time: the safe outcome
-    const pageSlug = uniqSlug("js-menu-page");
-    await createPublishedPageWithHtml(request, {
-      title: "JS menu",
-      slug: pageSlug,
-      html: `<div data-embed-config='{"type":"menu","id":"${slug}","mode":"html"}'></div>`,
-    }, { onCreated: page => cleanup.track({ type: "page", id: page.id }) });
-    const live = await fetchPublic(request, `/${pageSlug}`);
-    expect(live.html.toLowerCase()).not.toContain('href="javascript:');
+    await expect(page.locator(".save-ok")).toBeVisible();
+    await other.getByRole("button", { name: "Save" }).click();
+
+    // fb8962f41 moved the editor's save error into the top `.notice.error` alert banner.
+    const error = other.locator(".notice.error[role='alert']");
+    await expect(error).toBeVisible();
+    // INTENDED copy (likely bug today: the raw `MenuConflictError` message is shown).
+    await expect(error).toContainText("Someone else changed this while you were editing. Your changes were not saved.");
+    await expect(error).not.toContainText(/expected ?version|version mismatch/i);
+    await expect(other.getByPlaceholder("Label").last(), "the losing tab keeps its unsaved item").toHaveValue("From tab B");
+    expect(statuses.sort()).toEqual([200, 409]);
+    const stored = await readMenuBySlug(request, slug);
+    expect(stored.items.map((i) => i.label)).toEqual(["Base item", "From tab A"]);
+    await other.close();
   });
-});
+}

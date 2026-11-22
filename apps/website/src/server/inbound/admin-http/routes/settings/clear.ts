@@ -1,3 +1,4 @@
+import type { SettingsErrorMapping } from "@jini-ai/http-kit/settings";
 import {
   DefinitionNotFoundError,
   DefinitionTombstonedError,
@@ -8,7 +9,8 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, createTovuSettingsService, type SettingsErrorMapping, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
+import { resolveTargetWorkspaceId } from "@jini-ai/core/settings";
+import { createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -23,7 +25,7 @@ const CLEAR_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
 /** This route's required fields, off an untyped body: `namespace`, `key`, and a `VALID_SCOPES`
  *  member. `null` means the body failed that check.
  *  @complexity O(1). */
-function parseClearRequestFields(rawBody: unknown): {
+function parseClearRequestFields({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): {
   namespace: string;
   key: string;
   scope: SettingScope;
@@ -56,11 +58,11 @@ function parseClearRequestFields(rawBody: unknown): {
  * clear, since `write-service.clear()` runs the identical
  * `assertTargetPrincipalInWorkspace` check as `set()`).
  */
-export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "delete", path: "/api/admin/v1/workspaces/:workspaceId/settings/value",
     errorMappings: CLEAR_ERROR_MAPPINGS,
     handle: async ({ request: req, principal, authorize }) => {
-      const parsed = parseClearRequestFields(req.body);
+      const parsed = parseClearRequestFields({ rawBody: req.body });
       if (!parsed) {
         rejectSettingsRequest({ status: 400,
           error: "namespace, key, and scope (global|workspace|user) are required",
@@ -68,11 +70,11 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, dep
         });
       }
       const { namespace, key, scope, bodyWorkspaceId, principalId } = parsed;
-      // See `resolveTargetWorkspaceId` in `shared.ts`. This route previously took the write target
+      // See `resolveTargetWorkspaceId` (`@jini-ai/core/settings`). This route previously took the write target
       // straight from the body while authorizing against `deps.workspaceId` below — a cross-tenant
       // clear. It also never defaulted for non-global scopes, the same masked-500 gap `set.ts` was
       // fixed for on 2026-07-31 and that its comment flagged here as an unfixed follow-up.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId({ workspaceId: deps.workspaceId, input: { bodyWorkspaceId, scope } });
       if (!targetWorkspace.ok) {
         rejectSettingsRequest({ status: 400, error: targetWorkspace.error, code: "VALIDATION_ERROR" });
       }

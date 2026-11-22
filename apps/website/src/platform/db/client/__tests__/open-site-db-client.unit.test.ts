@@ -7,7 +7,7 @@ import { test, type TestContext } from "node:test";
 import ts from "typescript";
 
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {
   type ImportSiteDbDriver,
   openSiteDbClient,
@@ -30,7 +30,6 @@ const FORBIDDEN: ReadonlyArray<{ label: string; test: (rel: string) => boolean }
   { label: "prepare-content-store", test: (rel) => rel.includes("prepare-content-store") },
   { label: "boot-data-repairs", test: (rel) => rel.includes("boot-data-repairs") },
   { label: "configuration/seed", test: (rel) => rel.includes("configuration/seed") },
-  { label: "features/plugins/migration-recovery", test: (rel) => rel.startsWith("features/plugins/migration-recovery") },
   { label: "pglite-owner", test: (rel) => rel.includes("pglite-owner") },
 ];
 
@@ -91,6 +90,9 @@ function reachableFiles(entry: string): Set<string> {
   return seen;
 }
 
+/** Plugin data-module recovery lives in this Jini subpath; no file the client reaches may load it. */
+const PLUGIN_RECOVERY_SPECIFIER = "@jini-ai/db/data-modules";
+
 test("W1-L: the client's import graph (static, plus its driver import()s) reaches no migration, seed, repair, recovery or PGlite-owner module", () => {
   const reached = [...reachableFiles(CLIENT_FILE)].map((file) => path.relative(SRC_ROOT, file).split(path.sep).join("/"));
   // Sanity: the walk follows the lazily imported drivers, so a broken resolver cannot pass vacuously.
@@ -99,6 +101,9 @@ test("W1-L: the client's import graph (static, plus its driver import()s) reache
   }
   const offenders = FORBIDDEN.flatMap(({ label, test: matches }) => reached.filter(matches).map((rel) => `${label}: ${rel}`));
   assert.deepEqual(offenders, []);
+  const recoveryLoaders = [...reachableFiles(CLIENT_FILE)].filter((file) =>
+    valueSpecifiers(file, { dynamic: true }).includes(PLUGIN_RECOVERY_SPECIFIER));
+  assert.deepEqual(recoveryLoaders.map((file) => path.relative(SRC_ROOT, file)), []);
 });
 
 /** The module a node names, type-level included: an import/export declaration, `import()` or `typeof import()`. */
@@ -183,9 +188,9 @@ test("W1-L: sqlite never migrates: an existing empty file stays empty (default d
   fs.writeFileSync(site.dbPath, "");
   fs.writeFileSync(site.chatDbPath, "");
   const client = await openSiteDbClient({ storage: { kind: "sqlite" }, ...site, resolvePostgresConnectionString: unusedResolver }, { env: {} });
-  const tables = (k: StorageKernel<unknown>) => k.run((db) => db.introspection.getTables());
-  assert.deepEqual(await tables(client.content as StorageKernel<unknown>), []);
-  assert.deepEqual(await tables(client.chat as StorageKernel<unknown>), []);
+  const tables = (k: KyselyKernel<unknown>) => k.run((db) => db.introspection.getTables());
+  assert.deepEqual(await tables(client.content as KyselyKernel<unknown>), []);
+  assert.deepEqual(await tables(client.chat as KyselyKernel<unknown>), []);
   await client.close();
 });
 
@@ -210,18 +215,18 @@ test("W1-L: TOVU_DB=memory is refused before any driver loads", async () => {
 });
 
 /** A Postgres-dialect kernel stand-in: `run` hands over a db whose `withSchema` records the schema. */
-function fakePgKernel(): { kernel: StorageKernel<unknown>; closed: () => number } {
+function fakePgKernel(): { kernel: KyselyKernel<unknown>; closed: () => number } {
   let closed = 0;
   const db = { schema: undefined, withSchema: (schema: string) => ({ schema }) };
   const kernel = {
     dialect: "postgres",
     run: async (fn: (db: unknown) => unknown) => fn(db),
     close: async () => { closed += 1; },
-  } as unknown as StorageKernel<unknown>;
+  } as unknown as KyselyKernel<unknown>;
   return { kernel, closed: () => closed };
 }
 
-async function schemaOf(kernel: StorageKernel<unknown>): Promise<string | undefined> {
+async function schemaOf(kernel: KyselyKernel<unknown>): Promise<string | undefined> {
   return kernel.run((db) => (db as unknown as { schema: string | undefined }).schema);
 }
 
@@ -238,8 +243,8 @@ test("W1-L: pglite connects to the owner's socket from TOVU_PG_SOCKET, loading o
   );
   assert.deepEqual(kinds, ["pglite"]);
   assert.deepEqual(sockets, ["/run/tovu/.s.PGSQL.5432"]);
-  assert.equal(await schemaOf(client.content as unknown as StorageKernel<unknown>), undefined);
-  assert.equal(await schemaOf(client.chat as unknown as StorageKernel<unknown>), "ai_chat");
+  assert.equal(await schemaOf(client.content as unknown as KyselyKernel<unknown>), undefined);
+  assert.equal(await schemaOf(client.chat as unknown as KyselyKernel<unknown>), "ai_chat");
   await client.close();
   assert.equal(fake.closed(), 1);
 });
@@ -268,8 +273,8 @@ test("W1-L: postgres resolves the site's connection string through the injected 
     { env, importDriver }
   );
   assert.deepEqual(kinds, ["postgres"]);
-  assert.deepEqual(calls, [[storage, { siteDir: "/site" }, { env }], { connectionString: "postgres://resolved" }]);
-  assert.equal(await schemaOf(client.chat as unknown as StorageKernel<unknown>), "ai_chat");
+  assert.deepEqual(calls, [[{ storage, siteDir: "/site" }, { env }], { connectionString: "postgres://resolved" }]);
+  assert.equal(await schemaOf(client.chat as unknown as KyselyKernel<unknown>), "ai_chat");
   await client.close();
   assert.equal(fake.closed(), 1);
 });

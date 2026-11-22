@@ -6,7 +6,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations, validateDemoA2uiMessage } from "../demo-a2ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -19,7 +19,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  */
 
 function buildHandler(surfaceExchanges: SurfaceExchangeStore) {
-  const registrations: ToolRegistration[] = buildDemoA2uiRegistrations(undefined, { surfaceExchanges });
+  const registrations: ToolRegistration[] = buildDemoA2uiRegistrations({ _routeDeps: undefined, surfaces: { surfaceExchanges } });
   const registration = registrations.find((r) => r.descriptor.id === DEMO_A2UI_TOOL_ID);
   assert.ok(registration, "the tool must be wired");
   return registration.handler;
@@ -163,7 +163,7 @@ test("registers unconditionally — no environment can switch this tool off", ()
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    const registrations = buildDemoA2uiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+    const registrations = buildDemoA2uiRegistrations({ _routeDeps: undefined, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
     assert.ok(
       registrations.some((r) => r.descriptor.id === DEMO_A2UI_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",

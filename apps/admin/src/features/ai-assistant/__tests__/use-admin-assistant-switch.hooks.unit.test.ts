@@ -40,17 +40,17 @@ describe("useAdminAssistantSwitch", () => {
     const { result } = renderHook(() => useAdminAssistantSwitch());
     expect(result.current.open).toBe(false);
 
-    act(() => publishAssistantDockState(true));
+    act(() => publishAssistantDockState({ open: true }));
 
     expect(result.current.open).toBe(true);
   });
 
   it("setOpen asks the bus to open/close via requestAssistantDock — it does NOT flip open itself", () => {
     const requests: boolean[] = [];
-    const unsubscribe = subscribeToAssistantDockRequests((open) => requests.push(open));
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: (open) => requests.push(open) });
     const { result } = renderHook(() => useAdminAssistantSwitch());
 
-    act(() => result.current.setOpen(true));
+    act(() => result.current.setOpen({ open: true }));
 
     expect(requests).toEqual([true]);
     // No owner (App.tsx) is listening in this test, so nothing ever calls

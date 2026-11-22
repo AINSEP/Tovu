@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { translate } from "./consent-dictionary";
+import { type Translate } from '@jini-ai/core/text';
 export { translate } from "./consent-dictionary";
 
 /**

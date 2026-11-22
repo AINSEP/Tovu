@@ -1,5 +1,6 @@
-import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
-import { WORKSPACE_ID, authenticatedAdminRequest } from '@/lib/api';
+import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/cookie-consent/react';
+import { WORKSPACE_ID } from '@/lib/admin-http/config';
+import { authenticatedAdminRequest } from '@/lib/admin-http/request';
 
 /**
  * @file The Cookie Consent page's port onto the revisions API
@@ -79,7 +80,7 @@ export interface ConsentRevisionsPort {
 }
 
 /** `authenticatedAdminRequest`'s shape: resolves the JSON body, rejects with `ApiError` on non-2xx. */
-export type ConsentRequest = <T>(required: { method: string; path: string; body?: unknown }) => Promise<T>;
+export type ConsentRequest = <T>(required: { method: string; path: string; body?: unknown }, optional?: Record<string, never>) => Promise<T>;
 
 /** Builds the port over any request function, so tests drive it with a fake per status code.
  * @complexity O(1) per call; one request each. */
@@ -88,11 +89,11 @@ export function createConsentRevisionsPort({ request }: { request: ConsentReques
   return {
     get: () => request({ method: 'GET', path: `${base}/settings` }),
     readiness: ({ path } = {}) => request({ method: 'GET', path: `${base}/readiness${path === undefined ? '' : '?path=' + encodeURIComponent(path)}` }),
-    dryRun: body => request({ method: 'POST', path: `${base}/dry-run`, body }),
-    preview: body => request({ method: 'POST', path: `${base}/preview`, body }),
-    saveDraft: body => request({ method: 'PUT', path: `${base}/settings`, body }),
-    publish: body => request({ method: 'POST', path: `${base}/publish`, body }),
+    dryRun: (body, _optional = {}) => request({ method: 'POST', path: `${base}/dry-run`, body }),
+    preview: (body, _optional = {}) => request({ method: 'POST', path: `${base}/preview`, body }),
+    saveDraft: (body, _optional = {}) => request({ method: 'PUT', path: `${base}/settings`, body }),
+    publish: (body, _optional = {}) => request({ method: 'POST', path: `${base}/publish`, body }),
   };
 }
 
-export const defaultConsentRevisionsPort = createConsentRevisionsPort({ request: required => authenticatedAdminRequest(required) });
+export const defaultConsentRevisionsPort = createConsentRevisionsPort({ request: (required, _optional = {}) => authenticatedAdminRequest(required) });

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { GetEntryMetaDeps } from "@jini-ai/cms/seo";
 import { buildPostRecord } from "../../post/__tests__/post-record.fixture.js";
-import { resolveSeoCoverImage, withCoverReadDeps } from "../cover-image.js";
+import { resolveSeoCoverImage, withCoverReadDeps } from "@jini-ai/cms/seo/cover-image";
 
 const media = (assetId: string) => ({ type: "media", attrs: { assetId, alt: `${assetId} alt` } });
 

@@ -49,7 +49,7 @@ const COMPOSE_ONLY: readonly CampaignActorTier[] = ["compose"];
  *
  * @complexity O(t) in the (fixed, ≤4) size of `permitted`.
  */
-function requireTier(actorTier: CampaignActorTier, permitted: readonly CampaignActorTier[], reason: string): TransitionResult {
+function requireTier({ actorTier, permitted, reason }: { actorTier: CampaignActorTier; permitted: readonly CampaignActorTier[]; reason: string }, _options = {}): TransitionResult {
   if (!permitted.includes(actorTier)) return { allowed: false, reason };
   return { allowed: true };
 }
@@ -114,26 +114,26 @@ export function transitionCampaignStatus(input: {
   from: CampaignStatus;
   to: CampaignStatus;
   actorTier: CampaignActorTier;
-}): TransitionResult {
+}, _optional: Record<string, never> = {}): TransitionResult {
   const { from, to, actorTier } = input;
 
   if (from === to) {
     return { allowed: false, reason: `'${from}' -> '${to}' is not a transition (no-op)` };
   }
   if (isSendStart(from, to)) {
-    return requireTier(actorTier, PIPELINE_ONLY, "only the send pipeline may set status to 'sending'");
+    return requireTier({ actorTier, permitted: PIPELINE_ONLY, reason: "only the send pipeline may set status to 'sending'" });
   }
   if (to === "sent") {
     return authorizeSendCompletion(from, actorTier);
   }
   if (isPauseOrResume(from, to)) {
-    return requireTier(actorTier, SEND_OR_PIPELINE, `only 'admin.newsletter.campaign.send' may transition '${from}' -> '${to}'`);
+    return requireTier({ actorTier, permitted: SEND_OR_PIPELINE, reason: `only 'admin.newsletter.campaign.send' may transition '${from}' -> '${to}'` });
   }
   if (isScheduling(from, to)) {
-    return requireTier(actorTier, SCHEDULE_ONLY, "only 'admin.newsletter.campaign.schedule' may set draft -> scheduled");
+    return requireTier({ actorTier, permitted: SCHEDULE_ONLY, reason: "only 'admin.newsletter.campaign.schedule' may set draft -> scheduled" });
   }
   if (isCancellation(from, to)) {
-    return requireTier(actorTier, COMPOSE_ONLY, "only 'admin.newsletter.campaign.compose' may cancel a campaign");
+    return requireTier({ actorTier, permitted: COMPOSE_ONLY, reason: "only 'admin.newsletter.campaign.compose' may cancel a campaign" });
   }
 
   return { allowed: false, reason: `'${from}' -> '${to}' is not a permitted transition for any actor tier` };

@@ -13,7 +13,7 @@ function describeAgent(agent: DetectedAgent): string {
  *
  * @complexity O(models on the agent).
  */
-function modelNoLongerOffered(agent: DetectedAgent, model: string): boolean {
+function modelNoLongerOffered({ agent, model }: { agent: DetectedAgent; model: string }, _optional = {}): boolean {
   return Boolean(model && agent.models?.length && !agent.models.some((option) => option.id === model));
 }
 
@@ -35,7 +35,7 @@ function modelNoLongerOffered(agent: DetectedAgent, model: string): boolean {
  * "not found on this server's PATH" branch is unaffected and stays covered at the HTTP level in
  * `admin-assistant-execution-routes.test.ts`.
  */
-export function resolveTestAgentOutcome(agent: DetectedAgent, model: string): TestAgentOutcome {
+export function resolveTestAgentOutcome({ agent, model }: { agent: DetectedAgent; model: string }, _optional = {}): TestAgentOutcome {
   if (agent.authStatus === "missing") {
     return {
       ok: false,
@@ -58,7 +58,7 @@ export function resolveTestAgentOutcome(agent: DetectedAgent, model: string): Te
   // rather than silently snapping to another model), which means "the CLI is authenticated" and
   // "the model you chose still exists" are different questions. Answering only the first with a
   // green result would tell the operator a run will work when it cannot.
-  if (modelNoLongerOffered(agent, model)) {
+  if (modelNoLongerOffered({ agent, model })) {
     return {
       ok: false,
       message:

@@ -53,17 +53,20 @@ export const DEFAULT_LOCAL_BIND_HOST = "127.0.0.1";
  * Resolves the host argument for `.listen(port, host)` from the already-picked raw value, falling
  * back to `fallback` when that value is absent or blank.
  *
- * @param raw - the `--host` flag value if present, else the `TOVU_HOST` env value, else `undefined`
+ * @param required.raw - the `--host` flag value if present, else the `TOVU_HOST` env value, else `undefined`
  *   — precedence is the caller's job (see this file's header). Always a plain string or `undefined`;
  *   never an env object.
- * @param fallback - what to return when `raw` is absent: `serve.ts` passes `DEFAULT_LOCAL_BIND_HOST`,
+ * @param required.fallback - what to return when `raw` is absent: `serve.ts` passes `DEFAULT_LOCAL_BIND_HOST`,
  *   `index.ts` passes `undefined` (its own existing all-interfaces default, unchanged).
  * @throws {ValidationError} when `raw` is set to something that is not an IP literal and not
  *   blank — exact wording: `--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0
  *   (got "<value>")`.
  * @complexity O(1) — one `net.isIP` check.
  */
-export function resolveBindHost(raw: string | undefined, fallback: string | undefined): string | undefined {
+export function resolveBindHost(
+  { raw, fallback }: { raw: string | undefined; fallback: string | undefined },
+  _optional = {},
+): string | undefined {
   if (raw === undefined) return fallback;
 
   const trimmed = raw.trim();
@@ -74,7 +77,7 @@ export function resolveBindHost(raw: string | undefined, fallback: string | unde
   if (trimmed === "::") return undefined;
 
   if (net.isIP(trimmed) === 0) {
-    throw new ValidationError(`--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")`);
+    throw new ValidationError({ message: `--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "${trimmed}")` });
   }
 
   return trimmed;
@@ -89,7 +92,7 @@ export function resolveBindHost(raw: string | undefined, fallback: string | unde
  *
  * @complexity O(1).
  */
-export function isLoopbackHost(host: string | undefined): boolean {
+export function isLoopbackHost({ host }: { host: string | undefined }, _optional = {}): boolean {
   if (host === undefined) return false;
   return host === "::1" || host.startsWith("127.");
 }

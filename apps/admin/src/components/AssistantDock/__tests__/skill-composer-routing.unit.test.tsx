@@ -1,8 +1,26 @@
-import { renderHook } from "@/__tests__/fetch-query-render";
+import { renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
-import { resolveSkillsAvailable, useSkillAwareAttachmentUploader } from "../hooks/AssistantDock.hooks";
+import { resolveSkillsAvailable, useSkillAwareAttachmentUploader } from "../hooks/composer-files.hooks";
 
 describe("skill-aware attachment routing", () => {
+  it("awaits a mixed-batch skill proposal before uploading with the exact composer options", async () => {
+    let settleProposal!: () => void;
+    const proposal = new Promise<void>((resolve) => { settleProposal = resolve; });
+    const proposeFiles = vi.fn(() => proposal);
+    const attachments = [{ name: "note.txt", path: "attachment:note", kind: "file" as const }];
+    const uploadAttachments = vi.fn<ReturnType<typeof useSkillAwareAttachmentUploader>>(async () => attachments);
+    const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles }));
+    const skill = new File(["skill"], "SKILL.md"), note = new File(["note"], "note.txt");
+    const options = { batchId: "mixed-batch", signal: new AbortController().signal };
+    const upload = result.current([skill, note], options);
+    await waitFor(() => expect(proposeFiles).toHaveBeenCalledWith([skill]));
+    expect(uploadAttachments).not.toHaveBeenCalled();
+    settleProposal();
+    await expect(upload).resolves.toBe(attachments);
+    expect(uploadAttachments).toHaveBeenCalledExactlyOnceWith([note], options);
+    expect(uploadAttachments.mock.calls[0]![1]).toBe(options);
+  });
+
   it("preserves one message batch and its abort signal across two attach actions", async () => {
     const uploadAttachments = vi.fn(async () => []);
     const { result } = renderHook(() => useSkillAwareAttachmentUploader({ uploadAttachments, proposeFiles: vi.fn() }));
@@ -35,7 +53,7 @@ describe("skill-aware attachment routing", () => {
   });
 
   it.each(["tovu.plugin.json", "plugin.json", "README.md"])("uploads %s ZIPs as ordinary attachments, preserving options", async manifest => {
-    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const { zipFolderFiles } = await import("@jini-ai/agent-plugins/folder-zip");
     const zip = await zipFolderFiles({ files: [new File(["{}"], manifest)], maxBytes: 1024 * 1024 });
     const attachments = [{ name: zip.name, path: "attachment:plugin123", kind: "file" as const }];
     const uploadAttachments = vi.fn(async () => attachments), proposeFiles = vi.fn(async () => {});
@@ -47,7 +65,7 @@ describe("skill-aware attachment routing", () => {
   });
 
   it("proposes a real skill ZIP and uploads other files in the same selection", async () => {
-    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const { zipFolderFiles } = await import("@jini-ai/agent-plugins/folder-zip");
     const zip = await zipFolderFiles({ files: [new File(["skill"], "SKILL.md")], maxBytes: 1024 * 1024 });
     const note = new File(["note"], "note.txt");
     const uploadAttachments = vi.fn(async () => []), proposeFiles = vi.fn(async () => {});

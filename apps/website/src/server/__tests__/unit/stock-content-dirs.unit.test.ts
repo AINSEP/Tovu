@@ -153,8 +153,8 @@ test("site templates resolve to content/templates via the product-root walk-up",
   const source = readFileSync(path.join(SITE_DIR_DIR, "read-template.ts"), "utf8");
   assert.match(
     source,
-    /path\.join\(\s*resolveProductRoot\(\),\s*"content",\s*"templates"\s*\)/,
-    "read-template.ts must resolve TEMPLATES_ROOT via resolveProductRoot(), not a fixed ../ count, so it lands correctly in both the source and compiled trees",
+    /path\.join\(\s*resolveProductRoot\(\s*\{\s*\}\s*\),\s*"content",\s*"templates"\s*\)/,
+    "read-template.ts must resolve TEMPLATES_ROOT via resolveProductRoot({}), not a fixed ../ count, so it lands correctly in both the source and compiled trees",
   );
   assert.ok(existsSync(path.join(REPO_ROOT, "content", "templates", "starter", "template.json")));
 });

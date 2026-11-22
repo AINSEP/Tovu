@@ -1,7 +1,7 @@
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { useState } from "react";
+import { act, fireEvent, render, renderHook, screen } from "@/__tests__/render-with-jini-kits";
+import { createElement, useState } from "react";
 import { describe, expect, it } from "vitest";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { LocalSiteConfirmDialog } from "../LocalSiteConfirmDialog";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
@@ -165,9 +165,9 @@ describe("resolveSiteStatusPill and resolveSiteCardMeta", () => {
 
   it("marks the default site for the star and puts the running app in the pill's tooltip", () => {
     // 2026-10-09: "Default" and "Running in …" left the card's text; the facts stay.
-    expect(resolveSiteIsDefault({ ...alpha, name: "owner" }, snapshot())).toBe(true);
-    expect(resolveSiteIsDefault(alpha, snapshot({ persistedSiteName: "alpha" }))).toBe(true);
-    expect(resolveSiteIsDefault(alpha, snapshot())).toBe(false);
+    expect(resolveSiteIsDefault({ site: { ...alpha, name: "owner" }, snapshot: snapshot() })).toBe(true);
+    expect(resolveSiteIsDefault({ site: alpha, snapshot: snapshot({ persistedSiteName: "alpha" }) })).toBe(true);
+    expect(resolveSiteIsDefault({ site: alpha, snapshot: snapshot() })).toBe(false);
     const running = (port: number) => ({ ...alpha, running: { pid: 1, port, app: "Web", started: "2026-10-09T00:00:00.000Z", scheme: "https" as const } });
     expect(resolveSiteRunningTitle({ site: running(3000), t })).toBe("Running in Web (port 3000)");
     expect(resolveSiteRunningTitle({ site: running(0), t })).toBe("Running in Web (starting)");
@@ -201,27 +201,29 @@ it("resolveTrashCardActions exposes delete only after selection and blocks both 
 describe("useSiteConfirm", () => {
   it("resolves true/false from the dialog and titles itself per action", async () => {
     const { result } = renderHook(() => useSiteConfirm({ t }));
-    expect(result.current.open).toBe(false);
+    expect(result.current.dialog.open).toBe(false);
     let answer!: Promise<boolean>;
-    act(() => { answer = result.current.confirm("Move this site to Trash? You can restore it later.", { action: "trash" }); });
-    expect(result.current).toMatchObject({ open: true, title: "Move site to Trash?", confirmLabel: "Move to Trash", tone: "danger", body: "Move this site to Trash? You can restore it later." });
-    act(() => result.current.onConfirm());
+    act(() => { answer = result.current.confirm({ message: "Move this site to Trash? You can restore it later.", action: "trash" }); });
+    expect(result.current.dialog).toMatchObject({ open: true, title: "Move site to Trash?", confirmLabel: "Move to Trash", tone: "danger" });
+    expect(result.current.dialog.body).toEqual(createElement("p", null, "Move this site to Trash? You can restore it later."));
+    act(() => result.current.dialog.onConfirm());
     await expect(answer).resolves.toBe(true);
-    expect(result.current.open).toBe(false);
-    act(() => { answer = result.current.confirm("Switch now? Unsaved changes will be lost.", { action: "switch" }); });
-    expect(result.current).toMatchObject({ title: "Switch to this site now?", confirmLabel: "Switch now", tone: "warning" });
-    act(() => result.current.onCancel());
+    expect(result.current.dialog.open).toBe(false);
+    act(() => { answer = result.current.confirm({ message: "Switch now? Unsaved changes will be lost.", action: "switch" }); });
+    expect(result.current.dialog).toMatchObject({ title: "Switch to this site now?", confirmLabel: "Switch now", tone: "warning" });
+    act(() => result.current.dialog.onCancel());
     await expect(answer).resolves.toBe(false);
   });
 
   it("a second request cancels the first instead of leaving it pending", async () => {
     const { result } = renderHook(() => useSiteConfirm({ t }));
     let first!: Promise<boolean>, second!: Promise<boolean>;
-    act(() => { first = result.current.confirm("one", { action: "trash" }); });
-    act(() => { second = result.current.confirm("two", { action: "delete" }); });
+    act(() => { first = result.current.confirm({ message: "one", action: "trash" }); });
+    act(() => { second = result.current.confirm({ message: "two", action: "delete" }); });
     await expect(first).resolves.toBe(false);
-    expect(result.current).toMatchObject({ body: "two", title: "Delete site permanently?", confirmLabel: "Delete permanently" });
-    act(() => result.current.onConfirm());
+    expect(result.current.dialog).toMatchObject({ title: "Delete site permanently?", confirmLabel: "Delete permanently" });
+    expect(result.current.dialog.body).toEqual(createElement("p", null, "two"));
+    act(() => result.current.dialog.onConfirm());
     await expect(second).resolves.toBe(true);
   });
 });
@@ -231,7 +233,7 @@ describe("LocalSiteConfirmDialog", () => {
     const dialog = useSiteConfirm({ t });
     const [answer, setAnswer] = useState("none");
     return <>
-      <button type="button" onClick={() => void dialog.confirm("Move this site to Trash? You can restore it later.", { action: "trash" }).then((ok) => setAnswer(String(ok)))}>Ask</button>
+      <button type="button" onClick={() => void dialog.confirm({ message: "Move this site to Trash? You can restore it later.", action: "trash" }).then((ok) => setAnswer(String(ok)))}>Ask</button>
       <p>answer:{answer}</p>
       <LocalSiteConfirmDialog dialog={dialog} />
     </>;

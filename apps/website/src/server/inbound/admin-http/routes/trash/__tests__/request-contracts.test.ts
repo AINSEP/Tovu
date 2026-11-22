@@ -25,10 +25,10 @@ function harness(overrides: Record<string, unknown> = {}) {
   const app = express();
   const deps = { workspaceId: "ws-7", registry: new Map(), clock: { nowIso: () => now },
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides } as any;
-  registerAdminTrashListRoute(app, deps);
-  registerAdminTrashMoveToTrashRoute(app, deps);
-  registerAdminTrashPurgeRoute(app, deps);
-  registerAdminTrashRestoreRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
+  registerAdminTrashMoveToTrashRoute({ app, deps });
+  registerAdminTrashPurgeRoute({ app, deps });
+  registerAdminTrashRestoreRoute({ app, deps });
   return async (method: "get" | "post", suffix: string, body?: unknown, query: unknown = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -58,7 +58,7 @@ test("trash list normalizes filters and cursor and clamps/defaults limits withou
 test("trash list projects exact snapshot fields, actor lookup, and rounded days remaining", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const invoke = harness({ db: contentKernel(db), trash: { list: async () => ({ items: [{
+  const invoke = harness({ db: contentKernel({ store: db }), trash: { list: async () => ({ items: [{
     id: "trash-9", workspaceId: "ws-7", entityType: "post", entityId: "post-8", displayTitle: "Deleted title", displaySubtitle: "deleted-slug",
     trashedAt: "2026-09-01T00:00:00.000Z", purgeAfter: "2026-10-03T13:00:00.000Z", actorPrincipalId: "principal-7", actorPluginId: "plugin-3", internal: "hidden",
   }], nextCursor: "next-9" }) }, userRepo: { list: async (input: unknown) => {
@@ -108,15 +108,15 @@ test("purge returns 200 for referenced media and continues purging later selecte
     client.prepare(`INSERT INTO media (id, workspace_id, title, alt, caption, credit, source_sha256, status, created_at, updated_at, version)
       VALUES (?, 'ws-7', ?, '', '', '', ?, 'active', ?, ?, 1)`).run(id, id, "0".repeat(64), now, now);
   }
-  const adapter = createMediaTrashAdapter({ db: contentKernel(client), purgeAsset: async ({ entityId }) => {
+  const adapter = createMediaTrashAdapter({ db: contentKernel({ store: client }), purgeAsset: async ({ entityId }) => {
     if (entityId === "media-used") throw new MediaStillReferencedError({ message: "still used by a post", referencing: ["post-8:bodyHtml"] });
     client.prepare("DELETE FROM media WHERE workspace_id = ? AND id = ?").run("ws-7", entityId);
   } });
-  const repo = new SqliteTrashRepo(client);
+  const repo = new SqliteTrashRepo({ store: client });
   let id = 0;
   const trash = createTrashService({ repo, adapters: new Map([["media", adapter]]),
     idGen: { newId: () => `row-${++id}` }, entityPolicy: () => true,
-    transaction: ({ work }) => createContentDbTransactionRunner(client)(work),
+    transaction: ({ work }) => createContentDbTransactionRunner({ store: client })(work),
   });
   for (const entityId of ["media-used", "media-free"]) {
     await trash.trash({ workspaceId: "ws-7", entityType: "media", entityId, actor: { principalId: "principal-7" },
@@ -158,7 +158,7 @@ test("move-to-trash maps a marker race to 409 TRASH_VERSION_CHANGED, leaving the
     VALUES ('form-7', 'ws-7', 'Contact', 'contact', '{"fields":[]}', '{"enabled":false,"recipients":[]}', 'active', ?, ?, NULL, 8)`).run(now, now);
   let writes = 0;
   const invoke = harness({
-    registry: buildTrashRegistry(), db: contentKernel(db), trash: { trash: async (input: unknown) => {
+    registry: buildTrashRegistry(), db: contentKernel({ store: db }), trash: { trash: async (input: unknown) => {
     writes++; assert.deepEqual(input, { workspaceId: "ws-7", entityType: "form", entityId: "form-7", actor: { principalId: "principal-7" },
       display: { title: "Contact", subtitle: "contact" }, at: now, expectedVersion: 8 });
     return { ok: false, reason: "version-changed" };
@@ -179,8 +179,8 @@ test("trash list and purge 404 an absent or foreign workspace before authorizing
   const app = express();
   let calls = 0;
   const deps = portFake<TrashRouteDeps>({ workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } });
-  registerAdminTrashListRoute(app, deps);
-  registerAdminTrashPurgeRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
+  registerAdminTrashPurgeRoute({ app, deps });
   for (const [method, suffix] of [["get", ""], ["post", "/purge"]] as const) {
     for (const params of [{}, { workspaceId: "foreign" }]) {
       const { res, capture } = createCapturingResponse();
@@ -210,10 +210,10 @@ test("trash row projection sends a null actorUsername for an unknown actor and f
     trashedAt: "2026-09-30T12:00:00.000Z", purgeAfter: "2026-10-02T12:00:00.000Z", actorPrincipalId: "gone-user", actorPluginId: null,
     entityVersion: null, priorMarker: null };
   const names = new Map([["someone-else", "ada"]]);
-  const unknown = toAdminTrashResponse(item, now, names);
+  const unknown = toAdminTrashResponse({ item, now, usernameByPrincipalId: names });
   assert.equal(unknown.actorUsername, null);
   assert.equal(unknown.actorIsSystem, false);
-  const system = toAdminTrashResponse({ ...item, actorPrincipalId: "system" }, now, names);
+  const system = toAdminTrashResponse({ item: { ...item, actorPrincipalId: "system" }, now, usernameByPrincipalId: names });
   assert.equal(system.actorUsername, null);
   assert.equal(system.actorIsSystem, true);
 });

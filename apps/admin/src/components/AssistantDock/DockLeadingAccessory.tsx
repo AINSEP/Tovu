@@ -61,8 +61,10 @@ export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder 
 }
 
 /** The one-line "Folder window opened on the computer running Tovu" status, styled like the folder-drop notices. */
-function FolderWindowNote() {
-  const t = useT();
+function FolderWindowNote({
+  useTHook = useT }: {
+  useTHook?: typeof useT; } = {}) {
+  const t = useTHook();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-window-note" role="status">
       <span className="tovu-folder-drop-notice__icon" aria-hidden="true"><Icon name="folder" size={14} /></span>

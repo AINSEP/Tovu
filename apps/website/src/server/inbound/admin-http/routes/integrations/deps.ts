@@ -15,7 +15,7 @@ import type { RouteDeps, WebhooksDeps } from "#src/server/routes/types";
  */
 export type IntegrationsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "originRegistry"> & WebhooksDeps;
 
-export type IntegrationsRouteRegistrar = (app: Express, deps: IntegrationsRouteDeps) => void;
+export type IntegrationsRouteRegistrar = (required: { app: Express; deps: IntegrationsRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * The subscription-lifecycle deps every route in this directory hands `#src/features/webhooks`
@@ -30,7 +30,7 @@ export function toWebhookSubscriptionDeps(deps: IntegrationsRouteDeps): WebhookS
     clock: deps.clock,
     repo: deps.webhookSubscriptionRepo,
     idGenerator: deps.idGen,
-    isAllowedTarget: (url: string) =>
+    isAllowedTarget: ({ url }: { url: string }, _optional = {}) =>
       deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
   };
 }

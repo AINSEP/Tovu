@@ -86,7 +86,7 @@ async function withWorkspace<T>(fn: (workspaceRoot: string) => Promise<T>): Prom
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace({ workspaceId: WORKSPACE_ID }).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -168,12 +168,12 @@ test("a module without create() is refused, and a module path escaping the plugi
 });
 
 test("parseMailAdaptersFile rejects a bad schema version, a non-.mjs module, a missing credential label and a duplicate id", () => {
-  assert.deepEqual(parseMailAdaptersFile("{"), { ok: false, reason: "not valid JSON" });
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 3, adapters: [] })), { ok: false, reason: "schemaVersion must be 1 or 2" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: "{" }), { ok: false, reason: "not valid JSON" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 3, adapters: [] }) }), { ok: false, reason: "schemaVersion must be 1 or 2" });
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
-  assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, module: "a.js" }])), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" });
-  assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, credentialLabel: "" }])), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
-  assert.deepEqual(parseMailAdaptersFile(descriptorJson([entry, entry])), { ok: false, reason: "adapters[1].id 'a' is declared twice" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, module: "a.js" }]) }), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, credentialLabel: "" }]) }), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([entry, entry]) }), { ok: false, reason: "adapters[1].id 'a' is declared twice" });
 });
 
 test("throwing modules and malformed descriptors are refused while healthy mail adapters still load", async () => {
@@ -188,7 +188,7 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
     }
     const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, [
-      "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
+      "mail adapters from 'malformed-mail' were not loaded: jini-mail-adapters.json is invalid: not valid JSON",
       "mail adapter 'fixture_mail' from 'throwing-mail' was not loaded: fixture import failed",
     ]);
     assert.deepEqual(registry.list().map(adapter => [adapter.pluginId, adapter.descriptor.id]), [["healthy-mail", "fixture_mail"]]);
@@ -202,20 +202,20 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
 
 test("parseMailAdaptersFile refuses every malformed top-level shape and descriptor field", () => {
   for (const raw of ["null", "[]", "\"x\"", JSON.stringify({ adapters: [] })]) {
-    assert.deepEqual(parseMailAdaptersFile(raw), { ok: false, reason: "schemaVersion must be 1 or 2" }, raw);
+    assert.deepEqual(parseMailAdaptersFile({ raw }), { ok: false, reason: "schemaVersion must be 1 or 2" }, raw);
   }
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: {} })), { ok: false, reason: "adapters must be an array" });
-  assert.deepEqual(parseMailAdaptersFile(JSON.stringify({ schemaVersion: 1, adapters: ["entry"] })), { ok: false, reason: "adapters[0] must be an object" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 1, adapters: {} }) }), { ok: false, reason: "adapters must be an array" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: JSON.stringify({ schemaVersion: 1, adapters: ["entry"] }) }), { ok: false, reason: "adapters[0] must be an object" });
   const entry = { id: "a", label: "A", module: "a.mjs", credentialLabel: "A key" };
   for (const id of [7, "a".repeat(65), "Not-Lower", "double--dash"]) {
-    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, id }])), { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" }, String(id));
+    assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, id }]) }), { ok: false, reason: "adapters[0].id must match ^[a-z][a-z0-9_]{0,63}$" }, String(id));
   }
   for (const label of [undefined, "   ", "x".repeat(101)]) {
-    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, label }])), { ok: false, reason: "adapters[0].label must be a non-empty string" });
+    assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, label }]) }), { ok: false, reason: "adapters[0].label must be a non-empty string" });
   }
   for (const module of [3, "/abs/a.mjs"]) {
-    assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, module }])), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" }, String(module));
+    assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, module }]) }), { ok: false, reason: "adapters[0].module must be a relative path ending in .mjs" }, String(module));
   }
-  assert.deepEqual(parseMailAdaptersFile(descriptorJson([{ ...entry, credentialLabel: 5 }])), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
-  assert.deepEqual(parseMailAdaptersFile(descriptorJson([entry, { ...entry, id: "b" }])), { ok: true, descriptors: [entry, { ...entry, id: "b" }] });
+  assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([{ ...entry, credentialLabel: 5 }]) }), { ok: false, reason: "adapters[0].credentialLabel must be a non-empty string" });
+  assert.deepEqual(parseMailAdaptersFile({ raw: descriptorJson([entry, { ...entry, id: "b" }]) }), { ok: true, descriptors: [entry, { ...entry, id: "b" }] });
 });

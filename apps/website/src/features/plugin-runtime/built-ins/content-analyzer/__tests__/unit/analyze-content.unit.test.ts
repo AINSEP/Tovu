@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  analyzeContent,
-  countSyllables,
-  type CheckId,
-  type ContentAnalysisReport,
-  type ContentBlock,
-  type ContentCheck,
-} from "../../analyze-content.js";
+import { analyzeContent } from "../../analyze-content.js";
+import { countSyllables, type CheckId, type ContentAnalysisReport, type ContentBlock, type ContentCheck } from "@jini-ai/cms/seo/content-analysis";
 
 /**
  * @file `content-analyzer` pure scorer — every check boundary from the AW-7 Tier-2 brief's
@@ -314,23 +308,23 @@ test("toc: uses the renderer transliteration and omits unanchorable headings", (
 });
 
 test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its syllable, min 1", () => {
-  assert.equal(countSyllables("the"), 1);
-  assert.equal(countSyllables("cat"), 1);
-  assert.equal(countSyllables("make"), 1);
-  assert.equal(countSyllables("table"), 2);
-  assert.equal(countSyllables("banana"), 3);
-  assert.equal(countSyllables("rhythm"), 1);
-  assert.equal(countSyllables("42"), 1);
-  assert.equal(countSyllables("University,"), 5);
-  assert.equal(countSyllables("be"), 1);
+  assert.equal(countSyllables({ word: "the" }), 1);
+  assert.equal(countSyllables({ word: "cat" }), 1);
+  assert.equal(countSyllables({ word: "make" }), 1);
+  assert.equal(countSyllables({ word: "table" }), 2);
+  assert.equal(countSyllables({ word: "banana" }), 3);
+  assert.equal(countSyllables({ word: "rhythm" }), 1);
+  assert.equal(countSyllables({ word: "42" }), 1);
+  assert.equal(countSyllables({ word: "University," }), 5);
+  assert.equal(countSyllables({ word: "be" }), 1);
 });
 
 // Todo 21: the TOC must link to ids emitted by the actual renderer.
 test("non-ASCII TOC anchors exist in the rendered document; unanchorable headings are omitted", async () => {
-  const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render");
+  const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render/content-html");
   const texts = ["Café Münster", "Привет", "—", "日本語"];
   const report = analyzeContent({ title: OK_TITLE, blocks: texts.map(text => ({ kind: "heading" as const, level: 2 as const, text })) });
-  const html = renderDocNode({ type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) });
+  const html = renderDocNode({ node: { type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) } });
   assert.deepEqual(report.toc.map(row => row.anchor), ["cafe-muenster", "privet"]);
   for (const row of report.toc) assert.ok(html.includes(`id="${row.anchor}"`));
 });

@@ -26,29 +26,32 @@ import type { ToolExecutor } from '@jini-ai/daemon';
 import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, PROPOSE_CREDENTIAL_SAVE_FAILED, proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
 import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceControlProviderDescriptor } from '../provider-registry.js';
 import type { SourceControlProviderModule } from '../provider-module.js';
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 const ID = 'credential_save';
 const SECRET = 't10-source-secret-unique-982';
 test('t10 source credential form submit and cancel pass both MCP-UI callback gates', () => {
-  assert.equal(isMcpUiToolCallAllowed(ID), true);
-  assert.equal(isMcpUiToolCallPermitted(ID, true), true);
-  assert.equal(isMcpUiToolCallPermitted(ID, false), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
-  assert.equal(isMcpUiToolCallAllowed('source_control_get_capabilities'), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: ID }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: false }), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
+  assert.equal(isMcpUiToolCallAllowed({ toolName: 'source_control_get_capabilities' }), false);
 });
 
 test('t10 source callback delivers a human token only to its parked call, rejects wrong principals and replay', async () => {
   const f = fixture(); const { pending, emitted } = await form(f);
   let handler!: (req: Request, res: Response) => Promise<void>;
   // Invoke the registered production handler directly: no HTTP listener or transport mock.
-  registerMcpUiToolCallsRoute({ post: (path: string, callback: typeof handler) => {
-    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = callback;
-  } } as unknown as Express, {
-    surfaceExchanges: f.surfaces,
+  // why: the route is wrapped in asyncRoute (b394c8ca8), whose wrapper returns before the work ends;
+  // `.handler` is the original async handler, so each call is awaited before its response is read.
+  registerMcpUiToolCallsRoute({ app: { post: (path: string, route: { handler: typeof handler }) => {
+    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = route.handler;
+  } } as unknown as Express, deps: {
+    scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
-  });
+  } });
   async function callback(principal: string, params: Record<string, unknown>) {
     let status = 200; let body: unknown;
     const response = Object.assign(new EventEmitter(), { status: (value: number) => { status = value; return response; }, json: (value: unknown) => { body = value; return response; } });
@@ -82,12 +85,14 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential-t10' },
     sourceControlExportRootDir: '/unused', exportSiteBound: async () => assert.fail('setup must not export'),
     staticSiteContext: async () => assert.fail('credential setup must not read export context'),
+    staticSitePackager: { get entryFile(): string { return assert.fail('credential setup must not package a site'); }, packageSite: () => assert.fail('credential setup must not package a site') },
     loadSourceControlProviders: githubFromSource,
-    fetchFn: (async (url: string | URL | Request, init?: RequestInit) => {
-      assert.equal(String(url), 'https://api.github.com/user');
-      assert.equal((init!.headers as Record<string, string>).Authorization, `Bearer ${SECRET}`);
-      return new Response(JSON.stringify({ login: 't10-owner' }), { status: 200 });
-    }) as typeof fetch,
+    customCredentialsHttpClient: { send: async (request: { url: string; headers: Readonly<Record<string, string>> }, options?: { redirect?: string }) => {
+      assert.equal(request.url, 'https://api.github.com/user');
+      assert.equal(request.headers.Authorization, `Bearer ${SECRET}`);
+      assert.equal(options?.redirect, 'error');
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ login: 't10-owner' }) };
+    } },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'source-exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
   const registrations = credentialSaveFixtureRegistrations({ registrations: buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces }), adapters: { sourceControl: buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges: surfaces } }) } });
@@ -268,10 +273,10 @@ function bitbucketRegistry(onLoad: () => void = () => {}): LoadSourceControlProv
     credential: { tokenField: 'token', fields: [{ name: 'token', label: 'App password', required: true, secret: true }, { name: 'username', label: 'Username', required: true }] } };
   const module = { create: () => ({ readAccountLabel: async () => 'bb-owner' }) } as unknown as SourceControlProviderModule;
   const loaded: LoadedSourceControlProvider = { descriptor, pluginId: 'bitbucket-plugin', module };
-  return async () => { onLoad(); return { list: () => [loaded], get: id => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
+  return async () => { onLoad(); return { list: () => [loaded], get: ({ providerId: id }) => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
 }
 function directDeps(f: ReturnType<typeof fixture>, load: LoadSourceControlProviders): SourceControlCredentialSetupDeps {
-  const { fetchFn: _unused, ...rest } = f.deps;
+  const { customCredentialsHttpClient: _unused, ...rest } = f.deps;
   return { ...rest, loadSourceControlProviders: load };
 }
 function directCall(f: ReturnType<typeof fixture>, deps: SourceControlCredentialSetupDeps, input: unknown, extra: Partial<ToolExecutionContext> = {}, emitSurface?: (s: SurfaceEmission) => Promise<void>) {
@@ -285,7 +290,7 @@ test('a non-default token name stays on the human form and saves as canonical co
     { name: 'accessToken', label: 'Access token', required: true, secret: true as const },
     { name: 'username', label: 'Username', required: true },
   ] } } };
-  const deps = directDeps(f, async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }));
+  const deps = directDeps(f, async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }));
   const emitted: SurfaceEmission[] = [];
   let raised!: () => void;
   const ready = new Promise<void>(resolve => { raised = resolve; });

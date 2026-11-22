@@ -8,7 +8,8 @@ import { createSiteAssistantModule } from "../runtime/composition/modules/site-a
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsSetRoute } from "../inbound/admin-http/routes/settings/set.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../inbound/admin-http/routes/settings/register-definitions.js";
-import { registerSiteRoutes, resolveSiteAssistantWidgetForRequest } from "../inbound/public-http/routes/site/pages.js";
+import { registerSiteRoutes } from "../inbound/public-http/routes/site/pages.js";
+import { resolveSiteAssistantWidgetForRequest } from "../inbound/public-http/routes/site/pages/render-context/widgets.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { setSiteAssistantCredential, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { set as setLedgerValue } from "@jini-ai/core/settings";
@@ -46,21 +47,21 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  createAssistantSettingsModule(deps).registerRoutes?.(app);
-  registerAdminSettingsSetRoute(app, deps);
-  registerAdminSettingsRegisterDefinitionsRoute(app, deps);
-  createSiteAssistantModule(deps, { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
-    TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint }).registerRoutes?.(app);
+  createAssistantSettingsModule(deps).registerRoutes?.({ app });
+  registerAdminSettingsSetRoute({ app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+  createSiteAssistantModule(deps, { env: { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
+    TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint } }).registerRoutes?.({ app });
   // A real declarative renderer with no disk theme/build dependency; homepage content proves
   // the negative markup assertions reached a successful page, rather than an error response.
-  deps.postRepo = new InMemoryPostRepo([]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const themes: DiscoveredTheme[] = [{ manifest: { id: "tovu-official", name: "Visitor test", version: "1.0.0", tier: "declarative", engine: 1 },
     tokens: {}, tokensLight: {}, pages: {}, partials: {}, templates: { home: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Visitor readiness page" }] }] } },
     liquidTemplates: {}, handlebarsTemplates: {}, dir: "/nonexistent/visitorai-test", css: "", source: "site", status: "valid", errors: [] }];
   deps.themes = themes;
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   return { deps, baseUrl, cookie, providerCalls: () => providerCalls };
 }
@@ -154,7 +155,7 @@ test("visitorai: imported enabled state with no credential emits no widget and c
   assert.match(publicError.error, /^The assistant couldn't answer right now/);
   assert.ok(publicError.errorId);
   assert.equal(f.providerCalls(), 0);
-  await deleteSiteAssistantCredential({ repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, { workspaceId: f.deps.workspaceId });
+  await deleteSiteAssistantCredential({ deps: { repo: f.deps.siteAssistantCredentialRepo, clock: f.deps.clock }, workspaceId: f.deps.workspaceId });
   const off = await put({ ...f, path: "/assistant/settings", body: { publicEnabled: false } });
   assert.equal(off.status, 200, "an operator can always turn the stale flag off");
   const disabled = await fetch(f.baseUrl + "/api/site-assistant/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "Hello" }) });

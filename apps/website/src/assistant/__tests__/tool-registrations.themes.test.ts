@@ -13,7 +13,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { type AgentToolDefinition } from "@jini-ai/core";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
-import { THEME_CATALOG_DIR } from "../../features/theme/theme.js";
+import { THEME_CATALOG_DIR } from "@jini-ai/cms/themes/layout";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";
 import { resolveBatchableTools, batchDescriptorFor, withBatchInput } from "../batch-tool-inputs.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -177,12 +177,12 @@ test("no whole-theme or file-delete operation is agent-callable anywhere in the 
 test("an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe)", () => {
   assert.throws(
     () =>
-      assertRiskMetadataIsWirable("theme_delete_file", {
+      assertRiskMetadataIsWirable({ toolId: "theme_delete_file", catalogEntry: {
         name: "theme_delete_file",
         description: "hypothetical",
         sideEffects: "mutates-durable-state",
         authorization: { permission: "theme.edit" },
-      }, contributions),
+      } }, { contributions: contributions }),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/
   );
 });
@@ -215,7 +215,7 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
 
 test("each catalog entry's declared risk matches what this layer derives from its handler", () => {
   for (const id of CATALOGUED_THEMES_TOOL_IDS) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
@@ -357,7 +357,7 @@ test("theme_write_file: missing theme error tells the agent to create it first w
     principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, toolId: "theme_write_file",
     input: { themeId: "apple", path: "styles.css", content: "body{color:red}" },
   });
-  const result = mapToolExecutionResult(outcome, "theme_write_file");
+  const result = mapToolExecutionResult({ result: outcome, toolId: "theme_write_file" });
 
   assert.equal(outcome.status, "failed");
   assert.equal(outcome.errorKind, "validation");

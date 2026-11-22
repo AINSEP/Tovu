@@ -1,14 +1,16 @@
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Write-free host composition for owner-only reads of registered local SQLite sites. */
-import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import fs from 'node:fs';
 import path from 'node:path';
 import { sql } from 'kysely';
 import { isReadOnlyTool, ToolInputError, type Principal, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
-import { createSystemClock, createRandomUuidGenerator, nowIso } from '@jini-ai/core/primitives';
+import { nowIso } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { getEffective } from '@jini-ai/core/settings';
 import { constrainPrincipalToReadOnlyTools } from '@jini-ai/daemon/read-only-tools';
 import { SqliteDbOpsAdapter } from '@jini-ai/db/sqlite';
-import { OriginRegistry } from '@jini-ai/http-kit/verified-origin';
+import { OriginRegistry } from '@jini-ai/core/contracts/server/verified-origin';
 import { SharpImageTransformer } from '@jini-ai/cms/media/node';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import type { PeerSiteReads } from '#src/assistant/tool-registrations';
@@ -35,7 +37,7 @@ import { createSqliteIdentityRouteDeps, DEFAULT_OWNER_CREDENTIALS } from '#src/f
 import { SqliteSettingsRepo } from '#src/features/settings/repo.sqlite';
 import { SqliteWorkspaceRepo } from '#src/features/workspace/index';
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from '#src/features/forms/repo.sqlite';
-import { SqlFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-repo';
+import { createSiteFormDeliveryRepo } from '#src/platform/db/repos/form-delivery-binding';
 import { SqliteTaxonomyRepo, SqliteTermRepo, SqliteEntryTermRepo, SqliteTaxonomyRevisionRepo } from '#src/features/taxonomy/repo.sqlite';
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from '#src/features/navigation/repo.sqlite';
 import { SqliteEntryRepo } from '#src/features/entries/repo.sqlite';
@@ -44,11 +46,11 @@ import { discoverAllBuiltInThemes } from '#src/features/theme/index';
 import { SqliteCommentRepo } from '#src/features/comments/repo.sqlite';
 import { SqliteMemberRepo, SqliteMemberTierRepo, SqliteMemberSubscriptionRepo } from '#src/features/members/index';
 import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo, SqliteNewsletterSubscriptionRepo, SqliteNewsletterAudienceSnapshotRepo, SqliteNewsletterSendRepo } from '#src/features/newsletter/repo.sqlite';
-import { SqliteRedirectRepo } from '#src/features/redirects/repo.sqlite';
+import { SqliteRedirectRepo } from '#src/features/redirects/index';
 import { createSeoDeps } from '#src/features/seo/index';
 import { SqliteWidgetRegionBindingRepo } from '#src/features/widgets/repo.sqlite';
-import { SqliteTrashRepo } from '#src/features/trash/repo.sqlite';
-import { buildTrashRegistry } from '#src/features/trash/registry';
+import { SqliteTrashRepo } from '#src/features/trash/index';
+import { buildTrashRegistry } from '#src/features/trash/index';
 import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';
@@ -192,6 +194,85 @@ function assertPeerThemes({ siteDir, themesDir }: { siteDir: string; themesDir: 
   }
 }
 
+async function readPeerBlob({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  confinedPath({ root: source.dir, file: uploadsDir });
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.get({ storageKey });
+}
+
+async function peerBlobExists({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
+  if (!fs.existsSync(path.join(uploadsDir, storageKey))) return false;
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.exists({ storageKey });
+}
+
+async function peerBlobSize({ source, uploadsDir, blobs, storageKey }: { source: RegisteredSiteSource; uploadsDir: string; blobs: LocalFsBlobStore; storageKey: string }) {
+  if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
+  if (!fs.existsSync(path.join(uploadsDir, storageKey))) return null;
+  confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
+  return blobs.sizeOf({ storageKey });
+}
+
+function buildPeerDependencyBag({ source, kernel, chat, journal, introspection, workspaceId, clock, idGen, identity, postRepo, settingsRepo, presentationRepo, entryRefsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, themesDir, uploadsDir, themes, blobs, dbOps, trashRepo, formDeliveryRepo, seoDeps }: Pick<Parameters<typeof composePeer>[0], "source" | "kernel" | "chat" | "journal" | "introspection" | "workspaceId"> & {
+  clock: ReturnType<typeof createSystemClock> & { nowIso: () => ReturnType<typeof nowIso> }; idGen: ReturnType<typeof createRandomUuidGenerator>; identity: ReturnType<typeof createSqliteIdentityRouteDeps>; postRepo: SqlitePostRepo; settingsRepo: SqliteSettingsRepo; presentationRepo: SqlitePresentationSettingsRepo;
+  entryRefsRepo: SqliteEntryRefsRepo; mediaRepo: SqliteMediaRepo; mediaContentTypeStore: SqliteMediaContentTypeStore; transformDefinitionRepo: SqliteTransformDefinitionRepo; originRegistry: OriginRegistry;
+  themesDir: string; uploadsDir: string; themes: ReturnType<typeof discoverAllBuiltInThemes>; blobs: LocalFsBlobStore; dbOps: SqliteDbOpsAdapter; trashRepo: SqliteTrashRepo;
+  formDeliveryRepo: ReturnType<typeof createSiteFormDeliveryRepo>; seoDeps: ReturnType<typeof createSeoDeps>;
+}) {
+  const bag = {
+    ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,
+    // Optional build-time settings are explicit so builders don't iterate a poison value.
+    extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
+    peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
+    postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
+    docBodyAsPageHtml: renderDocBodyAsPageHtml,
+    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
+    mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo({ store: kernel }), assetRenditionRepo: new SqliteAssetRenditionRepo({ store: kernel }), mediaContentTypeStore, transformDefinitionRepo,
+    imageCodec: new SharpImageTransformer(),
+    // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
+    blobStore: {
+      get: async ({ storageKey }: { storageKey: string }) => readPeerBlob({ source, uploadsDir, blobs, storageKey }),
+      exists: async ({ storageKey }: { storageKey: string }) => peerBlobExists({ source, uploadsDir, blobs, storageKey }),
+      sizeOf: async ({ storageKey }: { storageKey: string }) => peerBlobSize({ source, uploadsDir, blobs, storageKey }),
+      put: unavailable({ field: 'blobStore.put' }), putIfAbsent: unavailable({ field: 'blobStore.putIfAbsent' }), delete: unavailable({ field: 'blobStore.delete' }),
+    },
+    // The existing factories borrow their connection; construction/get/history reads never write.
+    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel }), chatHistory: createChatStoreFactory({ store: chat }),
+    formDefinitionRepo: new SqliteFormDefinitionRepo({ store: kernel }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: kernel }),
+    // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
+    // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
+    formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },
+    taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
+    entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
+    menuRepo: new SqliteMenuRepo({ store: kernel }), navLocationBindingRepo: new SqliteNavLocationBindingRepo({ store: kernel }),
+    entryRepo: new SqliteEntryRepo({ store: kernel }), contentTypeRepo: new SqliteContentTypeRepo({ store: kernel }),
+    themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
+    // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
+    presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),
+      save: unavailable({ field: 'presentationRepo.save' }), listAll: unavailable({ field: 'presentationRepo.listAll' }) },
+    // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
+    resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
+    commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
+    memberRepo: new SqliteMemberRepo({ store: kernel }), memberTierRepo: new SqliteMemberTierRepo({ store: kernel }), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo({ store: kernel }),
+    newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo({ store: kernel }), newsletterListRepo: new SqliteNewsletterListRepo({ store: kernel }),
+    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo({ store: kernel }), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }), newsletterSendRepo: new SqliteNewsletterSendRepo({ store: kernel }),
+    redirectRepo: SqliteRedirectRepo({ store: kernel }, {}), originRegistry, seoDeps, seoReady: Promise.resolve(),
+    // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
+    redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>
+      (await trashRepo.findByEntity({ workspaceId: id, entityType: REDIRECT_ENTITY_TYPE, entityId })) !== null } }),
+    widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo({ store: kernel }),
+    registry: buildTrashRegistry(), trash: { list: trashRepo.list.bind(trashRepo) },
+    databaseIntrospection: introspection, dbOps: { getCapabilities: dbOps.getCapabilities.bind(dbOps) },
+    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize,
+      authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }), tokens: unavailable({ field: 'gatedMutations.tokens' }) }) },
+    databaseLedgerRepo: new SqliteDatabaseLedgerRepo({ db: journal, siteId: workspaceId }),
+    migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
+    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
+  };
+  return bag;
+}
+
 /** Build only plain repositories over borrowed, read-only handles. No boot/seed/migration services.
  * @param required - Target paths, checked schema, owner and open kernels.
  * @returns A fail-closed dependency bag for the existing domain builders.
@@ -210,12 +291,12 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
     reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
   await identity.identityReady;
-  const postRepo = new SqlitePostRepo(kernel), settingsRepo = new SqliteSettingsRepo(kernel);
-  const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
-  const entryRefsRepo = new SqliteEntryRefsRepo(kernel), mediaRepo = new SqliteMediaRepo(kernel);
-  const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
-  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(kernel);
-  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(kernel) });
+  const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo({ store: kernel });
+  const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
+  const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
+  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }) });
   const themesDir = path.join(source.dir, 'themes'), uploadsDir = path.join(source.dir, 'uploads');
   for (const file of [themesDir, uploadsDir]) if (fs.existsSync(file)) confinedPath({ root: source.dir, file });
   assertPeerThemes({ siteDir: source.dir, themesDir });
@@ -224,73 +305,10 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
   // Reuse the SQLite adapter's capability answer without granting its backup/restore effects.
   const dbOps = new SqliteDbOpsAdapter({ connection: { backup: unavailable({ field: 'dbOps.captureRestorePoint' }) },
     filePath: contentDbPath, readWatermark: unavailable({ field: 'dbOps.readWatermark' }) });
-  const trashRepo = new SqliteTrashRepo(kernel);
-  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });
+  const trashRepo = new SqliteTrashRepo({ store: kernel });
+  const formDeliveryRepo = createSiteFormDeliveryRepo({ kernel });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
-  const bag = {
-    ...identity, contentKernel: kernel, workspaceId, clock, idGen, settingsRepo, getEffective,
-    // Optional build-time settings are explicit so builders don't iterate a poison value.
-    extraDeniedSettings: [], settingsUiTabsReady: Promise.resolve(), settingsReady: Promise.resolve(), siteTitleReady: Promise.resolve(),
-    peerSiteReads: undefined, isSiteSwitcherEnabled: () => false, devRestart: null,
-    postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
-    docBodyAsPageHtml: renderDocBodyAsPageHtml,
-    pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
-    mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
-    imageCodec: new SharpImageTransformer(),
-    // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
-    blobStore: {
-      get: async ({ storageKey }: { storageKey: string }) => {
-        confinedPath({ root: source.dir, file: uploadsDir });
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.get({ storageKey });
-      },
-      exists: async ({ storageKey }: { storageKey: string }) => {
-        if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
-        if (!fs.existsSync(path.join(uploadsDir, storageKey))) return false;
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.exists({ storageKey });
-      },
-      sizeOf: async ({ storageKey }: { storageKey: string }) => {
-        if (fs.existsSync(uploadsDir)) confinedPath({ root: source.dir, file: uploadsDir });
-        if (!fs.existsSync(path.join(uploadsDir, storageKey))) return null;
-        confinedPath({ root: uploadsDir, file: path.join(uploadsDir, storageKey) });
-        return blobs.sizeOf({ storageKey });
-      },
-      put: unavailable({ field: 'blobStore.put' }), putIfAbsent: unavailable({ field: 'blobStore.putIfAbsent' }), delete: unavailable({ field: 'blobStore.delete' }),
-    },
-    // The existing factories borrow their connection; construction/get/history reads never write.
-    workspaceRepo: new SqliteWorkspaceRepo(kernel), chatHistory: createChatStoreFactory(chat),
-    formDefinitionRepo: new SqliteFormDefinitionRepo(kernel), formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
-    // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
-    // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
-    formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },
-    taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
-    entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
-    menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),
-    entryRepo: new SqliteEntryRepo(kernel), contentTypeRepo: new SqliteContentTypeRepo(kernel),
-    themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
-    // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
-    presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),
-      save: unavailable({ field: 'presentationRepo.save' }), listAll: unavailable({ field: 'presentationRepo.listAll' }) },
-    // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
-    resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
-    commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
-    memberRepo: new SqliteMemberRepo(kernel), memberTierRepo: new SqliteMemberTierRepo(kernel), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
-    newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo(kernel), newsletterListRepo: new SqliteNewsletterListRepo(kernel),
-    newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo(kernel), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo(kernel), newsletterSendRepo: new SqliteNewsletterSendRepo(kernel),
-    redirectRepo: SqliteRedirectRepo({ store: kernel }, {}), originRegistry, seoDeps, seoReady: Promise.resolve(),
-    // redirects_list hides Trashed rules (03fb27a27) by reading the PEER's Trash rows; every write stays poisoned.
-    redirectsWriteDeps: readsOnly({ field: 'redirectsWriteDeps', reads: { isInTrash: async ({ workspaceId: id, id: entityId }: { workspaceId: string; id: string }) =>
-      (await trashRepo.findByEntity({ workspaceId: id, entityType: REDIRECT_ENTITY_TYPE, entityId })) !== null } }),
-    widgetBindingRepo: new SqliteWidgetRegionBindingRepo(kernel), changeSets: new SqliteChangeSetRepo(kernel),
-    registry: buildTrashRegistry(), trash: { list: trashRepo.list.bind(trashRepo) },
-    databaseIntrospection: introspection, dbOps: { getCapabilities: dbOps.getCapabilities.bind(dbOps) },
-    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize,
-      authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }), tokens: unavailable({ field: 'gatedMutations.tokens' }) }) },
-    databaseLedgerRepo: new SqliteDatabaseLedgerRepo({ db: journal, siteId: workspaceId }),
-    migrationRunsRepo: new SqliteMigrationRunsRepo({ db: journal, siteId: workspaceId }),
-    restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
-  };
+  const bag = buildPeerDependencyBag({ source, kernel, chat, journal, introspection, workspaceId, clock, idGen, identity, postRepo, settingsRepo, presentationRepo, entryRefsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, themesDir, uploadsDir, themes, blobs, dbOps, trashRepo, formDeliveryRepo, seoDeps });
   // Spreading active deps would let a read silently return the ACTIVE site's data under another site's label.
   return new Proxy(bag, { get: (target, field, receiver) => {
     if (Reflect.has(target, field)) return Reflect.get(target, field, receiver);
@@ -328,48 +346,87 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
   validatePeerCacheBounds({ maxSites, idleMs });
   const cache = new Map<string, PeerBag>();
   const running = new Set<Promise<unknown>>();
-  let closed = false;
   // Serialize cold opens, evictions and close: concurrent first reads must not create duplicate bags.
-  let pending: Promise<unknown> = Promise.resolve();
+  const state: { closed: boolean; pending: Promise<unknown> } = { closed: false, pending: Promise.resolve() };
   // Lazy workspace resolution keeps registry/filesystem access behind the adapter's owner gate.
   const catalog = () => (workspace ??= createSitesWorkspace({}));
   const assertLocal = () => {
     if (!localHost) throw new ToolInputError({ message: 'Reading another site needs a local Tovu host.' });
   };
-  const isCurrentSite: PeerSiteReads['isCurrentSite'] = ({ siteName }) => {
-    assertLocal();
-    try {
-      return catalog().registry({}).list({}).some(entry => {
-        if (entry.name !== siteName) return false;
-        try { return fs.realpathSync(entry.path) === fs.realpathSync(currentSiteDir); } catch { return false; }
-      });
-    } catch { throw new ToolInputError({ message: 'The local site registry cannot be read.' }); }
-  };
+  const isCurrentSite = createCurrentSiteCheck(assertLocal, catalog, currentSiteDir);
   /** Close an evicted/idle entry exactly once. @complexity O(1), at most three handles. */
-  const remove = async (key: string, entry: PeerBag) => {
+  const remove = async ({ key, entry }: { key: string; entry: PeerBag }, _optional = {}) => {
     if (cache.get(key) !== entry || entry.busy) return;
     cache.delete(key);
     clearTimeout(entry.timer);
     await entry.close();
   };
   /** Reset an unref'd idle timer; an injected clock can also expire entries on the next resolve. */
-  const touch = (key: string, entry: PeerBag) => {
+  const touch = ({ key, entry }: { key: string; entry: PeerBag }, _optional = {}) => {
     entry.usedAt = now();
     cache.delete(key); cache.set(key, entry);
     clearTimeout(entry.timer);
     entry.timer = schedule(() => {
-      pending = pending.then(() => remove(key, entry)).catch(() => {});
+      state.pending = state.pending.then(() => remove({ key, entry })).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
     }, idleMs);
     entry.timer.unref();
   };
+  const openPeer = createPeerReadOpener(openContent, openChat, now);
+  /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
+  const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
+    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove({ key: id, entry });
+    const entry = cache.get(key);
+    if (entry) return entry;
+    while (cache.size >= maxSites) {
+      const candidate = [...cache].find(([, bag]) => bag.busy === 0);
+      if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
+      const [id, oldest] = candidate;
+      await remove({ key: id, entry: oldest });
+    }
+    return undefined;
+  };
+  const resolve = createPeerSiteResolver({ currentSiteDir, catalog, assertLocal, isCurrentSite, cache, running, state, cachedOrMakeRoom, openPeer, touch });
+  return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
+    async close() { state.closed = true; await state.pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove({ key, entry }))); },
+  };
+}
+
+function createCurrentSiteCheck(assertLocal: () => void, catalog: () => SitesWorkspace, currentSiteDir: string): PeerSiteReads["isCurrentSite"] {
+  return ({ siteName }) => {
+    assertLocal();
+    try {
+      return catalog().registry({}).list({}).some(entry => {
+        if (entry.name !== siteName) return false;
+        try { return fs.realpathSync(entry.path) === fs.realpathSync(currentSiteDir); } catch { return false; }
+      });
+    } catch (error) {
+      // A server fault, not bad tool input: the tool transport gives it an error ID, logs the
+      // redacted cause and shows Copy details. A ToolInputError told the model its call was wrong.
+      throw new Error('The local site registry could not be read.', { cause: error });
+    }
+  };
+}
+
+async function readPeerOwner(kernel: ReturnType<typeof openSqliteFileKernel<ContentDatabase>>, workspaceId: string) {
+  // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
+  const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
+    FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
+    JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
+    WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
+  const owner = owners[0];
+  if (owners.length !== 1 || !owner) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+  return owner;
+}
+
+function createPeerReadOpener(openContent: typeof openSqliteFileKernel, openChat: typeof openNativeSqlite, now: () => number) {
   /** Open and compose one read-only peer; failed provisional opens close all acquired handles.
    * @complexity O(t + f) for t registrations and f theme files, plus bounded schema/owner reads. */
-  const openPeer = async ({ source, paths, request }: {
+  return async ({ source, paths, request }: {
     source: RegisteredSiteSource;
     paths: ReturnType<typeof resolveSiteDatabasePaths>;
     request: Parameters<PeerSiteReads['resolve']>[0];
   }, _options = {}): Promise<PeerBag> => {
-    const kernel = openContent<ContentDatabase>(paths.contentDbPath, { readOnly: true });
+    const kernel = openContent<ContentDatabase>({ filePath: paths.contentDbPath }, { readOnly: true });
     let chat: ReturnType<typeof openChat> | undefined, journal: ReturnType<typeof openContent<JournalDatabase>> | undefined;
     try {
       const introspection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath: paths.contentDbPath });
@@ -377,22 +434,17 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       if (schema.status === 'behind' || pendingMigrations.items.length > 0) throw new ToolInputError({ message: `Open ${source.name} in Tovu once to upgrade it.` });
       if (schema.status !== 'in-sync') throw new ToolInputError({ message: 'This site has an unsupported database schema. Open it in Tovu first.' });
       const workspaceId = (await resolveWorkspace({ kernel })).id;
-      // Users are site-local: never reuse the caller's principal or infer ownership from username/email.
-      const owners = await kernel.query<{ principal_id: string }>(sql`SELECT DISTINCT u.principal_id
-        FROM identity_users u JOIN principal_roles pr ON pr.principal_id=u.principal_id AND pr.workspace_id=u.workspace_id
-        JOIN roles r ON r.id=pr.role_id AND r.workspace_id=pr.workspace_id
-        WHERE u.workspace_id=${workspaceId} AND r.name='owner' LIMIT 2`);
-      if (owners.length !== 1) throw new ToolInputError({ message: 'The target site must have exactly one owner to read it.' });
+      const owner = await readPeerOwner(kernel, workspaceId);
       if (!fs.existsSync(paths.chatDbPath)) throw new ToolInputError({ message: "This site's chat database is missing. Open the site in Tovu first." });
       const chatOptions = { readonly: true, fileMustExist: true, timeout: 5000 };
       chat = openChat(paths.chatDbPath, chatOptions);
       const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
       if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
-      journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
-      const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owners[0]!.principal_id, workspaceId });
-      const registrations = new Map(request.buildRegistrations(deps).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
+      journal = openContent<JournalDatabase>({ filePath: journalPath }, { readOnly: true });
+      const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owner.principal_id, workspaceId });
+      const registrations = new Map(request.buildRegistrations({ deps }).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
       const peerChat = chat, peerJournal = journal;
-      const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owners[0]!.principal_id } }),
+      const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owner.principal_id } }),
         close: async () => { try { peerChat.close(); } finally { try { await peerJournal?.close(); } finally { await kernel.close(); } } } };
       return entry;
     } catch (error) {
@@ -400,30 +452,26 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       throw error;
     }
   };
-  /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
-  const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
-    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove(id, entry);
-    const entry = cache.get(key);
-    if (entry) return entry;
-    while (cache.size >= maxSites) {
-      const candidate = [...cache].find(([, bag]) => bag.busy === 0);
-      if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
-      const [id, oldest] = candidate;
-      await remove(id, oldest);
-    }
-    return undefined;
-  };
-  const resolve: PeerSiteReads['resolve'] = required => {
-    const work = pending.then(async () => {
+}
+
+function createPeerSiteResolver(context: {
+  currentSiteDir: string; catalog: () => SitesWorkspace; assertLocal: () => void; isCurrentSite: PeerSiteReads["isCurrentSite"];
+  cache: Map<string, PeerBag>; running: Set<Promise<unknown>>; state: { closed: boolean; pending: Promise<unknown> };
+  cachedOrMakeRoom: (input: { key: string }) => Promise<PeerBag | undefined>; openPeer: ReturnType<typeof createPeerReadOpener>;
+  touch: (input: { key: string; entry: PeerBag }) => void;
+}): PeerSiteReads["resolve"] {
+  const { currentSiteDir, catalog, assertLocal, isCurrentSite, cache, state, cachedOrMakeRoom, openPeer, touch } = context;
+  return required => {
+    const work = state.pending.then(async () => {
       assertLocal();
-      if (closed) throw new ToolInputError({ message: 'Cross-site reads are closed.' });
+      if (state.closed) throw new ToolInputError({ message: 'Cross-site reads are closed.' });
       try {
         if (isCurrentSite({ siteName: required.siteName })) return 'current' as const;
         const active = resolveSiteDatabasePaths({ dir: currentSiteDir }, { workspace: catalog(), reserveIdentity: false });
         const matches = registeredSources({ workspace: catalog(), targetSiteId: active.siteId, targetSiteDir: currentSiteDir, targetFile: active.contentDbPath }).filter(source => source.name === required.siteName);
-        if (matches.length !== 1) throw new ToolInputError({ message: 'No readable local site has that name. Use sites_list to find a site.' });
-        const source = matches[0]!;
-        if (resolveSiteStorage(source.dir).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
+        const source = matches[0];
+        if (matches.length !== 1 || !source) throw new ToolInputError({ message: 'No readable local site has that name. Use sites_list to find a site.' });
+        if (resolveSiteStorage({ siteDir: source.dir }).kind !== 'sqlite') throw new ToolInputError({ message: 'Only local SQLite sites can be read.' });
         const paths = resolveSiteDatabasePaths({ dir: source.dir }, { workspace: catalog(), reserveIdentity: false });
         const key = `${source.siteId}:${paths.contentDbPath}`;
         let entry = await cachedOrMakeRoom({ key });
@@ -432,30 +480,35 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
           cache.set(key, entry);
         }
 
-        touch(key, entry);
+        touch({ key, entry });
         const registration = entry.registrations.get(required.toolId);
         if (!registration) throw new ToolInputError({ message: "This tool can't read another site." });
         const selected = entry;
-        return { principal: entry.principal, site: source, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
-          if (closed || cache.get(key) !== selected) throw new ToolInputError({ message: 'This site read expired. Try again.' });
-          selected.busy++;
-          clearTimeout(selected.timer);
-          // Track the entire handler lifetime so close/idle/eviction cannot interrupt an active read.
-          const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
-          running.add(read);
-          try { return await read; }
-          finally { running.delete(read); selected.busy--; if (!closed) touch(key, selected); }
-        } };
+        return { principal: entry.principal, site: source, handler: createPeerReadHandler(context, { key, selected, registration }) };
       } catch (error) {
         if (error instanceof ToolInputError) throw error;
         // SQLite/config errors may contain private paths; expose only a fixed refusal to the model.
         throw new ToolInputError({ message: 'This site cannot be read. Open it in Tovu and try again.' });
       }
     });
-    pending = work.catch(() => {});
+    // The caller receives work; this recovery keeps later site reads runnable.
+    state.pending = work.catch(() => {});
     return work;
   };
-  return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
-    async close() { closed = true; await pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove(key, entry))); },
+}
+
+function createPeerReadHandler(context: Parameters<typeof createPeerSiteResolver>[0], { key, selected, registration }: {
+  key: string; selected: PeerBag; registration: ToolRegistration;
+}) {
+  const { state, cache, running, touch } = context;
+  return async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
+    if (state.closed || cache.get(key) !== selected) throw new ToolInputError({ message: 'This site read expired. Try again.' });
+    selected.busy++;
+    clearTimeout(selected.timer);
+    // Track the entire handler lifetime so close/idle/eviction cannot interrupt an active read.
+    const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
+    running.add(read);
+    try { return await read; }
+    finally { running.delete(read); selected.busy--; if (!state.closed) touch({ key, entry: selected }); }
   };
 }

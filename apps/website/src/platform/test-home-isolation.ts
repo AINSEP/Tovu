@@ -11,12 +11,12 @@ export function assertTestHomeIsolation({ homeDir }: { homeDir: string }, { path
   const realHome = path.resolve(os.userInfo().homedir);
   const protectedRoots = [".tovu", "Documents/Tovu", "Tovu", "Tovu Sites", "Library/Application Support/Tovu",
     "AppData/Roaming/Tovu", ".local/share/Tovu", ".config/Tovu"].map((root) => path.resolve(realHome, root));
-  const within = (root: string, target: string) => {
+  const within = ({ root, target }: { root: string; target: string }, _optional = {}) => {
     const relative = path.relative(root, path.resolve(target));
     return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
   };
   if (path.resolve(homeDir) === realHome || [homeDir, ...paths].some((target) =>
-    path.resolve(target) === realHome || protectedRoots.some((root) => within(root, target)))) {
+    path.resolve(target) === realHome || protectedRoots.some((root) => within({ root, target })))) {
     throw new Error("Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.");
   }
 }

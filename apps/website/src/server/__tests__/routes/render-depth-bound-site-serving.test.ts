@@ -50,9 +50,9 @@ test("worklist #5 regression: a real HTTP request for a too-deep post serves 200
     updatedAt: "2026-08-12T00:00:00.000Z",
     version: 1,
   };
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   const app = express();
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/too-deep`);
@@ -85,9 +85,9 @@ test("worklist #5 regression: an ordinary post (well within the bound) is comple
     updatedAt: "2026-08-12T00:00:00.000Z",
     version: 1,
   };
-  deps.postRepo = new InMemoryPostRepo([post]);
+  deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
   const app = express();
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/ordinary-post`);

@@ -37,17 +37,17 @@ import type { ServerModuleHandle } from "./types.js";
 export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle {
   return {
     name: "seo",
-    registerRoutes: (app) => {
-      registerAdminSeoGetEntryRoute(app, deps);
-      registerAdminSeoPutEntryRoute(app, deps);
-      registerAdminSeoGetEntryAnalyzeRoute(app, deps);
-      registerAdminSeoGetSettingsRoute(app, deps);
-      registerAdminSeoPutSettingsRoute(app, deps);
-      registerAdminSeoPostSitemapRegenerateRoute(app, deps);
-      registerSeoSitemapRoute(app, deps);
-      registerSeoRobotsRoute(app, deps);
-      registerLlmsTxtRoute(app, deps);
-      registerFeedRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminSeoGetEntryRoute({ app, deps });
+      registerAdminSeoPutEntryRoute({ app, deps });
+      registerAdminSeoGetEntryAnalyzeRoute({ app, deps });
+      registerAdminSeoGetSettingsRoute({ app, deps });
+      registerAdminSeoPutSettingsRoute({ app, deps });
+      registerAdminSeoPostSitemapRegenerateRoute({ app, deps });
+      registerSeoSitemapRoute({ app, deps });
+      registerSeoRobotsRoute({ app, deps });
+      registerLlmsTxtRoute({ app, deps });
+      registerFeedRoute({ app, deps });
     },
   };
 }

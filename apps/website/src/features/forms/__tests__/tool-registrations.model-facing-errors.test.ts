@@ -23,6 +23,7 @@ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type HtmlFormDefinitionRecord } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
+import { reportRouteInternalError } from "@jini-ai/http-kit";
 
 const WORKSPACE_ID = "ws-forms-errors";
 const PRINCIPAL_ID = "principal-1";
@@ -63,7 +64,7 @@ type Harness = Awaited<ReturnType<typeof buildHarness>>;
 async function call(harness: Harness, toolId: string, input: unknown) {
   return delegatedToolExecuteRoute.handle({
     input: { runId: harness.run.id, toolUseId: `tu-${toolId}`, toolId, input },
-    deps: harness,
+    deps: { ...harness, reportInternalError: reportRouteInternalError },
   });
 }
 
@@ -96,7 +97,7 @@ test("forms_get_submission for an unknown submission says so rather than 'an int
 test("forms_update_definition for an unknown definition surfaces the not-found class, not a 500", async () => {
   const harness = await buildHarness(makeRouteDeps());
 
-  const result = await call(harness, "forms_update_definition", { formId: "nope", name: "Renamed" });
+  const result = await call(harness, "forms_update_definition", { formId: "nope", name: "Renamed", expectedVersion: 1 });
 
   assert.equal(result.ok, false);
   if (result.ok) return;
@@ -136,7 +137,7 @@ test("every Forms tool surfaces a denial with the permission named — the sibli
   for (const [toolId, input] of [
     ["forms_list_definitions", {}],
     ["forms_create_definition", { name: "n", slug: "s", fields: [{ id: "a", label: "A", type: "text", required: false }] }],
-    ["forms_update_definition", { formId: "f-1", name: "n" }],
+    ["forms_update_definition", { formId: "f-1", name: "n", expectedVersion: 1 }],
     ["forms_set_definition_status", { formId: "f-1", status: "active" }],
     ["forms_list_submissions", { formId: "f-1" }],
     ["forms_get_submission", { formId: "f-1", submissionId: "s-1" }],
@@ -158,7 +159,7 @@ test("the pre-existing withSchemaOnRejection path is UNCHANGED — a shape rejec
   // An empty patch is a `FormFieldValidationError`, which `isFormsShapeRejection` already matched
   // before this sweep. It must still reach the model as the decorated `ToolInputError` it always
   // was — NOT double-wrapped with a second code prefix by the new reclassification layer.
-  const result = await call(harness, "forms_update_definition", { formId: "f-1" });
+  const result = await call(harness, "forms_update_definition", { formId: "f-1", expectedVersion: 1 });
 
   assert.equal(result.ok, false);
   if (result.ok) return;
@@ -245,7 +246,7 @@ test('form tools reject invalid provider settings without creating or replacing 
   assert.equal(created.ok, true);
   const [saved] = await deps.formDefinitionRepo.list({ workspaceId: WORKSPACE_ID });
   assert.ok(saved);
-  const updated = await call(harness, 'forms_update_definition', { formId: saved.id, provider: invalid });
+  const updated = await call(harness, 'forms_update_definition', { formId: saved.id, expectedVersion: saved.version, provider: invalid });
   assert.ok(!updated.ok);
   assert.equal(updated.error.code, 'BAD_REQUEST');
   assert.match(updated.error.message, /Enter the public form link/);

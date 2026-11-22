@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { collectProcessTreePids, listProcessSnapshots, waitForProcessExit } from "@jini-ai/platform";
+import { listProcessSnapshots, waitForProcessExit } from "@jini-ai/platform";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 
 import { closeDesktop, removeScratchTree, launchDesktop, listSites, makeSite, portAnswers, siteCard, startSite, type DesktopLaunch } from "./_fixtures.js";
 
@@ -47,7 +48,7 @@ async function captureOwnedProcesses({ launch }: { launch: DesktopLaunch }, _opt
   const desktopFound = snapshots.some((entry) => entry.pid === pid);
   if (!desktopFound) processCaptureFailed = true;
   expect(desktopFound, "process enumeration must include the live desktop").toBe(true);
-  for (const owned of collectProcessTreePids(snapshots, [pid])) ownedPids.add(owned);
+  for (const owned of collectProcessTreePids({ processes: snapshots, rootPids: [pid] })) ownedPids.add(owned);
 }
 
 async function runningPort(launch: DesktopLaunch, name: string): Promise<number> {

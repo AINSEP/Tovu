@@ -1,7 +1,9 @@
+import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
-import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
-import { explicitRootAgentPluginActivations, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
+import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";
 import { importAgentPluginAccessToken, importAgentPluginAccessTokensFromEnv } from "#src/features/agent-plugins/import-access-token";
 import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-tool-renames";
@@ -14,6 +16,8 @@ import { bundledAgentPluginsDir } from "../composition/site-paths.js";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
 import { startPluginActivationPolling } from "../composition/plugin-activation-polling.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+
+const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through
@@ -31,10 +35,8 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 
 const noop = async (): Promise<void> => {};
 
-/* eslint-disable no-console */
 /** Boot's plain log: token imports and the bundled-plugin warnings below. */
-const bootLog = { info: (message: string) => console.info(message), warn: (message: string) => console.warn(message) };
-/* eslint-enable no-console */
+const bootLog = { info: (message: string) => consoleLogger.info({ message }), warn: (message: string) => consoleLogger.warn({ message }) };
 
 /** One vendor, one switch (`provider-plugin-link.ts`): after seeding, each agent plugin that is a
  *  provider plugin's face follows that plugin's switch — so a face seeded inactive, or one whose mirror
@@ -42,60 +44,73 @@ const bootLog = { info: (message: string) => console.info(message), warn: (messa
 async function syncProviderFacesAtBoot(deps: NewsletterRouteDeps): Promise<void> {
   try {
     await syncProviderFaces({
-      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
+      ports: bindProviderFacePorts({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root }),
       providerEnabled: async ({ pluginId }) => (await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId }))?.enabled === true,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.warn(`[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
+    consoleLogger.warn({ message: `[bundled-agent-plugins] provider plugin faces could not be synced; the next start retries: ${error instanceof Error ? error.message : String(error)}` });
+  }
+}
+
+/** "Soon" plugins are locked off (`soon-lock.ts`, owner 2026-11-10): one an older build, a retirement
+ *  successor or a missing record left on is switched off as `system:soon-lock`, after seeding and the
+ *  face sync so neither can turn it back on. Nothing is uninstalled. A failure is logged; the next start retries. */
+async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<void> {
+  try {
+    const switched = await lockSoonAgentPlugins({ catalog: explicitRootSoonCatalog, activations: explicitRootAgentPluginActivations,
+      workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root });
+    if (switched.length === 0) return;
+    bootLog.info(`[bundled-agent-plugins] switched off plugins that aren't ready yet: ${switched.join(", ")}`);
+    await notifyExternalMcpRosterChanged({ lowered: { pluginIds: switched } });
+  } catch (error) {
+    bootLog.warn(`[bundled-agent-plugins] plugins that aren't ready yet could not be switched off; the next start retries: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 /** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */
 export interface AgentPluginTokenBootSteps {
   /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */
-  readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;
-  readonly applyPending: (siteDir: string) => Promise<void>;
-  readonly importFromEnv: (skipPluginIds: ReadonlySet<string>) => Promise<void>;
+  readonly pendingPluginIds: ({ siteDir }: { siteDir: string }, optional?: Record<string, never>) => ReadonlySet<string>;
+  readonly applyPending: ({ siteDir }: { siteDir: string }, optional?: Record<string, never>) => Promise<void>;
+  readonly importFromEnv: ({ skipPluginIds }: { skipPluginIds: ReadonlySet<string> }, optional?: Record<string, never>) => Promise<void>;
 }
 
 function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPluginTokenBootSteps {
   return {
     pendingPluginIds: listPendingAgentPluginTokenIds,
-    applyPending: (siteDir) =>
+    applyPending: ({ siteDir }) =>
       applyPendingAgentPluginTokens(
-        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
-        bootLog,
+        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken({ deps, pluginId, token }),
+        log: bootLog },
       ),
-    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv(deps, process.env, bootLog, { skipPluginIds }),
+    importFromEnv: ({ skipPluginIds }) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
   };
 }
 
 /**
  * After the bundled plugins are seeded (a token needs its plugin installed): connects plugins from
  * tokens typed into create-site onboarding for this site, then from an old env token
- * (`tovuTokenAuth.importFromEnv`, e.g. the retired `TOVU_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding
+ * (`tovuTokenAuth.importFromEnv`, e.g. the retired `JINI_SUPABASE_MCP_ACCESS_TOKEN`). The onboarding
  * token goes first and the env import skips every plugin that had one: the person chose that token
  * for this site, and an ambient env token (possibly another account's) saved first would make the
  * pending import find the row connected and drop it. Neither overwrites a connection the site
  * already has, and neither can fail boot.
  */
 export async function importAgentPluginTokensAtBoot(
-  deps: NewsletterRouteDeps,
-  options: BuildBootModulesOptions,
-  steps: AgentPluginTokenBootSteps = defaultAgentPluginTokenBootSteps(deps),
+  { deps, options }: { deps: NewsletterRouteDeps; options: BuildBootModulesOptions },
+  { steps = defaultAgentPluginTokenBootSteps(deps) }: { steps?: AgentPluginTokenBootSteps } = {},
 ): Promise<void> {
   let pending: ReadonlySet<string> = new Set();
   if (!options.useMemory) {
     const siteDir = path.dirname(options.defaultContentDbPath());
-    pending = steps.pendingPluginIds(siteDir);
+    pending = steps.pendingPluginIds({ siteDir });
     try {
-      await steps.applyPending(siteDir);
+      await steps.applyPending({ siteDir });
     } catch (err) {
       bootLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  await steps.importFromEnv(pending);
+  await steps.importFromEnv({ skipPluginIds: pending });
 }
 
 function logBundledPluginRetirements(
@@ -108,19 +123,21 @@ function logBundledPluginRetirements(
   // because an operator had turned it off.
   for (const retirement of retirements) {
     if (retirement.status === "failed") {
-      // eslint-disable-next-line no-console
-      console.warn(`[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}`);
+      consoleLogger.warn({ message: `[bundled-agent-plugins] retired '${retirement.pluginId}' could not be removed: ${retirement.reason}` });
     }
     if (retirement.status === "retired") {
-      // eslint-disable-next-line no-console
-      console.info(`[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})`);
-      if (retirement.successor === "left-disabled-by-operator") {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability`,
-        );
-      }
+      logRetiredBundledPlugin(retirement);
     }
+  }
+}
+
+function logRetiredBundledPlugin(retirement: Extract<Awaited<ReturnType<typeof seedBundledAgentPlugins>>["retirements"][number], { status: "retired" }>): void {
+  // A parked plugin (formspree, 2026-11-10) retires into nothing; Jini reports its successor as "".
+  consoleLogger.info({ message: retirement.successorId === ""
+    ? `[bundled-agent-plugins] retired '${retirement.pluginId}' (no successor)`
+    : `[bundled-agent-plugins] retired '${retirement.pluginId}' (moved into '${retirement.successorId}'; successor: ${retirement.successor})` });
+  if (retirement.successor === "left-disabled-by-operator") {
+    consoleLogger.warn({ message: `[bundled-agent-plugins] '${retirement.pluginId}' was enabled but its successor '${retirement.successorId}' is turned off by an operator and was left off — turn it on in Agent Plugins to keep that capability` });
   }
 }
 
@@ -165,10 +182,10 @@ export function bundledAgentPluginBootWarnings(state: BundledAgentPluginBootStat
  *  @complexity O(p) in recorded plus installed plugins. */
 async function readEnabledAndInstalledIds(deps: NewsletterRouteDeps): Promise<Pick<BundledAgentPluginBootState, "enabledIds" | "installedIds">> {
   try {
-    const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
+    const workspaceRoot = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
     const [activations, installed] = await Promise.all([
       explicitRootAgentPluginActivations.readAgentPluginActivations({ workspaceRoot }),
-      listInstalledPlugins(workspaceRoot),
+      listInstalledPlugins({ workspaceRoot }),
     ]);
     const enabledIds = Object.entries(activations.plugins).filter(([, record]) => record.enabled).map(([pluginId]) => pluginId);
     return { enabledIds, installedIds: installed.map((plugin) => plugin.pluginId) };
@@ -216,7 +233,6 @@ export interface BuildBootModulesOptions {
  * Commerce is off: no store/payment declaration or seeding module is constructed in any mode.
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
-  let pluginActivationPoll: { stop: () => void } | undefined;
   return [
     {
       name: "database-migration-reconciliation",
@@ -237,131 +253,146 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
     { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     { name: "comments", owner: "comments", criticality: "optional", prepare: () => deps.commentsReady, start: noop, stop: noop },
-    {
-      // P0a fix (2026-09-23): re-attaches every durably-enabled plugin to this process's (fresh,
-      // empty) hook registry before the server starts serving — see `deps.pluginRuntimeReady`'s own
-      // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
-      // (logs and continues), so this module's own promise realistically never rejects; optional
-      // criticality is a defensive floor, not the primary safety net.
-      //
-      // `start` keeps this process's registry reconciled with the durable activation table after
-      // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
-      // detached the hook only there; without this poll, every save served here kept running the
-      // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
-      // this server-owned poll still reconciles durable version changes made by other processes
-      // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
-      name: "plugin-runtime-attach",
-      owner: "features/plugin-runtime",
-      criticality: "optional",
-      prepare: () => deps.pluginRuntimeReady,
-      start: async () => {
-        pluginActivationPoll?.stop();
-        pluginActivationPoll = startPluginActivationPolling(
-          deps,
-          options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
-        );
-      },
-      stop: async () => {
-        pluginActivationPoll?.stop();
-        pluginActivationPoll = undefined;
-      },
-    },
-    {
-      // Finishes or rolls back an Agent Plugin update a crash interrupted, then removes retained
-      // rollback bytes. It runs here, in array order: before the bundled seed touches any package and
-      // before the listener serves a run, since no run can hold those paths yet.
-      //
-      // OPTIONAL, like the seed below: one bad plugin must not stop the server. An unrecovered plugin
-      // is switched OFF (the update transaction switches it off before moving any bytes; recovery of
-      // an unreadable journal switches it off and rethrows; a restored revision whose MCP servers
-      // could not be re-provisioned stays off with an event), and its retained journal refuses any
-      // change to it (`PLUGIN_UPDATE_PENDING`, 409) until a later boot recovers it. Refusing to boot
-      // the whole site would also lock the operator out of the admin that could fix it. The composed
-      // lifecycle binds the real MCP port (`createDeferredAgentPluginUpdateEffects`), so recovery
-      // re-provisions a restored revision's servers.
-      name: "agent-plugin-update-recovery",
-      owner: "features/agent-plugins",
-      criticality: "optional",
-      prepare: async () => {
-        try {
-          await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(`[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}`);
-          throw error;
-        }
-      },
-      start: noop,
-      stop: noop,
-    },
-    {
-      // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
-      // records each INACTIVE until an operator enables it (see
-      // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).
-      //
-      // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
-      // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
-      // wildly disproportionate failure mode for a feature that is switched off by default anyway.
-      // Per-plugin failures are captured in the returned report and logged here rather than thrown,
-      // so one bad package cannot hide the others.
-      name: "bundled-agent-plugins",
-      owner: "features/agent-plugins",
-      criticality: "optional",
-      prepare: async () => {
-        const result = await seedBundledAgentPlugins({
-          layout: deps.agentPluginLayout,
-          workspaceId: deps.workspaceId,
-          sourceRoot: bundledAgentPluginsDir(),
-        });
-        for (const outcome of result.outcomes) {
-          if (outcome.status === "failed") {
-            // eslint-disable-next-line no-console
-            console.warn(`[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}`);
-          }
-        }
-        if (result.ledgerFailure !== undefined) {
-          // Not a seed failure: every package is installed and every activation decision intact.
-          // What is lost is this boot's record of WHICH digest the build published, so a bundled
-          // plugin that was upgraded in place falls back to being refused as ambiguous until a
-          // later boot writes the ledger (`features/agent-plugins/bundled-digests.ts`).
-          // eslint-disable-next-line no-console
-          console.warn(`[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}`);
-        }
-        logBundledPluginRetirements({ retirements: result.retirements });
-        await warnAboutMissingBundledPlugins(deps, { result });
-        await syncProviderFacesAtBoot(deps);
-        await importAgentPluginTokensAtBoot(deps, options);
-        // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
-        // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
-        await applyAgentPluginToolRenames(
-          {
-            workspaceId: deps.workspaceId,
-            agentPluginLayout: deps.agentPluginLayout,
-            externalMcpServerRepo: deps.externalMcpServerRepo,
-            clock: deps.clock,
-            notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
-          },
-          bootLog,
-        );
-        // A plugin that is on with a signed-in account gets the tools it declares even when the
-        // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
-        await grantDeclaredToolsAtBoot(
-          {
-            workspaceId: deps.workspaceId,
-            agentPluginLayout: deps.agentPluginLayout,
-            repo: deps.externalMcpServerRepo,
-            applyAccess: deps.mcp.applyAccess,
-            clock: deps.clock,
-            notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
-            ...agentPluginMcpPortsOf(deps.mcp),
-          },
-          bootLog,
-        );
-      },
-      start: noop,
-      stop: noop,
-    },
+    pluginRuntimeBootModule(deps, options),
+    agentPluginRecoveryBootModule(deps),
+    bundledAgentPluginsBootModule(deps, options),
   ];
+}
+
+function pluginRuntimeBootModule(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule {
+  let pluginActivationPoll: { stop: () => void } | undefined;
+  return {
+    // P0a fix (2026-09-23): re-attaches every durably-enabled plugin to this process's (fresh,
+    // empty) hook registry before the server starts serving — see `deps.pluginRuntimeReady`'s own
+    // doc. OPTIONAL: `attachEnabledPluginsAtBoot()` already isolates per-plugin failures itself
+    // (logs and continues), so this module's own promise realistically never rejects; optional
+    // criticality is a defensive floor, not the primary safety net.
+    //
+    // `start` keeps this process's registry reconciled with the durable activation table after
+    // boot. `plugins_set_enabled` runs in the AGENT DAEMON process, so a chat-driven disable
+    // detached the hook only there; without this poll, every save served here kept running the
+    // disabled plugin's beforeSave hook until restart. ADR-070 now routes chat writes here too;
+    // this server-owned poll still reconciles durable version changes made by other processes
+    // (`plugin-activation-polling.ts`), without recreating a daemon hook registry.
+    name: "plugin-runtime-attach",
+    owner: "features/plugin-runtime",
+    criticality: "optional",
+    prepare: () => deps.pluginRuntimeReady,
+    start: async () => {
+      pluginActivationPoll?.stop();
+      pluginActivationPoll = startPluginActivationPolling(
+        deps,
+        options.pluginActivationPollIntervalMs === undefined ? {} : { intervalMs: options.pluginActivationPollIntervalMs },
+      );
+    },
+    stop: async () => {
+      pluginActivationPoll?.stop();
+      pluginActivationPoll = undefined;
+    },
+  };
+}
+
+function agentPluginRecoveryBootModule(deps: NewsletterRouteDeps): BootModule {
+  return {
+    // Finishes or rolls back an Agent Plugin update a crash interrupted, then removes retained
+    // rollback bytes. It runs here, in array order: before the bundled seed touches any package and
+    // before the listener serves a run, since no run can hold those paths yet.
+    //
+    // OPTIONAL, like the seed below: one bad plugin must not stop the server. An unrecovered plugin
+    // is switched OFF (the update transaction switches it off before moving any bytes; recovery of
+    // an unreadable journal switches it off and rethrows; a restored revision whose MCP servers
+    // could not be re-provisioned stays off with an event), and its retained journal refuses any
+    // change to it (`PLUGIN_UPDATE_PENDING`, 409) until a later boot recovers it. Refusing to boot
+    // the whole site would also lock the operator out of the admin that could fix it. The composed
+    // lifecycle binds the real MCP port (`createDeferredAgentPluginUpdateEffects`), so recovery
+    // re-provisions a restored revision's servers.
+    name: "agent-plugin-update-recovery",
+    owner: "features/agent-plugins",
+    criticality: "optional",
+    prepare: async () => {
+      try {
+        await deps.agentPluginLifecycle.reconcileAgentPluginUpdates({ workspaceId: deps.workspaceId });
+      } catch (error) {
+        consoleLogger.error({ message: `[agent-plugin-update-recovery] an interrupted Agent Plugin update could not be recovered; it is retried next boot: ${error instanceof Error ? error.message : String(error)}` });
+        throw error;
+      }
+    },
+    start: noop,
+    stop: noop,
+  };
+}
+
+function bundledAgentPluginsBootModule(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule {
+  return {
+    // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
+    // records each INACTIVE until an operator enables it (see
+    // `Jini packages/agent-plugins/src/lifecycle/seed-bundled.ts` for why it re-runs every boot rather than once).
+    //
+    // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
+    // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
+    // wildly disproportionate failure mode for a feature that is switched off by default anyway.
+    // Per-plugin failures are captured in the returned report and logged here rather than thrown,
+    // so one bad package cannot hide the others.
+    name: "bundled-agent-plugins",
+    owner: "features/agent-plugins",
+    criticality: "optional",
+    prepare: async () => {
+      const result = await seedBundledAgentPlugins({
+        layout: deps.agentPluginLayout,
+        workspaceId: deps.workspaceId,
+        sourceRoot: bundledAgentPluginsDir(),
+      });
+      logBundledSeedFailures(result);
+      logBundledPluginRetirements({ retirements: result.retirements });
+      await warnAboutMissingBundledPlugins(deps, { result });
+      await syncProviderFacesAtBoot(deps);
+      await lockSoonAgentPluginsAtBoot(deps);
+      await importAgentPluginTokensAtBoot({ deps, options });
+      // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
+      // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
+      await applyAgentPluginToolRenames(
+        { deps: {
+          workspaceId: deps.workspaceId,
+          agentPluginLayout: deps.agentPluginLayout,
+          externalMcpServerRepo: deps.externalMcpServerRepo,
+          clock: deps.clock,
+          notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+        },
+        log: bootLog },
+      );
+      // A plugin that is on with a signed-in account gets the tools it declares even when the
+      // sign-in's own grant missed them (bug 2026-11-04) — after the renames, so it grants the new names.
+      await grantDeclaredToolsAtBoot(
+        { deps: {
+          workspaceId: deps.workspaceId,
+          agentPluginLayout: deps.agentPluginLayout,
+          repo: deps.externalMcpServerRepo,
+          applyAccess: deps.mcp.applyAccess,
+          clock: deps.clock,
+          notifyRosterChanged: () => notifyExternalMcpRosterChanged(),
+          ...agentPluginMcpPortsOf(deps.mcp),
+        },
+        log: bootLog },
+      );
+    },
+    start: noop,
+    stop: noop,
+  };
+}
+
+function logBundledSeedFailures(result: Awaited<ReturnType<typeof seedBundledAgentPlugins>>): void {
+  for (const outcome of result.outcomes) {
+    if (outcome.status === "failed") {
+      consoleLogger.warn({ message: `[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}` });
+    }
+  }
+  if (result.ledgerFailure !== undefined) {
+    // Not a seed failure: every package is installed and every activation decision intact.
+    // What is lost is this boot's record of WHICH digest the build published, so a bundled
+    // plugin that was upgraded in place falls back to being refused as ambiguous until a
+    // later boot writes the ledger (`Jini packages/agent-plugins/src/lifecycle/bundled-digests.ts`).
+    consoleLogger.warn({ message: `[bundled-agent-plugins] the bundled-digest ledger could not be written: ${result.ledgerFailure}` });
+  }
 }
 
 /** Logs one line per critical, not-ready module from a failed boot. Called only when
@@ -369,7 +400,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
 export function logCriticalBootFailures(bootResult: BootResult): void {
   for (const module of bootResult.modules) {
     if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
-      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+      consoleLogger.error({ message: `[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}` });
     }
   }
 }

@@ -1,11 +1,14 @@
 import type { Response } from "express";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { getAdminPostByIdOrSlug, normalizePostAuthor, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostValidationError, type PostAutosaveSnapshot, type PostBodyFormat, type PostRepoPort } from "#src/features/post/index";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Standing-draft autosave for Posts AND Pages (2026-09-06 dispatch) — one route file, kind-
@@ -31,9 +34,13 @@ const REQUIRED_PERMISSION = "content.write";
  * every handler below already treats as a safe "no such row" no-op (`writeAutosave`/`readAutosave`/
  * `clearAutosave` — see `PostRepoPort`'s own doc), so no separate 404 branch is needed here.
  */
-async function resolvePostId(repo: PostRepoPort, workspaceId: string, rawParam: string): Promise<string> {
+async function resolvePostId({ repo, workspaceId, rawParam }: { repo: PostRepoPort; workspaceId: string; rawParam: string }, _optional = {}): Promise<string> {
   const resolved = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId, idOrSlug: rawParam } }).catch(
-    () => null
+    (error: unknown) => {
+      // A missing post is a safe no-op for the autosave store; other lookup failures are not.
+      if (error instanceof PostNotFoundError) return null;
+      throw error;
+    }
   );
   return resolved?.post.id ?? rawParam;
 }
@@ -42,11 +49,11 @@ async function resolvePostId(repo: PostRepoPort, workspaceId: string, rawParam: 
  *  for the same complexity-ceiling reason. */
 async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  return authorizeOrRespond(res, deps.authorize, {
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
     permission: REQUIRED_PERMISSION,
     workspaceId: deps.workspaceId,
-  });
+  } });
 }
 
 /** The fields common to both `bodyFormat` variants, validated but not yet paired with a payload. */
@@ -102,7 +109,7 @@ function parseAutosaveByline(
  *  reaching the repo. Author validation throws PostValidationError with the shared write error.
  *  @complexity O(n) in author length — delegates to {@link parseAutosaveCommonFields} and
  *  {@link parseAutosaveContent}. */
-function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion" | "author" | "showAuthor"> | null {
+function parseAutosaveBody({ rawBody }: { rawBody: unknown }, _optional = {}): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion" | "author" | "showAuthor"> | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const common = parseAutosaveCommonFields(body);
   if (!common) return null;
@@ -112,6 +119,10 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
   if (!byline) return null;
   return { ...common, ...content, ...byline };
 }
+
+type AutosaveRoute = Parameters<ContentRouteRegistrar>[0];
+
+const AUTOSAVE_PATH = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
 
 /**
  * PUT `/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave` — parks a standing draft.
@@ -134,19 +145,21 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
  * the recovery-banner check on editor mount. DELETE clears it unconditionally (`{ ok: true }`) —
  * called after a real Save/Publish succeeds, and on an explicit operator Discard.
  */
-export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps) => {
-  const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
+export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (route, _options = {}) => {
+  registerAutosaveWrite(route);
+  registerAutosaveReadAndClear(route);
+};
 
-  app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+function registerAutosaveWrite({ app, deps }: AutosaveRoute, _options = {}): void {
+  const path = AUTOSAVE_PATH;
+
+  app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
     let parsed: ReturnType<typeof parseAutosaveBody>;
     try {
-      parsed = parseAutosaveBody(req.body);
+      parsed = parseAutosaveBody({ rawBody: req.body });
     } catch (error) {
       if (!(error instanceof PostValidationError)) throw error;
       res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
@@ -163,32 +176,42 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
       savedAt: deps.clock.nowIso(),
       savedByPrincipalId: principal.id,
     };
-    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
-    const result = await deps.postRepo.writeAutosave({ workspaceId: deps.workspaceId, id: postId, snapshot });
-    res.json(result);
-  });
-
-  app.get(path, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
+    try {
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
+      const result = await deps.postRepo.writeAutosave({ workspaceId: deps.workspaceId, id: postId, snapshot });
+      res.json(result);
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." });
     }
+  } }));
+}
+
+function registerAutosaveReadAndClear({ app, deps }: AutosaveRoute, _options = {}): void {
+  const path = AUTOSAVE_PATH;
+
+  app.get(path, asyncRoute({ handler: async (req, res) => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
-    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
-    const autosave = await deps.postRepo.readAutosave({ workspaceId: deps.workspaceId, id: postId });
-    res.json({ autosave });
-  });
-
-  app.delete(path, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
+    try {
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
+      const autosave = await deps.postRepo.readAutosave({ workspaceId: deps.workspaceId, id: postId });
+      res.json({ autosave });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/read", code: "INTERNAL_ERROR", message: "The post draft could not be loaded." });
     }
+  } }));
+
+  app.delete(path, asyncRoute({ handler: async (req, res) => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
-    const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
-    await deps.postRepo.clearAutosave({ workspaceId: deps.workspaceId, id: postId });
-    res.json({ ok: true });
-  });
-};
+    try {
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
+      await deps.postRepo.clearAutosave({ workspaceId: deps.workspaceId, id: postId });
+      res.json({ ok: true });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/clear", code: "INTERNAL_ERROR", message: "The post draft could not be cleared." });
+    }
+  } }));
+}

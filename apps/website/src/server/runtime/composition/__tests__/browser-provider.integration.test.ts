@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { InMemoryPluginActivationRepo, setPluginEnabled } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "../plugin-runtime.js";
 import { RECHARTS_BROWSER_APPROVAL, RECHARTS_RUNTIME_SOURCE } from "../charts-recharts-source.js";

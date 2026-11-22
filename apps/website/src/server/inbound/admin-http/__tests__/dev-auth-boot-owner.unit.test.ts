@@ -30,7 +30,7 @@ test("boot redemption rejects an invalid token before reading the boot owner or 
   const response = bootResponse({});
   const token = {};
   const result = await redeemOwnerBootSession({ deps, res: response.res, token }, {
-    redeem: presented => { assert.strictEqual(presented, token); return false; },
+    redeem: ({ rawToken: presented }) => { assert.strictEqual(presented, token); return false; },
   });
   assert.equal(result, null);
   assert.deepEqual(response.capture, { statusCode: 401, jsonBody: { error: "invalid or spent boot token", code: "UNAUTHENTICATED" } });
@@ -38,6 +38,16 @@ test("boot redemption rejects an invalid token before reading the boot owner or 
   assert.equal(save.mock.callCount(), 0);
   assert.deepEqual(response.cookies, []);
 });
+
+/** Why: the boot route is anonymous, so the reply carries only the approved copy plus an incident ID and no `details.failure` (see `sendAdminFailure`'s discloseDetails gate); the step/cause stay in the redacted server report. */
+function assertAnonymousFailure(body: unknown): void {
+  const reply = body as { code?: string; errorId?: string; error?: string; details?: unknown };
+  assert.equal(reply.code, "INTERNAL_ERROR");
+  assert.match(String(reply.errorId), /^ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}$/);
+  assert.match(String(reply.error), /Report this error ID\. \(error ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4}\)$/);
+  assert.equal(reply.details, undefined, "an anonymous reply never discloses the failure step or cause");
+  assert.doesNotMatch(JSON.stringify(body), /Boot owner is unavailable|Boot session confirmation failed/);
+}
 
 for (const state of ["missing", "disabled", "member"] as const) {
   test(`boot redemption rejects a ${state} owner before minting a session`, async (t) => {
@@ -59,8 +69,7 @@ for (const state of ["missing", "disabled", "member"] as const) {
     const response = bootResponse({});
     assert.equal(await redeemOwnerBootSession({ deps, res: response.res, token: undefined }, { redeem: () => true }), null);
     assert.equal(response.capture.statusCode, 500);
-    assert.partialDeepStrictEqual(response.capture.jsonBody, { code: "INTERNAL_ERROR", details: { failure: { message: "Sign-in could not finish.", step: "auth-boot-session" } } });
-    assert.match(JSON.stringify(response.capture.jsonBody), /Try signing in again/);
+    assertAnonymousFailure(response.capture.jsonBody);
     assert.equal(save.mock.callCount(), 0);
     assert.deepEqual(response.cookies, []);
   });
@@ -118,8 +127,7 @@ test("boot redemption refuses a minted session that Jini cannot validate before 
   assert.equal(await redeemOwnerBootSession({ deps, res: response.res, token: undefined }, { redeem: () => true }), null);
   assert.equal(save.mock.callCount(), 1);
   assert.equal(response.capture.statusCode, 500);
-  assert.partialDeepStrictEqual(response.capture.jsonBody, { code: "INTERNAL_ERROR", details: { failure: { message: "Sign-in could not finish.", step: "auth-boot-session" } } });
-  assert.match(JSON.stringify(response.capture.jsonBody), /Try signing in again/);
+  assertAnonymousFailure(response.capture.jsonBody);
   assert.deepEqual(response.cookies, []);
 });
 
@@ -146,10 +154,10 @@ for (const cookieName of ["tovu_session", "tovu_session_local_303"]) {
     assert.equal(revoke.mock.callCount(), ordinary ? 1 : 0);
     assert.deepEqual(response.cleared, ordinary ? ["tovu_session_local_303"] : []);
     const oldRequest = { headers: { cookie }, socket: { localPort: 303 } } as Request;
-    assert.equal((await currentCredential(deps, oldRequest, { localOwnerSignIn: { enabled: true } }))?.principal.id ?? null,
+    assert.equal((await currentCredential({ deps, req: oldRequest }, { localOwnerSignIn: { enabled: true } }))?.principal.id ?? null,
       ordinary ? null : owner?.id);
     const newRequest = { headers: { cookie: `${cookieName}=${issued.value}` }, socket: { localPort: 303 } } as Request;
-    assert.equal((await currentCredential(deps, newRequest, { localOwnerSignIn: { enabled: true } }))?.principal.id, principal?.id);
+    assert.equal((await currentCredential({ deps, req: newRequest }, { localOwnerSignIn: { enabled: true } }))?.principal.id, principal?.id);
   });
 }
 

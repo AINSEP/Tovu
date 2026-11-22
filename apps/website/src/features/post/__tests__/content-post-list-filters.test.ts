@@ -4,7 +4,7 @@ import test from "node:test";
 import { ToolInputError, withBatchInput, type BatchResult, type ToolExecutionContext } from "@jini-ai/core";
 import { executeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-registered-tool";
 import { deriveContentReadRegistrations } from "#src/assistant/content-read-tool";
-import { POST_LIST_FIELDS } from "../agent-tools.js";
+import { POST_LIST_FIELDS } from "../post-tool-schemas.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
@@ -13,8 +13,9 @@ import { InMemoryPostRepo } from "../repo.memory.js";
 import { InMemoryPostSearchIndex } from "../search-index.memory.js";
 import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "../post.js";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { buildPostRegistrations } from "../tool-registrations.js";
+import { type PostToolDeps } from "../post-tool-deps.js";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
@@ -42,7 +43,7 @@ function record(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 function fixture({ rows = [record()] }: { rows?: PostRecord[] }, { allow = true }: { allow?: boolean } = {}) {
-  const postRepo = new InMemoryPostRepo(rows);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const reads: string[] = [];
   const listRows = postRepo.list.bind(postRepo);
   const findRow = postRepo.findById.bind(postRepo);
@@ -69,7 +70,7 @@ function fixture({ rows = [record()] }: { rows?: PostRecord[] }, { allow = true 
     (r) => r.descriptor.id === "content_post_list",
   );
   assert.ok(registration);
-  const card = deriveContentReadRegistrations(registrations).find(tool => tool.descriptor.id === "content_read.content_post");
+  const card = deriveContentReadRegistrations({ sourceRegistrations: registrations }).find(tool => tool.descriptor.id === "content_read.content_post");
   assert.ok(card);
   return { registration, card, reads };
 }
@@ -258,10 +259,10 @@ test("t02: invalid status and projection inputs refuse with ToolInputError", asy
 
 test("chat-input regression: comma-separated fields project the same rows through the merged read card", async () => {
   const { registration } = fixture({});
-  const [card] = deriveContentReadRegistrations([
+  const [card] = deriveContentReadRegistrations({ sourceRegistrations: [
     registration,
     { ...registration, descriptor: { ...registration.descriptor, id: "content_post_get" } },
-  ]);
+  ] });
   assert.ok(card);
   const input = { kind: "page", fields: " title, slug, title " };
   const result = await executeRegisteredTool({ registration: card, input });

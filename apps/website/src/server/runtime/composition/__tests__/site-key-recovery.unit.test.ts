@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { buildVaultAad, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { secretSealerContractViolations } from "@jini-ai/platform/secrets/testing";
+import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -33,7 +35,7 @@ const B = mintSiteKeyHex();
 const C = mintSiteKeyHex();
 
 function keyed(hex: string) {
-  const keyring = new FixedSiteKeyKeyring(hex);
+  const keyring = new FixedSiteKeyKeyring({ hex });
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 
@@ -48,7 +50,7 @@ async function siteWithSealedKey(t: TestContext, hex: string): Promise<string> {
   const dir = siteDir(t);
   const dbPath = path.join(dir, CONTENT_DB_FILENAME);
   openContentDb(dbPath).$client.close();
-  const kernel = openSqliteFileKernel<ContentDatabase>(dbPath) as unknown as ContentKernel;
+  const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: dbPath }) as unknown as ContentKernel;
   try {
     await seedPrincipals(kernel, WS, ["principal-1"]);
     const { keyring, sealer } = keyed(hex);
@@ -69,7 +71,7 @@ const writeStorageSecret = (dir: string, hex: string) => writeSealedConnectionSt
 for (const normalization of ["invalid-meta", ["conflict"]]) {
   test(`plugin-state recovery validates annotations before rotation: ${JSON.stringify(normalization)}`, async t => {
     const dir = await siteWithSealedKey(t, A);
-    const kernel = openSqliteFileKernel<ContentDatabase>(path.join(dir, CONTENT_DB_FILENAME));
+    const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: path.join(dir, CONTENT_DB_FILENAME) });
     t.after(() => kernel.close());
     const repo = vaultRepo(kernel);
     const media = (await repo.find({ workspaceId: WS, id: "media-fal" }))!;
@@ -114,7 +116,7 @@ test("checkKey opens the site's own content.db and counts what opens under the c
 
 test("the running site's own kernel is used when there is one, instead of the file", async t => {
   const fileSite = await siteWithSealedKey(t, A);
-  const kernel = openSqliteFileKernel<ContentDatabase>(path.join(fileSite, CONTENT_DB_FILENAME)) as unknown as ContentKernel;
+  const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: path.join(fileSite, CONTENT_DB_FILENAME) }) as unknown as ContentKernel;
   t.after(() => (kernel as unknown as { close(): Promise<void> }).close());
   const empty = siteDir(t);
   assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: empty, contentKernel: kernel, hex: A }), { sealed: 1, opens: 1, storageSecret: "absent", metadataOnly: 0, legacy: 0 });
@@ -132,6 +134,17 @@ test("resealFrom moves the sealed row and the storage secret from the previous k
   assert.deepEqual(await siteKeyRecovery.resealFrom({ siteDir: dir, hex: B, previousHex: A }), { resealed: 2, unreadable: 0 });
   assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: dir, hex: B }), { sealed: 1, opens: 1, storageSecret: "opens", metadataOnly: 0, legacy: 0 });
   assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: keyed(B).sealer }), "postgres://site");
+});
+
+test("the sealer binding recovery hands to the vault service opens what it seals and refuses another binding", async () => {
+  // resealRecord gives SecretsVaultService exactly this pair: the new key's sealer and keyring.
+  for (const hex of [A, B]) assert.deepEqual(await secretSealerContractViolations(keyed(hex)), []);
+});
+
+test("a row that opens under neither key is counted unreadable and is not rewritten", async t => {
+  const dir = await siteWithSealedKey(t, C);
+  assert.deepEqual(await siteKeyRecovery.resealFrom({ siteDir: dir, hex: B, previousHex: A }), { resealed: 0, unreadable: 1 });
+  assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: dir, hex: C }), { sealed: 1, opens: 1, storageSecret: "absent", metadataOnly: 0, legacy: 0 });
 });
 
 test("a storage secret already under the new key is left alone", async t => {
@@ -156,7 +169,7 @@ test("the recovery services hand the route the real key writer and minter", () =
 for (const target of [A, B]) {
   test(`legacy recovery normalizes through the boot codec, including the same-key case (${target === A ? "same" : "different"})`, async t => {
     const dir = await siteWithSealedKey(t, A);
-    const kernel = openSqliteFileKernel<ContentDatabase>(path.join(dir, CONTENT_DB_FILENAME));
+    const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: path.join(dir, CONTENT_DB_FILENAME) });
     t.after(() => kernel.close());
     const repo = vaultRepo(kernel);
     const record = (await repo.find({ workspaceId: WS, id: "media-fal" }))!;

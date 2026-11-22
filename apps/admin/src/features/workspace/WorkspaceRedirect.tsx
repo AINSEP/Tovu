@@ -6,7 +6,7 @@ import { useWorkspaceRedirect } from "./hooks/use-workspace-redirect.hooks";
  * own comment on the `workspace` panel for why this exists instead of the panel simply losing its
  * `render` branch, and why the panel's id/route stay even though its nav row does not.
  */
-export function WorkspaceRedirect() {
-  useWorkspaceRedirect();
+export function WorkspaceRedirect({ useWorkspaceRedirectHook = useWorkspaceRedirect }: { useWorkspaceRedirectHook?: typeof useWorkspaceRedirect } = {}) {
+  useWorkspaceRedirectHook();
   return null;
 }

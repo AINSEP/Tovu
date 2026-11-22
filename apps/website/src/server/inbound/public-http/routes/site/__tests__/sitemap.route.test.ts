@@ -1,3 +1,5 @@
+import { portFake as errorPortFake } from "#src/server/__tests__/helpers/port-fake";
+import type { SeoRouteDeps as ErrorSeoDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -35,12 +37,12 @@ function buildSitemapOnlyApp(depsOverrides: Partial<SeoRouteDeps>): { app: expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoSitemapRoute(app, deps);
+  registerSeoSitemapRoute({ app, deps });
   return { app, deps };
 }
 
 test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with no lastmod omits <lastmod> entirely", async (t) => {
-  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
+  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
   deps.sitemapService.registerSitemapCollectHook({ hook: { priority: 0, handle: async () => [{ loc: "/hook-entry" }] } }, {});
   t.after(() => {
@@ -58,7 +60,7 @@ test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with
 });
 
 test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod serialization", async (t) => {
-  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
+  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
   deps.sitemapService.registerSitemapCollectHook({ hook: { priority: 0, handle: async () => [{ loc: "/hook-entry" }, { loc: "/dated-hook?x=1&y=2", lastmod: "2026-09-03T12:34:56.000Z" }] } }, {});
   t.after(() => {
@@ -75,7 +77,7 @@ test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod
 });
 
 test("GET /sitemap.xml: no published posts and no collect-hook entries -> an empty <urlset>, no stray blank line", async (t) => {
-  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo([]) });
+  const { app, deps } = buildSitemapOnlyApp({ postRepo: new InMemoryPostRepo({}, { initialRows: [] }) });
   deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId });
   t.after(() => deps.sitemapService.invalidateSitemapCache({ workspaceId: deps.workspaceId }));
 
@@ -92,7 +94,7 @@ test("GET /sitemap.xml: a post-read failure is caught and reported as a plain-te
   // Mutate the real repo instance's own `list`, rather than spreading it into a plain object --
   // `InMemoryPostRepo`'s methods live on its prototype, so a spread would silently drop
   // `findById`/`findBySlug`/etc. too.
-  const postRepo = new InMemoryPostRepo([]);
+  const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   postRepo.list = async () => {
     throw new Error("post store unavailable");
   };
@@ -104,5 +106,28 @@ test("GET /sitemap.xml: a post-read failure is caught and reported as a plain-te
   const res = await fetch(`${baseUrl}/sitemap.xml`);
   assert.equal(res.status, 500);
   assert.match(res.headers.get("content-type") ?? "", /text\/plain/);
-  assert.equal(await res.text(), "internal error");
+  assert.match(await res.text(), /couldn’t load the sitemap.*Error ID:/);
+});
+
+test("unexpected sitemap failure keeps plain text and one redacted matching incident", async t => {
+  const cause = new Error("sitemap storage context password=PUBLIC_CANARY");
+  const reports: unknown[] = [];
+  const logs = t.mock.method(console, "error", () => {});
+  const deps = errorPortFake<ErrorSeoDeps>({ get seoReady() { return Promise.reject(cause); } });
+  const app = express();
+  app.use((_req, res, next) => { res.locals.adminFailureTracker = { error: (...args: unknown[]) => reports.push(args) }; next(); });
+  registerSeoSitemapRoute({ app, deps });
+  const base = await startTestServer(app, t);
+  const res = await fetch(`${base}/sitemap.xml`);
+  const text = await res.text();
+  assert.equal(res.status, 500);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/plain/);
+  assert.match(text, /couldn’t load the sitemap/);
+  const id = text.match(/Error ID: (ERR-(?:[0-9A-F]{4}-){3}[0-9A-F]{4})/)?.[1];
+  assert.ok(id);
+  assert.equal(reports.length, 1);
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(reports).includes(id));
+  assert.ok(JSON.stringify(logs.mock.calls).includes(id));
+  assert.doesNotMatch(text + JSON.stringify(reports) + JSON.stringify(logs.mock.calls), /PUBLIC_CANARY/);
 });

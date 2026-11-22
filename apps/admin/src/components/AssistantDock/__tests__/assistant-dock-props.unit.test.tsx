@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";
+import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
@@ -65,7 +66,7 @@ describe("renameActiveConversation", () => {
   it("renames the active conversation to the new title", () => {
     const rename = vi.fn(async () => undefined);
     renameActiveConversation({ activeId: "conv-1", rename })("Quarterly report");
-    expect(rename).toHaveBeenCalledWith("conv-1", "Quarterly report");
+    expect(rename).toHaveBeenCalledWith({ id: "conv-1", title: "Quarterly report" });
   });
 
   it("does nothing without an active conversation", () => {

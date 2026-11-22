@@ -9,7 +9,7 @@ import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { decodeFormFlashCookieValue } from "../../../http/site/form-render.js";
+import { decodeFormFlashCookieValue } from "@jini-ai/cms/forms/result-flash";
 
 test("live GET and POST share issuance: fast retries preserve text, 1000 ms admits once, static exports issue nothing", async (t) => {
   const base = createRouteDeps();
@@ -19,9 +19,9 @@ test("live GET and POST share issuance: fast retries preserve text, 1000 ms admi
   const fields = [{ id: "name", label: "Name", type: "text" as const, required: true }];
   const theme = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
   const form = renderHtmlForm({ slug: "contact", fields, action: "/forms/contact/submit", hooks: {
-    form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error", field: "data-tovu-field",
+    form: "data-tovu-form", success: "data-jini-form-success", error: "data-tovu-form-error", field: "data-tovu-field",
   } }, {});
-  const deps = { ...base, clock, postRepo: new InMemoryPostRepo([]), themes: [{ ...theme, pages: { ...theme.pages, index: `<html><body>${form}</body></html>` } }] };
+  const deps = { ...base, clock, postRepo: new InMemoryPostRepo({}, { initialRows: [] }), themes: [{ ...theme, pages: { ...theme.pages, index: `<html><body>${form}</body></html>` } }] };
   await deps.formDefinitionRepo.create({ id: "timed-form", workspaceId: deps.workspaceId, name: "Contact", slug: "contact", fields,
     status: "active", notify: { enabled: false, recipients: [] }, version: 1, createdAt: clock.nowIso(), updatedAt: clock.nowIso(),
   });
@@ -48,7 +48,7 @@ test("live GET and POST share issuance: fast retries preserve text, 1000 ms admi
   assert.equal(native.headers.get("location"), "/?form=contact&form_status=too-fast");
   const flash = native.headers.get("set-cookie")?.match(/tovu_form_flash=([^;]*)/)?.[1];
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(decodeURIComponent(flash)), { slug: "contact", values: { name: "Ada" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: decodeURIComponent(flash) }), { slug: "contact", values: { name: "Ada" } });
   const retryPage = await fetch(`${baseUrl}${native.headers.get("location")}`, { headers: { cookie: `tovu_form_flash=${flash}` } });
   const retryHtml = await retryPage.text();
   assert.ok(retryHtml.includes("Please wait a moment, then submit again."));

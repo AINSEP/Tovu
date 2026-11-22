@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { cleanup, render as renderWithoutProvider, waitFor } from "@testing-library/react";
+import { cleanup, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ReactElement } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -151,7 +152,7 @@ describe("data-agent-page reports the published page id, not the sidebar row", (
        * more about routing. The rendered cases above already pin that `agentPageId` is what reaches
        * `data-agent-page`; this pins the mapping across every entry.
        */
-      const route = parseRoute(routePath);
+      const route = parseRoute({ routePath });
       expect(agentPageId(route)).toBe(pageId === "integrations" ? "providers" : pageId);
       if (pageId === "integrations") {
         expect(routePath).toBe("/addons/integrations?tab=webhooks");

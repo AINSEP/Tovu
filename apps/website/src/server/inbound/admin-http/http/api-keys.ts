@@ -3,7 +3,7 @@ import type { PrincipalRecord } from "@jini-ai/user-management";
 import type { ApiKeyRecord } from "#src/features/identity/api-key-types";
 
 /**
- * @file Admin-facing api-key response DTOs (mirrors `admin/users.ts`'s pattern).
+ * @file Admin-facing api-key response DTOs (mirrors `apps/website/src/server/inbound/admin-http/http/users.ts`'s pattern).
  *
  * Purpose:
  * The one place that decides what an api-key row may show a client. `ApiKeyRecord.keyHash` has no

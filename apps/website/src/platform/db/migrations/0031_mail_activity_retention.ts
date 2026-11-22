@@ -1,6 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule, sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file ADR-066 step 0031: indexed activity purposes and retention. 0029/0030 remain immutable.
@@ -29,7 +29,7 @@ export function mailActivityRetentionSchema({ schema }: { schema: SchemaModule }
 const sqliteSchema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
 export const MAIL_ACTIVITY_RETENTION_STATEMENTS = mailActivityRetentionSchema({ schema: sqliteSchema }).map(step => step.compile().sql);
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.run(async db => { for (const step of mailActivityRetentionSchema({ schema: db.schema })) await step.execute(); });
   await kernel.execute(sql`UPDATE mail_activity_attempts SET use_id = CASE
     WHEN idempotency_key LIKE 'members:signin:%' THEN 'sign_in'
@@ -41,6 +41,6 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** New immutable step, joined to the runner's transaction. */
-export function mailActivityRetention(required: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep {
+export function mailActivityRetention(required: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: MAIL_ACTIVITY_RETENTION_ID, checksum: required.checksum, up };
 }

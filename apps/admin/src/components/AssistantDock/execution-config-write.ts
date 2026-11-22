@@ -4,8 +4,8 @@ import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentRe
 
 import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
 
+import { isAbortError } from '@jini-ai/core/text';
 /**
  * @file The dock pickers' one write path: apply a change to `executionConfig`, then save it — the
  * save OUTSIDE the state updater. The pickers used to call `saveExecutionConfig` inside their
@@ -27,9 +27,7 @@ export interface ExecutionConfigWrite {
  * after the call relies on `useExecutionConfig`'s `setExecutionConfig` running the updater
  * synchronously against the latest config (see its doc).
  */
-export function applyExecutionConfigChange(
-  setExecutionConfig: Dispatch<SetStateAction<ExecutionConfig>>,
-  change: (previous: ExecutionConfig) => ExecutionConfig,
+export function applyExecutionConfigChange({ setExecutionConfig, change }: { setExecutionConfig: Dispatch<SetStateAction<ExecutionConfig>>; change: (previous: ExecutionConfig) => ExecutionConfig }, _options: Record<string, never> = {}
 ): ExecutionConfigWrite | null {
   let write: ExecutionConfigWrite | null = null;
   setExecutionConfig((previous) => {
@@ -46,9 +44,9 @@ export function applyExecutionConfigChange(
  * the optimistic state is kept. The returned success flag lets the Local CLI hook protect a
  * pending/failed pick while allowing external changes after a successful save.
  *
- * @param failureLog - The `console.error` message for a failed save.
+ * @param input.failureLog - The `console.error` message for a failed save.
  */
-export function persistExecutionConfigWrite(write: ExecutionConfigWrite, failureLog: string): Promise<boolean> {
+export function persistExecutionConfigWrite({ write, failureLog }: { write: ExecutionConfigWrite; failureLog: string }, _options: Record<string, never> = {}): Promise<boolean> {
   return saveExecutionConfig(write.next, write.previous)
     .then(() => {
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
@@ -75,9 +73,9 @@ export function withLocalCliSelection({ previous, selection }: {
 }, _options = {}): ExecutionConfig {
   const agentId = selection.agentId || null;
   if (!agentId) return { ...previous, localCli: { ...previous.localCli, agentId: null } };
-  let next = nextConfigForAgentSelect(previous, agentId);
-  next = nextConfigForAgentModel(next, agentId, selection.model ?? "");
-  if (selection.reasoning !== undefined) next = nextConfigForAgentReasoning(next, agentId, selection.reasoning);
+  let next = nextConfigForAgentSelect({ config: previous, agentId });
+  next = nextConfigForAgentModel({ config: next, agentId, model: selection.model ?? "" });
+  if (selection.reasoning !== undefined) next = nextConfigForAgentReasoning({ config: next, agentId, reasoning: selection.reasoning });
   return next;
 }
 

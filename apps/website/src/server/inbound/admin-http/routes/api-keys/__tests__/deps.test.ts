@@ -48,7 +48,7 @@ const cases = [
 for (const { name, error, status, body } of cases) {
   test(`API-key ${name} sends its exact status and safe error envelope`, () => {
     const { res, capture } = createCapturingResponse();
-    sendApiKeyError(res, error);
+    sendApiKeyError({ res, err: error });
     assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } }, { failure: {"message":"The API key operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"API key operation"} });
   });
 }

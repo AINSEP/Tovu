@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Taxonomy } from "../Taxonomy";
 import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
@@ -232,7 +232,7 @@ describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
     const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax-b", name: "Tag" }), terms: [] };
     const { container } = renderTaxonomy({ taxonomies: [groupA, groupB] });
     await screen.findByText("Category");
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this block's own doc comment above.
     const driver = createDomPageDriver({ root: container, pages: {} });
 

@@ -1,14 +1,14 @@
-import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
+import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
+import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
-import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
-import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
 import { getBrowserAgentEnabled, useBrowserAgentSettings } from "./features/webmcp/browser-agent-settings.hooks";
 import { adminFrontendTabId, publishAdminPageSurface } from "./lib/admin-frontend-session";
 import { prepareAssistantPageBinding } from "./lib/assistant-daemon-activation";
@@ -22,7 +22,11 @@ import {
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
-import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
+import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
+import type { AdminUser } from "./features/auth/api/auth-api.types";
+import { authApi } from "./features/auth/api/auth-api";
+import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
@@ -40,11 +44,10 @@ import {
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { openTabEventSource } from "./lib/tab-event-source";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
-import { useSitesSnapshot } from "./features/sites/hooks/use-sites-snapshot.hooks";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
 import { isEscapeOwnedByInnerLayer } from "./lib/escape-owned-by-inner-layer";
 import { t as translateAssistantDockDictLabel } from "./components/AssistantDock/assistant-dock-i18n";
-import type { AdminNavGroup, AdminNavItem } from "./nav";
+import type { AdminNavGroup } from "./nav";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -79,7 +82,7 @@ export interface UseAdminSession {
   /** `true` until the initial `api.me()` round trip settles (resolved or rejected). */
   checking: boolean;
   /** `undefined` until `/auth/me` has answered (or when it omits the field) — "not known yet",
-   *  which `lib/panel-access.ts` treats as "show every section" rather than "hold none". */
+   *  which `@jini-ai/admin/core`'s `isPanelAccessible` treats as "show every section" rather than "hold none". */
   effectivePermissions?: readonly string[];
   /** `Login`'s `onLogin` — also publishes an unscoped settings refresh, since signing in changes
    *  what this tab is allowed to read, not just who it is (see this function's own inline comment
@@ -100,34 +103,20 @@ export interface UseAdminSession {
  * const { user, checking, handleLogin, logout } = useAdminSession();
  */
 export function useAdminSession(_required: Record<string, never> = {}, {
-  sessionApi = api, location = window.location, history = window.history,
+  sessionApi = authApi, location = window.location, history = window.history,
   subscribeUnauthenticated = onUnauthenticated,
   subscribeSettingsChanges = subscribeToSettingsChanges,
-}: {
-  sessionApi?: Pick<typeof api, "me" | "redeemBootSession" | "signInLocalOwner" | "logout">;
-  location?: Pick<Location, "hostname" | "hash" | "pathname" | "search">;
-  history?: Pick<History, "replaceState">;
-  subscribeUnauthenticated?: typeof onUnauthenticated;
-  subscribeSettingsChanges?: typeof subscribeToSettingsChanges;
-} = {}): UseAdminSession {
+}: AdminSessionOptions = {}): UseAdminSession {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [effectivePermissions, setEffectivePermissions] = useState<readonly string[] | undefined>(undefined);
   // Ignore a previous session read after logout/relogin; grants must never cross identities.
   const sessionEpoch = useRef(0);
   // Retain the initial read across Strict Mode's effect replay: one bootstrap per page load.
-  const initialSession = useRef<Promise<Awaited<ReturnType<typeof api.me>>> | null>(null);
+  const initialSession = useRef<Promise<MeResponse> | null>(null);
   const initialReadPending = useRef(true);
-
-  function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
-    setPublishToLiveAvailable(readPublishToLiveAvailability(r));
-    if (getAdminDraftIdentity() !== r.user.id) adminFailureChannel.reset();
-    setAdminDraftIdentity({ id: r.user.id });
-    setUser(r.user);
-    // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
-    // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
-    setEffectivePermissions(r.effectivePermissions);
-  }
+  const refs = { sessionEpoch, initialReadPending };
+  const setters = { setUser, setEffectivePermissions, setChecking };
 
   useEffect(() => {
     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
@@ -136,19 +125,12 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     // case for other launch paths) checks the current session, then tries guarded local bootstrap.
     sessionEpoch.current += 1;
     const readEpoch = sessionEpoch.current;
-    if (initialSession.current === null) {
-      const bootToken = takeBootToken(location, history);
-      if (bootToken) {
-        initialSession.current = sessionApi.redeemBootSession(bootToken).catch(() => undefined).then(() => sessionApi.me());
-      } else {
-        initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
-      }
-    }
+    const initial = ensureInitialSession({ initialSession, sessionApi, location, history });
 
-    initialSession.current
+    initial
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
-        acceptSession(r);
+        acceptSession({ r, setUser, setEffectivePermissions });
       })
       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
       .finally(() => {
@@ -169,17 +151,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * fixes, 2026-08-17 — see `onUnauthenticated`'s own doc comment in `lib/api.ts`).
    */
   useEffect(() => {
-    const unsubscribe = subscribeUnauthenticated(() => {
-      // The initial reader handles its own 401. Later 401s must never retry local bootstrap:
-      // login's settings readers also run unauthenticated when that endpoint is disabled.
-      if (initialReadPending.current) return;
-      adminFailureChannel.reset();
-      sessionEpoch.current++;
-      setAdminDraftIdentity({ id: null });
-      setUser(null);
-      setEffectivePermissions([]);
-      setChecking(false);
-    });
+    const unsubscribe = subscribeUnauthenticated(() => handleSessionUnauthenticated({ refs, setters }));
     // Invalidate outstanding identity/permission reads when the shell unmounts.
     return () => { sessionEpoch.current++; unsubscribe(); };
   }, []);
@@ -197,7 +169,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    */
   useEffect(() => {
     if (!user) return undefined;
-    return subscribeSettingsChanges(WORKSPACE_ID, { principalId: user.id });
+    return subscribeSettingsChanges({ workspaceId: WORKSPACE_ID }, { principalId: user.id });
   }, [user]);
 
   /**
@@ -217,40 +189,11 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
-    adminFailureChannel.reset();
-    initialReadPending.current = false;
-    sessionEpoch.current += 1;
-    const readEpoch = sessionEpoch.current;
-    setAdminDraftIdentity({ id: next.id });
-    setUser(next);
-    // "Not known yet" rather than `[]` until the `/auth/me` below answers, so a fresh sign-in does
-    // not flash an emptied nav or a no-access screen at an operator who has access.
-    setEffectivePermissions(undefined);
-    publishSettingsRefresh();
-    // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
-    // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
-    sessionApi
-      .me()
-      .then((r) => {
-        if (sessionEpoch.current !== readEpoch) return;
-        setPublishToLiveAvailable(readPublishToLiveAvailability(r));
-        setEffectivePermissions(r.effectivePermissions);
-      })
-      .catch(() => undefined);
+    signInSession({ next, sessionApi, refs, setters });
   }
 
   async function logout() {
-    adminFailureChannel.reset();
-    // Late 401s from unmounting screens must not undo an explicit sign-out in this tab.
-    initialReadPending.current = false;
-    sessionEpoch.current++;
-    setChecking(false);
-    setEffectivePermissions([]);
-    await sessionApi.logout().catch(() => undefined);
-    setAdminDraftIdentity({ id: null });
-    adminFailureChannel.reset();
-    setUser(null);
-    setEffectivePermissions([]);
+    await signOutSession({ sessionApi, refs, setters });
   }
 
   return { user, checking, handleLogin, logout, effectivePermissions };
@@ -284,13 +227,13 @@ export function usePublishCriteriaDeepLink(
   { request = requestPublish }: { request?: (criteria: PublishCriteria) => unknown } = {},
 ): void {
   const handledRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: once per mount by design (see above); a new `request` identity must not re-run it.
+  // The ref keeps this once per mount even if `request` changes identity.
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
-    const criteria = takePublishCriteriaFromQuery(window.location, window.history);
+    const criteria = takePublishCriteriaFromQuery({ location: window.location, history: window.history });
     if (criteria !== null) void request(criteria);
-  }, []);
+  }, [request]);
 }
 
 /**
@@ -303,7 +246,7 @@ export function usePublishCriteriaDeepLink(
  * the "AI Assistant" panel's own `use-ai-assistant.hooks.ts` already calls, reading the sibling
  * `adminAssistantEnabled` field that route's own doc explains piggy-backing onto that response
  * — no new endpoint. `assistant-settings` is one of exactly two admin-assistant server modules
- * mounted UNCONDITIONALLY (`server/app.ts`'s module-mounting comment), so this GET stays reachable
+ * mounted UNCONDITIONALLY (`apps/website/src/server/runtime/composition/app.ts`'s module-mounting comment), so this GET stays reachable
  * and answers correctly with the flag off, unlike the four gated modules the dock itself would
  * otherwise call.
  *
@@ -326,16 +269,16 @@ export function usePublishCriteriaDeepLink(
  * unrelated to what it tests. A sibling hook, called separately from `App()`, costs nothing and
  * leaves that suite untouched.
  *
- * @param user - `useAdminSession()`'s current session, or `null` before login.
+ * @param input.user - `useAdminSession()`'s current session, or `null` before login.
  * @returns `true` unless the server has confirmed the flag is off.
  */
-export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
+export function useAdminAssistantAvailability({ user }: { user: AdminUser | null }, _options: Record<string, never> = {}): boolean {
   const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     if (!user) return undefined;
     let cancelled = false;
-    api
+    aiAssistantApi
       .getAssistantSettings()
       .then((response) => {
         if (!cancelled) setEnabled(response.adminAssistantEnabled ?? true);
@@ -352,202 +295,6 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
 }
 
 /**
- * `panels.tsx`'s own id for the Sites section, named once here rather than inlined at the two call
- * sites that gate on it ({@link withoutSiteSection} and {@link resolveSiteSectionRouteGate}).
- *
- * The id itself is untouched by this gate, deliberately: `ADMIN_PANELS` still declares `sites` in
- * the same position with the same `nav` block, `matchRoute` still resolves `/sites` to it, and
- * `ADMIN_AGENT_PAGE_PATHS` still publishes it. Hiding a section here means "do not show it and do
- * not let this route render it on this deployment" — never renaming, renumbering, or removing a
- * panel, which would move every other section's identity with it.
- */
-export const SITES_PANEL_ID = "sites";
-
-/**
- * Whether this admin client has a Sites section at all.
- *
- * Three states, not a boolean, and the third one is the point: outside the desktop shell the answer
- * comes from the server, so "not answered yet" has to be distinguishable from "no". Collapsing
- * `unknown` into `false` would redirect a developer's own `/admin/sites` deep link to the dashboard in the window before
- * the flag arrives; collapsing it into `true` would flash the Sites screen inside the desktop app,
- * which is the exact thing this gate exists to prevent.
- */
-export type SiteSectionAvailability = "unknown" | "available" | "unavailable";
-
-/**
- * Resolves the desktop shell first, otherwise reads the deployment's site-switcher capability
- * flag, and reports a section-visibility answer.
- *
- * ## Why this reuses `switchingEnabled` rather than introducing a second flag
- *
- * `TOVU_ENABLE_SITE_SWITCHER` (`apps/website/src/platform/site-dir/site-switcher-enabled.ts`)
- * already exists, is already default-OFF, and its own header already enumerates exactly the three
- * deployments this section cares about: ON for local `npm run dev` (set by
- * `development/scripts/dev.mjs`), OFF for a Tovu-Runner/desktop host, OFF for a hosted install.
- * That keeps the owner's browser requirement — "sites page is for when a dev runs `npm run dev`
- * themselves" — with no new variable. The shell can also attach to an existing dev server whose
- * flag is ON, so the server flag alone cannot distinguish the two clients. `isDesktopAdmin` already
- * owns that check through the synchronous `tovuFiles`/`tovuVoice` preload bridges. The shell wins
- * before the first paint and needs no server read: its own All tab already lists and switches sites.
- *
- * The flag also already reaches this client. `GET .../system/sites` is deliberately NOT gated on
- * it; the route carries its value instead, and that route's own header states the intended use in
- * as many words — "its response CARRIES the flag's value (`switchingEnabled`) so the UI can decide
- * whether to render the 'Sites' nav item, a disabled Create button, etc. without a second round
- * trip". Until now only the second half of that sentence was wired: `Sites.tsx` disabled Create and
- * Activate and explained why, while the nav item and the route stayed live everywhere. This hook is
- * the first half.
- *
- * Shares `useSitesSnapshot` with the screen and sidebar label: visibility is a projection of the
- * same authorized directory listing, so those mounts must not issue independent boot requests.
- * The principal key keeps one session's visibility answer out of another session's first paint.
- *
- * Fails CLOSED, the opposite of `useAdminAssistantAvailability`'s fail-open posture, because the
- * server's own default is the opposite: absent the var the capability is off, and
- * `features/sites/rules.ts`'s `readSnapshot` already records the same rule for the same field
- * ("`switchingEnabled` in particular must fall back to `false`, not true"). A rejected read —
- * including the 403 an operator without `system.read` gets — therefore hides the section rather
- * than showing a screen whose every request would fail.
- *
- * Gated on `user` for the same reason its sibling is: a pre-login request would 401, and the value
- * plays no role before `App.tsx`'s `<Login>` gate clears.
- *
- * @param user - `useAdminSession()`'s current session, or `null` before login.
- * @param options.desktop - Injectable shell check; defaults to the existing preload-bridge detector.
- * @returns `unavailable` synchronously in the shell; otherwise `unknown` until the read settles,
- *   then `available` only if the server said the flag is on.
- * @complexity O(1) plus one server round trip per browser session; no round trip in the shell.
- */
-export function useSiteSectionAvailability(
-  user: AdminUser | null,
-  { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
-): SiteSectionAvailability {
-  // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
-  // and an ordinary remount in this session should reuse the already authorized snapshot.
-  const snapshot = useSitesSnapshot({ port: api }, { enabled: !!user && !desktop, principalId: user?.id });
-  return siteSectionAvailability({ desktop, user, snapshot });
-}
-
-/** Project visibility without changing the query's identity or fail-closed boundary. */
-function siteSectionAvailability({ desktop, user, snapshot }: {
-  desktop: boolean; user: AdminUser | null; snapshot: ReturnType<typeof useSitesSnapshot>;
-}): SiteSectionAvailability {
-  if (desktop) return "unavailable";
-  if (!user) return "unknown";
-  if (snapshot.error) return "unavailable";
-  if (!snapshot.data) return "unknown";
-  return snapshot.data.switchingEnabled === true ? "available" : "unavailable";
-}
-
-/** Where {@link useSidebarSiteSection} remembers this deployment's last confirmed answer. */
-export const SITES_ROW_STORAGE_KEY = "tovu-admin-sites-row-available";
-
-/** Storage access throws in a locked-down browser; the row then simply waits for the server. */
-function readSitesRowFlag(storage: Pick<Storage, "getItem"> | undefined): boolean {
-  try { return storage?.getItem(SITES_ROW_STORAGE_KEY) === "1"; } catch { return false; }
-}
-
-function writeSitesRowFlag(storage: Pick<Storage, "setItem"> | undefined, available: boolean): void {
-  try { storage?.setItem(SITES_ROW_STORAGE_KEY, available ? "1" : "0"); } catch { /* best effort */ }
-}
-
-function defaultSitesRowStorage(): Storage | undefined {
-  try { return typeof window === "undefined" ? undefined : window.localStorage; } catch { return undefined; }
-}
-
-/**
- * The sidebar's own view of {@link useSiteSectionAvailability}: while the server's answer is still
- * `unknown`, it reuses this browser's last confirmed answer for this deployment, so the Sites row is
- * there from the first paint instead of arriving late and pushing every row under it down (owner,
- * 2026-10-26: a mis-click risk). Nav only — the route gate keeps the strict three-state answer, so a
- * `/admin/sites` visit still holds until the server confirms. A deployment that never had the
- * section (desktop, hosted) remembers `unavailable` and shows no row either way.
- *
- * @param availability - {@link useSiteSectionAvailability}'s answer.
- * @param options.storage - Injectable `localStorage`.
- * @complexity O(1).
- */
-export function useSidebarSiteSection(
-  availability: SiteSectionAvailability,
-  { storage = defaultSitesRowStorage() }: { storage?: Pick<Storage, "getItem" | "setItem"> } = {},
-): SiteSectionAvailability {
-  const [lastAvailable] = useState(() => readSitesRowFlag(storage));
-  useEffect(() => {
-    if (availability !== "unknown") writeSitesRowFlag(storage, availability === "available");
-  }, [availability, storage]);
-  return availability === "unknown" && lastAvailable ? "available" : availability;
-}
-
-/** {@link withoutSiteSection}'s predicate, hoisted out of the `.filter` call so the id comparison is
- *  one named thing rather than an inline arrow repeated per group. */
-function isNotSiteSection(item: AdminNavItem): boolean {
-  return item.id !== SITES_PANEL_ID;
-}
-
-/**
- * The sidebar nav model with the Sites row dropped when this deployment has no Sites section.
- *
- * Filters ITEMS, never groups. `App.tsx` splits the rendered nav by group index
- * (`navGroups.slice(0, 1)` for the ungrouped top row, `.slice(1)` for the labelled sections), so
- * dropping a group would shift that boundary and move the rail toggle. Sites lives in the ungrouped
- * top row alongside Overview and AI Assistant, both of which survive, so the group itself is never
- * emptied and every index either side of it is unchanged. `AdminNavItem` carries no positional
- * field — `buildNav` sorts by `order` with registration order as the tiebreak — so removing one row
- * cannot renumber another.
- *
- * Returns the input array unchanged (same reference) when the section is visible, so the common
- * case allocates nothing.
- *
- * @param groups - `nav.ts`'s `getNav()` output, untranslated.
- * @param availability - {@link useSiteSectionAvailability}'s answer. Anything but `available` hides
- *   the row, so the desktop app never paints a Sites item it would then have to take away.
- * @complexity O(n) in total nav items.
- */
-export function withoutSiteSection(
-  groups: readonly AdminNavGroup[],
-  availability: SiteSectionAvailability,
-): readonly AdminNavGroup[] {
-  if (availability === "available") return groups;
-  return groups.map((group) => ({ ...group, items: group.items.filter(isNotSiteSection) }));
-}
-
-/** What `App.tsx`'s `renderRoute` should do with the route it just resolved. `hold` is the
- *  not-yet-known case — render nothing for this one frame rather than guess. */
-export type SiteSectionRouteGate = "render" | "hold" | "redirect";
-
-/**
- * Whether this route may render, must wait, or must leave.
- *
- * This is the half of the change that makes the section genuinely absent rather than merely
- * unlinked. A hidden nav row with a live route still answers `/admin/sites` — to a typed URL, to a
- * bookmark, to `page.navigate("sites")`, and to anything that restores the last section an operator
- * was on — which is precisely the surface the desktop app must not have.
- *
- * `redirect` sends the browser to the default section (`/`, the dashboard) rather than rendering a
- * "not available here" screen. Both satisfy "unreachable"; the redirect is chosen because a
- * not-available screen is still a Sites screen, in a shell whose own tabs already own site
- * switching, offering the operator nothing to do — and because this admin already resolves exactly
- * this shape that way twice (`WorkspaceRedirect`, `IntegrationsRedirect`), so a third case behaves
- * like the two beside it.
- *
- * Every non-Sites route returns `render` on the first branch, so no other section can be affected
- * by this gate however the flag resolves.
- *
- * @param panelId - the resolved route's panel id (`null` for a route matching no panel).
- * @param availability - {@link useSiteSectionAvailability}'s answer.
- * @complexity O(1).
- */
-export function resolveSiteSectionRouteGate(
-  panelId: string | null | undefined,
-  availability: SiteSectionAvailability,
-): SiteSectionRouteGate {
-  if (panelId !== SITES_PANEL_ID) return "render";
-  if (availability === "available") return "render";
-  if (availability === "unknown") return "hold";
-  return "redirect";
-}
-
-/**
  * Sends the browser from a section this deployment does not have to the default one.
  *
  * `replace: true`, not a pushed entry, for the reason `useWorkspaceRedirect` already documents for
@@ -561,7 +308,7 @@ export function resolveSiteSectionRouteGate(
  */
 export function useDefaultSectionRedirect(): void {
   useEffect(() => {
-    navigate("/", { replace: true });
+    navigate({ routePath: "/" }, { replace: true });
   }, []);
 }
 
@@ -594,12 +341,12 @@ export interface UseLogoutConfirm {
  * should ask first, the same way every other destructive action in this app (delete role, delete
  * page, …) already does via `@jini-ai/admin/react`'s `ConfirmDialog` rather than `window.confirm`.
  *
- * @param logout - The real (or faked) `logout` from `useAdminSession()`.
+ * @param input.logout - The real (or faked) `logout` from `useAdminSession()`.
  * @example
  * const { logout } = useSession();
- * const logoutConfirm = useLogoutConfirm(logout);
+ * const logoutConfirm = useLogoutConfirm({ logout });
  */
-export function useLogoutConfirm(logout: () => Promise<void>): UseLogoutConfirm {
+export function useLogoutConfirm({ logout }: { logout: () => Promise<void> }, _options: Record<string, never> = {}): UseLogoutConfirm {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -678,15 +425,15 @@ export function useInternalLinkInterceptor(): void {
  * `App.tsx`'s `dockT` translator, minus the fallback chain itself — kept here rather than as an
  * inline closure in `App.tsx` per this codebase's standing rule against derived logic living in a
  * `.tsx` file (see `App.tsx`'s `AssistantChrome` for the same reasoning applied to JSX branches).
- * `App.tsx` still defines its own `dockT` closure (`(key) => translateAssistantDockLabel(navLocale,
- * key)`) so every existing call site keeps calling `dockT("...")` with no `locale` argument to
+ * `createAdminShellTranslators` binds this label to the shell locale (`({ key }) => translateAssistantDockLabel({ locale,
+ * key })`) so every existing call site keeps calling `dockT({ key })` with no `locale` argument to
  * thread through by hand. Delegates to `assistant-dock-i18n.ts`'s own `t` (COMMON_I18N-falling-back,
  * via `createDictionaryTranslator`) rather than duplicating `ASSISTANT_DOCK_DICT[locale]?.[key] ??
  * key` inline — same fix as `AssistantDock.hooks.tsx`'s `useAssistantDockChrome`, which had an
  * independent copy of the same no-fallback lookup.
  */
-export function translateAssistantDockLabel(locale: string, key: string): string {
-  return translateAssistantDockDictLabel(locale, key);
+export function translateAssistantDockLabel({ locale, key }: { locale: string; key: string }, _options: Record<string, never> = {}): string {
+  return translateAssistantDockDictLabel({ locale, key });
 }
 
 /**
@@ -857,8 +604,8 @@ export function useChatDockLayout(): UseChatDockLayout {
    * Both directions are wired here, in the hook that owns the boolean, so every open still runs
    * the same focus/escape/sheet-sizing effects above rather than a second, divergent path.
    */
-  useEffect(() => subscribeToAssistantDockRequests(setChatOpen), []);
-  useEffect(() => publishAssistantDockState(chatOpen), [chatOpen]);
+  useEffect(() => subscribeToAssistantDockRequests({ listener: setChatOpen }), []);
+  useEffect(() => publishAssistantDockState({ open: chatOpen }), [chatOpen]);
 
   // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on `App.tsx`'s
   // `<aside>` makes it a valid programmatic focus target without adding it to the normal Tab
@@ -908,7 +655,7 @@ export interface UseAgentPageBridge {
 /**
  * Owns agent-driven control of this tab: the DOM page driver scoped to `App.tsx`'s `<main>`, and
  * the frontend-session bridge that relays each `page.*` invocation the daemon sends down the
- * frontend-session SSE stream (proxied by `src/server/modules/assistant.ts`, already past
+ * frontend-session SSE stream (proxied by `apps/website/src/server/runtime/composition/modules/assistant.ts`, already past
  * `ToolExecutor`'s authorization/timeout/audit on the way in — this side only executes what
  * arrives).
  *
@@ -962,7 +709,7 @@ function stillWorkingPublishResult(): PublishRequestResult {
  *
  * @complexity O(1); one timer, cleared once either side settles first.
  */
-function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promise<PublishRequestResult> {
+function withFirstPlanTimeout({ publishing }: { publishing: Promise<PublishRequestResult> }, _options: Record<string, never> = {}): Promise<PublishRequestResult> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<PublishRequestResult>((resolve) => {
     timer = setTimeout(() => resolve(stillWorkingPublishResult()), PUBLISH_CONTENT_FIRST_PLAN_TIMEOUT_MS);
@@ -980,10 +727,10 @@ function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promis
  * A plain function, not inlined into {@link useAgentPageBridge}'s effect, so it is directly
  * unit-testable with no `EventSource`/React involved — see `app-hooks-admin-capability-executors.unit.test.tsx`.
  *
- * @param contentEl - The element to capture. `null` is handled by
+ * @param input.contentEl - The element to capture. `null` is handled by
  * {@link captureAdminScreenshotToolResult} itself (reported as a text failure, not thrown).
- * @param renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
- * @param requestPublishFn - Test seam for `admin.publish_content` (plan §4 S3); defaults to the real
+ * @param options.renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
+ * @param options.requestPublishFn - Test seam for `admin.publish_content` (plan §4 S3); defaults to the real
  * module-level {@link requestPublish} store call. Named distinctly from that import — a default
  * parameter initializer sharing its own parameter's name would read the not-yet-initialized
  * parameter, not the outer import.
@@ -996,14 +743,16 @@ function withFirstPlanTimeout(publishing: Promise<PublishRequestResult>): Promis
  * `requestPublishFn`'s own.
  */
 export function buildAdminCapabilityExecutors(
-  contentEl: HTMLElement | null,
-  renderElementToCanvas: RenderElementToCanvas = renderAdminScreenshotCanvas,
-  requestPublishFn: (criteria: PublishCriteria) => Promise<PublishRequestResult> = requestPublish,
+  { contentEl }: { contentEl: HTMLElement | null },
+  { renderElementToCanvas = renderAdminScreenshotCanvas, requestPublishFn = requestPublish }: {
+    renderElementToCanvas?: RenderElementToCanvas;
+    requestPublishFn?: (criteria: PublishCriteria) => Promise<PublishRequestResult>;
+  } = {},
 ): Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>> {
   return {
     "admin.": async (capabilityId: string, input: Record<string, unknown>) => {
       if (capabilityId === PUBLISH_CONTENT_CAPABILITY.id) {
-        return withFirstPlanTimeout(requestPublishFn(parsePublishContentToolInput(input)));
+        return withFirstPlanTimeout({ publishing: requestPublishFn(parsePublishContentToolInput(input)) });
       }
       if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
         throw new Error(`no admin capability serves "${capabilityId}"`);
@@ -1030,10 +779,10 @@ export function buildAdminCapabilityExecutors(
  * network blip). Only a stream that has actually given up (`CLOSED`) is worth a warning; a real
  * `Error` (the other three cases above) still means something broke and stays at error level.
  *
- * @param error - Whatever the bridge's `onError` was called with.
+ * @param input.error - Whatever the bridge's `onError` was called with.
  * @complexity O(1).
  */
-export function logFrontendSessionError(error: unknown): void {
+export function logFrontendSessionError({ error }: { error: unknown }, _options: Record<string, never> = {}): void {
   if (error instanceof Event) {
     const source = error.target as { readyState?: unknown } | null;
     if (source?.readyState === EventSource.CLOSED) {
@@ -1046,7 +795,7 @@ export function logFrontendSessionError(error: unknown): void {
 }
 
 /** The minimal shape this file needs from the WebMCP host surface (`document.modelContext`, or the
- *  older `navigator.modelContext` location — see `@jini-ai/agentic`'s `webmcp.js` module doc for
+ *  older `navigator.modelContext` location — see `@jini-ai/agentic`'s `Jini packages/agentic/src/core/webmcp.ts` module doc for
  *  why both are checked) — just `registerTool`, matching what `toWebMcpTool`'s
  *  {@link WebMcpToolRegistration} expects as `registerTool`'s second positional argument. */
 interface AdminWebMcpModelContext {
@@ -1082,24 +831,28 @@ function resolveWebMcpModelContext(): AdminWebMcpModelContext | undefined {
  * agent handle on the Publish button, session-only overwrite unchanged server-side), not here — see
  * `AssistantDock.tsx`'s own `agentControl={{ webmcp: true }}` comment.
  *
- * @param executors - {@link buildAdminCapabilityExecutors}'s own return value; `executors["admin."]`
+ * @param input.executors - {@link buildAdminCapabilityExecutors}'s own return value; `executors["admin."]`
  * is always present (that function always returns exactly that one key).
- * @param signal - Threaded into `toWebMcpTool`'s `registerOptions.signal` — WebMCP's only
+ * @param input.signal - Threaded into `toWebMcpTool`'s `registerOptions.signal` — WebMCP's only
  * unregistration mechanism. The caller's effect cleanup aborts it to unregister on unmount/re-run.
- * @param modelContext - Test seam; defaults to {@link resolveWebMcpModelContext}'s real lookup.
+ * @param options.modelContext - Test seam; defaults to {@link resolveWebMcpModelContext}'s real lookup.
  * @complexity O(1).
  */
 export function registerAdminWebMcpTool(
-  executors: Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>>,
-  signal: AbortSignal,
-  modelContext: AdminWebMcpModelContext | undefined = resolveWebMcpModelContext(),
+  { executors, signal }: {
+    executors: Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>>;
+    signal: AbortSignal;
+  },
+  { modelContext = resolveWebMcpModelContext() }: { modelContext?: AdminWebMcpModelContext | undefined } = {},
 ): void {
   if (!modelContext || signal.aborted || !getBrowserAgentEnabled({})) return;
   const registration = toWebMcpTool({
     capability: PUBLISH_CONTENT_CAPABILITY,
     execute: ({ id, args }) => {
       if (signal.aborted || !getBrowserAgentEnabled({})) throw new Error("WebMCP admin access is disabled or closed");
-      return executors["admin."]!(id, args);
+      const execute = executors["admin."];
+      if (!execute) throw new Error("WebMCP admin executor is missing");
+      return execute.call(executors, id, args);
     },
   }, { signal });
   try {
@@ -1125,7 +878,7 @@ export function useAgentPageBridge(
   // connection) on every render.
   const agentPages = useMemo(() => buildAdminAgentPages(), []);
   const pageDriver = useMemo(() => contentEl ? createDomPageDriver({ root: contentEl, pages: agentPages }) : null, [contentEl, agentPages]);
-  const executors = useMemo(() => buildAdminCapabilityExecutors(contentEl), [contentEl]);
+  const executors = useMemo(() => buildAdminCapabilityExecutors({ contentEl }), [contentEl]);
 
   useEffect(() => {
     if (!pageDriver) return undefined;
@@ -1139,11 +892,11 @@ export function useAgentPageBridge(
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
       openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
     }, {
-      pageDriver,
+      page: createDriverPagePort({ driver: pageDriver }),
       preparePageInput: pageNavigation.preparePageInput,
       onBeforeResponse: pageNavigation.onBeforeResponse,
       executors,
-      onError: logFrontendSessionError,
+      onError: (error) => logFrontendSessionError({ error }),
     });
     // `ready` reports only first attachment. Dock wake/send uses rebind for the current one;
     // a parked or failed stream remains closed until that explicit activation succeeds.
@@ -1168,13 +921,13 @@ export function useAgentPageBridge(
     // (daemon-relayed SSE vs. page-native WebMCP). Opting out unregisters browser tools while
     // keeping the assistant attached. Abort is the draft's only unregister mechanism.
     const webMcpController = new AbortController();
-    registerAdminWebMcpTool(executors, webMcpController.signal);
+    registerAdminWebMcpTool({ executors, signal: webMcpController.signal });
     const requestPageAction = createFrontendRequestCaller({
       path: "/api/frontend-sessions/request", fetch,
       bindToken: () => agentBridge.bindToken(), onSurface: emission => publishAdminPageSurface({ emission }),
     }, { headers: () => ({ "x-frontend-tab-id": adminFrontendTabId }) });
     registerAdminPageWebMcpTools({ driver: pageDriver, signal: webMcpController.signal }, {
-      requestPageAction: async (request) => {
+      requestPageAction: async (request, _options = {}) => {
         if (!agentBridge.bindToken()) await prepareAssistantPageBinding({ bridge: agentBridge, signal: request.signal });
         else await agentBridge.rebind({ signal: request.signal }, {});
         return requestPageAction(request);
@@ -1208,7 +961,7 @@ export interface UseScreenshotAnnouncement {
  */
 export function useScreenshotAnnouncement(): UseScreenshotAnnouncement {
   const [announced, setAnnounced] = useState(false);
-  useEffect(() => subscribeToScreenshotCaptured(() => setAnnounced(true)), []);
+  useEffect(() => subscribeToScreenshotCaptured({ listener: () => setAnnounced(true) }), []);
   return { announced, dismiss: () => setAnnounced(false) };
 }
 
@@ -1231,4 +984,22 @@ export function useCollapsibleNavGroupLabels(navGroups: readonly AdminNavGroup[]
     () => navGroups.map((group) => group.label).filter((label): label is string => Boolean(label)),
     [navGroups],
   );
+}
+
+/** Bind the shell copy to its active navigation locale. */
+export function createAdminShellTranslators({ locale, translateDashboard }: {
+  locale: string; translateDashboard: typeof import("./features/dashboard/dashboard-i18n").t;
+}, _options = {}) {
+  /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
+   *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
+   *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
+  const dockT = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateAssistantDockLabel({ locale, key });
+
+  /** The Publish dialog's own copy lives in `dashboard-i18n.ts`'s `DASHBOARD_DICT` — it is the
+   *  Dashboard's dialog, wherever it mounts — never `tApp`/`dockT`, which would silently regress
+   *  every locale but English for this one dialog (both resolve against `app-i18n.ts`'s different
+   *  dictionary, which has no entries for this copy). */
+  const dashboardT = ({ key }: { key: string }, _options: Record<string, never> = {}): string => translateDashboard({ locale, key });
+
+  return { dockT, dashboardT };
 }

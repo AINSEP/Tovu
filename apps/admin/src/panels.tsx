@@ -1,6 +1,5 @@
 import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
-import type { PanelAccessDeclaration } from "./lib/panel-access";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
@@ -108,15 +107,19 @@ import { t as tApp } from "./app-i18n";
  * Each panel below does its own small `switch` on `view` rather than the router doing it, which is
  * what lets a panel own its URL space without editing a shared dispatch — see the file header.
  */
-export type PanelRenderer = (ctx: PanelRenderContext) => ReactNode;
+export type PanelRenderer = (ctx: PanelRenderContext, optional?: Record<string, never>) => ReactNode;
 
 /**
- * A Tovu panel: Jini's `AdminPanel` plus `anyOfPermissions`, the permission ids its landing server
- * route checks. `lib/panel-access.ts` reads it to hide the nav row and gate a direct URL for an
- * operator who holds none of them (UX only — the server still re-checks every request).
+ * A Tovu panel: Jini's `AdminPanel`, whose `anyOfPermissions` is the permission ids the panel's
+ * landing server route checks. `@jini-ai/admin/core`'s `isPanelAccessible` / `withoutInaccessiblePanels`
+ * read it to hide the nav row and gate a direct URL for an operator who holds none of them. NOT A
+ * SECURITY BOUNDARY: this only decides whether a row shows and whether a screen mounts; every route
+ * re-checks server-side. The point is UX: an editor used to see Users and Roles & Permissions and
+ * land on a screen whose first read the server answered 403. An unknown permission list (the session
+ * has not answered yet) shows every panel rather than flashing an empty nav.
  * `lib/__tests__/panel-access.unit.test.ts` pins each declared id against the server route file.
  */
-export type TovuAdminPanel = AdminPanel<PanelRenderer> & PanelAccessDeclaration;
+export type TovuAdminPanel = AdminPanel<PanelRenderer>;
 
 /**
  * Every admin section, in the order the sidebar groups them (see `nav.ts`'s `getNav()`, which
@@ -142,7 +145,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `?tab=<id>` picks the initially-active tab (All sites / New site) and stays in sync as the
     // operator switches tabs (see `Sites`'s `tabId` prop) — same `?tab=` deep-linking convention as
     // `deployment`'s and `database`'s own entries elsewhere in this file (ADR-063).
-    render: (ctx) => <Sites tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Sites tabId={ctx.query.get("tab")} />,
     nav: {
       // Directly under Overview in the ungrouped top row, ranked ABOVE AI Assistant (owner call,
       // 2026-09-05 — supersedes the 2026-09-04 sites-switcher decision that first placed this entry
@@ -172,7 +175,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Export and Import are its own tabs (owner, 2026-10-25, option A: moved from Sites, which the
     // desktop app and a hosted install do not have); Other links to Deployment → Static Site rather
     // than copying it. `?tab=export|import|other` picks the tab, as on every other tabbed screen.
-    render: (ctx) => <ImportExport tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <ImportExport tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Import & Export",
       icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
@@ -185,7 +188,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
     // `deployment`'s own entries elsewhere in this file.
-    render: (ctx) => <AiAssistant tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <AiAssistant tabId={ctx.query.get("tab")} />,
     nav: {
       // Fourth in the ungrouped top row (third on desktop, which hides Sites), below Overview,
       // Sites, and Import & Export (owner moved Sites above this entry 2026-09-05 — see Sites' own
@@ -211,7 +214,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Create and edit site pages and their content.",
     agentEntities: [{"type": "page", "pattern": "/:slug"}],
     anyOfPermissions: ["content.read"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       if (ctx.view === "page-editor") {
         // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
         // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
@@ -233,9 +236,9 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Write, edit and organize posts.",
     agentEntities: [{"type": "post", "pattern": "/:postId"}],
     anyOfPermissions: ["content.read"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       // Query mode avoids reserving a real post slug such as "new".
-      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey("")} postId="" />;
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey({ segment: "" })} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
@@ -243,11 +246,11 @@ const PANELS: readonly TovuAdminPanel[] = [
         // whichever entity was current when Save was clicked. Navigate mid-save and the late
         // response commits over the newly-displayed entity — then the NEXT save reads the stale id
         // and writes to the wrong record. Remounting per id closes the whole class at the routing
-        // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
+        // layer instead of one hand-rolled staleness ref per hook. `Jini packages/admin/src/seo/react/pages/SeoPage.tsx:443` already does this
         // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
         // `postEditorRouteKey`: the editor's own save can rename the slug in the URL; that is the same
         // record, so it keeps its key instead of remounting (see `post-editor-route-key.ts`).
-        return <PostEditor key={postEditorRouteKey(ctx.params.postId)} postId={ctx.params.postId} />;
+        return <PostEditor key={postEditorRouteKey({ segment: ctx.params.postId })} postId={ctx.params.postId} />;
       }
       return <Posts />;
     },
@@ -286,7 +289,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Library documents are `media` rows of kind "document"; the list route checks `media.read`.
     anyOfPermissions: ["media.read"],
     // `?tab=upload|documents` — same `?tab=` deep-linking convention as `roles`/`sites`.
-    render: (ctx) => <Library tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Library tabId={ctx.query.get("tab")} />,
     nav: {
       // Beside Media (owner, 2026-10-18): private documents the assistant reads, never public.
       label: "Library",
@@ -300,7 +303,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "collections",
     description: "Define content collections and edit their entries.",
     anyOfPermissions: ["admin.collections.read"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       // Guaranteed present on both routes below: both patterns start with `/:contentTypeKey`.
       const contentTypeKey = ctx.params.contentTypeKey;
       switch (ctx.view) {
@@ -333,7 +336,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Build navigation menus and arrange their links.",
     agentEntities: [{"type": "menu", "pattern": "/:menuId"}],
     anyOfPermissions: ["admin.menus.read"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       if (ctx.view === "menu-editor") {
         // The `/new` pattern below captures no params, so `menuId` is `undefined` there — the
         // same "new means null" mapping `App.tsx`'s old `parseRoute` did inline.
@@ -356,7 +359,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Create widgets and place them in site regions.",
     allowedQueryParams: {"type": null},
     agentEntities: [{"type": "widget", "pattern": "/:widgetId"}],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       switch (ctx.view) {
         case "widget-regions":
           return <WidgetRegions />;
@@ -413,7 +416,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "forms",
     description: "Create forms and review submissions.",
     anyOfPermissions: ["admin.forms.manage"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
@@ -456,13 +459,13 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "users",
     description: "Manage admin users and their account access.",
     // Any-of, matching `routes/users/list.ts`: the built-in admin role holds `member.manage` but not
-    // `user.manage`, and still reads this roster. See `lib/panel-access.ts` for why this is any-of.
+    // `user.manage`, and still reads this roster. Any-of is why this is `anyOfPermissions` and not `permissions` (all-of).
     anyOfPermissions: ["user.manage", "member.manage"],
     // `/change-password` (password-banner plan, 2026-09-24 Slice 3): the dashboard nag's "Change
-    // password" link (`adminHref("/users/change-password")`) lands here — same `ctx.view` switch
+    // password" link (`adminHref({ routePath: "/users/change-password" })`) lands here — same `ctx.view` switch
     // shape as `pages`'s `page-editor` route above, just a boolean flag instead of a component swap,
     // since it's still the same `Users` screen auto-opening its own reset dialog.
-    render: (ctx) => <Users openOwnPasswordReset={ctx.view === "change-password"} />,
+    render: (ctx, _options = {}) => <Users openOwnPasswordReset={ctx.view === "change-password"} />,
     nav: {
       label: "Users",
       group: "People",
@@ -509,7 +512,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Two tabs (Roles, Policies) as of 2026-09-06 — same `?tab=` deep-linking convention
     // `deployment`/`settings`/`sites`/`seo` use, so the query value is threaded in here and
     // guarded by `resolveRolesTabId` inside the screen.
-    render: (ctx) => <Roles tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Roles tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Roles & Permissions",
       group: "People",
@@ -560,7 +563,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // and should not grow: `admin-ui` below holds the admin Appearance feature (restyling the
     // admin's own chrome), and this screen is about SITE themes — which is why the module it lives
     // in is `features/themes/`, not `features/appearance/`.
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       if (ctx.view === "theme-explore") {
         // The theme id rides in `?theme=` rather than the path because it names a theme, not a
         // resource in this app's own URL space. Read here from the router's own parsed `query`
@@ -599,7 +602,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "admin-ui",
     description: "Customize the admin interface and its appearance.",
     allowedQueryParams: {"tab": null},
-    render: (ctx) => <AdminUi tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <AdminUi tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Admin UI",
       group: "Studio",
@@ -701,7 +704,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Manage site plugins: install, inspect and turn them on or off.",
     allowedQueryParams: {"tab": null, "plugin": null},
     anyOfPermissions: ["admin.plugins.read"],
-    render: (ctx) => <Plugins tabId={ctx.query.get("tab")} focusPluginId={ctx.query.get("plugin")} />,
+    render: (ctx, _options = {}) => <Plugins tabId={ctx.query.get("tab")} focusPluginId={ctx.query.get("plugin")} />,
     nav: {
       // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
@@ -722,7 +725,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     allowedQueryParams: {"tab": ["installed", "downloaded", "add", "marketplace"]},
     agentEntities: [{"type": "agent-plugin", "pattern": ""}],
     anyOfPermissions: ["admin.plugins.read"],
-    render: (ctx) => <AgentPlugins tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <AgentPlugins tabId={ctx.query.get("tab")} />,
     nav: {
       // Sibling row alongside Plugins: surfaces the Agent Plugins open standard
       // (agent-plugins.org, published 2026-08-06) — portable skills/MCP-server bundles, distinct
@@ -765,7 +768,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // (External MCP, MCP Server, Webhooks — owner's explicit order); see
     // `Providers.tsx`'s own header for the absorption of the retired `integrations` panel's two
     // tabs.
-    render: (ctx) => <Providers tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Providers tabId={ctx.query.get("tab")} />,
     nav: {
       // Third and last row in the group — after Plugins, Agent Plugins (owner's row-order call; see
       // the group comment above).
@@ -810,7 +813,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Review webhook subscriptions and delivery results.",
     // The `/:subscriptionId` deliveries drill-down reads `routes/integrations/deliveries.ts`.
     anyOfPermissions: ["admin.integrations.manage"],
-    render: (ctx) => {
+    render: (ctx, _options = {}) => {
       if (ctx.view === "integration-deliveries") {
         // Guaranteed present: this view only fires when `/:subscriptionId` matched. Unchanged by
         // the second pass — this is its own full screen, not a tab, and was never part of the
@@ -828,7 +831,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Review customer orders and their status.",
     // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter` use
     // for a genuinely unbuilt-but-real nav entry. `p_store__orders` exists as a
-    // table (`store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
+    // table (`Jini packages/commerce/src/store/store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
     // plain single-page placeholder rather than `PlaceholderTabs` — there is no named sub-list
     // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
     // is still set, by owner decision: every row in Commerce previews as a real, clickable link
@@ -850,7 +853,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "products",
     description: "Manage products and their catalog details.",
     // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
-    // in it (`store-plugin.ts`), but no admin API or screen exists yet.
+    // in it (`Jini packages/commerce/src/store/store-plugin.ts`), but no admin API or screen exists yet.
     render: ({ Placeholder }) => <Placeholder sectionId="products" agentHandle="products" />,
     nav: {
       label: "Products",
@@ -870,10 +873,10 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Same `soon` + `Placeholder` shape as `orders`/`products` above, but the most speculative of
     // the four — worth being honest about rather than implying parity. Products has 3 seeded rows,
     // a public `routes/site/products.ts`, and a storefront theme actually serving them; Orders has 0
-    // rows but a real, wired path to get them (`store-plugin.ts`'s `checkout()`, called from
+    // rows but a real, wired path to get them (`Jini packages/commerce/src/store/store-plugin.ts`'s `checkout()`, called from
     // `routes/site/store.ts`'s buy action — unexercised, not unbuilt). `member_tiers`/
     // `member_subscriptions` (referenced by `payments`'s own comment above) are one level further
-    // back: `SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` (`src/members/repo.sqlite.ts`)
+    // back: `SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` (`apps/website/src/features/members/repo.sqlite.ts`)
     // implement full CRUD against them, but nothing in the app calls those methods — no route, no
     // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
     // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
@@ -923,7 +926,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
     // (see `Database`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
     // `settings`'s own entries elsewhere in this file.
-    render: (ctx) => <Database tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Database tabId={ctx.query.get("tab")} />,
     nav: {
       // Renamed from "storage" to "database" (ADR-041 naming-correction note, 2026-07): "Storage"
       // read as ambiguous next to the Media/Assets subsystem's own file/blob storage — this
@@ -943,7 +946,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // (see `Recovery`'s `tabId` prop) — same `?tab=` deep-linking convention as `database`'s own
     // entry above. Recovery's inline SettingsDialogShell keeps this URL-owned navigation;
     // see `Recovery.tsx`'s own header comment for the owner's shell requirement.
-    render: (ctx) => <Recovery tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Recovery tabId={ctx.query.get("tab")} />,
     nav: {
       // Renamed from "backups" — ADR-045: Recovery supersedes Backups as a concept, there is no
       // separate Backups screen (see Recovery.tsx's own header comment).
@@ -959,7 +962,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     anyOfPermissions: ["system.read"],
     // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
     // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
-    // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
+    // "announced but not yet built" (see `PlaceholderTabs`'s own doc), and this screen no
     // longer renders a generic "X is coming soon" panel anywhere — Overview and Dockerfile are
     // backed by real endpoints, and Static Site/Full Site/History are honest, real empty/explainer
     // states rather than placeholders. Same `?tab=` deep-linking convention as `settings`'s own
@@ -970,7 +973,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Export are not, so trailing it behind them buried the section's most active surface under two
     // that cannot be used yet. It also puts it beside its nearest neighbour in meaning: Recovery is
     // how a site comes back, Deployment is how it goes out.
-    render: (ctx) => <Deployment tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Deployment tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Deployment",
       group: "Operations",
@@ -999,7 +1002,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     allowedQueryParams: {"tab": null},
     // `?tab=` deep-linking, same convention as `deployment`'s own entry just above — see
     // `SourceControl.tsx`'s own header for the 2026-08-16 page-shell pass that added it.
-    render: (ctx) => <SourceControl tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <SourceControl tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Source Control",
       group: "Operations",
@@ -1035,7 +1038,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "access-tokens",
     description: "Manage secrets, credentials and access tokens.",
     allowedQueryParams: {"tab": null},
-    render: (ctx) => <Security tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Security tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Secrets",
       group: "Operations",
@@ -1069,7 +1072,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     description: "Inspect operational health, traces and errors.",
     allowedQueryParams: {"tab": null},
     anyOfPermissions: ["system.read"],
-    render: (ctx) => <Observability tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Observability tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Observability",
       group: "Operations",
@@ -1111,7 +1114,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // `page.navigate` could be pointed at once that capability grows param support. Ten tabs as of
     // 2026-09-10: the `workspace` panel immediately below folded into this one as its own
     // `"workspace"` tab (owner call, resolving SPEC-044's OQ-04) — see that panel's own comment.
-    render: (ctx) => <SettingsUi tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <SettingsUi tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Settings",
       group: "Administration",
@@ -1126,7 +1129,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Administration, beside Settings (owner, 2026-10-21; the 2026-10-19 debate leaned Marketing, a
     // one-line move). Same `?tab=` convention as `deployment`/`settings`: the deployment gate's
     // "Fix now" choice links to `/consent?tab=overview` (`features/consent/service.ts`).
-    render: (ctx) => <CookieConsent tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <CookieConsent tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Cookie Consent",
       group: "Administration",
@@ -1177,7 +1180,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     allowedQueryParams: {"tab": null, "p": null},
     anyOfPermissions: ["admin.forms.manage"],
     // A template's editor is a full page like a Page's (owner, 2026-10-22): `/email/templates/:id`.
-    render: (ctx) => (ctx.view === "email-template-editor"
+    render: (ctx, _options = {}) => (ctx.view === "email-template-editor"
       ? <EmailTemplateEditor key={ctx.params.templateId} id={ctx.params.templateId} />
       : <Email tabId={ctx.query.get("tab")} part={ctx.query.get("p")} />),
     routes: [{ pattern: "/templates/:templateId", view: "email-template-editor" }],
@@ -1228,7 +1231,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     // Three tabs (Site defaults, Sitemap, Pages & posts) as of 2026-09-06 — same `?tab=`
     // deep-linking convention `deployment`/`settings`/`sites` above already use, so the query
     // value is threaded in here and guarded by `resolveSeoTabId` inside the screen.
-    render: (ctx) => <Seo tabId={ctx.query.get("tab")} />,
+    render: (ctx, _options = {}) => <Seo tabId={ctx.query.get("tab")} />,
     nav: {
       label: "SEO & Metadata",
       group: "Marketing",
@@ -1285,13 +1288,13 @@ const PANELS: readonly TovuAdminPanel[] = [
     // tab click on THIS alias URL navigates within `/appearance`, not away to `/themes`. Without an
     // explicit base, `Themes`' tab-switch `navigate()` would default to `/themes?tab=...` and silently
     // redirect an operator on this legacy alias to the other URL for the identical screen.
-    render: (ctx) => <Themes tabId={ctx.query.get("tab")} basePath="/appearance" />,
+    render: (ctx, _options = {}) => <Themes tabId={ctx.query.get("tab")} basePath="/appearance" />,
   },
 ];
 
 /** Reuse the admin's translated loading copy and existing text-only route loading pattern. */
-function PanelRouteLoading() {
-  const locale = useWiredAdminLocale();
+function PanelRouteLoading({ useWiredAdminLocaleHook = useWiredAdminLocale }: { useWiredAdminLocaleHook?: typeof useWiredAdminLocale; } = {}) {
+  const locale = useWiredAdminLocaleHook();
   return <p role="status">{tApp({ locale, key: "Loading Tovu…" })}</p>;
 }
 
@@ -1303,9 +1306,9 @@ function PanelRouteLoading() {
  */
 export const ADMIN_PANELS: readonly TovuAdminPanel[] = PANELS.map(panel => ({
   ...panel,
-  render: (ctx: PanelRenderContext) => (
+  render: (ctx: PanelRenderContext, options: Record<string, never> = {}) => (
     <Suspense fallback={<PanelRouteLoading />}>
-      {panel.render(ctx)}
+      {panel.render(ctx, options)}
     </Suspense>
   ),
 }));

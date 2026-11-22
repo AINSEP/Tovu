@@ -9,8 +9,9 @@ import { ToolInputError } from "@jini-ai/core";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
-import { NO_THEME_ID } from "../active-theme.js";
-import { discoverAllBuiltInThemes, type DiscoveredTheme } from "../theme.js";
+import { NO_THEME_ID } from "#src/contracts/core/theme-ids";
+import { discoverAllBuiltInThemes } from "../theme-discovery.js";
+import { type DiscoveredTheme } from "../theme.js";
 import { verifyActiveThemeResolves, type ActiveThemeVerificationDeps } from "../verify-active-theme.js";
 
 /**

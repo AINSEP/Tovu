@@ -16,13 +16,13 @@ test('tokensForCreate: trimmed, blanks dropped, undefined when nothing was typed
 
 test('createdTokensNote: saved says it connects on first start; failed says to ask the assistant; none is null', () => {
   assert.equal(
-    createdTokensNote({ agentPluginTokens: { status: 'saved', pluginIds: ['supabase'] } }),
+    createdTokensNote({ record: { agentPluginTokens: { status: 'saved', pluginIds: ['supabase'] } } }),
     'Supabase will connect when this site first starts.',
   );
   assert.equal(
-    createdTokensNote({ agentPluginTokens: { status: 'failed', pluginIds: ['supabase', 'my-crm'] } }),
+    createdTokensNote({ record: { agentPluginTokens: { status: 'failed', pluginIds: ['supabase', 'my-crm'] } } }),
     "Supabase, My Crm couldn't be saved. Open the site and ask its assistant to connect it.",
   );
-  assert.equal(createdTokensNote({}), null);
-  assert.equal(createdTokensNote(null), null);
+  assert.equal(createdTokensNote({ record: {} }), null);
+  assert.equal(createdTokensNote({ record: null }), null);
 });

@@ -13,7 +13,7 @@ import type { ServerModuleHandle } from "./types.js";
  * @file ADR-046 Phase 3 (SPEC-040) — the `settings` server module (SPEC-007 Phase 5 admin
  * settings HTTP surface, ADR-028 Settings Layered Ledger).
  *
- * `SettingsRouteDeps` (new this pass, `routes/admin/settings/deps.ts`) is a genuine
+ * `SettingsRouteDeps` (new this pass, `apps/website/src/server/inbound/admin-http/routes/settings/deps.ts`) is a genuine
  * `Pick<RouteDeps, ...>` narrowing — see that file's header for the confirmed field set, and for
  * why `shared.ts`'s pre-existing `toWriteServiceDeps` helper was retyped from `RouteDeps` to this
  * same narrow type rather than left untouched: it already only ever reads fields
@@ -37,15 +37,15 @@ import type { ServerModuleHandle } from "./types.js";
 export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle {
   return {
     name: "settings",
-    registerRoutes: (app) => {
-      registerAdminSettingsRegisterDefinitionsRoute(app, deps);
-      registerAdminSettingsGetEffectiveRoute(app, deps);
-      registerAdminSettingsGetRawRoute(app, deps);
-      registerAdminSettingsListDefinitionsRoute(app, deps);
-      registerAdminSettingsSetRoute(app, deps);
-      registerAdminSettingsClearRoute(app, deps);
-      registerAdminSettingsResetRoute(app, deps);
-      registerAdminSettingsEventsRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+      registerAdminSettingsGetEffectiveRoute({ app, deps });
+      registerAdminSettingsGetRawRoute({ app, deps });
+      registerAdminSettingsListDefinitionsRoute({ app, deps });
+      registerAdminSettingsSetRoute({ app, deps });
+      registerAdminSettingsClearRoute({ app, deps });
+      registerAdminSettingsResetRoute({ app, deps });
+      registerAdminSettingsEventsRoute({ app, deps });
     },
   };
 }

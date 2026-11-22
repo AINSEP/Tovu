@@ -1,3 +1,4 @@
+import { statementsFor } from "./helpers/daemon-source.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -18,7 +19,7 @@ import test, { describe } from "node:test";
  * side effect of being loaded.
  */
 
-const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-scope-tools.ts"), "utf8");
 
 test("imports withPageNavigateErrorRewrap directly from the Tovu-side implementation leaf", () => {
   assert.match(
@@ -65,7 +66,7 @@ describe("the toolRegistrations registration loop", () => {
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
-    assert.match(registrationLoopSource, /const bound = lostFrontendBindings\.wrap\(registration\)/);
+    assert.match(registrationLoopSource, /const bound = lostFrontendBindings\.wrap\(\{ registration \}\)/);
     assert.match(registrationLoopSource, /registry\.register\(applyToolApprovalPolicy\(/);
     assert.match(registrationLoopSource, /applyToolApprovalPolicy\(\{ registration: bound, surfaces: \{ surfaceExchanges \}/);
   });
@@ -89,9 +90,9 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { pageApprovalOptions } = await import("#src/assistant/page-approval-context");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
   const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
-  const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/core/primitives");
+  const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/platform/system");
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const loop = daemonSource.statements.find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
+  const loop = statementsFor("agent-daemon-scope-tools.ts", "createScopeToolRegistry").find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(statement.getSourceFile()).includes("frontendControl.toolRegistrations"));
   assert.ok(loop, "the module-level frontend registration loop must exist");
   const registry = createToolRegistry({});
   const lostFrontendBindings = createLostFrontendBindings();
@@ -105,7 +106,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
     { descriptor: { id: "chat.send_message" }, policy: { authorize: () => "allow" }, handler: async () => ({ sent: true }) },
     { descriptor: { id: "admin.capture_screenshot" }, policy: { authorize: () => "allow" }, handler: async (ctx) => { throw new Error(`no frontend is bound to run "${ctx.run.id}"`); } },
   ];
-  await evaluateDaemonStatements([loop], { registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, pageApprovalOptions, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
+  await evaluateDaemonStatements([loop], { execute: () => { throw new Error("unexpected approval execution"); }, registry, lostFrontendBindings, withPageNavigateErrorRewrap, withReadOnlyFrontendCapabilities, applyToolApprovalPolicy, pageApprovalOptions, surfaceExchanges, frontendControl: { toolRegistrations: registrations } });
   assert.deepEqual(registry.list({}).map(({ id }) => id).sort(), ["admin.capture_screenshot", "chat.send_message", "page.navigate"]);
   const executor = createToolExecutor({ registry });
   const request = { principal: { id: "principal" }, run: { id: "bound-run" }, toolId: "page.navigate", input: { page: "posts" } };

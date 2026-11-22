@@ -1,7 +1,8 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia, AdminPost } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import { usePostFeaturedImage } from "../hooks/use-post-featured-image.hooks";
@@ -38,25 +39,25 @@ afterEach(() => {
 describe("schedule rules", () => {
   it("round-trips a stored UTC time through the datetime-local value", () => {
     const iso = "2099-01-01T16:30:00.000Z";
-    const local = isoToLocalDateTimeInput(iso);
+    const local = isoToLocalDateTimeInput({ iso: iso });
     expect(local).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-    expect(localDateTimeInputToIso(local)).toBe(iso);
+    expect(localDateTimeInputToIso({ value: local })).toBe(iso);
   });
 
   it("empty or unparseable values mean no schedule", () => {
-    expect(isoToLocalDateTimeInput(null)).toBe("");
-    expect(isoToLocalDateTimeInput(undefined)).toBe("");
-    expect(isoToLocalDateTimeInput("nope")).toBe("");
-    expect(localDateTimeInputToIso("")).toBeNull();
-    expect(localDateTimeInputToIso("nope")).toBeNull();
+    expect(isoToLocalDateTimeInput({ iso: null })).toBe("");
+    expect(isoToLocalDateTimeInput({ iso: undefined })).toBe("");
+    expect(isoToLocalDateTimeInput({ iso: "nope" })).toBe("");
+    expect(localDateTimeInputToIso({ value: "" })).toBeNull();
+    expect(localDateTimeInputToIso({ value: "nope" })).toBeNull();
   });
 
   it("only a published row with a future publishAt is scheduled", () => {
     const now = Date.parse("2026-10-05T00:00:00Z");
-    expect(isScheduledPost({ status: "published", publishAt: "2099-01-01T00:00:00Z" }, now)).toBe(true);
-    expect(isScheduledPost({ status: "draft", publishAt: "2099-01-01T00:00:00Z" }, now)).toBe(false);
-    expect(isScheduledPost({ status: "published", publishAt: "2020-01-01T00:00:00Z" }, now)).toBe(false);
-    expect(isScheduledPost({ status: "published", publishAt: null }, now)).toBe(false);
+    expect(isScheduledPost({ input: { status: "published", publishAt: "2099-01-01T00:00:00Z" }, nowMs: now })).toBe(true);
+    expect(isScheduledPost({ input: { status: "draft", publishAt: "2099-01-01T00:00:00Z" }, nowMs: now })).toBe(false);
+    expect(isScheduledPost({ input: { status: "published", publishAt: "2020-01-01T00:00:00Z" }, nowMs: now })).toBe(false);
+    expect(isScheduledPost({ input: { status: "published", publishAt: null }, nowMs: now })).toBe(false);
   });
 });
 
@@ -64,18 +65,18 @@ describe("usePostEditor — publishAt / featured image", () => {
   it("loads both fields, reports scheduled, and a save that did not touch them sends neither key", async () => {
     const stored = { ...POST, status: "published" as const, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" };
     const port = createFakePostEditorPort({ post: stored });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
-    expect(result.current.publishAtInput).toBe(isoToLocalDateTimeInput(stored.publishAt));
+    expect(result.current.publishAtInput).toBe(isoToLocalDateTimeInput({ iso: stored.publishAt }));
     expect(result.current.featuredMediaId).toBe("m1");
     expect(result.current.scheduled).toBe(true);
     expect(result.current.dirty).toBe(false);
 
-    act(() => result.current.setSlug("renamed"));
+    act(() => result.current.setSlug({ value: "renamed" }));
     await act(async () => {
-      await result.current.save();
+      await result.current.save({});
     });
     expect("publishAt" in port.updatePostCalls[0]).toBe(false);
     expect("featuredMediaId" in port.updatePostCalls[0]).toBe(false);
@@ -83,18 +84,18 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("changing either field marks the editor dirty and saves the UTC time and the media id", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
-    const local = isoToLocalDateTimeInput("2099-03-04T05:06:00.000Z");
+    const local = isoToLocalDateTimeInput({ iso: "2099-03-04T05:06:00.000Z" });
     act(() => {
       result.current.setPublishAtInput(local);
       result.current.setFeaturedMediaId("m9");
     });
     await waitFor(() => expect(result.current.dirty).toBe(true));
     await act(async () => {
-      await result.current.save("published");
+      await result.current.save({}, { statusOverride: "published" });
     });
 
     expect(port.updatePostCalls[0]).toMatchObject({ publishAt: "2099-03-04T05:06:00.000Z", featuredMediaId: "m9", status: "published" });
@@ -103,32 +104,32 @@ describe("usePostEditor — publishAt / featured image", () => {
 
   it("publishing with a future time reports it as scheduled for that local time, not published", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
-    const local = isoToLocalDateTimeInput("2099-03-04T05:06:00.000Z");
+    const local = isoToLocalDateTimeInput({ iso: "2099-03-04T05:06:00.000Z" });
     act(() => result.current.setPublishAtInput(local));
     await act(async () => {
-      await result.current.save("published");
+      await result.current.save({}, { statusOverride: "published" });
     });
     expect(result.current.message).toBe(`Scheduled for ${local.replace("T", " ")} · version ${port.post.version}`);
   });
 
   it("publishing with no time, or a past one, still says Published", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2001-01-01T00:00:00.000Z" } });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.post).not.toBeNull());
     await act(async () => {
-      await result.current.save("published");
+      await result.current.save({}, { statusOverride: "published" });
     });
     expect(result.current.message).toBe(`Published · version ${port.post.version}`);
   });
 
   it("clearing a stored schedule and image sends explicit nulls", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, publishAt: "2099-01-01T16:30:00.000Z", featuredMediaId: "m1" } });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: vi.fn(), t: fakeT }));
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: vi.fn(), t: fakeT } }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => expect(result.current.featuredMediaId).toBe("m1"));
 
@@ -137,7 +138,7 @@ describe("usePostEditor — publishAt / featured image", () => {
       result.current.setFeaturedMediaId(null);
     });
     await act(async () => {
-      await result.current.save();
+      await result.current.save({});
     });
     expect(port.updatePostCalls[0]).toMatchObject({ publishAt: null, featuredMediaId: null });
   });
@@ -146,8 +147,8 @@ describe("usePostEditor — publishAt / featured image", () => {
 describe("usePostFeaturedImage", () => {
   it("closing the picker cancels without changing the current image", () => {
     const onChange = vi.fn();
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage("m7", onChange, { port }));
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
+    const { result } = renderHook(() => usePostFeaturedImage({ value: "m7", onChange: onChange, deps: { port } }));
 
     act(() => result.current.openPicker());
     expect(result.current.pickerOpen).toBe(true);
@@ -160,14 +161,14 @@ describe("usePostFeaturedImage", () => {
 
   it("selecting stores the asset id and closes; clear sends null; preview uses the media URL", () => {
     const onChange = vi.fn();
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, onChange, { port }), {
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: onChange, deps: { port } }), {
       initialProps: { value: null as string | null },
     });
     expect(result.current.previewUrl).toBeNull();
     act(() => result.current.openPicker());
     expect(result.current.pickerOpen).toBe(true);
-    act(() => result.current.handleSelect({ id: "m7" } as AdminMedia));
+    act(() => result.current.handleSelect({ item: { id: "m7" } as AdminMedia }));
     expect(onChange).toHaveBeenLastCalledWith("m7");
     expect(result.current.pickerOpen).toBe(false);
     rerender({ value: "m7" });
@@ -177,14 +178,14 @@ describe("usePostFeaturedImage", () => {
   });
 
   it("asks the picker for images only", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
-    const { result } = renderHook(() => usePostFeaturedImage(null, vi.fn(), { port }));
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
+    const { result } = renderHook(() => usePostFeaturedImage({ value: null, onChange: vi.fn(), deps: { port } }));
     expect(result.current.accept).toEqual(["image/*"]);
   });
 
   it("a preview that fails to load is reported until the value changes", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port }), {
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port } }), {
       initialProps: { value: "m-video" as string | null },
     });
     expect(result.current.previewFailed).toBe(false);
@@ -195,9 +196,9 @@ describe("usePostFeaturedImage", () => {
   });
 
   it("previews the resized rendition first, drops to the original when it fails, and fails only after both", () => {
-    const port = { mediaOriginalUrl: (id: string) => `/media/${id}` };
-    const renditionUrl = (id: string) => `/m/${id}/og.v1/image.jpg`;
-    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage(value, vi.fn(), { port, renditionUrl }), {
+    const port = { mediaOriginalUrl: ({ id }: { id: string }) => `/media/${id}` };
+    const renditionUrl = ({ id }: { id: string }) => `/m/${id}/og.v1/image.jpg`;
+    const { result, rerender } = renderHook(({ value }) => usePostFeaturedImage({ value: value, onChange: vi.fn(), deps: { port, renditionUrl } }), {
       initialProps: { value: "m1" as string | null },
     });
     expect(result.current.previewUrl).toBe("/m/m1/og.v1/image.jpg");

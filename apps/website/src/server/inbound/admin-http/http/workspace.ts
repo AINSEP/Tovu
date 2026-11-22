@@ -1,7 +1,7 @@
 import type { WorkspaceRecord } from "#src/features/workspace/index";
 
 /**
- * @file Admin-facing workspace response DTO (SPEC-044, mirrors `admin/users.ts`'s pattern).
+ * @file Admin-facing workspace response DTO (SPEC-044, mirrors `apps/website/src/server/inbound/admin-http/http/users.ts`'s pattern).
  *
  * Purpose:
  * `WorkspaceRecord` has no sensitive fields (unlike `UserRecord.passwordHash`), so this mapper is a
@@ -17,9 +17,10 @@ export interface AdminWorkspaceResponse {
   name: string;
   slug: string;
   createdAt: string;
+  version: number;
 }
 
 /** Serialize a `WorkspaceRecord` to `AdminWorkspaceResponse`. @complexity O(1). @overallScore 100 */
 export function toAdminWorkspaceResponse(workspace: WorkspaceRecord): AdminWorkspaceResponse {
-  return { id: workspace.id, name: workspace.name, slug: workspace.slug, createdAt: workspace.createdAt };
+  return { id: workspace.id, name: workspace.name, slug: workspace.slug, createdAt: workspace.createdAt, version: workspace.version };
 }

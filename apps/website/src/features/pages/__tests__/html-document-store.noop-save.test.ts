@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { createPost, updatePost, type PostRepoPort } from "../../post/post.js";
+import { type PostRepoPort } from "../../post/post.js";
+import { createPost } from "../../post/post-create.js";
+import { updatePost } from "../../post/post-update.js";
 import { postRepoFor } from "../../post/repo.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
@@ -32,7 +34,7 @@ function saveContract(make: () => Harness): void {
   test("HTML page metadata saves skip unchanged content and preserve HTML on a real metadata edit", async () => {
     const { repo, store: makeStore } = make();
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
-    await makeStore().ensureHtmlFormat("<p>original</p>");
+    await makeStore().ensureHtmlFormat({ seedHtml: "<p>original</p>" });
     const before = await repo.findById(key);
     assert.ok(before);
     const history = await repo.listRevisions(scope);
@@ -52,24 +54,24 @@ function saveContract(make: () => Harness): void {
     const { repo, refs, store: makeStore } = make();
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
     const store = makeStore();
-    await store.ensureHtmlFormat("<p>original</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>original</p>" });
     const before = await repo.findById(key);
     const history = await repo.listRevisions(scope);
     const replacements = refs.replacements;
 
-    await store.write(await store.read());
-    await store.write("<p>original</p>");
+    await store.write({ html: await store.read() });
+    await store.write({ html: "<p>original</p>" });
     assert.deepEqual(await repo.findById(key), before);
     assert.deepEqual(await repo.listRevisions(scope), history);
     assert.equal(store.capturedVersion(), before?.version);
     assert.equal(refs.replacements, replacements);
 
-    await store.write("<p>changed</p>");
+    await store.write({ html: "<p>changed</p>" });
     const changed = await repo.findById(key);
     assert.equal(changed?.version, before!.version + 1);
     assert.equal((await repo.listRevisions(scope)).length, history.length + 1);
     assert.equal(refs.replacements, replacements + 1);
-    await store.write("<p>changed</p>");
+    await store.write({ html: "<p>changed</p>" });
     assert.deepEqual(await repo.findById(key), changed);
     assert.equal((await repo.listRevisions(scope)).length, history.length + 1);
   });
@@ -79,10 +81,10 @@ function saveContract(make: () => Harness): void {
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
     const store = makeStore();
     const canonical = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
-    await store.ensureHtmlFormat(canonical);
+    await store.ensureHtmlFormat({ seedHtml: canonical });
     const before = await repo.findById(key);
     const history = await repo.listRevisions(scope);
-    await store.write(`<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`);
+    await store.write({ html: `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>` });
     assert.deepEqual(await repo.findById(key), before);
     assert.deepEqual(await repo.listRevisions(scope), history);
   });
@@ -91,24 +93,24 @@ function saveContract(make: () => Harness): void {
     const { repo, store: makeStore } = make();
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
     const stale = makeStore();
-    await stale.ensureHtmlFormat("<p>original</p>");
+    await stale.ensureHtmlFormat({ seedHtml: "<p>original</p>" });
     const before = await repo.findById(key);
-    await stale.write("<p>original</p>");
+    await stale.write({ html: "<p>original</p>" });
     assert.deepEqual(await repo.findById(key), before);
     const winner = makeStore();
     await winner.read();
-    await winner.write("<p>winner</p>");
+    await winner.write({ html: "<p>winner</p>" });
     const current = await repo.findById(key);
     const history = await repo.listRevisions(scope);
-    await assert.rejects(stale.write("<p>winner</p>"), PageConcurrentEditError);
-    await assert.rejects(stale.write("<p>original</p>"), PageConcurrentEditError);
+    await assert.rejects(stale.write({ html: "<p>winner</p>" }), PageConcurrentEditError);
+    await assert.rejects(stale.write({ html: "<p>original</p>" }), PageConcurrentEditError);
     assert.deepEqual(await repo.findById(key), current);
     assert.deepEqual(await repo.listRevisions(scope), history);
   });
 }
 
 describe("HTML no-op saves: memory", () => saveContract(() => {
-  const repo = new InMemoryPostRepo();
+  const repo = new InMemoryPostRepo({});
   const refs = new CountingEntryRefs();
   return { repo, refs, store: () => new InMemoryPagesHtmlDocumentStore(scope, { repo, clock, entryRefsRepo: refs }) };
 }));
@@ -126,9 +128,9 @@ describeEachDialect("HTML no-op saves: SQL", {
     const { kernel, repo } = make();
     await createPost({ deps: { repo, clock }, input: { ...key, title: "About", kind: "page" } });
     const store = new SqlPagesHtmlDocumentStore(scope, { kernel, clock });
-    await store.ensureHtmlFormat("<p>original</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>original</p>" });
     const before = await repo.findById(key);
-    await store.write("<p>original</p>");
+    await store.write({ html: "<p>original</p>" });
     assert.deepEqual(await repo.findById(key), before);
     assert.equal(store.capturedVersion(), before?.version);
   });

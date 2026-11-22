@@ -1,4 +1,4 @@
-import { agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandleSegment } from "@jini-ai/core/agent-handles";
 import type { ForwardedRef, RefObject } from "react";
 
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
@@ -20,16 +20,20 @@ export interface OtherCredentialRemoveDialogActions {
 /**
  * `OtherCredentialRemoveDialog`'s close/confirm — extracted verbatim, same two calls, same order.
  *
- * @param ref - The forwarded ref `OtherCredentialRemoveDialog` receives from its caller.
- * @param row - The credential row this confirm dialog is for.
- * @param controller - `OtherCredentialsController.remove` is the one call this hook makes.
+ * @param required - The dialog and controller inputs.
+ * @param required.ref - The forwarded ref `OtherCredentialRemoveDialog` receives from its caller.
+ * @param required.row - The credential row this confirm dialog is for.
+ * @param required.controller - `OtherCredentialsController.remove` is the one call this hook makes.
  * @returns `close`/`confirm`, wired directly to the dialog's Cancel/"Remove from Tovu" buttons.
  * @complexity O(1).
  */
 export function useOtherCredentialRemoveDialog(
-  ref: ForwardedRef<HTMLDialogElement>,
-  row: OtherCredentialRowState,
-  controller: OtherCredentialsController
+  { ref, row, controller }: {
+    ref: ForwardedRef<HTMLDialogElement>;
+    row: OtherCredentialRowState;
+    controller: OtherCredentialsController;
+  },
+  _optional: Record<string, never> = {},
 ): OtherCredentialRemoveDialogActions {
   function close(): void {
     (ref as RefObject<HTMLDialogElement>).current?.close();

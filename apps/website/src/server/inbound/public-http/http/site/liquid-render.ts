@@ -1,14 +1,11 @@
-import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
+import { Liquid, Hash, type Tag, type TagToken, type Context, type FS } from "liquidjs";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone } from "@jini-ai/cms/widgets/date-label";
 import { lintLiquidTemplate } from "#src/features/theme/liquid-allowlist";
-import {
-  buildTemplateRenderData,
-  renderBlockSeam,
-  RENDER_CTX_KEY,
-  type SiteRenderContext,
-} from "./render.js";
+import type { SiteRenderContext } from "./render-context.js";
+import { renderBlockSeam } from "./render/blocks.js";
+import { buildTemplateRenderData } from "./render/template-render-data.js";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js";
 
 /**
@@ -36,6 +33,14 @@ import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js"
  * had a gap.
  */
 
+/**
+ * Key under which the live `SiteRenderContext` is handed to a template engine's `render_block`
+ * seam. Never part of the data a template can name: the Liquid worker puts it in the render scope
+ * (where the tag reads it back with `ctx.getSync`), the Handlebars worker puts it in a private `@`
+ * data frame that its own allowlist refuses to let a template address.
+ */
+export const RENDER_CTX_KEY = "__siteCtx";
+
 /** Reports every path as absent; every LiquidJS `fs` read goes through this and fails closed. */
 export const NO_ACCESS_FS: FS = {
   exists: async () => false,
@@ -53,13 +58,11 @@ export const NO_ACCESS_FS: FS = {
 
 /** `{% render_block %}` — the seam back into Tovu's trusted component registry, registered on every engine. */
 const RENDER_BLOCK_TAG = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parse(this: any, token: TagToken) {
-    this.hash = new Hash(token.args);
+  parse(this: Tag, token: TagToken) {
+    (this as Tag & { hash: Hash }).hash = new Hash(token.args);
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
-    const props = (yield this.hash.render(ctx)) as JsonObject;
+  *render(this: Tag, ctx: Context): Generator<unknown, string, unknown> {
+    const props = (yield (this as Tag & { hash: Hash }).hash.render(ctx)) as JsonObject;
     const siteCtx = ctx.getSync([RENDER_CTX_KEY]) as SiteRenderContext | undefined;
     if (!siteCtx) return `<!-- render_block: no site context -->`;
 
@@ -68,7 +71,7 @@ const RENDER_BLOCK_TAG = {
     // required" — a region is a `render_block` call over a resolved, ordered widget list instead of
     // a single component). `renderBlockSeam` (render.ts) owns that resolution and is shared with the
     // Handlebars tier's own `render_block` helper.
-    return renderBlockSeam(siteCtx, props);
+    return renderBlockSeam({ ctx: siteCtx, props });
   },
 };
 
@@ -150,7 +153,7 @@ export function runLiquidRender({ workerData }: { workerData: unknown }): Liquid
   // Defensive re-check (belt-and-suspenders): `loadTheme()` already linted
   // this source at discovery time; re-lint unconditionally here in case the
   // file changed on disk since. No worker payload may bypass this boundary.
-  const violations = lintLiquidTemplate(source);
+  const violations = lintLiquidTemplate({ source });
   if (violations.length > 0) {
     return { ok: false, error: `disallowed Liquid usage: ${violations.join("; ")}` };
   }

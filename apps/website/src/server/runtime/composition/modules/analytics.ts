@@ -14,8 +14,8 @@ import type { ServerModuleHandle } from "./types.js";
 export function createAnalyticsModule(deps: AdminAnalyticsRecentHitsDeps): ServerModuleHandle {
   return {
     name: "analytics",
-    registerRoutes: (app) => {
-      registerAdminAnalyticsRecentHitsRoute(app, deps);
+    registerRoutes: ({ app }, _options = {}) => {
+      registerAdminAnalyticsRecentHitsRoute({ app, deps });
     },
   };
 }

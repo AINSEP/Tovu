@@ -66,7 +66,7 @@ export type { ConfirmationTokenRecord } from "@jini-ai/core/gated-mutations";
 export interface TokenStorePort {
   /** Insert only; expiry/redemption must never overwrite a previously issued token via save. */
   save(record: ConfirmationTokenRecord): Promise<void>;
-  findByToken(token: string): Promise<ConfirmationTokenRecord | null>;
+  findByToken(required: { token: string }): Promise<ConfirmationTokenRecord | null>;
   tryRedeem(required: { token: string; now: string }): Promise<{ redeemed: boolean; record: ConfirmationTokenRecord | null }>;
   count(): Promise<number>;
   expire(required: { token: string }): Promise<void>;
@@ -77,7 +77,7 @@ export function adaptTokenStore(required: { store: TokenStorePort }): ApprovalTo
   const { store } = required;
   return {
     save: ({ record }) => store.save(record),
-    findByToken: ({ token }) => store.findByToken(token),
+    findByToken: ({ token }) => store.findByToken({ token }),
     tryRedeem: request => store.tryRedeem(request),
     expire: async request => {
       if (typeof store.expire !== "function") throw new Error("atomic confirmation-token expiry is not configured");
@@ -139,7 +139,7 @@ export function expireToken(required: { store: TokenStorePort; token: string; no
 export class InMemoryTokenStore implements TokenStorePort {
   private readonly store = new JiniTokenStore({});
   async save(record: ConfirmationTokenRecord): Promise<void> { await this.store.save({ record }); }
-  async findByToken(token: string): Promise<ConfirmationTokenRecord | null> { return this.store.findByToken({ token }); }
+  async findByToken({ token }: { token: string }): Promise<ConfirmationTokenRecord | null> { return this.store.findByToken({ token }); }
   async tryRedeem(required: { token: string; now: string }): Promise<{ redeemed: boolean; record: ConfirmationTokenRecord | null }> { return this.store.tryRedeem(required); }
   async expire(required: { token: string }): Promise<void> { await this.store.expire(required); }
   async count(): Promise<number> { return this.store.count({}); }
